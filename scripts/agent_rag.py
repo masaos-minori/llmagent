@@ -220,9 +220,27 @@ class RagPipeline:
         Returns empty string when search is disabled or yields no results.
         debug_fn receives (queries, all_results, merged, reranked) when provided;
         use it to print intermediate pipeline data for debugging.
+
+        When cfg.rag_service_url is set, delegates to the external RAG HTTP service
+        (POST /v1/search) instead of running in-process. Falls back to in-process on
+        HTTP failure so the REPL continues without a RAG service.
         """
         if not self._cfg.use_search:
             return ""
+        # HTTP mode: delegate to external RAG service when rag_service_url is configured
+        rag_url = self._cfg.rag_service_url
+        if rag_url:
+            try:
+                resp = await self._http.post(
+                    f"{rag_url}/v1/search",
+                    json={"query": query, "history_context": history_context},
+                )
+                resp.raise_for_status()
+                return str(resp.json().get("context", ""))
+            except Exception as e:
+                logger.warning(
+                    f"RAG service call failed ({rag_url}), falling back to in-process: {e}"
+                )
         try:
             db = SQLiteHelper().open(row_factory=True)
         except Exception as e:

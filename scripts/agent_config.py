@@ -148,11 +148,16 @@ class AgentConfig:
     refiner_max_tokens: int
     refiner_timeout: float
     refiner_max_chars_per_chunk: int
-    # Tool loop guards: detect repeated calls and consecutive all-error turns
+    # Tool loop guards: detect repeated calls, cyclic rounds, and consecutive all-error turns
     tool_dedup_max_repeats: int
+    # Window size for cyclic planning detection (round-level fingerprint repetition); 0 disables
+    tool_cycle_detect_window: int
     tool_error_max_consecutive: int
     # Per-server transport configuration (keyed by server role: "file", "github", "web_search")
     mcp_servers: dict[str, McpServerConfig] = field(default_factory=dict)
+
+    # Optional URL for external RAG HTTP service (port 8010); empty = in-process
+    rag_service_url: str = ""
 
     # ── URL / HTTP config (hot-reloadable via /reload) ─────────────────────────
     chat_url: str = ""
@@ -227,6 +232,11 @@ class AgentConfig:
             raise ValueError(
                 f"tool_dedup_max_repeats must be >= 1, got {self.tool_dedup_max_repeats}"
             )
+        if self.tool_cycle_detect_window < 0:
+            raise ValueError(
+                "tool_cycle_detect_window must be >= 0,"
+                f" got {self.tool_cycle_detect_window}"
+            )
         if self.tool_error_max_consecutive < 0:
             raise ValueError(
                 "tool_error_max_consecutive must be >= 0,"
@@ -284,7 +294,9 @@ def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
         refiner_timeout=float(cfg.get("refiner_timeout", 30.0)),
         refiner_max_chars_per_chunk=int(cfg.get("refiner_max_chars_per_chunk", 300)),
         tool_dedup_max_repeats=int(cfg.get("tool_dedup_max_repeats", 3)),
+        tool_cycle_detect_window=int(cfg.get("tool_cycle_detect_window", 2)),
         tool_error_max_consecutive=int(cfg.get("tool_error_max_consecutive", 3)),
+        rag_service_url=cfg.get("rag_service_url", ""),
         mcp_servers=_build_mcp_servers(cfg),
         chat_url=cfg.get("chat_url", ""),
         code_url=cfg.get("code_url", ""),

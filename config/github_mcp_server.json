@@ -5,7 +5,7 @@
     "allowed_repos":     "書き込み系操作を許可するリポジトリの許可リスト (owner/repo 形式)。空リストは全リポジトリを許可する",
     "protected_branches":"書き込み操作を禁止するブランチ名のパターンリスト (fnmatch glob)。例: [\"main\", \"release/*\"]。空リストはブランチ制限なし",
     "allow_force_push":  "false のとき rebase マージを禁止する。rebase はコミット履歴を書き換えるため force push 相当になる (デフォルト: true)",
-    "require_pr_review": "将来拡張用フラグ (現在未実装)。true のとき PR マージ前にレビュー必須とする"
+    "require_pr_review": "true のとき PR マージ前に APPROVED レビューが 1 件以上必要。未承認の場合は 403 を返す (デフォルト: false)"
   },
   "default_per_page":  20,
   "max_per_page":      100,

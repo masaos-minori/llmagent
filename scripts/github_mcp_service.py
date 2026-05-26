@@ -597,6 +597,17 @@ class GitHubService:
             pr = repo.get_pull(number=req.pr_number)
             # Block merge into protected base branch
             GitHubService._assert_allowed_branch(req.owner, req.repo, pr.base.ref)
+            # Require at least one approved review when require_pr_review is true
+            if _get_cfg().get("require_pr_review", False):
+                reviews = pr.get_reviews()
+                if not any(r.state == "APPROVED" for r in reviews):
+                    raise HTTPException(
+                        status_code=403,
+                        detail=(
+                            f"PR #{req.pr_number} has no approved review"
+                            " (require_pr_review=true)"
+                        ),
+                    )
             # Build merge kwargs; title/message are optional overrides
             kwargs: dict[str, Any] = {"merge_method": req.merge_method}
             if req.commit_title:

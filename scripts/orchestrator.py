@@ -40,6 +40,13 @@ _DEDUP_HINT = (
     " Stop retrying and provide your best answer with the information already available."
 )
 
+# Injected into LLM history when a cyclic round-level planning pattern is detected
+_CYCLE_HINT = (
+    "[System] A cyclic planning pattern was detected: the same set of tool calls"
+    " is being requested repeatedly across multiple rounds. Stop and provide your"
+    " best answer with the information already available."
+)
+
 
 class Orchestrator:
     """Turn-level coordinator: RAG -> compression -> LLM loop -> tool dispatch.
@@ -125,6 +132,8 @@ class Orchestrator:
         # Dedup: track (tool_name:args_json) md5 -> call count across all inner turns
         seen_calls: dict[str, int] = {}
         consecutive_errors: int = 0
+        # Cycle detection: fingerprints of each round's tool call set (sorted, md5)
+        round_fingerprints: list[str] = []
 
         for turn in range(ctx.cfg.max_tool_turns):
             if self._on_turn_start:
@@ -182,6 +191,29 @@ class Orchestrator:
                 return answer
 
             ctx.history.append(message)
+
+            # Cycle detection: abort when the same round-level tool fingerprint repeats
+            if ctx.cfg.tool_cycle_detect_window > 0:
+                round_key = hashlib.md5(
+                    "|".join(
+                        sorted(
+                            f"{tc.get('function', {}).get('name', '')}:"
+                            f"{tc.get('function', {}).get('arguments', '{}')}"
+                            for tc in message["tool_calls"]
+                        )
+                    ).encode()
+                ).hexdigest()
+                if (
+                    round_fingerprints.count(round_key)
+                    >= ctx.cfg.tool_cycle_detect_window
+                ):
+                    logger.warning(
+                        f"Cyclic planning detected: round fingerprint {round_key!r}"
+                        f" repeated {round_fingerprints.count(round_key)} times"
+                    )
+                    ctx.history.append({"role": "user", "content": _CYCLE_HINT})
+                    return "Cyclic tool call pattern detected."
+                round_fingerprints.append(round_key)
 
             # Dedup: block re-execution of identical (tool, args) within this turn sequence
             dedup_name: str | None = None

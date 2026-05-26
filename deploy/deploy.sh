@@ -88,6 +88,7 @@ cp "${REPO_ROOT}/scripts/file_delete_mcp_server.py" "${DEPLOY_SCRIPTS}/"
 cp "${REPO_ROOT}/scripts/shell_mcp_models.py"      "${DEPLOY_SCRIPTS}/"
 cp "${REPO_ROOT}/scripts/shell_mcp_service.py"     "${DEPLOY_SCRIPTS}/"
 cp "${REPO_ROOT}/scripts/shell_mcp_server.py"      "${DEPLOY_SCRIPTS}/"
+cp "${REPO_ROOT}/scripts/rag_mcp_server.py"        "${DEPLOY_SCRIPTS}/"
 
 # ── プラグイン ────────────────────────────────────────────────────────────────
 echo "--- plugins/ → /opt/llm/plugins/ ---"
@@ -106,6 +107,7 @@ cp "${REPO_ROOT}/config/file_read_mcp_server.json"   "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/file_write_mcp_server.json"  "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/file_delete_mcp_server.json" "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/shell_mcp_server.json"       "${DEPLOY_CONFIG}/"
+cp "${REPO_ROOT}/config/rag_mcp_server.json"         "${DEPLOY_CONFIG}/"
 
 # ── SQL 参照定義 ──────────────────────────────────────────────────────────────
 echo "--- db/rrf.sql → ${DEPLOY_DB}/ ---"
