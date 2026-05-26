@@ -80,7 +80,7 @@ Entry point: `agent.py` → `asyncio.run(AgentREPL().run())`.
 
 `AgentREPL` (`agent_repl.py`) wires all components into `AgentContext` via `_init_components()` and drives the input/command dispatch loop in `_repl_loop()`. MCP subprocess lifecycle, health checks, and watchdog are also owned here. Turn-level logic is delegated to `Orchestrator`.
 
-`Orchestrator` (`orchestrator.py`) handles one conversation turn end-to-end: RAG augmentation → history compression → LLM streaming loop → tool dispatch. Owns `_run_turn()` with duplicate tool call detection (`tool_dedup_max_repeats`) and consecutive all-error guard (`tool_error_max_consecutive`). All terminal output is routed via callbacks (`on_turn_start`, `on_turn_end`, `on_error`) — no `print()` in this module.
+`Orchestrator` (`orchestrator.py`) handles one conversation turn end-to-end: RAG augmentation → history compression → LLM streaming loop → tool dispatch. Owns `_run_turn()` with three tool loop guards: individual call dedup (`tool_dedup_max_repeats`), round-level cyclic planning detection (`tool_cycle_detect_window` — aborts when the same set of tool calls repeats across N consecutive rounds), and consecutive all-error guard (`tool_error_max_consecutive`). All terminal output is routed via callbacks (`on_turn_start`, `on_turn_end`, `on_error`) — no `print()` in this module.
 
 Heavy subsystems live in satellite modules:
 
@@ -129,6 +129,8 @@ Two internal namespaces:
 
 Pipeline flow: MQE → vector search (`chunks_vec`) → FTS5 (`chunks_fts`) → RRF → rerank. Context is injected into the system prompt before each LLM turn.
 
+`augment()` supports two execution modes: in-process (default) and HTTP (`rag_service_url` non-empty). In HTTP mode the call goes to `rag_mcp_server.py` (port 8010); the service itself always runs in-process to prevent loops.
+
 ### DB Layer
 
 `sqlite_helper.py` — `SQLiteHelper` connection manager. All connections apply WAL / `synchronous=NORMAL` / `busy_timeout` unconditionally via `_apply_connection_pragmas()`. Use `begin_immediate()` / `begin_exclusive()` context managers for multi-statement write transactions. `health_check()` returns journal mode, integrity, and page stats. `checkpoint(mode)` flushes the WAL; `vacuum()` rebuilds the DB file in place.
@@ -153,6 +155,7 @@ Each MCP server follows a three-layer structure: models / service / server. Comm
 | shell-mcp (sandboxed command execution) | 8009 | `shell_mcp_models.py` | `shell_mcp_service.py` | `shell_mcp_server.py` |
 | github-mcp | 8006 | `github_mcp_models.py` | `github_mcp_service.py` | `github_mcp_server.py` |
 | web-search-mcp | 8004 | — | — | `web_search_mcp_server.py` |
+| rag-mcp (external RAG HTTP service) | 8010 | — | — | `rag_mcp_server.py` |
 
 **Common base**: `mcp_server.py` — base class inherited by all MCP servers; provides FastAPI app startup, the `/v1/call_tool` endpoint, and `/health`. `mcp_models.py` — `CallToolRequest` / `CallToolResponse` Pydantic models for `/v1/call_tool`. `formatters.py` — two formatter families: one for LLM context, one for terminal output.
 
@@ -172,9 +175,11 @@ All config values (URLs, `tool_definitions`, `system_prompts`, RAG flags, LLM pa
 
 Key tool-result budget fields: `tool_result_max_llm_chars` (per-result truncation limit) and `tool_results_turn_max_chars` (per-turn total budget; results exceeding the budget are replaced with a `/tool show <id>` retrieval hint in LLM history).
 
-Tool loop guard fields: `tool_dedup_max_repeats` (blocks repeated calls of the same tool+args after this many occurrences) and `tool_error_max_consecutive` (aborts the turn when all tools return errors for this many consecutive tool-call rounds; 0 disables).
+Tool loop guard fields: `tool_dedup_max_repeats` (blocks repeated calls of the same tool+args after this many occurrences), `tool_cycle_detect_window` (computes MD5 of sorted tool-call set per round; aborts when same fingerprint appears ≥ N times; 0 disables), and `tool_error_max_consecutive` (aborts the turn when all tools return errors for this many consecutive tool-call rounds; 0 disables).
 
-`config/github_mcp_server.json`: `protected_branches` (list of fnmatch glob patterns; write operations targeting a matching branch are blocked with 403), `allow_force_push` (when false, rebase merges are prohibited), `require_pr_review` (reserved for future use).
+`rag_service_url`: when non-empty, `RagPipeline.augment()` delegates to an external HTTP service (`POST /v1/search`) instead of running in-process; falls back to in-process on HTTP error. The service (`rag_mcp_server.py`, port 8010) forces `rag_service_url=""` at startup to prevent recursive HTTP calls.
+
+`config/github_mcp_server.json`: `protected_branches` (list of fnmatch glob patterns; write operations targeting a matching branch are blocked with 403), `allow_force_push` (when false, rebase merges are prohibited), `require_pr_review` (when true, `merge_pull_request` checks `pr.get_reviews()` for at least one APPROVED state; returns 403 if none found).
 
 When adding a new `scripts/*.py` module, also add a `cp` line to `deploy/deploy.sh`.
 
