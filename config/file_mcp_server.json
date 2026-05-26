@@ -1,0 +1,14 @@
+{
+  "_doc": {
+    "allowed_dirs":       "アクセスを許可するベースディレクトリの絶対パスリスト。パストラバーサル攻撃防止のため、ここに列挙したディレクトリ配下のみ読み書きを許可する",
+    "max_read_bytes":     "read_file / read_multiple_files で読み込めるファイルサイズの上限 (バイト)。1,000,000 = 1 MB",
+    "max_write_bytes":    "write_file で書き込めるコンテンツサイズの上限 (バイト)。1,000,000 = 1 MB",
+    "max_tree_depth":     "directory_tree の再帰深さ上限。深すぎると大量のエントリを返すため制限する",
+    "max_search_results": "search_files が返す最大件数。glob で大量一致した場合の安全弁"
+  },
+  "allowed_dirs":       ["/opt/llm"],
+  "max_read_bytes":      1000000,
+  "max_write_bytes":     1000000,
+  "max_tree_depth":      5,
+  "max_search_results":  200
+}

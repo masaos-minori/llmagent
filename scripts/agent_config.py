@@ -1,0 +1,328 @@
+#!/usr/bin/env python3
+"""
+agent_config.py
+Shared configuration dataclass and loader for the agent pipeline.
+All runtime-configurable values live in AgentConfig (hot-reloadable via /reload).
+Only BUDGET_WARN_RATIO and path constants remain at module level.
+"""
+
+import logging
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from config_loader import ConfigLoader
+
+_cfg: dict | None = None
+
+
+def _get_cfg() -> dict:
+    """Load config on first call; cached for the module lifetime."""
+    global _cfg
+    if _cfg is None:
+        try:
+            _cfg = ConfigLoader().load("common.json", "agent.json")
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Config load failed: {e}")
+            _cfg = {}
+    return _cfg
+
+
+# Warn when total LLM input exceeds this fraction of context_char_limit (0.8 = 80%)
+BUDGET_WARN_RATIO: float = 0.8
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+_CONFIG_DIR = _SCRIPTS_DIR.parent / "config"
+
+
+@dataclass
+class McpServerConfig:
+    """Transport configuration for one MCP server.
+
+    transport: "http" uses url + httpx; "stdio" spawns cmd as a subprocess.
+    openrc_service: OpenRC service name used by the watchdog to restart HTTP servers.
+    """
+
+    transport: str  # "http" | "stdio"
+    url: str  # base URL (transport="http")
+    cmd: list[str]  # command argv (transport="stdio")
+    openrc_service: str  # e.g. "file-mcp"  (transport="http", watchdog restart)
+
+    def __post_init__(self) -> None:
+        if self.transport not in ("http", "stdio"):
+            raise ValueError(
+                f"McpServerConfig.transport must be 'http' or 'stdio', got {self.transport!r}"
+            )
+        if self.transport == "http" and not self.url:
+            raise ValueError(
+                "McpServerConfig: url must not be empty when transport='http'"
+            )
+        if self.transport == "stdio" and not self.cmd:
+            raise ValueError(
+                "McpServerConfig: cmd must not be empty when transport='stdio'"
+            )
+
+
+def _build_mcp_servers(cfg: dict) -> dict[str, McpServerConfig]:
+    """Build per-server transport config from agent.json.
+
+    If 'mcp_servers' is present, use it directly.
+    Otherwise fall back to legacy url keys (web_search_url, file_server_url, etc.).
+    """
+    raw: dict = cfg.get("mcp_servers", {})
+    if raw:
+        return {
+            key: McpServerConfig(
+                transport=v.get("transport", "http"),
+                url=v.get("url", ""),
+                cmd=list(v.get("cmd", [])),
+                openrc_service=v.get("openrc_service", ""),
+            )
+            for key, v in raw.items()
+        }
+    # Backwards compat: derive from legacy URL constants
+    return {
+        "web_search": McpServerConfig(
+            "http", cfg.get("web_search_url", ""), [], "web-search-mcp"
+        ),
+        "file": McpServerConfig(
+            "http",
+            cfg.get("file_server_url", "http://127.0.0.1:8005"),
+            [],
+            "file-mcp",
+        ),
+        "github": McpServerConfig(
+            "http",
+            cfg.get("github_server_url", "http://127.0.0.1:8006"),
+            [],
+            "github-mcp",
+        ),
+    }
+
+
+@dataclass
+class AgentConfig:
+    """Mutable runtime configuration shared by all agent components."""
+
+    context_char_limit: int
+    context_compress_turns: int
+    tool_cache_ttl: float
+    top_k_search: int
+    top_k_rerank: int
+    rag_top_k: int
+    use_mqe: bool
+    use_search: bool
+    use_rrf: bool
+    use_rerank: bool
+    llm_max_retries: int
+    llm_retry_base_delay: float
+    # Rerank score threshold: chunks scoring below this value are discarded (0–10 scale)
+    rag_min_score: float
+    # Max chunks per document to include after dedup; prevents near-duplicate flooding
+    max_chunks_per_doc: int
+    # Two-stage fetch: expand to full document when LLM signals insufficient context
+    use_two_stage_fetch: bool
+    two_stage_max_docs: int
+    # When True, tool calls are executed one by one instead of asyncio.gather()
+    serial_tool_calls: bool
+    # When True, all notes from the notes table are appended to the system prompt
+    # at startup
+    auto_inject_notes: bool
+    # Tool result summarization: replace truncation with LLM summary above threshold
+    use_tool_summarize: bool
+    tool_summarize_threshold: int
+    # Semantic cache: reuse RAG context for queries with cosine similarity >= threshold
+    use_semantic_cache: bool
+    semantic_cache_threshold: float
+    semantic_cache_max_size: int
+    # Startup check: compare agent.json tool_definitions against /v1/tools from
+    # each MCP server
+    tool_definitions_strict: bool
+    # MCP watchdog: probe interval in seconds; 0 disables
+    mcp_watchdog_interval: float
+    mcp_watchdog_max_restarts: int
+    # Tools that require interactive y/N confirmation before execution
+    require_approval_tools: list[str]
+    # Argument fields to redact in console output (e.g. "file_content")
+    masked_fields: list[str]
+    # Tools blocked when plan_mode is active; empty list means block nothing
+    plan_blocked_tools: list[str]
+    # LLM generation parameters for the main conversation turn (hot-reloadable)
+    llm_temperature: float
+    llm_max_tokens: int
+    # RAG context Refiner: compress chunks to query-relevant key points before injection
+    use_refiner: bool
+    refiner_max_tokens: int
+    refiner_timeout: float
+    refiner_max_chars_per_chunk: int
+    # Per-server transport configuration (keyed by server role: "file", "github", "web_search")
+    mcp_servers: dict[str, McpServerConfig] = field(default_factory=dict)
+
+    # ── URL / HTTP config (hot-reloadable via /reload) ─────────────────────────
+    chat_url: str = ""
+    code_url: str = ""
+    file_server_url: str = "http://127.0.0.1:8005"
+    github_url: str = "http://127.0.0.1:8006"
+    web_search_url: str = ""
+    embed_url: str = "http://127.0.0.1:8003/embedding"
+    http_timeout: float = 30.0
+    default_mode: str = "chat"
+    web_search_max_results: int = 5
+
+    # ── Tool / prompt config (hot-reloadable via /reload) ──────────────────────
+    # Tool definitions loaded from agent.json; reloaded via /reload
+    tool_definitions: list[dict] = field(default_factory=list)
+    # Named system prompt presets for /system command (agent.json system_prompts)
+    system_prompts: dict[str, str] = field(default_factory=dict)
+    system_prompt_tool: str = ""
+    max_tool_turns: int = 5
+    # Max characters of a tool result injected into LLM context; truncates beyond this
+    tool_result_max_llm_chars: int = 8000
+    # Max total chars of all tool results injected into the LLM history within one turn;
+    # results exceeding this budget are replaced with a retrieval hint for /tool show
+    tool_results_turn_max_chars: int = 50000
+
+    def __post_init__(self) -> None:
+        if self.context_char_limit < 0:
+            raise ValueError(
+                f"context_char_limit must be >= 0, got {self.context_char_limit}"
+            )
+        if self.top_k_search < 1:
+            raise ValueError(f"top_k_search must be >= 1, got {self.top_k_search}")
+        if self.top_k_rerank < 1:
+            raise ValueError(f"top_k_rerank must be >= 1, got {self.top_k_rerank}")
+        if self.rag_top_k < 1:
+            raise ValueError(f"rag_top_k must be >= 1, got {self.rag_top_k}")
+        if self.llm_max_retries < 0:
+            raise ValueError(
+                f"llm_max_retries must be >= 0, got {self.llm_max_retries}"
+            )
+        if self.llm_retry_base_delay <= 0:
+            raise ValueError(
+                f"llm_retry_base_delay must be > 0, got {self.llm_retry_base_delay}"
+            )
+        if not 0.0 <= self.llm_temperature <= 2.0:
+            raise ValueError(
+                f"llm_temperature must be in [0.0, 2.0], got {self.llm_temperature}"
+            )
+        if self.llm_max_tokens < 1:
+            raise ValueError(f"llm_max_tokens must be >= 1, got {self.llm_max_tokens}")
+        if self.rag_min_score < 0.0:
+            raise ValueError(f"rag_min_score must be >= 0, got {self.rag_min_score}")
+        if self.max_chunks_per_doc < 1:
+            raise ValueError(
+                f"max_chunks_per_doc must be >= 1, got {self.max_chunks_per_doc}"
+            )
+        if self.two_stage_max_docs < 1:
+            raise ValueError(
+                f"two_stage_max_docs must be >= 1, got {self.two_stage_max_docs}"
+            )
+        if self.refiner_max_tokens < 1:
+            raise ValueError(
+                f"refiner_max_tokens must be >= 1, got {self.refiner_max_tokens}"
+            )
+        if self.refiner_timeout <= 0:
+            raise ValueError(f"refiner_timeout must be > 0, got {self.refiner_timeout}")
+        if self.refiner_max_chars_per_chunk < 1:
+            raise ValueError(
+                f"refiner_max_chars_per_chunk must be >= 1,"
+                f" got {self.refiner_max_chars_per_chunk}"
+            )
+
+
+def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
+    """Construct AgentConfig from config dict.
+
+    If cfg_override is provided, uses it directly (for /reload and tests).
+    Otherwise loads from config files via _get_cfg().
+    """
+    cfg = cfg_override if cfg_override is not None else _get_cfg()
+    system_prompt_tool = cfg.get("system_prompt_tool", "")
+    return AgentConfig(
+        context_char_limit=cfg.get("context_char_limit", 8000),
+        context_compress_turns=cfg.get("context_compress_turns", 4),
+        tool_cache_ttl=cfg.get("tool_cache_ttl", 300),
+        top_k_search=cfg.get("top_k_search", 20),
+        top_k_rerank=cfg.get("top_k_rerank", 15),
+        rag_top_k=int(cfg.get("rag_top_k", 5)),
+        use_mqe=cfg.get("use_mqe", True),
+        use_search=cfg.get("use_search", True),
+        use_rrf=cfg.get("use_rrf", True),
+        use_rerank=cfg.get("use_rerank", True),
+        llm_max_retries=int(cfg.get("llm_max_retries", 3)),
+        llm_retry_base_delay=float(cfg.get("llm_retry_base_delay", 1.0)),
+        rag_min_score=float(cfg.get("rag_min_score", 0.0)),
+        max_chunks_per_doc=int(cfg.get("max_chunks_per_doc", 2)),
+        use_two_stage_fetch=bool(cfg.get("use_two_stage_fetch", False)),
+        two_stage_max_docs=int(cfg.get("two_stage_max_docs", 2)),
+        serial_tool_calls=bool(cfg.get("serial_tool_calls", False)),
+        auto_inject_notes=bool(cfg.get("auto_inject_notes", True)),
+        use_tool_summarize=bool(cfg.get("use_tool_summarize", False)),
+        tool_summarize_threshold=int(cfg.get("tool_summarize_threshold", 3000)),
+        use_semantic_cache=bool(cfg.get("use_semantic_cache", False)),
+        semantic_cache_threshold=float(cfg.get("semantic_cache_threshold", 0.92)),
+        semantic_cache_max_size=int(cfg.get("semantic_cache_max_size", 100)),
+        tool_definitions_strict=bool(cfg.get("tool_definitions_strict", False)),
+        mcp_watchdog_interval=float(cfg.get("mcp_watchdog_interval", 0.0)),
+        mcp_watchdog_max_restarts=int(cfg.get("mcp_watchdog_max_restarts", 3)),
+        require_approval_tools=list(cfg.get("require_approval_tools", [])),
+        masked_fields=list(cfg.get("masked_fields", ["file_content"])),
+        plan_blocked_tools=list(
+            cfg.get(
+                "plan_blocked_tools",
+                ["write_file", "create_directory", "delete_file", "delete_directory"],
+            )
+        ),
+        llm_temperature=float(cfg.get("llm_temperature", 0.2)),
+        llm_max_tokens=int(cfg.get("llm_max_tokens", 1024)),
+        use_refiner=bool(cfg.get("use_refiner", False)),
+        refiner_max_tokens=int(cfg.get("refiner_max_tokens", 512)),
+        refiner_timeout=float(cfg.get("refiner_timeout", 30.0)),
+        refiner_max_chars_per_chunk=int(cfg.get("refiner_max_chars_per_chunk", 300)),
+        mcp_servers=_build_mcp_servers(cfg),
+        chat_url=cfg.get("chat_url", ""),
+        code_url=cfg.get("code_url", ""),
+        file_server_url=cfg.get("file_server_url", "http://127.0.0.1:8005"),
+        github_url=cfg.get("github_server_url", "http://127.0.0.1:8006"),
+        web_search_url=cfg.get("web_search_url", ""),
+        embed_url=cfg.get("embed_url", "http://127.0.0.1:8003/embedding"),
+        http_timeout=float(cfg.get("http_timeout", 30.0)),
+        default_mode=cfg.get("default_mode", "chat"),
+        web_search_max_results=int(cfg.get("web_search_max_results", 5)),
+        tool_definitions=list(cfg.get("tool_definitions", [])),
+        system_prompts=dict(cfg.get("system_prompts", {"default": system_prompt_tool})),
+        system_prompt_tool=system_prompt_tool,
+        max_tool_turns=int(cfg.get("max_tool_turns", 5)),
+        tool_result_max_llm_chars=int(cfg.get("tool_result_max_llm_chars", 8000)),
+        tool_results_turn_max_chars=int(cfg.get("tool_results_turn_max_chars", 50000)),
+    )
+
+
+@dataclass
+class DbConfig:
+    """Immutable configuration for the SQLite database and embedding service."""
+
+    db_path: str
+    sqlite_vec_so: str
+    embed_url: str
+    sqlite_timeout: int = 30
+
+    def __post_init__(self) -> None:
+        if not self.db_path:
+            raise ValueError("db_path must not be empty")
+        if not self.sqlite_vec_so:
+            raise ValueError("sqlite_vec_so must not be empty")
+        if not self.embed_url:
+            raise ValueError("embed_url must not be empty")
+        if self.sqlite_timeout < 1:
+            raise ValueError(f"sqlite_timeout must be >= 1, got {self.sqlite_timeout}")
+
+
+def build_db_config() -> "DbConfig":
+    """Construct DbConfig from common.json configuration via _get_cfg()."""
+    cfg = _get_cfg()
+    return DbConfig(
+        db_path=cfg.get("db_path", ""),
+        sqlite_vec_so=cfg.get("sqlite_vec_so", ""),
+        embed_url=cfg.get("embed_url", ""),
+        sqlite_timeout=int(cfg.get("sqlite_timeout", 30)),
+    )

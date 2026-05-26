@@ -1,0 +1,12 @@
+{
+  "_doc": {
+    "allowed_dirs":        "アクセスを許可するディレクトリのリスト。symlink 解決後のパスで境界チェックを行う",
+    "max_read_bytes":      "1 ファイルあたりの最大読み取りバイト数",
+    "max_tree_depth":      "directory_tree の最大再帰深さ",
+    "max_search_results":  "search_files で返す最大件数"
+  },
+  "allowed_dirs":        ["/opt/llm", "/workspace"],
+  "max_read_bytes":      1000000,
+  "max_tree_depth":      5,
+  "max_search_results":  200
+}

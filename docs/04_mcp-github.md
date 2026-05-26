@@ -1,0 +1,209 @@
+# GitHub 操作 MCP サーバ (github-mcp)
+
+## 1. GitHub 操作 MCP サーバ (github-mcp)
+
+### 1.1 機能概要
+
+`github_mcp_server.py` は GitHub API を HTTP 経由で提供する MCP 互換サーバ。`@modelcontextprotocol/server-github` 相当の機能を Python + PyGithub で実装している。HTTP モード (ポート 8006) で動作する。
+
+| 起動モード | 利用元 | 提供機能 |
+|---|---|---|
+| HTTP モード (ポート 8006) | `agent_repl.py` (HTTP モード) | 23 エンドポイント (全 HTTP API) |
+
+HTTP の操作エンドポイント (POST) と MCP ツールは 1 対 1 で対応。`/health` は MCP ツールとして非公開。
+
+**認証・レート制限:** PyGithub は同期 API のため `asyncio.to_thread` でスレッドプールに委譲する。`GITHUB_TOKEN` (PAT: Personal Access Token) 未設定の場合は匿名アクセスとなり、GitHub API のレート制限が 60 req/hour に制限される。`GithubException` は HTTP エラーコードに応じて 404 / 403 / 502 に変換する。
+
+| エンドポイント | メソッド | 説明 |
+|---|---|---|
+| `/search_repositories` | POST | GitHub リポジトリを検索する |
+| `/get_file_contents` | POST | リポジトリ内のファイル内容を取得する |
+| `/push_files` | POST | 複数ファイルを単一コミットとして push する (原子的操作) |
+| `/delete_repo_file` | POST | リポジトリのファイルを削除する |
+| `/list_branches` | POST | ブランチ一覧を取得する |
+| `/get_commit` | POST | 特定のコミット詳細を取得する |
+| `/list_issues` | POST | イシュー一覧を取得する |
+| `/get_issue` | POST | 特定のイシューを取得する |
+| `/create_issue` | POST | イシューを作成する |
+| `/search_issues` | POST | イシュー/PR をキーワード検索する |
+| `/list_pull_requests` | POST | プルリクエスト一覧を取得する |
+| `/get_pull_request` | POST | 特定のプルリクエストを取得する |
+| `/search_pull_requests` | POST | プルリクエストをキーワード検索する |
+| `/update_pull_request` | POST | プルリクエストのタイトル/本文/状態を更新する |
+| `/merge_pull_request` | POST | プルリクエストをマージする |
+| `/list_commits` | POST | コミット一覧を取得する |
+| `/search_code` | POST | コードを検索する |
+| `/create_pull_request` | POST | プルリクエストを作成する |
+| `/create_branch` | POST | ブランチを作成する |
+| `/create_or_update_file` | POST | リポジトリ内のファイルを作成または更新する |
+| `/add_issue_comment` | POST | イシューにコメントを投稿する |
+| `/health` | GET | ヘルスチェック |
+| `/v1/call_tool` | POST | ツール名と引数を受け取り、フォーマット済みテキスト結果を返す (HTTP トランスポートモード用) |
+| `/v1/tools` | GET | ツール名と説明一覧を返す (エージェント起動時のツール定義検証用) |
+
+書き込み系操作の許可リスト (`allowed_repos`)
+
+`config/github_mcp_server.json` の `allowed_repos` に `owner/repo` 形式で許可リポジトリを列挙する。リストが空 (デフォルト) のときは全リポジトリを許可する。対象外リポジトリへの書き込みは HTTP 403 を返す。書き込み系対象: `create_branch`, `create_or_update_file`, `push_files`, `delete_file`, `create_issue`, `add_issue_comment`, `create_pull_request`, `update_pull_request`, `merge_pull_request`。
+
+### 1.2 サービス構成ファイル
+
+| ファイル | 配置先 | 説明 |
+|---|---|---|
+| `scripts/github_mcp_server.py` | `/opt/llm/scripts/github_mcp_server.py` | GitHub MCP サーバ本体 |
+| `config/github_mcp_server.json` | `/opt/llm/config/github_mcp_server.json` | 取得件数上限設定 |
+| `init.d/github-mcp` | `/etc/init.d/github-mcp` | OpenRC 起動スクリプト |
+| `conf.d/github-mcp` | `/etc/conf.d/github-mcp` | GITHUB_TOKEN 設定ファイル |
+
+### 1.3 インストール
+
+```bash
+# 1. PyGithub をインストールする
+source /opt/llm/venv/bin/activate
+pip install "PyGithub>=2.3.0"
+
+# 2. GitHub Personal Access Token を取得して設定する
+#    GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
+#    必要なスコープ: Contents (read/write), Issues (read/write), Pull requests (read/write)
+#    ※ push_files / delete_repo_file / create_or_update_file を使う場合は Contents write が必要
+#    ※ merge_pull_request / update_pull_request を使う場合は Pull requests write が必要
+cp conf.d/github-mcp /etc/conf.d/github-mcp
+vi /etc/conf.d/github-mcp
+#   GITHUB_TOKEN="<取得した PAT>"
+
+# 3. スクリプトと設定ファイルを配置する (deploy.sh で一括実施可能)
+cp scripts/github_mcp_server.py /opt/llm/scripts/
+cp config/github_mcp_server.json /opt/llm/config/
+
+# 4. OpenRC スクリプトを配置して有効化する
+cp init.d/github-mcp /etc/init.d/github-mcp
+chmod +x /etc/init.d/github-mcp
+rc-update add github-mcp default
+
+# 5. サービスを起動する
+rc-service github-mcp start
+
+# 6. 動作確認
+curl -s http://127.0.0.1:8006/health
+# → {"status":"ok","github_token":"set"}
+#    github_token が "not_set" の場合は /etc/conf.d/github-mcp を確認する
+
+curl -s -X POST http://127.0.0.1:8006/search_repositories \
+  -H "Content-Type: application/json" \
+  -d '{"query": "sqlite-vec language:C stars:>100", "per_page": 3}' \
+  | python3 -m json.tool
+```
+
+### 1.4 使用方法
+
+```bash
+# agent.py REPL 経由での利用 (LLM が自律的に GitHub ツールを選択する)
+source /opt/llm/venv/bin/activate
+python /opt/llm/scripts/agent.py
+# agent[chat]> sqlite-vec の最新バージョンと主な機能を教えてください
+
+# HTTP API 直接呼び出し
+curl -s -X POST http://127.0.0.1:8006/search_repositories \
+  -H "Content-Type: application/json" \
+  -d '{"query": "sqlite-vec language:C stars:>100", "per_page": 3}' \
+  | python3 -m json.tool
+# → {"query": "...", "results": [{"full_name": "...", "description": "...", "url": "...", "stars": 1234}]}
+
+curl -s -X POST http://127.0.0.1:8006/get_file_contents \
+  -H "Content-Type: application/json" \
+  -d '{"owner": "asg017", "repo": "sqlite-vec", "path": "README.md"}' \
+  | python3 -m json.tool
+# → {"path": "README.md", "content": "...", "sha": "..."}
+```
+
+### 1.5 設定項目
+
+| パラメータ | ファイル | デフォルト | 説明 |
+|---|---|---|---|
+| `default_per_page` | `config/github_mcp_server.json` | 20 | 一覧取得のデフォルト件数 |
+| `max_per_page` | `config/github_mcp_server.json` | 100 | 一覧取得の最大件数 |
+
+### 1.6 実装方式
+
+| 機能 | 実装 |
+|---|---|
+| フレームワーク | FastAPI + Uvicorn (ポート 8006) |
+| 起動モード | HTTP モード (ポート 8006、OpenRC サービス `github-mcp`) |
+| GitHub API クライアント | PyGithub (同期ライブラリ) を `asyncio.to_thread` でスレッドプール実行 |
+| 認証 | `GITHUB_TOKEN` 環境変数 (PAT) → `Github(auth=Auth.Token(...))` で初期化; 未設定時は匿名 (60 req/hour) |
+| エラー変換 | `_handle_github_error()` で `GithubException` を HTTP ステータスコード (404/403/502) に変換して raise |
+| ページネーション | `itertools.islice` で `per_page` 件に打ち切り |
+
+### 1.7 入出力インタフェース
+
+**HTTP API** (3.1 機能概要のエンドポイント表を参照)
+
+主要なリクエスト / レスポンス:
+
+| エンドポイント | リクエスト | レスポンス |
+|---|---|---|
+| `POST /search_repositories` | `{query: str, per_page?: int}` | `{query, results: [{full_name, description, url, stars, forks, language, updated_at}]}` |
+| `POST /get_file_contents` | `{owner, repo, path, ref?}` | `{path, content, sha, size, encoding}` |
+| `POST /create_or_update_file` | `{owner, repo, path, content, message, branch?, sha?}` | `{path, commit_sha, operation}` (`operation` は `"created"` or `"updated"`) |
+| `POST /list_issues` | `{owner, repo, state?}` | `{issues: [{number, title, state, url, body, created_at, updated_at, labels, assignees}]}` |
+| `POST /merge_pull_request` | `{owner, repo, pr_number, merge_method?, commit_title?, commit_message?}` | `{pr_number, merged, sha, message}` |
+| `POST /v1/call_tool` | `{name: str, args: dict}` | `{result: str, is_error: bool}` |
+
+`merge_method` は `"merge"` / `"squash"` / `"rebase"` (デフォルト: `"merge"`)。
+
+`search_pull_requests` はクエリに `is:pr` を自動付加するため、クエリ文字列への明示的な記述は不要。
+
+**MCP ツール:** HTTP の操作エンドポイント (POST) と 1 対 1 で対応する 21 ツール (ツール名はすべて `github_` プレフィックス)
+
+### 1.8 エラーハンドリング
+
+| ケース | 対処 |
+|---|---|
+| `GithubException` (404) | HTTP 404 (リポジトリ・ファイル不存在) |
+| `GithubException` (403) | HTTP 403 (API レート制限またはアクセス拒否) |
+| `GithubException` (その他) | HTTP 502 + エラーコードと詳細 |
+| `GITHUB_TOKEN` 未設定 | 匿名アクセスで動作継続 (60 req/hour 制限) |
+| `per_page` 上限超過 | `min(req.per_page, MAX_PER_PAGE)` でサーバ側で打ち切り |
+
+### 1.9 ログ出力
+
+- **ファイル:** `/opt/llm/logs/github-mcp.log` + 標準エラー出力
+- **フォーマット:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
+
+| レベル | タイミング |
+|---|---|
+| `INFO` | 各操作の種別、リポジトリ名、取得件数 |
+
+### 1.10 クラス API
+
+`GithubMCPServer` は `MCPServer` を継承し、HTTP モード起動ロジックを提供する。`MCPServer` 共通 API は `docs/06_ref-mcp.md` §2 を参照。
+
+```python
+from github_mcp_server import GithubMCPServer
+
+GithubMCPServer().run()
+```
+
+| クラス属性 | 値 | 説明 |
+|---|---|---|
+| `server_name` | `"github-mcp"` | MCP `initialize` レスポンスのサーバ識別名 |
+| `server_version` | `"1.0.0"` | バージョン文字列 |
+| `http_port` | `8006` | HTTP モード待受ポート |
+| `app_module` | `"github_mcp_server:app"` | uvicorn 起動ターゲット |
+| `mcp_tools` | `_MCP_TOOLS` | `tools/list` に返すツール定義 (21 種、すべて `github_` プレフィックス) |
+
+| メソッド | 説明 |
+|---|---|
+| `dispatch(name, args) -> tuple[str, bool]` | `_dispatch_github_tool(name, args)` に委譲する。`_GITHUB_DISPATCH` テーブルでツール名を解決し、対応する FastAPI ハンドラを直接呼び出す。`(result_text, is_error)` を返す |
+| `run() -> None` | HTTP サーバを起動する (継承) |
+
+**HTTP エンドポイント `POST /v1/call_tool`**
+
+```json
+// リクエスト
+{"name": "github_search_repositories", "args": {"query": "fastapi"}}
+
+// レスポンス
+{"result": "[tiangolo/fastapi](https://...) ★78000 Python\n...", "is_error": false}
+```
+
+---

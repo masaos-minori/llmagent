@@ -1,0 +1,10 @@
+{
+  "_doc": {
+    "default_per_page": "一覧系エンドポイントのデフォルト取得件数。リクエスト側で上書き可能",
+    "max_per_page":     "一覧系エンドポイントで取得できる最大件数。GitHub API のレート制限とレスポンスサイズのバランスで設定する",
+    "allowed_repos":    "書き込み系操作を許可するリポジトリの許可リスト (owner/repo 形式)。空リストは全リポジトリを許可する"
+  },
+  "default_per_page": 20,
+  "max_per_page":     100,
+  "allowed_repos":    []
+}

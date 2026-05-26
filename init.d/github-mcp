@@ -1,0 +1,28 @@
+#!/sbin/openrc-run
+# github-mcp: GitHub 操作 MCP サーバ (FastAPI + Uvicorn) の OpenRC 起動スクリプト
+
+description="GitHub MCP server (FastAPI/Uvicorn :8006)"
+
+# GITHUB_TOKEN は /etc/conf.d/github-mcp で設定する
+# rc_env_file で起動前に環境変数として読み込む (web-search-mcp と同方式)
+rc_env_file="/etc/conf.d/github-mcp"
+
+command="/opt/llm/venv/bin/uvicorn"
+command_args="github_mcp_server:app --host 127.0.0.1 --port 8006 --workers 1"
+command_background="yes"
+command_user="root"
+
+# github_mcp_server.py が存在するディレクトリで起動する (Python モジュール解決のため)
+directory="/opt/llm/scripts"
+
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/opt/llm/logs/github-mcp.log"
+error_log="/opt/llm/logs/github-mcp.log"
+
+depend() {
+    need net
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /opt/llm/logs
+}

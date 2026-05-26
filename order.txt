@@ -1,0 +1,50 @@
+以下の問題点を検討し、改修計画を立案せよ
+
+# アーキテクチャ境界が曖昧
+
+現状は `agent.py` に責務が集中している。`AgentREPL` が RAG、ツール実行、履歴管理、LLM 呼び出し、セッション管理まで統括しており、中央オーケストレーター化している。
+
+## 改善点:
+
+* `agent.py` を UI 層のみに限定
+* タスク制御を `orchestrator.py` に分離
+* MCP 呼び出しを `ToolExecutor` から独立サービス化
+* RAG パイプラインを独立プロセス化
+
+# GitHub MCP の権限設計不足
+
+`allowed_repos` のみでは不十分。
+
+## 不足:
+
+* branch 制限
+* protected branch 制御
+* PR review policy
+* force push 禁止
+
+## 改善点:
+
+```json
+{
+  "protected_branches": ["main", "release/*"],
+  "allow_force_push": false
+}
+```
+
+
+# Tool 実行無限ループ対策不足
+
+`max_tool_turns` のみ。
+
+不足:
+
+* 同一 tool repeated call
+* recursive retry
+* hallucinated tool
+* cyclic planning
+
+改善点:
+
+* tool call hash
+* repeated detection
+* DAG task graph

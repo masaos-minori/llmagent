@@ -1,0 +1,8 @@
+{
+  "_doc": {
+    "allowed_dirs":      "書き込みを許可するディレクトリのリスト。読み取りより狭く設定することを推奨",
+    "max_write_bytes":   "1 ファイルあたりの最大書き込みバイト数"
+  },
+  "allowed_dirs":      ["/opt/llm/workspace"],
+  "max_write_bytes":   1000000
+}

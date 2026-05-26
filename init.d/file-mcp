@@ -1,0 +1,27 @@
+#!/sbin/openrc-run
+# file-mcp: ローカルファイル操作 MCP サーバ (FastAPI/Uvicorn :8005) の OpenRC 起動スクリプト
+
+description="File Operations MCP Server (FastAPI/Uvicorn :8005)"
+
+command="/opt/llm/venv/bin/uvicorn"
+command_args="file_mcp_server:app --host 127.0.0.1 --port 8005 --workers 1"
+command_background="yes"
+command_user="root"
+
+# file_mcp_server.py が存在するディレクトリに移動してから起動する
+# Python モジュール解決 (import file_mcp_server) はカレントディレクトリを参照するため必須
+directory="/opt/llm/scripts"
+
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/opt/llm/logs/file-mcp.log"
+error_log="/opt/llm/logs/file-mcp.log"
+
+depend() {
+    # ネットワーク起動後に実行する
+    need net
+}
+
+start_pre() {
+    # ログディレクトリが存在しない場合は作成する
+    checkpath --directory --owner root:root --mode 0755 /opt/llm/logs
+}

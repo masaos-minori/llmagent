@@ -1,0 +1,22 @@
+# /etc/conf.d/web-search-mcp
+# web-search-mcp サービスの環境変数設定ファイル
+#
+# 各検索プロバイダの API キーを取得して以下に設定する。
+# 設定していないプロバイダは自動的にスキップされ、次のプロバイダにフォールバックする。
+# プロバイダの優先順位は config/web_search_mcp_server.json の search_providers で設定する。
+#
+# [Brave Search]
+#   https://brave.com/search/api/ で無料アカウントを作成 (2000 req/月)
+#
+# [Bing Web Search]
+#   https://azure.microsoft.com/products/ai-services/bing-search/ で取得
+#   Azure の Cognitive Services (Bing Search v7) が必要
+#
+# [DuckDuckGo]
+#   API キー不要。duckduckgo-search ライブラリが venv に必要
+#   pip install "duckduckgo-search>=6.0.0"
+#
+# 設定後: rc-service web-search-mcp restart
+
+BRAVE_API_KEY=""
+BING_API_KEY=""

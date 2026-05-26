@@ -1,0 +1,23 @@
+#!/sbin/openrc-run
+# file-read-mcp: 読み取り専用ファイル操作 MCP サーバ (FastAPI/Uvicorn :8005) の OpenRC 起動スクリプト
+
+description="File Read-Only MCP Server (FastAPI/Uvicorn :8005)"
+
+command="/opt/llm/venv/bin/uvicorn"
+command_args="file_read_mcp_server:app --host 127.0.0.1 --port 8005 --workers 1"
+command_background="yes"
+command_user="root"
+
+directory="/opt/llm/scripts"
+
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/opt/llm/logs/file-read-mcp.log"
+error_log="/opt/llm/logs/file-read-mcp.log"
+
+depend() {
+    need net
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /opt/llm/logs
+}

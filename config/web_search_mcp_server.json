@@ -1,0 +1,16 @@
+{
+  "_doc": {
+    "search_providers":    "Web 検索プロバイダの優先順位リスト。先頭から順に試み、失敗またはゼロ件のとき次にフォールバックする。選択肢: 'brave' / 'bing' / 'duckduckgo'",
+    "default_max_results": "リクエストで max_results を省略した場合のデフォルト取得件数",
+    "max_results_limit":   "サーバ側で許可する取得件数の上限。サーバ負荷抑制のため上限を設ける",
+    "http_timeout":        "Brave / Bing API への HTTP リクエストタイムアウト (秒)",
+    "brave_search_url":    "Brave Search API の検索エンドポイント URL (変更不要)",
+    "bing_search_url":     "Bing Web Search API v7 の検索エンドポイント URL (変更不要)"
+  },
+  "search_providers":    ["brave", "bing", "duckduckgo"],
+  "default_max_results": 5,
+  "max_results_limit":   20,
+  "http_timeout":        30.0,
+  "brave_search_url":    "https://api.search.brave.com/res/v1/web/search",
+  "bing_search_url":     "https://api.bing.microsoft.com/v7.0/search"
+}

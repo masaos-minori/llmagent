@@ -1,0 +1,22 @@
+#!/sbin/openrc-run
+# コード生成 LLM: Qwen2.5-Coder-7B を port 8001 で起動する
+
+description="Coding LLM server (qwen2.5-coder-7b) on :8001"
+
+command="/opt/llm/llama.cpp/build/bin/llama-server"
+command_args="
+    --model /opt/llm/models/qwen2.5-coder-7b-instruct-q4_k_m.gguf
+    --host 127.0.0.1
+    --port 8001
+    --ctx-size 8192
+    --threads 4
+    --n-predict 1024
+    --repeat-penalty 1.05"
+command_background=true
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/opt/llm/logs/llama-coding-llm.log"
+error_log="/opt/llm/logs/llama-coding-llm.log"
+
+depend() {
+    need net
+}

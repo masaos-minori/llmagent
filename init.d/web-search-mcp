@@ -1,0 +1,31 @@
+#!/sbin/openrc-run
+# web-search-mcp: Brave Search API を使った Web 検索 MCP サーバ (FastAPI/Uvicorn :8004) の OpenRC 起動スクリプト
+
+description="Web Search MCP Server (FastAPI/Uvicorn :8004)"
+
+command="/opt/llm/venv/bin/uvicorn"
+command_args="web_search_mcp_server:app --host 127.0.0.1 --port 8004 --workers 1"
+command_background="yes"
+command_user="root"
+
+# web_search_mcp_server.py が存在するディレクトリに移動してから起動する
+# Python モジュール解決 (import web_search_mcp_server) はカレントディレクトリを参照するため必須
+directory="/opt/llm/scripts"
+
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/opt/llm/logs/web-search-mcp.log"
+error_log="/opt/llm/logs/web-search-mcp.log"
+
+# Brave Search API キーを環境変数として渡す
+# /etc/conf.d/web-search-mcp に BRAVE_API_KEY=<キー> を記載して設定する
+rc_env_file="/etc/conf.d/web-search-mcp"
+
+depend() {
+    # ネットワーク起動後に実行する
+    need net
+}
+
+start_pre() {
+    # ログディレクトリが存在しない場合は作成する
+    checkpath --directory --owner root:root --mode 0755 /opt/llm/logs
+}

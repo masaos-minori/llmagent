@@ -1,0 +1,239 @@
+# 導入手順・デプロイ
+
+## 1. 事前準備
+
+### 1.1 Gentoo Linux パッケージ導入
+
+```bash
+# ビルドツール
+emerge --ask sys-devel/gcc sys-devel/make dev-util/cmake dev-util/ninja
+
+# SQLite (FTS5 有効、Gentoo の dev-db/sqlite は標準で FTS5 を含む)
+emerge --ask dev-db/sqlite
+
+# FTS5 動作確認
+sqlite3 :memory: "CREATE VIRTUAL TABLE t USING fts5(x); INSERT INTO t VALUES('テスト'); SELECT * FROM t WHERE t MATCH 'テスト';"
+
+# Python 3.13 以上
+emerge --ask dev-lang/python:3.13
+
+# BeautifulSoup4 の lxml パーサ用ライブラリ
+emerge --ask dev-libs/libxml2 dev-libs/libxslt
+
+# git (sqlite-vec・llama.cpp ソース取得用)
+emerge --ask dev-vcs/git
+```
+
+> Python の `sqlite3` モジュールがロード拡張に対応していない場合:
+> ```bash
+> echo 'dev-lang/python sqlite' >> /etc/portage/package.use/python
+> emerge --ask dev-lang/python
+> ```
+
+### 1.2 Python venv 構築
+
+```bash
+python3.13 -m venv /opt/llm/venv
+source /opt/llm/venv/bin/activate
+pip install --upgrade pip
+```
+
+`/opt/llm/venv/requirements.txt`:
+
+```
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+httpx>=0.27.0
+pydantic>=2.7.0
+requests>=2.32.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+trafilatura>=1.12.0
+langdetect>=1.0.9
+sudachipy>=0.6.8
+sudachidict-core
+huggingface-hub>=0.23.0
+duckduckgo-search>=6.0.0
+PyGithub>=2.3.0
+```
+
+```bash
+pip install -r /opt/llm/venv/requirements.txt
+```
+
+### 1.3 llama.cpp のビルド
+
+GGUF (GPT-Generated Unified Format) 形式のモデルを CPU で動作させる推論エンジン。
+
+```bash
+git clone https://github.com/ggerganov/llama.cpp.git /opt/llm/llama.cpp
+cd /opt/llm/llama.cpp
+
+# N100 は AVX2 非対応のため GGML_NATIVE=ON で利用可能な命令セットを自動検出する
+# -DGGML_AVX2=ON は N100 では使用不可
+cmake -B build \
+    -DGGML_NATIVE=ON \
+    -DLLAMA_SERVER=ON \
+    -DCMAKE_BUILD_TYPE=Release
+
+cmake --build build --config Release -j$(nproc)
+/opt/llm/llama.cpp/build/bin/llama-server --version
+```
+
+### 1.4 LLM モデルの取得
+
+```bash
+source /opt/llm/venv/bin/activate
+mkdir -p /opt/llm/models
+
+# 埋込用: multilingual-E5-small (384 次元)
+# E5 モデルのプレフィックス: 取込時 "passage: "、クエリ時 "query: "
+huggingface-cli download ggml-org/multilingual-e5-small-Q8_0-GGUF \
+    multilingual-e5-small-Q8_0.gguf \
+    --local-dir /opt/llm/models/
+mv /opt/llm/models/multilingual-e5-small-Q8_0.gguf \
+   /opt/llm/models/multilingual-E5-small.gguf
+
+# チャット用: gemma-4-e4b (Gemma 4 4B パラメータ instruction-tuned)
+huggingface-cli download bartowski/gemma-4-e4b-it-GGUF \
+    gemma-4-e4b-it-Q4_K_M.gguf \
+    --local-dir /opt/llm/models/
+
+# コード生成用: Qwen2.5-Coder-7B
+huggingface-cli download Qwen/Qwen2.5-Coder-7B-Instruct-GGUF \
+    qwen2.5-coder-7b-instruct-q4_k_m.gguf \
+    --local-dir /opt/llm/models/
+
+ls -lh /opt/llm/models/
+```
+
+#### 1.4.1 量子化方式の比較 (参考)
+
+| 方式 | ビット数 | RAM 削減 | 品質 | 用途 |
+|---|---|---|---|---|
+| Q2_K | 2bit | 最大 | 低 | RAM 極小環境 |
+| Q4_K_M | 4bit | 大 | 良好 | 推奨 (汎用) |
+| Q5_K_M | 5bit | 中 | 高 | 品質重視 |
+| Q8_0 | 8bit | 小 | 非常に高 | 評価・比較用 |
+
+### 1.5 sqlite-vec のビルド
+
+SQLite のベクトル近傍探索 (KNN: K-Nearest Neighbor) 拡張。`vec0` 仮想テーブルを通じてベクトル埋込の保存と類似度検索を提供。
+
+```bash
+git clone https://github.com/asg017/sqlite-vec.git /opt/llm/sqlite-vec
+cd /opt/llm/sqlite-vec
+
+make loadable
+
+ls -lh dist/vec0.so
+
+# agent.py / create_schema.py からの参照パスに合わせてシンボリックリンクを作成
+ln -sf dist/vec0.so /opt/llm/sqlite-vec/vec0.so
+
+# 動作確認
+sqlite3 :memory: "
+.load /opt/llm/sqlite-vec/vec0.so
+SELECT vec_version();
+"
+```
+
+---
+
+## 2. OpenRC サービス設定
+
+### 2.1 スクリプトのデプロイ
+
+`deploy/deploy.sh` がスクリプト・設定ファイル・SQL ファイルの一括コピーを実行。
+
+```bash
+# リポジトリのルートから実行する
+bash deploy/deploy.sh
+```
+
+deploy.sh が行う処理:
+- `/opt/llm/scripts/` に Python スクリプトをコピー
+- `/opt/llm/config/` に設定 JSON ファイルをコピー
+- `/opt/llm/db/` に `rrf.sql` をコピー
+- `/opt/llm/logs/`, `/opt/llm/rag-src/chunk/`, `/opt/llm/rag-src/registered/` を作成
+
+### 2.2 サービス登録・起動
+
+`deploy/setup_services.sh` が OpenRC スクリプトのデプロイ・サービス登録・起動を実行。
+
+```bash
+# deploy.sh 実行後に実行する
+bash deploy/setup_services.sh
+
+# ヘルスチェック (各サービスがモデルロードを完了するまで待機)
+curl -s http://127.0.0.1:8003/health   # embed-llm
+curl -s http://127.0.0.1:8002/health   # llama-chat-llm
+curl -s http://127.0.0.1:8001/health   # llama-coding-llm
+curl -s http://127.0.0.1:8004/health   # web-search-mcp
+curl -s http://127.0.0.1:8005/health   # file-mcp
+curl -s http://127.0.0.1:8006/health   # github-mcp
+
+# LLM サービスのモデルロード完了後に llama-agent を起動する
+rc-service llama-agent start
+```
+
+> `setup_services.sh` は `/etc/conf.d/web-search-mcp` および `/etc/conf.d/github-mcp` に空の API キーをコピーする。
+> Web 検索を使う場合は `BRAVE_API_KEY` / `BING_API_KEY` を `/etc/conf.d/web-search-mcp` に記入してから `rc-service web-search-mcp restart` を実行する。
+> GitHub 操作を使う場合は `GITHUB_TOKEN` を `/etc/conf.d/github-mcp` に記入してから `rc-service github-mcp restart` を実行する。
+
+---
+
+## 3. DB 初期化
+
+### 3.1 スキーマ適用
+
+```bash
+# deploy/deploy.sh 実行済みであること (スクリプトと設定ファイルが配置されていること)
+bash deploy/init_db.sh
+# 出力: Schema created successfully.
+# テーブル確認 (chunks  chunks_fts  chunks_vec  documents)
+```
+
+### 3.2 スキーマ概要
+
+| テーブル | 種別 | 主な列 | 用途 |
+|---|---|---|---|
+| `documents` | 通常 | `doc_id` PK, `url` UNIQUE, `lang` | URL 単位のドキュメント管理 |
+| `chunks` | 通常 | `chunk_id` PK, `doc_id` FK, `content` | 分割チャンク本文 |
+| `chunks_fts` | FTS5 仮想 | `content`, `content_rowid='chunk_id'` | BM25 全文検索 |
+| `chunks_vec` | vec0 仮想 | `chunk_id` PK, `embedding float[384]` | KNN ベクトル検索 |
+| `sessions` | 通常 | `session_id` PK, `created_at`, `title` | REPL セッション管理 |
+| `messages` | 通常 | `message_id` PK, `session_id` FK, `role`, `content`, `tool_calls` | 会話メッセージの永続化 |
+
+FTS5 は `chunks` テーブルの INSERT/UPDATE/DELETE に対してトリガーで自動同期 (`chunks_ai` / `chunks_au` / `chunks_ad`)。
+
+`sessions` と `messages` は REPL エージェント (`agent.py`) が使用する会話履歴の永続化テーブル。`/session list` で一覧表示、`/session load <id>` で過去セッションの文脈を復元可能。
+
+---
+
+## 4. 動作確認
+
+### 4.1 DB 統計
+
+```bash
+# RAG ドキュメント・チャンク
+sqlite3 /opt/llm/db/rag.sqlite "SELECT lang, COUNT(*) FROM documents GROUP BY lang;"
+sqlite3 /opt/llm/db/rag.sqlite "SELECT COUNT(*) FROM chunks;"
+sqlite3 /opt/llm/db/rag.sqlite "SELECT chunk_id, LENGTH(embedding) FROM chunks_vec LIMIT 3;"
+# Expected: LENGTH(embedding) = 1536 (384 次元 × 4 bytes)
+
+# セッション履歴
+sqlite3 /opt/llm/db/rag.sqlite "SELECT session_id, created_at, title FROM sessions ORDER BY session_id DESC LIMIT 5;"
+sqlite3 /opt/llm/db/rag.sqlite "SELECT COUNT(*) FROM messages;"
+```
+
+### 4.2 サービス疎通確認
+
+```bash
+curl -s http://127.0.0.1:8003/health  # embed-llm
+curl -s http://127.0.0.1:8002/health  # llama-chat-llm
+curl -s http://127.0.0.1:8001/health  # llama-coding-llm
+curl -s http://127.0.0.1:8004/health  # web-search-mcp
+curl -s http://127.0.0.1:8005/health  # file-mcp
+curl -s http://127.0.0.1:8006/health  # github-mcp
+```

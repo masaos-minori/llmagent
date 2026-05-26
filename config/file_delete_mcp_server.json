@@ -1,0 +1,8 @@
+{
+  "_doc": {
+    "allowed_dirs":      "削除を許可するディレクトリのリスト。最小権限原則に従い最も狭く設定する",
+    "audit_log_path":    "削除操作の audit ログファイルパス。全 delete_file / delete_directory 呼び出しを記録する"
+  },
+  "allowed_dirs":      ["/opt/llm/workspace"],
+  "audit_log_path":    "/opt/llm/logs/delete_audit.log"
+}

@@ -1,0 +1,22 @@
+{
+  "_doc": {
+    "db_path":                        "SQLite データベースファイルの絶対パス",
+    "sqlite_vec_so":                  "sqlite-vec 拡張の共有ライブラリ (.so) の絶対パス。vec0 仮想テーブルによるベクトル近傍探索 (KNN) に必要",
+    "embed_url":                      "多言語埋込 LLM (multilingual-E5-small) の HTTP エンドポイント。テキストを 384 次元ベクトルに変換する",
+    "sqlite_timeout":                 "sqlite3.connect() の timeout (秒)。WAL モードでも並列書き込み競合時に 'database is locked' を防ぐ",
+    "sqlite_busy_timeout_ms":         "PRAGMA busy_timeout の値 (ミリ秒)。ロック競合時に即時エラーではなく指定時間リトライする",
+    "sqlite_wal_checkpoint_mode":     "WAL チェックポイントモード。PASSIVE / FULL / RESTART / TRUNCATE から選択。通常は TRUNCATE 推奨",
+    "sqlite_retention_max_sessions":  "保持するセッション数の上限。超過した古いセッションを /db purge で削除する",
+    "sqlite_retention_max_age_days":  "セッションの保持期間 (日)。0 は期間制限なし",
+    "sqlite_archive_dir":             "DB ローテーション時のアーカイブ保存先ディレクトリ"
+  },
+  "db_path":                        "/opt/llm/db/rag.sqlite",
+  "sqlite_vec_so":                  "/opt/llm/sqlite-vec/vec0.so",
+  "embed_url":                      "http://127.0.0.1:8003/embedding",
+  "sqlite_timeout":                 30,
+  "sqlite_busy_timeout_ms":         30000,
+  "sqlite_wal_checkpoint_mode":     "TRUNCATE",
+  "sqlite_retention_max_sessions":  100,
+  "sqlite_retention_max_age_days":  90,
+  "sqlite_archive_dir":             "/opt/llm/db/archive"
+}
