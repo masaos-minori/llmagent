@@ -1,0 +1,62 @@
+# 取込パイプライン — 実行ガイド
+
+API リファレンス → [`docs/03_ref-ingestion.md`](03_ref-ingestion.md)
+
+## 1. ドキュメント収集・投入
+
+取込は `web_crawler.py` → `chunk_splitter.py` → `rag_ingester.py` の 3 ステップで実行する。
+事前に `deploy/deploy.sh` でスクリプトが配置済みであること。
+
+### 1.1 前提条件
+
+- `deploy/deploy.sh` が実行済み (スクリプト・設定ファイルが `/opt/llm/scripts/` に配置済み)
+- `embed-llm` サービスが起動済み (`curl -s http://127.0.0.1:8003/health` で確認)
+
+### 1.2 実行手順
+
+```bash
+source /opt/llm/venv/bin/activate
+
+# ── ステップ 1: クロール ──────────────────────────────────────────────────────
+# 全 TARGET_URLS のクロール (N100 では長時間: nohup 推奨)
+nohup python /opt/llm/scripts/web_crawler.py > /opt/llm/logs/crawl.log 2>&1 &
+
+tail -f /opt/llm/logs/crawl.log
+
+# 単一 URL のクロール
+python /opt/llm/scripts/web_crawler.py --url "https://ziglang.org/documentation/master/" --lang en
+
+# 複数 URL のクロール (同一 --lang が全 URL に適用される)
+python /opt/llm/scripts/web_crawler.py \
+    --url "https://ziglang.org/documentation/master/" \
+          "https://zig.guide/" \
+    --lang en
+
+# ── ステップ 2: チャンク分割 ─────────────────────────────────────────────────
+python /opt/llm/scripts/chunk_splitter.py
+
+# 特定ファイルのみ処理
+python /opt/llm/scripts/chunk_splitter.py --file /opt/llm/rag-src/20240101120000-ziglang.txt
+
+# 既存チャンクを再生成する場合 (--force)
+python /opt/llm/scripts/chunk_splitter.py --force
+
+# ── ステップ 3: 埋込生成・DB 投入 ────────────────────────────────────────────
+# embed-llm が起動していることを確認
+curl -s http://127.0.0.1:8003/health
+
+python /opt/llm/scripts/rag_ingester.py
+
+# 強制再登録 (既登録 URL を最新コンテンツで上書き)
+python /opt/llm/scripts/rag_ingester.py --force
+```
+
+### 1.3 ファイルライフサイクル
+
+| パス | 生成元 | フォーマット |
+|---|---|---|
+| `rag-src/yyyymmddhhmmss-{slug}.txt` | `web_crawler.py` | JSON: `{url, title, lang, fetched_at, content, code_blocks: [...]}` |
+| `rag-src/chunk/{stem}-{idx:04d}.txt` | `chunk_splitter.py` | JSON: `{url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content}` |
+| `rag-src/registered/{stem}-{idx:04d}.txt` | `rag_ingester.py` が移動 | 上記と同一 (処理済みを示す) |
+
+拡張子は `.txt` でも中身は JSON。

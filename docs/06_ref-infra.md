@@ -6,9 +6,10 @@
 |---|---|
 | `config_loader.py` | JSON 設定ファイルの読込・マージ |
 | `rag_utils.py` | テキスト正規化・埋込 BLOB 変換 |
-| `sqlite_helper.py` | SQLite 接続ライフサイクル管理と SQL 実行 |
 | `logger.py` | ロギング共通セットアップ |
 | `formatters.py` | MCP ツール結果・ログメッセージ共通フォーマットユーティリティ |
+
+SQLite 接続マネージャ → [`docs/06_ref-sqlite.md`](06_ref-sqlite.md)
 
 ---
 
@@ -81,129 +82,13 @@ from rag_utils import normalize_unicode, floats_to_blob, validate_url
 
 ---
 
-## 3. sqlite_helper.py
+## 3. logger.py
 
 ### 3.1 機能概要
 
-SQLite (sqlite-vec 拡張付き) の接続ライフサイクル管理と SQL 実行を提供する接続マネージャ。
-`rag_ingester.py` / `create_schema.py` / `agent_repl.py` / `agent_session.py` が使用。
-
-### 3.2 クラス定数
-
-```python
-from sqlite_helper import SQLiteHelper
-
-print(SQLiteHelper.DB_PATH)
-print(SQLiteHelper.SQLITE_VEC_SO)
-```
-
-| クラス属性 | 説明 |
-|---|---|
-| `SQLiteHelper.DB_PATH` | `config/common.json` の `db_path` (例: `/opt/llm/db/rag.sqlite`)。`_ensure_config()` 後に確定する |
-| `SQLiteHelper.SQLITE_VEC_SO` | `config/common.json` の `sqlite_vec_so` (例: `/opt/llm/sqlite-vec/vec0.so`)。同上 |
-
-`DB_PATH` / `SQLITE_VEC_SO` はモジュール import 時は空文字列で初期化され、`_ensure_config()` の初回呼び出し時に確定。`open()` は内部で `_ensure_config()` を呼ぶため、接続前に明示的な初期化は不要。外部から表示のみ行う場合 (`/config` コマンド等) は `SQLiteHelper._ensure_config()` を呼んでから参照。`sqlite_timeout` は `open()` 内で `_get_cfg()` から都度取得 (デフォルト: `30`)。
-
-### 3.3 API
-
-```python
-from sqlite_helper import SQLiteHelper
-
-# コンテキストマネージャパターン (推奨)
-with SQLiteHelper().open(write_mode=True) as db:
-    cur  = db.execute("SELECT doc_id FROM documents WHERE url = ?", (url,))
-    rows = db.fetchall("SELECT * FROM documents WHERE lang = :lang", {"lang": "ja"})
-    db.commit()
-```
-
-| メソッド | 説明 |
-|---|---|
-| `open(*, write_mode=False, row_factory=False) -> SQLiteHelper` | 接続を開いて `self.conn` に格納し `self` を返す。`with` ブロックと組み合わせて使用可 |
-| `execute(sql, params=()) -> sqlite3.Cursor` | SQL を実行してカーソルを返す。`params` は tuple (位置) または dict (名前付き) |
-| `fetchall(sql, params=()) -> list[Any]` | SQL を実行して全結果行をリストで返す (execute + fetchall の合成) |
-| `commit() -> None` | `self.conn` のトランザクションをコミット |
-| `close() -> None` | `self.conn` を閉じて `None` にリセットする (冪等) |
-| `__enter__() -> SQLiteHelper` | コンテキストマネージャ開始。`self` を返す |
-| `__exit__(...) -> None` | コンテキストマネージャ終了。`close()` を呼び出す |
-
-#### SQLiteHelper.open
-
-```python
-def open(self, *, write_mode: bool = False, row_factory: bool = False) -> "SQLiteHelper"
-```
-
-sqlite-vec 拡張をロード済みの接続を `self.conn` に格納し、`self` を返す。拡張ロード後に `enable_load_extension(False)` を呼んでセキュリティを確保。`self` を返すことで `with SQLiteHelper().open(...) as db:` パターンが使用可能。
-
-| キーワード引数 | デフォルト | 説明 |
-|---|---|---|
-| `write_mode` | `False` | `True` のとき `PRAGMA journal_mode=WAL` と `PRAGMA foreign_keys=ON` を設定 |
-| `row_factory` | `False` | `True` のとき `conn.row_factory = sqlite3.Row` を設定し、列名属性アクセスを有効化 |
-
-呼び出しパターン:
-
-| 呼び出し元 | パターン |
-|---|---|
-| `create_schema.py` | `with SQLiteHelper().open() as db:` — スキーマ作成 |
-| `rag_ingester.py` | `db.open(write_mode=True)` — WAL + 外部キー有効 (一括投入のため手動管理) |
-| `agent_repl.py` | `with SQLiteHelper().open(row_factory=True) as db:` — RAG クエリごとにオープン/クローズ |
-| `agent_session.py` | `with SQLiteHelper().open(write_mode=True) as db:` — セッション永続化 |
-
-#### SQLiteHelper.fetchall
-
-```python
-def fetchall(self, sql: str, params: dict | tuple = ()) -> list[Any]
-```
-
-`self.conn.execute(sql, params).fetchall()` を呼び出して全結果行をリストで返す。`execute()` + `fetchall()` の合成。`params` の形式は `execute()` と同じ (tuple または dict)。
-
-#### SQLiteHelper.commit
-
-```python
-def commit(self) -> None
-```
-
-`self.conn.commit()` を呼び出して現在のトランザクションをコミット。
-
-#### SQLiteHelper.execute
-
-```python
-def execute(self, sql: str, params: dict | tuple = ()) -> sqlite3.Cursor
-```
-
-`self.conn.execute(sql, params)` を呼び出してカーソルを返す。
-
-| `params` の形式 | プレースホルダ構文 | 例 |
-|---|---|---|
-| `tuple` | `?` (位置) | `db.execute("SELECT * FROM t WHERE id = ?", (1,))` |
-| `dict` (ハッシュ) | `:name` (名前付き) | `db.execute("SELECT * FROM t WHERE id = :id", {"id": 1})` |
-
-#### SQLiteHelper.close
-
-```python
-def close(self) -> None
-```
-
-`self.conn` が開いていれば閉じて `None` にリセット。`with` ブロック (`__exit__`) から自動的に呼ばれる。`self.conn` が `None` の場合は何もしない (冪等)。
-
-### 3.4 使用スクリプト
-
-| スクリプト | 使用内容 |
-|---|---|
-| `create_schema.py` | `with SQLiteHelper().open() as db:` — `conn.executescript()` |
-| `rag_ingester.py` | `with SQLiteHelper().open(write_mode=True) as db:` — `ingest_all` で一括投入 |
-| `agent_repl.py` | `with SQLiteHelper().open(row_factory=True) as db:` (agent_rag 経由) |
-| `agent_session.py` | `with SQLiteHelper().open(write_mode=True) as db:` — セッション/メッセージ操作 |
-| `agent_rag.py` | `fetchall(...)` — `vector_search` / `fts_search` が SQLiteHelper を受け取る |
-
----
-
-## 4. logger.py
-
-### 4.1 機能概要
-
 エントリスクリプト専用のロギングセットアップクラス。`FileHandler` と `StreamHandler` を名前付きロガーに直接付与することで、複数のエントリスクリプトがそれぞれ独立したログファイルに書き込める。`propagate=False` でルートロガーへの伝播を遮断し重複出力を防止。
 
-### 4.2 API
+### 3.2 API
 
 ```python
 from logger import Logger
@@ -216,7 +101,7 @@ logger = Logger(__name__, "/opt/llm/logs/agent.log")
 | `Logger(name, log_file)` | `name: str` — `__name__` を渡す / `log_file: str` — ログファイルの絶対パス | 名前付きロガーに `FileHandler` と `StreamHandler` を付与し `propagate=False` に設定 |
 | `Logger.info / warning / error / exception / debug` | `msg: str, *args, **kwargs` | 内部 `logging.Logger` の同名メソッドに委譲 |
 
-### 4.3 ログ設定
+### 3.3 ログ設定
 
 | 項目 | 値 |
 |---|---|
@@ -228,7 +113,7 @@ logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 ログファイルが開けない場合は stderr 出力のみにフォールバック。同一プロセス内で同じ `name` で 2 回目の `Logger()` を生成してもハンドラが重複付与されないよう (`self._logger.handlers` チェック) 冪等に動作。
 
-### 4.4 使用パターン
+### 3.4 使用パターン
 
 エントリスクリプト (スクリプトごとに異なる log_file を指定):
 ```python
@@ -242,7 +127,7 @@ import logging
 logger = logging.getLogger(__name__)
 ```
 
-### 4.5 ログファイル一覧
+### 3.5 ログファイル一覧
 
 | スクリプト | ログファイル |
 |---|---|
@@ -257,22 +142,19 @@ logger = logging.getLogger(__name__)
 
 ---
 
+## 4. formatters.py
 
----
-
-## 5. formatters.py
-
-### 5.1 機能概要
+### 4.1 機能概要
 
 MCP サーバのツール結果テキスト整形と構造化ログ出力に使う共通ユーティリティ。`fileop_mcp_server.py` / `web_search_mcp_server.py` / `github_mcp_server.py` の 3 サーバが import。Pure 関数のみで副作用なし。
 
-### 5.2 定数
+### 4.2 定数
 
 | 定数 | 型 | 値 | 説明 |
 |---|---|---|---|
 | `MAX_SNIPPET_CHARS` | `int` | `400` | 検索スニペットの切り詰め上限文字数。`WebSearchMCPServer._fmt_search_result()` が使用する |
 
-### 5.3 API
+### 4.3 API
 
 ```python
 from formatters import MAX_SNIPPET_CHARS, truncate, fmt_size, fmt_md_link, fmt_kvlog
@@ -285,7 +167,7 @@ from formatters import MAX_SNIPPET_CHARS, truncate, fmt_size, fmt_md_link, fmt_k
 | `fmt_md_link` | `(text: str, url: str) -> str` | `[text](url)` 形式の Markdown リンク文字列を返す。`GitHubService.fmt_search_repositories()` が使用する |
 | `fmt_kvlog` | `(op: str, **kwargs: object) -> str` | `op=<op> key=val ...` 形式のキーバリューログ文字列を生成。`None` 値のキーは出力に含めない。`logger.info(fmt_kvlog("search", q=..., n=5, ms=12))` のように使う |
 
-### 5.4 fmt_kvlog 出力例
+### 4.4 fmt_kvlog 出力例
 
 ```python
 fmt_kvlog("search", q="python asyncio", provider="brave", n=10, ms="12")
@@ -298,7 +180,7 @@ fmt_kvlog("search_try", provider="bing", q="test", n=0, result="zero_results_fal
 # → "op=search_try provider=bing q=test n=0 result=zero_results_fallback"
 ```
 
-### 5.5 使用スクリプト
+### 4.5 使用スクリプト
 
 | スクリプト | 使用関数 |
 |---|---|

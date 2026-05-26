@@ -1,4 +1,4 @@
-`docs/*.md` ファイルの分割計画を作成せよ
+CLAUDE.md および `docs/*.md` ファイルの分割計画を作成せよ
 ファイル分割や書換はしない
 
 - 下記 Context Loader Pattern を考慮

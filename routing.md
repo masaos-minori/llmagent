@@ -13,7 +13,7 @@ Maps task type to files that must be loaded. Read this immediately after CLAUDE.
 | Refactor / rename / CST | refactor, rename, restructure, split, move, import cycle | `skills/python-refactoring/SKILL.md` |
 | Plan / design / ticket | plan, design, analyze, assess, spec, ticket | `skills/python-issue-to-plan/SKILL.md` |
 | MCP server / new server | mcp server, new server, install server | `skills/mcp-server-add/SKILL.md` + `rules/env.md` + `docs/04_mcp-protocol.md` + `docs/06_ref-mcp.md` |
-| Deploy / production | deploy, /opt/llm, service restart, init.d | `skills/deploy/SKILL.md` + `rules/env.md` |
+| Deploy / production | deploy, /opt/llm, service restart, init.d | `skills/deploy/SKILL.md` + `rules/env.md` + `docs/05_agent-ops.md` |
 
 ## Docs → task mapping (minimal loading)
 
@@ -26,16 +26,19 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | file-mcp specifics | `docs/04_mcp-file.md` |
 | github-mcp specifics | `docs/04_mcp-github.md` |
 | RAG pipeline modification | `docs/06_ref-rag.md` |
-| Agent features / slash commands | `docs/05_agent.md` + `docs/06_ref-agent-commands.md` |
+| Agent startup / verification / troubleshooting | `docs/05_agent-ops.md` |
+| Agent features / slash commands / tool calling | `docs/05_agent.md` + `docs/06_ref-agent-commands.md` |
 | Agent REPL loop / tool execution | `docs/05_agent-impl.md` + `docs/06_ref-agent-repl.md` + `docs/06_ref-agent-history.md` |
 | AgentContext / DI hub | `docs/06_ref-agent-context.md` |
 | AgentConfig / config constants | `docs/06_ref-agent-config.md` |
-| Session / DB persistence | `docs/06_ref-agent-session.md` |
+| Session / DB persistence | `docs/06_ref-agent-session.md` + `docs/06_ref-sqlite.md` |
 | LLM client (streaming/retry) | `docs/06_ref-agent-llm.md` |
 | CLI view / readline | `docs/06_ref-agent-view.md` |
 | RAG types / repository / LLM utils | `docs/06_ref-rag.md` |
-| Config / DB / logger / formatters | `docs/06_ref-infra.md` |
-| Ingestion pipeline | `docs/03_ingestion-pipeline.md` |
+| SQLite / DB connection / WAL / transactions | `docs/06_ref-sqlite.md` |
+| Config / logger / formatters / rag_utils | `docs/06_ref-infra.md` |
+| Ingestion pipeline run (execute commands, file lifecycle) | `docs/03_ingestion-run.md` |
+| Ingestion pipeline code (web_crawler / chunk_splitter / rag_ingester API) | `docs/03_ref-ingestion.md` |
 | Deployment / env setup | `docs/02_deployment.md` + `rules/env.md` |
 
 ## Always load alongside the skill

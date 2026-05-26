@@ -39,7 +39,7 @@ When a document or skill file grows too large, split it according to these rules
 1. Group sections/functions by responsibility and record the split proposal in `04_split_plan.md`
 2. Review the plan before touching any file
 3. After splitting, convert the original file to an index (link list) or remove its content
-4. Apply ripple-effect changes in the same pass: `routing.md`, `rules/env.md`, skill references, `docs/00_llm-implementation-guide.md`
+4. Apply ripple-effect changes in the same pass: `routing.md`, `rules/env.md`, skill references, `docs/00_llm-implementation-guide.md`, `docs/06_common.md`
 5. For code files, confirm `ruff` / `mypy` / `pytest` pass before closing the task
 
 ## Target environment
@@ -70,7 +70,7 @@ Full validation sequence: `rules/toolchain.md`
 
 **mypy note:** `warn_unused_ignores = true` is set in `pyproject.toml`, so any `# type: ignore` on a line where mypy finds no error is itself an error. `tests/` is also covered by pre-commit's mypy run, so the same rule applies there.
 
-**Test coverage:** Current unit tests are only `tests/test_plugin_registry.py` and `tests/test_rag_utils.py`. Core modules such as `agent_repl.py`, `tool_executor.py`, and `history_manager.py` have no tests. Any refactoring task that touches these modules must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
+**Test coverage:** Current unit tests are only `tests/test_plugin_registry.py` and `tests/test_rag_utils.py`. Core modules such as `agent_repl.py`, `orchestrator.py`, `tool_executor.py`, and `history_manager.py` have no tests. Any refactoring task that touches these modules must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
 
 ## Architecture
 
@@ -212,11 +212,29 @@ Test helper: `plugin_registry._reset_for_testing()` clears all registries — ca
 
 ### Documentation layout
 
+Operational / deployment:
+- `docs/01_overview.md` — system overview, architecture diagram, file structure
+- `docs/02_deployment.md` — full deployment guide (OS packages, venv, DB init, OpenRC services)
+- `docs/05_agent-ops.md` — agent startup, verification, troubleshooting
+- `docs/03_ingestion-pipeline.md` — index; links to run guide and API reference
+- `docs/03_ingestion-run.md` — ingestion execution guide (commands, file lifecycle)
+
+Implementation reference:
+- `docs/05_agent.md` — tool calling spec, tuning parameters, implementation notes
+- `docs/05_agent-impl.md` — REPL pipeline internals (orchestrator flow, tool execution)
+- `docs/03_ref-ingestion.md` — web_crawler / chunk_splitter / rag_ingester API + implementation notes
+- `docs/04_mcp-servers.md` — index; links to protocol, file, github, web-search sub-docs
+- `docs/04_mcp-protocol.md` — HTTP API, transport layer (HttpTransport / StdioTransport), adding a new MCP server
+- `docs/04_mcp-file.md` — file-read / file-write / file-delete MCP server details
+- `docs/04_mcp-github.md` — github-mcp details (branch protection, allowed repos)
+- `docs/04_mcp-web-search.md` — web-search-mcp details
+
+Module API reference:
 - `docs/06_ref-agent.md` — index only; sub-files cover each module (`06_ref-agent-session.md`, `06_ref-agent-repl.md`, `06_ref-agent-config.md`, `06_ref-agent-context.md`, `06_ref-agent-view.md`, `06_ref-agent-commands.md`, `06_ref-agent-llm.md`, `06_ref-agent-history.md`)
 - `docs/06_ref-rag.md` — RAG pipeline internals (`rag_types`, `rag_repository`, `rag_llm`, `agent_rag`)
-- `docs/06_ref-mcp.md` — MCP server module APIs
-- `docs/06_ref-infra.md` — config, DB, logger, formatters
-- `docs/05_agent-impl.md` — REPL pipeline internals
+- `docs/06_ref-mcp.md` — MCP server module APIs (`mcp_models`, `mcp_server`, `tool_executor`)
+- `docs/06_ref-sqlite.md` — `sqlite_helper.py` full API incl. `begin_immediate` / `begin_exclusive` / `health_check` / `checkpoint` / `vacuum`
+- `docs/06_ref-infra.md` — config_loader, rag_utils, logger, formatters (no sqlite)
 
 ## Skills (`skills/`)
 
