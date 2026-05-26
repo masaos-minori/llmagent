@@ -59,7 +59,7 @@ source .venv/bin/activate       # activate dev venv
 pytest tests/test_<module>.py -v   # single module
 pytest -v                           # full suite
 
-ruff check scripts/ && mypy scripts/   # lint + type check
+ruff check scripts/ tests/ && mypy scripts/ tests/   # lint + type check (pre-commit runs both)
 pre-commit run --all-files             # full gate (run before commit)
 
 # CST-based bulk refactoring (bowler v0.9.0 confirmed installed)
@@ -67,6 +67,8 @@ bowler rename_func old_name new_name --write --dry-run   # always dry-run first
 ```
 
 Full validation sequence: `rules/toolchain.md`
+
+**mypy 注意:** `pyproject.toml` に `warn_unused_ignores = true` が設定されているため、mypy がエラーを検出しない行への `# type: ignore` はそれ自体がエラーになる。tests/ も pre-commit の mypy 対象なので同様に適用される。
 
 ## Architecture
 
@@ -137,7 +139,6 @@ Schema (`create_schema.py`): `chunks_vec_ad` trigger keeps `chunks_vec` in sync 
 | shell-mcp (サンドボックスコマンド実行) | 8009 | `shell_mcp_models.py` | `shell_mcp_service.py` | `shell_mcp_server.py` |
 | github-mcp | 8006 | `github_mcp_models.py` | `github_mcp_service.py` | `github_mcp_server.py` |
 | web-search-mcp | 8004 | — | — | `web_search_mcp_server.py` |
-| file-mcp (旧モノリシック、移行後廃止予定) | 8005 | `file_mcp_models.py` | `file_mcp_service.py` | `file_mcp_server.py` |
 
 **ツールルーティング** (`tool_executor.py`): モジュールレベルの `_READ_TOOLS` / `_WRITE_TOOLS` / `_DELETE_TOOLS` frozenset で振り分け。`shell_run` → `shell`、`search_web` → `web_search`、`github_*` → `github`。`HttpTransport` (HTTP/JSON-RPC) または `StdioTransport` (subprocess `--stdio`) で実行。結果は TTL キャッシュ。
 

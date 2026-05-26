@@ -15,7 +15,7 @@ echo "=== setup_services.sh: サービス設定開始 ==="
 
 # ── init.d スクリプトのデプロイ ───────────────────────────────────────────────
 echo "--- init.d スクリプトのコピーと実行権限付与 ---"
-for svc in embed-llm llama-chat-llm llama-coding-llm web-search-mcp file-mcp github-mcp llama-agent; do
+for svc in embed-llm llama-chat-llm llama-coding-llm web-search-mcp github-mcp llama-agent file-read-mcp file-write-mcp file-delete-mcp shell-mcp; do
     cp "${REPO_ROOT}/init.d/${svc}" "/etc/init.d/${svc}"
     chmod +x "/etc/init.d/${svc}"
     echo "  コピー完了: /etc/init.d/${svc}"
@@ -36,14 +36,14 @@ echo "     GITHUB_TOKEN=\"<GitHub Personal Access Token>\""
 
 # ── OpenRC サービス登録 ───────────────────────────────────────────────────────
 echo "--- OpenRC default ランレベルへの登録 ---"
-for svc in embed-llm llama-chat-llm llama-coding-llm web-search-mcp file-mcp github-mcp llama-agent; do
+for svc in embed-llm llama-chat-llm llama-coding-llm web-search-mcp github-mcp llama-agent file-read-mcp file-write-mcp file-delete-mcp shell-mcp; do
     rc-update add "${svc}" default
     echo "  登録完了: ${svc}"
 done
 
 # ── LLM サービス起動 (llama-agent はモデルロード後に手動起動) ─────────────────
 echo "--- LLM・MCP サービス起動 ---"
-for svc in embed-llm llama-chat-llm llama-coding-llm web-search-mcp file-mcp github-mcp; do
+for svc in embed-llm llama-chat-llm llama-coding-llm web-search-mcp github-mcp file-read-mcp file-write-mcp file-delete-mcp shell-mcp; do
     rc-service "${svc}" start
     echo "  起動完了: ${svc}"
 done
@@ -54,8 +54,11 @@ echo "  embed-llm      (:8003): $(curl -s http://127.0.0.1:8003/health 2>/dev/nu
 echo "  llama-chat-llm (:8002): $(curl -s http://127.0.0.1:8002/health 2>/dev/null || echo 'まだ起動中')"
 echo "  llama-coding-llm (:8001): $(curl -s http://127.0.0.1:8001/health 2>/dev/null || echo 'まだ起動中')"
 echo "  web-search-mcp (:8004): $(curl -s http://127.0.0.1:8004/health 2>/dev/null || echo 'まだ起動中')"
-echo "  file-mcp       (:8005): $(curl -s http://127.0.0.1:8005/health 2>/dev/null || echo 'まだ起動中')"
+echo "  file-read-mcp  (:8005): $(curl -s http://127.0.0.1:8005/health 2>/dev/null || echo 'まだ起動中')"
 echo "  github-mcp     (:8006): $(curl -s http://127.0.0.1:8006/health 2>/dev/null || echo 'まだ起動中')"
+echo "  file-write-mcp (:8007): $(curl -s http://127.0.0.1:8007/health 2>/dev/null || echo 'まだ起動中')"
+echo "  file-delete-mcp(:8008): $(curl -s http://127.0.0.1:8008/health 2>/dev/null || echo 'まだ起動中')"
+echo "  shell-mcp      (:8009): $(curl -s http://127.0.0.1:8009/health 2>/dev/null || echo 'まだ起動中')"
 
 echo ""
 echo "=== setup_services.sh: 完了 ==="

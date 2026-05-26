@@ -78,7 +78,6 @@ class _ConfigMixin:
         print(f"  chat_url            : {ctx.cfg.chat_url}")
         print(f"  code_url            : {ctx.cfg.code_url}")
         print(f"  web_search_url      : {ctx.cfg.web_search_url}")
-        print(f"  file_server_url     : {ctx.cfg.file_server_url}")
         print(f"  github_server_url   : {ctx.cfg.github_url}")
         print(f"  max_tool_turns      : {ctx.cfg.max_tool_turns}")
         print(f"  http_timeout        : {ctx.cfg.http_timeout}s")
@@ -224,9 +223,6 @@ class _ConfigMixin:
         # Hot-reloadable URL and prompt config
         ctx.cfg.chat_url = new_cfg.get("chat_url", ctx.cfg.chat_url)
         ctx.cfg.code_url = new_cfg.get("code_url", ctx.cfg.code_url)
-        ctx.cfg.file_server_url = new_cfg.get(
-            "file_server_url", ctx.cfg.file_server_url
-        )
         ctx.cfg.github_url = new_cfg.get("github_server_url", ctx.cfg.github_url)
         ctx.cfg.web_search_url = new_cfg.get("web_search_url", ctx.cfg.web_search_url)
         ctx.cfg.embed_url = new_cfg.get("embed_url", ctx.cfg.embed_url)

@@ -66,7 +66,7 @@ def _build_mcp_servers(cfg: dict) -> dict[str, McpServerConfig]:
     """Build per-server transport config from agent.json.
 
     If 'mcp_servers' is present, use it directly.
-    Otherwise fall back to legacy url keys (web_search_url, file_server_url, etc.).
+    Otherwise fall back to legacy url keys (web_search_url, github_server_url, etc.).
     """
     raw: dict = cfg.get("mcp_servers", {})
     if raw:
@@ -83,12 +83,6 @@ def _build_mcp_servers(cfg: dict) -> dict[str, McpServerConfig]:
     return {
         "web_search": McpServerConfig(
             "http", cfg.get("web_search_url", ""), [], "web-search-mcp"
-        ),
-        "file": McpServerConfig(
-            "http",
-            cfg.get("file_server_url", "http://127.0.0.1:8005"),
-            [],
-            "file-mcp",
         ),
         "github": McpServerConfig(
             "http",
@@ -160,7 +154,6 @@ class AgentConfig:
     # ── URL / HTTP config (hot-reloadable via /reload) ─────────────────────────
     chat_url: str = ""
     code_url: str = ""
-    file_server_url: str = "http://127.0.0.1:8005"
     github_url: str = "http://127.0.0.1:8006"
     web_search_url: str = ""
     embed_url: str = "http://127.0.0.1:8003/embedding"
@@ -281,7 +274,6 @@ def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
         mcp_servers=_build_mcp_servers(cfg),
         chat_url=cfg.get("chat_url", ""),
         code_url=cfg.get("code_url", ""),
-        file_server_url=cfg.get("file_server_url", "http://127.0.0.1:8005"),
         github_url=cfg.get("github_server_url", "http://127.0.0.1:8006"),
         web_search_url=cfg.get("web_search_url", ""),
         embed_url=cfg.get("embed_url", "http://127.0.0.1:8003/embedding"),
