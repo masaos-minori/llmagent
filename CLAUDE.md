@@ -68,9 +68,9 @@ bowler rename_func old_name new_name --write --dry-run   # always dry-run first
 
 Full validation sequence: `rules/toolchain.md`
 
-**mypy 注意:** `pyproject.toml` に `warn_unused_ignores = true` が設定されているため、mypy がエラーを検出しない行への `# type: ignore` はそれ自体がエラーになる。tests/ も pre-commit の mypy 対象なので同様に適用される。
+**mypy note:** `warn_unused_ignores = true` is set in `pyproject.toml`, so any `# type: ignore` on a line where mypy finds no error is itself an error. `tests/` is also covered by pre-commit's mypy run, so the same rule applies there.
 
-**テストカバレッジ:** 現状のユニットテストは `tests/test_plugin_registry.py` と `tests/test_rag_utils.py` のみ。`agent_repl.py` / `tool_executor.py` / `history_manager.py` 等コア層はテストなし。これらを変更するリファクタリングタスクでは、着手前に behavior lock テスト (`python-test-and-fix` スキル) を取ること。
+**Test coverage:** Current unit tests are only `tests/test_plugin_registry.py` and `tests/test_rag_utils.py`. Core modules such as `agent_repl.py`, `tool_executor.py`, and `history_manager.py` have no tests. Any refactoring task that touches these modules must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
 
 ## Architecture
 
@@ -143,26 +143,26 @@ Schema (`create_schema.py`): `chunks_vec_ad` trigger keeps `chunks_vec` in sync 
 
 ### MCP Servers
 
-各 MCP サーバは models / service / server の 3 層構成を踏襲する。共通セキュリティヘルパー (`resolve_safe`, `require_file`, `require_dir` 等) は `file_mcp_common.py` に集約。
+Each MCP server follows a three-layer structure: models / service / server. Common security helpers (`resolve_safe`, `require_file`, `require_dir`, etc.) are consolidated in `file_mcp_common.py`.
 
 | Server | Port | Models | Service | Server |
 |---|---|---|---|---|
-| file-read-mcp (読み取り専用) | 8005 | `file_read_mcp_models.py` | `file_read_mcp_service.py` | `file_read_mcp_server.py` |
-| file-write-mcp (作成・編集・移動) | 8007 | `file_write_mcp_models.py` | `file_write_mcp_service.py` | `file_write_mcp_server.py` |
-| file-delete-mcp (削除 + audit log) | 8008 | `file_delete_mcp_models.py` | `file_delete_mcp_service.py` | `file_delete_mcp_server.py` |
-| shell-mcp (サンドボックスコマンド実行) | 8009 | `shell_mcp_models.py` | `shell_mcp_service.py` | `shell_mcp_server.py` |
+| file-read-mcp (read-only) | 8005 | `file_read_mcp_models.py` | `file_read_mcp_service.py` | `file_read_mcp_server.py` |
+| file-write-mcp (create / edit / move) | 8007 | `file_write_mcp_models.py` | `file_write_mcp_service.py` | `file_write_mcp_server.py` |
+| file-delete-mcp (delete + audit log) | 8008 | `file_delete_mcp_models.py` | `file_delete_mcp_service.py` | `file_delete_mcp_server.py` |
+| shell-mcp (sandboxed command execution) | 8009 | `shell_mcp_models.py` | `shell_mcp_service.py` | `shell_mcp_server.py` |
 | github-mcp | 8006 | `github_mcp_models.py` | `github_mcp_service.py` | `github_mcp_server.py` |
 | web-search-mcp | 8004 | — | — | `web_search_mcp_server.py` |
 
-**共通基盤**: `mcp_server.py` — 全 MCP サーバが継承するベースクラス。FastAPI アプリ起動・`/v1/call_tool` エンドポイント・`/health` を提供。`mcp_models.py` — `/v1/call_tool` の `CallToolRequest` / `CallToolResponse` Pydantic モデル。`formatters.py` — LLM context 向けとターミナル向けの 2 系統フォーマット関数。
+**Common base**: `mcp_server.py` — base class inherited by all MCP servers; provides FastAPI app startup, the `/v1/call_tool` endpoint, and `/health`. `mcp_models.py` — `CallToolRequest` / `CallToolResponse` Pydantic models for `/v1/call_tool`. `formatters.py` — two formatter families: one for LLM context, one for terminal output.
 
-**ツールルーティング** (`tool_executor.py`): モジュールレベルの `_READ_TOOLS` / `_WRITE_TOOLS` / `_DELETE_TOOLS` frozenset で振り分け。`shell_run` → `shell`、`search_web` → `web_search`、`github_*` → `github`。`HttpTransport` (HTTP/JSON-RPC) または `StdioTransport` (subprocess `--stdio`) で実行。結果は TTL キャッシュ。
+**Tool routing** (`tool_executor.py`): module-level `_READ_TOOLS` / `_WRITE_TOOLS` / `_DELETE_TOOLS` frozensets route each tool call. `shell_run` → `shell`, `search_web` → `web_search`, `github_*` → `github`. Executed via `HttpTransport` (HTTP/JSON-RPC) or `StdioTransport` (subprocess `--stdio`). Results are TTL-cached.
 
-**MCP インストーラ**: `mcp_installer.py` — `/mcp install <name>` から呼び出されるスケルトン生成ツール。`scripts/<name>_mcp_server.py` / `config/<name>_mcp_server.json` / `init.d/<name>` / `conf.d/<name>` を自動生成する。ポート 8007 以降を自動採番し、予約済みポート (8001–8006) への衝突を防ぐ。
+**MCP installer**: `mcp_installer.py` — skeleton generator invoked by `/mcp install <name>`. Auto-generates `scripts/<name>_mcp_server.py`, `config/<name>_mcp_server.json`, `init.d/<name>`, and `conf.d/<name>`. Assigns ports from 8007 upward, guarding against collisions with reserved ports (8001–8006).
 
-**shell-mcp セキュリティ仕様**: `argv[0]` をホワイトリスト照合 (`shlex.split` → basename)、`shell=False` 固定、`start_new_session=True` でプロセスグループ管理、`resource.setrlimit()` で CPU/メモリ/fd/プロセス数を制限、タイムアウト時は SIGTERM → SIGKILL の順でグループ終了。全実行を `/opt/llm/logs/shell_audit.log` に記録。
+**shell-mcp security**: `argv[0]` is matched against an allowlist (`shlex.split` → basename), `shell=False` is enforced, `start_new_session=True` manages the process group, `resource.setrlimit()` caps CPU / memory / fd / process count. On timeout, the group is terminated SIGTERM → SIGKILL. All executions are logged to `/opt/llm/logs/shell_audit.log`.
 
-**file-delete-mcp**: 全削除操作を `/opt/llm/logs/delete_audit.log` に記録。`agent.json` の `require_approval_tools` に `delete_file` / `delete_directory` / `shell_run` を登録し、実行前に y/N 確認を強制。
+**file-delete-mcp**: All delete operations are logged to `/opt/llm/logs/delete_audit.log`. `delete_file`, `delete_directory`, and `shell_run` are registered in `require_approval_tools` in `agent.json`, forcing a y/N confirmation before execution.
 
 ### Config
 
@@ -172,9 +172,9 @@ All config values (URLs, `tool_definitions`, `system_prompts`, RAG flags, LLM pa
 
 Key tool-result budget fields: `tool_result_max_llm_chars` (per-result truncation limit) and `tool_results_turn_max_chars` (per-turn total budget; results exceeding the budget are replaced with a `/tool show <id>` retrieval hint in LLM history).
 
-Tool loop guard fields: `tool_dedup_max_repeats` (同一 tool+args の繰り返しをこの回数でブロック) and `tool_error_max_consecutive` (全ツールがエラーを返したターンが連続してこの回数に達したら打ち切り; 0 で無効).
+Tool loop guard fields: `tool_dedup_max_repeats` (blocks repeated calls of the same tool+args after this many occurrences) and `tool_error_max_consecutive` (aborts the turn when all tools return errors for this many consecutive tool-call rounds; 0 disables).
 
-`config/github_mcp_server.json`: `protected_branches` (fnmatch glob のリスト; 該当 branch への write 操作を 403 でブロック), `allow_force_push` (false のとき rebase merge を禁止), `require_pr_review` (将来拡張用).
+`config/github_mcp_server.json`: `protected_branches` (list of fnmatch glob patterns; write operations targeting a matching branch are blocked with 403), `allow_force_push` (when false, rebase merges are prohibited), `require_pr_review` (reserved for future use).
 
 When adding a new `scripts/*.py` module, also add a `cp` line to `deploy/deploy.sh`.
 
