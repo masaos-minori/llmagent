@@ -21,6 +21,8 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 
 | Task scope | Reference docs |
 |---|---|
+| システム全体アーキテクチャ確認 | `docs/01_overview-arch.md` |
+| ファイル・モジュール配置確認 | `docs/01_overview-files.md` |
 | MCP server implementation | `docs/04_mcp-protocol.md` + `docs/06_ref-mcp.md` |
 | web-search-mcp specifics | `docs/04_mcp-web-search.md` |
 | file-mcp specifics | `docs/04_mcp-file.md` |
@@ -28,7 +30,8 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | RAG pipeline modification | `docs/06_ref-rag.md` |
 | Agent startup / verification / troubleshooting | `docs/05_agent-ops.md` |
 | Agent features / slash commands / tool calling | `docs/05_agent.md` + `docs/06_ref-agent-commands.md` |
-| Agent REPL loop / tool execution | `docs/05_agent-impl.md` + `docs/06_ref-agent-repl.md` + `docs/06_ref-agent-history.md` |
+| Agent REPL クラス構造 | `docs/05_agent-impl-class.md` + `docs/06_ref-agent-repl.md` |
+| Agent REPL フロー / tool execution | `docs/05_agent-impl-flow.md` + `docs/06_ref-agent-history.md` |
 | AgentContext / DI hub | `docs/06_ref-agent-context.md` |
 | AgentConfig / config constants | `docs/06_ref-agent-config.md` |
 | Session / DB persistence | `docs/06_ref-agent-session.md` + `docs/06_ref-sqlite.md` |
@@ -38,7 +41,10 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | SQLite / DB connection / WAL / transactions | `docs/06_ref-sqlite.md` |
 | Config / logger / formatters / rag_utils | `docs/06_ref-infra.md` |
 | Ingestion pipeline run (execute commands, file lifecycle) | `docs/03_ingestion-run.md` |
-| Ingestion pipeline code (web_crawler / chunk_splitter / rag_ingester API) | `docs/03_ref-ingestion.md` |
+| web_crawler.py 修正・API 参照 | `docs/03_ref-crawler.md` |
+| chunk_splitter.py 修正・API 参照 | `docs/03_ref-splitter.md` |
+| rag_ingester.py 修正・API 参照 | `docs/03_ref-ingester.md` |
+| Ingestion 共通実装注意事項 | `docs/03_ref-ingestion.md` |
 | Deployment / env setup | `docs/02_deployment.md` + `rules/env.md` |
 
 ## Always load alongside the skill

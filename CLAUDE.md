@@ -74,172 +74,61 @@ Full validation sequence: `rules/toolchain.md`
 
 ## Architecture
 
+→ 詳細は `routing.md` の "Docs → task mapping" から該当 `docs/` ファイルを参照。
+
 ### Agent REPL
 
-Entry point: `agent.py` → `asyncio.run(AgentREPL().run())`.
+`agent_repl.py` (`AgentREPL`) が全コンポーネントを `AgentContext` に注入し REPL ループを駆動する。ターンレベルのロジックは `Orchestrator` (`orchestrator.py`) に委譲。サテライトモジュール: `agent_repl_health.py` / `agent_repl_tool_exec.py` / `agent_repl_debug.py`。UI 出力は `CLIView` コールバックパターン経由 — いずれのライブラリモジュールも `print()` を直接呼ばない。
 
-`AgentREPL` (`agent_repl.py`) wires all components into `AgentContext` via `_init_components()` and drives the input/command dispatch loop in `_repl_loop()`. MCP subprocess lifecycle, health checks, and watchdog are also owned here. Turn-level logic is delegated to `Orchestrator`.
-
-`Orchestrator` (`orchestrator.py`) handles one conversation turn end-to-end: RAG augmentation → history compression → LLM streaming loop → tool dispatch. Owns `_run_turn()` with three tool loop guards: individual call dedup (`tool_dedup_max_repeats`), round-level cyclic planning detection (`tool_cycle_detect_window` — aborts when the same set of tool calls repeats across N consecutive rounds), and consecutive all-error guard (`tool_error_max_consecutive`). All terminal output is routed via callbacks (`on_turn_start`, `on_turn_end`, `on_error`) — no `print()` in this module.
-
-Heavy subsystems live in satellite modules:
-
-- `agent_repl_health.py` — MCP health checks and watchdog loop
-- `agent_repl_tool_exec.py` — tool call approval and parallel execution
-- `agent_repl_debug.py` — RAG debug printers (pure functions, no side effects)
-
-**CLIView callback pattern**: UI output from library modules is routed via callbacks injected in `_init_components()`. `LLMClient` receives `on_token=self._view.write_token`; `HistoryManager` receives `on_compress=self._view.write_compress_notice`; `Orchestrator` receives `on_turn_start`, `on_turn_end`, `on_error`. None of these modules calls `print()` directly. `CLIView` owns all terminal output APIs.
-
-Key library modules (all injected via `_init_components()`):
-
-- `llm_client.py` — SSE streaming, retry with exponential backoff, payload builder; receives `on_token` callback
-- `history_manager.py` — compresses old turns via LLM summary when context char limit is exceeded; receives `on_compress` callback
-- `agent_session.py` — SQLite-backed session/message persistence (`ctx.session`); `save(role, content)` appends to `messages` table
-- `cli_view.py` — readline setup, multiline continuation, RAG progress display; owns all terminal output APIs
-
+詳細: `docs/05_agent-impl.md` / `docs/06_ref-agent-repl.md`
 
 ### Shared State
 
-`AgentContext` (`agent_context.py`) is the DI hub — per-session mutable state and config live here. Both `AgentREPL` and `CommandRegistry` operate on the same instance.
+`AgentContext` (`agent_context.py`) が per-session 可変状態と DI ハブを担当。サービス参照は `ctx.services.llm` 等 `ctx.services.<key>` でアクセスすること — property shim は存在しない。
 
-Two internal namespaces:
-- `ctx.services` (`ServiceContainer`) — service references: `http`, `llm`, `tools`, `hist_mgr`, `rag`, `stdio_procs`. All None until `_init_components()` runs. **Access always via `ctx.services.llm` etc.; no property shims exist.**
-- Flat fields on `AgentContext` — conversation state (`history`, `llm_url`, `debug_mode`, `plan_mode`), session stats (`stat_*`), `cfg`, `session`, `tool_result_store` (`ToolResultStore` instance — persists full tool output to the `tool_results` SQLite table; `/tool show <id>` retrieves by DB id).
+詳細: `docs/06_ref-agent-context.md`
 
 ### Slash Commands
 
-`CommandRegistry` (`agent_commands.py`) delegates to six mixin classes, each in its own file:
+`CommandRegistry` (`agent_commands.py`) が `_SessionMixin` / `_McpMixin` / `_ConfigMixin` / `_ContextMixin` / `_RagMixin` / `_IngestMixin` の 6 ミックスインクラスにディスパッチ。
 
-| File | Mixin | Commands |
-|---|---|---|
-| `agent_cmd_session.py` | `_SessionMixin` | `/session` |
-| `agent_cmd_mcp.py` | `_McpMixin` | `/mcp` |
-| `agent_cmd_config.py` | `_ConfigMixin` | `/config`, `/stats`, `/set`, `/reload` |
-| `agent_cmd_context.py` | `_ContextMixin` | `/context`, `/clear`, `/undo`, `/history`, `/system`, `/db` |
-| `agent_cmd_rag.py` | `_RagMixin` | `/rag`, `/tool`, `/note`, `/plan`, `/debug` |
-| `agent_cmd_ingest.py` | `_IngestMixin` | `/ingest`, `/export`, `/compact` |
+詳細: `docs/06_ref-agent-commands.md`
 
 ### RAG Pipeline
 
-`agent_rag.py` contains only `RagPipeline`. Supporting layers are split:
+MQE → vector search (`chunks_vec`) → FTS5 (`chunks_fts`) → RRF → rerank のパイプライン。`agent_rag.py` (`RagPipeline`) がオーケストレーション。補助層: `rag_types.py` / `rag_repository.py` / `rag_llm.py`。共通型 `RagHit` / `LLMMessage` の定義は `docs/06_common.md` 参照。
 
-- `rag_types.py` — `RagHit` and `LLMMessage` TypedDicts (lightweight, no heavy imports)
-- `rag_repository.py` — `RagRepository`, `RagScorer`, `SemanticCache`, FTS helpers, standalone search functions
-- `rag_llm.py` — `RagLLM`, `get_embedding()`, `summarize_tool_result()`
-
-Pipeline flow: MQE → vector search (`chunks_vec`) → FTS5 (`chunks_fts`) → RRF → rerank. Context is injected into the system prompt before each LLM turn.
-
-`augment()` supports two execution modes: in-process (default) and HTTP (`rag_service_url` non-empty). In HTTP mode the call goes to `rag_mcp_server.py` (port 8010); the service itself always runs in-process to prevent loops.
+詳細: `docs/06_ref-rag.md`
 
 ### DB Layer
 
-`sqlite_helper.py` — `SQLiteHelper` connection manager. All connections apply WAL / `synchronous=NORMAL` / `busy_timeout` unconditionally via `_apply_connection_pragmas()`. Use `begin_immediate()` / `begin_exclusive()` context managers for multi-statement write transactions. `health_check()` returns journal mode, integrity, and page stats. `checkpoint(mode)` flushes the WAL; `vacuum()` rebuilds the DB file in place.
+`sqlite_helper.py` — 接続管理 (WAL / busy_timeout)。`db_maintenance.py` — 運用ポリシー (`/db` コマンド)。`db_store.py` — Protocol 抽象。`tool_result_store.py` — ツール結果永続化 (`/tool show <id>`)。
 
-`db_maintenance.py` — operational policy layer above `SQLiteHelper`. Provides `checkpoint_wal()`, `vacuum_db()`, `purge_old_sessions()`, `rotate_db()`, `recover_corruption()`, and `RetentionConfig` (session retention policy). All maintenance parameters (`sqlite_wal_checkpoint_mode`, `sqlite_retention_max_sessions`, `sqlite_retention_max_age_days`, `sqlite_archive_dir`) are read from `config/common.json`. Exposed via `/db health|checkpoint|vacuum|purge|recover` slash commands in `agent_cmd_context.py`.
-
-`db_store.py` — abstract `Protocol` classes (`VectorStore`, `DocumentStore`, `SessionStore`) with SQLite-backed implementations (`SQLiteVectorStore`, `SQLiteDocumentStore`, `SQLiteSessionStore`). Also exports `validate_embedding_blob()` and `EMBEDDING_DIMS / EMBEDDING_BYTES` constants. The existing `RagRepository` in `rag_repository.py` structurally satisfies these Protocols.
-
-`tool_result_store.py` — `ToolResultStore` persists full tool execution output to the `tool_results` table. LLM history receives only summaries/truncations; the full text is stored with a row id so `/tool show <id>` can retrieve it. Falls back silently on DB errors so the REPL continues without a DB.
-
-Schema (`create_schema.py`): `chunks_vec_ad` trigger keeps `chunks_vec` in sync when `chunks` rows are deleted. `tool_results` table stores per-session tool output with `session_id`, `turn`, `tool_name`, `args_json`, `full_text`, `summary`, `is_error`.
+詳細: `docs/06_ref-sqlite.md`
 
 ### MCP Servers
 
-Each MCP server follows a three-layer structure: models / service / server. Common security helpers (`resolve_safe`, `require_file`, `require_dir`, etc.) are consolidated in `file_mcp_common.py`.
+7 本のサーバが models / service / server の 3 層構造で実装。共通基底: `mcp_server.py`。ツールルーティング・TTL キャッシュ: `tool_executor.py`。共通プロトコル仕様 (`/v1/call_tool` フォーマット) は `docs/06_common.md` 参照。
 
-| Server | Port | Models | Service | Server |
-|---|---|---|---|---|
-| file-read-mcp (read-only) | 8005 | `file_read_mcp_models.py` | `file_read_mcp_service.py` | `file_read_mcp_server.py` |
-| file-write-mcp (create / edit / move) | 8007 | `file_write_mcp_models.py` | `file_write_mcp_service.py` | `file_write_mcp_server.py` |
-| file-delete-mcp (delete + audit log) | 8008 | `file_delete_mcp_models.py` | `file_delete_mcp_service.py` | `file_delete_mcp_server.py` |
-| shell-mcp (sandboxed command execution) | 8009 | `shell_mcp_models.py` | `shell_mcp_service.py` | `shell_mcp_server.py` |
-| github-mcp | 8006 | `github_mcp_models.py` | `github_mcp_service.py` | `github_mcp_server.py` |
-| web-search-mcp | 8004 | — | — | `web_search_mcp_server.py` |
-| rag-mcp (external RAG HTTP service) | 8010 | — | — | `rag_mcp_server.py` |
-
-**Common base**: `mcp_server.py` — base class inherited by all MCP servers; provides FastAPI app startup, the `/v1/call_tool` endpoint, and `/health`. `mcp_models.py` — `CallToolRequest` / `CallToolResponse` Pydantic models for `/v1/call_tool`. `formatters.py` — two formatter families: one for LLM context, one for terminal output.
-
-**Tool routing** (`tool_executor.py`): module-level `_READ_TOOLS` / `_WRITE_TOOLS` / `_DELETE_TOOLS` frozensets route each tool call. `shell_run` → `shell`, `search_web` → `web_search`, `github_*` → `github`. Executed via `HttpTransport` (HTTP/JSON-RPC) or `StdioTransport` (subprocess `--stdio`). Results are TTL-cached.
-
-**MCP installer**: `mcp_installer.py` — skeleton generator invoked by `/mcp install <name>`. Auto-generates `scripts/<name>_mcp_server.py`, `config/<name>_mcp_server.json`, `init.d/<name>`, and `conf.d/<name>`. Assigns ports from 8007 upward, guarding against collisions with reserved ports (8001–8006).
-
-**shell-mcp security**: `argv[0]` is matched against an allowlist (`shlex.split` → basename), `shell=False` is enforced, `start_new_session=True` manages the process group, `resource.setrlimit()` caps CPU / memory / fd / process count. On timeout, the group is terminated SIGTERM → SIGKILL. All executions are logged to `/opt/llm/logs/shell_audit.log`.
-
-**file-delete-mcp**: All delete operations are logged to `/opt/llm/logs/delete_audit.log`. `delete_file`, `delete_directory`, and `shell_run` are registered in `require_approval_tools` in `agent.json`, forcing a y/N confirmation before execution.
+詳細: `docs/04_mcp-servers.md`
 
 ### Config
 
-`config/agent.json`: `mcp_servers` drives transport selection; `use_mqe/use_search/use_rrf/use_rerank` toggle RAG steps; `masked_fields` redacts sensitive tool args from logs.
+全設定値は `AgentConfig` dataclass (`agent_config.py`) に集約。`ctx.cfg.field_name` でアクセス。モジュールレベル定数への import は禁止。`/reload` でホットリロード可能。新規 `scripts/*.py` モジュール追加時は `deploy/deploy.sh` にも `cp` 行を追加すること。
 
-All config values (URLs, `tool_definitions`, `system_prompts`, RAG flags, LLM params, etc.) live exclusively in the `AgentConfig` dataclass (`agent_config.py`). There are no module-level constants; every field is hot-reloadable via `/reload`. Use `ctx.cfg.field_name` — never import constants from `agent_config`.
-
-Key tool-result budget fields: `tool_result_max_llm_chars` (per-result truncation limit) and `tool_results_turn_max_chars` (per-turn total budget; results exceeding the budget are replaced with a `/tool show <id>` retrieval hint in LLM history).
-
-Tool loop guard fields: `tool_dedup_max_repeats` (blocks repeated calls of the same tool+args after this many occurrences), `tool_cycle_detect_window` (computes MD5 of sorted tool-call set per round; aborts when same fingerprint appears ≥ N times; 0 disables), and `tool_error_max_consecutive` (aborts the turn when all tools return errors for this many consecutive tool-call rounds; 0 disables).
-
-`rag_service_url`: when non-empty, `RagPipeline.augment()` delegates to an external HTTP service (`POST /v1/search`) instead of running in-process; falls back to in-process on HTTP error. The service (`rag_mcp_server.py`, port 8010) forces `rag_service_url=""` at startup to prevent recursive HTTP calls.
-
-`config/github_mcp_server.json`: `protected_branches` (list of fnmatch glob patterns; write operations targeting a matching branch are blocked with 403), `allow_force_push` (when false, rebase merges are prohibited), `require_pr_review` (when true, `merge_pull_request` checks `pr.get_reviews()` for at least one APPROVED state; returns 403 if none found).
-
-When adding a new `scripts/*.py` module, also add a `cp` line to `deploy/deploy.sh`.
+詳細: `docs/06_ref-agent-config.md`
 
 ### Ingestion Pipeline
 
-One-shot scripts for document collection and RAG indexing (run in sequence, not part of the REPL):
+`web_crawler.py` → `chunk_splitter.py` → `rag_ingester.py` の 3 スクリプトによるファイルパイプライン。`pipeline_utils.py` / `rag_utils.py` が共有ユーティリティを提供。処理済みファイルは `rag-src/registered/` へ移動 (冪等性ガード)。
 
-```
-web_crawler.py → chunk_splitter.py → rag_ingester.py
-```
-
-- `web_crawler.py` — fetches URLs listed in `config/rag_pipeline.json`; saves raw text under `rag-src/`
-- `chunk_splitter.py` — splits raw text into fixed-size chunks; writes JSON files under `rag-src/chunk/`
-- `rag_ingester.py` — embeds chunks via the embed-llm service and upserts into `chunks` / `chunks_vec` / `chunks_fts`
-- `pipeline_utils.py` — shared I/O: JSON file reading, source file enumeration, idempotency sentinel check
-- `rag_utils.py` — shared text utilities (unicode normalization, tokenization) used by both ingestion and `agent_rag.py`
-
-Processed files are moved to `rag-src/registered/` as an idempotency guard; re-running is safe.
+詳細: `docs/03_ref-ingestion.md`
 
 ### Plugin Architecture
 
-`plugin_registry.py` — central registry for extending the agent without modifying core files. Provides three decorators:
+`plugin_registry.py` が `@register_command` / `@register_tool` / `@register_pipeline_stage` の 3 デコレータを提供。プラグインファイルは `plugins/*.py`。ツールハンドラの戻り値規約 `tuple[str, bool]` は `docs/06_common.md` 参照。テストヘルパー: `plugin_registry._reset_for_testing()`。
 
-| Decorator | Extension point | Handler signature |
-|---|---|---|
-| `@register_command("/name", prefix=False)` | New slash command | `async def fn(ctx: AgentContext, args: str) -> None` |
-| `@register_tool("tool_name")` | Local Python tool (bypasses MCP) | `async def fn(args: dict) -> tuple[str, bool]` |
-| `@register_pipeline_stage(when="post")` | Post-rerank RAG hook | `async def fn(hits: list[RagHit], query: str) -> list[RagHit]` |
-
-Plugin files live in `plugins/*.py`. `AgentREPL._init_components()` calls `plugin_registry.load_plugins(plugins/)` at startup; each file's decorators run at import time. Broken plugin files are logged and skipped (fail-open).
-
-Execution order: plugin tools are checked before MCP routing in `ToolExecutor.execute()`; plugin commands are checked after built-in commands in `CommandRegistry.dispatch()`; pipeline stages run after cross-encoder reranking in `RagPipeline.run()`.
-
-Test helper: `plugin_registry._reset_for_testing()` clears all registries — call it from pytest fixtures to prevent cross-test pollution. See `plugins/example.py` for a working template.
-
-### Documentation layout
-
-Operational / deployment:
-- `docs/01_overview.md` — system overview, architecture diagram, file structure
-- `docs/02_deployment.md` — full deployment guide (OS packages, venv, DB init, OpenRC services)
-- `docs/05_agent-ops.md` — agent startup, verification, troubleshooting
-- `docs/03_ingestion-pipeline.md` — index; links to run guide and API reference
-- `docs/03_ingestion-run.md` — ingestion execution guide (commands, file lifecycle)
-
-Implementation reference:
-- `docs/05_agent.md` — tool calling spec, tuning parameters, implementation notes
-- `docs/05_agent-impl.md` — REPL pipeline internals (orchestrator flow, tool execution)
-- `docs/03_ref-ingestion.md` — web_crawler / chunk_splitter / rag_ingester API + implementation notes
-- `docs/04_mcp-servers.md` — index; links to protocol, file, github, web-search sub-docs
-- `docs/04_mcp-protocol.md` — HTTP API, transport layer (HttpTransport / StdioTransport), adding a new MCP server
-- `docs/04_mcp-file.md` — file-read / file-write / file-delete MCP server details
-- `docs/04_mcp-github.md` — github-mcp details (branch protection, allowed repos)
-- `docs/04_mcp-web-search.md` — web-search-mcp details
-
-Module API reference:
-- `docs/06_ref-agent.md` — index only; sub-files cover each module (`06_ref-agent-session.md`, `06_ref-agent-repl.md`, `06_ref-agent-config.md`, `06_ref-agent-context.md`, `06_ref-agent-view.md`, `06_ref-agent-commands.md`, `06_ref-agent-llm.md`, `06_ref-agent-history.md`)
-- `docs/06_ref-rag.md` — RAG pipeline internals (`rag_types`, `rag_repository`, `rag_llm`, `agent_rag`)
-- `docs/06_ref-mcp.md` — MCP server module APIs (`mcp_models`, `mcp_server`, `tool_executor`)
-- `docs/06_ref-sqlite.md` — `sqlite_helper.py` full API incl. `begin_immediate` / `begin_exclusive` / `health_check` / `checkpoint` / `vacuum`
-- `docs/06_ref-infra.md` — config_loader, rag_utils, logger, formatters (no sqlite)
+詳細: `docs/06_ref-agent-repl.md`
 
 ## Skills (`skills/`)
 
