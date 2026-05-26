@@ -1,0 +1,16 @@
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# venv
+.venv/
