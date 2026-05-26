@@ -1,10 +1,16 @@
 {
   "_doc": {
-    "default_per_page": "一覧系エンドポイントのデフォルト取得件数。リクエスト側で上書き可能",
-    "max_per_page":     "一覧系エンドポイントで取得できる最大件数。GitHub API のレート制限とレスポンスサイズのバランスで設定する",
-    "allowed_repos":    "書き込み系操作を許可するリポジトリの許可リスト (owner/repo 形式)。空リストは全リポジトリを許可する"
+    "default_per_page":  "一覧系エンドポイントのデフォルト取得件数。リクエスト側で上書き可能",
+    "max_per_page":      "一覧系エンドポイントで取得できる最大件数。GitHub API のレート制限とレスポンスサイズのバランスで設定する",
+    "allowed_repos":     "書き込み系操作を許可するリポジトリの許可リスト (owner/repo 形式)。空リストは全リポジトリを許可する",
+    "protected_branches":"書き込み操作を禁止するブランチ名のパターンリスト (fnmatch glob)。例: [\"main\", \"release/*\"]。空リストはブランチ制限なし",
+    "allow_force_push":  "false のとき rebase マージを禁止する。rebase はコミット履歴を書き換えるため force push 相当になる (デフォルト: true)",
+    "require_pr_review": "将来拡張用フラグ (現在未実装)。true のとき PR マージ前にレビュー必須とする"
   },
-  "default_per_page": 20,
-  "max_per_page":     100,
-  "allowed_repos":    []
+  "default_per_page":  20,
+  "max_per_page":      100,
+  "allowed_repos":     [],
+  "protected_branches": ["main", "release/*"],
+  "allow_force_push":  true,
+  "require_pr_review": false
 }

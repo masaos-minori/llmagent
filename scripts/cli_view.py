@@ -60,6 +60,18 @@ class CLIView:
         """Notify the user that history was compressed."""
         print(f"  [context] history compressed ({n} messages summarized)")
 
+    def write_turn_start(self) -> None:
+        """Print a blank line before each LLM streaming turn."""
+        print()
+
+    def write_turn_end(self) -> None:
+        """Print a blank line after the final LLM answer."""
+        print()
+
+    def write_llm_error(self, e: Exception) -> None:
+        """Notify the user of an LLM request failure."""
+        print(f"\nError: {e}\n")
+
     def rag_status(self, msg: str) -> None:
         """Overwrite the current line with a RAG progress indicator."""
         print(f"  [rag] {msg:<24}", end="\r", flush=True)

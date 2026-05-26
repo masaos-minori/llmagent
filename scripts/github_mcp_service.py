@@ -7,6 +7,7 @@ Dependency direction: github_mcp_models → github_mcp_service → github_mcp_se
 """
 
 import asyncio
+import fnmatch
 import itertools
 import logging
 import os
@@ -118,6 +119,24 @@ class GitHubService:
                 status_code=403,
                 detail=f"Repository not in allowed_repos: {slug}",
             )
+
+    @staticmethod
+    def _assert_allowed_branch(owner: str, repo: str, branch: str) -> None:
+        """Raise HTTPException(403) if branch matches a protected_branches pattern.
+
+        Patterns follow fnmatch glob syntax: 'main' matches exactly, 'release/*'
+        matches any release branch. An empty list means no branch restrictions.
+        """
+        protected: list[str] = _get_cfg().get("protected_branches", [])
+        for pattern in protected:
+            if fnmatch.fnmatch(branch, pattern):
+                raise HTTPException(
+                    status_code=403,
+                    detail=(
+                        f"Branch '{branch}' is protected in {owner}/{repo}"
+                        f" (matches pattern '{pattern}')"
+                    ),
+                )
 
     def _get_repo(self, owner: str, repo: str) -> Any:
         """Return a PyGithub Repository object for the given owner/repo slug."""
@@ -330,6 +349,8 @@ class GitHubService:
     ) -> CreateOrUpdateFileResponse:
         """Create or update a file; providing sha updates an existing file."""
         self._assert_allowed_repo(req.owner, req.repo)
+        if req.branch:
+            self._assert_allowed_branch(req.owner, req.repo, req.branch)
 
         def _sync() -> CreateOrUpdateFileResponse:
             repo = self._get_repo(req.owner, req.repo)
@@ -357,6 +378,7 @@ class GitHubService:
     async def push_files(self, req: PushFilesRequest) -> PushFilesResponse:
         """Push multiple files as a single atomic commit via the Git Tree API."""
         self._assert_allowed_repo(req.owner, req.repo)
+        self._assert_allowed_branch(req.owner, req.repo, req.branch)
 
         def _sync() -> PushFilesResponse:
             repo = self._get_repo(req.owner, req.repo)
@@ -388,6 +410,8 @@ class GitHubService:
     ) -> DeleteRepoFileResponse:
         """Delete a file from a repository; sha required to prevent conflicts."""
         self._assert_allowed_repo(req.owner, req.repo)
+        if req.branch:
+            self._assert_allowed_branch(req.owner, req.repo, req.branch)
 
         def _sync() -> DeleteRepoFileResponse:
             repo = self._get_repo(req.owner, req.repo)
@@ -558,10 +582,21 @@ class GitHubService:
     ) -> MergePullRequestResponse:
         """Merge a pull request using the specified merge method."""
         self._assert_allowed_repo(req.owner, req.repo)
+        # Block rebase merge when allow_force_push is false (rebase rewrites history)
+        if (
+            not _get_cfg().get("allow_force_push", True)
+            and req.merge_method == "rebase"
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Rebase merge is disabled (allow_force_push=false)",
+            )
 
         def _sync() -> MergePullRequestResponse:
             repo = self._get_repo(req.owner, req.repo)
             pr = repo.get_pull(number=req.pr_number)
+            # Block merge into protected base branch
+            GitHubService._assert_allowed_branch(req.owner, req.repo, pr.base.ref)
             # Build merge kwargs; title/message are optional overrides
             kwargs: dict[str, Any] = {"merge_method": req.merge_method}
             if req.commit_title:

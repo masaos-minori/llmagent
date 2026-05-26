@@ -56,7 +56,9 @@
     "use_refiner":              "true のとき Rerank 後の RAG チャンクをクエリ関連の要点に圧縮してから LLM コンテキストに投入する (RAG Refiner)。失敗時は原文チャンクにフォールバックする",
     "refiner_max_tokens":       "Refiner LLM 呼び出しの最大生成トークン数 (デフォルト: 512)",
     "refiner_timeout":          "Refiner LLM 呼び出しの HTTP タイムアウト秒数 (デフォルト: 30.0)",
-    "refiner_max_chars_per_chunk": "Refiner に渡す 1 チャンクあたりの最大文字数。超過分は切り捨ててトークン爆発を防ぐ (デフォルト: 300)"
+    "refiner_max_chars_per_chunk": "Refiner に渡す 1 チャンクあたりの最大文字数。超過分は切り捨ててトークン爆発を防ぐ (デフォルト: 300)",
+    "tool_dedup_max_repeats": "同一 (ツール名 + 引数) の組み合わせを最大何回まで実行するかの上限。この値以上の繰り返しを検出した時点でターンを打ち切り LLM に警告を注入する (デフォルト: 3)",
+    "tool_error_max_consecutive": "全ツールがエラーを返したターンが連続してこの回数に達したらターンを打ち切る。0 で無効 (デフォルト: 3)"
   },
   "chat_url":               "http://127.0.0.1:8002/v1/chat/completions",
   "code_url":               "http://127.0.0.1:8001/v1/chat/completions",
@@ -105,6 +107,8 @@
   "refiner_max_tokens":      512,
   "refiner_timeout":         30.0,
   "refiner_max_chars_per_chunk": 300,
+  "tool_dedup_max_repeats":     3,
+  "tool_error_max_consecutive": 3,
   "mcp_servers": {
     "web_search": {
       "transport": "http",

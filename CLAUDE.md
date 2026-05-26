@@ -70,19 +70,33 @@ Full validation sequence: `rules/toolchain.md`
 
 **mypy 注意:** `pyproject.toml` に `warn_unused_ignores = true` が設定されているため、mypy がエラーを検出しない行への `# type: ignore` はそれ自体がエラーになる。tests/ も pre-commit の mypy 対象なので同様に適用される。
 
+**テストカバレッジ:** 現状のユニットテストは `tests/test_plugin_registry.py` と `tests/test_rag_utils.py` のみ。`agent_repl.py` / `tool_executor.py` / `history_manager.py` 等コア層はテストなし。これらを変更するリファクタリングタスクでは、着手前に behavior lock テスト (`python-test-and-fix` スキル) を取ること。
+
 ## Architecture
 
 ### Agent REPL
 
 Entry point: `agent.py` → `asyncio.run(AgentREPL().run())`.
 
-`AgentREPL` (`agent_repl.py`) is a thin coordinator. It wires all components into `AgentContext` via `_init_components()`, then drives the per-turn loop in `_run_turn()`. Heavy subsystems live in satellite modules:
+`AgentREPL` (`agent_repl.py`) wires all components into `AgentContext` via `_init_components()` and drives the input/command dispatch loop in `_repl_loop()`. MCP subprocess lifecycle, health checks, and watchdog are also owned here. Turn-level logic is delegated to `Orchestrator`.
+
+`Orchestrator` (`orchestrator.py`) handles one conversation turn end-to-end: RAG augmentation → history compression → LLM streaming loop → tool dispatch. Owns `_run_turn()` with duplicate tool call detection (`tool_dedup_max_repeats`) and consecutive all-error guard (`tool_error_max_consecutive`). All terminal output is routed via callbacks (`on_turn_start`, `on_turn_end`, `on_error`) — no `print()` in this module.
+
+Heavy subsystems live in satellite modules:
 
 - `agent_repl_health.py` — MCP health checks and watchdog loop
 - `agent_repl_tool_exec.py` — tool call approval and parallel execution
 - `agent_repl_debug.py` — RAG debug printers (pure functions, no side effects)
 
-**CLIView callback pattern**: UI output from library modules is routed via callbacks injected in `_init_components()`. `LLMClient` receives `on_token=self._view.write_token` (called per streaming token); `HistoryManager` receives `on_compress=self._view.write_compress_notice` (called once per compression). Neither module calls `print()` directly. `CLIView` owns all terminal output APIs: `write_token()`, `write_compress_notice()`, `rag_status()`, `rag_clear()`.
+**CLIView callback pattern**: UI output from library modules is routed via callbacks injected in `_init_components()`. `LLMClient` receives `on_token=self._view.write_token`; `HistoryManager` receives `on_compress=self._view.write_compress_notice`; `Orchestrator` receives `on_turn_start`, `on_turn_end`, `on_error`. None of these modules calls `print()` directly. `CLIView` owns all terminal output APIs.
+
+Key library modules (all injected via `_init_components()`):
+
+- `llm_client.py` — SSE streaming, retry with exponential backoff, payload builder; receives `on_token` callback
+- `history_manager.py` — compresses old turns via LLM summary when context char limit is exceeded; receives `on_compress` callback
+- `agent_session.py` — SQLite-backed session/message persistence (`ctx.session`); `save(role, content)` appends to `messages` table
+- `cli_view.py` — readline setup, multiline continuation, RAG progress display; owns all terminal output APIs
+
 
 ### Shared State
 
@@ -140,7 +154,11 @@ Schema (`create_schema.py`): `chunks_vec_ad` trigger keeps `chunks_vec` in sync 
 | github-mcp | 8006 | `github_mcp_models.py` | `github_mcp_service.py` | `github_mcp_server.py` |
 | web-search-mcp | 8004 | — | — | `web_search_mcp_server.py` |
 
+**共通基盤**: `mcp_server.py` — 全 MCP サーバが継承するベースクラス。FastAPI アプリ起動・`/v1/call_tool` エンドポイント・`/health` を提供。`mcp_models.py` — `/v1/call_tool` の `CallToolRequest` / `CallToolResponse` Pydantic モデル。`formatters.py` — LLM context 向けとターミナル向けの 2 系統フォーマット関数。
+
 **ツールルーティング** (`tool_executor.py`): モジュールレベルの `_READ_TOOLS` / `_WRITE_TOOLS` / `_DELETE_TOOLS` frozenset で振り分け。`shell_run` → `shell`、`search_web` → `web_search`、`github_*` → `github`。`HttpTransport` (HTTP/JSON-RPC) または `StdioTransport` (subprocess `--stdio`) で実行。結果は TTL キャッシュ。
+
+**MCP インストーラ**: `mcp_installer.py` — `/mcp install <name>` から呼び出されるスケルトン生成ツール。`scripts/<name>_mcp_server.py` / `config/<name>_mcp_server.json` / `init.d/<name>` / `conf.d/<name>` を自動生成する。ポート 8007 以降を自動採番し、予約済みポート (8001–8006) への衝突を防ぐ。
 
 **shell-mcp セキュリティ仕様**: `argv[0]` をホワイトリスト照合 (`shlex.split` → basename)、`shell=False` 固定、`start_new_session=True` でプロセスグループ管理、`resource.setrlimit()` で CPU/メモリ/fd/プロセス数を制限、タイムアウト時は SIGTERM → SIGKILL の順でグループ終了。全実行を `/opt/llm/logs/shell_audit.log` に記録。
 
@@ -154,7 +172,27 @@ All config values (URLs, `tool_definitions`, `system_prompts`, RAG flags, LLM pa
 
 Key tool-result budget fields: `tool_result_max_llm_chars` (per-result truncation limit) and `tool_results_turn_max_chars` (per-turn total budget; results exceeding the budget are replaced with a `/tool show <id>` retrieval hint in LLM history).
 
+Tool loop guard fields: `tool_dedup_max_repeats` (同一 tool+args の繰り返しをこの回数でブロック) and `tool_error_max_consecutive` (全ツールがエラーを返したターンが連続してこの回数に達したら打ち切り; 0 で無効).
+
+`config/github_mcp_server.json`: `protected_branches` (fnmatch glob のリスト; 該当 branch への write 操作を 403 でブロック), `allow_force_push` (false のとき rebase merge を禁止), `require_pr_review` (将来拡張用).
+
 When adding a new `scripts/*.py` module, also add a `cp` line to `deploy/deploy.sh`.
+
+### Ingestion Pipeline
+
+One-shot scripts for document collection and RAG indexing (run in sequence, not part of the REPL):
+
+```
+web_crawler.py → chunk_splitter.py → rag_ingester.py
+```
+
+- `web_crawler.py` — fetches URLs listed in `config/rag_pipeline.json`; saves raw text under `rag-src/`
+- `chunk_splitter.py` — splits raw text into fixed-size chunks; writes JSON files under `rag-src/chunk/`
+- `rag_ingester.py` — embeds chunks via the embed-llm service and upserts into `chunks` / `chunks_vec` / `chunks_fts`
+- `pipeline_utils.py` — shared I/O: JSON file reading, source file enumeration, idempotency sentinel check
+- `rag_utils.py` — shared text utilities (unicode normalization, tokenization) used by both ingestion and `agent_rag.py`
+
+Processed files are moved to `rag-src/registered/` as an idempotency guard; re-running is safe.
 
 ### Plugin Architecture
 

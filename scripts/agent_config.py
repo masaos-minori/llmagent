@@ -148,6 +148,9 @@ class AgentConfig:
     refiner_max_tokens: int
     refiner_timeout: float
     refiner_max_chars_per_chunk: int
+    # Tool loop guards: detect repeated calls and consecutive all-error turns
+    tool_dedup_max_repeats: int
+    tool_error_max_consecutive: int
     # Per-server transport configuration (keyed by server role: "file", "github", "web_search")
     mcp_servers: dict[str, McpServerConfig] = field(default_factory=dict)
 
@@ -220,6 +223,15 @@ class AgentConfig:
                 f"refiner_max_chars_per_chunk must be >= 1,"
                 f" got {self.refiner_max_chars_per_chunk}"
             )
+        if self.tool_dedup_max_repeats < 1:
+            raise ValueError(
+                f"tool_dedup_max_repeats must be >= 1, got {self.tool_dedup_max_repeats}"
+            )
+        if self.tool_error_max_consecutive < 0:
+            raise ValueError(
+                "tool_error_max_consecutive must be >= 0,"
+                f" got {self.tool_error_max_consecutive}"
+            )
 
 
 def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
@@ -271,6 +283,8 @@ def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
         refiner_max_tokens=int(cfg.get("refiner_max_tokens", 512)),
         refiner_timeout=float(cfg.get("refiner_timeout", 30.0)),
         refiner_max_chars_per_chunk=int(cfg.get("refiner_max_chars_per_chunk", 300)),
+        tool_dedup_max_repeats=int(cfg.get("tool_dedup_max_repeats", 3)),
+        tool_error_max_consecutive=int(cfg.get("tool_error_max_consecutive", 3)),
         mcp_servers=_build_mcp_servers(cfg),
         chat_url=cfg.get("chat_url", ""),
         code_url=cfg.get("code_url", ""),

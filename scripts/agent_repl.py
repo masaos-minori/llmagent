@@ -4,56 +4,45 @@ AgentREPL
 Interactive REPL agent with RAG augmentation and MCP tool calling.
 Imported by agent.py as the entry point.
 Slash-command handlers live in agent_commands.CommandRegistry.
+Turn-level orchestration (RAG, LLM loop, tool dispatch) lives in orchestrator.py.
 
 Architecture (dependency injection via AgentContext):
   AgentContext   — shared mutable state container (agent_context.py)
   CLIView        — readline, multiline input, RAG progress display (cli_view.py)
   LLMClient      — HTTP retry, payload build, SSE stream (llm_client.py)
-  RagPipeline    — MQE → search → RRF → rerank orchestration (agent_rag.py)
+  RagPipeline    — MQE -> search -> RRF -> rerank orchestration (agent_rag.py)
   ToolExecutor   — MCP routing, error handling, TTL cache (tool_executor.py)
   HistoryManager — character counting, LLM-based compression (history_manager.py)
   CommandRegistry — slash-command dispatch (agent_commands.py)
+  Orchestrator   — per-turn task control: RAG, LLM loop, tool dispatch (orchestrator.py)
   AgentConfig    — mutable runtime config dataclass (agent_config.py)
 
 AgentREPL responsibilities:
-  _run_turn            — SSE streaming → tool loop → final answer
-  _handle_user_message — RAG augment → history append → LLM turn
   _repl_loop           — main input/dispatch loop
+  _init_components     — DI wiring
+  run                  — startup sequence
 """
 
 import asyncio
-import time
 from pathlib import Path
 
 import httpx
 import plugin_registry
-from agent_commands import CommandRegistry, _budget_breakdown
-from agent_config import BUDGET_WARN_RATIO
+from agent_commands import CommandRegistry
 from agent_context import AgentContext
 from agent_rag import RagPipeline
-from agent_repl_debug import (
-    _extract_history_context,
-    _make_debug_fn,
-    _needs_more_context,
-)
 from agent_repl_health import (
     check_service_health,
     check_tool_definitions,
     watchdog_loop,
 )
-from agent_repl_tool_exec import execute_all_tool_calls
 from cli_view import CLIView
 from history_manager import HistoryManager
 from llm_client import LLMClient
 from logger import Logger
-from rag_llm import get_embedding
-from rag_repository import fetch_full_document
+from orchestrator import Orchestrator
 from sqlite_helper import SQLiteHelper
 from tool_executor import StdioTransport, ToolExecutor
-
-# Default LLM generation parameters (documentation only; actual values from agent.json)
-_LLM_TEMPERATURE: float = 0.2
-_LLM_MAX_TOKENS: int = 1024
 
 # LLM parameters for context compression summary.
 _COMPRESS_TEMPERATURE: float = 0.3
@@ -101,6 +90,7 @@ class AgentREPL:
         self._ctx = AgentContext()
         self._view = CLIView(AgentREPL.SLASH_COMMANDS)
         self._cmds: CommandRegistry | None = None
+        self._orchestrator: Orchestrator | None = None
 
     @property
     def _mode(self) -> str:
@@ -151,237 +141,13 @@ class AgentREPL:
         if self._ctx.services.http is not None:
             await self._ctx.services.http.aclose()
 
-    # ── Tool execution — delegated to agent_repl_tool_exec ────────────────────
-
-    async def _execute_all_tool_calls(self, tool_calls: list[dict], turn: int) -> None:
-        await execute_all_tool_calls(self._ctx, tool_calls, turn)
-
-    # ── LLM interaction ────────────────────────────────────────────────────────
-
-    async def _fetch_two_stage_context(self) -> str:
-        """Fetch full document context for the top reranked hits (second stage).
-
-        Opens its own DB connection, expands up to two_stage_max_docs unique
-        documents by calling fetch_full_document(), and returns a formatted
-        context block to inject before the second LLM call.
-        """
-        ctx = self._ctx
-        hits = ctx.services.rag.last_reranked if ctx.services.rag is not None else []
-        if not hits:
-            return ""
-        max_docs = ctx.cfg.two_stage_max_docs
-        try:
-            db = SQLiteHelper().open(row_factory=True)
-        except Exception as e:
-            logger.warning(f"Two-stage fetch DB open failed: {e}")
-            return ""
-        blocks: list[str] = []
-        seen_urls: set[str] = set()
-        with db:
-            for hit in hits:
-                if len(seen_urls) >= max_docs:
-                    break
-                url = hit.get("url", "")
-                if url in seen_urls:
-                    continue
-                seen_urls.add(url)
-                chunk_id = hit.get("chunk_id")
-                if chunk_id is None:
-                    continue
-                # Expand ±2 surrounding chunks for focused context
-                full_hits = fetch_full_document(chunk_id, db, window=2)
-                if full_hits:
-                    content = "\n".join(h["content"] for h in full_hits)
-                    blocks.append(f"[Source: {url}]\n{content}")
-        result = "\n\n---\n\n".join(blocks)
-        logger.info(f"Two-stage fetch: {len(blocks)} docs, {len(result)} chars")
-        return result
-
-    async def _maybe_two_stage_fetch(self, answer: str) -> str | None:
-        """Inject full-document context when the LLM signals it needs more.
-
-        Returns the extra context string when two-stage fetch is triggered,
-        or None when conditions are not met (feature disabled, no hits, or the
-        LLM did not request additional context).
-        Called at most once per _run_turn() invocation.
-        """
-        ctx = self._ctx
-        if not (
-            ctx.cfg.use_two_stage_fetch
-            and ctx.services.rag is not None
-            and ctx.services.rag.last_reranked
-            and _needs_more_context(answer)
-        ):
-            return None
-        extra = await self._fetch_two_stage_context()
-        if not extra:
-            return None
-        logger.info("Two-stage fetch: injecting full doc context")
-        return extra
-
-    async def _run_turn(self, llm_url: str) -> str:
-        """Send ctx.history to LLM; execute any tool calls; return final answer.
-
-        All turns use SSE streaming so tokens print as they arrive,
-        including follow-up turns after tool execution.
-        Appends all assistant and tool messages to ctx.history.
-        When use_two_stage_fetch is enabled, detects LLM requests for more
-        context and injects full document snippets before a second call.
-        """
-        ctx = self._ctx
-        assert ctx.services.llm is not None
-        tool_defs = ctx.cfg.tool_definitions
-        # Guard: two-stage fetch runs at most once per turn
-        two_stage_done = False
-
-        for turn in range(ctx.cfg.max_tool_turns):
-            print()
-            # Warn when total input chars exceed BUDGET_WARN_RATIO of context_char_limit
-            if turn == 0 and ctx.cfg.context_char_limit > 0:
-                bd = _budget_breakdown(ctx.history)
-                total_bd = sum(bd.values())
-                if total_bd > ctx.cfg.context_char_limit * BUDGET_WARN_RATIO:
-                    pct = int(total_bd * 100 / ctx.cfg.context_char_limit)
-                    logger.warning(
-                        f"Context budget {pct}% used"
-                        f" (total={total_bd:,}"
-                        f" limit={ctx.cfg.context_char_limit:,})"
-                        f" sys={bd['system']:,} rag={bd['rag']:,}"
-                        f" hist={bd['history']:,}"
-                        f" tool={bd['tool_results']:,}"
-                    )
-            t0_llm = time.perf_counter()
-            response = await ctx.services.llm.stream(llm_url, ctx.history, tool_defs)
-            # Record LLM wall-clock time for the first (main) generation turn only
-            if turn == 0:
-                ctx.stat_latency.setdefault("llm", []).append(
-                    time.perf_counter() - t0_llm
-                )
-
-            message, finish_reason = LLMClient.extract_message(response)
-
-            has_tool_calls = bool(message.get("tool_calls"))
-            is_done = (finish_reason != "tool_calls") or not has_tool_calls
-            if is_done:
-                ctx.history.append(message)
-                print()
-                answer = message.get("content") or ""
-                # Two-stage: expand full document context when LLM signals need
-                if not two_stage_done:
-                    extra = await self._maybe_two_stage_fetch(answer)
-                    if extra is not None:
-                        two_stage_done = True
-                        ctx.history.append(
-                            {
-                                "role": "user",
-                                "content": (
-                                    "[Additional context]\n"
-                                    + extra
-                                    + "\n\n(Please revise your answer using"
-                                    " the above additional context.)"
-                                ),
-                            }
-                        )
-                        continue
-                return answer
-
-            ctx.history.append(message)
-            await self._execute_all_tool_calls(message["tool_calls"], turn)
-
-        logger.warning(f"Reached max_tool_turns={ctx.cfg.max_tool_turns}")
-        return "Maximum tool turns reached."
-
     # ── Main REPL loop ─────────────────────────────────────────────────────────
-
-    async def _augment_with_rag(self, line: str) -> tuple[str, bool]:
-        """Run the RAG pipeline (or semantic cache) and return (context, cache_hit).
-
-        Returns an empty string for context when use_search is False or when
-        no relevant chunks are found.
-        """
-        ctx = self._ctx
-        if not ctx.cfg.use_search or ctx.services.rag is None:
-            return "", False
-
-        history_context = _extract_history_context(ctx.history, n=2)
-        debug_fn = _make_debug_fn() if ctx.debug_mode else None
-
-        # Try semantic cache before running the full RAG pipeline
-        _cached_emb: list[float] | None = None
-        if ctx.cfg.use_semantic_cache and ctx.services.http is not None:
-            try:
-                _cached_emb = await get_embedding("query: " + line, ctx.services.http)
-                _cached_ctx = ctx.services.rag.semantic_cache.lookup(_cached_emb)
-                if _cached_ctx is not None:
-                    ctx.stat_semantic_cache_hits += 1
-                    logger.info("Semantic cache hit; skipping RAG pipeline")
-                    return _cached_ctx, True
-            except Exception as _e:
-                logger.warning(f"Semantic cache lookup failed: {_e}")
-                _cached_emb = None
-
-        context = await ctx.services.rag.augment(
-            line, debug_fn, history_context=history_context
-        )
-        # Store result in semantic cache for future reuse
-        if ctx.cfg.use_semantic_cache and context and ctx.services.http is not None:
-            try:
-                emb_for_store = _cached_emb or await get_embedding(
-                    "query: " + line, ctx.services.http
-                )
-                ctx.services.rag.semantic_cache.put(emb_for_store, context)
-            except Exception as _e:
-                logger.warning(f"Semantic cache put failed: {_e}")
-
-        return context, False
-
-    async def _handle_user_message(self, line: str) -> None:
-        """Augment a user message with RAG context, call LLM, and persist to DB.
-
-        Compresses conversation history before the LLM call when total chars
-        exceed CONTEXT_CHAR_LIMIT.
-        """
-        ctx = self._ctx
-        assert self._cmds is not None
-        assert ctx.services.hist_mgr is not None
-
-        context, cache_hit = await self._augment_with_rag(line)
-
-        if context:
-            ctx.stat_rag_hits += 1
-            augmented = f"[Reference documents]\n{context}\n\nQuestion: {line}"
-            # Accumulate per-step RAG latency samples (only on real pipeline runs)
-            if ctx.services.rag is not None and not cache_hit:
-                for step, secs in ctx.services.rag.last_timings.items():
-                    ctx.stat_latency.setdefault(step, []).append(secs)
-        else:
-            augmented = line
-        ctx.history.append({"role": "user", "content": augmented})
-        ctx.stat_turns += 1
-
-        # Generate session title asynchronously from the first user input
-        if ctx.stat_turns == 1:
-            asyncio.create_task(self._cmds._generate_session_title(line))
-        ctx.session.save("user", augmented)
-
-        # Compress history before sending to LLM when it exceeds the char limit
-        ctx.history = await ctx.services.hist_mgr.compress(ctx.history)
-
-        try:
-            answer = await self._run_turn(ctx.llm_url)
-            logger.info(f"LLM response: {answer}")
-            ctx.session.save("assistant", answer)
-        except Exception as e:
-            logger.error(f"LLM request failed: {e}")
-            print(f"\nError: {e}\n")
-            # Remove failed user message to keep history consistent
-            if ctx.history and ctx.history[-1]["role"] == "user":
-                ctx.history.pop()
 
     async def _repl_loop(self) -> None:
         """Process user input lines until /exit, EOF, or shutdown request."""
         ctx = self._ctx
         assert self._cmds is not None
+        assert self._orchestrator is not None
         loop = asyncio.get_running_loop()
         while True:
             try:
@@ -410,7 +176,7 @@ class AgentREPL:
                 if not matched:
                     print(f"Unknown command: {line}  (type /help for commands)")
             else:
-                await self._handle_user_message(line)
+                await self._orchestrator.handle_turn(line)
 
     def _init_components(self) -> None:
         """Instantiate and inject all components into AgentContext."""
@@ -445,6 +211,13 @@ class AgentREPL:
             on_clear=self._view.rag_clear,
         )
         self._cmds = CommandRegistry(ctx)
+        self._orchestrator = Orchestrator(
+            ctx,
+            self._cmds,
+            on_turn_start=self._view.write_turn_start,
+            on_turn_end=self._view.write_turn_end,
+            on_error=self._view.write_llm_error,
+        )
 
         # Load plugin files from plugins/ directory adjacent to scripts/
         plugin_dir = Path(__file__).parent.parent / "plugins"
