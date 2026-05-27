@@ -184,36 +184,40 @@ class ShellService:
             # Kill the entire process group; ignore errors if already dead
             try:
                 os.killpg(proc.pid, signal.SIGTERM)
-            except ProcessLookupError:
+            except OSError:
                 pass
-            await asyncio.sleep(2)
+            # Wait up to 2 s for graceful exit before escalating to SIGKILL
             try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            try:
-                await asyncio.wait_for(proc.wait(), timeout=5.0)
+                await asyncio.wait_for(proc.wait(), timeout=2.0)
             except TimeoutError:
-                pass
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=5.0)
+                except TimeoutError:
+                    pass
             stdout_b = b""
             stderr_b = b""
 
         elapsed = time.monotonic() - start
         exit_code = proc.returncode if proc.returncode is not None else -1
 
-        # Decode bytes to strings; replace undecodable bytes to avoid HTTPException
-        stdout = stdout_b.decode("utf-8", errors="replace")
-        stderr = stderr_b.decode("utf-8", errors="replace")
-
-        # Truncate combined output if total exceeds the byte limit
+        # Truncate combined output if total exceeds the byte limit; slice bytes
+        # before decoding so multibyte characters do not inflate the count
         truncated = False
         combined_bytes = len(stdout_b) + len(stderr_b)
         if combined_bytes > max_output_bytes:
             truncated = True
             # Allocate quota proportionally between stdout and stderr
             half = max_output_bytes // 2
-            stdout = stdout[:half]
-            stderr = stderr[:half]
+            stdout_b = stdout_b[:half]
+            stderr_b = stderr_b[:half]
+
+        # Decode bytes to strings; replace undecodable bytes to avoid HTTPException
+        stdout = stdout_b.decode("utf-8", errors="replace")
+        stderr = stderr_b.decode("utf-8", errors="replace")
 
         self._write_audit_log(req.command, cwd, exit_code, elapsed)
 

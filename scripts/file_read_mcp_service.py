@@ -8,6 +8,7 @@ Dependency direction: file_read_mcp_models → file_read_mcp_service → file_re
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import fnmatch
 import logging
@@ -389,19 +390,21 @@ class ReadFileService:
     # ── Dispatch handlers: format service results as plain text for the LLM ──
 
     async def fmt_list_directory(self, args: ToolArgs) -> str:
-        result = self.list_dir_entries(
-            ListDirectoryRequest(**args), include_dir_sizes=False
+        result = await asyncio.to_thread(
+            self.list_dir_entries, ListDirectoryRequest(**args), include_dir_sizes=False
         )
         return ReadFileService._fmt_dir_entries(result.entries)
 
     async def fmt_list_directory_with_sizes(self, args: ToolArgs) -> str:
-        result = self.list_dir_entries(
-            ListDirectoryRequest(**args), include_dir_sizes=True
+        result = await asyncio.to_thread(
+            self.list_dir_entries, ListDirectoryRequest(**args), include_dir_sizes=True
         )
         return ReadFileService._fmt_dir_entries(result.entries)
 
     async def fmt_directory_tree(self, args: ToolArgs) -> str:
-        result = self.build_directory_tree(DirectoryTreeRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.build_directory_tree(DirectoryTreeRequest(**args))
+        )
         effective_depth = min(args.get("depth", 3), self._max_tree_depth)
         total_nodes = ReadFileService._count_tree_nodes(result.root)
         trunc_note = (
@@ -411,15 +414,21 @@ class ReadFileService:
         return header + ReadFileService._fmt_tree_node(result.root)
 
     async def fmt_read_text_file(self, args: ToolArgs) -> str:
-        result = self.read_text_file(ReadTextFileRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.read_text_file(ReadTextFileRequest(**args))
+        )
         return result.content
 
     async def fmt_read_media_file(self, args: ToolArgs) -> str:
-        result = self.read_media_file(ReadMediaFileRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.read_media_file(ReadMediaFileRequest(**args))
+        )
         return f"base64:{result.mime_type};{result.content_base64}"
 
     async def fmt_read_multiple_files(self, args: ToolArgs) -> str:
-        result = self.read_multiple_files(ReadMultipleFilesRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.read_multiple_files(ReadMultipleFilesRequest(**args))
+        )
         parts = [
             f"=== {r.path} [ERROR: {r.error}] ==="
             if r.error is not None
@@ -429,13 +438,17 @@ class ReadFileService:
         return "\n\n".join(parts) if parts else "(no files)"
 
     async def fmt_search_files(self, args: ToolArgs) -> str:
-        result = self.search_files(SearchFilesRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.search_files(SearchFilesRequest(**args))
+        )
         return (
             "\n".join(result.matches) if result.matches else "No matching files found."
         )
 
     async def fmt_grep_files(self, args: ToolArgs) -> str:
-        result = self.grep_files(GrepFilesRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.grep_files(GrepFilesRequest(**args))
+        )
         if not result.matches:
             return "No matches found."
         lines = [f"{m.file}:{m.line_number}: {m.line}" for m in result.matches]
@@ -445,7 +458,9 @@ class ReadFileService:
         return text
 
     async def fmt_get_file_info(self, args: ToolArgs) -> str:
-        result = self.get_file_info(GetFileInfoRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.get_file_info(GetFileInfoRequest(**args))
+        )
         info = result.info
         return "\n".join(
             [

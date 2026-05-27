@@ -8,6 +8,7 @@ Dependency direction: file_delete_mcp_models → file_delete_mcp_service → fil
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import shutil
 from collections.abc import Awaitable, Callable
@@ -115,11 +116,15 @@ class DeleteFileService:
     # ── Dispatch handlers: format service results as plain text for the LLM ──
 
     async def fmt_delete_file(self, args: ToolArgs) -> str:
-        result = self.delete_file(DeleteFileRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.delete_file(DeleteFileRequest(**args))
+        )
         return f"Deleted: {result.path}"
 
     async def fmt_delete_directory(self, args: ToolArgs) -> str:
-        result = self.delete_directory(DeleteDirectoryRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.delete_directory(DeleteDirectoryRequest(**args))
+        )
         return f"Directory deleted: {result.path}"
 
     def get_dispatch_table(

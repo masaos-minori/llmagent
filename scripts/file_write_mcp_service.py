@@ -8,6 +8,7 @@ Dependency direction: file_write_mcp_models → file_write_mcp_service → file_
 
 from __future__ import annotations
 
+import asyncio
 import difflib
 import logging
 import shutil
@@ -174,11 +175,15 @@ class WriteFileService:
     # ── Dispatch handlers: format service results as plain text for the LLM ──
 
     async def fmt_write_file(self, args: ToolArgs) -> str:
-        result = self.write_file(WriteFileRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.write_file(WriteFileRequest(**args))
+        )
         return f"Written: {result.path} ({result.size} bytes)"
 
     async def fmt_edit_file(self, args: ToolArgs) -> str:
-        result = self.edit_file(EditFileRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.edit_file(EditFileRequest(**args))
+        )
         if not result.diff:
             return "No changes."
         if result.applied:
@@ -186,12 +191,16 @@ class WriteFileService:
         return f"Diff only (dry_run)\n{result.diff}"
 
     async def fmt_create_directory(self, args: ToolArgs) -> str:
-        result = self.create_directory(CreateDirectoryRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.create_directory(CreateDirectoryRequest(**args))
+        )
         status = "created" if result.created else "already exists"
         return f"Directory {status}: {result.path}"
 
     async def fmt_move_file(self, args: ToolArgs) -> str:
-        result = self.move_file(MoveFileRequest(**args))
+        result = await asyncio.to_thread(
+            lambda: self.move_file(MoveFileRequest(**args))
+        )
         return f"Moved: {result.source} → {result.destination}"
 
     def get_dispatch_table(
