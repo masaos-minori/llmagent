@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -28,6 +29,7 @@ from logger import Logger
 from rag_llm import get_embedding
 from rag_repository import fetch_full_document
 from sqlite_helper import SQLiteHelper
+from tool_executor import tool_call_key
 
 if TYPE_CHECKING:
     from agent_commands import CommandRegistry
@@ -131,6 +133,8 @@ class Orchestrator:
         two_stage_done = False
         # Dedup: track (tool_name:args_json) md5 -> call count across all inner turns
         seen_calls: dict[str, int] = {}
+        # Retry suppression: (name, args) keys that errored in this turn sequence
+        failed_calls: set[str] = set()
         consecutive_errors: int = 0
         # Cycle detection: fingerprints of each round's tool call set (sorted, md5)
         round_fingerprints: list[str] = []
@@ -191,6 +195,11 @@ class Orchestrator:
                 return answer
 
             ctx.history.append(message)
+            ctx.session.save(
+                "assistant",
+                message.get("content") or "",
+                tool_calls=message.get("tool_calls"),
+            )
 
             # Cycle detection: abort when the same round-level tool fingerprint repeats
             if ctx.cfg.tool_cycle_detect_window > 0:
@@ -232,8 +241,29 @@ class Orchestrator:
                 ctx.history.append({"role": "user", "content": _DEDUP_HINT})
                 return "Repeated tool call detected."
 
+            # Recursive retry suppression: block re-execution of calls that already errored.
+            if ctx.cfg.tool_error_retry_max > 0:
+                retry_blocked: str | None = None
+                for tc in message["tool_calls"]:
+                    func = tc.get("function", {})
+                    try:
+                        tc_args = json.loads(func.get("arguments", "{}"))
+                    except (json.JSONDecodeError, TypeError):
+                        tc_args = {}
+                    if tool_call_key(func.get("name", ""), tc_args) in failed_calls:
+                        retry_blocked = func.get("name", "<unknown>")
+                        break
+                if retry_blocked is not None:
+                    logger.warning(
+                        f"Retry of failed tool call blocked: {retry_blocked!r}"
+                    )
+                    ctx.history.append({"role": "user", "content": _DEDUP_HINT})
+                    return "Repeated failed tool call detected."
+
             errors_before = ctx.stat_tool_errors
-            await execute_all_tool_calls(ctx, message["tool_calls"], turn)
+            await execute_all_tool_calls(
+                ctx, message["tool_calls"], turn, out_failed_keys=failed_calls
+            )
             n_errors = ctx.stat_tool_errors - errors_before
 
             # Consecutive error tracking: reset count when any tool succeeds this turn

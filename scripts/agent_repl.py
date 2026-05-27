@@ -99,8 +99,10 @@ class AgentREPL:
 
     @property
     def _prompt(self) -> str:
-        """Dynamic REPL prompt showing the active mode."""
-        return f"agent[{self._mode}]> "
+        """Dynamic REPL prompt showing mode and current session ID."""
+        sid = self._ctx.session.session_id
+        sid_str = f":#{sid}" if sid is not None else ""
+        return f"agent[{self._mode}{sid_str}]> "
 
     @property
     def _n_tools(self) -> int:
@@ -194,6 +196,8 @@ class AgentREPL:
             ctx.services.http,
             cache_ttl=ctx.cfg.tool_cache_ttl,
             server_configs=ctx.cfg.mcp_servers,
+            cache_max_size=ctx.cfg.tool_cache_max_size,
+            concurrency_limits=ctx.cfg.tool_concurrency_limits,
         )
         ctx.services.hist_mgr = HistoryManager(
             ctx.services.http,

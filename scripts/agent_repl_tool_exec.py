@@ -14,6 +14,7 @@ from agent_commands import mask_args
 from agent_context import AgentContext
 from logger import Logger
 from rag_llm import summarize_tool_result
+from tool_executor import is_side_effect, tool_call_key
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -89,14 +90,18 @@ async def execute_one_tool_call(
 
 
 async def execute_all_tool_calls(
-    ctx: AgentContext, tool_calls: list[dict], turn: int
+    ctx: AgentContext,
+    tool_calls: list[dict],
+    turn: int,
+    out_failed_keys: set[str] | None = None,
 ) -> None:
     """Execute all tool calls then append results in original order.
 
     When ctx.cfg.serial_tool_calls is False (default), calls run in parallel
-    via asyncio.gather(). When True, calls run sequentially to preserve
-    ordering for dependent operations (e.g. write-then-read the same file).
+    via asyncio.gather() unless an approved call has side effects (write/delete/shell),
+    in which case execution is automatically downgraded to serial.
     Logging, display, and history.append are always done sequentially.
+    Error keys are added to out_failed_keys (if provided) for retry suppression.
     """
     # Pre-flight checks: plan_mode block first, then interactive approval.
     # Both must run serially regardless of serial_tool_calls setting.
@@ -124,7 +129,17 @@ async def execute_all_tool_calls(
             continue
         approved_calls.append(tc)
 
-    if ctx.cfg.serial_tool_calls:
+    # Auto-downgrade to serial if any approved call has side effects (write/delete/shell).
+    has_side_effect = any(
+        is_side_effect(tc["function"]["name"]) for tc in approved_calls
+    )
+    use_serial = ctx.cfg.serial_tool_calls or has_side_effect
+    if use_serial:
+        if has_side_effect and not ctx.cfg.serial_tool_calls:
+            logger.info(
+                "Side-effect tool detected; downgrading to serial execution"
+                f" ({[tc['function']['name'] for tc in approved_calls]})"
+            )
         results = []
         for tc in approved_calls:
             results.append(await execute_one_tool_call(ctx, tc, turn))
@@ -140,6 +155,10 @@ async def execute_all_tool_calls(
         ctx.stat_tool_calls += 1
         if is_error:
             ctx.stat_tool_errors += 1
+            # Record error key for retry suppression in orchestrator.py.
+            # Uses tool_call_key() to guarantee the same hash as the lookup side.
+            if out_failed_keys is not None:
+                out_failed_keys.add(tool_call_key(name, args))
         masked = mask_args(args, ctx.cfg.masked_fields)
         logger.info(f"Tool call (turn {turn + 1}): {name}({masked})")
         print(f"  [tool] {name}({json.dumps(masked, ensure_ascii=False)})")
@@ -198,3 +217,15 @@ async def execute_all_tool_calls(
                 "content": "Tool execution denied by user.",
             }
         )
+    # Persist all tool result messages in one DB transaction (one connection open).
+    # Collecting here avoids N individual save() calls each with their own
+    # load_extension + PRAGMA overhead.
+    tool_msgs: list[tuple[str, str, list[dict] | None, str | None]] = [
+        ("tool", llm_text, None, tc_id)
+        for tc_id, _name, _args, _text, _is_error, llm_text in results
+    ]
+    tool_msgs += [
+        ("tool", "Tool execution denied by user.", None, denied_id)
+        for denied_id in denied_ids
+    ]
+    ctx.session.save_many(tool_msgs)

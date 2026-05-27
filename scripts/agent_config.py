@@ -153,6 +153,14 @@ class AgentConfig:
     # Window size for cyclic planning detection (round-level fingerprint repetition); 0 disables
     tool_cycle_detect_window: int
     tool_error_max_consecutive: int
+    # Max size of the TTL tool result cache; LRU eviction when exceeded. 0 = unlimited.
+    tool_cache_max_size: int = 200
+    # Max retries for an (name, args) combo that already returned an error this turn; 0 = disabled.
+    tool_error_retry_max: int = 1
+    # Per-server concurrent call limit for asyncio.gather; empty = unlimited.
+    # Keys match _route() server keys: file_read, file_write, file_delete, shell, web_search, github.
+    # Unknown keys produce a logger.warning in ToolExecutor.__init__ and are silently ignored.
+    tool_concurrency_limits: dict[str, int] = field(default_factory=dict)
     # Per-server transport configuration (keyed by server role: "file", "github", "web_search")
     mcp_servers: dict[str, McpServerConfig] = field(default_factory=dict)
 
@@ -242,6 +250,14 @@ class AgentConfig:
                 "tool_error_max_consecutive must be >= 0,"
                 f" got {self.tool_error_max_consecutive}"
             )
+        if self.tool_cache_max_size < 0:
+            raise ValueError(
+                f"tool_cache_max_size must be >= 0, got {self.tool_cache_max_size}"
+            )
+        if self.tool_error_retry_max < 0:
+            raise ValueError(
+                f"tool_error_retry_max must be >= 0, got {self.tool_error_retry_max}"
+            )
 
 
 def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
@@ -296,6 +312,9 @@ def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
         tool_dedup_max_repeats=int(cfg.get("tool_dedup_max_repeats", 3)),
         tool_cycle_detect_window=int(cfg.get("tool_cycle_detect_window", 2)),
         tool_error_max_consecutive=int(cfg.get("tool_error_max_consecutive", 3)),
+        tool_cache_max_size=int(cfg.get("tool_cache_max_size", 200)),
+        tool_error_retry_max=int(cfg.get("tool_error_retry_max", 1)),
+        tool_concurrency_limits=dict(cfg.get("tool_concurrency_limits", {})),
         rag_service_url=cfg.get("rag_service_url", ""),
         mcp_servers=_build_mcp_servers(cfg),
         chat_url=cfg.get("chat_url", ""),

@@ -41,7 +41,11 @@ class AgentSession:
     _VALID_ROLES: frozenset[str] = frozenset({"user", "assistant", "tool", "system"})
 
     def save(
-        self, role: str, content: str, tool_calls: list[dict] | None = None
+        self,
+        role: str,
+        content: str,
+        tool_calls: list[dict] | None = None,
+        tool_call_id: str | None = None,
     ) -> None:
         """Persist a single message to DB under the current session."""
         if self.session_id is None:
@@ -54,12 +58,51 @@ class AgentSession:
             with SQLiteHelper().open(write_mode=True) as db:
                 db.execute(
                     "INSERT INTO messages"
-                    " (session_id, role, content, tool_calls) VALUES (?, ?, ?, ?)",
-                    (self.session_id, role, content, tc_json),
+                    " (session_id, role, content, tool_calls, tool_call_id)"
+                    " VALUES (?, ?, ?, ?, ?)",
+                    (self.session_id, role, content, tc_json, tool_call_id),
                 )
                 db.commit()
         except Exception as e:
             logger.warning(f"Message save failed: {e}")
+
+    def save_many(
+        self,
+        messages: list[tuple[str, str, list[dict] | None, str | None]],
+    ) -> None:
+        """Persist multiple messages in a single DB transaction.
+
+        Each tuple: (role, content, tool_calls, tool_call_id).
+        Rows with invalid roles are silently skipped.
+        Opens exactly one DB connection regardless of the number of messages.
+        """
+        if self.session_id is None or not messages:
+            return
+        try:
+            rows = [
+                (
+                    self.session_id,
+                    role,
+                    content,
+                    json.dumps(tc, ensure_ascii=False) if tc else None,
+                    tc_id,
+                )
+                for role, content, tc, tc_id in messages
+                if role in self._VALID_ROLES
+            ]
+            if not rows:
+                return
+            with SQLiteHelper().open(write_mode=True) as db:
+                for row in rows:
+                    db.execute(
+                        "INSERT INTO messages"
+                        " (session_id, role, content, tool_calls, tool_call_id)"
+                        " VALUES (?, ?, ?, ?, ?)",
+                        row,
+                    )
+                db.commit()
+        except Exception as e:
+            logger.warning(f"save_many failed: {e}")
 
     def set_title(self, title: str) -> None:
         """Set the session title using the first user input (truncated to 50 chars)."""
@@ -233,7 +276,7 @@ class AgentSession:
         try:
             with SQLiteHelper().open(row_factory=True) as db:
                 rows = db.fetchall(
-                    "SELECT role, content, tool_calls FROM messages"
+                    "SELECT role, content, tool_calls, tool_call_id FROM messages"
                     " WHERE session_id = ? ORDER BY message_id",
                     (session_id,),
                 )
@@ -252,6 +295,8 @@ class AgentSession:
                     logger.warning(
                         f"Invalid tool_calls JSON in session {session_id}: {e}"
                     )
+            if r["tool_call_id"]:
+                msg["tool_call_id"] = r["tool_call_id"]
             messages.append(msg)
         return messages
 

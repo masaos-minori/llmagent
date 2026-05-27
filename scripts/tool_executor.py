@@ -13,9 +13,11 @@ configured transport.
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import time
+from collections import OrderedDict
 from typing import TYPE_CHECKING
 
 import httpx
@@ -219,6 +221,36 @@ _DELETE_TOOLS: frozenset[str] = frozenset(
     }
 )
 
+# Tools with side effects: writes, deletes, or shell execution.
+# Used to auto-downgrade parallel execution to serial in execute_all_tool_calls().
+_SIDE_EFFECT_TOOLS: frozenset[str] = (
+    _WRITE_TOOLS | _DELETE_TOOLS | frozenset({"shell_run"})
+)
+
+# Valid server keys returned by _route(); used to validate tool_concurrency_limits keys.
+_KNOWN_SERVER_KEYS: frozenset[str] = frozenset(
+    {"file_read", "file_write", "file_delete", "shell", "web_search", "github"}
+)
+
+
+def is_side_effect(tool_name: str) -> bool:
+    """Return True when the tool modifies state (write, delete, shell)."""
+    return tool_name in _SIDE_EFFECT_TOOLS
+
+
+def tool_call_key(name: str, args: dict) -> str:
+    """Return a stable hash key for a (tool name, args) pair.
+
+    Normalises dict key order via sort_keys so that LLM-generated argument
+    objects with varying key order produce the same key.
+    Both orchestrator.py (lookup) and agent_repl_tool_exec.py (insert)
+    must use this function to guarantee key identity.
+    """
+    return hashlib.md5(  # nosec B324 — non-security hash for dedup key identity
+        f"{name}:{json.dumps(args, sort_keys=True)}".encode(),
+        usedforsecurity=False,
+    ).hexdigest()
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ToolExecutor
@@ -243,13 +275,28 @@ class ToolExecutor:
         http: httpx.AsyncClient,
         cache_ttl: float,
         server_configs: "dict[str, McpServerConfig]",
+        cache_max_size: int = 0,
+        concurrency_limits: "dict[str, int] | None" = None,
     ) -> None:
         self._http = http
         self._cache_ttl = cache_ttl
+        self._cache_max_size = cache_max_size
         self._server_configs = server_configs
-        # key → (result, is_error, timestamp)
-        self._cache: dict[str, tuple[str, bool, float]] = {}
+        self._cache: OrderedDict[str, tuple[str, bool, float]] = OrderedDict()
         self.stat_cache_hits: int = 0
+
+        # concurrency_limits: server_key -> max concurrent calls.
+        # Semaphores are created lazily inside _raw_execute() to avoid event loop issues.
+        self._concurrency_limits: dict[str, int] = dict(concurrency_limits or {})
+        self._semaphores: dict[str, asyncio.Semaphore] | None = None
+
+        # Validate concurrency_limits keys at construction time to catch config errors early.
+        unknown_keys = set(self._concurrency_limits) - _KNOWN_SERVER_KEYS
+        if unknown_keys:
+            logger.warning(
+                f"tool_concurrency_limits: unknown server key(s) {sorted(unknown_keys)!r};"
+                " Semaphore will not be applied for these tools."
+            )
 
         # Initialise transports: HTTP servers get their transport immediately;
         # stdio servers get None until set_transport() is called after process spawn.
@@ -291,7 +338,11 @@ class ToolExecutor:
         raise ValueError(f"Unknown tool: {tool_name}")
 
     async def _raw_execute(self, tool_name: str, args: dict) -> tuple[str, bool]:
-        """Execute tool via the appropriate transport; return (result, is_error)."""
+        """Execute tool via the appropriate transport; return (result, is_error).
+
+        Applies per-server-key Semaphore concurrency limit when configured.
+        Semaphores are created lazily on first call to avoid event loop issues.
+        """
         server_key = self._route(tool_name)
         transport = self._transports.get(server_key)
         if transport is None:
@@ -305,6 +356,20 @@ class ToolExecutor:
                 msg = f"No transport configured for server {server_key!r}"
             logger.error(msg)
             return msg, True
+
+        # Lazy Semaphore initialisation: safe because asyncio is single-threaded
+        # and the if-branch completes before the first await.
+        if self._semaphores is None and self._concurrency_limits:
+            self._semaphores = {
+                key: asyncio.Semaphore(n)
+                for key, n in self._concurrency_limits.items()
+                if n > 0
+            }
+
+        sem = (self._semaphores or {}).get(server_key)
+        if sem is not None:
+            async with sem:
+                return await transport.call(tool_name, args)
         return await transport.call(tool_name, args)
 
     async def execute(self, tool_name: str, args: dict) -> tuple[str, bool]:
@@ -329,6 +394,7 @@ class ToolExecutor:
             result, is_error, ts = cached
             age = time.time() - ts
             if age < self._cache_ttl:
+                self._cache.move_to_end(cache_key)  # LRU: mark as recently used
                 self.stat_cache_hits += 1
                 logger.info(f"Tool cache hit: {tool_name} (age={age:.0f}s)")
                 return result, is_error
@@ -336,6 +402,9 @@ class ToolExecutor:
         result, is_error = await self._raw_execute(tool_name, args)
         if not is_error:
             self._cache[cache_key] = (result, is_error, time.time())
+            if self._cache_max_size > 0 and len(self._cache) > self._cache_max_size:
+                evicted_key, _ = self._cache.popitem(last=False)
+                logger.debug(f"Tool cache LRU evict: {evicted_key!r}")
         return result, is_error
 
     def clear_cache(self) -> None:

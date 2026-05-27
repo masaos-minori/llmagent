@@ -60,6 +60,9 @@
     "tool_dedup_max_repeats": "同一 (ツール名 + 引数) の組み合わせを最大何回まで実行するかの上限。この値以上の繰り返しを検出した時点でターンを打ち切り LLM に警告を注入する (デフォルト: 3)",
     "tool_cycle_detect_window": "ラウンドレベルのサイクル検出ウィンドウサイズ。同一ラウンド指紋 (ツール呼び出しセットの MD5) がこの回数以上出現したらターンを打ち切る。0 で無効 (デフォルト: 2)",
     "tool_error_max_consecutive": "全ツールがエラーを返したターンが連続してこの回数に達したらターンを打ち切る。0 で無効 (デフォルト: 3)",
+    "tool_cache_max_size":     "ツールキャッシュの最大エントリ数。LRU で退避する。0 = 無制限 (デフォルト: 200)",
+    "tool_error_retry_max":    "同一 (name, args) がエラーになった後の再試行許容回数。0 = 無効化 (デフォルト: 1)",
+    "tool_concurrency_limits": "ツールサーバごとの同時実行上限。キーは _route() の server key。不明キーは起動時 WARNING。空 = 無制限 (デフォルト: {})",
     "rag_service_url": "外部 RAG HTTP サービスのベース URL (例: http://127.0.0.1:8010)。設定時は augment() がインプロセス実行の代わりに HTTP 呼び出しを行う。空文字列でインプロセスモード (デフォルト: \"\")"
   },
   "chat_url":               "http://127.0.0.1:8002/v1/chat/completions",
@@ -112,6 +115,16 @@
   "tool_dedup_max_repeats":     3,
   "tool_cycle_detect_window":   2,
   "tool_error_max_consecutive": 3,
+  "tool_cache_max_size":      200,
+  "tool_error_retry_max":     1,
+  "tool_concurrency_limits":  {
+    "file_read":   4,
+    "file_write":  1,
+    "file_delete": 1,
+    "shell":       2,
+    "web_search":  2,
+    "github":      3
+  },
   "rag_service_url":            "",
   "mcp_servers": {
     "web_search": {

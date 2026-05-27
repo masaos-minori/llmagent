@@ -134,6 +134,8 @@ _MIGRATE_SQL: list[str] = [
        AFTER DELETE ON chunks BEGIN
            DELETE FROM chunks_vec WHERE chunk_id = old.chunk_id;
        END""",
+    # Add tool_call_id column for persisting tool result message IDs
+    "ALTER TABLE messages ADD COLUMN tool_call_id TEXT",
 ]
 
 
@@ -172,6 +174,19 @@ def _migrate_schema() -> None:
                 pass  # column already exists in this database
         db.commit()
     logger.info("Schema migration applied.")
+    # Verify tool_call_id column was added (or already existed).
+    # _MIGRATE_SQL errors are silently ignored, so an explicit check here
+    # prevents a silent double-failure: column absent + save() also silent.
+    try:
+        with SQLiteHelper().open() as db:
+            cols = [row[1] for row in db.fetchall("PRAGMA table_info(messages)")]
+        if "tool_call_id" not in cols:
+            logger.error(
+                "Migration check failed: messages.tool_call_id column not found."
+                " Run manually: ALTER TABLE messages ADD COLUMN tool_call_id TEXT"
+            )
+    except Exception as e:
+        logger.error(f"Migration verification failed: {e}")
 
 
 def create_schema() -> None:
