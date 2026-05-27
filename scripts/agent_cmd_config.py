@@ -47,20 +47,27 @@ class _ConfigMixin:
         llm_retries = (
             ctx.services.llm.stat_retries if ctx.services.llm is not None else 0
         )
+
+        def _fmt_tokens(v: int | None) -> str:
+            # None = endpoint did not return usage data this session
+            return f"{v:,}" if v is not None else "N/A"
+
         print("Session statistics:")
-        print(f"  Session ID  : {sid}")
-        print(f"  Turns       : {ctx.stat_turns}")
-        print(f"  Tool calls  : {ctx.stat_tool_calls}")
-        print(f"  Tool errors : {ctx.stat_tool_errors}")
-        print(f"  LLM retries : {llm_retries}")
-        print(f"  Cache hits  : {cache_hits}")
-        print(f"  Compress    : {compress_count}")
-        print(f"  RAG hits    : {ctx.stat_rag_hits}")
+        print(f"  Session ID    : {sid}")
+        print(f"  Turns         : {ctx.stat_turns}")
+        print(f"  Tool calls    : {ctx.stat_tool_calls}")
+        print(f"  Tool errors   : {ctx.stat_tool_errors}")
+        print(f"  LLM retries   : {llm_retries}")
+        print(f"  Cache hits    : {cache_hits}")
+        print(f"  Compress      : {compress_count}")
+        print(f"  RAG hits      : {ctx.stat_rag_hits}")
         print(
-            f"  Sem. cache  : {ctx.stat_semantic_cache_hits} hits"
+            f"  Sem. cache    : {ctx.stat_semantic_cache_hits} hits"
             f"  (size={ctx.services.rag.semantic_cache.size if ctx.services.rag else 0})"
         )
-        print(f"  Debug mode  : {'ON' if ctx.debug_mode else 'OFF'}")
+        print(f"  Input tokens  : {_fmt_tokens(ctx.stat_input_tokens)}")
+        print(f"  Output tokens : {_fmt_tokens(ctx.stat_output_tokens)}")
+        print(f"  Debug mode    : {'ON' if ctx.debug_mode else 'OFF'}")
         if ctx.stat_latency:
             print("Latency (mean / max, N samples):")
             for step in ["rag.mqe", "rag.search", "rag.rrf", "rag.rerank", "llm"]:

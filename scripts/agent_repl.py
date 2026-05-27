@@ -183,6 +183,15 @@ class AgentREPL:
     def _init_components(self) -> None:
         """Instantiate and inject all components into AgentContext."""
         ctx = self._ctx
+        # Audit logger writes JSON-lines turn events; structured_log=True forces JSON format
+        ctx.services.audit_logger = Logger(
+            "audit", ctx.cfg.audit_log_file, structured_log=True
+        )
+
+        def _on_llm_usage(prompt_tokens: int, completion_tokens: int) -> None:
+            ctx.stat_input_tokens = (ctx.stat_input_tokens or 0) + prompt_tokens
+            ctx.stat_output_tokens = (ctx.stat_output_tokens or 0) + completion_tokens
+
         ctx.services.http = httpx.AsyncClient(timeout=ctx.cfg.http_timeout)
         ctx.services.llm = LLMClient(
             ctx.services.http,
@@ -191,6 +200,7 @@ class AgentREPL:
             temperature=ctx.cfg.llm_temperature,
             max_tokens=ctx.cfg.llm_max_tokens,
             on_token=self._view.write_token,
+            on_usage=_on_llm_usage,
         )
         ctx.services.tools = ToolExecutor(
             ctx.services.http,

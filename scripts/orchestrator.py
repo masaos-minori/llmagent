@@ -12,6 +12,7 @@ import asyncio
 import hashlib
 import json
 import time
+import uuid
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -84,39 +85,73 @@ class Orchestrator:
         ctx = self._ctx
         assert ctx.services.hist_mgr is not None
 
-        context, cache_hit = await self._augment_with_rag(line)
+        # Assign a UUID to this turn; held in ctx for the duration, then cleared
+        ctx.current_turn_id = str(uuid.uuid4())
+        t0_turn = time.perf_counter()
+        session_id = str(ctx.session.session_id) if ctx.session.session_id else "none"
 
-        if context:
-            ctx.stat_rag_hits += 1
-            augmented = f"[Reference documents]\n{context}\n\nQuestion: {line}"
-            # Accumulate per-step RAG latency samples (only on real pipeline runs)
-            if ctx.services.rag is not None and not cache_hit:
-                for step, secs in ctx.services.rag.last_timings.items():
-                    ctx.stat_latency.setdefault(step, []).append(secs)
-        else:
-            augmented = line
-        ctx.history.append({"role": "user", "content": augmented})
-        ctx.stat_turns += 1
-
-        # Generate session title asynchronously from the first user input
-        if ctx.stat_turns == 1:
-            asyncio.create_task(self._cmds._generate_session_title(line))
-        ctx.session.save("user", augmented)
-
-        # Compress history before sending to LLM when it exceeds the char limit
-        ctx.history = await ctx.services.hist_mgr.compress(ctx.history)
+        if ctx.services.audit_logger is not None:
+            ctx.services.audit_logger.info(
+                json.dumps(
+                    {
+                        "event": "turn_start",
+                        "task_id": ctx.current_turn_id,
+                        "worker_id": session_id,
+                        "event_id": str(uuid.uuid4()),
+                        "ts": time.time(),
+                    }
+                )
+            )
 
         try:
-            answer = await self._run_turn(ctx.llm_url)
-            logger.info(f"LLM response: {answer}")
-            ctx.session.save("assistant", answer)
-        except Exception as e:
-            logger.error(f"LLM request failed: {e}")
-            if self._on_error:
-                self._on_error(e)
-            # Remove failed user message to keep history consistent
-            if ctx.history and ctx.history[-1]["role"] == "user":
-                ctx.history.pop()
+            context, cache_hit = await self._augment_with_rag(line)
+
+            if context:
+                ctx.stat_rag_hits += 1
+                augmented = f"[Reference documents]\n{context}\n\nQuestion: {line}"
+                # Accumulate per-step RAG latency samples (only on real pipeline runs)
+                if ctx.services.rag is not None and not cache_hit:
+                    for step, secs in ctx.services.rag.last_timings.items():
+                        ctx.stat_latency.setdefault(step, []).append(secs)
+            else:
+                augmented = line
+            ctx.history.append({"role": "user", "content": augmented})
+            ctx.stat_turns += 1
+
+            # Generate session title asynchronously from the first user input
+            if ctx.stat_turns == 1:
+                asyncio.create_task(self._cmds._generate_session_title(line))
+            ctx.session.save("user", augmented)
+
+            # Compress history before sending to LLM when it exceeds the char limit
+            ctx.history = await ctx.services.hist_mgr.compress(ctx.history)
+
+            try:
+                answer = await self._run_turn(ctx.llm_url)
+                logger.info(f"LLM response: {answer}")
+                ctx.session.save("assistant", answer)
+            except Exception as e:
+                logger.error(f"LLM request failed: {e}")
+                if self._on_error:
+                    self._on_error(e)
+                # Remove failed user message to keep history consistent
+                if ctx.history and ctx.history[-1]["role"] == "user":
+                    ctx.history.pop()
+        finally:
+            elapsed_ms = round((time.perf_counter() - t0_turn) * 1000, 1)
+            if ctx.services.audit_logger is not None:
+                ctx.services.audit_logger.info(
+                    json.dumps(
+                        {
+                            "event": "turn_end",
+                            "task_id": ctx.current_turn_id,
+                            "elapsed_ms": elapsed_ms,
+                            "input_tokens": ctx.stat_input_tokens,
+                            "output_tokens": ctx.stat_output_tokens,
+                        }
+                    )
+                )
+            ctx.current_turn_id = None
 
     # ── LLM interaction ───────────────────────────────────────────────────────
 
@@ -295,6 +330,12 @@ class Orchestrator:
         ctx = self._ctx
         if not ctx.cfg.use_search or ctx.services.rag is None:
             return "", False
+
+        ctx.current_rag_query_id = str(uuid.uuid4())
+        logger.info(
+            f"RAG query start rag_query_id={ctx.current_rag_query_id}"
+            f" turn_id={ctx.current_turn_id}"
+        )
 
         history_context = _extract_history_context(ctx.history, n=2)
         debug_fn = _make_debug_fn() if ctx.debug_mode else None

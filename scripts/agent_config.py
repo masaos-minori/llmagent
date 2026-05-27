@@ -190,17 +190,21 @@ class AgentConfig:
     # results exceeding this budget are replaced with a retrieval hint for /tool show
     tool_results_turn_max_chars: int = 50000
 
+    # Audit log file path; receives turn-level JSON-lines events
+    audit_log_file: str = "/opt/llm/logs/audit.log"
+    # When True, agent.log uses JSON-lines format instead of plain text
+    structured_log: bool = False
+
     def __post_init__(self) -> None:
+        self._validate_llm_params()
+        self._validate_rag_params()
+        self._validate_tool_params()
+
+    def _validate_llm_params(self) -> None:
         if self.context_char_limit < 0:
             raise ValueError(
                 f"context_char_limit must be >= 0, got {self.context_char_limit}"
             )
-        if self.top_k_search < 1:
-            raise ValueError(f"top_k_search must be >= 1, got {self.top_k_search}")
-        if self.top_k_rerank < 1:
-            raise ValueError(f"top_k_rerank must be >= 1, got {self.top_k_rerank}")
-        if self.rag_top_k < 1:
-            raise ValueError(f"rag_top_k must be >= 1, got {self.rag_top_k}")
         if self.llm_max_retries < 0:
             raise ValueError(
                 f"llm_max_retries must be >= 0, got {self.llm_max_retries}"
@@ -215,6 +219,14 @@ class AgentConfig:
             )
         if self.llm_max_tokens < 1:
             raise ValueError(f"llm_max_tokens must be >= 1, got {self.llm_max_tokens}")
+
+    def _validate_rag_params(self) -> None:
+        if self.top_k_search < 1:
+            raise ValueError(f"top_k_search must be >= 1, got {self.top_k_search}")
+        if self.top_k_rerank < 1:
+            raise ValueError(f"top_k_rerank must be >= 1, got {self.top_k_rerank}")
+        if self.rag_top_k < 1:
+            raise ValueError(f"rag_top_k must be >= 1, got {self.rag_top_k}")
         if self.rag_min_score < 0.0:
             raise ValueError(f"rag_min_score must be >= 0, got {self.rag_min_score}")
         if self.max_chunks_per_doc < 1:
@@ -236,6 +248,8 @@ class AgentConfig:
                 f"refiner_max_chars_per_chunk must be >= 1,"
                 f" got {self.refiner_max_chars_per_chunk}"
             )
+
+    def _validate_tool_params(self) -> None:
         if self.tool_dedup_max_repeats < 1:
             raise ValueError(
                 f"tool_dedup_max_repeats must be >= 1, got {self.tool_dedup_max_repeats}"
@@ -331,6 +345,8 @@ def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
         max_tool_turns=int(cfg.get("max_tool_turns", 5)),
         tool_result_max_llm_chars=int(cfg.get("tool_result_max_llm_chars", 8000)),
         tool_results_turn_max_chars=int(cfg.get("tool_results_turn_max_chars", 50000)),
+        audit_log_file=cfg.get("audit_log_file", "/opt/llm/logs/audit.log"),
+        structured_log=bool(cfg.get("structured_log", False)),
     )
 
 

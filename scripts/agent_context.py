@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from agent_rag import RagPipeline
     from history_manager import HistoryManager
     from llm_client import LLMClient
+    from logger import Logger
     from tool_executor import StdioTransport, ToolExecutor
 
 
@@ -41,6 +42,8 @@ class ServiceContainer:
         self.rag: RagPipeline | None = None
         # stdio MCP server transports (key → StdioTransport); populated by _start_stdio_servers
         self.stdio_procs: dict[str, StdioTransport] = {}
+        # Audit logger writes JSON-lines turn events to audit.log; None until _init_components()
+        self.audit_logger: Logger | None = None
 
 
 class AgentContext:
@@ -63,6 +66,12 @@ class AgentContext:
         self.system_prompt_name: str = "default"
         self.shutdown_requested: bool = False
 
+        # ── Trace IDs (reset each turn) ────────────────────────────────────────
+        # UUID4 set by Orchestrator.handle_turn(); None between turns
+        self.current_turn_id: str | None = None
+        # UUID4 set by Orchestrator._augment_with_rag(); None when RAG is skipped
+        self.current_rag_query_id: str | None = None
+
         # ── Session statistics ─────────────────────────────────────────────────
         self.stat_turns: int = 0
         self.stat_tool_calls: int = 0
@@ -72,6 +81,9 @@ class AgentContext:
         # (rag.mqe, rag.search, rag.rrf, rag.rerank, llm)
         self.stat_latency: dict[str, list[float]] = {}
         self.stat_semantic_cache_hits: int = 0
+        # LLM token usage accumulated across turns; None = endpoint did not return usage
+        self.stat_input_tokens: int | None = None
+        self.stat_output_tokens: int | None = None
         # Persistent store for full tool results; /tool show <id> retrieves them
         self.tool_result_store: ToolResultStore = ToolResultStore()
 

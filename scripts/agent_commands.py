@@ -99,7 +99,7 @@ class CommandRegistry(
             "  /db rebuild-fts    Rebuild the FTS5 chunks_fts index\n"
             "  /ingest <url|path> [--snippets-only]"
             "  Crawl/ingest a URL or local file into the RAG DB\n"
-            "  /debug             Toggle RAG pipeline debug output\n"
+            "  /debug [audit|verbose|normal]  Toggle RAG debug; subcommands: audit=tail log, verbose/normal=log level\n"
             "  /rag               Show RAG step status\n"
             "  /rag on|off        Enable/disable RAG search\n"
             "  /rag mqe on|off    Enable/disable Multi-Query Expansion\n"
@@ -140,7 +140,6 @@ class CommandRegistry(
             "/config": self._cmd_config,
             "/stats": self._cmd_stats,
             "/context": self._cmd_context,
-            "/debug": self._cmd_debug,
             "/plan": self._cmd_plan,
             "/undo": self._cmd_undo,
             "/reload": self._cmd_reload,
@@ -171,6 +170,8 @@ class CommandRegistry(
             ("/note", self._cmd_note, False),
             ("/tool", self._cmd_tool, False),
             ("/set", self._cmd_set, False),
+            # /debug accepts optional subcommand: audit | verbose | normal
+            ("/debug", self._cmd_debug, False),
         ]
         for prefix, handler, is_async in prefix_cmds:
             if line.startswith(prefix):

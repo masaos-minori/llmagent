@@ -33,6 +33,7 @@ class LLMClient:
         temperature: float,
         max_tokens: int,
         on_token: Callable[[str], None] | None = None,
+        on_usage: Callable[[int, int], None] | None = None,
     ) -> None:
         self._http = http
         self._max_retries = max_retries
@@ -40,6 +41,9 @@ class LLMClient:
         self._temperature = temperature
         self._max_tokens = max_tokens
         self._on_token = on_token
+        # Called with (prompt_tokens, completion_tokens) when the LLM returns usage data.
+        # Not called when the endpoint omits the usage field.
+        self._on_usage = on_usage
         # Cumulative count of retry attempts across all requests in this session
         self.stat_retries: int = 0
 
@@ -115,7 +119,14 @@ class LLMClient:
         resp = await self.request_with_retry(
             url, self.build_payload(history, tool_defs)
         )
-        return dict(resp.json())
+        data = dict(resp.json())
+        if self._on_usage is not None:
+            usage = data.get("usage", {})
+            pt = usage.get("prompt_tokens")
+            ct = usage.get("completion_tokens")
+            if pt is not None and ct is not None:
+                self._on_usage(int(pt), int(ct))
+        return data
 
     # ── SSE streaming helpers ─────────────────────────────────────────────────
 
@@ -232,6 +243,13 @@ class LLMClient:
                     )
                     if reason:
                         finish_reason = reason
+                    # Capture usage chunk when present (best-effort; not all endpoints send it)
+                    if self._on_usage is not None:
+                        usage = chunk.get("usage", {})
+                        pt = usage.get("prompt_tokens")
+                        ct = usage.get("completion_tokens")
+                        if pt is not None and ct is not None:
+                            self._on_usage(int(pt), int(ct))
         except Exception as e:
             logger.warning(f"Streaming failed, retrying without stream: {e}")
             return await self.call(url, history, tool_defs)

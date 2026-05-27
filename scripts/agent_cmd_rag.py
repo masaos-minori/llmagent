@@ -140,13 +140,50 @@ class _RagMixin:
             for t in ctx.cfg.plan_blocked_tools:
                 print(f"    - {t}")
 
-    def _cmd_debug(self) -> None:
-        """Toggle RAG pipeline step debug output."""
+    def _cmd_debug(self, args: str = "") -> None:
+        """Toggle RAG debug output, or show audit log tail with '/debug audit'."""
+        import logging as _logging
+        import pathlib
+
         ctx = self._ctx
+        sub = args.strip().lower()
+
+        if sub == "audit":
+            # Show the last 20 lines of audit.log for quick troubleshooting
+            audit_path = pathlib.Path(ctx.cfg.audit_log_file)
+            if not audit_path.exists():
+                print(f"Audit log not found: {audit_path}")
+                return
+            try:
+                lines = audit_path.read_text(encoding="utf-8").splitlines()
+                for line in lines[-20:]:
+                    print(line)
+            except OSError as e:
+                print(f"Cannot read audit log: {e}")
+            return
+
+        if sub == "verbose":
+            # Switch agent logger to DEBUG level for detailed output
+            _logging.getLogger("agent_repl").setLevel(_logging.DEBUG)
+            _logging.getLogger("orchestrator").setLevel(_logging.DEBUG)
+            print("Log level: DEBUG")
+            logger.info("Log level set to DEBUG")
+            return
+
+        if sub == "normal":
+            _logging.getLogger("agent_repl").setLevel(_logging.INFO)
+            _logging.getLogger("orchestrator").setLevel(_logging.INFO)
+            print("Log level: INFO")
+            logger.info("Log level restored to INFO")
+            return
+
+        # Default: toggle RAG pipeline step debug output
         ctx.debug_mode = not ctx.debug_mode
         state = "ON" if ctx.debug_mode else "OFF"
         logger.info(f"Debug mode toggled: {state}")
-        print(f"Debug mode: {state}")
+        print(
+            f"Debug mode: {state}  (use /debug audit | verbose | normal for more options)"
+        )
 
     def _print_rag_results(
         self, query: str, queries: list[str], reranked: list[RagHit]
@@ -168,6 +205,44 @@ class _RagMixin:
             print(f"     url={c['url']}")
             print(f"     {preview!r}")
 
+    def _cmd_rag_toggle(
+        self, subcmd: str, parts: list[str], flag: str, label: str
+    ) -> None:
+        """Toggle a boolean RAG config flag via /rag <subcmd> on|off."""
+        val = parts[1].lower() if len(parts) > 1 else ""
+        if val not in ("on", "off"):
+            print(f"Usage: /rag {subcmd} on|off")
+            return
+        setattr(self._ctx.cfg, flag, val == "on")
+        print(f"{label} {'enabled' if val == 'on' else 'disabled'}.")
+
+    async def _cmd_rag_search(self, query: str) -> None:
+        """Dry-run the RAG pipeline for the given query and print results."""
+        ctx = self._ctx
+        if not query:
+            print("Usage: /rag search <query>")
+            return
+        if not ctx.cfg.use_search:
+            print("RAG is disabled (use_search=false). Enable with /rag on.")
+            return
+        if ctx.services.rag is None:
+            print("RAG pipeline not available.")
+            return
+        try:
+            db = SQLiteHelper().open(row_factory=True)
+        except Exception as e:
+            print(f"DB open failed: {e}")
+            return
+        try:
+            with db:
+                # run() calls on_clear() in its finally block
+                queries, _, _, reranked = await ctx.services.rag.run(query, db)
+        except Exception as e:
+            logger.error(f"RAG pipeline failed: {e}")
+            print(f"RAG pipeline error: {e}")
+            return
+        self._print_rag_results(query, queries, reranked)
+
     async def _cmd_rag(self, args: str) -> None:
         """Toggle RAG steps at runtime or dry-run the pipeline.
 
@@ -186,63 +261,26 @@ class _RagMixin:
         if sub == "on":
             ctx.cfg.use_search = True
             print("RAG search enabled.")
-            return
-        if sub == "off":
+        elif sub == "off":
             ctx.cfg.use_search = False
             print("RAG search disabled.")
-            return
-        if sub == "mqe":
-            val = parts[1].lower() if len(parts) > 1 else ""
-            if val not in ("on", "off"):
-                print("Usage: /rag mqe on|off")
-                return
-            ctx.cfg.use_mqe = val == "on"
-            print(f"MQE {'enabled' if ctx.cfg.use_mqe else 'disabled'}.")
-            return
-        if sub == "rerank":
-            val = parts[1].lower() if len(parts) > 1 else ""
-            if val not in ("on", "off"):
-                print("Usage: /rag rerank on|off")
-                return
-            ctx.cfg.use_rerank = val == "on"
-            print(f"Reranking {'enabled' if ctx.cfg.use_rerank else 'disabled'}.")
-            return
-        if sub == "search":
+        elif sub == "mqe":
+            self._cmd_rag_toggle("mqe", parts, "use_mqe", "MQE")
+        elif sub == "rerank":
+            self._cmd_rag_toggle("rerank", parts, "use_rerank", "Reranking")
+        elif sub == "search":
             query = args.strip()[len("search") :].strip()
-            if not query:
-                print("Usage: /rag search <query>")
-                return
-            if not ctx.cfg.use_search:
-                print("RAG is disabled (use_search=false). Enable with /rag on.")
-                return
-            if ctx.services.rag is None:
-                print("RAG pipeline not available.")
-                return
-            try:
-                db = SQLiteHelper().open(row_factory=True)
-            except Exception as e:
-                print(f"DB open failed: {e}")
-                return
-            try:
-                with db:
-                    # run() calls on_clear() in its finally block
-                    queries, _, _, reranked = await ctx.services.rag.run(query, db)
-            except Exception as e:
-                logger.error(f"RAG pipeline failed: {e}")
-                print(f"RAG pipeline error: {e}")
-                return
-            self._print_rag_results(query, queries, reranked)
-            return
-        # No subcommand: show current status
-        print(
-            f"RAG step status:\n"
-            f"  use_search : {ctx.cfg.use_search}\n"
-            f"  use_mqe    : {ctx.cfg.use_mqe}\n"
-            f"  use_rrf    : {ctx.cfg.use_rrf}\n"
-            f"  use_rerank : {ctx.cfg.use_rerank}\n"
-            "Use /rag on|off, /rag mqe on|off, /rag rerank on|off, "
-            "/rag search <query>"
-        )
+            await self._cmd_rag_search(query)
+        else:
+            print(
+                f"RAG step status:\n"
+                f"  use_search : {ctx.cfg.use_search}\n"
+                f"  use_mqe    : {ctx.cfg.use_mqe}\n"
+                f"  use_rrf    : {ctx.cfg.use_rrf}\n"
+                f"  use_rerank : {ctx.cfg.use_rerank}\n"
+                "Use /rag on|off, /rag mqe on|off, /rag rerank on|off, "
+                "/rag search <query>"
+            )
 
     def _render_history_md(self, history: list[LLMMessage]) -> str:
         """Render conversation history as Markdown."""
