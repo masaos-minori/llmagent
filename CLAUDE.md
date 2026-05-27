@@ -36,11 +36,10 @@ When a document or skill file grows too large, split it according to these rules
 
 **Procedure:**
 
-1. Group sections/functions by responsibility and record the split proposal in `04_split_plan.md`
-2. Review the plan before touching any file
-3. After splitting, convert the original file to an index (link list) or remove its content
-4. Apply ripple-effect changes in the same pass: `routing.md`, `rules/env.md`, skill references, `docs/00_llm-implementation-guide.md`, `docs/06_common.md`
-5. For code files, confirm `ruff` / `mypy` / `pytest` pass before closing the task
+1. Group sections/functions by responsibility and write the split proposal in a temporary plan file (e.g. `04_split_plan.md`); review the plan before touching any file
+2. After splitting, convert the original file to an index (link list) or remove its content
+3. Apply ripple-effect changes in the same pass: `routing.md`, `rules/env.md`, skill references, `docs/00_llm-implementation-guide.md`, `docs/06_common.md`
+4. For code files, confirm `ruff` / `mypy` / `pytest` pass before closing the task
 
 ## Target environment
 
@@ -70,65 +69,84 @@ Full validation sequence: `rules/toolchain.md`
 
 **mypy note:** `warn_unused_ignores = true` is set in `pyproject.toml`, so any `# type: ignore` on a line where mypy finds no error is itself an error. `tests/` is also covered by pre-commit's mypy run, so the same rule applies there.
 
-**Test coverage:** Current unit tests are only `tests/test_plugin_registry.py` and `tests/test_rag_utils.py`. Core modules such as `agent_repl.py`, `orchestrator.py`, `tool_executor.py`, and `history_manager.py` have no tests. Any refactoring task that touches these modules must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
+**Test coverage:** Unit tests exist for `agent_session.py`, `cli_view.py`, `history_manager.py`, `plugin_registry.py`, `rag_utils.py`. Core modules `agent_repl.py`, `orchestrator.py`, `tool_executor.py` have no tests. Any refactoring task that touches these modules must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
 
 ## Architecture
 
-→ 詳細は `routing.md` の "Docs → task mapping" から該当 `docs/` ファイルを参照。
+→ For details, find the relevant `docs/` file via the "Docs → task mapping" table in `routing.md`.
 
 ### Agent REPL
 
-`agent_repl.py` (`AgentREPL`) が全コンポーネントを `AgentContext` に注入し REPL ループを駆動する。ターンレベルのロジックは `Orchestrator` (`orchestrator.py`) に委譲。サテライトモジュール: `agent_repl_health.py` / `agent_repl_tool_exec.py` / `agent_repl_debug.py`。UI 出力は `CLIView` コールバックパターン経由 — いずれのライブラリモジュールも `print()` を直接呼ばない。
+`agent_repl.py` (`AgentREPL`) injects all components into `AgentContext` and drives the REPL loop. Turn-level logic is delegated to `Orchestrator` (`orchestrator.py`). Satellite modules: `agent_repl_health.py` / `agent_repl_tool_exec.py` / `agent_repl_debug.py`. UI output goes through `CLIView` callbacks — no library module calls `print()` directly.
 
-詳細: `docs/05_agent-impl.md` / `docs/06_ref-agent-repl.md`
+Details: `docs/05_agent-impl.md` / `docs/06_ref-agent-repl.md`
 
 ### Shared State
 
-`AgentContext` (`agent_context.py`) が per-session 可変状態と DI ハブを担当。サービス参照は `ctx.services.llm` 等 `ctx.services.<key>` でアクセスすること — property shim は存在しない。
+`AgentContext` (`agent_context.py`) owns per-session mutable state and acts as the DI hub. Access services via `ctx.services.llm` etc. (`ctx.services.<key>`) — no property shims exist.
 
-詳細: `docs/06_ref-agent-context.md`
+`ServiceContainer` holds all injected service references including `audit_logger: Logger | None` (initialized by `AgentREPL._init_components()`).
+
+Per-turn trace IDs are set and cleared by `Orchestrator.handle_turn()`:
+- `ctx.current_turn_id` — UUID4, set at `handle_turn()` entry; cleared in `finally`
+- `ctx.current_rag_query_id` — UUID4, set in `_augment_with_rag()`; `None` when RAG is skipped
+- `ctx.stat_input_tokens` / `ctx.stat_output_tokens` — `int | None`; `None` = LLM endpoint did not return `usage`
+
+Details: `docs/06_ref-agent-context.md`
 
 ### Slash Commands
 
-`CommandRegistry` (`agent_commands.py`) が `_SessionMixin` / `_McpMixin` / `_ConfigMixin` / `_ContextMixin` / `_RagMixin` / `_IngestMixin` の 6 ミックスインクラスにディスパッチ。
+`CommandRegistry` (`agent_commands.py`) dispatches to six mixin classes: `_SessionMixin` / `_McpMixin` / `_ConfigMixin` / `_ContextMixin` / `_RagMixin` / `_IngestMixin`.
 
-詳細: `docs/06_ref-agent-commands.md`
+Details: `docs/06_ref-agent-commands.md`
 
 ### RAG Pipeline
 
-MQE → vector search (`chunks_vec`) → FTS5 (`chunks_fts`) → RRF → rerank のパイプライン。`agent_rag.py` (`RagPipeline`) がオーケストレーション。補助層: `rag_types.py` / `rag_repository.py` / `rag_llm.py`。共通型 `RagHit` / `LLMMessage` の定義は `docs/06_common.md` 参照。
+Pipeline: MQE → vector search (`chunks_vec`) → FTS5 (`chunks_fts`) → RRF → rerank. `agent_rag.py` (`RagPipeline`) orchestrates the pipeline. Support layers: `rag_types.py` / `rag_repository.py` / `rag_llm.py`. Common types `RagHit` / `LLMMessage` are defined in `docs/06_common.md`.
 
-詳細: `docs/06_ref-rag.md`
+Details: `docs/06_ref-rag.md`
 
 ### DB Layer
 
-`sqlite_helper.py` — 接続管理 (WAL / busy_timeout)。`db_maintenance.py` — 運用ポリシー (`/db` コマンド)。`db_store.py` — Protocol 抽象。`tool_result_store.py` — ツール結果永続化 (`/tool show <id>`)。
+`sqlite_helper.py` — connection management (WAL / busy_timeout). `db_maintenance.py` — operational policies (`/db` command). `db_store.py` — Protocol abstraction. `tool_result_store.py` — tool result persistence (`/tool show <id>`).
 
-詳細: `docs/06_ref-sqlite.md`
+Details: `docs/06_ref-sqlite.md`
 
 ### MCP Servers
 
-7 本のサーバが models / service / server の 3 層構造で実装。共通基底: `mcp_server.py`。ツールルーティング・TTL キャッシュ: `tool_executor.py`。共通プロトコル仕様 (`/v1/call_tool` フォーマット) は `docs/06_common.md` 参照。
+Seven servers implemented in a three-layer structure: models / service / server. Common base: `mcp_server.py`. Tool routing and TTL cache: `tool_executor.py`. Common protocol spec (`/v1/call_tool` format): `docs/06_common.md`.
 
-詳細: `docs/04_mcp-servers.md`
+When a `_MCP_TOOLS` list exceeds 400 lines, extract it to `{server}_tools.py` (e.g. `github_mcp_tools.py`, `file_read_mcp_tools.py`) and import it via `from {server}_tools import _MCP_TOOLS`.
+
+Details: `docs/04_mcp-servers.md`
 
 ### Config
 
-全設定値は `AgentConfig` dataclass (`agent_config.py`) に集約。`ctx.cfg.field_name` でアクセス。モジュールレベル定数への import は禁止。`/reload` でホットリロード可能。新規 `scripts/*.py` モジュール追加時は `deploy/deploy.sh` にも `cp` 行を追加すること。
+All configuration values are consolidated in the `AgentConfig` dataclass (`agent_config.py`). Access via `ctx.cfg.field_name`. Importing module-level constants is prohibited. Hot-reloadable via `/reload`. When adding a new `scripts/*.py` module, also add a `cp` line to `deploy/deploy.sh`.
 
-詳細: `docs/06_ref-agent-config.md`
+Observability-related fields: `audit_log_file` (default `/opt/llm/logs/audit.log`) and `structured_log` (default `False`). The audit logger is constructed with `structured_log=True` unconditionally to write JSON-lines; the main agent logger uses `structured_log` from config.
+
+Details: `docs/06_ref-agent-config.md`
 
 ### Ingestion Pipeline
 
-`web_crawler.py` → `chunk_splitter.py` → `rag_ingester.py` の 3 スクリプトによるファイルパイプライン。`pipeline_utils.py` / `rag_utils.py` が共有ユーティリティを提供。処理済みファイルは `rag-src/registered/` へ移動 (冪等性ガード)。
+Three-script file pipeline: `web_crawler.py` → `chunk_splitter.py` → `rag_ingester.py`. `pipeline_utils.py` / `rag_utils.py` provide shared utilities. Processed files are moved to `rag-src/registered/` (idempotency guard).
 
-詳細: `docs/03_ref-ingestion.md`
+Satellite modules (extracted from their parents):
+- `crawler_utils.py` — URL helpers, text extraction, language detection, target URL parsing (pure functions; extracted from `web_crawler.py`)
+- `chunk_utils.py` — buffer accumulation helpers `start_next_buf` / `merge_text_items`
+- `chunk_english.py` — `ChunkEnglishMixin` (4 English chunker methods)
+- `chunk_japanese.py` — `ChunkJapaneseMixin` (4 Sudachi morphological-analysis-based Japanese chunker methods)
+
+`ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin)` holds only orchestration and file I/O.
+
+Details: `docs/03_ref-ingestion.md`
 
 ### Plugin Architecture
 
-`plugin_registry.py` が `@register_command` / `@register_tool` / `@register_pipeline_stage` の 3 デコレータを提供。プラグインファイルは `plugins/*.py`。ツールハンドラの戻り値規約 `tuple[str, bool]` は `docs/06_common.md` 参照。テストヘルパー: `plugin_registry._reset_for_testing()`。
+`plugin_registry.py` provides three decorators: `@register_command` / `@register_tool` / `@register_pipeline_stage`. Plugin files live in `plugins/*.py`. Tool handler return type convention `tuple[str, bool]`: see `docs/06_common.md`. Test helper: `plugin_registry._reset_for_testing()`.
 
-詳細: `docs/06_ref-agent-repl.md`
+Details: `docs/06_ref-agent-repl.md`
 
 ## Skills (`skills/`)
 
