@@ -75,7 +75,7 @@ Full validation sequence: `rules/toolchain.md`
 
 **Key library choices:** Use `orjson` (not stdlib `json`) for all JSON serialization — `orjson.dumps()` returns `bytes`; call `.decode()` when a `str` is required; use `option=orjson.OPT_SORT_KEYS` / `OPT_INDENT_2` instead of `sort_keys=True` / `indent=2`. Use `httpx` (not `requests`) for HTTP — `httpx.Client` for sync, `httpx.AsyncClient` for async.
 
-**Test coverage:** Unit tests exist for `agent_session.py`, `cli_view.py`, `history_manager.py`, `memory_layer.py`, `memory_store.py`, `otel_tracer.py`, `plugin_registry.py`, `rag_utils.py`. Core modules `agent_repl.py`, `orchestrator.py`, `tool_executor.py` have no tests. Any refactoring task that touches these modules must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
+**Test coverage:** Unit tests exist for `agent_session.py`, `agent_repl_tool_exec.py`, `cli_view.py`, `history_manager.py`, `memory_layer.py`, `memory_store.py`, `otel_tracer.py`, `plugin_registry.py`, `rag_utils.py`. Core modules `agent_repl.py`, `orchestrator.py`, `tool_executor.py` have no tests. Any refactoring task that touches these modules must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
 
 ## Architecture
 
@@ -83,7 +83,7 @@ Full validation sequence: `rules/toolchain.md`
 
 ### Agent REPL
 
-`agent_repl.py` (`AgentREPL`) injects all components into `AgentContext` and drives the REPL loop. Turn-level logic (RAG → compression → LLM loop → tool dispatch) is delegated to `Orchestrator` (`orchestrator.py`). Satellite modules: `agent_repl_health.py` / `agent_repl_tool_exec.py` / `agent_repl_debug.py`. UI output goes through `CLIView` callbacks — no library module calls `print()` directly.
+`agent_repl.py` (`AgentREPL`) injects all components into `AgentContext` and drives the REPL loop. Turn-level logic (RAG → compression → LLM loop → tool dispatch) is delegated to `Orchestrator` (`orchestrator.py`). Satellite modules: `agent_repl_health.py` / `agent_repl_tool_exec.py` (risk-based tool approval, audit logging) / `agent_repl_debug.py`. UI output goes through `CLIView` callbacks — no library module calls `print()` directly.
 
 Details: `docs/05_agent-impl.md` / `docs/06_ref-agent-repl.md`
 
