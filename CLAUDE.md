@@ -83,7 +83,7 @@ Full validation sequence: `rules/toolchain.md`
 
 ### Agent REPL
 
-`agent_repl.py` (`AgentREPL`) injects all components into `AgentContext` and drives the REPL loop. Turn-level logic is delegated to `Orchestrator` (`orchestrator.py`). Satellite modules: `agent_repl_health.py` / `agent_repl_tool_exec.py` / `agent_repl_debug.py`. UI output goes through `CLIView` callbacks — no library module calls `print()` directly.
+`agent_repl.py` (`AgentREPL`) injects all components into `AgentContext` and drives the REPL loop. Turn-level logic (RAG → compression → LLM loop → tool dispatch) is delegated to `Orchestrator` (`orchestrator.py`). Satellite modules: `agent_repl_health.py` / `agent_repl_tool_exec.py` / `agent_repl_debug.py`. UI output goes through `CLIView` callbacks — no library module calls `print()` directly.
 
 Details: `docs/05_agent-impl.md` / `docs/06_ref-agent-repl.md`
 
@@ -119,7 +119,7 @@ Details: `docs/04_mcp-servers.md`
 
 ### Config
 
-All configuration in `AgentConfig` dataclass (`agent_config.py`); access via `ctx.cfg.field_name`. Module-level constant imports prohibited. Hot-reloadable via `/reload`. When adding a `scripts/*.py` module, add a `cp` line to `deploy/deploy.sh`.
+All configuration in `AgentConfig` dataclass (`agent_config.py`); access via `ctx.cfg.field_name`. No module-level constant imports from `agent_config` into other modules — path constants (`_CONFIG_DIR`, `_SCRIPTS_DIR`) must be imported inside the function body with `# noqa: PLC0415`. Hot-reloadable via `/reload`; when adding a hot-reloadable field to `AgentConfig`, also add a reload line to `_apply_config_params()` in `agent_cmd_config.py`. When adding a `scripts/*.py` module, add a `cp` line to `deploy/deploy.sh`.
 
 `git_helper.py` — utility called by `agent_cmd_context.py` to display branch/commit info in `/context` output. Uses GitPython with a lazy import and `search_parent_directories=True`; returns `None` silently outside a git repo.
 
