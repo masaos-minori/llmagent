@@ -94,16 +94,11 @@ class AgentREPL:
         self._orchestrator: Orchestrator | None = None
 
     @property
-    def _mode(self) -> str:
-        """Current LLM mode label: 'code' or 'chat'."""
-        return "code" if self._ctx.llm_url == self._ctx.cfg.code_url else "chat"
-
-    @property
     def _prompt(self) -> str:
-        """Dynamic REPL prompt showing mode and current session ID."""
+        """Dynamic REPL prompt showing current session ID."""
         sid = self._ctx.session.session_id
         sid_str = f":#{sid}" if sid is not None else ""
-        return f"agent[{self._mode}{sid_str}]> "
+        return f"agent[{sid_str}]> " if sid_str else "agent> "
 
     @property
     def _n_tools(self) -> int:
@@ -212,7 +207,7 @@ class AgentREPL:
         )
         ctx.services.hist_mgr = HistoryManager(
             ctx.services.http,
-            chat_url=ctx.cfg.chat_url,
+            llm_url=ctx.cfg.llm_url,
             char_limit=ctx.cfg.context_char_limit,
             compress_turns=ctx.cfg.context_compress_turns,
             compress_temperature=_COMPRESS_TEMPERATURE,
@@ -278,10 +273,10 @@ class AgentREPL:
                 print(f"[warn] stdio MCP server {key!r} failed to start: {e}")
 
     def _print_startup_banner(self) -> None:
-        """Print the startup line showing DB chunks, tool count and LLM mode."""
+        """Print the startup line showing DB chunks and tool count."""
         ctx = self._ctx
         chunk_count = self._get_chunk_count() if ctx.cfg.use_search else "disabled"
-        print(f"DB: {chunk_count} chunks | Tools: {self._n_tools} | Mode: {self._mode}")
+        print(f"DB: {chunk_count} chunks | Tools: {self._n_tools}")
         print("Type /help for commands, /exit to quit.")
 
     async def run(self) -> None:
@@ -295,10 +290,7 @@ class AgentREPL:
         self._view.setup_readline()
         self._init_components()
 
-        # Initialise LLM URL before accessing _mode / _prompt
-        ctx.llm_url = (
-            ctx.cfg.code_url if ctx.cfg.default_mode == "code" else ctx.cfg.chat_url
-        )
+        ctx.llm_url = ctx.cfg.llm_url
 
         # Spawn stdio MCP server subprocesses before health/tool checks
         await self._start_stdio_servers()

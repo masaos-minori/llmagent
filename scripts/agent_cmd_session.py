@@ -48,7 +48,7 @@ class _SessionMixin:
         )
         try:
             resp = await ctx.services.http.post(
-                ctx.cfg.chat_url,
+                ctx.cfg.llm_url,
                 json={
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": _TITLE_TEMPERATURE,

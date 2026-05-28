@@ -187,16 +187,16 @@ def _apply_rerank_scores(
 class RagLLM:
     """LLM-based query expansion (MQE) and cross-encoder reranking."""
 
-    def __init__(self, client: httpx.AsyncClient, chat_url: str) -> None:
+    def __init__(self, client: httpx.AsyncClient, llm_url: str) -> None:
         self._client = client
-        self._chat_url = chat_url
+        self._llm_url = llm_url
 
     async def _call_llm(
         self, messages: list[LLMMessage], temperature: float, max_tokens: int
     ) -> str:
         """Call the chat LLM endpoint and return the response content string."""
         resp = await self._client.post(
-            self._chat_url,
+            self._llm_url,
             json={
                 "messages": messages,
                 "temperature": temperature,
@@ -339,7 +339,7 @@ class RagLLM:
         items_text = "\n\n".join(items)
         prompt = _REFINER_PROMPT_TEMPLATE.format(query=query, items_text=items_text)
         resp = await self._client.post(
-            self._chat_url,
+            self._llm_url,
             json={
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": _REFINER_TEMPERATURE,
@@ -376,6 +376,6 @@ async def summarize_tool_result(
     text: str, tool_name: str, args: dict, client: httpx.AsyncClient
 ) -> str:
     """Tool result summarization. Delegates to RagLLM."""
-    return await RagLLM(client, _get_cfg().get("chat_url", "")).summarize_tool_result(
+    return await RagLLM(client, _get_cfg().get("llm_url", "")).summarize_tool_result(
         text, tool_name, args
     )

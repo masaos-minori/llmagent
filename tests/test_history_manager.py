@@ -30,7 +30,7 @@ def _make_manager(
 ) -> HistoryManager:
     return HistoryManager(
         http=http or AsyncMock(spec=httpx.AsyncClient),
-        chat_url="http://localhost:8002/v1/chat/completions",
+        llm_url="http://localhost:8002/v1/chat/completions",
         char_limit=char_limit,
         compress_turns=compress_turns,
         compress_temperature=0.1,

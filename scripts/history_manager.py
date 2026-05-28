@@ -30,7 +30,7 @@ class HistoryManager:
     def __init__(
         self,
         http: httpx.AsyncClient,
-        chat_url: str,
+        llm_url: str,
         char_limit: int,
         compress_turns: int,
         compress_temperature: float,
@@ -40,7 +40,7 @@ class HistoryManager:
         token_limit: int = 0,
     ) -> None:
         self._http = http
-        self._chat_url = chat_url
+        self._llm_url = llm_url
         self._char_limit = char_limit
         self._compress_turns = compress_turns
         self._compress_temperature = compress_temperature
@@ -129,7 +129,7 @@ class HistoryManager:
         )
         try:
             resp = await self._http.post(
-                self._chat_url,
+                self._llm_url,
                 json={
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": self._compress_temperature,

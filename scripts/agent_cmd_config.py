@@ -82,14 +82,12 @@ class _ConfigMixin:
         """Print static endpoint/LLM settings and execution settings."""
         ctx = self._ctx
         print("Settings:")
-        print(f"  chat_url            : {ctx.cfg.chat_url}")
-        print(f"  code_url            : {ctx.cfg.code_url}")
+        print(f"  llm_url             : {ctx.cfg.llm_url}")
         print(f"  web_search_url      : {ctx.cfg.web_search_url}")
         print(f"  github_server_url   : {ctx.cfg.github_url}")
         print(f"  max_tool_turns      : {ctx.cfg.max_tool_turns}")
         print(f"  http_timeout        : {ctx.cfg.http_timeout}s")
         print(f"  web_search_max      : {ctx.cfg.web_search_max_results}")
-        print(f"  default_mode        : {ctx.cfg.default_mode}")
         print(f"  context_char_limit  : {ctx.cfg.context_char_limit}")
         print(f"  context_compress    : {ctx.cfg.context_compress_turns} turn pairs")
         print(f"  tool_cache_ttl      : {ctx.cfg.tool_cache_ttl}s")
@@ -228,13 +226,11 @@ class _ConfigMixin:
             new_cfg.get("refiner_max_chars_per_chunk", 300)
         )
         # Hot-reloadable URL and prompt config
-        ctx.cfg.chat_url = new_cfg.get("chat_url", ctx.cfg.chat_url)
-        ctx.cfg.code_url = new_cfg.get("code_url", ctx.cfg.code_url)
+        ctx.cfg.llm_url = new_cfg.get("llm_url", ctx.cfg.llm_url)
         ctx.cfg.github_url = new_cfg.get("github_server_url", ctx.cfg.github_url)
         ctx.cfg.web_search_url = new_cfg.get("web_search_url", ctx.cfg.web_search_url)
         ctx.cfg.embed_url = new_cfg.get("embed_url", ctx.cfg.embed_url)
         ctx.cfg.http_timeout = float(new_cfg.get("http_timeout", ctx.cfg.http_timeout))
-        ctx.cfg.default_mode = new_cfg.get("default_mode", ctx.cfg.default_mode)
         ctx.cfg.web_search_max_results = int(
             new_cfg.get("web_search_max_results", ctx.cfg.web_search_max_results)
         )

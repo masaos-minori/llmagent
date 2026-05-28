@@ -96,7 +96,7 @@ class RagPipeline:
             return [query]
         try:
             return await RagLLM(
-                self._http, _get_cfg().get("chat_url", "")
+                self._http, _get_cfg().get("llm_url", "")
             ).expand_queries(query, context=context)
         except Exception as e:
             logger.warning(f"MQE failed, using original query: {e}")
@@ -139,7 +139,7 @@ class RagPipeline:
             return deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
         try:
             result = await RagLLM(
-                self._http, _get_cfg().get("chat_url", "")
+                self._http, _get_cfg().get("llm_url", "")
             ).cross_encoder_rerank(
                 query,
                 merged[: self._cfg.top_k_rerank],
@@ -260,7 +260,7 @@ class RagPipeline:
             try:
                 self._on_status("refining context...")
                 refined = await RagLLM(
-                    self._http, _get_cfg().get("chat_url", "")
+                    self._http, _get_cfg().get("llm_url", "")
                 ).refine_context(
                     reranked,
                     query,

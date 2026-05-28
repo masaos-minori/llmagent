@@ -34,8 +34,7 @@ async def check_service_health(ctx: AgentContext) -> None:
     """
     assert ctx.services.http is not None
     checks = [
-        ("chat-llm", ctx.cfg.chat_url),
-        ("code-llm", ctx.cfg.code_url),
+        ("llm", ctx.cfg.llm_url),
         ("embed-llm", ctx.cfg.embed_url),
     ]
     for label, url in checks:

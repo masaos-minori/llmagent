@@ -1,7 +1,6 @@
 {
   "_doc": {
-    "chat_url":               "チャット用 LLM (gemma-4-e4b) のエンドポイント。MQE・再ランク・RAG 回答生成に使用",
-    "code_url":               "コード生成用 LLM (qwen2.5-coder-7b) のエンドポイント。mode=code のときに使用",
+    "llm_url":                "LLM のエンドポイント。MQE・再ランク・RAG 回答生成・会話に使用",
     "web_search_url":         "web-search-mcp サーバのベース URL。/search, /v1/call_tool, /health を提供",
     "github_server_url":      "github-mcp サーバのベース URL。/search_repositories, /get_file_contents 等を提供",
     "embed_dim":              "埋込ベクトルの次元数。multilingual-E5-small は 384 次元",
@@ -21,7 +20,6 @@
     "use_search":             "true のとき KNN ベクトル検索と BM25 全文検索を実行する。false にすると検索をスキップして空レスポンスを返す",
     "use_rrf":                "true のとき RRF (複数検索結果の統合) を実行する。false にすると検索結果を chunk_id で重複排除した順序をそのまま使用する",
     "use_rerank":             "true のとき Cross-Encoder 再ランクを実行する。false にすると RRF スコア順の上位 top_k 件をそのまま返す",
-    "default_mode":           "デフォルトの回答モード。chat=日本語チャット (gemma-4-e4b)、code=コード生成 (qwen2.5-coder-7b)。/query と /tool_query の mode パラメータ未指定時に使用する",
     "context_char_limit":     "会話履歴の総文字数がこの値を超えたとき、古いターンを LLM で要約して圧縮する",
     "context_compress_turns": "一度に圧縮する最古ターン数 (user+assistant ペア単位)。この値 × 2 メッセージを 1 サマリーに置き換える",
     "tool_cache_ttl":         "ツール呼び出し結果のメモリキャッシュ有効期間 (秒)。同一ツール名 + 同一引数の結果を TTL 内で再利用する",
@@ -71,8 +69,7 @@
     "otel_endpoint": "OTLP HTTP エンドポイント URL。空文字列のとき ConsoleSpanExporter を使用する",
     "otel_service_name": "OTel の service.name 属性。デフォルト llm-agent"
   },
-  "chat_url":               "http://127.0.0.1:8002/v1/chat/completions",
-  "code_url":               "http://127.0.0.1:8001/v1/chat/completions",
+  "llm_url":                "http://127.0.0.1:8002/v1/chat/completions",
   "web_search_url":         "http://127.0.0.1:8004",
   "github_server_url":      "http://127.0.0.1:8006",
   "embed_dim":              384,
@@ -87,7 +84,6 @@
   "use_search":             true,
   "use_rrf":                true,
   "use_rerank":             true,
-  "default_mode":           "chat",
   "context_char_limit":     8000,
   "context_compress_turns": 4,
   "tool_cache_ttl":         300,

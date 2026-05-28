@@ -168,13 +168,11 @@ class AgentConfig:
     rag_service_url: str = ""
 
     # ── URL / HTTP config (hot-reloadable via /reload) ─────────────────────────
-    chat_url: str = ""
-    code_url: str = ""
+    llm_url: str = ""
     github_url: str = "http://127.0.0.1:8006"
     web_search_url: str = ""
     embed_url: str = "http://127.0.0.1:8003/embedding"
     http_timeout: float = 30.0
-    default_mode: str = "chat"
     web_search_max_results: int = 5
 
     # ── Tool / prompt config (hot-reloadable via /reload) ──────────────────────
@@ -345,13 +343,11 @@ def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
         tool_concurrency_limits=dict(cfg.get("tool_concurrency_limits", {})),
         rag_service_url=cfg.get("rag_service_url", ""),
         mcp_servers=_build_mcp_servers(cfg),
-        chat_url=cfg.get("chat_url", ""),
-        code_url=cfg.get("code_url", ""),
+        llm_url=cfg.get("llm_url", ""),
         github_url=cfg.get("github_server_url", "http://127.0.0.1:8006"),
         web_search_url=cfg.get("web_search_url", ""),
         embed_url=cfg.get("embed_url", "http://127.0.0.1:8003/embedding"),
         http_timeout=float(cfg.get("http_timeout", 30.0)),
-        default_mode=cfg.get("default_mode", "chat"),
         web_search_max_results=int(cfg.get("web_search_max_results", 5)),
         tool_definitions=list(cfg.get("tool_definitions", [])),
         system_prompts=dict(cfg.get("system_prompts", {"default": system_prompt_tool})),
