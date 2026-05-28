@@ -112,13 +112,15 @@ class _ConfigMixin:
         print(f"  tool_def_strict     : {ctx.cfg.tool_definitions_strict}")
         print(f"  watchdog_interval   : {ctx.cfg.mcp_watchdog_interval}s")
         print(f"  watchdog_max_restart: {ctx.cfg.mcp_watchdog_max_restarts}")
-        approval = ctx.cfg.require_approval_tools
-        if approval:
-            print("  require_approval    :")
-            for t in approval:
-                print(f"    - {t}")
+        print("Approval settings:")
+        rules = ctx.cfg.approval_risk_rules
+        if rules:
+            rule_str = ", ".join(f"{k}={v}" for k, v in sorted(rules.items()))
+            print(f"  risk_rules          : {rule_str}")
         else:
-            print("  require_approval    : (none)")
+            print("  risk_rules          : (none)")
+        print(f"  protected_paths     : {ctx.cfg.approval_protected_paths}")
+        print(f"  high_risk_branches  : {ctx.cfg.approval_high_risk_branches}")
         masked = ctx.cfg.masked_fields
         print(f"  masked_fields       : {masked if masked else '(none)'}")
         plan_blocked = ctx.cfg.plan_blocked_tools
@@ -202,7 +204,18 @@ class _ConfigMixin:
         ctx.cfg.mcp_watchdog_max_restarts = int(
             new_cfg.get("mcp_watchdog_max_restarts", 3)
         )
-        ctx.cfg.require_approval_tools = list(new_cfg.get("require_approval_tools", []))
+        if "approval_risk_rules" in new_cfg:
+            ctx.cfg.approval_risk_rules = dict(new_cfg["approval_risk_rules"])
+        if "approval_protected_paths" in new_cfg:
+            ctx.cfg.approval_protected_paths = list(new_cfg["approval_protected_paths"])
+        if "approval_high_risk_branches" in new_cfg:
+            ctx.cfg.approval_high_risk_branches = list(
+                new_cfg["approval_high_risk_branches"]
+            )
+        if "approval_shell_safe_prefixes" in new_cfg:
+            ctx.cfg.approval_shell_safe_prefixes = list(
+                new_cfg["approval_shell_safe_prefixes"]
+            )
         ctx.cfg.masked_fields = list(new_cfg.get("masked_fields", ["file_content"]))
         # Update URLs for HTTP-transport servers without changing transport type.
         # Transport type changes require agent restart (subprocess lifecycle).

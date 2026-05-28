@@ -7,7 +7,8 @@ tool approval or execution logic.
 """
 
 import asyncio
-from typing import Any
+import time
+from typing import TYPE_CHECKING, Any
 
 import orjson
 from agent_commands import mask_args
@@ -15,6 +16,9 @@ from agent_context import AgentContext
 from logger import Logger
 from rag_llm import summarize_tool_result
 from tool_executor import is_side_effect, tool_call_key
+
+if TYPE_CHECKING:
+    from agent_config import AgentConfig
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -28,18 +32,122 @@ _TURN_LIMIT_HINT = (
 )
 
 
-async def check_approval(ctx: AgentContext, tool_name: str) -> bool:
-    """Prompt y/N confirmation if tool_name is in require_approval_tools.
+# Arg keys that may contain a file-system path; used for path escalation.
+_PREVIEW_PATH_KEYS: frozenset[str] = frozenset(
+    {"path", "file_path", "directory_path", "source", "destination"}
+)
+# Arg keys that may contain a GitHub branch name; used for branch escalation.
+_GITHUB_BRANCH_KEYS: frozenset[str] = frozenset({"branch", "base", "head"})
 
-    Returns True when the tool may proceed, False when the user denies.
-    Tools not listed in require_approval_tools always return True.
+
+def _classify_risk(cfg: "AgentConfig", tool_name: str, args: dict) -> str:
+    """Return the risk level for a tool call: 'none' | 'medium' | 'high'.
+
+    Classification order:
+      1. Look up tool_name in cfg.approval_risk_rules (absent → 'none').
+      2. shell_run: downgrade to 'none' when command matches a safe prefix.
+      3. File path escalation: any path arg in a protected dir → 'high'.
+      4. GitHub branch escalation: target branch in high_risk_branches → 'high'.
     """
-    if tool_name not in ctx.cfg.require_approval_tools:
+    base = cfg.approval_risk_rules.get(tool_name, "none")
+    if base == "none":
+        return "none"
+    # shell_run: safe-prefix commands bypass the high-risk default
+    if tool_name == "shell_run":
+        cmd = str(args.get("command", ""))
+        if any(cmd.startswith(p) for p in cfg.approval_shell_safe_prefixes):
+            return "none"
+        return "high"
+    # Escalate to 'high' when the target path is in a protected directory
+    if base != "high":
+        for key in _PREVIEW_PATH_KEYS:
+            val = str(args.get(key) or "")
+            if val and any(val.startswith(p) for p in cfg.approval_protected_paths):
+                return "high"
+    # Escalate GitHub write ops to 'high' when targeting a protected branch
+    if tool_name.startswith("github_") and base != "high":
+        for key in _GITHUB_BRANCH_KEYS:
+            val = str(args.get(key) or "")
+            if val and val in cfg.approval_high_risk_branches:
+                return "high"
+    return base
+
+
+def _build_preview(tool_name: str, args: dict) -> str:
+    """Build a human-readable operation preview shown before approval prompts."""
+    if tool_name in ("write_file", "edit_file"):
+        path = args.get("path") or args.get("file_path", "?")
+        content = str(args.get("content") or args.get("new_content") or "")[:200]
+        return f"{path}\n    content: {content!r}"
+    if tool_name in ("delete_file", "delete_directory"):
+        return str(args.get("path") or args.get("directory_path", "?"))
+    if tool_name == "create_directory":
+        return str(args.get("path") or args.get("directory_path", "?"))
+    if tool_name == "move_file":
+        return f"{args.get('source', '?')} → {args.get('destination', '?')}"
+    if tool_name == "shell_run":
+        return str(args.get("command", "?"))
+    if tool_name.startswith("github_"):
+        owner = str(args.get("owner", ""))
+        repo = str(args.get("repo", ""))
+        repo_str = f"{owner}/{repo}" if owner and repo else owner or repo or "?"
+        extra = {k: v for k, v in args.items() if k not in ("owner", "repo")}
+        extra_str = orjson.dumps(extra, option=orjson.OPT_SORT_KEYS).decode()[:200]
+        return f"{repo_str} {extra_str}"
+    raw: str = orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()
+    return raw[:300]
+
+
+def _audit_approval(
+    ctx: AgentContext, tool_name: str, risk: str, args: dict, decision: str
+) -> None:
+    """Write a structured tool_approval event to the audit log."""
+    if ctx.services.audit_logger is None:
+        return
+    ctx.services.audit_logger.info(
+        orjson.dumps(
+            {
+                "event": "tool_approval",
+                "task_id": ctx.current_turn_id,
+                "tool": tool_name,
+                "risk": risk,
+                "decision": decision,
+                "args_preview": mask_args(args, ctx.cfg.masked_fields),
+                "ts": time.time(),
+            }
+        ).decode()
+    )
+
+
+async def check_approval(ctx: AgentContext, tool_name: str, args: dict) -> bool:
+    """Determine whether a tool call may proceed based on risk classification.
+
+    Returns True when the call is approved, False when denied.
+    Risk levels:
+      'none'   — auto-approved; no prompt shown.
+      'medium' — preview + y/N prompt.
+      'high'   — preview + 'yes' (full word) required.
+    """
+    risk = _classify_risk(ctx.cfg, tool_name, args)
+    if risk == "none":
+        _audit_approval(ctx, tool_name, risk, args, "auto")
         return True
-    # Approval required: display the tool name and wait for input
-    print(f"\n[approval required] {tool_name}")
-    answer = (await asyncio.to_thread(input, "  Execute? [y/N]: ")).strip().lower()
-    return answer == "y"
+    preview = _build_preview(tool_name, args)
+    print(f"\n[{risk} risk] {tool_name}")
+    print(f"  Preview: {preview}")
+    if risk == "high":
+        answer = (
+            (await asyncio.to_thread(input, "  Execute? [yes/no]: ")).strip().lower()
+        )
+        approved = answer == "yes"
+    else:
+        answer = (await asyncio.to_thread(input, "  Execute? [y/N]: ")).strip().lower()
+        approved = answer == "y"
+    decision = "approved" if approved else "denied"
+    _audit_approval(ctx, tool_name, risk, args, decision)
+    if not approved:
+        print(f"  Skipped: {tool_name}")
+    return approved
 
 
 async def execute_one_tool_call(
@@ -122,8 +230,7 @@ async def execute_all_tool_calls(
             logger.info(f"Plan mode blocked tool: {tc_name}")
             denied_ids.append(tc["id"])
             continue
-        if not await check_approval(ctx, tc_name):
-            print(f"  Skipped: {tc_name}")
+        if not await check_approval(ctx, tc_name, args_preview):
             print(f"  args: {orjson.dumps(masked_preview).decode()}")
             denied_ids.append(tc["id"])
             continue

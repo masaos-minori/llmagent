@@ -131,8 +131,6 @@ class AgentConfig:
     # MCP watchdog: probe interval in seconds; 0 disables
     mcp_watchdog_interval: float
     mcp_watchdog_max_restarts: int
-    # Tools that require interactive y/N confirmation before execution
-    require_approval_tools: list[str]
     # Argument fields to redact in console output (e.g. "file_content")
     masked_fields: list[str]
     # Tools blocked when plan_mode is active; empty list means block nothing
@@ -205,6 +203,15 @@ class AgentConfig:
     structured_log: bool = False
     # Fraction of context_char_limit / context_token_limit that triggers a budget warning
     budget_warn_ratio: float = 0.8
+    # Risk-based approval: tool_name → "none" | "medium" | "high"
+    # Tools absent from this dict are auto-approved (treated as "none").
+    approval_risk_rules: dict[str, str] = field(default_factory=dict)
+    # File path prefixes that escalate any operation to "high" risk
+    approval_protected_paths: list[str] = field(default_factory=list)
+    # GitHub branch names where write operations escalate to "high" risk
+    approval_high_risk_branches: list[str] = field(default_factory=list)
+    # shell_run command prefixes that are always auto-approved despite "high" base level
+    approval_shell_safe_prefixes: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self._validate_llm_params()
@@ -265,6 +272,15 @@ class AgentConfig:
             )
 
     def _validate_tool_params(self) -> None:
+        _valid_risk = {"none", "medium", "high"}
+        bad = {
+            k: v for k, v in self.approval_risk_rules.items() if v not in _valid_risk
+        }
+        if bad:
+            raise ValueError(
+                f"approval_risk_rules: invalid levels {bad};"
+                " must be 'none', 'medium', or 'high'"
+            )
         if self.tool_dedup_max_repeats < 1:
             raise ValueError(
                 f"tool_dedup_max_repeats must be >= 1, got {self.tool_dedup_max_repeats}"
@@ -324,7 +340,6 @@ def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
         tool_definitions_strict=bool(cfg.get("tool_definitions_strict", False)),
         mcp_watchdog_interval=float(cfg.get("mcp_watchdog_interval", 0.0)),
         mcp_watchdog_max_restarts=int(cfg.get("mcp_watchdog_max_restarts", 3)),
-        require_approval_tools=list(cfg.get("require_approval_tools", [])),
         masked_fields=list(cfg.get("masked_fields", ["file_content"])),
         plan_blocked_tools=list(
             cfg.get(
@@ -367,6 +382,69 @@ def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
         audit_log_file=cfg.get("audit_log_file", "/opt/llm/logs/audit.log"),
         structured_log=bool(cfg.get("structured_log", False)),
         budget_warn_ratio=float(cfg.get("budget_warn_ratio", 0.8)),
+        approval_risk_rules=dict(
+            cfg.get(
+                "approval_risk_rules",
+                {
+                    "write_file": "medium",
+                    "edit_file": "medium",
+                    "create_directory": "medium",
+                    "move_file": "medium",
+                    "delete_file": "high",
+                    "delete_directory": "high",
+                    "shell_run": "high",
+                    "github_push_files": "high",
+                    "github_create_or_update_file": "high",
+                    "github_delete_file": "high",
+                    "github_merge_pull_request": "high",
+                    "github_create_branch": "medium",
+                    "github_create_pull_request": "medium",
+                    "github_update_pull_request": "medium",
+                    "github_create_issue": "medium",
+                    "github_add_issue_comment": "medium",
+                },
+            )
+        ),
+        approval_protected_paths=list(
+            cfg.get(
+                "approval_protected_paths",
+                [
+                    "/opt/",
+                    "/etc/",
+                    "/boot/",
+                    "/usr/",
+                    "/bin/",
+                    "/sbin/",
+                ],
+            )
+        ),
+        approval_high_risk_branches=list(
+            cfg.get(
+                "approval_high_risk_branches",
+                [
+                    "main",
+                    "master",
+                ],
+            )
+        ),
+        approval_shell_safe_prefixes=list(
+            cfg.get(
+                "approval_shell_safe_prefixes",
+                [
+                    "ls",
+                    "cat",
+                    "echo",
+                    "git log",
+                    "git status",
+                    "git diff",
+                    "git show",
+                    "git branch",
+                    "pwd",
+                    "find",
+                    "grep",
+                ],
+            )
+        ),
     )
 
 
