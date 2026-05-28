@@ -5,9 +5,9 @@ SQLite-backed REPL session persistence manager.
 Handles session and message records for REPLAgent.
 """
 
-import json
 import logging
 
+import orjson
 from rag_types import LLMMessage
 from sqlite_helper import SQLiteHelper
 
@@ -54,7 +54,7 @@ class AgentSession:
             logger.warning(f"Invalid role {role!r}; message not saved")
             return
         try:
-            tc_json = json.dumps(tool_calls, ensure_ascii=False) if tool_calls else None
+            tc_json = orjson.dumps(tool_calls).decode() if tool_calls else None
             with SQLiteHelper().open(write_mode=True) as db:
                 db.execute(
                     "INSERT INTO messages"
@@ -84,7 +84,7 @@ class AgentSession:
                     self.session_id,
                     role,
                     content,
-                    json.dumps(tc, ensure_ascii=False) if tc else None,
+                    orjson.dumps(tc).decode() if tc else None,
                     tc_id,
                 )
                 for role, content, tc, tc_id in messages
@@ -290,8 +290,8 @@ class AgentSession:
             msg: LLMMessage = {"role": r["role"], "content": r["content"]}
             if r["tool_calls"]:
                 try:
-                    msg["tool_calls"] = json.loads(r["tool_calls"])
-                except json.JSONDecodeError as e:
+                    msg["tool_calls"] = orjson.loads(r["tool_calls"])
+                except orjson.JSONDecodeError as e:
                     logger.warning(
                         f"Invalid tool_calls JSON in session {session_id}: {e}"
                     )

@@ -20,6 +20,7 @@ Also defines _budget_breakdown (re-exported by agent_commands.py).
 import logging
 from typing import TYPE_CHECKING
 
+import orjson
 from db_maintenance import (
     RetentionConfig,
     checkpoint_wal,
@@ -27,6 +28,7 @@ from db_maintenance import (
     recover_corruption,
     vacuum_db,
 )
+from git_helper import get_repo_info
 from sqlite_helper import SQLiteHelper
 
 if TYPE_CHECKING:
@@ -64,9 +66,7 @@ def _budget_breakdown(messages: list) -> dict[str, int]:
         elif role == "assistant":
             counts["history"] += len(text)
             if tool_calls:
-                import json  # noqa: PLC0415
-
-                counts["tool_results"] += len(json.dumps(tool_calls))
+                counts["tool_results"] += len(orjson.dumps(tool_calls))
         else:
             counts["history"] += len(text)
     return counts
@@ -106,6 +106,32 @@ class _ContextMixin:
         print(f"  Compress count  : {compress_count}")
         print(f"  System prompt   : {ctx.system_prompt_name}")
         print(f"  System preview  : {sys_preview!r}")
+        # Token estimate (chars // 4 approximation; LLM usage field may be more precise)
+        token_estimate = (
+            ctx.services.hist_mgr.count_tokens_estimate(
+                ctx.history, ctx.stat_input_tokens
+            )
+            if ctx.services.hist_mgr is not None
+            else total_chars // 4
+        )
+        token_limit = ctx.cfg.context_token_limit
+        token_limit_str = f"{token_limit:,}" if token_limit > 0 else "disabled"
+        # Memory layer status
+        if ctx.services.memory is not None:
+            mem_entries = ctx.services.memory.stat_entries
+            mem_status = f"enabled (entries={mem_entries})"
+        else:
+            mem_status = "disabled"
+        git_info = get_repo_info()
+        git_str = (
+            f"{git_info['branch']} @ {git_info['commit']} {git_info['message']}"
+            if git_info
+            else "unavailable"
+        )
+        print(f"  Token estimate  : {token_estimate:,} (chars / 4)")
+        print(f"  Token limit     : {token_limit_str}")
+        print(f"  Memory layer    : {mem_status}")
+        print(f"  Git             : {git_str}")
         print("Budget breakdown:")
         for cat, n in breakdown.items():
             pct = n * 100 // total_bd
@@ -202,29 +228,20 @@ class _ContextMixin:
         parts = args.strip().split(None, 1)
         subcmd = parts[0] if parts else ""
         rest = parts[1] if len(parts) == 2 else ""
-        if subcmd == "stats":
-            self._db_stats()
-        elif subcmd == "urls":
-            self._db_list_urls(rest)
-        elif subcmd == "clean":
-            url = rest.strip()
-            if not url:
-                print("Usage: /db clean <url>")
-                return
-            ok = self._ctx.session.delete_document(url)
-            print(f"Document deleted: {url}" if ok else f"Document not found: {url}")
-        elif subcmd == "rebuild-fts":
-            self._db_rebuild_fts()
-        elif subcmd == "health":
-            self._db_health()
-        elif subcmd == "checkpoint":
-            self._db_checkpoint(rest.strip().upper() if rest.strip() else None)
-        elif subcmd == "vacuum":
-            self._db_vacuum()
-        elif subcmd == "purge":
-            self._db_purge(rest)
-        elif subcmd == "recover":
-            self._db_recover(rest.strip() if rest.strip() else None)
+        dispatch = {
+            "stats": self._db_stats,
+            "urls": lambda: self._db_list_urls(rest),
+            "clean": lambda: self._db_clean(rest),
+            "rebuild-fts": self._db_rebuild_fts,
+            "health": self._db_health,
+            "checkpoint": lambda: self._db_checkpoint(rest.strip().upper() or None),
+            "vacuum": self._db_vacuum,
+            "purge": lambda: self._db_purge(rest),
+            "recover": lambda: self._db_recover(rest.strip() or None),
+        }
+        handler = dispatch.get(subcmd)
+        if handler:
+            handler()
         else:
             print(
                 "Usage: /db stats | /db urls [--lang ja|en] [--limit N]"
@@ -233,6 +250,15 @@ class _ContextMixin:
                 " | /db vacuum | /db purge [--max-sessions N] [--max-age-days N]"
                 " | /db recover [<backup-path>]"
             )
+
+    def _db_clean(self, rest: str) -> None:
+        """Delete a document by URL from the vector store."""
+        url = rest.strip()
+        if not url:
+            print("Usage: /db clean <url>")
+            return
+        ok = self._ctx.session.delete_document(url)
+        print(f"Document deleted: {url}" if ok else f"Document not found: {url}")
 
     def _db_stats(self) -> None:
         """Print document/chunk/session/message counts from DB."""

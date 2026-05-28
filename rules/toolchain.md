@@ -30,7 +30,6 @@ lint-imports
 ### 4. Constraint verification (ast-grep)
 
 ```bash
-ast-grep --pattern 'json.load($$$)' --lang python scripts/ | grep -v config_loader.py
 ast-grep --pattern 'except: $$$' --lang python scripts/
 ```
 

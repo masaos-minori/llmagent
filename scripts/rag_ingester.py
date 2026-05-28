@@ -9,7 +9,6 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 """
 
 import argparse
-import json
 import shutil
 import time
 from collections import defaultdict
@@ -17,7 +16,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
-import requests
+import httpx
+import orjson
 from config_loader import ConfigLoader
 from logger import Logger
 from pipeline_utils import read_json_file
@@ -50,7 +50,17 @@ class RagIngester:
         self._embed_url: str = cfg["embed_url"]
         self._embed_retry: int = int(cfg["embed_retry"])
         self._embed_workers: int = int(cfg.get("embed_workers", 4))
-        self._session = requests.Session()
+        self._client = httpx.Client(timeout=60)
+
+    def close(self) -> None:
+        """Close the underlying HTTP client."""
+        self._client.close()
+
+    def __del__(self) -> None:
+        try:
+            self._client.close()
+        except Exception:
+            pass
 
     # ── Public interface ──────────────────────────────────────────────────────
 
@@ -112,18 +122,22 @@ class RagIngester:
             return None
         for attempt in range(self._embed_retry):
             try:
-                resp = self._session.post(
+                resp = self._client.post(
                     self._embed_url,
                     # E5 passage prefix is mandatory for document-side embedding
                     json={"content": f"passage: {text}"},
-                    timeout=60,
                 )
                 resp.raise_for_status()
-                embedding = resp.json().get("embedding")
+                embedding = orjson.loads(resp.content).get("embedding")
                 if not isinstance(embedding, list) or not embedding:
                     raise ValueError("missing or empty 'embedding' field in response")
                 return embedding
-            except (requests.RequestException, json.JSONDecodeError, ValueError) as e:
+            except (
+                httpx.RequestError,
+                httpx.HTTPStatusError,
+                orjson.JSONDecodeError,
+                ValueError,
+            ) as e:
                 logger.warning(
                     f"embedding attempt {attempt + 1}/{self._embed_retry}: {e}"
                 )

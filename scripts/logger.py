@@ -15,10 +15,11 @@ Structured log (JSON-lines):
     logger.clear_context()
 """
 
-import json
 import logging
 import sys
 from typing import Any
+
+import orjson
 
 
 class _ContextFilter(logging.Filter):
@@ -59,7 +60,8 @@ class _JsonFormatter(logging.Formatter):
                 entry[key] = val
         if record.exc_info:
             entry["exc"] = self.formatException(record.exc_info)
-        return json.dumps(entry, ensure_ascii=False)
+        serialized: bytes = orjson.dumps(entry)
+        return serialized.decode()
 
 
 class Logger:

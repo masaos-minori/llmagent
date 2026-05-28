@@ -39,9 +39,6 @@ rg '# nosec' scripts/ | grep -v ' — '           # nosec without comment
 ## Constraint checks (run before every commit)
 
 ```bash
-# no json.load() — only config_loader.py is allowed
-ast-grep --pattern 'json.load($$$)' --lang python scripts/ | grep -v config_loader.py
-
 # no bare except
 ast-grep --pattern 'except: $$$' --lang python scripts/
 

@@ -10,10 +10,11 @@ Responsibilities:
   - Idempotency check for already-processed files (sentinel-based)
 """
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
+
+import orjson
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +22,9 @@ logger = logging.getLogger(__name__)
 def read_json_file(path: Path) -> dict[str, Any] | None:
     """Read and parse a JSON file. Returns None on failure, logging the error."""
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = orjson.loads(path.read_bytes())
         return data if isinstance(data, dict) else None
-    except (json.JSONDecodeError, OSError) as e:
+    except (orjson.JSONDecodeError, OSError) as e:
         logger.error(f"failed to read {path}: {e}")
         return None
 

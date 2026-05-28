@@ -9,57 +9,29 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 
 import argparse
 import asyncio
-import json
-import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urldefrag, urljoin, urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
-import trafilatura
+import orjson
 from bs4 import BeautifulSoup
 from config_loader import ConfigLoader
+from crawler_utils import (
+    _SUPPORTED_LANGS,
+    detect_lang,
+    extract_text,
+    normalize_url,
+    parse_target_urls,
+    same_origin,
+    url_to_slug,
+)
 from logger import Logger
 from rag_utils import validate_url
 from sqlite_helper import SQLiteHelper
 
 logger = Logger(__name__, "/opt/llm/logs/crawl.log")
-
-# Supported language codes for resolved (output) lang values
-_SUPPORTED_LANGS: frozenset[str] = frozenset({"en", "ja"})
-# Valid hint lang values including "auto" for per-page CJK-ratio detection
-_VALID_HINT_LANGS: frozenset[str] = frozenset({"en", "ja", "auto"})
-# CJK character ratio threshold above which text is classified as Japanese
-_CJK_RATIO_THRESHOLD: float = 0.1
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Module-level URL utilities (pure functions, no state)
-# ──────────────────────────────────────────────────────────────────────────────
-def url_to_slug(url: str) -> str:
-    """
-    Convert a URL to a filesystem-safe ASCII slug.
-    Strips the scheme, replaces non-alphanumeric characters with hyphens,
-    and truncates to 80 characters.
-    Example: https://ziglang.org/documentation/ → ziglang.org-documentation
-    """
-    slug = re.sub(r"^https?://", "", url)
-    slug = re.sub(r"[^a-zA-Z0-9._-]", "-", slug)
-    slug = re.sub(r"-+", "-", slug)
-    return slug.strip("-")[:80]
-
-
-def normalize_url(url: str) -> str:
-    """Normalize a URL by stripping the fragment and trailing slash."""
-    url, _ = urldefrag(url)
-    return url.rstrip("/")
-
-
-def same_origin(url: str, base: str) -> bool:
-    """Return True if url and base share the same origin (scheme + hostname)."""
-    p1, p2 = urlparse(url), urlparse(base)
-    return p1.scheme == p2.scheme and p1.netloc == p2.netloc
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -91,9 +63,7 @@ class WebCrawler:
         self._fetch_timeout: float = float(cfg.get("fetch_timeout", 15))
         self._concurrency: int = int(cfg.get("crawl_concurrency", 3))
         self._max_pages: int = int(cfg.get("max_pages", 500))
-        self._target_urls: list[tuple[str, str]] = self._parse_target_urls(
-            cfg["target_urls"]
-        )
+        self._target_urls: list[tuple[str, str]] = parse_target_urls(cfg["target_urls"])
         # Skip links with rel="nofollow" when True
         self._skip_nofollow: bool = bool(cfg.get("skip_nofollow", False))
         # Skip cross-origin links when True (default: True = same-origin only)
@@ -135,10 +105,7 @@ class WebCrawler:
         }
         self._rag_src_dir.mkdir(parents=True, exist_ok=True)
         out = self._make_crawl_filepath(url)
-        out.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        out.write_bytes(orjson.dumps(payload, option=orjson.OPT_INDENT_2))
         logger.info(f"saved local file: {out.name}")
         return 1
 
@@ -242,26 +209,6 @@ class WebCrawler:
             logger.debug(f"DB lookup for conditional headers failed ({url}): {e}")
         return {}
 
-    @staticmethod
-    def _parse_target_urls(target_raw: list[Any]) -> list[tuple[str, str]]:
-        """Validate and parse the target_urls config list into (url, lang) tuples."""
-        result: list[tuple[str, str]] = []
-        for entry in target_raw:
-            if not isinstance(entry, list | tuple) or len(entry) != 2:
-                raise ValueError(
-                    "Each entry in target_urls must be a 2-element list of [url, lang]"
-                )
-            url, lang = str(entry[0]), str(entry[1])
-            if not validate_url(url):
-                raise ValueError(f"Invalid URL in target_urls: {url!r}")
-            if lang not in _VALID_HINT_LANGS:
-                raise ValueError(
-                    f"Unsupported lang {lang!r} in target_urls"
-                    f" (must be one of {sorted(_VALID_HINT_LANGS)})"
-                )
-            result.append((url, lang))
-        return result
-
     def _make_crawl_filepath(self, url: str) -> Path:
         """Generate an output path in yyyymmddhhmmss-{slug}.txt format."""
         ts = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -309,47 +256,13 @@ class WebCrawler:
             pre.decompose()
         return code_blocks
 
-    def _extract_text(self, soup: BeautifulSoup) -> str:
-        """Remove noise tags and extract body text via Trafilatura; fall back to BS4."""
-        noise_tags = ["nav", "footer", "aside", "script", "style", "noscript"]
-        for tag in soup.find_all(noise_tags):
-            tag.decompose()
-        text = trafilatura.extract(
-            str(soup),
-            include_comments=False,
-            include_tables=True,
-            no_fallback=False,
-            target_language=None,
-        )
-        return (text or soup.get_text(separator="\n", strip=True)).strip()
-
     def _extract_content(self, html: str, url: str) -> tuple[str, str, list[str]]:
         """Return (title, body text, code blocks) extracted from HTML."""
         soup = BeautifulSoup(html, "lxml")
         title = soup.title.get_text(strip=True) if soup.title else urlparse(url).path
         code_blocks = self._extract_code_blocks(soup)
-        text = self._extract_text(soup)
+        text = extract_text(soup)
         return title, text, code_blocks
-
-    @staticmethod
-    def _detect_lang(text: str) -> str | None:
-        """
-        Detect language by CJK character ratio.
-        Returns 'ja' when CJK ratio >= _CJK_RATIO_THRESHOLD, 'en' otherwise.
-        Returns None for texts shorter than 100 characters (too short for reliable
-        detection).
-        """
-        if len(text) < 100:
-            return None
-        # Count Hiragana, Katakana, and CJK Unified Ideographs (incl. Extension A)
-        cjk_count = sum(
-            1
-            for c in text
-            if ("぀" <= c <= "ヿ")  # Hiragana + Katakana
-            or ("一" <= c <= "鿿")  # CJK Unified Ideographs
-            or ("㐀" <= c <= "䶿")  # CJK Extension A
-        )
-        return "ja" if cjk_count / len(text) >= _CJK_RATIO_THRESHOLD else "en"
 
     def _save_crawl_file(
         self,
@@ -376,10 +289,7 @@ class WebCrawler:
             payload["etag"] = etag
         if last_modified:
             payload["last_modified"] = last_modified
-        path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        path.write_bytes(orjson.dumps(payload, option=orjson.OPT_INDENT_2))
         logger.info(f"saved: {path.name}")
         return path
 
@@ -444,10 +354,10 @@ class WebCrawler:
         if hint_lang == "auto":
             if len(text) < 100:
                 return "en"
-            return self._detect_lang(text) or "en"
+            return detect_lang(text) or "en"
         if len(text) < 100:
             return hint_lang
-        detected = self._detect_lang(text)
+        detected = detect_lang(text)
         return detected if detected is not None else hint_lang
 
     async def _process_crawl_url_async(

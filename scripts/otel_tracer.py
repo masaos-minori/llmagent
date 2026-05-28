@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""
+otel_tracer.py
+OpenTelemetry tracer initialisation for the agent pipeline.
+
+Design (R10):
+  build_tracer() creates a private TracerProvider instance and does NOT call
+  trace.set_tracer_provider().  This prevents cross-test provider pollution and
+  allows multiple independent tracer instances to coexist in the same process.
+
+When enabled=False, a NoOp-compatible tracer is returned without importing the
+OpenTelemetry SDK, so the dependency remains optional for environments that do
+not install opentelemetry-sdk.
+
+When enabled=True and otlp_endpoint is non-empty, an OTLP HTTP exporter is
+configured.  Otherwise, ConsoleSpanExporter is used (useful for development /
+testing with otel_enabled=true and empty otel_endpoint).
+"""
+
+import logging
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+def build_tracer(
+    enabled: bool,
+    service_name: str = "llm-agent",
+    otlp_endpoint: str = "",
+) -> Any:
+    """Build and return an OpenTelemetry Tracer (or a NoOp stand-in).
+
+    This function creates a private TracerProvider and does NOT modify the
+    global trace provider (trace.set_tracer_provider() is intentionally not
+    called).  Each call returns a fully independent tracer bound to its own
+    provider, which is safe for concurrent use and test isolation.
+
+    Args:
+        enabled: When False, return a lightweight NoOp tracer without importing
+                 the OTel SDK.  No spans are recorded.
+        service_name: OTel service.name resource attribute reported in spans.
+        otlp_endpoint: OTLP HTTP exporter URL.  When empty and enabled=True,
+                       ConsoleSpanExporter is used instead.
+
+    Returns:
+        A trace.Tracer when enabled=True, or a _NoOpTracer when enabled=False.
+    """
+    if not enabled:
+        return _NoOpTracer()
+
+    try:
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import (
+            ConsoleSpanExporter,
+            SimpleSpanProcessor,
+        )
+    except ImportError as e:
+        logger.warning(
+            f"opentelemetry-sdk not installed; falling back to NoOp tracer: {e}"
+        )
+        return _NoOpTracer()
+
+    resource = Resource.create({"service.name": service_name})
+    provider = TracerProvider(resource=resource)
+
+    if otlp_endpoint:
+        try:
+            from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+                OTLPSpanExporter,
+            )
+            from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+            exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+            provider.add_span_processor(BatchSpanProcessor(exporter))
+            logger.info(
+                f"OTel tracer configured: OTLP endpoint={otlp_endpoint}"
+                f" service={service_name}"
+            )
+        except ImportError as e:
+            logger.warning(
+                f"opentelemetry-exporter-otlp not installed;"
+                f" falling back to ConsoleSpanExporter: {e}"
+            )
+            provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
+    else:
+        provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
+        logger.info(
+            f"OTel tracer configured: ConsoleSpanExporter service={service_name}"
+        )
+
+    # Return a tracer bound to the private provider (not the global one)
+    return provider.get_tracer(service_name)
+
+
+class _NoOpTracer:
+    """Minimal tracer stub returned when otel_enabled=False.
+
+    Implements start_as_current_span() as a no-op context manager so callers
+    can use `with tracer.start_as_current_span("name"):` unconditionally without
+    checking enabled status.
+    """
+
+    def start_as_current_span(self, name: str, **kwargs: Any) -> "_NoOpSpan":
+        """Return a no-op span context manager."""
+        return _NoOpSpan()
+
+    def __repr__(self) -> str:
+        return "_NoOpTracer()"
+
+
+class _NoOpSpan:
+    """No-op span that supports context manager protocol and set_attribute()."""
+
+    def __enter__(self) -> "_NoOpSpan":
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        pass
+
+    def set_attribute(self, key: str, value: Any) -> None:
+        """Accept attribute calls without recording anything."""

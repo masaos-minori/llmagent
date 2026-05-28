@@ -7,11 +7,11 @@ httpx.AsyncClient is mocked so no real HTTP calls are made.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
+import orjson
 import pytest
 from history_manager import HistoryManager
 from rag_types import LLMMessage
@@ -25,6 +25,8 @@ def _make_manager(
     compress_turns: int = 2,
     on_compress: Callable[[int], None] | None = None,
     http: httpx.AsyncClient | None = None,
+    protect_turns: int = 0,
+    token_limit: int = 0,
 ) -> HistoryManager:
     return HistoryManager(
         http=http or AsyncMock(spec=httpx.AsyncClient),
@@ -34,6 +36,8 @@ def _make_manager(
         compress_temperature=0.1,
         compress_max_tokens=200,
         on_compress=on_compress,
+        protect_turns=protect_turns,
+        token_limit=token_limit,
     )
 
 
@@ -62,7 +66,7 @@ class TestCountChars:
             {"role": "assistant", "content": None, "tool_calls": [tc]}
         ]
         chars = mgr.count_chars(h)
-        assert chars == len(json.dumps(tc))
+        assert chars == len(orjson.dumps(tc))
 
     def test_empty_history_returns_zero(self) -> None:
         mgr = _make_manager()
@@ -195,3 +199,161 @@ class TestCompressWithLLM:
         h = [system_msg] + self._over_limit_history()
         result = await mgr.compress(h)
         assert result[0] == system_msg
+
+
+# ── compress_turns public property ────────────────────────────────────────────
+
+
+class TestCompressTurnsProperty:
+    def test_compress_turns_property_matches_init(self) -> None:
+        mgr = _make_manager(compress_turns=3)
+        assert mgr.compress_turns == 3
+
+    def test_compress_turns_property_is_readable(self) -> None:
+        mgr = _make_manager(compress_turns=2)
+        # Ensure the property is accessible (not AttributeError)
+        val = mgr.compress_turns
+        assert isinstance(val, int)
+
+
+# ── protect_turns — recent turns are excluded from compression ────────────────
+
+
+class TestProtectTurns:
+    @pytest.mark.asyncio
+    async def test_protected_turns_not_compressed(self) -> None:
+        """With protect_turns=2, the most-recent 2 turn pairs must survive compression."""
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": "Summary."}}]
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        # 6 turn messages total; compress_turns=2 wants to compress 4 messages,
+        # but protect_turns=2 protects the last 4 messages.
+        # Result: not enough messages to compress → original history returned.
+        mgr = _make_manager(
+            char_limit=1, compress_turns=2, http=mock_http, protect_turns=2
+        )
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+        )
+        result = await mgr.compress(h)
+        # When protect_turns=2 and compress_turns=2, need at least 8 turn messages;
+        # with only 6, _select_turns_to_compress returns None → original returned
+        assert result == h
+
+    @pytest.mark.asyncio
+    async def test_enough_turns_allows_compression_with_protection(self) -> None:
+        """With protect_turns=1 and compress_turns=2, and 7 turn pairs, compression proceeds."""
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": "Summary."}}]
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        # 10 turn messages; compress_turns=2 (4 msgs); protect_turns=1 (2 msgs)
+        # Needs at least 6 turn messages → 10 >= 6 → compression proceeds
+        mgr = _make_manager(
+            char_limit=1, compress_turns=2, http=mock_http, protect_turns=1
+        )
+        pairs = [("user", "x" * 20), ("assistant", "x" * 20)] * 5
+        h = _history(*pairs)
+        result = await mgr.compress(h)
+        # Summary message should appear; history should be shorter
+        roles = [m["role"] for m in result]
+        assert "system" in roles
+        assert len(result) < len(h)
+
+
+# ── _classify() ───────────────────────────────────────────────────────────────
+
+
+class TestClassify:
+    def test_tool_role_is_temporary(self) -> None:
+        msg: LLMMessage = {"role": "tool", "content": "result"}
+        assert HistoryManager._classify(msg) == "temporary"
+
+    def test_system_role_is_factual(self) -> None:
+        msg: LLMMessage = {"role": "system", "content": "You are helpful."}
+        assert HistoryManager._classify(msg) == "factual"
+
+    def test_assistant_with_tool_calls_is_temporary_reasoning(self) -> None:
+        msg: LLMMessage = {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "x",
+                    "type": "function",
+                    "function": {"name": "f", "arguments": "{}"},
+                }
+            ],
+        }
+        assert HistoryManager._classify(msg) == "temporary_reasoning"
+
+    def test_assistant_without_tool_calls_is_history(self) -> None:
+        msg: LLMMessage = {"role": "assistant", "content": "I can help with that."}
+        assert HistoryManager._classify(msg) == "history"
+
+    def test_user_role_is_history(self) -> None:
+        msg: LLMMessage = {"role": "user", "content": "What is Python?"}
+        assert HistoryManager._classify(msg) == "history"
+
+
+# ── count_tokens_estimate() ───────────────────────────────────────────────────
+
+
+class TestCountTokensEstimate:
+    def test_uses_last_input_tokens_when_provided(self) -> None:
+        mgr = _make_manager()
+        h = _history(("user", "x" * 100))
+        # last_input_tokens takes priority over chars // 4
+        assert mgr.count_tokens_estimate(h, last_input_tokens=42) == 42
+
+    def test_falls_back_to_chars_div_4(self) -> None:
+        mgr = _make_manager()
+        h = _history(("user", "x" * 400))
+        # chars = 400, estimate = 400 // 4 = 100
+        assert mgr.count_tokens_estimate(h, last_input_tokens=None) == 100
+
+    def test_empty_history_returns_zero(self) -> None:
+        mgr = _make_manager()
+        assert mgr.count_tokens_estimate([], last_input_tokens=None) == 0
+
+
+# ── split is None warning log ─────────────────────────────────────────────────
+
+
+class TestCompressSkippedWarning:
+    @pytest.mark.asyncio
+    async def test_warns_when_not_enough_turns_but_over_limit(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """When _select_turns_to_compress returns None and chars > limit, a warning is logged."""
+        import logging
+
+        # char_limit=1 ensures we're over the limit
+        # compress_turns=2, protect_turns=3 → needs (2+3)*2=10 turn msgs; only 4 available
+        mgr = _make_manager(char_limit=1, compress_turns=2, protect_turns=3)
+        h = _history(
+            ("user", "question 1"),
+            ("assistant", "answer 1"),
+            ("user", "question 2"),
+            ("assistant", "answer 2"),
+        )
+        with caplog.at_level(logging.WARNING, logger="history_manager"):
+            result = await mgr.compress(h)
+        # History returned unchanged
+        assert result == h
+        # Warning logged
+        assert any("compression skipped" in r.message.lower() for r in caplog.records)

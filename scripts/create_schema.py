@@ -95,6 +95,17 @@ _SCHEMA_SQL: str = """
     );
     CREATE INDEX IF NOT EXISTS idx_tool_results_session
         ON tool_results(session_id);
+    CREATE TABLE IF NOT EXISTS memory_entries (
+        entry_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER,
+        mem_type   TEXT NOT NULL CHECK (mem_type IN ('long_term', 'task')),
+        content    TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec USING vec0(
+        entry_id  INTEGER PRIMARY KEY,
+        embedding float[384]
+    );
 """
 
 
@@ -136,6 +147,10 @@ _MIGRATE_SQL: list[str] = [
        END""",
     # Add tool_call_id column for persisting tool result message IDs
     "ALTER TABLE messages ADD COLUMN tool_call_id TEXT",
+    # Memory layer virtual table (vec0 extension required; errors are silently ignored
+    # on dev environments where vec0 is unavailable)
+    "CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec USING vec0("
+    "entry_id INTEGER PRIMARY KEY, embedding float[384])",
 ]
 
 
@@ -160,6 +175,13 @@ def _migrate_schema() -> None:
         " (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')))",
         "CREATE INDEX IF NOT EXISTS idx_tool_results_session"
         " ON tool_results(session_id)",
+        # Memory layer tables (added in Phase 1)
+        "CREATE TABLE IF NOT EXISTS memory_entries ("
+        "entry_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " session_id INTEGER,"
+        " mem_type TEXT NOT NULL CHECK (mem_type IN ('long_term', 'task')),"
+        " content TEXT NOT NULL,"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now')))",
     ]
     with SQLiteHelper().open(write_mode=True) as db:
         for stmt in _new_tables:

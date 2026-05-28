@@ -7,9 +7,9 @@ tool approval or execution logic.
 """
 
 import asyncio
-import json
 from typing import Any
 
+import orjson
 from agent_commands import mask_args
 from agent_context import AgentContext
 from logger import Logger
@@ -60,8 +60,8 @@ async def execute_one_tool_call(
     name = func["name"]
     args_str = func.get("arguments", "{}")
     try:
-        args = json.loads(args_str)
-    except json.JSONDecodeError:
+        args = orjson.loads(args_str)
+    except orjson.JSONDecodeError:
         logger.warning(f"Invalid JSON in tool arguments for {name!r}: {args_str!r}")
         args = {}
 
@@ -111,20 +111,20 @@ async def execute_all_tool_calls(
         tc_name = tc["function"]["name"]
         args_preview: Any
         try:
-            args_preview = json.loads(tc["function"].get("arguments", "{}"))
-        except json.JSONDecodeError:
+            args_preview = orjson.loads(tc["function"].get("arguments", "{}"))
+        except orjson.JSONDecodeError:
             args_preview = tc["function"].get("arguments", "{}")
         masked_preview = mask_args(args_preview, ctx.cfg.masked_fields)
         # Block destructive tools automatically when plan_mode is active
         if ctx.plan_mode and tc_name in ctx.cfg.plan_blocked_tools:
             print(f"  [plan mode] Blocked: {tc_name}")
-            print(f"  args: {json.dumps(masked_preview, ensure_ascii=False)}")
+            print(f"  args: {orjson.dumps(masked_preview).decode()}")
             logger.info(f"Plan mode blocked tool: {tc_name}")
             denied_ids.append(tc["id"])
             continue
         if not await check_approval(ctx, tc_name):
             print(f"  Skipped: {tc_name}")
-            print(f"  args: {json.dumps(masked_preview, ensure_ascii=False)}")
+            print(f"  args: {orjson.dumps(masked_preview).decode()}")
             denied_ids.append(tc["id"])
             continue
         approved_calls.append(tc)
@@ -161,7 +161,7 @@ async def execute_all_tool_calls(
                 out_failed_keys.add(tool_call_key(name, args))
         masked = mask_args(args, ctx.cfg.masked_fields)
         logger.info(f"Tool call (turn {turn + 1}): {name}({masked})")
-        print(f"  [tool] {name}({json.dumps(masked, ensure_ascii=False)})")
+        print(f"  [tool] {name}({orjson.dumps(masked).decode()})")
         n_lines = len(text.splitlines())
         if len(text) > _TOOL_RESULT_MAX_CHARS:
             logger.info(f"Tool result {name} (full): {text}")
@@ -186,7 +186,7 @@ async def execute_all_tool_calls(
             session_id=ctx.session.session_id,
             turn=turn,
             tool_name=name,
-            args_json=json.dumps(args, ensure_ascii=False),
+            args_json=orjson.dumps(args).decode(),
             full_text=text,
             summary=llm_text if summarized else None,
             is_error=is_error,

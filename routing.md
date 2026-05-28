@@ -21,6 +21,8 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 
 | Task scope | Reference docs |
 |---|---|
+| Memory layer (memory_store.py / memory_layer.py) | `docs/06_ref-agent-context.md` + `docs/06_ref-agent-config.md` |
+| OTel observability (otel_tracer.py) | `docs/05_agent-ops.md` + `docs/06_ref-agent-config.md` |
 | System-wide architecture overview | `docs/01_overview-arch.md` |
 | File / module layout | `docs/01_overview-files.md` |
 | MCP server implementation | `docs/04_mcp-protocol.md` + `docs/06_ref-mcp.md` |

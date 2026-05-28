@@ -10,11 +10,11 @@ Extracted from agent_rag.py.  Contains:
   - summarize_tool_result — shorten long tool output for LLM context
 """
 
-import json
 import logging
 import re
 
 import httpx
+import orjson
 from config_loader import ConfigLoader
 from rag_types import LLMMessage, RagHit
 
@@ -107,8 +107,8 @@ def _parse_mqe_response(raw: str, original_query: str) -> list[str]:
     if not m:
         return [original_query]
     try:
-        expanded = json.loads(m.group())
-    except json.JSONDecodeError:
+        expanded = orjson.loads(m.group())
+    except orjson.JSONDecodeError:
         logger.warning("MQE response JSON is malformed, fallback to original query")
         return [original_query]
     if not isinstance(expanded, list):
@@ -158,8 +158,8 @@ def _apply_rerank_scores(
     if not m:
         return None
     try:
-        score_map: dict = json.loads(m.group())
-    except json.JSONDecodeError:
+        score_map: dict = orjson.loads(m.group())
+    except orjson.JSONDecodeError:
         logger.warning("Rerank score JSON is malformed")
         return None
     scored = []
@@ -229,7 +229,7 @@ class RagLLM:
             logger.warning(
                 f"MQE failed (connection error), fallback to original query: {e}"
             )
-        except json.JSONDecodeError as e:
+        except orjson.JSONDecodeError as e:
             logger.warning(
                 f"MQE failed (JSON parse error), fallback to original query: {e}"
             )
@@ -282,7 +282,7 @@ class RagLLM:
                 "Cross-Encoder rerank failed (connection error),"
                 f" fallback to RRF order: {e}"
             )
-        except json.JSONDecodeError as e:
+        except orjson.JSONDecodeError as e:
             logger.warning(
                 "Cross-Encoder rerank failed (JSON parse error),"
                 f" fallback to RRF order: {e}"
@@ -301,7 +301,7 @@ class RagLLM:
         original text on any error so the caller can use truncation as fallback.
         """
         text_preview = text[:_SUMMARIZE_INPUT_MAX_CHARS]
-        args_str = json.dumps(args, ensure_ascii=False)[:200]
+        args_str = orjson.dumps(args).decode()[:200]
         prompt = _SUMMARIZE_PROMPT_TEMPLATE.format(
             tool_name=tool_name,
             args_str=args_str,

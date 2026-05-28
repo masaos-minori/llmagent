@@ -13,10 +13,10 @@ Extracted from agent_commands.py.  Provides _RagMixin with:
   _render_history_md — render conversation history as Markdown
 """
 
-import json
 import logging
 from typing import TYPE_CHECKING
 
+import orjson
 from rag_types import LLMMessage, RagHit
 from sqlite_helper import SQLiteHelper
 
@@ -68,10 +68,10 @@ class _RagMixin:
             flag = " [summarized]" if result.get("summary") else ""
             print(f"Tool: {result['tool_name']}{flag}")
             try:
-                args_obj = json.loads(result.get("args_json") or "{}")
-            except json.JSONDecodeError:
+                args_obj = orjson.loads(result.get("args_json") or "{}")
+            except orjson.JSONDecodeError:
                 args_obj = {}
-            print(f"Args: {json.dumps(args_obj, ensure_ascii=False)}")
+            print(f"Args: {orjson.dumps(args_obj).decode()}")
             print(f"Size: {len(result['full_text'])} chars")
             if result.get("summary"):
                 print(f"Summary: {result['summary']}")

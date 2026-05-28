@@ -41,6 +41,7 @@ from history_manager import HistoryManager
 from llm_client import LLMClient
 from logger import Logger
 from orchestrator import Orchestrator
+from otel_tracer import build_tracer
 from sqlite_helper import SQLiteHelper
 from tool_executor import StdioTransport, ToolExecutor
 
@@ -217,6 +218,8 @@ class AgentREPL:
             compress_temperature=_COMPRESS_TEMPERATURE,
             compress_max_tokens=_COMPRESS_MAX_TOKENS,
             on_compress=self._view.write_compress_notice,
+            protect_turns=ctx.cfg.history_protect_turns,
+            token_limit=ctx.cfg.context_token_limit,
         )
         ctx.services.rag = RagPipeline(
             ctx.services.http,
@@ -224,13 +227,28 @@ class AgentREPL:
             on_status=self._view.rag_status,
             on_clear=self._view.rag_clear,
         )
+        # Inject MemoryLayer when use_memory_layer=True; otherwise leave ctx.services.memory=None
+        if ctx.cfg.use_memory_layer:
+            from memory_layer import MemoryLayer
+            from memory_store import MemoryStore
+
+            ctx.services.memory = MemoryLayer(MemoryStore())
+            logger.info("MemoryLayer initialised (use_memory_layer=True)")
+
         self._cmds = CommandRegistry(ctx)
+        # Build OTel tracer (or NoOp stand-in when otel_enabled=False)
+        tracer = build_tracer(
+            enabled=ctx.cfg.otel_enabled,
+            service_name=ctx.cfg.otel_service_name,
+            otlp_endpoint=ctx.cfg.otel_endpoint,
+        )
         self._orchestrator = Orchestrator(
             ctx,
             self._cmds,
             on_turn_start=self._view.write_turn_start,
             on_turn_end=self._view.write_turn_end,
             on_error=self._view.write_llm_error,
+            tracer=tracer,
         )
 
         # Load plugin files from plugins/ directory adjacent to scripts/

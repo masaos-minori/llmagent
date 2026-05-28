@@ -63,7 +63,13 @@
     "tool_cache_max_size":     "ツールキャッシュの最大エントリ数。LRU で退避する。0 = 無制限 (デフォルト: 200)",
     "tool_error_retry_max":    "同一 (name, args) がエラーになった後の再試行許容回数。0 = 無効化 (デフォルト: 1)",
     "tool_concurrency_limits": "ツールサーバごとの同時実行上限。キーは _route() の server key。不明キーは起動時 WARNING。空 = 無制限 (デフォルト: {})",
-    "rag_service_url": "外部 RAG HTTP サービスのベース URL (例: http://127.0.0.1:8010)。設定時は augment() がインプロセス実行の代わりに HTTP 呼び出しを行う。空文字列でインプロセスモード (デフォルト: \"\")"
+    "rag_service_url": "外部 RAG HTTP サービスのベース URL (例: http://127.0.0.1:8010)。設定時は augment() がインプロセス実行の代わりに HTTP 呼び出しを行う。空文字列でインプロセスモード (デフォルト: \"\")",
+    "context_token_limit": "トークンベースの履歴圧縮監視閾値。0 で無効 (chars/4 推定値が context_char_limit を超えたとき警告)。chars/4 がこの値を超えたとき logger.warning を出力する",
+    "history_protect_turns": "直近 N ターン (user+assistant ペア) を圧縮対象から除外する。デフォルト 2",
+    "use_memory_layer": "true のとき Long-term/Semantic/Task メモリレイヤーを有効化する。デフォルト false",
+    "otel_enabled": "true のとき OpenTelemetry スパン収集を有効化する。デフォルト false",
+    "otel_endpoint": "OTLP HTTP エンドポイント URL。空文字列のとき ConsoleSpanExporter を使用する",
+    "otel_service_name": "OTel の service.name 属性。デフォルト llm-agent"
   },
   "chat_url":               "http://127.0.0.1:8002/v1/chat/completions",
   "code_url":               "http://127.0.0.1:8001/v1/chat/completions",
@@ -126,6 +132,12 @@
     "github":      3
   },
   "rag_service_url":            "",
+  "context_token_limit":        0,
+  "history_protect_turns":      2,
+  "use_memory_layer":           false,
+  "otel_enabled":               false,
+  "otel_endpoint":              "",
+  "otel_service_name":          "llm-agent",
   "mcp_servers": {
     "web_search": {
       "transport": "http",

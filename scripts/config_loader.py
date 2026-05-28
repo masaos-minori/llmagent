@@ -4,10 +4,11 @@ config_loader.py
 Shared configuration loader for agent pipeline modules.
 """
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
+
+import orjson
 
 # Use module-level logger (library module convention: no FileHandler)
 logger = logging.getLogger(__name__)
@@ -61,11 +62,10 @@ class ConfigLoader:
         """Read and parse a single JSON config file; raise ValueError on failure."""
         path = self._config_dir / name
         try:
-            with open(path, encoding="utf-8") as fh:
-                data: dict[str, Any] = json.load(fh)
+            data: dict[str, Any] = orjson.loads(path.read_bytes())
         except FileNotFoundError as exc:
             raise ValueError(f"Config file not found: {path}") from exc
-        except json.JSONDecodeError as exc:
+        except orjson.JSONDecodeError as exc:
             raise ValueError(f"Invalid JSON in config file {path}: {exc}") from exc
         except OSError as exc:
             raise ValueError(f"Cannot read config file {path}: {exc}") from exc

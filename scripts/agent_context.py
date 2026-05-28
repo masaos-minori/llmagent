@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from history_manager import HistoryManager
     from llm_client import LLMClient
     from logger import Logger
+    from memory_layer import MemoryLayer
     from tool_executor import StdioTransport, ToolExecutor
 
 
@@ -44,6 +45,8 @@ class ServiceContainer:
         self.stdio_procs: dict[str, StdioTransport] = {}
         # Audit logger writes JSON-lines turn events to audit.log; None until _init_components()
         self.audit_logger: Logger | None = None
+        # Long-term / Task memory layer; None when use_memory_layer=False (default)
+        self.memory: MemoryLayer | None = None
 
 
 class AgentContext:

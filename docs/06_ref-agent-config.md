@@ -73,6 +73,16 @@ class AgentConfig:
     refiner_timeout: float          # Refiner LLM の HTTP タイムアウト秒数
     refiner_max_chars_per_chunk: int # Refiner に渡す 1 チャンクの最大文字数
     mcp_servers: dict[str, McpServerConfig]  # サーバキー → トランスポート設定
+    # Phase 1: 履歴圧縮安全化 + Memory Layer
+    context_token_limit: int = 0            # トークンベース監視閾値 (0 = 無効)
+    history_protect_turns: int = 2          # 直近 N ターンを圧縮から除外
+    use_memory_layer: bool = False          # Long-term/Semantic/Task memory 有効フラグ
+    # Phase 2: OpenTelemetry observability
+    otel_enabled: bool = False              # OTel スパン収集有効フラグ
+    otel_endpoint: str = ""                 # OTLP HTTP エンドポイント (空文字 = ConsoleSpanExporter)
+    otel_service_name: str = "llm-agent"   # OTel service.name
+    audit_log_file: str                      # 監査ログファイルパス (デフォルト: /opt/llm/logs/audit.log)
+    structured_log: bool                     # True のとき agent.log を JSON-lines 形式で出力 (audit.log は常に JSON-lines)
 ```
 
 `__post_init__` で値域バリデーションを実施。違反時は `ValueError` を送出。
@@ -90,6 +100,7 @@ class AgentConfig:
 | `refiner_max_tokens` | `>= 1` |
 | `refiner_timeout` | `> 0` |
 | `refiner_max_chars_per_chunk` | `>= 1` |
+| `audit_log_file` | 非空文字列 |
 
 | 関数 | 戻り値 | 説明 |
 |---|---|---|

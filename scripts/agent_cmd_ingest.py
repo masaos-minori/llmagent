@@ -11,11 +11,11 @@ Extracted from agent_commands.py.  Provides _IngestMixin with:
 """
 
 import asyncio
-import json
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import orjson
 from config_loader import ConfigLoader
 
 if TYPE_CHECKING:
@@ -46,7 +46,7 @@ class _IngestMixin:
                 outfile = part
 
         content = (
-            json.dumps(ctx.history, ensure_ascii=False, indent=2)
+            orjson.dumps(ctx.history, option=orjson.OPT_INDENT_2).decode()
             if fmt == "json"
             else self._render_history_md(ctx.history)  # type: ignore[attr-defined]  # provided by _RagMixin
         )
@@ -149,7 +149,7 @@ class _IngestMixin:
             print("History manager not available.")
             return
         turn_msgs = [m for m in ctx.history if m["role"] != "system"]
-        n_compress = ctx.services.hist_mgr._compress_turns * 2
+        n_compress = ctx.services.hist_mgr.compress_turns * 2
         if len(turn_msgs) <= n_compress:
             print("Nothing to compact: history too short.")
             return

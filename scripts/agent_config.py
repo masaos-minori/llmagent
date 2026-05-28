@@ -190,6 +190,20 @@ class AgentConfig:
     # results exceeding this budget are replaced with a retrieval hint for /tool show
     tool_results_turn_max_chars: int = 50000
 
+    # Phase 1: history compression safety + memory layer
+    # Token-based monitoring threshold for history compression (0 = disabled)
+    context_token_limit: int = 0
+    # Number of most-recent turns to protect from compression
+    history_protect_turns: int = 2
+    # Enable Long-term/Semantic/Task memory layer
+    use_memory_layer: bool = False
+    # Phase 2: OpenTelemetry observability
+    # Enable OpenTelemetry span collection
+    otel_enabled: bool = False
+    # OTLP HTTP endpoint; empty string = ConsoleSpanExporter
+    otel_endpoint: str = ""
+    # OTel service.name reported in spans
+    otel_service_name: str = "llm-agent"
     # Audit log file path; receives turn-level JSON-lines events
     audit_log_file: str = "/opt/llm/logs/audit.log"
     # When True, agent.log uses JSON-lines format instead of plain text
@@ -345,6 +359,12 @@ def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
         max_tool_turns=int(cfg.get("max_tool_turns", 5)),
         tool_result_max_llm_chars=int(cfg.get("tool_result_max_llm_chars", 8000)),
         tool_results_turn_max_chars=int(cfg.get("tool_results_turn_max_chars", 50000)),
+        context_token_limit=int(cfg.get("context_token_limit", 0)),
+        history_protect_turns=int(cfg.get("history_protect_turns", 2)),
+        use_memory_layer=bool(cfg.get("use_memory_layer", False)),
+        otel_enabled=bool(cfg.get("otel_enabled", False)),
+        otel_endpoint=cfg.get("otel_endpoint", ""),
+        otel_service_name=cfg.get("otel_service_name", "llm-agent"),
         audit_log_file=cfg.get("audit_log_file", "/opt/llm/logs/audit.log"),
         structured_log=bool(cfg.get("structured_log", False)),
     )

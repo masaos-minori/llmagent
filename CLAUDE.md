@@ -55,10 +55,12 @@ Full environment details, schema, config reference, and service ports: `rules/en
 uv sync --dev --system-certs    # create .venv/ and install all deps
 source .venv/bin/activate       # activate dev venv
 
-pytest tests/test_<module>.py -v   # single module
-pytest -v                           # full suite
+ruff format scripts/                                 # format first
+ruff check scripts/ tests/ --fix && ruff check scripts/ tests/   # lint + auto-fix
+mypy scripts/ tests/                                 # type check
+pytest tests/test_<module>.py -v                     # single module
+pytest -v                                            # full suite
 
-ruff check scripts/ tests/ && mypy scripts/ tests/   # lint + type check (pre-commit runs both)
 pre-commit run --all-files             # full gate (run before commit)
 
 # CST-based bulk refactoring (bowler v0.9.0 confirmed installed)
@@ -67,9 +69,13 @@ bowler rename_func old_name new_name --write --dry-run   # always dry-run first
 
 Full validation sequence: `rules/toolchain.md`
 
+**Validation policy:** Run `ruff`, `mypy`, and `pytest` directly without asking the user for confirmation first. These are always safe to execute.
+
 **mypy note:** `warn_unused_ignores = true` is set in `pyproject.toml`, so any `# type: ignore` on a line where mypy finds no error is itself an error. `tests/` is also covered by pre-commit's mypy run, so the same rule applies there.
 
-**Test coverage:** Unit tests exist for `agent_session.py`, `cli_view.py`, `history_manager.py`, `plugin_registry.py`, `rag_utils.py`. Core modules `agent_repl.py`, `orchestrator.py`, `tool_executor.py` have no tests. Any refactoring task that touches these modules must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
+**Key library choices:** Use `orjson` (not stdlib `json`) for all JSON serialization — `orjson.dumps()` returns `bytes`; call `.decode()` when a `str` is required; use `option=orjson.OPT_SORT_KEYS` / `OPT_INDENT_2` instead of `sort_keys=True` / `indent=2`. Use `httpx` (not `requests`) for HTTP — `httpx.Client` for sync, `httpx.AsyncClient` for async.
+
+**Test coverage:** Unit tests exist for `agent_session.py`, `cli_view.py`, `history_manager.py`, `memory_layer.py`, `memory_store.py`, `otel_tracer.py`, `plugin_registry.py`, `rag_utils.py`. Core modules `agent_repl.py`, `orchestrator.py`, `tool_executor.py` have no tests. Any refactoring task that touches these modules must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
 
 ## Architecture
 
@@ -83,14 +89,7 @@ Details: `docs/05_agent-impl.md` / `docs/06_ref-agent-repl.md`
 
 ### Shared State
 
-`AgentContext` (`agent_context.py`) owns per-session mutable state and acts as the DI hub. Access services via `ctx.services.llm` etc. (`ctx.services.<key>`) — no property shims exist.
-
-`ServiceContainer` holds all injected service references including `audit_logger: Logger | None` (initialized by `AgentREPL._init_components()`).
-
-Per-turn trace IDs are set and cleared by `Orchestrator.handle_turn()`:
-- `ctx.current_turn_id` — UUID4, set at `handle_turn()` entry; cleared in `finally`
-- `ctx.current_rag_query_id` — UUID4, set in `_augment_with_rag()`; `None` when RAG is skipped
-- `ctx.stat_input_tokens` / `ctx.stat_output_tokens` — `int | None`; `None` = LLM endpoint did not return `usage`
+`AgentContext` (`agent_context.py`) owns per-session mutable state and acts as the DI hub. All services via `ctx.services.<key>` (no property shims); `ServiceContainer.audit_logger: Logger | None` provides structured audit logging; `ServiceContainer.memory: MemoryLayer | None` is the 4-tier memory facade (enabled by `use_memory_layer=True`). Per-turn trace IDs and token stats managed by `Orchestrator`. Memory implementation: `memory_store.py` (SQLite CRUD + vec0 KNN) / `memory_layer.py` (high-level facade). OTel tracing: `otel_tracer.py` (`build_tracer()` — private `TracerProvider`, no global state pollution).
 
 Details: `docs/06_ref-agent-context.md`
 
@@ -114,31 +113,21 @@ Details: `docs/06_ref-sqlite.md`
 
 ### MCP Servers
 
-Seven servers implemented in a three-layer structure: models / service / server. Common base: `mcp_server.py`. Tool routing and TTL cache: `tool_executor.py`. Common protocol spec (`/v1/call_tool` format): `docs/06_common.md`.
-
-When a `_MCP_TOOLS` list exceeds 400 lines, extract it to `{server}_tools.py` (e.g. `github_mcp_tools.py`, `file_read_mcp_tools.py`) and import it via `from {server}_tools import _MCP_TOOLS`.
+Seven servers in models/service/server layers. Common base: `mcp_server.py`; protocol spec: `docs/06_common.md`. When `_MCP_TOOLS` exceeds 400 lines, extract to `{server}_tools.py` and import via `from {server}_tools import _MCP_TOOLS`.
 
 Details: `docs/04_mcp-servers.md`
 
 ### Config
 
-All configuration values are consolidated in the `AgentConfig` dataclass (`agent_config.py`). Access via `ctx.cfg.field_name`. Importing module-level constants is prohibited. Hot-reloadable via `/reload`. When adding a new `scripts/*.py` module, also add a `cp` line to `deploy/deploy.sh`.
+All configuration in `AgentConfig` dataclass (`agent_config.py`); access via `ctx.cfg.field_name`. Module-level constant imports prohibited. Hot-reloadable via `/reload`. When adding a `scripts/*.py` module, add a `cp` line to `deploy/deploy.sh`.
 
-Observability-related fields: `audit_log_file` (default `/opt/llm/logs/audit.log`) and `structured_log` (default `False`). The audit logger is constructed with `structured_log=True` unconditionally to write JSON-lines; the main agent logger uses `structured_log` from config.
+`git_helper.py` — utility called by `agent_cmd_context.py` to display branch/commit info in `/context` output. Uses GitPython with a lazy import and `search_parent_directories=True`; returns `None` silently outside a git repo.
 
 Details: `docs/06_ref-agent-config.md`
 
 ### Ingestion Pipeline
 
-Three-script file pipeline: `web_crawler.py` → `chunk_splitter.py` → `rag_ingester.py`. `pipeline_utils.py` / `rag_utils.py` provide shared utilities. Processed files are moved to `rag-src/registered/` (idempotency guard).
-
-Satellite modules (extracted from their parents):
-- `crawler_utils.py` — URL helpers, text extraction, language detection, target URL parsing (pure functions; extracted from `web_crawler.py`)
-- `chunk_utils.py` — buffer accumulation helpers `start_next_buf` / `merge_text_items`
-- `chunk_english.py` — `ChunkEnglishMixin` (4 English chunker methods)
-- `chunk_japanese.py` — `ChunkJapaneseMixin` (4 Sudachi morphological-analysis-based Japanese chunker methods)
-
-`ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin)` holds only orchestration and file I/O.
+Three-script pipeline: `web_crawler.py` → `chunk_splitter.py` → `rag_ingester.py`. Satellite helpers: `crawler_utils.py` / `chunk_utils.py` / `chunk_english.py` / `chunk_japanese.py`. Processed files move to `rag-src/registered/` (idempotency guard).
 
 Details: `docs/03_ref-ingestion.md`
 

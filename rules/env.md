@@ -2,8 +2,6 @@
 
 ## Target environment
 
-- **OS:** Gentoo Linux + OpenRC
-- **CPU:** Intel N100 (no GPU), 16 GB RAM
 - **Python:** 3.13 (production venv: `/opt/llm/venv/`; dev venv: `.venv/` managed by uv)
 - **DB:** SQLite + `sqlite-vec` extension at `/opt/llm/sqlite-vec/vec0.so`
 - **Package manager:** uv (binary at `~/.local/bin/uv`)

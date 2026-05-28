@@ -6,11 +6,12 @@ Provides HTTP launch logic shared by all MCP server scripts.
 """
 
 import asyncio
-import json
 import logging
 import sys
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
+
+import orjson
 
 # Library module: use standard getLogger without a dedicated log file.
 logger = logging.getLogger(__name__)
@@ -124,7 +125,7 @@ class MCPServer:
 
             req_id = 0
             try:
-                req = json.loads(line)
+                req = orjson.loads(line)
                 req_id = int(req.get("id", 0))
                 result, is_error = await self.dispatch(
                     str(req.get("name", "")),
@@ -135,6 +136,8 @@ class MCPServer:
                 result = f"Internal server error: {e}"
                 is_error = True
 
-            resp = json.dumps({"id": req_id, "result": result, "is_error": is_error})
+            resp = orjson.dumps(
+                {"id": req_id, "result": result, "is_error": is_error}
+            ).decode()
             sys.stdout.write(resp + "\n")
             sys.stdout.flush()

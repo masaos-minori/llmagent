@@ -12,15 +12,17 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 """
 
 import argparse
-import json
 import re
 from pathlib import Path
 from typing import Any
 
+import orjson
+from chunk_english import ChunkEnglishMixin
+from chunk_japanese import ChunkJapaneseMixin
+from chunk_utils import merge_text_items
 from config_loader import ConfigLoader
 from logger import Logger
 from pipeline_utils import collect_source_files, is_already_processed, read_json_file
-from rag_utils import normalize_unicode
 from sudachipy import dictionary as sudachi_dict
 from sudachipy import tokenizer as sudachi_tok
 
@@ -30,7 +32,7 @@ logger = Logger(__name__, "/opt/llm/logs/chunk.log")
 # ──────────────────────────────────────────────────────────────────────────────
 # ChunkSplitter class
 # ──────────────────────────────────────────────────────────────────────────────
-class ChunkSplitter:
+class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
     """
     Splits crawl output (JSON files in rag-src/) into text and code chunks
     and writes them to rag-src/chunk/ for ingestion by RagIngester.
@@ -96,211 +98,9 @@ class ChunkSplitter:
         logger.info(f"chunked {written} chunks from {src_path.name}")
         return written
 
-    # ── English chunking ──────────────────────────────────────────────────────
-
-    def _chunk_english(self, text: str) -> list[str]:
-        """
-        Split English text into chunks at paragraph/sentence boundaries.
-        Stopwords are removed after chunking.
-
-        Strategy:
-        1. Use blank lines as paragraph boundaries.
-        2. Re-split oversized paragraphs at sentence boundaries (. ! ?).
-        3. Merge short paragraphs to satisfy min_chunk.
-        4. Discard chunks still below min_chunk after stopword removal.
-        """
-        paragraphs = re.split(r"\n{2,}", text.strip())
-        raw_chunks = self._merge_paragraphs_en(paragraphs)
-        filtered = (self._filter_stopwords_en(r) for r in raw_chunks)
-        return [c for c in filtered if len(c) >= self._min_chunk]
-
-    def _merge_paragraphs_en(self, paragraphs: list[str]) -> list[str]:
-        """Accumulate paragraphs into ≤max_chunk chunks; split oversized paragraphs."""
-        if not paragraphs:
-            return []
-        raw_chunks: list[str] = []
-        buf = ""
-        for para in paragraphs:
-            para = para.strip()
-            if not para:
-                continue
-            if len(para) > self._max_chunk:
-                # Flush buffer and split this paragraph at sentence boundaries
-                if buf:
-                    raw_chunks.append(buf)
-                    buf = ""
-                raw_chunks.extend(self._split_sentences_en(para))
-            elif len(buf) + len(para) + 1 <= self._max_chunk:
-                buf = (buf + "\n" + para).strip()
-            else:
-                if buf:
-                    raw_chunks.append(buf)
-                    buf = self._start_next_buf(buf, para, "\n")
-                else:
-                    buf = para
-        if buf:
-            raw_chunks.append(buf)
-        return raw_chunks
-
-    def _split_sentences_en(self, text: str) -> list[str]:
-        """Split at sentence boundaries (. ! ?). Oversized sentences are kept as-is."""
-        sentences = re.split(r"(?<=[.!?])\s+", text)
-        buf = ""
-        chunks: list[str] = []
-        for s in sentences:
-            if len(buf) + len(s) + 1 <= self._max_chunk:
-                buf = (buf + " " + s).strip()
-            else:
-                if buf:
-                    chunks.append(buf)
-                buf = s
-        if buf:
-            chunks.append(buf)
-        return chunks
-
-    def _filter_stopwords_en(self, text: str) -> str:
-        """Remove EN stopwords (case-insensitive) and return space-joined tokens."""
-        words = re.split(r"\s+", text.strip())
-        kept = [w for w in words if w and w.lower() not in self._en_stopwords]
-        return " ".join(kept)
-
-    # ── Japanese chunking ─────────────────────────────────────────────────────
-
-    def _chunk_japanese(self, text: str) -> list[tuple[str, str]]:
-        """
-        Split Japanese text into (original_content, normalized_content) chunk pairs.
-
-        Processing order:
-        1. Normalize full-width alphanumerics via NFKC.
-        2. Split into (original, normalized) sentence pairs at Japanese punctuation.
-        3. Morphological analysis with Sudachi SplitMode.C for normalization.
-        4. Remove stop-POS tokens; keep normalized content words in normalized.
-        5. Merge pairs into chunks satisfying min_chunk ≤ len(original) ≤ max_chunk.
-        """
-        text = normalize_unicode(text)
-        text = re.sub(r"\n{3,}", "\n\n", text).strip()
-        pairs = self._split_into_ja_sentences(text)
-        return self._merge_ja_sentence_pairs(pairs)
-
-    def _split_into_ja_sentences(self, text: str) -> list[tuple[str, str]]:
-        """Split Japanese text at clause boundaries (。！？ and newlines).
-        Returns (original_text, normalized_text) pairs; empty pairs are discarded.
-        """
-        pairs: list[tuple[str, str]] = []
-        for raw in re.split(r"(?<=[。！？\n])", text):
-            original = raw.strip()
-            if not original:
-                continue
-            normalized = self._normalize_ja_sentence(original)
-            if normalized:
-                pairs.append((original, normalized))
-        return pairs
-
-    def _normalize_ja_sentence(self, text: str) -> str:
-        """
-        Run Sudachi SplitMode.C morphological analysis; return normalized content words.
-        normalized_form() unifies inflected forms to the dictionary base form
-        (e.g. conjugated form → infinitive).
-        """
-        if not text:
-            return ""
-        try:
-            morphemes = self._sd_tkn.tokenize(text, self._split_c)
-        except RuntimeError as e:
-            logger.debug(f"Sudachi tokenize error for {text[:50]!r}: {e}")
-            return ""
-        tokens: list[str] = []
-        for m in morphemes:
-            pos = m.part_of_speech()[0]
-            if pos in self._ja_stop_pos:
-                continue
-            nf = m.normalized_form()
-            if nf and nf.strip():
-                tokens.append(nf)
-        return " ".join(tokens)
-
-    def _merge_ja_sentence_pairs(
-        self, pairs: list[tuple[str, str]]
-    ) -> list[tuple[str, str]]:
-        """Accumulate (original, normalized) pairs into chunk pairs.
-
-        Chunk size is determined by original text length.
-        Overlap (when configured) is taken from the tail of each buffer.
-        """
-        # Guard: nothing to merge
-        if not pairs:
-            return []
-        sep = " "
-        overhead = len(sep)
-        result: list[tuple[str, str]] = []
-        orig_buf = ""
-        norm_buf = ""
-        for orig, norm in pairs:
-            if len(orig_buf) + len(orig) + overhead <= self._max_chunk:
-                # Current sentence still fits; append to the running buffer
-                orig_buf = (orig_buf + sep + orig).strip()
-                norm_buf = (norm_buf + sep + norm).strip()
-            elif len(orig_buf) >= self._min_chunk:
-                # Buffer is large enough to emit as a chunk
-                result.append((orig_buf, norm_buf))
-                if self._chunk_overlap:
-                    orig_buf = (orig_buf[-self._chunk_overlap :] + sep + orig).strip()
-                    norm_buf = (norm_buf[-self._chunk_overlap :] + sep + norm).strip()
-                else:
-                    orig_buf = orig
-                    norm_buf = norm
-            else:
-                # Buffer too short to emit; discard and start fresh from this sentence
-                orig_buf = orig
-                norm_buf = norm
-        # Guard: empty buffer means all content was emitted in the loop
-        if not orig_buf:
-            return result
-        if len(orig_buf) >= self._min_chunk:
-            result.append((orig_buf, norm_buf))
-        elif result:
-            # Merge short tail into the last chunk to avoid losing content
-            last_o, last_n = result[-1]
-            result[-1] = (
-                (last_o + sep + orig_buf).strip(),
-                (last_n + sep + norm_buf).strip(),
-            )
-        return result
-
-    # ── Shared helpers ───────────────────────────────────────────────────────
-
-    def _start_next_buf(self, prev: str, next_item: str, sep: str) -> str:
-        """Start a new accumulation buffer with optional tail-overlap from prev."""
-        if not self._chunk_overlap:
-            return next_item
-        overlap = prev[-self._chunk_overlap :]
-        return (overlap + sep + next_item).strip() if overlap else next_item
-
-    def _merge_text_items(self, items: list[str], sep: str) -> list[str]:
-        """Accumulate items into chunks satisfying min_chunk ≤ len ≤ max_chunk.
-
-        sep is used to join items and its length counts as overhead.
-        A short tail item is merged into the last chunk instead of discarded.
-        """
-        overhead = len(sep)
-        result: list[str] = []
-        buf = ""
-        for item in items:
-            if len(buf) + len(item) + overhead <= self._max_chunk:
-                buf = (buf + sep + item).strip()
-            elif len(buf) >= self._min_chunk:
-                result.append(buf)
-                buf = self._start_next_buf(buf, item, sep)
-            else:
-                buf = item
-        if not buf:
-            return result
-        if len(buf) >= self._min_chunk:
-            result.append(buf)
-        elif result:
-            # Merge short tail into last chunk to avoid discarding content
-            result[-1] = (result[-1] + sep + buf).strip()
-        return result
+    # ── English and Japanese chunking ─────────────────────────────────────────
+    # Provided by ChunkEnglishMixin and ChunkJapaneseMixin respectively.
+    # ─────────────────────────────────────────────────────────────────────────
 
     # ── Markdown heading chunking ──────────────────────────────────────────────
 
@@ -349,7 +149,9 @@ class ChunkSplitter:
         Code is not subject to stopword removal or morphological analysis.
         """
         blocks = re.split(r"\n{2,}", code.strip())
-        return self._merge_text_items(blocks, "\n\n")
+        return merge_text_items(
+            blocks, "\n\n", self._min_chunk, self._max_chunk, self._chunk_overlap
+        )
 
     # ── File I/O ──────────────────────────────────────────────────────────────
 
@@ -424,9 +226,8 @@ class ChunkSplitter:
                 "last_modified": last_modified,
             }
             try:
-                out_path.write_text(
-                    json.dumps(payload, ensure_ascii=False, indent=2),
-                    encoding="utf-8",
+                out_path.write_bytes(
+                    orjson.dumps(payload, option=orjson.OPT_INDENT_2),
                 )
                 written += 1
             except OSError as e:

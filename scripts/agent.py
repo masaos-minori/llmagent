@@ -78,7 +78,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from agent_repl import AgentREPL
 
 
-def _request_shutdown(signum: int, frame: object) -> None:
+def _request_shutdown(_signum: int, _frame: object) -> None:
     # Propagate SIGTERM as a clean exit; the finally block in run() closes resources.
     raise SystemExit(0)
 

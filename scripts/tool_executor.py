@@ -14,13 +14,13 @@ configured transport.
 
 import asyncio
 import hashlib
-import json
 import logging
 import time
 from collections import OrderedDict
 from typing import TYPE_CHECKING
 
 import httpx
+import orjson
 import plugin_registry
 
 if TYPE_CHECKING:
@@ -131,7 +131,9 @@ class StdioTransport:
         async with lock:
             self._req_id += 1
             req_id = self._req_id
-            payload = json.dumps({"id": req_id, "name": name, "args": args}) + "\n"
+            payload = (
+                orjson.dumps({"id": req_id, "name": name, "args": args}).decode() + "\n"
+            )
 
             assert self._proc and self._proc.stdin and self._proc.stdout
             try:
@@ -156,9 +158,9 @@ class StdioTransport:
                     True,
                 )
             try:
-                resp = json.loads(resp_bytes)
+                resp = orjson.loads(resp_bytes)
                 return str(resp["result"]), bool(resp["is_error"])
-            except (json.JSONDecodeError, KeyError) as e:
+            except (orjson.JSONDecodeError, KeyError) as e:
                 msg = (
                     f"stdio server invalid response (key={self._server_key!r}): {e}"
                     f" raw={resp_bytes[:200]!r}"
@@ -247,7 +249,7 @@ def tool_call_key(name: str, args: dict) -> str:
     must use this function to guarantee key identity.
     """
     return hashlib.md5(  # nosec B324 — non-security hash for dedup key identity
-        f"{name}:{json.dumps(args, sort_keys=True)}".encode(),
+        f"{name}:{orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()}".encode(),
         usedforsecurity=False,
     ).hexdigest()
 
@@ -388,7 +390,9 @@ class ToolExecutor:
                 logger.error(f"Plugin tool {tool_name!r} raised: {e}")
                 return f"[plugin error] {tool_name}: {e}", True
 
-        cache_key = f"{tool_name}:{json.dumps(args, sort_keys=True)}"
+        cache_key = (
+            f"{tool_name}:{orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()}"
+        )
         cached = self._cache.get(cache_key)
         if cached is not None:
             result, is_error, ts = cached

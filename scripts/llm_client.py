@@ -6,12 +6,12 @@ Handles request/retry, payload building, streaming, and response parsing.
 """
 
 import asyncio
-import json
 import logging
 from collections.abc import Callable
 from typing import cast
 
 import httpx
+import orjson
 from rag_types import LLMMessage
 
 logger = logging.getLogger(__name__)
@@ -235,8 +235,8 @@ class LLMClient:
                     if payload is None:
                         continue
                     try:
-                        chunk = json.loads(payload)
-                    except json.JSONDecodeError:
+                        chunk = orjson.loads(payload)
+                    except orjson.JSONDecodeError:
                         continue
                     reason = self._process_sse_chunk(
                         chunk, content_parts, tool_calls_map

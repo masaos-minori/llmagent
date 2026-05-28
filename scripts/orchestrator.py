@@ -10,12 +10,12 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 import time
 import uuid
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import orjson
 from agent_commands import _budget_breakdown
 from agent_config import BUDGET_WARN_RATIO
 from agent_context import AgentContext
@@ -51,6 +51,23 @@ _CYCLE_HINT = (
 )
 
 
+class _NullContextManager:
+    """No-op context manager used when no tracer is configured.
+
+    Allows `with _NullContextManager():` syntax without conditional branching
+    throughout handle_turn(), keeping the OTel integration transparent.
+    """
+
+    def __enter__(self) -> _NullContextManager:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        pass
+
+    def set_attribute(self, key: str, value: object) -> None:
+        """Accept attribute calls without recording anything."""
+
+
 class Orchestrator:
     """Turn-level coordinator: RAG -> compression -> LLM loop -> tool dispatch.
 
@@ -67,12 +84,15 @@ class Orchestrator:
         on_turn_start: Callable[[], None] | None = None,
         on_turn_end: Callable[[], None] | None = None,
         on_error: Callable[[Exception], None] | None = None,
+        tracer: Any = None,
     ) -> None:
         self._ctx = ctx
         self._cmds = cmds
         self._on_turn_start = on_turn_start
         self._on_turn_end = on_turn_end
         self._on_error = on_error
+        # OTel tracer (or NoOp stand-in when otel_enabled=False)
+        self._tracer = tracer
 
     # ── Public entry point ────────────────────────────────────────────────────
 
@@ -92,7 +112,7 @@ class Orchestrator:
 
         if ctx.services.audit_logger is not None:
             ctx.services.audit_logger.info(
-                json.dumps(
+                orjson.dumps(
                     {
                         "event": "turn_start",
                         "task_id": ctx.current_turn_id,
@@ -100,11 +120,24 @@ class Orchestrator:
                         "event_id": str(uuid.uuid4()),
                         "ts": time.time(),
                     }
-                )
+                ).decode()
             )
 
         try:
-            context, cache_hit = await self._augment_with_rag(line)
+            # ── RAG augmentation span ─────────────────────────────────────────
+            _tracer = self._tracer
+            _rag_span_ctx = (
+                _tracer.start_as_current_span("rag")
+                if _tracer is not None
+                else _NullContextManager()
+            )
+            with _rag_span_ctx as rag_span:
+                context, cache_hit = await self._augment_with_rag(line)
+                if hasattr(rag_span, "set_attribute"):
+                    rag_span.set_attribute(
+                        "rag_query_id", ctx.current_rag_query_id or ""
+                    )
+                    rag_span.set_attribute("cache_hit", cache_hit)
 
             if context:
                 ctx.stat_rag_hits += 1
@@ -123,25 +156,40 @@ class Orchestrator:
                 asyncio.create_task(self._cmds._generate_session_title(line))
             ctx.session.save("user", augmented)
 
-            # Compress history before sending to LLM when it exceeds the char limit
-            ctx.history = await ctx.services.hist_mgr.compress(ctx.history)
+            # ── History compression span ──────────────────────────────────────
+            _compress_span_ctx = (
+                _tracer.start_as_current_span("compress")
+                if _tracer is not None
+                else _NullContextManager()
+            )
+            with _compress_span_ctx:
+                ctx.history = await ctx.services.hist_mgr.compress(ctx.history)
 
-            try:
-                answer = await self._run_turn(ctx.llm_url)
-                logger.info(f"LLM response: {answer}")
-                ctx.session.save("assistant", answer)
-            except Exception as e:
-                logger.error(f"LLM request failed: {e}")
-                if self._on_error:
-                    self._on_error(e)
-                # Remove failed user message to keep history consistent
-                if ctx.history and ctx.history[-1]["role"] == "user":
-                    ctx.history.pop()
+            # ── LLM turn span ─────────────────────────────────────────────────
+            _llm_span_ctx = (
+                _tracer.start_as_current_span("llm")
+                if _tracer is not None
+                else _NullContextManager()
+            )
+            with _llm_span_ctx as llm_span:
+                if hasattr(llm_span, "set_attribute"):
+                    llm_span.set_attribute("model_url", ctx.llm_url)
+                try:
+                    answer = await self._run_turn(ctx.llm_url)
+                    logger.info(f"LLM response: {answer}")
+                    ctx.session.save("assistant", answer)
+                except Exception as e:
+                    logger.error(f"LLM request failed: {e}")
+                    if self._on_error:
+                        self._on_error(e)
+                    # Remove failed user message to keep history consistent
+                    if ctx.history and ctx.history[-1]["role"] == "user":
+                        ctx.history.pop()
         finally:
             elapsed_ms = round((time.perf_counter() - t0_turn) * 1000, 1)
             if ctx.services.audit_logger is not None:
                 ctx.services.audit_logger.info(
-                    json.dumps(
+                    orjson.dumps(
                         {
                             "event": "turn_end",
                             "task_id": ctx.current_turn_id,
@@ -149,7 +197,7 @@ class Orchestrator:
                             "input_tokens": ctx.stat_input_tokens,
                             "output_tokens": ctx.stat_output_tokens,
                         }
-                    )
+                    ).decode()
                 )
             ctx.current_turn_id = None
 
@@ -238,14 +286,15 @@ class Orchestrator:
 
             # Cycle detection: abort when the same round-level tool fingerprint repeats
             if ctx.cfg.tool_cycle_detect_window > 0:
-                round_key = hashlib.md5(
+                round_key = hashlib.md5(  # dedup key only, not for security
                     "|".join(
                         sorted(
                             f"{tc.get('function', {}).get('name', '')}:"
                             f"{tc.get('function', {}).get('arguments', '{}')}"
                             for tc in message["tool_calls"]
                         )
-                    ).encode()
+                    ).encode(),
+                    usedforsecurity=False,
                 ).hexdigest()
                 if (
                     round_fingerprints.count(round_key)
@@ -263,8 +312,9 @@ class Orchestrator:
             dedup_name: str | None = None
             for tc in message["tool_calls"]:
                 func = tc.get("function", {})
-                key = hashlib.md5(
-                    f"{func.get('name', '')}:{func.get('arguments', '{}')}".encode()
+                key = hashlib.md5(  # dedup key only, not for security
+                    f"{func.get('name', '')}:{func.get('arguments', '{}')}".encode(),
+                    usedforsecurity=False,
                 ).hexdigest()
                 seen_calls[key] = seen_calls.get(key, 0) + 1
                 if seen_calls[key] >= ctx.cfg.tool_dedup_max_repeats:
@@ -282,8 +332,8 @@ class Orchestrator:
                 for tc in message["tool_calls"]:
                     func = tc.get("function", {})
                     try:
-                        tc_args = json.loads(func.get("arguments", "{}"))
-                    except (json.JSONDecodeError, TypeError):
+                        tc_args = orjson.loads(func.get("arguments", "{}"))
+                    except (orjson.JSONDecodeError, TypeError):
                         tc_args = {}
                     if tool_call_key(func.get("name", ""), tc_args) in failed_calls:
                         retry_blocked = func.get("name", "<unknown>")
