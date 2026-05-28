@@ -137,24 +137,23 @@ Details: `docs/03_ref-ingestion.md`
 
 Details: `docs/06_ref-agent-repl.md`
 
-## Skill guides (`skills/`)
+## Skills (`skills/`)
 
-> **These are Markdown documentation files — load them with the Read tool, NOT via the Skill tool.**
-> `Skill("python-implementation")` will error; use `Read("skills/python-implementation/SKILL.md")` instead.
+Skills are registered as Claude Code slash commands in `.claude/commands/`. Invoke with `/skill-name [task]` or via `Skill("skill-name")`.
 
-| Guide file | When to load |
+| Slash command | When to use |
 |---|---|
-| `skills/python-implementation/SKILL.md` | Adding features, changing business logic, creating modules, writing production Python |
-| `skills/python-lint-typecheck/SKILL.md` | Fixing lint errors, type errors, suppression governance, CI failures |
-| `skills/python-test-and-fix/SKILL.md` | Adding/repairing tests, reproducing bugs, flaky detection, mutation testing |
-| `skills/python-debug-root-cause/SKILL.md` | Root cause analysis, log inspection, profiling, tracing, service debugging |
-| `skills/python-issue-to-plan/SKILL.md` | Converting a ticket or vague task into a concrete implementation plan |
-| `skills/python-refactoring/SKILL.md` | Refactoring modules — 6-phase tool chain (dependency mapping → behavior lock → CST transform → semantic validation → incremental migration → CI gate) |
-| `skills/mcp-server-add/SKILL.md` | Adding a new MCP server to the project (proactively activated) |
-| `skills/deploy/SKILL.md` | Deploying changes to the production environment at `/opt/llm/` (proactively activated) |
+| `/python-implementation` | Adding features, changing business logic, creating modules, writing production Python |
+| `/python-lint-typecheck` | Fixing lint errors, type errors, suppression governance, CI failures |
+| `/python-test-and-fix` | Adding/repairing tests, reproducing bugs, flaky detection, mutation testing |
+| `/python-debug-root-cause` | Root cause analysis, log inspection, profiling, tracing, service debugging |
+| `/python-issue-to-plan` | Converting a ticket or vague task into a concrete implementation plan |
+| `/python-refactoring` | Refactoring modules — 6-phase tool chain (dependency mapping → behavior lock → CST transform → semantic validation → incremental migration → CI gate) |
+| `/mcp-server-add` | Adding a new MCP server to the project (proactively activated) |
+| `/deploy` | Deploying changes to the production environment at `/opt/llm/` (proactively activated) |
 
-Each `SKILL.md` declares `Composes with` and `Called by` sections — read them to determine chaining order when a task spans multiple guides.
+Each command reads its `skills/*/SKILL.md` guide automatically. The guide declares `Composes with` and `Called by` sections — use these to chain skills across multi-phase tasks.
 
-See `routing.md` for task-to-guide and task-to-docs mapping.
+See `routing.md` for task-to-skill and task-to-docs mapping.
 
 Skill design principles (when creating or improving a SKILL): `skills/DESIGN.md`

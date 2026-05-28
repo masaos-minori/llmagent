@@ -4,7 +4,7 @@ Maps task type to files that must be loaded. Read this immediately after CLAUDE.
 
 ## Task → file mapping
 
-All entries in the Load column are Markdown files — load them with **Read**, not the Skill tool.
+Skills in the Load column can be invoked as slash commands (e.g. `/python-implementation`) or via `Skill("python-implementation")`. The command reads `skills/*/SKILL.md` automatically.
 
 | Task type | Keywords | Load |
 |---|---|---|
