@@ -16,7 +16,6 @@ Extracted from agent_commands.py.  Provides _ConfigMixin with:
 import logging
 from typing import TYPE_CHECKING
 
-from agent_config import _CONFIG_DIR
 from config_loader import ConfigLoader
 from sqlite_helper import SQLiteHelper
 
@@ -152,6 +151,10 @@ class _ConfigMixin:
 
     def _cmd_config(self) -> None:
         """Print current configuration and source file paths."""
+        from agent_config import (
+            _CONFIG_DIR,  # noqa: PLC0415 — avoid module-level constant import
+        )
+
         print("Config files:")
         print(f"  {_CONFIG_DIR / 'common.json'}")
         print(f"  {_CONFIG_DIR / 'agent.json'}")

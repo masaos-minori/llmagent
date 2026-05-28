@@ -108,9 +108,7 @@ class _ContextMixin:
         print(f"  System preview  : {sys_preview!r}")
         # Token estimate (chars // 4 approximation; LLM usage field may be more precise)
         token_estimate = (
-            ctx.services.hist_mgr.count_tokens_estimate(
-                ctx.history, ctx.stat_input_tokens
-            )
+            ctx.services.hist_mgr.count_tokens(ctx.history, ctx.stat_input_tokens)
             if ctx.services.hist_mgr is not None
             else total_chars // 4
         )
@@ -128,7 +126,14 @@ class _ContextMixin:
             if git_info
             else "unavailable"
         )
-        print(f"  Token estimate  : {token_estimate:,} (chars / 4)")
+        if token_limit > 0:
+            token_pct = int(token_estimate * 100 / token_limit)
+            print(
+                f"  Token estimate  : {token_estimate:,}"
+                f" (limit={token_limit:,} [active] {token_pct}%)"
+            )
+        else:
+            print(f"  Token estimate  : {token_estimate:,} (chars / 4)")
         print(f"  Token limit     : {token_limit_str}")
         print(f"  Memory layer    : {mem_status}")
         print(f"  Git             : {git_str}")

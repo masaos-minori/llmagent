@@ -310,25 +310,89 @@ class TestClassify:
         assert HistoryManager._classify(msg) == "history"
 
 
-# ── count_tokens_estimate() ───────────────────────────────────────────────────
+# ── count_tokens() ────────────────────────────────────────────────────────────
 
 
-class TestCountTokensEstimate:
+class TestCountTokens:
     def test_uses_last_input_tokens_when_provided(self) -> None:
         mgr = _make_manager()
         h = _history(("user", "x" * 100))
         # last_input_tokens takes priority over chars // 4
-        assert mgr.count_tokens_estimate(h, last_input_tokens=42) == 42
+        assert mgr.count_tokens(h, last_input_tokens=42) == 42
 
     def test_falls_back_to_chars_div_4(self) -> None:
         mgr = _make_manager()
         h = _history(("user", "x" * 400))
         # chars = 400, estimate = 400 // 4 = 100
-        assert mgr.count_tokens_estimate(h, last_input_tokens=None) == 100
+        assert mgr.count_tokens(h, last_input_tokens=None) == 100
 
     def test_empty_history_returns_zero(self) -> None:
         mgr = _make_manager()
-        assert mgr.count_tokens_estimate([], last_input_tokens=None) == 0
+        assert mgr.count_tokens([], last_input_tokens=None) == 0
+
+
+# ── compress() — token_limit trigger ─────────────────────────────────────────
+
+
+class TestCompressTokenLimit:
+    def _over_token_history(self) -> list[LLMMessage]:
+        # Each message: 400 chars → ~100 tokens. 5 pairs = 10 msgs × 100 = ~1000 tokens.
+        pairs = [(r, "x" * 400) for r, _ in [("user", ""), ("assistant", "")] * 5]
+        return _history(*pairs)
+
+    def _mock_http(self) -> AsyncMock:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": "Summary."}}]
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+        return mock_http
+
+    @pytest.mark.asyncio
+    async def test_token_limit_triggers_compression(self) -> None:
+        # token_limit=10; 10 msgs × 100 tokens each >> 10 → should compress
+        mgr = _make_manager(
+            char_limit=0, compress_turns=2, http=self._mock_http(), token_limit=10
+        )
+        h = self._over_token_history()
+        result = await mgr.compress(h)
+        roles = [m["role"] for m in result]
+        assert "system" in roles
+        assert len(result) < len(h)
+
+    @pytest.mark.asyncio
+    async def test_token_limit_zero_does_not_trigger(self) -> None:
+        # token_limit=0 (disabled); char_limit large → no compression
+        mgr = _make_manager(
+            char_limit=999999, compress_turns=2, http=self._mock_http(), token_limit=0
+        )
+        h = self._over_token_history()
+        result = await mgr.compress(h)
+        assert result == h
+
+    @pytest.mark.asyncio
+    async def test_char_only_over_limit_triggers_compression(self) -> None:
+        # char_limit=1 (over), token_limit=0 (disabled) → char trigger fires
+        mgr = _make_manager(
+            char_limit=1, compress_turns=2, http=self._mock_http(), token_limit=0
+        )
+        h = self._over_token_history()
+        result = await mgr.compress(h)
+        roles = [m["role"] for m in result]
+        assert "system" in roles
+
+    @pytest.mark.asyncio
+    async def test_token_only_over_limit_triggers_compression(self) -> None:
+        # char_limit=0 (disabled), token_limit=10 → token trigger fires
+        mgr = _make_manager(
+            char_limit=0, compress_turns=2, http=self._mock_http(), token_limit=10
+        )
+        h = self._over_token_history()
+        result = await mgr.compress(h)
+        roles = [m["role"] for m in result]
+        assert "system" in roles
 
 
 # ── split is None warning log ─────────────────────────────────────────────────

@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Any
 
 import orjson
 from agent_commands import _budget_breakdown
-from agent_config import BUDGET_WARN_RATIO
 from agent_context import AgentContext
 from agent_repl_debug import (
     _extract_history_context,
@@ -226,11 +225,11 @@ class Orchestrator:
             if self._on_turn_start:
                 self._on_turn_start()
 
-            # Warn when total input chars exceed BUDGET_WARN_RATIO of context_char_limit
+            # Warn when total input chars exceed budget_warn_ratio of context_char_limit
             if turn == 0 and ctx.cfg.context_char_limit > 0:
                 bd = _budget_breakdown(ctx.history)
                 total_bd = sum(bd.values())
-                if total_bd > ctx.cfg.context_char_limit * BUDGET_WARN_RATIO:
+                if total_bd > ctx.cfg.context_char_limit * ctx.cfg.budget_warn_ratio:
                     pct = int(total_bd * 100 / ctx.cfg.context_char_limit)
                     logger.warning(
                         f"Context budget {pct}% used"
@@ -239,6 +238,19 @@ class Orchestrator:
                         f" sys={bd['system']:,} rag={bd['rag']:,}"
                         f" hist={bd['history']:,}"
                         f" tool={bd['tool_results']:,}"
+                    )
+            # Warn when token estimate exceeds budget_warn_ratio of context_token_limit
+            if turn == 0 and ctx.cfg.context_token_limit > 0:
+                assert ctx.services.hist_mgr is not None
+                token_bd = ctx.services.hist_mgr.count_tokens(
+                    ctx.history, ctx.stat_input_tokens
+                )
+                if token_bd > ctx.cfg.context_token_limit * ctx.cfg.budget_warn_ratio:
+                    pct = int(token_bd * 100 / ctx.cfg.context_token_limit)
+                    logger.warning(
+                        f"Token budget {pct}% used"
+                        f" (tokens={token_bd:,}"
+                        f" limit={ctx.cfg.context_token_limit:,})"
                     )
 
             t0_llm = time.perf_counter()

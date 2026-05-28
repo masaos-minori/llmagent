@@ -3,7 +3,7 @@
 agent_config.py
 Shared configuration dataclass and loader for the agent pipeline.
 All runtime-configurable values live in AgentConfig (hot-reloadable via /reload).
-Only BUDGET_WARN_RATIO and path constants remain at module level.
+Only path constants remain at module level.
 """
 
 import logging
@@ -26,9 +26,6 @@ def _get_cfg() -> dict:
             _cfg = {}
     return _cfg
 
-
-# Warn when total LLM input exceeds this fraction of context_char_limit (0.8 = 80%)
-BUDGET_WARN_RATIO: float = 0.8
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 _CONFIG_DIR = _SCRIPTS_DIR.parent / "config"
@@ -206,6 +203,8 @@ class AgentConfig:
     audit_log_file: str = "/opt/llm/logs/audit.log"
     # When True, agent.log uses JSON-lines format instead of plain text
     structured_log: bool = False
+    # Fraction of context_char_limit / context_token_limit that triggers a budget warning
+    budget_warn_ratio: float = 0.8
 
     def __post_init__(self) -> None:
         self._validate_llm_params()
@@ -216,6 +215,10 @@ class AgentConfig:
         if self.context_char_limit < 0:
             raise ValueError(
                 f"context_char_limit must be >= 0, got {self.context_char_limit}"
+            )
+        if not 0.0 < self.budget_warn_ratio <= 1.0:
+            raise ValueError(
+                f"budget_warn_ratio must be in (0.0, 1.0], got {self.budget_warn_ratio}"
             )
         if self.llm_max_retries < 0:
             raise ValueError(
@@ -363,6 +366,7 @@ def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
         otel_service_name=cfg.get("otel_service_name", "llm-agent"),
         audit_log_file=cfg.get("audit_log_file", "/opt/llm/logs/audit.log"),
         structured_log=bool(cfg.get("structured_log", False)),
+        budget_warn_ratio=float(cfg.get("budget_warn_ratio", 0.8)),
     )
 
 

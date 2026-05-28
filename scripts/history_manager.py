@@ -74,23 +74,14 @@ class HistoryManager:
                 total += len(orjson.dumps(tc))
         return total
 
-    def count_tokens_estimate(
+    def count_tokens(
         self, history: list[LLMMessage], last_input_tokens: int | None = None
     ) -> int:
         """Estimate total tokens in a history list.
 
         When last_input_tokens is provided (from LLM usage), return it directly
-        as a precise measurement.  Otherwise fall back to chars // 4, which is a
-        rough approximation suitable for budget warnings (local LLMs may not
-        return usage fields consistently).
-
-        Args:
-            history: The conversation message list to measure.
-            last_input_tokens: Precise token count from the last LLM usage response,
-                or None when the endpoint did not return usage data.
-
-        Returns:
-            Estimated token count.
+        as a precise measurement. Otherwise fall back to chars // 4 (local LLMs
+        may not return usage fields consistently).
         """
         if last_input_tokens is not None:
             return last_input_tokens
@@ -181,25 +172,30 @@ class HistoryManager:
         )
 
     async def compress(self, history: list[LLMMessage]) -> list[LLMMessage]:
-        """Summarise the oldest turn pairs when total history chars exceed the limit.
+        """Summarise the oldest turn pairs when history exceeds char or token limit.
 
         Returns the (possibly compressed) history list.
         Leaves the system prompt and recent turns intact.
         Increments stat_compress_count on successful compression.
         """
-        if self.count_chars(history) <= self._char_limit:
+        over_char = (
+            self._char_limit > 0 and self.count_chars(history) > self._char_limit
+        )
+        over_token = (
+            self._token_limit > 0 and self.count_tokens(history) > self._token_limit
+        )
+        if not over_char and not over_token:
             return history
         split = self._select_turns_to_compress(history)
         if split is None:
-            total_chars = self.count_chars(history)
-            if total_chars > self._char_limit:
-                logger.warning(
-                    f"History compression skipped: protect_turns={self._protect_turns}"
-                    f" + compress_turns={self._compress_turns} >= available turns."
-                    f" chars={total_chars} > limit={self._char_limit}."
-                    " Consider reducing protect_turns or increasing"
-                    " context_char_limit."
-                )
+            logger.warning(
+                f"History compression skipped: protect_turns={self._protect_turns}"
+                f" + compress_turns={self._compress_turns} >= available turns."
+                f" chars={self.count_chars(history)} limit={self._char_limit}"
+                f" tokens~{self.count_tokens(history)} token_limit={self._token_limit}."
+                " Consider reducing protect_turns or increasing"
+                " context_char_limit."
+            )
             return history
         system_msgs, to_compress, remaining = split
         summary_text = await self._call_compress_llm(
