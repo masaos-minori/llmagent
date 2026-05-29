@@ -21,6 +21,7 @@ from rag.repository import fetch_full_document
 from shared.llm_client import LLMClient, LLMTransportError
 from shared.logger import Logger
 from shared.tool_executor import format_transport_error, tool_call_key
+from shared.types import LLMMessage
 
 from agent.commands.registry import _budget_breakdown
 from agent.context import AgentContext
@@ -124,100 +125,28 @@ class Orchestrator:
             )
 
         try:
-            # ── RAG augmentation span ─────────────────────────────────────────
-            _tracer = self._tracer
-            _rag_span_ctx = (
-                _tracer.start_as_current_span("rag")
-                if _tracer is not None
-                else _NullContextManager()
-            )
-            with _rag_span_ctx as rag_span:
-                context, cache_hit = await self._augment_with_rag(line)
-                if hasattr(rag_span, "set_attribute"):
-                    rag_span.set_attribute(
-                        "rag_query_id", ctx.current_rag_query_id or ""
-                    )
-                    rag_span.set_attribute("cache_hit", cache_hit)
-
-            if context:
-                ctx.stat_rag_hits += 1
-                augmented = f"[Reference documents]\n{context}\n\nQuestion: {line}"
-                # Accumulate per-step RAG latency samples (only on real pipeline runs)
-                if ctx.services.rag is not None and not cache_hit:
-                    for step, secs in ctx.services.rag.last_timings.items():
-                        ctx.stat_latency.setdefault(step, []).append(secs)
-            else:
-                augmented = line
-            ctx.history.append({"role": "user", "content": augmented})
-            ctx.stat_turns += 1
-
-            # Generate session title asynchronously from the first user input
-            if ctx.stat_turns == 1:
-                asyncio.create_task(self._cmds._generate_session_title(line))
-            ctx.session.save("user", augmented)
+            await self._augment_and_append(line)
 
             # ── History compression span ──────────────────────────────────────
-            _compress_span_ctx = (
-                _tracer.start_as_current_span("compress")
-                if _tracer is not None
-                else _NullContextManager()
-            )
-            with _compress_span_ctx:
+            with self._span_ctx("compress"):
                 ctx.history = await ctx.services.hist_mgr.compress(ctx.history)
 
             # ── LLM turn span ─────────────────────────────────────────────────
-            _llm_span_ctx = (
-                _tracer.start_as_current_span("llm")
-                if _tracer is not None
-                else _NullContextManager()
-            )
             partial_completion = False
-            with _llm_span_ctx as llm_span:
-                if hasattr(llm_span, "set_attribute"):
-                    llm_span.set_attribute("model_url", ctx.llm_url)
+            with self._span_ctx("llm") as llm_span:
+                llm_span.set_attribute("model_url", ctx.llm_url)
                 try:
                     answer = await self._run_turn(ctx.llm_url)
                     logger.info(f"LLM response: {answer}")
                     ctx.session.save("assistant", answer)
                 except LLMTransportError as e:
-                    if e.partial_text:
-                        # Partial completion: save [INCOMPLETE] assistant message
-                        incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
-                        ctx.history.append(
-                            {"role": "assistant", "content": incomplete_msg}
-                        )
-                        ctx.session.save("assistant", incomplete_msg)
-                        ctx.tool_result_store.store(
-                            session_id=ctx.session.session_id,
-                            turn=ctx.stat_turns,
-                            tool_name="llm_partial_completion",
-                            args_json="{}",
-                            full_text=e.detail
-                            or f"partial={len(e.partial_text)} chars",
-                            summary=f"[INCOMPLETE: {e.kind}]",
-                            is_error=True,
-                        )
-                        if ctx.services.llm is not None:
-                            ctx.services.llm.stat_partial_completions += 1
-                        partial_completion = True
-                        logger.warning(f"Partial LLM completion saved: {e.kind}")
-                    else:
-                        # Pre-stream failure: remove user message to keep history clean
-                        if ctx.history and ctx.history[-1]["role"] == "user":
-                            ctx.history.pop()
-                        logger.error(
-                            f"LLM transport error (pre-stream): {e.kind}"
-                            f" status={e.status_code}"
-                        )
+                    partial_completion = self._handle_llm_transport_error(e, ctx)
                     if self._on_error:
                         self._on_error(e)
                 except Exception as e:
-                    logger.error(f"LLM request failed: {e}")
+                    self._handle_general_llm_error(e, ctx)
                     if self._on_error:
                         self._on_error(e)
-                    # Remove failed user message to keep history consistent
-                    if ctx.history and ctx.history[-1]["role"] == "user":
-                        ctx.history.pop()
         finally:
             elapsed_ms = round((time.perf_counter() - t0_turn) * 1000, 1)
             if ctx.services.audit_logger is not None:
@@ -246,6 +175,102 @@ class Orchestrator:
             ctx.current_turn_id = None
 
     # ── LLM interaction ───────────────────────────────────────────────────────
+
+    async def _finalize_answer(
+        self,
+        message: LLMMessage,
+        two_stage_done: bool,
+    ) -> tuple[str | None, bool]:
+        """Handle a done-turn message; return (answer, two_stage_done) or (None, two_stage_done) to continue.
+
+        Returns (answer_str, _) when the turn is complete.
+        Returns (None, True) when a two-stage context fetch was injected and the loop should continue.
+        """
+        ctx = self._ctx
+        ctx.history.append(message)
+        if self._on_turn_end:
+            self._on_turn_end()
+        answer = message.get("content") or ""
+        if not two_stage_done:
+            extra = await self._maybe_two_stage_fetch(answer)
+            if extra is not None:
+                ctx.history.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "[Additional context]\n"
+                            + extra
+                            + "\n\n(Please revise your answer using"
+                            " the above additional context.)"
+                        ),
+                    }
+                )
+                return None, True
+        return answer, two_stage_done
+
+    def _span_ctx(self, name: str) -> Any:
+        """Return a real OTel span context or a _NullContextManager when no tracer is set."""
+        if self._tracer is not None:
+            return self._tracer.start_as_current_span(name)
+        return _NullContextManager()
+
+    async def _augment_and_append(self, line: str) -> str:
+        """Run RAG augment, append user message to history, persist to session, return augmented text."""
+        ctx = self._ctx
+        with self._span_ctx("rag") as rag_span:
+            context, cache_hit = await self._augment_with_rag(line)
+            rag_span.set_attribute("rag_query_id", ctx.current_rag_query_id or "")
+            rag_span.set_attribute("cache_hit", cache_hit)
+
+        if context:
+            ctx.stat_rag_hits += 1
+            augmented = f"[Reference documents]\n{context}\n\nQuestion: {line}"
+            if ctx.services.rag is not None and not cache_hit:
+                for step, secs in ctx.services.rag.last_timings.items():
+                    ctx.stat_latency.setdefault(step, []).append(secs)
+        else:
+            augmented = line
+        ctx.history.append({"role": "user", "content": augmented})
+        ctx.stat_turns += 1
+        if ctx.stat_turns == 1:
+            asyncio.create_task(self._cmds._generate_session_title(line))
+        ctx.session.save("user", augmented)
+        return augmented
+
+    def _handle_llm_transport_error(
+        self, e: LLMTransportError, ctx: AgentContext
+    ) -> bool:
+        """Handle LLMTransportError from _run_turn(); return True when partial completion saved."""
+        if e.partial_text:
+            incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
+            ctx.history.append(LLMMessage(role="assistant", content=incomplete_msg))
+            ctx.session.save("assistant", incomplete_msg)
+            ctx.tool_result_store.store(
+                session_id=ctx.session.session_id,
+                turn=ctx.stat_turns,
+                tool_name="llm_partial_completion",
+                args_json="{}",
+                full_text=e.detail or f"partial={len(e.partial_text)} chars",
+                summary=f"[INCOMPLETE: {e.kind}]",
+                is_error=True,
+            )
+            if ctx.services.llm is not None:
+                ctx.services.llm.stat_partial_completions += 1
+            logger.warning(f"Partial LLM completion saved: {e.kind}")
+            return True
+        # Pre-stream failure: pop the user message to keep history clean
+        if ctx.history and ctx.history[-1]["role"] == "user":
+            ctx.history.pop()
+        logger.error(
+            f"LLM transport error (pre-stream): {e.kind} status={e.status_code}"
+        )
+        return False
+
+    def _handle_general_llm_error(self, e: Exception, ctx: AgentContext) -> None:
+        """Handle unexpected exception from _run_turn(); remove last user message from history."""
+        logger.error(f"LLM request failed: {e}")
+        if ctx.history and ctx.history[-1]["role"] == "user":
+            ctx.history.pop()
 
     def _warn_budget(self) -> None:
         """Log warnings when conversation history approaches context limits.
@@ -278,6 +303,89 @@ class Orchestrator:
                     f" (tokens={token_bd:,}"
                     f" limit={ctx.cfg.context_token_limit:,})"
                 )
+
+    def _check_cycle_guard(
+        self,
+        round_fingerprints: list[str],
+        message: LLMMessage,
+    ) -> str | None:
+        """Detect repeating round-level tool fingerprints; inject _CYCLE_HINT and return exit msg.
+
+        Returns None when window is disabled or no cycle detected.
+        Appends round_key to round_fingerprints on each call regardless of detection result.
+        """
+        ctx = self._ctx
+        if ctx.cfg.tool_cycle_detect_window <= 0:
+            return None
+        round_key = hashlib.md5(  # dedup key only, not for security
+            "|".join(
+                sorted(
+                    f"{tc.get('function', {}).get('name', '')}:"
+                    f"{tc.get('function', {}).get('arguments', '{}')}"
+                    for tc in message["tool_calls"]
+                )
+            ).encode(),
+            usedforsecurity=False,
+        ).hexdigest()
+        if round_fingerprints.count(round_key) >= ctx.cfg.tool_cycle_detect_window:
+            logger.warning(
+                f"Cyclic planning detected: round fingerprint {round_key!r}"
+                f" repeated {round_fingerprints.count(round_key)} times"
+            )
+            ctx.history.append({"role": "user", "content": _CYCLE_HINT})
+            return "Cyclic tool call pattern detected."
+        round_fingerprints.append(round_key)
+        return None
+
+    def _check_dedup_guard(
+        self,
+        seen_calls: dict[str, int],
+        message: LLMMessage,
+    ) -> str | None:
+        """Block re-execution of identical (tool, args); inject _DEDUP_HINT and return exit msg.
+
+        Returns None when no dedup threshold is reached.
+        Increments seen_calls counters for every tool call in message.
+        """
+        ctx = self._ctx
+        for tc in message["tool_calls"]:
+            func = tc.get("function", {})
+            key = hashlib.md5(  # dedup key only, not for security
+                f"{func.get('name', '')}:{func.get('arguments', '{}')}".encode(),
+                usedforsecurity=False,
+            ).hexdigest()
+            seen_calls[key] = seen_calls.get(key, 0) + 1
+            if seen_calls[key] >= ctx.cfg.tool_dedup_max_repeats:
+                name = func.get("name", "<unknown>")
+                logger.warning(f"Duplicate tool call blocked: {name!r}")
+                ctx.history.append({"role": "user", "content": _DEDUP_HINT})
+                return "Repeated tool call detected."
+        return None
+
+    def _check_retry_guard(
+        self,
+        failed_calls: set[str],
+        message: LLMMessage,
+    ) -> str | None:
+        """Block retry of already-failed (tool, args); inject _DEDUP_HINT and return exit msg.
+
+        Returns None when tool_error_retry_max is 0 or no failed key matches.
+        """
+        ctx = self._ctx
+        if ctx.cfg.tool_error_retry_max <= 0:
+            return None
+        for tc in message["tool_calls"]:
+            func = tc.get("function", {})
+            try:
+                tc_args = orjson.loads(func.get("arguments", "{}"))
+            except (orjson.JSONDecodeError, TypeError):
+                tc_args = {}
+            if tool_call_key(func.get("name", ""), tc_args) in failed_calls:
+                name = func.get("name", "<unknown>")
+                logger.warning(f"Retry of failed tool call blocked: {name!r}")
+                ctx.history.append({"role": "user", "content": _DEDUP_HINT})
+                return "Repeated failed tool call detected."
+        return None
 
     async def _run_turn(self, llm_url: str) -> str:
         """Send ctx.history to LLM; execute tool calls; return final answer.
@@ -355,27 +463,11 @@ class Orchestrator:
             has_tool_calls = bool(message.get("tool_calls"))
             is_done = (finish_reason != "tool_calls") or not has_tool_calls
             if is_done:
-                ctx.history.append(message)
-                if self._on_turn_end:
-                    self._on_turn_end()
-                answer = message.get("content") or ""
-                # Two-stage: expand full document context when LLM signals need
-                if not two_stage_done:
-                    extra = await self._maybe_two_stage_fetch(answer)
-                    if extra is not None:
-                        two_stage_done = True
-                        ctx.history.append(
-                            {
-                                "role": "user",
-                                "content": (
-                                    "[Additional context]\n"
-                                    + extra
-                                    + "\n\n(Please revise your answer using"
-                                    " the above additional context.)"
-                                ),
-                            }
-                        )
-                        continue
+                answer, two_stage_done = await self._finalize_answer(
+                    message, two_stage_done
+                )
+                if answer is None:
+                    continue
                 return answer
 
             ctx.history.append(message)
@@ -385,66 +477,14 @@ class Orchestrator:
                 tool_calls=message.get("tool_calls"),
             )
 
-            # Cycle detection: abort when the same round-level tool fingerprint repeats
-            if ctx.cfg.tool_cycle_detect_window > 0:
-                round_key = hashlib.md5(  # dedup key only, not for security
-                    "|".join(
-                        sorted(
-                            f"{tc.get('function', {}).get('name', '')}:"
-                            f"{tc.get('function', {}).get('arguments', '{}')}"
-                            for tc in message["tool_calls"]
-                        )
-                    ).encode(),
-                    usedforsecurity=False,
-                ).hexdigest()
-                if (
-                    round_fingerprints.count(round_key)
-                    >= ctx.cfg.tool_cycle_detect_window
-                ):
-                    logger.warning(
-                        f"Cyclic planning detected: round fingerprint {round_key!r}"
-                        f" repeated {round_fingerprints.count(round_key)} times"
-                    )
-                    ctx.history.append({"role": "user", "content": _CYCLE_HINT})
-                    return "Cyclic tool call pattern detected."
-                round_fingerprints.append(round_key)
-
-            # Dedup: block re-execution of identical (tool, args) within this turn sequence
-            dedup_name: str | None = None
-            for tc in message["tool_calls"]:
-                func = tc.get("function", {})
-                key = hashlib.md5(  # dedup key only, not for security
-                    f"{func.get('name', '')}:{func.get('arguments', '{}')}".encode(),
-                    usedforsecurity=False,
-                ).hexdigest()
-                seen_calls[key] = seen_calls.get(key, 0) + 1
-                if seen_calls[key] >= ctx.cfg.tool_dedup_max_repeats:
-                    dedup_name = func.get("name", "<unknown>")
-                    break
-
-            if dedup_name is not None:
-                logger.warning(f"Duplicate tool call blocked: {dedup_name!r}")
-                ctx.history.append({"role": "user", "content": _DEDUP_HINT})
-                return "Repeated tool call detected."
-
-            # Recursive retry suppression: block re-execution of calls that already errored.
-            if ctx.cfg.tool_error_retry_max > 0:
-                retry_blocked: str | None = None
-                for tc in message["tool_calls"]:
-                    func = tc.get("function", {})
-                    try:
-                        tc_args = orjson.loads(func.get("arguments", "{}"))
-                    except (orjson.JSONDecodeError, TypeError):
-                        tc_args = {}
-                    if tool_call_key(func.get("name", ""), tc_args) in failed_calls:
-                        retry_blocked = func.get("name", "<unknown>")
-                        break
-                if retry_blocked is not None:
-                    logger.warning(
-                        f"Retry of failed tool call blocked: {retry_blocked!r}"
-                    )
-                    ctx.history.append({"role": "user", "content": _DEDUP_HINT})
-                    return "Repeated failed tool call detected."
+            if (
+                msg := self._check_cycle_guard(round_fingerprints, message)
+            ) is not None:
+                return msg
+            if (msg := self._check_dedup_guard(seen_calls, message)) is not None:
+                return msg
+            if (msg := self._check_retry_guard(failed_calls, message)) is not None:
+                return msg
 
             errors_before = ctx.stat_tool_errors
             await execute_all_tool_calls(

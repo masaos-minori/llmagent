@@ -243,29 +243,7 @@ class _ConfigMixin:
         ctx.cfg.mcp_watchdog_max_restarts = int(
             new_cfg.get("mcp_watchdog_max_restarts", 3)
         )
-        if "approval_risk_rules" in new_cfg:
-            ctx.cfg.approval_risk_rules = dict(new_cfg["approval_risk_rules"])
-        if "approval_protected_paths" in new_cfg:
-            ctx.cfg.approval_protected_paths = list(new_cfg["approval_protected_paths"])
-        if "approval_high_risk_branches" in new_cfg:
-            ctx.cfg.approval_high_risk_branches = list(
-                new_cfg["approval_high_risk_branches"]
-            )
-        if "approval_shell_safe_prefixes" in new_cfg:
-            ctx.cfg.approval_shell_safe_prefixes = list(
-                new_cfg["approval_shell_safe_prefixes"]
-            )
-        if "approval_resource_keys" in new_cfg:
-            ctx.cfg.approval_resource_keys = dict(new_cfg["approval_resource_keys"])
-        if "approval_dry_run_tools" in new_cfg:
-            ctx.cfg.approval_dry_run_tools = list(new_cfg["approval_dry_run_tools"])
-        if "tool_safety_tiers" in new_cfg:
-            ctx.cfg.tool_safety_tiers = dict(new_cfg["tool_safety_tiers"])
-        ctx.cfg.allowed_root = new_cfg.get("allowed_root", ctx.cfg.allowed_root)
-        if "approval_github_allowed_repos" in new_cfg:
-            ctx.cfg.approval_github_allowed_repos = list(
-                new_cfg["approval_github_allowed_repos"]
-            )
+        self._reload_approval_settings(ctx, new_cfg)
         ctx.cfg.masked_fields = list(new_cfg.get("masked_fields", ["file_content"]))
         # Update URLs for HTTP-transport servers without changing transport type.
         # Transport type changes require agent restart (subprocess lifecycle).
@@ -334,6 +312,36 @@ class _ConfigMixin:
                 ctx.cfg.llm_stream_retry_on_malformed_chunk,
             )
         )
+        self._sync_services_to_cfg(ctx, new_cfg)
+
+    def _reload_approval_settings(self, ctx: "AgentContext", new_cfg: dict) -> None:
+        """Update approval-related list/dict fields in ctx.cfg when present in new_cfg."""
+        if "approval_risk_rules" in new_cfg:
+            ctx.cfg.approval_risk_rules = dict(new_cfg["approval_risk_rules"])
+        if "approval_protected_paths" in new_cfg:
+            ctx.cfg.approval_protected_paths = list(new_cfg["approval_protected_paths"])
+        if "approval_high_risk_branches" in new_cfg:
+            ctx.cfg.approval_high_risk_branches = list(
+                new_cfg["approval_high_risk_branches"]
+            )
+        if "approval_shell_safe_prefixes" in new_cfg:
+            ctx.cfg.approval_shell_safe_prefixes = list(
+                new_cfg["approval_shell_safe_prefixes"]
+            )
+        if "approval_resource_keys" in new_cfg:
+            ctx.cfg.approval_resource_keys = dict(new_cfg["approval_resource_keys"])
+        if "approval_dry_run_tools" in new_cfg:
+            ctx.cfg.approval_dry_run_tools = list(new_cfg["approval_dry_run_tools"])
+        if "tool_safety_tiers" in new_cfg:
+            ctx.cfg.tool_safety_tiers = dict(new_cfg["tool_safety_tiers"])
+        ctx.cfg.allowed_root = new_cfg.get("allowed_root", ctx.cfg.allowed_root)
+        if "approval_github_allowed_repos" in new_cfg:
+            ctx.cfg.approval_github_allowed_repos = list(
+                new_cfg["approval_github_allowed_repos"]
+            )
+
+    def _sync_services_to_cfg(self, ctx: "AgentContext", new_cfg: dict) -> None:
+        """Propagate updated cfg fields to live service instances (LLM/hist_mgr/tools)."""
         if ctx.services.llm is not None:
             ctx.services.llm._max_retries = ctx.cfg.llm_max_retries
             ctx.services.llm._retry_base_delay = ctx.cfg.llm_retry_base_delay

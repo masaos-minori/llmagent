@@ -110,7 +110,7 @@ class AgentREPL:
     def _get_chunk_count(self) -> str:
         """Return formatted chunk count from DB, or '?' on error."""
         try:
-            with SQLiteHelper("session").open() as db:
+            with SQLiteHelper("rag").open() as db:
                 rows = db.fetchall("SELECT COUNT(*) FROM chunks")
             count = rows[0][0] if rows else 0
             return f"{count:,}"

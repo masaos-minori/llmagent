@@ -41,13 +41,14 @@ await orch.handle_turn(line)
 | `_run_turn(llm_url) -> str` | SSE ストリーミングで LLM を呼び出し、tool_calls があれば `execute_all_tool_calls()` 後に再送信。最大 `max_tool_turns` 回ループ。最終回答テキストを返す |
 | `_augment_with_rag(line) -> tuple[str, bool]` | RAG パイプライン実行 + セマンティックキャッシュ参照。`(context_text, cache_hit)` を返す |
 | `_maybe_two_stage_fetch(answer) -> str \| None` | LLM の回答に不十分なコンテキストシグナルがあれば全文展開コンテキストを返す |
+| `_warn_budget() -> None` | 会話履歴が `context_char_limit` / `context_token_limit` の `budget_warn_ratio` を超えたときコンテキスト使用量の警告ログを出力 |
 
 **`_run_turn()` 安全ガード**
 
 | ガード | 設定フィールド | 動作 |
 |---|---|---|
 | ツール呼び出し dedup | `tool_dedup_max_repeats` | 同一 (name, args) が指定回数を超えたら `_DEDUP_HINT` を注入してスキップ |
-| 循環プランニング検出 | `tool_cycle_detect_window` | 同一 round fingerprint が `window` 回繰り返されたら `_CYCLE_DETECT_HINT` を注入してループ脱出 |
+| 循環プランニング検出 | `tool_cycle_detect_window` | 同一 round fingerprint が `window` 回繰り返されたら `_CYCLE_HINT` を注入してループ脱出 |
 | 連続エラーガード | `tool_error_max_consecutive` | 全ツールがエラーになったターンが指定回数連続したらループ脱出 |
 | エラー retry 抑制 | `tool_error_retry_max` | 同一 (name, args) がこのターンですでにエラーになっていた場合、retry 制限内で再試行 |
 
@@ -76,8 +77,8 @@ await orch.handle_turn(line)
 
 | tier | `_TIER_TO_RISK` | 説明 |
 |---|---|---|
-| `READ_ONLY` | `"none"` | 副作用なし読み取り専用 (例: `read_text_file`, `list_directory`) |
-| `WRITE_SAFE` | `"none"` | 低リスク書き込み (例: `write_file`, `create_directory`, `github_get_file_contents`) |
+| `READ_ONLY` | `"none"` | 副作用なし読み取り専用 (例: `read_text_file`, `list_directory`, `github_get_file_contents`) |
+| `WRITE_SAFE` | `"none"` | 低リスク書き込み (例: `write_file`, `create_directory`) |
 | `WRITE_DANGEROUS` | `"medium"` | 破壊的書き込み・削除 (例: `delete_file`, `github_push_files`) |
 | `ADMIN` | `"high"` | システム管理・シェル実行 (例: `shell_run`) |
 

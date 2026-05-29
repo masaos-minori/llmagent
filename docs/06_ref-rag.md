@@ -33,17 +33,15 @@ RAG パイプラインの全ステップを実装するモジュール。`RagPip
 | `RagScorer` | スコア融合 (RRF)。`rrf_merge` を静的メソッドとして提供する |
 | `RagLLM` | LLM 呼び出し (MQE クエリ拡張 + クロスエンコーダ再ランク)。共通 `_call_llm()` に HTTP 処理を集約する |
 
-モジュールレベル関数 (`expand_queries`, `vector_search`, `fts_search`, `rrf_merge`, `cross_encoder_rerank`) はクラス層への委譲ラッパで、`agent/repl.py` との後方互換 API を維持。
+公開 API は `__all__` に列挙: `RagPipeline` / `RagHit` / `fetch_full_document` / `get_embedding`。その他のクラス (`RagRepository`, `RagScorer`, `RagLLM`, `SemanticCache`) は `rag/repository.py` / `rag/llm.py` に実装し `rag/pipeline.py` からインポートして re-export する。
 
 ### 1.2 API
 
 ```python
 import httpx
-from rag.pipeline import (
-    RagRepository, RagScorer, RagLLM, SemanticCache,  # クラス層
-    vector_search, fts_search, rrf_merge,              # モジュールレベルラッパ
-    fetch_full_document, deduplicate_chunks, cosine_sim,
-)
+from rag.pipeline import RagPipeline, fetch_full_document, get_embedding
+from rag.repository import RagRepository, RagScorer, SemanticCache, deduplicate_chunks, cosine_sim
+from rag.llm import RagLLM
 ```
 
 クラス層 API:
@@ -58,13 +56,10 @@ from rag.pipeline import (
 | | `summarize_tool_result` | `(text, tool_name, args) -> str` | ツール結果を LLM で要約して返す |
 | | `refine_context` | `(query, chunks) -> str` | Rerank 後チャンクをクエリ関連要点に圧縮して返す |
 
-モジュールレベル関数:
+`rag/repository.py` 公開関数 (モジュールレベル):
 
 | 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `vector_search` | `(embedding: list[float], top_k: int, db: SQLiteHelper) -> list[RagHit]` | `RagRepository.vector_search` に委譲 |
-| `fts_search` | `(query: str, top_k: int, db: SQLiteHelper) -> list[RagHit]` | `RagRepository.fts_search` に委譲。FTS5 構文エラー時は空リストを返す |
-| `rrf_merge` | `(results_list: list[list[RagHit]]) -> list[RagHit]` | `RagScorer.rrf_merge` に委譲。`rrf_k` は `agent.json` から取得する |
 | `fetch_full_document` | `(chunk_ids: list[int], db: SQLiteHelper, window: int) -> list[RagHit]` | 指定チャンクの周辺 `window` 件を展開して返す (二段階取得用) |
 | `deduplicate_chunks` | `(hits: list[RagHit], max_per_doc: int) -> list[RagHit]` | URL をキーに同一ドキュメントのチャンクを `max_per_doc` 件に絞る |
 | `cosine_sim` | `(a: list[float], b: list[float]) -> float` | 2 つの埋込ベクトルのコサイン類似度を返す (セマンティックキャッシュ用) |
@@ -106,7 +101,7 @@ cache = SemanticCache(max_size=100, threshold=0.92)
 LLM API メッセージを表す `LLMMessage` TypedDict (`total=False`)。`AgentREPL._history` の要素型および `RagLLM._call_llm()` の引数型として使用。
 
 ```python
-from rag.pipeline import LLMMessage
+from rag.types import LLMMessage  # re-exports from shared.types
 ```
 
 | キー | 型 | 説明 |
@@ -136,8 +131,9 @@ from rag.pipeline import LLMMessage
 
 | スクリプト | 使用箇所 |
 |---|---|
-| `agent/repl.py` | `ctx.rag = RagPipeline(...)` を `run()` で生成。`_handle_user_message()` が `ctx.rag.augment()` を呼び出す |
-| `agent/commands/registry.py` | `_cmd_rag` が `ctx.rag.run()` をドライランで使用する |
+| `agent/repl.py` | `ctx.services.rag = RagPipeline(...)` を `_init_components()` で生成 |
+| `agent/orchestrator.py` | `_augment_with_rag()` が `ctx.services.rag.augment()` を呼び出す |
+| `agent/commands/cmd_rag.py` | `/rag` コマンドが `ctx.services.rag.augment()` をデバッグ実行で使用する |
 
 ---
 

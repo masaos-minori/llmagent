@@ -24,7 +24,7 @@ class McpServerConfig:
     healthcheck_mode: str = ""  # "http" | "process" | "ping_tool"; "" = 自動推論
     idle_timeout_sec: int = 0   # ondemand アイドル自動停止まで秒数; 0 = 無効
     working_dir: str = ""       # stdio サブプロセス作業ディレクトリ; "" = 継承
-    env: dict[str, str] = ...   # stdio サブプロセスに注入する環境変数
+    env: dict[str, str] = field(default_factory=dict)  # stdio サブプロセスに注入する環境変数
     tool_names: list[str] = []  # 明示的ツール名リスト; [] = 静的プレフィックスルーティングに fallback
 ```
 

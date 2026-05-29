@@ -8,11 +8,11 @@
 |---|---|---|
 | Chat / Code LLM | `POST /v1/chat/completions` | OpenAI 互換形式 (`messages`, `tools`, `temperature`, `max_tokens`, `stream`) |
 | Embed LLM | `POST /embedding` | req: `{"content": "query: <text>"}` / res: `{"embedding": [...]}` |
-| MCP HTTP サーバー 3 本 | `POST /v1/call_tool` | req: `{"name": str, "args": {...}}` / res: `{"result": str, "is_error": bool}` |
+| MCP HTTP サーバー 7 本 | `POST /v1/call_tool` | req: `{"name": str, "args": {...}}` / res: `{"result": str, "is_error": bool}` |
 
 - Chat/Code LLM は OpenAI 互換。ストリーミングは `"stream": true` で SSE を返す
 - Embed LLM は llama.cpp レガシーエンドポイント。E5 モデルのプレフィックス (`passage:` / `query:`) を呼び出し元が付与する
-- MCP HTTP サーバー 3 本 (:8004/:8005/:8006) はすべて同一の `/v1/call_tool` 形式を共有する (`mcp/models.py` の `CallToolRequest`/`CallToolResponse`)
+- MCP HTTP サーバー 7 本 (:8004/:8005/:8006/:8007/:8008/:8009/:8010) はすべて同一の `/v1/call_tool` 形式を共有する (`mcp/server.py` の `CallToolRequest`/`CallToolResponse`)
 
 ---
 
@@ -81,7 +81,7 @@ agent[chat]> /mcp install <server-name>
 ```
 
 生成されるファイル:
-- `scripts/<module>_mcp_server.py` — FastAPI サーバ骨格 (`MCPServer` サブクラス、`dispatch()` 実装、`/health` / `/v1/tools` / `/v1/call_tool` エンドポイント)
+- `scripts/mcp/<name>/server.py` — FastAPI サーバ骨格 (`MCPServer` サブクラス、`dispatch()` 実装、`/health` / `/v1/tools` / `/v1/call_tool` エンドポイント)
 - `config/<module>_mcp_server.json` — 設定 JSON テンプレート
 - `init.d/<server-name>` — OpenRC 起動スクリプト (755)
 - `conf.d/<server-name>` — API キー env テンプレート (オプション)

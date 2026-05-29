@@ -102,9 +102,12 @@ class TestRawExecuteWithLifecycle:
 
         # Patch the transport to record call order
         mock_transport = AsyncMock()
-        mock_transport.call = AsyncMock(
-            side_effect=lambda *a, **kw: call_order.append("call") or ("ok", False)
-        )
+
+        def _record_and_ok(*a: object, **kw: object) -> tuple[str, bool]:
+            call_order.append("call")
+            return ("ok", False)
+
+        mock_transport.call = AsyncMock(side_effect=_record_and_ok)
         ex._transports["file_read"] = mock_transport
 
         await ex._raw_execute("read_text_file", {})

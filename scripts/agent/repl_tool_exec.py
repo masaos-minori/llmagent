@@ -330,6 +330,90 @@ async def execute_one_tool_call(
     return tc["id"], name, args, text, is_error, llm_text
 
 
+async def _run_approval_checks(
+    ctx: AgentContext, tool_calls: list[dict]
+) -> tuple[list[dict], list[str]]:
+    """Run plan-mode block and interactive approval for each tool call.
+
+    Returns (approved_calls, denied_ids). Must run serially — approval is interactive.
+    """
+    approved_calls: list[dict] = []
+    denied_ids: list[str] = []
+    for tc in tool_calls:
+        tc_name = tc["function"]["name"]
+        args_preview: Any
+        try:
+            args_preview = orjson.loads(tc["function"].get("arguments", "{}"))
+        except orjson.JSONDecodeError:
+            args_preview = tc["function"].get("arguments", "{}")
+        masked_preview = mask_args(args_preview, ctx.cfg.masked_fields)
+        if ctx.plan_mode and tc_name in ctx.cfg.plan_blocked_tools:
+            print(f"  [plan mode] Blocked: {tc_name}")
+            print(f"  args: {orjson.dumps(masked_preview).decode()}")
+            logger.info(f"Plan mode blocked tool: {tc_name}")
+            denied_ids.append(tc["id"])
+            continue
+        if not await check_approval(ctx, tc_name, args_preview):
+            print(f"  args: {orjson.dumps(masked_preview).decode()}")
+            denied_ids.append(tc["id"])
+            continue
+        approved_calls.append(tc)
+    return approved_calls, denied_ids
+
+
+def _collect_tool_result_msgs(
+    ctx: AgentContext,
+    results: list[tuple[str, str, dict, str, bool, str]],
+    turn: int,
+    out_failed_keys: set[str] | None,
+) -> list[tuple[str, str, list[dict] | None, str | None]]:
+    """Log, display, persist, and append tool results to history.
+
+    Returns tool_msgs for session.save_many(). Applies per-turn char limit.
+    """
+    tool_msgs: list[tuple[str, str, list[dict] | None, str | None]] = []
+    turn_chars = 0
+    for tc_id, name, args, text, is_error, llm_text in results:
+        ctx.stat_tool_calls += 1
+        if is_error:
+            ctx.stat_tool_errors += 1
+            # Record error key for retry suppression in agent/orchestrator.py.
+            if out_failed_keys is not None:
+                out_failed_keys.add(tool_call_key(name, args))
+        masked = mask_args(args, ctx.cfg.masked_fields)
+        logger.info(f"Tool call (turn {turn + 1}): {name}({masked})")
+        print(f"  [tool] {name}({orjson.dumps(masked).decode()})")
+        n_lines = len(text.splitlines())
+        if len(text) > _TOOL_RESULT_MAX_CHARS:
+            logger.info(f"Tool result {name} (full): {text}")
+            display = f"{n_lines} lines / {len(text)} chars (truncated)"
+            print(f"  [tool] {name} → {display}")
+        else:
+            print(f"  [tool] {name} → {text}")
+        summarized = _is_summarized(ctx.cfg, text, llm_text, is_error)
+        result_id = ctx.tool_result_store.store(
+            session_id=ctx.session.session_id,
+            turn=turn,
+            tool_name=name,
+            args_json=orjson.dumps(args).decode(),
+            full_text=text,
+            summary=llm_text if summarized else None,
+            is_error=is_error,
+        )
+        limit = ctx.cfg.tool_results_turn_max_chars
+        turn_chars += len(llm_text)
+        if limit > 0 and turn_chars > limit:
+            id_hint = f" (id={result_id})" if result_id is not None else ""
+            llm_text = _TURN_LIMIT_HINT.replace("]", f"{id_hint}]")
+            logger.info(
+                f"Per-turn tool result limit reached: {turn_chars} chars"
+                f" > {limit}; result replaced with hint (id={result_id})"
+            )
+        ctx.history.append({"role": "tool", "tool_call_id": tc_id, "content": llm_text})
+        tool_msgs.append(("tool", llm_text, None, tc_id))
+    return tool_msgs
+
+
 async def execute_all_tool_calls(
     ctx: AgentContext,
     tool_calls: list[dict],
@@ -344,30 +428,7 @@ async def execute_all_tool_calls(
     Logging, display, and history.append are always done sequentially.
     Error keys are added to out_failed_keys (if provided) for retry suppression.
     """
-    # Pre-flight checks: plan_mode block first, then interactive approval.
-    # Both must run serially regardless of serial_tool_calls setting.
-    approved_calls: list[dict] = []
-    denied_ids: list[str] = []
-    for tc in tool_calls:
-        tc_name = tc["function"]["name"]
-        args_preview: Any
-        try:
-            args_preview = orjson.loads(tc["function"].get("arguments", "{}"))
-        except orjson.JSONDecodeError:
-            args_preview = tc["function"].get("arguments", "{}")
-        masked_preview = mask_args(args_preview, ctx.cfg.masked_fields)
-        # Block destructive tools automatically when plan_mode is active
-        if ctx.plan_mode and tc_name in ctx.cfg.plan_blocked_tools:
-            print(f"  [plan mode] Blocked: {tc_name}")
-            print(f"  args: {orjson.dumps(masked_preview).decode()}")
-            logger.info(f"Plan mode blocked tool: {tc_name}")
-            denied_ids.append(tc["id"])
-            continue
-        if not await check_approval(ctx, tc_name, args_preview):
-            print(f"  args: {orjson.dumps(masked_preview).decode()}")
-            denied_ids.append(tc["id"])
-            continue
-        approved_calls.append(tc)
+    approved_calls, denied_ids = await _run_approval_checks(ctx, tool_calls)
 
     # Auto-downgrade to serial if any approved call has side effects (write/delete/shell).
     has_side_effect = any(
@@ -393,50 +454,7 @@ async def execute_all_tool_calls(
     # Persist all tool result messages in one DB transaction (one connection open).
     # Collecting here avoids N individual save() calls each with their own
     # load_extension + PRAGMA overhead.
-    tool_msgs: list[tuple[str, str, list[dict] | None, str | None]] = []
-    turn_chars = 0  # cumulative llm_text chars injected into history this turn
-    for tc_id, name, args, text, is_error, llm_text in results:
-        ctx.stat_tool_calls += 1
-        if is_error:
-            ctx.stat_tool_errors += 1
-            # Record error key for retry suppression in agent/orchestrator.py.
-            # Uses tool_call_key() to guarantee the same hash as the lookup side.
-            if out_failed_keys is not None:
-                out_failed_keys.add(tool_call_key(name, args))
-        masked = mask_args(args, ctx.cfg.masked_fields)
-        logger.info(f"Tool call (turn {turn + 1}): {name}({masked})")
-        print(f"  [tool] {name}({orjson.dumps(masked).decode()})")
-        n_lines = len(text.splitlines())
-        if len(text) > _TOOL_RESULT_MAX_CHARS:
-            logger.info(f"Tool result {name} (full): {text}")
-            display = f"{n_lines} lines / {len(text)} chars (truncated)"
-            print(f"  [tool] {name} → {display}")
-        else:
-            print(f"  [tool] {name} → {text}")
-        summarized = _is_summarized(ctx.cfg, text, llm_text, is_error)
-        # Persist full text to DB store; id enables /tool show retrieval
-        result_id = ctx.tool_result_store.store(
-            session_id=ctx.session.session_id,
-            turn=turn,
-            tool_name=name,
-            args_json=orjson.dumps(args).decode(),
-            full_text=text,
-            summary=llm_text if summarized else None,
-            is_error=is_error,
-        )
-        # Apply per-turn total limit after persisting so full text is always stored
-        limit = ctx.cfg.tool_results_turn_max_chars
-        turn_chars += len(llm_text)
-        if limit > 0 and turn_chars > limit:
-            id_hint = f" (id={result_id})" if result_id is not None else ""
-            llm_text = _TURN_LIMIT_HINT.replace("]", f"{id_hint}]")
-            logger.info(
-                f"Per-turn tool result limit reached: {turn_chars} chars"
-                f" > {limit}; result replaced with hint (id={result_id})"
-            )
-        ctx.history.append({"role": "tool", "tool_call_id": tc_id, "content": llm_text})
-        # Collect after per-turn limit so save_many mirrors what LLM history sees.
-        tool_msgs.append(("tool", llm_text, None, tc_id))
+    tool_msgs = _collect_tool_result_msgs(ctx, results, turn, out_failed_keys)
     # Add skipped results so the LLM knows these tool calls were denied.
     for denied_id in denied_ids:
         ctx.history.append(

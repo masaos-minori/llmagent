@@ -49,5 +49,6 @@ ctx = AgentContext()
 | `hist_mgr` | `HistoryManager \| None` | 履歴文字数カウント・圧縮担当 |
 | `rag` | `RagPipeline \| None` | MQE→検索→RRF→Rerank 担当 |
 | `stdio_procs` | `dict[str, StdioTransport]` | サーバキー → StdioTransport。stdio トランスポートのプロセスを管理 |
+| `lifecycle` | `ServerLifecycleManager \| None` | ondemand stdio サーバの起動・停止ライフサイクル管理 |
 | `audit_logger` | `Logger \| None` | JSON-lines 形式で `audit.log` にターンイベントを書き込む構造化ロガー |
 | `memory` | `MemoryLayer \| None` | Long-term / Task メモリレイヤー。`use_memory_layer=False` (デフォルト) のとき `None` |
