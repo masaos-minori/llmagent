@@ -28,27 +28,27 @@
 
 ### 3.1 RAG パラメータとホットリロード
 
-- `RAG_TOP_K`: `agent_config.py` のモジュールレベル定数 (初期値)。`agent.json` の `"rag_top_k"` で設定可能 (デフォルト: 5)。実行時は `ctx.cfg.rag_top_k` を参照 (`AgentConfig` 経由でホットリロード対応)
-- `/reload` ホットリロード: `agent_commands._cmd_reload()` が `ctx.cfg.xxx = new_val` でフィールドを更新し、`ctx.llm._max_retries` / `ctx.hist_mgr._char_limit` / `ctx.tools._cache_ttl` を同期。`CHAT_URL` / `CODE_URL` は起動時確定のためホットリロード対象外
+- `RAG_TOP_K`: `agent/config.py` のモジュールレベル定数 (初期値)。`agent.toml` の `"rag_top_k"` で設定可能 (デフォルト: 5)。実行時は `ctx.cfg.rag_top_k` を参照 (`AgentConfig` 経由でホットリロード対応)
+- `/reload` ホットリロード: `agent/commands/cmd_config.py` の `_apply_config_params()` が `ctx.cfg.xxx = new_val` でフィールドを更新し、`ctx.services.llm._max_retries` / `ctx.services.hist_mgr._char_limit` / `ctx.services.tools._cache_ttl` を同期。LLM URL は起動時確定のためホットリロード対象外
 - `/rag on|off`: `_cmd_rag()` が `ctx.cfg.use_search` / `use_mqe` / `use_rerank` を直接書き換えるため再起動不要。`/rag` 単体で全フラグの現在値を表示
 
 ### 3.2 LLM 生成パラメータ
 
-各 LLM 呼び出しのパラメータは `agent_config.py` ではなく各実装ファイルのモジュールレベル定数で管理:
+各 LLM 呼び出しのパラメータは `agent/config.py` ではなく各実装ファイルのモジュールレベル定数で管理:
 
 | ファイル | 定数 | 用途 |
 |---|---|---|
-| `agent_repl.py` | `_COMPRESS_TEMPERATURE=0.3` / `_COMPRESS_MAX_TOKENS=300` | 会話履歴圧縮 |
-| `agent_commands.py` | `_TITLE_TEMPERATURE=0.1` / `_TITLE_MAX_TOKENS=20` | セッションタイトル生成 |
-| `agent_rag.py` | `_MQE_TEMPERATURE=0.6` / `_MQE_MAX_TOKENS=300` | MQE クエリ展開 |
-| `agent_rag.py` | `_RERANK_TEMPERATURE=0.0` / `_RERANK_MAX_TOKENS=256` | Cross-Encoder Rerank |
-| `agent_rag.py` | `_SUMMARIZE_TEMPERATURE=0.2` / `_SUMMARIZE_MAX_TOKENS=256` | ツール結果要約 |
+| `agent/repl.py` | `_COMPRESS_TEMPERATURE=0.3` / `_COMPRESS_MAX_TOKENS=300` | 会話履歴圧縮 |
+| `agent/commands/registry.py` | `_TITLE_TEMPERATURE=0.1` / `_TITLE_MAX_TOKENS=20` | セッションタイトル生成 |
+| `rag/pipeline.py` | `_MQE_TEMPERATURE=0.6` / `_MQE_MAX_TOKENS=300` | MQE クエリ展開 |
+| `rag/pipeline.py` | `_RERANK_TEMPERATURE=0.0` / `_RERANK_MAX_TOKENS=256` | Cross-Encoder Rerank |
+| `rag/pipeline.py` | `_SUMMARIZE_TEMPERATURE=0.2` / `_SUMMARIZE_MAX_TOKENS=256` | ツール結果要約 |
 
-`llm_temperature` / `llm_max_tokens` の初期値は `agent.json` から読み込む。`/set temperature <val>` で `ctx.cfg.llm_temperature` と `ctx.llm._temperature` を即時同期。
+`llm_temperature` / `llm_max_tokens` の初期値は `agent.toml` から読み込む。`/set temperature <val>` で `ctx.cfg.llm_temperature` と `ctx.services.llm._temperature` を即時同期。
 
 ### 3.3 コンテキスト管理
 
-- コンテキスト予算管理: `agent_commands._budget_breakdown()` がメッセージリストを system / rag / history / tool_results の 4 カテゴリに分類して文字数を算出。`AgentREPL._run_turn()` が `turn == 0` のとき算出し、`BUDGET_WARN_RATIO` (0.8) 超過時に `logger.warning` で内訳付き警告を出力。`/context` で表示
+- コンテキスト予算管理: `agent/commands/cmd_context.py` の `_budget_breakdown()` がメッセージリストを system / rag / history / tool_results の 4 カテゴリに分類して文字数を算出。`Orchestrator._run_turn()` が `turn == 0` のとき算出し、`BUDGET_WARN_RATIO` (0.8) 超過時に `logger.warning` で内訳付き警告を出力。`/context` で表示
 - 会話履歴圧縮: `HistoryManager` が `context_char_limit` を超えたとき `context_compress_turns` 件ずつ古いターンを LLM で圧縮
 - `SQLiteHelper` コンテキストマネージャ: `open()` が `self` を返すため `with SQLiteHelper().open(...) as db:` パターンで使用。`write_mode=True` → WAL + 外部キー有効。`row_factory=True` → カラム名アクセス有効。DB_PATH / SQLITE_VEC_SO は `open()` 内部で遅延初期化
 
@@ -69,7 +69,7 @@
 ### 3.6 セッション管理・ノート
 
 - セッション横断ノート (`/note`): `AgentSession.add_note()` / `list_notes()` / `delete_note()` / `get_all_note_contents()` が `notes` テーブルを操作。`auto_inject_notes=True` のとき `AgentREPL.run()` 起動時に全ノートを `[Notes]` ブロックとしてシステムプロンプトへ追記
-- システムプロンプト切り替え: `_system_prompt_name` で現在プレセットを管理。`SYSTEM_PROMPTS` は `agent_config.py` のモジュールレベルで `agent.json["system_prompts"]` から読み込み。`/system <name>` で切り替え
+- システムプロンプト切り替え: `_system_prompt_name` で現在プレセットを管理。`SYSTEM_PROMPTS` は `agent/config.py` のモジュールレベルで `agent.toml["system_prompts"]` から読み込み。`/system <name>` で切り替え
 - 起動時サービス疎通確認: `AgentREPL._check_service_health()` が `CHAT_URL` / `CODE_URL` / `EMBED_URL` に HTTP GET (タイムアウト 2 秒) を試みる。失敗時は `logger.warning` で通知するが起動は続行
 
 ### 3.7 運用・保守

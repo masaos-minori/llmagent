@@ -55,7 +55,7 @@ from mcp.file.read_models import (
 )
 from mcp.server import ToolArgs
 
-# Standard library logger; log path is owned by file_read_mcp_server.py
+# Standard library logger; log path is owned by mcp/file/read_server.py
 logger = logging.getLogger(__name__)
 
 

@@ -2,7 +2,7 @@
 RAG pipeline debug printers and context utility functions.
 
 Pure module-level helpers with no AgentContext dependency.
-Extracted from agent_repl.py to reduce per-task load cost.
+Extracted from agent/repl.py to reduce per-task load cost.
 """
 
 from collections.abc import Callable

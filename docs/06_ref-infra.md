@@ -4,10 +4,10 @@
 
 | モジュール | 役割 |
 |---|---|
-| `config_loader.py` | JSON 設定ファイルの読込・マージ |
-| `rag_utils.py` | テキスト正規化・埋込 BLOB 変換 |
-| `logger.py` | ロギング共通セットアップ |
-| `formatters.py` | MCP ツール結果・ログメッセージ共通フォーマットユーティリティ |
+| `shared/config_loader.py` | JSON 設定ファイルの読込・マージ |
+| `rag/utils.py` | テキスト正規化・埋込 BLOB 変換 |
+| `shared/logger.py` | ロギング共通セットアップ |
+| `shared/formatters.py` | MCP ツール結果・ログメッセージ共通フォーマットユーティリティ |
 
 SQLite 接続マネージャ → [`docs/06_ref-sqlite.md`](06_ref-sqlite.md)
 
@@ -45,7 +45,7 @@ cfg = ConfigLoader().load("common.json", "agent.json")
 
 ### 1.4 使用スクリプト
 
-全スクリプト (`web_crawler.py`, `chunk_splitter.py`, `rag_ingester.py`, `create_schema.py`, `agent.py` など)
+全スクリプト (`rag/ingestion/crawler.py`, `rag/ingestion/chunk_splitter.py`, `rag/ingestion/ingester.py`, `create_schema.py`, `agent.py` など)
 
 ---
 
@@ -53,7 +53,7 @@ cfg = ConfigLoader().load("common.json", "agent.json")
 
 ### 2.1 機能概要
 
-RAG 取込パイプライン (`web_crawler.py`, `chunk_splitter.py`, `rag_ingester.py`) とベクトル検索 (`agent_rag.py`) で共用するテキスト処理ユーティリティ。
+RAG 取込パイプライン (`rag/ingestion/crawler.py`, `rag/ingestion/chunk_splitter.py`, `rag/ingestion/ingester.py`) とベクトル検索 (`rag/pipeline.py`) で共用するテキスト処理ユーティリティ。
 
 ### 2.2 API
 
@@ -75,10 +75,10 @@ from rag_utils import normalize_unicode, floats_to_blob, validate_url
 
 | スクリプト | 使用関数 |
 |---|---|
-| `chunk_splitter.py` | `normalize_unicode` |
-| `agent_rag.py` | `floats_to_blob` |
-| `rag_ingester.py` | `floats_to_blob`, `validate_url` |
-| `web_crawler.py` | `validate_url` |
+| `rag/ingestion/chunk_splitter.py` | `normalize_unicode` |
+| `rag/pipeline.py` | `floats_to_blob` |
+| `rag/ingestion/ingester.py` | `floats_to_blob`, `validate_url` |
+| `rag/ingestion/crawler.py` | `validate_url` |
 
 ---
 
@@ -132,13 +132,13 @@ logger = logging.getLogger(__name__)
 | スクリプト | ログファイル |
 |---|---|
 | `create_schema.py` | `/opt/llm/logs/create_schema.log` |
-| `web_crawler.py` | `/opt/llm/logs/crawl.log` |
-| `chunk_splitter.py` | `/opt/llm/logs/chunk.log` |
-| `rag_ingester.py` | `/opt/llm/logs/ingest.log` |
+| `rag/ingestion/crawler.py` | `/opt/llm/logs/crawl.log` |
+| `rag/ingestion/chunk_splitter.py` | `/opt/llm/logs/chunk.log` |
+| `rag/ingestion/ingester.py` | `/opt/llm/logs/ingest.log` |
 | `agent.py` | `/opt/llm/logs/agent.log` |
-| `fileop_mcp_server.py` | `/opt/llm/logs/file-mcp.log` |
-| `web_search_mcp_server.py` | `/opt/llm/logs/web-search-mcp.log` |
-| `github_mcp_server.py` | `/opt/llm/logs/github-mcp.log` |
+| `mcp/file/server.py` | `/opt/llm/logs/file-mcp.log` |
+| `mcp/web_search/server.py` | `/opt/llm/logs/web-search-mcp.log` |
+| `mcp/github/server.py` | `/opt/llm/logs/github-mcp.log` |
 
 ---
 
@@ -146,7 +146,7 @@ logger = logging.getLogger(__name__)
 
 ### 4.1 機能概要
 
-MCP サーバのツール結果テキスト整形と構造化ログ出力に使う共通ユーティリティ。`fileop_mcp_server.py` / `web_search_mcp_server.py` / `github_mcp_server.py` の 3 サーバが import。Pure 関数のみで副作用なし。
+MCP サーバのツール結果テキスト整形と構造化ログ出力に使う共通ユーティリティ。`mcp/file/server.py` / `mcp/web_search/server.py` / `mcp/github/server.py` の 3 サーバが import。Pure 関数のみで副作用なし。
 
 ### 4.2 定数
 
@@ -184,6 +184,6 @@ fmt_kvlog("search_try", provider="bing", q="test", n=0, result="zero_results_fal
 
 | スクリプト | 使用関数 |
 |---|---|
-| `fileop_mcp_server.py` | `fmt_size`, `fmt_kvlog` |
-| `web_search_mcp_server.py` | `MAX_SNIPPET_CHARS`, `truncate`, `fmt_kvlog` |
-| `github_mcp_server.py` | `fmt_md_link`, `fmt_kvlog` |
+| `mcp/file/server.py` | `fmt_size`, `fmt_kvlog` |
+| `mcp/web_search/server.py` | `MAX_SNIPPET_CHARS`, `truncate`, `fmt_kvlog` |
+| `mcp/github/server.py` | `fmt_md_link`, `fmt_kvlog` |

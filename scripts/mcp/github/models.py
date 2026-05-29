@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-github_mcp_models.py
-Config loading and Pydantic request/response models for github_mcp_server.
+mcp/github/models.py
+Config loading and Pydantic request/response models for mcp/github/server.py.
 
-Dependency direction: github_mcp_models → (no local deps)
+Dependency direction: mcp.github.models → (no local deps)
 """
 
 from pydantic import BaseModel, Field
@@ -14,7 +14,7 @@ from shared.logger import Logger
 # Config loading (config/github_mcp_server.toml)
 # ──────────────────────────────────────────────────────────────────────────────
 # Logger is defined here only for config-load warnings; the main log path lives
-# in github_mcp_server.py (where Logger("/opt/llm/logs/github-mcp.log") is set).
+# in mcp/github/server.py (where Logger("/opt/llm/logs/github-mcp.log") is set).
 _models_logger = Logger(__name__, "/opt/llm/logs/github-mcp.log")
 
 _cfg: dict | None = None

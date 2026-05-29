@@ -21,8 +21,8 @@
 | [05_agent-ops.md](05_agent-ops.md) | エージェント 起動・確認・トラブルシューティング |
 | [05_agent-impl.md](05_agent-impl.md) | エージェント実装詳細・REPL フロー |
 | [06_common.md](06_common.md) | 共通モジュール インデックス |
-| [06_ref-sqlite.md](06_ref-sqlite.md) | sqlite_helper.py (DB 接続・WAL・トランザクション) |
-| [06_ref-infra.md](06_ref-infra.md) | インフラ共通モジュール (config_loader / rag_utils / logger / formatters) |
-| [06_ref-mcp.md](06_ref-mcp.md) | MCP プロトコル層モジュール (mcp_models / tool_executor 等) |
-| [06_ref-rag.md](06_ref-rag.md) | RAG パイプラインモジュール (agent_rag) |
-| [06_ref-agent.md](06_ref-agent.md) | エージェント実行層モジュール (agent_repl / agent_config 等) |
+| [06_ref-sqlite.md](06_ref-sqlite.md) | db/helper.py (DB 接続・WAL・トランザクション) |
+| [06_ref-infra.md](06_ref-infra.md) | インフラ共通モジュール (shared/config_loader / rag/utils / formatters) |
+| [06_ref-mcp.md](06_ref-mcp.md) | MCP プロトコル層モジュール (mcp/models.py / shared/tool_executor.py 等) |
+| [06_ref-rag.md](06_ref-rag.md) | RAG パイプラインモジュール (rag/pipeline.py) |
+| [06_ref-agent.md](06_ref-agent.md) | エージェント実行層モジュール (agent/repl.py / agent/config.py 等) |

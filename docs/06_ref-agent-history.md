@@ -1,4 +1,4 @@
-# history_manager.py
+# agent/history.py
 
 ## 1. 機能概要
 
@@ -7,7 +7,7 @@
 ## 2. API
 
 ```python
-from history_manager import HistoryManager
+from agent.history import HistoryManager
 
 mgr = HistoryManager(
     http=httpx.AsyncClient(...),
@@ -35,4 +35,4 @@ history = await mgr.compress(history)
 
 | スクリプト | 使用箇所 |
 |---|---|
-| `agent_repl.py` | `self._hist_mgr = HistoryManager(...)` を `run()` で生成し、`_compress_history()` から委譲 |
+| `agent/repl.py` | `self._hist_mgr = HistoryManager(...)` を `run()` で生成し、`_compress_history()` から委譲 |

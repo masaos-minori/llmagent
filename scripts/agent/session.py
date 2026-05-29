@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-agent_session.py
+agent/session.py
 SQLite-backed REPL session persistence manager.
 Handles session and message records for REPLAgent.
 """

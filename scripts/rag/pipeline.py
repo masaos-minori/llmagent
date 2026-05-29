@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-agent_rag.py
+rag/pipeline.py
 RAG pipeline orchestration: MQE → vector/FTS search → RRF → Cross-Encoder rerank.
 
 Pipeline order:
@@ -9,11 +9,11 @@ Pipeline order:
   [3] RRF     — RagScorer.rrf_merge
   [4] Rerank  — RagLLM.cross_encoder_rerank
 
-Module layout after split:
-  rag_types.py       — RagHit, LLMMessage TypedDicts
-  rag_repository.py  — RagRepository, RagScorer, SemanticCache, FTS helpers
-  rag_llm.py         — RagLLM, get_embedding, summarize_tool_result
-  agent_rag.py       — RagPipeline (this file)
+Module layout:
+  rag/types.py       — RagHit TypedDict; re-exports LLMMessage from shared/types.py
+  rag/repository.py  — RagRepository, RagScorer, SemanticCache, FTS helpers
+  rag/llm.py         — RagLLM, get_embedding, summarize_tool_result
+  rag/pipeline.py    — RagPipeline (this file)
 """
 
 import asyncio

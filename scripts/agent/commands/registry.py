@@ -34,8 +34,8 @@ from agent.context import AgentContext
 logger = logging.getLogger(__name__)
 
 # Re-export for callers that import from this module
-# agent_repl.py: from agent_commands import CommandRegistry, _budget_breakdown
-# agent_repl_tool_exec.py: from agent_commands import mask_args
+# agent/repl.py: from agent.commands.registry import CommandRegistry, _budget_breakdown
+# agent/repl_tool_exec.py: from agent.commands.registry import mask_args
 __all__ = ["CommandRegistry", "_budget_breakdown", "mask_args"]
 
 

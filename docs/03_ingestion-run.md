@@ -4,7 +4,7 @@ API リファレンス → [`docs/03_ref-ingestion.md`](03_ref-ingestion.md)
 
 ## 1. ドキュメント収集・投入
 
-取込は `web_crawler.py` → `chunk_splitter.py` → `rag_ingester.py` の 3 ステップで実行する。
+取込は `rag/ingestion/crawler.py` → `rag/ingestion/chunk_splitter.py` → `rag/ingestion/ingester.py` の 3 ステップで実行する。
 事前に `deploy/deploy.sh` でスクリプトが配置済みであること。
 
 ### 1.1 前提条件
@@ -55,8 +55,8 @@ python /opt/llm/scripts/rag_ingester.py --force
 
 | パス | 生成元 | フォーマット |
 |---|---|---|
-| `rag-src/yyyymmddhhmmss-{slug}.txt` | `web_crawler.py` | JSON: `{url, title, lang, fetched_at, content, code_blocks: [...]}` |
-| `rag-src/chunk/{stem}-{idx:04d}.txt` | `chunk_splitter.py` | JSON: `{url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content}` |
-| `rag-src/registered/{stem}-{idx:04d}.txt` | `rag_ingester.py` が移動 | 上記と同一 (処理済みを示す) |
+| `rag-src/yyyymmddhhmmss-{slug}.txt` | `rag/ingestion/crawler.py` | JSON: `{url, title, lang, fetched_at, content, code_blocks: [...]}` |
+| `rag-src/chunk/{stem}-{idx:04d}.txt` | `rag/ingestion/chunk_splitter.py` | JSON: `{url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content}` |
+| `rag-src/registered/{stem}-{idx:04d}.txt` | `rag/ingestion/ingester.py` が移動 | 上記と同一 (処理済みを示す) |
 
 拡張子は `.txt` でも中身は JSON。

@@ -12,7 +12,7 @@
 
 - Chat/Code LLM は OpenAI 互換。ストリーミングは `"stream": true` で SSE を返す
 - Embed LLM は llama.cpp レガシーエンドポイント。E5 モデルのプレフィックス (`passage:` / `query:`) を呼び出し元が付与する
-- MCP HTTP サーバー 3 本 (:8004/:8005/:8006) はすべて同一の `/v1/call_tool` 形式を共有する (`mcp_models.py` の `CallToolRequest`/`CallToolResponse`)
+- MCP HTTP サーバー 3 本 (:8004/:8005/:8006) はすべて同一の `/v1/call_tool` 形式を共有する (`mcp/models.py` の `CallToolRequest`/`CallToolResponse`)
 
 ---
 
@@ -30,7 +30,7 @@ AgentREPL は `:8004/:8005/:8006` の `/v1/call_tool` を直接 HTTP POST で呼
 
 ### 2.3 GitHub 許可リスト (`allowed_repos`)
 
-`GitHubService._assert_allowed_repo(owner, repo)` が `github_mcp_server.json["allowed_repos"]` を確認する。空リストは全リポジトリ許可。書き込み系 9 メソッド (`create_branch`, `create_or_update_file`, `push_files`, `delete_repo_file`, `create_issue`, `add_issue_comment`, `create_pull_request`, `update_pull_request`, `merge_pull_request`) の先頭で呼ばれる。
+`GitHubService._assert_allowed_repo(owner, repo)` が `github_mcp_server.toml["allowed_repos"]` を確認する。空リストは全リポジトリ許可。書き込み系 9 メソッド (`create_branch`, `create_or_update_file`, `push_files`, `delete_repo_file`, `create_issue`, `add_issue_comment`, `create_pull_request`, `update_pull_request`, `merge_pull_request`) の先頭で呼ばれる。
 
 ### 2.4 新規 MCP サーバー追加手順
 
@@ -52,9 +52,9 @@ agent[chat]> /mcp install <server-name>
 
 **手動手順 (全手順)**
 
-1. `mcp_server.py` の `MCPServer` をサブクラス化し `dispatch()` をオーバーライドする
+1. `mcp/server.py` の `MCPServer` をサブクラス化し `dispatch()` をオーバーライドする
 2. FastAPI に `/v1/tools` GET エンドポイントを追加する
 3. `agent.json` の `tool_definitions` にツール定義を追加する
-4. `config/agent.json` の `mcp_servers` セクションに新サーバのエントリ (`transport`, `url`, `openrc_service` 等) を追加する
+4. `config/agent.toml` の `mcp_servers` セクションに新サーバのエントリ (`transport`, `url`, `openrc_service` 等) を追加する
 5. `deploy/deploy.sh` のコピーリストに新ファイルを追加する
 6. `init.d/` に OpenRC スクリプトを追加し `deploy/setup_services.sh` に起動手順を追加する

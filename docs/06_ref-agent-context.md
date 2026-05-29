@@ -1,4 +1,4 @@
-# agent_context.py
+# agent/context.py
 
 ## 1. 機能概要
 
@@ -7,7 +7,7 @@
 ## 2. AgentContext API
 
 ```python
-from agent_context import AgentContext
+from agent.context import AgentContext
 
 ctx = AgentContext()
 ```

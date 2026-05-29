@@ -39,7 +39,7 @@ agent.py CLI REPL — RAG + MCP ツールコーリング統合フロー
   MCP サーバは HTTP 経由で呼び出す (ポート 8004/8005/8006)。
 
   - サブプロセス起動なし (MCP サーバが別途起動済みであること)
-  - config/agent.json の tool_definitions を LLM に提供する (デフォルト: 14 ツール)
+  - config/agent.toml の tool_definitions を LLM に提供する (デフォルト: 14 ツール)
   - LLM が tool_calls を返したら各 MCP サーバの統合エンドポイントに POST する:
       search_web → POST :8004/v1/call_tool {name, args}
       list_directory / read_text_file ... → POST :8005/v1/call_tool {name, args}
@@ -48,9 +48,9 @@ agent.py CLI REPL — RAG + MCP ツールコーリング統合フロー
 
 ### 3.2 使用可能なツール一覧
 
-`config/agent.json` の `tool_definitions` に定義済みの 14 ツール (`search_web`、`list_directory`、`read_text_file`、`directory_tree`、`search_files`、`write_file`、`create_directory`、`delete_file`、`delete_directory`、`grep_files`、`github_search_repositories`、`github_get_file_contents`、`github_list_issues`、`github_search_code`) が LLM に提供される。
+`config/agent.toml` の `tool_definitions` に定義済みの 14 ツール (`search_web`、`list_directory`、`read_text_file`、`directory_tree`、`search_files`、`write_file`、`create_directory`、`delete_file`、`delete_directory`、`grep_files`、`github_search_repositories`、`github_get_file_contents`、`github_list_issues`、`github_search_code`) が LLM に提供される。
 
-以下の表は各 MCP サーバが実装する全ツールの一覧。LLM に提供するツールは `config/agent.json` の `tool_definitions` で選択する。
+以下の表は各 MCP サーバが実装する全ツールの一覧。LLM に提供するツールは `config/agent.toml` の `tool_definitions` で選択する。
 
 | ツール名 | 呼び出し先 | 説明 |
 |---|---|---|
@@ -154,7 +154,7 @@ Slash commands:
   /undo                    Roll back the last user+assistant turn
   /history [n]             Show last N user/assistant messages (default: 5)
   /system [name]           Switch system prompt preset; list presets if no name given
-  /reload                  Reload config/agent.json and apply runtime parameters
+  /reload                  Reload config/agent.toml and apply runtime parameters
   /export [md|json] [file] Export conversation history
   /exit                    Exit (Ctrl-D also works)
 
@@ -175,7 +175,7 @@ Connectivity:
   github-mcp      :8006              OK
 
 agent[chat]> /config
-config: /opt/llm/config/common.json, /opt/llm/config/agent.json
+config: /opt/llm/config/common.toml, /opt/llm/config/agent.toml
 chat_url: http://127.0.0.1:8002/v1/chat/completions
 max_tool_turns: 5
 
@@ -206,39 +206,39 @@ MCP サーバ
 
 | パラメータ | ファイル | デフォルト | 調整方針 |
 |---|---|---|---|
-| `use_mqe` | `config/agent.json` | `true` | `false` にすると MQE をスキップして高速化できる |
-| `use_search` | `config/agent.json` | `true` | `false` にすると RAG 検索全体をスキップする |
-| `use_rrf` | `config/agent.json` | `true` | `false` にすると RRF (Reciprocal Rank Fusion: 相互順位融合) をスキップする |
-| `use_rerank` | `config/agent.json` | `true` | `false` にすると Cross-Encoder 再ランクをスキップして高速化できる |
-| `rag_min_score` | `config/agent.json` | `0.0` | Rerank スコア (0–10) がこの値未満のチャンクを除外する; デフォルト 0.0 はフィルタなし |
-| `max_chunks_per_doc` | `config/agent.json` | `2` | 同一ドキュメントから取得するチャンク数の上限; chunk_overlap による近似重複チャンクの多重投入を防ぐ |
-| `md_index_enable` | `config/agent.json` | `false` | `true` にすると `/ingest` で Markdown を見出し単位の snippet チャンキングとする; `--snippets-only` フラグでオーバーライド可能 |
+| `use_mqe` | `config/agent.toml` | `true` | `false` にすると MQE をスキップして高速化できる |
+| `use_search` | `config/agent.toml` | `true` | `false` にすると RAG 検索全体をスキップする |
+| `use_rrf` | `config/agent.toml` | `true` | `false` にすると RRF (Reciprocal Rank Fusion: 相互順位融合) をスキップする |
+| `use_rerank` | `config/agent.toml` | `true` | `false` にすると Cross-Encoder 再ランクをスキップして高速化できる |
+| `rag_min_score` | `config/agent.toml` | `0.0` | Rerank スコア (0–10) がこの値未満のチャンクを除外する; デフォルト 0.0 はフィルタなし |
+| `max_chunks_per_doc` | `config/agent.toml` | `2` | 同一ドキュメントから取得するチャンク数の上限; chunk_overlap による近似重複チャンクの多重投入を防ぐ |
+| `md_index_enable` | `config/agent.toml` | `false` | `true` にすると `/ingest` で Markdown を見出し単位の snippet チャンキングとする; `--snippets-only` フラグでオーバーライド可能 |
 | `md_snippet_max_chars` | `config/rag_pipeline.json` | `600` | Markdown 見出しセクション 1 件の最大文字数; 超過時は通常の text チャンキングにフォールバックする |
-| `use_two_stage_fetch` | `config/agent.json` | `false` | `true` のとき LLM が追加コンテキストを要求したと判断されたターンで全文展開→再送信を実行する |
-| `two_stage_max_docs` | `config/agent.json` | `2` | 2 段階取得で全文展開するドキュメント数の上限 |
-| `serial_tool_calls` | `config/agent.json` | `false` | `true` のとき tool_calls を `asyncio.gather()` の並列ではなく直列ループで実行する; write→read 等の依存関係がある呼び出しで順序保証が必要な場合に使用する |
-| `auto_inject_notes` | `config/agent.json` | `true` | `true` のとき起動時に `notes` テーブルの全メモをシステムプロンプト末尾の `[Notes]` ブロックとして付加する |
-| `use_tool_summarize` | `config/agent.json` | `false` | `true` のとき `tool_summarize_threshold` 文字超のツール結果を LLM で要約してから LLM コンテキストに追加する |
-| `tool_summarize_threshold` | `config/agent.json` | `3000` | ツール結果を要約対象とする文字数の下限 |
-| `use_semantic_cache` | `config/agent.json` | `false` | `true` のとき RAG 検索結果をクエリ埋め込みのコサイン類似度でキャッシュする; `semantic_cache_threshold` 以上の類似度で再利用 |
-| `semantic_cache_threshold` | `config/agent.json` | `0.92` | セマンティックキャッシュのヒット判定閾値 (コサイン類似度 0–1) |
-| `semantic_cache_max_size` | `config/agent.json` | `100` | セマンティックキャッシュの最大エントリ数; 超過時は古いエントリをFIFO削除 |
-| `tool_definitions_strict` | `config/agent.json` | `false` | `true` のとき起動時のツール定義ミスマッチ (agent.json と各 MCP サーバの `/v1/tools` の差分) を RuntimeError として扱い起動を中止する |
-| `mcp_watchdog_interval` | `config/agent.json` | `0` | MCP サーバ死活監視の確認間隔 (秒); `0` で無効; 正値を設定するとバックグラウンドタスクが定期ヘルスチェックを行い失敗時に `rc-service restart` を実行する |
-| `mcp_watchdog_max_restarts` | `config/agent.json` | `3` | ウォッチドッグが同一サーバに対して実行する最大再起動回数; 超過後は警告ログのみ |
-| `require_approval_tools` | `config/agent.json` | (GitHub 書き込み系) | 実行前に `y/N` 確認を要求するツール名リスト; 主に `github_create_*` / `github_push_files` / `github_merge_*` 等を列挙する |
-| `context_char_limit` | `config/agent.json` | `8000` | 会話履歴の総文字数がこの値を超えたとき古いターンを要約・圧縮する |
-| `context_compress_turns` | `config/agent.json` | `4` | 一度に圧縮する最古ターン数 (user+assistant ペア単位) |
-| `mqe_n_queries` | `config/agent.json` | 3 | MQE で生成するクエリ言い換え数; 増やすと再現率が上がるが遅くなる |
-| `top_k_search` | `config/agent.json` | 20 | KNN・BM25 それぞれの取得件数; 増やすと再現率が上がる |
-| `top_k_rerank` | `config/agent.json` | 15 | Cross-Encoder に渡す候補数; 増やすと精度が上がるが遅くなる |
-| `rrf_k` | `config/agent.json` | 60 | RRF の平滑化定数; 通常変更不要 |
-| `http_timeout` | `config/agent.json` | 120 秒 | 生成が遅い場合は増やす |
-| `llm_max_retries` | `config/agent.json` | 3 | HTTP 503/429・接続エラー時のリトライ上限; 増やすと粘り強くなるが応答遅延が増す |
-| `llm_retry_base_delay` | `config/agent.json` | 1.0 秒 | 指数バックオフ基準値; delay = base × 2^attempt (1s, 2s, 4s) |
-| `max_tool_turns` | `config/agent.json` | 5 | ツールコーリング最大ターン数; 超過時は最後の assistant メッセージを返す |
-| `mqe_prompt_template` | `config/agent.json` | (既定テキスト) | MQE クエリ言い換えプロンプトのテンプレート; `{n_queries}` / `{query}` をプレースホルダとして使用する |
-| `rerank_prompt_template` | `config/agent.json` | (既定テキスト) | Cross-Encoder 再ランクスコアリングプロンプトのテンプレート; `{query}` / `{items_text}` をプレースホルダとして使用する |
+| `use_two_stage_fetch` | `config/agent.toml` | `false` | `true` のとき LLM が追加コンテキストを要求したと判断されたターンで全文展開→再送信を実行する |
+| `two_stage_max_docs` | `config/agent.toml` | `2` | 2 段階取得で全文展開するドキュメント数の上限 |
+| `serial_tool_calls` | `config/agent.toml` | `false` | `true` のとき tool_calls を `asyncio.gather()` の並列ではなく直列ループで実行する; write→read 等の依存関係がある呼び出しで順序保証が必要な場合に使用する |
+| `auto_inject_notes` | `config/agent.toml` | `true` | `true` のとき起動時に `notes` テーブルの全メモをシステムプロンプト末尾の `[Notes]` ブロックとして付加する |
+| `use_tool_summarize` | `config/agent.toml` | `false` | `true` のとき `tool_summarize_threshold` 文字超のツール結果を LLM で要約してから LLM コンテキストに追加する |
+| `tool_summarize_threshold` | `config/agent.toml` | `3000` | ツール結果を要約対象とする文字数の下限 |
+| `use_semantic_cache` | `config/agent.toml` | `false` | `true` のとき RAG 検索結果をクエリ埋め込みのコサイン類似度でキャッシュする; `semantic_cache_threshold` 以上の類似度で再利用 |
+| `semantic_cache_threshold` | `config/agent.toml` | `0.92` | セマンティックキャッシュのヒット判定閾値 (コサイン類似度 0–1) |
+| `semantic_cache_max_size` | `config/agent.toml` | `100` | セマンティックキャッシュの最大エントリ数; 超過時は古いエントリをFIFO削除 |
+| `tool_definitions_strict` | `config/agent.toml` | `false` | `true` のとき起動時のツール定義ミスマッチ (agent.json と各 MCP サーバの `/v1/tools` の差分) を RuntimeError として扱い起動を中止する |
+| `mcp_watchdog_interval` | `config/agent.toml` | `0` | MCP サーバ死活監視の確認間隔 (秒); `0` で無効; 正値を設定するとバックグラウンドタスクが定期ヘルスチェックを行い失敗時に `rc-service restart` を実行する |
+| `mcp_watchdog_max_restarts` | `config/agent.toml` | `3` | ウォッチドッグが同一サーバに対して実行する最大再起動回数; 超過後は警告ログのみ |
+| `require_approval_tools` | `config/agent.toml` | (GitHub 書き込み系) | 実行前に `y/N` 確認を要求するツール名リスト; 主に `github_create_*` / `github_push_files` / `github_merge_*` 等を列挙する |
+| `context_char_limit` | `config/agent.toml` | `8000` | 会話履歴の総文字数がこの値を超えたとき古いターンを要約・圧縮する |
+| `context_compress_turns` | `config/agent.toml` | `4` | 一度に圧縮する最古ターン数 (user+assistant ペア単位) |
+| `mqe_n_queries` | `config/agent.toml` | 3 | MQE で生成するクエリ言い換え数; 増やすと再現率が上がるが遅くなる |
+| `top_k_search` | `config/agent.toml` | 20 | KNN・BM25 それぞれの取得件数; 増やすと再現率が上がる |
+| `top_k_rerank` | `config/agent.toml` | 15 | Cross-Encoder に渡す候補数; 増やすと精度が上がるが遅くなる |
+| `rrf_k` | `config/agent.toml` | 60 | RRF の平滑化定数; 通常変更不要 |
+| `http_timeout` | `config/agent.toml` | 120 秒 | 生成が遅い場合は増やす |
+| `llm_max_retries` | `config/agent.toml` | 3 | HTTP 503/429・接続エラー時のリトライ上限; 増やすと粘り強くなるが応答遅延が増す |
+| `llm_retry_base_delay` | `config/agent.toml` | 1.0 秒 | 指数バックオフ基準値; delay = base × 2^attempt (1s, 2s, 4s) |
+| `max_tool_turns` | `config/agent.toml` | 5 | ツールコーリング最大ターン数; 超過時は最後の assistant メッセージを返す |
+| `mqe_prompt_template` | `config/agent.toml` | (既定テキスト) | MQE クエリ言い換えプロンプトのテンプレート; `{n_queries}` / `{query}` をプレースホルダとして使用する |
+| `rerank_prompt_template` | `config/agent.toml` | (既定テキスト) | Cross-Encoder 再ランクスコアリングプロンプトのテンプレート; `{query}` / `{items_text}` をプレースホルダとして使用する |
 | `crawl_delay` | `config/rag_pipeline.json` | 1.5 秒 | サーバ負荷に応じて調整 |
 | `fetch_timeout` | `config/rag_pipeline.json` | 15 秒 | Crawler の 1 リクエストあたり HTTP タイムアウト秒数 |
 | `embed_workers` | `config/rag_pipeline.json` | 4 | RagIngester の埋込並列実行数; CPU コア数に応じて調整 |

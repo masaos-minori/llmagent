@@ -2,7 +2,7 @@
 Tool call execution helpers for AgentREPL.
 
 Standalone async functions taking AgentContext as first argument.
-Extracted from agent_repl.py to allow targeted loading when modifying
+Extracted from agent/repl.py to allow targeted loading when modifying
 tool approval or execution logic.
 """
 
@@ -384,7 +384,7 @@ async def execute_all_tool_calls(
         ctx.stat_tool_calls += 1
         if is_error:
             ctx.stat_tool_errors += 1
-            # Record error key for retry suppression in orchestrator.py.
+            # Record error key for retry suppression in agent/orchestrator.py.
             # Uses tool_call_key() to guarantee the same hash as the lookup side.
             if out_failed_keys is not None:
                 out_failed_keys.add(tool_call_key(name, args))

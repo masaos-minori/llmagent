@@ -33,7 +33,7 @@ from mcp.file.write_models import (
 )
 from mcp.server import ToolArgs
 
-# Standard library logger; log path is owned by file_write_mcp_server.py
+# Standard library logger; log path is owned by mcp/file/write_server.py
 logger = logging.getLogger(__name__)
 
 

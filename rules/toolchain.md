@@ -81,7 +81,7 @@ git diff --staged         # confirm what will be committed
 - `pre-commit run --all-files` passes
 - diff reviewed and staged selectively with `git add <file>`
 - `deploy/deploy.sh` updated if a file under `scripts/` was added or removed
-- `config/agent.json mcp_servers` updated if a new MCP server was added
+- `config/agent.toml mcp_servers` updated if a new MCP server was added
 
 ## Environment setup
 

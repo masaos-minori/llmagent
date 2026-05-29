@@ -87,13 +87,13 @@ POST http://127.0.0.1:8003/embedding
 
 ### 4.7 設定項目
 
-`config/common.json` と `config/rag_pipeline.json` を参照する。
+`config/common.toml` と `config/rag_pipeline.json` を参照する。
 
 | パラメータ | 設定ファイル | デフォルト | 説明 |
 |---|---|---|---|
-| `embed_url` | `config/common.json` | `http://127.0.0.1:8003/embedding` | 埋込 API のエンドポイント (llama.cpp レガシー形式) |
+| `embed_url` | `config/common.toml` | `http://127.0.0.1:8003/embedding` | 埋込 API のエンドポイント (llama.cpp レガシー形式) |
 | `rag_db_path` | `config/common.toml` | `/opt/llm/db/rag.sqlite` | SQLite データベースのパス |
-| `sqlite_vec_so` | `config/common.json` | `/opt/llm/sqlite-vec/vec0.so` | sqlite-vec 拡張 (.so) のパス |
+| `sqlite_vec_so` | `config/common.toml` | `/opt/llm/sqlite-vec/vec0.so` | sqlite-vec 拡張 (.so) のパス |
 | `rag_src_dir` | `config/rag_pipeline.json` | `/opt/llm/rag-src` | チャンクファイル入力ディレクトリ (`{rag_src_dir}/chunk/*.txt`) および登録済みファイル移動先 (`{rag_src_dir}/registered/`) |
 | `embed_retry` | `config/rag_pipeline.json` | `3` | 埋込 API 失敗時の指数バックオフリトライ上限回数 |
 | `embed_workers` | `config/rag_pipeline.json` | `4` | 埋込並列実行数。`ThreadPoolExecutor(embed_workers)` でチャンクを並列投入する |

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-file_read_mcp_tools.py
+mcp/file/read_tools.py
 MCP tool schema definitions for file-read-mcp server (inputSchema format).
 
-Imported by file_read_mcp_server.py to keep the server module under 400 lines.
+Imported by mcp/file/read_server.py to keep the server module under 400 lines.
 """
 
 from __future__ import annotations

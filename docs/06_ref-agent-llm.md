@@ -1,4 +1,4 @@
-# llm_client.py
+# shared/llm_client.py
 
 ## 1. 機能概要
 
@@ -46,7 +46,7 @@ parser.check_heartbeat(url)  # raises HEARTBEAT_TIMEOUT when idle
 ## 4. `LLMClient` API
 
 ```python
-from llm_client import LLMClient
+from shared.llm_client import LLMClient
 
 client = LLMClient(
     http=httpx.AsyncClient(...),
@@ -81,10 +81,10 @@ response = await client.stream(url, history, tool_defs)
 
 ## 5. `format_transport_error()` (tool_executor.py)
 
-LLM / ツール両方の transport 失敗に対応する共通メタ整形ユーティリティ。`orchestrator.py` がツール継続ターンの失敗時に使用。
+LLM / ツール両方の transport 失敗に対応する共通メタ整形ユーティリティ。`agent/orchestrator.py` がツール継続ターンの失敗時に使用。
 
 ```python
-from tool_executor import format_transport_error
+from shared.tool_executor import format_transport_error
 
 err = format_transport_error(
     source="llm", phase="in_stream", kind="HEARTBEAT_TIMEOUT",
@@ -96,7 +96,7 @@ err = format_transport_error(
 
 ## 6. 履歴整合ルール (orchestrator.py)
 
-`orchestrator.py` が `LLMTransportError` を捕捉した際の挙動:
+`agent/orchestrator.py` が `LLMTransportError` を捕捉した際の挙動:
 
 | ケース | 処理 |
 |---|---|
@@ -111,5 +111,5 @@ err = format_transport_error(
 
 | スクリプト | 使用箇所 |
 |---|---|
-| `agent_repl.py` | `ctx.services.llm = LLMClient(...)` を `run()` で生成 |
-| `orchestrator.py` | `_run_turn()` で `ctx.services.llm.stream()` を呼び出し。`LLMTransportError` を捕捉して pre_stream / partial completion / tool continuation fail に分岐。`ctx.tool_result_store` に LLM 失敗を保存 |
+| `agent/repl.py` | `ctx.services.llm = LLMClient(...)` を `run()` で生成 |
+| `agent/orchestrator.py` | `_run_turn()` で `ctx.services.llm.stream()` を呼び出し。`LLMTransportError` を捕捉して pre_stream / partial completion / tool continuation fail に分岐。`ctx.tool_result_store` に LLM 失敗を保存 |

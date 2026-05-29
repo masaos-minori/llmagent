@@ -6,11 +6,11 @@
 
 | ファイル | 収録モジュール |
 |---|---|
-| [`06_ref-sqlite.md`](06_ref-sqlite.md) | `sqlite_helper.py` |
-| [`06_ref-infra.md`](06_ref-infra.md) | `config_loader.py` / `rag_utils.py` / `logger.py` / `formatters.py` |
-| [`06_ref-mcp.md`](06_ref-mcp.md) | `mcp_models.py` / `mcp_server.py` / `tool_executor.py` |
-| [`06_ref-rag.md`](06_ref-rag.md) | `agent_rag.py` |
-| [`06_ref-agent.md`](06_ref-agent.md) | `agent_session.py` / `agent_repl.py` / `agent_config.py` / `agent_context.py` / `cli_view.py` / `agent_commands.py` / `llm_client.py` / `history_manager.py` |
+| [`06_ref-sqlite.md`](06_ref-sqlite.md) | `db/helper.py` |
+| [`06_ref-infra.md`](06_ref-infra.md) | `shared/config_loader.py` / `rag/utils.py` / `shared/logger.py` / `shared/formatters.py` |
+| [`06_ref-mcp.md`](06_ref-mcp.md) | `mcp/models.py` / `mcp/server.py` / `shared/tool_executor.py` |
+| [`06_ref-rag.md`](06_ref-rag.md) | `rag/pipeline.py` |
+| [`06_ref-agent.md`](06_ref-agent.md) | `agent/session.py` / `agent/repl.py` / `agent/config.py` / `agent/context.py` / `agent/cli_view.py` / `agent/commands/registry.py` / `shared/llm_client.py` / `agent/history.py` |
 
 ---
 
@@ -36,7 +36,7 @@ async def fn(args: dict) -> tuple[str, bool]:
 
 ### RagHit TypedDict
 
-`rag_types.py` で定義。検索・スコアリング結果を表す型。パイプライン各ステージで段階的にフィールドが追加される (`total=False` のため全フィールドオプション)。
+`rag/types.py` で定義。検索・スコアリング結果を表す型。パイプライン各ステージで段階的にフィールドが追加される (`total=False` のため全フィールドオプション)。
 
 ```python
 from rag_types import RagHit
@@ -55,7 +55,7 @@ from rag_types import RagHit
 
 ### LLMMessage TypedDict
 
-`rag_types.py` で定義。LLM API メッセージを表す型。`AgentContext.history` の要素型として使用 (`total=False` のため全フィールドオプション)。
+`rag/types.py` で定義。LLM API メッセージを表す型。`AgentContext.history` の要素型として使用 (`total=False` のため全フィールドオプション)。
 
 ```python
 from rag_types import LLMMessage

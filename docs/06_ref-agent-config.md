@@ -1,8 +1,8 @@
-# agent_config.py
+# agent/config.py
 
 ## 1. 機能概要
 
-`config/common.json` と `config/agent.json` を遅延ロードし、`AgentREPL` と各コンポーネントが共用する設定 dataclass を提供。
+`config/common.toml` と `config/agent.toml` を遅延ロードし、`AgentREPL` と各コンポーネントが共用する設定 dataclass を提供。
 
 - モジュールレベル定数は `_SCRIPTS_DIR` / `_CONFIG_DIR` (Path) のみ。他は全て `AgentConfig` フィールドに集約済み。
 - `_cfg: dict | None = None` → `_get_cfg()` (try/except 付きキャッシュ) で遅延ロード。
@@ -11,7 +11,7 @@
 
 ## 2. McpServerConfig dataclass
 
-1 台の MCP サーバのトランスポート設定を保持。`_build_mcp_servers()` が `agent.json` の `mcp_servers` セクションから構築。
+1 台の MCP サーバのトランスポート設定を保持。`_build_mcp_servers()` が `agent.toml` の `mcp_servers` セクションから構築。
 
 ```python
 @dataclass
@@ -29,7 +29,7 @@ class McpServerConfig:
 
 | 関数 | 戻り値 | 説明 |
 |---|---|---|
-| `_build_mcp_servers(cfg) -> dict[str, McpServerConfig]` | `dict` | `agent.json` の `mcp_servers` セクションから構築。キー例: `"web_search"` / `"file_read"` / `"file_write"` / `"file_delete"` / `"github"` |
+| `_build_mcp_servers(cfg) -> dict[str, McpServerConfig]` | `dict` | `agent.toml` の `mcp_servers` セクションから構築。キー例: `"web_search"` / `"file_read"` / `"file_write"` / `"file_delete"` / `"github"` |
 
 ## 3. AgentConfig dataclass
 
@@ -87,8 +87,8 @@ class AgentConfig:
     auto_inject_notes: bool                    # True のとき起動時に全ノートをシステムプロンプトへ注入
     use_tool_summarize: bool                   # True のとき長いツール結果を LLM 要約
     tool_summarize_threshold: int              # 要約対象の文字数下限
-    tool_definitions_strict: bool              # True のとき agent.json と /v1/tools 差分で起動中止
-    tool_definitions: list[dict] = field(...)  # agent.json から読み込むツール定義
+    tool_definitions_strict: bool              # True のとき agent.toml と /v1/tools 差分で起動中止
+    tool_definitions: list[dict] = field(...)  # agent.toml から読み込むツール定義
     tool_result_max_llm_chars: int = 8000      # ツール結果を LLM コンテキストに追加する文字数上限
     tool_results_turn_max_chars: int = 50000   # 1 ターン内の全ツール結果合計文字数上限
     masked_fields: list[str]                   # コンソール表示でマスクするツール引数フィールド名
@@ -177,7 +177,7 @@ class AgentConfig:
 
 ## 4. DbConfig dataclass
 
-SQLite 接続の不変設定を保持。`build_db_config()` で `common.json` から生成。
+SQLite 接続の不変設定を保持。`build_db_config()` で `common.toml` から生成。
 
 ```python
 @dataclass
@@ -193,7 +193,7 @@ class DbConfig:
 
 | 関数 | 戻り値 | 説明 |
 |---|---|---|
-| `build_db_config() -> DbConfig` | `DbConfig` | `common.json` から `DbConfig` インスタンスを生成する |
+| `build_db_config() -> DbConfig` | `DbConfig` | `common.toml` から `DbConfig` インスタンスを生成する |
 
 ## 5. モジュールレベル定数
 
@@ -204,11 +204,11 @@ class DbConfig:
 | `_SCRIPTS_DIR` | `Path` | scripts/ ディレクトリの絶対パス |
 | `_CONFIG_DIR` | `Path` | config/ ディレクトリの絶対パス |
 
-他モジュールがこれらを使う場合は関数スコープ内で `from agent_config import _SCRIPTS_DIR  # noqa: PLC0415` のようにインポートする (CLAUDE.md ルール)。
+他モジュールがこれらを使う場合は関数スコープ内で `from agent.config import _SCRIPTS_DIR  # noqa: PLC0415` のようにインポートする (CLAUDE.md ルール)。
 
 ## 6. 使用スクリプト
 
 | スクリプト | 使用箇所 |
 |---|---|
-| `agent_repl.py` | `build_agent_config()` で `AgentConfig` を生成し `ctx.cfg` に保持。`LLMClient` / `ToolExecutor` の初期化パラメータを `ctx.cfg` から取得 |
-| `agent_cmd_config.py` | `_apply_config_params()` で `ctx.cfg` フィールドを更新し各コンポーネントに同期。`_cmd_reload()` が呼び出す |
+| `agent/repl.py` | `build_agent_config()` で `AgentConfig` を生成し `ctx.cfg` に保持。`LLMClient` / `ToolExecutor` の初期化パラメータを `ctx.cfg` から取得 |
+| `agent/commands/cmd_config.py` | `_apply_config_params()` で `ctx.cfg` フィールドを更新し各コンポーネントに同期。`_cmd_reload()` が呼び出す |

@@ -2,7 +2,7 @@
 MCP server health monitoring and startup validation for AgentREPL.
 
 Standalone async functions taking AgentContext as first argument.
-Extracted from agent_repl.py to allow targeted loading when modifying
+Extracted from agent/repl.py to allow targeted loading when modifying
 health check or watchdog behaviour.
 """
 

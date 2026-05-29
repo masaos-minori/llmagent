@@ -6,9 +6,9 @@
 
 | ファイル | 内容 |
 |---|---|
-| [03_ref-crawler.md](03_ref-crawler.md) | `web_crawler.py` API |
-| [03_ref-splitter.md](03_ref-splitter.md) | `chunk_splitter.py` API |
-| [03_ref-ingester.md](03_ref-ingester.md) | `rag_ingester.py` API |
+| [03_ref-crawler.md](03_ref-crawler.md) | `rag/ingestion/crawler.py` API |
+| [03_ref-splitter.md](03_ref-splitter.md) | `rag/ingestion/chunk_splitter.py` API |
+| [03_ref-ingester.md](03_ref-ingester.md) | `rag/ingestion/ingester.py` API |
 
 ---
 
@@ -29,7 +29,7 @@ config/rag_pipeline.json の target_urls
 
 ### 5.2 FTS5 クエリ Sudachi フィルタ
 
-`agent_rag._build_fts_query()` は日本語クエリを `_build_fts_tokens_ja()` で処理し、名詞・動詞・形容詞の `normalized_form()` のみを FTS5 トークンとして使用する。`chunks_fts` は `normalized_content` (正規化形スペース結合) でインデックスされているため、クエリも同じ正規化形で照合する必要がある。Sudachi は `_get_sudachi_tokenizer()` で遅延初期化 (import 時の副作用ゼロ)。英語クエリは regex トークン化のまま。
+`rag/repository.py` の `_build_fts_query()` は日本語クエリを `_build_fts_tokens_ja()` で処理し、名詞・動詞・形容詞の `normalized_form()` のみを FTS5 トークンとして使用する。`chunks_fts` は `normalized_content` (正規化形スペース結合) でインデックスされているため、クエリも同じ正規化形で照合する必要がある。Sudachi は `_get_sudachi_tokenizer()` で遅延初期化 (import 時の副作用ゼロ)。英語クエリは regex トークン化のまま。
 
 ### 5.3 FTS5 / LLM コンテンツ分離
 

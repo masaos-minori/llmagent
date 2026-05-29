@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-orchestrator.py
+agent/orchestrator.py
 Turn-level orchestration: RAG augmentation -> history compression -> LLM streaming
 -> tool dispatch with duplicate call detection and consecutive error guard.
 Extracted from AgentREPL to separate UI loop from task control logic.

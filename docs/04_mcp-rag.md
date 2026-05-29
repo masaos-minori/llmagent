@@ -7,14 +7,14 @@
 - **ポート:** 8010
 - **OpenRC サービス名:** `rag-pipeline-mcp`
 - **関連スクリプト:**
-  - `scripts/rag_mcp_server.py` — FastAPI app + `RagPipelineMCPServer`
-  - `scripts/rag_pipeline_mcp_service.py` — `RagPipelineMCPService` (サービス層)
-  - `scripts/rag_pipeline_mcp_models.py` — Pydantic モデル + config adapter
+  - `scripts/mcp/rag_pipeline/server.py` — FastAPI app + `RagPipelineMCPServer`
+  - `scripts/mcp/rag_pipeline/service.py` — `RagPipelineMCPService` (サービス層)
+  - `scripts/mcp/rag_pipeline/models.py` — Pydantic モデル + config adapter
 
 ### 依存方向
 
 ```
-rag_pipeline_mcp_models → rag_pipeline_mcp_service → rag_mcp_server
+mcp/rag_pipeline/models → mcp/rag_pipeline/service → mcp/rag_pipeline/server
 ```
 
 ---
@@ -25,7 +25,7 @@ rag_pipeline_mcp_models → rag_pipeline_mcp_service → rag_mcp_server
 |---|---|---|
 | POST | `/rag_run_pipeline` | 通常パイプライン実行 |
 | POST | `/rag_debug_pipeline` | 全中間出力付き実行 |
-| POST | `/v1/search` | agent_rag.augment() 向け後方互換エンドポイント |
+| POST | `/v1/search` | `RagPipeline.augment()` 向け後方互換エンドポイント |
 | GET | `/v1/tools` | MCP ツール一覧 (最小互換形式) |
 | POST | `/v1/call_tool` | MCP 標準ツール呼び出し |
 | GET | `/health` | ヘルスチェック |
@@ -100,7 +100,7 @@ rag_pipeline_mcp_models → rag_pipeline_mcp_service → rag_mcp_server
 
 ## 4. 後方互換エンドポイント: `/v1/search`
 
-`agent_rag.py` の `augment()` メソッドが `rag_service_url` 設定時に呼び出す。
+`rag/pipeline.py` の `augment()` メソッドが `rag_service_url` 設定時に呼び出す。
 
 **リクエスト:**
 ```json
@@ -112,13 +112,13 @@ rag_pipeline_mcp_models → rag_pipeline_mcp_service → rag_mcp_server
 { "context": "string", "selected_hits": [{ ... }] }
 ```
 
-`selected_hits` は `agent_rag.py` が `self.last_reranked` に格納し、2 段階取得 (`use_two_stage_fetch`) に使用する。
+`selected_hits` は `rag/pipeline.py` が `self.last_reranked` に格納し、2 段階取得 (`use_two_stage_fetch`) に使用する。
 
 ---
 
-## 5. 設定ファイル: `config/rag_pipeline_mcp_server.json`
+## 5. 設定ファイル: `config/rag_pipeline_mcp_server.toml`
 
-`agent.json` / `common.json` から独立したプロセス固有設定。
+`config/agent.toml` / `config/common.toml` から独立したプロセス固有設定。
 
 | キー | 説明 | デフォルト |
 |---|---|---|
@@ -160,7 +160,7 @@ rag_pipeline_mcp_models → rag_pipeline_mcp_service → rag_mcp_server
 
 ### `build_rag_cfg_adapter(cfg)`
 
-`rag_pipeline_mcp_server.json` の dict から `RagPipeline` が参照する `cfg.*` フィールドを持つ `SimpleNamespace` を構築する。
+`rag_pipeline_mcp_server.toml` の dict から `RagPipeline` が参照する `cfg.*` フィールドを持つ `SimpleNamespace` を構築する。
 
 - `rag_service_url` は常に `""` (HTTP ループ防止)
 - `use_search` は常に `True`
@@ -186,7 +186,7 @@ rag_pipeline_mcp_models → rag_pipeline_mcp_service → rag_mcp_server
 }
 ```
 
-- `rag_service_url` が設定されると `agent_rag.augment()` が HTTP モードに切り替わる
+- `rag_service_url` が設定されると `RagPipeline.augment()` が HTTP モードに切り替わる
 - `mcp_servers.rag_pipeline` でウォッチドッグ死活監視・起動時 `/v1/tools` diff チェックが有効になる
 - `tool_definitions_strict=true` の場合は `tool_definitions` のツール名・description が `/v1/tools` レスポンスと完全一致する必要がある
 
@@ -196,7 +196,7 @@ rag_pipeline_mcp_models → rag_pipeline_mcp_service → rag_mcp_server
 
 ### モジュールレベル `_cfg` キャッシュの上書き
 
-`RagPipelineMCPService.start()` は `agent_rag._cfg`, `rag_llm._cfg`, `sqlite_helper._cfg` の 3 つのモジュールレベルキャッシュを `rag_pipeline_mcp_server.json` から読み込んだ値で上書きする。各 MCP サーバは独立プロセスで動作するため、プロセス間汚染は発生しない。
+`RagPipelineMCPService.start()` は `rag/pipeline.py`, `rag/llm.py`, `db/helper.py` の 3 モジュールの設定キャッシュを `rag_pipeline_mcp_server.toml` から読み込んだ値で上書きする。各 MCP サーバは独立プロセスで動作するため、プロセス間汚染は発生しない。
 
 ### SQLiteHelper 設定の強制再読み込み
 

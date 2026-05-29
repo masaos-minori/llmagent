@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-file_read_mcp_server.py
+mcp/file/read_server.py
 MCP server for read-only filesystem operations (port 8005).
 
 Provides an HTTP API via FastAPI for reading files and directories.

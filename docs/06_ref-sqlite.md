@@ -44,7 +44,7 @@ print(SQLiteHelper.SQLITE_VEC_SO)  # vec0.so の絶対パス
 ### API
 
 ```python
-from sqlite_helper import SQLiteHelper
+from db.helper import SQLiteHelper
 
 # RAG DB (rag.sqlite)
 with SQLiteHelper("rag").open() as db:
@@ -85,11 +85,11 @@ sqlite-vec 拡張をロード済みの接続を `self.conn` に格納し、`self
 |---|---|
 | `create_schema.py` | `with SQLiteHelper("rag").open(write_mode=True) as db:` — RAG スキーマ作成 |
 | `create_schema.py` | `with SQLiteHelper("session").open(write_mode=True) as db:` — セッションスキーマ作成 |
-| `rag_ingester.py` | `db.open(write_mode=True)` — WAL + 外部キー有効 (一括投入のため手動管理) |
-| `agent_repl.py` | `with SQLiteHelper("rag").open(row_factory=True) as db:` — RAG クエリ |
-| `agent_session.py` | `with SQLiteHelper("session").open(write_mode=True) as db:` — セッション永続化 |
-| `memory_store.py` | `with SQLiteHelper("session").open(write_mode=True) as db:` — メモリ層 |
-| `tool_result_store.py` | `with SQLiteHelper("session").open(...) as db:` — ツール結果保存 |
+| `rag/ingestion/ingester.py` | `db.open(write_mode=True)` — WAL + 外部キー有効 (一括投入のため手動管理) |
+| `agent/repl.py` | `with SQLiteHelper("rag").open(row_factory=True) as db:` — RAG クエリ |
+| `agent/session.py` | `with SQLiteHelper("session").open(write_mode=True) as db:` — セッション永続化 |
+| `agent/memory/store.py` | `with SQLiteHelper("session").open(write_mode=True) as db:` — メモリ層 |
+| `db/tool_results.py` | `with SQLiteHelper("session").open(...) as db:` — ツール結果保存 |
 
 #### SQLiteHelper.fetchall
 
@@ -181,9 +181,9 @@ db.vacuum()
 |---|---|---|
 | `create_schema.py` | `"rag"` / `"session"` | `create_rag_schema()` / `create_session_schema()` |
 | `migrate_db.py` | 両方 | rag.sqlite の session テーブルを session.sqlite に一回限り移行 |
-| `rag_ingester.py` | `"rag"` | `with SQLiteHelper("rag").open(write_mode=True) as db:` — 一括投入 |
-| `agent_repl.py` | `"rag"` | `with SQLiteHelper("rag").open(row_factory=True) as db:` (agent_rag 経由) |
-| `agent_session.py` | `"session"` | `with SQLiteHelper("session").open(write_mode=True) as db:` — セッション/メッセージ操作 |
-| `memory_store.py` | `"session"` | `with SQLiteHelper("session").open(...) as db:` — メモリ層 |
-| `tool_result_store.py` | `"session"` | `with SQLiteHelper("session").open(...) as db:` — ツール結果保存 |
-| `agent_rag.py` | `"rag"` | `fetchall(...)` — `vector_search` / `fts_search` が SQLiteHelper を受け取る |
+| `rag/ingestion/ingester.py` | `"rag"` | `with SQLiteHelper("rag").open(write_mode=True) as db:` — 一括投入 |
+| `agent/repl.py` | `"rag"` | `with SQLiteHelper("rag").open(row_factory=True) as db:` (rag/pipeline.py 経由) |
+| `agent/session.py` | `"session"` | `with SQLiteHelper("session").open(write_mode=True) as db:` — セッション/メッセージ操作 |
+| `agent/memory/store.py` | `"session"` | `with SQLiteHelper("session").open(...) as db:` — メモリ層 |
+| `db/tool_results.py` | `"session"` | `with SQLiteHelper("session").open(...) as db:` — ツール結果保存 |
+| `rag/pipeline.py` | `"rag"` | `fetchall(...)` — `vector_search` / `fts_search` が SQLiteHelper を受け取る |

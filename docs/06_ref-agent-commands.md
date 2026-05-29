@@ -1,4 +1,4 @@
-# agent_commands.py (CommandRegistry)
+# agent/commands/registry.py (CommandRegistry)
 
 ## 1. 機能概要
 
@@ -8,18 +8,18 @@
 
 | ミックスイン | ファイル | 担当コマンド |
 |---|---|---|
-| `_SessionMixin` | `agent_cmd_session.py` | `/session` 系 |
-| `_McpMixin` | `agent_cmd_mcp.py` | `/mcp` 系 |
-| `_ConfigMixin` | `agent_cmd_config.py` | `/config`, `/stats`, `/set`, `/reload` |
-| `_ContextMixin` | `agent_cmd_context.py` | `/context`, `/clear`, `/undo`, `/history`, `/system`, `/db` |
-| `_RagMixin` | `agent_cmd_rag.py` | `/rag`, `/tool`, `/note`, `/plan`, `/debug` |
-| `_IngestMixin` | `agent_cmd_ingest.py` | `/ingest`, `/export`, `/compact` |
+| `_SessionMixin` | `agent/commands/cmd_session.py` | `/session` 系 |
+| `_McpMixin` | `agent/commands/cmd_mcp.py` | `/mcp` 系 |
+| `_ConfigMixin` | `agent/commands/cmd_config.py` | `/config`, `/stats`, `/set`, `/reload` |
+| `_ContextMixin` | `agent/commands/cmd_context.py` | `/context`, `/clear`, `/undo`, `/history`, `/system`, `/db` |
+| `_RagMixin` | `agent/commands/cmd_rag.py` | `/rag`, `/tool`, `/note`, `/plan`, `/debug` |
+| `_IngestMixin` | `agent/commands/cmd_ingest.py` | `/ingest`, `/export`, `/compact` |
 
 ## 2. API
 
 ```python
-from agent_commands import CommandRegistry
-from agent_context import AgentContext
+from agent.commands.registry import CommandRegistry
+from agent.context import AgentContext
 
 cmds = CommandRegistry(ctx)
 matched = await cmds.dispatch("/stats")
@@ -67,10 +67,10 @@ matched = await cmds.dispatch("/stats")
 | `_cmd_ingest(args) -> None` | URL またはローカルファイルパスをクロール→チャンク分割→DB 投入まで一括実行 |
 | `_cmd_compact() -> None` | 閾値に関わらず会話履歴を即時圧縮 |
 | `_apply_config_params(new_cfg) -> None` | `ctx.cfg` フィールドを更新し各コンポーネントに同期 |
-| `_cmd_reload() -> None` | `config/agent.json` を再読み込みし `_apply_config_params()` で即時反映 |
+| `_cmd_reload() -> None` | `config/agent.toml` を再読み込みし `_apply_config_params()` で即時反映 |
 
 ## 3. 使用スクリプト
 
 | スクリプト | 使用箇所 |
 |---|---|
-| `agent_repl.py` | `self._cmds = CommandRegistry(ctx)` を `run()` で生成し、`_repl_loop()` が `await self._cmds.dispatch(line)` を呼ぶ |
+| `agent/repl.py` | `self._cmds = CommandRegistry(ctx)` を `run()` で生成し、`_repl_loop()` が `await self._cmds.dispatch(line)` を呼ぶ |

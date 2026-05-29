@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-agent_cmd_mcp.py
+agent/commands/cmd_mcp.py
 MCP server management mixin for CommandRegistry.
 
-Extracted from agent_commands.py.  Provides _McpMixin with:
+Extracted from agent/commands/registry.py.  Provides _McpMixin with:
   _cmd_mcp_http              — /mcp status: transport config + connectivity probe
   _cmd_mcp                   — /mcp dispatcher
   _cmd_mcp_install           — /mcp install wizard: scaffold template files
@@ -139,23 +139,23 @@ class _McpMixin:
         print()
         print("Next steps:")
         print(
-            f"  1. Edit scripts/{module}_mcp_server.py — implement _DISPATCH handlers"
+            f"  1. Edit scripts/mcp/{module}/server.py — implement _DISPATCH handlers"
         )
         print()
         print("  2. Add tool definition to config/agent.toml (tool_definitions array):")
         for line in snippet.splitlines():
             print(f"     {line}")
         print()
-        print("  3. Add to agent_repl.py _MCP_SERVICE_MAP:")
+        print("  3. Add to agent/repl.py _MCP_SERVICE_MAP:")
         print(f'     "http://127.0.0.1:{port}": "{server_name}",')
         print()
         print("  4. Add to deploy/deploy.sh:")
         print(
-            f'     cp "${{REPO_ROOT}}/scripts/{module}_mcp_server.py"'
-            f' "${{DEPLOY_SCRIPTS}}/"'
+            f'     cp -r "${{REPO_ROOT}}/scripts/mcp/{module}"'
+            f' "${{DEPLOY_SCRIPTS}}/mcp/"'
         )
         print(
-            f'     cp "${{REPO_ROOT}}/config/{module}_mcp_server.json"'
+            f'     cp "${{REPO_ROOT}}/config/{module}_mcp_server.toml"'
             f' "${{DEPLOY_CONFIG}}/"'
         )
         print()

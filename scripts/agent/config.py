@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-agent_config.py
+agent/config.py
 Shared configuration dataclass and loader for the agent pipeline.
 All runtime-configurable values live in AgentConfig (hot-reloadable via /reload).
 Only path constants remain at module level.

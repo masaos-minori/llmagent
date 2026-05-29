@@ -7,10 +7,10 @@
 `agent.py` は CLI REPL ツール。`deploy/deploy.sh` 実行後、LLM サービス (llama-chat-llm または llama-coding-llm) が起動済みであることを確認してから起動。
 
 ```bash
-# agent.py と関連モジュールを配置する (deploy.sh で一括実施可能)
-cp scripts/agent.py          /opt/llm/scripts/
-cp scripts/agent_repl.py      /opt/llm/scripts/
-cp scripts/config_loader.py   /opt/llm/scripts/
+# agent.py とパッケージ群を配置する (deploy.sh で一括実施可能)
+cp scripts/agent.py                /opt/llm/scripts/
+cp -r scripts/agent               /opt/llm/scripts/agent
+cp -r scripts/shared              /opt/llm/scripts/shared
 
 # エージェントを起動する
 # agent.py 先頭で sys.path を自動設定するため、任意のディレクトリから起動可能
@@ -103,7 +103,7 @@ tail -f /opt/llm/logs/audit.log | jq 'select(.event == "turn_end") | {turn_id: .
 
 ### 7.2 OpenTelemetry スパンを確認する (otel_enabled=true, otel_endpoint="")
 
-`config/agent.json` で `otel_enabled: true` かつ `otel_endpoint: ""` に設定すると、
+`config/agent.toml` で `otel_enabled: true` かつ `otel_endpoint: ""` に設定すると、
 ConsoleSpanExporter がスパンを標準出力 / `agent.log` に書き出す。
 
 ```bash

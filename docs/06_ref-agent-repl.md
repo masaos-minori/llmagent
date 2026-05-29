@@ -2,17 +2,17 @@
 
 ## 1. 機能概要
 
-`AgentREPL` (`agent_repl.py`) は全コンポーネントを `AgentContext` へ依存性注入し、REPL ループを駆動する薄いコーディネータ。ターンレベルのロジック (RAG 付加・LLM ループ・ツールディスパッチ) は `Orchestrator` (`orchestrator.py`) に委譲。`agent.py` が `AgentREPL().run()` で起動。
+`AgentREPL` (`agent/repl.py`) は全コンポーネントを `AgentContext` へ依存性注入し、REPL ループを駆動する薄いコーディネータ。ターンレベルのロジック (RAG 付加・LLM ループ・ツールディスパッチ) は `Orchestrator` (`agent/orchestrator.py`) に委譲。`agent.py` が `AgentREPL().run()` で起動。
 
 実装は 3 つのサテライトモジュールに分割:
-- `agent_repl_health.py` — MCP 死活監視・ウォッチドッグループ
-- `agent_repl_tool_exec.py` — ツール呼び出し承認・実行 (→ §4)
-- `agent_repl_debug.py` — RAG デバッグプリンタ・コンテキストユーティリティ (純粋関数)
+- `agent/repl_health.py` — MCP 死活監視・ウォッチドッグループ
+- `agent/repl_tool_exec.py` — ツール呼び出し承認・実行 (→ §4)
+- `agent/repl_debug.py` — RAG デバッグプリンタ・コンテキストユーティリティ (純粋関数)
 
 ## 2. AgentREPL API
 
 ```python
-from agent_repl import AgentREPL
+from agent.repl import AgentREPL
 
 await AgentREPL().run()
 ```
@@ -29,7 +29,7 @@ await AgentREPL().run()
 ## 3. Orchestrator API
 
 ```python
-from orchestrator import Orchestrator
+from agent.orchestrator import Orchestrator
 
 orch = Orchestrator(ctx, cmds, on_turn_start=..., on_turn_end=..., on_error=..., tracer=...)
 await orch.handle_turn(line)

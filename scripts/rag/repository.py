@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-rag_repository.py
+rag/repository.py
 RAG data-access layer: FTS5/vector search, RRF merge, and document fetching.
 
-Extracted from agent_rag.py.  Contains:
+Extracted from rag/pipeline.py.  Contains:
   - Japanese FTS5 tokenization helpers (Sudachi)
   - RagRepository  — all SQL confined here
   - RagScorer      — Reciprocal Rank Fusion (RRF)

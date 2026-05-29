@@ -273,7 +273,7 @@ def tool_call_key(name: str, args: dict) -> str:
 
     Normalises dict key order via sort_keys so that LLM-generated argument
     objects with varying key order produce the same key.
-    Both orchestrator.py (lookup) and agent_repl_tool_exec.py (insert)
+    Both agent/orchestrator.py (lookup) and agent/repl_tool_exec.py (insert)
     must use this function to guarantee key identity.
     """
     return hashlib.md5(  # nosec B324 — non-security hash for dedup key identity

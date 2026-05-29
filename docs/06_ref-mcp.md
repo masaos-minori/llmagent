@@ -4,22 +4,22 @@ MCP (Model Context Protocol) サーバとのプロトコル通信を担うモジ
 
 | モジュール | 役割 |
 |---|---|
-| `mcp_models.py` | `/v1/call_tool` 統合エンドポイント共通 Pydantic モデル |
-| `mcp_server.py` | MCP サーバ HTTP 起動共通基底クラス |
-| `tool_executor.py` | `ToolExecutor` — MCP HTTP ルーティング・TTL キャッシュ・エラーハンドリング |
+| `mcp/models.py` | `/v1/call_tool` 統合エンドポイント共通 Pydantic モデル |
+| `mcp/server.py` | MCP サーバ HTTP 起動共通基底クラス |
+| `shared/tool_executor.py` | `ToolExecutor` — MCP HTTP ルーティング・TTL キャッシュ・エラーハンドリング |
 
 ---
 
-## 1. mcp_models.py
+## 1. mcp/models.py
 
 ### 1.1 機能概要
 
-`fileop_mcp_server.py` / `web_search_mcp_server.py` / `github_mcp_server.py` の `/v1/call_tool` 統合エンドポイントで共用する Pydantic モデルを定義。3 サーバで同一のリクエスト/レスポンス型を共有することで重複を排除。
+`mcp/file/server.py` / `mcp/web_search/server.py` / `mcp/github/server.py` の `/v1/call_tool` 統合エンドポイントで共用する Pydantic モデルを定義。各サーバで同一のリクエスト/レスポンス型を共有することで重複を排除。
 
 ### 1.2 API
 
 ```python
-from mcp_models import CallToolRequest, CallToolResponse
+from mcp.models import CallToolRequest, CallToolResponse
 ```
 
 | クラス | フィールド | 説明 |
@@ -33,17 +33,17 @@ from mcp_models import CallToolRequest, CallToolResponse
 
 | スクリプト | 使用箇所 |
 |---|---|
-| `web_search_mcp_server.py` | `POST /v1/call_tool` エンドポイントの Request/Response モデル |
-| `fileop_mcp_server.py` | `POST /v1/call_tool` エンドポイントの Request/Response モデル |
-| `github_mcp_server.py` | `POST /v1/call_tool` エンドポイントの Request/Response モデル |
+| `mcp/web_search/server.py` | `POST /v1/call_tool` エンドポイントの Request/Response モデル |
+| `mcp/file/read_server.py` / `write_server.py` / `delete_server.py` | `POST /v1/call_tool` エンドポイントの Request/Response モデル |
+| `mcp/github/server.py` | `POST /v1/call_tool` エンドポイントの Request/Response モデル |
 
 ---
 
-## 2. mcp_server.py
+## 2. mcp/server.py
 
 ### 2.1 機能概要
 
-MCP サーバの HTTP 起動ロジックを提供する基底クラス。`fileop_mcp_server.py` / `web_search_mcp_server.py` / `github_mcp_server.py` が継承。`run()` は uvicorn で HTTP サーバを起動。
+MCP サーバの HTTP 起動ロジックを提供する基底クラス。`mcp/file/server.py` / `mcp/web_search/server.py` / `mcp/github/server.py` が継承。`run()` は uvicorn で HTTP サーバを起動。
 
 ### 2.2 クラス属性
 
@@ -55,7 +55,7 @@ MCP サーバの HTTP 起動ロジックを提供する基底クラス。`fileop
 | `server_version` | `str` | バージョン文字列 (例: `"3.0.0"`) |
 | `http_host` | `str` | HTTP 待受ホスト (デフォルト: `"127.0.0.1"`) |
 | `http_port` | `int` | HTTP 待受ポート番号 (例: `8004`) |
-| `app_module` | `str` | uvicorn 起動ターゲット (例: `"web_search_mcp_server:app"`) |
+| `app_module` | `str` | uvicorn 起動ターゲット (例: `"mcp.web_search.server:app"`) |
 | `mcp_tools` | `list[dict]` | `tools/list` レスポンスに返すツール定義リスト |
 
 ### 2.3 API
@@ -67,10 +67,10 @@ MCP サーバの HTTP 起動ロジックを提供する基底クラス。`fileop
 
 ### 2.4 モジュールレベル関数・型エイリアス
 
-`mcp_server.py` はクラスに加え、型エイリアスとサブクラス共通の dispatch エラーハンドリングをまとめたユーティリティ関数を公開。
+`mcp/server.py` はクラスに加え、型エイリアスとサブクラス共通の dispatch エラーハンドリングをまとめたユーティリティ関数を公開。
 
 ```python
-from mcp_server import ToolArgs, dispatch_tool
+from mcp.server import ToolArgs, dispatch_tool
 ```
 
 型エイリアス:
@@ -85,18 +85,18 @@ from mcp_server import ToolArgs, dispatch_tool
 |---|---|---|
 | `dispatch_tool` | `(table: dict[str, Callable[[ToolArgs], Awaitable[str]]], name: str, args: ToolArgs) -> tuple[str, bool]` | ディスパッチテーブル経由でツール呼び出しを実行し、`(result_text, is_error)` を返す。未知のツール名は `("Unknown tool: <name>", True)` を返す。`FastAPI.HTTPException` はダックタイピング (`hasattr(e, "status_code")`) で検出して HTTP エラーコードとメッセージを返す。それ以外の例外は `("Tool error: <e>", True)` に変換する |
 
-`fileop_mcp_server.py` / `web_search_mcp_server.py` / `github_mcp_server.py` の各 `_dispatch_*_tool()` 関数がこれを使用。
+`mcp/file/server.py` / `mcp/web_search/server.py` / `mcp/github/server.py` の各 `_dispatch_*_tool()` 関数がこれを使用。
 
 ### 2.5 サブクラス実装パターン
 
 ```python
-from mcp_server import MCPServer
+from mcp.server import MCPServer
 
 class WebSearchMCPServer(MCPServer):
     server_name    = "web-search-mcp"
     server_version = "3.0.0"
     http_port      = 8004
-    app_module     = "web_search_mcp_server:app"
+    app_module     = "mcp.web_search.server:app"
     mcp_tools      = _MCP_TOOLS
 
     async def dispatch(self, name: str, args: dict) -> tuple[str, bool]:
@@ -111,11 +111,11 @@ if __name__ == "__main__":
 
 ---
 
-## 3. tool_executor.py
+## 3. shared/tool_executor.py
 
 ### 3.1 機能概要
 
-`AgentREPL` から抽出したツール実行レイヤー。ツール名による MCP サーバルーティング・TTL キャッシュ・エラーハンドリングを担当。`AgentREPL().run()` で `ToolExecutor` インスタンスを生成し、`self._tools` として保持。
+`AgentREPL` から抽出したツール実行レイヤー。ツール名による MCP サーバルーティング・TTL キャッシュ・エラーハンドリングを担当。`AgentREPL._init_components()` で `ToolExecutor` インスタンスを生成し、`ctx.services.tools` として保持。
 
 2 種類のトランスポートをサポート:
 - `HttpTransport` — `httpx.AsyncClient` で HTTP MCP サーバの `/v1/call_tool` を呼び出す
@@ -124,8 +124,8 @@ if __name__ == "__main__":
 ### 3.2 API
 
 ```python
-from tool_executor import HttpTransport, StdioTransport, ToolExecutor
-from agent_config import McpServerConfig
+from shared.tool_executor import HttpTransport, StdioTransport, ToolExecutor
+from agent.config import McpServerConfig
 
 server_configs = {
     "web_search": McpServerConfig("http", "http://127.0.0.1:8004", [], "web-search-mcp"),
@@ -206,7 +206,7 @@ async def my_tool(args: dict) -> tuple[str, bool]:
 
 | スクリプト | 使用箇所 |
 |---|---|
-| `agent_repl.py` | `_init_components()` で `ToolExecutor` を生成し `ctx.tools` に保持。stdio サーバは `_start_stdio_servers()` で起動後に `set_transport()` で登録 |
+| `agent/repl.py` | `_init_components()` で `ToolExecutor` を生成し `ctx.tools` に保持。stdio サーバは `_start_stdio_servers()` で起動後に `set_transport()` で登録 |
 
 ---
 

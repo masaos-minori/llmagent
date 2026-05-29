@@ -3,19 +3,19 @@
 AgentREPL
 Interactive REPL agent with RAG augmentation and MCP tool calling.
 Imported by agent.py as the entry point.
-Slash-command handlers live in agent_commands.CommandRegistry.
-Turn-level orchestration (RAG, LLM loop, tool dispatch) lives in orchestrator.py.
+Slash-command handlers live in agent/commands/registry.CommandRegistry.
+Turn-level orchestration (RAG, LLM loop, tool dispatch) lives in agent/orchestrator.py.
 
 Architecture (dependency injection via AgentContext):
-  AgentContext   — shared mutable state container (agent_context.py)
-  CLIView        — readline, multiline input, RAG progress display (cli_view.py)
-  LLMClient      — HTTP retry, payload build, SSE stream (llm_client.py)
-  RagPipeline    — MQE -> search -> RRF -> rerank orchestration (agent_rag.py)
-  ToolExecutor   — MCP routing, error handling, TTL cache (tool_executor.py)
-  HistoryManager — character counting, LLM-based compression (history_manager.py)
-  CommandRegistry — slash-command dispatch (agent_commands.py)
-  Orchestrator   — per-turn task control: RAG, LLM loop, tool dispatch (orchestrator.py)
-  AgentConfig    — mutable runtime config dataclass (agent_config.py)
+  AgentContext   — shared mutable state container (agent/context.py)
+  CLIView        — readline, multiline input, RAG progress display (agent/cli_view.py)
+  LLMClient      — HTTP retry, payload build, SSE stream (shared/llm_client.py)
+  RagPipeline    — MQE -> search -> RRF -> rerank orchestration (rag/pipeline.py)
+  ToolExecutor   — MCP routing, error handling, TTL cache (shared/tool_executor.py)
+  HistoryManager — character counting, LLM-based compression (agent/history.py)
+  CommandRegistry — slash-command dispatch (agent/commands/registry.py)
+  Orchestrator   — per-turn task control: RAG, LLM loop, tool dispatch (agent/orchestrator.py)
+  AgentConfig    — mutable runtime config dataclass (agent/config.py)
 
 AgentREPL responsibilities:
   _repl_loop           — main input/dispatch loop
