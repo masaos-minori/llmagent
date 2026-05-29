@@ -21,7 +21,7 @@ without disrupting the running agent or MCP servers.
 - Scripts live at: `/opt/llm/scripts/`
 - Configs live at: `/opt/llm/config/`
 - Logs live at: `/opt/llm/logs/`
-- DB: SQLite at path in `config/common.json`
+- DB: SQLite at path in `config/common.toml`
 - `sqlite-vec` extension: `/opt/llm/sqlite-vec/vec0.so`
 
 For service names and ports: see `rules/env.md`.
@@ -44,8 +44,6 @@ For service names and ports: see `rules/env.md`.
 | 4 Verify | Log check + basic operation | No new errors in logs |
 
 See `workflow.md` for detailed phase content including failure recovery procedures.
-
-**Execution policy** — run non-destructive commands (file reads, grep, syntax checks, status checks) directly without asking for user confirmation. These are always safe to execute; user approval before each run is explicitly not required.
 
 ## Completion checklist
 

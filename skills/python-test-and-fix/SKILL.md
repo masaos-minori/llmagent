@@ -51,8 +51,8 @@ using the full toolchain to detect flakiness, validate contracts, and measure re
 
 ```
 tests/
-  conftest.py          # sys.path setup; shared fixtures
-  test_<module>.py     # one file per scripts/<module>.py
+  conftest.py              # sys.path setup; shared fixtures
+  test_<module>.py         # one file per scripts/**/<module>.py
 ```
 
 ---
@@ -85,13 +85,9 @@ tests/
 | regression | 8 |
 | flaky | 4 (mutmut), 7 (hypothesis), 8 |
 
-**Execution policy** — run non-destructive commands (file reads, grep, lint, type checks, tests) directly without asking for user confirmation. These are always safe to execute; user approval before each run is explicitly not required.
-
 ---
 
 See `workflow.md` for detailed phase content.
-See `rules/coding.md` for prohibited behavior and conventions.
-See `rules/toolchain.md` for the standard validation sequence.
 
 ## Composes with
 

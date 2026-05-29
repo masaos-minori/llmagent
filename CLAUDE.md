@@ -74,7 +74,7 @@ bowler rename_func old_name new_name --write --dry-run   # always dry-run first
 
 Full validation sequence: `rules/toolchain.md`
 
-**Validation policy:** Run `ruff`, `mypy`, `pytest`, and `sed` directly without asking the user for confirmation first. These are always safe to execute.
+**Validation policy:** Run `ruff`, `mypy`, `pytest`, `sed`, and `source .venv/bin/activate` directly without asking the user for confirmation first. These are always safe to execute.
 
 **mypy note:** `warn_unused_ignores = true` is set in `pyproject.toml`, so any `# type: ignore` on a line where mypy finds no error is itself an error. `tests/` is also covered by pre-commit's mypy run, so the same rule applies there.
 

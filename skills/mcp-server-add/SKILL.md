@@ -18,11 +18,15 @@ wire the agent routing, and verify the server is reachable.
 
 | Service name | Module | Port |
 |---|---|---|
-| `web-search-mcp` | `web_search_mcp_server.py` | 8004 |
-| `file-mcp` | `fileop_mcp_server.py` | 8005 |
-| `github-mcp` | `github_mcp_server.py` | 8006 |
+| `web-search-mcp` | `mcp/web_search/server.py` | 8004 |
+| `file-read-mcp` | `mcp/file/read_server.py` | 8005 |
+| `github-mcp` | `mcp/github/server.py` | 8006 |
+| `file-write-mcp` | `mcp/file/write_server.py` | 8007 |
+| `file-delete-mcp` | `mcp/file/delete_server.py` | 8008 |
+| `shell-mcp` | `mcp/shell/server.py` | 8009 |
+| `rag-pipeline-mcp` | `mcp/rag_pipeline/server.py` | 8010 |
 
-New servers must use port ≥ 8007.
+New servers must use port ≥ 8011.
 
 ## Prerequisites
 
@@ -39,13 +43,11 @@ New servers must use port ≥ 8007.
 
 See `workflow.md` for detailed step content, failure recovery, and idempotency notes.
 
-**Execution policy** — run non-destructive commands (file reads, grep, syntax checks, status checks) directly without asking for user confirmation. These are always safe to execute; user approval before each run is explicitly not required.
-
 ## Completion checklist
 
-- `scripts/<name>_mcp_server.py` syntax check passes
-- `deploy/deploy.sh` updated with new file
-- `_MCP_SERVICE_MAP` in `agent_repl.py` updated (verified with `rg "_MCP_SERVICE_MAP"`)
+- `scripts/mcp/<name>/server.py` syntax check passes
+- `deploy/deploy.sh` updated with new files
+- `_MCP_SERVICE_MAP` in `agent/repl.py` updated (verified with `rg "_MCP_SERVICE_MAP"`)
 - service registered and running (`rc-service <name> status`)
 - `/mcp` in agent REPL shows the new server as healthy
 - no errors in `agent.log` during tool invocation

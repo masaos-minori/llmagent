@@ -70,15 +70,9 @@ using the full toolchain to enforce architecture, security, and observability at
 **Fast path** — for small, self-contained bug fixes (≤ 2 files, no interface change):
 skip Phases 3, 6, 7, 10 (benchmark); run 1, 2, 4, 5, 8, 9, 11, 12.
 
-**Validation execution policy** — run `ruff`, `mypy`, `pytest`, and `sed` directly without
-asking the user for confirmation first. These tools are always safe to execute and
-user approval before each run is explicitly not required.
-
 ---
 
 See `workflow.md` for detailed phase content.
-See `rules/coding.md` for prohibited behavior and conventions.
-See `rules/toolchain.md` for the standard validation sequence.
 
 ## Composes with
 

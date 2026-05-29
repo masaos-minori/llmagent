@@ -65,13 +65,9 @@ correctness, readability, and minimal change scope.
 - `lint-imports` violation → start at Step 3
 - `bandit` finding → start at Step 7
 
-**Execution policy** — run non-destructive commands (file reads, grep, lint, type checks, tests) directly without asking for user confirmation. These are always safe to execute; user approval before each run is explicitly not required.
-
 ---
 
 See `workflow.md` for detailed phase content.
-See `rules/coding.md` for prohibited behavior and conventions.
-See `rules/toolchain.md` for the standard validation sequence.
 
 ## Composes with
 
