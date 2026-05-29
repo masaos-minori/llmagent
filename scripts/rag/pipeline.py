@@ -205,6 +205,64 @@ class RagPipeline:
         finally:
             self._on_clear()
 
+    async def _augment_http(
+        self, rag_url: str, query: str, history_context: str
+    ) -> str | None:
+        """Delegate to external RAG service; return context string or None on failure.
+
+        None signals the caller to fall back to in-process search.
+        Stores selected_hits in self.last_reranked for two-stage fetch callers.
+        """
+        try:
+            resp = await self._http.post(
+                f"{rag_url}/v1/search",
+                json={"query": query, "history_context": history_context},
+            )
+            resp.raise_for_status()
+            body = resp.json()
+            hits = body.get("selected_hits", [])
+            if hits:
+                # store for two-stage fetch callers (orchestrator._fetch_two_stage_context)
+                self.last_reranked = hits
+            return str(body.get("context", ""))
+        except Exception as e:
+            logger.warning(
+                f"RAG service call failed ({rag_url}), falling back to in-process: {e}"
+            )
+            return None
+
+    async def _augment_refiner(self, reranked: list[RagHit], query: str) -> str | None:
+        """Run the chunk refiner; return refined text or None to fall back to raw chunks.
+
+        Returns None both on empty output and on any exception.
+        """
+        try:
+            self._on_status("refining context...")
+            refined = await RagLLM(
+                self._http, _get_cfg().get("llm_url", "")
+            ).refine_context(
+                reranked,
+                query,
+                max_tokens=self._cfg.refiner_max_tokens,
+                per_chunk_chars=self._cfg.refiner_max_chars_per_chunk,
+                timeout=self._cfg.refiner_timeout,
+            )
+            if refined:
+                return refined
+            logger.warning("Refiner returned empty output; falling back to chunks")
+        except Exception as e:
+            logger.warning(f"Refiner failed, falling back to original chunks: {e}")
+        return None
+
+    @staticmethod
+    def _format_chunks(reranked: list[RagHit]) -> str:
+        """Format reranked hits as a newline-separated source+content block."""
+        blocks = [
+            f"[Source: {c.get('title') or c['url']} | {c['url']}]\n{c['content']}"
+            for c in reranked
+        ]
+        return "\n\n---\n\n".join(blocks)
+
     async def augment(
         self,
         query: str,
@@ -229,24 +287,10 @@ class RagPipeline:
         if not self._cfg.use_search:
             return ""
         # HTTP mode: delegate to external RAG service when rag_service_url is configured
-        rag_url = self._cfg.rag_service_url
-        if rag_url:
-            try:
-                resp = await self._http.post(
-                    f"{rag_url}/v1/search",
-                    json={"query": query, "history_context": history_context},
-                )
-                resp.raise_for_status()
-                body = resp.json()
-                hits = body.get("selected_hits", [])
-                if hits:
-                    # store for two-stage fetch callers (orchestrator._fetch_two_stage_context)
-                    self.last_reranked = hits
-                return str(body.get("context", ""))
-            except Exception as e:
-                logger.warning(
-                    f"RAG service call failed ({rag_url}), falling back to in-process: {e}"
-                )
+        if rag_url := self._cfg.rag_service_url:
+            result = await self._augment_http(rag_url, query, history_context)
+            if result is not None:
+                return result
         try:
             db = SQLiteHelper().open(row_factory=True)
         except Exception as e:
@@ -263,24 +307,7 @@ class RagPipeline:
             return ""
         # Refiner: compress chunks to query-relevant key points before injection
         if self._cfg.use_refiner:
-            try:
-                self._on_status("refining context...")
-                refined = await RagLLM(
-                    self._http, _get_cfg().get("llm_url", "")
-                ).refine_context(
-                    reranked,
-                    query,
-                    max_tokens=self._cfg.refiner_max_tokens,
-                    per_chunk_chars=self._cfg.refiner_max_chars_per_chunk,
-                    timeout=self._cfg.refiner_timeout,
-                )
-                if refined:
-                    return refined
-                logger.warning("Refiner returned empty output; falling back to chunks")
-            except Exception as e:
-                logger.warning(f"Refiner failed, falling back to original chunks: {e}")
-        blocks = [
-            f"[Source: {c.get('title') or c['url']} | {c['url']}]\n{c['content']}"
-            for c in reranked
-        ]
-        return "\n\n---\n\n".join(blocks)
+            refined = await self._augment_refiner(reranked, query)
+            if refined is not None:
+                return refined
+        return self._format_chunks(reranked)
