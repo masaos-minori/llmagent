@@ -43,8 +43,8 @@ matched = await cmds.dispatch("/stats")
 | `_cmd_session(args) -> None` | `/session list [n]` / `/session load <id>` / `/session rename <title>` / `/session delete <id>` をディスパッチ |
 | `_load_session(session_id) -> None` | `ctx.session.fetch_messages()` でメッセージを取得し `ctx.history` に統合 |
 | `_cmd_help() -> None` | ヘルプ・ツール数・現在 LLM URL を表示 |
-| `_cmd_mcp(args) -> None` | HTTP 疎通確認・ツール数表示。`args=""` で全サーバ表示、`args=" install <name>"` でウィザード起動 |
-| `_cmd_mcp_http() -> None` | HTTP トランスポートサーバの `/health` と `/v1/tools` を probe して状態を表示 |
+| `_cmd_mcp(args) -> None` | サーバ状態表示・ウィザード起動。`args=""` で全サーバ表示、`args="install <name>"` でウィザード起動 |
+| `_cmd_mcp_status() -> None` | 全サーバの transport / startup_mode / 状態 (OK/RUNNING/STOPPED 等) をテーブル表示 |
 | `_cmd_mcp_install(server_name) -> None` | 新規 MCP サーバのスクリプト骨格・設定 JSON・OpenRC スクリプトを生成するウィザード |
 | `_cmd_stats() -> None` | ターン数・ツール呼び出し数・LLM リトライ回数・圧縮回数・セマンティックキャッシュヒット数を表示 |
 | `_cmd_config() -> None` | 設定ファイルパスと全設定値を表示 |

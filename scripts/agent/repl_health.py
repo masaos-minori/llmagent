@@ -11,6 +11,7 @@ import subprocess
 from urllib.parse import urlparse
 
 import httpx
+import orjson
 from shared.logger import Logger
 
 from agent.context import AgentContext
@@ -55,11 +56,34 @@ async def check_service_health(ctx: AgentContext) -> None:
             print(f"[warn] {msg}")
 
 
-async def check_tool_definitions(ctx: AgentContext) -> None:
-    """Compare tool_definitions in agent.toml against /v1/tools from each server.
+async def _fetch_stdio_tools(transport: "object") -> set[str]:
+    """Query a running stdio server for its tool list via the __list_tools__ RPC.
 
-    Logs a warning on mismatch. Raises RuntimeError when
-    tool_definitions_strict=True.
+    Returns an empty set when the server is unreachable or returns an error.
+    """
+    from shared.tool_executor import StdioTransport  # noqa: PLC0415
+
+    if not isinstance(transport, StdioTransport) or not transport.is_alive():
+        return set()
+    try:
+        raw, is_error = await asyncio.wait_for(
+            transport.call("__list_tools__", {}), timeout=5.0
+        )
+        if is_error:
+            return set()
+        data = orjson.loads(raw)
+        return {str(n) for n in data.get("tools", [])}
+    except Exception as e:
+        logger.warning(f"__list_tools__ RPC failed: {e}")
+        return set()
+
+
+async def check_tool_definitions(ctx: AgentContext) -> None:
+    """Compare tool_definitions in agent.toml against live tool lists from each server.
+
+    HTTP servers: probed via GET /v1/tools.
+    Stdio servers: probed via the __list_tools__ reserved RPC (only when running).
+    Logs a warning on mismatch. Raises RuntimeError when tool_definitions_strict=True.
     Skips silently when all servers are unreachable (startup order tolerance).
     """
     assert ctx.services.http is not None
@@ -68,15 +92,23 @@ async def check_tool_definitions(ctx: AgentContext) -> None:
     }
     server_names: set[str] = set()
     for key, srv_cfg in ctx.cfg.mcp_servers.items():
-        # stdio servers do not expose an HTTP /v1/tools endpoint; skip them.
-        if srv_cfg.transport != "http" or not srv_cfg.url:
-            continue
-        try:
-            resp = await ctx.services.http.get(f"{srv_cfg.url}/v1/tools", timeout=5.0)
-            if resp.status_code == 200:
-                server_names.update(t["name"] for t in resp.json().get("tools", []))
-        except Exception as e:
-            logger.warning(f"Cannot reach {srv_cfg.url}/v1/tools: {e}")
+        if srv_cfg.transport == "http":
+            if not srv_cfg.url:
+                continue
+            try:
+                resp = await ctx.services.http.get(
+                    f"{srv_cfg.url}/v1/tools", timeout=5.0
+                )
+                if resp.status_code == 200:
+                    server_names.update(t["name"] for t in resp.json().get("tools", []))
+            except Exception as e:
+                logger.warning(f"Cannot reach {srv_cfg.url}/v1/tools: {e}")
+        elif srv_cfg.transport == "stdio":
+            transport = ctx.services.stdio_procs.get(key)
+            if transport is None:
+                continue  # not yet started (ondemand or failed persistent)
+            names = await _fetch_stdio_tools(transport)
+            server_names.update(names)
     if not server_names:
         return  # All servers unreachable; skip validation
     missing_in_server = cfg_names - server_names
@@ -139,10 +171,18 @@ async def watchdog_loop(ctx: AgentContext) -> None:
                             f" {srv_cfg.openrc_service!r}: {e}"
                         )
             elif srv_cfg.transport == "stdio":
+                # Ondemand servers are lifecycle-managed; skip watchdog coverage.
+                if srv_cfg.startup_mode == "ondemand":
+                    continue
                 transport = ctx.services.stdio_procs.get(key)
                 if transport is None:
                     continue
-                if transport.is_alive():
+                alive = transport.is_alive()
+                if alive and srv_cfg.healthcheck_mode == "ping_tool":
+                    # Confirm responsiveness beyond process liveness with a ping.
+                    names = await _fetch_stdio_tools(transport)
+                    alive = bool(names)
+                if alive:
                     restart_counts[key] = 0
                     continue
                 count = restart_counts.get(key, 0)

@@ -89,6 +89,21 @@ class MCPServer:
         """Handle a tools/call request. Subclasses must override this."""
         raise NotImplementedError(f"{type(self).__name__}.dispatch is not implemented")
 
+    def list_tools(self) -> list[str]:
+        """Return the tool names served by this instance.
+
+        Used by the __list_tools__ introspection RPC (stdio mode) and by
+        check_tool_definitions() in repl_health.py.
+        """
+        return [t["name"] for t in getattr(self, "mcp_tools", [])]
+
+    def health(self) -> dict[str, str]:
+        """Return a health status dict for HTTP server diagnostics.
+
+        HTTP subclasses may override; stdio subclasses use process liveness instead.
+        """
+        return {"status": "ok"}
+
     def run(self) -> None:
         """Launch the HTTP server via uvicorn."""
         import uvicorn
@@ -110,6 +125,9 @@ class MCPServer:
         Request  line: {"id": <int>, "name": <str>, "args": {}}
         Response line: {"id": <int>, "result": <str>, "is_error": <bool>}
 
+        The reserved name "__list_tools__" returns the server's tool list without
+        going through dispatch(), enabling transport-independent tool introspection.
+
         The loop exits cleanly on stdin EOF.
         """
         loop = asyncio.get_running_loop()
@@ -127,10 +145,16 @@ class MCPServer:
             try:
                 req = orjson.loads(line)
                 req_id = int(req.get("id", 0))
-                result, is_error = await self.dispatch(
-                    str(req.get("name", "")),
-                    dict(req.get("args", {})),
-                )
+                name = str(req.get("name", ""))
+                if name == "__list_tools__":
+                    # Reserved introspection call — return tool list as JSON string
+                    result = orjson.dumps({"tools": self.list_tools()}).decode()
+                    is_error = False
+                else:
+                    result, is_error = await self.dispatch(
+                        name,
+                        dict(req.get("args", {})),
+                    )
             except Exception as e:
                 logger.error(f"run_stdio dispatch error: {e}")
                 result = f"Internal server error: {e}"

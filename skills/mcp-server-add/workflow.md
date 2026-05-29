@@ -68,36 +68,34 @@ Confirm:
 
 ---
 
-## Step 2: Update deploy.sh
+## Step 2: deploy.sh — no action needed
 
-```bash
-# Add to the scripts copy block in deploy/deploy.sh:
-cp "${REPO_ROOT}/scripts/<name>_mcp_server.py"  "${DEPLOY_SCRIPTS}/"
-
-# Add to the config copy block if a config file was added:
-cp "${REPO_ROOT}/config/<name>_mcp_server.json" "${DEPLOY_CONFIG}/"
-```
+`deploy/deploy.sh` uses `rsync -av --delete` on `scripts/` and `config/`.
+Any new file under these directories is automatically picked up; no `cp` line needed.
 
 ---
 
-## Step 3: Update agent_repl.py
+## Step 3: Update config/agent.toml
 
-Find `_MCP_SERVICE_MAP` and add the new entry:
+Add a new entry to the `mcp_servers` section:
 
-```bash
-rg "_MCP_SERVICE_MAP" scripts/agent_repl.py   # locate the dict definition
+```toml
+[mcp_servers.<name>]
+transport = "http"
+url = "http://127.0.0.1:<PORT>"
+openrc_service = "<name>"
+# Optional: explicit tool routing (falls back to prefix rules if omitted)
+# tool_names = ["my_tool_a", "my_tool_b"]
 ```
 
-Add: `"http://localhost:<PORT>": "<name>"` to the dict.
-
-This map is used by the watchdog and `/mcp` health checks.
+Also add tool definitions to the `tool_definitions` array so the agent knows about the new tools.
 
 ---
 
 ## Step 4: Update tool routing (if needed)
 
-In `tool_executor.py`, routing resolves: exact name → prefix → default (`file`).
-If the new server's tools do not use a unique prefix, add an explicit mapping.
+`ToolRouteResolver` (`shared/route_resolver.py`) resolves: `tool_names` config-map → static prefix fallback.
+If the new server's tools do not use a unique prefix, add them to `tool_names` in `config/agent.toml`.
 
 ---
 
@@ -160,7 +158,7 @@ tail -20 /opt/llm/logs/agent.log
 
 - `scripts/<name>_mcp_server.py` syntax check passes
 - `deploy/deploy.sh` updated with new file
-- `_MCP_SERVICE_MAP` in `agent_repl.py` updated (verified with `rg`)
+- `config/agent.toml mcp_servers.<name>` entry added (verified with `rg`)
 - service registered and running (`rc-service <name> status`)
 - `/mcp` in agent REPL shows the new server as healthy
 - no errors in `agent.log` during tool invocation

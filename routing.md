@@ -28,6 +28,9 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | System-wide architecture overview | `docs/01_overview-arch.md` |
 | File / module layout | `docs/01_overview-files.md` |
 | MCP server implementation | `docs/04_mcp-protocol.md` + `docs/06_ref-mcp.md` |
+| MCP transport / startup_mode / lifecycle | `docs/04_mcp-protocol.md` + `docs/06_ref-agent-config.md` |
+| ToolRouteResolver / route_resolver.py | `docs/06_ref-agent-config.md` + `docs/04_mcp-protocol.md` |
+| ServerLifecycleManager / lifecycle.py | `docs/04_mcp-protocol.md` + `docs/06_ref-agent-context.md` |
 | web-search-mcp specifics | `docs/04_mcp-web-search.md` |
 | file-mcp specifics | `docs/04_mcp-file.md` |
 | github-mcp specifics | `docs/04_mcp-github.md` |

@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from shared.tool_executor import StdioTransport, ToolExecutor
 
     from agent.history import HistoryManager
+    from agent.lifecycle import ServerLifecycleManager
     from agent.memory.layer import MemoryLayer
 
 
@@ -49,6 +50,8 @@ class ServiceContainer:
         self.audit_logger: Logger | None = None
         # Long-term / Task memory layer; None when use_memory_layer=False (default)
         self.memory: MemoryLayer | None = None
+        # Lifecycle manager for ondemand stdio server startup; None until _init_components()
+        self.lifecycle: ServerLifecycleManager | None = None
 
 
 class AgentContext:

@@ -82,7 +82,7 @@ Full validation sequence: `rules/toolchain.md`
 
 **Key library choices:** Use `orjson` (not stdlib `json`) for all JSON serialization — `orjson.dumps()` returns `bytes`; call `.decode()` when a `str` is required; use `option=orjson.OPT_SORT_KEYS` / `OPT_INDENT_2` instead of `sort_keys=True` / `indent=2`. Use `httpx` (not `requests`) for HTTP — `httpx.Client` for sync, `httpx.AsyncClient` for async.
 
-**Test coverage:** Unit tests exist for `agent/commands/cmd_config.py`, `agent/session.py`, `agent/repl_tool_exec.py`, `agent/cli_view.py`, `mcp/file/delete_service.py`, `mcp/file/write_service.py`, `mcp/github/service.py`, `agent/history.py`, `shared/llm_client.py`, `agent/memory/layer.py`, `agent/memory/store.py`, `agent/orchestrator.py`, `shared/otel_tracer.py`, `shared/plugin_registry.py`, `rag/utils.py`, `mcp/shell/service.py`, `mcp/rag_pipeline/service.py`, `rag/pipeline.py`. Core modules `agent/repl.py` and `shared/tool_executor.py` have no tests. Any refactoring task that touches these modules must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
+**Test coverage:** Unit tests exist for `agent/commands/cmd_config.py`, `agent/commands/cmd_mcp.py`, `agent/session.py`, `agent/repl_tool_exec.py`, `agent/cli_view.py`, `mcp/file/delete_service.py`, `mcp/file/write_service.py`, `mcp/github/service.py`, `agent/history.py`, `shared/llm_client.py`, `agent/memory/layer.py`, `agent/memory/store.py`, `agent/orchestrator.py`, `shared/otel_tracer.py`, `shared/plugin_registry.py`, `rag/utils.py`, `mcp/shell/service.py`, `mcp/rag_pipeline/service.py`, `rag/pipeline.py`, `shared/route_resolver.py`, `agent/lifecycle.py`, `mcp/server.py` (base class), `shared/tool_executor.py` (routing paths). Core module `agent/repl.py` has no tests. Any refactoring task that touches this module must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
 
 ## Architecture
 
@@ -130,7 +130,17 @@ Details: `docs/06_ref-sqlite.md`
 
 Seven servers in models/service/server layers under `mcp/`. Common base: `mcp/server.py`; protocol spec: `docs/06_common.md`. The seventh server (`rag-pipeline-mcp`, port 8010) exposes the RAG pipeline via `mcp/rag_pipeline/server.py` / `mcp/rag_pipeline/service.py` / `mcp/rag_pipeline/models.py`; see `docs/04_mcp-rag.md`. When `_MCP_TOOLS` exceeds 400 lines, extract to `{server}/tools.py` and import via `from mcp.{server}.tools import _MCP_TOOLS`. Destructive operations (write/delete/move) support a `dry_run: bool = Field(default=False)` parameter — when `True` the service returns preview info without side effects; the `check_approval()` flow in `agent/repl_tool_exec.py` injects `dry_run=True` automatically for tools listed in `approval_dry_run_tools`.
 
+`MCPServer` base class provides `list_tools() -> list[str]` (from `mcp_tools` class attribute) and `health() -> dict[str, str]`. `run_stdio()` handles line-delimited JSON-RPC; intercepts `name == "__list_tools__"` before dispatching to `dispatch()`. `__` prefix is reserved — do not define tools with `__` prefix names.
+
 Details: `docs/04_mcp-servers.md`
+
+### MCP Transport Layer
+
+`shared/tool_executor.py` (`ToolExecutor`) is transport-agnostic: callers pass only `(tool_name, args)`. `ToolRouteResolver` (`shared/route_resolver.py`) maps tool names to server keys — config-driven (`tool_names` field) first, then static prefix fallback. `LifecycleProtocol` (typing.Protocol in `shared/tool_executor.py`) defines `ensure_ready(server_key)` — implemented by `ServerLifecycleManager`.
+
+`ServerLifecycleManager` (`agent/lifecycle.py`) manages stdio server lifecycle: HTTP / persistent stdio → no-op; ondemand → double-checked locking with per-server `asyncio.Lock` ensures single startup under concurrent calls. `shutdown_all()` stops all running transports. Wired in `AgentREPL._init_components()` via `ctx.services.lifecycle`; `ToolExecutor.set_lifecycle()` injects it.
+
+Details: `docs/04_mcp-protocol.md` (§2.3 デュアル起動モード)
 
 ### LLM Communication
 

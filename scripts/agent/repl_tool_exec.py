@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import orjson
 from rag.llm import summarize_tool_result
 from shared.logger import Logger
+from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
 from shared.tool_executor import is_side_effect, tool_call_key
 
 from agent.commands.registry import mask_args
@@ -34,10 +35,6 @@ _TURN_LIMIT_HINT = (
 )
 
 
-_WRITE_TOOLS: frozenset[str] = frozenset(
-    {"write_file", "edit_file", "create_directory", "move_file"}
-)
-_DELETE_TOOLS: frozenset[str] = frozenset({"delete_file", "delete_directory"})
 _EXEC_TOOLS: frozenset[str] = frozenset({"shell_run"})
 _API_WRITE_TOOLS: frozenset[str] = frozenset(
     {
@@ -67,9 +64,9 @@ _TIER_TO_RISK: dict[str, str] = {
 
 def _classify_operation_type(tool_name: str) -> str:
     """Return operation type for a tool: write | delete | execute | api_write | read."""
-    if tool_name in _WRITE_TOOLS:
+    if tool_name in WRITE_TOOLS:
         return "write"
-    if tool_name in _DELETE_TOOLS:
+    if tool_name in DELETE_TOOLS:
         return "delete"
     if tool_name in _EXEC_TOOLS:
         return "execute"

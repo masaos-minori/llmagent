@@ -22,17 +22,55 @@ AgentREPL は `:8004/:8005/:8006` の `/v1/call_tool` を直接 HTTP POST で呼
 
 ### 2.1 ツール定義チェック
 
-各 MCP サーバは `/v1/tools` (GET) でツール名・説明一覧を返す。`AgentREPL.run()` が `_init_components()` 後に `_check_tool_definitions()` を呼び、`agent.json` の `tool_definitions` ツール名セットと比較して差分を警告する。`tool_definitions_strict=true` のとき差分があれば `RuntimeError` で起動中止。全サーバ未到達時はスキップ。
+各 MCP サーバは `/v1/tools` (GET) でツール名・説明一覧を返す。`AgentREPL.run()` が `_init_components()` 後に `_check_tool_definitions()` を呼び、`agent.toml` の `tool_definitions` ツール名セットと比較して差分を警告する。`tool_definitions_strict=true` のとき差分があれば `RuntimeError` で起動中止。全サーバ未到達時はスキップ。
 
 ### 2.2 MCP ウォッチドッグ (`mcp_watchdog_interval`)
 
 `_watchdog_loop()` が asyncio バックグラウンドタスクで動作。`mcp_watchdog_interval` 秒ごとに `_probe_mcp_health()` で `/health` を probe し、失敗時に `subprocess.run(["rc-service", name, "restart"])` を実行する (最大 `mcp_watchdog_max_restarts` 回)。再起動対象サービス名は `ctx.cfg.mcp_servers` の各 `McpServerConfig.openrc_service` フィールドから取得する (HTTP トランスポートのみ対象)。`run()` の `finally` でタスクをキャンセルする。`mcp_watchdog_interval=0` (デフォルト) でウォッチドッグは無効。
 
-### 2.3 GitHub 許可リスト (`allowed_repos`)
+### 2.3 デュアル起動モード (startup_mode)
+
+`McpServerConfig.startup_mode` で各サーバの起動ポリシーを制御する。
+
+| 値 | 動作 | 対象トランスポート |
+|---|---|---|
+| `persistent` (デフォルト) | エージェント起動時に即座に `StdioTransport.start()` を実行 | stdio のみ (HTTP はプロセス管理不要) |
+| `ondemand` | 初回ツール呼び出し時に `ServerLifecycleManager.ensure_ready()` が自動起動 | stdio のみ |
+
+**config/agent.toml 設定例:**
+
+```toml
+[mcp_servers.file_read]
+transport = "http"
+url = "http://127.0.0.1:8005"
+openrc_service = "file-mcp"
+# startup_mode = "persistent"  # HTTP は常にデフォルトで persistent 相当
+
+[mcp_servers.shell]
+transport = "stdio"
+cmd = ["/opt/llm/venv/bin/python", "-m", "mcp.shell.server", "--stdio"]
+startup_mode = "ondemand"          # 初回呼び出し時に起動
+healthcheck_mode = "ping_tool"     # __list_tools__ でヘルスチェック
+tool_names = ["shell_run", "shell_run_bg"]  # 明示的ルーティング
+```
+
+**ToolRouteResolver のルーティング優先順位:**
+
+1. `tool_names` に名前が列挙されているサーバを先に検索 (config-driven routing)
+2. 見つからない場合は静的プレフィックス判定 (frozenset) にフォールバック
+
+**`__list_tools__` 予約 RPC (stdio introspection):**
+
+stdio サーバに対して `{"id": N, "name": "__list_tools__", "args": {}}` を送ると、
+`{"id": N, "result": "{\"tools\": [\"tool_a\", \"tool_b\"]}", "is_error": false}` が返る。
+`healthcheck_mode = "ping_tool"` のウォッチドッグはこの RPC を使ってサーバが生存しているか確認する。
+`__` プレフィックスは予約名規約 — ユーザーが定義するツール名には使用しないこと。
+
+### 2.4 GitHub 許可リスト (`allowed_repos`)
 
 `GitHubService._assert_allowed_repo(owner, repo)` が `github_mcp_server.toml["allowed_repos"]` を確認する。空リストは全リポジトリ許可。書き込み系 9 メソッド (`create_branch`, `create_or_update_file`, `push_files`, `delete_repo_file`, `create_issue`, `add_issue_comment`, `create_pull_request`, `update_pull_request`, `merge_pull_request`) の先頭で呼ばれる。
 
-### 2.4 新規 MCP サーバー追加手順
+### 2.5 新規 MCP サーバー追加手順
 
 **テンプレート自動生成 (推奨)**
 
@@ -48,13 +86,13 @@ agent[chat]> /mcp install <server-name>
 - `init.d/<server-name>` — OpenRC 起動スクリプト (755)
 - `conf.d/<server-name>` — API キー env テンプレート (オプション)
 
-ウィザード完了後、コンソールに手順 3-6 の詳細 (agent.json の差分、deploy.sh への追記内容等) が表示される。
+ウィザード完了後、コンソールに手順 3-6 の詳細 (agent.toml の差分、deploy.sh への追記内容等) が表示される。
 
 **手動手順 (全手順)**
 
 1. `mcp/server.py` の `MCPServer` をサブクラス化し `dispatch()` をオーバーライドする
 2. FastAPI に `/v1/tools` GET エンドポイントを追加する
-3. `agent.json` の `tool_definitions` にツール定義を追加する
+3. `config/agent.toml` の `tool_definitions` にツール定義を追加する
 4. `config/agent.toml` の `mcp_servers` セクションに新サーバのエントリ (`transport`, `url`, `openrc_service` 等) を追加する
 5. `deploy/deploy.sh` のコピーリストに新ファイルを追加する
 6. `init.d/` に OpenRC スクリプトを追加し `deploy/setup_services.sh` に起動手順を追加する

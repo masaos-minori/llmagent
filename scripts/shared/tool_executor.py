@@ -7,7 +7,7 @@ Provides two transport implementations:
   HttpTransport  — POST /v1/call_tool over httpx (default)
   StdioTransport — line-delimited JSON-RPC over subprocess stdin/stdout
 
-ToolExecutor routes tool calls to the appropriate server via _route(),
+ToolExecutor routes tool calls to the appropriate server via ToolRouteResolver,
 applies TTL caching on successful results, and delegates execution to the
 configured transport.
 """
@@ -17,12 +17,15 @@ import hashlib
 import logging
 import time
 from collections import OrderedDict
+from typing import Protocol
 
 import httpx
 import orjson
 
 import shared.plugin_registry as plugin_registry
 from shared.mcp_config import McpServerConfig
+from shared.route_resolver import ToolRouteResolver
+from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
 
 logger = logging.getLogger(__name__)
 
@@ -189,48 +192,25 @@ class StdioTransport:
         logger.info(f"stdio MCP server stopped: key={self._server_key!r}")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Tool routing sets (module-level constants shared by ToolExecutor._route)
-# ─────────────────────────────────────────────────────────────────────────────
-
-_READ_TOOLS: frozenset[str] = frozenset(
-    {
-        "list_directory",
-        "list_directory_with_sizes",
-        "directory_tree",
-        "read_text_file",
-        "read_media_file",
-        "read_multiple_files",
-        "search_files",
-        "grep_files",
-        "get_file_info",
-    }
-)
-_WRITE_TOOLS: frozenset[str] = frozenset(
-    {
-        "write_file",
-        "edit_file",
-        "create_directory",
-        "move_file",
-    }
-)
-_DELETE_TOOLS: frozenset[str] = frozenset(
-    {
-        "delete_file",
-        "delete_directory",
-    }
-)
-
 # Tools with side effects: writes, deletes, or shell execution.
 # Used to auto-downgrade parallel execution to serial in execute_all_tool_calls().
 _SIDE_EFFECT_TOOLS: frozenset[str] = (
-    _WRITE_TOOLS | _DELETE_TOOLS | frozenset({"shell_run"})
+    WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
 )
 
-# Valid server keys returned by _route(); used to validate tool_concurrency_limits keys.
-_KNOWN_SERVER_KEYS: frozenset[str] = frozenset(
-    {"file_read", "file_write", "file_delete", "shell", "web_search", "github"}
-)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lifecycle protocol — implemented by agent/lifecycle.py; defined here so that
+# shared/ does not need to import from agent/.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class LifecycleProtocol(Protocol):
+    """Protocol for MCP server lifecycle managers injected into ToolExecutor."""
+
+    async def ensure_ready(self, server_key: str) -> None:
+        """Ensure the MCP server identified by server_key is ready to accept calls."""
+        ...
 
 
 def is_side_effect(tool_name: str) -> bool:
@@ -307,6 +287,7 @@ class ToolExecutor:
         server_configs: "dict[str, McpServerConfig]",
         cache_max_size: int = 0,
         concurrency_limits: "dict[str, int] | None" = None,
+        lifecycle: "LifecycleProtocol | None" = None,
     ) -> None:
         self._http = http
         self._cache_ttl = cache_ttl
@@ -314,14 +295,16 @@ class ToolExecutor:
         self._server_configs = server_configs
         self._cache: OrderedDict[str, tuple[str, bool, float]] = OrderedDict()
         self.stat_cache_hits: int = 0
+        self._lifecycle: LifecycleProtocol | None = lifecycle
 
         # concurrency_limits: server_key -> max concurrent calls.
         # Semaphores are created lazily inside _raw_execute() to avoid event loop issues.
         self._concurrency_limits: dict[str, int] = dict(concurrency_limits or {})
         self._semaphores: dict[str, asyncio.Semaphore] | None = None
 
-        # Validate concurrency_limits keys at construction time to catch config errors early.
-        unknown_keys = set(self._concurrency_limits) - _KNOWN_SERVER_KEYS
+        # Validate concurrency_limits keys against configured server keys.
+        known_keys = set(server_configs.keys())
+        unknown_keys = set(self._concurrency_limits) - known_keys
         if unknown_keys:
             logger.warning(
                 f"tool_concurrency_limits: unknown server key(s) {sorted(unknown_keys)!r};"
@@ -337,35 +320,16 @@ class ToolExecutor:
             else:
                 self._transports[key] = None  # filled by set_transport()
 
+        self._resolver = ToolRouteResolver(server_configs)
+
     def set_transport(self, server_key: str, transport: StdioTransport) -> None:
         """Register a started StdioTransport for the given server key."""
         self._transports[server_key] = transport
         logger.info(f"StdioTransport registered for server key {server_key!r}")
 
-    def _route(self, tool_name: str) -> str:
-        """Return the server key for the given tool name.
-
-        Routing rules (checked in order):
-          _READ_TOOLS   → file_read
-          _WRITE_TOOLS  → file_write
-          _DELETE_TOOLS → file_delete
-          shell_run     → shell
-          search_web    → web_search
-          github_*      → github      (prefix match)
-        """
-        if tool_name in _READ_TOOLS:
-            return "file_read"
-        if tool_name in _WRITE_TOOLS:
-            return "file_write"
-        if tool_name in _DELETE_TOOLS:
-            return "file_delete"
-        if tool_name == "shell_run":
-            return "shell"
-        if tool_name == "search_web":
-            return "web_search"
-        if tool_name.startswith("github_"):
-            return "github"
-        raise ValueError(f"Unknown tool: {tool_name}")
+    def set_lifecycle(self, lifecycle: "LifecycleProtocol | None") -> None:
+        """Inject or replace the lifecycle manager after construction."""
+        self._lifecycle = lifecycle
 
     async def _raw_execute(self, tool_name: str, args: dict) -> tuple[str, bool]:
         """Execute tool via the appropriate transport; return (result, is_error).
@@ -373,7 +337,10 @@ class ToolExecutor:
         Applies per-server-key Semaphore concurrency limit when configured.
         Semaphores are created lazily on first call to avoid event loop issues.
         """
-        server_key = self._route(tool_name)
+        server_key = self._resolver.resolve(tool_name)
+        # Ensure ondemand stdio servers are started before first use.
+        if self._lifecycle is not None:
+            await self._lifecycle.ensure_ready(server_key)
         transport = self._transports.get(server_key)
         if transport is None:
             cfg = self._server_configs.get(server_key)

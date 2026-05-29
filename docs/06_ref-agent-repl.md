@@ -1,4 +1,4 @@
-# agent_repl.py / orchestrator.py
+# agent/repl.py / agent/orchestrator.py
 
 ## 1. 機能概要
 
@@ -23,8 +23,8 @@ await AgentREPL().run()
 | `_init_components() -> None` | `LLMClient` / `ToolExecutor` / `HistoryManager` / `RagPipeline` / `CommandRegistry` / `Orchestrator` を生成して `AgentContext` に注入 |
 | `_print_startup_banner() -> None` | 起動時バナー (DB チャンク数・ツール数・モード) を表示 |
 | `_start_stdio_servers() -> None` | stdio トランスポートのサブプロセスを起動し `ToolExecutor.set_transport()` で登録 |
-| `_repl_loop() -> None` | ユーザ入力待機 → スラッシュコマンドまたは `ctx.services.orchestrator.handle_turn()` に委譲 |
-| `_close_resources() -> None` | readline 履歴保存・`AsyncClient` クローズ |
+| `_repl_loop() -> None` | ユーザ入力待機 → スラッシュコマンドまたは `self._orchestrator.handle_turn()` に委譲 |
+| `_close_resources() -> None` | readline 履歴保存・`lifecycle.shutdown_all()` で stdio サーバ停止・`AsyncClient` クローズ |
 
 ## 3. Orchestrator API
 
@@ -59,7 +59,7 @@ await orch.handle_turn(line)
 | `LLMTransportError` (partial_text なし, turn==0) | history から user メッセージを pop して整合性を保つ |
 | `LLMTransportError` (turn > 0) | synthetic tool error を history に追加して `_run_turn()` から return |
 
-## 4. agent_repl_tool_exec.py API
+## 4. agent/repl_tool_exec.py API
 
 | 関数 | 説明 |
 |---|---|
@@ -67,12 +67,12 @@ await orch.handle_turn(line)
 | `_classify_risk(cfg, tool_name, args) -> str` | ツールのリスクレベルを `"none"` / `"medium"` / `"high"` で返す |
 | `_check_allowed_root(cfg, tool_name, args) -> bool` | パス引数が `allowed_root` 内に収まるか検証。False = 即時拒否 |
 | `_check_allowed_repo(cfg, tool_name, args) -> bool` | GitHub 書き込みツールのリポジトリが `approval_github_allowed_repos` に含まれるか検証。False = 即時拒否 |
-| `execute_one_tool_call(ctx, tc) -> tuple[str, str, dict, str, bool]` | 1 件の tool_call を実行し `(id, name, args, text, is_error)` を返す。長い結果は LLM 要約 |
+| `execute_one_tool_call(ctx, tc, turn) -> tuple[str, str, dict, str, bool, str]` | 1 件の tool_call を実行し `(id, name, args, full_text, is_error, llm_text)` を返す。長い結果は LLM 要約 (`llm_text`) |
 | `execute_all_tool_calls(ctx, tool_calls, turn) -> None` | 全 tool_call を `asyncio.gather()` (副作用なし) または直列 (副作用あり / serial_tool_calls=True) で実行し、承認・dedup・per-turn 上限チェックを経て履歴に追記 |
 
 ### 4-tier ツール安全性分類
 
-ツールは `agent.json` の `tool_safety_tiers` で 4 段階に分類する。`approval_risk_rules` が設定されているツールはそちらが優先される。
+ツールは `agent.toml` の `tool_safety_tiers` で 4 段階に分類する。`approval_risk_rules` が設定されているツールはそちらが優先される。
 
 | tier | `_TIER_TO_RISK` | 説明 |
 |---|---|---|
@@ -116,7 +116,7 @@ AgentREPL.run()
             └─ _run_turn()         — LLM SSE ストリーム + ツールループ (max_tool_turns 回)
                  └─ execute_all_tool_calls()  — 承認・並列/直列実行・結果追記
                  └─ _maybe_two_stage_fetch()  — 不十分時のみ全文展開 (1回限り)
-  └─ _close_resources()            — readline 履歴保存・AsyncClient クローズ
+  └─ _close_resources()            — readline 履歴保存・lifecycle.shutdown_all()・AsyncClient クローズ
 ```
 
 ## 6. 使用スクリプト

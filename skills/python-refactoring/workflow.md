@@ -294,7 +294,7 @@ When a module is added or removed, compose with the `deploy` skill:
 
 - do not refactor and add features in the same commit
 - do not use regex for symbol renaming — use LibCST or bowler
-- do not suppress lint-imports without updating the contract definition
 - do not proceed to Phase 3 with surviving mutants on the refactored path
-- do not commit with `--no-verify`
 - do not bundle multiple rename steps into a single commit
+
+See also `rules/coding.md` for project-wide prohibitions (commit hygiene, suppression governance).

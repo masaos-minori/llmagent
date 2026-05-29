@@ -4,7 +4,7 @@ agent/commands/cmd_mcp.py
 MCP server management mixin for CommandRegistry.
 
 Extracted from agent/commands/registry.py.  Provides _McpMixin with:
-  _cmd_mcp_http              — /mcp status: transport config + connectivity probe
+  _cmd_mcp_status            — /mcp status: transport/mode/health table
   _cmd_mcp                   — /mcp dispatcher
   _cmd_mcp_install           — /mcp install wizard: scaffold template files
   _print_mcp_install_next_steps — print post-install checklist
@@ -27,39 +27,46 @@ class _McpMixin:
     if TYPE_CHECKING:
         _ctx: "AgentContext"
 
-    async def _cmd_mcp_http(self) -> None:
-        """Print MCP server transport config and probe connectivity per server."""
+    async def _cmd_mcp_status(self) -> None:
+        """Print MCP server status table including transport, startup mode, and health."""
         ctx = self._ctx
         print(f"  Tools       {len(ctx.cfg.tool_definitions)} (from config/agent.toml)")
-        print("Servers:")
-        for key, cfg in ctx.cfg.mcp_servers.items():
-            if cfg.transport == "http":
-                print(f"  {key:12s} http  {cfg.url}")
-            else:
-                alive = (
-                    "alive"
-                    if ctx.services.stdio_procs.get(key, None)
-                    and ctx.services.stdio_procs[key].is_alive()
-                    else "dead"
-                )
-                cmd_str = " ".join(cfg.cmd)
-                print(f"  {key:12s} stdio [{alive}] {cmd_str}")
-        print("Connectivity:")
+        print()
+        col = "{:<14} {:<6} {:<11} {:<16} {}"
+        print(col.format("SERVER", "TRANS", "MODE", "STATUS", "ENDPOINT/CMD"))
+        print("-" * 70)
         async with httpx.AsyncClient(timeout=5.0) as probe:
             for key, cfg in ctx.cfg.mcp_servers.items():
-                if cfg.transport == "http" and cfg.url:
-                    try:
-                        r = await probe.get(f"{cfg.url}/health")
-                        status = (
-                            "OK" if r.status_code == 200 else f"HTTP {r.status_code}"
-                        )
-                    except Exception as e:
-                        status = f"FAIL ({e})"
-                    print(f"  {key:12s} {status}")
-                elif cfg.transport == "stdio":
+                if cfg.transport == "http":
+                    if cfg.url:
+                        try:
+                            r = await probe.get(f"{cfg.url}/health")
+                            status = (
+                                "OK"
+                                if r.status_code == 200
+                                else f"HTTP {r.status_code}"
+                            )
+                        except Exception as e:
+                            status = f"FAIL ({e})"
+                    else:
+                        status = "no-url"
+                    endpoint = cfg.url
+                else:
                     transport = ctx.services.stdio_procs.get(key)
-                    status = "alive" if transport and transport.is_alive() else "dead"
-                    print(f"  {key:12s} {status}")
+                    if transport is None:
+                        status = (
+                            "STOPPED"
+                            if cfg.startup_mode == "ondemand"
+                            else "NOT_STARTED"
+                        )
+                    elif transport.is_alive():
+                        status = "RUNNING"
+                    else:
+                        status = "DEAD"
+                    endpoint = " ".join(cfg.cmd) if cfg.cmd else ""
+                print(
+                    col.format(key, cfg.transport, cfg.startup_mode, status, endpoint)
+                )
 
     async def _cmd_mcp(self, args: str = "") -> None:
         """MCP server status, tool list, connectivity check, or install wizard."""
@@ -69,7 +76,7 @@ class _McpMixin:
             name = parts[1].strip() if len(parts) > 1 else ""
             await self._cmd_mcp_install(name)
         else:
-            await self._cmd_mcp_http()
+            await self._cmd_mcp_status()
 
     async def _cmd_mcp_install(self, server_name: str) -> None:
         """Interactive wizard: generate MCP server template files for server_name."""
@@ -146,8 +153,11 @@ class _McpMixin:
         for line in snippet.splitlines():
             print(f"     {line}")
         print()
-        print("  3. Add to agent/repl.py _MCP_SERVICE_MAP:")
-        print(f'     "http://127.0.0.1:{port}": "{server_name}",')
+        print("  3. Add to config/agent.toml mcp_servers:")
+        print(f"     [{server_name}]")
+        print('     transport = "http"')
+        print(f'     url = "http://127.0.0.1:{port}"')
+        print(f'     openrc_service = "{server_name}"')
         print()
         print("  4. Add to deploy/deploy.sh:")
         print(

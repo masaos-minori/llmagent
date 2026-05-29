@@ -38,6 +38,7 @@ from agent.cli_view import CLIView
 from agent.commands.registry import CommandRegistry
 from agent.context import AgentContext
 from agent.history import HistoryManager
+from agent.lifecycle import ServerLifecycleManager
 from agent.orchestrator import Orchestrator
 from agent.repl_health import (
     check_service_health,
@@ -131,12 +132,10 @@ class AgentREPL:
     async def _close_resources(self) -> None:
         """Close all session resources. Called in the run() finally block."""
         self._view.write_history()
-        # Stop all stdio MCP server subprocesses before closing the HTTP client.
-        for key, transport in self._ctx.services.stdio_procs.items():
-            try:
-                await transport.stop()
-            except Exception as e:
-                logger.warning(f"Error stopping stdio server {key!r}: {e}")
+        # Delegate stdio server shutdown to ServerLifecycleManager when available.
+        # Falls back to a no-op when lifecycle was never initialised (e.g. init failed).
+        if self._ctx.services.lifecycle is not None:
+            await self._ctx.services.lifecycle.shutdown_all()
         if self._ctx.services.http is not None:
             await self._ctx.services.http.aclose()
 
@@ -211,6 +210,13 @@ class AgentREPL:
             cache_max_size=ctx.cfg.tool_cache_max_size,
             concurrency_limits=ctx.cfg.tool_concurrency_limits,
         )
+        lifecycle = ServerLifecycleManager(
+            ctx.cfg.mcp_servers,
+            ctx.services.tools,
+            ctx.services.stdio_procs,
+        )
+        ctx.services.lifecycle = lifecycle
+        ctx.services.tools.set_lifecycle(lifecycle)
         ctx.services.hist_mgr = HistoryManager(
             ctx.services.http,
             llm_url=ctx.cfg.llm_url,
@@ -259,16 +265,18 @@ class AgentREPL:
             logger.info(f"Loaded {n_plugins} plugin(s) from {plugin_dir}")
 
     async def _start_stdio_servers(self) -> None:
-        """Spawn subprocess for each MCP server configured with transport='stdio'.
+        """Spawn subprocesses for persistent stdio MCP servers at agent startup.
 
-        Creates a StdioTransport, starts the process, registers it in ctx.services.tools
-        and ctx.services.stdio_procs so the watchdog can monitor it.
+        Ondemand servers (startup_mode='ondemand') are excluded here; they are
+        started on first use by ServerLifecycleManager.ensure_ready().
         """
         ctx = self._ctx
         assert ctx.services.tools is not None
         for key, cfg in ctx.cfg.mcp_servers.items():
             if cfg.transport != "stdio" or not cfg.cmd:
                 continue
+            if cfg.startup_mode != "persistent":
+                continue  # ondemand servers start on first tool call
             transport = StdioTransport(cfg.cmd, server_key=key)
             try:
                 await transport.start()

@@ -320,4 +320,5 @@ When removing a module: remove from all of the above, delete the file, run `rg` 
 - do not invent requirements that are not present
 - do not change public APIs silently
 - do not disable validation, tests, or type checking to make the task appear complete
-- do not suppress import-linter violations without updating the contract definition
+
+See also `rules/coding.md` for project-wide prohibitions (suppression governance, commit hygiene).

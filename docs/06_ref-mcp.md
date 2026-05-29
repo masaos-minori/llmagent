@@ -5,8 +5,10 @@ MCP (Model Context Protocol) サーバとのプロトコル通信を担うモジ
 | モジュール | 役割 |
 |---|---|
 | `mcp/models.py` | `/v1/call_tool` 統合エンドポイント共通 Pydantic モデル |
-| `mcp/server.py` | MCP サーバ HTTP 起動共通基底クラス |
-| `shared/tool_executor.py` | `ToolExecutor` — MCP HTTP ルーティング・TTL キャッシュ・エラーハンドリング |
+| `mcp/server.py` | MCP サーバ HTTP/stdio 起動共通基底クラス |
+| `shared/tool_constants.py` | MCP ツール分類 frozenset の正規定義 (READ/WRITE/DELETE/RAG) |
+| `shared/route_resolver.py` | `ToolRouteResolver` — config-driven + 静的プレフィックス fallback ルーティング |
+| `shared/tool_executor.py` | `ToolExecutor` — トランスポート透過的なツール実行・TTL キャッシュ・lifecycle 連携 |
 
 ---
 
@@ -63,7 +65,10 @@ MCP サーバの HTTP 起動ロジックを提供する基底クラス。`mcp/fi
 | メソッド | 説明 |
 |---|---|
 | `dispatch(name, args) -> tuple[str, bool]` | ツール呼び出しを処理する抽象メソッド。サブクラスが必ずオーバーライド。`(result_text, is_error)` を返す |
+| `list_tools() -> list[str]` | `mcp_tools` クラス属性からツール名リストを返す。`mcp_tools` 未定義なら空リスト |
+| `health() -> dict[str, str]` | `{"status": "ok"}` を返す。サブクラスでオーバーライド可 |
 | `run() -> None` | uvicorn で HTTP サーバを起動 |
+| `run_stdio() -> None` | stdin/stdout で行区切り JSON-RPC を処理。`__list_tools__` を予約 RPC として intercept する |
 
 ### 2.4 モジュールレベル関数・型エイリアス
 
@@ -125,13 +130,13 @@ if __name__ == "__main__":
 
 ```python
 from shared.tool_executor import HttpTransport, StdioTransport, ToolExecutor
-from agent.config import McpServerConfig
+from shared.mcp_config import McpServerConfig  # shared/mcp_config.py; re-exported from agent/config.py
 
 server_configs = {
     "web_search": McpServerConfig("http", "http://127.0.0.1:8004", [], "web-search-mcp"),
     "file_read":  McpServerConfig("http", "http://127.0.0.1:8005", [], "file-mcp"),
     "file_write": McpServerConfig("http", "http://127.0.0.1:8005", [], "file-mcp"),
-    "file_delete":McpServerConfig("http", "http://127.0.0.1:8005", [], "file-mcp"),
+    "file_delete": McpServerConfig("http", "http://127.0.0.1:8005", [], "file-mcp"),
     "github":     McpServerConfig("http", "http://127.0.0.1:8006", [], "github-mcp"),
 }
 executor = ToolExecutor(
@@ -164,16 +169,22 @@ result, is_error = await executor.execute("read_text_file", {"path": "/opt/llm/.
 | メソッド | 説明 |
 |---|---|
 | `set_transport(server_key, transport) -> None` | stdio サーバのプロセス起動後に `StdioTransport` を登録 |
+| `set_lifecycle(lifecycle) -> None` | `LifecycleProtocol` 実装を注入。`None` でクリア |
 | `execute(tool_name, args) -> tuple[str, bool]` | plugin ツール → キャッシュ → `_raw_execute()` の順で解決。成功結果のみキャッシュ |
 | `clear_cache() -> None` | ツール結果キャッシュを全クリア (`/clear` コマンドから呼ばれる) |
 
-ルーティング規則 (`_route()`):
-- `search_web` → `"web_search"`
-- `github_*` → `"github"`
-- `shell_run` → `"shell"`
-- `write_file`, `edit_file`, `create_directory`, `move_file` → `"file_write"`
-- `delete_file`, `delete_directory` → `"file_delete"`
-- その他 → `"file_read"`
+ルーティング規則 (`ToolRouteResolver.resolve()`):
+
+1. **config-driven**: `McpServerConfig.tool_names` にツール名が列挙されているサーバを優先
+2. **静的 fallback** (tool_names が空のとき、`shared/tool_constants.py` の frozenset を使用):
+   - `READ_TOOLS` (`list_directory`, `read_text_file`, …) → `"file_read"`
+   - `WRITE_TOOLS` (`write_file`, `edit_file`, `create_directory`, `move_file`) → `"file_write"`
+   - `DELETE_TOOLS` (`delete_file`, `delete_directory`) → `"file_delete"`
+   - `shell_run` → `"shell"`
+   - `search_web` → `"web_search"`
+   - `github_*` → `"github"`
+   - `RAG_TOOLS` (`rag_run_pipeline`, `rag_debug_pipeline`) → `"rag_pipeline"`
+   - その他 → `ValueError` を送出 (未知のツール名は登録必須)
 
 **plugin tool サポート**
 
@@ -206,7 +217,40 @@ async def my_tool(args: dict) -> tuple[str, bool]:
 
 | スクリプト | 使用箇所 |
 |---|---|
-| `agent/repl.py` | `_init_components()` で `ToolExecutor` を生成し `ctx.tools` に保持。stdio サーバは `_start_stdio_servers()` で起動後に `set_transport()` で登録 |
+| `agent/repl.py` | `_init_components()` で `ToolExecutor` を生成し `ctx.services.tools` に保持。`ServerLifecycleManager` を `set_lifecycle()` で注入。stdio persistent サーバは `_start_stdio_servers()` で起動後に `set_transport()` で登録 |
+
+---
+
+## 4. shared/tool_constants.py
+
+### 4.1 機能概要
+
+MCP ツール分類 frozenset の正規定義。複数モジュール (`route_resolver.py` / `tool_executor.py` / `agent/repl_tool_exec.py`) が同じ定数を参照するため、ここに一元化している。
+
+### 4.2 定数
+
+| 定数 | 内容 |
+|---|---|
+| `READ_TOOLS` | ファイル読み取り系 9 ツール (`list_directory`, `read_text_file`, …) |
+| `WRITE_TOOLS` | ファイル書き込み系 4 ツール (`write_file`, `edit_file`, `create_directory`, `move_file`) |
+| `DELETE_TOOLS` | ファイル削除系 2 ツール (`delete_file`, `delete_directory`) |
+| `RAG_TOOLS` | RAG パイプライン系 2 ツール (`rag_run_pipeline`, `rag_debug_pipeline`) |
+
+---
+
+## 5. shared/route_resolver.py
+
+### 5.1 機能概要
+
+`ToolExecutor` が使用するツール名 → サーバキー変換ロジック。config-driven routing を優先し、フォールバックとして静的プレフィックス判定を行う。
+
+### 5.2 API
+
+| クラス/メソッド | 説明 |
+|---|---|
+| `ToolRouteResolver(server_configs)` | 初期化時に `McpServerConfig.tool_names` から逆引きマップを構築 |
+| `resolve(tool_name) -> str` | config-driven → 静的 fallback の順で解決。不明ツールは `ValueError` |
+| `_fallback_route(tool_name) -> str` | `tool_constants` の frozenset と prefix ルールによる静的判定 |
 
 ---
 

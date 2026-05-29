@@ -14,7 +14,8 @@
 | Compose with other SKILLs | Design so the SKILL can be chained; avoid re-encoding what another SKILL already covers |
 | Optimize for token efficiency | Front-load critical rules; cut prose that does not constrain behavior |
 | Design to prevent failure | Anticipate common error modes and encode the guard or recovery inline |
-| Run local commands without confirmation | Execute local commands directly — no confirmation needed for any read-only or non-destructive operation (lint, type-check, tests, file inspection, `sed`, `source .venv/bin/activate`, etc.). Only pause before actions that push to remote systems, delete data, or modify shared infrastructure. |
+
+**Runtime policy** (defined in `CLAUDE.md`, not repeated here): execution policy, always-load rules (`rules/coding.md` / `rules/toolchain.md`), confirmation thresholds.
 
 **Evaluation criteria** — a SKILL is good when it:
 

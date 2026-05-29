@@ -16,16 +16,32 @@
 ```python
 @dataclass
 class McpServerConfig:
-    transport: str        # "http" | "stdio"
-    url: str              # HTTP ベース URL (transport="http" 時に使用)
-    cmd: list[str]        # サブプロセス起動コマンド (transport="stdio" 時に使用)
-    openrc_service: str   # ウォッチドッグが再起動に使う OpenRC サービス名
+    transport: str              # "http" | "stdio"
+    url: str                    # HTTP ベース URL (transport="http" 時に使用)
+    cmd: list[str]              # サブプロセス起動コマンド (transport="stdio" 時に使用)
+    openrc_service: str         # ウォッチドッグが再起動に使う OpenRC サービス名
+    startup_mode: str = "persistent"   # "persistent" | "ondemand"
+    healthcheck_mode: str = ""  # "http" | "process" | "ping_tool"; "" = 自動推論
+    idle_timeout_sec: int = 0   # ondemand アイドル自動停止まで秒数; 0 = 無効
+    working_dir: str = ""       # stdio サブプロセス作業ディレクトリ; "" = 継承
+    env: dict[str, str] = ...   # stdio サブプロセスに注入する環境変数
+    tool_names: list[str] = []  # 明示的ツール名リスト; [] = 静的プレフィックスルーティングに fallback
 ```
 
 `__post_init__` でバリデーション:
 - `transport` は `"http"` または `"stdio"` のみ
 - `transport="http"` のとき `url` が空でないこと
 - `transport="stdio"` のとき `cmd` が空でないこと
+- `startup_mode` は `"persistent"` または `"ondemand"` のみ
+- `healthcheck_mode` は `""` / `"http"` / `"process"` / `"ping_tool"` のみ。`""` 指定時はトランスポートから自動推論 (`http` → `"http"`, `stdio` → `"process"`)
+
+**起動モード:**
+- `persistent`: エージェント起動時に `_start_stdio_servers()` が即座に `StdioTransport.start()` を呼ぶ。HTTP サーバはプロセス管理不要のため常にこのモードで動作。
+- `ondemand`: 初回ツール呼び出し時に `ServerLifecycleManager.ensure_ready()` が起動。並行呼び出しは per-server `asyncio.Lock` + double-checked locking で 1 回のみ起動。
+
+**tool_names によるルーティング:**
+- `tool_names` に名前を列挙した場合、`ToolRouteResolver` はそれらのツールをこのサーバへルーティングする。
+- 空リストの場合、`ToolRouteResolver._fallback_route()` が静的プレフィックス判定 (frozenset) にフォールバックする。
 
 | 関数 | 戻り値 | 説明 |
 |---|---|---|

@@ -269,7 +269,6 @@ tox --recreate -e lint
 
 ## Step 10: Minimal Change Principle
 
-- stage files individually — never `git add -A` or `git add .`
 - do not reformat files unrelated to the task
 - do not fix unrelated lint issues in the same commit
 - do not rename symbols while fixing a type error — do them in separate commits
@@ -311,8 +310,7 @@ After resolving issues, update project knowledge files if anything changed:
 
 ## Prohibited behavior
 
-- do not add `# noqa`, `# type: ignore`, or `# nosec` without an inline explanation
-- do not add global ignores to `pyproject.toml` without justification
-- do not suppress `lint-imports` violations without updating the contract definition
 - do not reformat unrelated files to reduce the diff noise
 - do not fix multiple unrelated issues in the same commit
+
+See also `rules/coding.md` for project-wide prohibitions (suppression governance, commit hygiene).
