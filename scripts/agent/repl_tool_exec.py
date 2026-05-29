@@ -159,6 +159,20 @@ def _check_allowed_repo(cfg: "AgentConfig", tool_name: str, args: dict) -> bool:
     return f"{owner}/{repo}" in allowed
 
 
+def _is_summarized(
+    cfg: "AgentConfig", text: str, llm_text: str, is_error: bool
+) -> bool:
+    """Return True when llm_text represents a summarized (not truncated) form of text."""
+    if not cfg.use_tool_summarize or is_error:
+        return False
+    if len(text) <= cfg.tool_summarize_threshold:
+        return False
+    if llm_text == text:
+        return False
+    truncated = text[: cfg.tool_result_max_llm_chars] + "\n... (truncated)"
+    return llm_text != truncated
+
+
 def _build_preview(tool_name: str, args: dict) -> str:
     """Build a human-readable operation preview shown before approval prompts."""
     if tool_name in ("write_file", "edit_file"):
@@ -376,6 +390,10 @@ async def execute_all_tool_calls(
             )
         )
 
+    # Persist all tool result messages in one DB transaction (one connection open).
+    # Collecting here avoids N individual save() calls each with their own
+    # load_extension + PRAGMA overhead.
+    tool_msgs: list[tuple[str, str, list[dict] | None, str | None]] = []
     turn_chars = 0  # cumulative llm_text chars injected into history this turn
     for tc_id, name, args, text, is_error, llm_text in results:
         ctx.stat_tool_calls += 1
@@ -395,18 +413,7 @@ async def execute_all_tool_calls(
             print(f"  [tool] {name} → {display}")
         else:
             print(f"  [tool] {name} → {text}")
-        # Determine whether this result was summarized for storage tagging
-        summarized = (
-            ctx.cfg.use_tool_summarize
-            and not is_error
-            and len(text) > ctx.cfg.tool_summarize_threshold
-            and llm_text != text
-            and not (
-                len(text) > ctx.cfg.tool_result_max_llm_chars
-                and llm_text
-                == text[: ctx.cfg.tool_result_max_llm_chars] + "\n... (truncated)"
-            )
-        )
+        summarized = _is_summarized(ctx.cfg, text, llm_text, is_error)
         # Persist full text to DB store; id enables /tool show retrieval
         result_id = ctx.tool_result_store.store(
             session_id=ctx.session.session_id,
@@ -427,13 +434,9 @@ async def execute_all_tool_calls(
                 f"Per-turn tool result limit reached: {turn_chars} chars"
                 f" > {limit}; result replaced with hint (id={result_id})"
             )
-        ctx.history.append(
-            {
-                "role": "tool",
-                "tool_call_id": tc_id,
-                "content": llm_text,
-            }
-        )
+        ctx.history.append({"role": "tool", "tool_call_id": tc_id, "content": llm_text})
+        # Collect after per-turn limit so save_many mirrors what LLM history sees.
+        tool_msgs.append(("tool", llm_text, None, tc_id))
     # Add skipped results so the LLM knows these tool calls were denied.
     for denied_id in denied_ids:
         ctx.history.append(
@@ -443,15 +446,5 @@ async def execute_all_tool_calls(
                 "content": "Tool execution denied by user.",
             }
         )
-    # Persist all tool result messages in one DB transaction (one connection open).
-    # Collecting here avoids N individual save() calls each with their own
-    # load_extension + PRAGMA overhead.
-    tool_msgs: list[tuple[str, str, list[dict] | None, str | None]] = [
-        ("tool", llm_text, None, tc_id)
-        for tc_id, _name, _args, _text, _is_error, llm_text in results
-    ]
-    tool_msgs += [
-        ("tool", "Tool execution denied by user.", None, denied_id)
-        for denied_id in denied_ids
-    ]
+        tool_msgs.append(("tool", "Tool execution denied by user.", None, denied_id))
     ctx.session.save_many(tool_msgs)

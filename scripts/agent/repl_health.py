@@ -23,7 +23,7 @@ async def probe_mcp_health(http: httpx.AsyncClient, base_url: str) -> bool:
     """Return True if the MCP server at base_url responds to /health with 200."""
     try:
         resp = await http.get(f"{base_url}/health", timeout=5.0)
-        return bool(resp.status_code == 200)
+        return int(resp.status_code) == 200
     except Exception:
         return False
 

@@ -247,6 +247,38 @@ class Orchestrator:
 
     # ── LLM interaction ───────────────────────────────────────────────────────
 
+    def _warn_budget(self) -> None:
+        """Log warnings when conversation history approaches context limits.
+
+        Called at turn=0 only; skips when both limits are disabled (=0).
+        """
+        ctx = self._ctx
+        if ctx.cfg.context_char_limit > 0:
+            bd = _budget_breakdown(ctx.history)
+            total_bd = sum(bd.values())
+            if total_bd > ctx.cfg.context_char_limit * ctx.cfg.budget_warn_ratio:
+                pct = int(total_bd * 100 / ctx.cfg.context_char_limit)
+                logger.warning(
+                    f"Context budget {pct}% used"
+                    f" (total={total_bd:,}"
+                    f" limit={ctx.cfg.context_char_limit:,})"
+                    f" sys={bd['system']:,} rag={bd['rag']:,}"
+                    f" hist={bd['history']:,}"
+                    f" tool={bd['tool_results']:,}"
+                )
+        if ctx.cfg.context_token_limit > 0:
+            assert ctx.services.hist_mgr is not None
+            token_bd = ctx.services.hist_mgr.count_tokens(
+                ctx.history, ctx.stat_input_tokens
+            )
+            if token_bd > ctx.cfg.context_token_limit * ctx.cfg.budget_warn_ratio:
+                pct = int(token_bd * 100 / ctx.cfg.context_token_limit)
+                logger.warning(
+                    f"Token budget {pct}% used"
+                    f" (tokens={token_bd:,}"
+                    f" limit={ctx.cfg.context_token_limit:,})"
+                )
+
     async def _run_turn(self, llm_url: str) -> str:
         """Send ctx.history to LLM; execute tool calls; return final answer.
 
@@ -269,34 +301,8 @@ class Orchestrator:
         for turn in range(ctx.cfg.max_tool_turns):
             if self._on_turn_start:
                 self._on_turn_start()
-
-            # Warn when total input chars exceed budget_warn_ratio of context_char_limit
-            if turn == 0 and ctx.cfg.context_char_limit > 0:
-                bd = _budget_breakdown(ctx.history)
-                total_bd = sum(bd.values())
-                if total_bd > ctx.cfg.context_char_limit * ctx.cfg.budget_warn_ratio:
-                    pct = int(total_bd * 100 / ctx.cfg.context_char_limit)
-                    logger.warning(
-                        f"Context budget {pct}% used"
-                        f" (total={total_bd:,}"
-                        f" limit={ctx.cfg.context_char_limit:,})"
-                        f" sys={bd['system']:,} rag={bd['rag']:,}"
-                        f" hist={bd['history']:,}"
-                        f" tool={bd['tool_results']:,}"
-                    )
-            # Warn when token estimate exceeds budget_warn_ratio of context_token_limit
-            if turn == 0 and ctx.cfg.context_token_limit > 0:
-                assert ctx.services.hist_mgr is not None
-                token_bd = ctx.services.hist_mgr.count_tokens(
-                    ctx.history, ctx.stat_input_tokens
-                )
-                if token_bd > ctx.cfg.context_token_limit * ctx.cfg.budget_warn_ratio:
-                    pct = int(token_bd * 100 / ctx.cfg.context_token_limit)
-                    logger.warning(
-                        f"Token budget {pct}% used"
-                        f" (tokens={token_bd:,}"
-                        f" limit={ctx.cfg.context_token_limit:,})"
-                    )
+            if turn == 0:
+                self._warn_budget()
 
             t0_llm = time.perf_counter()
             try:

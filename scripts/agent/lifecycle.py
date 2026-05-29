@@ -66,13 +66,13 @@ class ServerLifecycleManager:
             transport = self._stdio_procs.get(server_key)
             if transport is not None and transport.is_alive():
                 return
-            cfg2 = self._server_configs.get(server_key)
-            if cfg2 is None or not cfg2.cmd:
+            startup_cfg = self._server_configs.get(server_key)
+            if startup_cfg is None or not startup_cfg.cmd:
                 logger.warning(
                     f"Lifecycle: cannot start {server_key!r}: no cmd configured"
                 )
                 return
-            new_transport = StdioTransport(cfg2.cmd, server_key=server_key)
+            new_transport = StdioTransport(startup_cfg.cmd, server_key=server_key)
             try:
                 await new_transport.start()
                 self._tool_executor.set_transport(server_key, new_transport)
