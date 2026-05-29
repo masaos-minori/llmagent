@@ -106,6 +106,30 @@ class DeleteFileService:
         self._write_audit_log("delete_file", str(target))
         return DeleteFileResponse(path=str(target), deleted=True, file_info="")
 
+    def _scan_directory_for_dry_run(self, target: Path) -> tuple[int, int, bool]:
+        """Walk target and return (file_count, total_size_bytes, truncated).
+
+        Stops counting after _DRY_RUN_MAX_FILES files to avoid blocking on huge trees.
+        OSError on individual files are skipped; OSError on the walk itself propagates.
+        """
+        file_count = 0
+        total_size = 0
+        truncated = False
+        for dirpath, _, filenames in os.walk(str(target)):
+            for fname in filenames:
+                if file_count >= _DRY_RUN_MAX_FILES:
+                    truncated = True
+                    break
+                try:
+                    fpath = Path(dirpath) / fname
+                    total_size += fpath.stat().st_size
+                    file_count += 1
+                except OSError:
+                    continue
+            if truncated:
+                break
+        return file_count, total_size, truncated
+
     def delete_directory(self, req: DeleteDirectoryRequest) -> DeleteDirectoryResponse:
         """Delete a directory and record the operation in the audit log.
 
@@ -115,23 +139,10 @@ class DeleteFileService:
         self._require_dir(target, req.path)
 
         if req.dry_run:
-            file_count = 0
-            total_size = 0
-            truncated = False
             try:
-                for dirpath, _, filenames in os.walk(str(target)):
-                    for fname in filenames:
-                        if file_count >= _DRY_RUN_MAX_FILES:
-                            truncated = True
-                            break
-                        try:
-                            fpath = Path(dirpath) / fname
-                            total_size += fpath.stat().st_size
-                            file_count += 1
-                        except OSError:
-                            continue
-                    if truncated:
-                        break
+                file_count, total_size, truncated = self._scan_directory_for_dry_run(
+                    target
+                )
             except OSError as e:
                 return DeleteDirectoryResponse(
                     path=str(target),
