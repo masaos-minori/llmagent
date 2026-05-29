@@ -40,7 +40,10 @@ import importlib.util
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, TypeVar  # noqa: UP035
+from typing import (  # noqa: UP035 — TypeVar with bound= requires typing.TypeVar; collections.abc has no equivalent
+    Any,
+    TypeVar,
+)
 
 logger = logging.getLogger(__name__)
 

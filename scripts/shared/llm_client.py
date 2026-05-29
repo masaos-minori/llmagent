@@ -266,7 +266,10 @@ class LLMClient:
                 logger.error(
                     f"LLM request failed after {self._max_retries} attempts: {last_exc}"
                 )
-        raise last_exc  # type: ignore[misc]
+        assert (
+            last_exc is not None
+        )  # loop ran and all attempts raised; max_retries >= 1 required
+        raise last_exc
 
     # ── Payload construction ──────────────────────────────────────────────────
 
@@ -288,6 +291,16 @@ class LLMClient:
             payload["stream"] = True
         return payload
 
+    def _emit_usage(self, data: dict) -> None:
+        """Fire on_usage callback when both token counts are present in data."""
+        if self._on_usage is None:
+            return
+        usage = data.get("usage", {})
+        pt = usage.get("prompt_tokens")
+        ct = usage.get("completion_tokens")
+        if pt is not None and ct is not None:
+            self._on_usage(int(pt), int(ct))
+
     # ── Non-streaming call ────────────────────────────────────────────────────
 
     async def call(
@@ -298,12 +311,7 @@ class LLMClient:
             url, self.build_payload(history, tool_defs)
         )
         data = dict(resp.json())
-        if self._on_usage is not None:
-            usage = data.get("usage", {})
-            pt = usage.get("prompt_tokens")
-            ct = usage.get("completion_tokens")
-            if pt is not None and ct is not None:
-                self._on_usage(int(pt), int(ct))
+        self._emit_usage(data)
         return data
 
     # ── SSE streaming helpers ─────────────────────────────────────────────────
@@ -445,12 +453,7 @@ class LLMClient:
                         )
                         if reason:
                             finish_reason = reason
-                        if self._on_usage is not None:
-                            usage = chunk.get("usage", {})
-                            pt = usage.get("prompt_tokens")
-                            ct = usage.get("completion_tokens")
-                            if pt is not None and ct is not None:
-                                self._on_usage(int(pt), int(ct))
+                        self._emit_usage(chunk)
 
                     if is_done:
                         break
