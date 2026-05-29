@@ -264,12 +264,14 @@ class SQLiteHelper:
     def execute(self, sql: str, params: dict | tuple = ()) -> sqlite3.Cursor:
         """Execute a SQL statement with positional (tuple) or named (dict) params."""
         self._check_ready(sql)
-        return self.conn.execute(sql, params)  # type: ignore[union-attr]
+        assert self.conn is not None  # guaranteed by _check_ready()
+        return self.conn.execute(sql, params)
 
     def fetchall(self, sql: str, params: dict | tuple = ()) -> list[Any]:
         """Execute a SQL statement and return all result rows as a list."""
         self._check_ready(sql)
-        return self.conn.execute(sql, params).fetchall()  # type: ignore[union-attr]
+        assert self.conn is not None  # guaranteed by _check_ready()
+        return self.conn.execute(sql, params).fetchall()
 
     def commit(self) -> None:
         """Commit the current transaction on self.conn."""

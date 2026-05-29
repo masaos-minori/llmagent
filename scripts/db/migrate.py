@@ -47,11 +47,11 @@ def _copy_table(
     src_conn: sqlite3.Connection, dst_conn: sqlite3.Connection, table: str
 ) -> int:
     """Copy all rows from src to dst for the given table; return copied row count."""
-    rows = src_conn.execute(f"SELECT * FROM {table}").fetchall()  # noqa: S608
+    rows = src_conn.execute(f"SELECT * FROM {table}").fetchall()  # noqa: S608 -- table comes from _SESSION_TABLES hardcoded list
     if not rows:
         return 0
     placeholders = ", ".join("?" * len(rows[0]))
-    dst_conn.executemany(f"INSERT OR IGNORE INTO {table} VALUES ({placeholders})", rows)  # noqa: S608
+    dst_conn.executemany(f"INSERT OR IGNORE INTO {table} VALUES ({placeholders})", rows)  # noqa: S608 -- same: table is a trusted hardcoded constant
     return len(rows)
 
 

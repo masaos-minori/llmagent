@@ -197,7 +197,8 @@ class SQLiteDocumentStore:
             " VALUES (?, ?, ?, ?, ?)",
             (url, title, lang, etag, last_modified),
         )
-        return int(cur.lastrowid)  # type: ignore[arg-type]
+        assert cur.lastrowid is not None  # INSERT always sets lastrowid on success
+        return int(cur.lastrowid)
 
     def doc_get(self, url: str) -> dict[str, Any] | None:
         rows = self._db.fetchall(
@@ -258,7 +259,8 @@ class SQLiteDocumentStore:
             " VALUES (?, ?, ?, ?)",
             (doc_id, index, content, normalized),
         )
-        return int(cur.lastrowid)  # type: ignore[arg-type]
+        assert cur.lastrowid is not None  # INSERT always sets lastrowid on success
+        return int(cur.lastrowid)
 
     def chunk_count(self) -> int:
         rows = self._db.fetchall("SELECT count(*) FROM chunks")
@@ -273,7 +275,8 @@ class SQLiteSessionStore:
 
     def session_create(self) -> int:
         cur = self._db.execute("INSERT INTO sessions (title) VALUES (NULL)")
-        return int(cur.lastrowid)  # type: ignore[arg-type]
+        assert cur.lastrowid is not None  # INSERT always sets lastrowid on success
+        return int(cur.lastrowid)
 
     def session_list(self, limit: int) -> list[dict[str, Any]]:
         rows = self._db.fetchall(
