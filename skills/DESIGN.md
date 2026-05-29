@@ -14,7 +14,7 @@
 | Compose with other SKILLs | Design so the SKILL can be chained; avoid re-encoding what another SKILL already covers |
 | Optimize for token efficiency | Front-load critical rules; cut prose that does not constrain behavior |
 | Design to prevent failure | Anticipate common error modes and encode the guard or recovery inline |
-| Run non-destructive commands without confirmation | Execute read-only and non-mutating commands (file reads, lint, type-check, tests, grep, `sed`, `source .venv/bin/activate`) directly — never ask for user confirmation before running them |
+| Run local commands without confirmation | Execute local commands directly — no confirmation needed for any read-only or non-destructive operation (lint, type-check, tests, file inspection, `sed`, `source .venv/bin/activate`, etc.). Only pause before actions that push to remote systems, delete data, or modify shared infrastructure. |
 
 **Evaluation criteria** — a SKILL is good when it:
 
