@@ -8,7 +8,7 @@ description="GitHub MCP server (FastAPI/Uvicorn :8006)"
 rc_env_file="/etc/conf.d/github-mcp"
 
 command="/opt/llm/venv/bin/uvicorn"
-command_args="github_mcp_server:app --host 127.0.0.1 --port 8006 --workers 1"
+command_args="mcp.github.server:app --host 127.0.0.1 --port 8006 --workers 1"
 command_background="yes"
 command_user="root"
 

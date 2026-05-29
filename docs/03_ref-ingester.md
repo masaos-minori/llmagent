@@ -92,7 +92,7 @@ POST http://127.0.0.1:8003/embedding
 | パラメータ | 設定ファイル | デフォルト | 説明 |
 |---|---|---|---|
 | `embed_url` | `config/common.json` | `http://127.0.0.1:8003/embedding` | 埋込 API のエンドポイント (llama.cpp レガシー形式) |
-| `db_path` | `config/common.json` | `/opt/llm/db/rag.sqlite` | SQLite データベースのパス |
+| `rag_db_path` | `config/common.toml` | `/opt/llm/db/rag.sqlite` | SQLite データベースのパス |
 | `sqlite_vec_so` | `config/common.json` | `/opt/llm/sqlite-vec/vec0.so` | sqlite-vec 拡張 (.so) のパス |
 | `rag_src_dir` | `config/rag_pipeline.json` | `/opt/llm/rag-src` | チャンクファイル入力ディレクトリ (`{rag_src_dir}/chunk/*.txt`) および登録済みファイル移動先 (`{rag_src_dir}/registered/`) |
 | `embed_retry` | `config/rag_pipeline.json` | `3` | 埋込 API 失敗時の指数バックオフリトライ上限回数 |

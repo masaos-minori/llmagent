@@ -31,9 +31,11 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | web-search-mcp specifics | `docs/04_mcp-web-search.md` |
 | file-mcp specifics | `docs/04_mcp-file.md` |
 | github-mcp specifics | `docs/04_mcp-github.md` |
-| RAG pipeline modification | `docs/06_ref-rag.md` |
+| RAG pipeline modification | `docs/06_ref-rag.md` + `docs/06_common.md` |
+| rag-pipeline-mcp specifics | `docs/04_mcp-rag.md` |
 | Agent startup / verification / troubleshooting | `docs/05_agent-ops.md` |
 | Agent features / slash commands / tool calling | `docs/05_agent.md` + `docs/06_ref-agent-commands.md` |
+| Plugin tool handler / @register_tool | `docs/06_ref-agent-repl.md` + `docs/06_common.md` |
 | Agent REPL class structure | `docs/05_agent-impl-class.md` + `docs/06_ref-agent-repl.md` |
 | Agent REPL flow / tool execution | `docs/05_agent-impl-flow.md` + `docs/06_ref-agent-history.md` |
 | AgentContext / DI hub | `docs/06_ref-agent-context.md` |
@@ -41,7 +43,7 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | Session / DB persistence | `docs/06_ref-agent-session.md` + `docs/06_ref-sqlite.md` |
 | LLM client (streaming/retry) | `docs/06_ref-agent-llm.md` |
 | CLI view / readline | `docs/06_ref-agent-view.md` |
-| RAG types / repository / LLM utils | `docs/06_ref-rag.md` |
+| RAG types / repository / LLM utils | `docs/06_ref-rag.md` + `docs/06_common.md` |
 | SQLite / DB connection / WAL / transactions | `docs/06_ref-sqlite.md` |
 | Config / logger / formatters / rag_utils | `docs/06_ref-infra.md` |
 | Ingestion pipeline run (execute commands, file lifecycle) | `docs/03_ingestion-run.md` |

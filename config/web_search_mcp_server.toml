@@ -1,0 +1,20 @@
+# web-search-mcp server configuration
+
+# search_providers: provider priority list; tried in order, falls back to next on failure or zero results
+# choices: "brave" / "bing" / "duckduckgo"
+search_providers = ["brave", "bing", "duckduckgo"]
+
+# default_max_results: default result count when max_results is omitted in request
+default_max_results = 5
+
+# max_results_limit: server-side cap on result count
+max_results_limit = 20
+
+# http_timeout: HTTP request timeout for Brave / Bing API calls (seconds)
+http_timeout = 30.0
+
+# brave_search_url: Brave Search API endpoint
+brave_search_url = "https://api.search.brave.com/res/v1/web/search"
+
+# bing_search_url: Bing Web Search API v7 endpoint
+bing_search_url = "https://api.bing.microsoft.com/v7.0/search"

@@ -1,5 +1,12 @@
-Context Loader Pattern を考慮し、CLAUDE.md および `docs/*.md` ファイルの分割を実行
+[prerequisites]
+- routing
+- dependency direction
+- minimal loading
+- shared normalization
 
+[tasks]
+CLAUDE.md, skills/DESIGN.md, `skills/**/*.md` の内容の重複を削除
+Context Loader Pattern を考慮し、CCLAUDE.md, skills/DESIGN.md, `skills/**/*.md` を再構成
 ```
 Task
  ↓
@@ -11,9 +18,3 @@ Shared Rules
  ↓
 Execution
 ```
-
-- 方針
- - routing
- - dependency direction
- - minimal loading
- - shared normalization

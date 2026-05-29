@@ -9,6 +9,7 @@ repos:
     rev: v1.16.0
     hooks:
       - id: mypy
+        pass_filenames: false
         additional_dependencies:
           - types-requests>=2.32
           - types-beautifulsoup4>=4.12

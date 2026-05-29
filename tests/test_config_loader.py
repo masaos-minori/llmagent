@@ -1,0 +1,111 @@
+"""tests/test_config_loader.py
+Unit tests for ConfigLoader: TOML and JSON loading, merging, and error cases.
+"""
+
+from pathlib import Path
+
+import orjson
+import pytest
+from shared.config_loader import ConfigLoader
+
+
+@pytest.fixture
+def tmp_cfg(tmp_path: Path) -> ConfigLoader:
+    """ConfigLoader pointing at a temporary directory."""
+    return ConfigLoader(config_dir=tmp_path)
+
+
+class TestTOMLLoading:
+    def test_loads_simple_toml(self, tmp_cfg: ConfigLoader, tmp_path: Path) -> None:
+        (tmp_path / "test.toml").write_text(
+            'key = "value"\nnum = 42\n', encoding="utf-8"
+        )
+        result = tmp_cfg.load("test.toml")
+        assert result == {"key": "value", "num": 42}
+
+    def test_loads_nested_toml(self, tmp_cfg: ConfigLoader, tmp_path: Path) -> None:
+        (tmp_path / "nested.toml").write_text(
+            '[section]\nfoo = "bar"\n', encoding="utf-8"
+        )
+        result = tmp_cfg.load("nested.toml")
+        assert result == {"section": {"foo": "bar"}}
+
+    def test_invalid_toml_raises_value_error(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        (tmp_path / "bad.toml").write_text("key = [unclosed", encoding="utf-8")
+        with pytest.raises(ValueError, match="Invalid TOML"):
+            tmp_cfg.load("bad.toml")
+
+    def test_meta_keys_excluded_toml_via_comment(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        # TOML uses # comments; _doc keys are excluded from result
+        (tmp_path / "meta.toml").write_text(
+            '_doc = "desc"\nreal = true\n', encoding="utf-8"
+        )
+        result = tmp_cfg.load("meta.toml")
+        assert "_doc" not in result
+        assert result["real"] is True
+
+
+class TestJSONLoading:
+    def test_loads_simple_json(self, tmp_cfg: ConfigLoader, tmp_path: Path) -> None:
+        (tmp_path / "test.json").write_bytes(orjson.dumps({"a": 1}))
+        result = tmp_cfg.load("test.json")
+        assert result == {"a": 1}
+
+    def test_invalid_json_raises_value_error(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        (tmp_path / "bad.json").write_bytes(b"{bad json}")
+        with pytest.raises(ValueError, match="Invalid JSON"):
+            tmp_cfg.load("bad.json")
+
+    def test_meta_keys_excluded_json(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        (tmp_path / "meta.json").write_bytes(orjson.dumps({"_doc": "desc", "x": 1}))
+        result = tmp_cfg.load("meta.json")
+        assert "_doc" not in result
+        assert result["x"] == 1
+
+
+class TestMerge:
+    def test_merges_two_files(self, tmp_cfg: ConfigLoader, tmp_path: Path) -> None:
+        (tmp_path / "a.toml").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "b.toml").write_text("y = 2\n", encoding="utf-8")
+        result = tmp_cfg.load("a.toml", "b.toml")
+        assert result == {"x": 1, "y": 2}
+
+    def test_later_file_overrides_earlier(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        (tmp_path / "a.toml").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "b.toml").write_text("x = 99\n", encoding="utf-8")
+        result = tmp_cfg.load("a.toml", "b.toml")
+        assert result["x"] == 99
+
+
+class TestErrors:
+    def test_missing_file_raises_value_error(self, tmp_cfg: ConfigLoader) -> None:
+        with pytest.raises(ValueError, match="Config file not found"):
+            tmp_cfg.load("nonexistent.toml")
+
+    def test_empty_names_raises_value_error(self, tmp_cfg: ConfigLoader) -> None:
+        with pytest.raises(ValueError, match="At least one"):
+            tmp_cfg.load()
+
+    def test_non_string_name_raises_type_error(self, tmp_cfg: ConfigLoader) -> None:
+        with pytest.raises(TypeError, match="non-empty str"):
+            tmp_cfg.load(123)  # type: ignore[arg-type]
+
+    def test_non_dict_toml_raises_value_error(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        # TOML top-level must be a table; arrays of tables would need to be accessed
+        # via a key. Write raw bytes after manually constructing invalid top-level.
+        # tomllib itself enforces top-level must be a table, so test JSON equivalent.
+        (tmp_path / "array.json").write_bytes(b"[1, 2, 3]")
+        with pytest.raises(ValueError, match="top-level mapping"):
+            tmp_cfg.load("array.json")

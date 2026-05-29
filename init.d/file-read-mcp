@@ -4,7 +4,7 @@
 description="File Read-Only MCP Server (FastAPI/Uvicorn :8005)"
 
 command="/opt/llm/venv/bin/uvicorn"
-command_args="file_read_mcp_server:app --host 127.0.0.1 --port 8005 --workers 1"
+command_args="mcp.file.read_server:app --host 127.0.0.1 --port 8005 --workers 1"
 command_background="yes"
 command_user="root"
 

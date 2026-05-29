@@ -4,7 +4,7 @@
 description="Web Search MCP Server (FastAPI/Uvicorn :8004)"
 
 command="/opt/llm/venv/bin/uvicorn"
-command_args="web_search_mcp_server:app --host 127.0.0.1 --port 8004 --workers 1"
+command_args="mcp.web_search.server:app --host 127.0.0.1 --port 8004 --workers 1"
 command_background="yes"
 command_user="root"
 

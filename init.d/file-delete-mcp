@@ -4,7 +4,7 @@
 description="File Delete MCP Server (FastAPI/Uvicorn :8008)"
 
 command="/opt/llm/venv/bin/uvicorn"
-command_args="file_delete_mcp_server:app --host 127.0.0.1 --port 8008 --workers 1"
+command_args="mcp.file.delete_server:app --host 127.0.0.1 --port 8008 --workers 1"
 command_background="yes"
 command_user="root"
 

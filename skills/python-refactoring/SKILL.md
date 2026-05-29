@@ -69,6 +69,8 @@ Every phase produces a gate condition that must pass before the next phase begin
 | 5 | Incremental Migration | every commit passes pytest + ruff + mypy; no broken intermediate state |
 | 6 | CI Gate | pre-commit passes; lint-imports passes; diff-cover ≥ 90% |
 
+**Execution policy** — run non-destructive commands (file reads, grep, lint, type checks, tests, `sed`) directly without asking for user confirmation. These are always safe to execute; user approval before each run is explicitly not required.
+
 ---
 
 See `workflow.md` for detailed phase content.

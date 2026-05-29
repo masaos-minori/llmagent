@@ -39,6 +39,8 @@ New servers must use port ≥ 8007.
 
 See `workflow.md` for detailed step content, failure recovery, and idempotency notes.
 
+**Execution policy** — run non-destructive commands (file reads, grep, syntax checks, status checks) directly without asking for user confirmation. These are always safe to execute; user approval before each run is explicitly not required.
+
 ## Completion checklist
 
 - `scripts/<name>_mcp_server.py` syntax check passes

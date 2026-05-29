@@ -38,7 +38,7 @@ Can be started from any directory; sys.path is adjusted at startup.
   /system [name]                 Switch system prompt preset
   /set temperature <f>           Change LLM generation temperature at runtime
   /set max_tokens <n>            Change LLM max tokens at runtime
-  /reload                        Reload config/agent.json and apply runtime parameters
+  /reload                        Reload config/agent.toml and apply runtime parameters
   /note add <text>               Add a persistent cross-session note
   /note list                     List all notes
   /note delete <id>              Delete a note by ID
@@ -61,8 +61,8 @@ Can be started from any directory; sys.path is adjusted at startup.
   MCP servers are accessed via HTTP (ports 8004-8006 must already be running).
 
 == Config files ==
-  config/common.json  : DB path, sqlite-vec extension path
-  config/agent.json   : LLM URLs, tool definitions, system prompts,
+  config/common.toml  : DB path, sqlite-vec extension path
+  config/agent.toml   : LLM URLs, tool definitions, system prompts,
                         RAG flags, max turns
 """
 
@@ -75,7 +75,7 @@ from pathlib import Path
 # script is invoked (not only from /opt/llm/scripts/).
 sys.path.insert(0, str(Path(__file__).parent))
 
-from agent_repl import AgentREPL
+from agent.repl import AgentREPL
 
 
 def _request_shutdown(_signum: int, _frame: object) -> None:

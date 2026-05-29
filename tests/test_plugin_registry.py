@@ -9,8 +9,8 @@ import asyncio
 import textwrap
 from pathlib import Path
 
-import plugin_registry
 import pytest
+import shared.plugin_registry as plugin_registry
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -153,7 +153,7 @@ class TestLoadPlugins:
         plugin_file = tmp_path / "my_plugin.py"
         plugin_file.write_text(
             textwrap.dedent("""\
-                from plugin_registry import register_command
+                from shared.plugin_registry import register_command
 
                 @register_command("/hello")
                 async def cmd(ctx, args):
@@ -168,7 +168,7 @@ class TestLoadPlugins:
         (tmp_path / "bad.py").write_text("raise RuntimeError('boom')")
         (tmp_path / "good.py").write_text(
             textwrap.dedent("""\
-                from plugin_registry import register_tool
+                from shared.plugin_registry import register_tool
 
                 @register_tool("good_tool")
                 async def t(args):

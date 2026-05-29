@@ -95,7 +95,7 @@ config/common.json
 
 | パラメータ | デフォルト | 説明 |
 |---|---|---|
-| `db_path` | `/opt/llm/db/rag.sqlite` | SQLite データベースのパス |
+| `rag_db_path` | `/opt/llm/db/rag.sqlite` | RAG SQLite データベースのパス |
 | `sqlite_vec_so` | `/opt/llm/sqlite-vec/vec0.so` | sqlite-vec 拡張 (.so) のパス |
 | `embed_url` | `http://127.0.0.1:8003/embedding` | 埋込 API のエンドポイント (MQE・検索時に使用) |
 | `sqlite_timeout` | `30` | `sqlite3.connect()` のタイムアウト秒数。並列書き込み競合時の "database is locked" を防止 |

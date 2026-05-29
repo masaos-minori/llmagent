@@ -1,0 +1,35 @@
+# shell-mcp server configuration
+
+# command_allowlist: permitted command names (matched against argv[0] basename)
+command_allowlist = ["pytest", "python", "python3", "git", "ruff", "mypy"]
+
+# max_timeout_sec: upper bound for request-specified timeout_sec
+max_timeout_sec = 300
+
+# max_output_kb: total stdout+stderr output cap (KB)
+max_output_kb = 4096
+
+# max_memory_mb: child process virtual memory limit (MB)
+max_memory_mb = 512
+
+# shell_cwd_allowed_dirs: directories permitted as cwd
+shell_cwd_allowed_dirs = ["/opt/llm/workspace"]
+
+# default_cwd: working directory when cwd is not specified in request
+default_cwd = "/opt/llm/workspace"
+
+# shell_path: PATH environment variable for child processes
+shell_path = "/opt/llm/venv/bin:/usr/bin:/bin"
+
+# audit_log_path: audit log file path
+audit_log_path = "/opt/llm/logs/shell_audit.log"
+
+# shell_sandbox_backend: "firejail" | "none"; falls back to "none" when firejail is not in PATH
+shell_sandbox_backend = "none"
+
+# env_allowlist: permitted environment variable keys in req.env
+# when non-empty, keys not in this list are removed; when empty, env_denylist is used instead
+env_allowlist = []
+
+# env_denylist: glob patterns for env keys removed from req.env (active when env_allowlist is empty)
+env_denylist = ["LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH"]

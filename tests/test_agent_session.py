@@ -15,7 +15,7 @@ from collections.abc import Generator
 from unittest.mock import patch
 
 import pytest
-from agent_session import AgentSession
+from agent.session import AgentSession
 
 # ── In-memory SQLiteHelper replacement ───────────────────────────────────────
 
@@ -76,10 +76,10 @@ def session() -> Generator[AgentSession]:
     conn.executescript(_SCHEMA_SQL)
     conn.commit()
 
-    def _make() -> _FakeSQLiteHelper:
+    def _make(target: str = "rag") -> _FakeSQLiteHelper:  # noqa: ARG001
         return _FakeSQLiteHelper(conn)
 
-    with patch("agent_session.SQLiteHelper", side_effect=_make):
+    with patch("agent.session.SQLiteHelper", side_effect=_make):
         yield AgentSession()
 
 
@@ -247,7 +247,7 @@ class TestFetchMessages:
         session.start()
         session.save("assistant", "text")
         # Corrupt the tool_calls column post-insert
-        with patch("agent_session.SQLiteHelper") as mock_cls:
+        with patch("agent.session.SQLiteHelper") as mock_cls:
             conn = sqlite3.connect(":memory:")
             conn.executescript(_SCHEMA_SQL)
             conn.commit()
@@ -260,7 +260,7 @@ class TestFetchMessages:
                 (sid,),
             )
             conn.commit()
-            mock_cls.side_effect = lambda: _FakeSQLiteHelper(conn)
+            mock_cls.side_effect = lambda target="rag": _FakeSQLiteHelper(conn)  # noqa: ARG005
             s2 = AgentSession()
             s2.session_id = sid
             msgs = s2.fetch_messages(sid)

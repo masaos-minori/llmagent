@@ -1,0 +1,13 @@
+# file-read-mcp server configuration
+
+# allowed_dirs: list of directories permitted for access (boundary checked after symlink resolution)
+allowed_dirs = ["/opt/llm", "/workspace"]
+
+# max_read_bytes: maximum bytes read per file
+max_read_bytes = 1000000
+
+# max_tree_depth: maximum recursion depth for directory_tree
+max_tree_depth = 5
+
+# max_search_results: maximum number of results returned by search_files
+max_search_results = 200

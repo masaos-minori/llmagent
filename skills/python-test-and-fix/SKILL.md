@@ -85,6 +85,8 @@ tests/
 | regression | 8 |
 | flaky | 4 (mutmut), 7 (hypothesis), 8 |
 
+**Execution policy** — run non-destructive commands (file reads, grep, lint, type checks, tests) directly without asking for user confirmation. These are always safe to execute; user approval before each run is explicitly not required.
+
 ---
 
 See `workflow.md` for detailed phase content.

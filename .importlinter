@@ -1,0 +1,54 @@
+[importlinter]
+root_packages =
+    agent
+    db
+    mcp
+    rag
+    shared
+
+include_external_packages = True
+
+# Dependency hierarchy:
+#   agent → rag, db, shared, mcp (installer only)
+#   mcp   → db, shared
+#   rag   → db, shared
+#   db    → shared
+#   shared → (external only)
+
+[importlinter:contract:shared-is-leaf]
+name = shared must not import from agent, mcp, rag, or db
+type = forbidden
+source_modules =
+    shared
+forbidden_modules =
+    agent
+    mcp
+    rag
+    db
+
+[importlinter:contract:db-only-uses-shared]
+name = db must not import from agent, mcp, or rag
+type = forbidden
+source_modules =
+    db
+forbidden_modules =
+    agent
+    mcp
+    rag
+
+[importlinter:contract:rag-no-agent-or-mcp]
+name = rag must not import from agent or mcp
+type = forbidden
+source_modules =
+    rag
+forbidden_modules =
+    agent
+    mcp
+
+[importlinter:contract:mcp-no-agent]
+name = mcp must not import from agent
+type = forbidden
+source_modules =
+    mcp
+forbidden_modules =
+    agent

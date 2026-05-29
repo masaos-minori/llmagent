@@ -7,33 +7,52 @@
 ### 機能概要
 
 SQLite (sqlite-vec 拡張付き) の接続ライフサイクル管理と SQL 実行を提供する接続マネージャ。
-`rag_ingester.py` / `create_schema.py` / `agent_repl.py` / `agent_session.py` が使用。
+`target="rag"` (デフォルト) で `rag.sqlite`、`target="session"` で `session.sqlite` に接続する。
 
-### クラス定数
+### コンストラクタ
 
 ```python
-from sqlite_helper import SQLiteHelper
+SQLiteHelper(target: str = "rag")
+# target: "rag" | "session"
+```
 
-print(SQLiteHelper.DB_PATH)
-print(SQLiteHelper.SQLITE_VEC_SO)
+| target | DB ファイル | 格納テーブル |
+|---|---|---|
+| `"rag"` (デフォルト) | `rag.sqlite` (`rag_db_path`) | documents, chunks, chunks_vec, chunks_fts |
+| `"session"` | `session.sqlite` (`session_db_path`) | sessions, messages, notes, tool_results, memory_entries, memory_vec |
+
+不正な `target` 値は `ValueError` を送出する。
+
+### クラス属性
+
+```python
+SQLiteHelper._ensure_config()   # 一度呼べばクラス変数が確定する
+print(SQLiteHelper._RAG_PATH)   # rag.sqlite の絶対パス
+print(SQLiteHelper._SESSION_PATH)  # session.sqlite の絶対パス
+print(SQLiteHelper.SQLITE_VEC_SO)  # vec0.so の絶対パス
 ```
 
 | クラス属性 | 説明 |
 |---|---|
-| `SQLiteHelper.DB_PATH` | `config/common.json` の `db_path` (例: `/opt/llm/db/rag.sqlite`)。`_ensure_config()` 後に確定する |
-| `SQLiteHelper.SQLITE_VEC_SO` | `config/common.json` の `sqlite_vec_so` (例: `/opt/llm/sqlite-vec/vec0.so`)。同上 |
+| `SQLiteHelper._RAG_PATH` | `config/common.toml` の `rag_db_path` (例: `/opt/llm/db/rag.sqlite`)。`_ensure_config()` 後に確定 |
+| `SQLiteHelper._SESSION_PATH` | `config/common.toml` の `session_db_path` (例: `/opt/llm/db/session.sqlite`)。同上 |
+| `SQLiteHelper.SQLITE_VEC_SO` | `config/common.toml` の `sqlite_vec_so` (例: `/opt/llm/sqlite-vec/vec0.so`)。同上 |
 
-`DB_PATH` / `SQLITE_VEC_SO` はモジュール import 時は空文字列で初期化され、`_ensure_config()` の初回呼び出し時に確定。`open()` は内部で `_ensure_config()` を呼ぶため、接続前に明示的な初期化は不要。外部から表示のみ行う場合 (`/config` コマンド等) は `SQLiteHelper._ensure_config()` を呼んでから参照。`sqlite_timeout` は `open()` 内で `_get_cfg()` から都度取得 (デフォルト: `30`)。
+インスタンス属性 `DB_PATH` はプロパティ — `target` に応じて `_RAG_PATH` か `_SESSION_PATH` を返す。
+`open()` は内部で `_ensure_config()` を呼ぶため、接続前に明示的な初期化は不要。
 
 ### API
 
 ```python
 from sqlite_helper import SQLiteHelper
 
-# コンテキストマネージャパターン (推奨)
-with SQLiteHelper().open(write_mode=True) as db:
-    cur  = db.execute("SELECT doc_id FROM documents WHERE url = ?", (url,))
+# RAG DB (rag.sqlite)
+with SQLiteHelper("rag").open() as db:
     rows = db.fetchall("SELECT * FROM documents WHERE lang = :lang", {"lang": "ja"})
+
+# セッション DB (session.sqlite)
+with SQLiteHelper("session").open(write_mode=True) as db:
+    cur = db.execute("INSERT INTO sessions DEFAULT VALUES")
     db.commit()
 ```
 
@@ -53,21 +72,24 @@ with SQLiteHelper().open(write_mode=True) as db:
 def open(self, *, write_mode: bool = False, row_factory: bool = False) -> "SQLiteHelper"
 ```
 
-sqlite-vec 拡張をロード済みの接続を `self.conn` に格納し、`self` を返す。拡張ロード後に `enable_load_extension(False)` を呼んでセキュリティを確保。`self` を返すことで `with SQLiteHelper().open(...) as db:` パターンが使用可能。
+sqlite-vec 拡張をロード済みの接続を `self.conn` に格納し、`self` を返す。拡張ロード後に `enable_load_extension(False)` を呼んでセキュリティを確保。`self` を返すことで `with SQLiteHelper("rag").open(...) as db:` パターンが使用可能。
 
 | キーワード引数 | デフォルト | 説明 |
 |---|---|---|
-| `write_mode` | `False` | `True` のとき `PRAGMA journal_mode=WAL` と `PRAGMA foreign_keys=ON` を設定 |
+| `write_mode` | `False` | `True` のとき `PRAGMA foreign_keys=ON` を追加設定 |
 | `row_factory` | `False` | `True` のとき `conn.row_factory = sqlite3.Row` を設定し、列名属性アクセスを有効化 |
 
 呼び出しパターン:
 
 | 呼び出し元 | パターン |
 |---|---|
-| `create_schema.py` | `with SQLiteHelper().open() as db:` — スキーマ作成 |
+| `create_schema.py` | `with SQLiteHelper("rag").open(write_mode=True) as db:` — RAG スキーマ作成 |
+| `create_schema.py` | `with SQLiteHelper("session").open(write_mode=True) as db:` — セッションスキーマ作成 |
 | `rag_ingester.py` | `db.open(write_mode=True)` — WAL + 外部キー有効 (一括投入のため手動管理) |
-| `agent_repl.py` | `with SQLiteHelper().open(row_factory=True) as db:` — RAG クエリごとにオープン/クローズ |
-| `agent_session.py` | `with SQLiteHelper().open(write_mode=True) as db:` — セッション永続化 |
+| `agent_repl.py` | `with SQLiteHelper("rag").open(row_factory=True) as db:` — RAG クエリ |
+| `agent_session.py` | `with SQLiteHelper("session").open(write_mode=True) as db:` — セッション永続化 |
+| `memory_store.py` | `with SQLiteHelper("session").open(write_mode=True) as db:` — メモリ層 |
+| `tool_result_store.py` | `with SQLiteHelper("session").open(...) as db:` — ツール結果保存 |
 
 #### SQLiteHelper.fetchall
 
@@ -75,7 +97,7 @@ sqlite-vec 拡張をロード済みの接続を `self.conn` に格納し、`self
 def fetchall(self, sql: str, params: dict | tuple = ()) -> list[Any]
 ```
 
-`self.conn.execute(sql, params).fetchall()` を呼び出して全結果行をリストで返す。`execute()` + `fetchall()` の合成。`params` の形式は `execute()` と同じ (tuple または dict)。
+`self.conn.execute(sql, params).fetchall()` を呼び出して全結果行をリストで返す。`params` の形式は `execute()` と同じ (tuple または dict)。
 
 #### SQLiteHelper.commit
 
@@ -90,8 +112,6 @@ def commit(self) -> None
 ```python
 def execute(self, sql: str, params: dict | tuple = ()) -> sqlite3.Cursor
 ```
-
-`self.conn.execute(sql, params)` を呼び出してカーソルを返す。
 
 | `params` の形式 | プレースホルダ構文 | 例 |
 |---|---|---|
@@ -109,7 +129,7 @@ def close(self) -> None
 #### SQLiteHelper.begin_immediate / begin_exclusive
 
 ```python
-with SQLiteHelper().open(write_mode=True) as db:
+with SQLiteHelper("rag").open(write_mode=True) as db:
     with db.begin_immediate():
         db.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
         db.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
@@ -126,7 +146,7 @@ with SQLiteHelper().open(write_mode=True) as db:
 #### SQLiteHelper.health_check
 
 ```python
-metrics = SQLiteHelper().open().health_check()
+metrics = SQLiteHelper("rag").open().health_check()
 # {"journal_mode": "wal", "integrity": "ok", "page_count": 1024,
 #  "page_size": 4096, "freelist_count": 10, "db_size_bytes": 4194304}
 ```
@@ -157,10 +177,13 @@ db.vacuum()
 
 ### 使用スクリプト
 
-| スクリプト | 使用内容 |
-|---|---|
-| `create_schema.py` | `with SQLiteHelper().open() as db:` — `conn.executescript()` |
-| `rag_ingester.py` | `with SQLiteHelper().open(write_mode=True) as db:` — `ingest_all` で一括投入 |
-| `agent_repl.py` | `with SQLiteHelper().open(row_factory=True) as db:` (agent_rag 経由) |
-| `agent_session.py` | `with SQLiteHelper().open(write_mode=True) as db:` — セッション/メッセージ操作 |
-| `agent_rag.py` | `fetchall(...)` — `vector_search` / `fts_search` が SQLiteHelper を受け取る |
+| スクリプト | target | 使用内容 |
+|---|---|---|
+| `create_schema.py` | `"rag"` / `"session"` | `create_rag_schema()` / `create_session_schema()` |
+| `migrate_db.py` | 両方 | rag.sqlite の session テーブルを session.sqlite に一回限り移行 |
+| `rag_ingester.py` | `"rag"` | `with SQLiteHelper("rag").open(write_mode=True) as db:` — 一括投入 |
+| `agent_repl.py` | `"rag"` | `with SQLiteHelper("rag").open(row_factory=True) as db:` (agent_rag 経由) |
+| `agent_session.py` | `"session"` | `with SQLiteHelper("session").open(write_mode=True) as db:` — セッション/メッセージ操作 |
+| `memory_store.py` | `"session"` | `with SQLiteHelper("session").open(...) as db:` — メモリ層 |
+| `tool_result_store.py` | `"session"` | `with SQLiteHelper("session").open(...) as db:` — ツール結果保存 |
+| `agent_rag.py` | `"rag"` | `fetchall(...)` — `vector_search` / `fts_search` が SQLiteHelper を受け取る |

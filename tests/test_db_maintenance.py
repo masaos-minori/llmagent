@@ -1,0 +1,252 @@
+"""tests/test_db_maintenance.py
+Unit tests for db_maintenance: purge_old_sessions, rotate_*_db, checkpoint_wal, vacuum_db.
+"""
+
+import sqlite3
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
+
+from db.helper import SQLiteHelper
+from db.maintenance import (
+    RetentionConfig,
+    checkpoint_wal,
+    purge_old_sessions,
+    rotate_rag_db,
+    rotate_session_db,
+    vacuum_db,
+)
+
+# Minimal session schema for purge tests (no vec0 dependency).
+_SESSION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    title TEXT
+);
+CREATE TABLE IF NOT EXISTS messages (
+    message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
+
+class _FakeDB:
+    """Minimal SQLiteHelper drop-in backed by in-memory SQLite for purge tests."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn: sqlite3.Connection | None = conn
+
+    def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
+        assert self.conn is not None
+        return self.conn.execute(sql, params)
+
+    def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
+        assert self.conn is not None
+        return self.conn.execute(sql, params).fetchall()
+
+    def commit(self) -> None:
+        assert self.conn is not None
+        self.conn.commit()
+
+
+def _make_session_db(sessions: list[tuple[str, str]]) -> _FakeDB:
+    """Create an in-memory DB with given (title, created_at) session rows."""
+    conn = sqlite3.connect(":memory:")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.executescript(_SESSION_SCHEMA)
+    for title, created_at in sessions:
+        conn.execute(
+            "INSERT INTO sessions (title, created_at) VALUES (?, ?)",
+            (title, created_at),
+        )
+    conn.commit()
+    return _FakeDB(conn)
+
+
+# ── RetentionConfig ────────────────────────────────────────────────────────────
+
+
+class TestRetentionConfig:
+    def test_defaults(self) -> None:
+        cfg = RetentionConfig()
+        assert cfg.max_sessions == 100
+        assert cfg.max_age_days == 90
+
+    def test_custom_values(self) -> None:
+        cfg = RetentionConfig(max_sessions=5, max_age_days=7)
+        assert cfg.max_sessions == 5
+        assert cfg.max_age_days == 7
+
+
+# ── purge_old_sessions ─────────────────────────────────────────────────────────
+
+
+class TestPurgeOldSessions:
+    def test_no_deletions_when_within_limits(self) -> None:
+        db = _make_session_db(
+            [("s1", "2099-01-01 00:00:00"), ("s2", "2099-01-02 00:00:00")]
+        )
+        cfg = RetentionConfig(max_sessions=10, max_age_days=0)
+        result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
+        assert result == {"age_deleted": 0, "count_deleted": 0}
+
+    def test_age_based_deletion(self) -> None:
+        # One very old session, one recent
+        db = _make_session_db(
+            [
+                ("old", "2000-01-01 00:00:00"),
+                ("new", "2099-01-01 00:00:00"),
+            ]
+        )
+        cfg = RetentionConfig(max_sessions=100, max_age_days=1)
+        result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
+        assert result["age_deleted"] == 1
+        assert result["count_deleted"] == 0
+
+    def test_count_based_deletion(self) -> None:
+        # 5 sessions, keep only 2 most recent
+        db = _make_session_db(
+            [
+                ("s1", "2020-01-01 00:00:00"),
+                ("s2", "2020-01-02 00:00:00"),
+                ("s3", "2020-01-03 00:00:00"),
+                ("s4", "2020-01-04 00:00:00"),
+                ("s5", "2020-01-05 00:00:00"),
+            ]
+        )
+        cfg = RetentionConfig(max_sessions=2, max_age_days=0)
+        result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
+        assert result["count_deleted"] == 3
+        # Verify only 2 rows remain
+        assert db.conn is not None
+        rows = db.conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+        assert rows == 2
+
+    def test_age_zero_skips_age_check(self) -> None:
+        db = _make_session_db([("old", "2000-01-01 00:00:00")])
+        cfg = RetentionConfig(max_sessions=100, max_age_days=0)
+        result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
+        assert result["age_deleted"] == 0
+
+    def test_cascade_deletes_messages(self) -> None:
+        db = _make_session_db(
+            [
+                ("s1", "2000-01-01 00:00:00"),
+                ("s2", "2099-01-01 00:00:00"),
+            ]
+        )
+        assert db.conn is not None
+        # Insert a message for the old session
+        sid = db.conn.execute(
+            "SELECT session_id FROM sessions WHERE title='s1'"
+        ).fetchone()[0]
+        db.conn.execute(
+            "INSERT INTO messages (session_id, role, content) VALUES (?, 'user', 'hi')",
+            (sid,),
+        )
+        db.conn.commit()
+        cfg = RetentionConfig(max_sessions=100, max_age_days=1)
+        purge_old_sessions(db, cfg)  # type: ignore[arg-type]
+        count = db.conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+        assert count == 0
+
+
+# ── rotate_rag_db / rotate_session_db ─────────────────────────────────────────
+
+
+class TestRotateDb:
+    def test_rotate_rag_db_creates_archive(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        db_file = tmp_path / "rag.sqlite"
+        db_file.write_bytes(b"fake-db-content")
+        archive_dir = tmp_path / "archive"
+        monkeypatch.setattr(SQLiteHelper, "_RAG_PATH", str(db_file))
+        monkeypatch.setattr(SQLiteHelper, "_config_loaded", True)
+
+        dest = rotate_rag_db(archive_dir=archive_dir)
+
+        assert dest.exists()
+        assert dest.name.startswith("rag_")
+        assert dest.suffix == ".sqlite"
+        assert dest.read_bytes() == b"fake-db-content"
+
+    def test_rotate_session_db_creates_archive(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        db_file = tmp_path / "session.sqlite"
+        db_file.write_bytes(b"session-content")
+        archive_dir = tmp_path / "archive"
+        monkeypatch.setattr(SQLiteHelper, "_SESSION_PATH", str(db_file))
+        monkeypatch.setattr(SQLiteHelper, "_config_loaded", True)
+
+        dest = rotate_session_db(archive_dir=archive_dir)
+
+        assert dest.exists()
+        assert dest.name.startswith("session_")
+
+    def test_rotate_rag_db_copies_wal_side_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        db_file = tmp_path / "rag.sqlite"
+        db_file.write_bytes(b"db")
+        wal_file = tmp_path / "rag.sqlite-wal"
+        wal_file.write_bytes(b"wal-data")
+        archive_dir = tmp_path / "archive"
+        monkeypatch.setattr(SQLiteHelper, "_RAG_PATH", str(db_file))
+        monkeypatch.setattr(SQLiteHelper, "_config_loaded", True)
+
+        dest = rotate_rag_db(archive_dir=archive_dir)
+        wal_dest = archive_dir / (dest.name + "-wal")
+        assert wal_dest.exists()
+
+    def test_rotate_rag_db_missing_file_raises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(SQLiteHelper, "_RAG_PATH", str(tmp_path / "missing.sqlite"))
+        monkeypatch.setattr(SQLiteHelper, "_config_loaded", True)
+        with pytest.raises(FileNotFoundError):
+            rotate_rag_db(archive_dir=tmp_path / "archive")
+
+
+# ── checkpoint_wal / vacuum_db ─────────────────────────────────────────────────
+
+
+class TestCheckpointAndVacuum:
+    def _make_mock_db(self, checkpoint_return: dict | None = None) -> MagicMock:
+        mock = MagicMock(spec=SQLiteHelper)
+        if checkpoint_return is not None:
+            mock.checkpoint.return_value = checkpoint_return
+        return mock
+
+    def test_checkpoint_wal_uses_mode(self) -> None:
+        mock_db = self._make_mock_db(
+            {"busy": 0, "pages_in_wal": 0, "pages_checkpointed": 0}
+        )
+        result = checkpoint_wal(mock_db, mode="FULL")
+        mock_db.checkpoint.assert_called_once_with("FULL")
+        assert result["busy"] == 0
+
+    def test_checkpoint_wal_default_mode_from_config(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import db.maintenance as db_maintenance
+
+        monkeypatch.setattr(
+            db_maintenance, "_cfg", {"sqlite_wal_checkpoint_mode": "PASSIVE"}
+        )
+        mock_db = self._make_mock_db(
+            {"busy": 0, "pages_in_wal": 0, "pages_checkpointed": 0}
+        )
+        checkpoint_wal(mock_db)
+        mock_db.checkpoint.assert_called_once_with("PASSIVE")
+
+    def test_vacuum_db_delegates(self) -> None:
+        mock_db = self._make_mock_db()
+        vacuum_db(mock_db)
+        mock_db.vacuum.assert_called_once()

@@ -1,0 +1,34 @@
+# github-mcp server configuration
+
+# default_per_page: default item count for list endpoints; overridable by request
+default_per_page = 20
+
+# max_per_page: maximum item count for list endpoints
+max_per_page = 100
+
+# allowed_repos: whitelist of repos permitted for write operations (owner/repo format)
+# When allowed_repos_mode is "fail_open": empty list = allow all
+# When allowed_repos_mode is "fail_closed": empty list = deny all
+allowed_repos = []
+
+# allowed_repos_mode: behaviour when allowed_repos is empty
+# "fail_open" = allow all (backward compat default); "fail_closed" = deny all (recommended for production)
+allowed_repos_mode = "fail_open"
+
+# protected_branches: branch name glob patterns for which write operations are prohibited
+protected_branches = ["main", "release/*"]
+
+# allow_force_push: false prohibits rebase merges (rewrites commit history, equivalent to force push)
+allow_force_push = true
+
+# require_pr_review: true requires at least one APPROVED review before PR merge
+require_pr_review = false
+
+# path_denylist: glob patterns for file paths denied in push_files / create_or_update_file / delete_repo_file
+path_denylist = []
+
+# max_file_size_kb: maximum file size (KB) for push_files / create_or_update_file; 0 = unlimited
+max_file_size_kb = 1024
+
+# audit_log_path: structured audit log for write operations; empty string disables logging
+audit_log_path = "/opt/llm/logs/github_audit.log"

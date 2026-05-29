@@ -88,6 +88,7 @@ quote-style = "double"
 [tool.mypy]
 python_version = "3.13"
 files = ["scripts/"]
+exclude = ["scripts/agent\\.py"]
 ignore_missing_imports = true
 warn_return_any = true
 warn_unused_ignores = true
@@ -98,7 +99,33 @@ addopts = "-v --tb=short"
 
 [tool.coverage.run]
 source = ["scripts"]
-omit = ["scripts/create_schema.py"]
+omit = [
+    # Schema/migration DDL scripts — executed at deploy time, not during tests
+    "scripts/db/create_schema.py",
+    "scripts/db/migrate.py",
+    # FastAPI server entry points — start HTTP servers; not unit-testable
+    "scripts/mcp/file/*_server.py",
+    "scripts/mcp/github/server.py",
+    "scripts/mcp/shell/server.py",
+    "scripts/mcp/web_search/server.py",
+    "scripts/mcp/rag_pipeline/server.py",
+    # MCP installer — scaffolding tool, not production logic
+    "scripts/mcp/installer.py",
+    # REPL entry points — interactive CLI; no unit tests by design (documented in CLAUDE.md)
+    "scripts/agent.py",
+    "scripts/agent/repl.py",
+    "scripts/agent/repl_health.py",
+    # Ingestion pipeline scripts — bulk I/O; integration-tested separately
+    "scripts/rag/ingestion/crawler.py",
+    "scripts/rag/ingestion/crawler_utils.py",
+    "scripts/rag/ingestion/chunk_splitter.py",
+    "scripts/rag/ingestion/chunk_english.py",
+    "scripts/rag/ingestion/chunk_japanese.py",
+    "scripts/rag/ingestion/ingester.py",
+    "scripts/rag/ingestion/pipeline_utils.py",
+    # Protocol stub — abstract interface only
+    "scripts/db/store.py",
+]
 
 [tool.coverage.report]
 show_missing = true

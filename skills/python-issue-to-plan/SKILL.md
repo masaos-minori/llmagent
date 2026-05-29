@@ -76,6 +76,8 @@ grounded in evidence from architecture analysis, dependency graphs, and historic
 | 9 | Planning rules | evidence-based; small increments; always include deploy step |
 | 10 | Completion checklist | all sections present; blocking unknowns resolved |
 
+**Execution policy** — run non-destructive commands (file reads, grep, lint, type checks, tests) directly without asking for user confirmation. These are always safe to execute; user approval before each run is explicitly not required.
+
 ---
 
 ## Output format

@@ -1,0 +1,7 @@
+# file-write-mcp server configuration
+
+# allowed_dirs: directories permitted for write operations (narrower than read)
+allowed_dirs = ["/opt/llm/workspace"]
+
+# max_write_bytes: maximum bytes written per file
+max_write_bytes = 1000000

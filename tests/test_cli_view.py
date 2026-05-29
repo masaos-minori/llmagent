@@ -12,7 +12,7 @@ import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
-from cli_view import CLIView
+from agent.cli_view import CLIView
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -20,7 +20,7 @@ from cli_view import CLIView
 @pytest.fixture
 def mock_rl():
     """Patch the readline module used by cli_view."""
-    with patch("cli_view.readline") as rl:
+    with patch("agent.cli_view.readline") as rl:
         rl.get_history_length.return_value = 0
         yield rl
 

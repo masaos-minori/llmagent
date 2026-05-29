@@ -1,0 +1,24 @@
+#!/sbin/openrc-run
+# rag-pipeline-mcp: RAG パイプライン MCP サーバ (FastAPI/Uvicorn :8010) の OpenRC 起動スクリプト
+# MQE→Search→RRF→Rerank→Dedup→Augment を HTTP MCP として公開する
+
+description="RAG Pipeline MCP Server (FastAPI/Uvicorn :8010)"
+
+command="/opt/llm/venv/bin/uvicorn"
+command_args="mcp.rag_pipeline.server:app --host 127.0.0.1 --port 8010 --workers 1"
+command_background="yes"
+command_user="llm-agent"
+
+directory="/opt/llm/scripts"
+
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/opt/llm/logs/rag-pipeline-mcp.log"
+error_log="/opt/llm/logs/rag-pipeline-mcp.log"
+
+depend() {
+    need net
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /opt/llm/logs
+}

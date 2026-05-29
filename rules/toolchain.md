@@ -24,7 +24,7 @@ Fix type errors at the source — do not add `type: ignore` without justificatio
 ### 3. Architecture check (import-linter)
 
 ```bash
-lint-imports
+PYTHONPATH=scripts lint-imports
 ```
 
 ### 4. Constraint verification (ast-grep)

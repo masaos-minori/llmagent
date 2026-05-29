@@ -73,9 +73,11 @@ In production: `/opt/llm/scripts/../config/` → `/opt/llm/config/`
 | `web_search_mcp_server.py` | `web-search-mcp` (port 8004). Brave → Bing → DuckDuckGo fallback. |
 | `mcp_server.py` | Base class. `run()` = HTTP; `run_stdio()` = stdin/stdout JSON-RPC (`--stdio` flag). |
 | `mcp_models.py` | `CallToolRequest` / `CallToolResponse` Pydantic models. |
-| `config_loader.py` | JSON loader that strips `_doc` keys. |
+| `config_loader.py` | TOML/JSON loader (stdlib `tomllib`) that strips `_` keys. |
 | `logger.py` | `FileHandler` + `StreamHandler` logger for entry scripts. |
-| `sqlite_helper.py` | Loads `sqlite-vec`, WAL mode, foreign keys. Usage: `with SQLiteHelper().open(...) as db:` |
+| `sqlite_helper.py` | Loads `sqlite-vec`, WAL mode, foreign keys. `target="rag"\|"session"`. Usage: `with SQLiteHelper("session").open(...) as db:` |
+| `create_schema.py` | DB schema init. `create_rag_schema()` / `create_session_schema()` / `create_schema()`. |
+| `migrate_db.py` | One-shot migration: copies session tables from rag.sqlite → session.sqlite. |
 | `formatters.py` | `truncate`, `fmt_size`, `fmt_md_link`, `fmt_kvlog`. |
 | `create_schema.py` | DB schema init (first run only). Idempotent via `IF NOT EXISTS`. |
 | `pipeline_utils.py` | `read_json_file`, `collect_source_files`, `is_already_processed`. |
@@ -83,11 +85,15 @@ In production: `/opt/llm/scripts/../config/` → `/opt/llm/config/`
 
 Additional notes:
 - When adding/removing a module: update `deploy/deploy.sh`.
-- New MCP server: add to `mcp_servers` in `config/agent.json`. `_MCP_SERVICE_MAP` in `agent_repl.py` is legacy.
-- To use stdio transport: set `"transport": "stdio"` and `"cmd": [...]` in `agent.json`; use `--stdio` flag.
+- New MCP server: add to `mcp_servers` in `config/agent.toml`. `_MCP_SERVICE_MAP` in `agent_repl.py` is legacy.
+- To use stdio transport: set `"transport": "stdio"` and `"cmd": [...]` in `agent.toml`; use `--stdio` flag.
 - `db/rrf.sql` is reference SQL only — not used at runtime.
 
 ## SQLite schema
+
+DB が 2 ファイルに分割されている。`SQLiteHelper(target)` で切り替える。
+
+**rag.sqlite** (`target="rag"`, `rag_db_path` in `common.toml`):
 
 | Table | Key columns | Notes |
 |---|---|---|
@@ -95,20 +101,32 @@ Additional notes:
 | `chunks` | `chunk_id` (PK), `doc_id` (FK CASCADE), `chunk_index`, `content`, `normalized_content` | `normalized_content` for JA only (Sudachi). `NULL` for EN/code. |
 | `chunks_vec` | `chunk_id` (PK), `embedding` (`float[384]`) | `sqlite-vec` `vec0` virtual table; little-endian float32 BLOB. |
 | `chunks_fts` | `content`, `content_rowid='chunk_id'` | FTS5, `unicode61` tokenizer. Trigger: `COALESCE(normalized_content, content)`. |
+
+**session.sqlite** (`target="session"`, `session_db_path` in `common.toml`):
+
+| Table | Key columns | Notes |
+|---|---|---|
 | `sessions` | `session_id` (PK), `created_at`, `title` | `title` = first 50 chars of first user input. |
-| `messages` | `message_id` (PK), `session_id` (FK CASCADE), `role`, `content`, `tool_calls`, `created_at` | `tool_calls` is JSON string. |
+| `messages` | `message_id` (PK), `session_id` (FK CASCADE), `role`, `content`, `tool_calls`, `tool_call_id`, `created_at` | `tool_calls` is JSON string. |
 | `notes` | `note_id` (PK), `content`, `created_at` | Injected into system prompt when `auto_inject_notes=true`. |
+| `tool_results` | `id` (PK), `session_id`, `turn`, `tool_name`, `args_json`, `full_text`, `summary`, `is_error`, `created_at` | `/tool show <id>` で取得可能。 |
+| `memory_entries` | `entry_id` (PK), `session_id`, `mem_type`, `content`, `created_at` | `mem_type`: `long_term` \| `task` |
+| `memory_vec` | `entry_id` (PK), `embedding` (`float[384]`) | `vec0` virtual table for semantic memory search. |
 
 ## Config files
 
 | File | Description |
 |---|---|
-| `config/common.json` | DB path, `sqlite-vec` `.so` path, embed endpoint |
-| `config/agent.json` | LLM URL, RAG params, tool defs, `system_prompt_tool` / `system_prompt_rag` |
-| `config/rag_pipeline.json` | Crawl targets, depth/delay, chunk size, stopwords, `embed_workers`, `chunk_overlap` |
-| `config/fileop_mcp_server.json` | Allowed root directories for `file-mcp` |
-| `config/github_mcp_server.json` | `github-mcp` configuration |
-| `config/web_search_mcp_server.json` | `web-search-mcp` configuration |
+| `config/common.toml` | DB paths (`rag_db_path`, `session_db_path`), `sqlite-vec` `.so` path, embed endpoint |
+| `config/agent.toml` | LLM URL, RAG params, tool defs, `system_prompt_tool` / `system_prompt_rag` |
+| `config/rag_pipeline.toml` | Crawl targets, depth/delay, chunk size, stopwords, `embed_workers`, `chunk_overlap` |
+| `config/file_read_mcp_server.toml` | Allowed root directories for `file-read-mcp` |
+| `config/file_write_mcp_server.toml` | Allowed root directories for `file-write-mcp` |
+| `config/file_delete_mcp_server.toml` | Allowed root directories for `file-delete-mcp` |
+| `config/github_mcp_server.toml` | `github-mcp` configuration |
+| `config/web_search_mcp_server.toml` | `web-search-mcp` configuration |
+| `config/shell_mcp_server.toml` | `shell-mcp` configuration |
+| `config/rag_pipeline_mcp_server.toml` | `rag-pipeline-mcp` standalone configuration (port 8010) |
 
 API keys via OpenRC conf.d (not shell env):
 
@@ -117,7 +135,7 @@ API keys via OpenRC conf.d (not shell env):
 | `/etc/conf.d/web-search-mcp` | `BRAVE_API_KEY`, `BING_API_KEY` |
 | `/etc/conf.d/github-mcp` | `GITHUB_TOKEN` |
 
-### agent.json key highlights
+### agent.toml key highlights
 
 - `default_mode`: `"chat"` or `"code"`
 - `use_mqe` / `use_search` / `use_rrf` / `use_rerank`: disable individual RAG steps

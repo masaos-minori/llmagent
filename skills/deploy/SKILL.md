@@ -45,6 +45,8 @@ For service names and ports: see `rules/env.md`.
 
 See `workflow.md` for detailed phase content including failure recovery procedures.
 
+**Execution policy** — run non-destructive commands (file reads, grep, syntax checks, status checks) directly without asking for user confirmation. These are always safe to execute; user approval before each run is explicitly not required.
+
 ## Completion checklist
 
 - syntax check passed before deploy

@@ -13,8 +13,8 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import orjson
 import pytest
-from history_manager import HistoryManager
-from rag_types import LLMMessage
+from agent.history import HistoryManager
+from rag.types import LLMMessage
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

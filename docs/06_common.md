@@ -18,22 +18,7 @@
 
 ### MCP `/v1/call_tool` リクエスト / レスポンス
 
-全 MCP HTTP サーバー (`:8004` / `:8005` / `:8006` 等) が共有するエンドポイント形式。`mcp_models.py` の `CallToolRequest` / `CallToolResponse` Pydantic モデルで定義。
-
-**CallToolRequest**
-
-```json
-{"name": "<tool_name>", "args": {"<key>": "<value>"}}
-```
-
-**CallToolResponse**
-
-```json
-{"result": "<string>", "is_error": false}
-```
-
-- `result`: ツール実行結果テキスト (エラー時もテキスト形式で返す)
-- `is_error`: 実行エラーの場合 `true`
+→ `04_mcp-protocol.md` §1 HTTP API フォーマット早見表 を参照 (`CallToolRequest` / `CallToolResponse` Pydantic モデルの定義は `06_ref-mcp.md` §mcp_models.py)。
 
 ### プラグイン / ローカルツールの戻り値規約
 

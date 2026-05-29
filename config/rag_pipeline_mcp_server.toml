@@ -1,0 +1,74 @@
+# rag-pipeline-mcp server standalone configuration
+# This file is loaded by rag_pipeline_mcp_service.py instead of agent.toml / common.toml.
+# It overrides module-level _cfg caches in agent_rag, rag_llm, and sqlite_helper
+# so that RAG pipeline runs independently of the main agent process.
+
+# LLM endpoint used for MQE and reranking
+llm_url = "http://127.0.0.1:8002/v1/chat/completions"
+
+# Embedding LLM endpoint used for KNN search
+embed_url = "http://127.0.0.1:8003/embedding"
+
+# RAG SQLite database path
+rag_db_path = "/opt/llm/db/rag.sqlite"
+
+# sqlite-vec shared library path
+sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
+
+# HTTP listen host
+host = "127.0.0.1"
+
+# HTTP listen port
+port = 8010
+
+# Internal HTTP client timeout (seconds)
+http_timeout = 120.0
+
+# Pipeline stage flags
+use_mqe    = true
+use_rrf    = true
+use_rerank = true
+use_refiner = false
+
+# RRF smoothing constant (literature recommended value: 60)
+rrf_k = 60
+
+# KNN/FTS5 result count per query
+top_k_search = 20
+
+# Rerank candidate count
+top_k_rerank = 15
+
+# Final selected chunk count passed to augmentation
+rag_top_k = 5
+
+# Minimum rerank score threshold (0.0 = no filtering)
+rag_min_score = 0.0
+
+# Maximum chunks selected from the same document
+max_chunks_per_doc = 2
+
+# Semantic cache settings
+semantic_cache_max_size   = 100
+semantic_cache_threshold  = 0.92
+
+# Refiner settings
+refiner_max_tokens          = 512
+refiner_max_chars_per_chunk = 300
+refiner_timeout             = 30.0
+
+# MQE prompt template ({n_queries} and {query} are substituted)
+mqe_prompt_template = """Without changing the meaning of the following question, please rephrase it in {n_queries} different ways.
+Output the result as a JSON array. (ex: ["Q1", "Q2", "Q3"])
+
+Question: {query}
+"""
+
+# Rerank prompt template ({query} and {items_text} are substituted)
+rerank_prompt_template = """Please evaluate the relevance of the following question and each context on a scale from 0 to 10.
+Output the result as a JSON object mapping each context number to its score. (ex: {{"1": 8, "2": 3}})
+
+Question: {query}
+Context:
+{items_text}
+"""

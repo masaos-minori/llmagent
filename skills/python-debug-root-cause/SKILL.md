@@ -81,6 +81,8 @@ Investigate Python problems systematically and find the most likely root cause b
 | Intermittent | 1→2→3→4→6 (reruns/freezegun)→7 (bisect)→8→9 | 5 (strace/tracemalloc) |
 | Performance | 1→2→3→5 (py-spy/viztracer)→8→9 | 6 (hypothesis/freezegun) |
 
+**Execution policy** — run non-destructive commands (file reads, grep, lint, type checks, tests) directly without asking for user confirmation. These are always safe to execute; user approval before each run is explicitly not required.
+
 ---
 
 See `workflow.md` for detailed phase content.

@@ -15,7 +15,7 @@ from collections.abc import Generator
 from unittest.mock import patch
 
 import pytest
-from memory_store import MemoryStore
+from agent.memory.store import MemoryStore
 
 # ── In-memory schema ──────────────────────────────────────────────────────────
 
@@ -81,7 +81,7 @@ def db_conn() -> Generator[sqlite3.Connection]:
 def store(db_conn: sqlite3.Connection) -> Generator[MemoryStore]:
     """Provide a MemoryStore patched to use the in-memory _FakeSQLiteHelper."""
     fake = _FakeSQLiteHelper(db_conn)
-    with patch("memory_store.SQLiteHelper", return_value=fake):
+    with patch("agent.memory.store.SQLiteHelper", return_value=fake):
         yield MemoryStore()
 
 

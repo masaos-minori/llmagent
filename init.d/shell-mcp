@@ -5,7 +5,7 @@
 description="Shell Execution MCP Server (FastAPI/Uvicorn :8009)"
 
 command="/opt/llm/venv/bin/uvicorn"
-command_args="shell_mcp_server:app --host 127.0.0.1 --port 8009 --workers 1"
+command_args="mcp.shell.server:app --host 127.0.0.1 --port 8009 --workers 1"
 command_background="yes"
 # 専用非 root ユーザで起動する (sudo 権限なし、/opt/llm/workspace 以外への書き込み権限なし)
 command_user="llm-agent"

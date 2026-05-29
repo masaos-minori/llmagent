@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from memory_layer import MemoryLayer
-from memory_store import MemoryStore
+from agent.memory.layer import MemoryLayer
+from agent.memory.store import MemoryStore
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -107,12 +107,14 @@ class TestStatEntries:
         mock_helper.fetchall.return_value = [(42,)]
         mock_cls = MagicMock(return_value=mock_helper)
         mock_helper.open.return_value = mock_helper
-        with patch("memory_layer.SQLiteHelper", mock_cls):
+        with patch("agent.memory.layer.SQLiteHelper", mock_cls):
             count = layer.stat_entries
         assert count == 42
 
     def test_returns_zero_on_db_error(self) -> None:
         layer, _ = _make_layer()
-        with patch("memory_layer.SQLiteHelper", side_effect=Exception("db error")):
+        with patch(
+            "agent.memory.layer.SQLiteHelper", side_effect=Exception("db error")
+        ):
             count = layer.stat_entries
         assert count == 0

@@ -129,13 +129,17 @@ from agent_config import McpServerConfig
 
 server_configs = {
     "web_search": McpServerConfig("http", "http://127.0.0.1:8004", [], "web-search-mcp"),
-    "file":       McpServerConfig("http", "http://127.0.0.1:8005", [], "file-mcp"),
+    "file_read":  McpServerConfig("http", "http://127.0.0.1:8005", [], "file-mcp"),
+    "file_write": McpServerConfig("http", "http://127.0.0.1:8005", [], "file-mcp"),
+    "file_delete":McpServerConfig("http", "http://127.0.0.1:8005", [], "file-mcp"),
     "github":     McpServerConfig("http", "http://127.0.0.1:8006", [], "github-mcp"),
 }
 executor = ToolExecutor(
     http=httpx.AsyncClient(...),
     cache_ttl=300.0,
     server_configs=server_configs,
+    cache_max_size=200,
+    concurrency_limits={"file_write": 1},  # optional per-server limit
 )
 result, is_error = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
 ```
@@ -160,16 +164,43 @@ result, is_error = await executor.execute("read_text_file", {"path": "/opt/llm/.
 | メソッド | 説明 |
 |---|---|
 | `set_transport(server_key, transport) -> None` | stdio サーバのプロセス起動後に `StdioTransport` を登録 |
-| `execute(tool_name, args) -> tuple[str, bool]` | TTL キャッシュを確認し、ヒットすれば返す。なければ `_raw_execute()` を呼んで成功結果を格納 |
+| `execute(tool_name, args) -> tuple[str, bool]` | plugin ツール → キャッシュ → `_raw_execute()` の順で解決。成功結果のみキャッシュ |
 | `clear_cache() -> None` | ツール結果キャッシュを全クリア (`/clear` コマンドから呼ばれる) |
 
 ルーティング規則 (`_route()`):
 - `search_web` → `"web_search"`
 - `github_*` → `"github"`
-- その他 → `"file"`
+- `shell_run` → `"shell"`
+- `write_file`, `edit_file`, `create_directory`, `move_file` → `"file_write"`
+- `delete_file`, `delete_directory` → `"file_delete"`
+- その他 → `"file_read"`
+
+**plugin tool サポート**
+
+`@register_tool("tool_name")` で登録したローカル Python 関数は、`execute()` 内で最初に照合する。マッチした場合はキャッシュおよび MCP ルーティングをスキップして直接呼び出す。戻り値は `tuple[str, bool]` (result_text, is_error)。
+
+```python
+from plugin_registry import register_tool
+
+@register_tool("my_tool")
+async def my_tool(args: dict) -> tuple[str, bool]:
+    return "result", False
+```
+
+**並行数制限 (concurrency_limits)**
+
+`ToolExecutor(concurrency_limits={"file_write": 1})` のように渡すと、指定したサーバキーへの同時呼び出しを `asyncio.Semaphore` で制限する。Semaphore はイベントループ生成後に遅延初期化する。不明なサーバキーは `logger.warning` を出力してスルーする。有効なサーバキー: `file_read` / `file_write` / `file_delete` / `shell` / `web_search` / `github`。
 
 統計属性:
 - `stat_cache_hits: int` — セッション通算キャッシュヒット回数
+
+モジュールレベルユーティリティ:
+
+| 関数 | 説明 |
+|---|---|
+| `is_side_effect(tool_name) -> bool` | write / delete / shell_run ツールのとき `True` を返す。`execute_all_tool_calls()` の直列化判定に使用 |
+| `format_transport_error(*, source, phase, kind, url, status_code, retryable, partial) -> dict[str, str]` | LLM / ツール transport 失敗の `{"summary", "detail"}` 辞書を生成 |
+| `tool_call_key(name, args) -> str` | `(tool_name, args)` の正規化 MD5 ハッシュキー。dedup 判定で使用 |
 
 ### 3.3 使用スクリプト
 

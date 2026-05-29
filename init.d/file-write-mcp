@@ -4,7 +4,7 @@
 description="File Write MCP Server (FastAPI/Uvicorn :8007)"
 
 command="/opt/llm/venv/bin/uvicorn"
-command_args="file_write_mcp_server:app --host 127.0.0.1 --port 8007 --workers 1"
+command_args="mcp.file.write_server:app --host 127.0.0.1 --port 8007 --workers 1"
 command_background="yes"
 command_user="root"
 

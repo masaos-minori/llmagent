@@ -8,7 +8,7 @@ import struct
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from rag_utils import floats_to_blob, normalize_unicode, validate_url
+from rag.utils import floats_to_blob, normalize_unicode, validate_url
 
 # ── normalize_unicode ────────────────────────────────────────────────────────
 

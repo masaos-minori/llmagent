@@ -10,7 +10,7 @@
 |---|---|---|
 | `_SessionMixin` | `agent_cmd_session.py` | `/session` 系 |
 | `_McpMixin` | `agent_cmd_mcp.py` | `/mcp` 系 |
-| `_ConfigMixin` | `agent_cmd_config.py` | `/config`, `/stats`, `/set`, `/reload`, `/chat`, `/code` |
+| `_ConfigMixin` | `agent_cmd_config.py` | `/config`, `/stats`, `/set`, `/reload` |
 | `_ContextMixin` | `agent_cmd_context.py` | `/context`, `/clear`, `/undo`, `/history`, `/system`, `/db` |
 | `_RagMixin` | `agent_cmd_rag.py` | `/rag`, `/tool`, `/note`, `/plan`, `/debug` |
 | `_IngestMixin` | `agent_cmd_ingest.py` | `/ingest`, `/export`, `/compact` |
@@ -46,8 +46,6 @@ matched = await cmds.dispatch("/stats")
 | `_cmd_mcp(args) -> None` | HTTP 疎通確認・ツール数表示。`args=""` で全サーバ表示、`args=" install <name>"` でウィザード起動 |
 | `_cmd_mcp_http() -> None` | HTTP トランスポートサーバの `/health` と `/v1/tools` を probe して状態を表示 |
 | `_cmd_mcp_install(server_name) -> None` | 新規 MCP サーバのスクリプト骨格・設定 JSON・OpenRC スクリプトを生成するウィザード |
-| `_cmd_chat() -> None` | LLM をチャットモード (gemma-4-e4b, `:8002`) に切り替え |
-| `_cmd_code() -> None` | LLM をコード生成モード (qwen2.5-coder-7b, `:8001`) に切り替え |
 | `_cmd_stats() -> None` | ターン数・ツール呼び出し数・LLM リトライ回数・圧縮回数・セマンティックキャッシュヒット数を表示 |
 | `_cmd_config() -> None` | 設定ファイルパスと全設定値を表示 |
 | `_cmd_context() -> None` | 会話履歴の文字数・圧縮閾値残余・圧縮回数・現在のシステムプロンプト名・予算内訳を表示 |
