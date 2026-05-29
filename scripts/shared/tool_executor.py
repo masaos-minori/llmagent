@@ -284,10 +284,10 @@ class ToolExecutor:
         self,
         http: httpx.AsyncClient,
         cache_ttl: float,
-        server_configs: "dict[str, McpServerConfig]",
+        server_configs: dict[str, McpServerConfig],
         cache_max_size: int = 0,
-        concurrency_limits: "dict[str, int] | None" = None,
-        lifecycle: "LifecycleProtocol | None" = None,
+        concurrency_limits: dict[str, int] | None = None,
+        lifecycle: LifecycleProtocol | None = None,
     ) -> None:
         self._http = http
         self._cache_ttl = cache_ttl
@@ -327,7 +327,7 @@ class ToolExecutor:
         self._transports[server_key] = transport
         logger.info(f"StdioTransport registered for server key {server_key!r}")
 
-    def set_lifecycle(self, lifecycle: "LifecycleProtocol | None") -> None:
+    def set_lifecycle(self, lifecycle: LifecycleProtocol | None) -> None:
         """Inject or replace the lifecycle manager after construction."""
         self._lifecycle = lifecycle
 

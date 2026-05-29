@@ -373,6 +373,37 @@ class LLMClient:
             self._merge_tool_call_delta(tool_calls_map, tc_delta)
         return finish_reason
 
+    # ── SSE byte reading ──────────────────────────────────────────────────────
+
+    async def _read_next_chunk(
+        self,
+        byte_iter: AsyncIterator[bytes],
+        url: str,
+    ) -> tuple[bytes, bool]:
+        """Await the next raw chunk from the byte stream with heartbeat timeout.
+
+        Returns (chunk, exhausted); exhausted=True signals stream end.
+        Raises LLMTransportError(HEARTBEAT_TIMEOUT) when no bytes arrive within
+        sse_heartbeat_timeout seconds.
+        """
+        timeout = (
+            self._sse_heartbeat_timeout if self._sse_heartbeat_timeout > 0 else None
+        )
+        try:
+            if timeout is not None:
+                return await asyncio.wait_for(
+                    _anext_or_done(byte_iter), timeout=timeout
+                )
+            return await _anext_or_done(byte_iter)
+        except TimeoutError:
+            raise LLMTransportError(
+                kind="HEARTBEAT_TIMEOUT",
+                phase="in_stream",
+                url=url,
+                retryable=self._llm_stream_retry_on_heartbeat_timeout,
+                detail=f"no bytes for {self._sse_heartbeat_timeout:.1f}s",
+            )
+
     # ── Single-connection SSE attempt ─────────────────────────────────────────
 
     async def _stream_once(
@@ -414,27 +445,8 @@ class LLMClient:
                     ) from e
 
                 byte_iter = resp.aiter_bytes().__aiter__()
-                timeout = (
-                    self._sse_heartbeat_timeout
-                    if self._sse_heartbeat_timeout > 0
-                    else None
-                )
                 while True:
-                    try:
-                        if timeout is not None:
-                            raw_chunk, exhausted = await asyncio.wait_for(
-                                _anext_or_done(byte_iter), timeout=timeout
-                            )
-                        else:
-                            raw_chunk, exhausted = await _anext_or_done(byte_iter)
-                    except TimeoutError:
-                        raise LLMTransportError(
-                            kind="HEARTBEAT_TIMEOUT",
-                            phase="in_stream",
-                            url=url,
-                            retryable=self._llm_stream_retry_on_heartbeat_timeout,
-                            detail=f"no bytes for {self._sse_heartbeat_timeout:.1f}s",
-                        )
+                    raw_chunk, exhausted = await self._read_next_chunk(byte_iter, url)
                     if exhausted:
                         break
 

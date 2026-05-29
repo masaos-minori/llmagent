@@ -17,6 +17,8 @@ configured.  Otherwise, ConsoleSpanExporter is used (useful for development /
 testing with otel_enabled=true and empty otel_endpoint).
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any
 
@@ -101,7 +103,7 @@ class _NoOpTracer:
     checking enabled status.
     """
 
-    def start_as_current_span(self, name: str, **kwargs: Any) -> "_NoOpSpan":
+    def start_as_current_span(self, name: str, **kwargs: Any) -> _NoOpSpan:
         """Return a no-op span context manager."""
         return _NoOpSpan()
 
@@ -112,11 +114,11 @@ class _NoOpTracer:
 class _NoOpSpan:
     """No-op span that supports context manager protocol and set_attribute()."""
 
-    def __enter__(self) -> "_NoOpSpan":
+    def __enter__(self) -> _NoOpSpan:
         return self
 
     def __exit__(self, *args: Any) -> None:
         pass
 
-    def set_attribute(self, key: str, value: Any) -> None:
+    def set_attribute(self, _key: str, _value: Any) -> None:
         """Accept attribute calls without recording anything."""
