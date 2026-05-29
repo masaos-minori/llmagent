@@ -65,7 +65,7 @@ class _NullContextManager:
     def __exit__(self, *args: object) -> None:
         pass
 
-    def set_attribute(self, key: str, value: object) -> None:
+    def set_attribute(self, _key: str, _value: object) -> None:
         """Accept attribute calls without recording anything."""
 
 

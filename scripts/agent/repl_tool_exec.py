@@ -75,6 +75,38 @@ def _classify_operation_type(tool_name: str) -> str:
     return "read"
 
 
+def _escalate_for_path(cfg: "AgentConfig", base: str, args: dict) -> str | None:
+    """Return 'high' when any path arg is under a protected directory, else None.
+
+    Skipped when base is already 'high'.
+    """
+    if base == "high":
+        return None
+    path_keys = cfg.approval_resource_keys.get("path_keys", [])
+    for key in path_keys:
+        val = str(args.get(key) or "")
+        if val and any(val.startswith(p) for p in cfg.approval_protected_paths):
+            return "high"
+    return None
+
+
+def _escalate_for_github_branch(
+    cfg: "AgentConfig", tool_name: str, base: str, args: dict
+) -> str | None:
+    """Return 'high' when the target GitHub branch is in high_risk_branches, else None.
+
+    Skipped for non-GitHub tools and when base is already 'high'.
+    """
+    if not tool_name.startswith("github_") or base == "high":
+        return None
+    branch_keys = cfg.approval_resource_keys.get("branch_keys", [])
+    for key in branch_keys:
+        val = str(args.get(key) or "")
+        if val and val in cfg.approval_high_risk_branches:
+            return "high"
+    return None
+
+
 def _classify_risk(cfg: "AgentConfig", tool_name: str, args: dict) -> str:
     """Return the risk level for a tool call: 'none' | 'medium' | 'high'.
 
@@ -103,20 +135,10 @@ def _classify_risk(cfg: "AgentConfig", tool_name: str, args: dict) -> str:
         if any(cmd.startswith(p) for p in cfg.approval_shell_safe_prefixes):
             return "none"
         return "high"
-    path_keys = cfg.approval_resource_keys.get("path_keys", [])
-    # Escalate to 'high' when the target path is in a protected directory
-    if base != "high":
-        for key in path_keys:
-            val = str(args.get(key) or "")
-            if val and any(val.startswith(p) for p in cfg.approval_protected_paths):
-                return "high"
-    # Escalate GitHub write ops to 'high' when targeting a protected branch
-    if tool_name.startswith("github_") and base != "high":
-        branch_keys = cfg.approval_resource_keys.get("branch_keys", [])
-        for key in branch_keys:
-            val = str(args.get(key) or "")
-            if val and val in cfg.approval_high_risk_branches:
-                return "high"
+    if escalated := _escalate_for_path(cfg, base, args):
+        return escalated
+    if escalated := _escalate_for_github_branch(cfg, tool_name, base, args):
+        return escalated
     return base
 
 
