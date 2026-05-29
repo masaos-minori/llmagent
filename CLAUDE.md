@@ -58,7 +58,7 @@ source .venv/bin/activate       # activate dev venv
 ruff format scripts/                                 # format first
 ruff check scripts/ tests/ --fix && ruff check scripts/ tests/   # lint + auto-fix
 mypy scripts/ tests/                                 # type check
-PYTHONPATH=scripts lint-imports                      # architecture boundary check
+PYTHONPATH=scripts lint-imports                      # enforce import layer contracts (see below)
 pytest tests/test_<module>.py -v                     # single module
 pytest -v                                            # full suite
 
@@ -74,6 +74,8 @@ bowler rename_func old_name new_name --write --dry-run   # always dry-run first
 
 Full validation sequence: `rules/toolchain.md`
 
+**Import layer contracts (enforced by `.importlinter`):** `shared` → external only · `db` → shared · `rag` → db, shared · `mcp` → db, shared · `agent` → all. Violations fail `lint-imports`. Never import from a higher layer into a lower one (e.g. `shared` must not import from `agent`, `rag`, `db`, or `mcp`).
+
 **Execution policy:** Run local commands directly without asking the user for confirmation first. This covers all read-only and non-destructive operations: lint (`ruff`), type-check (`mypy`), tests (`pytest`), file inspection (`grep`, `find`, `cat`), environment setup (`source .venv/bin/activate`), in-place text edits (`sed`), and any other command that does not push to remote systems, delete data, or modify shared infrastructure.
 
 **mypy note:** `warn_unused_ignores = true` is set in `pyproject.toml`, so any `# type: ignore` on a line where mypy finds no error is itself an error. `tests/` is also covered by pre-commit's mypy run, so the same rule applies there.
@@ -88,9 +90,11 @@ Full validation sequence: `rules/toolchain.md`
 
 ### Agent REPL
 
-`agent/repl.py` (`AgentREPL`) injects all components into `AgentContext` and drives the REPL loop. Turn-level logic (RAG → compression → LLM loop → tool dispatch) is delegated to `Orchestrator` (`agent/orchestrator.py`). Satellite modules: `agent/repl_health.py` / `agent/repl_tool_exec.py` (risk-based tool approval, audit logging) / `agent/repl_debug.py`. UI output goes through `CLIView` callbacks — no library module calls `print()` directly.
+`agent/repl.py` (`AgentREPL`) injects all components into `AgentContext` and drives the REPL loop. Turn-level logic (RAG → compression → LLM loop → tool dispatch) is delegated to `Orchestrator` (`agent/orchestrator.py`). Satellite modules: `agent/repl_health.py` / `agent/repl_tool_exec.py` / `agent/repl_debug.py`. UI output goes through `CLIView` callbacks — no library module calls `print()` directly.
 
-Details: `docs/05_agent-impl.md` / `docs/06_ref-agent-repl.md`
+`agent/repl_tool_exec.py` implements risk-based tool approval: `AgentConfig.approval_risk_rules` maps tool names to risk tiers (`READ_ONLY` / `LOW` / `MEDIUM` / `HIGH` / `CRITICAL`); tools absent from the map fall back to tier defaults. Tools listed in `approval_dry_run_tools` automatically receive `dry_run=True` before the user sees the approval prompt.
+
+Details: `docs/05_agent-impl-class.md` (class API) / `docs/05_agent-impl-flow.md` (pipeline flow) / `docs/06_ref-agent-repl.md`
 
 ### Shared State
 
