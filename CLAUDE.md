@@ -15,9 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Task → routing.md → Minimal Skills + Shared Rules → Relevant docs → Execution
 ```
 
-Always-load alongside any skill:
-- `rules/coding.md` — coding conventions and prohibited patterns
-- `rules/toolchain.md` — validation sequence (format → lint → type → arch → security → test → coverage)
+Always-load rules are in `routing.md` (`## Always load alongside the skill`).
 
 ## File Split Rule
 
@@ -179,7 +177,7 @@ Skills are registered as Claude Code slash commands in `.claude/commands/`. Invo
 | `/python-test-and-fix` | Adding/repairing tests, reproducing bugs, flaky detection, mutation testing |
 | `/python-debug-root-cause` | Root cause analysis, log inspection, profiling, tracing, service debugging |
 | `/python-issue-to-plan` | Converting a ticket or vague task into a concrete implementation plan |
-| `/python-refactoring` | Refactoring modules — 6-phase tool chain (dependency mapping → behavior lock → CST transform → semantic validation → incremental migration → CI gate) |
+| `/python-refactoring` | Refactoring modules without changing behavior (6-phase tool chain) |
 | `/mcp-server-add` | Adding a new MCP server to the project (proactively activated) |
 | `/deploy` | Deploying changes to the production environment at `/opt/llm/` (proactively activated) |
 

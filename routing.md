@@ -58,8 +58,8 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 
 ## Always load alongside the skill
 
-- `rules/coding.md` — shared coding conventions and prohibited behavior
-- `rules/toolchain.md` — shared validation sequence
+- `rules/coding.md` — coding conventions and prohibited patterns
+- `rules/toolchain.md` — validation sequence (format → lint → type → arch → security → test → coverage)
 
 ## Load rules/env.md only when task involves
 
