@@ -209,5 +209,6 @@ class _LazyDeleteFileService:
         return getattr(_LazyDeleteFileService._instance, name)
 
 
-# Singleton proxy; actual DeleteFileService is created on first attribute access
+# NOTE: type: ignore[assignment] -- _LazyDeleteFileService is a proxy whose __getattr__
+# delegates to the real DeleteFileService instance; mypy sees a type mismatch.
 _service: DeleteFileService = _LazyDeleteFileService()  # type: ignore[assignment]

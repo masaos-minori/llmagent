@@ -207,5 +207,6 @@ class _LazyRagPipelineMCPService:
         return getattr(_LazyRagPipelineMCPService._instance, name)
 
 
-# Singleton proxy; actual RagPipelineMCPService is created on first attribute access.
+# NOTE: type: ignore[assignment] -- _LazyRagPipelineMCPService is a proxy whose __getattr__
+# delegates to the real RagPipelineMCPService instance; mypy sees a type mismatch.
 _service: RagPipelineMCPService = _LazyRagPipelineMCPService()  # type: ignore[assignment]

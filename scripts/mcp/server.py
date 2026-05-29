@@ -59,8 +59,8 @@ def _handle_tool_exception(name: str, e: Exception) -> tuple[str, bool]:
     # Duck-type FastAPI HTTPException to avoid importing it here.
     is_http_exc = hasattr(e, "status_code") and hasattr(e, "detail")
     if is_http_exc:
-        status = e.status_code  # type: ignore[attr-defined]
-        detail = e.detail  # type: ignore[attr-defined]
+        status = e.status_code  # type: ignore[attr-defined]  # duck-typed FastAPI HTTPException
+        detail = e.detail  # type: ignore[attr-defined]  # duck-typed FastAPI HTTPException
         logger.error(f"Tool '{name}' raised HTTP error {status}: {detail}")
         return f"HTTP error ({status}): {detail}", True
 

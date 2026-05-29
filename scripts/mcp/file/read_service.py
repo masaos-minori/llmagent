@@ -512,5 +512,6 @@ class _LazyReadFileService:
         return getattr(_LazyReadFileService._instance, name)
 
 
-# Singleton proxy; actual ReadFileService is created on first attribute access
+# NOTE: type: ignore[assignment] -- _LazyReadFileService is a proxy whose __getattr__
+# delegates to the real ReadFileService instance; mypy sees a type mismatch.
 _service: ReadFileService = _LazyReadFileService()  # type: ignore[assignment]

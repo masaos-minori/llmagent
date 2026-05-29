@@ -368,5 +368,6 @@ class _LazyShellService:
         return getattr(_LazyShellService._instance, name)
 
 
-# Singleton proxy; actual ShellService is created on first attribute access
+# NOTE: type: ignore[assignment] -- _LazyShellService is a proxy whose __getattr__
+# delegates to the real ShellService instance; mypy sees a type mismatch.
 _service: ShellService = _LazyShellService()  # type: ignore[assignment]

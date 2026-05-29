@@ -266,5 +266,6 @@ class _LazyWriteFileService:
         return getattr(_LazyWriteFileService._instance, name)
 
 
-# Singleton proxy; actual WriteFileService is created on first attribute access
+# NOTE: type: ignore[assignment] -- _LazyWriteFileService is a proxy whose __getattr__
+# delegates to the real WriteFileService instance; mypy sees a type mismatch.
 _service: WriteFileService = _LazyWriteFileService()  # type: ignore[assignment]

@@ -948,5 +948,6 @@ class _LazyGitHubService:
         return getattr(_LazyGitHubService._instance, name)
 
 
-# Singleton proxy; actual GitHubService is created on first attribute access
+# NOTE: type: ignore[assignment] -- _LazyGitHubService is a proxy whose __getattr__
+# delegates to the real GitHubService instance; mypy sees a type mismatch.
 _service: GitHubService = _LazyGitHubService()  # type: ignore[assignment]
