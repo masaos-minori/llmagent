@@ -14,7 +14,7 @@ Extracted from agent_commands.py.  Provides _ConfigMixin with:
 """
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from shared.config_loader import ConfigLoader
 
@@ -204,7 +204,7 @@ class _ConfigMixin:
         print()
         self._print_rag_config()
 
-    def _apply_config_params(self, new_cfg: dict) -> None:
+    def _apply_config_params(self, new_cfg: dict[str, Any]) -> None:
         """Update ctx.cfg from new_cfg and sync values to all components."""
         ctx = self._ctx
         ctx.cfg.context_char_limit = int(new_cfg.get("context_char_limit", 8000))
@@ -314,7 +314,9 @@ class _ConfigMixin:
         )
         self._sync_services_to_cfg(ctx, new_cfg)
 
-    def _reload_approval_settings(self, ctx: "AgentContext", new_cfg: dict) -> None:
+    def _reload_approval_settings(
+        self, ctx: "AgentContext", new_cfg: dict[str, Any]
+    ) -> None:
         """Update approval-related list/dict fields in ctx.cfg when present in new_cfg."""
         if "approval_risk_rules" in new_cfg:
             ctx.cfg.approval_risk_rules = dict(new_cfg["approval_risk_rules"])
@@ -340,7 +342,9 @@ class _ConfigMixin:
                 new_cfg["approval_github_allowed_repos"]
             )
 
-    def _sync_services_to_cfg(self, ctx: "AgentContext", new_cfg: dict) -> None:
+    def _sync_services_to_cfg(
+        self, ctx: "AgentContext", new_cfg: dict[str, Any]
+    ) -> None:
         """Propagate updated cfg fields to live service instances (LLM/hist_mgr/tools)."""
         if ctx.services.llm is not None:
             ctx.services.llm._max_retries = ctx.cfg.llm_max_retries

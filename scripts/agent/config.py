@@ -9,16 +9,17 @@ Only path constants remain at module level.
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from shared.config_loader import ConfigLoader
 from shared.mcp_config import McpServerConfig, _build_mcp_servers
 
 __all__ = ["McpServerConfig", "AgentConfig"]
 
-_cfg: dict | None = None
+_cfg: dict[str, Any] | None = None
 
 
-def _get_cfg() -> dict:
+def _get_cfg() -> dict[str, Any]:
     """Load config on first call; cached for the module lifetime."""
     global _cfg
     if _cfg is None:
@@ -295,7 +296,7 @@ class AgentConfig:
             )
 
 
-def build_agent_config(cfg_override: dict | None = None) -> "AgentConfig":
+def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConfig":
     """Construct AgentConfig from config dict.
 
     If cfg_override is provided, uses it directly (for /reload and tests).

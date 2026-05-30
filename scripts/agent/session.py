@@ -6,6 +6,7 @@ Handles session and message records for REPLAgent.
 """
 
 import logging
+from typing import Any
 
 import orjson
 from rag.types import LLMMessage
@@ -159,7 +160,7 @@ class AgentSession:
             " FROM documents d"
             " LEFT JOIN chunks c USING(doc_id)"
         )
-        params: list = []
+        params: list[Any] = []
         if lang:
             sql += " WHERE d.lang = ?"
             params.append(lang)

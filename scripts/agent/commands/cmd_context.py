@@ -18,7 +18,7 @@ Also defines _budget_breakdown (re-exported by agent_commands.py).
 """
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import orjson
 from shared.git_helper import get_repo_info
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _budget_breakdown(messages: list) -> dict[str, int]:
+def _budget_breakdown(messages: list[Any]) -> dict[str, int]:
     """Compute per-category character counts for the given message list.
 
     Categories: system, rag, history, tool_results.

@@ -59,9 +59,8 @@ class ServerLifecycleManager:
             return
 
         # Acquire per-server lock to serialise concurrent startup attempts
-        if server_key not in self._start_locks:
-            self._start_locks[server_key] = asyncio.Lock()
-        async with self._start_locks[server_key]:
+        lock = self._start_locks.setdefault(server_key, asyncio.Lock())
+        async with lock:
             # Double-check after acquiring lock to avoid double-start
             transport = self._stdio_procs.get(server_key)
             if transport is not None and transport.is_alive():
