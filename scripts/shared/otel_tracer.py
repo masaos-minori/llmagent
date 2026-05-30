@@ -30,23 +30,7 @@ def build_tracer(
     service_name: str = "llm-agent",
     otlp_endpoint: str = "",
 ) -> Any:
-    """Build and return an OpenTelemetry Tracer (or a NoOp stand-in).
-
-    This function creates a private TracerProvider and does NOT modify the
-    global trace provider (trace.set_tracer_provider() is intentionally not
-    called).  Each call returns a fully independent tracer bound to its own
-    provider, which is safe for concurrent use and test isolation.
-
-    Args:
-        enabled: When False, return a lightweight NoOp tracer without importing
-                 the OTel SDK.  No spans are recorded.
-        service_name: OTel service.name resource attribute reported in spans.
-        otlp_endpoint: OTLP HTTP exporter URL.  When empty and enabled=True,
-                       ConsoleSpanExporter is used instead.
-
-    Returns:
-        A trace.Tracer when enabled=True, or a _NoOpTracer when enabled=False.
-    """
+    """Build and return a private OTel Tracer (or NoOp) without modifying the global provider; OTLP exporter when otlp_endpoint is set, ConsoleSpanExporter otherwise."""
     if not enabled:
         return _NoOpTracer()
 
@@ -96,12 +80,7 @@ def build_tracer(
 
 
 class _NoOpTracer:
-    """Minimal tracer stub returned when otel_enabled=False.
-
-    Implements start_as_current_span() as a no-op context manager so callers
-    can use `with tracer.start_as_current_span("name"):` unconditionally without
-    checking enabled status.
-    """
+    """Minimal tracer stub for otel_enabled=False; implements start_as_current_span() as a no-op so callers need not check enabled status."""
 
     def start_as_current_span(self, name: str, **kwargs: Any) -> _NoOpSpan:
         """Return a no-op span context manager."""

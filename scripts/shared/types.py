@@ -8,13 +8,7 @@ from typing import Protocol, TypedDict, runtime_checkable
 
 
 class LLMMessage(TypedDict, total=False):
-    """OpenAI-compatible chat message used throughout the agent pipeline.
-
-    role is always required; other fields depend on the message type:
-      user/system : content
-      assistant   : content (may be None when tool_calls present), tool_calls
-      tool result : role="tool", tool_call_id, name, content
-    """
+    """OpenAI-compatible chat message; role always required; content for user/system/assistant; tool_calls on assistant; tool_call_id/name on tool result messages."""
 
     role: str  # "user" | "assistant" | "tool" | "system"
     content: str | None  # text content; None for tool_calls-only assistant messages
@@ -25,11 +19,7 @@ class LLMMessage(TypedDict, total=False):
 
 @runtime_checkable
 class RagConfig(Protocol):
-    """Structural protocol for config objects consumed by RagPipeline.
-
-    Allows rag.pipeline to accept AgentConfig (from agent/) or the
-    SimpleNamespace adapter from rag.mcp.models without importing agent/.
-    """
+    """Structural protocol for config objects consumed by RagPipeline; allows AgentConfig and SimpleNamespace adapter to satisfy it without importing agent/."""
 
     semantic_cache_max_size: int
     semantic_cache_threshold: float

@@ -65,13 +65,7 @@ _pipeline_post: list[Callable[..., Any]] = []
 
 
 def register_command(name: str, *, prefix: bool = False) -> Callable[[_F], _F]:
-    """Register a slash-command plugin.
-
-    name   : command name including the leading slash, e.g. "/greet"
-    prefix : True when the command accepts trailing text arguments
-    Handler: async def fn(ctx: AgentContext, args: str) -> None
-             or sync:  def fn(ctx: AgentContext, args: str) -> None
-    """
+    """Register a slash-command plugin; name includes the leading slash; prefix=True allows trailing args; handler is sync or async (ctx, args) -> None."""
 
     def decorator(fn: _F) -> _F:
         _commands[name] = (fn, prefix)
@@ -82,11 +76,7 @@ def register_command(name: str, *, prefix: bool = False) -> Callable[[_F], _F]:
 
 
 def register_tool(name: str) -> Callable[[_F], _F]:
-    """Register a local async function as a tool handler.
-
-    Bypasses MCP entirely; ToolExecutor calls the function directly.
-    Handler: async def fn(args: dict) -> tuple[str, bool]
-    """
+    """Register a local async function as a tool handler; bypasses MCP entirely; handler: async (args: dict) -> tuple[str, bool]."""
 
     def decorator(fn: _F) -> _F:
         _tools[name] = fn
@@ -97,11 +87,7 @@ def register_tool(name: str) -> Callable[[_F], _F]:
 
 
 def register_pipeline_stage(*, when: str = "post") -> Callable[[_F], _F]:
-    """Register a RAG pipeline stage hook.
-
-    when: "post" — called after cross-encoder rerank with the final hits list.
-    Handler: async def fn(hits: list[RagHit], query: str) -> list[RagHit]
-    """
+    """Register a RAG pipeline stage hook; when='post' is called after cross-encoder rerank; handler: async (hits, query) -> list[RagHit]."""
     if when != "post":
         raise ValueError(
             f"Unsupported pipeline stage position: {when!r}. Only 'post' is supported."
@@ -142,11 +128,7 @@ def get_pipeline_post_stages() -> list[Callable[..., Any]]:
 
 
 def load_plugins(plugin_dir: str | Path) -> int:
-    """Import all *.py files from plugin_dir; return the count loaded.
-
-    Each plugin file's @register_* decorators execute at import time.
-    Import errors in individual files are logged and skipped (fail-open).
-    """
+    """Import all *.py files from plugin_dir and return count loaded; @register_* decorators execute at import time; errors are logged and skipped (fail-open)."""
     plugin_path = Path(plugin_dir)
     if not plugin_path.is_dir():
         logger.debug(f"Plugin dir not found, skipping: {plugin_dir}")

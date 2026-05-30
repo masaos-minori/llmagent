@@ -11,19 +11,7 @@ from typing import Any
 
 @dataclass
 class McpServerConfig:
-    """Transport configuration for one MCP server.
-
-    transport: "http" uses url + httpx; "stdio" spawns cmd as a subprocess.
-    startup_mode: "persistent" starts at agent init; "ondemand" starts on first call.
-    healthcheck_mode: "http" probes /health; "process" uses is_alive(); "ping_tool"
-        additionally sends __list_tools__ over stdio.  Auto-inferred when "".
-    idle_timeout_sec: seconds of inactivity before stopping an ondemand server; 0=disabled.
-    working_dir: subprocess working directory for stdio mode; "" inherits parent.
-    env: extra environment variables injected into stdio subprocess.
-    tool_names: explicit tool-name list for config-driven routing; [] falls back to
-        static prefix routing in ToolRouteResolver.
-    openrc_service: OpenRC service name used by the watchdog to restart HTTP servers.
-    """
+    """Transport configuration for one MCP server; transport/startup_mode/healthcheck_mode govern lifecycle; tool_names enables config-driven routing."""
 
     transport: str  # "http" | "stdio"
     url: str  # base URL (transport="http")
@@ -69,11 +57,7 @@ class McpServerConfig:
 
 
 def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
-    """Build per-server transport config from agent.toml.
-
-    If 'mcp_servers' is present, use it directly.
-    Otherwise fall back to legacy url keys (web_search_url, github_server_url, etc.).
-    """
+    """Build per-server transport config from agent.toml; uses mcp_servers section when present, falls back to legacy URL constants."""
     raw: dict[str, Any] = cfg.get("mcp_servers", {})
     if raw:
         return {

@@ -29,14 +29,7 @@ class ConfigLoader:
     # ------------------------------------------------------------------
 
     def load(self, *names: str) -> dict[str, Any]:
-        """Read and merge one or more TOML or JSON config files.
-
-        Keys starting with '_' (e.g. _doc) are treated as documentation
-        metadata and excluded from the result.
-
-        Raises ValueError if a file is missing or has a parse error.
-        Raises TypeError if any name is not a str.
-        """
+        """Read and merge one or more TOML or JSON config files; keys starting with '_' are excluded; raises ValueError on missing/parse error."""
         self._validate_names(names)
         merged: dict[str, Any] = {}
         for name in names:

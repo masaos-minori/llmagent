@@ -45,11 +45,7 @@ def fmt_md_link(text: str, url: str) -> str:
 
 
 def fmt_kvlog(op: str, **kwargs: object) -> str:
-    """Format a structured key=value log message.
-
-    Produces: 'op=search provider=bing q=... n=10 ms=123'
-    None values are omitted to keep messages concise.
-    """
+    """Format a structured key=value log message (e.g. 'op=search provider=bing n=10'); None values are omitted."""
     parts = [f"op={op}"]
     for k, v in kwargs.items():
         if v is not None:

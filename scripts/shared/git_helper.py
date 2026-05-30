@@ -14,12 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_repo_info(path: str = ".") -> dict[str, Any] | None:
-    """Return current branch and last commit info, or None outside a git repo.
-
-    Uses search_parent_directories so the caller does not need to know the
-    repo root explicitly.  Catches all GitPython exceptions so callers are
-    never interrupted by git unavailability.
-    """
+    """Return current branch and last commit info, or None outside a git repo; uses search_parent_directories and catches all GitPython exceptions."""
     try:
         import git  # lazy import keeps startup fast when gitpython is unused
 

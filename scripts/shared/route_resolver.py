@@ -15,14 +15,7 @@ if TYPE_CHECKING:
 
 
 class ToolRouteResolver:
-    """Maps tool_name to server_key using config-driven routing with static fallback.
-
-    Resolution order:
-      1. Config-driven: any McpServerConfig with a non-empty tool_names list.
-      2. Static fallback: frozenset membership and prefix rules (backward compat).
-
-    Raises ValueError when a tool_name is not found in either path.
-    """
+    """Maps tool_name to server_key: config-driven (tool_names list) first, then static prefix fallback; raises ValueError when no match."""
 
     def __init__(self, server_configs: dict[str, McpServerConfig]) -> None:
         # Build reverse map: tool_name -> server_key from explicitly configured tool_names.
@@ -32,11 +25,7 @@ class ToolRouteResolver:
                 self._config_map[tool_name] = key
 
     def resolve(self, tool_name: str) -> str:
-        """Return the server key for tool_name.
-
-        Tries config-driven mapping first, then static fallback.
-        Raises ValueError when neither path matches.
-        """
+        """Return the server key for tool_name via config-driven mapping then static fallback; raises ValueError when neither path matches."""
         key = self._config_map.get(tool_name)
         if key is not None:
             return key

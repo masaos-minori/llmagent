@@ -65,19 +65,7 @@ class _JsonFormatter(logging.Formatter):
 
 
 class Logger:
-    """Configure a named logger with a dedicated FileHandler per entry script.
-
-    Each Logger instance attaches its own FileHandler + StreamHandler directly
-    to the named logger (not the root logger).  This guarantees that
-    crawl.log / ingest.log / agent.log etc. receive only their own entries,
-    even when multiple entry scripts share the same process.
-
-    propagate=False prevents records from also appearing on the root logger,
-    avoiding duplicate output when the root logger has handlers of its own.
-
-    structured_log=True switches the formatter to JSON-lines (_JsonFormatter).
-    set_context() / clear_context() inject trace fields into every record.
-    """
+    """Configure a named logger with a dedicated FileHandler per entry script; propagate=False prevents duplicate output; structured_log=True switches to JSON-lines."""
 
     _FORMAT = "%(asctime)s %(levelname)s [%(funcName)s] %(message)s"
 

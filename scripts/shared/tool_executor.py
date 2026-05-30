@@ -79,14 +79,7 @@ class HttpTransport:
 
 
 class StdioTransport:
-    """Calls an MCP server launched as a subprocess via stdin/stdout JSON-RPC.
-
-    Request  line: {"id": <int>, "name": <str>, "args": {...}}
-    Response line: {"id": <int>, "result": <str>, "is_error": <bool>}
-
-    A per-instance asyncio.Lock serialises concurrent tool calls so that
-    request/response pairs are never interleaved on a single pipe.
-    """
+    """Calls an MCP server subprocess via stdin/stdout JSON-RPC; per-instance Lock serializes concurrent calls to prevent request/response interleaving."""
 
     def __init__(self, cmd: list[str], server_key: str) -> None:
         self._cmd = cmd
@@ -121,10 +114,7 @@ class StdioTransport:
         return self._proc is not None and self._proc.returncode is None
 
     async def call(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
-        """Send one JSON-RPC request and return (result, is_error).
-
-        Acquires the per-instance lock so concurrent callers are serialised.
-        """
+        """Send one JSON-RPC request and return (result, is_error); acquires per-instance lock so concurrent callers are serialized."""
         if not self.is_alive():
             return f"stdio server not running (key={self._server_key!r})", True
 
@@ -228,11 +218,7 @@ def format_transport_error(
     retryable: bool,
     partial: bool,
 ) -> dict[str, str]:
-    """Return {"summary": str, "detail": str} for LLM/tool transport failures.
-
-    summary: one-line user-facing description.
-    detail:  JSON string for audit logs and ToolResult storage.
-    """
+    """Return {summary, detail} for LLM/tool transport failures; summary is one-line user-facing; detail is JSON for audit logs."""
     detail = orjson.dumps(
         {
             "source": source,
@@ -249,13 +235,7 @@ def format_transport_error(
 
 
 def tool_call_key(name: str, args: dict[str, Any]) -> str:
-    """Return a stable hash key for a (tool name, args) pair.
-
-    Normalises dict key order via sort_keys so that LLM-generated argument
-    objects with varying key order produce the same key.
-    Both agent/orchestrator.py (lookup) and agent/repl_tool_exec.py (insert)
-    must use this function to guarantee key identity.
-    """
+    """Return a stable MD5 hash key for a (tool name, args) pair; normalizes dict key order via sort_keys to ensure identity across LLM-generated args."""
     return hashlib.md5(  # nosec B324 — non-security hash for dedup key identity
         f"{name}:{orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()}".encode(),
         usedforsecurity=False,
@@ -268,17 +248,7 @@ def tool_call_key(name: str, args: dict[str, Any]) -> str:
 
 
 class ToolExecutor:
-    """Routes tool calls to the appropriate MCP server transport with TTL caching.
-
-    Tool results are cached by (name, args) key for cache_ttl seconds to
-    avoid redundant calls for repeated identical invocations.
-    Only successful (non-error) results are cached.
-
-    Transport selection:
-      HttpTransport  is created immediately for each http-transport server.
-      StdioTransport must be started async and injected via set_transport()
-      before its server's tools can be called.
-    """
+    """Routes tool calls to the appropriate MCP server transport with TTL caching; only successful results are cached; StdioTransport must be injected via set_transport()."""
 
     def __init__(
         self,
@@ -334,11 +304,7 @@ class ToolExecutor:
     async def _raw_execute(
         self, tool_name: str, args: dict[str, Any]
     ) -> tuple[str, bool]:
-        """Execute tool via the appropriate transport; return (result, is_error).
-
-        Applies per-server-key Semaphore concurrency limit when configured.
-        Semaphores are created lazily on first call to avoid event loop issues.
-        """
+        """Execute tool via the appropriate transport; applies per-server-key Semaphore when configured; semaphores created lazily to avoid event loop issues."""
         server_key = self._resolver.resolve(tool_name)
         # Ensure ondemand stdio servers are started before first use.
         if self._lifecycle is not None:
@@ -372,11 +338,7 @@ class ToolExecutor:
         return await transport.call(tool_name, args)
 
     async def execute(self, tool_name: str, args: dict[str, Any]) -> tuple[str, bool]:
-        """Execute a tool, returning a cached result when available within cache_ttl.
-
-        Plugin tools (registered via @register_tool) are called directly and
-        bypass both the cache and MCP routing.
-        """
+        """Execute a tool returning a cached result when within cache_ttl; plugin tools bypass cache and MCP routing."""
         plugin_fn = plugin_registry.get_tool(tool_name)
         if plugin_fn is not None:
             try:

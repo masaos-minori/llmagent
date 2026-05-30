@@ -39,11 +39,7 @@ LLMErrorKind = Literal[
 
 
 class LLMTransportError(Exception):
-    """Structured exception for all LLM HTTP/SSE transport failures.
-
-    partial_text: content accumulated before failure (non-empty = partial completion).
-    retryable: whether the caller should attempt reconnect.
-    """
+    """Structured exception for all LLM HTTP/SSE transport failures; partial_text holds content before failure; retryable signals reconnect eligibility."""
 
     def __init__(
         self,
@@ -69,13 +65,7 @@ class LLMTransportError(Exception):
 
 
 class RobustSSEParser:
-    """Stateful SSE parser over a raw byte stream.
-
-    Handles partial UTF-8 sequences via codecs incremental decoder.
-    Tracks heartbeat (last-event timestamp) for inactivity detection.
-    Counts malformed JSON frames; raises after budget is exhausted.
-    One instance per connection — create a new instance on reconnect.
-    """
+    """Stateful SSE parser: incremental UTF-8 decoder + heartbeat tracking + malformed frame budget; one instance per connection."""
 
     def __init__(self, malformed_retry: int, heartbeat_timeout: float) -> None:
         self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
@@ -88,13 +78,7 @@ class RobustSSEParser:
         self.stat_parse_errors: int = 0
 
     def feed(self, raw: bytes) -> tuple[list[str], bool]:
-        """Decode raw bytes and extract complete SSE data payloads.
-
-        Returns (payloads, is_done).
-        payloads: list of JSON payload strings (stripped of "data: " prefix).
-        is_done: True when [DONE] sentinel was received.
-        Raises LLMTransportError(MALFORMED_SSE_FRAME) after malformed budget exhausted.
-        """
+        """Decode raw bytes and extract complete SSE data payloads; returns (payloads, is_done); raises MALFORMED_SSE_FRAME after malformed budget exhausted."""
         text = self._decoder.decode(raw, final=False)
         self._buf += text
         payloads: list[str] = []
@@ -114,13 +98,7 @@ class RobustSSEParser:
         return payloads, is_done
 
     def _parse_line(self, line: str) -> tuple[str | None, bool] | None:
-        """Parse one SSE text line.
-
-        Returns None to skip (blank/comment/unknown field).
-        Returns (None, True) for [DONE].
-        Returns (payload_str, False) for valid data lines.
-        Raises LLMTransportError when malformed budget is exceeded.
-        """
+        """Parse one SSE text line; returns None to skip, (None, True) for [DONE], (payload_str, False) for valid data; raises MALFORMED_SSE_FRAME on budget exhaustion."""
         if not line:
             # Blank line (SSE event boundary) acts as keepalive
             self._last_event_at = time.monotonic()
@@ -172,12 +150,7 @@ class RobustSSEParser:
 
 
 async def _anext_or_done(aiter: AsyncIterator[bytes]) -> tuple[bytes, bool]:
-    """Await one item from an async bytes iterator.
-
-    Returns (item, False) on success, (b"", True) on StopAsyncIteration.
-    This helper prevents StopAsyncIteration from propagating through
-    asyncio.wait_for(), which would convert it to RuntimeError (PEP 479).
-    """
+    """Await one item from an async bytes iterator; returns (item, False) on success or (b"", True) on StopAsyncIteration; prevents PEP 479 RuntimeError in wait_for."""
     try:
         item = await aiter.__anext__()
         return item, False
@@ -186,11 +159,7 @@ async def _anext_or_done(aiter: AsyncIterator[bytes]) -> tuple[bytes, bool]:
 
 
 class LLMClient:
-    """LLM HTTP client with exponential-backoff retry and robust SSE streaming.
-
-    Stateful statistics (stat_*) accumulate for the lifetime of the instance.
-    Temperature and max_tokens are set at construction and apply to every call.
-    """
+    """LLM HTTP client with exponential-backoff retry and robust SSE streaming; stat_* counters accumulate for the instance lifetime."""
 
     def __init__(
         self,
@@ -234,13 +203,7 @@ class LLMClient:
     async def request_with_retry(
         self, url: str, payload: dict[str, Any]
     ) -> httpx.Response:
-        """POST to an LLM endpoint with exponential backoff retry.
-
-        Retries on HTTP 503 (overloaded) / 429 (rate-limited) and connection
-        errors up to _max_retries times.
-        Delays: _retry_base_delay × 2^attempt (1s, 2s, 4s for max_retries=3).
-        Raises the last exception when all retries are exhausted.
-        """
+        """POST to an LLM endpoint with exponential backoff retry; retries on 503/429 and connection errors; raises last exception when all attempts exhausted."""
         last_exc: Exception | None = None
         for attempt in range(self._max_retries):
             try:
@@ -384,12 +347,7 @@ class LLMClient:
         byte_iter: AsyncIterator[bytes],
         url: str,
     ) -> tuple[bytes, bool]:
-        """Await the next raw chunk from the byte stream with heartbeat timeout.
-
-        Returns (chunk, exhausted); exhausted=True signals stream end.
-        Raises LLMTransportError(HEARTBEAT_TIMEOUT) when no bytes arrive within
-        sse_heartbeat_timeout seconds.
-        """
+        """Await the next raw chunk with heartbeat timeout; returns (chunk, exhausted); raises HEARTBEAT_TIMEOUT when no bytes arrive within sse_heartbeat_timeout."""
         timeout = (
             self._sse_heartbeat_timeout if self._sse_heartbeat_timeout > 0 else None
         )
@@ -418,12 +376,7 @@ class LLMClient:
         content_parts: list[str],
         tool_calls_map: dict[int, dict[str, Any]],
     ) -> str | None:
-        """Execute one SSE connection attempt; return finish_reason on success.
-
-        Appends tokens to content_parts and tool_call deltas to tool_calls_map
-        in-place so the caller can inspect partial state on failure.
-        Raises LLMTransportError on any connection or stream-level failure.
-        """
+        """Execute one SSE connection attempt; appends tokens/tool_calls in-place; returns finish_reason on success; raises LLMTransportError on any failure."""
         parser = RobustSSEParser(
             malformed_retry=self._sse_malformed_retry,
             heartbeat_timeout=self._sse_heartbeat_timeout,
@@ -508,13 +461,7 @@ class LLMClient:
     async def stream(
         self, url: str, history: list[LLMMessage], tool_defs: list[dict[str, Any]]
     ) -> dict[str, Any]:
-        """Stream a chat completion via SSE with reconnect on retryable errors.
-
-        On retryable errors with no partial output: reconnect up to sse_reconnect_max.
-        On partial output or non-retryable errors: raise LLMTransportError with
-        partial_text set so the caller can apply mark_incomplete policy.
-        Returns a response dict in the same shape as call().
-        """
+        """Stream a chat completion via SSE with reconnect on retryable errors; raises LLMTransportError with partial_text on partial output or non-retryable errors."""
         content_parts: list[str] = []
         tool_calls_map: dict[int, dict[str, Any]] = {}
         finish_reason: str | None = None
@@ -563,10 +510,7 @@ class LLMClient:
     def extract_message(
         response: dict,
     ) -> tuple[LLMMessage, str | None]:
-        """Validate and extract (message, finish_reason) from an LLM response dict.
-
-        Raises ValueError when the response is missing expected fields.
-        """
+        """Validate and extract (message, finish_reason) from an LLM response dict; raises ValueError when expected fields are missing."""
         choices = response.get("choices")
         if not choices or not isinstance(choices, list):
             raise ValueError("Unexpected LLM response: missing 'choices' field")
