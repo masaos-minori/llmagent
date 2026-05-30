@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-rag/mcp/service.py
+mcp/rag_pipeline/service.py
 RagPipelineMCPService: wraps RagPipeline for use in rag-pipeline-mcp server.
 
 Dependency direction: rag.mcp.models → rag.mcp.service → rag.mcp.server
@@ -79,14 +79,15 @@ class RagPipelineMCPService:
             raise RuntimeError("RagPipelineMCPService not started — call start() first")
         return self._pipeline
 
-    async def run_pipeline(self, req: RagRunRequest) -> RagRunResponse:
-        """Execute MQE→Search→RRF→Rerank→Dedup→Augment and return formatted result."""
-        pipeline = self._pipeline_or_raise()
-        history_str = "\n".join(req.history_context)
-
+    @staticmethod
+    def _make_capture_fn() -> tuple[
+        Callable[[list[str], list[list[RagHit]], list[RagHit], list[RagHit]], None],
+        dict[str, list[Any]],
+    ]:
+        """Return a (debug_fn, captured) pair; debug_fn populates captured when called."""
         captured: dict[str, list[Any]] = {}
 
-        def _debug_fn(
+        def _fn(
             queries: list[str],
             _all_results: list[list[RagHit]],
             merged: list[RagHit],
@@ -96,9 +97,16 @@ class RagPipelineMCPService:
             captured["merged"] = list(merged)
             captured["reranked"] = list(reranked)
 
+        return _fn, captured
+
+    async def run_pipeline(self, req: RagRunRequest) -> RagRunResponse:
+        """Execute MQE→Search→RRF→Rerank→Dedup→Augment and return formatted result."""
+        pipeline = self._pipeline_or_raise()
+        history_str = "\n".join(req.history_context)
+        capture_fn, _ = self._make_capture_fn()
         augmented_text = await pipeline.augment(
             req.query,
-            debug_fn=_debug_fn if req.debug else None,
+            debug_fn=capture_fn if req.debug else None,
             history_context=history_str,
         )
         selected_hits: list[dict[str, Any]] = [dict(h) for h in pipeline.last_reranked]
@@ -112,21 +120,9 @@ class RagPipelineMCPService:
         """Execute pipeline capturing all intermediate stage outputs."""
         pipeline = self._pipeline_or_raise()
         history_str = "\n".join(req.history_context)
-
-        captured: dict[str, list[Any]] = {}
-
-        def _debug_fn(
-            queries: list[str],
-            _all_results: list[list[RagHit]],
-            merged: list[RagHit],
-            reranked: list[RagHit],
-        ) -> None:
-            captured["queries"] = list(queries)
-            captured["merged"] = list(merged)
-            captured["reranked"] = list(reranked)
-
+        capture_fn, captured = self._make_capture_fn()
         augmented_text = await pipeline.augment(
-            req.query, debug_fn=_debug_fn, history_context=history_str
+            req.query, debug_fn=capture_fn, history_context=history_str
         )
         selected_hits: list[dict[str, Any]] = [dict(h) for h in pipeline.last_reranked]
 
