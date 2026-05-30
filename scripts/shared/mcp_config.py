@@ -6,6 +6,7 @@ Placed in shared/ so tool_executor.py can reference it without depending on agen
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -67,13 +68,13 @@ class McpServerConfig:
             )
 
 
-def _build_mcp_servers(cfg: dict) -> dict[str, McpServerConfig]:
+def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
     """Build per-server transport config from agent.toml.
 
     If 'mcp_servers' is present, use it directly.
     Otherwise fall back to legacy url keys (web_search_url, github_server_url, etc.).
     """
-    raw: dict = cfg.get("mcp_servers", {})
+    raw: dict[str, Any] = cfg.get("mcp_servers", {})
     if raw:
         return {
             key: McpServerConfig(

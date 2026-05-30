@@ -17,7 +17,7 @@ import hashlib
 import logging
 import time
 from collections import OrderedDict
-from typing import Protocol
+from typing import Any, Protocol
 
 import httpx
 import orjson
@@ -46,7 +46,7 @@ class HttpTransport:
         self._base_url = base_url
         self._server_key = server_key
 
-    async def call(self, name: str, args: dict) -> tuple[str, bool]:
+    async def call(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
         """POST to /v1/call_tool and return (result, is_error)."""
         try:
             resp = await self._http.post(
@@ -120,7 +120,7 @@ class StdioTransport:
         """Return True when the subprocess is running (returncode is None)."""
         return self._proc is not None and self._proc.returncode is None
 
-    async def call(self, name: str, args: dict) -> tuple[str, bool]:
+    async def call(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
         """Send one JSON-RPC request and return (result, is_error).
 
         Acquires the per-instance lock so concurrent callers are serialised.
@@ -248,7 +248,7 @@ def format_transport_error(
     return {"summary": summary, "detail": detail}
 
 
-def tool_call_key(name: str, args: dict) -> str:
+def tool_call_key(name: str, args: dict[str, Any]) -> str:
     """Return a stable hash key for a (tool name, args) pair.
 
     Normalises dict key order via sort_keys so that LLM-generated argument
@@ -331,7 +331,9 @@ class ToolExecutor:
         """Inject or replace the lifecycle manager after construction."""
         self._lifecycle = lifecycle
 
-    async def _raw_execute(self, tool_name: str, args: dict) -> tuple[str, bool]:
+    async def _raw_execute(
+        self, tool_name: str, args: dict[str, Any]
+    ) -> tuple[str, bool]:
         """Execute tool via the appropriate transport; return (result, is_error).
 
         Applies per-server-key Semaphore concurrency limit when configured.
@@ -369,7 +371,7 @@ class ToolExecutor:
                 return await transport.call(tool_name, args)
         return await transport.call(tool_name, args)
 
-    async def execute(self, tool_name: str, args: dict) -> tuple[str, bool]:
+    async def execute(self, tool_name: str, args: dict[str, Any]) -> tuple[str, bool]:
         """Execute a tool, returning a cached result when available within cache_ttl.
 
         Plugin tools (registered via @register_tool) are called directly and

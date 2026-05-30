@@ -14,7 +14,7 @@ import codecs
 import logging
 import time
 from collections.abc import AsyncIterator, Callable
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 import httpx
 import orjson
@@ -231,7 +231,9 @@ class LLMClient:
 
     # ── Retry logic ───────────────────────────────────────────────────────────
 
-    async def request_with_retry(self, url: str, payload: dict) -> httpx.Response:
+    async def request_with_retry(
+        self, url: str, payload: dict[str, Any]
+    ) -> httpx.Response:
         """POST to an LLM endpoint with exponential backoff retry.
 
         Retries on HTTP 503 (overloaded) / 429 (rate-limited) and connection
@@ -276,11 +278,11 @@ class LLMClient:
     def build_payload(
         self,
         history: list[LLMMessage],
-        tool_defs: list[dict],
+        tool_defs: list[dict[str, Any]],
         stream: bool = False,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Build the request payload for a chat completion request."""
-        payload: dict = {
+        payload: dict[str, Any] = {
             "messages": history,
             "tools": tool_defs,
             "tool_choice": "auto",
@@ -291,7 +293,7 @@ class LLMClient:
             payload["stream"] = True
         return payload
 
-    def _emit_usage(self, data: dict) -> None:
+    def _emit_usage(self, data: dict[str, Any]) -> None:
         """Fire on_usage callback when both token counts are present in data."""
         if self._on_usage is None:
             return
@@ -304,8 +306,8 @@ class LLMClient:
     # ── Non-streaming call ────────────────────────────────────────────────────
 
     async def call(
-        self, url: str, history: list[LLMMessage], tool_defs: list[dict]
-    ) -> dict:
+        self, url: str, history: list[LLMMessage], tool_defs: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Send conversation history to LLM and return the raw response JSON."""
         resp = await self.request_with_retry(
             url, self.build_payload(history, tool_defs)
@@ -317,7 +319,9 @@ class LLMClient:
     # ── SSE streaming helpers ─────────────────────────────────────────────────
 
     @staticmethod
-    def _merge_tool_call_delta(tool_calls_map: dict[int, dict], tc_delta: dict) -> None:
+    def _merge_tool_call_delta(
+        tool_calls_map: dict[int, dict[str, Any]], tc_delta: dict[str, Any]
+    ) -> None:
         """Accumulate one streaming tool_call delta into the index-keyed map."""
         idx = tc_delta.get("index", 0)
         if idx not in tool_calls_map:
@@ -336,9 +340,9 @@ class LLMClient:
     @staticmethod
     def _build_stream_response(
         content_parts: list[str],
-        tool_calls_map: dict[int, dict],
+        tool_calls_map: dict[int, dict[str, Any]],
         finish_reason: str | None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Assemble the final response dict from streamed content and tool_call deltas."""
         content = "".join(content_parts)
         tool_calls = (
@@ -346,16 +350,16 @@ class LLMClient:
             if tool_calls_map
             else None
         )
-        message: dict = {"role": "assistant", "content": content}
+        message: dict[str, Any] = {"role": "assistant", "content": content}
         if tool_calls:
             message["tool_calls"] = tool_calls
         return {"choices": [{"message": message, "finish_reason": finish_reason}]}
 
     def _process_sse_chunk(
         self,
-        chunk: dict,
+        chunk: dict[str, Any],
         content_parts: list[str],
-        tool_calls_map: dict[int, dict],
+        tool_calls_map: dict[int, dict[str, Any]],
     ) -> str | None:
         """Process one parsed SSE chunk delta; return finish_reason or None."""
         choices = chunk.get("choices")
@@ -410,9 +414,9 @@ class LLMClient:
         self,
         url: str,
         history: list[LLMMessage],
-        tool_defs: list[dict],
+        tool_defs: list[dict[str, Any]],
         content_parts: list[str],
-        tool_calls_map: dict[int, dict],
+        tool_calls_map: dict[int, dict[str, Any]],
     ) -> str | None:
         """Execute one SSE connection attempt; return finish_reason on success.
 
@@ -502,8 +506,8 @@ class LLMClient:
     # ── Streaming call with reconnect ─────────────────────────────────────────
 
     async def stream(
-        self, url: str, history: list[LLMMessage], tool_defs: list[dict]
-    ) -> dict:
+        self, url: str, history: list[LLMMessage], tool_defs: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Stream a chat completion via SSE with reconnect on retryable errors.
 
         On retryable errors with no partial output: reconnect up to sse_reconnect_max.
@@ -512,7 +516,7 @@ class LLMClient:
         Returns a response dict in the same shape as call().
         """
         content_parts: list[str] = []
-        tool_calls_map: dict[int, dict] = {}
+        tool_calls_map: dict[int, dict[str, Any]] = {}
         finish_reason: str | None = None
 
         for attempt in range(self._sse_reconnect_max + 1):
