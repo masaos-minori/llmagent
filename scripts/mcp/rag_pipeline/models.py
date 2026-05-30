@@ -17,10 +17,10 @@ from shared.config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 
-_cfg: dict | None = None
+_cfg: dict[str, Any] | None = None
 
 
-def _get_cfg() -> dict:
+def _get_cfg() -> dict[str, Any]:
     """Load rag_pipeline_mcp_server.toml on first call; cached for the module lifetime."""
     global _cfg
     if _cfg is None:

@@ -181,7 +181,7 @@ _MCP_TOOLS = [
 
 
 @app.get("/v1/tools")
-async def list_tools() -> dict:
+async def list_tools() -> dict[str, Any]:
     return {
         "tools": [
             {"name": t["name"], "description": t.get("description", "")}

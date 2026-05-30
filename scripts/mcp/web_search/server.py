@@ -33,10 +33,10 @@ from mcp.server import MCPServer, dispatch_tool
 # ──────────────────────────────────────────────────────────────────────────────
 logger = Logger(__name__, "/opt/llm/logs/web-search-mcp.log")
 
-_cfg: dict | None = None
+_cfg: dict[str, Any] | None = None
 
 
-def _get_cfg() -> dict:
+def _get_cfg() -> dict[str, Any]:
     """Load config on first call; cached for the module lifetime."""
     global _cfg
     if _cfg is None:
@@ -326,7 +326,7 @@ _WEB_DISPATCH = {
 }
 
 
-async def _dispatch_web_tool(name: str, args: dict) -> tuple[str, bool]:
+async def _dispatch_web_tool(name: str, args: dict[str, Any]) -> tuple[str, bool]:
     """Route a tool call through the web-search dispatch table."""
     return await dispatch_tool(_WEB_DISPATCH, name, args)
 
@@ -335,7 +335,7 @@ async def _dispatch_web_tool(name: str, args: dict) -> tuple[str, bool]:
 # Tool listing endpoint (for client-side definition validation)
 # ──────────────────────────────────────────────────────────────────────────────
 @app.get("/v1/tools")
-async def list_tools() -> dict:
+async def list_tools() -> dict[str, Any]:
     """Return tool names and descriptions for agent.json definition validation."""
     return {
         "tools": [
@@ -367,7 +367,7 @@ class WebSearchMCPServer(MCPServer):
     app_module = "web_search_mcp_server:app"
     mcp_tools = _MCP_TOOLS
 
-    async def dispatch(self, name: str, args: dict) -> tuple[str, bool]:
+    async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
         return await _dispatch_web_tool(name, args)
 
 

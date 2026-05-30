@@ -83,9 +83,11 @@ class MCPServer:
     http_host: str = "127.0.0.1"
     http_port: int  # e.g. 8004
     app_module: str  # uvicorn target, e.g. "WebSearchMCPServer:app"
-    mcp_tools: list[dict]  # tool definitions (retained for subclass reference)
+    mcp_tools: list[
+        dict[str, Any]
+    ]  # tool definitions (retained for subclass reference)
 
-    async def dispatch(self, name: str, args: dict) -> tuple[str, bool]:
+    async def dispatch(self, name: str, args: ToolArgs) -> tuple[str, bool]:
         """Handle a tools/call request. Subclasses must override this."""
         raise NotImplementedError(f"{type(self).__name__}.dispatch is not implemented")
 

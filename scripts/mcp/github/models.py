@@ -6,6 +6,8 @@ Config loading and Pydantic request/response models for mcp/github/server.py.
 Dependency direction: mcp.github.models → (no local deps)
 """
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
@@ -17,10 +19,10 @@ from shared.logger import Logger
 # in mcp/github/server.py (where Logger("/opt/llm/logs/github-mcp.log") is set).
 _models_logger = Logger(__name__, "/opt/llm/logs/github-mcp.log")
 
-_cfg: dict | None = None
+_cfg: dict[str, Any] | None = None
 
 
-def _get_cfg() -> dict:
+def _get_cfg() -> dict[str, Any]:
     """Load config on first call; cached for the module lifetime."""
     global _cfg
     if _cfg is None:

@@ -502,7 +502,7 @@ async def _dispatch_github_tool(name: str, args: ToolArgs) -> tuple[str, bool]:
 # Tool listing endpoint (for client-side definition validation)
 # ──────────────────────────────────────────────────────────────────────────────
 @app.get("/v1/tools")
-async def list_tools() -> dict:
+async def list_tools() -> dict[str, Any]:
     """Return tool names and descriptions for agent.json definition validation."""
     return {
         "tools": [

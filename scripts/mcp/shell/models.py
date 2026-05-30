@@ -6,6 +6,8 @@ Config loading and Pydantic request/response models for shell-mcp.
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
@@ -13,10 +15,10 @@ from shared.logger import Logger
 # Logger for config-load warnings; main log path is /opt/llm/logs/shell-mcp.log
 _models_logger = Logger(__name__, "/opt/llm/logs/shell-mcp.log")
 
-_cfg: dict | None = None
+_cfg: dict[str, Any] | None = None
 
 
-def _get_cfg() -> dict:
+def _get_cfg() -> dict[str, Any]:
     """Load config on first call; cached for the module lifetime."""
     global _cfg
     if _cfg is None:
