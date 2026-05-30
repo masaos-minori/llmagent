@@ -36,15 +36,7 @@ def _get_cfg() -> dict[str, Any]:
 
 
 class SQLiteHelper:
-    """SQLite connection manager with sqlite-vec extension support.
-
-    All connections are opened with WAL journal mode, synchronous=NORMAL,
-    and busy_timeout applied unconditionally so every reader/writer
-    benefits from crash-safe WAL semantics without separate configuration.
-
-    target="rag"     → connects to rag_db_path (RAG documents/chunks)
-    target="session" → connects to session_db_path (sessions/messages/memory)
-    """
+    """SQLite connection manager with sqlite-vec extension support; WAL/synchronous=NORMAL/busy_timeout applied to every connection."""
 
     _RAG_PATH: str = ""
     _SESSION_PATH: str = ""
@@ -104,13 +96,7 @@ class SQLiteHelper:
     def _apply_connection_pragmas(
         self, conn: sqlite3.Connection, *, write_mode: bool
     ) -> None:
-        """Apply WAL / synchronous=NORMAL / busy_timeout to every connection.
-
-        These are set unconditionally so all readers and writers benefit from
-        WAL concurrency and the busy_timeout prevents immediate lock errors.
-        foreign_keys is only enforced when write_mode=True to avoid the overhead
-        on read-only query connections.
-        """
+        """Apply WAL/synchronous=NORMAL/busy_timeout to every connection; foreign_keys enforced only in write_mode to avoid read overhead."""
         busy_ms = int(
             _get_cfg().get("sqlite_busy_timeout_ms", _DEFAULT_BUSY_TIMEOUT_MS)
         )
@@ -123,12 +109,7 @@ class SQLiteHelper:
     def open(
         self, *, write_mode: bool = False, row_factory: bool = False
     ) -> "SQLiteHelper":
-        """Open a connection with sqlite-vec loaded and WAL pragmas applied.
-
-        write_mode=True : enforces foreign key constraints in addition to WAL.
-        row_factory=True: sets sqlite3.Row for column-name access.
-        Returns self for use as a context manager.
-        """
+        """Open a connection with sqlite-vec loaded and WAL pragmas applied; write_mode enforces FK constraints; row_factory enables column-name access; returns self."""
         conn = self._connect()
         self._load_vec_extension(conn)
         self._apply_connection_pragmas(conn, write_mode=write_mode)
@@ -157,15 +138,7 @@ class SQLiteHelper:
 
     @contextmanager
     def begin_immediate(self) -> Generator[None]:
-        """Wrap a block in BEGIN IMMEDIATE ... COMMIT.
-
-        Serializes concurrent writers: the first writer to acquire the lock
-        blocks others until COMMIT.  Use for multi-statement write operations
-        that must be atomic (e.g. chunk ingestion, document deletion).
-
-        Must be called before any DML on this connection; raises
-        sqlite3.OperationalError if a transaction is already active.
-        """
+        """Wrap a block in BEGIN IMMEDIATE...COMMIT; serializes concurrent writers; use for atomic multi-statement write operations like chunk ingestion."""
         assert self.conn is not None, "DB not open — call open() first"
         self.conn.execute("BEGIN IMMEDIATE")
         try:
@@ -180,12 +153,7 @@ class SQLiteHelper:
 
     @contextmanager
     def begin_exclusive(self) -> Generator[None]:
-        """Wrap a block in BEGIN EXCLUSIVE ... COMMIT.
-
-        Blocks all other readers and writers for the duration.  Use only for
-        operations that must prevent concurrent reads, such as VACUUM or
-        schema migrations.
-        """
+        """Wrap a block in BEGIN EXCLUSIVE...COMMIT; blocks all readers and writers; use only for VACUUM or schema migrations."""
         assert self.conn is not None, "DB not open — call open() first"
         self.conn.execute("BEGIN EXCLUSIVE")
         try:
@@ -199,11 +167,7 @@ class SQLiteHelper:
             raise
 
     def health_check(self) -> dict[str, Any]:
-        """Return DB health metrics: journal mode, integrity, page stats.
-
-        Runs PRAGMA quick_check which is faster than integrity_check but
-        catches the most common corruption patterns.
-        """
+        """Return DB health metrics (journal mode, PRAGMA quick_check, page stats); quick_check catches common corruption patterns faster than integrity_check."""
         assert self.conn is not None, "DB not open — call open() first"
         journal_mode = self.conn.execute("PRAGMA journal_mode").fetchone()[0]
         integrity = self.conn.execute("PRAGMA quick_check").fetchone()[0]
@@ -224,16 +188,7 @@ class SQLiteHelper:
     )
 
     def checkpoint(self, mode: str = "TRUNCATE") -> dict[str, int]:
-        """Run WAL checkpoint and return page counters.
-
-        mode: PASSIVE  — flush without waiting for readers (non-blocking)
-              FULL     — wait for all readers, then flush
-              RESTART  — like FULL, but reset the WAL write position
-              TRUNCATE — like RESTART, then truncate WAL to zero bytes (default)
-
-        Use TRUNCATE after large batch writes to reclaim disk space.
-        Returns {"busy": 0|1, "pages_in_wal": n, "pages_checkpointed": n}.
-        """
+        """Run WAL checkpoint and return {busy, pages_in_wal, pages_checkpointed}; PASSIVE=non-blocking, FULL/RESTART/TRUNCATE block until WAL flushed; default TRUNCATE reclaims disk."""
         if mode not in self._CHECKPOINT_MODES:
             raise ValueError(
                 f"checkpoint mode must be one of {sorted(self._CHECKPOINT_MODES)}"
@@ -245,11 +200,7 @@ class SQLiteHelper:
         return result
 
     def vacuum(self) -> None:
-        """Rebuild the DB file in place to reclaim free pages and defragment.
-
-        Requires ~2× the DB size in free disk space and cannot run inside a
-        transaction.  Call after bulk deletions or at scheduled maintenance.
-        """
+        """Rebuild the DB file in place to reclaim free pages; requires ~2× DB size in free disk space; cannot run inside a transaction."""
         assert self.conn is not None, "DB not open — call open() first"
         self.conn.execute("VACUUM")
         logger.info(f"VACUUM completed: {self.DB_PATH}")

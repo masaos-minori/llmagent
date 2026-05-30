@@ -48,11 +48,7 @@ def _get_cfg() -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class RetentionConfig:
-    """Session retention policy parameters.
-
-    max_sessions: keep this many most-recent sessions; delete older ones.
-    max_age_days: delete sessions created before this many days ago (0 = disabled).
-    """
+    """Session retention policy: max_sessions keeps most-recent N sessions; max_age_days deletes sessions older than N days (0=disabled)."""
 
     max_sessions: int = 100
     max_age_days: int = 90
@@ -71,41 +67,21 @@ class RetentionConfig:
 
 
 def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> dict[str, int]:
-    """Flush the WAL file and return checkpoint counters.
-
-    mode defaults to sqlite_wal_checkpoint_mode from common.toml (TRUNCATE).
-    Valid values: PASSIVE, FULL, RESTART, TRUNCATE.
-
-    Returns {"busy": 0|1, "pages_in_wal": n, "pages_checkpointed": n}.
-    Raises ValueError for an unrecognised mode.
-    """
+    """Flush the WAL file and return checkpoint counters; mode defaults to sqlite_wal_checkpoint_mode (TRUNCATE); raises ValueError for unknown mode."""
     if mode is None:
         mode = _get_cfg().get("sqlite_wal_checkpoint_mode", "TRUNCATE").upper()
     return db.checkpoint(mode)
 
 
 def vacuum_db(db: SQLiteHelper) -> None:
-    """Run VACUUM to rebuild the DB file and reclaim freed pages.
-
-    Cannot run inside a transaction; call on a freshly opened connection
-    before any writes.  Requires ~2× DB size in free disk space.
-    """
+    """Run VACUUM to rebuild the DB file and reclaim freed pages; cannot run inside a transaction; requires ~2× DB size in free disk space."""
     db.vacuum()
 
 
 def purge_old_sessions(
     db: SQLiteHelper, cfg: RetentionConfig | None = None
 ) -> dict[str, int]:
-    """Delete sessions that exceed the retention policy.
-
-    Applies two independent rules in sequence:
-    1. Age-based: delete sessions created more than cfg.max_age_days days ago.
-    2. Count-based: if more than cfg.max_sessions rows remain, delete the oldest.
-
-    ON DELETE CASCADE removes messages automatically.
-    Returns {"age_deleted": n, "count_deleted": n}.
-    db must be opened on session.sqlite (SQLiteHelper("session")).
-    """
+    """Delete sessions exceeding the retention policy (age-based then count-based); CASCADE removes messages; returns {age_deleted, count_deleted}."""
     if cfg is None:
         cfg = RetentionConfig.from_config()
 
@@ -171,45 +147,26 @@ def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
 
 
 def rotate_rag_db(archive_dir: str | Path | None = None) -> Path:
-    """Archive rag.sqlite to archive_dir with a timestamp suffix.
-
-    Returns the path of the created archive file.
-    """
+    """Archive rag.sqlite to archive_dir with a timestamp suffix; returns the archive path."""
     SQLiteHelper._ensure_config()
     return _archive_db_file(Path(SQLiteHelper._RAG_PATH), archive_dir)
 
 
 def rotate_session_db(archive_dir: str | Path | None = None) -> Path:
-    """Archive session.sqlite to archive_dir with a timestamp suffix.
-
-    Returns the path of the created archive file.
-    """
+    """Archive session.sqlite to archive_dir with a timestamp suffix; returns the archive path."""
     SQLiteHelper._ensure_config()
     return _archive_db_file(Path(SQLiteHelper._SESSION_PATH), archive_dir)
 
 
 def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]:
-    """Archive both rag.sqlite and session.sqlite.
-
-    Returns (rag_archive_path, session_archive_path).
-    """
+    """Archive both rag.sqlite and session.sqlite; returns (rag_archive_path, session_archive_path)."""
     rag_dest = rotate_rag_db(archive_dir)
     ses_dest = rotate_session_db(archive_dir)
     return rag_dest, ses_dest
 
 
 def recover_corruption(backup_path: str | Path | None = None) -> bool:
-    """Detect and recover from corruption in rag.sqlite.
-
-    Recovery procedure:
-    1. Run PRAGMA integrity_check (full scan).
-    2. If the check passes: run VACUUM to defragment, then return True.
-    3. If the check fails and backup_path is given:
-       a. Archive the corrupt file with a timestamp suffix.
-       b. Copy backup_path over DB_PATH.
-       c. Return True on success, False on any OS error.
-    4. If the check fails and no backup is given: log the error, return False.
-    """
+    """Detect and recover from corruption in rag.sqlite; passes integrity_check → VACUUM → True; fails → archives corrupt file and restores from backup_path."""
     SQLiteHelper._ensure_config()
     db_path = Path(SQLiteHelper._RAG_PATH)
 

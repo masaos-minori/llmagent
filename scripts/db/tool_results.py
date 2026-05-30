@@ -16,12 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class ToolResultStore:
-    """Persists full tool call results to the tool_results table.
-
-    Each result is stored once and assigned a stable integer id.
-    The caller passes that id back to the LLM history so the user can retrieve
-    the full text with /tool show <id>.
-    """
+    """Persists full tool call results to the tool_results table; each result has a stable integer id retrievable via /tool show <id>."""
 
     def store(
         self,
@@ -76,10 +71,7 @@ class ToolResultStore:
             return None
 
     def list_recent(self, session_id: int | None, n: int = 20) -> list[dict]:
-        """Return the n most recent tool results for session_id, oldest first.
-
-        Returns an empty list when session_id is None or on DB error.
-        """
+        """Return the n most recent tool results for session_id oldest first; returns [] when session_id is None or on DB error."""
         if session_id is None:
             return []
         try:
