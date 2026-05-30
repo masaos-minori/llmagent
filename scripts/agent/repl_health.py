@@ -238,3 +238,5 @@ async def watchdog_loop(ctx: AgentContext) -> None:
                 await _watchdog_check_stdio(
                     ctx, key, srv_cfg, restart_counts, max_restarts
                 )
+        if ctx.services.lifecycle is not None:
+            await ctx.services.lifecycle.shutdown_idle()

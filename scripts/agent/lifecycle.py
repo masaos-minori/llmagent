@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 
 from shared.mcp_config import McpServerConfig
 from shared.tool_executor import StdioTransport, ToolExecutor
@@ -39,6 +40,10 @@ class ServerLifecycleManager:
         self._stdio_procs = stdio_procs
         # Per-server asyncio.Lock prevents concurrent ondemand startup races.
         self._start_locks: dict[str, asyncio.Lock] = {}
+        # Initialize with current time so servers are not idle-stopped immediately at startup.
+        self._last_called: dict[str, float] = {
+            key: time.monotonic() for key in server_configs
+        }
 
     async def ensure_ready(self, server_key: str) -> None:
         """Ensure the MCP server for server_key is ready to accept calls.
@@ -47,6 +52,7 @@ class ServerLifecycleManager:
         Persistent stdio servers: no-op (started at agent init by _start_stdio_servers).
         Ondemand stdio servers: start subprocess on first call; serialize concurrent starts.
         """
+        self._last_called[server_key] = time.monotonic()
         cfg = self._server_configs.get(server_key)
         if cfg is None or cfg.transport != "stdio":
             return
@@ -91,8 +97,18 @@ class ServerLifecycleManager:
                 logger.warning(f"Lifecycle: error stopping {key!r}: {e}")
 
     async def shutdown_idle(self) -> None:
-        """Stop ondemand stdio servers that have exceeded their idle_timeout_sec.
-
-        Skeleton implementation: idle timeout enforcement is not yet wired to a
-        call-time tracking mechanism.  Reserved for future work.
-        """
+        """Stop ondemand stdio servers that have exceeded their idle_timeout_sec."""
+        now = time.monotonic()
+        for key, transport in list(self._stdio_procs.items()):
+            cfg = self._server_configs.get(key)
+            if cfg is None or cfg.startup_mode != "ondemand":
+                continue
+            if cfg.idle_timeout_sec <= 0:
+                continue
+            last = self._last_called.get(key, 0.0)
+            if now - last >= cfg.idle_timeout_sec and transport.is_alive():
+                logger.info(f"Lifecycle: idle timeout — stopping {key!r}")
+                try:
+                    await transport.stop()
+                except Exception as e:
+                    logger.warning(f"Lifecycle: error stopping idle {key!r}: {e}")

@@ -26,6 +26,19 @@ def _stdio_ondemand(cmd: list[str] | None = None) -> McpServerConfig:
     )
 
 
+def _stdio_ondemand_idle(
+    idle_sec: int, cmd: list[str] | None = None
+) -> McpServerConfig:
+    return McpServerConfig(
+        "stdio",
+        "",
+        cmd or ["python", "s.py"],
+        "",
+        startup_mode="ondemand",
+        idle_timeout_sec=idle_sec,
+    )
+
+
 def _mock_tool_executor() -> MagicMock:
     ex = MagicMock()
     ex.set_transport = MagicMock()
@@ -127,6 +140,76 @@ class TestEnsureReady:
             )
 
         assert start_count == 1
+
+
+class TestShutdownIdle:
+    @pytest.mark.asyncio
+    async def test_stops_idle_ondemand_server(self) -> None:
+        transport = AsyncMock()
+        transport.is_alive = MagicMock(return_value=True)  # is_alive is sync
+        configs = {"od": _stdio_ondemand_idle(idle_sec=30)}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, {"od": transport})
+        # Backdate _last_called to simulate 60s of inactivity
+        mgr._last_called["od"] = mgr._last_called["od"] - 60
+        await mgr.shutdown_idle()
+        transport.stop.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_skips_server_within_timeout(self) -> None:
+        transport = AsyncMock()
+        transport.is_alive = MagicMock(return_value=True)
+        configs = {"od": _stdio_ondemand_idle(idle_sec=300)}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, {"od": transport})
+        # _last_called initialized to now(); 300s has not elapsed
+        await mgr.shutdown_idle()
+        transport.stop.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_skips_idle_timeout_disabled(self) -> None:
+        transport = AsyncMock()
+        transport.is_alive = MagicMock(return_value=True)
+        configs = {"od": _stdio_ondemand_idle(idle_sec=0)}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, {"od": transport})
+        mgr._last_called["od"] = 0.0  # simulate very old last call
+        await mgr.shutdown_idle()
+        transport.stop.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_skips_persistent_server(self) -> None:
+        transport = AsyncMock()
+        transport.is_alive = MagicMock(return_value=True)
+        configs = {"p": _stdio_persistent()}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, {"p": transport})
+        mgr._last_called["p"] = 0.0  # simulate very old last call
+        await mgr.shutdown_idle()
+        transport.stop.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_skips_already_dead_server(self) -> None:
+        transport = AsyncMock()
+        transport.is_alive = MagicMock(return_value=False)
+        configs = {"od": _stdio_ondemand_idle(idle_sec=30)}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, {"od": transport})
+        mgr._last_called["od"] = 0.0
+        await mgr.shutdown_idle()
+        transport.stop.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_tolerates_stop_error(self) -> None:
+        transport = AsyncMock()
+        transport.is_alive = MagicMock(return_value=True)
+        transport.stop.side_effect = RuntimeError("crash")
+        configs = {"od": _stdio_ondemand_idle(idle_sec=30)}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, {"od": transport})
+        mgr._last_called["od"] = 0.0
+        # Must not propagate
+        await mgr.shutdown_idle()
 
 
 class TestShutdownAll:

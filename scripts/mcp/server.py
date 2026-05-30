@@ -106,7 +106,7 @@ class MCPServer:
         """
         return {"status": "ok"}
 
-    def run(self) -> None:
+    def run_http(self) -> None:
         """Launch the HTTP server via uvicorn."""
         import uvicorn
 
@@ -116,6 +116,10 @@ class MCPServer:
             port=self.http_port,
             log_level="info",
         )
+
+    def run(self) -> None:
+        # backward-compat alias; callers should migrate to run_http()
+        self.run_http()
 
     async def run_stdio(self) -> None:
         """Serve tool calls over stdin/stdout using line-delimited JSON-RPC.

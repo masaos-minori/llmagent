@@ -166,4 +166,4 @@ if __name__ == "__main__":
 
         asyncio.run(server.run_stdio())
     else:
-        server.run()
+        server.run_http()
