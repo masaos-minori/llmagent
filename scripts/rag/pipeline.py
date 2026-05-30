@@ -20,6 +20,7 @@ import asyncio
 import logging
 import time
 from collections.abc import Callable
+from typing import Any
 
 import httpx
 import shared.plugin_registry as plugin_registry
@@ -48,10 +49,10 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-_cfg: dict | None = None
+_cfg: dict[str, Any] | None = None
 
 
-def _get_cfg() -> dict:
+def _get_cfg() -> dict[str, Any]:
     """Load config on first call; cached for the module lifetime."""
     global _cfg
     if _cfg is None:

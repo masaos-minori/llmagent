@@ -12,6 +12,7 @@ Extracted from agent_rag.py.  Contains:
 
 import logging
 import re
+from typing import Any
 
 import httpx
 import orjson
@@ -25,10 +26,10 @@ logger = logging.getLogger(__name__)
 # Config (common.toml + agent.toml — same files as agent_rag._get_cfg)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_cfg: dict | None = None
+_cfg: dict[str, Any] | None = None
 
 
-def _get_cfg() -> dict:
+def _get_cfg() -> dict[str, Any]:
     """Load config on first call; cached for the module lifetime."""
     global _cfg
     if _cfg is None:
@@ -119,7 +120,7 @@ def _parse_mqe_response(raw: str, original_query: str) -> list[str]:
     return [original_query] + valid
 
 
-def _extract_chat_content(data: dict) -> str:
+def _extract_chat_content(data: dict[str, Any]) -> str:
     """Extract content text from an OpenAI-compatible chat completion response.
 
     Raises ValueError if the response is malformed or missing expected fields.
@@ -159,7 +160,7 @@ def _apply_rerank_scores(
     if not m:
         return None
     try:
-        score_map: dict = orjson.loads(m.group())
+        score_map: dict[str, Any] = orjson.loads(m.group())
     except orjson.JSONDecodeError:
         logger.warning("Rerank score JSON is malformed")
         return None
@@ -294,7 +295,9 @@ class RagLLM:
             )
         return candidates[:top_k]
 
-    async def summarize_tool_result(self, text: str, tool_name: str, args: dict) -> str:
+    async def summarize_tool_result(
+        self, text: str, tool_name: str, args: dict[str, Any]
+    ) -> str:
         """Summarize a long tool result to reduce LLM context consumption.
 
         Sends up to _SUMMARIZE_INPUT_MAX_CHARS of the result to the LLM and
@@ -374,7 +377,7 @@ async def get_embedding(text: str, client: httpx.AsyncClient) -> list[float]:
 
 
 async def summarize_tool_result(
-    text: str, tool_name: str, args: dict, client: httpx.AsyncClient
+    text: str, tool_name: str, args: dict[str, Any], client: httpx.AsyncClient
 ) -> str:
     """Tool result summarization. Delegates to RagLLM."""
     return await RagLLM(client, _get_cfg().get("llm_url", "")).summarize_tool_result(

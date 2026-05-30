@@ -17,7 +17,7 @@ import math
 import re
 import sqlite3
 import time
-from typing import cast
+from typing import Any, cast
 
 from db.helper import SQLiteHelper
 from rag.types import RagHit
@@ -206,7 +206,7 @@ class SemanticCache:
     """
 
     def __init__(self, max_size: int = 100, threshold: float = 0.92) -> None:
-        self._entries: list[dict] = []  # [{embedding, context_str}]
+        self._entries: list[dict[str, Any]] = []  # [{embedding, context_str}]
         self._max_size = max_size
         self._threshold = threshold
 
