@@ -40,57 +40,26 @@ class MemoryLayer:
     # ── Write operations ──────────────────────────────────────────────────────
 
     def write_long_term(self, session_id: int | None, content: str) -> None:
-        """Persist a fact or observation to long-term memory.
-
-        Long-term entries are session-agnostic by convention; pass session_id=None
-        for facts that should survive across sessions.
-
-        Args:
-            session_id: Session context, or None for cross-session facts.
-            content: Text to store.
-        """
+        """Persist a fact to long-term memory; pass session_id=None for cross-session facts."""
         entry_id = self._store.add(session_id, "long_term", content)
         logger.debug(f"MemoryLayer: long_term entry added (entry_id={entry_id})")
 
     def write_task(self, session_id: int | None, content: str) -> None:
-        """Persist a task-scoped note to memory.
-
-        Task entries represent ephemeral goals or intermediate results and can be
-        cleared when the task is complete via clear(session_id=...).
-
-        Args:
-            session_id: Session context for task isolation.
-            content: Task text to store.
-        """
+        """Persist a task-scoped note; clear when done via clear(session_id=...)."""
         entry_id = self._store.add(session_id, "task", content)
         logger.debug(f"MemoryLayer: task entry added (entry_id={entry_id})")
 
     # ── Read operations ───────────────────────────────────────────────────────
 
     def read(self, mem_type: str, limit: int = 5) -> list[str]:
-        """Return the most-recent memory entries of the given type as plain strings.
-
-        Args:
-            mem_type: 'long_term' or 'task'.
-            limit: Maximum number of results.
-
-        Returns:
-            List of content strings, ordered by creation time (newest first).
-        """
+        """Return the most-recent entries of mem_type ('long_term' or 'task') as strings."""
         rows = self._store.search_by_type(mem_type, limit=limit)
         return [row["content"] for row in rows]
 
     # ── Housekeeping ──────────────────────────────────────────────────────────
 
     def clear(self, session_id: int | None = None) -> None:
-        """Remove memory entries.
-
-        When session_id is provided, only that session's entries are removed.
-        When None, all entries are cleared (full memory reset).
-
-        Args:
-            session_id: Scope of the clear operation; None means global reset.
-        """
+        """Remove entries for session_id, or all entries when session_id is None."""
         count = self._store.clear(session_id=session_id)
         logger.info(
             f"MemoryLayer: cleared {count} entries"
@@ -101,11 +70,7 @@ class MemoryLayer:
 
     @property
     def stat_entries(self) -> int:
-        """Total number of memory entries across all types.
-
-        Used by /context display to show memory layer status.
-        Returns 0 on DB error.
-        """
+        """Total entry count across all types; 0 on DB error."""
         try:
             with SQLiteHelper("session").open() as db:
                 rows = db.fetchall("SELECT COUNT(*) FROM memory_entries")

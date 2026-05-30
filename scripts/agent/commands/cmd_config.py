@@ -207,6 +207,18 @@ class _ConfigMixin:
     def _apply_config_params(self, new_cfg: dict[str, Any]) -> None:
         """Update ctx.cfg from new_cfg and sync values to all components."""
         ctx = self._ctx
+        self._apply_rag_tool_params(ctx, new_cfg)
+        self._reload_approval_settings(ctx, new_cfg)
+        ctx.cfg.masked_fields = list(new_cfg.get("masked_fields", ["file_content"]))
+        self._apply_mcp_url_reload(ctx, new_cfg)
+        self._apply_llm_prompt_params(ctx, new_cfg)
+        self._apply_sse_reload_params(ctx, new_cfg)
+        self._sync_services_to_cfg(ctx, new_cfg)
+
+    def _apply_rag_tool_params(
+        self, ctx: "AgentContext", new_cfg: dict[str, Any]
+    ) -> None:
+        """Apply RAG pipeline, tool cache, LLM retry, refiner, and watchdog settings."""
         ctx.cfg.context_char_limit = int(new_cfg.get("context_char_limit", 8000))
         ctx.cfg.context_compress_turns = int(new_cfg.get("context_compress_turns", 4))
         ctx.cfg.tool_cache_ttl = float(new_cfg.get("tool_cache_ttl", 300))
@@ -243,10 +255,23 @@ class _ConfigMixin:
         ctx.cfg.mcp_watchdog_max_restarts = int(
             new_cfg.get("mcp_watchdog_max_restarts", 3)
         )
-        self._reload_approval_settings(ctx, new_cfg)
-        ctx.cfg.masked_fields = list(new_cfg.get("masked_fields", ["file_content"]))
-        # Update URLs for HTTP-transport servers without changing transport type.
-        # Transport type changes require agent restart (subprocess lifecycle).
+        ctx.cfg.plan_blocked_tools = list(
+            new_cfg.get(
+                "plan_blocked_tools",
+                ["write_file", "create_directory", "delete_file", "delete_directory"],
+            )
+        )
+        ctx.cfg.use_refiner = bool(new_cfg.get("use_refiner", False))
+        ctx.cfg.refiner_max_tokens = int(new_cfg.get("refiner_max_tokens", 512))
+        ctx.cfg.refiner_timeout = float(new_cfg.get("refiner_timeout", 30.0))
+        ctx.cfg.refiner_max_chars_per_chunk = int(
+            new_cfg.get("refiner_max_chars_per_chunk", 300)
+        )
+
+    def _apply_mcp_url_reload(
+        self, ctx: "AgentContext", new_cfg: dict[str, Any]
+    ) -> None:
+        """Update HTTP MCP server URLs from reloaded config; transport type changes require restart."""
         from agent.config import _build_mcp_servers  # noqa: PLC0415
 
         new_mcp = _build_mcp_servers(new_cfg)
@@ -255,21 +280,13 @@ class _ConfigMixin:
             if old_srv and old_srv.transport == "http" and new_srv.transport == "http":
                 old_srv.url = new_srv.url
                 old_srv.openrc_service = new_srv.openrc_service
-        ctx.cfg.plan_blocked_tools = list(
-            new_cfg.get(
-                "plan_blocked_tools",
-                ["write_file", "create_directory", "delete_file", "delete_directory"],
-            )
-        )
+
+    def _apply_llm_prompt_params(
+        self, ctx: "AgentContext", new_cfg: dict[str, Any]
+    ) -> None:
+        """Apply hot-reloadable URL, HTTP, LLM generation, tool definition, and prompt settings."""
         ctx.cfg.llm_temperature = float(new_cfg.get("llm_temperature", 0.2))
         ctx.cfg.llm_max_tokens = int(new_cfg.get("llm_max_tokens", 1024))
-        ctx.cfg.use_refiner = bool(new_cfg.get("use_refiner", False))
-        ctx.cfg.refiner_max_tokens = int(new_cfg.get("refiner_max_tokens", 512))
-        ctx.cfg.refiner_timeout = float(new_cfg.get("refiner_timeout", 30.0))
-        ctx.cfg.refiner_max_chars_per_chunk = int(
-            new_cfg.get("refiner_max_chars_per_chunk", 300)
-        )
-        # Hot-reloadable URL and prompt config
         ctx.cfg.llm_url = new_cfg.get("llm_url", ctx.cfg.llm_url)
         ctx.cfg.github_url = new_cfg.get("github_server_url", ctx.cfg.github_url)
         ctx.cfg.web_search_url = new_cfg.get("web_search_url", ctx.cfg.web_search_url)
@@ -291,6 +308,11 @@ class _ConfigMixin:
             ctx.cfg.system_prompt_tool = system_prompt_tool
         if new_cfg.get("system_prompts"):
             ctx.cfg.system_prompts = dict(new_cfg["system_prompts"])
+
+    def _apply_sse_reload_params(
+        self, ctx: "AgentContext", new_cfg: dict[str, Any]
+    ) -> None:
+        """Apply SSE stream resilience settings."""
         ctx.cfg.sse_heartbeat_timeout = float(
             new_cfg.get("sse_heartbeat_timeout", ctx.cfg.sse_heartbeat_timeout)
         )
@@ -312,7 +334,6 @@ class _ConfigMixin:
                 ctx.cfg.llm_stream_retry_on_malformed_chunk,
             )
         )
-        self._sync_services_to_cfg(ctx, new_cfg)
 
     def _reload_approval_settings(
         self, ctx: "AgentContext", new_cfg: dict[str, Any]

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-agent_commands.py
+registry.py
 Slash-command registry for AgentREPL.
 
 CommandRegistry inherits command groups from six mixin classes.
@@ -184,6 +184,10 @@ class CommandRegistry(
                 return True
 
         # Plugin commands: exact-match and prefix-match (checked after built-ins)
+        return await self._dispatch_plugin(line)
+
+    async def _dispatch_plugin(self, line: str) -> bool:
+        """Dispatch to the first matching registered plugin command; return True if matched."""
         for cmd_name, (handler, is_prefix) in plugin_registry.iter_commands().items():
             if is_prefix and line.startswith(cmd_name):
                 args = line[len(cmd_name) :]
@@ -198,5 +202,4 @@ class CommandRegistry(
                 else:
                     handler(self._ctx, "")
                 return True
-
         return False

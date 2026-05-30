@@ -201,15 +201,13 @@ def _build_preview(tool_name: str, args: dict) -> str:
         path = args.get("path") or args.get("file_path", "?")
         content = str(args.get("content") or args.get("new_content") or "")[:200]
         return f"{path}\n    content: {content!r}"
-    if tool_name in ("delete_file", "delete_directory"):
+    elif tool_name in ("delete_file", "delete_directory", "create_directory"):
         return str(args.get("path") or args.get("directory_path", "?"))
-    if tool_name == "create_directory":
-        return str(args.get("path") or args.get("directory_path", "?"))
-    if tool_name == "move_file":
+    elif tool_name == "move_file":
         return f"{args.get('source', '?')} → {args.get('destination', '?')}"
-    if tool_name == "shell_run":
+    elif tool_name == "shell_run":
         return str(args.get("command", "?"))
-    if tool_name.startswith("github_"):
+    elif tool_name.startswith("github_"):
         owner = str(args.get("owner", ""))
         repo = str(args.get("repo", ""))
         repo_str = f"{owner}/{repo}" if owner and repo else owner or repo or "?"

@@ -387,6 +387,40 @@ class Orchestrator:
                 return "Repeated failed tool call detected."
         return None
 
+    def _inject_mid_turn_error(self, e: LLMTransportError, turn: int) -> str:
+        """Inject a synthetic tool-error message for a mid-turn LLM failure and return its summary."""
+        ctx = self._ctx
+        err = format_transport_error(
+            source="llm",
+            phase=e.phase,
+            kind=e.kind,
+            url=e.url,
+            status_code=e.status_code,
+            retryable=e.retryable,
+            partial=bool(e.partial_text),
+        )
+        ctx.history.append(
+            {
+                "role": "tool",
+                "content": err["detail"],
+                "name": "llm_transport_error",
+                "tool_call_id": f"synthetic_{uuid.uuid4().hex[:8]}",
+            }
+        )
+        ctx.tool_result_store.store(
+            session_id=ctx.session.session_id,
+            turn=turn,
+            tool_name="llm_transport_error",
+            args_json="{}",
+            full_text=err["detail"],
+            summary=err["summary"],
+            is_error=True,
+        )
+        logger.warning(
+            f"LLM transport error during tool continuation (turn={turn}): {e.kind}"
+        )
+        return err["summary"]
+
     async def _run_turn(self, llm_url: str) -> str:
         """Send ctx.history to LLM; execute tool calls; return final answer.
 
@@ -419,38 +453,7 @@ class Orchestrator:
                 )
             except LLMTransportError as e:
                 if turn > 0:
-                    # Tool continuation failure: inject synthetic tool error and continue
-                    err = format_transport_error(
-                        source="llm",
-                        phase=e.phase,
-                        kind=e.kind,
-                        url=e.url,
-                        status_code=e.status_code,
-                        retryable=e.retryable,
-                        partial=bool(e.partial_text),
-                    )
-                    ctx.history.append(
-                        {
-                            "role": "tool",
-                            "content": err["detail"],
-                            "name": "llm_transport_error",
-                            "tool_call_id": f"synthetic_{uuid.uuid4().hex[:8]}",
-                        }
-                    )
-                    ctx.tool_result_store.store(
-                        session_id=ctx.session.session_id,
-                        turn=turn,
-                        tool_name="llm_transport_error",
-                        args_json="{}",
-                        full_text=err["detail"],
-                        summary=err["summary"],
-                        is_error=True,
-                    )
-                    logger.warning(
-                        f"LLM transport error during tool continuation (turn={turn}):"
-                        f" {e.kind}"
-                    )
-                    return err["summary"]
+                    return self._inject_mid_turn_error(e, turn)
                 raise  # first turn: propagate to handle_turn()
             # Record LLM wall-clock time for the first (main) generation turn only
             if turn == 0:

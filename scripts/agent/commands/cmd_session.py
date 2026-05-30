@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-agent_cmd_session.py
+cmd_session.py
 Session management mixin for CommandRegistry.
 
 Extracted from agent_commands.py.  Provides _SessionMixin with:
