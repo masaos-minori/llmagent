@@ -267,11 +267,14 @@ class _ContextMixin:
         print(f"Document deleted: {url}" if ok else f"Document not found: {url}")
 
     def _db_stats(self) -> None:
-        """Print document/chunk/session/message counts from DB."""
+        """Print document/chunk/session/message counts from both DBs."""
         try:
-            with SQLiteHelper("session").open(row_factory=True) as db:
+            # documents and chunks live in rag.sqlite
+            with SQLiteHelper("rag").open(row_factory=True) as db:
                 docs = db.fetchall("SELECT COUNT(*) AS n FROM documents")[0]["n"]
                 chunks = db.fetchall("SELECT COUNT(*) AS n FROM chunks")[0]["n"]
+            # sessions and messages live in session.sqlite
+            with SQLiteHelper("session").open(row_factory=True) as db:
                 sessions = db.fetchall("SELECT COUNT(*) AS n FROM sessions")[0]["n"]
                 messages = db.fetchall("SELECT COUNT(*) AS n FROM messages")[0]["n"]
             print(f"documents : {docs:,}")
@@ -304,9 +307,10 @@ class _ContextMixin:
         self._ctx.session.list_documents(lang, limit)
 
     def _db_rebuild_fts(self) -> None:
-        """Rebuild the FTS5 chunks_fts index."""
+        """Rebuild the FTS5 chunks_fts index in rag.sqlite."""
         try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
+            # chunks_fts is a virtual table in rag.sqlite, not session.sqlite
+            with SQLiteHelper("rag").open(write_mode=True) as db:
                 db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')")
                 db.commit()
             print("FTS5 index rebuilt.")

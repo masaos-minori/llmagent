@@ -94,7 +94,7 @@ sqlite-vec 拡張をロード済みの接続を `self.conn` に格納し、`self
 #### SQLiteHelper.fetchall
 
 ```python
-def fetchall(self, sql: str, params: dict | tuple = ()) -> list[Any]
+def fetchall(self, sql: str, params: dict[str, Any] | tuple[Any, ...] = ()) -> list[Any]
 ```
 
 `self.conn.execute(sql, params).fetchall()` を呼び出して全結果行をリストで返す。`params` の形式は `execute()` と同じ (tuple または dict)。
@@ -110,7 +110,7 @@ def commit(self) -> None
 #### SQLiteHelper.execute
 
 ```python
-def execute(self, sql: str, params: dict | tuple = ()) -> sqlite3.Cursor
+def execute(self, sql: str, params: dict[str, Any] | tuple[Any, ...] = ()) -> sqlite3.Cursor
 ```
 
 | `params` の形式 | プレースホルダ構文 | 例 |

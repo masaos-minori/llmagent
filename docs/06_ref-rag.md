@@ -42,6 +42,9 @@ import httpx
 from rag.pipeline import RagPipeline, fetch_full_document, get_embedding
 from rag.repository import RagRepository, RagScorer, SemanticCache, deduplicate_chunks, cosine_sim
 from rag.llm import RagLLM
+
+# SemanticCache は rag.repository から直接 import する (rag.pipeline の __all__ に含まれない)
+from rag.repository import SemanticCache
 ```
 
 クラス層 API:
@@ -60,24 +63,24 @@ from rag.llm import RagLLM
 
 | 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `fetch_full_document` | `(chunk_ids: list[int], db: SQLiteHelper, window: int) -> list[RagHit]` | 指定チャンクの周辺 `window` 件を展開して返す (二段階取得用) |
+| `fetch_full_document` | `(chunk_id: int, db: SQLiteHelper, window: int \| None = None) -> list[RagHit]` | 指定チャンクと同じドキュメントのチャンクを返す。`window=None` で全件、`window=N` で ±N 件 (二段階取得用) |
 | `deduplicate_chunks` | `(hits: list[RagHit], max_per_doc: int) -> list[RagHit]` | URL をキーに同一ドキュメントのチャンクを `max_per_doc` 件に絞る |
 | `cosine_sim` | `(a: list[float], b: list[float]) -> float` | 2 つの埋込ベクトルのコサイン類似度を返す (セマンティックキャッシュ用) |
 
 `SemanticCache` クラス:
 
 ```python
-from rag.pipeline import SemanticCache
+from rag.repository import SemanticCache  # rag.pipeline の __all__ には含まれない
 
 cache = SemanticCache(max_size=100, threshold=0.92)
 ```
 
-| メソッド | 説明 |
+| メソッド / プロパティ | 説明 |
 |---|---|
 | `lookup(embedding) -> str \| None` | コサイン類似度 >= `threshold` のエントリを探してコンテキスト文字列を返す。なければ `None` |
 | `put(embedding, context_str) -> None` | エントリを格納。`prune()` で `max_size` 上限管理 |
 | `prune() -> None` | `max_size` 超のエントリを古い順に削除 (FIFO) |
-| `size() -> int` | 現在のエントリ数を返す |
+| `size` (property) | 現在のエントリ数 (`int`); `cache.size` でアクセス |
 
 ### 1.3 エクスポートされる TypedDict
 
