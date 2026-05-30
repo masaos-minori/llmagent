@@ -16,14 +16,14 @@ from shared.config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 
-_cfg: dict | None = None
+_cfg: dict[str, Any] | None = None
 
 # Default busy_timeout in milliseconds; overridable via sqlite_busy_timeout_ms in common.toml.
 # 30 seconds matches the sqlite_timeout connect parameter (also 30 s) for consistent behaviour.
 _DEFAULT_BUSY_TIMEOUT_MS: int = 30000
 
 
-def _get_cfg() -> dict:
+def _get_cfg() -> dict[str, Any]:
     """Load config on first call; cached for the module lifetime."""
     global _cfg
     if _cfg is None:
@@ -261,13 +261,17 @@ class SQLiteHelper:
         if not isinstance(sql, str) or not sql.strip():
             raise ValueError("sql must be a non-empty string")
 
-    def execute(self, sql: str, params: dict | tuple = ()) -> sqlite3.Cursor:
+    def execute(
+        self, sql: str, params: dict[str, Any] | tuple[Any, ...] = ()
+    ) -> sqlite3.Cursor:
         """Execute a SQL statement with positional (tuple) or named (dict) params."""
         self._check_ready(sql)
         assert self.conn is not None  # guaranteed by _check_ready()
         return self.conn.execute(sql, params)
 
-    def fetchall(self, sql: str, params: dict | tuple = ()) -> list[Any]:
+    def fetchall(
+        self, sql: str, params: dict[str, Any] | tuple[Any, ...] = ()
+    ) -> list[Any]:
         """Execute a SQL statement and return all result rows as a list."""
         self._check_ready(sql)
         assert self.conn is not None  # guaranteed by _check_ready()

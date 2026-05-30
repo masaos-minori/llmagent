@@ -21,6 +21,7 @@ import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from shared.config_loader import ConfigLoader
 
@@ -28,10 +29,10 @@ from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 
-_cfg: dict | None = None
+_cfg: dict[str, Any] | None = None
 
 
-def _get_cfg() -> dict:
+def _get_cfg() -> dict[str, Any]:
     global _cfg
     if _cfg is None:
         try:
