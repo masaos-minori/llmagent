@@ -35,11 +35,7 @@ _VALID_LANGS: frozenset[str] = frozenset({"en", "ja"})
 # RagIngester class
 # ──────────────────────────────────────────────────────────────────────────────
 class RagIngester:
-    """
-    Embeds chunk files produced by ChunkSplitter and inserts them into SQLite.
-    Each URL's chunks are processed as a group so they share one document record.
-    After ingestion, chunk files are moved to rag-src/registered/.
-    """
+    """Embeds chunk files produced by ChunkSplitter and inserts them into SQLite; chunks are grouped by URL and moved to registered/ after ingestion."""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         cfg: dict[str, Any] = config or ConfigLoader().load(
@@ -66,10 +62,7 @@ class RagIngester:
     # ── Public interface ──────────────────────────────────────────────────────
 
     def ingest_all(self, force: bool = False) -> None:
-        """
-        Process all chunk files in chunk_dir, grouped by URL.
-        force=True deletes existing document records before re-inserting.
-        """
+        """Process all chunk files in chunk_dir grouped by URL; force=True deletes existing document records before re-inserting."""
         chunk_files = sorted(self._chunk_dir.glob("*.txt"))
         if not chunk_files:
             logger.info("No chunk files to process")
@@ -82,10 +75,7 @@ class RagIngester:
     def ingest_url_group(
         self, db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool
     ) -> None:
-        """
-        Ingest all chunk files for one URL into SQLite in ascending chunk_index order.
-        Moves chunk files to registered/ after processing (including on skip).
-        """
+        """Ingest all chunk files for one URL into SQLite in ascending chunk_index order; moves files to registered/ after processing including on skip."""
         if not chunk_files:
             logger.warning(f"No chunk files provided for URL: {url}")
             return
@@ -113,12 +103,7 @@ class RagIngester:
     # ── Embedding ─────────────────────────────────────────────────────────────
 
     def _get_embedding(self, text: str) -> list[float] | None:
-        """
-        Send text to the embed-llm API and retrieve a 384-dimensional vector.
-        multilingual-E5-small requires the "passage: " prefix for document ingestion.
-        (Use the "query: " prefix at query time.)
-        Returns None on failure or empty input, causing that chunk to be skipped.
-        """
+        """Send text to the embed-llm API with 'passage: ' prefix and retrieve a 384-dim vector; returns None on failure or empty input."""
         if not text or not text.strip():
             return None
         for attempt in range(self._embed_retry):
@@ -149,9 +134,7 @@ class RagIngester:
     # ── Document helpers ──────────────────────────────────────────────────────
 
     def _delete_existing_document(self, db: SQLiteHelper, doc_id: int) -> None:
-        """Delete a document and its chunks.
-        chunks_vec is removed first because it has no FK constraint to chunks.
-        """
+        """Delete a document and its chunks; chunks_vec removed first because it has no FK constraint to chunks."""
         # Delete order: chunks_vec → chunks → documents
         # chunks_vec has no FK to chunks, so it must be removed explicitly first.
         db.execute(
@@ -187,13 +170,7 @@ class RagIngester:
         etag: str | None = None,
         last_modified: str | None = None,
     ) -> int | None:
-        """Register a URL in the documents table and return its doc_id.
-
-        Returns None if already registered and force=False.
-        When force=False, refreshes etag/last_modified for the next conditional GET.
-        When force=True, deletes the existing record before re-inserting.
-        chunks_fts is auto-synced via the DELETE trigger (chunks_ad).
-        """
+        """Register a URL in documents and return its doc_id; returns None when already registered and force=False; force=True deletes existing record first."""
         # Guard: reject lang values that violate the DB CHECK constraint early
         if lang not in _VALID_LANGS:
             raise ValueError(
@@ -227,13 +204,7 @@ class RagIngester:
         normalized_content: str | None,
         embedding: list[float],
     ) -> None:
-        """
-        Insert a chunk and its embedding vector into the database.
-        chunks_fts is synced via the chunks_ai INSERT trigger using
-        COALESCE(normalized_content, content), so FTS5 indexes normalized forms
-        for Japanese chunks and falls back to raw content for others.
-        Embedding stored as little-endian float32 BLOB (sqlite-vec MATCH requirement).
-        """
+        """Insert a chunk and its embedding vector; chunks_fts synced via trigger using COALESCE(normalized_content, content); embedding stored as float32 BLOB."""
         cur = db.execute(
             "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content)"
             " VALUES (?, ?, ?, ?)",
@@ -252,13 +223,7 @@ class RagIngester:
         return read_json_file(path)
 
     def _embed_and_store(self, doc_id: int, path: Path) -> bool:
-        """Embed one chunk and insert it using an independent DB connection.
-
-        Each call opens its own SQLiteHelper context so that concurrent threads
-        do not share a single connection.  SQLite WAL mode serialises the actual
-        writes while allowing the HTTP embedding calls to run truly in parallel.
-        Returns True when inserted successfully, False otherwise.
-        """
+        """Embed one chunk and insert it using an independent DB connection; each call opens its own connection for safe parallel writes; returns True on success."""
         data = self._read_chunk_json(path)
         if data is None:
             return False
@@ -281,11 +246,7 @@ class RagIngester:
         return True
 
     def _ingest_chunk_files(self, doc_id: int, chunk_files: list[Path]) -> int:
-        """Embed and insert chunk files in parallel. Returns count of inserted chunks.
-
-        Uses ThreadPoolExecutor so that embed_workers HTTP calls run concurrently.
-        DB inserts inside each worker are committed with independent connections.
-        """
+        """Embed and insert chunk files in parallel via ThreadPoolExecutor; returns count of inserted chunks."""
         inserted = 0
         with ThreadPoolExecutor(max_workers=self._embed_workers) as executor:
             futures = {

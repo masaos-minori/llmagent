@@ -209,12 +209,7 @@ class RagLLM:
         return _extract_chat_content(resp.json())
 
     async def expand_queries(self, query: str, context: str = "") -> list[str]:
-        """
-        Expand the original query to multiple paraphrases using LLM.
-        context: recent user utterances injected into the MQE prompt to help
-        the LLM disambiguate pronouns and abbreviations in multi-turn conversations.
-        Returns [original_query] on any failure as fallback.
-        """
+        """Expand query to MQE paraphrases via LLM; context disambiguates multi-turn pronouns; returns [query] on failure."""
         try:
             raw = await self._call_llm(
                 [{"role": "user", "content": _mqe_prompt(query, context)}],
@@ -248,12 +243,7 @@ class RagLLM:
         top_k: int,
         rag_min_score: float = 0.0,
     ) -> list[RagHit]:
-        """
-        Use LLM as a Cross-Encoder to re-evaluate query-chunk relevance.
-        Batch-scores N candidates in a single LLM call to reduce latency.
-        Drops chunks whose rerank_score < rag_min_score before returning.
-        Falls back to RRF score order on LLM call failure.
-        """
+        """Re-rank candidates with a single batch LLM call; drops below rag_min_score; falls back to RRF order on failure."""
         if not candidates:
             return []
         try:
@@ -298,12 +288,7 @@ class RagLLM:
     async def summarize_tool_result(
         self, text: str, tool_name: str, args: dict[str, Any]
     ) -> str:
-        """Summarize a long tool result to reduce LLM context consumption.
-
-        Sends up to _SUMMARIZE_INPUT_MAX_CHARS of the result to the LLM and
-        returns a 3-5 sentence summary preserving key facts. Falls back to the
-        original text on any error so the caller can use truncation as fallback.
-        """
+        """Summarize a long tool result via LLM (3-5 sentences); returns original text on any error."""
         text_preview = text[:_SUMMARIZE_INPUT_MAX_CHARS]
         args_str = orjson.dumps(args).decode()[:200]
         prompt = _SUMMARIZE_PROMPT_TEMPLATE.format(
@@ -329,12 +314,7 @@ class RagLLM:
         per_chunk_chars: int,
         timeout: float,
     ) -> str:
-        """Compress RAG chunks into query-relevant key points via a single LLM call.
-
-        Truncates each chunk to per_chunk_chars before prompting to prevent token
-        explosion on long chunks. Raises on LLM error so callers can fall back to
-        original chunk formatting.
-        """
+        """Compress chunks to query-relevant key points via a single LLM call; raises on error so callers can fall back."""
         items = []
         for i, c in enumerate(chunks, 1):
             title = c.get("title") or c.get("url", "")

@@ -107,11 +107,7 @@ class RagPipeline:
     async def search_queries(
         self, queries: list[str], db: SQLiteHelper
     ) -> list[list[RagHit]]:
-        """Run parallel embeddings then sequential DB searches for each query.
-
-        Embeddings are fetched concurrently via asyncio.gather to reduce latency.
-        DB searches remain sequential since vector/fts share a single connection.
-        """
+        """Run concurrent embedding fetches then sequential DB searches; sequential DB avoids shared-connection conflicts."""
         raw = await asyncio.gather(
             *(get_embedding(q, self._http) for q in queries),
             return_exceptions=True,
@@ -157,12 +153,7 @@ class RagPipeline:
     async def run(
         self, query: str, db: SQLiteHelper, history_context: str = ""
     ) -> tuple[list[str], list[list[RagHit]], list[RagHit], list[RagHit]]:
-        """Execute MQE → search → RRF → rerank using an open DB connection.
-
-        history_context: recent user utterances passed to MQE for disambiguation.
-        Returns (queries, all_results, merged, reranked).
-        Calls on_status() at each stage and on_clear() unconditionally on exit.
-        """
+        """Execute MQE→search→RRF→rerank on an open DB; returns (queries, all_results, merged, reranked); on_clear() called on exit."""
         try:
             self._on_status("expanding query...")
             t0 = time.perf_counter()
@@ -209,11 +200,7 @@ class RagPipeline:
     async def _augment_http(
         self, rag_url: str, query: str, history_context: str
     ) -> str | None:
-        """Delegate to external RAG service; return context string or None on failure.
-
-        None signals the caller to fall back to in-process search.
-        Stores selected_hits in self.last_reranked for two-stage fetch callers.
-        """
+        """Delegate to external RAG service; None on failure triggers in-process fallback; stores hits in last_reranked."""
         try:
             resp = await self._http.post(
                 f"{rag_url}/v1/search",
@@ -233,10 +220,7 @@ class RagPipeline:
             return None
 
     async def _augment_refiner(self, reranked: list[RagHit], query: str) -> str | None:
-        """Run the chunk refiner; return refined text or None to fall back to raw chunks.
-
-        Returns None both on empty output and on any exception.
-        """
+        """Run the chunk refiner; returns None on empty output or any exception so caller falls back to raw chunks."""
         try:
             self._on_status("refining context...")
             refined = await RagLLM(
@@ -273,18 +257,7 @@ class RagPipeline:
         | None = None,
         history_context: str = "",
     ) -> str:
-        """Run the full pipeline and return a formatted RAG context block.
-
-        history_context: recent user utterances for MQE disambiguation (search only).
-        Opens and closes the DB per call for thread safety.
-        Returns empty string when search is disabled or yields no results.
-        debug_fn receives (queries, all_results, merged, reranked) when provided;
-        use it to print intermediate pipeline data for debugging.
-
-        When cfg.rag_service_url is set, delegates to the external RAG HTTP service
-        (POST /v1/search) instead of running in-process. Falls back to in-process on
-        HTTP failure so the REPL continues without a RAG service.
-        """
+        """Run full pipeline and return a context block; '' when disabled or no results; delegates to rag_service_url when set."""
         if not self._cfg.use_search:
             return ""
         # HTTP mode: delegate to external RAG service when rag_service_url is configured

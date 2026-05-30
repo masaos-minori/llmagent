@@ -24,14 +24,7 @@ class ChunkEnglishMixin:
     _chunk_overlap: int
 
     def _chunk_english(self, text: str) -> list[str]:
-        """Split English text into chunks at paragraph/sentence boundaries.
-
-        Strategy:
-        1. Use blank lines as paragraph boundaries.
-        2. Re-split oversized paragraphs at sentence boundaries (. ! ?).
-        3. Merge short paragraphs to satisfy min_chunk.
-        4. Discard chunks still below min_chunk after stopword removal.
-        """
+        """Split English text into chunks at paragraph/sentence boundaries; merges short paragraphs and discards chunks below min_chunk after stopword removal."""
         paragraphs = re.split(r"\n{2,}", text.strip())
         raw_chunks = self._merge_paragraphs_en(paragraphs)
         filtered = (self._filter_stopwords_en(r) for r in raw_chunks)

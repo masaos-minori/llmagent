@@ -68,13 +68,7 @@ def _build_fts_tokens_ja(text: str) -> list[str]:
 
 
 def _build_fts_query(text: str) -> str:
-    """
-    Convert text to an FTS5 query string.
-    For Japanese queries, applies Sudachi POS filter (nouns/verbs/adjectives) and
-    returns normalized_form() tokens that match against the FTS5 index which stores
-    Sudachi-normalized content from ChunkSplitter.
-    Each token is double-quoted to escape FTS5 reserved words (AND/OR/NOT/*).
-    """
+    """Convert text to FTS5 query; Japanese uses Sudachi POS filter, tokens are quoted to escape AND/OR/NOT."""
     has_japanese = bool(re.search(r"[぀-ヿ一-鿿]", text))
     if has_japanese:
         tokens = _build_fts_tokens_ja(text)
@@ -121,10 +115,7 @@ class RagRepository:
         self._db = db
 
     def vector_search(self, embedding: list[float], top_k: int) -> list[RagHit]:
-        """
-        Retrieve chunks closest to the query embedding using KNN (K Nearest Neighbors).
-        Distance is L2; smaller values indicate closer semantic similarity.
-        """
+        """Retrieve top_k chunks by L2-distance KNN (smaller distance = higher similarity)."""
         t0 = time.perf_counter()
         rows = self._db.fetchall(self._SQL_VEC, (floats_to_blob(embedding), top_k))
         elapsed_ms = (time.perf_counter() - t0) * 1000
@@ -136,11 +127,7 @@ class RagRepository:
         return results
 
     def fts_search(self, query: str, top_k: int) -> list[RagHit]:
-        """
-        Retrieve keyword-matching chunks using FTS5 BM25 scoring.
-        bm25() returns negative values; smaller (more negative) means higher relevance.
-        Returns empty list on FTS5 query syntax error to continue the pipeline.
-        """
+        """Retrieve chunks by FTS5 BM25 (negative scores; more-negative = higher relevance); [] on syntax error."""
         fts_query = _build_fts_query(query)
         t0 = time.perf_counter()
         try:
@@ -164,13 +151,7 @@ class RagScorer:
 
     @staticmethod
     def rrf_merge(results_list: list[list[RagHit]], rrf_k: int = 60) -> list[RagHit]:
-        """
-        Merge multiple search result lists using RRF.
-        RRF score formula: score(d) = Σ_i  1 / (rrf_k + rank_i(d))
-          rank_i(d) : rank of document d in list i (1-based)
-          rrf_k=60  : constant that dampens impact of lower-ranked documents
-        Aggregates scores across all lists by chunk_id, sorted descending.
-        """
+        """Merge ranked lists via RRF: score(d)=Σ 1/(rrf_k+rank_i(d)); returns descending by score."""
         scores: dict[int, float] = {}
         meta: dict[int, RagHit] = {}
         for results in results_list:
@@ -185,10 +166,7 @@ class RagScorer:
 
 
 def cosine_sim(a: list[float], b: list[float]) -> float:
-    """Compute cosine similarity between two equal-length float vectors.
-
-    Returns 0.0 when either vector has zero magnitude.
-    """
+    """Compute cosine similarity between two float vectors; returns 0.0 when either has zero magnitude."""
     dot = sum(x * y for x, y in zip(a, b))
     mag_a = math.sqrt(sum(x * x for x in a))
     mag_b = math.sqrt(sum(y * y for y in b))
@@ -198,12 +176,7 @@ def cosine_sim(a: list[float], b: list[float]) -> float:
 
 
 class SemanticCache:
-    """In-memory nearest-neighbour cache for RAG context strings.
-
-    Stores (embedding, context_str) pairs. lookup() returns a cached context
-    when the best cosine similarity exceeds threshold. Excess entries are pruned
-    on put() to keep memory bounded by max_size.
-    """
+    """In-memory nearest-neighbour cache; returns context when cosine sim ≥ threshold, pruned by max_size."""
 
     def __init__(self, max_size: int = 100, threshold: float = 0.92) -> None:
         self._entries: list[dict[str, Any]] = []  # [{embedding, context_str}]

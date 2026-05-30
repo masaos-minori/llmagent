@@ -39,11 +39,7 @@ logger = Logger(__name__, "/opt/llm/logs/crawl.log")
 # Crawler class
 # ──────────────────────────────────────────────────────────────────────────────
 class WebCrawler:
-    """
-    BFS web crawler.
-    Extracts text and code blocks from web pages within the same origin
-    and saves them as JSON files in rag-src/ for ChunkSplitter.
-    """
+    """BFS web crawler: extracts text and code blocks from same-origin pages and saves JSON files to rag-src/."""
 
     _USER_AGENT = "Mozilla/5.0 (compatible; RAG-bot/1.0; +local)"
     # Class-level headers shared across all AsyncClient instances
@@ -73,13 +69,7 @@ class WebCrawler:
     # ── Public interface ──────────────────────────────────────────────────────
 
     def crawl_file(self, path: Path, lang: str) -> int:
-        """Save a local file as a crawl result JSON in rag-src/.
-
-        Python source files (.py) are stored as code blocks so that the code
-        chunker applies blank-line splitting.  All other files are stored as
-        plain content text.  The URL is set to file://{absolute_path}.
-        Returns 1 on success, 0 on failure.
-        """
+        """Save a local file as a crawl result JSON in rag-src/; .py files stored as code blocks; returns 1 on success, 0 on failure."""
         # Guard: file must exist before reading
         if not path.exists():
             logger.error(f"Local file not found: {path}")
@@ -129,10 +119,7 @@ class WebCrawler:
         client: httpx.AsyncClient,
         sem: asyncio.Semaphore,
     ) -> set[asyncio.Task]:
-        """Dequeue all pending URLs and create fetch tasks for unvisited ones.
-
-        Visited check is safe here because no await occurs between check and add.
-        """
+        """Dequeue all pending URLs and create fetch tasks for unvisited ones; visited check is safe because no await occurs between check and add."""
         tasks: set[asyncio.Task] = set()
         while not queue.empty():
             url, depth = queue.get_nowait()
@@ -149,12 +136,7 @@ class WebCrawler:
         return tasks
 
     async def crawl_site(self, start_url: str, hint_lang: str) -> None:
-        """Async BFS crawl within the same origin up to max_depth levels.
-
-        Dispatches up to _concurrency concurrent fetch tasks via asyncio.Semaphore.
-        URLs are managed in asyncio.Queue; asyncio.wait(FIRST_COMPLETED) drives
-        the event loop forward as tasks complete and enqueue new links.
-        """
+        """Async BFS crawl within the same origin up to max_depth levels via asyncio.Semaphore concurrency and FIRST_COMPLETED loop."""
         if not validate_url(start_url):
             logger.error(f"Invalid start URL (must be http/https): {start_url!r}")
             return
@@ -222,11 +204,7 @@ class WebCrawler:
         client: httpx.AsyncClient,
         extra_headers: dict[str, str] | None = None,
     ) -> tuple[str, str | None, str | None] | None:
-        """Fetch HTML with optional conditional request headers.
-
-        Returns (html, etag, last_modified) on 200, None on 304 (not modified)
-        or when all retry attempts fail.
-        """
+        """Fetch HTML with optional conditional request headers; returns (html, etag, last_modified) on 200, None on 304 or retry exhaustion."""
         req_headers = dict(extra_headers or {})
         for i in range(self._fetch_retry):
             try:
@@ -300,11 +278,7 @@ class WebCrawler:
         client: httpx.AsyncClient,
         extra_headers: dict[str, str] | None = None,
     ) -> tuple[str, str, str, list[str], str | None, str | None] | None:
-        """Fetch HTML and extract content.
-
-        Returns (html, title, text, code_blocks, etag, last_modified)
-        or None when content is unavailable or the server returns 304.
-        """
+        """Fetch HTML and extract content; returns (html, title, text, code_blocks, etag, last_modified) or None when unavailable or 304."""
         fetch_result = await self._fetch_html_async(url, client, extra_headers)
         if fetch_result is None:
             return None
@@ -323,13 +297,7 @@ class WebCrawler:
         depth: int,
         queue: asyncio.Queue,
     ) -> None:
-        """Parse links from HTML and put URLs into the BFS queue.
-
-        skip_nofollow: skip links with rel="nofollow" when configured.
-        skip_external: skip cross-origin links when configured (default True).
-        Duplicate filtering happens at dequeue time in crawl_site so that
-        concurrently running tasks can freely enqueue without locking.
-        """
+        """Parse links from HTML and put URLs into the BFS queue; nofollow/external filtering applies; dedup happens at dequeue time."""
         if depth >= self._max_depth:
             return
         soup = BeautifulSoup(html, "lxml")
@@ -346,12 +314,7 @@ class WebCrawler:
             queue.put_nowait((next_url, depth + 1))
 
     def _resolve_lang(self, text: str, hint_lang: str) -> str:
-        """
-        Determine the language for a page.
-        When hint_lang is "auto", always attempt CJK-ratio detection and fall back
-        to "en" for short or inconclusive texts.
-        Returns a value from _SUPPORTED_LANGS ("en" or "ja").
-        """
+        """Determine page language; 'auto' uses CJK-ratio detection with 'en' fallback for short/inconclusive texts; returns a _SUPPORTED_LANGS value."""
         if hint_lang == "auto":
             if len(text) < 100:
                 return "en"
@@ -371,14 +334,7 @@ class WebCrawler:
         client: httpx.AsyncClient,
         sem: asyncio.Semaphore,
     ) -> None:
-        """Fetch, extract, save one URL and enqueue its outbound links.
-
-        Acquires the semaphore before the HTTP request to cap concurrency.
-        crawl_delay is applied after acquiring the semaphore to throttle
-        requests to the target server.  Conditional GET headers (ETag /
-        Last-Modified) are looked up from the DB so that unchanged pages
-        return 304 and are skipped without writing a new crawl file.
-        """
+        """Fetch, extract, save one URL and enqueue its outbound links; semaphore caps concurrency; crawl_delay throttles; ETag/Last-Modified enable 304 skip."""
         async with sem:
             logger.info(f"[depth={depth}] {url}")
             await asyncio.sleep(self._crawl_delay)
