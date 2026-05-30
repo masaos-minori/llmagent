@@ -8,12 +8,12 @@ All _cmd_* methods operate solely on AgentContext injected in __init__,
 with no dependency on AgentREPL itself.
 
 Mixin split:
-  agent_cmd_session.py  — _SessionMixin:  /session commands
-  agent_cmd_mcp.py      — _McpMixin:      /mcp commands
-  agent_cmd_config.py   — _ConfigMixin:   /config, /stats, /set, /reload
-  agent_cmd_context.py  — _ContextMixin:  /context, /clear, /undo, /history, /db
-  agent_cmd_rag.py      — _RagMixin:      /rag, /tool, /note, /plan, /debug
-  agent_cmd_ingest.py   — _IngestMixin:   /ingest, /export, /compact
+  cmd_session.py  — _SessionMixin:  /session commands
+  cmd_mcp.py      — _McpMixin:      /mcp commands
+  cmd_config.py   — _ConfigMixin:   /config, /stats, /set, /reload
+  cmd_context.py  — _ContextMixin:  /context, /clear, /undo, /history, /db
+  cmd_rag.py      — _RagMixin:      /rag, /tool, /note, /plan, /debug
+  cmd_ingest.py   — _IngestMixin:   /ingest, /export, /compact
 """
 
 import asyncio

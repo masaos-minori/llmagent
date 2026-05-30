@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-agent_cmd_rag.py
+cmd_rag.py
 RAG, tool inspection, note, plan, and debug mixin for CommandRegistry.
 
 Extracted from agent_commands.py.  Provides _RagMixin with:
@@ -33,6 +33,44 @@ class _RagMixin:
     if TYPE_CHECKING:
         _ctx: "AgentContext"
 
+    def _tool_list(self) -> None:
+        """Print stored tool results for the current session."""
+        ctx = self._ctx
+        entries = ctx.tool_result_store.list_recent(ctx.session.session_id)
+        if not entries:
+            print("No tool results stored in this session.")
+            return
+        print(f"{'ID':>6}  {'Tool':<22}  {'Size':>7}  Summarized")
+        print("-" * 55)
+        for entry in entries:
+            flag = "yes" if entry.get("summary") else "no"
+            print(
+                f"{entry['id']:>6}  {entry['tool_name']:<22}"
+                f"  {len(entry['full_text']):>7}  {flag}"
+            )
+
+    def _tool_show(self, arg: str) -> None:
+        """Print the full text of one stored tool result by its DB id."""
+        if not arg.isdigit() or int(arg) < 1:
+            print("Usage: /tool show <id>  (use /tool list to see IDs)")
+            return
+        result = self._ctx.tool_result_store.get(int(arg))
+        if result is None:
+            print(f"Result id={arg} not found.")
+            return
+        flag = " [summarized]" if result.get("summary") else ""
+        print(f"Tool: {result['tool_name']}{flag}")
+        try:
+            args_obj = orjson.loads(result.get("args_json") or "{}")
+        except orjson.JSONDecodeError:
+            args_obj = {}
+        print(f"Args: {orjson.dumps(args_obj).decode()}")
+        print(f"Size: {len(result['full_text'])} chars")
+        if result.get("summary"):
+            print(f"Summary: {result['summary']}")
+        print()
+        print(result["full_text"])
+
     def _cmd_tool(self, args: str) -> None:
         """Inspect stored tool results from the current session.
 
@@ -40,46 +78,47 @@ class _RagMixin:
           /tool list        List stored tool results (id, name, size)
           /tool show <id>   Show full text of a result by its DB id
         """
-        ctx = self._ctx
         parts = args.strip().split(None, 1)
         sub = parts[0] if parts else "list"
-        store = ctx.tool_result_store
         if sub == "list" or not parts:
-            entries = store.list_recent(ctx.session.session_id)
-            if not entries:
-                print("No tool results stored in this session.")
-                return
-            print(f"{'ID':>6}  {'Tool':<22}  {'Size':>7}  Summarized")
-            print("-" * 55)
-            for entry in entries:
-                flag = "yes" if entry.get("summary") else "no"
-                print(
-                    f"{entry['id']:>6}  {entry['tool_name']:<22}"
-                    f"  {len(entry['full_text']):>7}  {flag}"
-                )
+            self._tool_list()
         elif sub == "show":
-            arg = parts[1].strip() if len(parts) > 1 else ""
-            if not arg.isdigit() or int(arg) < 1:
-                print("Usage: /tool show <id>  (use /tool list to see IDs)")
-                return
-            result = store.get(int(arg))
-            if result is None:
-                print(f"Result id={arg} not found.")
-                return
-            flag = " [summarized]" if result.get("summary") else ""
-            print(f"Tool: {result['tool_name']}{flag}")
-            try:
-                args_obj = orjson.loads(result.get("args_json") or "{}")
-            except orjson.JSONDecodeError:
-                args_obj = {}
-            print(f"Args: {orjson.dumps(args_obj).decode()}")
-            print(f"Size: {len(result['full_text'])} chars")
-            if result.get("summary"):
-                print(f"Summary: {result['summary']}")
-            print()
-            print(result["full_text"])
+            self._tool_show(parts[1].strip() if len(parts) > 1 else "")
         else:
             print("Usage: /tool list | /tool show <id>")
+
+    def _note_add(self, text: str) -> None:
+        """Add a new persistent note."""
+        if not text:
+            print("Usage: /note add <text>")
+            return
+        note_id = self._ctx.session.add_note(text)
+        if note_id is not None:
+            print(f"Note added (id={note_id}).")
+        else:
+            print("Failed to add note.")
+
+    def _note_list(self) -> None:
+        """List all persistent notes."""
+        notes = self._ctx.session.list_notes()
+        if not notes:
+            print("No notes.")
+            return
+        print(f"{'ID':>4}  {'Created':>19}  Content")
+        print("-" * 70)
+        for n in notes:
+            preview = n["content"]
+            if len(preview) > 44:
+                preview = preview[:41] + "..."
+            print(f"{n['note_id']:>4}  {n['created_at'][:19]:>19}  {preview}")
+
+    def _note_delete(self, arg: str) -> None:
+        """Delete a note by id."""
+        if not arg.isdigit():
+            print("Usage: /note delete <id>")
+            return
+        ok = self._ctx.session.delete_note(int(arg))
+        print(f"Note {arg} {'deleted.' if ok else 'not found.'}")
 
     def _cmd_note(self, args: str) -> None:
         """Manage persistent cross-session notes.
@@ -89,38 +128,15 @@ class _RagMixin:
           /note list         List all notes
           /note delete <id>  Delete a note by ID
         """
-        ctx = self._ctx
         parts = args.strip().split(None, 1)
         sub = parts[0] if parts else ""
+        rest = parts[1].strip() if len(parts) > 1 else ""
         if sub == "add":
-            text = parts[1].strip() if len(parts) > 1 else ""
-            if not text:
-                print("Usage: /note add <text>")
-                return
-            note_id = ctx.session.add_note(text)
-            if note_id is not None:
-                print(f"Note added (id={note_id}).")
-            else:
-                print("Failed to add note.")
+            self._note_add(rest)
         elif sub == "list":
-            notes = ctx.session.list_notes()
-            if not notes:
-                print("No notes.")
-                return
-            print(f"{'ID':>4}  {'Created':>19}  Content")
-            print("-" * 70)
-            for n in notes:
-                preview = n["content"]
-                if len(preview) > 44:
-                    preview = preview[:41] + "..."
-                print(f"{n['note_id']:>4}  {n['created_at'][:19]:>19}  {preview}")
+            self._note_list()
         elif sub == "delete":
-            arg = parts[1].strip() if len(parts) > 1 else ""
-            if not arg.isdigit():
-                print("Usage: /note delete <id>")
-                return
-            ok = ctx.session.delete_note(int(arg))
-            print(f"Note {arg} {'deleted.' if ok else 'not found.'}")
+            self._note_delete(rest)
         else:
             print("Usage: /note add <text> | /note list | /note delete <id>")
 

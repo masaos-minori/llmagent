@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-agent_cmd_config.py
+cmd_config.py
 Configuration and statistics mixin for CommandRegistry.
 
 Extracted from agent_commands.py.  Provides _ConfigMixin with:

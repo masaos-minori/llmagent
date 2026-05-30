@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-agent_cmd_context.py
+cmd_context.py
 Context, history, and database mixin for CommandRegistry.
 
 Extracted from agent_commands.py.  Provides _ContextMixin with:
@@ -36,6 +36,25 @@ if TYPE_CHECKING:
     from agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_flag_int(tokens: list[str], flag: str) -> int | None:
+    """Return the integer value that follows flag in tokens, or None."""
+    for i, t in enumerate(tokens):
+        if t == flag and i + 1 < len(tokens):
+            try:
+                return int(tokens[i + 1])
+            except ValueError:
+                pass
+    return None
+
+
+def _parse_flag_str(tokens: list[str], flag: str) -> str | None:
+    """Return the string value that follows flag in tokens, or None."""
+    for i, t in enumerate(tokens):
+        if t == flag and i + 1 < len(tokens):
+            return tokens[i + 1]
+    return None
 
 
 def _budget_breakdown(messages: list[Any]) -> dict[str, int]:
@@ -286,24 +305,10 @@ class _ContextMixin:
 
     def _db_list_urls(self, rest: str) -> None:
         """Parse --lang / --limit options from rest and delegate to AgentSession."""
-        lang: str | None = None
-        limit: int = 20
         tokens = rest.split()
-        i = 0
-        while i < len(tokens):
-            if tokens[i] == "--lang" and i + 1 < len(tokens):
-                candidate = tokens[i + 1]
-                if candidate in ("ja", "en"):
-                    lang = candidate
-                i += 2
-            elif tokens[i] == "--limit" and i + 1 < len(tokens):
-                try:
-                    limit = int(tokens[i + 1])
-                except ValueError:
-                    pass
-                i += 2
-            else:
-                i += 1
+        lang_raw = _parse_flag_str(tokens, "--lang")
+        lang: str | None = lang_raw if lang_raw in ("ja", "en") else None
+        limit = _parse_flag_int(tokens, "--limit") or 20
         self._ctx.session.list_documents(lang, limit)
 
     def _db_rebuild_fts(self) -> None:
@@ -352,24 +357,8 @@ class _ContextMixin:
     def _db_purge(self, rest: str) -> None:
         """Purge old sessions. Options: --max-sessions N --max-age-days N"""
         tokens = rest.split()
-        max_sessions: int | None = None
-        max_age_days: int | None = None
-        i = 0
-        while i < len(tokens):
-            if tokens[i] == "--max-sessions" and i + 1 < len(tokens):
-                try:
-                    max_sessions = int(tokens[i + 1])
-                except ValueError:
-                    pass
-                i += 2
-            elif tokens[i] == "--max-age-days" and i + 1 < len(tokens):
-                try:
-                    max_age_days = int(tokens[i + 1])
-                except ValueError:
-                    pass
-                i += 2
-            else:
-                i += 1
+        max_sessions = _parse_flag_int(tokens, "--max-sessions")
+        max_age_days = _parse_flag_int(tokens, "--max-age-days")
         cfg_kwargs: dict[str, int] = {}
         if max_sessions is not None:
             cfg_kwargs["max_sessions"] = max_sessions

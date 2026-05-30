@@ -52,15 +52,22 @@ matched = await cmds.dispatch("/stats")
 | `_cmd_clear(args) -> None` | 会話履歴をシステムプロンプトのみにリセットし統計・キャッシュをクリア。`args="new"` のとき新規 DB セッションも開始 |
 | `_cmd_undo() -> None` | 直前の user+assistant ターンをメモリ履歴と DB からロールバック |
 | `_cmd_history(args) -> None` | 直近 N 件の会話メッセージを先頭 120 文字プレビューで表示 |
-| `_cmd_system(args) -> None` | `SYSTEM_PROMPTS` の指定プレセットに切り替え |
-| `_cmd_db(args) -> None` | `/db stats` / `/db urls [--lang] [--limit]` / `/db clean <url>` / `/db rebuild-fts` を振り分け |
+| `_cmd_system(args) -> None` | `ctx.cfg.system_prompts` の指定プレセットに切り替え。`args=""` で現在のプレセット名と利用可能な一覧を表示 |
+| `_cmd_db(args) -> None` | `/db stats` / `/db urls [--lang] [--limit]` / `/db clean <url>` / `/db rebuild-fts` / `/db health` / `/db checkpoint [MODE]` / `/db vacuum` / `/db purge [--max-sessions N] [--max-age-days N]` / `/db recover [<backup-path>]` を振り分け |
 | `_cmd_note(args) -> None` | `/note add <text>` / `/note list` / `/note delete <id>` を処理 |
 | `_cmd_tool(args) -> None` | `/tool list` / `/tool show <idx>` でツール結果ストアを表示 |
 | `_cmd_plan() -> None` | `ctx.plan_mode` をトグル。ON 時は `plan_blocked_tools` に含まれるツールを自動ブロック |
 | `_cmd_set(args) -> None` | `/set temperature <f>` / `/set max_tokens <n>` でランタイム LLM パラメータを変更 |
-| `_cmd_debug() -> None` | `ctx.debug_mode` をトグルして RAG デバッグ出力を切り替え |
+| `_cmd_debug(args) -> None` | `ctx.debug_mode` をトグルして RAG デバッグ出力を切り替え。`args="audit"` で audit.log 末尾 20 行を表示、`args="verbose"` / `"normal"` でログレベルを切り替え |
 | `_print_rag_results(query, queries, reranked) -> None` | `/rag search` 結果を表示する内部ヘルパー |
-| `_cmd_rag(args) -> None` | RAG パイプラインをドライランしチャンクのスコア・URL・プレビューを表示 |
+| `_cmd_rag_toggle(subcmd, parts, flag, label) -> None` | `/rag <subcmd> on\|off` で boolean フラグを切り替える共通ヘルパー |
+| `_cmd_rag_search(query) -> None` | RAG パイプラインをドライラン実行してチャンクのスコア・URL・プレビューを表示 (async) |
+| `_cmd_rag(args) -> None` | `/rag` ディスパッチャ。サブコマンド: `on`/`off`/`mqe on\|off`/`rerank on\|off`/`search <q>` |
+| `_tool_list() -> None` | 現在セッションの保存済みツール結果一覧を表示する内部ヘルパー |
+| `_tool_show(arg) -> None` | id 指定でツール結果の全文を表示する内部ヘルパー |
+| `_note_add(text) -> None` | ノート追加の内部ヘルパー |
+| `_note_list() -> None` | ノート一覧表示の内部ヘルパー |
+| `_note_delete(arg) -> None` | ノート削除の内部ヘルパー |
 | `_render_history_md(history) -> str` | 会話履歴を Markdown 形式に変換して返す |
 | `_cmd_export(args) -> None` | 会話履歴を Markdown または JSON でエクスポート |
 | `_run_split_and_ingest(loop) -> None` | ChunkSplitter と RagIngester をスレッドエグゼキュータで順次実行 |
