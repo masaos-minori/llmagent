@@ -161,6 +161,11 @@ class _ConfigMixin:
             print("  github_allowed_repos: (Fail-Closed — all write ops denied)")
         tier_count = len(ctx.cfg.tool_safety_tiers)
         print(f"  tool_safety_tiers   : {tier_count} tools classified")
+        allowed_tools = ctx.cfg.allowed_tools
+        if allowed_tools:
+            print(f"  allowed_tools       : {allowed_tools}")
+        else:
+            print("  allowed_tools       : (unrestricted)")
         plan_blocked = ctx.cfg.plan_blocked_tools
         plan_state = "ON" if ctx.plan_mode else "OFF"
         print(f"  plan_mode           : {plan_state}")
@@ -362,6 +367,8 @@ class _ConfigMixin:
             ctx.cfg.approval_github_allowed_repos = list(
                 new_cfg["approval_github_allowed_repos"]
             )
+        if "allowed_tools" in new_cfg:
+            ctx.cfg.allowed_tools = list(new_cfg["allowed_tools"])
 
     def _sync_services_to_cfg(
         self, ctx: "AgentContext", new_cfg: dict[str, Any]

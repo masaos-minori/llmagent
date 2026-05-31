@@ -58,6 +58,7 @@ cp "${REPO_ROOT}/config/rag_pipeline_mcp_server.toml"   "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/sqlite_mcp_server.toml"         "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/cicd_mcp_server.toml"          "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/mdq_mcp_server.toml"           "${DEPLOY_CONFIG}/"
+cp "${REPO_ROOT}/config/git_mcp_server.toml"           "${DEPLOY_CONFIG}/"
 
 # ── SQL 参照定義 ──────────────────────────────────────────────────────────────
 echo "--- db/rrf.sql → ${DEPLOY_DB}/ ---"

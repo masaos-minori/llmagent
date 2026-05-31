@@ -144,9 +144,9 @@ class _McpMixin:
             print("Invalid port number. Aborting.")
             return
 
-        print("Role [generic | sqlite | shell] (default: generic):")
+        print("Role [generic | sqlite | shell | git | ci] (default: generic):")
         raw_role = (await asyncio.to_thread(input, "Role: ")).strip().lower()
-        role = raw_role if raw_role in ("sqlite", "shell") else "generic"
+        role = raw_role if raw_role in ("sqlite", "shell", "git", "ci") else "generic"
 
         raw_confd = input("Generate conf.d API key template? [y/N]: ").strip().lower()
         with_confd = raw_confd in ("y", "yes")

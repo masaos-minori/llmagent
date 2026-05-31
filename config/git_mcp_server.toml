@@ -1,0 +1,19 @@
+# git-mcp server configuration
+
+# allowed_repo_paths: absolute paths of git repositories accessible via this server.
+# Empty list = deny all (fail-closed). Add repo paths explicitly.
+# Example: allowed_repo_paths = ["/home/masaos/llmagent", "/opt/llm"]
+allowed_repo_paths = []
+
+# read_only: when true, write tools (git_add/commit/checkout/pull/push) are rejected.
+# Set to false only when write operations are required.
+read_only = true
+
+# max_log_entries: cap for git_log output (prevents large data dumps).
+max_log_entries = 50
+
+# auth_token: Bearer token; empty string = auth disabled.
+auth_token = ""
+
+# audit_log_path: path for operation audit log.
+audit_log_path = "/opt/llm/logs/git-mcp.log"

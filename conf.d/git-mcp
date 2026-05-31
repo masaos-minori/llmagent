@@ -1,0 +1,10 @@
+# /etc/conf.d/git-mcp
+# git-mcp サービスの環境変数設定ファイル
+#
+# git-mcp はローカル git リポジトリへの操作を提供する MCP サーバ。
+# config/git_mcp_server.toml の allowed_repo_paths でアクセス可能なリポジトリを制限する。
+#
+# [セキュリティ上の注意]
+#   - allowed_repo_paths が空のとき、すべてのリポジトリアクセスは拒否される (fail-closed)
+#   - read_only = true (デフォルト) のとき書き込み操作は拒否される
+#   - 書き込みが必要な場合は read_only = false を明示的に設定すること

@@ -285,6 +285,11 @@ async def check_approval(ctx: AgentContext, tool_name: str, args: dict) -> bool:
     When tool_name is in cfg.approval_dry_run_tools, a dry_run execution is
     attempted before the prompt and its output is appended to the preview.
     """
+    # Pre-flight: allowed_tools whitelist — immediate deny when list is non-empty and tool absent
+    if ctx.cfg.allowed_tools and tool_name not in ctx.cfg.allowed_tools:
+        _audit_approval(ctx, tool_name, "high", args, "denied_allowed_tools")
+        print(f"  [DENIED] {tool_name}: not in allowed_tools for this session")
+        return False
     # Pre-flight: ALLOWED_ROOT root jail — immediate deny, no prompt
     if not _check_allowed_root(ctx.cfg, tool_name, args):
         _audit_approval(ctx, tool_name, "high", args, "denied_root_jail")

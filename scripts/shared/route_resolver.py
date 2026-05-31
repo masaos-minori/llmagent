@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from shared.tool_constants import (
     CICD_TOOLS,
     DELETE_TOOLS,
+    GIT_TOOLS,
     MDQ_TOOLS,
     RAG_TOOLS,
     READ_TOOLS,
@@ -58,4 +59,6 @@ class ToolRouteResolver:
             return "cicd"
         if tool_name in MDQ_TOOLS:
             return "mdq"
+        if tool_name in GIT_TOOLS:
+            return "git"
         raise ValueError(f"Unknown tool: {tool_name!r}")

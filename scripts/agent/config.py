@@ -186,6 +186,8 @@ class AgentConfig:
     # GitHub repos (owner/repo) allowed for write operations.
     # Empty list = Fail-Closed: all write ops to any repo are denied.
     approval_github_allowed_repos: list[str] = field(default_factory=list)
+    # Tool names permitted in this session; empty list = unrestricted (all tools allowed).
+    allowed_tools: list[str] = field(default_factory=list)
     # Seconds of SSE inactivity before HEARTBEAT_TIMEOUT is raised (0 = disabled)
     sse_heartbeat_timeout: float = 30.0
     # Number of malformed SSE frames to tolerate before raising MALFORMED_SSE_FRAME
@@ -498,6 +500,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
         approval_github_allowed_repos=list(
             cfg.get("approval_github_allowed_repos", [])
         ),
+        allowed_tools=list(cfg.get("allowed_tools", [])),
     )
 
 

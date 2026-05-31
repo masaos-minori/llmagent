@@ -15,7 +15,7 @@ echo "=== setup_services.sh: サービス設定開始 ==="
 
 # ── init.d スクリプトのデプロイ ───────────────────────────────────────────────
 echo "--- init.d スクリプトのコピーと実行権限付与 ---"
-for svc in embed-llm llama-chat-llm llama-coding-llm web-search-mcp github-mcp llama-agent file-read-mcp file-write-mcp file-delete-mcp shell-mcp rag-pipeline-mcp sqlite-mcp mdq-mcp; do
+for svc in embed-llm llama-chat-llm llama-coding-llm web-search-mcp github-mcp llama-agent file-read-mcp file-write-mcp file-delete-mcp shell-mcp rag-pipeline-mcp sqlite-mcp mdq-mcp git-mcp; do
     cp "${REPO_ROOT}/init.d/${svc}" "/etc/init.d/${svc}"
     chmod +x "/etc/init.d/${svc}"
     echo "  コピー完了: /etc/init.d/${svc}"
@@ -36,14 +36,14 @@ echo "     GITHUB_TOKEN=\"<GitHub Personal Access Token>\""
 
 # ── OpenRC サービス登録 ───────────────────────────────────────────────────────
 echo "--- OpenRC default ランレベルへの登録 ---"
-for svc in embed-llm llama-chat-llm llama-coding-llm web-search-mcp github-mcp llama-agent file-read-mcp file-write-mcp file-delete-mcp shell-mcp rag-pipeline-mcp sqlite-mcp mdq-mcp; do
+for svc in embed-llm llama-chat-llm llama-coding-llm web-search-mcp github-mcp llama-agent file-read-mcp file-write-mcp file-delete-mcp shell-mcp rag-pipeline-mcp sqlite-mcp mdq-mcp git-mcp; do
     rc-update add "${svc}" default
     echo "  登録完了: ${svc}"
 done
 
 # ── LLM サービス起動 (llama-agent はモデルロード後に手動起動) ─────────────────
 echo "--- LLM・MCP サービス起動 ---"
-for svc in embed-llm llama-chat-llm llama-coding-llm web-search-mcp github-mcp file-read-mcp file-write-mcp file-delete-mcp shell-mcp rag-pipeline-mcp sqlite-mcp mdq-mcp; do
+for svc in embed-llm llama-chat-llm llama-coding-llm web-search-mcp github-mcp file-read-mcp file-write-mcp file-delete-mcp shell-mcp rag-pipeline-mcp sqlite-mcp mdq-mcp git-mcp; do
     rc-service "${svc}" start
     echo "  起動完了: ${svc}"
 done
@@ -61,6 +61,7 @@ echo "  file-delete-mcp(:8008): $(curl -s http://127.0.0.1:8008/health 2>/dev/nu
 echo "  shell-mcp      (:8009): $(curl -s http://127.0.0.1:8009/health 2>/dev/null || echo 'まだ起動中')"
 echo "  rag-pipeline-mcp(:8010): $(curl -s http://127.0.0.1:8010/health 2>/dev/null || echo 'まだ起動中')"
 echo "  sqlite-mcp     (:8011): $(curl -s http://127.0.0.1:8011/health 2>/dev/null || echo 'まだ起動中')"
+echo "  git-mcp        (:8014): $(curl -s http://127.0.0.1:8014/health 2>/dev/null || echo 'まだ起動中')"
 
 echo ""
 echo "=== setup_services.sh: 完了 ==="

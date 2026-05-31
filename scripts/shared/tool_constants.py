@@ -72,3 +72,19 @@ MDQ_TOOLS: frozenset[str] = frozenset(
         "grep_docs",
     }
 )
+
+# Local git operation tools (git-mcp, port 8014)
+GIT_TOOLS: frozenset[str] = frozenset(
+    {
+        "git_status",
+        "git_log",
+        "git_diff",
+        "git_branch",
+        "git_show",
+        "git_add",
+        "git_commit",
+        "git_checkout",
+        "git_pull",
+        "git_push",
+    }
+)
