@@ -149,6 +149,12 @@ class AgentConfig:
     memory_embed_dim: int = 384
     # L2 distance threshold for deduplication; entries closer than this are linked
     memory_dedup_threshold: float = 0.3
+    # Max characters to store per extracted memory entry; content is trimmed at extraction time
+    memory_max_content_chars: int = 500
+    # Timeout in seconds for each embedding HTTP call (asyncio.wait_for)
+    memory_embed_timeout_sec: float = 5.0
+    # Retention period in days for memory entries; entries older than this are pruned
+    memory_retention_days: int = 90
     # Phase 2: OpenTelemetry observability
     # Enable OpenTelemetry span collection
     otel_enabled: bool = False
@@ -390,6 +396,9 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
         memory_embed_enabled=bool(cfg.get("memory_embed_enabled", False)),
         memory_embed_dim=int(cfg.get("memory_embed_dim", 384)),
         memory_dedup_threshold=float(cfg.get("memory_dedup_threshold", 0.3)),
+        memory_max_content_chars=int(cfg.get("memory_max_content_chars", 500)),
+        memory_embed_timeout_sec=float(cfg.get("memory_embed_timeout_sec", 5.0)),
+        memory_retention_days=int(cfg.get("memory_retention_days", 90)),
         otel_enabled=bool(cfg.get("otel_enabled", False)),
         otel_endpoint=cfg.get("otel_endpoint", ""),
         otel_service_name=cfg.get("otel_service_name", "llm-agent"),

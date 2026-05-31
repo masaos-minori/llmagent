@@ -270,6 +270,8 @@ class AgentREPL:
                 embed_url=ctx.cfg.embed_url,
                 embed_enabled=ctx.cfg.memory_embed_enabled,
                 dedup_threshold=ctx.cfg.memory_dedup_threshold,
+                embed_timeout=ctx.cfg.memory_embed_timeout_sec,
+                max_content_chars=ctx.cfg.memory_max_content_chars,
             )
             logger.info("MemoryLayer initialised (use_memory_layer=True)")
 

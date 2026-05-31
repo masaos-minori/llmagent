@@ -280,3 +280,55 @@ class TestCountByType:
 
     def test_empty_returns_empty_dict(self, store: MemoryStore) -> None:
         assert store.count_by_type() == {}
+
+
+# ── pin() / unpin() ──────────────────────────────────────────────────────────
+
+
+class TestPinUnpin:
+    def test_pin_sets_pinned(
+        self, store: MemoryStore, db_conn: sqlite3.Connection
+    ) -> None:
+        entry = _make_entry(memory_id="pin-test")
+        store.add(entry)
+        ok = store.pin("pin-test")
+        assert ok is True
+        row = db_conn.execute(
+            "SELECT pinned FROM memories WHERE memory_id='pin-test'"
+        ).fetchone()
+        assert row[0] == 1
+
+    def test_unpin_clears_pinned(
+        self, store: MemoryStore, db_conn: sqlite3.Connection
+    ) -> None:
+        entry = _make_entry(memory_id="unpin-test")
+        entry.pinned = True
+        store.add(entry)
+        ok = store.unpin("unpin-test")
+        assert ok is True
+        row = db_conn.execute(
+            "SELECT pinned FROM memories WHERE memory_id='unpin-test'"
+        ).fetchone()
+        assert row[0] == 0
+
+    def test_pin_nonexistent_returns_false(self, store: MemoryStore) -> None:
+        assert store.pin("no-such-id") is False
+
+    def test_unpin_nonexistent_returns_false(self, store: MemoryStore) -> None:
+        assert store.unpin("no-such-id") is False
+
+
+# ── get_by_id() ───────────────────────────────────────────────────────────────
+
+
+class TestGetById:
+    def test_returns_entry_when_found(self, store: MemoryStore) -> None:
+        entry = _make_entry(content="unique content", memory_id="gbi-test")
+        store.add(entry)
+        result = store.get_by_id("gbi-test")
+        assert result is not None
+        assert result.memory_id == "gbi-test"
+        assert result.content == "unique content"
+
+    def test_returns_none_when_not_found(self, store: MemoryStore) -> None:
+        assert store.get_by_id("nonexistent") is None

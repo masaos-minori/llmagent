@@ -121,6 +121,36 @@ def purge_old_sessions(
     return {"age_deleted": age_deleted, "count_deleted": count_deleted}
 
 
+def prune_old_memories(db: SQLiteHelper, older_than_days: int) -> int:
+    """Delete memories older than older_than_days; return count deleted."""
+    assert db.conn is not None, "DB not open"
+    rows = db.conn.execute(
+        "SELECT memory_id FROM memories WHERE created_at < datetime('now', ?)",
+        (f"-{older_than_days} days",),
+    ).fetchall()
+    if not rows:
+        return 0
+    mids = [row[0] for row in rows]
+    placeholders = ",".join("?" * len(mids))
+    cur = db.conn.execute(
+        f"DELETE FROM memories WHERE memory_id IN ({placeholders})",  # nosec B608 — mids are UUIDs; placeholders use ?
+        mids,
+    )
+    for mid in mids:
+        db.conn.execute("DELETE FROM memories_fts WHERE memory_id=?", (mid,))
+        try:
+            db.conn.execute("DELETE FROM memories_vec WHERE memory_id=?", (mid,))
+        except Exception:
+            pass
+    deleted = cur.rowcount
+    db.conn.commit()
+    logger.info(
+        f"prune_old_memories: removed {deleted} entries"
+        f" older than {older_than_days} days"
+    )
+    return deleted
+
+
 def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
     """Copy a single DB file (plus WAL/SHM side-files) to the archive directory."""
     if not db_path.exists():

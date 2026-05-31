@@ -258,3 +258,35 @@ class MemoryStore:
         except Exception as e:
             logger.warning(f"MemoryStore.count_vec failed: {e}")
             return 0
+
+    def pin(self, memory_id: str) -> bool:
+        """Set pinned=1 for memory_id; return True when found."""
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            cur = db.execute(
+                "UPDATE memories SET pinned=1, updated_at=? WHERE memory_id=?",
+                (_now_iso(), memory_id),
+            )
+            db.commit()
+        return cur.rowcount > 0
+
+    def unpin(self, memory_id: str) -> bool:
+        """Set pinned=0 for memory_id; return True when found."""
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            cur = db.execute(
+                "UPDATE memories SET pinned=0, updated_at=? WHERE memory_id=?",
+                (_now_iso(), memory_id),
+            )
+            db.commit()
+        return cur.rowcount > 0
+
+    def get_by_id(self, memory_id: str) -> MemoryEntry | None:
+        """Return one MemoryEntry by memory_id, or None if not found."""
+        with SQLiteHelper("session").open(row_factory=True) as db:
+            rows = db.fetchall(
+                """SELECT memory_id, memory_type, source_type, session_id, turn_id,
+                          project, repo, branch, content, summary, tags,
+                          importance, pinned, created_at, updated_at
+                   FROM memories WHERE memory_id=?""",
+                (memory_id,),
+            )
+        return _row_to_entry(rows[0]) if rows else None

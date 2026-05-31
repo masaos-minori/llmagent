@@ -19,6 +19,7 @@ No print() calls — all output goes through logger or caller's display layer.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from datetime import UTC, datetime
@@ -77,6 +78,8 @@ class MemoryLayer:
         embed_url: str = "",
         embed_enabled: bool = False,
         dedup_threshold: float = 0.3,
+        embed_timeout: float = 5.0,
+        max_content_chars: int = 500,
     ) -> None:
         self._store = store
         self._retriever = retriever
@@ -91,12 +94,26 @@ class MemoryLayer:
         self._embed_url = embed_url
         self._embed_enabled = embed_enabled
         self._dedup_threshold = dedup_threshold
+        self._embed_timeout = embed_timeout
+        self._max_content_chars = max_content_chars
 
     async def _get_embedding(self, text: str) -> list[float] | None:
-        """Generate embedding when embed is enabled and http client available."""
+        """Generate embedding when embed is enabled and http client available.
+
+        Caps each call to _embed_timeout seconds via asyncio.wait_for.
+        """
         if not self._embed_enabled or self._http is None or not self._embed_url:
             return None
-        return await _fetch_embedding(text, self._http, self._embed_url)
+        try:
+            return await asyncio.wait_for(
+                _fetch_embedding(text, self._http, self._embed_url),
+                timeout=self._embed_timeout,
+            )
+        except TimeoutError:
+            logger.warning(
+                f"MemoryLayer._get_embedding timed out after {self._embed_timeout}s"
+            )
+            return None
 
     # ── SessionStart ──────────────────────────────────────────────────────────
 
@@ -202,6 +219,7 @@ class MemoryLayer:
                 project=self._project,
                 repo=self._repo,
                 branch=self._branch,
+                max_content_chars=self._max_content_chars,
             )
             if not entries:
                 logger.debug("MemoryLayer.on_session_stop: no entries extracted")
@@ -212,6 +230,10 @@ class MemoryLayer:
                 self._store.upsert(entry, embedding=embedding)
                 if embedding is not None:
                     self._link_duplicates(entry.memory_id, embedding)
+                logger.info(
+                    f"memory.persist memory_id={entry.memory_id!r}"
+                    f" type={entry.memory_type} importance={entry.importance:.2f}"
+                )
             logger.info(
                 f"MemoryLayer.on_session_stop: persisted {len(entries)} entries"
             )
@@ -267,7 +289,10 @@ class MemoryLayer:
         embedding = await self._get_embedding(content)
         self._jsonl.append(entry)
         self._store.upsert(entry, embedding=embedding)
-        logger.debug(f"MemoryLayer.write_semantic memory_id={entry.memory_id!r}")
+        logger.info(
+            f"memory.write memory_id={entry.memory_id!r} type=semantic"
+            f" importance={entry.importance:.2f}"
+        )
 
     async def write_episodic(self, session_id: int | None, content: str) -> None:
         """Manually persist an episodic memory entry."""
@@ -292,7 +317,10 @@ class MemoryLayer:
         embedding = await self._get_embedding(content)
         self._jsonl.append(entry)
         self._store.upsert(entry, embedding=embedding)
-        logger.debug(f"MemoryLayer.write_episodic memory_id={entry.memory_id!r}")
+        logger.info(
+            f"memory.write memory_id={entry.memory_id!r} type=episodic"
+            f" importance={entry.importance:.2f}"
+        )
 
     # ── Housekeeping ──────────────────────────────────────────────────────────
 

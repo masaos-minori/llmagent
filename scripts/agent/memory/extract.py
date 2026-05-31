@@ -87,6 +87,7 @@ def extract_memories(
     project: str = "",
     repo: str = "",
     branch: str = "",
+    max_content_chars: int = 500,
 ) -> list[MemoryEntry]:
     """Extract MemoryEntry candidates from a conversation history list.
 
@@ -113,6 +114,9 @@ def extract_memories(
         content = str(content_raw).strip() if content_raw else ""
 
         if role == "assistant" and len(content) >= MIN_CONTENT_CHARS:
+            # Trim content to configured limit before storing
+            if max_content_chars > 0 and len(content) > max_content_chars:
+                content = content[:max_content_chars]
             semantic_hits = len(_SEMANTIC_KEYWORDS.findall(content))
             failure_hits = len(_EPISODIC_FAILURE_KEYWORDS.findall(content))
 

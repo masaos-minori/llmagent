@@ -369,6 +369,8 @@ class _ConfigMixin:
             )
         if "allowed_tools" in new_cfg:
             ctx.cfg.allowed_tools = list(new_cfg["allowed_tools"])
+        if "memory_retention_days" in new_cfg:
+            ctx.cfg.memory_retention_days = int(new_cfg["memory_retention_days"])
 
     def _sync_services_to_cfg(
         self, ctx: "AgentContext", new_cfg: dict[str, Any]

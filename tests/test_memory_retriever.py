@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Generator
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -16,9 +17,13 @@ from agent.memory.retriever import (
     MemoryRetriever,
     _build_fts_query,
     _recency_boost,
+    _rrf_merge,
     _score,
 )
-from agent.memory.types import MemoryEntry, MemoryQuery
+from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
+
+# True when the sqlite-vec extension is installed (mirrors conftest._VEC_AVAILABLE)
+_VEC_AVAILABLE: bool = Path("/opt/llm/sqlite-vec/vec0.so").exists()
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
 
@@ -371,3 +376,101 @@ class TestTopSemantic:
         )
         entries = retriever.top_semantic()
         assert entries[0].memory_id == "pinned"
+
+
+# ── _rrf_merge() ──────────────────────────────────────────────────────────────
+
+
+def _make_hit(memory_id: str, score: float = 0.5) -> MemoryHit:
+    entry = MemoryEntry(
+        memory_id=memory_id,
+        memory_type="semantic",
+        source_type="rule",
+        session_id=None,
+        turn_id=None,
+        project="",
+        repo="",
+        branch="main",
+        content="content",
+        summary="summary",
+        tags=[],
+        importance=0.5,
+        pinned=False,
+        created_at="2025-01-01T00:00:00Z",
+        updated_at="2025-01-01T00:00:00Z",
+    )
+    return MemoryHit(entry=entry, score=score)
+
+
+class TestRrfMerge:
+    def test_single_list_passthrough(self) -> None:
+        hits = [_make_hit("a"), _make_hit("b")]
+        merged = _rrf_merge([hits])
+        ids = [h.entry.memory_id for h in merged]
+        assert "a" in ids and "b" in ids
+
+    def test_deduplication_across_lists(self) -> None:
+        """Same memory_id appearing in both lists is deduplicated."""
+        list1 = [_make_hit("x"), _make_hit("y")]
+        list2 = [_make_hit("x"), _make_hit("z")]
+        merged = _rrf_merge([list1, list2])
+        ids = [h.entry.memory_id for h in merged]
+        assert ids.count("x") == 1
+
+    def test_shared_entry_scores_higher(self) -> None:
+        """An entry appearing in both lists accumulates higher RRF score."""
+        list1 = [_make_hit("shared"), _make_hit("only1")]
+        list2 = [_make_hit("shared"), _make_hit("only2")]
+        merged = _rrf_merge([list1, list2])
+        shared_rank = next(
+            i for i, h in enumerate(merged) if h.entry.memory_id == "shared"
+        )
+        only1_rank = next(
+            i for i, h in enumerate(merged) if h.entry.memory_id == "only1"
+        )
+        # "shared" should rank higher (smaller index) than "only1"
+        assert shared_rank < only1_rank
+
+    def test_empty_lists_returns_empty(self) -> None:
+        assert _rrf_merge([]) == []
+        assert _rrf_merge([[]]) == []
+
+
+# ── _vec_search (skipped when vec0 unavailable) ───────────────────────────────
+
+
+@pytest.mark.skipif(not _VEC_AVAILABLE, reason="sqlite-vec not available")
+class TestVecSearch:
+    def test_vec_search_returns_empty_when_table_missing(
+        self, retriever: MemoryRetriever
+    ) -> None:
+        # memories_vec table does not exist in in-memory DB → should return []
+        result = retriever._vec_search([0.1] * 384, None, 5)
+        assert result == []
+
+
+# ── Hybrid search with RRF (mocked embedding) ─────────────────────────────────
+
+
+class TestHybridSearch:
+    def test_search_without_embedding_uses_fts_only(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(db_conn, memory_id="fts-only", content="unique keyword abc")
+        q = MemoryQuery(query="unique keyword", limit=5)
+        hits = retriever.search(q, embedding=None)
+        ids = [h.entry.memory_id for h in hits]
+        assert "fts-only" in ids
+
+    def test_search_with_embedding_falls_back_to_fts_when_vec_empty(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        """When _vec_search returns [], RRF is skipped and FTS results are used."""
+        _insert(db_conn, memory_id="fts-fallback", content="fallback keyword xyz")
+        q = MemoryQuery(query="fallback keyword", limit=5)
+
+        with patch.object(retriever, "_vec_search", return_value=[]):
+            hits = retriever.search(q, embedding=[0.1] * 3)
+
+        ids = [h.entry.memory_id for h in hits]
+        assert "fts-fallback" in ids

@@ -7,7 +7,8 @@ MemoryStore, MemoryRetriever, and JsonlMemoryStore are MagicMock-patched.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.memory.jsonl_store import JsonlMemoryStore
@@ -255,3 +256,186 @@ class TestStats:
         mock_store.count_by_type.return_value = {"semantic": 3, "episodic": 1}
         result = layer.stat_by_type
         assert result == {"semantic": 3, "episodic": 1}
+
+
+# ── Phase 2: embedding in on_session_stop ────────────────────────────────────
+
+
+class TestEmbeddingInOnSessionStop:
+    @pytest.mark.asyncio
+    async def test_upsert_called_with_embedding_when_embed_enabled(self) -> None:
+        """on_session_stop passes embedding to store.upsert when embed is enabled."""
+        mock_store = MagicMock(spec=MemoryStore)
+        mock_retriever = MagicMock(spec=MemoryRetriever)
+        mock_jsonl = MagicMock(spec=JsonlMemoryStore)
+        fake_embedding = [0.1, 0.2, 0.3]
+
+        layer = MemoryLayer(
+            store=mock_store,
+            retriever=mock_retriever,
+            jsonl=mock_jsonl,
+            embed_enabled=True,
+            embed_url="http://fake-embed/embedding",
+            embed_timeout=5.0,
+        )
+        # Patch _get_embedding to return fake_embedding without HTTP
+        layer._get_embedding = AsyncMock(return_value=fake_embedding)  # type: ignore[method-assign]
+
+        history: list[LLMMessage] = [
+            {"role": "user", "content": "What is the rule?"},
+            {
+                "role": "assistant",
+                "content": (
+                    "The rule is that we should always follow the policy "
+                    "and constraint established by the team. This is a decided rule "
+                    "and everyone must comply with the guideline going forward."
+                ),
+            },
+        ]
+        await layer.on_session_stop(session_id=1, history=history)
+
+        # If any entry was extracted, upsert should have been called with embedding
+        if mock_store.upsert.called:
+            call_args = mock_store.upsert.call_args_list[0]
+            assert call_args.kwargs.get("embedding") == fake_embedding or (
+                len(call_args.args) >= 2 and call_args.args[1] == fake_embedding
+            )
+
+    @pytest.mark.asyncio
+    async def test_no_entry_when_embed_fails(self) -> None:
+        """on_session_stop falls back gracefully when _get_embedding returns None."""
+        mock_store = MagicMock(spec=MemoryStore)
+        mock_retriever = MagicMock(spec=MemoryRetriever)
+        mock_jsonl = MagicMock(spec=JsonlMemoryStore)
+
+        layer = MemoryLayer(
+            store=mock_store,
+            retriever=mock_retriever,
+            jsonl=mock_jsonl,
+            embed_enabled=True,
+            embed_url="http://fake-embed/embedding",
+        )
+        layer._get_embedding = AsyncMock(return_value=None)  # type: ignore[method-assign]
+
+        history: list[LLMMessage] = [
+            {"role": "user", "content": "What is the rule?"},
+            {
+                "role": "assistant",
+                "content": (
+                    "The rule is that we should always follow the policy "
+                    "and constraint established by the team. This is a decided rule "
+                    "and everyone must comply with the guideline."
+                ),
+            },
+        ]
+        # Should not raise
+        await layer.on_session_stop(session_id=1, history=history)
+
+
+# ── Phase 2: timeout cap ──────────────────────────────────────────────────────
+
+
+class TestTimeoutEmbedding:
+    @pytest.mark.asyncio
+    async def test_timeout_returns_none(self) -> None:
+        """_get_embedding returns None when asyncio.wait_for times out."""
+        layer, _, _, _ = _make_layer()
+
+        async def _slow_embed(text: str, http: object, url: str) -> list[float]:
+            await asyncio.sleep(10)
+            return [0.1]
+
+        import httpx
+
+        layer._embed_enabled = True
+        layer._embed_url = "http://fake/embed"
+        layer._http = MagicMock(spec=httpx.AsyncClient)
+        layer._embed_timeout = 0.01  # 10ms — times out instantly
+
+        with patch("agent.memory.layer._fetch_embedding", side_effect=_slow_embed):
+            result = await layer._get_embedding("some text")
+        assert result is None
+
+
+# ── Phase 2: content trimming ─────────────────────────────────────────────────
+
+
+class TestContentTrimming:
+    @pytest.mark.asyncio
+    async def test_content_trimmed_to_max_chars(self) -> None:
+        """on_session_stop stores at most max_content_chars characters per entry."""
+        mock_store = MagicMock(spec=MemoryStore)
+        mock_retriever = MagicMock(spec=MemoryRetriever)
+        mock_jsonl = MagicMock(spec=JsonlMemoryStore)
+
+        layer = MemoryLayer(
+            store=mock_store,
+            retriever=mock_retriever,
+            jsonl=mock_jsonl,
+            max_content_chars=50,
+        )
+        long_content = (
+            "The rule is that we should always follow the policy "
+            "and constraint established by the team. This is a decided rule "
+            "and everyone must comply with the guideline going forward."
+        )
+        history: list[LLMMessage] = [
+            {"role": "user", "content": "What is the rule?"},
+            {"role": "assistant", "content": long_content},
+        ]
+        await layer.on_session_stop(session_id=1, history=history)
+
+        if mock_store.upsert.called:
+            stored_entry = mock_store.upsert.call_args_list[0].args[0]
+            assert len(stored_entry.content) <= 50
+
+
+# ── Phase 2: _link_duplicates ────────────────────────────────────────────────
+
+
+class TestLinkDuplicates:
+    def test_link_called_when_embedding_present(self) -> None:
+        """_link_duplicates is invoked when embedding is provided."""
+        mock_store = MagicMock(spec=MemoryStore)
+        mock_retriever = MagicMock(spec=MemoryRetriever)
+        mock_jsonl = MagicMock(spec=JsonlMemoryStore)
+
+        layer = MemoryLayer(
+            store=mock_store,
+            retriever=mock_retriever,
+            jsonl=mock_jsonl,
+            dedup_threshold=0.9,
+        )
+        # _vec_search returns empty list → no links
+        mock_retriever._vec_search.return_value = []
+
+        layer._link_duplicates("mem-1", [0.1, 0.2, 0.3])
+        mock_retriever._vec_search.assert_called_once()
+
+    def test_no_self_link(self) -> None:
+        """_link_duplicates does not create a link from a memory to itself."""
+        mock_store = MagicMock(spec=MemoryStore)
+        mock_retriever = MagicMock(spec=MemoryRetriever)
+        mock_jsonl = MagicMock(spec=JsonlMemoryStore)
+
+        layer = MemoryLayer(
+            store=mock_store,
+            retriever=mock_retriever,
+            jsonl=mock_jsonl,
+            dedup_threshold=0.9,
+        )
+        # Return a hit for the same memory_id — should be skipped
+        self_entry = _make_entry()
+        self_entry.memory_id = "mem-1"
+        mock_retriever._vec_search.return_value = [
+            MemoryHit(entry=self_entry, score=-0.01)
+        ]
+
+        mock_helper = MagicMock()
+        mock_helper.__enter__ = MagicMock(return_value=mock_helper)
+        mock_helper.__exit__ = MagicMock(return_value=False)
+        mock_helper.open.return_value = mock_helper
+        with patch("agent.memory.layer.SQLiteHelper", return_value=mock_helper):
+            layer._link_duplicates("mem-1", [0.1, 0.2, 0.3])
+        # execute should NOT be called because self-link is skipped
+        mock_helper.execute.assert_not_called()

@@ -27,6 +27,7 @@ from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.cmd_context import _budget_breakdown, _ContextMixin
 from agent.commands.cmd_ingest import _IngestMixin
 from agent.commands.cmd_mcp import _McpMixin
+from agent.commands.cmd_memory import _MemoryMixin
 from agent.commands.cmd_rag import _RagMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.context import AgentContext
@@ -54,6 +55,7 @@ class CommandRegistry(
     _ContextMixin,
     _RagMixin,
     _IngestMixin,
+    _MemoryMixin,
 ):
     """Slash-command dispatcher for AgentREPL.
 
@@ -110,6 +112,9 @@ class CommandRegistry(
             "  /note add <text>   Add a persistent note\n"
             "  /note list         List all notes\n"
             "  /note delete <id>  Delete a note by ID\n"
+            "  /memory list [semantic|episodic] [n]  List memory entries\n"
+            "  /memory search <q>   Search memories by keyword\n"
+            "  /memory pin/unpin/delete/show/prune  Manage memory entries\n"
             "  /tool list         List stored tool results (current session)\n"
             "  /tool show <idx>   Show full text of a stored tool result\n"
             "  /undo              Roll back the last user+assistant turn\n"
@@ -171,6 +176,7 @@ class CommandRegistry(
             ("/note", self._cmd_note, False),
             ("/tool", self._cmd_tool, False),
             ("/set", self._cmd_set, False),
+            ("/memory", self._cmd_memory, False),
             # /debug accepts optional subcommand: audit | verbose | normal
             ("/debug", self._cmd_debug, False),
         ]

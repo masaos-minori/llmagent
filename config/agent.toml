@@ -184,6 +184,15 @@ memory_embed_dim = 384
 # L2 distance threshold for deduplication; entries closer than this are linked in memory_links
 memory_dedup_threshold = 0.3
 
+# Max characters stored per extracted memory entry; content trimmed at extraction time
+memory_max_content_chars = 500
+
+# Timeout in seconds for each embedding HTTP call
+memory_embed_timeout_sec = 5.0
+
+# Retention period in days; entries older than this can be pruned via /memory prune
+memory_retention_days = 90
+
 # When true, enables OpenTelemetry span collection; default false
 otel_enabled = false
 

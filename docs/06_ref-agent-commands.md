@@ -14,6 +14,7 @@
 | `_ContextMixin` | `agent/commands/cmd_context.py` | `/context`, `/clear`, `/undo`, `/history`, `/system`, `/db` |
 | `_RagMixin` | `agent/commands/cmd_rag.py` | `/rag`, `/tool`, `/note`, `/plan`, `/debug` |
 | `_IngestMixin` | `agent/commands/cmd_ingest.py` | `/ingest`, `/export`, `/compact` |
+| `_MemoryMixin` | `agent/commands/cmd_memory.py` | `/memory` 系 |
 
 ## 2. API
 
@@ -75,6 +76,7 @@ matched = await cmds.dispatch("/stats")
 | `_cmd_compact() -> None` | 閾値に関わらず会話履歴を即時圧縮 |
 | `_apply_config_params(new_cfg) -> None` | `ctx.cfg` フィールドを更新し各コンポーネントに同期 |
 | `_cmd_reload() -> None` | `config/agent.toml` を再読み込みし `_apply_config_params()` で即時反映 |
+| `_cmd_memory(args) -> None` | `/memory list\|search\|show\|pin\|unpin\|delete\|prune` をディスパッチ。`use_memory_layer=false` 時は無効メッセージを返す |
 
 ## 3. 使用スクリプト
 
