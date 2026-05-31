@@ -379,7 +379,7 @@ class ToolExecutor:
     async def _execute_with_cache(
         self, tool_name: str, args: dict[str, Any]
     ) -> tuple[str, bool, str]:
-        """Execute a tool with cache check."""
+        """Execute a tool: return cached result on hit; execute and store on miss."""
         cache_key = (
             f"{tool_name}:{orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()}"
         )
@@ -394,50 +394,27 @@ class ToolExecutor:
                 # Cached results have no live X-Request-Id.
                 return result, is_error, ""
             del self._cache[cache_key]
-        return await self._raw_execute(tool_name, args)
-
-    async def _execute_without_cache(
-        self, tool_name: str, args: dict[str, Any]
-    ) -> tuple[str, bool, str]:
-        """Execute a tool without cache."""
         result, is_error, x_request_id = await self._raw_execute(tool_name, args)
         if not is_error:
-            cache_key = f"{tool_name}:{orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()}"
             self._cache[cache_key] = (result, is_error, time.time())
             if self._cache_max_size > 0 and len(self._cache) > self._cache_max_size:
                 evicted_key, _ = self._cache.popitem(last=False)
                 logger.debug(f"Tool cache LRU evict: {evicted_key!r}")
         return result, is_error, x_request_id
 
-    async def _execute_plugin_tool(
+    async def execute(
         self, tool_name: str, args: dict[str, Any]
     ) -> tuple[str, bool, str]:
-        """Execute a plugin tool."""
+        """Execute a tool. Plugin tools bypass cache and MCP routing; others use cache."""
         plugin_fn = plugin_registry.get_tool(tool_name)
         if plugin_fn is not None:
             try:
                 result_raw = await plugin_fn(args)
-                result_str, result_err = str(result_raw[0]), bool(result_raw[1])
-                return result_str, result_err, ""
+                return str(result_raw[0]), bool(result_raw[1]), ""
             except Exception as e:
                 logger.error(f"Plugin tool {tool_name!r} raised: {e}")
                 return f"[plugin error] {tool_name}: {e}", True, ""
-        # If no plugin function found, fall through to normal execution
         return await self._execute_with_cache(tool_name, args)
-
-    async def execute(
-        self, tool_name: str, args: dict[str, Any]
-    ) -> tuple[str, bool, str]:
-        """Execute a tool returning a cached result when within cache_ttl; plugin tools bypass cache and MCP routing."""
-        # First check if it's a plugin tool
-        result, is_error, x_request_id = await self._execute_plugin_tool(
-            tool_name, args
-        )
-        if not is_error:
-            # If it was a plugin tool or we got a cached result, return it
-            return result, is_error, x_request_id
-        # If it's not a plugin tool or cache miss, proceed with normal execution
-        return await self._execute_without_cache(tool_name, args)
 
     def clear_cache(self) -> None:
         """Evict all cached tool results."""

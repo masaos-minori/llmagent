@@ -57,6 +57,7 @@ def _make_ctx() -> MagicMock:
     llm_svc.stat_reconnects = 0
     ctx.services.llm = llm_svc
     ctx.services.audit_logger = None
+    ctx.services.memory = None
     ctx.services.rag = None
     ctx.services.tools = None
     return ctx

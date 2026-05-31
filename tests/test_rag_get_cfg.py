@@ -37,7 +37,8 @@ class TestAgentConfigGetCfg:
         import agent.config as config_mod
 
         monkeypatch.setattr(config_mod, "_cfg", None)
-        with patch.object(ConfigLoader, "load", side_effect=OSError("no file")):
+        # agent.config uses load_all(), not load()
+        with patch.object(ConfigLoader, "load_all", side_effect=OSError("no file")):
             result = config_mod._get_cfg()
         assert result == {}
         monkeypatch.setattr(config_mod, "_cfg", None)

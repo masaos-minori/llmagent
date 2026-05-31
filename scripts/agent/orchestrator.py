@@ -205,6 +205,7 @@ class Orchestrator:
         """
         ctx = self._ctx
         await self._handle_turn_start(line)
+        answer = ""
 
         try:
             await self._handle_memory_injection(line)
@@ -213,6 +214,9 @@ class Orchestrator:
 
             answer = await self._handle_llm_turn(ctx.llm_url)
 
+        except LLMTransportError:
+            # Error already handled (incomplete message / on_error) in _handle_llm_turn
+            pass
         finally:
             await self._handle_turn_end(line, answer)
 

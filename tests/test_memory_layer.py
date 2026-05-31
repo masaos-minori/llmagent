@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.layer import MemoryLayer
 from agent.memory.retriever import MemoryRetriever
@@ -94,7 +95,8 @@ class TestOnSessionStart:
 
 
 class TestOnUserPrompt:
-    def test_returns_snippets_for_matching_query(self) -> None:
+    @pytest.mark.asyncio
+    async def test_returns_snippets_for_matching_query(self) -> None:
         layer, _, mock_ret, _ = _make_layer()
         sem_entry = _make_entry(memory_type="semantic", content="policy X")
         epi_entry = _make_entry(memory_type="episodic", content="fixed bug Y")
@@ -102,31 +104,35 @@ class TestOnUserPrompt:
             [MemoryHit(entry=sem_entry, score=1.0)],
             [MemoryHit(entry=epi_entry, score=0.8)],
         ]
-        snippets = layer.on_user_prompt("some query", session_id=1)
+        snippets = await layer.on_user_prompt("some query", session_id=1)
         assert len(snippets) == 2
         assert any("Semantic" in s for s in snippets)
         assert any("Episodic" in s for s in snippets)
 
-    def test_returns_empty_for_blank_query(self) -> None:
+    @pytest.mark.asyncio
+    async def test_returns_empty_for_blank_query(self) -> None:
         layer, _, _, _ = _make_layer()
-        assert layer.on_user_prompt("   ", session_id=1) == []
+        assert await layer.on_user_prompt("   ", session_id=1) == []
 
-    def test_returns_empty_on_retriever_error(self) -> None:
+    @pytest.mark.asyncio
+    async def test_returns_empty_on_retriever_error(self) -> None:
         layer, _, mock_ret, _ = _make_layer()
         mock_ret.search.side_effect = Exception("db error")
-        assert layer.on_user_prompt("query", session_id=1) == []
+        assert await layer.on_user_prompt("query", session_id=1) == []
 
-    def test_returns_empty_when_no_matches(self) -> None:
+    @pytest.mark.asyncio
+    async def test_returns_empty_when_no_matches(self) -> None:
         layer, _, mock_ret, _ = _make_layer()
         mock_ret.search.return_value = []
-        assert layer.on_user_prompt("nothing here", session_id=1) == []
+        assert await layer.on_user_prompt("nothing here", session_id=1) == []
 
 
 # ── on_session_stop() ────────────────────────────────────────────────────────
 
 
 class TestOnSessionStop:
-    def test_calls_extract_and_persists(self) -> None:
+    @pytest.mark.asyncio
+    async def test_calls_extract_and_persists(self) -> None:
         layer, mock_store, _, mock_jsonl = _make_layer()
         history: list[LLMMessage] = [
             {"role": "user", "content": "What is the rule?"},
@@ -139,21 +145,23 @@ class TestOnSessionStop:
                 ),
             },
         ]
-        layer.on_session_stop(session_id=1, history=history)
+        await layer.on_session_stop(session_id=1, history=history)
         # At least one entry should be extracted and persisted
         assert (
             mock_store.upsert.called or not mock_store.upsert.called
         )  # no-op if below threshold
         # No exception is raised
 
-    def test_no_op_on_short_history(self) -> None:
+    @pytest.mark.asyncio
+    async def test_no_op_on_short_history(self) -> None:
         layer, mock_store, _, mock_jsonl = _make_layer()
         history: list[LLMMessage] = [{"role": "user", "content": "hi"}]
-        layer.on_session_stop(session_id=1, history=history)
+        await layer.on_session_stop(session_id=1, history=history)
         mock_store.upsert.assert_not_called()
         mock_jsonl.append.assert_not_called()
 
-    def test_does_not_raise_on_store_error(self) -> None:
+    @pytest.mark.asyncio
+    async def test_does_not_raise_on_store_error(self) -> None:
         layer, mock_store, _, _ = _make_layer()
         mock_store.upsert.side_effect = Exception("db error")
         history: list[LLMMessage] = [
@@ -168,25 +176,27 @@ class TestOnSessionStop:
             },
         ]
         # Should not raise
-        layer.on_session_stop(session_id=1, history=history)
+        await layer.on_session_stop(session_id=1, history=history)
 
 
 # ── write_semantic() / write_episodic() ──────────────────────────────────────
 
 
 class TestWriteSemanticEpisodic:
-    def test_write_semantic_persists_entry(self) -> None:
+    @pytest.mark.asyncio
+    async def test_write_semantic_persists_entry(self) -> None:
         layer, mock_store, _, mock_jsonl = _make_layer()
-        layer.write_semantic(session_id=1, content="important rule")
+        await layer.write_semantic(session_id=1, content="important rule")
         assert mock_store.upsert.called
         assert mock_jsonl.append.called
         entry = mock_store.upsert.call_args[0][0]
         assert entry.memory_type == "semantic"
         assert entry.content == "important rule"
 
-    def test_write_episodic_persists_entry(self) -> None:
+    @pytest.mark.asyncio
+    async def test_write_episodic_persists_entry(self) -> None:
         layer, mock_store, _, mock_jsonl = _make_layer()
-        layer.write_episodic(session_id=2, content="failure case")
+        await layer.write_episodic(session_id=2, content="failure case")
         assert mock_store.upsert.called
         entry = mock_store.upsert.call_args[0][0]
         assert entry.memory_type == "episodic"
