@@ -105,6 +105,8 @@ err = format_transport_error(
 | pre-stream fail (`partial_text` なし) | assistant 保存なし。直前のユーザーメッセージを pop して履歴汚染防止 |
 | tool continuation fail (turn > 0) | synthetic tool error (`name="llm_transport_error"`) を history に追加して対話継続。`ctx.tool_result_store.store()` で保存 (`tool_name="llm_transport_error"`) |
 
+`_handle_llm_turn()` は `LLMTransportError` を処理後に re-raise する。`handle_turn()` はその例外を `except LLMTransportError: pass` でキャッチして外部には伝播させない — エラー処理 (incomplete 保存・on_error コールバック) は `_handle_llm_turn()` 内で完了しているため。
+
 `tool_result_store` に保存された LLM 失敗は `/tool show <id>` で後追い確認可能。
 
 ## 7. 使用スクリプト

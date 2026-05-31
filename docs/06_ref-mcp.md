@@ -179,7 +179,7 @@ result, is_error, x_request_id = await executor.execute("read_text_file", {"path
 |---|---|
 | `set_transport(server_key, transport) -> None` | stdio サーバのプロセス起動後に `StdioTransport` を登録 |
 | `set_lifecycle(lifecycle) -> None` | `LifecycleProtocol` 実装を注入。`None` でクリア |
-| `execute(tool_name, args) -> tuple[str, bool, str]` | plugin ツール → キャッシュ → `_raw_execute()` の順で解決。戻り値は `(result, is_error, x_request_id)`。成功結果のみキャッシュ。キャッシュヒット時は `x_request_id=""` を返す |
+| `execute(tool_name, args) -> tuple[str, bool, str]` | plugin ツール → `_execute_with_cache()` の順で解決。plugin エラー時も MCP ルーティングには fall-through しない。`_execute_with_cache()` はキャッシュ miss 時に `_raw_execute()` を呼び出し、成功結果のみキャッシュに書き込む (LRU eviction あり)。キャッシュヒット時は `x_request_id=""` を返す |
 | `clear_cache() -> None` | ツール結果キャッシュを全クリア (`/clear` コマンドから呼ばれる) |
 
 ルーティング規則 (`ToolRouteResolver.resolve()`):
