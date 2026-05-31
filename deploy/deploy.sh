@@ -27,6 +27,7 @@ mkdir -p "${DEPLOY_DB}"
 mkdir -p "${DEPLOY_LOGS}"
 mkdir -p "${DEPLOY_RAG_SRC}/chunk"
 mkdir -p "${DEPLOY_RAG_SRC}/registered"
+mkdir -p /opt/llm/memory
 
 # ── Python スクリプト (パッケージ構造ごと同期) ────────────────────────────────
 echo "--- scripts/ → ${DEPLOY_SCRIPTS}/ ---"
@@ -54,6 +55,9 @@ cp "${REPO_ROOT}/config/file_write_mcp_server.toml"     "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/file_delete_mcp_server.toml"    "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/shell_mcp_server.toml"          "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/rag_pipeline_mcp_server.toml"   "${DEPLOY_CONFIG}/"
+cp "${REPO_ROOT}/config/sqlite_mcp_server.toml"         "${DEPLOY_CONFIG}/"
+cp "${REPO_ROOT}/config/cicd_mcp_server.toml"          "${DEPLOY_CONFIG}/"
+cp "${REPO_ROOT}/config/mdq_mcp_server.toml"           "${DEPLOY_CONFIG}/"
 
 # ── SQL 参照定義 ──────────────────────────────────────────────────────────────
 echo "--- db/rrf.sql → ${DEPLOY_DB}/ ---"

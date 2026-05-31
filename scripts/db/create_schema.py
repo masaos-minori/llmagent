@@ -116,6 +116,38 @@ _SESSION_SCHEMA_SQL: str = """
         entry_id  INTEGER PRIMARY KEY,
         embedding float[384]
     );
+    CREATE TABLE IF NOT EXISTS memories (
+        memory_id   TEXT PRIMARY KEY,
+        memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),
+        source_type TEXT NOT NULL DEFAULT 'conversation',
+        session_id  INTEGER,
+        turn_id     TEXT,
+        project     TEXT NOT NULL DEFAULT '',
+        repo        TEXT NOT NULL DEFAULT '',
+        branch      TEXT NOT NULL DEFAULT '',
+        content     TEXT NOT NULL,
+        summary     TEXT NOT NULL DEFAULT '',
+        tags        TEXT NOT NULL DEFAULT '[]',
+        importance  REAL NOT NULL DEFAULT 0.5,
+        pinned      INTEGER NOT NULL DEFAULT 0,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+        memory_id UNINDEXED,
+        content,
+        summary,
+        tags
+    );
+    CREATE TABLE IF NOT EXISTS memory_links (
+        src_id  TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
+        dst_id  TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
+        PRIMARY KEY (src_id, dst_id)
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS memories_vec USING vec0(
+        memory_id TEXT PRIMARY KEY,
+        embedding float[384]
+    );
 """
 
 # ALTER TABLE migration statements for rag.sqlite.
@@ -157,6 +189,38 @@ _SESSION_MIGRATE_SQL: list[str] = [
     "ALTER TABLE messages ADD COLUMN tool_call_id TEXT",
     "CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec USING vec0("
     "entry_id INTEGER PRIMARY KEY, embedding float[384])",
+    # Phase 1 persistent semantic memory tables
+    """CREATE TABLE IF NOT EXISTS memories (
+        memory_id   TEXT PRIMARY KEY,
+        memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),
+        source_type TEXT NOT NULL DEFAULT 'conversation',
+        session_id  INTEGER,
+        turn_id     TEXT,
+        project     TEXT NOT NULL DEFAULT '',
+        repo        TEXT NOT NULL DEFAULT '',
+        branch      TEXT NOT NULL DEFAULT '',
+        content     TEXT NOT NULL,
+        summary     TEXT NOT NULL DEFAULT '',
+        tags        TEXT NOT NULL DEFAULT '[]',
+        importance  REAL NOT NULL DEFAULT 0.5,
+        pinned      INTEGER NOT NULL DEFAULT 0,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
+    """CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+        memory_id UNINDEXED,
+        content,
+        summary,
+        tags
+    )""",
+    """CREATE TABLE IF NOT EXISTS memory_links (
+        src_id  TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
+        dst_id  TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
+        PRIMARY KEY (src_id, dst_id)
+    )""",
+    # Phase 2 persistent semantic memory: embedding index
+    "CREATE VIRTUAL TABLE IF NOT EXISTS memories_vec USING vec0("
+    "memory_id TEXT PRIMARY KEY, embedding float[384])",
 ]
 
 

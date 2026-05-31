@@ -1,0 +1,21 @@
+# cicd-mcp server configuration (GitHub Actions backend)
+
+# repo_allowlist: permitted repositories in 'owner/repo' format
+# IMPORTANT: empty list = deny all repositories (fail-closed)
+# Example: ["myorg/myrepo", "myorg/other-repo"]
+repo_allowlist = []
+
+# workflow_allowlist: permitted workflow file names (e.g. "ci.yml")
+# Empty list = allow all workflows
+workflow_allowlist = []
+
+# max_log_size_kb: maximum log output size in KB (prevents large data dumps)
+max_log_size_kb = 256
+
+# auth_token: Bearer token for MCP server call authentication
+# Empty string = auth disabled (loopback-only default)
+auth_token = ""
+
+# github_token: fallback when GITHUB_TOKEN env var is unset (not recommended)
+# Prefer setting GITHUB_TOKEN in /etc/conf.d/cicd-mcp via OpenRC
+github_token = ""

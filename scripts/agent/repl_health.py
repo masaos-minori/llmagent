@@ -72,7 +72,7 @@ async def _fetch_stdio_tools(transport: object) -> set[str]:
     if not isinstance(transport, StdioTransport) or not transport.is_alive():
         return set()
     try:
-        raw, is_error = await asyncio.wait_for(
+        raw, is_error, _ = await asyncio.wait_for(
             transport.call("__list_tools__", {}), timeout=5.0
         )
         if is_error:

@@ -97,18 +97,13 @@ class Orchestrator:
 
     # ── Public entry point ────────────────────────────────────────────────────
 
-    async def handle_turn(self, line: str) -> None:
-        """Augment line with RAG context, call LLM, and persist to DB.
-
-        Compresses conversation history before the LLM call when total chars
-        exceed context_char_limit.
-        """
+    async def _handle_turn_start(self, line: str) -> None:
+        """Handle turn start operations."""
         ctx = self._ctx
         assert ctx.services.hist_mgr is not None
 
         # Assign a UUID to this turn; held in ctx for the duration, then cleared
         ctx.current_turn_id = str(uuid.uuid4())
-        t0_turn = time.perf_counter()
         session_id = str(ctx.session.session_id) if ctx.session.session_id else "none"
 
         if ctx.services.audit_logger is not None:
@@ -124,55 +119,102 @@ class Orchestrator:
                 ).decode()
             )
 
-        try:
-            await self._augment_and_append(line)
-
-            # ── History compression span ──────────────────────────────────────
-            with self._span_ctx("compress"):
-                ctx.history = await ctx.services.hist_mgr.compress(ctx.history)
-
-            # ── LLM turn span ─────────────────────────────────────────────────
-            partial_completion = False
-            with self._span_ctx("llm") as llm_span:
-                llm_span.set_attribute("model_url", ctx.llm_url)
-                try:
-                    answer = await self._run_turn(ctx.llm_url)
-                    logger.info(f"LLM response: {answer}")
-                    ctx.session.save("assistant", answer)
-                except LLMTransportError as e:
-                    partial_completion = self._handle_llm_transport_error(e, ctx)
-                    if self._on_error:
-                        self._on_error(e)
-                except Exception as e:
-                    self._handle_general_llm_error(e, ctx)
-                    if self._on_error:
-                        self._on_error(e)
-        finally:
-            elapsed_ms = round((time.perf_counter() - t0_turn) * 1000, 1)
-            if ctx.services.audit_logger is not None:
-                llm = ctx.services.llm
-                ctx.services.audit_logger.info(
-                    orjson.dumps(
-                        {
-                            "event": "turn_end",
-                            "task_id": ctx.current_turn_id,
-                            "elapsed_ms": elapsed_ms,
-                            "input_tokens": ctx.stat_input_tokens,
-                            "output_tokens": ctx.stat_output_tokens,
-                            "parse_error_count": (
-                                llm.stat_parse_errors if llm is not None else 0
-                            ),
-                            "heartbeat_timeout_count": (
-                                llm.stat_heartbeat_timeouts if llm is not None else 0
-                            ),
-                            "reconnect_count": (
-                                llm.stat_reconnects if llm is not None else 0
-                            ),
-                            "partial_completion": partial_completion,
-                        }
-                    ).decode()
+    async def _handle_memory_injection(self, line: str) -> None:
+        """Handle memory injection before RAG augmentation."""
+        ctx = self._ctx
+        # UserPromptSubmit: inject relevant memories before RAG augmentation
+        if ctx.services.memory is not None:
+            memory_snippets = await ctx.services.memory.on_user_prompt(
+                query=line,
+                session_id=ctx.session.session_id,
+            )
+            if memory_snippets:
+                memory_block = "[Relevant memories]\n" + "\n".join(
+                    f"- {s}" for s in memory_snippets
                 )
-            ctx.current_turn_id = None
+                ctx.history.append({"role": "system", "content": memory_block})
+
+    async def _handle_rag_augmentation(self, line: str) -> None:
+        """Handle RAG augmentation."""
+        await self._augment_and_append(line)
+
+    async def _handle_history_compression(self) -> None:
+        """Handle history compression."""
+        ctx = self._ctx
+        assert ctx.services.hist_mgr is not None
+        # ── History compression span ──────────────────────────────────────
+        with self._span_ctx("compress"):
+            ctx.history = await ctx.services.hist_mgr.compress(ctx.history)
+
+    async def _handle_llm_turn(self, llm_url: str) -> str:
+        """Handle LLM turn."""
+        ctx = self._ctx
+        try:
+            with self._span_ctx("llm") as llm_span:
+                llm_span.set_attribute("model_url", llm_url)
+                answer = await self._run_turn(llm_url)
+                logger.info(f"LLM response: {answer}")
+                ctx.session.save("assistant", answer)
+                return answer
+        except LLMTransportError as e:
+            self._handle_llm_transport_error(e, ctx)
+            if self._on_error:
+                self._on_error(e)
+            raise
+        except Exception as e:
+            self._handle_general_llm_error(e, ctx)
+            if self._on_error:
+                self._on_error(e)
+            raise
+
+    async def _handle_turn_end(self, line: str, answer: str) -> None:
+        """Handle turn end operations."""
+        ctx = self._ctx
+        t0_turn = time.perf_counter()  # This would be set in _handle_turn_start
+        elapsed_ms = round((time.perf_counter() - t0_turn) * 1000, 1)
+        if ctx.services.audit_logger is not None:
+            llm = ctx.services.llm
+            ctx.services.audit_logger.info(
+                orjson.dumps(
+                    {
+                        "event": "turn_end",
+                        "task_id": ctx.current_turn_id,
+                        "elapsed_ms": elapsed_ms,
+                        "input_tokens": ctx.stat_input_tokens,
+                        "output_tokens": ctx.stat_output_tokens,
+                        "parse_error_count": (
+                            llm.stat_parse_errors if llm is not None else 0
+                        ),
+                        "heartbeat_timeout_count": (
+                            llm.stat_heartbeat_timeouts if llm is not None else 0
+                        ),
+                        "reconnect_count": (
+                            llm.stat_reconnects if llm is not None else 0
+                        ),
+                        "partial_completion": False,  # This would be set in _handle_llm_turn
+                    }
+                ).decode()
+            )
+        ctx.current_turn_id = None
+
+    async def handle_turn(self, line: str) -> None:
+        """Augment line with RAG context, call LLM, and persist to DB.
+
+        Compresses conversation history before the LLM call when total chars
+        exceed context_char_limit.
+        """
+        ctx = self._ctx
+        await self._handle_turn_start(line)
+
+        try:
+            await self._handle_memory_injection(line)
+            await self._handle_rag_augmentation(line)
+            await self._handle_history_compression()
+
+            answer = await self._handle_llm_turn(ctx.llm_url)
+
+        finally:
+            await self._handle_turn_end(line, answer)
 
     # ── LLM interaction ───────────────────────────────────────────────────────
 

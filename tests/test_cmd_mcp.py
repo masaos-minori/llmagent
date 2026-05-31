@@ -161,6 +161,93 @@ class TestCmdMcpStatus:
         assert "STOPPED" in out
 
 
+class TestCmdMcpStatusNewColumns:
+    @pytest.mark.asyncio
+    async def test_column_headers_include_auth_write_role(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _Ctx({})
+        mcp = _Mcp(ctx)
+        with patch(
+            "agent.commands.cmd_mcp.httpx.AsyncClient", return_value=_mock_client()
+        ):
+            await mcp._cmd_mcp_status()
+        out = capsys.readouterr().out
+        assert "AUTH" in out
+        assert "WRITE" in out
+        assert "ROLE" in out
+
+    @pytest.mark.asyncio
+    async def test_auth_column_shows_yes_when_token_set(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        cfg = McpServerConfig(
+            "http", "http://127.0.0.1:8000", [], "", auth_token="secret", role="query"
+        )
+        ctx = _Ctx({"svc": cfg})
+        mcp = _Mcp(ctx)
+
+        resp = MagicMock()
+        resp.status_code = 200
+        mc = _mock_client()
+        mc.get = AsyncMock(return_value=resp)
+        with patch("agent.commands.cmd_mcp.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        # auth_token is set → "yes"; role "query" should appear
+        assert "yes" in out
+        assert "query" in out
+
+    @pytest.mark.asyncio
+    async def test_write_column_shows_yes_for_write_tools(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        cfg = McpServerConfig(
+            "http",
+            "http://127.0.0.1:8000",
+            [],
+            "",
+            tool_names=["write_file", "edit_file"],
+        )
+        ctx = _Ctx({"writer": cfg})
+        mcp = _Mcp(ctx)
+
+        resp = MagicMock()
+        resp.status_code = 200
+        mc = _mock_client()
+        mc.get = AsyncMock(return_value=resp)
+        with patch("agent.commands.cmd_mcp.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "yes" in out  # write column
+
+    @pytest.mark.asyncio
+    async def test_write_column_shows_no_for_read_only_tools(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        cfg = McpServerConfig(
+            "http",
+            "http://127.0.0.1:8000",
+            [],
+            "",
+            tool_names=["read_text_file", "list_directory"],
+        )
+        ctx = _Ctx({"reader": cfg})
+        mcp = _Mcp(ctx)
+
+        resp = MagicMock()
+        resp.status_code = 200
+        mc = _mock_client()
+        mc.get = AsyncMock(return_value=resp)
+        with patch("agent.commands.cmd_mcp.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "no" in out  # write column = no
+
+
 class TestCmdMcp:
     @pytest.mark.asyncio
     async def test_no_args_dispatches_to_status(

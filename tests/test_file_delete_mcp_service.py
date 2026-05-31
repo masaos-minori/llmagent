@@ -204,3 +204,29 @@ class TestFmtHandlersDryRun:
         result = await service.fmt_delete_directory({"path": str(d), "dry_run": True})
         assert "Dry-run" in result
         assert str(d) in result
+
+
+# ── path allowlist security ───────────────────────────────────────────────────
+
+
+class TestPathAllowlist:
+    def test_delete_outside_allowed_dir_raises_403(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        from fastapi import HTTPException
+
+        target = tmp_path / "f.txt"
+        target.write_text("x")
+        req = DeleteFileRequest(path="/etc/shadow", dry_run=True)
+        with pytest.raises(HTTPException) as exc_info:
+            service.delete_file(req)
+        assert exc_info.value.status_code == 403
+
+    def test_delete_inside_allowed_dir_succeeds(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "f.txt"
+        target.write_text("x")
+        req = DeleteFileRequest(path=str(target), dry_run=True)
+        result = service.delete_file(req)
+        assert result is not None

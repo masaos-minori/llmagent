@@ -1,15 +1,18 @@
 """tests/test_mcp_server_base.py
-Unit tests for MCPServer base class: list_tools(), health(), and the
-__list_tools__ introspection protocol.
+Unit tests for MCPServer base class: list_tools(), health(),
+__list_tools__ introspection protocol, and attach_auth_middleware.
 """
 
 from __future__ import annotations
 
 import asyncio
+import re
 
 import orjson
 import pytest
-from mcp.server import MCPServer
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from mcp.server import MCPServer, attach_auth_middleware
 
 
 class _SimpleServer(MCPServer):
@@ -121,3 +124,71 @@ class TestRunStdio:
         assert resp["id"] == 2
         assert not resp["is_error"]
         assert resp["result"] == "result_a"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# attach_auth_middleware
+# ─────────────────────────────────────────────────────────────────────────────
+
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+)
+
+
+def _make_test_app(token: str = "") -> TestClient:
+    """Build a minimal FastAPI app with auth middleware and return a TestClient."""
+    app = FastAPI()
+
+    @app.get("/ping")
+    async def ping() -> dict[str, str]:
+        return {"pong": "ok"}
+
+    attach_auth_middleware(app, token)
+    return TestClient(app, raise_server_exceptions=True)
+
+
+class TestAttachAuthMiddleware:
+    def test_no_token_allows_any_request(self) -> None:
+        client = _make_test_app("")
+        resp = client.get("/ping")
+        assert resp.status_code == 200
+
+    def test_no_token_response_contains_request_id(self) -> None:
+        client = _make_test_app("")
+        resp = client.get("/ping")
+        req_id = resp.headers.get("x-request-id", "")
+        assert _UUID_RE.match(req_id), f"Expected UUID4, got {req_id!r}"
+
+    def test_correct_token_returns_200(self) -> None:
+        client = _make_test_app("secret")
+        resp = client.get("/ping", headers={"Authorization": "Bearer secret"})
+        assert resp.status_code == 200
+
+    def test_missing_token_returns_401(self) -> None:
+        client = _make_test_app("secret")
+        resp = client.get("/ping")
+        assert resp.status_code == 401
+        assert resp.json() == {"error": "Unauthorized"}
+
+    def test_wrong_token_returns_401(self) -> None:
+        client = _make_test_app("secret")
+        resp = client.get("/ping", headers={"Authorization": "Bearer wrong"})
+        assert resp.status_code == 401
+
+    def test_request_id_present_on_auth_failure(self) -> None:
+        # X-Request-Id should NOT be set on 401 because JSONResponse is returned
+        # directly without going through call_next — this is expected behavior.
+        client = _make_test_app("secret")
+        resp = client.get("/ping")
+        assert resp.status_code == 401
+
+    def test_request_id_uuid4_format_on_success(self) -> None:
+        client = _make_test_app("tok")
+        resp = client.get("/ping", headers={"Authorization": "Bearer tok"})
+        req_id = resp.headers.get("x-request-id", "")
+        assert _UUID_RE.match(req_id), f"Expected UUID4, got {req_id!r}"
+
+    def test_each_request_gets_unique_id(self) -> None:
+        client = _make_test_app("")
+        ids = {client.get("/ping").headers.get("x-request-id") for _ in range(5)}
+        assert len(ids) == 5

@@ -1,0 +1,11 @@
+# LLM endpoint used for MQE, reranking, RAG answer generation, and conversation
+llm_url = "http://127.0.0.1:8002/v1/chat/completions"
+
+# Base URL of the web-search-mcp server; provides /search, /v1/call_tool, /health
+web_search_url = "http://127.0.0.1:8004"
+
+# Base URL of the github-mcp server; provides /search_repositories, /get_file_contents, etc.
+github_server_url = "http://127.0.0.1:8006"
+
+# Dimensionality of embedding vectors; multilingual-E5-small uses 384 dimensions
+embed_dim = 384

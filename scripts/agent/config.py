@@ -24,7 +24,7 @@ def _get_cfg() -> dict[str, Any]:
     global _cfg
     if _cfg is None:
         try:
-            _cfg = ConfigLoader().load("common.toml", "agent.toml")
+            _cfg = ConfigLoader().load_all()
         except Exception as e:
             logging.getLogger(__name__).warning(f"Config load failed: {e}")
             _cfg = {}
@@ -133,8 +133,22 @@ class AgentConfig:
     context_token_limit: int = 0
     # Number of most-recent turns to protect from compression
     history_protect_turns: int = 2
-    # Enable Long-term/Semantic/Task memory layer
+    # Enable persistent semantic memory layer
     use_memory_layer: bool = False
+    # Directory for JSONL memory source-of-truth files
+    memory_jsonl_dir: str = "/opt/llm/memory"
+    # Max semantic entries injected at SessionStart
+    memory_max_inject_semantic: int = 5
+    # Max episodic entries injected per UserPromptSubmit
+    memory_max_inject_episodic: int = 3
+    # Minimum importance score for entries to be injected (0.0–1.0)
+    memory_min_importance: float = 0.3
+    # Phase 2 memory: enable embedding generation and KNN search
+    memory_embed_enabled: bool = False
+    # Dimension of embedding vectors; must match the vec0 schema (default 384)
+    memory_embed_dim: int = 384
+    # L2 distance threshold for deduplication; entries closer than this are linked
+    memory_dedup_threshold: float = 0.3
     # Phase 2: OpenTelemetry observability
     # Enable OpenTelemetry span collection
     otel_enabled: bool = False
@@ -367,6 +381,13 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
         context_token_limit=int(cfg.get("context_token_limit", 0)),
         history_protect_turns=int(cfg.get("history_protect_turns", 2)),
         use_memory_layer=bool(cfg.get("use_memory_layer", False)),
+        memory_jsonl_dir=str(cfg.get("memory_jsonl_dir", "/opt/llm/memory")),
+        memory_max_inject_semantic=int(cfg.get("memory_max_inject_semantic", 5)),
+        memory_max_inject_episodic=int(cfg.get("memory_max_inject_episodic", 3)),
+        memory_min_importance=float(cfg.get("memory_min_importance", 0.3)),
+        memory_embed_enabled=bool(cfg.get("memory_embed_enabled", False)),
+        memory_embed_dim=int(cfg.get("memory_embed_dim", 384)),
+        memory_dedup_threshold=float(cfg.get("memory_dedup_threshold", 0.3)),
         otel_enabled=bool(cfg.get("otel_enabled", False)),
         otel_endpoint=cfg.get("otel_endpoint", ""),
         otel_service_name=cfg.get("otel_service_name", "llm-agent"),

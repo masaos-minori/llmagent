@@ -38,6 +38,36 @@ class ConfigLoader:
             merged.update(filtered)
         return merged
 
+    def load_all(self) -> dict[str, Any]:
+        """Load all config files from config/ directory."""
+        # Load common config files in order of dependency
+        # First load the base config files
+        base_files = [
+            "llm.toml",
+            "http.toml",
+            "rag.toml",
+            "context.toml",
+            "tools.toml",
+            "memory.toml",
+            "otel.toml",
+            "security.toml",
+            "system_prompts.toml",
+            "mcp_servers.toml",
+            "tools_definitions.toml",
+        ]
+
+        merged: dict[str, Any] = {}
+        for name in base_files:
+            try:
+                data = self._load_single(name)
+                filtered = self._filter_meta_keys(data)
+                merged.update(filtered)
+            except ValueError:
+                # If a config file doesn't exist, continue with others
+                logger.debug(f"Config file not found: {name}")
+                continue
+        return merged
+
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
@@ -84,3 +114,9 @@ class ConfigLoader:
     def _filter_meta_keys(data: dict[str, Any]) -> dict[str, Any]:
         """Exclude keys that start with '_' (documentation metadata)."""
         return {k: v for k, v in data.items() if not k.startswith("_")}
+
+
+def get_config(name: str) -> dict[str, Any]:
+    """Convenience wrapper: load a single TOML config by base name or file name."""
+    toml_name = name if name.endswith(".toml") else f"{name}.toml"
+    return ConfigLoader().load(toml_name)

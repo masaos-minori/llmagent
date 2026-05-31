@@ -27,6 +27,8 @@ class McpServerConfig:
     tool_names: list[str] = field(
         default_factory=list
     )  # explicit tool routing; [] = static fallback
+    auth_token: str = ""  # Bearer token sent by ToolExecutor; "" = auth disabled
+    role: str = ""  # human-readable role label shown in /mcp status
 
     def __post_init__(self) -> None:
         if self.transport not in ("http", "stdio"):
@@ -72,6 +74,8 @@ def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
                 working_dir=v.get("working_dir", ""),
                 env=dict(v.get("env", {})),
                 tool_names=list(v.get("tool_names", [])),
+                auth_token=v.get("auth_token", ""),
+                role=v.get("role", ""),
             )
             for key, v in raw.items()
         }

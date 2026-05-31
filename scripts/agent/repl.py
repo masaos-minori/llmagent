@@ -25,6 +25,7 @@ AgentREPL responsibilities:
 
 import asyncio
 from pathlib import Path
+from typing import Any
 
 import httpx
 import shared.plugin_registry as plugin_registry
@@ -176,13 +177,15 @@ class AgentREPL:
             else:
                 await self._orchestrator.handle_turn(line)
 
-    def _init_components(self) -> None:
-        """Instantiate and inject all components into AgentContext."""
-        ctx = self._ctx
+    def _init_audit_logger(self, ctx: AgentContext) -> None:
+        """Initialize audit logger."""
         # Audit logger writes JSON-lines turn events; structured_log=True forces JSON format
         ctx.services.audit_logger = Logger(
             "audit", ctx.cfg.audit_log_file, structured_log=True
         )
+
+    def _init_llm_client(self, ctx: AgentContext) -> None:
+        """Initialize LLM client."""
 
         def _on_llm_usage(prompt_tokens: int, completion_tokens: int) -> None:
             ctx.stat_input_tokens = (ctx.stat_input_tokens or 0) + prompt_tokens
@@ -203,6 +206,10 @@ class AgentREPL:
             llm_stream_retry_on_heartbeat_timeout=ctx.cfg.llm_stream_retry_on_heartbeat_timeout,
             llm_stream_retry_on_malformed_chunk=ctx.cfg.llm_stream_retry_on_malformed_chunk,
         )
+
+    def _init_tool_executor(self, ctx: AgentContext) -> None:
+        """Initialize tool executor."""
+        assert ctx.services.http is not None
         ctx.services.tools = ToolExecutor(
             ctx.services.http,
             cache_ttl=ctx.cfg.tool_cache_ttl,
@@ -217,6 +224,10 @@ class AgentREPL:
         )
         ctx.services.lifecycle = lifecycle
         ctx.services.tools.set_lifecycle(lifecycle)
+
+    def _init_history_manager(self, ctx: AgentContext) -> None:
+        """Initialize history manager."""
+        assert ctx.services.http is not None
         ctx.services.hist_mgr = HistoryManager(
             ctx.services.http,
             llm_url=ctx.cfg.llm_url,
@@ -228,27 +239,57 @@ class AgentREPL:
             protect_turns=ctx.cfg.history_protect_turns,
             token_limit=ctx.cfg.context_token_limit,
         )
+
+    def _init_rag_pipeline(self, ctx: AgentContext) -> None:
+        """Initialize RAG pipeline."""
+        assert ctx.services.http is not None
         ctx.services.rag = RagPipeline(
             ctx.services.http,
             ctx.cfg,
             on_status=self._view.rag_status,
             on_clear=self._view.rag_clear,
         )
+
+    def _init_memory_layer(self, ctx: AgentContext) -> None:
+        """Initialize memory layer."""
         # Inject MemoryLayer when use_memory_layer=True; otherwise leave ctx.services.memory=None
         if ctx.cfg.use_memory_layer:
-            from agent.memory.layer import MemoryLayer
-            from agent.memory.store import MemoryStore
+            from agent.memory.jsonl_store import JsonlMemoryStore  # noqa: PLC0415
+            from agent.memory.layer import MemoryLayer  # noqa: PLC0415
+            from agent.memory.retriever import MemoryRetriever  # noqa: PLC0415
+            from agent.memory.store import MemoryStore  # noqa: PLC0415
 
-            ctx.services.memory = MemoryLayer(MemoryStore())
+            ctx.services.memory = MemoryLayer(
+                store=MemoryStore(),
+                retriever=MemoryRetriever(),
+                jsonl=JsonlMemoryStore(ctx.cfg.memory_jsonl_dir + "/memories.jsonl"),
+                max_inject_semantic=ctx.cfg.memory_max_inject_semantic,
+                max_inject_episodic=ctx.cfg.memory_max_inject_episodic,
+                min_importance=ctx.cfg.memory_min_importance,
+                http=ctx.services.http,
+                embed_url=ctx.cfg.embed_url,
+                embed_enabled=ctx.cfg.memory_embed_enabled,
+                dedup_threshold=ctx.cfg.memory_dedup_threshold,
+            )
             logger.info("MemoryLayer initialised (use_memory_layer=True)")
 
+    def _init_command_registry(self, ctx: AgentContext) -> None:
+        """Initialize command registry."""
         self._cmds = CommandRegistry(ctx)
+
+    def _init_tracer(self, ctx: AgentContext) -> Any:
+        """Initialize OTel tracer."""
         # Build OTel tracer (or NoOp stand-in when otel_enabled=False)
-        tracer = build_tracer(
+        return build_tracer(
             enabled=ctx.cfg.otel_enabled,
             service_name=ctx.cfg.otel_service_name,
             otlp_endpoint=ctx.cfg.otel_endpoint,
         )
+
+    def _init_orchestrator(self, ctx: AgentContext) -> None:
+        """Initialize orchestrator."""
+        assert self._cmds is not None
+        tracer = self._init_tracer(ctx)
         self._orchestrator = Orchestrator(
             ctx,
             self._cmds,
@@ -258,11 +299,26 @@ class AgentREPL:
             tracer=tracer,
         )
 
+    def _init_plugin_registry(self) -> None:
+        """Initialize plugin registry."""
         # Load plugin files from plugins/ directory adjacent to scripts/
         plugin_dir = Path(__file__).parent.parent.parent / "plugins"
         n_plugins = plugin_registry.load_plugins(plugin_dir)
         if n_plugins:
             logger.info(f"Loaded {n_plugins} plugin(s) from {plugin_dir}")
+
+    def _init_components(self) -> None:
+        """Instantiate and inject all components into AgentContext."""
+        ctx = self._ctx
+        self._init_audit_logger(ctx)
+        self._init_llm_client(ctx)
+        self._init_tool_executor(ctx)
+        self._init_history_manager(ctx)
+        self._init_rag_pipeline(ctx)
+        self._init_memory_layer(ctx)
+        self._init_command_registry(ctx)
+        self._init_orchestrator(ctx)
+        self._init_plugin_registry()
 
     async def _start_stdio_servers(self) -> None:
         """Spawn subprocesses for persistent stdio MCP servers at agent startup.
@@ -277,7 +333,12 @@ class AgentREPL:
                 continue
             if cfg.startup_mode != "persistent":
                 continue  # ondemand servers start on first tool call
-            transport = StdioTransport(cfg.cmd, server_key=key)
+            transport = StdioTransport(
+                cfg.cmd,
+                server_key=key,
+                working_dir=cfg.working_dir,
+                env=cfg.env or None,
+            )
             try:
                 await transport.start()
                 ctx.services.tools.set_transport(key, transport)
@@ -330,11 +391,28 @@ class AgentREPL:
                         f"- {t}" for t in note_texts
                     )
                     initial_prompt = initial_prompt + notes_block
+            # SessionStart: inject top semantic memories into system prompt
+            if ctx.services.memory is not None:
+                memory_snippets = ctx.services.memory.on_session_start(
+                    ctx.session.session_id
+                )
+                if memory_snippets:
+                    memory_block = "\n\n[Relevant memories]\n" + "\n".join(
+                        f"- {s}" for s in memory_snippets
+                    )
+                    initial_prompt = initial_prompt + memory_block
             ctx.history = [{"role": "system", "content": initial_prompt}]
             if ctx.cfg.mcp_watchdog_interval > 0:
                 _watchdog_task = asyncio.create_task(self._watchdog_loop())
             await self._repl_loop()
         finally:
+            # Stop: extract and persist memories before compression or resource close
+            if ctx.services.memory is not None:
+                await ctx.services.memory.on_session_stop(
+                    session_id=ctx.session.session_id,
+                    history=ctx.history,
+                    turn_id=ctx.current_turn_id,
+                )
             if _watchdog_task is not None:
                 _watchdog_task.cancel()
                 try:

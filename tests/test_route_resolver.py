@@ -30,6 +30,7 @@ class TestStaticFallbackRouting:
             "web_search": _http("web_search"),
             "github": _http("github"),
             "rag_pipeline": _http("rag_pipeline"),
+            "cicd": _http("cicd"),
         }
         self.resolver = ToolRouteResolver(configs)
 
@@ -68,6 +69,15 @@ class TestStaticFallbackRouting:
     def test_rag_tools(self) -> None:
         for name in ["rag_run_pipeline", "rag_debug_pipeline"]:
             assert self.resolver.resolve(name) == "rag_pipeline", name
+
+    def test_cicd_tools(self) -> None:
+        for name in [
+            "trigger_workflow",
+            "get_workflow_runs",
+            "get_workflow_status",
+            "get_workflow_logs",
+        ]:
+            assert self.resolver.resolve(name) == "cicd", name
 
     def test_unknown_tool_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown tool"):

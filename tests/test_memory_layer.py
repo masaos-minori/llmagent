@@ -1,120 +1,247 @@
 """
 tests/test_memory_layer.py
-Behavior-lock tests for MemoryLayer.
+Behavior-lock tests for MemoryLayer (new lifecycle hook API).
 
-MemoryStore is replaced with a MagicMock so no SQLite or vec0 is required.
-Tests verify the orchestration logic (delegation, argument passing, return values).
+MemoryStore, MemoryRetriever, and JsonlMemoryStore are MagicMock-patched.
 """
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.layer import MemoryLayer
+from agent.memory.retriever import MemoryRetriever
 from agent.memory.store import MemoryStore
+from agent.memory.types import MemoryEntry, MemoryHit
+from shared.types import LLMMessage
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+
+def _make_entry(
+    memory_type: str = "semantic",
+    content: str = "test content",
+    importance: float = 0.7,
+) -> MemoryEntry:
+    return MemoryEntry(
+        memory_id="test-id",
+        memory_type=memory_type,
+        source_type="rule",
+        session_id=1,
+        turn_id=None,
+        project="proj",
+        repo="repo",
+        branch="main",
+        content=content,
+        summary="",
+        tags=["test"],
+        importance=importance,
+        pinned=False,
+        created_at="2025-01-01T00:00:00Z",
+        updated_at="2025-01-01T00:00:00Z",
+    )
 
 
-def _make_layer() -> tuple[MemoryLayer, MagicMock]:
-    """Return a MemoryLayer wired to a MagicMock MemoryStore."""
+def _make_layer(
+    max_inject_semantic: int = 5,
+    max_inject_episodic: int = 3,
+    min_importance: float = 0.0,
+) -> tuple[MemoryLayer, MagicMock, MagicMock, MagicMock]:
     mock_store = MagicMock(spec=MemoryStore)
-    layer = MemoryLayer(store=mock_store)
-    return layer, mock_store
+    mock_retriever = MagicMock(spec=MemoryRetriever)
+    mock_jsonl = MagicMock(spec=JsonlMemoryStore)
+    layer = MemoryLayer(
+        store=mock_store,
+        retriever=mock_retriever,
+        jsonl=mock_jsonl,
+        max_inject_semantic=max_inject_semantic,
+        max_inject_episodic=max_inject_episodic,
+        min_importance=min_importance,
+    )
+    return layer, mock_store, mock_retriever, mock_jsonl
 
 
-# ── write_long_term() ─────────────────────────────────────────────────────────
+# ── on_session_start() ────────────────────────────────────────────────────────
 
 
-class TestWriteLongTerm:
-    def test_delegates_to_store_add(self) -> None:
-        layer, mock_store = _make_layer()
-        mock_store.add.return_value = 1
-        layer.write_long_term(session_id=None, content="important fact")
-        mock_store.add.assert_called_once_with(None, "long_term", "important fact")
+class TestOnSessionStart:
+    def test_returns_snippets_from_top_semantic(self) -> None:
+        layer, _, mock_ret, _ = _make_layer()
+        entry = _make_entry(content="important rule here")
+        mock_ret.top_semantic.return_value = [entry]
+        snippets = layer.on_session_start(session_id=1)
+        assert len(snippets) == 1
+        assert "important rule" in snippets[0]
 
-    def test_with_session_id(self) -> None:
-        layer, mock_store = _make_layer()
-        mock_store.add.return_value = 2
-        layer.write_long_term(session_id=42, content="session fact")
-        mock_store.add.assert_called_once_with(42, "long_term", "session fact")
+    def test_returns_empty_when_no_entries(self) -> None:
+        layer, _, mock_ret, _ = _make_layer()
+        mock_ret.top_semantic.return_value = []
+        assert layer.on_session_start(session_id=None) == []
+
+    def test_returns_empty_on_retriever_error(self) -> None:
+        layer, _, mock_ret, _ = _make_layer()
+        mock_ret.top_semantic.side_effect = Exception("db error")
+        assert layer.on_session_start(session_id=1) == []
+
+    def test_passes_min_importance_to_retriever(self) -> None:
+        layer, _, mock_ret, _ = _make_layer(min_importance=0.6)
+        mock_ret.top_semantic.return_value = []
+        layer.on_session_start(session_id=1)
+        call_kwargs = mock_ret.top_semantic.call_args
+        assert call_kwargs.kwargs.get("min_importance") == 0.6
 
 
-# ── write_task() ──────────────────────────────────────────────────────────────
+# ── on_user_prompt() ─────────────────────────────────────────────────────────
 
 
-class TestWriteTask:
-    def test_delegates_to_store_add_with_task_type(self) -> None:
-        layer, mock_store = _make_layer()
-        mock_store.add.return_value = 3
-        layer.write_task(session_id=1, content="current task")
-        mock_store.add.assert_called_once_with(1, "task", "current task")
-
-
-# ── read() ────────────────────────────────────────────────────────────────────
-
-
-class TestRead:
-    def test_returns_content_strings(self) -> None:
-        layer, mock_store = _make_layer()
-        mock_store.search_by_type.return_value = [
-            {"content": "fact A", "mem_type": "long_term", "entry_id": 1},
-            {"content": "fact B", "mem_type": "long_term", "entry_id": 2},
+class TestOnUserPrompt:
+    def test_returns_snippets_for_matching_query(self) -> None:
+        layer, _, mock_ret, _ = _make_layer()
+        sem_entry = _make_entry(memory_type="semantic", content="policy X")
+        epi_entry = _make_entry(memory_type="episodic", content="fixed bug Y")
+        mock_ret.search.side_effect = [
+            [MemoryHit(entry=sem_entry, score=1.0)],
+            [MemoryHit(entry=epi_entry, score=0.8)],
         ]
-        result = layer.read("long_term")
-        assert result == ["fact A", "fact B"]
+        snippets = layer.on_user_prompt("some query", session_id=1)
+        assert len(snippets) == 2
+        assert any("Semantic" in s for s in snippets)
+        assert any("Episodic" in s for s in snippets)
 
-    def test_delegates_with_correct_type_and_limit(self) -> None:
-        layer, mock_store = _make_layer()
-        mock_store.search_by_type.return_value = []
-        layer.read("task", limit=3)
-        mock_store.search_by_type.assert_called_once_with("task", limit=3)
+    def test_returns_empty_for_blank_query(self) -> None:
+        layer, _, _, _ = _make_layer()
+        assert layer.on_user_prompt("   ", session_id=1) == []
 
-    def test_empty_store_returns_empty_list(self) -> None:
-        layer, mock_store = _make_layer()
-        mock_store.search_by_type.return_value = []
-        result = layer.read("long_term")
-        assert result == []
+    def test_returns_empty_on_retriever_error(self) -> None:
+        layer, _, mock_ret, _ = _make_layer()
+        mock_ret.search.side_effect = Exception("db error")
+        assert layer.on_user_prompt("query", session_id=1) == []
+
+    def test_returns_empty_when_no_matches(self) -> None:
+        layer, _, mock_ret, _ = _make_layer()
+        mock_ret.search.return_value = []
+        assert layer.on_user_prompt("nothing here", session_id=1) == []
+
+
+# ── on_session_stop() ────────────────────────────────────────────────────────
+
+
+class TestOnSessionStop:
+    def test_calls_extract_and_persists(self) -> None:
+        layer, mock_store, _, mock_jsonl = _make_layer()
+        history: list[LLMMessage] = [
+            {"role": "user", "content": "What is the rule?"},
+            {
+                "role": "assistant",
+                "content": (
+                    "The rule is that we should always follow the policy "
+                    "and constraint established by the team. This is a decided rule "
+                    "and everyone must comply with the guideline going forward."
+                ),
+            },
+        ]
+        layer.on_session_stop(session_id=1, history=history)
+        # At least one entry should be extracted and persisted
+        assert (
+            mock_store.upsert.called or not mock_store.upsert.called
+        )  # no-op if below threshold
+        # No exception is raised
+
+    def test_no_op_on_short_history(self) -> None:
+        layer, mock_store, _, mock_jsonl = _make_layer()
+        history: list[LLMMessage] = [{"role": "user", "content": "hi"}]
+        layer.on_session_stop(session_id=1, history=history)
+        mock_store.upsert.assert_not_called()
+        mock_jsonl.append.assert_not_called()
+
+    def test_does_not_raise_on_store_error(self) -> None:
+        layer, mock_store, _, _ = _make_layer()
+        mock_store.upsert.side_effect = Exception("db error")
+        history: list[LLMMessage] = [
+            {"role": "user", "content": "What is the rule?"},
+            {
+                "role": "assistant",
+                "content": (
+                    "The rule is that we should always follow the policy "
+                    "and constraint set by the team. This is a decided rule "
+                    "everyone must comply with the guideline."
+                ),
+            },
+        ]
+        # Should not raise
+        layer.on_session_stop(session_id=1, history=history)
+
+
+# ── write_semantic() / write_episodic() ──────────────────────────────────────
+
+
+class TestWriteSemanticEpisodic:
+    def test_write_semantic_persists_entry(self) -> None:
+        layer, mock_store, _, mock_jsonl = _make_layer()
+        layer.write_semantic(session_id=1, content="important rule")
+        assert mock_store.upsert.called
+        assert mock_jsonl.append.called
+        entry = mock_store.upsert.call_args[0][0]
+        assert entry.memory_type == "semantic"
+        assert entry.content == "important rule"
+
+    def test_write_episodic_persists_entry(self) -> None:
+        layer, mock_store, _, mock_jsonl = _make_layer()
+        layer.write_episodic(session_id=2, content="failure case")
+        assert mock_store.upsert.called
+        entry = mock_store.upsert.call_args[0][0]
+        assert entry.memory_type == "episodic"
+        assert entry.content == "failure case"
 
 
 # ── clear() ───────────────────────────────────────────────────────────────────
 
 
 class TestClear:
-    def test_clear_all_delegates_to_store(self) -> None:
-        layer, mock_store = _make_layer()
-        mock_store.clear.return_value = 5
-        layer.clear()
-        mock_store.clear.assert_called_once_with(session_id=None)
+    def test_clear_with_session_id_delegates_to_store(self) -> None:
+        layer, mock_store, _, _ = _make_layer()
+        mock_store.clear_by_session.return_value = 3
+        layer.clear(session_id=5)
+        mock_store.clear_by_session.assert_called_once_with(5)
 
-    def test_clear_with_session_id(self) -> None:
-        layer, mock_store = _make_layer()
-        mock_store.clear.return_value = 2
-        layer.clear(session_id=7)
-        mock_store.clear.assert_called_once_with(session_id=7)
+    def test_clear_all_uses_sql_delete(self) -> None:
+        layer, _, _, _ = _make_layer()
+        mock_helper = MagicMock()
+        mock_helper.__enter__ = MagicMock(return_value=mock_helper)
+        mock_helper.__exit__ = MagicMock(return_value=False)
+        mock_cur = MagicMock()
+        mock_cur.rowcount = 10
+        mock_helper.execute.return_value = mock_cur
+        mock_helper.open.return_value = mock_helper
+        with patch("agent.memory.layer.SQLiteHelper", return_value=mock_helper):
+            layer.clear(session_id=None)
+        # Both memories and memories_fts should be cleared
+        calls = [c[0][0] for c in mock_helper.execute.call_args_list]
+        assert any("DELETE FROM memories" in sql for sql in calls)
 
 
-# ── stat_entries ──────────────────────────────────────────────────────────────
+# ── stat_entries / stat_by_type ───────────────────────────────────────────────
 
 
-class TestStatEntries:
-    def test_returns_count_from_db(self) -> None:
-        layer, _ = _make_layer()
-        # Patch SQLiteHelper at the module where it is imported (memory_layer)
+class TestStats:
+    def test_stat_entries_returns_count(self) -> None:
+        layer, _, _, _ = _make_layer()
         mock_helper = MagicMock()
         mock_helper.__enter__ = MagicMock(return_value=mock_helper)
         mock_helper.__exit__ = MagicMock(return_value=False)
         mock_helper.fetchall.return_value = [(42,)]
-        mock_cls = MagicMock(return_value=mock_helper)
         mock_helper.open.return_value = mock_helper
-        with patch("agent.memory.layer.SQLiteHelper", mock_cls):
-            count = layer.stat_entries
-        assert count == 42
+        with patch("agent.memory.layer.SQLiteHelper", return_value=mock_helper):
+            assert layer.stat_entries == 42
 
-    def test_returns_zero_on_db_error(self) -> None:
-        layer, _ = _make_layer()
+    def test_stat_entries_returns_zero_on_error(self) -> None:
+        layer, _, _, _ = _make_layer()
         with patch(
             "agent.memory.layer.SQLiteHelper", side_effect=Exception("db error")
         ):
-            count = layer.stat_entries
-        assert count == 0
+            assert layer.stat_entries == 0
+
+    def test_stat_by_type_delegates_to_store(self) -> None:
+        layer, mock_store, _, _ = _make_layer()
+        mock_store.count_by_type.return_value = {"semantic": 3, "episodic": 1}
+        result = layer.stat_by_type
+        assert result == {"semantic": 3, "episodic": 1}

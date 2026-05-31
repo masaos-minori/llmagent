@@ -14,9 +14,11 @@ import pytest
 from agent.config import AgentConfig, build_agent_config
 from agent.repl_tool_exec import (
     _audit_approval,
+    _audit_tool_exec,
     _build_preview,
     _classify_risk,
     check_approval,
+    execute_one_tool_call,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -493,7 +495,7 @@ class TestCheckApprovalDryRun:
         ctx = _make_ctx(cfg=cfg)
         ctx.services.tools = MagicMock()
         ctx.services.tools.execute = AsyncMock(
-            return_value=("Dry-run: /tmp/f (5 bytes) [new file]", False)
+            return_value=("Dry-run: /tmp/f (5 bytes) [new file]", False, "")
         )
 
         printed: list[str] = []
@@ -620,3 +622,82 @@ class TestCheckApprovalGitHubAllowlist:
             )
 
         assert result is True
+
+
+# ── _audit_tool_exec() ────────────────────────────────────────────────────────
+
+
+class TestAuditToolExec:
+    def test_writes_to_audit_logger_when_conditions_met(self) -> None:
+        ctx = _make_ctx()
+        ctx.services.audit_logger = MagicMock()
+        ctx.cfg.masked_fields = []
+        ctx.current_turn_id = "turn-abc"
+
+        _audit_tool_exec(ctx, "read_text_file", {"path": "/tmp/f"}, False, "req-123")
+
+        ctx.services.audit_logger.info.assert_called_once()
+        logged = ctx.services.audit_logger.info.call_args[0][0]
+        assert "tool_exec" in logged
+        assert "req-123" in logged
+
+    def test_skips_when_audit_logger_is_none(self) -> None:
+        ctx = _make_ctx()
+        ctx.services.audit_logger = None
+        # No error raised even though logger is None
+        _audit_tool_exec(ctx, "read_text_file", {}, False, "req-123")
+
+    def test_skips_when_mcp_request_id_is_empty(self) -> None:
+        ctx = _make_ctx()
+        ctx.services.audit_logger = MagicMock()
+        _audit_tool_exec(ctx, "read_text_file", {}, False, "")
+        ctx.services.audit_logger.info.assert_not_called()
+
+
+# ── execute_one_tool_call() ───────────────────────────────────────────────────
+
+
+class TestExecuteOneToolCall:
+    @pytest.mark.asyncio
+    async def test_unpacks_three_tuple_from_execute(self) -> None:
+        ctx = _make_ctx()
+        ctx.services.tools = MagicMock()
+        ctx.services.tools.execute = AsyncMock(return_value=("result text", False, ""))
+        ctx.services.audit_logger = None
+        ctx.cfg.use_tool_summarize = False
+        ctx.cfg.tool_result_max_llm_chars = 4000
+        ctx.cfg.masked_fields = []
+
+        tc = {
+            "id": "call_1",
+            "function": {"name": "read_text_file", "arguments": '{"path": "/tmp/f"}'},
+        }
+        tc_id, name, args, full_text, is_error, llm_text = await execute_one_tool_call(
+            ctx, tc, 0
+        )
+
+        assert tc_id == "call_1"
+        assert name == "read_text_file"
+        assert full_text == "result text"
+        assert not is_error
+        ctx.services.tools.execute.assert_awaited_once_with(
+            "read_text_file", {"path": "/tmp/f"}
+        )
+
+    @pytest.mark.asyncio
+    async def test_audit_tool_exec_called_with_x_request_id(self) -> None:
+        ctx = _make_ctx()
+        ctx.services.tools = MagicMock()
+        ctx.services.tools.execute = AsyncMock(return_value=("ok", False, "req-999"))
+        ctx.services.audit_logger = MagicMock()
+        ctx.cfg.use_tool_summarize = False
+        ctx.cfg.tool_result_max_llm_chars = 4000
+        ctx.cfg.masked_fields = []
+        ctx.current_turn_id = "turn-x"
+
+        tc = {"id": "call_2", "function": {"name": "read_text_file", "arguments": "{}"}}
+        await execute_one_tool_call(ctx, tc, 0)
+
+        ctx.services.audit_logger.info.assert_called_once()
+        logged = ctx.services.audit_logger.info.call_args[0][0]
+        assert "req-999" in logged

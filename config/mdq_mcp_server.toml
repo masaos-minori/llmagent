@@ -1,0 +1,79 @@
+# Markdown Context Compression Engine MCP Server Configuration
+
+# Database path
+db_path = "/opt/llm/db/mdq.sqlite"
+
+# Maximum number of results to return from search
+max_search_results = 100
+
+# Maximum number of characters to include in a snippet
+max_snippet_chars = 500
+
+# Maximum number of characters to include in a chunk
+max_chunk_chars = 10000
+
+# Maximum number of characters to include in a file
+max_file_chars = 100000
+
+# Maximum number of seconds to wait for a search operation
+search_timeout_sec = 30
+
+# Maximum number of seconds to wait for a file read operation
+file_read_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file write operation
+file_write_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file delete operation
+file_delete_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file list operation
+file_list_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file info operation
+file_info_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file search operation
+file_search_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file grep operation
+file_grep_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file tree operation
+file_tree_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file directory tree operation
+file_directory_tree_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file directory list operation
+file_directory_list_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file directory info operation
+file_directory_info_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file directory search operation
+file_directory_search_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file directory grep operation
+file_directory_grep_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file directory tree operation
+file_directory_tree_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file directory directory tree operation
+file_directory_directory_tree_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file directory directory list operation
+file_directory_directory_list_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file directory directory info operation
+file_directory_directory_info_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file directory directory search operation
+file_directory_directory_search_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file directory directory grep operation
+file_directory_directory_grep_timeout_sec = 10
+
+# Maximum number of seconds to wait for a file directory directory directory tree operation
+file_directory_directory_directory_tree_timeout_sec = 10

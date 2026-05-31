@@ -8,7 +8,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from shared.tool_constants import DELETE_TOOLS, RAG_TOOLS, READ_TOOLS, WRITE_TOOLS
+from shared.tool_constants import (
+    CICD_TOOLS,
+    DELETE_TOOLS,
+    MDQ_TOOLS,
+    RAG_TOOLS,
+    READ_TOOLS,
+    WRITE_TOOLS,
+)
 
 if TYPE_CHECKING:
     from shared.mcp_config import McpServerConfig
@@ -47,4 +54,8 @@ class ToolRouteResolver:
             return "github"
         if tool_name in RAG_TOOLS:
             return "rag_pipeline"
+        if tool_name in CICD_TOOLS:
+            return "cicd"
+        if tool_name in MDQ_TOOLS:
+            return "mdq"
         raise ValueError(f"Unknown tool: {tool_name!r}")

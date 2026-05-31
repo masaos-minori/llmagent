@@ -2,7 +2,7 @@
 
 ## 1. 機能概要
 
-`config/common.toml` と `config/agent.toml` を遅延ロードし、`AgentREPL` と各コンポーネントが共用する設定 dataclass を提供。
+`config/common.toml` と複数の設定ファイル（`config/llm.toml`, `config/http.toml`, `config/rag.toml`, `config/context.toml`, `config/tools.toml`, `config/memory.toml`, `config/otel.toml`, `config/security.toml`, `config/system_prompts.toml`, `config/mcp_servers.toml`, `config/tools_definitions.toml`）を遅延ロードし、`AgentREPL` と各コンポーネントが共用する設定 dataclass を提供。
 
 - モジュールレベル定数は `_SCRIPTS_DIR` / `_CONFIG_DIR` (Path) のみ。他は全て `AgentConfig` フィールドに集約済み。
 - `_cfg: dict | None = None` → `_get_cfg()` (try/except 付きキャッシュ) で遅延ロード。
@@ -23,9 +23,11 @@ class McpServerConfig:
     startup_mode: str = "persistent"   # "persistent" | "ondemand"
     healthcheck_mode: str = ""  # "http" | "process" | "ping_tool"; "" = 自動推論
     idle_timeout_sec: int = 0   # ondemand アイドル自動停止まで秒数; 0 = 無効
-    working_dir: str = ""       # stdio サブプロセス作業ディレクトリ; "" = 継承
-    env: dict[str, str] = field(default_factory=dict)  # stdio サブプロセスに注入する環境変数
-    tool_names: list[str] = []  # 明示的ツール名リスト; [] = 静的プレフィックスルーティングに fallback
+    working_dir: str = ""       # stdio サブプロセス作業ディレクトリ; "" = 親プロセスの cwd を継承
+    env: dict[str, str] = field(default_factory=dict)  # stdio サブプロセスに追加注入する環境変数; 空 = 継承
+    tool_names: list[str] = field(default_factory=list)  # 明示的ツール名リスト; [] = 静的プレフィックスルーティングに fallback
+    auth_token: str = ""        # HttpTransport が送る Bearer トークン; "" = 認証無効
+    role: str = ""              # /mcp status に表示する人間可読なロールラベル
 ```
 
 `__post_init__` でバリデーション:
@@ -38,6 +40,12 @@ class McpServerConfig:
 **起動モード:**
 - `persistent`: エージェント起動時に `_start_stdio_servers()` が即座に `StdioTransport.start()` を呼ぶ。HTTP サーバはプロセス管理不要のため常にこのモードで動作。
 - `ondemand`: 初回ツール呼び出し時に `ServerLifecycleManager.ensure_ready()` が起動。並行呼び出しは per-server `asyncio.Lock` + double-checked locking で 1 回のみ起動。
+
+**`working_dir` / `env` の動作 (stdio のみ):**
+- `working_dir = ""` (デフォルト): `StdioTransport.start()` は `cwd=None` でサブプロセスを起動 — 親プロセスのカレントディレクトリを継承する
+- `working_dir = "/some/path"`: `start()` 呼び出し時に `Path(working_dir).is_dir()` を事前確認し、存在しない場合は `ValueError` を送出する。存在する場合は `cwd=working_dir` をサブプロセスに渡す
+- `env = {}` (デフォルト): `env=None` で起動 — OS 環境変数をそのまま継承する
+- `env = {"KEY": "VAL"}`: `start()` 呼び出し時に `{**os.environ, **env}` でマージし `env=merged` を渡す。マージは `start()` 実行時点の `os.environ` スナップショットを使用
 
 **tool_names によるルーティング:**
 - `tool_names` に名前を列挙した場合、`ToolRouteResolver` はそれらのツールをこのサーバへルーティングする。

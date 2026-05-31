@@ -16,6 +16,13 @@ description: |
 Restructure Python code safely and verifiably across six sequential phases.
 Every phase produces a gate condition that must pass before the next phase begins.
 
+Refactoring targets four quality dimensions without changing external interfaces:
+
+- **Readability**: reduce cognitive load per function — extract helpers, clarify names, remove noise.
+- **Maintainability**: isolate responsibilities, eliminate duplication, keep functions short and single-purpose.
+- **Bug risk reduction**: replace ad-hoc loops with purpose-built helpers, guard against off-by-one and None-propagation, prefer explicit over implicit control flow.
+- **Type safety**: tighten type annotations, replace `Any` with concrete types where possible, eliminate unguarded attribute access on optional values.
+
 ## Primary goals
 
 - preserve observable behavior across all refactoring steps (characterization guarantee)

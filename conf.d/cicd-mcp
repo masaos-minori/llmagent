@@ -1,0 +1,16 @@
+# /etc/conf.d/cicd-mcp
+# cicd-mcp サービスの環境変数設定ファイル
+#
+# GitHub Personal Access Token (PAT) を設定する。
+# トークンなしでも動作するが API レート制限が 60 req/時間に制限される。
+# 認証済みの場合は 5000 req/時間。
+#
+# [トークンの取得方法]
+#   GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
+#   必要なスコープ (GitHub Actions 操作用):
+#     Actions (read/write) — ワークフロートリガー・ログ取得に必要
+#     Contents (read)      — リポジトリアクセスに必要
+#
+# 設定後: rc-service cicd-mcp restart
+
+GITHUB_TOKEN=""

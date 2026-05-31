@@ -245,6 +245,32 @@ def _audit_approval(
     )
 
 
+def _audit_tool_exec(
+    ctx: AgentContext,
+    tool_name: str,
+    args: dict,
+    is_error: bool,
+    mcp_request_id: str,
+) -> None:
+    """Write a tool_exec event with mcp_request_id to the audit log."""
+    if ctx.services.audit_logger is None or not mcp_request_id:
+        return
+    masked = mask_args(args, ctx.cfg.masked_fields)
+    ctx.services.audit_logger.info(
+        orjson.dumps(
+            {
+                "event": "tool_exec",
+                "task_id": ctx.current_turn_id,
+                "tool": tool_name,
+                "mcp_request_id": mcp_request_id,
+                "is_error": is_error,
+                "args_preview": masked,
+                "ts": time.time(),
+            }
+        ).decode()
+    )
+
+
 async def check_approval(ctx: AgentContext, tool_name: str, args: dict) -> bool:
     """Determine whether a tool call may proceed based on risk classification.
 
@@ -280,7 +306,7 @@ async def check_approval(ctx: AgentContext, tool_name: str, args: dict) -> bool:
     # Attempt dry_run for supported tools to enrich the preview
     if tool_name in ctx.cfg.approval_dry_run_tools and ctx.services.tools is not None:
         try:
-            dry_text, _ = await ctx.services.tools.execute(
+            dry_text, _, _x_req = await ctx.services.tools.execute(
                 tool_name, {**args, "dry_run": True}
             )
             preview += f"\n  Dry-run: {dry_text[:300]}"
@@ -326,7 +352,8 @@ async def execute_one_tool_call(
         logger.warning(f"Invalid JSON in tool arguments for {name!r}: {args_str!r}")
         args = {}
 
-    text, is_error = await ctx.services.tools.execute(name, args)
+    text, is_error, x_request_id = await ctx.services.tools.execute(name, args)
+    _audit_tool_exec(ctx, name, args, is_error, x_request_id)
 
     # Decide LLM context text: summarize if enabled and above threshold
     if (

@@ -146,3 +146,31 @@ class TestBuildMcpServers:
         assert s.working_dir == ""
         assert s.env == {}
         assert s.tool_names == []
+        assert s.auth_token == ""
+        assert s.role == ""
+
+    def test_auth_token_and_role_parsed(self) -> None:
+        cfg = {
+            "mcp_servers": {
+                "secure": {
+                    "transport": "http",
+                    "url": "http://127.0.0.1:8000",
+                    "cmd": [],
+                    "openrc_service": "",
+                    "auth_token": "my-secret",
+                    "role": "file_write",
+                }
+            }
+        }
+        result = _build_mcp_servers(cfg)
+        s = result["secure"]
+        assert s.auth_token == "my-secret"
+        assert s.role == "file_write"
+
+    def test_auth_token_default_empty(self) -> None:
+        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "")
+        assert cfg.auth_token == ""
+
+    def test_role_default_empty(self) -> None:
+        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "")
+        assert cfg.role == ""

@@ -2,12 +2,28 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+# Role
+
+- You are a senior engineer. Always respond in Japanese.
+
+# Assistant: Style
+
+- Use concise and simple sentences that are easy for AI to understand.
+- Use half-width alphanumeric characters and symbols. Do not use emojis.
+- Keep responses brief. Use bullet points when appropriate.
+
+# Assistant: Policy
+
+- Separate facts and assumptions clearly. Base answers only on information available in the given context.
+- If any point is ambiguous or unknown, explicitly state "Unknown" and request additional information.
+
 # Global Rules
 
 - Read only necessary skills and docs (minimal context)
 - **Always read `routing.md` immediately after this file** — it maps task type → skills to load AND docs to load
 - Do NOT load all `docs/*.md`; load only what `routing.md`'s "Docs → task mapping" specifies
 - **Do not proceed speculatively on code generation, documentation, or any other task — stop and ask when anything is unclear.**
+- **Do not commit changes without a clear commit message that explains the "why" of the changes.**
 
 ## Context Loader Pattern
 
@@ -62,7 +78,7 @@ pytest -v                                            # full suite
 
 # coverage gate — new/changed lines must hit 90%
 coverage run -m pytest tests/ && coverage xml
-diff-cover coverage.xml --compare-branch=main --fail-under=90
+diff-cover coverage.xml --compare-branch=master --fail-under=90
 
 pre-commit run --all-files             # full gate (run before commit)
 
@@ -80,7 +96,7 @@ Full validation sequence: `rules/toolchain.md`
 
 **Key library choices:** Use `orjson` (not stdlib `json`) for all JSON serialization — `orjson.dumps()` returns `bytes`; call `.decode()` when a `str` is required; use `option=orjson.OPT_SORT_KEYS` / `OPT_INDENT_2` instead of `sort_keys=True` / `indent=2`. Use `httpx` (not `requests`) for HTTP — `httpx.Client` for sync, `httpx.AsyncClient` for async.
 
-**Test coverage:** Unit tests exist for `agent/commands/cmd_config.py`, `agent/commands/cmd_mcp.py`, `agent/session.py`, `agent/repl_tool_exec.py`, `agent/cli_view.py`, `mcp/file/delete_service.py`, `mcp/file/write_service.py`, `mcp/github/service.py`, `agent/history.py`, `shared/llm_client.py`, `agent/memory/layer.py`, `agent/memory/store.py`, `agent/orchestrator.py`, `shared/otel_tracer.py`, `shared/plugin_registry.py`, `rag/utils.py`, `mcp/shell/service.py`, `mcp/rag_pipeline/service.py`, `rag/pipeline.py`, `shared/route_resolver.py`, `agent/lifecycle.py`, `mcp/server.py` (base class), `shared/tool_executor.py` (routing paths). Core module `agent/repl.py` has no tests. Any refactoring task that touches this module must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
+**Test coverage:** Unit tests exist for `agent/commands/cmd_config.py`, `agent/commands/cmd_mcp.py`, `agent/session.py`, `agent/repl_tool_exec.py`, `agent/cli_view.py`, `mcp/file/delete_service.py`, `mcp/file/write_service.py`, `mcp/github/service.py`, `agent/history.py`, `shared/llm_client.py`, `agent/memory/layer.py`, `agent/memory/store.py`, `agent/memory/extract.py`, `agent/memory/retriever.py`, `agent/memory/jsonl_store.py`, `agent/orchestrator.py`, `shared/otel_tracer.py`, `shared/plugin_registry.py`, `rag/utils.py`, `mcp/shell/service.py`, `mcp/rag_pipeline/service.py`, `mcp/sqlite/service.py`, `mcp/cicd/service.py`, `rag/pipeline.py`, `shared/route_resolver.py`, `agent/lifecycle.py`, `mcp/server.py` (base class), `shared/tool_executor.py` (routing paths). Core module `agent/repl.py` has no tests. Any refactoring task that touches this module must acquire behavior-lock tests (using the `python-test-and-fix` skill) before starting work.
 
 ## Architecture
 
@@ -96,7 +112,7 @@ Details: `docs/05_agent-impl-class.md` (class API) / `docs/05_agent-impl-flow.md
 
 ### Shared State
 
-`AgentContext` (`agent/context.py`) owns per-session mutable state and acts as the DI hub. All services via `ctx.services.<key>` (no property shims); `ServiceContainer.audit_logger: Logger | None` provides structured audit logging; `ServiceContainer.memory: MemoryLayer | None` is the 4-tier memory facade (enabled by `use_memory_layer=True`). Per-turn trace IDs and token stats managed by `Orchestrator`. Memory implementation: `agent/memory/store.py` (SQLite CRUD + vec0 KNN) / `agent/memory/layer.py` (high-level facade). OTel tracing: `shared/otel_tracer.py` (`build_tracer()` — private `TracerProvider`, no global state pollution).
+`AgentContext` (`agent/context.py`) owns per-session mutable state and acts as the DI hub. All services via `ctx.services.<key>` (no property shims); `ServiceContainer.audit_logger: Logger | None` provides structured audit logging; `ServiceContainer.memory: MemoryLayer | None` is the 4-tier memory facade (enabled by `use_memory_layer=True`). Per-turn trace IDs and token stats managed by `Orchestrator`. Memory implementation: `agent/memory/types.py` (MemoryEntry / MemoryQuery / MemoryHit dataclasses) / `agent/memory/store.py` (SQLite CRUD, `memories` + `memories_fts` tables) / `agent/memory/retriever.py` (FTS5 search + BM25/importance/recency scoring) / `agent/memory/extract.py` (rule-based extraction from history) / `agent/memory/jsonl_store.py` (append-only JSONL source of truth) / `agent/memory/layer.py` (SessionStart / UserPrompt / Stop lifecycle facade). Memory type domain: `semantic` (rules/policies/facts) and `episodic` (Q&A/failures/history). OTel tracing: `shared/otel_tracer.py` (`build_tracer()` — private `TracerProvider`, no global state pollution).
 
 Details: `docs/06_ref-agent-context.md`
 
@@ -126,15 +142,27 @@ Details: `docs/06_ref-sqlite.md`
 
 ### MCP Servers
 
-Seven servers in models/service/server layers under `mcp/`. Common base: `mcp/server.py`; protocol spec: `docs/06_common.md`. The seventh server (`rag-pipeline-mcp`, port 8010) exposes the RAG pipeline via `mcp/rag_pipeline/server.py` / `mcp/rag_pipeline/service.py` / `mcp/rag_pipeline/models.py`; see `docs/04_mcp-rag.md`. When adding a new MCP server, also add an entry to `config/agent.toml` under `[mcp_servers]`. When `_MCP_TOOLS` exceeds 400 lines, extract to `{server}/tools.py` and import via `from mcp.{server}.tools import _MCP_TOOLS`. Destructive operations (write/delete/move) support a `dry_run: bool = Field(default=False)` parameter — when `True` the service returns preview info without side effects; the `check_approval()` flow in `agent/repl_tool_exec.py` injects `dry_run=True` automatically for tools listed in `approval_dry_run_tools`.
+Nine servers in models/service/server layers under `mcp/`. Common base: `mcp/server.py`; protocol spec: `docs/06_common.md`. The seventh server (`rag-pipeline-mcp`, port 8010) exposes the RAG pipeline via `mcp/rag_pipeline/server.py` / `mcp/rag_pipeline/service.py` / `mcp/rag_pipeline/models.py`; see `docs/04_mcp-rag.md`. When adding a new MCP server, also add an entry to `config/agent.toml` under `[mcp_servers]`. When `_MCP_TOOLS` exceeds 400 lines, extract to `{server}/tools.py` and import via `from mcp.{server}.tools import _MCP_TOOLS`. Destructive operations (write/delete/move) support a `dry_run: bool = Field(default=False)` parameter — when `True` the service returns preview info without side effects; the `check_approval()` flow in `agent/repl_tool_exec.py` injects `dry_run=True` automatically for tools listed in `approval_dry_run_tools`.
 
-`MCPServer` base class provides `list_tools() -> list[str]` (from `mcp_tools` class attribute) and `health() -> dict[str, str]`. `run_stdio()` handles line-delimited JSON-RPC; intercepts `name == "__list_tools__"` before dispatching to `dispatch()`. `__` prefix is reserved — do not define tools with `__` prefix names.
+`MCPServer` base class provides `list_tools() -> list[str]` (from `mcp_tools` class attribute) and `health() -> dict[str, str]`. `run_stdio()` handles line-delimited JSON-RPC; intercepts `name == "__list_tools__"` before dispatching to `dispatch()`. `__` prefix is reserved — do not define tools with `__` prefix names. `attach_auth_middleware(app, token)` adds Bearer-token auth + `X-Request-Id` middleware to any FastAPI app; token `""` disables auth and only injects the header.
 
 Details: `docs/04_mcp-servers.md`
 
+### SQLite MCP (eighth server)
+
+`mcp/sqlite/server.py` (port 8011) exposes read-only SELECT queries via `query_sqlite` tool. `mcp/sqlite/service.py` (`SqliteMCPService`) validates SQL (SELECT-only, no multiple statements), enforces `db_allowlist`, caps rows at `max_rows`, and connects with `PRAGMA query_only=ON`. Config: `config/sqlite_mcp_server.toml`.
+
+### CI/CD MCP (ninth server)
+
+`mcp/cicd/server.py` (port 8012) wraps GitHub Actions REST API via 4 tools: `trigger_workflow` / `get_workflow_runs` / `get_workflow_status` / `get_workflow_logs`. `mcp/cicd/service.py` (`CiCdService`) enforces `repo_allowlist` (empty = deny all, fail-closed) and `workflow_allowlist` (empty = allow all, fail-open). `CiBackend` is a `typing.Protocol` enabling future GitLab CI / Jenkins backends. `GitHubActionsBackend._token` is masked in `__repr__` and must never be passed to any logger. Log output is capped at `max_log_size_kb` KB (default 256). Config: `config/cicd_mcp_server.toml`. Details: `docs/04_mcp-cicd.md`.
+
 ### MCP Transport Layer
 
-`shared/tool_executor.py` (`ToolExecutor`) is transport-agnostic: callers pass only `(tool_name, args)`. `ToolRouteResolver` (`shared/route_resolver.py`) maps tool names to server keys — config-driven (`tool_names` field) first, then static prefix fallback. `LifecycleProtocol` (typing.Protocol in `shared/tool_executor.py`) defines `ensure_ready(server_key)` — implemented by `ServerLifecycleManager`.
+`shared/tool_executor.py` (`ToolExecutor`) is transport-agnostic: callers pass only `(tool_name, args)`. `ToolRouteResolver` (`shared/route_resolver.py`) maps tool names to server keys — config-driven (`tool_names` field) first, then static prefix fallback. `LifecycleProtocol` (typing.Protocol in `shared/tool_executor.py`) defines `ensure_ready(server_key)` — implemented by `ServerLifecycleManager`. `HttpTransport` reads `McpServerConfig.auth_token` and sends `Authorization: Bearer` header when non-empty.
+
+`shared/tool_constants.py` — canonical `frozenset` definitions for tool classification: `READ_TOOLS` / `WRITE_TOOLS` / `DELETE_TOOLS` / `RAG_TOOLS` / `CICD_TOOLS`. Imported by `route_resolver.py` (static routing), `tool_executor.py` (side-effect detection), and `repl_tool_exec.py` (risk classification). Update this file when adding or removing tool names — do not duplicate the sets elsewhere.
+
+`StdioTransport(cmd, server_key, working_dir="", env=None)` — `working_dir` が非空のとき `start()` 前に `Path.is_dir()` を確認し存在しなければ `ValueError`。`env` が非空のとき `{**os.environ, **env}` を `start()` 時にマージ。
 
 `ServerLifecycleManager` (`agent/lifecycle.py`) manages stdio server lifecycle: HTTP / persistent stdio → no-op; ondemand → double-checked locking with per-server `asyncio.Lock` ensures single startup under concurrent calls. `shutdown_all()` stops all running transports. Wired in `AgentREPL._init_components()` via `ctx.services.lifecycle`; `ToolExecutor.set_lifecycle()` injects it.
 
@@ -148,7 +176,7 @@ Details: `docs/06_ref-agent-llm.md`
 
 ### Config
 
-All configuration in `AgentConfig` dataclass (`agent/config.py`); access via `ctx.cfg.field_name`. `McpServerConfig` dataclass lives in `shared/mcp_config.py` and is re-exported from `agent/config.py`. No module-level constant imports from `agent.config` into other modules — path constants (`_CONFIG_DIR`, `_SCRIPTS_DIR`) must be imported inside the function body with `# noqa: PLC0415`. Hot-reloadable via `/reload`; when adding a hot-reloadable field to `AgentConfig`, also add a reload line to `_apply_config_params()` in `agent/commands/cmd_config.py`. When adding a module under `scripts/`, add a `cp` line to `deploy/deploy.sh`.
+All configuration in `AgentConfig` dataclass (`agent/config.py`); access via `ctx.cfg.field_name`. `McpServerConfig` dataclass lives in `shared/mcp_config.py` and is re-exported from `agent/config.py`; its key fields include `auth_token: str` (Bearer token sent by `HttpTransport`; `""` = auth disabled) and `role: str` (human-readable label shown in `/mcp status`). No module-level constant imports from `agent.config` into other modules — path constants (`_CONFIG_DIR`, `_SCRIPTS_DIR`) must be imported inside the function body with `# noqa: PLC0415`. Hot-reloadable via `/reload`; when adding a hot-reloadable field to `AgentConfig`, also add a reload line to `_apply_config_params()` in `agent/commands/cmd_config.py`. When adding a module under `scripts/`, add a `cp` line to `deploy/deploy.sh`.
 
 `shared/git_helper.py` — utility called by `agent/commands/cmd_context.py` to display branch/commit info in `/context` output. Uses GitPython with a lazy import and `search_parent_directories=True`; returns `None` silently outside a git repo.
 

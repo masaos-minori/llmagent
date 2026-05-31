@@ -8,6 +8,7 @@ Provides HTTP launch logic shared by all MCP server scripts.
 import asyncio
 import logging
 import sys
+import uuid
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
@@ -66,6 +67,29 @@ def _handle_tool_exception(name: str, e: Exception) -> tuple[str, bool]:
 
     logger.error(f"Tool '{name}' raised unexpected error: {e}")
     return f"Tool error: {e}", True
+
+
+def attach_auth_middleware(app: Any, token: str) -> None:
+    """Register Bearer-token auth + X-Request-Id middleware on a FastAPI app.
+
+    When token is non-empty, requests without a matching Authorization header
+    receive a 401 response.  When token is empty, auth is skipped and the
+    middleware only injects the X-Request-Id response header.
+    """
+    from fastapi import Request  # noqa: PLC0415
+    from fastapi.responses import JSONResponse  # noqa: PLC0415
+
+    @app.middleware("http")
+    async def _auth_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — FastAPI middleware protocol
+        req_id = str(uuid.uuid4())
+        request.state.request_id = req_id
+        if token:
+            auth = request.headers.get("Authorization", "")
+            if auth != f"Bearer {token}":
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        response = await call_next(request)
+        response.headers["X-Request-Id"] = req_id
+        return response
 
 
 class MCPServer:

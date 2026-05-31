@@ -218,3 +218,26 @@ class TestFmtHandlersDryRun:
             {"source": str(src), "destination": str(dest), "dry_run": True}
         )
         assert "Dry-run" in result
+
+
+# ── path allowlist security ───────────────────────────────────────────────────
+
+
+class TestPathAllowlist:
+    def test_write_outside_allowed_dir_raises_403(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        from fastapi import HTTPException
+
+        req = WriteFileRequest(path="/etc/passwd", content="x", dry_run=True)
+        with pytest.raises(HTTPException) as exc_info:
+            service.write_file(req)
+        assert exc_info.value.status_code == 403
+
+    def test_write_inside_allowed_dir_succeeds(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "safe.txt"
+        req = WriteFileRequest(path=str(target), content="ok", dry_run=True)
+        result = service.write_file(req)
+        assert result is not None

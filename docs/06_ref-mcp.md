@@ -146,22 +146,31 @@ executor = ToolExecutor(
     cache_max_size=200,
     concurrency_limits={"file_write": 1},  # optional per-server limit
 )
-result, is_error = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
+result, is_error, x_request_id = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
 ```
 
 `HttpTransport` クラス:
 
 | メソッド | 説明 |
 |---|---|
-| `call(name, args) -> tuple[str, bool]` | `POST /v1/call_tool` を呼び出す。HTTP エラー / 接続エラー時は `(msg, True)` を返す |
+| `call(name, args) -> tuple[str, bool, str]` | `POST /v1/call_tool` を呼び出す。戻り値は `(result, is_error, x_request_id)`。HTTP エラー / 接続エラー時は `(msg, True, "")` を返す |
 
 `StdioTransport` クラス:
 
+コンストラクタ: `StdioTransport(cmd, server_key, working_dir="", env=None)`
+
+| パラメータ | 説明 |
+|---|---|
+| `cmd` | サブプロセス起動コマンド (`list[str]`) |
+| `server_key` | サーバ識別キー (ログ / エラーメッセージに使用) |
+| `working_dir` | サブプロセスの作業ディレクトリ。`""` のとき親プロセスの cwd を継承 |
+| `env` | サブプロセスに追加注入する環境変数 dict。`None` または `{}` のとき OS 環境をそのまま継承。非空のとき `{**os.environ, **env}` で `start()` 呼び出し時にマージ |
+
 | メソッド | 説明 |
 |---|---|
-| `start() -> None` | サブプロセスを起動。既に起動済みなら無操作 |
+| `start() -> None` | サブプロセスを起動。既に起動済みなら無操作。`working_dir` が空でない場合は事前に `Path.is_dir()` を確認し、存在しなければ `ValueError` を送出 |
 | `is_alive() -> bool` | サブプロセスが実行中 (returncode is None) なら `True` |
-| `call(name, args) -> tuple[str, bool]` | JSON-RPC リクエストを送信して応答を受け取る。タイムアウト (`_STDIO_CALL_TIMEOUT=60s`) で `(msg, True)` を返す |
+| `call(name, args) -> tuple[str, bool, str]` | JSON-RPC リクエストを送信して応答を受け取る。戻り値は `(result, is_error, "")`。タイムアウト (`_STDIO_CALL_TIMEOUT=60s`) で `(msg, True, "")` を返す |
 | `stop() -> None` | stdin をクローズして graceful shutdown。5 秒でタイムアウト後 terminate/kill |
 
 `ToolExecutor` クラス:
@@ -170,7 +179,7 @@ result, is_error = await executor.execute("read_text_file", {"path": "/opt/llm/.
 |---|---|
 | `set_transport(server_key, transport) -> None` | stdio サーバのプロセス起動後に `StdioTransport` を登録 |
 | `set_lifecycle(lifecycle) -> None` | `LifecycleProtocol` 実装を注入。`None` でクリア |
-| `execute(tool_name, args) -> tuple[str, bool]` | plugin ツール → キャッシュ → `_raw_execute()` の順で解決。成功結果のみキャッシュ |
+| `execute(tool_name, args) -> tuple[str, bool, str]` | plugin ツール → キャッシュ → `_raw_execute()` の順で解決。戻り値は `(result, is_error, x_request_id)`。成功結果のみキャッシュ。キャッシュヒット時は `x_request_id=""` を返す |
 | `clear_cache() -> None` | ツール結果キャッシュを全クリア (`/clear` コマンドから呼ばれる) |
 
 ルーティング規則 (`ToolRouteResolver.resolve()`):

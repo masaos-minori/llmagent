@@ -1,0 +1,25 @@
+#!/sbin/openrc-run
+# Copyright 2024 the LLM Agent authors
+# Distributed under the terms of the GNU Public License v2
+
+description="Markdown Context Compression Engine MCP Server"
+command="/opt/llm/venv/bin/python"
+command_args="/opt/llm/scripts/mcp/mdq/server.py"
+pidfile="/var/run/mdq-mcp.pid"
+respawn_delay=5
+respawn_max=3
+
+depend() {
+    need net
+    use logger
+}
+
+start_pre() {
+    # Create the database directory if it doesn't exist
+    local db_dir="/opt/llm/db"
+    if [ ! -d "$db_dir" ]; then
+        mkdir -p "$db_dir"
+        chown -R nobody:nobody "$db_dir"
+        chmod 755 "$db_dir"
+    fi
+}

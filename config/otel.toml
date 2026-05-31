@@ -1,0 +1,8 @@
+# When true, enables OpenTelemetry span collection; default false
+otel_enabled = false
+
+# OTLP HTTP endpoint URL; uses ConsoleSpanExporter when empty string
+otel_endpoint = ""
+
+# OTel service.name attribute; default llm-agent
+otel_service_name = "llm-agent"

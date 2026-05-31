@@ -10,10 +10,12 @@ Extracted from agent/commands/registry.py.  Provides _McpMixin with:
   _print_mcp_install_next_steps — print post-install checklist
 """
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
 import httpx
+from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -27,16 +29,39 @@ class _McpMixin:
     if TYPE_CHECKING:
         _ctx: "AgentContext"
 
+    # Tools that imply write capability; used to set the WRITE column in /mcp status.
+    _WRITE_CAPABLE_TOOLS: frozenset[str] = (
+        WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
+    )
+
     async def _cmd_mcp_status(self) -> None:
-        """Print MCP server status table including transport, startup mode, and health."""
+        """Print MCP server status table including transport, mode, auth, write, and health."""
         ctx = self._ctx
         print(f"  Tools       {len(ctx.cfg.tool_definitions)} (from config/agent.toml)")
         print()
-        col = "{:<14} {:<6} {:<11} {:<16} {}"
-        print(col.format("SERVER", "TRANS", "MODE", "STATUS", "ENDPOINT/CMD"))
-        print("-" * 70)
+        col = "{:<14} {:<6} {:<11} {:<5} {:<6} {:<12} {:<16} {}"
+        print(
+            col.format(
+                "SERVER",
+                "TRANS",
+                "MODE",
+                "AUTH",
+                "WRITE",
+                "ROLE",
+                "STATUS",
+                "ENDPOINT/CMD",
+            )
+        )
+        print("-" * 95)
         async with httpx.AsyncClient(timeout=5.0) as probe:
             for key, cfg in ctx.cfg.mcp_servers.items():
+                auth = "yes" if cfg.auth_token else "no"
+                write = (
+                    "yes"
+                    if any(t in self._WRITE_CAPABLE_TOOLS for t in cfg.tool_names)
+                    else "no"
+                )
+                role = cfg.role or ""
                 if cfg.transport == "http":
                     if cfg.url:
                         try:
@@ -65,7 +90,16 @@ class _McpMixin:
                         status = "DEAD"
                     endpoint = " ".join(cfg.cmd) if cfg.cmd else ""
                 print(
-                    col.format(key, cfg.transport, cfg.startup_mode, status, endpoint)
+                    col.format(
+                        key,
+                        cfg.transport,
+                        cfg.startup_mode,
+                        auth,
+                        write,
+                        role,
+                        status,
+                        endpoint,
+                    )
                 )
 
     async def _cmd_mcp(self, args: str = "") -> None:
@@ -81,6 +115,7 @@ class _McpMixin:
     async def _cmd_mcp_install(self, server_name: str) -> None:
         """Interactive wizard: generate MCP server template files for server_name."""
         from mcp.installer import (  # noqa: PLC0415
+            generate_agent_toml_mcp_snippet,
             install_mcp_server,
             name_to_module,
             suggest_port,
@@ -109,13 +144,19 @@ class _McpMixin:
             print("Invalid port number. Aborting.")
             return
 
+        print("Role [generic | sqlite | shell] (default: generic):")
+        raw_role = (await asyncio.to_thread(input, "Role: ")).strip().lower()
+        role = raw_role if raw_role in ("sqlite", "shell") else "generic"
+
         raw_confd = input("Generate conf.d API key template? [y/N]: ").strip().lower()
         with_confd = raw_confd in ("y", "yes")
 
         print()
         print(f"Creating MCP server templates for {server_name!r}...")
         try:
-            created = install_mcp_server(server_name, port, with_confd=with_confd)
+            created = install_mcp_server(
+                server_name, port, with_confd=with_confd, role=role
+            )
         except (FileExistsError, ValueError) as e:
             print(f"Aborted: {e}")
             return
@@ -132,6 +173,7 @@ class _McpMixin:
             port,
             with_confd,
             tool_definition_snippet(module, server_name),
+            agent_toml_snippet=generate_agent_toml_mcp_snippet(server_name, port, role),
         )
 
     def _print_mcp_install_next_steps(
@@ -141,6 +183,7 @@ class _McpMixin:
         port: int,
         with_confd: bool,
         snippet: str,
+        agent_toml_snippet: str = "",
     ) -> None:
         """Print manual post-install checklist."""
         print()
@@ -153,11 +196,9 @@ class _McpMixin:
         for line in snippet.splitlines():
             print(f"     {line}")
         print()
-        print("  3. Add to config/agent.toml mcp_servers:")
-        print(f"     [{server_name}]")
-        print('     transport = "http"')
-        print(f'     url = "http://127.0.0.1:{port}"')
-        print(f'     openrc_service = "{server_name}"')
+        print("  3. Add to config/agent.toml [mcp_servers]:")
+        for line in (agent_toml_snippet or "").splitlines():
+            print(f"     {line}")
         print()
         print("  4. Add to deploy/deploy.sh:")
         print(

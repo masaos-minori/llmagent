@@ -50,3 +50,25 @@ RAG_TOOLS: frozenset[str] = frozenset(
         "rag_debug_pipeline",
     }
 )
+
+CICD_TOOLS: frozenset[str] = frozenset(
+    {
+        "trigger_workflow",
+        "get_workflow_runs",
+        "get_workflow_status",
+        "get_workflow_logs",
+    }
+)
+
+# Markdown Context Compression Engine tools
+MDQ_TOOLS: frozenset[str] = frozenset(
+    {
+        "search_docs",
+        "get_chunk",
+        "outline",
+        "index_paths",
+        "refresh_index",
+        "stats",
+        "grep_docs",
+    }
+)

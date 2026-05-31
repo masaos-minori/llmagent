@@ -15,8 +15,10 @@ configured transport.
 import asyncio
 import hashlib
 import logging
+import os
 import time
 from collections import OrderedDict
+from pathlib import Path
 from typing import Any, Protocol
 
 import httpx
@@ -41,21 +43,33 @@ _STDIO_CALL_TIMEOUT: float = 60.0
 class HttpTransport:
     """Calls /v1/call_tool on a running HTTP MCP server via httpx."""
 
-    def __init__(self, http: httpx.AsyncClient, base_url: str, server_key: str) -> None:
+    def __init__(
+        self,
+        http: httpx.AsyncClient,
+        base_url: str,
+        server_key: str,
+        cfg: McpServerConfig | None = None,
+    ) -> None:
         self._http = http
         self._base_url = base_url
         self._server_key = server_key
+        self._auth_token: str = cfg.auth_token if cfg is not None else ""
 
-    async def call(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
-        """POST to /v1/call_tool and return (result, is_error)."""
+    async def call(self, name: str, args: dict[str, Any]) -> tuple[str, bool, str]:
+        """POST to /v1/call_tool and return (result, is_error, x_request_id)."""
+        headers: dict[str, str] = {}
+        if self._auth_token:
+            headers["Authorization"] = f"Bearer {self._auth_token}"
         try:
             resp = await self._http.post(
                 f"{self._base_url}/v1/call_tool",
                 json={"name": name, "args": args},
+                headers=headers,
             )
             resp.raise_for_status()
             data = resp.json()
-            return data["result"], data["is_error"]
+            x_request_id = resp.headers.get("x-request-id", "")
+            return data["result"], data["is_error"], x_request_id
         except httpx.HTTPStatusError as e:
             msg = (
                 f"[HTTPStatusError] tool={name} url={self._base_url}"
@@ -64,26 +78,34 @@ class HttpTransport:
                 f" — check {self._base_url}/health"
             )
             logger.warning(msg)
-            return msg, True
+            return msg, True, ""
         except httpx.RequestError as e:
             msg = (
                 f"[{type(e).__name__}] tool={name} url={self._base_url}: {e}"
                 f" — check {self._base_url}/health"
             )
             logger.warning(msg)
-            return msg, True
+            return msg, True, ""
         except Exception as e:
             msg = f"[{type(e).__name__}] tool={name} url={self._base_url}: {e}"
             logger.error(msg)
-            return msg, True
+            return msg, True, ""
 
 
 class StdioTransport:
     """Calls an MCP server subprocess via stdin/stdout JSON-RPC; per-instance Lock serializes concurrent calls to prevent request/response interleaving."""
 
-    def __init__(self, cmd: list[str], server_key: str) -> None:
+    def __init__(
+        self,
+        cmd: list[str],
+        server_key: str,
+        working_dir: str = "",
+        env: dict[str, str] | None = None,
+    ) -> None:
         self._cmd = cmd
         self._server_key = server_key
+        self._working_dir = working_dir
+        self._env_overrides: dict[str, str] = env or {}
         self._proc: asyncio.subprocess.Process | None = None
         self._lock: asyncio.Lock | None = None  # created after the event loop starts
         self._req_id: int = 0
@@ -98,11 +120,23 @@ class StdioTransport:
         """Spawn the subprocess. No-op if it is already alive."""
         if self.is_alive():
             return
+        cwd: str | None = None
+        if self._working_dir:
+            if not Path(self._working_dir).is_dir():
+                raise ValueError(
+                    f"StdioTransport: working_dir {self._working_dir!r} does not exist"
+                )
+            cwd = self._working_dir
+        merged_env: dict[str, str] | None = None
+        if self._env_overrides:
+            merged_env = {**os.environ, **self._env_overrides}
         self._proc = await asyncio.create_subprocess_exec(
             *self._cmd,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=None,  # inherit parent stderr so server logs reach the terminal
+            cwd=cwd,
+            env=merged_env,
         )
         logger.info(
             f"stdio MCP server started: key={self._server_key!r}"
@@ -113,10 +147,10 @@ class StdioTransport:
         """Return True when the subprocess is running (returncode is None)."""
         return self._proc is not None and self._proc.returncode is None
 
-    async def call(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
-        """Send one JSON-RPC request and return (result, is_error); acquires per-instance lock so concurrent callers are serialized."""
+    async def call(self, name: str, args: dict[str, Any]) -> tuple[str, bool, str]:
+        """Send one JSON-RPC request and return (result, is_error, x_request_id); acquires per-instance lock so concurrent callers are serialized."""
         if not self.is_alive():
-            return f"stdio server not running (key={self._server_key!r})", True
+            return f"stdio server not running (key={self._server_key!r})", True, ""
 
         lock = self._get_lock()
         async with lock:
@@ -137,27 +171,28 @@ class StdioTransport:
             except TimeoutError:
                 msg = f"stdio server timeout (key={self._server_key!r} tool={name})"
                 logger.warning(msg)
-                return msg, True
+                return msg, True, ""
             except Exception as e:
                 msg = f"stdio transport error (key={self._server_key!r}): {e}"
                 logger.error(msg)
-                return msg, True
+                return msg, True, ""
 
             if not resp_bytes:
                 return (
                     f"stdio server closed connection (key={self._server_key!r})",
                     True,
+                    "",
                 )
             try:
                 resp = orjson.loads(resp_bytes)
-                return str(resp["result"]), bool(resp["is_error"])
+                return str(resp["result"]), bool(resp["is_error"]), ""
             except (orjson.JSONDecodeError, KeyError) as e:
                 msg = (
                     f"stdio server invalid response (key={self._server_key!r}): {e}"
                     f" raw={resp_bytes[:200]!r}"
                 )
                 logger.error(msg)
-                return msg, True
+                return msg, True, ""
 
     async def stop(self) -> None:
         """Gracefully shut down the subprocess (close stdin → wait → kill)."""
@@ -187,6 +222,10 @@ class StdioTransport:
 _SIDE_EFFECT_TOOLS: frozenset[str] = (
     WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
 )
+
+# Add mdq tools to the route resolver
+# This is a workaround to ensure mdq tools are properly routed
+# In a real implementation, this would be handled by the ToolRouteResolver
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -286,7 +325,7 @@ class ToolExecutor:
         self._transports: dict[str, HttpTransport | StdioTransport | None] = {}
         for key, cfg in server_configs.items():
             if cfg.transport == "http":
-                self._transports[key] = HttpTransport(http, cfg.url, key)
+                self._transports[key] = HttpTransport(http, cfg.url, key, cfg)
             else:
                 self._transports[key] = None  # filled by set_transport()
 
@@ -303,7 +342,7 @@ class ToolExecutor:
 
     async def _raw_execute(
         self, tool_name: str, args: dict[str, Any]
-    ) -> tuple[str, bool]:
+    ) -> tuple[str, bool, str]:
         """Execute tool via the appropriate transport; applies per-server-key Semaphore when configured; semaphores created lazily to avoid event loop issues."""
         server_key = self._resolver.resolve(tool_name)
         # Ensure ondemand stdio servers are started before first use.
@@ -320,7 +359,7 @@ class ToolExecutor:
             else:
                 msg = f"No transport configured for server {server_key!r}"
             logger.error(msg)
-            return msg, True
+            return msg, True, ""
 
         # Lazy Semaphore initialisation: safe because asyncio is single-threaded
         # and the if-branch completes before the first await.
@@ -337,18 +376,10 @@ class ToolExecutor:
                 return await transport.call(tool_name, args)
         return await transport.call(tool_name, args)
 
-    async def execute(self, tool_name: str, args: dict[str, Any]) -> tuple[str, bool]:
-        """Execute a tool returning a cached result when within cache_ttl; plugin tools bypass cache and MCP routing."""
-        plugin_fn = plugin_registry.get_tool(tool_name)
-        if plugin_fn is not None:
-            try:
-                result_raw = await plugin_fn(args)
-                result_str, result_err = str(result_raw[0]), bool(result_raw[1])
-                return result_str, result_err
-            except Exception as e:
-                logger.error(f"Plugin tool {tool_name!r} raised: {e}")
-                return f"[plugin error] {tool_name}: {e}", True
-
+    async def _execute_with_cache(
+        self, tool_name: str, args: dict[str, Any]
+    ) -> tuple[str, bool, str]:
+        """Execute a tool with cache check."""
         cache_key = (
             f"{tool_name}:{orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()}"
         )
@@ -360,15 +391,53 @@ class ToolExecutor:
                 self._cache.move_to_end(cache_key)  # LRU: mark as recently used
                 self.stat_cache_hits += 1
                 logger.info(f"Tool cache hit: {tool_name} (age={age:.0f}s)")
-                return result, is_error
+                # Cached results have no live X-Request-Id.
+                return result, is_error, ""
             del self._cache[cache_key]
-        result, is_error = await self._raw_execute(tool_name, args)
+        return await self._raw_execute(tool_name, args)
+
+    async def _execute_without_cache(
+        self, tool_name: str, args: dict[str, Any]
+    ) -> tuple[str, bool, str]:
+        """Execute a tool without cache."""
+        result, is_error, x_request_id = await self._raw_execute(tool_name, args)
         if not is_error:
+            cache_key = f"{tool_name}:{orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()}"
             self._cache[cache_key] = (result, is_error, time.time())
             if self._cache_max_size > 0 and len(self._cache) > self._cache_max_size:
                 evicted_key, _ = self._cache.popitem(last=False)
                 logger.debug(f"Tool cache LRU evict: {evicted_key!r}")
-        return result, is_error
+        return result, is_error, x_request_id
+
+    async def _execute_plugin_tool(
+        self, tool_name: str, args: dict[str, Any]
+    ) -> tuple[str, bool, str]:
+        """Execute a plugin tool."""
+        plugin_fn = plugin_registry.get_tool(tool_name)
+        if plugin_fn is not None:
+            try:
+                result_raw = await plugin_fn(args)
+                result_str, result_err = str(result_raw[0]), bool(result_raw[1])
+                return result_str, result_err, ""
+            except Exception as e:
+                logger.error(f"Plugin tool {tool_name!r} raised: {e}")
+                return f"[plugin error] {tool_name}: {e}", True, ""
+        # If no plugin function found, fall through to normal execution
+        return await self._execute_with_cache(tool_name, args)
+
+    async def execute(
+        self, tool_name: str, args: dict[str, Any]
+    ) -> tuple[str, bool, str]:
+        """Execute a tool returning a cached result when within cache_ttl; plugin tools bypass cache and MCP routing."""
+        # First check if it's a plugin tool
+        result, is_error, x_request_id = await self._execute_plugin_tool(
+            tool_name, args
+        )
+        if not is_error:
+            # If it was a plugin tool or we got a cached result, return it
+            return result, is_error, x_request_id
+        # If it's not a plugin tool or cache miss, proceed with normal execution
+        return await self._execute_without_cache(tool_name, args)
 
     def clear_cache(self) -> None:
         """Evict all cached tool results."""

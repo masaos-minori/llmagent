@@ -1,0 +1,18 @@
+# System prompt used in RAG mode (/query); instructs to answer based on provided context
+system_prompt_rag = "あなたは有能なエンジニアアシスタントです。必ず提供されたコンテキストのみに基づいて質問に回答してください。コンテキストに答えが含まれない場合は「提供されたコンテキストに該当情報がありません」と回答してください。"
+
+# System prompt used in tool-calling mode (/tool_query); instructs to leverage tools
+system_prompt_tool = "あなたは有能なエンジニアアシスタントです。必要に応じてツールを使って情報を収集し、正確に回答してください。"
+
+# Prompt template for MQE query rephrasing; uses {n_queries} and {query} as placeholders
+mqe_prompt_template = "Without changing the meaning of the following question, please rephrase it in {n_queries} different ways.\nOutput the result as a JSON array. (ex: [\"Q1\", \"Q2\", \"Q3\"])\n\nQuestion: {query}\n"
+
+# Prompt template for Cross-Encoder reranking scoring; uses {query} and {items_text} as placeholders
+rerank_prompt_template = "Please evaluate the relevance of the following question and each context on a scale from 0 to 10.\nOutput the result as a JSON object mapping each context number to its score. (ex: {\"1\": 8, \"2\": 3})\n\nQuestion: {query}\nContext:\n{items_text}\n"
+
+# ---- system_prompts ----
+# Dictionary of system prompts switchable with /system <name> during a session; key is preset name, value is prompt string
+[system_prompts]
+default  = "あなたは有能なエンジニアアシスタントです。必要に応じてツールを使って情報を収集し、正確に回答してください。"
+strict   = "あなたは厳格なエンジニアアシスタントです。事実のみを回答し、不確かな情報は「不明」と答えてください。ツールを積極的に使用して情報を確認してください。"
+creative = "あなたは創造的なエンジニアアシスタントです。複数のアプローチや代替案を提案し、自由な発想で問題解決を支援してください。"

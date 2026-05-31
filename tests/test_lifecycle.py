@@ -5,6 +5,8 @@ Unit tests for agent.lifecycle.ServerLifecycleManager.
 from __future__ import annotations
 
 import asyncio
+import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -87,7 +89,9 @@ class TestEnsureReady:
             mgr = ServerLifecycleManager(configs, ex, stdio_procs)
             await mgr.ensure_ready("od")
 
-        MockTransport.assert_called_once_with(["python", "srv.py"], server_key="od")
+        MockTransport.assert_called_once_with(
+            ["python", "srv.py"], server_key="od", working_dir="", env=None
+        )
         mock_t.start.assert_awaited_once()
         ex.set_transport.assert_called_once_with("od", mock_t)
         assert stdio_procs["od"] is mock_t
@@ -233,3 +237,114 @@ class TestShutdownAll:
         mgr = ServerLifecycleManager(configs, ex, {"a": t1})
         # Must not propagate the exception
         await mgr.shutdown_all()
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — real subprocess via echo_server.py
+# ---------------------------------------------------------------------------
+
+_ECHO_SERVER = Path(__file__).parent.parent / "scripts" / "mcp" / "echo_server.py"
+
+
+def _echo_cmd() -> list[str]:
+    return [sys.executable, str(_ECHO_SERVER)]
+
+
+def _ondemand_echo_cfg(working_dir: str = "") -> McpServerConfig:
+    return McpServerConfig(
+        "stdio",
+        "",
+        _echo_cmd(),
+        "",
+        startup_mode="ondemand",
+        working_dir=working_dir,
+    )
+
+
+class TestEnsureReadyIntegration:
+    """Integration tests: ServerLifecycleManager with real echo subprocess."""
+
+    @pytest.mark.asyncio
+    async def test_ondemand_start_on_first_call(self) -> None:
+        configs = {"echo": _ondemand_echo_cfg()}
+        stdio_procs: dict = {}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, stdio_procs)
+
+        await mgr.ensure_ready("echo")
+
+        assert "echo" in stdio_procs
+        assert stdio_procs["echo"].is_alive()
+        await mgr.shutdown_all()
+
+    @pytest.mark.asyncio
+    async def test_ondemand_no_double_start(self) -> None:
+        configs = {"echo": _ondemand_echo_cfg()}
+        stdio_procs: dict = {}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, stdio_procs)
+
+        await mgr.ensure_ready("echo")
+        first_transport = stdio_procs["echo"]
+        first_pid = first_transport._proc.pid if first_transport._proc else None
+
+        await mgr.ensure_ready("echo")
+        second_transport = stdio_procs["echo"]
+        second_pid = second_transport._proc.pid if second_transport._proc else None
+
+        assert first_pid is not None
+        assert first_pid == second_pid
+        await mgr.shutdown_all()
+
+    @pytest.mark.asyncio
+    async def test_ondemand_working_dir_passed(self, tmp_path: Path) -> None:
+        from shared.tool_executor import StdioTransport
+
+        transport = StdioTransport(
+            _echo_cmd(), server_key="echo", working_dir=str(tmp_path)
+        )
+        try:
+            await transport.start()
+            assert transport.is_alive()
+            result, is_error, _ = await transport.call("cwd_query", {})
+            assert not is_error
+            assert Path(result).resolve() == tmp_path.resolve()
+        finally:
+            await transport.stop()
+
+
+class TestShutdownIdleIntegration:
+    """Idle-timeout integration test against real echo subprocess."""
+
+    @pytest.mark.asyncio
+    async def test_idle_stop_after_timeout(self) -> None:
+        from shared.tool_executor import StdioTransport
+
+        transport = StdioTransport(_echo_cmd(), server_key="echo")
+        await transport.start()
+        assert transport.is_alive()
+
+        configs = {"echo": _stdio_ondemand_idle(idle_sec=30)}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, {"echo": transport})
+        mgr._last_called["echo"] = mgr._last_called["echo"] - 60
+
+        await mgr.shutdown_idle()
+        assert not transport.is_alive()
+
+    @pytest.mark.asyncio
+    async def test_non_ondemand_not_idle_stopped(self) -> None:
+        from shared.tool_executor import StdioTransport
+
+        transport = StdioTransport(_echo_cmd(), server_key="echo")
+        await transport.start()
+        assert transport.is_alive()
+
+        configs = {"echo": McpServerConfig("stdio", "", _echo_cmd(), "")}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, {"echo": transport})
+        mgr._last_called["echo"] = 0.0
+
+        await mgr.shutdown_idle()
+        assert transport.is_alive()
+        await transport.stop()

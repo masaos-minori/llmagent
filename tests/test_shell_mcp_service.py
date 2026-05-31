@@ -232,3 +232,37 @@ class TestWriteAuditLog:
         svc._audit_log_path = str(tmp_path / "nonexistent" / "audit.log")
         # Must not raise
         svc._write_audit_log("ls", ["ls"], None, 0, 0.1, False)
+
+
+# ── output truncation ─────────────────────────────────────────────────────────
+
+
+class TestOutputTruncation:
+    @pytest.mark.asyncio
+    async def test_output_over_limit_is_truncated(self, tmp_path: Path) -> None:
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        # Build a service with max_output_kb=1 (1 KB = 1024 bytes)
+        svc2 = ShellService(
+            command_allowlist=["echo"],
+            shell_cwd_allowed_dirs=[tmp_path],
+            shell_path="/usr/bin:/bin",
+            max_timeout_sec=30,
+            max_output_kb=1,
+            max_memory_mb=256,
+            audit_log_path=str(tmp_path / "audit.log"),
+            sandbox_backend="none",
+        )
+
+        large_stdout = b"A" * 2048  # 2 KB > 1 KB limit
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.pid = 12345
+        mock_proc.communicate = AsyncMock(return_value=(large_stdout, b""))
+
+        req = ShellRunRequest(command="echo x", max_output_kb=1)
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
+            result = await svc2.run_command(req)
+
+        assert result.truncated is True
+        assert len(result.stdout.encode()) <= 512  # half of 1 KB limit

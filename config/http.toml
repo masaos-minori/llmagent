@@ -1,0 +1,5 @@
+# HTTP request timeout in seconds for llama-server; increase for slow models
+http_timeout = 120.0
+
+# Number of top results to retrieve from web search
+web_search_max_results = 5

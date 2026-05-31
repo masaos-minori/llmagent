@@ -77,7 +77,12 @@ class ServerLifecycleManager:
                     f"Lifecycle: cannot start {server_key!r}: no cmd configured"
                 )
                 return
-            new_transport = StdioTransport(startup_cfg.cmd, server_key=server_key)
+            new_transport = StdioTransport(
+                startup_cfg.cmd,
+                server_key=server_key,
+                working_dir=startup_cfg.working_dir,
+                env=startup_cfg.env or None,
+            )
             try:
                 await new_transport.start()
                 self._tool_executor.set_transport(server_key, new_transport)

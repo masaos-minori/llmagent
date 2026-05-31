@@ -13,3 +13,4 @@ repos:
         additional_dependencies:
           - types-requests>=2.32
           - types-beautifulsoup4>=4.12
+          - orjson>=3.9

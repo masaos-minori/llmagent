@@ -137,7 +137,11 @@ class _ContextMixin:
         # Memory layer status
         if ctx.services.memory is not None:
             mem_entries = ctx.services.memory.stat_entries
-            mem_status = f"enabled (entries={mem_entries})"
+            by_type = ctx.services.memory.stat_by_type
+            sem_cnt = by_type.get("semantic", 0)
+            epi_cnt = by_type.get("episodic", 0)
+            vec_entries = ctx.services.memory.stat_vec_entries
+            mem_status = f"enabled (entries={mem_entries}, semantic={sem_cnt}, episodic={epi_cnt}, vec_entries={vec_entries})"
         else:
             mem_status = "disabled"
         git_info = get_repo_info()

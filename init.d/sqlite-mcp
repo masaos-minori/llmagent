@@ -1,0 +1,25 @@
+#!/sbin/openrc-run
+# sqlite-mcp: read-only SQLite query MCP server (FastAPI/Uvicorn :8011) の OpenRC 起動スクリプト
+# 最小権限原則に従い llm-agent (非 root) ユーザで実行する
+
+description="SQLite Read-Only Query MCP Server (FastAPI/Uvicorn :8011)"
+
+command="/opt/llm/venv/bin/uvicorn"
+command_args="mcp.sqlite.server:app --host 127.0.0.1 --port 8011 --workers 1"
+command_background="yes"
+# 専用非 root ユーザで起動する (sudo 権限なし、DB への書き込み権限なし)
+command_user="llm-agent"
+
+directory="/opt/llm/scripts"
+
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/opt/llm/logs/sqlite-mcp.log"
+error_log="/opt/llm/logs/sqlite-mcp.log"
+
+depend() {
+    need net
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /opt/llm/logs
+}
