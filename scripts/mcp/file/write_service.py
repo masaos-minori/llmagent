@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-file_write_mcp_service.py
+"""file_write_mcp_service.py
 WriteFileService business logic and lazy singleton proxy for file-write-mcp.
 
 Dependency direction: file_write_mcp_models → file_write_mcp_service → file_write_mcp_server
@@ -76,10 +75,14 @@ class WriteFileService:
 
     @staticmethod
     def _write_if_changed(
-        target: Path, original: str, modified: str, dry_run: bool
+        target: Path,
+        original: str,
+        modified: str,
+        dry_run: bool,
     ) -> tuple[str, bool]:
         """Generate a unified diff and write the file if changed and not a dry run.
-        Returns (diff_text, applied)."""
+        Returns (diff_text, applied).
+        """
         diff_lines = difflib.unified_diff(
             original.splitlines(keepends=True),
             modified.splitlines(keepends=True),
@@ -109,12 +112,18 @@ class WriteFileService:
                 try:
                     original = target.read_text(encoding="utf-8")
                     diff, _ = WriteFileService._write_if_changed(
-                        target, original, req.content, True
+                        target,
+                        original,
+                        req.content,
+                        True,
                     )
                 except (UnicodeDecodeError, PermissionError):
                     pass
             return WriteFileResponse(
-                path=str(target), size=size, applied=False, diff=diff
+                path=str(target),
+                size=size,
+                applied=False,
+                diff=diff,
             )
         try:
             # Ensure parent directory exists before writing
@@ -137,13 +146,17 @@ class WriteFileService:
             original = target.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             raise HTTPException(
-                status_code=415, detail="File cannot be decoded as UTF-8"
+                status_code=415,
+                detail="File cannot be decoded as UTF-8",
             )
         except PermissionError as e:
             raise HTTPException(status_code=403, detail=str(e))
         modified = WriteFileService._apply_text_edits(original, req.edits)
         diff, applied = WriteFileService._write_if_changed(
-            target, original, modified, req.dry_run
+            target,
+            original,
+            modified,
+            req.dry_run,
         )
         return EditFileResponse(path=str(target), diff=diff, applied=applied)
 
@@ -176,13 +189,16 @@ class WriteFileService:
             dest_status = "exists (conflict)" if dest.exists() else "free"
             info = f"source={src_status}, dest={dest_status}"
             return MoveFileResponse(
-                source=str(src), destination=str(dest), dry_run_info=info
+                source=str(src),
+                destination=str(dest),
+                dry_run_info=info,
             )
 
         # Guard: source must exist before attempting the move
         if not src.exists():
             raise HTTPException(
-                status_code=404, detail=f"Source does not exist: {req.source}"
+                status_code=404,
+                detail=f"Source does not exist: {req.source}",
             )
 
         try:
@@ -200,7 +216,7 @@ class WriteFileService:
 
     async def fmt_write_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.write_file(WriteFileRequest(**args))
+            lambda: self.write_file(WriteFileRequest(**args)),
         )
         if not result.applied:
             info = f"Dry-run: {result.path} ({result.size} bytes)"
@@ -213,7 +229,7 @@ class WriteFileService:
 
     async def fmt_edit_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.edit_file(EditFileRequest(**args))
+            lambda: self.edit_file(EditFileRequest(**args)),
         )
         if not result.diff:
             return "No changes."
@@ -223,14 +239,14 @@ class WriteFileService:
 
     async def fmt_create_directory(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.create_directory(CreateDirectoryRequest(**args))
+            lambda: self.create_directory(CreateDirectoryRequest(**args)),
         )
         status = "created" if result.created else "already exists"
         return f"Directory {status}: {result.path}"
 
     async def fmt_move_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.move_file(MoveFileRequest(**args))
+            lambda: self.move_file(MoveFileRequest(**args)),
         )
         if result.dry_run_info:
             return f"Dry-run: {result.source} → {result.destination} [{result.dry_run_info}]"

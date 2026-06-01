@@ -8,6 +8,10 @@
 | `rag/utils.py` | テキスト正規化・埋込 BLOB 変換 |
 | `shared/logger.py` | ロギング共通セットアップ |
 | `shared/formatters.py` | MCP ツール結果・ログメッセージ共通フォーマットユーティリティ |
+| `shared/otel_tracer.py` | OpenTelemetry トレーサー初期化 (`build_tracer()`) |
+| `shared/git_helper.py` | ローカル git リポジトリメタデータ取得 (`get_repo_info()`) |
+| `shared/tool_constants.py` | ツール分類の正規 `frozenset` 定義 (`READ_TOOLS` / `WRITE_TOOLS` / `DELETE_TOOLS` / `RAG_TOOLS` / `CICD_TOOLS` / `MDQ_TOOLS` / `GIT_TOOLS`) |
+| `shared/route_resolver.py` | ツール名 → サーバキーのマッピング (`ToolRouteResolver`) |
 
 SQLite 接続マネージャ → [`docs/06_ref-sqlite.md`](06_ref-sqlite.md)
 
@@ -88,20 +92,34 @@ from rag.utils import normalize_unicode, floats_to_blob, validate_url
 
 エントリスクリプト専用のロギングセットアップクラス。`FileHandler` と `StreamHandler` を名前付きロガーに直接付与することで、複数のエントリスクリプトがそれぞれ独立したログファイルに書き込める。`propagate=False` でルートロガーへの伝播を遮断し重複出力を防止。
 
+`structured_log=True` を指定するとすべてのハンドラが JSON Lines フォーマット (`_JsonFormatter`) に切り替わり、1 行 1 エントリの構造化ログを出力する。監査ログ (`audit.log`) のように機械処理を前提とするログファイルに使用する。
+
+`set_context()` / `clear_context()` はターン境界でコンテキストフィールド (`turn_id` / `session_id` / `rag_query_id`) を全レコードに自動付与する。実装は `_ContextFilter` (内部クラス) が `logging.Filter.filter()` でフィールドを `LogRecord` に注入する。
+
 ### 3.2 API
 
 ```python
 from shared.logger import Logger
 
+# 通常ロギング (テキスト形式)
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
+
+# 構造化ロギング (JSON Lines 形式)
+audit = Logger(__name__, "/opt/llm/logs/audit.log", structured_log=True)
+audit.set_context(turn_id="abc", session_id="1")
+audit.clear_context()
 ```
 
-| クラス / メソッド | 引数 | 説明 |
+| クラス / メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `Logger(name, log_file)` | `name: str` — `__name__` を渡す / `log_file: str` — ログファイルの絶対パス | 名前付きロガーに `FileHandler` と `StreamHandler` を付与し `propagate=False` に設定 |
-| `Logger.info / warning / error / exception / debug` | `msg: str, *args, **kwargs` | 内部 `logging.Logger` の同名メソッドに委譲 |
+| `Logger(name, log_file, *, structured_log=False)` | `name: str`, `log_file: str`, `structured_log: bool` | 名前付きロガーに `FileHandler` と `StreamHandler` を付与し `propagate=False` に設定。`name` または `log_file` が空文字列の場合は `ValueError` を送出 |
+| `Logger.set_context(**fields)` | `**fields: Any` — `turn_id` / `session_id` / `rag_query_id` など | 以降のすべてのログレコードに指定フィールドを注入。`None` 値のキーは除外される |
+| `Logger.clear_context()` | — | 注入済みコンテキストフィールドをすべてクリアする |
+| `Logger.info / warning / error / exception / debug` | `msg: str, *args, **kwargs` | 内部 `logging.Logger` の同名メソッドに委譲 (`__getattr__` 経由) |
 
 ### 3.3 ログ設定
+
+#### テキスト形式 (`structured_log=False`、デフォルト)
 
 | 項目 | 値 |
 |---|---|
@@ -110,6 +128,17 @@ logger = Logger(__name__, "/opt/llm/logs/agent.log")
 | ハンドラ 1 | `FileHandler(log_file)` — 指定ファイルに出力 |
 | ハンドラ 2 | `StreamHandler(sys.stderr)` — stderr にも同時出力 |
 | propagate | `False` — ルートロガーへの伝播を遮断 |
+
+#### JSON Lines 形式 (`structured_log=True`)
+
+| 項目 | 値 |
+|---|---|
+| レベル | `INFO` |
+| フォーマット | `_JsonFormatter` — 1 行 1 エントリ (orjson でシリアライズ) |
+| JSON フィールド | `ts` / `level` / `func` / `msg` に加え、コンテキストキー (`turn_id` / `session_id` / `rag_query_id`) を条件付きで出力。例外発生時は `exc` を追加 |
+| ハンドラ 1 | `FileHandler(log_file)` |
+| ハンドラ 2 | `StreamHandler(sys.stderr)` |
+| propagate | `False` |
 
 ログファイルが開けない場合は stderr 出力のみにフォールバック。同一プロセス内で同じ `name` で 2 回目の `Logger()` を生成してもハンドラが重複付与されないよう (`self._logger.handlers` チェック) 冪等に動作。
 
@@ -121,6 +150,15 @@ from shared.logger import Logger
 logger = Logger(__name__, "/opt/llm/logs/xxx.log")
 ```
 
+構造化ログ (監査ログ等):
+```python
+from shared.logger import Logger
+audit = Logger(__name__, "/opt/llm/logs/audit.log", structured_log=True)
+audit.set_context(turn_id="t-001", session_id="s-abc")
+audit.info("tool executed")  # → {"ts":"...","level":"INFO","func":"...","msg":"tool executed","turn_id":"t-001","session_id":"s-abc"}
+audit.clear_context()
+```
+
 ライブラリモジュール (エントリスクリプトのロガーが上位で設定済みであることを前提とする):
 ```python
 import logging
@@ -129,16 +167,31 @@ logger = logging.getLogger(__name__)
 
 ### 3.5 ログファイル一覧
 
-| スクリプト | ログファイル |
-|---|---|
-| `create_schema.py` | `/opt/llm/logs/create_schema.log` |
-| `rag/ingestion/crawler.py` | `/opt/llm/logs/crawl.log` |
-| `rag/ingestion/chunk_splitter.py` | `/opt/llm/logs/chunk.log` |
-| `rag/ingestion/ingester.py` | `/opt/llm/logs/ingest.log` |
-| `agent.py` | `/opt/llm/logs/agent.log` |
-| `mcp/file/server.py` | `/opt/llm/logs/file-mcp.log` |
-| `mcp/web_search/server.py` | `/opt/llm/logs/web-search-mcp.log` |
-| `mcp/github/server.py` | `/opt/llm/logs/github-mcp.log` |
+`Logger(__name__, log_file)` で直接ログファイルを指定しているスクリプト一覧。
+
+| スクリプト | ログファイル | 備考 |
+|---|---|---|
+| `db/create_schema.py` | `/opt/llm/logs/create_schema.log` | — |
+| `db/migrate.py` | `/opt/llm/logs/migrate_db.log` | — |
+| `rag/ingestion/crawler.py` | `/opt/llm/logs/crawl.log` | — |
+| `rag/ingestion/chunk_splitter.py` | `/opt/llm/logs/chunk.log` | — |
+| `rag/ingestion/chunk_japanese.py` | `/opt/llm/logs/chunk.log` | chunk_splitter と共用 |
+| `rag/ingestion/ingester.py` | `/opt/llm/logs/ingest.log` | — |
+| `agent/repl.py` | `/opt/llm/logs/agent.log` | — |
+| `agent/repl_health.py` | `/opt/llm/logs/agent.log` | repl と共用 |
+| `agent/repl_tool_exec.py` | `/opt/llm/logs/agent.log` | repl と共用 |
+| `agent/orchestrator.py` | `/opt/llm/logs/agent.log` | repl と共用 |
+| `agent/repl.py` (`audit_logger`) | `cfg.audit_log_file` (デフォルト `/opt/llm/logs/audit.log`) | `structured_log=True` (JSON Lines) |
+| `mcp/file/read_server.py` | `/opt/llm/logs/file-read-mcp.log` | — |
+| `mcp/file/write_server.py` | `/opt/llm/logs/file-write-mcp.log` | — |
+| `mcp/file/delete_server.py` | `/opt/llm/logs/file-delete-mcp.log` | — |
+| `mcp/web_search/server.py` | `/opt/llm/logs/web-search-mcp.log` | — |
+| `mcp/github/server.py` | `/opt/llm/logs/github-mcp.log` | — |
+| `mcp/shell/server.py` | `/opt/llm/logs/shell-mcp.log` | — |
+| `mcp/rag_pipeline/server.py` | `/opt/llm/logs/rag-mcp.log` | — |
+| `mcp/cicd/models.py` | `/opt/llm/logs/cicd-mcp.log` | — |
+| `mcp/sqlite/models.py` | `/opt/llm/logs/sqlite-mcp.log` | — |
+| `mcp/git/models.py` | `/opt/llm/logs/git-mcp.log` | — |
 
 ---
 
@@ -146,7 +199,7 @@ logger = logging.getLogger(__name__)
 
 ### 4.1 機能概要
 
-MCP サーバのツール結果テキスト整形と構造化ログ出力に使う共通ユーティリティ。`mcp/file/server.py` / `mcp/web_search/server.py` / `mcp/github/server.py` の 3 サーバが import。Pure 関数のみで副作用なし。
+MCP サーバのツール結果テキスト整形と構造化ログ出力に使う共通ユーティリティ。複数の MCP サーバが import。Pure 関数のみで副作用なし。
 
 ### 4.2 定数
 
@@ -184,6 +237,154 @@ fmt_kvlog("search_try", provider="bing", q="test", n=0, result="zero_results_fal
 
 | スクリプト | 使用関数 |
 |---|---|
-| `mcp/file/server.py` | `fmt_size`, `fmt_kvlog` |
+| `mcp/file/read_server.py` | `fmt_kvlog` |
+| `mcp/file/read_service.py` | `fmt_size` |
+| `mcp/file/write_server.py` | `fmt_kvlog` |
+| `mcp/file/delete_server.py` | `fmt_kvlog` |
 | `mcp/web_search/server.py` | `MAX_SNIPPET_CHARS`, `truncate`, `fmt_kvlog` |
-| `mcp/github/server.py` | `fmt_md_link`, `fmt_kvlog` |
+| `mcp/github/server.py` | `fmt_kvlog` |
+| `mcp/github/service.py` | `fmt_md_link` |
+| `mcp/shell/server.py` | `fmt_kvlog` |
+| `mcp/rag_pipeline/server.py` | `fmt_kvlog` |
+
+---
+
+## 5. shared/otel_tracer.py
+
+### 5.1 機能概要
+
+OpenTelemetry (OTel) トレーサーの初期化ユーティリティ。`build_tracer()` はプライベートな `TracerProvider` インスタンスを生成し、グローバルプロバイダ (`trace.set_tracer_provider()`) を設定しない。これによりテスト間のプロバイダ汚染を防ぎ、同一プロセス内で複数の独立したトレーサーが共存できる。
+
+`enabled=False` のとき、OpenTelemetry SDK をインポートせずに `_NoOpTracer` を返す。SDK がオプション依存のまま維持される。
+
+### 5.2 API
+
+```python
+from shared.otel_tracer import build_tracer
+
+tracer = build_tracer(enabled=True, service_name="llm-agent", otlp_endpoint="")
+```
+
+| 関数/クラス | シグネチャ | 説明 |
+|---|---|---|
+| `build_tracer` | `(enabled: bool, service_name: str = "llm-agent", otlp_endpoint: str = "") -> Any` | OTel トレーサー (または `_NoOpTracer`) を生成して返す。グローバルプロバイダは変更しない。`otlp_endpoint` が非空のとき `OTLPSpanExporter` + `BatchSpanProcessor` を使用し、空のとき `ConsoleSpanExporter` + `SimpleSpanProcessor` を使用。`opentelemetry-sdk` 未インストール時は `_NoOpTracer` にフォールバック。OTLP エクスポーター (`opentelemetry-exporter-otlp`) のみ未インストールの場合も `ConsoleSpanExporter` にフォールバックする |
+| `_NoOpTracer` | — | `enabled=False` または SDK 未インストール時に返すスタブ。`start_as_current_span(name, **kwargs) -> _NoOpSpan` を実装。呼び出し元は `enabled` フラグを確認する必要がない |
+| `_NoOpSpan` | — | コンテキストマネージャプロトコルと `set_attribute(_key, _value)` を実装するスタブ。`__enter__` / `__exit__` / `set_attribute` はすべて無操作 |
+
+#### エクスポーター選択ロジック
+
+```
+enabled=False
+  → _NoOpTracer (SDKインポートなし)
+
+enabled=True, otlp_endpoint 非空
+  → OTLPSpanExporter + BatchSpanProcessor
+  ※ opentelemetry-exporter-otlp 未インストール → ConsoleSpanExporter + SimpleSpanProcessor にフォールバック
+
+enabled=True, otlp_endpoint 空
+  → ConsoleSpanExporter + SimpleSpanProcessor
+```
+
+### 5.3 使用スクリプト
+
+| スクリプト | 使用箇所 |
+|---|---|
+| `agent/repl.py` | `_init_components()` で `build_tracer()` を呼び出し、`ctx.services.tracer` として保持 |
+
+---
+
+## 6. shared/git_helper.py
+
+### 6.1 機能概要
+
+GitPython を使用してローカル git リポジトリのメタデータ (ブランチ名・コミット情報) を取得するユーティリティ。`/context` コマンドの出力に git 情報を追加するために `agent/commands/cmd_context.py` が使用。lazy import でスタートアップ時のオーバーヘッドを抑制する。
+
+### 6.2 API
+
+```python
+from shared.git_helper import get_repo_info
+
+info = get_repo_info("/opt/llm")  # git リポジトリ外では None
+```
+
+| 関数 | シグネチャ | 説明 |
+|---|---|---|
+| `get_repo_info` | `(path: str = ".") -> dict[str, Any] \| None` | 現在のブランチと最新コミット情報を返す。git リポジトリ外、または GitPython 例外発生時は `None` を返す。`search_parent_directories=True` で親ディレクトリを遡って検索。HEAD デタッチ時はブランチ名に `"HEAD (detached)"` を返す |
+
+戻り値 dict のフィールド:
+
+| キー | 型 | 説明 |
+|---|---|---|
+| `branch` | `str` | 現在のブランチ名。デタッチ HEAD の場合は `"HEAD (detached)"` |
+| `commit` | `str` | コミットハッシュの先頭 8 文字 |
+| `message` | `str` | コミットメッセージの 1 行目 |
+| `author` | `str` | コミット作者名 |
+
+### 6.3 使用スクリプト
+
+| スクリプト | 使用箇所 |
+|---|---|
+| `agent/commands/cmd_context.py` | `/context` コマンドの出力に git ブランチ・コミット情報を追加 |
+
+---
+
+## 7. shared/tool_constants.py
+
+### 7.1 機能概要
+
+MCP ツール分類の正規 `frozenset` 定義を集中管理するモジュール。ツールリストが変更された際にここのみを更新し、参照側での重複定義を防ぐ。
+
+```python
+from shared.tool_constants import READ_TOOLS, WRITE_TOOLS, DELETE_TOOLS
+from shared.tool_constants import RAG_TOOLS, CICD_TOOLS, MDQ_TOOLS, GIT_TOOLS
+```
+
+### 7.2 定義一覧
+
+| frozenset | 説明 | 含まれるツール例 |
+|---|---|---|
+| `READ_TOOLS` | 読み取り専用ファイル操作ツール | `list_directory` / `read_text_file` / `grep_files` など 9 ツール |
+| `WRITE_TOOLS` | ファイル書き込みツール | `write_file` / `edit_file` / `create_directory` / `move_file` |
+| `DELETE_TOOLS` | ファイル削除ツール | `delete_file` / `delete_directory` |
+| `RAG_TOOLS` | RAG パイプライン MCP ツール | `rag_run_pipeline` / `rag_debug_pipeline` |
+| `CICD_TOOLS` | CI/CD 操作ツール (GitHub Actions) | `trigger_workflow` / `get_workflow_runs` / `get_workflow_status` / `get_workflow_logs` |
+| `MDQ_TOOLS` | Markdown Context Compression Engine ツール | `search_docs` / `get_chunk` / `outline` / `index_paths` / `refresh_index` / `stats` / `grep_docs` |
+| `GIT_TOOLS` | ローカル git 操作ツール (git-mcp, :8014) | `git_status` / `git_log` / `git_diff` / `git_branch` / `git_show` / `git_add` / `git_commit` / `git_checkout` / `git_pull` / `git_push` |
+
+### 7.3 使用スクリプト
+
+| スクリプト | 使用内容 |
+|---|---|
+| `shared/route_resolver.py` | 静的ルーティング (ツール名 → サーバキー) |
+| `shared/tool_executor.py` | 副作用検出 (`is_side_effect()` 関数; `WRITE_TOOLS \| DELETE_TOOLS \| {"shell_run"}` を `_SIDE_EFFECT_TOOLS` として使用) |
+| `agent/repl_tool_exec.py` | リスク分類・承認ロジック |
+
+---
+
+## 8. shared/route_resolver.py
+
+### 8.1 機能概要
+
+ツール名からサーバキーへのマッピングを担当する `ToolRouteResolver` クラス。設定ドリブン (`McpServerConfig.tool_names` フィールド) を優先し、設定に含まれない場合は `tool_constants.py` の frozenset を使った静的フォールバックで解決する。
+
+```python
+from shared.route_resolver import ToolRouteResolver
+from shared.mcp_config import McpServerConfig
+
+resolver = ToolRouteResolver(server_configs)
+server_key = resolver.resolve("read_text_file")  # → "file_read"
+```
+
+### 8.2 API
+
+| クラス / メソッド | シグネチャ | 説明 |
+|---|---|---|
+| `ToolRouteResolver(server_configs)` | `server_configs: dict[str, McpServerConfig]` | 初期化時に `cfg.tool_names` から逆引き辞書 (`tool_name → server_key`) を構築する |
+| `resolve(tool_name)` | `(tool_name: str) -> str` | まず設定マップを参照し、なければ `_fallback_route()` で静的ルーティングを試みる。どちらも一致しない場合は `ValueError` を送出する |
+| `_fallback_route(tool_name)` | `(tool_name: str) -> str` | `tool_constants.py` の各 frozenset と `github_` プレフィックスを使った静的フォールバック。`READ_TOOLS` → `"file_read"` / `WRITE_TOOLS` → `"file_write"` / `DELETE_TOOLS` → `"file_delete"` / `"shell_run"` → `"shell"` / `"search_web"` → `"web_search"` / `github_*` → `"github"` / `RAG_TOOLS` → `"rag_pipeline"` / `CICD_TOOLS` → `"cicd"` / `MDQ_TOOLS` → `"mdq"` / `GIT_TOOLS` → `"git"` |
+
+### 8.3 使用スクリプト
+
+| スクリプト | 使用箇所 |
+|---|---|
+| `shared/tool_executor.py` | `ToolExecutor.__init__()` で `ToolRouteResolver(server_configs)` を生成し、`_raw_execute()` 内でツールのルーティングに使用する |

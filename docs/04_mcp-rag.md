@@ -167,23 +167,19 @@ mcp/rag_pipeline/models → mcp/rag_pipeline/service → mcp/rag_pipeline/server
 
 ---
 
-## 7. `agent.json` との連携
+## 7. `agent.toml` との連携
 
-```json
-{
-  "rag_service_url": "http://127.0.0.1:8010",
-  "mcp_servers": {
-    "rag_pipeline": {
-      "transport": "http",
-      "url": "http://127.0.0.1:8010",
-      "openrc_service": "rag-pipeline-mcp"
-    }
-  },
-  "tool_safety_tiers": {
-    "rag_run_pipeline":   "READ_ONLY",
-    "rag_debug_pipeline": "READ_ONLY"
-  }
-}
+```toml
+rag_service_url = "http://127.0.0.1:8010"
+
+[mcp_servers.rag_pipeline]
+transport      = "http"
+url            = "http://127.0.0.1:8010"
+openrc_service = "rag-pipeline-mcp"
+
+[tool_safety_tiers]
+rag_run_pipeline   = "READ_ONLY"
+rag_debug_pipeline = "READ_ONLY"
 ```
 
 - `rag_service_url` が設定されると `RagPipeline.augment()` が HTTP モードに切り替わる

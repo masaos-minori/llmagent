@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/mdq/indexer.py
+"""mcp/mdq/indexer.py
 Indexer for Markdown Context Compression Engine.
 """
 
@@ -305,7 +304,9 @@ class Indexer:
             raise
 
     def _split_content_by_headings(
-        self, content: str, headings: list[dict]
+        self,
+        content: str,
+        headings: list[dict],
     ) -> list[dict]:
         """Split content into chunks based on headings."""
         chunks = []
@@ -342,7 +343,7 @@ class Indexer:
                             "tags": [],
                             "token_count": len(chunk_content.split()),
                             "anchor": f"heading-{current_heading_line}",
-                        }
+                        },
                     )
 
                 # Start new section
@@ -365,7 +366,7 @@ class Indexer:
                     "tags": [],
                     "token_count": len(chunk_content.split()),
                     "anchor": f"heading-{current_heading_line}",
-                }
+                },
             )
 
         return chunks
@@ -495,7 +496,7 @@ class Indexer:
                                 "content": content[:100] + "..."
                                 if len(content) > 100
                                 else content,
-                            }
+                            },
                         )
             return results
         except Exception as e:

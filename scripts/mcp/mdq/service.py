@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/mdq/service.py
+"""mcp/mdq/service.py
 Service layer for Markdown Context Compression Engine MCP Server.
 """
 
@@ -37,6 +36,12 @@ from mcp.mdq.search import search_chunks
 logger = logging.getLogger(__name__)
 
 
+def _dump(obj: object) -> str:
+    """Serialize obj to an indented JSON string; return type is str, not bytes."""
+    result: str = orjson.dumps(obj, option=orjson.OPT_INDENT_2).decode()
+    return result
+
+
 class MdqService:
     """Service class for Markdown Context Compression Engine."""
 
@@ -59,7 +64,7 @@ class MdqService:
                 hits=[SearchDocsHit(**hit) for hit in hits],
                 total_hits=len(hits),
             )
-            return orjson.dumps(response, option=orjson.OPT_INDENT_2).decode()
+            return _dump(response)
         except Exception as e:
             logger.error(f"Error in search_docs: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Search error: {e}")
@@ -80,7 +85,7 @@ class MdqService:
                 tags=chunk["tags"],
                 chunk_order=chunk["chunk_order"],
             )
-            return orjson.dumps(response, option=orjson.OPT_INDENT_2).decode()
+            return _dump(response)
         except Exception as e:
             logger.error(f"Error in get_chunk: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Get chunk error: {e}")
@@ -108,7 +113,7 @@ class MdqService:
                     for entry in outline_data.get("outline", [])
                 ],
             )
-            return orjson.dumps(response, option=orjson.OPT_INDENT_2).decode()
+            return _dump(response)
         except Exception as e:
             logger.error(f"Error in outline: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Outline error: {e}")
@@ -121,7 +126,7 @@ class MdqService:
                 indexed_paths=indexed_paths,
                 total_docs=len(indexed_paths),
             )
-            return orjson.dumps(response, option=orjson.OPT_INDENT_2).decode()
+            return _dump(response)
         except Exception as e:
             logger.error(f"Error in index_paths: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Index paths error: {e}")
@@ -134,7 +139,7 @@ class MdqService:
                 updated_paths=updated_paths,
                 total_docs=len(updated_paths),
             )
-            return orjson.dumps(response, option=orjson.OPT_INDENT_2).decode()
+            return _dump(response)
         except Exception as e:
             logger.error(f"Error in refresh_index: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Refresh index error: {e}")
@@ -149,7 +154,7 @@ class MdqService:
                 latest_update=stats["latest_update"],
                 fts_size=stats["fts_size"],
             )
-            return orjson.dumps(response, option=orjson.OPT_INDENT_2).decode()
+            return _dump(response)
         except Exception as e:
             logger.error(f"Error in stats: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Stats error: {e}")
@@ -165,7 +170,7 @@ class MdqService:
                 matches=matches,
                 truncated=False,
             )
-            return orjson.dumps(response, option=orjson.OPT_INDENT_2).decode()
+            return _dump(response)
         except Exception as e:
             logger.error(f"Error in grep_docs: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Grep docs error: {e}")

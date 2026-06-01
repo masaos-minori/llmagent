@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-plugin_registry.py
+"""plugin_registry.py
 Plugin registration decorators and auto-discovery for Agent extensions.
 
 Three extension points are provided:
@@ -40,7 +39,7 @@ import importlib.util
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import (  # noqa: UP035 — TypeVar with bound= requires typing.TypeVar; collections.abc has no equivalent
+from typing import (
     Any,
     TypeVar,
 )
@@ -90,7 +89,7 @@ def register_pipeline_stage(*, when: str = "post") -> Callable[[_F], _F]:
     """Register a RAG pipeline stage hook; when='post' is called after cross-encoder rerank; handler: async (hits, query) -> list[RagHit]."""
     if when != "post":
         raise ValueError(
-            f"Unsupported pipeline stage position: {when!r}. Only 'post' is supported."
+            f"Unsupported pipeline stage position: {when!r}. Only 'post' is supported.",
         )
 
     def decorator(fn: _F) -> _F:

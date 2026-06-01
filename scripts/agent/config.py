@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-agent/config.py
+"""agent/config.py
 Shared configuration dataclass and loader for the agent pipeline.
 All runtime-configurable values live in AgentConfig (hot-reloadable via /reload).
 Only path constants remain at module level.
@@ -14,7 +13,7 @@ from typing import Any
 from shared.config_loader import ConfigLoader
 from shared.mcp_config import McpServerConfig, _build_mcp_servers
 
-__all__ = ["McpServerConfig", "AgentConfig"]
+__all__ = ["AgentConfig", "McpServerConfig"]
 
 _cfg: dict[str, Any] | None = None
 
@@ -106,6 +105,9 @@ class AgentConfig:
 
     # Optional URL for external RAG HTTP service (port 8010); empty = in-process
     rag_service_url: str = ""
+    # When True, Orchestrator calls rag_run_pipeline via MCP instead of in-process RagPipeline.
+    # Requires rag-pipeline-mcp to be running (port 8010 or startup_mode="subprocess").
+    use_rag_mcp: bool = False
 
     # ── URL / HTTP config (hot-reloadable via /reload) ─────────────────────────
     llm_url: str = ""
@@ -131,6 +133,8 @@ class AgentConfig:
     # Phase 1: history compression safety + memory layer
     # Token-based monitoring threshold for history compression (0 = disabled)
     context_token_limit: int = 0
+    # llamacpp /tokenize endpoint URL; "" = disabled (falls back to chars // 4)
+    tokenize_url: str = ""
     # Number of most-recent turns to protect from compression
     history_protect_turns: int = 2
     # Enable persistent semantic memory layer
@@ -213,37 +217,37 @@ class AgentConfig:
     def _validate_llm_params(self) -> None:
         if self.context_char_limit < 0:
             raise ValueError(
-                f"context_char_limit must be >= 0, got {self.context_char_limit}"
+                f"context_char_limit must be >= 0, got {self.context_char_limit}",
             )
         if not 0.0 < self.budget_warn_ratio <= 1.0:
             raise ValueError(
-                f"budget_warn_ratio must be in (0.0, 1.0], got {self.budget_warn_ratio}"
+                f"budget_warn_ratio must be in (0.0, 1.0], got {self.budget_warn_ratio}",
             )
         if self.llm_max_retries < 0:
             raise ValueError(
-                f"llm_max_retries must be >= 0, got {self.llm_max_retries}"
+                f"llm_max_retries must be >= 0, got {self.llm_max_retries}",
             )
         if self.llm_retry_base_delay <= 0:
             raise ValueError(
-                f"llm_retry_base_delay must be > 0, got {self.llm_retry_base_delay}"
+                f"llm_retry_base_delay must be > 0, got {self.llm_retry_base_delay}",
             )
         if not 0.0 <= self.llm_temperature <= 2.0:
             raise ValueError(
-                f"llm_temperature must be in [0.0, 2.0], got {self.llm_temperature}"
+                f"llm_temperature must be in [0.0, 2.0], got {self.llm_temperature}",
             )
         if self.llm_max_tokens < 1:
             raise ValueError(f"llm_max_tokens must be >= 1, got {self.llm_max_tokens}")
         if self.sse_heartbeat_timeout < 0:
             raise ValueError(
-                f"sse_heartbeat_timeout must be >= 0, got {self.sse_heartbeat_timeout}"
+                f"sse_heartbeat_timeout must be >= 0, got {self.sse_heartbeat_timeout}",
             )
         if self.sse_malformed_retry < 0:
             raise ValueError(
-                f"sse_malformed_retry must be >= 0, got {self.sse_malformed_retry}"
+                f"sse_malformed_retry must be >= 0, got {self.sse_malformed_retry}",
             )
         if self.sse_reconnect_max < 0:
             raise ValueError(
-                f"sse_reconnect_max must be >= 0, got {self.sse_reconnect_max}"
+                f"sse_reconnect_max must be >= 0, got {self.sse_reconnect_max}",
             )
 
     def _validate_rag_params(self) -> None:
@@ -257,22 +261,22 @@ class AgentConfig:
             raise ValueError(f"rag_min_score must be >= 0, got {self.rag_min_score}")
         if self.max_chunks_per_doc < 1:
             raise ValueError(
-                f"max_chunks_per_doc must be >= 1, got {self.max_chunks_per_doc}"
+                f"max_chunks_per_doc must be >= 1, got {self.max_chunks_per_doc}",
             )
         if self.two_stage_max_docs < 1:
             raise ValueError(
-                f"two_stage_max_docs must be >= 1, got {self.two_stage_max_docs}"
+                f"two_stage_max_docs must be >= 1, got {self.two_stage_max_docs}",
             )
         if self.refiner_max_tokens < 1:
             raise ValueError(
-                f"refiner_max_tokens must be >= 1, got {self.refiner_max_tokens}"
+                f"refiner_max_tokens must be >= 1, got {self.refiner_max_tokens}",
             )
         if self.refiner_timeout <= 0:
             raise ValueError(f"refiner_timeout must be > 0, got {self.refiner_timeout}")
         if self.refiner_max_chars_per_chunk < 1:
             raise ValueError(
                 f"refiner_max_chars_per_chunk must be >= 1,"
-                f" got {self.refiner_max_chars_per_chunk}"
+                f" got {self.refiner_max_chars_per_chunk}",
             )
 
     def _validate_tool_params(self) -> None:
@@ -283,7 +287,7 @@ class AgentConfig:
         if bad:
             raise ValueError(
                 f"approval_risk_rules: invalid levels {bad};"
-                " must be 'none', 'medium', or 'high'"
+                " must be 'none', 'medium', or 'high'",
             )
         _valid_tiers = {"READ_ONLY", "WRITE_SAFE", "WRITE_DANGEROUS", "ADMIN"}
         bad_tiers = {
@@ -292,29 +296,29 @@ class AgentConfig:
         if bad_tiers:
             raise ValueError(
                 f"tool_safety_tiers: invalid tier values {bad_tiers};"
-                " must be READ_ONLY, WRITE_SAFE, WRITE_DANGEROUS, or ADMIN"
+                " must be READ_ONLY, WRITE_SAFE, WRITE_DANGEROUS, or ADMIN",
             )
         if self.tool_dedup_max_repeats < 1:
             raise ValueError(
-                f"tool_dedup_max_repeats must be >= 1, got {self.tool_dedup_max_repeats}"
+                f"tool_dedup_max_repeats must be >= 1, got {self.tool_dedup_max_repeats}",
             )
         if self.tool_cycle_detect_window < 0:
             raise ValueError(
                 "tool_cycle_detect_window must be >= 0,"
-                f" got {self.tool_cycle_detect_window}"
+                f" got {self.tool_cycle_detect_window}",
             )
         if self.tool_error_max_consecutive < 0:
             raise ValueError(
                 "tool_error_max_consecutive must be >= 0,"
-                f" got {self.tool_error_max_consecutive}"
+                f" got {self.tool_error_max_consecutive}",
             )
         if self.tool_cache_max_size < 0:
             raise ValueError(
-                f"tool_cache_max_size must be >= 0, got {self.tool_cache_max_size}"
+                f"tool_cache_max_size must be >= 0, got {self.tool_cache_max_size}",
             )
         if self.tool_error_retry_max < 0:
             raise ValueError(
-                f"tool_error_retry_max must be >= 0, got {self.tool_error_retry_max}"
+                f"tool_error_retry_max must be >= 0, got {self.tool_error_retry_max}",
             )
 
 
@@ -358,7 +362,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
             cfg.get(
                 "plan_blocked_tools",
                 ["write_file", "create_directory", "delete_file", "delete_directory"],
-            )
+            ),
         ),
         llm_temperature=float(cfg.get("llm_temperature", 0.2)),
         llm_max_tokens=int(cfg.get("llm_max_tokens", 1024)),
@@ -387,6 +391,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
         tool_result_max_llm_chars=int(cfg.get("tool_result_max_llm_chars", 8000)),
         tool_results_turn_max_chars=int(cfg.get("tool_results_turn_max_chars", 50000)),
         context_token_limit=int(cfg.get("context_token_limit", 0)),
+        tokenize_url=str(cfg.get("tokenize_url", "")),
         history_protect_turns=int(cfg.get("history_protect_turns", 2)),
         use_memory_layer=bool(cfg.get("use_memory_layer", False)),
         memory_jsonl_dir=str(cfg.get("memory_jsonl_dir", "/opt/llm/memory")),
@@ -426,7 +431,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
                     "github_create_issue": "medium",
                     "github_add_issue_comment": "medium",
                 },
-            )
+            ),
         ),
         approval_protected_paths=list(
             cfg.get(
@@ -439,7 +444,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
                     "/bin/",
                     "/sbin/",
                 ],
-            )
+            ),
         ),
         approval_high_risk_branches=list(
             cfg.get(
@@ -448,7 +453,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
                     "main",
                     "master",
                 ],
-            )
+            ),
         ),
         approval_shell_safe_prefixes=list(
             cfg.get(
@@ -466,7 +471,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
                     "find",
                     "grep",
                 ],
-            )
+            ),
         ),
         approval_resource_keys=dict(
             cfg.get(
@@ -481,7 +486,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
                     ],
                     "branch_keys": ["branch", "base", "head"],
                 },
-            )
+            ),
         ),
         approval_dry_run_tools=list(
             cfg.get(
@@ -493,21 +498,21 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
                     "delete_directory",
                     "move_file",
                 ],
-            )
+            ),
         ),
         sse_heartbeat_timeout=float(cfg.get("sse_heartbeat_timeout", 30.0)),
         sse_malformed_retry=int(cfg.get("sse_malformed_retry", 2)),
         sse_reconnect_max=int(cfg.get("sse_reconnect_max", 1)),
         llm_stream_retry_on_heartbeat_timeout=bool(
-            cfg.get("llm_stream_retry_on_heartbeat_timeout", True)
+            cfg.get("llm_stream_retry_on_heartbeat_timeout", True),
         ),
         llm_stream_retry_on_malformed_chunk=bool(
-            cfg.get("llm_stream_retry_on_malformed_chunk", False)
+            cfg.get("llm_stream_retry_on_malformed_chunk", False),
         ),
         tool_safety_tiers=dict(cfg.get("tool_safety_tiers", {})),
         allowed_root=cfg.get("allowed_root", ""),
         approval_github_allowed_repos=list(
-            cfg.get("approval_github_allowed_repos", [])
+            cfg.get("approval_github_allowed_repos", []),
         ),
         allowed_tools=list(cfg.get("allowed_tools", [])),
     )

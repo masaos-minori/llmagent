@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-cmd_config.py
+"""cmd_config.py
 Configuration and statistics mixin for CommandRegistry.
 
 Extracted from agent_commands.py.  Provides _ConfigMixin with:
@@ -70,7 +69,7 @@ class _ConfigMixin:
         print(f"  RAG hits      : {ctx.stat_rag_hits}")
         print(
             f"  Sem. cache    : {ctx.stat_semantic_cache_hits} hits"
-            f"  (size={ctx.services.rag.semantic_cache.size if ctx.services.rag else 0})"
+            f"  (size={ctx.services.rag.semantic_cache.size if ctx.services.rag else 0})",
         )
         print(f"  Input tokens  : {_fmt_tokens(ctx.stat_input_tokens)}")
         print(f"  Output tokens : {_fmt_tokens(ctx.stat_output_tokens)}")
@@ -105,17 +104,17 @@ class _ConfigMixin:
         print()
         print("SSE stream settings:")
         print(
-            f"  sse_heartbeat_timeout              : {ctx.cfg.sse_heartbeat_timeout}s"
+            f"  sse_heartbeat_timeout              : {ctx.cfg.sse_heartbeat_timeout}s",
         )
         print(f"  sse_malformed_retry                : {ctx.cfg.sse_malformed_retry}")
         print(f"  sse_reconnect_max                  : {ctx.cfg.sse_reconnect_max}")
         print(
             f"  llm_stream_retry_on_heartbeat_timeout:"
-            f" {ctx.cfg.llm_stream_retry_on_heartbeat_timeout}"
+            f" {ctx.cfg.llm_stream_retry_on_heartbeat_timeout}",
         )
         print(
             f"  llm_stream_retry_on_malformed_chunk  :"
-            f" {ctx.cfg.llm_stream_retry_on_malformed_chunk}"
+            f" {ctx.cfg.llm_stream_retry_on_malformed_chunk}",
         )
         print()
         print("Execution settings:")
@@ -145,14 +144,14 @@ class _ConfigMixin:
         print(f"  protected_paths     : {ctx.cfg.approval_protected_paths}")
         print(f"  high_risk_branches  : {ctx.cfg.approval_high_risk_branches}")
         dry_run_tools = ctx.cfg.approval_dry_run_tools
-        print(f"  dry_run_tools       : {dry_run_tools if dry_run_tools else '(none)'}")
+        print(f"  dry_run_tools       : {dry_run_tools or '(none)'}")
         masked = ctx.cfg.masked_fields
-        print(f"  masked_fields       : {masked if masked else '(none)'}")
+        print(f"  masked_fields       : {masked or '(none)'}")
         print()
         print("Security settings (tool safety):")
         allowed_root = ctx.cfg.allowed_root
         print(
-            f"  allowed_root        : {repr(allowed_root) if allowed_root else '(disabled)'}"
+            f"  allowed_root        : {repr(allowed_root) if allowed_root else '(disabled)'}",
         )
         allowed_repos = ctx.cfg.approval_github_allowed_repos
         if allowed_repos:
@@ -198,7 +197,7 @@ class _ConfigMixin:
     def _cmd_config(self) -> None:
         """Print current configuration and source file paths."""
         from agent.config import (
-            _CONFIG_DIR,  # noqa: PLC0415 — avoid module-level constant import
+            _CONFIG_DIR,
         )
 
         print("Config files:")
@@ -221,7 +220,9 @@ class _ConfigMixin:
         self._sync_services_to_cfg(ctx, new_cfg)
 
     def _apply_rag_tool_params(
-        self, ctx: "AgentContext", new_cfg: dict[str, Any]
+        self,
+        ctx: "AgentContext",
+        new_cfg: dict[str, Any],
     ) -> None:
         """Apply RAG pipeline, tool cache, LLM retry, refiner, and watchdog settings."""
         ctx.cfg.context_char_limit = int(new_cfg.get("context_char_limit", 8000))
@@ -244,37 +245,40 @@ class _ConfigMixin:
         ctx.cfg.auto_inject_notes = bool(new_cfg.get("auto_inject_notes", True))
         ctx.cfg.use_tool_summarize = bool(new_cfg.get("use_tool_summarize", False))
         ctx.cfg.tool_summarize_threshold = int(
-            new_cfg.get("tool_summarize_threshold", 3000)
+            new_cfg.get("tool_summarize_threshold", 3000),
         )
         ctx.cfg.use_semantic_cache = bool(new_cfg.get("use_semantic_cache", False))
         ctx.cfg.semantic_cache_threshold = float(
-            new_cfg.get("semantic_cache_threshold", 0.92)
+            new_cfg.get("semantic_cache_threshold", 0.92),
         )
         ctx.cfg.semantic_cache_max_size = int(
-            new_cfg.get("semantic_cache_max_size", 100)
+            new_cfg.get("semantic_cache_max_size", 100),
         )
         ctx.cfg.tool_definitions_strict = bool(
-            new_cfg.get("tool_definitions_strict", False)
+            new_cfg.get("tool_definitions_strict", False),
         )
         ctx.cfg.mcp_watchdog_interval = float(new_cfg.get("mcp_watchdog_interval", 0.0))
         ctx.cfg.mcp_watchdog_max_restarts = int(
-            new_cfg.get("mcp_watchdog_max_restarts", 3)
+            new_cfg.get("mcp_watchdog_max_restarts", 3),
         )
         ctx.cfg.plan_blocked_tools = list(
             new_cfg.get(
                 "plan_blocked_tools",
                 ["write_file", "create_directory", "delete_file", "delete_directory"],
-            )
+            ),
         )
         ctx.cfg.use_refiner = bool(new_cfg.get("use_refiner", False))
         ctx.cfg.refiner_max_tokens = int(new_cfg.get("refiner_max_tokens", 512))
         ctx.cfg.refiner_timeout = float(new_cfg.get("refiner_timeout", 30.0))
         ctx.cfg.refiner_max_chars_per_chunk = int(
-            new_cfg.get("refiner_max_chars_per_chunk", 300)
+            new_cfg.get("refiner_max_chars_per_chunk", 300),
         )
+        ctx.cfg.use_rag_mcp = bool(new_cfg.get("use_rag_mcp", False))
 
     def _apply_mcp_url_reload(
-        self, ctx: "AgentContext", new_cfg: dict[str, Any]
+        self,
+        ctx: "AgentContext",
+        new_cfg: dict[str, Any],
     ) -> None:
         """Update HTTP MCP server URLs from reloaded config; transport type changes require restart."""
         from agent.config import _build_mcp_servers  # noqa: PLC0415
@@ -287,7 +291,9 @@ class _ConfigMixin:
                 old_srv.openrc_service = new_srv.openrc_service
 
     def _apply_llm_prompt_params(
-        self, ctx: "AgentContext", new_cfg: dict[str, Any]
+        self,
+        ctx: "AgentContext",
+        new_cfg: dict[str, Any],
     ) -> None:
         """Apply hot-reloadable URL, HTTP, LLM generation, tool definition, and prompt settings."""
         ctx.cfg.llm_temperature = float(new_cfg.get("llm_temperature", 0.2))
@@ -298,13 +304,13 @@ class _ConfigMixin:
         ctx.cfg.embed_url = new_cfg.get("embed_url", ctx.cfg.embed_url)
         ctx.cfg.http_timeout = float(new_cfg.get("http_timeout", ctx.cfg.http_timeout))
         ctx.cfg.web_search_max_results = int(
-            new_cfg.get("web_search_max_results", ctx.cfg.web_search_max_results)
+            new_cfg.get("web_search_max_results", ctx.cfg.web_search_max_results),
         )
         ctx.cfg.max_tool_turns = int(
-            new_cfg.get("max_tool_turns", ctx.cfg.max_tool_turns)
+            new_cfg.get("max_tool_turns", ctx.cfg.max_tool_turns),
         )
         ctx.cfg.tool_result_max_llm_chars = int(
-            new_cfg.get("tool_result_max_llm_chars", ctx.cfg.tool_result_max_llm_chars)
+            new_cfg.get("tool_result_max_llm_chars", ctx.cfg.tool_result_max_llm_chars),
         )
         if new_cfg.get("tool_definitions"):
             ctx.cfg.tool_definitions = list(new_cfg["tool_definitions"])
@@ -315,33 +321,37 @@ class _ConfigMixin:
             ctx.cfg.system_prompts = dict(new_cfg["system_prompts"])
 
     def _apply_sse_reload_params(
-        self, ctx: "AgentContext", new_cfg: dict[str, Any]
+        self,
+        ctx: "AgentContext",
+        new_cfg: dict[str, Any],
     ) -> None:
         """Apply SSE stream resilience settings."""
         ctx.cfg.sse_heartbeat_timeout = float(
-            new_cfg.get("sse_heartbeat_timeout", ctx.cfg.sse_heartbeat_timeout)
+            new_cfg.get("sse_heartbeat_timeout", ctx.cfg.sse_heartbeat_timeout),
         )
         ctx.cfg.sse_malformed_retry = int(
-            new_cfg.get("sse_malformed_retry", ctx.cfg.sse_malformed_retry)
+            new_cfg.get("sse_malformed_retry", ctx.cfg.sse_malformed_retry),
         )
         ctx.cfg.sse_reconnect_max = int(
-            new_cfg.get("sse_reconnect_max", ctx.cfg.sse_reconnect_max)
+            new_cfg.get("sse_reconnect_max", ctx.cfg.sse_reconnect_max),
         )
         ctx.cfg.llm_stream_retry_on_heartbeat_timeout = bool(
             new_cfg.get(
                 "llm_stream_retry_on_heartbeat_timeout",
                 ctx.cfg.llm_stream_retry_on_heartbeat_timeout,
-            )
+            ),
         )
         ctx.cfg.llm_stream_retry_on_malformed_chunk = bool(
             new_cfg.get(
                 "llm_stream_retry_on_malformed_chunk",
                 ctx.cfg.llm_stream_retry_on_malformed_chunk,
-            )
+            ),
         )
 
     def _reload_approval_settings(
-        self, ctx: "AgentContext", new_cfg: dict[str, Any]
+        self,
+        ctx: "AgentContext",
+        new_cfg: dict[str, Any],
     ) -> None:
         """Update approval-related list/dict fields in ctx.cfg when present in new_cfg."""
         if "approval_risk_rules" in new_cfg:
@@ -350,11 +360,11 @@ class _ConfigMixin:
             ctx.cfg.approval_protected_paths = list(new_cfg["approval_protected_paths"])
         if "approval_high_risk_branches" in new_cfg:
             ctx.cfg.approval_high_risk_branches = list(
-                new_cfg["approval_high_risk_branches"]
+                new_cfg["approval_high_risk_branches"],
             )
         if "approval_shell_safe_prefixes" in new_cfg:
             ctx.cfg.approval_shell_safe_prefixes = list(
-                new_cfg["approval_shell_safe_prefixes"]
+                new_cfg["approval_shell_safe_prefixes"],
             )
         if "approval_resource_keys" in new_cfg:
             ctx.cfg.approval_resource_keys = dict(new_cfg["approval_resource_keys"])
@@ -365,7 +375,7 @@ class _ConfigMixin:
         ctx.cfg.allowed_root = new_cfg.get("allowed_root", ctx.cfg.allowed_root)
         if "approval_github_allowed_repos" in new_cfg:
             ctx.cfg.approval_github_allowed_repos = list(
-                new_cfg["approval_github_allowed_repos"]
+                new_cfg["approval_github_allowed_repos"],
             )
         if "allowed_tools" in new_cfg:
             ctx.cfg.allowed_tools = list(new_cfg["allowed_tools"])
@@ -373,7 +383,9 @@ class _ConfigMixin:
             ctx.cfg.memory_retention_days = int(new_cfg["memory_retention_days"])
 
     def _sync_services_to_cfg(
-        self, ctx: "AgentContext", new_cfg: dict[str, Any]
+        self,
+        ctx: "AgentContext",
+        new_cfg: dict[str, Any],
     ) -> None:
         """Propagate updated cfg fields to live service instances (LLM/hist_mgr/tools)."""
         if ctx.services.llm is not None:
@@ -393,11 +405,14 @@ class _ConfigMixin:
         if ctx.services.hist_mgr is not None:
             ctx.services.hist_mgr._char_limit = ctx.cfg.context_char_limit
             ctx.services.hist_mgr._compress_turns = ctx.cfg.context_compress_turns
+            ctx.services.hist_mgr._token_limit = ctx.cfg.context_token_limit
+            ctx.services.hist_mgr._tokenize_url = ctx.cfg.tokenize_url
         if ctx.services.tools is not None:
             ctx.services.tools._cache_ttl = ctx.cfg.tool_cache_ttl
         if ctx.history and ctx.history[0]["role"] == "system":
             ctx.history[0]["content"] = new_cfg.get(
-                "system_prompt_tool", ctx.history[0]["content"]
+                "system_prompt_tool",
+                ctx.history[0]["content"],
             )
 
     def _cmd_set(self, args: str) -> None:
@@ -414,7 +429,7 @@ class _ConfigMixin:
             print(
                 f"  temperature : {ctx.cfg.llm_temperature}\n"
                 f"  max_tokens  : {ctx.cfg.llm_max_tokens}\n"
-                "Use: /set temperature <float> | /set max_tokens <int>"
+                "Use: /set temperature <float> | /set max_tokens <int>",
             )
             return
         if len(parts) != 2:

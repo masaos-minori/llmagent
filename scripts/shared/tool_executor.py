@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-tool_executor.py
+"""tool_executor.py
 MCP tool execution layer.
 
 Provides two transport implementations:
@@ -24,7 +23,7 @@ from typing import Any, Protocol
 import httpx
 import orjson
 
-import shared.plugin_registry as plugin_registry
+from shared import plugin_registry
 from shared.mcp_config import McpServerConfig
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
@@ -124,7 +123,7 @@ class StdioTransport:
         if self._working_dir:
             if not Path(self._working_dir).is_dir():
                 raise ValueError(
-                    f"StdioTransport: working_dir {self._working_dir!r} does not exist"
+                    f"StdioTransport: working_dir {self._working_dir!r} does not exist",
                 )
             cwd = self._working_dir
         merged_env: dict[str, str] | None = None
@@ -140,7 +139,7 @@ class StdioTransport:
         )
         logger.info(
             f"stdio MCP server started: key={self._server_key!r}"
-            f" pid={self._proc.pid} cmd={self._cmd}"
+            f" pid={self._proc.pid} cmd={self._cmd}",
         )
 
     def is_alive(self) -> bool:
@@ -204,7 +203,7 @@ class StdioTransport:
             await asyncio.wait_for(self._proc.wait(), timeout=5.0)
         except TimeoutError:
             logger.warning(
-                f"stdio server {self._server_key!r} did not exit gracefully; terminating"
+                f"stdio server {self._server_key!r} did not exit gracefully; terminating",
             )
             self._proc.terminate()
             try:
@@ -222,11 +221,6 @@ class StdioTransport:
 _SIDE_EFFECT_TOOLS: frozenset[str] = (
     WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
 )
-
-# Add mdq tools to the route resolver
-# This is a workaround to ensure mdq tools are properly routed
-# In a real implementation, this would be handled by the ToolRouteResolver
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Lifecycle protocol — implemented by agent/lifecycle.py; defined here so that
@@ -267,7 +261,7 @@ def format_transport_error(
             "url": url,
             "retryable": retryable,
             "partial": partial,
-        }
+        },
     ).decode()
     summary = f"[{source.upper()} {kind}] {phase} failure (retryable={retryable})"
     return {"summary": summary, "detail": detail}
@@ -317,7 +311,7 @@ class ToolExecutor:
         if unknown_keys:
             logger.warning(
                 f"tool_concurrency_limits: unknown server key(s) {sorted(unknown_keys)!r};"
-                " Semaphore will not be applied for these tools."
+                " Semaphore will not be applied for these tools.",
             )
 
         # Initialise transports: HTTP servers get their transport immediately;
@@ -341,7 +335,9 @@ class ToolExecutor:
         self._lifecycle = lifecycle
 
     async def _raw_execute(
-        self, tool_name: str, args: dict[str, Any]
+        self,
+        tool_name: str,
+        args: dict[str, Any],
     ) -> tuple[str, bool, str]:
         """Execute tool via the appropriate transport; applies per-server-key Semaphore when configured; semaphores created lazily to avoid event loop issues."""
         server_key = self._resolver.resolve(tool_name)
@@ -377,7 +373,9 @@ class ToolExecutor:
         return await transport.call(tool_name, args)
 
     async def _execute_with_cache(
-        self, tool_name: str, args: dict[str, Any]
+        self,
+        tool_name: str,
+        args: dict[str, Any],
     ) -> tuple[str, bool, str]:
         """Execute a tool: return cached result on hit; execute and store on miss."""
         cache_key = (
@@ -403,7 +401,9 @@ class ToolExecutor:
         return result, is_error, x_request_id
 
     async def execute(
-        self, tool_name: str, args: dict[str, Any]
+        self,
+        tool_name: str,
+        args: dict[str, Any],
     ) -> tuple[str, bool, str]:
         """Execute a tool. Plugin tools bypass cache and MCP routing; others use cache."""
         plugin_fn = plugin_registry.get_tool(tool_name)

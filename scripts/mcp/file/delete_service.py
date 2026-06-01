@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-file_delete_mcp_service.py
+"""file_delete_mcp_service.py
 DeleteFileService business logic, audit log, and lazy singleton proxy for file-delete-mcp.
 
 Dependency direction: file_delete_mcp_models → file_delete_mcp_service → file_delete_mcp_server
@@ -92,7 +91,9 @@ class DeleteFileService:
             except OSError as e:
                 file_info = f"stat error: {e}"
             return DeleteFileResponse(
-                path=str(target), deleted=False, file_info=file_info
+                path=str(target),
+                deleted=False,
+                file_info=file_info,
             )
         try:
             target.unlink()
@@ -141,7 +142,7 @@ class DeleteFileService:
         if req.dry_run:
             try:
                 file_count, total_size, truncated = self._scan_directory_for_dry_run(
-                    target
+                    target,
                 )
             except OSError as e:
                 return DeleteDirectoryResponse(
@@ -176,7 +177,7 @@ class DeleteFileService:
 
     async def fmt_delete_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.delete_file(DeleteFileRequest(**args))
+            lambda: self.delete_file(DeleteFileRequest(**args)),
         )
         if not result.deleted:
             return f"Dry-run: {result.path} ({result.file_info})"
@@ -184,7 +185,7 @@ class DeleteFileService:
 
     async def fmt_delete_directory(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.delete_directory(DeleteDirectoryRequest(**args))
+            lambda: self.delete_directory(DeleteDirectoryRequest(**args)),
         )
         if not result.deleted:
             return f"Dry-run: {result.path} ({result.dir_info})"
@@ -214,7 +215,8 @@ class _LazyDeleteFileService:
             _LazyDeleteFileService._instance = DeleteFileService(
                 allowed_dirs=allowed_dirs,
                 audit_log_path=cfg.get(
-                    "audit_log_path", "/opt/llm/logs/delete_audit.log"
+                    "audit_log_path",
+                    "/opt/llm/logs/delete_audit.log",
                 ),
             )
         return getattr(_LazyDeleteFileService._instance, name)

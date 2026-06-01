@@ -11,20 +11,9 @@ description: |
 
 ## Purpose
 
-Deploy code and config changes safely to `/opt/llm/` and manage OpenRC services
-without disrupting the running agent or MCP servers.
+Deploy code and config changes safely to `/opt/llm/`; manage OpenRC services without disrupting the running agent or MCP servers.
 
-## Environment facts
-
-- Deploy target: `/opt/llm/`
-- Python venv: `/opt/llm/venv/`
-- Scripts live at: `/opt/llm/scripts/`
-- Configs live at: `/opt/llm/config/`
-- Logs live at: `/opt/llm/logs/`
-- DB: SQLite at path in `config/common.toml`
-- `sqlite-vec` extension: `/opt/llm/sqlite-vec/vec0.so`
-
-For service names and ports: see `rules/env.md`.
+For environment details (paths, service names, ports): see `rules/env.md`.
 
 ## Deploy scripts
 

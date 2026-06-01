@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-git_helper.py
+"""git_helper.py
 Local git repository metadata utilities using GitPython.
 Returns branch and last commit info for display in /context output.
 """

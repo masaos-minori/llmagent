@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-cmd_rag.py
+"""cmd_rag.py
 RAG, tool inspection, note, plan, and debug mixin for CommandRegistry.
 
 Extracted from agent_commands.py.  Provides _RagMixin with:
@@ -46,7 +45,7 @@ class _RagMixin:
             flag = "yes" if entry.get("summary") else "no"
             print(
                 f"{entry['id']:>6}  {entry['tool_name']:<22}"
-                f"  {len(entry['full_text']):>7}  {flag}"
+                f"  {len(entry['full_text']):>7}  {flag}",
             )
 
     def _tool_show(self, arg: str) -> None:
@@ -199,11 +198,14 @@ class _RagMixin:
         state = "ON" if ctx.debug_mode else "OFF"
         logger.info(f"Debug mode toggled: {state}")
         print(
-            f"Debug mode: {state}  (use /debug audit | verbose | normal for more options)"
+            f"Debug mode: {state}  (use /debug audit | verbose | normal for more options)",
         )
 
     def _print_rag_results(
-        self, query: str, queries: list[str], reranked: list[RagHit]
+        self,
+        query: str,
+        queries: list[str],
+        reranked: list[RagHit],
     ) -> None:
         """Print /rag search results: expanded queries and ranked chunks."""
         print()
@@ -223,7 +225,11 @@ class _RagMixin:
             print(f"     {preview!r}")
 
     def _cmd_rag_toggle(
-        self, subcmd: str, parts: list[str], flag: str, label: str
+        self,
+        subcmd: str,
+        parts: list[str],
+        flag: str,
+        label: str,
     ) -> None:
         """Toggle a boolean RAG config flag via /rag <subcmd> on|off."""
         val = parts[1].lower() if len(parts) > 1 else ""
@@ -269,6 +275,7 @@ class _RagMixin:
           /rag off          Disable RAG search (use_search=false)
           /rag mqe on|off   Enable/disable Multi-Query Expansion
           /rag rerank on|off  Enable/disable Cross-Encoder reranking
+          /rag mcp on|off   Enable/disable MCP-based RAG (use_rag_mcp)
           /rag search <query>  Dry-run RAG pipeline (no LLM call)
         """
         ctx = self._ctx
@@ -285,18 +292,22 @@ class _RagMixin:
             self._cmd_rag_toggle("mqe", parts, "use_mqe", "MQE")
         elif sub == "rerank":
             self._cmd_rag_toggle("rerank", parts, "use_rerank", "Reranking")
+        elif sub == "mcp":
+            self._cmd_rag_toggle("mcp", parts, "use_rag_mcp", "RAG MCP")
         elif sub == "search":
             query = args.strip()[len("search") :].strip()
             await self._cmd_rag_search(query)
         else:
+            mcp_label = " (MCP)" if ctx.cfg.use_rag_mcp else " (in-process)"
             print(
                 f"RAG step status:\n"
-                f"  use_search : {ctx.cfg.use_search}\n"
+                f"  use_search : {ctx.cfg.use_search}{mcp_label}\n"
+                f"  use_rag_mcp: {ctx.cfg.use_rag_mcp}\n"
                 f"  use_mqe    : {ctx.cfg.use_mqe}\n"
                 f"  use_rrf    : {ctx.cfg.use_rrf}\n"
                 f"  use_rerank : {ctx.cfg.use_rerank}\n"
-                "Use /rag on|off, /rag mqe on|off, /rag rerank on|off, "
-                "/rag search <query>"
+                "Use /rag on|off, /rag mcp on|off, /rag mqe on|off,"
+                " /rag rerank on|off, /rag search <query>",
             )
 
     def _render_history_md(self, history: list[LLMMessage]) -> str:

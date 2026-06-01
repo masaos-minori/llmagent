@@ -149,6 +149,13 @@ Slash commands:
   /note add <text>         Add a persistent cross-session note
   /note list               List all notes
   /note delete <id>        Delete a note by ID
+  /memory list [semantic|episodic] [n]  List memory entries
+  /memory search <query>   FTS5 search across all memory entries
+  /memory show <id>        Show full content of one memory entry
+  /memory pin <id>         Pin an entry (always injected at session start)
+  /memory unpin <id>       Remove pin from an entry
+  /memory delete <id>      Delete one entry by memory_id
+  /memory prune [days]     Delete entries older than N days
   /tool list               List stored tool results (current session)
   /tool show <idx>         Show full text of a stored tool result
   /undo                    Roll back the last user+assistant turn

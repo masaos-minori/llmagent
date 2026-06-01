@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-chunk_utils.py
+"""chunk_utils.py
 Shared buffer helpers for ChunkEnglishMixin and ChunkJapaneseMixin.
 
 Imported by chunk_english.py, chunk_japanese.py, and chunk_splitter.py.

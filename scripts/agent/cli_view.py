@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-cli_view.py
+"""cli_view.py
 CLI presentation layer: readline setup, multiline continuation input,
 and RAG pipeline progress display.
 """
@@ -81,7 +80,9 @@ class CLIView:
         print(" " * 32, end="\r", flush=True)
 
     async def read_multiline(
-        self, loop: asyncio.AbstractEventLoop, first_line: str
+        self,
+        loop: asyncio.AbstractEventLoop,
+        first_line: str,
     ) -> str:
         """Collect continuation lines when first_line ends with backslash.
 

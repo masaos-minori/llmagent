@@ -164,7 +164,7 @@ Details: `docs/04_mcp-servers.md`
 
 `StdioTransport(cmd, server_key, working_dir="", env=None)` — `working_dir` が非空のとき `start()` 前に `Path.is_dir()` を確認し存在しなければ `ValueError`。`env` が非空のとき `{**os.environ, **env}` を `start()` 時にマージ。
 
-`ServerLifecycleManager` (`agent/lifecycle.py`) manages stdio server lifecycle: HTTP / persistent stdio → no-op; ondemand → double-checked locking with per-server `asyncio.Lock` ensures single startup under concurrent calls. `shutdown_all()` stops all running transports. Wired in `AgentREPL._init_components()` via `ctx.services.lifecycle`; `ToolExecutor.set_lifecycle()` injects it.
+`ServerLifecycleManager` (`agent/lifecycle.py`) manages MCP server lifecycle. Three modes via `McpServerConfig.startup_mode`: `persistent` (stdio only, start at init) / `ondemand` (stdio only, double-checked locking with per-server `asyncio.Lock`) / `subprocess` (HTTP only, spawns uvicorn via `start_http_subprocess()` and polls `/health` up to `startup_timeout_sec` sec). `shutdown_all()` stops all stdio transports and terminates HTTP subprocess procs. Wired in `AgentREPL._init_components()`; `_start_subprocess_servers()` handles all startup at agent init.
 
 Details: `docs/04_mcp-protocol.md` (§2.3 デュアル起動モード)
 
@@ -176,7 +176,7 @@ Details: `docs/06_ref-agent-llm.md`
 
 ### Config
 
-All configuration in `AgentConfig` dataclass (`agent/config.py`); access via `ctx.cfg.field_name`. `McpServerConfig` dataclass lives in `shared/mcp_config.py` and is re-exported from `agent/config.py`; its key fields include `auth_token: str` (Bearer token sent by `HttpTransport`; `""` = auth disabled) and `role: str` (human-readable label shown in `/mcp status`). No module-level constant imports from `agent.config` into other modules — path constants (`_CONFIG_DIR`, `_SCRIPTS_DIR`) must be imported inside the function body with `# noqa: PLC0415`. Hot-reloadable via `/reload`; when adding a hot-reloadable field to `AgentConfig`, also add a reload line to `_apply_config_params()` in `agent/commands/cmd_config.py`. When adding a module under `scripts/`, add a `cp` line to `deploy/deploy.sh`.
+All configuration in `AgentConfig` dataclass (`agent/config.py`); access via `ctx.cfg.field_name`. `McpServerConfig` dataclass lives in `shared/mcp_config.py` and is re-exported from `agent/config.py`; its key fields include `auth_token: str` (Bearer token; `""` = disabled), `role: str` (label in `/mcp status`), `startup_mode: str` (`"persistent"` / `"ondemand"` / `"subprocess"`), `startup_timeout_sec: int = 30` (subprocess /health poll timeout). `AgentConfig.use_rag_mcp: bool` — when True, `Orchestrator._augment_via_mcp()` calls `rag_run_pipeline` via MCP instead of in-process `RagPipeline`; falls back to in-process on error. No module-level constant imports from `agent.config` into other modules — path constants (`_CONFIG_DIR`, `_SCRIPTS_DIR`) must be imported inside the function body with `# noqa: PLC0415`. Hot-reloadable via `/reload`; when adding a hot-reloadable field to `AgentConfig`, also add a reload line to `_apply_config_params()` in `agent/commands/cmd_config.py`. When adding a module under `scripts/`, add a `cp` line to `deploy/deploy.sh`.
 
 `shared/git_helper.py` — utility called by `agent/commands/cmd_context.py` to display branch/commit info in `/context` output. Uses GitPython with a lazy import and `search_parent_directories=True`; returns `None` silently outside a git repo.
 
@@ -200,14 +200,14 @@ Skills are registered as Claude Code slash commands in `.claude/commands/`. Invo
 
 | Slash command | When to use |
 |---|---|
-| `/python-implementation` | Adding features, changing business logic, creating modules, writing production Python |
-| `/python-lint-typecheck` | Fixing lint errors, type errors, suppression governance, CI failures |
-| `/python-test-and-fix` | Adding/repairing tests, reproducing bugs, flaky detection, mutation testing |
-| `/python-debug-root-cause` | Root cause analysis, log inspection, profiling, tracing, service debugging |
-| `/python-issue-to-plan` | Converting a ticket or vague task into a concrete implementation plan |
-| `/python-refactoring` | Refactoring modules without changing behavior (6-phase tool chain) |
-| `/mcp-server-add` | Adding a new MCP server to the project (proactively activated) |
-| `/deploy` | Deploying changes to the production environment at `/opt/llm/` (proactively activated) |
+| `/python-implementation` | feature / bug fix / new module / business logic |
+| `/python-lint-typecheck` | lint / type error / suppression / CI failure |
+| `/python-test-and-fix` | test add/repair / flaky / mutation |
+| `/python-debug-root-cause` | root cause / log / profiling / tracing |
+| `/python-issue-to-plan` | ticket → implementation plan |
+| `/python-refactoring` | behavior-preserving restructure (6-phase) |
+| `/mcp-server-add` | new MCP server (proactively activated) |
+| `/deploy` | deploy to `/opt/llm/` (proactively activated) |
 
 Each command reads its `skills/*/SKILL.md` guide automatically. The guide declares `Composes with` and `Called by` sections — use these to chain skills across multi-phase tasks.
 

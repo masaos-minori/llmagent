@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp_server.py
+"""mcp_server.py
 Base class for MCP (Model Context Protocol) servers.
 Provides HTTP launch logic shared by all MCP server scripts.
 """
@@ -27,8 +26,7 @@ async def dispatch_tool(
     name: str,
     args: ToolArgs,
 ) -> tuple[str, bool]:
-    """
-    Route a tool call through a dispatch table with standard error handling.
+    """Route a tool call through a dispatch table with standard error handling.
 
     Returns (result_text, is_error).
     Duck-types FastAPI HTTPException to avoid importing FastAPI in this module,
@@ -52,8 +50,7 @@ async def dispatch_tool(
 
 
 def _handle_tool_exception(name: str, e: Exception) -> tuple[str, bool]:
-    """
-    Classify and log a tool handler exception; return (message, is_error=True).
+    """Classify and log a tool handler exception; return (message, is_error=True).
 
     Separating this from dispatch_tool keeps each function under ~30 lines.
     """
@@ -93,8 +90,7 @@ def attach_auth_middleware(app: Any, token: str) -> None:
 
 
 class MCPServer:
-    """
-    Base class for MCP servers.
+    """Base class for MCP servers.
 
     Subclasses declare server_name, server_version, http_host, http_port,
     app_module, and mcp_tools as class attributes, and override dispatch().
@@ -191,7 +187,7 @@ class MCPServer:
                 is_error = True
 
             resp = orjson.dumps(
-                {"id": req_id, "result": result, "is_error": is_error}
+                {"id": req_id, "result": result, "is_error": is_error},
             ).decode()
             sys.stdout.write(resp + "\n")
             sys.stdout.flush()

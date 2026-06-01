@@ -31,7 +31,7 @@ CPU 専用のローカル環境 (Intel N100 / 16 GB RAM) に llama.cpp を用い
         │             │                  │
         ▼             ▼                  ▼
 :8003 embed-LLM  :8001 code-LLM    MCP サーバ群 (stdio または http)
-(RAG 検索時)     :8002 chat-LLM    web_search / fileop / github
+(RAG 検索時)     :8002 chat-LLM    11 サーバ (:8004〜:8014)
 ```
 
 | OpenRC サービス | ポート | モデル | 役割 |
@@ -40,8 +40,16 @@ CPU 専用のローカル環境 (Intel N100 / 16 GB RAM) に llama.cpp を用い
 | `llama-chat-llm` | 8002 | gemma-4-e4b | 日本語チャット・MQE・再ランク |
 | `llama-coding-llm` | 8001 | qwen2.5-coder-7b | コード生成 |
 | `web-search-mcp` | 8004 | — | Web 検索 MCP サーバ (Brave/Bing/DuckDuckGo) |
-| `file-mcp` | 8005 | — | ファイルシステム操作 MCP サーバ |
+| `file-read-mcp` | 8005 | — | ファイル読み取り MCP サーバ |
 | `github-mcp` | 8006 | — | GitHub 操作 MCP サーバ |
+| `file-write-mcp` | 8007 | — | ファイル書き込み MCP サーバ |
+| `file-delete-mcp` | 8008 | — | ファイル削除 MCP サーバ |
+| `shell-mcp` | 8009 | — | シェルコマンド実行 MCP サーバ |
+| `rag-pipeline-mcp` | 8010 | — | RAG パイプライン MCP サーバ |
+| `sqlite-mcp` | 8011 | — | SQLite 読み取り専用クエリ MCP サーバ |
+| `cicd-mcp` | 8012 | — | GitHub Actions CI/CD MCP サーバ |
+| `mdq-mcp` | 8013 | — | Markdown Context Compression Engine MCP サーバ |
+| `git-mcp` | 8014 | — | ローカル git 操作 MCP サーバ |
 
 ### 2.2 取込パイプライン
 
@@ -123,7 +131,8 @@ POST :8006/v1/call_tool     {"name": "github_search_repositories", "args": {"que
 | 機能 | 実装場所 | 説明 |
 |---|---|---|
 | RAG 検索 | `rag/pipeline.py` | MQE + KNN + BM25 + RRF + Cross-Encoder |
-| MCP ツールコーリング | `agent/repl.py` | HTTP 専用 (ポート 8004/8005/8006) |
+| MCP ツールコーリング | `agent/repl.py` | HTTP / stdio デュアルトランスポート (11 サーバ, :8004〜:8014) |
+| メモリレイヤー (4 層) | `agent/memory/layer.py` / `store.py` / `retriever.py` / `extract.py` | `SessionStart` → `UserPrompt` → `Stop` ライフサイクルで semantic / episodic を `memories` + `memories_fts` + `memories_vec` テーブルに永続化。`use_memory_layer=true` で有効化 |
 | セッション永続化 | `agent/session.py` | sessions / messages テーブルへの SQLite 保存 |
 | セッション復元 | `agent/commands.CommandRegistry._cmd_session` | `/session load <id>` で過去会話を復元 |
 | コンテキスト圧縮 | `history_manager.HistoryManager.compress` | 履歴が `context_char_limit` 超で LLM 要約 |
@@ -208,6 +217,13 @@ POST :8006/v1/call_tool     {"name": "github_search_repositories", "args": {"que
 | `/note add <text>` | セッション横断ノートを追加 |
 | `/note list` | ノート一覧を表示 |
 | `/note delete <id>` | ノートを削除 |
+| `/memory list [semantic\|episodic] [n]` | メモリエントリ一覧 (デフォルト: 全種別、10 件) |
+| `/memory search <query>` | FTS5 でメモリ全エントリを検索 |
+| `/memory show <id>` | 指定メモリエントリの全文を表示 |
+| `/memory pin <id>` | エントリをピン留め (セッション開始時に常時注入) |
+| `/memory unpin <id>` | ピン留めを解除 |
+| `/memory delete <id>` | メモリエントリを削除 |
+| `/memory prune [days]` | N 日より古いエントリを削除 |
 | `/tool list` | ツール実行結果ストアの一覧を表示 |
 | `/tool show <idx>` | ツール実行結果の全文を表示 |
 | `/plan` | プランモードをトグル。ON 時は `plan_blocked_tools` のツールをブロック |

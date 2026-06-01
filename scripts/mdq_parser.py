@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-scripts/mdq_parser.py
+"""scripts/mdq_parser.py
 Markdown parser for the MDQ MCP server.
 
 This script provides functions to parse Markdown documents and extract
@@ -92,6 +91,5 @@ def extract_chunk_content(content: str, heading: str) -> str:
     if end_pos == -1:
         # No next heading, so take content to the end
         return content[start_pos:].strip()
-    else:
-        # Return content between start and end
-        return content[start_pos:end_pos].strip()
+    # Return content between start and end
+    return content[start_pos:end_pos].strip()

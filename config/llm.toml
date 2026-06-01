@@ -1,4 +1,5 @@
 # LLM endpoint used for MQE, reranking, RAG answer generation, and conversation
+# Model: Qwen3-Coder-30B-A3B-Instruct Q4_K_M (served via llama.cpp at :8002)
 llm_url = "http://127.0.0.1:8002/v1/chat/completions"
 
 # Base URL of the web-search-mcp server; provides /search, /v1/call_tool, /health

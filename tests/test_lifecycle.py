@@ -18,6 +18,21 @@ def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
     return McpServerConfig("http", url, [], "")
 
 
+def _http_subprocess_cfg(
+    url: str = "http://127.0.0.1:8000",
+    cmd: list[str] | None = None,
+    timeout: int = 5,
+) -> McpServerConfig:
+    return McpServerConfig(
+        "http",
+        url,
+        cmd or ["python", "srv.py"],
+        "",
+        startup_mode="subprocess",
+        startup_timeout_sec=timeout,
+    )
+
+
 def _stdio_persistent() -> McpServerConfig:
     return McpServerConfig("stdio", "", ["python", "s.py"], "")
 
@@ -216,6 +231,183 @@ class TestShutdownIdle:
         await mgr.shutdown_idle()
 
 
+class TestEnsureReadySubprocess:
+    @pytest.mark.asyncio
+    async def test_subprocess_http_already_running_noop(self) -> None:
+        proc = MagicMock()
+        proc.poll.return_value = None  # still alive
+        cfg = _http_subprocess_cfg()
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
+        mgr._http_procs["srv"] = proc
+        await mgr.ensure_ready("srv")
+        # verify no attempt to start a new process
+        ex.set_transport.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_subprocess_http_dead_logs_warning(self) -> None:
+        proc = MagicMock()
+        proc.poll.return_value = 1  # exited
+        cfg = _http_subprocess_cfg()
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
+        mgr._http_procs["srv"] = proc
+        await mgr.ensure_ready("srv")  # must not raise
+
+
+class TestStartHttpSubprocess:
+    @pytest.mark.asyncio
+    async def test_starts_process_and_polls_health(self) -> None:
+        cfg = _http_subprocess_cfg(url="http://127.0.0.1:9999", cmd=["python", "s.py"])
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({"s": cfg}, ex, {})
+
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.stderr = None
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+
+        with (
+            patch("agent.lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+        ):
+            client_instance = AsyncMock()
+            client_instance.get = AsyncMock(return_value=mock_resp)
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            await mgr.start_http_subprocess("s", cfg)
+
+        assert mgr._http_procs["s"] is mock_proc
+
+    @pytest.mark.asyncio
+    async def test_reuses_alive_proc(self) -> None:
+        cfg = _http_subprocess_cfg(url="http://127.0.0.1:9999", cmd=["python", "s.py"])
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({"s": cfg}, ex, {})
+        existing = MagicMock()
+        existing.poll.return_value = None
+        mgr._http_procs["s"] = existing
+
+        with patch("agent.lifecycle.subprocess.Popen") as mock_popen:
+            await mgr.start_http_subprocess("s", cfg)
+        mock_popen.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_raises_on_early_exit(self) -> None:
+        cfg = _http_subprocess_cfg(url="http://127.0.0.1:9999", cmd=["python", "s.py"])
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({"s": cfg}, ex, {})
+
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = 1  # already exited
+        mock_proc.stderr = None
+
+        with (
+            patch("agent.lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+            pytest.raises(RuntimeError, match="exited early"),
+        ):
+            client_instance = AsyncMock()
+            mock_resp = MagicMock()
+            mock_resp.status_code = 503
+            client_instance.get = AsyncMock(return_value=mock_resp)
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            await mgr.start_http_subprocess("s", cfg)
+
+    @pytest.mark.asyncio
+    async def test_raises_on_timeout(self) -> None:
+        cfg = _http_subprocess_cfg(
+            url="http://127.0.0.1:9999", cmd=["python", "s.py"], timeout=0
+        )
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({"s": cfg}, ex, {})
+
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.stderr = None
+
+        with (
+            patch("agent.lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+            pytest.raises(RuntimeError, match="did not become healthy"),
+        ):
+            client_instance = AsyncMock()
+            client_instance.get = AsyncMock(side_effect=Exception("connect refused"))
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            await mgr.start_http_subprocess("s", cfg)
+
+    @pytest.mark.asyncio
+    async def test_merges_env_vars(self) -> None:
+        cfg = _http_subprocess_cfg(url="http://127.0.0.1:9999", cmd=["python", "s.py"])
+        # Override env to exercise the env-merge branch
+        cfg.env = {"MY_VAR": "val"}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({"s": cfg}, ex, {})
+
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.stderr = None
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+
+        with (
+            patch(
+                "agent.lifecycle.subprocess.Popen", return_value=mock_proc
+            ) as mock_popen,
+            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+        ):
+            client_instance = AsyncMock()
+            client_instance.get = AsyncMock(return_value=mock_resp)
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            await mgr.start_http_subprocess("s", cfg)
+
+        # Verify Popen received an env dict (not None)
+        call_kwargs = mock_popen.call_args.kwargs
+        assert call_kwargs["env"] is not None
+        assert call_kwargs["env"].get("MY_VAR") == "val"
+
+    @pytest.mark.asyncio
+    async def test_health_poll_exception_is_logged_not_raised(self) -> None:
+        cfg = _http_subprocess_cfg(
+            url="http://127.0.0.1:9999", cmd=["python", "s.py"], timeout=5
+        )
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({"s": cfg}, ex, {})
+
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.stderr = None
+        good_resp = MagicMock()
+        good_resp.status_code = 200
+
+        call_count = 0
+
+        async def get_side_effect(url: str) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise ConnectionRefusedError("refused")
+            return good_resp
+
+        with (
+            patch("agent.lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.lifecycle.asyncio.sleep", AsyncMock()),
+        ):
+            client_instance = AsyncMock()
+            client_instance.get = get_side_effect
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            await mgr.start_http_subprocess("s", cfg)
+
+        assert call_count == 2
+
+
 class TestShutdownAll:
     @pytest.mark.asyncio
     async def test_stops_all_running_transports(self) -> None:
@@ -229,12 +421,47 @@ class TestShutdownAll:
         t2.stop.assert_awaited_once()
 
     @pytest.mark.asyncio
+    async def test_shutdown_terminates_http_procs(self) -> None:
+        proc = MagicMock()
+        proc.poll.return_value = None  # running
+        configs: dict[str, McpServerConfig] = {}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, {})
+        mgr._http_procs["srv"] = proc
+        await mgr.shutdown_all()
+        proc.terminate.assert_called_once()
+        proc.wait.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_skips_already_dead_http_proc(self) -> None:
+        proc = MagicMock()
+        proc.poll.return_value = 1  # already dead
+        configs: dict[str, McpServerConfig] = {}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, {})
+        mgr._http_procs["srv"] = proc
+        await mgr.shutdown_all()
+        proc.terminate.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_shutdown_tolerates_stop_errors(self) -> None:
         t1 = AsyncMock()
         t1.stop.side_effect = RuntimeError("crash")
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = ServerLifecycleManager(configs, ex, {"a": t1})
+        # Must not propagate the exception
+        await mgr.shutdown_all()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_tolerates_http_terminate_errors(self) -> None:
+        proc = MagicMock()
+        proc.poll.return_value = None
+        proc.terminate.side_effect = OSError("cannot terminate")
+        configs: dict[str, McpServerConfig] = {}
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager(configs, ex, {})
+        mgr._http_procs["srv"] = proc
         # Must not propagate the exception
         await mgr.shutdown_all()
 

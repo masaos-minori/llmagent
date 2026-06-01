@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-agent/commands/cmd_memory.py
+"""agent/commands/cmd_memory.py
 /memory slash-command mixin for CommandRegistry.
 
 Subcommands:
@@ -16,13 +15,9 @@ Subcommands:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from agent.context import AgentContext
 from agent.memory.types import MemoryQuery
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -56,20 +51,18 @@ class _MemoryMixin:
             print("  [memory] Memory layer is disabled (use_memory_layer=false)")
             return
 
-        if sub == "list":
-            self._memory_list(mem, parts[1:])
-        elif sub == "search":
-            self._memory_search(mem, parts[1:])
-        elif sub == "show":
-            self._memory_show(mem, parts[1:])
-        elif sub == "pin":
-            self._memory_pin(mem, parts[1:], pin=True)
-        elif sub == "unpin":
-            self._memory_pin(mem, parts[1:], pin=False)
-        elif sub == "delete":
-            self._memory_delete(mem, parts[1:])
-        elif sub == "prune":
-            self._memory_prune(mem, ctx, parts[1:])
+        dispatch = {
+            "list": lambda: self._memory_list(mem, parts[1:]),
+            "search": lambda: self._memory_search(mem, parts[1:]),
+            "show": lambda: self._memory_show(mem, parts[1:]),
+            "pin": lambda: self._memory_pin(mem, parts[1:], pin=True),
+            "unpin": lambda: self._memory_pin(mem, parts[1:], pin=False),
+            "delete": lambda: self._memory_delete(mem, parts[1:]),
+            "prune": lambda: self._memory_prune(mem, ctx, parts[1:]),
+        }
+        handler = dispatch.get(sub)
+        if handler:
+            handler()
         else:
             print(f"  Unknown subcommand: {sub!r}. Try /memory help")
 
@@ -78,25 +71,19 @@ class _MemoryMixin:
 
         if not isinstance(mem, MemoryLayer):
             return
-        mem_type = ""
-        limit = 10
-        for arg in args:
-            if arg in ("semantic", "episodic"):
-                mem_type = arg
-            elif arg.isdigit():
-                limit = int(arg)
+        mem_type = next((a for a in args if a in ("semantic", "episodic")), "")
+        limit_args = [a for a in args if a.isdigit()]
+        limit = int(limit_args[0]) if limit_args else 10
 
-        entries = mem._store.search_by_type(
-            memory_type=mem_type or "semantic",
-            limit=limit,
-        )
-        if mem_type == "":
-            # Show both types when no filter
+        if mem_type:
+            entries = mem._store.search_by_type(memory_type=mem_type, limit=limit)
+        else:
+            # Show both types merged and sorted when no filter
+            sem = mem._store.search_by_type("semantic", limit=limit)
             epi = mem._store.search_by_type("episodic", limit=limit)
-            entries = sorted(
-                entries + epi,
-                key=lambda e: (not e.pinned, -e.importance),
-            )[:limit]
+            entries = sorted(sem + epi, key=lambda e: (not e.pinned, -e.importance))[
+                :limit
+            ]
 
         if not entries:
             print("  [memory] No entries found")
@@ -108,7 +95,7 @@ class _MemoryMixin:
             summary = (e.summary or e.content[:60]).replace("\n", " ")[:60]
             print(
                 f"  {e.memory_id:36}  {e.memory_type:8}"
-                f"  {e.importance:.2f}  {pin_mark:3}  {summary}"
+                f"  {e.importance:.2f}  {pin_mark:3}  {summary}",
             )
 
     def _memory_search(self, mem: object, args: list[str]) -> None:
@@ -134,7 +121,7 @@ class _MemoryMixin:
             summary = (e.summary or e.content[:60]).replace("\n", " ")[:60]
             print(
                 f"    [{hit.score:+.3f}] {e.memory_type:8}"
-                f"  {e.memory_id[:12]}…  {summary}"
+                f"  {e.memory_id[:12]}…  {summary}",
             )
 
     def _memory_show(self, mem: object, args: list[str]) -> None:
@@ -154,7 +141,7 @@ class _MemoryMixin:
         print(f"  type       : {entry.memory_type} / {entry.source_type}")
         print(f"  importance : {entry.importance:.2f}  pinned: {entry.pinned}")
         print(
-            f"  project    : {entry.project}  repo: {entry.repo}  branch: {entry.branch}"
+            f"  project    : {entry.project}  repo: {entry.repo}  branch: {entry.branch}",
         )
         print(f"  created_at : {entry.created_at}")
         print(f"  tags       : {entry.tags}")

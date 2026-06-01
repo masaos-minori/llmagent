@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-tool_result_store.py
+"""tool_result_store.py
 SQLite-backed store for full tool execution results.
 
 LLM history receives only summaries or truncations; the full text is persisted

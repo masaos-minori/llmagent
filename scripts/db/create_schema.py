@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-create_schema.py
+"""create_schema.py
 Initialize SQLite schemas for rag.sqlite (RAG pipeline) and session.sqlite (sessions/memory).
 Run once only. Existing tables are protected by IF NOT EXISTS.
 
@@ -262,7 +261,7 @@ def create_session_schema() -> None:
         if "tool_call_id" not in cols:
             logger.error(
                 "Migration check failed: messages.tool_call_id column not found."
-                " Run manually: ALTER TABLE messages ADD COLUMN tool_call_id TEXT"
+                " Run manually: ALTER TABLE messages ADD COLUMN tool_call_id TEXT",
             )
     logger.info("Session schema created/migrated successfully.")
 

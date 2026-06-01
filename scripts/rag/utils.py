@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-rag_utils.py
+"""rag_utils.py
 Shared utilities for the RAG ingestion pipeline
 (Crawler, ChunkSplitter, RagIngester, agent_rag).
 """
@@ -64,7 +63,7 @@ def _validate_float_list(values: list[float]) -> None:
     """Guard: ensure *values* is a non-empty list of numeric elements."""
     if not isinstance(values, list):
         raise TypeError(
-            f"floats_to_blob expects list[float], got {type(values).__name__}"
+            f"floats_to_blob expects list[float], got {type(values).__name__}",
         )
     if not values:
         raise ValueError("floats_to_blob received an empty list.")
@@ -73,5 +72,5 @@ def _validate_float_list(values: list[float]) -> None:
     if not isinstance(values[0], int | float):
         raise ValueError(
             f"floats_to_blob: first element must be numeric, "
-            f"got {type(values[0]).__name__}"
+            f"got {type(values[0]).__name__}",
         )

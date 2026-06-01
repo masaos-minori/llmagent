@@ -11,8 +11,7 @@ description: |
 
 ## Purpose
 
-Add a new MCP server end-to-end: generate skeleton files, register the service,
-wire the agent routing, and verify the server is reachable.
+Add a new MCP server end-to-end: skeleton files, service registration, agent routing, reachability verification.
 
 ## Existing MCP servers (reference)
 

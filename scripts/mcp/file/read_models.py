@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-file_read_mcp_models.py
+"""file_read_mcp_models.py
 Config loading and Pydantic request/response models for file-read-mcp.
 """
 
@@ -166,7 +165,8 @@ class GrepFilesResponse(BaseModel):
 
 class GetFileInfoRequest(BaseModel):
     path: str = Field(
-        ..., description="Absolute path of the file or directory to inspect"
+        ...,
+        description="Absolute path of the file or directory to inspect",
     )
 
 

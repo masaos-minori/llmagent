@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-cmd_session.py
+"""cmd_session.py
 Session management mixin for CommandRegistry.
 
 Extracted from agent_commands.py.  Provides _SessionMixin with:
@@ -106,7 +105,7 @@ class _SessionMixin:
         else:
             print(
                 "Usage: /session list [n] | /session load <id>"
-                " | /session rename <title> | /session delete <id>"
+                " | /session rename <title> | /session delete <id>",
             )
 
     def _load_session(self, session_id: int) -> None:

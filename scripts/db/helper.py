@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-sqlite_helper.py
+"""sqlite_helper.py
 SQLite connection manager for RAG and session databases.
 Provides open/close lifecycle methods with sqlite-vec extension and WAL setup.
 target="rag" (default) → rag_db_path; target="session" → session_db_path (common.toml).
@@ -94,11 +93,14 @@ class SQLiteHelper:
             raise
 
     def _apply_connection_pragmas(
-        self, conn: sqlite3.Connection, *, write_mode: bool
+        self,
+        conn: sqlite3.Connection,
+        *,
+        write_mode: bool,
     ) -> None:
         """Apply WAL/synchronous=NORMAL/busy_timeout to every connection; foreign_keys enforced only in write_mode to avoid read overhead."""
         busy_ms = int(
-            _get_cfg().get("sqlite_busy_timeout_ms", _DEFAULT_BUSY_TIMEOUT_MS)
+            _get_cfg().get("sqlite_busy_timeout_ms", _DEFAULT_BUSY_TIMEOUT_MS),
         )
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
@@ -107,7 +109,10 @@ class SQLiteHelper:
             conn.execute("PRAGMA foreign_keys=ON")
 
     def open(
-        self, *, write_mode: bool = False, row_factory: bool = False
+        self,
+        *,
+        write_mode: bool = False,
+        row_factory: bool = False,
     ) -> "SQLiteHelper":
         """Open a connection with sqlite-vec loaded and WAL pragmas applied; write_mode enforces FK constraints; row_factory enables column-name access; returns self."""
         conn = self._connect()
@@ -184,14 +189,14 @@ class SQLiteHelper:
         }
 
     _CHECKPOINT_MODES: frozenset[str] = frozenset(
-        {"PASSIVE", "FULL", "RESTART", "TRUNCATE"}
+        {"PASSIVE", "FULL", "RESTART", "TRUNCATE"},
     )
 
     def checkpoint(self, mode: str = "TRUNCATE") -> dict[str, int]:
         """Run WAL checkpoint and return {busy, pages_in_wal, pages_checkpointed}; PASSIVE=non-blocking, FULL/RESTART/TRUNCATE block until WAL flushed; default TRUNCATE reclaims disk."""
         if mode not in self._CHECKPOINT_MODES:
             raise ValueError(
-                f"checkpoint mode must be one of {sorted(self._CHECKPOINT_MODES)}"
+                f"checkpoint mode must be one of {sorted(self._CHECKPOINT_MODES)}",
             )
         assert self.conn is not None, "DB not open — call open() first"
         row = self.conn.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()
@@ -213,7 +218,9 @@ class SQLiteHelper:
             raise ValueError("sql must be a non-empty string")
 
     def execute(
-        self, sql: str, params: dict[str, Any] | tuple[Any, ...] = ()
+        self,
+        sql: str,
+        params: dict[str, Any] | tuple[Any, ...] = (),
     ) -> sqlite3.Cursor:
         """Execute a SQL statement with positional (tuple) or named (dict) params."""
         self._check_ready(sql)
@@ -221,7 +228,9 @@ class SQLiteHelper:
         return self.conn.execute(sql, params)
 
     def fetchall(
-        self, sql: str, params: dict[str, Any] | tuple[Any, ...] = ()
+        self,
+        sql: str,
+        params: dict[str, Any] | tuple[Any, ...] = (),
     ) -> list[Any]:
         """Execute a SQL statement and return all result rows as a list."""
         self._check_ready(sql)

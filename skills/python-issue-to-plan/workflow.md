@@ -1,5 +1,32 @@
 # Issue To Plan — Detailed Workflow
 
+## Toolchain
+
+| Tool | Goal | Role |
+|---|---|---|
+| `grimp` | architecture analysis | Import graph with layering and cycle detection |
+| `pyan3` | architecture analysis | Call graph and module dependency visualization |
+| `import-linter` | architecture analysis | Enforce declared module boundary contracts |
+| `networkx` | architecture analysis | Graph analysis (centrality, paths, cycles) |
+| `pydeps` | dependency graphing | Visual module dependency graph |
+| `universal-ctags` | dependency graphing | Symbol index across the entire codebase |
+| `radon` | validation quality analysis | Cyclomatic complexity and maintainability index |
+| `vulture` | validation quality analysis | Dead code detection |
+| `semgrep` | validation quality analysis | Semantic pattern matching |
+| `bandit` | validation quality analysis | Static security analysis |
+| `pip-audit` | operational dependency inspection | Vulnerability scan of installed packages |
+| `diff-cover` | validation quality analysis | Coverage gate scoped to changed lines |
+| `pytest-testmon` | validation quality analysis | Impact-based test selection |
+| `git-fame` | historical analysis | Per-author contribution breakdown |
+| `git churn` | historical analysis | Change frequency by file |
+| `git bisect` | historical analysis | Binary search for regression commit |
+| `lsof` | operational dependency inspection | Open files and socket connections |
+| `rg` | — | Symbol definitions, call sites, log strings |
+| `fd` | — | File listing by pattern |
+| `ast-grep` | — | Structural code patterns |
+
+---
+
 ## Step 1: Parse the Request
 
 Extract from the task description:

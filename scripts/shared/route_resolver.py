@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-shared/route_resolver.py
+"""shared/route_resolver.py
 Config-driven tool-name to server-key resolution for ToolExecutor.
 """
 
@@ -23,7 +22,11 @@ if TYPE_CHECKING:
 
 
 class ToolRouteResolver:
-    """Maps tool_name to server_key: config-driven (tool_names list) first, then static prefix fallback; raises ValueError when no match."""
+    """Map tool_name → server_key.
+
+    Config-driven (tool_names list) first; static prefix fallback second.
+    Raises ValueError when neither path matches.
+    """
 
     def __init__(self, server_configs: dict[str, McpServerConfig]) -> None:
         # Build reverse map: tool_name -> server_key from explicitly configured tool_names.
@@ -33,7 +36,7 @@ class ToolRouteResolver:
                 self._config_map[tool_name] = key
 
     def resolve(self, tool_name: str) -> str:
-        """Return the server key for tool_name via config-driven mapping then static fallback; raises ValueError when neither path matches."""
+        """Return the server key for tool_name; raises ValueError when no match."""
         key = self._config_map.get(tool_name)
         if key is not None:
             return key

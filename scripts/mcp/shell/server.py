@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-shell_mcp_server.py
+"""shell_mcp_server.py
 MCP server for sandboxed shell command execution (port 8009).
 
 Provides an HTTP API via FastAPI for executing whitelisted shell commands.
@@ -55,7 +54,7 @@ async def shell_run(req: ShellRunRequest) -> ShellRunResponse:
             timed_out=result.timed_out,
             truncated=result.truncated,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -122,7 +121,7 @@ async def list_tools() -> dict[str, Any]:
         "tools": [
             {"name": t["name"], "description": t.get("description", "")}
             for t in _MCP_TOOLS
-        ]
+        ],
     }
 
 

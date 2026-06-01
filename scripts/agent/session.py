@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-agent/session.py
+"""agent/session.py
 SQLite-backed REPL session persistence manager.
 Handles session and message records for REPLAgent.
 """
@@ -36,7 +35,7 @@ class AgentSession:
             logger.info(f"Session started: id={self.session_id}")
         except Exception as e:
             logger.warning(
-                f"Session create failed (history will not be persisted): {e}"
+                f"Session create failed (history will not be persisted): {e}",
             )
             self.session_id = None
 
@@ -196,7 +195,8 @@ class AgentSession:
         try:
             with SQLiteHelper("session").open(write_mode=True) as db:
                 row = db.execute(
-                    "SELECT doc_id FROM documents WHERE url = ?", (url,)
+                    "SELECT doc_id FROM documents WHERE url = ?",
+                    (url,),
                 ).fetchone()
                 if row is None:
                     return False
@@ -242,7 +242,7 @@ class AgentSession:
                 )
                 db.commit()
             logger.info(
-                f"Deleted last turn from session {self.session_id}: {len(ids)} messages"
+                f"Deleted last turn from session {self.session_id}: {len(ids)} messages",
             )
         except Exception as e:
             logger.warning(f"delete_last_turn failed: {e}")
@@ -295,7 +295,7 @@ class AgentSession:
                     msg["tool_calls"] = orjson.loads(r["tool_calls"])
                 except orjson.JSONDecodeError as e:
                     logger.warning(
-                        f"Invalid tool_calls JSON in session {session_id}: {e}"
+                        f"Invalid tool_calls JSON in session {session_id}: {e}",
                     )
             if r["tool_call_id"]:
                 msg["tool_call_id"] = r["tool_call_id"]
@@ -322,7 +322,7 @@ class AgentSession:
         try:
             with SQLiteHelper("session").open(row_factory=True) as db:
                 rows = db.fetchall(
-                    "SELECT note_id, content, created_at FROM notes ORDER BY note_id"
+                    "SELECT note_id, content, created_at FROM notes ORDER BY note_id",
                 )
             return [dict(r) for r in rows]
         except Exception as e:
@@ -334,7 +334,8 @@ class AgentSession:
         try:
             with SQLiteHelper("session").open(write_mode=True) as db:
                 row = db.execute(
-                    "SELECT note_id FROM notes WHERE note_id = ?", (note_id,)
+                    "SELECT note_id FROM notes WHERE note_id = ?",
+                    (note_id,),
                 ).fetchone()
                 if row is None:
                     return False

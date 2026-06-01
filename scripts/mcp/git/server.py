@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/git/server.py
+"""mcp/git/server.py
 Local git operations MCP server (port 8014).
 
 Provides an HTTP API via FastAPI for safe git operations against allowlisted repositories.
@@ -292,7 +291,7 @@ async def list_tools() -> dict[str, Any]:
         "tools": [
             {"name": t["name"], "description": t.get("description", "")}
             for t in _MCP_TOOLS
-        ]
+        ],
     }
 
 

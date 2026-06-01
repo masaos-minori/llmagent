@@ -250,3 +250,16 @@ class TestApplyConfigParams:
             {**_DUMMY_MCP, "approval_dry_run_tools": ["write_file", "delete_file"]}
         )
         assert ctx.cfg.approval_dry_run_tools == ["write_file", "delete_file"]
+
+    def test_hist_mgr_token_limit_synced(self) -> None:
+        ctx = _make_ctx()
+        ctx.history = []
+        hist_mgr = MagicMock()
+        ctx.services.hist_mgr = hist_mgr
+        # Pre-set cfg values; _apply_config_params reads them to sync to hist_mgr
+        ctx.cfg.context_token_limit = 4000
+        ctx.cfg.tokenize_url = "http://llm/tok"
+        cmd = _FakeCmd(ctx)
+        cmd._apply_config_params({**_DUMMY_MCP})
+        assert hist_mgr._token_limit == 4000
+        assert hist_mgr._tokenize_url == "http://llm/tok"

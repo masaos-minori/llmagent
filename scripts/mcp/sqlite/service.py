@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/sqlite/service.py
+"""mcp/sqlite/service.py
 SqliteMCPService: read-only SQLite query execution with allowlist and row limit.
 
 Security guards:
@@ -104,7 +103,7 @@ class SqliteMCPService:
 
         if db not in self._db_allowlist:
             raise ValueError(
-                f"DB {db!r} is not in the allowlist {self._db_allowlist!r}"
+                f"DB {db!r} is not in the allowlist {self._db_allowlist!r}",
             )
 
         ok, err = _validate_sql(sql)
@@ -138,7 +137,7 @@ class _LazySqliteMCPService:
             max_rows: int = int(cfg.get("max_rows", 100))
             if not db_allowlist:
                 logger.warning(
-                    "sqlite-mcp: db_allowlist is empty — all DB requests will be rejected"
+                    "sqlite-mcp: db_allowlist is empty — all DB requests will be rejected",
                 )
             _LazySqliteMCPService._instance = SqliteMCPService(
                 db_allowlist=db_allowlist,

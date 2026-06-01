@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/sqlite/models.py
+"""mcp/sqlite/models.py
 Config loading and Pydantic request/response models for sqlite-mcp.
 """
 
@@ -41,9 +40,11 @@ class QueryResponse(BaseModel):
 
     columns: list[str] = Field(..., description="Column names in result order")
     rows: list[list[Any]] = Field(
-        ..., description="Result rows; each inner list is one row"
+        ...,
+        description="Result rows; each inner list is one row",
     )
     row_count: int = Field(
-        ..., description="Number of rows returned (may be less than total)"
+        ...,
+        description="Number of rows returned (may be less than total)",
     )
     truncated: bool = Field(..., description="True when max_rows limit was reached")

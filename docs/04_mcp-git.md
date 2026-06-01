@@ -104,7 +104,53 @@ git_pull     = "WRITE_DANGEROUS"
 git_push     = "WRITE_DANGEROUS"
 ```
 
-## §6 OpenRC
+## §6 クラス API
+
+### GitMCPServer (`mcp/git/server.py`)
+
+`MCPServer` サブクラス。`MCPServer` 共通 API は `docs/06_ref-mcp.md` §2 を参照。
+
+| クラス属性 | 値 | 説明 |
+|---|---|---|
+| `server_name` | `"git-mcp"` | MCP サーバ識別名 |
+| `server_version` | `"1.0.0"` | バージョン文字列 |
+| `http_port` | `8014` | HTTP モード待受ポート |
+| `app_module` | `"mcp.git.server:app"` | uvicorn 起動ターゲット |
+| `mcp_tools` | `_MCP_TOOLS` | `tools/list` に返すツール定義 (10 種) |
+
+| メソッド | 説明 |
+|---|---|
+| `dispatch(name, args) -> tuple[str, bool]` | `_dispatch_git_tool(name, args)` に委譲する |
+
+### GitService (`mcp/git/service.py`)
+
+ローカル git 操作を `allowed_repo_paths` と `read_only` の 2 段階ガードで実行するサービスクラス。
+
+`GitService(allowed_repo_paths, read_only=True, max_log_entries=50)` で初期化する。
+
+| メソッド (ガード) | シグネチャ | 説明 |
+|---|---|---|
+| `_check_repo_path` | `(repo_path: str) -> tuple[bool, str]` | `allowed_repo_paths` 内のプレフィックスに一致するか確認。空リスト時は常に拒否 |
+| `_check_write` | `() -> tuple[bool, str]` | `read_only=True` のとき `[DENIED]` を返す |
+| `_open_repo` | `(repo_path: str) -> git.Repo` | GitPython の `Repo` を開く。`search_parent_directories=False` |
+| `get_dispatch_table` | `() -> dict[str, Callable]` | ツール名 → コルーチンのディスパッチテーブルを返す |
+
+**ツール引数仕様:**
+
+| ツール名 | 必須引数 | オプション引数 | 備考 |
+|---|---|---|---|
+| `git_status` | `repo_path: str` | — | アクティブブランチ・変更ファイル・untracked を返す |
+| `git_log` | `repo_path: str` | `max_entries: int=20`, `branch: str=""` | `max_entries` は `max_log_entries` 設定値で上限 |
+| `git_diff` | `repo_path: str` | `staged: bool=False`, `commit: str=""` | `staged=True` で `--cached`; `commit` が非空なら指定コミットとの diff |
+| `git_branch` | `repo_path: str` | — | 現在ブランチは `*` 付き |
+| `git_show` | `repo_path: str` | `ref: str="HEAD"` | `--stat --patch` 形式; 8000 文字で切り捨て |
+| `git_add` | `repo_path: str`, `paths: list[str]` | `dry_run: bool=False` | `read_only=false` かつ `dry_run=false` のとき実際にステージング |
+| `git_commit` | `repo_path: str`, `message: str` | `dry_run: bool=False` | ステージ済みファイルがないとき `[ERROR]` を返す |
+| `git_checkout` | `repo_path: str`, `branch: str` | `create: bool=False`, `dry_run: bool=False` | `create=True` で新規ブランチ作成 (-b 相当) |
+| `git_pull` | `repo_path: str` | `remote: str="origin"`, `branch: str=""`, `dry_run: bool=False` | `dry_run=True` は `fetch --dry-run` を実行 |
+| `git_push` | `repo_path: str` | `remote: str="origin"`, `branch: str=""`, `dry_run: bool=False` | `branch` 省略時はアクティブブランチを使用 |
+
+## §7 OpenRC
 
 - init.d スクリプト: `init.d/git-mcp`
 - conf.d テンプレート: `conf.d/git-mcp`

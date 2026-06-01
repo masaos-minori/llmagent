@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/git/models.py
+"""mcp/git/models.py
 Config loading and Pydantic request models for git-mcp.
 """
 
@@ -39,7 +38,10 @@ class GitStatusRequest(BaseModel):
 class GitLogRequest(BaseModel):
     repo_path: str = Field(..., description="Absolute path to the git repository")
     max_entries: int = Field(
-        default=20, ge=1, le=200, description="Max commits to return"
+        default=20,
+        ge=1,
+        le=200,
+        description="Max commits to return",
     )
     branch: str = Field(default="", description="Branch name; empty = current HEAD")
 
@@ -47,10 +49,12 @@ class GitLogRequest(BaseModel):
 class GitDiffRequest(BaseModel):
     repo_path: str = Field(..., description="Absolute path to the git repository")
     staged: bool = Field(
-        default=False, description="When True, show staged diff (git diff --cached)"
+        default=False,
+        description="When True, show staged diff (git diff --cached)",
     )
     commit: str = Field(
-        default="", description="Commit ref to diff against; empty = working tree"
+        default="",
+        description="Commit ref to diff against; empty = working tree",
     )
 
 
@@ -69,10 +73,13 @@ class GitShowRequest(BaseModel):
 class GitAddRequest(BaseModel):
     repo_path: str = Field(..., description="Absolute path to the git repository")
     paths: list[str] = Field(
-        ..., min_length=1, description="File paths to stage (relative to repo root)"
+        ...,
+        min_length=1,
+        description="File paths to stage (relative to repo root)",
     )
     dry_run: bool = Field(
-        default=False, description="When True, preview only without staging"
+        default=False,
+        description="When True, preview only without staging",
     )
 
 
@@ -80,7 +87,8 @@ class GitCommitRequest(BaseModel):
     repo_path: str = Field(..., description="Absolute path to the git repository")
     message: str = Field(..., min_length=1, description="Commit message")
     dry_run: bool = Field(
-        default=False, description="When True, preview staged files without committing"
+        default=False,
+        description="When True, preview staged files without committing",
     )
 
 
@@ -89,7 +97,8 @@ class GitCheckoutRequest(BaseModel):
     branch: str = Field(..., description="Branch name to checkout or create")
     create: bool = Field(default=False, description="When True, create new branch (-b)")
     dry_run: bool = Field(
-        default=False, description="When True, preview only without switching"
+        default=False,
+        description="When True, preview only without switching",
     )
 
 
@@ -97,10 +106,12 @@ class GitPullRequest(BaseModel):
     repo_path: str = Field(..., description="Absolute path to the git repository")
     remote: str = Field(default="origin", description="Remote name")
     branch: str = Field(
-        default="", description="Branch name; empty = current tracking branch"
+        default="",
+        description="Branch name; empty = current tracking branch",
     )
     dry_run: bool = Field(
-        default=False, description="When True, perform fetch --dry-run only"
+        default=False,
+        description="When True, perform fetch --dry-run only",
     )
 
 
@@ -109,5 +120,6 @@ class GitPushRequest(BaseModel):
     remote: str = Field(default="origin", description="Remote name")
     branch: str = Field(default="", description="Branch name; empty = current branch")
     dry_run: bool = Field(
-        default=False, description="When True, preview only without pushing"
+        default=False,
+        description="When True, preview only without pushing",
     )

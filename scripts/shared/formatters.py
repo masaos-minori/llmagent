@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-formatters.py
+"""formatters.py
 Shared output formatting utilities for MCP tool dispatch handlers.
 
 Provides two categories:

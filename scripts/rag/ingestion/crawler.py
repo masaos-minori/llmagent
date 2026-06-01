@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Crawler.py
+"""Crawler.py
 BFS web crawler that saves extracted text and code blocks to rag-src/.
 Entry point: python Crawler.py [--url URL ...] [--lang {en,ja}]
 
@@ -129,9 +128,15 @@ class WebCrawler:
             tasks.add(
                 asyncio.create_task(
                     self._process_crawl_url_async(
-                        url, depth, start_url, hint_lang, queue, client, sem
-                    )
-                )
+                        url,
+                        depth,
+                        start_url,
+                        hint_lang,
+                        queue,
+                        client,
+                        sem,
+                    ),
+                ),
             )
         return tasks
 
@@ -156,16 +161,22 @@ class WebCrawler:
                 if len(visited) >= self._max_pages:
                     logger.warning(
                         f"Reached max_pages={self._max_pages};"
-                        f" stopping BFS at {start_url}"
+                        f" stopping BFS at {start_url}",
                     )
                     break
                 pending |= self._drain_queue_to_tasks(
-                    queue, visited, start_url, hint_lang, client, sem
+                    queue,
+                    visited,
+                    start_url,
+                    hint_lang,
+                    client,
+                    sem,
                 )
                 if not pending:
                     break
                 done, pending = await asyncio.wait(
-                    pending, return_when=asyncio.FIRST_COMPLETED
+                    pending,
+                    return_when=asyncio.FIRST_COMPLETED,
                 )
                 for t in done:
                     if exc := t.exception():
@@ -178,7 +189,8 @@ class WebCrawler:
         try:
             with SQLiteHelper().open(row_factory=True) as db:
                 rows = db.fetchall(
-                    "SELECT etag, last_modified FROM documents WHERE url = ?", (url,)
+                    "SELECT etag, last_modified FROM documents WHERE url = ?",
+                    (url,),
                 )
             if rows:
                 hdrs: dict[str, str] = {}
@@ -215,7 +227,7 @@ class WebCrawler:
                 resp.raise_for_status()
                 etag = resp.headers.get("ETag") or resp.headers.get("etag")
                 last_modified = resp.headers.get("Last-Modified") or resp.headers.get(
-                    "last-modified"
+                    "last-modified",
                 )
                 return resp.text, etag, last_modified
             except httpx.HTTPError as e:
@@ -354,7 +366,13 @@ class WebCrawler:
                 return
 
             self._save_crawl_file(
-                url, title, resolved_lang, text, code_blocks, etag, last_modified
+                url,
+                title,
+                resolved_lang,
+                text,
+                code_blocks,
+                etag,
+                last_modified,
             )
             self._enqueue_links(html, url, start_url, depth, queue)
 
@@ -364,7 +382,7 @@ class WebCrawler:
 # ──────────────────────────────────────────────────────────────────────────────
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="BFS crawler: saves documents to rag-src/yyyymmddhhmmss-{slug}.txt"
+        description="BFS crawler: saves documents to rag-src/yyyymmddhhmmss-{slug}.txt",
     )
     parser.add_argument(
         "--url",

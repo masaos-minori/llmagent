@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-agent/memory/store.py
+"""agent/memory/store.py
 CRUD layer for the memories / memories_fts / memories_vec SQLite tables.
 
 Responsibilities:
@@ -163,7 +162,8 @@ class MemoryStore:
             )
             # Sync FTS5: delete old row (if any) then re-insert
             db.execute(
-                "DELETE FROM memories_fts WHERE memory_id = ?", (entry.memory_id,)
+                "DELETE FROM memories_fts WHERE memory_id = ?",
+                (entry.memory_id,),
             )
             db.execute(
                 "INSERT INTO memories_fts(memory_id, content, summary, tags)"
@@ -196,7 +196,8 @@ class MemoryStore:
                 db.execute("DELETE FROM memories_fts WHERE memory_id = ?", (memory_id,))
                 try:
                     db.execute(
-                        "DELETE FROM memories_vec WHERE memory_id = ?", (memory_id,)
+                        "DELETE FROM memories_vec WHERE memory_id = ?",
+                        (memory_id,),
                     )
                 except Exception as e:
                     logger.warning(f"memories_vec DELETE skipped: {e}")
@@ -207,7 +208,8 @@ class MemoryStore:
         """Delete all entries for session_id; return count deleted."""
         with SQLiteHelper("session").open(write_mode=True) as db:
             rows = db.fetchall(
-                "SELECT memory_id FROM memories WHERE session_id = ?", (session_id,)
+                "SELECT memory_id FROM memories WHERE session_id = ?",
+                (session_id,),
             )
             cur = db.execute("DELETE FROM memories WHERE session_id = ?", (session_id,))
             for row in rows:
@@ -245,7 +247,7 @@ class MemoryStore:
         """Return {memory_type: count} for all rows in memories."""
         with SQLiteHelper("session").open() as db:
             rows = db.fetchall(
-                "SELECT memory_type, COUNT(*) FROM memories GROUP BY memory_type"
+                "SELECT memory_type, COUNT(*) FROM memories GROUP BY memory_type",
             )
             return {row[0]: row[1] for row in rows}
 

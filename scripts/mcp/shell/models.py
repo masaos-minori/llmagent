@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-shell_mcp_models.py
+"""shell_mcp_models.py
 Config loading and Pydantic request/response models for shell-mcp.
 """
 
@@ -37,7 +36,8 @@ def _get_cfg() -> dict[str, Any]:
 
 class ShellRunRequest(BaseModel):
     command: str = Field(
-        ..., description="Command string (argv[0] must be in allowlist)"
+        ...,
+        description="Command string (argv[0] must be in allowlist)",
     )
     argv: list[str] | None = Field(
         default=None,

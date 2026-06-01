@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/mdq/parser.py
+"""mcp/mdq/parser.py
 Markdown parser for Markdown Context Compression Engine.
 """
 
@@ -39,7 +38,7 @@ def parse_markdown_file(file_path: str) -> dict[str, Any]:
                         "line_number": i + 1,
                         "chunk_id": current_order,
                         "token_count": len(title.split()),
-                    }
+                    },
                 )
                 current_order += 1
 
@@ -51,7 +50,7 @@ def parse_markdown_file(file_path: str) -> dict[str, Any]:
                 break
 
         if not title:
-            title = file_path.split("/")[-1].split(".")[0]
+            title = file_path.rsplit("/", maxsplit=1)[-1].split(".", maxsplit=1)[0]
 
         return {
             "title": title,
@@ -84,7 +83,7 @@ def extract_headings(content: str) -> list[dict[str, Any]]:
                     "line_number": i + 1,
                     "chunk_id": current_order,
                     "token_count": len(title.split()),
-                }
+                },
             )
             current_order += 1
 
@@ -97,7 +96,7 @@ def create_heading_path(headings: list[dict[str, Any]], index: int) -> str:
     for i in range(index + 1):
         if i < len(headings):
             path_parts.append(
-                f"{headings[i]['heading_level']}>{headings[i]['heading_title']}"
+                f"{headings[i]['heading_level']}>{headings[i]['heading_title']}",
             )
     return " > ".join(path_parts)
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-AgentREPL
+"""AgentREPL
 Interactive REPL agent with RAG augmentation and MCP tool calling.
 Imported by agent.py as the entry point.
 Slash-command handlers live in agent/commands/registry.CommandRegistry.
@@ -28,8 +27,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-import shared.plugin_registry as plugin_registry
 from rag.pipeline import RagPipeline
+from shared import plugin_registry
 from shared.llm_client import LLMClient
 from shared.logger import Logger
 from shared.otel_tracer import build_tracer
@@ -181,7 +180,9 @@ class AgentREPL:
         """Initialize audit logger."""
         # Audit logger writes JSON-lines turn events; structured_log=True forces JSON format
         ctx.services.audit_logger = Logger(
-            "audit", ctx.cfg.audit_log_file, structured_log=True
+            "audit",
+            ctx.cfg.audit_log_file,
+            structured_log=True,
         )
 
     def _init_llm_client(self, ctx: AgentContext) -> None:
@@ -238,6 +239,7 @@ class AgentREPL:
             on_compress=self._view.write_compress_notice,
             protect_turns=ctx.cfg.history_protect_turns,
             token_limit=ctx.cfg.context_token_limit,
+            tokenize_url=ctx.cfg.tokenize_url,
         )
 
     def _init_rag_pipeline(self, ctx: AgentContext) -> None:
@@ -322,15 +324,29 @@ class AgentREPL:
         self._init_orchestrator(ctx)
         self._init_plugin_registry()
 
-    async def _start_stdio_servers(self) -> None:
-        """Spawn subprocesses for persistent stdio MCP servers at agent startup.
+    async def _start_subprocess_servers(self) -> None:
+        """Spawn subprocesses for persistent stdio and HTTP subprocess MCP servers.
 
-        Ondemand servers (startup_mode='ondemand') are excluded here; they are
-        started on first use by ServerLifecycleManager.ensure_ready().
+        Handles:
+        - stdio + startup_mode='persistent': start StdioTransport subprocess
+        - http  + startup_mode='subprocess': start HTTP server subprocess, poll /health
+        Ondemand servers are excluded; they start on first tool call via ensure_ready().
         """
         ctx = self._ctx
         assert ctx.services.tools is not None
+        assert ctx.services.lifecycle is not None
         for key, cfg in ctx.cfg.mcp_servers.items():
+            if cfg.startup_mode == "subprocess" and cfg.transport == "http":
+                try:
+                    await ctx.services.lifecycle.start_http_subprocess(key, cfg)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to start HTTP subprocess MCP server {key!r}: {e}"
+                    )
+                    print(
+                        f"[warn] HTTP subprocess MCP server {key!r} failed to start: {e}"
+                    )
+                continue
             if cfg.transport != "stdio" or not cfg.cmd:
                 continue
             if cfg.startup_mode != "persistent":
@@ -369,8 +385,8 @@ class AgentREPL:
 
         ctx.llm_url = ctx.cfg.llm_url
 
-        # Spawn stdio MCP server subprocesses before health/tool checks
-        await self._start_stdio_servers()
+        # Spawn stdio/HTTP subprocess MCP servers before health/tool checks
+        await self._start_subprocess_servers()
 
         # Probe LLM / Embed service health; warnings only, REPL continues on failure
         await self._check_service_health()
@@ -383,7 +399,8 @@ class AgentREPL:
             self._print_startup_banner()
             ctx.session.start()
             initial_prompt = ctx.cfg.system_prompts.get(
-                ctx.system_prompt_name, ctx.cfg.system_prompt_tool
+                ctx.system_prompt_name,
+                ctx.cfg.system_prompt_tool,
             )
             # Append persisted notes to system prompt when auto_inject_notes is enabled
             if ctx.cfg.auto_inject_notes:
@@ -396,7 +413,7 @@ class AgentREPL:
             # SessionStart: inject top semantic memories into system prompt
             if ctx.services.memory is not None:
                 memory_snippets = ctx.services.memory.on_session_start(
-                    ctx.session.session_id
+                    ctx.session.session_id,
                 )
                 if memory_snippets:
                     memory_block = "\n\n[Relevant memories]\n" + "\n".join(

@@ -13,43 +13,7 @@ description: |
 
 ## Purpose
 
-Turn a task description into a concrete, reviewable implementation plan before making code changes,
-grounded in evidence from architecture analysis, dependency graphs, and historical data.
-
-## Primary goals
-
-- clarify scope with evidence, not guesses
-- surface unknowns and assumptions before implementation begins
-- map the task onto concrete repository changes
-- define validation strategy with the project's toolchain
-- reduce wasted implementation work
-
----
-
-## Toolchain
-
-| Tool | Goal | Role |
-|---|---|---|
-| `grimp` | architecture analysis | Import graph with layering and cycle detection |
-| `pyan3` | architecture analysis | Call graph and module dependency visualization |
-| `import-linter` | architecture analysis | Enforce declared module boundary contracts |
-| `networkx` | architecture analysis | Graph analysis (centrality, paths, cycles) |
-| `pydeps` | dependency graphing | Visual module dependency graph |
-| `universal-ctags` | dependency graphing | Symbol index across the entire codebase |
-| `radon` | validation quality analysis | Cyclomatic complexity and maintainability index |
-| `vulture` | validation quality analysis | Dead code detection |
-| `semgrep` | validation quality analysis | Semantic pattern matching |
-| `bandit` | validation quality analysis | Static security analysis |
-| `pip-audit` | operational dependency inspection | Vulnerability scan of installed packages |
-| `diff-cover` | validation quality analysis | Coverage gate scoped to changed lines |
-| `pytest-testmon` | validation quality analysis | Impact-based test selection |
-| `git-fame` | historical analysis | Per-author contribution breakdown |
-| `git churn` | historical analysis | Change frequency by file |
-| `git bisect` | historical analysis | Binary search for regression commit |
-| `lsof` | operational dependency inspection | Open files and socket connections |
-| `rg` | — | Symbol definitions, call sites, log strings |
-| `fd` | — | File listing by pattern |
-| `ast-grep` | — | Structural code patterns |
+Turn a task description into a concrete, reviewable implementation plan grounded in architecture analysis and historical data; clarify scope with evidence before coding.
 
 ---
 

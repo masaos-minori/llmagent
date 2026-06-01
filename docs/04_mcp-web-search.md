@@ -165,7 +165,7 @@ WebSearchMCPServer().run()
 | `server_name` | `"web-search-mcp"` | MCP `initialize` レスポンスのサーバ識別名 |
 | `server_version` | `"3.0.0"` | バージョン文字列 |
 | `http_port` | `8004` | HTTP モード待受ポート |
-| `app_module` | `"mcp.web_search.server:app"` | uvicorn 起動ターゲット |
+| `app_module` | `"web_search_mcp_server:app"` | uvicorn 起動ターゲット |
 | `mcp_tools` | `_MCP_TOOLS` | `tools/list` に返すツール定義 (`search_web` 1 種) |
 
 | メソッド | 説明 |

@@ -23,8 +23,13 @@ scripts/agent/repl_tool_exec.py            →  /opt/llm/scripts/agent/repl_tool
 scripts/agent/repl_health.py               →  /opt/llm/scripts/agent/repl_health.py
 scripts/agent/repl_debug.py                →  /opt/llm/scripts/agent/repl_debug.py
 scripts/agent/cli_view.py                  →  /opt/llm/scripts/agent/cli_view.py
+scripts/agent/memory/types.py              →  /opt/llm/scripts/agent/memory/types.py
 scripts/agent/memory/layer.py              →  /opt/llm/scripts/agent/memory/layer.py
 scripts/agent/memory/store.py              →  /opt/llm/scripts/agent/memory/store.py
+scripts/agent/memory/retriever.py          →  /opt/llm/scripts/agent/memory/retriever.py
+scripts/agent/memory/extract.py            →  /opt/llm/scripts/agent/memory/extract.py
+scripts/agent/memory/jsonl_store.py        →  /opt/llm/scripts/agent/memory/jsonl_store.py
+scripts/agent/lifecycle.py                 →  /opt/llm/scripts/agent/lifecycle.py
 scripts/agent/commands/registry.py        →  /opt/llm/scripts/agent/commands/registry.py
 scripts/agent/commands/cmd_session.py      →  /opt/llm/scripts/agent/commands/cmd_session.py
 scripts/agent/commands/cmd_mcp.py          →  /opt/llm/scripts/agent/commands/cmd_mcp.py
@@ -32,6 +37,7 @@ scripts/agent/commands/cmd_config.py       →  /opt/llm/scripts/agent/commands/
 scripts/agent/commands/cmd_context.py      →  /opt/llm/scripts/agent/commands/cmd_context.py
 scripts/agent/commands/cmd_rag.py          →  /opt/llm/scripts/agent/commands/cmd_rag.py
 scripts/agent/commands/cmd_ingest.py       →  /opt/llm/scripts/agent/commands/cmd_ingest.py
+scripts/agent/commands/cmd_memory.py       →  /opt/llm/scripts/agent/commands/cmd_memory.py
 scripts/mcp/models.py                      →  /opt/llm/scripts/mcp/models.py
 scripts/mcp/server.py                      →  /opt/llm/scripts/mcp/server.py
 scripts/mcp/installer.py                   →  /opt/llm/scripts/mcp/installer.py
@@ -57,6 +63,18 @@ scripts/mcp/shell/service.py               →  /opt/llm/scripts/mcp/shell/servi
 scripts/mcp/rag_pipeline/models.py         →  /opt/llm/scripts/mcp/rag_pipeline/models.py
 scripts/mcp/rag_pipeline/server.py         →  /opt/llm/scripts/mcp/rag_pipeline/server.py
 scripts/mcp/rag_pipeline/service.py        →  /opt/llm/scripts/mcp/rag_pipeline/service.py
+scripts/mcp/sqlite/models.py               →  /opt/llm/scripts/mcp/sqlite/models.py
+scripts/mcp/sqlite/server.py               →  /opt/llm/scripts/mcp/sqlite/server.py
+scripts/mcp/sqlite/service.py              →  /opt/llm/scripts/mcp/sqlite/service.py
+scripts/mcp/cicd/models.py                 →  /opt/llm/scripts/mcp/cicd/models.py
+scripts/mcp/cicd/server.py                 →  /opt/llm/scripts/mcp/cicd/server.py
+scripts/mcp/cicd/service.py                →  /opt/llm/scripts/mcp/cicd/service.py
+scripts/mcp/mdq/models.py                  →  /opt/llm/scripts/mcp/mdq/models.py
+scripts/mcp/mdq/server.py                  →  /opt/llm/scripts/mcp/mdq/server.py
+scripts/mcp/mdq/service.py                 →  /opt/llm/scripts/mcp/mdq/service.py
+scripts/mcp/git/models.py                  →  /opt/llm/scripts/mcp/git/models.py
+scripts/mcp/git/server.py                  →  /opt/llm/scripts/mcp/git/server.py
+scripts/mcp/git/service.py                 →  /opt/llm/scripts/mcp/git/service.py
 scripts/rag/pipeline.py                    →  /opt/llm/scripts/rag/pipeline.py
 scripts/rag/types.py                       →  /opt/llm/scripts/rag/types.py
 scripts/rag/repository.py                  →  /opt/llm/scripts/rag/repository.py
@@ -86,6 +104,9 @@ scripts/shared/logger.py                   →  /opt/llm/scripts/shared/logger.p
 scripts/shared/git_helper.py               →  /opt/llm/scripts/shared/git_helper.py
 scripts/shared/otel_tracer.py              →  /opt/llm/scripts/shared/otel_tracer.py
 scripts/shared/plugin_registry.py          →  /opt/llm/scripts/shared/plugin_registry.py
+scripts/shared/tool_constants.py           →  /opt/llm/scripts/shared/tool_constants.py
+scripts/shared/route_resolver.py           →  /opt/llm/scripts/shared/route_resolver.py
+scripts/shared/token_counter.py            →  /opt/llm/scripts/shared/token_counter.py
 config/common.toml                         →  /opt/llm/config/common.toml
 config/agent.toml                          →  /opt/llm/config/agent.toml
 config/rag_pipeline.toml                   →  /opt/llm/config/rag_pipeline.toml
@@ -96,6 +117,11 @@ config/file_write_mcp_server.toml          →  /opt/llm/config/file_write_mcp_s
 config/file_delete_mcp_server.toml         →  /opt/llm/config/file_delete_mcp_server.toml
 config/github_mcp_server.toml              →  /opt/llm/config/github_mcp_server.toml
 config/shell_mcp_server.toml               →  /opt/llm/config/shell_mcp_server.toml
+config/sqlite_mcp_server.toml              →  /opt/llm/config/sqlite_mcp_server.toml
+config/cicd_mcp_server.toml               →  /opt/llm/config/cicd_mcp_server.toml
+config/mdq_mcp_server.toml                →  /opt/llm/config/mdq_mcp_server.toml
+config/git_mcp_server.toml                →  /opt/llm/config/git_mcp_server.toml
+config/mcp_servers.toml                   →  /opt/llm/config/mcp_servers.toml
 db/rrf.sql                                 →  /opt/llm/db/rrf.sql
 init.d/embed-llm                           →  /etc/init.d/embed-llm
 init.d/llama-chat-llm                      →  /etc/init.d/llama-chat-llm
@@ -136,7 +162,12 @@ conf.d/github-mcp                          →  /etc/conf.d/github-mcp
   │   ├─ file_write_mcp_server.toml           # ファイル書込 MCP サーバ設定 (許可ディレクトリ・サイズ上限)
   │   ├─ file_delete_mcp_server.toml          # ファイル削除 MCP サーバ設定 (許可ディレクトリ)
   │   ├─ github_mcp_server.toml               # GitHub MCP サーバ設定 (取得件数上限)
-  │   └─ shell_mcp_server.toml                # シェル MCP サーバ設定 (許可コマンド・タイムアウト)
+  │   ├─ shell_mcp_server.toml                # シェル MCP サーバ設定 (許可コマンド・タイムアウト)
+  │   ├─ sqlite_mcp_server.toml               # SQLite MCP サーバ設定 (db_allowlist / max_rows)
+  │   ├─ cicd_mcp_server.toml                 # CI/CD MCP サーバ設定 (repo_allowlist / workflow_allowlist)
+  │   ├─ mdq_mcp_server.toml                  # MDQ MCP サーバ設定 (:8013)
+  │   ├─ mcp_servers.toml                     # MCP サーバ一覧設定 (transport / url / tool_names)
+  │   └─ git_mcp_server.toml                  # ローカル git MCP サーバ設定 (:8014)
   ├─ scripts/
   │   ├─ agent.py                             # CLI エントリポイント (AgentREPL を起動)
   │   ├─ agent/                               # エージェント REPL パッケージ
@@ -150,9 +181,14 @@ conf.d/github-mcp                          →  /etc/conf.d/github-mcp
   │   │   ├─ repl_health.py                   # ヘルスチェックサテライト
   │   │   ├─ repl_debug.py                    # デバッグサテライト
   │   │   ├─ cli_view.py                      # CLIView: readline 設定・RAG 進捗表示・マルチライン入力
+  │   │   ├─ lifecycle.py                      # ServerLifecycleManager: stdio サーバ起動管理
   │   │   ├─ memory/
-  │   │   │   ├─ layer.py                     # MemoryLayer: 4 層メモリ管理ファサード
-  │   │   │   └─ store.py                     # MemoryStore: SQLite CRUD + vec0 KNN
+  │   │   │   ├─ types.py                     # MemoryEntry / MemoryQuery / MemoryHit データクラス
+  │   │   │   ├─ layer.py                     # MemoryLayer: SessionStart/UserPrompt/Stop ライフサイクルファサード
+  │   │   │   ├─ store.py                     # MemoryStore: SQLite CRUD (`memories` / `memories_fts` / `memories_vec`)
+  │   │   │   ├─ retriever.py                 # MemoryRetriever: FTS5 + KNN RRF 検索
+  │   │   │   ├─ extract.py                   # extract_memories(): ルールベース履歴抽出
+  │   │   │   └─ jsonl_store.py               # JsonlMemoryStore: 追記専用 JSONL ソース
   │   │   └─ commands/
   │   │       ├─ registry.py                  # CommandRegistry: スラッシュコマンドディスパッチャ
   │   │       ├─ cmd_session.py               # /session コマンド
@@ -160,7 +196,8 @@ conf.d/github-mcp                          →  /etc/conf.d/github-mcp
   │   │       ├─ cmd_config.py                # /config, /reload コマンド
   │   │       ├─ cmd_context.py               # /context コマンド (git ブランチ情報含む)
   │   │       ├─ cmd_rag.py                   # /rag コマンド
-  │   │       └─ cmd_ingest.py                # /ingest コマンド
+  │   │       ├─ cmd_ingest.py                # /ingest コマンド
+  │   │       └─ cmd_memory.py                # /memory コマンド
   │   ├─ mcp/                                 # MCP サーバパッケージ
   │   │   ├─ models.py                        # /v1/call_tool 統合エンドポイント共通 Pydantic モデル
   │   │   ├─ server.py                        # MCP サーバ HTTP 起動共通基底クラス
@@ -175,9 +212,17 @@ conf.d/github-mcp                          →  /etc/conf.d/github-mcp
   │   │   ├─ github/
   │   │   │   ├─ models.py / server.py / service.py / tools.py  # GitHub MCP サーバ (:8006)
   │   │   ├─ shell/
-  │   │   │   ├─ models.py / server.py / service.py             # シェル MCP サーバ (:8007)
-  │   │   └─ rag_pipeline/
-  │   │       ├─ models.py / server.py / service.py             # RAG パイプライン MCP サーバ (:8010)
+  │   │   │   ├─ models.py / server.py / service.py             # シェル MCP サーバ (:8009)
+  │   │   ├─ rag_pipeline/
+  │   │   │   ├─ models.py / server.py / service.py             # RAG パイプライン MCP サーバ (:8010)
+  │   │   ├─ sqlite/
+  │   │   │   ├─ models.py / server.py / service.py             # SQLite 読み取り専用クエリ MCP サーバ (:8011)
+  │   │   ├─ cicd/
+  │   │   │   ├─ models.py / server.py / service.py             # GitHub Actions CI/CD MCP サーバ (:8012)
+  │   │   ├─ mdq/
+  │   │   │   ├─ models.py / server.py / service.py             # Markdown Context Compression Engine MCP サーバ (:8013)
+  │   │   └─ git/
+  │   │       ├─ models.py / server.py / service.py             # ローカル git 操作 MCP サーバ (:8014)
   │   ├─ rag/                                 # RAG パイプラインパッケージ
   │   │   ├─ pipeline.py                      # RagPipeline: MQE → ベクトル/FTS5 → RRF → 再ランク
   │   │   ├─ types.py                         # RagHit / LLMMessage 共通型 (shared/types.py を再エクスポート)
@@ -210,7 +255,10 @@ conf.d/github-mcp                          →  /etc/conf.d/github-mcp
   │       ├─ logger.py                        # ロギング共通セットアップ (エントリポイントのみが import)
   │       ├─ git_helper.py                    # GitPython ラッパー (ブランチ/コミット情報取得)
   │       ├─ otel_tracer.py                   # OTel トレーサー構築 (build_tracer)
-  │       └─ plugin_registry.py               # プラグイン登録デコレータ (@register_command 等)
+  │       ├─ plugin_registry.py               # プラグイン登録デコレータ (@register_command 等)
+  │       ├─ tool_constants.py                # ツール分類 frozenset (READ/WRITE/DELETE/RAG/CICD/MDQ/GIT)
+  │       ├─ route_resolver.py                # ToolRouteResolver: ツール名 → サーバキーマッピング
+  │       └─ token_counter.py                 # トークン推定ユーティリティ
   └─ logs/                                    # 各サービスのログファイル出力先
 /etc/init.d/
   ├─ embed-llm                          # OpenRC: multilingual-E5-small 起動スクリプト (:8003)

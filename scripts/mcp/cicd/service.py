@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/cicd/service.py
+"""mcp/cicd/service.py
 CiBackend protocol, GitHubActionsBackend, CiCdService, and lazy singleton proxy.
 
 Security guards:
@@ -51,11 +50,20 @@ class CiBackend(Protocol):
     """
 
     async def trigger_workflow(
-        self, owner: str, repo: str, workflow: str, ref: str, inputs: dict[str, str]
+        self,
+        owner: str,
+        repo: str,
+        workflow: str,
+        ref: str,
+        inputs: dict[str, str],
     ) -> str: ...
 
     async def get_workflow_runs(
-        self, owner: str, repo: str, workflow: str, limit: int
+        self,
+        owner: str,
+        repo: str,
+        workflow: str,
+        limit: int,
     ) -> str: ...
 
     async def get_workflow_status(self, owner: str, repo: str, run_id: int) -> str: ...
@@ -107,7 +115,8 @@ class GitHubActionsBackend:
         if resp.status_code == 422:
             try:
                 msg_422 = orjson.loads(resp.content).get(
-                    "message", "Unprocessable Entity"
+                    "message",
+                    "Unprocessable Entity",
                 )
             except Exception:
                 msg_422 = "Unprocessable Entity"
@@ -137,7 +146,7 @@ class GitHubActionsBackend:
         parts = repo.split("/", 1)
         if len(parts) != 2 or not parts[0] or not parts[1]:
             raise ValueError(
-                f"Invalid repo slug {repo!r}: expected 'owner/repo' format"
+                f"Invalid repo slug {repo!r}: expected 'owner/repo' format",
             )
         return parts[0], parts[1]
 
@@ -171,7 +180,11 @@ class GitHubActionsBackend:
         return f"Workflow dispatched: {owner}/{repo} workflow={workflow} ref={ref}"
 
     async def get_workflow_runs(
-        self, owner: str, repo: str, workflow: str, limit: int
+        self,
+        owner: str,
+        repo: str,
+        workflow: str,
+        limit: int,
     ) -> str:
         """Return a list of recent workflow runs."""
         url = (
@@ -241,7 +254,8 @@ class GitHubActionsBackend:
         jobs_url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/actions/runs/{run_id}/jobs"
         jobs_resp = await self._http.get(jobs_url, headers=self._auth_headers())
         self._check_response(
-            jobs_resp, f"get_workflow_logs jobs {owner}/{repo} run={run_id}"
+            jobs_resp,
+            f"get_workflow_logs jobs {owner}/{repo} run={run_id}",
         )
         jobs_data = orjson.loads(jobs_resp.content)
         jobs = jobs_data.get("jobs", [])
@@ -291,7 +305,7 @@ class GitHubActionsBackend:
                             ].decode("utf-8", errors="replace")
                             output_parts.append(
                                 truncated
-                                + f"\n[TRUNCATED: exceeded {self._max_log_size_kb} KB limit]\n"
+                                + f"\n[TRUNCATED: exceeded {self._max_log_size_kb} KB limit]\n",
                             )
                             total_bytes = max_bytes
                             break
@@ -299,11 +313,13 @@ class GitHubActionsBackend:
                         total_bytes += log_bytes
                     else:
                         output_parts.append(
-                            f"(log fetch failed: HTTP {log_resp.status_code})\n"
+                            f"(log fetch failed: HTTP {log_resp.status_code})\n",
                         )
                 except Exception as e:
                     logger.warning(
-                        "get_workflow_logs: log fetch error job=%d: %s", job_id, e
+                        "get_workflow_logs: log fetch error job=%d: %s",
+                        job_id,
+                        e,
                     )
                     output_parts.append(f"(log fetch error: {e})\n")
 
@@ -334,7 +350,7 @@ class CiCdService:
 
         if not self._repo_allowlist:
             logger.warning(
-                "cicd-mcp: repo_allowlist is empty — all repository operations will be denied"
+                "cicd-mcp: repo_allowlist is empty — all repository operations will be denied",
             )
 
     def _assert_allowed_repo(self, repo: str) -> None:
@@ -385,7 +401,11 @@ class CiCdService:
         self._assert_allowed_workflow(req.workflow)
         owner, repo = self._parse_repo(req.repo)
         return await self._backend.trigger_workflow(
-            owner, repo, req.workflow, req.ref, req.inputs
+            owner,
+            repo,
+            req.workflow,
+            req.ref,
+            req.inputs,
         )
 
     async def handle_get_workflow_runs(self, args: ToolArgs) -> str:
@@ -393,7 +413,10 @@ class CiCdService:
         self._assert_allowed_repo(req.repo)
         owner, repo = self._parse_repo(req.repo)
         return await self._backend.get_workflow_runs(
-            owner, repo, req.workflow, req.limit
+            owner,
+            repo,
+            req.workflow,
+            req.limit,
         )
 
     async def handle_get_workflow_status(self, args: ToolArgs) -> str:
@@ -438,7 +461,7 @@ class _LazyCiCdService:
             github_token = os.environ.get("GITHUB_TOKEN", cfg.get("github_token", ""))
             if not github_token:
                 logger.warning(
-                    "cicd-mcp: GITHUB_TOKEN is not set; API rate limit will be 60 req/hr"
+                    "cicd-mcp: GITHUB_TOKEN is not set; API rate limit will be 60 req/hr",
                 )
             max_log_size_kb = int(cfg.get("max_log_size_kb", 256))
             http = httpx.AsyncClient(timeout=30.0)

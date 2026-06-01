@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-rag/pipeline.py
+"""rag/pipeline.py
 RAG pipeline orchestration: MQE → vector/FTS search → RRF → Cross-Encoder rerank.
 
 Pipeline order:
@@ -23,7 +22,7 @@ from collections.abc import Callable
 from typing import Any
 
 import httpx
-import shared.plugin_registry as plugin_registry
+from shared import plugin_registry
 from shared.config_loader import ConfigLoader
 from shared.types import RagConfig
 
@@ -41,8 +40,8 @@ from rag.types import RagHit
 
 # Re-export symbols that external callers import from this module
 __all__ = [
-    "RagPipeline",
     "RagHit",
+    "RagPipeline",
     "fetch_full_document",
     "get_embedding",
 ]
@@ -98,14 +97,17 @@ class RagPipeline:
             return [query]
         try:
             return await RagLLM(
-                self._http, _get_cfg().get("llm_url", "")
+                self._http,
+                _get_cfg().get("llm_url", ""),
             ).expand_queries(query, context=context)
         except Exception as e:
             logger.warning(f"MQE failed, using original query: {e}")
             return [query]
 
     async def search_queries(
-        self, queries: list[str], db: SQLiteHelper
+        self,
+        queries: list[str],
+        db: SQLiteHelper,
     ) -> list[list[RagHit]]:
         """Run concurrent embedding fetches then sequential DB searches; sequential DB avoids shared-connection conflicts."""
         raw = await asyncio.gather(
@@ -137,7 +139,8 @@ class RagPipeline:
             return deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
         try:
             result = await RagLLM(
-                self._http, _get_cfg().get("llm_url", "")
+                self._http,
+                _get_cfg().get("llm_url", ""),
             ).cross_encoder_rerank(
                 query,
                 merged[: self._cfg.top_k_rerank],
@@ -151,7 +154,10 @@ class RagPipeline:
             return deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
 
     async def run(
-        self, query: str, db: SQLiteHelper, history_context: str = ""
+        self,
+        query: str,
+        db: SQLiteHelper,
+        history_context: str = "",
     ) -> tuple[list[str], list[list[RagHit]], list[RagHit], list[RagHit]]:
         """Execute MQE→search→RRF→rerank on an open DB; returns (queries, all_results, merged, reranked); on_clear() called on exit."""
         try:
@@ -198,7 +204,10 @@ class RagPipeline:
             self._on_clear()
 
     async def _augment_http(
-        self, rag_url: str, query: str, history_context: str
+        self,
+        rag_url: str,
+        query: str,
+        history_context: str,
     ) -> str | None:
         """Delegate to external RAG service; None on failure triggers in-process fallback; stores hits in last_reranked."""
         try:
@@ -215,7 +224,7 @@ class RagPipeline:
             return str(body.get("context", ""))
         except Exception as e:
             logger.warning(
-                f"RAG service call failed ({rag_url}), falling back to in-process: {e}"
+                f"RAG service call failed ({rag_url}), falling back to in-process: {e}",
             )
             return None
 
@@ -224,7 +233,8 @@ class RagPipeline:
         try:
             self._on_status("refining context...")
             refined = await RagLLM(
-                self._http, _get_cfg().get("llm_url", "")
+                self._http,
+                _get_cfg().get("llm_url", ""),
             ).refine_context(
                 reranked,
                 query,
@@ -252,7 +262,8 @@ class RagPipeline:
         self,
         query: str,
         debug_fn: Callable[
-            [list[str], list[list[RagHit]], list[RagHit], list[RagHit]], None
+            [list[str], list[list[RagHit]], list[RagHit], list[RagHit]],
+            None,
         ]
         | None = None,
         history_context: str = "",
@@ -272,7 +283,9 @@ class RagPipeline:
             return ""
         with db:
             queries, all_results, merged, reranked = await self.run(
-                query, db, history_context=history_context
+                query,
+                db,
+                history_context=history_context,
             )
         # run() already calls on_clear() in its finally block
         if debug_fn is not None:

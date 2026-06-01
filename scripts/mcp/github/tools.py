@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/github/tools.py
+"""mcp/github/tools.py
 MCP tool schema definitions for github-mcp server (inputSchema format).
 
 Imported by mcp/github/server.py to keep the server module under 400 lines.

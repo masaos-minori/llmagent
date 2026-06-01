@@ -13,40 +13,7 @@ description: |
 
 ## Purpose
 
-Implement Python code consistently and safely according to the project's conventions,
-using the full toolchain to enforce architecture, security, and observability at every step.
-
-## Primary goals
-
-- produce readable, maintainable Python code
-- preserve existing architecture and public interfaces unless explicitly asked to change them
-- follow project conventions before introducing new patterns
-- minimize unnecessary churn in unrelated files
-- prefer small, verifiable changes over large speculative rewrites
-
----
-
-## Toolchain
-
-| Tool | Phase | Role |
-|---|---|---|
-| `rg` | Repository Intelligence | Search for patterns, call sites, symbol definitions |
-| `ast-grep` | Repository Intelligence | Structural code search: find usages, classes, exceptions by shape |
-| `pydeps` | Repository Intelligence | Visualize import graphs; assess blast radius |
-| `git` | Repository Intelligence | Review history; stage selectively |
-| `import-linter` | Architecture Boundary Analysis | Enforce module boundary rules |
-| `libcst` | Semantic Safe Modification | CST-based code transforms |
-| `pydantic` | Runtime Contract Validation | Define and validate data models |
-| `schemathesis` | Runtime Contract Validation | Property-based HTTP API contract testing |
-| `structlog` | Observability Injection | Structured log context |
-| `opentelemetry-api` / `-sdk` | Observability Injection | Structured tracing for production code paths |
-| `bandit` | Security Validation | Static security analysis |
-| `ruff` | Validation Orchestration | Format and lint |
-| `mypy` | Validation Orchestration | Type check |
-| `pytest` | Validation Orchestration | Behavior verification |
-| `pre-commit` | Validation Orchestration | Final gate |
-| `diff-cover` | Scope Control | Coverage scoped to changed lines |
-| `pytest-benchmark` | Scope Control | Performance regression guard |
+Implement Python code consistently and safely; follow project conventions before introducing new patterns; prefer small, verifiable changes.
 
 ---
 

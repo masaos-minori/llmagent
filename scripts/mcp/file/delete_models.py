@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-file_delete_mcp_models.py
+"""file_delete_mcp_models.py
 Config loading and Pydantic request/response models for file-delete-mcp.
 """
 
@@ -38,7 +37,8 @@ def _get_cfg() -> dict[str, Any]:
 class DeleteFileRequest(BaseModel):
     path: str = Field(..., description="Absolute path of the file to delete")
     dry_run: bool = Field(
-        default=False, description="When true, return file info without deleting"
+        default=False,
+        description="When true, return file info without deleting",
     )
 
 
@@ -53,10 +53,12 @@ class DeleteDirectoryRequest(BaseModel):
     # recursive=True: remove contents recursively
     # False (default): only empty directories can be deleted
     recursive: bool = Field(
-        default=False, description="When true, delete contents recursively"
+        default=False,
+        description="When true, delete contents recursively",
     )
     dry_run: bool = Field(
-        default=False, description="When true, return directory info without deleting"
+        default=False,
+        description="When true, return directory info without deleting",
     )
 
 

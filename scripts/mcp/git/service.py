@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/git/service.py
+"""mcp/git/service.py
 GitService: local git operations via GitPython with repo-path allowlist and read_only guard.
 
 Security guards:
@@ -22,7 +21,7 @@ from mcp.server import ToolArgs
 logger = logging.getLogger(__name__)
 
 _WRITE_TOOLS: frozenset[str] = frozenset(
-    {"git_add", "git_commit", "git_checkout", "git_pull", "git_push"}
+    {"git_add", "git_commit", "git_checkout", "git_pull", "git_push"},
 )
 
 
@@ -109,13 +108,13 @@ class GitService:
         try:
             repo = self._open_repo(req.repo_path)
             limit = min(req.max_entries, self._max_log_entries)
-            rev = req.branch if req.branch else repo.head.commit
+            rev = req.branch or repo.head.commit
             commits = list(repo.iter_commits(rev=rev, max_count=limit))
             lines: list[str] = []
             for c in commits:
                 short_msg = c.message.split("\n")[0][:80]
                 lines.append(
-                    f"{c.hexsha[:8]} {c.author.name} {c.committed_datetime.strftime('%Y-%m-%d')} {short_msg}"
+                    f"{c.hexsha[:8]} {c.author.name} {c.committed_datetime.strftime('%Y-%m-%d')} {short_msg}",
                 )
             return "\n".join(lines) if lines else "(no commits)"
         except Exception as e:
@@ -137,7 +136,7 @@ class GitService:
                 diff = repo.git.diff("--cached")
             else:
                 diff = repo.git.diff()
-            return diff if diff else "(no diff)"
+            return diff or "(no diff)"
         except Exception as e:
             logger.error(f"git_diff error: {e}")
             return f"[ERROR] git_diff: {e}"
@@ -291,7 +290,7 @@ class GitService:
             return err
         try:
             repo = self._open_repo(req.repo_path)
-            branch = req.branch if req.branch else repo.active_branch.name
+            branch = req.branch or repo.active_branch.name
             if req.dry_run:
                 return f"[DRY RUN] Would push branch '{branch}' to '{req.remote}'"
             result = repo.git.push(req.remote, branch)

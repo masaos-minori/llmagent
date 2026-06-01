@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-registry.py
+"""registry.py
 Slash-command registry for AgentREPL.
 
 CommandRegistry inherits command groups from six mixin classes.
@@ -21,7 +20,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-import shared.plugin_registry as plugin_registry
+from shared import plugin_registry
 
 from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.cmd_context import _budget_breakdown, _ContextMixin
@@ -130,7 +129,7 @@ class CommandRegistry(
             " runtime-configurable parameters\n"
             "  /exit              Exit (Ctrl-D also works)\n"
             "\n"
-            f"Tools: {n_tools}  |  LLM: {ctx.llm_url}  |  {sid}"
+            f"Tools: {n_tools}  |  LLM: {ctx.llm_url}  |  {sid}",
         )
 
     async def dispatch(self, line: str) -> bool:

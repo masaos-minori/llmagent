@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-rag/repository.py
+"""rag/repository.py
 RAG data-access layer: FTS5/vector search, RRF merge, and document fetching.
 
 Extracted from rag/pipeline.py.  Contains:
@@ -119,10 +118,10 @@ class RagRepository:
         t0 = time.perf_counter()
         rows = self._db.fetchall(self._SQL_VEC, (floats_to_blob(embedding), top_k))
         elapsed_ms = (time.perf_counter() - t0) * 1000
-        results: list[RagHit] = cast(list[RagHit], [dict(r) for r in rows])
+        results: list[RagHit] = cast("list[RagHit]", [dict(r) for r in rows])
         logger.info(
             f"vector_search: top_k={top_k} hits={len(results)}"
-            f" elapsed_ms={elapsed_ms:.1f}"
+            f" elapsed_ms={elapsed_ms:.1f}",
         )
         return results
 
@@ -134,14 +133,14 @@ class RagRepository:
             rows = self._db.fetchall(self._SQL_FTS, (fts_query, top_k))
         except sqlite3.OperationalError as e:
             logger.warning(
-                f"fts_search error query={query!r} fts_query={fts_query!r}: {e}"
+                f"fts_search error query={query!r} fts_query={fts_query!r}: {e}",
             )
             return []
         elapsed_ms = (time.perf_counter() - t0) * 1000
-        results: list[RagHit] = cast(list[RagHit], [dict(r) for r in rows])
+        results: list[RagHit] = cast("list[RagHit]", [dict(r) for r in rows])
         logger.info(
             f"fts_search: query={query!r} fts_query={fts_query!r}"
-            f" top_k={top_k} hits={len(results)} elapsed_ms={elapsed_ms:.1f}"
+            f" top_k={top_k} hits={len(results)} elapsed_ms={elapsed_ms:.1f}",
         )
         return results
 
@@ -161,7 +160,8 @@ class RagScorer:
                 meta[cid] = item
         merged = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         return cast(
-            list[RagHit], [{**meta[cid], "rrf_score": score} for cid, score in merged]
+            "list[RagHit]",
+            [{**meta[cid], "rrf_score": score} for cid, score in merged],
         )
 
 
@@ -223,7 +223,9 @@ def fts_search(query: str, top_k: int, db: SQLiteHelper) -> list[RagHit]:
 
 
 def fetch_full_document(
-    chunk_id: int, db: SQLiteHelper, window: int | None = None
+    chunk_id: int,
+    db: SQLiteHelper,
+    window: int | None = None,
 ) -> list[RagHit]:
     """Retrieve surrounding chunks for a given chunk_id from the same document.
 
@@ -254,7 +256,7 @@ def fetch_full_document(
             " ORDER BY c.chunk_index",
             (doc_id, max(0, chunk_index - window), chunk_index + window),
         )
-    return cast(list[RagHit], [dict(r) for r in rows])
+    return cast("list[RagHit]", [dict(r) for r in rows])
 
 
 def deduplicate_chunks(hits: list[RagHit], max_per_doc: int) -> list[RagHit]:
@@ -272,7 +274,7 @@ def deduplicate_chunks(hits: list[RagHit], max_per_doc: int) -> list[RagHit]:
             result.append(hit)
             counts[url] = n + 1
     logger.info(
-        f"deduplicate_chunks: {len(hits)} → {len(result)} (max_per_doc={max_per_doc})"
+        f"deduplicate_chunks: {len(hits)} → {len(result)} (max_per_doc={max_per_doc})",
     )
     return result
 

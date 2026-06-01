@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/installer.py
+"""mcp/installer.py
 Template generator for new MCP HTTP servers.
 Called from CommandRegistry._cmd_mcp_install() via `/mcp install <name>`.
 
@@ -384,10 +383,13 @@ def install_mcp_server(
     targets: dict[Path, str] = {
         root / "scripts" / "mcp" / module / "__init__.py": "",
         root / "scripts" / "mcp" / module / "server.py": generate_server_script(
-            server_name, module, port
+            server_name,
+            module,
+            port,
         ),
         root / "config" / f"{module}_mcp_server.toml": generate_config_toml_for_role(
-            server_name, role
+            server_name,
+            role,
         ),
         root / "init.d" / server_name: generate_initd_script(server_name, module, port),
     }

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-agent_cmd_ingest.py
+"""agent_cmd_ingest.py
 Export, ingest, and compact mixin for CommandRegistry.
 
 Extracted from agent_commands.py.  Provides _IngestMixin with:
@@ -58,14 +57,16 @@ class _IngestMixin:
             Path(outfile).write_text(content, encoding="utf-8")
             print(
                 f"Exported {len(ctx.history)} messages to {outfile}"
-                f" ({fmt.upper()}, {len(content)} chars)"
+                f" ({fmt.upper()}, {len(content)} chars)",
             )
             logger.info(f"Conversation exported to {outfile} ({fmt})")
         except OSError as e:
             print(f"Export failed: {e}")
 
     async def _run_split_and_ingest(
-        self, loop: asyncio.AbstractEventLoop, snippets_only: bool = False
+        self,
+        loop: asyncio.AbstractEventLoop,
+        snippets_only: bool = False,
     ) -> None:
         """Run ChunkSplitter and RagIngester in a thread executor.
 
@@ -73,7 +74,7 @@ class _IngestMixin:
         of the md_index_enable config value.
         """
         from rag.ingestion.chunk_splitter import (
-            ChunkSplitter as _ChunkSplitter,  # noqa: PLC0415
+            ChunkSplitter as _ChunkSplitter,
         )
         from rag.ingestion.ingester import RagIngester as _RagIngester  # noqa: PLC0415
 
@@ -128,7 +129,10 @@ class _IngestMixin:
                     return
                 print(f"  [ingest] reading local file {file_path} (lang={lang})...")
                 count = await loop.run_in_executor(
-                    None, crawler.crawl_file, file_path, lang
+                    None,
+                    crawler.crawl_file,
+                    file_path,
+                    lang,
                 )
                 if count == 0:
                     print("  [ingest] error: failed to read local file")

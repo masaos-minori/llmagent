@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/mdq/models.py
+"""mcp/mdq/models.py
 Pydantic models for Markdown Context Compression Engine MCP Server.
 """
 
@@ -53,8 +52,6 @@ class RefreshIndexRequest(BaseModel):
 
 class StatsRequest(BaseModel):
     """Request model for stats tool."""
-
-    pass
 
 
 class GrepDocsRequest(BaseModel):

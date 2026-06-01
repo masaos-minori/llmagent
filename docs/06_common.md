@@ -7,7 +7,7 @@
 | ファイル | 収録モジュール |
 |---|---|
 | [`06_ref-sqlite.md`](06_ref-sqlite.md) | `db/helper.py` |
-| [`06_ref-infra.md`](06_ref-infra.md) | `shared/config_loader.py` / `rag/utils.py` / `shared/logger.py` / `shared/formatters.py` |
+| [`06_ref-infra.md`](06_ref-infra.md) | `shared/config_loader.py` / `rag/utils.py` / `shared/logger.py` / `shared/formatters.py` / `shared/otel_tracer.py` / `shared/git_helper.py` / `shared/tool_constants.py` / `shared/route_resolver.py` |
 | [`06_ref-mcp.md`](06_ref-mcp.md) | `mcp/models.py` / `mcp/server.py` / `shared/tool_executor.py` |
 | [`06_ref-rag.md`](06_ref-rag.md) | `rag/pipeline.py` |
 | [`06_ref-agent.md`](06_ref-agent.md) | `agent/session.py` / `agent/repl.py` / `agent/config.py` / `agent/context.py` / `agent/cli_view.py` / `agent/commands/registry.py` / `shared/llm_client.py` / `agent/history.py` |
@@ -39,7 +39,7 @@ async def fn(args: dict) -> tuple[str, bool]:
 `rag/types.py` で定義。検索・スコアリング結果を表す型。パイプライン各ステージで段階的にフィールドが追加される (`total=False` のため全フィールドオプション)。
 
 ```python
-from rag_types import RagHit
+from rag.types import RagHit
 ```
 
 | キー | 型 | 追加ステージ | 説明 |
@@ -51,14 +51,16 @@ from rag_types import RagHit
 | `distance` | `float` | vector_search のみ | L2 距離 (小さいほど近い) |
 | `bm25_score` | `float` | fts_search のみ | BM25 スコア (負値; 絶対値が大きいほど高関連) |
 | `rrf_score` | `float` | rrf_merge 以降 | RRF スコア (大きいほど高関連) |
-| `rerank_score` | `float` | cross_encoder_rerank のみ | Cross-Encoder スコア 0〜10 (大きいほど高関連) |
+| `rerank_score` | `float` | rerank 以降 | Cross-Encoder の関連度スコア (大きいほど高関連) |
 
 ### LLMMessage TypedDict
 
-`rag/types.py` で定義。LLM API メッセージを表す型。`AgentContext.history` の要素型として使用 (`total=False` のため全フィールドオプション)。
+`shared/types.py` で定義 (`TypedDict, total=False`)。LLM API メッセージを表す型。`AgentContext.history` の要素型として使用。`total=False` のため TypedDict としては全フィールドオプションだが、`role` は実質必須 (実装コメント: `role always required`)。`rag/types.py` から再エクスポートされているため、`rag` 層からは `from rag.types import LLMMessage` でも参照可能。
 
 ```python
-from rag_types import LLMMessage
+from shared.types import LLMMessage
+# または rag 層から
+from rag.types import LLMMessage
 ```
 
 | キー | 型 | 使用ロール | 説明 |
@@ -68,3 +70,30 @@ from rag_types import LLMMessage
 | `tool_calls` | `list[dict]` | assistant のみ | アシスタントが要求したツール呼び出しリスト |
 | `tool_call_id` | `str` | tool のみ | ツール呼び出し応答の対応 ID |
 | `name` | `str` | tool のみ | ツール名 |
+
+### RagConfig Protocol
+
+`shared/types.py` で定義 (`@runtime_checkable` な `typing.Protocol`)。`RagPipeline` が消費する設定オブジェクトの構造プロトコル。`AgentConfig` および `SimpleNamespace` アダプターが満たす構造であれば `isinstance()` チェックが通る。`agent` パッケージをインポートせずに `rag` 層から利用できるよう分離されている。
+
+```python
+from shared.types import RagConfig
+```
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `semantic_cache_max_size` | `int` | セマンティックキャッシュの最大エントリ数 |
+| `semantic_cache_threshold` | `float` | セマンティックキャッシュのコサイン類似度しきい値 |
+| `use_mqe` | `bool` | MQE (Multi-Query Expansion: 複数クエリ展開) を使用するか |
+| `top_k_search` | `int` | ベクトル / FTS 検索で取得する上位件数 |
+| `use_rerank` | `bool` | Cross-Encoder による再ランク付けを使用するか |
+| `rag_top_k` | `int` | RAG 最終出力として LLM に渡すチャンク数 |
+| `max_chunks_per_doc` | `int` | 同一ドキュメントから返す最大チャンク数 |
+| `top_k_rerank` | `int` | 再ランク付け対象として渡す上位件数 |
+| `rag_min_score` | `float` | 最終チャンクのスコアフィルタしきい値 |
+| `use_rrf` | `bool` | RRF (Reciprocal Rank Fusion: 逆順位融合) によるスコア統合を使用するか |
+| `use_search` | `bool` | RAG 検索ステップ自体を有効にするか |
+| `rag_service_url` | `str` | RAG サービスのベース URL |
+| `use_refiner` | `bool` | チャンク内容の精製 (Refiner) を使用するか |
+| `refiner_max_tokens` | `int` | Refiner が出力する最大トークン数 |
+| `refiner_max_chars_per_chunk` | `int` | Refiner に渡す 1 チャンクあたりの最大文字数 |
+| `refiner_timeout` | `float` | Refiner の HTTP タイムアウト (秒) |

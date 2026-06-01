@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-logger.py
+"""logger.py
 Shared logging setup for entry-point scripts.
 
 Usage (entry-point scripts only):
@@ -70,7 +69,11 @@ class Logger:
     _FORMAT = "%(asctime)s %(levelname)s [%(funcName)s] %(message)s"
 
     def __init__(
-        self, name: str, log_file: str, *, structured_log: bool = False
+        self,
+        name: str,
+        log_file: str,
+        *,
+        structured_log: bool = False,
     ) -> None:
         self._validate_args(name, log_file)
         self._logger = logging.getLogger(name)
@@ -121,7 +124,7 @@ class Logger:
             # Log file not writable; stderr-only fallback is attached below
             sys.stderr.write(
                 f"[Logger] Cannot open log file {log_file}: {exc}"
-                " — falling back to stderr only.\n"
+                " — falling back to stderr only.\n",
             )
         sh = logging.StreamHandler(sys.stderr)
         sh.setFormatter(formatter)

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-agent.py
+"""agent.py
 Interactive CLI agent — REPL interface for LLM + RAG + MCP tool calling.
 Can be started from any directory; sys.path is adjusted at startup.
 
@@ -16,8 +15,6 @@ Can be started from any directory; sys.path is adjusted at startup.
   /context                       Show runtime context state and compression info
   /compact                       Force immediate compression of conversation history
   /clear [new]                   Reset conversation history; [new] also starts a new DB session
-  /chat                          Switch to chat LLM (gemma-4-e4b)
-  /code                          Switch to code LLM (qwen2.5-coder-7b)
   /session list [n]              List past sessions (default: 20)
   /session load <id>             Restore a past session's conversation history
   /session rename <title>        Rename the current session

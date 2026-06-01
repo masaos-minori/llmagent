@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-agent/memory/jsonl_store.py
+"""agent/memory/jsonl_store.py
 Append-only JSONL storage for MemoryEntry (source of truth).
 
 Each line is one JSON object representing a MemoryEntry.

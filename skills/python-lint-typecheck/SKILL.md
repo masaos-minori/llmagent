@@ -13,33 +13,7 @@ description: |
 
 ## Purpose
 
-Resolve Python code quality issues using the project's full toolchain while preserving
-correctness, readability, and minimal change scope.
-
-## Primary goals
-
-- fix root causes, not suppress warnings
-- maintain minimal diff scope
-- preserve behavior unless explicitly required to change
-- keep all static checks fully passing
-- ensure consistency across multiple type checkers
-
----
-
-## Toolchain
-
-| Tool | Goal | Role |
-|---|---|---|
-| `ruff` | repository convention enforcement | Format and lint; auto-fix safe violations |
-| `ast-grep` | convention enforcement, architecture integrity | Structural search and pattern enforcement |
-| `mypy` | type flow analysis | Primary static type checker |
-| `pyright` | type flow analysis | Alternate type checker; cross-validates mypy |
-| `pyre` | type flow analysis | Strict inference on protocols/TypedDict |
-| `bandit` | static security validation | Vulnerability scan |
-| `diff-cover` | diff scope enforcement | Coverage gate scoped to changed lines |
-| `tox` | CI consistency validation | Runs full check suite in isolated envs |
-| `libcst` | semantic refactor safety | CST-based transforms preserving comments |
-| `pre-commit` | — | Aggregated hook runner; final gate |
+Resolve Python code quality issues; fix root causes, not suppress warnings; maintain minimal diff scope.
 
 ---
 

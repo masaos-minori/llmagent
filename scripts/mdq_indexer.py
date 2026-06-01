@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-scripts/mdq_indexer.py
+"""scripts/mdq_indexer.py
 Markdown document indexer for the MDQ MCP server.
 
 This script indexes Markdown documents and creates a SQLite database with:
@@ -161,7 +160,9 @@ def index_document(path: Path, db_path: str) -> None:
 
 
 def create_chunks_from_outline(
-    path: Path, outline: DocumentOutline, content: str
+    path: Path,
+    outline: DocumentOutline,
+    content: str,
 ) -> list[DocumentChunk]:
     """Create chunks from document outline."""
     chunks = []
@@ -299,7 +300,6 @@ def main() -> None:
         logger.info("Refreshing index...")
         # This would be implemented based on your specific requirements
         # For now, we'll just log that we're refreshing
-        pass
 
     logger.info("Indexing complete")
 

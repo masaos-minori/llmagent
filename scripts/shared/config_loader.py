@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-config_loader.py
+"""config_loader.py
 Shared configuration loader for agent pipeline modules.
 Supports both TOML (.toml) and JSON (.json) config files.
 """
@@ -79,7 +78,7 @@ class ConfigLoader:
         for name in names:
             if not isinstance(name, str) or not name.strip():
                 raise TypeError(
-                    f"Config file name must be a non-empty str, got: {name!r}"
+                    f"Config file name must be a non-empty str, got: {name!r}",
                 )
 
     def _load_single(self, name: str) -> dict[str, Any]:
@@ -104,7 +103,7 @@ class ConfigLoader:
         if not isinstance(data, dict):
             raise ValueError(
                 f"Config file {path} must contain a top-level mapping, "
-                f"got {type(data).__name__}"
+                f"got {type(data).__name__}",
             )
 
         logger.debug("Loaded config: %s (%d keys)", name, len(data))

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/cicd/models.py
+"""mcp/cicd/models.py
 Config loading and Pydantic request models for cicd-mcp.
 """
 
@@ -34,10 +33,12 @@ class TriggerWorkflowRequest(BaseModel):
 
     repo: str = Field(..., description="Repository slug (owner/repo)")
     workflow: str = Field(
-        ..., description="Workflow file name (e.g. ci.yml) or workflow ID"
+        ...,
+        description="Workflow file name (e.g. ci.yml) or workflow ID",
     )
     ref: str = Field(
-        default="main", description="Branch name, tag, or SHA to run the workflow on"
+        default="main",
+        description="Branch name, tag, or SHA to run the workflow on",
     )
     inputs: dict[str, str] = Field(
         default_factory=dict,
@@ -50,10 +51,14 @@ class GetWorkflowRunsRequest(BaseModel):
 
     repo: str = Field(..., description="Repository slug (owner/repo)")
     workflow: str = Field(
-        ..., description="Workflow file name (e.g. ci.yml) or workflow ID"
+        ...,
+        description="Workflow file name (e.g. ci.yml) or workflow ID",
     )
     limit: int = Field(
-        default=10, ge=1, le=50, description="Maximum number of runs to return"
+        default=10,
+        ge=1,
+        le=50,
+        description="Maximum number of runs to return",
     )
 
 

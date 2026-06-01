@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-file_write_mcp_models.py
+"""file_write_mcp_models.py
 Config loading and Pydantic request/response models for file-write-mcp.
 """
 
@@ -39,7 +38,8 @@ class WriteFileRequest(BaseModel):
     path: str = Field(..., description="Absolute path of the file to write")
     content: str = Field(..., description="Content to write (UTF-8 text)")
     dry_run: bool = Field(
-        default=False, description="When true, return diff without writing"
+        default=False,
+        description="When true, return diff without writing",
     )
 
     @field_validator("content")
@@ -75,10 +75,12 @@ class EditOperation(BaseModel):
 class EditFileRequest(BaseModel):
     path: str = Field(..., description="Absolute path of the file to edit")
     edits: list[EditOperation] = Field(
-        ..., description="List of replacement operations applied in order"
+        ...,
+        description="List of replacement operations applied in order",
     )
     dry_run: bool = Field(
-        default=False, description="When true, return only the diff without writing"
+        default=False,
+        description="When true, return only the diff without writing",
     )
 
 

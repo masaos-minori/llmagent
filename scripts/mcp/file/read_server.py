@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/file/read_server.py
+"""mcp/file/read_server.py
 MCP server for read-only filesystem operations (port 8005).
 
 Provides an HTTP API via FastAPI for reading files and directories.
@@ -71,8 +70,11 @@ async def list_directory(req: ListDirectoryRequest) -> ListDirectoryResponse:
     ms = (time.perf_counter() - t0) * 1000
     logger.info(
         fmt_kvlog(
-            "list_directory", path=result.path, n=len(result.entries), ms=f"{ms:.0f}"
-        )
+            "list_directory",
+            path=result.path,
+            n=len(result.entries),
+            ms=f"{ms:.0f}",
+        ),
     )
     return result
 
@@ -88,7 +90,7 @@ async def list_directory_with_sizes(req: ListDirectoryRequest) -> ListDirectoryR
             path=result.path,
             n=len(result.entries),
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -100,7 +102,7 @@ async def directory_tree(req: DirectoryTreeRequest) -> DirectoryTreeResponse:
     ms = (time.perf_counter() - t0) * 1000
     depth = min(req.depth, _service._max_tree_depth)
     logger.info(
-        fmt_kvlog("directory_tree", path=result.root.path, depth=depth, ms=f"{ms:.0f}")
+        fmt_kvlog("directory_tree", path=result.root.path, depth=depth, ms=f"{ms:.0f}"),
     )
     return result
 
@@ -111,7 +113,9 @@ async def read_text_file(req: ReadTextFileRequest) -> ReadTextFileResponse:
     result = _service.read_text_file(req)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(
-        fmt_kvlog("read_text_file", path=result.path, bytes=result.size, ms=f"{ms:.0f}")
+        fmt_kvlog(
+            "read_text_file", path=result.path, bytes=result.size, ms=f"{ms:.0f}"
+        ),
     )
     return result
 
@@ -128,7 +132,7 @@ async def read_media_file(req: ReadMediaFileRequest) -> ReadMediaFileResponse:
             bytes=result.size,
             mime=result.mime_type,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -156,7 +160,7 @@ async def search_files(req: SearchFilesRequest) -> SearchFilesResponse:
             pattern=req.pattern,
             n=len(result.matches),
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -174,7 +178,7 @@ async def grep_files(req: GrepFilesRequest) -> GrepFilesResponse:
             n=len(result.matches),
             truncated=result.truncated,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -213,7 +217,7 @@ async def list_tools() -> dict[str, Any]:
         "tools": [
             {"name": t["name"], "description": t.get("description", "")}
             for t in _MCP_TOOLS
-        ]
+        ],
     }
 
 

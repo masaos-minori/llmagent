@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-rag_mcp_server.py
+"""rag_mcp_server.py
 RAG Pipeline MCP server (port 8010).
 
 Wraps the six-step RagPipeline (MQE→Search→RRF→Rerank→Dedup→Augment) as an
@@ -77,7 +76,7 @@ async def rag_run_pipeline(req: RagRunRequest) -> RagRunResponse:
             hits=len(result.selected_hits),
             augmented=bool(result.augmented_text),
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -93,7 +92,7 @@ async def rag_debug_pipeline(req: RagRunRequest) -> RagDebugResponse:
             queries=len(result.queries),
             reranked=len(result.reranked_hits),
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -116,7 +115,7 @@ async def v1_search(req: RagSearchRequest) -> RagSearchResponse:
             hits=len(result.selected_hits),
             has_context=bool(result.context),
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -186,7 +185,7 @@ async def list_tools() -> dict[str, Any]:
         "tools": [
             {"name": t["name"], "description": t.get("description", "")}
             for t in _MCP_TOOLS
-        ]
+        ],
     }
 
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-llm_client.py
+"""llm_client.py
 LLM communication layer with robust SSE streaming.
 
 Key components:
@@ -201,7 +200,9 @@ class LLMClient:
     # ── Retry logic ───────────────────────────────────────────────────────────
 
     async def request_with_retry(
-        self, url: str, payload: dict[str, Any]
+        self,
+        url: str,
+        payload: dict[str, Any],
     ) -> httpx.Response:
         """POST to an LLM endpoint with exponential backoff retry; retries on 503/429 and connection errors; raises last exception when all attempts exhausted."""
         last_exc: Exception | None = None
@@ -224,12 +225,12 @@ class LLMClient:
                 logger.warning(
                     f"LLM request failed"
                     f" (attempt {attempt + 1}/{self._max_retries}):"
-                    f" {last_exc}, retrying in {delay:.1f}s"
+                    f" {last_exc}, retrying in {delay:.1f}s",
                 )
                 await asyncio.sleep(delay)
             else:
                 logger.error(
-                    f"LLM request failed after {self._max_retries} attempts: {last_exc}"
+                    f"LLM request failed after {self._max_retries} attempts: {last_exc}",
                 )
         assert (
             last_exc is not None
@@ -269,11 +270,15 @@ class LLMClient:
     # ── Non-streaming call ────────────────────────────────────────────────────
 
     async def call(
-        self, url: str, history: list[LLMMessage], tool_defs: list[dict[str, Any]]
+        self,
+        url: str,
+        history: list[LLMMessage],
+        tool_defs: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """Send conversation history to LLM and return the raw response JSON."""
         resp = await self.request_with_retry(
-            url, self.build_payload(history, tool_defs)
+            url,
+            self.build_payload(history, tool_defs),
         )
         data = dict(resp.json())
         self._emit_usage(data)
@@ -283,7 +288,8 @@ class LLMClient:
 
     @staticmethod
     def _merge_tool_call_delta(
-        tool_calls_map: dict[int, dict[str, Any]], tc_delta: dict[str, Any]
+        tool_calls_map: dict[int, dict[str, Any]],
+        tc_delta: dict[str, Any],
     ) -> None:
         """Accumulate one streaming tool_call delta into the index-keyed map."""
         idx = tc_delta.get("index", 0)
@@ -354,7 +360,8 @@ class LLMClient:
         try:
             if timeout is not None:
                 return await asyncio.wait_for(
-                    _anext_or_done(byte_iter), timeout=timeout
+                    _anext_or_done(byte_iter),
+                    timeout=timeout,
                 )
             return await _anext_or_done(byte_iter)
         except TimeoutError:
@@ -418,7 +425,9 @@ class LLMClient:
                         except (orjson.JSONDecodeError, ValueError):
                             continue
                         reason = self._process_sse_chunk(
-                            chunk, content_parts, tool_calls_map
+                            chunk,
+                            content_parts,
+                            tool_calls_map,
                         )
                         if reason:
                             finish_reason = reason
@@ -459,7 +468,10 @@ class LLMClient:
     # ── Streaming call with reconnect ─────────────────────────────────────────
 
     async def stream(
-        self, url: str, history: list[LLMMessage], tool_defs: list[dict[str, Any]]
+        self,
+        url: str,
+        history: list[LLMMessage],
+        tool_defs: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """Stream a chat completion via SSE with reconnect on retryable errors; raises LLMTransportError with partial_text on partial output or non-retryable errors."""
         content_parts: list[str] = []
@@ -469,7 +481,11 @@ class LLMClient:
         for attempt in range(self._sse_reconnect_max + 1):
             try:
                 finish_reason = await self._stream_once(
-                    url, history, tool_defs, content_parts, tool_calls_map
+                    url,
+                    history,
+                    tool_defs,
+                    content_parts,
+                    tool_calls_map,
                 )
                 break  # success
             except LLMTransportError as e:
@@ -493,7 +509,7 @@ class LLMClient:
                 delay = self._retry_base_delay * (2**attempt)
                 logger.warning(
                     f"SSE error (attempt {attempt + 1}/{self._sse_reconnect_max + 1}):"
-                    f" {e.kind}, reconnecting in {delay:.1f}s"
+                    f" {e.kind}, reconnecting in {delay:.1f}s",
                 )
                 await asyncio.sleep(delay)
                 # Clear accumulated state before reconnect
@@ -519,4 +535,4 @@ class LLMClient:
         if not isinstance(message, dict):
             raise ValueError("Unexpected LLM response: missing 'message' field")
         finish_reason: str | None = choice.get("finish_reason")
-        return cast(LLMMessage, message), finish_reason
+        return cast("LLMMessage", message), finish_reason

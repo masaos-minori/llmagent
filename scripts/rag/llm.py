@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-rag_llm.py
+"""rag_llm.py
 LLM-based RAG operations: embedding, MQE query expansion, cross-encoder reranking,
 tool summarization, and context refining.
 
@@ -96,7 +95,8 @@ def _mqe_prompt(query: str, context: str = "") -> str:
     """
     cfg = _get_cfg()
     prompt = cfg.get("mqe_prompt_template", "").format(
-        n_queries=cfg.get("mqe_n_queries", 3), query=query
+        n_queries=cfg.get("mqe_n_queries", 3),
+        query=query,
     )
     if context:
         prompt = f"Context: {context}\n\n{prompt}"
@@ -143,12 +143,14 @@ def _build_rerank_prompt(query: str, candidates: list[RagHit]) -> str:
     return str(
         _get_cfg()
         .get("rerank_prompt_template", "")
-        .format(query=query, items_text=items_text)
+        .format(query=query, items_text=items_text),
     )
 
 
 def _apply_rerank_scores(
-    raw: str, candidates: list[RagHit], top_k: int
+    raw: str,
+    candidates: list[RagHit],
+    top_k: int,
 ) -> list[RagHit] | None:
     """Parse LLM score output and return top_k candidates sorted by score.
 
@@ -172,13 +174,13 @@ def _apply_rerank_scores(
         except (ValueError, TypeError):
             logger.warning(
                 f"Rerank: non-numeric score {score_val!r}"
-                f" for candidate {i}, using default"
+                f" for candidate {i}, using default",
             )
             score = _DEFAULT_RERANK_SCORE
         scored.append({**chunk, "rerank_score": score})
-    scored.sort(key=lambda x: cast(float, x["rerank_score"]), reverse=True)
+    scored.sort(key=lambda x: cast("float", x["rerank_score"]), reverse=True)
     logger.info(f"Cross-Encoder rerank: top_k={top_k} selected")
-    return cast(list[RagHit], scored[:top_k])
+    return cast("list[RagHit]", scored[:top_k])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -194,7 +196,10 @@ class RagLLM:
         self._llm_url = llm_url
 
     async def _call_llm(
-        self, messages: list[LLMMessage], temperature: float, max_tokens: int
+        self,
+        messages: list[LLMMessage],
+        temperature: float,
+        max_tokens: int,
     ) -> str:
         """Call the chat LLM endpoint and return the response content string."""
         resp = await self._client.post(
@@ -220,19 +225,19 @@ class RagLLM:
         except httpx.HTTPStatusError as e:
             logger.warning(
                 f"MQE failed (HTTP {e.response.status_code}),"
-                f" fallback to original query: {e}"
+                f" fallback to original query: {e}",
             )
         except httpx.RequestError as e:
             logger.warning(
-                f"MQE failed (connection error), fallback to original query: {e}"
+                f"MQE failed (connection error), fallback to original query: {e}",
             )
         except orjson.JSONDecodeError as e:
             logger.warning(
-                f"MQE failed (JSON parse error), fallback to original query: {e}"
+                f"MQE failed (JSON parse error), fallback to original query: {e}",
             )
         except Exception:
             logger.exception(
-                "MQE failed (unexpected error), fallback to original query"
+                "MQE failed (unexpected error), fallback to original query",
             )
         return [query]
 
@@ -261,32 +266,35 @@ class RagLLM:
                     ]
                     logger.info(
                         f"Rerank score filter: {len(result)} chunks remain"
-                        f" (min_score={rag_min_score})"
+                        f" (min_score={rag_min_score})",
                     )
                 return result
         except httpx.HTTPStatusError as e:
             logger.warning(
                 f"Cross-Encoder rerank failed (HTTP {e.response.status_code}),"
-                f" fallback to RRF order: {e}"
+                f" fallback to RRF order: {e}",
             )
         except httpx.RequestError as e:
             logger.warning(
                 "Cross-Encoder rerank failed (connection error),"
-                f" fallback to RRF order: {e}"
+                f" fallback to RRF order: {e}",
             )
         except orjson.JSONDecodeError as e:
             logger.warning(
                 "Cross-Encoder rerank failed (JSON parse error),"
-                f" fallback to RRF order: {e}"
+                f" fallback to RRF order: {e}",
             )
         except Exception:
             logger.exception(
-                "Cross-Encoder rerank failed (unexpected error), fallback to RRF order"
+                "Cross-Encoder rerank failed (unexpected error), fallback to RRF order",
             )
         return candidates[:top_k]
 
     async def summarize_tool_result(
-        self, text: str, tool_name: str, args: dict[str, Any]
+        self,
+        text: str,
+        tool_name: str,
+        args: dict[str, Any],
     ) -> str:
         """Summarize a long tool result via LLM (3-5 sentences); returns original text on any error."""
         text_preview = text[:_SUMMARIZE_INPUT_MAX_CHARS]
@@ -341,13 +349,13 @@ class RagLLM:
 
 
 async def get_embedding(text: str, client: httpx.AsyncClient) -> list[float]:
-    """
-    Convert text to a 384-dimensional float embedding vector.
+    """Convert text to a 384-dimensional float embedding vector.
     E5 model requires "query: " prefix for query input.
     (Ingestion uses "passage: " prefix)
     """
     resp = await client.post(
-        _get_cfg().get("embed_url", ""), json={"content": f"query: {text}"}
+        _get_cfg().get("embed_url", ""),
+        json={"content": f"query: {text}"},
     )
     resp.raise_for_status()
     embedding = resp.json().get("embedding")
@@ -357,9 +365,14 @@ async def get_embedding(text: str, client: httpx.AsyncClient) -> list[float]:
 
 
 async def summarize_tool_result(
-    text: str, tool_name: str, args: dict[str, Any], client: httpx.AsyncClient
+    text: str,
+    tool_name: str,
+    args: dict[str, Any],
+    client: httpx.AsyncClient,
 ) -> str:
     """Tool result summarization. Delegates to RagLLM."""
     return await RagLLM(client, _get_cfg().get("llm_url", "")).summarize_tool_result(
-        text, tool_name, args
+        text,
+        tool_name,
+        args,
     )

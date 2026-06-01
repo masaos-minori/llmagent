@@ -329,3 +329,113 @@ class TestHandleTurnToolResultStore:
 
         # Pre-stream fail: no partial output, so tool_result_store should NOT be called
         ctx.tool_result_store.store.assert_not_called()
+
+
+# ── _augment_via_mcp / use_rag_mcp ───────────────────────────────────────────
+
+
+class TestAugmentViaMcp:
+    def _make_ctx_with_tools(self) -> MagicMock:
+        ctx = _make_ctx()
+        ctx.cfg.use_search = True
+        ctx.cfg.use_rag_mcp = True
+        tools = AsyncMock()
+        ctx.services.tools = tools
+        return ctx
+
+    @pytest.mark.asyncio
+    async def test_returns_augmented_text_on_success(self) -> None:
+        import orjson
+
+        ctx = self._make_ctx_with_tools()
+        orch = _make_orchestrator(ctx)
+        payload = orjson.dumps({"augmented_text": "context text"}).decode()
+        ctx.services.tools.execute = AsyncMock(return_value=(payload, False, None))
+
+        result = await orch._augment_via_mcp("query", "history")
+        assert result == "context text"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_mcp_error(self) -> None:
+        ctx = self._make_ctx_with_tools()
+        orch = _make_orchestrator(ctx)
+        ctx.services.tools.execute = AsyncMock(return_value=("error msg", True, None))
+
+        result = await orch._augment_via_mcp("query", "")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_exception(self) -> None:
+        ctx = self._make_ctx_with_tools()
+        orch = _make_orchestrator(ctx)
+        ctx.services.tools.execute = AsyncMock(side_effect=RuntimeError("conn fail"))
+
+        result = await orch._augment_via_mcp("query", "")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_empty_augmented_text(self) -> None:
+        import orjson
+
+        ctx = self._make_ctx_with_tools()
+        orch = _make_orchestrator(ctx)
+        payload = orjson.dumps({"augmented_text": ""}).decode()
+        ctx.services.tools.execute = AsyncMock(return_value=(payload, False, None))
+
+        result = await orch._augment_via_mcp("query", "")
+        assert result is None
+
+
+class TestAugmentWithRagMcp:
+    @pytest.mark.asyncio
+    async def test_use_rag_mcp_calls_mcp_method(self) -> None:
+        ctx = _make_ctx()
+        ctx.cfg.use_search = True
+        ctx.cfg.use_rag_mcp = True
+        ctx.cfg.use_semantic_cache = False
+        ctx.services.tools = MagicMock()  # must be non-None for MCP path
+        ctx.services.rag = None
+        orch = _make_orchestrator(ctx)
+
+        with patch.object(
+            orch, "_augment_via_mcp", AsyncMock(return_value="mcp context")
+        ) as mock_mcp:
+            augmented, from_cache = await orch._augment_with_rag("query")
+
+        mock_mcp.assert_awaited_once()
+        assert augmented == "mcp context"
+
+    @pytest.mark.asyncio
+    async def test_use_rag_mcp_falls_back_to_in_process(self) -> None:
+        ctx = _make_ctx()
+        ctx.cfg.use_search = True
+        ctx.cfg.use_rag_mcp = True
+        ctx.cfg.use_semantic_cache = False
+        ctx.cfg.debug_mode = False
+        ctx.debug_mode = False
+        ctx.services.tools = MagicMock()  # must be non-None for MCP path
+        rag = AsyncMock()
+        rag.augment = AsyncMock(return_value="fallback context")
+        ctx.services.rag = rag
+        orch = _make_orchestrator(ctx)
+
+        with patch.object(orch, "_augment_via_mcp", AsyncMock(return_value=None)):
+            augmented, from_cache = await orch._augment_with_rag("query")
+
+        assert augmented == "fallback context"
+
+    @pytest.mark.asyncio
+    async def test_use_rag_mcp_returns_empty_when_rag_also_none(self) -> None:
+        ctx = _make_ctx()
+        ctx.cfg.use_search = True
+        ctx.cfg.use_rag_mcp = True
+        ctx.cfg.use_semantic_cache = False
+        ctx.services.tools = MagicMock()
+        ctx.services.rag = None  # both MCP and in-process unavailable
+        orch = _make_orchestrator(ctx)
+
+        with patch.object(orch, "_augment_via_mcp", AsyncMock(return_value=None)):
+            augmented, from_cache = await orch._augment_with_rag("query")
+
+        assert augmented == ""
+        assert from_cache is False

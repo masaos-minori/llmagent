@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-agent/memory/layer.py
+"""agent/memory/layer.py
 High-level orchestration layer for persistent semantic memory.
 
 Lifecycle hooks:
@@ -111,7 +110,7 @@ class MemoryLayer:
             )
         except TimeoutError:
             logger.warning(
-                f"MemoryLayer._get_embedding timed out after {self._embed_timeout}s"
+                f"MemoryLayer._get_embedding timed out after {self._embed_timeout}s",
             )
             return None
 
@@ -135,7 +134,7 @@ class MemoryLayer:
                 return []
             snippets = [f"[Memory] {e.summary or e.content[:100]}" for e in entries]
             logger.info(
-                f"MemoryLayer.on_session_start: injecting {len(snippets)} semantic entries"
+                f"MemoryLayer.on_session_start: injecting {len(snippets)} semantic entries",
             )
             return snippets
         except Exception as e:
@@ -183,15 +182,15 @@ class MemoryLayer:
             snippets = []
             for hit in hits_s:
                 snippets.append(
-                    f"[Semantic memory] {hit.entry.summary or hit.entry.content[:100]}"
+                    f"[Semantic memory] {hit.entry.summary or hit.entry.content[:100]}",
                 )
             for hit in hits_e:
                 snippets.append(
-                    f"[Episodic memory] {hit.entry.summary or hit.entry.content[:100]}"
+                    f"[Episodic memory] {hit.entry.summary or hit.entry.content[:100]}",
                 )
             if snippets:
                 logger.debug(
-                    f"MemoryLayer.on_user_prompt: returning {len(snippets)} snippets"
+                    f"MemoryLayer.on_user_prompt: returning {len(snippets)} snippets",
                 )
             return snippets
         except Exception as e:
@@ -232,10 +231,10 @@ class MemoryLayer:
                     self._link_duplicates(entry.memory_id, embedding)
                 logger.info(
                     f"memory.persist memory_id={entry.memory_id!r}"
-                    f" type={entry.memory_type} importance={entry.importance:.2f}"
+                    f" type={entry.memory_type} importance={entry.importance:.2f}",
                 )
             logger.info(
-                f"MemoryLayer.on_session_stop: persisted {len(entries)} entries"
+                f"MemoryLayer.on_session_stop: persisted {len(entries)} entries",
             )
         except Exception as e:
             logger.warning(f"MemoryLayer.on_session_stop failed: {e}")
@@ -259,7 +258,7 @@ class MemoryLayer:
                         db.commit()
                     logger.debug(
                         f"memory_links: {memory_id!r} → {hit.entry.memory_id!r}"
-                        f" distance={distance:.3f}"
+                        f" distance={distance:.3f}",
                     )
                 except Exception as e:
                     logger.warning(f"memory_links insert failed: {e}")
@@ -291,7 +290,7 @@ class MemoryLayer:
         self._store.upsert(entry, embedding=embedding)
         logger.info(
             f"memory.write memory_id={entry.memory_id!r} type=semantic"
-            f" importance={entry.importance:.2f}"
+            f" importance={entry.importance:.2f}",
         )
 
     async def write_episodic(self, session_id: int | None, content: str) -> None:
@@ -319,7 +318,7 @@ class MemoryLayer:
         self._store.upsert(entry, embedding=embedding)
         logger.info(
             f"memory.write memory_id={entry.memory_id!r} type=episodic"
-            f" importance={entry.importance:.2f}"
+            f" importance={entry.importance:.2f}",
         )
 
     # ── Housekeeping ──────────────────────────────────────────────────────────
@@ -346,7 +345,7 @@ class MemoryLayer:
                 return
         logger.info(
             f"MemoryLayer.clear: removed {cleared} entries"
-            f" (session_id={session_id if session_id is not None else 'all'})"
+            f" (session_id={session_id if session_id is not None else 'all'})",
         )
 
     # ── Statistics ────────────────────────────────────────────────────────────

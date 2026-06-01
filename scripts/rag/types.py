@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-rag_types.py
+"""rag_types.py
 Shared TypedDict definitions for the RAG pipeline.
 
 LLMMessage is defined in shared.types and re-exported here for backward compatibility.

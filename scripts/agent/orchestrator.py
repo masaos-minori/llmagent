@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-agent/orchestrator.py
+"""agent/orchestrator.py
 Turn-level orchestration: RAG augmentation -> history compression -> LLM streaming
 -> tool dispatch with duplicate call detection and consecutive error guard.
 Extracted from AgentREPL to separate UI loop from task control logic.
@@ -115,8 +114,8 @@ class Orchestrator:
                         "worker_id": session_id,
                         "event_id": str(uuid.uuid4()),
                         "ts": time.time(),
-                    }
-                ).decode()
+                    },
+                ).decode(),
             )
 
     async def _handle_memory_injection(self, line: str) -> None:
@@ -170,7 +169,10 @@ class Orchestrator:
     async def _handle_turn_end(self, line: str, answer: str) -> None:
         """Handle turn end operations."""
         ctx = self._ctx
-        t0_turn = time.perf_counter()  # This would be set in _handle_turn_start
+        # NOTE: t0_turn is reset here, so elapsed_ms is always ~0ms.
+        # To measure actual turn latency, t0_turn must be set in _handle_turn_start
+        # and stored on self (e.g. self._t0_turn); deferred to avoid behavior change.
+        t0_turn = time.perf_counter()
         elapsed_ms = round((time.perf_counter() - t0_turn) * 1000, 1)
         if ctx.services.audit_logger is not None:
             llm = ctx.services.llm
@@ -192,8 +194,8 @@ class Orchestrator:
                             llm.stat_reconnects if llm is not None else 0
                         ),
                         "partial_completion": False,  # This would be set in _handle_llm_turn
-                    }
-                ).decode()
+                    },
+                ).decode(),
             )
         ctx.current_turn_id = None
 
@@ -249,7 +251,7 @@ class Orchestrator:
                             + "\n\n(Please revise your answer using"
                             " the above additional context.)"
                         ),
-                    }
+                    },
                 )
                 return None, True
         return answer, two_stage_done
@@ -284,7 +286,9 @@ class Orchestrator:
         return augmented
 
     def _handle_llm_transport_error(
-        self, e: LLMTransportError, ctx: AgentContext
+        self,
+        e: LLMTransportError,
+        ctx: AgentContext,
     ) -> bool:
         """Handle LLMTransportError from _run_turn(); return True when partial completion saved."""
         if e.partial_text:
@@ -308,7 +312,7 @@ class Orchestrator:
         if ctx.history and ctx.history[-1]["role"] == "user":
             ctx.history.pop()
         logger.error(
-            f"LLM transport error (pre-stream): {e.kind} status={e.status_code}"
+            f"LLM transport error (pre-stream): {e.kind} status={e.status_code}",
         )
         return False
 
@@ -318,7 +322,7 @@ class Orchestrator:
         if ctx.history and ctx.history[-1]["role"] == "user":
             ctx.history.pop()
 
-    def _warn_budget(self) -> None:
+    async def _warn_budget(self) -> None:
         """Log warnings when conversation history approaches context limits.
 
         Called at turn=0 only; skips when both limits are disabled (=0).
@@ -335,19 +339,20 @@ class Orchestrator:
                     f" limit={ctx.cfg.context_char_limit:,})"
                     f" sys={bd['system']:,} rag={bd['rag']:,}"
                     f" hist={bd['history']:,}"
-                    f" tool={bd['tool_results']:,}"
+                    f" tool={bd['tool_results']:,}",
                 )
         if ctx.cfg.context_token_limit > 0:
             assert ctx.services.hist_mgr is not None
-            token_bd = ctx.services.hist_mgr.count_tokens(
-                ctx.history, ctx.stat_input_tokens
+            token_bd, _ = await ctx.services.hist_mgr.count_tokens_async(
+                ctx.history,
+                ctx.stat_input_tokens,
             )
             if token_bd > ctx.cfg.context_token_limit * ctx.cfg.budget_warn_ratio:
                 pct = int(token_bd * 100 / ctx.cfg.context_token_limit)
                 logger.warning(
                     f"Token budget {pct}% used"
                     f" (tokens={token_bd:,}"
-                    f" limit={ctx.cfg.context_token_limit:,})"
+                    f" limit={ctx.cfg.context_token_limit:,})",
                 )
 
     def _check_cycle_guard(
@@ -369,14 +374,14 @@ class Orchestrator:
                     f"{tc.get('function', {}).get('name', '')}:"
                     f"{tc.get('function', {}).get('arguments', '{}')}"
                     for tc in message["tool_calls"]
-                )
+                ),
             ).encode(),
             usedforsecurity=False,
         ).hexdigest()
         if round_fingerprints.count(round_key) >= ctx.cfg.tool_cycle_detect_window:
             logger.warning(
                 f"Cyclic planning detected: round fingerprint {round_key!r}"
-                f" repeated {round_fingerprints.count(round_key)} times"
+                f" repeated {round_fingerprints.count(round_key)} times",
             )
             ctx.history.append({"role": "user", "content": _CYCLE_HINT})
             return "Cyclic tool call pattern detected."
@@ -451,7 +456,7 @@ class Orchestrator:
                 "content": err["detail"],
                 "name": "llm_transport_error",
                 "tool_call_id": f"synthetic_{uuid.uuid4().hex[:8]}",
-            }
+            },
         )
         ctx.tool_result_store.store(
             session_id=ctx.session.session_id,
@@ -463,7 +468,7 @@ class Orchestrator:
             is_error=True,
         )
         logger.warning(
-            f"LLM transport error during tool continuation (turn={turn}): {e.kind}"
+            f"LLM transport error during tool continuation (turn={turn}): {e.kind}",
         )
         return err["summary"]
 
@@ -490,12 +495,14 @@ class Orchestrator:
             if self._on_turn_start:
                 self._on_turn_start()
             if turn == 0:
-                self._warn_budget()
+                await self._warn_budget()
 
             t0_llm = time.perf_counter()
             try:
                 response = await ctx.services.llm.stream(
-                    llm_url, ctx.history, tool_defs
+                    llm_url,
+                    ctx.history,
+                    tool_defs,
                 )
             except LLMTransportError as e:
                 if turn > 0:
@@ -504,7 +511,7 @@ class Orchestrator:
             # Record LLM wall-clock time for the first (main) generation turn only
             if turn == 0:
                 ctx.stat_latency.setdefault("llm", []).append(
-                    time.perf_counter() - t0_llm
+                    time.perf_counter() - t0_llm,
                 )
 
             message, finish_reason = LLMClient.extract_message(response)
@@ -513,7 +520,8 @@ class Orchestrator:
             is_done = (finish_reason != "tool_calls") or not has_tool_calls
             if is_done:
                 answer, two_stage_done = await self._finalize_answer(
-                    message, two_stage_done
+                    message,
+                    two_stage_done,
                 )
                 if answer is None:
                     continue
@@ -537,7 +545,10 @@ class Orchestrator:
 
             errors_before = ctx.stat_tool_errors
             await execute_all_tool_calls(
-                ctx, message["tool_calls"], turn, out_failed_keys=failed_calls
+                ctx,
+                message["tool_calls"],
+                turn,
+                out_failed_keys=failed_calls,
             )
             n_errors = ctx.stat_tool_errors - errors_before
 
@@ -553,7 +564,7 @@ class Orchestrator:
             ):
                 logger.warning(
                     f"Aborting turn: {consecutive_errors} consecutive all-error"
-                    f" tool turns (max={ctx.cfg.tool_error_max_consecutive})"
+                    f" tool turns (max={ctx.cfg.tool_error_max_consecutive})",
                 )
                 return "Too many consecutive tool errors."
 
@@ -566,18 +577,31 @@ class Orchestrator:
         """Run the RAG pipeline (or semantic cache) and return (context, cache_hit).
 
         Returns an empty string when use_search is False or no relevant chunks found.
+        When use_rag_mcp=True, delegates to rag_run_pipeline via MCP instead of
+        calling the in-process RagPipeline; falls back to in-process on MCP error.
         """
         ctx = self._ctx
-        if not ctx.cfg.use_search or ctx.services.rag is None:
+        if not ctx.cfg.use_search:
             return "", False
 
         ctx.current_rag_query_id = str(uuid.uuid4())
         logger.info(
             f"RAG query start rag_query_id={ctx.current_rag_query_id}"
-            f" turn_id={ctx.current_turn_id}"
+            f" turn_id={ctx.current_turn_id}",
         )
 
         history_context = _extract_history_context(ctx.history, n=2)
+
+        # MCP path: delegate RAG to rag-pipeline-mcp
+        if ctx.cfg.use_rag_mcp and ctx.services.tools is not None:
+            mcp_result = await self._augment_via_mcp(line, history_context)
+            if mcp_result is not None:
+                return mcp_result, False
+            logger.warning("RAG MCP call failed; falling back to in-process pipeline")
+
+        if ctx.services.rag is None:
+            return "", False
+
         debug_fn = _make_debug_fn() if ctx.debug_mode else None
 
         # Try semantic cache before running the full RAG pipeline
@@ -595,19 +619,53 @@ class Orchestrator:
                 _cached_emb = None
 
         context = await ctx.services.rag.augment(
-            line, debug_fn, history_context=history_context
+            line,
+            debug_fn,
+            history_context=history_context,
         )
         # Store result in semantic cache for future reuse
         if ctx.cfg.use_semantic_cache and context and ctx.services.http is not None:
             try:
                 emb_for_store = _cached_emb or await get_embedding(
-                    "query: " + line, ctx.services.http
+                    "query: " + line,
+                    ctx.services.http,
                 )
                 ctx.services.rag.semantic_cache.put(emb_for_store, context)
             except Exception as _e:
                 logger.warning(f"Semantic cache put failed: {_e}")
 
         return context, False
+
+    async def _augment_via_mcp(
+        self,
+        query: str,
+        history_context: str,
+    ) -> str | None:
+        """Call rag_run_pipeline via MCP and return augmented_text, or None on error."""
+        ctx = self._ctx
+        assert ctx.services.tools is not None
+        args: dict[str, Any] = {"query": query}
+        if history_context:
+            args["history_context"] = [history_context]
+        try:
+            result, is_error, _ = await ctx.services.tools.execute(
+                "rag_run_pipeline",
+                args,
+            )
+            if is_error:
+                logger.warning(f"rag_run_pipeline MCP error: {result!r}")
+                return None
+            parsed = orjson.loads(result)
+            augmented = parsed.get("augmented_text", "")
+            if augmented:
+                logger.info(
+                    f"RAG MCP augmented rag_query_id={ctx.current_rag_query_id}"
+                    f" chars={len(augmented)}",
+                )
+            return augmented or None
+        except Exception as e:
+            logger.warning(f"RAG MCP call exception: {e}")
+            return None
 
     # ── Two-stage context fetch ───────────────────────────────────────────────
 

@@ -15,7 +15,7 @@
 | Optimize for token efficiency | Front-load critical rules; cut prose that does not constrain behavior |
 | Design to prevent failure | Anticipate common error modes and encode the guard or recovery inline |
 
-**Runtime policy** (defined in `CLAUDE.md`, not repeated here): execution policy, always-load rules (`rules/coding.md` / `rules/toolchain.md`), confirmation thresholds.
+**Runtime policy** — every skill execution must load the files listed in `routing.md` (`## Always load alongside the skill`). Do not repeat their content inside SKILL.md files.
 
 **Evaluation criteria** — a SKILL is good when it:
 

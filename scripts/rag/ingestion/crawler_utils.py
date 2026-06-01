@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-crawler_utils.py
+"""crawler_utils.py
 Pure-function utilities for WebCrawler: URL helpers, content extraction,
 language detection, and target URL parsing.
 
@@ -62,7 +61,9 @@ def extract_text(soup: BeautifulSoup) -> str:
         no_fallback=False,
         target_language=None,
     )
-    return (text or soup.get_text(separator="\n", strip=True)).strip()
+    fallback = soup.get_text(separator="\n", strip=True)
+    extracted: str = text or fallback
+    return extracted.strip()
 
 
 def detect_lang(text: str) -> str | None:
@@ -91,7 +92,7 @@ def parse_target_urls(target_raw: list[Any]) -> list[tuple[str, str]]:
     for entry in target_raw:
         if not isinstance(entry, list | tuple) or len(entry) != 2:
             raise ValueError(
-                "Each entry in target_urls must be a 2-element list of [url, lang]"
+                "Each entry in target_urls must be a 2-element list of [url, lang]",
             )
         url, lang = str(entry[0]), str(entry[1])
         if not validate_url(url):
@@ -99,7 +100,7 @@ def parse_target_urls(target_raw: list[Any]) -> list[tuple[str, str]]:
         if lang not in _VALID_HINT_LANGS:
             raise ValueError(
                 f"Unsupported lang {lang!r} in target_urls"
-                f" (must be one of {sorted(_VALID_HINT_LANGS)})"
+                f" (must be one of {sorted(_VALID_HINT_LANGS)})",
             )
         result.append((url, lang))
     return result

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-otel_tracer.py
+"""otel_tracer.py
 OpenTelemetry tracer initialisation for the agent pipeline.
 
 Design (R10):
@@ -43,7 +42,7 @@ def build_tracer(
         )
     except ImportError as e:
         logger.warning(
-            f"opentelemetry-sdk not installed; falling back to NoOp tracer: {e}"
+            f"opentelemetry-sdk not installed; falling back to NoOp tracer: {e}",
         )
         return _NoOpTracer()
 
@@ -61,18 +60,18 @@ def build_tracer(
             provider.add_span_processor(BatchSpanProcessor(exporter))
             logger.info(
                 f"OTel tracer configured: OTLP endpoint={otlp_endpoint}"
-                f" service={service_name}"
+                f" service={service_name}",
             )
         except ImportError as e:
             logger.warning(
                 f"opentelemetry-exporter-otlp not installed;"
-                f" falling back to ConsoleSpanExporter: {e}"
+                f" falling back to ConsoleSpanExporter: {e}",
             )
             provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
     else:
         provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
         logger.info(
-            f"OTel tracer configured: ConsoleSpanExporter service={service_name}"
+            f"OTel tracer configured: ConsoleSpanExporter service={service_name}",
         )
 
     # Return a tracer bound to the private provider (not the global one)
@@ -96,7 +95,7 @@ class _NoOpSpan:
     def __enter__(self) -> _NoOpSpan:
         return self
 
-    def __exit__(self, *args: Any) -> None:
+    def __exit__(self, *args: object) -> None:
         pass
 
     def set_attribute(self, _key: str, _value: Any) -> None:

@@ -1,5 +1,4 @@
-"""
-Tool call execution helpers for AgentREPL.
+"""Tool call execution helpers for AgentREPL.
 
 Standalone async functions taking AgentContext as first argument.
 Extracted from agent/repl.py to allow targeted loading when modifying
@@ -47,7 +46,7 @@ _API_WRITE_TOOLS: frozenset[str] = frozenset(
         "github_update_pull_request",
         "github_create_issue",
         "github_add_issue_comment",
-    }
+    },
 )
 
 # GitHub tools that perform write operations; used by repo allowlist enforcement
@@ -75,7 +74,11 @@ def _classify_operation_type(tool_name: str) -> str:
     return "read"
 
 
-def _escalate_for_path(cfg: "AgentConfig", base: str, args: dict) -> str | None:
+def _escalate_for_path(
+    cfg: "AgentConfig",
+    base: str,
+    args: dict[str, Any],
+) -> str | None:
     """Return 'high' when any path arg is under a protected directory, else None.
 
     Skipped when base is already 'high'.
@@ -91,7 +94,10 @@ def _escalate_for_path(cfg: "AgentConfig", base: str, args: dict) -> str | None:
 
 
 def _escalate_for_github_branch(
-    cfg: "AgentConfig", tool_name: str, base: str, args: dict
+    cfg: "AgentConfig",
+    tool_name: str,
+    base: str,
+    args: dict[str, Any],
 ) -> str | None:
     """Return 'high' when the target GitHub branch is in high_risk_branches, else None.
 
@@ -107,7 +113,7 @@ def _escalate_for_github_branch(
     return None
 
 
-def _classify_risk(cfg: "AgentConfig", tool_name: str, args: dict) -> str:
+def _classify_risk(cfg: "AgentConfig", tool_name: str, args: dict[str, Any]) -> str:
     """Return the risk level for a tool call: 'none' | 'medium' | 'high'.
 
     Classification order:
@@ -142,7 +148,11 @@ def _classify_risk(cfg: "AgentConfig", tool_name: str, args: dict) -> str:
     return base
 
 
-def _check_allowed_root(cfg: "AgentConfig", tool_name: str, args: dict) -> bool:
+def _check_allowed_root(
+    cfg: "AgentConfig",
+    tool_name: str,
+    args: dict[str, Any],
+) -> bool:
     """Return False when any path argument violates cfg.allowed_root.
 
     Uses Path.resolve() to prevent directory traversal via symlinks or relative paths.
@@ -164,7 +174,11 @@ def _check_allowed_root(cfg: "AgentConfig", tool_name: str, args: dict) -> bool:
     return True
 
 
-def _check_allowed_repo(cfg: "AgentConfig", tool_name: str, args: dict) -> bool:
+def _check_allowed_repo(
+    cfg: "AgentConfig",
+    tool_name: str,
+    args: dict[str, Any],
+) -> bool:
     """Return False when the target GitHub repo is not in the allowlist (Fail-Closed).
 
     Non-write GitHub tools and non-GitHub tools are always allowed.
@@ -182,7 +196,10 @@ def _check_allowed_repo(cfg: "AgentConfig", tool_name: str, args: dict) -> bool:
 
 
 def _is_summarized(
-    cfg: "AgentConfig", text: str, llm_text: str, is_error: bool
+    cfg: "AgentConfig",
+    text: str,
+    llm_text: str,
+    is_error: bool,
 ) -> bool:
     """Return True when llm_text represents a summarized (not truncated) form of text."""
     if not cfg.use_tool_summarize or is_error:
@@ -195,19 +212,19 @@ def _is_summarized(
     return llm_text != truncated
 
 
-def _build_preview(tool_name: str, args: dict) -> str:
+def _build_preview(tool_name: str, args: dict[str, Any]) -> str:
     """Build a human-readable operation preview shown before approval prompts."""
     if tool_name in ("write_file", "edit_file"):
         path = args.get("path") or args.get("file_path", "?")
         content = str(args.get("content") or args.get("new_content") or "")[:200]
         return f"{path}\n    content: {content!r}"
-    elif tool_name in ("delete_file", "delete_directory", "create_directory"):
+    if tool_name in ("delete_file", "delete_directory", "create_directory"):
         return str(args.get("path") or args.get("directory_path", "?"))
-    elif tool_name == "move_file":
+    if tool_name == "move_file":
         return f"{args.get('source', '?')} → {args.get('destination', '?')}"
-    elif tool_name == "shell_run":
+    if tool_name == "shell_run":
         return str(args.get("command", "?"))
-    elif tool_name.startswith("github_"):
+    if tool_name.startswith("github_"):
         owner = str(args.get("owner", ""))
         repo = str(args.get("repo", ""))
         repo_str = f"{owner}/{repo}" if owner and repo else owner or repo or "?"
@@ -219,7 +236,11 @@ def _build_preview(tool_name: str, args: dict) -> str:
 
 
 def _audit_approval(
-    ctx: AgentContext, tool_name: str, risk: str, args: dict, decision: str
+    ctx: AgentContext,
+    tool_name: str,
+    risk: str,
+    args: dict,
+    decision: str,
 ) -> None:
     """Write a structured tool_approval event to the audit log."""
     if ctx.services.audit_logger is None:
@@ -240,8 +261,8 @@ def _audit_approval(
                 "decision": decision,
                 "args_preview": masked,
                 "ts": time.time(),
-            }
-        ).decode()
+            },
+        ).decode(),
     )
 
 
@@ -266,12 +287,16 @@ def _audit_tool_exec(
                 "is_error": is_error,
                 "args_preview": masked,
                 "ts": time.time(),
-            }
-        ).decode()
+            },
+        ).decode(),
     )
 
 
-async def check_approval(ctx: AgentContext, tool_name: str, args: dict) -> bool:
+async def check_approval(
+    ctx: AgentContext,
+    tool_name: str,
+    args: dict[str, Any],
+) -> bool:
     """Determine whether a tool call may proceed based on risk classification.
 
     Returns True when the call is approved, False when denied.
@@ -295,7 +320,7 @@ async def check_approval(ctx: AgentContext, tool_name: str, args: dict) -> bool:
         _audit_approval(ctx, tool_name, "high", args, "denied_root_jail")
         print(
             f"  [DENIED] {tool_name}: path outside allowed_root"
-            f" ({ctx.cfg.allowed_root!r})"
+            f" ({ctx.cfg.allowed_root!r})",
         )
         return False
     # Pre-flight: GitHub repo allowlist (Fail-Closed) — immediate deny, no prompt
@@ -312,7 +337,8 @@ async def check_approval(ctx: AgentContext, tool_name: str, args: dict) -> bool:
     if tool_name in ctx.cfg.approval_dry_run_tools and ctx.services.tools is not None:
         try:
             dry_text, _, _x_req = await ctx.services.tools.execute(
-                tool_name, {**args, "dry_run": True}
+                tool_name,
+                {**args, "dry_run": True},
             )
             preview += f"\n  Dry-run: {dry_text[:300]}"
         except Exception:
@@ -335,7 +361,9 @@ async def check_approval(ctx: AgentContext, tool_name: str, args: dict) -> bool:
 
 
 async def execute_one_tool_call(
-    ctx: AgentContext, tc: dict, turn: int
+    ctx: AgentContext,
+    tc: dict,
+    turn: int,
 ) -> tuple[str, str, dict, str, bool, str]:
     """Parse, execute, and optionally summarise one tool_call dict.
 
@@ -369,7 +397,7 @@ async def execute_one_tool_call(
     ):
         llm_text = await summarize_tool_result(text, name, args, ctx.services.http)
         logger.info(
-            f"Tool result {name} summarized: {len(text)} → {len(llm_text)} chars"
+            f"Tool result {name} summarized: {len(text)} → {len(llm_text)} chars",
         )
     else:
         llm_text = (
@@ -383,7 +411,8 @@ async def execute_one_tool_call(
 
 
 async def _run_approval_checks(
-    ctx: AgentContext, tool_calls: list[dict]
+    ctx: AgentContext,
+    tool_calls: list[dict],
 ) -> tuple[list[dict], list[str]]:
     """Run plan-mode block and interactive approval for each tool call.
 
@@ -393,11 +422,11 @@ async def _run_approval_checks(
     denied_ids: list[str] = []
     for tc in tool_calls:
         tc_name = tc["function"]["name"]
-        args_preview: Any
+        args_preview: dict[str, Any]
         try:
             args_preview = orjson.loads(tc["function"].get("arguments", "{}"))
         except orjson.JSONDecodeError:
-            args_preview = tc["function"].get("arguments", "{}")
+            args_preview = {}
         masked_preview = mask_args(args_preview, ctx.cfg.masked_fields)
         if ctx.plan_mode and tc_name in ctx.cfg.plan_blocked_tools:
             print(f"  [plan mode] Blocked: {tc_name}")
@@ -459,7 +488,7 @@ def _collect_tool_result_msgs(
             llm_text = _TURN_LIMIT_HINT.replace("]", f"{id_hint}]")
             logger.info(
                 f"Per-turn tool result limit reached: {turn_chars} chars"
-                f" > {limit}; result replaced with hint (id={result_id})"
+                f" > {limit}; result replaced with hint (id={result_id})",
             )
         ctx.history.append({"role": "tool", "tool_call_id": tc_id, "content": llm_text})
         tool_msgs.append(("tool", llm_text, None, tc_id))
@@ -491,7 +520,7 @@ async def execute_all_tool_calls(
         if has_side_effect and not ctx.cfg.serial_tool_calls:
             logger.info(
                 "Side-effect tool detected; downgrading to serial execution"
-                f" ({[tc['function']['name'] for tc in approved_calls]})"
+                f" ({[tc['function']['name'] for tc in approved_calls]})",
             )
         results = []
         for tc in approved_calls:
@@ -499,8 +528,8 @@ async def execute_all_tool_calls(
     else:
         results = list(
             await asyncio.gather(
-                *(execute_one_tool_call(ctx, tc, turn) for tc in approved_calls)
-            )
+                *(execute_one_tool_call(ctx, tc, turn) for tc in approved_calls),
+            ),
         )
 
     # Persist all tool result messages in one DB transaction (one connection open).
@@ -514,7 +543,7 @@ async def execute_all_tool_calls(
                 "role": "tool",
                 "tool_call_id": denied_id,
                 "content": "Tool execution denied by user.",
-            }
+            },
         )
         tool_msgs.append(("tool", "Tool execution denied by user.", None, denied_id))
     ctx.session.save_many(tool_msgs)

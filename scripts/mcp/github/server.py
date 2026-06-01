@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-github_mcp_server.py
+"""github_mcp_server.py
 GitHub operations MCP server equivalent to @modelcontextprotocol/server-github.
 Provides an HTTP API via FastAPI. Listens on port 8006.
 
@@ -115,7 +114,7 @@ async def search_repositories(
             q=req.query[:80],
             n=len(result.results),
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -132,7 +131,7 @@ async def list_branches(req: ListBranchesRequest) -> ListBranchesResponse:
             repo=f"{req.owner}/{req.repo}",
             n=len(result.branches),
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -149,7 +148,7 @@ async def create_branch(req: CreateBranchRequest) -> CreateBranchResponse:
             repo=f"{req.owner}/{req.repo}",
             branch=req.branch_name,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -166,7 +165,7 @@ async def list_commits(req: ListCommitsRequest) -> ListCommitsResponse:
             repo=f"{req.owner}/{req.repo}",
             n=len(result.commits),
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -183,7 +182,7 @@ async def get_commit(req: GetCommitRequest) -> GetCommitResponse:
             repo=f"{req.owner}/{req.repo}",
             sha=req.sha[:8],
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -196,8 +195,11 @@ async def search_code(req: SearchCodeRequest) -> SearchCodeResponse:
     ms = (time.perf_counter() - t0) * 1000
     logger.info(
         fmt_kvlog(
-            "search_code", q=req.query[:80], n=len(result.results), ms=f"{ms:.0f}"
-        )
+            "search_code",
+            q=req.query[:80],
+            n=len(result.results),
+            ms=f"{ms:.0f}",
+        ),
     )
     return result
 
@@ -217,7 +219,7 @@ async def get_file_contents(req: GetFileContentsRequest) -> GetFileContentsRespo
             repo=f"{req.owner}/{req.repo}",
             path=req.path,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -237,7 +239,7 @@ async def create_or_update_file(
             path=req.path,
             operation=result.operation,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -255,7 +257,7 @@ async def push_files(req: PushFilesRequest) -> PushFilesResponse:
             branch=req.branch,
             n=result.files_pushed,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -272,7 +274,7 @@ async def delete_repo_file(req: DeleteRepoFileRequest) -> DeleteRepoFileResponse
             repo=f"{req.owner}/{req.repo}",
             path=req.path,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -293,7 +295,7 @@ async def list_issues(req: ListIssuesRequest) -> ListIssuesResponse:
             state=req.state,
             n=len(result.issues),
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -310,7 +312,7 @@ async def get_issue(req: GetIssueRequest) -> GetIssueResponse:
             repo=f"{req.owner}/{req.repo}",
             issue=req.issue_number,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -327,7 +329,7 @@ async def create_issue(req: CreateIssueRequest) -> CreateIssueResponse:
             repo=f"{req.owner}/{req.repo}",
             issue=result.issue.number,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -340,8 +342,11 @@ async def search_issues(req: SearchIssuesRequest) -> SearchIssuesResponse:
     ms = (time.perf_counter() - t0) * 1000
     logger.info(
         fmt_kvlog(
-            "search_issues", q=req.query[:80], n=len(result.results), ms=f"{ms:.0f}"
-        )
+            "search_issues",
+            q=req.query[:80],
+            n=len(result.results),
+            ms=f"{ms:.0f}",
+        ),
     )
     return result
 
@@ -358,7 +363,7 @@ async def add_issue_comment(req: AddIssueCommentRequest) -> AddIssueCommentRespo
             repo=f"{req.owner}/{req.repo}",
             issue=req.issue_number,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -381,7 +386,7 @@ async def list_pull_requests(
             state=req.state,
             n=len(result.pull_requests),
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -398,7 +403,7 @@ async def get_pull_request(req: GetPullRequestRequest) -> GetPullRequestResponse
             repo=f"{req.owner}/{req.repo}",
             pr=req.pr_number,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -417,7 +422,7 @@ async def create_pull_request(
             repo=f"{req.owner}/{req.repo}",
             pr=result.pull_request.number,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -436,7 +441,7 @@ async def search_pull_requests(
             q=req.query[:80],
             n=len(result.results),
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -455,7 +460,7 @@ async def update_pull_request(
             repo=f"{req.owner}/{req.repo}",
             pr=req.pr_number,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -473,7 +478,7 @@ async def merge_pull_request(req: MergePullRequestRequest) -> MergePullRequestRe
             pr=req.pr_number,
             merged=result.merged,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -508,7 +513,7 @@ async def list_tools() -> dict[str, Any]:
         "tools": [
             {"name": t["name"], "description": t.get("description", "")}
             for t in _MCP_TOOLS
-        ]
+        ],
     }
 
 

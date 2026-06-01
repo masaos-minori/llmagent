@@ -5,7 +5,7 @@
 `AgentREPL` (`agent/repl.py`) は全コンポーネントを `AgentContext` へ依存性注入し、REPL ループを駆動する薄いコーディネータ。ターンレベルのロジック (RAG 付加・LLM ループ・ツールディスパッチ) は `Orchestrator` (`agent/orchestrator.py`) に委譲。`agent.py` が `AgentREPL().run()` で起動。
 
 実装は 3 つのサテライトモジュールに分割:
-- `agent/repl_health.py` — MCP 死活監視・ウォッチドッグループ
+- `agent/repl_health.py` — MCP 死活監視・ウォッチドッグループ (→ §5)
 - `agent/repl_tool_exec.py` — ツール呼び出し承認・実行 (→ §4)
 - `agent/repl_debug.py` — RAG デバッグプリンタ・コンテキストユーティリティ (純粋関数)
 
@@ -17,14 +17,48 @@ from agent.repl import AgentREPL
 await AgentREPL().run()
 ```
 
+### クラス変数
+
+| 変数 | 型 | 説明 |
+|---|---|---|
+| `SLASH_COMMANDS` | `list[str]` | readline 補完対象のスラッシュコマンド名一覧。`CLIView` に渡されて tab 補完に使用される |
+
+### プロパティ
+
+| プロパティ | 戻り値 | 説明 |
+|---|---|---|
+| `_prompt` | `str` | 現在のセッション ID を含む動的 REPL プロンプト文字列 (`"agent[:#<id>]> "` または `"agent> "`) |
+| `_n_tools` | `int` | `ctx.cfg.tool_definitions` から算出したツール定義数 |
+
+### メソッド
+
 | メソッド | 説明 |
 |---|---|
-| `run() -> None` | readline 初期化 → `_init_components()` → セッション開始 → REPL ループ → リソースクローズ |
-| `_init_components() -> None` | `LLMClient` / `ToolExecutor` / `HistoryManager` / `RagPipeline` / `CommandRegistry` / `Orchestrator` を生成して `AgentContext` に注入 |
-| `_print_startup_banner() -> None` | 起動時バナー (DB チャンク数・ツール数・モード) を表示 |
-| `_start_stdio_servers() -> None` | stdio トランスポートのサブプロセスを起動し `ToolExecutor.set_transport()` で登録 |
-| `_repl_loop() -> None` | ユーザ入力待機 → スラッシュコマンドまたは `self._orchestrator.handle_turn()` に委譲 |
-| `_close_resources() -> None` | readline 履歴保存・`lifecycle.shutdown_all()` で stdio サーバ停止・`AsyncClient` クローズ |
+| `run() -> None` | readline 初期化 → `_init_components()` → stdio サーバ起動 → サービスヘルスチェック → ツール定義検証 → `_print_startup_banner()` → セッション開始 → メモリ SessionStart → ウォッチドッグ起動 → `_repl_loop()` → メモリ Stop → リソースクローズ |
+| `_init_components() -> None` | 各 `_init_*` メソッドを順番に呼び出して全コンポーネントを `AgentContext` に注入 (→ 下表) |
+| `_init_audit_logger(ctx) -> None` | `Logger("audit", ...)` を `ctx.services.audit_logger` に注入 |
+| `_init_llm_client(ctx) -> None` | `httpx.AsyncClient` / `LLMClient` を生成して `ctx.services.http` / `ctx.services.llm` に注入 |
+| `_init_tool_executor(ctx) -> None` | `ToolExecutor` / `ServerLifecycleManager` を生成して `ctx.services.tools` / `ctx.services.lifecycle` に注入 |
+| `_init_history_manager(ctx) -> None` | `HistoryManager` を `ctx.services.hist_mgr` に注入 |
+| `_init_rag_pipeline(ctx) -> None` | `RagPipeline` を `ctx.services.rag` に注入 |
+| `_init_memory_layer(ctx) -> None` | `ctx.cfg.use_memory_layer=True` のとき `MemoryLayer` を `ctx.services.memory` に注入 |
+| `_init_command_registry(ctx) -> None` | `CommandRegistry(ctx)` を `self._cmds` に代入 |
+| `_init_orchestrator(ctx) -> None` | `_init_tracer()` を呼び出して `Orchestrator` を `self._orchestrator` に代入 |
+| `_init_tracer(ctx) -> Any` | `build_tracer()` で OTel トレーサ (または NoOp) を生成して返す |
+| `_init_plugin_registry() -> None` | `scripts/` の 2 親階層上の `plugins/` ディレクトリを `plugin_registry.load_plugins()` でロード |
+| `_print_startup_banner() -> None` | DB チャンク数・ツール数を表示。`ctx.cfg.use_search=False` のとき `"disabled"` と表示 |
+| `_get_chunk_count() -> str` | DB の `chunks` 行数をカンマ区切り書式で返す。エラー時は `"?"` を返す |
+| `_start_stdio_servers() -> None` | `startup_mode == 'persistent'` の stdio トランスポートのみサブプロセスを起動し `ToolExecutor.set_transport()` で登録。`ondemand` サーバは `ServerLifecycleManager.ensure_ready()` による初回使用時起動に委ねる |
+| `_repl_loop() -> None` | ユーザ入力待機 → `\` 終端で複数行継続入力 → スラッシュコマンドまたは `self._orchestrator.handle_turn()` に委譲 |
+| `_close_resources() -> None` | readline 履歴保存 → `lifecycle.shutdown_all()` で stdio サーバ停止 → `AsyncClient` クローズ |
+
+**`_init_components()` 呼び出し順序:**
+
+```
+_init_audit_logger → _init_llm_client → _init_tool_executor
+  → _init_history_manager → _init_rag_pipeline → _init_memory_layer
+  → _init_command_registry → _init_orchestrator → _init_plugin_registry
+```
 
 ## 3. Orchestrator API
 
@@ -62,14 +96,30 @@ await orch.handle_turn(line)
 
 ## 4. agent/repl_tool_exec.py API
 
+### 公開関数
+
 | 関数 | 説明 |
 |---|---|
-| `check_approval(ctx, tool_name, args) -> bool` | 事前チェック → リスク分類 → dry_run 実行 → ユーザ確認プロンプト → 承認/拒否を返す |
-| `_classify_risk(cfg, tool_name, args) -> str` | ツールのリスクレベルを `"none"` / `"medium"` / `"high"` で返す |
-| `_check_allowed_root(cfg, tool_name, args) -> bool` | パス引数が `allowed_root` 内に収まるか検証。False = 即時拒否 |
-| `_check_allowed_repo(cfg, tool_name, args) -> bool` | GitHub 書き込みツールのリポジトリが `approval_github_allowed_repos` に含まれるか検証。False = 即時拒否 |
+| `check_approval(ctx, tool_name, args) -> bool` | プレフライトチェック → リスク分類 → dry_run 実行 → ユーザ確認プロンプト → 承認/拒否を返す |
 | `execute_one_tool_call(ctx, tc, turn) -> tuple[str, str, dict, str, bool, str]` | 1 件の tool_call を実行し `(id, name, args, full_text, is_error, llm_text)` を返す。長い結果は LLM 要約 (`llm_text`) |
-| `execute_all_tool_calls(ctx, tool_calls, turn) -> None` | 全 tool_call を `asyncio.gather()` (副作用なし) または直列 (副作用あり / serial_tool_calls=True) で実行し、承認・dedup・per-turn 上限チェックを経て履歴に追記 |
+| `execute_all_tool_calls(ctx, tool_calls, turn, out_failed_keys=None) -> None` | 全 tool_call を `asyncio.gather()` (副作用なし) または直列 (副作用あり / `serial_tool_calls=True`) で実行し、承認・dedup・per-turn 上限チェックを経て履歴に追記。エラーキーを `out_failed_keys` (set) に収集する |
+
+### 内部ヘルパー関数
+
+| 関数 | 説明 |
+|---|---|
+| `_classify_risk(cfg, tool_name, args) -> str` | ツールのリスクレベルを `"none"` / `"medium"` / `"high"` で返す (→ 下記分類順序) |
+| `_check_allowed_root(cfg, tool_name, args) -> bool` | パス引数が `allowed_root` 内に収まるか `Path.resolve()` で検証。`False` = 即時拒否 |
+| `_check_allowed_repo(cfg, tool_name, args) -> bool` | GitHub 書き込みツールのリポジトリが `approval_github_allowed_repos` に含まれるか検証。`False` = 即時拒否 (Fail-Closed: 空リスト = 全拒否) |
+| `_run_approval_checks(ctx, tool_calls) -> tuple[list[dict], list[str]]` | plan_mode ブロックと `check_approval()` を各 tool_call に順次適用し `(approved_calls, denied_ids)` を返す |
+| `_collect_tool_result_msgs(ctx, results, turn, out_failed_keys) -> list[...]` | ツール結果をログ出力・表示・DB 保存・history 追記し、`session.save_many()` 用メッセージリストを返す |
+| `_classify_operation_type(tool_name) -> str` | `"write"` / `"delete"` / `"execute"` / `"api_write"` / `"read"` の操作種別を返す |
+| `_escalate_for_path(cfg, base, args) -> str \| None` | パス引数が `approval_protected_paths` 配下のとき `"high"` を返す |
+| `_escalate_for_github_branch(cfg, tool_name, base, args) -> str \| None` | GitHub ツールのブランチが `approval_high_risk_branches` に含まれるとき `"high"` を返す |
+| `_build_preview(tool_name, args) -> str` | 承認プロンプト表示用の人間可読プレビュー文字列を生成する |
+| `_audit_approval(ctx, tool_name, risk, args, decision) -> None` | `tool_approval` イベントを audit ログに JSON-lines で書き込む |
+| `_audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id) -> None` | `tool_exec` イベント (mcp_request_id 付き) を audit ログに書き込む |
+| `_is_summarized(cfg, text, llm_text, is_error) -> bool` | `llm_text` が要約済み (切り捨てではない) かを判定して返す |
 
 ### 4-tier ツール安全性分類
 
@@ -84,31 +134,66 @@ await orch.handle_turn(line)
 
 **フォールバック (Fail-Safe):** `approval_risk_rules` にも `tool_safety_tiers` にも未登録のツールは `WRITE_DANGEROUS` とみなし、リスク `"medium"` を返す。
 
-**エスカレーション:** `delete_directory` かつ `recursive=True` の場合、ベースリスクが何であれ `"high"` に引き上げる。
+### `_classify_risk()` 分類順序
+
+```
+1. cfg.approval_risk_rules[tool_name] — 明示設定が最優先
+2. cfg.tool_safety_tiers[tool_name] → _TIER_TO_RISK — ティアフォールバック
+   (未登録は WRITE_DANGEROUS として "medium")
+3. base == "none" → 即返却
+4. delete_directory + recursive=True → "high" に昇格
+5. shell_run: cfg.approval_shell_safe_prefixes に一致するコマンド → "none" に降格、不一致 → "high"
+6. _escalate_for_path(): パス引数が protected_paths 配下 → "high" に昇格
+7. _escalate_for_github_branch(): ブランチが high_risk_branches に含まれる → "high" に昇格
+```
 
 ### check_approval() 処理フロー
 
 ```
 check_approval(ctx, tool_name, args)
+  ├─ allowed_tools チェック  — ctx.cfg.allowed_tools が非空かつ tool_name 不在なら即時 denied_allowed_tools
   ├─ _check_allowed_root()  — allowed_root 外なら即時 denied_root_jail (audit ログ + False 返却)
   ├─ _check_allowed_repo()  — allowlist 外 GitHub 書き込みなら即時 denied_repo_allowlist (audit ログ + False 返却)
-  ├─ _classify_risk()       — approval_risk_rules → tier fallback → delete_directory escalation
+  ├─ _classify_risk()       — approval_risk_rules → tier fallback → 各種エスカレーション
   ├─ risk == "none"         — 自動承認 (audit: "auto")
   ├─ approval_dry_run_tools — dry_run=True でプレビュー実行、結果を表示
   ├─ risk == "medium"       — [y/N] プロンプト (audit: "approved" / "denied")
-  └─ risk == "high"         — [yes/N] プロンプト (audit: "approved" / "denied")
+  └─ risk == "high"         — [yes/no] プロンプト (audit: "approved" / "denied")
 ```
 
-## 5. 処理フロー
+### plan_mode ブロック
+
+`ctx.plan_mode == True` かつツールが `cfg.plan_blocked_tools` に含まれる場合、`_run_approval_checks()` 内で `check_approval()` 呼び出し前にブロックされ `denied_ids` に追加される。
+
+## 5. agent/repl_health.py API
+
+AgentREPL からはデリゲートメソッド (`_check_service_health`, `_check_tool_definitions`, `_watchdog_loop`) 経由で呼ばれる。
+
+| 関数 | 説明 |
+|---|---|
+| `probe_mcp_health(http, base_url) -> bool` | `{base_url}/health` に GET して HTTP 200 なら `True` を返す。エラー時は `False` |
+| `check_service_health(ctx) -> None` | LLM / Embed サービスの `/health` をプローブ。失敗は警告のみ (REPL は継続) |
+| `check_tool_definitions(ctx) -> None` | `agent.toml` の `tool_definitions` と各 MCP サーバの実ツールリストを比較して警告。`tool_definitions_strict=True` のとき不一致で `RuntimeError` を送出。全サーバ未到達時はスキップ |
+| `watchdog_loop(ctx) -> None` | `mcp_watchdog_interval` 秒ごとに HTTP サーバは OpenRC 経由で、stdio サーバはプロセス再起動で復旧。キャンセルされるまで無限ループ。`mcp_watchdog_max_restarts` でリトライ上限を制御 |
+
+**stdio 向け追加チェック:** `McpServerConfig.healthcheck_mode == "ping_tool"` のとき、プロセス生存確認に加えて `__list_tools__` RPC で応答確認を行う。`ondemand` サーバはウォッチドッグ対象外。
+
+## 6. 処理フロー
 
 ```
 AgentREPL.run()
   └─ _view.setup_readline()        — readline 設定・補完・履歴ファイル読み込み
   └─ _init_components()            — 全コンポーネントを AgentContext に注入
-  └─ _print_startup_banner()       — DB チャンク数・ツール数・モードを表示
+  └─ _start_stdio_servers()        — persistent stdio サーバのサブプロセス起動
+  └─ _check_service_health()       — LLM/Embed サービスヘルスプローブ (警告のみ)
+  └─ _check_tool_definitions()     — agent.toml ↔ ライブ MCP ツールリスト検証 (警告/例外)
+  └─ _print_startup_banner()       — DB チャンク数・ツール数を表示
   └─ ctx.session.start()           — sessions テーブルに INSERT
+  └─ memory.on_session_start()     — (use_memory_layer=True のとき) セマンティック記憶をシステムプロンプトに注入
+  └─ watchdog_task = create_task(_watchdog_loop())  ← mcp_watchdog_interval > 0 のとき
   └─ _repl_loop()
-       └─ input()                  — ユーザ入力待機
+       └─ input()                  — ユーザ入力待機 (EOF/KeyboardInterrupt で終了)
+       └─ 末尾 \ → _view.read_multiline()  — 複数行入力の継続
        └─ Orchestrator.handle_turn(line)
             └─ _augment_with_rag() — MQE → KNN+BM25 → RRF → Rerank (± semantic cache)
             └─ ctx.session.save()  — messages テーブルに保存
@@ -117,9 +202,63 @@ AgentREPL.run()
             └─ _run_turn()         — LLM SSE ストリーム + ツールループ (max_tool_turns 回)
                  └─ execute_all_tool_calls()  — 承認・並列/直列実行・結果追記
                  └─ _maybe_two_stage_fetch()  — 不十分時のみ全文展開 (1回限り)
+  └─ memory.on_session_stop()      — (use_memory_layer=True のとき) セッション終了時に記憶を抽出・永続化
+  └─ watchdog_task.cancel()
   └─ _close_resources()            — readline 履歴保存・lifecycle.shutdown_all()・AsyncClient クローズ
 ```
 
-## 6. 使用スクリプト
+## 7. プラグインアーキテクチャ (shared/plugin_registry.py)
+
+プラグインファイルは `plugins/*.py` に配置する。`AgentREPL._init_plugin_registry()` が起動時に `plugin_registry.load_plugins(plugin_dir)` を呼び出し、各ファイルをインポートする。`plugin_dir` は `scripts/` の 2 親階層上の `plugins/` ディレクトリ。`@register_*` デコレータはインポート時に実行され、グローバルレジストリに登録される。
+
+### デコレータ一覧
+
+| デコレータ | シグネチャ | 説明 |
+|---|---|---|
+| `@register_command(name, *, prefix=False)` | `handler(ctx, args: str) -> None` (sync or async) | スラッシュコマンドを登録。`name` は先頭 `/` を含む文字列。`prefix=True` で末尾引数を受け付ける |
+| `@register_tool(name)` | `async handler(args: dict) -> tuple[str, bool]` | ローカル Python 関数をツールハンドラとして登録。MCP ルーティングをバイパスして `ToolExecutor` から直接呼ばれる |
+| `@register_pipeline_stage(*, when="post")` | `async handler(hits, query) -> list[RagHit]` | RAG パイプライン後段フックを登録。`when="post"` のみ対応 (cross-encoder rerank 後に呼ばれる)。`"post"` 以外を指定すると `ValueError` |
+
+### API (アクセサ関数)
+
+| 関数 | 説明 |
+|---|---|
+| `get_command(name) -> tuple[Callable, bool] \| None` | 登録済みコマンドの `(handler, is_prefix)` を返す。未登録は `None` |
+| `iter_commands() -> dict[str, tuple[Callable, bool]]` | 全登録コマンドのスナップショット (`dict` のコピー) を返す |
+| `get_tool(name) -> Callable \| None` | 登録済みローカルツールハンドラを返す。未登録は `None` |
+| `get_pipeline_post_stages() -> list[Callable]` | 全登録 post-rerank フックのスナップショット (`list` のコピー) を返す |
+| `load_plugins(plugin_dir) -> int` | `plugin_dir` の `*.py` をアルファベット順にインポートしてロード数を返す。エラーはログ記録してスキップ (fail-open)。ディレクトリ不在時は `0` を返す |
+| `_reset_for_testing() -> None` | 全レジストリをクリア。テスト用途のみ |
+
+### ディスパッチ順序
+
+`CommandRegistry.dispatch()` はビルトインコマンドのマッチング後に `_dispatch_plugin()` でプラグインコマンドを照合する。プラグインはビルトインより低優先度。`@register_tool` で登録した関数は `ToolExecutor.execute()` 内でキャッシュ・MCPルーティングよりも先に照合される。
+
+### ツールハンドラ戻り値規約
+
+`@register_tool` ハンドラは必ず `tuple[str, bool]` を返す:
+
+```python
+# (result_text, is_error)
+return "result string", False   # 成功
+return "error message", True    # エラー
+```
+
+### プラグイン例
+
+```python
+# plugins/my_plugin.py
+from shared.plugin_registry import register_command, register_tool
+
+@register_command("/ping")
+async def cmd_ping(ctx, args: str) -> None:
+    print("pong")
+
+@register_tool("echo")
+async def tool_echo(args: dict) -> tuple[str, bool]:
+    return str(args.get("text", "")), False
+```
+
+## 8. 使用スクリプト
 
 `agent.py` が `asyncio.run(AgentREPL().run())` で呼び出す唯一のエントリポイント。

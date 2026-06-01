@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/mdq/server.py
+"""mcp/mdq/server.py
 Markdown Context Compression Engine MCP Server.
 
 This server provides tools for searching, retrieving, and outlining Markdown
@@ -167,26 +166,25 @@ class MdqMCPServer(MCPServer):
             if name == "search_docs":
                 result = await self._service.search_docs(SearchDocsRequest(**args))
                 return result, False
-            elif name == "get_chunk":
+            if name == "get_chunk":
                 result = await self._service.get_chunk(GetChunkRequest(**args))
                 return result, False
-            elif name == "outline":
+            if name == "outline":
                 result = await self._service.outline(OutlineRequest(**args))
                 return result, False
-            elif name == "index_paths":
+            if name == "index_paths":
                 result = await self._service.index_paths(IndexPathsRequest(**args))
                 return result, False
-            elif name == "refresh_index":
+            if name == "refresh_index":
                 result = await self._service.refresh_index(RefreshIndexRequest(**args))
                 return result, False
-            elif name == "stats":
+            if name == "stats":
                 result = await self._service.stats(StatsRequest(**args))
                 return result, False
-            elif name == "grep_docs":
+            if name == "grep_docs":
                 result = await self._service.grep_docs(GrepDocsRequest(**args))
                 return result, False
-            else:
-                return f"Unknown tool: {name}", True
+            return f"Unknown tool: {name}", True
         except Exception as e:
             logger.error(f"Error in dispatch: {e}", exc_info=True)
             return f"Tool error: {e}", True

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-agent/memory/retriever.py
+"""agent/memory/retriever.py
 FTS5-based memory search with importance / pin / recency scoring.
 Phase 2: optional KNN search via memories_vec + RRF merge.
 

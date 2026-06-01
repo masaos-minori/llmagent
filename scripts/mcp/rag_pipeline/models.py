@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-rag_pipeline_mcp_models.py
+"""rag_pipeline_mcp_models.py
 Pydantic request/response models and config adapter for rag-pipeline-mcp.
 
 Dependency direction: rag_pipeline_mcp_models → rag_pipeline_mcp_service → rag_mcp_server
@@ -77,7 +76,7 @@ class RagRunRequest(BaseModel):
 class RagRunResponse(BaseModel):
     query: str
     augmented_text: str = Field(
-        description="Formatted RAG context block for LLM injection."
+        description="Formatted RAG context block for LLM injection.",
     )
     selected_hits: list[dict[str, Any]] = Field(
         default_factory=list,
@@ -87,16 +86,20 @@ class RagRunResponse(BaseModel):
 
 class RagDebugResponse(RagRunResponse):
     queries: list[str] = Field(
-        default_factory=list, description="MQE-expanded queries."
+        default_factory=list,
+        description="MQE-expanded queries.",
     )
     merged_hits: list[dict[str, Any]] = Field(
-        default_factory=list, description="Hits after RRF merge."
+        default_factory=list,
+        description="Hits after RRF merge.",
     )
     reranked_hits: list[dict[str, Any]] = Field(
-        default_factory=list, description="Hits after cross-encoder rerank."
+        default_factory=list,
+        description="Hits after cross-encoder rerank.",
     )
     elapsed: dict[str, float] = Field(
-        default_factory=dict, description="Per-step wall-clock seconds."
+        default_factory=dict,
+        description="Per-step wall-clock seconds.",
     )
 
 

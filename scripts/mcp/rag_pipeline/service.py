@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/rag_pipeline/service.py
+"""mcp/rag_pipeline/service.py
 RagPipelineMCPService: wraps RagPipeline for use in rag-pipeline-mcp server.
 
 Dependency direction: rag.mcp.models → rag.mcp.service → rag.mcp.server
@@ -122,7 +121,9 @@ class RagPipelineMCPService:
         history_str = "\n".join(req.history_context)
         capture_fn, captured = self._make_capture_fn()
         augmented_text = await pipeline.augment(
-            req.query, debug_fn=capture_fn, history_context=history_str
+            req.query,
+            debug_fn=capture_fn,
+            history_context=history_str,
         )
         selected_hits: list[dict[str, Any]] = [dict(h) for h in pipeline.last_reranked]
 

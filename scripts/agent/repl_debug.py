@@ -1,5 +1,4 @@
-"""
-RAG pipeline debug printers and context utility functions.
+"""RAG pipeline debug printers and context utility functions.
 
 Pure module-level helpers with no AgentContext dependency.
 Extracted from agent/repl.py to reduce per-task load cost.
@@ -24,7 +23,7 @@ def _print_debug_mqe(queries: list[str]) -> None:
 def _print_debug_search(all_results: list[list[RagHit]]) -> None:
     total = sum(len(r) for r in all_results)
     print(
-        f"  [debug] search: {len(all_results)} result lists, {total} total candidates"
+        f"  [debug] search: {len(all_results)} result lists, {total} total candidates",
     )
 
 
@@ -34,7 +33,7 @@ def _print_debug_rrf(merged: list[RagHit]) -> None:
         print(
             f"    chunk_id={c['chunk_id']}"
             f" rrf={c.get('rrf_score', 0):.4f}"
-            f" url={c['url'][:60]}"
+            f" url={c['url'][:60]}",
         )
 
 
@@ -78,7 +77,7 @@ _MORE_CONTEXT_TRIGGERS: frozenset[str] = frozenset(
         "insufficient context",
         "more information needed",
         "need the full document",
-    }
+    },
 )
 
 

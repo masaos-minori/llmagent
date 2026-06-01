@@ -1,5 +1,22 @@
 # Lint Typecheck — Detailed Workflow
 
+## Toolchain
+
+| Tool | Goal | Role |
+|---|---|---|
+| `ruff` | repository convention enforcement | Format and lint; auto-fix safe violations |
+| `ast-grep` | convention enforcement, architecture integrity | Structural search and pattern enforcement |
+| `mypy` | type flow analysis | Primary static type checker |
+| `pyright` | type flow analysis | Alternate type checker; cross-validates mypy |
+| `pyre` | type flow analysis | Strict inference on protocols/TypedDict |
+| `bandit` | static security validation | Vulnerability scan |
+| `diff-cover` | diff scope enforcement | Coverage gate scoped to changed lines |
+| `tox` | CI consistency validation | Runs full check suite in isolated envs |
+| `libcst` | semantic refactor safety | CST-based transforms preserving comments |
+| `pre-commit` | — | Aggregated hook runner; final gate |
+
+---
+
 ## Step 1: Identify Failure Source
 
 **Fast path** — if the failing tool is already identified from the error message, skip to that step:

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-github_mcp_service.py
+"""github_mcp_service.py
 GitHub client initialization, GitHubService business logic, and lazy singleton proxy.
 
 Dependency direction: github_mcp_models → github_mcp_service → github_mcp_server
@@ -208,7 +207,8 @@ class GitHubService:
     @staticmethod
     def _handle_github_error(e: GithubException) -> NoReturn:
         """Convert a GithubException to an HTTPException and raise it.
-        Declared as NoReturn so callers do not need to write their own raise."""
+        Declared as NoReturn so callers do not need to write their own raise.
+        """
         if e.status == 404:
             raise HTTPException(status_code=404, detail="Resource not found")
         if e.status == 403:
@@ -217,13 +217,15 @@ class GitHubService:
                 detail="GitHub API rate limit exceeded or access denied",
             )
         raise HTTPException(
-            status_code=502, detail=f"GitHub API error (status={e.status})"
+            status_code=502,
+            detail=f"GitHub API error (status={e.status})",
         )
 
     async def _run_github(self, func: Callable[[], T]) -> T:
         """Run a synchronous PyGithub call in the thread pool.
         Converts GithubException to HTTPException so endpoints stay free of
-        try/except boilerplate."""
+        try/except boilerplate.
+        """
         try:
             return await asyncio.to_thread(func)
         except GithubException as e:
@@ -263,7 +265,8 @@ class GitHubService:
     # ── Business operation methods ──
 
     async def search_repositories(
-        self, req: SearchRepositoriesRequest
+        self,
+        req: SearchRepositoriesRequest,
     ) -> SearchRepositoriesResponse:
         """Search GitHub repositories by query string."""
         per_page = self._clamp_per_page(req.per_page)
@@ -308,14 +311,15 @@ class GitHubService:
         def _sync() -> CreateBranchResponse:
             repo = self._get_repo(req.owner, req.repo)
             # Resolve source branch; fall back to default branch when omitted
-            source_name = req.from_branch if req.from_branch else repo.default_branch
+            source_name = req.from_branch or repo.default_branch
             source = repo.get_branch(source_name)
             repo.create_git_ref(
                 ref=f"refs/heads/{req.branch_name}",
                 sha=source.commit.sha,
             )
             return CreateBranchResponse(
-                branch_name=req.branch_name, sha=source.commit.sha
+                branch_name=req.branch_name,
+                sha=source.commit.sha,
             )
 
         result = await self._run_github(_sync)
@@ -364,7 +368,7 @@ class GitHubService:
                     authored_at=commit.commit.author.date.isoformat(),
                     url=commit.html_url,
                     files_changed=len(commit.files),
-                )
+                ),
             )
 
         return await self._run_github(_sync)
@@ -389,7 +393,8 @@ class GitHubService:
         return SearchCodeResponse(query=req.query, results=results)
 
     async def get_file_contents(
-        self, req: GetFileContentsRequest
+        self,
+        req: GetFileContentsRequest,
     ) -> GetFileContentsResponse:
         """Retrieve the contents of a single file in a repository."""
 
@@ -416,7 +421,8 @@ class GitHubService:
         return await self._run_github(_sync)
 
     async def create_or_update_file(
-        self, req: CreateOrUpdateFileRequest
+        self,
+        req: CreateOrUpdateFileRequest,
     ) -> CreateOrUpdateFileResponse:
         """Create or update a file; providing sha updates an existing file."""
         self._assert_allowed_repo(req.owner, req.repo)
@@ -435,7 +441,11 @@ class GitHubService:
             if req.sha:
                 # sha is required to update an existing file (prevents conflicts)
                 raw = repo.update_file(
-                    req.path, req.message, encoded, req.sha, **kwargs
+                    req.path,
+                    req.message,
+                    encoded,
+                    req.sha,
+                    **kwargs,
                 )
                 operation = "updated"
             else:
@@ -443,7 +453,9 @@ class GitHubService:
                 operation = "created"
             commit_sha = raw["commit"].sha
             return CreateOrUpdateFileResponse(
-                path=req.path, commit_sha=commit_sha, operation=operation
+                path=req.path,
+                commit_sha=commit_sha,
+                operation=operation,
             )
 
         result = await self._run_github(_sync)
@@ -499,7 +511,8 @@ class GitHubService:
         return result
 
     async def delete_repo_file(
-        self, req: DeleteRepoFileRequest
+        self,
+        req: DeleteRepoFileRequest,
     ) -> DeleteRepoFileResponse:
         """Delete a file from a repository; sha required to prevent conflicts."""
         self._assert_allowed_repo(req.owner, req.repo)
@@ -577,7 +590,8 @@ class GitHubService:
 
         def _sync() -> list[IssueInfo]:
             issues_slice = itertools.islice(
-                self._gh.search_issues(query=req.query), per_page
+                self._gh.search_issues(query=req.query),
+                per_page,
             )
             return [GitHubService._issue_to_info(i) for i in issues_slice]
 
@@ -585,7 +599,8 @@ class GitHubService:
         return SearchIssuesResponse(query=req.query, results=issues)
 
     async def add_issue_comment(
-        self, req: AddIssueCommentRequest
+        self,
+        req: AddIssueCommentRequest,
     ) -> AddIssueCommentResponse:
         """Post a comment to an existing issue."""
         self._assert_allowed_repo(req.owner, req.repo)
@@ -594,7 +609,8 @@ class GitHubService:
             repo = self._get_repo(req.owner, req.repo)
             comment = repo.get_issue(number=req.issue_number).create_comment(req.body)
             return AddIssueCommentResponse(
-                issue_number=req.issue_number, comment_url=comment.html_url
+                issue_number=req.issue_number,
+                comment_url=comment.html_url,
             )
 
         result = await self._run_github(_sync)
@@ -606,7 +622,8 @@ class GitHubService:
         return result
 
     async def list_pull_requests(
-        self, req: ListPullRequestsRequest
+        self,
+        req: ListPullRequestsRequest,
     ) -> ListPullRequestsResponse:
         """Retrieve the list of pull requests for a repository."""
         per_page = self._clamp_per_page(req.per_page)
@@ -620,7 +637,8 @@ class GitHubService:
         return ListPullRequestsResponse(pull_requests=prs)
 
     async def get_pull_request(
-        self, req: GetPullRequestRequest
+        self,
+        req: GetPullRequestRequest,
     ) -> GetPullRequestResponse:
         """Retrieve a specific pull request by number."""
 
@@ -632,7 +650,8 @@ class GitHubService:
         return GetPullRequestResponse(pull_request=pr)
 
     async def create_pull_request(
-        self, req: CreatePullRequestRequest
+        self,
+        req: CreatePullRequestRequest,
     ) -> CreatePullRequestResponse:
         """Create a new pull request in a repository."""
         self._assert_allowed_repo(req.owner, req.repo)
@@ -659,7 +678,8 @@ class GitHubService:
         return CreatePullRequestResponse(pull_request=pr)
 
     async def search_pull_requests(
-        self, req: SearchPullRequestsRequest
+        self,
+        req: SearchPullRequestsRequest,
     ) -> SearchPullRequestsResponse:
         """Keyword search for PRs across GitHub (is:pr appended automatically)."""
         per_page = self._clamp_per_page(req.per_page)
@@ -668,7 +688,8 @@ class GitHubService:
             # Append is:pr automatically to filter for pull requests only
             query = req.query if "is:pr" in req.query else f"{req.query} is:pr"
             issues_slice = itertools.islice(
-                self._gh.search_issues(query=query), per_page
+                self._gh.search_issues(query=query),
+                per_page,
             )
             return [GitHubService._issue_to_info(i) for i in issues_slice]
 
@@ -676,7 +697,8 @@ class GitHubService:
         return SearchPullRequestsResponse(query=req.query, results=results)
 
     async def update_pull_request(
-        self, req: UpdatePullRequestRequest
+        self,
+        req: UpdatePullRequestRequest,
     ) -> UpdatePullRequestResponse:
         """Update the title, body, or state of a pull request."""
         self._assert_allowed_repo(req.owner, req.repo)
@@ -705,7 +727,8 @@ class GitHubService:
         return UpdatePullRequestResponse(pull_request=pr)
 
     async def merge_pull_request(
-        self, req: MergePullRequestRequest
+        self,
+        req: MergePullRequestRequest,
     ) -> MergePullRequestResponse:
         """Merge a pull request using the specified merge method."""
         self._assert_allowed_repo(req.owner, req.repo)

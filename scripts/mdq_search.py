@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-scripts/mdq_search.py
+"""scripts/mdq_search.py
 Search functionality for the MDQ MCP server.
 
 This script provides functions to search indexed Markdown documents
@@ -28,7 +27,9 @@ index_db_path = cfg.get("index_db_path", "/opt/llm/db/mdq.sqlite")
 
 
 def search_docs(
-    query: str, path_filter: str | None = None, tag_filter: str | None = None
+    query: str,
+    path_filter: str | None = None,
+    tag_filter: str | None = None,
 ) -> str:
     """Search for relevant Markdown document sections based on a query."""
     conn = sqlite3.connect(index_db_path)
@@ -90,10 +91,11 @@ def search_docs(
                     "tags": tags,
                     "created_at": created_at,
                     "updated_at": updated_at,
-                }
+                },
             )
 
-        return orjson.dumps(formatted_results).decode()
+        serialized: str = orjson.dumps(formatted_results).decode()
+        return serialized
     except Exception as e:
         raise ValueError(f"Search error: {e}")
     finally:
@@ -132,7 +134,8 @@ def get_chunk(chunk_id: str) -> str:
             "updated_at": updated_at,
         }
 
-        return orjson.dumps(result).decode()
+        serialized: str = orjson.dumps(result).decode()
+        return serialized
     except Exception as e:
         raise ValueError(f"Error retrieving chunk {chunk_id}: {e}")
     finally:
@@ -164,7 +167,8 @@ def outline(path: str) -> str:
 
         result = {"path": path, "headings": headings, "tags": tags}
 
-        return orjson.dumps(result).decode()
+        serialized: str = orjson.dumps(result).decode()
+        return serialized
     except Exception as e:
         raise ValueError(f"Error retrieving outline for {path}: {e}")
     finally:

@@ -8,7 +8,7 @@
 
 | 起動モード | 利用元 | 提供機能 |
 |---|---|---|
-| HTTP モード (ポート 8006) | `agent/repl.py` (HTTP モード) | 23 エンドポイント (全 HTTP API) |
+| HTTP モード (ポート 8006) | `agent/repl.py` (HTTP モード) | 24 エンドポイント (全 HTTP API: POST 21 + `/health` + `/v1/call_tool` + `/v1/tools`) |
 
 HTTP の操作エンドポイント (POST) と MCP ツールは 1 対 1 で対応。`/health` は MCP ツールとして非公開。
 
@@ -106,7 +106,7 @@ vi /etc/conf.d/github-mcp
 #   GITHUB_TOKEN="<取得した PAT>"
 
 # 3. スクリプトと設定ファイルを配置する (deploy.sh で一括実施可能)
-cp scripts/mcp/github/server.py /opt/llm/scripts/
+cp -r scripts/mcp/github/ /opt/llm/scripts/mcp/
 cp config/github_mcp_server.toml /opt/llm/config/
 
 # 4. OpenRC スクリプトを配置して有効化する
@@ -155,13 +155,15 @@ curl -s -X POST http://127.0.0.1:8006/get_file_contents \
 | パラメータ | ファイル | デフォルト | 説明 |
 |---|---|---|---|
 | `default_per_page` | `config/github_mcp_server.toml` | `20` | 一覧取得のデフォルト件数 |
-| `max_per_page` | `config/github_mcp_server.toml` | `100` | 一覧取得の最大件数 |
+| `max_per_page` | `config/github_mcp_server.toml` | `30` | 一覧取得の最大件数 |
 | `allowed_repos` | `config/github_mcp_server.toml` | `[]` | 書き込みを許可するリポジトリ一覧 (`owner/repo` 形式) |
 | `allowed_repos_mode` | `config/github_mcp_server.toml` | `"fail_open"` | 空リスト時の動作: `"fail_open"` (全許可) / `"fail_closed"` (全拒否) |
 | `protected_branches` | `config/github_mcp_server.toml` | `[]` | 書き込みを拒否するブランチ名または glob パターン (`fnmatch`) |
 | `path_denylist` | `config/github_mcp_server.toml` | `[]` | 書き込みを拒否するファイルパスの glob パターンリスト (`fnmatch`) |
 | `max_file_size_kb` | `config/github_mcp_server.toml` | `1024` | ファイル 1 件あたりの書き込みサイズ上限 (KB); `0` 以下で無効化 |
 | `audit_log_path` | `config/github_mcp_server.toml` | `""` | GitHub 操作監査ログのファイルパス; 空文字で書き込みスキップ |
+| `allow_force_push` | `config/github_mcp_server.toml` | `true` | `false` のとき `merge_pull_request` で `merge_method="rebase"` を拒否 (403) |
+| `require_pr_review` | `config/github_mcp_server.toml` | `false` | `true` のとき承認済みレビューがない PR のマージを拒否 (403) |
 
 ### 1.6 実装方式
 
@@ -169,10 +171,11 @@ curl -s -X POST http://127.0.0.1:8006/get_file_contents \
 |---|---|
 | フレームワーク | FastAPI + Uvicorn (ポート 8006) |
 | 起動モード | HTTP モード (ポート 8006、OpenRC サービス `github-mcp`) |
+| サービスクラス | `GitHubService` (`mcp/github/service.py`) がすべての GitHub API 操作を実装する。`GitHubService(gh, default_per_page, max_per_page)` で初期化し、`_LazyGitHubService` プロキシにより初回アクセス時まで初期化を遅延する |
 | GitHub API クライアント | PyGithub (同期ライブラリ) を `asyncio.to_thread` でスレッドプール実行 |
 | 認証 | `GITHUB_TOKEN` 環境変数 (PAT) → `Github(auth=Auth.Token(...))` で初期化; 未設定時は匿名 (60 req/hour) |
-| エラー変換 | `_handle_github_error()` で `GithubException` を HTTP ステータスコード (404/403/502) に変換して raise |
-| ページネーション | `itertools.islice` で `per_page` 件に打ち切り |
+| エラー変換 | `GitHubService._handle_github_error()` で `GithubException` を HTTP ステータスコード (404/403/502) に変換して raise (`NoReturn` 宣言済み) |
+| ページネーション | `itertools.islice` で `per_page` 件に打ち切り。`_clamp_per_page()` で `max_per_page` を超えないよう制限 |
 
 ### 1.7 入出力インタフェース
 
@@ -229,13 +232,36 @@ GithubMCPServer().run()
 | `server_name` | `"github-mcp"` | MCP `initialize` レスポンスのサーバ識別名 |
 | `server_version` | `"1.0.0"` | バージョン文字列 |
 | `http_port` | `8006` | HTTP モード待受ポート |
-| `app_module` | `"mcp.github.server:app"` | uvicorn 起動ターゲット |
+| `app_module` | `"github_mcp_server:app"` | uvicorn 起動ターゲット |
 | `mcp_tools` | `_MCP_TOOLS` | `tools/list` に返すツール定義 (21 種、すべて `github_` プレフィックス) |
 
 | メソッド | 説明 |
 |---|---|
 | `dispatch(name, args) -> tuple[str, bool]` | `_dispatch_github_tool(name, args)` に委譲する。`_GITHUB_DISPATCH` テーブルでツール名を解決し、対応する FastAPI ハンドラを直接呼び出す。`(result_text, is_error)` を返す |
 | `run() -> None` | HTTP サーバを起動する (継承) |
+
+**GitHubService クラス API** (`mcp/github/service.py`)
+
+ビジネスロジックを担うサービスクラス。`GitHubService(gh: Github, default_per_page: int, max_per_page: int)` で初期化する。
+
+| メソッド (静的) | 説明 |
+|---|---|
+| `_handle_github_error(e: GithubException) -> NoReturn` | `GithubException` を HTTPException (404/403/502) に変換して raise |
+| `_assert_allowed_branch(owner, repo, branch)` | `protected_branches` パターンに一致する場合 403 |
+| `_assert_allowed_path(path)` | `path_denylist` パターンに一致する場合 403 |
+| `_assert_max_file_size(content, path)` | `max_file_size_kb` 超過時 400 |
+| `_write_github_audit_log(op, **kwargs)` | 監査ログに 1 行追記。書き込みエラーは伝播させない |
+
+| メソッド (インスタンス) | 説明 |
+|---|---|
+| `_assert_allowed_repo(owner, repo)` | `allowed_repos` / `allowed_repos_mode` に基づき 403 または通過 |
+| `_clamp_per_page(per_page) -> int` | `min(per_page, max_per_page)` で制限 |
+| `get_dispatch_table() -> dict[str, ...]` | ツール名 → `fmt_*` コルーチンのディスパッチテーブルを返す |
+
+`merge_pull_request` は追加で以下を検証する:
+- `allow_force_push=false` かつ `merge_method="rebase"` の場合 403
+- `require_pr_review=true` かつ承認済みレビューがない場合 403
+- ベースブランチが `protected_branches` に一致する場合 403
 
 **HTTP エンドポイント `POST /v1/call_tool`**
 

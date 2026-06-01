@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-web_search_mcp_server.py
+"""web_search_mcp_server.py
 FastAPI server that exposes web search as an MCP (Model Context Protocol) tool.
 Listens on port 8004.
 
@@ -74,7 +73,10 @@ class SearchRequest(BaseModel):
     """Request schema for POST /search"""
 
     query: str = Field(
-        ..., min_length=1, max_length=500, description="Search query string"
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Search query string",
     )
     max_results: int = Field(
         DEFAULT_MAX_RESULTS,
@@ -105,8 +107,7 @@ class SearchResponse(BaseModel):
 # Per-provider search implementations
 # ──────────────────────────────────────────────────────────────────────────────
 async def _search_brave(query: str, max_results: int) -> list[SearchResult]:
-    """
-    Execute a text search using the Brave Search API.
+    """Execute a text search using the Brave Search API.
     Returns an empty list if the API key is not set.
     """
     if not BRAVE_API_KEY:
@@ -120,7 +121,9 @@ async def _search_brave(query: str, max_results: int) -> list[SearchResult]:
     params: dict[str, str | int] = {"q": query, "count": max_results}
     async with httpx.AsyncClient(timeout=cfg.get("http_timeout", 10)) as client:
         resp = await client.get(
-            str(cfg.get("brave_search_url", "")), headers=headers, params=params
+            str(cfg.get("brave_search_url", "")),
+            headers=headers,
+            params=params,
         )
     resp.raise_for_status()
     raw = resp.json().get("web", {}).get("results", [])
@@ -136,8 +139,7 @@ async def _search_brave(query: str, max_results: int) -> list[SearchResult]:
 
 
 async def _search_bing(query: str, max_results: int) -> list[SearchResult]:
-    """
-    Execute a text search using Bing Web Search API v7.
+    """Execute a text search using Bing Web Search API v7.
     Returns an empty list if the API key is not set.
     """
     if not BING_API_KEY:
@@ -148,7 +150,9 @@ async def _search_bing(query: str, max_results: int) -> list[SearchResult]:
     params: dict[str, str | int] = {"q": query, "count": max_results, "mkt": "ja-JP"}
     async with httpx.AsyncClient(timeout=cfg.get("http_timeout", 10)) as client:
         resp = await client.get(
-            str(cfg.get("bing_search_url", "")), headers=headers, params=params
+            str(cfg.get("bing_search_url", "")),
+            headers=headers,
+            params=params,
         )
     resp.raise_for_status()
     raw = resp.json().get("webPages", {}).get("value", [])
@@ -164,8 +168,7 @@ async def _search_bing(query: str, max_results: int) -> list[SearchResult]:
 
 
 async def _search_duckduckgo(query: str, max_results: int) -> list[SearchResult]:
-    """
-    Execute a text search using DuckDuckGo. No API key required.
+    """Execute a text search using DuckDuckGo. No API key required.
     DDGS is a synchronous library, so it is run in a thread pool via asyncio.to_thread.
     """
 
@@ -196,14 +199,16 @@ _PROVIDER_FUNCS = {
 
 
 async def _try_provider(
-    provider: str, query: str, max_results: int
+    provider: str,
+    query: str,
+    max_results: int,
 ) -> list[SearchResult] | None:
     """Try one provider; returns results on success, None on failure or zero results."""
     func = _PROVIDER_FUNCS.get(provider)
     # Guard: skip unrecognised provider names in config
     if func is None:
         logger.warning(
-            fmt_kvlog("search_try", provider=provider, result="unknown_provider")
+            fmt_kvlog("search_try", provider=provider, result="unknown_provider"),
         )
         return None
     results = await func(query, max_results)
@@ -216,15 +221,14 @@ async def _try_provider(
             q=query[:80],
             n=0,
             result="zero_results_fallback",
-        )
+        ),
     )
     return None
 
 
 @app.post("/search", response_model=SearchResponse)
 async def search(req: SearchRequest) -> SearchResponse:
-    """
-    Execute a web search by trying configured providers in order.
+    """Execute a web search by trying configured providers in order.
     Falls back to the next provider when the current one fails or returns zero results.
     Returns 502 if all providers fail.
     """
@@ -242,10 +246,12 @@ async def search(req: SearchRequest) -> SearchResponse:
                         provider=provider,
                         n=len(results),
                         ms=f"{ms:.0f}",
-                    )
+                    ),
                 )
                 return SearchResponse(
-                    query=req.query, results=results, provider=provider
+                    query=req.query,
+                    results=results,
+                    provider=provider,
                 )
         except Exception as e:
             last_error = e
@@ -254,7 +260,7 @@ async def search(req: SearchRequest) -> SearchResponse:
                     "search_provider_fail",
                     provider=provider,
                     error_class=type(e).__name__,
-                )
+                ),
             )
     error_detail = (
         f"All search providers failed: {last_error}"
@@ -341,7 +347,7 @@ async def list_tools() -> dict[str, Any]:
         "tools": [
             {"name": t["name"], "description": t.get("description", "")}
             for t in _MCP_TOOLS
-        ]
+        ],
     }
 
 

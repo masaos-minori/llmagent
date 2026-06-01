@@ -13,47 +13,7 @@ description: |
 
 ## Purpose
 
-Add, repair, and improve Python tests with minimal, correct, and maintainable changes,
-using the full toolchain to detect flakiness, validate contracts, and measure regression quality.
-
-## Primary goals
-
-- reproduce the problem clearly
-- protect behavior with meaningful tests
-- fix the smallest correct implementation surface
-- avoid brittle or overspecified tests
-- preserve or improve regression detection
-
----
-
-## Toolchain
-
-| Tool | Goal | Role |
-|---|---|---|
-| `pytest` | — | Test runner |
-| `pytest-xdist` | — | Parallel execution (`-n auto`) |
-| `pytest-cov` / `coverage` | regression quality analysis | Coverage measurement |
-| `pytest-mock` | boundary virtualization | `mocker` fixture for patching |
-| `pytest-randomly` | flaky detection | Randomize test order |
-| `pytest-asyncio` | resource leak detection | Async test runner with lifecycle control |
-| `pytest-subprocess` | boundary virtualization | Intercept and fake subprocess calls |
-| `pytest-testmon` | impact-based test execution | Run only tests affected by changed files |
-| `pytest-timeout` | resource leak detection | Catch hung tests |
-| `pytest-rerunfailures` | flaky detection | Confirm or rule out intermittency |
-| `mutmut` | mutation testing | Mutate source; count surviving mutants |
-| `freezegun` | deterministic runtime | Freeze `datetime.now()` |
-| `hypothesis` | contract validation | Property-based testing |
-| `respx` | boundary virtualization | Mock `httpx` HTTP calls |
-| `factory_boy` | — | Readable, repeatable test data factories |
-| `diff-cover` | regression quality analysis | Coverage gate scoped to changed lines |
-
-## Test structure
-
-```
-tests/
-  conftest.py              # sys.path setup; shared fixtures
-  test_<module>.py         # one file per scripts/**/<module>.py
-```
+Add, repair, and improve Python tests; reproduce the problem clearly; fix the smallest correct implementation surface.
 
 ---
 

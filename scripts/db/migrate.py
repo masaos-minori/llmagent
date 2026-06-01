@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-migrate_db.py
+"""migrate_db.py
 One-shot migration: move session tables from rag.sqlite → session.sqlite.
 
 Tables moved: sessions, messages, notes, tool_results, memory_entries, memory_vec
@@ -38,13 +37,16 @@ _SESSION_TABLES: list[str] = [
 
 def _table_exists(db: SQLiteHelper, table: str) -> bool:
     rows = db.fetchall(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+        (table,),
     )
     return len(rows) > 0
 
 
 def _copy_table(
-    src_conn: sqlite3.Connection, dst_conn: sqlite3.Connection, table: str
+    src_conn: sqlite3.Connection,
+    dst_conn: sqlite3.Connection,
+    table: str,
 ) -> int:
     """Copy all rows from src to dst for the given table; return copied row count."""
     rows = src_conn.execute(f"SELECT * FROM {table}").fetchall()  # noqa: S608 -- table comes from _SESSION_TABLES hardcoded list
@@ -81,7 +83,7 @@ def migrate() -> None:
         logger.info(f"Migration complete: {total} total rows copied to session.sqlite")
         print(f"Migration complete: {total} rows copied.")
         print(
-            "Source tables in rag.sqlite are NOT deleted. Verify counts, then drop manually if desired."
+            "Source tables in rag.sqlite are NOT deleted. Verify counts, then drop manually if desired.",
         )
     except Exception as e:
         if ses_db.conn:

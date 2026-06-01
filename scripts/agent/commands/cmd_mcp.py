@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-agent/commands/cmd_mcp.py
+"""agent/commands/cmd_mcp.py
 MCP server management mixin for CommandRegistry.
 
 Extracted from agent/commands/registry.py.  Provides _McpMixin with:
@@ -50,7 +49,7 @@ class _McpMixin:
                 "ROLE",
                 "STATUS",
                 "ENDPOINT/CMD",
-            )
+            ),
         )
         print("-" * 95)
         async with httpx.AsyncClient(timeout=5.0) as probe:
@@ -99,7 +98,7 @@ class _McpMixin:
                         role,
                         status,
                         endpoint,
-                    )
+                    ),
                 )
 
     async def _cmd_mcp(self, args: str = "") -> None:
@@ -155,7 +154,10 @@ class _McpMixin:
         print(f"Creating MCP server templates for {server_name!r}...")
         try:
             created = install_mcp_server(
-                server_name, port, with_confd=with_confd, role=role
+                server_name,
+                port,
+                with_confd=with_confd,
+                role=role,
             )
         except (FileExistsError, ValueError) as e:
             print(f"Aborted: {e}")
@@ -189,7 +191,7 @@ class _McpMixin:
         print()
         print("Next steps:")
         print(
-            f"  1. Edit scripts/mcp/{module}/server.py — implement _DISPATCH handlers"
+            f"  1. Edit scripts/mcp/{module}/server.py — implement _DISPATCH handlers",
         )
         print()
         print("  2. Add tool definition to config/agent.toml (tool_definitions array):")
@@ -203,11 +205,11 @@ class _McpMixin:
         print("  4. Add to deploy/deploy.sh:")
         print(
             f'     cp -r "${{REPO_ROOT}}/scripts/mcp/{module}"'
-            f' "${{DEPLOY_SCRIPTS}}/mcp/"'
+            f' "${{DEPLOY_SCRIPTS}}/mcp/"',
         )
         print(
             f'     cp "${{REPO_ROOT}}/config/{module}_mcp_server.toml"'
-            f' "${{DEPLOY_CONFIG}}/"'
+            f' "${{DEPLOY_CONFIG}}/"',
         )
         print()
         print("  5. Add to deploy/setup_services.sh (service list and conf.d copy):")
@@ -215,7 +217,7 @@ class _McpMixin:
         if with_confd:
             print(
                 f'     cp "${{REPO_ROOT}}/conf.d/{server_name}"'
-                f' "/etc/conf.d/{server_name}"'
+                f' "/etc/conf.d/{server_name}"',
             )
         print()
         print("  6. Deploy and start:")

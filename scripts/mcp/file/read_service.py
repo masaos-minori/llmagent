@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-file_read_mcp_service.py
+"""file_read_mcp_service.py
 ReadFileService business logic and lazy singleton proxy for file-read-mcp.
 
 Dependency direction: file_read_mcp_models → file_read_mcp_service → file_read_mcp_server
@@ -113,7 +112,9 @@ class ReadFileService:
             try:
                 for child in sorted(path.iterdir()):
                     node.children.append(
-                        ReadFileService._build_tree(child, current_depth + 1, max_depth)
+                        ReadFileService._build_tree(
+                            child, current_depth + 1, max_depth
+                        ),
                     )
             except PermissionError as e:
                 logger.debug(f"Permission denied listing directory {path}: {e}")
@@ -171,7 +172,9 @@ class ReadFileService:
     # ── Business operation methods ──
 
     def list_dir_entries(
-        self, req: ListDirectoryRequest, include_dir_sizes: bool
+        self,
+        req: ListDirectoryRequest,
+        include_dir_sizes: bool,
     ) -> ListDirectoryResponse:
         """Validate path, iterate directory entries, and return a response.
 
@@ -196,7 +199,7 @@ class ReadFileService:
                         path=str(child),
                         type="dir" if child.is_dir() else "file",
                         size=size,
-                    )
+                    ),
                 )
         except PermissionError as e:
             raise HTTPException(status_code=403, detail=str(e))
@@ -221,7 +224,8 @@ class ReadFileService:
             raw_content = target.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             raise HTTPException(
-                status_code=415, detail="File cannot be decoded as UTF-8"
+                status_code=415,
+                detail="File cannot be decoded as UTF-8",
             )
         except PermissionError as e:
             raise HTTPException(status_code=403, detail=str(e))
@@ -272,14 +276,17 @@ class ReadFileService:
             return FileResult(path=raw_path, content=None, error=e.detail)
         except UnicodeDecodeError:
             return FileResult(
-                path=raw_path, content=None, error="File cannot be decoded as UTF-8"
+                path=raw_path,
+                content=None,
+                error="File cannot be decoded as UTF-8",
             )
         except OSError as e:
             logger.warning(f"read_multiple_files: OS error reading '{raw_path}': {e}")
             return FileResult(path=raw_path, content=None, error=str(e))
 
     def read_multiple_files(
-        self, req: ReadMultipleFilesRequest
+        self,
+        req: ReadMultipleFilesRequest,
     ) -> ReadMultipleFilesResponse:
         """Retrieve multiple files; continues even if individual errors occur."""
         results = [self.read_single_file(raw_path) for raw_path in req.paths]
@@ -310,7 +317,8 @@ class ReadFileService:
         max_matches: int,
     ) -> tuple[list[GrepMatch], bool]:
         """Walk base recursively, match lines against compiled.
-        Returns (matches, truncated) where truncated=True when max_matches reached."""
+        Returns (matches, truncated) where truncated=True when max_matches reached.
+        """
         matches: list[GrepMatch] = []
         try:
             for p in sorted(base.rglob("*")):
@@ -324,14 +332,16 @@ class ReadFileService:
                     if compiled.search(line):
                         matches.append(
                             GrepMatch(
-                                file=str(p), line_number=lineno, line=line.rstrip()
-                            )
+                                file=str(p),
+                                line_number=lineno,
+                                line=line.rstrip(),
+                            ),
                         )
                         if len(matches) >= max_matches:
                             return matches, True
         except PermissionError as e:
             logger.warning(
-                f"grep_files: directory traversal stopped due to permission error: {e}"
+                f"grep_files: directory traversal stopped due to permission error: {e}",
             )
         return matches, False
 
@@ -343,13 +353,19 @@ class ReadFileService:
             compiled = re.compile(req.pattern)
         except re.error as e:
             raise HTTPException(
-                status_code=400, detail=f"Invalid regular expression: {e}"
+                status_code=400,
+                detail=f"Invalid regular expression: {e}",
             )
         matches, truncated = self._collect_grep_matches(
-            base, compiled, req.file_pattern, req.max_matches
+            base,
+            compiled,
+            req.file_pattern,
+            req.max_matches,
         )
         return GrepFilesResponse(
-            pattern=req.pattern, matches=matches, truncated=truncated
+            pattern=req.pattern,
+            matches=matches,
+            truncated=truncated,
         )
 
     def get_file_info(self, req: GetFileInfoRequest) -> GetFileInfoResponse:
@@ -358,7 +374,8 @@ class ReadFileService:
         # Guard: path must exist before calling stat()
         if not target.exists():
             raise HTTPException(
-                status_code=404, detail=f"Path does not exist: {req.path}"
+                status_code=404,
+                detail=f"Path does not exist: {req.path}",
             )
 
         try:
@@ -392,19 +409,23 @@ class ReadFileService:
 
     async def fmt_list_directory(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            self.list_dir_entries, ListDirectoryRequest(**args), include_dir_sizes=False
+            self.list_dir_entries,
+            ListDirectoryRequest(**args),
+            include_dir_sizes=False,
         )
         return ReadFileService._fmt_dir_entries(result.entries)
 
     async def fmt_list_directory_with_sizes(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            self.list_dir_entries, ListDirectoryRequest(**args), include_dir_sizes=True
+            self.list_dir_entries,
+            ListDirectoryRequest(**args),
+            include_dir_sizes=True,
         )
         return ReadFileService._fmt_dir_entries(result.entries)
 
     async def fmt_directory_tree(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.build_directory_tree(DirectoryTreeRequest(**args))
+            lambda: self.build_directory_tree(DirectoryTreeRequest(**args)),
         )
         effective_depth = min(args.get("depth", 3), self._max_tree_depth)
         total_nodes = ReadFileService._count_tree_nodes(result.root)
@@ -416,19 +437,19 @@ class ReadFileService:
 
     async def fmt_read_text_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.read_text_file(ReadTextFileRequest(**args))
+            lambda: self.read_text_file(ReadTextFileRequest(**args)),
         )
         return result.content
 
     async def fmt_read_media_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.read_media_file(ReadMediaFileRequest(**args))
+            lambda: self.read_media_file(ReadMediaFileRequest(**args)),
         )
         return f"base64:{result.mime_type};{result.content_base64}"
 
     async def fmt_read_multiple_files(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.read_multiple_files(ReadMultipleFilesRequest(**args))
+            lambda: self.read_multiple_files(ReadMultipleFilesRequest(**args)),
         )
         parts = [
             f"=== {r.path} [ERROR: {r.error}] ==="
@@ -440,7 +461,7 @@ class ReadFileService:
 
     async def fmt_search_files(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.search_files(SearchFilesRequest(**args))
+            lambda: self.search_files(SearchFilesRequest(**args)),
         )
         return (
             "\n".join(result.matches) if result.matches else "No matching files found."
@@ -448,7 +469,7 @@ class ReadFileService:
 
     async def fmt_grep_files(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.grep_files(GrepFilesRequest(**args))
+            lambda: self.grep_files(GrepFilesRequest(**args)),
         )
         if not result.matches:
             return "No matches found."
@@ -460,7 +481,7 @@ class ReadFileService:
 
     async def fmt_get_file_info(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
-            lambda: self.get_file_info(GetFileInfoRequest(**args))
+            lambda: self.get_file_info(GetFileInfoRequest(**args)),
         )
         info = result.info
         return "\n".join(
@@ -472,7 +493,7 @@ class ReadFileService:
                 f"created_at: {info.created_at}",
                 f"modified_at: {info.modified_at}",
                 f"permissions: {info.permissions}",
-            ]
+            ],
         )
 
     def get_dispatch_table(

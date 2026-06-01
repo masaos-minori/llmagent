@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-cmd_context.py
+"""cmd_context.py
 Context, history, and database mixin for CommandRegistry.
 
 Extracted from agent_commands.py.  Provides _ContextMixin with:
@@ -18,10 +17,11 @@ Also defines _budget_breakdown (re-exported by agent_commands.py).
 """
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import orjson
 from shared.git_helper import get_repo_info
+from shared.types import LLMMessage
 
 from db.helper import SQLiteHelper
 from db.maintenance import (
@@ -57,7 +57,7 @@ def _parse_flag_str(tokens: list[str], flag: str) -> str | None:
     return None
 
 
-def _budget_breakdown(messages: list[Any]) -> dict[str, int]:
+def _budget_breakdown(messages: list[LLMMessage]) -> dict[str, int]:
     """Compute per-category character counts for the given message list.
 
     Categories: system, rag, history, tool_results.
@@ -76,7 +76,7 @@ def _budget_breakdown(messages: list[Any]) -> dict[str, int]:
         tool_calls = m.get("tool_calls") or []
         if role == "system":
             if text.startswith("[Reference documents]") or text.startswith(
-                "[Additional context]"
+                "[Additional context]",
             ):
                 counts["rag"] += len(text)
             else:
@@ -90,6 +90,29 @@ def _budget_breakdown(messages: list[Any]) -> dict[str, int]:
         else:
             counts["history"] += len(text)
     return counts
+
+
+def _format_memory_status(ctx: "AgentContext") -> str:
+    """Return a one-line summary of the memory layer state."""
+    if ctx.services.memory is None:
+        return "disabled"
+    mem = ctx.services.memory
+    by_type = mem.stat_by_type
+    return (
+        f"enabled (entries={mem.stat_entries},"
+        f" semantic={by_type.get('semantic', 0)},"
+        f" episodic={by_type.get('episodic', 0)},"
+        f" vec_entries={mem.stat_vec_entries})"
+    )
+
+
+def _token_source_label(token_is_exact: bool, tokenize_configured: bool) -> str:
+    """Return a human-readable label for the token count source."""
+    if token_is_exact:
+        return "LLM usage"
+    if tokenize_configured:
+        return "/tokenize (next turn)"
+    return "chars/4"
 
 
 class _ContextMixin:
@@ -126,7 +149,10 @@ class _ContextMixin:
         print(f"  Compress count  : {compress_count}")
         print(f"  System prompt   : {ctx.system_prompt_name}")
         print(f"  System preview  : {sys_preview!r}")
-        # Token estimate (chars // 4 approximation; LLM usage field may be more precise)
+        # Token count: exact when LLM reports usage.prompt_tokens; estimate otherwise.
+        # /tokenize-based exact counting requires an async call; /context shows the
+        # best synchronously-available value (LLM usage wins, then chars // 4).
+        token_is_exact = ctx.stat_input_tokens is not None
         token_estimate = (
             ctx.services.hist_mgr.count_tokens(ctx.history, ctx.stat_input_tokens)
             if ctx.services.hist_mgr is not None
@@ -134,30 +160,24 @@ class _ContextMixin:
         )
         token_limit = ctx.cfg.context_token_limit
         token_limit_str = f"{token_limit:,}" if token_limit > 0 else "disabled"
-        # Memory layer status
-        if ctx.services.memory is not None:
-            mem_entries = ctx.services.memory.stat_entries
-            by_type = ctx.services.memory.stat_by_type
-            sem_cnt = by_type.get("semantic", 0)
-            epi_cnt = by_type.get("episodic", 0)
-            vec_entries = ctx.services.memory.stat_vec_entries
-            mem_status = f"enabled (entries={mem_entries}, semantic={sem_cnt}, episodic={epi_cnt}, vec_entries={vec_entries})"
-        else:
-            mem_status = "disabled"
+        mem_status = _format_memory_status(ctx)
         git_info = get_repo_info()
         git_str = (
             f"{git_info['branch']} @ {git_info['commit']} {git_info['message']}"
             if git_info
             else "unavailable"
         )
+        token_label = "Token count  " if token_is_exact else "Token estimate"
+        tokenize_configured = bool(getattr(ctx.cfg, "tokenize_url", ""))
+        src = _token_source_label(token_is_exact, tokenize_configured)
         if token_limit > 0:
             token_pct = int(token_estimate * 100 / token_limit)
             print(
-                f"  Token estimate  : {token_estimate:,}"
-                f" (limit={token_limit:,} [active] {token_pct}%)"
+                f"  {token_label} : {token_estimate:,}"
+                f" ({src}, limit={token_limit:,} [active] {token_pct}%)",
             )
         else:
-            print(f"  Token estimate  : {token_estimate:,} (chars / 4)")
+            print(f"  {token_label} : {token_estimate:,} ({src})")
         print(f"  Token limit     : {token_limit_str}")
         print(f"  Memory layer    : {mem_status}")
         print(f"  Git             : {git_str}")
@@ -277,7 +297,7 @@ class _ContextMixin:
                 " | /db clean <url> | /db rebuild-fts"
                 " | /db health | /db checkpoint [MODE]"
                 " | /db vacuum | /db purge [--max-sessions N] [--max-age-days N]"
-                " | /db recover [<backup-path>]"
+                " | /db recover [<backup-path>]",
             )
 
     def _db_clean(self, rest: str) -> None:
@@ -373,7 +393,7 @@ class _ContextMixin:
             with SQLiteHelper("session").open(write_mode=True) as db:
                 result = purge_old_sessions(db, cfg)
             print(
-                f"Purged: {result['age_deleted']} by age, {result['count_deleted']} by count"
+                f"Purged: {result['age_deleted']} by age, {result['count_deleted']} by count",
             )
         except Exception as e:
             print(f"Purge error: {e}")

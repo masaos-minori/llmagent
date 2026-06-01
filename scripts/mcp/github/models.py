@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/github/models.py
+"""mcp/github/models.py
 Config loading and Pydantic request/response models for mcp/github/server.py.
 
 Dependency direction: mcp.github.models → (no local deps)
@@ -44,7 +43,8 @@ DEFAULT_PER_PAGE: int = _get_cfg().get("default_per_page", 10)
 # ──────────────────────────────────────────────────────────────────────────────
 class SearchRepositoriesRequest(BaseModel):
     query: str = Field(
-        ..., description="GitHub repository search query (GitHub Search syntax)"
+        ...,
+        description="GitHub repository search query (GitHub Search syntax)",
     )
     per_page: int = Field(
         default=DEFAULT_PER_PAGE,
@@ -70,7 +70,8 @@ class SearchRepositoriesResponse(BaseModel):
 
 class GetFileContentsRequest(BaseModel):
     owner: str = Field(
-        ..., description="Repository owner name (username or organization name)"
+        ...,
+        description="Repository owner name (username or organization name)",
     )
     repo: str = Field(..., description="Repository name")
     path: str = Field(..., description="File path (relative to repository root)")
@@ -132,7 +133,8 @@ class CreateIssueRequest(BaseModel):
     body: str = Field(default="", description="Issue body (Markdown)")
     labels: list[str] = Field(default_factory=list, description="List of label names")
     assignees: list[str] = Field(
-        default_factory=list, description="List of assignee GitHub usernames"
+        default_factory=list,
+        description="List of assignee GitHub usernames",
     )
 
 
@@ -231,7 +233,8 @@ class CreateBranchRequest(BaseModel):
     repo: str = Field(..., description="Repository name")
     branch_name: str = Field(..., description="Name of the new branch to create")
     from_branch: str = Field(
-        default="", description="Base branch to derive from (default: default branch)"
+        default="",
+        description="Base branch to derive from (default: default branch)",
     )
 
 
@@ -247,7 +250,8 @@ class CreateOrUpdateFileRequest(BaseModel):
     content: str = Field(..., description="File content (UTF-8 text)")
     message: str = Field(..., description="Commit message")
     branch: str = Field(
-        default="", description="Target branch name (default: default branch)"
+        default="",
+        description="Target branch name (default: default branch)",
     )
     sha: str = Field(
         default="",
@@ -298,7 +302,8 @@ class DeleteRepoFileRequest(BaseModel):
     owner: str = Field(..., description="Repository owner name")
     repo: str = Field(..., description="Repository name")
     path: str = Field(
-        ..., description="File path to delete (relative to repository root)"
+        ...,
+        description="File path to delete (relative to repository root)",
     )
     message: str = Field(..., description="Commit message")
     sha: str = Field(
@@ -306,7 +311,8 @@ class DeleteRepoFileRequest(BaseModel):
         description="Current SHA of the file to delete (required to prevent conflicts)",
     )
     branch: str = Field(
-        default="", description="Target branch name (default: default branch)"
+        default="",
+        description="Target branch name (default: default branch)",
     )
 
 
@@ -365,7 +371,8 @@ class SearchIssuesResponse(BaseModel):
 
 class SearchPullRequestsRequest(BaseModel):
     query: str = Field(
-        ..., description="GitHub search query (is:pr is appended automatically)"
+        ...,
+        description="GitHub search query (is:pr is appended automatically)",
     )
     per_page: int = Field(default=DEFAULT_PER_PAGE, ge=1)
 
@@ -397,10 +404,12 @@ class MergePullRequestRequest(BaseModel):
     repo: str = Field(..., description="Repository name")
     pr_number: int = Field(..., description="Pull request number to merge")
     commit_title: str = Field(
-        default="", description="Merge commit title (default: GitHub default)"
+        default="",
+        description="Merge commit title (default: GitHub default)",
     )
     commit_message: str = Field(
-        default="", description="Merge commit body (default: GitHub default)"
+        default="",
+        description="Merge commit body (default: GitHub default)",
     )
     merge_method: str = Field(
         default="merge",

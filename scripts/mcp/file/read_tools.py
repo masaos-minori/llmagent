@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp/file/read_tools.py
+"""mcp/file/read_tools.py
 MCP tool schema definitions for file-read-mcp server (inputSchema format).
 
 Imported by mcp/file/read_server.py to keep the server module under 400 lines.
@@ -18,7 +17,7 @@ _MCP_TOOLS = [
                 "path": {
                     "type": "string",
                     "description": "Absolute path of the directory to list",
-                }
+                },
             },
             "required": ["path"],
         },
@@ -32,7 +31,7 @@ _MCP_TOOLS = [
                 "path": {
                     "type": "string",
                     "description": "Absolute path of the directory to list",
-                }
+                },
             },
             "required": ["path"],
         },
@@ -86,7 +85,7 @@ _MCP_TOOLS = [
                 "path": {
                     "type": "string",
                     "description": "Absolute path of the media file to read",
-                }
+                },
             },
             "required": ["path"],
         },
@@ -101,7 +100,7 @@ _MCP_TOOLS = [
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "List of absolute file paths to read",
-                }
+                },
             },
             "required": ["paths"],
         },
@@ -159,7 +158,7 @@ _MCP_TOOLS = [
                 "path": {
                     "type": "string",
                     "description": "Absolute path of the file or directory to inspect",
-                }
+                },
             },
             "required": ["path"],
         },

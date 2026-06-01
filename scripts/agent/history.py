@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-agent/history.py
+"""agent/history.py
 Conversation history compression layer extracted from REPLAgent.
 Monitors total history size and summarises old turns via the chat LLM
 when the character limit is exceeded.
@@ -12,6 +11,7 @@ from collections.abc import Callable
 import httpx
 import orjson
 from rag.types import LLMMessage
+from shared.token_counter import get_token_count
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +38,7 @@ class HistoryManager:
         on_compress: Callable[[int], None] | None = None,
         protect_turns: int = 2,
         token_limit: int = 0,
+        tokenize_url: str = "",
     ) -> None:
         self._http = http
         self._llm_url = llm_url
@@ -50,6 +51,8 @@ class HistoryManager:
         self._protect_turns = protect_turns
         # Token-based limit; 0 = disabled (falls back to char_limit only)
         self._token_limit = token_limit
+        # llamacpp /tokenize endpoint; "" = disabled (uses chars // 4 fallback)
+        self._tokenize_url = tokenize_url
         # Cumulative compression count for this session
         self.stat_compress_count: int = 0
 
@@ -75,7 +78,9 @@ class HistoryManager:
         return total
 
     def count_tokens(
-        self, history: list[LLMMessage], last_input_tokens: int | None = None
+        self,
+        history: list[LLMMessage],
+        last_input_tokens: int | None = None,
     ) -> int:
         """Estimate total tokens in a history list.
 
@@ -86,6 +91,24 @@ class HistoryManager:
         if last_input_tokens is not None:
             return last_input_tokens
         return self.count_chars(history) // 4
+
+    async def count_tokens_async(
+        self,
+        history: list[LLMMessage],
+        last_input_tokens: int | None = None,
+    ) -> tuple[int, bool]:
+        """Return (token_count, is_exact) using the best available source.
+
+        Priority:
+          1. last_input_tokens (from LLM usage.prompt_tokens) — exact
+          2. /tokenize endpoint (llamacpp)                    — exact
+          3. chars // 4                                       — estimate
+
+        Returns is_exact=True for sources 1 and 2.
+        """
+        if last_input_tokens is not None:
+            return last_input_tokens, True
+        return await get_token_count(history, self._tokenize_url, self._http)
 
     @staticmethod
     def _classify(msg: LLMMessage) -> str:
@@ -99,6 +122,7 @@ class HistoryManager:
 
         Returns:
             One of: 'temporary', 'temporary_reasoning', 'factual', 'history'.
+
         """
         role = msg.get("role", "")
         if role == "tool":
@@ -142,7 +166,8 @@ class HistoryManager:
             return None
 
     def _select_turns_to_compress(
-        self, history: list[LLMMessage]
+        self,
+        history: list[LLMMessage],
     ) -> tuple[list[LLMMessage], list[LLMMessage], list[LLMMessage]] | None:
         """Split history into (system_msgs, to_compress, remaining).
 
@@ -181,9 +206,12 @@ class HistoryManager:
         over_char = (
             self._char_limit > 0 and self.count_chars(history) > self._char_limit
         )
-        over_token = (
-            self._token_limit > 0 and self.count_tokens(history) > self._token_limit
-        )
+        if self._token_limit > 0:
+            token_count, _ = await self.count_tokens_async(history)
+            over_token = token_count > self._token_limit
+        else:
+            token_count = 0
+            over_token = False
         if not over_char and not over_token:
             return history
         split = self._select_turns_to_compress(history)
@@ -192,14 +220,14 @@ class HistoryManager:
                 f"History compression skipped: protect_turns={self._protect_turns}"
                 f" + compress_turns={self._compress_turns} >= available turns."
                 f" chars={self.count_chars(history)} limit={self._char_limit}"
-                f" tokens~{self.count_tokens(history)} token_limit={self._token_limit}."
+                f" tokens={token_count} token_limit={self._token_limit}."
                 " Consider reducing protect_turns or increasing"
-                " context_char_limit."
+                " context_char_limit.",
             )
             return history
         system_msgs, to_compress, remaining = split
         summary_text = await self._call_compress_llm(
-            self._build_history_text(to_compress)
+            self._build_history_text(to_compress),
         )
         if summary_text is None:
             return history

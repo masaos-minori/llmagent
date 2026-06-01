@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-chunk_japanese.py
+"""chunk_japanese.py
 ChunkJapaneseMixin: morphological-analysis-based chunking for Japanese text.
 
 Provides _chunk_japanese, _split_into_ja_sentences, _normalize_ja_sentence,
@@ -69,7 +68,8 @@ class ChunkJapaneseMixin:
         return " ".join(tokens)
 
     def _merge_ja_sentence_pairs(
-        self, pairs: list[tuple[str, str]]
+        self,
+        pairs: list[tuple[str, str]],
     ) -> list[tuple[str, str]]:
         """Accumulate (original, normalized) sentence pairs into chunk pairs by original text length; applies overlap from buffer tail when configured."""
         if not pairs:

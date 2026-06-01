@@ -40,6 +40,9 @@ tool_results_turn_max_chars = 50000
 # Token-based history compression monitoring threshold; 0 disables; logs logger.warning when chars/4 exceeds this value
 context_token_limit = 0
 
+# llamacpp /tokenize endpoint for exact token counting; "" disables (falls back to chars // 4)
+tokenize_url = ""
+
 # Excludes the most recent N turns (user+assistant pairs) from compression; default 2
 history_protect_turns = 2
 

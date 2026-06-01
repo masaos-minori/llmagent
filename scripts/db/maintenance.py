@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-db_maintenance.py
+"""db_maintenance.py
 SQLite operational maintenance: WAL checkpoint, VACUUM, DB rotation,
 session retention, and corruption recovery.
 
@@ -79,7 +78,8 @@ def vacuum_db(db: SQLiteHelper) -> None:
 
 
 def purge_old_sessions(
-    db: SQLiteHelper, cfg: RetentionConfig | None = None
+    db: SQLiteHelper,
+    cfg: RetentionConfig | None = None,
 ) -> dict[str, int]:
     """Delete sessions exceeding the retention policy (age-based then count-based); CASCADE removes messages; returns {age_deleted, count_deleted}."""
     if cfg is None:
@@ -98,11 +98,11 @@ def purge_old_sessions(
         if age_deleted:
             logger.info(
                 f"Retention: removed {age_deleted} sessions"
-                f" older than {cfg.max_age_days} days"
+                f" older than {cfg.max_age_days} days",
             )
 
     rows = db.conn.execute(
-        "SELECT session_id FROM sessions ORDER BY created_at DESC"
+        "SELECT session_id FROM sessions ORDER BY created_at DESC",
     ).fetchall()
     if len(rows) > cfg.max_sessions:
         to_delete = [row[0] for row in rows[cfg.max_sessions :]]
@@ -114,7 +114,7 @@ def purge_old_sessions(
         count_deleted = cur.rowcount
         logger.info(
             f"Retention: removed {count_deleted} sessions"
-            f" beyond limit of {cfg.max_sessions}"
+            f" beyond limit of {cfg.max_sessions}",
         )
 
     db.conn.commit()
@@ -146,7 +146,7 @@ def prune_old_memories(db: SQLiteHelper, older_than_days: int) -> int:
     db.conn.commit()
     logger.info(
         f"prune_old_memories: removed {deleted} entries"
-        f" older than {older_than_days} days"
+        f" older than {older_than_days} days",
     )
     return deleted
 

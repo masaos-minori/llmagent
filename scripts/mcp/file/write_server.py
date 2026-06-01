@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-file_write_mcp_server.py
+"""file_write_mcp_server.py
 MCP server for write filesystem operations (port 8007).
 
 Provides an HTTP API via FastAPI for creating, editing, and moving files.
@@ -56,7 +55,7 @@ async def write_file(req: WriteFileRequest) -> WriteFileResponse:
     result = _service.write_file(req)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(
-        fmt_kvlog("write_file", path=result.path, bytes=result.size, ms=f"{ms:.0f}")
+        fmt_kvlog("write_file", path=result.path, bytes=result.size, ms=f"{ms:.0f}"),
     )
     return result
 
@@ -74,7 +73,7 @@ async def edit_file(req: EditFileRequest) -> EditFileResponse:
             action=action,
             n=len(req.edits),
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -86,7 +85,7 @@ async def create_directory(req: CreateDirectoryRequest) -> CreateDirectoryRespon
     ms = (time.perf_counter() - t0) * 1000
     created = "created" if result.created else "exists"
     logger.info(
-        fmt_kvlog("create_directory", path=result.path, result=created, ms=f"{ms:.0f}")
+        fmt_kvlog("create_directory", path=result.path, result=created, ms=f"{ms:.0f}"),
     )
     return result
 
@@ -98,8 +97,11 @@ async def move_file(req: MoveFileRequest) -> MoveFileResponse:
     ms = (time.perf_counter() - t0) * 1000
     logger.info(
         fmt_kvlog(
-            "move_file", src=result.source, dst=result.destination, ms=f"{ms:.0f}"
-        )
+            "move_file",
+            src=result.source,
+            dst=result.destination,
+            ms=f"{ms:.0f}",
+        ),
     )
     return result
 
@@ -177,7 +179,7 @@ _MCP_TOOLS = [
                 "path": {
                     "type": "string",
                     "description": "Absolute path of the directory to create",
-                }
+                },
             },
             "required": ["path"],
         },
@@ -218,7 +220,7 @@ async def list_tools() -> dict[str, Any]:
         "tools": [
             {"name": t["name"], "description": t.get("description", "")}
             for t in _MCP_TOOLS
-        ]
+        ],
     }
 
 

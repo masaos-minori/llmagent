@@ -1,13 +1,15 @@
-# sqlite_helper.py リファレンス
+# db 層リファレンス
 
 インフラ共通モジュール → [`docs/06_ref-infra.md`](06_ref-infra.md)
 
-## sqlite_helper.py
+## db/helper.py — SQLiteHelper
 
 ### 機能概要
 
 SQLite (sqlite-vec 拡張付き) の接続ライフサイクル管理と SQL 実行を提供する接続マネージャ。
 `target="rag"` (デフォルト) で `rag.sqlite`、`target="session"` で `session.sqlite` に接続する。
+
+全接続に `PRAGMA journal_mode=WAL` / `PRAGMA synchronous=NORMAL` / `PRAGMA busy_timeout=<ms>` を適用する。`busy_timeout` は `common.toml` の `sqlite_busy_timeout_ms`（デフォルト 30000 ms）から取得する。
 
 ### コンストラクタ
 
@@ -19,17 +21,20 @@ SQLiteHelper(target: str = "rag")
 | target | DB ファイル | 格納テーブル |
 |---|---|---|
 | `"rag"` (デフォルト) | `rag.sqlite` (`rag_db_path`) | documents, chunks, chunks_vec, chunks_fts |
-| `"session"` | `session.sqlite` (`session_db_path`) | sessions, messages, notes, tool_results, memory_entries, memory_vec |
+| `"session"` | `session.sqlite` (`session_db_path`) | sessions, messages, notes, tool_results, memories, memories_fts, memories_vec, memory_links |
 
 不正な `target` 値は `ValueError` を送出する。
+
+インスタンス属性 `conn: sqlite3.Connection | None` は `open()` 前は `None`。
 
 ### クラス属性
 
 ```python
 SQLiteHelper._ensure_config()   # 一度呼べばクラス変数が確定する
-print(SQLiteHelper._RAG_PATH)   # rag.sqlite の絶対パス
-print(SQLiteHelper._SESSION_PATH)  # session.sqlite の絶対パス
-print(SQLiteHelper.SQLITE_VEC_SO)  # vec0.so の絶対パス
+print(SQLiteHelper._RAG_PATH)         # rag.sqlite の絶対パス
+print(SQLiteHelper._SESSION_PATH)     # session.sqlite の絶対パス
+print(SQLiteHelper.SQLITE_VEC_SO)     # vec0.so の絶対パス
+print(SQLiteHelper._config_loaded)    # _ensure_config() 呼び出し済みフラグ
 ```
 
 | クラス属性 | 説明 |
@@ -37,6 +42,7 @@ print(SQLiteHelper.SQLITE_VEC_SO)  # vec0.so の絶対パス
 | `SQLiteHelper._RAG_PATH` | `config/common.toml` の `rag_db_path` (例: `/opt/llm/db/rag.sqlite`)。`_ensure_config()` 後に確定 |
 | `SQLiteHelper._SESSION_PATH` | `config/common.toml` の `session_db_path` (例: `/opt/llm/db/session.sqlite`)。同上 |
 | `SQLiteHelper.SQLITE_VEC_SO` | `config/common.toml` の `sqlite_vec_so` (例: `/opt/llm/sqlite-vec/vec0.so`)。同上 |
+| `SQLiteHelper._config_loaded` | `_ensure_config()` が一度でも呼ばれたかどうかのフラグ。`True` 以降は再読み込みをスキップ |
 
 インスタンス属性 `DB_PATH` はプロパティ — `target` に応じて `_RAG_PATH` か `_SESSION_PATH` を返す。
 `open()` は内部で `_ensure_config()` を呼ぶため、接続前に明示的な初期化は不要。
@@ -59,10 +65,15 @@ with SQLiteHelper("session").open(write_mode=True) as db:
 | メソッド | 説明 |
 |---|---|
 | `open(*, write_mode=False, row_factory=False) -> SQLiteHelper` | 接続を開いて `self.conn` に格納し `self` を返す。`with` ブロックと組み合わせて使用可 |
-| `execute(sql, params=()) -> sqlite3.Cursor` | SQL を実行してカーソルを返す。`params` は tuple (位置) または dict (名前付き) |
+| `execute(sql, params=()) -> sqlite3.Cursor` | SQL を実行してカーソルを返す。`params` は tuple (位置) または dict (名前付き)。接続未開時は `RuntimeError`、空 SQL は `ValueError` |
 | `fetchall(sql, params=()) -> list[Any]` | SQL を実行して全結果行をリストで返す (execute + fetchall の合成) |
-| `commit() -> None` | `self.conn` のトランザクションをコミット |
+| `commit() -> None` | `self.conn` のトランザクションをコミット。`OperationalError` はログ出力後に再送出 |
 | `close() -> None` | `self.conn` を閉じて `None` にリセットする (冪等) |
+| `begin_immediate() -> contextmanager` | `BEGIN IMMEDIATE` トランザクションブロック。例外時は自動 `ROLLBACK` |
+| `begin_exclusive() -> contextmanager` | `BEGIN EXCLUSIVE` トランザクションブロック。例外時は自動 `ROLLBACK` |
+| `health_check() -> dict[str, Any]` | DB ヘルスメトリクスを dict で返す |
+| `checkpoint(mode="TRUNCATE") -> dict[str, int]` | WAL チェックポイントを実行し `{busy, pages_in_wal, pages_checkpointed}` を返す |
+| `vacuum() -> None` | `VACUUM` を実行してDBファイルをインプレース再構築 |
 | `__enter__() -> SQLiteHelper` | コンテキストマネージャ開始。`self` を返す |
 | `__exit__(...) -> None` | コンテキストマネージャ終了。`close()` を呼び出す |
 
@@ -72,7 +83,15 @@ with SQLiteHelper("session").open(write_mode=True) as db:
 def open(self, *, write_mode: bool = False, row_factory: bool = False) -> "SQLiteHelper"
 ```
 
-sqlite-vec 拡張をロード済みの接続を `self.conn` に格納し、`self` を返す。拡張ロード後に `enable_load_extension(False)` を呼んでセキュリティを確保。`self` を返すことで `with SQLiteHelper("rag").open(...) as db:` パターンが使用可能。
+sqlite-vec 拡張をロード済みの接続を `self.conn` に格納し、`self` を返す。
+
+接続確立後に以下を順番に適用する:
+
+1. sqlite-vec 拡張ロード (`SQLITE_VEC_SO`)。ロード後に `enable_load_extension(False)` を呼んでセキュリティを確保
+2. `PRAGMA journal_mode=WAL`
+3. `PRAGMA synchronous=NORMAL`
+4. `PRAGMA busy_timeout=<sqlite_busy_timeout_ms>` (デフォルト 30000 ms)
+5. `write_mode=True` のとき `PRAGMA foreign_keys=ON` を追加設定
 
 | キーワード引数 | デフォルト | 説明 |
 |---|---|---|
@@ -91,13 +110,26 @@ sqlite-vec 拡張をロード済みの接続を `self.conn` に格納し、`self
 | `agent/memory/store.py` | `with SQLiteHelper("session").open(write_mode=True) as db:` — メモリ層 |
 | `db/tool_results.py` | `with SQLiteHelper("session").open(...) as db:` — ツール結果保存 |
 
+#### SQLiteHelper.execute
+
+```python
+def execute(self, sql: str, params: dict[str, Any] | tuple[Any, ...] = ()) -> sqlite3.Cursor
+```
+
+接続が未開 (`conn is None`) の場合は `RuntimeError`、`sql` が空または文字列でない場合は `ValueError` を送出する。
+
+| `params` の形式 | プレースホルダ構文 | 例 |
+|---|---|---|
+| `tuple` | `?` (位置) | `db.execute("SELECT * FROM t WHERE id = ?", (1,))` |
+| `dict` | `:name` (名前付き) | `db.execute("SELECT * FROM t WHERE id = :id", {"id": 1})` |
+
 #### SQLiteHelper.fetchall
 
 ```python
 def fetchall(self, sql: str, params: dict[str, Any] | tuple[Any, ...] = ()) -> list[Any]
 ```
 
-`self.conn.execute(sql, params).fetchall()` を呼び出して全結果行をリストで返す。`params` の形式は `execute()` と同じ (tuple または dict)。
+`self.conn.execute(sql, params).fetchall()` を呼び出して全結果行をリストで返す。`params` の形式は `execute()` と同じ (tuple または dict)。接続が未開の場合は `RuntimeError`。
 
 #### SQLiteHelper.commit
 
@@ -105,18 +137,7 @@ def fetchall(self, sql: str, params: dict[str, Any] | tuple[Any, ...] = ()) -> l
 def commit(self) -> None
 ```
 
-`self.conn.commit()` を呼び出して現在のトランザクションをコミット。
-
-#### SQLiteHelper.execute
-
-```python
-def execute(self, sql: str, params: dict[str, Any] | tuple[Any, ...] = ()) -> sqlite3.Cursor
-```
-
-| `params` の形式 | プレースホルダ構文 | 例 |
-|---|---|---|
-| `tuple` | `?` (位置) | `db.execute("SELECT * FROM t WHERE id = ?", (1,))` |
-| `dict` (ハッシュ) | `:name` (名前付き) | `db.execute("SELECT * FROM t WHERE id = :id", {"id": 1})` |
+接続が未開 (`conn is None`) の場合は `RuntimeError` を送出する。`sqlite3.OperationalError` 発生時はエラーをログ出力してから再送出する。
 
 #### SQLiteHelper.close
 
@@ -124,7 +145,7 @@ def execute(self, sql: str, params: dict[str, Any] | tuple[Any, ...] = ()) -> sq
 def close(self) -> None
 ```
 
-`self.conn` が開いていれば閉じて `None` にリセット。`with` ブロック (`__exit__`) から自動的に呼ばれる。`self.conn` が `None` の場合は何もしない (冪等)。
+`self.conn` が開いていれば閉じて `None` にリセット。`with` ブロック (`__exit__`) から自動的に呼ばれる。`self.conn` が `None` の場合は何もしない (冪等)。クローズ中の例外は `WARNING` レベルでログ出力するが送出しない。
 
 #### SQLiteHelper.begin_immediate / begin_exclusive
 
@@ -141,7 +162,7 @@ with SQLiteHelper("rag").open(write_mode=True) as db:
 | `begin_immediate()` | `BEGIN IMMEDIATE` で書き込みロックを取得。複数ステートメントをアトミックに実行する書き込みトランザクション (chunk 投入、ドキュメント削除など) に使用 |
 | `begin_exclusive()` | `BEGIN EXCLUSIVE` で読み書き全排他ロック。VACUUM やスキーママイグレーションなど他のリーダーを完全にブロックする必要がある場合のみ使用 |
 
-どちらも `@contextmanager` — `with db.begin_immediate():` の形式で使用。例外発生時は自動的に `ROLLBACK`。
+どちらも `@contextmanager` — `with db.begin_immediate():` の形式で使用。`open()` 前に呼ぶと `AssertionError`。例外発生時は自動的に `ROLLBACK`。
 
 #### SQLiteHelper.health_check
 
@@ -151,7 +172,7 @@ metrics = SQLiteHelper("rag").open().health_check()
 #  "page_size": 4096, "freelist_count": 10, "db_size_bytes": 4194304}
 ```
 
-`PRAGMA quick_check` (高速版 integrity check) を実行し、journal mode / integrity / page stats を dict で返す。`/db health` コマンドから呼ばれる。
+`PRAGMA quick_check` (高速版 integrity check) を実行し、journal mode / integrity / page stats を dict で返す。`/db health` コマンドから呼ばれる。`open()` 前に呼ぶと `AssertionError`。
 
 #### SQLiteHelper.checkpoint
 
@@ -167,13 +188,15 @@ result = db.checkpoint(mode="TRUNCATE")
 | `RESTART` | FULL + WAL 書き込み位置をリセット |
 | `TRUNCATE` | RESTART + WAL を 0 バイトに切り詰め (デフォルト。大量書き込み後のディスク回収に使用) |
 
+不正な `mode` 値は `ValueError` を送出する。`open()` 前に呼ぶと `AssertionError`。
+
 #### SQLiteHelper.vacuum
 
 ```python
 db.vacuum()
 ```
 
-`VACUUM` を実行してDBファイルをインプレース再構築。空きページを回収してデフラグ。実行にはDB サイズの約2倍の空きディスクが必要。トランザクション外で呼ぶこと。
+`VACUUM` を実行してDBファイルをインプレース再構築。空きページを回収してデフラグ。実行にはDB サイズの約2倍の空きディスクが必要。トランザクション外で呼ぶこと。`open()` 前に呼ぶと `AssertionError`。
 
 ### 使用スクリプト
 
@@ -187,3 +210,268 @@ db.vacuum()
 | `agent/memory/store.py` | `"session"` | `with SQLiteHelper("session").open(...) as db:` — メモリ層 |
 | `db/tool_results.py` | `"session"` | `with SQLiteHelper("session").open(...) as db:` — ツール結果保存 |
 | `rag/pipeline.py` | `"rag"` | `fetchall(...)` — `vector_search` / `fts_search` が SQLiteHelper を受け取る |
+
+---
+
+## db/store.py
+
+### 機能概要
+
+RAG パイプライン向けの抽象 Protocol 定義と SQLite バックエンド実装を提供する。構造的部分型 (`Protocol`) により将来的な非 SQLite バックエンドへの差し替えを可能にする。
+
+埋込定数:
+
+```python
+EMBEDDING_DIMS  = 384          # all-MiniLM-L6-v2 の次元数
+EMBEDDING_BYTES = 384 * 4      # float32 BLOB サイズ (バイト) = 1536
+validate_embedding_blob(blob)  # bytes でない場合は TypeError、不正サイズで ValueError を送出
+```
+
+### Protocol 定義
+
+| Protocol | 対象テーブル | 主なメソッド |
+|---|---|---|
+| `VectorStore` | `chunks_vec` | `vec_insert(chunk_id, embedding)` / `vec_search(embedding, k) -> list[tuple[int, float]]` / `vec_delete(chunk_id)` / `vec_count() -> int` |
+| `DocumentStore` | `documents` / `chunks` | `doc_upsert(url, title, lang, etag, last_modified) -> int` / `doc_get(url) -> dict \| None` / `doc_list(lang, limit) -> list[dict]` / `doc_delete(url) -> bool` / `chunk_insert(doc_id, index, content, normalized) -> int` / `chunk_count() -> int` |
+| `SessionStore` | `sessions` / `messages` | `session_create() -> int` / `session_list(limit) -> list[dict]` / `session_rename(session_id, title)` / `session_delete(session_id)` / `message_save(session_id, role, content, tool_calls)` / `message_list(session_id) -> list[dict]` |
+
+全 Protocol は `@runtime_checkable` — `isinstance()` でチェック可能。
+
+### VectorStore Protocol
+
+```python
+@runtime_checkable
+class VectorStore(Protocol):
+    def vec_insert(self, chunk_id: int, embedding: bytes) -> None: ...
+    def vec_search(self, embedding: bytes, k: int) -> list[tuple[int, float]]: ...
+    def vec_delete(self, chunk_id: int) -> None: ...
+    def vec_count(self) -> int: ...
+```
+
+| メソッド | 説明 |
+|---|---|
+| `vec_insert(chunk_id, embedding)` | `chunks_vec` に float32 BLOB を挿入する |
+| `vec_search(embedding, k)` | `embedding` に近い上位 `k` 件の `(chunk_id, distance)` ペアを返す |
+| `vec_delete(chunk_id)` | `chunk_id` の埋め込みを削除する。存在しない場合は no-op |
+| `vec_count()` | 格納済みの埋め込み数を返す |
+
+### DocumentStore Protocol
+
+```python
+@runtime_checkable
+class DocumentStore(Protocol):
+    def doc_upsert(self, url: str, title: str | None, lang: str,
+                   etag: str | None, last_modified: str | None) -> int: ...
+    def doc_get(self, url: str) -> dict[str, Any] | None: ...
+    def doc_list(self, lang: str | None, limit: int) -> list[dict[str, Any]]: ...
+    def doc_delete(self, url: str) -> bool: ...
+    def chunk_insert(self, doc_id: int, index: int, content: str,
+                     normalized: str | None) -> int: ...
+    def chunk_count(self) -> int: ...
+```
+
+| メソッド | 説明 |
+|---|---|
+| `doc_upsert(url, title, lang, etag, last_modified)` | URL で SELECT し、存在すれば UPDATE、なければ INSERT して `doc_id` を返す。`title` は `str \| None` |
+| `doc_get(url)` | `url` に対応するドキュメント行を返す。見つからない場合は `None`。返り値は `{doc_id, url, title, lang, fetched_at, etag, last_modified}` |
+| `doc_list(lang, limit)` | 最大 `limit` 件のドキュメント行を `fetched_at DESC` 順で返す。`lang` が `None` の場合は全言語。返り値は `{doc_id, url, title, lang, fetched_at}` |
+| `doc_delete(url)` | ドキュメントと CASCADE されたチャンクを削除。見つかった場合は `True` |
+| `chunk_insert(doc_id, index, content, normalized)` | `chunks` テーブル (`chunk_index` カラム) に 1 行挿入して `chunk_id` を返す |
+| `chunk_count()` | `chunks` テーブルの総チャンク数を返す |
+
+### SessionStore Protocol
+
+```python
+@runtime_checkable
+class SessionStore(Protocol):
+    def session_create(self) -> int: ...
+    def session_list(self, limit: int) -> list[dict[str, Any]]: ...
+    def session_rename(self, session_id: int, title: str) -> None: ...
+    def session_delete(self, session_id: int) -> None: ...
+    def message_save(self, session_id: int, role: str, content: str,
+                     tool_calls: str | None) -> None: ...
+    def message_list(self, session_id: int) -> list[dict[str, Any]]: ...
+```
+
+| メソッド | 説明 |
+|---|---|
+| `session_create()` | `sessions` テーブルに新規行を挿入して `session_id` を返す |
+| `session_list(limit)` | 最新 `limit` 件のセッション行を `created_at DESC` 順で返す。返り値は `{session_id, created_at, title}` |
+| `session_rename(session_id, title)` | 指定セッションの `title` を更新する |
+| `session_delete(session_id)` | セッションを削除する。`ON DELETE CASCADE` でメッセージも削除される |
+| `message_save(session_id, role, content, tool_calls)` | `messages` テーブルにメッセージを追記する。`tool_calls` は `str \| None` |
+| `message_list(session_id)` | `session_id` の全メッセージを挿入順 (`message_id` 昇順) で返す。返り値は `{role, content, tool_calls}` |
+
+### SQLite バックエンド実装
+
+| 実装クラス | Protocol | コンストラクタ引数 | 説明 |
+|---|---|---|---|
+| `SQLiteVectorStore(db)` | `VectorStore` | `db: SQLiteHelper` | `chunks_vec` 仮想テーブル経由の sqlite-vec KNN 検索。`vec_insert` は `validate_embedding_blob` で BLOB サイズを検証する |
+| `SQLiteDocumentStore(db)` | `DocumentStore` | `db: SQLiteHelper` | `documents` / `chunks` テーブルへの CRUD。`doc_upsert` は URL で SELECT し、存在すれば UPDATE、なければ INSERT する |
+| `SQLiteSessionStore(db)` | `SessionStore` | `db: SQLiteHelper` | `sessions` / `messages` テーブルへの CRUD。`session_list` は `created_at DESC` 順で返す |
+
+---
+
+## db/maintenance.py
+
+### 機能概要
+
+SQLite 運用メンテナンス操作 (WAL チェックポイント / VACUUM / DB ローテーション / セッション保持期限 / 破損回復) を提供する。全関数はポリシー決定を担い、接続管理は `SQLiteHelper` に委譲する。
+
+### API
+
+| 関数 | シグネチャ | 説明 |
+|---|---|---|
+| `checkpoint_wal(db, mode=None) -> dict[str, int]` | `(db: SQLiteHelper, mode: str \| None = None)` | WAL をフラッシュして `{busy, pages_in_wal, pages_checkpointed}` を返す。`mode` 未指定時は `common.toml` の `sqlite_wal_checkpoint_mode` (デフォルト `TRUNCATE`) を使用 |
+| `vacuum_db(db) -> None` | `(db: SQLiteHelper)` | `db.vacuum()` に委譲。トランザクション外で呼ぶこと |
+| `purge_old_sessions(db, cfg=None) -> dict[str, int]` | `(db: SQLiteHelper, cfg: RetentionConfig \| None = None)` | 保持ポリシーに従いセッションを削除。`{age_deleted, count_deleted}` を返す |
+| `prune_old_memories(db, older_than_days) -> int` | `(db: SQLiteHelper, older_than_days: int)` | `memories` / `memories_fts` / `memories_vec` テーブルから古いメモリを削除して削除数を返す |
+| `rotate_rag_db(archive_dir=None) -> Path` | `(archive_dir: str \| Path \| None = None)` | `rag.sqlite` をタイムスタンプ付きファイル名でアーカイブ。WAL/SHM サイドファイルも同時コピー |
+| `rotate_session_db(archive_dir=None) -> Path` | `(archive_dir: str \| Path \| None = None)` | `session.sqlite` をタイムスタンプ付きでアーカイブ |
+| `rotate_db(archive_dir=None) -> tuple[Path, Path]` | `(archive_dir: str \| Path \| None = None)` | `rag.sqlite` と `session.sqlite` を両方アーカイブ。`(rag_dest, session_dest)` を返す |
+| `recover_corruption(backup_path=None) -> bool` | `(backup_path: str \| Path \| None = None)` | `rag.sqlite` の integrity_check → 正常時は VACUUM して `True`。破損時はアーカイブしてバックアップから復元。`backup_path` 未指定または不存在の場合は `False` |
+
+#### RetentionConfig
+
+```python
+@dataclass(frozen=True)
+class RetentionConfig:
+    max_sessions: int = 100   # 最大保持セッション数
+    max_age_days: int = 90    # 保持日数 (0 = 無効)
+```
+
+`RetentionConfig.from_config()` で `common.toml` の `sqlite_retention_max_sessions` / `sqlite_retention_max_age_days` から構築する。
+
+#### purge_old_sessions の動作
+
+1. `max_age_days > 0` のとき、`created_at` が `N` 日より古いセッションを削除 (`age_deleted` に計上)
+2. 残存セッション数が `max_sessions` を超える場合、古い順から超過分を削除 (`count_deleted` に計上)
+3. `sessions` テーブルに `ON DELETE CASCADE` が設定されていることを前提とする (`messages` が連動削除)
+4. 完了後に `db.conn.commit()` を呼ぶ
+
+#### prune_old_memories の動作
+
+1. `memories` テーブルから `older_than_days` より古い `memory_id` を収集する
+2. `memories` / `memories_fts` / `memories_vec` の 3 テーブルから対象行を削除する (`memories_vec` の削除失敗は無視)
+3. `db.conn.commit()` を呼び、削除件数を返す
+
+#### recover_corruption の動作
+
+1. `rag.sqlite` に対して `PRAGMA integrity_check` を実行する
+2. 結果が `"ok"` の場合: VACUUM を実行して `True` を返す (VACUUM 失敗は `WARNING` ログで無視)
+3. 結果が `"ok"` 以外の場合: 破損ファイルを `{stem}_corrupt_{timestamp}{suffix}` 名でアーカイブし、`backup_path` からコピーして復元する。成功時は `True`、`backup_path` 未指定・不存在・OSError 発生時は `False`
+
+#### rotate_* の動作
+
+`archive_dir` 未指定時は `common.toml` の `sqlite_archive_dir` (デフォルト `/opt/llm/db/archive`) を使用する。アーカイブ先ファイル名は `{stem}_{YYYYMMDD_HHMMSS}{suffix}` 形式。WAL (`-wal`) / SHM (`-shm`) サイドファイルが存在する場合は同じディレクトリに併せてコピーする。
+
+---
+
+## db/tool_results.py — ToolResultStore
+
+### 機能概要
+
+ツール実行結果の全文を `tool_results` テーブルに保存する。LLM 履歴には要約または切り詰めのみが含まれるため、全文は `/tool show <id>` で後追い確認できるようにここに保持する。DB エラー時はサイレントにフォールバックして REPL を継続させる。
+
+### コンストラクタ
+
+```python
+ToolResultStore()
+# 引数なし
+```
+
+### API
+
+```python
+from db.tool_results import ToolResultStore
+
+store = ToolResultStore()
+```
+
+| メソッド | シグネチャ | 説明 |
+|---|---|---|
+| `store(session_id, turn, tool_name, args_json, full_text, summary, is_error) -> int \| None` | `(session_id: int \| None, turn: int, tool_name: str, args_json: str, full_text: str, summary: str \| None, is_error: bool)` | `tool_results` テーブルに 1 行 INSERT して新規 `id` を返す。エラー時は `None` |
+| `get(result_id) -> dict \| None` | `(result_id: int)` | `id` で 1 件取得。見つからない場合は `None`。`row_factory=True` で取得するため返り値は全カラムを含む dict |
+| `list_recent(session_id, n=20) -> list[dict]` | `(session_id: int \| None, n: int = 20)` | 指定セッションの最新 `n` 件を古い順 (昇順) で返す。`session_id=None` またはエラー時は `[]` |
+
+#### list_recent の実装詳細
+
+内部では `ORDER BY id DESC LIMIT ?` で最新 `n` 件を取得し、`reversed()` で古い順に並べ直して返す。返り値の各要素は `{id, tool_name, full_text, summary, is_error}` のみを含む (`session_id`, `turn`, `created_at` は含まない)。
+
+#### get の返り値フィールド
+
+`row_factory=True` で取得するため、`tool_results` テーブルの全カラムを含む dict を返す:
+
+`id` / `session_id` / `turn` / `tool_name` / `args_json` / `full_text` / `summary` / `is_error` / `created_at`
+
+### tool_results テーブルスキーマ
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `id` | INTEGER PRIMARY KEY | 自動採番 ID |
+| `session_id` | INTEGER | セッション ID (NULL 許可) |
+| `turn` | INTEGER | ターン番号 |
+| `tool_name` | TEXT | ツール名 |
+| `args_json` | TEXT | ツール引数の JSON 文字列 |
+| `full_text` | TEXT | ツール実行結果の全文 |
+| `summary` | TEXT | 要約テキスト (NULL 許可) |
+| `is_error` | INTEGER | エラー有無 (0/1) |
+| `created_at` | DATETIME | 作成日時 |
+
+---
+
+## memories / memories_fts / memories_vec テーブル
+
+`session.sqlite` に配置。`MemoryStore` (`agent/memory/store.py`) が CRUD を担当。`MemoryLayer` (`agent/memory/layer.py`) が SessionStart / UserPrompt / Stop ライフサイクルで読み書きする。
+
+### memories テーブルスキーマ
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `memory_id` | TEXT PRIMARY KEY | UUID v4 |
+| `memory_type` | TEXT | `"semantic"` (ルール/方針/事実) または `"episodic"` (Q&A/失敗/履歴) |
+| `source_type` | TEXT | 抽出元: `"conversation"` / `"rule"` / `"tool_result"` など |
+| `session_id` | INTEGER | 関連セッション ID (NULL 許可) |
+| `turn_id` | TEXT | 関連ターン ID (NULL 許可) |
+| `project` | TEXT | プロジェクト名 (フィルタ用) |
+| `repo` | TEXT | リポジトリ名 (フィルタ用) |
+| `branch` | TEXT | ブランチ名 (フィルタ用) |
+| `content` | TEXT | メモリ本文 |
+| `summary` | TEXT | 要約テキスト (NULL 許可) |
+| `tags` | TEXT | JSON 配列形式のタグ |
+| `importance` | REAL | 重要度スコア (0.0〜1.0) |
+| `pinned` | INTEGER | ピン留めフラグ (0/1); ピン留め済みエントリは `on_session_start` で優先注入 |
+| `created_at` | DATETIME | 作成日時 (ISO 8601) |
+| `updated_at` | DATETIME | 更新日時 (ISO 8601) |
+
+### memories_fts テーブル
+
+`memories` テーブルのコンテンツと同期する FTS5 仮想テーブル (`content_rowid=memory_id` は不使用; `rowid` は `memories` の rowid に対応)。`MemoryRetriever.search()` が BM25 全文検索に使用する。
+
+### memories_vec テーブル
+
+`vec0` 仮想テーブル (sqlite-vec 拡張)。`memory_id TEXT` と `embedding FLOAT[384]` を持つ。`embed_enabled=True` かつ埋込生成に成功した場合のみ書き込まれる。`MemoryRetriever._vec_search()` が KNN 近傍検索に使用する。
+
+### memory_links テーブル
+
+`src_id TEXT` / `dst_id TEXT` の 2 カラム (PRIMARY KEY は `(src_id, dst_id)`)。`MemoryLayer._link_duplicates()` がコサイン距離 `< dedup_threshold` のエントリ間にリンクを記録する (重複排除用)。
+
+### MemoryStore API
+
+```python
+from agent.memory.store import MemoryStore
+
+store = MemoryStore()
+```
+
+| メソッド | シグネチャ | 説明 |
+|---|---|---|
+| `add(entry, embedding=None)` | `(entry: MemoryEntry, embedding: list[float] \| None)` | `memories` + `memories_fts` に挿入。`embedding` があれば `memories_vec` にも挿入 |
+| `upsert(entry, embedding=None)` | `(entry: MemoryEntry, embedding: list[float] \| None)` | `memory_id` で INSERT OR REPLACE。`memories_fts` / `memories_vec` も同期 |
+| `delete(memory_id)` | `(memory_id: str) -> bool` | 1 件削除。見つかった場合は `True` |
+| `get_by_id(memory_id)` | `(memory_id: str) -> MemoryEntry \| None` | `memory_id` で 1 件取得 |
+| `search_by_type(memory_type, limit)` | `(memory_type: str, limit: int = 20) -> list[MemoryEntry]` | `memory_type` でフィルタして `importance DESC, pinned DESC` 順で返す |
+| `count_by_type()` | `() -> dict[str, int]` | `memory_type` ごとの件数を dict で返す |
+| `count_vec()` | `() -> int` | `memories_vec` の総行数を返す。`vec0` 未ロード時は `0` |
+| `pin(memory_id)` / `unpin(memory_id)` | `(memory_id: str) -> bool` | ピン留め / 解除。見つかった場合は `True` |
+| `clear_by_session(session_id)` | `(session_id: int) -> int` | 指定セッションの全エントリを削除して削除数を返す |

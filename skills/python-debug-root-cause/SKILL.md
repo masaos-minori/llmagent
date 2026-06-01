@@ -14,46 +14,7 @@ description: |
 
 ## Purpose
 
-Investigate Python problems systematically and find the most likely root cause before proposing or applying a fix.
-
-## Primary goals
-
-- understand the failure clearly before touching code
-- reproduce or bound the problem with evidence
-- separate observations from hypotheses throughout
-- minimize guesswork and premature fixes
-
----
-
-## Toolchain
-
-| Tool | Phase | Role |
-|---|---|---|
-| `structlog` + `jq` | Initial Observability | Structured log emission and filtering |
-| `lnav` | Initial Observability | Interactive log navigator |
-| `multitail` | Initial Observability | Follow multiple log files simultaneously |
-| `sentry-sdk` | Initial Observability | Exception capture with context |
-| `tox` | Focused Reproduction | Reproduce failures in isolated env |
-| `mitmproxy` | Focused Reproduction | Intercept live HTTP traffic |
-| `httpie` | Focused Reproduction | Ad-hoc endpoint testing |
-| `sqlite3` (CLI) | Focused Reproduction | Inspect DB state |
-| `viztracer` | Runtime / Trace Inspection | Wall-clock execution timeline |
-| `py-spy` | Runtime / Trace Inspection | Sampling profiler; attaches to live process |
-| `opentelemetry-sdk` | Runtime / Trace Inspection | Distributed traces |
-| `strace` | Runtime / Trace Inspection | Syscall-level tracing |
-| `tracemalloc` | Runtime / Trace Inspection | Memory allocation tracing |
-| `aiomonitor` | Runtime / Trace Inspection | Live asyncio task inspector |
-| `ipdb` | Runtime / Trace Inspection | Interactive breakpoint debugger |
-| `rich` | Runtime / Trace Inspection | Pretty-print objects and tracebacks |
-| `stackprinter` | Runtime / Trace Inspection | Multi-frame stack traces |
-| `hypothesis` | Hypothesis Validation | Find minimal failing input |
-| `pytest-asyncio` | Hypothesis Validation | Reproduce async bugs |
-| `freezegun` | Hypothesis Validation | Freeze time for TTL/cache bugs |
-| `respx` | Hypothesis Validation | Mock httpx calls |
-| `pytest-rerunfailures` | Hypothesis Validation | Confirm intermittency |
-| `pytest-timeout` | Hypothesis Validation | Detect hangs |
-| `git bisect run` | Regression Localization | Automated regression commit search |
-| `rg` | — | Fast text search |
+Investigate Python failures systematically; reproduce with evidence; separate observations from hypotheses; find root cause before touching code.
 
 ---
 

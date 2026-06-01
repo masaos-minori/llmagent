@@ -1,5 +1,4 @@
-"""
-MCP server health monitoring and startup validation for AgentREPL.
+"""MCP server health monitoring and startup validation for AgentREPL.
 
 Standalone async functions taking AgentContext as first argument.
 Extracted from agent/repl.py to allow targeted loading when modifying
@@ -73,7 +72,8 @@ async def _fetch_stdio_tools(transport: object) -> set[str]:
         return set()
     try:
         raw, is_error, _ = await asyncio.wait_for(
-            transport.call("__list_tools__", {}), timeout=5.0
+            transport.call("__list_tools__", {}),
+            timeout=5.0,
         )
         if is_error:
             return set()
@@ -98,7 +98,8 @@ async def _collect_server_tool_names(ctx: AgentContext) -> set[str]:
                 continue
             try:
                 resp = await ctx.services.http.get(
-                    f"{srv_cfg.url}/v1/tools", timeout=5.0
+                    f"{srv_cfg.url}/v1/tools",
+                    timeout=5.0,
                 )
                 if resp.status_code == 200:
                     server_names.update(t["name"] for t in resp.json().get("tools", []))
@@ -133,7 +134,7 @@ async def check_tool_definitions(ctx: AgentContext) -> None:
         print(f"[warn] {msg}")
     if missing_in_cfg:
         logger.warning(
-            f"Tools on servers but not in agent.toml: {sorted(missing_in_cfg)}"
+            f"Tools on servers but not in agent.toml: {sorted(missing_in_cfg)}",
         )
     if (missing_in_server or missing_in_cfg) and ctx.cfg.tool_definitions_strict:
         raise RuntimeError("Strict mode: tool definition mismatch detected")
@@ -158,12 +159,12 @@ async def _watchdog_check_http(
     if count >= max_restarts:
         logger.warning(
             f"Watchdog: {srv_cfg.openrc_service!r} unreachable;"
-            f" restart limit reached ({max_restarts})"
+            f" restart limit reached ({max_restarts})",
         )
         return
     logger.warning(
         f"Watchdog: {srv_cfg.openrc_service!r} health check failed,"
-        f" restarting (attempt {count + 1}/{max_restarts})"
+        f" restarting (attempt {count + 1}/{max_restarts})",
     )
     if srv_cfg.openrc_service:
         try:
@@ -203,12 +204,12 @@ async def _watchdog_check_stdio(
     if count >= max_restarts:
         logger.warning(
             f"Watchdog: stdio server {key!r} dead;"
-            f" restart limit reached ({max_restarts})"
+            f" restart limit reached ({max_restarts})",
         )
         return
     logger.warning(
         f"Watchdog: stdio server {key!r} died,"
-        f" restarting (attempt {count + 1}/{max_restarts})"
+        f" restarting (attempt {count + 1}/{max_restarts})",
     )
     try:
         await transport.start()
@@ -232,11 +233,19 @@ async def watchdog_loop(ctx: AgentContext) -> None:
         for key, srv_cfg in ctx.cfg.mcp_servers.items():
             if srv_cfg.transport == "http":
                 await _watchdog_check_http(
-                    ctx, key, srv_cfg, restart_counts, max_restarts
+                    ctx,
+                    key,
+                    srv_cfg,
+                    restart_counts,
+                    max_restarts,
                 )
             elif srv_cfg.transport == "stdio":
                 await _watchdog_check_stdio(
-                    ctx, key, srv_cfg, restart_counts, max_restarts
+                    ctx,
+                    key,
+                    srv_cfg,
+                    restart_counts,
+                    max_restarts,
                 )
         if ctx.services.lifecycle is not None:
             await ctx.services.lifecycle.shutdown_idle()

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-file_delete_mcp_server.py
+"""file_delete_mcp_server.py
 MCP server for delete filesystem operations (port 8008).
 
 Provides an HTTP API via FastAPI for deleting files and directories.
@@ -64,7 +63,7 @@ async def delete_directory(req: DeleteDirectoryRequest) -> DeleteDirectoryRespon
             path=result.path,
             recursive=req.recursive,
             ms=f"{ms:.0f}",
-        )
+        ),
     )
     return result
 
@@ -88,7 +87,7 @@ _MCP_TOOLS = [
                 "path": {
                     "type": "string",
                     "description": "Absolute path of the file to delete",
-                }
+                },
             },
             "required": ["path"],
         },
@@ -129,7 +128,7 @@ async def list_tools() -> dict[str, Any]:
         "tools": [
             {"name": t["name"], "description": t.get("description", "")}
             for t in _MCP_TOOLS
-        ]
+        ],
     }
 
 

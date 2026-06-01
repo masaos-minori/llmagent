@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-db_store.py
+"""db_store.py
 Abstract store Protocol definitions and SQLite-backed implementations
 for the RAG pipeline.
 
@@ -35,7 +34,7 @@ def validate_embedding_blob(blob: bytes) -> None:
     if len(blob) != EMBEDDING_BYTES:
         raise ValueError(
             f"Embedding BLOB must be {EMBEDDING_BYTES} bytes"
-            f" ({EMBEDDING_DIMS} float32 dims), got {len(blob)}"
+            f" ({EMBEDDING_DIMS} float32 dims), got {len(blob)}",
         )
 
 
@@ -91,7 +90,11 @@ class DocumentStore(Protocol):
         ...
 
     def chunk_insert(
-        self, doc_id: int, index: int, content: str, normalized: str | None
+        self,
+        doc_id: int,
+        index: int,
+        content: str,
+        normalized: str | None,
     ) -> int:
         """Insert a chunk row; return chunk_id."""
         ...
@@ -252,7 +255,11 @@ class SQLiteDocumentStore:
         return True
 
     def chunk_insert(
-        self, doc_id: int, index: int, content: str, normalized: str | None
+        self,
+        doc_id: int,
+        index: int,
+        content: str,
+        normalized: str | None,
     ) -> int:
         cur = self._db.execute(
             "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content)"

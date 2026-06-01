@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-chunk_english.py
+"""chunk_english.py
 ChunkEnglishMixin: paragraph/sentence-level chunking for English text.
 
 Provides _chunk_english, _merge_paragraphs_en, _split_sentences_en,
@@ -48,12 +47,11 @@ class ChunkEnglishMixin:
                 raw_chunks.extend(self._split_sentences_en(para))
             elif len(buf) + len(para) + 1 <= self._max_chunk:
                 buf = (buf + "\n" + para).strip()
+            elif buf:
+                raw_chunks.append(buf)
+                buf = start_next_buf(buf, para, "\n", self._chunk_overlap)
             else:
-                if buf:
-                    raw_chunks.append(buf)
-                    buf = start_next_buf(buf, para, "\n", self._chunk_overlap)
-                else:
-                    buf = para
+                buf = para
         if buf:
             raw_chunks.append(buf)
         return raw_chunks

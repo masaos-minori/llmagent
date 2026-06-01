@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-mcp_models.py
+"""mcp_models.py
 Shared Pydantic models for the /v1/call_tool unified endpoint.
 Used by FileopMCPServer.py, WebSearchMCPServer.py, and GithubMCPServer.py.
 """

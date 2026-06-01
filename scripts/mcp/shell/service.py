@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-shell_mcp_service.py
+"""shell_mcp_service.py
 ShellService business logic and lazy singleton proxy for shell-mcp.
 
 Dependency direction: shell_mcp_models → shell_mcp_service → shell_mcp_server
@@ -40,7 +39,7 @@ def _init_sandbox(backend: str) -> str:
     if backend == "firejail":
         if shutil.which("firejail") is None:
             logger.warning(
-                "firejail not found in PATH; shell_sandbox_backend falling back to 'none'"
+                "firejail not found in PATH; shell_sandbox_backend falling back to 'none'",
             )
             return "none"
     return backend
@@ -120,7 +119,8 @@ class ShellService:
                 argv = shlex.split(req.command)
             except ValueError as e:
                 raise HTTPException(
-                    status_code=400, detail=f"Invalid command string: {e}"
+                    status_code=400,
+                    detail=f"Invalid command string: {e}",
                 )
         if not argv:
             raise HTTPException(status_code=400, detail="Empty command")
@@ -252,7 +252,8 @@ class ShellService:
 
         try:
             stdout_b, stderr_b = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout_sec
+                proc.communicate(),
+                timeout=timeout_sec,
             )
         except TimeoutError:
             timed_out = True
@@ -295,7 +296,12 @@ class ShellService:
         stderr = stderr_b.decode("utf-8", errors="replace")
 
         self._write_audit_log(
-            req.command, user_argv, cwd, exit_code, elapsed, truncated
+            req.command,
+            user_argv,
+            cwd,
+            exit_code,
+            elapsed,
+            truncated,
         )
 
         return ShellRunResponse(
@@ -343,12 +349,12 @@ class _LazyShellService:
             allowed_dirs = [Path(d) for d in cfg.get("shell_cwd_allowed_dirs", [])]
             if not allowed_dirs:
                 logger.warning(
-                    "shell_cwd_allowed_dirs is empty — all cwd values will be rejected"
+                    "shell_cwd_allowed_dirs is empty — all cwd values will be rejected",
                 )
             allowlist = cfg.get("command_allowlist", [])
             if not allowlist:
                 logger.warning(
-                    "command_allowlist is empty — all commands will be rejected"
+                    "command_allowlist is empty — all commands will be rejected",
                 )
             _LazyShellService._instance = ShellService(
                 command_allowlist=allowlist,
@@ -358,7 +364,8 @@ class _LazyShellService:
                 max_output_kb=cfg.get("max_output_kb", 4096),
                 max_memory_mb=cfg.get("max_memory_mb", 512),
                 audit_log_path=cfg.get(
-                    "audit_log_path", "/opt/llm/logs/shell_audit.log"
+                    "audit_log_path",
+                    "/opt/llm/logs/shell_audit.log",
                 ),
                 sandbox_backend=cfg.get("shell_sandbox_backend", "none"),
                 default_cwd=cfg.get("default_cwd", ""),

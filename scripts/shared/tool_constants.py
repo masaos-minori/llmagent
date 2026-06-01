@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-shared/tool_constants.py
+"""shared/tool_constants.py
 Canonical frozenset definitions for MCP tool classification.
 
 These sets are used in three places:
@@ -25,7 +24,7 @@ READ_TOOLS: frozenset[str] = frozenset(
         "search_files",
         "grep_files",
         "get_file_info",
-    }
+    },
 )
 
 WRITE_TOOLS: frozenset[str] = frozenset(
@@ -34,21 +33,21 @@ WRITE_TOOLS: frozenset[str] = frozenset(
         "edit_file",
         "create_directory",
         "move_file",
-    }
+    },
 )
 
 DELETE_TOOLS: frozenset[str] = frozenset(
     {
         "delete_file",
         "delete_directory",
-    }
+    },
 )
 
 RAG_TOOLS: frozenset[str] = frozenset(
     {
         "rag_run_pipeline",
         "rag_debug_pipeline",
-    }
+    },
 )
 
 CICD_TOOLS: frozenset[str] = frozenset(
@@ -57,7 +56,7 @@ CICD_TOOLS: frozenset[str] = frozenset(
         "get_workflow_runs",
         "get_workflow_status",
         "get_workflow_logs",
-    }
+    },
 )
 
 # Markdown Context Compression Engine tools
@@ -70,7 +69,7 @@ MDQ_TOOLS: frozenset[str] = frozenset(
         "refresh_index",
         "stats",
         "grep_docs",
-    }
+    },
 )
 
 # Local git operation tools (git-mcp, port 8014)
@@ -86,5 +85,5 @@ GIT_TOOLS: frozenset[str] = frozenset(
         "git_checkout",
         "git_pull",
         "git_push",
-    }
+    },
 )

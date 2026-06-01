@@ -1,5 +1,29 @@
 # Python Refactoring — Detailed Workflow
 
+## Toolchain
+
+| Tool | Phase | Role |
+|---|---|---|
+| `pydeps` | Dependency Mapping | Visualize import graph; surface cycles and blast radius |
+| `import-linter` | Dependency Mapping / CI Gate | Enforce and verify module boundary contracts |
+| `rg` | Dependency Mapping | Symbol usages, log strings, config keys |
+| `ast-grep` | Dependency Mapping / Semantic Validation | Structural search and post-transform call-site verification |
+| `pytest` | Behavior Lock / CI Gate | Run and lock existing behavior |
+| `pytest-cov` | Behavior Lock | Coverage baseline before touching code |
+| `hypothesis` | Behavior Lock | Property-based tests for parsers/validators |
+| `mutmut` | Behavior Lock | Validate test suite strength before trusting it |
+| `diff-cover` | Behavior Lock / CI Gate | Coverage scoped to changed lines |
+| `libcst` | Semantic Transformation | CST-preserving transforms: rename, signature change |
+| `bowler` | Semantic Transformation | Query-based bulk refactoring with dry-run |
+| `mypy` | Semantic Validation | Primary type checker after structural changes |
+| `pyright` | Semantic Validation | Cross-validation type checker |
+| `ruff` | Semantic Validation | Format normalization and lint after transforms |
+| `git` | Incremental Migration | Atomic commits per step; bisect-safe history |
+| `lazygit` | Incremental Migration | Hunk-level staging, stash management |
+| `pre-commit` | CI Gate | Final gate: ruff + mypy before each commit |
+
+---
+
 ## Phase 1: Dependency Mapping
 
 **Gate: blast radius documented; no unknown affected modules**
