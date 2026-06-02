@@ -49,8 +49,6 @@ _API_WRITE_TOOLS: frozenset[str] = frozenset(
     },
 )
 
-# GitHub tools that perform write operations; used by repo allowlist enforcement
-_GITHUB_WRITE_TOOLS: frozenset[str] = _API_WRITE_TOOLS
 
 # Maps tool_safety_tiers tier → default approval risk level
 _TIER_TO_RISK: dict[str, str] = {
@@ -184,7 +182,7 @@ def _check_allowed_repo(
     Non-write GitHub tools and non-GitHub tools are always allowed.
     When approval_github_allowed_repos is empty, all write ops are denied.
     """
-    if tool_name not in _GITHUB_WRITE_TOOLS:
+    if tool_name not in _API_WRITE_TOOLS:
         return True
     allowed = cfg.approval_github_allowed_repos
     # Fail-Closed: empty allowlist = deny all write operations
@@ -212,6 +210,16 @@ def _is_summarized(
     return llm_text != truncated
 
 
+def _build_github_preview(args: dict[str, Any]) -> str:
+    """Build preview string for github_* tools showing repo and extra args."""
+    owner = str(args.get("owner", ""))
+    repo = str(args.get("repo", ""))
+    repo_str = f"{owner}/{repo}" if owner and repo else owner or repo or "?"
+    extra = {k: v for k, v in args.items() if k not in ("owner", "repo")}
+    extra_str = orjson.dumps(extra, option=orjson.OPT_SORT_KEYS).decode()[:200]
+    return f"{repo_str} {extra_str}"
+
+
 def _build_preview(tool_name: str, args: dict[str, Any]) -> str:
     """Build a human-readable operation preview shown before approval prompts."""
     if tool_name in ("write_file", "edit_file"):
@@ -225,12 +233,7 @@ def _build_preview(tool_name: str, args: dict[str, Any]) -> str:
     if tool_name == "shell_run":
         return str(args.get("command", "?"))
     if tool_name.startswith("github_"):
-        owner = str(args.get("owner", ""))
-        repo = str(args.get("repo", ""))
-        repo_str = f"{owner}/{repo}" if owner and repo else owner or repo or "?"
-        extra = {k: v for k, v in args.items() if k not in ("owner", "repo")}
-        extra_str = orjson.dumps(extra, option=orjson.OPT_SORT_KEYS).decode()[:200]
-        return f"{repo_str} {extra_str}"
+        return _build_github_preview(args)
     raw: str = orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()
     return raw[:300]
 
@@ -495,6 +498,64 @@ def _collect_tool_result_msgs(
     return tool_msgs
 
 
+async def _execute_with_dag(
+    ctx: AgentContext,
+    approved_calls: list[dict],
+    turn: int,
+) -> list[Any]:
+    """Run approved calls in DAG order: writes first (parallel), then the rest (parallel).
+
+    Guarantees write-before-read ordering within a turn when use_tool_dag=True.
+    """
+    writes = [tc for tc in approved_calls if tc["function"]["name"] in WRITE_TOOLS]
+    rest = [tc for tc in approved_calls if tc["function"]["name"] not in WRITE_TOOLS]
+    results: list[Any] = []
+    if writes:
+        logger.info(
+            "DAG: executing write group first"
+            f" ({[tc['function']['name'] for tc in writes]})",
+        )
+        results.extend(
+            await asyncio.gather(
+                *(execute_one_tool_call(ctx, tc, turn) for tc in writes)
+            ),
+        )
+    if rest:
+        results.extend(
+            await asyncio.gather(
+                *(execute_one_tool_call(ctx, tc, turn) for tc in rest)
+            ),
+        )
+    return results
+
+
+async def _execute_standard(
+    ctx: AgentContext,
+    approved_calls: list[dict],
+    turn: int,
+) -> list[Any]:
+    """Run approved calls in parallel, or serially when side effects are detected."""
+    has_side_effect = any(
+        is_side_effect(tc["function"]["name"]) for tc in approved_calls
+    )
+    use_serial = ctx.cfg.serial_tool_calls or has_side_effect
+    if use_serial:
+        if has_side_effect and not ctx.cfg.serial_tool_calls:
+            logger.info(
+                "Side-effect tool detected; downgrading to serial execution"
+                f" ({[tc['function']['name'] for tc in approved_calls]})",
+            )
+        results: list[Any] = []
+        for tc in approved_calls:
+            results.append(await execute_one_tool_call(ctx, tc, turn))
+        return results
+    return list(
+        await asyncio.gather(
+            *(execute_one_tool_call(ctx, tc, turn) for tc in approved_calls),
+        ),
+    )
+
+
 async def execute_all_tool_calls(
     ctx: AgentContext,
     tool_calls: list[dict],
@@ -511,32 +572,13 @@ async def execute_all_tool_calls(
     """
     approved_calls, denied_ids = await _run_approval_checks(ctx, tool_calls)
 
-    # Auto-downgrade to serial if any approved call has side effects (write/delete/shell).
-    has_side_effect = any(
-        is_side_effect(tc["function"]["name"]) for tc in approved_calls
-    )
-    use_serial = ctx.cfg.serial_tool_calls or has_side_effect
-    if use_serial:
-        if has_side_effect and not ctx.cfg.serial_tool_calls:
-            logger.info(
-                "Side-effect tool detected; downgrading to serial execution"
-                f" ({[tc['function']['name'] for tc in approved_calls]})",
-            )
-        results = []
-        for tc in approved_calls:
-            results.append(await execute_one_tool_call(ctx, tc, turn))
+    if ctx.cfg.use_tool_dag and not ctx.cfg.serial_tool_calls:
+        results = await _execute_with_dag(ctx, approved_calls, turn)
     else:
-        results = list(
-            await asyncio.gather(
-                *(execute_one_tool_call(ctx, tc, turn) for tc in approved_calls),
-            ),
-        )
+        results = await _execute_standard(ctx, approved_calls, turn)
 
-    # Persist all tool result messages in one DB transaction (one connection open).
-    # Collecting here avoids N individual save() calls each with their own
-    # load_extension + PRAGMA overhead.
+    # Collect results in one DB transaction to avoid repeated load_extension + PRAGMA overhead.
     tool_msgs = _collect_tool_result_msgs(ctx, results, turn, out_failed_keys)
-    # Add skipped results so the LLM knows these tool calls were denied.
     for denied_id in denied_ids:
         ctx.history.append(
             {

@@ -128,6 +128,46 @@ def _make_summary(content: str, max_chars: int = 120) -> str:
     return content[:max_chars].rstrip() + "…"
 
 
+def _try_extract_from_assistant(
+    msg: LLMMessage,
+    *,
+    session_id: int | None,
+    turn_id: str | None,
+    project: str,
+    repo: str,
+    branch: str,
+    max_content_chars: int,
+    now: str,
+) -> MemoryEntry | None:
+    """Try to extract one MemoryEntry from an assistant message; return None when unqualified."""
+    content_raw = msg.get("content") or ""
+    content = str(content_raw).strip() if content_raw else ""
+    if len(content) < MIN_CONTENT_CHARS:
+        return None
+    if max_content_chars > 0 and len(content) > max_content_chars:
+        content = content[:max_content_chars]
+    semantic_hits = len(_SEMANTIC_KEYWORDS.findall(content))
+    failure_hits = len(_EPISODIC_FAILURE_KEYWORDS.findall(content))
+    classification = _classify_content(content, semantic_hits, failure_hits)
+    if classification is None:
+        return None
+    mem_type, source_type, tags = classification
+    importance = _importance_from_content(content, is_semantic=(mem_type == "semantic"))
+    return _make_entry(
+        memory_type=mem_type,
+        source_type=source_type,
+        tags=tags,
+        content=content,
+        session_id=session_id,
+        turn_id=turn_id,
+        project=project,
+        repo=repo,
+        branch=branch,
+        importance=importance,
+        now=now,
+    )
+
+
 def extract_memories(
     history: list[LLMMessage],
     session_id: int | None = None,
@@ -142,7 +182,6 @@ def extract_memories(
     Runs synchronously; called at Stop time before HistoryManager compression.
     Returns an empty list when the conversation is too short or has no substance.
     """
-    # Filter to non-system messages for turn count check
     non_system = [m for m in history if m.get("role") != "system"]
     if len(non_system) < MIN_TURNS:
         logger.debug(
@@ -152,45 +191,23 @@ def extract_memories(
 
     entries: list[MemoryEntry] = []
     now = _now_iso()
-
-    # Collect assistant messages paired with the preceding user message
-    i = 0
-    while i < len(history) and len(entries) < MAX_ENTRIES:
-        msg = history[i]
-        role = msg.get("role", "")
-        content_raw = msg.get("content") or ""
-        content = str(content_raw).strip() if content_raw else ""
-
-        if role == "assistant" and len(content) >= MIN_CONTENT_CHARS:
-            # Trim content to configured limit before storing
-            if max_content_chars > 0 and len(content) > max_content_chars:
-                content = content[:max_content_chars]
-            semantic_hits = len(_SEMANTIC_KEYWORDS.findall(content))
-            failure_hits = len(_EPISODIC_FAILURE_KEYWORDS.findall(content))
-            classification = _classify_content(content, semantic_hits, failure_hits)
-            if classification is not None:
-                mem_type, source_type, tags = classification
-                importance = _importance_from_content(
-                    content,
-                    is_semantic=(mem_type == "semantic"),
-                )
-                entries.append(
-                    _make_entry(
-                        memory_type=mem_type,
-                        source_type=source_type,
-                        tags=tags,
-                        content=content,
-                        session_id=session_id,
-                        turn_id=turn_id,
-                        project=project,
-                        repo=repo,
-                        branch=branch,
-                        importance=importance,
-                        now=now,
-                    ),
-                )
-
-        i += 1
+    for msg in history:
+        if len(entries) >= MAX_ENTRIES:
+            break
+        if msg.get("role") != "assistant":
+            continue
+        entry = _try_extract_from_assistant(
+            msg,
+            session_id=session_id,
+            turn_id=turn_id,
+            project=project,
+            repo=repo,
+            branch=branch,
+            max_content_chars=max_content_chars,
+            now=now,
+        )
+        if entry is not None:
+            entries.append(entry)
 
     logger.debug(
         f"extract_memories: extracted {len(entries)} entries"

@@ -31,9 +31,15 @@ class McpServerConfig:
     role: str = ""  # human-readable role label shown in /mcp status
 
     def __post_init__(self) -> None:
+        self._validate_transport()
+        self._validate_startup_mode()
+        self._resolve_healthcheck_mode()
+
+    def _validate_transport(self) -> None:
         if self.transport not in ("http", "stdio"):
             raise ValueError(
-                f"McpServerConfig.transport must be 'http' or 'stdio', got {self.transport!r}",
+                f"McpServerConfig.transport must be 'http' or 'stdio',"
+                f" got {self.transport!r}",
             )
         if self.transport == "http" and not self.url:
             raise ValueError(
@@ -43,6 +49,8 @@ class McpServerConfig:
             raise ValueError(
                 "McpServerConfig: cmd must not be empty when transport='stdio'",
             )
+
+    def _validate_startup_mode(self) -> None:
         if self.startup_mode not in ("persistent", "ondemand", "subprocess"):
             raise ValueError(
                 f"McpServerConfig.startup_mode must be 'persistent', 'ondemand',"
@@ -53,7 +61,8 @@ class McpServerConfig:
                 "startup_mode='subprocess' is only valid for transport='http';"
                 " stdio servers use 'persistent' or 'ondemand'",
             )
-        # Auto-infer healthcheck_mode from transport when not explicitly set
+
+    def _resolve_healthcheck_mode(self) -> None:
         if not self.healthcheck_mode:
             self.healthcheck_mode = "http" if self.transport == "http" else "process"
         if self.healthcheck_mode not in ("http", "process", "ping_tool"):

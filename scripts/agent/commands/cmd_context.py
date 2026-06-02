@@ -121,6 +121,33 @@ class _ContextMixin:
     if TYPE_CHECKING:
         _ctx: "AgentContext"
 
+    def _print_token_line(
+        self,
+        ctx: "AgentContext",
+        total_chars: int,
+    ) -> None:
+        """Print token count / estimate with source label and optional limit info."""
+        token_is_exact = ctx.stat_input_tokens is not None
+        token_estimate = (
+            ctx.services.hist_mgr.count_tokens(ctx.history, ctx.stat_input_tokens)
+            if ctx.services.hist_mgr is not None
+            else total_chars // 4
+        )
+        token_limit = ctx.cfg.context_token_limit
+        token_limit_str = f"{token_limit:,}" if token_limit > 0 else "disabled"
+        token_label = "Token count  " if token_is_exact else "Token estimate"
+        tokenize_configured = bool(getattr(ctx.cfg, "tokenize_url", ""))
+        src = _token_source_label(token_is_exact, tokenize_configured)
+        if token_limit > 0:
+            token_pct = int(token_estimate * 100 / token_limit)
+            print(
+                f"  {token_label} : {token_estimate:,}"
+                f" ({src}, limit={token_limit:,} [active] {token_pct}%)",
+            )
+        else:
+            print(f"  {token_label} : {token_estimate:,} ({src})")
+        print(f"  Token limit     : {token_limit_str}")
+
     def _cmd_context(self) -> None:
         """Print runtime conversation context state."""
         ctx = self._ctx
@@ -141,6 +168,15 @@ class _ContextMixin:
         )
         breakdown = _budget_breakdown(ctx.history)
         total_bd = sum(breakdown.values()) or 1  # avoid zero division
+        mem_status = _format_memory_status(ctx)
+        git_info = get_repo_info()
+        git_str = (
+            f"{git_info['branch']} @ {git_info['commit']} {git_info['message']}"
+            if git_info
+            else "unavailable"
+        )
+        # Token count note: exact when LLM reports usage.prompt_tokens; estimate otherwise.
+        # /tokenize exact counting needs async; /context shows best synchronous value.
         print("Context state:")
         print(f"  Messages        : {n_msgs}")
         print(f"  Total chars     : {total_chars:,}")
@@ -149,36 +185,7 @@ class _ContextMixin:
         print(f"  Compress count  : {compress_count}")
         print(f"  System prompt   : {ctx.system_prompt_name}")
         print(f"  System preview  : {sys_preview!r}")
-        # Token count: exact when LLM reports usage.prompt_tokens; estimate otherwise.
-        # /tokenize-based exact counting requires an async call; /context shows the
-        # best synchronously-available value (LLM usage wins, then chars // 4).
-        token_is_exact = ctx.stat_input_tokens is not None
-        token_estimate = (
-            ctx.services.hist_mgr.count_tokens(ctx.history, ctx.stat_input_tokens)
-            if ctx.services.hist_mgr is not None
-            else total_chars // 4
-        )
-        token_limit = ctx.cfg.context_token_limit
-        token_limit_str = f"{token_limit:,}" if token_limit > 0 else "disabled"
-        mem_status = _format_memory_status(ctx)
-        git_info = get_repo_info()
-        git_str = (
-            f"{git_info['branch']} @ {git_info['commit']} {git_info['message']}"
-            if git_info
-            else "unavailable"
-        )
-        token_label = "Token count  " if token_is_exact else "Token estimate"
-        tokenize_configured = bool(getattr(ctx.cfg, "tokenize_url", ""))
-        src = _token_source_label(token_is_exact, tokenize_configured)
-        if token_limit > 0:
-            token_pct = int(token_estimate * 100 / token_limit)
-            print(
-                f"  {token_label} : {token_estimate:,}"
-                f" ({src}, limit={token_limit:,} [active] {token_pct}%)",
-            )
-        else:
-            print(f"  {token_label} : {token_estimate:,} ({src})")
-        print(f"  Token limit     : {token_limit_str}")
+        self._print_token_line(ctx, total_chars)
         print(f"  Memory layer    : {mem_status}")
         print(f"  Git             : {git_str}")
         print("Budget breakdown:")

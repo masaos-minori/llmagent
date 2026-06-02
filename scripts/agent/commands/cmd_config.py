@@ -67,10 +67,7 @@ class _ConfigMixin:
         print(f"  Cache hits    : {cache_hits}")
         print(f"  Compress      : {compress_count}")
         print(f"  RAG hits      : {ctx.stat_rag_hits}")
-        print(
-            f"  Sem. cache    : {ctx.stat_semantic_cache_hits} hits"
-            f"  (size={ctx.services.rag.semantic_cache.size if ctx.services.rag else 0})",
-        )
+        print(f"  Sem. cache    : {ctx.stat_semantic_cache_hits} hits")
         print(f"  Input tokens  : {_fmt_tokens(ctx.stat_input_tokens)}")
         print(f"  Output tokens : {_fmt_tokens(ctx.stat_output_tokens)}")
         print(f"  Debug mode    : {'ON' if ctx.debug_mode else 'OFF'}")
@@ -127,8 +124,6 @@ class _ConfigMixin:
         print(f"  use_semantic_cache  : {ctx.cfg.use_semantic_cache}")
         print(f"  sem_cache_threshold : {ctx.cfg.semantic_cache_threshold}")
         print(f"  sem_cache_max_size  : {ctx.cfg.semantic_cache_max_size}")
-        if ctx.services.rag is not None:
-            print(f"  sem_cache_size      : {ctx.services.rag.semantic_cache.size}")
         print()
         print("MCP / security settings:")
         print(f"  tool_def_strict     : {ctx.cfg.tool_definitions_strict}")
@@ -176,23 +171,15 @@ class _ConfigMixin:
             print("  plan_blocked_tools  : (none)")
 
     def _print_rag_config(self) -> None:
-        """Print RAG-specific settings including DB path and retrieval parameters."""
+        """Print retrieval settings including DB path and search parameters."""
         ctx = self._ctx
-        print("RAG settings:")
+        print("Search settings:")
         SQLiteHelper._ensure_config()
         print(f"  rag_db_path         : {SQLiteHelper._RAG_PATH}")
         print(f"  session_db_path     : {SQLiteHelper._SESSION_PATH}")
         print(f"  top_k_search        : {ctx.cfg.top_k_search}")
         print(f"  top_k_rerank        : {ctx.cfg.top_k_rerank}")
-        print(f"  rag_top_k           : {ctx.cfg.rag_top_k}")
-        print(f"  rag_min_score       : {ctx.cfg.rag_min_score}")
         print(f"  max_chunks_per_doc  : {ctx.cfg.max_chunks_per_doc}")
-        print(f"  use_two_stage_fetch : {ctx.cfg.use_two_stage_fetch}")
-        print(f"  two_stage_max_docs  : {ctx.cfg.two_stage_max_docs}")
-        print(f"  use_mqe             : {ctx.cfg.use_mqe}")
-        print(f"  use_search          : {ctx.cfg.use_search}")
-        print(f"  use_rrf             : {ctx.cfg.use_rrf}")
-        print(f"  use_rerank          : {ctx.cfg.use_rerank}")
 
     def _cmd_config(self) -> None:
         """Print current configuration and source file paths."""
@@ -224,23 +211,15 @@ class _ConfigMixin:
         ctx: "AgentContext",
         new_cfg: dict[str, Any],
     ) -> None:
-        """Apply RAG pipeline, tool cache, LLM retry, refiner, and watchdog settings."""
+        """Apply tool cache, LLM retry, refiner, and watchdog settings."""
         ctx.cfg.context_char_limit = int(new_cfg.get("context_char_limit", 8000))
         ctx.cfg.context_compress_turns = int(new_cfg.get("context_compress_turns", 4))
         ctx.cfg.tool_cache_ttl = float(new_cfg.get("tool_cache_ttl", 300))
         ctx.cfg.top_k_search = int(new_cfg.get("top_k_search", 20))
         ctx.cfg.top_k_rerank = int(new_cfg.get("top_k_rerank", 15))
-        ctx.cfg.rag_top_k = int(new_cfg.get("rag_top_k", 5))
-        ctx.cfg.use_mqe = bool(new_cfg.get("use_mqe", True))
-        ctx.cfg.use_search = bool(new_cfg.get("use_search", True))
-        ctx.cfg.use_rrf = bool(new_cfg.get("use_rrf", True))
-        ctx.cfg.use_rerank = bool(new_cfg.get("use_rerank", True))
         ctx.cfg.llm_max_retries = int(new_cfg.get("llm_max_retries", 3))
         ctx.cfg.llm_retry_base_delay = float(new_cfg.get("llm_retry_base_delay", 1.0))
-        ctx.cfg.rag_min_score = float(new_cfg.get("rag_min_score", 0.0))
         ctx.cfg.max_chunks_per_doc = int(new_cfg.get("max_chunks_per_doc", 2))
-        ctx.cfg.use_two_stage_fetch = bool(new_cfg.get("use_two_stage_fetch", False))
-        ctx.cfg.two_stage_max_docs = int(new_cfg.get("two_stage_max_docs", 2))
         ctx.cfg.serial_tool_calls = bool(new_cfg.get("serial_tool_calls", False))
         ctx.cfg.auto_inject_notes = bool(new_cfg.get("auto_inject_notes", True))
         ctx.cfg.use_tool_summarize = bool(new_cfg.get("use_tool_summarize", False))
@@ -273,7 +252,6 @@ class _ConfigMixin:
         ctx.cfg.refiner_max_chars_per_chunk = int(
             new_cfg.get("refiner_max_chars_per_chunk", 300),
         )
-        ctx.cfg.use_rag_mcp = bool(new_cfg.get("use_rag_mcp", False))
 
     def _apply_mcp_url_reload(
         self,
@@ -415,6 +393,36 @@ class _ConfigMixin:
                 ctx.history[0]["content"],
             )
 
+    def _set_temperature(self, ctx: "AgentContext", value_str: str) -> None:
+        """Parse and apply llm_temperature from value_str."""
+        try:
+            val = float(value_str)
+            if not 0.0 <= val <= 2.0:
+                raise ValueError
+        except ValueError:
+            print("temperature must be a float in [0.0, 2.0]")
+            return
+        ctx.cfg.llm_temperature = val
+        if ctx.services.llm is not None:
+            ctx.services.llm._temperature = val
+        logger.info(f"llm_temperature set to {val}")
+        print(f"temperature set to {val}")
+
+    def _set_max_tokens(self, ctx: "AgentContext", value_str: str) -> None:
+        """Parse and apply llm_max_tokens from value_str."""
+        try:
+            val = int(value_str)
+            if val < 1:
+                raise ValueError
+        except ValueError:
+            print("max_tokens must be a positive integer")
+            return
+        ctx.cfg.llm_max_tokens = val
+        if ctx.services.llm is not None:
+            ctx.services.llm._max_tokens = val
+        logger.info(f"llm_max_tokens set to {val}")
+        print(f"max_tokens set to {val}")
+
     def _cmd_set(self, args: str) -> None:
         """Set a runtime LLM generation parameter.
 
@@ -437,31 +445,9 @@ class _ConfigMixin:
             return
         param, value_str = parts
         if param == "temperature":
-            try:
-                val = float(value_str)
-                if not 0.0 <= val <= 2.0:
-                    raise ValueError
-            except ValueError:
-                print("temperature must be a float in [0.0, 2.0]")
-                return
-            ctx.cfg.llm_temperature = val
-            if ctx.services.llm is not None:
-                ctx.services.llm._temperature = val
-            logger.info(f"llm_temperature set to {val}")
-            print(f"temperature set to {val}")
+            self._set_temperature(ctx, value_str)
         elif param == "max_tokens":
-            try:
-                val = int(value_str)
-                if val < 1:
-                    raise ValueError
-            except ValueError:
-                print("max_tokens must be a positive integer")
-                return
-            ctx.cfg.llm_max_tokens = val
-            if ctx.services.llm is not None:
-                ctx.services.llm._max_tokens = val
-            logger.info(f"llm_max_tokens set to {val}")
-            print(f"max_tokens set to {val}")
+            self._set_max_tokens(ctx, value_str)
         else:
             print(f"Unknown parameter: {param!r}")
             print("Settable: temperature, max_tokens")

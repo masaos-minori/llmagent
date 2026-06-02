@@ -79,23 +79,14 @@ class AgentConfig:
     history_protect_turns: int = 2   # 直近 N ターンを圧縮から除外
     budget_warn_ratio: float = 0.8   # 閾値の何割で budget warning を出すか (0, 1]
 
-    # ── RAG ──────────────────────────────────────────────────────────────────
-    # build_agent_config() デフォルト: top_k_search=20, top_k_rerank=15, rag_top_k=5
-    # use_mqe=True, use_search=True, use_rrf=True, use_rerank=True
-    # rag_min_score=0.0, max_chunks_per_doc=2, use_two_stage_fetch=False, two_stage_max_docs=2
+    # ── RAG (mcp/rag_pipeline/ 側設定; agent 側 in-process RAG は削除済み) ────────
+    # build_agent_config() デフォルト: top_k_search=20, top_k_rerank=15
+    # max_chunks_per_doc=2
     # use_semantic_cache=False, semantic_cache_threshold=0.92, semantic_cache_max_size=100
     # use_refiner=False, refiner_max_tokens=512, refiner_timeout=30.0, refiner_max_chars_per_chunk=300
     top_k_search: int                # ベクトル / FTS 検索返却件数
     top_k_rerank: int                # Cross-Encoder に渡す候補件数
-    rag_top_k: int                   # LLM コンテキスト追加チャンク数上限
-    use_mqe: bool                    # MQE 有効フラグ
-    use_search: bool                 # RAG 検索有効フラグ
-    use_rrf: bool                    # RRF マージ有効フラグ
-    use_rerank: bool                 # Cross-Encoder 再ランク有効フラグ
-    rag_min_score: float             # Rerank スコア閾値 (0–10); 未満チャンクを除外
     max_chunks_per_doc: int          # 同一ドキュメントから取得する最大チャンク数
-    use_two_stage_fetch: bool        # 二段階取得有効フラグ
-    two_stage_max_docs: int          # 二段階取得で全文展開するドキュメント数上限
     use_semantic_cache: bool         # True のとき RAG 結果をセマンティックキャッシュ
     semantic_cache_threshold: float  # セマンティックキャッシュのコサイン類似度閾値 (0–1)
     semantic_cache_max_size: int     # セマンティックキャッシュの最大エントリ数 (LRU)
@@ -103,8 +94,6 @@ class AgentConfig:
     refiner_max_tokens: int          # Refiner LLM の最大生成トークン数
     refiner_timeout: float           # Refiner LLM の HTTP タイムアウト秒数
     refiner_max_chars_per_chunk: int # Refiner に渡す 1 チャンクの最大文字数
-    rag_service_url: str = ""        # 外部 RAG HTTP サービス URL (空文字 = in-process)
-    use_rag_mcp: bool = False        # True のとき Orchestrator が rag_run_pipeline MCP ツール経由で RAG 実行; 失敗時は in-process フォールバック
 
     # ── LLM ──────────────────────────────────────────────────────────────────
     # build_agent_config() デフォルト: llm_max_retries=3, llm_retry_base_delay=1.0
@@ -231,11 +220,10 @@ class AgentConfig:
 |---|---|
 | `context_char_limit` | `>= 0` |
 | `budget_warn_ratio` | `(0.0, 1.0]` |
-| `top_k_search` / `top_k_rerank` / `rag_top_k` | `>= 1` |
+| `top_k_search` / `top_k_rerank` | `>= 1` |
 | `llm_max_retries` | `>= 0` |
 | `llm_retry_base_delay` | `> 0` |
-| `rag_min_score` | `>= 0.0` |
-| `max_chunks_per_doc` / `two_stage_max_docs` | `>= 1` |
+| `max_chunks_per_doc` | `>= 1` |
 | `llm_temperature` | `[0.0, 2.0]` |
 | `llm_max_tokens` | `>= 1` |
 | `refiner_max_tokens` | `>= 1` |

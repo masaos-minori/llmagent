@@ -192,3 +192,84 @@ class TestAttachAuthMiddleware:
         client = _make_test_app("")
         ids = {client.get("/ping").headers.get("x-request-id") for _ in range(5)}
         assert len(ids) == 5
+
+
+class TestTruncate:
+    def test_short_text_returned_unchanged(self) -> None:
+        from mcp.server import _truncate
+
+        text = "hello world"
+        assert _truncate(text, max_bytes=100) == text
+
+    def test_text_exactly_at_limit_returned_unchanged(self) -> None:
+        from mcp.server import _truncate
+
+        text = "a" * 10
+        assert _truncate(text, max_bytes=10) == text
+
+    def test_long_text_is_truncated_and_notice_appended(self) -> None:
+        from mcp.server import _truncate
+
+        text = "a" * 200
+        result = _truncate(text, max_bytes=100)
+        assert "[TRUNCATED:" in result
+        assert "bytes total" in result
+
+    def test_truncated_output_is_not_longer_than_limit_plus_notice(self) -> None:
+        from mcp.server import _truncate
+
+        text = "x" * 1000
+        result = _truncate(text, max_bytes=50)
+        # Starts with exactly 50 "x"s (before the notice)
+        assert result.startswith("x" * 50)
+
+    def test_multibyte_unicode_truncated_cleanly(self) -> None:
+        from mcp.server import _truncate
+
+        # "あ" is 3 bytes in UTF-8; 10 bytes fits 3 full chars (9 bytes)
+        text = "あ" * 10
+        result = _truncate(text, max_bytes=10)
+        assert "[TRUNCATED:" in result
+        # No UnicodeDecodeError; only complete characters appear
+        assert "あ" in result
+
+
+class TestAuditLog:
+    def test_audit_log_emits_info(self, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+
+        from mcp.server import _audit_log
+
+        logger = logging.getLogger("test.audit")
+        with caplog.at_level(logging.INFO, logger="test.audit"):
+            _audit_log(
+                logger,
+                session_id="sess-1",
+                request_id="req-2",
+                action="my_tool",
+                target="owner/repo",
+                outcome="ok",
+            )
+        assert any("AUDIT" in r.message for r in caplog.records)
+        assert any("sess-1" in r.message for r in caplog.records)
+
+    def test_audit_log_replaces_empty_session_with_dash(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        import logging
+
+        from mcp.server import _audit_log
+
+        logger = logging.getLogger("test.audit2")
+        with caplog.at_level(logging.INFO, logger="test.audit2"):
+            _audit_log(
+                logger,
+                session_id="",
+                request_id="",
+                action="tool",
+                target="t",
+                outcome="ok",
+            )
+        msg = next(r.message for r in caplog.records if "AUDIT" in r.message)
+        assert "session=-" in msg
+        assert "request=-" in msg

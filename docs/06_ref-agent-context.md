@@ -24,7 +24,7 @@ ctx = AgentContext()
 | `system_prompt_name` | `str` | `"default"` | アクティブなシステムプロンプトプレセット名 |
 | `shutdown_requested` | `bool` | `False` | グレースフルシャットダウン要求フラグ |
 | `current_turn_id` | `str \| None` | `None` | `Orchestrator.handle_turn()` 開始時に UUID4 をセット; ターン間は `None` |
-| `current_rag_query_id` | `str \| None` | `None` | `Orchestrator._augment_with_rag()` 開始時にセット; RAG スキップ時は `None` |
+| `current_rag_query_id` | `str \| None` | `None` | 予約フィールド。in-process RAG 除去後は常に `None`。将来の RAG トレース用途向けに保持 |
 | `stat_turns` | `int` | `0` | ユーザーターン累計 |
 | `stat_tool_calls` | `int` | `0` | ツール呼び出し累計 |
 | `stat_rag_hits` | `int` | `0` | RAG コンテキスト付加ターン累計 |
@@ -47,7 +47,6 @@ ctx = AgentContext()
 | `llm` | `LLMClient \| None` | `None` | SSE ストリーミング・リトライ担当 |
 | `tools` | `ToolExecutor \| None` | `None` | MCP ルーティング・TTL キャッシュ担当 |
 | `hist_mgr` | `HistoryManager \| None` | `None` | 履歴文字数カウント・圧縮担当 |
-| `rag` | `RagPipeline \| None` | `None` | MQE→検索→RRF→Rerank 担当 |
 | `stdio_procs` | `dict[str, StdioTransport]` | `{}` | サーバキー → StdioTransport。stdio トランスポートのプロセスを管理 |
 | `lifecycle` | `ServerLifecycleManager \| None` | `None` | ondemand stdio サーバの起動・停止ライフサイクル管理 |
 | `audit_logger` | `Logger \| None` | `None` | JSON-lines 形式で `audit.log` にターンイベントを書き込む構造化ロガー |

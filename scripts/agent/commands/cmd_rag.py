@@ -1,24 +1,21 @@
 #!/usr/bin/env python3
 """cmd_rag.py
-RAG, tool inspection, note, plan, and debug mixin for CommandRegistry.
+Tool inspection, note, plan, and debug mixin for CommandRegistry.
 
 Extracted from agent_commands.py.  Provides _RagMixin with:
   _cmd_tool          — /tool: inspect stored tool results
   _cmd_note          — /note: add/list/delete persistent notes
   _cmd_plan          — /plan: toggle plan mode
-  _cmd_debug         — /debug: toggle RAG debug output
-  _print_rag_results — print dry-run RAG search results
-  _cmd_rag           — /rag dispatcher (status / toggle / dry-run)
+  _cmd_debug         — /debug: toggle debug output
   _render_history_md — render conversation history as Markdown
 """
 
 import logging
+import pathlib
 from typing import TYPE_CHECKING
 
 import orjson
-from rag.types import LLMMessage, RagHit
-
-from db.helper import SQLiteHelper
+from rag.types import LLMMessage
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -158,9 +155,6 @@ class _RagMixin:
 
     def _cmd_debug(self, args: str = "") -> None:
         """Toggle RAG debug output, or show audit log tail with '/debug audit'."""
-        import logging as _logging
-        import pathlib
-
         ctx = self._ctx
         sub = args.strip().lower()
 
@@ -180,15 +174,15 @@ class _RagMixin:
 
         if sub == "verbose":
             # Switch agent logger to DEBUG level for detailed output
-            _logging.getLogger("agent_repl").setLevel(_logging.DEBUG)
-            _logging.getLogger("orchestrator").setLevel(_logging.DEBUG)
+            logging.getLogger("agent_repl").setLevel(logging.DEBUG)
+            logging.getLogger("orchestrator").setLevel(logging.DEBUG)
             print("Log level: DEBUG")
             logger.info("Log level set to DEBUG")
             return
 
         if sub == "normal":
-            _logging.getLogger("agent_repl").setLevel(_logging.INFO)
-            _logging.getLogger("orchestrator").setLevel(_logging.INFO)
+            logging.getLogger("agent_repl").setLevel(logging.INFO)
+            logging.getLogger("orchestrator").setLevel(logging.INFO)
             print("Log level: INFO")
             logger.info("Log level restored to INFO")
             return
@@ -200,115 +194,6 @@ class _RagMixin:
         print(
             f"Debug mode: {state}  (use /debug audit | verbose | normal for more options)",
         )
-
-    def _print_rag_results(
-        self,
-        query: str,
-        queries: list[str],
-        reranked: list[RagHit],
-    ) -> None:
-        """Print /rag search results: expanded queries and ranked chunks."""
-        print()
-        print(f"Query      : {query!r}")
-        print(f"Expanded ({len(queries)}):")
-        for i, q in enumerate(queries, 1):
-            print(f"  {i}: {q}")
-        if not reranked:
-            print("No results.")
-            return
-        print(f"\nChunks ({len(reranked)}):")
-        for i, c in enumerate(reranked, 1):
-            score = c.get("rerank_score", c.get("rrf_score", 0.0))
-            preview = c["content"].replace("\n", " ")[:120]
-            print(f"\n[{i}] chunk_id={c['chunk_id']}  score={score:.4f}")
-            print(f"     url={c['url']}")
-            print(f"     {preview!r}")
-
-    def _cmd_rag_toggle(
-        self,
-        subcmd: str,
-        parts: list[str],
-        flag: str,
-        label: str,
-    ) -> None:
-        """Toggle a boolean RAG config flag via /rag <subcmd> on|off."""
-        val = parts[1].lower() if len(parts) > 1 else ""
-        if val not in ("on", "off"):
-            print(f"Usage: /rag {subcmd} on|off")
-            return
-        setattr(self._ctx.cfg, flag, val == "on")
-        print(f"{label} {'enabled' if val == 'on' else 'disabled'}.")
-
-    async def _cmd_rag_search(self, query: str) -> None:
-        """Dry-run the RAG pipeline for the given query and print results."""
-        ctx = self._ctx
-        if not query:
-            print("Usage: /rag search <query>")
-            return
-        if not ctx.cfg.use_search:
-            print("RAG is disabled (use_search=false). Enable with /rag on.")
-            return
-        if ctx.services.rag is None:
-            print("RAG pipeline not available.")
-            return
-        try:
-            db = SQLiteHelper().open(row_factory=True)
-        except Exception as e:
-            print(f"DB open failed: {e}")
-            return
-        try:
-            with db:
-                # run() calls on_clear() in its finally block
-                queries, _, _, reranked = await ctx.services.rag.run(query, db)
-        except Exception as e:
-            logger.error(f"RAG pipeline failed: {e}")
-            print(f"RAG pipeline error: {e}")
-            return
-        self._print_rag_results(query, queries, reranked)
-
-    async def _cmd_rag(self, args: str) -> None:
-        """Toggle RAG steps at runtime or dry-run the pipeline.
-
-        Usage:
-          /rag              Show current RAG step status
-          /rag on           Enable RAG search (use_search=true)
-          /rag off          Disable RAG search (use_search=false)
-          /rag mqe on|off   Enable/disable Multi-Query Expansion
-          /rag rerank on|off  Enable/disable Cross-Encoder reranking
-          /rag mcp on|off   Enable/disable MCP-based RAG (use_rag_mcp)
-          /rag search <query>  Dry-run RAG pipeline (no LLM call)
-        """
-        ctx = self._ctx
-        parts = args.strip().split(None, 2)
-        sub = parts[0] if parts else ""
-
-        if sub == "on":
-            ctx.cfg.use_search = True
-            print("RAG search enabled.")
-        elif sub == "off":
-            ctx.cfg.use_search = False
-            print("RAG search disabled.")
-        elif sub == "mqe":
-            self._cmd_rag_toggle("mqe", parts, "use_mqe", "MQE")
-        elif sub == "rerank":
-            self._cmd_rag_toggle("rerank", parts, "use_rerank", "Reranking")
-        elif sub == "mcp":
-            self._cmd_rag_toggle("mcp", parts, "use_rag_mcp", "RAG MCP")
-        elif sub == "search":
-            query = args.strip()[len("search") :].strip()
-            await self._cmd_rag_search(query)
-        else:
-            mcp_label = " (MCP)" if ctx.cfg.use_rag_mcp else " (in-process)"
-            print(
-                f"RAG step status:\n"
-                f"  use_search : {ctx.cfg.use_search}{mcp_label}\n"
-                f"  use_rag_mcp: {ctx.cfg.use_rag_mcp}\n"
-                f"  use_mqe    : {ctx.cfg.use_mqe}\n"
-                f"  use_rrf    : {ctx.cfg.use_rrf}\n"
-                f"  use_rerank : {ctx.cfg.use_rerank}\n"
-                "Use /rag on|off, /rag mcp on|off, /rag mqe on|off,"
-                " /rag rerank on|off, /rag search <query>",
-            )
 
     def _render_history_md(self, history: list[LLMMessage]) -> str:
         """Render conversation history as Markdown."""

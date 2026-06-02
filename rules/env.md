@@ -24,19 +24,18 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ## OpenRC service names (`init.d/`)
 
+LLM サービス (OpenRC 管理):
 - `embed-llm`
 - `llama-chat-llm`
 - `llama-coding-llm`
-- `web-search-mcp`
-- `file-mcp`
-- `github-mcp`
 - `llama-agent`
 
+MCP サーバ (ports 8004-8014) はエージェント管理 subprocess として起動するため OpenRC 登録なし。
+
 ```bash
-rc-service <name> status   # check status
-rc-service <name> restart  # restart
+rc-service <name> status   # LLM サービスの状態確認
+rc-service <name> restart  # LLM サービスの再起動
 tail -f /opt/llm/logs/agent.log
-tail -f /opt/llm/logs/file-mcp.log
 ```
 
 ## Architecture

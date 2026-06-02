@@ -11,6 +11,7 @@ import asyncio
 import fnmatch
 import logging
 import os
+import pwd
 import resource
 import shlex
 import shutil
@@ -21,10 +22,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import orjson
 from fastapi import HTTPException
+from shared.protocols.shell import ShellPolicy
 
 from mcp.server import ToolArgs
-from mcp.shell.models import ShellRunRequest, ShellRunResponse, _get_cfg
+from mcp.shell.models import ShellRunRequest, ShellRunResponse, load_shell_policy
 
 # Standard library logger; log path is owned by shell_mcp_server.py
 logger = logging.getLogger(__name__)
@@ -72,38 +75,68 @@ def _set_resource_limits(max_memory_mb: int, timeout_sec: int) -> None:
     resource.setrlimit(resource.RLIMIT_FSIZE, (fsize, fsize))
 
 
+def _make_preexec(
+    max_memory_mb: int,
+    timeout_sec: int,
+    uid: int | None,
+    gid: int | None,
+) -> Callable[[], None]:
+    """Build preexec_fn for the child process.
+
+    Optionally switches OS user (setgid then setuid) when uid/gid are provided.
+    Always applies resource limits. No logging here — called in forked child.
+    """
+
+    def _preexec() -> None:
+        if gid is not None:
+            os.setgid(gid)
+        if uid is not None:
+            os.setuid(uid)
+        _set_resource_limits(max_memory_mb, timeout_sec)
+
+    return _preexec
+
+
 class ShellService:
     """Encapsulates sandboxed shell command execution with allowlist and resource limits."""
 
-    def __init__(
-        self,
-        command_allowlist: list[str],
-        shell_cwd_allowed_dirs: list[Path],
-        shell_path: str,
-        max_timeout_sec: int,
-        max_output_kb: int,
-        max_memory_mb: int,
-        audit_log_path: str,
-        sandbox_backend: str = "none",
-        default_cwd: str = "",
-        env_allowlist: list[str] | None = None,
-        env_denylist: list[str] | None = None,
-    ) -> None:
+    def __init__(self, policy: ShellPolicy) -> None:
+        self._policy = policy
         # Normalize allowlist to base names only for consistent comparison
-        self._allowlist: set[str] = {os.path.basename(c) for c in command_allowlist}
-        self._cwd_allowed_dirs = shell_cwd_allowed_dirs
-        self._path = shell_path
-        self._max_timeout_sec = max_timeout_sec
-        self._max_output_kb = max_output_kb
-        self._max_memory_mb = max_memory_mb
-        self._audit_log_path = audit_log_path
+        self._allowlist: set[str] = {
+            os.path.basename(c) for c in policy.allowed_commands
+        }
+        self._cwd_allowed_dirs = [Path(d) for d in policy.cwd_allowed_dirs]
+        self._path = policy.shell_path
+        self._max_timeout_sec = policy.timeout_sec
+        self._max_output_kb = policy.max_output_kb
+        self._max_memory_mb = policy.max_memory_mb
+        self._audit_log_path = policy.audit_log_path
         # Validate firejail availability once at init; falls back to "none" if absent
-        self._sandbox_backend = _init_sandbox(sandbox_backend)
-        self._default_cwd = default_cwd
-        self._env_allowlist: list[str] = (
-            env_allowlist if env_allowlist is not None else []
-        )
-        self._env_denylist: list[str] = env_denylist if env_denylist is not None else []
+        self._sandbox_backend = _init_sandbox(policy.sandbox_backend)
+        self._default_cwd = policy.default_cwd
+        self._env_allowlist: list[str] = list(policy.env_allowlist)
+        self._env_denylist: list[str] = list(policy.env_denylist)
+        # Resolve execution_user to uid/gid at init time to avoid pwd lookup in child
+        self._exec_uid: int | None = None
+        self._exec_gid: int | None = None
+        if policy.execution_user:
+            if os.getuid() != 0:
+                # Non-root cannot call setuid; log warning and continue as current user
+                logger.warning(
+                    "execution_user=%r requires CAP_SETUID (root); user switch is disabled",
+                    policy.execution_user,
+                )
+            else:
+                try:
+                    pw = pwd.getpwnam(policy.execution_user)
+                    self._exec_uid = pw.pw_uid
+                    self._exec_gid = pw.pw_gid
+                except KeyError:
+                    logger.warning(
+                        "execution_user=%r not found in /etc/passwd; user switch is disabled",
+                        policy.execution_user,
+                    )
 
     def _check_command(self, req: ShellRunRequest) -> list[str]:
         """Parse command and verify argv[0] is in the allowlist.
@@ -214,7 +247,7 @@ class ShellService:
           2. Validate cwd
           3. Clamp timeout_sec and max_output_kb to server-configured maxima
           4. Launch subprocess with resource limits via preexec_fn
-          5. Wait with asyncio timeout; kill on timeout
+          5. Wait with asyncio timeout; kill on timeout using configured kill_policy
           6. Truncate combined stdout+stderr if over the output limit
           7. Write audit log
         """
@@ -232,8 +265,6 @@ class ShellService:
         filtered_env = self._filter_env(req.env)
         env = {**os.environ, "PATH": self._path, **filtered_env}
 
-        max_memory_mb = self._max_memory_mb
-
         start = time.monotonic()
         timed_out = False
 
@@ -247,7 +278,9 @@ class ShellService:
             # start_new_session=True creates a new process group so we can
             # kill the entire group (including children) on timeout
             start_new_session=True,
-            preexec_fn=lambda: _set_resource_limits(max_memory_mb, timeout_sec),
+            preexec_fn=_make_preexec(
+                self._max_memory_mb, timeout_sec, self._exec_uid, self._exec_gid
+            ),
         )
 
         try:
@@ -257,23 +290,30 @@ class ShellService:
             )
         except TimeoutError:
             timed_out = True
-            # Kill the entire process group; ignore errors if already dead
-            try:
-                os.killpg(proc.pid, signal.SIGTERM)
-            except OSError:
-                pass
-            # Wait up to 2 s for graceful exit before escalating to SIGKILL
-            try:
-                await asyncio.wait_for(proc.wait(), timeout=2.0)
-            except TimeoutError:
+            kill_policy = self._policy.kill_policy
+            kill_grace_sec = self._policy.kill_grace_sec
+            if kill_policy == "sigkill_only":
                 try:
                     os.killpg(proc.pid, signal.SIGKILL)
                 except OSError:
                     pass
+            else:
+                # sigterm_then_sigkill: send SIGTERM, wait grace period, then SIGKILL
                 try:
-                    await asyncio.wait_for(proc.wait(), timeout=5.0)
-                except TimeoutError:
+                    os.killpg(proc.pid, signal.SIGTERM)
+                except OSError:
                     pass
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=kill_grace_sec)
+                except TimeoutError:
+                    try:
+                        os.killpg(proc.pid, signal.SIGKILL)
+                    except OSError:
+                        pass
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=5.0)
+            except TimeoutError:
+                pass
             stdout_b = b""
             stderr_b = b""
 
@@ -316,7 +356,13 @@ class ShellService:
     # ── Dispatch handlers: format service results as plain text for the LLM ──
 
     async def fmt_run_command(self, args: ToolArgs) -> str:
-        result = await self.run_command(ShellRunRequest(**args))
+        req = ShellRunRequest(**args)
+        if req.dry_run:
+            cwd = req.cwd or "(default)"
+            cmd_display = req.command
+            preview = f"Would execute: {cmd_display} (cwd: {cwd})"
+            return orjson.dumps({"preview": preview, "dry_run": True}).decode()
+        result = await self.run_command(req)
         parts: list[str] = []
         if result.timed_out:
             parts.append("[TIMED OUT]")
@@ -345,33 +391,16 @@ class _LazyShellService:
 
     def __getattr__(self, name: str) -> Any:
         if _LazyShellService._instance is None:
-            cfg = _get_cfg()
-            allowed_dirs = [Path(d) for d in cfg.get("shell_cwd_allowed_dirs", [])]
-            if not allowed_dirs:
+            policy = load_shell_policy()
+            if not policy.cwd_allowed_dirs:
                 logger.warning(
                     "shell_cwd_allowed_dirs is empty — all cwd values will be rejected",
                 )
-            allowlist = cfg.get("command_allowlist", [])
-            if not allowlist:
+            if not policy.allowed_commands:
                 logger.warning(
                     "command_allowlist is empty — all commands will be rejected",
                 )
-            _LazyShellService._instance = ShellService(
-                command_allowlist=allowlist,
-                shell_cwd_allowed_dirs=allowed_dirs,
-                shell_path=cfg.get("shell_path", "/usr/local/bin:/usr/bin:/bin"),
-                max_timeout_sec=cfg.get("max_timeout_sec", 300),
-                max_output_kb=cfg.get("max_output_kb", 4096),
-                max_memory_mb=cfg.get("max_memory_mb", 512),
-                audit_log_path=cfg.get(
-                    "audit_log_path",
-                    "/opt/llm/logs/shell_audit.log",
-                ),
-                sandbox_backend=cfg.get("shell_sandbox_backend", "none"),
-                default_cwd=cfg.get("default_cwd", ""),
-                env_allowlist=cfg.get("env_allowlist", []),
-                env_denylist=cfg.get("env_denylist", []),
-            )
+            _LazyShellService._instance = ShellService(policy)
         return getattr(_LazyShellService._instance, name)
 
 

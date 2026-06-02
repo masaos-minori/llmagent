@@ -44,6 +44,10 @@ class TriggerWorkflowRequest(BaseModel):
         default_factory=dict,
         description="Input parameters for the workflow (key-value pairs)",
     )
+    dry_run: bool = Field(
+        default=False,
+        description="Preview only; workflow dispatch is not triggered",
+    )
 
 
 class GetWorkflowRunsRequest(BaseModel):

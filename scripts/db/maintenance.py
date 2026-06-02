@@ -32,6 +32,7 @@ _cfg: dict[str, Any] | None = None
 
 
 def _get_cfg() -> dict[str, Any]:
+    """Load config on first call; cached for the module lifetime."""
     global _cfg
     if _cfg is None:
         try:
@@ -85,12 +86,11 @@ def purge_old_sessions(
     if cfg is None:
         cfg = RetentionConfig.from_config()
 
-    assert db.conn is not None, "DB not open"
     age_deleted = 0
     count_deleted = 0
 
     if cfg.max_age_days > 0:
-        cur = db.conn.execute(
+        cur = db.execute(
             "DELETE FROM sessions WHERE created_at < datetime('now', ?)",
             (f"-{cfg.max_age_days} days",),
         )
@@ -101,15 +101,13 @@ def purge_old_sessions(
                 f" older than {cfg.max_age_days} days",
             )
 
-    rows = db.conn.execute(
-        "SELECT session_id FROM sessions ORDER BY created_at DESC",
-    ).fetchall()
+    rows = db.fetchall("SELECT session_id FROM sessions ORDER BY created_at DESC")
     if len(rows) > cfg.max_sessions:
         to_delete = [row[0] for row in rows[cfg.max_sessions :]]
         placeholders = ",".join("?" * len(to_delete))
-        cur = db.conn.execute(
+        cur = db.execute(
             f"DELETE FROM sessions WHERE session_id IN ({placeholders})",
-            to_delete,
+            tuple(to_delete),
         )
         count_deleted = cur.rowcount
         logger.info(
@@ -117,33 +115,32 @@ def purge_old_sessions(
             f" beyond limit of {cfg.max_sessions}",
         )
 
-    db.conn.commit()
+    db.commit()
     return {"age_deleted": age_deleted, "count_deleted": count_deleted}
 
 
 def prune_old_memories(db: SQLiteHelper, older_than_days: int) -> int:
     """Delete memories older than older_than_days; return count deleted."""
-    assert db.conn is not None, "DB not open"
-    rows = db.conn.execute(
+    rows = db.fetchall(
         "SELECT memory_id FROM memories WHERE created_at < datetime('now', ?)",
         (f"-{older_than_days} days",),
-    ).fetchall()
+    )
     if not rows:
         return 0
     mids = [row[0] for row in rows]
     placeholders = ",".join("?" * len(mids))
-    cur = db.conn.execute(
+    cur = db.execute(
         f"DELETE FROM memories WHERE memory_id IN ({placeholders})",  # nosec B608 — mids are UUIDs; placeholders use ?
-        mids,
+        tuple(mids),
     )
     for mid in mids:
-        db.conn.execute("DELETE FROM memories_fts WHERE memory_id=?", (mid,))
+        db.execute("DELETE FROM memories_fts WHERE memory_id=?", (mid,))
         try:
-            db.conn.execute("DELETE FROM memories_vec WHERE memory_id=?", (mid,))
+            db.execute("DELETE FROM memories_vec WHERE memory_id=?", (mid,))
         except Exception:
             pass
     deleted = cur.rowcount
-    db.conn.commit()
+    db.commit()
     logger.info(
         f"prune_old_memories: removed {deleted} entries"
         f" older than {older_than_days} days",
@@ -202,7 +199,8 @@ def recover_corruption(backup_path: str | Path | None = None) -> bool:
 
     try:
         with SQLiteHelper("rag").open() as db:
-            assert db.conn is not None
+            if db.conn is None:
+                raise RuntimeError("DB connection not established after open()")
             result = db.conn.execute("PRAGMA integrity_check").fetchone()[0]
     except Exception as e:
         logger.error(f"Cannot open DB for integrity check: {e}")

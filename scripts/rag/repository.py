@@ -30,8 +30,8 @@ _MAX_FTS_TOKENS = 20
 _FTS_KEEP_POS: frozenset[str] = frozenset({"名詞", "動詞", "形容詞"})
 
 # Lazily-initialized Sudachi tokenizer for FTS5 query tokenization
-_sd_tkn = None
-_sd_split_c = None
+_sd_tkn: Any = None
+_sd_split_c: Any = None
 
 
 def _get_sudachi_tokenizer() -> tuple:

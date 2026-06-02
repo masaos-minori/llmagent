@@ -8,7 +8,7 @@
 
 `agent.py` は RAG 検索と MCP ツールコーリング (OpenAI 互換 function calling) を統合した CLI REPL ツール。
 `agent[chat]>` / `agent[code]>` プロンプトにモード名を表示しながら対話し、セッション中は会話履歴を保持してマルチターン対話が可能。
-スラッシュコマンド (`/help` / `/mcp` / `/mcp install` / `/config` / `/stats` / `/context` / `/compact` / `/clear` / `/chat` / `/code` / `/session` / `/db` / `/ingest` / `/debug` / `/rag` / `/note` / `/tool` / `/plan` / `/undo` / `/history` / `/system` / `/set` / `/reload` / `/export` / `/exit`) と Ctrl-D で操作。
+スラッシュコマンド (`/help` / `/mcp` / `/mcp install` / `/config` / `/stats` / `/context` / `/compact` / `/clear` / `/chat` / `/code` / `/session` / `/db` / `/ingest` / `/debug` / `/note` / `/tool` / `/plan` / `/undo` / `/history` / `/system` / `/set` / `/reload` / `/export` / `/exit`) と Ctrl-D で操作。
 行末が `\` のとき次行に継続し、空行または改行なし行で送信するマルチライン入力に対応。
 行編集は Readline ベースで bash と同様のキーバインドを使用可能。セッション履歴は `~/.agent_history` に保存。
 DB 接続 (sqlite-vec) は RAG クエリごとにオープン/クローズ (データアクセス単位)。
@@ -140,12 +140,7 @@ Slash commands:
   /db clean <url>          Delete a document and its chunks from the DB
   /db rebuild-fts          Rebuild the FTS5 chunks_fts index
   /ingest <url|path>       Crawl/ingest a URL or local file into the RAG DB
-  /debug                   Toggle RAG pipeline debug output ON/OFF
-  /rag                     Show current RAG step status
-  /rag on|off              Enable/disable RAG search entirely
-  /rag mqe on|off          Enable/disable Multi-Query Expansion
-  /rag rerank on|off       Enable/disable Cross-Encoder reranking
-  /rag search <q>          Dry-run RAG pipeline and display chunks (no LLM call)
+  /debug                   Toggle debug output ON/OFF (log level / audit.log tail)
   /note add <text>         Add a persistent cross-session note
   /note list               List all notes
   /note delete <id>        Delete a note by ID

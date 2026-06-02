@@ -53,12 +53,19 @@ class HttpTransport:
         self._base_url = base_url
         self._server_key = server_key
         self._auth_token: str = cfg.auth_token if cfg is not None else ""
+        self._session_id: str = ""
+
+    def set_session_id(self, session_id: str) -> None:
+        """Inject session ID to be forwarded as X-Session-Id header on every call."""
+        self._session_id = session_id
 
     async def call(self, name: str, args: dict[str, Any]) -> tuple[str, bool, str]:
         """POST to /v1/call_tool and return (result, is_error, x_request_id)."""
         headers: dict[str, str] = {}
         if self._auth_token:
             headers["Authorization"] = f"Bearer {self._auth_token}"
+        if self._session_id:
+            headers["X-Session-Id"] = self._session_id
         try:
             resp = await self._http.post(
                 f"{self._base_url}/v1/call_tool",
@@ -333,6 +340,12 @@ class ToolExecutor:
     def set_lifecycle(self, lifecycle: LifecycleProtocol | None) -> None:
         """Inject or replace the lifecycle manager after construction."""
         self._lifecycle = lifecycle
+
+    def set_session_id(self, session_id: str) -> None:
+        """Propagate session ID to all HttpTransport instances for audit logging."""
+        for transport in self._transports.values():
+            if isinstance(transport, HttpTransport):
+                transport.set_session_id(session_id)
 
     async def _raw_execute(
         self,

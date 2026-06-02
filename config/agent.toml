@@ -31,21 +31,9 @@ web_search_max_results = 5
 # Maximum number of tool-calling turns to prevent infinite loops in tool_query endpoint
 max_tool_turns = 5
 
-# When true, run MQE (multi-query expansion). When false, search with the original query only
-use_mqe = true
-
-# When true, run KNN vector search and BM25 full-text search. When false, skip search and return empty response
-use_search = true
-
-# When true, run RRF to merge multiple search results. When false, deduplicate by chunk_id and use original order
-use_rrf = true
-
-# When true, run Cross-Encoder reranking. When false, return top_k results sorted by RRF score
-use_rerank = true
-
-# When true, Orchestrator delegates RAG augmentation to rag-pipeline-mcp (rag_run_pipeline tool)
-# instead of running the in-process RagPipeline. Requires rag-pipeline-mcp to be accessible.
-use_rag_mcp = false
+# When true, execute_all_tool_calls places WRITE_TOOLS before READ_TOOLS/others within the same turn.
+# Ignored when serial_tool_calls=true. Opt-in; default false.
+use_tool_dag = false
 
 # When total conversation history characters exceed this value, compress old turns via LLM summarization
 context_char_limit = 8000
@@ -62,17 +50,11 @@ llm_max_retries = 3
 # Base wait seconds for exponential backoff; waits base_delay at attempt=0, 2*base_delay at attempt=1
 llm_retry_base_delay = 1.0
 
-# Maximum number of RAG chunks appended to the LLM context; passes top_k_rerank -> rerank -> top rag_top_k results
-rag_top_k = 5
-
 # Maximum characters when adding tool call results to the LLM context; excess is truncated
 tool_result_max_llm_chars = 8000
 
 # Maximum total characters of all tool results in one turn; results exceeding this are replaced with a /tool show <id> hint
 tool_results_turn_max_chars = 50000
-
-# Chunks with a rerank score (0-10) below this value are excluded from results; default 0.0 (no filter)
-rag_min_score = 0.0
 
 # Maximum number of chunks retrieved from the same document; prevents near-duplicate chunks from chunk_overlap
 max_chunks_per_doc = 2
@@ -82,12 +64,6 @@ md_index_enable = false
 
 # Maximum characters for a single Markdown heading section; falls back to normal text chunking if exceeded
 md_snippet_max_chars = 600
-
-# When true, runs fetch_full_document() two-stage retrieval on turns where the LLM is judged to request additional context
-use_two_stage_fetch = false
-
-# Maximum number of documents to expand in two-stage retrieval
-two_stage_max_docs = 2
 
 # When true, executes tool_calls sequentially in a loop instead of asyncio.gather() parallel execution; use when ordering is required for write->read dependencies
 serial_tool_calls = false
@@ -154,9 +130,6 @@ tool_error_retry_max = 1
 
 # Per-tool-server concurrent execution limit; key is the server key from _route(); unknown keys log WARNING at startup; empty = unlimited (default: {})
 tool_concurrency_limits = {file_read = 4, file_write = 1, file_delete = 1, shell = 2, web_search = 2, github = 3, rag_pipeline = 4, sqlite = 4, cicd = 2}
-
-# Base URL of the external RAG HTTP service (e.g. http://127.0.0.1:8010); when set, augment() makes HTTP calls instead of in-process execution; empty string for in-process mode (default: "")
-rag_service_url = "http://127.0.0.1:8010"
 
 # Token-based history compression monitoring threshold; 0 disables; logs logger.warning when chars/4 exceeds this value
 context_token_limit = 0
@@ -233,6 +206,17 @@ approval_dry_run_tools = [
   "delete_directory",
   "git_checkout",
   "git_push",
+  "github_create_branch",
+  "github_create_or_update_file",
+  "github_push_files",
+  "github_delete_file",
+  "github_create_issue",
+  "github_add_issue_comment",
+  "github_create_pull_request",
+  "github_update_pull_request",
+  "github_merge_pull_request",
+  "trigger_workflow",
+  "shell_run",
 ]
 
 # List of tool names allowed for this session; empty list means unrestricted (all tools usable)
@@ -315,7 +299,7 @@ git_push                   = "WRITE_DANGEROUS"
 transport        = "http"
 url              = "http://127.0.0.1:8004"
 cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.web_search.server:app", "--host", "127.0.0.1", "--port", "8004", "--workers", "1"]
-openrc_service   = "web-search-mcp"
+openrc_service   = ""
 startup_mode     = "subprocess"
 startup_timeout_sec = 30
 healthcheck_mode = "http"
@@ -327,7 +311,7 @@ tool_names       = ["search_web"]
 transport        = "http"
 url              = "http://127.0.0.1:8005"
 cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.file.read_server:app", "--host", "127.0.0.1", "--port", "8005", "--workers", "1"]
-openrc_service   = "file-read-mcp"
+openrc_service   = ""
 startup_mode     = "subprocess"
 startup_timeout_sec = 30
 healthcheck_mode = "http"
@@ -339,7 +323,7 @@ tool_names       = ["read_text_file", "list_directory", "directory_tree", "searc
 transport        = "http"
 url              = "http://127.0.0.1:8006"
 cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.github.server:app", "--host", "127.0.0.1", "--port", "8006", "--workers", "1"]
-openrc_service   = "github-mcp"
+openrc_service   = ""
 startup_mode     = "subprocess"
 startup_timeout_sec = 30
 healthcheck_mode = "http"
@@ -357,7 +341,7 @@ tool_names       = [
 transport        = "http"
 url              = "http://127.0.0.1:8007"
 cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.file.write_server:app", "--host", "127.0.0.1", "--port", "8007", "--workers", "1"]
-openrc_service   = "file-write-mcp"
+openrc_service   = ""
 startup_mode     = "subprocess"
 startup_timeout_sec = 30
 healthcheck_mode = "http"
@@ -369,7 +353,7 @@ tool_names       = ["write_file", "edit_file", "create_directory", "move_file"]
 transport        = "http"
 url              = "http://127.0.0.1:8008"
 cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.file.delete_server:app", "--host", "127.0.0.1", "--port", "8008", "--workers", "1"]
-openrc_service   = "file-delete-mcp"
+openrc_service   = ""
 startup_mode     = "subprocess"
 startup_timeout_sec = 30
 healthcheck_mode = "http"
@@ -381,7 +365,7 @@ tool_names       = ["delete_file", "delete_directory"]
 transport        = "http"
 url              = "http://127.0.0.1:8009"
 cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.shell.server:app", "--host", "127.0.0.1", "--port", "8009", "--workers", "1"]
-openrc_service   = "shell-mcp"
+openrc_service   = ""
 startup_mode     = "subprocess"
 startup_timeout_sec = 30
 healthcheck_mode = "http"
@@ -393,7 +377,7 @@ tool_names       = ["shell_run"]
 transport        = "http"
 url              = "http://127.0.0.1:8010"
 cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.rag_pipeline.server:app", "--host", "127.0.0.1", "--port", "8010", "--workers", "1"]
-openrc_service   = "rag-pipeline-mcp"
+openrc_service   = ""
 startup_mode     = "subprocess"
 startup_timeout_sec = 30
 healthcheck_mode = "http"
@@ -405,7 +389,7 @@ tool_names       = ["rag_run_pipeline", "rag_debug_pipeline"]
 transport        = "http"
 url              = "http://127.0.0.1:8011"
 cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.sqlite.server:app", "--host", "127.0.0.1", "--port", "8011", "--workers", "1"]
-openrc_service   = "sqlite-mcp"
+openrc_service   = ""
 startup_mode     = "subprocess"
 startup_timeout_sec = 30
 healthcheck_mode = "http"
@@ -417,7 +401,7 @@ tool_names       = ["query_sqlite"]
 transport        = "http"
 url              = "http://127.0.0.1:8012"
 cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.cicd.server:app", "--host", "127.0.0.1", "--port", "8012", "--workers", "1"]
-openrc_service   = "cicd-mcp"
+openrc_service   = ""
 startup_mode     = "subprocess"
 startup_timeout_sec = 30
 healthcheck_mode = "http"
@@ -428,8 +412,8 @@ tool_names       = []
 [mcp_servers.mdq]
 transport        = "http"
 url              = "http://127.0.0.1:8013"
-cmd              = ["/opt/llm/venv/bin/uvicorn", "mdq_mcp_server:app", "--host", "127.0.0.1", "--port", "8013", "--workers", "1"]
-openrc_service   = "mdq-mcp"
+cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.mdq.server:app", "--host", "127.0.0.1", "--port", "8013", "--workers", "1"]
+openrc_service   = ""
 startup_mode     = "subprocess"
 startup_timeout_sec = 30
 healthcheck_mode = "http"
@@ -441,7 +425,7 @@ tool_names       = []
 transport        = "http"
 url              = "http://127.0.0.1:8014"
 cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.git.server:app", "--host", "127.0.0.1", "--port", "8014", "--workers", "1"]
-openrc_service   = "git-mcp"
+openrc_service   = ""
 startup_mode     = "subprocess"
 startup_timeout_sec = 30
 healthcheck_mode = "http"

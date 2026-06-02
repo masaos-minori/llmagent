@@ -12,6 +12,7 @@ Security guards:
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
@@ -399,6 +400,14 @@ class CiCdService:
         req = TriggerWorkflowRequest(**args)
         self._assert_allowed_repo(req.repo)
         self._assert_allowed_workflow(req.workflow)
+        if req.dry_run:
+            preview = (
+                f"Would trigger workflow '{req.workflow}' on ref '{req.ref}'"
+                f" in repo '{req.repo}'"
+            )
+            if req.inputs:
+                preview += f" with inputs={req.inputs}"
+            return orjson.dumps({"preview": preview, "dry_run": True}).decode()
         owner, repo = self._parse_repo(req.repo)
         return await self._backend.trigger_workflow(
             owner,
@@ -454,8 +463,6 @@ class _LazyCiCdService:
 
     def __getattr__(self, name: str) -> Any:
         if _LazyCiCdService._instance is None:
-            import os  # noqa: PLC0415
-
             cfg = _get_cfg()
             # Read token from env (set via /etc/conf.d/cicd-mcp by OpenRC)
             github_token = os.environ.get("GITHUB_TOKEN", cfg.get("github_token", ""))

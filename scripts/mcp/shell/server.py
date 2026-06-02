@@ -18,12 +18,12 @@ Provided endpoints:
 import time
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, ToolArgs, dispatch_tool
+from mcp.server import MCPServer, ToolArgs, _audit_log, dispatch_tool
 from mcp.shell.models import ShellRunRequest, ShellRunResponse
 from mcp.shell.service import _service
 
@@ -126,8 +126,20 @@ async def list_tools() -> dict[str, Any]:
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
-async def call_tool(req: CallToolRequest) -> CallToolResponse:
+async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
     result, is_error = await _dispatch_shell_tool(req.name, req.args)
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action=req.name,
+        target=req.args.get("command", "")[:80],
+        outcome="error" if is_error else "ok",
+    )
     return CallToolResponse(result=result, is_error=is_error)
 
 

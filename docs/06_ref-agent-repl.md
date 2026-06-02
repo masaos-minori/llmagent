@@ -35,29 +35,21 @@ await AgentREPL().run()
 | メソッド | 説明 |
 |---|---|
 | `run() -> None` | readline 初期化 → `_init_components()` → stdio サーバ起動 → サービスヘルスチェック → ツール定義検証 → `_print_startup_banner()` → セッション開始 → メモリ SessionStart → ウォッチドッグ起動 → `_repl_loop()` → メモリ Stop → リソースクローズ |
-| `_init_components() -> None` | 各 `_init_*` メソッドを順番に呼び出して全コンポーネントを `AgentContext` に注入 (→ 下表) |
-| `_init_audit_logger(ctx) -> None` | `Logger("audit", ...)` を `ctx.services.audit_logger` に注入 |
-| `_init_llm_client(ctx) -> None` | `httpx.AsyncClient` / `LLMClient` を生成して `ctx.services.http` / `ctx.services.llm` に注入 |
-| `_init_tool_executor(ctx) -> None` | `ToolExecutor` / `ServerLifecycleManager` を生成して `ctx.services.tools` / `ctx.services.lifecycle` に注入 |
-| `_init_history_manager(ctx) -> None` | `HistoryManager` を `ctx.services.hist_mgr` に注入 |
-| `_init_rag_pipeline(ctx) -> None` | `RagPipeline` を `ctx.services.rag` に注入 |
-| `_init_memory_layer(ctx) -> None` | `ctx.cfg.use_memory_layer=True` のとき `MemoryLayer` を `ctx.services.memory` に注入 |
+| `_init_components() -> None` | `build_agent_context(ctx, view)` でサービスを注入した後、`_init_command_registry` → `_init_orchestrator` を呼び出す |
 | `_init_command_registry(ctx) -> None` | `CommandRegistry(ctx)` を `self._cmds` に代入 |
-| `_init_orchestrator(ctx) -> None` | `_init_tracer()` を呼び出して `Orchestrator` を `self._orchestrator` に代入 |
-| `_init_tracer(ctx) -> Any` | `build_tracer()` で OTel トレーサ (または NoOp) を生成して返す |
-| `_init_plugin_registry() -> None` | `scripts/` の 2 親階層上の `plugins/` ディレクトリを `plugin_registry.load_plugins()` でロード |
-| `_print_startup_banner() -> None` | DB チャンク数・ツール数を表示。`ctx.cfg.use_search=False` のとき `"disabled"` と表示 |
+| `_init_orchestrator(ctx) -> None` | `build_tracer()` で OTel トレーサを生成して `Orchestrator` を `self._orchestrator` に代入 |
+| `_print_startup_banner() -> None` | DB チャンク数・ツール数を表示 (`"DB: N chunks | Tools: N"`) |
 | `_get_chunk_count() -> str` | DB の `chunks` 行数をカンマ区切り書式で返す。エラー時は `"?"` を返す |
-| `_start_stdio_servers() -> None` | `startup_mode == 'persistent'` の stdio トランスポートのみサブプロセスを起動し `ToolExecutor.set_transport()` で登録。`ondemand` サーバは `ServerLifecycleManager.ensure_ready()` による初回使用時起動に委ねる |
+| `_start_subprocess_servers() -> None` | `startup_mode == 'persistent'` の stdio と `startup_mode == 'subprocess'` の HTTP サーバを起動。`ondemand` サーバは `ServerLifecycleManager.ensure_ready()` による初回使用時起動に委ねる |
 | `_repl_loop() -> None` | ユーザ入力待機 → `\` 終端で複数行継続入力 → スラッシュコマンドまたは `self._orchestrator.handle_turn()` に委譲 |
 | `_close_resources() -> None` | readline 履歴保存 → `lifecycle.shutdown_all()` で stdio サーバ停止 → `AsyncClient` クローズ |
 
 **`_init_components()` 呼び出し順序:**
 
 ```
-_init_audit_logger → _init_llm_client → _init_tool_executor
-  → _init_history_manager → _init_rag_pipeline → _init_memory_layer
-  → _init_command_registry → _init_orchestrator → _init_plugin_registry
+build_agent_context(ctx, view)   ← factory.py が audit_logger/http/llm/tools/lifecycle/hist_mgr/memory を注入
+  → _init_command_registry
+  → _init_orchestrator
 ```
 
 ## 3. Orchestrator API
@@ -71,10 +63,8 @@ await orch.handle_turn(line)
 
 | メソッド | 説明 |
 |---|---|
-| `handle_turn(line) -> None` | RAG 付加 → 履歴圧縮 → `_run_turn()` → 結果を DB 保存。`LLMTransportError` を捕捉し partial/pre-stream の 2 ブランチで処理 |
-| `_run_turn(llm_url) -> str` | SSE ストリーミングで LLM を呼び出し、tool_calls があれば `execute_all_tool_calls()` 後に再送信。最大 `max_tool_turns` 回ループ。最終回答テキストを返す |
-| `_augment_with_rag(line) -> tuple[str, bool]` | RAG パイプライン実行 + セマンティックキャッシュ参照。`(context_text, cache_hit)` を返す |
-| `_maybe_two_stage_fetch(answer) -> str \| None` | LLM の回答に不十分なコンテキストシグナルがあれば全文展開コンテキストを返す |
+| `handle_turn(line) -> None` | メモリ注入 → `_append_user_message` → 履歴圧縮 → `_run_turn()` → 結果を DB 保存。`LLMTransportError` を捕捉し partial/pre-stream の 2 ブランチで処理 |
+| `_run_turn(llm_url) -> str` | SSE ストリーミングで LLM を呼び出し、tool_calls があれば `execute_all_tool_calls()` 後に再送信。最大 `max_tool_turns` 回ループ。`_check_all_tool_guards()` と `_check_consecutive_error_limit()` を適用。最終回答テキストを返す |
 | `_warn_budget() -> None` | 会話履歴が `context_char_limit` / `context_token_limit` の `budget_warn_ratio` を超えたときコンテキスト使用量の警告ログを出力 |
 
 **`_run_turn()` 安全ガード**
@@ -183,8 +173,8 @@ AgentREPL からはデリゲートメソッド (`_check_service_health`, `_check
 ```
 AgentREPL.run()
   └─ _view.setup_readline()        — readline 設定・補完・履歴ファイル読み込み
-  └─ _init_components()            — 全コンポーネントを AgentContext に注入
-  └─ _start_stdio_servers()        — persistent stdio サーバのサブプロセス起動
+  └─ _init_components()            — build_agent_context() → CommandRegistry → Orchestrator 注入
+  └─ _start_subprocess_servers()   — persistent stdio / HTTP subprocess サーバ起動
   └─ _check_service_health()       — LLM/Embed サービスヘルスプローブ (警告のみ)
   └─ _check_tool_definitions()     — agent.toml ↔ ライブ MCP ツールリスト検証 (警告/例外)
   └─ _print_startup_banner()       — DB チャンク数・ツール数を表示
@@ -195,13 +185,12 @@ AgentREPL.run()
        └─ input()                  — ユーザ入力待機 (EOF/KeyboardInterrupt で終了)
        └─ 末尾 \ → _view.read_multiline()  — 複数行入力の継続
        └─ Orchestrator.handle_turn(line)
-            └─ _augment_with_rag() — MQE → KNN+BM25 → RRF → Rerank (± semantic cache)
-            └─ ctx.session.save()  — messages テーブルに保存
+            └─ memory.on_user_prompt()  ← use_memory_layer=True のとき関連メモリを注入
+            └─ _append_user_message()  — user メッセージを history に追記・セッション保存
             └─ asyncio.create_task(_cmds._generate_session_title())  ← 第1ターンのみ
             └─ hist_mgr.compress() — 履歴圧縮 (context_char_limit / context_token_limit)
             └─ _run_turn()         — LLM SSE ストリーム + ツールループ (max_tool_turns 回)
                  └─ execute_all_tool_calls()  — 承認・並列/直列実行・結果追記
-                 └─ _maybe_two_stage_fetch()  — 不十分時のみ全文展開 (1回限り)
   └─ memory.on_session_stop()      — (use_memory_layer=True のとき) セッション終了時に記憶を抽出・永続化
   └─ watchdog_task.cancel()
   └─ _close_resources()            — readline 履歴保存・lifecycle.shutdown_all()・AsyncClient クローズ

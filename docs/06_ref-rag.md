@@ -203,9 +203,7 @@ from rag.types import LLMMessage  # re-exports from shared.types
 
 | スクリプト | 使用箇所 |
 |---|---|
-| `agent/repl.py` | `ctx.services.rag = RagPipeline(...)` を `_init_components()` で生成 |
-| `agent/orchestrator.py` | `_augment_with_rag()` が `ctx.services.rag.augment()` を呼び出す |
-| `agent/commands/cmd_rag.py` | `/rag` コマンドが `ctx.services.rag.augment()` をデバッグ実行で使用する |
+| `mcp/rag_pipeline/service.py` | `RagMCPService.run_pipeline()` が `RagPipeline.run()` を呼び出す。agent 側の in-process 呼び出しは削除済み |
 
 ---
 

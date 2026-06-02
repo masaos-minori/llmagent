@@ -27,7 +27,6 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.tool_error_retry_max = 0
     ctx.cfg.tool_cycle_detect_window = 0
     ctx.cfg.tool_error_max_consecutive = 3
-    ctx.cfg.use_search = False
     # session / turn state
     ctx.llm_url = "http://llm-test"
     ctx.history = []
@@ -58,7 +57,6 @@ def _make_ctx() -> MagicMock:
     ctx.services.llm = llm_svc
     ctx.services.audit_logger = None
     ctx.services.memory = None
-    ctx.services.rag = None
     ctx.services.tools = None
     return ctx
 
@@ -94,11 +92,8 @@ class TestHandleTurnLLMTransportError:
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="PREMATURE_EOF", partial_text="partial answer")
 
-        with patch.object(
-            orch, "_augment_with_rag", AsyncMock(return_value=("", False))
-        ):
-            with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
-                await orch.handle_turn("hello")
+        with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
 
         incomplete = [m for m in ctx.history if "[INCOMPLETE" in m.get("content", "")]
         assert len(incomplete) == 1
@@ -110,11 +105,8 @@ class TestHandleTurnLLMTransportError:
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="PREMATURE_EOF", partial_text="some output")
 
-        with patch.object(
-            orch, "_augment_with_rag", AsyncMock(return_value=("", False))
-        ):
-            with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
-                await orch.handle_turn("hello")
+        with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
 
         assert ctx.services.llm.stat_partial_completions == 1
 
@@ -124,11 +116,8 @@ class TestHandleTurnLLMTransportError:
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="CONNECT_ERROR", partial_text="")
 
-        with patch.object(
-            orch, "_augment_with_rag", AsyncMock(return_value=("", False))
-        ):
-            with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
-                await orch.handle_turn("hello")
+        with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
 
         user_msgs = [m for m in ctx.history if m.get("role") == "user"]
         assert len(user_msgs) == 0
@@ -140,11 +129,8 @@ class TestHandleTurnLLMTransportError:
         orch = _make_orchestrator(ctx, on_error=on_error)
         err = _make_err(kind="PREMATURE_EOF", partial_text="partial")
 
-        with patch.object(
-            orch, "_augment_with_rag", AsyncMock(return_value=("", False))
-        ):
-            with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
-                await orch.handle_turn("hello")
+        with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
 
         on_error.assert_called_once_with(err)
 
@@ -155,11 +141,8 @@ class TestHandleTurnLLMTransportError:
         orch = _make_orchestrator(ctx, on_error=on_error)
         err = _make_err(kind="CONNECT_ERROR", partial_text="")
 
-        with patch.object(
-            orch, "_augment_with_rag", AsyncMock(return_value=("", False))
-        ):
-            with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
-                await orch.handle_turn("hello")
+        with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
 
         on_error.assert_called_once_with(err)
 
@@ -169,11 +152,8 @@ class TestHandleTurnLLMTransportError:
         ctx.services.audit_logger = MagicMock()
         orch = _make_orchestrator(ctx)
 
-        with patch.object(
-            orch, "_augment_with_rag", AsyncMock(return_value=("", False))
-        ):
-            with patch.object(orch, "_run_turn", AsyncMock(return_value="answer")):
-                await orch.handle_turn("hello")
+        with patch.object(orch, "_run_turn", AsyncMock(return_value="answer")):
+            await orch.handle_turn("hello")
 
         assert ctx.services.audit_logger.info.called
 
@@ -184,11 +164,8 @@ class TestHandleTurnLLMTransportError:
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="PREMATURE_EOF", partial_text="partial")
 
-        with patch.object(
-            orch, "_augment_with_rag", AsyncMock(return_value=("", False))
-        ):
-            with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
-                await orch.handle_turn("hello")
+        with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
 
         assert ctx.services.audit_logger.info.called
 
@@ -293,6 +270,69 @@ class TestRunTurnLLMTransportError:
         assert call_kwargs["is_error"] is True
 
 
+# ── _run_turn: normal completion (is_done=True) ──────────────────────────────
+
+
+class TestRunTurnNormalCompletion:
+    @pytest.mark.asyncio
+    async def test_run_turn_returns_content_on_stop(self) -> None:
+        # finish_reason="stop" → is_done=True → _finalize_answer() → content を返す
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        stop_response = {
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": "hello world",
+                        "tool_calls": None,
+                    },
+                    "finish_reason": "stop",
+                }
+            ]
+        }
+
+        async def _mock_stream(*_args: object, **_kwargs: object) -> dict:
+            return stop_response
+
+        ctx.services.llm.stream = _mock_stream
+
+        result = await orch._run_turn("http://llm-test")
+
+        assert result == "hello world"
+        assistant_msgs = [m for m in ctx.history if m.get("role") == "assistant"]
+        assert len(assistant_msgs) == 1
+
+    @pytest.mark.asyncio
+    async def test_run_turn_returns_empty_string_on_none_content(self) -> None:
+        # content が None の場合は空文字列を返す
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        stop_response = {
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": None,
+                    },
+                    "finish_reason": "stop",
+                }
+            ]
+        }
+
+        async def _mock_stream(*_args: object, **_kwargs: object) -> dict:
+            return stop_response
+
+        ctx.services.llm.stream = _mock_stream
+
+        result = await orch._run_turn("http://llm-test")
+
+        assert result == ""
+
+
 # ── handle_turn: tool_result_store ───────────────────────────────────────────
 
 
@@ -303,11 +343,8 @@ class TestHandleTurnToolResultStore:
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="PREMATURE_EOF", partial_text="partial answer")
 
-        with patch.object(
-            orch, "_augment_with_rag", AsyncMock(return_value=("", False))
-        ):
-            with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
-                await orch.handle_turn("hello")
+        with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
 
         ctx.tool_result_store.store.assert_called_once()
         call_kwargs = ctx.tool_result_store.store.call_args.kwargs
@@ -321,121 +358,117 @@ class TestHandleTurnToolResultStore:
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="CONNECT_ERROR", partial_text="")
 
-        with patch.object(
-            orch, "_augment_with_rag", AsyncMock(return_value=("", False))
-        ):
-            with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
-                await orch.handle_turn("hello")
+        with patch.object(orch, "_run_turn", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
 
         # Pre-stream fail: no partial output, so tool_result_store should NOT be called
         ctx.tool_result_store.store.assert_not_called()
 
 
-# ── _augment_via_mcp / use_rag_mcp ───────────────────────────────────────────
+# ── Orchestrator helper unit tests ────────────────────────────────────────────
 
 
-class TestAugmentViaMcp:
-    def _make_ctx_with_tools(self) -> MagicMock:
+class TestOrchestratorHelpers:
+    def test_update_consecutive_errors_increments_when_all_fail(self) -> None:
         ctx = _make_ctx()
-        ctx.cfg.use_search = True
-        ctx.cfg.use_rag_mcp = True
-        tools = AsyncMock()
-        ctx.services.tools = tools
-        return ctx
-
-    @pytest.mark.asyncio
-    async def test_returns_augmented_text_on_success(self) -> None:
-        import orjson
-
-        ctx = self._make_ctx_with_tools()
         orch = _make_orchestrator(ctx)
-        payload = orjson.dumps({"augmented_text": "context text"}).decode()
-        ctx.services.tools.execute = AsyncMock(return_value=(payload, False, None))
+        result = orch._update_consecutive_errors(0, 3, 3)
+        assert result == 1
 
-        result = await orch._augment_via_mcp("query", "history")
-        assert result == "context text"
-
-    @pytest.mark.asyncio
-    async def test_returns_none_on_mcp_error(self) -> None:
-        ctx = self._make_ctx_with_tools()
+    def test_update_consecutive_errors_resets_when_any_succeeds(self) -> None:
+        ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
-        ctx.services.tools.execute = AsyncMock(return_value=("error msg", True, None))
+        result = orch._update_consecutive_errors(2, 1, 3)
+        assert result == 0
 
-        result = await orch._augment_via_mcp("query", "")
+    def test_check_consecutive_error_limit_below_max_returns_none(self) -> None:
+        ctx = _make_ctx()
+        ctx.cfg.tool_error_max_consecutive = 3
+        orch = _make_orchestrator(ctx)
+        assert orch._check_consecutive_error_limit(2) is None
+
+    def test_check_consecutive_error_limit_at_max_returns_message(self) -> None:
+        ctx = _make_ctx()
+        ctx.cfg.tool_error_max_consecutive = 3
+        orch = _make_orchestrator(ctx)
+        result = orch._check_consecutive_error_limit(3)
+        assert result is not None
+        assert "consecutive" in result
+
+    def test_check_consecutive_error_limit_disabled_returns_none(self) -> None:
+        ctx = _make_ctx()
+        ctx.cfg.tool_error_max_consecutive = 0
+        orch = _make_orchestrator(ctx)
+        assert orch._check_consecutive_error_limit(999) is None
+
+    def test_record_llm_latency_appends_on_turn_zero(self) -> None:
+        import time
+
+        ctx = _make_ctx()
+        ctx.stat_latency = {}
+        orch = _make_orchestrator(ctx)
+        t0 = time.perf_counter() - 0.1
+        orch._record_llm_latency(t0, turn=0)
+        assert "llm" in ctx.stat_latency
+        assert len(ctx.stat_latency["llm"]) == 1
+        assert ctx.stat_latency["llm"][0] >= 0.0
+
+    def test_record_llm_latency_skips_on_later_turns(self) -> None:
+        import time
+
+        ctx = _make_ctx()
+        ctx.stat_latency = {}
+        orch = _make_orchestrator(ctx)
+        orch._record_llm_latency(time.perf_counter(), turn=1)
+        assert "llm" not in ctx.stat_latency
+
+    def test_check_all_tool_guards_returns_none_when_no_guards_hit(self) -> None:
+        ctx = _make_ctx()
+        ctx.cfg.tool_dedup_max_repeats = 3
+        ctx.cfg.tool_cycle_detect_window = 0
+        ctx.cfg.tool_error_retry_max = 0
+        orch = _make_orchestrator(ctx)
+        msg = MagicMock()
+        msg.__getitem__ = lambda self, k: [] if k == "tool_calls" else None
+        msg.get = lambda k, d=None: [] if k == "tool_calls" else d
+        result = orch._check_all_tool_guards({}, [], set(), msg)
         assert result is None
 
-    @pytest.mark.asyncio
-    async def test_returns_none_on_exception(self) -> None:
-        ctx = self._make_ctx_with_tools()
-        orch = _make_orchestrator(ctx)
-        ctx.services.tools.execute = AsyncMock(side_effect=RuntimeError("conn fail"))
-
-        result = await orch._augment_via_mcp("query", "")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_returns_none_on_empty_augmented_text(self) -> None:
-        import orjson
-
-        ctx = self._make_ctx_with_tools()
-        orch = _make_orchestrator(ctx)
-        payload = orjson.dumps({"augmented_text": ""}).decode()
-        ctx.services.tools.execute = AsyncMock(return_value=(payload, False, None))
-
-        result = await orch._augment_via_mcp("query", "")
-        assert result is None
-
-
-class TestAugmentWithRagMcp:
-    @pytest.mark.asyncio
-    async def test_use_rag_mcp_calls_mcp_method(self) -> None:
+    def test_check_all_tool_guards_returns_on_cycle_guard_hit(self) -> None:
         ctx = _make_ctx()
-        ctx.cfg.use_search = True
-        ctx.cfg.use_rag_mcp = True
-        ctx.cfg.use_semantic_cache = False
-        ctx.services.tools = MagicMock()  # must be non-None for MCP path
-        ctx.services.rag = None
+        ctx.cfg.tool_dedup_max_repeats = 10
+        ctx.cfg.tool_cycle_detect_window = 1  # detect after 1 repeat
+        ctx.cfg.tool_error_retry_max = 0
         orch = _make_orchestrator(ctx)
+        tool_calls = [{"function": {"name": "my_tool", "arguments": "{}"}}]
+        msg: dict = {"role": "assistant", "content": None, "tool_calls": tool_calls}
 
-        with patch.object(
-            orch, "_augment_via_mcp", AsyncMock(return_value="mcp context")
-        ) as mock_mcp:
-            augmented, from_cache = await orch._augment_with_rag("query")
+        # First call populates round_fingerprints
+        fingerprints: list[str] = []
+        result1 = orch._check_all_tool_guards({}, fingerprints, set(), msg)
+        assert result1 is None
+        assert len(fingerprints) == 1
 
-        mock_mcp.assert_awaited_once()
-        assert augmented == "mcp context"
+        # Second call with the same message → cycle guard fires
+        result2 = orch._check_all_tool_guards({}, fingerprints, set(), msg)
+        assert result2 is not None
+        assert "cycle" in result2.lower() or "cyclic" in result2.lower()
 
-    @pytest.mark.asyncio
-    async def test_use_rag_mcp_falls_back_to_in_process(self) -> None:
+    def test_check_all_tool_guards_returns_on_dedup_guard_hit(self) -> None:
         ctx = _make_ctx()
-        ctx.cfg.use_search = True
-        ctx.cfg.use_rag_mcp = True
-        ctx.cfg.use_semantic_cache = False
-        ctx.cfg.debug_mode = False
-        ctx.debug_mode = False
-        ctx.services.tools = MagicMock()  # must be non-None for MCP path
-        rag = AsyncMock()
-        rag.augment = AsyncMock(return_value="fallback context")
-        ctx.services.rag = rag
+        ctx.cfg.tool_dedup_max_repeats = 1  # fire on first repeat
+        ctx.cfg.tool_cycle_detect_window = 0
+        ctx.cfg.tool_error_retry_max = 0
         orch = _make_orchestrator(ctx)
+        import hashlib
 
-        with patch.object(orch, "_augment_via_mcp", AsyncMock(return_value=None)):
-            augmented, from_cache = await orch._augment_with_rag("query")
+        tool_calls = [{"function": {"name": "my_tool", "arguments": "{}"}}]
+        msg: dict = {"role": "assistant", "content": None, "tool_calls": tool_calls}
 
-        assert augmented == "fallback context"
+        # Pre-populate seen_calls so next call hits threshold
+        key = hashlib.md5(b"my_tool:{}", usedforsecurity=False).hexdigest()
+        seen: dict[str, int] = {key: 1}
 
-    @pytest.mark.asyncio
-    async def test_use_rag_mcp_returns_empty_when_rag_also_none(self) -> None:
-        ctx = _make_ctx()
-        ctx.cfg.use_search = True
-        ctx.cfg.use_rag_mcp = True
-        ctx.cfg.use_semantic_cache = False
-        ctx.services.tools = MagicMock()
-        ctx.services.rag = None  # both MCP and in-process unavailable
-        orch = _make_orchestrator(ctx)
-
-        with patch.object(orch, "_augment_via_mcp", AsyncMock(return_value=None)):
-            augmented, from_cache = await orch._augment_with_rag("query")
-
-        assert augmented == ""
-        assert from_cache is False
+        result = orch._check_all_tool_guards(seen, [], set(), msg)
+        assert result is not None
+        assert "repeated" in result.lower() or "duplicate" in result.lower()

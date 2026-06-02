@@ -112,6 +112,24 @@ class TestEnsureReady:
         assert stdio_procs["od"] is mock_t
 
     @pytest.mark.asyncio
+    async def test_ondemand_start_failure_logs_error(self) -> None:
+        configs = {"od": _stdio_ondemand(["python", "srv.py"])}
+        ex = _mock_tool_executor()
+        stdio_procs: dict = {}
+
+        with patch("agent.lifecycle.StdioTransport") as MockTransport:
+            mock_t = AsyncMock()
+            mock_t.is_alive.return_value = False
+            mock_t.start.side_effect = OSError("no such file")
+            MockTransport.return_value = mock_t
+
+            mgr = ServerLifecycleManager(configs, ex, stdio_procs)
+            # Must not raise; logs an error
+            await mgr.ensure_ready("od")
+
+        ex.set_transport.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_ondemand_no_cmd_logs_warning(self) -> None:
         cfg = McpServerConfig(
             "stdio", "", ["python", "s.py"], "", startup_mode="ondemand"
@@ -406,6 +424,115 @@ class TestStartHttpSubprocess:
             await mgr.start_http_subprocess("s", cfg)
 
         assert call_count == 2
+
+
+class TestRestart:
+    @pytest.mark.asyncio
+    async def test_restart_non_subprocess_mode_warns(self) -> None:
+        cfg = _http_cfg()  # no startup_mode="subprocess"
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
+        # Must log warning and return without raising
+        await mgr.restart("srv")
+
+    @pytest.mark.asyncio
+    async def test_restart_unknown_key_warns(self) -> None:
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({}, ex, {})
+        await mgr.restart("nonexistent")  # must not raise
+
+    @pytest.mark.asyncio
+    async def test_restart_terminates_running_proc(self) -> None:
+        cfg = _http_subprocess_cfg(url="http://127.0.0.1:9998", cmd=["python", "s.py"])
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
+
+        proc = MagicMock()
+        proc.poll.return_value = None  # running
+        mgr._http_procs["srv"] = proc
+
+        good_resp = MagicMock()
+        good_resp.status_code = 200
+
+        new_proc = MagicMock()
+        new_proc.poll.return_value = None
+        new_proc.stderr = None
+
+        with (
+            patch("agent.lifecycle.subprocess.Popen", return_value=new_proc),
+            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+            patch(
+                "agent.lifecycle.asyncio.wait_for",
+                AsyncMock(return_value=None),
+            ),
+        ):
+            client_instance = AsyncMock()
+            client_instance.get = AsyncMock(return_value=good_resp)
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            await mgr.restart("srv")
+
+        # Stale proc must have been removed before start; new proc registered
+        proc.terminate.assert_called_once()
+        assert mgr._http_procs.get("srv") is new_proc
+
+    @pytest.mark.asyncio
+    async def test_restart_no_existing_proc_still_starts(self) -> None:
+        cfg = _http_subprocess_cfg(url="http://127.0.0.1:9997", cmd=["python", "s.py"])
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
+        # No proc in _http_procs — restart must still call start_http_subprocess
+
+        good_resp = MagicMock()
+        good_resp.status_code = 200
+
+        new_proc = MagicMock()
+        new_proc.poll.return_value = None
+        new_proc.stderr = None
+
+        with (
+            patch("agent.lifecycle.subprocess.Popen", return_value=new_proc),
+            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+        ):
+            client_instance = AsyncMock()
+            client_instance.get = AsyncMock(return_value=good_resp)
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            await mgr.restart("srv")
+
+        assert mgr._http_procs.get("srv") is new_proc
+
+    @pytest.mark.asyncio
+    async def test_restart_force_kills_on_terminate_timeout(self) -> None:
+        cfg = _http_subprocess_cfg(url="http://127.0.0.1:9996", cmd=["python", "s.py"])
+        ex = _mock_tool_executor()
+        mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
+
+        proc = MagicMock()
+        proc.poll.return_value = None
+        mgr._http_procs["srv"] = proc
+
+        good_resp = MagicMock()
+        good_resp.status_code = 200
+        new_proc = MagicMock()
+        new_proc.poll.return_value = None
+        new_proc.stderr = None
+
+        async def fake_wait_for(coro: object, timeout: float) -> None:
+            raise TimeoutError
+
+        with (
+            patch("agent.lifecycle.subprocess.Popen", return_value=new_proc),
+            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.lifecycle.asyncio.wait_for", fake_wait_for),
+        ):
+            client_instance = AsyncMock()
+            client_instance.get = AsyncMock(return_value=good_resp)
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            await mgr.restart("srv")
+
+        proc.kill.assert_called_once()
 
 
 class TestShutdownAll:

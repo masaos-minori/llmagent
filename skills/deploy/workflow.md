@@ -13,8 +13,8 @@ If any file reports `SyntaxError`: fix the error before proceeding. Do not deplo
 Confirm `deploy/deploy.sh` copy list is up to date if any script or config file was added or removed:
 
 ```bash
-diff <(ls scripts/*.py | xargs -I{} basename {}) \
-     <(grep 'cp.*scripts/' deploy/deploy.sh | grep -oP 'scripts/\K[^ ]+' | sort)
+diff <(find scripts/ -name '*.py' | sort) \
+     <(grep -oP 'scripts/\S+\.py' deploy/deploy.sh | sort)
 ```
 
 ---
@@ -49,12 +49,12 @@ Restart **only** the services whose code or config changed.
 ### Agent restart decision criteria
 
 Restart `llama-agent` ONLY if changes are in:
-- `agent_repl.py`, `agent_context.py`, `agent_config.py`, or `agent_commands.py`
-- `config/agent.json` with a new `mcp_servers` entry (requires full restart)
+- `agent/repl.py`, `agent/context.py`, `agent/config.py`, or any file under `agent/commands/`
+- `config/agent.toml` with a new `mcp_servers` entry (requires full restart)
 
 Do NOT restart `llama-agent` if:
 - Only MCP server files changed → restart the MCP server instead
-- Only hot-reloadable `agent.json` fields changed → use `/reload` in the REPL instead
+- Only hot-reloadable `agent.toml` fields changed → use `/reload` in the REPL instead
 
 ### Service restart commands
 
@@ -65,9 +65,7 @@ For service names and ports, see `rules/env.md`.
 rc-service llama-agent restart
 
 # MCP servers (safe to restart; tool calls will retry)
-rc-service web-search-mcp restart
-rc-service file-mcp restart
-rc-service github-mcp restart
+rc-service <name> restart   # restart only the affected server; see rules/env.md for all service names
 
 # LLM inference servers (10–30 seconds to load model)
 rc-service embed-llm restart

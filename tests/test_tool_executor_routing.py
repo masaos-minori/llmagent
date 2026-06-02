@@ -465,3 +465,46 @@ class TestStdioTransportStart:
         )
         with pytest.raises(ValueError, match="does not exist"):
             await transport.start()
+
+
+class TestSetSessionId:
+    @pytest.mark.asyncio
+    async def test_session_id_injected_into_http_transport_header(self) -> None:
+        """set_session_id() propagates X-Session-Id to all HttpTransport instances."""
+        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "")
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"result": "ok", "is_error": False}
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.headers = {}
+        mock_http.post = AsyncMock(return_value=mock_resp)
+
+        ex = ToolExecutor(mock_http, cache_ttl=60.0, server_configs={"srv": cfg})
+        ex.set_session_id("sess-abc")
+
+        # Trigger a call so headers are captured
+        transport = ex._transports["srv"]
+        assert isinstance(transport, HttpTransport)
+        await transport.call("some_tool", {})
+
+        call_kwargs = mock_http.post.call_args.kwargs
+        assert call_kwargs["headers"].get("X-Session-Id") == "sess-abc"
+
+    def test_set_session_id_empty_string_does_not_inject_header(self) -> None:
+        """Empty session_id must not add X-Session-Id header."""
+        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "")
+        mock_http = MagicMock(spec=httpx.AsyncClient)
+        ex = ToolExecutor(mock_http, cache_ttl=60.0, server_configs={"srv": cfg})
+        ex.set_session_id("")
+
+        transport = ex._transports["srv"]
+        assert isinstance(transport, HttpTransport)
+        assert transport._session_id == ""
+
+    def test_set_session_id_skips_stdio_transports(self) -> None:
+        """set_session_id() must not raise for servers with no HttpTransport."""
+        cfg = McpServerConfig("stdio", "", ["python", "s.py"], "")
+        mock_http = MagicMock(spec=httpx.AsyncClient)
+        ex = ToolExecutor(mock_http, cache_ttl=60.0, server_configs={"stdio_srv": cfg})
+        # Must not raise even though the transport is not an HttpTransport
+        ex.set_session_id("sess-xyz")

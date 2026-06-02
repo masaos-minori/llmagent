@@ -12,7 +12,7 @@
 | `_McpMixin` | `agent/commands/cmd_mcp.py` | `/mcp` 系 |
 | `_ConfigMixin` | `agent/commands/cmd_config.py` | `/config`, `/stats`, `/set`, `/reload` |
 | `_ContextMixin` | `agent/commands/cmd_context.py` | `/context`, `/clear`, `/undo`, `/history`, `/system`, `/db` |
-| `_RagMixin` | `agent/commands/cmd_rag.py` | `/rag`, `/tool`, `/note`, `/plan`, `/debug` |
+| `_RagMixin` | `agent/commands/cmd_rag.py` | `/tool`, `/note`, `/plan`, `/debug` |
 | `_IngestMixin` | `agent/commands/cmd_ingest.py` | `/ingest`, `/export`, `/compact` |
 | `_MemoryMixin` | `agent/commands/cmd_memory.py` | `/memory` 系 |
 
@@ -46,7 +46,7 @@ matched = await cmds.dispatch("/stats")
 
 完全一致 async コマンド (引数なし): `/compact`
 
-プレフィックスコマンド (trailing args を渡す): `/mcp`(async), `/session`, `/clear`, `/ingest`(async), `/export`, `/rag`(async), `/history`, `/system`, `/db`, `/note`, `/tool`, `/set`, `/memory`, `/debug`
+プレフィックスコマンド (trailing args を渡す): `/mcp`(async), `/session`, `/clear`, `/ingest`(async), `/export`, `/history`, `/system`, `/db`, `/note`, `/tool`, `/set`, `/memory`, `/debug`
 
 ### 3.2 /help
 
@@ -80,11 +80,11 @@ matched = await cmds.dispatch("/stats")
 | `_cmd_stats() -> None` | ターン数・ツール呼び出し数・ツールエラー数・LLM リトライ/再接続回数・HB タイムアウト・部分完了・パースエラー・キャッシュヒット・圧縮回数・RAG ヒット数・セマンティックキャッシュヒット数・入出力トークン数・デバッグモード状態・ステップ別レイテンシ (mean/max/N samples) を表示 |
 | `_cmd_config() -> None` | 設定ファイルパス (common.toml / agent.toml) と全設定値を表示。`_print_config_values()` と `_print_rag_config()` に委譲 |
 | `_print_config_values() -> None` | エンドポイント/LLM/SSE/実行/セマンティックキャッシュ/MCP/承認設定の各フィールドを表示する内部ヘルパー |
-| `_print_rag_config() -> None` | RAG DB パス・検索パラメータ・ステップ有効フラグを表示する内部ヘルパー |
+| `_print_rag_config() -> None` | rag.sqlite / session.sqlite パスと検索パラメータ (top_k_search / top_k_rerank / max_chunks_per_doc) を表示する内部ヘルパー |
 | `_cmd_set(args) -> None` | `/set temperature <f>` / `/set max_tokens <n>` でランタイム LLM パラメータを変更。引数なしの場合は現在値を表示 |
 | `_cmd_reload() -> None` | `config/agent.toml` を再読み込みし `_apply_config_params()` で即時反映 |
 | `_apply_config_params(new_cfg) -> None` | `ctx.cfg` フィールドを更新し各コンポーネントに同期。内部で以下の 6 メソッドに委譲: `_apply_rag_tool_params` / `_reload_approval_settings` / `_apply_mcp_url_reload` / `_apply_llm_prompt_params` / `_apply_sse_reload_params` / `_sync_services_to_cfg` |
-| `_apply_rag_tool_params(ctx, new_cfg) -> None` | RAG パイプライン・ツールキャッシュ・LLM リトライ・リファイナー・ウォッチドッグ設定を適用する内部ヘルパー |
+| `_apply_rag_tool_params(ctx, new_cfg) -> None` | ツールキャッシュ・LLM リトライ・リファイナー・ウォッチドッグ設定を適用する内部ヘルパー (in-process RAG 設定は削除済み) |
 | `_apply_mcp_url_reload(ctx, new_cfg) -> None` | HTTP MCP サーバの URL を更新する内部ヘルパー (transport 変更には再起動が必要) |
 | `_apply_llm_prompt_params(ctx, new_cfg) -> None` | URL/HTTP/LLM 生成/ツール定義/プロンプト設定を適用する内部ヘルパー |
 | `_apply_sse_reload_params(ctx, new_cfg) -> None` | SSE ストリームの耐障害性設定を適用する内部ヘルパー |
@@ -111,14 +111,12 @@ matched = await cmds.dispatch("/stats")
 | `_db_purge(rest) -> None` | 古いセッションを削除する内部ヘルパー (`--max-sessions N` / `--max-age-days N`) |
 | `_db_recover(backup_path) -> None` | 整合性チェックを実行し、破損時にバックアップから復元する内部ヘルパー |
 
-### 3.7 /rag, /tool, /note, /plan, /debug (_RagMixin)
+### 3.7 /tool, /note, /plan, /debug (_RagMixin)
+
+注: `/rag` コマンドは削除済み。RAG は `mcp/rag_pipeline/` (port 8010) 経由の MCP ツールとしてのみ利用可能。
 
 | メソッド | 説明 |
 |---|---|
-| `_cmd_rag(args) -> None` (async) | `/rag` ディスパッチャ。サブコマンド: `on` / `off` / `mqe on\|off` / `rerank on\|off` / `search <q>`。引数なしで RAG ステップの現在状態 (use_search / use_mqe / use_rrf / use_rerank) を表示 |
-| `_cmd_rag_toggle(subcmd, parts, flag, label) -> None` | `/rag <subcmd> on\|off` で boolean フラグを切り替える共通ヘルパー |
-| `_cmd_rag_search(query) -> None` (async) | RAG パイプラインをドライラン実行してチャンクのスコア・URL・プレビューを表示 |
-| `_print_rag_results(query, queries, reranked) -> None` | `/rag search` 結果 (拡張クエリ一覧・チャンクスコア/URL/プレビュー) を表示する内部ヘルパー |
 | `_cmd_tool(args) -> None` | `/tool list` / `/tool show <id>` でツール結果ストアを表示 |
 | `_tool_list() -> None` | 現在セッションの保存済みツール結果一覧 (id/tool_name/size/summarized) を表示する内部ヘルパー |
 | `_tool_show(arg) -> None` | id 指定でツール結果の全文・引数・サイズ・サマリを表示する内部ヘルパー |

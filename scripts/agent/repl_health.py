@@ -8,7 +8,6 @@ health check or watchdog behaviour.
 from __future__ import annotations
 
 import asyncio
-import subprocess
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -147,7 +146,12 @@ async def _watchdog_check_http(
     restart_counts: dict[str, int],
     max_restarts: int,
 ) -> None:
-    """Probe one HTTP server and restart via OpenRC when health check fails."""
+    """Probe one HTTP server and restart via lifecycle manager when health check fails.
+
+    For startup_mode="subprocess" servers, restart is delegated to
+    ServerLifecycleManager.restart().  Other modes (externally-managed) only
+    log a warning because the agent does not own those processes.
+    """
     assert ctx.services.http is not None
     if not srv_cfg.url:
         return
@@ -158,24 +162,24 @@ async def _watchdog_check_http(
     count = restart_counts.get(key, 0)
     if count >= max_restarts:
         logger.warning(
-            f"Watchdog: {srv_cfg.openrc_service!r} unreachable;"
-            f" restart limit reached ({max_restarts})",
+            f"Watchdog: {key!r} unreachable; restart limit reached ({max_restarts})",
         )
         return
     logger.warning(
-        f"Watchdog: {srv_cfg.openrc_service!r} health check failed,"
+        f"Watchdog: {key!r} health check failed,"
         f" restarting (attempt {count + 1}/{max_restarts})",
     )
-    if srv_cfg.openrc_service:
+    if srv_cfg.startup_mode == "subprocess" and ctx.services.lifecycle is not None:
         try:
-            subprocess.run(
-                ["rc-service", srv_cfg.openrc_service, "restart"],
-                timeout=30,
-                check=False,
-            )
+            await ctx.services.lifecycle.restart(key)
             restart_counts[key] = count + 1
         except Exception as e:
-            logger.error(f"Watchdog: failed to restart {srv_cfg.openrc_service!r}: {e}")
+            logger.error(f"Watchdog: failed to restart {key!r}: {e}")
+    else:
+        logger.warning(
+            f"Watchdog: {key!r} is not a subprocess-mode server;"
+            " manual intervention required",
+        )
 
 
 async def _watchdog_check_stdio(

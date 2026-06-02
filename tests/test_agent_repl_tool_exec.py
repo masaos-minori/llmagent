@@ -257,3 +257,197 @@ class TestCheckAllowedRepo:
     def test_all_github_write_tools_checked(self, tool_name: str) -> None:
         cfg = _make_cfg(approval_github_allowed_repos=[])
         assert not _check_allowed_repo(cfg, tool_name, {"owner": "a", "repo": "b"})
+
+
+# ── execute_all_tool_calls DAG evaluation ─────────────────────────────────────
+
+
+def _make_tool_call(name: str, call_id: str = "id1") -> dict:
+    """Helper: build a minimal tool_call dict."""
+    return {"id": call_id, "function": {"name": name, "arguments": "{}"}}
+
+
+def _make_ctx_for_dag(
+    *,
+    use_tool_dag: bool,
+    serial_tool_calls: bool = False,
+) -> MagicMock:
+    ctx = MagicMock()
+    ctx.cfg.use_tool_dag = use_tool_dag
+    ctx.cfg.serial_tool_calls = serial_tool_calls
+    ctx.cfg.tool_result_max_llm_chars = 8000
+    ctx.cfg.tools_results_turn_max_chars = 50000
+    ctx.cfg.tool_results_turn_max_chars = 50000
+    ctx.cfg.use_tool_summarize = False
+    ctx.cfg.tool_summarize_threshold = 0
+    ctx.history = []
+    ctx.services = MagicMock()
+    ctx.session = MagicMock()
+    ctx.session.save_many = MagicMock()
+    ctx.tool_result_store = MagicMock()
+    return ctx
+
+
+@pytest.mark.asyncio
+async def test_dag_write_executed_before_read() -> None:
+    """use_tool_dag=True のとき WRITE_TOOLS が READ/other より先に実行されること。"""
+    from unittest.mock import AsyncMock, patch
+
+    from agent.repl_tool_exec import execute_all_tool_calls
+
+    execution_order: list[str] = []
+
+    write_call = _make_tool_call("write_file", "w1")
+    read_call = _make_tool_call("read_file", "r1")
+
+    async def fake_execute_one(ctx, tc, turn):
+        name = tc["function"]["name"]
+        execution_order.append(name)
+        return MagicMock(
+            tool_call_id=tc["id"],
+            content="ok",
+            is_error=False,
+            tool_name=name,
+        )
+
+    ctx = _make_ctx_for_dag(use_tool_dag=True)
+
+    with (
+        patch(
+            "agent.repl_tool_exec._run_approval_checks",
+            new=AsyncMock(return_value=([write_call, read_call], [])),
+        ),
+        patch(
+            "agent.repl_tool_exec.execute_one_tool_call",
+            side_effect=fake_execute_one,
+        ),
+        patch("agent.repl_tool_exec._collect_tool_result_msgs", return_value=[]),
+    ):
+        await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
+
+    assert execution_order.index("write_file") < execution_order.index("read_file")
+
+
+@pytest.mark.asyncio
+async def test_dag_disabled_does_not_reorder() -> None:
+    """use_tool_dag=False のとき side-effect があれば直列実行になること。"""
+    from unittest.mock import AsyncMock, patch
+
+    from agent.repl_tool_exec import execute_all_tool_calls
+
+    execution_order: list[str] = []
+
+    write_call = _make_tool_call("write_file", "w1")
+    read_call = _make_tool_call("read_file", "r1")
+
+    async def fake_execute_one(ctx, tc, turn):
+        name = tc["function"]["name"]
+        execution_order.append(name)
+        return MagicMock(
+            tool_call_id=tc["id"],
+            content="ok",
+            is_error=False,
+            tool_name=name,
+        )
+
+    ctx = _make_ctx_for_dag(use_tool_dag=False)
+
+    with (
+        patch(
+            "agent.repl_tool_exec._run_approval_checks",
+            new=AsyncMock(return_value=([write_call, read_call], [])),
+        ),
+        patch(
+            "agent.repl_tool_exec.execute_one_tool_call",
+            side_effect=fake_execute_one,
+        ),
+        patch("agent.repl_tool_exec._collect_tool_result_msgs", return_value=[]),
+    ):
+        await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
+
+    # use_tool_dag=False + side_effect → serial: LLM 指定順 (write → read) で実行される
+    assert execution_order == ["write_file", "read_file"]
+
+
+@pytest.mark.asyncio
+async def test_dag_serial_tool_calls_overrides_dag() -> None:
+    """serial_tool_calls=True のとき use_tool_dag=True でも直列実行になること。"""
+    from unittest.mock import AsyncMock, patch
+
+    from agent.repl_tool_exec import execute_all_tool_calls
+
+    execution_order: list[str] = []
+
+    write_call = _make_tool_call("write_file", "w1")
+    read_call = _make_tool_call("read_file", "r1")
+
+    async def fake_execute_one(ctx, tc, turn):
+        name = tc["function"]["name"]
+        execution_order.append(name)
+        return MagicMock(
+            tool_call_id=tc["id"],
+            content="ok",
+            is_error=False,
+            tool_name=name,
+        )
+
+    ctx = _make_ctx_for_dag(use_tool_dag=True, serial_tool_calls=True)
+
+    with (
+        patch(
+            "agent.repl_tool_exec._run_approval_checks",
+            new=AsyncMock(return_value=([write_call, read_call], [])),
+        ),
+        patch(
+            "agent.repl_tool_exec.execute_one_tool_call",
+            side_effect=fake_execute_one,
+        ),
+        patch("agent.repl_tool_exec._collect_tool_result_msgs", return_value=[]),
+    ):
+        await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
+
+    # serial_tool_calls=True → DAG を使わず直列: LLM 指定順で実行
+    assert execution_order == ["write_file", "read_file"]
+
+
+@pytest.mark.asyncio
+async def test_parallel_execution_without_dag_or_side_effects() -> None:
+    """use_tool_dag=False かつ副作用なしのとき asyncio.gather() 並列実行になること。"""
+    from unittest.mock import AsyncMock, patch
+
+    from agent.repl_tool_exec import execute_all_tool_calls
+
+    execution_order: list[str] = []
+
+    # 副作用なしツール (READ_TOOLS に含まれる)
+    read_call1 = _make_tool_call("read_file", "r1")
+    read_call2 = _make_tool_call("read_file", "r2")
+
+    async def fake_execute_one(ctx, tc, turn):
+        name = tc["function"]["name"]
+        execution_order.append(tc["id"])
+        return MagicMock(
+            tool_call_id=tc["id"],
+            content="ok",
+            is_error=False,
+            tool_name=name,
+        )
+
+    ctx = _make_ctx_for_dag(use_tool_dag=False)
+
+    with (
+        patch(
+            "agent.repl_tool_exec._run_approval_checks",
+            new=AsyncMock(return_value=([read_call1, read_call2], [])),
+        ),
+        patch(
+            "agent.repl_tool_exec.execute_one_tool_call",
+            side_effect=fake_execute_one,
+        ),
+        patch("agent.repl_tool_exec._collect_tool_result_msgs", return_value=[]),
+        patch("agent.repl_tool_exec.is_side_effect", return_value=False),
+    ):
+        await execute_all_tool_calls(ctx, [read_call1, read_call2], turn=1)
+
+    # 両方が実行されたこと
+    assert set(execution_order) == {"r1", "r2"}

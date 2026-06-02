@@ -103,12 +103,18 @@ Remove before committing. DSN must come from environment only.
 
 ## Phase 4: Focused Reproduction
 
-#### tox
+#### pytest (direct — preferred)
+
+```bash
+PYTHONPATH=scripts pytest tests/ -x -q
+PYTHONPATH=scripts pytest tests/test_<module>.py -v
+```
+
+#### tox (if installed and tox.ini is configured)
 
 ```bash
 tox -e tests
 tox --recreate -e tests
-diff <(pip freeze) <(tox -e tests --listdeps)
 ```
 
 #### mitmproxy
@@ -123,7 +129,7 @@ HTTP_PROXY=http://localhost:8080 HTTPS_PROXY=http://localhost:8080 \
 
 ```bash
 http POST http://localhost:8005/v1/call_tool \
-  tool_name=read_file args:='{"path": "/opt/llm/config/agent.json"}'
+  tool_name=read_file args:='{"path": "/opt/llm/config/agent.toml"}'
 http GET http://localhost:8004/health Accept:application/json
 ```
 
@@ -137,9 +143,18 @@ sqlite3 /opt/llm/db/llm.db
 #### Service status
 
 ```bash
+# For all service names and ports, see rules/env.md
 rc-service web-search-mcp status   # 8004
-rc-service file-mcp status         # 8005
+rc-service file-read-mcp status    # 8005
 rc-service github-mcp status       # 8006
+rc-service file-write-mcp status   # 8007
+rc-service file-delete-mcp status  # 8008
+rc-service shell-mcp status        # 8009
+rc-service rag-pipeline-mcp status # 8010
+rc-service sqlite-mcp status       # 8011
+rc-service cicd-mcp status         # 8012
+rc-service mdq-mcp status          # 8013
+rc-service git-mcp status          # 8014
 rc-service embed-llm status        # 8003
 rc-service llama-chat-llm status   # 8002
 rc-service llama-coding-llm status # 8001

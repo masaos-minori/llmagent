@@ -11,7 +11,7 @@ Extracted from agent_rag.py.  Contains:
 
 import logging
 import re
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import orjson
@@ -156,8 +156,6 @@ def _apply_rerank_scores(
 
     Returns None on parse failure so the caller can fall back to RRF order.
     """
-    from typing import cast  # noqa: PLC0415
-
     m = re.search(r"\{.*\}", raw, re.DOTALL)
     if not m:
         return None

@@ -1,15 +1,23 @@
-# 仕様変更
+Apply the following specification changes.
 
-- LLM に gemma-4-e4b は使わない、Qwen3-Coder-30B-A3B-Instruct Q4_K_M に統一し、切換機能もなし
+## Agent REPL changes
+- Remove the `/chat` and `/code` slash commands from the agent REPL.
+- Change the default agent REPL prompt to `>`.
+- Remove `chat_url` and `code_url` from `config/agent.toml`.
+- Consolidate them into a single `llm_url` setting.
+- Remove in-process RAG from the REPL pipeline flow.
 
-- 以下の REPL パイプライン処理フローは RAG MCP 呼出に変更、呼出実行をオプションで選択
-  ② MQE
-  ③ Search
-  ④ RRF
-  ⑤ Rerank
-  ⑥ Dedup
-  ⑦ Augment
+## Clarify the shell execution specification and add resource limits
+Implement a clear shell execution policy with resource limits.
 
-- MCPサーバは事前に起動済みの前提ではなく、設定に応じてエージェント起動時にサブプロセスで起動
- - MCPサーバの OpenRC サービス起動は不要
- - MCPサーバとの通信は別PCからの呼出を考慮し、HTTPとstdioの両方を残す
+### Implementation approach
+- Define an execution policy.
+- Follow the existing MCP server conventions and specifications.
+- Define the execution user, `cwd`, `timeout`, `max_output_kb`, kill policy, and allowed commands.
+- Split shell execution into a dedicated MCP.
+- Add stdout / stderr limits and audit logging.
+
+### Implementation targets
+- `shell-mcp`
+- orchestrator policy
+- `shared/protocols/shell` schema

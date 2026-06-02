@@ -75,7 +75,7 @@ $
 
 | 症状 | 原因 | 対処 |
 |---|---|---|
-| `embedding attempt 3/3` 全失敗 | embed-llm 未起動または過負荷 | `rc-service embed-llm status` 確認、モデルロード完了まで待機 |
+| `embedding attempt 3/3` 全失敗 | embed-llm 未起動または過負荷 | `curl -s http://127.0.0.1:8003/health` 確認、モデルロード完了まで待機 |
 | `AttributeError: enable_load_extension` | Python が sqlite 拡張なしでビルドされている | `echo 'dev-lang/python sqlite' >> /etc/portage/package.use/python && emerge dev-lang/python` |
 | `no such table: chunks_vec` | sqlite-vec 拡張のロード失敗 | `ls /opt/llm/sqlite-vec/vec0.so` でファイル確認 |
 | FTS 検索で 0 件 | chunks_fts と chunks が不整合 | `SELECT COUNT(*) FROM chunks_fts` と `FROM chunks` を比較 |

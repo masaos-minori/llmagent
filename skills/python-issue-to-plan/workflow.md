@@ -128,7 +128,7 @@ Build a concrete list: "these N files will require changes."
 
 ```bash
 python3 -c "import pydeps" 2>/dev/null || { echo "SKIP: pydeps not installed"; }
-cd scripts && pydeps <module> --no-output --show-deps
+PYTHONPATH=scripts pydeps <module> --no-output --show-deps
 ```
 
 #### universal-ctags — symbol index
@@ -238,7 +238,7 @@ Document any existing findings that the planned change touches.
 ```bash
 coverage run -m pytest tests/
 coverage xml
-diff-cover coverage.xml --compare-branch=main    # current baseline
+diff-cover coverage.xml --compare-branch=master    # current baseline
 ```
 
 Record the current diff-cover baseline. The plan must include raising it to ≥ 90%.
@@ -294,9 +294,9 @@ From Step 7. Flag blocking unknowns explicitly.
 
 | File | Change | Blast radius | Churn (30d) | Bus factor | deploy.sh |
 |---|---|---|---|---|---|
-| `scripts/agent_repl.py` | add new handler | high (imported by 3) | 12 commits | 1 author | existing |
-| `scripts/new_module.py` | create | low | 0 commits | — | add cp line |
-| `config/agent.json` | add config key | low | 3 commits | 2 authors | existing |
+| `scripts/agent/repl.py` | add new handler | high (imported by 3) | 12 commits | 1 author | existing |
+| `scripts/mcp/<name>/server.py` | create | low | 0 commits | — | add cp line |
+| `config/agent.toml` | add config key | low | 3 commits | 2 authors | existing |
 
 Always include `deploy/deploy.sh` impact: "existing", "add cp line", or "remove cp line".
 
@@ -304,7 +304,7 @@ When listing affected documentation, use the current split structure:
 - slash command changes → `docs/06_ref-agent-commands.md`
 - RAG pipeline changes → `docs/06_ref-rag.md`
 - AgentConfig field changes → `docs/06_ref-agent-config.md`
-- MCP tool changes → `docs/06_ref-mcp.md`
+- MCP tool changes → `docs/04_mcp-<server>.md` (one file per server; e.g. `docs/04_mcp-github.md`)
 - new modules → `routing.md` (always update when new modules are added)
 
 ### 6. Implementation Steps

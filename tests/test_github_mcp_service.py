@@ -41,11 +41,14 @@ class TestAssertAllowedRepo:
         with _patch_cfg(cfg):
             svc._assert_allowed_repo("org", "repo")  # must not raise
 
-    def test_fail_open_is_default_when_mode_absent(self) -> None:
+    def test_fail_closed_is_default_when_mode_absent(self) -> None:
+        # Default changed from fail_open to fail_closed; empty list now denies all.
         svc = _make_service()
         cfg: dict[str, Any] = {"allowed_repos": []}
         with _patch_cfg(cfg):
-            svc._assert_allowed_repo("org", "repo")  # must not raise
+            with pytest.raises(HTTPException) as exc_info:
+                svc._assert_allowed_repo("org", "repo")
+            assert exc_info.value.status_code == 403
 
     def test_fail_closed_empty_list_denies_all(self) -> None:
         svc = _make_service()
@@ -298,6 +301,133 @@ async def test_delete_repo_file_denies_protected_path() -> None:
     assert exc_info.value.status_code == 403
 
 
+# ── _resolve_and_check_branch ─────────────────────────────────────────────────
+
+
+class TestResolveAndCheckBranch:
+    """Tests for _resolve_and_check_branch: branch="" bypass fix.
+
+    branch="" は「ブランチ未指定 = デフォルトブランチを使う」を意味する。
+    """
+
+    @pytest.mark.asyncio
+    async def test_empty_protected_branches_skips_check_with_explicit_branch(
+        self,
+    ) -> None:
+        # protected_branches=[] → branch が何であれチェックをスキップ
+        svc = _make_service()
+        with _patch_cfg({"protected_branches": []}):
+            with patch.object(svc, "_run_github", new=AsyncMock()) as mock_api:
+                await svc._resolve_and_check_branch("org", "repo", "main")
+        mock_api.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_empty_protected_branches_skips_check_with_empty_branch(self) -> None:
+        # protected_branches=[] かつ branch="" → API 呼び出しなし
+        svc = _make_service()
+        with _patch_cfg({"protected_branches": []}):
+            with patch.object(svc, "_run_github", new=AsyncMock()) as mock_api:
+                await svc._resolve_and_check_branch("org", "repo", "")
+        mock_api.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_explicit_branch_in_protected_raises(self) -> None:
+        # branch="main" は protected_branches に含まれる → 403
+        svc = _make_service()
+        with _patch_cfg({"protected_branches": ["main"]}):
+            with patch.object(svc, "_run_github", new=AsyncMock()) as mock_api:
+                with pytest.raises(HTTPException) as exc_info:
+                    await svc._resolve_and_check_branch("org", "repo", "main")
+        assert exc_info.value.status_code == 403
+        mock_api.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_explicit_branch_not_in_protected_passes(self) -> None:
+        # branch="feature" は protected_branches に含まれない → 通過
+        svc = _make_service()
+        with _patch_cfg({"protected_branches": ["main"]}):
+            with patch.object(svc, "_run_github", new=AsyncMock()) as mock_api:
+                await svc._resolve_and_check_branch("org", "repo", "feature")
+        mock_api.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_empty_branch_default_is_protected_raises(self) -> None:
+        # branch="" → デフォルトブランチ "main" が protected_branches にある → 403
+        svc = _make_service()
+        with _patch_cfg({"protected_branches": ["main"]}):
+            with patch.object(svc, "_run_github", new=AsyncMock(return_value="main")):
+                with pytest.raises(HTTPException) as exc_info:
+                    await svc._resolve_and_check_branch("org", "repo", "")
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_empty_branch_default_not_protected_passes(self) -> None:
+        # branch="" → デフォルトブランチ "develop" が protected_branches にない → 通過
+        svc = _make_service()
+        with _patch_cfg({"protected_branches": ["main"]}):
+            with patch.object(
+                svc, "_run_github", new=AsyncMock(return_value="develop")
+            ):
+                await svc._resolve_and_check_branch("org", "repo", "")
+
+
+# ── Integration: create_or_update_file と delete_repo_file の branch=None 保護 ──
+
+
+@pytest.mark.asyncio
+async def test_create_or_update_file_empty_branch_protected_raises() -> None:
+    """branch="" (省略) のとき default_branch が protected_branches にあれば 403 を返す。"""
+    svc = _make_service()
+    cfg = {
+        "allowed_repos": [],
+        "allowed_repos_mode": "fail_open",
+        "protected_branches": ["main"],
+        "path_denylist": [],
+        "max_file_size_kb": 0,
+    }
+    from mcp.github.models import CreateOrUpdateFileRequest
+
+    req = CreateOrUpdateFileRequest(
+        owner="a",
+        repo="b",
+        path="README.md",
+        content="hello",
+        message="update",
+        # branch を省略 → デフォルト ""
+    )
+    with _patch_cfg(cfg):
+        with patch.object(svc, "_run_github", new=AsyncMock(return_value="main")):
+            with pytest.raises(HTTPException) as exc_info:
+                await svc.create_or_update_file(req)
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_delete_repo_file_empty_branch_protected_raises() -> None:
+    """branch="" (省略) のとき default_branch が protected_branches にあれば 403 を返す。"""
+    svc = _make_service()
+    cfg = {
+        "allowed_repos": [],
+        "allowed_repos_mode": "fail_open",
+        "protected_branches": ["main"],
+        "path_denylist": [],
+        "max_file_size_kb": 0,
+    }
+    req = DeleteRepoFileRequest(
+        owner="a",
+        repo="b",
+        path="old_file.txt",
+        message="remove",
+        sha="abc123",
+        # branch を省略 → デフォルト ""
+    )
+    with _patch_cfg(cfg):
+        with patch.object(svc, "_run_github", new=AsyncMock(return_value="main")):
+            with pytest.raises(HTTPException) as exc_info:
+                await svc.delete_repo_file(req)
+    assert exc_info.value.status_code == 403
+
+
 @pytest.mark.asyncio
 async def test_push_files_writes_audit_log_on_success(tmp_path: Path) -> None:
     svc = _make_service()
@@ -329,3 +459,410 @@ async def test_push_files_writes_audit_log_on_success(tmp_path: Path) -> None:
     content = log_file.read_text()
     assert "op='push_files'" not in content or "push_files" in content
     assert "a/b" in content
+
+
+# ── dry_run ───────────────────────────────────────────────────────────────────
+
+
+class TestGitHubDryRun:
+    @pytest.mark.asyncio
+    async def test_create_branch_dry_run_returns_preview(self) -> None:
+        import orjson
+
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            result = await svc.fmt_create_branch(
+                {
+                    "owner": "org",
+                    "repo": "repo",
+                    "branch_name": "feature/x",
+                    "dry_run": True,
+                }
+            )
+        payload = orjson.loads(result)
+        assert payload["dry_run"] is True
+        assert "Would create branch" in payload["preview"]
+        assert "feature/x" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_create_branch_dry_run_does_not_call_github_api(self) -> None:
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            with patch.object(
+                svc,
+                "create_branch",
+                new=AsyncMock(side_effect=RuntimeError("must not call")),
+            ):
+                # dry_run=True — API must not be called
+                await svc.fmt_create_branch(
+                    {
+                        "owner": "org",
+                        "repo": "repo",
+                        "branch_name": "feature/x",
+                        "dry_run": True,
+                    }
+                )
+
+    @pytest.mark.asyncio
+    async def test_create_branch_dry_run_shows_from_branch(self) -> None:
+        import orjson
+
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            result = await svc.fmt_create_branch(
+                {
+                    "owner": "org",
+                    "repo": "repo",
+                    "branch_name": "hotfix/y",
+                    "from_branch": "main",
+                    "dry_run": True,
+                }
+            )
+        payload = orjson.loads(result)
+        assert "main" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_create_branch_dry_run_default_branch_label(self) -> None:
+        import orjson
+
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            result = await svc.fmt_create_branch(
+                {
+                    "owner": "org",
+                    "repo": "repo",
+                    "branch_name": "hotfix/y",
+                    "dry_run": True,
+                }
+            )
+        payload = orjson.loads(result)
+        assert "(default branch)" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_fail_closed_empty_allowlist_denies_dry_run(self) -> None:
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_closed"}
+        with _patch_cfg(cfg):
+            with pytest.raises(HTTPException) as exc_info:
+                await svc.fmt_create_branch(
+                    {
+                        "owner": "org",
+                        "repo": "repo",
+                        "branch_name": "feature/z",
+                        "dry_run": True,
+                    }
+                )
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_create_branch_non_dry_run_calls_service(self) -> None:
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        mock_result = MagicMock()
+        mock_result.branch_name = "feature/x"
+        mock_result.sha = "abc1234567890"
+
+        with _patch_cfg(cfg):
+            with patch.object(
+                svc, "create_branch", new=AsyncMock(return_value=mock_result)
+            ):
+                result = await svc.fmt_create_branch(
+                    {"owner": "org", "repo": "repo", "branch_name": "feature/x"}
+                )
+        assert "feature/x" in result
+        assert "abc12345" in result
+
+    @pytest.mark.asyncio
+    async def test_create_issue_non_dry_run_calls_service(self) -> None:
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        mock_issue = MagicMock()
+        mock_issue.number = 42
+        mock_issue.title = "Bug fix"
+        mock_issue.url = "https://github.com/org/repo/issues/42"
+        mock_result = MagicMock()
+        mock_result.issue = mock_issue
+
+        with _patch_cfg(cfg):
+            with patch.object(
+                svc, "create_issue", new=AsyncMock(return_value=mock_result)
+            ):
+                result = await svc.fmt_create_issue(
+                    {"owner": "org", "repo": "repo", "title": "Bug fix"}
+                )
+        assert "42" in result or "Bug fix" in result
+
+    @pytest.mark.asyncio
+    async def test_create_pull_request_dry_run_all_fields(self) -> None:
+        import orjson
+
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            result = await svc.fmt_create_pull_request(
+                {
+                    "owner": "org",
+                    "repo": "repo",
+                    "title": "My PR",
+                    "head": "feature/x",
+                    "base": "main",
+                    "dry_run": True,
+                }
+            )
+        payload = orjson.loads(result)
+        assert payload["dry_run"] is True
+        assert "feature/x" in payload["preview"]
+        assert "main" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_merge_pull_request_dry_run(self) -> None:
+        import orjson
+
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            result = await svc.fmt_merge_pull_request(
+                {"owner": "org", "repo": "repo", "pr_number": 7, "dry_run": True}
+            )
+        payload = orjson.loads(result)
+        assert payload["dry_run"] is True
+        assert "7" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_create_or_update_file_dry_run_create_op(self) -> None:
+        import orjson
+
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            result = await svc.fmt_create_or_update_file(
+                {
+                    "owner": "org",
+                    "repo": "repo",
+                    "path": "src/file.py",
+                    "content": "code",
+                    "message": "add file",
+                    "dry_run": True,
+                }
+            )
+        payload = orjson.loads(result)
+        assert payload["dry_run"] is True
+        assert "create" in payload["preview"] or "Would" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_create_or_update_file_dry_run_update_op(self) -> None:
+        import orjson
+
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            result = await svc.fmt_create_or_update_file(
+                {
+                    "owner": "org",
+                    "repo": "repo",
+                    "path": "src/file.py",
+                    "content": "code",
+                    "message": "update file",
+                    "sha": "abc123",
+                    "dry_run": True,
+                }
+            )
+        payload = orjson.loads(result)
+        assert "update" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_push_files_dry_run(self) -> None:
+        import orjson
+
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            result = await svc.fmt_push_files(
+                {
+                    "owner": "org",
+                    "repo": "repo",
+                    "branch": "main",
+                    "files": [{"path": "a.py", "content": "x"}],
+                    "message": "push",
+                    "dry_run": True,
+                }
+            )
+        payload = orjson.loads(result)
+        assert payload["dry_run"] is True
+        assert "a.py" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_delete_file_dry_run(self) -> None:
+        import orjson
+
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            result = await svc.fmt_delete_file(
+                {
+                    "owner": "org",
+                    "repo": "repo",
+                    "path": "old.py",
+                    "sha": "abc",
+                    "message": "delete",
+                    "dry_run": True,
+                }
+            )
+        payload = orjson.loads(result)
+        assert payload["dry_run"] is True
+        assert "old.py" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_add_issue_comment_dry_run(self) -> None:
+        import orjson
+
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            result = await svc.fmt_add_issue_comment(
+                {
+                    "owner": "org",
+                    "repo": "repo",
+                    "issue_number": 3,
+                    "body": "comment text",
+                    "dry_run": True,
+                }
+            )
+        payload = orjson.loads(result)
+        assert payload["dry_run"] is True
+        assert "3" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_update_pull_request_dry_run(self) -> None:
+        import orjson
+
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            result = await svc.fmt_update_pull_request(
+                {
+                    "owner": "org",
+                    "repo": "repo",
+                    "pr_number": 5,
+                    "title": "New title",
+                    "dry_run": True,
+                }
+            )
+        payload = orjson.loads(result)
+        assert payload["dry_run"] is True
+        assert "5" in payload["preview"]
+        assert "New title" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_create_issue_dry_run_with_labels(self) -> None:
+        import orjson
+
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        with _patch_cfg(cfg):
+            result = await svc.fmt_create_issue(
+                {
+                    "owner": "org",
+                    "repo": "repo",
+                    "title": "Bug",
+                    "labels": ["bug", "p1"],
+                    "dry_run": True,
+                }
+            )
+        payload = orjson.loads(result)
+        assert payload["dry_run"] is True
+        assert "bug" in payload["preview"] or "Bug" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_add_issue_comment_non_dry_run_calls_service(self) -> None:
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        mock_result = MagicMock()
+        mock_result.issue_number = 3
+        mock_result.comment_url = "https://github.com/org/repo/issues/3#comment-1"
+        with _patch_cfg(cfg):
+            with patch.object(
+                svc, "add_issue_comment", new=AsyncMock(return_value=mock_result)
+            ):
+                result = await svc.fmt_add_issue_comment(
+                    {"owner": "org", "repo": "repo", "issue_number": 3, "body": "hi"}
+                )
+        assert "Comment posted" in result
+        assert "3" in result
+
+    @pytest.mark.asyncio
+    async def test_create_pull_request_non_dry_run_calls_service(self) -> None:
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        mock_pr = MagicMock()
+        mock_pr.number = 10
+        mock_pr.title = "My PR"
+        mock_pr.head_ref = "feature/x"
+        mock_pr.base_ref = "main"
+        mock_pr.url = "https://github.com/org/repo/pull/10"
+        mock_result = MagicMock()
+        mock_result.pull_request = mock_pr
+        with _patch_cfg(cfg):
+            with patch.object(
+                svc, "create_pull_request", new=AsyncMock(return_value=mock_result)
+            ):
+                result = await svc.fmt_create_pull_request(
+                    {
+                        "owner": "org",
+                        "repo": "repo",
+                        "title": "My PR",
+                        "head": "feature/x",
+                        "base": "main",
+                    }
+                )
+        assert "Created" in result
+        assert "10" in result
+
+    @pytest.mark.asyncio
+    async def test_update_pull_request_non_dry_run_calls_service(self) -> None:
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        mock_pr = MagicMock()
+        mock_pr.number = 5
+        mock_pr.state = "open"
+        mock_pr.title = "Updated title"
+        mock_pr.url = "https://github.com/org/repo/pull/5"
+        mock_result = MagicMock()
+        mock_result.pull_request = mock_pr
+        with _patch_cfg(cfg):
+            with patch.object(
+                svc, "update_pull_request", new=AsyncMock(return_value=mock_result)
+            ):
+                result = await svc.fmt_update_pull_request(
+                    {
+                        "owner": "org",
+                        "repo": "repo",
+                        "pr_number": 5,
+                        "title": "Updated title",
+                    }
+                )
+        assert "Updated" in result
+        assert "5" in result
+
+    @pytest.mark.asyncio
+    async def test_merge_pull_request_non_dry_run_calls_service(self) -> None:
+        svc = _make_service()
+        cfg = {"allowed_repos": [], "allowed_repos_mode": "fail_open"}
+        mock_result = MagicMock()
+        mock_result.pr_number = 7
+        mock_result.merged = True
+        mock_result.sha = "abc1234567890"
+        mock_result.message = "Merged successfully"
+        with _patch_cfg(cfg):
+            with patch.object(
+                svc, "merge_pull_request", new=AsyncMock(return_value=mock_result)
+            ):
+                result = await svc.fmt_merge_pull_request(
+                    {"owner": "org", "repo": "repo", "pr_number": 7}
+                )
+        assert "Merged" in result
+        assert "7" in result

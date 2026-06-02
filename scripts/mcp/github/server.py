@@ -34,7 +34,7 @@ Available endpoints:
 import time
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
@@ -85,7 +85,7 @@ from mcp.github.models import (
 from mcp.github.service import _GITHUB_TOKEN, _service
 from mcp.github.tools import _MCP_TOOLS
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, ToolArgs, dispatch_tool
+from mcp.server import MCPServer, ToolArgs, _audit_log, dispatch_tool
 
 # Log path is owned here; service module uses logging.getLogger(__name__)
 logger = Logger(__name__, "/opt/llm/logs/github-mcp.log")
@@ -521,9 +521,21 @@ async def list_tools() -> dict[str, Any]:
 # Unified tool call endpoint
 # ──────────────────────────────────────────────────────────────────────────────
 @app.post("/v1/call_tool", response_model=CallToolResponse)
-async def call_tool(req: CallToolRequest) -> CallToolResponse:
+async def call_tool(req: CallToolRequest, request: "Request") -> CallToolResponse:
     """Execute a GitHub tool by name and return the formatted text result."""
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
     result, is_error = await _dispatch_github_tool(req.name, req.args)
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action=req.name,
+        target=f"repo={req.args.get('owner', '')}/{req.args.get('repo', '')}",
+        outcome="error" if is_error else "ok",
+    )
     return CallToolResponse(result=result, is_error=is_error)
 
 

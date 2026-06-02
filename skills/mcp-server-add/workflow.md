@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - For Option A: agent REPL must be running (`rc-service llama-agent status`)
-- Next free port: `grep -r '\-\-port' init.d/ | grep -oP '\d{4,}' | sort -n | tail -1` → use next integer ≥ 8007
+- Next free port: `grep -r '\-\-port' init.d/ | grep -oP '\d{4,}' | sort -n | tail -1` → use next integer ≥ 8011
 
 ## Idempotency note
 
@@ -11,7 +11,7 @@ The wizard does NOT check for existing files and will overwrite them.
 Before re-running: confirm no server already uses the same name or port.
 
 ```bash
-ls scripts/<name>_mcp_server.py config/<name>_mcp_server.json init.d/<name> 2>/dev/null
+ls scripts/mcp/<name>/ config/<name>_mcp_server.toml init.d/<name> 2>/dev/null
 ```
 
 ---
@@ -24,9 +24,11 @@ From the running agent REPL:
 /mcp install <name>
 ```
 
-This calls `mcp_installer.py:install_mcp_server(name, port)` and generates:
-- `scripts/<name>_mcp_server.py` — skeleton server module
-- `config/<name>_mcp_server.json` — server config
+This calls the MCP installer and generates:
+- `scripts/mcp/<name>/server.py` — skeleton server module
+- `scripts/mcp/<name>/service.py` — service logic
+- `scripts/mcp/<name>/models.py` — Pydantic request/response models
+- `config/<name>_mcp_server.toml` — server config
 - `init.d/<name>` — OpenRC init script
 
 After the wizard completes, continue from Step 1 below.
@@ -37,11 +39,11 @@ If `/mcp install` fails partway through:
 
 1. Check which files were created:
    ```bash
-   ls scripts/<name>_mcp_server.py config/<name>_mcp_server.json init.d/<name> 2>/dev/null
+   ls scripts/mcp/<name>/ config/<name>_mcp_server.toml init.d/<name> 2>/dev/null
    ```
 2. Remove partially created files before retrying:
    ```bash
-   rm -f scripts/<name>_mcp_server.py config/<name>_mcp_server.json init.d/<name>
+   rm -rf scripts/mcp/<name>/ config/<name>_mcp_server.toml init.d/<name>
    ```
 3. Retry the wizard or switch to Option B
 
@@ -49,8 +51,9 @@ If `/mcp install` fails partway through:
 
 ## Option B: Manual creation
 
-If the agent is not running, create the three files manually following the patterns in
-`fileop_mcp_server.py` (models / service / server split) and `init.d/file-mcp`.
+If the agent is not running, create the files manually following the models / service / server
+split pattern in `mcp/file/` (`mcp/file/models.py`, `mcp/file/service.py`, `mcp/file/read_server.py`)
+and the init script in `init.d/file-mcp`.
 
 ---
 
@@ -58,20 +61,30 @@ If the agent is not running, create the three files manually following the patte
 
 Confirm:
 
-- `scripts/<name>_mcp_server.py` follows the module structure:
-  - Uses `mcp_models.py` (`CallToolRequest` / `CallToolResponse`)
-  - Uses `ConfigLoader().load('<name>_mcp_server.json')` (not `json.load()`)
+- `scripts/mcp/<name>/server.py` follows the module structure:
+  - Inherits from `MCPServer` base class (`mcp/server.py`)
+  - Uses models defined in `scripts/mcp/<name>/models.py` (Pydantic `BaseModel` subclasses)
+  - Uses `ConfigLoader().load('<name>_mcp_server.toml')` (not `json.load()`)
   - Uses `logger = logging.getLogger(__name__)` (standard library logging)
   - Comments and log messages in English
-- `config/<name>_mcp_server.json` is valid JSON: `python3 -c "import json; json.load(open('config/<name>_mcp_server.json'))"`
+- `config/<name>_mcp_server.toml` is valid TOML: `python3 -c "import tomllib; tomllib.load(open('config/<name>_mcp_server.toml','rb'))"`
 - `init.d/<name>` includes the correct `--port` argument
+- Syntax check: `python3 -m compileall -q scripts/mcp/<name>/`
 
 ---
 
-## Step 2: deploy.sh — no action needed
+## Step 2: Update deploy.sh
 
-`deploy/deploy.sh` uses `rsync -av --delete` on `scripts/` and `config/`.
-Any new file under these directories is automatically picked up; no `cp` line needed.
+`deploy/deploy.sh` uses explicit `cp` entries — new files are NOT automatically picked up.
+Add `cp` lines for each new file:
+
+```bash
+# In deploy/deploy.sh, add:
+cp scripts/mcp/<name>/server.py  /opt/llm/scripts/mcp/<name>/server.py
+cp scripts/mcp/<name>/service.py /opt/llm/scripts/mcp/<name>/service.py
+cp scripts/mcp/<name>/models.py  /opt/llm/scripts/mcp/<name>/models.py
+cp config/<name>_mcp_server.toml /opt/llm/config/<name>_mcp_server.toml
+```
 
 ---
 
@@ -156,8 +169,8 @@ tail -20 /opt/llm/logs/agent.log
 
 ## Step 9: Completion checklist
 
-- `scripts/<name>_mcp_server.py` syntax check passes
-- `deploy/deploy.sh` updated with new file
+- `scripts/mcp/<name>/server.py` syntax check passes (`python3 -m compileall -q scripts/mcp/<name>/`)
+- `deploy/deploy.sh` updated with `cp` lines for all new files
 - `config/agent.toml mcp_servers.<name>` entry added (verified with `rg`)
 - service registered and running (`rc-service <name> status`)
 - `/mcp` in agent REPL shows the new server as healthy

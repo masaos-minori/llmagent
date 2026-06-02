@@ -1,21 +1,39 @@
 [tasks]
 Show progress as you work.
+Refactor all files under `scripts/**/*.py`.
+Follow these rules strictly.
 
-1. 以下のリファクタリング方針を厳守して、scripts/**/*.py のファイルをリファクタリング
+# Change process and risk control
+- Make changes incrementally.
+- Refactor in small units by feature or responsibility.
+- Do not change multiple features in a single step.
+- Do not change any existing external behavior, public API, or visible output.
+- If a change may alter behavior, do not implement it.
+- Instead, report it as a proposal in comments or in the report.
+- Keep changes to exception handling, state management, side effects, I/O, and concurrency to the absolute minimum.
 
-- 進め方とリスク管理
- - 段階的な変更: 機能単位・責務単位で小さく修正し、一度に複数の機能を変更しない
- - デグレード防止: 既存の外部仕様・振る舞い・公開APIは一切変更しない
- - 提案の分離: 振る舞いが変わる可能性がある修正は、実施せずコメント等で提案する
- - 慎重な変更: 例外処理、状態管理、副作用、I/O、並行処理の修正は最小限に留める
-- 構造と責務の整理（可読性・保守性）
- - 責務の分離: 1関数＝1責務とし、データ取得/変換/判定/永続化などの混在を解消する
- - コードの簡素化: 深いネスト、複雑な分岐、長すぎる関数を解消する（早期return、補助関数の活用）
- - 自然な可読性: 上から下に自然に読める流れにし、命名（変数・関数・クラス）を明確化する
- - 適切な共通化: 同一の変更が波及する「将来同時に修正すべき重複」のみ共通化し、過剰な抽象化は避ける
-- 型安全性の向上
- - 型の明確化: 型が曖昧な箇所に明示的な型注釈・型定義・境界チェックを追加
- - 安全性の確保: any、過剰な型アサーション、無根拠なキャストを禁止し、null/undefinedの混入を防ぐ
- - 境界の分離: 「入力値の検証」と「内部処理」の型責務を明確に分ける
+# Structure and responsibility
+- Ensure one function has one responsibility.
+- Do not mix data fetching, transformation, decision logic, and persistence in the same function.
+- Reduce deep nesting, complex branching, and overly long functions.
+- Prefer early returns and small helper functions when they improve clarity.
+- Make the code easy to read from top to bottom.
+- Use clear and explicit names for variables, functions, and classes.
+- Extract shared logic only when the duplicated code should be changed together in the future.
+- Avoid unnecessary abstraction.
 
-2. リファクタリング実施内容をファイル単位でレポート
+# Type safety
+- Add explicit type annotations, type definitions, and boundary checks where types are unclear.
+- Do not use `Any`, excessive type assertions, or unsupported casts.
+- Prevent `None` from entering places where it should not.
+- Separate input validation from internal processing logic.
+
+# Output requirements
+- Preserve behavior.
+- Keep diffs as small as possible.
+- Report the refactoring result for each file.
+- For each file, summarize:
+  - what changed
+  - why it changed
+  - whether behavior was preserved
+  - any proposals not implemented because they may affect behavior

@@ -20,6 +20,42 @@ logger = logging.getLogger(__name__)
 # Pydantic models in each server validate the actual structure at runtime.
 ToolArgs = dict[str, Any]
 
+# Maximum response size returned to the agent; larger responses are truncated.
+MCP_MAX_RESPONSE_BYTES: int = 512 * 1024
+
+
+def _truncate(text: str, max_bytes: int = MCP_MAX_RESPONSE_BYTES) -> str:
+    """Truncate text to max_bytes UTF-8 bytes; appends a truncation notice when cut."""
+    encoded = text.encode("utf-8")
+    if len(encoded) <= max_bytes:
+        return text
+    shown = encoded[:max_bytes].decode("utf-8", errors="ignore")
+    return (
+        shown
+        + f"\n[TRUNCATED: {len(encoded):,} bytes total, showing {max_bytes:,} bytes]"
+    )
+
+
+def _audit_log(
+    server_logger: Any,
+    session_id: str,
+    request_id: str,
+    action: str,
+    target: str,
+    outcome: str,
+    detail: str = "",
+) -> None:
+    """Emit one structured AUDIT log line with who/what/where context."""
+    server_logger.info(
+        "AUDIT session=%s request=%s action=%s target=%s outcome=%s detail=%s",
+        session_id or "-",
+        request_id or "-",
+        action,
+        target,
+        outcome,
+        detail,
+    )
+
 
 async def dispatch_tool(
     table: Mapping[str, Callable[[ToolArgs], Awaitable[str]]],

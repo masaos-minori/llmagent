@@ -14,6 +14,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any, NoReturn, TypeVar
 
+import orjson
 from fastapi import HTTPException
 from github import Auth, Github, GithubException, InputGitTreeElement
 from shared.formatters import fmt_md_link
@@ -116,7 +117,7 @@ class GitHubService:
           fail_closed:          empty list = deny all repositories
         """
         allowed: list[str] = _get_cfg().get("allowed_repos", [])
-        mode: str = _get_cfg().get("allowed_repos_mode", "fail_open")
+        mode: str = _get_cfg().get("allowed_repos_mode", "fail_closed")
         slug = f"{owner}/{repo}"
         if not allowed:
             if mode == "fail_closed":
@@ -203,6 +204,26 @@ class GitHubService:
     def _get_repo(self, owner: str, repo: str) -> Any:
         """Return a PyGithub Repository object for the given owner/repo slug."""
         return self._gh.get_repo(f"{owner}/{repo}")
+
+    async def _resolve_and_check_branch(
+        self, owner: str, repo: str, branch: str
+    ) -> None:
+        """Resolve the effective branch and apply protected_branches check.
+
+        When branch is "" (unspecified), the default branch is fetched via GitHub API.
+        Skips entirely when protected_branches is empty (no restrictions configured).
+        """
+        protected: list[str] = _get_cfg().get("protected_branches", [])
+        if not protected:
+            return
+        if branch:
+            self._assert_allowed_branch(owner, repo, branch)
+            return
+        # branch="" (unspecified): resolve default branch via GitHub API then check
+        default_branch: str = await self._run_github(
+            lambda: self._get_repo(owner, repo).default_branch
+        )
+        self._assert_allowed_branch(owner, repo, default_branch)
 
     @staticmethod
     def _handle_github_error(e: GithubException) -> NoReturn:
@@ -426,8 +447,7 @@ class GitHubService:
     ) -> CreateOrUpdateFileResponse:
         """Create or update a file; providing sha updates an existing file."""
         self._assert_allowed_repo(req.owner, req.repo)
-        if req.branch:
-            self._assert_allowed_branch(req.owner, req.repo, req.branch)
+        await self._resolve_and_check_branch(req.owner, req.repo, req.branch)
         GitHubService._assert_allowed_path(req.path)
         GitHubService._assert_max_file_size(req.content, req.path)
 
@@ -516,8 +536,7 @@ class GitHubService:
     ) -> DeleteRepoFileResponse:
         """Delete a file from a repository; sha required to prevent conflicts."""
         self._assert_allowed_repo(req.owner, req.repo)
-        if req.branch:
-            self._assert_allowed_branch(req.owner, req.repo, req.branch)
+        await self._resolve_and_check_branch(req.owner, req.repo, req.branch)
         GitHubService._assert_allowed_path(req.path)
 
         def _sync() -> DeleteRepoFileResponse:
@@ -819,8 +838,21 @@ class GitHubService:
         ]
         return "\n".join(lines) if lines else "No branches found."
 
+    @staticmethod
+    def _dry_run_preview(preview: str) -> str:
+        """Return a JSON dry-run preview response string."""
+        return orjson.dumps({"preview": preview, "dry_run": True}).decode()
+
     async def fmt_create_branch(self, args: ToolArgs) -> str:
-        result = await self.create_branch(CreateBranchRequest(**args))
+        req = CreateBranchRequest(**args)
+        self._assert_allowed_repo(req.owner, req.repo)
+        if req.dry_run:
+            from_b = req.from_branch or "(default branch)"
+            return self._dry_run_preview(
+                f"Would create branch '{req.branch_name}' from '{from_b}'"
+                f" in {req.owner}/{req.repo}"
+            )
+        result = await self.create_branch(req)
         return f"Branch created: {result.branch_name} (SHA: {result.sha[:8]})"
 
     async def fmt_list_commits(self, args: ToolArgs) -> str:
@@ -847,11 +879,28 @@ class GitHubService:
         return result.content
 
     async def fmt_create_or_update_file(self, args: ToolArgs) -> str:
-        result = await self.create_or_update_file(CreateOrUpdateFileRequest(**args))
+        req = CreateOrUpdateFileRequest(**args)
+        self._assert_allowed_repo(req.owner, req.repo)
+        if req.dry_run:
+            op = "update" if req.sha else "create"
+            branch = req.branch or "(default branch)"
+            return self._dry_run_preview(
+                f"Would {op} file '{req.path}' on branch '{branch}'"
+                f" in {req.owner}/{req.repo}"
+            )
+        result = await self.create_or_update_file(req)
         return f"{result.operation}: {result.path} (commit: {result.commit_sha[:8]})"
 
     async def fmt_push_files(self, args: ToolArgs) -> str:
-        result = await self.push_files(PushFilesRequest(**args))
+        req = PushFilesRequest(**args)
+        self._assert_allowed_repo(req.owner, req.repo)
+        if req.dry_run:
+            paths = [f.path for f in req.files]
+            return self._dry_run_preview(
+                f"Would push {len(paths)} file(s) to branch '{req.branch}'"
+                f" in {req.owner}/{req.repo}: {paths}"
+            )
+        result = await self.push_files(req)
         sha_short = result.commit_sha[:8]
         return (
             f"Pushed: branch={result.branch}"
@@ -859,7 +908,15 @@ class GitHubService:
         )
 
     async def fmt_delete_file(self, args: ToolArgs) -> str:
-        result = await self.delete_repo_file(DeleteRepoFileRequest(**args))
+        req = DeleteRepoFileRequest(**args)
+        self._assert_allowed_repo(req.owner, req.repo)
+        if req.dry_run:
+            branch = req.branch or "(default branch)"
+            return self._dry_run_preview(
+                f"Would delete '{req.path}' from branch '{branch}'"
+                f" in {req.owner}/{req.repo}"
+            )
+        result = await self.delete_repo_file(req)
         return f"Deleted: {result.path} (commit: {result.commit_sha[:8]})"
 
     async def fmt_list_issues(self, args: ToolArgs) -> str:
@@ -873,7 +930,14 @@ class GitHubService:
         return f"#{i.number} [{i.state}] {i.title}\n{i.body or ''}\nURL: {i.url}"
 
     async def fmt_create_issue(self, args: ToolArgs) -> str:
-        result = await self.create_issue(CreateIssueRequest(**args))
+        req = CreateIssueRequest(**args)
+        self._assert_allowed_repo(req.owner, req.repo)
+        if req.dry_run:
+            labels = f" labels={req.labels}" if req.labels else ""
+            return self._dry_run_preview(
+                f"Would create issue '{req.title}'{labels} in {req.owner}/{req.repo}"
+            )
+        result = await self.create_issue(req)
         i = result.issue
         return f"Created: #{i.number} {i.title}\n{i.url}"
 
@@ -883,7 +947,14 @@ class GitHubService:
         return "\n\n".join(lines) if lines else "No results found."
 
     async def fmt_add_issue_comment(self, args: ToolArgs) -> str:
-        result = await self.add_issue_comment(AddIssueCommentRequest(**args))
+        req = AddIssueCommentRequest(**args)
+        self._assert_allowed_repo(req.owner, req.repo)
+        if req.dry_run:
+            return self._dry_run_preview(
+                f"Would post comment on issue #{req.issue_number}"
+                f" in {req.owner}/{req.repo}"
+            )
+        result = await self.add_issue_comment(req)
         return f"Comment posted: #{result.issue_number} {result.comment_url}"
 
     async def fmt_list_pull_requests(self, args: ToolArgs) -> str:
@@ -901,7 +972,14 @@ class GitHubService:
         )
 
     async def fmt_create_pull_request(self, args: ToolArgs) -> str:
-        result = await self.create_pull_request(CreatePullRequestRequest(**args))
+        req = CreatePullRequestRequest(**args)
+        self._assert_allowed_repo(req.owner, req.repo)
+        if req.dry_run:
+            return self._dry_run_preview(
+                f"Would create PR '{req.title}' ({req.head} → {req.base})"
+                f" in {req.owner}/{req.repo}"
+            )
+        result = await self.create_pull_request(req)
         pr = result.pull_request
         return (
             f"Created: #{pr.number} {pr.title}\n"
@@ -915,12 +993,31 @@ class GitHubService:
         return "\n\n".join(lines) if lines else "No results found."
 
     async def fmt_update_pull_request(self, args: ToolArgs) -> str:
-        result = await self.update_pull_request(UpdatePullRequestRequest(**args))
+        req = UpdatePullRequestRequest(**args)
+        self._assert_allowed_repo(req.owner, req.repo)
+        if req.dry_run:
+            fields: list[str] = []
+            if req.title is not None:
+                fields.append(f"title='{req.title}'")
+            if req.state is not None:
+                fields.append(f"state={req.state}")
+            changes = ", ".join(fields) or "(no changes)"
+            return self._dry_run_preview(
+                f"Would update PR #{req.pr_number} in {req.owner}/{req.repo}: {changes}"
+            )
+        result = await self.update_pull_request(req)
         pr = result.pull_request
         return f"Updated: #{pr.number} [{pr.state}] {pr.title}\n{pr.url}"
 
     async def fmt_merge_pull_request(self, args: ToolArgs) -> str:
-        result = await self.merge_pull_request(MergePullRequestRequest(**args))
+        req = MergePullRequestRequest(**args)
+        self._assert_allowed_repo(req.owner, req.repo)
+        if req.dry_run:
+            return self._dry_run_preview(
+                f"Would merge PR #{req.pr_number} in {req.owner}/{req.repo}"
+                f" using method='{req.merge_method}'"
+            )
+        result = await self.merge_pull_request(req)
         sha_short = result.sha[:8] if result.sha else "N/A"
         return (
             f"Merged: #{result.pr_number} merged={result.merged}"

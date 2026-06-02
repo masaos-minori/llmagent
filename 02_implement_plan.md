@@ -1,296 +1,328 @@
 # 02_implement_plan.md
 
+spec: `00_llm_spec_tobe.md`
+
+---
+
 ## Goal
 
-`00_llm_spec_tobe.md` に記載された 3 つの仕様変更を実装する。
+`00_llm_spec_tobe.md` に基づく2項目の spec 変更を実装する。
 
-1. LLM モデルを Qwen3-Coder-30B-A3B-Instruct Q4_K_M に統一し、切換機能を除去
-2. REPL パイプライン内 RAG 処理フロー (②MQE〜⑦Augment) を RAG MCP 呼出に変更し、呼出実行をオプションで選択
-3. MCP サーバをエージェント起動時にサブプロセスとして自動起動 (OpenRC 不要)
+1. **Agent REPL changes** — `/chat` / `/code` 削除、プロンプト変更、`chat_url`/`code_url` 削除、in-process RAG のパイプライン除去
+2. **Shell execution policy** — 実行ポリシー明確化、リソース制限、専用 MCP への分離、監査ログ
 
 ---
 
 ## Scope
 
-### In scope
+### In-scope (未実施)
 
-- `scripts/agent.py`: docstring から `/chat`/`/code` コマンドの記述を削除
-- `scripts/agent/commands/registry.py`: `/help` 出力から `/chat`/`/code` 行を削除
-- `config/llm.toml`, `config/agent.toml`: LLM URL / モデル設定を Qwen3-Coder に統一
-- `docs/05_agent-impl-flow.md`: REPL フロー図の gemma-4-e4b 記述を修正
-- `scripts/agent/orchestrator.py`: RAG 呼出を in-process から MCP 優先に変更
-- `scripts/agent/config.py`: `use_rag_mcp: bool` フィールド追加 (RAG MCP 呼出の on/off 制御)
-- `scripts/agent/commands/cmd_rag.py` / `cmd_config.py`: `/rag` コマンド + `/reload` の同期対応
-- `scripts/agent/lifecycle.py`: HTTP サーバーのサブプロセス起動サポート (`startup_mode="subprocess"`)
-- `scripts/agent/repl.py`: HTTP サーバーの自動起動 + 起動待機ロジック
-- `scripts/shared/mcp_config.py` / `agent/config.py`: `McpServerConfig` に `startup_mode="subprocess"` の追加バリデーション
-- `config/agent.toml` (`mcp_servers`): 各 HTTP MCP サーバーに `cmd` / `startup_mode = "subprocess"` を追加
-- `docs/04_mcp-protocol.md`: `startup_mode="subprocess"` の仕様追記
-- `docs/06_ref-agent-config.md`: `McpServerConfig.startup_mode` 新値の説明追加
+| 番号 | 項目 | 主な対象ファイル |
+|---|---|---|
+| S-1 | two-stage fetch を orchestrator から除去 | `scripts/agent/orchestrator.py` |
+| S-2 | RagPipeline 初期化を factory から除去 | `scripts/agent/factory.py` |
+| S-3 | `ServiceContainer.rag` フィールド削除 | `scripts/agent/context.py` |
+| S-4 | `AgentConfig` から RAG 関連フィールド全削除 | `scripts/agent/config.py` |
+| S-5 | `/rag` コマンド全削除 | `scripts/agent/commands/cmd_rag.py`, `registry.py` |
+| S-6 | startup banner の `use_search` 参照削除 | `scripts/agent/repl.py` |
+| S-7 | config hot-reload の RAG フィールド削除 | `scripts/agent/commands/cmd_config.py` |
+| S-8 | `config/agent.toml` から RAG 関連キー削除 | `config/agent.toml` |
+| S-9 | テスト更新 | `tests/test_cmd_rag.py`, `test_orchestrator.py`, `test_agent_rag.py` |
 
-### Out of scope
+### Out-of-scope (既実装済み)
 
-- in-process `RagPipeline` の実装コード削除 (後方互換として維持)
-- OpenRC スクリプト (`init.d/`) の削除
-- 新 MCP サーバー追加
-- テスト以外のインフラ変更
+| 項目 | 確認箇所 |
+|---|---|
+| `/chat` / `/code` コマンド除去 | `repl.py:58–78` — SLASH_COMMANDS に存在しない |
+| プロンプト `>` への変更 | `repl.py:88` — `return "> "` |
+| `chat_url`/`code_url` 削除・`llm_url` 統合 | `config/agent.toml:2` — `llm_url` のみ存在 |
+| auto-RAG injection 除去 | `orchestrator.py` handle_turn() に RAG 挿入なし |
+| `shared/protocols/shell.py` (ShellPolicy) | 実装済み |
+| `mcp/shell/service.py` (setrlimit, firejail, kill policy, 監査ログ) | 実装済み |
+| `config/shell_mcp_server.toml` | 実装済み |
+
+### Not-in-scope (変更しない)
+
+- `scripts/rag/` モジュール全体 — `mcp/rag_pipeline/service.py` が `RagPipeline` を使用するため存続
+- `scripts/mcp/rag_pipeline/` — rag-pipeline-mcp サービスは in-process ではなく別プロセス MCP のため除去対象外
 
 ---
 
 ## Assumptions
 
-- Qwen3-Coder-30B-A3B-Instruct Q4_K_M のエンドポイントは現行と同じ `http://127.0.0.1:8002/v1/chat/completions` を使用 (llama.cpp サーバーのモデル差し替えで対応)
-- `/chat`/`/code` スラッシュコマンドはコードに実装がなく docstring のみに存在する (確認済み)
-- `rag-pipeline-mcp` (port 8010) は既に実装済みで稼働可能
-- RAG MCP 呼出の "オプション" は既存の `use_search` フラグで実現 (`use_search=false` で全 RAG 無効化)、または新フィールド `use_rag_mcp` で in-process と MCP を切り替え可能
-- HTTP MCP サーバーのサブプロセス起動は `cmd` (起動コマンド) + ヘルスチェックポーリング (`/health`) で実現
-- `startup_mode="subprocess"` は HTTP トランスポートにのみ適用 (stdio はすでに `persistent`/`ondemand` で対応)
+1. "Remove in-process RAG from the REPL pipeline flow" の除去対象は:
+   - `handle_turn()` 内の two-stage fetch パス
+   - `/rag` コマンド (手動 `/rag search` を含む)
+   - `factory.py` での `RagPipeline` インスタンス化
+   - `AgentConfig` の RAG 設定フィールド
+2. `scripts/rag/` モジュール自体は `mcp/rag_pipeline/service.py` が依存するため削除しない。
+3. `_budget_breakdown()` の `'rag'` キー (`cmd_context.py`) は、コンテキスト計測ユーティリティとして RAG 不使用時も `rag=0` を表示するだけで問題ないため変更しない。
 
 ---
 
 ## Unknowns
 
-### U1: RAG MCP 呼出の "オプション" の意味
+全 Unknown は分析・ユーザー確認により解決済み。
 
-**問題:** "呼出実行をオプションで選択" が何を指すか不明確。
-
-候補:
-- **A**: 既存 `use_search: bool` の on/off のみで十分 (`use_search=false` → RAG 完全無効、`true` → MCP 経由)
-- **B**: 新フィールド `use_rag_mcp: bool` を追加し、`true` → MCP 呼出、`false` → in-process パイプライン
-- **C**: `use_search=true` + `rag_service_url` 設定で MCP、未設定で in-process (現行挙動を明示化するだけ)
-
-**分析結果:** 現在の実装では `rag_service_url` が設定されると自動的に MCP モードになる。spec の intent は MCP をデフォルトにし、in-process を廃止または optional にすることと推測される。
-→ 候補 B (`use_rag_mcp: bool`) が最も明示的で設計意図に合う。
-
-**→ 解決済み。** ユーザー確認: `use_rag_mcp: bool` 方式 (候補 B) を採用。
-
-### U2: HTTP MCP サーバーのサブプロセス起動待機方法
-
-**問題:** HTTP サーバーをサブプロセスで起動した後、`/health` が OK になるまで待機する必要がある。タイムアウトと再試行回数が不明。
-
-**分析結果:** 既存の `repl_health.py` が `/health` ポーリングロジックを持つ。
-`startup_timeout_sec` (デフォルト 30 秒) を `McpServerConfig` に追加し、ヘルスチェックポーリングに流用するのが自然。
-→ **解決済み。** `startup_timeout_sec: int = 30` を `McpServerConfig` に追加し、0.5 秒間隔でポーリング。
-
-### U3: 既存 in-process RAG の扱い
-
-**問題:** `use_rag_mcp=false` のとき in-process パイプラインを残すか、廃止するか。
-
-**分析結果:** spec に「呼出実行をオプションで選択」とあり、in-process の廃止は明示されていない。
-後方互換のため in-process コードは維持し、`use_rag_mcp=false` で切り替え可能とする。
-→ **解決済み。** in-process コードを維持し、`use_rag_mcp: bool` で切り替える設計を採用。
-
-### U4: HTTP サブプロセス起動コマンドの標準化
-
-**問題:** 各 HTTP MCP サーバーの `cmd` をどう設定するか。
-例: `["/opt/llm/venv/bin/python", "-m", "mcp.file.server"]` (HTTP モード = `--stdio` なし)
-
-**分析結果:** 全サーバーが `if "--stdio" in sys.argv: run_stdio() else: run_http()` パターンを持つ。HTTP モードは `--stdio` なしで起動すれば良い。ポート番号は各サーバーの固定値を使用。
-→ **解決済み。** `cmd = ["/opt/llm/venv/bin/python", "-m", "mcp.<name>.server"]` のパターンに統一。ポートは各サーバーの固定値を継続使用。
+| ID | 内容 | 解決方法 |
+|---|---|---|
+| U-1 | two-stage fetch は pipeline flow に含まれるか | `_finalize_answer()` 内から呼ばれ自動実行される → 含まれる |
+| U-2 | 手動 `/rag search` を残すか | ユーザー確認: 削除する |
+| U-3 | `bd['rag']` 参照 | `_budget_breakdown()` ユーティリティは変更不要 (rag=0になるだけ) |
+| U-4 | `rag/` モジュールを削除するか | `mcp/rag_pipeline/service.py` が依存するため削除しない |
 
 ---
 
 ## Affected areas
 
-| エリア | 変更種別 | 主なファイル |
-|---|---|---|
-| LLM モデル統一 | docstring/config のみ | `scripts/agent.py`, `config/llm.toml`, `config/agent.toml`, `docs/05_agent-impl-flow.md` |
-| RAG MCP 切替 | 機能追加 (config フィールド + orchestrator 分岐) | `scripts/agent/orchestrator.py`, `scripts/agent/config.py`, `scripts/agent/commands/cmd_rag.py`, `scripts/agent/commands/cmd_config.py` |
-| MCP サブプロセス起動 | 機能追加 (startup_mode 新値) | `scripts/agent/lifecycle.py`, `scripts/agent/repl.py`, `scripts/shared/mcp_config.py`, `config/agent.toml` |
-| ドキュメント更新 | 記述追加/修正 | `docs/04_mcp-protocol.md`, `docs/06_ref-agent-config.md`, `docs/05_agent-impl-flow.md` |
+```
+scripts/agent/orchestrator.py
+  ├── import: from rag.repository import fetch_full_document  → 削除
+  ├── _fetch_two_stage_context()   → 削除
+  ├── _maybe_two_stage_fetch()     → 削除
+  ├── _finalize_answer()           → two_stage_done 引数・分岐 削除、戻り値 str | None に変更
+  └── handle_turn()                → two_stage_done 変数 削除
+
+scripts/agent/factory.py
+  ├── import: from rag.pipeline import RagPipeline  → 削除
+  ├── _init_rag_pipeline()         → 関数ごと削除
+  └── build_agent_context()        → _init_rag_pipeline() 呼び出し 削除
+
+scripts/agent/context.py
+  └── ServiceContainer.rag: RagPipeline | None  → フィールド削除
+  └── import: from rag.pipeline import RagPipeline (TYPE_CHECKING)  → 削除
+
+scripts/agent/config.py
+  ├── AgentConfig フィールド削除:
+  │   rag_top_k, use_mqe, use_search, use_rrf, use_rerank, rag_min_score,
+  │   rag_service_url, use_rag_mcp, use_two_stage_fetch, two_stage_max_docs
+  ├── __post_init__(): _validate_rag_params() 呼び出し + rag バリデーション 削除
+  ├── _validate_rag_params()       → メソッドごと削除
+  └── _from_toml()                 → RAG フィールドの読み込み行 削除
+
+scripts/agent/repl.py
+  ├── SLASH_COMMANDS               → "/rag" 削除
+  ├── docstring                    → RagPipeline 記述 削除
+  └── _print_startup_banner()      → use_search 分岐を削除 (chunk_count 表示は DB 直参照のため維持 or 削除)
+
+scripts/agent/commands/cmd_rag.py
+  ├── import: from rag.types import ... → 削除
+  └── _RagMixin から削除:
+      _cmd_rag_search(), _print_rag_results(), _cmd_rag_toggle(), _cmd_rag()
+
+scripts/agent/commands/registry.py
+  ├── help text: /rag 関連行 削除
+  └── dispatch: ("/rag", self._cmd_rag, True) 削除
+
+scripts/agent/commands/cmd_config.py
+  ├── _cmd_config_show() → rag_top_k / use_mqe / use_search / use_rrf / use_rerank 表示行 削除
+  └── _apply_config_params() → rag フィールドの hot-reload 行 削除
+
+config/agent.toml
+  削除キー: use_search, use_mqe, use_rrf, use_rerank, rag_top_k, rag_min_score,
+            rag_service_url, use_rag_mcp, use_two_stage_fetch, two_stage_max_docs
+
+tests/test_cmd_rag.py
+  → use_search / _cmd_rag_search 関連テスト 削除 (他コマンドのテストは維持)
+
+tests/test_orchestrator.py
+  → two_stage_done / _finalize_answer シグネチャ変更への追従
+
+tests/test_agent_rag.py
+  → services.rag 参照テスト 削除
+```
 
 ---
 
 ## Design
 
-### Phase 1 — LLM モデル統一 (config/docstring のみ)
-
-`/chat`/`/code` コマンドは実装されていないため、以下の docstring/ドキュメント修正のみ:
-
-- `scripts/agent.py` (L18-19): `/chat`/`/code` 行を削除
-- `docs/05_agent-impl-flow.md` (REPL フロー ② MQE): `(gemma-4-e4b :8002)` 表記を `(:8002)` に変更、モデル名記述を除去
-- `config/llm.toml`: コメントで Qwen3-Coder モデル名を明記
-
-コード変更なし。
-
----
-
-### Phase 2 — RAG MCP 呼出への変更
-
-#### 2.1 AgentConfig に `use_rag_mcp: bool` を追加
-
-```python
-# agent/config.py
-use_rag_mcp: bool = False
-# True のとき Orchestrator が RAG 処理を rag-pipeline-mcp MCP ツール (rag_run_pipeline) 経由で実行
-# False のとき in-process RagPipeline.augment() を使用 (現行動作)
-```
-
-`/reload` ホットリロード対応: `cmd_config.py` の `_apply_config_params()` に追加。
-
-#### 2.2 Orchestrator の `_augment_with_rag()` を変更
+### two-stage fetch 除去後の orchestrator pipeline
 
 ```
-use_rag_mcp=True  → ToolExecutor.execute("rag_run_pipeline", {"query": query, "history_context": ...}) 呼出
-use_rag_mcp=False → 現行 RagPipeline.augment() 呼出 (変更なし)
+現在:
+  handle_turn()
+    → _handle_memory_injection
+    → _handle_history_compression
+    → _handle_llm_turn
+        └── LLM loop
+              └── _finalize_answer(answer, two_stage_done)
+                    └── [NEED_CONTEXT] marker → _maybe_two_stage_fetch()
+                                                  → ctx.services.rag.last_reranked
+                                                  → fetch_full_document()
+                                                  → LLM 再実行
+
+除去後:
+  handle_turn()
+    → _handle_memory_injection
+    → _handle_history_compression
+    → _handle_llm_turn
+        └── LLM loop
+              └── _finalize_answer(answer)  ← two_stage_done 引数なし
+                    ← [NEED_CONTEXT] 分岐なし
 ```
 
-`rag_run_pipeline` の結果 (JSON) から `augmented_text` フィールドを取り出してコンテキスト文字列として返す。
+### /rag コマンド削除後の cmd_rag.py
 
-#### 2.3 `/rag` コマンドに `use_rag_mcp` の表示/制御を追加
-
-```
-/rag                   現在の全フラグ + rag_mcp on/off を表示
-/rag mcp on|off        use_rag_mcp を切り替え
-```
-
----
-
-### Phase 3 — MCP サーバーサブプロセス自動起動
-
-#### 3.1 `McpServerConfig` に `startup_mode="subprocess"` を追加
-
-```python
-# startup_mode の有効値: "persistent" | "ondemand" | "subprocess"
-# "subprocess": transport="http" のサーバーをエージェント起動時にサブプロセスで起動し、
-#               /health が 200 を返すまで startup_timeout_sec 秒ポーリングする
-startup_timeout_sec: int = 30   # 起動待機タイムアウト秒数 (デフォルト 30)
-```
-
-#### 3.2 `ServerLifecycleManager` の変更
-
-`_start_http_subprocess(server_key, cfg)` メソッドを追加:
-
-```
-1. subprocess.Popen(cfg.cmd, ...) でサーバープロセスを起動
-2. /health に対して最大 startup_timeout_sec 秒ポーリング (0.5 秒間隔)
-3. タイムアウト時は ValueError を送出 (既存 stderr ログ付き)
-4. 成功時は self._http_procs[server_key] = proc に保持
-```
-
-`ensure_ready()` の拡張: `startup_mode="subprocess"` + `transport="http"` の場合に `_start_http_subprocess()` を呼ぶ。
-
-`shutdown_all()` の拡張: `_http_procs` の全プロセスを `terminate()` → `wait()` でクリーンアップ。
-
-#### 3.3 `AgentREPL._start_stdio_servers()` の変更
-
-`startup_mode="subprocess"` の HTTP サーバーも `persistent` 相当として起動時に処理する。
-
-#### 3.4 `config/agent.toml` の各 HTTP サーバーに `cmd` と `startup_mode` を追加
-
-```toml
-[mcp_servers.file_read]
-transport = "http"
-url = "http://127.0.0.1:8005"
-cmd = ["/opt/llm/venv/bin/python", "-m", "mcp.file.server"]
-startup_mode = "subprocess"
-startup_timeout_sec = 30
-openrc_service = "file-mcp"   # 後方互換のため維持 (watchdog 対象外に)
-```
+`_RagMixin` には `/tool`, `/note`, `/plan`, `/debug` の非 RAG ハンドラも含まれる。  
+RAG 関連メソッドのみ削除し、`_RagMixin` クラス自体と非 RAG メソッドは維持する。
 
 ---
 
 ## Implementation steps
 
-### Step 1: LLM 統一 (config/docstring)
+### Step 1: `scripts/agent/orchestrator.py` — two-stage fetch 全除去
 
-1. `scripts/agent.py` L18-19: `/chat`/`/code` 行削除
-2. `docs/05_agent-impl-flow.md` ② MQE 行: `(gemma-4-e4b :8002)` → `(:8002)`
-3. `config/llm.toml`: コメントに `# Model: Qwen3-Coder-30B-A3B-Instruct Q4_K_M` を追記
+1-a. `from rag.repository import fetch_full_document` インポート行を削除
 
-検証: ruff/mypy/pytest
+1-b. `_fetch_two_stage_context()` メソッド全体を削除
 
----
+1-c. `_maybe_two_stage_fetch()` メソッド全体を削除
 
-### Step 2: `use_rag_mcp` フィールド追加
+1-d. `_finalize_answer()` の変更:
+   - シグネチャから `two_stage_done: bool` 引数を削除
+   - `if not two_stage_done:` ブロック (`_maybe_two_stage_fetch` 呼び出し) を削除
+   - 戻り値型を `tuple[str | None, bool]` → `str | None` に変更
 
-1. `scripts/agent/config.py`: `use_rag_mcp: bool = False` を RAG フィールドグループに追加
-2. `scripts/agent/commands/cmd_config.py`: `_apply_config_params()` に `ctx.cfg.use_rag_mcp = new_cfg.use_rag_mcp` を追加
-3. `config/agent.toml`: `use_rag_mcp = false` のコメント付きエントリを追加
+1-e. `handle_turn()` の変更:
+   - `two_stage_done = False` 初期化を削除
+   - `_finalize_answer(answer, two_stage_done)` → `_finalize_answer(answer)` に変更
+   - `answer, two_stage_done = await ...` → `answer = await ...` に変更
 
-検証: ruff/mypy/pytest
+### Step 2: `scripts/agent/factory.py` — RagPipeline 初期化除去
 
----
+2-a. `from rag.pipeline import RagPipeline` インポート行を削除
 
-### Step 3: Orchestrator の RAG 分岐
+2-b. `_init_rag_pipeline()` 関数全体を削除
 
-1. `scripts/agent/orchestrator.py` の `_augment_with_rag()` を修正:
-   - `ctx.cfg.use_rag_mcp=True` のとき `ctx.services.tools.execute("rag_run_pipeline", ...)` を呼出
-   - JSON レスポンスから `augmented_text` を抽出してコンテキスト文字列として返す
-   - エラー時は in-process にフォールバック (`logger.warning` 付き)
-2. `scripts/agent/commands/cmd_rag.py`: `/rag mcp on|off` サブコマンドを追加
+2-c. `build_agent_context()` から `_init_rag_pipeline(ctx, view)` 呼び出しを削除
 
-検証: ruff/mypy/pytest + 手動 `/rag mcp on` でのスモークテスト
+### Step 3: `scripts/agent/context.py` — ServiceContainer.rag 削除
 
----
+3-a. `if TYPE_CHECKING: from rag.pipeline import RagPipeline` ブロックを削除
 
-### Step 4: `McpServerConfig` と `ServerLifecycleManager` の拡張
+3-b. `ServiceContainer.rag: RagPipeline | None = None` フィールドを削除
 
-1. `scripts/shared/mcp_config.py`: `startup_mode` の `__post_init__` バリデーションに `"subprocess"` を追加; `startup_timeout_sec: int = 30` フィールドを追加
-2. `scripts/agent/lifecycle.py`:
-   - `_http_procs: dict[str, asyncio.subprocess.Process]` を追加
-   - `_start_http_subprocess()` を実装
-   - `ensure_ready()` / `shutdown_all()` を拡張
-3. `scripts/agent/repl.py`: `_start_stdio_servers()` を `_start_subprocess_servers()` にリネームし HTTP subprocess も処理
-4. `config/agent.toml`: 各 HTTP サーバーに `cmd`/`startup_mode="subprocess"` を追加
+### Step 4: `scripts/agent/config.py` — RAG フィールド全削除
 
-検証: ruff/mypy/pytest + 起動テスト
+4-a. `AgentConfig` から以下フィールドを削除:
+   `rag_top_k`, `use_mqe`, `use_search`, `use_rrf`, `use_rerank`, `rag_min_score`,
+   `rag_service_url`, `use_rag_mcp`, `use_two_stage_fetch`, `two_stage_max_docs`
 
----
+4-b. `__post_init__()` から `self._validate_rag_params()` 呼び出しを削除
 
-### Step 5: ドキュメント更新
+4-c. `_validate_rag_params()` メソッドごと削除
 
-1. `docs/04_mcp-protocol.md` §2.3: `startup_mode="subprocess"` の説明を追加
-2. `docs/06_ref-agent-config.md` §2: `McpServerConfig` の `startup_mode` 新値、`startup_timeout_sec` フィールドを追加
-3. `docs/05_agent-impl-flow.md`: RAG 分岐フローを更新
+4-d. `_from_toml()` から各 RAG フィールドの読み込み行を削除
+
+### Step 5: `scripts/agent/repl.py` — /rag 削除・startup banner 修正
+
+5-a. `SLASH_COMMANDS` リストから `"/rag"` を削除
+
+5-b. `_print_startup_banner()` の `ctx.cfg.use_search` 分岐を削除
+   - `use_search` を参照せず常に `_get_chunk_count()` を表示するか、chunk_count 表示自体を削除
+
+5-c. docstring・クラスコメントから `RagPipeline` の記述を削除
+
+### Step 6: `scripts/agent/commands/cmd_rag.py` — RAG メソッド削除
+
+6-a. `from rag.types import LLMMessage, RagHit` の `RagHit` を削除 (LLMMessage は他メソッドで使用)
+
+6-b. 以下メソッドを削除:
+   - `_print_rag_results()`
+   - `_cmd_rag_search()`
+   - `_cmd_rag_toggle()`
+   - `_cmd_rag()`
+
+### Step 7: `scripts/agent/commands/registry.py` — /rag dispatch 削除
+
+7-a. help text から `/rag` 関連行を削除
+
+7-b. dispatch テーブルから `("/rag", self._cmd_rag, True)` を削除
+
+### Step 8: `scripts/agent/commands/cmd_config.py` — RAG フィールド表示・hot-reload 削除
+
+8-a. `_cmd_config_show()` から `rag_top_k` / `use_mqe` / `use_search` / `use_rrf` / `use_rerank` 表示行を削除
+
+8-b. `_apply_config_params()` から RAG フィールドの hot-reload 行を削除
+
+### Step 9: `config/agent.toml` — RAG 関連キー削除
+
+削除するキー:
+`use_search`, `use_mqe`, `use_rrf`, `use_rerank`, `rag_top_k`, `rag_min_score`,
+`rag_service_url`, `use_rag_mcp`, `use_two_stage_fetch`, `two_stage_max_docs`
+(コメント行も含む)
+
+### Step 10: テスト更新
+
+10-a. `tests/test_cmd_rag.py` — `use_search` / `_cmd_rag_search` 関連テスト削除。`/tool`, `/note`, `/debug` テストは維持。
+
+10-b. `tests/test_orchestrator.py` — `two_stage_done` / `_finalize_answer` 引数変更への追従確認
+
+10-c. `tests/test_agent_rag.py` — `ctx.services.rag` 参照テストを削除または更新
+
+### Step 11: バリデーション実行 (次節参照)
 
 ---
 
 ## Validation plan
 
-| ステップ | 検証内容 |
-|---|---|
-| Step 1 | ruff/mypy/pytest パス、`agent.py --help` に `/chat`/`/code` が消えていること |
-| Step 2 | `AgentConfig` が `use_rag_mcp` フィールドを持つこと、`/reload` で反映されること |
-| Step 3 | `use_rag_mcp=True` + rag-pipeline-mcp 起動状態で `/rag search <query>` が MCP 経由で結果を返すこと |
-| Step 4 | `startup_mode="subprocess"` の HTTP サーバーがエージェント起動時に自動起動され、`/mcp status` で `running` と表示されること |
-| Step 5 | docs との整合 (手動確認) |
+```bash
+# 1. フォーマット・lint
+ruff format scripts/ && ruff check scripts/ tests/ --fix && ruff check scripts/ tests/
+
+# 2. 型チェック
+mypy scripts/ tests/
+
+# 3. import layer 検証
+PYTHONPATH=scripts lint-imports
+
+# 4. テスト
+pytest tests/ -v
+
+# 5. カバレッジ
+coverage run -m pytest tests/ && coverage xml
+diff-cover coverage.xml --compare-branch=master --fail-under=90
+
+# 6. pre-commit 全ゲート
+pre-commit run --all-files
+```
 
 ---
 
 ## Risks
 
-### R1: Qwen3-Coder でのMQE/Rerank プロンプト互換性
+### R-1: `_finalize_answer()` 戻り値型変更による型エラー
 
-**リスク:** Qwen3-Coder は chat 用途に最適化されたモデルではなく、MQE や Cross-Encoder Rerank の few-shot プロンプトが期待通りに動作しない可能性がある。
+**内容**: `_finalize_answer()` の戻り値が `tuple[str | None, bool]` → `str | None` に変わる。LLM loop 内の呼び出し箇所を全件修正しないと mypy エラー。
 
-**対処 (計画反映済み):**
-- Step 3 の Validation plan に「`/rag search <query>` で MQE 展開クエリ数と Rerank スコアを目視確認」を追加
-- プロンプトテンプレート調整が必要な場合は `config/agent.toml` の `mqe_prompt_template` / `rerank_prompt_template` をオーバーライドして対応 (コード変更不要)
-- 調整が広範に及ぶ場合は別タスクとして独立させる
+**対処**: 実装後に `mypy scripts/` を実行し、型エラーを全件解消してから pytest を実行する。
 
-### R2: RAG MCP 経由での latency 増加
+### R-2: `cmd_rag.py` の `LLMMessage` import 残留
 
-**リスク:** in-process → HTTP MCP 呼出への変更でターンごとに余分な HTTP ラウンドトリップが発生し、レイテンシが増加する。
+**内容**: `_RagMixin` には非 RAG メソッド (`_render_history_md`) が `LLMMessage` を使う。`RagHit` のみ除去し `LLMMessage` は残す必要がある。
 
-**対処 (計画反映済み):**
-- `use_rag_mcp: bool = False` をデフォルトに設定し、明示的に有効化したときのみ MCP 経由にする
-- `rag-pipeline-mcp` を `startup_mode="subprocess"` で同一ホスト内起動することで HTTP ラウンドトリップを localhost に限定
-- Validation plan に「`/stats` のターンレイテンシで in-process と MCP を比較」を追加
+**対処**: Step 6-a でインポートを精査し、`RagHit` のみ除去する。
 
-### R3: HTTP サブプロセス起動の冪等性
+### R-3: startup banner の `use_search` 参照
 
-**リスク:** エージェントが再起動したとき、前回のサーバープロセスが残留しポート競合が発生する可能性がある。
+**内容**: `repl.py:237` — `chunk_count = self._get_chunk_count() if ctx.cfg.use_search else "disabled"` が `use_search` フィールド削除後に型エラーになる。
 
-**対処 (計画反映済み):**
-- `startup_mode="subprocess"` の起動前に `/health` をポーリングし、既に起動済みであれば subprocess 起動をスキップして既存プロセスを再利用する
-- `AgentREPL.__init__` で `atexit.register(lifecycle.shutdown_all)` を登録し、正常終了時にサブプロセスを必ず停止する
-- プロセスが残留した場合の手動クリーンアップ手順を `docs/05_agent-ops.md` に追記する
+**対処**: `_get_chunk_count()` を常時呼ぶか、DB チャンク数表示行自体を削除する。`_get_chunk_count()` は SQLite DB に直接アクセスするため `use_search` フラグ不要。
 
-### R4: `startup_mode="subprocess"` の HTTP/stdio 混在バリデーション
+### R-4: test_cmd_rag.py の残存 use_search 参照
 
-**リスク:** `transport="stdio"` に `startup_mode="subprocess"` を設定した場合の挙動が未定義。
+**内容**: `tests/test_cmd_rag.py` が `cfg.use_search` に依存するテストを含む。フィールド削除後に ImportError/AttributeError が発生する。
 
-**対処 (計画反映済み):**
-- `McpServerConfig.__post_init__` に `transport="stdio"` + `startup_mode="subprocess"` の組み合わせを `ValueError` にするバリデーションを追加 (Step 4 で実装)
-- エラーメッセージに `"startup_mode='subprocess' is only valid for transport='http'"` を明示する
+**対処**: Step 10-a で該当テストを削除し、`/tool`, `/note`, `/debug` テストのみ残す。
+
+### R-5: rag-pipeline-mcp への影響なし (確認)
+
+**内容**: `mcp/rag_pipeline/service.py` は `rag.pipeline.RagPipeline` を lazy import で使用。`scripts/rag/` を削除しないため影響なし。
+
+**対処**: 確認のみ (変更不要)。
+
+### R-6: `AgentConfig` フィールド削除による既存設定ファイルのトランプ
+
+**内容**: `config/agent.toml` に削除対象キーが残っている場合、`_from_toml()` が `cfg.get()` で読み込む際は `None` を返すだけで問題は起きない。ただし `toml` のキーを削除しないと余剰設定が残る。
+
+**対処**: Step 9 で `config/agent.toml` からも対象キーを明示的に削除する。

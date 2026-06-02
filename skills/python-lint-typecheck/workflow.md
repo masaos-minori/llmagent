@@ -90,8 +90,8 @@ Never suppress a `lint-imports` violation without updating the contract definiti
 Cross-reference with ast-grep to find all call sites before removing an import:
 
 ```bash
-rg "from agent_repl import" scripts/
-ast-grep --pattern 'import $MOD' --lang python scripts/agent_commands.py
+rg "from agent.repl import" scripts/
+ast-grep --pattern 'import $MOD' --lang python scripts/agent/commands/registry.py
 ```
 
 ---
@@ -133,10 +133,10 @@ class RenameFunctionArg(cst.CSTTransformer):
             return updated_node.with_changes(name=cst.Name("new_param"))
         return updated_node
 
-source = open("scripts/agent_repl.py").read()
+source = open("scripts/agent/repl.py").read()
 tree = cst.parse_module(source)
 new_tree = tree.visit(RenameFunctionArg())
-open("scripts/agent_repl.py", "w").write(new_tree.code)
+open("scripts/agent/repl.py", "w").write(new_tree.code)
 ```
 
 After any LibCST transform:
@@ -251,8 +251,8 @@ result = subprocess.run(cmd)  # nosec B603 — cmd is a validated static list, n
 ```bash
 coverage run -m pytest tests/
 coverage xml
-diff-cover coverage.xml --compare-branch=main
-diff-cover coverage.xml --compare-branch=main --fail-under=90
+diff-cover coverage.xml --compare-branch=master
+diff-cover coverage.xml --compare-branch=master --fail-under=90
 ```
 
 If coverage on changed lines is below 90%:
@@ -267,19 +267,26 @@ Do not add tests for unrelated lines to inflate coverage — scope tests to the 
 
 ## Step 9: CI Consistency Validation
 
+Run the full pre-commit gate to match CI behavior:
+
 ```bash
-tox -e lint        # ruff in isolated env
-tox -e typecheck   # mypy in isolated env
-tox -e security    # bandit in isolated env
-tox -e tests       # pytest in isolated env
-tox                # all four in sequence
+pre-commit run --all-files
 ```
 
-If tox passes locally but fails in CI: check that `pyproject.toml` tox env definitions match the CI configuration.
-If tox fails locally but passes manually: recreate the env and check `tox.ini` deps.
+Or run individual checks directly:
 
 ```bash
-tox --recreate -e lint
+ruff format scripts/
+ruff check scripts/ --fix && ruff check scripts/
+PYTHONPATH=scripts mypy scripts/ tests/
+bandit -r scripts/ -c pyproject.toml
+PYTHONPATH=scripts pytest tests/ -q
+```
+
+If using tox (requires tox.ini to be configured — not in the default dev workflow):
+
+```bash
+tox -e lint && tox -e typecheck && tox -e tests
 ```
 
 ---
@@ -315,10 +322,10 @@ After resolving issues, update project knowledge files if anything changed:
 ## Completion checklist
 
 - `ruff check scripts/` — 0 errors
-- `mypy scripts/` — no new errors (pre-existing may remain)
-- `lint-imports` — 0 violations
+- `PYTHONPATH=scripts mypy scripts/ tests/` — no new errors (pre-existing may remain)
+- `PYTHONPATH=scripts lint-imports` — 0 violations
 - `bandit -r scripts/ -c pyproject.toml` — no HIGH findings unaddressed
-- `diff-cover coverage.xml --compare-branch=main --fail-under=90` — passes
+- `diff-cover coverage.xml --compare-branch=master --fail-under=90` — passes
 - `pre-commit run --all-files` — passes
 - all suppressions have inline justification
 - diff contains only task-relevant changes

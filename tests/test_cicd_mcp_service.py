@@ -469,6 +469,50 @@ class TestGitHubActionsBackendGetWorkflowLogs:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+class TestTriggerWorkflowDryRun:
+    @pytest.mark.asyncio
+    async def test_dry_run_returns_preview_without_calling_backend(self) -> None:
+        import orjson
+
+        mock_backend = AsyncMock()
+        svc = _make_service(repo_allowlist=["owner/repo"], backend=mock_backend)
+        result = await svc.handle_trigger_workflow(
+            {"repo": "owner/repo", "workflow": "ci.yml", "dry_run": True}
+        )
+        payload = orjson.loads(result)
+        assert payload["dry_run"] is True
+        assert "Would trigger" in payload["preview"]
+        assert "ci.yml" in payload["preview"]
+        mock_backend.trigger_workflow.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_dry_run_includes_inputs_in_preview(self) -> None:
+        import orjson
+
+        svc = _make_service(repo_allowlist=["owner/repo"])
+        result = await svc.handle_trigger_workflow(
+            {
+                "repo": "owner/repo",
+                "workflow": "deploy.yml",
+                "dry_run": True,
+                "inputs": {"env": "prod"},
+            }
+        )
+        payload = orjson.loads(result)
+        assert "prod" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_dry_run_denied_by_repo_allowlist(self) -> None:
+        from fastapi import HTTPException
+
+        svc = _make_service(repo_allowlist=[])
+        with pytest.raises(HTTPException) as exc_info:
+            await svc.handle_trigger_workflow(
+                {"repo": "owner/repo", "workflow": "ci.yml", "dry_run": True}
+            )
+        assert exc_info.value.status_code == 403
+
+
 class TestGitHubActionsBackendRepr:
     def test_repr_does_not_contain_token_value(self) -> None:
         backend = GitHubActionsBackend("super-secret-token", MagicMock(), 256)

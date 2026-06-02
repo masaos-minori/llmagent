@@ -76,7 +76,6 @@ class CommandRegistry(
         )
         print(
             "Agent REPL — type a question and press Enter.\n"
-            "Each message is augmented with RAG context before being sent to the LLM.\n"
             "Conversation history is preserved within the session.\n"
             "\n"
             "Slash commands:\n"
@@ -101,13 +100,7 @@ class CommandRegistry(
             "  /db rebuild-fts    Rebuild the FTS5 chunks_fts index\n"
             "  /ingest <url|path> [--snippets-only]"
             "  Crawl/ingest a URL or local file into the RAG DB\n"
-            "  /debug [audit|verbose|normal]  Toggle RAG debug; subcommands: audit=tail log, verbose/normal=log level\n"
-            "  /rag               Show RAG step status\n"
-            "  /rag on|off        Enable/disable RAG search\n"
-            "  /rag mqe on|off    Enable/disable Multi-Query Expansion\n"
-            "  /rag rerank on|off Enable/disable Cross-Encoder reranking\n"
-            "  /rag search <q>    Dry-run RAG pipeline and display chunks"
-            " (no LLM call)\n"
+            "  /debug [audit|verbose|normal]  Toggle debug; subcommands: audit=tail log, verbose/normal=log level\n"
             "  /note add <text>   Add a persistent note\n"
             "  /note list         List all notes\n"
             "  /note delete <id>  Delete a note by ID\n"
@@ -168,7 +161,6 @@ class CommandRegistry(
             ("/clear", self._cmd_clear, False),
             ("/ingest", self._cmd_ingest, True),
             ("/export", self._cmd_export, False),
-            ("/rag", self._cmd_rag, True),
             ("/history", self._cmd_history, False),
             ("/system", self._cmd_system, False),
             ("/db", self._cmd_db, False),

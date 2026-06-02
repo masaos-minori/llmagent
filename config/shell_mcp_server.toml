@@ -33,3 +33,17 @@ env_allowlist = []
 
 # env_denylist: glob patterns for env keys removed from req.env (active when env_allowlist is empty)
 env_denylist = ["LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH"]
+
+# execution_user: OS user to run commands as via setuid; "" = run as current process user
+# Requires CAP_SETUID (root). When non-empty and service is not root, a warning is logged
+# and the setting is ignored (no-op).
+execution_user = ""
+
+# kill_policy: how to terminate a timed-out process group
+#   "sigterm_then_sigkill" — send SIGTERM, wait kill_grace_sec, then SIGKILL
+#   "sigkill_only"         — send SIGKILL immediately (no grace period)
+kill_policy = "sigterm_then_sigkill"
+
+# kill_grace_sec: seconds to wait after SIGTERM before escalating to SIGKILL
+# Ignored when kill_policy = "sigkill_only".
+kill_grace_sec = 2.0

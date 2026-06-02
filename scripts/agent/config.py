@@ -43,20 +43,10 @@ class AgentConfig:
     tool_cache_ttl: float
     top_k_search: int
     top_k_rerank: int
-    rag_top_k: int
-    use_mqe: bool
-    use_search: bool
-    use_rrf: bool
-    use_rerank: bool
     llm_max_retries: int
     llm_retry_base_delay: float
-    # Rerank score threshold: chunks scoring below this value are discarded (0–10 scale)
-    rag_min_score: float
     # Max chunks per document to include after dedup; prevents near-duplicate flooding
     max_chunks_per_doc: int
-    # Two-stage fetch: expand to full document when LLM signals insufficient context
-    use_two_stage_fetch: bool
-    two_stage_max_docs: int
     # When True, tool calls are executed one by one instead of asyncio.gather()
     serial_tool_calls: bool
     # When True, all notes from the notes table are appended to the system prompt
@@ -103,11 +93,9 @@ class AgentConfig:
     # Per-server transport configuration (keyed by server role: "file", "github", "web_search")
     mcp_servers: dict[str, McpServerConfig] = field(default_factory=dict)
 
-    # Optional URL for external RAG HTTP service (port 8010); empty = in-process
-    rag_service_url: str = ""
-    # When True, Orchestrator calls rag_run_pipeline via MCP instead of in-process RagPipeline.
-    # Requires rag-pipeline-mcp to be running (port 8010 or startup_mode="subprocess").
-    use_rag_mcp: bool = False
+    # When True, execute_all_tool_calls places WRITE_TOOLS before READ_TOOLS/others
+    # within the same turn. Ignored when serial_tool_calls=True.
+    use_tool_dag: bool = False
 
     # ── URL / HTTP config (hot-reloadable via /reload) ─────────────────────────
     llm_url: str = ""
@@ -211,7 +199,7 @@ class AgentConfig:
 
     def __post_init__(self) -> None:
         self._validate_llm_params()
-        self._validate_rag_params()
+        self._validate_search_params()
         self._validate_tool_params()
 
     def _validate_llm_params(self) -> None:
@@ -250,22 +238,14 @@ class AgentConfig:
                 f"sse_reconnect_max must be >= 0, got {self.sse_reconnect_max}",
             )
 
-    def _validate_rag_params(self) -> None:
+    def _validate_search_params(self) -> None:
         if self.top_k_search < 1:
             raise ValueError(f"top_k_search must be >= 1, got {self.top_k_search}")
         if self.top_k_rerank < 1:
             raise ValueError(f"top_k_rerank must be >= 1, got {self.top_k_rerank}")
-        if self.rag_top_k < 1:
-            raise ValueError(f"rag_top_k must be >= 1, got {self.rag_top_k}")
-        if self.rag_min_score < 0.0:
-            raise ValueError(f"rag_min_score must be >= 0, got {self.rag_min_score}")
         if self.max_chunks_per_doc < 1:
             raise ValueError(
                 f"max_chunks_per_doc must be >= 1, got {self.max_chunks_per_doc}",
-            )
-        if self.two_stage_max_docs < 1:
-            raise ValueError(
-                f"two_stage_max_docs must be >= 1, got {self.two_stage_max_docs}",
             )
         if self.refiner_max_tokens < 1:
             raise ValueError(
@@ -280,6 +260,11 @@ class AgentConfig:
             )
 
     def _validate_tool_params(self) -> None:
+        self._validate_approval_risk_rules()
+        self._validate_safety_tiers()
+        self._validate_tool_counters()
+
+    def _validate_approval_risk_rules(self) -> None:
         _valid_risk = {"none", "medium", "high"}
         bad = {
             k: v for k, v in self.approval_risk_rules.items() if v not in _valid_risk
@@ -289,6 +274,8 @@ class AgentConfig:
                 f"approval_risk_rules: invalid levels {bad};"
                 " must be 'none', 'medium', or 'high'",
             )
+
+    def _validate_safety_tiers(self) -> None:
         _valid_tiers = {"READ_ONLY", "WRITE_SAFE", "WRITE_DANGEROUS", "ADMIN"}
         bad_tiers = {
             k: v for k, v in self.tool_safety_tiers.items() if v not in _valid_tiers
@@ -298,6 +285,8 @@ class AgentConfig:
                 f"tool_safety_tiers: invalid tier values {bad_tiers};"
                 " must be READ_ONLY, WRITE_SAFE, WRITE_DANGEROUS, or ADMIN",
             )
+
+    def _validate_tool_counters(self) -> None:
         if self.tool_dedup_max_repeats < 1:
             raise ValueError(
                 f"tool_dedup_max_repeats must be >= 1, got {self.tool_dedup_max_repeats}",
@@ -336,17 +325,9 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
         tool_cache_ttl=cfg.get("tool_cache_ttl", 300),
         top_k_search=cfg.get("top_k_search", 20),
         top_k_rerank=cfg.get("top_k_rerank", 15),
-        rag_top_k=int(cfg.get("rag_top_k", 5)),
-        use_mqe=cfg.get("use_mqe", True),
-        use_search=cfg.get("use_search", True),
-        use_rrf=cfg.get("use_rrf", True),
-        use_rerank=cfg.get("use_rerank", True),
         llm_max_retries=int(cfg.get("llm_max_retries", 3)),
         llm_retry_base_delay=float(cfg.get("llm_retry_base_delay", 1.0)),
-        rag_min_score=float(cfg.get("rag_min_score", 0.0)),
         max_chunks_per_doc=int(cfg.get("max_chunks_per_doc", 2)),
-        use_two_stage_fetch=bool(cfg.get("use_two_stage_fetch", False)),
-        two_stage_max_docs=int(cfg.get("two_stage_max_docs", 2)),
         serial_tool_calls=bool(cfg.get("serial_tool_calls", False)),
         auto_inject_notes=bool(cfg.get("auto_inject_notes", True)),
         use_tool_summarize=bool(cfg.get("use_tool_summarize", False)),
@@ -376,7 +357,6 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
         tool_cache_max_size=int(cfg.get("tool_cache_max_size", 200)),
         tool_error_retry_max=int(cfg.get("tool_error_retry_max", 1)),
         tool_concurrency_limits=dict(cfg.get("tool_concurrency_limits", {})),
-        rag_service_url=cfg.get("rag_service_url", ""),
         mcp_servers=_build_mcp_servers(cfg),
         llm_url=cfg.get("llm_url", ""),
         github_url=cfg.get("github_server_url", "http://127.0.0.1:8006"),
@@ -515,6 +495,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
             cfg.get("approval_github_allowed_repos", []),
         ),
         allowed_tools=list(cfg.get("allowed_tools", [])),
+        use_tool_dag=bool(cfg.get("use_tool_dag", False)),
     )
 
 

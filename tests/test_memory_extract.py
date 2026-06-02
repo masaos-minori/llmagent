@@ -122,3 +122,14 @@ class TestExtractMemories:
         from agent.memory.extract import MAX_ENTRIES
 
         assert len(result) <= MAX_ENTRIES
+
+    def test_skips_when_no_keywords_and_under_double_min(self) -> None:
+        # Content is >= MIN_CONTENT_CHARS (80) but < MIN_CONTENT_CHARS*2 (160)
+        # and has no semantic/failure keywords → _classify_content returns None → no entry
+        content = "x" * 90  # 90 chars, no keywords
+        history = _hist(
+            ("user", "Q"),
+            ("assistant", content),
+        )
+        result = extract_memories(history)
+        assert result == []

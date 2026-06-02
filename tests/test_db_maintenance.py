@@ -250,3 +250,91 @@ class TestCheckpointAndVacuum:
         mock_db = self._make_mock_db()
         vacuum_db(mock_db)
         mock_db.vacuum.assert_called_once()
+
+
+# ── prune_old_memories ────────────────────────────────────────────────────────
+
+
+class TestPruneOldMemories:
+    def _make_db(
+        self,
+        fetchall_return: list,
+        rowcount: int = 0,
+    ) -> MagicMock:
+        mock = MagicMock(spec=SQLiteHelper)
+        mock.fetchall.return_value = fetchall_return
+        cur_mock = MagicMock()
+        cur_mock.rowcount = rowcount
+        mock.execute.return_value = cur_mock
+        return mock
+
+    def test_no_old_memories_returns_zero(self) -> None:
+        from db.maintenance import prune_old_memories
+
+        mock_db = self._make_db(fetchall_return=[])
+        result = prune_old_memories(mock_db, older_than_days=30)
+        assert result == 0
+        mock_db.execute.assert_not_called()
+
+    def test_deletes_old_memories_and_fts(self) -> None:
+        from db.maintenance import prune_old_memories
+
+        mid = "abc-uuid"
+        mock_db = self._make_db(
+            fetchall_return=[(mid,)],
+            rowcount=1,
+        )
+        result = prune_old_memories(mock_db, older_than_days=30)
+
+        assert result == 1
+        # memories テーブルと memories_fts テーブルから削除されること
+        calls = [str(c) for c in mock_db.execute.call_args_list]
+        assert any("DELETE FROM memories WHERE" in c for c in calls)
+        assert any("DELETE FROM memories_fts" in c for c in calls)
+        mock_db.commit.assert_called_once()
+
+    def test_memories_vec_exception_is_suppressed(self) -> None:
+        from db.maintenance import prune_old_memories
+
+        mid = "abc-uuid"
+        mock_db = self._make_db(
+            fetchall_return=[(mid,)],
+            rowcount=1,
+        )
+        # memories_vec の削除で例外が発生しても suppress されること
+        mock_db.execute.side_effect = [
+            MagicMock(rowcount=1),  # DELETE FROM memories
+            MagicMock(),  # DELETE FROM memories_fts
+            Exception("no vec table"),  # DELETE FROM memories_vec
+        ]
+        result = prune_old_memories(mock_db, older_than_days=30)
+        assert result == 1  # 例外があっても rowcount は使われる
+
+
+# ── recover_corruption (RuntimeError branch) ──────────────────────────────────
+
+
+class TestRecoverCorruption:
+    def test_db_conn_none_raises_runtime_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """db.conn が None のとき RuntimeError が発生し、except で False が返ること。"""
+        from unittest.mock import MagicMock, patch
+
+        from db.maintenance import recover_corruption
+
+        mock_db = MagicMock()
+        mock_db.conn = None
+
+        class FakeContext:
+            def __enter__(self) -> MagicMock:
+                return mock_db
+
+            def __exit__(self, *args: object) -> None:
+                pass
+
+        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+            mock_helper_cls.return_value.open.return_value = FakeContext()
+            result = recover_corruption()
+
+        assert result is False

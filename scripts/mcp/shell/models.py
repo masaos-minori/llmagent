@@ -10,6 +10,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
+from shared.protocols.shell import ShellPolicy
 
 # Logger for config-load warnings; main log path is /opt/llm/logs/shell-mcp.log
 _models_logger = Logger(__name__, "/opt/llm/logs/shell-mcp.log")
@@ -27,6 +28,27 @@ def _get_cfg() -> dict[str, Any]:
             _models_logger.warning(f"Config load failed: {e}")
             _cfg = {}
     return _cfg
+
+
+def load_shell_policy() -> ShellPolicy:
+    """Build ShellPolicy from shell_mcp_server.toml (cached via _get_cfg)."""
+    cfg = _get_cfg()
+    return ShellPolicy(
+        allowed_commands=frozenset(cfg.get("command_allowlist", [])),
+        cwd_allowed_dirs=tuple(cfg.get("shell_cwd_allowed_dirs", [])),
+        default_cwd=str(cfg.get("default_cwd", "")),
+        timeout_sec=int(cfg.get("max_timeout_sec", 300)),
+        max_output_kb=int(cfg.get("max_output_kb", 4096)),
+        max_memory_mb=int(cfg.get("max_memory_mb", 512)),
+        kill_policy=str(cfg.get("kill_policy", "sigterm_then_sigkill")),
+        kill_grace_sec=float(cfg.get("kill_grace_sec", 2.0)),
+        execution_user=str(cfg.get("execution_user", "")),
+        shell_path=str(cfg.get("shell_path", "/usr/bin:/bin")),
+        audit_log_path=str(cfg.get("audit_log_path", "")),
+        sandbox_backend=str(cfg.get("shell_sandbox_backend", "none")),
+        env_allowlist=tuple(cfg.get("env_allowlist", [])),
+        env_denylist=tuple(cfg.get("env_denylist", [])),
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -50,6 +72,10 @@ class ShellRunRequest(BaseModel):
     cwd: str | None = Field(default=None)
     env: dict[str, str] = Field(default_factory=dict)
     max_output_kb: int = Field(default=512, ge=1, le=65536)
+    dry_run: bool = Field(
+        default=False,
+        description="Preview only; command is not executed",
+    )
 
 
 class ShellRunResponse(BaseModel):

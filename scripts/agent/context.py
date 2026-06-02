@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """agent/context.py
-Shared mutable runtime state injected into REPLAgent, RagPipeline,
-and CommandRegistry via dependency injection.
+Shared mutable runtime state injected into AgentREPL and CommandRegistry
+via dependency injection.
 
 DI boundary:
-  ServiceContainer — service references (http, llm, tools, hist_mgr, rag, stdio_procs)
+  ServiceContainer — service references (http, llm, tools, hist_mgr, stdio_procs)
   AgentContext     — DI hub; all service access via ctx.services.*
 """
 
@@ -20,7 +20,6 @@ from db.tool_results import ToolResultStore
 
 if TYPE_CHECKING:
     import httpx
-    from rag.pipeline import RagPipeline
     from shared.llm_client import LLMClient
     from shared.logger import Logger
     from shared.tool_executor import StdioTransport, ToolExecutor
@@ -42,7 +41,6 @@ class ServiceContainer:
         self.llm: LLMClient | None = None
         self.tools: ToolExecutor | None = None
         self.hist_mgr: HistoryManager | None = None
-        self.rag: RagPipeline | None = None
         # stdio MCP server transports (key → StdioTransport); populated by _start_stdio_servers
         self.stdio_procs: dict[str, StdioTransport] = {}
         # Audit logger writes JSON-lines turn events to audit.log; None until _init_components()
@@ -54,8 +52,7 @@ class ServiceContainer:
 
 
 class AgentContext:
-    """Mutable runtime state shared between REPLAgent, RagPipeline,
-    and CommandRegistry.
+    """Mutable runtime state shared between AgentREPL and CommandRegistry.
 
     Components in self.services are None until REPLAgent.run() initialises them.
     All service access uses ctx.services.* directly; no property shims.

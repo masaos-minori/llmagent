@@ -232,7 +232,7 @@ async def my_tool(args: dict) -> tuple[str, bool]:
 
 | スクリプト | 使用箇所 |
 |---|---|
-| `agent/repl.py` | `_init_components()` で `ToolExecutor` を生成し `ctx.services.tools` に保持。`ServerLifecycleManager` を `set_lifecycle()` で注入。stdio persistent サーバは `_start_stdio_servers()` で起動後に `set_transport()` で登録 |
+| `agent/factory.py` | `build_agent_context()` で `ToolExecutor` と `ServerLifecycleManager` を生成し `ctx.services.tools` / `ctx.services.lifecycle` に保持。`_start_subprocess_servers()` で persistent stdio / HTTP subprocess サーバを起動後に `set_transport()` で登録 |
 
 ---
 

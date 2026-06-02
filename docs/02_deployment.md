@@ -140,7 +140,7 @@ SELECT vec_version();
 
 ---
 
-## 2. OpenRC サービス設定
+## 2. サービス設定
 
 ### 2.1 スクリプトのデプロイ
 
@@ -157,29 +157,37 @@ deploy.sh が行う処理:
 - `/opt/llm/db/` に `rrf.sql` をコピー
 - `/opt/llm/logs/`, `/opt/llm/rag-src/chunk/`, `/opt/llm/rag-src/registered/` を作成
 
-### 2.2 サービス登録・起動
+### 2.2 LLM サービス登録・起動
 
-`deploy/setup_services.sh` が OpenRC スクリプトのデプロイ・サービス登録・起動を実行。
+`deploy/setup_services.sh` が LLM サービスの OpenRC 登録・起動を実行。
+
+MCP サーバ (ports 8004-8014) はエージェント起動時に agent-managed subprocess として自動起動するため OpenRC 登録は不要。
 
 ```bash
 # deploy.sh 実行後に実行する
 bash deploy/setup_services.sh
 
-# ヘルスチェック (各サービスがモデルロードを完了するまで待機)
+# ヘルスチェック (各 LLM サービスがモデルロードを完了するまで待機)
 curl -s http://127.0.0.1:8003/health   # embed-llm
 curl -s http://127.0.0.1:8002/health   # llama-chat-llm
 curl -s http://127.0.0.1:8001/health   # llama-coding-llm
-curl -s http://127.0.0.1:8004/health   # web-search-mcp
-curl -s http://127.0.0.1:8005/health   # file-mcp
-curl -s http://127.0.0.1:8006/health   # github-mcp
 
 # LLM サービスのモデルロード完了後に llama-agent を起動する
 rc-service llama-agent start
 ```
 
 > `setup_services.sh` は `/etc/conf.d/web-search-mcp` および `/etc/conf.d/github-mcp` に空の API キーをコピーする。
-> Web 検索を使う場合は `BRAVE_API_KEY` / `BING_API_KEY` を `/etc/conf.d/web-search-mcp` に記入してから `rc-service web-search-mcp restart` を実行する。
-> GitHub 操作を使う場合は `GITHUB_TOKEN` を `/etc/conf.d/github-mcp` に記入してから `rc-service github-mcp restart` を実行する。
+> Web 検索を使う場合は `BRAVE_API_KEY` / `BING_API_KEY` を `/etc/conf.d/web-search-mcp` に設定する。
+> GitHub 操作を使う場合は `GITHUB_TOKEN` を `/etc/conf.d/github-mcp` に設定する。
+
+### 2.3 MCP サーバの確認
+
+MCP サーバはエージェント起動時に `startup_mode = "subprocess"` 設定に従い uvicorn サブプロセスとして自動起動する。エージェント起動後に `/mcp status` で各サーバの起動状態を確認できる。
+
+```bash
+# エージェント内で確認
+agent[chat]> /mcp status
+```
 
 ---
 
@@ -233,7 +241,11 @@ sqlite3 /opt/llm/db/rag.sqlite "SELECT COUNT(*) FROM messages;"
 curl -s http://127.0.0.1:8003/health  # embed-llm
 curl -s http://127.0.0.1:8002/health  # llama-chat-llm
 curl -s http://127.0.0.1:8001/health  # llama-coding-llm
-curl -s http://127.0.0.1:8004/health  # web-search-mcp
-curl -s http://127.0.0.1:8005/health  # file-mcp
-curl -s http://127.0.0.1:8006/health  # github-mcp
+```
+
+MCP サーバのヘルスチェックはエージェント起動後に行う:
+
+```bash
+# エージェント内
+agent[chat]> /mcp status
 ```

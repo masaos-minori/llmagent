@@ -31,9 +31,9 @@
 #### pydeps — import graph
 
 ```bash
-cd scripts && pydeps <module> --no-output --show-deps
-pydeps agent_repl --no-output --show-deps --max-bacon=3
-pydeps rag_utils --no-output --show-deps
+PYTHONPATH=scripts pydeps <module> --no-output --show-deps
+PYTHONPATH=scripts pydeps agent.repl --no-output --show-deps --max-bacon=3
+PYTHONPATH=scripts pydeps rag.utils --no-output --show-deps
 ```
 
 Document every module that imports the target symbol. This is the blast radius.
@@ -90,10 +90,10 @@ If the refactor changes a module boundary, plan the contract update as part of P
 #### pytest-cov — coverage baseline
 
 ```bash
-coverage run -m pytest tests/
-coverage report --include="scripts/<module>.py"
+PYTHONPATH=scripts coverage run -m pytest tests/
+coverage report --include="scripts/<path/to/module>.py"   # use full nested path, e.g. scripts/agent/repl.py
 coverage xml
-diff-cover coverage.xml --compare-branch=main   # record baseline
+diff-cover coverage.xml --compare-branch=master   # record baseline
 ```
 
 If coverage is below 80%: write characterization tests for the uncovered paths before proceeding.
@@ -265,7 +265,7 @@ If a step fails CI:
 ```bash
 pre-commit run --all-files
 lint-imports
-diff-cover coverage.xml --compare-branch=main --fail-under=90
+diff-cover coverage.xml --compare-branch=master --fail-under=90
 ```
 
 If `pre-commit` fails: fix the specific hook that failed, do not use `--no-verify`.
@@ -274,7 +274,7 @@ Final review:
 
 ```bash
 git log --oneline -10
-git diff main...HEAD -- scripts/
+git diff master...HEAD -- scripts/
 rg "OldName\|old_func\|OldClass" scripts/   # confirm no old symbols remain
 ```
 
@@ -282,11 +282,12 @@ rg "OldName\|old_func\|OldClass" scripts/   # confirm no old symbols remain
 
 ## Special cases
 
-### Refactoring tool_executor.py or agent_repl.py
+### Refactoring tool_executor.py or route_resolver.py
 
-If the refactor touches `tool_executor.py` or MCP routing logic in `agent_repl.py`:
-- check if `_MCP_SERVICE_MAP` keys or server names change: `rg "_MCP_SERVICE_MAP" scripts/agent_repl.py`
-- update the map if server keys change
+If the refactor touches `shared/tool_executor.py` or MCP routing logic in `shared/route_resolver.py`:
+- check if `ToolRouteResolver` prefix mappings or `tool_names` config keys change: `rg "ToolRouteResolver\|tool_names" scripts/shared/`
+- check if tool classification sets change in `shared/tool_constants.py`: `rg "WRITE_TOOLS\|READ_TOOLS\|DELETE_TOOLS" scripts/shared/tool_constants.py`
+- update the config (`config/agent.toml [mcp_servers.<name>] tool_names`) if server keys change
 - verify with `/mcp` in the agent REPL after deployment
 - add this check to the Phase 1 blast radius table
 
@@ -303,11 +304,11 @@ When a module is added or removed, compose with the `deploy` skill:
 
 - blast radius table documented
 - characterization tests written; coverage ≥ 80%
-- 0 surviving mutants on refactored paths
+- surviving mutants on refactored paths: 0 for small modules; for files > 300 lines, kill all mutants on the directly changed paths
 - `ruff check scripts/` — 0 errors
-- `mypy scripts/` — error count not increased
-- `lint-imports` — passes or contracts updated
-- `diff-cover` — ≥ 90% on changed lines
+- `PYTHONPATH=scripts mypy scripts/ tests/` — error count not increased
+- `PYTHONPATH=scripts lint-imports` — passes or contracts updated
+- `diff-cover coverage.xml --compare-branch=master --fail-under=90` — passes
 - `pre-commit run --all-files` — passes
 - all commits are bisect-safe (each passes tests independently)
 - no old symbol names remain in `scripts/`

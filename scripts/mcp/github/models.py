@@ -136,6 +136,9 @@ class CreateIssueRequest(BaseModel):
         default_factory=list,
         description="List of assignee GitHub usernames",
     )
+    dry_run: bool = Field(
+        default=False, description="Preview only; no issue is created"
+    )
 
 
 class CreateIssueResponse(BaseModel):
@@ -222,6 +225,7 @@ class CreatePullRequestRequest(BaseModel):
     body: str = Field(default="", description="Pull request body (Markdown)")
     head: str = Field(..., description="Source branch name for the PR")
     base: str = Field(..., description="Target branch name to merge into")
+    dry_run: bool = Field(default=False, description="Preview only; no PR is created")
 
 
 class CreatePullRequestResponse(BaseModel):
@@ -235,6 +239,9 @@ class CreateBranchRequest(BaseModel):
     from_branch: str = Field(
         default="",
         description="Base branch to derive from (default: default branch)",
+    )
+    dry_run: bool = Field(
+        default=False, description="Preview only; no branch is created"
     )
 
 
@@ -257,6 +264,7 @@ class CreateOrUpdateFileRequest(BaseModel):
         default="",
         description="Current SHA when updating an existing file (empty for new files)",
     )
+    dry_run: bool = Field(default=False, description="Preview only; no file is written")
 
 
 class CreateOrUpdateFileResponse(BaseModel):
@@ -270,6 +278,9 @@ class AddIssueCommentRequest(BaseModel):
     repo: str = Field(..., description="Repository name")
     issue_number: int = Field(..., description="Issue number to add the comment to")
     body: str = Field(..., description="Comment body (Markdown)")
+    dry_run: bool = Field(
+        default=False, description="Preview only; no comment is posted"
+    )
 
 
 class AddIssueCommentResponse(BaseModel):
@@ -290,6 +301,9 @@ class PushFilesRequest(BaseModel):
     branch: str = Field(..., description="Branch name to push to")
     files: list[PushFile] = Field(..., description="List of files to push")
     message: str = Field(..., description="Commit message")
+    dry_run: bool = Field(
+        default=False, description="Preview only; no files are pushed"
+    )
 
 
 class PushFilesResponse(BaseModel):
@@ -314,6 +328,7 @@ class DeleteRepoFileRequest(BaseModel):
         default="",
         description="Target branch name (default: default branch)",
     )
+    dry_run: bool = Field(default=False, description="Preview only; no file is deleted")
 
 
 class DeleteRepoFileResponse(BaseModel):
@@ -393,6 +408,7 @@ class UpdatePullRequestRequest(BaseModel):
         pattern="^(open|closed)$",
         description="New state: open / closed (omit to keep unchanged)",
     )
+    dry_run: bool = Field(default=False, description="Preview only; no PR is updated")
 
 
 class UpdatePullRequestResponse(BaseModel):
@@ -416,6 +432,7 @@ class MergePullRequestRequest(BaseModel):
         pattern="^(merge|squash|rebase)$",
         description="Merge method: merge / squash / rebase",
     )
+    dry_run: bool = Field(default=False, description="Preview only; no PR is merged")
 
 
 class MergePullRequestResponse(BaseModel):

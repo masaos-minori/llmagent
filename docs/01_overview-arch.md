@@ -165,7 +165,7 @@ POST :8006/v1/call_tool     {"name": "github_search_repositories", "args": {"que
 | RAG コンテキストへのドキュメントタイトル表示 | `rag/pipeline.RagPipeline.augment` | ソースブロック形式を `[Source: {title} \| {url}]` に変更。title が空の場合は URL にフォールバックする |
 | 並列ツール実行の直列化オプション | `agent/repl_tool_exec.execute_all_tool_calls`, `agent/config.AgentConfig` | `serial_tool_calls=true` のとき `asyncio.gather()` を直列ループに切り替える。write→read 等の依存関係がある tool_calls で順序保証が必要な場合に有効化する |
 | ステップ別レイテンシ計測 | `rag/pipeline.RagPipeline.run`, `Orchestrator._run_turn`, `agent/context.AgentContext.stat_latency` | RAG 各ステップ (MQE/Search/RRF/Rerank) と LLM 初回呼び出しの所要秒数をセッションごとに蓄積し `/stats` で平均・最大を表示する |
-| RAG ステップのランタイムトグル | `agent/commands.CommandRegistry.CommandRegistry._cmd_rag` | `/rag on\|off` / `/rag mqe on\|off` / `/rag rerank on\|off` で `AgentConfig` の `use_*` フラグを再起動なしに変更する。`/rag` 単体で現在のステータスを表示 |
+| RAG パイプライン (MCP 経由) | `mcp/rag_pipeline/service.py` | RAG は `mcp/rag_pipeline/` (port 8010) で MCP ツールとして提供。in-process RagPipeline・自動 RAG 挿入・`/rag` コマンドは削除済み |
 | セッション横断ノート (`/note`) | `agent/commands.CommandRegistry._cmd_note`, `agent/session.AgentSession` | `/note add\|list\|delete` で `notes` テーブルに軽量メモを永続化。`auto_inject_notes=true` で起動時にシステムプロンプト末尾へ自動付加する |
 | ツール結果の要約・構造化 | `agent/repl_tool_exec.execute_all_tool_calls`, `rag/llm.RagLLM.summarize_tool_result` | `use_tool_summarize=true` かつ結果が `tool_summarize_threshold` 超のとき LLM で要約してから履歴追加。全文は `ctx.tool_result_store` に保持し `/tool show` で参照可能 |
 | セマンティックキャッシュ | `rag/pipeline.SemanticCache`, `Orchestrator.handle_turn` | クエリ埋め込みのコサイン類似度が `semantic_cache_threshold` 以上のとき RAG パイプラインをスキップし前回コンテキストを再利用する。`/stats` でヒット数・キャッシュサイズを表示 |

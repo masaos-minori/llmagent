@@ -56,9 +56,9 @@ rg "import <module>" scripts/      # find all importers of a module
 ```bash
 ast-grep --pattern 'ConfigLoader().load($ARG)' --lang python scripts/
 ast-grep --pattern 'class $NAME(BaseModel): $$$' --lang python scripts/
-ast-grep --pattern 'raise $EXPR' --lang python scripts/tool_executor.py
+ast-grep --pattern 'raise $EXPR' --lang python scripts/shared/tool_executor.py
 ast-grep --pattern 'json.load($$$)' --lang python scripts/
-ast-grep --pattern 'async def $NAME($$$): $$$' --lang python scripts/agent_repl.py
+ast-grep --pattern 'async def $NAME($$$): $$$' --lang python scripts/agent/repl.py
 ```
 
 Prefer `ast-grep` over plain `rg` for patterns that must be structurally valid.
@@ -66,8 +66,8 @@ Prefer `ast-grep` over plain `rg` for patterns that must be structurally valid.
 #### pydeps — dependency impact analysis
 
 ```bash
-cd scripts && pydeps <module> --no-output --show-deps
-pydeps agent_repl --no-output --show-deps --max-bacon=3
+cd scripts && PYTHONPATH=. pydeps <module> --no-output --show-deps
+PYTHONPATH=scripts pydeps agent.repl --no-output --show-deps --max-bacon=3
 ```
 
 Assess blast radius before modifying shared utilities (`llm_client`, `rag_utils`, `formatters`).
@@ -94,15 +94,19 @@ To add a new boundary contract:
 ```ini
 [importlinter]
 root_packages =
-    scripts
+    agent
+    shared
+    rag
+    mcp
+    db
 
 [importlinter:contract:commands-no-repl]
 name = CommandRegistry must not import AgentREPL
 type = forbidden
 source_modules =
-    scripts.agent_commands
+    agent.commands
 forbidden_modules =
-    scripts.agent_repl
+    agent.repl
 ```
 
 Run `lint-imports` after every change that touches import statements.
@@ -265,8 +269,8 @@ ast-grep --pattern 'except: $$$' --lang python scripts/
 ```bash
 coverage run -m pytest tests/
 coverage xml
-diff-cover coverage.xml --compare-branch=main
-diff-cover coverage.xml --compare-branch=main --fail-under=90
+diff-cover coverage.xml --compare-branch=master
+diff-cover coverage.xml --compare-branch=master --fail-under=90
 ```
 
 #### pytest-benchmark
@@ -291,12 +295,11 @@ pytest tests/ --benchmark-compare=baseline --benchmark-compare-fail=mean:10%
 ```bash
 grep -c "cp scripts/" deploy/deploy.sh
 rg "<old_module_name>" scripts/
-grep "mcp_servers" config/agent.json
+grep "mcp_servers" config/agent.toml
 ```
 
 Checklist (in addition to `rules/toolchain.md`):
-- OTel spans added for new I/O-bound or cross-service code paths
-- `config/agent.json mcp_servers` updated if a new MCP server was added
+- `config/agent.toml [mcp_servers]` updated if a new MCP server was added
 
 ---
 
@@ -306,7 +309,7 @@ Checklist (in addition to `rules/toolchain.md`):
 - **`routing.md`**: add task-type → doc mapping entry for new modules
 - **`docs/06_ref-agent-commands.md`**: update if slash commands changed
 - **`docs/06_ref-rag.md`**: update if RAG pipeline modules changed
-- **`docs/06_ref-mcp.md`**: update if MCP tools changed
+- **`docs/04_mcp-<server>.md`**: update the relevant MCP doc if MCP tools changed (one file per server)
 - **`docs/06_ref-agent-config.md`**: update if `AgentConfig` fields changed
 - **`deploy/deploy.sh`**: add `cp` lines for new files; remove lines for deleted files
 

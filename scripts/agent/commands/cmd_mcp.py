@@ -33,6 +33,25 @@ class _McpMixin:
         WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
     )
 
+    async def _get_http_status(self, probe: "httpx.AsyncClient", url: str) -> str:
+        """Probe url/health and return a status string."""
+        if not url:
+            return "no-url"
+        try:
+            r = await probe.get(f"{url}/health")
+            return "OK" if r.status_code == 200 else f"HTTP {r.status_code}"
+        except Exception as e:
+            return f"FAIL ({e})"
+
+    def _get_stdio_status(
+        self, ctx: "AgentContext", key: str, startup_mode: str
+    ) -> str:
+        """Return RUNNING / DEAD / STOPPED / NOT_STARTED for a stdio server."""
+        transport = ctx.services.stdio_procs.get(key)
+        if transport is None:
+            return "STOPPED" if startup_mode == "ondemand" else "NOT_STARTED"
+        return "RUNNING" if transport.is_alive() else "DEAD"
+
     async def _cmd_mcp_status(self) -> None:
         """Print MCP server status table including transport, mode, auth, write, and health."""
         ctx = self._ctx
@@ -60,33 +79,11 @@ class _McpMixin:
                     if any(t in self._WRITE_CAPABLE_TOOLS for t in cfg.tool_names)
                     else "no"
                 )
-                role = cfg.role or ""
                 if cfg.transport == "http":
-                    if cfg.url:
-                        try:
-                            r = await probe.get(f"{cfg.url}/health")
-                            status = (
-                                "OK"
-                                if r.status_code == 200
-                                else f"HTTP {r.status_code}"
-                            )
-                        except Exception as e:
-                            status = f"FAIL ({e})"
-                    else:
-                        status = "no-url"
+                    status = await self._get_http_status(probe, cfg.url)
                     endpoint = cfg.url
                 else:
-                    transport = ctx.services.stdio_procs.get(key)
-                    if transport is None:
-                        status = (
-                            "STOPPED"
-                            if cfg.startup_mode == "ondemand"
-                            else "NOT_STARTED"
-                        )
-                    elif transport.is_alive():
-                        status = "RUNNING"
-                    else:
-                        status = "DEAD"
+                    status = self._get_stdio_status(ctx, key, cfg.startup_mode)
                     endpoint = " ".join(cfg.cmd) if cfg.cmd else ""
                 print(
                     col.format(
@@ -95,7 +92,7 @@ class _McpMixin:
                         cfg.startup_mode,
                         auth,
                         write,
-                        role,
+                        cfg.role or "",
                         status,
                         endpoint,
                     ),

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """agent/orchestrator.py
-Turn-level orchestration: RAG augmentation -> history compression -> LLM streaming
+Turn-level orchestration: history compression -> LLM streaming
 -> tool dispatch with duplicate call detection and consecutive error guard.
 Extracted from AgentREPL to separate UI loop from task control logic.
 """
@@ -15,8 +15,6 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import orjson
-from rag.llm import get_embedding
-from rag.repository import fetch_full_document
 from shared.llm_client import LLMClient, LLMTransportError
 from shared.logger import Logger
 from shared.tool_executor import format_transport_error, tool_call_key
@@ -24,13 +22,7 @@ from shared.types import LLMMessage
 
 from agent.commands.registry import _budget_breakdown
 from agent.context import AgentContext
-from agent.repl_debug import (
-    _extract_history_context,
-    _make_debug_fn,
-    _needs_more_context,
-)
 from agent.repl_tool_exec import execute_all_tool_calls
-from db.helper import SQLiteHelper
 
 if TYPE_CHECKING:
     from agent.commands.registry import CommandRegistry
@@ -69,7 +61,7 @@ class _NullContextManager:
 
 
 class Orchestrator:
-    """Turn-level coordinator: RAG -> compression -> LLM loop -> tool dispatch.
+    """Turn-level coordinator: compression -> LLM loop -> tool dispatch.
 
     Receives AgentContext (shared state) and CommandRegistry (for session title
     generation) at construction. All terminal output is routed via optional
@@ -119,7 +111,7 @@ class Orchestrator:
             )
 
     async def _handle_memory_injection(self, line: str) -> None:
-        """Handle memory injection before RAG augmentation."""
+        """Handle memory injection before user message append."""
         ctx = self._ctx
         # UserPromptSubmit: inject relevant memories before RAG augmentation
         if ctx.services.memory is not None:
@@ -132,10 +124,6 @@ class Orchestrator:
                     f"- {s}" for s in memory_snippets
                 )
                 ctx.history.append({"role": "system", "content": memory_block})
-
-    async def _handle_rag_augmentation(self, line: str) -> None:
-        """Handle RAG augmentation."""
-        await self._augment_and_append(line)
 
     async def _handle_history_compression(self) -> None:
         """Handle history compression."""
@@ -200,7 +188,7 @@ class Orchestrator:
         ctx.current_turn_id = None
 
     async def handle_turn(self, line: str) -> None:
-        """Augment line with RAG context, call LLM, and persist to DB.
+        """Call LLM with the user message and persist to DB.
 
         Compresses conversation history before the LLM call when total chars
         exceed context_char_limit.
@@ -211,7 +199,7 @@ class Orchestrator:
 
         try:
             await self._handle_memory_injection(line)
-            await self._handle_rag_augmentation(line)
+            self._append_user_message(line)
             await self._handle_history_compression()
 
             answer = await self._handle_llm_turn(ctx.llm_url)
@@ -224,37 +212,13 @@ class Orchestrator:
 
     # ── LLM interaction ───────────────────────────────────────────────────────
 
-    async def _finalize_answer(
-        self,
-        message: LLMMessage,
-        two_stage_done: bool,
-    ) -> tuple[str | None, bool]:
-        """Handle a done-turn message; return (answer, two_stage_done) or (None, two_stage_done) to continue.
-
-        Returns (answer_str, _) when the turn is complete.
-        Returns (None, True) when a two-stage context fetch was injected and the loop should continue.
-        """
+    async def _finalize_answer(self, message: LLMMessage) -> str:
+        """Append the done-turn message to history and return the answer text."""
         ctx = self._ctx
         ctx.history.append(message)
         if self._on_turn_end:
             self._on_turn_end()
-        answer = message.get("content") or ""
-        if not two_stage_done:
-            extra = await self._maybe_two_stage_fetch(answer)
-            if extra is not None:
-                ctx.history.append(
-                    {
-                        "role": "user",
-                        "content": (
-                            "[Additional context]\n"
-                            + extra
-                            + "\n\n(Please revise your answer using"
-                            " the above additional context.)"
-                        ),
-                    },
-                )
-                return None, True
-        return answer, two_stage_done
+        return message.get("content") or ""
 
     def _span_ctx(self, name: str) -> Any:
         """Return a real OTel span context or a _NullContextManager when no tracer is set."""
@@ -262,28 +226,14 @@ class Orchestrator:
             return self._tracer.start_as_current_span(name)
         return _NullContextManager()
 
-    async def _augment_and_append(self, line: str) -> str:
-        """Run RAG augment, append user message to history, persist to session, return augmented text."""
+    def _append_user_message(self, line: str) -> None:
+        """Append user message to history and persist to session."""
         ctx = self._ctx
-        with self._span_ctx("rag") as rag_span:
-            context, cache_hit = await self._augment_with_rag(line)
-            rag_span.set_attribute("rag_query_id", ctx.current_rag_query_id or "")
-            rag_span.set_attribute("cache_hit", cache_hit)
-
-        if context:
-            ctx.stat_rag_hits += 1
-            augmented = f"[Reference documents]\n{context}\n\nQuestion: {line}"
-            if ctx.services.rag is not None and not cache_hit:
-                for step, secs in ctx.services.rag.last_timings.items():
-                    ctx.stat_latency.setdefault(step, []).append(secs)
-        else:
-            augmented = line
-        ctx.history.append({"role": "user", "content": augmented})
+        ctx.history.append({"role": "user", "content": line})
         ctx.stat_turns += 1
         if ctx.stat_turns == 1:
             asyncio.create_task(self._cmds._generate_session_title(line))
-        ctx.session.save("user", augmented)
-        return augmented
+        ctx.session.save("user", line)
 
     def _handle_llm_transport_error(
         self,
@@ -438,6 +388,50 @@ class Orchestrator:
                 return "Repeated failed tool call detected."
         return None
 
+    def _check_all_tool_guards(
+        self,
+        seen_calls: dict[str, int],
+        round_fingerprints: list[str],
+        failed_calls: set[str],
+        message: LLMMessage,
+    ) -> str | None:
+        """Run cycle, dedup, and retry guards in order; return first hit or None."""
+        if msg := self._check_cycle_guard(round_fingerprints, message):
+            return msg
+        if msg := self._check_dedup_guard(seen_calls, message):
+            return msg
+        return self._check_retry_guard(failed_calls, message)
+
+    def _update_consecutive_errors(
+        self,
+        consecutive_errors: int,
+        n_errors: int,
+        n_tool_calls: int,
+    ) -> int:
+        """Increment consecutive-all-error counter; reset to 0 when any tool succeeds."""
+        return consecutive_errors + 1 if n_errors == n_tool_calls else 0
+
+    def _check_consecutive_error_limit(self, consecutive_errors: int) -> str | None:
+        """Return exit message when consecutive all-error turns exceed the configured max."""
+        ctx = self._ctx
+        if (
+            ctx.cfg.tool_error_max_consecutive <= 0
+            or consecutive_errors < ctx.cfg.tool_error_max_consecutive
+        ):
+            return None
+        logger.warning(
+            f"Aborting turn: {consecutive_errors} consecutive all-error"
+            f" tool turns (max={ctx.cfg.tool_error_max_consecutive})",
+        )
+        return "Too many consecutive tool errors."
+
+    def _record_llm_latency(self, t0_llm: float, turn: int) -> None:
+        """Append wall-clock time to stat_latency['llm'] for the first inner turn only."""
+        if turn == 0:
+            self._ctx.stat_latency.setdefault("llm", []).append(
+                time.perf_counter() - t0_llm,
+            )
+
     def _inject_mid_turn_error(self, e: LLMTransportError, turn: int) -> str:
         """Inject a synthetic tool-error message for a mid-turn LLM failure and return its summary."""
         ctx = self._ctx
@@ -481,8 +475,6 @@ class Orchestrator:
         ctx = self._ctx
         assert ctx.services.llm is not None
         tool_defs = ctx.cfg.tool_definitions
-        # Guard: two-stage fetch runs at most once per user turn
-        two_stage_done = False
         # Dedup: track (tool_name:args_json) md5 -> call count across all inner turns
         seen_calls: dict[str, int] = {}
         # Retry suppression: (name, args) keys that errored in this turn sequence
@@ -508,24 +500,13 @@ class Orchestrator:
                 if turn > 0:
                     return self._inject_mid_turn_error(e, turn)
                 raise  # first turn: propagate to handle_turn()
-            # Record LLM wall-clock time for the first (main) generation turn only
-            if turn == 0:
-                ctx.stat_latency.setdefault("llm", []).append(
-                    time.perf_counter() - t0_llm,
-                )
+            self._record_llm_latency(t0_llm, turn)
 
             message, finish_reason = LLMClient.extract_message(response)
 
             has_tool_calls = bool(message.get("tool_calls"))
-            is_done = (finish_reason != "tool_calls") or not has_tool_calls
-            if is_done:
-                answer, two_stage_done = await self._finalize_answer(
-                    message,
-                    two_stage_done,
-                )
-                if answer is None:
-                    continue
-                return answer
+            if (finish_reason != "tool_calls") or not has_tool_calls:
+                return await self._finalize_answer(message)
 
             ctx.history.append(message)
             ctx.session.save(
@@ -534,13 +515,9 @@ class Orchestrator:
                 tool_calls=message.get("tool_calls"),
             )
 
-            if (
-                msg := self._check_cycle_guard(round_fingerprints, message)
-            ) is not None:
-                return msg
-            if (msg := self._check_dedup_guard(seen_calls, message)) is not None:
-                return msg
-            if (msg := self._check_retry_guard(failed_calls, message)) is not None:
+            if msg := self._check_all_tool_guards(
+                seen_calls, round_fingerprints, failed_calls, message
+            ):
                 return msg
 
             errors_before = ctx.stat_tool_errors
@@ -551,178 +528,11 @@ class Orchestrator:
                 out_failed_keys=failed_calls,
             )
             n_errors = ctx.stat_tool_errors - errors_before
-
-            # Consecutive error tracking: reset count when any tool succeeds this turn
-            if n_errors == len(message["tool_calls"]):
-                consecutive_errors += 1
-            else:
-                consecutive_errors = 0
-
-            if (
-                ctx.cfg.tool_error_max_consecutive > 0
-                and consecutive_errors >= ctx.cfg.tool_error_max_consecutive
-            ):
-                logger.warning(
-                    f"Aborting turn: {consecutive_errors} consecutive all-error"
-                    f" tool turns (max={ctx.cfg.tool_error_max_consecutive})",
-                )
-                return "Too many consecutive tool errors."
+            consecutive_errors = self._update_consecutive_errors(
+                consecutive_errors, n_errors, len(message["tool_calls"])
+            )
+            if msg := self._check_consecutive_error_limit(consecutive_errors):
+                return msg
 
         logger.warning(f"Reached max_tool_turns={ctx.cfg.max_tool_turns}")
         return "Maximum tool turns reached."
-
-    # ── RAG augmentation ──────────────────────────────────────────────────────
-
-    async def _augment_with_rag(self, line: str) -> tuple[str, bool]:
-        """Run the RAG pipeline (or semantic cache) and return (context, cache_hit).
-
-        Returns an empty string when use_search is False or no relevant chunks found.
-        When use_rag_mcp=True, delegates to rag_run_pipeline via MCP instead of
-        calling the in-process RagPipeline; falls back to in-process on MCP error.
-        """
-        ctx = self._ctx
-        if not ctx.cfg.use_search:
-            return "", False
-
-        ctx.current_rag_query_id = str(uuid.uuid4())
-        logger.info(
-            f"RAG query start rag_query_id={ctx.current_rag_query_id}"
-            f" turn_id={ctx.current_turn_id}",
-        )
-
-        history_context = _extract_history_context(ctx.history, n=2)
-
-        # MCP path: delegate RAG to rag-pipeline-mcp
-        if ctx.cfg.use_rag_mcp and ctx.services.tools is not None:
-            mcp_result = await self._augment_via_mcp(line, history_context)
-            if mcp_result is not None:
-                return mcp_result, False
-            logger.warning("RAG MCP call failed; falling back to in-process pipeline")
-
-        if ctx.services.rag is None:
-            return "", False
-
-        debug_fn = _make_debug_fn() if ctx.debug_mode else None
-
-        # Try semantic cache before running the full RAG pipeline
-        _cached_emb: list[float] | None = None
-        if ctx.cfg.use_semantic_cache and ctx.services.http is not None:
-            try:
-                _cached_emb = await get_embedding("query: " + line, ctx.services.http)
-                _cached_ctx = ctx.services.rag.semantic_cache.lookup(_cached_emb)
-                if _cached_ctx is not None:
-                    ctx.stat_semantic_cache_hits += 1
-                    logger.info("Semantic cache hit; skipping RAG pipeline")
-                    return _cached_ctx, True
-            except Exception as _e:
-                logger.warning(f"Semantic cache lookup failed: {_e}")
-                _cached_emb = None
-
-        context = await ctx.services.rag.augment(
-            line,
-            debug_fn,
-            history_context=history_context,
-        )
-        # Store result in semantic cache for future reuse
-        if ctx.cfg.use_semantic_cache and context and ctx.services.http is not None:
-            try:
-                emb_for_store = _cached_emb or await get_embedding(
-                    "query: " + line,
-                    ctx.services.http,
-                )
-                ctx.services.rag.semantic_cache.put(emb_for_store, context)
-            except Exception as _e:
-                logger.warning(f"Semantic cache put failed: {_e}")
-
-        return context, False
-
-    async def _augment_via_mcp(
-        self,
-        query: str,
-        history_context: str,
-    ) -> str | None:
-        """Call rag_run_pipeline via MCP and return augmented_text, or None on error."""
-        ctx = self._ctx
-        assert ctx.services.tools is not None
-        args: dict[str, Any] = {"query": query}
-        if history_context:
-            args["history_context"] = [history_context]
-        try:
-            result, is_error, _ = await ctx.services.tools.execute(
-                "rag_run_pipeline",
-                args,
-            )
-            if is_error:
-                logger.warning(f"rag_run_pipeline MCP error: {result!r}")
-                return None
-            parsed = orjson.loads(result)
-            augmented = parsed.get("augmented_text", "")
-            if augmented:
-                logger.info(
-                    f"RAG MCP augmented rag_query_id={ctx.current_rag_query_id}"
-                    f" chars={len(augmented)}",
-                )
-            return augmented or None
-        except Exception as e:
-            logger.warning(f"RAG MCP call exception: {e}")
-            return None
-
-    # ── Two-stage context fetch ───────────────────────────────────────────────
-
-    async def _fetch_two_stage_context(self) -> str:
-        """Fetch full document context for the top reranked hits (second stage).
-
-        Opens its own DB connection, expands up to two_stage_max_docs unique
-        documents, and returns a formatted context block for the second LLM call.
-        """
-        ctx = self._ctx
-        hits = ctx.services.rag.last_reranked if ctx.services.rag is not None else []
-        if not hits:
-            return ""
-        max_docs = ctx.cfg.two_stage_max_docs
-        try:
-            db = SQLiteHelper().open(row_factory=True)
-        except Exception as e:
-            logger.warning(f"Two-stage fetch DB open failed: {e}")
-            return ""
-        blocks: list[str] = []
-        seen_urls: set[str] = set()
-        with db:
-            for hit in hits:
-                if len(seen_urls) >= max_docs:
-                    break
-                url = hit.get("url", "")
-                if url in seen_urls:
-                    continue
-                seen_urls.add(url)
-                chunk_id = hit.get("chunk_id")
-                if chunk_id is None:
-                    continue
-                # Expand +-2 surrounding chunks for focused context
-                full_hits = fetch_full_document(chunk_id, db, window=2)
-                if full_hits:
-                    content = "\n".join(h["content"] for h in full_hits)
-                    blocks.append(f"[Source: {url}]\n{content}")
-        result = "\n\n---\n\n".join(blocks)
-        logger.info(f"Two-stage fetch: {len(blocks)} docs, {len(result)} chars")
-        return result
-
-    async def _maybe_two_stage_fetch(self, answer: str) -> str | None:
-        """Inject full-document context when the LLM signals it needs more.
-
-        Returns the extra context string when triggered, None otherwise.
-        Called at most once per handle_turn() invocation.
-        """
-        ctx = self._ctx
-        if not (
-            ctx.cfg.use_two_stage_fetch
-            and ctx.services.rag is not None
-            and ctx.services.rag.last_reranked
-            and _needs_more_context(answer)
-        ):
-            return None
-        extra = await self._fetch_two_stage_context()
-        if not extra:
-            return None
-        logger.info("Two-stage fetch: injecting full doc context")
-        return extra

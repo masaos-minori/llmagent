@@ -140,21 +140,7 @@ def fixed_seed():
 
 Mock only at true I/O boundaries. Do not mock internal helpers.
 
-#### pytest-mock — mocker fixture (scope to one test)
-
-```python
-def test_llm_retry(mocker):
-    mock_post = mocker.patch("httpx.AsyncClient.post")
-    mock_post.side_effect = [
-        httpx.TimeoutException("timeout"),
-        httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]}),
-    ]
-    result = asyncio.run(llm_client.complete("hello"))
-    assert result == "ok"
-    assert mock_post.call_count == 2
-```
-
-#### respx — mock httpx at the transport level
+#### respx — mock httpx at the transport level (preferred for httpx calls)
 
 ```python
 import respx
@@ -220,22 +206,11 @@ def test_floats_to_blob_roundtrip(f):
 
 This project uses `logging.getLogger(__name__)`. Skip OTel span validation — not adopted project-wide.
 
-To validate log output in tests, use `assertLogs`:
+To validate log output in tests, use pytest's `caplog` fixture:
 
 ```python
 import logging
 
-def test_tool_executor_logs_cache_hit():
-    executor = ToolExecutor(...)
-    with self.assertLogs("tool_executor", level="INFO") as cm:
-        executor.call("search_web", {"query": "test"})
-        executor.call("search_web", {"query": "test"})   # cache hit
-    assert any("cache_hit" in msg for msg in cm.output)
-```
-
-Or with pytest's `caplog` fixture:
-
-```python
 def test_tool_executor_logs_cache_hit(caplog):
     with caplog.at_level(logging.INFO, logger="tool_executor"):
         executor = ToolExecutor(...)
@@ -256,7 +231,8 @@ import asyncio
 
 @pytest.mark.asyncio
 async def test_no_pending_tasks_after_completion():
-    await run_agent_turn("hello")
+    # replace with a real async function under test (e.g. Orchestrator.handle_turn)
+    await some_async_function_under_test()
     pending = [t for t in asyncio.all_tasks() if not t.done()]
     assert len(pending) == 0, f"Leaked tasks: {pending}"
 ```
@@ -290,8 +266,8 @@ Add `.testmondata` to `.gitignore`.
 ```bash
 coverage run -m pytest tests/
 coverage xml
-diff-cover coverage.xml --compare-branch=main
-diff-cover coverage.xml --compare-branch=main --fail-under=90
+diff-cover coverage.xml --compare-branch=master
+diff-cover coverage.xml --compare-branch=master --fail-under=90
 ```
 
 For bug fixes: run mutmut on the exact lines that changed:
@@ -354,7 +330,7 @@ def client():  # ambiguous — which client?
 - reproducing test written before fixing implementation
 - mock only at true I/O boundaries (http, subprocess, filesystem, DB)
 - no `mocker.patch` on internal helpers
-- `diff-cover` ≥ 90% on changed lines
+- `diff-cover coverage.xml --compare-branch=master --fail-under=90` passes
 - `pytest --reruns 5` passes — no flakiness introduced
 - `mutmut` 0 surviving mutants on bug-fix path
 - `.testmondata` not committed

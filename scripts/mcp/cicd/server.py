@@ -18,14 +18,23 @@ Provided endpoints:
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 from mcp.cicd.models import _get_cfg
 from mcp.cicd.service import _service
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, ToolArgs, attach_auth_middleware, dispatch_tool
+from mcp.server import (
+    MCPServer,
+    ToolArgs,
+    _audit_log,
+    attach_auth_middleware,
+    dispatch_tool,
+)
+
+logger = logging.getLogger(__name__)
 
 _cfg = _get_cfg()
 
@@ -166,8 +175,20 @@ async def list_tools() -> dict[str, Any]:
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
-async def call_tool(req: CallToolRequest) -> CallToolResponse:
+async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
     result, is_error = await _dispatch_cicd_tool(req.name, req.args)
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action=req.name,
+        target=req.args.get("repo", ""),
+        outcome="error" if is_error else "ok",
+    )
     return CallToolResponse(result=result, is_error=is_error)
 
 

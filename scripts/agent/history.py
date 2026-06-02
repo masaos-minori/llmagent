@@ -125,13 +125,15 @@ class HistoryManager:
 
         """
         role = msg.get("role", "")
-        if role == "tool":
-            return "temporary"
-        if role == "system":
-            return "factual"
-        if role == "assistant" and msg.get("tool_calls"):
-            return "temporary_reasoning"
-        return "history"
+        match role:
+            case "tool":
+                return "temporary"
+            case "system":
+                return "factual"
+            case "assistant" if msg.get("tool_calls"):
+                return "temporary_reasoning"
+            case _:
+                return "history"
 
     async def _call_compress_llm(self, history_text: str) -> str | None:
         """Send history_text to the chat LLM and return the summary string.

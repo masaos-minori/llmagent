@@ -375,6 +375,37 @@ class LLMClient:
 
     # ── Single-connection SSE attempt ─────────────────────────────────────────
 
+    def _raise_http_status_error(self, e: "httpx.HTTPStatusError", url: str) -> None:
+        """Convert an httpx HTTP status error into LLMTransportError and raise it."""
+        code = e.response.status_code
+        retryable = code in (429, 503)
+        raise LLMTransportError(
+            kind="HTTP_STATUS_RETRYABLE" if retryable else "HTTP_STATUS_FATAL",
+            phase="pre_stream",
+            url=url,
+            status_code=code,
+            retryable=retryable,
+        ) from e
+
+    def _process_sse_payloads(
+        self,
+        payloads: list[str],
+        content_parts: list[str],
+        tool_calls_map: dict[int, dict[str, Any]],
+    ) -> str | None:
+        """Parse and process a list of raw SSE payloads; return last finish_reason seen."""
+        finish_reason: str | None = None
+        for raw_payload in payloads:
+            try:
+                chunk = orjson.loads(raw_payload)
+            except (orjson.JSONDecodeError, ValueError):
+                continue
+            reason = self._process_sse_chunk(chunk, content_parts, tool_calls_map)
+            if reason:
+                finish_reason = reason
+            self._emit_usage(chunk)
+        return finish_reason
+
     async def _stream_once(
         self,
         url: str,
@@ -396,17 +427,7 @@ class LLMClient:
                 try:
                     resp.raise_for_status()
                 except httpx.HTTPStatusError as e:
-                    code = e.response.status_code
-                    retryable = code in (429, 503)
-                    raise LLMTransportError(
-                        kind="HTTP_STATUS_RETRYABLE"
-                        if retryable
-                        else "HTTP_STATUS_FATAL",
-                        phase="pre_stream",
-                        url=url,
-                        status_code=code,
-                        retryable=retryable,
-                    ) from e
+                    self._raise_http_status_error(e, url)
 
                 byte_iter = resp.aiter_bytes().__aiter__()
                 while True:
@@ -419,19 +440,11 @@ class LLMClient:
                         self.stat_parse_errors += parser.stat_parse_errors
                         parser.stat_parse_errors = 0
 
-                    for raw_payload in payloads:
-                        try:
-                            chunk = orjson.loads(raw_payload)
-                        except (orjson.JSONDecodeError, ValueError):
-                            continue
-                        reason = self._process_sse_chunk(
-                            chunk,
-                            content_parts,
-                            tool_calls_map,
-                        )
-                        if reason:
-                            finish_reason = reason
-                        self._emit_usage(chunk)
+                    reason = self._process_sse_payloads(
+                        payloads, content_parts, tool_calls_map
+                    )
+                    if reason:
+                        finish_reason = reason
 
                     if is_done:
                         break

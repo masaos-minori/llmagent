@@ -59,53 +59,57 @@ class ServerLifecycleManager:
         cfg = self._server_configs.get(server_key)
         if cfg is None:
             return
-        # HTTP subprocess servers are started eagerly; just verify liveness.
         if cfg.transport == "http" and cfg.startup_mode == "subprocess":
-            proc = self._http_procs.get(server_key)
-            if proc is None or proc.poll() is not None:
-                logger.warning(
-                    f"Lifecycle: HTTP subprocess {server_key!r} is not running;"
-                    " it should have been started at agent init",
-                )
+            self._verify_http_subprocess(server_key)
             return
-        if cfg.transport != "stdio":
+        if cfg.transport != "stdio" or cfg.startup_mode == "persistent":
             return
-        if cfg.startup_mode == "persistent":
-            return
+        await self._ensure_ondemand_stdio(server_key)
 
-        # ondemand: check liveness without locking first for the fast path
+    def _verify_http_subprocess(self, server_key: str) -> None:
+        """Warn when an HTTP subprocess server is not running at call time."""
+        proc = self._http_procs.get(server_key)
+        if proc is None or proc.poll() is not None:
+            logger.warning(
+                f"Lifecycle: HTTP subprocess {server_key!r} is not running;"
+                " it should have been started at agent init",
+            )
+
+    async def _ensure_ondemand_stdio(self, server_key: str) -> None:
+        """Start an ondemand stdio server under a per-server lock (double-checked locking)."""
         transport = self._stdio_procs.get(server_key)
         if transport is not None and transport.is_alive():
             return
-
-        # Acquire per-server lock to serialise concurrent startup attempts
         lock = self._start_locks.setdefault(server_key, asyncio.Lock())
         async with lock:
-            # Double-check after acquiring lock to avoid double-start
             transport = self._stdio_procs.get(server_key)
             if transport is not None and transport.is_alive():
                 return
-            startup_cfg = self._server_configs.get(server_key)
-            if startup_cfg is None or not startup_cfg.cmd:
-                logger.warning(
-                    f"Lifecycle: cannot start {server_key!r}: no cmd configured",
-                )
-                return
-            new_transport = StdioTransport(
-                startup_cfg.cmd,
-                server_key=server_key,
-                working_dir=startup_cfg.working_dir,
-                env=startup_cfg.env or None,
+            await self._start_ondemand_server(server_key)
+
+    async def _start_ondemand_server(self, server_key: str) -> None:
+        """Create and start a StdioTransport for an ondemand server."""
+        startup_cfg = self._server_configs.get(server_key)
+        if startup_cfg is None or not startup_cfg.cmd:
+            logger.warning(
+                f"Lifecycle: cannot start {server_key!r}: no cmd configured",
             )
-            try:
-                await new_transport.start()
-                self._tool_executor.set_transport(server_key, new_transport)
-                self._stdio_procs[server_key] = new_transport
-                logger.info(f"Lifecycle: ondemand stdio server {server_key!r} started")
-            except Exception as e:
-                logger.error(
-                    f"Lifecycle: failed to start ondemand server {server_key!r}: {e}",
-                )
+            return
+        new_transport = StdioTransport(
+            startup_cfg.cmd,
+            server_key=server_key,
+            working_dir=startup_cfg.working_dir,
+            env=startup_cfg.env or None,
+        )
+        try:
+            await new_transport.start()
+            self._tool_executor.set_transport(server_key, new_transport)
+            self._stdio_procs[server_key] = new_transport
+            logger.info(f"Lifecycle: ondemand stdio server {server_key!r} started")
+        except Exception as e:
+            logger.error(
+                f"Lifecycle: failed to start ondemand server {server_key!r}: {e}",
+            )
 
     async def shutdown_all(self) -> None:
         """Stop all running MCP server subprocesses (stdio and HTTP subprocess)."""
@@ -188,6 +192,34 @@ class ServerLifecycleManager:
             f"Lifecycle: HTTP subprocess {server_key!r} did not become healthy"
             f" within {cfg.startup_timeout_sec}s",
         )
+
+    async def restart(self, server_key: str) -> None:
+        """Terminate and restart an HTTP subprocess server.
+
+        Supports only startup_mode="subprocess" servers; logs a warning and returns
+        immediately for any other mode (e.g. externally-managed HTTP servers).
+        """
+        cfg = self._server_configs.get(server_key)
+        if cfg is None or cfg.startup_mode != "subprocess":
+            logger.warning(
+                f"Lifecycle: restart {server_key!r}: not a subprocess-mode server;"
+                " manual restart required",
+            )
+            return
+        # Remove stale proc entry before terminating so start_http_subprocess
+        # will not treat the dead process as "already running".
+        proc = self._http_procs.pop(server_key, None)
+        if proc is not None and proc.poll() is None:
+            logger.info(f"Lifecycle: terminating {server_key!r} for restart")
+            proc.terminate()
+            try:
+                await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=3.0)
+            except TimeoutError:
+                logger.warning(
+                    f"Lifecycle: force-killing {server_key!r} (terminate timed out)",
+                )
+                proc.kill()
+        await self.start_http_subprocess(server_key, cfg)
 
     async def shutdown_idle(self) -> None:
         """Stop ondemand stdio servers that have exceeded their idle_timeout_sec."""

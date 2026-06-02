@@ -195,7 +195,7 @@ conf.d/github-mcp                          →  /etc/conf.d/github-mcp
   │   │       ├─ cmd_mcp.py                   # /mcp コマンド
   │   │       ├─ cmd_config.py                # /config, /reload コマンド
   │   │       ├─ cmd_context.py               # /context コマンド (git ブランチ情報含む)
-  │   │       ├─ cmd_rag.py                   # /rag コマンド
+  │   │       ├─ cmd_rag.py                   # /tool, /note, /plan, /debug コマンド (旧 /rag は削除済み)
   │   │       ├─ cmd_ingest.py                # /ingest コマンド
   │   │       └─ cmd_memory.py                # /memory コマンド
   │   ├─ mcp/                                 # MCP サーバパッケージ

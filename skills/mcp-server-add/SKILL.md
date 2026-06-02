@@ -24,8 +24,12 @@ Add a new MCP server end-to-end: skeleton files, service registration, agent rou
 | `file-delete-mcp` | `mcp/file/delete_server.py` | 8008 |
 | `shell-mcp` | `mcp/shell/server.py` | 8009 |
 | `rag-pipeline-mcp` | `mcp/rag_pipeline/server.py` | 8010 |
+| `sqlite-mcp` | `mcp/sqlite/server.py` | 8011 |
+| `cicd-mcp` | `mcp/cicd/server.py` | 8012 |
+| `mdq-mcp` | `scripts/mdq_mcp_server.py` | 8013 |
+| `git-mcp` | `mcp/git/server.py` | 8014 |
 
-New servers must use port ≥ 8011.
+New servers must use port ≥ 8015.
 
 ## Prerequisites
 
