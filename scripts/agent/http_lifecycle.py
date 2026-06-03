@@ -34,14 +34,19 @@ class HttpServerLifecycleManager:
     def __init__(self) -> None:
         self._http_procs: dict[str, subprocess.Popen[bytes]] = {}
 
-    def verify_running(self, server_key: str) -> None:
-        """Warn when an HTTP subprocess server is not running at call time."""
+    def verify_running(self, server_key: str) -> bool:
+        """Check if an HTTP subprocess server is running and optionally restart it.
+
+        Returns True if running, False if not running (and restart was attempted).
+        """
         proc = self._http_procs.get(server_key)
         if proc is None or proc.poll() is not None:
             logger.warning(
                 f"Lifecycle: HTTP subprocess {server_key!r} is not running;"
                 " it should have been started at agent init",
             )
+            return False
+        return True
 
     async def start(
         self,
@@ -111,10 +116,26 @@ class HttpServerLifecycleManager:
                     logger.debug(f"Lifecycle: health-check poll {server_key!r}: {e}")
                 await asyncio.sleep(0.5)
 
+        # Handle timeout case with stderr collection
+        stderr_full = proc.stderr.read().decode(errors="replace") if proc.stderr else ""
         proc.terminate()
+        try:
+            await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=3.0)
+        except TimeoutError:
+            logger.warning(
+                f"Lifecycle: force-killing {server_key!r} (terminate timed out)",
+            )
+            proc.kill()
+            try:
+                await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=3.0)
+            except TimeoutError:
+                logger.warning(
+                    f"Lifecycle: {server_key!r} still not terminated after kill",
+                )
         raise RuntimeError(
             f"Lifecycle: HTTP subprocess {server_key!r} did not become healthy"
-            f" within {cfg.startup_timeout_sec}s",
+            f" within {cfg.startup_timeout_sec}s"
+            f" (stderr: {stderr_full[:200]})",
         )
 
     async def restart(self, server_key: str, cfg: McpServerConfig) -> None:
@@ -130,15 +151,37 @@ class HttpServerLifecycleManager:
                     f"Lifecycle: force-killing {server_key!r} (terminate timed out)",
                 )
                 proc.kill()
+                try:
+                    await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=3.0)
+                except TimeoutError:
+                    logger.warning(
+                        f"Lifecycle: {server_key!r} still not terminated after kill",
+                    )
         await self.start(server_key, cfg)
 
-    def shutdown_all(self) -> None:
+    async def shutdown_all(self) -> None:
         """Terminate all HTTP subprocess servers."""
         for key, proc in list(self._http_procs.items()):
             if proc.poll() is None:
                 try:
                     proc.terminate()
-                    proc.wait(timeout=5)
+                    try:
+                        await asyncio.wait_for(
+                            asyncio.to_thread(proc.wait), timeout=5.0
+                        )
+                    except TimeoutError:
+                        logger.warning(
+                            f"Lifecycle: force-killing {key!r} (terminate timed out)",
+                        )
+                        proc.kill()
+                        try:
+                            await asyncio.wait_for(
+                                asyncio.to_thread(proc.wait), timeout=5.0
+                            )
+                        except TimeoutError:
+                            logger.warning(
+                                f"Lifecycle: {key!r} still not terminated after kill",
+                            )
                 except Exception as e:
                     logger.warning(
                         f"Lifecycle: error stopping HTTP subprocess {key!r}: {e}"

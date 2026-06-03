@@ -18,7 +18,7 @@ from shared.mcp_config import McpServerConfig
 from shared.tool_executor import StdioTransport, ToolExecutor
 
 from agent.http_lifecycle import HttpServerLifecycleManager
-from agent.stdio_lifecycle import StdioServerLifecycleManager
+from agent.stdio_lifecycle import StdioServerLifecycleManager, TransportState
 
 logger = logging.getLogger(__name__)
 
@@ -46,16 +46,6 @@ class ServerLifecycleManager:
             self._last_called,
         )
 
-    # ── Backward-compat property accessed by watchdog and tests ──────────────
-
-    @property
-    def _http_procs(self):
-        return self._http_mgr.procs
-
-    @property
-    def _start_locks(self):
-        return self._stdio_mgr._start_locks
-
     # ── Public API ────────────────────────────────────────────────────────────
 
     async def ensure_ready(self, server_key: str) -> None:
@@ -74,7 +64,7 @@ class ServerLifecycleManager:
     async def shutdown_all(self) -> None:
         """Stop all running MCP server subprocesses (stdio and HTTP subprocess)."""
         await self._stdio_mgr.shutdown_all()
-        self._http_mgr.shutdown_all()
+        await self._http_mgr.shutdown_all()
 
     async def start_http_subprocess(
         self,
@@ -98,3 +88,27 @@ class ServerLifecycleManager:
     async def shutdown_idle(self) -> None:
         """Stop ondemand stdio servers that have exceeded idle_timeout_sec."""
         await self._stdio_mgr.shutdown_idle()
+
+    # ── Status API for monitoring ────────────────────────────────────────────
+
+    def get_transport_state(self, server_key: str) -> TransportState | None:
+        """Get the current state of a transport."""
+        cfg = self._server_configs.get(server_key)
+        if cfg is None:
+            return None
+        if cfg.transport == "http":
+            # For HTTP servers, we don't track state directly, return None
+            return None
+        elif cfg.transport == "stdio":
+            return self._stdio_mgr.get_transport_state(server_key)
+        return None
+
+    async def restart_stdio(self, server_key: str) -> None:
+        """Restart a stdio server."""
+        cfg = self._server_configs.get(server_key)
+        if cfg is None or cfg.transport != "stdio":
+            logger.warning(
+                f"Lifecycle: restart_stdio {server_key!r}: not a stdio server",
+            )
+            return
+        await self._stdio_mgr.restart(server_key)

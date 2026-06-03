@@ -115,8 +115,8 @@ async def _collect_server_tool_names(ctx: AgentContext) -> set[str]:
     return server_names
 
 
-async def check_tool_definitions(ctx: AgentContext) -> list[str]:
-    """Compare tool_definitions in agent.toml against live tool lists from each server.
+async def check_tool_definitions_startup(ctx: AgentContext) -> list[str]:
+    """Startup validation: Compare tool_definitions in agent.toml against live tool lists from each server.
 
     Returns warning strings on mismatch. Raises RuntimeError when tool_definitions_strict=True.
     Skips silently when all servers are unreachable (startup order tolerance).
@@ -140,6 +140,31 @@ async def check_tool_definitions(ctx: AgentContext) -> list[str]:
         )
     if (missing_in_server or missing_in_cfg) and ctx.cfg.tool_definitions_strict:
         raise RuntimeError("Strict mode: tool definition mismatch detected")
+    return warnings
+
+
+async def check_tool_definitions_runtime(ctx: AgentContext) -> list[str]:
+    """Runtime validation: Compare tool_definitions in agent.toml against live tool lists from each server.
+
+    Returns warning strings on mismatch. Does not raise errors.
+    """
+    cfg_names = {
+        td["function"]["name"] for td in ctx.cfg.tool_definitions if "function" in td
+    }
+    server_names = await _collect_server_tool_names(ctx)
+    if not server_names:
+        return []  # All servers unreachable; skip validation
+    missing_in_server = cfg_names - server_names
+    missing_in_cfg = server_names - cfg_names
+    warnings: list[str] = []
+    if missing_in_server:
+        msg = f"Tools in agent.toml but not on any server: {sorted(missing_in_server)}"
+        logger.warning(msg)
+        warnings.append(msg)
+    if missing_in_cfg:
+        logger.warning(
+            f"Tools on servers but not in agent.toml: {sorted(missing_in_cfg)}",
+        )
     return warnings
 
 
@@ -173,6 +198,7 @@ async def _watchdog_check_http(
         f"Watchdog: {key!r} health check failed,"
         f" restarting (attempt {count + 1}/{max_restarts})",
     )
+    # Delegate restart to lifecycle manager
     if srv_cfg.startup_mode == "subprocess" and ctx.services.lifecycle is not None:
         try:
             await ctx.services.lifecycle.restart(key)
@@ -219,15 +245,24 @@ async def _watchdog_check_stdio(
         f"Watchdog: stdio server {key!r} died,"
         f" restarting (attempt {count + 1}/{max_restarts})",
     )
-    try:
-        await transport.start()
-        restart_counts[key] = count + 1
-    except Exception as e:
-        logger.error(f"Watchdog: failed to restart stdio server {key!r}: {e}")
+    # Delegate restart to lifecycle manager
+    if ctx.services.lifecycle is not None:
+        try:
+            await ctx.services.lifecycle.restart_stdio(key)
+            restart_counts[key] = count + 1
+        except Exception as e:
+            logger.error(f"Watchdog: failed to restart stdio server {key!r}: {e}")
+    else:
+        # Fallback to direct restart (for backward compatibility)
+        try:
+            await transport.start()
+            restart_counts[key] = count + 1
+        except Exception as e:
+            logger.error(f"Watchdog: failed to restart stdio server {key!r}: {e}")
 
 
 async def watchdog_loop(ctx: AgentContext) -> None:
-    """Periodically probe MCP server health and restart via OpenRC on failure.
+    """Periodically probe MCP server health and restart via lifecycle manager on failure.
 
     Runs until cancelled (e.g. when the REPL exits).
     Restart attempts per server are capped at mcp_watchdog_max_restarts to

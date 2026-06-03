@@ -33,7 +33,7 @@ from agent.factory import build_agent_context, init_tracer
 from agent.orchestrator import Orchestrator
 from agent.repl_health import (
     check_service_health,
-    check_tool_definitions,
+    check_tool_definitions_runtime,
     watchdog_loop,
 )
 from db.helper import SQLiteHelper
@@ -108,7 +108,7 @@ class AgentREPL:
             self._view.write_warning(msg)
 
     async def _check_tool_definitions(self) -> None:
-        for msg in await check_tool_definitions(self._ctx):
+        for msg in await check_tool_definitions_runtime(self._ctx):
             self._view.write_warning(msg)
 
     async def _watchdog_loop(self) -> None:
