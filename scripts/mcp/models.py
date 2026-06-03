@@ -24,6 +24,15 @@ class CallToolRequest(BaseModel):
             raise ValueError("Tool name must not be blank.")
         return stripped
 
+    def validate_args(self) -> None:
+        """Run tool-specific argument validation if a validator is registered.
+
+        Raises ValueError when args violate tool constraints.
+        """
+        from mcp.tool_validators import validate_tool_args  # noqa: PLC0415
+
+        validate_tool_args(self.name, self.args)
+
 
 class CallToolResponse(BaseModel):
     """Response body for POST /v1/call_tool."""

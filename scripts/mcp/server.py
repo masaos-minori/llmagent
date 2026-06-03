@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""mcp_server.py
+"""mcp/server.py
 Base class for MCP (Model Context Protocol) servers.
 Provides HTTP launch logic shared by all MCP server scripts.
+
+Tool dispatch helpers live in mcp/dispatch.py.
+Audit log helpers live in mcp/audit.py.
 """
 
 import asyncio
+import dataclasses
 import logging
 import sys
 import uuid
-from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
 import orjson
@@ -24,6 +27,15 @@ ToolArgs = dict[str, Any]
 MCP_MAX_RESPONSE_BYTES: int = 512 * 1024
 
 
+@dataclasses.dataclass(frozen=True)
+class TruncationResult:
+    """Metadata returned by _truncate_with_meta()."""
+
+    text: str
+    truncated: bool
+    total_bytes: int
+
+
 def _truncate(text: str, max_bytes: int = MCP_MAX_RESPONSE_BYTES) -> str:
     """Truncate text to max_bytes UTF-8 bytes; appends a truncation notice when cut."""
     encoded = text.encode("utf-8")
@@ -36,70 +48,19 @@ def _truncate(text: str, max_bytes: int = MCP_MAX_RESPONSE_BYTES) -> str:
     )
 
 
-def _audit_log(
-    server_logger: Any,
-    session_id: str,
-    request_id: str,
-    action: str,
-    target: str,
-    outcome: str,
-    detail: str = "",
-) -> None:
-    """Emit one structured AUDIT log line with who/what/where context."""
-    server_logger.info(
-        "AUDIT session=%s request=%s action=%s target=%s outcome=%s detail=%s",
-        session_id or "-",
-        request_id or "-",
-        action,
-        target,
-        outcome,
-        detail,
+def _truncate_with_meta(
+    text: str, max_bytes: int = MCP_MAX_RESPONSE_BYTES
+) -> TruncationResult:
+    """Return TruncationResult with truncated text and metadata."""
+    encoded = text.encode("utf-8")
+    total = len(encoded)
+    if total <= max_bytes:
+        return TruncationResult(text=text, truncated=False, total_bytes=total)
+    shown = encoded[:max_bytes].decode("utf-8", errors="ignore")
+    truncated_text = (
+        shown + f"\n[TRUNCATED: {total:,} bytes total, showing {max_bytes:,} bytes]"
     )
-
-
-async def dispatch_tool(
-    table: Mapping[str, Callable[[ToolArgs], Awaitable[str]]],
-    name: str,
-    args: ToolArgs,
-) -> tuple[str, bool]:
-    """Route a tool call through a dispatch table with standard error handling.
-
-    Returns (result_text, is_error).
-    Duck-types FastAPI HTTPException to avoid importing FastAPI in this module,
-    keeping the base class free of server-framework dependencies.
-    """
-    # Validate inputs before dispatching.
-    if not isinstance(name, str) or not name.strip():
-        logger.warning("dispatch_tool called with empty tool name")
-        return "Tool name must be a non-empty string", True
-
-    handler = table.get(name)
-    if handler is None:
-        logger.warning(f"Unknown tool requested: {name}")
-        return f"Unknown tool: {name}", True
-
-    try:
-        result = await handler(args)
-        return result, False
-    except Exception as e:
-        return _handle_tool_exception(name, e)
-
-
-def _handle_tool_exception(name: str, e: Exception) -> tuple[str, bool]:
-    """Classify and log a tool handler exception; return (message, is_error=True).
-
-    Separating this from dispatch_tool keeps each function under ~30 lines.
-    """
-    # Duck-type FastAPI HTTPException to avoid importing it here.
-    is_http_exc = hasattr(e, "status_code") and hasattr(e, "detail")
-    if is_http_exc:
-        status = e.status_code  # type: ignore[attr-defined]  # duck-typed FastAPI HTTPException
-        detail = e.detail  # type: ignore[attr-defined]  # duck-typed FastAPI HTTPException
-        logger.error(f"Tool '{name}' raised HTTP error {status}: {detail}")
-        return f"HTTP error ({status}): {detail}", True
-
-    logger.error(f"Tool '{name}' raised unexpected error: {e}")
-    return f"Tool error: {e}", True
+    return TruncationResult(text=truncated_text, truncated=True, total_bytes=total)
 
 
 def attach_auth_middleware(app: Any, token: str) -> None:
@@ -185,7 +146,8 @@ class MCPServer:
         stderr so that stdout remains a clean communication channel.
 
         Request  line: {"id": <int>, "name": <str>, "args": {}}
-        Response line: {"id": <int>, "result": <str>, "is_error": <bool>}
+        Response line: {"id": <int>, "result": <str>, "is_error": <bool>,
+                        "truncated": <bool>, "total_bytes": <int>}
 
         The reserved name "__list_tools__" returns the server's tool list without
         going through dispatch(), enabling transport-independent tool introspection.
@@ -204,6 +166,8 @@ class MCPServer:
                 break  # stdin EOF — client closed the pipe
 
             req_id = 0
+            truncated = False
+            total_bytes = 0
             try:
                 req = orjson.loads(line)
                 req_id = int(req.get("id", 0))
@@ -213,17 +177,27 @@ class MCPServer:
                     result = orjson.dumps({"tools": self.list_tools()}).decode()
                     is_error = False
                 else:
-                    result, is_error = await self.dispatch(
+                    raw_result, is_error = await self.dispatch(
                         name,
                         dict(req.get("args", {})),
                     )
+                    tr = _truncate_with_meta(raw_result)
+                    result = tr.text
+                    truncated = tr.truncated
+                    total_bytes = tr.total_bytes
             except Exception as e:
                 logger.error(f"run_stdio dispatch error: {e}")
                 result = f"Internal server error: {e}"
                 is_error = True
 
             resp = orjson.dumps(
-                {"id": req_id, "result": result, "is_error": is_error},
+                {
+                    "id": req_id,
+                    "result": result,
+                    "is_error": is_error,
+                    "truncated": truncated,
+                    "total_bytes": total_bytes,
+                },
             ).decode()
             sys.stdout.write(resp + "\n")
             sys.stdout.flush()

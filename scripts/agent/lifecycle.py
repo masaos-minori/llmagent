@@ -1,34 +1,30 @@
 #!/usr/bin/env python3
 """agent/lifecycle.py
-MCP server lifecycle management for AgentREPL.
+MCP server lifecycle facade.
 
-ServerLifecycleManager handles ondemand startup of stdio MCP servers and
-graceful shutdown of all subprocess-backed servers.  It implements
-LifecycleProtocol from shared/tool_executor.py so it can be injected into
-ToolExecutor without creating an agent -> shared circular import.
+Delegates HTTP subprocess management to HttpServerLifecycleManager
+and stdio ondemand management to StdioServerLifecycleManager.
+
+Provides the same ServerLifecycleManager public API so all callers
+(factory.py, repl.py, watchdog) are unaffected.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import subprocess  # nosec B404 — MCP server subprocess management; cmd comes from config, never user input
 import time
 
-import httpx
 from shared.mcp_config import McpServerConfig
 from shared.tool_executor import StdioTransport, ToolExecutor
+
+from agent.http_lifecycle import HttpServerLifecycleManager
+from agent.stdio_lifecycle import StdioServerLifecycleManager
 
 logger = logging.getLogger(__name__)
 
 
 class ServerLifecycleManager:
-    """Manages startup and shutdown of MCP server subprocesses.
-
-    Persistent stdio servers are started by AgentREPL._start_stdio_servers()
-    at agent initialisation.  Ondemand servers are started here on the first
-    tool call that routes to them via ensure_ready().
-    """
+    """Facade: delegates to HttpServerLifecycleManager and StdioServerLifecycleManager."""
 
     def __init__(
         self,
@@ -39,166 +35,57 @@ class ServerLifecycleManager:
         self._server_configs = server_configs
         self._tool_executor = tool_executor
         self._stdio_procs = stdio_procs
-        # subprocess.Popen handles for HTTP servers launched by startup_mode="subprocess"
-        self._http_procs: dict[str, subprocess.Popen[bytes]] = {}
-        # Per-server asyncio.Lock prevents concurrent ondemand startup races.
-        self._start_locks: dict[str, asyncio.Lock] = {}
-        # Initialize with current time so servers are not idle-stopped immediately at startup.
         self._last_called: dict[str, float] = {
             key: time.monotonic() for key in server_configs
         }
+        self._http_mgr = HttpServerLifecycleManager()
+        self._stdio_mgr = StdioServerLifecycleManager(
+            server_configs,
+            tool_executor,
+            stdio_procs,
+            self._last_called,
+        )
+
+    # ── Backward-compat property accessed by watchdog and tests ──────────────
+
+    @property
+    def _http_procs(self):
+        return self._http_mgr.procs
+
+    @property
+    def _start_locks(self):
+        return self._stdio_mgr._start_locks
+
+    # ── Public API ────────────────────────────────────────────────────────────
 
     async def ensure_ready(self, server_key: str) -> None:
-        """Ensure the MCP server for server_key is ready to accept calls.
-
-        HTTP subprocess servers: no-op when already alive (started by _start_subprocess_servers).
-        Persistent stdio servers: no-op (started at agent init).
-        Ondemand stdio servers: start subprocess on first call; serialize concurrent starts.
-        """
+        """Ensure the server for server_key is ready to accept calls."""
         self._last_called[server_key] = time.monotonic()
         cfg = self._server_configs.get(server_key)
         if cfg is None:
             return
         if cfg.transport == "http" and cfg.startup_mode == "subprocess":
-            self._verify_http_subprocess(server_key)
+            self._http_mgr.verify_running(server_key)
             return
         if cfg.transport != "stdio" or cfg.startup_mode == "persistent":
             return
-        await self._ensure_ondemand_stdio(server_key)
-
-    def _verify_http_subprocess(self, server_key: str) -> None:
-        """Warn when an HTTP subprocess server is not running at call time."""
-        proc = self._http_procs.get(server_key)
-        if proc is None or proc.poll() is not None:
-            logger.warning(
-                f"Lifecycle: HTTP subprocess {server_key!r} is not running;"
-                " it should have been started at agent init",
-            )
-
-    async def _ensure_ondemand_stdio(self, server_key: str) -> None:
-        """Start an ondemand stdio server under a per-server lock (double-checked locking)."""
-        transport = self._stdio_procs.get(server_key)
-        if transport is not None and transport.is_alive():
-            return
-        lock = self._start_locks.setdefault(server_key, asyncio.Lock())
-        async with lock:
-            transport = self._stdio_procs.get(server_key)
-            if transport is not None and transport.is_alive():
-                return
-            await self._start_ondemand_server(server_key)
-
-    async def _start_ondemand_server(self, server_key: str) -> None:
-        """Create and start a StdioTransport for an ondemand server."""
-        startup_cfg = self._server_configs.get(server_key)
-        if startup_cfg is None or not startup_cfg.cmd:
-            logger.warning(
-                f"Lifecycle: cannot start {server_key!r}: no cmd configured",
-            )
-            return
-        new_transport = StdioTransport(
-            startup_cfg.cmd,
-            server_key=server_key,
-            working_dir=startup_cfg.working_dir,
-            env=startup_cfg.env or None,
-        )
-        try:
-            await new_transport.start()
-            self._tool_executor.set_transport(server_key, new_transport)
-            self._stdio_procs[server_key] = new_transport
-            logger.info(f"Lifecycle: ondemand stdio server {server_key!r} started")
-        except Exception as e:
-            logger.error(
-                f"Lifecycle: failed to start ondemand server {server_key!r}: {e}",
-            )
+        await self._stdio_mgr.ensure_ready(server_key)
 
     async def shutdown_all(self) -> None:
         """Stop all running MCP server subprocesses (stdio and HTTP subprocess)."""
-        for key, transport in list(self._stdio_procs.items()):
-            try:
-                await transport.stop()
-            except Exception as e:
-                logger.warning(f"Lifecycle: error stopping stdio {key!r}: {e}")
-        for key, proc in list(self._http_procs.items()):
-            if proc.poll() is None:
-                try:
-                    proc.terminate()
-                    proc.wait(timeout=5)
-                except Exception as e:
-                    logger.warning(
-                        f"Lifecycle: error stopping HTTP subprocess {key!r}: {e}"
-                    )
+        await self._stdio_mgr.shutdown_all()
+        self._http_mgr.shutdown_all()
 
     async def start_http_subprocess(
         self,
         server_key: str,
         cfg: McpServerConfig,
     ) -> None:
-        """Start an HTTP MCP server as a subprocess and wait for /health to become ready.
-
-        If a process for server_key is already alive, reuse it (idempotent).
-        Polls cfg.url/health every 0.5 s up to cfg.startup_timeout_sec seconds.
-        Raises RuntimeError on timeout.
-        """
-        existing = self._http_procs.get(server_key)
-        if existing is not None and existing.poll() is None:
-            logger.info(
-                f"Lifecycle: HTTP subprocess {server_key!r} already running (reusing)",
-            )
-            return
-
-        logger.info(
-            f"Lifecycle: starting HTTP subprocess {server_key!r}: {cfg.cmd}",
-        )
-        env = None
-        if cfg.env:
-            import os  # noqa: PLC0415
-
-            env = {**os.environ, **cfg.env}
-        proc = subprocess.Popen(  # nosec B603  # noqa: S603 — cmd comes from McpServerConfig; never from user input
-            cfg.cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            env=env,
-        )
-        self._http_procs[server_key] = proc
-
-        health_url = cfg.url.rstrip("/") + "/health"
-        deadline = time.monotonic() + cfg.startup_timeout_sec
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            while time.monotonic() < deadline:
-                if proc.poll() is not None:
-                    stderr_out = (
-                        proc.stderr.read().decode(errors="replace")
-                        if proc.stderr
-                        else ""
-                    )
-                    raise RuntimeError(
-                        f"Lifecycle: HTTP subprocess {server_key!r} exited early;"
-                        f" stderr: {stderr_out[:200]}",
-                    )
-                try:
-                    resp = await client.get(health_url)
-                    if resp.status_code == 200:
-                        logger.info(
-                            f"Lifecycle: HTTP subprocess {server_key!r} ready",
-                        )
-                        return
-                except Exception as e:
-                    logger.debug(f"Lifecycle: health-check poll {server_key!r}: {e}")
-                await asyncio.sleep(0.5)
-
-        proc.terminate()
-        raise RuntimeError(
-            f"Lifecycle: HTTP subprocess {server_key!r} did not become healthy"
-            f" within {cfg.startup_timeout_sec}s",
-        )
+        """Start an HTTP MCP server subprocess and wait for /health to become ready."""
+        await self._http_mgr.start(server_key, cfg)
 
     async def restart(self, server_key: str) -> None:
-        """Terminate and restart an HTTP subprocess server.
-
-        Supports only startup_mode="subprocess" servers; logs a warning and returns
-        immediately for any other mode (e.g. externally-managed HTTP servers).
-        """
+        """Terminate and restart an HTTP subprocess server."""
         cfg = self._server_configs.get(server_key)
         if cfg is None or cfg.startup_mode != "subprocess":
             logger.warning(
@@ -206,34 +93,8 @@ class ServerLifecycleManager:
                 " manual restart required",
             )
             return
-        # Remove stale proc entry before terminating so start_http_subprocess
-        # will not treat the dead process as "already running".
-        proc = self._http_procs.pop(server_key, None)
-        if proc is not None and proc.poll() is None:
-            logger.info(f"Lifecycle: terminating {server_key!r} for restart")
-            proc.terminate()
-            try:
-                await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=3.0)
-            except TimeoutError:
-                logger.warning(
-                    f"Lifecycle: force-killing {server_key!r} (terminate timed out)",
-                )
-                proc.kill()
-        await self.start_http_subprocess(server_key, cfg)
+        await self._http_mgr.restart(server_key, cfg)
 
     async def shutdown_idle(self) -> None:
-        """Stop ondemand stdio servers that have exceeded their idle_timeout_sec."""
-        now = time.monotonic()
-        for key, transport in list(self._stdio_procs.items()):
-            cfg = self._server_configs.get(key)
-            if cfg is None or cfg.startup_mode != "ondemand":
-                continue
-            if cfg.idle_timeout_sec <= 0:
-                continue
-            last = self._last_called.get(key, 0.0)
-            if now - last >= cfg.idle_timeout_sec and transport.is_alive():
-                logger.info(f"Lifecycle: idle timeout — stopping {key!r}")
-                try:
-                    await transport.stop()
-                except Exception as e:
-                    logger.warning(f"Lifecycle: error stopping idle {key!r}: {e}")
+        """Stop ondemand stdio servers that have exceeded idle_timeout_sec."""
+        await self._stdio_mgr.shutdown_idle()

@@ -1,51 +1,44 @@
-"""RAG pipeline debug printers and context utility functions.
+"""RAG pipeline debug data builder and context utility functions.
 
 Pure module-level helpers with no AgentContext dependency.
 Extracted from agent/repl.py to reduce per-task load cost.
+
+Debug output goes through CLIView.write_debug_rag(); these helpers build
+structured dicts so the data can be serialised, logged, or rendered by
+any presenter.
 """
 
 from collections.abc import Callable
 
 from rag.types import LLMMessage, RagHit
 
-# ── RAG debug printers ────────────────────────────────────────────────────────
+# ── RAG debug data builder ─────────────────────────────────────────────────────
 # Called when ctx.debug_mode is True; injected via _make_debug_fn().
 
 _DebugFn = Callable[[list[str], list[list[RagHit]], list[RagHit], list[RagHit]], None]
 
 
-def _print_debug_mqe(queries: list[str]) -> None:
-    print(f"  [debug] MQE queries ({len(queries)}):")
-    for i, q in enumerate(queries, 1):
-        print(f"    {i}: {q}")
+def build_debug_rag_data(
+    queries: list[str],
+    all_results: list[list[RagHit]],
+    merged: list[RagHit],
+    reranked: list[RagHit],
+) -> dict:
+    """Return a serialisable dict representing one RAG pipeline run."""
+    return {
+        "queries": list(queries),
+        "all_results": [list(r) for r in all_results],
+        "merged": list(merged),
+        "reranked": list(reranked),
+    }
 
 
-def _print_debug_search(all_results: list[list[RagHit]]) -> None:
-    total = sum(len(r) for r in all_results)
-    print(
-        f"  [debug] search: {len(all_results)} result lists, {total} total candidates",
-    )
+def _make_debug_fn(on_debug: Callable[[dict], None] | None = None) -> _DebugFn:
+    """Return a callback that builds RAG debug data and delegates rendering.
 
-
-def _print_debug_rrf(merged: list[RagHit]) -> None:
-    print(f"  [debug] RRF merge: {len(merged)} unique candidates (top 5):")
-    for c in merged[:5]:
-        print(
-            f"    chunk_id={c['chunk_id']}"
-            f" rrf={c.get('rrf_score', 0):.4f}"
-            f" url={c['url'][:60]}",
-        )
-
-
-def _print_debug_rerank(reranked: list[RagHit]) -> None:
-    print(f"  [debug] reranked top-{len(reranked)}:")
-    for c in reranked:
-        score = c.get("rerank_score", c.get("rrf_score", 0))
-        print(f"    chunk_id={c['chunk_id']} score={score:.4f} url={c['url'][:60]}")
-
-
-def _make_debug_fn() -> _DebugFn:
-    """Return a callback that prints all four RAG pipeline debug steps."""
+    on_debug: callable that receives the structured dict (e.g. CLIView.write_debug_rag).
+    Falls back to a no-op when on_debug is None.
+    """
 
     def _fn(
         queries: list[str],
@@ -53,10 +46,9 @@ def _make_debug_fn() -> _DebugFn:
         merged: list[RagHit],
         reranked: list[RagHit],
     ) -> None:
-        _print_debug_mqe(queries)
-        _print_debug_search(all_results)
-        _print_debug_rrf(merged)
-        _print_debug_rerank(reranked)
+        if on_debug is None:
+            return
+        on_debug(build_debug_rag_data(queries, all_results, merged, reranked))
 
     return _fn
 

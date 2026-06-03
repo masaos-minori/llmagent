@@ -2,7 +2,7 @@
 """registry.py
 Slash-command registry for AgentREPL.
 
-CommandRegistry inherits command groups from six mixin classes.
+CommandRegistry inherits command groups from mixin classes.
 All _cmd_* methods operate solely on AgentContext injected in __init__,
 with no dependency on AgentREPL itself.
 
@@ -10,9 +10,13 @@ Mixin split:
   cmd_session.py  — _SessionMixin:  /session commands
   cmd_mcp.py      — _McpMixin:      /mcp commands
   cmd_config.py   — _ConfigMixin:   /config, /stats, /set, /reload
-  cmd_context.py  — _ContextMixin:  /context, /clear, /undo, /history, /db
-  cmd_rag.py      — _RagMixin:      /rag, /tool, /note, /plan, /debug
+  cmd_context.py  — _ContextMixin:  /context, /clear, /undo, /history, /system
+  cmd_db.py       — _DbMixin:       /db
+  cmd_tooling.py  — _ToolingMixin:  /tool, /plan
+  cmd_notes.py    — _NotesMixin:    /note
+  cmd_debug.py    — _DebugMixin:    /debug
   cmd_ingest.py   — _IngestMixin:   /ingest, /export, /compact
+  cmd_memory.py   — _MemoryMixin:   /memory
 """
 
 import asyncio
@@ -24,27 +28,22 @@ from shared import plugin_registry
 
 from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.cmd_context import _budget_breakdown, _ContextMixin
+from agent.commands.cmd_db import _DbMixin
+from agent.commands.cmd_debug import _DebugMixin
 from agent.commands.cmd_ingest import _IngestMixin
 from agent.commands.cmd_mcp import _McpMixin
 from agent.commands.cmd_memory import _MemoryMixin
-from agent.commands.cmd_rag import _RagMixin
+from agent.commands.cmd_notes import _NotesMixin
 from agent.commands.cmd_session import _SessionMixin
+from agent.commands.cmd_tooling import _ToolingMixin
 from agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
-# Re-export for callers that import from this module
-# agent/repl.py: from agent.commands.registry import CommandRegistry, _budget_breakdown
-# agent/repl_tool_exec.py: from agent.commands.registry import mask_args
+# mask_args moved to agent.tool_result_formatter; re-exported here for backward compat.
+from agent.tool_result_formatter import mask_args  # noqa: E402
+
 __all__ = ["CommandRegistry", "_budget_breakdown", "mask_args"]
-
-
-def mask_args(args: dict, masked_fields: list[str]) -> dict:
-    """Return a copy of args with masked_fields values replaced by '***'.
-
-    Used before logging tool call arguments to prevent sensitive data leakage.
-    """
-    return {k: ("***" if k in masked_fields else v) for k, v in args.items()}
 
 
 class CommandRegistry(
@@ -52,7 +51,10 @@ class CommandRegistry(
     _McpMixin,
     _ConfigMixin,
     _ContextMixin,
-    _RagMixin,
+    _DbMixin,
+    _ToolingMixin,
+    _NotesMixin,
+    _DebugMixin,
     _IngestMixin,
     _MemoryMixin,
 ):

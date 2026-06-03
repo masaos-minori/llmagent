@@ -14,7 +14,7 @@ from pathlib import Path
 
 import orjson
 
-from agent.memory.types import MEMORY_TYPES, SOURCE_TYPES, MemoryEntry
+from agent.memory.types import MEMORY_TYPES, MemoryEntry, SourceType
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +23,15 @@ def _entry_from_dict(d: dict) -> MemoryEntry | None:
     """Deserialise one JSONL dict to MemoryEntry; return None on validation error."""
     try:
         memory_type = d.get("memory_type", "")
-        source_type = d.get("source_type", "conversation")
+        raw_source = d.get("source_type", "conversation")
         if memory_type not in MEMORY_TYPES:
             logger.warning(f"Skipping JSONL entry: invalid memory_type={memory_type!r}")
             return None
-        if source_type not in SOURCE_TYPES:
-            source_type = "conversation"
+        try:
+            source_type = SourceType(raw_source)
+        except ValueError:
+            logger.warning(f"Unknown source_type={raw_source!r}; falling back to conversation")
+            source_type = SourceType.CONVERSATION
         return MemoryEntry(
             memory_id=str(d["memory_id"]),
             memory_type=memory_type,

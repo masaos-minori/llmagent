@@ -21,10 +21,10 @@ import re
 import struct
 from datetime import UTC, datetime
 
-import orjson
-
-from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 from db.helper import SQLiteHelper
+
+from agent.memory.mapper import row_to_entry
+from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 
 logger = logging.getLogger(__name__)
 
@@ -97,31 +97,6 @@ def _floats_to_blob(values: list[float]) -> bytes:
     return struct.pack(f"{len(values)}f", *values)
 
 
-def _row_to_entry(row: dict) -> MemoryEntry:
-    tags_raw = row.get("tags", "[]")
-    try:
-        tags: list[str] = (
-            orjson.loads(tags_raw) if isinstance(tags_raw, str) else tags_raw
-        )
-    except Exception:
-        tags = []
-    return MemoryEntry(
-        memory_id=row["memory_id"],
-        memory_type=row["memory_type"],
-        source_type=row.get("source_type", "conversation"),
-        session_id=row.get("session_id"),
-        turn_id=row.get("turn_id"),
-        project=row.get("project", ""),
-        repo=row.get("repo", ""),
-        branch=row.get("branch", ""),
-        content=row["content"],
-        summary=row.get("summary", ""),
-        tags=tags,
-        importance=float(row.get("importance", 0.5)),
-        pinned=bool(row.get("pinned", 0)),
-        created_at=row.get("created_at", ""),
-        updated_at=row.get("updated_at", ""),
-    )
 
 
 def _rrf_merge(
@@ -222,7 +197,7 @@ class MemoryRetriever:
         for row in rows:
             d = dict(row)
             bm25_rank = float(d.pop("bm25_rank", 0.0))
-            entry = _row_to_entry(d)
+            entry = row_to_entry(d)
             s = _score(bm25_rank, entry, project, repo)
             hits.append(MemoryHit(entry=entry, score=s))
 
@@ -266,7 +241,7 @@ class MemoryRetriever:
         for row in rows:
             d = dict(row)
             distance = float(d.pop("distance", 999.0))
-            entry = _row_to_entry(d)
+            entry = row_to_entry(d)
             # Use negative distance as score: closer = higher score
             hits.append(MemoryHit(entry=entry, score=-distance))
         return hits
@@ -291,7 +266,7 @@ class MemoryRetriever:
                        LIMIT ?""",
                     (min_importance, limit),
                 )
-                return [_row_to_entry(dict(r)) for r in rows]
+                return [row_to_entry(dict(r)) for r in rows]
         except Exception as e:
             logger.warning(f"MemoryRetriever.top_semantic failed: {e}")
             return []

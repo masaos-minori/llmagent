@@ -5,15 +5,31 @@ Data types for the persistent semantic memory layer.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
+from enum import StrEnum
+
+_ISO8601_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 # Valid values for MemoryEntry.memory_type
 MEMORY_TYPES: frozenset[str] = frozenset({"semantic", "episodic"})
 
-# Valid values for MemoryEntry.source_type
-SOURCE_TYPES: frozenset[str] = frozenset(
-    {"conversation", "decision", "rule", "failure"},
-)
+
+class SourceType(StrEnum):
+    """Taxonomy of memory source types.
+
+    StrEnum allows: SourceType.RULE == "rule" → True, so string literals
+    in existing code remain compatible without changes.
+    """
+
+    CONVERSATION = "conversation"
+    DECISION = "decision"
+    RULE = "rule"
+    FAILURE = "failure"
+
+
+# Backward-compat frozenset for code still comparing with string literals.
+SOURCE_TYPES: frozenset[str] = frozenset(v.value for v in SourceType)
 
 
 @dataclass
@@ -22,7 +38,7 @@ class MemoryEntry:
 
     memory_id: str
     memory_type: str  # "semantic" | "episodic"
-    source_type: str  # "conversation" | "decision" | "rule" | "failure"
+    source_type: SourceType  # use SourceType enum values
     session_id: int | None
     turn_id: str | None
     project: str
@@ -33,7 +49,7 @@ class MemoryEntry:
     tags: list[str] = field(default_factory=list)
     importance: float = 0.5  # 0.0–1.0; higher = more reuse priority
     pinned: bool = False
-    created_at: str = ""  # ISO-8601; filled by MemoryStore.add()
+    created_at: str = ""  # ISO-8601 UTC; filled by MemoryStore.add()
     updated_at: str = ""
 
     def __post_init__(self) -> None:
@@ -41,12 +57,20 @@ class MemoryEntry:
             raise ValueError(
                 f"Invalid memory_type={self.memory_type!r}; must be one of {MEMORY_TYPES}",
             )
-        if self.source_type not in SOURCE_TYPES:
-            raise ValueError(
-                f"Invalid source_type={self.source_type!r}; must be one of {SOURCE_TYPES}",
-            )
+        # Coerce string → SourceType; raises ValueError for unknown values.
+        if not isinstance(self.source_type, SourceType):
+            try:
+                object.__setattr__(self, "source_type", SourceType(self.source_type))
+            except ValueError:
+                raise ValueError(
+                    f"Invalid source_type={self.source_type!r}; must be one of {SOURCE_TYPES}",
+                )
         if not (0.0 <= self.importance <= 1.0):
             raise ValueError(f"importance must be in [0.0, 1.0], got {self.importance}")
+        if self.created_at and not _ISO8601_RE.match(self.created_at):
+            raise ValueError(
+                f"created_at must be ISO-8601 UTC (YYYY-MM-DDTHH:MM:SSZ), got {self.created_at!r}",
+            )
 
 
 @dataclass

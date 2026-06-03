@@ -1,20 +1,49 @@
 #!/usr/bin/env python3
 """cli_view.py
 CLI presentation layer: readline setup, multiline continuation input,
-and RAG pipeline progress display.
+and progress display.
+
+Writer and Reader Protocols allow test doubles and alternative I/O backends
+to replace the default terminal implementation without touching callers.
 """
 
 import asyncio
 import logging
 import readline
 from pathlib import Path
+from typing import Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
 
+@runtime_checkable
+class Writer(Protocol):
+    """Output-side interface for LLM streaming and status messages."""
+
+    def write_token(self, token: str) -> None: ...
+    def write_compress_notice(self, n: int) -> None: ...
+    def write_turn_start(self) -> None: ...
+    def write_turn_end(self) -> None: ...
+    def write_llm_error(self, e: Exception) -> None: ...
+    def write_progress(self, msg: str) -> None: ...
+    def clear_progress(self) -> None: ...
+    def write_warning(self, msg: str) -> None: ...
+
+
+@runtime_checkable
+class Reader(Protocol):
+    """Input-side interface for multiline continuation prompts."""
+
+    async def read_multiline(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        first_line: str,
+    ) -> str: ...
+
+
 class CLIView:
     """Manages terminal I/O: readline history, tab completion, multiline
-    continuation input, and RAG pipeline progress status line.
+    continuation input, and progress status line.
     """
 
     HISTORY_FILE = Path.home() / ".agent_history"
@@ -71,13 +100,51 @@ class CLIView:
         """Notify the user of an LLM request failure."""
         print(f"\nError: {e}\n")
 
-    def rag_status(self, msg: str) -> None:
-        """Overwrite the current line with a RAG progress indicator."""
+    def write_progress(self, msg: str) -> None:
+        """Overwrite the current line with a progress indicator."""
         print(f"  [rag] {msg:<24}", end="\r", flush=True)
 
-    def rag_clear(self) -> None:
-        """Erase the RAG progress line."""
+    def clear_progress(self) -> None:
+        """Erase the progress line."""
         print(" " * 32, end="\r", flush=True)
+
+    def write_warning(self, msg: str) -> None:
+        """Print a startup or runtime warning prefixed with [warn]."""
+        print(f"[warn] {msg}")
+
+    def write_debug_rag(self, data: dict) -> None:
+        """Render structured RAG pipeline debug data to stdout."""
+        queries: list[str] = data.get("queries", [])
+        all_results: list[list[dict]] = data.get("all_results", [])
+        merged: list[dict] = data.get("merged", [])
+        reranked: list[dict] = data.get("reranked", [])
+
+        print(f"  [debug] MQE queries ({len(queries)}):")
+        for i, q in enumerate(queries, 1):
+            print(f"    {i}: {q}")
+
+        total = sum(len(r) for r in all_results)
+        print(
+            f"  [debug] search: {len(all_results)} result lists,"
+            f" {total} total candidates",
+        )
+
+        print(f"  [debug] RRF merge: {len(merged)} unique candidates (top 5):")
+        for c in merged[:5]:
+            print(
+                f"    chunk_id={c.get('chunk_id')}"
+                f" rrf={c.get('rrf_score', 0):.4f}"
+                f" url={str(c.get('url', ''))[:60]}",
+            )
+
+        print(f"  [debug] reranked top-{len(reranked)}:")
+        for c in reranked:
+            score = c.get("rerank_score", c.get("rrf_score", 0))
+            print(
+                f"    chunk_id={c.get('chunk_id')}"
+                f" score={score:.4f}"
+                f" url={str(c.get('url', ''))[:60]}",
+            )
 
     async def read_multiline(
         self,

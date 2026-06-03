@@ -8,9 +8,8 @@ import logging
 from typing import Any
 
 import orjson
-from rag.types import LLMMessage
-
 from db.helper import SQLiteHelper
+from rag.types import LLMMessage
 
 logger = logging.getLogger(__name__)
 
@@ -119,10 +118,11 @@ class AgentSession:
         except Exception as e:
             logger.warning(f"Session title update failed: {e}")
 
-    def list_sessions(self, limit: int = 20) -> None:
-        """Print the most recent sessions from DB.
+    def list_sessions(self, limit: int = 20) -> list[dict]:
+        """Return the most recent sessions from DB as structured data.
 
-        limit: number of sessions to retrieve (default: 20).
+        Each dict: session_id, created_at, title, is_current (bool).
+        Returns [] on error or when no sessions exist.
         """
         try:
             with SQLiteHelper("session").open(row_factory=True) as db:
@@ -133,25 +133,24 @@ class AgentSession:
                 )
         except Exception as e:
             logger.warning(f"Session list query failed: {e}")
-            print(f"Error reading sessions: {e}")
-            return
-        if not rows:
-            print("No sessions found.")
-            return
-        print(f"{'ID':>4}  {'Created':>19}  Title")
-        print("-" * 60)
-        for r in rows:
-            title = r["title"] or "(untitled)"
-            if len(title) > 32:
-                title = title[:29] + "..."
-            mark = " *" if r["session_id"] == self.session_id else ""
-            print(f"{r['session_id']:>4}  {r['created_at']:>19}  {title}{mark}")
+            return []
+        return [
+            {
+                "session_id": r["session_id"],
+                "created_at": r["created_at"],
+                "title": r["title"],
+                "is_current": r["session_id"] == self.session_id,
+            }
+            for r in rows
+        ]
 
-    def list_documents(self, lang: str | None = None, limit: int = 20) -> None:
-        """Print registered document URLs with title, lang, fetched_at, chunk count.
+    def list_documents(self, lang: str | None = None, limit: int = 20) -> list[dict]:
+        """Return registered documents as structured data.
 
         lang: filter by language ('ja' or 'en'); None means all.
-        limit: maximum number of rows to display (default: 20).
+        limit: maximum number of rows to return (default: 20).
+        Each dict: url, title, lang, fetched_at, chunk_count.
+        Returns [] on error or when no documents exist.
         """
         sql = (
             "SELECT d.url, d.title, d.lang, d.fetched_at,"
@@ -170,20 +169,17 @@ class AgentSession:
                 rows = db.fetchall(sql, tuple(params))
         except Exception as e:
             logger.warning(f"list_documents failed: {e}")
-            print(f"Error reading documents: {e}")
-            return
-        if not rows:
-            print("No documents found.")
-            return
-        print(f"{'URL':<55}  {'Lang':4}  {'Chunks':>6}  {'Fetched':19}  Title")
-        print("-" * 110)
-        for r in rows:
-            url = r["url"]
-            if len(url) > 55:
-                url = url[:52] + "..."
-            title = (r["title"] or "")[:28]
-            fetched = (r["fetched_at"] or "")[:19]
-            print(f"{url:<55}  {r['lang']:4}  {r['n']:>6}  {fetched:19}  {title}")
+            return []
+        return [
+            {
+                "url": r["url"],
+                "title": r["title"],
+                "lang": r["lang"],
+                "fetched_at": r["fetched_at"],
+                "chunk_count": r["n"],
+            }
+            for r in rows
+        ]
 
     def delete_document(self, url: str) -> bool:
         """Delete a document and its chunks from DB by URL.

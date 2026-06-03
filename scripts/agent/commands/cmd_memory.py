@@ -15,9 +15,12 @@ Subcommands:
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from agent.context import AgentContext
-from agent.memory.types import MemoryQuery
+
+if TYPE_CHECKING:
+    from agent.memory.layer import MemoryLayer
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +33,13 @@ _MEMORY_HELP = """\
 /memory delete <id>                       Delete one entry by memory_id
 /memory prune [days]                      Delete entries older than N days (default: retention_days config)
 """
+
+
+def _as_memory_layer(mem: object) -> MemoryLayer | None:
+    """Return mem cast to MemoryLayer when it is an instance; else None."""
+    from agent.memory.layer import MemoryLayer  # noqa: PLC0415
+
+    return mem if isinstance(mem, MemoryLayer) else None
 
 
 class _MemoryMixin:
@@ -67,23 +77,14 @@ class _MemoryMixin:
             print(f"  Unknown subcommand: {sub!r}. Try /memory help")
 
     def _memory_list(self, mem: object, args: list[str]) -> None:
-        from agent.memory.layer import MemoryLayer
-
-        if not isinstance(mem, MemoryLayer):
+        layer = _as_memory_layer(mem)
+        if layer is None:
             return
         mem_type = next((a for a in args if a in ("semantic", "episodic")), "")
         limit_args = [a for a in args if a.isdigit()]
         limit = int(limit_args[0]) if limit_args else 10
 
-        if mem_type:
-            entries = mem._store.search_by_type(memory_type=mem_type, limit=limit)
-        else:
-            # Show both types merged and sorted when no filter
-            sem = mem._store.search_by_type("semantic", limit=limit)
-            epi = mem._store.search_by_type("episodic", limit=limit)
-            entries = sorted(sem + epi, key=lambda e: (not e.pinned, -e.importance))[
-                :limit
-            ]
+        entries = layer.list_entries(mem_type=mem_type, limit=limit)
 
         if not entries:
             print("  [memory] No entries found")
@@ -99,19 +100,14 @@ class _MemoryMixin:
             )
 
     def _memory_search(self, mem: object, args: list[str]) -> None:
-        from agent.memory.layer import MemoryLayer
-
-        if not isinstance(mem, MemoryLayer):
+        layer = _as_memory_layer(mem)
+        if layer is None:
             return
         if not args:
             print("  Usage: /memory search <query>")
             return
         query = " ".join(args)
-        hits = mem._retriever.search(
-            MemoryQuery(query=query, limit=10),
-            project=mem._project,
-            repo=mem._repo,
-        )
+        hits = layer.search(query, limit=10)
         if not hits:
             print(f"  [memory] No results for {query!r}")
             return
@@ -125,15 +121,14 @@ class _MemoryMixin:
             )
 
     def _memory_show(self, mem: object, args: list[str]) -> None:
-        from agent.memory.layer import MemoryLayer
-
-        if not isinstance(mem, MemoryLayer):
+        layer = _as_memory_layer(mem)
+        if layer is None:
             return
         if not args:
             print("  Usage: /memory show <id>")
             return
         mid = args[0]
-        entry = mem._store.get_by_id(mid)
+        entry = layer.get_entry(mid)
         if entry is None:
             print(f"  [memory] Entry not found: {mid!r}")
             return
@@ -149,16 +144,15 @@ class _MemoryMixin:
         print(f"  content:\n{entry.content}")
 
     def _memory_pin(self, mem: object, args: list[str], *, pin: bool) -> None:
-        from agent.memory.layer import MemoryLayer
-
-        if not isinstance(mem, MemoryLayer):
+        layer = _as_memory_layer(mem)
+        if layer is None:
             return
         if not args:
             cmd = "pin" if pin else "unpin"
             print(f"  Usage: /memory {cmd} <id>")
             return
         mid = args[0]
-        ok = mem._store.pin(mid) if pin else mem._store.unpin(mid)
+        ok = layer.pin_entry(mid) if pin else layer.unpin_entry(mid)
         action = "pinned" if pin else "unpinned"
         if ok:
             print(f"  [memory] {action}: {mid}")
@@ -166,36 +160,27 @@ class _MemoryMixin:
             print(f"  [memory] Entry not found: {mid!r}")
 
     def _memory_delete(self, mem: object, args: list[str]) -> None:
-        from agent.memory.layer import MemoryLayer
-
-        if not isinstance(mem, MemoryLayer):
+        layer = _as_memory_layer(mem)
+        if layer is None:
             return
         if not args:
             print("  Usage: /memory delete <id>")
             return
         mid = args[0]
-        ok = mem._store.delete(mid)
+        ok = layer.delete_entry(mid)
         if ok:
-            logger.info(f"memory.delete memory_id={mid!r}")
             print(f"  [memory] Deleted: {mid}")
         else:
             print(f"  [memory] Entry not found: {mid!r}")
 
     def _memory_prune(self, mem: object, ctx: AgentContext, args: list[str]) -> None:
-        from agent.memory.layer import MemoryLayer
-        from db.helper import SQLiteHelper
-        from db.maintenance import prune_old_memories
-
-        if not isinstance(mem, MemoryLayer):
+        layer = _as_memory_layer(mem)
+        if layer is None:
             return
         days = (
             int(args[0])
             if args and args[0].isdigit()
             else ctx.cfg.memory_retention_days
         )
-        try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                deleted = prune_old_memories(db, days)
-            print(f"  [memory] Pruned {deleted} entries older than {days} days")
-        except Exception as e:
-            print(f"  [memory] Prune failed: {e}")
+        deleted = layer.prune(days)
+        print(f"  [memory] Pruned {deleted} entries older than {days} days")

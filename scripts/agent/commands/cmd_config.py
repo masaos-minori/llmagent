@@ -9,15 +9,14 @@ Extracted from agent_commands.py.  Provides _ConfigMixin with:
   _cmd_config          — /config dispatcher
   _apply_config_params — apply reloaded config to all components
   _cmd_set             — /set: runtime LLM parameter override
-  _cmd_reload          — /reload: reload config/agent.toml at runtime
+  _cmd_reload          — /reload: reload split config files at runtime
 """
 
 import logging
 from typing import TYPE_CHECKING, Any
 
-from shared.config_loader import ConfigLoader
-
 from db.helper import SQLiteHelper
+from shared.config_loader import ConfigLoader
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -31,50 +30,57 @@ class _ConfigMixin:
     if TYPE_CHECKING:
         _ctx: "AgentContext"
 
-    def _cmd_stats(self) -> None:
-        """Print session statistics: turns, tool calls, RAG context hits, cache hits."""
+    def _collect_stats(self) -> dict[str, Any]:
+        """Collect session statistics from ctx and services into a plain dict."""
         ctx = self._ctx
-        sid = str(ctx.session.session_id) if ctx.session.session_id else "none"
-        cache_hits = (
-            ctx.services.tools.stat_cache_hits if ctx.services.tools is not None else 0
-        )
-        compress_count = (
-            ctx.services.hist_mgr.stat_compress_count
-            if ctx.services.hist_mgr is not None
-            else 0
-        )
         llm = ctx.services.llm
-        llm_retries = llm.stat_retries if llm is not None else 0
-        llm_reconnects = llm.stat_reconnects if llm is not None else 0
-        llm_heartbeat_timeouts = llm.stat_heartbeat_timeouts if llm is not None else 0
-        llm_partial_completions = llm.stat_partial_completions if llm is not None else 0
-        llm_parse_errors = llm.stat_parse_errors if llm is not None else 0
+        return {
+            "session_id": str(ctx.session.session_id) if ctx.session.session_id else "none",
+            "turns": ctx.stat_turns,
+            "tool_calls": ctx.stat_tool_calls,
+            "tool_errors": ctx.stat_tool_errors,
+            "llm_retries": llm.stat_retries if llm is not None else 0,
+            "llm_reconnects": llm.stat_reconnects if llm is not None else 0,
+            "llm_heartbeat_timeouts": llm.stat_heartbeat_timeouts if llm is not None else 0,
+            "llm_partial_completions": llm.stat_partial_completions if llm is not None else 0,
+            "llm_parse_errors": llm.stat_parse_errors if llm is not None else 0,
+            "cache_hits": ctx.services.tools.stat_cache_hits if ctx.services.tools is not None else 0,
+            "compress_count": ctx.services.hist_mgr.stat_compress_count if ctx.services.hist_mgr is not None else 0,
+            "semantic_cache_hits": ctx.stat_semantic_cache_hits,
+            "input_tokens": ctx.stat_input_tokens,
+            "output_tokens": ctx.stat_output_tokens,
+            "debug_mode": ctx.debug_mode,
+            "latency": ctx.stat_latency,
+        }
+
+    def _cmd_stats(self) -> None:
+        """Print session statistics: turns, tool calls, cache hits, latency."""
+        stats = self._collect_stats()
 
         def _fmt_tokens(v: int | None) -> str:
             # None = endpoint did not return usage data this session
             return f"{v:,}" if v is not None else "N/A"
 
         print("Session statistics:")
-        print(f"  Session ID    : {sid}")
-        print(f"  Turns         : {ctx.stat_turns}")
-        print(f"  Tool calls    : {ctx.stat_tool_calls}")
-        print(f"  Tool errors   : {ctx.stat_tool_errors}")
-        print(f"  LLM retries   : {llm_retries}")
-        print(f"  LLM reconnects: {llm_reconnects}")
-        print(f"  HB timeouts   : {llm_heartbeat_timeouts}")
-        print(f"  Partial compl : {llm_partial_completions}")
-        print(f"  Parse errors  : {llm_parse_errors}")
-        print(f"  Cache hits    : {cache_hits}")
-        print(f"  Compress      : {compress_count}")
-        print(f"  RAG hits      : {ctx.stat_rag_hits}")
-        print(f"  Sem. cache    : {ctx.stat_semantic_cache_hits} hits")
-        print(f"  Input tokens  : {_fmt_tokens(ctx.stat_input_tokens)}")
-        print(f"  Output tokens : {_fmt_tokens(ctx.stat_output_tokens)}")
-        print(f"  Debug mode    : {'ON' if ctx.debug_mode else 'OFF'}")
-        if ctx.stat_latency:
+        print(f"  Session ID    : {stats['session_id']}")
+        print(f"  Turns         : {stats['turns']}")
+        print(f"  Tool calls    : {stats['tool_calls']}")
+        print(f"  Tool errors   : {stats['tool_errors']}")
+        print(f"  LLM retries   : {stats['llm_retries']}")
+        print(f"  LLM reconnects: {stats['llm_reconnects']}")
+        print(f"  HB timeouts   : {stats['llm_heartbeat_timeouts']}")
+        print(f"  Partial compl : {stats['llm_partial_completions']}")
+        print(f"  Parse errors  : {stats['llm_parse_errors']}")
+        print(f"  Cache hits    : {stats['cache_hits']}")
+        print(f"  Compress      : {stats['compress_count']}")
+        print(f"  Sem. cache    : {stats['semantic_cache_hits']} hits")
+        print(f"  Input tokens  : {_fmt_tokens(stats['input_tokens'])}")
+        print(f"  Output tokens : {_fmt_tokens(stats['output_tokens'])}")
+        print(f"  Debug mode    : {'ON' if stats['debug_mode'] else 'OFF'}")
+        if stats["latency"]:
             print("Latency (mean / max, N samples):")
-            for step in ["rag.mqe", "rag.search", "rag.rrf", "rag.rerank", "llm"]:
-                samples = ctx.stat_latency.get(step)
+            for step in ["llm"]:
+                samples = stats["latency"].get(step)
                 if not samples:
                     continue
                 mean = sum(samples) / len(samples)
@@ -365,33 +371,10 @@ class _ConfigMixin:
         ctx: "AgentContext",
         new_cfg: dict[str, Any],
     ) -> None:
-        """Propagate updated cfg fields to live service instances (LLM/hist_mgr/tools)."""
-        if ctx.services.llm is not None:
-            ctx.services.llm._max_retries = ctx.cfg.llm_max_retries
-            ctx.services.llm._retry_base_delay = ctx.cfg.llm_retry_base_delay
-            ctx.services.llm._temperature = ctx.cfg.llm_temperature
-            ctx.services.llm._max_tokens = ctx.cfg.llm_max_tokens
-            ctx.services.llm._sse_heartbeat_timeout = ctx.cfg.sse_heartbeat_timeout
-            ctx.services.llm._sse_malformed_retry = ctx.cfg.sse_malformed_retry
-            ctx.services.llm._sse_reconnect_max = ctx.cfg.sse_reconnect_max
-            ctx.services.llm._llm_stream_retry_on_heartbeat_timeout = (
-                ctx.cfg.llm_stream_retry_on_heartbeat_timeout
-            )
-            ctx.services.llm._llm_stream_retry_on_malformed_chunk = (
-                ctx.cfg.llm_stream_retry_on_malformed_chunk
-            )
-        if ctx.services.hist_mgr is not None:
-            ctx.services.hist_mgr._char_limit = ctx.cfg.context_char_limit
-            ctx.services.hist_mgr._compress_turns = ctx.cfg.context_compress_turns
-            ctx.services.hist_mgr._token_limit = ctx.cfg.context_token_limit
-            ctx.services.hist_mgr._tokenize_url = ctx.cfg.tokenize_url
-        if ctx.services.tools is not None:
-            ctx.services.tools._cache_ttl = ctx.cfg.tool_cache_ttl
-        if ctx.history and ctx.history[0]["role"] == "system":
-            ctx.history[0]["content"] = new_cfg.get(
-                "system_prompt_tool",
-                ctx.history[0]["content"],
-            )
+        """Propagate updated cfg fields to live service instances via public apply_config() APIs."""
+        from agent.services.config_reload import ConfigReloadService  # noqa: PLC0415
+
+        ConfigReloadService(ctx).sync_services(new_cfg)
 
     def _set_temperature(self, ctx: "AgentContext", value_str: str) -> None:
         """Parse and apply llm_temperature from value_str."""
@@ -404,7 +387,7 @@ class _ConfigMixin:
             return
         ctx.cfg.llm_temperature = val
         if ctx.services.llm is not None:
-            ctx.services.llm._temperature = val
+            ctx.services.llm.apply_config(temperature=val)
         logger.info(f"llm_temperature set to {val}")
         print(f"temperature set to {val}")
 
@@ -419,7 +402,7 @@ class _ConfigMixin:
             return
         ctx.cfg.llm_max_tokens = val
         if ctx.services.llm is not None:
-            ctx.services.llm._max_tokens = val
+            ctx.services.llm.apply_config(max_tokens=val)
         logger.info(f"llm_max_tokens set to {val}")
         print(f"max_tokens set to {val}")
 

@@ -65,6 +65,41 @@ class HistoryManager:
         """
         return self._compress_turns
 
+    def apply_config(
+        self,
+        *,
+        char_limit: int | None = None,
+        compress_turns: int | None = None,
+        token_limit: int | None = None,
+        tokenize_url: str | None = None,
+    ) -> None:
+        """Update hot-reloadable configuration fields without recreating the instance."""
+        if char_limit is not None:
+            self._char_limit = char_limit
+        if compress_turns is not None:
+            self._compress_turns = compress_turns
+        if token_limit is not None:
+            self._token_limit = token_limit
+        if tokenize_url is not None:
+            self._tokenize_url = tokenize_url
+
+    async def force_compress(self, history: list[LLMMessage]) -> list[LLMMessage]:
+        """Force immediate compression regardless of the current char/token limits.
+
+        Temporarily sets char_limit=1 so compress() always proceeds, then restores the
+        original limits. Callers must replace ctx.history with the returned list.
+        """
+        orig_char = self._char_limit
+        orig_token = self._token_limit
+        # char_limit=1 guarantees the over_char condition triggers; token_limit=0 disables it
+        self._char_limit = 1
+        self._token_limit = 0
+        try:
+            return await self.compress(history)
+        finally:
+            self._char_limit = orig_char
+            self._token_limit = orig_token
+
     def count_chars(self, history: list[LLMMessage]) -> int:
         """Estimate total characters in a history list.
 

@@ -23,6 +23,7 @@ AgentREPL responsibilities:
 
 import asyncio
 
+from db.helper import SQLiteHelper
 from shared.logger import Logger
 from shared.tool_executor import StdioTransport
 
@@ -36,7 +37,6 @@ from agent.repl_health import (
     check_tool_definitions,
     watchdog_loop,
 )
-from db.helper import SQLiteHelper
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -104,10 +104,12 @@ class AgentREPL:
     # ── Health checks / watchdog — delegated to agent_repl_health ─────────────
 
     async def _check_service_health(self) -> None:
-        await check_service_health(self._ctx)
+        for msg in await check_service_health(self._ctx):
+            self._view.write_warning(msg)
 
     async def _check_tool_definitions(self) -> None:
-        await check_tool_definitions(self._ctx)
+        for msg in await check_tool_definitions(self._ctx):
+            self._view.write_warning(msg)
 
     async def _watchdog_loop(self) -> None:
         await watchdog_loop(self._ctx)
@@ -115,20 +117,21 @@ class AgentREPL:
     async def _close_resources(self) -> None:
         """Close all session resources. Called in the run() finally block."""
         self._view.write_history()
-        # Delegate stdio server shutdown to ServerLifecycleManager when available.
-        # Falls back to a no-op when lifecycle was never initialised (e.g. init failed).
-        if self._ctx.services.lifecycle is not None:
-            await self._ctx.services.lifecycle.shutdown_all()
-        if self._ctx.services.http is not None:
-            await self._ctx.services.http.aclose()
+        # ctx.services is None when build_agent_context() never completed (e.g. init failed).
+        svc = self._ctx.services
+        if svc is not None:
+            await svc.lifecycle.shutdown_all()
+            await svc.http.aclose()
 
     # ── Main REPL loop ─────────────────────────────────────────────────────────
 
     async def _repl_loop(self) -> None:
         """Process user input lines until /exit, EOF, or shutdown request."""
         ctx = self._ctx
-        assert self._cmds is not None
-        assert self._orchestrator is not None
+        if self._cmds is None:
+            raise RuntimeError("_repl_loop called before _init_components()")
+        if self._orchestrator is None:
+            raise RuntimeError("_repl_loop called before _init_components()")
         loop = asyncio.get_running_loop()
         while True:
             try:
@@ -160,26 +163,25 @@ class AgentREPL:
                 await self._orchestrator.handle_turn(line)
 
     def _init_command_registry(self, ctx: AgentContext) -> None:
-        """コマンドレジストリを初期化して self._cmds にセットする。"""
+        """Instantiate CommandRegistry and assign to self._cmds."""
         self._cmds = CommandRegistry(ctx)
 
     def _init_orchestrator(self, ctx: AgentContext) -> None:
-        """オーケストレーターを初期化して self._orchestrator にセットする。"""
-        assert self._cmds is not None
+        """Instantiate Orchestrator and assign to self._orchestrator."""
+        if self._cmds is None:
+            raise RuntimeError("_init_orchestrator requires _cmds to be set first")
         tracer = init_tracer(ctx)
         self._orchestrator = Orchestrator(
             ctx,
-            self._cmds,
             on_turn_start=self._view.write_turn_start,
             on_turn_end=self._view.write_turn_end,
             on_error=self._view.write_llm_error,
+            on_first_turn=self._cmds._generate_session_title,
             tracer=tracer,
         )
 
     def _init_components(self) -> None:
-        """factory.build_agent_context() でサービスを注入し、
-        CommandRegistry と Orchestrator を初期化する。
-        """
+        """Inject services via factory.build_agent_context(), then wire CommandRegistry and Orchestrator."""
         ctx = self._ctx
         build_agent_context(ctx, self._view)
         self._init_command_registry(ctx)
@@ -285,6 +287,7 @@ class AgentREPL:
                         f"- {s}" for s in memory_snippets
                     )
                     initial_prompt = initial_prompt + memory_block
+            ctx.system_prompt_content = initial_prompt
             ctx.history = [{"role": "system", "content": initial_prompt}]
             if ctx.cfg.mcp_watchdog_interval > 0:
                 _watchdog_task = asyncio.create_task(self._watchdog_loop())

@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 
 from shared.types import LLMMessage
 
-from agent.memory.types import MemoryEntry
+from agent.memory.types import MemoryEntry, SourceType
 
 logger = logging.getLogger(__name__)
 
@@ -62,22 +62,22 @@ def _classify_content(
     content: str,
     semantic_hits: int,
     failure_hits: int,
-) -> tuple[str, str, list[str]] | None:
+) -> tuple[str, SourceType, list[str]] | None:
     """Return (memory_type, source_type, tags) classification, or None if not extractable."""
     if semantic_hits >= 2 or (semantic_hits >= 1 and len(content) >= 200):
-        source = "decision" if "decided" in content.lower() else "rule"
+        source = SourceType.DECISION if "decided" in content.lower() else SourceType.RULE
         return "semantic", source, ["auto-extracted", "semantic"]
     if failure_hits >= 1:
-        return "episodic", "failure", ["auto-extracted", "failure"]
+        return "episodic", SourceType.FAILURE, ["auto-extracted", "failure"]
     if len(content) >= MIN_CONTENT_CHARS * 2:
-        return "episodic", "conversation", ["auto-extracted", "qa"]
+        return "episodic", SourceType.CONVERSATION, ["auto-extracted", "qa"]
     return None
 
 
 def _make_entry(
     *,
     memory_type: str,
-    source_type: str,
+    source_type: SourceType,
     tags: list[str],
     content: str,
     session_id: int | None,

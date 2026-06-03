@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING
 import orjson
 from shared.config_loader import ConfigLoader
 
+from agent.commands.utils import render_history_md
+
 if TYPE_CHECKING:
     from agent.context import AgentContext
 
@@ -47,7 +49,7 @@ class _IngestMixin:
         content = (
             orjson.dumps(ctx.history, option=orjson.OPT_INDENT_2).decode()
             if fmt == "json"
-            else self._render_history_md(ctx.history)  # type: ignore[attr-defined]  # provided by _RagMixin
+            else render_history_md(ctx.history)
         )
 
         if not outfile:
@@ -159,10 +161,4 @@ class _IngestMixin:
         if len(turn_msgs) <= n_compress:
             print("Nothing to compact: history too short.")
             return
-        # Temporarily clear char_limit so compress() proceeds unconditionally
-        orig_limit = ctx.services.hist_mgr._char_limit
-        ctx.services.hist_mgr._char_limit = 0
-        try:
-            ctx.history = await ctx.services.hist_mgr.compress(ctx.history)
-        finally:
-            ctx.services.hist_mgr._char_limit = orig_limit
+        ctx.history = await ctx.services.hist_mgr.force_compress(ctx.history)

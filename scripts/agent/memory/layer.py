@@ -1,65 +1,47 @@
-#!/usr/bin/env python3
 """agent/memory/layer.py
-High-level orchestration layer for persistent semantic memory.
+MemoryLayer — thin facade over three sub-services.
 
-Lifecycle hooks:
-  on_session_start()  — inject top semantic entries into context at session begin (sync)
-  on_user_prompt()    — retrieve relevant memories for each user turn (async, Phase 2)
-  on_session_stop()   — extract and persist new memories at session end (async, Phase 2)
+Delegates all lifecycle hooks and write operations to:
+  MemoryInjectionService  (injection.py) — on_session_start / on_user_prompt
+  MemoryIngestionService  (ingestion.py) — on_session_stop / write_* / dedup
+  EmbeddingClient         (embedding_client.py) — embedding generation
 
-Phase 2 additions:
-  - embedding generation via embed_url (requires http client + memory_embed_enabled)
-  - KNN search integrated into on_user_prompt via MemoryRetriever._vec_search
-  - deduplication: embeddings close than dedup_threshold are linked in memory_links
+Housekeeping (clear / stat_*) stays here as they use SQLiteHelper directly.
 
-All hooks are no-ops when use_memory_layer=False (ctx.services.memory is None).
-No print() calls — all output goes through logger or caller's display layer.
+Constructor signature is intentionally identical to the old monolithic
+MemoryLayer so factory.py and all callers need no changes.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import uuid
-from datetime import UTC, datetime
 
 import httpx
+from db.helper import SQLiteHelper
 from shared.types import LLMMessage
 
-from agent.memory.extract import extract_memories
+from agent.memory.embedding_client import (
+    EmbeddingClient,
+    EmbeddingClientConfig,
+    # Re-exported so that `patch("agent.memory.layer._fetch_embedding")` keeps working
+    # in any legacy test code that patches at this module path.
+    _fetch_embedding,  # noqa: F401
+)
+from agent.memory.ingestion import DedupPolicy, MemoryIngestionService
+from agent.memory.injection import InjectionPolicy, MemoryInjectionService
 from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.retriever import MemoryRetriever
 from agent.memory.store import MemoryStore
-from agent.memory.types import MemoryEntry, MemoryQuery
-from db.helper import SQLiteHelper
+from agent.memory.types import MemoryHit, MemoryQuery
 
 logger = logging.getLogger(__name__)
 
 
-async def _fetch_embedding(
-    text: str,
-    http: httpx.AsyncClient,
-    embed_url: str,
-) -> list[float] | None:
-    """Call the embedding service; return None on any error."""
-    try:
-        resp = await http.post(embed_url, json={"content": f"query: {text}"})
-        resp.raise_for_status()
-        embedding = resp.json().get("embedding")
-        if isinstance(embedding, list) and embedding:
-            return [float(v) for v in embedding]
-        logger.warning("embed response missing 'embedding' field")
-        return None
-    except Exception as e:
-        logger.warning(f"MemoryLayer embedding fetch failed: {e}")
-        return None
-
-
 class MemoryLayer:
-    """High-level memory orchestration: SessionStart / UserPromptSubmit / Stop.
+    """High-level memory orchestration facade.
 
-    Injected into ServiceContainer.memory by AgentREPL._init_components()
-    when use_memory_layer=True.
+    Injected into ServiceContainer.memory when use_memory_layer=True.
+    All lifecycle hooks delegate to MemoryInjectionService / MemoryIngestionService.
     """
 
     def __init__(
@@ -80,66 +62,43 @@ class MemoryLayer:
         embed_timeout: float = 5.0,
         max_content_chars: int = 500,
     ) -> None:
+        embed_cfg = EmbeddingClientConfig(
+            embed_url=embed_url,
+            timeout=embed_timeout,
+        )
+        self._embed_client = EmbeddingClient(embed_cfg, http, enabled=embed_enabled)
+
+        inj_policy = InjectionPolicy(
+            max_semantic=max_inject_semantic,
+            max_episodic=max_inject_episodic,
+            min_importance=min_importance,
+        )
+        self._injection = MemoryInjectionService(
+            policy=inj_policy,
+            retriever=retriever,
+            embed_client=self._embed_client,
+            project=project,
+            repo=repo,
+        )
+
+        dedup_policy = DedupPolicy(threshold=dedup_threshold)
+        self._ingestion = MemoryIngestionService(
+            store=store,
+            jsonl=jsonl,
+            retriever=retriever,
+            embed_client=self._embed_client,
+            dedup_policy=dedup_policy,
+            project=project,
+            repo=repo,
+            branch=branch,
+            max_content_chars=max_content_chars,
+        )
         self._store = store
-        self._retriever = retriever
-        self._jsonl = jsonl
-        self._max_inject_semantic = max_inject_semantic
-        self._max_inject_episodic = max_inject_episodic
-        self._min_importance = min_importance
-        self._project = project
-        self._repo = repo
-        self._branch = branch
-        self._http = http
-        self._embed_url = embed_url
-        self._embed_enabled = embed_enabled
-        self._dedup_threshold = dedup_threshold
-        self._embed_timeout = embed_timeout
-        self._max_content_chars = max_content_chars
-
-    async def _get_embedding(self, text: str) -> list[float] | None:
-        """Generate embedding when embed is enabled and http client available.
-
-        Caps each call to _embed_timeout seconds via asyncio.wait_for.
-        """
-        if not self._embed_enabled or self._http is None or not self._embed_url:
-            return None
-        try:
-            return await asyncio.wait_for(
-                _fetch_embedding(text, self._http, self._embed_url),
-                timeout=self._embed_timeout,
-            )
-        except TimeoutError:
-            logger.warning(
-                f"MemoryLayer._get_embedding timed out after {self._embed_timeout}s",
-            )
-            return None
 
     # ── SessionStart ──────────────────────────────────────────────────────────
 
     def on_session_start(self, session_id: int | None) -> list[str]:
-        """Return text snippets to inject at session start.
-
-        Fetches top semantic entries (by importance + pin) for injection into
-        the system prompt.  Returns [] on any DB error.
-        Stays synchronous — no embedding needed for session-start injection.
-        """
-        try:
-            entries = self._retriever.top_semantic(
-                limit=self._max_inject_semantic,
-                min_importance=self._min_importance,
-                project=self._project,
-                repo=self._repo,
-            )
-            if not entries:
-                return []
-            snippets = [f"[Memory] {e.summary or e.content[:100]}" for e in entries]
-            logger.info(
-                f"MemoryLayer.on_session_start: injecting {len(snippets)} semantic entries",
-            )
-            return snippets
-        except Exception as e:
-            logger.warning(f"MemoryLayer.on_session_start failed: {e}")
-            return []
+        return self._injection.on_session_start(session_id)
 
     # ── UserPromptSubmit ─────────────────────────────────────────────────────
 
@@ -148,54 +107,7 @@ class MemoryLayer:
         query: str,
         session_id: int | None,
     ) -> list[str]:
-        """Return text snippets relevant to the user's query.
-
-        Phase 2: generates embedding for query and merges FTS5 + KNN via RRF.
-        Returns [] on any DB error or when no results are found.
-        """
-        if not query.strip():
-            return []
-        try:
-            embedding = await self._get_embedding(query)
-            hits_s = self._retriever.search(
-                MemoryQuery(
-                    query=query,
-                    session_id=session_id,
-                    memory_type="semantic",
-                    limit=self._max_inject_semantic,
-                ),
-                embedding=embedding,
-                project=self._project,
-                repo=self._repo,
-            )
-            hits_e = self._retriever.search(
-                MemoryQuery(
-                    query=query,
-                    session_id=session_id,
-                    memory_type="episodic",
-                    limit=self._max_inject_episodic,
-                ),
-                embedding=embedding,
-                project=self._project,
-                repo=self._repo,
-            )
-            snippets = []
-            for hit in hits_s:
-                snippets.append(
-                    f"[Semantic memory] {hit.entry.summary or hit.entry.content[:100]}",
-                )
-            for hit in hits_e:
-                snippets.append(
-                    f"[Episodic memory] {hit.entry.summary or hit.entry.content[:100]}",
-                )
-            if snippets:
-                logger.debug(
-                    f"MemoryLayer.on_user_prompt: returning {len(snippets)} snippets",
-                )
-            return snippets
-        except Exception as e:
-            logger.warning(f"MemoryLayer.on_user_prompt failed: {e}")
-            return []
+        return await self._injection.on_user_prompt(query, session_id)
 
     # ── Stop ─────────────────────────────────────────────────────────────────
 
@@ -205,120 +117,67 @@ class MemoryLayer:
         history: list[LLMMessage],
         turn_id: str | None = None,
     ) -> None:
-        """Extract memories from history and persist to JSONL + SQLite.
-
-        Phase 2: generates embeddings for each entry and runs dedup linking.
-        Called with await in AgentREPL.run() finally block.
-        """
-        try:
-            entries = extract_memories(
-                history=history,
-                session_id=session_id,
-                turn_id=turn_id,
-                project=self._project,
-                repo=self._repo,
-                branch=self._branch,
-                max_content_chars=self._max_content_chars,
-            )
-            if not entries:
-                logger.debug("MemoryLayer.on_session_stop: no entries extracted")
-                return
-            for entry in entries:
-                embedding = await self._get_embedding(entry.content)
-                self._jsonl.append(entry)
-                self._store.upsert(entry, embedding=embedding)
-                if embedding is not None:
-                    self._link_duplicates(entry.memory_id, embedding)
-                logger.info(
-                    f"memory.persist memory_id={entry.memory_id!r}"
-                    f" type={entry.memory_type} importance={entry.importance:.2f}",
-                )
-            logger.info(
-                f"MemoryLayer.on_session_stop: persisted {len(entries)} entries",
-            )
-        except Exception as e:
-            logger.warning(f"MemoryLayer.on_session_stop failed: {e}")
-
-    def _link_duplicates(self, memory_id: str, embedding: list[float]) -> None:
-        """Find near-duplicate entries via KNN and record links in memory_links."""
-        neighbors = self._retriever._vec_search(embedding, None, limit=5)
-        for hit in neighbors:
-            if hit.entry.memory_id == memory_id:
-                continue
-            # score from _vec_search is -distance; closer = higher score
-            distance = -hit.score
-            if distance < self._dedup_threshold:
-                try:
-                    with SQLiteHelper("session").open(write_mode=True) as db:
-                        db.execute(
-                            "INSERT OR IGNORE INTO memory_links(src_id, dst_id)"
-                            " VALUES (?,?)",
-                            (memory_id, hit.entry.memory_id),
-                        )
-                        db.commit()
-                    logger.debug(
-                        f"memory_links: {memory_id!r} → {hit.entry.memory_id!r}"
-                        f" distance={distance:.3f}",
-                    )
-                except Exception as e:
-                    logger.warning(f"memory_links insert failed: {e}")
+        await self._ingestion.on_session_stop(session_id, history, turn_id)
 
     # ── Manual write operations ───────────────────────────────────────────────
 
     async def write_semantic(self, session_id: int | None, content: str) -> None:
-        """Manually persist a semantic memory entry."""
-        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        entry = MemoryEntry(
-            memory_id=str(uuid.uuid4()),
-            memory_type="semantic",
-            source_type="rule",
-            session_id=session_id,
-            turn_id=None,
-            project=self._project,
-            repo=self._repo,
-            branch=self._branch,
-            content=content,
-            summary=content[:120],
-            tags=["manual"],
-            importance=0.7,
-            pinned=False,
-            created_at=now,
-            updated_at=now,
-        )
-        embedding = await self._get_embedding(content)
-        self._jsonl.append(entry)
-        self._store.upsert(entry, embedding=embedding)
-        logger.info(
-            f"memory.write memory_id={entry.memory_id!r} type=semantic"
-            f" importance={entry.importance:.2f}",
-        )
+        await self._ingestion.write_semantic(session_id, content)
 
     async def write_episodic(self, session_id: int | None, content: str) -> None:
-        """Manually persist an episodic memory entry."""
-        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        entry = MemoryEntry(
-            memory_id=str(uuid.uuid4()),
-            memory_type="episodic",
-            source_type="conversation",
-            session_id=session_id,
-            turn_id=None,
-            project=self._project,
-            repo=self._repo,
-            branch=self._branch,
-            content=content,
-            summary=content[:120],
-            tags=["manual"],
-            importance=0.5,
-            pinned=False,
-            created_at=now,
-            updated_at=now,
-        )
-        embedding = await self._get_embedding(content)
-        self._jsonl.append(entry)
-        self._store.upsert(entry, embedding=embedding)
-        logger.info(
-            f"memory.write memory_id={entry.memory_id!r} type=episodic"
-            f" importance={entry.importance:.2f}",
+        await self._ingestion.write_episodic(session_id, content)
+
+    # ── Public CRUD facade (no direct _store access from command layer) ──────
+
+    def list_entries(self, mem_type: str = "", limit: int = 10) -> list:
+        """Return entries filtered by mem_type ('semantic'|'episodic'|''), sorted by pinned/importance."""
+        if mem_type:
+            return self._store.search_by_type(memory_type=mem_type, limit=limit)
+        sem = self._store.search_by_type("semantic", limit=limit)
+        epi = self._store.search_by_type("episodic", limit=limit)
+        return sorted(sem + epi, key=lambda e: (not e.pinned, -e.importance))[:limit]
+
+    def get_entry(self, memory_id: str):
+        """Return a single MemoryEntry by ID, or None if not found."""
+        return self._store.get_by_id(memory_id)
+
+    def pin_entry(self, memory_id: str) -> bool:
+        """Pin the entry with the given ID; return True on success."""
+        return self._store.pin(memory_id)
+
+    def unpin_entry(self, memory_id: str) -> bool:
+        """Unpin the entry with the given ID; return True on success."""
+        return self._store.unpin(memory_id)
+
+    def delete_entry(self, memory_id: str) -> bool:
+        """Delete the entry with the given ID; return True on success."""
+        ok = self._store.delete(memory_id)
+        if ok:
+            logger.info("MemoryLayer.delete_entry: memory_id=%r", memory_id)
+        return ok
+
+    def prune(self, days: int) -> int:
+        """Delete entries older than `days` days from SQLite; return count deleted."""
+        from db.helper import SQLiteHelper  # noqa: PLC0415
+        from db.maintenance import prune_old_memories  # noqa: PLC0415
+
+        try:
+            with SQLiteHelper("session").open(write_mode=True) as db:
+                deleted = prune_old_memories(db, days)
+            logger.info("MemoryLayer.prune: deleted=%d days=%d", deleted, days)
+            return deleted
+        except Exception as e:
+            logger.warning("MemoryLayer.prune failed: %s", e)
+            return 0
+
+    # ── Search / store accessor ───────────────────────────────────────────────
+
+    def search(self, query: str, limit: int = 10) -> list[MemoryHit]:
+        """Search memories by FTS5 query; delegates to MemoryInjectionService retriever."""
+        return self._ingestion._retriever.search(
+            MemoryQuery(query=query, limit=limit),
+            project=self._ingestion._project,
+            repo=self._ingestion._repo,
         )
 
     # ── Housekeeping ──────────────────────────────────────────────────────────
@@ -329,7 +188,6 @@ class MemoryLayer:
         if session_id is not None:
             cleared = self._store.clear_by_session(session_id)
         else:
-            # Full clear: delete all rows via SQL directly
             try:
                 with SQLiteHelper("session").open(write_mode=True) as db:
                     cur = db.execute("DELETE FROM memories")
@@ -337,15 +195,16 @@ class MemoryLayer:
                     try:
                         db.execute("DELETE FROM memories_vec")
                     except Exception as e:
-                        logger.warning(f"memories_vec DELETE skipped: {e}")
+                        logger.warning("memories_vec DELETE skipped: %s", e)
                     cleared = cur.rowcount
                     db.commit()
             except Exception as e:
-                logger.warning(f"MemoryLayer.clear failed: {e}")
+                logger.warning("MemoryLayer.clear failed: %s", e)
                 return
         logger.info(
-            f"MemoryLayer.clear: removed {cleared} entries"
-            f" (session_id={session_id if session_id is not None else 'all'})",
+            "MemoryLayer.clear: removed %d entries (session_id=%s)",
+            cleared,
+            session_id if session_id is not None else "all",
         )
 
     # ── Statistics ────────────────────────────────────────────────────────────
@@ -359,7 +218,7 @@ class MemoryLayer:
             result: int = rows[0][0] if rows else 0
             return result
         except Exception as e:
-            logger.warning(f"MemoryLayer.stat_entries failed: {e}")
+            logger.warning("MemoryLayer.stat_entries failed: %s", e)
             return 0
 
     @property
@@ -368,7 +227,7 @@ class MemoryLayer:
         try:
             return self._store.count_by_type()
         except Exception as e:
-            logger.warning(f"MemoryLayer.stat_by_type failed: {e}")
+            logger.warning("MemoryLayer.stat_by_type failed: %s", e)
             return {}
 
     @property
