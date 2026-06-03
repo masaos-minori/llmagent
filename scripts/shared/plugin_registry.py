@@ -68,7 +68,7 @@ def register_command(name: str, *, prefix: bool = False) -> Callable[[_F], _F]:
 
     def decorator(fn: _F) -> _F:
         _commands[name] = (fn, prefix)
-        logger.debug(f"Plugin command registered: {name}")
+        logger.debug("Plugin command registered: %s", name)
         return fn
 
     return decorator
@@ -79,7 +79,7 @@ def register_tool(name: str) -> Callable[[_F], _F]:
 
     def decorator(fn: _F) -> _F:
         _tools[name] = fn
-        logger.debug(f"Plugin tool registered: {name}")
+        logger.debug("Plugin tool registered: %s", name)
         return fn
 
     return decorator
@@ -94,7 +94,7 @@ def register_pipeline_stage(*, when: str = "post") -> Callable[[_F], _F]:
 
     def decorator(fn: _F) -> _F:
         _pipeline_post.append(fn)
-        logger.debug(f"Pipeline post-stage registered: {fn.__name__!r}")
+        logger.debug("Pipeline post-stage registered: %r", fn.__name__)
         return fn
 
     return decorator
@@ -130,7 +130,7 @@ def load_plugins(plugin_dir: str | Path) -> int:
     """Import all *.py files from plugin_dir and return count loaded; @register_* decorators execute at import time; errors are logged and skipped (fail-open)."""
     plugin_path = Path(plugin_dir)
     if not plugin_path.is_dir():
-        logger.debug(f"Plugin dir not found, skipping: {plugin_dir}")
+        logger.debug("Plugin dir not found, skipping: %s", plugin_dir)
         return 0
 
     loaded = 0
@@ -141,9 +141,9 @@ def load_plugins(plugin_dir: str | Path) -> int:
                 mod = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(mod)
                 loaded += 1
-                logger.info(f"Plugin loaded: {py_file.name}")
+                logger.info("Plugin loaded: %s", py_file.name)
         except Exception as e:
-            logger.warning(f"Plugin load failed ({py_file.name}): {e}")
+            logger.warning("Plugin load failed (%s): %s", py_file.name, e)
     return loaded
 
 

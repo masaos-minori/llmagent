@@ -17,6 +17,8 @@
 
 **Runtime policy** — every skill execution must load the files listed in `routing.md` (`## Always load alongside the skill`). Do not repeat their content inside SKILL.md files.
 
+**File organization** — when splitting a skill file or creating a new one, apply the 4 principles from CLAUDE.md's "File Split Rule": routing / dependency direction / minimal loading / shared normalization.
+
 **Evaluation criteria** — a SKILL is good when it:
 
 - Runs autonomously end-to-end without human intervention

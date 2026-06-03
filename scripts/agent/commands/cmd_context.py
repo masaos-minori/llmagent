@@ -155,7 +155,9 @@ class _ContextMixin:
         print(f"  Messages        : {state['n_msgs']}")
         print(f"  Total chars     : {state['total_chars']:,}")
         print(f"  Compress limit  : {state['compress_limit']:,}")
-        print(f"  Remaining       : {state['compress_limit'] - state['total_chars']:,} chars until compression")
+        print(
+            f"  Remaining       : {state['compress_limit'] - state['total_chars']:,} chars until compression"
+        )
         print(f"  Compress count  : {state['compress_count']}")
         print(f"  System prompt   : {ctx.system_prompt_name}")
         print(f"  System preview  : {state['sys_preview']!r}")
@@ -256,4 +258,3 @@ class _ContextMixin:
         ctx.system_prompt_content = ctx.cfg.system_prompts[name]
         logger.info(f"System prompt switched to '{name}'")
         print(f"System prompt: {name}")
-

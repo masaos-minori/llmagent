@@ -2,7 +2,7 @@
 
 ## 1. 機能概要
 
-`CLIView` は CLI プレゼンテーション層。readline 設定・RAG 進捗表示・マルチライン入力を一元管理する。`RagPipeline` へ `on_status` / `on_clear` コールバックとして渡すことで UI 依存を排除する。
+`CLIView` は CLI プレゼンテーション層。readline 設定・進捗表示・マルチライン入力を一元管理する。`Orchestrator` / `HistoryManager` / `LLMClient` へコールバックとして渡すことで UI 依存を排除する。
 
 ## 2. コンストラクタ
 
@@ -25,8 +25,8 @@ from agent.cli_view import CLIView
 
 view = CLIView(slash_commands=["/help", "/exit", ...])
 view.setup_readline()
-view.rag_status("expanding query...")
-view.rag_clear()
+view.write_progress("expanding query...")
+view.clear_progress()
 line = await view.read_multiline(loop, first_line)
 ```
 
@@ -39,21 +39,11 @@ line = await view.read_multiline(loop, first_line)
 | `write_turn_start() -> None` | LLM ストリーミングターン開始前に空行を出力 |
 | `write_turn_end() -> None` | LLM 最終回答後に空行を出力 |
 | `write_llm_error(e: Exception) -> None` | LLM リクエスト失敗を `\nError: {e}\n` の形式でユーザに通知 |
-| `rag_status(msg: str) -> None` | `  [rag] {msg:<24}` をインプレース表示 (`\r` 上書き)。`msg` は 24 文字幅に左詰め |
-| `rag_clear() -> None` | RAG 進捗表示行をスペース 32 文字で上書きしてクリア (`\r` で行頭に戻る) |
+| `write_progress(msg: str) -> None` | `  [rag] {msg:<24}` をインプレース表示 (`\r` 上書き)。`msg` は 24 文字幅に左詰め |
+| `clear_progress() -> None` | 進捗表示行をスペース 32 文字で上書きしてクリア (`\r` で行頭に戻る) |
 | `read_multiline(loop: asyncio.AbstractEventLoop, first_line: str) -> str` | 行末 `\` の継続入力をプロンプト `"... "` で収集し `\n` で連結して返す (async) |
 
 ## 4. コールバック仕様
-
-`RagPipeline` は `on_status` / `on_clear` キーワード引数でコールバックを受け取る。`CLIView` の対応メソッドをそのまま渡す。
-
-```python
-pipeline = RagPipeline(
-    ...,
-    on_status=view.rag_status,   # (msg: str) -> None
-    on_clear=view.rag_clear,     # () -> None
-)
-```
 
 `Orchestrator` は `on_turn_start` / `on_turn_end` / `on_error` キーワード引数でコールバックを受け取る。
 

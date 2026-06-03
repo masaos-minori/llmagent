@@ -228,8 +228,8 @@ def _run_migrations(db: SQLiteHelper, stmts: list[str]) -> None:
     for stmt in stmts:
         try:
             db.execute(stmt)
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001 — migration DDL may fail on already-applied statements (e.g. duplicate column); treat all as no-ops
+            logger.debug(f"Migration stmt skipped (already applied?): {e}")
     db.commit()
 
 

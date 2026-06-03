@@ -681,3 +681,52 @@ class _MockStream(httpx.AsyncByteStream):
 
     async def aclose(self) -> None:
         pass
+
+
+# ── apply_config ──────────────────────────────────────────────────────────────
+
+
+class TestLLMClientApplyConfig:
+    def _make_client(self) -> LLMClient:
+        from unittest.mock import AsyncMock
+
+        import httpx
+        from shared.llm_client import LLMClient
+
+        return LLMClient(
+            http=AsyncMock(spec=httpx.AsyncClient),
+            max_retries=3,
+            retry_base_delay=1.0,
+            temperature=0.2,
+            max_tokens=1024,
+        )
+
+    def test_apply_config_temperature(self) -> None:
+        client = self._make_client()
+        client.apply_config(temperature=0.5)
+        assert client._temperature == 0.5
+
+    def test_apply_config_max_tokens(self) -> None:
+        client = self._make_client()
+        client.apply_config(max_tokens=2048)
+        assert client._max_tokens == 2048
+
+    def test_apply_config_max_retries(self) -> None:
+        client = self._make_client()
+        client.apply_config(max_retries=5)
+        assert client._max_retries == 5
+
+    def test_apply_config_sse_params(self) -> None:
+        client = self._make_client()
+        client.apply_config(
+            sse_heartbeat_timeout=60.0, sse_malformed_retry=3, sse_reconnect_max=2
+        )
+        assert client._sse_heartbeat_timeout == 60.0
+        assert client._sse_malformed_retry == 3
+        assert client._sse_reconnect_max == 2
+
+    def test_apply_config_none_args_are_no_op(self) -> None:
+        client = self._make_client()
+        client.apply_config()
+        assert client._temperature == 0.2
+        assert client._max_tokens == 1024

@@ -17,6 +17,7 @@ import time
 from typing import Any
 
 import httpx
+import orjson
 from duckduckgo_search import DDGS
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -24,8 +25,9 @@ from shared.config_loader import ConfigLoader
 from shared.formatters import MAX_SNIPPET_CHARS, fmt_kvlog, truncate
 from shared.logger import Logger
 
+from mcp.dispatch import dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, dispatch_tool
+from mcp.server import MCPServer
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Config loading (config/web_search_mcp_server.toml)
@@ -126,7 +128,7 @@ async def _search_brave(query: str, max_results: int) -> list[SearchResult]:
             params=params,
         )
     resp.raise_for_status()
-    raw = resp.json().get("web", {}).get("results", [])
+    raw = orjson.loads(resp.content).get("web", {}).get("results", [])
     return [
         SearchResult(
             title=r.get("title", ""),
@@ -155,7 +157,7 @@ async def _search_bing(query: str, max_results: int) -> list[SearchResult]:
             params=params,
         )
     resp.raise_for_status()
-    raw = resp.json().get("webPages", {}).get("value", [])
+    raw = orjson.loads(resp.content).get("webPages", {}).get("value", [])
     return [
         SearchResult(
             title=r.get("name", ""),

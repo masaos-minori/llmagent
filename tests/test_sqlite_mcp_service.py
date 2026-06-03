@@ -155,7 +155,7 @@ class TestSqliteMCPService:
     @pytest.mark.asyncio
     async def test_insert_via_dispatch_returns_error_tuple(self, tmp_db: str) -> None:
         """dispatch_tool wraps ValueError into (msg, True)."""
-        from mcp.server import dispatch_tool  # noqa: PLC0415
+        from mcp.dispatch import dispatch_tool  # noqa: PLC0415
 
         svc = _make_service(tmp_db)
         result, is_err = await dispatch_tool(
@@ -170,7 +170,7 @@ class TestSqliteMCPService:
     async def test_unknown_db_via_dispatch_returns_error_tuple(
         self, tmp_db: str
     ) -> None:
-        from mcp.server import dispatch_tool  # noqa: PLC0415
+        from mcp.dispatch import dispatch_tool  # noqa: PLC0415
 
         svc = _make_service(tmp_db)
         result, is_err = await dispatch_tool(

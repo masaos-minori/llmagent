@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Generator
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
@@ -98,6 +99,19 @@ class _FakeSQLiteHelper:
 
     def commit(self) -> None:
         self._conn.commit()
+
+    @contextmanager
+    def begin_immediate(self) -> Generator[None]:
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+            self._conn.execute("COMMIT")
+        except BaseException:
+            try:
+                self._conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
 
 
 @pytest.fixture()

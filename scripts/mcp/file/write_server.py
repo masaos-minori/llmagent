@@ -21,6 +21,7 @@ from fastapi import FastAPI
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
+from mcp.dispatch import dispatch_tool
 from mcp.file.write_models import (
     CreateDirectoryRequest,
     CreateDirectoryResponse,
@@ -33,7 +34,7 @@ from mcp.file.write_models import (
 )
 from mcp.file.write_service import _service
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, ToolArgs, dispatch_tool
+from mcp.server import MCPServer, ToolArgs
 
 logger = Logger(__name__, "/opt/llm/logs/file-write-mcp.log")
 

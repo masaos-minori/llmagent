@@ -38,7 +38,7 @@ async def execute_one_tool_call(
     tc: dict,
     turn: int,
 ) -> tuple[str, str, dict, str, bool, str]:
-    """Parse, execute, and optionally summarise one tool_call dict.
+    """Parse, execute, and optionally summarize one tool_call dict.
 
     Returns (tc_id, name, args, full_text, is_error, llm_text).
     """

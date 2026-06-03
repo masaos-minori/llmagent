@@ -238,7 +238,7 @@ class TestAuditLog:
     def test_audit_log_emits_info(self, caplog: pytest.LogCaptureFixture) -> None:
         import logging
 
-        from mcp.server import _audit_log
+        from mcp.audit import _audit_log
 
         logger = logging.getLogger("test.audit")
         with caplog.at_level(logging.INFO, logger="test.audit"):
@@ -258,7 +258,7 @@ class TestAuditLog:
     ) -> None:
         import logging
 
-        from mcp.server import _audit_log
+        from mcp.audit import _audit_log
 
         logger = logging.getLogger("test.audit2")
         with caplog.at_level(logging.INFO, logger="test.audit2"):

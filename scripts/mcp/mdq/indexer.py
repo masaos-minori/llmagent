@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import sqlite3
+from pathlib import Path
 
 import orjson
 from shared.config_loader import get_config
@@ -94,39 +94,36 @@ class Indexer:
             raise
 
     def _get_file_hash(self, file_path: str) -> str:
-        """Calculate the hash of a file."""
+        """Calculate the MD5 hash of a file; returns empty string on error."""
         try:
             with open(file_path, "rb") as f:
-                file_hash = hashlib.md5()
+                file_hash = hashlib.md5()  # nosec B324 — MD5 used only for change detection, not security
                 while chunk := f.read(8192):
                     file_hash.update(chunk)
                 return file_hash.hexdigest()
-        except Exception as e:
+        except OSError as e:
             logger.error(f"Error calculating file hash for {file_path}: {e}")
             return ""
 
     def _get_file_mtime(self, file_path: str) -> float:
-        """Get the modification time of a file."""
+        """Return the mtime of a file; returns 0.0 on error."""
         try:
-            return os.path.getmtime(file_path)
-        except Exception as e:
+            return Path(file_path).stat().st_mtime
+        except OSError as e:
             logger.error(f"Error getting file mtime for {file_path}: {e}")
             return 0.0
 
     def index_paths(self, paths: list[str]) -> list[str]:
-        """Index a list of paths."""
+        """Index a list of file or directory paths; returns list of indexed file paths."""
         indexed_paths = []
         for path in paths:
-            if os.path.isdir(path):
-                # Index all .md files in the directory
-                for root, _, files in os.walk(path):
-                    for file in files:
-                        if file.endswith((".md", ".markdown", ".mdx")):
-                            file_path = os.path.join(root, file)
-                            self._index_file(file_path)
-                            indexed_paths.append(file_path)
-            elif os.path.isfile(path) and path.endswith((".md", ".markdown", ".mdx")):
-                # Index the single file
+            p = Path(path)
+            if p.is_dir():
+                for file_path in p.rglob("*"):
+                    if file_path.suffix in {".md", ".markdown", ".mdx"}:
+                        self._index_file(str(file_path))
+                        indexed_paths.append(str(file_path))
+            elif p.is_file() and p.suffix in {".md", ".markdown", ".mdx"}:
                 self._index_file(path)
                 indexed_paths.append(path)
         return indexed_paths
@@ -280,16 +277,7 @@ class Indexer:
                         cursor = conn.execute("SELECT last_insert_rowid()")
                         chunk_id = cursor.fetchone()[0]
 
-                        # Insert into FTS table
-                        conn.execute(
-                            """
-                            INSERT INTO md_chunks_fts (content, normalized_content)
-                            VALUES (?, ?)
-                        """,
-                            (content_text, normalized_content),
-                        )
-
-                        # Insert into FTS table with rowid
+                        # Link FTS row to chunk via explicit rowid for consistent retrieval.
                         conn.execute(
                             """
                             INSERT INTO md_chunks_fts (rowid, content, normalized_content)
@@ -372,9 +360,7 @@ class Indexer:
         return chunks
 
     def _normalize_content(self, content: str) -> str:
-        """Normalize content for FTS search."""
-        # Simple normalization - in a real implementation, this would use
-        # language-specific normalization (e.g., Sudachi for Japanese)
+        """Normalize content for FTS search (lowercase + strip)."""
         return content.lower().strip()
 
     def get_chunk(self, chunk_id: int) -> dict | None:
@@ -413,9 +399,7 @@ class Indexer:
             return None
 
     def refresh_paths(self, paths: list[str]) -> list[str]:
-        """Refresh the index for a list of paths."""
-        # This is a simplified implementation - in a real implementation,
-        # this would check for changes and update only modified files
+        """Refresh the index for the given paths (re-indexes all paths)."""
         return self.index_paths(paths)
 
     def get_stats(self) -> dict:
@@ -459,10 +443,8 @@ class Indexer:
             }
 
     def grep_chunks(self, pattern: str, paths: list[str] | None = None) -> list[dict]:
-        """Search chunks with a regex pattern."""
+        """Search chunks whose content contains pattern (substring match)."""
         try:
-            # This is a simplified implementation - in a real implementation,
-            # this would use the FTS table with regex support
             results = []
             with sqlite3.connect(self.db_path) as conn:
                 if paths:

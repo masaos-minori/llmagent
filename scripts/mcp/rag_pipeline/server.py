@@ -26,6 +26,7 @@ from fastapi import FastAPI, HTTPException
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
+from mcp.dispatch import dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.rag_pipeline.models import (
     RagDebugResponse,
@@ -35,7 +36,7 @@ from mcp.rag_pipeline.models import (
     RagSearchResponse,
 )
 from mcp.rag_pipeline.service import RagPipelineMCPService, _service
-from mcp.server import MCPServer, ToolArgs, dispatch_tool
+from mcp.server import MCPServer, ToolArgs
 
 logger = Logger(__name__, "/opt/llm/logs/rag-mcp.log")
 

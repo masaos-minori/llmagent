@@ -23,15 +23,14 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 
+from mcp.audit import _audit_log
 from mcp.cicd.models import _get_cfg
 from mcp.cicd.service import _service
+from mcp.dispatch import ToolArgs, dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import (
     MCPServer,
-    ToolArgs,
-    _audit_log,
     attach_auth_middleware,
-    dispatch_tool,
 )
 
 logger = logging.getLogger(__name__)

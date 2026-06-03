@@ -1,5 +1,8 @@
 """tests/test_cmd_context_refactor.py
 Unit tests for _ContextMixin._print_token_line extracted helper.
+
+_print_token_line now accepts a pre-built state dict produced by
+_collect_context_state(); these tests build that dict directly.
 """
 
 from __future__ import annotations
@@ -15,19 +18,25 @@ class _CtxMixin(_ContextMixin):
         self._ctx = ctx  # type: ignore[assignment]
 
 
-def _make_ctx(
+def _make_state(
     *,
-    stat_input_tokens: int | None = None,
-    context_token_limit: int = 0,
-    tokenize_url: str = "",
-) -> Any:
+    token_is_exact: bool = False,
+    token_estimate: int = 1000,
+    token_limit: int = 0,
+    tokenize_configured: bool = False,
+) -> dict:
+    """Build a minimal state dict for _print_token_line."""
+    return {
+        "token_is_exact": token_is_exact,
+        "token_estimate": token_estimate,
+        "token_limit": token_limit,
+        "tokenize_configured": tokenize_configured,
+    }
+
+
+def _make_ctx_mock() -> Any:
+    """Build a minimal AgentContext mock (unused after refactor but kept for _CtxMixin)."""
     ctx = MagicMock()
-    ctx.stat_input_tokens = stat_input_tokens
-    ctx.cfg.context_token_limit = context_token_limit
-    ctx.cfg.tokenize_url = tokenize_url
-    hist_mgr = MagicMock()
-    hist_mgr.count_tokens = MagicMock(return_value=1000)
-    ctx.services.hist_mgr = hist_mgr
     ctx.history = []
     return ctx
 
@@ -45,44 +54,43 @@ class TestTokenSourceLabel:
 
 class TestPrintTokenLine:
     def test_no_limit_prints_estimate(self, capsys: Any) -> None:
-        ctx = _make_ctx(context_token_limit=0)
-        mixin = _CtxMixin(ctx)
-        mixin._print_token_line(ctx, total_chars=4000)
+        mixin = _CtxMixin(_make_ctx_mock())
+        state = _make_state(token_limit=0, token_estimate=1000)
+        mixin._print_token_line(state)
         out = capsys.readouterr().out
         assert "Token estimate" in out
         # limit=disabled → no percentage shown
         assert "disabled" in out
 
     def test_with_limit_prints_percentage(self, capsys: Any) -> None:
-        ctx = _make_ctx(context_token_limit=8000)
-        mixin = _CtxMixin(ctx)
-        # hist_mgr.count_tokens returns 1000; limit=8000 → 12%
-        mixin._print_token_line(ctx, total_chars=4000)
+        mixin = _CtxMixin(_make_ctx_mock())
+        # token_estimate=1000; limit=8000 → 12%
+        state = _make_state(token_limit=8000, token_estimate=1000)
+        mixin._print_token_line(state)
         out = capsys.readouterr().out
         assert "limit=" in out
         assert "%" in out
         assert "[active]" in out
 
     def test_exact_token_shows_token_count_label(self, capsys: Any) -> None:
-        ctx = _make_ctx(stat_input_tokens=500)
-        mixin = _CtxMixin(ctx)
-        mixin._print_token_line(ctx, total_chars=2000)
+        mixin = _CtxMixin(_make_ctx_mock())
+        state = _make_state(token_is_exact=True, token_estimate=500, token_limit=0)
+        mixin._print_token_line(state)
         out = capsys.readouterr().out
         assert "Token count  " in out
         assert "LLM usage" in out
 
     def test_no_hist_mgr_uses_chars_fallback(self, capsys: Any) -> None:
-        ctx = _make_ctx(context_token_limit=0)
-        ctx.services.hist_mgr = None
-        mixin = _CtxMixin(ctx)
-        mixin._print_token_line(ctx, total_chars=400)
+        mixin = _CtxMixin(_make_ctx_mock())
+        # chars=400 // 4 = 100 (calculated by caller; pass pre-computed estimate)
+        state = _make_state(token_limit=0, token_estimate=100)
+        mixin._print_token_line(state)
         out = capsys.readouterr().out
-        # chars // 4 = 100
         assert "100" in out
 
     def test_tokenize_url_configured_uses_tokenize_label(self, capsys: Any) -> None:
-        ctx = _make_ctx(tokenize_url="http://localhost:8080/tokenize")
-        mixin = _CtxMixin(ctx)
-        mixin._print_token_line(ctx, total_chars=1000)
+        mixin = _CtxMixin(_make_ctx_mock())
+        state = _make_state(tokenize_configured=True, token_estimate=250, token_limit=0)
+        mixin._print_token_line(state)
         out = capsys.readouterr().out
         assert "/tokenize" in out

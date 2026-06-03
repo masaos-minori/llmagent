@@ -1,328 +1,437 @@
 # 02_implement_plan.md
 
-spec: `00_llm_spec_tobe.md`
-
----
-
 ## Goal
 
-`00_llm_spec_tobe.md` に基づく2項目の spec 変更を実装する。
-
-1. **Agent REPL changes** — `/chat` / `/code` 削除、プロンプト変更、`chat_url`/`code_url` 削除、in-process RAG のパイプライン除去
-2. **Shell execution policy** — 実行ポリシー明確化、リソース制限、専用 MCP への分離、監査ログ
+`agent/commands/` 配下の後方互換レイヤー・レガシーミックスイン間の暗黙依存を完全に除去する。
+アプリケーションロジックをサービスクラスへ、フォーマット処理をレンダラーへ移動し、
+明示的な公開 API・型付き戻り値モデルを確立する。
 
 ---
 
 ## Scope
 
-### In-scope (未実施)
+### 対象
 
-| 番号 | 項目 | 主な対象ファイル |
-|---|---|---|
-| S-1 | two-stage fetch を orchestrator から除去 | `scripts/agent/orchestrator.py` |
-| S-2 | RagPipeline 初期化を factory から除去 | `scripts/agent/factory.py` |
-| S-3 | `ServiceContainer.rag` フィールド削除 | `scripts/agent/context.py` |
-| S-4 | `AgentConfig` から RAG 関連フィールド全削除 | `scripts/agent/config.py` |
-| S-5 | `/rag` コマンド全削除 | `scripts/agent/commands/cmd_rag.py`, `registry.py` |
-| S-6 | startup banner の `use_search` 参照削除 | `scripts/agent/repl.py` |
-| S-7 | config hot-reload の RAG フィールド削除 | `scripts/agent/commands/cmd_config.py` |
-| S-8 | `config/agent.toml` から RAG 関連キー削除 | `config/agent.toml` |
-| S-9 | テスト更新 | `tests/test_cmd_rag.py`, `test_orchestrator.py`, `test_agent_rag.py` |
-
-### Out-of-scope (既実装済み)
-
-| 項目 | 確認箇所 |
+| ファイル | 変更種別 |
 |---|---|
-| `/chat` / `/code` コマンド除去 | `repl.py:58–78` — SLASH_COMMANDS に存在しない |
-| プロンプト `>` への変更 | `repl.py:88` — `return "> "` |
-| `chat_url`/`code_url` 削除・`llm_url` 統合 | `config/agent.toml:2` — `llm_url` のみ存在 |
-| auto-RAG injection 除去 | `orchestrator.py` handle_turn() に RAG 挿入なし |
-| `shared/protocols/shell.py` (ShellPolicy) | 実装済み |
-| `mcp/shell/service.py` (setrlimit, firejail, kill policy, 監査ログ) | 実装済み |
-| `config/shell_mcp_server.toml` | 実装済み |
+| `agent/commands/cmd_config.py` | `ConfigReloadService` 抽出、private 属性直書き廃止 |
+| `agent/commands/cmd_context.py` | DB 管理コマンドを `cmd_db.py` へ分離、`_cmd_system` / `_cmd_undo` 修正 |
+| `agent/commands/cmd_ingest.py` | クロスミックスイン依存 (`_render_history_md`) 廃止、IngestWorkflowService 抽出 |
+| `agent/commands/cmd_mcp.py` | `McpStatusService` / `McpInstallService` / Q&A 抽象インタフェース分離 |
+| `agent/commands/cmd_memory.py` | `MemoryLayer` private 属性アクセス廃止、公開 API 経由に統一 |
+| `agent/commands/cmd_rag.py` | `cmd_tooling.py` + `cmd_debug.py` + `cmd_notes.py` へ分割 |
+| `agent/commands/cmd_session.py` | タイトル生成定数をコンフィグ/専用サービスへ移動 |
+| `agent/memory/layer.py` | 公開 API (`list_entries` / `get_entry` / `pin_entry` / `delete_entry` / `prune`) 追加 |
+| `shared/llm_client.py` | `apply_config()` 公開セッター追加 |
+| `agent/history.py` | `apply_config()` + `force_compress()` 公開 API 追加 |
+| `shared/tool_executor.py` | `apply_config()` 公開セッター追加 |
+| 新規: `agent/services/config_reload.py` | `ConfigReloadService` クラス |
+| 新規: `agent/commands/cmd_db.py` | DB 管理コマンド (`/db` 系) |
+| 新規: `agent/commands/cmd_tooling.py` | ツール結果検査・プランモード (`cmd_rag.py` から改名) |
+| 新規: `agent/commands/cmd_debug.py` | デバッグ操作コマンド |
+| 新規: `agent/commands/cmd_notes.py` | ノート管理コマンド |
 
-### Not-in-scope (変更しない)
+### 対象外
 
-- `scripts/rag/` モジュール全体 — `mcp/rag_pipeline/service.py` が `RagPipeline` を使用するため存続
-- `scripts/mcp/rag_pipeline/` — rag-pipeline-mcp サービスは in-process ではなく別プロセス MCP のため除去対象外
+- LLM 通信層 (`shared/llm_client.py` の通信ロジック)
+- MCP トランスポート層
+- RAG パイプライン
+- テスト以外の MCP サーバ群
 
 ---
 
 ## Assumptions
 
-1. "Remove in-process RAG from the REPL pipeline flow" の除去対象は:
-   - `handle_turn()` 内の two-stage fetch パス
-   - `/rag` コマンド (手動 `/rag search` を含む)
-   - `factory.py` での `RagPipeline` インスタンス化
-   - `AgentConfig` の RAG 設定フィールド
-2. `scripts/rag/` モジュール自体は `mcp/rag_pipeline/service.py` が依存するため削除しない。
-3. `_budget_breakdown()` の `'rag'` キー (`cmd_context.py`) は、コンテキスト計測ユーティリティとして RAG 不使用時も `rag=0` を表示するだけで問題ないため変更しない。
+1. `AgentConfig` は現状どおりデータクラスとして維持する (`ctx.cfg.*` アクセスパターンは変更しない)
+2. `AgentContext.history` は引き続き `list[LLMMessage]` として維持する
+3. 新規サービスクラスは `agent/services/` ディレクトリ配下に配置する
+4. REPL の外部インタフェース (スラッシュコマンド名・引数仕様) は変更しない
+5. テストカバレッジは変更前後で同等以上を維持する (behavior-lock テストを先に取得する)
+6. `startup_mode="subprocess"` (HTTP サーバ) を持つ MCP サーバの設定変更には引き続き再起動が必要
 
 ---
 
 ## Unknowns
 
-全 Unknown は分析・ユーザー確認により解決済み。
+### U-1: system prompt の history 分離が圧縮ロジックに与える影響 [解決済み]
 
-| ID | 内容 | 解決方法 |
+**調査結果**: `HistoryManager._select_turns_to_compress()` は以下のロジックを持つ。
+
+```python
+system_msgs = [m for m in history if m["role"] == "system"]
+turn_msgs   = [m for m in history if m["role"] != "system"]
+# ... 圧縮後 ...
+return system_msgs + [summary_msg] + remaining
+```
+
+全 `role="system"` メッセージ (本物の system prompt・メモリ注入・圧縮サマリ) を一括して
+先頭に戻す設計。このため、本物の system prompt を `ctx.history` から取り除いて
+`ctx.system_prompt_content` に分離しても `compress()` 本体は無変更で動作する。
+
+**設計決定**: `ctx.history` には system prompt を含めない。
+`Orchestrator._run_turn()` で LLM に送るメッセージリストを構築する際に
+`ctx.system_prompt_content` を先頭に挿入する (history への常駐廃止)。
+この変更は Phase D にて実施。
+
+### U-2: `/undo` のターン境界定義 [解決済み]
+
+**調査結果**: `Orchestrator._handle_memory_injection()` は以下を実行する。
+
+```python
+ctx.history.append({"role": "system", "content": memory_block})  # memory injection
+```
+
+これは `ctx.history.append({"role": "user", ...})` の直前に行われる。
+結果として 1 ターンの history 構造は:
+
+```
+[...前ターンまで...]
+{"role": "system", "content": "[Relevant memories]\n..."}  ← メモリ注入 (optional)
+{"role": "user",   "content": "..."}
+{"role": "assistant", "content": "..." | tool_calls: [...]}
+{"role": "tool",   "content": "..."}  ← 0 個以上
+```
+
+現行の `_cmd_undo()` は `last_user_idx` から末尾を削除するため、
+直前のメモリ注入 `role="system"` メッセージが残留する (バグ)。
+
+**設計決定**: メモリ注入メッセージに `"_memory_injected": True` マーカーを付与し
+(Phase D の memory injection 修正と同時実施)、
+`_cmd_undo()` は `last_user_idx` から 1 つ前の `_memory_injected` メッセージまで
+さかのぼって削除する。Phase I にて実施。
+
+### U-3: `/mcp install` の非対話モードの仕様 [解決済み]
+
+**決定**: CLI フラグ方式を採用する。
+
+```
+/mcp install <name>                          # 従来の対話ウィザード
+/mcp install <name> --port 8015 --role git   # 非対話モード (全フラグ指定時)
+/mcp install <name> --port 8015              # 部分フラグ (未指定項目はウィザードで補完)
+```
+
+`CliInstallQA` は引数で渡された値があればそれを返し、なければ `input()` で問い合わせる実装とする。
+これにより対話・非対話の境界がフラグの有無で自然に制御される。
+
+### U-4: `/mcp status` の tool safety tier モデルとの整合 [解決済み]
+
+**調査結果**: `agent/tool_policy.py` の実際の tier 名:
+
+```python
+_TIER_TO_RISK = {
+    "READ_ONLY":       "none",
+    "WRITE_SAFE":      "none",
+    "WRITE_DANGEROUS": "medium",
+    "ADMIN":           "high",
+}
+```
+
+仕様書の分類との対応:
+
+| 仕様書 | 実装 tier | 説明 |
 |---|---|---|
-| U-1 | two-stage fetch は pipeline flow に含まれるか | `_finalize_answer()` 内から呼ばれ自動実行される → 含まれる |
-| U-2 | 手動 `/rag search` を残すか | ユーザー確認: 削除する |
-| U-3 | `bd['rag']` 参照 | `_budget_breakdown()` ユーティリティは変更不要 (rag=0になるだけ) |
-| U-4 | `rag/` モジュールを削除するか | `mcp/rag_pipeline/service.py` が依存するため削除しない |
+| read-only | `READ_ONLY` | 承認不要 |
+| write-safe | `WRITE_SAFE` | 承認不要 (ただし dry-run 推奨) |
+| dangerous | `WRITE_DANGEROUS` | medium リスク (承認プロンプト) |
+| admin | `ADMIN` | high リスク (承認必須) |
+
+**設計決定**: `/mcp status` の write 判定を現行の `cfg.tool_names ∩ WRITE_TOOLS` から
+`tool_safety_tiers` ベースの判定 (`WRITE_DANGEROUS` / `ADMIN` 含む) に変更する。
+`McpStatusService.probe_all()` が各サーバのツール名を `tool_safety_tiers` と照合して
+tier サマリを返す設計とする。Phase H にて実施。
+
+### U-5: `_render_history_md()` の移動先 [解決済み]
+
+**調査結果**: 参照箇所は 2 箇所のみ。
+- 定義: `cmd_rag.py:198` (`_ToolingMixin` のメソッド)
+- 参照: `cmd_ingest.py:50` (`self._render_history_md()` + `# type: ignore[attr-defined]` コメント)
+
+テストファイルからは参照なし。
+
+**設計決定**: `agent/commands/utils.py` に `render_history_md(history) -> str` として移動する。
+`cmd_tooling.py` と `cmd_ingest.py` の両方が `from agent.commands.utils import render_history_md`
+で import する。ミックスインのメソッドとしての提供を廃止し、クロスミックスイン依存を解消する。
 
 ---
 
 ## Affected areas
 
-```
-scripts/agent/orchestrator.py
-  ├── import: from rag.repository import fetch_full_document  → 削除
-  ├── _fetch_two_stage_context()   → 削除
-  ├── _maybe_two_stage_fetch()     → 削除
-  ├── _finalize_answer()           → two_stage_done 引数・分岐 削除、戻り値 str | None に変更
-  └── handle_turn()                → two_stage_done 変数 削除
-
-scripts/agent/factory.py
-  ├── import: from rag.pipeline import RagPipeline  → 削除
-  ├── _init_rag_pipeline()         → 関数ごと削除
-  └── build_agent_context()        → _init_rag_pipeline() 呼び出し 削除
-
-scripts/agent/context.py
-  └── ServiceContainer.rag: RagPipeline | None  → フィールド削除
-  └── import: from rag.pipeline import RagPipeline (TYPE_CHECKING)  → 削除
-
-scripts/agent/config.py
-  ├── AgentConfig フィールド削除:
-  │   rag_top_k, use_mqe, use_search, use_rrf, use_rerank, rag_min_score,
-  │   rag_service_url, use_rag_mcp, use_two_stage_fetch, two_stage_max_docs
-  ├── __post_init__(): _validate_rag_params() 呼び出し + rag バリデーション 削除
-  ├── _validate_rag_params()       → メソッドごと削除
-  └── _from_toml()                 → RAG フィールドの読み込み行 削除
-
-scripts/agent/repl.py
-  ├── SLASH_COMMANDS               → "/rag" 削除
-  ├── docstring                    → RagPipeline 記述 削除
-  └── _print_startup_banner()      → use_search 分岐を削除 (chunk_count 表示は DB 直参照のため維持 or 削除)
-
-scripts/agent/commands/cmd_rag.py
-  ├── import: from rag.types import ... → 削除
-  └── _RagMixin から削除:
-      _cmd_rag_search(), _print_rag_results(), _cmd_rag_toggle(), _cmd_rag()
-
-scripts/agent/commands/registry.py
-  ├── help text: /rag 関連行 削除
-  └── dispatch: ("/rag", self._cmd_rag, True) 削除
-
-scripts/agent/commands/cmd_config.py
-  ├── _cmd_config_show() → rag_top_k / use_mqe / use_search / use_rrf / use_rerank 表示行 削除
-  └── _apply_config_params() → rag フィールドの hot-reload 行 削除
-
-config/agent.toml
-  削除キー: use_search, use_mqe, use_rrf, use_rerank, rag_top_k, rag_min_score,
-            rag_service_url, use_rag_mcp, use_two_stage_fetch, two_stage_max_docs
-
-tests/test_cmd_rag.py
-  → use_search / _cmd_rag_search 関連テスト 削除 (他コマンドのテストは維持)
-
-tests/test_orchestrator.py
-  → two_stage_done / _finalize_answer シグネチャ変更への追従
-
-tests/test_agent_rag.py
-  → services.rag 参照テスト 削除
-```
+| エリア | 影響 |
+|---|---|
+| `agent/commands/registry.py` | ミックスイン名変更 (`_ToolingMixin` → `_ToolingMixin` + `_DebugMixin` + `_NotesMixin`)、インポート変更 |
+| `agent/history.py` | `force_compress()` / `apply_config()` 追加 |
+| `shared/llm_client.py` | `apply_config()` 追加 |
+| `shared/tool_executor.py` | `apply_config()` 追加 |
+| `agent/memory/layer.py` | 公開 API 5 件追加 |
+| `agent/memory/store.py` | `layer.py` から公開 API 経由で呼ばれるようになる (インタフェースは変更なし) |
+| `agent/memory/jsonl_store.py` | `prune()` API から呼ばれる (変更なし) |
+| `tests/test_cmd_config.py` | `_sync_services_to_cfg` → `ConfigReloadService` に追従 |
+| `tests/test_memory_layer.py` | 新 public API テスト追加 |
+| `tests/test_cmd_memory.py` (新規) | `_MemoryMixin` の public API 経由動作のテスト |
+| `docs/06_ref-agent-commands.md` | ミックスイン表・メソッド一覧更新 |
+| `docs/06_ref-agent-context.md` | system prompt 専用フィールド追記 (U-1 解決後) |
 
 ---
 
 ## Design
 
-### two-stage fetch 除去後の orchestrator pipeline
+### D-1: サービス公開セッター (Phase A)
+
+各サービスに `apply_config()` メソッドを追加し、コマンド層からの private 属性直書きを廃止する。
+
+```python
+# shared/llm_client.py
+def apply_config(
+    self, *,
+    temperature: float | None = None,
+    max_tokens: int | None = None,
+    max_retries: int | None = None,
+    retry_base_delay: float | None = None,
+    sse_heartbeat_timeout: float | None = None,
+    sse_malformed_retry: int | None = None,
+    sse_reconnect_max: int | None = None,
+    stream_retry_on_heartbeat_timeout: bool | None = None,
+    stream_retry_on_malformed_chunk: bool | None = None,
+) -> None: ...
+
+# agent/history.py
+def apply_config(
+    self, *,
+    char_limit: int | None = None,
+    compress_turns: int | None = None,
+    token_limit: int | None = None,
+    tokenize_url: str | None = None,
+) -> None: ...
+
+async def force_compress(self, history: list[LLMMessage]) -> list[LLMMessage]: ...
+
+# shared/tool_executor.py
+def apply_config(self, *, cache_ttl: float | None = None) -> None: ...
+```
+
+### D-2: ConfigReloadService (Phase C)
+
+```python
+# agent/services/config_reload.py
+class ConfigReloadService:
+    def __init__(self, ctx: AgentContext) -> None: ...
+    def apply(self, new_cfg: dict[str, Any]) -> ConfigReloadResult: ...
+
+@dataclass
+class ConfigReloadResult:
+    applied: list[str]       # 即時反映された設定キー
+    needs_restart: list[str] # 再起動必要な設定キー
+    skipped: list[str]       # 適用できなかった設定キー
+```
+
+`cmd_config.py` の `_apply_config_params()` とその 6 サブメソッドを `ConfigReloadService.apply()` に移管。
+`/reload` コマンドは `ConfigReloadService` を呼び出し、`ConfigReloadResult` を表示するだけにする。
+
+### D-3: MemoryLayer 公開 API (Phase B)
+
+```python
+# agent/memory/layer.py (追加分)
+def list_entries(
+    self, mem_type: str = "", limit: int = 10
+) -> list[MemoryEntry]: ...
+
+def get_entry(self, memory_id: str) -> MemoryEntry | None: ...
+def pin_entry(self, memory_id: str) -> bool: ...
+def unpin_entry(self, memory_id: str) -> bool: ...
+def delete_entry(self, memory_id: str) -> bool: ...
+def prune(self, days: int) -> int: ...  # JSONL + SQLite を一括削除し削除件数を返す
+```
+
+### D-4: system prompt 専用フィールド (Phase D)
+
+U-1 の調査結果に基づき実施。方針:
+- `AgentContext` に `system_prompt_content: str` フィールドを追加
+- `Orchestrator._append_user_message()` ターン前に history[0] を `system_prompt_content` から再構築
+- `_cmd_system()` は `ctx.system_prompt_content` を更新するのみ (history 直書き廃止)
+- memory injection は引き続き別 system ロールとして追記 (混在は許容)
+
+### D-5: cmd_rag.py → 3 ファイル分割 (Phase G)
+
+| 新ファイル | 内容 |
+|---|---|
+| `cmd_tooling.py` | `_ToolingMixin`: `/tool list`, `/tool show`, `/plan` |
+| `cmd_notes.py` | `_NotesMixin`: `/note add/list/delete` |
+| `cmd_debug.py` | `_DebugMixin`: `/debug audit/verbose/normal/toggle` |
+
+`_render_history_md()` は `agent/commands/utils.py` に移動し、`cmd_ingest.py` も直接 import する。
+
+### D-6: cmd_mcp.py 分割 (Phase H)
 
 ```
-現在:
-  handle_turn()
-    → _handle_memory_injection
-    → _handle_history_compression
-    → _handle_llm_turn
-        └── LLM loop
-              └── _finalize_answer(answer, two_stage_done)
-                    └── [NEED_CONTEXT] marker → _maybe_two_stage_fetch()
-                                                  → ctx.services.rag.last_reranked
-                                                  → fetch_full_document()
-                                                  → LLM 再実行
+cmd_mcp.py
+  ├── McpStatusService (agent/services/mcp_status.py)
+  │     probe_all() → list[McpServerStatus]
+  │     format_table() → str
+  └── McpInstallService (agent/services/mcp_install.py)
+        build_scaffold(answers: InstallAnswers) → ScaffoldResult
+        print_next_steps(result: ScaffoldResult) → None
 
-除去後:
-  handle_turn()
-    → _handle_memory_injection
-    → _handle_history_compression
-    → _handle_llm_turn
-        └── LLM loop
-              └── _finalize_answer(answer)  ← two_stage_done 引数なし
-                    ← [NEED_CONTEXT] 分岐なし
+InstallAnswers (dataclass):
+  port: int
+  role: str        # "generic" | "sqlite" | "shell" | "git" | "ci"
+  with_confd: bool
+
+class InstallQA(Protocol):
+    def ask_port(self) -> int: ...
+    def ask_role(self) -> str: ...
+    def ask_confd(self) -> bool: ...
+
+class CliInstallQA(InstallQA):
+    # 初期化時に CLI フラグ値 (port/role/with_confd) を受け取る。
+    # 指定済みの場合はそれを返し、None の場合は input() で問い合わせる。
+    def __init__(self, port: int | None, role: str | None, with_confd: bool | None): ...
 ```
 
-### /rag コマンド削除後の cmd_rag.py
+### D-7: /undo 改善 (Phase I)
 
-`_RagMixin` には `/tool`, `/note`, `/plan`, `/debug` の非 RAG ハンドラも含まれる。  
-RAG 関連メソッドのみ削除し、`_RagMixin` クラス自体と非 RAG メソッドは維持する。
+U-2 の調査結果に基づき実施。方針:
+- `ctx.session.delete_last_turn()` が DB 上の turn_id 単位で削除していることを確認
+- history 側は `last_user_idx` から末尾まで削除 (現行維持)
+- memory 注入メッセージ (`role="system"`, content がメモリ注入ブロック) を識別するマーカーを導入し、undo 時にも除去対象に含める
 
 ---
 
 ## Implementation steps
 
-### Step 1: `scripts/agent/orchestrator.py` — two-stage fetch 全除去
+各フェーズは順番に実施する。フェーズ内のステップは並列可。
+各フェーズ開始前に behavior-lock テストを取得すること (`python-test-and-fix` スキル参照)。
 
-1-a. `from rag.repository import fetch_full_document` インポート行を削除
+### Phase A: サービス公開 API 追加 (前提フェーズ)
 
-1-b. `_fetch_two_stage_context()` メソッド全体を削除
+1. `agent/history.py` に `apply_config()` + `force_compress()` 追加、テスト追加
+2. `shared/llm_client.py` に `apply_config()` 追加、テスト追加
+3. `shared/tool_executor.py` に `apply_config()` 追加、テスト追加
 
-1-c. `_maybe_two_stage_fetch()` メソッド全体を削除
+### Phase B: MemoryLayer 公開 API
 
-1-d. `_finalize_answer()` の変更:
-   - シグネチャから `two_stage_done: bool` 引数を削除
-   - `if not two_stage_done:` ブロック (`_maybe_two_stage_fetch` 呼び出し) を削除
-   - 戻り値型を `tuple[str | None, bool]` → `str | None` に変更
+4. `agent/memory/layer.py` に `list_entries()` / `get_entry()` / `pin_entry()` / `unpin_entry()` / `delete_entry()` / `prune()` 追加
+5. `agent/commands/cmd_memory.py` を公開 API 経由に書き換え、`_memory_prune` の `SQLiteHelper` 直呼び廃止
+6. テスト追加
 
-1-e. `handle_turn()` の変更:
-   - `two_stage_done = False` 初期化を削除
-   - `_finalize_answer(answer, two_stage_done)` → `_finalize_answer(answer)` に変更
-   - `answer, two_stage_done = await ...` → `answer = await ...` に変更
+### Phase C: ConfigReloadService 抽出
 
-### Step 2: `scripts/agent/factory.py` — RagPipeline 初期化除去
+7. `agent/services/` ディレクトリ作成
+8. `agent/services/config_reload.py` に `ConfigReloadService` / `ConfigReloadResult` 実装
+9. `cmd_config.py` の `_apply_config_params()` + 6 サブメソッドを `ConfigReloadService` に委譲
+10. `_sync_services_to_cfg()` を `apply_config()` 経由に書き換え (private 属性廃止)
+11. テスト更新
 
-2-a. `from rag.pipeline import RagPipeline` インポート行を削除
+### Phase D: system prompt 専用フィールド (U-1 解決後)
 
-2-b. `_init_rag_pipeline()` 関数全体を削除
+12. `AgentContext` に `system_prompt_content: str` 追加
+13. `Orchestrator` のターン開始時に `history[0]` を `system_prompt_content` から再構築
+14. `_cmd_system()` を `ctx.system_prompt_content` 更新に変更
+15. `session_load` (セッション復元) での system prompt 復元も専用フィールド経由に変更
+16. テスト追加
 
-2-c. `build_agent_context()` から `_init_rag_pipeline(ctx, view)` 呼び出しを削除
+### Phase E: force_compress + _cmd_compact 修正
 
-### Step 3: `scripts/agent/context.py` — ServiceContainer.rag 削除
+17. `_cmd_compact()` の `_char_limit` 直書きを `hist_mgr.force_compress()` に置き換え
 
-3-a. `if TYPE_CHECKING: from rag.pipeline import RagPipeline` ブロックを削除
+### Phase F: cross-mixin 依存除去
 
-3-b. `ServiceContainer.rag: RagPipeline | None = None` フィールドを削除
+18. `agent/commands/utils.py` 作成、`_render_history_md()` を移動
+19. `cmd_ingest.py` の暗黙 `_render_history_md` 参照を `from agent.commands.utils import render_history_md` に変更
 
-### Step 4: `scripts/agent/config.py` — RAG フィールド全削除
+### Phase G: cmd_rag.py → 3 ファイル分割
 
-4-a. `AgentConfig` から以下フィールドを削除:
-   `rag_top_k`, `use_mqe`, `use_search`, `use_rrf`, `use_rerank`, `rag_min_score`,
-   `rag_service_url`, `use_rag_mcp`, `use_two_stage_fetch`, `two_stage_max_docs`
+20. `cmd_tooling.py` / `cmd_notes.py` / `cmd_debug.py` 作成
+21. `registry.py` のインポートと `CommandRegistry` の MRO を更新
+22. `cmd_rag.py` 削除
+23. テスト・ドキュメント更新
 
-4-b. `__post_init__()` から `self._validate_rag_params()` 呼び出しを削除
+### Phase H: cmd_mcp.py 分割
 
-4-c. `_validate_rag_params()` メソッドごと削除
+24. `agent/services/mcp_status.py` 実装
+25. `agent/services/mcp_install.py` + `InstallQA` Protocol 実装
+26. `cmd_mcp.py` を薄いディスパッチャに書き換え
 
-4-d. `_from_toml()` から各 RAG フィールドの読み込み行を削除
+### Phase I: cmd_context.py 分割 + /undo 改善
 
-### Step 5: `scripts/agent/repl.py` — /rag 削除・startup banner 修正
+27. `agent/commands/cmd_db.py` 作成、`/db` 系メソッドを移動
+28. `_cmd_undo()` を U-2 解決後の論理ターン単位で修正
+29. `registry.py` 更新
 
-5-a. `SLASH_COMMANDS` リストから `"/rag"` を削除
+### Phase J: cmd_session.py タイトル生成設定化
 
-5-b. `_print_startup_banner()` の `ctx.cfg.use_search` 分岐を削除
-   - `use_search` を参照せず常に `_get_chunk_count()` を表示するか、chunk_count 表示自体を削除
-
-5-c. docstring・クラスコメントから `RagPipeline` の記述を削除
-
-### Step 6: `scripts/agent/commands/cmd_rag.py` — RAG メソッド削除
-
-6-a. `from rag.types import LLMMessage, RagHit` の `RagHit` を削除 (LLMMessage は他メソッドで使用)
-
-6-b. 以下メソッドを削除:
-   - `_print_rag_results()`
-   - `_cmd_rag_search()`
-   - `_cmd_rag_toggle()`
-   - `_cmd_rag()`
-
-### Step 7: `scripts/agent/commands/registry.py` — /rag dispatch 削除
-
-7-a. help text から `/rag` 関連行を削除
-
-7-b. dispatch テーブルから `("/rag", self._cmd_rag, True)` を削除
-
-### Step 8: `scripts/agent/commands/cmd_config.py` — RAG フィールド表示・hot-reload 削除
-
-8-a. `_cmd_config_show()` から `rag_top_k` / `use_mqe` / `use_search` / `use_rrf` / `use_rerank` 表示行を削除
-
-8-b. `_apply_config_params()` から RAG フィールドの hot-reload 行を削除
-
-### Step 9: `config/agent.toml` — RAG 関連キー削除
-
-削除するキー:
-`use_search`, `use_mqe`, `use_rrf`, `use_rerank`, `rag_top_k`, `rag_min_score`,
-`rag_service_url`, `use_rag_mcp`, `use_two_stage_fetch`, `two_stage_max_docs`
-(コメント行も含む)
-
-### Step 10: テスト更新
-
-10-a. `tests/test_cmd_rag.py` — `use_search` / `_cmd_rag_search` 関連テスト削除。`/tool`, `/note`, `/debug` テストは維持。
-
-10-b. `tests/test_orchestrator.py` — `two_stage_done` / `_finalize_answer` 引数変更への追従確認
-
-10-c. `tests/test_agent_rag.py` — `ctx.services.rag` 参照テストを削除または更新
-
-### Step 11: バリデーション実行 (次節参照)
+30. `AgentConfig` に `title_llm_temperature: float = 0.1` / `title_llm_max_tokens: int = 20` 追加
+31. `_generate_session_title()` をコンフィグ参照に変更
+32. `config/agent.toml` に設定項目追記
 
 ---
 
 ## Validation plan
 
+各フェーズ完了時に以下を実施する。
+
 ```bash
-# 1. フォーマット・lint
-ruff format scripts/ && ruff check scripts/ tests/ --fix && ruff check scripts/ tests/
-
-# 2. 型チェック
-mypy scripts/ tests/
-
-# 3. import layer 検証
-PYTHONPATH=scripts lint-imports
-
-# 4. テスト
-pytest tests/ -v
-
-# 5. カバレッジ
-coverage run -m pytest tests/ && coverage xml
-diff-cover coverage.xml --compare-branch=master --fail-under=90
-
-# 6. pre-commit 全ゲート
-pre-commit run --all-files
+ruff check scripts/ tests/
+mypy scripts/ --ignore-missing-imports
+python -m pytest tests/ -x -q
+lint-imports  # import layer contract 確認
 ```
+
+フェーズ別重点確認:
+
+| フェーズ | 重点テスト |
+|---|---|
+| A | `test_llm_client.py` / `test_history.py` / `agent/test_tool_executor.py` |
+| B | `test_memory_layer.py` / 新 `test_cmd_memory.py` |
+| C | `test_cmd_config.py` (全メソッド) |
+| D | `test_orchestrator.py` / セッション復元シナリオ |
+| G | `test_cmd_rag.py` → `test_cmd_tooling.py` に移行 |
+| H | `test_cmd_mcp.py` |
+| I | `test_cmd_context.py` / undo シナリオ (tool メッセージ混在) |
 
 ---
 
 ## Risks
 
-### R-1: `_finalize_answer()` 戻り値型変更による型エラー
+### R-1: system prompt 分離による圧縮・セッション復元の回帰 [中 (U-1 解決で低減)]
 
-**内容**: `_finalize_answer()` の戻り値が `tuple[str | None, bool]` → `str | None` に変わる。LLM loop 内の呼び出し箇所を全件修正しないと mypy エラー。
+U-1 の調査で `compress()` は `role="system"` を一括分離・再付与する設計と確認済み。
+`ctx.history` から system prompt を除外しても圧縮ロジック本体への影響はない。
+残るリスクは `_load_session()` でのセッション復元時に `history[0]` として system prompt を
+挿入している箇所と、`/export` での history 出力に system prompt が含まれなくなる点。
 
-**対処**: 実装後に `mypy scripts/` を実行し、型エラーを全件解消してから pytest を実行する。
+**対処**:
+- `_load_session()` は `ctx.system_prompt_content` を復元するのみとし、history への直接挿入を廃止
+- `/export` コマンドは `ctx.system_prompt_content` を先頭に付与してエクスポートする
+- Phase D 実施前に `_load_session()` の全参照を洗い出し、behavior-lock テストを取得する
 
-### R-2: `cmd_rag.py` の `LLMMessage` import 残留
+### R-2: MRO の変化による `CommandRegistry` 動作変化 [中]
 
-**内容**: `_RagMixin` には非 RAG メソッド (`_render_history_md`) が `LLMMessage` を使う。`RagHit` のみ除去し `LLMMessage` は残す必要がある。
+ミックスイン数が増加 (現在 7 → 最大 10) することで Python の MRO (Method Resolution Order) が変化し、
+同名メソッドの解決順が変わる可能性がある。
 
-**対処**: Step 6-a でインポートを精査し、`RagHit` のみ除去する。
+**対処**: Phase G・I 後に `registry.py` の MRO を明示的に `__init_subclass__` または
+`type(CommandRegistry).__mro__` で確認し、意図しないオーバーライドが発生していないことをテストで保証する。
 
-### R-3: startup banner の `use_search` 参照
+### R-3: `apply_config()` でのスレッドセーフ性 [中]
 
-**内容**: `repl.py:237` — `chunk_count = self._get_chunk_count() if ctx.cfg.use_search else "disabled"` が `use_search` フィールド削除後に型エラーになる。
+`ToolExecutor._cache_ttl` への書き込みは現在ロックなし。`apply_config()` 導入後も
+キャッシュアクセスと TTL 更新が競合する可能性がある (asyncio シングルスレッドなので通常は問題なし)。
 
-**対処**: `_get_chunk_count()` を常時呼ぶか、DB チャンク数表示行自体を削除する。`_get_chunk_count()` は SQLite DB に直接アクセスするため `use_search` フラグ不要。
+**対処**: asyncio イベントループ内での呼び出しであることをコメントで明記し、
+threading を使う場合は `asyncio.Lock` でガードするよう注記する。
 
-### R-4: test_cmd_rag.py の残存 use_search 参照
+### R-4: `cmd_rag.py` 改名によるインポート参照漏れ [低]
 
-**内容**: `tests/test_cmd_rag.py` が `cfg.use_search` に依存するテストを含む。フィールド削除後に ImportError/AttributeError が発生する。
+`registry.py` 以外に `cmd_rag.py` を import しているファイルが存在した場合に実行時エラー。
 
-**対処**: Step 10-a で該当テストを削除し、`/tool`, `/note`, `/debug` テストのみ残す。
+**対処**: Phase G 前に `grep -r "cmd_rag" scripts/ tests/` で全参照を洗い出してから実施する。
 
-### R-5: rag-pipeline-mcp への影響なし (確認)
+### R-5: `MemoryLayer.prune()` の JSONL / SQLite 整合性 [低 → 解決済み]
 
-**内容**: `mcp/rag_pipeline/service.py` は `rag.pipeline.RagPipeline` を lazy import で使用。`scripts/rag/` を削除しないため影響なし。
+**調査結果**: `JsonlMemoryStore` が公開するのは `append()` / `read_all()` のみ。
+削除 API は存在しない。JSONL は append-only の source of truth であり物理削除は行わない設計。
 
-**対処**: 確認のみ (変更不要)。
-
-### R-6: `AgentConfig` フィールド削除による既存設定ファイルのトランプ
-
-**内容**: `config/agent.toml` に削除対象キーが残っている場合、`_from_toml()` が `cfg.get()` で読み込む際は `None` を返すだけで問題は起きない。ただし `toml` のキーを削除しないと余剰設定が残る。
-
-**対処**: Step 9 で `config/agent.toml` からも対象キーを明示的に削除する。
+**設計決定**: `MemoryLayer.prune(days)` は SQLite (`memories` テーブル + `memories_fts`) のみ削除する。
+JSONL のエントリは残留するが、SQLite から除外されるため実行時には参照されない。
+これは既存の `_memory_prune()` が `SQLiteHelper` 経由でのみ削除している現行動作と同じ意味論。
+リスクは低い。

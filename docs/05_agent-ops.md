@@ -4,7 +4,7 @@
 
 ## 1. エージェント起動
 
-`agent.py` は CLI REPL ツール。`deploy/deploy.sh` 実行後、LLM サービス (llama-chat-llm または llama-coding-llm) が起動済みであることを確認してから起動。
+`agent.py` は CLI REPL ツール。`deploy/deploy.sh` 実行後、LLM サービスが起動済みであることを確認してから起動。
 
 ```bash
 # agent.py とパッケージ群を配置する (deploy.sh で一括実施可能)
@@ -41,31 +41,27 @@ CLI セッション例:
 
 ```
 $ python /opt/llm/scripts/agent.py
-DB: 12,345 chunks | Tools: 14 | Mode: chat
+DB: 12,345 chunks | Tools: 14
 Type /help for commands, /exit to quit.
 
-agent[chat]> llama.cpp の最新バージョンを調べて教えてください
+agent[:#1]> llama.cpp の最新バージョンを調べて教えてください
   [tool] search_web({"query": "llama.cpp latest version"})
   [tool] search_web → 28 lines / 1842 chars (truncated)
 
 llama.cpp の最新バージョンは b5210 (2025-05 時点) です。...
 
-agent[chat]> /mcp
+agent[:#1]> /mcp
 Transport : http
-  web-search-mcp  :8004  (1 tool)
+  web-search-mcp  :8004  startup=persistent  role=web-search  OK
     - search_web
-  file-mcp        :8005  (8 tools)
+  file-mcp        :8005  startup=persistent  role=file        OK
     - list_directory
     - ...
-  github-mcp      :8006  (5 tools)
+  github-mcp      :8006  startup=persistent  role=github      OK
     - github_search_repositories
     - ...
-Connectivity:
-  web-search-mcp  :8004              OK
-  file-mcp        :8005              OK
-  github-mcp      :8006              OK
 
-agent[chat]> /exit
+agent[:#1]> /exit
 $
 ```
 
@@ -103,18 +99,17 @@ tail -f /opt/llm/logs/audit.log | jq 'select(.event == "turn_end") | {turn_id: .
 
 ### 7.2 OpenTelemetry スパンを確認する (otel_enabled=true, otel_endpoint="")
 
-`config/agent.toml` で `otel_enabled: true` かつ `otel_endpoint: ""` に設定すると、
+`config/otel.toml` で `otel_enabled = true` かつ `otel_endpoint = ""` に設定すると、
 ConsoleSpanExporter がスパンを標準出力 / `agent.log` に書き出す。
 
 ```bash
-# agent.log でスパン名 ("rag", "compress", "llm") を含む行を抽出
+# agent.log でスパン名 ("compress", "llm") を含む行を抽出
 tail -f /opt/llm/logs/agent.log | grep '"name":'
 ```
 
 期待出力例 (スパン JSON の一部):
 
 ```json
-{"name": "rag", "context": {"trace_id": "0x...", "span_id": "0x..."}, ...}
 {"name": "compress", ...}
 {"name": "llm", "attributes": {"model_url": "http://127.0.0.1:8002/..."}, ...}
 ```
@@ -141,7 +136,7 @@ tail -f /opt/llm/logs/audit.log \
 ### 7.4 /context コマンドで token / memory 状態を確認する
 
 ```
-agent[chat]> /context
+agent[:#1]> /context
 Context state:
   Messages        : 12
   Total chars     : 4,321
@@ -154,10 +149,9 @@ Context state:
   Token limit     : disabled
   Memory layer    : disabled
 Budget breakdown:
-  system        :    1,234 chars ( 28%)
-  rag           :    2,000 chars ( 46%)
-  history       :      987 chars ( 22%)
-  tool_results  :      100 chars (  2%)
+  system        :    1,234 chars ( 38%)
+  history       :    1,987 chars ( 61%)
+  tool_results  :      100 chars (  3%)
 ```
 
 `Memory layer : enabled (entries=N)` と表示された場合、MemoryLayer が有効で N 件のエントリが存在する。

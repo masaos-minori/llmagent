@@ -19,6 +19,7 @@ from fastapi import FastAPI
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
+from mcp.dispatch import dispatch_tool
 from mcp.file.delete_models import (
     DeleteDirectoryRequest,
     DeleteDirectoryResponse,
@@ -27,7 +28,7 @@ from mcp.file.delete_models import (
 )
 from mcp.file.delete_service import _service
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, ToolArgs, dispatch_tool
+from mcp.server import MCPServer, ToolArgs
 
 logger = Logger(__name__, "/opt/llm/logs/file-delete-mcp.log")
 

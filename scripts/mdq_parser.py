@@ -33,47 +33,36 @@ class DocumentOutline(BaseModel):
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def parse_markdown_outline(content: str) -> DocumentOutline:
-    """Parse Markdown content and extract outline information."""
-    headings = []
-    tags = []
+def _parse_tags_line(tags_line: str) -> list[str]:
+    """Parse a 'tags:' value into a list of tag strings.
 
-    # Split content into lines
-    lines = content.splitlines()
+    Handles both YAML array format ('[a, b]') and comma-separated format ('a, b').
+    """
+    if tags_line.startswith("["):
+        inner = tags_line[1:-1]  # strip brackets
+        return [t.strip().strip("'\"") for t in inner.split(",") if t.strip()]
+    return [t.strip() for t in tags_line.split(",") if t.strip()]
 
-    # Look for tags in the frontmatter (if any)
+
+def _extract_frontmatter_tags(lines: list[str]) -> list[str]:
+    """Scan lines before the first '---' fence for a 'tags:' entry."""
     for line in lines:
         if line.startswith("---"):
-            # This is a frontmatter block
-            break
+            return []
         if line.startswith("tags:"):
-            # Extract tags from the line
-            tags_line = line[5:].strip()
-            if tags_line.startswith("["):
-                # Handle array format
-                tags_str = tags_line[1:-1]  # Remove brackets
-                tags = [
-                    tag.strip().strip("'\"")
-                    for tag in tags_str.split(",")
-                    if tag.strip()
-                ]
-            else:
-                # Handle comma-separated format
-                tags = [tag.strip() for tag in tags_line.split(",") if tag.strip()]
-            break
+            return _parse_tags_line(line[5:].strip())
+    return []
 
-    # Parse headings
-    for i, line in enumerate(lines):
-        # Match Markdown headings (## Heading, ### Heading, etc.)
-        heading_match = re.match(r"^(#+)\s+(.*)", line)
-        if heading_match:
-            level = len(heading_match.group(1))
-            text = heading_match.group(2).strip()
 
-            # Add to headings list
-            headings.append({"level": level, "text": text, "line_number": i + 1})
-
-    # Create and return the outline
+def parse_markdown_outline(content: str) -> DocumentOutline:
+    """Parse Markdown content and extract outline information."""
+    lines = content.splitlines()
+    tags = _extract_frontmatter_tags(lines)
+    headings = [
+        {"level": len(m.group(1)), "text": m.group(2).strip(), "line_number": i + 1}
+        for i, line in enumerate(lines)
+        if (m := re.match(r"^(#+)\s+(.*)", line))
+    ]
     return DocumentOutline(path="", headings=headings, tags=tags)
 
 

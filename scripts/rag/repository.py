@@ -34,7 +34,7 @@ _sd_tkn: Any = None
 _sd_split_c: Any = None
 
 
-def _get_sudachi_tokenizer() -> tuple:
+def _get_sudachi_tokenizer() -> tuple[Any, Any]:
     """Lazy-initialize Sudachi tokenizer for FTS5 Japanese query POS filtering."""
     global _sd_tkn, _sd_split_c
     if _sd_tkn is None:

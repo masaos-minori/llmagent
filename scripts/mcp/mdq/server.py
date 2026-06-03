@@ -17,6 +17,8 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 
+from mcp.audit import _audit_log
+from mcp.dispatch import dispatch_tool
 from mcp.mdq.models import (
     GetChunkRequest,
     GrepDocsRequest,
@@ -28,7 +30,7 @@ from mcp.mdq.models import (
 )
 from mcp.mdq.service import MdqService
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, ToolArgs, _audit_log, dispatch_tool
+from mcp.server import MCPServer, ToolArgs
 
 logger = logging.getLogger(__name__)
 

@@ -140,7 +140,8 @@ class ReadFileService:
         if head is not None:
             return "".join(all_lines[:head])
         # model_validator guarantees tail is not None when head is None
-        assert tail is not None
+        if tail is None:
+            return content
         return "".join(all_lines[-tail:])
 
     @staticmethod

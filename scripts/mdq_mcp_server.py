@@ -9,6 +9,7 @@ documents with heading-level granularity.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Coroutine
 from typing import Any
 
 from fastapi import FastAPI
@@ -42,7 +43,17 @@ class MdqMCPServer(MCPServer):
 
     def __init__(self) -> None:
         self._service = MdqService()
-        # Define the tools this server provides
+        # Map tool name → (async handler, request model) for O(1) dispatch
+        _H = dict[str, tuple[Callable[..., Coroutine[Any, Any, str]], type[Any]]]
+        self._handlers: _H = {
+            "search_docs": (self._service.search_docs, SearchDocsRequest),
+            "get_chunk": (self._service.get_chunk, GetChunkRequest),
+            "outline": (self._service.outline, OutlineRequest),
+            "index_paths": (self._service.index_paths, IndexPathsRequest),
+            "refresh_index": (self._service.refresh_index, RefreshIndexRequest),
+            "stats": (self._service.stats, StatsRequest),
+            "grep_docs": (self._service.grep_docs, GrepDocsRequest),
+        }
         self.mcp_tools = [
             {
                 "type": "function",
@@ -161,30 +172,14 @@ class MdqMCPServer(MCPServer):
         ]
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
-        """Dispatch tool calls to the appropriate handler."""
-        try:
-            if name == "search_docs":
-                result = await self._service.search_docs(SearchDocsRequest(**args))
-                return result, False
-            if name == "get_chunk":
-                result = await self._service.get_chunk(GetChunkRequest(**args))
-                return result, False
-            if name == "outline":
-                result = await self._service.outline(OutlineRequest(**args))
-                return result, False
-            if name == "index_paths":
-                result = await self._service.index_paths(IndexPathsRequest(**args))
-                return result, False
-            if name == "refresh_index":
-                result = await self._service.refresh_index(RefreshIndexRequest(**args))
-                return result, False
-            if name == "stats":
-                result = await self._service.stats(StatsRequest(**args))
-                return result, False
-            if name == "grep_docs":
-                result = await self._service.grep_docs(GrepDocsRequest(**args))
-                return result, False
+        """Dispatch a tool call to the registered service handler."""
+        handler_entry = self._handlers.get(name)
+        if handler_entry is None:
             return f"Unknown tool: {name}", True
+        method, request_cls = handler_entry
+        try:
+            result = await method(request_cls(**args))
+            return result, False
         except Exception as e:
             logger.error(f"Error in dispatch: {e}", exc_info=True)
             return f"Tool error: {e}", True

@@ -26,6 +26,7 @@ from fastapi import FastAPI
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
+from mcp.dispatch import dispatch_tool
 from mcp.file.read_models import (
     DirectoryTreeRequest,
     DirectoryTreeResponse,
@@ -47,7 +48,7 @@ from mcp.file.read_models import (
 from mcp.file.read_service import _service
 from mcp.file.read_tools import _MCP_TOOLS
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, ToolArgs, dispatch_tool
+from mcp.server import MCPServer, ToolArgs
 
 logger = Logger(__name__, "/opt/llm/logs/file-read-mcp.log")
 

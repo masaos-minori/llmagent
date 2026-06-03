@@ -211,6 +211,12 @@ class HistoryManager:
         The most-recent protect_turns * 2 non-system messages are excluded from
         compression to preserve immediate context.  Returns None when there are
         not enough turn messages left after protection to compress.
+
+        Uses classification to prioritize compression:
+        - 'temporary' messages (tool results) are compressed first
+        - 'temporary_reasoning' messages (assistant with tool_calls) are compressed next
+        - 'factual' messages (system) are preserved
+        - 'history' messages (user/assistant) are compressed last
         """
         system_msgs = [m for m in history if m["role"] == "system"]
         turn_msgs = [m for m in history if m["role"] != "system"]
@@ -220,11 +226,35 @@ class HistoryManager:
         # Need at least n_compress + n_protect messages to proceed
         if len(turn_msgs) <= n_compress + n_protect:
             return None
-        # Compress the oldest n_compress messages; protect the trailing n_protect ones
+
+        # Classify messages by compression priority
+        classified = [(self._classify(m), m) for m in turn_msgs]
+
+        # Separate by classification priority
+        temporary = [m for cls, m in classified if cls == "temporary"]
+        temporary_reasoning = [
+            m for cls, m in classified if cls == "temporary_reasoning"
+        ]
+        factual = [m for cls, m in classified if cls == "factual"]
+        history_msgs = [m for cls, m in classified if cls == "history"]
+
+        # Compress in priority order: temporary, temporary_reasoning, then history
+        # Preserve factual messages (system context) and protect the most recent turns
+        compressible = temporary + temporary_reasoning + history_msgs
         protected_tail = turn_msgs[-n_protect:] if n_protect > 0 else []
-        compressible = turn_msgs[: len(turn_msgs) - n_protect]
+
+        # Ensure we don't compress protected messages
+        compressible = [m for m in compressible if m not in protected_tail]
+
+        # Select oldest messages for compression
         to_compress = compressible[:n_compress]
-        remaining = compressible[n_compress:] + protected_tail
+        remaining = [
+            m for m in compressible[n_compress:] if m not in protected_tail
+        ] + protected_tail
+
+        # Preserve factual messages in the final result
+        remaining = factual + remaining
+
         return system_msgs, to_compress, remaining
 
     def _build_history_text(self, messages: list[LLMMessage]) -> str:
@@ -268,9 +298,27 @@ class HistoryManager:
         )
         if summary_text is None:
             return history
+
+        # Reuse existing summary if it exists, otherwise create new one
+        existing_summary = None
+        for msg in system_msgs:
+            content = msg.get("content", "")
+            if isinstance(content, str) and content.startswith(
+                "[Conversation summary]"
+            ):
+                existing_summary = msg
+                break
+
+        if existing_summary:
+            # Append to existing summary instead of creating new one
+            new_summary_content = f"{existing_summary['content']}\n\n{summary_text}"
+        else:
+            # Create new summary
+            new_summary_content = f"[Conversation summary]\n{summary_text}"
+
         summary_msg: LLMMessage = {
             "role": "system",
-            "content": f"[Conversation summary]\n{summary_text}",
+            "content": new_summary_content,
         }
         n = len(to_compress)
         self.stat_compress_count += 1

@@ -35,7 +35,10 @@ scripts/agent/commands/cmd_session.py      →  /opt/llm/scripts/agent/commands/
 scripts/agent/commands/cmd_mcp.py          →  /opt/llm/scripts/agent/commands/cmd_mcp.py
 scripts/agent/commands/cmd_config.py       →  /opt/llm/scripts/agent/commands/cmd_config.py
 scripts/agent/commands/cmd_context.py      →  /opt/llm/scripts/agent/commands/cmd_context.py
-scripts/agent/commands/cmd_rag.py          →  /opt/llm/scripts/agent/commands/cmd_rag.py
+scripts/agent/commands/cmd_tooling.py      →  /opt/llm/scripts/agent/commands/cmd_tooling.py
+scripts/agent/commands/cmd_notes.py        →  /opt/llm/scripts/agent/commands/cmd_notes.py
+scripts/agent/commands/cmd_debug.py        →  /opt/llm/scripts/agent/commands/cmd_debug.py
+scripts/agent/commands/cmd_db.py           →  /opt/llm/scripts/agent/commands/cmd_db.py
 scripts/agent/commands/cmd_ingest.py       →  /opt/llm/scripts/agent/commands/cmd_ingest.py
 scripts/agent/commands/cmd_memory.py       →  /opt/llm/scripts/agent/commands/cmd_memory.py
 scripts/mcp/models.py                      →  /opt/llm/scripts/mcp/models.py
@@ -194,10 +197,14 @@ conf.d/github-mcp                          →  /etc/conf.d/github-mcp
   │   │       ├─ cmd_session.py               # /session コマンド
   │   │       ├─ cmd_mcp.py                   # /mcp コマンド
   │   │       ├─ cmd_config.py                # /config, /reload コマンド
-  │   │       ├─ cmd_context.py               # /context コマンド (git ブランチ情報含む)
-  │   │       ├─ cmd_rag.py                   # /tool, /note, /plan, /debug コマンド (旧 /rag は削除済み)
-  │   │       ├─ cmd_ingest.py                # /ingest コマンド
-  │   │       └─ cmd_memory.py                # /memory コマンド
+  │   │       ├─ cmd_context.py               # /context, /clear, /undo, /history, /system コマンド
+  │   │       ├─ cmd_db.py                    # /db コマンド (_DbMixin)
+  │   │       ├─ cmd_tooling.py               # /tool, /plan コマンド (_ToolingMixin)
+  │   │       ├─ cmd_notes.py                 # /note コマンド (_NotesMixin)
+  │   │       ├─ cmd_debug.py                 # /debug コマンド (_DebugMixin)
+  │   │       ├─ cmd_ingest.py                # /ingest, /export, /compact コマンド
+  │   │       ├─ cmd_memory.py                # /memory コマンド
+  │   │       └─ utils.py                     # render_history_md() 共有ユーティリティ
   │   ├─ mcp/                                 # MCP サーバパッケージ
   │   │   ├─ models.py                        # /v1/call_tool 統合エンドポイント共通 Pydantic モデル
   │   │   ├─ server.py                        # MCP サーバ HTTP 起動共通基底クラス

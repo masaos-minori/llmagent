@@ -96,7 +96,7 @@ class TestEnsureReady:
         ex = _mock_tool_executor()
         stdio_procs: dict = {}
 
-        with patch("agent.lifecycle.StdioTransport") as MockTransport:
+        with patch("agent.stdio_lifecycle.StdioTransport") as MockTransport:
             mock_t = AsyncMock()
             mock_t.is_alive.return_value = True
             MockTransport.return_value = mock_t
@@ -117,7 +117,7 @@ class TestEnsureReady:
         ex = _mock_tool_executor()
         stdio_procs: dict = {}
 
-        with patch("agent.lifecycle.StdioTransport") as MockTransport:
+        with patch("agent.stdio_lifecycle.StdioTransport") as MockTransport:
             mock_t = AsyncMock()
             mock_t.is_alive.return_value = False
             mock_t.start.side_effect = OSError("no such file")
@@ -162,7 +162,7 @@ class TestEnsureReady:
             await asyncio.sleep(0)  # yield to allow interleaving
             start_count += 1
 
-        with patch("agent.lifecycle.StdioTransport") as MockTransport:
+        with patch("agent.stdio_lifecycle.StdioTransport") as MockTransport:
             mock_t = MagicMock()
             mock_t.is_alive = MagicMock(return_value=True)
             mock_t.start = fake_start
@@ -288,8 +288,8 @@ class TestStartHttpSubprocess:
         mock_resp.status_code = 200
 
         with (
-            patch("agent.lifecycle.subprocess.Popen", return_value=mock_proc),
-            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
         ):
             client_instance = AsyncMock()
             client_instance.get = AsyncMock(return_value=mock_resp)
@@ -308,7 +308,7 @@ class TestStartHttpSubprocess:
         existing.poll.return_value = None
         mgr._http_procs["s"] = existing
 
-        with patch("agent.lifecycle.subprocess.Popen") as mock_popen:
+        with patch("agent.http_lifecycle.subprocess.Popen") as mock_popen:
             await mgr.start_http_subprocess("s", cfg)
         mock_popen.assert_not_called()
 
@@ -323,8 +323,8 @@ class TestStartHttpSubprocess:
         mock_proc.stderr = None
 
         with (
-            patch("agent.lifecycle.subprocess.Popen", return_value=mock_proc),
-            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             pytest.raises(RuntimeError, match="exited early"),
         ):
             client_instance = AsyncMock()
@@ -348,8 +348,8 @@ class TestStartHttpSubprocess:
         mock_proc.stderr = None
 
         with (
-            patch("agent.lifecycle.subprocess.Popen", return_value=mock_proc),
-            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             pytest.raises(RuntimeError, match="did not become healthy"),
         ):
             client_instance = AsyncMock()
@@ -374,9 +374,9 @@ class TestStartHttpSubprocess:
 
         with (
             patch(
-                "agent.lifecycle.subprocess.Popen", return_value=mock_proc
+                "agent.http_lifecycle.subprocess.Popen", return_value=mock_proc
             ) as mock_popen,
-            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
         ):
             client_instance = AsyncMock()
             client_instance.get = AsyncMock(return_value=mock_resp)
@@ -413,9 +413,9 @@ class TestStartHttpSubprocess:
             return good_resp
 
         with (
-            patch("agent.lifecycle.subprocess.Popen", return_value=mock_proc),
-            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
-            patch("agent.lifecycle.asyncio.sleep", AsyncMock()),
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.asyncio.sleep", AsyncMock()),
         ):
             client_instance = AsyncMock()
             client_instance.get = get_side_effect
@@ -459,10 +459,10 @@ class TestRestart:
         new_proc.stderr = None
 
         with (
-            patch("agent.lifecycle.subprocess.Popen", return_value=new_proc),
-            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=new_proc),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
-                "agent.lifecycle.asyncio.wait_for",
+                "agent.http_lifecycle.asyncio.wait_for",
                 AsyncMock(return_value=None),
             ),
         ):
@@ -491,8 +491,8 @@ class TestRestart:
         new_proc.stderr = None
 
         with (
-            patch("agent.lifecycle.subprocess.Popen", return_value=new_proc),
-            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=new_proc),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
         ):
             client_instance = AsyncMock()
             client_instance.get = AsyncMock(return_value=good_resp)
@@ -522,9 +522,9 @@ class TestRestart:
             raise TimeoutError
 
         with (
-            patch("agent.lifecycle.subprocess.Popen", return_value=new_proc),
-            patch("agent.lifecycle.httpx.AsyncClient") as MockClient,
-            patch("agent.lifecycle.asyncio.wait_for", fake_wait_for),
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=new_proc),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch("agent.http_lifecycle.asyncio.wait_for", fake_wait_for),
         ):
             client_instance = AsyncMock()
             client_instance.get = AsyncMock(return_value=good_resp)

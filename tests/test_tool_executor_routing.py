@@ -508,3 +508,32 @@ class TestSetSessionId:
         ex = ToolExecutor(mock_http, cache_ttl=60.0, server_configs={"stdio_srv": cfg})
         # Must not raise even though the transport is not an HttpTransport
         ex.set_session_id("sess-xyz")
+
+
+# ── apply_config ──────────────────────────────────────────────────────────────
+
+
+class TestToolExecutorApplyConfig:
+    def _make_executor(self) -> ToolExecutor:
+        from unittest.mock import AsyncMock
+
+        import httpx
+        from shared.mcp_config import McpServerConfig
+        from shared.tool_executor import ToolExecutor
+
+        cfg = McpServerConfig("http", "http://localhost:8005", [], "svc")
+        return ToolExecutor(
+            http=AsyncMock(spec=httpx.AsyncClient),
+            cache_ttl=300.0,
+            server_configs={"file_read": cfg},
+        )
+
+    def test_apply_config_cache_ttl(self) -> None:
+        ex = self._make_executor()
+        ex.apply_config(cache_ttl=600.0)
+        assert ex._cache_ttl == 600.0
+
+    def test_apply_config_none_is_no_op(self) -> None:
+        ex = self._make_executor()
+        ex.apply_config()
+        assert ex._cache_ttl == 300.0

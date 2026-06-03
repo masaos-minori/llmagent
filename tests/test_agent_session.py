@@ -273,24 +273,18 @@ class TestFetchMessages:
 
 
 class TestSetTitle:
-    def test_updates_title(
-        self, session: AgentSession, capsys: pytest.CaptureFixture
-    ) -> None:
+    def test_updates_title(self, session: AgentSession) -> None:
         session.start()
         session.set_title("My Session")
-        session.list_sessions()
-        out = capsys.readouterr().out
-        assert "My Session" in out
+        rows = session.list_sessions()
+        assert any(r["title"] == "My Session" for r in rows)
 
-    def test_truncates_to_50_chars(
-        self, session: AgentSession, capsys: pytest.CaptureFixture
-    ) -> None:
+    def test_truncates_to_50_chars(self, session: AgentSession) -> None:
         session.start()
         session.set_title("A" * 100)
-        session.list_sessions()
-        out = capsys.readouterr().out
-        # title is stored at max 50 chars; displayed up to 32 chars + "..."
-        assert "A" * 29 in out
+        rows = session.list_sessions()
+        # title is stored at max 50 chars
+        assert any(len(r["title"] or "") == 50 for r in rows)
 
     def test_no_op_when_session_id_none(self, session: AgentSession) -> None:
         session.set_title("ghost")  # should not raise
@@ -300,28 +294,20 @@ class TestSetTitle:
 
 
 class TestListSessions:
-    def test_prints_header_when_sessions_exist(
-        self, session: AgentSession, capsys: pytest.CaptureFixture
-    ) -> None:
+    def test_returns_sessions_when_exist(self, session: AgentSession) -> None:
         session.start()
-        session.list_sessions()
-        out = capsys.readouterr().out
-        assert "ID" in out
+        rows = session.list_sessions()
+        assert len(rows) > 0
+        assert "session_id" in rows[0]
 
-    def test_prints_no_sessions_when_empty(
-        self, session: AgentSession, capsys: pytest.CaptureFixture
-    ) -> None:
-        session.list_sessions()
-        out = capsys.readouterr().out
-        assert "No sessions found" in out
+    def test_returns_empty_list_when_no_sessions(self, session: AgentSession) -> None:
+        rows = session.list_sessions()
+        assert rows == []
 
-    def test_marks_current_session(
-        self, session: AgentSession, capsys: pytest.CaptureFixture
-    ) -> None:
+    def test_marks_current_session(self, session: AgentSession) -> None:
         session.start()
-        session.list_sessions()
-        out = capsys.readouterr().out
-        assert "*" in out  # current session marked
+        rows = session.list_sessions()
+        assert any(r["is_current"] for r in rows)
 
 
 # ── delete_session() ─────────────────────────────────────────────────────────

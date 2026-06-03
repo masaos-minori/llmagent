@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 def get_repo_info(path: str = ".") -> dict[str, Any] | None:
     """Return current branch and last commit info, or None outside a git repo; uses search_parent_directories and catches all GitPython exceptions."""
     try:
-        import git  # lazy import keeps startup fast when gitpython is unused
+        import git  # noqa: PLC0415 — lazy import keeps startup fast when gitpython is unused
 
         repo = git.Repo(path, search_parent_directories=True)
         head = repo.head
@@ -28,5 +28,5 @@ def get_repo_info(path: str = ".") -> dict[str, Any] | None:
             "author": str(commit.author),
         }
     except Exception as e:
-        logger.debug(f"get_repo_info: {e}")
+        logger.debug("get_repo_info: %s", e)
         return None

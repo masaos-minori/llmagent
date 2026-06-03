@@ -18,18 +18,17 @@ ctx = AgentContext()
 |---|---|---|---|
 | `services` | `ServiceContainer` | `ServiceContainer()` | 全サービス参照を保持する DI コンテナ |
 | `history` | `list[LLMMessage]` | `[]` | 会話履歴 (system / user / assistant / tool ロール) |
-| `llm_url` | `str` | `""` | アクティブな LLM エンドポイント URL |
-| `debug_mode` | `bool` | `False` | RAG パイプラインデバッグ出力フラグ |
+| `llm_url` | `str` | `""` | アクティブな LLM エンドポイント URL (単一)。`/chat`・`/code` モードは廃止済みのため、常に 1 つの URL のみを保持 |
+| `debug_mode` | `bool` | `False` | デバッグ出力フラグ |
 | `plan_mode` | `bool` | `False` | プランモードフラグ。`True` のとき `AgentConfig.plan_blocked_tools` に列挙されたツールを自動ブロック |
 | `system_prompt_name` | `str` | `"default"` | アクティブなシステムプロンプトプレセット名 |
+| `system_prompt_content` | `str` | `""` | 正規のシステムプロンプト文字列。`repl.py` で初期化、`_cmd_system()` が更新。`Orchestrator._sync_system_prompt()` が各ターン開始時に `history[0]` へ反映する。コマンド層からの `history[0]["content"]` 直書きを廃止するための専用フィールド |
 | `shutdown_requested` | `bool` | `False` | グレースフルシャットダウン要求フラグ |
 | `current_turn_id` | `str \| None` | `None` | `Orchestrator.handle_turn()` 開始時に UUID4 をセット; ターン間は `None` |
-| `current_rag_query_id` | `str \| None` | `None` | 予約フィールド。in-process RAG 除去後は常に `None`。将来の RAG トレース用途向けに保持 |
 | `stat_turns` | `int` | `0` | ユーザーターン累計 |
 | `stat_tool_calls` | `int` | `0` | ツール呼び出し累計 |
-| `stat_rag_hits` | `int` | `0` | RAG コンテキスト付加ターン累計 |
 | `stat_tool_errors` | `int` | `0` | ツール実行エラー累計 |
-| `stat_latency` | `dict[str, list[float]]` | `{}` | ステップ別レイテンシサンプル (秒)。キー: `rag.mqe` / `rag.search` / `rag.rrf` / `rag.rerank` / `llm` |
+| `stat_latency` | `dict[str, list[float]]` | `{}` | ステップ別レイテンシサンプル (秒)。キー: `llm` |
 | `stat_semantic_cache_hits` | `int` | `0` | セマンティックキャッシュヒット回数累計 |
 | `stat_input_tokens` | `int \| None` | `None` | LLM 入力トークン累計。`None` = エンドポイントが `usage` を返さなかった |
 | `stat_output_tokens` | `int \| None` | `None` | LLM 出力トークン累計。`None` = エンドポイントが `usage` を返さなかった |
@@ -50,4 +49,4 @@ ctx = AgentContext()
 | `stdio_procs` | `dict[str, StdioTransport]` | `{}` | サーバキー → StdioTransport。stdio トランスポートのプロセスを管理 |
 | `lifecycle` | `ServerLifecycleManager \| None` | `None` | ondemand stdio サーバの起動・停止ライフサイクル管理 |
 | `audit_logger` | `Logger \| None` | `None` | JSON-lines 形式で `audit.log` にターンイベントを書き込む構造化ロガー |
-| `memory` | `MemoryLayer \| None` | `None` | Long-term / Task メモリレイヤー。`AgentConfig.use_memory_layer=False` (デフォルト) のとき `None` のまま。ライフサイクルフック: `on_session_start()` (SessionStart: top semantic entries をシステムプロンプトへ注入) / `on_user_prompt()` (UserPromptSubmit: 関連メモリをターン前に system ロールとして注入) / `on_session_stop()` (Stop: セッション終了時に会話履歴からエントリを抽出して JSONL + SQLite へ永続化) |
+| `memory` | `MemoryLayer \| None` | `None` | Long-term / Task メモリファサード。`AgentConfig.use_memory_layer=False` (デフォルト) のとき `None` のまま。3 つのサブサービスへの薄いファサード: `MemoryInjectionService` (injection.py — SessionStart / UserPromptSubmit でメモリ注入) / `MemoryIngestionService` (ingestion.py — Stop 時に会話履歴からエントリを抽出して JSONL + SQLite へ永続化) / `EmbeddingClient` (embedding_client.py — リトライ + サーキットブレーカ付き埋め込み取得)。ライフサイクルフック: `on_session_start()` / `on_user_prompt()` / `on_session_stop()` はいずれも対応するサブサービスへ委譲 |

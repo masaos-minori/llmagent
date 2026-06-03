@@ -17,7 +17,7 @@
 
 ## 2. McpServerConfig dataclass
 
-1 台の MCP サーバのトランスポート設定を保持。`_build_mcp_servers()` が `agent.toml` の `mcp_servers` セクションから構築。
+1 台の MCP サーバのトランスポート設定を保持。`_build_mcp_servers()` が `config/mcp_servers.toml` の `mcp_servers` セクションから構築。
 
 ```python
 @dataclass
@@ -61,7 +61,7 @@ class McpServerConfig:
 
 | 関数 | 戻り値 | 説明 |
 |---|---|---|
-| `_build_mcp_servers(cfg) -> dict[str, McpServerConfig]` | `dict` | `agent.toml` の `mcp_servers` セクションから構築。キー例: `"web_search"` / `"file_read"` / `"file_write"` / `"file_delete"` / `"github"` |
+| `_build_mcp_servers(cfg) -> dict[str, McpServerConfig]` | `dict` | `config/mcp_servers.toml` の `mcp_servers` セクションから構築。キー例: `"web_search"` / `"file_read"` / `"file_write"` / `"file_delete"` / `"github"` |
 
 ## 3. AgentConfig dataclass
 
@@ -79,7 +79,7 @@ class AgentConfig:
     history_protect_turns: int = 2   # 直近 N ターンを圧縮から除外
     budget_warn_ratio: float = 0.8   # 閾値の何割で budget warning を出すか (0, 1]
 
-    # ── RAG (mcp/rag_pipeline/ 側設定; agent 側 in-process RAG は削除済み) ────────
+    # ── RAG (mcp/rag_pipeline/ 側設定; agent 本体は直接参照しない) ─────────────────
     # build_agent_config() デフォルト: top_k_search=20, top_k_rerank=15
     # max_chunks_per_doc=2
     # use_semantic_cache=False, semantic_cache_threshold=0.92, semantic_cache_max_size=100
@@ -98,11 +98,14 @@ class AgentConfig:
     # ── LLM ──────────────────────────────────────────────────────────────────
     # build_agent_config() デフォルト: llm_max_retries=3, llm_retry_base_delay=1.0
     # llm_temperature=0.2, llm_max_tokens=1024
+    # title_llm_temperature=0.1, title_llm_max_tokens=20
     llm_max_retries: int             # LLM リトライ回数
     llm_retry_base_delay: float      # 指数バックオフ基本待機秒数
     llm_temperature: float           # メイン LLM 生成温度 (0.0–2.0)
     llm_max_tokens: int              # メイン LLM 最大生成トークン数
-    llm_url: str = ""                # LLM エンドポイント URL
+    title_llm_temperature: float     # セッションタイトル生成 LLM の温度 (デフォルト 0.1)
+    title_llm_max_tokens: int        # セッションタイトル生成 LLM の最大トークン数 (デフォルト 20)
+    llm_url: str = ""                # LLM エンドポイント URL (単一。chat/code モード廃止済みのため 1 URL のみ)
 
     # ── URL / HTTP ────────────────────────────────────────────────────────────
     github_url: str = "http://127.0.0.1:8006"
@@ -244,7 +247,7 @@ class AgentConfig:
 
 ## 4. DbConfig dataclass
 
-SQLite 接続の不変設定を保持。`build_db_config()` で `_get_cfg()` (= `load_all()` キャッシュ) から生成。注意: `common.toml` は `load_all()` の読み込み対象に含まれないため、`rag_db_path` / `session_db_path` / `sqlite_vec_so` などのキーが他の設定ファイルに存在しない場合は空文字列になり `__post_init__` で `ValueError` が発生する。実運用では `db/helper.py` や `rag/pipeline.py` が `ConfigLoader().load("common.toml")` を個別に呼ぶことでこれらの値を取得している。
+SQLite 接続の不変設定を保持。`build_db_config()` で `_get_cfg()` (= `load_all()` キャッシュ) から生成。**注意: `common.toml` は `load_all()` の読み込み対象に含まれない**。`rag_db_path` / `session_db_path` / `sqlite_vec_so` などのキーが分割設定ファイルに存在しない場合は空文字列になり `__post_init__` で `ValueError` が発生する。実運用では `db/helper.py` や `rag/pipeline.py` が `ConfigLoader().load("common.toml")` を個別に呼ぶことでこれらの値を取得している。この `common.toml` 非統合問題は既知の設計上の非整合であり、将来的な統合を検討中。
 
 ```python
 @dataclass

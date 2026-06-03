@@ -31,14 +31,12 @@ def _make_ctx() -> MagicMock:
     ctx.llm_url = "http://llm-test"
     ctx.history = []
     ctx.stat_turns = 1  # keep > 0 so create_task is not called in first handle_turn
-    ctx.stat_rag_hits = 0
     ctx.stat_latency = {}
     ctx.stat_input_tokens = None
     ctx.stat_output_tokens = None
     ctx.stat_tool_errors = 0
     ctx.stat_tool_calls = 0
     ctx.current_turn_id = None
-    ctx.current_rag_query_id = None
     ctx.session.session_id = "test-session"
     # services
     hist_mgr = AsyncMock()
@@ -62,9 +60,8 @@ def _make_ctx() -> MagicMock:
 
 
 def _make_orchestrator(ctx: MagicMock, on_error: Any = None) -> Orchestrator:
-    cmds = MagicMock()
-    cmds._generate_session_title = AsyncMock()
-    return Orchestrator(ctx, cmds, on_error=on_error)
+    on_first_turn = AsyncMock()
+    return Orchestrator(ctx, on_error=on_error, on_first_turn=on_first_turn)
 
 
 def _make_err(
@@ -208,7 +205,7 @@ class TestRunTurnLLMTransportError:
 
         ctx.services.llm.stream = _mock_stream
 
-        with patch("agent.orchestrator.execute_all_tool_calls", AsyncMock()):
+        with patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()):
             result = await orch._run_turn("http://llm-test")
 
         assert "CONNECT_ERROR" in result
@@ -261,7 +258,7 @@ class TestRunTurnLLMTransportError:
 
         ctx.services.llm.stream = _mock_stream
 
-        with patch("agent.orchestrator.execute_all_tool_calls", AsyncMock()):
+        with patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()):
             await orch._run_turn("http://llm-test")
 
         ctx.tool_result_store.store.assert_called_once()

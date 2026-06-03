@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import orjson
 import pytest
 from rag.pipeline import RagPipeline
 
@@ -65,7 +66,7 @@ class TestAugmentHttpMode:
 
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.raise_for_status = MagicMock()
-        mock_resp.json.return_value = resp_body
+        mock_resp.content = orjson.dumps(resp_body)
 
         http = AsyncMock(spec=httpx.AsyncClient)
         http.post = AsyncMock(return_value=mock_resp)
@@ -84,7 +85,7 @@ class TestAugmentHttpMode:
 
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.raise_for_status = MagicMock()
-        mock_resp.json.return_value = resp_body
+        mock_resp.content = orjson.dumps(resp_body)
 
         http = AsyncMock(spec=httpx.AsyncClient)
         http.post = AsyncMock(return_value=mock_resp)
@@ -112,7 +113,7 @@ class TestAugmentHttpMode:
 
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.raise_for_status = MagicMock()
-        mock_resp.json.return_value = resp_body
+        mock_resp.content = orjson.dumps(resp_body)
 
         http = AsyncMock(spec=httpx.AsyncClient)
         http.post = AsyncMock(return_value=mock_resp)
@@ -129,7 +130,7 @@ class TestAugmentHttpMode:
 
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.raise_for_status = MagicMock()
-        mock_resp.json.return_value = resp_body
+        mock_resp.content = orjson.dumps(resp_body)
 
         http = AsyncMock(spec=httpx.AsyncClient)
         http.post = AsyncMock(return_value=mock_resp)
@@ -163,16 +164,16 @@ class TestAugmentHttpMode:
         assert result == ""
 
 
-# ── _RagMixin._cmd_debug verbose/normal ───────────────────────────────────────
+# ── _ToolingMixin._cmd_debug verbose/normal ───────────────────────────────────
 
 
 class TestCmdDebugVerboseNormal:
     """_cmd_debug の verbose/normal サブコマンドのログレベル変更をテストする。"""
 
     def _make_mixin(self) -> object:
-        from agent.commands.cmd_rag import _RagMixin
+        from agent.commands.cmd_debug import _DebugMixin
 
-        class Mixin(_RagMixin):
+        class Mixin(_DebugMixin):
             def __init__(self) -> None:
                 self._ctx = MagicMock()
                 self._ctx.cfg.rag_audit_log_path = ""

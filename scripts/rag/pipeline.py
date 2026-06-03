@@ -22,6 +22,7 @@ from collections.abc import Callable
 from typing import Any
 
 import httpx
+import orjson
 from shared import plugin_registry
 from shared.config_loader import ConfigLoader
 from shared.types import RagConfig
@@ -216,7 +217,7 @@ class RagPipeline:
                 json={"query": query, "history_context": history_context},
             )
             resp.raise_for_status()
-            body = resp.json()
+            body = orjson.loads(resp.content)
             hits = body.get("selected_hits", [])
             if hits:
                 # store for two-stage fetch callers (orchestrator._fetch_two_stage_context)

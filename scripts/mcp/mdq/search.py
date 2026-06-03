@@ -24,8 +24,8 @@ def _parse_tags(raw: str | None) -> list[str]:
     if not raw:
         return []
     try:
-        return orjson.loads(raw)  # type: ignore[no-any-return]
-    except Exception:
+        return orjson.loads(raw)  # type: ignore[no-any-return]  # orjson.loads returns Any; caller expects list[str]
+    except (orjson.JSONDecodeError, TypeError):
         return []
 
 

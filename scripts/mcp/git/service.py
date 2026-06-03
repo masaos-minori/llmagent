@@ -14,9 +14,15 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Any
+
+import git
 
 from mcp.server import ToolArgs
+
+# All git tool handlers catch this union; git.exc.GitError is the base for all
+# GitPython exceptions; OSError covers filesystem errors; ValueError covers
+# bad argument formats (e.g. invalid ref names).
+_GIT_ERRORS = (git.exc.GitError, OSError, ValueError)
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +70,8 @@ class GitService:
             return False, "[DENIED] git-mcp is configured with read_only=true"
         return True, ""
 
-    def _open_repo(self, repo_path: str) -> Any:
+    def _open_repo(self, repo_path: str) -> git.Repo:
         """Open a git.Repo at repo_path; raises git.InvalidGitRepositoryError on failure."""
-        import git  # noqa: PLC0415 — lazy import; gitpython not always needed
-
         return git.Repo(repo_path, search_parent_directories=False)
 
     # ── Read-only tools ───────────────────────────────────────────────────────
@@ -94,7 +98,7 @@ class GitService:
             else:
                 lines.append("Nothing to commit, working tree clean")
             return "\n".join(lines)
-        except Exception as e:
+        except _GIT_ERRORS as e:
             logger.error(f"git_status error: {e}")
             return f"[ERROR] git_status: {e}"
 
@@ -112,12 +116,17 @@ class GitService:
             commits = list(repo.iter_commits(rev=rev, max_count=limit))
             lines: list[str] = []
             for c in commits:
-                short_msg = c.message.split("\n")[0][:80]
+                raw_msg: str = (
+                    c.message.decode("utf-8", errors="replace")
+                    if isinstance(c.message, bytes)
+                    else c.message
+                )
+                short_msg = raw_msg.split("\n")[0][:80]
                 lines.append(
                     f"{c.hexsha[:8]} {c.author.name} {c.committed_datetime.strftime('%Y-%m-%d')} {short_msg}",
                 )
             return "\n".join(lines) if lines else "(no commits)"
-        except Exception as e:
+        except _GIT_ERRORS as e:
             logger.error(f"git_log error: {e}")
             return f"[ERROR] git_log: {e}"
 
@@ -137,7 +146,7 @@ class GitService:
             else:
                 diff = repo.git.diff()
             return diff or "(no diff)"
-        except Exception as e:
+        except _GIT_ERRORS as e:
             logger.error(f"git_diff error: {e}")
             return f"[ERROR] git_diff: {e}"
 
@@ -156,7 +165,7 @@ class GitService:
                 for b in repo.branches
             ]
             return "\n".join(branches) if branches else "(no branches)"
-        except Exception as e:
+        except _GIT_ERRORS as e:
             logger.error(f"git_branch error: {e}")
             return f"[ERROR] git_branch: {e}"
 
@@ -171,7 +180,7 @@ class GitService:
             repo = self._open_repo(req.repo_path)
             output: str = repo.git.show(req.ref, "--stat", "--patch")
             return output[:8000] if len(output) > 8000 else output
-        except Exception as e:
+        except _GIT_ERRORS as e:
             logger.error(f"git_show error: {e}")
             return f"[ERROR] git_show: {e}"
 
@@ -198,7 +207,7 @@ class GitService:
                 return f"[DRY RUN] Would stage: {sorted(to_stage)}"
             repo.index.add(req.paths)
             return f"Staged: {req.paths}"
-        except Exception as e:
+        except _GIT_ERRORS as e:
             logger.error(f"git_add error: {e}")
             return f"[ERROR] git_add: {e}"
 
@@ -221,7 +230,7 @@ class GitService:
                 return "[ERROR] Nothing staged to commit"
             commit = repo.index.commit(req.message)
             return f"Committed: {commit.hexsha[:8]} {req.message!r}"
-        except Exception as e:
+        except _GIT_ERRORS as e:
             logger.error(f"git_commit error: {e}")
             return f"[ERROR] git_commit: {e}"
 
@@ -250,7 +259,7 @@ class GitService:
             else:
                 repo.git.checkout(req.branch)
             return f"Switched to branch '{req.branch}'"
-        except Exception as e:
+        except _GIT_ERRORS as e:
             logger.error(f"git_checkout error: {e}")
             return f"[ERROR] git_checkout: {e}"
 
@@ -274,7 +283,7 @@ class GitService:
                 pull_args.append(req.branch)
             result = repo.git.pull(*pull_args)
             return result or "Already up to date."
-        except Exception as e:
+        except _GIT_ERRORS as e:
             logger.error(f"git_pull error: {e}")
             return f"[ERROR] git_pull: {e}"
 
@@ -295,7 +304,7 @@ class GitService:
                 return f"[DRY RUN] Would push branch '{branch}' to '{req.remote}'"
             result = repo.git.push(req.remote, branch)
             return result or f"Pushed '{branch}' to '{req.remote}'"
-        except Exception as e:
+        except _GIT_ERRORS as e:
             logger.error(f"git_push error: {e}")
             return f"[ERROR] git_push: {e}"
 
@@ -318,10 +327,8 @@ class GitService:
         }
 
 
-def _build_service() -> GitService:
-    from mcp.git.models import _get_cfg  # noqa: PLC0415
-
-    cfg = _get_cfg()
+def build_service(cfg: dict) -> GitService:
+    """Construct GitService from a config dict (injected by server.py)."""
     allowed = list(cfg.get("allowed_repo_paths", []))
     read_only = bool(cfg.get("read_only", True))
     max_log = int(cfg.get("max_log_entries", 50))
@@ -334,6 +341,3 @@ def _build_service() -> GitService:
         read_only=read_only,
         max_log_entries=max_log,
     )
-
-
-_service = _build_service()

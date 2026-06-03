@@ -12,14 +12,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.config import AgentConfig, build_agent_config
-from agent.repl_tool_exec import (
-    _audit_approval,
-    _audit_tool_exec,
-    _build_preview,
-    _classify_risk,
-    check_approval,
-    execute_one_tool_call,
-)
+from agent.tool_approval import check_approval
+from agent.tool_audit import audit_approval as _audit_approval
+from agent.tool_audit import audit_tool_exec as _audit_tool_exec
+from agent.tool_policy import classify_risk as _classify_risk
+from agent.tool_result_formatter import build_preview as _build_preview
+from agent.tool_runner import execute_one_tool_call
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

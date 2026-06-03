@@ -166,8 +166,7 @@ def preflight_deny_reason(
     if not check_allowed_root(cfg, tool_name, args):
         return (
             "denied_root_jail",
-            f"  [DENIED] {tool_name}: path outside allowed_root"
-            f" ({cfg.allowed_root!r})",
+            f"  [DENIED] {tool_name}: path outside allowed_root ({cfg.allowed_root!r})",
         )
     if not check_allowed_repo(cfg, tool_name, args):
         return (

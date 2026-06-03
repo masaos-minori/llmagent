@@ -6,6 +6,8 @@ MCP (Model Context Protocol) サーバとのプロトコル通信を担うモジ
 |---|---|
 | `mcp/models.py` | `/v1/call_tool` 統合エンドポイント共通 Pydantic モデル |
 | `mcp/server.py` | MCP サーバ HTTP/stdio 起動共通基底クラス |
+| `mcp/dispatch.py` | `dispatch_tool()` — ディスパッチテーブル経由のツール呼び出しヘルパー |
+| `mcp/audit.py` | `_audit_log()` — 構造化監査ログ出力ヘルパー |
 | `shared/mcp_config.py` | `McpServerConfig` データクラス — 1 サーバのトランスポート設定を保持 |
 | `shared/tool_constants.py` | MCP ツール分類 frozenset の正規定義 (READ/WRITE/DELETE/RAG/CICD/MDQ/GIT) |
 | `shared/route_resolver.py` | `ToolRouteResolver` — config-driven + 静的プレフィックス fallback ルーティング |
@@ -72,28 +74,17 @@ MCP サーバの HTTP 起動ロジックを提供する基底クラス。`mcp/fi
 | `run() -> None` | `run_http()` の後方互換エイリアス。新規コードでは `run_http()` を使うこと |
 | `async run_stdio() -> None` | stdin/stdout で行区切り JSON-RPC を処理。リクエスト形式: `{"id": <int>, "name": <str>, "args": {}}` / レスポンス形式: `{"id": <int>, "result": <str>, "is_error": <bool>}`。`__list_tools__` を予約 RPC として intercept しツール名リストを返す。stdin EOF でループを終了する |
 
-### 2.4 モジュールレベル関数・型エイリアス
+### 2.4 モジュールレベル関数
 
-`mcp/server.py` はクラスに加え、型エイリアスとサブクラス共通の dispatch エラーハンドリング・認証ミドルウェアをまとめたユーティリティ関数を公開。
+`mcp/server.py` はクラスに加え、認証ミドルウェアユーティリティ関数を公開。`ToolArgs` と `dispatch_tool` は Phase D で `mcp/dispatch.py` へ分離済み (→ §7)。
 
 ```python
-from mcp.server import ToolArgs, dispatch_tool, attach_auth_middleware
+from mcp.server import attach_auth_middleware
 ```
-
-型エイリアス:
-
-| エイリアス | 定義 | 説明 |
-|---|---|---|
-| `ToolArgs` | `dict[str, Any]` | MCP ツール引数辞書の型エイリアス。ディスパッチテーブルのシグネチャを統一するために使用 |
-
-関数:
 
 | 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `dispatch_tool` | `(table: Mapping[str, Callable[[ToolArgs], Awaitable[str]]], name: str, args: ToolArgs) -> tuple[str, bool]` | ディスパッチテーブル経由でツール呼び出しを実行し、`(result_text, is_error)` を返す。`name` が空文字または空白文字のみ (`not name.strip()`) のとき `("Tool name must be a non-empty string", True)` を返す。未知のツール名は `("Unknown tool: <name>", True)` を返す。`FastAPI.HTTPException` はダックタイピング (`hasattr(e, "status_code") and hasattr(e, "detail")`) で検出して HTTP エラーコードとメッセージを返す。それ以外の例外は `("Tool error: <e>", True)` に変換する |
 | `attach_auth_middleware` | `(app: Any, token: str) -> None` | FastAPI アプリに Bearer トークン認証 + `X-Request-Id` レスポンスヘッダ注入ミドルウェアを登録する。`token` が非空のとき `Authorization: Bearer <token>` ヘッダが一致しないリクエストには 401 を返す。`token` が空のとき認証チェックをスキップし、`X-Request-Id` ヘッダのみ注入する |
-
-`mcp/file/read_server.py` / `mcp/file/write_server.py` / `mcp/file/delete_server.py` / `mcp/web_search/server.py` / `mcp/github/server.py` の各 `_dispatch_*_tool()` 関数が `dispatch_tool` を使用。
 
 ### 2.5 サブクラス実装パターン
 
@@ -308,3 +299,59 @@ from shared.mcp_config import McpServerConfig
 
 ---
 
+## 7. mcp/dispatch.py
+
+### 7.1 機能概要
+
+MCP ツールディスパッチテーブル経由のツール呼び出しヘルパー。`mcp/server.py` から Phase D で分離。MCP サーバが `MCPServer` 基底クラス全体を import せずに `dispatch_tool` を利用できるようにするための独立モジュール。
+
+### 7.2 API
+
+```python
+from mcp.dispatch import ToolArgs, dispatch_tool
+```
+
+型エイリアス:
+
+| エイリアス | 定義 | 説明 |
+|---|---|---|
+| `ToolArgs` | `dict[str, Any]` | MCP ツール引数辞書の型エイリアス。ディスパッチテーブルのシグネチャを統一するために使用 |
+
+関数:
+
+| 関数 | シグネチャ | 説明 |
+|---|---|---|
+| `dispatch_tool` | `async (table: Mapping[str, Callable[[ToolArgs], Awaitable[str]]], name: str, args: ToolArgs) -> tuple[str, bool]` | ディスパッチテーブル経由でツール呼び出しを実行し `(result_text, is_error)` を返す。`name` が空文字または空白文字のみのとき `("Tool name must be a non-empty string", True)` を返す。未知のツール名は `("Unknown tool: <name>", True)` を返す。`FastAPI.HTTPException` はダックタイピング (`hasattr(e, "status_code") and hasattr(e, "detail")`) で検出して HTTP エラーコードとメッセージを返す。それ以外の例外は `_handle_tool_exception()` で `("Tool error: <e>", True)` に変換する |
+| `_handle_tool_exception` | `(name: str, e: Exception) -> tuple[str, bool]` | ツールハンドラ例外を分類・ログ出力し `(message, True)` を返す。HTTPException 判定は duck typing で行う |
+
+各 MCP サーバの `_dispatch_*_tool()` 関数が `dispatch_tool` を使用。
+
+---
+
+## 8. mcp/audit.py
+
+### 8.1 機能概要
+
+MCP サーバ向け構造化監査ログ出力ヘルパー。`mcp/server.py` から Phase D で分離。
+
+### 8.2 API
+
+```python
+from mcp.audit import _audit_log
+```
+
+| 関数 | シグネチャ | 説明 |
+|---|---|---|
+| `_audit_log` | `(server_logger: Any, session_id: str, request_id: str, action: str, target: str, outcome: str, detail: str = "") -> None` | `server_logger.info()` 経由で `AUDIT session=... request=... action=... target=... outcome=... detail=...` 形式の構造化ログ行を 1 行出力する |
+
+| パラメータ | 説明 |
+|---|---|
+| `server_logger` | サーバモジュール固有の `logging.Logger` インスタンス |
+| `session_id` | セッション識別子。空のとき `"-"` で出力 |
+| `request_id` | リクエスト識別子 (`X-Request-Id`)。空のとき `"-"` で出力 |
+| `action` | 操作種別 (例: `"call_tool"`) |
+| `target` | 操作対象 (例: ツール名、ファイルパス) |
+| `outcome` | 結果 (例: `"ok"`, `"error"`) |
+| `detail` | 補足情報 (省略可) |
+
+---

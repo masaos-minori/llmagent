@@ -314,14 +314,14 @@ async def test_dag_write_executed_before_read() -> None:
 
     with (
         patch(
-            "agent.repl_tool_exec._run_approval_checks",
+            "agent.tool_runner.run_approval_checks",
             new=AsyncMock(return_value=([write_call, read_call], [])),
         ),
         patch(
-            "agent.repl_tool_exec.execute_one_tool_call",
+            "agent.tool_runner.execute_one_tool_call",
             side_effect=fake_execute_one,
         ),
-        patch("agent.repl_tool_exec._collect_tool_result_msgs", return_value=[]),
+        patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
     ):
         await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
 
@@ -354,14 +354,14 @@ async def test_dag_disabled_does_not_reorder() -> None:
 
     with (
         patch(
-            "agent.repl_tool_exec._run_approval_checks",
+            "agent.tool_runner.run_approval_checks",
             new=AsyncMock(return_value=([write_call, read_call], [])),
         ),
         patch(
-            "agent.repl_tool_exec.execute_one_tool_call",
+            "agent.tool_runner.execute_one_tool_call",
             side_effect=fake_execute_one,
         ),
-        patch("agent.repl_tool_exec._collect_tool_result_msgs", return_value=[]),
+        patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
     ):
         await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
 
@@ -395,14 +395,14 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
 
     with (
         patch(
-            "agent.repl_tool_exec._run_approval_checks",
+            "agent.tool_runner.run_approval_checks",
             new=AsyncMock(return_value=([write_call, read_call], [])),
         ),
         patch(
-            "agent.repl_tool_exec.execute_one_tool_call",
+            "agent.tool_runner.execute_one_tool_call",
             side_effect=fake_execute_one,
         ),
-        patch("agent.repl_tool_exec._collect_tool_result_msgs", return_value=[]),
+        patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
     ):
         await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
 
@@ -437,15 +437,15 @@ async def test_parallel_execution_without_dag_or_side_effects() -> None:
 
     with (
         patch(
-            "agent.repl_tool_exec._run_approval_checks",
+            "agent.tool_runner.run_approval_checks",
             new=AsyncMock(return_value=([read_call1, read_call2], [])),
         ),
         patch(
-            "agent.repl_tool_exec.execute_one_tool_call",
+            "agent.tool_runner.execute_one_tool_call",
             side_effect=fake_execute_one,
         ),
-        patch("agent.repl_tool_exec._collect_tool_result_msgs", return_value=[]),
-        patch("agent.repl_tool_exec.is_side_effect", return_value=False),
+        patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
+        patch("agent.tool_runner.is_side_effect", return_value=False),
     ):
         await execute_all_tool_calls(ctx, [read_call1, read_call2], turn=1)
 

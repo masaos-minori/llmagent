@@ -34,15 +34,14 @@ def build_tracer(
         return _NoOpTracer()
 
     try:
-        from opentelemetry.sdk.resources import Resource
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import (
-            ConsoleSpanExporter,
-            SimpleSpanProcessor,
-        )
+        # Lazy imports: opentelemetry-sdk is optional; loaded only when enabled=True.
+        from opentelemetry.sdk.resources import Resource  # noqa: PLC0415 isort:skip
+        from opentelemetry.sdk.trace import TracerProvider  # noqa: PLC0415 isort:skip
+        from opentelemetry.sdk.trace.export import ConsoleSpanExporter  # noqa: PLC0415 isort:skip
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor  # noqa: PLC0415 isort:skip
     except ImportError as e:
         logger.warning(
-            f"opentelemetry-sdk not installed; falling back to NoOp tracer: {e}",
+            "opentelemetry-sdk not installed; falling back to NoOp tracer: %s", e
         )
         return _NoOpTracer()
 
@@ -51,27 +50,30 @@ def build_tracer(
 
     if otlp_endpoint:
         try:
+            # Lazy imports: opentelemetry-exporter-otlp is optional.
             from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
                 OTLPSpanExporter,
-            )
-            from opentelemetry.sdk.trace.export import BatchSpanProcessor
+            )  # noqa: PLC0415 isort:skip
+            from opentelemetry.sdk.trace.export import BatchSpanProcessor  # noqa: PLC0415 isort:skip
 
             exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
             provider.add_span_processor(BatchSpanProcessor(exporter))
             logger.info(
-                f"OTel tracer configured: OTLP endpoint={otlp_endpoint}"
-                f" service={service_name}",
+                "OTel tracer configured: OTLP endpoint=%s service=%s",
+                otlp_endpoint,
+                service_name,
             )
         except ImportError as e:
             logger.warning(
-                f"opentelemetry-exporter-otlp not installed;"
-                f" falling back to ConsoleSpanExporter: {e}",
+                "opentelemetry-exporter-otlp not installed;"
+                " falling back to ConsoleSpanExporter: %s",
+                e,
             )
             provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
     else:
         provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
         logger.info(
-            f"OTel tracer configured: ConsoleSpanExporter service={service_name}",
+            "OTel tracer configured: ConsoleSpanExporter service=%s", service_name
         )
 
     # Return a tracer bound to the private provider (not the global one)

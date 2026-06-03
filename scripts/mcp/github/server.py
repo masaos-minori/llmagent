@@ -38,6 +38,8 @@ from fastapi import FastAPI, Request
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
+from mcp.audit import _audit_log
+from mcp.dispatch import dispatch_tool
 from mcp.github.models import (
     AddIssueCommentRequest,
     AddIssueCommentResponse,
@@ -85,7 +87,7 @@ from mcp.github.models import (
 from mcp.github.service import _GITHUB_TOKEN, _service
 from mcp.github.tools import _MCP_TOOLS
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, ToolArgs, _audit_log, dispatch_tool
+from mcp.server import MCPServer, ToolArgs
 
 # Log path is owned here; service module uses logging.getLogger(__name__)
 logger = Logger(__name__, "/opt/llm/logs/github-mcp.log")

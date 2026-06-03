@@ -16,7 +16,7 @@ _models_logger = Logger(__name__, "/opt/llm/logs/git-mcp.log")
 _cfg: dict[str, Any] | None = None
 
 
-def _get_cfg() -> dict[str, Any]:
+def load_git_config() -> dict[str, Any]:
     """Load config on first call; cached for the module lifetime."""
     global _cfg
     if _cfg is None:

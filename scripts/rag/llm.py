@@ -209,7 +209,7 @@ class RagLLM:
             },
         )
         resp.raise_for_status()
-        return _extract_chat_content(resp.json())
+        return _extract_chat_content(orjson.loads(resp.content))
 
     async def expand_queries(self, query: str, context: str = "") -> list[str]:
         """Expand query to MQE paraphrases via LLM; context disambiguates multi-turn pronouns; returns [query] on failure."""
@@ -338,7 +338,7 @@ class RagLLM:
             timeout=timeout,
         )
         resp.raise_for_status()
-        return _extract_chat_content(resp.json())
+        return _extract_chat_content(orjson.loads(resp.content))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -356,7 +356,7 @@ async def get_embedding(text: str, client: httpx.AsyncClient) -> list[float]:
         json={"content": f"query: {text}"},
     )
     resp.raise_for_status()
-    embedding = resp.json().get("embedding")
+    embedding = orjson.loads(resp.content).get("embedding")
     if not isinstance(embedding, list) or not embedding:
         raise ValueError("missing or empty 'embedding' field in embed response")
     return embedding

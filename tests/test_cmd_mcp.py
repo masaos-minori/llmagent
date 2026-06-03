@@ -63,7 +63,7 @@ class TestCmdMcpStatus:
         mc = _mock_client()
         mc.get = AsyncMock(return_value=resp)
 
-        with patch("agent.commands.cmd_mcp.httpx.AsyncClient", return_value=mc):
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
@@ -81,7 +81,7 @@ class TestCmdMcpStatus:
         mc = _mock_client()
         mc.get = AsyncMock(return_value=resp)
 
-        with patch("agent.commands.cmd_mcp.httpx.AsyncClient", return_value=mc):
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
@@ -95,7 +95,7 @@ class TestCmdMcpStatus:
         mc = _mock_client()
         mc.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
 
-        with patch("agent.commands.cmd_mcp.httpx.AsyncClient", return_value=mc):
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
@@ -109,7 +109,7 @@ class TestCmdMcpStatus:
         mcp = _Mcp(ctx)
 
         with patch(
-            "agent.commands.cmd_mcp.httpx.AsyncClient", return_value=_mock_client()
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
         ):
             await mcp._cmd_mcp_status()
 
@@ -125,7 +125,7 @@ class TestCmdMcpStatus:
         mcp = _Mcp(ctx)
 
         with patch(
-            "agent.commands.cmd_mcp.httpx.AsyncClient", return_value=_mock_client()
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
         ):
             await mcp._cmd_mcp_status()
 
@@ -140,7 +140,7 @@ class TestCmdMcpStatus:
         mcp = _Mcp(ctx)
 
         with patch(
-            "agent.commands.cmd_mcp.httpx.AsyncClient", return_value=_mock_client()
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
         ):
             await mcp._cmd_mcp_status()
 
@@ -153,7 +153,7 @@ class TestCmdMcpStatus:
         mcp = _Mcp(ctx)
 
         with patch(
-            "agent.commands.cmd_mcp.httpx.AsyncClient", return_value=_mock_client()
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
         ):
             await mcp._cmd_mcp_status()
 
@@ -169,7 +169,7 @@ class TestCmdMcpStatusNewColumns:
         ctx = _Ctx({})
         mcp = _Mcp(ctx)
         with patch(
-            "agent.commands.cmd_mcp.httpx.AsyncClient", return_value=_mock_client()
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
         ):
             await mcp._cmd_mcp_status()
         out = capsys.readouterr().out
@@ -191,7 +191,7 @@ class TestCmdMcpStatusNewColumns:
         resp.status_code = 200
         mc = _mock_client()
         mc.get = AsyncMock(return_value=resp)
-        with patch("agent.commands.cmd_mcp.httpx.AsyncClient", return_value=mc):
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
@@ -217,7 +217,7 @@ class TestCmdMcpStatusNewColumns:
         resp.status_code = 200
         mc = _mock_client()
         mc.get = AsyncMock(return_value=resp)
-        with patch("agent.commands.cmd_mcp.httpx.AsyncClient", return_value=mc):
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
@@ -241,7 +241,7 @@ class TestCmdMcpStatusNewColumns:
         resp.status_code = 200
         mc = _mock_client()
         mc.get = AsyncMock(return_value=resp)
-        with patch("agent.commands.cmd_mcp.httpx.AsyncClient", return_value=mc):
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
@@ -257,7 +257,7 @@ class TestCmdMcp:
         mcp = _Mcp(ctx)
 
         with patch(
-            "agent.commands.cmd_mcp.httpx.AsyncClient", return_value=_mock_client()
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
         ):
             await mcp._cmd_mcp("")
 
@@ -265,9 +265,20 @@ class TestCmdMcp:
         assert "SERVER" in out
 
 
-class TestServiceContainerLifecycle:
-    def test_lifecycle_field_defaults_to_none(self) -> None:
-        from agent.context import ServiceContainer
+class TestAppServicesMemoryOptional:
+    def test_memory_is_none_when_not_enabled(self) -> None:
+        from unittest.mock import MagicMock
 
-        sc = ServiceContainer()
-        assert sc.lifecycle is None
+        from agent.context import AppServices
+
+        svc = AppServices(
+            http=MagicMock(),
+            llm=MagicMock(),
+            tools=MagicMock(),
+            lifecycle=MagicMock(),
+            hist_mgr=MagicMock(),
+            audit_logger=MagicMock(),
+            memory=None,
+        )
+        assert svc.memory is None
+        assert svc.lifecycle is not None

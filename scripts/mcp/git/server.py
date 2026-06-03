@@ -22,12 +22,14 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from mcp.git.models import _get_cfg
-from mcp.git.service import _service
+from mcp.dispatch import dispatch_tool
+from mcp.git.models import load_git_config
+from mcp.git.service import build_service
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, ToolArgs, attach_auth_middleware, dispatch_tool
+from mcp.server import MCPServer, ToolArgs, attach_auth_middleware
 
-_cfg = _get_cfg()
+_cfg = load_git_config()
+_service = build_service(_cfg)
 
 app = FastAPI(
     title="git-mcp",

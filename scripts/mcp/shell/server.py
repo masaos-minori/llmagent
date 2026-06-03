@@ -22,8 +22,10 @@ from fastapi import FastAPI, Request
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
+from mcp.audit import _audit_log
+from mcp.dispatch import dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, ToolArgs, _audit_log, dispatch_tool
+from mcp.server import MCPServer, ToolArgs
 from mcp.shell.models import ShellRunRequest, ShellRunResponse
 from mcp.shell.service import _service
 

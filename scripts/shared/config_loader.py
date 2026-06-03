@@ -38,9 +38,7 @@ class ConfigLoader:
         return merged
 
     def load_all(self) -> dict[str, Any]:
-        """Load all config files from config/ directory."""
-        # Load common config files in order of dependency
-        # First load the base config files
+        """Load all config files from config/ directory in dependency order."""
         base_files = [
             "llm.toml",
             "http.toml",
@@ -63,7 +61,7 @@ class ConfigLoader:
                 merged.update(filtered)
             except ValueError:
                 # If a config file doesn't exist, continue with others
-                logger.debug(f"Config file not found: {name}")
+                logger.debug("Config file not found: %s", name)
                 continue
         return merged
 

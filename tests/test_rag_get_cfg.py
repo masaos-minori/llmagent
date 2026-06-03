@@ -32,16 +32,13 @@ class TestRagLlmGetCfg:
 
 
 class TestAgentConfigGetCfg:
-    def test_get_cfg_error_path(self, monkeypatch) -> None:
-        """_get_cfg() returns {} when ConfigLoader raises."""
-        import agent.config as config_mod
+    def test_load_config_error_path(self) -> None:
+        """load_config() returns {} when ConfigLoader raises."""
+        from agent.config import load_config
 
-        monkeypatch.setattr(config_mod, "_cfg", None)
-        # agent.config uses load_all(), not load()
         with patch.object(ConfigLoader, "load_all", side_effect=OSError("no file")):
-            result = config_mod._get_cfg()
+            result = load_config()
         assert result == {}
-        monkeypatch.setattr(config_mod, "_cfg", None)
 
 
 class TestDeleteModelsGetCfg:

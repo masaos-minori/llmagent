@@ -2,12 +2,12 @@
 
 ## 1. 機能概要
 
-`AgentREPL` (`agent/repl.py`) は全コンポーネントを `AgentContext` へ依存性注入し、REPL ループを駆動する薄いコーディネータ。ターンレベルのロジック (RAG 付加・LLM ループ・ツールディスパッチ) は `Orchestrator` (`agent/orchestrator.py`) に委譲。`agent.py` が `AgentREPL().run()` で起動。
+`AgentREPL` (`agent/repl.py`) は全コンポーネントを `AgentContext` へ依存性注入し、REPL ループを駆動する薄いコーディネータ。ターンレベルのロジック (LLM ループ・ツールディスパッチ) は `Orchestrator` (`agent/orchestrator.py`) に委譲。`agent.py` が `AgentREPL().run()` で起動。
 
 実装は 3 つのサテライトモジュールに分割:
 - `agent/repl_health.py` — MCP 死活監視・ウォッチドッグループ (→ §5)
 - `agent/repl_tool_exec.py` — ツール呼び出し承認・実行 (→ §4)
-- `agent/repl_debug.py` — RAG デバッグプリンタ・コンテキストユーティリティ (純粋関数)
+- `agent/repl_debug.py` — コンテキストダンプ・デバッグユーティリティ (純粋関数)
 
 ## 2. AgentREPL API
 
@@ -206,7 +206,6 @@ AgentREPL.run()
 |---|---|---|
 | `@register_command(name, *, prefix=False)` | `handler(ctx, args: str) -> None` (sync or async) | スラッシュコマンドを登録。`name` は先頭 `/` を含む文字列。`prefix=True` で末尾引数を受け付ける |
 | `@register_tool(name)` | `async handler(args: dict) -> tuple[str, bool]` | ローカル Python 関数をツールハンドラとして登録。MCP ルーティングをバイパスして `ToolExecutor` から直接呼ばれる |
-| `@register_pipeline_stage(*, when="post")` | `async handler(hits, query) -> list[RagHit]` | RAG パイプライン後段フックを登録。`when="post"` のみ対応 (cross-encoder rerank 後に呼ばれる)。`"post"` 以外を指定すると `ValueError` |
 
 ### API (アクセサ関数)
 
@@ -215,7 +214,6 @@ AgentREPL.run()
 | `get_command(name) -> tuple[Callable, bool] \| None` | 登録済みコマンドの `(handler, is_prefix)` を返す。未登録は `None` |
 | `iter_commands() -> dict[str, tuple[Callable, bool]]` | 全登録コマンドのスナップショット (`dict` のコピー) を返す |
 | `get_tool(name) -> Callable \| None` | 登録済みローカルツールハンドラを返す。未登録は `None` |
-| `get_pipeline_post_stages() -> list[Callable]` | 全登録 post-rerank フックのスナップショット (`list` のコピー) を返す |
 | `load_plugins(plugin_dir) -> int` | `plugin_dir` の `*.py` をアルファベット順にインポートしてロード数を返す。エラーはログ記録してスキップ (fail-open)。ディレクトリ不在時は `0` を返す |
 | `_reset_for_testing() -> None` | 全レジストリをクリア。テスト用途のみ |
 

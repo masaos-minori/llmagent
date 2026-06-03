@@ -145,8 +145,10 @@ class StdioTransport:
             env=merged_env,
         )
         logger.info(
-            f"stdio MCP server started: key={self._server_key!r}"
-            f" pid={self._proc.pid} cmd={self._cmd}",
+            "stdio MCP server started: key=%r pid=%s cmd=%s",
+            self._server_key,
+            self._proc.pid,
+            self._cmd,
         )
 
     def is_alive(self) -> bool:
@@ -166,7 +168,13 @@ class StdioTransport:
                 orjson.dumps({"id": req_id, "name": name, "args": args}).decode() + "\n"
             )
 
-            assert self._proc and self._proc.stdin and self._proc.stdout
+            if not (self._proc and self._proc.stdin and self._proc.stdout):
+                # Unreachable after is_alive() guard above; defensive check for type narrowing
+                return (
+                    f"stdio server process invalid (key={self._server_key!r})",
+                    True,
+                    "",
+                )
             try:
                 self._proc.stdin.write(payload.encode())
                 await self._proc.stdin.drain()
@@ -210,7 +218,8 @@ class StdioTransport:
             await asyncio.wait_for(self._proc.wait(), timeout=5.0)
         except TimeoutError:
             logger.warning(
-                f"stdio server {self._server_key!r} did not exit gracefully; terminating",
+                "stdio server %r did not exit gracefully; terminating",
+                self._server_key,
             )
             self._proc.terminate()
             try:
@@ -218,9 +227,9 @@ class StdioTransport:
             except TimeoutError:
                 self._proc.kill()
         except Exception as e:
-            logger.warning(f"stdio server {self._server_key!r} stop error: {e}")
+            logger.warning("stdio server %r stop error: %s", self._server_key, e)
             self._proc.kill()
-        logger.info(f"stdio MCP server stopped: key={self._server_key!r}")
+        logger.info("stdio MCP server stopped: key=%r", self._server_key)
 
 
 # Tools with side effects: writes, deletes, or shell execution.
@@ -317,8 +326,9 @@ class ToolExecutor:
         unknown_keys = set(self._concurrency_limits) - known_keys
         if unknown_keys:
             logger.warning(
-                f"tool_concurrency_limits: unknown server key(s) {sorted(unknown_keys)!r};"
+                "tool_concurrency_limits: unknown server key(s) %r;"
                 " Semaphore will not be applied for these tools.",
+                sorted(unknown_keys),
             )
 
         # Initialise transports: HTTP servers get their transport immediately;
@@ -335,7 +345,12 @@ class ToolExecutor:
     def set_transport(self, server_key: str, transport: StdioTransport) -> None:
         """Register a started StdioTransport for the given server key."""
         self._transports[server_key] = transport
-        logger.info(f"StdioTransport registered for server key {server_key!r}")
+        logger.info("StdioTransport registered for server key %r", server_key)
+
+    def apply_config(self, *, cache_ttl: float | None = None) -> None:
+        """Update hot-reloadable configuration fields without recreating the instance."""
+        if cache_ttl is not None:
+            self._cache_ttl = cache_ttl
 
     def set_lifecycle(self, lifecycle: LifecycleProtocol | None) -> None:
         """Inject or replace the lifecycle manager after construction."""
@@ -401,7 +416,7 @@ class ToolExecutor:
             if age < self._cache_ttl:
                 self._cache.move_to_end(cache_key)  # LRU: mark as recently used
                 self.stat_cache_hits += 1
-                logger.info(f"Tool cache hit: {tool_name} (age={age:.0f}s)")
+                logger.info("Tool cache hit: %s (age=%.0fs)", tool_name, age)
                 # Cached results have no live X-Request-Id.
                 return result, is_error, ""
             del self._cache[cache_key]
@@ -410,7 +425,7 @@ class ToolExecutor:
             self._cache[cache_key] = (result, is_error, time.time())
             if self._cache_max_size > 0 and len(self._cache) > self._cache_max_size:
                 evicted_key, _ = self._cache.popitem(last=False)
-                logger.debug(f"Tool cache LRU evict: {evicted_key!r}")
+                logger.debug("Tool cache LRU evict: %r", evicted_key)
         return result, is_error, x_request_id
 
     async def execute(
@@ -425,7 +440,7 @@ class ToolExecutor:
                 result_raw = await plugin_fn(args)
                 return str(result_raw[0]), bool(result_raw[1]), ""
             except Exception as e:
-                logger.error(f"Plugin tool {tool_name!r} raised: {e}")
+                logger.error("Plugin tool %r raised: %s", tool_name, e)
                 return f"[plugin error] {tool_name}: {e}", True, ""
         return await self._execute_with_cache(tool_name, args)
 

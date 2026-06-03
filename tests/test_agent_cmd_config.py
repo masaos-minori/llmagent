@@ -24,7 +24,6 @@ def _make_ctx() -> MagicMock:
     ctx.stat_turns = 5
     ctx.stat_tool_calls = 10
     ctx.stat_tool_errors = 2
-    ctx.stat_rag_hits = 3
     ctx.stat_semantic_cache_hits = 1
     ctx.stat_latency = {}
     ctx.stat_input_tokens = 1000
@@ -215,8 +214,14 @@ class TestApplyConfigParams:
     def test_sse_params_propagated_to_llm_service(self) -> None:
         ctx = _make_ctx()
         ctx.history = []
-        ctx.services.llm = MagicMock()
+        llm = MagicMock()
+        ctx.services.llm = llm
         cmd = _FakeCmd(ctx)
+        ctx.cfg.sse_heartbeat_timeout = 45.0
+        ctx.cfg.sse_malformed_retry = 3
+        ctx.cfg.sse_reconnect_max = 2
+        ctx.cfg.llm_stream_retry_on_heartbeat_timeout = False
+        ctx.cfg.llm_stream_retry_on_malformed_chunk = True
         cmd._apply_config_params(
             {
                 **_DUMMY_MCP,
@@ -227,11 +232,14 @@ class TestApplyConfigParams:
                 "llm_stream_retry_on_malformed_chunk": True,
             }
         )
-        assert ctx.services.llm._sse_heartbeat_timeout == 45.0
-        assert ctx.services.llm._sse_malformed_retry == 3
-        assert ctx.services.llm._sse_reconnect_max == 2
-        assert ctx.services.llm._llm_stream_retry_on_heartbeat_timeout is False
-        assert ctx.services.llm._llm_stream_retry_on_malformed_chunk is True
+        # ConfigReloadService now uses apply_config() instead of direct attr writes
+        llm.apply_config.assert_called_once()
+        call_kwargs = llm.apply_config.call_args.kwargs
+        assert call_kwargs.get("sse_heartbeat_timeout") == 45.0
+        assert call_kwargs.get("sse_malformed_retry") == 3
+        assert call_kwargs.get("sse_reconnect_max") == 2
+        assert call_kwargs.get("stream_retry_on_heartbeat_timeout") is False
+        assert call_kwargs.get("stream_retry_on_malformed_chunk") is True
 
     def test_approval_resource_keys_applied(self) -> None:
         ctx = _make_ctx()
@@ -261,5 +269,8 @@ class TestApplyConfigParams:
         ctx.cfg.tokenize_url = "http://llm/tok"
         cmd = _FakeCmd(ctx)
         cmd._apply_config_params({**_DUMMY_MCP})
-        assert hist_mgr._token_limit == 4000
-        assert hist_mgr._tokenize_url == "http://llm/tok"
+        # ConfigReloadService now uses apply_config() instead of direct attr writes
+        hist_mgr.apply_config.assert_called_once()
+        call_kwargs = hist_mgr.apply_config.call_args.kwargs
+        assert call_kwargs.get("token_limit") == 4000
+        assert call_kwargs.get("tokenize_url") == "http://llm/tok"

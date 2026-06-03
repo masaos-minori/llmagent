@@ -295,11 +295,11 @@ pytest tests/ --benchmark-compare=baseline --benchmark-compare-fail=mean:10%
 ```bash
 grep -c "cp scripts/" deploy/deploy.sh
 rg "<old_module_name>" scripts/
-grep "mcp_servers" config/agent.toml
+grep "mcp_servers" config/mcp_servers.toml
 ```
 
 Checklist (in addition to `rules/toolchain.md`):
-- `config/agent.toml [mcp_servers]` updated if a new MCP server was added
+- `config/mcp_servers.toml [mcp_servers]` updated if a new MCP server was added
 
 ---
 

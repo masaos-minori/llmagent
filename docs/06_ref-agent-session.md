@@ -2,8 +2,14 @@
 
 ## 1. 機能概要
 
-REPL セッションとメッセージの SQLite 永続化を担当するモジュール。`agent/repl.py` から import して使用。
-セッション ID の保持と全 DB 操作 (`sessions` / `messages` テーブルへの読み書き) をカプセル化し、`AgentREPL` から永続化ロジックを分離 (SOLID の単一責任原則)。
+REPL セッション・メッセージ・ノートの SQLite 永続化と、RAG ドキュメント操作 (削除・一覧) を担当するモジュール。`agent/repl.py` から import して使用。
+
+**主な責務:**
+- `sessions` / `messages` テーブルへの読み書き (セッション CRUD・メッセージ保存)
+- `notes` テーブルの CRUD (ノートの追加・一覧・削除)
+- `documents` / `chunks` テーブルのドキュメント削除・一覧 (RAG DB 側の操作を agent コマンドから委譲)
+
+RAG ドキュメント管理は本来 RAG 層の責務だが、`/db clean` 等の agent コマンドから呼ぶ利便性のため `AgentSession` に集約している。将来的には RAG MCP サービス側への責務移管を検討。
 
 ## 2. API
 

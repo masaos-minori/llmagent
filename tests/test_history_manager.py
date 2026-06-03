@@ -421,3 +421,76 @@ class TestCompressSkippedWarning:
         assert result == h
         # Warning logged
         assert any("compression skipped" in r.message.lower() for r in caplog.records)
+
+
+# ── apply_config / force_compress ────────────────────────────────────────────
+
+
+class TestApplyConfig:
+    def test_apply_config_updates_char_limit(self) -> None:
+        mgr = _make_manager(char_limit=1000)
+        mgr.apply_config(char_limit=500)
+        assert mgr._char_limit == 500
+
+    def test_apply_config_updates_compress_turns(self) -> None:
+        mgr = _make_manager(compress_turns=2)
+        mgr.apply_config(compress_turns=4)
+        assert mgr._compress_turns == 4
+
+    def test_apply_config_updates_token_limit(self) -> None:
+        mgr = _make_manager(token_limit=0)
+        mgr.apply_config(token_limit=8000)
+        assert mgr._token_limit == 8000
+
+    def test_apply_config_updates_tokenize_url(self) -> None:
+        mgr = _make_manager()
+        mgr.apply_config(tokenize_url="http://localhost/tokenize")
+        assert mgr._tokenize_url == "http://localhost/tokenize"
+
+    def test_apply_config_none_args_are_no_op(self) -> None:
+        mgr = _make_manager(char_limit=1000, compress_turns=2)
+        mgr.apply_config()
+        assert mgr._char_limit == 1000
+        assert mgr._compress_turns == 2
+
+
+class TestForceCompress:
+    def _mock_http(self) -> httpx.AsyncClient:
+        mock = AsyncMock(spec=httpx.AsyncClient)
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        resp.text = "compressed summary"
+        mock.post = AsyncMock(return_value=resp)
+        return mock
+
+    @pytest.mark.asyncio
+    async def test_force_compress_proceeds_regardless_of_limit(self) -> None:
+        # char_limit=99999 normally never triggers compression
+        mgr = _make_manager(char_limit=99999, compress_turns=2, http=self._mock_http())
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+        )
+        result = await mgr.force_compress(h)
+        # Should have compressed (fewer messages)
+        assert len(result) < len(h)
+
+    @pytest.mark.asyncio
+    async def test_force_compress_restores_original_limits(self) -> None:
+        mgr = _make_manager(char_limit=5000, token_limit=1000, http=self._mock_http())
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+        )
+        await mgr.force_compress(h)
+        # Limits must be restored after force_compress
+        assert mgr._char_limit == 5000
+        assert mgr._token_limit == 1000

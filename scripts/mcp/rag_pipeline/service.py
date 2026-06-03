@@ -12,6 +12,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import httpx
+import orjson
 from rag.types import RagHit
 
 from mcp.rag_pipeline.models import (
@@ -166,8 +167,6 @@ class RagPipelineMCPService:
 
     async def fmt_debug_pipeline(self, args: ToolArgs) -> str:
         """Format rag_debug_pipeline result as JSON summary for LLM tool result."""
-        import orjson  # noqa: PLC0415
-
         req = RagRunRequest(**args)
         result = await self.run_debug_pipeline(req)
         raw: bytes = orjson.dumps(

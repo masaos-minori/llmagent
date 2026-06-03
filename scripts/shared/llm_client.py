@@ -197,6 +197,41 @@ class LLMClient:
         self.stat_partial_completions: int = 0
         self.stat_parse_errors: int = 0
 
+    def apply_config(
+        self,
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        max_retries: int | None = None,
+        retry_base_delay: float | None = None,
+        sse_heartbeat_timeout: float | None = None,
+        sse_malformed_retry: int | None = None,
+        sse_reconnect_max: int | None = None,
+        stream_retry_on_heartbeat_timeout: bool | None = None,
+        stream_retry_on_malformed_chunk: bool | None = None,
+    ) -> None:
+        """Update hot-reloadable configuration fields without recreating the instance."""
+        if temperature is not None:
+            self._temperature = temperature
+        if max_tokens is not None:
+            self._max_tokens = max_tokens
+        if max_retries is not None:
+            self._max_retries = max_retries
+        if retry_base_delay is not None:
+            self._retry_base_delay = retry_base_delay
+        if sse_heartbeat_timeout is not None:
+            self._sse_heartbeat_timeout = sse_heartbeat_timeout
+        if sse_malformed_retry is not None:
+            self._sse_malformed_retry = sse_malformed_retry
+        if sse_reconnect_max is not None:
+            self._sse_reconnect_max = sse_reconnect_max
+        if stream_retry_on_heartbeat_timeout is not None:
+            self._llm_stream_retry_on_heartbeat_timeout = (
+                stream_retry_on_heartbeat_timeout
+            )
+        if stream_retry_on_malformed_chunk is not None:
+            self._llm_stream_retry_on_malformed_chunk = stream_retry_on_malformed_chunk
+
     # ── Retry logic ───────────────────────────────────────────────────────────
 
     async def request_with_retry(
@@ -223,18 +258,22 @@ class LLMClient:
                 self.stat_retries += 1
                 delay = self._retry_base_delay * (2**attempt)
                 logger.warning(
-                    f"LLM request failed"
-                    f" (attempt {attempt + 1}/{self._max_retries}):"
-                    f" {last_exc}, retrying in {delay:.1f}s",
+                    "LLM request failed (attempt %d/%d): %s, retrying in %.1fs",
+                    attempt + 1,
+                    self._max_retries,
+                    last_exc,
+                    delay,
                 )
                 await asyncio.sleep(delay)
             else:
                 logger.error(
-                    f"LLM request failed after {self._max_retries} attempts: {last_exc}",
+                    "LLM request failed after %d attempts: %s",
+                    self._max_retries,
+                    last_exc,
                 )
-        assert (
-            last_exc is not None
-        )  # loop ran and all attempts raised; max_retries >= 1 required
+        if last_exc is None:
+            # Unreachable: loop always sets last_exc or returns; max_retries >= 1 required
+            raise RuntimeError("request_with_retry: max_retries must be >= 1")
         raise last_exc
 
     # ── Payload construction ──────────────────────────────────────────────────
@@ -521,8 +560,11 @@ class LLMClient:
                 self.stat_reconnects += 1
                 delay = self._retry_base_delay * (2**attempt)
                 logger.warning(
-                    f"SSE error (attempt {attempt + 1}/{self._sse_reconnect_max + 1}):"
-                    f" {e.kind}, reconnecting in {delay:.1f}s",
+                    "SSE error (attempt %d/%d): %s, reconnecting in %.1fs",
+                    attempt + 1,
+                    self._sse_reconnect_max + 1,
+                    e.kind,
+                    delay,
                 )
                 await asyncio.sleep(delay)
                 # Clear accumulated state before reconnect

@@ -50,7 +50,7 @@ See `workflow.md` for detailed step content, failure recovery, and idempotency n
 
 - `scripts/mcp/<name>/server.py` syntax check passes
 - `deploy/deploy.sh` updated with new files
-- `config/agent.toml mcp_servers.<name>` entry added (verified with `rg`)
+- `config/mcp_servers.toml [mcp_servers].<name>` entry added (verified with `rg`)
 - service registered and running (`rc-service <name> status`)
 - `/mcp` in agent REPL shows the new server as healthy
 - no errors in `agent.log` during tool invocation
@@ -67,7 +67,7 @@ See `workflow.md` for detailed step content, failure recovery, and idempotency n
 
 - Do not reuse a port already assigned to an existing server
 - Do not skip the `deploy/deploy.sh` update (new script will not be deployed)
-- Do not skip the `config/agent.toml mcp_servers` entry (agent will not route tools to the server)
+- Do not skip the `config/mcp_servers.toml [mcp_servers]` entry (agent will not route tools to the server)
 - Do not use `json.load()` in the new server module
 
 See also `rules/coding.md` for project-wide coding prohibitions.

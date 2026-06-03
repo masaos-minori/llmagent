@@ -6,7 +6,7 @@ Service layer for Markdown Context Compression Engine MCP Server.
 from __future__ import annotations
 
 import logging
-import os
+from pathlib import Path
 
 import orjson
 from fastapi import HTTPException
@@ -93,8 +93,7 @@ class MdqService:
     async def outline(self, request: OutlineRequest) -> str:
         """Get the outline of a Markdown file."""
         try:
-            # Check if file exists
-            if not os.path.exists(request.path):
+            if not Path(request.path).exists():
                 raise HTTPException(status_code=404, detail="File not found")
 
             # Parse the file to get the outline
@@ -162,8 +161,6 @@ class MdqService:
     async def grep_docs(self, request: GrepDocsRequest) -> str:
         """Search documents with a regex pattern."""
         try:
-            # This is a simplified implementation - in a real implementation,
-            # this would use the indexer's grep functionality
             matches = self._indexer.grep_chunks(request.pattern, request.paths)
             response = GrepDocsResponse(
                 pattern=request.pattern,

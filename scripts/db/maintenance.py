@@ -137,8 +137,8 @@ def prune_old_memories(db: SQLiteHelper, older_than_days: int) -> int:
         db.execute("DELETE FROM memories_fts WHERE memory_id=?", (mid,))
         try:
             db.execute("DELETE FROM memories_vec WHERE memory_id=?", (mid,))
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001 — memories_vec may not exist in older DB schemas; suppress silently
+            logger.debug(f"memories_vec delete skipped for {mid!r}: {e}")
     deleted = cur.rowcount
     db.commit()
     logger.info(

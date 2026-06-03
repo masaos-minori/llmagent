@@ -24,8 +24,9 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from mcp.dispatch import dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, ToolArgs, attach_auth_middleware, dispatch_tool
+from mcp.server import MCPServer, ToolArgs, attach_auth_middleware
 from mcp.sqlite.models import _get_cfg
 from mcp.sqlite.service import _service
 

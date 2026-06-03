@@ -15,8 +15,9 @@ Extracted from agent_commands.py.  Provides _ConfigMixin with:
 import logging
 from typing import TYPE_CHECKING, Any
 
-from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
+
+from db.helper import SQLiteHelper
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -35,17 +36,27 @@ class _ConfigMixin:
         ctx = self._ctx
         llm = ctx.services.llm
         return {
-            "session_id": str(ctx.session.session_id) if ctx.session.session_id else "none",
+            "session_id": str(ctx.session.session_id)
+            if ctx.session.session_id
+            else "none",
             "turns": ctx.stat_turns,
             "tool_calls": ctx.stat_tool_calls,
             "tool_errors": ctx.stat_tool_errors,
             "llm_retries": llm.stat_retries if llm is not None else 0,
             "llm_reconnects": llm.stat_reconnects if llm is not None else 0,
-            "llm_heartbeat_timeouts": llm.stat_heartbeat_timeouts if llm is not None else 0,
-            "llm_partial_completions": llm.stat_partial_completions if llm is not None else 0,
+            "llm_heartbeat_timeouts": llm.stat_heartbeat_timeouts
+            if llm is not None
+            else 0,
+            "llm_partial_completions": llm.stat_partial_completions
+            if llm is not None
+            else 0,
             "llm_parse_errors": llm.stat_parse_errors if llm is not None else 0,
-            "cache_hits": ctx.services.tools.stat_cache_hits if ctx.services.tools is not None else 0,
-            "compress_count": ctx.services.hist_mgr.stat_compress_count if ctx.services.hist_mgr is not None else 0,
+            "cache_hits": ctx.services.tools.stat_cache_hits
+            if ctx.services.tools is not None
+            else 0,
+            "compress_count": ctx.services.hist_mgr.stat_compress_count
+            if ctx.services.hist_mgr is not None
+            else 0,
             "semantic_cache_hits": ctx.stat_semantic_cache_hits,
             "input_tokens": ctx.stat_input_tokens,
             "output_tokens": ctx.stat_output_tokens,

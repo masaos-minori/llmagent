@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class _SessionMixin:
     """Session management slash-command handlers."""
 
