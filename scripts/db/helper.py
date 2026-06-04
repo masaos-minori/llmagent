@@ -227,6 +227,16 @@ class SQLiteHelper:
         assert self.conn is not None  # guaranteed by _check_ready()
         return self.conn.execute(sql, params)
 
+    def executemany(
+        self,
+        sql: str,
+        params_seq: list[tuple[Any, ...]],
+    ) -> sqlite3.Cursor:
+        """Execute a SQL statement once per row in params_seq."""
+        self._check_ready(sql)
+        assert self.conn is not None
+        return self.conn.executemany(sql, params_seq)
+
     def fetchall(
         self,
         sql: str,

@@ -22,8 +22,8 @@ class _Ctx:
         stdio_procs: dict | None = None,
     ) -> None:
         self.cfg = MagicMock()
-        self.cfg.tool_definitions = tool_defs or []
-        self.cfg.mcp_servers = mcp_servers
+        self.cfg.tool.tool_definitions = tool_defs or []
+        self.cfg.mcp.mcp_servers = mcp_servers
         self.services = MagicMock()
         self.services.stdio_procs = stdio_procs or {}
 

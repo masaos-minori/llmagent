@@ -28,9 +28,9 @@ def audit_approval(
     """Write a structured tool_approval event to the audit log."""
     if ctx.services.audit_logger is None:
         return
-    masked = mask_args(args, ctx.cfg.masked_fields)
-    path_keys = set(ctx.cfg.approval_resource_keys.get("path_keys", []))
-    branch_keys = set(ctx.cfg.approval_resource_keys.get("branch_keys", []))
+    masked = mask_args(args, ctx.cfg.tool.masked_fields)
+    path_keys = set(ctx.cfg.approval.approval_resource_keys.get("path_keys", []))
+    branch_keys = set(ctx.cfg.approval.approval_resource_keys.get("branch_keys", []))
     resource_scope = {k: v for k, v in masked.items() if k in path_keys | branch_keys}
     ctx.services.audit_logger.info(
         orjson.dumps(
@@ -59,7 +59,7 @@ def audit_tool_exec(
     """Write a tool_exec event with mcp_request_id to the audit log."""
     if ctx.services.audit_logger is None or not mcp_request_id:
         return
-    masked = mask_args(args, ctx.cfg.masked_fields)
+    masked = mask_args(args, ctx.cfg.tool.masked_fields)
     ctx.services.audit_logger.info(
         orjson.dumps(
             {

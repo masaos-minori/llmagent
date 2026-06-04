@@ -451,31 +451,41 @@ class TestAuditApproval:
 
 class TestClassifyOperationType:
     def test_write_tools(self) -> None:
-        from agent.repl_tool_exec import _classify_operation_type
+        from agent.tool_policy import (
+            classify_operation_type as _classify_operation_type,
+        )
 
         for name in ("write_file", "edit_file", "create_directory", "move_file"):
             assert _classify_operation_type(name) == "write"
 
     def test_delete_tools(self) -> None:
-        from agent.repl_tool_exec import _classify_operation_type
+        from agent.tool_policy import (
+            classify_operation_type as _classify_operation_type,
+        )
 
         assert _classify_operation_type("delete_file") == "delete"
         assert _classify_operation_type("delete_directory") == "delete"
 
     def test_execute_tools(self) -> None:
-        from agent.repl_tool_exec import _classify_operation_type
+        from agent.tool_policy import (
+            classify_operation_type as _classify_operation_type,
+        )
 
         assert _classify_operation_type("shell_run") == "execute"
 
     def test_api_write_tools(self) -> None:
-        from agent.repl_tool_exec import _classify_operation_type
+        from agent.tool_policy import (
+            classify_operation_type as _classify_operation_type,
+        )
 
         assert _classify_operation_type("github_push_files") == "api_write"
         assert _classify_operation_type("github_create_pull_request") == "api_write"
         assert _classify_operation_type("github_merge_pull_request") == "api_write"
 
     def test_read_tools(self) -> None:
-        from agent.repl_tool_exec import _classify_operation_type
+        from agent.tool_policy import (
+            classify_operation_type as _classify_operation_type,
+        )
 
         assert _classify_operation_type("list_directory") == "read"
         assert _classify_operation_type("read_text_file") == "read"

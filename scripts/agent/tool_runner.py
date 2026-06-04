@@ -56,9 +56,9 @@ async def execute_one_tool_call(
     audit_tool_exec(ctx, name, args, is_error, x_request_id)
 
     if (
-        ctx.cfg.use_tool_summarize
+        ctx.cfg.tool.use_tool_summarize
         and not is_error
-        and len(text) > ctx.cfg.tool_summarize_threshold
+        and len(text) > ctx.cfg.tool.tool_summarize_threshold
         and ctx.services.http is not None
     ):
         llm_text = await summarize_tool_result(text, name, args, ctx.services.http)
@@ -67,8 +67,8 @@ async def execute_one_tool_call(
         )
     else:
         llm_text = (
-            text[: ctx.cfg.tool_result_max_llm_chars] + "\n... (truncated)"
-            if len(text) > ctx.cfg.tool_result_max_llm_chars
+            text[: ctx.cfg.tool.tool_result_max_llm_chars] + "\n... (truncated)"
+            if len(text) > ctx.cfg.tool.tool_result_max_llm_chars
             else text
         )
 
@@ -93,7 +93,7 @@ def _collect_tool_result_msgs(
             ctx.stat_tool_errors += 1
             if out_failed_keys is not None:
                 out_failed_keys.add(tool_call_key(name, args))
-        masked = mask_args(args, ctx.cfg.masked_fields)
+        masked = mask_args(args, ctx.cfg.tool.masked_fields)
         logger.info(f"Tool call (turn {turn + 1}): {name}({masked})")
         print(f"  [tool] {name}({orjson.dumps(masked).decode()})")
         n_lines = len(text.splitlines())
@@ -113,7 +113,7 @@ def _collect_tool_result_msgs(
             summary=llm_text if summarized else None,
             is_error=is_error,
         )
-        limit = ctx.cfg.tool_results_turn_max_chars
+        limit = ctx.cfg.tool.tool_results_turn_max_chars
         turn_chars += len(llm_text)
         if limit > 0 and turn_chars > limit:
             id_hint = f" (id={result_id})" if result_id is not None else ""
@@ -164,9 +164,9 @@ async def _execute_standard(
     has_side_effect = any(
         is_side_effect(tc["function"]["name"]) for tc in approved_calls
     )
-    use_serial = ctx.cfg.serial_tool_calls or has_side_effect
+    use_serial = ctx.cfg.tool.serial_tool_calls or has_side_effect
     if use_serial:
-        if has_side_effect and not ctx.cfg.serial_tool_calls:
+        if has_side_effect and not ctx.cfg.tool.serial_tool_calls:
             logger.info(
                 "Side-effect tool detected; downgrading to serial execution"
                 f" ({[tc['function']['name'] for tc in approved_calls]})",
@@ -191,11 +191,11 @@ async def execute_all_tool_calls(
     """Execute all tool calls then append results in original order.
 
     Parallel by default; downgrades to serial on side-effect detection.
-    DAG mode (write-before-read) activated by ctx.cfg.use_tool_dag.
+    DAG mode (write-before-read) activated by ctx.cfg.tool.use_tool_dag.
     """
     approved_calls, denied_ids = await run_approval_checks(ctx, tool_calls)
 
-    if ctx.cfg.use_tool_dag and not ctx.cfg.serial_tool_calls:
+    if ctx.cfg.tool.use_tool_dag and not ctx.cfg.tool.serial_tool_calls:
         results = await _execute_with_dag(ctx, approved_calls, turn)
     else:
         results = await _execute_standard(ctx, approved_calls, turn)

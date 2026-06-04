@@ -17,7 +17,6 @@ from __future__ import annotations
 import logging
 
 import httpx
-from db.helper import SQLiteHelper
 from shared.types import LLMMessage
 
 from agent.memory.embedding_client import (
@@ -33,6 +32,7 @@ from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.retriever import MemoryRetriever
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryHit, MemoryQuery
+from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 class MemoryLayer:
     """High-level memory orchestration facade.
 
-    Injected into ServiceContainer.memory when use_memory_layer=True.
+    Injected into AppServices.memory when use_memory_layer=True.
     All lifecycle hooks delegate to MemoryInjectionService / MemoryIngestionService.
     """
 

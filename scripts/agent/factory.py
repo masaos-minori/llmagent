@@ -38,7 +38,7 @@ def _build_audit_logger(ctx: AgentContext) -> Logger:
     """Build and return the audit logger."""
     return Logger(
         "audit",
-        ctx.cfg.audit_log_file,
+        ctx.cfg.obs.audit_log_file,
         structured_log=True,
     )
 
@@ -53,20 +53,20 @@ def _build_llm_client(
         ctx.stat_input_tokens = (ctx.stat_input_tokens or 0) + prompt_tokens
         ctx.stat_output_tokens = (ctx.stat_output_tokens or 0) + completion_tokens
 
-    http = httpx.AsyncClient(timeout=ctx.cfg.http_timeout)
+    http = httpx.AsyncClient(timeout=ctx.cfg.llm.http_timeout)
     llm = LLMClient(
         http,
-        max_retries=ctx.cfg.llm_max_retries,
-        retry_base_delay=ctx.cfg.llm_retry_base_delay,
-        temperature=ctx.cfg.llm_temperature,
-        max_tokens=ctx.cfg.llm_max_tokens,
+        max_retries=ctx.cfg.llm.llm_max_retries,
+        retry_base_delay=ctx.cfg.llm.llm_retry_base_delay,
+        temperature=ctx.cfg.llm.llm_temperature,
+        max_tokens=ctx.cfg.llm.llm_max_tokens,
         on_token=view.write_token,
         on_usage=_on_llm_usage,
-        sse_heartbeat_timeout=ctx.cfg.sse_heartbeat_timeout,
-        sse_malformed_retry=ctx.cfg.sse_malformed_retry,
-        sse_reconnect_max=ctx.cfg.sse_reconnect_max,
-        llm_stream_retry_on_heartbeat_timeout=ctx.cfg.llm_stream_retry_on_heartbeat_timeout,
-        llm_stream_retry_on_malformed_chunk=ctx.cfg.llm_stream_retry_on_malformed_chunk,
+        sse_heartbeat_timeout=ctx.cfg.llm.sse_heartbeat_timeout,
+        sse_malformed_retry=ctx.cfg.llm.sse_malformed_retry,
+        sse_reconnect_max=ctx.cfg.llm.sse_reconnect_max,
+        llm_stream_retry_on_heartbeat_timeout=ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout,
+        llm_stream_retry_on_malformed_chunk=ctx.cfg.llm.llm_stream_retry_on_malformed_chunk,
     )
     return http, llm
 
@@ -79,13 +79,13 @@ def _build_tool_executor(
     """Build ToolExecutor and ServerLifecycleManager; return both."""
     tools = ToolExecutor(
         http,
-        cache_ttl=ctx.cfg.tool_cache_ttl,
-        server_configs=ctx.cfg.mcp_servers,
-        cache_max_size=ctx.cfg.tool_cache_max_size,
-        concurrency_limits=ctx.cfg.tool_concurrency_limits,
+        cache_ttl=ctx.cfg.tool.tool_cache_ttl,
+        server_configs=ctx.cfg.mcp.mcp_servers,
+        cache_max_size=ctx.cfg.tool.tool_cache_max_size,
+        concurrency_limits=ctx.cfg.tool.tool_concurrency_limits,
     )
     lifecycle = ServerLifecycleManager(
-        ctx.cfg.mcp_servers,
+        ctx.cfg.mcp.mcp_servers,
         tools,
         stdio_procs,
     )
@@ -101,15 +101,15 @@ def _build_history_manager(
     """Build and return HistoryManager."""
     return HistoryManager(
         http,
-        llm_url=ctx.cfg.llm_url,
-        char_limit=ctx.cfg.context_char_limit,
-        compress_turns=ctx.cfg.context_compress_turns,
+        llm_url=ctx.cfg.llm.llm_url,
+        char_limit=ctx.cfg.llm.context_char_limit,
+        compress_turns=ctx.cfg.llm.context_compress_turns,
         compress_temperature=_COMPRESS_TEMPERATURE,
         compress_max_tokens=_COMPRESS_MAX_TOKENS,
         on_compress=view.write_compress_notice,
-        protect_turns=ctx.cfg.history_protect_turns,
-        token_limit=ctx.cfg.context_token_limit,
-        tokenize_url=ctx.cfg.tokenize_url,
+        protect_turns=ctx.cfg.llm.history_protect_turns,
+        token_limit=ctx.cfg.llm.context_token_limit,
+        tokenize_url=ctx.cfg.llm.tokenize_url,
     )
 
 
@@ -118,7 +118,7 @@ def _build_memory_layer(
     http: httpx.AsyncClient,
 ) -> MemoryLayer | None:
     """Build and return MemoryLayer when use_memory_layer=True, else None."""
-    if not ctx.cfg.use_memory_layer:
+    if not ctx.cfg.memory.use_memory_layer:
         return None
     # Deferred imports to reduce startup cost when memory is disabled
     from agent.memory.jsonl_store import JsonlMemoryStore  # noqa: PLC0415
@@ -129,16 +129,16 @@ def _build_memory_layer(
     layer = MemoryLayer(
         store=MemoryStore(),
         retriever=MemoryRetriever(),
-        jsonl=JsonlMemoryStore(ctx.cfg.memory_jsonl_dir + "/memories.jsonl"),
-        max_inject_semantic=ctx.cfg.memory_max_inject_semantic,
-        max_inject_episodic=ctx.cfg.memory_max_inject_episodic,
-        min_importance=ctx.cfg.memory_min_importance,
+        jsonl=JsonlMemoryStore(ctx.cfg.memory.memory_jsonl_dir + "/memories.jsonl"),
+        max_inject_semantic=ctx.cfg.memory.memory_max_inject_semantic,
+        max_inject_episodic=ctx.cfg.memory.memory_max_inject_episodic,
+        min_importance=ctx.cfg.memory.memory_min_importance,
         http=http,
-        embed_url=ctx.cfg.embed_url,
-        embed_enabled=ctx.cfg.memory_embed_enabled,
-        dedup_threshold=ctx.cfg.memory_dedup_threshold,
-        embed_timeout=ctx.cfg.memory_embed_timeout_sec,
-        max_content_chars=ctx.cfg.memory_max_content_chars,
+        embed_url=ctx.cfg.rag.embed_url,
+        embed_enabled=ctx.cfg.memory.memory_embed_enabled,
+        dedup_threshold=ctx.cfg.memory.memory_dedup_threshold,
+        embed_timeout=ctx.cfg.memory.memory_embed_timeout_sec,
+        max_content_chars=ctx.cfg.memory.memory_max_content_chars,
     )
     _audit_logger_instance.info("MemoryLayer initialised (use_memory_layer=True)")
     return layer
@@ -155,9 +155,9 @@ def _init_plugin_registry() -> None:
 def init_tracer(ctx: AgentContext) -> object:
     """Build and return an OTel tracer; returns a NoOp stub when otel_enabled=False."""
     return build_tracer(
-        enabled=ctx.cfg.otel_enabled,
-        service_name=ctx.cfg.otel_service_name,
-        otlp_endpoint=ctx.cfg.otel_endpoint,
+        enabled=ctx.cfg.obs.otel_enabled,
+        service_name=ctx.cfg.obs.otel_service_name,
+        otlp_endpoint=ctx.cfg.obs.otel_endpoint,
     )
 
 

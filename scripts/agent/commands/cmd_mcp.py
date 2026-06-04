@@ -29,7 +29,9 @@ class _McpMixin:
         """Print MCP server status table."""
         ctx = self._ctx
         svc = McpStatusService(ctx)
-        print(f"  Tools       {len(ctx.cfg.tool_definitions)} (from config/agent.toml)")
+        print(
+            f"  Tools       {len(ctx.cfg.tool.tool_definitions)} (from config/agent.toml)"
+        )
         print()
         rows = await svc.probe_all()
         print(svc.format_table(rows))

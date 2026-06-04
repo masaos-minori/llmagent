@@ -33,12 +33,13 @@ class TestRagLlmGetCfg:
 
 class TestAgentConfigGetCfg:
     def test_load_config_error_path(self) -> None:
-        """load_config() returns {} when ConfigLoader raises."""
-        from agent.config import load_config
+        """load_config() raises ConfigLoadError when ConfigLoader raises."""
+        import pytest
+        from agent.config import ConfigLoadError, load_config
 
         with patch.object(ConfigLoader, "load_all", side_effect=OSError("no file")):
-            result = load_config()
-        assert result == {}
+            with pytest.raises(ConfigLoadError, match="Config load failed"):
+                load_config()
 
 
 class TestDeleteModelsGetCfg:

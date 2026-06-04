@@ -209,7 +209,7 @@ class TestStartSubprocessServers:
         mcp_servers: dict[str, McpServerConfig],
     ) -> AgentREPL:
         repl = _make_bare_repl()
-        repl._ctx.cfg.mcp_servers = mcp_servers
+        repl._ctx.cfg.mcp.mcp_servers = mcp_servers
         repl._ctx.services.tools = MagicMock()
         repl._ctx.services.tools.set_transport = MagicMock()
         repl._ctx.services.lifecycle = AsyncMock()
@@ -244,9 +244,7 @@ class TestStartSubprocessServers:
         cfg = _stdio_persistent_cfg()
         repl = self._make_repl_for_startup({"git": cfg})
 
-        with patch(
-            "agent.repl.StdioTransport", autospec=True
-        ) as mock_transport_cls:
+        with patch("agent.repl.StdioTransport", autospec=True) as mock_transport_cls:
             mock_transport = AsyncMock()
             mock_transport.start = AsyncMock()
             mock_transport_cls.return_value = mock_transport

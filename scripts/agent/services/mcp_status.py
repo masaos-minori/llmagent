@@ -44,7 +44,7 @@ class McpStatusService:
         ctx = self._ctx
         results: list[McpServerStatus] = []
         async with httpx.AsyncClient(timeout=5.0) as probe:
-            for key, cfg in ctx.cfg.mcp_servers.items():
+            for key, cfg in ctx.cfg.mcp.mcp_servers.items():
                 auth = "yes" if cfg.auth_token else "no"
                 write = (
                     "yes"
@@ -75,15 +75,28 @@ class McpStatusService:
         col = "{:<14} {:<6} {:<11} {:<5} {:<6} {:<12} {:<16} {}"
         lines = [
             col.format(
-                "SERVER", "TRANS", "MODE", "AUTH", "WRITE", "ROLE", "STATUS", "ENDPOINT/CMD"
+                "SERVER",
+                "TRANS",
+                "MODE",
+                "AUTH",
+                "WRITE",
+                "ROLE",
+                "STATUS",
+                "ENDPOINT/CMD",
             ),
             "-" * 95,
         ]
         for r in rows:
             lines.append(
                 col.format(
-                    r.key, r.transport, r.startup_mode, r.auth, r.write,
-                    r.role, r.status, r.endpoint,
+                    r.key,
+                    r.transport,
+                    r.startup_mode,
+                    r.auth,
+                    r.write,
+                    r.role,
+                    r.status,
+                    r.endpoint,
                 )
             )
         return "\n".join(lines)
@@ -97,9 +110,7 @@ class McpStatusService:
         except Exception as e:
             return f"FAIL ({e})"
 
-    def _get_stdio_status(
-        self, ctx: AgentContext, key: str, startup_mode: str
-    ) -> str:
+    def _get_stdio_status(self, ctx: AgentContext, key: str, startup_mode: str) -> str:
         transport = ctx.services.stdio_procs.get(key)
         if transport is None:
             return "STOPPED" if startup_mode == "ondemand" else "NOT_STARTED"

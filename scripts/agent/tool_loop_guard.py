@@ -65,7 +65,7 @@ class ToolLoopGuard:
     ) -> str | None:
         """Detect repeating round-level tool fingerprints; return exit msg when hit."""
         ctx = self._ctx
-        if ctx.cfg.tool_cycle_detect_window <= 0:
+        if ctx.cfg.tool.tool_cycle_detect_window <= 0:
             return None
         round_key = hashlib.md5(
             "|".join(
@@ -77,7 +77,7 @@ class ToolLoopGuard:
             ).encode(),
             usedforsecurity=False,
         ).hexdigest()
-        if round_fingerprints.count(round_key) >= ctx.cfg.tool_cycle_detect_window:
+        if round_fingerprints.count(round_key) >= ctx.cfg.tool.tool_cycle_detect_window:
             logger.warning(
                 f"Cyclic planning detected: round fingerprint {round_key!r}"
                 f" repeated {round_fingerprints.count(round_key)} times",
@@ -101,7 +101,7 @@ class ToolLoopGuard:
                 usedforsecurity=False,
             ).hexdigest()
             seen_calls[key] = seen_calls.get(key, 0) + 1
-            if seen_calls[key] >= ctx.cfg.tool_dedup_max_repeats:
+            if seen_calls[key] >= ctx.cfg.tool.tool_dedup_max_repeats:
                 name = func.get("name", "<unknown>")
                 logger.warning(f"Duplicate tool call blocked: {name!r}")
                 ctx.history.append({"role": "user", "content": DEDUP_HINT})
@@ -115,7 +115,7 @@ class ToolLoopGuard:
     ) -> str | None:
         """Block retry of already-failed (tool, args); return exit msg when hit."""
         ctx = self._ctx
-        if ctx.cfg.tool_error_retry_max <= 0:
+        if ctx.cfg.tool.tool_error_retry_max <= 0:
             return None
         for tc in message["tool_calls"]:
             func = tc.get("function", {})
@@ -159,12 +159,12 @@ class ToolLoopGuard:
         """Return exit message when consecutive all-error turns exceed configured max."""
         ctx = self._ctx
         if (
-            ctx.cfg.tool_error_max_consecutive <= 0
-            or consecutive_errors < ctx.cfg.tool_error_max_consecutive
+            ctx.cfg.tool.tool_error_max_consecutive <= 0
+            or consecutive_errors < ctx.cfg.tool.tool_error_max_consecutive
         ):
             return None
         logger.warning(
             f"Aborting turn: {consecutive_errors} consecutive all-error"
-            f" tool turns (max={ctx.cfg.tool_error_max_consecutive})",
+            f" tool turns (max={ctx.cfg.tool.tool_error_max_consecutive})",
         )
         return "Too many consecutive tool errors."

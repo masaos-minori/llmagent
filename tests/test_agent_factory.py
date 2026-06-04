@@ -19,40 +19,40 @@ from agent.factory import build_agent_context, init_tracer
 def _make_ctx(*, use_memory_layer: bool = False, otel_enabled: bool = False) -> Any:
     """AgentContext を MagicMock で生成する。cfg の主要フィールドをセットする。"""
     ctx = MagicMock()
-    ctx.cfg.use_memory_layer = use_memory_layer
-    ctx.cfg.otel_enabled = otel_enabled
-    ctx.cfg.otel_service_name = "test-agent"
-    ctx.cfg.otel_endpoint = ""
-    ctx.cfg.audit_log_file = "/dev/null"
-    ctx.cfg.http_timeout = 30.0
-    ctx.cfg.llm_max_retries = 3
-    ctx.cfg.llm_retry_base_delay = 1.0
-    ctx.cfg.llm_temperature = 0.2
-    ctx.cfg.llm_max_tokens = 1024
-    ctx.cfg.sse_heartbeat_timeout = 30.0
-    ctx.cfg.sse_malformed_retry = False
-    ctx.cfg.sse_reconnect_max = 3
-    ctx.cfg.llm_stream_retry_on_heartbeat_timeout = True
-    ctx.cfg.llm_stream_retry_on_malformed_chunk = True
-    ctx.cfg.tool_cache_ttl = 300.0
-    ctx.cfg.tool_cache_max_size = 128
-    ctx.cfg.tool_concurrency_limits = {}
-    ctx.cfg.mcp_servers = {}
-    ctx.cfg.llm_url = "http://localhost:8080"
-    ctx.cfg.context_char_limit = 8000
-    ctx.cfg.context_compress_turns = 5
-    ctx.cfg.history_protect_turns = 2
-    ctx.cfg.context_token_limit = 0
-    ctx.cfg.tokenize_url = ""
-    ctx.cfg.memory_jsonl_dir = "/tmp/test_memories"
-    ctx.cfg.memory_max_inject_semantic = 5
-    ctx.cfg.memory_max_inject_episodic = 5
-    ctx.cfg.memory_min_importance = 0.5
-    ctx.cfg.embed_url = ""
-    ctx.cfg.memory_embed_enabled = False
-    ctx.cfg.memory_dedup_threshold = 0.9
-    ctx.cfg.memory_embed_timeout_sec = 5.0
-    ctx.cfg.memory_max_content_chars = 2000
+    ctx.cfg.memory.use_memory_layer = use_memory_layer
+    ctx.cfg.obs.otel_enabled = otel_enabled
+    ctx.cfg.obs.otel_service_name = "test-agent"
+    ctx.cfg.obs.otel_endpoint = ""
+    ctx.cfg.obs.audit_log_file = "/dev/null"
+    ctx.cfg.llm.http_timeout = 30.0
+    ctx.cfg.llm.llm_max_retries = 3
+    ctx.cfg.llm.llm_retry_base_delay = 1.0
+    ctx.cfg.llm.llm_temperature = 0.2
+    ctx.cfg.llm.llm_max_tokens = 1024
+    ctx.cfg.llm.sse_heartbeat_timeout = 30.0
+    ctx.cfg.llm.sse_malformed_retry = False
+    ctx.cfg.llm.sse_reconnect_max = 3
+    ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout = True
+    ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = True
+    ctx.cfg.tool.tool_cache_ttl = 300.0
+    ctx.cfg.tool.tool_cache_max_size = 128
+    ctx.cfg.tool.tool_concurrency_limits = {}
+    ctx.cfg.mcp.mcp_servers = {}
+    ctx.cfg.llm.llm_url = "http://localhost:8080"
+    ctx.cfg.llm.context_char_limit = 8000
+    ctx.cfg.llm.context_compress_turns = 5
+    ctx.cfg.llm.history_protect_turns = 2
+    ctx.cfg.llm.context_token_limit = 0
+    ctx.cfg.llm.tokenize_url = ""
+    ctx.cfg.memory.memory_jsonl_dir = "/tmp/test_memories"
+    ctx.cfg.memory.memory_max_inject_semantic = 5
+    ctx.cfg.memory.memory_max_inject_episodic = 5
+    ctx.cfg.memory.memory_min_importance = 0.5
+    ctx.cfg.rag.embed_url = ""
+    ctx.cfg.memory.memory_embed_enabled = False
+    ctx.cfg.memory.memory_dedup_threshold = 0.9
+    ctx.cfg.memory.memory_embed_timeout_sec = 5.0
+    ctx.cfg.memory.memory_max_content_chars = 2000
     # services は初期状態で None
     ctx.services.http = None
     ctx.services.llm = None
@@ -173,7 +173,7 @@ class TestBuildAgentContext:
 
         build_agent_context(ctx, view)
 
-        assert ctx.cfg.use_memory_layer is False
+        assert ctx.cfg.memory.use_memory_layer is False
 
     def test_memory_layer_set_when_enabled(self, monkeypatch: Any) -> None:
         # use_memory_layer=True → MemoryLayer が作成されて ctx.services.memory にセットされること

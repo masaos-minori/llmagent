@@ -94,40 +94,40 @@ class TestCmdStats:
 class TestPrintConfigValues:
     def _make_cfg_ctx(self) -> MagicMock:
         ctx = _make_ctx()
-        ctx.cfg.llm_url = "http://llm"
-        ctx.cfg.web_search_url = "http://ws"
-        ctx.cfg.github_url = "http://gh"
-        ctx.cfg.max_tool_turns = 5
-        ctx.cfg.http_timeout = 30.0
-        ctx.cfg.web_search_max_results = 10
-        ctx.cfg.context_char_limit = 8000
-        ctx.cfg.context_compress_turns = 4
-        ctx.cfg.tool_cache_ttl = 300.0
-        ctx.cfg.llm_max_retries = 3
-        ctx.cfg.llm_retry_base_delay = 1.0
-        ctx.cfg.llm_temperature = 0.2
-        ctx.cfg.llm_max_tokens = 1024
-        ctx.cfg.sse_heartbeat_timeout = 30.0
-        ctx.cfg.sse_malformed_retry = 2
-        ctx.cfg.sse_reconnect_max = 1
-        ctx.cfg.llm_stream_retry_on_heartbeat_timeout = True
-        ctx.cfg.llm_stream_retry_on_malformed_chunk = False
-        ctx.cfg.serial_tool_calls = False
-        ctx.cfg.use_tool_summarize = False
-        ctx.cfg.tool_summarize_threshold = 3000
-        ctx.cfg.auto_inject_notes = True
-        ctx.cfg.use_semantic_cache = False
-        ctx.cfg.semantic_cache_threshold = 0.92
-        ctx.cfg.semantic_cache_max_size = 100
-        ctx.cfg.tool_definitions_strict = False
-        ctx.cfg.mcp_watchdog_interval = 0.0
-        ctx.cfg.mcp_watchdog_max_restarts = 3
-        ctx.cfg.approval_risk_rules = {}
-        ctx.cfg.approval_protected_paths = []
-        ctx.cfg.approval_high_risk_branches = []
-        ctx.cfg.approval_dry_run_tools = ["write_file"]
-        ctx.cfg.masked_fields = []
-        ctx.cfg.plan_blocked_tools = []
+        ctx.cfg.llm.llm_url = "http://llm"
+        ctx.cfg.rag.web_search_url = "http://ws"
+        ctx.cfg.mcp.github_url = "http://gh"
+        ctx.cfg.tool.max_tool_turns = 5
+        ctx.cfg.llm.http_timeout = 30.0
+        ctx.cfg.rag.web_search_max_results = 10
+        ctx.cfg.llm.context_char_limit = 8000
+        ctx.cfg.llm.context_compress_turns = 4
+        ctx.cfg.tool.tool_cache_ttl = 300.0
+        ctx.cfg.llm.llm_max_retries = 3
+        ctx.cfg.llm.llm_retry_base_delay = 1.0
+        ctx.cfg.llm.llm_temperature = 0.2
+        ctx.cfg.llm.llm_max_tokens = 1024
+        ctx.cfg.llm.sse_heartbeat_timeout = 30.0
+        ctx.cfg.llm.sse_malformed_retry = 2
+        ctx.cfg.llm.sse_reconnect_max = 1
+        ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout = True
+        ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = False
+        ctx.cfg.tool.serial_tool_calls = False
+        ctx.cfg.tool.use_tool_summarize = False
+        ctx.cfg.tool.tool_summarize_threshold = 3000
+        ctx.cfg.tool.auto_inject_notes = True
+        ctx.cfg.rag.use_semantic_cache = False
+        ctx.cfg.rag.semantic_cache_threshold = 0.92
+        ctx.cfg.rag.semantic_cache_max_size = 100
+        ctx.cfg.tool.tool_definitions_strict = False
+        ctx.cfg.mcp.mcp_watchdog_interval = 0.0
+        ctx.cfg.mcp.mcp_watchdog_max_restarts = 3
+        ctx.cfg.approval.approval_risk_rules = {}
+        ctx.cfg.approval.approval_protected_paths = []
+        ctx.cfg.approval.approval_high_risk_branches = []
+        ctx.cfg.approval.approval_dry_run_tools = ["write_file"]
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.tool.plan_blocked_tools = []
         return ctx
 
     def test_sse_settings_section_is_printed(self, capsys: Any) -> None:
@@ -152,7 +152,7 @@ class TestPrintConfigValues:
 
     def test_empty_dry_run_tools_shows_none(self, capsys: Any) -> None:
         ctx = self._make_cfg_ctx()
-        ctx.cfg.approval_dry_run_tools = []
+        ctx.cfg.approval.approval_dry_run_tools = []
         cmd = _FakeCmd(ctx)
         cmd._print_config_values()
         out = capsys.readouterr().out
@@ -181,21 +181,21 @@ class TestApplyConfigParams:
         ctx.history = []
         cmd = _FakeCmd(ctx)
         cmd._apply_config_params({**_DUMMY_MCP, "sse_heartbeat_timeout": 60.0})
-        assert ctx.cfg.sse_heartbeat_timeout == 60.0
+        assert ctx.cfg.llm.sse_heartbeat_timeout == 60.0
 
     def test_sse_malformed_retry_reloaded(self) -> None:
         ctx = _make_ctx()
         ctx.history = []
         cmd = _FakeCmd(ctx)
         cmd._apply_config_params({**_DUMMY_MCP, "sse_malformed_retry": 5})
-        assert ctx.cfg.sse_malformed_retry == 5
+        assert ctx.cfg.llm.sse_malformed_retry == 5
 
     def test_sse_reconnect_max_reloaded(self) -> None:
         ctx = _make_ctx()
         ctx.history = []
         cmd = _FakeCmd(ctx)
         cmd._apply_config_params({**_DUMMY_MCP, "sse_reconnect_max": 3})
-        assert ctx.cfg.sse_reconnect_max == 3
+        assert ctx.cfg.llm.sse_reconnect_max == 3
 
     def test_llm_stream_retry_flags_reloaded(self) -> None:
         ctx = _make_ctx()
@@ -208,8 +208,8 @@ class TestApplyConfigParams:
                 "llm_stream_retry_on_malformed_chunk": True,
             }
         )
-        assert ctx.cfg.llm_stream_retry_on_heartbeat_timeout is False
-        assert ctx.cfg.llm_stream_retry_on_malformed_chunk is True
+        assert ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout is False
+        assert ctx.cfg.llm.llm_stream_retry_on_malformed_chunk is True
 
     def test_sse_params_propagated_to_llm_service(self) -> None:
         ctx = _make_ctx()
@@ -217,11 +217,11 @@ class TestApplyConfigParams:
         llm = MagicMock()
         ctx.services.llm = llm
         cmd = _FakeCmd(ctx)
-        ctx.cfg.sse_heartbeat_timeout = 45.0
-        ctx.cfg.sse_malformed_retry = 3
-        ctx.cfg.sse_reconnect_max = 2
-        ctx.cfg.llm_stream_retry_on_heartbeat_timeout = False
-        ctx.cfg.llm_stream_retry_on_malformed_chunk = True
+        ctx.cfg.llm.sse_heartbeat_timeout = 45.0
+        ctx.cfg.llm.sse_malformed_retry = 3
+        ctx.cfg.llm.sse_reconnect_max = 2
+        ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout = False
+        ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = True
         cmd._apply_config_params(
             {
                 **_DUMMY_MCP,
@@ -248,7 +248,7 @@ class TestApplyConfigParams:
         cmd._apply_config_params(
             {**_DUMMY_MCP, "approval_resource_keys": {"github_push": "high"}}
         )
-        assert ctx.cfg.approval_resource_keys == {"github_push": "high"}
+        assert ctx.cfg.approval.approval_resource_keys == {"github_push": "high"}
 
     def test_approval_dry_run_tools_applied(self) -> None:
         ctx = _make_ctx()
@@ -257,7 +257,7 @@ class TestApplyConfigParams:
         cmd._apply_config_params(
             {**_DUMMY_MCP, "approval_dry_run_tools": ["write_file", "delete_file"]}
         )
-        assert ctx.cfg.approval_dry_run_tools == ["write_file", "delete_file"]
+        assert ctx.cfg.approval.approval_dry_run_tools == ["write_file", "delete_file"]
 
     def test_hist_mgr_token_limit_synced(self) -> None:
         ctx = _make_ctx()
@@ -265,8 +265,8 @@ class TestApplyConfigParams:
         hist_mgr = MagicMock()
         ctx.services.hist_mgr = hist_mgr
         # Pre-set cfg values; _apply_config_params reads them to sync to hist_mgr
-        ctx.cfg.context_token_limit = 4000
-        ctx.cfg.tokenize_url = "http://llm/tok"
+        ctx.cfg.llm.context_token_limit = 4000
+        ctx.cfg.llm.tokenize_url = "http://llm/tok"
         cmd = _FakeCmd(ctx)
         cmd._apply_config_params({**_DUMMY_MCP})
         # ConfigReloadService now uses apply_config() instead of direct attr writes

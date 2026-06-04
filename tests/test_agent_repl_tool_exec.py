@@ -12,10 +12,14 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from agent.repl_tool_exec import (
-    _check_allowed_repo,
-    _check_allowed_root,
-    _classify_risk,
+from agent.tool_policy import (
+    check_allowed_repo as _check_allowed_repo,
+)
+from agent.tool_policy import (
+    check_allowed_root as _check_allowed_root,
+)
+from agent.tool_policy import (
+    classify_risk as _classify_risk,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -33,20 +37,22 @@ def _make_cfg(
     approval_resource_keys: dict | None = None,
 ) -> MagicMock:
     cfg = MagicMock()
-    cfg.approval_risk_rules = (
+    cfg.approval.approval_risk_rules = (
         approval_risk_rules if approval_risk_rules is not None else {}
     )
-    cfg.tool_safety_tiers = tool_safety_tiers if tool_safety_tiers is not None else {}
-    cfg.allowed_root = allowed_root
-    cfg.approval_github_allowed_repos = (
+    cfg.approval.tool_safety_tiers = (
+        tool_safety_tiers if tool_safety_tiers is not None else {}
+    )
+    cfg.approval.allowed_root = allowed_root
+    cfg.approval.approval_github_allowed_repos = (
         approval_github_allowed_repos
         if approval_github_allowed_repos is not None
         else []
     )
-    cfg.approval_protected_paths = approval_protected_paths or []
-    cfg.approval_high_risk_branches = approval_high_risk_branches or []
-    cfg.approval_shell_safe_prefixes = approval_shell_safe_prefixes or []
-    cfg.approval_resource_keys = approval_resource_keys or {
+    cfg.approval.approval_protected_paths = approval_protected_paths or []
+    cfg.approval.approval_high_risk_branches = approval_high_risk_branches or []
+    cfg.approval.approval_shell_safe_prefixes = approval_shell_safe_prefixes or []
+    cfg.approval.approval_resource_keys = approval_resource_keys or {
         "path_keys": ["path", "file_path", "source", "destination"],
         "branch_keys": ["branch"],
     }
@@ -273,13 +279,13 @@ def _make_ctx_for_dag(
     serial_tool_calls: bool = False,
 ) -> MagicMock:
     ctx = MagicMock()
-    ctx.cfg.use_tool_dag = use_tool_dag
-    ctx.cfg.serial_tool_calls = serial_tool_calls
-    ctx.cfg.tool_result_max_llm_chars = 8000
+    ctx.cfg.tool.use_tool_dag = use_tool_dag
+    ctx.cfg.tool.serial_tool_calls = serial_tool_calls
+    ctx.cfg.tool.tool_result_max_llm_chars = 8000
     ctx.cfg.tools_results_turn_max_chars = 50000
-    ctx.cfg.tool_results_turn_max_chars = 50000
-    ctx.cfg.use_tool_summarize = False
-    ctx.cfg.tool_summarize_threshold = 0
+    ctx.cfg.tool.tool_results_turn_max_chars = 50000
+    ctx.cfg.tool.use_tool_summarize = False
+    ctx.cfg.tool.tool_summarize_threshold = 0
     ctx.history = []
     ctx.services = MagicMock()
     ctx.session = MagicMock()
@@ -293,7 +299,7 @@ async def test_dag_write_executed_before_read() -> None:
     """use_tool_dag=True のとき WRITE_TOOLS が READ/other より先に実行されること。"""
     from unittest.mock import AsyncMock, patch
 
-    from agent.repl_tool_exec import execute_all_tool_calls
+    from agent.tool_runner import execute_all_tool_calls
 
     execution_order: list[str] = []
 
@@ -333,7 +339,7 @@ async def test_dag_disabled_does_not_reorder() -> None:
     """use_tool_dag=False のとき side-effect があれば直列実行になること。"""
     from unittest.mock import AsyncMock, patch
 
-    from agent.repl_tool_exec import execute_all_tool_calls
+    from agent.tool_runner import execute_all_tool_calls
 
     execution_order: list[str] = []
 
@@ -374,7 +380,7 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
     """serial_tool_calls=True のとき use_tool_dag=True でも直列実行になること。"""
     from unittest.mock import AsyncMock, patch
 
-    from agent.repl_tool_exec import execute_all_tool_calls
+    from agent.tool_runner import execute_all_tool_calls
 
     execution_order: list[str] = []
 
@@ -415,7 +421,7 @@ async def test_parallel_execution_without_dag_or_side_effects() -> None:
     """use_tool_dag=False かつ副作用なしのとき asyncio.gather() 並列実行になること。"""
     from unittest.mock import AsyncMock, patch
 
-    from agent.repl_tool_exec import execute_all_tool_calls
+    from agent.tool_runner import execute_all_tool_calls
 
     execution_order: list[str] = []
 

@@ -41,7 +41,12 @@ class StdioServerLifecycleManager:
         self._stdio_procs = stdio_procs
         self._last_called = last_called
         self._start_locks: dict[str, asyncio.Lock] = {}
-        self._transport_states: dict[str, TransportState] = {}
+        # Initialize states from pre-existing transports (e.g. persistent servers
+        # started before this manager was constructed).
+        self._transport_states: dict[str, TransportState] = {
+            key: TransportState.RUNNING if t.is_alive() else TransportState.STOPPED
+            for key, t in stdio_procs.items()
+        }
 
     async def ensure_ready(self, server_key: str) -> None:
         """Start an ondemand stdio server on first call; no-op if already running."""

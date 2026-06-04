@@ -70,7 +70,7 @@ class CommandRegistry(
     def _cmd_help(self) -> None:
         """Print help and available tool count."""
         ctx = self._ctx
-        n_tools = len(ctx.cfg.tool_definitions)
+        n_tools = len(ctx.cfg.tool.tool_definitions)
         sid = (
             f"session {ctx.session.session_id}"
             if ctx.session.session_id

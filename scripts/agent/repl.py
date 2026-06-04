@@ -88,7 +88,7 @@ class AgentREPL:
     @property
     def _n_tools(self) -> int:
         """Number of tools available (from config/agent.toml tool_definitions)."""
-        return len(self._ctx.cfg.tool_definitions)
+        return len(self._ctx.cfg.tool.tool_definitions)
 
     def _get_chunk_count(self) -> str:
         """Return formatted chunk count from DB, or '?' on error."""
@@ -198,7 +198,7 @@ class AgentREPL:
         ctx = self._ctx
         assert ctx.services.tools is not None
         assert ctx.services.lifecycle is not None
-        for key, cfg in ctx.cfg.mcp_servers.items():
+        for key, cfg in ctx.cfg.mcp.mcp_servers.items():
             if cfg.startup_mode == "subprocess" and cfg.transport == "http":
                 try:
                     await ctx.services.lifecycle.start_http_subprocess(key, cfg)
@@ -248,7 +248,7 @@ class AgentREPL:
         self._view.setup_readline()
         self._init_components()
 
-        ctx.llm_url = ctx.cfg.llm_url
+        ctx.llm_url = ctx.cfg.llm.llm_url
 
         # Spawn stdio/HTTP subprocess MCP servers before health/tool checks
         await self._start_subprocess_servers()
@@ -265,12 +265,12 @@ class AgentREPL:
             ctx.session.start()
             if ctx.services.tools is not None and ctx.session.session_id is not None:
                 ctx.services.tools.set_session_id(str(ctx.session.session_id))
-            initial_prompt = ctx.cfg.system_prompts.get(
+            initial_prompt = ctx.cfg.tool.system_prompts.get(
                 ctx.system_prompt_name,
-                ctx.cfg.system_prompt_tool,
+                ctx.cfg.tool.system_prompt_tool,
             )
             # Append persisted notes to system prompt when auto_inject_notes is enabled
-            if ctx.cfg.auto_inject_notes:
+            if ctx.cfg.tool.auto_inject_notes:
                 note_texts = ctx.session.get_all_note_contents()
                 if note_texts:
                     notes_block = "\n\n[Notes]\n" + "\n".join(
@@ -289,7 +289,7 @@ class AgentREPL:
                     initial_prompt = initial_prompt + memory_block
             ctx.system_prompt_content = initial_prompt
             ctx.history = [{"role": "system", "content": initial_prompt}]
-            if ctx.cfg.mcp_watchdog_interval > 0:
+            if ctx.cfg.mcp.mcp_watchdog_interval > 0:
                 _watchdog_task = asyncio.create_task(self._watchdog_loop())
             await self._repl_loop()
         finally:

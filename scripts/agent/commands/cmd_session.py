@@ -28,7 +28,7 @@ class _SessionMixin:
     async def _generate_session_title(self, first_input: str) -> None:
         """Call the chat LLM to produce a short session title and persist it.
 
-        Uses cfg.title_llm_temperature and cfg.title_llm_max_tokens for the call.
+        Uses cfg.llm.title_llm_temperature and cfg.llm.title_llm_max_tokens for the call.
         Called as an asyncio background task so the main REPL turn is not blocked.
         Falls back to truncating the raw input on any error.
         """
@@ -42,11 +42,11 @@ class _SessionMixin:
         )
         try:
             resp = await ctx.services.http.post(
-                ctx.cfg.llm_url,
+                ctx.cfg.llm.llm_url,
                 json={
                     "messages": [{"role": "user", "content": prompt}],
-                    "temperature": ctx.cfg.title_llm_temperature,
-                    "max_tokens": ctx.cfg.title_llm_max_tokens,
+                    "temperature": ctx.cfg.llm.title_llm_temperature,
+                    "max_tokens": ctx.cfg.llm.title_llm_max_tokens,
                     "stream": False,
                 },
             )

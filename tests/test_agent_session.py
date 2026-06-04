@@ -52,6 +52,9 @@ class _FakeSQLiteHelper:
     def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
         return self._conn.execute(sql, params)
 
+    def executemany(self, sql: str, params_seq: list) -> sqlite3.Cursor:
+        return self._conn.executemany(sql, params_seq)
+
     def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
         return self._conn.execute(sql, params).fetchall()
 

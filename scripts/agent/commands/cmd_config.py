@@ -102,82 +102,86 @@ class _ConfigMixin:
         """Print static endpoint/LLM settings and execution settings."""
         ctx = self._ctx
         print("Settings:")
-        print(f"  llm_url             : {ctx.cfg.llm_url}")
-        print(f"  web_search_url      : {ctx.cfg.web_search_url}")
-        print(f"  github_server_url   : {ctx.cfg.github_url}")
-        print(f"  max_tool_turns      : {ctx.cfg.max_tool_turns}")
-        print(f"  http_timeout        : {ctx.cfg.http_timeout}s")
-        print(f"  web_search_max      : {ctx.cfg.web_search_max_results}")
-        print(f"  context_char_limit  : {ctx.cfg.context_char_limit}")
-        print(f"  context_compress    : {ctx.cfg.context_compress_turns} turn pairs")
-        print(f"  tool_cache_ttl      : {ctx.cfg.tool_cache_ttl}s")
-        print(f"  llm_max_retries     : {ctx.cfg.llm_max_retries}")
-        print(f"  llm_retry_base_delay: {ctx.cfg.llm_retry_base_delay}s")
-        print(f"  llm_temperature     : {ctx.cfg.llm_temperature}")
-        print(f"  llm_max_tokens      : {ctx.cfg.llm_max_tokens}")
+        print(f"  llm_url             : {ctx.cfg.llm.llm_url}")
+        print(f"  web_search_url      : {ctx.cfg.rag.web_search_url}")
+        print(f"  github_server_url   : {ctx.cfg.mcp.github_url}")
+        print(f"  max_tool_turns      : {ctx.cfg.tool.max_tool_turns}")
+        print(f"  http_timeout        : {ctx.cfg.llm.http_timeout}s")
+        print(f"  web_search_max      : {ctx.cfg.rag.web_search_max_results}")
+        print(f"  context_char_limit  : {ctx.cfg.llm.context_char_limit}")
+        print(
+            f"  context_compress    : {ctx.cfg.llm.context_compress_turns} turn pairs"
+        )
+        print(f"  tool_cache_ttl      : {ctx.cfg.tool.tool_cache_ttl}s")
+        print(f"  llm_max_retries     : {ctx.cfg.llm.llm_max_retries}")
+        print(f"  llm_retry_base_delay: {ctx.cfg.llm.llm_retry_base_delay}s")
+        print(f"  llm_temperature     : {ctx.cfg.llm.llm_temperature}")
+        print(f"  llm_max_tokens      : {ctx.cfg.llm.llm_max_tokens}")
         print()
         print("SSE stream settings:")
         print(
-            f"  sse_heartbeat_timeout              : {ctx.cfg.sse_heartbeat_timeout}s",
+            f"  sse_heartbeat_timeout              : {ctx.cfg.llm.sse_heartbeat_timeout}s",
         )
-        print(f"  sse_malformed_retry                : {ctx.cfg.sse_malformed_retry}")
-        print(f"  sse_reconnect_max                  : {ctx.cfg.sse_reconnect_max}")
+        print(
+            f"  sse_malformed_retry                : {ctx.cfg.llm.sse_malformed_retry}"
+        )
+        print(f"  sse_reconnect_max                  : {ctx.cfg.llm.sse_reconnect_max}")
         print(
             f"  llm_stream_retry_on_heartbeat_timeout:"
-            f" {ctx.cfg.llm_stream_retry_on_heartbeat_timeout}",
+            f" {ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout}",
         )
         print(
             f"  llm_stream_retry_on_malformed_chunk  :"
-            f" {ctx.cfg.llm_stream_retry_on_malformed_chunk}",
+            f" {ctx.cfg.llm.llm_stream_retry_on_malformed_chunk}",
         )
         print()
         print("Execution settings:")
-        print(f"  serial_tool_calls   : {ctx.cfg.serial_tool_calls}")
-        print(f"  use_tool_summarize  : {ctx.cfg.use_tool_summarize}")
-        print(f"  tool_summarize_thr  : {ctx.cfg.tool_summarize_threshold}")
-        print(f"  auto_inject_notes   : {ctx.cfg.auto_inject_notes}")
+        print(f"  serial_tool_calls   : {ctx.cfg.tool.serial_tool_calls}")
+        print(f"  use_tool_summarize  : {ctx.cfg.tool.use_tool_summarize}")
+        print(f"  tool_summarize_thr  : {ctx.cfg.tool.tool_summarize_threshold}")
+        print(f"  auto_inject_notes   : {ctx.cfg.tool.auto_inject_notes}")
         print()
         print("Semantic cache:")
-        print(f"  use_semantic_cache  : {ctx.cfg.use_semantic_cache}")
-        print(f"  sem_cache_threshold : {ctx.cfg.semantic_cache_threshold}")
-        print(f"  sem_cache_max_size  : {ctx.cfg.semantic_cache_max_size}")
+        print(f"  use_semantic_cache  : {ctx.cfg.rag.use_semantic_cache}")
+        print(f"  sem_cache_threshold : {ctx.cfg.rag.semantic_cache_threshold}")
+        print(f"  sem_cache_max_size  : {ctx.cfg.rag.semantic_cache_max_size}")
         print()
         print("MCP / security settings:")
-        print(f"  tool_def_strict     : {ctx.cfg.tool_definitions_strict}")
-        print(f"  watchdog_interval   : {ctx.cfg.mcp_watchdog_interval}s")
-        print(f"  watchdog_max_restart: {ctx.cfg.mcp_watchdog_max_restarts}")
+        print(f"  tool_def_strict     : {ctx.cfg.tool.tool_definitions_strict}")
+        print(f"  watchdog_interval   : {ctx.cfg.mcp.mcp_watchdog_interval}s")
+        print(f"  watchdog_max_restart: {ctx.cfg.mcp.mcp_watchdog_max_restarts}")
         print("Approval settings:")
-        rules = ctx.cfg.approval_risk_rules
+        rules = ctx.cfg.approval.approval_risk_rules
         if rules:
             rule_str = ", ".join(f"{k}={v}" for k, v in sorted(rules.items()))
             print(f"  risk_rules          : {rule_str}")
         else:
             print("  risk_rules          : (none)")
-        print(f"  protected_paths     : {ctx.cfg.approval_protected_paths}")
-        print(f"  high_risk_branches  : {ctx.cfg.approval_high_risk_branches}")
-        dry_run_tools = ctx.cfg.approval_dry_run_tools
+        print(f"  protected_paths     : {ctx.cfg.approval.approval_protected_paths}")
+        print(f"  high_risk_branches  : {ctx.cfg.approval.approval_high_risk_branches}")
+        dry_run_tools = ctx.cfg.approval.approval_dry_run_tools
         print(f"  dry_run_tools       : {dry_run_tools or '(none)'}")
-        masked = ctx.cfg.masked_fields
+        masked = ctx.cfg.tool.masked_fields
         print(f"  masked_fields       : {masked or '(none)'}")
         print()
         print("Security settings (tool safety):")
-        allowed_root = ctx.cfg.allowed_root
+        allowed_root = ctx.cfg.approval.allowed_root
         print(
             f"  allowed_root        : {repr(allowed_root) if allowed_root else '(disabled)'}",
         )
-        allowed_repos = ctx.cfg.approval_github_allowed_repos
+        allowed_repos = ctx.cfg.approval.approval_github_allowed_repos
         if allowed_repos:
             print(f"  github_allowed_repos: {allowed_repos}")
         else:
             print("  github_allowed_repos: (Fail-Closed — all write ops denied)")
-        tier_count = len(ctx.cfg.tool_safety_tiers)
+        tier_count = len(ctx.cfg.approval.tool_safety_tiers)
         print(f"  tool_safety_tiers   : {tier_count} tools classified")
-        allowed_tools = ctx.cfg.allowed_tools
+        allowed_tools = ctx.cfg.tool.allowed_tools
         if allowed_tools:
             print(f"  allowed_tools       : {allowed_tools}")
         else:
             print("  allowed_tools       : (unrestricted)")
-        plan_blocked = ctx.cfg.plan_blocked_tools
+        plan_blocked = ctx.cfg.tool.plan_blocked_tools
         plan_state = "ON" if ctx.plan_mode else "OFF"
         print(f"  plan_mode           : {plan_state}")
         if plan_blocked:
@@ -194,9 +198,9 @@ class _ConfigMixin:
         SQLiteHelper._ensure_config()
         print(f"  rag_db_path         : {SQLiteHelper._RAG_PATH}")
         print(f"  session_db_path     : {SQLiteHelper._SESSION_PATH}")
-        print(f"  top_k_search        : {ctx.cfg.top_k_search}")
-        print(f"  top_k_rerank        : {ctx.cfg.top_k_rerank}")
-        print(f"  max_chunks_per_doc  : {ctx.cfg.max_chunks_per_doc}")
+        print(f"  top_k_search        : {ctx.cfg.rag.top_k_search}")
+        print(f"  top_k_rerank        : {ctx.cfg.rag.top_k_rerank}")
+        print(f"  max_chunks_per_doc  : {ctx.cfg.rag.max_chunks_per_doc}")
 
     def _cmd_config(self) -> None:
         """Print current configuration and source file paths."""
@@ -217,7 +221,9 @@ class _ConfigMixin:
         ctx = self._ctx
         self._apply_rag_tool_params(ctx, new_cfg)
         self._reload_approval_settings(ctx, new_cfg)
-        ctx.cfg.masked_fields = list(new_cfg.get("masked_fields", ["file_content"]))
+        ctx.cfg.tool.masked_fields = list(
+            new_cfg.get("masked_fields", ["file_content"])
+        )
         self._apply_mcp_url_reload(ctx, new_cfg)
         self._apply_llm_prompt_params(ctx, new_cfg)
         self._apply_sse_reload_params(ctx, new_cfg)
@@ -229,44 +235,50 @@ class _ConfigMixin:
         new_cfg: dict[str, Any],
     ) -> None:
         """Apply tool cache, LLM retry, refiner, and watchdog settings."""
-        ctx.cfg.context_char_limit = int(new_cfg.get("context_char_limit", 8000))
-        ctx.cfg.context_compress_turns = int(new_cfg.get("context_compress_turns", 4))
-        ctx.cfg.tool_cache_ttl = float(new_cfg.get("tool_cache_ttl", 300))
-        ctx.cfg.top_k_search = int(new_cfg.get("top_k_search", 20))
-        ctx.cfg.top_k_rerank = int(new_cfg.get("top_k_rerank", 15))
-        ctx.cfg.llm_max_retries = int(new_cfg.get("llm_max_retries", 3))
-        ctx.cfg.llm_retry_base_delay = float(new_cfg.get("llm_retry_base_delay", 1.0))
-        ctx.cfg.max_chunks_per_doc = int(new_cfg.get("max_chunks_per_doc", 2))
-        ctx.cfg.serial_tool_calls = bool(new_cfg.get("serial_tool_calls", False))
-        ctx.cfg.auto_inject_notes = bool(new_cfg.get("auto_inject_notes", True))
-        ctx.cfg.use_tool_summarize = bool(new_cfg.get("use_tool_summarize", False))
-        ctx.cfg.tool_summarize_threshold = int(
+        ctx.cfg.llm.context_char_limit = int(new_cfg.get("context_char_limit", 8000))
+        ctx.cfg.llm.context_compress_turns = int(
+            new_cfg.get("context_compress_turns", 4)
+        )
+        ctx.cfg.tool.tool_cache_ttl = float(new_cfg.get("tool_cache_ttl", 300))
+        ctx.cfg.rag.top_k_search = int(new_cfg.get("top_k_search", 20))
+        ctx.cfg.rag.top_k_rerank = int(new_cfg.get("top_k_rerank", 15))
+        ctx.cfg.llm.llm_max_retries = int(new_cfg.get("llm_max_retries", 3))
+        ctx.cfg.llm.llm_retry_base_delay = float(
+            new_cfg.get("llm_retry_base_delay", 1.0)
+        )
+        ctx.cfg.rag.max_chunks_per_doc = int(new_cfg.get("max_chunks_per_doc", 2))
+        ctx.cfg.tool.serial_tool_calls = bool(new_cfg.get("serial_tool_calls", False))
+        ctx.cfg.tool.auto_inject_notes = bool(new_cfg.get("auto_inject_notes", True))
+        ctx.cfg.tool.use_tool_summarize = bool(new_cfg.get("use_tool_summarize", False))
+        ctx.cfg.tool.tool_summarize_threshold = int(
             new_cfg.get("tool_summarize_threshold", 3000),
         )
-        ctx.cfg.use_semantic_cache = bool(new_cfg.get("use_semantic_cache", False))
-        ctx.cfg.semantic_cache_threshold = float(
+        ctx.cfg.rag.use_semantic_cache = bool(new_cfg.get("use_semantic_cache", False))
+        ctx.cfg.rag.semantic_cache_threshold = float(
             new_cfg.get("semantic_cache_threshold", 0.92),
         )
-        ctx.cfg.semantic_cache_max_size = int(
+        ctx.cfg.rag.semantic_cache_max_size = int(
             new_cfg.get("semantic_cache_max_size", 100),
         )
-        ctx.cfg.tool_definitions_strict = bool(
+        ctx.cfg.tool.tool_definitions_strict = bool(
             new_cfg.get("tool_definitions_strict", False),
         )
-        ctx.cfg.mcp_watchdog_interval = float(new_cfg.get("mcp_watchdog_interval", 0.0))
-        ctx.cfg.mcp_watchdog_max_restarts = int(
+        ctx.cfg.mcp.mcp_watchdog_interval = float(
+            new_cfg.get("mcp_watchdog_interval", 0.0)
+        )
+        ctx.cfg.mcp.mcp_watchdog_max_restarts = int(
             new_cfg.get("mcp_watchdog_max_restarts", 3),
         )
-        ctx.cfg.plan_blocked_tools = list(
+        ctx.cfg.tool.plan_blocked_tools = list(
             new_cfg.get(
                 "plan_blocked_tools",
                 ["write_file", "create_directory", "delete_file", "delete_directory"],
             ),
         )
-        ctx.cfg.use_refiner = bool(new_cfg.get("use_refiner", False))
-        ctx.cfg.refiner_max_tokens = int(new_cfg.get("refiner_max_tokens", 512))
-        ctx.cfg.refiner_timeout = float(new_cfg.get("refiner_timeout", 30.0))
-        ctx.cfg.refiner_max_chars_per_chunk = int(
+        ctx.cfg.rag.use_refiner = bool(new_cfg.get("use_refiner", False))
+        ctx.cfg.rag.refiner_max_tokens = int(new_cfg.get("refiner_max_tokens", 512))
+        ctx.cfg.rag.refiner_timeout = float(new_cfg.get("refiner_timeout", 30.0))
+        ctx.cfg.rag.refiner_max_chars_per_chunk = int(
             new_cfg.get("refiner_max_chars_per_chunk", 300),
         )
 
@@ -280,7 +292,7 @@ class _ConfigMixin:
 
         new_mcp = _build_mcp_servers(new_cfg)
         for key, new_srv in new_mcp.items():
-            old_srv = ctx.cfg.mcp_servers.get(key)
+            old_srv = ctx.cfg.mcp.mcp_servers.get(key)
             if old_srv and old_srv.transport == "http" and new_srv.transport == "http":
                 old_srv.url = new_srv.url
                 old_srv.openrc_service = new_srv.openrc_service
@@ -291,29 +303,37 @@ class _ConfigMixin:
         new_cfg: dict[str, Any],
     ) -> None:
         """Apply hot-reloadable URL, HTTP, LLM generation, tool definition, and prompt settings."""
-        ctx.cfg.llm_temperature = float(new_cfg.get("llm_temperature", 0.2))
-        ctx.cfg.llm_max_tokens = int(new_cfg.get("llm_max_tokens", 1024))
-        ctx.cfg.llm_url = new_cfg.get("llm_url", ctx.cfg.llm_url)
-        ctx.cfg.github_url = new_cfg.get("github_server_url", ctx.cfg.github_url)
-        ctx.cfg.web_search_url = new_cfg.get("web_search_url", ctx.cfg.web_search_url)
-        ctx.cfg.embed_url = new_cfg.get("embed_url", ctx.cfg.embed_url)
-        ctx.cfg.http_timeout = float(new_cfg.get("http_timeout", ctx.cfg.http_timeout))
-        ctx.cfg.web_search_max_results = int(
-            new_cfg.get("web_search_max_results", ctx.cfg.web_search_max_results),
+        ctx.cfg.llm.llm_temperature = float(new_cfg.get("llm_temperature", 0.2))
+        ctx.cfg.llm.llm_max_tokens = int(new_cfg.get("llm_max_tokens", 1024))
+        ctx.cfg.llm.llm_url = new_cfg.get("llm_url", ctx.cfg.llm.llm_url)
+        ctx.cfg.mcp.github_url = new_cfg.get(
+            "github_server_url", ctx.cfg.mcp.github_url
         )
-        ctx.cfg.max_tool_turns = int(
-            new_cfg.get("max_tool_turns", ctx.cfg.max_tool_turns),
+        ctx.cfg.rag.web_search_url = new_cfg.get(
+            "web_search_url", ctx.cfg.rag.web_search_url
         )
-        ctx.cfg.tool_result_max_llm_chars = int(
-            new_cfg.get("tool_result_max_llm_chars", ctx.cfg.tool_result_max_llm_chars),
+        ctx.cfg.rag.embed_url = new_cfg.get("embed_url", ctx.cfg.rag.embed_url)
+        ctx.cfg.llm.http_timeout = float(
+            new_cfg.get("http_timeout", ctx.cfg.llm.http_timeout)
+        )
+        ctx.cfg.rag.web_search_max_results = int(
+            new_cfg.get("web_search_max_results", ctx.cfg.rag.web_search_max_results),
+        )
+        ctx.cfg.tool.max_tool_turns = int(
+            new_cfg.get("max_tool_turns", ctx.cfg.tool.max_tool_turns),
+        )
+        ctx.cfg.tool.tool_result_max_llm_chars = int(
+            new_cfg.get(
+                "tool_result_max_llm_chars", ctx.cfg.tool.tool_result_max_llm_chars
+            ),
         )
         if new_cfg.get("tool_definitions"):
-            ctx.cfg.tool_definitions = list(new_cfg["tool_definitions"])
+            ctx.cfg.tool.tool_definitions = list(new_cfg["tool_definitions"])
         system_prompt_tool = new_cfg.get("system_prompt_tool", "")
         if system_prompt_tool:
-            ctx.cfg.system_prompt_tool = system_prompt_tool
+            ctx.cfg.tool.system_prompt_tool = system_prompt_tool
         if new_cfg.get("system_prompts"):
-            ctx.cfg.system_prompts = dict(new_cfg["system_prompts"])
+            ctx.cfg.tool.system_prompts = dict(new_cfg["system_prompts"])
 
     def _apply_sse_reload_params(
         self,
@@ -321,25 +341,25 @@ class _ConfigMixin:
         new_cfg: dict[str, Any],
     ) -> None:
         """Apply SSE stream resilience settings."""
-        ctx.cfg.sse_heartbeat_timeout = float(
-            new_cfg.get("sse_heartbeat_timeout", ctx.cfg.sse_heartbeat_timeout),
+        ctx.cfg.llm.sse_heartbeat_timeout = float(
+            new_cfg.get("sse_heartbeat_timeout", ctx.cfg.llm.sse_heartbeat_timeout),
         )
-        ctx.cfg.sse_malformed_retry = int(
-            new_cfg.get("sse_malformed_retry", ctx.cfg.sse_malformed_retry),
+        ctx.cfg.llm.sse_malformed_retry = int(
+            new_cfg.get("sse_malformed_retry", ctx.cfg.llm.sse_malformed_retry),
         )
-        ctx.cfg.sse_reconnect_max = int(
-            new_cfg.get("sse_reconnect_max", ctx.cfg.sse_reconnect_max),
+        ctx.cfg.llm.sse_reconnect_max = int(
+            new_cfg.get("sse_reconnect_max", ctx.cfg.llm.sse_reconnect_max),
         )
-        ctx.cfg.llm_stream_retry_on_heartbeat_timeout = bool(
+        ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout = bool(
             new_cfg.get(
                 "llm_stream_retry_on_heartbeat_timeout",
-                ctx.cfg.llm_stream_retry_on_heartbeat_timeout,
+                ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout,
             ),
         )
-        ctx.cfg.llm_stream_retry_on_malformed_chunk = bool(
+        ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = bool(
             new_cfg.get(
                 "llm_stream_retry_on_malformed_chunk",
-                ctx.cfg.llm_stream_retry_on_malformed_chunk,
+                ctx.cfg.llm.llm_stream_retry_on_malformed_chunk,
             ),
         )
 
@@ -350,32 +370,40 @@ class _ConfigMixin:
     ) -> None:
         """Update approval-related list/dict fields in ctx.cfg when present in new_cfg."""
         if "approval_risk_rules" in new_cfg:
-            ctx.cfg.approval_risk_rules = dict(new_cfg["approval_risk_rules"])
+            ctx.cfg.approval.approval_risk_rules = dict(new_cfg["approval_risk_rules"])
         if "approval_protected_paths" in new_cfg:
-            ctx.cfg.approval_protected_paths = list(new_cfg["approval_protected_paths"])
+            ctx.cfg.approval.approval_protected_paths = list(
+                new_cfg["approval_protected_paths"]
+            )
         if "approval_high_risk_branches" in new_cfg:
-            ctx.cfg.approval_high_risk_branches = list(
+            ctx.cfg.approval.approval_high_risk_branches = list(
                 new_cfg["approval_high_risk_branches"],
             )
         if "approval_shell_safe_prefixes" in new_cfg:
-            ctx.cfg.approval_shell_safe_prefixes = list(
+            ctx.cfg.approval.approval_shell_safe_prefixes = list(
                 new_cfg["approval_shell_safe_prefixes"],
             )
         if "approval_resource_keys" in new_cfg:
-            ctx.cfg.approval_resource_keys = dict(new_cfg["approval_resource_keys"])
+            ctx.cfg.approval.approval_resource_keys = dict(
+                new_cfg["approval_resource_keys"]
+            )
         if "approval_dry_run_tools" in new_cfg:
-            ctx.cfg.approval_dry_run_tools = list(new_cfg["approval_dry_run_tools"])
+            ctx.cfg.approval.approval_dry_run_tools = list(
+                new_cfg["approval_dry_run_tools"]
+            )
         if "tool_safety_tiers" in new_cfg:
-            ctx.cfg.tool_safety_tiers = dict(new_cfg["tool_safety_tiers"])
-        ctx.cfg.allowed_root = new_cfg.get("allowed_root", ctx.cfg.allowed_root)
+            ctx.cfg.approval.tool_safety_tiers = dict(new_cfg["tool_safety_tiers"])
+        ctx.cfg.approval.allowed_root = new_cfg.get(
+            "allowed_root", ctx.cfg.approval.allowed_root
+        )
         if "approval_github_allowed_repos" in new_cfg:
-            ctx.cfg.approval_github_allowed_repos = list(
+            ctx.cfg.approval.approval_github_allowed_repos = list(
                 new_cfg["approval_github_allowed_repos"],
             )
         if "allowed_tools" in new_cfg:
-            ctx.cfg.allowed_tools = list(new_cfg["allowed_tools"])
+            ctx.cfg.tool.allowed_tools = list(new_cfg["allowed_tools"])
         if "memory_retention_days" in new_cfg:
-            ctx.cfg.memory_retention_days = int(new_cfg["memory_retention_days"])
+            ctx.cfg.memory.memory_retention_days = int(new_cfg["memory_retention_days"])
 
     def _sync_services_to_cfg(
         self,
@@ -396,7 +424,7 @@ class _ConfigMixin:
         except ValueError:
             print("temperature must be a float in [0.0, 2.0]")
             return
-        ctx.cfg.llm_temperature = val
+        ctx.cfg.llm.llm_temperature = val
         if ctx.services.llm is not None:
             ctx.services.llm.apply_config(temperature=val)
         logger.info(f"llm_temperature set to {val}")
@@ -411,7 +439,7 @@ class _ConfigMixin:
         except ValueError:
             print("max_tokens must be a positive integer")
             return
-        ctx.cfg.llm_max_tokens = val
+        ctx.cfg.llm.llm_max_tokens = val
         if ctx.services.llm is not None:
             ctx.services.llm.apply_config(max_tokens=val)
         logger.info(f"llm_max_tokens set to {val}")
@@ -429,8 +457,8 @@ class _ConfigMixin:
         parts = args.strip().split()
         if not parts:
             print(
-                f"  temperature : {ctx.cfg.llm_temperature}\n"
-                f"  max_tokens  : {ctx.cfg.llm_max_tokens}\n"
+                f"  temperature : {ctx.cfg.llm.llm_temperature}\n"
+                f"  max_tokens  : {ctx.cfg.llm.llm_max_tokens}\n"
                 "Use: /set temperature <float> | /set max_tokens <int>",
             )
             return

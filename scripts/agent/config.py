@@ -7,18 +7,21 @@ for backward compatibility.  Full migration to cfg.llm.llm_url etc. follows
 in a separate step.
 """
 
-import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any
 
 from shared.config_loader import ConfigLoader
 from shared.mcp_config import McpServerConfig, _build_mcp_servers
 
-__all__ = ["AgentConfig", "McpServerConfig"]
+__all__ = ["AgentConfig", "ConfigLoadError", "McpServerConfig"]
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 _CONFIG_DIR = _SCRIPTS_DIR.parent / "config"
+
+
+class ConfigLoadError(RuntimeError):
+    """Raised when configuration files cannot be loaded."""
 
 
 def load_config() -> dict[str, Any]:
@@ -26,8 +29,7 @@ def load_config() -> dict[str, Any]:
     try:
         return ConfigLoader().load_all()
     except Exception as e:
-        logging.getLogger(__name__).warning("Config load failed: %s", e)
-        return {}
+        raise ConfigLoadError(f"Config load failed: {e}") from e
 
 
 # ---------------------------------------------------------------------------
@@ -387,17 +389,6 @@ class AgentConfig:
     approval: ApprovalConfig = field(default_factory=ApprovalConfig)
     obs: ObservabilityConfig = field(default_factory=ObservabilityConfig)
 
-    # Sub-config attribute names; used by __getattr__ and __setattr__
-    _SUB_CONFIGS: ClassVar[tuple[str, ...]] = (
-        "llm",
-        "rag",
-        "tool",
-        "memory",
-        "mcp",
-        "approval",
-        "obs",
-    )
-
     def __post_init__(self) -> None:
         self._validate_cross_field()
 
@@ -415,33 +406,6 @@ class AgentConfig:
             raise ValueError(
                 "memory_embed_enabled=True requires embed_url to be non-empty",
             )
-
-    def __getattr__(self, name: str) -> Any:
-        # Invoked only when normal attribute lookup fails — i.e. name is not a
-        # direct field of AgentConfig.  Delegate to the owning sub-config.
-        for attr in AgentConfig._SUB_CONFIGS:
-            try:
-                sub = object.__getattribute__(self, attr)
-            except AttributeError:
-                continue
-            if name in sub.__dataclass_fields__:
-                return getattr(sub, name)
-        raise AttributeError(f"{type(self).__name__!r} has no attribute {name!r}")
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        # Direct fields (the 7 sub-config slots) bypass delegation.
-        if name in AgentConfig._SUB_CONFIGS:
-            object.__setattr__(self, name, value)
-            return
-        # Flat field writes (e.g. cfg.llm_url = "...") delegate to owning sub-config.
-        # self.__dict__.get() avoids triggering __getattr__ while sub-configs may not
-        # yet be initialised (e.g. during __init__ for earlier fields).
-        for attr in AgentConfig._SUB_CONFIGS:
-            sub = self.__dict__.get(attr)
-            if sub is not None and name in sub.__dataclass_fields__:
-                setattr(sub, name, value)
-                return
-        object.__setattr__(self, name, value)
 
 
 # ---------------------------------------------------------------------------

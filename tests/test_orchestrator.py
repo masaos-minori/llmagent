@@ -18,15 +18,15 @@ from shared.llm_client import LLMErrorKind, LLMTransportError
 def _make_ctx() -> MagicMock:
     ctx = MagicMock()
     # cfg values accessed by handle_turn / _run_turn
-    ctx.cfg.max_tool_turns = 3
-    ctx.cfg.context_char_limit = 0
-    ctx.cfg.context_token_limit = 0
-    ctx.cfg.budget_warn_ratio = 0.8
-    ctx.cfg.tool_definitions = []
-    ctx.cfg.tool_dedup_max_repeats = 3
-    ctx.cfg.tool_error_retry_max = 0
-    ctx.cfg.tool_cycle_detect_window = 0
-    ctx.cfg.tool_error_max_consecutive = 3
+    ctx.cfg.tool.max_tool_turns = 3
+    ctx.cfg.llm.context_char_limit = 0
+    ctx.cfg.llm.context_token_limit = 0
+    ctx.cfg.llm.budget_warn_ratio = 0.8
+    ctx.cfg.tool.tool_definitions = []
+    ctx.cfg.tool.tool_dedup_max_repeats = 3
+    ctx.cfg.tool.tool_error_retry_max = 0
+    ctx.cfg.tool.tool_cycle_detect_window = 0
+    ctx.cfg.tool.tool_error_max_consecutive = 3
     # session / turn state
     ctx.llm_url = "http://llm-test"
     ctx.history = []
@@ -213,7 +213,9 @@ class TestRunTurnLLMTransportError:
         assert len(synthetic) == 1
 
     @pytest.mark.asyncio
-    async def test_transport_error_on_first_turn_propagates(self) -> None:
+    async def test_transport_error_on_first_turn_injects_synthetic_error(self) -> None:
+        # LLMTurnRunner.run() now catches LLMTransportError at turn=0 and injects
+        # a synthetic tool-error message instead of re-raising.
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="CONNECT_ERROR", partial_text="")
@@ -223,8 +225,10 @@ class TestRunTurnLLMTransportError:
 
         ctx.services.llm.stream = _mock_stream
 
-        with pytest.raises(LLMTransportError):
-            await orch._run_turn("http://llm-test")
+        result = await orch._run_turn("http://llm-test")
+        assert "CONNECT_ERROR" in result
+        synthetic = [m for m in ctx.history if m.get("name") == "llm_transport_error"]
+        assert len(synthetic) == 1
 
     @pytest.mark.asyncio
     async def test_tool_continuation_fail_saves_to_tool_result_store(self) -> None:
@@ -380,13 +384,13 @@ class TestOrchestratorHelpers:
 
     def test_check_consecutive_error_limit_below_max_returns_none(self) -> None:
         ctx = _make_ctx()
-        ctx.cfg.tool_error_max_consecutive = 3
+        ctx.cfg.tool.tool_error_max_consecutive = 3
         orch = _make_orchestrator(ctx)
         assert orch._check_consecutive_error_limit(2) is None
 
     def test_check_consecutive_error_limit_at_max_returns_message(self) -> None:
         ctx = _make_ctx()
-        ctx.cfg.tool_error_max_consecutive = 3
+        ctx.cfg.tool.tool_error_max_consecutive = 3
         orch = _make_orchestrator(ctx)
         result = orch._check_consecutive_error_limit(3)
         assert result is not None
@@ -394,7 +398,7 @@ class TestOrchestratorHelpers:
 
     def test_check_consecutive_error_limit_disabled_returns_none(self) -> None:
         ctx = _make_ctx()
-        ctx.cfg.tool_error_max_consecutive = 0
+        ctx.cfg.tool.tool_error_max_consecutive = 0
         orch = _make_orchestrator(ctx)
         assert orch._check_consecutive_error_limit(999) is None
 
@@ -421,9 +425,9 @@ class TestOrchestratorHelpers:
 
     def test_check_all_tool_guards_returns_none_when_no_guards_hit(self) -> None:
         ctx = _make_ctx()
-        ctx.cfg.tool_dedup_max_repeats = 3
-        ctx.cfg.tool_cycle_detect_window = 0
-        ctx.cfg.tool_error_retry_max = 0
+        ctx.cfg.tool.tool_dedup_max_repeats = 3
+        ctx.cfg.tool.tool_cycle_detect_window = 0
+        ctx.cfg.tool.tool_error_retry_max = 0
         orch = _make_orchestrator(ctx)
         msg = MagicMock()
         msg.__getitem__ = lambda self, k: [] if k == "tool_calls" else None
@@ -433,9 +437,9 @@ class TestOrchestratorHelpers:
 
     def test_check_all_tool_guards_returns_on_cycle_guard_hit(self) -> None:
         ctx = _make_ctx()
-        ctx.cfg.tool_dedup_max_repeats = 10
-        ctx.cfg.tool_cycle_detect_window = 1  # detect after 1 repeat
-        ctx.cfg.tool_error_retry_max = 0
+        ctx.cfg.tool.tool_dedup_max_repeats = 10
+        ctx.cfg.tool.tool_cycle_detect_window = 1  # detect after 1 repeat
+        ctx.cfg.tool.tool_error_retry_max = 0
         orch = _make_orchestrator(ctx)
         tool_calls = [{"function": {"name": "my_tool", "arguments": "{}"}}]
         msg: dict = {"role": "assistant", "content": None, "tool_calls": tool_calls}
@@ -453,9 +457,9 @@ class TestOrchestratorHelpers:
 
     def test_check_all_tool_guards_returns_on_dedup_guard_hit(self) -> None:
         ctx = _make_ctx()
-        ctx.cfg.tool_dedup_max_repeats = 1  # fire on first repeat
-        ctx.cfg.tool_cycle_detect_window = 0
-        ctx.cfg.tool_error_retry_max = 0
+        ctx.cfg.tool.tool_dedup_max_repeats = 1  # fire on first repeat
+        ctx.cfg.tool.tool_cycle_detect_window = 0
+        ctx.cfg.tool.tool_error_retry_max = 0
         orch = _make_orchestrator(ctx)
         import hashlib
 

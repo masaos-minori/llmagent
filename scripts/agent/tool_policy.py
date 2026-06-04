@@ -61,10 +61,12 @@ def _escalate_for_path(
     """Return 'high' when any path arg is under a protected directory, else None."""
     if base == "high":
         return None
-    path_keys = cfg.approval_resource_keys.get("path_keys", [])
+    path_keys = cfg.approval.approval_resource_keys.get("path_keys", [])
     for key in path_keys:
         val = str(args.get(key) or "")
-        if val and any(val.startswith(p) for p in cfg.approval_protected_paths):
+        if val and any(
+            val.startswith(p) for p in cfg.approval.approval_protected_paths
+        ):
             return "high"
     return None
 
@@ -78,10 +80,10 @@ def _escalate_for_github_branch(
     """Return 'high' when the target GitHub branch is in high_risk_branches, else None."""
     if not tool_name.startswith("github_") or base == "high":
         return None
-    branch_keys = cfg.approval_resource_keys.get("branch_keys", [])
+    branch_keys = cfg.approval.approval_resource_keys.get("branch_keys", [])
     for key in branch_keys:
         val = str(args.get(key) or "")
-        if val and val in cfg.approval_high_risk_branches:
+        if val and val in cfg.approval.approval_high_risk_branches:
             return "high"
     return None
 
@@ -91,9 +93,9 @@ def classify_risk(cfg: AgentConfig, tool_name: str, args: dict[str, Any]) -> str
 
     Order: explicit rule → tier fallback → escalation overrides.
     """
-    base: str | None = cfg.approval_risk_rules.get(tool_name)
+    base: str | None = cfg.approval.approval_risk_rules.get(tool_name)
     if base is None:
-        tier = cfg.tool_safety_tiers.get(tool_name, "WRITE_DANGEROUS")
+        tier = cfg.approval.tool_safety_tiers.get(tool_name, "WRITE_DANGEROUS")
         base = _TIER_TO_RISK[tier]
     if base == "none":
         return "none"
@@ -101,7 +103,7 @@ def classify_risk(cfg: AgentConfig, tool_name: str, args: dict[str, Any]) -> str
         return "high"
     if tool_name == "shell_run":
         cmd = str(args.get("command", ""))
-        if any(cmd.startswith(p) for p in cfg.approval_shell_safe_prefixes):
+        if any(cmd.startswith(p) for p in cfg.approval.approval_shell_safe_prefixes):
             return "none"
         return "high"
     if escalated := _escalate_for_path(cfg, base, args):
@@ -116,11 +118,11 @@ def check_allowed_root(
     tool_name: str,
     args: dict[str, Any],
 ) -> bool:
-    """Return False when any path argument is outside cfg.allowed_root."""
-    if not cfg.allowed_root:
+    """Return False when any path argument is outside cfg.approval.allowed_root."""
+    if not cfg.approval.allowed_root:
         return True
-    root = Path(cfg.allowed_root).resolve()
-    path_keys = cfg.approval_resource_keys.get("path_keys", [])
+    root = Path(cfg.approval.allowed_root).resolve()
+    path_keys = cfg.approval.approval_resource_keys.get("path_keys", [])
     for key in path_keys:
         val = str(args.get(key) or "")
         if val:
@@ -141,7 +143,7 @@ def check_allowed_repo(
     """Return False when a GitHub write tool targets a repo not in the allowlist."""
     if tool_name not in _API_WRITE_TOOLS:
         return True
-    allowed = cfg.approval_github_allowed_repos
+    allowed = cfg.approval.approval_github_allowed_repos
     if not allowed:
         return False
     owner = str(args.get("owner", ""))
@@ -158,7 +160,7 @@ def preflight_deny_reason(
 
     Returns None when all checks pass.
     """
-    if cfg.allowed_tools and tool_name not in cfg.allowed_tools:
+    if cfg.tool.allowed_tools and tool_name not in cfg.tool.allowed_tools:
         return (
             "denied_allowed_tools",
             f"  [DENIED] {tool_name}: not in allowed_tools for this session",
@@ -166,7 +168,7 @@ def preflight_deny_reason(
     if not check_allowed_root(cfg, tool_name, args):
         return (
             "denied_root_jail",
-            f"  [DENIED] {tool_name}: path outside allowed_root ({cfg.allowed_root!r})",
+            f"  [DENIED] {tool_name}: path outside allowed_root ({cfg.approval.allowed_root!r})",
         )
     if not check_allowed_repo(cfg, tool_name, args):
         return (

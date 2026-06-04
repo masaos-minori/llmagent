@@ -29,7 +29,7 @@ class _DebugMixin:
 
         if sub == "audit":
             # Show the last 20 lines of audit.log for quick troubleshooting
-            audit_path = pathlib.Path(ctx.cfg.audit_log_file)
+            audit_path = pathlib.Path(ctx.cfg.obs.audit_log_file)
             if not audit_path.exists():
                 print(f"Audit log not found: {audit_path}")
                 return

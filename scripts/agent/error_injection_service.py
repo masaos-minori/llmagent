@@ -2,14 +2,17 @@
 Service for injecting synthetic errors into the agent's history.
 """
 
+from __future__ import annotations
+
 import uuid
 from typing import TYPE_CHECKING
 
 from shared.tool_executor import format_transport_error
 
 if TYPE_CHECKING:
-    from agent.context import AgentContext
     from shared.llm_client import LLMTransportError
+
+    from agent.context import AgentContext
 
 import logging
 
@@ -22,7 +25,7 @@ class ErrorInjectionService:
     def __init__(self, ctx: AgentContext) -> None:
         self._ctx = ctx
 
-    def inject_mid_turn_error(self, e: "LLMTransportError", turn: int) -> str:
+    def inject_mid_turn_error(self, e: LLMTransportError, turn: int) -> str:
         """Inject a synthetic tool-error message for a mid-turn LLM failure."""
         ctx = self._ctx
         err = format_transport_error(

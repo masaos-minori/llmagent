@@ -257,7 +257,7 @@ class TestEnsureReadySubprocess:
         cfg = _http_subprocess_cfg()
         ex = _mock_tool_executor()
         mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
-        mgr._http_procs["srv"] = proc
+        mgr._http_mgr._http_procs["srv"] = proc
         await mgr.ensure_ready("srv")
         # verify no attempt to start a new process
         ex.set_transport.assert_not_called()
@@ -269,7 +269,7 @@ class TestEnsureReadySubprocess:
         cfg = _http_subprocess_cfg()
         ex = _mock_tool_executor()
         mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
-        mgr._http_procs["srv"] = proc
+        mgr._http_mgr._http_procs["srv"] = proc
         await mgr.ensure_ready("srv")  # must not raise
 
 
@@ -297,7 +297,7 @@ class TestStartHttpSubprocess:
             MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             await mgr.start_http_subprocess("s", cfg)
 
-        assert mgr._http_procs["s"] is mock_proc
+        assert mgr._http_mgr._http_procs["s"] is mock_proc
 
     @pytest.mark.asyncio
     async def test_reuses_alive_proc(self) -> None:
@@ -306,7 +306,7 @@ class TestStartHttpSubprocess:
         mgr = ServerLifecycleManager({"s": cfg}, ex, {})
         existing = MagicMock()
         existing.poll.return_value = None
-        mgr._http_procs["s"] = existing
+        mgr._http_mgr._http_procs["s"] = existing
 
         with patch("agent.http_lifecycle.subprocess.Popen") as mock_popen:
             await mgr.start_http_subprocess("s", cfg)
@@ -449,7 +449,7 @@ class TestRestart:
 
         proc = MagicMock()
         proc.poll.return_value = None  # running
-        mgr._http_procs["srv"] = proc
+        mgr._http_mgr._http_procs["srv"] = proc
 
         good_resp = MagicMock()
         good_resp.status_code = 200
@@ -474,7 +474,7 @@ class TestRestart:
 
         # Stale proc must have been removed before start; new proc registered
         proc.terminate.assert_called_once()
-        assert mgr._http_procs.get("srv") is new_proc
+        assert mgr._http_mgr._http_procs.get("srv") is new_proc
 
     @pytest.mark.asyncio
     async def test_restart_no_existing_proc_still_starts(self) -> None:
@@ -500,7 +500,7 @@ class TestRestart:
             MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             await mgr.restart("srv")
 
-        assert mgr._http_procs.get("srv") is new_proc
+        assert mgr._http_mgr._http_procs.get("srv") is new_proc
 
     @pytest.mark.asyncio
     async def test_restart_force_kills_on_terminate_timeout(self) -> None:
@@ -510,7 +510,7 @@ class TestRestart:
 
         proc = MagicMock()
         proc.poll.return_value = None
-        mgr._http_procs["srv"] = proc
+        mgr._http_mgr._http_procs["srv"] = proc
 
         good_resp = MagicMock()
         good_resp.status_code = 200
@@ -554,7 +554,7 @@ class TestShutdownAll:
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = ServerLifecycleManager(configs, ex, {})
-        mgr._http_procs["srv"] = proc
+        mgr._http_mgr._http_procs["srv"] = proc
         await mgr.shutdown_all()
         proc.terminate.assert_called_once()
         proc.wait.assert_called_once()
@@ -566,7 +566,7 @@ class TestShutdownAll:
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = ServerLifecycleManager(configs, ex, {})
-        mgr._http_procs["srv"] = proc
+        mgr._http_mgr._http_procs["srv"] = proc
         await mgr.shutdown_all()
         proc.terminate.assert_not_called()
 
@@ -588,7 +588,7 @@ class TestShutdownAll:
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = ServerLifecycleManager(configs, ex, {})
-        mgr._http_procs["srv"] = proc
+        mgr._http_mgr._http_procs["srv"] = proc
         # Must not propagate the exception
         await mgr.shutdown_all()
 

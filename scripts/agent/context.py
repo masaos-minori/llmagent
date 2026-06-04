@@ -110,24 +110,6 @@ class AppServices:
         )
 
 
-# Backward-compat alias; new code should use AppServices directly.
-class ServiceContainer:
-    """Deprecated; use AppServices for new code.
-
-    Kept as a no-arg fallback for tests that construct it directly.
-    """
-
-    def __init__(self) -> None:
-        self.http: httpx.AsyncClient | None = None
-        self.llm: LLMClient | None = None
-        self.tools: ToolExecutor | None = None
-        self.hist_mgr: HistoryManager | None = None
-        self.stdio_procs: dict[str, StdioTransport] = {}
-        self.audit_logger: Logger | None = None
-        self.memory: MemoryLayer | None = None
-        self.lifecycle: ServerLifecycleManager | None = None
-
-
 # ---------------------------------------------------------------------------
 # Composite context with backward-compat flat attribute access
 # ---------------------------------------------------------------------------

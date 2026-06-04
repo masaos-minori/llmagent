@@ -77,13 +77,12 @@ class SessionMessageRepository:
             if not rows:
                 return
             with SQLiteHelper("session").open(write_mode=True) as db:
-                for row in rows:
-                    db.execute(
-                        "INSERT INTO messages"
-                        " (session_id, role, content, tool_calls, tool_call_id)"
-                        " VALUES (?, ?, ?, ?, ?)",
-                        row,
-                    )
+                db.executemany(
+                    "INSERT INTO messages"
+                    " (session_id, role, content, tool_calls, tool_call_id)"
+                    " VALUES (?, ?, ?, ?, ?)",
+                    rows,
+                )
                 db.commit()
         except Exception as e:
             logger.warning(f"save_many failed: {e}")
@@ -97,8 +96,8 @@ class SessionMessageRepository:
         try:
             with SQLiteHelper("session").open(row_factory=True) as db:
                 rows = db.fetchall(
-                    "SELECT role, content, tool_calls, tool_call_id FROM messages"
-                    " WHERE session_id = ? ORDER BY message_id",
+                    "SELECT message_id, role, content, tool_calls, tool_call_id"
+                    " FROM messages WHERE session_id = ? ORDER BY message_id",
                     (session_id,),
                 )
         except Exception as e:
@@ -116,8 +115,15 @@ class SessionMessageRepository:
                     logger.warning(
                         f"Invalid tool_calls JSON in session {session_id}: {e}",
                     )
-                    # Audit event for corrupted record
-                    logger.info(f"Corrupted tool_calls record in session {session_id}")
+                    logger.warning(
+                        orjson.dumps(
+                            {
+                                "event": "corrupt_record",
+                                "session_id": session_id,
+                                "message_id": r["message_id"],
+                            }
+                        ).decode()
+                    )
             if r["tool_call_id"]:
                 msg["tool_call_id"] = r["tool_call_id"]
             messages.append(msg)
@@ -270,6 +276,31 @@ class AgentSession:
         self._message_repo = SessionMessageRepository(self.session_id)
         self._document_repo = DocumentRepository()
         self._note_repo = NoteRepository()
+
+    # ── SessionMessageRepository delegation ──────────────────────────────────
+
+    def save(
+        self,
+        role: str,
+        content: str,
+        tool_calls: list[dict] | None = None,
+        tool_call_id: str | None = None,
+    ) -> None:
+        """Persist a single message under the current session."""
+        self._message_repo.save(role, content, tool_calls, tool_call_id)
+
+    def save_many(
+        self,
+        messages: list[tuple[str, str, list[dict] | None, str | None]],
+    ) -> None:
+        """Persist multiple messages in a single DB transaction."""
+        self._message_repo.save_many(messages)
+
+    def fetch_messages(self, session_id: int) -> list[LLMMessage] | None:
+        """Fetch messages for a session from DB."""
+        return self._message_repo.fetch_messages(session_id)
+
+    # ── Session lifecycle ────────────────────────────────────────────────────
 
     def start(self) -> None:
         """Create a new session record in DB and store its ID."""

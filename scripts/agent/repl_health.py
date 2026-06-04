@@ -40,8 +40,8 @@ async def check_service_health(ctx: AgentContext) -> list[str]:
     """
     assert ctx.services.http is not None
     checks = [
-        ("llm", ctx.cfg.llm_url),
-        ("embed-llm", ctx.cfg.embed_url),
+        ("llm", ctx.cfg.llm.llm_url),
+        ("embed-llm", ctx.cfg.rag.embed_url),
     ]
     warnings: list[str] = []
     for label, url in checks:
@@ -93,7 +93,7 @@ async def _collect_server_tool_names(ctx: AgentContext) -> set[str]:
     """
     assert ctx.services.http is not None
     server_names: set[str] = set()
-    for key, srv_cfg in ctx.cfg.mcp_servers.items():
+    for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
         if srv_cfg.transport == "http":
             if not srv_cfg.url:
                 continue
@@ -122,7 +122,9 @@ async def check_tool_definitions_startup(ctx: AgentContext) -> list[str]:
     Skips silently when all servers are unreachable (startup order tolerance).
     """
     cfg_names = {
-        td["function"]["name"] for td in ctx.cfg.tool_definitions if "function" in td
+        td["function"]["name"]
+        for td in ctx.cfg.tool.tool_definitions
+        if "function" in td
     }
     server_names = await _collect_server_tool_names(ctx)
     if not server_names:
@@ -138,7 +140,7 @@ async def check_tool_definitions_startup(ctx: AgentContext) -> list[str]:
         logger.warning(
             f"Tools on servers but not in agent.toml: {sorted(missing_in_cfg)}",
         )
-    if (missing_in_server or missing_in_cfg) and ctx.cfg.tool_definitions_strict:
+    if (missing_in_server or missing_in_cfg) and ctx.cfg.tool.tool_definitions_strict:
         raise RuntimeError("Strict mode: tool definition mismatch detected")
     return warnings
 
@@ -149,7 +151,9 @@ async def check_tool_definitions_runtime(ctx: AgentContext) -> list[str]:
     Returns warning strings on mismatch. Does not raise errors.
     """
     cfg_names = {
-        td["function"]["name"] for td in ctx.cfg.tool_definitions if "function" in td
+        td["function"]["name"]
+        for td in ctx.cfg.tool.tool_definitions
+        if "function" in td
     }
     server_names = await _collect_server_tool_names(ctx)
     if not server_names:
@@ -245,17 +249,9 @@ async def _watchdog_check_stdio(
         f"Watchdog: stdio server {key!r} died,"
         f" restarting (attempt {count + 1}/{max_restarts})",
     )
-    # Delegate restart to lifecycle manager
     if ctx.services.lifecycle is not None:
         try:
             await ctx.services.lifecycle.restart_stdio(key)
-            restart_counts[key] = count + 1
-        except Exception as e:
-            logger.error(f"Watchdog: failed to restart stdio server {key!r}: {e}")
-    else:
-        # Fallback to direct restart (for backward compatibility)
-        try:
-            await transport.start()
             restart_counts[key] = count + 1
         except Exception as e:
             logger.error(f"Watchdog: failed to restart stdio server {key!r}: {e}")
@@ -268,12 +264,12 @@ async def watchdog_loop(ctx: AgentContext) -> None:
     Restart attempts per server are capped at mcp_watchdog_max_restarts to
     prevent infinite restart loops.
     """
-    interval = ctx.cfg.mcp_watchdog_interval
-    max_restarts = ctx.cfg.mcp_watchdog_max_restarts
+    interval = ctx.cfg.mcp.mcp_watchdog_interval
+    max_restarts = ctx.cfg.mcp.mcp_watchdog_max_restarts
     restart_counts: dict[str, int] = {}
     while True:
         await asyncio.sleep(interval)
-        for key, srv_cfg in ctx.cfg.mcp_servers.items():
+        for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
             if srv_cfg.transport == "http":
                 await _watchdog_check_http(
                     ctx,

@@ -6,15 +6,14 @@ Extracted from orchestrator.py. LLMTurnRunner.run() replaces _run_turn().
 
 from __future__ import annotations
 
-import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from shared.llm_client import LLMClient, LLMTransportError
 from shared.types import LLMMessage
 
-from agent.repl_tool_exec import execute_all_tool_calls
 from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
+from agent.tool_runner import execute_all_tool_calls
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -53,7 +52,7 @@ class LLMTurnRunner:
         ctx = self._ctx
         state = TurnLoopState()
 
-        for turn in range(ctx.cfg.max_tool_turns):
+        for turn in range(ctx.cfg.tool.max_tool_turns):
             if self._on_turn_start:
                 self._on_turn_start()
 
@@ -98,7 +97,7 @@ class LLMTurnRunner:
             if msg := self._guard.check_error_limit(state.consecutive_errors):
                 return msg
 
-        logger.warning(f"Reached max_tool_turns={ctx.cfg.max_tool_turns}")
+        logger.warning(f"Reached max_tool_turns={ctx.cfg.tool.max_tool_turns}")
         return "Maximum tool turns reached."
 
     # ── Internal helpers ──────────────────────────────────────────────────────
@@ -106,6 +105,7 @@ class LLMTurnRunner:
     async def _handle_llm_error(self, e: LLMTransportError, turn: int) -> str:
         """Handle LLM transport error by delegating to error injection service."""
         from agent.error_injection_service import ErrorInjectionService
+
         error_service = ErrorInjectionService(self._ctx)
         return error_service.inject_mid_turn_error(e, turn)
 
@@ -113,6 +113,7 @@ class LLMTurnRunner:
         """Return a real OTel span or a no-op context manager when no tracer."""
         if self._tracer is not None:
             return self._tracer.start_as_current_span(name)
+
         # Return a no-op context manager
         class _NullContextManager:
             def __enter__(self) -> _NullContextManager:
@@ -123,6 +124,7 @@ class LLMTurnRunner:
 
             def set_attribute(self, _key: str, _value: object) -> None:
                 pass
+
         return _NullContextManager()
 
     async def _finalize_answer(self, message: LLMMessage) -> str:
@@ -145,9 +147,9 @@ class LLMTurnRunner:
             response = await ctx.services.llm.stream(
                 llm_url,
                 ctx.history,
-                ctx.cfg.tool_definitions,
+                ctx.cfg.tool.tool_definitions,
             )
-        except LLMTransportError as e:
+        except LLMTransportError:
             raise  # Let the caller handle the error
         # Record latency for turn 0 only (moved to orchestrator)
         return response

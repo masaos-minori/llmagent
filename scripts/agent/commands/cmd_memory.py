@@ -180,7 +180,7 @@ class _MemoryMixin:
         days = (
             int(args[0])
             if args and args[0].isdigit()
-            else ctx.cfg.memory_retention_days
+            else ctx.cfg.memory.memory_retention_days
         )
         deleted = layer.prune(days)
         print(f"  [memory] Pruned {deleted} entries older than {days} days")

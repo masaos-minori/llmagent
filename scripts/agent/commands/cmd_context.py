@@ -106,13 +106,13 @@ class _ContextMixin:
         git_info = get_repo_info()
         return {
             "total_chars": total_chars,
-            "compress_limit": ctx.cfg.context_char_limit,
+            "compress_limit": ctx.cfg.llm.context_char_limit,
             "n_msgs": len(ctx.history),
             "sys_preview": sys_preview,
             "compress_count": compress_count,
             "token_is_exact": token_is_exact,
             "token_estimate": token_estimate,
-            "token_limit": ctx.cfg.context_token_limit,
+            "token_limit": ctx.cfg.llm.context_token_limit,
             "tokenize_configured": bool(getattr(ctx.cfg, "tokenize_url", "")),
             "mem_status": _format_memory_status(ctx),
             "git_str": (
@@ -244,17 +244,17 @@ class _ContextMixin:
         ctx = self._ctx
         name = args.strip()
         if not name:
-            prompts = ctx.cfg.system_prompts
+            prompts = ctx.cfg.tool.system_prompts
             names = ", ".join(prompts.keys()) if prompts else "(none)"
             print(f"Current: {ctx.system_prompt_name}")
             print(f"Available: {names}")
             return
-        if name not in ctx.cfg.system_prompts:
-            names = ", ".join(ctx.cfg.system_prompts.keys())
+        if name not in ctx.cfg.tool.system_prompts:
+            names = ", ".join(ctx.cfg.tool.system_prompts.keys())
             print(f"Unknown preset '{name}'. Available: {names}")
             return
         ctx.system_prompt_name = name
         # Update the canonical field; Orchestrator syncs history[0] at next turn start.
-        ctx.system_prompt_content = ctx.cfg.system_prompts[name]
+        ctx.system_prompt_content = ctx.cfg.tool.system_prompts[name]
         logger.info(f"System prompt switched to '{name}'")
         print(f"System prompt: {name}")

@@ -166,7 +166,9 @@ class Orchestrator:
             # Return error result instead of raising to make error handling explicit
             return TurnResult(success=False, answer="", error_kind=str(e))
 
-    async def _handle_turn_end(self, line: str, answer: str, turn_started_at: float, error_kind: str | None) -> None:
+    async def _handle_turn_end(
+        self, line: str, answer: str, turn_started_at: float, error_kind: str | None
+    ) -> None:
         ctx = self._ctx
         elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
         if ctx.services.audit_logger is not None:
@@ -258,6 +260,13 @@ class Orchestrator:
         """Delegate to LLMTurnRunner.run(). Kept for patch.object() in tests."""
         return await self._llm_runner.run(llm_url)
 
+    def _record_llm_latency(self, t0_llm: float, turn: int) -> None:
+        """Append wall-clock latency to stat_latency['llm'] for the first inner turn only."""
+        if turn == 0:
+            self._ctx.stat_latency.setdefault("llm", []).append(
+                time.perf_counter() - t0_llm
+            )
+
     def _update_consecutive_errors(
         self,
         consecutive_errors: int,
@@ -279,5 +288,3 @@ class Orchestrator:
         return self._guard.check_all(
             seen_calls, round_fingerprints, failed_calls, message
         )
-
- 

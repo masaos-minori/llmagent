@@ -30,7 +30,10 @@ async def _build_preview_with_dry_run(
 ) -> str:
     """Return preview string, optionally enriched with dry-run output."""
     preview = build_preview(tool_name, args)
-    if tool_name not in ctx.cfg.approval_dry_run_tools or ctx.services.tools is None:
+    if (
+        tool_name not in ctx.cfg.approval.approval_dry_run_tools
+        or ctx.services.tools is None
+    ):
         return preview
     try:
         dry_text, _, _x_req = await ctx.services.tools.execute(
@@ -106,8 +109,8 @@ async def run_approval_checks(
             args_preview = orjson.loads(tc["function"].get("arguments", "{}"))
         except orjson.JSONDecodeError:
             args_preview = {}
-        masked_preview = mask_args(args_preview, ctx.cfg.masked_fields)
-        if ctx.plan_mode and tc_name in ctx.cfg.plan_blocked_tools:
+        masked_preview = mask_args(args_preview, ctx.cfg.tool.masked_fields)
+        if ctx.plan_mode and tc_name in ctx.cfg.tool.plan_blocked_tools:
             print(f"  [plan mode] Blocked: {tc_name}")
             print(f"  args: {orjson.dumps(masked_preview).decode()}")
             logger.info(f"Plan mode blocked tool: {tc_name}")

@@ -40,13 +40,13 @@ def is_summarized(
     is_error: bool,
 ) -> bool:
     """Return True when llm_text represents a summarized (not truncated) form of text."""
-    if not cfg.use_tool_summarize or is_error:
+    if not cfg.tool.use_tool_summarize or is_error:
         return False
-    if len(text) <= cfg.tool_summarize_threshold:
+    if len(text) <= cfg.tool.tool_summarize_threshold:
         return False
     if llm_text == text:
         return False
-    truncated = text[: cfg.tool_result_max_llm_chars] + "\n... (truncated)"
+    truncated = text[: cfg.tool.tool_result_max_llm_chars] + "\n... (truncated)"
     return llm_text != truncated
 
 
