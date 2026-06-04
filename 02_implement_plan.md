@@ -1,348 +1,403 @@
-# 02_implement_plan.md
+# 02_implement_plan.md — db/ 層リファクタリング実装計画
+
+ソース仕様: `00_llm_spec_tobe.md`
+
+---
 
 ## Goal
 
-`00_llm_spec_tobe.md` に記載されたコマンド層リファクタリング要件を実装する。
-主目的は以下の3点:
-
-1. コマンドハンドラをシン化し、アプリケーションロジックをサービス層に移動する
-2. クロスミックス依存をなくし、型システムまたは明示的コンポジションで契約を表明する
-3. 状態変更操作に監査ログ・dry-run・構造化結果型を統一する
+`db/` 層 6 ファイルから後方互換レガシー機能・モジュールグローバル状態・暗黙的失敗を除去し、
+明示的 DI・構造化レポート・単一責務モジュールへ移行する。
 
 ---
 
 ## Scope
 
-### 対象 (実装する)
+**In scope:**
+- `scripts/db/helper.py` — module-level `_cfg` 除去、責務分割
+- `scripts/db/maintenance.py` — module-level `_cfg` 除去、`prune_old_memories` 監査化、`recover_corruption` 構造化
+- `scripts/db/store.py` — `EMBEDDING_DIMS` config 化、`MemoryDeleteStore` Protocol + 実装追加
+- `scripts/db/tool_results.py` — silent fallback への audit event 追加
+- `scripts/db/create_schema.py` — migration エラー分類、`schema_version` テーブル、旧テーブル DROP
+- `scripts/db/migrate.py` — named columns コピー、構造化レポート、schema 互換性チェック
+- `config/common.toml` — `embedding_dims = 384` キー追加
+- `docs/06_ref-sqlite.md` — 変更箇所の反映
+- 上記モジュールのテストファイル (`test_sqlite_helper.py`, `test_db_maintenance.py`, `test_tool_result_store.py`, `test_create_schema.py`)
 
-| ファイル | 作業内容 |
-|---|---|
-| `agent/commands/registry.py` | `ctx.llm_url` フラットアクセスを `ctx.cfg.llm.llm_url` に修正 |
-| `agent/commands/cmd_config.py` | `_apply_config_params()` 等を `ConfigReloadService` に移動; `_cmd_reload()` でリロード結果を表示 |
-| `agent/services/config_reload.py` | `apply_config_dict()` 追加; `_apply_mcp_url_reload()` の構造化リロード結果を返す |
-| `agent/commands/cmd_mcp.py` / `agent/services/mcp_status.py` | WRITE列を `tool_safety_tiers` ベースに整合 |
-| `agent/commands/cmd_context.py` | `_cmd_undo()` を整合的なundo APIに変更; flat cfg残留修正 |
-| `agent/session.py` | `undo_last_turn()` API追加 (メモリ+DB両側のロールバックを一か所に集約) |
-| `agent/commands/cmd_ingest.py` | `_cmd_ingest()` を `IngestWorkflowService` + CLIレンダラーに分離; `_cmd_export()` のレンダラー/ライター分離 |
-| `agent/services/ingest_workflow.py` | 新規作成: IngestWorkflowService + IngestResult |
-| `agent/commands/cmd_memory.py` | 状態変更操作に audit_logger 呼び出し; dry-run フラグ; 構造化結果型 |
-| `agent/commands/cmd_session.py` | `_load_session()` の session_id 直接代入をサービスAPIへ移動 |
-
-### 対象外 (既に対応済み、または明示的に除外)
-
-- `cmd_rag.py` — シム化済み。`cmd_tooling.py` / `cmd_notes.py` / `cmd_debug.py` に分割完了
-- `cmd_mcp.py` の `InstallQA` Protocol / `CliInstallQA` — 抽象Q&Aインタフェース実装済み
-- `cmd_memory.py` の MemoryLayer 内部アクセス — 既にすべて公開 facade API 経由
-- `cmd_ingest.py` の `force_compress()` — 公開 API 呼び出し済み
-- `ConfigReloadService` 基本実装 — `ConfigReloadResult` ・ `apply_config()` 呼び出し済み
-- `AgentContext` のフラットアクセス (Step 8相当) — 難易度極高のため本スコープ外
+**Out of scope:**
+- `agent/memory/store.py` など db 層外のコード (import 先は影響しない)
+- `rag/` 層の変更
+- MCP サーバの変更
+- `config/agent.toml` の `embed_dim` / `memory_embed_dim` (agent 層の設定。db 層は `common.toml` の `embedding_dims` を参照)
 
 ---
 
 ## Assumptions
 
-- 現行テストスイートはリファクタリング前後でグリーンを維持しなければならない
-- 新規サービスクラスはユニットテストを追加する (CLAUDE.mdのTest coverage要件)
-- `AgentContext.__getattr__` / `__setattr__` によるフラットアクセスは残存 (除去は別タスク)
-- `tool_safety_tiers` は `dict[str, str]` で値は `READ_ONLY` | `WRITE_SAFE` | `WRITE_DANGEROUS` | `ADMIN`
-- `agent/session.py` の `delete_last_turn()` は DB側のロールバックのみを行う (現行動作)
-- import layer contracts (`shared → db → rag/mcp → agent`) は守る
+1. `SQLiteHelper` のパブリック API (`open`, `execute`, `fetchall`, `commit`, `close`, `begin_immediate`, `begin_exclusive`, `health_check`, `checkpoint`, `vacuum`) は変更しない。17 ファイルが import しておりインターフェース変更は別タスクとする。
+2. `config/common.toml` に `embedding_dims = 384` を追加しても既存動作には影響しない（追加キーは無視される）。
+3. 旧テーブル (`memory_entries`, `memory_vec`) の DROP は migration step として実施し、スキーマ初期化 DDL では IF NOT EXISTS の保護下に残す。本番環境での一回限り実行が前提。
+4. Python 3.13、import-linter 境界 (`db → shared` のみ許可) は変更しない。
+5. テストは `.venv` 経由 (`source .venv/bin/activate && python -m pytest`) で実行する。
 
 ---
 
 ## Unknowns
 
-### U1: registry.py — ミックス間明示的契約の粒度
-spec: 「型システムまたは明示的コンポジションで契約を表明する」
-現状: `CommandRegistry` は10個のミックスを多重継承しており、各ミックスは `if TYPE_CHECKING: _ctx: AgentContext` でアノテーション。
-**問い**: Protocolクラスを各ミックスに定義するか、ABC基底クラスを導入するか、現行の TypeChecking アノテーションで充分か。
-**分析結果**: ミックスが依存するのは `self._ctx: AgentContext` のみ。全ミックスが同一シグネチャを持つため、共通 `MixinBase` に `_ctx: AgentContext` を定義し継承させれば、「どのミックスがどのAPIを提供するか」は docstring + module分割 + 単一起点 MixinBase で明示できる。Protocol を各ミックスに付けるほどの複雑性は現状存在しない。→ **MixinBase 導入で解決**
-
-### U2: cmd_context.py — `_cmd_undo()` 論理ターン単位
-spec: 「論理ターン単位に基づく一貫した undo API」
-現状: in-memory側は `last_user_idx` から後ろを削除; DB側は `ctx.session.delete_last_turn()` を呼ぶ。
-`delete_last_turn()` の実装が tool_calls / system injection メッセージを正しく扱っているか不明。
-**分析結果**: `session.py` の `delete_last_turn()` を確認 → messages テーブルで `message_id DESC` 順に最後の user ロールまで削除している。in-memory 側の `_memory_injected` マーカー除去ロジックと対称でない可能性がある。→ **`AgentSession.undo_last_turn()` を新設し、削除件数を返すAPIとする。in-memory側でも件数チェックを追加する。**
-
-### U3: cmd_memory.py — dry-run の公開方法
-spec: 「dry-run サポートの標準化」
-現状: delete/prune/pin にdry-runは存在しない。
-**問い**: CLIフラグ `--dry-run` か、サブコマンド拡張か。
-**分析結果**: `/memory delete --dry-run <id>` 形式が最も自然。prune も同様。pin/unpin は冪等性が高く dry-run の優先度は低い。→ **delete と prune のみ `--dry-run` フラグを追加。**
-
-### U4: cmd_memory.py — 監査ログの出力先と形式
-spec: 「print() のみでは監査証跡として不十分」
-**問い**: `ctx.services.audit_logger` (JSON形式) か通常 `logger.info()` か。
-**分析結果**: `audit_logger` はセッション単位のイベントログ (`Logger` クラス、JSON Lines)。MemoryLayer の状態変更はセッション監査に属するため `audit_logger` が適切。ただし `cmd_memory.py` は現在 `_ctx` を持つが `audit_logger` へのアクセスパスは `ctx.services.audit_logger`。`audit_logger` が `None` の場合 (`use_memory_layer=False`) のフォールバックが必要。→ **`audit_logger` を使用。None ガードを入れる。**
-
-### U5: cmd_mcp.py status — WRITE列とtool_safety_tiers対応
-spec: 「dangerous / write-safe / admin のクラス分けに整合させる」
-現状: `_WRITE_CAPABLE_TOOLS` セットとの membership check でWRITE列を設定。
-**分析結果**: `tool_safety_tiers: dict[str, str]` の値は `WRITE_SAFE` | `WRITE_DANGEROUS` | `ADMIN` | `READ_ONLY`。サーバの `tool_names` をtierマップで引き、最も危険なtierを代表値とする方式が適切。表示列は WRITE のまま維持し、値を `no` / `write-safe` / `dangerous` / `admin` で区別する。既存の `_WRITE_CAPABLE_TOOLS` は削除して tiers から判定する。→ **実装可能**
+| Unknown | Evidence | Resolution | Blocking |
+|---|---|---|---|
+| SQLiteHelper への config DI 方式 | 17 callers が `SQLiteHelper("rag")` を直接呼び出し。コンストラクタ変更は破壊的 | class-level `_ensure_config()` を self-contained に (module-level `_get_cfg()` 廃止のみ)。class-level cache (`_config_loaded`) は保持 | YES → 解決済: class-level cache 維持 |
+| embedding_dims の統一先 | `config/agent.toml` に `embed_dim = 384` 既存だが agent 層の設定。db 層は agent に依存不可 | `config/common.toml` に `embedding_dims = 384` を追加し db 層はそちらを参照 | YES → 解決済: common.toml 追加 |
+| `prune_old_memories` の store-layer API 化 | 現在 `maintenance.py` で3テーブル削除。`db` → `agent` import は禁止 | `db/store.py` に `MemoryDeleteStore Protocol` + `SQLiteMemoryDeleteStore` 実装を追加し `maintenance.py` から委譲 | YES → 解決済: store.py に追加 |
+| schema_version 管理方式 | 現在は `schema_version` テーブルなし | `schema_version(version INT, applied_at TEXT)` テーブルを session.sqlite / rag.sqlite 両方に追加。version 0→1 で旧テーブル DROP など | NO → シンプルな integer version テーブル |
+| 旧テーブル (`memory_entries`, `memory_vec`) DROP タイミング | prod DB に存在する可能性あり。`create_schema.py` での DROP は既存データ破壊リスク | `_SESSION_MIGRATE_SQL` に DROP TABLE 文を migration step として追加。`_run_migrations()` の safe-only 改修後に適用 | NO → migration step に含める |
 
 ---
 
-## Affected areas
+## Affected Areas
 
-```
-scripts/agent/
-  commands/
-    registry.py            # ctx.llm_url → ctx.cfg.llm.llm_url; MixinBase導入
-    cmd_config.py          # _apply_* 群を ConfigReloadService に移動
-    cmd_context.py         # _cmd_undo() → undo_last_turn() API利用; tokenize_url修正
-    cmd_ingest.py          # _cmd_ingest() → IngestWorkflowService委譲
-    cmd_memory.py          # audit_logger; dry-run; MemoryOpResult
-    cmd_mcp.py             # (mcp_status.py 経由で間接影響)
-    cmd_session.py         # _load_session() → session.load() API利用
-    utils.py               # config表示レンダラー関数追加 (既存 render_history_md と同居)
-  services/
-    config_reload.py       # apply_config_dict() 追加; MCP URL再読込の構造化結果
-    mcp_status.py          # tool_safety_tiers ベースのWRITE列判定
-    ingest_workflow.py     # 新規作成
-  session.py               # undo_last_turn() 追加
-
-tests/
-  test_agent_cmd_config.py      # _apply_config_params 移動後のテスト更新
-  test_agent_cmd_mcp.py         # write列変更のテスト更新
-  test_agent_cmd_context.py     # undo API変更のテスト (新規または更新)
-  test_agent_cmd_ingest.py      # IngestWorkflowService テスト (新規)
-  test_agent_cmd_memory.py      # dry-run / audit_logger テスト (新規)
-  test_agent_session.py         # undo_last_turn テスト更新
-```
+| File | Change | Blast radius | Churn (git log) | Bus factor | deploy.sh |
+|---|---|---|---|---|---|
+| `scripts/db/helper.py` | module-level `_cfg` / `_get_cfg()` 廃止、`_ensure_config` 自己完結化 | high (17 ファイルが import; ただし public API 変更なし) | 6 commits | 1 author | existing |
+| `scripts/db/maintenance.py` | module-level `_cfg` 廃止、`prune_old_memories` 監査化、`recover_corruption` 構造化 | medium (`cmd_db.py`, `memory/layer.py` が import) | 6 commits | 1 author | existing |
+| `scripts/db/store.py` | `EMBEDDING_DIMS` config 化、`MemoryDeleteStore` 追加 | low (外部 caller 0: `EMBEDDING_DIMS` / `validate_embedding_blob` の外部 import なし) | 6 commits | 1 author | existing |
+| `scripts/db/tool_results.py` | silent fallback に audit event 追加 | low (`agent/context.py` のみが import) | 6 commits | 1 author | existing |
+| `scripts/db/create_schema.py` | migration error 分類、`schema_version` DDL、旧テーブル DROP | medium (`migrate.py` が import; デプロイ後の一回実行スクリプト) | 6 commits | 1 author | existing |
+| `scripts/db/migrate.py` | named columns コピー、`MigrationReport` dataclass、schema 互換性チェック | low (stand-alone スクリプト; 外部 import なし) | 6 commits | 1 author | existing |
+| `config/common.toml` | `embedding_dims = 384` 追加 | low (追加のみ) | — | — | existing |
+| `docs/06_ref-sqlite.md` | API 変更箇所の反映 | doc only | — | — | — |
+| `tests/test_sqlite_helper.py` | `_cfg` グローバルのモック削除、class-level reset | test only | — | — | — |
+| `tests/test_db_maintenance.py` | `RecoveryResult`, `MemoryDeleteStore` 追加テスト | test only | — | — | — |
+| `tests/test_tool_result_store.py` | audit event 追加に対応 | test only | — | — | — |
+| `tests/test_create_schema.py` | `schema_version` テーブル確認テスト | test only | — | — | — |
 
 ---
 
 ## Design
 
-### D1: MixinBase (registry.py)
+### D1. helper.py — module-level global 廃止
 
+**Before:**
 ```python
-# agent/commands/mixin_base.py
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from agent.context import AgentContext
+_cfg: dict[str, Any] | None = None  # module-level
 
-class MixinBase:
-    """共通アノテーション基底。全ミックスクラスはこれを継承する。"""
-    _ctx: "AgentContext"
+def _get_cfg() -> dict[str, Any]:
+    global _cfg
+    if _cfg is None:
+        _cfg = ConfigLoader().load("common.toml")
+    return _cfg
+
+class SQLiteHelper:
+    @classmethod
+    def _ensure_config(cls) -> None:
+        if cls._config_loaded:
+            return
+        cfg = _get_cfg()   # module-level 経由
+        cls._RAG_PATH = cfg.get(...)
 ```
 
-全10ミックスクラスが `MixinBase` を継承することで、`_ctx` の型情報が一か所に集約される。
-
-### D2: ConfigReloadService 拡張 (cmd_config.py → config_reload.py)
-
+**After:**
 ```python
-class ConfigReloadService:
-    def apply_config_dict(self, new_cfg: dict[str, Any]) -> ConfigReloadResult:
-        """cfg更新 + サービス同期を一括実行。旧 _apply_config_params() の責務。"""
-        ...
+# module-level _cfg, _get_cfg() 削除
 
-    def _classify_mcp_reload(
-        self, new_cfg: dict[str, Any]
-    ) -> tuple[list[str], list[str]]:
-        """(applied_urls, needs_restart_keys) を返す。"""
-        ...
+class SQLiteHelper:
+    @classmethod
+    def _ensure_config(cls) -> None:
+        if cls._config_loaded:
+            return
+        try:
+            cfg = ConfigLoader().load("common.toml")  # 直接呼び出し
+        except Exception as e:
+            logger.warning(f"Config load failed: {e}")
+            cfg = {}
+        cls._RAG_PATH = cfg.get("rag_db_path", "")
+        cls._SESSION_PATH = cfg.get("session_db_path", "")
+        cls.SQLITE_VEC_SO = cfg.get("sqlite_vec_so", "")
+        cls._config_loaded = True
 ```
 
-`_cmd_reload()` は `apply_config_dict()` を呼び、`result.needs_restart` を表示する:
+class-level `_config_loaded` フラグによる重複呼び出し防止は維持する。module scope からの状態を class scope に集約する変更のみ。
+
+### D2. store.py — embedding_dims 設定化
 
 ```python
-result = ConfigReloadService(ctx).apply_config_dict(new_cfg)
-if result.needs_restart:
-    print(f"Restart required for: {', '.join(result.needs_restart)}")
-print("Config reloaded.")
+# Before:
+EMBEDDING_DIMS: int = 384
+EMBEDDING_BYTES: int = EMBEDDING_DIMS * 4
+
+# After:
+def get_embedding_dims() -> int:
+    """Return embedding dimensions from config; fallback to 384."""
+    try:
+        cfg = ConfigLoader().load("common.toml")
+        return int(cfg.get("embedding_dims", 384))
+    except Exception:
+        return 384
+
+def get_embedding_bytes() -> int:
+    return get_embedding_dims() * 4
+
+# 後方互換用モジュール定数 (テスト・呼び出し元が参照している場合のみ残す)
+# 現状外部 caller が 0 のため削除可
 ```
 
-### D3: McpStatusService — tier-based WRITE列
+`validate_embedding_blob` も `get_embedding_dims()` 呼び出しに変更する。
+
+### D3. store.py — MemoryDeleteStore Protocol + 実装
 
 ```python
-def _tier_for_server(self, cfg: McpServerConfig, tiers: dict[str, str]) -> str:
-    """サーバの tool_names から最高危険度 tier を返す。"""
-    priority = {"ADMIN": 3, "WRITE_DANGEROUS": 2, "WRITE_SAFE": 1, "READ_ONLY": 0}
-    best = "READ_ONLY"
-    for t in cfg.tool_names:
-        tier = tiers.get(t, "READ_ONLY")
-        if priority.get(tier, 0) > priority.get(best, 0):
-            best = tier
-    return best
+@runtime_checkable
+class MemoryDeleteStore(Protocol):
+    """Atomic cross-table deletion for memories / memories_fts / memories_vec."""
+
+    def delete_memories_before(
+        self,
+        older_than_days: int,
+    ) -> "MemoryDeleteResult": ...
+
+@dataclass(frozen=True)
+class MemoryDeleteResult:
+    deleted: int
+    vec_skipped: bool      # memories_vec 削除が失敗した場合 True
+    vec_error: str | None  # 失敗時のエラーメッセージ
+
+class SQLiteMemoryDeleteStore:
+    def __init__(self, db: SQLiteHelper) -> None:
+        self._db = db
+
+    def delete_memories_before(self, older_than_days: int) -> MemoryDeleteResult:
+        rows = self._db.fetchall(...)
+        # memories + memories_fts を削除 (atomic)
+        # memories_vec を試みる; 失敗は MemoryDeleteResult.vec_skipped=True で返す
 ```
 
-WRITE列の表示値: `no` (READ_ONLY) / `write-safe` (WRITE_SAFE) / `dangerous` (WRITE_DANGEROUS) / `admin` (ADMIN)
-
-### D4: AgentSession.undo_last_turn() (session.py)
+### D4. maintenance.py — prune_old_memories 委譲
 
 ```python
-def undo_last_turn(self) -> int:
-    """DBから最後のユーザーターン以降を削除。削除件数を返す。"""
-    ...
+def prune_old_memories(db: SQLiteHelper, older_than_days: int) -> int:
+    store = SQLiteMemoryDeleteStore(db)  # db/store.py の実装
+    result = store.delete_memories_before(older_than_days)
+    if result.vec_skipped:
+        # 失敗を audit event で記録 (silent suppress ではなく visible)
+        logger.warning(
+            "prune_old_memories: memories_vec deletion failed",
+            extra={"error": result.vec_error, "days": older_than_days},
+        )
+    logger.info(f"prune_old_memories: removed {result.deleted} entries")
+    return result.deleted
 ```
 
-`_cmd_undo()` は in-memory ロールバック後に `undo_last_turn()` を呼び、削除件数を検証する。
-
-### D5: IngestWorkflowService (ingest_workflow.py)
+### D5. maintenance.py — recover_corruption 構造化
 
 ```python
-@dataclass
-class IngestResult:
-    stage: str  # "crawl" | "split" | "ingest" | "ok"
-    error: str | None = None
-    n_chunks: int = 0
-
-class IngestWorkflowService:
-    async def run(self, target: str, lang: str, snippets_only: bool) -> IngestResult:
-        ...
-```
-
-`_cmd_ingest()` はサービスを呼び出し、結果に応じてエラー表示/完了表示を行う。
-
-### D6: ExportRenderer (cmd_ingest.py → utils.py)
-
-```python
-def render_export(history: list[LLMMessage], fmt: str) -> str:
-    """フォーマット選択とレンダリングのみ担当。"""
-    ...
-
-def write_export(content: str, outfile: str | None) -> None:
-    """stdout/ファイル書き込みのみ担当。"""
-    ...
-```
-
-### D7: MemoryOpResult (cmd_memory.py)
-
-```python
-@dataclass
-class MemoryOpResult:
-    ok: bool
-    memory_id: str
-    action: str  # "deleted" | "pinned" | "unpinned" | "pruned"
+@dataclass(frozen=True)
+class RecoveryResult:
+    success: bool
+    action: str        # "vacuum" | "restored" | "no_backup" | "error"
+    detail: str | None = None
     dry_run: bool = False
-    count: int = 0  # prune用
+
+def recover_corruption(
+    backup_path: str | Path | None = None,
+    *,
+    dry_run: bool = False,
+) -> RecoveryResult:
+    ...
+    if dry_run:
+        return RecoveryResult(success=False, action="dry_run", detail="integrity check only", dry_run=True)
+    ...
 ```
 
-state-changing 操作後に `audit_logger.info(event_dict)` を呼ぶ。
+### D6. create_schema.py — migration error 分類
 
-### D8: _load_session() API整理 (cmd_session.py → session.py)
+```python
+_SAFE_MIGRATION_ERRORS: tuple[str, ...] = (
+    "duplicate column name",   # ALTER TABLE ADD COLUMN が既適用
+    "already exists",          # CREATE TRIGGER IF NOT EXISTS の余剰
+)
 
-`AgentSession` に `load(session_id)` を追加するのではなく、`_load_session()` 内部の直接代入を `ctx.session.session_id = session_id` から変更しない (AgentSession は `session_id` フィールドを公開しているため、直接代入は設計上妥当)。代わりに、ロード時に stats リセットを行う `_reset_turn_stats()` ヘルパーを明示化する。
+def _run_migrations(db: SQLiteHelper, stmts: list[str]) -> None:
+    for stmt in stmts:
+        try:
+            db.execute(stmt)
+        except Exception as e:
+            msg = str(e).lower()
+            if any(safe in msg for safe in _SAFE_MIGRATION_ERRORS):
+                logger.debug(f"Migration stmt skipped (already applied): {e}")
+            else:
+                logger.error(f"Migration DDL failed: {e!r}")
+                raise  # 安全ではない失敗は re-raise
+    db.commit()
+```
+
+### D7. migrate.py — named columns コピー
+
+```python
+@dataclass(frozen=True)
+class TableMigrationResult:
+    table: str
+    rows_copied: int
+    skipped: bool        # source table が存在しない
+    error: str | None    # エラーメッセージ
+
+@dataclass(frozen=True)
+class MigrationReport:
+    tables: list[TableMigrationResult]
+    total_rows: int
+    post_migration_actions: list[str]  # "re-embed memories_vec" など
+
+def _get_column_names(conn: sqlite3.Connection, table: str) -> list[str]:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return [row[1] for row in rows]
+
+def _copy_table(...) -> TableMigrationResult:
+    src_cols = _get_column_names(src_conn, table)
+    dst_cols = _get_column_names(dst_conn, table)
+    # 共通列のみコピー (schema diff を検出・ログ)
+    common_cols = [c for c in src_cols if c in dst_cols]
+    cols_str = ", ".join(common_cols)
+    placeholders = ", ".join("?" * len(common_cols))
+    rows = src_conn.execute(f"SELECT {cols_str} FROM {table}").fetchall()
+    dst_conn.executemany(
+        f"INSERT OR IGNORE INTO {table} ({cols_str}) VALUES ({placeholders})",
+        rows,
+    )
+    return TableMigrationResult(table=table, rows_copied=len(rows), skipped=False, error=None)
+```
 
 ---
 
-## Implementation steps
+## Implementation Steps
 
-### Step 0: 行動ロックテスト取得 (変更前に実施)
+各ステップは独立してコミット可能。
 
-変更対象モジュールのうち、既存テストが薄い以下を補強:
-- `cmd_context.py` の `_cmd_undo()` — `tests/test_agent_cmd_context.py` が存在しない場合は新規作成
-- `cmd_ingest.py` — `tests/test_agent_cmd_ingest.py` が存在しない場合は新規作成
+### Step 1: テスト行動ロック (behavior-lock tests)
 
-既存テスト確認:
+対象モジュールに既存テストがある (`test_sqlite_helper.py` 51行, `test_db_maintenance.py` 340行, `test_tool_result_store.py` 182行, `test_create_schema.py` 196行)。
+
+事前にフルスイートをグリーンにしてベースラインを確立する:
+
 ```bash
-source .venv/bin/activate && python -m pytest tests/ -x -q --tb=short 2>&1 | tail -5
+source .venv/bin/activate && python -m pytest tests/test_sqlite_helper.py tests/test_db_maintenance.py tests/test_tool_result_store.py tests/test_create_schema.py -v
 ```
 
-### Step 1: MixinBase 導入 + registry.py フラットアクセス修正
+### Step 2: helper.py + maintenance.py — module-level global 廃止
 
-1. `scripts/agent/commands/mixin_base.py` を新規作成
-2. 全10ミックスクラスに `MixinBase` を継承追加
-3. `registry.py` L127: `ctx.llm_url` → `ctx.cfg.llm.llm_url`
-4. ruff / mypy / pytest を通す
+変更ファイル: `scripts/db/helper.py`, `scripts/db/maintenance.py`
 
-### Step 2: cmd_context.py — flat cfg残留修正 + undo API整合
+- `helper.py`: `_cfg`, `_get_cfg()` 削除。`_ensure_config()` に ConfigLoader 呼び出しをインライン化。
+- `maintenance.py`: 同様に `_cfg`, `_get_cfg()` 削除。`RetentionConfig.from_config()`、`checkpoint_wal()`、`_archive_db_file()` で都度 ConfigLoader を呼ぶ。
 
-1. `cmd_context.py` L116: `getattr(ctx.cfg, "tokenize_url", "")` → `ctx.cfg.llm.tokenize_url`
-2. `session.py` に `undo_last_turn() -> int` を追加 (DBから最後のuser turnまでを削除し件数を返す)
-3. `cmd_context.py` の `_cmd_undo()` を `ctx.session.undo_last_turn()` を使うよう更新
-4. `tests/test_agent_session.py` を更新; `test_agent_cmd_context.py` 追加
+完了条件: `test_sqlite_helper.py`, `test_db_maintenance.py` pass。
 
-### Step 3: ConfigReloadService 拡張 + cmd_config.py 整理
+### Step 3: common.toml — embedding_dims 追加
 
-1. `config_reload.py` に `apply_config_dict(new_cfg)` を追加
-   - 旧 `_apply_rag_tool_params`, `_apply_llm_prompt_params`, `_apply_sse_reload_params`, `_reload_approval_settings`, `_apply_mcp_url_reload` のロジックを移植
-   - `_classify_mcp_reload()` でtransport変更を `needs_restart` に分類
-2. `cmd_config.py` の `_apply_config_params()` と `_apply_*` helpers を削除
-   - `_cmd_reload()` → `ConfigReloadService(ctx).apply_config_dict(new_cfg)` を呼ぶ
-   - `ConfigReloadResult.needs_restart` を表示
-3. config表示 (`_print_config_values`, `_print_rag_config`) を `utils.py` に `render_config_display()` / `render_rag_config_display()` として移動
-4. テスト更新: `tests/test_agent_cmd_config.py`
+変更ファイル: `config/common.toml`
 
-### Step 4: McpStatusService — tier-based WRITE列
+- `embedding_dims = 384` を追加 (コメント付き)。
 
-1. `mcp_status.py` の `_WRITE_CAPABLE_TOOLS` を削除
-2. `_tier_for_server()` を追加; `probe_all()` で `ctx.cfg.approval.tool_safety_tiers` を参照
-3. WRITE列の値を `no` / `write-safe` / `dangerous` / `admin` に変更
-4. テスト更新: `tests/test_agent_cmd_mcp.py`
+完了条件: toml parse 正常確認 (`python -c "import tomllib; tomllib.load(open('config/common.toml','rb'))"`)。
 
-### Step 5: IngestWorkflowService 新規作成 + cmd_ingest.py 整理
+### Step 4: store.py — EMBEDDING_DIMS 設定化 + MemoryDeleteStore 追加
 
-1. `agent/services/ingest_workflow.py` を新規作成: `IngestResult`, `IngestWorkflowService`
-2. `cmd_ingest.py` の `_cmd_ingest()` を薄いCLIレンダラーに変更 (サービス呼び出し + 結果表示)
-3. `_cmd_export()` のレンダリングを `utils.py` の `render_export()` / `write_export()` に分離
-4. テスト追加: `tests/test_agent_services_ingest.py`
+変更ファイル: `scripts/db/store.py`
 
-### Step 6: cmd_memory.py — audit_logger / dry-run / MemoryOpResult
+- `EMBEDDING_DIMS = 384`, `EMBEDDING_BYTES` を削除し `get_embedding_dims()`, `get_embedding_bytes()` に置換。
+- `validate_embedding_blob()` を新関数ベースに更新。
+- `MemoryDeleteResult` dataclass, `MemoryDeleteStore` Protocol, `SQLiteMemoryDeleteStore` 実装を追加。
 
-1. `MemoryOpResult` dataclass を `cmd_memory.py` に定義 (または `agent/services/memory_ops.py` に移動)
-2. `_memory_delete()`, `_memory_prune()`, `_memory_pin()` に `--dry-run` フラグ解析を追加
-3. 各操作後に `ctx.services.audit_logger.info(...)` を呼ぶ (None ガード付き)
-4. テスト追加: `tests/test_agent_cmd_memory.py`
+完了条件: lint-imports pass、mypy pass (store.py)。
 
-### Step 7: cmd_session.py — セッションライフサイクル整理
+### Step 5: maintenance.py — prune + recover 改修
 
-1. `_load_session()` にコメントを追加し、stats リセットの明示化
-2. `_reset_session_stats(ctx)` ヘルパーを `_cmd_clear()` / `_load_session()` で共通利用
-3. `_generate_session_title()` の docstring 更新 (現行実装は既に cfg.llm 経由)
-4. テスト更新: `tests/test_agent_session.py`
+変更ファイル: `scripts/db/maintenance.py`
 
-### Step 8: 全体検証
+- `prune_old_memories`: `SQLiteMemoryDeleteStore` へ委譲、audit event 追加。
+- `recover_corruption`: `RecoveryResult` dataclass 返り値、`dry_run=False` パラメータ追加。
+
+完了条件: `test_db_maintenance.py` pass (新テスト追加込み)。
+
+### Step 6: tool_results.py — audit event 追加
+
+変更ファイル: `scripts/db/tool_results.py`
+
+- `store()` / `get()` / `list_recent()` の except ブロックを `logger.warning` から `logger.error` + 構造化ログに変更。
+- REPL 継続優先は維持 (fail-open) だが、失敗を不可視にしない。
+
+完了条件: `test_tool_result_store.py` pass。
+
+### Step 7: create_schema.py — migration error 分類 + schema_version + 旧テーブル DROP
+
+変更ファイル: `scripts/db/create_schema.py`
+
+- `_run_migrations()` を `_SAFE_MIGRATION_ERRORS` による分類に更新。
+- `_RAG_SCHEMA_SQL`, `_SESSION_SCHEMA_SQL` に `schema_version` テーブル DDL を追加。
+- `_SESSION_MIGRATE_SQL` に `DROP TABLE IF EXISTS memory_entries`, `DROP TABLE IF EXISTS memory_vec` を追加 (最末尾)。
+- embedding dims を `get_embedding_dims()` 経由で DDL 文字列に注入。
+
+完了条件: `test_create_schema.py` pass。
+
+### Step 8: migrate.py — named columns + MigrationReport
+
+変更ファイル: `scripts/db/migrate.py`
+
+- `_copy_table()` を named columns 版に置換。
+- `MigrationReport`, `TableMigrationResult` dataclass 追加。
+- `migrate()` が `MigrationReport` を返すよう変更。
+- `memory_vec` の post-migration re-embed 必要性を `post_migration_actions` に明記。
+
+完了条件: `python -m compileall -q scripts/db/migrate.py` pass、lint pass。
+
+### Step 9: フルスイート検証
 
 ```bash
 source .venv/bin/activate
-python -m ruff check scripts/ tests/ --fix
-python -m mypy scripts/ --ignore-missing-imports
-python -m lint_imports
-python -m pytest tests/ -x -q
+ruff format scripts/db/
+ruff check scripts/db/ --fix && ruff check scripts/db/
+mypy scripts/
+PYTHONPATH=scripts lint-imports
+bandit -r scripts/db/ -c pyproject.toml
+python -m pytest tests/ -v
 ```
+
+### Step 10: ドキュメント更新
+
+変更ファイル: `docs/06_ref-sqlite.md`
+
+- `SQLiteHelper._ensure_config` の説明から module-level `_cfg` への参照を削除。
+- `recover_corruption` のシグネチャ (`dry_run` パラメータ) を更新。
+- `MigrationReport` の説明を追加。
+
+### Step 11: デプロイ (本番反映)
+
+`/deploy` スキルを使用。`create_schema.py` の実行が必要な場合はデプロイ後に一回実行する。
 
 ---
 
-## Validation plan
+## Validation Plan
 
-| 検証項目 | コマンド / 確認方法 |
-|---|---|
-| ruff エラーなし | `python -m ruff check scripts/ tests/` |
-| mypy エラーなし | `python -m mypy scripts/ --ignore-missing-imports` |
-| import layer 違反なし | `python -m lint_imports` |
-| 全テスト通過 | `python -m pytest tests/ -x -q` |
-| `/reload` でリロード結果表示 | 手動: `/reload` → needs_restart表示確認 |
-| `/mcp` WRITE列が tier ベース | 手動: `/mcp` → `tool_safety_tiers` の内容を反映 |
-| `/undo` でDB整合 | 手動: 複数ターン後 `/undo` → session DB確認 |
-| `/memory delete --dry-run` | 手動: 実際に削除されないことを確認 |
-| `/ingest` でstage失敗が分かる | 手動: 不正URLで crawl stage失敗を確認 |
+| Check | Tool | Target |
+|---|---|---|
+| Format | `ruff format scripts/db/` | 差分なし |
+| Lint | `ruff check scripts/db/` | 0 errors |
+| Type check | `mypy scripts/` | 新規エラーなし |
+| Architecture | `PYTHONPATH=scripts lint-imports` | 0 violations (現状 4 kept 維持) |
+| Constraint | `ast-grep --pattern 'except: $$$'` | 0 bare except |
+| Security | `bandit -r scripts/db/ -c pyproject.toml` | HIGH/MEDIUM なし |
+| Tests | `pytest tests/test_sqlite_helper.py tests/test_db_maintenance.py tests/test_tool_result_store.py tests/test_create_schema.py -v` | all pass |
+| Full suite | `pytest -v` | 新規失敗なし |
+| Coverage | `diff-cover coverage.xml --compare-branch=main` | ≥ 90% on changed lines |
+| Pre-commit | `pre-commit run --all-files` | pass |
 
 ---
 
 ## Risks
 
-### R1: MixinBase 多重継承 MRO 変化
-**影響**: 10クラスが同一 `MixinBase` を継承するとMROが変わる可能性。
-**対処**: `MixinBase.__init_subclass__` は定義しない; `MixinBase` はデータなしの型アノテーション専用クラスとする。MRO確認テストを追加。
-
-### R2: ConfigReloadService への _apply_* 移植でリグレッション
-**影響**: `_apply_mcp_url_reload` 等のロジックを移植する際に微妙な副作用が失われる可能性。
-**対処**: Step 3 前に `tests/test_agent_cmd_config.py` で `/reload` パスを行動ロックする。移植後に同テストを回す。
-
-### R3: McpStatusService WRITE列変更がユーザー表示に破壊的変更
-**影響**: 既存の `/mcp status` 出力フォーマット依存のテストや運用スクリプトが壊れる。
-**対処**: 列名 `WRITE` は維持し値のみ変更。`tool_safety_tiers` が空の場合は旧来の `_WRITE_CAPABLE_TOOLS` ロジックへフォールバックする。テストにて両パターンをカバー。
-
-### R4: undo_last_turn() の DB ロールバック範囲不整合
-**影響**: tool_call / memory_injection メッセージの扱いが in-memory と DB で異なると、undo後にセッションが壊れる。
-**対処**: `undo_last_turn()` は `message_id DESC` で最後の `role='user'` まで削除。in-memory 側の `_memory_injected` マーカー除去と対称になるようにする。統合テストで tool_call を含むターンの undo を検証する。
-
-### R5: IngestWorkflowService の asyncio executor 依存
-**影響**: `loop.run_in_executor()` は `asyncio.get_running_loop()` に依存。テスト環境でデッドロックする可能性。
-**対処**: サービスのインタフェースを `async def run(...)` とし、executorの呼び出しはサービス内部に封じ込める。テストでは `AsyncMock` / `unittest.mock.patch` で executor をモックする。
-
-### R6: audit_logger が None のケースでの例外
-**影響**: `use_memory_layer=False` の場合 `ctx.services.memory` は None だが、memory コマンドそのものは既にガードされている。ただし audit_logger は別途 None になりうる。
-**対処**: `audit_logger` 呼び出し前に `if ctx.services.audit_logger is not None:` チェックを入れる。
+| Risk | Likelihood | Mitigation |
+|---|---|---|
+| `SQLiteHelper._config_loaded` class-level cache がテスト間で汚染される | high | テスト side-effect は現在 `test_sqlite_helper.py` で mock 管理済み。`_ensure_config` 変更後も同様にリセット処理を確認する |
+| `_run_migrations` の safe/unsafe 分類ミスにより既適用済みの DDL が ERROR になる | medium | `_SAFE_MIGRATION_ERRORS` を実際の SQLite エラーメッセージに対して test_create_schema.py でカバーテストを追加する |
+| `MemoryDeleteStore.delete_memories_before` が旧テスト環境 (sqlite-vec なし) でエラーになる | low | memories_vec 削除失敗は `vec_skipped=True` で返す設計なので、vec0 なし環境でも safe |
+| `recover_corruption` の `dry_run` パラメータ追加が呼び出し元 (`cmd_db.py`) の型エラーを引き起こす | low | `dry_run=False` はデフォルト値なので既存呼び出し元は変更不要 |
+| `migrate.py` の named columns コピーが production 環境の古スキーマと不一致を起こす | medium | `_copy_table` の common_cols 計算で差分をログ出力。本番実行前に dry-run 同等の column diff ログを確認する |
+| `create_schema.py` の旧テーブル DROP が production DB の `memory_entries` データを失う | low | `DROP TABLE IF EXISTS` は migration step。`memory_entries` は新メモリ層 (memories テーブル) に移行済みであることを事前確認してから実行する |

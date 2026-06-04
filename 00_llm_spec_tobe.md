@@ -6,318 +6,212 @@
 * Do not preserve backward-compatibility leftovers unless there is a clear, explicit requirement to keep them.
 * Simplify the codebase by eliminating transitional compatibility layers.
 
-## `agent/commands/registry.py`
-
-* Reduce implicit dependencies between mixins.
-
-* Do not rely on hidden cross-mixin assumptions. For example:
-  * `cmd_ingest.py` currently assumes `_render_history_md()` is provided by `_ToolingMixin`.
-  * `cmd_memory.py` currently accesses internal attributes of `MemoryLayer`.
-
-* Do not keep `CommandRegistry` in a state where “which mixin provides which API” is only an informal convention.
-
-* Make those contracts explicit in the type system or through explicit composition.
-
-* Move toward an explicit architecture based on:
-  * services
-  * renderers
-  * command objects
-
-* Make future extraction, replacement, or recomposition safe without depending on mixin implementation details.
-
 ***
 
-## `agent/commands/cmd_config.py`
+## `db/helper.py`
 
-* Split responsibilities in this module.
+* Remove the module-global `_cfg` cache from `_get_cfg()`.
 
-* Do not keep all of the following inside one mixin:
-  * configuration display
-  * config diff application
-  * live service synchronization
-  * validation-like config reconciliation logic
+* Do not keep configuration state hidden at module scope.
 
-* Move `_apply_config_params()` and related logic out of the command handler layer.
+* The current design makes config reload behavior, test substitution, and in-process consistency unclear.
 
-* Treat this as application service logic.
+* Minimize side effects in the connection-management layer.
 
-* Introduce a dedicated component such as `ConfigReloadService`.
+* Move configuration retrieval to one of the following:
+  * explicit dependency injection
+  * a dedicated config service
 
-* Remove direct writes to private service attributes inside `_sync_services_to_cfg()`.
+* Split the responsibilities currently concentrated in `SQLiteHelper`.
 
-* Do not write directly to fields such as:
-  * `ctx.services.llm._temperature`
-  * `ctx.services.llm._max_tokens`
-  * `ctx.services.hist_mgr._char_limit`
-  * `ctx.services.tools._cache_ttl`
-
-* This breaks encapsulation and makes regressions more likely when service internals change.
-
-* Add explicit public setter APIs or reload/apply APIs on the service side and synchronize through those APIs only.
-
-* Refactor `_apply_mcp_url_reload()`.
-
-* Do not hardcode the operational rule that “transport changes require restart” as an implicit limitation in command-layer code.
-
-* Explicitly classify reload results into categories such as:
-  * changes that require restart
-  * changes that can be applied immediately
-  * changes that cannot be applied
-
-* Return the reload result as a structured report.
-
-***
-
-## `agent/commands/cmd_mcp.py`
-
-* Split this module by concern.
-
-* Do not keep all of the following together:
-  * status probing
-  * interactive wizard flow
-  * template/scaffold generation
-  * post-install instructions rendering
-
-* In particular, refactor `/mcp install`.
-
-* The UI prompt flow and scaffold-generation logic are too tightly coupled.
-
-* Separate them into:
-  * interaction layer
-  * service layer for server generation
-  * renderer layer for display/output
-
-* Remove direct reliance on `input()` and `asyncio.to_thread(input, ...)` inside `_cmd_mcp_install()`.
-
-* Do not hardcode the CLI interaction model into the command implementation.
-
-* Introduce an abstract question/answer interface so the feature can work in:
-  * non-interactive mode
-  * automation
-  * alternate frontends
-
-* Refactor `_cmd_mcp_status()`.
-
-* Do not infer write capability only from `cfg.tool_names` plus a simple write-capable tool set.
-
-* Align status reporting with the actual tool safety policy model, including classes such as:
-  * dangerous
-  * write-safe
-  * admin
-
-* Ensure observable status output cannot drift from the real approval policy.
-
-***
-
-## `agent/commands/cmd_context.py`
-
-* Split this module by concern.
-
-* Do not keep all of the following in one command group:
-  * conversation state display
-  * history editing
-  * system prompt switching
-  * database maintenance/admin operations
+* Do not let one class own all of the following:
+  * connection policy
+  * config loading
+  * sqlite-vec extension setup
+  * WAL / `busy_timeout` setup
 
 * Separate:
-  * context/history commands
-  * database administration commands
-
-* Refactor `_cmd_undo()`.
-
-* It currently rolls back in-memory history from the last user-message boundary while delegating DB rollback to `ctx.session.delete_last_turn()`.
-
-* Do not rely on this loose coupling between memory-side rollback and DB-side rollback.
-
-* Introduce a consistent undo API based on a logical turn unit.
-
-* This API must remain correct even when:
-  * tool messages are present
-  * system injections have occurred
-  * the stored turn structure is more complex than `user + assistant`
-
-* Refactor `_cmd_system()`.
-
-* Do not directly rewrite the system prompt as `ctx.history[0]` or inject a `system` message at the front of history as the primary state model.
-
-* The current design mixes:
-  * the true system prompt
-  * memory injection messages
-  * compression summary messages
-    under the same `role="system"` representation.
-
-* This makes the assumption “the first system message is the actual system prompt” fragile.
-
-* Store the system prompt in dedicated state.
-
-* Project it into history only at render/build time.
-
-* Refactor `/db` commands.
-
-* Do not expose `SQLiteHelper` and `db.maintenance` directly from `CommandRegistry`.
-
-* Introduce a DB administration service that centralizes:
-  * permission boundaries
-  * dry-run support
-  * structured result reporting
+  * low-level connection creation
+  * DB policy application
 
 ***
 
-## `agent/commands/cmd_ingest.py`
+## `db/migrate.py`
 
-* Refactor `_cmd_compact()`.
+* Refactor `_copy_table()`.
 
-* Do not force compression by temporarily setting `ctx.services.hist_mgr._char_limit = 0`.
+* Do not use a naive `SELECT * -> INSERT OR IGNORE` copy strategy.
 
-* This directly depends on a private implementation detail.
+* This is too fragile with respect to:
+  * column order
+  * schema differences
+  * future column additions/removals
 
-* Add a public API such as `HistoryManager.force_compress()`.
+* Explicitly declare the column list.
 
-* Do not let external callers mutate internal state just to force behavior.
+* Validate source/destination schema differences before copying.
 
-* Split `_cmd_ingest()` by concern.
+* Copy by named columns, not by implicit table shape.
 
-* It currently handles both:
-  * crawl/split/ingest orchestration
-  * CLI output/rendering
+* Remove the hard dependency on the `_SESSION_TABLES` hardcoded list.
 
-* Separate the ingest workflow service from the CLI command layer.
+* This is safe in the short term, but it is too easy to miss schema evolution later.
 
-* Return structured stage-aware failures from the ingest workflow.
+* Tie migration targets to schema versions instead of maintaining a static table list by hand.
 
-* Make it explicit which stage failed:
-  * crawl
-  * split
-  * ingest
+* `memory_vec` is currently treated as “re-embedding required after migration,” but the code does not make the post-migration recovery process explicit.
 
-* Refactor `_cmd_export()`.
-
-* Do not keep all of the following in a single function:
-  * format selection
-  * rendering
-  * stdout emission
-  * file writing
-
-* Separate renderer and writer responsibilities so future export targets and formats can grow without making the command handler monolithic.
+* Make the migration script produce a structured report that clearly states:
+  * what was not migrated
+  * what must be rebuilt afterward
+  * how completion should be judged
+  * what the partial-recovery strategy is
 
 ***
 
-## `agent/commands/cmd_rag.py`
+## `db/store.py`
 
-* Rename and split this module.
+* Strengthen the contract between Protocols and concrete implementations.
 
-* The current filename is `cmd_rag.py`, but its responsibilities include:
-  * tool result inspection
-  * notes
-  * plan mode
-  * debug handling
-  * export rendering
+* The abstraction boundaries exist, but the implementation responsibilities are still too vague.
 
-* These are not RAG-specific concerns.
+* Do not rely on Protocol definitions alone to define behavior.
 
-* Align file names with actual responsibilities.
+* Explicitly define:
+  * transaction boundaries
+  * exception contracts
+  * return-type guarantees
 
-* Consider splitting into modules such as:
-  * `cmd_tooling.py`
-  * `cmd_notes.py`
-  * `cmd_debug.py`
+* Introduce explicit domain result types where needed.
 
-* Refactor `_cmd_debug()`.
+* Remove the hardcoded `EMBEDDING_DIMS = 384` assumption from module-level constants.
 
-* Do not keep the following in one command handler:
-  * audit log tail display
-  * logger level switching
-  * debug mode toggle
+* Do not require simultaneous edits across schema, validator, maintenance, and migration whenever the embedding model changes.
 
-* The boundary between observability functions and UI/debug convenience features is currently unclear.
-
-* Split these into separate commands or separate services.
-
-* Refactor `_tool_show()` and `_tool_list()`.
-
-* Do not tightly couple tool result store access with presentation formatting.
-
-* Separate renderer responsibilities now so that future support for:
-  * large result rendering
-  * JSON output
-  * alternative display backends
-    remains straightforward.
+* Bind embedding dimensions to one of the following:
+  * configuration
+  * schema metadata
+  * a shared embedding metadata source
 
 ***
 
-## `agent/commands/cmd_memory.py`
+## `db/maintenance.py`
 
-* Remove direct dependence on `MemoryLayer` internals.
+* Do not silently fall back to `None` or empty collections on DB errors.
 
-* Do not access private attributes such as:
-  * `layer._store.search_by_type()`
-  * `layer._retriever.search()`
-  * `layer._store.get_by_id()`
-  * `layer._store.pin()`
+* Silent fallbacks make persistence failures hard to detect from user workflows and follow-up logic.
 
-* `MemoryLayer` must act as a proper façade.
+* REPL continuity is important, but you must not allow silent data loss.
 
-* Add explicit public APIs on `MemoryLayer` and route all command-layer operations through those APIs.
+* At minimum, add:
+  * audit events for failures
+  * failure counters / metrics
+  * explicit visibility for write failures
 
-* Refactor `_memory_prune()`.
+* `tool_results` is used under the assumption that full text is stored there instead of in LLM history.
 
-* Do not call `SQLiteHelper("session")` and `db.maintenance.prune_old_memories()` directly from the command layer.
+* Failures in this store directly affect the reliability of `/tool show`.
 
-* This spreads consistency responsibilities across:
-  * the JSONL source of truth
-  * the SQLite secondary store
-  * in-memory statistics/state
+* Apply differentiated failure policy based on importance:
+  * fail-open where acceptable
+  * fail-closed where required
 
-* Unify pruning behind a public memory service API.
-
-* Unify permission, consistency, and result contracts across `/memory` commands.
-
-* Right now, display, search, delete, and pin operations are handled inconsistently.
-
-* In particular, `delete`, `prune`, and `pin` are state-changing operations.
-
-* Standardize the following across them:
-  * audit logging
-  * dry-run support
-  * result types / structured outcomes
-
-* The current combination of `print()` and partial `logger.info()` is too weak as an operation audit trail.
+* Alternatively, leave an explicit hint in history whenever persistence fails.
 
 ***
 
-## `agent/commands/cmd_session.py`
+## `db/tool_results.py`
 
-* Remove hidden title-generation policy from module-level constants.
+* Remove the same style of global `_cfg` caching used elsewhere.
 
-* Do not keep `_TITLE_TEMPERATURE = 0.1` and `_TITLE_MAX_TOKENS = 20` as fixed internal constants without configuration support.
+* Do not let the operational policy layer depend on implicit module-level config state.
 
-* Title generation is user-visible behavior and should not be governed by hidden LLM policy.
+* Operational policy must emphasize reproducibility and explicitness.
 
-* Move these settings into:
-  * dedicated config, or
-  * a dedicated title generation service
+* Move toward explicit config injection.
 
-* Formalize session lifecycle as an explicit service contract.
+* Refactor `prune_old_memories()`.
 
-* Keeping restore/delete/load inside one mixin is acceptable, but consistency across the following is critical:
-  * history restoration
-  * system prompt restoration
-  * memory injection interaction
-  * statistics reset behavior
+* Do not keep separate deletion logic for:
+  * `memories`
+  * `memories_fts`
+  * `memories_vec`
 
-* Make session lifecycle semantics explicit rather than relying on scattered command behavior.
+* The current design spreads cross-table consistency responsibilities into `maintenance.py`.
+
+* Even if skipping `memories_vec` deletion was added for backward compatibility, that consistency logic should not live in maintenance code.
+
+* Unify deletion through a single store-layer API.
+
+* Add consistency checks as part of that API.
+
+* Refactor `recover_corruption()`.
+
+* The current design intends to perform archive + restore after corruption detection, but the code does not make the following explicit enough:
+  * recovery success criteria
+  * behavior when no backup is provided
+  * side-effect ordering guarantees
+
+* Convert recovery into a structured flow that includes:
+  * dry-run mode
+  * precheck step
+  * structured restore result
 
 ***
 
-## General Refactoring Rules
+## `db/create_schema.py`
 
-* Keep command handlers thin.
-* Move application logic into services.
-* Move formatting into renderers.
-* Do not let commands mutate private service state.
-* Prefer explicit APIs, explicit contracts, and typed result models.
-* Avoid hidden cross-mixin dependencies and avoid relying on implementation details of other modules.
-* When a command changes persistent or session state, ensure:
-  * consistent auditing
-  * structured result reporting
-  * well-defined rollback or compensation behavior where relevant.
+* Separate initial schema creation from backward migration logic.
+
+* Do not keep `_RAG_SCHEMA_SQL` / `_SESSION_SCHEMA_SQL` tightly coupled with `_RAG_MIGRATE_SQL` / `_SESSION_MIGRATE_SQL` in one file.
+
+* This may be convenient early on, but it becomes increasingly dangerous as schema versions grow.
+
+* Move to versioned migrations.
+
+* Separate:
+  * DDL baseline
+  * incremental migration steps
+
+* Refactor `_run_migrations()`.
+
+* Do not treat all migration DDL failures as no-ops merely because they might already have been applied.
+
+* Distinguish safe failures from dangerous failures.
+
+* Allow only known idempotent cases such as:
+  * duplicate column
+  * duplicate trigger
+
+* Treat all other failures as real migration errors.
+
+* Remove the coexistence of old and new memory tables in the session schema.
+
+* Do not keep both:
+  * old `memory_entries` / `memory_vec`
+  * new `memories` / `memories_fts` / `memory_links` / `memories_vec`
+
+* Drop the old tables.
+
+* Remove dual hardcoding of embedding dimensions.
+
+* Do not hardcode vec0 embedding dimension as `384` in both:
+  * the DDL
+  * `store.py`
+
+* This creates duplicate fixed assumptions and scatters model-change impact.
+
+* Unify the embedding dimension in one of the following:
+  * schema metadata
+  * a shared constant source
+
+***
+
+## General Implementation Rules
+
+* Prefer explicit dependency injection over hidden global state.
+* Prefer structured reports over implicit success/failure behavior.
+* Prefer single-responsibility modules over mixed concerns.
+* Eliminate compatibility leftovers instead of preserving them by default.
+* Make migration, recovery, pruning, and persistence behavior explicit and machine-readable.
+* Do not hide important operational failures behind permissive fallbacks.
