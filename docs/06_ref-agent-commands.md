@@ -67,7 +67,7 @@ matched = await cmds.dispatch("/stats")
 | `_generate_session_title(first_input) -> None` (async) | チャットモデルに 8 語以内のセッションタイトルを生成させ保存。失敗時は入力を先頭 50 文字に切り詰めて保存 |
 | `_session_load_safe(arg) -> None` | arg を整数 session_id としてパースし `_load_session()` を呼び出し。不正値はエラーメッセージを表示 |
 | `_session_delete(arg) -> None` | arg を整数 session_id としてパースし、現在セッションへの削除を拒否した上で削除を実行 |
-| `_load_session(session_id) -> None` | `ctx.session.fetch_messages()` でメッセージを取得し、システムメッセージを保持した上で `ctx.history` に統合 |
+| `_load_session(session_id) -> None` | `ctx.session.fetch_messages()` でメッセージを取得し、システムメッセージを保持した上で `ctx.conv.history` に統合 |
 
 ### 3.4 /mcp 系 (_McpMixin)
 
@@ -108,7 +108,7 @@ matched = await cmds.dispatch("/stats")
 | `_cmd_clear(args) -> None` | 会話履歴をシステムプロンプトのみにリセット。ターン数・ツール呼び出し数・ツールエラー数・レイテンシ統計・セマンティックキャッシュヒット数・LLM リトライ数をゼロにリセット。`args` に `"new"` を含む場合は新規 DB セッションも開始 |
 | `_cmd_undo() -> None` | 直前の user+assistant ターンをメモリ履歴と DB からロールバック。直前ユーザメッセージの前に挿入されたメモリ注入メッセージ (`_memory_injected=True`) も一括除去 |
 | `_cmd_history(args) -> None` | 直近 N 件の user/assistant メッセージを先頭 120 文字プレビューで表示 (デフォルト N=5) |
-| `_cmd_system(args) -> None` | `ctx.system_prompt_content` を更新し `ctx.system_prompt_name` を切り替え。`args=""` で現在のプレセット名と利用可能な一覧を表示。`history[0]` への直書きは廃止 — Orchestrator が次ターン開始時に同期する |
+| `_cmd_system(args) -> None` | `ctx.conv.system_prompt_content` を更新し `ctx.conv.system_prompt_name` を切り替え。`args=""` で現在のプレセット名と利用可能な一覧を表示。`history[0]` への直書きは廃止 — Orchestrator が次ターン開始時に同期する |
 
 ### 3.7 /db 系 (_DbMixin)
 
@@ -134,7 +134,7 @@ matched = await cmds.dispatch("/stats")
 | `_cmd_tool(args) -> None` | `/tool list` / `/tool show <id>` でツール結果ストアを表示 |
 | `_tool_list() -> None` | 現在セッションの保存済みツール結果一覧 (id/tool_name/size/summarized) を表示する内部ヘルパー |
 | `_tool_show(arg) -> None` | id 指定でツール結果の全文・引数・サイズ・サマリを表示する内部ヘルパー |
-| `_cmd_plan() -> None` | `ctx.plan_mode` をトグル。ON 時は `plan_blocked_tools` に含まれるツールを自動ブロックし、ブロック対象ツール一覧を表示 |
+| `_cmd_plan() -> None` | `ctx.conv.plan_mode` をトグル。ON 時は `plan_blocked_tools` に含まれるツールを自動ブロックし、ブロック対象ツール一覧を表示 |
 
 ### 3.9 /note (_NotesMixin)
 
@@ -149,7 +149,7 @@ matched = await cmds.dispatch("/stats")
 
 | メソッド | 説明 |
 |---|---|
-| `_cmd_debug(args) -> None` | 引数なしで `ctx.debug_mode` をトグル。`args="audit"` で audit.log 末尾 20 行を表示、`args="verbose"` / `"normal"` でログレベルを切り替え |
+| `_cmd_debug(args) -> None` | 引数なしで `ctx.conv.debug_mode` をトグル。`args="audit"` で audit.log 末尾 20 行を表示、`args="verbose"` / `"normal"` でログレベルを切り替え |
 
 ### 3.11 /ingest, /export, /compact (_IngestMixin)
 

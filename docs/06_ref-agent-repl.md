@@ -153,7 +153,7 @@ check_approval(ctx, tool_name, args)
 
 ### plan_mode ブロック
 
-`ctx.plan_mode == True` かつツールが `cfg.plan_blocked_tools` に含まれる場合、`_run_approval_checks()` 内で `check_approval()` 呼び出し前にブロックされ `denied_ids` に追加される。
+`ctx.conv.plan_mode == True` かつツールが `cfg.plan_blocked_tools` に含まれる場合、`_run_approval_checks()` 内で `check_approval()` 呼び出し前にブロックされ `denied_ids` に追加される。
 
 ## 5. agent/repl_health.py API
 

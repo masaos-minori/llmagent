@@ -142,8 +142,7 @@ POST :8006/v1/call_tool     {"name": "github_search_repositories", "args": {"que
 | `/undo` コマンド | `agent/commands.CommandRegistry._cmd_undo` | 直前 user+assistant ターンを履歴・DB から削除 |
 | `/ingest` コマンド | `agent/commands.CommandRegistry._cmd_ingest` | URL / ローカルファイルを REPL 内から即時クロール→DB 投入 |
 | `/export` コマンド | `agent/commands.CommandRegistry._cmd_export` | 会話を Markdown/JSON でエクスポート |
-| `/rag search` | `agent/commands.CommandRegistry._cmd_rag` | RAG ドライラン (LLM 送信なし) |
-| デバッグ出力 | `agent/context.AgentContext.debug_mode` | `/debug` で MQE/RRF/Rerank の中間結果を表示 |
+| デバッグ出力 | `agent/context.AgentContext` (`ctx.conv.debug_mode`) | `/debug` で MQE/RRF/Rerank の中間結果を表示 |
 | `/history [n]` コマンド | `agent/commands.CommandRegistry._cmd_history` | 直近 N 件の user/assistant メッセージを 120 文字プレビューで表示 (デフォルト: 5) |
 | マルチライン入力 | `cli_view.CLIView.read_multiline` | 行末 `\` で継続入力、空行/終端行で確定。継続プロンプトは `... ` |
 | システムプロンプト切り替え | `agent/commands.CommandRegistry._cmd_system` | `/system <name>` で `agent.toml` の `system_prompts` プレセットをセッション中に切り替え |
