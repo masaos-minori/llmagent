@@ -17,10 +17,10 @@ from typing import Any
 
 import httpx
 import orjson
+from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 
-from db.helper import SQLiteHelper
 from rag.ingestion.pipeline_utils import read_json_file
 from rag.utils import floats_to_blob, validate_url
 

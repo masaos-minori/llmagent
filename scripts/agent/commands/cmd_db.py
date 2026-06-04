@@ -18,7 +18,6 @@ Extracted from cmd_context.py.  Provides _DbMixin with:
 import logging
 from typing import TYPE_CHECKING
 
-from agent.commands.mixin_base import MixinBase
 from db.helper import SQLiteHelper
 from db.maintenance import (
     RetentionConfig,
@@ -27,6 +26,8 @@ from db.maintenance import (
     recover_corruption,
     vacuum_db,
 )
+
+from agent.commands.mixin_base import MixinBase
 
 if TYPE_CHECKING:
     pass

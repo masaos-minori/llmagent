@@ -23,6 +23,7 @@ AgentREPL responsibilities:
 
 import asyncio
 
+from db.helper import SQLiteHelper
 from shared.logger import Logger
 from shared.tool_executor import StdioTransport
 
@@ -36,7 +37,6 @@ from agent.repl_health import (
     check_tool_definitions_runtime,
     watchdog_loop,
 )
-from db.helper import SQLiteHelper
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 

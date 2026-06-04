@@ -10,9 +10,8 @@ import sqlite3
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 import db.create_schema as cs
+import pytest
 from db.helper import SQLiteHelper
 
 # RAG schema without the vec0 virtual table (chunks_vec requires sqlite-vec).

@@ -19,6 +19,7 @@ import time
 from typing import Any, cast
 
 from db.helper import SQLiteHelper
+
 from rag.types import RagHit
 from rag.utils import floats_to_blob
 

@@ -23,11 +23,11 @@ from typing import Any
 
 import httpx
 import orjson
+from db.helper import SQLiteHelper
 from shared import plugin_registry
 from shared.config_loader import ConfigLoader
 from shared.types import RagConfig
 
-from db.helper import SQLiteHelper
 from rag.llm import RagLLM, get_embedding
 from rag.repository import (
     RagRepository,

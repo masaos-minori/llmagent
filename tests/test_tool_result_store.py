@@ -8,7 +8,6 @@ from collections.abc import Generator
 from unittest.mock import patch
 
 import pytest
-
 from db.tool_results import ToolResultStore
 
 _SCHEMA_SQL = """

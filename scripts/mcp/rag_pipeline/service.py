@@ -46,11 +46,10 @@ class RagPipelineMCPService:
 
     async def start(self) -> None:
         """Initialize shared resources; must be called once before first request."""
+        import db.helper as sqlite_helper  # noqa: PLC0415
         import rag.llm as rag_llm  # noqa: PLC0415
         import rag.pipeline as agent_rag  # noqa: PLC0415 — lazy import avoids module-load side effects
         from rag.pipeline import RagPipeline  # noqa: PLC0415
-
-        import db.helper as sqlite_helper  # noqa: PLC0415
 
         cfg = _get_cfg()
 

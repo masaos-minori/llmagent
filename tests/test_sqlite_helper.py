@@ -3,7 +3,6 @@ Unit tests for SQLiteHelper target-aware DB path selection.
 """
 
 import pytest
-
 from db.helper import SQLiteHelper
 
 

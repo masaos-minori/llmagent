@@ -8,9 +8,8 @@ import logging
 from typing import Any
 
 import orjson
-from rag.types import LLMMessage
-
 from db.helper import SQLiteHelper
+from rag.types import LLMMessage
 
 logger = logging.getLogger(__name__)
 

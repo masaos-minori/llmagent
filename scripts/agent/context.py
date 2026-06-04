@@ -24,11 +24,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from db.tool_results import ToolResultStore
 from rag.types import LLMMessage
 
 from agent.config import build_agent_config
 from agent.session import AgentSession
-from db.tool_results import ToolResultStore
 
 if TYPE_CHECKING:
     import httpx

@@ -16,10 +16,10 @@ from urllib.parse import urljoin, urlparse
 import httpx
 import orjson
 from bs4 import BeautifulSoup
+from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 
-from db.helper import SQLiteHelper
 from rag.ingestion.crawler_utils import (
     _SUPPORTED_LANGS,
     detect_lang,

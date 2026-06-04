@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
 from db.helper import SQLiteHelper
 from db.maintenance import (
     RecoveryResult,

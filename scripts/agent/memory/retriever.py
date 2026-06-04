@@ -21,9 +21,10 @@ import re
 import struct
 from datetime import UTC, datetime
 
+from db.helper import SQLiteHelper
+
 from agent.memory.mapper import row_to_entry
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
-from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 

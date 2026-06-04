@@ -15,10 +15,10 @@ Extracted from agent_commands.py.  Provides _ConfigMixin with:
 import logging
 from typing import TYPE_CHECKING, Any
 
+from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
 
 from agent.commands.mixin_base import MixinBase
-from db.helper import SQLiteHelper
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
