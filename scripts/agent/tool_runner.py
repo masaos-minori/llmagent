@@ -88,9 +88,9 @@ def _collect_tool_result_msgs(
     tool_msgs: list[tuple[str, str, list[dict] | None, str | None]] = []
     turn_chars = 0
     for tc_id, name, args, text, is_error, llm_text in results:
-        ctx.stat_tool_calls += 1
+        ctx.stats.stat_tool_calls += 1
         if is_error:
-            ctx.stat_tool_errors += 1
+            ctx.stats.stat_tool_errors += 1
             if out_failed_keys is not None:
                 out_failed_keys.add(tool_call_key(name, args))
         masked = mask_args(args, ctx.cfg.tool.masked_fields)
@@ -122,7 +122,9 @@ def _collect_tool_result_msgs(
                 f"Per-turn tool result limit reached: {turn_chars} chars"
                 f" > {limit}; result replaced with hint (id={result_id})",
             )
-        ctx.history.append({"role": "tool", "tool_call_id": tc_id, "content": llm_text})
+        ctx.conv.history.append(
+            {"role": "tool", "tool_call_id": tc_id, "content": llm_text}
+        )
         tool_msgs.append(("tool", llm_text, None, tc_id))
     return tool_msgs
 
@@ -202,7 +204,7 @@ async def execute_all_tool_calls(
 
     tool_msgs = _collect_tool_result_msgs(ctx, results, turn, out_failed_keys)
     for denied_id in denied_ids:
-        ctx.history.append(
+        ctx.conv.history.append(
             {
                 "role": "tool",
                 "tool_call_id": denied_id,

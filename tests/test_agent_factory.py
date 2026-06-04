@@ -200,8 +200,8 @@ class TestBuildAgentContext:
         mocks = _apply_patches(monkeypatch)
         ctx = _make_ctx()
         view = _make_view()
-        ctx.stat_input_tokens = None
-        ctx.stat_output_tokens = None
+        ctx.stats.stat_input_tokens = None
+        ctx.stats.stat_output_tokens = None
 
         # LLMClient のコンストラクタに渡された on_usage コールバックを取り出して直接呼ぶ
         build_agent_context(ctx, view)
@@ -209,12 +209,12 @@ class TestBuildAgentContext:
         on_usage = llm_client_call_kwargs["on_usage"]
 
         on_usage(100, 50)
-        assert ctx.stat_input_tokens == 100
-        assert ctx.stat_output_tokens == 50
+        assert ctx.stats.stat_input_tokens == 100
+        assert ctx.stats.stat_output_tokens == 50
 
         on_usage(200, 80)
-        assert ctx.stat_input_tokens == 300
-        assert ctx.stat_output_tokens == 130
+        assert ctx.stats.stat_input_tokens == 300
+        assert ctx.stats.stat_output_tokens == 130
 
 
 # ── init_tracer ───────────────────────────────────────────────────────────────

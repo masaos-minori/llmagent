@@ -48,7 +48,7 @@ class LLMTurnRunner:
     # ── Public entry point ────────────────────────────────────────────────────
 
     async def run(self, llm_url: str) -> str:
-        """Send ctx.history to LLM, execute tool calls, return final answer."""
+        """Send ctx.conv.history to LLM, execute tool calls, return final answer."""
         ctx = self._ctx
         state = TurnLoopState()
 
@@ -68,7 +68,7 @@ class LLMTurnRunner:
             if (finish_reason != "tool_calls") or not has_tool_calls:
                 return await self._finalize_answer(message)
 
-            ctx.history.append(message)
+            ctx.conv.history.append(message)
             ctx.session.save(
                 "assistant",
                 message.get("content") or "",
@@ -83,14 +83,14 @@ class LLMTurnRunner:
             ):
                 return msg
 
-            errors_before = ctx.stat_tool_errors
+            errors_before = ctx.stats.stat_tool_errors
             await execute_all_tool_calls(
                 ctx,
                 message["tool_calls"],
                 turn,
                 out_failed_keys=state.failed_calls,
             )
-            n_errors = ctx.stat_tool_errors - errors_before
+            n_errors = ctx.stats.stat_tool_errors - errors_before
             state.consecutive_errors = ToolLoopGuard.update_errors(
                 state.consecutive_errors, n_errors, len(message["tool_calls"])
             )
@@ -130,7 +130,7 @@ class LLMTurnRunner:
     async def _finalize_answer(self, message: LLMMessage) -> str:
         """Append the done-turn message to history and return the answer text."""
         ctx = self._ctx
-        ctx.history.append(message)
+        ctx.conv.history.append(message)
         if self._on_turn_end:
             self._on_turn_end()
         return message.get("content") or ""
@@ -146,7 +146,7 @@ class LLMTurnRunner:
         try:
             response = await ctx.services.llm.stream(
                 llm_url,
-                ctx.history,
+                ctx.conv.history,
                 ctx.cfg.tool.tool_definitions,
             )
         except LLMTransportError:

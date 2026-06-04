@@ -300,6 +300,34 @@ class AgentSession:
         """Fetch messages for a session from DB."""
         return self._message_repo.fetch_messages(session_id)
 
+    # ── NoteRepository delegation ─────────────────────────────────────────────
+
+    def add_note(self, content: str) -> int | None:
+        """Insert a new note and return its note_id; None on failure."""
+        return self._note_repo.add_note(content)
+
+    def list_notes(self) -> list[dict]:
+        """Return all notes ordered by note_id ascending."""
+        return self._note_repo.list_notes()
+
+    def delete_note(self, note_id: int) -> bool:
+        """Delete a note by ID. Returns True when found and deleted."""
+        return self._note_repo.delete_note(note_id)
+
+    def get_all_note_contents(self) -> list[str]:
+        """Return all note content strings in creation order for prompt injection."""
+        return self._note_repo.get_all_note_contents()
+
+    # ── DocumentRepository delegation ─────────────────────────────────────────
+
+    def list_documents(self, lang: str | None = None, limit: int = 20) -> list[dict]:
+        """Return registered documents as structured data."""
+        return self._document_repo.list_documents(lang, limit)
+
+    def delete_document(self, url: str) -> bool:
+        """Delete a document and its chunks from DB by URL."""
+        return self._document_repo.delete_document(url)
+
     # ── Session lifecycle ────────────────────────────────────────────────────
 
     def start(self) -> None:

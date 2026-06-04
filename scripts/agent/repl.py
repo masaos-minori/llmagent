@@ -141,7 +141,7 @@ class AgentREPL:
                 break
 
             # Exit cleanly when a graceful shutdown was requested via signal
-            if ctx.shutdown_requested:
+            if ctx.conv.shutdown_requested:
                 print("\nShutdown requested, exiting...")
                 break
 
@@ -248,7 +248,7 @@ class AgentREPL:
         self._view.setup_readline()
         self._init_components()
 
-        ctx.llm_url = ctx.cfg.llm.llm_url
+        ctx.conv.llm_url = ctx.cfg.llm.llm_url
 
         # Spawn stdio/HTTP subprocess MCP servers before health/tool checks
         await self._start_subprocess_servers()
@@ -266,7 +266,7 @@ class AgentREPL:
             if ctx.services.tools is not None and ctx.session.session_id is not None:
                 ctx.services.tools.set_session_id(str(ctx.session.session_id))
             initial_prompt = ctx.cfg.tool.system_prompts.get(
-                ctx.system_prompt_name,
+                ctx.conv.system_prompt_name,
                 ctx.cfg.tool.system_prompt_tool,
             )
             # Append persisted notes to system prompt when auto_inject_notes is enabled
@@ -287,8 +287,8 @@ class AgentREPL:
                         f"- {s}" for s in memory_snippets
                     )
                     initial_prompt = initial_prompt + memory_block
-            ctx.system_prompt_content = initial_prompt
-            ctx.history = [{"role": "system", "content": initial_prompt}]
+            ctx.conv.system_prompt_content = initial_prompt
+            ctx.conv.history = [{"role": "system", "content": initial_prompt}]
             if ctx.cfg.mcp.mcp_watchdog_interval > 0:
                 _watchdog_task = asyncio.create_task(self._watchdog_loop())
             await self._repl_loop()
@@ -297,8 +297,8 @@ class AgentREPL:
             if ctx.services.memory is not None:
                 await ctx.services.memory.on_session_stop(
                     session_id=ctx.session.session_id,
-                    history=ctx.history,
-                    turn_id=ctx.current_turn_id,
+                    history=ctx.conv.history,
+                    turn_id=ctx.turn.current_turn_id,
                 )
             if _watchdog_task is not None:
                 _watchdog_task.cancel()

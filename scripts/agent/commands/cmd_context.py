@@ -87,20 +87,22 @@ class _ContextMixin(MixinBase):
     def _collect_context_state(self, ctx: AgentContext) -> dict:
         """Collect runtime context state into a plain dict for display."""
         total_chars = (
-            ctx.services.hist_mgr.count_chars(ctx.history)
+            ctx.services.hist_mgr.count_chars(ctx.conv.history)
             if ctx.services.hist_mgr is not None
-            else sum(len(str(m.get("content") or "")) for m in ctx.history)
+            else sum(len(str(m.get("content") or "")) for m in ctx.conv.history)
         )
-        system_msgs = [m for m in ctx.history if m["role"] == "system"]
+        system_msgs = [m for m in ctx.conv.history if m["role"] == "system"]
         sys_preview = str(system_msgs[0].get("content", ""))[:80] if system_msgs else ""
         compress_count = (
             ctx.services.hist_mgr.stat_compress_count
             if ctx.services.hist_mgr is not None
             else 0
         )
-        token_is_exact = ctx.stat_input_tokens is not None
+        token_is_exact = ctx.stats.stat_input_tokens is not None
         token_estimate = (
-            ctx.services.hist_mgr.count_tokens(ctx.history, ctx.stat_input_tokens)
+            ctx.services.hist_mgr.count_tokens(
+                ctx.conv.history, ctx.stats.stat_input_tokens
+            )
             if ctx.services.hist_mgr is not None
             else total_chars // 4
         )
@@ -108,7 +110,7 @@ class _ContextMixin(MixinBase):
         return {
             "total_chars": total_chars,
             "compress_limit": ctx.cfg.llm.context_char_limit,
-            "n_msgs": len(ctx.history),
+            "n_msgs": len(ctx.conv.history),
             "sys_preview": sys_preview,
             "compress_count": compress_count,
             "token_is_exact": token_is_exact,
@@ -121,7 +123,7 @@ class _ContextMixin(MixinBase):
                 if git_info
                 else "unavailable"
             ),
-            "breakdown": _budget_breakdown(ctx.history),
+            "breakdown": _budget_breakdown(ctx.conv.history),
         }
 
     def _print_token_line(
@@ -160,7 +162,7 @@ class _ContextMixin(MixinBase):
             f"  Remaining       : {state['compress_limit'] - state['total_chars']:,} chars until compression"
         )
         print(f"  Compress count  : {state['compress_count']}")
-        print(f"  System prompt   : {ctx.system_prompt_name}")
+        print(f"  System prompt   : {ctx.conv.system_prompt_name}")
         print(f"  System preview  : {state['sys_preview']!r}")
         self._print_token_line(state)
         print(f"  Memory layer    : {state['mem_status']}")
@@ -177,7 +179,7 @@ class _ContextMixin(MixinBase):
         /clear new — reset history and start a new DB session
         """
         ctx = self._ctx
-        ctx.history = ctx.history[:1]
+        ctx.conv.history = ctx.conv.history[:1]
         self._reset_session_stats(ctx)
         if "new" in args.split():
             ctx.session.start()
@@ -195,8 +197,8 @@ class _ContextMixin(MixinBase):
         last_user_idx = next(
             (
                 i
-                for i in range(len(ctx.history) - 1, -1, -1)
-                if ctx.history[i]["role"] == "user"
+                for i in range(len(ctx.conv.history) - 1, -1, -1)
+                if ctx.conv.history[i]["role"] == "user"
             ),
             None,
         )
@@ -205,11 +207,11 @@ class _ContextMixin(MixinBase):
             return
         # Walk backwards from just before the user message to strip injected memory blocks.
         cut_idx = last_user_idx
-        while cut_idx > 0 and ctx.history[cut_idx - 1].get("_memory_injected"):
+        while cut_idx > 0 and ctx.conv.history[cut_idx - 1].get("_memory_injected"):
             cut_idx -= 1
-        removed = len(ctx.history) - cut_idx
-        ctx.history = ctx.history[:cut_idx]
-        ctx.stat_turns = max(0, ctx.stat_turns - 1)
+        removed = len(ctx.conv.history) - cut_idx
+        ctx.conv.history = ctx.conv.history[:cut_idx]
+        ctx.stats.stat_turns = max(0, ctx.stats.stat_turns - 1)
         ctx.session.undo_last_turn()
         logger.info(f"Undo: removed {removed} messages from history")
         print("Last turn undone.")
@@ -222,7 +224,7 @@ class _ContextMixin(MixinBase):
             print("Usage: /history [n]")
             return
         ctx = self._ctx
-        turns = [m for m in ctx.history if m["role"] in ("user", "assistant")]
+        turns = [m for m in ctx.conv.history if m["role"] in ("user", "assistant")]
         recent = turns[-n:]
         if not recent:
             print("No conversation history.")
@@ -241,15 +243,15 @@ class _ContextMixin(MixinBase):
         if not name:
             prompts = ctx.cfg.tool.system_prompts
             names = ", ".join(prompts.keys()) if prompts else "(none)"
-            print(f"Current: {ctx.system_prompt_name}")
+            print(f"Current: {ctx.conv.system_prompt_name}")
             print(f"Available: {names}")
             return
         if name not in ctx.cfg.tool.system_prompts:
             names = ", ".join(ctx.cfg.tool.system_prompts.keys())
             print(f"Unknown preset '{name}'. Available: {names}")
             return
-        ctx.system_prompt_name = name
+        ctx.conv.system_prompt_name = name
         # Update the canonical field; Orchestrator syncs history[0] at next turn start.
-        ctx.system_prompt_content = ctx.cfg.tool.system_prompts[name]
+        ctx.conv.system_prompt_content = ctx.cfg.tool.system_prompts[name]
         logger.info(f"System prompt switched to '{name}'")
         print(f"System prompt: {name}")

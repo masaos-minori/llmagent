@@ -7,7 +7,7 @@ Extracted from agent_commands.py.  Provides _SessionMixin with:
   _session_load_safe       — safe session restore by ID
   _session_delete          — session deletion with self-guard
   _cmd_session             — /session dispatcher
-  _load_session            — restore messages into ctx.history
+  _load_session            — restore messages into ctx.conv.history
 """
 
 import logging
@@ -113,10 +113,10 @@ class _SessionMixin(MixinBase):
         )
 
     def _load_session(self, session_id: int) -> None:
-        """Restore a previous session's messages into ctx.history.
+        """Restore a previous session's messages into ctx.conv.history.
 
         Lifecycle: sets ctx.session.session_id (switches the active session),
-        rebuilds ctx.history (preserves system prompt at index 0),
+        rebuilds ctx.conv.history (preserves system prompt at index 0),
         and resets all per-session counters via _reset_session_stats().
         """
         ctx = self._ctx
@@ -124,8 +124,8 @@ class _SessionMixin(MixinBase):
         if messages is None:
             print(f"Session {session_id} not found or has no messages.")
             return
-        system_msgs = [m for m in ctx.history if m["role"] == "system"]
-        ctx.history = system_msgs + messages
+        system_msgs = [m for m in ctx.conv.history if m["role"] == "system"]
+        ctx.conv.history = system_msgs + messages
         ctx.session.session_id = session_id
         self._reset_session_stats(ctx)
         logger.info(f"Session {session_id} loaded: {len(messages)} messages")

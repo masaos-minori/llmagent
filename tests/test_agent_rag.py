@@ -177,7 +177,7 @@ class TestCmdDebugVerboseNormal:
             def __init__(self) -> None:
                 self._ctx = MagicMock()
                 self._ctx.cfg.rag_audit_log_path = ""
-                self._ctx.debug_mode = False
+                self._ctx.conv.debug_mode = False
 
         return Mixin()
 

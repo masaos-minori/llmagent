@@ -87,7 +87,7 @@ class HistoryManager:
         """Force immediate compression regardless of the current char/token limits.
 
         Temporarily sets char_limit=1 so compress() always proceeds, then restores the
-        original limits. Callers must replace ctx.history with the returned list.
+        original limits. Callers must replace ctx.conv.history with the returned list.
         """
         orig_char = self._char_limit
         orig_token = self._token_limit

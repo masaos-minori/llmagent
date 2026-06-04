@@ -22,16 +22,16 @@ class _FakeCmd(_ConfigMixin):
 
 def _make_ctx() -> MagicMock:
     ctx = MagicMock()
-    ctx.stat_turns = 5
-    ctx.stat_tool_calls = 10
-    ctx.stat_tool_errors = 2
-    ctx.stat_semantic_cache_hits = 1
-    ctx.stat_latency = {}
-    ctx.stat_input_tokens = 1000
-    ctx.stat_output_tokens = 500
-    ctx.debug_mode = False
-    ctx.plan_mode = False
-    ctx.history = []
+    ctx.stats.stat_turns = 5
+    ctx.stats.stat_tool_calls = 10
+    ctx.stats.stat_tool_errors = 2
+    ctx.stats.stat_semantic_cache_hits = 1
+    ctx.stats.stat_latency = {}
+    ctx.stats.stat_input_tokens = 1000
+    ctx.stats.stat_output_tokens = 500
+    ctx.conv.debug_mode = False
+    ctx.conv.plan_mode = False
+    ctx.conv.history = []
     ctx.session.session_id = "test-session"
     ctx.services.tools = None
     ctx.services.rag = None
@@ -179,7 +179,7 @@ _DUMMY_MCP = {
 class TestApplyConfigDict:
     def test_sse_heartbeat_timeout_reloaded(self) -> None:
         ctx = _make_ctx()
-        ctx.history = []
+        ctx.conv.history = []
         ConfigReloadService(ctx).apply_config_dict(
             {**_DUMMY_MCP, "sse_heartbeat_timeout": 60.0}
         )
@@ -187,7 +187,7 @@ class TestApplyConfigDict:
 
     def test_sse_malformed_retry_reloaded(self) -> None:
         ctx = _make_ctx()
-        ctx.history = []
+        ctx.conv.history = []
         ConfigReloadService(ctx).apply_config_dict(
             {**_DUMMY_MCP, "sse_malformed_retry": 5}
         )
@@ -195,7 +195,7 @@ class TestApplyConfigDict:
 
     def test_sse_reconnect_max_reloaded(self) -> None:
         ctx = _make_ctx()
-        ctx.history = []
+        ctx.conv.history = []
         ConfigReloadService(ctx).apply_config_dict(
             {**_DUMMY_MCP, "sse_reconnect_max": 3}
         )
@@ -203,7 +203,7 @@ class TestApplyConfigDict:
 
     def test_llm_stream_retry_flags_reloaded(self) -> None:
         ctx = _make_ctx()
-        ctx.history = []
+        ctx.conv.history = []
         ConfigReloadService(ctx).apply_config_dict(
             {
                 **_DUMMY_MCP,
@@ -216,7 +216,7 @@ class TestApplyConfigDict:
 
     def test_sse_params_propagated_to_llm_service(self) -> None:
         ctx = _make_ctx()
-        ctx.history = []
+        ctx.conv.history = []
         llm = MagicMock()
         ctx.services.llm = llm
         ctx.cfg.llm.sse_heartbeat_timeout = 45.0
@@ -245,7 +245,7 @@ class TestApplyConfigDict:
 
     def test_approval_resource_keys_applied(self) -> None:
         ctx = _make_ctx()
-        ctx.history = []
+        ctx.conv.history = []
         ConfigReloadService(ctx).apply_config_dict(
             {**_DUMMY_MCP, "approval_resource_keys": {"github_push": "high"}}
         )
@@ -253,7 +253,7 @@ class TestApplyConfigDict:
 
     def test_approval_dry_run_tools_applied(self) -> None:
         ctx = _make_ctx()
-        ctx.history = []
+        ctx.conv.history = []
         ConfigReloadService(ctx).apply_config_dict(
             {**_DUMMY_MCP, "approval_dry_run_tools": ["write_file", "delete_file"]}
         )
@@ -261,7 +261,7 @@ class TestApplyConfigDict:
 
     def test_hist_mgr_token_limit_synced(self) -> None:
         ctx = _make_ctx()
-        ctx.history = []
+        ctx.conv.history = []
         hist_mgr = MagicMock()
         ctx.services.hist_mgr = hist_mgr
         # Pre-set cfg values; _apply_config_params reads them to sync to hist_mgr

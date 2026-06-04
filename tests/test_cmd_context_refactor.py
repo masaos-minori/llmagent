@@ -37,7 +37,7 @@ def _make_state(
 def _make_ctx_mock() -> Any:
     """Build a minimal AgentContext mock (unused after refactor but kept for _CtxMixin)."""
     ctx = MagicMock()
-    ctx.history = []
+    ctx.conv.history = []
     return ctx
 
 

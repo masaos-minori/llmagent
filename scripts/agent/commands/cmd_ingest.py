@@ -37,8 +37,8 @@ class _IngestMixin(MixinBase):
                 fmt = part
             else:
                 outfile = part
-        content = render_export(ctx.history, fmt)
-        write_export(content, outfile, len(ctx.history))
+        content = render_export(ctx.conv.history, fmt)
+        write_export(content, outfile, len(ctx.conv.history))
 
     async def _cmd_ingest(self, args: str) -> None:
         """Crawl/ingest a URL or local file into the RAG DB from within the REPL.
@@ -81,9 +81,9 @@ class _IngestMixin(MixinBase):
         if ctx.services.hist_mgr is None:
             print("History manager not available.")
             return
-        turn_msgs = [m for m in ctx.history if m["role"] != "system"]
+        turn_msgs = [m for m in ctx.conv.history if m["role"] != "system"]
         n_compress = ctx.services.hist_mgr.compress_turns * 2
         if len(turn_msgs) <= n_compress:
             print("Nothing to compact: history too short.")
             return
-        ctx.history = await ctx.services.hist_mgr.force_compress(ctx.history)
+        ctx.conv.history = await ctx.services.hist_mgr.force_compress(ctx.conv.history)

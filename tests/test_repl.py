@@ -21,7 +21,7 @@ def _make_bare_repl() -> AgentREPL:
     """Return an AgentREPL instance bypassing __init__ to avoid real deps."""
     repl = AgentREPL.__new__(AgentREPL)
     ctx = MagicMock()
-    ctx.shutdown_requested = False
+    ctx.conv.shutdown_requested = False
     repl._ctx = ctx
     view = MagicMock()
     view.read_multiline = AsyncMock(return_value="")
@@ -173,7 +173,7 @@ class TestReplLoop:
             call_count += 1
             if call_count == 1:
                 return "first line"
-            repl._ctx.shutdown_requested = True
+            repl._ctx.conv.shutdown_requested = True
             return "second line"
 
         with patch("builtins.input", side_effect=_input_with_shutdown):

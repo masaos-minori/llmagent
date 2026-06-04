@@ -82,7 +82,7 @@ class ToolLoopGuard:
                 f"Cyclic planning detected: round fingerprint {round_key!r}"
                 f" repeated {round_fingerprints.count(round_key)} times",
             )
-            ctx.history.append({"role": "user", "content": CYCLE_HINT})
+            ctx.conv.history.append({"role": "user", "content": CYCLE_HINT})
             return "Cyclic tool call pattern detected."
         round_fingerprints.append(round_key)
         return None
@@ -104,7 +104,7 @@ class ToolLoopGuard:
             if seen_calls[key] >= ctx.cfg.tool.tool_dedup_max_repeats:
                 name = func.get("name", "<unknown>")
                 logger.warning(f"Duplicate tool call blocked: {name!r}")
-                ctx.history.append({"role": "user", "content": DEDUP_HINT})
+                ctx.conv.history.append({"role": "user", "content": DEDUP_HINT})
                 return "Repeated tool call detected."
         return None
 
@@ -126,7 +126,7 @@ class ToolLoopGuard:
             if tool_call_key(func.get("name", ""), tc_args) in failed_calls:
                 name = func.get("name", "<unknown>")
                 logger.warning(f"Retry of failed tool call blocked: {name!r}")
-                ctx.history.append({"role": "user", "content": DEDUP_HINT})
+                ctx.conv.history.append({"role": "user", "content": DEDUP_HINT})
                 return "Repeated failed tool call detected."
         return None
 

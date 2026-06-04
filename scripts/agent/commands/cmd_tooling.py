@@ -81,11 +81,11 @@ class _ToolingMixin(MixinBase):
         reviewed the proposal.
         """
         ctx = self._ctx
-        ctx.plan_mode = not ctx.plan_mode
-        state = "ON" if ctx.plan_mode else "OFF"
+        ctx.conv.plan_mode = not ctx.conv.plan_mode
+        state = "ON" if ctx.conv.plan_mode else "OFF"
         logger.info(f"Plan mode toggled: {state}")
         print(f"Plan mode: {state}")
-        if ctx.plan_mode and ctx.cfg.tool.plan_blocked_tools:
+        if ctx.conv.plan_mode and ctx.cfg.tool.plan_blocked_tools:
             print("  Blocked tools:")
             for t in ctx.cfg.tool.plan_blocked_tools:
                 print(f"    - {t}")

@@ -52,8 +52,8 @@ class _DebugMixin(MixinBase):
             return
 
         # Default: toggle RAG pipeline step debug output
-        ctx.debug_mode = not ctx.debug_mode
-        state = "ON" if ctx.debug_mode else "OFF"
+        ctx.conv.debug_mode = not ctx.conv.debug_mode
+        state = "ON" if ctx.conv.debug_mode else "OFF"
         logger.info(f"Debug mode toggled: {state}")
         print(
             f"Debug mode: {state}  (use /debug audit | verbose | normal for more options)",

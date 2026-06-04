@@ -94,7 +94,7 @@ class ConfigReloadService:
 
         # system_prompt update: write to the canonical field; Orchestrator syncs history[0].
         if "system_prompt_tool" in new_cfg:
-            ctx.system_prompt_content = new_cfg["system_prompt_tool"]
+            ctx.conv.system_prompt_content = new_cfg["system_prompt_tool"]
 
         return result
 

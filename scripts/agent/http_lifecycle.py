@@ -186,8 +186,3 @@ class HttpServerLifecycleManager:
                     logger.warning(
                         f"Lifecycle: error stopping HTTP subprocess {key!r}: {e}"
                     )
-
-    @property
-    def procs(self) -> dict[str, subprocess.Popen[bytes]]:
-        """Expose the subprocess dict for backward compat (ServerLifecycleManager._http_procs)."""
-        return self._http_procs

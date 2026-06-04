@@ -29,10 +29,10 @@ class MixinBase:
         Called by _cmd_clear (_ContextMixin) and _load_session (_SessionMixin)
         so the counter reset logic lives in one place.
         """
-        ctx.stat_turns = 0
-        ctx.stat_tool_calls = 0
-        ctx.stat_tool_errors = 0
-        ctx.stat_latency = {}
-        ctx.stat_semantic_cache_hits = 0
+        ctx.stats.stat_turns = 0
+        ctx.stats.stat_tool_calls = 0
+        ctx.stats.stat_tool_errors = 0
+        ctx.stats.stat_latency = {}
+        ctx.stats.stat_semantic_cache_hits = 0
         if ctx.services.llm is not None:
             ctx.services.llm.stat_retries = 0

@@ -37,9 +37,9 @@ class _ConfigMixin(MixinBase):
             "session_id": str(ctx.session.session_id)
             if ctx.session.session_id
             else "none",
-            "turns": ctx.stat_turns,
-            "tool_calls": ctx.stat_tool_calls,
-            "tool_errors": ctx.stat_tool_errors,
+            "turns": ctx.stats.stat_turns,
+            "tool_calls": ctx.stats.stat_tool_calls,
+            "tool_errors": ctx.stats.stat_tool_errors,
             "llm_retries": llm.stat_retries if llm is not None else 0,
             "llm_reconnects": llm.stat_reconnects if llm is not None else 0,
             "llm_heartbeat_timeouts": llm.stat_heartbeat_timeouts
@@ -55,11 +55,11 @@ class _ConfigMixin(MixinBase):
             "compress_count": ctx.services.hist_mgr.stat_compress_count
             if ctx.services.hist_mgr is not None
             else 0,
-            "semantic_cache_hits": ctx.stat_semantic_cache_hits,
-            "input_tokens": ctx.stat_input_tokens,
-            "output_tokens": ctx.stat_output_tokens,
-            "debug_mode": ctx.debug_mode,
-            "latency": ctx.stat_latency,
+            "semantic_cache_hits": ctx.stats.stat_semantic_cache_hits,
+            "input_tokens": ctx.stats.stat_input_tokens,
+            "output_tokens": ctx.stats.stat_output_tokens,
+            "debug_mode": ctx.conv.debug_mode,
+            "latency": ctx.stats.stat_latency,
         }
 
     def _cmd_stats(self) -> None:
@@ -180,7 +180,7 @@ class _ConfigMixin(MixinBase):
         else:
             print("  allowed_tools       : (unrestricted)")
         plan_blocked = ctx.cfg.tool.plan_blocked_tools
-        plan_state = "ON" if ctx.plan_mode else "OFF"
+        plan_state = "ON" if ctx.conv.plan_mode else "OFF"
         print(f"  plan_mode           : {plan_state}")
         if plan_blocked:
             print("  plan_blocked_tools  :")

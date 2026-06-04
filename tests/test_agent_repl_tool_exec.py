@@ -286,7 +286,7 @@ def _make_ctx_for_dag(
     ctx.cfg.tool.tool_results_turn_max_chars = 50000
     ctx.cfg.tool.use_tool_summarize = False
     ctx.cfg.tool.tool_summarize_threshold = 0
-    ctx.history = []
+    ctx.conv.history = []
     ctx.services = MagicMock()
     ctx.session = MagicMock()
     ctx.session.save_many = MagicMock()

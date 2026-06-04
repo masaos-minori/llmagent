@@ -21,7 +21,7 @@ class _FakeCmd(_IngestMixin):
 
 def _make_ctx() -> MagicMock:
     ctx = MagicMock()
-    ctx.history = [
+    ctx.conv.history = [
         {"role": "system", "content": "sys"},
         {"role": "user", "content": "hello"},
         {"role": "assistant", "content": "world"},
@@ -74,7 +74,7 @@ class TestCmdCompact:
         hist_mgr.force_compress = AsyncMock(return_value=compressed)
         ctx.services.hist_mgr = hist_mgr
         # compress_turns=2 → n_compress=4; need >4 non-system messages
-        ctx.history = [
+        ctx.conv.history = [
             {"role": "system", "content": "sys"},
             {"role": "user", "content": "u1"},
             {"role": "assistant", "content": "a1"},
@@ -85,7 +85,7 @@ class TestCmdCompact:
         cmd = _FakeCmd(ctx)
         asyncio.run(cmd._cmd_compact())
         hist_mgr.force_compress.assert_called_once()
-        assert ctx.history == compressed
+        assert ctx.conv.history == compressed
 
     def test_compact_no_hist_mgr_prints_unavailable(self, capsys: Any) -> None:
         ctx = _make_ctx()
@@ -101,7 +101,7 @@ class TestCmdCompact:
         hist_mgr.compress_turns = 4
         ctx.services.hist_mgr = hist_mgr
         # history has only 2 turn messages (< compress_turns * 2 = 8)
-        ctx.history = [
+        ctx.conv.history = [
             {"role": "system", "content": "sys"},
             {"role": "user", "content": "u1"},
             {"role": "assistant", "content": "a1"},

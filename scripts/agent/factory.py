@@ -50,8 +50,10 @@ def _build_llm_client(
     """Build httpx.AsyncClient and LLMClient; return both."""
 
     def _on_llm_usage(prompt_tokens: int, completion_tokens: int) -> None:
-        ctx.stat_input_tokens = (ctx.stat_input_tokens or 0) + prompt_tokens
-        ctx.stat_output_tokens = (ctx.stat_output_tokens or 0) + completion_tokens
+        ctx.stats.stat_input_tokens = (ctx.stats.stat_input_tokens or 0) + prompt_tokens
+        ctx.stats.stat_output_tokens = (
+            ctx.stats.stat_output_tokens or 0
+        ) + completion_tokens
 
     http = httpx.AsyncClient(timeout=ctx.cfg.llm.http_timeout)
     llm = LLMClient(

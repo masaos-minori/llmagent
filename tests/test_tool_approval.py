@@ -102,7 +102,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     """Build a minimal AgentContext mock."""
     ctx = MagicMock()
     ctx.cfg = cfg or _make_cfg()
-    ctx.current_turn_id = "test-turn-id"
+    ctx.turn.current_turn_id = "test-turn-id"
     ctx.services.audit_logger = None
     return ctx
 
@@ -640,7 +640,7 @@ class TestAuditToolExec:
         ctx = _make_ctx()
         ctx.services.audit_logger = MagicMock()
         ctx.cfg.masked_fields = []
-        ctx.current_turn_id = "turn-abc"
+        ctx.turn.current_turn_id = "turn-abc"
 
         _audit_tool_exec(ctx, "read_text_file", {"path": "/tmp/f"}, False, "req-123")
 
@@ -701,7 +701,7 @@ class TestExecuteOneToolCall:
         ctx.cfg.use_tool_summarize = False
         ctx.cfg.tool_result_max_llm_chars = 4000
         ctx.cfg.masked_fields = []
-        ctx.current_turn_id = "turn-x"
+        ctx.turn.current_turn_id = "turn-x"
 
         tc = {"id": "call_2", "function": {"name": "read_text_file", "arguments": "{}"}}
         await execute_one_tool_call(ctx, tc, 0)

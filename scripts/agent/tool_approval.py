@@ -110,7 +110,7 @@ async def run_approval_checks(
         except orjson.JSONDecodeError:
             args_preview = {}
         masked_preview = mask_args(args_preview, ctx.cfg.tool.masked_fields)
-        if ctx.plan_mode and tc_name in ctx.cfg.tool.plan_blocked_tools:
+        if ctx.conv.plan_mode and tc_name in ctx.cfg.tool.plan_blocked_tools:
             print(f"  [plan mode] Blocked: {tc_name}")
             print(f"  args: {orjson.dumps(masked_preview).decode()}")
             logger.info(f"Plan mode blocked tool: {tc_name}")

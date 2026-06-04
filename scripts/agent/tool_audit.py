@@ -36,7 +36,7 @@ def audit_approval(
         orjson.dumps(
             {
                 "event": "tool_approval",
-                "task_id": ctx.current_turn_id,
+                "task_id": ctx.turn.current_turn_id,
                 "tool": tool_name,
                 "operation_type": classify_operation_type(tool_name),
                 "resource_scope": resource_scope,
@@ -64,7 +64,7 @@ def audit_tool_exec(
         orjson.dumps(
             {
                 "event": "tool_exec",
-                "task_id": ctx.current_turn_id,
+                "task_id": ctx.turn.current_turn_id,
                 "tool": tool_name,
                 "mcp_request_id": mcp_request_id,
                 "is_error": is_error,

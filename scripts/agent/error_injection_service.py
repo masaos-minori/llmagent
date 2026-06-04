@@ -37,7 +37,7 @@ class ErrorInjectionService:
             retryable=e.retryable,
             partial=bool(e.partial_text),
         )
-        ctx.history.append(
+        ctx.conv.history.append(
             {
                 "role": "tool",
                 "content": err["detail"],

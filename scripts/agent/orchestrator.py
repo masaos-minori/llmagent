@@ -5,8 +5,6 @@ Turn-level orchestration facade.
 Delegates LLM streaming and tool-loop guarding to:
   llm_turn_runner.py  — LLMTurnRunner (streaming + inner tool-call loop)
   tool_loop_guard.py  — ToolLoopGuard + TurnLoopState (dedup/cycle/retry/error guards)
-
-Backward-compat delegate methods preserve the interface used by existing tests.
 """
 
 from __future__ import annotations
@@ -86,7 +84,7 @@ class Orchestrator:
             self._append_user_message(line)
             await self._handle_history_compression()
 
-            result = await self._handle_llm_turn(ctx.llm_url)
+            result = await self._handle_llm_turn(ctx.conv.llm_url)
             answer = result.answer
             if not result.success:
                 error_kind = result.error_kind
@@ -104,14 +102,14 @@ class Orchestrator:
     async def _handle_turn_start(self, line: str) -> None:
         ctx = self._ctx
         assert ctx.services.hist_mgr is not None
-        ctx.current_turn_id = str(uuid.uuid4())
+        ctx.turn.current_turn_id = str(uuid.uuid4())
         session_id = str(ctx.session.session_id) if ctx.session.session_id else "none"
         if ctx.services.audit_logger is not None:
             ctx.services.audit_logger.info(
                 orjson.dumps(
                     {
                         "event": "turn_start",
-                        "task_id": ctx.current_turn_id,
+                        "task_id": ctx.turn.current_turn_id,
                         "worker_id": session_id,
                         "event_id": str(uuid.uuid4()),
                         "ts": time.time(),
@@ -130,11 +128,11 @@ class Orchestrator:
                 memory_block = "[Relevant memories]\n" + "\n".join(
                     f"- {s}" for s in memory_snippets
                 )
-                ctx.history.append(
+                ctx.conv.history.append(
                     {
                         "role": "system",
                         "content": memory_block,
-                        "_memory_injected": True,
+                        "_memory_injected": True,  # type: ignore[typeddict-unknown-key]
                     }
                 )
 
@@ -142,14 +140,14 @@ class Orchestrator:
         ctx = self._ctx
         assert ctx.services.hist_mgr is not None
         with self._llm_runner._span_ctx("compress"):
-            ctx.history = await ctx.services.hist_mgr.compress(ctx.history)
+            ctx.conv.history = await ctx.services.hist_mgr.compress(ctx.conv.history)
 
     async def _handle_llm_turn(self, llm_url: str) -> TurnResult:
         ctx = self._ctx
         try:
             with self._llm_runner._span_ctx("llm") as llm_span:
                 llm_span.set_attribute("model_url", llm_url)
-                answer = await self._run_turn(llm_url)
+                answer = await self._llm_runner.run(llm_url)
                 logger.info(f"LLM response: {answer}")
                 ctx.session.save("assistant", answer)
                 return TurnResult(success=True, answer=answer)
@@ -177,10 +175,10 @@ class Orchestrator:
                 orjson.dumps(
                     {
                         "event": "turn_end",
-                        "task_id": ctx.current_turn_id,
+                        "task_id": ctx.turn.current_turn_id,
                         "elapsed_ms": elapsed_ms,
-                        "input_tokens": ctx.stat_input_tokens,
-                        "output_tokens": ctx.stat_output_tokens,
+                        "input_tokens": ctx.stats.stat_input_tokens,
+                        "output_tokens": ctx.stats.stat_output_tokens,
                         "parse_error_count": (
                             llm.stat_parse_errors if llm is not None else 0
                         ),
@@ -195,28 +193,28 @@ class Orchestrator:
                     },
                 ).decode(),
             )
-        ctx.current_turn_id = None
+        ctx.turn.current_turn_id = None
 
     # ── User message helpers ──────────────────────────────────────────────────
 
     def _sync_system_prompt(self) -> None:
-        """Sync history[0] from ctx.system_prompt_content before each turn."""
+        """Sync history[0] from ctx.conv.system_prompt_content before each turn."""
         ctx = self._ctx
-        if not ctx.system_prompt_content:
+        if not ctx.conv.system_prompt_content:
             return
-        if ctx.history and ctx.history[0]["role"] == "system":
-            ctx.history[0]["content"] = ctx.system_prompt_content
+        if ctx.conv.history and ctx.conv.history[0]["role"] == "system":
+            ctx.conv.history[0]["content"] = ctx.conv.system_prompt_content
         else:
-            ctx.history.insert(
-                0, {"role": "system", "content": ctx.system_prompt_content}
+            ctx.conv.history.insert(
+                0, {"role": "system", "content": ctx.conv.system_prompt_content}
             )
 
     def _append_user_message(self, line: str) -> None:
         ctx = self._ctx
         self._sync_system_prompt()
-        ctx.history.append({"role": "user", "content": line})
-        ctx.stat_turns += 1
-        if ctx.stat_turns == 1 and self._on_first_turn is not None:
+        ctx.conv.history.append({"role": "user", "content": line})
+        ctx.stats.stat_turns += 1
+        if ctx.stats.stat_turns == 1 and self._on_first_turn is not None:
             asyncio.create_task(self._on_first_turn(line))
         ctx.session.save("user", line)
 
@@ -227,11 +225,13 @@ class Orchestrator:
     ) -> bool:
         if e.partial_text:
             incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
-            ctx.history.append(LLMMessage(role="assistant", content=incomplete_msg))
+            ctx.conv.history.append(
+                LLMMessage(role="assistant", content=incomplete_msg)
+            )
             ctx.session.save("assistant", incomplete_msg)
             ctx.tool_result_store.store(
                 session_id=ctx.session.session_id,
-                turn=ctx.stat_turns,
+                turn=ctx.stats.stat_turns,
                 tool_name="llm_partial_completion",
                 args_json="{}",
                 full_text=e.detail or f"partial={len(e.partial_text)} chars",
@@ -242,8 +242,8 @@ class Orchestrator:
                 ctx.services.llm.stat_partial_completions += 1
             logger.warning(f"Partial LLM completion saved: {e.kind}")
             return True
-        if ctx.history and ctx.history[-1]["role"] == "user":
-            ctx.history.pop()
+        if ctx.conv.history and ctx.conv.history[-1]["role"] == "user":
+            ctx.conv.history.pop()
         logger.error(
             f"LLM transport error (pre-stream): {e.kind} status={e.status_code}",
         )
@@ -251,40 +251,5 @@ class Orchestrator:
 
     def _handle_general_llm_error(self, e: Exception, ctx: AgentContext) -> None:
         logger.error(f"LLM request failed: {e}")
-        if ctx.history and ctx.history[-1]["role"] == "user":
-            ctx.history.pop()
-
-    # ── Backward-compat delegate methods (used by test_orchestrator.py) ───────
-
-    async def _run_turn(self, llm_url: str) -> str:
-        """Delegate to LLMTurnRunner.run(). Kept for patch.object() in tests."""
-        return await self._llm_runner.run(llm_url)
-
-    def _record_llm_latency(self, t0_llm: float, turn: int) -> None:
-        """Append wall-clock latency to stat_latency['llm'] for the first inner turn only."""
-        if turn == 0:
-            self._ctx.stat_latency.setdefault("llm", []).append(
-                time.perf_counter() - t0_llm
-            )
-
-    def _update_consecutive_errors(
-        self,
-        consecutive_errors: int,
-        n_errors: int,
-        n_tool_calls: int,
-    ) -> int:
-        return ToolLoopGuard.update_errors(consecutive_errors, n_errors, n_tool_calls)
-
-    def _check_consecutive_error_limit(self, consecutive_errors: int) -> str | None:
-        return self._guard.check_error_limit(consecutive_errors)
-
-    def _check_all_tool_guards(
-        self,
-        seen_calls: dict[str, int],
-        round_fingerprints: list[str],
-        failed_calls: set[str],
-        message: Any,
-    ) -> str | None:
-        return self._guard.check_all(
-            seen_calls, round_fingerprints, failed_calls, message
-        )
+        if ctx.conv.history and ctx.conv.history[-1]["role"] == "user":
+            ctx.conv.history.pop()
