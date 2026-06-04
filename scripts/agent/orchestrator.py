@@ -75,27 +75,15 @@ class Orchestrator:
         """Call LLM with the user message and persist to DB."""
         ctx = self._ctx
         turn_started_at = time.perf_counter()
+
+        # Start turn processing
         await self._handle_turn_start(line)
-        answer = ""
-        error_kind = None
 
-        try:
-            await self._handle_memory_injection(line)
-            self._append_user_message(line)
-            await self._handle_history_compression()
+        # Process the turn and handle errors
+        answer, error_kind = await self._process_turn(line, ctx, turn_started_at)
 
-            result = await self._handle_llm_turn(ctx.conv.llm_url)
-            answer = result.answer
-            if not result.success:
-                error_kind = result.error_kind
-
-        except LLMTransportError as e:
-            # Handle LLMTransportError explicitly to avoid ambiguity
-            error_kind = str(e)
-            # Log the error but don't re-raise to make the error explicit to the caller
-            logger.error(f"LLM transport error: {e}")
-        finally:
-            await self._handle_turn_end(line, answer, turn_started_at, error_kind)
+        # End turn processing
+        await self._handle_turn_end(line, answer, turn_started_at, error_kind)
 
     # ── Turn lifecycle ────────────────────────────────────────────────────────
 
@@ -163,6 +151,31 @@ class Orchestrator:
                 self._on_error(e)
             # Return error result instead of raising to make error handling explicit
             return TurnResult(success=False, answer="", error_kind=str(e))
+
+    async def _process_turn(
+        self, line: str, ctx: AgentContext, turn_started_at: float
+    ) -> tuple[str, str | None]:
+        """Process a turn and return (answer, error_kind)."""
+        answer = ""
+        error_kind = None
+
+        try:
+            await self._handle_memory_injection(line)
+            self._append_user_message(line)
+            await self._handle_history_compression()
+
+            result = await self._handle_llm_turn(ctx.conv.llm_url)
+            answer = result.answer
+            if not result.success:
+                error_kind = result.error_kind
+
+        except LLMTransportError as e:
+            # Handle LLMTransportError explicitly to avoid ambiguity
+            error_kind = str(e)
+            # Log the error but don't re-raise to make the error explicit to the caller
+            logger.error(f"LLM transport error: {e}")
+
+        return answer, error_kind
 
     async def _handle_turn_end(
         self, line: str, answer: str, turn_started_at: float, error_kind: str | None

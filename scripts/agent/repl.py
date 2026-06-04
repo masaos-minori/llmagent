@@ -237,58 +237,60 @@ class AgentREPL:
         print(f"DB: {chunk_count} chunks | Tools: {self._n_tools}")
         print("Type /help for commands, /exit to quit.")
 
-    async def run(self) -> None:
-        """Start the interactive REPL.
-
-        Initialises all components via AgentContext, creates a session record,
-        processes user messages with RAG augmentation, and preserves conversation
-        and readline history for the session.
-        """
+    async def _initialize_session(self) -> None:
+        """Initialize session and setup components."""
         ctx = self._ctx
         self._view.setup_readline()
         self._init_components()
-
         ctx.conv.llm_url = ctx.cfg.llm.llm_url
 
-        # Spawn stdio/HTTP subprocess MCP servers before health/tool checks
+    async def _start_mcp_servers(self) -> None:
+        """Spawn stdio/HTTP subprocess MCP servers before health/tool checks."""
         await self._start_subprocess_servers()
 
+    async def _check_services(self) -> None:
+        """Probe LLM / Embed service health and validate tool definitions."""
         # Probe LLM / Embed service health; warnings only, REPL continues on failure
         await self._check_service_health()
 
         # Validate tool definitions against live MCP servers (warns or raises)
         await self._check_tool_definitions()
 
+    async def _setup_initial_prompt(self) -> None:
+        """Setup initial system prompt with notes and memories."""
+        ctx = self._ctx
+        initial_prompt = ctx.cfg.tool.system_prompts.get(
+            ctx.conv.system_prompt_name,
+            ctx.cfg.tool.system_prompt_tool,
+        )
+        # Append persisted notes to system prompt when auto_inject_notes is enabled
+        if ctx.cfg.tool.auto_inject_notes:
+            note_texts = ctx.session.get_all_note_contents()
+            if note_texts:
+                notes_block = "\n\n[Notes]\n" + "\n".join(f"- {t}" for t in note_texts)
+                initial_prompt = initial_prompt + notes_block
+        # SessionStart: inject top semantic memories into system prompt
+        if ctx.services.memory is not None:
+            memory_snippets = ctx.services.memory.on_session_start(
+                ctx.session.session_id,
+            )
+            if memory_snippets:
+                memory_block = "\n\n[Relevant memories]\n" + "\n".join(
+                    f"- {s}" for s in memory_snippets
+                )
+                initial_prompt = initial_prompt + memory_block
+        ctx.conv.system_prompt_content = initial_prompt
+        ctx.conv.history = [{"role": "system", "content": initial_prompt}]
+
+    async def _run_repl_loop(self) -> None:
+        """Run the main REPL loop with watchdog if enabled."""
+        ctx = self._ctx
         _watchdog_task: asyncio.Task | None = None
         try:
             self._print_startup_banner()
             ctx.session.start()
             if ctx.services.tools is not None and ctx.session.session_id is not None:
                 ctx.services.tools.set_session_id(str(ctx.session.session_id))
-            initial_prompt = ctx.cfg.tool.system_prompts.get(
-                ctx.conv.system_prompt_name,
-                ctx.cfg.tool.system_prompt_tool,
-            )
-            # Append persisted notes to system prompt when auto_inject_notes is enabled
-            if ctx.cfg.tool.auto_inject_notes:
-                note_texts = ctx.session.get_all_note_contents()
-                if note_texts:
-                    notes_block = "\n\n[Notes]\n" + "\n".join(
-                        f"- {t}" for t in note_texts
-                    )
-                    initial_prompt = initial_prompt + notes_block
-            # SessionStart: inject top semantic memories into system prompt
-            if ctx.services.memory is not None:
-                memory_snippets = ctx.services.memory.on_session_start(
-                    ctx.session.session_id,
-                )
-                if memory_snippets:
-                    memory_block = "\n\n[Relevant memories]\n" + "\n".join(
-                        f"- {s}" for s in memory_snippets
-                    )
-                    initial_prompt = initial_prompt + memory_block
-            ctx.conv.system_prompt_content = initial_prompt
-            ctx.conv.history = [{"role": "system", "content": initial_prompt}]
             if ctx.cfg.mcp.mcp_watchdog_interval > 0:
                 _watchdog_task = asyncio.create_task(self._watchdog_loop())
             await self._repl_loop()
@@ -307,3 +309,16 @@ class AgentREPL:
                 except asyncio.CancelledError:
                     pass
             await self._close_resources()
+
+    async def run(self) -> None:
+        """Start the interactive REPL.
+
+        Initialises all components via AgentContext, creates a session record,
+        processes user messages with RAG augmentation, and preserves conversation
+        and readline history for the session.
+        """
+        await self._initialize_session()
+        await self._start_mcp_servers()
+        await self._check_services()
+        await self._setup_initial_prompt()
+        await self._run_repl_loop()
