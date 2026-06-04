@@ -8,21 +8,39 @@ Subcommands:
   /memory show <id>                         — Show full content of one entry
   /memory pin <id>                          — Pin an entry
   /memory unpin <id>                        — Unpin an entry
-  /memory delete <id>                       — Delete one entry
-  /memory prune [days]                      — Delete entries older than N days
+  /memory delete [--dry-run] <id>           — Delete one entry
+  /memory prune [--dry-run] [days]          — Delete entries older than N days
 """
 
 from __future__ import annotations
 
 import logging
+import time
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+import orjson
+
+from agent.commands.mixin_base import MixinBase
 from agent.context import AgentContext
 
 if TYPE_CHECKING:
     from agent.memory.layer import MemoryLayer
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class MemoryOpResult:
+    """Structured result of a memory state-changing operation."""
+
+    ok: bool
+    memory_id: str
+    action: str  # "deleted" | "pinned" | "unpinned" | "pruned"
+    dry_run: bool = False
+    count: int = 0  # prune 用
+    messages: list[str] = field(default_factory=list)
+
 
 _MEMORY_HELP = """\
 /memory list [semantic|episodic] [limit]  List entries (default: all, limit 10)
@@ -42,10 +60,8 @@ def _as_memory_layer(mem: object) -> MemoryLayer | None:
     return mem if isinstance(mem, MemoryLayer) else None
 
 
-class _MemoryMixin:
+class _MemoryMixin(MixinBase):
     """Slash-command handlers for /memory."""
-
-    _ctx: AgentContext
 
     def _cmd_memory(self, args: str) -> None:
         ctx = self._ctx
@@ -156,6 +172,9 @@ class _MemoryMixin:
         action = "pinned" if pin else "unpinned"
         if ok:
             print(f"  [memory] {action}: {mid}")
+            self._emit_memory_audit(
+                MemoryOpResult(ok=True, memory_id=mid, action=action)
+            )
         else:
             print(f"  [memory] Entry not found: {mid!r}")
 
@@ -163,24 +182,68 @@ class _MemoryMixin:
         layer = _as_memory_layer(mem)
         if layer is None:
             return
-        if not args:
-            print("  Usage: /memory delete <id>")
+        dry_run = "--dry-run" in args
+        ids = [a for a in args if not a.startswith("--")]
+        if not ids:
+            print("  Usage: /memory delete [--dry-run] <id>")
             return
-        mid = args[0]
+        mid = ids[0]
+        if dry_run:
+            exists = layer.get_entry(mid) is not None
+            if exists:
+                print(f"  [memory] (dry-run) would delete: {mid}")
+            else:
+                print(f"  [memory] (dry-run) Entry not found: {mid!r}")
+            self._emit_memory_audit(
+                MemoryOpResult(ok=exists, memory_id=mid, action="deleted", dry_run=True)
+            )
+            return
         ok = layer.delete_entry(mid)
         if ok:
             print(f"  [memory] Deleted: {mid}")
         else:
             print(f"  [memory] Entry not found: {mid!r}")
+        self._emit_memory_audit(MemoryOpResult(ok=ok, memory_id=mid, action="deleted"))
 
     def _memory_prune(self, mem: object, ctx: AgentContext, args: list[str]) -> None:
         layer = _as_memory_layer(mem)
         if layer is None:
             return
-        days = (
-            int(args[0])
-            if args and args[0].isdigit()
-            else ctx.cfg.memory.memory_retention_days
-        )
+        dry_run = "--dry-run" in args
+        day_args = [a for a in args if a.isdigit()]
+        days = int(day_args[0]) if day_args else ctx.cfg.memory.memory_retention_days
+        if dry_run:
+            count = layer.count_prunable(days)
+            print(
+                f"  [memory] (dry-run) would prune {count} entries older than {days} days"
+            )
+            self._emit_memory_audit(
+                MemoryOpResult(
+                    ok=True, memory_id="", action="pruned", dry_run=True, count=count
+                )
+            )
+            return
         deleted = layer.prune(days)
         print(f"  [memory] Pruned {deleted} entries older than {days} days")
+        self._emit_memory_audit(
+            MemoryOpResult(ok=True, memory_id="", action="pruned", count=deleted)
+        )
+
+    def _emit_memory_audit(self, result: MemoryOpResult) -> None:
+        """audit_logger に memory 操作イベントを書き込む。None ガード付き。"""
+        audit = self._ctx.services.audit_logger
+        if audit is None:
+            return
+        audit.info(
+            orjson.dumps(
+                {
+                    "event": "memory_op",
+                    "action": result.action,
+                    "memory_id": result.memory_id,
+                    "dry_run": result.dry_run,
+                    "count": result.count,
+                    "ok": result.ok,
+                    "ts": time.time(),
+                },
+            ).decode(),
+        )

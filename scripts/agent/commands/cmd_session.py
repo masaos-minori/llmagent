@@ -11,19 +11,14 @@ Extracted from agent_commands.py.  Provides _SessionMixin with:
 """
 
 import logging
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from agent.context import AgentContext
+from agent.commands.mixin_base import MixinBase
 
 logger = logging.getLogger(__name__)
 
 
-class _SessionMixin:
+class _SessionMixin(MixinBase):
     """Session management slash-command handlers."""
-
-    if TYPE_CHECKING:
-        _ctx: "AgentContext"
 
     async def _generate_session_title(self, first_input: str) -> None:
         """Call the chat LLM to produce a short session title and persist it.
@@ -118,7 +113,12 @@ class _SessionMixin:
         )
 
     def _load_session(self, session_id: int) -> None:
-        """Restore a previous session's messages into ctx.history."""
+        """Restore a previous session's messages into ctx.history.
+
+        Lifecycle: sets ctx.session.session_id (switches the active session),
+        rebuilds ctx.history (preserves system prompt at index 0),
+        and resets all per-session counters via _reset_session_stats().
+        """
         ctx = self._ctx
         messages = ctx.session.fetch_messages(session_id)
         if messages is None:
@@ -127,5 +127,6 @@ class _SessionMixin:
         system_msgs = [m for m in ctx.history if m["role"] == "system"]
         ctx.history = system_msgs + messages
         ctx.session.session_id = session_id
+        self._reset_session_stats(ctx)
         logger.info(f"Session {session_id} loaded: {len(messages)} messages")
         print(f"Session {session_id} loaded: {len(messages)} messages restored.")

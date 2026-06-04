@@ -10,20 +10,18 @@ Thin dispatcher that delegates to:
 import logging
 from typing import TYPE_CHECKING
 
+from agent.commands.mixin_base import MixinBase
 from agent.services.mcp_install import CliInstallQA, McpInstallService
 from agent.services.mcp_status import McpStatusService
 
 if TYPE_CHECKING:
-    from agent.context import AgentContext
+    pass
 
 logger = logging.getLogger(__name__)
 
 
-class _McpMixin:
+class _McpMixin(MixinBase):
     """MCP server management slash-command handlers."""
-
-    if TYPE_CHECKING:
-        _ctx: "AgentContext"
 
     async def _cmd_mcp_status(self) -> None:
         """Print MCP server status table."""

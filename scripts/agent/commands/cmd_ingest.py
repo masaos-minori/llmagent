@@ -4,32 +4,24 @@ Export, ingest, and compact mixin for CommandRegistry.
 
 Extracted from agent_commands.py.  Provides _IngestMixin with:
   _cmd_export            — /export: dump conversation to Markdown or JSON
-  _run_split_and_ingest  — run ChunkSplitter + RagIngester in executor
   _cmd_ingest            — /ingest: crawl/ingest a URL or local file
   _cmd_compact           — /compact: force immediate context compression
 """
 
-import asyncio
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING
 
-import orjson
-from shared.config_loader import ConfigLoader
-
-from agent.commands.utils import render_history_md
+from agent.commands.mixin_base import MixinBase
+from agent.commands.utils import render_export, write_export
 
 if TYPE_CHECKING:
-    from agent.context import AgentContext
+    pass
 
 logger = logging.getLogger(__name__)
 
 
-class _IngestMixin:
+class _IngestMixin(MixinBase):
     """Export, ingest, and compact slash-command handlers."""
-
-    if TYPE_CHECKING:
-        _ctx: "AgentContext"
 
     def _cmd_export(self, args: str) -> None:
         """Export the current conversation history to Markdown or JSON.
@@ -45,56 +37,8 @@ class _IngestMixin:
                 fmt = part
             else:
                 outfile = part
-
-        content = (
-            orjson.dumps(ctx.history, option=orjson.OPT_INDENT_2).decode()
-            if fmt == "json"
-            else render_history_md(ctx.history)
-        )
-
-        if not outfile:
-            print(content)
-            return
-        try:
-            Path(outfile).write_text(content, encoding="utf-8")
-            print(
-                f"Exported {len(ctx.history)} messages to {outfile}"
-                f" ({fmt.upper()}, {len(content)} chars)",
-            )
-            logger.info(f"Conversation exported to {outfile} ({fmt})")
-        except OSError as e:
-            print(f"Export failed: {e}")
-
-    async def _run_split_and_ingest(
-        self,
-        loop: asyncio.AbstractEventLoop,
-        snippets_only: bool = False,
-    ) -> None:
-        """Run ChunkSplitter and RagIngester in a thread executor.
-
-        snippets_only=True forces Markdown heading-based chunking regardless
-        of the md_index_enable config value.
-        """
-        from rag.ingestion.chunk_splitter import (
-            ChunkSplitter as _ChunkSplitter,
-        )
-        from rag.ingestion.ingester import RagIngester as _RagIngester  # noqa: PLC0415
-
-        print("  [ingest] splitting chunks...")
-        if snippets_only:
-            # Override md_index_enable so heading-based snippets are always used
-            base_cfg = ConfigLoader().load("rag_pipeline.toml")
-            base_cfg["md_index_enable"] = True
-            splitter = _ChunkSplitter(config=base_cfg)
-        else:
-            splitter = _ChunkSplitter()
-        n_chunks = await loop.run_in_executor(None, splitter.process_all)
-        print(f"  [ingest] {n_chunks} chunks written")
-
-        print("  [ingest] ingesting to DB...")
-        ingester = _RagIngester()
-        await loop.run_in_executor(None, ingester.ingest_all)
-        print("  [ingest] done — RAG DB updated")
+        content = render_export(ctx.history, fmt)
+        write_export(content, outfile, len(ctx.history))
 
     async def _cmd_ingest(self, args: str) -> None:
         """Crawl/ingest a URL or local file into the RAG DB from within the REPL.
@@ -102,6 +46,10 @@ class _IngestMixin:
         Usage: /ingest <url|path> [ja|en] [--snippets-only]
         --snippets-only forces heading-based Markdown snippet chunking.
         """
+        from agent.services.ingest_workflow import (
+            IngestWorkflowService,  # noqa: PLC0415
+        )
+
         parts = args.strip().split()
         if not parts:
             print("Usage: /ingest <url|path> [lang=ja|en] [--snippets-only]")
@@ -114,37 +62,14 @@ class _IngestMixin:
                 lang = p
             elif p == "--snippets-only":
                 snippets_only = True
-        loop = asyncio.get_running_loop()
-        try:
-            from rag.ingestion.crawler import WebCrawler as _WebCrawler  # noqa: PLC0415
 
-            crawler = _WebCrawler()
-
-            if target.startswith(("http://", "https://")):
-                print(f"  [ingest] crawling {target} (lang={lang})...")
-                await crawler.crawl_site(target, lang)
-                print("  [ingest] crawl done")
-            else:
-                file_path = Path(target)
-                if not file_path.exists():
-                    print(f"  [ingest] error: file not found: {file_path}")
-                    return
-                print(f"  [ingest] reading local file {file_path} (lang={lang})...")
-                count = await loop.run_in_executor(
-                    None,
-                    crawler.crawl_file,
-                    file_path,
-                    lang,
-                )
-                if count == 0:
-                    print("  [ingest] error: failed to read local file")
-                    return
-                print("  [ingest] file read done")
-
-            await self._run_split_and_ingest(loop, snippets_only=snippets_only)
-        except Exception as e:
-            logger.error(f"Ingest failed for {target}: {e}")
-            print(f"  [ingest] error: {e}")
+        svc = IngestWorkflowService()
+        result = await svc.run(target, lang=lang, snippets_only=snippets_only)
+        for msg in result.messages:
+            print(f"  {msg}")
+        if result.error:
+            logger.error(f"Ingest failed at stage={result.stage}: {result.error}")
+            print(f"  [ingest] error ({result.stage}): {result.error}")
 
     async def _cmd_compact(self) -> None:
         """Force immediate compression of conversation history.

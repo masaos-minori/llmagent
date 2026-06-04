@@ -8,21 +8,16 @@ Provides _ToolingMixin with:
 """
 
 import logging
-from typing import TYPE_CHECKING
 
 import orjson
 
-if TYPE_CHECKING:
-    from agent.context import AgentContext
+from agent.commands.mixin_base import MixinBase
 
 logger = logging.getLogger(__name__)
 
 
-class _ToolingMixin:
+class _ToolingMixin(MixinBase):
     """Tool inspection and plan-mode slash-command handlers."""
-
-    if TYPE_CHECKING:
-        _ctx: "AgentContext"
 
     def _tool_list(self) -> None:
         """Print stored tool results for the current session."""

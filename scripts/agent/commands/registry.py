@@ -124,7 +124,7 @@ class CommandRegistry(
             " runtime-configurable parameters\n"
             "  /exit              Exit (Ctrl-D also works)\n"
             "\n"
-            f"Tools: {n_tools}  |  LLM: {ctx.llm_url}  |  {sid}",
+            f"Tools: {n_tools}  |  LLM: {ctx.cfg.llm.llm_url}  |  {sid}",
         )
 
     async def dispatch(self, line: str) -> bool:

@@ -20,10 +20,13 @@ class _Ctx:
         mcp_servers: dict[str, McpServerConfig],
         tool_defs: list | None = None,
         stdio_procs: dict | None = None,
+        tool_safety_tiers: dict | None = None,
     ) -> None:
         self.cfg = MagicMock()
         self.cfg.tool.tool_definitions = tool_defs or []
         self.cfg.mcp.mcp_servers = mcp_servers
+        # tier-based WRITE column requires a real dict; MagicMock's .get() returns MagicMock
+        self.cfg.approval.tool_safety_tiers = tool_safety_tiers or {}
         self.services = MagicMock()
         self.services.stdio_procs = stdio_procs or {}
 
@@ -200,7 +203,7 @@ class TestCmdMcpStatusNewColumns:
         assert "query" in out
 
     @pytest.mark.asyncio
-    async def test_write_column_shows_yes_for_write_tools(
+    async def test_write_column_shows_write_safe_for_write_tools(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cfg = McpServerConfig(
@@ -210,7 +213,8 @@ class TestCmdMcpStatusNewColumns:
             "",
             tool_names=["write_file", "edit_file"],
         )
-        ctx = _Ctx({"writer": cfg})
+        tiers = {"write_file": "WRITE_SAFE", "edit_file": "WRITE_SAFE"}
+        ctx = _Ctx({"writer": cfg}, tool_safety_tiers=tiers)
         mcp = _Mcp(ctx)
 
         resp = MagicMock()
@@ -221,7 +225,7 @@ class TestCmdMcpStatusNewColumns:
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
-        assert "yes" in out  # write column
+        assert "write-safe" in out  # tier-based WRITE column
 
     @pytest.mark.asyncio
     async def test_write_column_shows_no_for_read_only_tools(

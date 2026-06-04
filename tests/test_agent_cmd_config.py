@@ -1,7 +1,7 @@
 """
 tests/test_agent_cmd_config.py
 Unit tests for _ConfigMixin: _cmd_stats, _print_config_values (SSE section),
-and _apply_config_params (SSE hot-reload).
+and ConfigReloadService.apply_config_dict (SSE hot-reload).
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from agent.commands.cmd_config import _ConfigMixin
+from agent.services.config_reload import ConfigReloadService
 
 # ── Test harness ──────────────────────────────────────────────────────────────
 
@@ -175,33 +176,35 @@ _DUMMY_MCP = {
 }
 
 
-class TestApplyConfigParams:
+class TestApplyConfigDict:
     def test_sse_heartbeat_timeout_reloaded(self) -> None:
         ctx = _make_ctx()
         ctx.history = []
-        cmd = _FakeCmd(ctx)
-        cmd._apply_config_params({**_DUMMY_MCP, "sse_heartbeat_timeout": 60.0})
+        ConfigReloadService(ctx).apply_config_dict(
+            {**_DUMMY_MCP, "sse_heartbeat_timeout": 60.0}
+        )
         assert ctx.cfg.llm.sse_heartbeat_timeout == 60.0
 
     def test_sse_malformed_retry_reloaded(self) -> None:
         ctx = _make_ctx()
         ctx.history = []
-        cmd = _FakeCmd(ctx)
-        cmd._apply_config_params({**_DUMMY_MCP, "sse_malformed_retry": 5})
+        ConfigReloadService(ctx).apply_config_dict(
+            {**_DUMMY_MCP, "sse_malformed_retry": 5}
+        )
         assert ctx.cfg.llm.sse_malformed_retry == 5
 
     def test_sse_reconnect_max_reloaded(self) -> None:
         ctx = _make_ctx()
         ctx.history = []
-        cmd = _FakeCmd(ctx)
-        cmd._apply_config_params({**_DUMMY_MCP, "sse_reconnect_max": 3})
+        ConfigReloadService(ctx).apply_config_dict(
+            {**_DUMMY_MCP, "sse_reconnect_max": 3}
+        )
         assert ctx.cfg.llm.sse_reconnect_max == 3
 
     def test_llm_stream_retry_flags_reloaded(self) -> None:
         ctx = _make_ctx()
         ctx.history = []
-        cmd = _FakeCmd(ctx)
-        cmd._apply_config_params(
+        ConfigReloadService(ctx).apply_config_dict(
             {
                 **_DUMMY_MCP,
                 "llm_stream_retry_on_heartbeat_timeout": False,
@@ -216,13 +219,12 @@ class TestApplyConfigParams:
         ctx.history = []
         llm = MagicMock()
         ctx.services.llm = llm
-        cmd = _FakeCmd(ctx)
         ctx.cfg.llm.sse_heartbeat_timeout = 45.0
         ctx.cfg.llm.sse_malformed_retry = 3
         ctx.cfg.llm.sse_reconnect_max = 2
         ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout = False
         ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = True
-        cmd._apply_config_params(
+        ConfigReloadService(ctx).apply_config_dict(
             {
                 **_DUMMY_MCP,
                 "sse_heartbeat_timeout": 45.0,
@@ -244,8 +246,7 @@ class TestApplyConfigParams:
     def test_approval_resource_keys_applied(self) -> None:
         ctx = _make_ctx()
         ctx.history = []
-        cmd = _FakeCmd(ctx)
-        cmd._apply_config_params(
+        ConfigReloadService(ctx).apply_config_dict(
             {**_DUMMY_MCP, "approval_resource_keys": {"github_push": "high"}}
         )
         assert ctx.cfg.approval.approval_resource_keys == {"github_push": "high"}
@@ -253,8 +254,7 @@ class TestApplyConfigParams:
     def test_approval_dry_run_tools_applied(self) -> None:
         ctx = _make_ctx()
         ctx.history = []
-        cmd = _FakeCmd(ctx)
-        cmd._apply_config_params(
+        ConfigReloadService(ctx).apply_config_dict(
             {**_DUMMY_MCP, "approval_dry_run_tools": ["write_file", "delete_file"]}
         )
         assert ctx.cfg.approval.approval_dry_run_tools == ["write_file", "delete_file"]
@@ -267,8 +267,7 @@ class TestApplyConfigParams:
         # Pre-set cfg values; _apply_config_params reads them to sync to hist_mgr
         ctx.cfg.llm.context_token_limit = 4000
         ctx.cfg.llm.tokenize_url = "http://llm/tok"
-        cmd = _FakeCmd(ctx)
-        cmd._apply_config_params({**_DUMMY_MCP})
+        ConfigReloadService(ctx).apply_config_dict({**_DUMMY_MCP})
         # ConfigReloadService now uses apply_config() instead of direct attr writes
         hist_mgr.apply_config.assert_called_once()
         call_kwargs = hist_mgr.apply_config.call_args.kwargs

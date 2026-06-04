@@ -390,6 +390,53 @@ class AgentSession:
         except Exception as e:
             logger.warning(f"delete_last_turn failed: {e}")
 
+    def undo_last_turn(self) -> int:
+        """Delete all DB messages from the last user message onwards.
+
+        Handles turns with tool_call and injection messages correctly by
+        walking back to the last 'user' role message and deleting everything
+        from that point (inclusive).  Returns the number of rows deleted.
+        """
+        if self.session_id is None:
+            return 0
+        try:
+            with SQLiteHelper("session").open(write_mode=True) as db:
+                rows = db.fetchall(
+                    "SELECT message_id, role FROM messages"
+                    " WHERE session_id = ? ORDER BY message_id DESC",
+                    (self.session_id,),
+                )
+                if not rows:
+                    return 0
+                # Find the last user message boundary
+                last_user_id: int | None = None
+                for r in rows:
+                    if r[1] == "user":
+                        last_user_id = r[0]
+                        break
+                if last_user_id is None:
+                    return 0
+                # Count rows to delete before deleting
+                deleted: int = int(
+                    db.execute(
+                        "SELECT COUNT(*) FROM messages"
+                        " WHERE session_id = ? AND message_id >= ?",
+                        (self.session_id, last_user_id),
+                    ).fetchone()[0]
+                )
+                db.execute(
+                    "DELETE FROM messages WHERE session_id = ? AND message_id >= ?",
+                    (self.session_id, last_user_id),
+                )
+                db.commit()
+            logger.info(
+                f"Undo: deleted {deleted} messages from session {self.session_id}",
+            )
+            return deleted
+        except Exception as e:
+            logger.warning(f"undo_last_turn failed: {e}")
+            return 0
+
     def delete_session(self, session_id: int) -> bool:
         """Delete a session and all its messages from DB.
 

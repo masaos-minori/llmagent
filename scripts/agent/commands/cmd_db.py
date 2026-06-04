@@ -18,6 +18,7 @@ Extracted from cmd_context.py.  Provides _DbMixin with:
 import logging
 from typing import TYPE_CHECKING
 
+from agent.commands.mixin_base import MixinBase
 from db.helper import SQLiteHelper
 from db.maintenance import (
     RetentionConfig,
@@ -28,7 +29,7 @@ from db.maintenance import (
 )
 
 if TYPE_CHECKING:
-    from agent.context import AgentContext
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -52,11 +53,8 @@ def _parse_flag_str(tokens: list[str], flag: str) -> str | None:
     return None
 
 
-class _DbMixin:
+class _DbMixin(MixinBase):
     """Database management slash-command handlers."""
-
-    if TYPE_CHECKING:
-        _ctx: "AgentContext"
 
     def _cmd_db(self, args: str) -> None:
         """Handle /db stats|urls|clean|rebuild-fts|health|checkpoint|vacuum|purge|recover."""

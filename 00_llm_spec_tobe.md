@@ -6,156 +6,318 @@
 * Do not preserve backward-compatibility leftovers unless there is a clear, explicit requirement to keep them.
 * Simplify the codebase by eliminating transitional compatibility layers.
 
-以下の修正を実施
+## `agent/commands/registry.py`
 
-# `session.py`
+* Reduce implicit dependencies between mixins.
 
-## 改善点
+* Do not rely on hidden cross-mixin assumptions. For example:
+  * `cmd_ingest.py` currently assumes `_render_history_md()` is provided by `_ToolingMixin`.
+  * `cmd_memory.py` currently accesses internal attributes of `MemoryLayer`.
 
-* `save_many()` は 1 トランザクションでまとめている点は良いが、各行ごとに `db.execute()` を繰り返しており、**大量保存時の効率が限定的**である。
-* セッション・文書・ノート・削除処理まで 1 クラスに集約されており、**Repository の責務境界が広い**。会話履歴、RAG 文書、ノートは論理的に分離可能である。
-* `fetch_messages()` は JSON 破損時に warning を出して処理継続するが、**データ不整合の検知と復旧方針**は明確でない。
+* Do not keep `CommandRegistry` in a state where “which mixin provides which API” is only an informal convention.
 
-## 修正方針
+* Make those contracts explicit in the type system or through explicit composition.
 
-* `save_many()` を `executemany()` 相当へ寄せる。
-* `SessionMessageRepository` / `DocumentRepository` / `NoteRepository` へ分割する。
-* 破損レコード検知時の監査イベント化を追加する。
+* Move toward an explicit architecture based on:
+  * services
+  * renderers
+  * command objects
 
+* Make future extraction, replacement, or recomposition safe without depending on mixin implementation details.
 
-# `http_lifecycle.py`
+***
 
-## 改善点
+## `agent/commands/cmd_config.py`
 
-* 起動失敗時は `StartupFailure` を作成しているが、**timeout パスでは stderr の回収を行わずに `proc.terminate()` だけで終了**しており、原因調査情報が欠落する。
-* timeout 後に `terminate()` はするが、**wait / kill の後始末が不足**している。ゾンビ化または停止遅延に対する耐性が弱い。
-* `verify_running()` は warning のみで回復しないため、**起動モード subprocess の自己修復挙動が限定的**である。
+* Split responsibilities in this module.
 
-## 修正方針
+* Do not keep all of the following inside one mixin:
+  * configuration display
+  * config diff application
+  * live service synchronization
+  * validation-like config reconciliation logic
 
-* timeout 時も stderr を回収し、`StartupFailure` 相当の情報を例外へ含める。
-* `terminate -> wait(timeout) -> kill` の標準手順へ統一する。
-* `verify_running()` を「warning のみ」ではなく、必要なら restart へ接続できる設計へ寄せる。
+* Move `_apply_config_params()` and related logic out of the command handler layer.
 
-# `stdio_lifecycle.py`
+* Treat this as application service logic.
 
-## 改善点
+* Introduce a dedicated component such as `ConfigReloadService`.
 
-* `_ensure_ondemand()` は double-checked locking を実装しており良いが、**watchdog 側にも restart ロジックが存在する**ため、起動・再起動責務が一本化されていない。
-* `shutdown_idle()` 後の transport マップ更新方針が見えにくく、**停止済み transport の再利用ポリシー**を明文化した方がよい。
+* Remove direct writes to private service attributes inside `_sync_services_to_cfg()`.
 
-## 修正方針
+* Do not write directly to fields such as:
+  * `ctx.services.llm._temperature`
+  * `ctx.services.llm._max_tokens`
+  * `ctx.services.hist_mgr._char_limit`
+  * `ctx.services.tools._cache_ttl`
 
-* stdio 再起動を必ず lifecycle manager 経由に統一し、watchdog は lifecycle の public API のみ呼ぶ。
-* transport state を `running / stopped / failed` などの明示状態へ寄せる。
+* This breaks encapsulation and makes regressions more likely when service internals change.
 
-# `lifecycle.py`
+* Add explicit public setter APIs or reload/apply APIs on the service side and synchronize through those APIs only.
 
-## 改善点
+* Refactor `_apply_mcp_url_reload()`.
 
-* facade としては機能しているが、`_http_procs` / `_start_locks` を **private property の後方互換**として露出しており、内部構造の隠蔽が崩れている。
-* facade であるにもかかわらず、`last_called` などの state を持ち、実装詳細との結合が残る。**完全な薄い facade になっていない**。
+* Do not hardcode the operational rule that “transport changes require restart” as an implicit limitation in command-layer code.
 
-## 修正方針
+* Explicitly classify reload results into categories such as:
+  * changes that require restart
+  * changes that can be applied immediately
+  * changes that cannot be applied
 
-* backward-compat property の利用箇所を先に除去し、その後 API から削除する。
-* facade は public API のみ維持し、観測系が必要なら専用 status API を足す。
+* Return the reload result as a structured report.
 
-# `repl_health.py`
+***
 
-**重要度: High**
+## `agent/commands/cmd_mcp.py`
 
-## 改善点
+* Split this module by concern.
 
-* `watchdog_loop()` が HTTP と stdio の probe / restart / idle shutdown を持っており、**health check と lifecycle 制御が混在**している。
-* `_watchdog_check_stdio()` は `transport.start()` を直接呼ぶため、**stdio 再起動が lifecycle manager を経由しない**。`ToolExecutor` との関係や再接続手順の一貫性を崩しやすい。
-* `check_tool_definitions()` は useful だが、tool definition mismatch の扱いが startup 時 validation と runtime drift 検知で未分離である。
+* Do not keep all of the following together:
+  * status probing
+  * interactive wizard flow
+  * template/scaffold generation
+  * post-install instructions rendering
 
-## 修正方針
+* In particular, refactor `/mcp install`.
 
-* watchdog は health 判定のみ、再起動は lifecycle service へ委譲する。
-* startup validation と runtime revalidation を別関数に分離する。
+* The UI prompt flow and scaffold-generation logic are too tightly coupled.
 
-# `factory.py`
+* Separate them into:
+  * interaction layer
+  * service layer for server generation
+  * renderer layer for display/output
 
-**重要度: Medium**
+* Remove direct reliance on `input()` and `asyncio.to_thread(input, ...)` inside `_cmd_mcp_install()`.
 
-## 改善点
+* Do not hardcode the CLI interaction model into the command implementation.
 
-* 依存注入の中心として整理されているが、**plugin 初期化、audit logger、LLM client、tool executor、history manager、memory layer 構築が 1 モジュールに集中**している。
-* `_build_memory_layer()` に deferred import を使って起動コスト削減している一方、**起動時 feature assembly の見通しがやや分散**する。
+* Introduce an abstract question/answer interface so the feature can work in:
+  * non-interactive mode
+  * automation
+  * alternate frontends
 
-## 修正方針
+* Refactor `_cmd_mcp_status()`.
 
-* `build_agent_context()` を bootstrap 専用 orchestrator に寄せ、factory 自体は pure builder 群へ整理する。
-* `observability`, `memory`, `tools`, `llm` の builder をサブモジュール分割する。
+* Do not infer write capability only from `cfg.tool_names` plus a simple write-capable tool set.
 
-# `context.py`
+* Align status reporting with the actual tool safety policy model, including classes such as:
+  * dangerous
+  * write-safe
+  * admin
 
-## 改善点
+* Ensure observable status output cannot drift from the real approval policy.
 
-* `AgentContext` は `ConversationState` / `TurnState` / `RuntimeStats` / `AppServices` を束ねる設計だが、**flat access の後方互換を維持**しているため、利用側からは state の境界が見えにくい。
-* `ServiceContainer` deprecated も残っており、**移行完了前の構造物が長く残るリスク**がある。
+***
 
-## 修正方針
+## `agent/commands/cmd_context.py`
 
-* 新規コードでの flat access 禁止を lint / review ルール化する。
-* `ctx.history` など旧 API 参照箇所を段階的に `ctx.conversation.history` 等へ移す。
+* Split this module by concern.
 
-# `config.py`
+* Do not keep all of the following in one command group:
+  * conversation state display
+  * history editing
+  * system prompt switching
+  * database maintenance/admin operations
 
-## 改善点
+* Separate:
+  * context/history commands
+  * database administration commands
 
-* `AgentConfig` は 7 つの sub-config を compose しているが、**flat field access の後方互換が残っている**ため、設定の所属ドメインが曖昧になる。
-* `load_config()` は例外時に warning を出して空 dict を返すため、**設定欠落が静かに既定値へフォールバックしやすい**。運用事故の検知が遅れる可能性がある。
+* Refactor `_cmd_undo()`.
 
-## 修正方針
+* It currently rolls back in-memory history from the last user-message boundary while delegating DB rollback to `ctx.session.delete_last_turn()`.
 
-* 必須設定と任意設定を分離し、必須欠落時は fail-fast を採る。
-* flat access を非推奨から削除フェーズへ進める。
+* Do not rely on this loose coupling between memory-side rollback and DB-side rollback.
 
-# `cli_view.py`
+* Introduce a consistent undo API based on a logical turn unit.
 
-## 改善点
+* This API must remain correct even when:
+  * tool messages are present
+  * system injections have occurred
+  * the stored turn structure is more complex than `user + assistant`
 
-* `Writer` / `Reader` Protocol は導入されているが、実装本体は `print`, `input`, `readline` 直結であり、**非対話環境・テスト環境への置換性はまだ限定的**である。
-* `write_progress()` / `clear_progress()` は固定幅前提の簡易実装であり、**UI 表示とロジックの厳密分離までは未達**である。
+* Refactor `_cmd_system()`.
 
-## 修正方針
+* Do not directly rewrite the system prompt as `ctx.history[0]` or inject a `system` message at the front of history as the primary state model.
 
-* stdout / stderr / input source を injectable にし、CLI 実装を terminal adapter へ寄せる。
-* progress 表示は renderer 抽象化を導入する。
+* The current design mixes:
+  * the true system prompt
+  * memory injection messages
+  * compression summary messages
+    under the same `role="system"` representation.
 
-# `repl.py`
+* This makes the assumption “the first system message is the actual system prompt” fragile.
 
-## 改善点
+* Store the system prompt in dedicated state.
 
-* 現状は Coordinator として薄く整理されているが、`SQLiteHelper`, `Logger`, health check, watchdog 起動まで抱えるため、**bootstrap 層として他の起動責務をさらに分離可能**である。
+* Project it into history only at render/build time.
 
-## 修正方針
+* Refactor `/db` commands.
 
-* `AgentBootstrap` のような起動専用層を設け、REPL 本体は入出力ループのみに寄せる。
+* Do not expose `SQLiteHelper` and `db.maintenance` directly from `CommandRegistry`.
 
-# `repl_debug.py`
+* Introduce a DB administration service that centralizes:
+  * permission boundaries
+  * dry-run support
+  * structured result reporting
 
-## 改善点
+***
 
-* pure helper 化されており方向性はよいが、RAG debug builder と two-stage context detection が同居しており、**用途別モジュール分離の余地**がある。
+## `agent/commands/cmd_ingest.py`
 
-## 修正方針
+* Refactor `_cmd_compact()`.
 
-* `rag_debug.py` と `context_detection.py` へ分割する。
+* Do not force compression by temporarily setting `ctx.services.hist_mgr._char_limit = 0`.
 
-# `repl_tool_exec.py`
+* This directly depends on a private implementation detail.
 
-**重要度: High**
+* Add a public API such as `HistoryManager.force_compress()`.
 
-## 改善点
+* Do not let external callers mutate internal state just to force behavior.
 
-* 実体を `tool_approval.py`, `tool_audit.py`, `tool_policy.py`, `tool_result_formatter.py`, `tool_runner.py` へ分離した点はよいが、**re-export による後方互換層がそのまま public API を支配**している。
-* テスト互換のため private alias を多数 export しており、**内部 API と外部 API の境界が曖昧**である。
+* Split `_cmd_ingest()` by concern.
 
-## 修正方針
+* It currently handles both:
+  * crawl/split/ingest orchestration
+  * CLI output/rendering
 
-* テスト側 import を新モジュール構成へ更新し、alias export を段階的に削除する。
-* public API を `tool_runner` 系の明示 export のみに縮小する。
+* Separate the ingest workflow service from the CLI command layer.
+
+* Return structured stage-aware failures from the ingest workflow.
+
+* Make it explicit which stage failed:
+  * crawl
+  * split
+  * ingest
+
+* Refactor `_cmd_export()`.
+
+* Do not keep all of the following in a single function:
+  * format selection
+  * rendering
+  * stdout emission
+  * file writing
+
+* Separate renderer and writer responsibilities so future export targets and formats can grow without making the command handler monolithic.
+
+***
+
+## `agent/commands/cmd_rag.py`
+
+* Rename and split this module.
+
+* The current filename is `cmd_rag.py`, but its responsibilities include:
+  * tool result inspection
+  * notes
+  * plan mode
+  * debug handling
+  * export rendering
+
+* These are not RAG-specific concerns.
+
+* Align file names with actual responsibilities.
+
+* Consider splitting into modules such as:
+  * `cmd_tooling.py`
+  * `cmd_notes.py`
+  * `cmd_debug.py`
+
+* Refactor `_cmd_debug()`.
+
+* Do not keep the following in one command handler:
+  * audit log tail display
+  * logger level switching
+  * debug mode toggle
+
+* The boundary between observability functions and UI/debug convenience features is currently unclear.
+
+* Split these into separate commands or separate services.
+
+* Refactor `_tool_show()` and `_tool_list()`.
+
+* Do not tightly couple tool result store access with presentation formatting.
+
+* Separate renderer responsibilities now so that future support for:
+  * large result rendering
+  * JSON output
+  * alternative display backends
+    remains straightforward.
+
+***
+
+## `agent/commands/cmd_memory.py`
+
+* Remove direct dependence on `MemoryLayer` internals.
+
+* Do not access private attributes such as:
+  * `layer._store.search_by_type()`
+  * `layer._retriever.search()`
+  * `layer._store.get_by_id()`
+  * `layer._store.pin()`
+
+* `MemoryLayer` must act as a proper façade.
+
+* Add explicit public APIs on `MemoryLayer` and route all command-layer operations through those APIs.
+
+* Refactor `_memory_prune()`.
+
+* Do not call `SQLiteHelper("session")` and `db.maintenance.prune_old_memories()` directly from the command layer.
+
+* This spreads consistency responsibilities across:
+  * the JSONL source of truth
+  * the SQLite secondary store
+  * in-memory statistics/state
+
+* Unify pruning behind a public memory service API.
+
+* Unify permission, consistency, and result contracts across `/memory` commands.
+
+* Right now, display, search, delete, and pin operations are handled inconsistently.
+
+* In particular, `delete`, `prune`, and `pin` are state-changing operations.
+
+* Standardize the following across them:
+  * audit logging
+  * dry-run support
+  * result types / structured outcomes
+
+* The current combination of `print()` and partial `logger.info()` is too weak as an operation audit trail.
+
+***
+
+## `agent/commands/cmd_session.py`
+
+* Remove hidden title-generation policy from module-level constants.
+
+* Do not keep `_TITLE_TEMPERATURE = 0.1` and `_TITLE_MAX_TOKENS = 20` as fixed internal constants without configuration support.
+
+* Title generation is user-visible behavior and should not be governed by hidden LLM policy.
+
+* Move these settings into:
+  * dedicated config, or
+  * a dedicated title generation service
+
+* Formalize session lifecycle as an explicit service contract.
+
+* Keeping restore/delete/load inside one mixin is acceptable, but consistency across the following is critical:
+  * history restoration
+  * system prompt restoration
+  * memory injection interaction
+  * statistics reset behavior
+
+* Make session lifecycle semantics explicit rather than relying on scattered command behavior.
+
+***
+
+## General Refactoring Rules
+
+* Keep command handlers thin.
+* Move application logic into services.
+* Move formatting into renderers.
+* Do not let commands mutate private service state.
+* Prefer explicit APIs, explicit contracts, and typed result models.
+* Avoid hidden cross-mixin dependencies and avoid relying on implementation details of other modules.
+* When a command changes persistent or session state, ensure:
+  * consistent auditing
+  * structured result reporting
+  * well-defined rollback or compensation behavior where relevant.

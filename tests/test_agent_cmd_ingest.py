@@ -1,0 +1,131 @@
+"""
+tests/test_agent_cmd_ingest.py
+Behavior-lock tests for _IngestMixin: _cmd_export, _cmd_compact, _cmd_ingest.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
+
+from agent.commands.cmd_ingest import _IngestMixin
+
+# ── Test harness ──────────────────────────────────────────────────────────────
+
+
+class _FakeCmd(_IngestMixin):
+    def __init__(self, ctx: Any) -> None:
+        self._ctx = ctx
+
+
+def _make_ctx() -> MagicMock:
+    ctx = MagicMock()
+    ctx.history = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "hello"},
+        {"role": "assistant", "content": "world"},
+    ]
+    ctx.services.hist_mgr = None
+    return ctx
+
+
+# ── _cmd_export ───────────────────────────────────────────────────────────────
+
+
+class TestCmdExport:
+    def test_export_md_to_stdout(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        cmd._cmd_export("")
+        out = capsys.readouterr().out
+        assert "hello" in out or "world" in out  # content rendered
+
+    def test_export_json_to_stdout(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        cmd._cmd_export("json")
+        out = capsys.readouterr().out
+        assert '"role"' in out or "role" in out
+
+    def test_export_to_file(self, tmp_path: Any, capsys: Any) -> None:
+        ctx = _make_ctx()
+        outfile = str(tmp_path / "out.md")
+        cmd = _FakeCmd(ctx)
+        cmd._cmd_export(f"md {outfile}")
+        out = capsys.readouterr().out
+        assert "Exported" in out
+        content = (tmp_path / "out.md").read_text()
+        assert "hello" in content or "world" in content
+
+
+# ── _cmd_compact ──────────────────────────────────────────────────────────────
+
+
+class TestCmdCompact:
+    def test_compact_calls_force_compress(self) -> None:
+        ctx = _make_ctx()
+        hist_mgr = MagicMock()
+        hist_mgr.compress_turns = 2
+        compressed = [
+            {"role": "system", "content": "sys"},
+            {"role": "user", "content": "summary"},
+        ]
+        hist_mgr.force_compress = AsyncMock(return_value=compressed)
+        ctx.services.hist_mgr = hist_mgr
+        # compress_turns=2 → n_compress=4; need >4 non-system messages
+        ctx.history = [
+            {"role": "system", "content": "sys"},
+            {"role": "user", "content": "u1"},
+            {"role": "assistant", "content": "a1"},
+            {"role": "user", "content": "u2"},
+            {"role": "assistant", "content": "a2"},
+            {"role": "user", "content": "u3"},
+        ]
+        cmd = _FakeCmd(ctx)
+        asyncio.run(cmd._cmd_compact())
+        hist_mgr.force_compress.assert_called_once()
+        assert ctx.history == compressed
+
+    def test_compact_no_hist_mgr_prints_unavailable(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        ctx.services.hist_mgr = None
+        cmd = _FakeCmd(ctx)
+        asyncio.run(cmd._cmd_compact())
+        out = capsys.readouterr().out
+        assert "not available" in out
+
+    def test_compact_history_too_short_prints_message(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        hist_mgr = MagicMock()
+        hist_mgr.compress_turns = 4
+        ctx.services.hist_mgr = hist_mgr
+        # history has only 2 turn messages (< compress_turns * 2 = 8)
+        ctx.history = [
+            {"role": "system", "content": "sys"},
+            {"role": "user", "content": "u1"},
+            {"role": "assistant", "content": "a1"},
+        ]
+        cmd = _FakeCmd(ctx)
+        asyncio.run(cmd._cmd_compact())
+        out = capsys.readouterr().out
+        assert "Nothing to compact" in out
+
+
+# ── _cmd_ingest ───────────────────────────────────────────────────────────────
+
+
+class TestCmdIngest:
+    def test_ingest_no_args_prints_usage(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        asyncio.run(cmd._cmd_ingest(""))
+        out = capsys.readouterr().out
+        assert "Usage" in out
+
+    def test_ingest_missing_local_file_prints_error(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        asyncio.run(cmd._cmd_ingest("/nonexistent/path/file.md"))
+        out = capsys.readouterr().out
+        assert "not found" in out or "error" in out.lower()

@@ -6,17 +6,11 @@ Provides _NotesMixin with:
   _cmd_note  — /note: add/list/delete persistent notes
 """
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from agent.context import AgentContext
+from agent.commands.mixin_base import MixinBase
 
 
-class _NotesMixin:
+class _NotesMixin(MixinBase):
     """Persistent notes slash-command handlers."""
-
-    if TYPE_CHECKING:
-        _ctx: "AgentContext"
 
     def _note_add(self, text: str) -> None:
         """Add a new persistent note."""

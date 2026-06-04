@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from shared.config_loader import ConfigLoader
 
+from agent.commands.mixin_base import MixinBase
 from db.helper import SQLiteHelper
 
 if TYPE_CHECKING:
@@ -25,11 +26,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class _ConfigMixin:
+class _ConfigMixin(MixinBase):
     """Configuration and statistics slash-command handlers."""
-
-    if TYPE_CHECKING:
-        _ctx: "AgentContext"
 
     def _collect_stats(self) -> dict[str, Any]:
         """Collect session statistics from ctx and services into a plain dict."""
@@ -216,205 +214,6 @@ class _ConfigMixin:
         print()
         self._print_rag_config()
 
-    def _apply_config_params(self, new_cfg: dict[str, Any]) -> None:
-        """Update ctx.cfg from new_cfg and sync values to all components."""
-        ctx = self._ctx
-        self._apply_rag_tool_params(ctx, new_cfg)
-        self._reload_approval_settings(ctx, new_cfg)
-        ctx.cfg.tool.masked_fields = list(
-            new_cfg.get("masked_fields", ["file_content"])
-        )
-        self._apply_mcp_url_reload(ctx, new_cfg)
-        self._apply_llm_prompt_params(ctx, new_cfg)
-        self._apply_sse_reload_params(ctx, new_cfg)
-        self._sync_services_to_cfg(ctx, new_cfg)
-
-    def _apply_rag_tool_params(
-        self,
-        ctx: "AgentContext",
-        new_cfg: dict[str, Any],
-    ) -> None:
-        """Apply tool cache, LLM retry, refiner, and watchdog settings."""
-        ctx.cfg.llm.context_char_limit = int(new_cfg.get("context_char_limit", 8000))
-        ctx.cfg.llm.context_compress_turns = int(
-            new_cfg.get("context_compress_turns", 4)
-        )
-        ctx.cfg.tool.tool_cache_ttl = float(new_cfg.get("tool_cache_ttl", 300))
-        ctx.cfg.rag.top_k_search = int(new_cfg.get("top_k_search", 20))
-        ctx.cfg.rag.top_k_rerank = int(new_cfg.get("top_k_rerank", 15))
-        ctx.cfg.llm.llm_max_retries = int(new_cfg.get("llm_max_retries", 3))
-        ctx.cfg.llm.llm_retry_base_delay = float(
-            new_cfg.get("llm_retry_base_delay", 1.0)
-        )
-        ctx.cfg.rag.max_chunks_per_doc = int(new_cfg.get("max_chunks_per_doc", 2))
-        ctx.cfg.tool.serial_tool_calls = bool(new_cfg.get("serial_tool_calls", False))
-        ctx.cfg.tool.auto_inject_notes = bool(new_cfg.get("auto_inject_notes", True))
-        ctx.cfg.tool.use_tool_summarize = bool(new_cfg.get("use_tool_summarize", False))
-        ctx.cfg.tool.tool_summarize_threshold = int(
-            new_cfg.get("tool_summarize_threshold", 3000),
-        )
-        ctx.cfg.rag.use_semantic_cache = bool(new_cfg.get("use_semantic_cache", False))
-        ctx.cfg.rag.semantic_cache_threshold = float(
-            new_cfg.get("semantic_cache_threshold", 0.92),
-        )
-        ctx.cfg.rag.semantic_cache_max_size = int(
-            new_cfg.get("semantic_cache_max_size", 100),
-        )
-        ctx.cfg.tool.tool_definitions_strict = bool(
-            new_cfg.get("tool_definitions_strict", False),
-        )
-        ctx.cfg.mcp.mcp_watchdog_interval = float(
-            new_cfg.get("mcp_watchdog_interval", 0.0)
-        )
-        ctx.cfg.mcp.mcp_watchdog_max_restarts = int(
-            new_cfg.get("mcp_watchdog_max_restarts", 3),
-        )
-        ctx.cfg.tool.plan_blocked_tools = list(
-            new_cfg.get(
-                "plan_blocked_tools",
-                ["write_file", "create_directory", "delete_file", "delete_directory"],
-            ),
-        )
-        ctx.cfg.rag.use_refiner = bool(new_cfg.get("use_refiner", False))
-        ctx.cfg.rag.refiner_max_tokens = int(new_cfg.get("refiner_max_tokens", 512))
-        ctx.cfg.rag.refiner_timeout = float(new_cfg.get("refiner_timeout", 30.0))
-        ctx.cfg.rag.refiner_max_chars_per_chunk = int(
-            new_cfg.get("refiner_max_chars_per_chunk", 300),
-        )
-
-    def _apply_mcp_url_reload(
-        self,
-        ctx: "AgentContext",
-        new_cfg: dict[str, Any],
-    ) -> None:
-        """Update HTTP MCP server URLs from reloaded config; transport type changes require restart."""
-        from agent.config import _build_mcp_servers  # noqa: PLC0415
-
-        new_mcp = _build_mcp_servers(new_cfg)
-        for key, new_srv in new_mcp.items():
-            old_srv = ctx.cfg.mcp.mcp_servers.get(key)
-            if old_srv and old_srv.transport == "http" and new_srv.transport == "http":
-                old_srv.url = new_srv.url
-                old_srv.openrc_service = new_srv.openrc_service
-
-    def _apply_llm_prompt_params(
-        self,
-        ctx: "AgentContext",
-        new_cfg: dict[str, Any],
-    ) -> None:
-        """Apply hot-reloadable URL, HTTP, LLM generation, tool definition, and prompt settings."""
-        ctx.cfg.llm.llm_temperature = float(new_cfg.get("llm_temperature", 0.2))
-        ctx.cfg.llm.llm_max_tokens = int(new_cfg.get("llm_max_tokens", 1024))
-        ctx.cfg.llm.llm_url = new_cfg.get("llm_url", ctx.cfg.llm.llm_url)
-        ctx.cfg.mcp.github_url = new_cfg.get(
-            "github_server_url", ctx.cfg.mcp.github_url
-        )
-        ctx.cfg.rag.web_search_url = new_cfg.get(
-            "web_search_url", ctx.cfg.rag.web_search_url
-        )
-        ctx.cfg.rag.embed_url = new_cfg.get("embed_url", ctx.cfg.rag.embed_url)
-        ctx.cfg.llm.http_timeout = float(
-            new_cfg.get("http_timeout", ctx.cfg.llm.http_timeout)
-        )
-        ctx.cfg.rag.web_search_max_results = int(
-            new_cfg.get("web_search_max_results", ctx.cfg.rag.web_search_max_results),
-        )
-        ctx.cfg.tool.max_tool_turns = int(
-            new_cfg.get("max_tool_turns", ctx.cfg.tool.max_tool_turns),
-        )
-        ctx.cfg.tool.tool_result_max_llm_chars = int(
-            new_cfg.get(
-                "tool_result_max_llm_chars", ctx.cfg.tool.tool_result_max_llm_chars
-            ),
-        )
-        if new_cfg.get("tool_definitions"):
-            ctx.cfg.tool.tool_definitions = list(new_cfg["tool_definitions"])
-        system_prompt_tool = new_cfg.get("system_prompt_tool", "")
-        if system_prompt_tool:
-            ctx.cfg.tool.system_prompt_tool = system_prompt_tool
-        if new_cfg.get("system_prompts"):
-            ctx.cfg.tool.system_prompts = dict(new_cfg["system_prompts"])
-
-    def _apply_sse_reload_params(
-        self,
-        ctx: "AgentContext",
-        new_cfg: dict[str, Any],
-    ) -> None:
-        """Apply SSE stream resilience settings."""
-        ctx.cfg.llm.sse_heartbeat_timeout = float(
-            new_cfg.get("sse_heartbeat_timeout", ctx.cfg.llm.sse_heartbeat_timeout),
-        )
-        ctx.cfg.llm.sse_malformed_retry = int(
-            new_cfg.get("sse_malformed_retry", ctx.cfg.llm.sse_malformed_retry),
-        )
-        ctx.cfg.llm.sse_reconnect_max = int(
-            new_cfg.get("sse_reconnect_max", ctx.cfg.llm.sse_reconnect_max),
-        )
-        ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout = bool(
-            new_cfg.get(
-                "llm_stream_retry_on_heartbeat_timeout",
-                ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout,
-            ),
-        )
-        ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = bool(
-            new_cfg.get(
-                "llm_stream_retry_on_malformed_chunk",
-                ctx.cfg.llm.llm_stream_retry_on_malformed_chunk,
-            ),
-        )
-
-    def _reload_approval_settings(
-        self,
-        ctx: "AgentContext",
-        new_cfg: dict[str, Any],
-    ) -> None:
-        """Update approval-related list/dict fields in ctx.cfg when present in new_cfg."""
-        if "approval_risk_rules" in new_cfg:
-            ctx.cfg.approval.approval_risk_rules = dict(new_cfg["approval_risk_rules"])
-        if "approval_protected_paths" in new_cfg:
-            ctx.cfg.approval.approval_protected_paths = list(
-                new_cfg["approval_protected_paths"]
-            )
-        if "approval_high_risk_branches" in new_cfg:
-            ctx.cfg.approval.approval_high_risk_branches = list(
-                new_cfg["approval_high_risk_branches"],
-            )
-        if "approval_shell_safe_prefixes" in new_cfg:
-            ctx.cfg.approval.approval_shell_safe_prefixes = list(
-                new_cfg["approval_shell_safe_prefixes"],
-            )
-        if "approval_resource_keys" in new_cfg:
-            ctx.cfg.approval.approval_resource_keys = dict(
-                new_cfg["approval_resource_keys"]
-            )
-        if "approval_dry_run_tools" in new_cfg:
-            ctx.cfg.approval.approval_dry_run_tools = list(
-                new_cfg["approval_dry_run_tools"]
-            )
-        if "tool_safety_tiers" in new_cfg:
-            ctx.cfg.approval.tool_safety_tiers = dict(new_cfg["tool_safety_tiers"])
-        ctx.cfg.approval.allowed_root = new_cfg.get(
-            "allowed_root", ctx.cfg.approval.allowed_root
-        )
-        if "approval_github_allowed_repos" in new_cfg:
-            ctx.cfg.approval.approval_github_allowed_repos = list(
-                new_cfg["approval_github_allowed_repos"],
-            )
-        if "allowed_tools" in new_cfg:
-            ctx.cfg.tool.allowed_tools = list(new_cfg["allowed_tools"])
-        if "memory_retention_days" in new_cfg:
-            ctx.cfg.memory.memory_retention_days = int(new_cfg["memory_retention_days"])
-
-    def _sync_services_to_cfg(
-        self,
-        ctx: "AgentContext",
-        new_cfg: dict[str, Any],
-    ) -> None:
-        """Propagate updated cfg fields to live service instances via public apply_config() APIs."""
-        from agent.services.config_reload import ConfigReloadService  # noqa: PLC0415
-
-        ConfigReloadService(ctx).sync_services(new_cfg)
-
     def _set_temperature(self, ctx: "AgentContext", value_str: str) -> None:
         """Parse and apply llm_temperature from value_str."""
         try:
@@ -480,10 +279,14 @@ class _ConfigMixin:
         Updates ctx.cfg fields and syncs them to each component so changes
         take effect immediately without restarting the agent.
         """
+        from agent.services.config_reload import ConfigReloadService  # noqa: PLC0415
+
         try:
             new_cfg = ConfigLoader().load("common.toml", "agent.toml")
-            self._apply_config_params(new_cfg)
+            result = ConfigReloadService(self._ctx).apply_config_dict(new_cfg)
             logger.info("Config reloaded")
+            if result.needs_restart:
+                print(f"Restart required for: {', '.join(result.needs_restart)}")
             print("Config reloaded.")
         except Exception as e:
             logger.warning(f"Config reload failed: {e}")

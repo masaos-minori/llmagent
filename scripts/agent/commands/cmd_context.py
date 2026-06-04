@@ -13,12 +13,16 @@ Also defines _budget_breakdown (re-exported by registry.py).
 DB commands (_cmd_db / _db_*) live in cmd_db.py (_DbMixin).
 """
 
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING
 
 import orjson
 from shared.git_helper import get_repo_info
 from shared.types import LLMMessage
+
+from agent.commands.mixin_base import MixinBase
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -54,7 +58,7 @@ def _budget_breakdown(messages: list[LLMMessage]) -> dict[str, int]:
     return counts
 
 
-def _format_memory_status(ctx: "AgentContext") -> str:
+def _format_memory_status(ctx: AgentContext) -> str:
     """Return a one-line summary of the memory layer state."""
     if ctx.services.memory is None:
         return "disabled"
@@ -77,13 +81,10 @@ def _token_source_label(token_is_exact: bool, tokenize_configured: bool) -> str:
     return "chars/4"
 
 
-class _ContextMixin:
+class _ContextMixin(MixinBase):
     """Context, history, and database slash-command handlers."""
 
-    if TYPE_CHECKING:
-        _ctx: "AgentContext"
-
-    def _collect_context_state(self, ctx: "AgentContext") -> dict:
+    def _collect_context_state(self, ctx: AgentContext) -> dict:
         """Collect runtime context state into a plain dict for display."""
         total_chars = (
             ctx.services.hist_mgr.count_chars(ctx.history)
@@ -113,7 +114,7 @@ class _ContextMixin:
             "token_is_exact": token_is_exact,
             "token_estimate": token_estimate,
             "token_limit": ctx.cfg.llm.context_token_limit,
-            "tokenize_configured": bool(getattr(ctx.cfg, "tokenize_url", "")),
+            "tokenize_configured": bool(ctx.cfg.llm.tokenize_url),
             "mem_status": _format_memory_status(ctx),
             "git_str": (
                 f"{git_info['branch']} @ {git_info['commit']} {git_info['message']}"
@@ -177,13 +178,7 @@ class _ContextMixin:
         """
         ctx = self._ctx
         ctx.history = ctx.history[:1]
-        ctx.stat_turns = 0
-        ctx.stat_tool_calls = 0
-        ctx.stat_tool_errors = 0
-        ctx.stat_latency = {}
-        ctx.stat_semantic_cache_hits = 0
-        if ctx.services.llm is not None:
-            ctx.services.llm.stat_retries = 0
+        self._reset_session_stats(ctx)
         if "new" in args.split():
             ctx.session.start()
             print("History cleared. New session started.")
@@ -215,7 +210,7 @@ class _ContextMixin:
         removed = len(ctx.history) - cut_idx
         ctx.history = ctx.history[:cut_idx]
         ctx.stat_turns = max(0, ctx.stat_turns - 1)
-        ctx.session.delete_last_turn()
+        ctx.session.undo_last_turn()
         logger.info(f"Undo: removed {removed} messages from history")
         print("Last turn undone.")
 

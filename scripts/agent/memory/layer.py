@@ -170,6 +170,21 @@ class MemoryLayer:
             logger.warning("MemoryLayer.prune failed: %s", e)
             return 0
 
+    def count_prunable(self, days: int) -> int:
+        """Return count of entries older than `days` days without deleting."""
+        from db.helper import SQLiteHelper  # noqa: PLC0415
+
+        try:
+            with SQLiteHelper("session").open() as db:
+                row = db.fetchall(
+                    "SELECT COUNT(*) FROM memories WHERE created_at < datetime('now', ?)",
+                    (f"-{days} days",),
+                )
+                return int(row[0][0]) if row else 0
+        except Exception as e:
+            logger.warning("MemoryLayer.count_prunable failed: %s", e)
+            return 0
+
     # ── Search / store accessor ───────────────────────────────────────────────
 
     def search(self, query: str, limit: int = 10) -> list[MemoryHit]:

@@ -8,19 +8,14 @@ Provides _DebugMixin with:
 
 import logging
 import pathlib
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from agent.context import AgentContext
+from agent.commands.mixin_base import MixinBase
 
 logger = logging.getLogger(__name__)
 
 
-class _DebugMixin:
+class _DebugMixin(MixinBase):
     """Debug-mode slash-command handlers."""
-
-    if TYPE_CHECKING:
-        _ctx: "AgentContext"
 
     def _cmd_debug(self, args: str = "") -> None:
         """Toggle RAG debug output, or show audit log tail with '/debug audit'."""
