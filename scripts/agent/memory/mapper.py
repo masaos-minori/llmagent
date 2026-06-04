@@ -6,6 +6,7 @@ Used by both store.py (Row objects) and retriever.py (dict rows).
 
 from __future__ import annotations
 
+import sqlite3
 from typing import Any
 
 import orjson
@@ -13,7 +14,7 @@ import orjson
 from agent.memory.types import MemoryEntry, SourceType
 
 
-def row_to_entry(row: Any) -> MemoryEntry:
+def row_to_entry(row: sqlite3.Row | dict[str, Any]) -> MemoryEntry:
     """Convert a sqlite3.Row or dict to MemoryEntry.
 
     Accepts sqlite3.Row (supports dict(row)) or plain dict.

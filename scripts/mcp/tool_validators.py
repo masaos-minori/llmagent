@@ -22,7 +22,9 @@ _VALIDATORS: dict[str, Callable[[dict[str, Any]], None]] = {}
 def register_validator(tool_name: str) -> Callable:
     """Decorator that registers a validator function for tool_name."""
 
-    def decorator(fn: Callable[[dict[str, Any]], None]) -> Callable[[dict[str, Any]], None]:
+    def decorator(
+        fn: Callable[[dict[str, Any]], None],
+    ) -> Callable[[dict[str, Any]], None]:
         _VALIDATORS[tool_name] = fn
         return fn
 

@@ -199,19 +199,19 @@ server = MdqMCPServer()
 
 
 @app.get("/health")
-async def health():
+async def health() -> dict[str, str]:
     """Health check endpoint."""
     return server.health()
 
 
 @app.get("/v1/tools")
-async def list_tools():
+async def list_tools() -> dict[str, list[str]]:
     """List available tools."""
     return {"tools": server.list_tools()}
 
 
 @app.post("/v1/call_tool")
-async def call_tool(request: CallToolRequest):
+async def call_tool(request: CallToolRequest) -> CallToolResponse:
     """Call a tool by name with arguments."""
     result_text, is_error = await server.dispatch(request.name, request.args)
     return CallToolResponse(result=result_text, is_error=is_error)

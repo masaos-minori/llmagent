@@ -20,30 +20,16 @@ import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from shared.config_loader import ConfigLoader
 
 from db.helper import SQLiteHelper
+from db.store import SQLiteMemoryDeleteStore
 
 logger = logging.getLogger(__name__)
 
-_cfg: dict[str, Any] | None = None
 
-
-def _get_cfg() -> dict[str, Any]:
-    """Load config on first call; cached for the module lifetime."""
-    global _cfg
-    if _cfg is None:
-        try:
-            _cfg = ConfigLoader().load("common.toml")
-        except Exception as e:
-            logger.warning(f"Config load failed: {e}")
-            _cfg = {}
-    return _cfg
-
-
-# ── Policy dataclass ───────────────────────────────────────────────────────────
+# ── Policy dataclasses ─────────────────────────────────────────────────────────
 
 
 @dataclass(frozen=True)
@@ -56,11 +42,25 @@ class RetentionConfig:
     @classmethod
     def from_config(cls) -> "RetentionConfig":
         """Construct from common.toml values."""
-        cfg = _get_cfg()
+        try:
+            cfg = ConfigLoader().load("common.toml")
+        except Exception as e:
+            logger.warning(f"Config load failed: {e}")
+            cfg = {}
         return cls(
             max_sessions=int(cfg.get("sqlite_retention_max_sessions", 100)),
             max_age_days=int(cfg.get("sqlite_retention_max_age_days", 90)),
         )
+
+
+@dataclass(frozen=True)
+class RecoveryResult:
+    """Structured result of a corruption recovery attempt."""
+
+    success: bool
+    action: str
+    detail: str | None = None
+    dry_run: bool = False
 
 
 # ── Maintenance operations ─────────────────────────────────────────────────────
@@ -69,7 +69,12 @@ class RetentionConfig:
 def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> dict[str, int]:
     """Flush the WAL file and return checkpoint counters; mode defaults to sqlite_wal_checkpoint_mode (TRUNCATE); raises ValueError for unknown mode."""
     if mode is None:
-        mode = _get_cfg().get("sqlite_wal_checkpoint_mode", "TRUNCATE").upper()
+        try:
+            cfg = ConfigLoader().load("common.toml")
+        except Exception as e:
+            logger.warning(f"Config load failed: {e}")
+            cfg = {}
+        mode = cfg.get("sqlite_wal_checkpoint_mode", "TRUNCATE").upper()
     return db.checkpoint(mode)
 
 
@@ -106,7 +111,7 @@ def purge_old_sessions(
         to_delete = [row[0] for row in rows[cfg.max_sessions :]]
         placeholders = ",".join("?" * len(to_delete))
         cur = db.execute(
-            f"DELETE FROM sessions WHERE session_id IN ({placeholders})",
+            f"DELETE FROM sessions WHERE session_id IN ({placeholders})",  # nosec B608 — placeholders is "?" * n, not user input
             tuple(to_delete),
         )
         count_deleted = cur.rowcount
@@ -120,32 +125,19 @@ def purge_old_sessions(
 
 
 def prune_old_memories(db: SQLiteHelper, older_than_days: int) -> int:
-    """Delete memories older than older_than_days; return count deleted."""
-    rows = db.fetchall(
-        "SELECT memory_id FROM memories WHERE created_at < datetime('now', ?)",
-        (f"-{older_than_days} days",),
-    )
-    if not rows:
-        return 0
-    mids = [row[0] for row in rows]
-    placeholders = ",".join("?" * len(mids))
-    cur = db.execute(
-        f"DELETE FROM memories WHERE memory_id IN ({placeholders})",  # nosec B608 — mids are UUIDs; placeholders use ?
-        tuple(mids),
-    )
-    for mid in mids:
-        db.execute("DELETE FROM memories_fts WHERE memory_id=?", (mid,))
-        try:
-            db.execute("DELETE FROM memories_vec WHERE memory_id=?", (mid,))
-        except Exception as e:  # noqa: BLE001 — memories_vec may not exist in older DB schemas; suppress silently
-            logger.debug(f"memories_vec delete skipped for {mid!r}: {e}")
-    deleted = cur.rowcount
-    db.commit()
+    """Delete memories older than older_than_days via SQLiteMemoryDeleteStore; return count deleted."""
+    store = SQLiteMemoryDeleteStore(db)
+    result = store.delete_memories_before(older_than_days)
+    if result.vec_skipped:
+        logger.warning(
+            "prune_old_memories: memories_vec deletion failed",
+            extra={"error": result.vec_error, "days": older_than_days},
+        )
     logger.info(
-        f"prune_old_memories: removed {deleted} entries"
+        f"prune_old_memories: removed {result.deleted} entries"
         f" older than {older_than_days} days",
     )
-    return deleted
+    return result.deleted
 
 
 def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
@@ -154,7 +146,11 @@ def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
         raise FileNotFoundError(f"DB file not found: {db_path}")
 
     if archive_dir is None:
-        archive_dir = _get_cfg().get("sqlite_archive_dir", "/opt/llm/db/archive")
+        try:
+            cfg = ConfigLoader().load("common.toml")
+        except Exception:
+            cfg = {}
+        archive_dir = cfg.get("sqlite_archive_dir", "/opt/llm/db/archive")
 
     dest_dir = Path(archive_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -192,8 +188,19 @@ def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]:
     return rag_dest, ses_dest
 
 
-def recover_corruption(backup_path: str | Path | None = None) -> bool:
-    """Detect and recover from corruption in rag.sqlite; passes integrity_check → VACUUM → True; fails → archives corrupt file and restores from backup_path."""
+def recover_corruption(
+    backup_path: str | Path | None = None,
+    *,
+    dry_run: bool = False,
+) -> RecoveryResult:
+    """Detect and recover from corruption in rag.sqlite; returns RecoveryResult with action and detail.
+
+    action values:
+      "vacuum"    — integrity ok; VACUUM executed (or skipped in dry_run)
+      "restored"  — integrity failed; DB restored from backup_path
+      "no_backup" — integrity failed; no usable backup_path
+      "error"     — could not open DB or OS-level failure
+    """
     SQLiteHelper._ensure_config()
     db_path = Path(SQLiteHelper._RAG_PATH)
 
@@ -201,30 +208,51 @@ def recover_corruption(backup_path: str | Path | None = None) -> bool:
         with SQLiteHelper("rag").open() as db:
             if db.conn is None:
                 raise RuntimeError("DB connection not established after open()")
-            result = db.conn.execute("PRAGMA integrity_check").fetchone()[0]
+            check_result = db.conn.execute("PRAGMA integrity_check").fetchone()[0]
     except Exception as e:
         logger.error(f"Cannot open DB for integrity check: {e}")
-        return False
+        return RecoveryResult(
+            success=False, action="error", detail=str(e), dry_run=dry_run
+        )
 
-    if result == "ok":
+    if dry_run:
+        if check_result == "ok":
+            return RecoveryResult(
+                success=True,
+                action="vacuum",
+                detail="integrity ok (dry run)",
+                dry_run=True,
+            )
+        return RecoveryResult(
+            success=False,
+            action="error",
+            detail=f"integrity check failed: {check_result}",
+            dry_run=True,
+        )
+
+    if check_result == "ok":
         logger.info("Integrity check passed; running VACUUM")
         try:
             with SQLiteHelper("rag").open(write_mode=True) as db:
                 db.vacuum()
         except Exception as e:
             logger.warning(f"VACUUM after integrity check failed: {e}")
-        return True
+        return RecoveryResult(success=True, action="vacuum")
 
-    logger.error(f"Integrity check failed: {result}")
+    logger.error(f"Integrity check failed: {check_result}")
 
     if backup_path is None:
         logger.error("No backup_path provided — manual recovery required")
-        return False
+        return RecoveryResult(
+            success=False, action="no_backup", detail="no backup_path provided"
+        )
 
     backup = Path(backup_path)
     if not backup.exists():
         logger.error(f"Backup not found: {backup}")
-        return False
+        return RecoveryResult(
+            success=False, action="no_backup", detail=f"backup not found: {backup}"
+        )
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     corrupt_archive = db_path.with_name(f"{db_path.stem}_corrupt_{ts}{db_path.suffix}")
@@ -233,7 +261,7 @@ def recover_corruption(backup_path: str | Path | None = None) -> bool:
         logger.info(f"Corrupt DB archived: {corrupt_archive}")
         shutil.copy2(backup, db_path)
         logger.info(f"DB restored from backup: {backup}")
-        return True
+        return RecoveryResult(success=True, action="restored", detail=str(backup))
     except OSError as e:
         logger.error(f"Recovery failed: {e}")
-        return False
+        return RecoveryResult(success=False, action="error", detail=str(e))

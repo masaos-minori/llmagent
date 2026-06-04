@@ -2,8 +2,8 @@
 Unit tests for create_schema: create_rag_schema, create_session_schema, idempotency.
 
 vec0 virtual tables (chunks_vec, memory_vec) require the sqlite-vec extension.
-Those DDL statements are replaced with no-ops via monkeypatching so the tests
-run without the extension installed (R3 risk mitigation from 02_implement_plan.md).
+Those DDL statements are excluded by monkeypatching _build_*_schema_sql so the
+tests run without the extension installed (R3 risk mitigation from 02_implement_plan.md).
 """
 
 import sqlite3
@@ -17,6 +17,10 @@ from db.helper import SQLiteHelper
 
 # RAG schema without the vec0 virtual table (chunks_vec requires sqlite-vec).
 _RAG_SCHEMA_NO_VEC0 = """
+    CREATE TABLE IF NOT EXISTS schema_version (
+        version    INTEGER NOT NULL,
+        applied_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS documents (
         doc_id        INTEGER PRIMARY KEY AUTOINCREMENT,
         url           TEXT    NOT NULL UNIQUE,
@@ -42,8 +46,12 @@ _RAG_SCHEMA_NO_VEC0 = """
     );
 """
 
-# Session schema without the vec0 virtual table (memory_vec requires sqlite-vec).
+# Session schema without the vec0 virtual tables (memory_vec requires sqlite-vec).
 _SESSION_SCHEMA_NO_VEC0 = """
+    CREATE TABLE IF NOT EXISTS schema_version (
+        version    INTEGER NOT NULL,
+        applied_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS sessions (
         session_id INTEGER PRIMARY KEY AUTOINCREMENT,
         created_at TEXT    NOT NULL DEFAULT (datetime('now')),
@@ -99,9 +107,8 @@ def rag_tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> sqlite3.Conne
     db_file = tmp_path / "rag.sqlite"
     monkeypatch.setattr(SQLiteHelper, "_RAG_PATH", str(db_file))
     monkeypatch.setattr(SQLiteHelper, "_config_loaded", True)
-    # Replace RAG schema SQL to exclude chunks_vec (requires vec0 extension).
-    monkeypatch.setattr(cs, "_RAG_SCHEMA_SQL", _RAG_SCHEMA_NO_VEC0)
-    # Also replace migration SQL list to avoid vec0-dependent statements.
+    # Replace schema builder to exclude chunks_vec (requires vec0 extension).
+    monkeypatch.setattr(cs, "_build_rag_schema_sql", lambda dims: _RAG_SCHEMA_NO_VEC0)
     monkeypatch.setattr(cs, "_RAG_MIGRATE_SQL", [])
     with patch.object(SQLiteHelper, "_load_vec_extension", return_value=None):
         cs.create_rag_schema()
@@ -116,8 +123,10 @@ def session_tmp_db(
     db_file = tmp_path / "session.sqlite"
     monkeypatch.setattr(SQLiteHelper, "_SESSION_PATH", str(db_file))
     monkeypatch.setattr(SQLiteHelper, "_config_loaded", True)
-    # Replace session schema SQL to exclude memory_vec (requires vec0 extension).
-    monkeypatch.setattr(cs, "_SESSION_SCHEMA_SQL", _SESSION_SCHEMA_NO_VEC0)
+    # Replace schema builder to exclude memory_vec (requires vec0 extension).
+    monkeypatch.setattr(
+        cs, "_build_session_schema_sql", lambda dims: _SESSION_SCHEMA_NO_VEC0
+    )
     monkeypatch.setattr(cs, "_SESSION_MIGRATE_SQL", [])
     with patch.object(SQLiteHelper, "_load_vec_extension", return_value=None):
         cs.create_session_schema()
@@ -133,6 +142,9 @@ class TestCreateRagSchema:
 
     def test_creates_chunks_fts_table(self, rag_tmp_db: sqlite3.Connection) -> None:
         assert "chunks_fts" in _table_names(rag_tmp_db)
+
+    def test_creates_schema_version_table(self, rag_tmp_db: sqlite3.Connection) -> None:
+        assert "schema_version" in _table_names(rag_tmp_db)
 
     def test_documents_columns(self, rag_tmp_db: sqlite3.Connection) -> None:
         cols = {row[1] for row in rag_tmp_db.execute("PRAGMA table_info(documents)")}
@@ -152,7 +164,9 @@ class TestCreateRagSchema:
         db_file = tmp_path / "rag2.sqlite"
         monkeypatch.setattr(SQLiteHelper, "_RAG_PATH", str(db_file))
         monkeypatch.setattr(SQLiteHelper, "_config_loaded", True)
-        monkeypatch.setattr(cs, "_RAG_SCHEMA_SQL", _RAG_SCHEMA_NO_VEC0)
+        monkeypatch.setattr(
+            cs, "_build_rag_schema_sql", lambda dims: _RAG_SCHEMA_NO_VEC0
+        )
         monkeypatch.setattr(cs, "_RAG_MIGRATE_SQL", [])
         with patch.object(SQLiteHelper, "_load_vec_extension", return_value=None):
             cs.create_rag_schema()
@@ -179,6 +193,11 @@ class TestCreateSessionSchema:
     ) -> None:
         assert "memory_entries" in _table_names(session_tmp_db)
 
+    def test_creates_schema_version_table(
+        self, session_tmp_db: sqlite3.Connection
+    ) -> None:
+        assert "schema_version" in _table_names(session_tmp_db)
+
     def test_messages_has_tool_call_id(
         self, session_tmp_db: sqlite3.Connection
     ) -> None:
@@ -189,8 +208,35 @@ class TestCreateSessionSchema:
         db_file = tmp_path / "session2.sqlite"
         monkeypatch.setattr(SQLiteHelper, "_SESSION_PATH", str(db_file))
         monkeypatch.setattr(SQLiteHelper, "_config_loaded", True)
-        monkeypatch.setattr(cs, "_SESSION_SCHEMA_SQL", _SESSION_SCHEMA_NO_VEC0)
+        monkeypatch.setattr(
+            cs, "_build_session_schema_sql", lambda dims: _SESSION_SCHEMA_NO_VEC0
+        )
         monkeypatch.setattr(cs, "_SESSION_MIGRATE_SQL", [])
         with patch.object(SQLiteHelper, "_load_vec_extension", return_value=None):
             cs.create_session_schema()
             cs.create_session_schema()  # must not raise
+
+
+class TestRunMigrations:
+    def test_safe_errors_are_skipped(self) -> None:
+        """Duplicate column name (already-applied migration) is silently ignored."""
+        conn = sqlite3.connect(":memory:")
+        conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)")
+        conn.commit()
+
+        from unittest.mock import MagicMock
+
+        mock_db = MagicMock()
+        mock_db.execute.side_effect = Exception("duplicate column name: name")
+        # Should not raise despite the exception.
+        cs._run_migrations(mock_db, ["ALTER TABLE t ADD COLUMN name TEXT"])
+
+    def test_unsafe_errors_are_reraised(self) -> None:
+        """Non-safe migration errors are re-raised."""
+        from unittest.mock import MagicMock
+
+        mock_db = MagicMock()
+        mock_db.execute.side_effect = Exception("table t has no column named x")
+
+        with pytest.raises(Exception, match="table t has no column named x"):
+            cs._run_migrations(mock_db, ["ALTER TABLE t ADD COLUMN x TEXT"])

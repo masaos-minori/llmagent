@@ -14,12 +14,23 @@ import sys
 from shared.logger import Logger
 
 from db.helper import SQLiteHelper
+from db.store import get_embedding_dims
 
 # Entry script: use Logger with a dedicated log file.
 logger = Logger(__name__, "/opt/llm/logs/create_schema.log")
 
-# DDL for rag.sqlite: document storage and vector/FTS search.
-_RAG_SCHEMA_SQL: str = """
+# Migration DDL failures that are safe to ignore (already-applied statements).
+_SAFE_MIGRATION_ERRORS: tuple[str, ...] = (
+    "duplicate column name",  # ALTER TABLE ADD COLUMN already applied
+    "already exists",  # CREATE TRIGGER IF NOT EXISTS on an existing trigger
+)
+
+
+_RAG_SCHEMA_TEMPLATE: str = """
+    CREATE TABLE IF NOT EXISTS schema_version (
+        version    INTEGER NOT NULL,
+        applied_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS documents (
         doc_id        INTEGER PRIMARY KEY AUTOINCREMENT,
         url           TEXT    NOT NULL UNIQUE,
@@ -39,7 +50,7 @@ _RAG_SCHEMA_SQL: str = """
     );
     CREATE VIRTUAL TABLE IF NOT EXISTS chunks_vec USING vec0(
         chunk_id  INTEGER PRIMARY KEY,
-        embedding float[384]
+        embedding float[DIMS]
     );
     CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
         content,
@@ -70,8 +81,17 @@ _RAG_SCHEMA_SQL: str = """
     END;
 """
 
-# DDL for session.sqlite: conversation history, notes, tool results, memory.
-_SESSION_SCHEMA_SQL: str = """
+
+def _build_rag_schema_sql(dims: int) -> str:
+    """Return DDL for rag.sqlite with the given embedding dimension."""
+    return _RAG_SCHEMA_TEMPLATE.replace("DIMS", str(dims))
+
+
+_SESSION_SCHEMA_TEMPLATE: str = """
+    CREATE TABLE IF NOT EXISTS schema_version (
+        version    INTEGER NOT NULL,
+        applied_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS sessions (
         session_id INTEGER PRIMARY KEY AUTOINCREMENT,
         created_at TEXT    NOT NULL DEFAULT (datetime('now')),
@@ -113,7 +133,7 @@ _SESSION_SCHEMA_SQL: str = """
     );
     CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec USING vec0(
         entry_id  INTEGER PRIMARY KEY,
-        embedding float[384]
+        embedding float[DIMS]
     );
     CREATE TABLE IF NOT EXISTS memories (
         memory_id   TEXT PRIMARY KEY,
@@ -145,9 +165,15 @@ _SESSION_SCHEMA_SQL: str = """
     );
     CREATE VIRTUAL TABLE IF NOT EXISTS memories_vec USING vec0(
         memory_id TEXT PRIMARY KEY,
-        embedding float[384]
+        embedding float[DIMS]
     );
 """
+
+
+def _build_session_schema_sql(dims: int) -> str:
+    """Return DDL for session.sqlite with the given embedding dimension."""
+    return _SESSION_SCHEMA_TEMPLATE.replace("DIMS", str(dims))
+
 
 # ALTER TABLE migration statements for rag.sqlite.
 _RAG_MIGRATE_SQL: list[str] = [
@@ -220,25 +246,34 @@ _SESSION_MIGRATE_SQL: list[str] = [
     # Phase 2 persistent semantic memory: embedding index
     "CREATE VIRTUAL TABLE IF NOT EXISTS memories_vec USING vec0("
     "memory_id TEXT PRIMARY KEY, embedding float[384])",
+    # Drop legacy memory tables superseded by memories / memories_fts / memories_vec.
+    "DROP TABLE IF EXISTS memory_entries",
+    "DROP TABLE IF EXISTS memory_vec",
 ]
 
 
 def _run_migrations(db: SQLiteHelper, stmts: list[str]) -> None:
-    """Execute migration DDL statements; silently ignore column-already-exists errors."""
+    """Execute migration DDL; re-raise unexpected failures; silently skip known safe no-ops."""
     for stmt in stmts:
         try:
             db.execute(stmt)
-        except Exception as e:  # noqa: BLE001 — migration DDL may fail on already-applied statements (e.g. duplicate column); treat all as no-ops
-            logger.debug(f"Migration stmt skipped (already applied?): {e}")
+        except Exception as e:
+            msg = str(e).lower()
+            if any(safe in msg for safe in _SAFE_MIGRATION_ERRORS):
+                logger.debug(f"Migration stmt skipped (already applied): {e}")
+            else:
+                logger.error(f"Migration DDL failed: {e!r}")
+                raise
     db.commit()
 
 
 def create_rag_schema() -> None:
     """Create rag.sqlite tables, virtual tables, and triggers."""
+    dims = get_embedding_dims()
     with SQLiteHelper("rag").open(write_mode=True) as db:
         assert db.conn is not None
         try:
-            db.conn.executescript(_RAG_SCHEMA_SQL)
+            db.conn.executescript(_build_rag_schema_sql(dims))
         except Exception as e:
             logger.error(f"Failed to execute RAG schema DDL: {e}")
             raise
@@ -248,10 +283,11 @@ def create_rag_schema() -> None:
 
 def create_session_schema() -> None:
     """Create session.sqlite tables for conversations, notes, tool results, and memory."""
+    dims = get_embedding_dims()
     with SQLiteHelper("session").open(write_mode=True) as db:
         assert db.conn is not None
         try:
-            db.conn.executescript(_SESSION_SCHEMA_SQL)
+            db.conn.executescript(_build_session_schema_sql(dims))
         except Exception as e:
             logger.error(f"Failed to execute session schema DDL: {e}")
             raise

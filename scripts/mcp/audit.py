@@ -8,7 +8,7 @@ from typing import Any
 
 
 def _audit_log(
-    server_logger: Any,
+    server_logger: Any,  # logging.Logger or shared.logger.Logger (duck-type compatible)
     session_id: str,
     request_id: str,
     action: str,

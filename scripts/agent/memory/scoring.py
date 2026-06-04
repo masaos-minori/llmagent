@@ -22,7 +22,7 @@ class ScoringPolicy:
     rrf_k: int = 60
     # memory_type-specific recency window
     semantic_recency_days: float = 30.0  # semantic: long-term, 30 days
-    episodic_recency_days: float = 7.0   # episodic: short-term, 7 days
+    episodic_recency_days: float = 7.0  # episodic: short-term, 7 days
     # importance weight per memory_type
     semantic_importance_weight: float = 1.0
     episodic_importance_weight: float = 0.5

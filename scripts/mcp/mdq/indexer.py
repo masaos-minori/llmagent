@@ -97,7 +97,7 @@ class Indexer:
         """Calculate the MD5 hash of a file; returns empty string on error."""
         try:
             with open(file_path, "rb") as f:
-                file_hash = hashlib.md5()  # nosec B324 — MD5 used only for change detection, not security
+                file_hash = hashlib.md5(usedforsecurity=False)  # nosec B324 — change detection only
                 while chunk := f.read(8192):
                     file_hash.update(chunk)
                 return file_hash.hexdigest()
@@ -456,7 +456,7 @@ class Indexer:
                         FROM md_chunks c
                         JOIN md_documents d ON c.doc_id = d.doc_id
                         WHERE d.source_path IN ({placeholders})
-                    """,
+                    """,  # nosec B608 — placeholders is "?" * n, not user input
                         paths,
                     )
                 else:

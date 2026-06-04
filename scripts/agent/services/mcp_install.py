@@ -79,10 +79,14 @@ class CliInstallQA:
         if self._with_confd is not None:
             return self._with_confd
         raw = (
-            await asyncio.to_thread(
-                input, "Generate conf.d API key template? [y/N]: "
+            (
+                await asyncio.to_thread(
+                    input, "Generate conf.d API key template? [y/N]: "
+                )
             )
-        ).strip().lower()
+            .strip()
+            .lower()
+        )
         return raw in ("y", "yes")
 
 
@@ -105,7 +109,9 @@ class McpInstallService:
         role = await qa.ask_role()
         with_confd = await qa.ask_confd()
 
-        created = install_mcp_server(server_name, port, with_confd=with_confd, role=role)
+        created = install_mcp_server(
+            server_name, port, with_confd=with_confd, role=role
+        )
         return ScaffoldResult(
             server_name=server_name,
             module=module,

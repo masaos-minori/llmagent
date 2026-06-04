@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 
-from db.helper import SQLiteHelper
 from shared.types import LLMMessage
 
 from agent.memory.embedding_client import EmbeddingClient
@@ -26,6 +25,7 @@ from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.retriever import MemoryRetriever
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry, SourceType
+from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,9 @@ class MemoryIngestionService:
                 max_content_chars=self._max_content_chars,
             )
             if not entries:
-                logger.debug("MemoryIngestionService.on_session_stop: no entries extracted")
+                logger.debug(
+                    "MemoryIngestionService.on_session_stop: no entries extracted"
+                )
                 return
             for entry in entries:
                 embedding = await self._embed_client.fetch(entry.content)

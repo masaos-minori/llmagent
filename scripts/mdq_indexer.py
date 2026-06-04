@@ -127,7 +127,7 @@ def get_file_mtime(path: Path) -> float:
 
 def calculate_content_hash(content: str) -> str:
     """Calculate a hash of the content for change detection."""
-    return hashlib.md5(content.encode()).hexdigest()
+    return hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()
 
 
 def index_document(path: Path, db_path: str) -> None:

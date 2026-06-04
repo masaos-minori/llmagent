@@ -54,12 +54,12 @@ class RagPipelineMCPService:
 
         cfg = _get_cfg()
 
-        # Override module-level config caches so RagLLM and SQLiteHelper read from
+        # Override module-level config caches so RagLLM and RagPipeline read from
         # rag_pipeline_mcp_server.toml.  Process-scoped; no cross-process contamination.
         agent_rag._cfg = cfg  # noqa: SLF001 — override module cache for process-scoped config
         rag_llm._cfg = cfg  # noqa: SLF001
-        sqlite_helper._cfg = cfg  # noqa: SLF001
-        # Force SQLiteHelper to re-read DB_PATH from the new cfg on next open()
+        # db.helper no longer has a module-level _cfg; reset class-level cache so that
+        # SQLiteHelper._ensure_config() re-reads rag_db_path / session_db_path from common.toml.
         sqlite_helper.SQLiteHelper._config_loaded = False  # noqa: SLF001
 
         rag_cfg = build_rag_cfg_adapter(cfg)

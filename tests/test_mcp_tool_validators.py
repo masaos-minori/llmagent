@@ -69,7 +69,9 @@ class TestGitCommitValidator:
 
     def test_relative_repo_path_raises(self) -> None:
         with pytest.raises(ValueError, match="repo_path must be absolute"):
-            validate_tool_args("git_commit", {"repo_path": "relative/path", "message": "fix"})
+            validate_tool_args(
+                "git_commit", {"repo_path": "relative/path", "message": "fix"}
+            )
 
     def test_valid_args_pass(self) -> None:
         validate_tool_args("git_commit", {"repo_path": "/repo", "message": "fix bug"})
@@ -78,7 +80,9 @@ class TestGitCommitValidator:
 class TestGitPushValidator:
     def test_relative_repo_path_raises(self) -> None:
         with pytest.raises(ValueError, match="repo_path must be absolute"):
-            validate_tool_args("git_push", {"repo_path": "relative", "remote": "origin"})
+            validate_tool_args(
+                "git_push", {"repo_path": "relative", "remote": "origin"}
+            )
 
     def test_blank_remote_raises(self) -> None:
         with pytest.raises(ValueError, match="remote must not be blank"):
@@ -91,14 +95,20 @@ class TestGitPushValidator:
 class TestTriggerWorkflowValidator:
     def test_blank_repo_raises(self) -> None:
         with pytest.raises(ValueError, match="repo must not be blank"):
-            validate_tool_args("trigger_workflow", {"repo": "", "workflow_id": "ci.yml"})
+            validate_tool_args(
+                "trigger_workflow", {"repo": "", "workflow_id": "ci.yml"}
+            )
 
     def test_blank_workflow_id_raises(self) -> None:
         with pytest.raises(ValueError, match="workflow_id must not be blank"):
-            validate_tool_args("trigger_workflow", {"repo": "myorg/myrepo", "workflow_id": ""})
+            validate_tool_args(
+                "trigger_workflow", {"repo": "myorg/myrepo", "workflow_id": ""}
+            )
 
     def test_valid_args_pass(self) -> None:
-        validate_tool_args("trigger_workflow", {"repo": "myorg/myrepo", "workflow_id": "ci.yml"})
+        validate_tool_args(
+            "trigger_workflow", {"repo": "myorg/myrepo", "workflow_id": "ci.yml"}
+        )
 
 
 class TestShellRunValidator:

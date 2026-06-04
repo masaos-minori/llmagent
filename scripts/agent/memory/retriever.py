@@ -21,10 +21,9 @@ import re
 import struct
 from datetime import UTC, datetime
 
-from db.helper import SQLiteHelper
-
 from agent.memory.mapper import row_to_entry
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
+from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 
@@ -95,8 +94,6 @@ def _build_fts_query(text: str) -> str:
 def _floats_to_blob(values: list[float]) -> bytes:
     """Pack float list to little-endian IEEE-754 BLOB for vec0 MATCH queries."""
     return struct.pack(f"{len(values)}f", *values)
-
-
 
 
 def _rrf_merge(

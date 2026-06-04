@@ -31,7 +31,7 @@ from agent.memory.injection import InjectionPolicy, MemoryInjectionService
 from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.retriever import MemoryRetriever
 from agent.memory.store import MemoryStore
-from agent.memory.types import MemoryHit, MemoryQuery
+from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ class MemoryLayer:
         epi = self._store.search_by_type("episodic", limit=limit)
         return sorted(sem + epi, key=lambda e: (not e.pinned, -e.importance))[:limit]
 
-    def get_entry(self, memory_id: str):
+    def get_entry(self, memory_id: str) -> MemoryEntry | None:
         """Return a single MemoryEntry by ID, or None if not found."""
         return self._store.get_by_id(memory_id)
 

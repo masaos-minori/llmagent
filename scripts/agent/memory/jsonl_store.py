@@ -30,7 +30,9 @@ def _entry_from_dict(d: dict) -> MemoryEntry | None:
         try:
             source_type = SourceType(raw_source)
         except ValueError:
-            logger.warning(f"Unknown source_type={raw_source!r}; falling back to conversation")
+            logger.warning(
+                f"Unknown source_type={raw_source!r}; falling back to conversation"
+            )
             source_type = SourceType.CONVERSATION
         return MemoryEntry(
             memory_id=str(d["memory_id"]),

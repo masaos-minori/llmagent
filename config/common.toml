@@ -37,3 +37,7 @@ sqlite_retention_max_age_days = 90
 
 # sqlite_archive_dir: archive directory for DB rotation
 sqlite_archive_dir = "/opt/llm/db/archive"
+
+# embedding_dims: dimensionality of the float32 embedding vectors stored in vec0 tables
+# Must match the model output dimensions (all-MiniLM-L6-v2 = 384)
+embedding_dims = 384

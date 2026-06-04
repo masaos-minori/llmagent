@@ -239,6 +239,48 @@ class ShellService:
         except OSError as e:
             logger.error("_write_audit_log: failed to write audit log: %s", e)
 
+    async def _kill_timed_out_process(self, proc: asyncio.subprocess.Process) -> None:
+        """Send SIGTERM/SIGKILL to the process group after a timeout.
+
+        Uses the configured kill_policy:
+          sigkill_only       — send SIGKILL immediately
+          sigterm_then_sigkill — SIGTERM, wait grace period, then SIGKILL
+        """
+        kill_policy = self._policy.kill_policy
+        kill_grace_sec = self._policy.kill_grace_sec
+        if kill_policy == "sigkill_only":
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except OSError:
+                pass
+        else:
+            # sigterm_then_sigkill: send SIGTERM, wait grace period, then SIGKILL
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except OSError:
+                pass
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=kill_grace_sec)
+            except TimeoutError:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=5.0)
+        except TimeoutError:
+            pass
+
+    @staticmethod
+    def _truncate_output(
+        stdout_b: bytes, stderr_b: bytes, max_output_bytes: int
+    ) -> tuple[bytes, bytes, bool]:
+        """Split max_output_bytes evenly between stdout and stderr; return (stdout, stderr, truncated)."""
+        if len(stdout_b) + len(stderr_b) <= max_output_bytes:
+            return stdout_b, stderr_b, False
+        half = max_output_bytes // 2
+        return stdout_b[:half], stderr_b[:half], True
+
     async def run_command(self, req: ShellRunRequest) -> ShellRunResponse:
         """Execute the command in a sandboxed subprocess with resource limits.
 
@@ -290,46 +332,17 @@ class ShellService:
             )
         except TimeoutError:
             timed_out = True
-            kill_policy = self._policy.kill_policy
-            kill_grace_sec = self._policy.kill_grace_sec
-            if kill_policy == "sigkill_only":
-                try:
-                    os.killpg(proc.pid, signal.SIGKILL)
-                except OSError:
-                    pass
-            else:
-                # sigterm_then_sigkill: send SIGTERM, wait grace period, then SIGKILL
-                try:
-                    os.killpg(proc.pid, signal.SIGTERM)
-                except OSError:
-                    pass
-                try:
-                    await asyncio.wait_for(proc.wait(), timeout=kill_grace_sec)
-                except TimeoutError:
-                    try:
-                        os.killpg(proc.pid, signal.SIGKILL)
-                    except OSError:
-                        pass
-            try:
-                await asyncio.wait_for(proc.wait(), timeout=5.0)
-            except TimeoutError:
-                pass
+            await self._kill_timed_out_process(proc)
             stdout_b = b""
             stderr_b = b""
 
         elapsed = time.monotonic() - start
         exit_code = proc.returncode if proc.returncode is not None else -1
 
-        # Truncate combined output if total exceeds the byte limit; slice bytes
-        # before decoding so multibyte characters do not inflate the count
-        truncated = False
-        combined_bytes = len(stdout_b) + len(stderr_b)
-        if combined_bytes > max_output_bytes:
-            truncated = True
-            # Allocate quota proportionally between stdout and stderr
-            half = max_output_bytes // 2
-            stdout_b = stdout_b[:half]
-            stderr_b = stderr_b[:half]
+        # Slice bytes before decoding so multibyte characters do not inflate the count
+        stdout_b, stderr_b, truncated = self._truncate_output(
+            stdout_b, stderr_b, max_output_bytes
+        )
 
         # Decode bytes to strings; replace undecodable bytes to avoid HTTPException
         stdout = stdout_b.decode("utf-8", errors="replace")

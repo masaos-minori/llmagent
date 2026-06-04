@@ -10,9 +10,11 @@ import pytest
 
 from db.helper import SQLiteHelper
 from db.maintenance import (
+    RecoveryResult,
     RetentionConfig,
     checkpoint_wal,
     purge_old_sessions,
+    recover_corruption,
     rotate_rag_db,
     rotate_session_db,
     vacuum_db,
@@ -238,7 +240,9 @@ class TestCheckpointAndVacuum:
         import db.maintenance as db_maintenance
 
         monkeypatch.setattr(
-            db_maintenance, "_cfg", {"sqlite_wal_checkpoint_mode": "PASSIVE"}
+            db_maintenance.ConfigLoader,
+            "load",
+            lambda self, _: {"sqlite_wal_checkpoint_mode": "PASSIVE"},
         )
         mock_db = self._make_mock_db(
             {"busy": 0, "pages_in_wal": 0, "pages_checkpointed": 0}
@@ -311,17 +315,15 @@ class TestPruneOldMemories:
         assert result == 1  # 例外があっても rowcount は使われる
 
 
-# ── recover_corruption (RuntimeError branch) ──────────────────────────────────
+# ── recover_corruption ─────────────────────────────────────────────────────────
 
 
 class TestRecoverCorruption:
     def test_db_conn_none_raises_runtime_error(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """db.conn が None のとき RuntimeError が発生し、except で False が返ること。"""
+        """db.conn が None のとき RuntimeError が発生し RecoveryResult(success=False) が返ること。"""
         from unittest.mock import MagicMock, patch
-
-        from db.maintenance import recover_corruption
 
         mock_db = MagicMock()
         mock_db.conn = None
@@ -337,4 +339,32 @@ class TestRecoverCorruption:
             mock_helper_cls.return_value.open.return_value = FakeContext()
             result = recover_corruption()
 
-        assert result is False
+        assert isinstance(result, RecoveryResult)
+        assert result.success is False
+
+    def test_dry_run_returns_recovery_result(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """dry_run=True のとき変更なしで RecoveryResult が返ること。"""
+        from unittest.mock import MagicMock, patch
+
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchone.return_value = ("ok",)
+        mock_db = MagicMock()
+        mock_db.conn = mock_conn
+
+        class FakeContext:
+            def __enter__(self) -> MagicMock:
+                return mock_db
+
+            def __exit__(self, *args: object) -> None:
+                pass
+
+        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+            mock_helper_cls.return_value.open.return_value = FakeContext()
+            result = recover_corruption(dry_run=True)
+
+        assert isinstance(result, RecoveryResult)
+        assert result.dry_run is True
+        assert result.success is True
+        assert result.action == "vacuum"

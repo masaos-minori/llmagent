@@ -172,7 +172,6 @@ logger = logging.getLogger(__name__)
 | スクリプト | ログファイル | 備考 |
 |---|---|---|
 | `db/create_schema.py` | `/opt/llm/logs/create_schema.log` | — |
-| `db/migrate.py` | `/opt/llm/logs/migrate_db.log` | — |
 | `rag/ingestion/crawler.py` | `/opt/llm/logs/crawl.log` | — |
 | `rag/ingestion/chunk_splitter.py` | `/opt/llm/logs/chunk.log` | — |
 | `rag/ingestion/chunk_japanese.py` | `/opt/llm/logs/chunk.log` | chunk_splitter と共用 |

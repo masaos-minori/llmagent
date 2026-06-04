@@ -74,7 +74,7 @@ class HttpServerLifecycleManager:
             import os  # noqa: PLC0415
 
             env = {**os.environ, **cfg.env}
-        proc = subprocess.Popen(  # nosec B603  # noqa: S603
+        proc = subprocess.Popen(  # nosec B603 — cmd comes from admin-controlled config, not user input  # noqa: S603
             cfg.cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,

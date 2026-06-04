@@ -18,12 +18,13 @@ from __future__ import annotations
 import logging
 import struct
 from datetime import UTC, datetime
+from typing import Any
 
 import orjson
-from db.helper import SQLiteHelper
 
 from agent.memory.mapper import row_to_entry
 from agent.memory.types import MemoryEntry
+from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,61 @@ class MemoryStore:
         # When set, embeddings passed to add()/upsert() are validated against this dimension.
         self._embed_dim = embed_dim
 
+    # ── Private helpers ───────────────────────────────────────────────────────
+
+    def _build_row_params(self, entry: MemoryEntry) -> tuple[Any, ...]:
+        """Return the param tuple for a memories INSERT statement."""
+        tags_json: bytes = orjson.dumps(entry.tags)
+        return (
+            entry.memory_id,
+            entry.memory_type,
+            entry.source_type,
+            entry.session_id,
+            entry.turn_id,
+            entry.project,
+            entry.repo,
+            entry.branch,
+            entry.content,
+            entry.summary,
+            tags_json.decode(),
+            entry.importance,
+            int(entry.pinned),
+            entry.created_at,
+            entry.updated_at,
+        )
+
+    _INSERT_SQL = (
+        "INSERT INTO memories"
+        " (memory_id, memory_type, source_type, session_id, turn_id,"
+        "  project, repo, branch, content, summary, tags,"
+        "  importance, pinned, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    )
+    _UPSERT_SQL = _INSERT_SQL.replace("INSERT INTO", "INSERT OR REPLACE INTO", 1)
+
+    def _write_fts(self, db: SQLiteHelper, entry: MemoryEntry) -> None:
+        """Sync one row into memories_fts; caller must be inside a transaction."""
+        db.execute(
+            "INSERT INTO memories_fts(memory_id, content, summary, tags)"
+            " VALUES (?,?,?,?)",
+            (entry.memory_id, entry.content, entry.summary, " ".join(entry.tags)),
+        )
+
+    def _write_vec(
+        self, db: SQLiteHelper, memory_id: str, embedding: list[float]
+    ) -> None:
+        """Upsert one embedding into memories_vec; logs warning on failure."""
+        try:
+            db.execute(
+                "INSERT OR REPLACE INTO memories_vec(memory_id, embedding)"
+                " VALUES (?,?)",
+                (memory_id, _floats_to_blob(embedding, self._embed_dim)),
+            )
+        except Exception as e:
+            logger.warning(f"memories_vec write skipped: {e}")
+
+    # ── Public API ────────────────────────────────────────────────────────────
+
     def add(self, entry: MemoryEntry, embedding: list[float] | None = None) -> None:
         """Insert a new MemoryEntry; sets created_at/updated_at if empty.
 
@@ -62,55 +118,12 @@ class MemoryStore:
             entry.created_at = now
         if not entry.updated_at:
             entry.updated_at = now
-        tags_json: bytes = orjson.dumps(entry.tags)
         with SQLiteHelper("session").open(write_mode=True) as db:
             with db.begin_immediate():
-                db.execute(
-                    """INSERT INTO memories
-                       (memory_id, memory_type, source_type, session_id, turn_id,
-                        project, repo, branch, content, summary, tags,
-                        importance, pinned, created_at, updated_at)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    (
-                        entry.memory_id,
-                        entry.memory_type,
-                        entry.source_type,
-                        entry.session_id,
-                        entry.turn_id,
-                        entry.project,
-                        entry.repo,
-                        entry.branch,
-                        entry.content,
-                        entry.summary,
-                        tags_json.decode(),
-                        entry.importance,
-                        int(entry.pinned),
-                        entry.created_at,
-                        entry.updated_at,
-                    ),
-                )
-                db.execute(
-                    "INSERT INTO memories_fts(memory_id, content, summary, tags)"
-                    " VALUES (?,?,?,?)",
-                    (
-                        entry.memory_id,
-                        entry.content,
-                        entry.summary,
-                        " ".join(entry.tags),
-                    ),
-                )
+                db.execute(self._INSERT_SQL, self._build_row_params(entry))
+                self._write_fts(db, entry)
                 if embedding is not None:
-                    try:
-                        db.execute(
-                            "INSERT OR REPLACE INTO memories_vec(memory_id, embedding)"
-                            " VALUES (?,?)",
-                            (
-                                entry.memory_id,
-                                _floats_to_blob(embedding, self._embed_dim),
-                            ),
-                        )
-                    except Exception as e:
-                        logger.warning(f"memories_vec INSERT skipped: {e}")
+                    self._write_vec(db, entry.memory_id, embedding)
         logger.debug(f"MemoryStore.add memory_id={entry.memory_id!r}")
 
     def upsert(self, entry: MemoryEntry, embedding: list[float] | None = None) -> None:
@@ -122,60 +135,17 @@ class MemoryStore:
         entry.updated_at = _now_iso()
         if not entry.created_at:
             entry.created_at = entry.updated_at
-        tags_json: bytes = orjson.dumps(entry.tags)
         with SQLiteHelper("session").open(write_mode=True) as db:
             with db.begin_immediate():
-                db.execute(
-                    """INSERT OR REPLACE INTO memories
-                       (memory_id, memory_type, source_type, session_id, turn_id,
-                        project, repo, branch, content, summary, tags,
-                        importance, pinned, created_at, updated_at)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    (
-                        entry.memory_id,
-                        entry.memory_type,
-                        entry.source_type,
-                        entry.session_id,
-                        entry.turn_id,
-                        entry.project,
-                        entry.repo,
-                        entry.branch,
-                        entry.content,
-                        entry.summary,
-                        tags_json.decode(),
-                        entry.importance,
-                        int(entry.pinned),
-                        entry.created_at,
-                        entry.updated_at,
-                    ),
-                )
+                db.execute(self._UPSERT_SQL, self._build_row_params(entry))
                 # Sync FTS5: delete old row (if any) then re-insert
                 db.execute(
                     "DELETE FROM memories_fts WHERE memory_id = ?",
                     (entry.memory_id,),
                 )
-                db.execute(
-                    "INSERT INTO memories_fts(memory_id, content, summary, tags)"
-                    " VALUES (?,?,?,?)",
-                    (
-                        entry.memory_id,
-                        entry.content,
-                        entry.summary,
-                        " ".join(entry.tags),
-                    ),
-                )
+                self._write_fts(db, entry)
                 if embedding is not None:
-                    try:
-                        db.execute(
-                            "INSERT OR REPLACE INTO memories_vec(memory_id, embedding)"
-                            " VALUES (?,?)",
-                            (
-                                entry.memory_id,
-                                _floats_to_blob(embedding, self._embed_dim),
-                            ),
-                        )
-                    except Exception as e:
-                        logger.warning(f"memories_vec upsert skipped: {e}")
+                    self._write_vec(db, entry.memory_id, embedding)
         logger.debug(f"MemoryStore.upsert memory_id={entry.memory_id!r}")
 
     def delete(self, memory_id: str) -> bool:

@@ -4,37 +4,54 @@ Abstract store Protocol definitions and SQLite-backed implementations
 for the RAG pipeline.
 
 Three storage boundaries:
-  VectorStore   — embedding CRUD over chunks_vec (sqlite-vec)
-  DocumentStore — document + chunk metadata CRUD over documents + chunks
-  SessionStore  — conversation session + message CRUD over sessions + messages
+  VectorStore        — embedding CRUD over chunks_vec (sqlite-vec)
+  DocumentStore      — document + chunk metadata CRUD over documents + chunks
+  SessionStore       — conversation session + message CRUD over sessions + messages
+  MemoryDeleteStore  — atomic cross-table deletion for memories tables
 
 Protocol pattern (structural subtyping): the existing RagRepository in
 rag_repository.py already provides the same operations and will conform to
 these Protocols without modification.  Future non-SQLite backends need only
 implement the Protocol methods to become drop-in replacements.
 
-Embedding constants:
-  EMBEDDING_DIMS  — expected embedding dimensionality (384 for all-MiniLM-L6-v2)
-  EMBEDDING_BYTES — expected float32 BLOB size in bytes (384 * 4 = 1536)
-  validate_embedding_blob(blob) — raises ValueError on wrong size
+Embedding helpers:
+  get_embedding_dims()    — return configured dimension count (default 384)
+  get_embedding_bytes()   — return expected float32 BLOB byte size
+  validate_embedding_blob(blob) — raises TypeError/ValueError on wrong size
 """
 
+from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
+
+from shared.config_loader import ConfigLoader
 
 from db.helper import SQLiteHelper
 
-EMBEDDING_DIMS: int = 384
-EMBEDDING_BYTES: int = EMBEDDING_DIMS * 4  # float32 → 4 bytes per dimension
+
+def get_embedding_dims() -> int:
+    """Return embedding dimensions from config; fallback to 384."""
+    try:
+        cfg = ConfigLoader().load("common.toml")
+        return int(cfg.get("embedding_dims", 384))
+    except Exception:
+        return 384
+
+
+def get_embedding_bytes() -> int:
+    """Return expected float32 BLOB size in bytes."""
+    return get_embedding_dims() * 4
 
 
 def validate_embedding_blob(blob: bytes) -> None:
-    """Raise ValueError if blob is not a valid 384-dim float32 embedding BLOB."""
+    """Raise TypeError/ValueError if blob is not a valid float32 embedding BLOB."""
     if not isinstance(blob, bytes):
         raise TypeError(f"Embedding must be bytes, got {type(blob).__name__}")
-    if len(blob) != EMBEDDING_BYTES:
+    expected_bytes = get_embedding_bytes()
+    expected_dims = get_embedding_dims()
+    if len(blob) != expected_bytes:
         raise ValueError(
-            f"Embedding BLOB must be {EMBEDDING_BYTES} bytes"
-            f" ({EMBEDDING_DIMS} float32 dims), got {len(blob)}",
+            f"Embedding BLOB must be {expected_bytes} bytes"
+            f" ({expected_dims} float32 dims), got {len(blob)}",
         )
 
 
@@ -322,3 +339,64 @@ class SQLiteSessionStore:
             (session_id,),
         )
         return [{"role": r[0], "content": r[1], "tool_calls": r[2]} for r in rows]
+
+
+# ── Memory deletion store ──────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class MemoryDeleteResult:
+    """Result of an atomic cross-table memory deletion operation."""
+
+    deleted: int
+    vec_skipped: bool
+    vec_error: str | None
+
+
+@runtime_checkable
+class MemoryDeleteStore(Protocol):
+    """Atomic cross-table deletion for memories / memories_fts / memories_vec."""
+
+    def delete_memories_before(self, older_than_days: int) -> MemoryDeleteResult:
+        """Delete memories older than older_than_days; return deletion summary."""
+        ...
+
+
+class SQLiteMemoryDeleteStore:
+    """SQLite-backed MemoryDeleteStore; vec deletion failures are non-fatal."""
+
+    def __init__(self, db: SQLiteHelper) -> None:
+        self._db = db
+
+    def delete_memories_before(self, older_than_days: int) -> MemoryDeleteResult:
+        rows = self._db.fetchall(
+            "SELECT memory_id FROM memories WHERE created_at < datetime('now', ?)",
+            (f"-{older_than_days} days",),
+        )
+        if not rows:
+            return MemoryDeleteResult(deleted=0, vec_skipped=False, vec_error=None)
+
+        mids = [row[0] for row in rows]
+        placeholders = ",".join("?" * len(mids))
+        cur = self._db.execute(
+            f"DELETE FROM memories WHERE memory_id IN ({placeholders})",  # nosec B608 — mids are UUIDs from DB; placeholders use ?
+            tuple(mids),
+        )
+        for mid in mids:
+            self._db.execute("DELETE FROM memories_fts WHERE memory_id=?", (mid,))
+
+        deleted = cur.rowcount
+        vec_skipped = False
+        vec_error: str | None = None
+        for mid in mids:
+            try:
+                self._db.execute("DELETE FROM memories_vec WHERE memory_id=?", (mid,))
+            except Exception as e:  # noqa: BLE001 — memories_vec may not exist in older DB schemas
+                vec_skipped = True
+                vec_error = str(e)
+                break
+
+        self._db.commit()
+        return MemoryDeleteResult(
+            deleted=deleted, vec_skipped=vec_skipped, vec_error=vec_error
+        )

@@ -408,7 +408,7 @@ class AgentSession:
                 ids = [r[0] for r in rows]
                 placeholders = ",".join("?" * len(ids))
                 db.execute(
-                    f"DELETE FROM messages WHERE message_id IN ({placeholders})",
+                    f"DELETE FROM messages WHERE message_id IN ({placeholders})",  # nosec B608 — placeholders is "?" * n, not user input
                     tuple(ids),
                 )
                 db.commit()

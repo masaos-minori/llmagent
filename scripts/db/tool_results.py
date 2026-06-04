@@ -49,7 +49,14 @@ class ToolResultStore:
                 db.commit()
             return row_id
         except Exception as e:
-            logger.warning(f"ToolResultStore.store failed: {e}")
+            logger.error(
+                "ToolResultStore.store failed",
+                extra={
+                    "error": str(e),
+                    "tool_name": tool_name,
+                    "session_id": session_id,
+                },
+            )
             return None
 
     def get(self, result_id: int) -> dict | None:
@@ -66,7 +73,10 @@ class ToolResultStore:
                 return None
             return dict(rows[0])
         except Exception as e:
-            logger.warning(f"ToolResultStore.get failed (id={result_id}): {e}")
+            logger.error(
+                "ToolResultStore.get failed",
+                extra={"error": str(e), "result_id": result_id},
+            )
             return None
 
     def list_recent(self, session_id: int | None, n: int = 20) -> list[dict]:
@@ -85,5 +95,8 @@ class ToolResultStore:
             # Reverse so the oldest result is displayed first
             return [dict(r) for r in reversed(rows)]
         except Exception as e:
-            logger.warning(f"ToolResultStore.list_recent failed: {e}")
+            logger.error(
+                "ToolResultStore.list_recent failed",
+                extra={"error": str(e), "session_id": session_id},
+            )
             return []

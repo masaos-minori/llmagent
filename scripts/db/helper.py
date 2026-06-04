@@ -15,23 +15,9 @@ from shared.config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 
-_cfg: dict[str, Any] | None = None
-
 # Default busy_timeout in milliseconds; overridable via sqlite_busy_timeout_ms in common.toml.
 # 30 seconds matches the sqlite_timeout connect parameter (also 30 s) for consistent behaviour.
 _DEFAULT_BUSY_TIMEOUT_MS: int = 30000
-
-
-def _get_cfg() -> dict[str, Any]:
-    """Load config on first call; cached for the module lifetime."""
-    global _cfg
-    if _cfg is None:
-        try:
-            _cfg = ConfigLoader().load("common.toml")
-        except Exception as e:
-            logger.warning(f"Config load failed: {e}")
-            _cfg = {}
-    return _cfg
 
 
 class SQLiteHelper:
@@ -40,17 +26,27 @@ class SQLiteHelper:
     _RAG_PATH: str = ""
     _SESSION_PATH: str = ""
     SQLITE_VEC_SO: str = ""
+    _SQLITE_TIMEOUT: int = 30
+    _BUSY_TIMEOUT_MS: int = _DEFAULT_BUSY_TIMEOUT_MS
     _config_loaded: bool = False
 
     @classmethod
     def _ensure_config(cls) -> None:
-        """Populate _RAG_PATH, _SESSION_PATH and SQLITE_VEC_SO from config on first call."""
+        """Populate all class-level config attrs from common.toml on first call."""
         if cls._config_loaded:
             return
-        cfg = _get_cfg()
+        try:
+            cfg = ConfigLoader().load("common.toml")
+        except Exception as e:
+            logger.warning(f"Config load failed: {e}")
+            cfg = {}
         cls._RAG_PATH = cfg.get("rag_db_path", "")
         cls._SESSION_PATH = cfg.get("session_db_path", "")
         cls.SQLITE_VEC_SO = cfg.get("sqlite_vec_so", "")
+        cls._SQLITE_TIMEOUT = int(cfg.get("sqlite_timeout", 30))
+        cls._BUSY_TIMEOUT_MS = int(
+            cfg.get("sqlite_busy_timeout_ms", _DEFAULT_BUSY_TIMEOUT_MS)
+        )
         cls._config_loaded = True
 
     def __init__(self, target: str = "rag") -> None:
@@ -72,9 +68,8 @@ class SQLiteHelper:
         key = "rag_db_path" if self._target == "rag" else "session_db_path"
         if not db_path:
             raise ValueError(f"{key} is not configured in common.toml")
-        timeout = int(_get_cfg().get("sqlite_timeout", 30))
         try:
-            return sqlite3.connect(db_path, timeout=timeout)
+            return sqlite3.connect(db_path, timeout=self._SQLITE_TIMEOUT)
         except sqlite3.OperationalError as e:
             logger.error(f"Failed to connect to '{db_path}': {e}")
             raise
@@ -99,9 +94,7 @@ class SQLiteHelper:
         write_mode: bool,
     ) -> None:
         """Apply WAL/synchronous=NORMAL/busy_timeout to every connection; foreign_keys enforced only in write_mode to avoid read overhead."""
-        busy_ms = int(
-            _get_cfg().get("sqlite_busy_timeout_ms", _DEFAULT_BUSY_TIMEOUT_MS),
-        )
+        busy_ms = self._BUSY_TIMEOUT_MS
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
         conn.execute(f"PRAGMA busy_timeout={busy_ms}")

@@ -92,7 +92,6 @@ scripts/rag/ingestion/chunk_japanese.py    →  /opt/llm/scripts/rag/ingestion/c
 scripts/rag/ingestion/ingester.py          →  /opt/llm/scripts/rag/ingestion/ingester.py
 scripts/rag/ingestion/pipeline_utils.py    →  /opt/llm/scripts/rag/ingestion/pipeline_utils.py
 scripts/db/create_schema.py                →  /opt/llm/scripts/db/create_schema.py
-scripts/db/migrate.py                      →  /opt/llm/scripts/db/migrate.py
 scripts/db/helper.py                       →  /opt/llm/scripts/db/helper.py
 scripts/db/maintenance.py                  →  /opt/llm/scripts/db/maintenance.py
 scripts/db/store.py                        →  /opt/llm/scripts/db/store.py
@@ -247,7 +246,6 @@ conf.d/github-mcp                          →  /etc/conf.d/github-mcp
   │   │       └─ pipeline_utils.py            # パイプライン共通 I/O ユーティリティ
   │   ├─ db/                                  # DB 層パッケージ
   │   │   ├─ create_schema.py                 # SQLite スキーマ初期化 (1 回のみ実行)
-  │   │   ├─ migrate.py                       # rag.sqlite → session.sqlite マイグレーション
   │   │   ├─ helper.py                        # 接続管理 (WAL / busy_timeout)
   │   │   ├─ maintenance.py                   # 運用ポリシー (/db コマンド)
   │   │   ├─ store.py                         # Protocol 抽象レイヤー

@@ -65,7 +65,9 @@ def _classify_content(
 ) -> tuple[str, SourceType, list[str]] | None:
     """Return (memory_type, source_type, tags) classification, or None if not extractable."""
     if semantic_hits >= 2 or (semantic_hits >= 1 and len(content) >= 200):
-        source = SourceType.DECISION if "decided" in content.lower() else SourceType.RULE
+        source = (
+            SourceType.DECISION if "decided" in content.lower() else SourceType.RULE
+        )
         return "semantic", source, ["auto-extracted", "semantic"]
     if failure_hits >= 1:
         return "episodic", SourceType.FAILURE, ["auto-extracted", "failure"]
