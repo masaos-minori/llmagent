@@ -100,7 +100,7 @@ class MemoryIngestionService:
                 ):
                     logger.debug("memory.skip_dup memory_id=%r", entry.memory_id)
                     continue
-                self._jsonl.append(entry)
+                await self._jsonl.write(entry)
                 self._store.upsert(entry, embedding=embedding)
                 if embedding is not None:
                     self._link_duplicates(entry.memory_id, embedding)
@@ -181,7 +181,7 @@ class MemoryIngestionService:
 
     async def _persist_entry(self, entry: MemoryEntry) -> None:
         embedding = await self._embed_client.fetch(entry.content)
-        self._jsonl.append(entry)
+        await self._jsonl.write(entry)
         self._store.upsert(entry, embedding=embedding)
         logger.info(
             "memory.write memory_id=%r type=%s importance=%.2f",

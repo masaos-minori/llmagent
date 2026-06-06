@@ -36,4 +36,4 @@ Follow these instructions exactly.
 4. Follow:
    - `skills/python-implementation/SKILL.md`
 
-5. After the plan is complete, move the processed plan file to `plans/done`.
+5. After the plan is complete, move the processed plan file to `implementations/done`.

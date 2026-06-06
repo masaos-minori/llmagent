@@ -8,6 +8,7 @@ Reads back all entries via read_all() for audit and reconstruction.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import asdict
 from pathlib import Path
@@ -61,34 +62,54 @@ class JsonlMemoryStore:
 
     def __init__(self, path: str | Path) -> None:
         self._path = Path(path)
+        self._lock: asyncio.Lock | None = None  # lazy: created after event loop starts
+        self._malformed_count: int = 0
 
-    def _ensure_parent(self) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
+    def _get_lock(self) -> asyncio.Lock:
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
 
-    def append(self, entry: MemoryEntry) -> None:
-        """Append one entry as a single JSONL line."""
-        self._ensure_parent()
-        line: bytes = orjson.dumps(asdict(entry)) + b"\n"
-        with self._path.open("ab") as f:
-            f.write(line)
-        logger.debug(f"JSONL appended memory_id={entry.memory_id!r}")
+    @property
+    def malformed_count(self) -> int:
+        return self._malformed_count
+
+    async def write(self, entry: MemoryEntry) -> None:
+        """Append one entry to the JSONL file; serialized by asyncio.Lock."""
+        async with self._get_lock():
+            line = orjson.dumps(asdict(entry)).decode() + "\n"
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            with self._path.open("a", encoding="utf-8") as f:
+                f.write(line)
 
     def read_all(self) -> list[MemoryEntry]:
-        """Read every entry; skip and log malformed lines."""
+        """Read all entries; skip and count malformed lines."""
         if not self._path.exists():
             return []
         entries: list[MemoryEntry] = []
-        with self._path.open("rb") as f:
-            for raw_line in f:
-                line = raw_line.strip()
+        with self._path.open("r", encoding="utf-8") as f:
+            for lineno, line in enumerate(f, 1):
+                line = line.strip()
                 if not line:
                     continue
                 try:
                     d = orjson.loads(line)
-                except Exception as e:
-                    logger.warning(f"JSONL parse error: {e}")
-                    continue
-                entry = _entry_from_dict(d)
-                if entry is not None:
-                    entries.append(entry)
+                    entry = _entry_from_dict(d)
+                    if entry is not None:
+                        entries.append(entry)
+                    else:
+                        self._malformed_count += 1
+                        logger.warning(
+                            "Skipping malformed JSONL line %d (count=%d)",
+                            lineno,
+                            self._malformed_count,
+                        )
+                except orjson.JSONDecodeError as e:
+                    self._malformed_count += 1
+                    logger.warning(
+                        "JSON decode error at line %d (count=%d): %s",
+                        lineno,
+                        self._malformed_count,
+                        e,
+                    )
         return entries

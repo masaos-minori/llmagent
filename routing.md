@@ -21,6 +21,18 @@ Skills in the Load column can be invoked as slash commands (e.g. `/python-implem
 
 Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 
+### ドメイン仕様書（新構造 — 13 章形式）
+
+| Task scope | Reference docs |
+|---|---|
+| エージェント仕様（全体・設計・未解決事項） | `docs/spec_agent.md` |
+| MCP サーバー仕様（全体・設計・未解決事項） | `docs/spec_mcp.md` |
+| RAG パイプライン仕様（全体・設計・未解決事項） | `docs/spec_rag.md` |
+| DB 層仕様（スキーマ・保守・未解決事項） | `docs/spec_db.md` |
+| 共有インフラ仕様（設定・ログ・型・定数） | `docs/spec_shared.md` |
+
+### 詳細リファレンス（実装レベルの参照用）
+
 | Task scope | Reference docs |
 |---|---|
 | Memory layer (types / store / retriever / extract / jsonl_store / layer) | `docs/06_ref-agent-context.md` + `docs/06_ref-agent-config.md` |
