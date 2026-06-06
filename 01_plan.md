@@ -1,0 +1,48 @@
+[rules]
+
+- In the filename, `yyyymmdd` is the current date.
+- In the filename, `hhmmss` is the current time.
+- In the filename, `_nn_` is a sequential number.
+
+[tasks]
+
+Show progress while working.
+Follow these steps strictly.
+
+1. Search for files matching `instructions/yyyymmdd_nn_instruction.md`.
+   If there are no files in `instructions/`, stop the task.
+   Sort the instruction files in ascending order by filename.
+   Read the first file as the target instruction file.
+
+2. Create a work plan file.
+   - The filename must be `plans/yyyymmdd-hhmmss_plan.md`.
+   Create the plan only.
+   Do not implement anything.
+   Read the `skills/python-issue-to-plan\SKILL.md`
+   Read the `skills/python-issue-to-plan\workflow.md`
+   Use the following section structure in the work plan:
+   - Goal
+   - Scope
+   - Assumptions
+   - Unknowns
+   - Affected areas
+   - Design
+   - Implementation steps
+   - Validation plan
+   - Risks
+
+3. Check `routing.md` to identify the source code files that would be modified.
+   Read those files.
+
+4. Analyze the `Unknowns` section in the work plan.
+   Update the work plan with the analysis results.
+
+5. If any `Unknowns` cannot be resolved through analysis, ask the user questions.
+   Reflect the answers in the work plan.
+   If any issues remain unresolved, write them to `issues/yyyyymmdd-hhmmss.md`.
+
+6. Analyze the `Risks` section in the work plan.
+   Add any necessary mitigation steps to the work plan.
+   If any issues remain unresolved, write them to `issues/yyyyymmdd-hhmmss.md`.
+
+7. After the work plan is complete, move the processed instruction file to `instructions/done`.

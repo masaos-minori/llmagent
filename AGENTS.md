@@ -65,7 +65,7 @@ Full environment details, schema, config reference, and service ports: `rules/en
 
 ```bash
 uv sync --dev --system-certs    # create .venv/ and install all deps
-source .venv/bin/activate       # activate dev venv
+uv run pytest                   # run any tool without activating venv
 ```
 
 Full validation sequence: `rules/toolchain.md`
