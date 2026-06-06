@@ -1,28 +1,18 @@
 #!/usr/bin/env python3
-"""agent.py — Legacy entry point (backward compat stub).
+"""Legacy entry point for backward compatibility.
 
+This file is kept for backward compatibility only.
 Use `python -m agent` (from the scripts/ directory) instead.
-This file is kept so that existing deploy/init scripts that reference
-`python agent.py` continue to work during the migration period.
-
-Migrated to: scripts/agent/__main__.py
 """
 
-import asyncio
-import signal
 import sys
 from pathlib import Path
 
+# Add the current directory to Python path for backward compatibility
 sys.path.insert(0, str(Path(__file__).parent))
 
-from agent.repl import AgentREPL
-
-
-def _request_shutdown(_signum: int, _frame: object) -> None:
-    raise SystemExit(0)
-
-
-signal.signal(signal.SIGTERM, _request_shutdown)
+# Import and run the new entry point
+from agent.__main__ import main
 
 if __name__ == "__main__":
-    asyncio.run(AgentREPL().run())
+    main()

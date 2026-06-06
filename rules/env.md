@@ -15,9 +15,8 @@ export PATH="$HOME/.local/bin:$PATH"
 
 | Service | Port |
 |---|---|
-| `code` (`qwen2.5-coder-7b`) | 8001 |
-| `chat` (`gemma-4-e4b`) | 8002 |
-| `embed` | 8003 |
+| `llm` | 8001 |
+| `embed` | 8002 |
 | `web-search-mcp` | 8004 |
 | `file-mcp` | 8005 |
 | `github-mcp` | 8006 |

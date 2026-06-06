@@ -29,11 +29,6 @@ def _get_cfg() -> dict[str, Any]:
     return _cfg
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Pydantic schema definitions (delete operations only)
-# ──────────────────────────────────────────────────────────────────────────────
-
-
 class DeleteFileRequest(BaseModel):
     path: str = Field(..., description="Absolute path of the file to delete")
     dry_run: bool = Field(

@@ -642,6 +642,15 @@ class DbConfig:
             raise ValueError("embed_url must not be empty")
         if self.sqlite_timeout < 1:
             raise ValueError(f"sqlite_timeout must be >= 1, got {self.sqlite_timeout}")
+        # 追加のバリデーション: パスが存在するか確認
+        from pathlib import Path
+
+        if self.rag_db_path and not Path(self.rag_db_path).exists():
+            raise ValueError(f"rag_db_path does not exist: {self.rag_db_path}")
+        if self.session_db_path and not Path(self.session_db_path).exists():
+            raise ValueError(f"session_db_path does not exist: {self.session_db_path}")
+        if self.sqlite_vec_so and not Path(self.sqlite_vec_so).exists():
+            raise ValueError(f"sqlite_vec_so does not exist: {self.sqlite_vec_so}")
 
 
 def build_db_config() -> "DbConfig":

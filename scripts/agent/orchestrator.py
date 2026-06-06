@@ -48,6 +48,7 @@ class Orchestrator:
         self,
         ctx: AgentContext,
         *,
+        allowed_tools: list[str] | None = None,
         on_turn_start: Callable[[], None] | None = None,
         on_turn_end: Callable[[], None] | None = None,
         on_error: Callable[[Exception], None] | None = None,
@@ -55,6 +56,7 @@ class Orchestrator:
         tracer: Any = None,
     ) -> None:
         self._ctx = ctx
+        self._allowed_tools: list[str] | None = allowed_tools
         self._on_first_turn = on_first_turn
         self._on_turn_start = on_turn_start
         self._on_turn_end = on_turn_end
@@ -159,6 +161,10 @@ class Orchestrator:
         answer = ""
         error_kind = None
 
+        # Snapshot original and apply override for this turn
+        original_allowed = ctx.cfg.tool.allowed_tools
+        if self._allowed_tools is not None:
+            ctx.cfg.tool.allowed_tools = self._allowed_tools
         try:
             await self._handle_memory_injection(line)
             self._append_user_message(line)
@@ -174,6 +180,8 @@ class Orchestrator:
             error_kind = str(e)
             # Log the error but don't re-raise to make the error explicit to the caller
             logger.error(f"LLM transport error: {e}")
+        finally:
+            ctx.cfg.tool.allowed_tools = original_allowed  # always restore
 
         return answer, error_kind
 

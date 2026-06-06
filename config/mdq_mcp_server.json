@@ -1,0 +1,14 @@
+{
+  "server": {
+    "name": "mdq-mcp",
+    "version": "1.0.0",
+    "http_port": 8013,
+    "stdio": false
+  },
+  "database": {
+    "path": "/opt/llm/db/mdq.db"
+  },
+  "logging": {
+    "level": "INFO"
+  }
+}

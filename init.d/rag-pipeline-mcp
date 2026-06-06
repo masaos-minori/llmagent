@@ -1,0 +1,24 @@
+#!/sbin/openrc-run
+# Copyright 2024 The OpenCode Authors. All rights reserved.
+# Distributed under the terms of the GNU General Public License v2
+
+description="RAG Pipeline MCP Server"
+
+command="/opt/llm/scripts/rag_pipeline_mcp_server.py"
+command_args="--http"
+pidfile="/var/run/rag-pipeline-mcp.pid"
+logfile="/var/log/rag-pipeline-mcp.log"
+
+depend() {
+    need net
+    use logger
+}
+
+start_pre() {
+    # Create required directories
+    mkdir -p /opt/llm/db
+    mkdir -p /opt/llm/config
+    mkdir -p /opt/llm/scripts
+    touch "${pidfile}"
+    chown nobody:nobody "${pidfile}"
+}

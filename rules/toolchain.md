@@ -7,16 +7,16 @@ Run in this order after each implementation step.
 ### 1. Format and lint (ruff)
 
 ```bash
-ruff format scripts/
-ruff check scripts/ --fix
-ruff check scripts/       # confirm clean
+uv run ruff format scripts/
+uv run ruff check scripts/ --fix
+uv run ruff check scripts/       # confirm clean
 ```
 
 ### 2. Type check
 
 ```bash
-mypy scripts/             # primary
-pyright scripts/          # alternate (cross-validate)
+uv run mypy scripts/             # primary
+uv run pyright scripts/          # alternate (cross-validate)
 ```
 
 Fix type errors at the source — do not add `type: ignore` without justification.
@@ -24,7 +24,7 @@ Fix type errors at the source — do not add `type: ignore` without justificatio
 ### 3. Architecture check (import-linter)
 
 ```bash
-PYTHONPATH=scripts lint-imports
+PYTHONPATH=scripts uv run lint-imports
 ```
 
 ### 4. Constraint verification (ast-grep)
@@ -36,7 +36,7 @@ ast-grep --pattern 'except: $$$' --lang python scripts/
 ### 5. Security scan (bandit)
 
 ```bash
-bandit -r scripts/ -c pyproject.toml
+uv run bandit -r scripts/ -c pyproject.toml
 ```
 
 Address high/medium severity findings before proceeding.
@@ -44,22 +44,22 @@ Address high/medium severity findings before proceeding.
 ### 6. Tests (pytest)
 
 ```bash
-pytest tests/test_<affected_module>.py -v    # targeted
-pytest -v                                     # full suite
+uv run pytest tests/test_<affected_module>.py -v    # targeted
+uv run pytest -v                                     # full suite
 ```
 
 ### 7. Diff-scoped coverage (diff-cover)
 
 ```bash
-coverage run -m pytest tests/
-coverage xml
-diff-cover coverage.xml --compare-branch=main --fail-under=90
+uv run coverage run -m pytest tests/
+uv run coverage xml
+uv run diff-cover coverage.xml --compare-branch=main --fail-under=90
 ```
 
 ### 8. Pre-commit (final gate)
 
 ```bash
-pre-commit run --all-files
+uv run pre-commit run --all-files
 ```
 
 ### 9. Diff review
@@ -72,13 +72,13 @@ git diff --staged         # confirm what will be committed
 
 ## Completion checklist (common to all tasks)
 
-- `ruff check scripts/` passes with no errors
-- `mypy scripts/` passes (no new regressions vs pre-existing errors)
-- `bandit -r scripts/ -c pyproject.toml` passes (no high/medium unaddressed)
-- `lint-imports` passes (no architecture boundary violations)
-- `pytest` passes with no new failures
-- `diff-cover coverage.xml --compare-branch=main` ≥ 90% on changed lines
-- `pre-commit run --all-files` passes
+- `uv run ruff check scripts/` passes with no errors
+- `uv run mypy scripts/` passes (no new regressions vs pre-existing errors)
+- `uv run bandit -r scripts/ -c pyproject.toml` passes (no high/medium unaddressed)
+- `PYTHONPATH=scripts uv run lint-imports` passes (no architecture boundary violations)
+- `uv run pytest` passes with no new failures
+- `uv run diff-cover coverage.xml --compare-branch=main` ≥ 90% on changed lines
+- `uv run pre-commit run --all-files` passes
 - diff reviewed and staged selectively with `git add <file>`
 - `deploy/deploy.sh` updated if a file under `scripts/` was added or removed
 - `config/agent.toml mcp_servers` updated if a new MCP server was added
@@ -87,20 +87,19 @@ git diff --staged         # confirm what will be committed
 
 ```bash
 uv sync --dev --system-certs   # create .venv/ and install all deps (first time)
-source .venv/bin/activate       # activate dev venv
 ```
 
 ## Additional static analysis
 
 ```bash
-radon cc scripts/ -s -n C                   # cyclomatic complexity — grade C or worse
-vulture scripts/ --min-confidence 80        # dead code detection
-semgrep --config=p/python scripts/          # semantic pattern enforcement
-pip-audit                                   # dependency vulnerability scan
+uv run radon cc scripts/ -s -n C                   # cyclomatic complexity — grade C or worse
+uv run vulture scripts/ --min-confidence 80        # dead code detection
+uv run semgrep --config=p/python scripts/          # semantic pattern enforcement
+uv run pip-audit                                   # dependency vulnerability scan
 ```
 
-## Syntax check (no venv required)
+## Syntax check
 
 ```bash
-python3 -m compileall -q scripts/
+uv run python -m compileall -q scripts/
 ```

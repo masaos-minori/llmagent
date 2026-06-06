@@ -1,15 +1,16 @@
 [rules]
 
-- Use the current date for `yyyymmdd`.
-- Use the current time for `hhmmss`.
-- Use a sequential number for `_nn_`.
+- In the filename, `yyyymmdd` is the current date.
+- In the filename, `hhmmss` is the current time.
+- In the filename, `_nn_` is a sequential number.
 
 [tasks]
 
 Show progress while working.
 Follow these instructions exactly.
 
-1. Search for files matching `implementations/yyyymmdd-hhmmss_*.md`.
+1. Search for files matching `implementations/*-*_*.md`.
+   If there are no matching files in `implementations/`, stop the task.
    Sort the matching files by filename in ascending order.
    Use the first file as the target implementation file.
    If there are no matching files in `implementations/`, stop immediately.

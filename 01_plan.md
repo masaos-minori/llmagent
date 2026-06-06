@@ -1,25 +1,26 @@
 [rules]
 
-- In the filename, `yyyymmdd` is the current date.
-- In the filename, `hhmmss` is the current time.
-- In the filename, `_nn_` is a sequential number.
+- In each filename, `yyyymmdd` represents the current date.
+- In each filename, `hhmmss` represents the current time.
+- In each filename, `_nn_` represents a sequential number.
 
 [tasks]
 
 Show progress while working.
 Follow these steps strictly.
 
-1. Search for files matching `instructions/yyyymmdd_nn_instruction.md`.
+1. Search for files matching `instructions/*_*_instruction.md`.
    If there are no files in `instructions/`, stop the task.
-   Sort the instruction files in ascending order by filename.
-   Read the first file as the target instruction file.
+   Sort the matching files in ascending order by filename.
+   Select the first file as the target instruction file and read it.
 
 2. Create a work plan file.
    - The filename must be `plans/yyyymmdd-hhmmss_plan.md`.
    Create the plan only.
    Do not implement anything.
-   Read the `skills/python-issue-to-plan\SKILL.md`
-   Read the `skills/python-issue-to-plan\workflow.md`
+   Read:
+   - `skills/python-issue-to-plan/SKILL.md`
+   - `skills/python-issue-to-plan/workflow.md`
    Use the following section structure in the work plan:
    - Goal
    - Scope
@@ -46,3 +47,5 @@ Follow these steps strictly.
    If any issues remain unresolved, write them to `issues/yyyyymmdd-hhmmss.md`.
 
 7. After the work plan is complete, move the processed instruction file to `instructions/done`.
+
+8. Create the necessary directories for the implementation.

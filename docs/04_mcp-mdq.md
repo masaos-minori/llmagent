@@ -30,7 +30,7 @@ Markdown Context Compression Engine MCP Server (mdq-mcp) は、Markdown文書の
 | `config/mdq_mcp_server.toml` | `/opt/llm/config/mdq_mcp_server.toml` | 設定ファイル |
 | `init.d/mdq-mcp` | `/etc/init.d/mdq-mcp` | OpenRC起動スクリプト |
 
-> **注意:** `mcp/mdq/server.py` は現時点で未実装。HTTP サーバとして公開する場合は `MCPServer` サブクラスを実装してポート 8013 で起動すること。
+> **注意:** `mcp/mdq/server.py` は実装済みです。HTTP サーバとしてポート 8013 で起動します。
 
 ### 1.4 インストール
 

@@ -30,12 +30,14 @@ emerge --ask dev-vcs/git
 > emerge --ask dev-lang/python
 > ```
 
-### 1.2 Python venv 構築
+### 1.2 Python 環境構築 (uv を使用)
 
 ```bash
-python3.13 -m venv /opt/llm/venv
-source /opt/llm/venv/bin/activate
-pip install --upgrade pip
+# uv をインストール (https://docs.astral.sh/uv/)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# プロジェクトの依存関係をインストール
+uv sync --dev --system-certs
 ```
 
 `/opt/llm/venv/requirements.txt`:
@@ -58,7 +60,8 @@ PyGithub>=2.3.0
 ```
 
 ```bash
-pip install -r /opt/llm/venv/requirements.txt
+# 依存関係をインストール
+uv pip install -r /opt/llm/venv/requirements.txt
 ```
 
 ### 1.3 llama.cpp のビルド
@@ -153,7 +156,7 @@ bash deploy/deploy.sh
 
 deploy.sh が行う処理:
 - `/opt/llm/scripts/` に Python スクリプトをコピー
-- `/opt/llm/config/` に設定 JSON ファイルをコピー
+- `/opt/llm/config/` に設定ファイルをコピー
 - `/opt/llm/db/` に `rrf.sql` をコピー
 - `/opt/llm/logs/`, `/opt/llm/rag-src/chunk/`, `/opt/llm/rag-src/registered/` を作成
 
