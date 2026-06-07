@@ -9,7 +9,7 @@
 Show progress while working.
 Follow these steps strictly.
 
-1. Search for files matching `instructions/*_*_instruction.md`.
+1. Search for files matching `instructions/*_instruction.md`.
    Do not read files under the `done` directory.
    If there are no files in `instructions/`, stop the task.
    Sort the matching files in ascending order by filename.

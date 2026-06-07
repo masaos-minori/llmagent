@@ -9,7 +9,7 @@
 Show progress while working.
 Follow these instructions exactly.
 
-1. Search for files matching `implementations/*-*_*.md`.
+1. Search for files matching `implementations/*.md`.
    Do not read files under the `done` directory.
    If there are no matching files in `implementations/`, stop the task.
    Sort the matching files by filename in ascending order.
