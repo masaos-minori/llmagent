@@ -138,7 +138,11 @@ def _build_memory_layer(
 
     layer = MemoryLayer(
         store=MemoryStore(),
-        retriever=MemoryRetriever(),
+        retriever=MemoryRetriever(
+            fts_limit=ctx.cfg.memory.memory_fts_limit,
+            rrf_k=ctx.cfg.memory.memory_rrf_k,
+            recency_days=ctx.cfg.memory.memory_recency_days,
+        ),
         jsonl=JsonlMemoryStore(ctx.cfg.memory.memory_jsonl_dir + "/memories.jsonl"),
         max_inject_semantic=ctx.cfg.memory.memory_max_inject_semantic,
         max_inject_episodic=ctx.cfg.memory.memory_max_inject_episodic,

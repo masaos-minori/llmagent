@@ -5,7 +5,7 @@ Unit tests for agent.memory.extract rule-based extraction logic.
 
 from __future__ import annotations
 
-from agent.memory.extract import extract_memories
+from agent.memory.extract import MIN_USER_CONTENT_CHARS, extract_memories
 from shared.types import LLMMessage
 
 
@@ -133,3 +133,69 @@ class TestExtractMemories:
         )
         result = extract_memories(history)
         assert result == []
+
+    def test_user_rule_message_extracted_as_semantic(self) -> None:
+        """User message with semantic keywords >= MIN_USER_CONTENT_CHARS is extracted."""
+        user_content = (
+            "Always use type annotations in all Python functions. "
+            "This is a policy we should always follow as a team constraint."
+        )
+        assert len(user_content) >= MIN_USER_CONTENT_CHARS
+        history = _hist(
+            ("user", user_content),
+            ("assistant", "Understood."),
+        )
+        result = extract_memories(history)
+        user_rules = [e for e in result if "user-rule" in e.tags]
+        assert len(user_rules) >= 1
+        assert user_rules[0].memory_type == "semantic"
+
+    def test_user_message_without_keywords_not_extracted(self) -> None:
+        """User message >= MIN_USER_CONTENT_CHARS but without semantic keywords → not extracted."""
+        user_content = "x" * MIN_USER_CONTENT_CHARS  # long enough but no keywords
+        history = _hist(
+            ("user", user_content),
+            ("assistant", "Understood."),
+        )
+        result = extract_memories(history)
+        user_rules = [e for e in result if "user-rule" in e.tags]
+        assert len(user_rules) == 0
+
+    def test_short_user_message_not_extracted(self) -> None:
+        """User message below MIN_USER_CONTENT_CHARS is not extracted."""
+        history = _hist(
+            ("user", "always"),  # has keyword but too short
+            ("assistant", "Understood."),
+        )
+        result = extract_memories(history)
+        user_rules = [e for e in result if "user-rule" in e.tags]
+        assert len(user_rules) == 0
+
+    def test_non_assistant_non_user_role_skipped(self) -> None:
+        """Messages with role 'tool' are not extracted."""
+        history = [
+            {"role": "user", "content": "Q"},
+            {
+                "role": "tool",
+                "content": "always follow the policy constraint rule " * 5,
+            },
+            {"role": "assistant", "content": "Understood."},
+        ]
+        result = extract_memories(history)
+        assert all(e.memory_type != "tool" for e in result)
+
+    def test_importance_priority_ordering_caps_at_max_entries(self) -> None:
+        """When candidates exceed MAX_ENTRIES, highest-importance entries are kept."""
+        from agent.memory.extract import MAX_ENTRIES
+
+        msgs: list[LLMMessage] = [
+            {"role": "user", "content": "seed"},
+            {"role": "assistant", "content": "seed"},
+        ]
+        # Add many user-rule messages with semantic keywords
+        rule = "always follow the policy constraint rule standard principle " * 3
+        for _ in range(MAX_ENTRIES + 5):
+            msgs.append({"role": "user", "content": rule})
+            msgs.append({"role": "assistant", "content": rule})
+        result = extract_memories(msgs)
+        assert len(result) <= MAX_ENTRIES

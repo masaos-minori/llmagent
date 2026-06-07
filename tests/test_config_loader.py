@@ -6,6 +6,7 @@ from pathlib import Path
 
 import orjson
 import pytest
+from agent.config import MemoryConfig
 from shared.config_loader import ConfigLoader
 
 
@@ -109,3 +110,27 @@ class TestErrors:
         (tmp_path / "array.json").write_bytes(b"[1, 2, 3]")
         with pytest.raises(ValueError, match="top-level mapping"):
             tmp_cfg.load("array.json")
+
+
+class TestMemoryConfigValidation:
+    def test_defaults_valid(self) -> None:
+        cfg = MemoryConfig()
+        assert cfg.memory_fts_limit == 50
+        assert cfg.memory_rrf_k == 60
+        assert cfg.memory_recency_days == 7.0
+
+    def test_fts_limit_zero_raises(self) -> None:
+        with pytest.raises(ValueError, match="memory_fts_limit must be >= 1"):
+            MemoryConfig(memory_fts_limit=0)
+
+    def test_rrf_k_zero_raises(self) -> None:
+        with pytest.raises(ValueError, match="memory_rrf_k must be >= 1"):
+            MemoryConfig(memory_rrf_k=0)
+
+    def test_recency_days_zero_raises(self) -> None:
+        with pytest.raises(ValueError, match="memory_recency_days must be > 0"):
+            MemoryConfig(memory_recency_days=0.0)
+
+    def test_recency_days_negative_raises(self) -> None:
+        with pytest.raises(ValueError, match="memory_recency_days must be > 0"):
+            MemoryConfig(memory_recency_days=-1.0)
