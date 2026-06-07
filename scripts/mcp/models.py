@@ -8,6 +8,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from mcp.tool_validators import validate_tool_args
+
 
 class CallToolRequest(BaseModel):
     """Request body for POST /v1/call_tool."""
@@ -29,8 +31,6 @@ class CallToolRequest(BaseModel):
 
         Raises ValueError when args violate tool constraints.
         """
-        from mcp.tool_validators import validate_tool_args  # noqa: PLC0415
-
         validate_tool_args(self.name, self.args)
 
 
