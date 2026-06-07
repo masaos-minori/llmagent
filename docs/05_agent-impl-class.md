@@ -63,6 +63,21 @@ CLI REPL ツール。`agent>` (または `agent[:#N]>`) プロンプトで対話
 
 ログファイル: `/opt/llm/logs/agent.log`
 
+### 1.4 MCP サーバツール一覧
+
+以下の MCP サーバが利用可能で、設定ファイル `config/agent.toml` の `[mcp_servers.mdq]` セクションで有効化されています。
+
+| ツール名 | 説明 |
+|---|---|
+| `search_docs` | インデックスされた Markdown ドキュメントを検索します。 |
+| `get_chunk` | ID で指定された Markdown チャンクを取得します。 |
+| `outline` | Markdown ファイルの見出し構造を取得します。 |
+| `index_paths` | 一連のパスをインデックス化して、インプロセス SQLite DB に格納します。 |
+| `refresh_index` | 一連のパスについて、インデックスを増分更新します。 |
+| `stats` | ドキュメント/チャンク数とインデックスメタデータを返します。 |
+| `grep_docs` | 正規表現パターンで Markdown チャンクを検索します。 |
+
+
 ### 1.4 エラーハンドリング
 
 | ケース | 対処 |
