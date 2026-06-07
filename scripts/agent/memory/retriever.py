@@ -45,15 +45,15 @@ _RECENCY_DAYS = 7.0
 _RRF_K = 60
 
 
-def _recency_boost(created_at: str) -> float:
+def _recency_boost(created_at: str, recency_days: float = _RECENCY_DAYS) -> float:
     """Return 0.0–RECENCY_MAX_BOOST based on age in days (newer = higher)."""
     try:
         dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
         now = datetime.now(UTC)
         age_days = (now - dt).total_seconds() / _SECS_PER_DAY
-        if age_days >= _RECENCY_DAYS:
+        if age_days >= recency_days:
             return 0.0
-        return _RECENCY_MAX_BOOST * (1.0 - age_days / _RECENCY_DAYS)
+        return _RECENCY_MAX_BOOST * (1.0 - age_days / recency_days)
     except Exception:
         return 0.0
 
@@ -70,6 +70,7 @@ def _score(
     entry: MemoryEntry,
     project: str,
     repo: str,
+    recency_days: float = _RECENCY_DAYS,
 ) -> float:
     """Combined score; higher is better."""
     importance_w = 1.0 if entry.memory_type == "semantic" else 0.5
@@ -79,7 +80,7 @@ def _score(
         -bm25_rank  # FTS5 rank is negative (lower magnitude = better match)
         + importance_w * entry.importance * _IMPORTANCE_BOOST_SCALE
         + (_PIN_BOOST if entry.pinned else 0.0)
-        + recency_w * _recency_boost(entry.created_at)
+        + recency_w * _recency_boost(entry.created_at, recency_days)
         + _context_boost(entry, project, repo)
     )
 
@@ -127,6 +128,17 @@ class MemoryRetriever:
     and merges results with RRF before rescoring.
     """
 
+    def __init__(
+        self,
+        *,
+        fts_limit: int = _FTS_CANDIDATE_LIMIT,
+        rrf_k: int = _RRF_K,
+        recency_days: float = _RECENCY_DAYS,
+    ) -> None:
+        self._fts_limit = fts_limit
+        self._rrf_k = rrf_k
+        self._recency_days = recency_days
+
     def search(
         self,
         query: MemoryQuery,
@@ -143,14 +155,14 @@ class MemoryRetriever:
         if embedding is None:
             return fts_hits
 
-        vec_hits = self._vec_search(embedding, query.memory_type, _FTS_CANDIDATE_LIMIT)
+        vec_hits = self._vec_search(embedding, query.memory_type, self._fts_limit)
         if not vec_hits:
             return fts_hits
 
-        merged = _rrf_merge([fts_hits, vec_hits], k=_RRF_K)
+        merged = _rrf_merge([fts_hits, vec_hits], k=self._rrf_k)
         # Re-apply rescoring on the merged list
         for hit in merged:
-            hit.score = _score(0.0, hit.entry, project, repo)
+            hit.score = _score(0.0, hit.entry, project, repo, self._recency_days)
         merged.sort(key=lambda h: h.score, reverse=True)
         return merged[: query.limit]
 
@@ -166,7 +178,7 @@ class MemoryRetriever:
             return []
 
         type_filter = ""
-        params: list[object] = [fts_query, _FTS_CANDIDATE_LIMIT]
+        params: list[object] = [fts_query, self._fts_limit]
         if query.memory_type:
             type_filter = "AND m.memory_type = ?"
             params.insert(1, query.memory_type)
@@ -196,7 +208,7 @@ class MemoryRetriever:
             d = dict(row)
             bm25_rank = float(d.pop("bm25_rank", 0.0))
             entry = row_to_entry(d)
-            s = _score(bm25_rank, entry, project, repo)
+            s = _score(bm25_rank, entry, project, repo, self._recency_days)
             hits.append(MemoryHit(entry=entry, score=s))
 
         hits.sort(key=lambda h: h.score, reverse=True)

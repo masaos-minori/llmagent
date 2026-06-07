@@ -113,3 +113,11 @@ class JsonlMemoryStore:
                         e,
                     )
         return entries
+
+    def append(self, entry: MemoryEntry) -> None:
+        """Append one entry as a single JSONL line."""
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        line: bytes = orjson.dumps(asdict(entry)) + b"\n"
+        with self._path.open("ab") as f:
+            f.write(line)
+        logger.debug(f"JSONL appended memory_id={entry.memory_id!r}")

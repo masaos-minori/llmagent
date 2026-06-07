@@ -124,17 +124,6 @@ _SESSION_SCHEMA_TEMPLATE: str = """
     );
     CREATE INDEX IF NOT EXISTS idx_tool_results_session
         ON tool_results(session_id);
-    CREATE TABLE IF NOT EXISTS memory_entries (
-        entry_id   INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER,
-        mem_type   TEXT NOT NULL CHECK (mem_type IN ('long_term', 'task')),
-        content    TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec USING vec0(
-        entry_id  INTEGER PRIMARY KEY,
-        embedding float[DIMS]
-    );
     CREATE TABLE IF NOT EXISTS memories (
         memory_id   TEXT PRIMARY KEY,
         memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),
@@ -246,9 +235,6 @@ _SESSION_MIGRATE_SQL: list[str] = [
     # Phase 2 persistent semantic memory: embedding index
     "CREATE VIRTUAL TABLE IF NOT EXISTS memories_vec USING vec0("
     "memory_id TEXT PRIMARY KEY, embedding float[384])",
-    # Drop legacy memory tables superseded by memories / memories_fts / memories_vec.
-    "DROP TABLE IF EXISTS memory_entries",
-    "DROP TABLE IF EXISTS memory_vec",
 ]
 
 

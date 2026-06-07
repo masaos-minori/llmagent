@@ -65,7 +65,9 @@ class IngestWorkflowService:
     ) -> bool:
         """Crawl target and populate the staging area.  Returns False on failure."""
         try:
-            from rag.ingestion.crawler import WebCrawler as _WebCrawler  # noqa: PLC0415
+            from rag.ingestion.crawler import (
+                WebCrawler as _WebCrawler,  # noqa: PLC0415 — lazy: heavy crawler deferred to crawl call
+            )
 
             crawler = _WebCrawler()
             if target.startswith(("http://", "https://")):
@@ -104,12 +106,14 @@ class IngestWorkflowService:
         """Run ChunkSplitter and RagIngester; update result in place."""
         try:
             from rag.ingestion.chunk_splitter import (
-                ChunkSplitter as _Splitter,  # noqa: PLC0415
+                ChunkSplitter as _Splitter,  # noqa: PLC0415 — lazy: heavy splitter deferred to split call
             )
 
             result.messages.append("[ingest] splitting chunks...")
             if snippets_only:
-                from shared.config_loader import ConfigLoader  # noqa: PLC0415
+                from shared.config_loader import (
+                    ConfigLoader,  # noqa: PLC0415 — lazy: deferred to avoid circular import at module level
+                )
 
                 base_cfg = ConfigLoader().load("rag_pipeline.toml")
                 base_cfg["md_index_enable"] = True
@@ -124,7 +128,9 @@ class IngestWorkflowService:
             return
 
         try:
-            from rag.ingestion.ingester import RagIngester as _Ingester  # noqa: PLC0415
+            from rag.ingestion.ingester import (
+                RagIngester as _Ingester,  # noqa: PLC0415 — lazy: heavy ingester deferred to ingest call
+            )
 
             result.messages.append("[ingest] ingesting to DB...")
             ingester = _Ingester()

@@ -18,6 +18,7 @@ import logging
 
 import httpx
 from db.helper import SQLiteHelper
+from db.maintenance import prune_old_memories
 from shared.types import LLMMessage
 
 from agent.memory.embedding_client import (
@@ -158,9 +159,6 @@ class MemoryLayer:
 
     def prune(self, days: int) -> int:
         """Delete entries older than `days` days from SQLite; return count deleted."""
-        from db.helper import SQLiteHelper  # noqa: PLC0415
-        from db.maintenance import prune_old_memories  # noqa: PLC0415
-
         try:
             with SQLiteHelper("session").open(write_mode=True) as db:
                 deleted = prune_old_memories(db, days)
@@ -172,8 +170,6 @@ class MemoryLayer:
 
     def count_prunable(self, days: int) -> int:
         """Return count of entries older than `days` days without deleting."""
-        from db.helper import SQLiteHelper  # noqa: PLC0415
-
         try:
             with SQLiteHelper("session").open() as db:
                 row = db.fetchall(

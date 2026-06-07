@@ -123,14 +123,26 @@ def _build_memory_layer(
     if not ctx.cfg.memory.use_memory_layer:
         return None
     # Deferred imports to reduce startup cost when memory is disabled
-    from agent.memory.jsonl_store import JsonlMemoryStore  # noqa: PLC0415
-    from agent.memory.layer import MemoryLayer  # noqa: PLC0415
-    from agent.memory.retriever import MemoryRetriever  # noqa: PLC0415
-    from agent.memory.store import MemoryStore  # noqa: PLC0415
+    from agent.memory.jsonl_store import (
+        JsonlMemoryStore,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+    )
+    from agent.memory.layer import (
+        MemoryLayer,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+    )
+    from agent.memory.retriever import (
+        MemoryRetriever,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+    )
+    from agent.memory.store import (
+        MemoryStore,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+    )
 
     layer = MemoryLayer(
         store=MemoryStore(),
-        retriever=MemoryRetriever(),
+        retriever=MemoryRetriever(
+            fts_limit=ctx.cfg.memory.memory_fts_limit,
+            rrf_k=ctx.cfg.memory.memory_rrf_k,
+            recency_days=ctx.cfg.memory.memory_recency_days,
+        ),
         jsonl=JsonlMemoryStore(ctx.cfg.memory.memory_jsonl_dir + "/memories.jsonl"),
         max_inject_semantic=ctx.cfg.memory.memory_max_inject_semantic,
         max_inject_episodic=ctx.cfg.memory.memory_max_inject_episodic,

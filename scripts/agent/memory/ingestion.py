@@ -31,9 +31,11 @@ logger = logging.getLogger(__name__)
 
 
 class DedupAction(StrEnum):
-    LINK_ONLY = "link_only"  # memory_links に記録するだけ（現状互換）
-    SKIP_NEW = "skip_new"  # 近似エントリが既存なら新規を保存しない（デフォルト）
-    UPSERT = "upsert"  # 既存エントリを更新
+    LINK_ONLY = "link_only"  # record only in memory_links (backward-compatible default)
+    SKIP_NEW = (
+        "skip_new"  # skip new entry when a near-duplicate already exists (default)
+    )
+    UPSERT = "upsert"  # update existing entry in-place
 
 
 @dataclass

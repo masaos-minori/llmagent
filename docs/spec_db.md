@@ -54,12 +54,12 @@
 - idempotent な `IF NOT EXISTS` / `IF EXISTS` で冪等性を保証
 
 ### 6.3 保守機能
-- `vacuum_if_needed()` — データベースの VACUUM（フラグメント解消）
-- `integrity_check()` — `PRAGMA integrity_check` による整合性確認
-- `recover_corruption()` — バックアップからの復旧
+- `checkpoint_wal()` — WAL ファイルのフラッシュ
+- `vacuum_db()` — データベースの VACUUM（フラグメント解消）
+- `purge_old_sessions()` — 保持ポリシーを超えた古いセッションの削除（年齢・件数）
 - `prune_old_memories(days)` — 保持期間を超えたメモリエントリの削除
-- `prune_tool_results(days)` — 古いツール実行結果の削除
-- `rotate_db()` — DB ファイルのアーカイブ（バックアップ）
+- `rotate_rag_db()` / `rotate_session_db()` / `rotate_db()` — DB ファイルのタイムスタンプ付きアーカイブ
+- `recover_corruption()` — rag.sqlite の整合性検査と破損時バックアップ復旧
 
 ---
 
@@ -254,11 +254,12 @@ CREATE VIRTUAL TABLE chunks_vec USING vec0(
 
 ```python
 class SQLiteHelper:
-    def __init__(db_type: Literal["rag", "session"] = "rag")
-    def open(row_factory: bool = False) -> "SQLiteHelper"
+    def __init__(target: str = "rag")  # "rag" | "session"
+    def open(*, write_mode: bool = False, row_factory: bool = False) -> "SQLiteHelper"
     def __enter__() -> "SQLiteHelper"
     def __exit__(...) -> None
     # conn: sqlite3.Connection が利用可能
+    # write_mode=True: FK 制約を有効化する書き込みセッション
 ```
 
 ### 10.2 スキーマ管理（db/create_schema.py）
@@ -272,20 +273,38 @@ def get_embedding_dims() -> int  # コンフィグから取得、fallback=384
 ### 10.3 保守関数（db/maintenance.py）
 
 ```python
-def vacuum_if_needed(db_path: str) -> None
-def integrity_check(db_path: str, backup_path: str | None = None) -> bool
-def recover_corruption(db_path: str, backup_path: str) -> None
-def rotate_db(db_path: str) -> Path
-def prune_old_memories(db: SQLiteHelper, retention_days: int) -> int
-def prune_tool_results(db: SQLiteHelper, retention_days: int) -> int
+# WAL チェックポイント
+def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> dict[str, int]
+
+# VACUUM
+def vacuum_db(db: SQLiteHelper) -> None
+
+# セッション保持ポリシー
+def purge_old_sessions(db: SQLiteHelper, cfg: RetentionConfig | None = None) -> dict[str, int]
+# RetentionConfig: @dataclass(max_age_days, max_sessions) — from_config() で common.toml から生成
+
+# メモリ保持
+def prune_old_memories(db: SQLiteHelper, older_than_days: int) -> int
+
+# DB アーカイブ（rotate）
+def rotate_rag_db(archive_dir: str | Path | None = None) -> Path
+def rotate_session_db(archive_dir: str | Path | None = None) -> Path
+def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]
+
+# 障害復旧
+def recover_corruption(backup_path: str | Path | None = None, *, dry_run: bool = False) -> RecoveryResult
+# RecoveryResult: @dataclass(action, detail) — action: "vacuum" | "restored" | "no_backup" | "error"
 ```
 
 ### 10.4 ツール結果（db/tool_results.py）
 
 ```python
-def save_tool_result(db: SQLiteHelper, session_id, turn, tool_name, args_json, full_text, is_error) -> None
-def get_tool_result(db: SQLiteHelper, turn, tool_name, session_id) -> dict | None
-def list_tool_results(db: SQLiteHelper, session_id, limit=20) -> list[dict]
+class ToolResultStore:
+    def store(session_id: int | None, turn: int, tool_name: str, args_json: str,
+              full_text: str, summary: str | None, is_error: bool) -> int | None
+    # 戻り値: 新規行の id（DB エラー時は None）
+    def get(result_id: int) -> dict | None
+    def list_recent(session_id: int | None, n: int = 20) -> list[dict]
 ```
 
 ---

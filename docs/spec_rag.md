@@ -261,28 +261,40 @@ class RagPipeline:
     # 戻り値: コンテキストブロック（空文字列 = 検索無効または結果なし）
 ```
 
-### 10.2 WebCrawler（rag/ingestion/web_crawler.py）
+### 10.2 WebCrawler（rag/ingestion/crawler.py）
 
 ```python
 class WebCrawler:
-    async def crawl(urls: list[str]) -> list[Path]
-    # 戻り値: 保存された JSON ファイルパスのリスト
+    async def crawl(targets: list[tuple[str, str]] | None = None) -> None
+    # targets: [(url_or_path, hint_lang), ...] — None の場合は config から読み込み
+    async def crawl_site(start_url: str, hint_lang: str) -> None
+    def crawl_file(path: Path, lang: str) -> int
+    # 戻り値: 取り込んだページ数（crawl_file）
 ```
 
 ### 10.3 ChunkSplitter（rag/ingestion/chunk_splitter.py）
 
 ```python
 class ChunkSplitter:
-    def split(source_files: list[Path]) -> list[Path]
-    # 戻り値: 生成されたチャンクファイルパスのリスト
+    def process_all(target: Path | None = None, force: bool = False) -> int
+    # 戻り値: 生成されたチャンク数
+    def process_file(src_path: Path, force: bool = False) -> int
 ```
 
-### 10.4 RagIngester（rag/ingestion/rag_ingester.py）
+### 10.4 RagIngester（rag/ingestion/ingester.py）
 
 ```python
 class RagIngester:
-    async def ingest(chunk_files: list[Path], force: bool = False) -> int
-    # 戻り値: 取り込んだチャンク数
+    def ingest_all(force: bool = False) -> None
+    def ingest_url_group(url_group: str, force: bool = False) -> None
+```
+
+### 10.5 PipelineStage（rag/stage.py）
+
+```python
+class PipelineStage(Protocol):
+    async def run(ctx: PipelineContext) -> PipelineContext
+# 実装クラス: SearchStage, MqeStage, FusionStage, RerankStage, AugmentStage（rag/stages/）
 ```
 
 ---
@@ -316,6 +328,5 @@ class RagIngester:
 | 項目 | 詳細 |
 |---|---|
 | Prompt Injection 防御 | RAG ドキュメントのサニタイゼーションおよび `[RAG_CONTEXT_START/END]` 境界マーカーが未実装 (`implementations/20260606-195251_rag_sanitize.md` 参照) |
-| RAG Stage 分割 | `RagPipeline.run()` がモノリシックな実装。`PipelineStage` プロトコルへの分割が未実装 (`implementations/20260606-195409_rag_stages.md` 参照) |
 | 外部 RAG サービス | `rag_service_url` 設定時の外部委譲は実装済みだが、認証・エラー処理の仕様が未定義 |
 | MDQ との分離 | Markdown 専用インデックス（`mdq-mcp`）との責務分担が `04_mcp-mdq.md` に記載されているが、移行基準が未定義 |

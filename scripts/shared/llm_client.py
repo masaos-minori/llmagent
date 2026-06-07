@@ -519,6 +519,15 @@ class LLMClient:
 
     # ── Streaming call with reconnect ─────────────────────────────────────────
 
+    def _resolve_retryable(self, e: LLMTransportError) -> bool:
+        """Return effective retryable flag; increments stat_heartbeat_timeouts as a side-effect."""
+        if e.kind == "HEARTBEAT_TIMEOUT":
+            self.stat_heartbeat_timeouts += 1
+            return self._llm_stream_retry_on_heartbeat_timeout
+        if e.kind == "MALFORMED_SSE_FRAME":
+            return self._llm_stream_retry_on_malformed_chunk
+        return e.retryable
+
     async def stream(
         self,
         url: str,
@@ -542,14 +551,7 @@ class LLMClient:
                 break  # success
             except LLMTransportError as e:
                 has_partial = bool(content_parts) or bool(tool_calls_map)
-                # Override retryable based on per-kind config flags
-                effective_retryable = e.retryable
-                if e.kind == "HEARTBEAT_TIMEOUT":
-                    effective_retryable = self._llm_stream_retry_on_heartbeat_timeout
-                    self.stat_heartbeat_timeouts += 1
-                elif e.kind == "MALFORMED_SSE_FRAME":
-                    effective_retryable = self._llm_stream_retry_on_malformed_chunk
-
+                effective_retryable = self._resolve_retryable(e)
                 if has_partial or not effective_retryable:
                     # Partial output or non-retryable: mark_incomplete
                     e.partial_text = "".join(content_parts)

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import orjson
 
@@ -18,9 +18,53 @@ from agent.tool_policy import classify_risk, preflight_deny_reason
 from agent.tool_result_formatter import build_preview, mask_args
 
 if TYPE_CHECKING:
+    from agent.config import ApprovalConfig
     from agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
+
+
+class ApprovalDecision(TypedDict, total=False):
+    """Structured result of a single tool approval evaluation."""
+
+    tool_name: str
+    risk_level: str  # "none" | "medium" | "high"
+    decision: str  # "approved" | "denied" | "dry_run" | "preview_only"
+    escalation_reason: str  # why the risk was escalated (or "" if no escalation)
+    preview: str  # dry_run result text (or "")
+
+
+def _escalate_by_args(
+    tool_name: str,
+    args: dict[str, Any],
+    cfg: ApprovalConfig,
+) -> tuple[str, str] | None:
+    """Return (escalated_risk_level, reason) if arg content warrants escalation.
+
+    Returns None when no escalation is needed.
+    Checks:
+    - Recursive deletion (delete_directory with recursive=True or non-empty dir)
+    - Force/overwrite flags
+    - Dangerous shell command prefixes (already partially covered by approval_shell_safe_prefixes)
+    """
+    # Check recursive delete escalation
+    if tool_name == "delete_directory" and args.get("recursive"):
+        return "high", "recursive directory deletion requested"
+
+    # Check for dangerous explicit flags
+    for flag in ("force", "overwrite", "clobber"):
+        if args.get(flag) is True:
+            return "high", f"dangerous flag {flag}=True in args"
+
+    # Check path escalation (extends existing approval_protected_paths logic)
+    resource_keys = cfg.approval_resource_keys
+    path_keys = resource_keys.get("path_keys", [])
+    for key in path_keys:
+        path = str(args.get(key, ""))
+        if path and any(path.startswith(p) for p in cfg.approval_protected_paths):
+            return "high", f"path {path!r} is in a protected directory"
+
+    return None
 
 
 async def _build_preview_with_dry_run(
@@ -75,7 +119,15 @@ async def check_approval(
         print(message)
         return False
 
-    risk = classify_risk(ctx.cfg, tool_name, args)
+    # Check for argument-based risk escalation
+    escalated = _escalate_by_args(tool_name, args, ctx.cfg.approval)
+    if escalated is not None:
+        escalated_risk, reason = escalated
+        # Use the escalated risk level
+        risk = escalated_risk
+    else:
+        risk = classify_risk(ctx.cfg, tool_name, args)
+
     if risk == "none":
         audit_approval(ctx, tool_name, risk, args, "auto")
         return True
