@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import subprocess  # nosec B404
+import subprocess  # nosec B404 — used to launch admin-controlled MCP server processes
 import time
 from dataclasses import dataclass
 
