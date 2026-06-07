@@ -45,7 +45,7 @@ _RAG_SCHEMA_NO_VEC0 = """
     );
 """
 
-# Session schema without the vec0 virtual tables (memory_vec requires sqlite-vec).
+# Session schema without the vec0 virtual tables (memories_vec requires sqlite-vec).
 _SESSION_SCHEMA_NO_VEC0 = """
     CREATE TABLE IF NOT EXISTS schema_version (
         version    INTEGER NOT NULL,
@@ -83,12 +83,33 @@ _SESSION_SCHEMA_NO_VEC0 = """
     );
     CREATE INDEX IF NOT EXISTS idx_tool_results_session
         ON tool_results(session_id);
-    CREATE TABLE IF NOT EXISTS memory_entries (
-        entry_id   INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER,
-        mem_type   TEXT NOT NULL CHECK (mem_type IN ('long_term', 'task')),
-        content    TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    CREATE TABLE IF NOT EXISTS memories (
+        memory_id   TEXT PRIMARY KEY,
+        memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),
+        source_type TEXT NOT NULL DEFAULT 'conversation',
+        session_id  INTEGER,
+        turn_id     TEXT,
+        project     TEXT NOT NULL DEFAULT '',
+        repo        TEXT NOT NULL DEFAULT '',
+        branch      TEXT NOT NULL DEFAULT '',
+        content     TEXT NOT NULL,
+        summary     TEXT NOT NULL DEFAULT '',
+        tags        TEXT NOT NULL DEFAULT '[]',
+        importance  REAL NOT NULL DEFAULT 0.5,
+        pinned      INTEGER NOT NULL DEFAULT 0,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+        memory_id UNINDEXED,
+        content,
+        summary,
+        tags
+    );
+    CREATE TABLE IF NOT EXISTS memory_links (
+        src_id  TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
+        dst_id  TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
+        PRIMARY KEY (src_id, dst_id)
     );
 """
 
@@ -187,10 +208,19 @@ class TestCreateSessionSchema:
     ) -> None:
         assert "tool_results" in _table_names(session_tmp_db)
 
-    def test_creates_memory_entries_table(
+    def test_session_schema_no_legacy_memory_tables(
         self, session_tmp_db: sqlite3.Connection
     ) -> None:
-        assert "memory_entries" in _table_names(session_tmp_db)
+        tables = _table_names(session_tmp_db)
+        assert "memory_entries" not in tables
+        assert "memory_vec" not in tables
+
+    def test_session_schema_has_new_memory_tables(
+        self, session_tmp_db: sqlite3.Connection
+    ) -> None:
+        tables = _table_names(session_tmp_db)
+        assert "memories" in tables
+        assert "memory_links" in tables
 
     def test_creates_schema_version_table(
         self, session_tmp_db: sqlite3.Connection

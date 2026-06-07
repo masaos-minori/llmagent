@@ -1,4 +1,5 @@
 """Search stage for RAG pipeline."""
+
 import asyncio
 import logging
 
@@ -24,8 +25,8 @@ async def _search_all_queries(queries: list[str], db, cfg) -> list[list]:
             continue
         assert isinstance(result, list)
         try:
-            vec_res = repo.vector_search(result, cfg.top_k_search)
-            fts_res = repo.fts_search(q, cfg.top_k_search)
+            vec_res = repo.vector_search(result, cfg["top_k_search"])
+            fts_res = repo.fts_search(q, cfg["top_k_search"])
             if vec_res:
                 all_results.append(vec_res)
             if fts_res:
@@ -36,8 +37,9 @@ async def _search_all_queries(queries: list[str], db, cfg) -> list[list]:
 
 
 class SearchStage(PipelineStage):
-    def __init__(self, cfg) -> None:
+    def __init__(self, cfg, http=None) -> None:
         self._cfg = cfg
+        self._http = http
 
     async def run(self, ctx: PipelineContext, db=None, **kwargs) -> None:
         # Moves logic from RagPipeline.search_queries()
