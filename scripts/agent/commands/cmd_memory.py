@@ -17,15 +17,12 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 import orjson
 
 from agent.commands.mixin_base import MixinBase
 from agent.context import AgentContext
-
-if TYPE_CHECKING:
-    from agent.memory.layer import MemoryLayer
+from agent.memory.layer import MemoryLayer
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +52,6 @@ _MEMORY_HELP = """\
 
 def _as_memory_layer(mem: object) -> MemoryLayer | None:
     """Return mem cast to MemoryLayer when it is an instance; else None."""
-    from agent.memory.layer import MemoryLayer  # noqa: PLC0415
-
     return mem if isinstance(mem, MemoryLayer) else None
 
 

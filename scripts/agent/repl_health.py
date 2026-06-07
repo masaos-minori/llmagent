@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import httpx
 import orjson
 from shared.logger import Logger
+from shared.tool_executor import StdioTransport
 
 from agent.context import AgentContext
 
@@ -67,8 +68,6 @@ async def _fetch_stdio_tools(transport: object) -> set[str]:
 
     Returns an empty set when the server is unreachable or returns an error.
     """
-    from shared.tool_executor import StdioTransport  # noqa: PLC0415
-
     if not isinstance(transport, StdioTransport) or not transport.is_alive():
         return set()
     try:

@@ -159,7 +159,9 @@ class ConfigReloadService:
         new_cfg: dict[str, Any],
     ) -> ConfigReloadResult:
         """Update HTTP MCP server URLs; classify transport changes as needs_restart."""
-        from agent.config import _build_mcp_servers  # noqa: PLC0415
+        from agent.config import (
+            _build_mcp_servers,  # noqa: PLC0415 — lazy: avoids circular import at module level
+        )
 
         result = ConfigReloadResult()
         new_mcp = _build_mcp_servers(new_cfg)

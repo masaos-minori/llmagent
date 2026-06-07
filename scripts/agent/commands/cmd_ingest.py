@@ -47,7 +47,7 @@ class _IngestMixin(MixinBase):
         --snippets-only forces heading-based Markdown snippet chunking.
         """
         from agent.services.ingest_workflow import (
-            IngestWorkflowService,  # noqa: PLC0415
+            IngestWorkflowService,  # noqa: PLC0415 — lazy: heavy ingest pipeline deferred to /ingest call
         )
 
         parts = args.strip().split()
