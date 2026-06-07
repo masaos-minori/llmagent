@@ -279,7 +279,9 @@ class _ConfigMixin(MixinBase):
         Updates ctx.cfg fields and syncs them to each component so changes
         take effect immediately without restarting the agent.
         """
-        from agent.services.config_reload import ConfigReloadService  # noqa: PLC0415
+        from agent.services.config_reload import (
+            ConfigReloadService,  # noqa: PLC0415 — lazy: deferred to avoid import cost; only needed on /reload
+        )
 
         try:
             new_cfg = ConfigLoader().load("common.toml", "agent.toml")

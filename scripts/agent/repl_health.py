@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import httpx
 import orjson
 from shared.logger import Logger
+from shared.tool_executor import StdioTransport
 
 from agent.context import AgentContext
 
@@ -67,8 +68,6 @@ async def _fetch_stdio_tools(transport: object) -> set[str]:
 
     Returns an empty set when the server is unreachable or returns an error.
     """
-    from shared.tool_executor import StdioTransport  # noqa: PLC0415
-
     if not isinstance(transport, StdioTransport) or not transport.is_alive():
         return set()
     try:
@@ -191,6 +190,8 @@ async def _watchdog_check_http(
     ok = await probe_mcp_health(ctx.services.http, srv_cfg.url)
     if ok:
         restart_counts[key] = 0
+        if ctx.services.health_registry:
+            ctx.services.health_registry.record_success(key)
         return
     count = restart_counts.get(key, 0)
     if count >= max_restarts:
@@ -214,6 +215,8 @@ async def _watchdog_check_http(
             f"Watchdog: {key!r} is not a subprocess-mode server;"
             " manual intervention required",
         )
+    if ctx.services.health_registry:
+        ctx.services.health_registry.record_failure(key)
 
 
 async def _watchdog_check_stdio(
@@ -237,6 +240,8 @@ async def _watchdog_check_stdio(
         alive = bool(names)
     if alive:
         restart_counts[key] = 0
+        if ctx.services.health_registry:
+            ctx.services.health_registry.record_success(key)
         return
     count = restart_counts.get(key, 0)
     if count >= max_restarts:
@@ -255,6 +260,8 @@ async def _watchdog_check_stdio(
             restart_counts[key] = count + 1
         except Exception as e:
             logger.error(f"Watchdog: failed to restart stdio server {key!r}: {e}")
+    if ctx.services.health_registry:
+        ctx.services.health_registry.record_failure(key)
 
 
 async def watchdog_loop(ctx: AgentContext) -> None:

@@ -39,8 +39,12 @@ def _get_sudachi_tokenizer() -> tuple[Any, Any]:
     """Lazy-initialize Sudachi tokenizer for FTS5 Japanese query POS filtering."""
     global _sd_tkn, _sd_split_c
     if _sd_tkn is None:
-        from sudachipy import dictionary as sudachi_dict  # noqa: PLC0415
-        from sudachipy import tokenizer as sudachi_tok  # noqa: PLC0415
+        from sudachipy import (
+            dictionary as sudachi_dict,  # noqa: PLC0415 — lazy: optional Japanese NLP library loaded on first tokenizer call
+        )
+        from sudachipy import (
+            tokenizer as sudachi_tok,  # noqa: PLC0415 — lazy: optional Japanese NLP library loaded on first tokenizer call
+        )
 
         _sd_dict = sudachi_dict.Dictionary(dict="core")
         _sd_tkn = _sd_dict.create()

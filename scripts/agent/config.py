@@ -232,6 +232,26 @@ class MemoryConfig:
     memory_embed_timeout_sec: float = 5.0
     # Entries older than this are pruned
     memory_retention_days: int = 90
+    # FTS5 candidate limit before rescoring
+    memory_fts_limit: int = 50
+    # RRF fusion constant
+    memory_rrf_k: int = 60
+    # Recency window in days for boost calculation
+    memory_recency_days: float = 7.0
+
+    def __post_init__(self) -> None:
+        if self.memory_fts_limit < 1:
+            raise ValueError(
+                f"memory_fts_limit must be >= 1, got {self.memory_fts_limit}",
+            )
+        if self.memory_rrf_k < 1:
+            raise ValueError(
+                f"memory_rrf_k must be >= 1, got {self.memory_rrf_k}",
+            )
+        if self.memory_recency_days <= 0:
+            raise ValueError(
+                f"memory_recency_days must be > 0, got {self.memory_recency_days}",
+            )
 
 
 @dataclass
@@ -560,6 +580,9 @@ def _build_memory_config(cfg: dict[str, Any]) -> "MemoryConfig":
         memory_max_content_chars=int(cfg.get("memory_max_content_chars", 500)),
         memory_embed_timeout_sec=float(cfg.get("memory_embed_timeout_sec", 5.0)),
         memory_retention_days=int(cfg.get("memory_retention_days", 90)),
+        memory_fts_limit=int(cfg.get("memory_fts_limit", 50)),
+        memory_rrf_k=int(cfg.get("memory_rrf_k", 60)),
+        memory_recency_days=float(cfg.get("memory_recency_days", 7.0)),
     )
 
 
@@ -642,9 +665,7 @@ class DbConfig:
             raise ValueError("embed_url must not be empty")
         if self.sqlite_timeout < 1:
             raise ValueError(f"sqlite_timeout must be >= 1, got {self.sqlite_timeout}")
-        # 追加のバリデーション: パスが存在するか確認
-        from pathlib import Path
-
+        # Verify that the referenced paths exist on disk.
         if self.rag_db_path and not Path(self.rag_db_path).exists():
             raise ValueError(f"rag_db_path does not exist: {self.rag_db_path}")
         if self.session_db_path and not Path(self.session_db_path).exists():

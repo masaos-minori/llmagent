@@ -17,26 +17,29 @@ Module layout:
 
 import asyncio
 import logging
-import time
+import re
 from collections.abc import Callable
 from typing import Any
 
 import httpx
 import orjson
 from db.helper import SQLiteHelper
-from shared import plugin_registry
 from shared.config_loader import ConfigLoader
 from shared.types import RagConfig
 
 from rag.llm import RagLLM, get_embedding
 from rag.repository import (
     RagRepository,
-    RagScorer,
     SemanticCache,
-    _dedup_hits,
     deduplicate_chunks,
     fetch_full_document,
 )
+from rag.stage import PipelineContext
+from rag.stages.augment import AugmentStage
+from rag.stages.fusion import FusionStage
+from rag.stages.mqe import MqeStage
+from rag.stages.rerank import RerankStage
+from rag.stages.search import SearchStage
 from rag.types import RagHit
 
 # Re-export symbols that external callers import from this module
@@ -50,6 +53,31 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 _cfg: dict[str, Any] | None = None
+
+# Patterns known to be used in prompt injection attacks
+_INJECTION_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"(?i)(ignore\s+(previous|all)\s+instructions?)", re.MULTILINE),
+    re.compile(r"(?i)(system\s*:\s*)", re.MULTILINE),
+    re.compile(r"(?i)\[SYSTEM\s*OVERRIDE\]", re.MULTILINE),
+    re.compile(r"(?i)(disregard\s+(prior|previous|all)\s+instructions?)", re.MULTILINE),
+    re.compile(r"(?i)(new\s+instructions?:)", re.MULTILINE),
+]
+
+
+def sanitize_document(text: str) -> str:
+    """Remove known prompt injection patterns from retrieved document text.
+
+    Only strips specific high-confidence injection patterns.
+    Does not modify code blocks, configuration, or regular text.
+    Returns the sanitized text with injection patterns replaced by [REMOVED].
+    """
+    for pattern in _INJECTION_PATTERNS:
+        text = pattern.sub("[REMOVED]", text)
+    return text
+
+
+_RAG_BLOCK_START = "[RAG_CONTEXT_START]"
+_RAG_BLOCK_END = "[RAG_CONTEXT_END]"
 
 
 def _get_cfg() -> dict[str, Any]:
@@ -91,6 +119,8 @@ class RagPipeline:
             max_size=cfg.semantic_cache_max_size,
             threshold=cfg.semantic_cache_threshold,
         )
+        # Initialize stages
+        self._llm = RagLLM(self._http, _get_cfg().get("llm_url", ""))
 
     async def expand_queries_safe(self, query: str, context: str = "") -> list[str]:
         """Run MQE with fallback to original query on any error."""
@@ -162,45 +192,21 @@ class RagPipeline:
     ) -> tuple[list[str], list[list[RagHit]], list[RagHit], list[RagHit]]:
         """Execute MQE→search→RRF→rerank on an open DB; returns (queries, all_results, merged, reranked); on_clear() called on exit."""
         try:
-            self._on_status("expanding query...")
-            t0 = time.perf_counter()
-            queries = await self.expand_queries_safe(query, context=history_context)
-            self.last_timings["rag.mqe"] = time.perf_counter() - t0
-
-            self._on_status("searching...")
-            t0 = time.perf_counter()
-            all_results = await self.search_queries(queries, db)
-            self.last_timings["rag.search"] = time.perf_counter() - t0
-            if not all_results:
-                logger.info(f"RAG: no results for '{query}'")
-                return queries, [], [], []
-
-            self._on_status("merging results...")
-            t0 = time.perf_counter()
-            merged = (
-                RagScorer.rrf_merge(all_results, rrf_k=_get_cfg().get("rrf_k", 60))
-                if self._cfg.use_rrf
-                else _dedup_hits(all_results)
-            )
-            self.last_timings["rag.rrf"] = time.perf_counter() - t0
-            logger.info(f"RAG: {len(merged)} candidates after merge")
-
-            self._on_status("reranking...")
-            t0 = time.perf_counter()
-            reranked = await self.rerank_candidates(query, merged)
-            self.last_timings["rag.rerank"] = time.perf_counter() - t0
-
-            # Plugin post-stages: each hook may filter or reorder the hits list
-            for stage in plugin_registry.get_pipeline_post_stages():
-                try:
-                    reranked = await stage(reranked, query)
-                except Exception as e:
-                    logger.warning(f"Pipeline post-stage {stage.__name__!r} error: {e}")
+            ctx = PipelineContext(query=query, history_context=history_context)
+            stages: list = [
+                MqeStage(self._cfg.__dict__, self._llm),
+                SearchStage(self._cfg.__dict__),
+                FusionStage(self._cfg.__dict__),
+                RerankStage(self._cfg.__dict__, self._llm),
+                AugmentStage(),
+            ]
+            for stage in stages:
+                await stage.run(ctx, db=db)
 
             # Store for two-stage fetch callers (e.g. REPLAgent._run_turn)
-            self.last_reranked = reranked
+            self.last_reranked = ctx.reranked
 
-            return queries, all_results, merged, reranked
+            return ctx.queries, ctx.search_results, ctx.merged, ctx.reranked
         finally:
             self._on_clear()
 
@@ -252,12 +258,13 @@ class RagPipeline:
 
     @staticmethod
     def _format_chunks(reranked: list[RagHit]) -> str:
-        """Format reranked hits as a newline-separated source+content block."""
+        """Format reranked hits with sanitization and boundary markers."""
         blocks = [
-            f"[Source: {c.get('title') or c['url']} | {c['url']}]\n{c['content']}"
+            f"[Source: {c.get('title') or c['url']} | {c['url']}]\n{sanitize_document(c['content'])}"
             for c in reranked
         ]
-        return "\n\n---\n\n".join(blocks)
+        content = "\n\n---\n\n".join(blocks)
+        return f"{_RAG_BLOCK_START}\n{content}\n{_RAG_BLOCK_END}"
 
     async def augment(
         self,

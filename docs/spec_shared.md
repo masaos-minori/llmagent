@@ -162,6 +162,8 @@ class LLMMessage(TypedDict, total=False):
     tool_calls: list[dict]
     tool_call_id: str
     name: str
+    importance: float   # message importance score for compression prioritization
+    pinned: bool        # whether message should be preserved during compression
 ```
 
 ### 9.2 ツール定数（shared/tool_constants.py）

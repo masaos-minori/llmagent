@@ -32,6 +32,9 @@ logger = logging.getLogger(__name__)
 # Minimum assistant message character count to consider for extraction
 MIN_CONTENT_CHARS = 80
 
+# Minimum user message character count to consider for rule extraction
+MIN_USER_CONTENT_CHARS = 60
+
 # Minimum number of non-system turns for extraction to run
 MIN_TURNS = 2
 
@@ -170,6 +173,42 @@ def _try_extract_from_assistant(
     )
 
 
+def _try_extract_from_user(
+    msg: LLMMessage,
+    *,
+    session_id: int | None,
+    turn_id: str | None,
+    project: str,
+    repo: str,
+    branch: str,
+    now: str,
+) -> MemoryEntry | None:
+    """Extract a MemoryEntry from a user message containing explicit rules or constraints.
+
+    Short messages and messages without rule/policy keywords are ignored.
+    """
+    content_raw = msg.get("content") or ""
+    content = str(content_raw).strip() if content_raw else ""
+    if len(content) < MIN_USER_CONTENT_CHARS:
+        return None
+    if not _SEMANTIC_KEYWORDS.search(content):
+        return None
+    importance = _importance_from_content(content, is_semantic=True)
+    return _make_entry(
+        memory_type="semantic",
+        source_type=SourceType.RULE,
+        tags=["auto-extracted", "user-rule"],
+        content=content,
+        session_id=session_id,
+        turn_id=turn_id,
+        project=project,
+        repo=repo,
+        branch=branch,
+        importance=importance,
+        now=now,
+    )
+
+
 def extract_memories(
     history: list[LLMMessage],
     session_id: int | None = None,
@@ -191,25 +230,38 @@ def extract_memories(
         )
         return []
 
-    entries: list[MemoryEntry] = []
+    candidates: list[MemoryEntry] = []
     now = _now_iso()
     for msg in history:
-        if len(entries) >= MAX_ENTRIES:
-            break
-        if msg.get("role") != "assistant":
-            continue
-        entry = _try_extract_from_assistant(
-            msg,
-            session_id=session_id,
-            turn_id=turn_id,
-            project=project,
-            repo=repo,
-            branch=branch,
-            max_content_chars=max_content_chars,
-            now=now,
-        )
+        role = msg.get("role")
+        if role == "assistant":
+            entry = _try_extract_from_assistant(
+                msg,
+                session_id=session_id,
+                turn_id=turn_id,
+                project=project,
+                repo=repo,
+                branch=branch,
+                max_content_chars=max_content_chars,
+                now=now,
+            )
+        elif role == "user":
+            entry = _try_extract_from_user(
+                msg,
+                session_id=session_id,
+                turn_id=turn_id,
+                project=project,
+                repo=repo,
+                branch=branch,
+                now=now,
+            )
+        else:
+            entry = None
         if entry is not None:
-            entries.append(entry)
+            candidates.append(entry)
+
+    candidates.sort(key=lambda e: e.importance, reverse=True)
+    entries = candidates[:MAX_ENTRIES]
 
     logger.debug(
         f"extract_memories: extracted {len(entries)} entries"

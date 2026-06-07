@@ -48,7 +48,9 @@ class WriteFileRequest(BaseModel):
         # Deferred import breaks the circular dependency:
         # file_write_mcp_models → file_write_mcp_service → file_write_mcp_models (avoided).
         # This validator runs only at validation time, not at import time.
-        from mcp.file.write_service import _service  # noqa: PLC0415
+        from mcp.file.write_service import (
+            _service,  # noqa: PLC0415 — circular: write_models ↔ write_service
+        )
 
         # len() returns character count, which may undercount the write limit
         # for multibyte characters. Check the byte limit after UTF-8 encoding.

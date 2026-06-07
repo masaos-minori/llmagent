@@ -474,3 +474,51 @@ class TestHybridSearch:
 
         ids = [h.entry.memory_id for h in hits]
         assert "fts-fallback" in ids
+
+    def test_search_with_both_fts_and_vec_results_uses_rrf_merge(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        """When _vec_search returns hits, RRF merge is applied and results are returned."""
+        _insert(db_conn, memory_id="hybrid-entry", content="hybrid search term")
+        q = MemoryQuery(query="hybrid search", limit=5)
+
+        vec_entry = MemoryEntry(
+            memory_id="vec-entry",
+            memory_type="semantic",
+            source_type="rule",
+            session_id=None,
+            turn_id=None,
+            project="",
+            repo="",
+            branch="main",
+            content="vector match",
+            summary="vector match",
+            tags=[],
+            importance=0.5,
+            pinned=False,
+            created_at="2025-01-01T00:00:00Z",
+            updated_at="2025-01-01T00:00:00Z",
+        )
+        vec_hit = MemoryHit(entry=vec_entry, score=0.9)
+
+        with patch.object(retriever, "_vec_search", return_value=[vec_hit]):
+            hits = retriever.search(q, embedding=[0.1] * 3)
+
+        assert len(hits) > 0
+        # All hits have scores re-assigned by _score() after RRF merge
+        assert all(isinstance(h.score, float) for h in hits)
+
+
+class TestRetrieverInit:
+    def test_default_values(self) -> None:
+        r = MemoryRetriever()
+        assert r._fts_limit == 50
+        assert r._rrf_k == 60
+        assert r._recency_days == 7.0
+
+    def test_custom_values(self) -> None:
+        """MemoryRetriever stores custom fts_limit, rrf_k, recency_days."""
+        r = MemoryRetriever(fts_limit=10, rrf_k=30, recency_days=3.0)
+        assert r._fts_limit == 10
+        assert r._rrf_k == 30
+        assert r._recency_days == 3.0

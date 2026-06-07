@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import orjson
 from rag.llm import summarize_tool_result
-from shared.tool_constants import WRITE_TOOLS
+from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
 from shared.tool_executor import is_side_effect, tool_call_key
 
 from agent.tool_approval import run_approval_checks
@@ -23,6 +23,7 @@ from agent.tool_result_formatter import (
     is_summarized,
     mask_args,
 )
+from agent.tool_scheduler import build_execution_groups
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -129,7 +130,7 @@ def _collect_tool_result_msgs(
     return tool_msgs
 
 
-async def _execute_with_dag(
+async def _execute_with_dag_legacy(
     ctx: AgentContext,
     approved_calls: list[dict],
     turn: int,
@@ -154,6 +155,43 @@ async def _execute_with_dag(
                 *(execute_one_tool_call(ctx, tc, turn) for tc in rest)
             ),
         )
+    return results
+
+
+async def _execute_with_dag(
+    ctx: AgentContext,
+    approved_calls: list[dict],
+    turn: int,
+) -> list[Any]:
+    """Run approved calls using resource-scoped dependency groups.
+
+    Falls back to write-first ordering when no resource_scope metadata is available.
+    """
+    tool_definitions = ctx.cfg.tool.tool_definitions
+    tool_meta: dict[str, dict] = {}
+    for td in tool_definitions:
+        fn = td.get("function", {})
+        name = fn.get("name", "")
+        if name:
+            tool_meta[name] = {
+                "resource_scope": fn.get("resource_scope", ""),
+                "requires_serial": fn.get("requires_serial", False),
+                "is_write": name in WRITE_TOOLS or name in DELETE_TOOLS,
+            }
+
+    if not any(
+        m.get("resource_scope") or m.get("requires_serial") for m in tool_meta.values()
+    ):
+        # No resource_scope metadata — fall back to existing write-first DAG
+        return await _execute_with_dag_legacy(ctx, approved_calls, turn)
+
+    groups = build_execution_groups(approved_calls, tool_meta)
+    results: list[Any] = []
+    for group in groups:
+        group_results = await asyncio.gather(
+            *(execute_one_tool_call(ctx, tc, turn) for tc in group)
+        )
+        results.extend(group_results)
     return results
 
 

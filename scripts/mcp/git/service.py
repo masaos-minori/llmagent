@@ -17,6 +17,18 @@ from pathlib import Path
 
 import git
 
+from mcp.git.models import (
+    GitAddRequest,
+    GitBranchRequest,
+    GitCheckoutRequest,
+    GitCommitRequest,
+    GitDiffRequest,
+    GitLogRequest,
+    GitPullRequest,
+    GitPushRequest,
+    GitShowRequest,
+    GitStatusRequest,
+)
 from mcp.server import ToolArgs
 
 # All git tool handlers catch this union; git.exc.GitError is the base for all
@@ -77,7 +89,6 @@ class GitService:
     # ── Read-only tools ───────────────────────────────────────────────────────
 
     async def git_status(self, args: ToolArgs) -> str:
-        from mcp.git.models import GitStatusRequest  # noqa: PLC0415
 
         req = GitStatusRequest(**args)
         ok, err = self._check_repo_path(req.repo_path)
@@ -103,7 +114,6 @@ class GitService:
             return f"[ERROR] git_status: {e}"
 
     async def git_log(self, args: ToolArgs) -> str:
-        from mcp.git.models import GitLogRequest  # noqa: PLC0415
 
         req = GitLogRequest(**args)
         ok, err = self._check_repo_path(req.repo_path)
@@ -131,7 +141,6 @@ class GitService:
             return f"[ERROR] git_log: {e}"
 
     async def git_diff(self, args: ToolArgs) -> str:
-        from mcp.git.models import GitDiffRequest  # noqa: PLC0415
 
         req = GitDiffRequest(**args)
         ok, err = self._check_repo_path(req.repo_path)
@@ -151,7 +160,6 @@ class GitService:
             return f"[ERROR] git_diff: {e}"
 
     async def git_branch(self, args: ToolArgs) -> str:
-        from mcp.git.models import GitBranchRequest  # noqa: PLC0415
 
         req = GitBranchRequest(**args)
         ok, err = self._check_repo_path(req.repo_path)
@@ -170,7 +178,6 @@ class GitService:
             return f"[ERROR] git_branch: {e}"
 
     async def git_show(self, args: ToolArgs) -> str:
-        from mcp.git.models import GitShowRequest  # noqa: PLC0415
 
         req = GitShowRequest(**args)
         ok, err = self._check_repo_path(req.repo_path)
@@ -187,7 +194,6 @@ class GitService:
     # ── Write tools ───────────────────────────────────────────────────────────
 
     async def git_add(self, args: ToolArgs) -> str:
-        from mcp.git.models import GitAddRequest  # noqa: PLC0415
 
         req = GitAddRequest(**args)
         ok, err = self._check_repo_path(req.repo_path)
@@ -212,7 +218,6 @@ class GitService:
             return f"[ERROR] git_add: {e}"
 
     async def git_commit(self, args: ToolArgs) -> str:
-        from mcp.git.models import GitCommitRequest  # noqa: PLC0415
 
         req = GitCommitRequest(**args)
         ok, err = self._check_repo_path(req.repo_path)
@@ -235,7 +240,6 @@ class GitService:
             return f"[ERROR] git_commit: {e}"
 
     async def git_checkout(self, args: ToolArgs) -> str:
-        from mcp.git.models import GitCheckoutRequest  # noqa: PLC0415
 
         req = GitCheckoutRequest(**args)
         ok, err = self._check_repo_path(req.repo_path)
@@ -264,7 +268,6 @@ class GitService:
             return f"[ERROR] git_checkout: {e}"
 
     async def git_pull(self, args: ToolArgs) -> str:
-        from mcp.git.models import GitPullRequest  # noqa: PLC0415
 
         req = GitPullRequest(**args)
         ok, err = self._check_repo_path(req.repo_path)
@@ -288,7 +291,6 @@ class GitService:
             return f"[ERROR] git_pull: {e}"
 
     async def git_push(self, args: ToolArgs) -> str:
-        from mcp.git.models import GitPushRequest  # noqa: PLC0415
 
         req = GitPushRequest(**args)
         ok, err = self._check_repo_path(req.repo_path)

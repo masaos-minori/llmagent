@@ -2,6 +2,7 @@
 Show progress as you work.
 Refactor `scripts/**/*.py`.
 Follow these rules exactly.
+Create a Git commit.
 
 # Core Rules
 

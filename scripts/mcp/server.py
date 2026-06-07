@@ -70,8 +70,12 @@ def attach_auth_middleware(app: Any, token: str) -> None:
     receive a 401 response.  When token is empty, auth is skipped and the
     middleware only injects the X-Request-Id response header.
     """
-    from fastapi import Request  # noqa: PLC0415
-    from fastapi.responses import JSONResponse  # noqa: PLC0415
+    from fastapi import (
+        Request,  # noqa: PLC0415 — lazy: fastapi not needed for stdio-only servers
+    )
+    from fastapi.responses import (
+        JSONResponse,  # noqa: PLC0415 — lazy: fastapi not needed for stdio-only servers
+    )
 
     @app.middleware("http")
     async def _auth_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — FastAPI middleware protocol

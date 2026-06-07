@@ -11,7 +11,7 @@
         "local-model": {
           "name": "Qwen3-Coder (llama.cpp)",
           "limit": {
-            "context": 131072,
+            "context": 65536,
             "output": 4096
           }
         }

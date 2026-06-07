@@ -88,17 +88,15 @@ def _escalate_for_github_branch(
     return None
 
 
-def classify_risk(cfg: AgentConfig, tool_name: str, args: dict[str, Any]) -> str:
-    """Return the risk level: 'none' | 'medium' | 'high'.
+def _special_case_risk(
+    cfg: AgentConfig,
+    tool_name: str,
+    args: dict[str, Any],
+) -> str | None:
+    """Return a fixed risk level for tools with argument-dependent rules, else None.
 
-    Order: explicit rule → tier fallback → escalation overrides.
+    Covers delete_directory (recursive escalation) and shell_run (safe-prefix bypass).
     """
-    base: str | None = cfg.approval.approval_risk_rules.get(tool_name)
-    if base is None:
-        tier = cfg.approval.tool_safety_tiers.get(tool_name, "WRITE_DANGEROUS")
-        base = _TIER_TO_RISK[tier]
-    if base == "none":
-        return "none"
     if tool_name == "delete_directory" and args.get("recursive"):
         return "high"
     if tool_name == "shell_run":
@@ -106,6 +104,22 @@ def classify_risk(cfg: AgentConfig, tool_name: str, args: dict[str, Any]) -> str
         if any(cmd.startswith(p) for p in cfg.approval.approval_shell_safe_prefixes):
             return "none"
         return "high"
+    return None
+
+
+def classify_risk(cfg: AgentConfig, tool_name: str, args: dict[str, Any]) -> str:
+    """Return the risk level: 'none' | 'medium' | 'high'.
+
+    Order: explicit rule → tier fallback → special-case → escalation overrides.
+    """
+    base: str | None = cfg.approval.approval_risk_rules.get(tool_name)
+    if base is None:
+        tier = cfg.approval.tool_safety_tiers.get(tool_name, "WRITE_DANGEROUS")
+        base = _TIER_TO_RISK[tier]
+    if base == "none":
+        return "none"
+    if override := _special_case_risk(cfg, tool_name, args):
+        return override
     if escalated := _escalate_for_path(cfg, base, args):
         return escalated
     if escalated := _escalate_for_github_branch(cfg, tool_name, base, args):

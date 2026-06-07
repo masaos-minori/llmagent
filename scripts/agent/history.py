@@ -170,6 +170,35 @@ class HistoryManager:
             case _:
                 return "history"
 
+    @staticmethod
+    def _classify_importance(msg: LLMMessage) -> float:
+        """Classify message importance for compression prioritization.
+
+        Higher importance scores mean the message should be preserved during compression.
+        """
+        # If pinned, it's very important
+        if msg.get("pinned", False):
+            return float("inf")
+
+        # If importance is explicitly set, use that value
+        importance = msg.get("importance", 0.0)
+        if importance > 0:
+            return importance
+
+        # Default importance based on role and content
+        role = msg.get("role", "")
+        match role:
+            case "system":
+                return 10.0  # High importance for system messages
+            case "assistant" if msg.get("tool_calls"):
+                return 8.0  # Medium-high importance for planning messages
+            case "user" | "assistant":
+                return 5.0  # Medium importance for conversation turns
+            case "tool":
+                return 3.0  # Low importance for tool results
+            case _:
+                return 5.0  # Default for unknown roles
+
     async def _call_compress_llm(self, history_text: str) -> str | None:
         """Send history_text to the chat LLM and return the summary string.
 
@@ -202,6 +231,32 @@ class HistoryManager:
             logger.warning(f"Context compression failed: {e}")
             return None
 
+    @staticmethod
+    def _partition_by_class(
+        turn_msgs: list[LLMMessage],
+    ) -> tuple[
+        list[LLMMessage],
+        list[LLMMessage],
+        list[LLMMessage],
+        list[LLMMessage],
+    ]:
+        """Partition turn messages into (temporary, temporary_reasoning, factual, history)."""
+        classified = [(HistoryManager._classify(m), m) for m in turn_msgs]
+        temporary = [m for cls, m in classified if cls == "temporary"]
+        temporary_reasoning = [
+            m for cls, m in classified if cls == "temporary_reasoning"
+        ]
+        factual = [m for cls, m in classified if cls == "factual"]
+        history_msgs = [m for cls, m in classified if cls == "history"]
+        return temporary, temporary_reasoning, factual, history_msgs
+
+    @staticmethod
+    def _sort_by_importance(msgs: list[LLMMessage]) -> list[LLMMessage]:
+        """Return msgs sorted by importance score descending (high = preserve first)."""
+        scored = [(HistoryManager._classify_importance(m), m) for m in msgs]
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [msg for _, msg in scored]
+
     def _select_turns_to_compress(
         self,
         history: list[LLMMessage],
@@ -212,7 +267,9 @@ class HistoryManager:
         compression to preserve immediate context.  Returns None when there are
         not enough turn messages left after protection to compress.
 
-        Uses classification to prioritize compression:
+        Uses importance scoring and classification to prioritize compression:
+        - Messages with pinned=True are preserved
+        - Messages with high importance scores are preserved
         - 'temporary' messages (tool results) are compressed first
         - 'temporary_reasoning' messages (assistant with tool_calls) are compressed next
         - 'factual' messages (system) are preserved
@@ -220,39 +277,25 @@ class HistoryManager:
         """
         system_msgs = [m for m in history if m["role"] == "system"]
         turn_msgs = [m for m in history if m["role"] != "system"]
-        # Reserve the most-recent protect_turns pairs (2 messages per pair)
         n_protect = self._protect_turns * 2
         n_compress = self._compress_turns * 2
-        # Need at least n_compress + n_protect messages to proceed
         if len(turn_msgs) <= n_compress + n_protect:
             return None
 
-        # Classify messages by compression priority
-        classified = [(self._classify(m), m) for m in turn_msgs]
+        temporary, temporary_reasoning, factual, history_msgs = (
+            self._partition_by_class(turn_msgs)
+        )
+        compressible = self._sort_by_importance(
+            temporary + temporary_reasoning + history_msgs
+        )
 
-        # Separate by classification priority
-        temporary = [m for cls, m in classified if cls == "temporary"]
-        temporary_reasoning = [
-            m for cls, m in classified if cls == "temporary_reasoning"
-        ]
-        factual = [m for cls, m in classified if cls == "factual"]
-        history_msgs = [m for cls, m in classified if cls == "history"]
-
-        # Compress in priority order: temporary, temporary_reasoning, then history
-        # Preserve factual messages (system context) and protect the most recent turns
-        compressible = temporary + temporary_reasoning + history_msgs
         protected_tail = turn_msgs[-n_protect:] if n_protect > 0 else []
-
-        # Ensure we don't compress protected messages
         compressible = [m for m in compressible if m not in protected_tail]
 
-        # Select oldest messages for compression
         to_compress = compressible[:n_compress]
         remaining = [
             m for m in compressible[n_compress:] if m not in protected_tail
         ] + protected_tail
-
-        # Preserve factual messages in the final result
         remaining = factual + remaining
 
         return system_msgs, to_compress, remaining
@@ -262,6 +305,30 @@ class HistoryManager:
         return "\n".join(
             f"{m['role'].upper()}: {str(m.get('content', ''))[:300]}" for m in messages
         )
+
+    @staticmethod
+    def _build_summary_msg(
+        system_msgs: list[LLMMessage], summary_text: str
+    ) -> LLMMessage:
+        """Return a system message containing summary_text.
+
+        Appends to an existing [Conversation summary] message when present;
+        otherwise creates a new one.
+        """
+        existing = next(
+            (
+                m
+                for m in system_msgs
+                if isinstance(m.get("content"), str)
+                and str(m["content"]).startswith("[Conversation summary]")
+            ),
+            None,
+        )
+        if existing:
+            new_content = f"{existing['content']}\n\n{summary_text}"
+        else:
+            new_content = f"[Conversation summary]\n{summary_text}"
+        return {"role": "system", "content": new_content}
 
     async def compress(self, history: list[LLMMessage]) -> list[LLMMessage]:
         """Summarise the oldest turn pairs when history exceeds char or token limit.
@@ -299,27 +366,7 @@ class HistoryManager:
         if summary_text is None:
             return history
 
-        # Reuse existing summary if it exists, otherwise create new one
-        existing_summary = None
-        for msg in system_msgs:
-            content = msg.get("content", "")
-            if isinstance(content, str) and content.startswith(
-                "[Conversation summary]"
-            ):
-                existing_summary = msg
-                break
-
-        if existing_summary:
-            # Append to existing summary instead of creating new one
-            new_summary_content = f"{existing_summary['content']}\n\n{summary_text}"
-        else:
-            # Create new summary
-            new_summary_content = f"[Conversation summary]\n{summary_text}"
-
-        summary_msg: LLMMessage = {
-            "role": "system",
-            "content": new_summary_content,
-        }
+        summary_msg = self._build_summary_msg(system_msgs, summary_text)
         n = len(to_compress)
         self.stat_compress_count += 1
         logger.info(f"History compressed: {n} messages summarized")

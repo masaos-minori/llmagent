@@ -6,14 +6,15 @@
 
 ## Assistant: Style
 
-- Use concise and simple sentences that are easy for AI to understand.
-- Use half-width alphanumeric characters and symbols. Do not use emojis.
+- Use concise, clear sentences easy for AI to understand.
+- Use half-width alphanumeric characters and symbols. No emojis.
 - Keep responses brief. Use bullet points when appropriate.
 
 ## Assistant: Policy
 
 - Separate facts and assumptions clearly. Base answers only on information available in the given context.
 - If any point is ambiguous or unknown, explicitly state "不明" and request additional information.
+- Never use `rm -rf` or similar destructive commands without explicit confirmation from the user.
 
 ## Global Rules
 

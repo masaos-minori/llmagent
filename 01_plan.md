@@ -1,15 +1,16 @@
 [rules]
 
-- In each filename, `yyyymmdd` represents the current date.
-- In each filename, `hhmmss` represents the current time.
-- In each filename, `_nn_` represents a sequential number.
+- `yyyymmdd` is the current date.
+- `hhmmss` is the current time.
+- `_nn_` is a sequential number.
 
 [tasks]
 
 Show progress while working.
 Follow these steps strictly.
 
-1. Search for files matching `instructions/*_*_instruction.md`.
+1. Search for files matching `instructions/*_instruction.md`.
+   Do not read files under the `done` directory.
    If there are no files in `instructions/`, stop the task.
    Sort the matching files in ascending order by filename.
    Select the first file as the target instruction file and read it.
@@ -49,3 +50,7 @@ Follow these steps strictly.
 7. After the work plan is complete, move the processed instruction file to `instructions/done`.
 
 8. Create the necessary directories for the implementation.
+
+9. Create a Git commit.
+
+10. End the task.

@@ -205,10 +205,13 @@ class Orchestrator:
 
 ```python
 class HistoryManager:
-    async def compress(history: list[LLMMessage], compress_turns: int | None = None) -> list[LLMMessage]
+    async def compress(history: list[LLMMessage]) -> list[LLMMessage]
     async def force_compress(history: list[LLMMessage]) -> list[LLMMessage]
     def count_chars(history: list[LLMMessage]) -> int
-    async def count_tokens(history: list[LLMMessage]) -> int
+    def count_tokens(history: list[LLMMessage], last_input_tokens: int | None = None) -> int
+    async def count_tokens_async(history: list[LLMMessage], last_input_tokens: int | None = None) -> tuple[int, bool]
+    # count_tokens: chars // 4 による推定（last_input_tokens 指定時は直接返却）
+    # count_tokens_async: /tokenize エンドポイントによる正確なカウント（利用不可時は chars // 4）
 ```
 
 ### 10.4 CommandRegistry (スラッシュコマンド)
@@ -241,13 +244,22 @@ class HistoryManager:
 
 ```python
 class MemoryLayer:
-    async def on_session_start(ctx) -> str | None
-    async def on_user_prompt(query, history, ctx) -> None
-    async def on_session_stop(history, ctx) -> None
-    async def search(query, n, memory_type) -> list[MemoryHit]
-    async def pin(memory_id) -> bool
-    async def delete(memory_id) -> bool
-    async def prune(days) -> int
+    # ライフサイクルフック
+    def on_session_start(session_id: int | None) -> list[str]
+    async def on_user_prompt(query: str, session_id: int | None) -> list[str]
+    async def on_session_stop(session_id: int | None, history: list[LLMMessage], turn_id: str | None = None) -> None
+    # 手動書き込み
+    async def write_semantic(session_id: int | None, content: str) -> None
+    async def write_episodic(session_id: int | None, content: str) -> None
+    # CRUD ファサード
+    def list_entries(mem_type: str = "", limit: int = 10) -> list[MemoryEntry]
+    def get_entry(memory_id: str) -> MemoryEntry | None
+    def pin_entry(memory_id: str) -> bool
+    def unpin_entry(memory_id: str) -> bool
+    def delete_entry(memory_id: str) -> bool
+    def prune(days: int) -> int
+    def count_prunable(days: int) -> int
+    def search(query: str, limit: int = 10) -> list[MemoryHit]
 ```
 
 ---
@@ -288,4 +300,3 @@ class MemoryLayer:
 | `common.toml` 非統合問題 | `load_all()` が `common.toml` を読み込まないため、`build_db_config()` で空文字列になり `ValueError` が発生する。回避策として `db/helper.py` と `rag/pipeline.py` が個別に `ConfigLoader().load("common.toml")` を呼ぶ設計になっている。将来的な統合を検討中。 |
 | `AgentConfig.__getattr__`/`__setattr__` | backward-compat レイヤーが残存。`cfg.llm_url` 等のフラットアクセスを廃止して `cfg.llm.llm_url` に統一する作業が未完了 (`implementations/20260606-194837_config_context_compat.md` 参照) |
 | `repl_debug.py`/`context_detection.py`/`rag_debug.py` | 参照元のない廃止スタブファイルが残存。削除対象 (`implementations/20260606-194821_delete_obsolete_files.md` 参照) |
-| 重要度ベース履歴圧縮 | 現状は `compress_turns * 2` の固定方式。importance/pinned フィールドによる選択的圧縮が未実装 (`implementations/20260606-195036_history_importance.md` 参照) |

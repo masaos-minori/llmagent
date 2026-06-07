@@ -5,6 +5,7 @@ Placed in shared/ so tool_executor.py can reference it without depending on agen
 """
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
 
 
@@ -70,6 +71,42 @@ class McpServerConfig:
                 f"McpServerConfig.healthcheck_mode must be 'http', 'process', or"
                 f" 'ping_tool', got {self.healthcheck_mode!r}",
             )
+
+
+class McpServerHealthState(Enum):
+    """Represents the health status of an MCP server."""
+
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"  # failing but not yet unavailable
+    UNAVAILABLE = "unavailable"
+
+
+class McpServerHealthRegistry:
+    """Tracks per-server health states for ToolExecutor dispatch gating."""
+
+    def __init__(self, failure_threshold: int = 3) -> None:
+        self._states: dict[str, McpServerHealthState] = {}
+        self._failure_counts: dict[str, int] = {}
+        self._failure_threshold = failure_threshold
+
+    def record_failure(self, server_key: str) -> McpServerHealthState:
+        count = self._failure_counts.get(server_key, 0) + 1
+        self._failure_counts[server_key] = count
+        if count >= self._failure_threshold:
+            self._states[server_key] = McpServerHealthState.UNAVAILABLE
+        else:
+            self._states[server_key] = McpServerHealthState.DEGRADED
+        return self._states[server_key]
+
+    def record_success(self, server_key: str) -> None:
+        self._states[server_key] = McpServerHealthState.HEALTHY
+        self._failure_counts[server_key] = 0
+
+    def get_state(self, server_key: str) -> McpServerHealthState:
+        return self._states.get(server_key, McpServerHealthState.HEALTHY)
+
+    def is_unavailable(self, server_key: str) -> bool:
+        return self.get_state(server_key) == McpServerHealthState.UNAVAILABLE
 
 
 def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:

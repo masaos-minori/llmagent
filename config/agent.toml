@@ -413,13 +413,16 @@ tool_names       = []
 transport        = "http"
 url              = "http://127.0.0.1:8013"
 cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.mdq.server:app", "--host", "127.0.0.1", "--port", "8013", "--workers", "1"]
-openrc_service   = ""
-startup_mode     = "subprocess"
+openrc_service   = "mdq-mcp"
+startup_mode     = "persistent"
 startup_timeout_sec = 30
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"
-tool_names       = []
+tool_names       = [
+  "search_docs", "get_chunk", "outline", "index_paths",
+  "refresh_index", "stats", "grep_docs"
+]
 
 [mcp_servers.git]
 transport        = "http"
