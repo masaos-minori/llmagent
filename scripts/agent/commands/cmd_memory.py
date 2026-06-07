@@ -38,7 +38,7 @@ class MemoryOpResult:
     memory_id: str
     action: str  # "deleted" | "pinned" | "unpinned" | "pruned"
     dry_run: bool = False
-    count: int = 0  # prune 用
+    count: int = 0  # number of entries affected by prune
     messages: list[str] = field(default_factory=list)
 
 

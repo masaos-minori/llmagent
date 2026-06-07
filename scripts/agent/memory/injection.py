@@ -23,7 +23,7 @@ class InjectionPolicy:
     min_importance: float = 0.3
     format_prefix_semantic: str = "[Semantic memory]"
     format_prefix_episodic: str = "[Episodic memory]"
-    # 直近 N ターンで同一 memory_id が注入済みなら skip（将来実装）
+    # Skip injection when the same memory_id was injected in the last N turns (future impl).
     dedup_window: int = 3
 
 
