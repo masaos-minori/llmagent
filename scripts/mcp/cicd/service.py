@@ -246,6 +246,22 @@ class GitHubActionsBackend:
         encoded2: bytes = orjson.dumps(result, option=orjson.OPT_INDENT_2)
         return encoded2.decode()
 
+    @staticmethod
+    def _format_job_header(job: dict[str, Any]) -> str:
+        """Format job name, status, conclusion, and step list as a section header."""
+        job_name: str = job.get("name", "unknown")
+        conclusion: str = job.get("conclusion") or "in_progress"
+        status: str = job.get("status", "unknown")
+        step_lines = [
+            f"  step {s.get('number')}: {s.get('name')} [{s.get('conclusion') or s.get('status')}]"
+            for s in job.get("steps", [])
+        ]
+        return (
+            f"=== Job: {job_name} [status={status}, conclusion={conclusion}] ===\n"
+            + "\n".join(step_lines)
+            + "\n"
+        )
+
     async def get_workflow_logs(self, owner: str, repo: str, run_id: int) -> str:
         """Return job summaries and log text for a workflow run.
 
@@ -270,20 +286,7 @@ class GitHubActionsBackend:
 
         for job in jobs[:_MAX_JOBS_FOR_LOGS]:
             job_id: int = job.get("id", 0)
-            job_name: str = job.get("name", "unknown")
-            conclusion: str = job.get("conclusion") or "in_progress"
-            status: str = job.get("status", "unknown")
-
-            steps = job.get("steps", [])
-            step_lines = [
-                f"  step {s.get('number')}: {s.get('name')} [{s.get('conclusion') or s.get('status')}]"
-                for s in steps
-            ]
-            header = (
-                f"=== Job: {job_name} [status={status}, conclusion={conclusion}] ===\n"
-                + "\n".join(step_lines)
-                + "\n"
-            )
+            header = self._format_job_header(job)
             output_parts.append(header)
             total_bytes += len(header.encode())
 
