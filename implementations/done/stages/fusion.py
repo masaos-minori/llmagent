@@ -1,6 +1,7 @@
 """Fusion (RRF) stage for RAG pipeline."""
-from rag.stage import PipelineContext, PipelineStage
+
 from rag.repository import RagScorer
+from rag.stage import PipelineContext, PipelineStage
 
 
 class FusionStage(PipelineStage):

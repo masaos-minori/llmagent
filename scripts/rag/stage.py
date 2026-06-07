@@ -1,33 +1,26 @@
 """rag/stage.py
 PipelineStage Protocol and shared PipelineContext dataclass.
 """
-
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable
 from typing import Any, Protocol
 
 
 @dataclasses.dataclass
 class PipelineContext:
     """Mutable state passed between pipeline stages."""
-
     query: str
     history_context: str = ""
     queries: list[str] = dataclasses.field(default_factory=list)
-    search_results: list[Any] = dataclasses.field(
-        default_factory=list
-    )  # list[list[RagHit]]
-    merged: list[Any] = dataclasses.field(default_factory=list)  # list[RagHit]
-    reranked: list[Any] = dataclasses.field(default_factory=list)  # list[RagHit]
+    search_results: list[Any] = dataclasses.field(default_factory=list)  # list[list[RagHit]]
+    merged: list[Any] = dataclasses.field(default_factory=list)          # list[RagHit]
+    reranked: list[Any] = dataclasses.field(default_factory=list)        # list[RagHit]
     augment_result: str = ""
-    observers: list[Callable[[str, Any], None]] = dataclasses.field(
-        default_factory=list
-    )
+    observers: list = dataclasses.field(default_factory=list)
 
-    def add_observer(self, observer: Callable[[str, Any], None]) -> None:
-        """Add an observer to be notified when a stage completes."""
+    def add_observer(self, observer) -> None:
+        """Add an observer to be notified when stages complete."""
         self.observers.append(observer)
 
 

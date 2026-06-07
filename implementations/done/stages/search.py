@@ -1,4 +1,5 @@
 """Search stage for RAG pipeline."""
+
 import asyncio
 import logging
 

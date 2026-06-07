@@ -195,7 +195,7 @@ class RagPipeline:
             ctx = PipelineContext(query=query, history_context=history_context)
             stages: list = [
                 MqeStage(self._cfg.__dict__, self._llm),
-                SearchStage(self._cfg.__dict__, self._http),
+                SearchStage(self._cfg.__dict__),
                 FusionStage(self._cfg.__dict__),
                 RerankStage(self._cfg.__dict__, self._llm),
                 AugmentStage(),

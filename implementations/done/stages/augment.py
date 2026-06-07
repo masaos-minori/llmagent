@@ -1,11 +1,12 @@
 """Augment stage for RAG pipeline."""
+
 from rag.stage import PipelineContext, PipelineStage
 
 
 def _format_chunks(reranked: list) -> str:
     """Format reranked hits with sanitization and boundary markers."""
-    from rag.pipeline import _RAG_BLOCK_START, _RAG_BLOCK_END, sanitize_document
-    
+    from rag.pipeline import _RAG_BLOCK_END, _RAG_BLOCK_START, sanitize_document
+
     blocks = [
         f"[Source: {c.get('title') or c['url']} | {c['url']}]\n{sanitize_document(c['content'])}"
         for c in reranked
