@@ -243,43 +243,46 @@ class ConfigReloadService:
             ),
         )
 
+    def _reload_approval_config(
+        self,
+        ctx: AgentContext,
+        new_cfg: dict[str, Any],
+    ) -> None:
+        """Update ApprovalConfig fields in ctx.cfg when present in new_cfg."""
+        approval = ctx.cfg.approval
+        if "approval_risk_rules" in new_cfg:
+            approval.approval_risk_rules = dict(new_cfg["approval_risk_rules"])
+        if "approval_protected_paths" in new_cfg:
+            approval.approval_protected_paths = list(
+                new_cfg["approval_protected_paths"]
+            )
+        if "approval_high_risk_branches" in new_cfg:
+            approval.approval_high_risk_branches = list(
+                new_cfg["approval_high_risk_branches"]
+            )
+        if "approval_shell_safe_prefixes" in new_cfg:
+            approval.approval_shell_safe_prefixes = list(
+                new_cfg["approval_shell_safe_prefixes"]
+            )
+        if "approval_resource_keys" in new_cfg:
+            approval.approval_resource_keys = dict(new_cfg["approval_resource_keys"])
+        if "approval_dry_run_tools" in new_cfg:
+            approval.approval_dry_run_tools = list(new_cfg["approval_dry_run_tools"])
+        if "tool_safety_tiers" in new_cfg:
+            approval.tool_safety_tiers = dict(new_cfg["tool_safety_tiers"])
+        approval.allowed_root = new_cfg.get("allowed_root", approval.allowed_root)
+        if "approval_github_allowed_repos" in new_cfg:
+            approval.approval_github_allowed_repos = list(
+                new_cfg["approval_github_allowed_repos"]
+            )
+
     def _reload_approval_settings(
         self,
         ctx: AgentContext,
         new_cfg: dict[str, Any],
     ) -> None:
-        """Update approval-related list/dict fields in ctx.cfg when present in new_cfg."""
-        if "approval_risk_rules" in new_cfg:
-            ctx.cfg.approval.approval_risk_rules = dict(new_cfg["approval_risk_rules"])
-        if "approval_protected_paths" in new_cfg:
-            ctx.cfg.approval.approval_protected_paths = list(
-                new_cfg["approval_protected_paths"]
-            )
-        if "approval_high_risk_branches" in new_cfg:
-            ctx.cfg.approval.approval_high_risk_branches = list(
-                new_cfg["approval_high_risk_branches"],
-            )
-        if "approval_shell_safe_prefixes" in new_cfg:
-            ctx.cfg.approval.approval_shell_safe_prefixes = list(
-                new_cfg["approval_shell_safe_prefixes"],
-            )
-        if "approval_resource_keys" in new_cfg:
-            ctx.cfg.approval.approval_resource_keys = dict(
-                new_cfg["approval_resource_keys"]
-            )
-        if "approval_dry_run_tools" in new_cfg:
-            ctx.cfg.approval.approval_dry_run_tools = list(
-                new_cfg["approval_dry_run_tools"]
-            )
-        if "tool_safety_tiers" in new_cfg:
-            ctx.cfg.approval.tool_safety_tiers = dict(new_cfg["tool_safety_tiers"])
-        ctx.cfg.approval.allowed_root = new_cfg.get(
-            "allowed_root", ctx.cfg.approval.allowed_root
-        )
-        if "approval_github_allowed_repos" in new_cfg:
-            ctx.cfg.approval.approval_github_allowed_repos = list(
-                new_cfg["approval_github_allowed_repos"],
-            )
+        """Update approval, tool, and memory config fields when present in new_cfg."""
+        self._reload_approval_config(ctx, new_cfg)
         if "allowed_tools" in new_cfg:
             ctx.cfg.tool.allowed_tools = list(new_cfg["allowed_tools"])
         if "memory_retention_days" in new_cfg:
