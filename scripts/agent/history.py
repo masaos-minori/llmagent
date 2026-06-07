@@ -231,6 +231,32 @@ class HistoryManager:
             logger.warning(f"Context compression failed: {e}")
             return None
 
+    @staticmethod
+    def _partition_by_class(
+        turn_msgs: list[LLMMessage],
+    ) -> tuple[
+        list[LLMMessage],
+        list[LLMMessage],
+        list[LLMMessage],
+        list[LLMMessage],
+    ]:
+        """Partition turn messages into (temporary, temporary_reasoning, factual, history)."""
+        classified = [(HistoryManager._classify(m), m) for m in turn_msgs]
+        temporary = [m for cls, m in classified if cls == "temporary"]
+        temporary_reasoning = [
+            m for cls, m in classified if cls == "temporary_reasoning"
+        ]
+        factual = [m for cls, m in classified if cls == "factual"]
+        history_msgs = [m for cls, m in classified if cls == "history"]
+        return temporary, temporary_reasoning, factual, history_msgs
+
+    @staticmethod
+    def _sort_by_importance(msgs: list[LLMMessage]) -> list[LLMMessage]:
+        """Return msgs sorted by importance score descending (high = preserve first)."""
+        scored = [(HistoryManager._classify_importance(m), m) for m in msgs]
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [msg for _, msg in scored]
+
     def _select_turns_to_compress(
         self,
         history: list[LLMMessage],
@@ -251,51 +277,25 @@ class HistoryManager:
         """
         system_msgs = [m for m in history if m["role"] == "system"]
         turn_msgs = [m for m in history if m["role"] != "system"]
-        # Reserve the most-recent protect_turns pairs (2 messages per pair)
         n_protect = self._protect_turns * 2
         n_compress = self._compress_turns * 2
-        # Need at least n_compress + n_protect messages to proceed
         if len(turn_msgs) <= n_compress + n_protect:
             return None
 
-        # Classify messages by compression priority
-        classified = [(self._classify(m), m) for m in turn_msgs]
+        temporary, temporary_reasoning, factual, history_msgs = (
+            self._partition_by_class(turn_msgs)
+        )
+        compressible = self._sort_by_importance(
+            temporary + temporary_reasoning + history_msgs
+        )
 
-        # Separate by classification priority
-        temporary = [m for cls, m in classified if cls == "temporary"]
-        temporary_reasoning = [
-            m for cls, m in classified if cls == "temporary_reasoning"
-        ]
-        factual = [m for cls, m in classified if cls == "factual"]
-        history_msgs = [m for cls, m in classified if cls == "history"]
-
-        # Create list of (importance_score, message) tuples for sorting
-        importance_sorted = [
-            (self._classify_importance(m), m)
-            for m in temporary + temporary_reasoning + history_msgs
-        ]
-
-        # Sort by importance score (descending) to preserve high-importance messages
-        importance_sorted.sort(key=lambda x: x[0], reverse=True)
-
-        # Extract messages sorted by importance
-        compressible_by_importance = [msg for _, msg in importance_sorted]
-
-        # Compress in priority order: temporary, temporary_reasoning, then history
-        # Preserve factual messages (system context) and protect the most recent turns
-        compressible = compressible_by_importance
         protected_tail = turn_msgs[-n_protect:] if n_protect > 0 else []
-
-        # Ensure we don't compress protected messages
         compressible = [m for m in compressible if m not in protected_tail]
 
-        # Select oldest messages for compression (but still respecting importance)
         to_compress = compressible[:n_compress]
         remaining = [
             m for m in compressible[n_compress:] if m not in protected_tail
         ] + protected_tail
-
-        # Preserve factual messages in the final result
         remaining = factual + remaining
 
         return system_msgs, to_compress, remaining
