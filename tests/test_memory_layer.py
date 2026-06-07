@@ -158,7 +158,8 @@ class TestOnSessionStop:
         history: list[LLMMessage] = [{"role": "user", "content": "hi"}]
         await layer.on_session_stop(session_id=1, history=history)
         mock_store.upsert.assert_not_called()
-        mock_jsonl.append.assert_not_called()
+        # The mock_jsonl is a JsonlMemoryStore, not a list, so it should be append called on write method
+        mock_jsonl.write.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_does_not_raise_on_store_error(self) -> None:
@@ -188,7 +189,8 @@ class TestWriteSemanticEpisodic:
         layer, mock_store, _, mock_jsonl = _make_layer()
         await layer.write_semantic(session_id=1, content="important rule")
         assert mock_store.upsert.called
-        assert mock_jsonl.append.called
+        # The mock_jsonl is a JsonlMemoryStore, not a list, so it should be append called on write method
+        assert mock_jsonl.write.called
         entry = mock_store.upsert.call_args[0][0]
         assert entry.memory_type == "semantic"
         assert entry.content == "important rule"
@@ -534,7 +536,8 @@ class TestLayerProxies:
         layer, mock_store, _, mock_jsonl = _make_layer()
         await layer.write_semantic(session_id=3, content="rule text")
         assert mock_store.upsert.called
-        assert mock_jsonl.append.called
+        # The mock_jsonl is a JsonlMemoryStore, not a list, so it should be append called on write method
+        assert mock_jsonl.write.called
 
     @pytest.mark.asyncio
     async def test_layer_delegates_write_episodic_to_ingestion(self) -> None:
