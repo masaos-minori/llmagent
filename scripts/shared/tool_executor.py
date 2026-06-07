@@ -395,6 +395,29 @@ class ToolExecutor:
             if isinstance(transport, HttpTransport):
                 transport.set_session_id(session_id)
 
+    def _ensure_semaphores(self) -> None:
+        """Initialise per-server Semaphores lazily on first use.
+
+        Safe because asyncio is single-threaded and this branch completes
+        before the first await in _raw_execute.
+        """
+        if self._semaphores is None and self._concurrency_limits:
+            self._semaphores = {
+                key: asyncio.Semaphore(n)
+                for key, n in self._concurrency_limits.items()
+                if n > 0
+            }
+
+    def _transport_missing_msg(self, server_key: str) -> str:
+        """Return the appropriate error message when a transport is not registered."""
+        cfg = self._server_configs.get(server_key)
+        if cfg and cfg.transport == "stdio":
+            return (
+                f"stdio server {server_key!r} not started"
+                " (call _start_stdio_servers first)"
+            )
+        return f"No transport configured for server {server_key!r}"
+
     async def _raw_execute(
         self,
         tool_name: str,
@@ -408,31 +431,15 @@ class ToolExecutor:
             msg = f"MCP server {server_key!r} is currently unavailable (health check failed)"
             logger.warning(msg)
             return msg, True, ""
-        # Ensure ondemand stdio servers are started before first use.
         if self._lifecycle is not None:
             await self._lifecycle.ensure_ready(server_key)
         transport = self._transports.get(server_key)
         if transport is None:
-            cfg = self._server_configs.get(server_key)
-            if cfg and cfg.transport == "stdio":
-                msg = (
-                    f"stdio server {server_key!r} not started"
-                    " (call _start_stdio_servers first)"
-                )
-            else:
-                msg = f"No transport configured for server {server_key!r}"
+            msg = self._transport_missing_msg(server_key)
             logger.error(msg)
             return msg, True, ""
 
-        # Lazy Semaphore initialisation: safe because asyncio is single-threaded
-        # and the if-branch completes before the first await.
-        if self._semaphores is None and self._concurrency_limits:
-            self._semaphores = {
-                key: asyncio.Semaphore(n)
-                for key, n in self._concurrency_limits.items()
-                if n > 0
-            }
-
+        self._ensure_semaphores()
         sem = (self._semaphores or {}).get(server_key)
         if sem is not None:
             async with sem:
