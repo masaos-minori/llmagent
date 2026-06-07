@@ -5,6 +5,8 @@ Unit tests for JsonlMemoryStore (append / read_all).
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.types import MemoryEntry
@@ -136,3 +138,23 @@ class TestReadAll:
         result = store.read_all()[0]
         assert result.memory_type == "episodic"
         assert result.memory_id == "epi-1"
+
+    async def test_concurrent_writes_are_serialized(self, tmp_path) -> None:
+        """Two concurrent write() calls produce two lines, not garbled output."""
+        store = JsonlMemoryStore(tmp_path / "mem.jsonl")
+        entry1 = _make_entry(content="first")
+        entry2 = _make_entry(content="second")
+        await asyncio.gather(store.write(entry1), store.write(entry2))
+        entries = store.read_all()
+        assert len(entries) == 2
+
+    def test_malformed_line_increments_counter(self, tmp_path) -> None:
+        """Malformed JSONL line increments malformed_count and is skipped."""
+        path = tmp_path / "mem.jsonl"
+        path.write_text(
+            '{"bad": "data"}\n{"memory_id": "x", "memory_type": "semantic", "source_type": "rule", "content": "valid"}\n'
+        )
+        store = JsonlMemoryStore(path)
+        entries = store.read_all()
+        assert store.malformed_count >= 1
+        assert len(entries) == 1

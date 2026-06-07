@@ -1,8 +1,8 @@
 [rules]
 
-- In each filename, `yyyymmdd` represents the current date.
-- In each filename, `hhmmss` represents the current time.
-- In each filename, `_nn_` represents a sequential number.
+- `yyyymmdd` is the current date.
+- `hhmmss` is the current time.
+- `_nn_` is a sequential number.
 
 [tasks]
 

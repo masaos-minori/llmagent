@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import httpx
+from shared.mcp_config import McpServerHealthState
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -64,6 +65,19 @@ class McpStatusService:
                 else:
                     status = self._get_stdio_status(ctx, key, cfg.startup_mode)
                     endpoint = " ".join(cfg.cmd) if cfg.cmd else ""
+                # Add health state to status display
+                health_state = (
+                    ctx.services.health_registry.get_state(key)
+                    if ctx.services.health_registry
+                    else McpServerHealthState.HEALTHY
+                )
+                health_label = (
+                    health_state.value.upper()
+                )  # "HEALTHY" | "DEGRADED" | "UNAVAILABLE"
+                if status != "OK" and status != "RUNNING":
+                    status = f"{status}/{health_label}"
+                else:
+                    status = f"{status}/{health_label}"
                 results.append(
                     McpServerStatus(
                         key=key,

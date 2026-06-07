@@ -24,7 +24,7 @@ import httpx
 import orjson
 
 from shared import plugin_registry
-from shared.mcp_config import McpServerConfig
+from shared.mcp_config import McpServerConfig, McpServerHealthState
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
 
@@ -296,6 +296,34 @@ def tool_call_key(name: str, args: dict[str, Any]) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+class McpServerHealthRegistry:
+    """Tracks per-server health states for ToolExecutor dispatch gating."""
+
+    def __init__(self, failure_threshold: int = 3) -> None:
+        self._states: dict[str, McpServerHealthState] = {}
+        self._failure_counts: dict[str, int] = {}
+        self._failure_threshold = failure_threshold
+
+    def record_failure(self, server_key: str) -> McpServerHealthState:
+        count = self._failure_counts.get(server_key, 0) + 1
+        self._failure_counts[server_key] = count
+        if count >= self._failure_threshold:
+            self._states[server_key] = McpServerHealthState.UNAVAILABLE
+        else:
+            self._states[server_key] = McpServerHealthState.DEGRADED
+        return self._states[server_key]
+
+    def record_success(self, server_key: str) -> None:
+        self._states[server_key] = McpServerHealthState.HEALTHY
+        self._failure_counts[server_key] = 0
+
+    def get_state(self, server_key: str) -> McpServerHealthState:
+        return self._states.get(server_key, McpServerHealthState.HEALTHY)
+
+    def is_unavailable(self, server_key: str) -> bool:
+        return self.get_state(server_key) == McpServerHealthState.UNAVAILABLE
+
+
 class ToolExecutor:
     """Routes tool calls to the appropriate MCP server transport with TTL caching; only successful results are cached; StdioTransport must be injected via set_transport()."""
 
@@ -315,6 +343,7 @@ class ToolExecutor:
         self._cache: OrderedDict[str, tuple[str, bool, float]] = OrderedDict()
         self.stat_cache_hits: int = 0
         self._lifecycle: LifecycleProtocol | None = lifecycle
+        self._health_registry: McpServerHealthRegistry | None = None
 
         # concurrency_limits: server_key -> max concurrent calls.
         # Semaphores are created lazily inside _raw_execute() to avoid event loop issues.
@@ -356,6 +385,10 @@ class ToolExecutor:
         """Inject or replace the lifecycle manager after construction."""
         self._lifecycle = lifecycle
 
+    def set_health_registry(self, registry: McpServerHealthRegistry | None) -> None:
+        """Inject or replace the health registry after construction."""
+        self._health_registry = registry
+
     def set_session_id(self, session_id: str) -> None:
         """Propagate session ID to all HttpTransport instances for audit logging."""
         for transport in self._transports.values():
@@ -369,6 +402,12 @@ class ToolExecutor:
     ) -> tuple[str, bool, str]:
         """Execute tool via the appropriate transport; applies per-server-key Semaphore when configured; semaphores created lazily to avoid event loop issues."""
         server_key = self._resolver.resolve(tool_name)
+        if self._health_registry is not None and self._health_registry.is_unavailable(
+            server_key
+        ):
+            msg = f"MCP server {server_key!r} is currently unavailable (health check failed)"
+            logger.warning(msg)
+            return msg, True, ""
         # Ensure ondemand stdio servers are started before first use.
         if self._lifecycle is not None:
             await self._lifecycle.ensure_ready(server_key)

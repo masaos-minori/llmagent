@@ -14,6 +14,8 @@ class LLMMessage(TypedDict, total=False):
     tool_calls: list[dict]  # tool call requests on assistant messages
     tool_call_id: str  # tool result messages: ID from the triggering tool_call
     name: str  # tool result messages: name of the called tool
+    importance: float  # message importance score for compression
+    pinned: bool  # whether message should be preserved during compression
 
 
 @runtime_checkable

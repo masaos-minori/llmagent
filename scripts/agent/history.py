@@ -170,6 +170,35 @@ class HistoryManager:
             case _:
                 return "history"
 
+    @staticmethod
+    def _classify_importance(msg: LLMMessage) -> float:
+        """Classify message importance for compression prioritization.
+
+        Higher importance scores mean the message should be preserved during compression.
+        """
+        # If pinned, it's very important
+        if msg.get("pinned", False):
+            return float("inf")
+
+        # If importance is explicitly set, use that value
+        importance = msg.get("importance", 0.0)
+        if importance > 0:
+            return importance
+
+        # Default importance based on role and content
+        role = msg.get("role", "")
+        match role:
+            case "system":
+                return 10.0  # High importance for system messages
+            case "assistant" if msg.get("tool_calls"):
+                return 8.0  # Medium-high importance for planning messages
+            case "user" | "assistant":
+                return 5.0  # Medium importance for conversation turns
+            case "tool":
+                return 3.0  # Low importance for tool results
+            case _:
+                return 5.0  # Default for unknown roles
+
     async def _call_compress_llm(self, history_text: str) -> str | None:
         """Send history_text to the chat LLM and return the summary string.
 
@@ -212,7 +241,9 @@ class HistoryManager:
         compression to preserve immediate context.  Returns None when there are
         not enough turn messages left after protection to compress.
 
-        Uses classification to prioritize compression:
+        Uses importance scoring and classification to prioritize compression:
+        - Messages with pinned=True are preserved
+        - Messages with high importance scores are preserved
         - 'temporary' messages (tool results) are compressed first
         - 'temporary_reasoning' messages (assistant with tool_calls) are compressed next
         - 'factual' messages (system) are preserved
@@ -238,15 +269,27 @@ class HistoryManager:
         factual = [m for cls, m in classified if cls == "factual"]
         history_msgs = [m for cls, m in classified if cls == "history"]
 
+        # Create list of (importance_score, message) tuples for sorting
+        importance_sorted = [
+            (self._classify_importance(m), m)
+            for m in temporary + temporary_reasoning + history_msgs
+        ]
+
+        # Sort by importance score (descending) to preserve high-importance messages
+        importance_sorted.sort(key=lambda x: x[0], reverse=True)
+
+        # Extract messages sorted by importance
+        compressible_by_importance = [msg for _, msg in importance_sorted]
+
         # Compress in priority order: temporary, temporary_reasoning, then history
         # Preserve factual messages (system context) and protect the most recent turns
-        compressible = temporary + temporary_reasoning + history_msgs
+        compressible = compressible_by_importance
         protected_tail = turn_msgs[-n_protect:] if n_protect > 0 else []
 
         # Ensure we don't compress protected messages
         compressible = [m for m in compressible if m not in protected_tail]
 
-        # Select oldest messages for compression
+        # Select oldest messages for compression (but still respecting importance)
         to_compress = compressible[:n_compress]
         remaining = [
             m for m in compressible[n_compress:] if m not in protected_tail

@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from db.tool_results import ToolResultStore
 from rag.types import LLMMessage
+from shared.mcp_config import McpServerHealthRegistry
 
 from agent.config import build_agent_config
 from agent.session import AgentSession
@@ -102,6 +103,7 @@ class AppServices:
         audit_logger: Logger,
         memory: MemoryLayer | None,
         stdio_procs: dict[str, StdioTransport] | None = None,
+        health_registry: McpServerHealthRegistry | None = None,
     ) -> None:
         self.http = http
         self.llm = llm
@@ -113,6 +115,8 @@ class AppServices:
         self.stdio_procs: dict[str, StdioTransport] = (
             stdio_procs if stdio_procs is not None else {}
         )
+        # Type ignore needed because of circular import issue with TYPE_CHECKING
+        self.health_registry = health_registry
 
 
 # ---------------------------------------------------------------------------
