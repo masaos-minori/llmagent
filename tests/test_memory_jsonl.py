@@ -139,6 +139,7 @@ class TestReadAll:
         assert result.memory_type == "episodic"
         assert result.memory_id == "epi-1"
 
+    @pytest.mark.asyncio
     async def test_concurrent_writes_are_serialized(self, tmp_path) -> None:
         """Two concurrent write() calls produce two lines, not garbled output."""
         store = JsonlMemoryStore(tmp_path / "mem.jsonl")
