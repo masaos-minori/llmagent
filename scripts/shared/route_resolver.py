@@ -20,6 +20,24 @@ from shared.tool_constants import (
 if TYPE_CHECKING:
     from shared.mcp_config import McpServerConfig
 
+# Ordered table used by _fallback_route: each entry maps a frozenset to a server key.
+# Order is preserved only for readability; no two sets overlap, so match order is irrelevant.
+_SET_ROUTES: tuple[tuple[frozenset[str], str], ...] = (
+    (READ_TOOLS, "file_read"),
+    (WRITE_TOOLS, "file_write"),
+    (DELETE_TOOLS, "file_delete"),
+    (RAG_TOOLS, "rag_pipeline"),
+    (CICD_TOOLS, "cicd"),
+    (MDQ_TOOLS, "mdq"),
+    (GIT_TOOLS, "git"),
+)
+
+# Single-name tools that cannot be identified by set membership or prefix.
+_EXACT_ROUTES: dict[str, str] = {
+    "shell_run": "shell",
+    "search_web": "web_search",
+}
+
 
 class ToolRouteResolver:
     """Map tool_name → server_key.
@@ -44,24 +62,11 @@ class ToolRouteResolver:
 
     def _fallback_route(self, tool_name: str) -> str:
         """Static routing preserved from the original ToolExecutor._route()."""
-        if tool_name in READ_TOOLS:
-            return "file_read"
-        if tool_name in WRITE_TOOLS:
-            return "file_write"
-        if tool_name in DELETE_TOOLS:
-            return "file_delete"
-        if tool_name == "shell_run":
-            return "shell"
-        if tool_name == "search_web":
-            return "web_search"
+        if route := _EXACT_ROUTES.get(tool_name):
+            return route
         if tool_name.startswith("github_"):
             return "github"
-        if tool_name in RAG_TOOLS:
-            return "rag_pipeline"
-        if tool_name in CICD_TOOLS:
-            return "cicd"
-        if tool_name in MDQ_TOOLS:
-            return "mdq"
-        if tool_name in GIT_TOOLS:
-            return "git"
+        for tool_set, server in _SET_ROUTES:
+            if tool_name in tool_set:
+                return server
         raise ValueError(f"Unknown tool: {tool_name!r}")
