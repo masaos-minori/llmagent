@@ -306,6 +306,30 @@ class HistoryManager:
             f"{m['role'].upper()}: {str(m.get('content', ''))[:300]}" for m in messages
         )
 
+    @staticmethod
+    def _build_summary_msg(
+        system_msgs: list[LLMMessage], summary_text: str
+    ) -> LLMMessage:
+        """Return a system message containing summary_text.
+
+        Appends to an existing [Conversation summary] message when present;
+        otherwise creates a new one.
+        """
+        existing = next(
+            (
+                m
+                for m in system_msgs
+                if isinstance(m.get("content"), str)
+                and str(m["content"]).startswith("[Conversation summary]")
+            ),
+            None,
+        )
+        if existing:
+            new_content = f"{existing['content']}\n\n{summary_text}"
+        else:
+            new_content = f"[Conversation summary]\n{summary_text}"
+        return {"role": "system", "content": new_content}
+
     async def compress(self, history: list[LLMMessage]) -> list[LLMMessage]:
         """Summarise the oldest turn pairs when history exceeds char or token limit.
 
@@ -342,27 +366,7 @@ class HistoryManager:
         if summary_text is None:
             return history
 
-        # Reuse existing summary if it exists, otherwise create new one
-        existing_summary = None
-        for msg in system_msgs:
-            content = msg.get("content", "")
-            if isinstance(content, str) and content.startswith(
-                "[Conversation summary]"
-            ):
-                existing_summary = msg
-                break
-
-        if existing_summary:
-            # Append to existing summary instead of creating new one
-            new_summary_content = f"{existing_summary['content']}\n\n{summary_text}"
-        else:
-            # Create new summary
-            new_summary_content = f"[Conversation summary]\n{summary_text}"
-
-        summary_msg: LLMMessage = {
-            "role": "system",
-            "content": new_summary_content,
-        }
+        summary_msg = self._build_summary_msg(system_msgs, summary_text)
         n = len(to_compress)
         self.stat_compress_count += 1
         logger.info(f"History compressed: {n} messages summarized")
