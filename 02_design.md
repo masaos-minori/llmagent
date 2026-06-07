@@ -10,6 +10,7 @@ Show progress while working.
 Follow these instructions exactly.
 
 1. Find files matching `plans/*_plan.md`.
+   Do not read files under the `done` directory.
    If no matching files exist in `plans/`, stop.
    Sort the files by filename in ascending order.
    Select the first file as the target plan file.
@@ -37,3 +38,7 @@ Follow these instructions exactly.
 4. Follow `skills/python-implementation/SKILL.md`.
 
 5. After the plan is complete, move the processed plan file to `plan/done`.
+
+6. Create a Git commit.
+
+7. End the task.

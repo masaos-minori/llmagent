@@ -40,3 +40,7 @@ Restructure all files under `docs/*.md` based on the following rules:
   - Internal Consistency: Review and correct any inconsistent terminology, structural contradictions, or factual errors within `docs/*.md`.
 
 4. Update `routing.md` to align with the restructured documents.
+
+5. Create a Git commit.
+
+6. End the task.

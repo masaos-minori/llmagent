@@ -10,6 +10,7 @@ Show progress while working.
 Follow these steps strictly.
 
 1. Search for files matching `instructions/*_*_instruction.md`.
+   Do not read files under the `done` directory.
    If there are no files in `instructions/`, stop the task.
    Sort the matching files in ascending order by filename.
    Select the first file as the target instruction file and read it.
@@ -49,3 +50,7 @@ Follow these steps strictly.
 7. After the work plan is complete, move the processed instruction file to `instructions/done`.
 
 8. Create the necessary directories for the implementation.
+
+9. Create a Git commit.
+
+10. End the task.

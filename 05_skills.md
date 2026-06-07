@@ -7,10 +7,11 @@ Strictly follow the principles below.
 - shared normalization
 
 [tasks]
+Show progress as you work.
 
-- Show progress as you work.
-- Remove duplicated content across `AGENTS.md`, `skills/DESIGN.md`, and `skills/**/*.md`.
-- Reorganize `AGENTS.md`, `skills/DESIGN.md`, and `skills/**/*.md` based on the Context Loader Pattern.
+1. Remove duplicated content across `AGENTS.md`, `skills/DESIGN.md`, and `skills/**/*.md`.
+
+2. Reorganize `AGENTS.md`, `skills/DESIGN.md`, and `skills/**/*.md` based on the Context Loader Pattern.
 ```
   Task
    ↓
@@ -29,3 +30,5 @@ Strictly follow the principles below.
   - Ensure that shared rules are defined only once and referenced from the appropriate files.
   - Minimize default loading cost.
   - Preserve clear dependency direction between files and rules.
+
+3. End the task.

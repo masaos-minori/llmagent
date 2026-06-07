@@ -10,6 +10,7 @@ Show progress while working.
 Follow these instructions exactly.
 
 1. Search for files matching `implementations/*-*_*.md`.
+   Do not read files under the `done` directory.
    If there are no matching files in `implementations/`, stop the task.
    Sort the matching files by filename in ascending order.
    Use the first file as the target implementation file.
@@ -36,3 +37,7 @@ Follow these instructions exactly.
 5. After implementation and testing are complete, move the completed implementation procedure document to `implementations/done`.
 
 6. Update `docs/*.md` for every changed file.
+
+7. Create a Git commit.
+
+8. End the task.

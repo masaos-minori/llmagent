@@ -1,54 +1,34 @@
-"""rag/stages/rerank.py
-Rerank stage for Cross-Encoder.
-"""
-
-from __future__ import annotations
+"""Rerank stage for RAG pipeline."""
 
 import logging
-from typing import Any
 
-from rag.llm import RagLLM
 from rag.repository import deduplicate_chunks
 from rag.stage import PipelineContext
 
 logger = logging.getLogger(__name__)
 
 
-async def _rerank(
-    query: str,
-    merged: list,
-    cfg: dict[str, Any],
-    llm: RagLLM,
-) -> list:
-    """Apply Cross-Encoder rerank then dedup; fall back to RRF order on error."""
-    if not cfg.get("use_rerank", True):
-        result = merged[: cfg.get("rag_top_k", 10)]
-        return deduplicate_chunks(result, cfg.get("max_chunks_per_doc", 5))
-    try:
-        result = await llm.cross_encoder_rerank(
-            query,
-            merged[: cfg.get("top_k_rerank", 100)],
-            cfg.get("rag_top_k", 10),
-            rag_min_score=cfg.get("rag_min_score", 0.0),
-        )
-        return deduplicate_chunks(result, cfg.get("max_chunks_per_doc", 5))
-    except Exception as e:
-        logger.warning(f"Rerank failed, using RRF order: {e}")
-        result = merged[: cfg.get("rag_top_k", 10)]
-        return deduplicate_chunks(result, cfg.get("max_chunks_per_doc", 5))
-
-
 class RerankStage:
-    def __init__(self, cfg: dict[str, Any], llm: RagLLM) -> None:
+    def __init__(self, cfg, llm) -> None:
         self._cfg = cfg
         self._llm = llm
 
-    async def run(self, ctx: PipelineContext, **kwargs: Any) -> None:
-        """Run rerank stage."""
-        ctx.reranked = await _rerank(ctx.query, ctx.merged, self._cfg, self._llm)
-        # Notify observers
-        for observer in ctx.observers:
-            try:
-                await observer.on_stage_complete("rerank", ctx)
-            except Exception as e:
-                logger.warning(f"Observer failed in Rerank stage: {e}")
+    async def run(self, ctx: PipelineContext, **kwargs) -> None:
+        rag_top_k: int = self._cfg.get("rag_top_k", 5)
+        max_chunks_per_doc: int = self._cfg.get("max_chunks_per_doc", 3)
+        if not self._cfg.get("use_rerank"):
+            ctx.reranked = deduplicate_chunks(
+                ctx.merged[:rag_top_k], max_chunks_per_doc
+            )
+            return
+        try:
+            result = await self._llm.cross_encoder_rerank(
+                ctx.query,
+                ctx.merged[: self._cfg.get("top_k_rerank", 20)],
+                rag_top_k,
+                rag_min_score=self._cfg.get("rag_min_score", 0.0),
+            )
+            ctx.reranked = deduplicate_chunks(result, max_chunks_per_doc)
+        except Exception as e:
+            logger.warning(f"Rerank failed, using RRF order: {e}")
+            ctx.reranked = ctx.merged[:rag_top_k]

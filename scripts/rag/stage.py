@@ -5,6 +5,7 @@ PipelineStage Protocol and shared PipelineContext dataclass.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable
 from typing import Any, Protocol
 
 
@@ -21,10 +22,12 @@ class PipelineContext:
     merged: list[Any] = dataclasses.field(default_factory=list)  # list[RagHit]
     reranked: list[Any] = dataclasses.field(default_factory=list)  # list[RagHit]
     augment_result: str = ""
-    observers: list = dataclasses.field(default_factory=list)
+    observers: list[Callable[[str, Any], None]] = dataclasses.field(
+        default_factory=list
+    )
 
-    def add_observer(self, observer: Any) -> None:
-        """Add an observer to be notified of stage events."""
+    def add_observer(self, observer: Callable[[str, Any], None]) -> None:
+        """Add an observer to be notified when a stage completes."""
         self.observers.append(observer)
 
 
