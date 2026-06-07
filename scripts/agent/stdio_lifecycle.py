@@ -110,20 +110,23 @@ class StdioServerLifecycleManager:
         for key, transport in list(self._stdio_procs.items()):
             await self._stop_stdio(key, transport)
 
+    def _is_idle_timeout(self, key: str, cfg: McpServerConfig, now: float) -> bool:
+        """Return True when an ondemand server has exceeded its idle timeout."""
+        if cfg.startup_mode != "ondemand" or cfg.idle_timeout_sec <= 0:
+            return False
+        last = self._last_called.get(key, 0.0)
+        state = self._transport_states.get(key, TransportState.STOPPED)
+        return now - last >= cfg.idle_timeout_sec and state == TransportState.RUNNING
+
     async def shutdown_idle(self) -> None:
         """Stop ondemand stdio servers that have exceeded idle_timeout_sec."""
         now = time.monotonic()
         for key, transport in list(self._stdio_procs.items()):
             cfg = self._server_configs.get(key)
-            if cfg is None or cfg.startup_mode != "ondemand":
+            if cfg is None or not self._is_idle_timeout(key, cfg, now):
                 continue
-            if cfg.idle_timeout_sec <= 0:
-                continue
-            last = self._last_called.get(key, 0.0)
-            state = self._transport_states.get(key, TransportState.STOPPED)
-            if now - last >= cfg.idle_timeout_sec and state == TransportState.RUNNING:
-                logger.info("Lifecycle: idle timeout — stopping %r", key)
-                await self._stop_stdio(key, transport)
+            logger.info("Lifecycle: idle timeout — stopping %r", key)
+            await self._stop_stdio(key, transport)
 
     def get_transport_state(self, server_key: str) -> TransportState:
         """Get the current state of a transport."""
