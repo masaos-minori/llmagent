@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import subprocess  # nosec B404
 import time
 from dataclasses import dataclass
@@ -93,8 +94,6 @@ class HttpServerLifecycleManager:
         )
         env = None
         if cfg.env:
-            import os  # noqa: PLC0415
-
             env = {**os.environ, **cfg.env}
         proc = subprocess.Popen(  # nosec B603 — cmd comes from admin-controlled config, not user input  # noqa: S603
             cfg.cmd,
