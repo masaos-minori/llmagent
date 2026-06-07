@@ -34,6 +34,28 @@ class HttpServerLifecycleManager:
     def __init__(self) -> None:
         self._http_procs: dict[str, subprocess.Popen[bytes]] = {}
 
+    async def _terminate_with_timeout(
+        self,
+        proc: subprocess.Popen[bytes],
+        server_key: str,
+        timeout: float = 3.0,
+    ) -> None:
+        """Terminate proc; escalate to kill if terminate times out."""
+        proc.terminate()
+        try:
+            await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=timeout)
+        except TimeoutError:
+            logger.warning(
+                f"Lifecycle: force-killing {server_key!r} (terminate timed out)",
+            )
+            proc.kill()
+            try:
+                await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=timeout)
+            except TimeoutError:
+                logger.warning(
+                    f"Lifecycle: {server_key!r} still not terminated after kill",
+                )
+
     def verify_running(self, server_key: str) -> bool:
         """Check if an HTTP subprocess server is running and optionally restart it.
 
@@ -118,20 +140,7 @@ class HttpServerLifecycleManager:
 
         # Handle timeout case with stderr collection
         stderr_full = proc.stderr.read().decode(errors="replace") if proc.stderr else ""
-        proc.terminate()
-        try:
-            await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=3.0)
-        except TimeoutError:
-            logger.warning(
-                f"Lifecycle: force-killing {server_key!r} (terminate timed out)",
-            )
-            proc.kill()
-            try:
-                await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=3.0)
-            except TimeoutError:
-                logger.warning(
-                    f"Lifecycle: {server_key!r} still not terminated after kill",
-                )
+        await self._terminate_with_timeout(proc, server_key)
         raise RuntimeError(
             f"Lifecycle: HTTP subprocess {server_key!r} did not become healthy"
             f" within {cfg.startup_timeout_sec}s"
@@ -143,20 +152,7 @@ class HttpServerLifecycleManager:
         proc = self._http_procs.pop(server_key, None)
         if proc is not None and proc.poll() is None:
             logger.info(f"Lifecycle: terminating {server_key!r} for restart")
-            proc.terminate()
-            try:
-                await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=3.0)
-            except TimeoutError:
-                logger.warning(
-                    f"Lifecycle: force-killing {server_key!r} (terminate timed out)",
-                )
-                proc.kill()
-                try:
-                    await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=3.0)
-                except TimeoutError:
-                    logger.warning(
-                        f"Lifecycle: {server_key!r} still not terminated after kill",
-                    )
+            await self._terminate_with_timeout(proc, server_key)
         await self.start(server_key, cfg)
 
     async def shutdown_all(self) -> None:
@@ -164,24 +160,7 @@ class HttpServerLifecycleManager:
         for key, proc in list(self._http_procs.items()):
             if proc.poll() is None:
                 try:
-                    proc.terminate()
-                    try:
-                        await asyncio.wait_for(
-                            asyncio.to_thread(proc.wait), timeout=5.0
-                        )
-                    except TimeoutError:
-                        logger.warning(
-                            f"Lifecycle: force-killing {key!r} (terminate timed out)",
-                        )
-                        proc.kill()
-                        try:
-                            await asyncio.wait_for(
-                                asyncio.to_thread(proc.wait), timeout=5.0
-                            )
-                        except TimeoutError:
-                            logger.warning(
-                                f"Lifecycle: {key!r} still not terminated after kill",
-                            )
+                    await self._terminate_with_timeout(proc, key, timeout=5.0)
                 except Exception as e:
                     logger.warning(
                         f"Lifecycle: error stopping HTTP subprocess {key!r}: {e}"
