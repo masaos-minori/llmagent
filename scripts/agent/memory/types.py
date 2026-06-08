@@ -18,8 +18,8 @@ MEMORY_TYPES: frozenset[str] = frozenset({"semantic", "episodic"})
 class SourceType(StrEnum):
     """Taxonomy of memory source types.
 
-    StrEnum allows: SourceType.RULE == "rule" → True, so string literals
-    in existing code remain compatible without changes.
+    StrEnum allows: SourceType.RULE == "rule" → True, enabling comparison
+    with string literals without explicit .value access.
     """
 
     CONVERSATION = "conversation"
@@ -28,7 +28,7 @@ class SourceType(StrEnum):
     FAILURE = "failure"
 
 
-# Backward-compat frozenset for code still comparing with string literals.
+# Frozenset of valid source_type values; used in validation error messages.
 SOURCE_TYPES: frozenset[str] = frozenset(v.value for v in SourceType)
 
 
