@@ -104,6 +104,7 @@ warn_unused_ignores = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+asyncio_mode = "auto"
 markers = [
     "integration: integration tests that start real subprocesses (deselect with -m 'not integration')",
 ]
