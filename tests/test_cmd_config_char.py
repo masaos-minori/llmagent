@@ -6,20 +6,18 @@ Captures exact current output strings to preserve behavior during refactoring.
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock
 
-import pytest
 from agent.commands.cmd_config import _ConfigMixin
 from agent.config import (
-    LLMConfig,
-    RAGConfig,
-    ToolConfig,
-    MCPConfig,
     ApprovalConfig,
+    LLMConfig,
+    MCPConfig,
     MemoryConfig,
     ObservabilityConfig,
+    RAGConfig,
+    ToolConfig,
 )
-from agent.commands.mixin_base import MixinBase
 
 
 class _Config(_ConfigMixin):
@@ -65,7 +63,7 @@ class TestPrintConfigValues:
         cmd = _Config(ctx)
         cmd._print_config_values()
         out = capsys.readouterr().out
-        lines = [l for l in out.split("\n") if l.strip()]
+        lines = [ln for ln in out.split("\n") if ln.strip()]
         assert len(lines) > 30
         assert lines[0] == "Settings:"
         assert "llm_url             :" in lines[1]
