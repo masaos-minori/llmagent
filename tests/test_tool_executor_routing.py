@@ -11,7 +11,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 import shared.plugin_registry as plugin_registry
-from shared.mcp_config import McpServerConfig
+from shared.mcp_config import (
+    McpServerConfig,
+    McpServerHealthRegistry,
+    McpServerHealthState,
+)
 from shared.tool_executor import (
     HttpTransport,
     LifecycleProtocol,
@@ -537,3 +541,107 @@ class TestToolExecutorApplyConfig:
         ex = self._make_executor()
         ex.apply_config()
         assert ex._cache_ttl == 300.0
+
+
+# ── McpServerHealthRegistry ───────────────────────────────────────────────────
+
+
+class TestMcpServerHealthRegistry:
+    def test_initial_state_is_healthy(self) -> None:
+        r = McpServerHealthRegistry(failure_threshold=3)
+        assert r.get_state("srv") == McpServerHealthState.HEALTHY
+
+    def test_first_failure_is_degraded(self) -> None:
+        r = McpServerHealthRegistry(failure_threshold=3)
+        state = r.record_failure("srv")
+        assert state == McpServerHealthState.DEGRADED
+        assert r.get_state("srv") == McpServerHealthState.DEGRADED
+
+    def test_failure_at_threshold_is_unavailable(self) -> None:
+        r = McpServerHealthRegistry(failure_threshold=3)
+        r.record_failure("srv")
+        r.record_failure("srv")
+        state = r.record_failure("srv")
+        assert state == McpServerHealthState.UNAVAILABLE
+        assert r.is_unavailable("srv")
+
+    def test_success_resets_to_healthy(self) -> None:
+        r = McpServerHealthRegistry(failure_threshold=3)
+        r.record_failure("srv")
+        r.record_failure("srv")
+        r.record_failure("srv")
+        r.record_success("srv")
+        assert r.get_state("srv") == McpServerHealthState.HEALTHY
+        assert not r.is_unavailable("srv")
+
+    def test_success_resets_failure_count(self) -> None:
+        r = McpServerHealthRegistry(failure_threshold=2)
+        r.record_failure("srv")
+        r.record_success("srv")
+        # One more failure should be degraded, not unavailable
+        r.record_failure("srv")
+        assert r.get_state("srv") == McpServerHealthState.DEGRADED
+
+    def test_is_unavailable_false_for_healthy(self) -> None:
+        r = McpServerHealthRegistry()
+        assert not r.is_unavailable("unknown_server")
+
+    def test_health_registry_transitions_from_validation_plan(self) -> None:
+        """Matches the validation plan test spec exactly."""
+        r = McpServerHealthRegistry(failure_threshold=3)
+        assert r.get_state("srv") == McpServerHealthState.HEALTHY
+        r.record_failure("srv")
+        assert r.get_state("srv") == McpServerHealthState.DEGRADED
+        r.record_failure("srv")
+        r.record_failure("srv")
+        assert r.get_state("srv") == McpServerHealthState.UNAVAILABLE
+        r.record_success("srv")
+        assert r.get_state("srv") == McpServerHealthState.HEALTHY
+
+
+# ── ToolExecutor health gate ──────────────────────────────────────────────────
+
+
+class TestToolExecutorHealthGate:
+    @pytest.mark.asyncio
+    async def test_unavailable_server_returns_error_without_transport_call(
+        self,
+    ) -> None:
+        """Unavailable server short-circuits _raw_execute without transport call."""
+        registry = McpServerHealthRegistry(failure_threshold=1)
+        registry.record_failure("file_read")
+
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+
+        with patch.object(ex, "_transports", {}):
+            result, is_error, _ = await ex._raw_execute("read_text_file", {})
+
+        assert is_error
+        assert "unavailable" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_healthy_server_proceeds_to_transport(self) -> None:
+        """Healthy server is not blocked by health gate."""
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(return_value=("ok", False, "req-1"))
+        ex._transports = {"file_read": mock_transport}
+
+        result, is_error, _ = await ex._raw_execute("read_text_file", {})
+        mock_transport.call.assert_called_once()
+        assert not is_error
+
+    def test_set_health_registry_stores_registry(self) -> None:
+        ex = _make_executor()
+        registry = McpServerHealthRegistry()
+        ex.set_health_registry(registry)
+        assert ex._health_registry is registry
+
+    def test_set_health_registry_accepts_none(self) -> None:
+        ex = _make_executor()
+        ex.set_health_registry(None)
+        assert ex._health_registry is None
