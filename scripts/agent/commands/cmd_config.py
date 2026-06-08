@@ -96,9 +96,12 @@ class _ConfigMixin(MixinBase):
                 mx = max(samples)
                 print(f"  {step:<12}: {mean:.2f}s / {mx:.2f}s ({len(samples)} samples)")
 
-    def _print_config_values(self) -> None:
-        """Print static endpoint/LLM settings and execution settings."""
-        ctx = self._ctx
+    @staticmethod
+    def _print_section_header(title: str) -> None:
+        """Print a section header line."""
+        print(title)
+
+    def _print_llm_settings(self, ctx: "AgentContext") -> None:
         print("Settings:")
         print(f"  llm_url             : {ctx.cfg.llm.llm_url}")
         print(f"  web_search_url      : {ctx.cfg.rag.web_search_url}")
@@ -108,22 +111,29 @@ class _ConfigMixin(MixinBase):
         print(f"  web_search_max      : {ctx.cfg.rag.web_search_max_results}")
         print(f"  context_char_limit  : {ctx.cfg.llm.context_char_limit}")
         print(
-            f"  context_compress    : {ctx.cfg.llm.context_compress_turns} turn pairs"
+            f"  context_compress    :"
+            f" {ctx.cfg.llm.context_compress_turns} turn pairs",
         )
         print(f"  tool_cache_ttl      : {ctx.cfg.tool.tool_cache_ttl}s")
         print(f"  llm_max_retries     : {ctx.cfg.llm.llm_max_retries}")
         print(f"  llm_retry_base_delay: {ctx.cfg.llm.llm_retry_base_delay}s")
         print(f"  llm_temperature     : {ctx.cfg.llm.llm_temperature}")
         print(f"  llm_max_tokens      : {ctx.cfg.llm.llm_max_tokens}")
-        print()
+
+    def _print_sse_settings(self, ctx: "AgentContext") -> None:
         print("SSE stream settings:")
         print(
-            f"  sse_heartbeat_timeout              : {ctx.cfg.llm.sse_heartbeat_timeout}s",
+            f"  sse_heartbeat_timeout              :"
+            f" {ctx.cfg.llm.sse_heartbeat_timeout}s",
         )
         print(
-            f"  sse_malformed_retry                : {ctx.cfg.llm.sse_malformed_retry}"
+            f"  sse_malformed_retry                :"
+            f" {ctx.cfg.llm.sse_malformed_retry}",
         )
-        print(f"  sse_reconnect_max                  : {ctx.cfg.llm.sse_reconnect_max}")
+        print(
+            f"  sse_reconnect_max                  :"
+            f" {ctx.cfg.llm.sse_reconnect_max}",
+        )
         print(
             f"  llm_stream_retry_on_heartbeat_timeout:"
             f" {ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout}",
@@ -132,22 +142,27 @@ class _ConfigMixin(MixinBase):
             f"  llm_stream_retry_on_malformed_chunk  :"
             f" {ctx.cfg.llm.llm_stream_retry_on_malformed_chunk}",
         )
-        print()
+
+    def _print_execution_settings(self, ctx: "AgentContext") -> None:
         print("Execution settings:")
         print(f"  serial_tool_calls   : {ctx.cfg.tool.serial_tool_calls}")
         print(f"  use_tool_summarize  : {ctx.cfg.tool.use_tool_summarize}")
         print(f"  tool_summarize_thr  : {ctx.cfg.tool.tool_summarize_threshold}")
         print(f"  auto_inject_notes   : {ctx.cfg.tool.auto_inject_notes}")
-        print()
+
+    def _print_semantic_cache_settings(self, ctx: "AgentContext") -> None:
         print("Semantic cache:")
         print(f"  use_semantic_cache  : {ctx.cfg.rag.use_semantic_cache}")
         print(f"  sem_cache_threshold : {ctx.cfg.rag.semantic_cache_threshold}")
         print(f"  sem_cache_max_size  : {ctx.cfg.rag.semantic_cache_max_size}")
-        print()
+
+    def _print_mcp_settings(self, ctx: "AgentContext") -> None:
         print("MCP / security settings:")
         print(f"  tool_def_strict     : {ctx.cfg.tool.tool_definitions_strict}")
         print(f"  watchdog_interval   : {ctx.cfg.mcp.mcp_watchdog_interval}s")
         print(f"  watchdog_max_restart: {ctx.cfg.mcp.mcp_watchdog_max_restarts}")
+
+    def _print_approval_settings(self, ctx: "AgentContext") -> None:
         print("Approval settings:")
         rules = ctx.cfg.approval.approval_risk_rules
         if rules:
@@ -156,22 +171,30 @@ class _ConfigMixin(MixinBase):
         else:
             print("  risk_rules          : (none)")
         print(f"  protected_paths     : {ctx.cfg.approval.approval_protected_paths}")
-        print(f"  high_risk_branches  : {ctx.cfg.approval.approval_high_risk_branches}")
+        print(
+            f"  high_risk_branches  :"
+            f" {ctx.cfg.approval.approval_high_risk_branches}",
+        )
         dry_run_tools = ctx.cfg.approval.approval_dry_run_tools
         print(f"  dry_run_tools       : {dry_run_tools or '(none)'}")
         masked = ctx.cfg.tool.masked_fields
         print(f"  masked_fields       : {masked or '(none)'}")
-        print()
+
+    def _print_tool_safety_settings(self, ctx: "AgentContext") -> None:
         print("Security settings (tool safety):")
         allowed_root = ctx.cfg.approval.allowed_root
         print(
-            f"  allowed_root        : {repr(allowed_root) if allowed_root else '(disabled)'}",
+            f"  allowed_root        :"
+            f" {repr(allowed_root) if allowed_root else '(disabled)'}",
         )
         allowed_repos = ctx.cfg.approval.approval_github_allowed_repos
         if allowed_repos:
             print(f"  github_allowed_repos: {allowed_repos}")
         else:
-            print("  github_allowed_repos: (Fail-Closed — all write ops denied)")
+            print(
+                "  github_allowed_repos:"
+                " (Fail-Closed \u2014 all write ops denied)",
+            )
         tier_count = len(ctx.cfg.approval.tool_safety_tiers)
         print(f"  tool_safety_tiers   : {tier_count} tools classified")
         allowed_tools = ctx.cfg.tool.allowed_tools
@@ -188,6 +211,22 @@ class _ConfigMixin(MixinBase):
                 print(f"    - {t}")
         else:
             print("  plan_blocked_tools  : (none)")
+
+    def _print_config_values(self) -> None:
+        """Print static endpoint/LLM settings and execution settings."""
+        ctx = self._ctx
+        self._print_llm_settings(ctx)
+        print()
+        self._print_sse_settings(ctx)
+        print()
+        self._print_execution_settings(ctx)
+        print()
+        self._print_semantic_cache_settings(ctx)
+        print()
+        self._print_mcp_settings(ctx)
+        self._print_approval_settings(ctx)
+        print()
+        self._print_tool_safety_settings(ctx)
 
     def _print_rag_config(self) -> None:
         """Print retrieval settings including DB path and search parameters."""
