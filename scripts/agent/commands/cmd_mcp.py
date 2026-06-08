@@ -8,14 +8,10 @@ Thin dispatcher that delegates to:
 """
 
 import logging
-from typing import TYPE_CHECKING
 
 from agent.commands.mixin_base import MixinBase
 from agent.services.mcp_install import CliInstallQA, McpInstallService
 from agent.services.mcp_status import McpStatusService
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

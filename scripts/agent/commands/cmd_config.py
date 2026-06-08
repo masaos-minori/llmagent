@@ -290,6 +290,9 @@ class _ConfigMixin(MixinBase):
             if result.needs_restart:
                 print(f"Restart required for: {', '.join(result.needs_restart)}")
             print("Config reloaded.")
+        except OSError as e:
+            logger.warning(f"Config reload I/O error: {e}")
+            print(f"Reload failed (I/O error): {e}")
         except Exception as e:
             logger.warning(f"Config reload failed: {e}")
             print(f"Reload failed: {e}")
