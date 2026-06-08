@@ -4,23 +4,22 @@ Transport configuration for MCP servers.
 Placed in shared/ so tool_executor.py can reference it without depending on agent/.
 """
 
+import warnings
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 
 @dataclass
 class McpServerConfig:
     """Transport configuration for one MCP server; transport/startup_mode/healthcheck_mode govern lifecycle; tool_names enables config-driven routing."""
 
-    transport: str  # "http" | "stdio"
+    transport: Literal["http", "stdio"]
     url: str  # base URL (transport="http")
     cmd: list[str]  # command argv (transport="stdio")
     openrc_service: str  # e.g. "file-mcp"  (transport="http", watchdog restart)
-    startup_mode: str = "persistent"  # "persistent" | "ondemand" | "subprocess"
-    healthcheck_mode: str = (
-        ""  # "http" | "process" | "ping_tool"; auto-inferred when ""
-    )
+    startup_mode: Literal["persistent", "ondemand", "subprocess"] = "persistent"
+    healthcheck_mode: Literal["http", "process", "ping_tool", ""] = ""
     idle_timeout_sec: int = 0  # ondemand auto-stop delay in seconds; 0 = disabled
     startup_timeout_sec: int = 30  # subprocess startup health-poll timeout in seconds
     working_dir: str = ""  # stdio subprocess working directory; "" = inherit
@@ -132,6 +131,12 @@ def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
             for key, v in raw.items()
         }
     # Backwards compat: derive from legacy URL constants
+    warnings.warn(
+        "mcp_servers config section missing; falling back to legacy URL constants. "
+        "Add [mcp_servers] to config/mcp_servers.toml.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return {
         "web_search": McpServerConfig(
             "http",

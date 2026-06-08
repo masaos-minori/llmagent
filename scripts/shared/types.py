@@ -3,13 +3,13 @@
 Cross-layer type definitions shared by shared, rag, and agent packages.
 """
 
-from typing import Protocol, TypedDict, runtime_checkable
+from typing import Literal, Protocol, TypedDict, runtime_checkable
 
 
 class LLMMessage(TypedDict, total=False):
     """OpenAI-compatible chat message; role always required; content for user/system/assistant; tool_calls on assistant; tool_call_id/name on tool result messages."""
 
-    role: str  # "user" | "assistant" | "tool" | "system"
+    role: Literal["user", "assistant", "tool", "system"]
     content: str | None  # text content; None for tool_calls-only assistant messages
     tool_calls: list[dict]  # tool call requests on assistant messages
     tool_call_id: str  # tool result messages: ID from the triggering tool_call
