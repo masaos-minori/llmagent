@@ -130,34 +130,6 @@ def _collect_tool_result_msgs(
     return tool_msgs
 
 
-async def _execute_with_dag_legacy(
-    ctx: AgentContext,
-    approved_calls: list[dict],
-    turn: int,
-) -> list[Any]:
-    """Run approved calls in DAG order: writes first, then the rest."""
-    writes = [tc for tc in approved_calls if tc["function"]["name"] in WRITE_TOOLS]
-    rest = [tc for tc in approved_calls if tc["function"]["name"] not in WRITE_TOOLS]
-    results: list[Any] = []
-    if writes:
-        logger.info(
-            "DAG: executing write group first"
-            f" ({[tc['function']['name'] for tc in writes]})",
-        )
-        results.extend(
-            await asyncio.gather(
-                *(execute_one_tool_call(ctx, tc, turn) for tc in writes)
-            ),
-        )
-    if rest:
-        results.extend(
-            await asyncio.gather(
-                *(execute_one_tool_call(ctx, tc, turn) for tc in rest)
-            ),
-        )
-    return results
-
-
 async def _execute_with_dag(
     ctx: AgentContext,
     approved_calls: list[dict],
@@ -165,7 +137,8 @@ async def _execute_with_dag(
 ) -> list[Any]:
     """Run approved calls using resource-scoped dependency groups.
 
-    Falls back to write-first ordering when no resource_scope metadata is available.
+    Delegates to build_execution_groups which handles write-first ordering
+    for tools without resource_scope metadata.
     """
     tool_definitions = ctx.cfg.tool.tool_definitions
     tool_meta: dict[str, dict] = {}
@@ -178,12 +151,6 @@ async def _execute_with_dag(
                 "requires_serial": fn.get("requires_serial", False),
                 "is_write": name in WRITE_TOOLS or name in DELETE_TOOLS,
             }
-
-    if not any(
-        m.get("resource_scope") or m.get("requires_serial") for m in tool_meta.values()
-    ):
-        # No resource_scope metadata — fall back to existing write-first DAG
-        return await _execute_with_dag_legacy(ctx, approved_calls, turn)
 
     groups = build_execution_groups(approved_calls, tool_meta)
     results: list[Any] = []

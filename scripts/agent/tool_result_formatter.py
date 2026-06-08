@@ -2,8 +2,7 @@
 Tool argument masking and result preview/display helpers.
 
 Extracted from repl_tool_exec.py and agent/commands/registry.py.
-mask_args moved here from registry.py; registry re-exports it for
-backward compatibility.
+mask_args moved here from registry.py (re-export removed).
 """
 
 from __future__ import annotations

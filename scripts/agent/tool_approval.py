@@ -18,7 +18,6 @@ from agent.tool_policy import classify_risk, preflight_deny_reason
 from agent.tool_result_formatter import build_preview, mask_args
 
 if TYPE_CHECKING:
-    from agent.config import ApprovalConfig
     from agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
@@ -36,28 +35,6 @@ _GITHUB_WRITE_TOOLS: frozenset[str] = frozenset(
 )
 
 
-def _check_github_repo_allowed(
-    tool_name: str,
-    args: dict[str, Any],
-    cfg: ApprovalConfig,
-) -> bool:
-    """Return True when the GitHub repo in args is permitted.
-
-    Empty allowed_repos list means unrestricted. Non-GitHub tools always pass.
-    """
-    if not cfg.approval_github_allowed_repos:
-        return True
-    if not tool_name.startswith("github_"):
-        return True
-    repo = args.get("repo") or args.get("owner_and_repo") or args.get("repository", "")
-    if not repo:
-        return True
-    return any(
-        repo == allowed or repo.endswith(f"/{allowed.split('/')[-1]}")
-        for allowed in cfg.approval_github_allowed_repos
-    )
-
-
 class ApprovalDecision(TypedDict, total=False):
     """Structured result of a single tool approval evaluation."""
 
@@ -66,39 +43,6 @@ class ApprovalDecision(TypedDict, total=False):
     decision: str  # "approved" | "denied" | "dry_run" | "preview_only"
     escalation_reason: str  # why the risk was escalated (or "" if no escalation)
     preview: str  # dry_run result text (or "")
-
-
-def _escalate_by_args(
-    tool_name: str,
-    args: dict[str, Any],
-    cfg: ApprovalConfig,
-) -> tuple[str, str] | None:
-    """Return (escalated_risk_level, reason) if arg content warrants escalation.
-
-    Returns None when no escalation is needed.
-    Checks:
-    - Recursive deletion (delete_directory with recursive=True or non-empty dir)
-    - Force/overwrite flags
-    - Dangerous shell command prefixes (already partially covered by approval_shell_safe_prefixes)
-    """
-    # Check recursive delete escalation
-    if tool_name == "delete_directory" and args.get("recursive"):
-        return "high", "recursive directory deletion requested"
-
-    # Check for dangerous explicit flags
-    for flag in ("force", "overwrite", "clobber"):
-        if args.get(flag) is True:
-            return "high", f"dangerous flag {flag}=True in args"
-
-    # Check path escalation (extends existing approval_protected_paths logic)
-    resource_keys = cfg.approval_resource_keys
-    path_keys = resource_keys.get("path_keys", [])
-    for key in path_keys:
-        path = str(args.get(key, ""))
-        if path and any(path.startswith(p) for p in cfg.approval_protected_paths):
-            return "high", f"path {path!r} is in a protected directory"
-
-    return None
 
 
 async def _build_preview_with_dry_run(
@@ -159,14 +103,7 @@ async def check_approval(
         print(message)
         return False
 
-    # Check for argument-based risk escalation
-    escalated = _escalate_by_args(tool_name, args, ctx.cfg.approval)
-    if escalated is not None:
-        escalated_risk, reason = escalated
-        # Use the escalated risk level
-        risk = escalated_risk
-    else:
-        risk = classify_risk(ctx.cfg, tool_name, args)
+    risk = classify_risk(ctx.cfg, tool_name, args)
 
     if risk == "none":
         audit_approval(ctx, tool_name, risk, args, "auto")

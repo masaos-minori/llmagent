@@ -99,6 +99,9 @@ def _special_case_risk(
     """
     if tool_name == "delete_directory" and args.get("recursive"):
         return "high"
+    for flag in ("force", "overwrite", "clobber"):
+        if args.get(flag) is True:
+            return "high"
     if tool_name == "shell_run":
         cmd = str(args.get("command", ""))
         if any(cmd.startswith(p) for p in cfg.approval.approval_shell_safe_prefixes):

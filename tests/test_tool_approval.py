@@ -648,6 +648,8 @@ class TestAuditToolExec:
         logged = ctx.services.audit_logger.info.call_args[0][0]
         assert "tool_exec" in logged
         assert "req-123" in logged
+        assert "operation_type" in logged
+        assert "resource_scope" in logged
 
     def test_skips_when_audit_logger_is_none(self) -> None:
         ctx = _make_ctx()
@@ -780,87 +782,6 @@ class TestGitopsGuards:
         )
         assert result is False
 
-    def test_check_github_repo_allowed_partial_name_match(self) -> None:
-        """_check_github_repo_allowed uses owner_and_repo/repo field directly."""
-        from agent.config import ApprovalConfig
-        from agent.tool_approval import _check_github_repo_allowed
-
-        cfg = ApprovalConfig(approval_github_allowed_repos=["myorg/allowed-repo"])
-        assert _check_github_repo_allowed(
-            "github_push_files", {"repo": "myorg/allowed-repo"}, cfg
-        )
-        assert not _check_github_repo_allowed(
-            "github_push_files", {"repo": "myorg/other-repo"}, cfg
-        )
-
-
-# ── _escalate_by_args ────────────────────────────────────────────────────────
-
-
-class TestEscalateByArgs:
-    def test_recursive_delete_escalates_to_high(self) -> None:
-        from agent.tool_approval import _escalate_by_args
-
-        result = _escalate_by_args(
-            "delete_directory", {"recursive": True}, _make_cfg().approval
-        )
-        assert result is not None
-        level, reason = result
-        assert level == "high"
-        assert "recursive" in reason
-
-    def test_force_flag_escalates_to_high(self) -> None:
-        from agent.tool_approval import _escalate_by_args
-
-        result = _escalate_by_args("write_file", {"force": True}, _make_cfg().approval)
-        assert result is not None
-        assert result[0] == "high"
-        assert "force" in result[1]
-
-    def test_overwrite_flag_escalates_to_high(self) -> None:
-        from agent.tool_approval import _escalate_by_args
-
-        result = _escalate_by_args(
-            "write_file", {"overwrite": True}, _make_cfg().approval
-        )
-        assert result is not None
-        assert result[0] == "high"
-
-    def test_safe_args_no_escalation(self) -> None:
-        from agent.tool_approval import _escalate_by_args
-
-        result = _escalate_by_args(
-            "read_text_file", {"path": "/home/user/doc.md"}, _make_cfg().approval
-        )
-        assert result is None
-
-    def test_protected_path_escalates(self) -> None:
-        from agent.tool_approval import _escalate_by_args
-
-        cfg = _make_cfg(approval_protected_paths=["/opt/llm/"])
-        result = _escalate_by_args(
-            "write_file", {"path": "/opt/llm/config"}, cfg.approval
-        )
-        assert result is not None
-        assert result[0] == "high"
-
-    def test_non_protected_path_no_escalation(self) -> None:
-        from agent.tool_approval import _escalate_by_args
-
-        cfg = _make_cfg(approval_protected_paths=["/opt/llm/"])
-        result = _escalate_by_args(
-            "write_file", {"path": "/home/user/file.txt"}, cfg.approval
-        )
-        assert result is None
-
-    def test_non_recursive_delete_no_escalation(self) -> None:
-        from agent.tool_approval import _escalate_by_args
-
-        result = _escalate_by_args(
-            "delete_directory", {"recursive": False}, _make_cfg().approval
-        )
-        assert result is None
-
 
 # ── log_approval_decision ─────────────────────────────────────────────────────
 
@@ -872,6 +793,7 @@ class TestLogApprovalDecision:
 
         ctx = _make_ctx()
         ctx.services.audit_logger = MagicMock()
+        ctx.turn.current_turn_id = "turn-xyz"
         decision: ApprovalDecision = {
             "tool_name": "write_file",
             "risk_level": "medium",
@@ -883,6 +805,9 @@ class TestLogApprovalDecision:
         logged = ctx.services.audit_logger.info.call_args[0][0]
         assert "approval_decision" in logged
         assert "write_file" in logged
+        assert "task_id" in logged
+        assert "turn-xyz" in logged
+        assert "ts" in logged
 
     def test_no_op_when_audit_logger_none(self) -> None:
         from agent.tool_approval import ApprovalDecision

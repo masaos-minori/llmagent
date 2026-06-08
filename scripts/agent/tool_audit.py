@@ -58,10 +58,12 @@ def log_approval_decision(ctx: AgentContext, decision: ApprovalDecision) -> None
         orjson.dumps(
             {
                 "event": "approval_decision",
+                "task_id": ctx.turn.current_turn_id,
                 "tool": decision.get("tool_name"),
                 "risk_level": decision.get("risk_level"),
                 "decision": decision.get("decision"),
                 "escalation_reason": decision.get("escalation_reason", ""),
+                "ts": time.time(),
             }
         ).decode()
     )
@@ -78,12 +80,17 @@ def audit_tool_exec(
     if ctx.services.audit_logger is None or not mcp_request_id:
         return
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
+    path_keys = set(ctx.cfg.approval.approval_resource_keys.get("path_keys", []))
+    branch_keys = set(ctx.cfg.approval.approval_resource_keys.get("branch_keys", []))
+    resource_scope = {k: v for k, v in masked.items() if k in path_keys | branch_keys}
     ctx.services.audit_logger.info(
         orjson.dumps(
             {
                 "event": "tool_exec",
                 "task_id": ctx.turn.current_turn_id,
                 "tool": tool_name,
+                "operation_type": classify_operation_type(tool_name),
+                "resource_scope": resource_scope,
                 "mcp_request_id": mcp_request_id,
                 "is_error": is_error,
                 "args_preview": masked,
