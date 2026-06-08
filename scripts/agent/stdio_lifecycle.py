@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from dataclasses import dataclass, field
 from enum import Enum
 
 from shared.mcp_config import McpServerConfig
@@ -24,6 +25,15 @@ class TransportState(Enum):
     RUNNING = "running"
     STOPPED = "stopped"
     FAILED = "failed"
+
+
+@dataclass
+class TransportHandle:
+    """Combines a StdioTransport with its state and last error for unified tracking."""
+
+    transport: StdioTransport | None
+    state: TransportState
+    last_error: str | None = field(default=None)
 
 
 class StdioServerLifecycleManager:
@@ -41,10 +51,15 @@ class StdioServerLifecycleManager:
         self._stdio_procs = stdio_procs
         self._last_called = last_called
         self._start_locks: dict[str, asyncio.Lock] = {}
-        # Initialize states from pre-existing transports (e.g. persistent servers
+        # Initialize handles from pre-existing transports (e.g. persistent servers
         # started before this manager was constructed).
-        self._transport_states: dict[str, TransportState] = {
-            key: TransportState.RUNNING if t.is_alive() else TransportState.STOPPED
+        self._handles: dict[str, TransportHandle] = {
+            key: TransportHandle(
+                transport=t,
+                state=TransportState.RUNNING
+                if t.is_alive()
+                else TransportState.STOPPED,
+            )
             for key, t in stdio_procs.items()
         }
 
@@ -57,15 +72,13 @@ class StdioServerLifecycleManager:
 
     async def _ensure_ondemand(self, server_key: str) -> None:
         """Double-checked locking to prevent concurrent starts."""
-        transport = self._stdio_procs.get(server_key)
-        state = self._transport_states.get(server_key, TransportState.STOPPED)
-        if transport is not None and state == TransportState.RUNNING:
+        handle = self._handles.get(server_key)
+        if handle is not None and handle.state == TransportState.RUNNING:
             return
         lock = self._start_locks.setdefault(server_key, asyncio.Lock())
         async with lock:
-            transport = self._stdio_procs.get(server_key)
-            state = self._transport_states.get(server_key, TransportState.STOPPED)
-            if transport is not None and state == TransportState.RUNNING:
+            handle = self._handles.get(server_key)
+            if handle is not None and handle.state == TransportState.RUNNING:
                 return
             await self._start(server_key)
 
@@ -76,7 +89,11 @@ class StdioServerLifecycleManager:
             logger.warning(
                 f"Lifecycle: cannot start {server_key!r}: no cmd configured",
             )
-            self._transport_states[server_key] = TransportState.FAILED
+            self._handles[server_key] = TransportHandle(
+                transport=None,
+                state=TransportState.FAILED,
+                last_error="no cmd configured",
+            )
             return
         new_transport = StdioTransport(
             cfg.cmd,
@@ -88,22 +105,30 @@ class StdioServerLifecycleManager:
             await new_transport.start()
             self._tool_executor.set_transport(server_key, new_transport)
             self._stdio_procs[server_key] = new_transport
-            self._transport_states[server_key] = TransportState.RUNNING
+            self._handles[server_key] = TransportHandle(
+                transport=new_transport, state=TransportState.RUNNING
+            )
             logger.info(f"Lifecycle: ondemand stdio server {server_key!r} started")
         except Exception as e:
             logger.error(
                 f"Lifecycle: failed to start ondemand server {server_key!r}: {e}",
             )
-            self._transport_states[server_key] = TransportState.FAILED
+            self._handles[server_key] = TransportHandle(
+                transport=None, state=TransportState.FAILED, last_error=str(e)
+            )
 
     async def _stop_stdio(self, key: str, transport: StdioTransport) -> None:
         """Stop one stdio transport and update its state; logs on failure."""
         try:
             await transport.stop()
-            self._transport_states[key] = TransportState.STOPPED
+            self._handles[key] = TransportHandle(
+                transport=None, state=TransportState.STOPPED
+            )
         except Exception as e:
             logger.warning("Lifecycle: error stopping stdio %r: %s", key, e)
-            self._transport_states[key] = TransportState.FAILED
+            self._handles[key] = TransportHandle(
+                transport=None, state=TransportState.FAILED, last_error=str(e)
+            )
 
     async def shutdown_all(self) -> None:
         """Stop all running stdio server transports."""
@@ -115,7 +140,8 @@ class StdioServerLifecycleManager:
         if cfg.startup_mode != "ondemand" or cfg.idle_timeout_sec <= 0:
             return False
         last = self._last_called.get(key, 0.0)
-        state = self._transport_states.get(key, TransportState.STOPPED)
+        handle = self._handles.get(key)
+        state = handle.state if handle else TransportState.STOPPED
         return now - last >= cfg.idle_timeout_sec and state == TransportState.RUNNING
 
     async def shutdown_idle(self) -> None:
@@ -130,15 +156,20 @@ class StdioServerLifecycleManager:
 
     def get_transport_state(self, server_key: str) -> TransportState:
         """Get the current state of a transport."""
-        return self._transport_states.get(server_key, TransportState.STOPPED)
+        handle = self._handles.get(server_key)
+        return handle.state if handle else TransportState.STOPPED
 
     def set_transport_state(self, server_key: str, state: TransportState) -> None:
         """Set the state of a transport."""
-        self._transport_states[server_key] = state
+        handle = self._handles.get(server_key)
+        if handle is not None:
+            handle.state = state
+        else:
+            self._handles[server_key] = TransportHandle(transport=None, state=state)
 
     async def restart(self, server_key: str) -> None:
         """Restart a stdio server by stopping and starting it."""
-        transport = self._stdio_procs.get(server_key)
-        if transport is not None:
-            await self._stop_stdio(server_key, transport)
+        handle = self._handles.get(server_key)
+        if handle is not None and handle.transport is not None:
+            await self._stop_stdio(server_key, handle.transport)
         await self._start(server_key)

@@ -56,10 +56,12 @@ _cfg: dict[str, Any] | None = None
 
 # Patterns known to be used in prompt injection attacks
 _INJECTION_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"(?i)(ignore\s+(previous|all)\s+instructions?)", re.MULTILINE),
+    re.compile(r"(?i)(ignore\s+(?:(?:all|previous)\s+)*instructions?)", re.MULTILINE),
     re.compile(r"(?i)(system\s*:\s*)", re.MULTILINE),
     re.compile(r"(?i)\[SYSTEM\s*OVERRIDE\]", re.MULTILINE),
-    re.compile(r"(?i)(disregard\s+(prior|previous|all)\s+instructions?)", re.MULTILINE),
+    re.compile(
+        r"(?i)(disregard\s+(?:(?:all|prior|previous)\s+)*instructions?)", re.MULTILINE
+    ),
     re.compile(r"(?i)(new\s+instructions?:)", re.MULTILINE),
 ]
 

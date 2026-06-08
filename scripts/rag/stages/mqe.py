@@ -1,4 +1,5 @@
 """MQE stage for RAG pipeline."""
+
 import logging
 
 from rag.llm import RagLLM
@@ -19,10 +20,10 @@ async def _run_mqe(query: str, cfg: dict, llm: RagLLM) -> list[str]:
 
 
 class MqeStage(PipelineStage):
-    def __init__(self, cfg, llm) -> None:
+    def __init__(self, cfg: dict, llm: RagLLM) -> None:
         self._cfg = cfg
         self._llm = llm
 
-    async def run(self, ctx: PipelineContext, **kwargs) -> None:
+    async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
         # Moves MQE logic from RagPipeline._expand_queries() / run()
         ctx.queries = await _run_mqe(ctx.query, self._cfg, self._llm)

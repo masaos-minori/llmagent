@@ -29,6 +29,11 @@ mkdir -p "${DEPLOY_RAG_SRC}/chunk"
 mkdir -p "${DEPLOY_RAG_SRC}/registered"
 mkdir -p /opt/llm/memory
 
+# ── uv プロジェクト設定 ───────────────────────────────────────────────────────
+echo "--- pyproject.toml / uv.lock → /opt/llm/ ---"
+cp "${REPO_ROOT}/pyproject.toml" "/opt/llm/"
+cp "${REPO_ROOT}/uv.lock" "/opt/llm/"
+
 # ── Python スクリプト (パッケージ構造ごと同期) ────────────────────────────────
 echo "--- scripts/ → ${DEPLOY_SCRIPTS}/ ---"
 rsync -av --delete \

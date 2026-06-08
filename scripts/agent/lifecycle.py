@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import time
+from enum import Enum
 
 from shared.mcp_config import McpServerConfig
 from shared.tool_executor import StdioTransport, ToolExecutor
@@ -21,6 +22,24 @@ from agent.http_lifecycle import HttpServerLifecycleManager
 from agent.stdio_lifecycle import StdioServerLifecycleManager, TransportState
 
 logger = logging.getLogger(__name__)
+
+
+class LifecycleState(Enum):
+    """Unified transport state for all server types (HTTP and stdio)."""
+
+    RUNNING = "running"
+    STOPPED = "stopped"
+    FAILED = "failed"
+    UNKNOWN = "unknown"
+
+
+def _transport_state_to_lifecycle(state: TransportState) -> LifecycleState:
+    """Map TransportState to the unified LifecycleState enum."""
+    if state == TransportState.RUNNING:
+        return LifecycleState.RUNNING
+    if state == TransportState.FAILED:
+        return LifecycleState.FAILED
+    return LifecycleState.STOPPED
 
 
 class ServerLifecycleManager:
@@ -91,17 +110,17 @@ class ServerLifecycleManager:
 
     # ── Status API for monitoring ────────────────────────────────────────────
 
-    def get_transport_state(self, server_key: str) -> TransportState | None:
-        """Get the current state of a transport."""
+    def get_transport_state(self, server_key: str) -> LifecycleState:
+        """Get the unified lifecycle state for a server."""
         cfg = self._server_configs.get(server_key)
         if cfg is None:
-            return None
+            return LifecycleState.UNKNOWN
         if cfg.transport == "http":
-            # For HTTP servers, we don't track state directly, return None
-            return None
-        elif cfg.transport == "stdio":
-            return self._stdio_mgr.get_transport_state(server_key)
-        return None
+            return LifecycleState.UNKNOWN
+        if cfg.transport == "stdio":
+            raw = self._stdio_mgr.get_transport_state(server_key)
+            return _transport_state_to_lifecycle(raw)
+        return LifecycleState.UNKNOWN
 
     async def restart_stdio(self, server_key: str) -> None:
         """Restart a stdio server."""

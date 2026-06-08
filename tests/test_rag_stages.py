@@ -56,7 +56,7 @@ class TestSearchStage:
             patch(
                 "rag.llm.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
-            patch("rag.repository.RagRepository") as mock_repo,
+            patch("rag.stages.search.RagRepository") as mock_repo,
         ):
             mock_get_embedding.return_value = [0.1, 0.2, 0.3]
             mock_repo_instance = MagicMock()

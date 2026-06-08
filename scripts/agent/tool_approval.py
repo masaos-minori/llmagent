@@ -23,6 +23,40 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_GITHUB_WRITE_TOOLS: frozenset[str] = frozenset(
+    {
+        "github_push_files",
+        "github_create_or_update_file",
+        "github_delete_file",
+        "github_merge_pull_request",
+        "github_create_pull_request",
+        "github_update_pull_request",
+        "github_create_branch",
+    }
+)
+
+
+def _check_github_repo_allowed(
+    tool_name: str,
+    args: dict[str, Any],
+    cfg: ApprovalConfig,
+) -> bool:
+    """Return True when the GitHub repo in args is permitted.
+
+    Empty allowed_repos list means unrestricted. Non-GitHub tools always pass.
+    """
+    if not cfg.approval_github_allowed_repos:
+        return True
+    if not tool_name.startswith("github_"):
+        return True
+    repo = args.get("repo") or args.get("owner_and_repo") or args.get("repository", "")
+    if not repo:
+        return True
+    return any(
+        repo == allowed or repo.endswith(f"/{allowed.split('/')[-1]}")
+        for allowed in cfg.approval_github_allowed_repos
+    )
+
 
 class ApprovalDecision(TypedDict, total=False):
     """Structured result of a single tool approval evaluation."""
@@ -112,6 +146,12 @@ async def check_approval(
     Risk 'none' → auto-approved.
     Risk 'medium'/'high' → interactive prompt (with optional dry-run preview).
     """
+    if ctx.cfg.approval.gitops_push_blocked and tool_name in _GITHUB_WRITE_TOOLS:
+        msg = f"  [DENIED] {tool_name}: gitops_push_blocked is set; write operations are disabled"
+        audit_approval(ctx, tool_name, "high", args, "denied_gitops_push_blocked")
+        print(msg)
+        return False
+
     deny = preflight_deny_reason(ctx.cfg, tool_name, args)
     if deny is not None:
         audit_decision, message = deny

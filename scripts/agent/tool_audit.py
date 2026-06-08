@@ -16,6 +16,7 @@ from agent.tool_result_formatter import mask_args
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
+    from agent.tool_approval import ApprovalDecision
 
 
 def audit_approval(
@@ -46,6 +47,23 @@ def audit_approval(
                 "ts": time.time(),
             },
         ).decode(),
+    )
+
+
+def log_approval_decision(ctx: AgentContext, decision: ApprovalDecision) -> None:
+    """Write a structured approval_decision event to the audit log."""
+    if ctx.services.audit_logger is None:
+        return
+    ctx.services.audit_logger.info(
+        orjson.dumps(
+            {
+                "event": "approval_decision",
+                "tool": decision.get("tool_name"),
+                "risk_level": decision.get("risk_level"),
+                "decision": decision.get("decision"),
+                "escalation_reason": decision.get("escalation_reason", ""),
+            }
+        ).decode()
     )
 
 

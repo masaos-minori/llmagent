@@ -130,7 +130,7 @@ class Orchestrator:
         ctx = self._ctx
         assert ctx.services.hist_mgr is not None
         with self._llm_runner._span_ctx("compress"):
-            ctx.conv.history = await ctx.services.hist_mgr.compress(ctx.conv.history)
+            ctx.conv.history, _ = await ctx.services.hist_mgr.compress(ctx.conv.history)
 
     async def _handle_llm_turn(self, llm_url: str) -> TurnResult:
         ctx = self._ctx

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""agent_cmd_ingest.py
+"""agent/commands/cmd_ingest.py
 Export, ingest, and compact mixin for CommandRegistry.
 
-Extracted from agent_commands.py.  Provides _IngestMixin with:
+Provides _IngestMixin with:
   _cmd_export            — /export: dump conversation to Markdown or JSON
   _cmd_ingest            — /ingest: crawl/ingest a URL or local file
   _cmd_compact           — /compact: force immediate context compression

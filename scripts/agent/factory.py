@@ -31,7 +31,6 @@ _COMPRESS_TEMPERATURE: float = 0.3
 _COMPRESS_MAX_TOKENS: int = 300
 
 _logger = logging.getLogger(__name__)
-_audit_logger_instance = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
 def _build_audit_logger(ctx: AgentContext) -> Logger:
@@ -154,16 +153,16 @@ def _build_memory_layer(
         embed_timeout=ctx.cfg.memory.memory_embed_timeout_sec,
         max_content_chars=ctx.cfg.memory.memory_max_content_chars,
     )
-    _audit_logger_instance.info("MemoryLayer initialised (use_memory_layer=True)")
+    _build_audit_logger(ctx).info("MemoryLayer initialised (use_memory_layer=True)")
     return layer
 
 
-def _init_plugin_registry() -> None:
+def _init_plugin_registry(audit_logger: Logger) -> None:
     """Load and register plugins from the plugins/ directory."""
     plugin_dir = Path(__file__).parent.parent.parent / "plugins"
     n_plugins = plugin_registry.load_plugins(plugin_dir)
     if n_plugins:
-        _audit_logger_instance.info(f"Loaded {n_plugins} plugin(s) from {plugin_dir}")
+        audit_logger.info(f"Loaded {n_plugins} plugin(s) from {plugin_dir}")
 
 
 def init_tracer(ctx: AgentContext) -> object:
@@ -203,4 +202,4 @@ def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
         stdio_procs=stdio_procs,
     )
 
-    _init_plugin_registry()
+    _init_plugin_registry(audit_logger)

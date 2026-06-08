@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""cmd_session.py
+"""agent/commands/cmd_session.py
 Session management mixin for CommandRegistry.
 
-Extracted from agent_commands.py.  Provides _SessionMixin with:
+Provides _SessionMixin with:
   _generate_session_title  — background task: LLM-generated short title
   _session_load_safe       — safe session restore by ID
   _session_delete          — session deletion with self-guard

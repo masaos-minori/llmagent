@@ -5,8 +5,9 @@ Extracts memory from conversation history, deduplicates via embedding KNN,
 and persists to JSONL + SQLite.
 
 DedupAction.SKIP_NEW (default): if a near-duplicate embedding exists in the
-store, the new entry is discarded instead of stored. LINK_ONLY records the
-relationship without discarding. UPSERT overwrites the existing entry.
+store, the new entry is discarded instead of stored.
+LINK_ONLY: persist the entry even when a near-duplicate exists, then link them.
+UPSERT: overwrite the existing entry in-place.
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 class DedupAction(StrEnum):
-    LINK_ONLY = "link_only"  # record only in memory_links (backward-compatible default)
+    LINK_ONLY = "link_only"  # persist entry and link to near-duplicate without skipping
     SKIP_NEW = (
         "skip_new"  # skip new entry when a near-duplicate already exists (default)
     )

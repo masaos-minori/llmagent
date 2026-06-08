@@ -2,9 +2,7 @@
 Shared configuration dataclass and loader for the agent pipeline.
 
 AgentConfig composes 7 domain-specific sub-configs.
-Flat field access (e.g. cfg.llm_url) is preserved via __getattr__/__setattr__
-for backward compatibility.  Full migration to cfg.llm.llm_url etc. follows
-in a separate step.
+Access fields via nested paths: cfg.llm.llm_url, cfg.rag.top_k_search, etc.
 """
 
 from dataclasses import dataclass, field
@@ -351,6 +349,14 @@ class ApprovalConfig:
     allowed_root: str = ""
     # GitHub repos (owner/repo) allowed for write ops; empty = deny all (fail-closed)
     approval_github_allowed_repos: list[str] = field(default_factory=list)
+    # Block all GitHub write operations globally when True
+    gitops_push_blocked: bool = False
+    # Block github_push_files with force=True
+    gitops_force_push_blocked: bool = True
+    # Protected branch names; push/merge to these requires high-risk approval
+    gitops_protected_branches: list[str] = field(
+        default_factory=lambda: ["main", "master"]
+    )
 
     def __post_init__(self) -> None:
         _valid_risk = {"none", "medium", "high"}
@@ -388,7 +394,7 @@ class ObservabilityConfig:
 
 
 # ---------------------------------------------------------------------------
-# Composite config with backward-compat flat attribute access
+# Composite config
 # ---------------------------------------------------------------------------
 
 
@@ -396,9 +402,8 @@ class ObservabilityConfig:
 class AgentConfig:
     """Mutable runtime configuration shared by all agent components.
 
-    Composes 7 domain-specific sub-configs.  Flat attribute access such as
-    ``cfg.llm_url`` is preserved via ``__getattr__`` / ``__setattr__`` for
-    backward compatibility with existing code.
+    Composes 7 domain-specific sub-configs.
+    Access fields via nested paths: cfg.llm.llm_url, cfg.rag.top_k_search, etc.
     """
 
     llm: LLMConfig = field(default_factory=LLMConfig)
@@ -611,6 +616,11 @@ def _build_approval_config(cfg: dict[str, Any]) -> "ApprovalConfig":
         approval_github_allowed_repos=list(
             cfg.get("approval_github_allowed_repos", []),
         ),
+        gitops_push_blocked=bool(cfg.get("gitops_push_blocked", False)),
+        gitops_force_push_blocked=bool(cfg.get("gitops_force_push_blocked", True)),
+        gitops_protected_branches=list(
+            cfg.get("gitops_protected_branches", ["main", "master"])
+        ),
     )
 
 
@@ -644,43 +654,9 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
     )
 
 
-@dataclass
-class DbConfig:
-    """Immutable configuration for the SQLite database and embedding service."""
-
-    rag_db_path: str
-    session_db_path: str
-    sqlite_vec_so: str
-    embed_url: str
-    sqlite_timeout: int = 30
-
-    def __post_init__(self) -> None:
-        if not self.rag_db_path:
-            raise ValueError("rag_db_path must not be empty")
-        if not self.session_db_path:
-            raise ValueError("session_db_path must not be empty")
-        if not self.sqlite_vec_so:
-            raise ValueError("sqlite_vec_so must not be empty")
-        if not self.embed_url:
-            raise ValueError("embed_url must not be empty")
-        if self.sqlite_timeout < 1:
-            raise ValueError(f"sqlite_timeout must be >= 1, got {self.sqlite_timeout}")
-        # Verify that the referenced paths exist on disk.
-        if self.rag_db_path and not Path(self.rag_db_path).exists():
-            raise ValueError(f"rag_db_path does not exist: {self.rag_db_path}")
-        if self.session_db_path and not Path(self.session_db_path).exists():
-            raise ValueError(f"session_db_path does not exist: {self.session_db_path}")
-        if self.sqlite_vec_so and not Path(self.sqlite_vec_so).exists():
-            raise ValueError(f"sqlite_vec_so does not exist: {self.sqlite_vec_so}")
-
-
-def build_db_config() -> "DbConfig":
-    """Construct DbConfig from common.toml configuration via load_config()."""
-    cfg = load_config()
-    return DbConfig(
-        rag_db_path=cfg.get("rag_db_path", ""),
-        session_db_path=cfg.get("session_db_path", ""),
-        sqlite_vec_so=cfg.get("sqlite_vec_so", ""),
-        embed_url=cfg.get("embed_url", ""),
-        sqlite_timeout=int(cfg.get("sqlite_timeout", 30)),
-    )
+# DbConfig and build_db_config() are defined in db/config.py.
+# Re-exported here for backward compatibility.
+from db.config import (  # noqa: E402, F401 — re-export at module end
+    DbConfig,
+    build_db_config,
+)

@@ -50,11 +50,6 @@ _MEMORY_HELP = """\
 """
 
 
-def _as_memory_layer(mem: object) -> MemoryLayer | None:
-    """Return mem cast to MemoryLayer when it is an instance; else None."""
-    return mem if isinstance(mem, MemoryLayer) else None
-
-
 class _MemoryMixin(MixinBase):
     """Slash-command handlers for /memory."""
 
@@ -87,10 +82,8 @@ class _MemoryMixin(MixinBase):
         else:
             print(f"  Unknown subcommand: {sub!r}. Try /memory help")
 
-    def _memory_list(self, mem: object, args: list[str]) -> None:
-        layer = _as_memory_layer(mem)
-        if layer is None:
-            return
+    def _memory_list(self, mem: MemoryLayer, args: list[str]) -> None:
+        layer = mem
         mem_type = next((a for a in args if a in ("semantic", "episodic")), "")
         limit_args = [a for a in args if a.isdigit()]
         limit = int(limit_args[0]) if limit_args else 10
@@ -110,10 +103,8 @@ class _MemoryMixin(MixinBase):
                 f"  {e.importance:.2f}  {pin_mark:3}  {summary}",
             )
 
-    def _memory_search(self, mem: object, args: list[str]) -> None:
-        layer = _as_memory_layer(mem)
-        if layer is None:
-            return
+    def _memory_search(self, mem: MemoryLayer, args: list[str]) -> None:
+        layer = mem
         if not args:
             print("  Usage: /memory search <query>")
             return
@@ -131,10 +122,8 @@ class _MemoryMixin(MixinBase):
                 f"  {e.memory_id[:12]}…  {summary}",
             )
 
-    def _memory_show(self, mem: object, args: list[str]) -> None:
-        layer = _as_memory_layer(mem)
-        if layer is None:
-            return
+    def _memory_show(self, mem: MemoryLayer, args: list[str]) -> None:
+        layer = mem
         if not args:
             print("  Usage: /memory show <id>")
             return
@@ -154,10 +143,8 @@ class _MemoryMixin(MixinBase):
         print(f"  summary    : {entry.summary}")
         print(f"  content:\n{entry.content}")
 
-    def _memory_pin(self, mem: object, args: list[str], *, pin: bool) -> None:
-        layer = _as_memory_layer(mem)
-        if layer is None:
-            return
+    def _memory_pin(self, mem: MemoryLayer, args: list[str], *, pin: bool) -> None:
+        layer = mem
         if not args:
             cmd = "pin" if pin else "unpin"
             print(f"  Usage: /memory {cmd} <id>")
@@ -173,10 +160,8 @@ class _MemoryMixin(MixinBase):
         else:
             print(f"  [memory] Entry not found: {mid!r}")
 
-    def _memory_delete(self, mem: object, args: list[str]) -> None:
-        layer = _as_memory_layer(mem)
-        if layer is None:
-            return
+    def _memory_delete(self, mem: MemoryLayer, args: list[str]) -> None:
+        layer = mem
         dry_run = "--dry-run" in args
         ids = [a for a in args if not a.startswith("--")]
         if not ids:
@@ -200,10 +185,10 @@ class _MemoryMixin(MixinBase):
             print(f"  [memory] Entry not found: {mid!r}")
         self._emit_memory_audit(MemoryOpResult(ok=ok, memory_id=mid, action="deleted"))
 
-    def _memory_prune(self, mem: object, ctx: AgentContext, args: list[str]) -> None:
-        layer = _as_memory_layer(mem)
-        if layer is None:
-            return
+    def _memory_prune(
+        self, mem: MemoryLayer, ctx: AgentContext, args: list[str]
+    ) -> None:
+        layer = mem
         dry_run = "--dry-run" in args
         day_args = [a for a in args if a.isdigit()]
         days = int(day_args[0]) if day_args else ctx.cfg.memory.memory_retention_days

@@ -2,6 +2,8 @@
 Unit tests for shared.route_resolver.ToolRouteResolver.
 """
 
+import logging
+
 import pytest
 from shared.mcp_config import McpServerConfig
 from shared.route_resolver import ToolRouteResolver
@@ -116,3 +118,19 @@ class TestConfigDrivenRouting:
         resolver = ToolRouteResolver(configs)
         with pytest.raises(ValueError, match="Unknown tool"):
             resolver.resolve("totally_unknown")
+
+
+class TestWarnOnFallback:
+    def test_fallback_emits_warning_when_enabled(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        resolver = ToolRouteResolver({}, warn_on_fallback=True)
+        with caplog.at_level(logging.WARNING, logger="shared.route_resolver"):
+            resolver.resolve("search_web")
+        assert "static fallback" in caplog.text
+
+    def test_fallback_silent_by_default(self, caplog: pytest.LogCaptureFixture) -> None:
+        resolver = ToolRouteResolver({})
+        with caplog.at_level(logging.WARNING, logger="shared.route_resolver"):
+            resolver.resolve("search_web")
+        assert "static fallback" not in caplog.text

@@ -27,7 +27,7 @@ from typing import Any
 from shared import plugin_registry
 
 from agent.commands.cmd_config import _ConfigMixin
-from agent.commands.cmd_context import _budget_breakdown, _ContextMixin
+from agent.commands.cmd_context import _ContextMixin
 from agent.commands.cmd_db import _DbMixin
 from agent.commands.cmd_debug import _DebugMixin
 from agent.commands.cmd_ingest import _IngestMixin
@@ -40,10 +40,7 @@ from agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
-# mask_args moved to agent.tool_result_formatter; re-exported here for backward compat.
-from agent.tool_result_formatter import mask_args  # noqa: E402
-
-__all__ = ["CommandRegistry", "_budget_breakdown", "mask_args"]
+__all__ = ["CommandRegistry"]
 
 
 class CommandRegistry(
