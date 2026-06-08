@@ -445,6 +445,35 @@ class LLMClient:
             self._emit_usage(chunk)
         return finish_reason
 
+    def _translate_stream_error(self, e: Exception, url: str) -> LLMTransportError:
+        """Translate a stream-level exception into LLMTransportError.
+
+        HTTP status errors are handled separately in _raise_http_status_error.
+        """
+        if isinstance(e, httpx.ConnectError):
+            return LLMTransportError(
+                kind="CONNECT_ERROR",
+                phase="pre_stream",
+                url=url,
+                retryable=True,
+                detail=str(e),
+            )
+        if isinstance(e, httpx.ReadTimeout):
+            return LLMTransportError(
+                kind="READ_TIMEOUT",
+                phase="in_stream",
+                url=url,
+                retryable=True,
+                detail=str(e),
+            )
+        return LLMTransportError(
+            kind="UNKNOWN_STREAM_ERROR",
+            phase="in_stream",
+            url=url,
+            retryable=False,
+            detail=str(e),
+        )
+
     async def _stream_once(
         self,
         url: str,
@@ -488,32 +517,10 @@ class LLMClient:
                     if is_done:
                         break
 
-        except httpx.ConnectError as e:
-            raise LLMTransportError(
-                kind="CONNECT_ERROR",
-                phase="pre_stream",
-                url=url,
-                retryable=True,
-                detail=str(e),
-            ) from e
-        except httpx.ReadTimeout as e:
-            raise LLMTransportError(
-                kind="READ_TIMEOUT",
-                phase="in_stream",
-                url=url,
-                retryable=True,
-                detail=str(e),
-            ) from e
         except LLMTransportError:
             raise
         except Exception as e:
-            raise LLMTransportError(
-                kind="UNKNOWN_STREAM_ERROR",
-                phase="in_stream",
-                url=url,
-                retryable=False,
-                detail=str(e),
-            ) from e
+            raise self._translate_stream_error(e, url) from e
 
         return finish_reason
 
