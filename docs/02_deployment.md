@@ -86,24 +86,23 @@ cmake --build build --config Release -j$(nproc)
 ### 1.4 LLM モデルの取得
 
 ```bash
-source /opt/llm/venv/bin/activate
 mkdir -p /opt/llm/models
 
 # 埋込用: multilingual-E5-small (384 次元)
 # E5 モデルのプレフィックス: 取込時 "passage: "、クエリ時 "query: "
-huggingface-cli download ggml-org/multilingual-e5-small-Q8_0-GGUF \
+uv run --with huggingface-hub huggingface-cli download ggml-org/multilingual-e5-small-Q8_0-GGUF \
     multilingual-e5-small-Q8_0.gguf \
     --local-dir /opt/llm/models/
 mv /opt/llm/models/multilingual-e5-small-Q8_0.gguf \
    /opt/llm/models/multilingual-E5-small.gguf
 
 # チャット用: gemma-4-e4b (Gemma 4 4B パラメータ instruction-tuned)
-huggingface-cli download bartowski/gemma-4-e4b-it-GGUF \
+uv run --with huggingface-hub huggingface-cli download bartowski/gemma-4-e4b-it-GGUF \
     gemma-4-e4b-it-Q4_K_M.gguf \
     --local-dir /opt/llm/models/
 
 # コード生成用: Qwen2.5-Coder-7B
-huggingface-cli download Qwen/Qwen2.5-Coder-7B-Instruct-GGUF \
+uv run --with huggingface-hub huggingface-cli download Qwen/Qwen2.5-Coder-7B-Instruct-GGUF \
     qwen2.5-coder-7b-instruct-q4_k_m.gguf \
     --local-dir /opt/llm/models/
 
