@@ -188,59 +188,54 @@ def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]:
     return rag_dest, ses_dest
 
 
-def recover_corruption(
-    backup_path: str | Path | None = None,
-    *,
-    dry_run: bool = False,
-) -> RecoveryResult:
-    """Detect and recover from corruption in rag.sqlite; returns RecoveryResult with action and detail.
+def _run_integrity_check(db_path: Path) -> tuple[str | None, str | None]:
+    """Open DB and run PRAGMA integrity_check; returns (check_result, error_detail).
 
-    action values:
-      "vacuum"    — integrity ok; VACUUM executed (or skipped in dry_run)
-      "restored"  — integrity failed; DB restored from backup_path
-      "no_backup" — integrity failed; no usable backup_path
-      "error"     — could not open DB or OS-level failure
+    Returns (None, error_detail) if the DB cannot be opened.
     """
-    SQLiteHelper._ensure_config()
-    db_path = Path(SQLiteHelper._RAG_PATH)
-
     try:
         with SQLiteHelper("rag").open() as db:
             if db.conn is None:
                 raise RuntimeError("DB connection not established after open()")
-            check_result = db.conn.execute("PRAGMA integrity_check").fetchone()[0]
+            result: str = db.conn.execute("PRAGMA integrity_check").fetchone()[0]
+            return result, None
     except Exception as e:
         logger.error(f"Cannot open DB for integrity check: {e}")
-        return RecoveryResult(
-            success=False, action="error", detail=str(e), dry_run=dry_run
-        )
+        return None, str(e)
 
-    if dry_run:
-        if check_result == "ok":
-            return RecoveryResult(
-                success=True,
-                action="vacuum",
-                detail="integrity ok (dry run)",
-                dry_run=True,
-            )
+
+def _handle_dry_run(check_result: str) -> RecoveryResult:
+    """Return appropriate RecoveryResult for dry_run mode."""
+    if check_result == "ok":
         return RecoveryResult(
-            success=False,
-            action="error",
-            detail=f"integrity check failed: {check_result}",
+            success=True,
+            action="vacuum",
+            detail="integrity ok (dry run)",
             dry_run=True,
         )
+    return RecoveryResult(
+        success=False,
+        action="error",
+        detail=f"integrity check failed: {check_result}",
+        dry_run=True,
+    )
 
-    if check_result == "ok":
-        logger.info("Integrity check passed; running VACUUM")
-        try:
-            with SQLiteHelper("rag").open(write_mode=True) as db:
-                db.vacuum()
-        except Exception as e:
-            logger.warning(f"VACUUM after integrity check failed: {e}")
-        return RecoveryResult(success=True, action="vacuum")
 
-    logger.error(f"Integrity check failed: {check_result}")
+def _vacuum_db() -> RecoveryResult:
+    """Run VACUUM and return result."""
+    logger.info("Integrity check passed; running VACUUM")
+    try:
+        with SQLiteHelper("rag").open(write_mode=True) as db:
+            db.vacuum()
+    except Exception as e:
+        logger.warning(f"VACUUM after integrity check failed: {e}")
+    return RecoveryResult(success=True, action="vacuum")
 
+
+def _restore_from_backup(
+    db_path: Path, backup_path: str | Path | None
+) -> RecoveryResult:
+    """Restore DB from backup; returns RecoveryResult."""
     if backup_path is None:
         logger.error("No backup_path provided — manual recovery required")
         return RecoveryResult(
@@ -265,3 +260,35 @@ def recover_corruption(
     except OSError as e:
         logger.error(f"Recovery failed: {e}")
         return RecoveryResult(success=False, action="error", detail=str(e))
+
+
+def recover_corruption(
+    backup_path: str | Path | None = None,
+    *,
+    dry_run: bool = False,
+) -> RecoveryResult:
+    """Detect and recover from corruption in rag.sqlite; returns RecoveryResult with action and detail.
+
+    action values:
+      "vacuum"    — integrity ok; VACUUM executed (or skipped in dry_run)
+      "restored"  — integrity failed; DB restored from backup_path
+      "no_backup" — integrity failed; no usable backup_path
+      "error"     — could not open DB or OS-level failure
+    """
+    SQLiteHelper._ensure_config()
+    db_path = Path(SQLiteHelper._RAG_PATH)
+
+    check_result, error_detail = _run_integrity_check(db_path)
+    if check_result is None:
+        return RecoveryResult(
+            success=False, action="error", detail=error_detail, dry_run=dry_run
+        )
+
+    if dry_run:
+        return _handle_dry_run(check_result)
+
+    if check_result == "ok":
+        return _vacuum_db()
+
+    logger.error(f"Integrity check failed: {check_result}")
+    return _restore_from_backup(db_path, backup_path)

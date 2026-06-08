@@ -367,3 +367,165 @@ class TestRecoverCorruption:
         assert result.dry_run is True
         assert result.success is True
         assert result.action == "vacuum"
+
+    def test_dry_run_integrity_failure(self) -> None:
+        """dry_run=True with integrity failure returns error."""
+        from unittest.mock import MagicMock, patch
+
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchone.return_value = ("some error",)
+        mock_db = MagicMock()
+        mock_db.conn = mock_conn
+
+        class FakeContext:
+            def __enter__(self) -> MagicMock:
+                return mock_db
+            def __exit__(self, *args: object) -> None:
+                pass
+
+        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+            mock_helper_cls.return_value.open.return_value = FakeContext()
+            result = recover_corruption(dry_run=True)
+
+        assert result.success is False
+        assert result.dry_run is True
+        assert "integrity check failed" in result.detail
+
+    def test_vacuum_path(self) -> None:
+        """Integrity ok, not dry_run -> vacuum."""
+        from unittest.mock import MagicMock, patch
+
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchone.return_value = ("ok",)
+        mock_db = MagicMock()
+        mock_db.conn = mock_conn
+
+        class FakeContext:
+            def __enter__(self) -> MagicMock:
+                return mock_db
+            def __exit__(self, *args: object) -> None:
+                pass
+
+        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+            mock_helper_cls.return_value.open.return_value = FakeContext()
+            result = recover_corruption()
+
+        assert result.success is True
+        assert result.action == "vacuum"
+        mock_db.vacuum.assert_called_once()
+
+    def test_no_backup_path_returns_no_backup(self) -> None:
+        """Integrity fail, no backup_path -> no_backup."""
+        from unittest.mock import MagicMock, patch
+
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchone.return_value = ("corrupt",)
+        mock_db = MagicMock()
+        mock_db.conn = mock_conn
+
+        class FakeContext:
+            def __enter__(self) -> MagicMock:
+                return mock_db
+            def __exit__(self, *args: object) -> None:
+                pass
+
+        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+            mock_helper_cls.return_value.open.return_value = FakeContext()
+            result = recover_corruption(backup_path=None)
+        assert result.success is False
+        assert result.action == "no_backup"
+
+    def test_backup_not_found_returns_no_backup(self) -> None:
+        """Backup file missing -> no_backup."""
+        from unittest.mock import MagicMock, patch
+
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchone.return_value = ("corrupt",)
+        mock_db = MagicMock()
+        mock_db.conn = mock_conn
+
+        class FakeContext:
+            def __enter__(self) -> MagicMock:
+                return mock_db
+            def __exit__(self, *args: object) -> None:
+                pass
+
+        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+            mock_helper_cls.return_value.open.return_value = FakeContext()
+            result = recover_corruption(backup_path="/nonexistent/backup.sqlite")
+        assert result.success is False
+        assert result.action == "no_backup"
+        assert "backup not found" in result.detail
+
+    def test_restore_from_backup(self, tmp_path: Path) -> None:
+        """Integrity fail, valid backup -> restored."""
+        from unittest.mock import MagicMock, patch
+
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchone.return_value = ("corrupt",)
+        mock_db = MagicMock()
+        mock_db.conn = mock_conn
+
+        db_file = tmp_path / "rag.sqlite"
+        db_file.write_text("corrupt db")
+        backup_file = tmp_path / "backup.sqlite"
+        backup_file.write_text("backup content")
+
+        class FakeContext:
+            def __enter__(self) -> MagicMock:
+                return mock_db
+            def __exit__(self, *args: object) -> None:
+                pass
+
+        with (
+            patch("db.maintenance.SQLiteHelper") as mock_helper_cls,
+            patch("db.maintenance.SQLiteHelper._RAG_PATH", str(db_file)),
+        ):
+            mock_helper_cls.return_value.open.return_value = FakeContext()
+            result = recover_corruption(backup_path=str(backup_file))
+
+        assert result.success is True
+        assert result.action == "restored"
+        assert db_file.read_text() == "backup content"
+
+    def test_os_error_during_recovery(self, tmp_path: Path) -> None:
+        """OSError during file copy -> error."""
+        from unittest.mock import MagicMock, patch
+
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchone.return_value = ("corrupt",)
+        mock_db = MagicMock()
+        mock_db.conn = mock_conn
+
+        db_file = tmp_path / "rag.sqlite"
+        db_file.write_text("corrupt db")
+        backup_file = tmp_path / "backup.sqlite"
+        backup_file.write_text("backup")
+
+        class FakeContext:
+            def __enter__(self) -> MagicMock:
+                return mock_db
+            def __exit__(self, *args: object) -> None:
+                pass
+
+        with (
+            patch("db.maintenance.SQLiteHelper") as mock_helper_cls,
+            patch("db.maintenance.shutil.copy2", side_effect=OSError("disk full")),
+            patch("db.maintenance.SQLiteHelper._RAG_PATH", str(db_file)),
+        ):
+            mock_helper_cls.return_value.open.return_value = FakeContext()
+            result = recover_corruption(backup_path=str(backup_file))
+        assert result.success is False
+        assert result.action == "error"
+
+    def test_open_db_exception_returns_error(self) -> None:
+        """Exception during DB open -> error."""
+        from unittest.mock import MagicMock, patch
+
+        mock_helper = MagicMock()
+        mock_helper.open.side_effect = Exception("cannot open")
+
+        with patch("db.maintenance.SQLiteHelper", return_value=mock_helper):
+            result = recover_corruption()
+        assert result.success is False
+        assert result.action == "error"
