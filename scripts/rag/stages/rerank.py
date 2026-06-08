@@ -29,9 +29,9 @@ async def _rerank(query: str, merged: list, cfg, llm: RagLLM) -> list:
 
 
 class RerankStage(PipelineStage):
-    def __init__(self, cfg, llm) -> None:
+    def __init__(self, cfg: dict, llm: RagLLM) -> None:
         self._cfg = cfg
         self._llm = llm
 
-    async def run(self, ctx: PipelineContext, **kwargs) -> None:
+    async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
         ctx.reranked = await _rerank(ctx.query, ctx.merged, self._cfg, self._llm)

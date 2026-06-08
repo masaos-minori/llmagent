@@ -16,5 +16,5 @@ def _format_chunks(reranked: list) -> str:
 
 
 class AugmentStage(PipelineStage):
-    async def run(self, ctx: PipelineContext, **kwargs) -> None:
+    async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
         ctx.augment_result = _format_chunks(ctx.reranked)
