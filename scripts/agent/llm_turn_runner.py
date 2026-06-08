@@ -6,7 +6,6 @@ Extracted from orchestrator.py. LLMTurnRunner.run() replaces _run_turn().
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from shared.llm_client import LLMClient, LLMTransportError
@@ -35,14 +34,10 @@ class LLMTurnRunner:
         ctx: AgentContext,
         guard: ToolLoopGuard,
         *,
-        on_turn_start: Callable[[], None] | None = None,
-        on_turn_end: Callable[[], None] | None = None,
         tracer: Any = None,
     ) -> None:
         self._ctx = ctx
         self._guard = guard
-        self._on_turn_start = on_turn_start
-        self._on_turn_end = on_turn_end
         self._tracer = tracer
 
     # ── Public entry point ────────────────────────────────────────────────────
@@ -53,9 +48,6 @@ class LLMTurnRunner:
         state = TurnLoopState()
 
         for turn in range(ctx.cfg.tool.max_tool_turns):
-            if self._on_turn_start:
-                self._on_turn_start()
-
             try:
                 response = await self._stream_llm(llm_url, turn)
             except LLMTransportError as e:
@@ -131,8 +123,6 @@ class LLMTurnRunner:
         """Append the done-turn message to history and return the answer text."""
         ctx = self._ctx
         ctx.conv.history.append(message)
-        if self._on_turn_end:
-            self._on_turn_end()
         return message.get("content") or ""
 
     async def _stream_llm(

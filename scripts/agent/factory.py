@@ -8,6 +8,7 @@ REPL instance state directly.
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -15,13 +16,17 @@ import httpx
 from shared import plugin_registry
 from shared.llm_client import LLMClient
 from shared.logger import Logger
+from shared.mcp_config import McpServerConfig
 from shared.otel_tracer import build_tracer
-from shared.tool_executor import ToolExecutor
+from shared.tool_executor import StdioTransport, ToolExecutor
 
 from agent.cli_view import CLIView
 from agent.context import AgentContext, AppServices
 from agent.history import HistoryManager
-from agent.lifecycle import ServerLifecycleManager
+from agent.http_lifecycle import HttpServerLifecycleManager
+from agent.lifecycle import LifecycleState
+from agent.lifecycle_protocol import LifecycleManagerProtocol
+from agent.stdio_lifecycle import StdioServerLifecycleManager, TransportState
 
 if TYPE_CHECKING:
     from agent.memory.layer import MemoryLayer
@@ -31,6 +36,98 @@ _COMPRESS_TEMPERATURE: float = 0.3
 _COMPRESS_MAX_TOKENS: int = 300
 
 _logger = logging.getLogger(__name__)
+
+
+def _transport_state_to_lifecycle(state: TransportState) -> LifecycleState:
+    """Map TransportState to the unified LifecycleState enum."""
+    if state == TransportState.RUNNING:
+        return LifecycleState.RUNNING
+    if state == TransportState.FAILED:
+        return LifecycleState.FAILED
+    return LifecycleState.STOPPED
+
+
+class _ServerLifecycleRouter:
+    """Routes lifecycle calls to the appropriate concrete manager.
+
+    Implements LifecycleManagerProtocol by dispatching to
+    HttpServerLifecycleManager and StdioServerLifecycleManager
+    based on McpServerConfig transport type.
+    """
+
+    def __init__(
+        self,
+        server_configs: dict[str, McpServerConfig],
+        tool_executor: ToolExecutor,
+        stdio_procs: dict[str, StdioTransport],
+    ) -> None:
+        self._server_configs = server_configs
+        self._last_called: dict[str, float] = {
+            key: time.monotonic() for key in server_configs
+        }
+        self._http_mgr = HttpServerLifecycleManager()
+        self._stdio_mgr = StdioServerLifecycleManager(
+            server_configs,
+            tool_executor,
+            stdio_procs,
+            self._last_called,
+        )
+
+    async def ensure_ready(self, server_key: str) -> None:
+        self._last_called[server_key] = time.monotonic()
+        cfg = self._server_configs.get(server_key)
+        if cfg is None:
+            return
+        if cfg.transport == "http" and cfg.startup_mode == "subprocess":
+            self._http_mgr.verify_running(server_key)
+            return
+        if cfg.transport != "stdio" or cfg.startup_mode == "persistent":
+            return
+        await self._stdio_mgr.ensure_ready(server_key)
+
+    async def shutdown_all(self) -> None:
+        await self._stdio_mgr.shutdown_all()
+        await self._http_mgr.shutdown_all()
+
+    async def start_http_subprocess(
+        self,
+        server_key: str,
+        cfg: McpServerConfig,
+    ) -> None:
+        await self._http_mgr.start(server_key, cfg)
+
+    async def restart(self, server_key: str) -> None:
+        cfg = self._server_configs.get(server_key)
+        if cfg is None or cfg.startup_mode != "subprocess":
+            _logger.warning(
+                f"Lifecycle: restart {server_key!r}: not a subprocess-mode server;"
+                " manual restart required",
+            )
+            return
+        await self._http_mgr.restart(server_key, cfg)
+
+    async def shutdown_idle(self) -> None:
+        await self._stdio_mgr.shutdown_idle()
+
+    def get_transport_state(self, server_key: str) -> LifecycleState:
+        cfg = self._server_configs.get(server_key)
+        if cfg is None:
+            return LifecycleState.UNKNOWN
+        if cfg.transport == "http":
+            return LifecycleState.UNKNOWN
+        if cfg.transport == "stdio":
+            raw = self._stdio_mgr.get_transport_state(server_key)
+            return _transport_state_to_lifecycle(raw)
+        return LifecycleState.UNKNOWN
+
+    async def restart_stdio(self, server_key: str) -> None:
+        cfg = self._server_configs.get(server_key)
+        if cfg is None or cfg.transport != "stdio":
+            _logger.warning(
+                f"Lifecycle: restart_stdio {server_key!r}: not a stdio server",
+            )
+            return
+        await self._stdio_mgr.restart(server_key)
 
 
 def _build_audit_logger(ctx: AgentContext) -> Logger:
@@ -76,8 +173,8 @@ def _build_tool_executor(
     ctx: AgentContext,
     http: httpx.AsyncClient,
     stdio_procs: dict,
-) -> tuple[ToolExecutor, ServerLifecycleManager]:
-    """Build ToolExecutor and ServerLifecycleManager; return both."""
+) -> tuple[ToolExecutor, LifecycleManagerProtocol]:
+    """Build ToolExecutor and lifecycle manager; return both."""
     tools = ToolExecutor(
         http,
         cache_ttl=ctx.cfg.tool.tool_cache_ttl,
@@ -85,7 +182,7 @@ def _build_tool_executor(
         cache_max_size=ctx.cfg.tool.tool_cache_max_size,
         concurrency_limits=ctx.cfg.tool.tool_concurrency_limits,
     )
-    lifecycle = ServerLifecycleManager(
+    lifecycle: LifecycleManagerProtocol = _ServerLifecycleRouter(
         ctx.cfg.mcp.mcp_servers,
         tools,
         stdio_procs,

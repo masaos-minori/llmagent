@@ -204,16 +204,6 @@ class HistoryManager:
             logger.warning(f"Context compression failed: {e}")
             return None
 
-    _partition_by_class = staticmethod(HistorySelectionPolicy.partition_by_class)
-    _sort_by_importance = staticmethod(HistorySelectionPolicy.sort_by_importance)
-
-    def _select_turns_to_compress(
-        self,
-        history: list[LLMMessage],
-    ) -> tuple[list[LLMMessage], list[LLMMessage], list[LLMMessage]] | None:
-        """Delegate to HistorySelectionPolicy.select_turns_to_compress."""
-        return self._selection_policy.select_turns_to_compress(history)
-
     def _build_history_text(self, messages: list[LLMMessage]) -> str:
         """Render messages as a plain-text transcript for LLM summarisation."""
         return "\n".join(
@@ -267,7 +257,7 @@ class HistoryManager:
             over_token = False
         if not over_char and not over_token:
             return history, _no_op
-        split = self._select_turns_to_compress(history)
+        split = self._selection_policy.select_turns_to_compress(history)
         if split is None:
             logger.warning(
                 f"History compression skipped: protect_turns={self._protect_turns}"

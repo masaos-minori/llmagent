@@ -66,8 +66,6 @@ class Orchestrator:
         self._llm_runner = LLMTurnRunner(
             ctx,
             self._guard,
-            on_turn_start=on_turn_start,
-            on_turn_end=on_turn_end,
             tracer=tracer,
         )
 
@@ -135,11 +133,15 @@ class Orchestrator:
     async def _handle_llm_turn(self, llm_url: str) -> TurnResult:
         ctx = self._ctx
         try:
+            if self._on_turn_start:
+                self._on_turn_start()
             with self._llm_runner._span_ctx("llm") as llm_span:
                 llm_span.set_attribute("model_url", llm_url)
                 answer = await self._llm_runner.run(llm_url)
                 logger.info(f"LLM response: {answer}")
                 ctx.session.save("assistant", answer)
+                if self._on_turn_end:
+                    self._on_turn_end()
                 return TurnResult(success=True, answer=answer)
         except LLMTransportError as e:
             self._handle_llm_transport_error(e, ctx)
@@ -175,11 +177,6 @@ class Orchestrator:
             if not result.success:
                 error_kind = result.error_kind
 
-        except LLMTransportError as e:
-            # Handle LLMTransportError explicitly to avoid ambiguity
-            error_kind = str(e)
-            # Log the error but don't re-raise to make the error explicit to the caller
-            logger.error(f"LLM transport error: {e}")
         finally:
             ctx.cfg.tool.allowed_tools = original_allowed  # always restore
 

@@ -8,11 +8,9 @@ import logging
 from db.helper import SQLiteHelper
 from rag.types import LLMMessage
 
-from agent.document_repo import DocumentRepository  # noqa: F401 — re-export
-from agent.note_repo import NoteRepository  # noqa: F401 — re-export
-from agent.session_message_repo import (
-    SessionMessageRepository,  # noqa: F401 — re-export
-)
+from agent.document_repo import DocumentRepository
+from agent.note_repo import NoteRepository
+from agent.session_message_repo import SessionMessageRepository
 
 logger = logging.getLogger(__name__)
 

@@ -181,7 +181,7 @@ async def _watchdog_check_http(
     """Probe one HTTP server and restart via lifecycle manager when health check fails.
 
     For startup_mode="subprocess" servers, restart is delegated to
-    ServerLifecycleManager.restart().  Other modes (externally-managed) only
+    LifecycleManagerProtocol.restart().  Other modes (externally-managed) only
     log a warning because the agent does not own those processes.
     """
     assert ctx.services.http is not None

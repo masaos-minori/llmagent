@@ -1,5 +1,5 @@
 """tests/test_lifecycle.py
-Unit tests for agent.lifecycle.ServerLifecycleManager.
+Unit tests for agent.factory._ServerLifecycleRouter.
 """
 
 from __future__ import annotations
@@ -10,8 +10,9 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.factory import _ServerLifecycleRouter
 from agent.http_lifecycle import HttpStartupError, StartupFailure
-from agent.lifecycle import LifecycleState, ServerLifecycleManager
+from agent.lifecycle import LifecycleState
 from agent.stdio_lifecycle import TransportHandle, TransportState
 from shared.mcp_config import McpServerConfig
 
@@ -69,7 +70,7 @@ class TestEnsureReady:
     async def test_http_server_noop(self) -> None:
         configs = {"web": _http_cfg()}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {})
+        mgr = _ServerLifecycleRouter(configs, ex, {})
         # Must not raise and must not attempt subprocess startup
         await mgr.ensure_ready("web")
         ex.set_transport.assert_not_called()
@@ -78,7 +79,7 @@ class TestEnsureReady:
     async def test_persistent_stdio_noop(self) -> None:
         configs = {"file": _stdio_persistent()}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {})
+        mgr = _ServerLifecycleRouter(configs, ex, {})
         await mgr.ensure_ready("file")
         ex.set_transport.assert_not_called()
 
@@ -88,7 +89,7 @@ class TestEnsureReady:
         transport.is_alive.return_value = True
         configs = {"od": _stdio_ondemand()}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {"od": transport})
+        mgr = _ServerLifecycleRouter(configs, ex, {"od": transport})
         await mgr.ensure_ready("od")
         ex.set_transport.assert_not_called()
 
@@ -103,7 +104,7 @@ class TestEnsureReady:
             mock_t.is_alive.return_value = True
             MockTransport.return_value = mock_t
 
-            mgr = ServerLifecycleManager(configs, ex, stdio_procs)
+            mgr = _ServerLifecycleRouter(configs, ex, stdio_procs)
             await mgr.ensure_ready("od")
 
         MockTransport.assert_called_once_with(
@@ -125,7 +126,7 @@ class TestEnsureReady:
             mock_t.start.side_effect = OSError("no such file")
             MockTransport.return_value = mock_t
 
-            mgr = ServerLifecycleManager(configs, ex, stdio_procs)
+            mgr = _ServerLifecycleRouter(configs, ex, stdio_procs)
             # Must not raise; logs an error
             await mgr.ensure_ready("od")
 
@@ -139,7 +140,7 @@ class TestEnsureReady:
         cfg.cmd = []  # empty cmd after construction
         configs = {"od": cfg}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {})
+        mgr = _ServerLifecycleRouter(configs, ex, {})
         # Must not raise; logs a warning
         await mgr.ensure_ready("od")
         ex.set_transport.assert_not_called()
@@ -148,7 +149,7 @@ class TestEnsureReady:
     async def test_unknown_server_key_noop(self) -> None:
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {})
+        mgr = _ServerLifecycleRouter(configs, ex, {})
         await mgr.ensure_ready("nonexistent")
         ex.set_transport.assert_not_called()
 
@@ -170,7 +171,7 @@ class TestEnsureReady:
             mock_t.start = fake_start
             MockTransport.return_value = mock_t
 
-            mgr = ServerLifecycleManager(configs, ex, stdio_procs)
+            mgr = _ServerLifecycleRouter(configs, ex, stdio_procs)
             # Fire three concurrent ensure_ready calls
             await asyncio.gather(
                 mgr.ensure_ready("od"),
@@ -188,7 +189,7 @@ class TestShutdownIdle:
         transport.is_alive = MagicMock(return_value=True)  # is_alive is sync
         configs = {"od": _stdio_ondemand_idle(idle_sec=30)}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {"od": transport})
+        mgr = _ServerLifecycleRouter(configs, ex, {"od": transport})
         # Backdate _last_called to simulate 60s of inactivity
         mgr._last_called["od"] = mgr._last_called["od"] - 60
         await mgr.shutdown_idle()
@@ -200,7 +201,7 @@ class TestShutdownIdle:
         transport.is_alive = MagicMock(return_value=True)
         configs = {"od": _stdio_ondemand_idle(idle_sec=300)}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {"od": transport})
+        mgr = _ServerLifecycleRouter(configs, ex, {"od": transport})
         # _last_called initialized to now(); 300s has not elapsed
         await mgr.shutdown_idle()
         transport.stop.assert_not_awaited()
@@ -211,7 +212,7 @@ class TestShutdownIdle:
         transport.is_alive = MagicMock(return_value=True)
         configs = {"od": _stdio_ondemand_idle(idle_sec=0)}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {"od": transport})
+        mgr = _ServerLifecycleRouter(configs, ex, {"od": transport})
         mgr._last_called["od"] = 0.0  # simulate very old last call
         await mgr.shutdown_idle()
         transport.stop.assert_not_awaited()
@@ -222,7 +223,7 @@ class TestShutdownIdle:
         transport.is_alive = MagicMock(return_value=True)
         configs = {"p": _stdio_persistent()}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {"p": transport})
+        mgr = _ServerLifecycleRouter(configs, ex, {"p": transport})
         mgr._last_called["p"] = 0.0  # simulate very old last call
         await mgr.shutdown_idle()
         transport.stop.assert_not_awaited()
@@ -233,7 +234,7 @@ class TestShutdownIdle:
         transport.is_alive = MagicMock(return_value=False)
         configs = {"od": _stdio_ondemand_idle(idle_sec=30)}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {"od": transport})
+        mgr = _ServerLifecycleRouter(configs, ex, {"od": transport})
         mgr._last_called["od"] = 0.0
         await mgr.shutdown_idle()
         transport.stop.assert_not_awaited()
@@ -245,7 +246,7 @@ class TestShutdownIdle:
         transport.stop.side_effect = RuntimeError("crash")
         configs = {"od": _stdio_ondemand_idle(idle_sec=30)}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {"od": transport})
+        mgr = _ServerLifecycleRouter(configs, ex, {"od": transport})
         mgr._last_called["od"] = 0.0
         # Must not propagate
         await mgr.shutdown_idle()
@@ -258,7 +259,7 @@ class TestEnsureReadySubprocess:
         proc.poll.return_value = None  # still alive
         cfg = _http_subprocess_cfg()
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
+        mgr = _ServerLifecycleRouter({"srv": cfg}, ex, {})
         mgr._http_mgr._http_procs["srv"] = proc
         await mgr.ensure_ready("srv")
         # verify no attempt to start a new process
@@ -270,7 +271,7 @@ class TestEnsureReadySubprocess:
         proc.poll.return_value = 1  # exited
         cfg = _http_subprocess_cfg()
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
+        mgr = _ServerLifecycleRouter({"srv": cfg}, ex, {})
         mgr._http_mgr._http_procs["srv"] = proc
         await mgr.ensure_ready("srv")  # must not raise
 
@@ -280,7 +281,7 @@ class TestStartHttpSubprocess:
     async def test_starts_process_and_polls_health(self) -> None:
         cfg = _http_subprocess_cfg(url="http://127.0.0.1:9999", cmd=["python", "s.py"])
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({"s": cfg}, ex, {})
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -305,7 +306,7 @@ class TestStartHttpSubprocess:
     async def test_reuses_alive_proc(self) -> None:
         cfg = _http_subprocess_cfg(url="http://127.0.0.1:9999", cmd=["python", "s.py"])
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({"s": cfg}, ex, {})
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
         existing = MagicMock()
         existing.poll.return_value = None
         mgr._http_mgr._http_procs["s"] = existing
@@ -318,7 +319,7 @@ class TestStartHttpSubprocess:
     async def test_raises_on_early_exit(self) -> None:
         cfg = _http_subprocess_cfg(url="http://127.0.0.1:9999", cmd=["python", "s.py"])
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({"s": cfg}, ex, {})
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
         mock_proc = MagicMock()
         mock_proc.poll.return_value = 1  # already exited
@@ -343,7 +344,7 @@ class TestStartHttpSubprocess:
             url="http://127.0.0.1:9999", cmd=["python", "s.py"], timeout=0
         )
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({"s": cfg}, ex, {})
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -366,7 +367,7 @@ class TestStartHttpSubprocess:
         # Override env to exercise the env-merge branch
         cfg.env = {"MY_VAR": "val"}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({"s": cfg}, ex, {})
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -397,7 +398,7 @@ class TestStartHttpSubprocess:
             url="http://127.0.0.1:9999", cmd=["python", "s.py"], timeout=5
         )
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({"s": cfg}, ex, {})
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -433,21 +434,21 @@ class TestRestart:
     async def test_restart_non_subprocess_mode_warns(self) -> None:
         cfg = _http_cfg()  # no startup_mode="subprocess"
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
+        mgr = _ServerLifecycleRouter({"srv": cfg}, ex, {})
         # Must log warning and return without raising
         await mgr.restart("srv")
 
     @pytest.mark.asyncio
     async def test_restart_unknown_key_warns(self) -> None:
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({}, ex, {})
+        mgr = _ServerLifecycleRouter({}, ex, {})
         await mgr.restart("nonexistent")  # must not raise
 
     @pytest.mark.asyncio
     async def test_restart_terminates_running_proc(self) -> None:
         cfg = _http_subprocess_cfg(url="http://127.0.0.1:9998", cmd=["python", "s.py"])
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
+        mgr = _ServerLifecycleRouter({"srv": cfg}, ex, {})
 
         proc = MagicMock()
         proc.poll.return_value = None  # running
@@ -482,7 +483,7 @@ class TestRestart:
     async def test_restart_no_existing_proc_still_starts(self) -> None:
         cfg = _http_subprocess_cfg(url="http://127.0.0.1:9997", cmd=["python", "s.py"])
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
+        mgr = _ServerLifecycleRouter({"srv": cfg}, ex, {})
         # No proc in _http_procs — restart must still call start_http_subprocess
 
         good_resp = MagicMock()
@@ -508,7 +509,7 @@ class TestRestart:
     async def test_restart_force_kills_on_terminate_timeout(self) -> None:
         cfg = _http_subprocess_cfg(url="http://127.0.0.1:9996", cmd=["python", "s.py"])
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager({"srv": cfg}, ex, {})
+        mgr = _ServerLifecycleRouter({"srv": cfg}, ex, {})
 
         proc = MagicMock()
         proc.poll.return_value = None
@@ -544,7 +545,7 @@ class TestShutdownAll:
         t2 = AsyncMock()
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {"a": t1, "b": t2})
+        mgr = _ServerLifecycleRouter(configs, ex, {"a": t1, "b": t2})
         await mgr.shutdown_all()
         t1.stop.assert_awaited_once()
         t2.stop.assert_awaited_once()
@@ -555,7 +556,7 @@ class TestShutdownAll:
         proc.poll.return_value = None  # running
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {})
+        mgr = _ServerLifecycleRouter(configs, ex, {})
         mgr._http_mgr._http_procs["srv"] = proc
         await mgr.shutdown_all()
         proc.terminate.assert_called_once()
@@ -567,7 +568,7 @@ class TestShutdownAll:
         proc.poll.return_value = 1  # already dead
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {})
+        mgr = _ServerLifecycleRouter(configs, ex, {})
         mgr._http_mgr._http_procs["srv"] = proc
         await mgr.shutdown_all()
         proc.terminate.assert_not_called()
@@ -578,7 +579,7 @@ class TestShutdownAll:
         t1.stop.side_effect = RuntimeError("crash")
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {"a": t1})
+        mgr = _ServerLifecycleRouter(configs, ex, {"a": t1})
         # Must not propagate the exception
         await mgr.shutdown_all()
 
@@ -589,7 +590,7 @@ class TestShutdownAll:
         proc.terminate.side_effect = OSError("cannot terminate")
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {})
+        mgr = _ServerLifecycleRouter(configs, ex, {})
         mgr._http_mgr._http_procs["srv"] = proc
         # Must not propagate the exception
         await mgr.shutdown_all()
@@ -618,14 +619,14 @@ def _ondemand_echo_cfg(working_dir: str = "") -> McpServerConfig:
 
 
 class TestEnsureReadyIntegration:
-    """Integration tests: ServerLifecycleManager with real echo subprocess."""
+    """Integration tests: _ServerLifecycleRouter with real echo subprocess."""
 
     @pytest.mark.asyncio
     async def test_ondemand_start_on_first_call(self) -> None:
         configs = {"echo": _ondemand_echo_cfg()}
         stdio_procs: dict = {}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, stdio_procs)
+        mgr = _ServerLifecycleRouter(configs, ex, stdio_procs)
 
         await mgr.ensure_ready("echo")
 
@@ -638,7 +639,7 @@ class TestEnsureReadyIntegration:
         configs = {"echo": _ondemand_echo_cfg()}
         stdio_procs: dict = {}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, stdio_procs)
+        mgr = _ServerLifecycleRouter(configs, ex, stdio_procs)
 
         await mgr.ensure_ready("echo")
         first_transport = stdio_procs["echo"]
@@ -682,7 +683,7 @@ class TestShutdownIdleIntegration:
 
         configs = {"echo": _stdio_ondemand_idle(idle_sec=30)}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {"echo": transport})
+        mgr = _ServerLifecycleRouter(configs, ex, {"echo": transport})
         mgr._last_called["echo"] = mgr._last_called["echo"] - 60
 
         await mgr.shutdown_idle()
@@ -698,7 +699,7 @@ class TestShutdownIdleIntegration:
 
         configs = {"echo": McpServerConfig("stdio", "", _echo_cmd(), "")}
         ex = _mock_tool_executor()
-        mgr = ServerLifecycleManager(configs, ex, {"echo": transport})
+        mgr = _ServerLifecycleRouter(configs, ex, {"echo": transport})
         mgr._last_called["echo"] = 0.0
 
         await mgr.shutdown_idle()
@@ -717,12 +718,12 @@ class TestLifecycleState:
         assert LifecycleState.UNKNOWN.value == "unknown"
 
     def test_get_transport_state_unknown_server(self) -> None:
-        mgr = ServerLifecycleManager({}, _mock_tool_executor(), {})
+        mgr = _ServerLifecycleRouter({}, _mock_tool_executor(), {})
         assert mgr.get_transport_state("nonexistent") == LifecycleState.UNKNOWN
 
     def test_get_transport_state_http_server_returns_unknown(self) -> None:
         cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "svc")
-        mgr = ServerLifecycleManager({"svc": cfg}, _mock_tool_executor(), {})
+        mgr = _ServerLifecycleRouter({"svc": cfg}, _mock_tool_executor(), {})
         assert mgr.get_transport_state("svc") == LifecycleState.UNKNOWN
 
 

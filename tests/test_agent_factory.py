@@ -77,7 +77,7 @@ _FACTORY_PATCHES = [
     "agent.factory.httpx.AsyncClient",
     "agent.factory.LLMClient",
     "agent.factory.ToolExecutor",
-    "agent.factory.ServerLifecycleManager",
+    "agent.factory._ServerLifecycleRouter",
     "agent.factory.HistoryManager",
     "agent.factory.plugin_registry.load_plugins",
     "agent.factory.build_tracer",
@@ -143,7 +143,7 @@ class TestBuildAgentContext:
 
         build_agent_context(ctx, view)
 
-        mocks["agent.factory.ServerLifecycleManager"].assert_called_once()
+        mocks["agent.factory._ServerLifecycleRouter"].assert_called_once()
         assert ctx.services.lifecycle is not None
 
     def test_history_manager_is_set(self, monkeypatch: Any) -> None:

@@ -652,11 +652,3 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> "AgentConf
             structured_log=bool(cfg.get("structured_log", False)),
         ),
     )
-
-
-# DbConfig and build_db_config() are defined in db/config.py.
-# Re-exported here for backward compatibility.
-from db.config import (  # noqa: E402, F401 — re-export at module end
-    DbConfig,
-    build_db_config,
-)

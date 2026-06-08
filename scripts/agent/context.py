@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from shared.tool_executor import StdioTransport, ToolExecutor
 
     from agent.history import HistoryManager
-    from agent.lifecycle import ServerLifecycleManager
+    from agent.lifecycle_protocol import LifecycleManagerProtocol
     from agent.memory.layer import MemoryLayer
 
 
@@ -103,7 +103,7 @@ class AppServices:
         http: httpx.AsyncClient,
         llm: LLMClient,
         tools: ToolExecutor,
-        lifecycle: ServerLifecycleManager,
+        lifecycle: LifecycleManagerProtocol,
         hist_mgr: HistoryManager,
         audit_logger: Logger,
         memory: MemoryLayer | None,
