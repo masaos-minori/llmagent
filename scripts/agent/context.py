@@ -120,7 +120,7 @@ class AppServices:
 
 
 # ---------------------------------------------------------------------------
-# Composite context with backward-compat flat attribute access
+# Composite context
 # ---------------------------------------------------------------------------
 
 

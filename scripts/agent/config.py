@@ -2,9 +2,7 @@
 Shared configuration dataclass and loader for the agent pipeline.
 
 AgentConfig composes 7 domain-specific sub-configs.
-Flat field access (e.g. cfg.llm_url) is preserved via __getattr__/__setattr__
-for backward compatibility.  Full migration to cfg.llm.llm_url etc. follows
-in a separate step.
+Access fields via nested paths: cfg.llm.llm_url, cfg.rag.top_k_search, etc.
 """
 
 from dataclasses import dataclass, field
@@ -388,7 +386,7 @@ class ObservabilityConfig:
 
 
 # ---------------------------------------------------------------------------
-# Composite config with backward-compat flat attribute access
+# Composite config
 # ---------------------------------------------------------------------------
 
 
@@ -396,9 +394,8 @@ class ObservabilityConfig:
 class AgentConfig:
     """Mutable runtime configuration shared by all agent components.
 
-    Composes 7 domain-specific sub-configs.  Flat attribute access such as
-    ``cfg.llm_url`` is preserved via ``__getattr__`` / ``__setattr__`` for
-    backward compatibility with existing code.
+    Composes 7 domain-specific sub-configs.
+    Access fields via nested paths: cfg.llm.llm_url, cfg.rag.top_k_search, etc.
     """
 
     llm: LLMConfig = field(default_factory=LLMConfig)
