@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mcp.mdq.models import IndexPathsRequest
-from mcp.mdq.service import MdqService
 
 if TYPE_CHECKING:
     from mcp.mdq.service import MdqService

@@ -2,7 +2,7 @@
 """agent/commands/cmd_db.py
 Database management mixin for CommandRegistry.
 
-Extracted from cmd_context.py.  Provides _DbMixin with:
+Provides _DbMixin with:
   _cmd_db        — /db dispatcher
   _db_stats      — DB record counts
   _db_list_urls  — list document URLs with filters
@@ -16,6 +16,7 @@ Extracted from cmd_context.py.  Provides _DbMixin with:
 """
 
 import logging
+import sqlite3
 from typing import TYPE_CHECKING
 
 from db.helper import SQLiteHelper
@@ -109,8 +110,10 @@ class _DbMixin(MixinBase):
             print(f"chunks    : {chunks:,}")
             print(f"sessions  : {sessions:,}")
             print(f"messages  : {messages:,}")
-        except Exception as e:
+        except sqlite3.Error as e:
             print(f"DB stats error: {e}")
+        except Exception as e:
+            print(f"DB stats unexpected error: {e}")
 
     def _db_list_urls(self, rest: str) -> None:
         """Parse --lang / --limit options from rest and delegate to AgentSession."""
@@ -139,8 +142,10 @@ class _DbMixin(MixinBase):
                 db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')")
                 db.commit()
             print("FTS5 index rebuilt.")
-        except Exception as e:
+        except sqlite3.Error as e:
             print(f"FTS rebuild error: {e}")
+        except Exception as e:
+            print(f"FTS rebuild unexpected error: {e}")
 
     def _db_health(self) -> None:
         """Print DB health metrics: journal mode, integrity, page stats."""
@@ -153,8 +158,10 @@ class _DbMixin(MixinBase):
             print(f"page_size       : {info['page_size']:,} bytes")
             print(f"freelist_count  : {info['freelist_count']:,}")
             print(f"db_size         : {info['db_size_bytes']:,} bytes")
-        except Exception as e:
+        except sqlite3.Error as e:
             print(f"DB health error: {e}")
+        except Exception as e:
+            print(f"DB health unexpected error: {e}")
 
     def _db_checkpoint(self, mode: str | None) -> None:
         """Run WAL checkpoint. mode: PASSIVE|FULL|RESTART|TRUNCATE (default from config)."""
@@ -162,8 +169,10 @@ class _DbMixin(MixinBase):
             with SQLiteHelper("session").open(write_mode=True) as db:
                 result = checkpoint_wal(db, mode)
             print(f"WAL checkpoint complete: {result}")
-        except Exception as e:
+        except sqlite3.Error as e:
             print(f"Checkpoint error: {e}")
+        except Exception as e:
+            print(f"Checkpoint unexpected error: {e}")
 
     def _db_vacuum(self) -> None:
         """Run VACUUM to rebuild the DB file and reclaim free pages."""
@@ -171,8 +180,10 @@ class _DbMixin(MixinBase):
             with SQLiteHelper("session").open(write_mode=True) as db:
                 vacuum_db(db)
             print("VACUUM complete.")
-        except Exception as e:
+        except sqlite3.Error as e:
             print(f"VACUUM error: {e}")
+        except Exception as e:
+            print(f"VACUUM unexpected error: {e}")
 
     def _db_purge(self, rest: str) -> None:
         """Purge old sessions. Options: --max-sessions N --max-age-days N"""
@@ -191,8 +202,10 @@ class _DbMixin(MixinBase):
             print(
                 f"Purged: {result['age_deleted']} by age, {result['count_deleted']} by count",
             )
-        except Exception as e:
+        except sqlite3.Error as e:
             print(f"Purge error: {e}")
+        except Exception as e:
+            print(f"Purge unexpected error: {e}")
 
     def _db_recover(self, backup_path: str | None) -> None:
         """Run integrity check; restore from backup_path if corruption found."""

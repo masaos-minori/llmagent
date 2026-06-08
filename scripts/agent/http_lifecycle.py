@@ -29,6 +29,14 @@ class StartupFailure:
     stderr_full: str
 
 
+class HttpStartupError(RuntimeError):
+    """Raised when an HTTP subprocess MCP server fails to start."""
+
+    def __init__(self, failure: StartupFailure) -> None:
+        self.failure = failure
+        super().__init__(failure.reason)
+
+
 class HttpServerLifecycleManager:
     """Manages HTTP subprocess MCP servers: start, health-poll, restart, shutdown."""
 
@@ -122,10 +130,7 @@ class HttpServerLifecycleManager:
                         f"Lifecycle: {server_key!r} exited early;"
                         f" stderr ({len(stderr_full)} chars): {stderr_full[:500]}",
                     )
-                    raise RuntimeError(
-                        f"Lifecycle: HTTP subprocess {server_key!r} exited early;"
-                        f" stderr: {failure.stderr_full[:200]}",
-                    )
+                    raise HttpStartupError(failure)
                 try:
                     resp = await client.get(health_url)
                     if resp.status_code == 200:
@@ -140,11 +145,12 @@ class HttpServerLifecycleManager:
         # Handle timeout case with stderr collection
         stderr_full = proc.stderr.read().decode(errors="replace") if proc.stderr else ""
         await self._terminate_with_timeout(proc, server_key)
-        raise RuntimeError(
-            f"Lifecycle: HTTP subprocess {server_key!r} did not become healthy"
-            f" within {cfg.startup_timeout_sec}s"
-            f" (stderr: {stderr_full[:200]})",
+        timeout_failure = StartupFailure(
+            server_key=server_key,
+            reason=f"did not become healthy within {cfg.startup_timeout_sec}s",
+            stderr_full=stderr_full,
         )
+        raise HttpStartupError(timeout_failure)
 
     async def restart(self, server_key: str, cfg: McpServerConfig) -> None:
         """Terminate and restart an HTTP subprocess server."""

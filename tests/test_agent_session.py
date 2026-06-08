@@ -82,7 +82,12 @@ def session() -> Generator[AgentSession]:
     def _make(target: str = "rag") -> _FakeSQLiteHelper:  # noqa: ARG001
         return _FakeSQLiteHelper(conn)
 
-    with patch("agent.session.SQLiteHelper", side_effect=_make):
+    with (
+        patch("agent.session.SQLiteHelper", side_effect=_make),
+        patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
+        patch("agent.document_repo.SQLiteHelper", side_effect=_make),
+        patch("agent.note_repo.SQLiteHelper", side_effect=_make),
+    ):
         yield AgentSession()
 
 

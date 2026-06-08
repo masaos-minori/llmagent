@@ -709,3 +709,186 @@ class TestExecuteOneToolCall:
         ctx.services.audit_logger.info.assert_called_once()
         logged = ctx.services.audit_logger.info.call_args[0][0]
         assert "req-999" in logged
+
+
+# ── gitops / allowed_repos guards ────────────────────────────────────────────
+
+
+class TestGitopsGuards:
+    @pytest.mark.asyncio
+    async def test_github_push_blocked_when_flag_set(self) -> None:
+        """gitops_push_blocked=True denies GitHub write tools immediately."""
+        cfg = _make_cfg(gitops_push_blocked=True)
+        ctx = _make_ctx(cfg)
+        result = await check_approval(ctx, "github_push_files", {})
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_github_push_blocked_false_does_not_block_by_flag(self) -> None:
+        """gitops_push_blocked=False: the flag itself does not deny the call."""
+        cfg = _make_cfg(
+            gitops_push_blocked=False,
+            approval_github_allowed_repos=["myorg/allowed-repo"],
+        )
+        ctx = _make_ctx(cfg)
+        with patch(
+            "agent.tool_approval._prompt_user_approval", AsyncMock(return_value=True)
+        ):
+            result = await check_approval(
+                ctx, "github_push_files", {"owner": "myorg", "repo": "allowed-repo"}
+            )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_non_github_tool_not_blocked_by_gitops(self) -> None:
+        """gitops_push_blocked only affects GitHub write tools."""
+        cfg = _make_cfg(gitops_push_blocked=True)
+        ctx = _make_ctx(cfg)
+        result = await check_approval(ctx, "read_text_file", {"path": "/tmp/f"})
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_allowed_repos_rejects_unlisted_repo(self) -> None:
+        """approval_github_allowed_repos non-empty: unlisted owner/repo is denied."""
+        cfg = _make_cfg(approval_github_allowed_repos=["myorg/allowed-repo"])
+        ctx = _make_ctx(cfg)
+        result = await check_approval(
+            ctx, "github_push_files", {"owner": "myorg", "repo": "other-repo"}
+        )
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_allowed_repos_permits_listed_repo(self) -> None:
+        """Repo matching allowed_repos entry is not denied by the repo check."""
+        cfg = _make_cfg(approval_github_allowed_repos=["myorg/allowed-repo"])
+        ctx = _make_ctx(cfg)
+        with patch(
+            "agent.tool_approval._prompt_user_approval", AsyncMock(return_value=True)
+        ):
+            result = await check_approval(
+                ctx, "github_push_files", {"owner": "myorg", "repo": "allowed-repo"}
+            )
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_allowed_repos_empty_denies_all_github_write(self) -> None:
+        """Empty allowed_repos list is fail-closed: all GitHub write tools are denied."""
+        cfg = _make_cfg(approval_github_allowed_repos=[])
+        ctx = _make_ctx(cfg)
+        result = await check_approval(
+            ctx, "github_push_files", {"owner": "any", "repo": "repo"}
+        )
+        assert result is False
+
+    def test_check_github_repo_allowed_partial_name_match(self) -> None:
+        """_check_github_repo_allowed uses owner_and_repo/repo field directly."""
+        from agent.config import ApprovalConfig
+        from agent.tool_approval import _check_github_repo_allowed
+
+        cfg = ApprovalConfig(approval_github_allowed_repos=["myorg/allowed-repo"])
+        assert _check_github_repo_allowed(
+            "github_push_files", {"repo": "myorg/allowed-repo"}, cfg
+        )
+        assert not _check_github_repo_allowed(
+            "github_push_files", {"repo": "myorg/other-repo"}, cfg
+        )
+
+
+# ── _escalate_by_args ────────────────────────────────────────────────────────
+
+
+class TestEscalateByArgs:
+    def test_recursive_delete_escalates_to_high(self) -> None:
+        from agent.tool_approval import _escalate_by_args
+
+        result = _escalate_by_args(
+            "delete_directory", {"recursive": True}, _make_cfg().approval
+        )
+        assert result is not None
+        level, reason = result
+        assert level == "high"
+        assert "recursive" in reason
+
+    def test_force_flag_escalates_to_high(self) -> None:
+        from agent.tool_approval import _escalate_by_args
+
+        result = _escalate_by_args("write_file", {"force": True}, _make_cfg().approval)
+        assert result is not None
+        assert result[0] == "high"
+        assert "force" in result[1]
+
+    def test_overwrite_flag_escalates_to_high(self) -> None:
+        from agent.tool_approval import _escalate_by_args
+
+        result = _escalate_by_args(
+            "write_file", {"overwrite": True}, _make_cfg().approval
+        )
+        assert result is not None
+        assert result[0] == "high"
+
+    def test_safe_args_no_escalation(self) -> None:
+        from agent.tool_approval import _escalate_by_args
+
+        result = _escalate_by_args(
+            "read_text_file", {"path": "/home/user/doc.md"}, _make_cfg().approval
+        )
+        assert result is None
+
+    def test_protected_path_escalates(self) -> None:
+        from agent.tool_approval import _escalate_by_args
+
+        cfg = _make_cfg(approval_protected_paths=["/opt/llm/"])
+        result = _escalate_by_args(
+            "write_file", {"path": "/opt/llm/config"}, cfg.approval
+        )
+        assert result is not None
+        assert result[0] == "high"
+
+    def test_non_protected_path_no_escalation(self) -> None:
+        from agent.tool_approval import _escalate_by_args
+
+        cfg = _make_cfg(approval_protected_paths=["/opt/llm/"])
+        result = _escalate_by_args(
+            "write_file", {"path": "/home/user/file.txt"}, cfg.approval
+        )
+        assert result is None
+
+    def test_non_recursive_delete_no_escalation(self) -> None:
+        from agent.tool_approval import _escalate_by_args
+
+        result = _escalate_by_args(
+            "delete_directory", {"recursive": False}, _make_cfg().approval
+        )
+        assert result is None
+
+
+# ── log_approval_decision ─────────────────────────────────────────────────────
+
+
+class TestLogApprovalDecision:
+    def test_logs_structured_event(self) -> None:
+        from agent.tool_approval import ApprovalDecision
+        from agent.tool_audit import log_approval_decision
+
+        ctx = _make_ctx()
+        ctx.services.audit_logger = MagicMock()
+        decision: ApprovalDecision = {
+            "tool_name": "write_file",
+            "risk_level": "medium",
+            "decision": "approved",
+            "escalation_reason": "",
+        }
+        log_approval_decision(ctx, decision)
+        ctx.services.audit_logger.info.assert_called_once()
+        logged = ctx.services.audit_logger.info.call_args[0][0]
+        assert "approval_decision" in logged
+        assert "write_file" in logged
+
+    def test_no_op_when_audit_logger_none(self) -> None:
+        from agent.tool_approval import ApprovalDecision
+        from agent.tool_audit import log_approval_decision
+
+        ctx = _make_ctx()
+        ctx.services.audit_logger = None
+        decision: ApprovalDecision = {"tool_name": "write_file", "decision": "approved"}
+        log_approval_decision(ctx, decision)  # must not raise

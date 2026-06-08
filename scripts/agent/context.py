@@ -21,6 +21,7 @@ Access pattern:
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -68,6 +69,10 @@ class TurnState:
 
     # UUID4 set by Orchestrator.handle_turn(); None between turns
     current_turn_id: str | None = None
+    # Background tasks spawned during this turn; tracked for clean shutdown
+    background_tasks: set[asyncio.Task[Any]] = field(default_factory=set)
+    # Error kind from the most recent turn failure; None when last turn succeeded
+    last_error_kind: str | None = None
 
 
 @dataclass
@@ -120,7 +125,7 @@ class AppServices:
 
 
 # ---------------------------------------------------------------------------
-# Composite context with backward-compat flat attribute access
+# Composite context
 # ---------------------------------------------------------------------------
 
 

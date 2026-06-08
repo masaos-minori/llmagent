@@ -14,7 +14,10 @@ import httpx
 import orjson
 import pytest
 from agent.history import HistoryManager
+from agent.history_selection_policy import _POLICY_KEYWORDS
 from rag.types import LLMMessage
+
+_classify_importance = HistoryManager._classify_importance
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -86,7 +89,7 @@ class TestCompressNoOp:
     async def test_returns_history_unchanged_under_limit(self) -> None:
         mgr = _make_manager(char_limit=10000)
         h = _history(("user", "hi"), ("assistant", "hello"))
-        result = await mgr.compress(h)
+        result, _ = await mgr.compress(h)
         assert result == h
 
     @pytest.mark.asyncio
@@ -95,7 +98,7 @@ class TestCompressNoOp:
         # compress_turns=2 → needs 4 turn messages to compress
         mgr = _make_manager(char_limit=1, compress_turns=2)
         h = _history(("user", "q"), ("assistant", "a"))
-        result = await mgr.compress(h)
+        result, _ = await mgr.compress(h)
         assert result == h
 
 
@@ -120,7 +123,7 @@ class TestCompressWithLLM:
 
         mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
         h = self._over_limit_history()
-        result = await mgr.compress(h)
+        result, _ = await mgr.compress(h)
 
         mock_http.post.assert_called_once()
         # Result should contain a summary message
@@ -167,7 +170,7 @@ class TestCompressWithLLM:
 
         mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
         h = self._over_limit_history()
-        result = await mgr.compress(h)
+        result, _ = await mgr.compress(h)
         # Fallback: original history returned unchanged
         assert result == h
 
@@ -181,7 +184,7 @@ class TestCompressWithLLM:
 
         mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
         h = self._over_limit_history()
-        result = await mgr.compress(h)
+        result, _ = await mgr.compress(h)
         assert result == h
 
     @pytest.mark.asyncio
@@ -197,7 +200,7 @@ class TestCompressWithLLM:
         mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
         system_msg: LLMMessage = {"role": "system", "content": "You are helpful."}
         h = [system_msg] + self._over_limit_history()
-        result = await mgr.compress(h)
+        result, _ = await mgr.compress(h)
         assert result[0] == system_msg
 
 
@@ -245,7 +248,7 @@ class TestProtectTurns:
             ("user", "q3"),
             ("assistant", "a3"),
         )
-        result = await mgr.compress(h)
+        result, _ = await mgr.compress(h)
         # When protect_turns=2 and compress_turns=2, need at least 8 turn messages;
         # with only 6, _select_turns_to_compress returns None → original returned
         assert result == h
@@ -268,7 +271,7 @@ class TestProtectTurns:
         )
         pairs = [("user", "x" * 20), ("assistant", "x" * 20)] * 5
         h = _history(*pairs)
-        result = await mgr.compress(h)
+        result, _ = await mgr.compress(h)
         # Summary message should appear; history should be shorter
         roles = [m["role"] for m in result]
         assert "system" in roles
@@ -357,7 +360,7 @@ class TestCompressTokenLimit:
             char_limit=0, compress_turns=2, http=self._mock_http(), token_limit=10
         )
         h = self._over_token_history()
-        result = await mgr.compress(h)
+        result, _ = await mgr.compress(h)
         roles = [m["role"] for m in result]
         assert "system" in roles
         assert len(result) < len(h)
@@ -369,7 +372,7 @@ class TestCompressTokenLimit:
             char_limit=999999, compress_turns=2, http=self._mock_http(), token_limit=0
         )
         h = self._over_token_history()
-        result = await mgr.compress(h)
+        result, _ = await mgr.compress(h)
         assert result == h
 
     @pytest.mark.asyncio
@@ -379,7 +382,7 @@ class TestCompressTokenLimit:
             char_limit=1, compress_turns=2, http=self._mock_http(), token_limit=0
         )
         h = self._over_token_history()
-        result = await mgr.compress(h)
+        result, _ = await mgr.compress(h)
         roles = [m["role"] for m in result]
         assert "system" in roles
 
@@ -390,7 +393,7 @@ class TestCompressTokenLimit:
             char_limit=0, compress_turns=2, http=self._mock_http(), token_limit=10
         )
         h = self._over_token_history()
-        result = await mgr.compress(h)
+        result, _ = await mgr.compress(h)
         roles = [m["role"] for m in result]
         assert "system" in roles
 
@@ -416,7 +419,7 @@ class TestCompressSkippedWarning:
             ("assistant", "answer 2"),
         )
         with caplog.at_level(logging.WARNING, logger="history_manager"):
-            result = await mgr.compress(h)
+            result, _ = await mgr.compress(h)
         # History returned unchanged
         assert result == h
         # Warning logged
@@ -475,7 +478,7 @@ class TestForceCompress:
             ("user", "q3"),
             ("assistant", "a3"),
         )
-        result = await mgr.force_compress(h)
+        result, _ = await mgr.force_compress(h)
         # Should have compressed (fewer messages)
         assert len(result) < len(h)
 
@@ -494,3 +497,110 @@ class TestForceCompress:
         # Limits must be restored after force_compress
         assert mgr._char_limit == 5000
         assert mgr._token_limit == 1000
+
+
+# ── _classify_importance / importance-based protection ──────────────────────
+
+
+class TestClassifyImportance:
+    def test_system_message_returns_1(self) -> None:
+        msg: LLMMessage = {"role": "system", "content": "You are helpful."}
+        assert _classify_importance(msg) == 1.0
+
+    def test_pinned_message_returns_inf(self) -> None:
+        msg: LLMMessage = {"role": "user", "content": "remember this", "pinned": True}
+        assert _classify_importance(msg) == float("inf")
+
+    def test_explicit_importance_overrides_rule(self) -> None:
+        msg: LLMMessage = {"role": "user", "content": "hi", "importance": 0.42}
+        assert _classify_importance(msg) == 0.42
+
+    def test_user_with_policy_keyword_returns_09(self) -> None:
+        msg: LLMMessage = {
+            "role": "user",
+            "content": "You must always use type annotations.",
+        }
+        assert _classify_importance(msg) >= 0.9
+
+    def test_assistant_with_policy_keyword_returns_08(self) -> None:
+        msg: LLMMessage = {
+            "role": "assistant",
+            "content": "Always prefer explicit typing.",
+        }
+        assert _classify_importance(msg) >= 0.8
+
+    def test_tool_error_returns_08(self) -> None:
+        msg: LLMMessage = {"role": "tool", "content": "Error: file not found"}
+        assert _classify_importance(msg) >= 0.8
+
+    def test_tool_success_returns_low(self) -> None:
+        msg: LLMMessage = {"role": "tool", "content": "OK: done"}
+        assert _classify_importance(msg) < 0.5
+
+    def test_neutral_user_message_returns_05(self) -> None:
+        msg: LLMMessage = {"role": "user", "content": "What is the weather today?"}
+        assert _classify_importance(msg) == 0.5
+
+    def test_policy_keywords_regex_matches(self) -> None:
+        for kw in ("always", "never", "must", "rule", "policy", "constraint"):
+            assert _POLICY_KEYWORDS.search(kw), f"keyword not matched: {kw}"
+
+
+class TestCompressResult:
+    @pytest.mark.asyncio
+    async def test_no_op_returns_zero_counts(self) -> None:
+        mgr = _make_manager(char_limit=99999)
+        h = _history(("user", "hi"), ("assistant", "hello"))
+        _, result = await mgr.compress(h)
+        assert result.compressed_count == 0
+        assert result.protected_count == 0
+        assert result.summary_added is False
+
+    @pytest.mark.asyncio
+    async def test_successful_compress_sets_summary_added(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": "Summary."}}]
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+        )
+        _, result = await mgr.compress(h)
+        assert result.summary_added is True
+        assert result.compressed_count > 0
+
+    @pytest.mark.asyncio
+    async def test_system_message_not_compressed(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": "Summary."}}]
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
+        system_msg: LLMMessage = {"role": "system", "content": "You are helpful."}
+        h = [system_msg] + list(
+            _history(
+                ("user", "q1"),
+                ("assistant", "a1"),
+                ("user", "q2"),
+                ("assistant", "a2"),
+                ("user", "q3"),
+                ("assistant", "a3"),
+            )
+        )
+        new_history, result = await mgr.compress(h)
+        assert any(m["role"] == "system" for m in new_history)
+        assert result.compressed_count > 0

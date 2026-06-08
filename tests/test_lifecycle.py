@@ -10,7 +10,9 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from agent.lifecycle import ServerLifecycleManager
+from agent.http_lifecycle import HttpStartupError, StartupFailure
+from agent.lifecycle import LifecycleState, ServerLifecycleManager
+from agent.stdio_lifecycle import TransportHandle, TransportState
 from shared.mcp_config import McpServerConfig
 
 
@@ -702,3 +704,65 @@ class TestShutdownIdleIntegration:
         await mgr.shutdown_idle()
         assert transport.is_alive()
         await transport.stop()
+
+
+# ── LifecycleState / HttpStartupError / TransportHandle ──────────────────────
+
+
+class TestLifecycleState:
+    def test_lifecycle_state_values(self) -> None:
+        assert LifecycleState.RUNNING.value == "running"
+        assert LifecycleState.STOPPED.value == "stopped"
+        assert LifecycleState.FAILED.value == "failed"
+        assert LifecycleState.UNKNOWN.value == "unknown"
+
+    def test_get_transport_state_unknown_server(self) -> None:
+        mgr = ServerLifecycleManager({}, _mock_tool_executor(), {})
+        assert mgr.get_transport_state("nonexistent") == LifecycleState.UNKNOWN
+
+    def test_get_transport_state_http_server_returns_unknown(self) -> None:
+        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "svc")
+        mgr = ServerLifecycleManager({"svc": cfg}, _mock_tool_executor(), {})
+        assert mgr.get_transport_state("svc") == LifecycleState.UNKNOWN
+
+
+class TestHttpStartupError:
+    def test_is_runtime_error_subclass(self) -> None:
+        failure = StartupFailure(server_key="svc", reason="timeout", stderr_full="")
+        err = HttpStartupError(failure)
+        assert isinstance(err, RuntimeError)
+        assert err.failure is failure
+
+    def test_message_is_failure_reason(self) -> None:
+        failure = StartupFailure(
+            server_key="svc", reason="exited early", stderr_full=""
+        )
+        err = HttpStartupError(failure)
+        assert str(err) == "exited early"
+
+    def test_caught_by_runtime_error(self) -> None:
+        failure = StartupFailure(server_key="svc", reason="x", stderr_full="")
+        with pytest.raises(RuntimeError):
+            raise HttpStartupError(failure)
+
+
+class TestTransportHandle:
+    def test_default_last_error_is_none(self) -> None:
+        from unittest.mock import MagicMock
+
+        from shared.tool_executor import StdioTransport
+
+        transport = MagicMock(spec=StdioTransport)
+        handle = TransportHandle(transport=transport, state=TransportState.RUNNING)
+        assert handle.last_error is None
+
+    def test_stores_state_and_transport(self) -> None:
+        handle = TransportHandle(transport=None, state=TransportState.STOPPED)
+        assert handle.state == TransportState.STOPPED
+        assert handle.transport is None
+
+    def test_last_error_can_be_set(self) -> None:
+        handle = TransportHandle(
+            transport=None, state=TransportState.FAILED, last_error="timeout"
+        )
+        assert handle.last_error == "timeout"

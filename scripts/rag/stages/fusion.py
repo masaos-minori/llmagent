@@ -5,9 +5,9 @@ from rag.stage import PipelineContext, PipelineStage
 
 
 class FusionStage(PipelineStage):
-    def __init__(self, cfg) -> None:
+    def __init__(self, cfg: dict) -> None:
         self._cfg = cfg
         self._rrf_k = cfg.get("rrf_k", 60)
 
-    async def run(self, ctx: PipelineContext, **kwargs) -> None:
+    async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
         ctx.merged = RagScorer.rrf_merge(ctx.search_results, rrf_k=self._rrf_k)

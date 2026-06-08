@@ -9,6 +9,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.history import CompressResult
 from agent.orchestrator import Orchestrator
 from agent.tool_loop_guard import ToolLoopGuard
 from shared.llm_client import LLMErrorKind, LLMTransportError
@@ -45,8 +46,10 @@ def _make_ctx() -> MagicMock:
     hist_mgr = AsyncMock()
     hist_mgr.stat_compress_count = 0
 
-    async def _compress(h: list) -> list:
-        return h
+    _no_op = CompressResult(compressed_count=0, protected_count=0, summary_added=False)
+
+    async def _compress(h: list) -> tuple:
+        return h, _no_op
 
     hist_mgr.compress = AsyncMock(side_effect=_compress)
     ctx.services.hist_mgr = hist_mgr
@@ -457,3 +460,93 @@ class TestToolLoopGuardHelpers:
         result = orch._guard.check_all(seen, [], set(), msg)
         assert result is not None
         assert "repeated" in result.lower() or "duplicate" in result.lower()
+
+
+# ── allowed_tools override ────────────────────────────────────────────────────
+
+
+class TestAllowedToolsOverride:
+    def test_allowed_tools_stored_on_init(self) -> None:
+        ctx = _make_ctx()
+        orch = Orchestrator(ctx, allowed_tools=["read_text_file"])
+        assert orch._allowed_tools == ["read_text_file"]
+
+    def test_allowed_tools_none_by_default(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        assert orch._allowed_tools is None
+
+    @pytest.mark.asyncio
+    async def test_allowed_tools_override_applied_during_turn(self) -> None:
+        """ctx.cfg.tool.allowed_tools is overridden to the instance list during _process_turn."""
+        ctx = _make_ctx()
+        ctx.cfg.tool.allowed_tools = []
+        captured: list[list[str]] = []
+
+        async def _capture_allowed(*_: object, **__: object) -> None:
+            captured.append(list(ctx.cfg.tool.allowed_tools))
+
+        orch = Orchestrator(ctx, allowed_tools=["search_web"])
+        with patch.object(
+            orch, "_handle_memory_injection", side_effect=_capture_allowed
+        ):
+            with patch.object(
+                orch._llm_runner,
+                "run",
+                AsyncMock(
+                    return_value=MagicMock(answer="ok", success=True, error_kind=None)
+                ),
+            ):
+                await orch.handle_turn("test")
+
+        assert captured == [["search_web"]]
+
+    @pytest.mark.asyncio
+    async def test_original_allowed_tools_restored_after_turn(self) -> None:
+        """ctx.cfg.tool.allowed_tools is restored to its original value after the turn."""
+        ctx = _make_ctx()
+        ctx.cfg.tool.allowed_tools = ["write_file"]
+        orch = Orchestrator(ctx, allowed_tools=["search_web"])
+        with patch.object(orch, "_handle_memory_injection", AsyncMock()):
+            with patch.object(
+                orch._llm_runner,
+                "run",
+                AsyncMock(
+                    return_value=MagicMock(answer="ok", success=True, error_kind=None)
+                ),
+            ):
+                await orch.handle_turn("test")
+        assert ctx.cfg.tool.allowed_tools == ["write_file"]
+
+    @pytest.mark.asyncio
+    async def test_allowed_tools_none_leaves_config_unchanged(self) -> None:
+        """When allowed_tools=None, ctx.cfg.tool.allowed_tools is not touched."""
+        ctx = _make_ctx()
+        ctx.cfg.tool.allowed_tools = ["read_text_file"]
+        orch = _make_orchestrator(ctx)  # no allowed_tools override
+        with patch.object(orch, "_handle_memory_injection", AsyncMock()):
+            with patch.object(
+                orch._llm_runner,
+                "run",
+                AsyncMock(
+                    return_value=MagicMock(answer="ok", success=True, error_kind=None)
+                ),
+            ):
+                await orch.handle_turn("test")
+        assert ctx.cfg.tool.allowed_tools == ["read_text_file"]
+
+    @pytest.mark.asyncio
+    async def test_original_config_restored_even_on_error(self) -> None:
+        """ctx.cfg.tool.allowed_tools is restored even when an exception propagates."""
+        ctx = _make_ctx()
+        ctx.cfg.tool.allowed_tools = []
+        orch = Orchestrator(ctx, allowed_tools=["search_web"])
+
+        async def _raise(*_: object, **__: object) -> None:
+            raise RuntimeError("unexpected error")
+
+        with patch.object(orch, "_handle_memory_injection", side_effect=_raise):
+            with pytest.raises(RuntimeError):
+                await orch.handle_turn("test")
+
+        assert ctx.cfg.tool.allowed_tools == []

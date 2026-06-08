@@ -201,8 +201,6 @@ _RAG_MIGRATE_SQL: list[str] = [
 # ALTER TABLE migration statements for session.sqlite.
 _SESSION_MIGRATE_SQL: list[str] = [
     "ALTER TABLE messages ADD COLUMN tool_call_id TEXT",
-    "CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec USING vec0("
-    "entry_id INTEGER PRIMARY KEY, embedding float[384])",
     # Phase 1 persistent semantic memory tables
     """CREATE TABLE IF NOT EXISTS memories (
         memory_id   TEXT PRIMARY KEY,

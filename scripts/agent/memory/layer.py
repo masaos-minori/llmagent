@@ -21,13 +21,7 @@ from db.helper import SQLiteHelper
 from db.maintenance import prune_old_memories
 from shared.types import LLMMessage
 
-from agent.memory.embedding_client import (
-    EmbeddingClient,
-    EmbeddingClientConfig,
-    # Re-exported so that `patch("agent.memory.layer._fetch_embedding")` keeps working
-    # in any legacy test code that patches at this module path.
-    _fetch_embedding,  # noqa: F401
-)
+from agent.memory.embedding_client import EmbeddingClient, EmbeddingClientConfig
 from agent.memory.ingestion import DedupPolicy, MemoryIngestionService
 from agent.memory.injection import InjectionPolicy, MemoryInjectionService
 from agent.memory.jsonl_store import JsonlMemoryStore

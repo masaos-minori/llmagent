@@ -1,6 +1,6 @@
 [tasks]
 Show progress as you work.
-Refactor `scripts/**/*.py`.
+Refactor `~/llmagent/scripts/**/*.py`.
 Follow these rules exactly.
 Create a Git commit.
 
