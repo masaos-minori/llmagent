@@ -380,6 +380,7 @@ class TestRecoverCorruption:
         class FakeContext:
             def __enter__(self) -> MagicMock:
                 return mock_db
+
             def __exit__(self, *args: object) -> None:
                 pass
 
@@ -403,6 +404,7 @@ class TestRecoverCorruption:
         class FakeContext:
             def __enter__(self) -> MagicMock:
                 return mock_db
+
             def __exit__(self, *args: object) -> None:
                 pass
 
@@ -426,6 +428,7 @@ class TestRecoverCorruption:
         class FakeContext:
             def __enter__(self) -> MagicMock:
                 return mock_db
+
             def __exit__(self, *args: object) -> None:
                 pass
 
@@ -447,6 +450,7 @@ class TestRecoverCorruption:
         class FakeContext:
             def __enter__(self) -> MagicMock:
                 return mock_db
+
             def __exit__(self, *args: object) -> None:
                 pass
 
@@ -474,6 +478,7 @@ class TestRecoverCorruption:
         class FakeContext:
             def __enter__(self) -> MagicMock:
                 return mock_db
+
             def __exit__(self, *args: object) -> None:
                 pass
 
@@ -505,6 +510,7 @@ class TestRecoverCorruption:
         class FakeContext:
             def __enter__(self) -> MagicMock:
                 return mock_db
+
             def __exit__(self, *args: object) -> None:
                 pass
 

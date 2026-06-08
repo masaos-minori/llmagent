@@ -111,8 +111,7 @@ class _ConfigMixin(MixinBase):
         print(f"  web_search_max      : {ctx.cfg.rag.web_search_max_results}")
         print(f"  context_char_limit  : {ctx.cfg.llm.context_char_limit}")
         print(
-            f"  context_compress    :"
-            f" {ctx.cfg.llm.context_compress_turns} turn pairs",
+            f"  context_compress    : {ctx.cfg.llm.context_compress_turns} turn pairs",
         )
         print(f"  tool_cache_ttl      : {ctx.cfg.tool.tool_cache_ttl}s")
         print(f"  llm_max_retries     : {ctx.cfg.llm.llm_max_retries}")
@@ -127,12 +126,10 @@ class _ConfigMixin(MixinBase):
             f" {ctx.cfg.llm.sse_heartbeat_timeout}s",
         )
         print(
-            f"  sse_malformed_retry                :"
-            f" {ctx.cfg.llm.sse_malformed_retry}",
+            f"  sse_malformed_retry                : {ctx.cfg.llm.sse_malformed_retry}",
         )
         print(
-            f"  sse_reconnect_max                  :"
-            f" {ctx.cfg.llm.sse_reconnect_max}",
+            f"  sse_reconnect_max                  : {ctx.cfg.llm.sse_reconnect_max}",
         )
         print(
             f"  llm_stream_retry_on_heartbeat_timeout:"
@@ -172,8 +169,7 @@ class _ConfigMixin(MixinBase):
             print("  risk_rules          : (none)")
         print(f"  protected_paths     : {ctx.cfg.approval.approval_protected_paths}")
         print(
-            f"  high_risk_branches  :"
-            f" {ctx.cfg.approval.approval_high_risk_branches}",
+            f"  high_risk_branches  : {ctx.cfg.approval.approval_high_risk_branches}",
         )
         dry_run_tools = ctx.cfg.approval.approval_dry_run_tools
         print(f"  dry_run_tools       : {dry_run_tools or '(none)'}")
@@ -192,8 +188,7 @@ class _ConfigMixin(MixinBase):
             print(f"  github_allowed_repos: {allowed_repos}")
         else:
             print(
-                "  github_allowed_repos:"
-                " (Fail-Closed \u2014 all write ops denied)",
+                "  github_allowed_repos: (Fail-Closed \u2014 all write ops denied)",
             )
         tier_count = len(ctx.cfg.approval.tool_safety_tiers)
         print(f"  tool_safety_tiers   : {tier_count} tools classified")
