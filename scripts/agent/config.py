@@ -349,6 +349,14 @@ class ApprovalConfig:
     allowed_root: str = ""
     # GitHub repos (owner/repo) allowed for write ops; empty = deny all (fail-closed)
     approval_github_allowed_repos: list[str] = field(default_factory=list)
+    # Block all GitHub write operations globally when True
+    gitops_push_blocked: bool = False
+    # Block github_push_files with force=True
+    gitops_force_push_blocked: bool = True
+    # Protected branch names; push/merge to these requires high-risk approval
+    gitops_protected_branches: list[str] = field(
+        default_factory=lambda: ["main", "master"]
+    )
 
     def __post_init__(self) -> None:
         _valid_risk = {"none", "medium", "high"}
@@ -607,6 +615,11 @@ def _build_approval_config(cfg: dict[str, Any]) -> "ApprovalConfig":
         allowed_root=cfg.get("allowed_root", ""),
         approval_github_allowed_repos=list(
             cfg.get("approval_github_allowed_repos", []),
+        ),
+        gitops_push_blocked=bool(cfg.get("gitops_push_blocked", False)),
+        gitops_force_push_blocked=bool(cfg.get("gitops_force_push_blocked", True)),
+        gitops_protected_branches=list(
+            cfg.get("gitops_protected_branches", ["main", "master"])
         ),
     )
 
