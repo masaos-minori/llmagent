@@ -28,7 +28,7 @@ async def probe_mcp_health(http: httpx.AsyncClient, base_url: str) -> bool:
     """Return True if the MCP server at base_url responds to /health with 200."""
     try:
         resp = await http.get(f"{base_url}/health", timeout=5.0)
-        return int(resp.status_code) == 200
+        return resp.status_code == 200
     except Exception:
         return False
 
@@ -114,12 +114,8 @@ async def _collect_server_tool_names(ctx: AgentContext) -> set[str]:
     return server_names
 
 
-async def check_tool_definitions_startup(ctx: AgentContext) -> list[str]:
-    """Startup validation: Compare tool_definitions in agent.toml against live tool lists from each server.
-
-    Returns warning strings on mismatch. Raises RuntimeError when tool_definitions_strict=True.
-    Skips silently when all servers are unreachable (startup order tolerance).
-    """
+async def _check_tool_definitions(ctx: AgentContext, strict: bool = False) -> list[str]:
+    """Shared logic: compare tool_definitions against live server tool lists."""
     cfg_names = {
         td["function"]["name"]
         for td in ctx.cfg.tool.tool_definitions
@@ -139,36 +135,14 @@ async def check_tool_definitions_startup(ctx: AgentContext) -> list[str]:
         logger.warning(
             f"Tools on servers but not in agent.toml: {sorted(missing_in_cfg)}",
         )
-    if (missing_in_server or missing_in_cfg) and ctx.cfg.tool.tool_definitions_strict:
+    if (missing_in_server or missing_in_cfg) and strict:
         raise RuntimeError("Strict mode: tool definition mismatch detected")
     return warnings
 
 
 async def check_tool_definitions_runtime(ctx: AgentContext) -> list[str]:
-    """Runtime validation: Compare tool_definitions in agent.toml against live tool lists from each server.
-
-    Returns warning strings on mismatch. Does not raise errors.
-    """
-    cfg_names = {
-        td["function"]["name"]
-        for td in ctx.cfg.tool.tool_definitions
-        if "function" in td
-    }
-    server_names = await _collect_server_tool_names(ctx)
-    if not server_names:
-        return []  # All servers unreachable; skip validation
-    missing_in_server = cfg_names - server_names
-    missing_in_cfg = server_names - cfg_names
-    warnings: list[str] = []
-    if missing_in_server:
-        msg = f"Tools in agent.toml but not on any server: {sorted(missing_in_server)}"
-        logger.warning(msg)
-        warnings.append(msg)
-    if missing_in_cfg:
-        logger.warning(
-            f"Tools on servers but not in agent.toml: {sorted(missing_in_cfg)}",
-        )
-    return warnings
+    """Runtime validation: no raise, warnings only."""
+    return await _check_tool_definitions(ctx, strict=False)
 
 
 async def _watchdog_check_http(

@@ -14,13 +14,6 @@ from typing import Protocol
 
 
 @dataclass
-class InstallAnswers:
-    port: int
-    role: str  # "generic" | "sqlite" | "shell" | "git" | "ci"
-    with_confd: bool
-
-
-@dataclass
 class ScaffoldResult:
     server_name: str
     module: str

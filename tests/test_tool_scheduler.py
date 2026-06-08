@@ -112,13 +112,59 @@ class TestResourceScopeGrouping:
         )
         assert groups == [[tc]]
 
-    def test_write_tool_without_scope_goes_to_parallel(self) -> None:
+    def test_write_tool_without_scope_forms_write_first_group(self) -> None:
         tc = _tc("write_file")
         groups = build_execution_groups(
             [tc],
             {"write_file": _meta(resource_scope="", is_write=True)},
         )
         assert groups == [[tc]]
+
+    def test_multiple_write_tools_without_scope_grouped_together(self) -> None:
+        tc1 = _tc("write_file")
+        tc2 = _tc("edit_file")
+        groups = build_execution_groups(
+            [tc1, tc2],
+            {
+                "write_file": _meta(resource_scope="", is_write=True),
+                "edit_file": _meta(resource_scope="", is_write=True),
+            },
+        )
+        write_group = groups[0]
+        assert len(write_group) == 2
+
+    def test_write_first_group_precedes_parallel_read_tools(self) -> None:
+        tc_write = _tc("write_file")
+        tc_read = _tc("read_text_file")
+        groups = build_execution_groups(
+            [tc_read, tc_write],
+            {
+                "write_file": _meta(resource_scope="", is_write=True),
+                "read_text_file": _meta(),
+            },
+        )
+        assert len(groups) == 2
+        assert groups[0] == [tc_write]
+        assert groups[1] == [tc_read]
+
+    def test_write_first_group_after_resource_scope_and_serial(self) -> None:
+        tc_serial = _tc("shell_run")
+        tc_scope_write = _tc("write_file")
+        tc_noscope_write = _tc("edit_file")
+        tc_read = _tc("read_text_file")
+        meta = {
+            "shell_run": _meta(requires_serial=True),
+            "write_file": _meta(resource_scope="file", is_write=True),
+            "edit_file": _meta(resource_scope="", is_write=True),
+            "read_text_file": _meta(),
+        }
+        groups = build_execution_groups(
+            [tc_serial, tc_scope_write, tc_read, tc_noscope_write], meta
+        )
+        assert groups[0] == [tc_serial]
+        assert tc_scope_write in groups[1]
+        assert tc_noscope_write in groups[2]
+        assert tc_read in groups[3]
 
 
 # ── mixed scenarios ───────────────────────────────────────────────────────────

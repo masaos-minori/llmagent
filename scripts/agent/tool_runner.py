@@ -97,8 +97,8 @@ def _collect_tool_result_msgs(
         masked = mask_args(args, ctx.cfg.tool.masked_fields)
         logger.info(f"Tool call (turn {turn + 1}): {name}({masked})")
         print(f"  [tool] {name}({orjson.dumps(masked).decode()})")
-        n_lines = len(text.splitlines())
         if len(text) > _TOOL_RESULT_MAX_CHARS:
+            n_lines = len(text.splitlines())
             logger.info(f"Tool result {name} (full): {text}")
             display = f"{n_lines} lines / {len(text)} chars (truncated)"
             print(f"  [tool] {name} → {display}")

@@ -133,13 +133,9 @@ class LLMTurnRunner:
         """Stream one LLM response; raise on first-turn failure, inject on mid-turn."""
         ctx = self._ctx
         assert ctx.services.llm is not None
-        try:
-            response = await ctx.services.llm.stream(
-                llm_url,
-                ctx.conv.history,
-                ctx.cfg.tool.tool_definitions,
-            )
-        except LLMTransportError:
-            raise  # Let the caller handle the error
-        # Record latency for turn 0 only (moved to orchestrator)
+        response = await ctx.services.llm.stream(
+            llm_url,
+            ctx.conv.history,
+            ctx.cfg.tool.tool_definitions,
+        )
         return response

@@ -7,7 +7,6 @@ and persists to JSONL + SQLite.
 DedupAction.SKIP_NEW (default): if a near-duplicate embedding exists in the
 store, the new entry is discarded instead of stored.
 LINK_ONLY: persist the entry even when a near-duplicate exists, then link them.
-UPSERT: overwrite the existing entry in-place.
 """
 
 from __future__ import annotations
@@ -36,7 +35,6 @@ class DedupAction(StrEnum):
     SKIP_NEW = (
         "skip_new"  # skip new entry when a near-duplicate already exists (default)
     )
-    UPSERT = "upsert"  # update existing entry in-place
 
 
 @dataclass

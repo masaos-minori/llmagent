@@ -9,10 +9,14 @@ calls are patched so tests run without a real terminal or history file.
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.cli_view import CLIView
+
+if TYPE_CHECKING:
+    from pytest import CaptureFixture
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -128,3 +132,69 @@ class TestReadMultiline:
             result = loop.run_until_complete(view.read_multiline(loop, "partial\\"))
             loop.close()
         assert result == "partial"
+
+
+# ── display helpers ────────────────────────────────────────────────────────────
+
+
+class TestDisplayHelpers:
+    def test_write_token(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
+        view.write_token("hello")
+        captured = capsys.readouterr()
+        assert captured.out == "hello"
+
+    def test_write_compress_notice(
+        self, view: CLIView, capsys: CaptureFixture[str]
+    ) -> None:
+        view.write_compress_notice(3)
+        captured = capsys.readouterr()
+        assert (
+            captured.out == "  [context] history compressed (3 messages summarized)\n"
+        )
+
+    def test_write_turn_start(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
+        view.write_turn_start()
+        captured = capsys.readouterr()
+        assert captured.out == "\n"
+
+    def test_write_turn_end(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
+        view.write_turn_end()
+        captured = capsys.readouterr()
+        assert captured.out == "\n"
+
+    def test_write_llm_error(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
+        view.write_llm_error(RuntimeError("connection failed"))
+        captured = capsys.readouterr()
+        assert "connection failed" in captured.out
+
+    def test_write_progress(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
+        view.write_progress("searching...")
+        captured = capsys.readouterr()
+        assert "searching..." in captured.out
+
+    def test_clear_progress(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
+        view.clear_progress()
+        captured = capsys.readouterr()
+        assert len(captured.out) >= 32
+
+    def test_write_warning(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
+        view.write_warning("disk space low")
+        captured = capsys.readouterr()
+        assert captured.out == "[warn] disk space low\n"
+
+    def test_write_debug_rag(self, view: CLIView, capsys: CaptureFixture[str]) -> None:
+        data = {
+            "queries": ["python"],
+            "all_results": [
+                [{"chunk_id": 1, "url": "https://example.com", "rrf_score": 0.5}]
+            ],
+            "merged": [{"chunk_id": 1, "url": "https://example.com", "rrf_score": 0.5}],
+            "reranked": [
+                {"chunk_id": 1, "url": "https://example.com", "rerank_score": 0.9}
+            ],
+        }
+        view.write_debug_rag(data)
+        captured = capsys.readouterr()
+        assert "MQE queries" in captured.out
+        assert "RRF merge" in captured.out
+        assert "reranked" in captured.out

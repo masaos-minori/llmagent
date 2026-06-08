@@ -196,13 +196,11 @@ class AgentSession:
                 if last_user_id is None:
                     return 0
                 # Count rows to delete before deleting
-                deleted: int = int(
-                    db.execute(
-                        "SELECT COUNT(*) FROM messages"
-                        " WHERE session_id = ? AND message_id >= ?",
-                        (self.session_id, last_user_id),
-                    ).fetchone()[0]
-                )
+                deleted: int = db.execute(
+                    "SELECT COUNT(*) FROM messages"
+                    " WHERE session_id = ? AND message_id >= ?",
+                    (self.session_id, last_user_id),
+                ).fetchone()[0]
                 db.execute(
                     "DELETE FROM messages WHERE session_id = ? AND message_id >= ?",
                     (self.session_id, last_user_id),

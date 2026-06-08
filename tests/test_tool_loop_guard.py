@@ -1,0 +1,267 @@
+"""tests/test_tool_loop_guard.py
+Unit tests for agent/tool_loop_guard.py — ToolLoopGuard.
+"""
+
+from __future__ import annotations
+
+from unittest.mock import MagicMock
+
+from agent.config import AgentConfig, build_agent_config
+from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
+
+
+def _cfg(**overrides: dict) -> AgentConfig:
+    defaults: dict = {
+        "context_char_limit": 8000,
+        "context_compress_turns": 4,
+        "tool_cache_ttl": 300,
+        "top_k_search": 20,
+        "top_k_rerank": 15,
+        "rag_top_k": 5,
+        "use_mqe": True,
+        "use_search": True,
+        "use_rrf": True,
+        "use_rerank": True,
+        "llm_max_retries": 3,
+        "llm_retry_base_delay": 1.0,
+        "rag_min_score": 0.0,
+        "max_chunks_per_doc": 2,
+        "use_two_stage_fetch": False,
+        "two_stage_max_docs": 2,
+        "serial_tool_calls": False,
+        "auto_inject_notes": False,
+        "use_tool_summarize": False,
+        "tool_summarize_threshold": 3000,
+        "use_semantic_cache": False,
+        "semantic_cache_threshold": 0.92,
+        "tool_result_max_llm_chars": 4000,
+        "masked_fields": [],
+        "allowed_tools": [],
+        "tool_definitions": [],
+        "tool_safety_tiers": {},
+        "approval_risk_rules": {},
+        "approval_protected_paths": [],
+        "approval_github_allowed_repos": [],
+        "approval_high_risk_branches": [],
+        "approval_shell_safe_prefixes": [],
+        "approval_resource_keys": {"path_keys": [], "branch_keys": []},
+        "allowed_root": "",
+        "web_search_url": "http://127.0.0.1:8004",
+        "github_server_url": "http://127.0.0.1:8006",
+        "tool_dedup_max_repeats": 3,
+        "tool_cycle_detect_window": 2,
+        "tool_error_retry_max": 1,
+        "tool_error_max_consecutive": 3,
+    }
+    defaults.update(overrides)
+    return build_agent_config(defaults)
+
+
+def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
+    ctx = MagicMock()
+    ctx.cfg = cfg or _cfg()
+    ctx.conv = MagicMock()
+    ctx.conv.history = []
+    return ctx
+
+
+def _state() -> TurnLoopState:
+    return TurnLoopState()
+
+
+def _msg(*tool_names: str) -> dict:
+    return {
+        "tool_calls": [
+            {"function": {"name": name, "arguments": "{}"}} for name in tool_names
+        ]
+    }
+
+
+class TestCheckCycle:
+    def test_window_zero_disabled(self) -> None:
+        cfg = _cfg(tool_cycle_detect_window=0)
+        ctx = _make_ctx(cfg)
+        guard = ToolLoopGuard(ctx)
+        assert guard.check_cycle([], _msg("read_text_file")) is None
+        assert len(ctx.conv.history) == 0
+
+    def test_no_cycle_returns_none(self) -> None:
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        fingerprints: list[str] = ["aaa", "bbb"]
+        msg = _msg("read_text_file")
+        result = guard.check_cycle(fingerprints, msg)
+        assert result is None
+        assert len(fingerprints) == 3
+        assert len(ctx.conv.history) == 0
+
+    def test_cycle_detected_returns_exit_message(self) -> None:
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        msg = _msg("write_file")
+        fingerprints: list[str] = []
+        guard.check_cycle(fingerprints, msg)
+        guard.check_cycle(fingerprints, msg)
+        result = guard.check_cycle(fingerprints, msg)
+        assert result is not None
+        assert "Cyclic" in result
+        assert len(ctx.conv.history) == 1
+        assert "cyclic" in ctx.conv.history[0]["content"].lower()
+
+    def test_cycle_below_threshold_returns_none(self) -> None:
+        cfg = _cfg(tool_cycle_detect_window=3)
+        ctx = _make_ctx(cfg)
+        guard = ToolLoopGuard(ctx)
+        msg = _msg("read_text_file")
+        fingerprints: list[str] = ["fp1", "fp1"]
+        assert guard.check_cycle(fingerprints, msg) is None
+
+
+class TestCheckDedup:
+    def test_window_zero_disabled_by_default(self) -> None:
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        seen: dict[str, int] = {}
+        assert guard.check_dedup(seen, _msg("tool_a", "tool_a")) is None
+
+    def test_first_call_not_blocked(self) -> None:
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        seen: dict[str, int] = {}
+        result = guard.check_dedup(seen, _msg("write_file"))
+        assert result is None
+
+    def test_repeat_calls_blocked_at_threshold(self) -> None:
+        cfg = _cfg(tool_dedup_max_repeats=2)
+        ctx = _make_ctx(cfg)
+        guard = ToolLoopGuard(ctx)
+        seen: dict[str, int] = {}
+        msg = _msg("write_file")
+        guard.check_dedup(seen, msg)
+        result = guard.check_dedup(seen, msg)
+        assert result is not None
+        assert "Repeated" in result
+
+    def test_hint_appended_to_history_on_block(self) -> None:
+        cfg = _cfg(tool_dedup_max_repeats=2)
+        ctx = _make_ctx(cfg)
+        guard = ToolLoopGuard(ctx)
+        seen: dict[str, int] = {}
+        guard.check_dedup(seen, _msg("write_file"))
+        guard.check_dedup(seen, _msg("write_file"))
+        result = guard.check_dedup(seen, _msg("write_file"))
+        assert result is not None
+        assert len(ctx.conv.history) >= 1
+        assert "tool" in ctx.conv.history[0]["content"]
+
+
+class TestCheckRetry:
+    def test_retry_max_zero_disabled(self) -> None:
+        cfg = _cfg(tool_error_retry_max=0)
+        ctx = _make_ctx(cfg)
+        guard = ToolLoopGuard(ctx)
+        assert guard.check_retry(set(), _msg("write_file")) is None
+
+    def test_not_in_failed_set_returns_none(self) -> None:
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        result = guard.check_retry(set(), _msg("write_file"))
+        assert result is None
+
+    def test_retry_of_failed_call_blocked(self) -> None:
+        from shared.tool_executor import tool_call_key
+
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        failed: set[str] = {tool_call_key("write_file", {})}
+        result = guard.check_retry(failed, _msg("write_file"))
+        assert result is not None
+        assert "Repeated failed" in result
+
+    def test_invalid_json_args_handles_gracefully(self) -> None:
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        msg = {
+            "tool_calls": [
+                {
+                    "function": {
+                        "name": "write_file",
+                        "arguments": "not valid json",
+                    }
+                }
+            ]
+        }
+        result = guard.check_retry(set(), msg)
+        assert result is None
+
+
+class TestCheckAll:
+    def test_runs_in_order_and_stops_on_first_hit(self) -> None:
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        state = _state()
+        msg = _msg("write_file")
+        result = guard.check_all(
+            state.seen_calls, state.round_fingerprints, state.failed_calls, msg
+        )
+        assert result is None
+
+    def test_cycle_checked_before_dedup(self) -> None:
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        state = _state()
+        msg = _msg("write_file")
+        guard.check_all(
+            state.seen_calls, state.round_fingerprints, state.failed_calls, msg
+        )
+        guard.check_all(
+            state.seen_calls, state.round_fingerprints, state.failed_calls, msg
+        )
+        r3 = guard.check_all(
+            state.seen_calls, state.round_fingerprints, state.failed_calls, msg
+        )
+        assert r3 is not None
+        assert "Cyclic" in r3
+
+
+class TestUpdateErrors:
+    def test_all_failed_increments(self) -> None:
+        result = ToolLoopGuard.update_errors(0, 3, 3)
+        assert result == 1
+
+    def test_some_succeeded_resets(self) -> None:
+        result = ToolLoopGuard.update_errors(5, 1, 3)
+        assert result == 0
+
+    def test_zero_tool_calls_no_increment(self) -> None:
+        result = ToolLoopGuard.update_errors(0, 0, 0)
+        assert result == 1
+
+    def test_no_errors_resets_even_with_prior_errors(self) -> None:
+        result = ToolLoopGuard.update_errors(2, 0, 3)
+        assert result == 0
+
+
+class TestCheckErrorLimit:
+    def test_limit_zero_disabled(self) -> None:
+        cfg = _cfg(tool_error_max_consecutive=0)
+        ctx = _make_ctx(cfg)
+        guard = ToolLoopGuard(ctx)
+        assert guard.check_error_limit(10) is None
+
+    def test_below_limit_returns_none(self) -> None:
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        assert guard.check_error_limit(2) is None
+
+    def test_at_limit_returns_exit_message(self) -> None:
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        result = guard.check_error_limit(3)
+        assert result is not None
+        assert "consecutive" in result.lower()
+
+    def test_above_limit_also_triggers(self) -> None:
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        assert guard.check_error_limit(5) is not None

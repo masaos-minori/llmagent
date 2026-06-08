@@ -14,9 +14,6 @@ import orjson
 if TYPE_CHECKING:
     from agent.config import AgentConfig
 
-# Tool result display threshold: results longer than this are summarised on screen
-TOOL_RESULT_MAX_CHARS = 500
-
 # Hint appended to history when a tool result is dropped due to the per-turn limit
 TURN_LIMIT_HINT = (
     "[Result omitted: per-turn tool result limit reached."

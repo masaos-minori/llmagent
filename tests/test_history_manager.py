@@ -8,7 +8,7 @@ httpx.AsyncClient is mocked so no real HTTP calls are made.
 from __future__ import annotations
 
 from collections.abc import Callable
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import orjson
@@ -604,3 +604,41 @@ class TestCompressResult:
         new_history, result = await mgr.compress(h)
         assert any(m["role"] == "system" for m in new_history)
         assert result.compressed_count > 0
+
+
+# ── count_tokens_async() ───────────────────────────────────────────────────────
+
+
+class TestCountTokensAsync:
+    @pytest.mark.asyncio
+    async def test_uses_last_input_tokens_when_provided(self) -> None:
+        mgr = _make_manager()
+        h = _history(("user", "hello"))
+        count, exact = await mgr.count_tokens_async(h, last_input_tokens=42)
+        assert count == 42
+        assert exact is True
+
+    @pytest.mark.asyncio
+    async def test_delegates_to_get_token_count_when_no_last_input(self) -> None:
+        mgr = _make_manager()
+        h = _history(("user", "x" * 100))
+        with patch(
+            "agent.history.get_token_count", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = (50, False)
+            count, exact = await mgr.count_tokens_async(h)
+        assert count == 50
+        assert exact is False
+        mock_get.assert_awaited_once_with(h, "", mgr._http)
+
+    @pytest.mark.asyncio
+    async def test_exact_from_tokenize(self) -> None:
+        mgr = _make_manager()
+        h = _history(("user", "hello"))
+        with patch(
+            "agent.history.get_token_count", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = (10, True)
+            count, exact = await mgr.count_tokens_async(h)
+        assert count == 10
+        assert exact is True

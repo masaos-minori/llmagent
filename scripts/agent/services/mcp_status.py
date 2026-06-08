@@ -74,10 +74,7 @@ class McpStatusService:
                 health_label = (
                     health_state.value.upper()
                 )  # "HEALTHY" | "DEGRADED" | "UNAVAILABLE"
-                if status != "OK" and status != "RUNNING":
-                    status = f"{status}/{health_label}"
-                else:
-                    status = f"{status}/{health_label}"
+                status = f"{status}/{health_label}"
                 results.append(
                     McpServerStatus(
                         key=key,

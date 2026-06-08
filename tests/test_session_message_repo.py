@@ -1,0 +1,229 @@
+"""
+tests/test_session_message_repo.py
+Direct unit tests for SessionMessageRepository.
+
+Uses the same in-memory SQLite pattern as test_agent_session.py.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+from collections.abc import Generator
+from unittest.mock import patch
+
+import pytest
+from agent.session_message_repo import SessionMessageRepository
+
+_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS messages (
+    message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL,
+    role       TEXT NOT NULL,
+    content    TEXT NOT NULL,
+    tool_calls TEXT,
+    tool_call_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
+
+class _FakeSQLiteHelper:
+    """Minimal SQLiteHelper drop-in backed by a real in-memory SQLite connection."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def open(
+        self, *, write_mode: bool = False, row_factory: bool = False
+    ) -> _FakeSQLiteHelper:
+        self._conn.row_factory = sqlite3.Row if row_factory else None
+        return self
+
+    def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
+        return self._conn.execute(sql, params)
+
+    def executemany(self, sql: str, params_seq: list) -> sqlite3.Cursor:
+        return self._conn.executemany(sql, params_seq)
+
+    def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
+        return self._conn.execute(sql, params).fetchall()
+
+    def commit(self) -> None:
+        self._conn.commit()
+
+    def close(self) -> None:
+        pass
+
+    def __enter__(self) -> _FakeSQLiteHelper:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        pass
+
+
+@pytest.fixture
+def repo() -> Generator[SessionMessageRepository]:
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(_SCHEMA_SQL)
+    conn.commit()
+
+    def _make(target: str = "rag") -> _FakeSQLiteHelper:
+        return _FakeSQLiteHelper(conn)
+
+    with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
+        yield SessionMessageRepository(session_id=1)
+
+
+class TestSave:
+    def test_saves_user_message(self, repo: SessionMessageRepository) -> None:
+        repo.save("user", "Hello")
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 1
+        assert msgs[0]["role"] == "user"
+        assert msgs[0]["content"] == "Hello"
+
+    def test_saves_assistant_with_tool_calls(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        repo.save("assistant", "", tool_calls=[{"id": "call_1", "type": "function"}])
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 1
+        assert msgs[0]["tool_calls"] == [{"id": "call_1", "type": "function"}]
+
+    def test_saves_tool_with_tool_call_id(self, repo: SessionMessageRepository) -> None:
+        repo.save("tool", "result", tool_call_id="call_1")
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert msgs[0]["role"] == "tool"
+        assert msgs[0]["tool_call_id"] == "call_1"
+
+    def test_noop_when_session_id_none(self) -> None:
+        r = SessionMessageRepository(session_id=None)
+        r.save("user", "should not save")
+        assert r.fetch_messages(1) is None
+
+    def test_skips_invalid_role(self, repo: SessionMessageRepository) -> None:
+        repo.save("invalid_role", "data")
+        msgs = repo.fetch_messages(1)
+        assert msgs is None
+
+    def test_handles_db_exception_gracefully(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        with patch("agent.session_message_repo.SQLiteHelper") as mock:
+            mock.return_value.open.return_value.__enter__.return_value.execute.side_effect = Exception(
+                "DB fail"
+            )
+            repo.save("user", "data")
+        msgs = repo.fetch_messages(1)
+        assert msgs is None
+
+
+class TestSaveMany:
+    def test_saves_multiple_messages(self, repo: SessionMessageRepository) -> None:
+        messages = [
+            ("user", "Hello", None, None),
+            ("assistant", "Hi", None, None),
+            ("tool", "data", None, "call_1"),
+        ]
+        repo.save_many(messages)
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 3
+
+    def test_skips_invalid_roles(self, repo: SessionMessageRepository) -> None:
+        messages = [
+            ("user", "valid", None, None),
+            ("bad_role", "invalid", None, None),
+        ]
+        repo.save_many(messages)
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 1
+        assert msgs[0]["content"] == "valid"
+
+    def test_noop_when_session_id_none(self) -> None:
+        r = SessionMessageRepository(session_id=None)
+        r.save_many([("user", "x", None, None)])
+        assert r.fetch_messages(1) is None
+
+    def test_noop_when_empty_list(self, repo: SessionMessageRepository) -> None:
+        repo.save_many([])
+        assert repo.fetch_messages(1) is None
+
+    def test_serializes_tool_calls(self, repo: SessionMessageRepository) -> None:
+        repo.save_many(
+            [
+                ("assistant", "", [{"id": "c1"}], None),
+            ]
+        )
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert msgs[0]["tool_calls"] == [{"id": "c1"}]
+
+    def test_handles_db_exception_gracefully(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        messages = [("user", "data", None, None)]
+        with patch("agent.session_message_repo.SQLiteHelper") as mock:
+            mock.return_value.open.return_value.__enter__.return_value.executemany.side_effect = Exception(
+                "DB fail"
+            )
+            repo.save_many(messages)
+        msgs = repo.fetch_messages(1)
+        assert msgs is None
+
+    def test_all_invalid_roles_returns_early(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        repo.save_many([("bad", "x", None, None)])
+        assert repo.fetch_messages(1) is None
+
+
+class TestFetchMessages:
+    def test_returns_none_when_session_not_found(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        assert repo.fetch_messages(999) is None
+
+    def test_returns_messages_in_order(self, repo: SessionMessageRepository) -> None:
+        repo.save("user", "first")
+        repo.save("assistant", "second")
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert msgs[0]["content"] == "first"
+        assert msgs[1]["content"] == "second"
+
+    def test_handles_invalid_tool_calls_json(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        import logging
+
+        logging.disable(logging.WARNING)
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_SCHEMA_SQL)
+        conn.execute(
+            "INSERT INTO messages (session_id, role, content, tool_calls) VALUES (?, ?, ?, ?)",
+            (1, "assistant", "", "not valid json"),
+        )
+        conn.commit()
+
+        def _make(target: str = "rag") -> _FakeSQLiteHelper:
+            return _FakeSQLiteHelper(conn)
+
+        with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
+            r = SessionMessageRepository(session_id=1)
+            msgs = r.fetch_messages(1)
+        logging.disable(logging.NOTSET)
+        assert msgs is not None
+        assert "tool_calls" not in msgs[0]
+
+    def test_handles_db_exception_gracefully(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        with patch("agent.session_message_repo.SQLiteHelper") as mock:
+            mock.side_effect = Exception("DB Error")
+            result = repo.fetch_messages(1)
+        assert result is None

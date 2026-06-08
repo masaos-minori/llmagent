@@ -14,9 +14,6 @@ logger = logging.getLogger(__name__)
 class DocumentRepository:
     """Repository for document operations."""
 
-    def __init__(self) -> None:
-        pass
-
     def list_documents(self, lang: str | None = None, limit: int = 20) -> list[dict]:
         """Return registered documents as structured data.
 

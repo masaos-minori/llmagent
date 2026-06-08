@@ -13,9 +13,6 @@ logger = logging.getLogger(__name__)
 class NoteRepository:
     """Repository for note operations."""
 
-    def __init__(self) -> None:
-        pass
-
     def add_note(self, content: str) -> int | None:
         """Insert a new note and return its note_id; None on failure."""
         try:

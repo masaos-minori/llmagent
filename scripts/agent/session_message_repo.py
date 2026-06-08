@@ -11,6 +11,8 @@ from rag.types import LLMMessage
 
 logger = logging.getLogger(__name__)
 
+_VALID_ROLES: frozenset[str] = frozenset({"user", "assistant", "tool", "system"})
+
 
 class SessionMessageRepository:
     """Repository for session message operations."""
@@ -28,9 +30,6 @@ class SessionMessageRepository:
         """Persist a single message to DB under the current session."""
         if self.session_id is None:
             return
-        _VALID_ROLES: frozenset[str] = frozenset(
-            {"user", "assistant", "tool", "system"}
-        )
         if role not in _VALID_ROLES:
             logger.warning(f"Invalid role {role!r}; message not saved")
             return
@@ -69,7 +68,7 @@ class SessionMessageRepository:
                     tc_id,
                 )
                 for role, content, tc, tc_id in messages
-                if role in {"user", "assistant", "tool", "system"}
+                if role in _VALID_ROLES
             ]
             if not rows:
                 return

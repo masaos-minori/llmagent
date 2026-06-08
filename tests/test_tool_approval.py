@@ -817,3 +817,117 @@ class TestLogApprovalDecision:
         ctx.services.audit_logger = None
         decision: ApprovalDecision = {"tool_name": "write_file", "decision": "approved"}
         log_approval_decision(ctx, decision)  # must not raise
+
+
+# ── run_approval_checks() ─────────────────────────────────────────────────────
+
+
+class TestRunApprovalChecks:
+    @pytest.mark.asyncio
+    async def test_approved_calls_returned(self) -> None:
+        from agent.tool_approval import run_approval_checks
+
+        cfg = _make_cfg(approval_risk_rules={"list_directory": "none"})
+        ctx = _make_ctx(cfg)
+        tool_calls = [
+            {
+                "id": "call_1",
+                "function": {
+                    "name": "list_directory",
+                    "arguments": '{"path": "/tmp"}',
+                },
+            }
+        ]
+        approved, denied = await run_approval_checks(ctx, tool_calls)
+        assert len(approved) == 1
+        assert denied == []
+
+    @pytest.mark.asyncio
+    async def test_denied_calls_collected(self) -> None:
+        from agent.tool_approval import run_approval_checks
+
+        cfg = _make_cfg(approval_risk_rules={"write_file": "medium"})
+        ctx = _make_ctx(cfg)
+        ctx.services.audit_logger = MagicMock()
+        tool_calls = [
+            {
+                "id": "call_1",
+                "function": {
+                    "name": "write_file",
+                    "arguments": '{"path": "/tmp/f"}',
+                },
+            }
+        ]
+        with patch("asyncio.to_thread", new=AsyncMock(return_value="n")):
+            approved, denied = await run_approval_checks(ctx, tool_calls)
+        assert approved == []
+        assert denied == ["call_1"]
+
+    @pytest.mark.asyncio
+    async def test_plan_mode_blocks_configured_tools(self) -> None:
+        from agent.tool_approval import run_approval_checks
+
+        cfg = _make_cfg(
+            approval_risk_rules={"write_file": "medium"},
+            plan_blocked_tools=["write_file"],
+        )
+        ctx = _make_ctx(cfg)
+        ctx.conv.plan_mode = True
+        ctx.services.audit_logger = MagicMock()
+        tool_calls = [
+            {
+                "id": "call_1",
+                "function": {
+                    "name": "write_file",
+                    "arguments": '{"path": "/tmp/f"}',
+                },
+            }
+        ]
+        approved, denied = await run_approval_checks(ctx, tool_calls)
+        assert approved == []
+        assert denied == ["call_1"]
+        # Should not prompt the user
+        with patch("asyncio.to_thread") as mock_thread:
+            mock_thread.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_plan_mode_does_not_block_unlisted_tools(self) -> None:
+        from agent.tool_approval import run_approval_checks
+
+        cfg = _make_cfg(
+            approval_risk_rules={"list_directory": "none"},
+            plan_blocked_tools=["write_file"],
+        )
+        ctx = _make_ctx(cfg)
+        ctx.conv.plan_mode = True
+        ctx.services.audit_logger = MagicMock()
+        tool_calls = [
+            {
+                "id": "call_1",
+                "function": {
+                    "name": "list_directory",
+                    "arguments": '{"path": "/tmp"}',
+                },
+            }
+        ]
+        approved, denied = await run_approval_checks(ctx, tool_calls)
+        assert len(approved) == 1
+        assert denied == []
+
+    @pytest.mark.asyncio
+    async def test_invalid_json_arguments_does_not_crash(self) -> None:
+        from agent.tool_approval import run_approval_checks
+
+        cfg = _make_cfg(approval_risk_rules={"list_directory": "none"})
+        ctx = _make_ctx(cfg)
+        tool_calls = [
+            {
+                "id": "call_1",
+                "function": {
+                    "name": "list_directory",
+                    "arguments": "not valid json",
+                },
+            }
+        ]
+        approved, denied = await run_approval_checks(ctx, tool_calls)
+        assert len(approved) == 1

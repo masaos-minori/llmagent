@@ -20,7 +20,6 @@ Mixin split:
 """
 
 import asyncio
-import logging
 from collections.abc import Callable
 from typing import Any
 
@@ -37,8 +36,6 @@ from agent.commands.cmd_notes import _NotesMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_tooling import _ToolingMixin
 from agent.context import AgentContext
-
-logger = logging.getLogger(__name__)
 
 __all__ = ["CommandRegistry"]
 

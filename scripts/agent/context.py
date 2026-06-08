@@ -120,7 +120,6 @@ class AppServices:
         self.stdio_procs: dict[str, StdioTransport] = (
             stdio_procs if stdio_procs is not None else {}
         )
-        # Type ignore needed because of circular import issue with TYPE_CHECKING
         self.health_registry = health_registry
 
 

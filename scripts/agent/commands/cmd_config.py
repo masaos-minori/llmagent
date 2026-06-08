@@ -96,11 +96,6 @@ class _ConfigMixin(MixinBase):
                 mx = max(samples)
                 print(f"  {step:<12}: {mean:.2f}s / {mx:.2f}s ({len(samples)} samples)")
 
-    @staticmethod
-    def _print_section_header(title: str) -> None:
-        """Print a section header line."""
-        print(title)
-
     def _print_llm_settings(self, ctx: "AgentContext") -> None:
         print("Settings:")
         print(f"  llm_url             : {ctx.cfg.llm.llm_url}")

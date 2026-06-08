@@ -10,10 +10,6 @@ Groups tool calls so that:
 
 from __future__ import annotations
 
-from typing import TypeVar
-
-T = TypeVar("T")
-
 
 def build_execution_groups(
     tool_calls: list[dict],

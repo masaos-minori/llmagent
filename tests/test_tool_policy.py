@@ -12,6 +12,7 @@ from agent.tool_policy import (
     check_allowed_repo,
     check_allowed_root,
     classify_risk,
+    preflight_deny_reason,
 )
 
 
@@ -173,3 +174,97 @@ class TestCheckAllowedRepo:
     def test_non_github_tool_always_allowed(self) -> None:
         cfg = _cfg(approval_github_allowed_repos=[])
         assert check_allowed_repo(cfg, "write_file", {})
+
+    def test_missing_owner_or_repo_not_in_allowed(self) -> None:
+        cfg = _cfg(approval_github_allowed_repos=["myorg/repo"])
+        assert not check_allowed_repo(
+            cfg, "github_push_files", {"owner": "", "repo": ""}
+        )
+
+
+class TestPreflightDenyReason:
+    def test_passes_when_all_checks_pass(self) -> None:
+        cfg = _cfg(allowed_root="", approval_github_allowed_repos=[])
+        assert preflight_deny_reason(cfg, "read_text_file", {"path": "/tmp/f"}) is None
+
+    def test_denied_by_allowed_tools(self) -> None:
+        cfg = _cfg(allowed_tools=["read_text_file"])
+        result = preflight_deny_reason(cfg, "write_file", {})
+        assert result is not None
+        reason_code, msg = result
+        assert reason_code == "denied_allowed_tools"
+        assert "write_file" in msg
+
+    def test_allowed_tools_none_does_not_block(self) -> None:
+        cfg = _cfg(allowed_tools=[])
+        assert preflight_deny_reason(cfg, "any_tool", {}) is None
+
+    def test_denied_by_root_jail(self) -> None:
+        cfg = _cfg(
+            allowed_root="/home",
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+        )
+        result = preflight_deny_reason(cfg, "write_file", {"path": "/tmp/foo"})
+        assert result is not None
+        reason_code, msg = result
+        assert reason_code == "denied_root_jail"
+
+    def test_denied_by_repo_allowlist(self) -> None:
+        cfg = _cfg(approval_github_allowed_repos=["myorg/allowed-repo"])
+        result = preflight_deny_reason(
+            cfg, "github_push_files", {"owner": "myorg", "repo": "other-repo"}
+        )
+        assert result is not None
+        reason_code, msg = result
+        assert reason_code == "denied_repo_allowlist"
+
+
+class TestEscalateForPath:
+    def test_base_high_returns_none(self) -> None:
+        from agent.tool_policy import _escalate_for_path
+
+        cfg = _cfg()
+        assert _escalate_for_path(cfg, "high", {}) is None
+
+    def test_no_matching_path_key_returns_none(self) -> None:
+        from agent.tool_policy import _escalate_for_path
+
+        cfg = _cfg(approval_resource_keys={"path_keys": [], "branch_keys": []})
+        assert _escalate_for_path(cfg, "medium", {"path": "/opt/llm/x"}) is None
+
+
+class TestEscalateForGithubBranch:
+    def test_non_github_tool_returns_none(self) -> None:
+        from agent.tool_policy import _escalate_for_github_branch
+
+        cfg = _cfg()
+        assert _escalate_for_github_branch(cfg, "write_file", "medium", {}) is None
+
+    def test_base_high_returns_none(self) -> None:
+        from agent.tool_policy import _escalate_for_github_branch
+
+        cfg = _cfg()
+        assert _escalate_for_github_branch(cfg, "github_push_files", "high", {}) is None
+
+    def test_high_risk_branch_escalates(self) -> None:
+        from agent.tool_policy import _escalate_for_github_branch
+
+        cfg = _cfg(
+            approval_high_risk_branches=["main"],
+            approval_resource_keys={"path_keys": [], "branch_keys": ["branch"]},
+        )
+        assert (
+            _escalate_for_github_branch(
+                cfg, "github_push_files", "medium", {"branch": "main"}
+            )
+            == "high"
+        )
+
+
+class TestCheckAllowedRootEdgeCases:
+    def test_invalid_path_returns_false(self) -> None:
+        cfg = _cfg(
+            allowed_root="/home",
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+        )
+        assert not check_allowed_root(cfg, "write_file", {"path": "\0invalid"})

@@ -359,3 +359,49 @@ class TestDeleteLastTurn:
 
     def test_no_op_when_session_id_none(self, session: AgentSession) -> None:
         session.delete_last_turn()  # should not raise
+
+
+# ── undo_last_turn() ──────────────────────────────────────────────────────────
+
+
+class TestUndoLastTurn:
+    def test_removes_from_last_user_message(self, session: AgentSession) -> None:
+        session.start()
+        session.save("user", "q1")
+        session.save("assistant", "a1")
+        session.save("user", "q2")
+        session.save("assistant", "a2")
+        deleted = session.undo_last_turn()
+        assert deleted == 2
+        msgs = session.fetch_messages(session.session_id)
+        assert msgs is not None
+        assert len(msgs) == 2
+        assert msgs[0]["content"] == "q1"
+        assert msgs[1]["content"] == "a1"
+
+    def test_with_tool_result_messages(self, session: AgentSession) -> None:
+        session.start()
+        session.save("user", "q1")
+        session.save("assistant", "a1")
+        session.save("tool", "result1", tool_call_id="tc1")
+        session.save("user", "q2")
+        deleted = session.undo_last_turn()
+        assert deleted == 1
+        msgs = session.fetch_messages(session.session_id)
+        assert msgs is not None
+        assert len(msgs) == 3
+
+    def test_no_op_when_no_user_message(self, session: AgentSession) -> None:
+        session.start()
+        session.save("assistant", "a1")
+        deleted = session.undo_last_turn()
+        assert deleted == 0
+
+    def test_no_op_when_session_id_none(self, session: AgentSession) -> None:
+        deleted = session.undo_last_turn()
+        assert deleted == 0
+
+    def test_no_op_when_empty_history(self, session: AgentSession) -> None:
+        session.start()
+        deleted = session.undo_last_turn()
+        assert deleted == 0

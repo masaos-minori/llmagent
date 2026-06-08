@@ -19,6 +19,13 @@ if TYPE_CHECKING:
     from agent.tool_approval import ApprovalDecision
 
 
+def _extract_resource_scope(ctx: AgentContext, masked: dict) -> dict:
+    """Pull path/branch keys from masked args for audit events."""
+    path_keys = set(ctx.cfg.approval.approval_resource_keys.get("path_keys", []))
+    branch_keys = set(ctx.cfg.approval.approval_resource_keys.get("branch_keys", []))
+    return {k: v for k, v in masked.items() if k in path_keys | branch_keys}
+
+
 def audit_approval(
     ctx: AgentContext,
     tool_name: str,
@@ -30,9 +37,7 @@ def audit_approval(
     if ctx.services.audit_logger is None:
         return
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
-    path_keys = set(ctx.cfg.approval.approval_resource_keys.get("path_keys", []))
-    branch_keys = set(ctx.cfg.approval.approval_resource_keys.get("branch_keys", []))
-    resource_scope = {k: v for k, v in masked.items() if k in path_keys | branch_keys}
+    resource_scope = _extract_resource_scope(ctx, masked)
     ctx.services.audit_logger.info(
         orjson.dumps(
             {
@@ -80,9 +85,7 @@ def audit_tool_exec(
     if ctx.services.audit_logger is None or not mcp_request_id:
         return
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
-    path_keys = set(ctx.cfg.approval.approval_resource_keys.get("path_keys", []))
-    branch_keys = set(ctx.cfg.approval.approval_resource_keys.get("branch_keys", []))
-    resource_scope = {k: v for k, v in masked.items() if k in path_keys | branch_keys}
+    resource_scope = _extract_resource_scope(ctx, masked)
     ctx.services.audit_logger.info(
         orjson.dumps(
             {
