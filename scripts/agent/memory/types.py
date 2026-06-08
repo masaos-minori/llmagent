@@ -28,10 +28,6 @@ class SourceType(StrEnum):
     FAILURE = "failure"
 
 
-# Frozenset of valid source_type values; used in validation error messages.
-SOURCE_TYPES: frozenset[str] = frozenset(v.value for v in SourceType)
-
-
 @dataclass
 class MemoryEntry:
     """One persistent memory unit stored in JSONL and indexed in SQLite."""
@@ -63,7 +59,7 @@ class MemoryEntry:
                 object.__setattr__(self, "source_type", SourceType(self.source_type))
             except ValueError:
                 raise ValueError(
-                    f"Invalid source_type={self.source_type!r}; must be one of {SOURCE_TYPES}",
+                    f"Invalid source_type={self.source_type!r}; must be one of {[v.value for v in SourceType]}",
                 )
         if not (0.0 <= self.importance <= 1.0):
             raise ValueError(f"importance must be in [0.0, 1.0], got {self.importance}")
