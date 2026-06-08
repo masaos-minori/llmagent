@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""cmd_config.py
+"""agent/commands/cmd_config.py
 Configuration and statistics mixin for CommandRegistry.
 
-Extracted from agent_commands.py.  Provides _ConfigMixin with:
+Provides _ConfigMixin with:
   _cmd_stats           — /stats: session statistics
   _print_config_values — display all config fields
   _print_rag_config    — display RAG-specific config fields

@@ -2,7 +2,7 @@
 """agent/commands/cmd_db.py
 Database management mixin for CommandRegistry.
 
-Extracted from cmd_context.py.  Provides _DbMixin with:
+Provides _DbMixin with:
   _cmd_db        — /db dispatcher
   _db_stats      — DB record counts
   _db_list_urls  — list document URLs with filters

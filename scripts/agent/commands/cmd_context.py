@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""cmd_context.py
+"""agent/commands/cmd_context.py
 Context and history mixin for CommandRegistry.
 
-Extracted from agent_commands.py.  Provides _ContextMixin with:
+Provides _ContextMixin with:
   _cmd_context   — /context: runtime state and budget breakdown
   _cmd_clear     — /clear: reset history and session stats
   _cmd_undo      — /undo: roll back the last turn (strips memory injection markers)
   _cmd_history   — /history: show recent messages
   _cmd_system    — /system: switch system prompt preset
 
-Also defines _budget_breakdown (re-exported by registry.py).
+Also defines _budget_breakdown (internal helper; used only within this module).
 DB commands (_cmd_db / _db_*) live in cmd_db.py (_DbMixin).
 """
 
