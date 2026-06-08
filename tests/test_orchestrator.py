@@ -9,6 +9,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.history import CompressResult
 from agent.orchestrator import Orchestrator
 from agent.tool_loop_guard import ToolLoopGuard
 from shared.llm_client import LLMErrorKind, LLMTransportError
@@ -45,8 +46,10 @@ def _make_ctx() -> MagicMock:
     hist_mgr = AsyncMock()
     hist_mgr.stat_compress_count = 0
 
-    async def _compress(h: list) -> list:
-        return h
+    _no_op = CompressResult(compressed_count=0, protected_count=0, summary_added=False)
+
+    async def _compress(h: list) -> tuple:
+        return h, _no_op
 
     hist_mgr.compress = AsyncMock(side_effect=_compress)
     ctx.services.hist_mgr = hist_mgr

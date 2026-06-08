@@ -6,7 +6,9 @@ when the character limit is exceeded.
 """
 
 import logging
+import re
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import httpx
 import orjson
@@ -14,6 +16,23 @@ from rag.types import LLMMessage
 from shared.token_counter import get_token_count
 
 logger = logging.getLogger(__name__)
+
+# Threshold: messages scoring >= this value are protected from compression (0–1 scale)
+_DEFAULT_PROTECT_IMPORTANCE: float = 0.7
+
+_POLICY_KEYWORDS = re.compile(
+    r"\b(rule|policy|always|never|constraint|must|forbidden|required|invariant)\b",
+    re.IGNORECASE,
+)
+
+
+@dataclass
+class CompressResult:
+    """Metadata returned by compress() and force_compress()."""
+
+    compressed_count: int
+    protected_count: int
+    summary_added: bool
 
 
 class HistoryManager:
@@ -83,7 +102,9 @@ class HistoryManager:
         if tokenize_url is not None:
             self._tokenize_url = tokenize_url
 
-    async def force_compress(self, history: list[LLMMessage]) -> list[LLMMessage]:
+    async def force_compress(
+        self, history: list[LLMMessage]
+    ) -> tuple[list[LLMMessage], CompressResult]:
         """Force immediate compression regardless of the current char/token limits.
 
         Temporarily sets char_limit=1 so compress() always proceeds, then restores the
@@ -172,32 +193,32 @@ class HistoryManager:
 
     @staticmethod
     def _classify_importance(msg: LLMMessage) -> float:
-        """Classify message importance for compression prioritization.
+        """Return importance score 0.0–1.0 (or inf for pinned) for compression priority.
 
-        Higher importance scores mean the message should be preserved during compression.
+        Higher importance = less likely to be compressed.
         """
-        # If pinned, it's very important
         if msg.get("pinned", False):
             return float("inf")
 
-        # If importance is explicitly set, use that value
-        importance = msg.get("importance", 0.0)
-        if importance > 0:
-            return importance
+        explicit = msg.get("importance")
+        if explicit is not None:
+            return float(explicit)
 
-        # Default importance based on role and content
         role = msg.get("role", "")
-        match role:
-            case "system":
-                return 10.0  # High importance for system messages
-            case "assistant" if msg.get("tool_calls"):
-                return 8.0  # Medium-high importance for planning messages
-            case "user" | "assistant":
-                return 5.0  # Medium importance for conversation turns
-            case "tool":
-                return 3.0  # Low importance for tool results
-            case _:
-                return 5.0  # Default for unknown roles
+        content = str(msg.get("content") or "")
+        if role == "system":
+            return 1.0
+        if role == "tool":
+            if "error" in content.lower() or "failed" in content.lower():
+                return 0.8
+            return 0.3
+        if role == "assistant" and _POLICY_KEYWORDS.search(content):
+            return 0.8
+        if role == "user" and _POLICY_KEYWORDS.search(content):
+            return 0.9
+        if role == "assistant" and msg.get("tool_calls"):
+            return 0.6
+        return 0.5
 
     async def _call_compress_llm(self, history_text: str) -> str | None:
         """Send history_text to the chat LLM and return the summary string.
@@ -330,13 +351,18 @@ class HistoryManager:
             new_content = f"[Conversation summary]\n{summary_text}"
         return {"role": "system", "content": new_content}
 
-    async def compress(self, history: list[LLMMessage]) -> list[LLMMessage]:
+    async def compress(
+        self, history: list[LLMMessage]
+    ) -> tuple[list[LLMMessage], CompressResult]:
         """Summarise the oldest turn pairs when history exceeds char or token limit.
 
-        Returns the (possibly compressed) history list.
-        Leaves the system prompt and recent turns intact.
+        Returns (history, CompressResult). history may be unchanged when no compression
+        was needed or possible. Leaves the system prompt and recent turns intact.
         Increments stat_compress_count on successful compression.
         """
+        _no_op = CompressResult(
+            compressed_count=0, protected_count=0, summary_added=False
+        )
         over_char = (
             self._char_limit > 0 and self.count_chars(history) > self._char_limit
         )
@@ -347,7 +373,7 @@ class HistoryManager:
             token_count = 0
             over_token = False
         if not over_char and not over_token:
-            return history
+            return history, _no_op
         split = self._select_turns_to_compress(history)
         if split is None:
             logger.warning(
@@ -358,18 +384,24 @@ class HistoryManager:
                 " Consider reducing protect_turns or increasing"
                 " context_char_limit.",
             )
-            return history
+            return history, _no_op
         system_msgs, to_compress, remaining = split
         summary_text = await self._call_compress_llm(
             self._build_history_text(to_compress),
         )
         if summary_text is None:
-            return history
+            return history, _no_op
 
         summary_msg = self._build_summary_msg(system_msgs, summary_text)
         n = len(to_compress)
+        protected = len(remaining) - len(system_msgs)
         self.stat_compress_count += 1
         logger.info(f"History compressed: {n} messages summarized")
         if self._on_compress:
             self._on_compress(n)
-        return system_msgs + [summary_msg] + remaining
+        result = CompressResult(
+            compressed_count=n,
+            protected_count=protected,
+            summary_added=True,
+        )
+        return system_msgs + [summary_msg] + remaining, result
