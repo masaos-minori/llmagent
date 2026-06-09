@@ -9,6 +9,15 @@ Provides _NotesMixin with:
 from agent.commands.mixin_base import MixinBase
 
 
+def _format_notes_table(notes: list[dict]) -> list[str]:
+    """Format notes list as printable lines for /note list display."""
+    lines = [f"{'ID':>4}  {'Created':>19}  Content", "-" * 70]
+    for n in notes:
+        preview = n["content"][:41] + "..." if len(n["content"]) > 44 else n["content"]
+        lines.append(f"{n['note_id']:>4}  {n['created_at'][:19]:>19}  {preview}")
+    return lines
+
+
 class _NotesMixin(MixinBase):
     """Persistent notes slash-command handlers."""
 
@@ -29,13 +38,8 @@ class _NotesMixin(MixinBase):
         if not notes:
             print("No notes.")
             return
-        print(f"{'ID':>4}  {'Created':>19}  Content")
-        print("-" * 70)
-        for n in notes:
-            preview = n["content"]
-            if len(preview) > 44:
-                preview = preview[:41] + "..."
-            print(f"{n['note_id']:>4}  {n['created_at'][:19]:>19}  {preview}")
+        for line in _format_notes_table(notes):
+            print(line)
 
     def _note_delete(self, arg: str) -> None:
         """Delete a note by id."""

@@ -6,11 +6,6 @@ Unit tests for shared/git_helper.py: get_repo_info function.
 from __future__ import annotations
 
 import os
-import sys
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
 
 from shared.git_helper import get_repo_info
 
@@ -28,15 +23,15 @@ class TestGetRepoInfo:
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@test.com'")
         os.system("git config user.name 'Test User'")
-        
+
         # Create and commit a file
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
         os.system("git add test.txt > /dev/null 2>&1")
         os.system('git commit -m "Initial commit" > /dev/null 2>&1')
-        
+
         result = get_repo_info(str(tmp_path))
-        
+
         assert result is not None
         assert "branch" in result
         assert "commit" in result
@@ -52,17 +47,17 @@ class TestGetRepoInfo:
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@test.com'")
         os.system("git config user.name 'Test User'")
-        
+
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
         os.system("git add test.txt > /dev/null 2>&1")
         os.system('git commit -m "Initial commit" > /dev/null 2>&1')
-        
+
         # Detach HEAD
         os.system("git checkout --detach > /dev/null 2>&1")
-        
+
         result = get_repo_info(str(tmp_path))
-        
+
         assert result is not None
         assert result["branch"] == "HEAD (detached)"
 
@@ -72,18 +67,18 @@ class TestGetRepoInfo:
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@test.com'")
         os.system("git config user.name 'Test User'")
-        
+
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
         os.system("git add test.txt > /dev/null 2>&1")
         os.system('git commit -m "Initial commit" > /dev/null 2>&1')
-        
+
         # Create subdirectory and call from there
         subdir = tmp_path / "subdir"
         subdir.mkdir()
-        
+
         result = get_repo_info(str(subdir))
-        
+
         assert result is not None
         assert "branch" in result
 
@@ -93,14 +88,16 @@ class TestGetRepoInfo:
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@test.com'")
         os.system("git config user.name 'Test User'")
-        
+
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
         os.system("git add test.txt > /dev/null 2>&1")
-        os.system('git commit -m "First line\nSecond line\nThird line" > /dev/null 2>&1')
-        
+        os.system(
+            'git commit -m "First line\nSecond line\nThird line" > /dev/null 2>&1'
+        )
+
         result = get_repo_info(str(tmp_path))
-        
+
         assert result is not None
         assert result["message"] == "First line"
 
@@ -110,14 +107,14 @@ class TestGetRepoInfo:
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@example.com'")
         os.system("git config user.name 'Test Author'")
-        
+
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
         os.system("git add test.txt > /dev/null 2>&1")
         os.system('git commit -m "Initial commit" > /dev/null 2>&1')
-        
+
         result = get_repo_info(str(tmp_path))
-        
+
         assert result is not None
         assert "Test Author" in result["author"]
 
@@ -133,13 +130,13 @@ class TestGetRepoInfo:
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@test.com'")
         os.system("git config user.name 'Test User'")
-        
+
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
         os.system("git add test.txt > /dev/null 2>&1")
         os.system('git commit -m "Initial commit" > /dev/null 2>&1')
-        
+
         result = get_repo_info(str(tmp_path))
-        
+
         assert result is not None
         assert len(result["commit"]) == 8

@@ -34,7 +34,7 @@ class TestBuildExecutionGroupsEdgeCases:
         tc_noscope_write = _tc("create_directory")  # no scope, is_write=True
         tc_read1 = _tc("read_text_file")  # read tool
         tc_read2 = _tc("list_directory")  # read tool
-        
+
         meta = {
             "shell_run": _meta(requires_serial=True),
             "write_file": _meta(resource_scope="file", is_write=True),
@@ -43,25 +43,32 @@ class TestBuildExecutionGroupsEdgeCases:
             "read_text_file": _meta(),
             "list_directory": _meta(),
         }
-        
+
         groups = build_execution_groups(
-            [tc_serial, tc_scope_write1, tc_read1, tc_noscope_write, tc_scope_write2, tc_read2],
-            meta
+            [
+                tc_serial,
+                tc_scope_write1,
+                tc_read1,
+                tc_noscope_write,
+                tc_scope_write2,
+                tc_read2,
+            ],
+            meta,
         )
-        
+
         # Should have 4 groups: serial barrier, resource scope group, write-first group, parallel group
         assert len(groups) == 4
-        
+
         # First group should be serial
         assert groups[0] == [tc_serial]
-        
+
         # Second group should contain resource scope tools
         scope_group = next(g for g in groups if tc_scope_write1 in g)
         assert len(scope_group) == 2  # Both write_file and edit_file
-        
+
         # Third group should be write-first tools
         assert tc_noscope_write in groups[2]
-        
+
         # Fourth group should be parallel tools
         parallel_group = next(g for g in groups if tc_read1 in g)
         assert len(parallel_group) == 2  # Both read tools
@@ -69,17 +76,17 @@ class TestBuildExecutionGroupsEdgeCases:
     def test_empty_resource_scopes_and_no_scopes(self) -> None:
         """Test with empty strings as resource scopes."""
         tc_write1 = _tc("write_file")
-        tc_write2 = _tc("edit_file") 
+        tc_write2 = _tc("edit_file")
         tc_read = _tc("read_text_file")
-        
+
         meta = {
             "write_file": _meta(resource_scope="", is_write=True),
             "edit_file": _meta(resource_scope="", is_write=True),
             "read_text_file": _meta(),
         }
-        
+
         groups = build_execution_groups([tc_write1, tc_read, tc_write2], meta)
-        
+
         # Should have 2 groups: write-first and parallel
         assert len(groups) == 2
         assert tc_write1 in groups[0] or tc_write2 in groups[0]
@@ -90,16 +97,18 @@ class TestBuildExecutionGroupsEdgeCases:
         tc_write_a = _tc("write_file")
         tc_write_b = _tc("edit_file")
         tc_write_c = _tc("create_directory")
-        
+
         meta = {
             "write_file": _meta(resource_scope="/path/to/project/a", is_write=True),
             "edit_file": _meta(resource_scope="/path/to/project/b", is_write=True),
-            "create_directory": _meta(resource_scope="/path/to/project/a", is_write=True),
+            "create_directory": _meta(
+                resource_scope="/path/to/project/a", is_write=True
+            ),
         }
-        
+
         groups = build_execution_groups([tc_write_a, tc_write_b, tc_write_c], meta)
-        
-        # Should have 2 groups: one for /path/to/project/a (write_file + create_directory) 
+
+        # Should have 2 groups: one for /path/to/project/a (write_file + create_directory)
         # and one for /path/to/project/b (edit_file)
         assert len(groups) == 2
 
@@ -108,15 +117,15 @@ class TestBuildExecutionGroupsEdgeCases:
         tc_write1 = _tc("write_file")
         tc_write2 = _tc("edit_file")
         tc_write3 = _tc("create_directory")
-        
+
         meta = {
             "write_file": _meta(resource_scope="shared", is_write=True),
             "edit_file": _meta(resource_scope="shared", is_write=True),
             "create_directory": _meta(resource_scope="shared", is_write=True),
         }
-        
+
         groups = build_execution_groups([tc_write1, tc_write2, tc_write3], meta)
-        
+
         # Should be grouped together
         assert len(groups) == 1
         assert len(groups[0]) == 3
@@ -125,10 +134,10 @@ class TestBuildExecutionGroupsEdgeCases:
         """Test handling of tools with no metadata."""
         tc_write = _tc("write_file")
         tc_read = _tc("read_text_file")
-        
+
         # Empty metadata dict for unknown tool
         groups = build_execution_groups([tc_write, tc_read], {})
-        
+
         # Should default to parallel group
         assert len(groups) == 1
         assert len(groups[0]) == 2
@@ -138,11 +147,11 @@ class TestBuildExecutionGroupsEdgeCases:
         tools = []
         for i in range(20):
             tools.append(_tc(f"read_file_{i}"))
-            
+
         meta = {f"read_file_{i}": _meta() for i in range(20)}
-        
+
         groups = build_execution_groups(tools, meta)
-        
+
         # Should all be in one parallel group
         assert len(groups) == 1
         assert len(groups[0]) == 20
@@ -150,10 +159,14 @@ class TestBuildExecutionGroupsEdgeCases:
     def test_single_tool_with_complex_metadata(self) -> None:
         """Test single tool with complex metadata."""
         tc = _tc("shell_run")
-        meta = {"shell_run": _meta(requires_serial=True, resource_scope="complex", is_write=True)}
-        
+        meta = {
+            "shell_run": _meta(
+                requires_serial=True, resource_scope="complex", is_write=True
+            )
+        }
+
         groups = build_execution_groups([tc], meta)
-        
+
         # Should be in a single-element group (serial barrier)
         assert len(groups) == 1
         assert groups[0] == [tc]

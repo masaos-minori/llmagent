@@ -5,71 +5,22 @@ Context and history mixin for CommandRegistry.
 Provides _ContextMixin with:
   _cmd_context   — /context: runtime state and budget breakdown
   _cmd_clear     — /clear: reset history and session stats
-  _cmd_undo      — /undo: roll back the last turn (strips memory injection markers)
+  _cmd_undo      — /undo: roll back the last turn
   _cmd_history   — /history: show recent messages
   _cmd_system    — /system: switch system prompt preset
 
-Also defines _budget_breakdown (internal helper; used only within this module).
-DB commands (_cmd_db / _db_*) live in cmd_db.py (_DbMixin).
+Data collection delegates to agent.services.context_view.
+Undo logic delegates to agent.services.undo_service.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
-import orjson
-from shared.git_helper import get_repo_info
-from shared.types import LLMMessage
-
-from agent.commands.mixin_base import MixinBase
-
-if TYPE_CHECKING:
-    from agent.context import AgentContext
+from agent.commands.mixin_base import MixinBase, reset_session_stats
+from agent.services.context_view import collect_context_state
 
 logger = logging.getLogger(__name__)
-
-
-def _budget_breakdown(messages: list[LLMMessage]) -> dict[str, int]:
-    """Compute per-category character counts for the given message list.
-
-    Categories: system, history, tool_results.
-    Tool results include role='tool' messages and assistant tool_calls JSON.
-    """
-    counts: dict[str, int] = {
-        "system": 0,
-        "history": 0,
-        "tool_results": 0,
-    }
-    for m in messages:
-        role = m.get("role", "")
-        text = str(m.get("content") or "")
-        tool_calls = m.get("tool_calls") or []
-        if role == "system":
-            counts["system"] += len(text)
-        elif role == "tool":
-            counts["tool_results"] += len(text)
-        elif role == "assistant":
-            counts["history"] += len(text)
-            if tool_calls:
-                counts["tool_results"] += len(orjson.dumps(tool_calls))
-        else:
-            counts["history"] += len(text)
-    return counts
-
-
-def _format_memory_status(ctx: AgentContext) -> str:
-    """Return a one-line summary of the memory layer state."""
-    if ctx.services.memory is None:
-        return "disabled"
-    store = ctx.services.memory.store
-    by_type = store.count_by_type()
-    return (
-        f"enabled (entries={store.count_entries()},"
-        f" semantic={by_type.get('semantic', 0)},"
-        f" episodic={by_type.get('episodic', 0)},"
-        f" vec_entries={store.count_vec()})"
-    )
 
 
 def _token_source_label(token_is_exact: bool, tokenize_configured: bool) -> str:
@@ -84,52 +35,7 @@ def _token_source_label(token_is_exact: bool, tokenize_configured: bool) -> str:
 class _ContextMixin(MixinBase):
     """Context, history, and database slash-command handlers."""
 
-    def _collect_context_state(self, ctx: AgentContext) -> dict:
-        """Collect runtime context state into a plain dict for display."""
-        total_chars = (
-            ctx.services.hist_mgr.count_chars(ctx.conv.history)
-            if ctx.services.hist_mgr is not None
-            else sum(len(str(m.get("content") or "")) for m in ctx.conv.history)
-        )
-        system_msgs = [m for m in ctx.conv.history if m["role"] == "system"]
-        sys_preview = str(system_msgs[0].get("content", ""))[:80] if system_msgs else ""
-        compress_count = (
-            ctx.services.hist_mgr.stat_compress_count
-            if ctx.services.hist_mgr is not None
-            else 0
-        )
-        token_is_exact = ctx.stats.stat_input_tokens is not None
-        token_estimate = (
-            ctx.services.hist_mgr.count_tokens(
-                ctx.conv.history, ctx.stats.stat_input_tokens
-            )
-            if ctx.services.hist_mgr is not None
-            else total_chars // 4
-        )
-        git_info = get_repo_info()
-        return {
-            "total_chars": total_chars,
-            "compress_limit": ctx.cfg.llm.context_char_limit,
-            "n_msgs": len(ctx.conv.history),
-            "sys_preview": sys_preview,
-            "compress_count": compress_count,
-            "token_is_exact": token_is_exact,
-            "token_estimate": token_estimate,
-            "token_limit": ctx.cfg.llm.context_token_limit,
-            "tokenize_configured": bool(ctx.cfg.llm.tokenize_url),
-            "mem_status": _format_memory_status(ctx),
-            "git_str": (
-                f"{git_info['branch']} @ {git_info['commit']} {git_info['message']}"
-                if git_info
-                else "unavailable"
-            ),
-            "breakdown": _budget_breakdown(ctx.conv.history),
-        }
-
-    def _print_token_line(
-        self,
-        state: dict,
-    ) -> None:
+    def _print_token_line(self, state: dict) -> None:
         """Print token count / estimate with source label and optional limit info."""
         token_estimate = state["token_estimate"]
         token_limit = state["token_limit"]
@@ -149,11 +55,9 @@ class _ContextMixin(MixinBase):
     def _cmd_context(self) -> None:
         """Print runtime conversation context state."""
         ctx = self._ctx
-        state = self._collect_context_state(ctx)
+        state = collect_context_state(ctx)
         breakdown = state["breakdown"]
         total_bd = sum(breakdown.values()) or 1  # avoid zero division
-        # Token count note: exact when LLM reports usage.prompt_tokens; estimate otherwise.
-        # /tokenize exact counting needs async; /context shows best synchronous value.
         print("Context state:")
         print(f"  Messages        : {state['n_msgs']}")
         print(f"  Total chars     : {state['total_chars']:,}")
@@ -180,7 +84,7 @@ class _ContextMixin(MixinBase):
         """
         ctx = self._ctx
         ctx.conv.history = ctx.conv.history[:1]
-        self._reset_session_stats(ctx)
+        reset_session_stats(ctx)
         if "new" in args.split():
             ctx.session.start()
             print("History cleared. New session started.")
@@ -188,33 +92,13 @@ class _ContextMixin(MixinBase):
             print("History cleared. Session stats reset.")
 
     def _cmd_undo(self) -> None:
-        """Roll back the last user+assistant turn from in-memory history and DB.
-
-        Also removes any immediately preceding memory injection markers
-        (_memory_injected=True) that were prepended before the user message.
-        """
-        ctx = self._ctx
-        last_user_idx = next(
-            (
-                i
-                for i in range(len(ctx.conv.history) - 1, -1, -1)
-                if ctx.conv.history[i]["role"] == "user"
-            ),
-            None,
+        """Roll back the last user+assistant turn from in-memory history and DB."""
+        from agent.services.undo_service import (
+            undo_last_turn,  # noqa: PLC0415 — lazy: avoids import at module load
         )
-        if last_user_idx is None:
-            print("Nothing to undo.")
-            return
-        # Walk backwards from just before the user message to strip injected memory blocks.
-        cut_idx = last_user_idx
-        while cut_idx > 0 and ctx.conv.history[cut_idx - 1].get("_memory_injected"):
-            cut_idx -= 1
-        removed = len(ctx.conv.history) - cut_idx
-        ctx.conv.history = ctx.conv.history[:cut_idx]
-        ctx.stats.stat_turns = max(0, ctx.stats.stat_turns - 1)
-        ctx.session.undo_last_turn()
-        logger.info(f"Undo: removed {removed} messages from history")
-        print("Last turn undone.")
+
+        _, message = undo_last_turn(self._ctx)
+        print(message)
 
     def _cmd_history(self, args: str) -> None:
         """Print last N user/assistant messages in compact form."""

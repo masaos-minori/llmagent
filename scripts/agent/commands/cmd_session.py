@@ -3,11 +3,11 @@
 Session management mixin for CommandRegistry.
 
 Provides _SessionMixin with:
-  _generate_session_title  — background task: LLM-generated short title
+  _generate_session_title  — background task: LLM-generated short title (delegates to SessionTitleService)
   _session_load_safe       — safe session restore by ID
   _session_delete          — session deletion with self-guard
   _cmd_session             — /session dispatcher
-  _load_session            — restore messages into ctx.conv.history
+  _load_session            — restore messages into ctx.conv.history (delegates to restore_session)
 """
 
 import logging
@@ -21,42 +21,12 @@ class _SessionMixin(MixinBase):
     """Session management slash-command handlers."""
 
     async def _generate_session_title(self, first_input: str) -> None:
-        """Call the chat LLM to produce a short session title and persist it.
-
-        Uses cfg.llm.title_llm_temperature and cfg.llm.title_llm_max_tokens for the call.
-        Called as an asyncio background task so the main REPL turn is not blocked.
-        Falls back to truncating the raw input on any error.
-        """
-        ctx = self._ctx
-        if ctx.services.http is None:
-            ctx.session.set_title(first_input[:50])
-            return
-        prompt = (
-            "Summarise the following user message in one short phrase"
-            f" (8 words max, no punctuation at the end): {first_input[:200]}"
+        """Generate and persist a session title via LLM (background task)."""
+        from agent.services.session_title import (
+            SessionTitleService,  # noqa: PLC0415 — lazy: deferred to avoid import cost
         )
-        try:
-            resp = await ctx.services.http.post(
-                ctx.cfg.llm.llm_url,
-                json={
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": ctx.cfg.llm.title_llm_temperature,
-                    "max_tokens": ctx.cfg.llm.title_llm_max_tokens,
-                    "stream": False,
-                },
-            )
-            resp.raise_for_status()
-            choices = resp.json().get("choices", [])
-            title = ""
-            if choices:
-                title = choices[0].get("message", {}).get("content", "").strip()
-            if title:
-                ctx.session.set_title(title)
-                logger.info(f"Session title generated: {title!r}")
-                return
-        except Exception as e:
-            logger.warning(f"Session title generation failed: {e}")
-        ctx.session.set_title(first_input[:50])
+
+        await SessionTitleService().generate(self._ctx, first_input)
 
     def _session_load_safe(self, arg: str) -> None:
         """Parse arg as an integer session ID and load it; print error on invalid."""
@@ -113,20 +83,10 @@ class _SessionMixin(MixinBase):
         )
 
     def _load_session(self, session_id: int) -> None:
-        """Restore a previous session's messages into ctx.conv.history.
+        """Restore a previous session via session_restore service."""
+        from agent.services.session_restore import (
+            restore_session,  # noqa: PLC0415 — lazy: deferred to avoid import cost
+        )
 
-        Lifecycle: sets ctx.session.session_id (switches the active session),
-        rebuilds ctx.conv.history (preserves system prompt at index 0),
-        and resets all per-session counters via _reset_session_stats().
-        """
-        ctx = self._ctx
-        messages = ctx.session.fetch_messages(session_id)
-        if messages is None:
-            print(f"Session {session_id} not found or has no messages.")
-            return
-        system_msgs = [m for m in ctx.conv.history if m["role"] == "system"]
-        ctx.conv.history = system_msgs + messages
-        ctx.session.session_id = session_id
-        self._reset_session_stats(ctx)
-        logger.info(f"Session {session_id} loaded: {len(messages)} messages")
-        print(f"Session {session_id} loaded: {len(messages)} messages restored.")
+        _, message = restore_session(self._ctx, session_id)
+        print(message)

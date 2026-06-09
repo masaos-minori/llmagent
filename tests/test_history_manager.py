@@ -622,9 +622,7 @@ class TestCountTokensAsync:
     async def test_delegates_to_get_token_count_when_no_last_input(self) -> None:
         mgr = _make_manager()
         h = _history(("user", "x" * 100))
-        with patch(
-            "agent.history.get_token_count", new_callable=AsyncMock
-        ) as mock_get:
+        with patch("agent.history.get_token_count", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = (50, False)
             count, exact = await mgr.count_tokens_async(h)
         assert count == 50
@@ -635,9 +633,7 @@ class TestCountTokensAsync:
     async def test_exact_from_tokenize(self) -> None:
         mgr = _make_manager()
         h = _history(("user", "hello"))
-        with patch(
-            "agent.history.get_token_count", new_callable=AsyncMock
-        ) as mock_get:
+        with patch("agent.history.get_token_count", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = (10, True)
             count, exact = await mgr.count_tokens_async(h)
         assert count == 10

@@ -222,6 +222,8 @@ class _ConfigMixin(MixinBase):
         """Print retrieval settings including DB path and search parameters."""
         ctx = self._ctx
         print("Search settings:")
+        # NOTE: _RAG_PATH/_SESSION_PATH are convention-private class attributes set by
+        # _ensure_config(). No public getter API exists; direct access is intentional here.
         SQLiteHelper._ensure_config()
         print(f"  rag_db_path         : {SQLiteHelper._RAG_PATH}")
         print(f"  session_db_path     : {SQLiteHelper._SESSION_PATH}")

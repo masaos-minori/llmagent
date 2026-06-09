@@ -99,16 +99,23 @@ class TestToolConstants:
     def test_no_overlapping_tools(self) -> None:
         """Ensure no tool appears in multiple categories."""
         all_tools = set()
-        
-        for tools_set in [READ_TOOLS, WRITE_TOOLS, DELETE_TOOLS, RAG_TOOLS, 
-                         CICD_TOOLS, MDQ_TOOLS, GIT_TOOLS]:
+
+        for tools_set in [
+            READ_TOOLS,
+            WRITE_TOOLS,
+            DELETE_TOOLS,
+            RAG_TOOLS,
+            CICD_TOOLS,
+            MDQ_TOOLS,
+            GIT_TOOLS,
+        ]:
             # Check for overlaps within each set (should be empty)
             overlaps = all_tools & tools_set
             assert not overlaps, f"Overlaps found: {overlaps}"
-            
+
             # Add to overall set
             all_tools.update(tools_set)
-        
+
         # Total should be 38 tools (sum of individual sets)
         assert len(all_tools) == 38
 
@@ -116,12 +123,14 @@ class TestToolConstants:
         """Ensure all items in tool sets are strings."""
         for name, tools_set in [
             ("READ_TOOLS", READ_TOOLS),
-            ("WRITE_TOOLS", WRITE_TOOLS), 
+            ("WRITE_TOOLS", WRITE_TOOLS),
             ("DELETE_TOOLS", DELETE_TOOLS),
             ("RAG_TOOLS", RAG_TOOLS),
             ("CICD_TOOLS", CICD_TOOLS),
             ("MDQ_TOOLS", MDQ_TOOLS),
-            ("GIT_TOOLS", GIT_TOOLS)
+            ("GIT_TOOLS", GIT_TOOLS),
         ]:
             for tool_name in tools_set:
-                assert isinstance(tool_name, str), f"{name} contains non-string: {tool_name}"
+                assert isinstance(tool_name, str), (
+                    f"{name} contains non-string: {tool_name}"
+                )

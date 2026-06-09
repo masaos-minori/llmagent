@@ -1,6 +1,7 @@
 """agent/lifecycle_protocol.py
 LifecycleManager protocol type for structural subtyping.
 """
+
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable

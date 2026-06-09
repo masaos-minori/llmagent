@@ -9,13 +9,9 @@ Provides _IngestMixin with:
 """
 
 import logging
-from typing import TYPE_CHECKING
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import render_export, write_export
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +78,7 @@ class _IngestMixin(MixinBase):
             print("History manager not available.")
             return
         turn_msgs = [m for m in ctx.conv.history if m["role"] != "system"]
+        # compress_turns * 2: each "turn" = 1 user + 1 assistant message
         n_compress = ctx.services.hist_mgr.compress_turns * 2
         if len(turn_msgs) <= n_compress:
             print("Nothing to compact: history too short.")

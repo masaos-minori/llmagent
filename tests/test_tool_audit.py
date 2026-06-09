@@ -7,11 +7,9 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock
 
-import orjson
-import pytest
 from agent.config import AgentConfig, build_agent_config
 from agent.tool_approval import ApprovalDecision
-from agent.tool_audit import audit_approval, audit_tool_exec, log_approval_decision
+from agent.tool_audit import audit_tool_exec, log_approval_decision
 
 
 def _make_cfg(**overrides: Any) -> AgentConfig:

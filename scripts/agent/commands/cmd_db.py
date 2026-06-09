@@ -3,36 +3,24 @@
 Database management mixin for CommandRegistry.
 
 Provides _DbMixin with:
-  _cmd_db        — /db dispatcher
-  _db_stats      — DB record counts
-  _db_list_urls  — list document URLs with filters
-  _db_clean      — delete a document from the vector store
-  _db_rebuild_fts — rebuild the FTS5 index
-  _db_health     — print DB health metrics
-  _db_checkpoint — run WAL checkpoint
-  _db_vacuum     — run VACUUM
-  _db_purge      — purge old sessions
-  _db_recover    — integrity check and restore from backup
+  _cmd_db         — /db dispatcher
+  _db_stats       — DB record counts (delegates to DbMaintenanceService)
+  _db_list_urls   — list document URLs with filters
+  _db_clean       — delete a document from the vector store
+  _db_rebuild_fts — rebuild the FTS5 index (delegates to DbMaintenanceService)
+  _db_health      — print DB health metrics (delegates to DbMaintenanceService)
+  _db_checkpoint  — run WAL checkpoint (delegates to DbMaintenanceService)
+  _db_vacuum      — run VACUUM (delegates to DbMaintenanceService)
+  _db_purge       — purge old sessions (delegates to DbMaintenanceService)
+  _db_recover     — integrity check and restore (delegates to DbMaintenanceService)
 """
 
 import logging
 import sqlite3
-from typing import TYPE_CHECKING
-
-from db.helper import SQLiteHelper
-from db.maintenance import (
-    RetentionConfig,
-    checkpoint_wal,
-    purge_old_sessions,
-    recover_corruption,
-    vacuum_db,
-)
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import parse_flag_int, parse_flag_str
-
-if TYPE_CHECKING:
-    pass
+from agent.services.db_maintenance_service import DbMaintenanceService
 
 logger = logging.getLogger(__name__)
 
@@ -80,18 +68,11 @@ class _DbMixin(MixinBase):
     def _db_stats(self) -> None:
         """Print document/chunk/session/message counts from both DBs."""
         try:
-            # documents and chunks live in rag.sqlite
-            with SQLiteHelper("rag").open(row_factory=True) as db:
-                docs = db.fetchall("SELECT COUNT(*) AS n FROM documents")[0]["n"]
-                chunks = db.fetchall("SELECT COUNT(*) AS n FROM chunks")[0]["n"]
-            # sessions and messages live in session.sqlite
-            with SQLiteHelper("session").open(row_factory=True) as db:
-                sessions = db.fetchall("SELECT COUNT(*) AS n FROM sessions")[0]["n"]
-                messages = db.fetchall("SELECT COUNT(*) AS n FROM messages")[0]["n"]
-            print(f"documents : {docs:,}")
-            print(f"chunks    : {chunks:,}")
-            print(f"sessions  : {sessions:,}")
-            print(f"messages  : {messages:,}")
+            result = DbMaintenanceService().stats()
+            print(f"documents : {result['docs']:,}")
+            print(f"chunks    : {result['chunks']:,}")
+            print(f"sessions  : {result['sessions']:,}")
+            print(f"messages  : {result['messages']:,}")
         except sqlite3.Error as e:
             print(f"DB stats error: {e}")
         except Exception as e:
@@ -119,10 +100,7 @@ class _DbMixin(MixinBase):
     def _db_rebuild_fts(self) -> None:
         """Rebuild the FTS5 chunks_fts index in rag.sqlite."""
         try:
-            # chunks_fts is a virtual table in rag.sqlite, not session.sqlite
-            with SQLiteHelper("rag").open(write_mode=True) as db:
-                db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')")
-                db.commit()
+            DbMaintenanceService().rebuild_fts()
             print("FTS5 index rebuilt.")
         except sqlite3.Error as e:
             print(f"FTS rebuild error: {e}")
@@ -132,8 +110,7 @@ class _DbMixin(MixinBase):
     def _db_health(self) -> None:
         """Print DB health metrics: journal mode, integrity, page stats."""
         try:
-            with SQLiteHelper("session").open() as db:
-                info = db.health_check()
+            info = DbMaintenanceService().health()
             print(f"journal_mode    : {info['journal_mode']}")
             print(f"integrity       : {info['integrity']}")
             print(f"page_count      : {info['page_count']:,}")
@@ -148,8 +125,7 @@ class _DbMixin(MixinBase):
     def _db_checkpoint(self, mode: str | None) -> None:
         """Run WAL checkpoint. mode: PASSIVE|FULL|RESTART|TRUNCATE (default from config)."""
         try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                result = checkpoint_wal(db, mode)
+            result = DbMaintenanceService().checkpoint(mode)
             print(f"WAL checkpoint complete: {result}")
         except sqlite3.Error as e:
             print(f"Checkpoint error: {e}")
@@ -159,8 +135,7 @@ class _DbMixin(MixinBase):
     def _db_vacuum(self) -> None:
         """Run VACUUM to rebuild the DB file and reclaim free pages."""
         try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                vacuum_db(db)
+            DbMaintenanceService().vacuum()
             print("VACUUM complete.")
         except sqlite3.Error as e:
             print(f"VACUUM error: {e}")
@@ -172,15 +147,8 @@ class _DbMixin(MixinBase):
         tokens = rest.split()
         max_sessions = parse_flag_int(tokens, "--max-sessions")
         max_age_days = parse_flag_int(tokens, "--max-age-days")
-        cfg_kwargs: dict[str, int] = {}
-        if max_sessions is not None:
-            cfg_kwargs["max_sessions"] = max_sessions
-        if max_age_days is not None:
-            cfg_kwargs["max_age_days"] = max_age_days
-        cfg = RetentionConfig(**cfg_kwargs) if cfg_kwargs else None
         try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                result = purge_old_sessions(db, cfg)
+            result = DbMaintenanceService().purge(max_sessions, max_age_days)
             print(
                 f"Purged: {result['age_deleted']} by age, {result['count_deleted']} by count",
             )
@@ -192,7 +160,7 @@ class _DbMixin(MixinBase):
     def _db_recover(self, backup_path: str | None) -> None:
         """Run integrity check; restore from backup_path if corruption found."""
         try:
-            ok = recover_corruption(backup_path)
+            ok = DbMaintenanceService().recover(backup_path)
             print("Recovery succeeded." if ok else "Recovery failed — check logs.")
         except Exception as e:
             print(f"Recovery error: {e}")

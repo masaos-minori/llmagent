@@ -5,10 +5,6 @@ This file contains tests for:
 - is_side_effect: identifies tools with side effects
 """
 
-import hashlib
-from typing import Any
-
-import orjson
 from shared.tool_executor import is_side_effect, tool_call_key
 
 
@@ -18,15 +14,15 @@ def test_tool_call_key_consistency() -> None:
     key1 = tool_call_key("read_file", {"path": "/tmp/test.txt"})
     key2 = tool_call_key("read_file", {"path": "/tmp/test.txt"})
     assert key1 == key2
-    
+
     # Test different tools have different keys
     key3 = tool_call_key("write_file", {"path": "/tmp/test.txt"})
     assert key1 != key3
-    
+
     # Test different args have different keys
     key4 = tool_call_key("read_file", {"path": "/tmp/other.txt"})
     assert key1 != key4
-    
+
     # Test order independence (sorted args)
     key5 = tool_call_key("read_file", {"path": "/tmp/test.txt", "mode": "r"})
     key6 = tool_call_key("read_file", {"mode": "r", "path": "/tmp/test.txt"})
@@ -38,13 +34,14 @@ def test_tool_call_key_hash_format() -> None:
     key = tool_call_key("test_tool", {"arg": "value"})
     # Should be a valid hex string (32 characters for MD5)
     assert len(key) == 32
-    assert all(c in '0123456789abcdef' for c in key)
+    assert all(c in "0123456789abcdef" for c in key)
 
 
 def test_is_side_effect_write_tools() -> None:
     """Test that write tools are correctly identified as side effect tools."""
     # Test various write tools from WRITE_TOOLS constant
     from shared.tool_constants import WRITE_TOOLS
+
     for tool_name in WRITE_TOOLS:
         assert is_side_effect(tool_name) is True
 
@@ -53,6 +50,7 @@ def test_is_side_effect_delete_tools() -> None:
     """Test that delete tools are correctly identified as side effect tools."""
     # Test various delete tools from DELETE_TOOLS constant
     from shared.tool_constants import DELETE_TOOLS
+
     for tool_name in DELETE_TOOLS:
         assert is_side_effect(tool_name) is True
 
@@ -82,15 +80,15 @@ def test_tool_call_key_with_complex_args() -> None:
         "path": "/tmp/test.txt",
         "content": "hello world",
         "metadata": {"author": "test", "version": 1},
-        "options": ["a", "b", "c"]
+        "options": ["a", "b", "c"],
     }
     args2 = {
         "content": "hello world",
-        "path": "/tmp/test.txt", 
+        "path": "/tmp/test.txt",
         "options": ["a", "b", "c"],
-        "metadata": {"author": "test", "version": 1}
+        "metadata": {"author": "test", "version": 1},
     }
-    
+
     key1 = tool_call_key("write_file", args1)
     key2 = tool_call_key("write_file", args2)
     assert key1 == key2

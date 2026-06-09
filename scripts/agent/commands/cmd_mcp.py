@@ -68,5 +68,10 @@ class _McpMixin(MixinBase):
         if sub == "install":
             name = parts[1].strip() if len(parts) > 1 else ""
             await self._cmd_mcp_install(name)
-        else:
+        elif sub in ("status", ""):
+            if not sub:
+                print("Usage: /mcp [status|install <name>]")
+                print()
             await self._cmd_mcp_status()
+        else:
+            print(f"Unknown subcommand: {sub!r}. Usage: /mcp [status|install <name>]")

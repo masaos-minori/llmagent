@@ -5,12 +5,12 @@ Comprehensive unit tests for agent/tool_policy.py: risk classification and pre-f
 from __future__ import annotations
 
 from typing import Any
+
 from agent.config import AgentConfig, build_agent_config
 from agent.tool_policy import (
     _escalate_for_github_branch,
     _escalate_for_path,
     _special_case_risk,
-    check_allowed_repo,
     check_allowed_root,
     classify_operation_type,
     classify_risk,
@@ -82,7 +82,9 @@ class TestEscalateForPath:
             approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
             approval_protected_paths=["/opt/llm/"],
         )
-        assert _escalate_for_path(cfg, "medium", {"path": "/home/user/file.txt"}) is None
+        assert (
+            _escalate_for_path(cfg, "medium", {"path": "/home/user/file.txt"}) is None
+        )
 
     def test_multiple_protected_paths(self) -> None:
         cfg = _cfg(
@@ -129,7 +131,9 @@ class TestEscalateForGithubBranch:
 class TestSpecialCaseRisk:
     def test_recursive_delete_returns_high(self) -> None:
         cfg = _cfg()
-        assert _special_case_risk(cfg, "delete_directory", {"recursive": True}) == "high"
+        assert (
+            _special_case_risk(cfg, "delete_directory", {"recursive": True}) == "high"
+        )
 
     def test_non_recursive_delete_returns_none(self) -> None:
         cfg = _cfg()
@@ -250,14 +254,16 @@ class TestClassifyRiskEdgeCases:
             tool_safety_tiers={
                 "read_text_file": "READ_ONLY",
                 "write_file": "WRITE_SAFE",
-                "delete_file": "WRITE_DANGEROUS"
+                "delete_file": "WRITE_DANGEROUS",
             }
         )
-        
+
         assert classify_risk(cfg, "read_text_file", {}) == "none"  # READ_ONLY -> none
-        assert classify_risk(cfg, "write_file", {}) == "none"   # WRITE_SAFE -> none 
-        assert classify_risk(cfg, "delete_file", {}) == "medium"  # WRITE_DANGEROUS -> medium
-        
+        assert classify_risk(cfg, "write_file", {}) == "none"  # WRITE_SAFE -> none
+        assert (
+            classify_risk(cfg, "delete_file", {}) == "medium"
+        )  # WRITE_DANGEROUS -> medium
+
         # Test that a tool not in the safety tiers defaults to WRITE_DANGEROUS
         # We don't actually need to test specific default values since they may vary
         # Just ensure it doesn't crash with an exception
@@ -267,13 +273,17 @@ class TestClassifyRiskEdgeCases:
     def test_complex_nested_args(self) -> None:
         cfg = _cfg(
             approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
-            approval_protected_paths=["/opt/llm/"]
+            approval_protected_paths=["/opt/llm/"],
         )
-        
+
         # Complex args with nested structures
-        result = classify_risk(cfg, "write_file", {
-            "path": "/opt/llm/config.json",
-            "metadata": {"author": "test", "version": 1},
-            "options": ["--debug", "--verbose"]
-        })
+        result = classify_risk(
+            cfg,
+            "write_file",
+            {
+                "path": "/opt/llm/config.json",
+                "metadata": {"author": "test", "version": 1},
+                "options": ["--debug", "--verbose"],
+            },
+        )
         assert result == "high"  # Escalated due to protected path

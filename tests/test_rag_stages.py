@@ -15,7 +15,7 @@ from rag.stages.augment import AugmentStage
 from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage, _run_mqe
 from rag.stages.rerank import RerankStage, _rerank
-from rag.stages.search import SearchStage, _search_all_queries
+from rag.stages.search import SearchStage
 
 
 @pytest.fixture
@@ -427,9 +427,7 @@ class TestFusionStage:
     @pytest.mark.asyncio
     async def test_run_single_result_list(self, mock_context):
         """Test FusionStage with single result list."""
-        mock_context.search_results = [
-            [{"chunk_id": 1, "content": "result1"}]
-        ]
+        mock_context.search_results = [[{"chunk_id": 1, "content": "result1"}]]
 
         cfg = {"rrf_k": 20}
         stage = FusionStage(cfg)
@@ -722,7 +720,10 @@ class TestAugmentStage:
 
         await stage.run(mock_context)
 
-        assert "[Source: http://example.com/1 | http://example.com/1]" in mock_context.augment_result
+        assert (
+            "[Source: http://example.com/1 | http://example.com/1]"
+            in mock_context.augment_result
+        )
 
     @pytest.mark.asyncio
     async def test_run_separator(self, mock_context):

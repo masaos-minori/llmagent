@@ -44,7 +44,8 @@ class TestCmdDbStats:
     def test_stats_error_handled(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         with patch(
-            "agent.commands.cmd_db.SQLiteHelper", side_effect=Exception("db error")
+            "agent.services.db_maintenance_service.SQLiteHelper",
+            side_effect=Exception("db error"),
         ):
             cmd._cmd_db("stats")
         assert "error" in capsys.readouterr().out.lower()
@@ -113,7 +114,7 @@ class TestParseFlagStr:
 class TestDbStats:
     def test_stats_prints_counts(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             mock_db.fetchall.side_effect = [
                 [{"n": 100}],
@@ -137,7 +138,7 @@ class TestDbStats:
         import sqlite3
 
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             mock_db.fetchall.side_effect = sqlite3.Error("db error")
             open_mock = MagicMock()
@@ -212,7 +213,7 @@ class TestDbListUrls:
 class TestDbRebuildFts:
     def test_rebuild_fts_success(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             open_mock = MagicMock()
             open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
@@ -228,7 +229,7 @@ class TestDbRebuildFts:
         import sqlite3
 
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             mock_db.execute.side_effect = sqlite3.Error("fts error")
             open_mock = MagicMock()
@@ -248,7 +249,7 @@ class TestDbRebuildFts:
 class TestDbHealth:
     def test_health_prints_metrics(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             mock_db.health_check.return_value = {
                 "journal_mode": "wal",
@@ -273,7 +274,7 @@ class TestDbHealth:
         import sqlite3
 
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             mock_db.health_check.side_effect = sqlite3.Error("health error")
             open_mock = MagicMock()
@@ -293,7 +294,7 @@ class TestDbHealth:
 class TestDbCheckpoint:
     def test_checkpoint_success(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             open_mock = MagicMock()
             open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
@@ -301,7 +302,9 @@ class TestDbCheckpoint:
             helper_mock = MagicMock()
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
-            with patch("agent.commands.cmd_db.checkpoint_wal") as mock_cp:
+            with patch(
+                "agent.services.db_maintenance_service.checkpoint_wal"
+            ) as mock_cp:
                 mock_cp.return_value = "CHECKPOINT_DONE"
                 cmd._cmd_db("checkpoint")
                 out = capsys.readouterr().out
@@ -309,7 +312,7 @@ class TestDbCheckpoint:
 
     def test_checkpoint_with_mode(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             open_mock = MagicMock()
             open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
@@ -317,7 +320,9 @@ class TestDbCheckpoint:
             helper_mock = MagicMock()
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
-            with patch("agent.commands.cmd_db.checkpoint_wal") as mock_cp:
+            with patch(
+                "agent.services.db_maintenance_service.checkpoint_wal"
+            ) as mock_cp:
                 mock_cp.return_value = "CHECKPOINT_DONE"
                 cmd._cmd_db("checkpoint FULL")
                 out = capsys.readouterr().out
@@ -330,7 +335,7 @@ class TestDbCheckpoint:
 class TestDbVacuum:
     def test_vacuum_success(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             open_mock = MagicMock()
             open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
@@ -338,7 +343,7 @@ class TestDbVacuum:
             helper_mock = MagicMock()
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
-            with patch("agent.commands.cmd_db.vacuum_db"):
+            with patch("agent.services.db_maintenance_service.vacuum_db"):
                 cmd._cmd_db("vacuum")
                 out = capsys.readouterr().out
                 assert "complete" in out.lower()
@@ -347,7 +352,7 @@ class TestDbVacuum:
         import sqlite3
 
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             open_mock = MagicMock()
             open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
@@ -356,7 +361,7 @@ class TestDbVacuum:
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
             with patch(
-                "agent.commands.cmd_db.vacuum_db",
+                "agent.services.db_maintenance_service.vacuum_db",
                 side_effect=sqlite3.Error("vac error"),
             ):
                 cmd._cmd_db("vacuum")
@@ -370,57 +375,7 @@ class TestDbVacuum:
 class TestDbPurge:
     def test_purge_success(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
-            mock_db = MagicMock()
-            open_mock = MagicMock()
-            open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
-            open_mock.return_value.__exit__ = MagicMock(return_value=False)
-            helper_mock = MagicMock()
-            helper_mock.open = open_mock
-            MockHelper.return_value = helper_mock
-            with patch("agent.commands.cmd_db.purge_old_sessions") as mock_purge:
-                mock_purge.return_value = {"age_deleted": 5, "count_deleted": 3}
-                cmd._cmd_db("purge")
-                out = capsys.readouterr().out
-                assert "Purged" in out
-
-    def test_purge_with_max_sessions(self, capsys: pytest.CaptureFixture) -> None:
-        cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
-            mock_db = MagicMock()
-            open_mock = MagicMock()
-            open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
-            open_mock.return_value.__exit__ = MagicMock(return_value=False)
-            helper_mock = MagicMock()
-            helper_mock.open = open_mock
-            MockHelper.return_value = helper_mock
-            with patch("agent.commands.cmd_db.purge_old_sessions") as mock_purge:
-                mock_purge.return_value = {"age_deleted": 0, "count_deleted": 0}
-                cmd._cmd_db("purge --max-sessions 10")
-                mock_purge.assert_called_once()
-                call_args = mock_purge.call_args
-                assert call_args[0][1] is not None
-
-    def test_purge_with_max_age_days(self, capsys: pytest.CaptureFixture) -> None:
-        cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
-            mock_db = MagicMock()
-            open_mock = MagicMock()
-            open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
-            open_mock.return_value.__exit__ = MagicMock(return_value=False)
-            helper_mock = MagicMock()
-            helper_mock.open = open_mock
-            MockHelper.return_value = helper_mock
-            with patch("agent.commands.cmd_db.purge_old_sessions") as mock_purge:
-                mock_purge.return_value = {"age_deleted": 0, "count_deleted": 0}
-                cmd._cmd_db("purge --max-age-days 30")
-                mock_purge.assert_called_once()
-
-    def test_purge_error_handled(self, capsys: pytest.CaptureFixture) -> None:
-        import sqlite3
-
-        cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.SQLiteHelper") as MockHelper:
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             open_mock = MagicMock()
             open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
@@ -429,7 +384,63 @@ class TestDbPurge:
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
             with patch(
-                "agent.commands.cmd_db.purge_old_sessions",
+                "agent.services.db_maintenance_service.purge_old_sessions"
+            ) as mock_purge:
+                mock_purge.return_value = {"age_deleted": 5, "count_deleted": 3}
+                cmd._cmd_db("purge")
+                out = capsys.readouterr().out
+                assert "Purged" in out
+
+    def test_purge_with_max_sessions(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
+            mock_db = MagicMock()
+            open_mock = MagicMock()
+            open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
+            open_mock.return_value.__exit__ = MagicMock(return_value=False)
+            helper_mock = MagicMock()
+            helper_mock.open = open_mock
+            MockHelper.return_value = helper_mock
+            with patch(
+                "agent.services.db_maintenance_service.purge_old_sessions"
+            ) as mock_purge:
+                mock_purge.return_value = {"age_deleted": 0, "count_deleted": 0}
+                cmd._cmd_db("purge --max-sessions 10")
+                mock_purge.assert_called_once()
+                call_args = mock_purge.call_args
+                assert call_args[0][1] is not None
+
+    def test_purge_with_max_age_days(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
+            mock_db = MagicMock()
+            open_mock = MagicMock()
+            open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
+            open_mock.return_value.__exit__ = MagicMock(return_value=False)
+            helper_mock = MagicMock()
+            helper_mock.open = open_mock
+            MockHelper.return_value = helper_mock
+            with patch(
+                "agent.services.db_maintenance_service.purge_old_sessions"
+            ) as mock_purge:
+                mock_purge.return_value = {"age_deleted": 0, "count_deleted": 0}
+                cmd._cmd_db("purge --max-age-days 30")
+                mock_purge.assert_called_once()
+
+    def test_purge_error_handled(self, capsys: pytest.CaptureFixture) -> None:
+        import sqlite3
+
+        cmd = _make_cmd()
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
+            mock_db = MagicMock()
+            open_mock = MagicMock()
+            open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
+            open_mock.return_value.__exit__ = MagicMock(return_value=False)
+            helper_mock = MagicMock()
+            helper_mock.open = open_mock
+            MockHelper.return_value = helper_mock
+            with patch(
+                "agent.services.db_maintenance_service.purge_old_sessions",
                 side_effect=sqlite3.Error("purge error"),
             ):
                 cmd._cmd_db("purge")
@@ -443,7 +454,9 @@ class TestDbPurge:
 class TestDbRecover:
     def test_recover_success(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.recover_corruption") as mock_rec:
+        with patch(
+            "agent.services.db_maintenance_service.recover_corruption"
+        ) as mock_rec:
             mock_rec.return_value = True
             cmd._cmd_db("recover")
             out = capsys.readouterr().out
@@ -451,14 +464,18 @@ class TestDbRecover:
 
     def test_recover_with_backup_path(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.recover_corruption") as mock_rec:
+        with patch(
+            "agent.services.db_maintenance_service.recover_corruption"
+        ) as mock_rec:
             mock_rec.return_value = True
             cmd._cmd_db("recover /path/to/backup.db")
             mock_rec.assert_called_once_with("/path/to/backup.db")
 
     def test_recover_failure(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.commands.cmd_db.recover_corruption") as mock_rec:
+        with patch(
+            "agent.services.db_maintenance_service.recover_corruption"
+        ) as mock_rec:
             mock_rec.return_value = False
             cmd._cmd_db("recover")
             out = capsys.readouterr().out
@@ -467,7 +484,8 @@ class TestDbRecover:
     def test_recover_error_handled(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         with patch(
-            "agent.commands.cmd_db.recover_corruption", side_effect=Exception("fail")
+            "agent.services.db_maintenance_service.recover_corruption",
+            side_effect=Exception("fail"),
         ):
             cmd._cmd_db("recover")
             out = capsys.readouterr().out

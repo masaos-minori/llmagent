@@ -8,12 +8,9 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock
 
-from agent.commands.cmd_context import (
-    _budget_breakdown,
-    _ContextMixin,
-    _format_memory_status,
-    _token_source_label,
-)
+from agent.commands.cmd_context import _ContextMixin, _token_source_label
+from agent.services.context_view import _format_memory_status
+from agent.services.context_view import budget_breakdown as _budget_breakdown
 
 # ── Test harness ──────────────────────────────────────────────────────────────
 
@@ -333,20 +330,23 @@ class TestCmdHistory:
         assert "..." in out
 
 
-# ── _collect_context_state ────────────────────────────────────────────────────
+# ── collect_context_state ─────────────────────────────────────────────────────
 
 
 class TestCollectContextState:
     def test_collect_context_state_returns_dict(self) -> None:
+        from agent.services.context_view import collect_context_state
+
         ctx = _make_ctx()
         ctx.conv.history = [_system_msg("sys")]
-        cmd = _FakeCmd(ctx)
-        result = cmd._collect_context_state(ctx)
+        result = collect_context_state(ctx)
         assert isinstance(result, dict)
         assert "total_chars" in result
         assert "n_msgs" in result
 
     def test_collect_context_state_with_hist_mgr(self) -> None:
+        from agent.services.context_view import collect_context_state
+
         ctx = _make_ctx()
         ctx.conv.history = [_system_msg("sys")]
         hist_mgr = MagicMock()
@@ -354,19 +354,19 @@ class TestCollectContextState:
         hist_mgr.stat_compress_count = 5
         hist_mgr.count_tokens.return_value = 25
         ctx.services.hist_mgr = hist_mgr
-        cmd = _FakeCmd(ctx)
-        result = cmd._collect_context_state(ctx)
+        result = collect_context_state(ctx)
         assert result["total_chars"] == 100
 
     def test_collect_context_state_with_memory(self) -> None:
+        from agent.services.context_view import collect_context_state
+
         ctx = _make_ctx()
         mem = MagicMock()
         mem.store.count_entries.return_value = 10
         mem.store.count_vec.return_value = 5
         mem.store.count_by_type.return_value = {"semantic": 3}
         ctx.services.memory = mem
-        cmd = _FakeCmd(ctx)
-        result = cmd._collect_context_state(ctx)
+        result = collect_context_state(ctx)
         assert "enabled" in result["mem_status"]
 
 

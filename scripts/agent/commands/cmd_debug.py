@@ -13,6 +13,9 @@ from agent.commands.mixin_base import MixinBase
 
 logger = logging.getLogger(__name__)
 
+_AUDIT_TAIL_LINES = 20
+_DEBUG_LOGGER_NAMES = ("agent_repl", "orchestrator")
+
 
 class _DebugMixin(MixinBase):
     """Debug-mode slash-command handlers."""
@@ -30,23 +33,22 @@ class _DebugMixin(MixinBase):
                 return
             try:
                 lines = audit_path.read_text(encoding="utf-8").splitlines()
-                for line in lines[-20:]:
+                for line in lines[-_AUDIT_TAIL_LINES:]:
                     print(line)
             except OSError as e:
                 print(f"Cannot read audit log: {e}")
             return
 
         if sub == "verbose":
-            # Switch agent logger to DEBUG level for detailed output
-            logging.getLogger("agent_repl").setLevel(logging.DEBUG)
-            logging.getLogger("orchestrator").setLevel(logging.DEBUG)
+            for name in _DEBUG_LOGGER_NAMES:
+                logging.getLogger(name).setLevel(logging.DEBUG)
             print("Log level: DEBUG")
             logger.info("Log level set to DEBUG")
             return
 
         if sub == "normal":
-            logging.getLogger("agent_repl").setLevel(logging.INFO)
-            logging.getLogger("orchestrator").setLevel(logging.INFO)
+            for name in _DEBUG_LOGGER_NAMES:
+                logging.getLogger(name).setLevel(logging.INFO)
             print("Log level: INFO")
             logger.info("Log level restored to INFO")
             return
