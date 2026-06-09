@@ -6,6 +6,7 @@ Provides _IngestMixin with:
   _cmd_export            — /export: dump conversation to Markdown or JSON
   _cmd_ingest            — /ingest: crawl/ingest a URL or local file
   _cmd_compact           — /compact: force immediate context compression
+  _cmd_rag               — /rag: search the RAG knowledge base
 """
 
 import logging
@@ -66,6 +67,66 @@ class _IngestMixin(MixinBase):
         if result.error:
             logger.error(f"Ingest failed at stage={result.stage}: {result.error}")
             print(f"  [ingest] error ({result.stage}): {result.error}")
+
+    async def _cmd_rag(self, args: str) -> None:
+        """Search the RAG knowledge base with a query.
+
+        Usage:
+          /rag search <query>           Run RAG search and print context
+          /rag search <query> --debug   Also print per-stage latency
+        """
+        from mcp.rag_pipeline.models import (
+            build_rag_cfg_adapter,  # noqa: PLC0415 — lazy: heavy RAG module deferred to /rag call
+        )
+        from rag.pipeline import (
+            RagPipeline,  # noqa: PLC0415 — lazy: heavy RAG module deferred to /rag call
+        )
+        from shared.config_loader import (
+            ConfigLoader,  # noqa: PLC0415 — lazy: deferred to /rag call
+        )
+
+        ctx = self._ctx
+        parts = args.strip().split(None, 1)
+        sub = parts[0] if parts else ""
+        if sub != "search" or len(parts) < 2:
+            print("Usage: /rag search <query> [--debug]")
+            return
+
+        remainder = parts[1]
+        debug = "--debug" in remainder
+        query = remainder.replace("--debug", "").strip()
+        if not query:
+            print("Usage: /rag search <query> [--debug]")
+            return
+
+        if ctx.services is None or ctx.services.http is None:
+            print("HTTP client not available.")
+            return
+
+        try:
+            rag_cfg_dict = ConfigLoader().load("common.toml", "rag.toml")
+        except Exception as exc:
+            logger.warning(f"RAG config load failed: {exc}")
+            rag_cfg_dict = {}
+
+        if not rag_cfg_dict.get("use_search", True):
+            print("RAG search is disabled (use_search=false in config).")
+            return
+
+        rag_cfg = build_rag_cfg_adapter(rag_cfg_dict)
+        pipeline = RagPipeline(ctx.services.http, rag_cfg)
+        context = await pipeline.augment(query)
+        if not context:
+            print("No results found.")
+        else:
+            print(context)
+
+        if debug:
+            timings = pipeline.last_timings
+            if timings:
+                print("\n--- Stage timings ---")
+                for stage_name, elapsed in timings.items():
+                    print(f"  {stage_name}: {elapsed * 1000:.1f} ms")
 
     async def _cmd_compact(self) -> None:
         """Force immediate compression of conversation history.

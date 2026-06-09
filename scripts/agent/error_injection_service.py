@@ -49,7 +49,7 @@ class ErrorInjectionService:
             session_id=ctx.session.session_id,
             turn=turn,
             tool_name="llm_transport_error",
-            args_json="{}",
+            args_masked="{}",
             full_text=err["detail"],
             summary=err["summary"],
             is_error=True,

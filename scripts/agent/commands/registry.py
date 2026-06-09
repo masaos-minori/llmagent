@@ -125,6 +125,13 @@ _COMMANDS: list[CommandDef] = [
         "<url|path> [--snippets-only]  Crawl/ingest a URL or local file into the RAG DB",
     ),
     CommandDef(
+        "/rag",
+        True,
+        True,
+        "_cmd_rag",
+        "search <query> [--debug]  Search the RAG knowledge base",
+    ),
+    CommandDef(
         "/export",
         True,
         False,

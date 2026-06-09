@@ -75,7 +75,7 @@ _SESSION_SCHEMA_NO_VEC0 = """
         session_id INTEGER,
         turn       INTEGER NOT NULL,
         tool_name  TEXT    NOT NULL,
-        args_json  TEXT,
+        args_masked  TEXT,
         full_text  TEXT    NOT NULL,
         summary    TEXT,
         is_error   INTEGER NOT NULL DEFAULT 0,

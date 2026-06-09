@@ -251,7 +251,7 @@ class Orchestrator:
                 session_id=ctx.session.session_id,
                 turn=ctx.stats.stat_turns,
                 tool_name="llm_partial_completion",
-                args_json="{}",
+                args_masked="{}",
                 full_text=e.detail or f"partial={len(e.partial_text)} chars",
                 summary=f"[INCOMPLETE: {e.kind}]",
                 is_error=True,

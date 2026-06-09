@@ -22,7 +22,7 @@ class ToolResultStore:
         session_id: int | None,
         turn: int,
         tool_name: str,
-        args_json: str,
+        args_masked: str,
         full_text: str,
         summary: str | None,
         is_error: bool,
@@ -32,14 +32,14 @@ class ToolResultStore:
             with SQLiteHelper("session").open(write_mode=True) as db:
                 cur = db.execute(
                     "INSERT INTO tool_results"
-                    " (session_id, turn, tool_name, args_json,"
+                    " (session_id, turn, tool_name, args_masked,"
                     "  full_text, summary, is_error)"
                     " VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (
                         session_id,
                         turn,
                         tool_name,
-                        args_json,
+                        args_masked,
                         full_text,
                         summary,
                         int(is_error),
@@ -61,7 +61,7 @@ class ToolResultStore:
         try:
             with SQLiteHelper("session").open(row_factory=True) as db:
                 rows = db.fetchall(
-                    "SELECT id, session_id, turn, tool_name, args_json,"
+                    "SELECT id, session_id, turn, tool_name, args_masked,"
                     " full_text, summary, is_error, created_at"
                     " FROM tool_results WHERE id = ?",
                     (result_id,),

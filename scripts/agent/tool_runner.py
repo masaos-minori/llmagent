@@ -109,7 +109,7 @@ def _collect_tool_result_msgs(
             session_id=ctx.session.session_id,
             turn=turn,
             tool_name=name,
-            args_json=orjson.dumps(args).decode(),
+            args_masked=orjson.dumps(masked).decode(),
             full_text=text,
             summary=llm_text if summarized else None,
             is_error=is_error,

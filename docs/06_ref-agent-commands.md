@@ -16,7 +16,7 @@
 | `_ToolingMixin` | `agent/commands/cmd_tooling.py` | `/tool`, `/plan` |
 | `_NotesMixin` | `agent/commands/cmd_notes.py` | `/note` |
 | `_DebugMixin` | `agent/commands/cmd_debug.py` | `/debug` |
-| `_IngestMixin` | `agent/commands/cmd_ingest.py` | `/ingest`, `/export`, `/compact` |
+| `_IngestMixin` | `agent/commands/cmd_ingest.py` | `/ingest`, `/export`, `/compact`, `/rag` |
 | `_MemoryMixin` | `agent/commands/cmd_memory.py` | `/memory` 系 |
 
 共有ユーティリティ: `agent/commands/utils.py` は `/export` コマンドが使用する `render_history_md(history) -> str` と、複数の mixin から共有される引数解析ヘルパー `parse_flag_int(tokens, flag)` / `parse_flag_str(tokens, flag)` を提供する。
@@ -51,7 +51,7 @@ matched = await cmds.dispatch("/stats")
 
 完全一致 async コマンド (引数なし): `/compact`
 
-プレフィックスコマンド (trailing args を渡す): `/mcp`(async), `/session`, `/clear`, `/ingest`(async), `/export`, `/history`, `/system`, `/db`, `/note`, `/tool`, `/set`, `/memory`, `/debug`
+プレフィックスコマンド (trailing args を渡す): `/mcp`(async), `/session`, `/clear`, `/ingest`(async), `/rag`(async), `/export`, `/history`, `/system`, `/db`, `/note`, `/tool`, `/set`, `/memory`, `/debug`
 
 ### 3.2 /help
 
@@ -127,8 +127,6 @@ matched = await cmds.dispatch("/stats")
 
 ### 3.8 /tool, /plan (_ToolingMixin)
 
-注: `/rag` コマンドは削除済み。RAG は `mcp/rag_pipeline/` (port 8010) 経由の MCP ツールとしてのみ利用可能。
-
 | メソッド | 説明 |
 |---|---|
 | `_cmd_tool(args) -> None` | `/tool list` / `/tool show <id>` でツール結果ストアを表示 |
@@ -151,7 +149,7 @@ matched = await cmds.dispatch("/stats")
 |---|---|
 | `_cmd_debug(args) -> None` | 引数なしで `ctx.conv.debug_mode` をトグル。`args="audit"` で audit.log 末尾 20 行を表示、`args="verbose"` / `"normal"` でログレベルを切り替え |
 
-### 3.11 /ingest, /export, /compact (_IngestMixin)
+### 3.11 /ingest, /export, /compact, /rag (_IngestMixin)
 
 | メソッド | 説明 |
 |---|---|
@@ -159,6 +157,7 @@ matched = await cmds.dispatch("/stats")
 | `_run_split_and_ingest(loop, snippets_only=False) -> None` (async) | ChunkSplitter と RagIngester をスレッドエグゼキュータで順次実行。`snippets_only=True` のとき `md_index_enable=True` を強制してヘディングベースのスニペット分割を使用 |
 | `_cmd_export(args) -> None` | 会話履歴を Markdown または JSON でエクスポート。引数: `[md\|json] [filename]`。filename 省略時は標準出力 |
 | `_cmd_compact() -> None` (async) | 閾値に関わらず会話履歴を即時圧縮。`hist_mgr.force_compress(history)` を使用 — `_char_limit` への直書きを廃止 |
+| `_cmd_rag(args) -> None` (async) | インプロセス RAG パイプラインで検索を実行。引数: `search <query> [--debug]`。`--debug` 指定時はステージ別 latency を表示。`rag.toml` の `use_search=false` 時は無効メッセージを返す |
 
 ### 3.12 /memory 系 (_MemoryMixin)
 

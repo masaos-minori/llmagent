@@ -18,6 +18,7 @@ Module layout:
 import asyncio
 import logging
 import re
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -195,6 +196,7 @@ class RagPipeline:
         """Execute MQE→search→RRF→rerank on an open DB; returns (queries, all_results, merged, reranked); on_clear() called on exit."""
         try:
             ctx = PipelineContext(query=query, history_context=history_context)
+            self.last_timings = {}
             stages: list = [
                 MqeStage(self._cfg.__dict__, self._llm),
                 SearchStage(self._cfg.__dict__),
@@ -203,7 +205,9 @@ class RagPipeline:
                 AugmentStage(),
             ]
             for stage in stages:
+                t0 = time.perf_counter()
                 await stage.run(ctx, db=db)
+                self.last_timings[stage.__class__.__name__] = time.perf_counter() - t0
 
             # Store for two-stage fetch callers (e.g. REPLAgent._run_turn)
             self.last_reranked = ctx.reranked

@@ -47,7 +47,7 @@ class _ToolingMixin(MixinBase):
         flag = " [summarized]" if result.get("summary") else ""
         print(f"Tool: {result['tool_name']}{flag}")
         try:
-            args_obj = orjson.loads(result.get("args_json") or "{}")
+            args_obj = orjson.loads(result.get("args_masked") or "{}")
         except orjson.JSONDecodeError:
             args_obj = {}
         print(f"Args: {orjson.dumps(args_obj).decode()}")

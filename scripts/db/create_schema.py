@@ -39,6 +39,7 @@ logger = Logger(__name__, _get_schema_log_path())
 _SAFE_MIGRATION_ERRORS: tuple[str, ...] = (
     "duplicate column name",  # ALTER TABLE ADD COLUMN already applied
     "already exists",  # CREATE TRIGGER IF NOT EXISTS on an existing trigger
+    "no such column",  # RENAME COLUMN already applied on fresh install
 )
 
 
@@ -132,7 +133,7 @@ _SESSION_SCHEMA_TEMPLATE: str = """
         session_id INTEGER,
         turn       INTEGER NOT NULL,
         tool_name  TEXT    NOT NULL,
-        args_json  TEXT,
+        args_masked  TEXT,
         full_text  TEXT    NOT NULL,
         summary    TEXT,
         is_error   INTEGER NOT NULL DEFAULT 0,
@@ -249,6 +250,8 @@ _SESSION_MIGRATE_SQL: list[str] = [
     # Phase 2 persistent semantic memory: embedding index
     "CREATE VIRTUAL TABLE IF NOT EXISTS memories_vec USING vec0("
     "memory_id TEXT PRIMARY KEY, embedding float[384])",
+    # Rename args_json → args_masked to reflect that stored values are sanitised
+    "ALTER TABLE tool_results RENAME COLUMN args_json TO args_masked",
 ]
 
 
