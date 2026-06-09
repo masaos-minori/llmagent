@@ -251,7 +251,13 @@ class _ContextMixin(MixinBase):
             print(f"Unknown preset '{name}'. Available: {names}")
             return
         ctx.conv.system_prompt_name = name
-        # Update the canonical field; Orchestrator syncs history[0] at next turn start.
         ctx.conv.system_prompt_content = ctx.cfg.tool.system_prompts[name]
+        # Immediately sync history[0] so the new prompt takes effect in this turn.
+        if ctx.conv.history and ctx.conv.history[0]["role"] == "system":
+            ctx.conv.history[0]["content"] = ctx.conv.system_prompt_content
+        elif ctx.conv.system_prompt_content:
+            ctx.conv.history.insert(
+                0, {"role": "system", "content": ctx.conv.system_prompt_content}
+            )
         logger.info(f"System prompt switched to '{name}'")
         print(f"System prompt: {name}")

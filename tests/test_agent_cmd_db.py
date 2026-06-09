@@ -8,11 +8,9 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from agent.commands.cmd_db import (
-    _parse_flag_int,
-    _parse_flag_str,
-    _DbMixin,
-)
+from agent.commands.cmd_db import _DbMixin
+from agent.commands.utils import parse_flag_int as _parse_flag_int
+from agent.commands.utils import parse_flag_str as _parse_flag_str
 
 
 def _make_cmd(*, delete_doc_return: bool = True) -> _DbMixin:
@@ -358,7 +356,8 @@ class TestDbVacuum:
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
             with patch(
-                "agent.commands.cmd_db.vacuum_db", side_effect=sqlite3.Error("vac error")
+                "agent.commands.cmd_db.vacuum_db",
+                side_effect=sqlite3.Error("vac error"),
             ):
                 cmd._cmd_db("vacuum")
                 out = capsys.readouterr().out

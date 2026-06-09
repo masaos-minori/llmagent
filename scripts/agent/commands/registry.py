@@ -20,8 +20,7 @@ Mixin split:
 """
 
 import asyncio
-from collections.abc import Callable
-from typing import Any
+from dataclasses import dataclass
 
 from shared import plugin_registry
 
@@ -38,6 +37,157 @@ from agent.commands.cmd_tooling import _ToolingMixin
 from agent.context import AgentContext
 
 __all__ = ["CommandRegistry"]
+
+
+@dataclass
+class CommandDef:
+    """Declarative metadata for one slash command."""
+
+    name: str  # e.g. "/help"
+    prefix: bool  # True = prefix match (args passed); False = exact match (no args)
+    is_async: bool
+    handler: str  # method name on CommandRegistry
+    help: str  # one-line description shown in /help output
+
+
+# Single source of truth for all built-in slash commands.
+# Exact-match commands are listed first, followed by prefix commands.
+_COMMANDS: list[CommandDef] = [
+    # ── Exact-match sync ─────────────────────────────────────────────────────
+    CommandDef("/help", False, False, "_cmd_help", "Show this help"),
+    CommandDef(
+        "/config",
+        False,
+        False,
+        "_cmd_config",
+        "Current configuration and config file paths",
+    ),
+    CommandDef(
+        "/stats",
+        False,
+        False,
+        "_cmd_stats",
+        "Session statistics (turns, tool calls, RAG hits, error counts)",
+    ),
+    CommandDef(
+        "/context",
+        False,
+        False,
+        "_cmd_context",
+        "Runtime context state (messages, chars, compression, system prompt)",
+    ),
+    CommandDef("/plan", False, False, "_cmd_plan", "Toggle plan mode"),
+    CommandDef(
+        "/undo", False, False, "_cmd_undo", "Roll back the last user+assistant turn"
+    ),
+    CommandDef(
+        "/reload",
+        False,
+        False,
+        "_cmd_reload",
+        "Reload config/agent.toml and apply runtime-configurable parameters",
+    ),
+    # ── Exact-match async ────────────────────────────────────────────────────
+    CommandDef(
+        "/compact",
+        False,
+        True,
+        "_cmd_compact",
+        "Force immediate compression of conversation history",
+    ),
+    # ── Prefix sync ──────────────────────────────────────────────────────────
+    CommandDef(
+        "/mcp",
+        True,
+        True,
+        "_cmd_mcp",
+        "MCP server status, tool list, connectivity check; 'install <n>' scaffolds a new server",
+    ),
+    CommandDef(
+        "/session",
+        True,
+        False,
+        "_cmd_session",
+        "list [n] | load <id> | rename <title> | delete <id>",
+    ),
+    CommandDef(
+        "/clear",
+        True,
+        False,
+        "_cmd_clear",
+        "Reset conversation history; 'new' also starts a new session",
+    ),
+    CommandDef(
+        "/ingest",
+        True,
+        True,
+        "_cmd_ingest",
+        "<url|path> [--snippets-only]  Crawl/ingest a URL or local file into the RAG DB",
+    ),
+    CommandDef(
+        "/export",
+        True,
+        False,
+        "_cmd_export",
+        "[md|json] [file]  Export conversation history (default: md to stdout)",
+    ),
+    CommandDef(
+        "/history",
+        True,
+        False,
+        "_cmd_history",
+        "[n]  Show last N user/assistant messages (default: 5)",
+    ),
+    CommandDef(
+        "/system",
+        True,
+        False,
+        "_cmd_system",
+        "[name]  Switch system prompt preset; list presets if no name given",
+    ),
+    CommandDef(
+        "/db",
+        True,
+        False,
+        "_cmd_db",
+        "stats | urls [--lang ja|en] [--limit N] | clean <url> | rebuild-fts | health | checkpoint | vacuum | purge | recover",
+    ),
+    CommandDef(
+        "/note",
+        True,
+        False,
+        "_cmd_note",
+        "add <text> | list | delete <id>  Manage persistent notes",
+    ),
+    CommandDef(
+        "/tool",
+        True,
+        False,
+        "_cmd_tool",
+        "list | show <idx>  Inspect stored tool results",
+    ),
+    CommandDef(
+        "/set",
+        True,
+        False,
+        "_cmd_set",
+        "temperature <f> | max_tokens <n>  Set LLM generation parameters",
+    ),
+    CommandDef(
+        "/memory",
+        True,
+        False,
+        "_cmd_memory",
+        "list|search|pin|unpin|delete|show|prune  Manage long-term memory entries",
+    ),
+    CommandDef(
+        "/debug",
+        True,
+        False,
+        "_cmd_debug",
+        "[audit|verbose|normal]  Toggle debug; subcommands: audit=tail log, verbose/normal=log level",
+    ),
+]
 
 
 class CommandRegistry(
@@ -70,111 +220,39 @@ class CommandRegistry(
             if ctx.session.session_id
             else "no session"
         )
-        print(
-            "Agent REPL — type a question and press Enter.\n"
-            "Conversation history is preserved within the session.\n"
-            "\n"
-            "Slash commands:\n"
-            "  /help              Show this help\n"
-            "  /mcp               MCP server status, tool list, connectivity check\n"
-            "  /mcp install <n>   Scaffold a new MCP server template files (wizard)\n"
-            "  /config            Current configuration and config file paths\n"
-            "  /stats             Session statistics"
-            " (turns, tool calls, RAG hits, error counts)\n"
-            "  /context           Runtime context state"
-            " (messages, chars, compression, system prompt)\n"
-            "  /compact           Force immediate compression of conversation history\n"
-            "  /clear [new]       Reset conversation history and session stats;"
-            " 'new' also starts a new session\n"
-            "  /session list [n]        List past sessions (default: 20)\n"
-            "  /session load <id>       Restore a past session's conversation history\n"
-            "  /session rename <title>  Rename the current session\n"
-            "  /session delete <id>     Delete a past session and its messages\n"
-            "  /db stats                Show document/chunk/session/message counts\n"
-            "  /db urls [--lang ja|en] [--limit N]  List registered document URLs\n"
-            "  /db clean <url>    Delete a document and its chunks from the DB\n"
-            "  /db rebuild-fts    Rebuild the FTS5 chunks_fts index\n"
-            "  /ingest <url|path> [--snippets-only]"
-            "  Crawl/ingest a URL or local file into the RAG DB\n"
-            "  /debug [audit|verbose|normal]  Toggle debug; subcommands: audit=tail log, verbose/normal=log level\n"
-            "  /note add <text>   Add a persistent note\n"
-            "  /note list         List all notes\n"
-            "  /note delete <id>  Delete a note by ID\n"
-            "  /memory list [semantic|episodic] [n]  List memory entries\n"
-            "  /memory search <q>   Search memories by keyword\n"
-            "  /memory pin/unpin/delete/show/prune  Manage memory entries\n"
-            "  /tool list         List stored tool results (current session)\n"
-            "  /tool show <idx>   Show full text of a stored tool result\n"
-            "  /undo              Roll back the last user+assistant turn\n"
-            "  /history [n]       Show last N user/assistant messages"
-            " (default: 5)\n"
-            "  /system [name]     Switch system prompt preset;"
-            " list presets if no name given\n"
-            "  /export [md|json] [file]  Export conversation history"
-            " (default: md to stdout)\n"
-            "  /set temperature <f>  Set LLM generation temperature (0.0–2.0)\n"
-            "  /set max_tokens <n>   Set maximum tokens per LLM response\n"
-            "  /reload            Reload config/agent.toml and apply"
-            " runtime-configurable parameters\n"
-            "  /exit              Exit (Ctrl-D also works)\n"
-            "\n"
-            f"Tools: {n_tools}  |  LLM: {ctx.cfg.llm.llm_url}  |  {sid}",
-        )
+        print("Agent REPL — type a question and press Enter.")
+        print("Conversation history is preserved within the session.")
+        print()
+        print("Slash commands:")
+        for cmd in _COMMANDS:
+            print(f"  {cmd.name:<22} {cmd.help}")
+        print()
+        print(f"Tools: {n_tools}  |  LLM: {ctx.cfg.llm.llm_url}  |  {sid}")
 
     async def dispatch(self, line: str) -> bool:
         """Dispatch a slash command; return True if matched, False otherwise.
 
-        Exact-match commands are looked up in a dict for conciseness.
-        Prefix commands (/session, /ingest, /export) are handled separately
-        because they pass trailing arguments to their handlers.
+        Commands are looked up in _COMMANDS. Prefix commands use exact boundary
+        matching (line == name or line.startswith(name + " ")) to prevent
+        substring false-positives.
         """
-        # exact-match sync commands: name → handler (no args)
-        sync_cmds: dict[str, Callable[[], None]] = {
-            "/help": self._cmd_help,
-            "/config": self._cmd_config,
-            "/stats": self._cmd_stats,
-            "/context": self._cmd_context,
-            "/plan": self._cmd_plan,
-            "/undo": self._cmd_undo,
-            "/reload": self._cmd_reload,
-        }
-        # exact-match async commands: name → coroutine handler (no args)
-        async_cmds: dict[str, Callable[[], Any]] = {
-            "/compact": self._cmd_compact,
-        }
-
-        if line in sync_cmds:
-            sync_cmds[line]()
-            return True
-        if line in async_cmds:
-            await async_cmds[line]()
-            return True
-
-        # prefix commands that accept trailing arguments: (prefix, handler, is_async)
-        prefix_cmds: list[tuple[str, Callable[[str], Any], bool]] = [
-            ("/mcp", self._cmd_mcp, True),
-            ("/session", self._cmd_session, False),
-            ("/clear", self._cmd_clear, False),
-            ("/ingest", self._cmd_ingest, True),
-            ("/export", self._cmd_export, False),
-            ("/history", self._cmd_history, False),
-            ("/system", self._cmd_system, False),
-            ("/db", self._cmd_db, False),
-            ("/note", self._cmd_note, False),
-            ("/tool", self._cmd_tool, False),
-            ("/set", self._cmd_set, False),
-            ("/memory", self._cmd_memory, False),
-            # /debug accepts optional subcommand: audit | verbose | normal
-            ("/debug", self._cmd_debug, False),
-        ]
-        for prefix, handler, is_async in prefix_cmds:
-            if line.startswith(prefix):
-                args = line[len(prefix) :]
-                if is_async:
-                    await handler(args)
-                else:
-                    handler(args)
-                return True
+        for cmd in _COMMANDS:
+            handler = getattr(self, cmd.handler)
+            if cmd.prefix:
+                if line == cmd.name or line.startswith(cmd.name + " "):
+                    args = line[len(cmd.name) :]
+                    if cmd.is_async:
+                        await handler(args)
+                    else:
+                        handler(args)
+                    return True
+            else:
+                if line == cmd.name:
+                    if cmd.is_async:
+                        await handler()
+                    else:
+                        handler()
+                    return True
 
         # Plugin commands: exact-match and prefix-match (checked after built-ins)
         return await self._dispatch_plugin(line)

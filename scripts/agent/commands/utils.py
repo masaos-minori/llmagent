@@ -56,3 +56,22 @@ def write_export(content: str, outfile: str | None, n_messages: int) -> None:
         logger.info(f"Conversation exported to {outfile}")
     except OSError as e:
         print(f"Export failed: {e}")
+
+
+def parse_flag_int(tokens: list[str], flag: str) -> int | None:
+    """Return the integer value following `flag` in tokens, or None."""
+    for i, t in enumerate(tokens):
+        if t == flag and i + 1 < len(tokens):
+            try:
+                return int(tokens[i + 1])
+            except ValueError:
+                pass
+    return None
+
+
+def parse_flag_str(tokens: list[str], flag: str) -> str | None:
+    """Return the string value following `flag` in tokens, or None."""
+    for i, t in enumerate(tokens):
+        if t == flag and i + 1 < len(tokens):
+            return tokens[i + 1]
+    return None

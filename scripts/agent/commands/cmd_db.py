@@ -29,30 +29,12 @@ from db.maintenance import (
 )
 
 from agent.commands.mixin_base import MixinBase
+from agent.commands.utils import parse_flag_int, parse_flag_str
 
 if TYPE_CHECKING:
     pass
 
 logger = logging.getLogger(__name__)
-
-
-def _parse_flag_int(tokens: list[str], flag: str) -> int | None:
-    """Return the integer value that follows flag in tokens, or None."""
-    for i, t in enumerate(tokens):
-        if t == flag and i + 1 < len(tokens):
-            try:
-                return int(tokens[i + 1])
-            except ValueError:
-                pass
-    return None
-
-
-def _parse_flag_str(tokens: list[str], flag: str) -> str | None:
-    """Return the string value that follows flag in tokens, or None."""
-    for i, t in enumerate(tokens):
-        if t == flag and i + 1 < len(tokens):
-            return tokens[i + 1]
-    return None
 
 
 class _DbMixin(MixinBase):
@@ -118,9 +100,9 @@ class _DbMixin(MixinBase):
     def _db_list_urls(self, rest: str) -> None:
         """Parse --lang / --limit options from rest and delegate to AgentSession."""
         tokens = rest.split()
-        lang_raw = _parse_flag_str(tokens, "--lang")
+        lang_raw = parse_flag_str(tokens, "--lang")
         lang: str | None = lang_raw if lang_raw in ("ja", "en") else None
-        limit = _parse_flag_int(tokens, "--limit") or 20
+        limit = parse_flag_int(tokens, "--limit") or 20
         rows = self._ctx.session.list_documents(lang, limit)
         if not rows:
             print("No documents found")
@@ -188,8 +170,8 @@ class _DbMixin(MixinBase):
     def _db_purge(self, rest: str) -> None:
         """Purge old sessions. Options: --max-sessions N --max-age-days N"""
         tokens = rest.split()
-        max_sessions = _parse_flag_int(tokens, "--max-sessions")
-        max_age_days = _parse_flag_int(tokens, "--max-age-days")
+        max_sessions = parse_flag_int(tokens, "--max-sessions")
+        max_age_days = parse_flag_int(tokens, "--max-age-days")
         cfg_kwargs: dict[str, int] = {}
         if max_sessions is not None:
             cfg_kwargs["max_sessions"] = max_sessions
