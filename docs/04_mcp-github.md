@@ -224,7 +224,7 @@ curl -s -X POST http://127.0.0.1:8006/get_file_contents \
 ```python
 from mcp.github.server import GithubMCPServer
 
-GithubMCPServer().run()
+GithubMCPServer().run_http()
 ```
 
 | クラス属性 | 値 | 説明 |

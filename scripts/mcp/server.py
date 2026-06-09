@@ -36,18 +36,6 @@ class TruncationResult:
     total_bytes: int
 
 
-def _truncate(text: str, max_bytes: int = MCP_MAX_RESPONSE_BYTES) -> str:
-    """Truncate text to max_bytes UTF-8 bytes; appends a truncation notice when cut."""
-    encoded = text.encode("utf-8")
-    if len(encoded) <= max_bytes:
-        return text
-    shown = encoded[:max_bytes].decode("utf-8", errors="ignore")
-    return (
-        shown
-        + f"\n[TRUNCATED: {len(encoded):,} bytes total, showing {max_bytes:,} bytes]"
-    )
-
-
 def _truncate_with_meta(
     text: str, max_bytes: int = MCP_MAX_RESPONSE_BYTES
 ) -> TruncationResult:
@@ -96,7 +84,7 @@ class MCPServer:
     Subclasses declare server_name, server_version, http_host, http_port,
     app_module, and mcp_tools as class attributes, and override dispatch().
 
-    run() starts the HTTP server via uvicorn.
+    run_http() starts the HTTP server via uvicorn.
     """
 
     server_name: str  # e.g. "web-search-mcp"
@@ -137,10 +125,6 @@ class MCPServer:
             port=self.http_port,
             log_level="info",
         )
-
-    def run(self) -> None:
-        # backward-compat alias; callers should migrate to run_http()
-        self.run_http()
 
     async def run_stdio(self) -> None:
         """Serve tool calls over stdin/stdout using line-delimited JSON-RPC.

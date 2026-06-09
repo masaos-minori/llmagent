@@ -148,7 +148,7 @@ if __name__ == "__main__":
 - `python -m mcp.<name>.server` → HTTP モード (uvicorn, 指定ポートで起動)
 - `python -m mcp.<name>.server --stdio` → stdio モード (AgentREPL のサブプロセスとして起動)
 
-`MCPServer.run()` は `run_http()` の後方互換エイリアスとして残しているが、新規コードでは `run_http()` を使うこと。
+`MCPServer.run_http()` で HTTP サーバを起動する。
 
 #### ondemand stdio サーバの設定例
 

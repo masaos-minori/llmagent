@@ -84,7 +84,7 @@ def generate_server_script(server_name: str, module: str, port: int) -> str:
 
 
         if __name__ == "__main__":
-            {cls}().run()
+            {cls}().run_http()
         """)
 
 

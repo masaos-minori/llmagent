@@ -194,44 +194,50 @@ class TestAttachAuthMiddleware:
         assert len(ids) == 5
 
 
-class TestTruncate:
+class TestTruncateWithMeta:
     def test_short_text_returned_unchanged(self) -> None:
-        from mcp.server import _truncate
+        from mcp.server import _truncate_with_meta
 
         text = "hello world"
-        assert _truncate(text, max_bytes=100) == text
+        r = _truncate_with_meta(text, max_bytes=100)
+        assert r.text == text
+        assert not r.truncated
 
     def test_text_exactly_at_limit_returned_unchanged(self) -> None:
-        from mcp.server import _truncate
+        from mcp.server import _truncate_with_meta
 
         text = "a" * 10
-        assert _truncate(text, max_bytes=10) == text
+        r = _truncate_with_meta(text, max_bytes=10)
+        assert r.text == text
+        assert not r.truncated
 
     def test_long_text_is_truncated_and_notice_appended(self) -> None:
-        from mcp.server import _truncate
+        from mcp.server import _truncate_with_meta
 
         text = "a" * 200
-        result = _truncate(text, max_bytes=100)
-        assert "[TRUNCATED:" in result
-        assert "bytes total" in result
+        r = _truncate_with_meta(text, max_bytes=100)
+        assert r.truncated
+        assert "[TRUNCATED:" in r.text
+        assert "bytes total" in r.text
 
-    def test_truncated_output_is_not_longer_than_limit_plus_notice(self) -> None:
-        from mcp.server import _truncate
+    def test_truncated_output_starts_with_original_prefix(self) -> None:
+        from mcp.server import _truncate_with_meta
 
         text = "x" * 1000
-        result = _truncate(text, max_bytes=50)
-        # Starts with exactly 50 "x"s (before the notice)
-        assert result.startswith("x" * 50)
+        r = _truncate_with_meta(text, max_bytes=50)
+        assert r.truncated
+        assert r.text.startswith("x" * 50)
 
     def test_multibyte_unicode_truncated_cleanly(self) -> None:
-        from mcp.server import _truncate
+        from mcp.server import _truncate_with_meta
 
         # "あ" is 3 bytes in UTF-8; 10 bytes fits 3 full chars (9 bytes)
         text = "あ" * 10
-        result = _truncate(text, max_bytes=10)
-        assert "[TRUNCATED:" in result
+        r = _truncate_with_meta(text, max_bytes=10)
+        assert r.truncated
+        assert "[TRUNCATED:" in r.text
         # No UnicodeDecodeError; only complete characters appear
-        assert "あ" in result
+        assert "あ" in r.text
 
 
 class TestAuditLog:

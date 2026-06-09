@@ -157,7 +157,7 @@ curl -s -X POST http://127.0.0.1:8004/search \
 ```python
 from mcp.web_search.server import WebSearchMCPServer
 
-WebSearchMCPServer().run()
+WebSearchMCPServer().run_http()
 ```
 
 | クラス属性 | 値 | 説明 |

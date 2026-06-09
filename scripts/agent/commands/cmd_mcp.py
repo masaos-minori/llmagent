@@ -101,7 +101,7 @@ class _McpMixin(MixinBase):
 
     async def _cmd_mcp_install(self, server_name: str) -> None:
         """Interactive wizard: generate MCP server template files for server_name."""
-        from mcp.installer import (
+        from mcp.installer_validation import (
             validate_server_name,  # noqa: PLC0415 — lazy: heavy installer module deferred to /mcp install
         )
 

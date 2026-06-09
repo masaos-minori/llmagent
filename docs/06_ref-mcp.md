@@ -102,7 +102,7 @@ class WebSearchMCPServer(MCPServer):
         return await _dispatch_web_tool(name, args)
 
 if __name__ == "__main__":
-    WebSearchMCPServer().run()
+    WebSearchMCPServer().run_http()
 ```
 
 ---

@@ -1,9 +1,8 @@
 """mcp/installer_port.py
 Port allocation helpers for MCP server installer.
 
-scan_used_ports() gathers used ports from two sources:
+scan_used_ports() gathers used ports from:
   1. config/agent.toml [mcp_servers.*.url] — primary, config-driven
-  2. init.d/ --port arguments — fallback for services not in agent.toml
 """
 
 from __future__ import annotations
@@ -16,7 +15,7 @@ from pathlib import Path
 _RESERVED_PORTS: frozenset[int] = frozenset({8001, 8002, 8003, 8004, 8005, 8006})
 _PORT_START = 8007
 
-# Repo root: scripts/mcp/ is two levels below the repo root.
+# NOTE: _REPO_ROOT is deprecated; pass repo_root explicitly. To be removed in Phase 2.
 _REPO_ROOT = Path(__file__).parent.parent.parent
 
 
@@ -39,25 +38,11 @@ def _ports_from_config(config_dir: Path) -> set[int]:
     return ports
 
 
-def _ports_from_initd(initd_dir: Path) -> set[int]:
-    """Extract port numbers from init.d/ --port arguments (fallback)."""
-    ports: set[int] = set()
-    if not initd_dir.exists():
-        return ports
-    for f in initd_dir.iterdir():
-        if not f.is_file():
-            continue
-        for m in re.finditer(r"--port\s+(\d+)", f.read_text(errors="ignore")):
-            ports.add(int(m.group(1)))
-    return ports
-
-
 def scan_used_ports(repo_root: Path | None = None) -> set[int]:
-    """Return set of used ports: reserved + agent.toml + init.d."""
+    """Return set of used ports: reserved + agent.toml config."""
     root = repo_root if repo_root is not None else _REPO_ROOT
     used: set[int] = set(_RESERVED_PORTS)
     used |= _ports_from_config(root / "config")
-    used |= _ports_from_initd(root / "init.d")
     return used
 
 

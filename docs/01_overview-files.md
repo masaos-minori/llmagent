@@ -43,7 +43,6 @@ scripts/agent/commands/cmd_ingest.py       →  /opt/llm/scripts/agent/commands/
 scripts/agent/commands/cmd_memory.py       →  /opt/llm/scripts/agent/commands/cmd_memory.py
 scripts/mcp/models.py                      →  /opt/llm/scripts/mcp/models.py
 scripts/mcp/server.py                      →  /opt/llm/scripts/mcp/server.py
-scripts/mcp/installer.py                   →  /opt/llm/scripts/mcp/installer.py
 scripts/mcp/web_search/server.py           →  /opt/llm/scripts/mcp/web_search/server.py
 scripts/mcp/file/delete_models.py          →  /opt/llm/scripts/mcp/file/delete_models.py
 scripts/mcp/file/delete_server.py          →  /opt/llm/scripts/mcp/file/delete_server.py
@@ -207,7 +206,6 @@ conf.d/github-mcp                          →  /etc/conf.d/github-mcp
   │   ├─ mcp/                                 # MCP サーバパッケージ
   │   │   ├─ models.py                        # /v1/call_tool 統合エンドポイント共通 Pydantic モデル
   │   │   ├─ server.py                        # MCP サーバ HTTP 起動共通基底クラス
-  │   │   ├─ installer.py                     # MCP サーバ登録ヘルパー
   │   │   ├─ web_search/
   │   │   │   └─ server.py                    # Web 検索 MCP サーバ (Brave/Bing/DuckDuckGo, :8004)
   │   │   ├─ file/

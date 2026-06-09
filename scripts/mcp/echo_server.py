@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal JSON-RPC echo server for integration tests. stdlib only."""
+"""Minimal JSON-RPC echo server for integration tests."""
 
 import os
 import sys

@@ -88,12 +88,18 @@ class McpInstallService:
 
     async def run(self, server_name: str, qa: InstallQA) -> ScaffoldResult:
         """Prompt the user via qa, create files, and return a ScaffoldResult."""
-        from mcp.installer import (  # noqa: PLC0415 — lazy: heavy installer module deferred to /mcp install
-            generate_agent_toml_mcp_snippet,
-            install_mcp_server,
-            name_to_module,
-            suggest_port,
-            tool_definition_snippet,
+        from mcp.installer_port import (
+            suggest_port,  # noqa: PLC0415 — lazy: heavy installer module deferred to /mcp install
+        )
+        from mcp.installer_templates import (
+            generate_agent_toml_mcp_snippet,  # noqa: PLC0415 — lazy: heavy installer module deferred to /mcp install
+            tool_definition_snippet,  # noqa: PLC0415 — lazy: heavy installer module deferred to /mcp install
+        )
+        from mcp.installer_validation import (
+            name_to_module,  # noqa: PLC0415 — lazy: heavy installer module deferred to /mcp install
+        )
+        from mcp.installer_writer import (
+            install_mcp_server,  # noqa: PLC0415 — lazy: heavy installer module deferred to /mcp install
         )
 
         module = name_to_module(server_name)
