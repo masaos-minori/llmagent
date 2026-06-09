@@ -23,6 +23,7 @@ from pathlib import Path
 
 from shared.config_loader import ConfigLoader
 
+from db.config import build_db_config
 from db.helper import SQLiteHelper
 from db.store import SQLiteMemoryDeleteStore
 
@@ -171,14 +172,14 @@ def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
 
 def rotate_rag_db(archive_dir: str | Path | None = None) -> Path:
     """Archive rag.sqlite to archive_dir with a timestamp suffix; returns the archive path."""
-    SQLiteHelper._ensure_config()
-    return _archive_db_file(Path(SQLiteHelper._RAG_PATH), archive_dir)
+    db_cfg = build_db_config()
+    return _archive_db_file(Path(db_cfg.rag_db_path), archive_dir)
 
 
 def rotate_session_db(archive_dir: str | Path | None = None) -> Path:
     """Archive session.sqlite to archive_dir with a timestamp suffix; returns the archive path."""
-    SQLiteHelper._ensure_config()
-    return _archive_db_file(Path(SQLiteHelper._SESSION_PATH), archive_dir)
+    db_cfg = build_db_config()
+    return _archive_db_file(Path(db_cfg.session_db_path), archive_dir)
 
 
 def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]:
@@ -275,8 +276,8 @@ def recover_corruption(
       "no_backup" — integrity failed; no usable backup_path
       "error"     — could not open DB or OS-level failure
     """
-    SQLiteHelper._ensure_config()
-    db_path = Path(SQLiteHelper._RAG_PATH)
+    db_cfg = build_db_config()
+    db_path = Path(db_cfg.rag_db_path)
 
     check_result, error_detail = _run_integrity_check(db_path)
     if check_result is None:

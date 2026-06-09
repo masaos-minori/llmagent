@@ -23,16 +23,14 @@ Embedding helpers:
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
-from shared.config_loader import ConfigLoader
-
+from db.config import build_db_config
 from db.helper import SQLiteHelper
 
 
 def get_embedding_dims() -> int:
-    """Return embedding dimensions from config; fallback to 384."""
+    """Return embedding dimensions from DbConfig; fallback to 384."""
     try:
-        cfg = ConfigLoader().load("common.toml")
-        return int(cfg.get("embedding_dims", 384))
+        return build_db_config().embedding_dims
     except Exception:
         return 384
 

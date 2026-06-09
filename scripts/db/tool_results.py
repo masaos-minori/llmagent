@@ -48,14 +48,11 @@ class ToolResultStore:
                 row_id = cur.lastrowid
                 db.commit()
             return row_id
-        except Exception as e:
-            logger.error(
-                "ToolResultStore.store failed",
-                extra={
-                    "error": str(e),
-                    "tool_name": tool_name,
-                    "session_id": session_id,
-                },
+        except Exception:
+            logger.exception(
+                "ToolResultStore.store failed (tool=%r session_id=%r)",
+                tool_name,
+                session_id,
             )
             return None
 
@@ -72,11 +69,8 @@ class ToolResultStore:
             if not rows:
                 return None
             return dict(rows[0])
-        except Exception as e:
-            logger.error(
-                "ToolResultStore.get failed",
-                extra={"error": str(e), "result_id": result_id},
-            )
+        except Exception:
+            logger.exception("ToolResultStore.get failed (id=%r)", result_id)
             return None
 
     def list_recent(self, session_id: int | None, n: int = 20) -> list[dict]:
@@ -94,9 +88,8 @@ class ToolResultStore:
                 )
             # Reverse so the oldest result is displayed first
             return [dict(r) for r in reversed(rows)]
-        except Exception as e:
-            logger.error(
-                "ToolResultStore.list_recent failed",
-                extra={"error": str(e), "session_id": session_id},
+        except Exception:
+            logger.exception(
+                "ToolResultStore.list_recent failed (session_id=%r)", session_id
             )
             return []

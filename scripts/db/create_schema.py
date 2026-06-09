@@ -16,10 +16,26 @@ from shared.logger import Logger
 from db.helper import SQLiteHelper
 from db.store import get_embedding_dims
 
-# Entry script: use Logger with a dedicated log file.
-logger = Logger(__name__, "/opt/llm/logs/create_schema.log")
 
-# Migration DDL failures that are safe to ignore (already-applied statements).
+def _get_schema_log_path() -> str:
+    """Return the schema log file path from config, falling back to the default."""
+    try:
+        from shared.config_loader import (
+            ConfigLoader,  # noqa: PLC0415 — lazy: only needed here
+        )
+
+        cfg = ConfigLoader().load("common.toml")
+        log_dir = cfg.get("log_dir", "/opt/llm/logs")
+        return f"{log_dir}/create_schema.log"
+    except Exception:
+        return "/opt/llm/logs/create_schema.log"
+
+
+# Entry script: use Logger with a dedicated log file.
+logger = Logger(__name__, _get_schema_log_path())
+
+# DEPRECATED: _SAFE_MIGRATION_ERRORS will be removed once versioned migration
+# replaces the IF NOT EXISTS + safe-skip approach. Do not add new entries here.
 _SAFE_MIGRATION_ERRORS: tuple[str, ...] = (
     "duplicate column name",  # ALTER TABLE ADD COLUMN already applied
     "already exists",  # CREATE TRIGGER IF NOT EXISTS on an existing trigger

@@ -41,14 +41,14 @@ print(SQLiteHelper._BUSY_TIMEOUT_MS)  # PRAGMA busy_timeout 値 (ミリ秒)
 
 | クラス属性 | 説明 |
 |---|---|
-| `SQLiteHelper._RAG_PATH` | `config/common.toml` の `rag_db_path` (例: `/opt/llm/db/rag.sqlite`)。`_ensure_config()` 後に確定 |
-| `SQLiteHelper._SESSION_PATH` | `config/common.toml` の `session_db_path` (例: `/opt/llm/db/session.sqlite`)。同上 |
+| `SQLiteHelper._RAG_PATH` | `DbConfig.rag_db_path` (例: `/opt/llm/db/rag.sqlite`)。`_ensure_config()` 後に確定 |
+| `SQLiteHelper._SESSION_PATH` | `DbConfig.session_db_path` (例: `/opt/llm/db/session.sqlite`)。同上 |
 | `SQLiteHelper.SQLITE_VEC_SO` | `config/common.toml` の `sqlite_vec_so` (例: `/opt/llm/sqlite-vec/vec0.so`)。同上 |
 | `SQLiteHelper._SQLITE_TIMEOUT` | `config/common.toml` の `sqlite_timeout` (デフォルト 30 秒)。同上 |
 | `SQLiteHelper._BUSY_TIMEOUT_MS` | `config/common.toml` の `sqlite_busy_timeout_ms` (デフォルト 30000 ms)。同上 |
 | `SQLiteHelper._config_loaded` | `_ensure_config()` が一度でも呼ばれたかどうかのフラグ。`True` 以降は再読み込みをスキップ |
 
-`_ensure_config()` は `ConfigLoader().load("common.toml")` を直接呼び出してクラス属性に格納する。module-level グローバルキャッシュは存在しない。
+`_ensure_config()` は `build_db_config()` (`db.config`) を呼び出してクラス属性に格納する。module-level グローバルキャッシュは存在しない。
 
 インスタンス属性 `DB_PATH` はプロパティ — `target` に応じて `_RAG_PATH` か `_SESSION_PATH` を返す。
 `open()` は内部で `_ensure_config()` を呼ぶため、接続前に明示的な初期化は不要。

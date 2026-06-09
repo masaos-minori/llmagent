@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 from db.maintenance import (
     RecoveryResult,
@@ -34,6 +35,20 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
+
+
+def _make_db_cfg(
+    tmp_path, rag_name="rag.sqlite", session_name="session.sqlite", **kwargs
+):
+    """Return a mock DbConfig pointing to tmp_path files (bypasses path validation)."""
+    from unittest.mock import MagicMock
+
+    cfg = MagicMock(spec=DbConfig)
+    cfg.rag_db_path = str(tmp_path / rag_name)
+    cfg.session_db_path = str(tmp_path / session_name)
+    cfg.sqlite_vec_so = "/fake/vec0.so"
+    cfg.embed_url = "http://127.0.0.1:8003/embedding"
+    return cfg
 
 
 class _FakeDB:
@@ -167,8 +182,9 @@ class TestRotateDb:
         db_file = tmp_path / "rag.sqlite"
         db_file.write_bytes(b"fake-db-content")
         archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(SQLiteHelper, "_RAG_PATH", str(db_file))
-        monkeypatch.setattr(SQLiteHelper, "_config_loaded", True)
+        monkeypatch.setattr(
+            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
 
         dest = rotate_rag_db(archive_dir=archive_dir)
 
@@ -183,8 +199,9 @@ class TestRotateDb:
         db_file = tmp_path / "session.sqlite"
         db_file.write_bytes(b"session-content")
         archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(SQLiteHelper, "_SESSION_PATH", str(db_file))
-        monkeypatch.setattr(SQLiteHelper, "_config_loaded", True)
+        monkeypatch.setattr(
+            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
 
         dest = rotate_session_db(archive_dir=archive_dir)
 
@@ -199,8 +216,9 @@ class TestRotateDb:
         wal_file = tmp_path / "rag.sqlite-wal"
         wal_file.write_bytes(b"wal-data")
         archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(SQLiteHelper, "_RAG_PATH", str(db_file))
-        monkeypatch.setattr(SQLiteHelper, "_config_loaded", True)
+        monkeypatch.setattr(
+            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
 
         dest = rotate_rag_db(archive_dir=archive_dir)
         wal_dest = archive_dir / (dest.name + "-wal")
@@ -209,8 +227,10 @@ class TestRotateDb:
     def test_rotate_rag_db_missing_file_raises(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(SQLiteHelper, "_RAG_PATH", str(tmp_path / "missing.sqlite"))
-        monkeypatch.setattr(SQLiteHelper, "_config_loaded", True)
+        monkeypatch.setattr(
+            "db.maintenance.build_db_config",
+            lambda: _make_db_cfg(tmp_path, rag_name="missing.sqlite"),
+        )
         with pytest.raises(FileNotFoundError):
             rotate_rag_db(archive_dir=tmp_path / "archive")
 
@@ -318,6 +338,15 @@ class TestPruneOldMemories:
 
 
 class TestRecoverCorruption:
+    @pytest.fixture(autouse=True)
+    def _patch_build_db_config(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Patch build_db_config so recover_corruption does not need real config."""
+        monkeypatch.setattr(
+            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+
     def test_db_conn_none_raises_runtime_error(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -482,10 +511,7 @@ class TestRecoverCorruption:
             def __exit__(self, *args: object) -> None:
                 pass
 
-        with (
-            patch("db.maintenance.SQLiteHelper") as mock_helper_cls,
-            patch("db.maintenance.SQLiteHelper._RAG_PATH", str(db_file)),
-        ):
+        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
             result = recover_corruption(backup_path=str(backup_file))
 
@@ -517,7 +543,6 @@ class TestRecoverCorruption:
         with (
             patch("db.maintenance.SQLiteHelper") as mock_helper_cls,
             patch("db.maintenance.shutil.copy2", side_effect=OSError("disk full")),
-            patch("db.maintenance.SQLiteHelper._RAG_PATH", str(db_file)),
         ):
             mock_helper_cls.return_value.open.return_value = FakeContext()
             result = recover_corruption(backup_path=str(backup_file))

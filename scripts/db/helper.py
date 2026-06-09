@@ -11,7 +11,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
 
-from shared.config_loader import ConfigLoader
+from db.config import build_db_config
 
 logger = logging.getLogger(__name__)
 
@@ -32,21 +32,19 @@ class SQLiteHelper:
 
     @classmethod
     def _ensure_config(cls) -> None:
-        """Populate all class-level config attrs from common.toml on first call."""
+        """Populate all class-level config attrs from DbConfig on first call."""
         if cls._config_loaded:
             return
         try:
-            cfg = ConfigLoader().load("common.toml")
+            db_cfg = build_db_config()
         except Exception as e:
-            logger.warning(f"Config load failed: {e}")
-            cfg = {}
-        cls._RAG_PATH = cfg.get("rag_db_path", "")
-        cls._SESSION_PATH = cfg.get("session_db_path", "")
-        cls.SQLITE_VEC_SO = cfg.get("sqlite_vec_so", "")
-        cls._SQLITE_TIMEOUT = int(cfg.get("sqlite_timeout", 30))
-        cls._BUSY_TIMEOUT_MS = int(
-            cfg.get("sqlite_busy_timeout_ms", _DEFAULT_BUSY_TIMEOUT_MS)
-        )
+            logger.warning(f"DbConfig load failed: {e}")
+            return
+        cls._RAG_PATH = db_cfg.rag_db_path
+        cls._SESSION_PATH = db_cfg.session_db_path
+        cls.SQLITE_VEC_SO = db_cfg.sqlite_vec_so
+        cls._SQLITE_TIMEOUT = db_cfg.sqlite_timeout
+        cls._BUSY_TIMEOUT_MS = db_cfg.sqlite_busy_timeout_ms
         cls._config_loaded = True
 
     def __init__(self, target: str = "rag") -> None:
