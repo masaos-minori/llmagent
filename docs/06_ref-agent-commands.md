@@ -19,7 +19,7 @@
 | `_IngestMixin` | `agent/commands/cmd_ingest.py` | `/ingest`, `/export`, `/compact` |
 | `_MemoryMixin` | `agent/commands/cmd_memory.py` | `/memory` 系 |
 
-共有ユーティリティ: `agent/commands/utils.py` の `render_history_md(history) -> str` は `/export` コマンドが使用する Markdown 変換関数。
+共有ユーティリティ: `agent/commands/utils.py` は `/export` コマンドが使用する `render_history_md(history) -> str` と、複数の mixin から共有される引数解析ヘルパー `parse_flag_int(tokens, flag)` / `parse_flag_str(tokens, flag)` を提供する。
 
 ## 2. API
 
@@ -44,7 +44,7 @@ matched = await cmds.dispatch("/stats")
 
 | メソッド | 説明 |
 |---|---|
-| `dispatch(line) -> bool` (async) | スラッシュコマンドをルーティングし、マッチした場合は `True` を返す。完全一致 sync コマンド → 完全一致 async コマンド → プレフィックスコマンド → プラグインコマンドの順で照合 |
+| `dispatch(line) -> bool` (async) | スラッシュコマンドをルーティングし、マッチした場合は `True` を返す。`_COMMANDS` リストを順に走査し exact-match / prefix 判定（境界判定: `line == name or line.startswith(name + " ")`）を行う。未マッチ時はプラグインコマンドへフォールバック |
 | `_dispatch_plugin(line) -> bool` (async) | `plugin_registry.iter_commands()` を走査し、完全一致・プレフィックス一致のプラグインコマンドにディスパッチ。マッチした場合は `True` を返す |
 
 完全一致 sync コマンド (引数なし): `/help`, `/config`, `/stats`, `/context`, `/plan`, `/undo`, `/reload`
@@ -108,7 +108,7 @@ matched = await cmds.dispatch("/stats")
 | `_cmd_clear(args) -> None` | 会話履歴をシステムプロンプトのみにリセット。ターン数・ツール呼び出し数・ツールエラー数・レイテンシ統計・セマンティックキャッシュヒット数・LLM リトライ数をゼロにリセット。`args` に `"new"` を含む場合は新規 DB セッションも開始 |
 | `_cmd_undo() -> None` | 直前の user+assistant ターンをメモリ履歴と DB からロールバック。直前ユーザメッセージの前に挿入されたメモリ注入メッセージ (`_memory_injected=True`) も一括除去 |
 | `_cmd_history(args) -> None` | 直近 N 件の user/assistant メッセージを先頭 120 文字プレビューで表示 (デフォルト N=5) |
-| `_cmd_system(args) -> None` | `ctx.conv.system_prompt_content` を更新し `ctx.conv.system_prompt_name` を切り替え。`args=""` で現在のプレセット名と利用可能な一覧を表示。`history[0]` への直書きは廃止 — Orchestrator が次ターン開始時に同期する |
+| `_cmd_system(args) -> None` | `ctx.conv.system_prompt_content` / `system_prompt_name` を更新し、`history[0]` を即時書き換えてシステムプロンプトをそのターンから有効化する。`args=""` で現在のプレセット名と利用可能な一覧を表示 |
 
 ### 3.7 /db 系 (_DbMixin)
 
