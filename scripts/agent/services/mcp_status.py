@@ -41,7 +41,10 @@ class McpServerStatus:
     auth: str
     write: str
     role: str
-    status: str
+    availability: (
+        str  # "OK" | "HTTP NNN" | "FAIL (...)" | "STOPPED" | "NOT_STARTED" | ...
+    )
+    health: str  # "HEALTHY" | "DEGRADED" | "UNAVAILABLE"
     endpoint: str
 
 
@@ -60,21 +63,19 @@ class McpStatusService:
                 auth = "yes" if cfg.auth_token else "no"
                 write = _tier_label_for_server(cfg.tool_names, tiers)
                 if cfg.transport == "http":
-                    status = await self._get_http_status(probe, cfg.url)
+                    availability = await self._get_http_status(probe, cfg.url)
                     endpoint = cfg.url
                 else:
-                    status = self._get_stdio_status(ctx, key, cfg.startup_mode)
+                    availability = self._get_stdio_status(ctx, key, cfg.startup_mode)
                     endpoint = " ".join(cfg.cmd) if cfg.cmd else ""
-                # Add health state to status display
                 health_state = (
                     ctx.services.health_registry.get_state(key)
                     if ctx.services.health_registry
                     else McpServerHealthState.HEALTHY
                 )
-                health_label = (
+                health = (
                     health_state.value.upper()
                 )  # "HEALTHY" | "DEGRADED" | "UNAVAILABLE"
-                status = f"{status}/{health_label}"
                 results.append(
                     McpServerStatus(
                         key=key,
@@ -83,41 +84,12 @@ class McpStatusService:
                         auth=auth,
                         write=write,
                         role=cfg.role or "",
-                        status=status,
+                        availability=availability,
+                        health=health,
                         endpoint=endpoint,
                     )
                 )
         return results
-
-    def format_table(self, rows: list[McpServerStatus]) -> str:
-        col = "{:<14} {:<6} {:<11} {:<5} {:<12} {:<12} {:<16} {}"
-        lines = [
-            col.format(
-                "SERVER",
-                "TRANS",
-                "MODE",
-                "AUTH",
-                "WRITE",
-                "ROLE",
-                "STATUS",
-                "ENDPOINT/CMD",
-            ),
-            "-" * 99,
-        ]
-        for r in rows:
-            lines.append(
-                col.format(
-                    r.key,
-                    r.transport,
-                    r.startup_mode,
-                    r.auth,
-                    r.write,
-                    r.role,
-                    r.status,
-                    r.endpoint,
-                )
-            )
-        return "\n".join(lines)
 
     async def _get_http_status(self, probe: httpx.AsyncClient, url: str) -> str:
         if not url:

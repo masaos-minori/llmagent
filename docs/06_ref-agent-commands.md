@@ -72,15 +72,15 @@ matched = await cmds.dispatch("/stats")
 ### 3.4 /mcp 系 (_McpMixin)
 
 `_McpMixin` は薄いディスパッチャ。実処理は `agent/services/` のサービスクラスに委譲:
-- `McpStatusService` (`agent/services/mcp_status.py`): `probe_all() -> list[McpServerStatus]` / `format_table(rows) -> str`
-- `McpInstallService` (`agent/services/mcp_install.py`): `run(server_name, qa) -> ScaffoldResult` / `print_next_steps(result)`
+- `McpStatusService` (`agent/services/mcp_status.py`): `probe_all() -> list[McpServerStatus]` (table formatting moved to `cmd_mcp._format_mcp_table()`)
+- `McpInstallService` (`agent/services/mcp_install.py`): `run(server_name, qa) -> ScaffoldResult` (next-steps output moved to `cmd_mcp._print_mcp_install_next_steps()`)
 - `InstallQA` (Protocol) / `CliInstallQA` (CLI 実装): I/O を抽象化。`CliInstallQA(port, role, with_confd)` — 非 None 値はそのまま返し、None は `input()` で問い合わせ
 
 | メソッド | 説明 |
 |---|---|
 | `_cmd_mcp(args) -> None` (async) | `args` が `"install <name>"` の場合はウィザードを起動、それ以外はサーバ状態テーブルを表示 |
-| `_cmd_mcp_status() -> None` (async) | `McpStatusService.probe_all()` で全サーバの状態を取得し `format_table()` で表示。HTTP サーバは `/health` エンドポイントへの実際の疎通確認を行う (タイムアウト 5 秒) |
-| `_cmd_mcp_install(server_name) -> None` (async) | `CliInstallQA` を生成し `McpInstallService.run()` でテンプレートファイルを生成、`print_next_steps()` で次ステップチェックリストを表示 |
+| `_cmd_mcp_status() -> None` (async) | `McpStatusService.probe_all()` で全サーバの状態を取得し `_format_mcp_table()` で表示。HTTP サーバは `/health` エンドポイントへの実際の疎通確認を行う (タイムアウト 5 秒) |
+| `_cmd_mcp_install(server_name) -> None` (async) | `CliInstallQA` を生成し `McpInstallService.run()` でテンプレートファイルを生成、`_print_mcp_install_next_steps()` で次ステップチェックリストを表示 |
 
 ### 3.5 /config, /stats, /set, /reload (_ConfigMixin)
 
@@ -98,7 +98,7 @@ matched = await cmds.dispatch("/stats")
 | `_apply_llm_prompt_params(ctx, new_cfg) -> None` | URL/HTTP/LLM 生成/ツール定義/プロンプト設定を適用する内部ヘルパー |
 | `_apply_sse_reload_params(ctx, new_cfg) -> None` | SSE ストリームの耐障害性設定を適用する内部ヘルパー |
 | `_reload_approval_settings(ctx, new_cfg) -> None` | 承認関連リスト/辞書フィールドを更新する内部ヘルパー |
-| `_sync_services_to_cfg(ctx, new_cfg) -> None` | `ConfigReloadService(ctx).sync_services(new_cfg)` を呼び出す 1 行ラッパー。実処理は `agent/services/config_reload.py` の `ConfigReloadService` に委譲 |
+| `_sync_services_to_cfg(ctx, new_cfg) -> None` | `ConfigReloadService(ctx).apply_config_dict(new_cfg)` を呼び出す 1 行ラッパー。実処理は `agent/services/config_reload.py` の `ConfigReloadService` に委譲 |
 
 ### 3.6 /context, /clear, /undo, /history, /system (_ContextMixin)
 

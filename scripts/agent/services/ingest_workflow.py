@@ -92,6 +92,7 @@ class IngestWorkflowService:
                     return False
                 result.messages.append("[ingest] file read done")
         except Exception as e:
+            logger.exception("Ingest crawl stage failed for %r", target)
             result.stage = "crawl"
             result.error = str(e)
             return False
@@ -123,6 +124,7 @@ class IngestWorkflowService:
             result.n_chunks = await loop.run_in_executor(None, splitter.process_all)
             result.messages.append(f"[ingest] {result.n_chunks} chunks written")
         except Exception as e:
+            logger.exception("Ingest split stage failed")
             result.stage = "split"
             result.error = str(e)
             return
@@ -137,5 +139,6 @@ class IngestWorkflowService:
             await loop.run_in_executor(None, ingester.ingest_all)
             result.messages.append("[ingest] done — RAG DB updated")
         except Exception as e:
+            logger.exception("Ingest ingest stage failed")
             result.stage = "ingest"
             result.error = str(e)
