@@ -187,7 +187,7 @@ AgentREPL.run()
        └─ Orchestrator.handle_turn(line)
             └─ memory.on_user_prompt()  ← use_memory_layer=True のとき関連メモリを注入
             └─ _append_user_message()  — user メッセージを history に追記・セッション保存
-            └─ asyncio.create_task(_cmds._generate_session_title())  ← 第1ターンのみ
+            └─ asyncio.create_task(_cmds._generate_session_title())  ← 第1ターンのみ (SessionTitleService に委譲)
             └─ hist_mgr.compress() — 履歴圧縮 (context_char_limit / context_token_limit)
             └─ _run_turn()         — LLM SSE ストリーム + ツールループ (max_tool_turns 回)
                  └─ execute_all_tool_calls()  — 承認・並列/直列実行・結果追記

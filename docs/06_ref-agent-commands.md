@@ -8,11 +8,11 @@
 
 | ミックスイン | ファイル | 担当コマンド |
 |---|---|---|
-| `_SessionMixin` | `agent/commands/cmd_session.py` | `/session` 系 |
+| `_SessionMixin` | `agent/commands/cmd_session.py` | `/session` 系 (委譲先: `agent/services/session_title.py`, `agent/services/session_restore.py`) |
 | `_McpMixin` | `agent/commands/cmd_mcp.py` | `/mcp` 系 (委譲先: `agent/services/mcp_status.py`, `agent/services/mcp_install.py`) |
 | `_ConfigMixin` | `agent/commands/cmd_config.py` | `/config`, `/stats`, `/set`, `/reload` (委譲先: `agent/services/config_reload.py`) |
-| `_ContextMixin` | `agent/commands/cmd_context.py` | `/context`, `/clear`, `/undo`, `/history`, `/system` |
-| `_DbMixin` | `agent/commands/cmd_db.py` | `/db` 系 |
+| `_ContextMixin` | `agent/commands/cmd_context.py` | `/context`, `/clear`, `/undo`, `/history`, `/system` (委譲先: `agent/services/context_view.py`, `agent/services/undo_service.py`) |
+| `_DbMixin` | `agent/commands/cmd_db.py` | `/db` 系 (委譲先: `agent/services/db_maintenance_service.py`) |
 | `_ToolingMixin` | `agent/commands/cmd_tooling.py` | `/tool`, `/plan` |
 | `_NotesMixin` | `agent/commands/cmd_notes.py` | `/note` |
 | `_DebugMixin` | `agent/commands/cmd_debug.py` | `/debug` |
@@ -35,7 +35,7 @@ matched = await cmds.dispatch("/stats")
 
 | 関数 | 定義元 | 説明 |
 |---|---|---|
-| `_budget_breakdown(messages) -> dict[str, int]` | `cmd_context.py` | メッセージリストを system / history / tool_results に分類して文字数を集計 |
+| `budget_breakdown(messages) -> dict[str, int]` | `services/context_view.py` | メッセージリストを system / history / tool_results に分類して文字数を集計 |
 | `mask_args(args, masked_fields) -> dict` | `registry.py` | `masked_fields` に含まれるキーの値を `"***"` に置換して返す |
 
 ## 3. CommandRegistry メソッド一覧
@@ -64,7 +64,7 @@ matched = await cmds.dispatch("/stats")
 | メソッド | 説明 |
 |---|---|
 | `_cmd_session(args) -> None` | `/session list [n]` / `/session load <id>` / `/session rename <title>` / `/session delete <id>` をディスパッチ |
-| `_generate_session_title(first_input) -> None` (async) | チャットモデルに 8 語以内のセッションタイトルを生成させ保存。失敗時は入力を先頭 50 文字に切り詰めて保存 |
+| `_generate_session_title(first_input) -> None` (async) | `SessionTitleService.generate()` に委譲。チャットモデルで 8 語以内のタイトルを生成して保存。失敗時は入力先頭 50 文字にフォールバック |
 | `_session_load_safe(arg) -> None` | arg を整数 session_id としてパースし `_load_session()` を呼び出し。不正値はエラーメッセージを表示 |
 | `_session_delete(arg) -> None` | arg を整数 session_id としてパースし、現在セッションへの削除を拒否した上で削除を実行 |
 | `_load_session(session_id) -> None` | `ctx.session.fetch_messages()` でメッセージを取得し、システムメッセージを保持した上で `ctx.conv.history` に統合 |

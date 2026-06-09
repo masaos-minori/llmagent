@@ -169,7 +169,7 @@ POST :8006/v1/call_tool     {"name": "github_search_repositories", "args": {"que
 | ツール結果の要約・構造化 | `agent/repl_tool_exec.execute_all_tool_calls`, `rag/llm.RagLLM.summarize_tool_result` | `use_tool_summarize=true` かつ結果が `tool_summarize_threshold` 超のとき LLM で要約してから履歴追加。全文は `ctx.tool_result_store` に保持し `/tool show` で参照可能 |
 | セマンティックキャッシュ | `rag/pipeline.SemanticCache`, `Orchestrator.handle_turn` | クエリ埋め込みのコサイン類似度が `semantic_cache_threshold` 以上のとき RAG パイプラインをスキップし前回コンテキストを再利用する。`/stats` でヒット数・キャッシュサイズを表示 |
 | RAG コンテキスト Refiner | `rag/llm.RagLLM.refine_context`, `rag/pipeline.RagPipeline.augment` | `use_refiner=true` のとき Rerank 後チャンクを 1 回の LLM 呼び出しでクエリ関連要点に圧縮して投入する。トークン削減と情報密度向上が目的。空出力・例外時は原文チャンクにフォールバックする |
-| コンテキスト予算管理 | `agent/commands.CommandRegistry._budget_breakdown`, `agent/commands.CommandRegistry.CommandRegistry._cmd_context`, `Orchestrator._run_turn` | `/context` でカテゴリ別（system / rag / history / tool_results）文字数と割合を表示。毎ターン `context_char_limit` の 80% 超過時に `logger.warning` で内訳付き警告を出力 |
+| コンテキスト予算管理 | `agent/services.context_view.budget_breakdown`, `agent/commands.CommandRegistry._cmd_context`, `Orchestrator._run_turn` | `/context` でカテゴリ別（system / rag / history / tool_results）文字数と割合を表示。毎ターン `context_char_limit` の 80% 超過時に `logger.warning` で内訳付き警告を出力 |
 | `/context` システムプロンプト名表示 | `agent/commands.CommandRegistry._cmd_context` | 現在のプレセット名を表示行に追加 |
 | `/session rename` / `/session delete` | `agent/commands.CommandRegistry._cmd_session` | タイトル変更・セッション削除 |
 | `/clear new` | `agent/commands.CommandRegistry._cmd_clear` | 引数 `new` でリセットと同時に新セッションを開始 |
