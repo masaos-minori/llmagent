@@ -159,3 +159,103 @@ class TestReadAll:
         entries = store.read_all()
         assert store.malformed_count >= 1
         assert len(entries) == 1
+
+
+class TestConcurrentWrites:
+    @pytest.mark.asyncio
+    async def test_many_concurrent_writes(self, tmp_path) -> None:
+        """Many concurrent write calls all succeed without corruption."""
+        import asyncio
+
+        store = JsonlMemoryStore(tmp_path / "mem.jsonl")
+        num_writes = 50
+
+        async def write_one(i: int) -> None:
+            entry = _make_entry(memory_id=f"id-{i:03d}", content=f"content {i}")
+            await store.write(entry)
+
+        await asyncio.gather(*[write_one(i) for i in range(num_writes)])
+        entries = store.read_all()
+        assert len(entries) == num_writes
+        ids = {e.memory_id for e in entries}
+        expected = {f"id-{i:03d}" for i in range(num_writes)}
+        assert ids == expected
+
+    @pytest.mark.asyncio
+    async def test_concurrent_write_and_read(self, tmp_path) -> None:
+        """Concurrent writes and reads don't corrupt the file."""
+        import asyncio
+
+        store = JsonlMemoryStore(tmp_path / "mem.jsonl")
+        num_writes = 20
+
+        async def write_many() -> None:
+            for i in range(num_writes):
+                entry = _make_entry(memory_id=f"id-{i:03d}", content=f"content {i}")
+                await store.write(entry)
+                await asyncio.sleep(0.001)  # small delay to increase interleaving
+
+        async def read_many() -> list[MemoryEntry]:
+            await asyncio.sleep(0.005)  # start reading after writes begin
+            await asyncio.sleep(0.1)
+            return store.read_all()
+
+        write_task = asyncio.create_task(write_many())
+        read_task = asyncio.create_task(read_many())
+        await asyncio.gather(write_task, read_task)
+        entries = store.read_all()
+        assert len(entries) == num_writes
+
+    @pytest.mark.asyncio
+    async def test_rapid_concurrent_writes_same_file(self, tmp_path) -> None:
+        """Rapid concurrent writes to same file are serialized correctly."""
+        store = JsonlMemoryStore(tmp_path / "mem.jsonl")
+        num_writes = 100
+
+        async def write_one(i: int) -> None:
+            entry = _make_entry(memory_id=f"rapid-{i}", content="x" * 100)
+            await store.write(entry)
+
+        await asyncio.gather(*[write_one(i) for i in range(num_writes)])
+        entries = store.read_all()
+        assert len(entries) == num_writes
+        # Verify no duplicate or missing entries
+        ids = [e.memory_id for e in entries]
+        assert len(ids) == len(set(ids))  # all unique
+
+
+class TestEntryFromDict:
+    def test_fallback_to_conversation_on_unknown_source_type(self, tmp_path) -> None:
+        """Unknown source_type falls back to SourceType.CONVERSATION."""
+        import orjson
+
+        path = tmp_path / "mem.jsonl"
+        data = {
+            "memory_id": "test-id",
+            "memory_type": "semantic",
+            "source_type": "unknown_source",
+            "content": "test",
+        }
+        with path.open("wb") as f:
+            f.write(orjson.dumps(data) + b"\n")
+        store = JsonlMemoryStore(path)
+        entries = store.read_all()
+        assert len(entries) == 1
+        assert entries[0].source_type.value == "conversation"
+
+    def test_exception_during_entry_parsing_skips_entry(self, tmp_path) -> None:
+        """Exception during entry parsing skips the entry."""
+        import orjson
+
+        path = tmp_path / "mem.jsonl"
+        # Missing required memory_id field
+        data = {
+            "memory_type": "semantic",
+            "source_type": "rule",
+            "content": "test",
+        }
+        with path.open("wb") as f:
+            f.write(orjson.dumps(data) + b"\n")
+        store = JsonlMemoryStore(path)
+        entries = store.read_all()
+        assert len(entries) == 0
