@@ -24,7 +24,7 @@ scripts/agent/repl_health.py               →  /opt/llm/scripts/agent/repl_heal
 scripts/agent/repl_debug.py                →  /opt/llm/scripts/agent/repl_debug.py
 scripts/agent/cli_view.py                  →  /opt/llm/scripts/agent/cli_view.py
 scripts/agent/memory/types.py              →  /opt/llm/scripts/agent/memory/types.py
-scripts/agent/memory/layer.py              →  /opt/llm/scripts/agent/memory/layer.py
+scripts/agent/memory/services.py           →  /opt/llm/scripts/agent/memory/services.py
 scripts/agent/memory/store.py              →  /opt/llm/scripts/agent/memory/store.py
 scripts/agent/memory/retriever.py          →  /opt/llm/scripts/agent/memory/retriever.py
 scripts/agent/memory/extract.py            →  /opt/llm/scripts/agent/memory/extract.py
@@ -185,12 +185,12 @@ conf.d/github-mcp                          →  /etc/conf.d/github-mcp
   │   │   ├─ cli_view.py                      # CLIView: readline 設定・RAG 進捗表示・マルチライン入力
   │   │   ├─ lifecycle.py                      # ServerLifecycleManager: stdio サーバ起動管理
   │   │   ├─ memory/
-  │   │   │   ├─ types.py                     # MemoryEntry / MemoryQuery / MemoryHit データクラス
-  │   │   │   ├─ layer.py                     # MemoryLayer: SessionStart/UserPrompt/Stop ライフサイクルファサード
+  │   │   │   ├─ types.py                     # MemoryEntry / MemoryQuery / MemoryHit / EmbeddingResult データクラス
+  │   │   │   ├─ services.py                  # MemoryServices: memory サブサービスコンテナ (AppServices.memory の型)
   │   │   │   ├─ store.py                     # MemoryStore: SQLite CRUD (`memories` / `memories_fts` / `memories_vec`)
-  │   │   │   ├─ retriever.py                 # MemoryRetriever: FTS5 + KNN RRF 検索
+  │   │   │   ├─ retriever.py                 # FtsRetriever / VectorRetriever / HybridRetriever: FTS5 + KNN RRF 検索
   │   │   │   ├─ extract.py                   # extract_memories(): ルールベース履歴抽出
-  │   │   │   └─ jsonl_store.py               # JsonlMemoryStore: 追記専用 JSONL ソース
+  │   │   │   └─ jsonl_store.py               # JsonlMemoryStore: 追記専用 JSONL ソース (write() 1 本)
   │   │   └─ commands/
   │   │       ├─ registry.py                  # CommandRegistry: スラッシュコマンドディスパッチャ
   │   │       ├─ cmd_session.py               # /session コマンド

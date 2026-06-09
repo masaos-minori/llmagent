@@ -8,7 +8,7 @@
 
 ```
 ユーザー入力
-  ① Memory   — MemoryLayer.on_user_prompt() で関連メモリを system ロールとして履歴注入 (use_memory_layer=True のとき)
+  ① Memory   — MemoryInjectionService.on_user_prompt() で関連メモリを system ロールとして履歴注入 (use_memory_layer=True のとき)
   ② Append   — ユーザーメッセージをそのまま履歴に追記 (Orchestrator._append_user_message)
   ③ Compress — HistoryManager.compress() が char/token 上限超過時に古いターンを LLM 要約に置換
   ④ LLM      — ツール定義と会話履歴を SSE ストリーミングで送信 (全ターン共通)

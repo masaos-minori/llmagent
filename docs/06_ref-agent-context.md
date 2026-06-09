@@ -80,5 +80,5 @@ per-turn 一時フィールド。`Orchestrator.handle_turn()` が各ターンで
 | `hist_mgr` | `HistoryManager` | — | 履歴文字数カウント・圧縮担当 |
 | `lifecycle` | `ServerLifecycleManager` | — | ondemand stdio サーバの起動・停止ライフサイクル管理 |
 | `audit_logger` | `Logger` | — | JSON-lines 形式で `audit.log` にターンイベントを書き込む構造化ロガー |
-| `memory` | `MemoryLayer \| None` | `None` | Long-term メモリファサード。`AgentConfig.use_memory_layer=False` (デフォルト) のとき `None` |
+| `memory` | `MemoryServices \| None` | `None` | memory サブサービスコンテナ。`AgentConfig.use_memory_layer=False` (デフォルト) のとき `None`。`mem.injection` / `mem.ingestion` / `mem.store` / `mem.retriever` で各サービスに直接アクセス |
 | `stdio_procs` | `dict[str, StdioTransport]` | `{}` | サーバキー → StdioTransport。stdio トランスポートのプロセスを管理 |

@@ -469,7 +469,7 @@ store = ToolResultStore()
 
 ## memories / memories_fts / memories_vec テーブル
 
-`session.sqlite` に配置。`MemoryStore` (`agent/memory/store.py`) が CRUD を担当。`MemoryLayer` (`agent/memory/layer.py`) が SessionStart / UserPrompt / Stop ライフサイクルで読み書きする。
+`session.sqlite` に配置。`MemoryStore` (`agent/memory/store.py`) が CRUD を担当。`MemoryServices` (`agent/memory/services.py`) 経由の各サブサービスが SessionStart / UserPrompt / Stop ライフサイクルで読み書きする。
 
 ### memories テーブルスキーマ
 
@@ -493,15 +493,15 @@ store = ToolResultStore()
 
 ### memories_fts テーブル
 
-`memories` テーブルのコンテンツと同期する FTS5 仮想テーブル (`content_rowid=memory_id` は不使用; `rowid` は `memories` の rowid に対応)。`MemoryRetriever.search()` が BM25 全文検索に使用する。
+`memories` テーブルのコンテンツと同期する FTS5 仮想テーブル (`content_rowid=memory_id` は不使用; `rowid` は `memories` の rowid に対応)。`FtsRetriever.search()` が BM25 全文検索に使用する。
 
 ### memories_vec テーブル
 
-`vec0` 仮想テーブル (sqlite-vec 拡張)。`memory_id TEXT` と `embedding FLOAT[384]` を持つ。`embed_enabled=True` かつ埋込生成に成功した場合のみ書き込まれる。`MemoryRetriever._vec_search()` が KNN 近傍検索に使用する。
+`vec0` 仮想テーブル (sqlite-vec 拡張)。`memory_id TEXT` と `embedding FLOAT[384]` を持つ。`embed_enabled=True` かつ埋込生成に成功した場合のみ書き込まれる。`VectorRetriever.knn_search()` が KNN 近傍検索に使用する。
 
 ### memory_links テーブル
 
-`src_id TEXT` / `dst_id TEXT` の 2 カラム (PRIMARY KEY は `(src_id, dst_id)`)。`MemoryLayer._link_duplicates()` がコサイン距離 `< dedup_threshold` のエントリ間にリンクを記録する (重複排除用)。
+`src_id TEXT` / `dst_id TEXT` の 2 カラム (PRIMARY KEY は `(src_id, dst_id)`)。`MemoryIngestionService._link_duplicates()` がコサイン距離 `< dedup_threshold` のエントリ間にリンクを記録する (重複排除用)。
 
 ### MemoryStore API
 
@@ -522,3 +522,5 @@ store = MemoryStore()
 | `count_vec()` | `() -> int` | `memories_vec` の総行数を返す。`vec0` 未ロード時は `0` |
 | `pin(memory_id)` / `unpin(memory_id)` | `(memory_id: str) -> bool` | ピン留め / 解除。見つかった場合は `True` |
 | `clear_by_session(session_id)` | `(session_id: int) -> int` | 指定セッションの全エントリを削除して削除数を返す |
+| `count_entries()` | `() -> int` | 全メモリ件数を返す。DB エラー時は `0` |
+| `count_prunable(days)` | `(days: int) -> int` | `days` 日より古いエントリ件数を返す (削除なし) |

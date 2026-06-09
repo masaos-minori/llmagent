@@ -10,7 +10,7 @@ REPL エージェントを構成するランタイムコンポーネント群。
 | `agent/config.py` | 共有設定定数 + `AgentConfig` dataclass + `build_agent_config()` | [06_ref-agent-config.md](06_ref-agent-config.md) |
 | `agent/context.py` | `AgentContext` — 全コンポーネント参照と per-session mutable state の一元管理 | [06_ref-agent-context.md](06_ref-agent-context.md) |
 | `agent/memory/store.py` | `MemoryStore` — memories / memories_fts テーブルの SQLite CRUD + vec0 KNN 検索 | [06_ref-agent-context.md](06_ref-agent-context.md) |
-| `agent/memory/layer.py` | `MemoryLayer` — 3 サブサービスへの薄いファサード (SessionStart / UserPrompt / Stop ライフサイクル) | [06_ref-agent-context.md](06_ref-agent-context.md) |
+| `agent/memory/services.py` | `MemoryServices` — memory サブサービスのコンテナ (AppServices.memory の型) | [06_ref-agent-context.md](06_ref-agent-context.md) |
 | `agent/memory/injection.py` | `MemoryInjectionService` — セッション開始 / ユーザープロンプト時のメモリ注入 | [06_ref-agent-context.md](06_ref-agent-context.md) |
 | `agent/memory/ingestion.py` | `MemoryIngestionService` — セッション終了時の会話履歴からのメモリ抽出・永続化 | [06_ref-agent-context.md](06_ref-agent-context.md) |
 | `agent/memory/embedding_client.py` | `EmbeddingClient` — リトライ + サーキットブレーカ付き埋め込みベクトル取得クライアント | [06_ref-agent-context.md](06_ref-agent-context.md) |

@@ -126,7 +126,7 @@ LLM エージェント REPL（Read-Eval-Print Loop）として、ユーザーの
           No  → 最終応答を表示・DB 保存
 
 [セッション終了]
-  MemoryLayer.on_session_stop() (use_memory_layer=true の場合)
+  MemoryIngestionService.on_session_stop() (use_memory_layer=true の場合)
   lifecycle.shutdown_all()
 ```
 
@@ -240,26 +240,33 @@ class HistoryManager:
 | `/debug` | デバッグモード切り替え |
 | `/exit` | 終了 |
 
-### 10.5 MemoryLayer
+### 10.5 MemoryServices
+
+MemoryLayer 廃止後の memory サブサービスコンテナ。`AppServices.memory: MemoryServices | None`。
 
 ```python
-class MemoryLayer:
-    # ライフサイクルフック
-    def on_session_start(session_id: int | None) -> list[str]
-    async def on_user_prompt(query: str, session_id: int | None) -> list[str]
-    async def on_session_stop(session_id: int | None, history: list[LLMMessage], turn_id: str | None = None) -> None
-    # 手動書き込み
-    async def write_semantic(session_id: int | None, content: str) -> None
-    async def write_episodic(session_id: int | None, content: str) -> None
-    # CRUD ファサード
-    def list_entries(mem_type: str = "", limit: int = 10) -> list[MemoryEntry]
-    def get_entry(memory_id: str) -> MemoryEntry | None
-    def pin_entry(memory_id: str) -> bool
-    def unpin_entry(memory_id: str) -> bool
-    def delete_entry(memory_id: str) -> bool
-    def prune(days: int) -> int
-    def count_prunable(days: int) -> int
-    def search(query: str, limit: int = 10) -> list[MemoryHit]
+@dataclass
+class MemoryServices:
+    injection: MemoryInjectionService   # on_session_start / on_user_prompt
+    ingestion: MemoryIngestionService   # on_session_stop / write_semantic / write_episodic
+    store: MemoryStore                  # CRUD (get_by_id / pin / unpin / delete / count_*)
+    retriever: HybridRetriever          # search / top_semantic / knn_search
+
+# ライフサイクルフック
+mem.injection.on_session_start(session_id) -> list[str]
+await mem.injection.on_user_prompt(query, session_id) -> list[str]
+await mem.ingestion.on_session_stop(session_id, history, turn_id) -> None
+# 手動書き込み
+await mem.ingestion.write_semantic(session_id, content) -> None
+await mem.ingestion.write_episodic(session_id, content) -> None
+# ストア操作
+mem.store.get_by_id(memory_id) -> MemoryEntry | None
+mem.store.pin(memory_id) / mem.store.unpin(memory_id) -> bool
+mem.store.delete(memory_id) -> bool
+mem.store.count_entries() -> int
+mem.store.count_prunable(days) -> int
+# 検索
+mem.retriever.search(query, embedding=None) -> list[MemoryHit]
 ```
 
 ---

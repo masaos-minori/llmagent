@@ -154,4 +154,4 @@ Budget breakdown:
   tool_results  :      100 chars (  3%)
 ```
 
-`Memory layer : enabled (entries=N)` と表示された場合、MemoryLayer が有効で N 件のエントリが存在する。
+`Memory layer : enabled (entries=N)` と表示された場合、MemoryServices が有効で N 件のエントリが存在する。
