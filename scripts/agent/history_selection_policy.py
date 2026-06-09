@@ -70,9 +70,10 @@ class HistorySelectionPolicy:
             if "error" in content.lower() or "failed" in content.lower():
                 return 0.8
             return 0.3
-        if role == "assistant" and _POLICY_KEYWORDS.search(content):
+        has_policy = bool(_POLICY_KEYWORDS.search(content))
+        if role == "assistant" and has_policy:
             return 0.8
-        if role == "user" and _POLICY_KEYWORDS.search(content):
+        if role == "user" and has_policy:
             return 0.9
         if role == "assistant" and msg.get("tool_calls"):
             return 0.6

@@ -6,6 +6,8 @@ Extracted from orchestrator.py. LLMTurnRunner.run() replaces _run_turn().
 
 from __future__ import annotations
 
+import logging
+from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any
 
 from shared.llm_client import LLMClient, LLMTransportError
@@ -16,8 +18,6 @@ from agent.tool_runner import execute_all_tool_calls
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -105,19 +105,7 @@ class LLMTurnRunner:
         """Return a real OTel span or a no-op context manager when no tracer."""
         if self._tracer is not None:
             return self._tracer.start_as_current_span(name)
-
-        # Return a no-op context manager
-        class _NullContextManager:
-            def __enter__(self) -> _NullContextManager:
-                return self
-
-            def __exit__(self, *args: object) -> None:
-                pass
-
-            def set_attribute(self, _key: str, _value: object) -> None:
-                pass
-
-        return _NullContextManager()
+        return nullcontext()
 
     async def _finalize_answer(self, message: LLMMessage) -> str:
         """Append the done-turn message to history and return the answer text."""
