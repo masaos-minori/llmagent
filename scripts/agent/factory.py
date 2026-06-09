@@ -29,7 +29,7 @@ from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.stdio_lifecycle import StdioServerLifecycleManager, TransportState
 
 if TYPE_CHECKING:
-    from agent.memory.layer import MemoryLayer
+    from agent.memory.services import MemoryServices
 
 # LLM parameters used by HistoryManager for conversation compression
 _COMPRESS_TEMPERATURE: float = 0.3
@@ -211,47 +211,77 @@ def _build_history_manager(
     )
 
 
-def _build_memory_layer(
+def _build_memory_services(
     ctx: AgentContext,
     http: httpx.AsyncClient,
-) -> MemoryLayer | None:
-    """Build and return MemoryLayer when use_memory_layer=True, else None."""
+) -> MemoryServices | None:
+    """Build and return MemoryServices when use_memory_layer=True, else None."""
     if not ctx.cfg.memory.use_memory_layer:
         return None
     # Deferred imports to reduce startup cost when memory is disabled
+    from agent.memory.embedding_client import (
+        EmbeddingClient,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+        EmbeddingClientConfig,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+    )
+    from agent.memory.ingestion import (
+        DedupPolicy,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+        MemoryIngestionService,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+    )
+    from agent.memory.injection import (
+        InjectionPolicy,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+        MemoryInjectionService,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+    )
     from agent.memory.jsonl_store import (
         JsonlMemoryStore,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
     )
-    from agent.memory.layer import (
-        MemoryLayer,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
-    )
     from agent.memory.retriever import (
-        MemoryRetriever,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+        HybridRetriever,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+    )
+    from agent.memory.services import (
+        MemoryServices,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
     )
     from agent.memory.store import (
         MemoryStore,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
     )
 
-    layer = MemoryLayer(
-        store=MemoryStore(),
-        retriever=MemoryRetriever(
-            fts_limit=ctx.cfg.memory.memory_fts_limit,
-            rrf_k=ctx.cfg.memory.memory_rrf_k,
-            recency_days=ctx.cfg.memory.memory_recency_days,
-        ),
-        jsonl=JsonlMemoryStore(f"{ctx.cfg.memory.memory_jsonl_dir}/memories.jsonl"),
-        max_inject_semantic=ctx.cfg.memory.memory_max_inject_semantic,
-        max_inject_episodic=ctx.cfg.memory.memory_max_inject_episodic,
-        min_importance=ctx.cfg.memory.memory_min_importance,
-        http=http,
+    embed_cfg = EmbeddingClientConfig(
         embed_url=ctx.cfg.rag.embed_url,
-        embed_enabled=ctx.cfg.memory.memory_embed_enabled,
-        dedup_threshold=ctx.cfg.memory.memory_dedup_threshold,
-        embed_timeout=ctx.cfg.memory.memory_embed_timeout_sec,
+        timeout=ctx.cfg.memory.memory_embed_timeout_sec,
+    )
+    embed_client = EmbeddingClient(
+        embed_cfg, http, enabled=ctx.cfg.memory.memory_embed_enabled
+    )
+    retriever = HybridRetriever(
+        fts_limit=ctx.cfg.memory.memory_fts_limit,
+        rrf_k=ctx.cfg.memory.memory_rrf_k,
+        recency_days=ctx.cfg.memory.memory_recency_days,
+    )
+    store = MemoryStore()
+    jsonl = JsonlMemoryStore(f"{ctx.cfg.memory.memory_jsonl_dir}/memories.jsonl")
+    injection = MemoryInjectionService(
+        policy=InjectionPolicy(
+            max_semantic=ctx.cfg.memory.memory_max_inject_semantic,
+            max_episodic=ctx.cfg.memory.memory_max_inject_episodic,
+            min_importance=ctx.cfg.memory.memory_min_importance,
+        ),
+        retriever=retriever,
+        embed_client=embed_client,
+    )
+    ingestion = MemoryIngestionService(
+        store=store,
+        jsonl=jsonl,
+        retriever=retriever,
+        embed_client=embed_client,
+        dedup_policy=DedupPolicy(threshold=ctx.cfg.memory.memory_dedup_threshold),
         max_content_chars=ctx.cfg.memory.memory_max_content_chars,
     )
-    _build_audit_logger(ctx).info("MemoryLayer initialised (use_memory_layer=True)")
-    return layer
+    _build_audit_logger(ctx).info("MemoryServices initialised (use_memory_layer=True)")
+    return MemoryServices(
+        injection=injection,
+        ingestion=ingestion,
+        store=store,
+        retriever=retriever,
+    )
 
 
 def _init_plugin_registry(audit_logger: Logger) -> None:
@@ -286,7 +316,7 @@ def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
     http, llm = _build_llm_client(ctx, view)
     tools, lifecycle = _build_tool_executor(ctx, http, stdio_procs)
     hist_mgr = _build_history_manager(ctx, view, http)
-    memory = _build_memory_layer(ctx, http)
+    memory = _build_memory_services(ctx, http)
 
     ctx.services = AppServices(
         http=http,

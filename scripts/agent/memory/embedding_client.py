@@ -11,6 +11,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from agent.memory.types import EmbeddingResult
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,19 +29,24 @@ async def _fetch_embedding(
     text: str,
     http: httpx.AsyncClient,
     embed_url: str,
-) -> list[float] | None:
-    """Call the embedding endpoint once; return None on any error."""
+) -> EmbeddingResult:
+    """Call the embedding endpoint once; return EmbeddingResult with success/error."""
     try:
         resp = await http.post(embed_url, json={"content": f"query: {text}"})
         resp.raise_for_status()
         embedding = resp.json().get("embedding")
         if isinstance(embedding, list) and embedding:
-            return [float(v) for v in embedding]
+            return EmbeddingResult(
+                success=True, embedding=[float(v) for v in embedding]
+            )
         logger.warning("embed response missing 'embedding' field")
-        return None
+        return EmbeddingResult(success=False, error_kind="invalid_response")
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"EmbeddingClient._fetch_embedding HTTP error: {e}")
+        return EmbeddingResult(success=False, error_kind="http_error")
     except Exception as e:
         logger.warning(f"EmbeddingClient._fetch_embedding failed: {e}")
-        return None
+        return EmbeddingResult(success=False, error_kind="http_error")
 
 
 class EmbeddingClient:
@@ -47,7 +54,7 @@ class EmbeddingClient:
 
     Wraps _fetch_embedding with:
     - asyncio.wait_for timeout per attempt
-    - configurable retry count on None result or TimeoutError
+    - configurable retry count on failure or TimeoutError
     - simple circuit breaker (open after N consecutive failures)
     """
 
@@ -84,32 +91,36 @@ class EmbeddingClient:
                 self._fail_count,
             )
 
-    async def fetch(self, text: str) -> list[float] | None:
-        """Generate embedding; return None when disabled, circuit open, or on error."""
+    async def fetch(self, text: str) -> EmbeddingResult:
+        """Generate embedding; return EmbeddingResult indicating success or failure reason."""
         if not self._enabled or self._http is None or not self._config.embed_url:
-            return None
+            return EmbeddingResult(success=False, error_kind="disabled")
         if self._is_circuit_open():
             logger.debug("EmbeddingClient circuit open — skipping embed")
-            return None
+            return EmbeddingResult(success=False, error_kind="circuit_open")
 
+        last_result: EmbeddingResult = EmbeddingResult(
+            success=False, error_kind="http_error"
+        )
         for attempt in range(self._config.max_retries + 1):
             try:
                 result = await asyncio.wait_for(
                     _fetch_embedding(text, self._http, self._config.embed_url),
                     timeout=self._config.timeout,
                 )
-                if result is not None:
+                if result.success:
                     self._fail_count = 0
                     return result
-                # _fetch_embedding returned None (internal error) — retry
+                last_result = result
             except TimeoutError:
                 logger.warning(
                     "EmbeddingClient timeout (attempt %d/%d)",
                     attempt + 1,
                     self._config.max_retries + 1,
                 )
+                last_result = EmbeddingResult(success=False, error_kind="timeout")
             self._record_failure()
             if self._is_circuit_open():
-                return None
+                return EmbeddingResult(success=False, error_kind="circuit_open")
 
-        return None
+        return last_result

@@ -3,7 +3,12 @@
 FTS5-based memory search with importance / pin / recency scoring.
 Phase 2: optional KNN search via memories_vec + RRF merge.
 
-Scoring formula (Phase 1):
+Classes:
+  FtsRetriever     — FTS5 BM25 search + rescoring
+  VectorRetriever  — KNN search on memories_vec; knn_search() is the public API
+  HybridRetriever  — composes both; primary external interface
+
+Scoring formula (FtsRetriever):
   score = -bm25_rank                  # BM25 from FTS5 (negative = higher is better)
         + importance_boost             # 0.0–0.5 based on entry.importance
         + pin_boost                    # 0.3 when pinned
@@ -121,56 +126,23 @@ def _rrf_merge(
     )
 
 
-class MemoryRetriever:
-    """FTS5 search + rescoring for memories table.
-
-    Phase 2: when embedding is supplied, also runs KNN search on memories_vec
-    and merges results with RRF before rescoring.
-    """
+class FtsRetriever:
+    """FTS5 BM25 search with importance / pin / recency rescoring."""
 
     def __init__(
         self,
         *,
         fts_limit: int = _FTS_CANDIDATE_LIMIT,
-        rrf_k: int = _RRF_K,
         recency_days: float = _RECENCY_DAYS,
     ) -> None:
         self._fts_limit = fts_limit
-        self._rrf_k = rrf_k
         self._recency_days = recency_days
 
     def search(
         self,
         query: MemoryQuery,
-        embedding: list[float] | None = None,
         project: str = "",
         repo: str = "",
-    ) -> list[MemoryHit]:
-        """Run FTS5 search (and optionally KNN) and return ranked MemoryHit list.
-
-        Falls back to empty list on any DB error (FTS unavailable etc.).
-        When embedding is supplied, merges FTS5 and KNN results via RRF.
-        """
-        fts_hits = self._fts_search(query, project, repo)
-        if embedding is None:
-            return fts_hits
-
-        vec_hits = self._vec_search(embedding, query.memory_type, self._fts_limit)
-        if not vec_hits:
-            return fts_hits
-
-        merged = _rrf_merge([fts_hits, vec_hits], k=self._rrf_k)
-        # Re-apply rescoring on the merged list
-        for hit in merged:
-            hit.score = _score(0.0, hit.entry, project, repo, self._recency_days)
-        merged.sort(key=lambda h: h.score, reverse=True)
-        return merged[: query.limit]
-
-    def _fts_search(
-        self,
-        query: MemoryQuery,
-        project: str,
-        repo: str,
     ) -> list[MemoryHit]:
         """FTS5 BM25 search; returns [] on error or empty query."""
         fts_query = _build_fts_query(query.query)
@@ -200,7 +172,7 @@ class MemoryRetriever:
             with SQLiteHelper("session").open(row_factory=True) as db:
                 rows = db.fetchall(sql, tuple(params))
         except Exception as e:
-            logger.warning(f"MemoryRetriever._fts_search failed: {e}")
+            logger.warning(f"FtsRetriever.search failed: {e}")
             return []
 
         hits: list[MemoryHit] = []
@@ -214,7 +186,11 @@ class MemoryRetriever:
         hits.sort(key=lambda h: h.score, reverse=True)
         return hits[: query.limit]
 
-    def _vec_search(
+
+class VectorRetriever:
+    """KNN search on memories_vec using sqlite-vec extension."""
+
+    def knn_search(
         self,
         embedding: list[float],
         memory_type: str | None,
@@ -244,7 +220,7 @@ class MemoryRetriever:
             with SQLiteHelper("session").open(row_factory=True) as db:
                 rows = db.fetchall(sql, tuple(params))
         except Exception as e:
-            logger.warning(f"MemoryRetriever._vec_search failed: {e}")
+            logger.warning(f"VectorRetriever.knn_search failed: {e}")
             return []
 
         hits: list[MemoryHit] = []
@@ -255,6 +231,63 @@ class MemoryRetriever:
             # Use negative distance as score: closer = higher score
             hits.append(MemoryHit(entry=entry, score=-distance))
         return hits
+
+
+class HybridRetriever:
+    """FTS5 + optional KNN hybrid search with RRF merge.
+
+    Primary external interface. Composes FtsRetriever and VectorRetriever.
+    """
+
+    def __init__(
+        self,
+        *,
+        fts_limit: int = _FTS_CANDIDATE_LIMIT,
+        rrf_k: int = _RRF_K,
+        recency_days: float = _RECENCY_DAYS,
+    ) -> None:
+        self._fts = FtsRetriever(fts_limit=fts_limit, recency_days=recency_days)
+        self._vec = VectorRetriever()
+        self._rrf_k = rrf_k
+        self._recency_days = recency_days
+
+    def search(
+        self,
+        query: MemoryQuery,
+        embedding: list[float] | None = None,
+        project: str = "",
+        repo: str = "",
+    ) -> list[MemoryHit]:
+        """Run FTS5 search (and optionally KNN) and return ranked MemoryHit list.
+
+        Falls back to FTS-only when embedding is None or vec table is unavailable.
+        When embedding is supplied, merges FTS5 and KNN results via RRF.
+        """
+        fts_hits = self._fts.search(query, project, repo)
+        if embedding is None:
+            return fts_hits
+
+        vec_hits = self._vec.knn_search(
+            embedding, query.memory_type, self._fts._fts_limit
+        )
+        if not vec_hits:
+            return fts_hits
+
+        merged = _rrf_merge([fts_hits, vec_hits], k=self._rrf_k)
+        # Re-apply rescoring on the merged list
+        for hit in merged:
+            hit.score = _score(0.0, hit.entry, project, repo, self._recency_days)
+        merged.sort(key=lambda h: h.score, reverse=True)
+        return merged[: query.limit]
+
+    def knn_search(
+        self,
+        embedding: list[float],
+        memory_type: str | None,
+        limit: int,
+    ) -> list[MemoryHit]:
+        """Delegate KNN search to VectorRetriever (used by ingestion dedup)."""
+        return self._vec.knn_search(embedding, memory_type, limit)
 
     def top_semantic(
         self,
@@ -278,5 +311,5 @@ class MemoryRetriever:
                 )
                 return [row_to_entry(dict(r)) for r in rows]
         except Exception as e:
-            logger.warning(f"MemoryRetriever.top_semantic failed: {e}")
+            logger.warning(f"HybridRetriever.top_semantic failed: {e}")
             return []

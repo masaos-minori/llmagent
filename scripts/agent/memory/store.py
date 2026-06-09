@@ -277,3 +277,26 @@ class MemoryStore:
                 (memory_id,),
             )
         return row_to_entry(rows[0]) if rows else None
+
+    def count_entries(self) -> int:
+        """Return total entry count across all types; 0 on DB error."""
+        try:
+            with SQLiteHelper("session").open() as db:
+                rows = db.fetchall("SELECT COUNT(*) FROM memories")
+            return int(rows[0][0]) if rows else 0
+        except Exception as e:
+            logger.warning("MemoryStore.count_entries failed: %s", e)
+            return 0
+
+    def count_prunable(self, days: int) -> int:
+        """Return count of entries older than `days` days without deleting."""
+        try:
+            with SQLiteHelper("session").open() as db:
+                row = db.fetchall(
+                    "SELECT COUNT(*) FROM memories WHERE created_at < datetime('now', ?)",
+                    (f"-{days} days",),
+                )
+                return int(row[0][0]) if row else 0
+        except Exception as e:
+            logger.warning("MemoryStore.count_prunable failed: %s", e)
+            return 0

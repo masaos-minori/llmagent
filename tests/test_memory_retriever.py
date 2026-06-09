@@ -14,13 +14,16 @@ from unittest.mock import patch
 
 import pytest
 from agent.memory.retriever import (
-    MemoryRetriever,
+    HybridRetriever,
     _build_fts_query,
     _recency_boost,
     _rrf_merge,
     _score,
 )
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
+
+# Alias kept for test readability
+MemoryRetriever = HybridRetriever
 
 # True when the sqlite-vec extension is installed (mirrors conftest._VEC_AVAILABLE)
 _VEC_AVAILABLE: bool = Path("/opt/llm/sqlite-vec/vec0.so").exists()
@@ -436,16 +439,16 @@ class TestRrfMerge:
         assert _rrf_merge([[]]) == []
 
 
-# ── _vec_search (skipped when vec0 unavailable) ───────────────────────────────
+# ── knn_search (skipped when vec0 unavailable) ────────────────────────────────
 
 
 @pytest.mark.skipif(not _VEC_AVAILABLE, reason="sqlite-vec not available")
 class TestVecSearch:
-    def test_vec_search_returns_empty_when_table_missing(
+    def test_knn_search_returns_empty_when_table_missing(
         self, retriever: MemoryRetriever
     ) -> None:
         # memories_vec table does not exist in in-memory DB → should return []
-        result = retriever._vec_search([0.1] * 384, None, 5)
+        result = retriever.knn_search([0.1] * 384, memory_type=None, limit=5)
         assert result == []
 
 
@@ -465,11 +468,11 @@ class TestHybridSearch:
     def test_search_with_embedding_falls_back_to_fts_when_vec_empty(
         self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
     ) -> None:
-        """When _vec_search returns [], RRF is skipped and FTS results are used."""
+        """When knn_search returns [], RRF is skipped and FTS results are used."""
         _insert(db_conn, memory_id="fts-fallback", content="fallback keyword xyz")
         q = MemoryQuery(query="fallback keyword", limit=5)
 
-        with patch.object(retriever, "_vec_search", return_value=[]):
+        with patch.object(retriever._vec, "knn_search", return_value=[]):
             hits = retriever.search(q, embedding=[0.1] * 3)
 
         ids = [h.entry.memory_id for h in hits]
@@ -478,7 +481,7 @@ class TestHybridSearch:
     def test_search_with_both_fts_and_vec_results_uses_rrf_merge(
         self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
     ) -> None:
-        """When _vec_search returns hits, RRF merge is applied and results are returned."""
+        """When knn_search returns hits, RRF merge is applied and results are returned."""
         _insert(db_conn, memory_id="hybrid-entry", content="hybrid search term")
         q = MemoryQuery(query="hybrid search", limit=5)
 
@@ -501,7 +504,7 @@ class TestHybridSearch:
         )
         vec_hit = MemoryHit(entry=vec_entry, score=0.9)
 
-        with patch.object(retriever, "_vec_search", return_value=[vec_hit]):
+        with patch.object(retriever._vec, "knn_search", return_value=[vec_hit]):
             hits = retriever.search(q, embedding=[0.1] * 3)
 
         assert len(hits) > 0
@@ -512,13 +515,13 @@ class TestHybridSearch:
 class TestRetrieverInit:
     def test_default_values(self) -> None:
         r = MemoryRetriever()
-        assert r._fts_limit == 50
+        assert r._fts._fts_limit == 50
         assert r._rrf_k == 60
         assert r._recency_days == 7.0
 
     def test_custom_values(self) -> None:
         """MemoryRetriever stores custom fts_limit, rrf_k, recency_days."""
         r = MemoryRetriever(fts_limit=10, rrf_k=30, recency_days=3.0)
-        assert r._fts_limit == 10
+        assert r._fts._fts_limit == 10
         assert r._rrf_k == 30
         assert r._recency_days == 3.0

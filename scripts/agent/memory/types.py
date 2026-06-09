@@ -67,6 +67,10 @@ class MemoryEntry:
             raise ValueError(
                 f"created_at must be ISO-8601 UTC (YYYY-MM-DDTHH:MM:SSZ), got {self.created_at!r}",
             )
+        if self.updated_at and not _ISO8601_RE.match(self.updated_at):
+            raise ValueError(
+                f"updated_at must be ISO-8601 UTC (YYYY-MM-DDTHH:MM:SSZ), got {self.updated_at!r}",
+            )
 
 
 @dataclass
@@ -85,3 +89,14 @@ class MemoryHit:
 
     entry: MemoryEntry
     score: float  # combined BM25 + importance + pin + recency score
+
+
+@dataclass
+class EmbeddingResult:
+    """Result of an embedding generation attempt."""
+
+    success: bool
+    embedding: list[float] | None = None
+    error_kind: str | None = (
+        None  # "disabled"|"circuit_open"|"timeout"|"http_error"|"invalid_response"
+    )

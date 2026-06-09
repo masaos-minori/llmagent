@@ -176,23 +176,11 @@ class TestBuildAgentContext:
         assert ctx.cfg.memory.use_memory_layer is False
 
     def test_memory_layer_set_when_enabled(self, monkeypatch: Any) -> None:
-        # use_memory_layer=True → MemoryLayer が作成されて ctx.services.memory にセットされること
-        # ローカルインポートは patch のターゲットをモジュール側で指定する
-        from unittest.mock import patch
-
+        # use_memory_layer=True → MemoryServices が作成されて ctx.services.memory にセットされること
         _apply_patches(monkeypatch)
         ctx = _make_ctx(use_memory_layer=True)
         view = _make_view()
-
-        with (
-            patch("agent.memory.layer.MemoryLayer") as mock_layer_cls,
-            patch("agent.memory.store.MemoryStore"),
-            patch("agent.memory.retriever.MemoryRetriever"),
-            patch("agent.memory.jsonl_store.JsonlMemoryStore"),
-        ):
-            build_agent_context(ctx, view)
-
-        mock_layer_cls.assert_called_once()
+        build_agent_context(ctx, view)
         assert ctx.services.memory is not None
 
     def test_on_llm_usage_callback_accumulates_tokens(self, monkeypatch: Any) -> None:

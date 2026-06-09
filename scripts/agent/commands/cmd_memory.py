@@ -22,7 +22,8 @@ import orjson
 
 from agent.commands.mixin_base import MixinBase
 from agent.context import AgentContext
-from agent.memory.layer import MemoryLayer
+from agent.memory.services import MemoryServices
+from agent.memory.types import MemoryQuery
 
 logger = logging.getLogger(__name__)
 
@@ -82,13 +83,19 @@ class _MemoryMixin(MixinBase):
         else:
             print(f"  Unknown subcommand: {sub!r}. Try /memory help")
 
-    def _memory_list(self, mem: MemoryLayer, args: list[str]) -> None:
-        layer = mem
+    def _memory_list(self, mem: MemoryServices, args: list[str]) -> None:
         mem_type = next((a for a in args if a in ("semantic", "episodic")), "")
         limit_args = [a for a in args if a.isdigit()]
         limit = int(limit_args[0]) if limit_args else 10
 
-        entries = layer.list_entries(mem_type=mem_type, limit=limit)
+        if mem_type:
+            entries = mem.store.search_by_type(memory_type=mem_type, limit=limit)
+        else:
+            sem = mem.store.search_by_type("semantic", limit=limit)
+            epi = mem.store.search_by_type("episodic", limit=limit)
+            entries = sorted(sem + epi, key=lambda e: (not e.pinned, -e.importance))[
+                :limit
+            ]
 
         if not entries:
             print("  [memory] No entries found")
@@ -103,13 +110,12 @@ class _MemoryMixin(MixinBase):
                 f"  {e.importance:.2f}  {pin_mark:3}  {summary}",
             )
 
-    def _memory_search(self, mem: MemoryLayer, args: list[str]) -> None:
-        layer = mem
+    def _memory_search(self, mem: MemoryServices, args: list[str]) -> None:
         if not args:
             print("  Usage: /memory search <query>")
             return
         query = " ".join(args)
-        hits = layer.search(query, limit=10)
+        hits = mem.retriever.search(MemoryQuery(query=query, limit=10))
         if not hits:
             print(f"  [memory] No results for {query!r}")
             return
@@ -122,13 +128,12 @@ class _MemoryMixin(MixinBase):
                 f"  {e.memory_id[:12]}…  {summary}",
             )
 
-    def _memory_show(self, mem: MemoryLayer, args: list[str]) -> None:
-        layer = mem
+    def _memory_show(self, mem: MemoryServices, args: list[str]) -> None:
         if not args:
             print("  Usage: /memory show <id>")
             return
         mid = args[0]
-        entry = layer.get_entry(mid)
+        entry = mem.store.get_by_id(mid)
         if entry is None:
             print(f"  [memory] Entry not found: {mid!r}")
             return
@@ -143,14 +148,13 @@ class _MemoryMixin(MixinBase):
         print(f"  summary    : {entry.summary}")
         print(f"  content:\n{entry.content}")
 
-    def _memory_pin(self, mem: MemoryLayer, args: list[str], *, pin: bool) -> None:
-        layer = mem
+    def _memory_pin(self, mem: MemoryServices, args: list[str], *, pin: bool) -> None:
         if not args:
             cmd = "pin" if pin else "unpin"
             print(f"  Usage: /memory {cmd} <id>")
             return
         mid = args[0]
-        ok = layer.pin_entry(mid) if pin else layer.unpin_entry(mid)
+        ok = mem.store.pin(mid) if pin else mem.store.unpin(mid)
         action = "pinned" if pin else "unpinned"
         if ok:
             print(f"  [memory] {action}: {mid}")
@@ -160,8 +164,7 @@ class _MemoryMixin(MixinBase):
         else:
             print(f"  [memory] Entry not found: {mid!r}")
 
-    def _memory_delete(self, mem: MemoryLayer, args: list[str]) -> None:
-        layer = mem
+    def _memory_delete(self, mem: MemoryServices, args: list[str]) -> None:
         dry_run = "--dry-run" in args
         ids = [a for a in args if not a.startswith("--")]
         if not ids:
@@ -169,7 +172,7 @@ class _MemoryMixin(MixinBase):
             return
         mid = ids[0]
         if dry_run:
-            exists = layer.get_entry(mid) is not None
+            exists = mem.store.get_by_id(mid) is not None
             if exists:
                 print(f"  [memory] (dry-run) would delete: {mid}")
             else:
@@ -178,7 +181,7 @@ class _MemoryMixin(MixinBase):
                 MemoryOpResult(ok=exists, memory_id=mid, action="deleted", dry_run=True)
             )
             return
-        ok = layer.delete_entry(mid)
+        ok = mem.store.delete(mid)
         if ok:
             print(f"  [memory] Deleted: {mid}")
         else:
@@ -186,14 +189,16 @@ class _MemoryMixin(MixinBase):
         self._emit_memory_audit(MemoryOpResult(ok=ok, memory_id=mid, action="deleted"))
 
     def _memory_prune(
-        self, mem: MemoryLayer, ctx: AgentContext, args: list[str]
+        self, mem: MemoryServices, ctx: AgentContext, args: list[str]
     ) -> None:
-        layer = mem
+        from db.helper import SQLiteHelper
+        from db.maintenance import prune_old_memories
+
         dry_run = "--dry-run" in args
         day_args = [a for a in args if a.isdigit()]
         days = int(day_args[0]) if day_args else ctx.cfg.memory.memory_retention_days
         if dry_run:
-            count = layer.count_prunable(days)
+            count = mem.store.count_prunable(days)
             print(
                 f"  [memory] (dry-run) would prune {count} entries older than {days} days"
             )
@@ -203,14 +208,19 @@ class _MemoryMixin(MixinBase):
                 )
             )
             return
-        deleted = layer.prune(days)
+        try:
+            with SQLiteHelper("session").open(write_mode=True) as db:
+                deleted = prune_old_memories(db, days)
+        except Exception as e:
+            logger.warning("prune failed: %s", e)
+            deleted = 0
         print(f"  [memory] Pruned {deleted} entries older than {days} days")
         self._emit_memory_audit(
             MemoryOpResult(ok=True, memory_id="", action="pruned", count=deleted)
         )
 
     def _emit_memory_audit(self, result: MemoryOpResult) -> None:
-        """audit_logger に memory 操作イベントを書き込む。None ガード付き。"""
+        """Write memory operation event to audit_logger."""
         audit = self._ctx.services.audit_logger
         if audit is None:
             return

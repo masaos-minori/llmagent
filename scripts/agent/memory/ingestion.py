@@ -4,9 +4,8 @@ MemoryIngestionService — on_session_stop / write_* / dedup policy.
 Extracts memory from conversation history, deduplicates via embedding KNN,
 and persists to JSONL + SQLite.
 
-DedupAction.SKIP_NEW (default): if a near-duplicate embedding exists in the
-store, the new entry is discarded instead of stored.
-LINK_ONLY: persist the entry even when a near-duplicate exists, then link them.
+DedupAction.SKIP_NEW: if a near-duplicate embedding exists in the store,
+the new entry is discarded instead of stored.
 """
 
 from __future__ import annotations
@@ -23,7 +22,7 @@ from shared.types import LLMMessage
 from agent.memory.embedding_client import EmbeddingClient
 from agent.memory.extract import extract_memories
 from agent.memory.jsonl_store import JsonlMemoryStore
-from agent.memory.retriever import MemoryRetriever
+from agent.memory.retriever import HybridRetriever
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry, SourceType
 
@@ -31,10 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class DedupAction(StrEnum):
-    LINK_ONLY = "link_only"  # persist entry and link to near-duplicate without skipping
-    SKIP_NEW = (
-        "skip_new"  # skip new entry when a near-duplicate already exists (default)
-    )
+    SKIP_NEW = "skip_new"  # skip new entry when a near-duplicate already exists
 
 
 @dataclass
@@ -50,7 +46,7 @@ class MemoryIngestionService:
         self,
         store: MemoryStore,
         jsonl: JsonlMemoryStore,
-        retriever: MemoryRetriever,
+        retriever: HybridRetriever,
         embed_client: EmbeddingClient,
         dedup_policy: DedupPolicy | None = None,
         project: str = "",
@@ -93,18 +89,22 @@ class MemoryIngestionService:
                 )
                 return
             for entry in entries:
-                embedding = await self._embed_client.fetch(entry.content)
+                embed_result = await self._embed_client.fetch(entry.content)
+                embedding = embed_result.embedding if embed_result.success else None
                 if (
                     self._dedup_policy.action == DedupAction.SKIP_NEW
-                    and embedding is not None
-                    and self._has_near_duplicate(entry.memory_id, embedding)
+                    and embed_result.success
+                    and embed_result.embedding is not None
+                    and self._has_near_duplicate(
+                        entry.memory_id, embed_result.embedding
+                    )
                 ):
                     logger.debug("memory.skip_dup memory_id=%r", entry.memory_id)
                     continue
                 await self._jsonl.write(entry)
                 self._store.upsert(entry, embedding=embedding)
-                if embedding is not None:
-                    self._link_duplicates(entry.memory_id, embedding)
+                if embed_result.success and embed_result.embedding is not None:
+                    self._link_duplicates(entry.memory_id, embed_result.embedding)
                 logger.info(
                     "memory.persist memory_id=%r type=%s importance=%.2f",
                     entry.memory_id,
@@ -119,7 +119,7 @@ class MemoryIngestionService:
 
     def _has_near_duplicate(self, memory_id: str, embedding: list[float]) -> bool:
         """Return True if a near-duplicate entry exists within dedup threshold."""
-        neighbors = self._retriever._vec_search(embedding, None, limit=5)
+        neighbors = self._retriever.knn_search(embedding, memory_type=None, limit=5)
         return any(
             -h.score < self._dedup_policy.threshold and h.entry.memory_id != memory_id
             for h in neighbors
@@ -127,7 +127,7 @@ class MemoryIngestionService:
 
     def _link_duplicates(self, memory_id: str, embedding: list[float]) -> None:
         """Find near-duplicate entries and record links in memory_links."""
-        neighbors = self._retriever._vec_search(embedding, None, limit=5)
+        neighbors = self._retriever.knn_search(embedding, memory_type=None, limit=5)
         for hit in neighbors:
             if hit.entry.memory_id == memory_id:
                 continue
@@ -181,7 +181,8 @@ class MemoryIngestionService:
         )
 
     async def _persist_entry(self, entry: MemoryEntry) -> None:
-        embedding = await self._embed_client.fetch(entry.content)
+        embed_result = await self._embed_client.fetch(entry.content)
+        embedding = embed_result.embedding if embed_result.success else None
         await self._jsonl.write(entry)
         self._store.upsert(entry, embedding=embedding)
         logger.info(

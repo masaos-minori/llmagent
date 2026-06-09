@@ -11,32 +11,24 @@ from typing import Any
 
 import orjson
 
-from agent.memory.types import MemoryEntry, SourceType
+from agent.memory.types import MemoryEntry
 
 
 def row_to_entry(row: sqlite3.Row | dict[str, Any]) -> MemoryEntry:
     """Convert a sqlite3.Row or dict to MemoryEntry.
 
     Accepts sqlite3.Row (supports dict(row)) or plain dict.
-    Falls back to SourceType.CONVERSATION for unknown source_type values.
+    Invalid field values raise ValueError via MemoryEntry.__post_init__.
     """
     d = dict(row)
     tags_raw = d.get("tags", "[]")
-    try:
-        tags: list[str] = (
-            orjson.loads(tags_raw) if isinstance(tags_raw, str) else list(tags_raw)
-        )
-    except Exception:
-        tags = []
-    raw_source = d.get("source_type", "conversation")
-    try:
-        source_type = SourceType(raw_source)
-    except ValueError:
-        source_type = SourceType.CONVERSATION
+    tags: list[str] = (
+        orjson.loads(tags_raw) if isinstance(tags_raw, str) else list(tags_raw)
+    )
     return MemoryEntry(
         memory_id=d["memory_id"],
         memory_type=d["memory_type"],
-        source_type=source_type,
+        source_type=d.get("source_type", "conversation"),
         session_id=d.get("session_id"),
         turn_id=d.get("turn_id"),
         project=d.get("project", ""),

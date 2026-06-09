@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
     from agent.history import HistoryManager
     from agent.lifecycle_protocol import LifecycleManagerProtocol
-    from agent.memory.layer import MemoryLayer
+    from agent.memory.services import MemoryServices
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +106,7 @@ class AppServices:
         lifecycle: LifecycleManagerProtocol,
         hist_mgr: HistoryManager,
         audit_logger: Logger,
-        memory: MemoryLayer | None,
+        memory: MemoryServices | None,
         stdio_procs: dict[str, StdioTransport] | None = None,
         health_registry: McpServerHealthRegistry | None = None,
     ) -> None:

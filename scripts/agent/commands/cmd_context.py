@@ -62,13 +62,13 @@ def _format_memory_status(ctx: AgentContext) -> str:
     """Return a one-line summary of the memory layer state."""
     if ctx.services.memory is None:
         return "disabled"
-    mem = ctx.services.memory
-    by_type = mem.stat_by_type
+    store = ctx.services.memory.store
+    by_type = store.count_by_type()
     return (
-        f"enabled (entries={mem.stat_entries},"
+        f"enabled (entries={store.count_entries()},"
         f" semantic={by_type.get('semantic', 0)},"
         f" episodic={by_type.get('episodic', 0)},"
-        f" vec_entries={mem.stat_vec_entries})"
+        f" vec_entries={store.count_vec()})"
     )
 
 

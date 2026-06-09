@@ -10,9 +10,9 @@ from unittest.mock import MagicMock
 
 from agent.commands.cmd_context import (
     _budget_breakdown,
+    _ContextMixin,
     _format_memory_status,
     _token_source_label,
-    _ContextMixin,
 )
 
 # ── Test harness ──────────────────────────────────────────────────────────────
@@ -232,9 +232,7 @@ class TestBudgetBreakdown:
         assert result["history"] == 6
 
     def test_budget_breakdown_counts_tool_calls(self) -> None:
-        messages = [
-            {"role": "assistant", "content": "", "tool_calls": [{"id": "t1"}]}
-        ]
+        messages = [{"role": "assistant", "content": "", "tool_calls": [{"id": "t1"}]}]
         result = _budget_breakdown(messages)
         assert result["tool_results"] > 0
 
@@ -257,9 +255,9 @@ class TestFormatMemoryStatus:
     def test_format_memory_status_enabled(self) -> None:
         ctx = _make_ctx()
         mem = MagicMock()
-        mem.stat_entries = 10
-        mem.stat_vec_entries = 5
-        mem.stat_by_type = {"semantic": 3, "episodic": 7}
+        mem.store.count_entries.return_value = 10
+        mem.store.count_vec.return_value = 5
+        mem.store.count_by_type.return_value = {"semantic": 3, "episodic": 7}
         ctx.services.memory = mem
         result = _format_memory_status(ctx)
         assert "enabled" in result
@@ -363,9 +361,9 @@ class TestCollectContextState:
     def test_collect_context_state_with_memory(self) -> None:
         ctx = _make_ctx()
         mem = MagicMock()
-        mem.stat_entries = 10
-        mem.stat_vec_entries = 5
-        mem.stat_by_type = {"semantic": 3}
+        mem.store.count_entries.return_value = 10
+        mem.store.count_vec.return_value = 5
+        mem.store.count_by_type.return_value = {"semantic": 3}
         ctx.services.memory = mem
         cmd = _FakeCmd(ctx)
         result = cmd._collect_context_state(ctx)

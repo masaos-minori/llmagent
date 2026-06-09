@@ -70,15 +70,18 @@ class TestRowToEntry:
         assert entry.created_at == ""
         assert entry.updated_at == ""
 
-    def test_corrupted_tags_json(self) -> None:
+    def test_corrupted_tags_json_raises(self) -> None:
+        """Corrupted tags JSON raises an exception — no silent fallback to []."""
+        import pytest
+
         row = {
             "memory_id": 2,
             "memory_type": "episodic",
             "content": "data",
             "tags": "not valid json[[[",
         }
-        entry = row_to_entry(row)
-        assert entry.tags == []
+        with pytest.raises(Exception):
+            row_to_entry(row)
 
     def test_tags_as_list_already(self) -> None:
         row = {
@@ -90,15 +93,18 @@ class TestRowToEntry:
         entry = row_to_entry(row)
         assert entry.tags == ["tag1", "tag2"]
 
-    def test_unknown_source_type_falls_back(self) -> None:
+    def test_unknown_source_type_raises(self) -> None:
+        """Unknown source_type raises ValueError — no silent fallback to CONVERSATION."""
+        import pytest
+
         row = {
             "memory_id": 4,
             "memory_type": "episodic",
             "content": "data",
             "source_type": "unknown_type",
         }
-        entry = row_to_entry(row)
-        assert entry.source_type == SourceType.CONVERSATION
+        with pytest.raises(ValueError, match="Invalid source_type"):
+            row_to_entry(row)
 
     def test_importance_default(self) -> None:
         row = {

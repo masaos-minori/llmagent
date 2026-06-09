@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 
 from agent.memory.embedding_client import EmbeddingClient
-from agent.memory.retriever import MemoryRetriever
+from agent.memory.retriever import HybridRetriever
 from agent.memory.types import MemoryQuery
 
 logger = logging.getLogger(__name__)
@@ -23,8 +23,6 @@ class InjectionPolicy:
     min_importance: float = 0.3
     format_prefix_semantic: str = "[Semantic memory]"
     format_prefix_episodic: str = "[Episodic memory]"
-    # Skip injection when the same memory_id was injected in the last N turns (future impl).
-    dedup_window: int = 3
 
 
 class MemoryInjectionService:
@@ -33,7 +31,7 @@ class MemoryInjectionService:
     def __init__(
         self,
         policy: InjectionPolicy,
-        retriever: MemoryRetriever,
+        retriever: HybridRetriever,
         embed_client: EmbeddingClient,
         project: str = "",
         repo: str = "",
@@ -74,7 +72,8 @@ class MemoryInjectionService:
         if not query.strip():
             return []
         try:
-            embedding = await self._embed_client.fetch(query)
+            embed_result = await self._embed_client.fetch(query)
+            embedding = embed_result.embedding if embed_result.success else None
             hits_s = self._retriever.search(
                 MemoryQuery(
                     query=query,

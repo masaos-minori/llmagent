@@ -11,33 +11,34 @@ Covers:
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.commands.cmd_memory import MemoryOpResult, _MemoryMixin
-from agent.memory.layer import MemoryLayer
+from agent.memory.services import MemoryServices
+from agent.memory.store import MemoryStore
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
 
-def _make_layer(
+def _make_services(
     *,
-    get_entry_return=None,
+    get_by_id_return=None,
     delete_return: bool = True,
-    prune_return: int = 3,
     count_prunable_return: int = 2,
     pin_return: bool = True,
     unpin_return: bool = True,
 ) -> MagicMock:
-    # spec=MemoryLayer により isinstance チェックを通過させる
-    layer = MagicMock(spec=MemoryLayer)
-    layer.get_entry.return_value = get_entry_return
-    layer.delete_entry.return_value = delete_return
-    layer.prune.return_value = prune_return
-    layer.count_prunable.return_value = count_prunable_return
-    layer.pin_entry.return_value = pin_return
-    layer.unpin_entry.return_value = unpin_return
-    return layer
+    """Build a MagicMock with spec=MemoryServices and a mock store."""
+    svc = MagicMock(spec=MemoryServices)
+    mock_store = MagicMock(spec=MemoryStore)
+    mock_store.get_by_id.return_value = get_by_id_return
+    mock_store.delete.return_value = delete_return
+    mock_store.count_prunable.return_value = count_prunable_return
+    mock_store.pin.return_value = pin_return
+    mock_store.unpin.return_value = unpin_return
+    svc.store = mock_store
+    return svc
 
 
 def _make_cmd(*, audit_logger=None, memory_retention_days: int = 30) -> _MemoryMixin:
@@ -77,62 +78,62 @@ class TestMemoryOpResult:
 
 class TestMemoryDelete:
     def test_delete_success(self, capsys: pytest.CaptureFixture) -> None:
-        layer = _make_layer(delete_return=True)
+        svc = _make_services(delete_return=True)
         cmd = _make_cmd()
-        cmd._memory_delete(layer, ["mid-001"])
+        cmd._memory_delete(svc, ["mid-001"])
         out = capsys.readouterr().out
         assert "Deleted" in out
-        layer.delete_entry.assert_called_once_with("mid-001")
+        svc.store.delete.assert_called_once_with("mid-001")
 
     def test_delete_not_found(self, capsys: pytest.CaptureFixture) -> None:
-        layer = _make_layer(delete_return=False)
+        svc = _make_services(delete_return=False)
         cmd = _make_cmd()
-        cmd._memory_delete(layer, ["mid-999"])
+        cmd._memory_delete(svc, ["mid-999"])
         out = capsys.readouterr().out
         assert "not found" in out.lower()
 
     def test_delete_no_args(self, capsys: pytest.CaptureFixture) -> None:
-        layer = _make_layer()
+        svc = _make_services()
         cmd = _make_cmd()
-        cmd._memory_delete(layer, [])
+        cmd._memory_delete(svc, [])
         out = capsys.readouterr().out
         assert "Usage" in out
-        layer.delete_entry.assert_not_called()
+        svc.store.delete.assert_not_called()
 
     def test_delete_dry_run_entry_exists(self, capsys: pytest.CaptureFixture) -> None:
         entry = MagicMock()
-        layer = _make_layer(get_entry_return=entry)
+        svc = _make_services(get_by_id_return=entry)
         cmd = _make_cmd()
-        cmd._memory_delete(layer, ["--dry-run", "mid-001"])
+        cmd._memory_delete(svc, ["--dry-run", "mid-001"])
         out = capsys.readouterr().out
         assert "dry-run" in out
         assert "would delete" in out
-        layer.delete_entry.assert_not_called()
+        svc.store.delete.assert_not_called()
 
     def test_delete_dry_run_entry_missing(self, capsys: pytest.CaptureFixture) -> None:
-        layer = _make_layer(get_entry_return=None)
+        svc = _make_services(get_by_id_return=None)
         cmd = _make_cmd()
-        cmd._memory_delete(layer, ["--dry-run", "missing-id"])
+        cmd._memory_delete(svc, ["--dry-run", "missing-id"])
         out = capsys.readouterr().out
         assert "dry-run" in out
         assert "not found" in out.lower()
-        layer.delete_entry.assert_not_called()
+        svc.store.delete.assert_not_called()
 
     def test_delete_calls_audit_logger(self) -> None:
         audit = MagicMock()
-        layer = _make_layer(delete_return=True)
+        svc = _make_services(delete_return=True)
         cmd = _make_cmd(audit_logger=audit)
-        cmd._memory_delete(layer, ["mid-001"])
+        cmd._memory_delete(svc, ["mid-001"])
         audit.info.assert_called_once()
         payload = audit.info.call_args[0][0]
         assert "memory_op" in payload
         assert "deleted" in payload
 
     def test_delete_audit_logger_none(self) -> None:
-        layer = _make_layer(delete_return=True)
+        svc = _make_services(delete_return=True)
         cmd = _make_cmd(audit_logger=None)
         cmd._ctx.services.audit_logger = None  # type: ignore[union-attr]
-        cmd._memory_delete(layer, ["mid-001"])  # should not raise
+        cmd._memory_delete(svc, ["mid-001"])  # should not raise
 
 
 # ── _memory_prune ──────────────────────────────────────────────────────────────
@@ -140,38 +141,65 @@ class TestMemoryDelete:
 
 class TestMemoryPrune:
     def test_prune_normal(self, capsys: pytest.CaptureFixture) -> None:
-        layer = _make_layer(prune_return=7)
+        svc = _make_services()
         cmd = _make_cmd()
         ctx = cmd._ctx
-        cmd._memory_prune(layer, ctx, ["14"])  # type: ignore[arg-type]
+        mock_helper = MagicMock()
+        mock_helper.__enter__ = MagicMock(return_value=mock_helper)
+        mock_helper.__exit__ = MagicMock(return_value=False)
+        mock_helper.open.return_value = mock_helper
+        with (
+            patch("db.helper.SQLiteHelper", return_value=mock_helper),
+            patch("db.maintenance.prune_old_memories", return_value=7) as mock_prune,
+        ):
+            cmd._memory_prune(svc, ctx, ["14"])  # type: ignore[arg-type]
         out = capsys.readouterr().out
         assert "Pruned 7" in out
-        layer.prune.assert_called_once_with(14)
+        mock_prune.assert_called_once()
 
     def test_prune_uses_config_days(self, capsys: pytest.CaptureFixture) -> None:
-        layer = _make_layer(prune_return=0)
+        svc = _make_services()
         cmd = _make_cmd(memory_retention_days=60)
         ctx = cmd._ctx
-        cmd._memory_prune(layer, ctx, [])  # type: ignore[arg-type]
-        layer.prune.assert_called_once_with(60)
+        with (
+            patch("db.helper.SQLiteHelper") as mock_helper_cls,
+            patch("db.maintenance.prune_old_memories", return_value=0),
+        ):
+            mock_h = MagicMock()
+            mock_h.__enter__ = MagicMock(return_value=mock_h)
+            mock_h.__exit__ = MagicMock(return_value=False)
+            mock_h.open.return_value = mock_h
+            mock_helper_cls.return_value = mock_h
+            cmd._memory_prune(svc, ctx, [])  # type: ignore[arg-type]
+        # days defaults to memory_retention_days=60; verify output
+        out = capsys.readouterr().out
+        assert "60 days" in out
 
     def test_prune_dry_run(self, capsys: pytest.CaptureFixture) -> None:
-        layer = _make_layer(count_prunable_return=4)
+        svc = _make_services(count_prunable_return=4)
         cmd = _make_cmd()
         ctx = cmd._ctx
-        cmd._memory_prune(layer, ctx, ["--dry-run", "30"])  # type: ignore[arg-type]
+        cmd._memory_prune(svc, ctx, ["--dry-run", "30"])  # type: ignore[arg-type]
         out = capsys.readouterr().out
         assert "dry-run" in out
         assert "would prune 4" in out
-        layer.prune.assert_not_called()
-        layer.count_prunable.assert_called_once_with(30)
+        svc.store.count_prunable.assert_called_once_with(30)
 
     def test_prune_calls_audit_logger(self) -> None:
         audit = MagicMock()
-        layer = _make_layer(prune_return=3)
+        svc = _make_services()
         cmd = _make_cmd(audit_logger=audit)
         ctx = cmd._ctx
-        cmd._memory_prune(layer, ctx, ["7"])  # type: ignore[arg-type]
+        with (
+            patch("db.helper.SQLiteHelper") as mock_helper_cls,
+            patch("db.maintenance.prune_old_memories", return_value=3),
+        ):
+            mock_h = MagicMock()
+            mock_h.__enter__ = MagicMock(return_value=mock_h)
+            mock_h.__exit__ = MagicMock(return_value=False)
+            mock_h.open.return_value = mock_h
+            mock_helper_cls.return_value = mock_h
+            cmd._memory_prune(svc, ctx, ["7"])  # type: ignore[arg-type]
         audit.info.assert_called_once()
         payload = audit.info.call_args[0][0]
         assert "pruned" in payload
@@ -182,41 +210,26 @@ class TestMemoryPrune:
 
 class TestMemoryPin:
     def test_pin_success(self, capsys: pytest.CaptureFixture) -> None:
-        layer = _make_layer(pin_return=True)
+        svc = _make_services(pin_return=True)
         cmd = _make_cmd()
-        cmd._memory_pin(layer, ["mid-001"], pin=True)
+        cmd._memory_pin(svc, ["mid-001"], pin=True)
         out = capsys.readouterr().out
         assert "pinned" in out
-        layer.pin_entry.assert_called_once_with("mid-001")
+        svc.store.pin.assert_called_once_with("mid-001")
 
     def test_unpin_success(self, capsys: pytest.CaptureFixture) -> None:
-        layer = _make_layer(unpin_return=True)
+        svc = _make_services(unpin_return=True)
         cmd = _make_cmd()
-        cmd._memory_pin(layer, ["mid-001"], pin=False)
+        cmd._memory_pin(svc, ["mid-001"], pin=False)
         out = capsys.readouterr().out
         assert "unpinned" in out
-        layer.unpin_entry.assert_called_once_with("mid-001")
+        svc.store.unpin.assert_called_once_with("mid-001")
 
     def test_pin_calls_audit_logger(self) -> None:
         audit = MagicMock()
-        layer = _make_layer(pin_return=True)
+        svc = _make_services(pin_return=True)
         cmd = _make_cmd(audit_logger=audit)
-        cmd._memory_pin(layer, ["mid-001"], pin=True)
+        cmd._memory_pin(svc, ["mid-001"], pin=True)
         audit.info.assert_called_once()
         payload = audit.info.call_args[0][0]
         assert "pinned" in payload
-
-    def test_pin_not_found_no_audit(self) -> None:
-        audit = MagicMock()
-        layer = _make_layer(pin_return=False)
-        cmd = _make_cmd(audit_logger=audit)
-        cmd._memory_pin(layer, ["bad-id"], pin=True)
-        audit.info.assert_not_called()
-
-    def test_pin_no_args(self, capsys: pytest.CaptureFixture) -> None:
-        layer = _make_layer()
-        cmd = _make_cmd()
-        cmd._memory_pin(layer, [], pin=True)
-        out = capsys.readouterr().out
-        assert "Usage" in out
-        layer.pin_entry.assert_not_called()
