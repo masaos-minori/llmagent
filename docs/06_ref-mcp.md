@@ -231,7 +231,7 @@ async def my_tool(args: dict) -> tuple[str, bool]:
 
 ### 4.1 機能概要
 
-MCP ツール分類 frozenset の正規定義。複数モジュール (`route_resolver.py` / `tool_executor.py` / `agent/repl_tool_exec.py`) が同じ定数を参照するため、ここに一元化している。
+MCP ツール分類 frozenset の正規定義。複数モジュール (`route_resolver.py` / `tool_executor.py` / `agent/tool_runner.py`) が同じ定数を参照するため、ここに一元化している。
 
 ### 4.2 定数
 

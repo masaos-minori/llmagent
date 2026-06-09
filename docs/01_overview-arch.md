@@ -150,11 +150,11 @@ POST :8006/v1/call_tool     {"name": "github_search_repositories", "args": {"que
 | 埋込並列化 | `RagIngester._ingest_chunk_files` | `ThreadPoolExecutor` で `embed_workers` 件の埋込 HTTP 呼び出しを並列実行 |
 | クロールタイムアウト設定化 | `Crawler._fetch_html` | `fetch_timeout` を `rag_pipeline.json` から読み込み、ハードコード値を解消 |
 | `/session list [n]` | `agent/commands.CommandRegistry._cmd_session`, `AgentSession.list_sessions` | 表示件数を引数で指定可能に (デフォルト: 20) |
-| 並列ツール実行 | `agent/repl_tool_exec.execute_all_tool_calls` | `asyncio.gather()` で全 tool_calls を並列実行。結果は元の順序を維持 |
+| 並列ツール実行 | `agent/tool_runner.execute_all_tool_calls` | `asyncio.gather()` で全 tool_calls を並列実行。結果は元の順序を維持 |
 | 並列 BFS クロール | `Crawler.crawl_site` | `httpx.AsyncClient` + `asyncio.Semaphore(crawl_concurrency)` で非同期並列クロール |
 | ストリーミング全ターン対応 | `Orchestrator._run_turn` | 全ターンで `LLMClient.stream()` を使用。ツール実行後の継続ターンもトークンを逐次出力する |
 | エラー統計の追跡 | `LLMClient.stat_retries`, `AgentContext.stat_tool_errors` | LLM リトライ回数・ツールエラー回数を計測し `/stats` に表示 |
-| ツール結果の LLM コンテキストトランケーション | `agent/repl_tool_exec.execute_all_tool_calls` | `tool_result_max_llm_chars` を超えるツール結果を切り詰めてから `_history` に追加 |
+| ツール結果の LLM コンテキストトランケーション | `agent/tool_runner.execute_all_tool_calls` | `tool_result_max_llm_chars` を超えるツール結果を切り詰めてから `_history` に追加 |
 | MQE クエリ埋込の並列化 | `rag/pipeline.RagPipeline` | `asyncio.gather(return_exceptions=True)` で全クエリの埋込を並列取得 |
 | クロール最大ページ数制限 | `Crawler.crawl_site` | `rag_pipeline.json` の `max_pages` で BFS 総ページ数に上限を設ける |
 | `RAG_TOP_K` の `agent.toml` 設定対応 | `agent/config.AgentConfig.rag_top_k` | `agent.toml` の `rag_top_k` から読み込むモジュールレベル定数 (デフォルト: 5) |
@@ -162,11 +162,11 @@ POST :8006/v1/call_tool     {"name": "github_search_repositories", "args": {"que
 | `/config` 表示漏れ解消 | `agent/commands.CommandRegistry._cmd_config` | `tool_cache_ttl` / `llm_max_retries` / `llm_retry_base_delay` を表示 |
 | 会話履歴を考慮した RAG クエリ | `Orchestrator.handle_turn`, `rag/pipeline.RagPipeline.augment` | 直近 2 件の過去ユーザー発話 (RAG プレフィックスを除去した生クエリ) を `history_context` として MQE に渡す。LLM 最終回答プロンプトには含めない |
 | RAG コンテキストへのドキュメントタイトル表示 | `rag/pipeline.RagPipeline.augment` | ソースブロック形式を `[Source: {title} \| {url}]` に変更。title が空の場合は URL にフォールバックする |
-| 並列ツール実行の直列化オプション | `agent/repl_tool_exec.execute_all_tool_calls`, `agent/config.AgentConfig` | `serial_tool_calls=true` のとき `asyncio.gather()` を直列ループに切り替える。write→read 等の依存関係がある tool_calls で順序保証が必要な場合に有効化する |
+| 並列ツール実行の直列化オプション | `agent/tool_runner.execute_all_tool_calls`, `agent/config.AgentConfig` | `serial_tool_calls=true` のとき `asyncio.gather()` を直列ループに切り替える。write→read 等の依存関係がある tool_calls で順序保証が必要な場合に有効化する |
 | ステップ別レイテンシ計測 | `rag/pipeline.RagPipeline.run`, `Orchestrator._run_turn`, `agent/context.AgentContext.stat_latency` | RAG 各ステップ (MQE/Search/RRF/Rerank) と LLM 初回呼び出しの所要秒数をセッションごとに蓄積し `/stats` で平均・最大を表示する |
 | RAG パイプライン (MCP 経由) | `mcp/rag_pipeline/service.py` | RAG は `mcp/rag_pipeline/` (port 8010) で MCP ツールとして提供。in-process RagPipeline・自動 RAG 挿入・`/rag` コマンドは削除済み |
 | セッション横断ノート (`/note`) | `agent/commands.CommandRegistry._cmd_note`, `agent/session.AgentSession` | `/note add\|list\|delete` で `notes` テーブルに軽量メモを永続化。`auto_inject_notes=true` で起動時にシステムプロンプト末尾へ自動付加する |
-| ツール結果の要約・構造化 | `agent/repl_tool_exec.execute_all_tool_calls`, `rag/llm.RagLLM.summarize_tool_result` | `use_tool_summarize=true` かつ結果が `tool_summarize_threshold` 超のとき LLM で要約してから履歴追加。全文は `ctx.tool_result_store` に保持し `/tool show` で参照可能 |
+| ツール結果の要約・構造化 | `agent/tool_runner.execute_all_tool_calls`, `rag/llm.RagLLM.summarize_tool_result` | `use_tool_summarize=true` かつ結果が `tool_summarize_threshold` 超のとき LLM で要約してから履歴追加。全文は `ctx.tool_result_store` に保持し `/tool show` で参照可能 |
 | セマンティックキャッシュ | `rag/pipeline.SemanticCache`, `Orchestrator.handle_turn` | クエリ埋め込みのコサイン類似度が `semantic_cache_threshold` 以上のとき RAG パイプラインをスキップし前回コンテキストを再利用する。`/stats` でヒット数・キャッシュサイズを表示 |
 | RAG コンテキスト Refiner | `rag/llm.RagLLM.refine_context`, `rag/pipeline.RagPipeline.augment` | `use_refiner=true` のとき Rerank 後チャンクを 1 回の LLM 呼び出しでクエリ関連要点に圧縮して投入する。トークン削減と情報密度向上が目的。空出力・例外時は原文チャンクにフォールバックする |
 | コンテキスト予算管理 | `agent/services.context_view.budget_breakdown`, `agent/commands.CommandRegistry._cmd_context`, `Orchestrator._run_turn` | `/context` でカテゴリ別（system / rag / history / tool_results）文字数と割合を表示。毎ターン `context_char_limit` の 80% 超過時に `logger.warning` で内訳付き警告を出力 |

@@ -337,7 +337,7 @@ ToolExecutor(
 
 ### 2.7 shared/tool_constants.py セット一覧
 
-`shared/tool_constants.py` に正規定義されている frozenset。`route_resolver.py` / `tool_executor.py` / `repl_tool_exec.py` の 3 箇所で参照する。ツール名を変更・追加する場合はここのみを修正し、他ファイルに重複定義しないこと。
+`shared/tool_constants.py` に正規定義されている frozenset。`route_resolver.py` / `tool_executor.py` / `tool_runner.py` の 3 箇所で参照する。ツール名を変更・追加する場合はここのみを修正し、他ファイルに重複定義しないこと。
 
 | 定数名 | ツール名一覧 | 用途 |
 |---|---|---|

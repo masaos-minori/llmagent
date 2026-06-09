@@ -178,7 +178,8 @@ logger = logging.getLogger(__name__)
 | `rag/ingestion/ingester.py` | `/opt/llm/logs/ingest.log` | — |
 | `agent/repl.py` | `/opt/llm/logs/agent.log` | — |
 | `agent/repl_health.py` | `/opt/llm/logs/agent.log` | repl と共用 |
-| `agent/repl_tool_exec.py` | `/opt/llm/logs/agent.log` | repl と共用 |
+| `agent/tool_runner.py` | `/opt/llm/logs/agent.log` | repl と共用 |
+| `agent/tool_approval.py` | `/opt/llm/logs/agent.log` | repl と共用 |
 | `agent/orchestrator.py` | `/opt/llm/logs/agent.log` | repl と共用 |
 | `agent/repl.py` (`audit_logger`) | `cfg.audit_log_file` (デフォルト `/opt/llm/logs/audit.log`) | `structured_log=True` (JSON Lines) |
 | `mcp/file/read_server.py` | `/opt/llm/logs/file-read-mcp.log` | — |
@@ -356,7 +357,7 @@ from shared.tool_constants import RAG_TOOLS, CICD_TOOLS, MDQ_TOOLS, GIT_TOOLS
 |---|---|
 | `shared/route_resolver.py` | 静的ルーティング (ツール名 → サーバキー) |
 | `shared/tool_executor.py` | 副作用検出 (`is_side_effect()` 関数; `WRITE_TOOLS \| DELETE_TOOLS \| {"shell_run"}` を `_SIDE_EFFECT_TOOLS` として使用) |
-| `agent/repl_tool_exec.py` | リスク分類・承認ロジック |
+| `agent/tool_approval.py` | リスク分類・承認ロジック |
 
 ---
 

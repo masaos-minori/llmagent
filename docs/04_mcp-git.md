@@ -37,7 +37,7 @@ allowed_repo_paths = [
 
 書き込みツールはすべて `dry_run: bool = false` パラメータを持つ。
 `dry_run = true` を渡すと副作用なしでプレビューを返す。
-`agent/repl_tool_exec.py` の `approval_dry_run_tools` に git_push / git_checkout が登録されており、
+`agent/tool_approval.py` の `approval_dry_run_tools` に git_push / git_checkout が登録されており、
 ユーザへの承認プロンプト前に自動的に dry_run が実行される。
 
 ## §3 ツール一覧
