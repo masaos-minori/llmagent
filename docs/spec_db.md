@@ -208,7 +208,7 @@ CREATE VIRTUAL TABLE chunks_vec USING vec0(
 | `session_id` | INTEGER | |
 | `turn` | INTEGER | NOT NULL |
 | `tool_name` | TEXT | NOT NULL |
-| `args_json` | TEXT | |
+| `args_masked` | TEXT | |
 | `full_text` | TEXT | NOT NULL |
 | `summary` | TEXT | |
 | `is_error` | INTEGER | NOT NULL DEFAULT 0 |
@@ -304,7 +304,7 @@ def recover_corruption(backup_path: str | Path | None = None, *, dry_run: bool =
 
 ```python
 class ToolResultStore:
-    def store(session_id: int | None, turn: int, tool_name: str, args_json: str,
+    def store(session_id: int | None, turn: int, tool_name: str, args_masked: str,
               full_text: str, summary: str | None, is_error: bool) -> int | None
     # 戻り値: 新規行の id（DB エラー時は None）
     def get(result_id: int) -> dict | None

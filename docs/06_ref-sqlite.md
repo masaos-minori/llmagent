@@ -437,7 +437,7 @@ store = ToolResultStore()
 
 | メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `store(session_id, turn, tool_name, args_json, full_text, summary, is_error) -> int \| None` | `(session_id: int \| None, turn: int, tool_name: str, args_json: str, full_text: str, summary: str \| None, is_error: bool)` | `tool_results` テーブルに 1 行 INSERT して新規 `id` を返す。エラー時は `None` |
+| `store(session_id, turn, tool_name, args_masked, full_text, summary, is_error) -> int \| None` | `(session_id: int \| None, turn: int, tool_name: str, args_masked: str, full_text: str, summary: str \| None, is_error: bool)` | `tool_results` テーブルに 1 行 INSERT して新規 `id` を返す。エラー時は `None` |
 | `get(result_id) -> dict \| None` | `(result_id: int)` | `id` で 1 件取得。見つからない場合は `None`。`row_factory=True` で取得するため返り値は全カラムを含む dict |
 | `list_recent(session_id, n=20) -> list[dict]` | `(session_id: int \| None, n: int = 20)` | 指定セッションの最新 `n` 件を古い順 (昇順) で返す。`session_id=None` またはエラー時は `[]` |
 
