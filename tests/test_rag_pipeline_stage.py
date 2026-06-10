@@ -335,3 +335,36 @@ class TestRagPipelineLastTimings:
             await pipeline.run("second query", mock_db)
 
         assert "stale_stage" not in pipeline.last_timings
+
+
+class TestSemanticCacheDimensionGuard:
+    """Test SemanticCache dimension validation added in fail-fast refactor."""
+
+    def test_put_sets_dimension_on_first_entry(self) -> None:
+        from rag.repository import SemanticCache
+
+        cache = SemanticCache()
+        cache.put([1.0, 2.0, 3.0], "ctx")
+        assert cache._dim == 3
+
+    def test_put_raises_on_dimension_mismatch(self) -> None:
+        from rag.repository import SemanticCache
+
+        cache = SemanticCache()
+        cache.put([1.0, 2.0, 3.0], "ctx")
+        with pytest.raises(ValueError, match="dimension mismatch"):
+            cache.put([1.0, 2.0], "other")
+
+    def test_lookup_raises_on_dimension_mismatch(self) -> None:
+        from rag.repository import SemanticCache
+
+        cache = SemanticCache()
+        cache.put([1.0, 2.0, 3.0], "ctx")
+        with pytest.raises(ValueError, match="dimension mismatch"):
+            cache.lookup([1.0, 2.0])
+
+    def test_lookup_empty_cache_returns_none(self) -> None:
+        from rag.repository import SemanticCache
+
+        cache = SemanticCache()
+        assert cache.lookup([1.0, 2.0, 3.0]) is None

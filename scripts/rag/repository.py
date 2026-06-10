@@ -14,13 +14,12 @@ Extracted from rag/pipeline.py.  Contains:
 import logging
 import math
 import re
-import sqlite3
 import time
 from typing import Any, cast
 
 from db.helper import SQLiteHelper
 
-from rag.types import RagHit
+from rag.types import RagHit, RawHit
 from rag.utils import floats_to_blob
 
 logger = logging.getLogger(__name__)
@@ -36,7 +35,10 @@ _sd_split_c: Any = None
 
 
 def _get_sudachi_tokenizer() -> tuple[Any, Any]:
-    """Lazy-initialize Sudachi tokenizer for FTS5 Japanese query POS filtering."""
+    """Lazy-initialize Sudachi tokenizer for FTS5 Japanese query POS filtering.
+
+    Raises ImportError if sudachipy is not installed.
+    """
     global _sd_tkn, _sd_split_c
     if _sd_tkn is None:
         from sudachipy import (
@@ -57,18 +59,18 @@ def _build_fts_tokens_ja(text: str) -> list[str]:
 
     Tokens match against FTS5 index content built from ChunkSplitter's
     normalized_content (same Sudachi normalized_form space-separated tokens).
-    Falls back to raw non-ASCII extraction on tokenizer error.
+    Raises ImportError if Sudachi is not installed.
+    Raises RuntimeError on tokenization failure.
     """
+    tkn, split_c = _get_sudachi_tokenizer()
     try:
-        tkn, split_c = _get_sudachi_tokenizer()
         return [
             m.normalized_form()
             for m in tkn.tokenize(text, split_c)
             if m.part_of_speech()[0] in _FTS_KEEP_POS and m.normalized_form().strip()
         ]
-    except Exception as e:
-        logger.debug(f"Sudachi FTS tokenization failed: {e}")
-        return re.findall(r"[^\x00-\x7F]+", text)
+    except RuntimeError as e:
+        raise RuntimeError(f"Sudachi tokenization failed: {e}") from e
 
 
 def _build_fts_query(text: str) -> str:
@@ -131,16 +133,13 @@ class RagRepository:
         return results
 
     def fts_search(self, query: str, top_k: int) -> list[RagHit]:
-        """Retrieve chunks by FTS5 BM25 (negative scores; more-negative = higher relevance); [] on syntax error."""
+        """Retrieve chunks by FTS5 BM25 (negative scores; more-negative = higher relevance).
+
+        Raises sqlite3.OperationalError on FTS syntax errors — callers must handle.
+        """
         fts_query = _build_fts_query(query)
         t0 = time.perf_counter()
-        try:
-            rows = self._db.fetchall(self._SQL_FTS, (fts_query, top_k))
-        except sqlite3.OperationalError as e:
-            logger.warning(
-                f"fts_search error query={query!r} fts_query={fts_query!r}: {e}",
-            )
-            return []
+        rows = self._db.fetchall(self._SQL_FTS, (fts_query, top_k))
         elapsed_ms = (time.perf_counter() - t0) * 1000
         results: list[RagHit] = cast("list[RagHit]", [dict(r) for r in rows])
         logger.info(
@@ -181,15 +180,24 @@ def cosine_sim(a: list[float], b: list[float]) -> float:
 
 
 class SemanticCache:
-    """In-memory nearest-neighbour cache; returns context when cosine sim ≥ threshold, pruned by max_size."""
+    """In-memory nearest-neighbour cache; returns context when cosine sim >= threshold, pruned by max_size."""
 
     def __init__(self, max_size: int = 100, threshold: float = 0.92) -> None:
         self._entries: list[dict[str, Any]] = []  # [{embedding, context_str}]
         self._max_size = max_size
         self._threshold = threshold
+        self._dim: int | None = None
 
     def lookup(self, embedding: list[float]) -> str | None:
-        """Return cached context for the nearest embedding, or None on miss."""
+        """Return cached context for the nearest embedding, or None on miss.
+
+        Raises ValueError if embedding dimension differs from stored entries.
+        """
+        if self._dim is not None and len(embedding) != self._dim:
+            raise ValueError(
+                f"SemanticCache dimension mismatch: expected {self._dim},"
+                f" got {len(embedding)}",
+            )
         best_sim = -1.0
         best_ctx: str | None = None
         for entry in self._entries:
@@ -203,7 +211,17 @@ class SemanticCache:
         return None
 
     def put(self, embedding: list[float], context_str: str) -> None:
-        """Add a new entry, then prune if over capacity."""
+        """Add a new entry, then prune if over capacity.
+
+        Raises ValueError if embedding dimension differs from previously stored entries.
+        """
+        if self._dim is None:
+            self._dim = len(embedding)
+        elif len(embedding) != self._dim:
+            raise ValueError(
+                f"SemanticCache dimension mismatch: expected {self._dim},"
+                f" got {len(embedding)}",
+            )
         self._entries.append({"embedding": embedding, "context_str": context_str})
         self.prune()
 
@@ -231,12 +249,13 @@ def fetch_full_document(
     chunk_id: int,
     db: SQLiteHelper,
     window: int | None = None,
-) -> list[RagHit]:
+) -> list[RawHit]:
     """Retrieve surrounding chunks for a given chunk_id from the same document.
 
     window=None: return all chunks from the same document (full expansion).
     window=N: return chunks within N positions of chunk_id (±N window).
     Results are ordered by chunk_index ascending (document reading order).
+    Returns empty list when chunk_id is not found (valid not-found result).
     """
     row = db.execute(
         "SELECT c.doc_id, c.chunk_index FROM chunks c WHERE c.chunk_id = ?",
@@ -261,7 +280,7 @@ def fetch_full_document(
             " ORDER BY c.chunk_index",
             (doc_id, max(0, chunk_index - window), chunk_index + window),
         )
-    return cast("list[RagHit]", [dict(r) for r in rows])
+    return cast("list[RawHit]", [dict(r) for r in rows])
 
 
 def deduplicate_chunks(hits: list[RagHit], max_per_doc: int) -> list[RagHit]:
