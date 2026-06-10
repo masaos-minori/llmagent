@@ -154,7 +154,7 @@ class TestRagPipelineErrorOnDbOpen:
         )
         http = MagicMock()
         with patch("rag.pipeline._get_cfg", return_value={}):
-            return RagPipeline(http, cfg)  # type: ignore[arg-type]
+            return RagPipeline(http, cfg)
 
     @pytest.mark.asyncio
     async def test_augment_raises_pipeline_error_on_db_failure(self) -> None:
@@ -165,3 +165,33 @@ class TestRagPipelineErrorOnDbOpen:
         ):
             with pytest.raises(RagPipelineError, match="DB open failed"):
                 await pipeline.augment("test query")
+
+    @pytest.mark.asyncio
+    async def test_augment_returns_empty_string_on_zero_results(self) -> None:
+        """Empty DB results (0 hits) returns '' — distinct from DB failure."""
+        pipeline = self._make_pipeline()
+        mock_db_instance = MagicMock()
+        mock_db_instance.__enter__ = MagicMock(return_value=mock_db_instance)
+        mock_db_instance.__exit__ = MagicMock(return_value=False)
+        mock_db_instance.open = MagicMock(return_value=mock_db_instance)
+
+        with (
+            patch("rag.pipeline.SQLiteHelper", return_value=mock_db_instance),
+            patch("rag.pipeline.MqeStage") as mock_mqe,
+            patch("rag.pipeline.SearchStage") as mock_search,
+            patch("rag.pipeline.FusionStage") as mock_fusion,
+            patch("rag.pipeline.RerankStage") as mock_rerank,
+            patch("rag.pipeline.AugmentStage") as mock_augment,
+        ):
+
+            async def noop(ctx, **kwargs):
+                pass
+
+            for M in (mock_mqe, mock_search, mock_fusion, mock_rerank, mock_augment):
+                inst = MagicMock()
+                inst.run = noop
+                M.return_value = inst
+
+            result = await pipeline.augment("test query")
+
+        assert result == ""
