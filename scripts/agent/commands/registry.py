@@ -20,7 +20,7 @@ Mixin split:
 """
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from shared import plugin_registry
 
@@ -40,6 +40,14 @@ __all__ = ["CommandRegistry"]
 
 
 @dataclass
+class SubcommandSpec:
+    """Declarative metadata for one subcommand."""
+
+    name: str
+    help: str
+
+
+@dataclass
 class CommandDef:
     """Declarative metadata for one slash command."""
 
@@ -48,6 +56,7 @@ class CommandDef:
     is_async: bool
     handler: str  # method name on CommandRegistry
     help: str  # one-line description shown in /help output
+    subcommands: list[SubcommandSpec] = field(default_factory=list)
 
 
 # Single source of truth for all built-in slash commands.

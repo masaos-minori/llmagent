@@ -36,31 +36,31 @@ class TestCmdDbClean:
     def test_clean_empty_url_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         cmd._cmd_db("clean")
-        assert "Usage" in capsys.readouterr().out
+        assert "usage" in capsys.readouterr().out.lower()
         cmd._ctx.session.delete_document.assert_not_called()
 
 
 class TestCmdDbStats:
-    def test_stats_error_handled(self, capsys: pytest.CaptureFixture) -> None:
+    def test_stats_error_raises(self) -> None:
         cmd = _make_cmd()
         with patch(
             "agent.services.db_maintenance_service.SQLiteHelper",
             side_effect=Exception("db error"),
         ):
-            cmd._cmd_db("stats")
-        assert "error" in capsys.readouterr().out.lower()
+            with pytest.raises(Exception, match="db error"):
+                cmd._cmd_db("stats")
 
 
 class TestCmdDbUnknownSubcommand:
     def test_unknown_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         cmd._cmd_db("unknown")
-        assert "Usage" in capsys.readouterr().out
+        assert "usage" in capsys.readouterr().out.lower()
 
     def test_empty_args_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         cmd._cmd_db("")
-        assert "Usage" in capsys.readouterr().out
+        assert "usage" in capsys.readouterr().out.lower()
 
 
 # ── _parse_flag_int ───────────────────────────────────────────────────────────
@@ -134,7 +134,7 @@ class TestDbStats:
             assert "chunks" in out
             assert "100" in out
 
-    def test_stats_sqlite_error_handled(self, capsys: pytest.CaptureFixture) -> None:
+    def test_stats_sqlite_error_raises(self) -> None:
         import sqlite3
 
         cmd = _make_cmd()
@@ -147,9 +147,8 @@ class TestDbStats:
             helper_mock = MagicMock()
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
-            cmd._cmd_db("stats")
-            out = capsys.readouterr().out
-            assert "error" in out.lower()
+            with pytest.raises(sqlite3.Error, match="db error"):
+                cmd._cmd_db("stats")
 
 
 # ── _db_list_urls ─────────────────────────────────────────────────────────────
@@ -225,7 +224,7 @@ class TestDbRebuildFts:
             out = capsys.readouterr().out
             assert "rebuilt" in out.lower()
 
-    def test_rebuild_fts_error_handled(self, capsys: pytest.CaptureFixture) -> None:
+    def test_rebuild_fts_error_raises(self) -> None:
         import sqlite3
 
         cmd = _make_cmd()
@@ -238,9 +237,8 @@ class TestDbRebuildFts:
             helper_mock = MagicMock()
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
-            cmd._cmd_db("rebuild-fts")
-            out = capsys.readouterr().out
-            assert "error" in out.lower()
+            with pytest.raises(sqlite3.Error, match="fts error"):
+                cmd._cmd_db("rebuild-fts")
 
 
 # ── _db_health ────────────────────────────────────────────────────────────────
@@ -270,7 +268,7 @@ class TestDbHealth:
             assert "journal_mode" in out
             assert "wal" in out
 
-    def test_health_error_handled(self, capsys: pytest.CaptureFixture) -> None:
+    def test_health_error_raises(self) -> None:
         import sqlite3
 
         cmd = _make_cmd()
@@ -283,9 +281,8 @@ class TestDbHealth:
             helper_mock = MagicMock()
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
-            cmd._cmd_db("health")
-            out = capsys.readouterr().out
-            assert "error" in out.lower()
+            with pytest.raises(sqlite3.Error, match="health error"):
+                cmd._cmd_db("health")
 
 
 # ── _db_checkpoint ────────────────────────────────────────────────────────────
@@ -348,7 +345,7 @@ class TestDbVacuum:
                 out = capsys.readouterr().out
                 assert "complete" in out.lower()
 
-    def test_vacuum_error_handled(self, capsys: pytest.CaptureFixture) -> None:
+    def test_vacuum_error_raises(self) -> None:
         import sqlite3
 
         cmd = _make_cmd()
@@ -364,9 +361,8 @@ class TestDbVacuum:
                 "agent.services.db_maintenance_service.vacuum_db",
                 side_effect=sqlite3.Error("vac error"),
             ):
-                cmd._cmd_db("vacuum")
-                out = capsys.readouterr().out
-                assert "error" in out.lower()
+                with pytest.raises(sqlite3.Error, match="vac error"):
+                    cmd._cmd_db("vacuum")
 
 
 # ── _db_purge ─────────────────────────────────────────────────────────────────
@@ -427,7 +423,7 @@ class TestDbPurge:
                 cmd._cmd_db("purge --max-age-days 30")
                 mock_purge.assert_called_once()
 
-    def test_purge_error_handled(self, capsys: pytest.CaptureFixture) -> None:
+    def test_purge_error_raises(self) -> None:
         import sqlite3
 
         cmd = _make_cmd()
@@ -443,9 +439,8 @@ class TestDbPurge:
                 "agent.services.db_maintenance_service.purge_old_sessions",
                 side_effect=sqlite3.Error("purge error"),
             ):
-                cmd._cmd_db("purge")
-                out = capsys.readouterr().out
-                assert "error" in out.lower()
+                with pytest.raises(sqlite3.Error, match="purge error"):
+                    cmd._cmd_db("purge")
 
 
 # ── _db_recover ───────────────────────────────────────────────────────────────
@@ -481,12 +476,11 @@ class TestDbRecover:
             out = capsys.readouterr().out
             assert "failed" in out.lower()
 
-    def test_recover_error_handled(self, capsys: pytest.CaptureFixture) -> None:
+    def test_recover_error_raises(self) -> None:
         cmd = _make_cmd()
         with patch(
             "agent.services.db_maintenance_service.recover_corruption",
             side_effect=Exception("fail"),
         ):
-            cmd._cmd_db("recover")
-            out = capsys.readouterr().out
-            assert "error" in out.lower()
+            with pytest.raises(Exception, match="fail"):
+                cmd._cmd_db("recover")

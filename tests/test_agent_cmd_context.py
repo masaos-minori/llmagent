@@ -310,7 +310,7 @@ class TestCmdHistory:
         cmd = _FakeCmd(ctx)
         cmd._cmd_history("abc")
         out = capsys.readouterr().out
-        assert "Usage" in out
+        assert "usage" in out.lower()
 
     def test_history_no_conversation_prints_message(self, capsys: Any) -> None:
         ctx = _make_ctx()
@@ -380,7 +380,7 @@ class TestCmdContext:
         cmd = _FakeCmd(ctx)
         cmd._cmd_context()
         out = capsys.readouterr().out
-        assert "Context state" in out
+        assert "Messages" in out
         assert "Messages" in out
 
     def test_cmd_context_prints_breakdown(self, capsys: Any) -> None:

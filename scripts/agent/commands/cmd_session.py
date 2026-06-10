@@ -12,7 +12,14 @@ Provides _SessionMixin with:
 
 import logging
 
+from agent.commands.formatter import (
+    print_no_data,
+    print_success,
+    print_table,
+    print_validation_error,
+)
 from agent.commands.mixin_base import MixinBase
+from agent.commands.utils import parse_command_args
 
 logger = logging.getLogger(__name__)
 
@@ -30,56 +37,73 @@ class _SessionMixin(MixinBase):
 
     def _session_load_safe(self, arg: str) -> None:
         """Parse arg as an integer session ID and load it; print error on invalid."""
-        try:
-            self._load_session(int(arg))
-        except ValueError:
-            print(f"Invalid session ID: {arg}")
+        if not arg.isdigit():
+            print_validation_error(f"Invalid session ID: {arg}")
+            return
+        self._load_session(int(arg))
 
     def _session_delete(self, arg: str) -> None:
         """Parse arg as an integer session ID and delete it; guard current session."""
-        try:
-            sid = int(arg)
-        except ValueError:
-            print(f"Invalid session ID: {arg}")
+        if not arg.isdigit():
+            print_validation_error(f"Invalid session ID: {arg}")
             return
+        sid = int(arg)
         if sid == self._ctx.session.session_id:
-            print("Cannot delete the current session.")
+            print_validation_error("Cannot delete the current session.")
             return
         ok = self._ctx.session.delete_session(sid)
-        print(f"Session {sid} deleted." if ok else f"Session {sid} not found.")
+        if ok:
+            print_success(f"Session {sid} deleted.")
+        else:
+            print_no_data(f"Session {sid} not found.")
 
     def _cmd_session(self, args: str) -> None:
-        """Handle /session list [n] | load | rename | delete."""
-        parts = args.strip().split()
-        sub = parts[0] if parts else "list"
+        """Handle /session list [n] | load <id> | rename <title> | delete <id>."""
+        parsed = parse_command_args(args.strip().split())
+        sub = parsed.subcommand or "list"
 
         if sub == "list":
-            limit = int(parts[1]) if len(parts) >= 2 and parts[1].isdigit() else 20
+            limit_raw = parsed.positional[0] if parsed.positional else "20"
+            limit = int(limit_raw) if limit_raw.isdigit() else 20
             rows = self._ctx.session.list_sessions(limit)
             if not rows:
-                print("No sessions found")
+                print_no_data("No sessions found")
                 return
-            print(f"{'ID':>4}  {'Title':<32}  Created")
-            for r in rows:
-                marker = "*" if r["is_current"] else " "
-                raw_title = r["title"] or ""
-                title = raw_title[:29] + "..." if len(raw_title) > 32 else raw_title
-                print(f"{r['session_id']:>4}{marker} {title:<32}  {r['created_at']}")
+            table_rows = [
+                [
+                    f"{r['session_id']:>4}{'*' if r['is_current'] else ' '}",
+                    (r["title"] or "")[:29] + "..."
+                    if len(r["title"] or "") > 32
+                    else (r["title"] or ""),
+                    r["created_at"],
+                ]
+                for r in rows
+            ]
+            print_table(["ID  ", "Title", "Created"], table_rows)
             return
-        if sub == "load" and len(parts) == 2:
-            self._session_load_safe(parts[1])
+
+        if sub == "load":
+            arg = parsed.positional[0] if parsed.positional else ""
+            self._session_load_safe(arg)
             return
-        if sub == "rename" and len(parts) >= 2:
-            title = " ".join(parts[1:])
+
+        if sub == "rename":
+            title = " ".join(parsed.positional)
+            if not title:
+                print_validation_error("/session rename <title>")
+                return
             self._ctx.session.set_title(title)
-            print(f"Session renamed: {title[:50]!r}")
+            print_success(f"Session renamed: {title[:50]!r}")
             return
-        if sub == "delete" and len(parts) == 2:
-            self._session_delete(parts[1])
+
+        if sub == "delete":
+            arg = parsed.positional[0] if parsed.positional else ""
+            self._session_delete(arg)
             return
-        print(
-            "Usage: /session list [n] | /session load <id>"
-            " | /session rename <title> | /session delete <id>",
+
+        print_validation_error(
+            "/session list [n] | /session load <id>"
+            " | /session rename <title> | /session delete <id>"
         )
 
     def _load_session(self, session_id: int) -> None:

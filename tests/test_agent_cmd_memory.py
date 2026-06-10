@@ -97,7 +97,7 @@ class TestMemoryDelete:
         cmd = _make_cmd()
         cmd._memory_delete(svc, [])
         out = capsys.readouterr().out
-        assert "Usage" in out
+        assert "usage" in out.lower()
         svc.store.delete.assert_not_called()
 
     def test_delete_dry_run_entry_exists(self, capsys: pytest.CaptureFixture) -> None:

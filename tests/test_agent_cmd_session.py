@@ -115,7 +115,7 @@ class TestCmdSessionUsage:
     ) -> None:
         cmd = _make_cmd()
         cmd._cmd_session("unknown")
-        assert "Usage" in capsys.readouterr().out
+        assert "usage" in capsys.readouterr().out.lower()
 
     def test_empty_args_defaults_to_list(self) -> None:
         cmd = _make_cmd(sessions=[])

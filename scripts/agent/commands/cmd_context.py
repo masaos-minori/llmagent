@@ -11,14 +11,22 @@ Provides _ContextMixin with:
 
 Data collection delegates to agent.services.context_view.
 Undo logic delegates to agent.services.undo_service.
+Clear/system logic delegates to agent.services.conversation_service.
 """
 
 from __future__ import annotations
 
 import logging
 
-from agent.commands.mixin_base import MixinBase, reset_session_stats
+from agent.commands.formatter import (
+    print_kv_list,
+    print_no_data,
+    print_validation_error,
+)
+from agent.commands.mixin_base import MixinBase
+from agent.commands.utils import parse_command_args
 from agent.services.context_view import collect_context_state
+from agent.services.conversation_service import clear_conversation, switch_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -44,33 +52,43 @@ class _ContextMixin(MixinBase):
         src = _token_source_label(state["token_is_exact"], state["tokenize_configured"])
         if token_limit > 0:
             token_pct = int(token_estimate * 100 / token_limit)
-            print(
-                f"  {token_label} : {token_estimate:,}"
-                f" ({src}, limit={token_limit:,} [active] {token_pct}%)",
-            )
+            token_value = f"{token_estimate:,} ({src}, limit={token_limit:,} [active] {token_pct}%)"
         else:
-            print(f"  {token_label} : {token_estimate:,} ({src})")
-        print(f"  Token limit     : {token_limit_str}")
+            token_value = f"{token_estimate:,} ({src})"
+        print_kv_list(
+            [
+                (token_label, token_value),
+                ("Token limit     ", token_limit_str),
+            ]
+        )
 
     def _cmd_context(self) -> None:
         """Print runtime conversation context state."""
         ctx = self._ctx
         state = collect_context_state(ctx)
         breakdown = state["breakdown"]
-        total_bd = sum(breakdown.values()) or 1  # avoid zero division
-        print("Context state:")
-        print(f"  Messages        : {state['n_msgs']}")
-        print(f"  Total chars     : {state['total_chars']:,}")
-        print(f"  Compress limit  : {state['compress_limit']:,}")
-        print(
-            f"  Remaining       : {state['compress_limit'] - state['total_chars']:,} chars until compression"
+        total_bd = sum(breakdown.values()) or 1
+        print_kv_list(
+            [
+                ("Messages        ", str(state["n_msgs"])),
+                ("Total chars     ", f"{state['total_chars']:,}"),
+                ("Compress limit  ", f"{state['compress_limit']:,}"),
+                (
+                    "Remaining       ",
+                    f"{state['compress_limit'] - state['total_chars']:,} chars until compression",
+                ),
+                ("Compress count  ", str(state["compress_count"])),
+                ("System prompt   ", ctx.conv.system_prompt_name),
+                ("System preview  ", repr(state["sys_preview"])),
+            ]
         )
-        print(f"  Compress count  : {state['compress_count']}")
-        print(f"  System prompt   : {ctx.conv.system_prompt_name}")
-        print(f"  System preview  : {state['sys_preview']!r}")
         self._print_token_line(state)
-        print(f"  Memory layer    : {state['mem_status']}")
-        print(f"  Git             : {state['git_str']}")
+        print_kv_list(
+            [
+                ("Memory layer    ", state["mem_status"]),
+                ("Git             ", state["git_str"]),
+            ]
+        )
         print("Budget breakdown:")
         for cat, n in breakdown.items():
             pct = n * 100 // total_bd
@@ -82,14 +100,10 @@ class _ContextMixin(MixinBase):
         /clear     — reset history in the current session
         /clear new — reset history and start a new DB session
         """
-        ctx = self._ctx
-        ctx.conv.history = ctx.conv.history[:1]
-        reset_session_stats(ctx)
-        if "new" in args.split():
-            ctx.session.start()
-            print("History cleared. New session started.")
-        else:
-            print("History cleared. Session stats reset.")
+        parsed = parse_command_args(args.split())
+        new_session = parsed.subcommand == "new"
+        msg = clear_conversation(self._ctx, new_session=new_session)
+        print(f"  {msg}")
 
     def _cmd_undo(self) -> None:
         """Roll back the last user+assistant turn from in-memory history and DB."""
@@ -102,16 +116,18 @@ class _ContextMixin(MixinBase):
 
     def _cmd_history(self, args: str) -> None:
         """Print last N user/assistant messages in compact form."""
+        parsed = parse_command_args(args.split())
+        raw = parsed.subcommand or "5"
         try:
-            n = int(args.strip()) if args.strip() else 5
+            n = int(raw)
         except ValueError:
-            print("Usage: /history [n]")
+            print_validation_error("/history [n]")
             return
         ctx = self._ctx
         turns = [m for m in ctx.conv.history if m["role"] in ("user", "assistant")]
         recent = turns[-n:]
         if not recent:
-            print("No conversation history.")
+            print_no_data("No conversation history.")
             return
         for msg in recent:
             content = msg.get("content") or ""
@@ -127,21 +143,11 @@ class _ContextMixin(MixinBase):
         if not name:
             prompts = ctx.cfg.tool.system_prompts
             names = ", ".join(prompts.keys()) if prompts else "(none)"
-            print(f"Current: {ctx.conv.system_prompt_name}")
-            print(f"Available: {names}")
+            print(f"  Current: {ctx.conv.system_prompt_name}")
+            print(f"  Available: {names}")
             return
-        if name not in ctx.cfg.tool.system_prompts:
-            names = ", ".join(ctx.cfg.tool.system_prompts.keys())
-            print(f"Unknown preset '{name}'. Available: {names}")
-            return
-        ctx.conv.system_prompt_name = name
-        ctx.conv.system_prompt_content = ctx.cfg.tool.system_prompts[name]
-        # Immediately sync history[0] so the new prompt takes effect in this turn.
-        if ctx.conv.history and ctx.conv.history[0]["role"] == "system":
-            ctx.conv.history[0]["content"] = ctx.conv.system_prompt_content
-        elif ctx.conv.system_prompt_content:
-            ctx.conv.history.insert(
-                0, {"role": "system", "content": ctx.conv.system_prompt_content}
-            )
-        logger.info(f"System prompt switched to '{name}'")
-        print(f"System prompt: {name}")
+        try:
+            msg = switch_system_prompt(ctx, name)
+            print(f"  {msg}")
+        except ValueError as e:
+            print_validation_error(str(e))

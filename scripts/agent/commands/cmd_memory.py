@@ -20,6 +20,10 @@ from dataclasses import dataclass, field
 
 import orjson
 
+from agent.commands.formatter import (
+    print_success,
+    print_validation_error,
+)
 from agent.commands.mixin_base import MixinBase
 from agent.context import AgentContext
 from agent.memory.services import MemoryServices
@@ -57,8 +61,9 @@ class _MemoryMixin(MixinBase):
     def _cmd_memory(self, args: str) -> None:
         ctx = self._ctx
         mem = ctx.services.memory
-        parts = args.strip().split()
-        sub = parts[0] if parts else ""
+        raw_tokens = args.strip().split()
+        sub = raw_tokens[0] if raw_tokens else ""
+        sub_tokens = raw_tokens[1:] if raw_tokens else []
 
         if not sub or sub == "help":
             print(_MEMORY_HELP)
@@ -69,19 +74,19 @@ class _MemoryMixin(MixinBase):
             return
 
         dispatch = {
-            "list": lambda: self._memory_list(mem, parts[1:]),
-            "search": lambda: self._memory_search(mem, parts[1:]),
-            "show": lambda: self._memory_show(mem, parts[1:]),
-            "pin": lambda: self._memory_pin(mem, parts[1:], pin=True),
-            "unpin": lambda: self._memory_pin(mem, parts[1:], pin=False),
-            "delete": lambda: self._memory_delete(mem, parts[1:]),
-            "prune": lambda: self._memory_prune(mem, ctx, parts[1:]),
+            "list": lambda: self._memory_list(mem, sub_tokens),
+            "search": lambda: self._memory_search(mem, sub_tokens),
+            "show": lambda: self._memory_show(mem, sub_tokens),
+            "pin": lambda: self._memory_pin(mem, sub_tokens, pin=True),
+            "unpin": lambda: self._memory_pin(mem, sub_tokens, pin=False),
+            "delete": lambda: self._memory_delete(mem, sub_tokens),
+            "prune": lambda: self._memory_prune(mem, ctx, sub_tokens),
         }
         handler = dispatch.get(sub)
         if handler:
             handler()
         else:
-            print(f"  Unknown subcommand: {sub!r}. Try /memory help")
+            print_validation_error(f"Unknown subcommand: {sub!r}. Try /memory help")
 
     def _memory_list(self, mem: MemoryServices, args: list[str]) -> None:
         mem_type = next((a for a in args if a in ("semantic", "episodic")), "")
@@ -112,7 +117,7 @@ class _MemoryMixin(MixinBase):
 
     def _memory_search(self, mem: MemoryServices, args: list[str]) -> None:
         if not args:
-            print("  Usage: /memory search <query>")
+            print_validation_error("/memory search <query>")
             return
         query = " ".join(args)
         hits = mem.retriever.search(MemoryQuery(query=query, limit=10))
@@ -130,7 +135,7 @@ class _MemoryMixin(MixinBase):
 
     def _memory_show(self, mem: MemoryServices, args: list[str]) -> None:
         if not args:
-            print("  Usage: /memory show <id>")
+            print_validation_error("/memory show <id>")
             return
         mid = args[0]
         entry = mem.store.get_by_id(mid)
@@ -151,7 +156,7 @@ class _MemoryMixin(MixinBase):
     def _memory_pin(self, mem: MemoryServices, args: list[str], *, pin: bool) -> None:
         if not args:
             cmd = "pin" if pin else "unpin"
-            print(f"  Usage: /memory {cmd} <id>")
+            print_validation_error(f"/memory {cmd} <id>")
             return
         mid = args[0]
         ok = mem.store.pin(mid) if pin else mem.store.unpin(mid)
@@ -168,7 +173,7 @@ class _MemoryMixin(MixinBase):
         dry_run = "--dry-run" in args
         ids = [a for a in args if not a.startswith("--")]
         if not ids:
-            print("  Usage: /memory delete [--dry-run] <id>")
+            print_validation_error("/memory delete [--dry-run] <id>")
             return
         mid = ids[0]
         if dry_run:
@@ -208,13 +213,9 @@ class _MemoryMixin(MixinBase):
                 )
             )
             return
-        try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                deleted = prune_old_memories(db, days)
-        except Exception as e:
-            logger.warning("prune failed: %s", e)
-            deleted = 0
-        print(f"  [memory] Pruned {deleted} entries older than {days} days")
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            deleted = prune_old_memories(db, days)
+        print_success(f"Pruned {deleted} entries older than {days} days")
         self._emit_memory_audit(
             MemoryOpResult(ok=True, memory_id="", action="pruned", count=deleted)
         )

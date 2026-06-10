@@ -37,7 +37,7 @@ class TestNoteAdd:
     def test_add_empty_text_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         cmd._cmd_note("add")
-        assert "Usage" in capsys.readouterr().out
+        assert "usage" in capsys.readouterr().out.lower()
         cmd._ctx.session.add_note.assert_not_called()
 
     def test_add_failure_prints_error(self, capsys: pytest.CaptureFixture) -> None:
@@ -84,7 +84,7 @@ class TestNoteDelete:
     def test_delete_invalid_id_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         cmd._cmd_note("delete abc")
-        assert "Usage" in capsys.readouterr().out
+        assert "usage" in capsys.readouterr().out.lower()
         cmd._ctx.session.delete_note.assert_not_called()
 
 
@@ -92,4 +92,4 @@ class TestNoteUnknownSubcommand:
     def test_unknown_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         cmd._cmd_note("unknown")
-        assert "Usage" in capsys.readouterr().out
+        assert "usage" in capsys.readouterr().out.lower()
