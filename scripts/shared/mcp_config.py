@@ -4,71 +4,63 @@ Transport configuration for MCP servers.
 Placed in shared/ so tool_executor.py can reference it without depending on agent/.
 """
 
+from __future__ import annotations
+
 import warnings
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Literal
+from typing import Any
 
 
 @dataclass
 class McpServerConfig:
-    """Transport configuration for one MCP server; transport/startup_mode/healthcheck_mode govern lifecycle; tool_names enables config-driven routing."""
+    """Transport configuration for one MCP server."""
 
-    transport: Literal["http", "stdio"]
+    transport: str  # "http" | "stdio"
     url: str  # base URL (transport="http")
     cmd: list[str]  # command argv (transport="stdio")
     openrc_service: str  # e.g. "file-mcp"  (transport="http", watchdog restart)
-    startup_mode: Literal["persistent", "ondemand", "subprocess"] = "persistent"
-    healthcheck_mode: Literal["http", "process", "ping_tool", ""] = ""
-    idle_timeout_sec: int = 0  # ondemand auto-stop delay in seconds; 0 = disabled
+    startup_mode: str = "persistent"  # "persistent" | "ondemand" | "subprocess"
+    healthcheck_mode: str = ""  # "http" | "process" | "ping_tool" | ""
+    idle_timeout_sec: int = 0  # ondemand auto-stop delay in seconds
     startup_timeout_sec: int = 30  # subprocess startup health-poll timeout in seconds
     working_dir: str = ""  # stdio subprocess working directory; "" = inherit
-    env: dict[str, str] = field(default_factory=dict)  # env vars for stdio subprocess
-    tool_names: list[str] = field(
-        default_factory=list,
-    )  # explicit tool routing; [] = static fallback
-    auth_token: str = ""  # Bearer token sent by ToolExecutor; "" = auth disabled
-    role: str = ""  # human-readable role label shown in /mcp status
+    env: dict[str, str] = field(default_factory=dict)
+    tool_names: list[str] = field(default_factory=list)
+    auth_token: str = ""  # Bearer token sent by ToolExecutor
+    role: str = ""  # human-readable role label
 
     def __post_init__(self) -> None:
         self._validate_transport()
         self._validate_startup_mode()
-        self._resolve_healthcheck_mode()
-
-    def _validate_transport(self) -> None:
-        if self.transport not in ("http", "stdio"):
-            raise ValueError(
-                f"McpServerConfig.transport must be 'http' or 'stdio',"
-                f" got {self.transport!r}",
-            )
-        if self.transport == "http" and not self.url:
-            raise ValueError(
-                "McpServerConfig: url must not be empty when transport='http'",
-            )
-        if self.transport == "stdio" and not self.cmd:
-            raise ValueError(
-                "McpServerConfig: cmd must not be empty when transport='stdio'",
-            )
-
-    def _validate_startup_mode(self) -> None:
-        if self.startup_mode not in ("persistent", "ondemand", "subprocess"):
-            raise ValueError(
-                f"McpServerConfig.startup_mode must be 'persistent', 'ondemand',"
-                f" or 'subprocess', got {self.startup_mode!r}",
-            )
-        if self.startup_mode == "subprocess" and self.transport == "stdio":
-            raise ValueError(
-                "startup_mode='subprocess' is only valid for transport='http';"
-                " stdio servers use 'persistent' or 'ondemand'",
-            )
-
-    def _resolve_healthcheck_mode(self) -> None:
         if not self.healthcheck_mode:
             self.healthcheck_mode = "http" if self.transport == "http" else "process"
         if self.healthcheck_mode not in ("http", "process", "ping_tool"):
             raise ValueError(
-                f"McpServerConfig.healthcheck_mode must be 'http', 'process', or"
-                f" 'ping_tool', got {self.healthcheck_mode!r}",
+                f"McpServerConfig.healthcheck_mode must be 'http', 'process', or "
+                f"'ping_tool', got {self.healthcheck_mode!r}"
+            )
+
+    def _validate_transport(self) -> None:
+        if self.transport not in ("http", "stdio"):
+            raise ValueError(
+                f"McpServerConfig.transport must be 'http' or 'stdio', got {self.transport!r}"
+            )
+        if self.transport == "http" and not self.url:
+            raise ValueError("McpServerConfig: url must not be empty when transport='http'")
+        if self.transport == "stdio" and not self.cmd:
+            raise ValueError("McpServerConfig: cmd must not be empty when transport='stdio'")
+
+    def _validate_startup_mode(self) -> None:
+        if self.startup_mode not in ("persistent", "ondemand", "subprocess"):
+            raise ValueError(
+                f"McpServerConfig.startup_mode must be 'persistent', 'ondemand', or "
+                f"'subprocess', got {self.startup_mode!r}"
+            )
+        if self.startup_mode == "subprocess" and self.transport == "stdio":
+            raise ValueError(
+                "startup_mode='subprocess' is only valid for transport='http'; "
+                "stdio servers use 'persistent' or 'ondemand'"
             )
 
 
@@ -91,11 +83,9 @@ class McpServerHealthRegistry:
     def record_failure(self, server_key: str) -> McpServerHealthState:
         count = self._failure_counts.get(server_key, 0) + 1
         self._failure_counts[server_key] = count
-        if count >= self._failure_threshold:
-            self._states[server_key] = McpServerHealthState.UNAVAILABLE
-        else:
-            self._states[server_key] = McpServerHealthState.DEGRADED
-        return self._states[server_key]
+        state = McpServerHealthState.UNAVAILABLE if count >= self._failure_threshold else McpServerHealthState.DEGRADED
+        self._states[server_key] = state
+        return state
 
     def record_success(self, server_key: str) -> None:
         self._states[server_key] = McpServerHealthState.HEALTHY
@@ -112,25 +102,8 @@ def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
     """Build per-server transport config from agent.toml; uses mcp_servers section when present, falls back to legacy URL constants."""
     raw: dict[str, Any] = cfg.get("mcp_servers", {})
     if raw:
-        return {
-            key: McpServerConfig(
-                transport=v.get("transport", "http"),
-                url=v.get("url", ""),
-                cmd=list(v.get("cmd", [])),
-                openrc_service=v.get("openrc_service", ""),
-                startup_mode=v.get("startup_mode", "persistent"),
-                healthcheck_mode=v.get("healthcheck_mode", ""),
-                idle_timeout_sec=int(v.get("idle_timeout_sec", 0)),
-                startup_timeout_sec=int(v.get("startup_timeout_sec", 30)),
-                working_dir=v.get("working_dir", ""),
-                env=dict(v.get("env", {})),
-                tool_names=list(v.get("tool_names", [])),
-                auth_token=v.get("auth_token", ""),
-                role=v.get("role", ""),
-            )
-            for key, v in raw.items()
-        }
-    # Backwards compat: derive from legacy URL constants
+        return {key: _build_single_server(key, v) for key, v in raw.items()}
+
     warnings.warn(
         "mcp_servers config section missing; falling back to legacy URL constants. "
         "Add [mcp_servers] to config/mcp_servers.toml.",
@@ -138,16 +111,30 @@ def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
         stacklevel=2,
     )
     return {
-        "web_search": McpServerConfig(
-            "http",
-            cfg.get("web_search_url", ""),
-            [],
-            "web-search-mcp",
-        ),
+        "web_search": _build_single_server("web_search", cfg),
         "github": McpServerConfig(
-            "http",
-            cfg.get("github_server_url", "http://127.0.0.1:8006"),
-            [],
-            "github-mcp",
+            transport="http",
+            url=cfg.get("github_server_url", "http://127.0.0.1:8006"),
+            cmd=[],
+            openrc_service="github-mcp",
         ),
     }
+
+
+def _build_single_server(key: str, v: Any) -> McpServerConfig:
+    """Construct McpServerConfig from a raw dict, applying defaults."""
+    return McpServerConfig(
+        transport=v.get("transport", "http"),
+        url=v.get("url", ""),
+        cmd=list(v.get("cmd", [])),
+        openrc_service=v.get("openrc_service", ""),
+        startup_mode=v.get("startup_mode", "persistent"),
+        healthcheck_mode=v.get("healthcheck_mode", ""),
+        idle_timeout_sec=int(v.get("idle_timeout_sec", 0)),
+        startup_timeout_sec=int(v.get("startup_timeout_sec", 30)),
+        working_dir=v.get("working_dir", ""),
+        env=dict(v.get("env", {})),
+        tool_names=list(v.get("tool_names", [])),
+        auth_token=v.get("auth_token", ""),
+        role=v.get("role", ""),
+    )

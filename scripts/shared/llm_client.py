@@ -197,6 +197,22 @@ class LLMClient:
         self.stat_partial_completions: int = 0
         self.stat_parse_errors: int = 0
 
+    _HOT_CONFIG_FIELDS: tuple[tuple[str, str], ...] = (
+        ("_temperature", "temperature"),
+        ("_max_tokens", "max_tokens"),
+        ("_max_retries", "max_retries"),
+        ("_retry_base_delay", "retry_base_delay"),
+        ("_sse_heartbeat_timeout", "sse_heartbeat_timeout"),
+        ("_sse_malformed_retry", "sse_malformed_retry"),
+        ("_sse_reconnect_max", "sse_reconnect_max"),
+        ("_llm_stream_retry_on_heartbeat_timeout", "stream_retry_on_heartbeat_timeout"),
+        ("_llm_stream_retry_on_malformed_chunk", "stream_retry_on_malformed_chunk"),
+    )
+
+    @classmethod
+    def _apply_one(cls, instance: object, field: str, kwarg: str, value: Any) -> None:
+        setattr(instance, field, value)
+
     def apply_config(
         self,
         *,
@@ -211,26 +227,20 @@ class LLMClient:
         stream_retry_on_malformed_chunk: bool | None = None,
     ) -> None:
         """Update hot-reloadable configuration fields without recreating the instance."""
-        if temperature is not None:
-            self._temperature = temperature
-        if max_tokens is not None:
-            self._max_tokens = max_tokens
-        if max_retries is not None:
-            self._max_retries = max_retries
-        if retry_base_delay is not None:
-            self._retry_base_delay = retry_base_delay
-        if sse_heartbeat_timeout is not None:
-            self._sse_heartbeat_timeout = sse_heartbeat_timeout
-        if sse_malformed_retry is not None:
-            self._sse_malformed_retry = sse_malformed_retry
-        if sse_reconnect_max is not None:
-            self._sse_reconnect_max = sse_reconnect_max
-        if stream_retry_on_heartbeat_timeout is not None:
-            self._llm_stream_retry_on_heartbeat_timeout = (
-                stream_retry_on_heartbeat_timeout
-            )
-        if stream_retry_on_malformed_chunk is not None:
-            self._llm_stream_retry_on_malformed_chunk = stream_retry_on_malformed_chunk
+        args = dict(
+            temperature=temperature,
+            max_tokens=max_tokens,
+            max_retries=max_retries,
+            retry_base_delay=retry_base_delay,
+            sse_heartbeat_timeout=sse_heartbeat_timeout,
+            sse_malformed_retry=sse_malformed_retry,
+            sse_reconnect_max=sse_reconnect_max,
+            stream_retry_on_heartbeat_timeout=stream_retry_on_heartbeat_timeout,
+            stream_retry_on_malformed_chunk=stream_retry_on_malformed_chunk,
+        )
+        for attr, kwarg in self._HOT_CONFIG_FIELDS:
+            if (value := args.get(kwarg)) is not None:
+                self._apply_one(self, attr, kwarg, value)
 
     # ── Retry logic ───────────────────────────────────────────────────────────
 
@@ -393,16 +403,11 @@ class LLMClient:
         url: str,
     ) -> tuple[bytes, bool]:
         """Await the next raw chunk with heartbeat timeout; returns (chunk, exhausted); raises HEARTBEAT_TIMEOUT when no bytes arrive within sse_heartbeat_timeout."""
-        timeout = (
-            self._sse_heartbeat_timeout if self._sse_heartbeat_timeout > 0 else None
-        )
         try:
-            if timeout is not None:
-                return await asyncio.wait_for(
-                    _anext_or_done(byte_iter),
-                    timeout=timeout,
-                )
-            return await _anext_or_done(byte_iter)
+            coro = _anext_or_done(byte_iter)
+            if self._sse_heartbeat_timeout > 0:
+                return await asyncio.wait_for(coro, timeout=self._sse_heartbeat_timeout)
+            return await coro
         except TimeoutError:
             raise LLMTransportError(
                 kind="HEARTBEAT_TIMEOUT",

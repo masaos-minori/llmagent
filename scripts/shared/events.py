@@ -3,7 +3,6 @@
 Typed event definitions for agent lifecycle and artifact notifications.
 
 ArtifactEvent is a pure data definition — no event bus yet.
-Future work will emit and consume ArtifactEvent values.
 """
 
 from __future__ import annotations

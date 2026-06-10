@@ -39,10 +39,7 @@ import importlib.util
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import (
-    Any,
-    TypeVar,
-)
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -50,13 +47,8 @@ _F = TypeVar("_F", bound=Callable[..., Any])
 
 # ── Internal registries ───────────────────────────────────────────────────────
 
-# name → (handler, is_prefix)
 _commands: dict[str, tuple[Callable[..., Any], bool]] = {}
-
-# tool_name → handler
 _tools: dict[str, Callable[..., Any]] = {}
-
-# post-rerank stage hooks: each receives (hits, query) and returns hits
 _pipeline_post: list[Callable[..., Any]] = []
 
 
@@ -64,7 +56,7 @@ _pipeline_post: list[Callable[..., Any]] = []
 
 
 def register_command(name: str, *, prefix: bool = False) -> Callable[[_F], _F]:
-    """Register a slash-command plugin; name includes the leading slash; prefix=True allows trailing args; handler is sync or async (ctx, args) -> None."""
+    """Register a slash-command plugin; name includes the leading slash; prefix=True allows trailing args."""
 
     def decorator(fn: _F) -> _F:
         _commands[name] = (fn, prefix)
@@ -75,7 +67,7 @@ def register_command(name: str, *, prefix: bool = False) -> Callable[[_F], _F]:
 
 
 def register_tool(name: str) -> Callable[[_F], _F]:
-    """Register a local async function as a tool handler; bypasses MCP entirely; handler: async (args: dict) -> tuple[str, bool]."""
+    """Register a local async function as a tool handler; bypasses MCP entirely."""
 
     def decorator(fn: _F) -> _F:
         _tools[name] = fn
@@ -86,7 +78,7 @@ def register_tool(name: str) -> Callable[[_F], _F]:
 
 
 def register_pipeline_stage(*, when: str = "post") -> Callable[[_F], _F]:
-    """Register a RAG pipeline stage hook; when='post' is called after cross-encoder rerank; handler: async (hits, query) -> list[RagHit]."""
+    """Register a RAG pipeline stage hook; when='post' is called after cross-encoder rerank."""
     if when != "post":
         raise ValueError(
             f"Unsupported pipeline stage position: {when!r}. Only 'post' is supported.",
@@ -123,11 +115,11 @@ def get_pipeline_post_stages() -> list[Callable[..., Any]]:
     return list(_pipeline_post)
 
 
-# ── Plugin auto-discovery ──────────────────────────────────────────────────────
+# ── Plugin auto-discovery ─────────────────────────────────────────────────────
 
 
 def load_plugins(plugin_dir: str | Path) -> int:
-    """Import all *.py files from plugin_dir and return count loaded; @register_* decorators execute at import time; errors are logged and skipped (fail-open)."""
+    """Import all *.py files from plugin_dir; returns count loaded; errors are logged and skipped."""
     plugin_path = Path(plugin_dir)
     if not plugin_path.is_dir():
         logger.debug("Plugin dir not found, skipping: %s", plugin_dir)
@@ -147,7 +139,7 @@ def load_plugins(plugin_dir: str | Path) -> int:
     return loaded
 
 
-# ── Test helper ────────────────────────────────────────────────────────────────
+# ── Test helper ───────────────────────────────────────────────────────────────
 
 
 def _reset_for_testing() -> None:

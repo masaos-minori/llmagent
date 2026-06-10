@@ -12,20 +12,19 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def get_repo_info(path: str = ".") -> dict[str, Any] | None:
-    """Return current branch and last commit info, or None outside a git repo; uses search_parent_directories and catches all GitPython exceptions."""
+def get_repo_info(path: str = ".") -> dict[str, str] | None:
+    """Return current branch and last commit info, or None outside a git repo."""
     try:
         import git  # noqa: PLC0415 — lazy import keeps startup fast when gitpython is unused
 
         repo = git.Repo(path, search_parent_directories=True)
         head = repo.head
-        commit = head.commit
         branch = head.ref.name if not repo.head.is_detached else "HEAD (detached)"
         return {
             "branch": branch,
-            "commit": commit.hexsha[:8],
-            "message": commit.message.strip().splitlines()[0],
-            "author": str(commit.author),
+            "commit": head.commit.hexsha[:8],
+            "message": head.commit.message.strip().splitlines()[0],
+            "author": str(head.commit.author),
         }
     except Exception as e:
         logger.debug("get_repo_info: %s", e)

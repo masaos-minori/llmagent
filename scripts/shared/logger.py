@@ -21,6 +21,12 @@ from typing import Any
 import orjson
 
 
+def _require_str(value: Any, name: str) -> None:
+    """Validate that value is a non-empty string; raises ValueError otherwise."""
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty str, got: {value!r}")
+
+
 class _ContextFilter(logging.Filter):
     """Injects per-turn trace fields into every LogRecord on this logger."""
 
@@ -29,7 +35,6 @@ class _ContextFilter(logging.Filter):
         self._fields: dict[str, Any] = {}
 
     def set(self, **fields: Any) -> None:
-        # Store only non-None fields to keep log records clean
         self._fields = {k: v for k, v in fields.items() if v is not None}
 
     def clear(self) -> None:
@@ -59,8 +64,7 @@ class _JsonFormatter(logging.Formatter):
                 entry[key] = val
         if record.exc_info:
             entry["exc"] = self.formatException(record.exc_info)
-        serialized: bytes = orjson.dumps(entry)
-        return serialized.decode()
+        return orjson.dumps(entry).decode()
 
 
 class Logger:
@@ -75,7 +79,8 @@ class Logger:
         *,
         structured_log: bool = False,
     ) -> None:
-        self._validate_args(name, log_file)
+        _require_str(name, "Logger name")
+        _require_str(log_file, "log_file")
         self._logger = logging.getLogger(name)
         self._filter = _ContextFilter()
         self._configure_logger(log_file, structured_log)
@@ -89,29 +94,12 @@ class Logger:
         self._filter.clear()
 
     def __getattr__(self, name: str) -> Any:
-        # Delegate all logging methods (info, warning, error, exception, debug …)
-        # to the underlying logging.Logger instance so this class is a drop-in.
         return getattr(self._logger, name)
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _validate_args(name: str, log_file: str) -> None:
-        """Guard: reject blank logger name or log file path."""
-        if not isinstance(name, str) or not name.strip():
-            raise ValueError(f"Logger name must be a non-empty str, got: {name!r}")
-        if not isinstance(log_file, str) or not log_file.strip():
-            raise ValueError(f"log_file must be a non-empty str, got: {log_file!r}")
 
     def _configure_logger(self, log_file: str, structured_log: bool) -> None:
         """Attach FileHandler + StreamHandler and context filter to the named logger."""
-        # The filter is added each time; multiple Logger instances with the same name
-        # each add their own filter, which is harmless (later filter overwrites fields).
         self._logger.addFilter(self._filter)
         if self._logger.handlers:
-            # Already configured; skip to avoid duplicate handlers on reload
             return
         formatter: logging.Formatter = (
             _JsonFormatter() if structured_log else logging.Formatter(self._FORMAT)
@@ -121,7 +109,6 @@ class Logger:
             fh.setFormatter(formatter)
             self._logger.addHandler(fh)
         except OSError as exc:
-            # Log file not writable; stderr-only fallback is attached below
             sys.stderr.write(
                 f"[Logger] Cannot open log file {log_file}: {exc}"
                 " — falling back to stderr only.\n",
@@ -130,5 +117,4 @@ class Logger:
         sh.setFormatter(formatter)
         self._logger.addHandler(sh)
         self._logger.setLevel(logging.INFO)
-        # Prevent records from propagating to the root logger to avoid duplicates
         self._logger.propagate = False

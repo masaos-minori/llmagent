@@ -6,7 +6,7 @@ Config-driven tool-name to server-key resolution for ToolExecutor.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from shared.tool_constants import (
     CICD_TOOLS,
@@ -23,23 +23,28 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Ordered table used by _fallback_route: each entry maps a frozenset to a server key.
-# Order is preserved only for readability; no two sets overlap, so match order is irrelevant.
-_SET_ROUTES: tuple[tuple[frozenset[str], str], ...] = (
-    (READ_TOOLS, "file_read"),
-    (WRITE_TOOLS, "file_write"),
-    (DELETE_TOOLS, "file_delete"),
-    (RAG_TOOLS, "rag_pipeline"),
-    (CICD_TOOLS, "cicd"),
-    (MDQ_TOOLS, "mdq"),
-    (GIT_TOOLS, "git"),
+
+class _SetRoute(NamedTuple):
+    tool_set: frozenset[str]
+    server_key: str
+
+
+_SET_ROUTES: tuple[_SetRoute, ...] = (
+    _SetRoute(READ_TOOLS, "file_read"),
+    _SetRoute(WRITE_TOOLS, "file_write"),
+    _SetRoute(DELETE_TOOLS, "file_delete"),
+    _SetRoute(RAG_TOOLS, "rag_pipeline"),
+    _SetRoute(CICD_TOOLS, "cicd"),
+    _SetRoute(MDQ_TOOLS, "mdq"),
+    _SetRoute(GIT_TOOLS, "git"),
 )
 
-# Single-name tools that cannot be identified by set membership or prefix.
 _EXACT_ROUTES: dict[str, str] = {
     "shell_run": "shell",
     "search_web": "web_search",
 }
+
+_GITHUB_PREFIX = "github_"
 
 
 class ToolRouteResolver:
@@ -64,8 +69,7 @@ class ToolRouteResolver:
 
     def resolve(self, tool_name: str) -> str:
         """Return the server key for tool_name; raises ValueError when no match."""
-        key = self._config_map.get(tool_name)
-        if key is not None:
+        if (key := self._config_map.get(tool_name)) is not None:
             return key
         if self._warn_on_fallback:
             logger.warning(
@@ -77,11 +81,11 @@ class ToolRouteResolver:
 
     def _fallback_route(self, tool_name: str) -> str:
         """Static routing preserved from the original ToolExecutor._route()."""
-        if route := _EXACT_ROUTES.get(tool_name):
+        if (route := _EXACT_ROUTES.get(tool_name)) is not None:
             return route
-        if tool_name.startswith("github_"):
+        if tool_name.startswith(_GITHUB_PREFIX):
             return "github"
-        for tool_set, server in _SET_ROUTES:
-            if tool_name in tool_set:
-                return server
+        for entry in _SET_ROUTES:
+            if tool_name in entry.tool_set:
+                return entry.server_key
         raise ValueError(f"Unknown tool: {tool_name!r}")

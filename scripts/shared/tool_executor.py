@@ -24,7 +24,11 @@ import httpx
 import orjson
 
 from shared import plugin_registry
-from shared.mcp_config import McpServerConfig, McpServerHealthState
+from shared.mcp_config import (
+    McpServerConfig,
+    McpServerHealthRegistry,
+    McpServerHealthState,
+)
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
 
@@ -294,34 +298,6 @@ def tool_call_key(name: str, args: dict[str, Any]) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # ToolExecutor
 # ─────────────────────────────────────────────────────────────────────────────
-
-
-class McpServerHealthRegistry:
-    """Tracks per-server health states for ToolExecutor dispatch gating."""
-
-    def __init__(self, failure_threshold: int = 3) -> None:
-        self._states: dict[str, McpServerHealthState] = {}
-        self._failure_counts: dict[str, int] = {}
-        self._failure_threshold = failure_threshold
-
-    def record_failure(self, server_key: str) -> McpServerHealthState:
-        count = self._failure_counts.get(server_key, 0) + 1
-        self._failure_counts[server_key] = count
-        if count >= self._failure_threshold:
-            self._states[server_key] = McpServerHealthState.UNAVAILABLE
-        else:
-            self._states[server_key] = McpServerHealthState.DEGRADED
-        return self._states[server_key]
-
-    def record_success(self, server_key: str) -> None:
-        self._states[server_key] = McpServerHealthState.HEALTHY
-        self._failure_counts[server_key] = 0
-
-    def get_state(self, server_key: str) -> McpServerHealthState:
-        return self._states.get(server_key, McpServerHealthState.HEALTHY)
-
-    def is_unavailable(self, server_key: str) -> bool:
-        return self.get_state(server_key) == McpServerHealthState.UNAVAILABLE
 
 
 class ToolExecutor:

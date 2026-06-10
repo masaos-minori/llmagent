@@ -3,7 +3,7 @@
 Cross-layer type definitions shared by shared, rag, and agent packages.
 """
 
-from typing import Literal, Protocol, TypedDict, runtime_checkable
+from typing import Any, Literal, Protocol, TypedDict, runtime_checkable
 
 
 class LLMMessage(TypedDict, total=False):
@@ -11,7 +11,7 @@ class LLMMessage(TypedDict, total=False):
 
     role: Literal["user", "assistant", "tool", "system"]
     content: str | None  # text content; None for tool_calls-only assistant messages
-    tool_calls: list[dict]  # tool call requests on assistant messages
+    tool_calls: list[dict[str, Any]]  # tool call requests on assistant messages
     tool_call_id: str  # tool result messages: ID from the triggering tool_call
     name: str  # tool result messages: name of the called tool
     importance: float  # message importance score for compression
