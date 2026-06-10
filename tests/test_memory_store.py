@@ -42,6 +42,10 @@ CREATE VIRTUAL TABLE memories_fts USING fts5(
     summary,
     tags
 );
+CREATE TABLE memories_vec (
+    memory_id TEXT PRIMARY KEY,
+    embedding BLOB
+);
 """
 
 

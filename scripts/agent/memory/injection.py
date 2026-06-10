@@ -44,27 +44,23 @@ class MemoryInjectionService:
 
     def on_session_start(self) -> list[str]:
         """Return top semantic snippets for injection at session start (sync)."""
-        try:
-            entries = self._retriever.top_semantic(
-                limit=self._policy.max_semantic,
-                min_importance=self._policy.min_importance,
-                project=self._project,
-                repo=self._repo,
-            )
-            if not entries:
-                return []
-            snippets = [
-                f"{self._policy.format_prefix_semantic} {e.summary or e.content[:100]}"
-                for e in entries
-            ]
-            logger.info(
-                "MemoryInjectionService.on_session_start: injecting %d entries",
-                len(snippets),
-            )
-            return snippets
-        except Exception as e:
-            logger.warning("MemoryInjectionService.on_session_start failed: %s", e)
+        entries = self._retriever.top_semantic(
+            limit=self._policy.max_semantic,
+            min_importance=self._policy.min_importance,
+            project=self._project,
+            repo=self._repo,
+        )
+        if not entries:
             return []
+        snippets = [
+            f"{self._policy.format_prefix_semantic} {e.summary or e.content[:100]}"
+            for e in entries
+        ]
+        logger.info(
+            "MemoryInjectionService.on_session_start: injecting %d entries",
+            len(snippets),
+        )
+        return snippets
 
     async def on_user_prompt(
         self,
@@ -74,48 +70,42 @@ class MemoryInjectionService:
         """Return relevant snippets for the current user query (async)."""
         if not query.strip():
             return []
-        try:
-            embed_result = await self._embed_client.fetch(query)
-            embedding = embed_result.embedding if embed_result.success else None
-            hits_s = self._retriever.search(
-                MemoryQuery(
-                    query=query,
-                    session_id=session_id,
-                    memory_type="semantic",
-                    limit=self._policy.max_semantic,
-                ),
-                embedding=embedding,
-                project=self._project,
-                repo=self._repo,
+        embed_result = await self._embed_client.fetch(query)
+        embedding = embed_result.embedding if embed_result.success else None
+        hits_s = self._retriever.search(
+            MemoryQuery(
+                query=query,
+                memory_type="semantic",
+                limit=self._policy.max_semantic,
+            ),
+            embedding=embedding,
+            project=self._project,
+            repo=self._repo,
+        )
+        hits_e = self._retriever.search(
+            MemoryQuery(
+                query=query,
+                memory_type="episodic",
+                limit=self._policy.max_episodic,
+            ),
+            embedding=embedding,
+            project=self._project,
+            repo=self._repo,
+        )
+        snippets: list[str] = []
+        for hit in hits_s:
+            snippets.append(
+                f"{self._policy.format_prefix_semantic}"
+                f" {hit.entry.summary or hit.entry.content[:100]}",
             )
-            hits_e = self._retriever.search(
-                MemoryQuery(
-                    query=query,
-                    session_id=session_id,
-                    memory_type="episodic",
-                    limit=self._policy.max_episodic,
-                ),
-                embedding=embedding,
-                project=self._project,
-                repo=self._repo,
+        for hit in hits_e:
+            snippets.append(
+                f"{self._policy.format_prefix_episodic}"
+                f" {hit.entry.summary or hit.entry.content[:100]}",
             )
-            snippets: list[str] = []
-            for hit in hits_s:
-                snippets.append(
-                    f"{self._policy.format_prefix_semantic}"
-                    f" {hit.entry.summary or hit.entry.content[:100]}",
-                )
-            for hit in hits_e:
-                snippets.append(
-                    f"{self._policy.format_prefix_episodic}"
-                    f" {hit.entry.summary or hit.entry.content[:100]}",
-                )
-            if snippets:
-                logger.debug(
-                    "MemoryInjectionService.on_user_prompt: returning %d snippets",
-                    len(snippets),
-                )
-            return snippets
-        except Exception as e:
-            logger.warning("MemoryInjectionService.on_user_prompt failed: %s", e)
-            return []
+        if snippets:
+            logger.debug(
+                "MemoryInjectionService.on_user_prompt: returning %d snippets",
+                len(snippets),
+            )
+        return snippets

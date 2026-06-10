@@ -297,17 +297,17 @@ class TestSearch:
         ids = [h.entry.memory_id for h in hits]
         assert ids.index("high") < ids.index("low")
 
-    def test_returns_empty_on_db_error(self) -> None:
+    def test_raises_on_db_error(self) -> None:
         with patch(
             "agent.memory.retriever.SQLiteHelper", side_effect=Exception("db error")
         ):
             ret = MemoryRetriever()
-            hits = ret.search(MemoryQuery(query="anything"))
-        assert hits == []
+            with pytest.raises(Exception, match="db error"):
+                ret.search(MemoryQuery(query="anything"))
 
-    def test_empty_query_returns_empty(self, retriever: MemoryRetriever) -> None:
-        q = MemoryQuery(query="")
-        assert retriever.search(q) == []
+    def test_empty_query_raises(self, retriever: MemoryRetriever) -> None:
+        with pytest.raises(ValueError, match="must not be empty"):
+            MemoryQuery(query="")
 
 
 # ── MemoryRetriever.top_semantic() ────────────────────────────────────────────
@@ -353,12 +353,13 @@ class TestTopSemantic:
         _insert(db_conn, memory_id="epi-1", memory_type="episodic")
         assert retriever.top_semantic() == []
 
-    def test_returns_empty_on_db_error(self) -> None:
+    def test_raises_on_db_error(self) -> None:
         with patch(
             "agent.memory.retriever.SQLiteHelper", side_effect=Exception("db error")
         ):
             ret = MemoryRetriever()
-            assert ret.top_semantic() == []
+            with pytest.raises(Exception, match="db error"):
+                ret.top_semantic()
 
     def test_pinned_entry_ordered_first(
         self, retriever: MemoryRetriever, db_conn: sqlite3.Connection

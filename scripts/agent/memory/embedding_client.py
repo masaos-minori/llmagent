@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from agent.memory.types import EmbeddingResult
+from agent.memory.types import EmbeddingErrorKind, EmbeddingResult
 
 logger = logging.getLogger(__name__)
 
@@ -23,16 +23,20 @@ class EmbeddingClientConfig:
     max_retries: int = 2
     circuit_open_after: int = 3
     circuit_reset_sec: float = 60.0
+    query_prefix: str = (
+        "query: "  # prepended to input text before sending to embedding API
+    )
 
 
 async def _fetch_embedding(
     text: str,
     http: httpx.AsyncClient,
     embed_url: str,
+    query_prefix: str,
 ) -> EmbeddingResult:
     """Call the embedding endpoint once; return EmbeddingResult with success/error."""
     try:
-        resp = await http.post(embed_url, json={"content": f"query: {text}"})
+        resp = await http.post(embed_url, json={"content": f"{query_prefix}{text}"})
         resp.raise_for_status()
         embedding = resp.json().get("embedding")
         if isinstance(embedding, list) and embedding:
@@ -40,17 +44,21 @@ async def _fetch_embedding(
                 success=True, embedding=[float(v) for v in embedding]
             )
         logger.warning("embed response missing 'embedding' field")
-        return EmbeddingResult(success=False, error_kind="invalid_response")
+        return EmbeddingResult(
+            success=False, error_kind=EmbeddingErrorKind.INVALID_RESPONSE
+        )
     except httpx.HTTPStatusError as e:
         logger.warning(
             "EmbeddingClient._fetch_embedding HTTP error: status=%d body=%.200s",
             e.response.status_code,
             e.response.text,
         )
-        return EmbeddingResult(success=False, error_kind="http_error")
+        return EmbeddingResult(success=False, error_kind=EmbeddingErrorKind.HTTP_ERROR)
     except Exception as e:
         logger.warning("EmbeddingClient._fetch_embedding unexpected error: %s", e)
-        return EmbeddingResult(success=False, error_kind="unknown_error")
+        return EmbeddingResult(
+            success=False, error_kind=EmbeddingErrorKind.UNKNOWN_ERROR
+        )
 
 
 class EmbeddingClient:
@@ -98,18 +106,27 @@ class EmbeddingClient:
     async def fetch(self, text: str) -> EmbeddingResult:
         """Generate embedding; return EmbeddingResult indicating success or failure reason."""
         if not self._enabled or self._http is None or not self._config.embed_url:
-            return EmbeddingResult(success=False, error_kind="disabled")
+            return EmbeddingResult(
+                success=False, error_kind=EmbeddingErrorKind.DISABLED
+            )
         if self._is_circuit_open():
             logger.debug("EmbeddingClient circuit open — skipping embed")
-            return EmbeddingResult(success=False, error_kind="circuit_open")
+            return EmbeddingResult(
+                success=False, error_kind=EmbeddingErrorKind.CIRCUIT_OPEN
+            )
 
         last_result: EmbeddingResult = EmbeddingResult(
-            success=False, error_kind="http_error"
+            success=False, error_kind=EmbeddingErrorKind.HTTP_ERROR
         )
         for attempt in range(self._config.max_retries + 1):
             try:
                 result = await asyncio.wait_for(
-                    _fetch_embedding(text, self._http, self._config.embed_url),
+                    _fetch_embedding(
+                        text,
+                        self._http,
+                        self._config.embed_url,
+                        self._config.query_prefix,
+                    ),
                     timeout=self._config.timeout,
                 )
                 if result.success:
@@ -122,9 +139,13 @@ class EmbeddingClient:
                     attempt + 1,
                     self._config.max_retries + 1,
                 )
-                last_result = EmbeddingResult(success=False, error_kind="timeout")
+                last_result = EmbeddingResult(
+                    success=False, error_kind=EmbeddingErrorKind.TIMEOUT
+                )
             self._record_failure()
             if self._is_circuit_open():
-                return EmbeddingResult(success=False, error_kind="circuit_open")
+                return EmbeddingResult(
+                    success=False, error_kind=EmbeddingErrorKind.CIRCUIT_OPEN
+                )
 
         return last_result

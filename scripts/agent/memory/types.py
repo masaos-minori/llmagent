@@ -28,6 +28,20 @@ class SourceType(StrEnum):
     FAILURE = "failure"
 
 
+class EmbeddingErrorKind(StrEnum):
+    """Enumeration of embedding failure reasons.
+
+    StrEnum allows: result.error_kind == "disabled" → True without .value access.
+    """
+
+    DISABLED = "disabled"
+    CIRCUIT_OPEN = "circuit_open"
+    TIMEOUT = "timeout"
+    HTTP_ERROR = "http_error"
+    INVALID_RESPONSE = "invalid_response"
+    UNKNOWN_ERROR = "unknown_error"
+
+
 @dataclass
 class MemoryEntry:
     """One persistent memory unit stored in JSONL and indexed in SQLite."""
@@ -78,9 +92,19 @@ class MemoryQuery:
     """Search parameters for memory retrieval."""
 
     query: str
-    session_id: int | None = None
     memory_type: str | None = None  # None = both semantic and episodic
     limit: int = 10
+
+    def __post_init__(self) -> None:
+        if not self.query.strip():
+            raise ValueError("MemoryQuery.query must not be empty")
+        if self.memory_type is not None and self.memory_type not in MEMORY_TYPES:
+            raise ValueError(
+                f"MemoryQuery.memory_type must be 'semantic', 'episodic', or None;"
+                f" got {self.memory_type!r}"
+            )
+        if self.limit < 1:
+            raise ValueError(f"MemoryQuery.limit must be >= 1, got {self.limit}")
 
 
 @dataclass
@@ -99,6 +123,4 @@ class EmbeddingResult:
 
     success: bool
     embedding: list[float] | None = None
-    error_kind: str | None = (
-        None  # "disabled"|"circuit_open"|"timeout"|"http_error"|"invalid_response"|"unknown_error"
-    )
+    error_kind: EmbeddingErrorKind | None = None

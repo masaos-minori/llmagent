@@ -98,10 +98,11 @@ class TestOnSessionStart:
         mock_ret.top_semantic.return_value = []
         assert svc.on_session_start() == []
 
-    def test_returns_empty_on_retriever_error(self) -> None:
+    def test_raises_on_retriever_error(self) -> None:
         svc, mock_ret, _ = _make_injection_svc()
         mock_ret.top_semantic.side_effect = Exception("db error")
-        assert svc.on_session_start() == []
+        with pytest.raises(Exception, match="db error"):
+            svc.on_session_start()
 
     def test_passes_min_importance_to_retriever(self) -> None:
         svc, mock_ret, _ = _make_injection_svc(min_importance=0.6)
@@ -138,13 +139,14 @@ class TestOnUserPrompt:
         assert await svc.on_user_prompt("   ", session_id=1) == []
 
     @pytest.mark.asyncio
-    async def test_returns_empty_on_retriever_error(self) -> None:
+    async def test_raises_on_retriever_error(self) -> None:
         svc, mock_ret, mock_embed = _make_injection_svc()
         mock_ret.search.side_effect = Exception("db error")
         mock_embed.fetch = AsyncMock(
             return_value=EmbeddingResult(success=False, error_kind="disabled")
         )
-        assert await svc.on_user_prompt("query", session_id=1) == []
+        with pytest.raises(Exception, match="db error"):
+            await svc.on_user_prompt("query", session_id=1)
 
     @pytest.mark.asyncio
     async def test_returns_empty_when_no_matches(self) -> None:
@@ -189,7 +191,7 @@ class TestOnSessionStop:
         mock_jsonl.write.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_does_not_raise_on_store_error(self) -> None:
+    async def test_raises_on_store_error(self) -> None:
         svc, mock_store, _, _ = _make_ingestion_svc()
         svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
             return_value=EmbeddingResult(success=False, error_kind="disabled")
@@ -206,7 +208,8 @@ class TestOnSessionStop:
                 ),
             },
         ]
-        await svc.on_session_stop(session_id=1, history=history)
+        with pytest.raises(Exception, match="db error"):
+            await svc.on_session_stop(session_id=1, history=history)
 
 
 # ── write_semantic() / write_episodic() ──────────────────────────────────────
@@ -329,7 +332,9 @@ class TestEmbeddingClientTimeout:
 
         client = EmbeddingClient(cfg, MagicMock(spec=httpx.AsyncClient), enabled=True)
 
-        async def _slow_embed(text: str, http: object, url: str) -> EmbeddingResult:
+        async def _slow_embed(
+            text: str, http: object, url: str, query_prefix: str
+        ) -> EmbeddingResult:
             await asyncio.sleep(10)
             return EmbeddingResult(success=True, embedding=[0.1])
 

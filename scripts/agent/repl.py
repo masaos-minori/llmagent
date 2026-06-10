@@ -297,11 +297,16 @@ class AgentREPL:
         finally:
             # Stop: extract and persist memories before compression or resource close
             if ctx.services.memory is not None:
-                await ctx.services.memory.on_session_stop(
-                    session_id=ctx.session.session_id,
-                    history=ctx.conv.history,
-                    turn_id=ctx.turn.current_turn_id,
-                )
+                try:
+                    await ctx.services.memory.on_session_stop(
+                        session_id=ctx.session.session_id,
+                        history=ctx.conv.history,
+                        turn_id=ctx.turn.current_turn_id,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Memory on_session_stop failed; session data may be incomplete"
+                    )
             if _watchdog_task is not None:
                 _watchdog_task.cancel()
                 try:

@@ -77,47 +77,40 @@ class MemoryIngestionService:
         Applies embedding-based dedup (SKIP_NEW) and records duplicate links.
         Manual writes via write_semantic/write_episodic bypass dedup intentionally.
         """
-        try:
-            entries = extract_memories(
-                history=history,
-                session_id=session_id,
-                turn_id=turn_id,
-                project=self._project,
-                repo=self._repo,
-                branch=self._branch,
-                max_content_chars=self._max_content_chars,
+        entries = extract_memories(
+            history=history,
+            session_id=session_id,
+            turn_id=turn_id,
+            project=self._project,
+            repo=self._repo,
+            branch=self._branch,
+            max_content_chars=self._max_content_chars,
+        )
+        if not entries:
+            logger.debug("MemoryIngestionService.on_session_stop: no entries extracted")
+            return
+        for entry in entries:
+            embed_result = await self._embed_client.fetch(entry.content)
+            embedding = embed_result.embedding if embed_result.success else None
+            if (
+                self._dedup_policy.action == DedupAction.SKIP_NEW
+                and embed_result.success
+                and embed_result.embedding is not None
+                and self._has_near_duplicate(entry.memory_id, embed_result.embedding)
+            ):
+                logger.debug("memory.skip_dup memory_id=%r", entry.memory_id)
+                continue
+            await self._jsonl.write(entry)
+            self._store.upsert(entry, embedding=embedding)
+            if embed_result.success and embed_result.embedding is not None:
+                self._link_duplicates(entry.memory_id, embed_result.embedding)
+            logger.info(
+                "memory.persist memory_id=%r type=%s importance=%.2f",
+                entry.memory_id,
+                entry.memory_type,
+                entry.importance,
             )
-            if not entries:
-                logger.debug(
-                    "MemoryIngestionService.on_session_stop: no entries extracted"
-                )
-                return
-            for entry in entries:
-                embed_result = await self._embed_client.fetch(entry.content)
-                embedding = embed_result.embedding if embed_result.success else None
-                if (
-                    self._dedup_policy.action == DedupAction.SKIP_NEW
-                    and embed_result.success
-                    and embed_result.embedding is not None
-                    and self._has_near_duplicate(
-                        entry.memory_id, embed_result.embedding
-                    )
-                ):
-                    logger.debug("memory.skip_dup memory_id=%r", entry.memory_id)
-                    continue
-                await self._jsonl.write(entry)
-                self._store.upsert(entry, embedding=embedding)
-                if embed_result.success and embed_result.embedding is not None:
-                    self._link_duplicates(entry.memory_id, embed_result.embedding)
-                logger.info(
-                    "memory.persist memory_id=%r type=%s importance=%.2f",
-                    entry.memory_id,
-                    entry.memory_type,
-                    entry.importance,
-                )
-            logger.info("MemoryIngestionService.on_session_stop: persisted entries")
-        except Exception as e:
-            logger.warning("MemoryIngestionService.on_session_stop failed: %s", e)
+        logger.info("MemoryIngestionService.on_session_stop: persisted entries")
 
     # ── Dedup helpers ─────────────────────────────────────────────────────────
 

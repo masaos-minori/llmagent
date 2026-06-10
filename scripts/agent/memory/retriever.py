@@ -59,7 +59,7 @@ def _recency_boost(created_at: str, recency_days: float = _RECENCY_DAYS) -> floa
         if age_days >= recency_days:
             return 0.0
         return _RECENCY_MAX_BOOST * (1.0 - age_days / recency_days)
-    except Exception:
+    except (ValueError, OverflowError):
         return 0.0
 
 
@@ -109,7 +109,8 @@ def _rrf_merge(
 ) -> list[MemoryHit]:
     """Reciprocal Rank Fusion: merge multiple ranked hit lists by rank position.
 
-    Each list contributes 1/(k + rank) to the memory_id's final score.
+    Each list contributes 1/(k + rank) to the memory_id's final RRF score.
+    Sets hit.score to the RRF score before returning.
     Returns a deduplicated list sorted by descending RRF score.
     """
     rrf_scores: dict[str, float] = {}
@@ -119,11 +120,9 @@ def _rrf_merge(
             mid = hit.entry.memory_id
             rrf_scores[mid] = rrf_scores.get(mid, 0.0) + 1.0 / (k + rank + 1)
             by_id[mid] = hit
-    return sorted(
-        by_id.values(),
-        key=lambda h: rrf_scores[h.entry.memory_id],
-        reverse=True,
-    )
+    for mid, hit in by_id.items():
+        hit.score = rrf_scores[mid]
+    return sorted(by_id.values(), key=lambda h: h.score, reverse=True)
 
 
 class FtsRetriever:
@@ -168,12 +167,8 @@ class FtsRetriever:
             LIMIT ?
         """  # nosec B608 — type_filter is a literal string; all values use ? placeholders
 
-        try:
-            with SQLiteHelper("session").open(row_factory=True) as db:
-                rows = db.fetchall(sql, tuple(params))
-        except Exception as e:
-            logger.warning(f"FtsRetriever.search failed: {e}")
-            return []
+        with SQLiteHelper("session").open(row_factory=True) as db:
+            rows = db.fetchall(sql, tuple(params))
 
         hits: list[MemoryHit] = []
         for row in rows:
@@ -216,12 +211,8 @@ class VectorRetriever:
             LIMIT ?
         """  # nosec B608 — type_filter is a literal string; all values use ? placeholders
 
-        try:
-            with SQLiteHelper("session").open(row_factory=True) as db:
-                rows = db.fetchall(sql, tuple(params))
-        except Exception as e:
-            logger.warning(f"VectorRetriever.knn_search failed: {e}")
-            return []
+        with SQLiteHelper("session").open(row_factory=True) as db:
+            rows = db.fetchall(sql, tuple(params))
 
         hits: list[MemoryHit] = []
         for row in rows:
@@ -274,11 +265,7 @@ class HybridRetriever:
             return fts_hits
 
         merged = _rrf_merge([fts_hits, vec_hits], k=self._rrf_k)
-        # After RRF merge, re-apply _score so FTS boosts (importance, pin, recency) are reflected.
-        # bm25_rank=0.0: RRF already captured rank signal; only additive boosts are applied here.
-        for hit in merged:
-            hit.score = _score(0.0, hit.entry, project, repo, self._recency_days)
-        merged.sort(key=lambda h: h.score, reverse=True)
+        # hit.score is set to the RRF score by _rrf_merge; already sorted by _rrf_merge.
         return merged[: query.limit]
 
     def knn_search(
@@ -298,19 +285,15 @@ class HybridRetriever:
         repo: str = "",
     ) -> list[MemoryEntry]:
         """Return top semantic entries by importance + pin, no FTS needed."""
-        try:
-            with SQLiteHelper("session").open(row_factory=True) as db:
-                rows = db.fetchall(
-                    """SELECT memory_id, memory_type, source_type, session_id, turn_id,
-                              project, repo, branch, content, summary, tags,
-                              importance, pinned, created_at, updated_at
-                       FROM memories
-                       WHERE memory_type = 'semantic' AND importance >= ?
-                       ORDER BY pinned DESC, importance DESC, created_at DESC
-                       LIMIT ?""",
-                    (min_importance, limit),
-                )
-                return [row_to_entry(dict(r)) for r in rows]
-        except Exception as e:
-            logger.warning(f"HybridRetriever.top_semantic failed: {e}")
-            return []
+        with SQLiteHelper("session").open(row_factory=True) as db:
+            rows = db.fetchall(
+                """SELECT memory_id, memory_type, source_type, session_id, turn_id,
+                          project, repo, branch, content, summary, tags,
+                          importance, pinned, created_at, updated_at
+                   FROM memories
+                   WHERE memory_type = 'semantic' AND importance >= ?
+                   ORDER BY pinned DESC, importance DESC, created_at DESC
+                   LIMIT ?""",
+                (min_importance, limit),
+            )
+            return [row_to_entry(dict(r)) for r in rows]

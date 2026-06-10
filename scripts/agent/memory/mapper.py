@@ -22,9 +22,14 @@ def row_to_entry(row: sqlite3.Row | dict[str, Any]) -> MemoryEntry:
     """
     d = dict(row)
     tags_raw = d.get("tags", "[]")
-    tags: list[str] = (
-        orjson.loads(tags_raw) if isinstance(tags_raw, str) else list(tags_raw)
-    )
+    if isinstance(tags_raw, str):
+        tags: list[str] = orjson.loads(tags_raw)
+    elif isinstance(tags_raw, list):
+        tags = list(tags_raw)
+    else:
+        raise TypeError(
+            f"tags must be a JSON string or list, got {type(tags_raw).__name__}"
+        )
     return MemoryEntry(
         memory_id=d["memory_id"],
         memory_type=d["memory_type"],

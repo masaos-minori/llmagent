@@ -83,7 +83,22 @@ class MemoryStore:
         "  importance, pinned, created_at, updated_at)"
         " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
     )
-    _UPSERT_SQL = _INSERT_SQL.replace("INSERT INTO", "INSERT OR REPLACE INTO", 1)
+    _UPSERT_SQL = (
+        "INSERT INTO memories"
+        " (memory_id, memory_type, source_type, session_id, turn_id,"
+        "  project, repo, branch, content, summary, tags,"
+        "  importance, pinned, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        " ON CONFLICT(memory_id) DO UPDATE SET"
+        "   memory_type=excluded.memory_type,"
+        "   source_type=excluded.source_type,"
+        "   content=excluded.content,"
+        "   summary=excluded.summary,"
+        "   tags=excluded.tags,"
+        "   importance=excluded.importance,"
+        "   pinned=excluded.pinned,"
+        "   updated_at=excluded.updated_at"
+    )
 
     def _write_fts(self, db: SQLiteHelper, entry: MemoryEntry) -> None:
         """Sync one row into memories_fts; caller must be inside a transaction."""
@@ -96,15 +111,11 @@ class MemoryStore:
     def _write_vec(
         self, db: SQLiteHelper, memory_id: str, embedding: list[float]
     ) -> None:
-        """Upsert one embedding into memories_vec; logs warning on failure."""
-        try:
-            db.execute(
-                "INSERT OR REPLACE INTO memories_vec(memory_id, embedding)"
-                " VALUES (?,?)",
-                (memory_id, _floats_to_blob(embedding, self._embed_dim)),
-            )
-        except Exception as e:
-            logger.warning(f"memories_vec write skipped: {e}")
+        """Upsert one embedding into memories_vec; raises on failure."""
+        db.execute(
+            "INSERT OR REPLACE INTO memories_vec(memory_id, embedding) VALUES (?,?)",
+            (memory_id, _floats_to_blob(embedding, self._embed_dim)),
+        )
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -156,13 +167,10 @@ class MemoryStore:
             deleted = cur.rowcount > 0
             if deleted:
                 db.execute("DELETE FROM memories_fts WHERE memory_id = ?", (memory_id,))
-                try:
-                    db.execute(
-                        "DELETE FROM memories_vec WHERE memory_id = ?",
-                        (memory_id,),
-                    )
-                except Exception as e:
-                    logger.warning(f"memories_vec DELETE skipped: {e}")
+                db.execute(
+                    "DELETE FROM memories_vec WHERE memory_id = ?",
+                    (memory_id,),
+                )
             db.commit()
         return deleted
 
@@ -177,10 +185,7 @@ class MemoryStore:
             for row in rows:
                 mid = row[0]
                 db.execute("DELETE FROM memories_fts WHERE memory_id = ?", (mid,))
-                try:
-                    db.execute("DELETE FROM memories_vec WHERE memory_id = ?", (mid,))
-                except Exception as e:
-                    logger.warning(f"memories_vec DELETE skipped for {mid!r}: {e}")
+                db.execute("DELETE FROM memories_vec WHERE memory_id = ?", (mid,))
             count: int = cur.rowcount
             db.commit()
         return count

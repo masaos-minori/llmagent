@@ -21,24 +21,24 @@ from agent.memory.types import MEMORY_TYPES, MemoryEntry
 logger = logging.getLogger(__name__)
 
 
-def _entry_from_dict(d: dict) -> MemoryEntry | None:
-    """Deserialise one JSONL dict to MemoryEntry; return None on validation error."""
-    try:
-        memory_type = d.get("memory_type", "")
-        if memory_type not in MEMORY_TYPES:
-            logger.warning(f"Skipping JSONL entry: invalid memory_type={memory_type!r}")
-            return None
-        return row_to_entry(d)
-    except Exception as e:
-        logger.warning(f"Skipping malformed JSONL entry: {e}")
-        return None
+def _entry_from_dict(d: dict) -> MemoryEntry:
+    """Deserialise one JSONL dict to MemoryEntry; raises on validation error."""
+    memory_type = d.get("memory_type", "")
+    if memory_type not in MEMORY_TYPES:
+        raise ValueError(f"Invalid memory_type={memory_type!r}")
+    return row_to_entry(d)
 
 
 class JsonlMemoryStore:
     """Append-only JSONL store.  Thread-unsafe — use from a single asyncio event loop."""
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(
+        self,
+        path: str | Path,
+        quarantine_path: str | Path | None = None,
+    ) -> None:
         self._path = Path(path)
+        self._quarantine = Path(quarantine_path) if quarantine_path else None
         self._lock: asyncio.Lock | None = None  # lazy: created after event loop starts
         self._malformed_count: int = 0
 
@@ -59,34 +59,37 @@ class JsonlMemoryStore:
             with self._path.open("a", encoding="utf-8") as f:
                 f.write(line)
 
-    def read_all(self) -> list[MemoryEntry]:
-        """Read all entries; skip and count malformed lines."""
+    def read_all(self, *, strict: bool = False) -> list[MemoryEntry]:
+        """Read all entries.
+
+        strict=True: raises ValueError on first malformed line.
+        strict=False (default): malformed lines are written to quarantine_path if set,
+          otherwise raises ValueError.
+        """
         if not self._path.exists():
             return []
         entries: list[MemoryEntry] = []
         with self._path.open("r", encoding="utf-8") as f:
-            for lineno, line in enumerate(f, 1):
-                line = line.strip()
+            for lineno, raw_line in enumerate(f, 1):
+                line = raw_line.strip()
                 if not line:
                     continue
                 try:
                     d = orjson.loads(line)
-                    entry = _entry_from_dict(d)
-                    if entry is not None:
-                        entries.append(entry)
-                    else:
-                        self._malformed_count += 1
-                        logger.warning(
-                            "Skipping malformed JSONL line %d (count=%d)",
-                            lineno,
-                            self._malformed_count,
-                        )
-                except orjson.JSONDecodeError as e:
+                    entries.append(_entry_from_dict(d))
+                except (orjson.JSONDecodeError, ValueError, TypeError) as e:
+                    if strict or self._quarantine is None:
+                        raise ValueError(
+                            f"Malformed JSONL at line {lineno}: {e}"
+                        ) from e
                     self._malformed_count += 1
                     logger.warning(
-                        "JSON decode error at line %d (count=%d): %s",
+                        "Malformed JSONL line %d (count=%d): %s",
                         lineno,
                         self._malformed_count,
                         e,
                     )
+                    self._quarantine.parent.mkdir(parents=True, exist_ok=True)
+                    with self._quarantine.open("a", encoding="utf-8") as qf:
+                        qf.write(raw_line)
         return entries
