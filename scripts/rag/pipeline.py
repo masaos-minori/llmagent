@@ -27,10 +27,10 @@ from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
 from shared.types import RagConfig
 
+from rag.cache import SemanticCache
 from rag.llm import RagLLM, get_embedding
 from rag.repository import (
     RagRepository,
-    SemanticCache,
     deduplicate_chunks,
     fetch_full_document,
 )

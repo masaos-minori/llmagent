@@ -26,6 +26,16 @@ _INJECTION_PATTERNS: list[re.Pattern[str]] = [
 ]
 
 
+def cosine_sim(a: list[float], b: list[float]) -> float:
+    """Compute cosine similarity between two float vectors; returns 0.0 when either has zero magnitude."""
+    dot = sum(x * y for x, y in zip(a, b))
+    mag_a = math.sqrt(sum(x * x for x in a))
+    mag_b = math.sqrt(sum(y * y for y in b))
+    if mag_a == 0.0 or mag_b == 0.0:
+        return 0.0
+    return dot / (mag_a * mag_b)
+
+
 def sanitize_document(text: str) -> str:
     """Remove known prompt injection patterns from retrieved document text.
 

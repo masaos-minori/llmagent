@@ -5,7 +5,6 @@ deduplicate_chunks, _dedup_hits, and FTS query building.
 
 from __future__ import annotations
 
-import re
 from unittest.mock import MagicMock
 
 import pytest
@@ -257,7 +256,13 @@ class TestRagRepository:
     def test_vector_search_delegates_to_db(self) -> None:
         mock_db = MagicMock()
         mock_db.fetchall.return_value = [
-            {"chunk_id": 1, "content": "content", "url": "http://u", "title": "title", "distance": 0.5},
+            {
+                "chunk_id": 1,
+                "content": "content",
+                "url": "http://u",
+                "title": "title",
+                "distance": 0.5,
+            },
         ]
         repo = RagRepository(mock_db)
         result = repo.vector_search([0.1, 0.2, 0.3], top_k=5)
@@ -268,21 +273,28 @@ class TestRagRepository:
     def test_fts_search_delegates_to_db(self) -> None:
         mock_db = MagicMock()
         mock_db.fetchall.return_value = [
-            {"chunk_id": 2, "content": "fts content", "url": "http://u", "title": "title", "bm25_score": -0.3},
+            {
+                "chunk_id": 2,
+                "content": "fts content",
+                "url": "http://u",
+                "title": "title",
+                "bm25_score": -0.3,
+            },
         ]
         repo = RagRepository(mock_db)
         result = repo.fts_search("test query", top_k=10)
         assert len(result) == 1
         assert result[0]["chunk_id"] == 2
 
-    def test_fts_search_operational_error_returns_empty(self) -> None:
-        mock_db = MagicMock()
+    def test_fts_search_operational_error_propagates(self) -> None:
+        """fts_search propagates OperationalError (fail-fast); callers must handle."""
         import sqlite3
 
+        mock_db = MagicMock()
         mock_db.fetchall.side_effect = sqlite3.OperationalError("bad query")
         repo = RagRepository(mock_db)
-        result = repo.fts_search("bad query", top_k=10)
-        assert result == []
+        with pytest.raises(sqlite3.OperationalError, match="bad query"):
+            repo.fts_search("bad query", top_k=10)
 
 
 # ── _build_fts_query ─────────────────────────────────────────────────────────

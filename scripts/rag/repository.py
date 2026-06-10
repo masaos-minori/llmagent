@@ -12,14 +12,17 @@ Extracted from rag/pipeline.py.  Contains:
 """
 
 import logging
-import math
 import re
 import time
 from typing import Any, cast
 
 from db.helper import SQLiteHelper
 
+from rag.cache import (
+    SemanticCache as SemanticCache,  # noqa: F401 — backward compat re-export
+)
 from rag.types import RagHit, RawHit
+from rag.utils import cosine_sim as cosine_sim  # noqa: F401 — backward compat re-export
 from rag.utils import floats_to_blob
 
 logger = logging.getLogger(__name__)
@@ -167,72 +170,6 @@ class RagScorer:
             "list[RagHit]",
             [{**meta[cid], "rrf_score": score} for cid, score in merged],
         )
-
-
-def cosine_sim(a: list[float], b: list[float]) -> float:
-    """Compute cosine similarity between two float vectors; returns 0.0 when either has zero magnitude."""
-    dot = sum(x * y for x, y in zip(a, b))
-    mag_a = math.sqrt(sum(x * x for x in a))
-    mag_b = math.sqrt(sum(y * y for y in b))
-    if mag_a == 0.0 or mag_b == 0.0:
-        return 0.0
-    return dot / (mag_a * mag_b)
-
-
-class SemanticCache:
-    """In-memory nearest-neighbour cache; returns context when cosine sim >= threshold, pruned by max_size."""
-
-    def __init__(self, max_size: int = 100, threshold: float = 0.92) -> None:
-        self._entries: list[dict[str, Any]] = []  # [{embedding, context_str}]
-        self._max_size = max_size
-        self._threshold = threshold
-        self._dim: int | None = None
-
-    def lookup(self, embedding: list[float]) -> str | None:
-        """Return cached context for the nearest embedding, or None on miss.
-
-        Raises ValueError if embedding dimension differs from stored entries.
-        """
-        if self._dim is not None and len(embedding) != self._dim:
-            raise ValueError(
-                f"SemanticCache dimension mismatch: expected {self._dim},"
-                f" got {len(embedding)}",
-            )
-        best_sim = -1.0
-        best_ctx: str | None = None
-        for entry in self._entries:
-            sim = cosine_sim(embedding, entry["embedding"])
-            if sim > best_sim:
-                best_sim = sim
-                best_ctx = entry["context_str"]
-        if best_sim >= self._threshold:
-            logger.debug(f"SemanticCache hit: sim={best_sim:.4f}")
-            return best_ctx
-        return None
-
-    def put(self, embedding: list[float], context_str: str) -> None:
-        """Add a new entry, then prune if over capacity.
-
-        Raises ValueError if embedding dimension differs from previously stored entries.
-        """
-        if self._dim is None:
-            self._dim = len(embedding)
-        elif len(embedding) != self._dim:
-            raise ValueError(
-                f"SemanticCache dimension mismatch: expected {self._dim},"
-                f" got {len(embedding)}",
-            )
-        self._entries.append({"embedding": embedding, "context_str": context_str})
-        self.prune()
-
-    def prune(self) -> None:
-        """Remove oldest entries when size exceeds max_size."""
-        if len(self._entries) > self._max_size:
-            self._entries = self._entries[-self._max_size :]
-
-    @property
-    def size(self) -> int:
-        return len(self._entries)
 
 
 def vector_search(embedding: list[float], top_k: int, db: SQLiteHelper) -> list[RagHit]:
