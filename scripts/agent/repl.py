@@ -234,8 +234,7 @@ class AgentREPL:
     def _print_startup_banner(self) -> None:
         """Print the startup line showing DB chunks and tool count."""
         chunk_count = self._get_chunk_count()
-        print(f"DB: {chunk_count} chunks | Tools: {self._n_tools}")
-        print("Type /help for commands, /exit to quit.")
+        self._view.write_startup_banner(chunk_count, self._n_tools)
 
     async def _initialize_session(self) -> None:
         """Initialize session and setup components."""

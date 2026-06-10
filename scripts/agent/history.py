@@ -268,7 +268,9 @@ class HistoryManager:
                 " context_char_limit.",
             )
             return history, _no_op
-        system_msgs, to_compress, remaining = split
+        system_msgs = split.system_msgs
+        to_compress = split.to_compress
+        remaining = split.remaining
         summary_text = await self._call_compress_llm(
             self._build_history_text(to_compress),
         )

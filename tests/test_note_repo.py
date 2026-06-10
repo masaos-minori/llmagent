@@ -81,7 +81,7 @@ class TestAddNote:
         notes = repo.list_notes()
         assert len(notes) == 2
 
-    def test_db_error_returns_none(self, repo: NoteRepository) -> None:
+    def test_db_error_raises(self, repo: NoteRepository) -> None:
         conn = sqlite3.connect(":memory:")
         conn.executescript(_SCHEMA_SQL)
         conn.commit()
@@ -89,7 +89,7 @@ class TestAddNote:
         fake = _FakeSQLiteHelper(conn)
 
         def broken_execute(sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
-            raise Exception("DB error")
+            raise sqlite3.OperationalError("DB error")
 
         fake.execute = broken_execute
 
@@ -97,8 +97,8 @@ class TestAddNote:
             return fake
 
         with patch("agent.note_repo.SQLiteHelper", side_effect=_make):
-            result = NoteRepository().add_note("test")
-        assert result is None
+            with pytest.raises(sqlite3.OperationalError):
+                NoteRepository().add_note("test")
 
 
 # ── list_notes() ───────────────────────────────────────────────────────────────
@@ -130,22 +130,22 @@ class TestListNotes:
         ids = [n["note_id"] for n in notes]
         assert ids == sorted(ids)
 
-    def test_db_error_returns_empty_list(self, repo: NoteRepository) -> None:
+    def test_db_error_raises(self, repo: NoteRepository) -> None:
         conn = sqlite3.connect(":memory:")
         conn.executescript(_SCHEMA_SQL)
         conn.commit()
 
         fake = _FakeSQLiteHelper(conn)
         fake.fetchall = lambda sql, params=None: (_ for _ in ()).throw(
-            Exception("DB error")
+            sqlite3.OperationalError("DB error")
         )
 
         def _make(target: str = "session") -> _FakeSQLiteHelper:
             return fake
 
         with patch("agent.note_repo.SQLiteHelper", side_effect=_make):
-            result = NoteRepository().list_notes()
-        assert result == []
+            with pytest.raises(sqlite3.OperationalError):
+                NoteRepository().list_notes()
 
 
 # ── delete_note() ──────────────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ class TestDeleteNote:
         assert result is True
         assert repo.list_notes() == []
 
-    def test_db_error_on_select_returns_false(self, repo: NoteRepository) -> None:
+    def test_db_error_on_select_raises(self, repo: NoteRepository) -> None:
         conn = sqlite3.connect(":memory:")
         conn.executescript(_SCHEMA_SQL)
         conn.execute("INSERT INTO notes (content) VALUES (?)", ("test",))
@@ -173,7 +173,7 @@ class TestDeleteNote:
 
         def broken_execute(sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
             if "SELECT note_id FROM notes" in sql and "DELETE" not in sql:
-                raise Exception("DB error")
+                raise sqlite3.OperationalError("DB error")
             return real_execute(sql, params)
 
         fake.execute = broken_execute
@@ -182,8 +182,8 @@ class TestDeleteNote:
             return fake
 
         with patch("agent.note_repo.SQLiteHelper", side_effect=_make):
-            result = NoteRepository().delete_note(1)
-        assert result is False
+            with pytest.raises(sqlite3.OperationalError):
+                NoteRepository().delete_note(1)
 
 
 # ── get_all_note_contents() ────────────────────────────────────────────────────
@@ -200,19 +200,19 @@ class TestGetAllNoteContents:
         contents = repo.get_all_note_contents()
         assert contents == ["content C", "content A", "content B"]
 
-    def test_db_error_returns_empty_list(self, repo: NoteRepository) -> None:
+    def test_db_error_raises(self, repo: NoteRepository) -> None:
         conn = sqlite3.connect(":memory:")
         conn.executescript(_SCHEMA_SQL)
         conn.commit()
 
         fake = _FakeSQLiteHelper(conn)
         fake.fetchall = lambda sql, params=None: (_ for _ in ()).throw(
-            Exception("DB error")
+            sqlite3.OperationalError("DB error")
         )
 
         def _make(target: str = "session") -> _FakeSQLiteHelper:
             return fake
 
         with patch("agent.note_repo.SQLiteHelper", side_effect=_make):
-            result = NoteRepository().get_all_note_contents()
-        assert result == []
+            with pytest.raises(sqlite3.OperationalError):
+                NoteRepository().get_all_note_contents()

@@ -22,6 +22,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class _NoOpSpan:
+    """No-op OTel span returned by _span_ctx when no tracer is configured."""
+
+    def set_attribute(self, key: str, value: object) -> None:
+        pass
+
+    def record_exception(self, exc: BaseException) -> None:
+        pass
+
+
 class LLMTurnRunner:
     """Manages the inner LLM streaming + tool-call loop for one agent turn.
 
@@ -105,7 +115,7 @@ class LLMTurnRunner:
         """Return a real OTel span or a no-op context manager when no tracer."""
         if self._tracer is not None:
             return self._tracer.start_as_current_span(name)
-        return nullcontext()
+        return nullcontext(_NoOpSpan())
 
     async def _finalize_answer(self, message: LLMMessage) -> str:
         """Append the done-turn message to history and return the answer text."""

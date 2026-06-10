@@ -183,17 +183,19 @@ class TestListDocuments:
             "chunk_count",
         }
 
-    def test_db_error_returns_empty_list(self, repo: DocumentRepository) -> None:
+    def test_db_error_raises(self, repo: DocumentRepository) -> None:
         conn = sqlite3.connect(":memory:")
         fake = _FakeSQLiteHelper(conn)
-        fake.fetchall = lambda sql, params: (_ for _ in ()).throw(Exception("DB error"))
+        fake.fetchall = lambda sql, params: (_ for _ in ()).throw(
+            sqlite3.OperationalError("DB error")
+        )
 
         def _make(target: str = "rag") -> _FakeSQLiteHelper:
             return fake
 
         with patch("agent.document_repo.SQLiteHelper", side_effect=_make):
-            docs = DocumentRepository().list_documents()
-        assert docs == []
+            with pytest.raises(sqlite3.OperationalError):
+                DocumentRepository().list_documents()
 
 
 # ── delete_document() ──────────────────────────────────────────────────────────
@@ -221,7 +223,7 @@ class TestDeleteDocument:
             result = DocumentRepository().delete_document("https://a.com")
         assert result is True
 
-    def test_db_error_returns_false(self, repo: DocumentRepository) -> None:
+    def test_db_error_raises(self, repo: DocumentRepository) -> None:
         conn = sqlite3.connect(":memory:")
         conn.executescript(_SCHEMA_SQL)
         conn.execute(
@@ -235,7 +237,7 @@ class TestDeleteDocument:
 
         def broken_execute(sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
             if "DELETE FROM chunks_vec" in sql:
-                raise Exception("DB error")
+                raise sqlite3.OperationalError("DB error")
             return real_execute(sql, params)
 
         fake.execute = broken_execute
@@ -244,5 +246,5 @@ class TestDeleteDocument:
             return fake
 
         with patch("agent.document_repo.SQLiteHelper", side_effect=_make):
-            result = DocumentRepository().delete_document("https://a.com")
-        assert result is False
+            with pytest.raises(sqlite3.OperationalError):
+                DocumentRepository().delete_document("https://a.com")

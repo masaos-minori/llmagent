@@ -13,7 +13,7 @@ import pytest
 from agent.factory import _ServerLifecycleRouter
 from agent.http_lifecycle import HttpStartupError, StartupFailure
 from agent.lifecycle import LifecycleState
-from agent.stdio_lifecycle import TransportHandle, TransportState
+from agent.stdio_lifecycle import TransportHandle
 from shared.mcp_config import McpServerConfig
 
 
@@ -754,16 +754,16 @@ class TestTransportHandle:
         from shared.tool_executor import StdioTransport
 
         transport = MagicMock(spec=StdioTransport)
-        handle = TransportHandle(transport=transport, state=TransportState.RUNNING)
+        handle = TransportHandle(transport=transport, state=LifecycleState.RUNNING)
         assert handle.last_error is None
 
     def test_stores_state_and_transport(self) -> None:
-        handle = TransportHandle(transport=None, state=TransportState.STOPPED)
-        assert handle.state == TransportState.STOPPED
+        handle = TransportHandle(transport=None, state=LifecycleState.STOPPED)
+        assert handle.state == LifecycleState.STOPPED
         assert handle.transport is None
 
     def test_last_error_can_be_set(self) -> None:
         handle = TransportHandle(
-            transport=None, state=TransportState.FAILED, last_error="timeout"
+            transport=None, state=LifecycleState.FAILED, last_error="timeout"
         )
         assert handle.last_error == "timeout"

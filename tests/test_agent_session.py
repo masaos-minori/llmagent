@@ -218,9 +218,9 @@ class TestFetchMessages:
         assert msgs[0]["role"] == "user"
         assert msgs[1]["role"] == "assistant"
 
-    def test_returns_none_for_unknown_session(self, session: AgentSession) -> None:
+    def test_returns_empty_for_unknown_session(self, session: AgentSession) -> None:
         result = session.fetch_messages(99999)
-        assert result is None
+        assert result == []
 
     def test_tool_call_id_restored(self, session: AgentSession) -> None:
         session.start()
@@ -337,9 +337,9 @@ class TestDeleteSession:
         sid = session.session_id
         session.save("user", "to be deleted")
         session.delete_session(sid)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
-        # After deletion, fetch_messages returns None
+        # After deletion, fetch_messages returns [] (no messages in DB)
         msgs = session.fetch_messages(sid)  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
-        assert msgs is None
+        assert msgs == []
 
 
 # ── delete_last_turn() ────────────────────────────────────────────────────────

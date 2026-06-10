@@ -147,13 +147,6 @@ class Orchestrator:
             self._handle_llm_transport_error(e, ctx)
             if self._on_error:
                 self._on_error(e)
-            # Return error result instead of raising to make error handling explicit
-            return TurnResult(success=False, answer="", error_kind=str(e))
-        except Exception as e:
-            self._handle_general_llm_error(e, ctx)
-            if self._on_error:
-                self._on_error(e)
-            # Return error result instead of raising to make error handling explicit
             return TurnResult(success=False, answer="", error_kind=str(e))
 
     async def _process_turn(
@@ -257,8 +250,10 @@ class Orchestrator:
                     summary=f"[INCOMPLETE: {e.kind}]",
                     is_error=True,
                 )
-            except Exception:
-                logger.warning("ToolResultStore.store failed for partial completion")
+            except (RuntimeError, OSError) as store_err:
+                logger.warning(
+                    f"ToolResultStore.store failed for partial completion: {store_err}"
+                )
             if ctx.services.llm is not None:
                 ctx.services.llm.stat_partial_completions += 1
             logger.warning(f"Partial LLM completion saved: {e.kind}")
@@ -269,8 +264,3 @@ class Orchestrator:
             f"LLM transport error (pre-stream): {e.kind} status={e.status_code}",
         )
         return False
-
-    def _handle_general_llm_error(self, e: Exception, ctx: AgentContext) -> None:
-        logger.error(f"LLM request failed: {e}")
-        if ctx.conv.history and ctx.conv.history[-1]["role"] == "user":
-            ctx.conv.history.pop()

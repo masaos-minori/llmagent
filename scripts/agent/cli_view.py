@@ -28,6 +28,7 @@ class Writer(Protocol):
     def write_progress(self, msg: str) -> None: ...
     def clear_progress(self) -> None: ...
     def write_warning(self, msg: str) -> None: ...
+    def write_startup_banner(self, chunk_count: str, n_tools: int) -> None: ...
 
 
 @runtime_checkable
@@ -111,6 +112,11 @@ class CLIView:
     def write_warning(self, msg: str) -> None:
         """Print a startup or runtime warning prefixed with [warn]."""
         print(f"[warn] {msg}")
+
+    def write_startup_banner(self, chunk_count: str, n_tools: int) -> None:
+        """Print the agent startup line showing DB chunks and tool count."""
+        print(f"DB: {chunk_count} chunks | Tools: {n_tools}")
+        print("Type /help for commands, /exit to quit.")
 
     def write_debug_rag(self, data: dict) -> None:
         """Render structured RAG pipeline debug data to stdout."""

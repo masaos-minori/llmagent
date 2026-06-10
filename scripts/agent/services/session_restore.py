@@ -24,7 +24,7 @@ def restore_session(ctx: AgentContext, session_id: int) -> tuple[bool, str]:
     Returns (True, message) on success, (False, message) when not found.
     """
     messages = ctx.session.fetch_messages(session_id)
-    if messages is None:
+    if not messages:
         return False, f"Session {session_id} not found or has no messages."
     system_msgs = [m for m in ctx.conv.history if m["role"] == "system"]
     ctx.conv.history = system_msgs + messages

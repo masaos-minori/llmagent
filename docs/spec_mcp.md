@@ -252,7 +252,7 @@ class ServerLifecycleManager:
     async def shutdown_idle() -> None
     async def restart(server_key: str) -> None
     async def restart_stdio(server_key: str) -> None
-    def get_transport_state(server_key: str) -> TransportState | None
+    def get_transport_state(server_key: str) -> LifecycleState
 ```
 
 ### 10.6 ToolRouteResolver（shared/route_resolver.py）

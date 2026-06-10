@@ -146,5 +146,15 @@ class AgentContext:
         # Persistent store for full tool results; /tool show <id> retrieves them
         self.tool_result_store = ToolResultStore()
         # Set to AppServices by factory.build_agent_context() before first use.
-        # Typed as Any so callers can access attributes without None-guard boilerplate.
+        # Typed as Any to avoid cascading union-attr errors until call sites are migrated.
         self.services: Any = None
+
+    @property
+    def services_required(self) -> AppServices:
+        """Return services, raising RuntimeError when not yet initialized."""
+        svc: AppServices | None = self.services
+        if svc is None:
+            raise RuntimeError(
+                "AgentContext.services not initialized — call build_agent_context() first"
+            )
+        return svc

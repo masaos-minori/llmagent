@@ -47,14 +47,14 @@ class AgentSession:
         """Persist multiple messages in a single DB transaction."""
         self._message_repo.save_many(messages)
 
-    def fetch_messages(self, session_id: int) -> list[LLMMessage] | None:
-        """Fetch messages for a session from DB."""
+    def fetch_messages(self, session_id: int) -> list[LLMMessage]:
+        """Fetch messages for a session from DB. Returns [] when session has no messages."""
         return self._message_repo.fetch_messages(session_id)
 
     # ── NoteRepository delegation ─────────────────────────────────────────────
 
-    def add_note(self, content: str) -> int | None:
-        """Insert a new note and return its note_id; None on failure."""
+    def add_note(self, content: str) -> int:
+        """Insert a new note and return its note_id. Raises sqlite3.Error on failure."""
         return self._note_repo.add_note(content)
 
     def list_notes(self) -> list[dict]:
@@ -82,51 +82,37 @@ class AgentSession:
     # ── Session lifecycle ────────────────────────────────────────────────────
 
     def start(self) -> None:
-        """Create a new session record in DB and store its ID."""
-        try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                cur = db.execute("INSERT INTO sessions (title) VALUES (NULL)")
-                self.session_id = cur.lastrowid
-                db.commit()
-            logger.info(f"Session started: id={self.session_id}")
-            # Update repositories with new session_id
-            self._message_repo = SessionMessageRepository(self.session_id)
-        except Exception as e:
-            logger.warning(
-                f"Session create failed (history will not be persisted): {e}",
-            )
-            self.session_id = None
+        """Create a new session record in DB and store its ID. Raises sqlite3.Error on failure."""
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            cur = db.execute("INSERT INTO sessions (title) VALUES (NULL)")
+            self.session_id = cur.lastrowid
+            db.commit()
+        logger.info(f"Session started: id={self.session_id}")
+        self._message_repo = SessionMessageRepository(self.session_id)
 
     def set_title(self, title: str) -> None:
-        """Set the session title using the first user input (truncated to 50 chars)."""
+        """Set the session title using the first user input (truncated to 50 chars). Raises sqlite3.Error on failure."""
         if self.session_id is None:
             return
-        try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                db.execute(
-                    "UPDATE sessions SET title = ? WHERE session_id = ?",
-                    (title[:50], self.session_id),
-                )
-                db.commit()
-        except Exception as e:
-            logger.warning(f"Session title update failed: {e}")
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            db.execute(
+                "UPDATE sessions SET title = ? WHERE session_id = ?",
+                (title[:50], self.session_id),
+            )
+            db.commit()
 
     def list_sessions(self, limit: int = 20) -> list[dict]:
         """Return the most recent sessions from DB as structured data.
 
         Each dict: session_id, created_at, title, is_current (bool).
-        Returns [] on error or when no sessions exist.
+        Raises sqlite3.Error on DB failure.
         """
-        try:
-            with SQLiteHelper("session").open(row_factory=True) as db:
-                rows = db.fetchall(
-                    "SELECT session_id, created_at, title FROM sessions"
-                    " ORDER BY session_id DESC LIMIT ?",
-                    (limit,),
-                )
-        except Exception as e:
-            logger.warning(f"Session list query failed: {e}")
-            return []
+        with SQLiteHelper("session").open(row_factory=True) as db:
+            rows = db.fetchall(
+                "SELECT session_id, created_at, title FROM sessions"
+                " ORDER BY session_id DESC LIMIT ?",
+                (limit,),
+            )
         return [
             {
                 "session_id": r["session_id"],
@@ -146,28 +132,25 @@ class AgentSession:
         """
         if self.session_id is None:
             return
-        try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                rows = db.fetchall(
-                    "SELECT message_id FROM messages"
-                    " WHERE session_id = ?"
-                    " ORDER BY message_id DESC LIMIT 2",
-                    (self.session_id,),
-                )
-                if not rows:
-                    return
-                ids = [r[0] for r in rows]
-                placeholders = ",".join("?" * len(ids))
-                db.execute(
-                    f"DELETE FROM messages WHERE message_id IN ({placeholders})",  # nosec B608 — placeholders is "?" * n, not user input
-                    tuple(ids),
-                )
-                db.commit()
-            logger.info(
-                f"Deleted last turn from session {self.session_id}: {len(ids)} messages",
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            rows = db.fetchall(
+                "SELECT message_id FROM messages"
+                " WHERE session_id = ?"
+                " ORDER BY message_id DESC LIMIT 2",
+                (self.session_id,),
             )
-        except Exception as e:
-            logger.warning(f"delete_last_turn failed: {e}")
+            if not rows:
+                return
+            ids = [r[0] for r in rows]
+            placeholders = ",".join("?" * len(ids))
+            db.execute(
+                f"DELETE FROM messages WHERE message_id IN ({placeholders})",  # nosec B608 — placeholders is "?" * n, not user input
+                tuple(ids),
+            )
+            db.commit()
+        logger.info(
+            f"Deleted last turn from session {self.session_id}: {len(ids)} messages",
+        )
 
     def undo_last_turn(self) -> int:
         """Delete all DB messages from the last user message onwards.
@@ -178,41 +161,35 @@ class AgentSession:
         """
         if self.session_id is None:
             return 0
-        try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                rows = db.fetchall(
-                    "SELECT message_id, role FROM messages"
-                    " WHERE session_id = ? ORDER BY message_id DESC",
-                    (self.session_id,),
-                )
-                if not rows:
-                    return 0
-                # Find the last user message boundary
-                last_user_id: int | None = None
-                for r in rows:
-                    if r[1] == "user":
-                        last_user_id = r[0]
-                        break
-                if last_user_id is None:
-                    return 0
-                # Count rows to delete before deleting
-                deleted: int = db.execute(
-                    "SELECT COUNT(*) FROM messages"
-                    " WHERE session_id = ? AND message_id >= ?",
-                    (self.session_id, last_user_id),
-                ).fetchone()[0]
-                db.execute(
-                    "DELETE FROM messages WHERE session_id = ? AND message_id >= ?",
-                    (self.session_id, last_user_id),
-                )
-                db.commit()
-            logger.info(
-                f"Undo: deleted {deleted} messages from session {self.session_id}",
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            rows = db.fetchall(
+                "SELECT message_id, role FROM messages"
+                " WHERE session_id = ? ORDER BY message_id DESC",
+                (self.session_id,),
             )
-            return deleted
-        except Exception as e:
-            logger.warning(f"undo_last_turn failed: {e}")
-            return 0
+            if not rows:
+                return 0
+            last_user_id: int | None = None
+            for r in rows:
+                if r[1] == "user":
+                    last_user_id = r[0]
+                    break
+            if last_user_id is None:
+                return 0
+            deleted: int = db.execute(
+                "SELECT COUNT(*) FROM messages"
+                " WHERE session_id = ? AND message_id >= ?",
+                (self.session_id, last_user_id),
+            ).fetchone()[0]
+            db.execute(
+                "DELETE FROM messages WHERE session_id = ? AND message_id >= ?",
+                (self.session_id, last_user_id),
+            )
+            db.commit()
+        logger.info(
+            f"Undo: deleted {deleted} messages from session {self.session_id}",
+        )
+        return deleted
 
     def delete_session(self, session_id: int) -> bool:
         """Delete a session and all its messages from DB.
@@ -220,18 +197,14 @@ class AgentSession:
         ON DELETE CASCADE removes messages automatically.
         Returns True when found and deleted, False when not found.
         """
-        try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                row = db.execute(
-                    "SELECT session_id FROM sessions WHERE session_id = ?",
-                    (session_id,),
-                ).fetchone()
-                if row is None:
-                    return False
-                db.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
-                db.commit()
-            logger.info(f"Session {session_id} deleted")
-            return True
-        except Exception as e:
-            logger.warning(f"delete_session failed (id={session_id}): {e}")
-            return False
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            row = db.execute(
+                "SELECT session_id FROM sessions WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+            if row is None:
+                return False
+            db.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+            db.commit()
+        logger.info(f"Session {session_id} deleted")
+        return True

@@ -26,7 +26,7 @@ from agent.history import HistoryManager
 from agent.http_lifecycle import HttpServerLifecycleManager
 from agent.lifecycle import LifecycleState
 from agent.lifecycle_protocol import LifecycleManagerProtocol
-from agent.stdio_lifecycle import StdioServerLifecycleManager, TransportState
+from agent.stdio_lifecycle import StdioServerLifecycleManager
 
 if TYPE_CHECKING:
     from agent.memory.services import MemoryServices
@@ -36,15 +36,6 @@ _COMPRESS_TEMPERATURE: float = 0.3
 _COMPRESS_MAX_TOKENS: int = 300
 
 _logger = logging.getLogger(__name__)
-
-
-def _transport_state_to_lifecycle(state: TransportState) -> LifecycleState:
-    """Map TransportState to the unified LifecycleState enum."""
-    if state == TransportState.RUNNING:
-        return LifecycleState.RUNNING
-    if state == TransportState.FAILED:
-        return LifecycleState.FAILED
-    return LifecycleState.STOPPED
 
 
 class _ServerLifecycleRouter:
@@ -116,8 +107,7 @@ class _ServerLifecycleRouter:
         if cfg.transport == "http":
             return LifecycleState.UNKNOWN
         if cfg.transport == "stdio":
-            raw = self._stdio_mgr.get_transport_state(server_key)
-            return _transport_state_to_lifecycle(raw)
+            return self._stdio_mgr.get_transport_state(server_key)
         return LifecycleState.UNKNOWN
 
     async def restart_stdio(self, server_key: str) -> None:

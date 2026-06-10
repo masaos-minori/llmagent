@@ -9,8 +9,19 @@ configured independently of the HTTP/LLM compression pipeline.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from rag.types import LLMMessage
+
+
+@dataclass(frozen=True)
+class SelectionResult:
+    """Typed result of select_turns_to_compress()."""
+
+    system_msgs: list[LLMMessage]
+    to_compress: list[LLMMessage]
+    remaining: list[LLMMessage]
+
 
 # Messages containing policy keywords get a higher importance score.
 _POLICY_KEYWORDS = re.compile(
@@ -108,7 +119,7 @@ class HistorySelectionPolicy:
     def select_turns_to_compress(
         self,
         history: list[LLMMessage],
-    ) -> tuple[list[LLMMessage], list[LLMMessage], list[LLMMessage]] | None:
+    ) -> SelectionResult | None:
         """Split history into (system_msgs, to_compress, remaining).
 
         Returns None when there are not enough turns to compress.
@@ -136,4 +147,6 @@ class HistorySelectionPolicy:
         ] + protected_tail
         remaining = factual + remaining
 
-        return system_msgs, to_compress, remaining
+        return SelectionResult(
+            system_msgs=system_msgs, to_compress=to_compress, remaining=remaining
+        )

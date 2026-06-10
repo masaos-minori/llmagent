@@ -33,18 +33,16 @@ class SessionMessageRepository:
         if role not in _VALID_ROLES:
             logger.warning(f"Invalid role {role!r}; message not saved")
             return
-        try:
-            tc_json = orjson.dumps(tool_calls).decode() if tool_calls else None
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                db.execute(
-                    "INSERT INTO messages"
-                    " (session_id, role, content, tool_calls, tool_call_id)"
-                    " VALUES (?, ?, ?, ?, ?)",
-                    (self.session_id, role, content, tc_json, tool_call_id),
-                )
-                db.commit()
-        except Exception as e:
-            logger.warning(f"Message save failed: {e}")
+        tc_json = orjson.dumps(tool_calls).decode() if tool_calls else None
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            db.execute(
+                "INSERT INTO messages"
+                " (session_id, role, content, tool_calls, tool_call_id)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (self.session_id, role, content, tc_json, tool_call_id),
+            )
+            db.commit()
+        # sqlite3.Error propagates to caller
 
     def save_many(
         self,
@@ -58,49 +56,43 @@ class SessionMessageRepository:
         """
         if self.session_id is None or not messages:
             return
-        try:
-            rows = [
-                (
-                    self.session_id,
-                    role,
-                    content,
-                    orjson.dumps(tc).decode() if tc else None,
-                    tc_id,
-                )
-                for role, content, tc, tc_id in messages
-                if role in _VALID_ROLES
-            ]
-            if not rows:
-                return
-            with SQLiteHelper("session").open(write_mode=True) as db:
-                db.executemany(
-                    "INSERT INTO messages"
-                    " (session_id, role, content, tool_calls, tool_call_id)"
-                    " VALUES (?, ?, ?, ?, ?)",
-                    rows,
-                )
-                db.commit()
-        except Exception as e:
-            logger.warning(f"save_many failed: {e}")
+        rows = [
+            (
+                self.session_id,
+                role,
+                content,
+                orjson.dumps(tc).decode() if tc else None,
+                tc_id,
+            )
+            for role, content, tc, tc_id in messages
+            if role in _VALID_ROLES
+        ]
+        if not rows:
+            return
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            db.executemany(
+                "INSERT INTO messages"
+                " (session_id, role, content, tool_calls, tool_call_id)"
+                " VALUES (?, ?, ?, ?, ?)",
+                rows,
+            )
+            db.commit()
+        # sqlite3.Error propagates to caller
 
-    def fetch_messages(self, session_id: int) -> list[LLMMessage] | None:
+    def fetch_messages(self, session_id: int) -> list[LLMMessage]:
         """Fetch and parse messages for a session from DB.
 
         Returns a list of message dicts (role/content/tool_calls) in insertion order,
-        or None if the session is not found or a DB error occurs.
+        or [] if no messages exist. Raises sqlite3.Error on DB failure.
         """
-        try:
-            with SQLiteHelper("session").open(row_factory=True) as db:
-                rows = db.fetchall(
-                    "SELECT message_id, role, content, tool_calls, tool_call_id"
-                    " FROM messages WHERE session_id = ? ORDER BY message_id",
-                    (session_id,),
-                )
-        except Exception as e:
-            logger.warning(f"Session fetch failed (id={session_id}): {e}")
-            return None
+        with SQLiteHelper("session").open(row_factory=True) as db:
+            rows = db.fetchall(
+                "SELECT message_id, role, content, tool_calls, tool_call_id"
+                " FROM messages WHERE session_id = ? ORDER BY message_id",
+                (session_id,),
+            )
         if not rows:
-            return None
+            return []
         messages: list[LLMMessage] = []
         for r in rows:
             msg: LLMMessage = {"role": r["role"], "content": r["content"]}

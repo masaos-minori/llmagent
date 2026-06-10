@@ -1,5 +1,9 @@
 """agent/error_injection_service.py
-Service for injecting synthetic errors into the agent's history.
+Converts a mid-turn LLMTransportError into a synthetic tool-result message
+injected into conversation history, allowing the LLM to recover gracefully.
+
+This is a production path called by llm_turn_runner.py, not a test utility.
+Do not add test-specific error injection to this class.
 """
 
 from __future__ import annotations

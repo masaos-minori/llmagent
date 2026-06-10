@@ -78,7 +78,7 @@ class TestSave:
     def test_saves_user_message(self, repo: SessionMessageRepository) -> None:
         repo.save("user", "Hello")
         msgs = repo.fetch_messages(1)
-        assert msgs is not None
+        assert msgs is not None  # non-empty list
         assert len(msgs) == 1
         assert msgs[0]["role"] == "user"
         assert msgs[0]["content"] == "Hello"
@@ -88,37 +88,37 @@ class TestSave:
     ) -> None:
         repo.save("assistant", "", tool_calls=[{"id": "call_1", "type": "function"}])
         msgs = repo.fetch_messages(1)
-        assert msgs is not None
+        assert msgs is not None  # non-empty list
         assert len(msgs) == 1
         assert msgs[0]["tool_calls"] == [{"id": "call_1", "type": "function"}]
 
     def test_saves_tool_with_tool_call_id(self, repo: SessionMessageRepository) -> None:
         repo.save("tool", "result", tool_call_id="call_1")
         msgs = repo.fetch_messages(1)
-        assert msgs is not None
+        assert msgs is not None  # non-empty list
         assert msgs[0]["role"] == "tool"
         assert msgs[0]["tool_call_id"] == "call_1"
 
     def test_noop_when_session_id_none(self) -> None:
         r = SessionMessageRepository(session_id=None)
-        r.save("user", "should not save")
-        assert r.fetch_messages(1) is None
+        with patch("agent.session_message_repo.SQLiteHelper") as mock_helper:
+            r.save("user", "should not save")
+            mock_helper.assert_not_called()
 
     def test_skips_invalid_role(self, repo: SessionMessageRepository) -> None:
         repo.save("invalid_role", "data")
         msgs = repo.fetch_messages(1)
-        assert msgs is None
+        assert msgs == []
 
     def test_handles_db_exception_gracefully(
         self, repo: SessionMessageRepository
     ) -> None:
         with patch("agent.session_message_repo.SQLiteHelper") as mock:
-            mock.return_value.open.return_value.__enter__.return_value.execute.side_effect = Exception(
+            mock.return_value.open.return_value.__enter__.return_value.execute.side_effect = sqlite3.OperationalError(
                 "DB fail"
             )
-            repo.save("user", "data")
-        msgs = repo.fetch_messages(1)
-        assert msgs is None
+            with pytest.raises(sqlite3.OperationalError):
+                repo.save("user", "data")
 
 
 class TestSaveMany:
@@ -130,7 +130,7 @@ class TestSaveMany:
         ]
         repo.save_many(messages)
         msgs = repo.fetch_messages(1)
-        assert msgs is not None
+        assert msgs is not None  # non-empty list
         assert len(msgs) == 3
 
     def test_skips_invalid_roles(self, repo: SessionMessageRepository) -> None:
@@ -140,18 +140,19 @@ class TestSaveMany:
         ]
         repo.save_many(messages)
         msgs = repo.fetch_messages(1)
-        assert msgs is not None
+        assert msgs is not None  # non-empty list
         assert len(msgs) == 1
         assert msgs[0]["content"] == "valid"
 
     def test_noop_when_session_id_none(self) -> None:
         r = SessionMessageRepository(session_id=None)
-        r.save_many([("user", "x", None, None)])
-        assert r.fetch_messages(1) is None
+        with patch("agent.session_message_repo.SQLiteHelper") as mock_helper:
+            r.save_many([("user", "x", None, None)])
+            mock_helper.assert_not_called()
 
     def test_noop_when_empty_list(self, repo: SessionMessageRepository) -> None:
         repo.save_many([])
-        assert repo.fetch_messages(1) is None
+        assert repo.fetch_messages(1) == []
 
     def test_serializes_tool_calls(self, repo: SessionMessageRepository) -> None:
         repo.save_many(
@@ -160,7 +161,7 @@ class TestSaveMany:
             ]
         )
         msgs = repo.fetch_messages(1)
-        assert msgs is not None
+        assert msgs is not None  # non-empty list
         assert msgs[0]["tool_calls"] == [{"id": "c1"}]
 
     def test_handles_db_exception_gracefully(
@@ -168,31 +169,30 @@ class TestSaveMany:
     ) -> None:
         messages = [("user", "data", None, None)]
         with patch("agent.session_message_repo.SQLiteHelper") as mock:
-            mock.return_value.open.return_value.__enter__.return_value.executemany.side_effect = Exception(
+            mock.return_value.open.return_value.__enter__.return_value.executemany.side_effect = sqlite3.OperationalError(
                 "DB fail"
             )
-            repo.save_many(messages)
-        msgs = repo.fetch_messages(1)
-        assert msgs is None
+            with pytest.raises(sqlite3.OperationalError):
+                repo.save_many(messages)
 
     def test_all_invalid_roles_returns_early(
         self, repo: SessionMessageRepository
     ) -> None:
         repo.save_many([("bad", "x", None, None)])
-        assert repo.fetch_messages(1) is None
+        assert repo.fetch_messages(1) == []
 
 
 class TestFetchMessages:
-    def test_returns_none_when_session_not_found(
+    def test_returns_empty_when_session_not_found(
         self, repo: SessionMessageRepository
     ) -> None:
-        assert repo.fetch_messages(999) is None
+        assert repo.fetch_messages(999) == []
 
     def test_returns_messages_in_order(self, repo: SessionMessageRepository) -> None:
         repo.save("user", "first")
         repo.save("assistant", "second")
         msgs = repo.fetch_messages(1)
-        assert msgs is not None
+        assert msgs is not None  # non-empty list
         assert msgs[0]["content"] == "first"
         assert msgs[1]["content"] == "second"
 
@@ -217,13 +217,11 @@ class TestFetchMessages:
             r = SessionMessageRepository(session_id=1)
             msgs = r.fetch_messages(1)
         logging.disable(logging.NOTSET)
-        assert msgs is not None
+        assert msgs is not None  # non-empty list
         assert "tool_calls" not in msgs[0]
 
-    def test_handles_db_exception_gracefully(
-        self, repo: SessionMessageRepository
-    ) -> None:
+    def test_handles_db_exception_raises(self, repo: SessionMessageRepository) -> None:
         with patch("agent.session_message_repo.SQLiteHelper") as mock:
-            mock.side_effect = Exception("DB Error")
-            result = repo.fetch_messages(1)
-        assert result is None
+            mock.side_effect = sqlite3.OperationalError("DB Error")
+            with pytest.raises(sqlite3.OperationalError):
+                repo.fetch_messages(1)

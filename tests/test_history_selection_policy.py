@@ -144,10 +144,11 @@ class TestSelectTurnsToCompress:
             _msg("user", "q2"),
             _msg("assistant", "a2"),
         ]
-        system_msgs, to_compress, remaining = policy.select_turns_to_compress(history)
-        assert system_msgs == [{"role": "system", "content": "You are helpful."}]
-        assert len(to_compress) > 0
-        assert len(remaining) > 0
+        result = policy.select_turns_to_compress(history)
+        assert result is not None
+        assert result.system_msgs == [{"role": "system", "content": "You are helpful."}]
+        assert len(result.to_compress) > 0
+        assert len(result.remaining) > 0
 
     def test_protected_turns_excluded_from_compressible(self) -> None:
         policy = HistorySelectionPolicy(compress_turns=1, protect_turns=1)
@@ -159,15 +160,16 @@ class TestSelectTurnsToCompress:
             _msg("user", "q3"),
             _msg("assistant", "a3"),
         ]
-        _, to_compress, remaining = policy.select_turns_to_compress(history)
-        assert len(to_compress) == 2
+        result = policy.select_turns_to_compress(history)
+        assert result is not None
+        assert len(result.to_compress) == 2
         # The most-recent protected pair should be in remaining
         protected_msgs = [
             {"role": "user", "content": "q3"},
             {"role": "assistant", "content": "a3"},
         ]
         for pm in protected_msgs:
-            assert pm in remaining
+            assert pm in result.remaining
 
     def test_returns_none_with_only_system_messages(self) -> None:
         policy = HistorySelectionPolicy(compress_turns=1, protect_turns=0)
