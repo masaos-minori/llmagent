@@ -21,11 +21,7 @@
 * subcommand を持つ command は、辞書 dispatch ではなく subcommand spec で定義する。
   `cmd_db.py` の hand-written dispatch と `cmd_ingest.py` の個別引数解釈は、この方針で置き換える。
 
-
-
 ## 2. ファイルごとの修正内容
-
-
 
 ## 2-1. `registry.py`
 
@@ -41,8 +37,6 @@
 * built-in command と plugin command を同一 spec 形式で扱えるようにする。
 * exact-match / prefix-match の二分法を見直し、subcommand command を第一級で表現できるようにする。
 
-
-
 ## 2-2. `mixin_base.py`
 
 ### High
@@ -54,8 +48,6 @@
 
 * 共通化する責務は「context access」「formatter 呼び出し」「validation wrapper」などに限定する。
 * mixin 継承前提の肥大化を防ぐため、将来的に composition に移行可能な薄い基盤へ寄せる。
-
-
 
 ## 2-3. `utils.py`
 
@@ -75,8 +67,6 @@
 * positional / optional / quoted string / subcommand を扱える parser schema を定義する。
 * parser spec から usage を自動生成できるようにする。
 
-
-
 ## 2-4. `cmd_context.py`
 
 ### High
@@ -93,8 +83,6 @@
   token count、limit、breakdown、system preview などを field 化し、formatter で表示を組み立てる。
 * token source label の判定 (`LLM usage` / `/tokenize (next turn)` / `chars/4`) を formatter または enum ベース変換に移す。
 * `/context` の breakdown 表示を共通 table formatter に統一する。
-
-
 
 ## 2-5. `cmd_db.py`
 
@@ -117,8 +105,6 @@
 * stats / urls / health の表示を formatter に寄せる。
   現状は command 側が直接テーブル/行出力を組み立てている。
 
-
-
 ## 2-6. `cmd_memory.py`
 
 ### High
@@ -134,8 +120,6 @@
 * list / search / show / pin / unpin / delete / prune の表示組み立てを formatter に切り出す。
 * command 層での JSON 文字列化やロギング制御を減らし、presenter / audit service に寄せる。
 
-
-
 ## 2-7. `cmd_notes.py`
 
 ### High
@@ -149,8 +133,6 @@
 * `_format_notes_table()` を formatter モジュールへ移す。
 * note add/list/delete の結果を共通 result 出力へ統一する。
 * “Failed to add note." のような曖昧な失敗表現を廃止し、失敗カテゴリを返す構造にする。
-
-
 
 ## 2-8. `cmd_session.py`
 
@@ -167,8 +149,6 @@
 * session list / load / rename / delete の request DTO / result DTO を揃える。
 * タイトル自動生成の依存関係を DI 可能な形へ整理する。
 
-
-
 ## 2-9. `cmd_tooling.py`
 
 ### High
@@ -182,8 +162,6 @@
 
 * `/plan` は単純な boolean toggle ではなく、現在値・変更結果・有効範囲を返す result にする。
 * JSON/raw 表示が必要な場合は formatter option として扱う。
-
-
 
 ## 2-10. `cmd_config.py`
 
@@ -200,8 +178,6 @@
 * config 表示用 DTO を定義する。
 * 可変設定 / 起動時固定設定 / 再起動要設定を区別して出力できるようにする。
 
-
-
 ## 2-11. `cmd_debug.py`
 
 ### High
@@ -214,8 +190,6 @@
 
 * debug 出力のフォーマットを共通化する。
 * 機密値・トークン・秘密情報がそのまま出ないようにフィルタ層を入れる。
-
-
 
 ## 2-12. `cmd_ingest.py`
 
@@ -234,8 +208,6 @@
 * ingest / rag は progress / summary / error を持つ result DTO を返すこと。
 * stage timing (`--debug`) の表示を formatter で統一する。
 
-
-
 ## 2-13. `cmd_mcp.py`
 
 ### High
@@ -248,8 +220,6 @@
 
 * テーブル表示や next steps 表示は formatter / presenter に移す。
 * MCP server 状態取得、tool list 取得、接続確認を個別の query service に分離する。
-
-
 
 ## 3. 作業ステップ
 
@@ -286,8 +256,6 @@
 14. `cmd_tooling.py`, `cmd_debug.py`, `cmd_mcp.py`, `cmd_config.py` の責務分離を完了する。
 15. 各 usage を registry 主導に置き換える。
 16. 各 command のユニットテスト / parser テスト / formatter テストを追加する。
-
-
 
 ## 4. 完了条件
 
