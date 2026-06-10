@@ -7,8 +7,8 @@
 | ファイル | 内容 |
 |---|---|
 | [03_ref-crawler.md](03_ref-crawler.md) | `rag/ingestion/crawler.py` API |
-| [03_ref-splitter.md](03_ref-splitter.md) | `rag/ingestion/chunk_splitter.py` API |
-| [03_ref-ingester.md](03_ref-ingester.md) | `rag/ingestion/ingester.py` API |
+| [03_ref-splitter.md](03_ref-splitter.md) | `scripts/rag/ingestion/chunk_splitter.py` API |
+| [03_ref-ingester.md](03_ref-ingester.md) | `scripts/rag/ingestion/ingester.py` API |
 | [03_ref-mdq.md](03_ref-mdq.md) | `mcp/mdq/` API |
 
 ---
@@ -20,12 +20,12 @@
 ### 5.1 パイプラインデータフロー
 
 ```
-config/rag_pipeline.json の target_urls
-  → web_crawler.py:    BFS クロール (同一オリジン) → rag-src/yyyymmddhhmmss-{slug}.txt
-  → chunk_splitter.py: チャンク分割
+config/rag_pipeline.toml の target_urls
+  → scripts/rag/ingestion/crawler.py:    BFS クロール (同一オリジン) → rag-src/yyyymmddhhmmss-{slug}.txt
+  → scripts/rag/ingestion/chunk_splitter.py: チャンク分割
                        JA: Sudachi / EN: sentence split / code: 空行区切り
                        → rag-src/chunk/{stem}-{idx:04d}.txt
-  → rag_ingester.py:   embed (passage: prefix) → SQLite INSERT → rag-src/registered/
+  → scripts/rag/ingestion/ingester.py:   embed (passage: prefix) → SQLite INSERT → rag-src/registered/
 ```
 
 ### 5.2 FTS5 クエリ Sudachi フィルタ

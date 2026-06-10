@@ -69,8 +69,8 @@
 
 ```python
 # 接続取得
-db = SQLiteHelper(db_type="session").open(row_factory=True)
-# db_type: "rag" → rag.sqlite, "session" → session.sqlite
+db = SQLiteHelper(target="session").open(row_factory=True)
+# target: "rag" → rag.sqlite, "session" → session.sqlite
 
 # コンテキストマネージャーとして使用
 with SQLiteHelper(db_type="rag") as db:
@@ -137,8 +137,8 @@ RagRepository.vector_search(query, db, top_k)
 | `doc_id` | INTEGER | PRIMARY KEY AUTOINCREMENT |
 | `url` | TEXT | UNIQUE NOT NULL |
 | `title` | TEXT | |
-| `lang` | TEXT | |
-| `fetched_at` | TEXT | |
+| `lang` | TEXT | NOT NULL CHECK (lang IN ('ja', 'en')) |
+| `fetched_at` | TEXT | NOT NULL DEFAULT (datetime('now')) |
 | `etag` | TEXT | |
 | `last_modified` | TEXT | |
 
@@ -155,10 +155,10 @@ RagRepository.vector_search(query, db, top_k)
 **chunks_fts（FTS5 バーチャルテーブル）:**
 ```sql
 CREATE VIRTUAL TABLE chunks_fts USING fts5(
-    chunk_id UNINDEXED,
     content,
-    normalized_content,
-    content='chunks', content_rowid='chunk_id'
+    content       = 'chunks',
+    content_rowid = 'chunk_id',
+    tokenize      = 'unicode61'
 )
 ```
 
@@ -177,23 +177,20 @@ CREATE VIRTUAL TABLE chunks_vec USING vec0(
 | カラム | 型 | 制約 |
 |---|---|---|
 | `session_id` | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `created_at` | TEXT | NOT NULL DEFAULT datetime('now') |
+| `created_at` | TEXT | NOT NULL DEFAULT (datetime('now')) |
 | `title` | TEXT | |
-| `llm_url` | TEXT | |
-| `system_prompt_name` | TEXT | |
 
 **messages テーブル:**
 
 | カラム | 型 | 制約 |
 |---|---|---|
 | `message_id` | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `session_id` | INTEGER | FK → sessions |
-| `turn` | INTEGER | NOT NULL |
+| `session_id` | INTEGER | FK → sessions ON DELETE CASCADE |
 | `role` | TEXT | NOT NULL |
-| `content` | TEXT | |
-| `tool_calls` | TEXT | JSON |
+| `content` | TEXT | NOT NULL |
+| `tool_calls` | TEXT | |
 | `tool_call_id` | TEXT | |
-| `name` | TEXT | |
+| `created_at` | TEXT | NOT NULL DEFAULT (datetime('now')) |
 
 **notes テーブル:**
 
@@ -215,7 +212,9 @@ CREATE VIRTUAL TABLE chunks_vec USING vec0(
 | `full_text` | TEXT | NOT NULL |
 | `summary` | TEXT | |
 | `is_error` | INTEGER | NOT NULL DEFAULT 0 |
-| `created_at` | TEXT | NOT NULL |
+| `created_at` | TEXT | NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')) |
+
+インデックス: `idx_tool_results_session ON tool_results(session_id)`
 
 **memories テーブル:**
 
@@ -244,7 +243,12 @@ CREATE VIRTUAL TABLE chunks_vec USING vec0(
 - `memory_id TEXT PRIMARY KEY`, `embedding float[384]`
 
 **memory_links テーブル:**
-- `src_id TEXT REFERENCES memories(memory_id)`, `dst_id TEXT REFERENCES memories(memory_id)`
+
+| カラム | 型 | 制約 |
+|---|---|---|
+| `src_id` | TEXT | NOT NULL FK → memories ON DELETE CASCADE |
+| `dst_id` | TEXT | NOT NULL FK → memories ON DELETE CASCADE |
+| PRIMARY KEY | (src_id, dst_id) | |
 
 ---
 
@@ -293,7 +297,7 @@ def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]
 
 # 障害復旧
 def recover_corruption(backup_path: str | Path | None = None, *, dry_run: bool = False) -> RecoveryResult
-# RecoveryResult: @dataclass(action, detail) — action: "vacuum" | "restored" | "no_backup" | "error"
+# RecoveryResult: @dataclass(success: bool, action: str, detail: str|None=None, dry_run: bool=False) — action: "vacuum" | "restored" | "no_backup" | "error"
 ```
 
 ### 10.4 ツール結果（db/tool_results.py）

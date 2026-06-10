@@ -38,7 +38,7 @@ command_allowlist = ["pytest", "python", "python3", "git", "ruff", "mypy"]
 
 | リソース | 制限値 |
 |---|---|
-| `RLIMIT_CPU` | `timeout_sec × 2` 秒 (asyncio timeout の補助) |
+| `RLIMIT_CPU` | `max(timeout_sec × 2, 60)` 秒 (asyncio timeout の補助、最低 60 秒) |
 | `RLIMIT_AS` | `max_memory_mb` MB |
 | `RLIMIT_NOFILE` | 256 |
 | `RLIMIT_NPROC` | 64 (fork bomb 対策) |
@@ -58,7 +58,7 @@ command_allowlist = ["pytest", "python", "python3", "git", "ruff", "mypy"]
 
 ### 2.6 サンドボックスバックエンド
 
-`shell_sandbox_backend = "firejail"` のとき `firejail --private --net=none --noroot` でラップ。`firejail` が PATH に存在しない場合は起動時に警告を出して `"none"` にフォールバック。
+`shell_sandbox_backend = "firejail"` のとき `firejail --private --net=none --noroot --` でラップ。`firejail` が PATH に存在しない場合は起動時に警告を出して `"none"` にフォールバック。
 
 ---
 
@@ -135,7 +135,7 @@ MCP サーバの `/v1/call_tool` エンドポイントも `AUDIT` ログを `she
 | `audit_log_path` | `""` | 監査ログパス (空のとき監査ログなし) |
 | `shell_sandbox_backend` | `"none"` | `"firejail"` または `"none"` |
 | `env_allowlist` | `[]` | 許可する req.env キー (非空時 allowlist モード) |
-| `env_denylist` | `[]` | 拒否する req.env キーのグロブ (env_allowlist 空時に有効) |
+| `env_denylist` | `["LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH"]` | 拒否する req.env キーのグロブ (env_allowlist 空時に有効) |
 | `execution_user` | `""` | 実行 OS ユーザ (setuid; root 権限要) |
 | `kill_policy` | `"sigterm_then_sigkill"` | タイムアウト終了ポリシー |
 | `kill_grace_sec` | 2.0 | SIGTERM 後の猶予秒数 |

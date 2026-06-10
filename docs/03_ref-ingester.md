@@ -7,13 +7,13 @@
 
 ### 4.1 クラス概要
 
-`RagIngester` クラス。`/opt/llm/rag-src/chunk/*.txt` のチャンクファイルを読み込み、`embed-llm` サービス (multilingual-E5-small, ポート 8003) で埋込ベクトルを生成して SQLite の 4 テーブル (`documents` / `chunks` / `chunks_vec` / `chunks_fts`) に登録する。処理済みチャンクファイルは `/opt/llm/rag-src/registered/` に移動する。
+`RagIngester` クラス。`rag-src/chunk/*.txt` のチャンクファイルを読み込み、`embed-llm` サービス (multilingual-E5-small, ポート 8003) で埋込ベクトルを生成して SQLite の 4 テーブル (`documents` / `chunks` / `chunks_vec` / `chunks_fts`) に登録する。処理済みチャンクファイルは `rag-src/registered/` に移動する。
 
 **公開メソッド**
 
 | メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `__init__` | `(config: dict \| None = None)` | `common.json` と `rag_pipeline.json` をマージして読み込みインスタンスを初期化する。`requests.Session` も生成する |
+| `__init__` | `(config: dict \| None = None)` | `common.toml` と `rag_pipeline.toml` をマージして読み込みインスタンスを初期化する。`httpx.Client` も生成する |
 | `ingest_all` | `(force: bool = False) -> None` | `chunk_dir` の全チャンクファイルを URL 単位でグループ化して投入する |
 | `ingest_url_group` | `(db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> None` | 1 URL 分のチャンクファイル群を SQLite に投入し、処理後ファイルを `registered/` に移動する |
 
@@ -32,7 +32,7 @@
 
 | 機能 | 実装 |
 |---|---|
-| 埋込 API 呼び出し | `requests.Session()` で `POST http://127.0.0.1:8003/embedding` を呼び出す |
+| 埋込 API 呼び出し | `httpx.Client(timeout=60)` で `POST http://127.0.0.1:8003/embedding` を呼び出す |
 | E5 モデルプレフィックス | 取込時は `passage: {text}` を付与 (クエリ時は `query: {text}`) |
 | ベクトル格納 | `struct.pack(f"<{N}f", *values)` でリトルエンディアン float32 BLOB に変換 (sqlite-vec の `MATCH` 演算子要件) |
 | 埋込並列化 | `_ingest_chunk_files()` が `ThreadPoolExecutor(embed_workers)` でチャンクを並列投入する。ドキュメントレコードを `db.commit()` してから並列開始し、各スレッドは独立した `SQLiteHelper().open()` を使用する |
@@ -87,13 +87,13 @@ POST http://127.0.0.1:8003/embedding
 
 ### 4.7 設定項目
 
-`config/common.toml` と `config/rag_pipeline.json` を参照する。
+`config/common.toml` と `config/rag_pipeline.toml` を参照する。
 
 | パラメータ | 設定ファイル | デフォルト | 説明 |
 |---|---|---|---|
 | `embed_url` | `config/common.toml` | `http://127.0.0.1:8003/embedding` | 埋込 API のエンドポイント (llama.cpp レガシー形式) |
 | `rag_db_path` | `config/common.toml` | `/opt/llm/db/rag.sqlite` | SQLite データベースのパス |
 | `sqlite_vec_so` | `config/common.toml` | `/opt/llm/sqlite-vec/vec0.so` | sqlite-vec 拡張 (.so) のパス |
-| `rag_src_dir` | `config/rag_pipeline.json` | `/opt/llm/rag-src` | チャンクファイル入力ディレクトリ (`{rag_src_dir}/chunk/*.txt`) および登録済みファイル移動先 (`{rag_src_dir}/registered/`) |
-| `embed_retry` | `config/rag_pipeline.json` | `3` | 埋込 API 失敗時の指数バックオフリトライ上限回数 |
-| `embed_workers` | `config/rag_pipeline.json` | `4` | 埋込並列実行数。`ThreadPoolExecutor(embed_workers)` でチャンクを並列投入する |
+| `rag_src_dir` | `config/rag_pipeline.toml` | `rag-src` | チャンクファイル入力ディレクトリ (`{rag_src_dir}/chunk/*.txt`) および登録済みファイル移動先 (`{rag_src_dir}/registered/`) |
+| `embed_retry` | `config/rag_pipeline.toml` | `3` | 埋込 API 失敗時の指数バックオフリトライ上限回数 |
+| `embed_workers` | `config/rag_pipeline.toml` | `4` | 埋込並列実行数。`ThreadPoolExecutor(embed_workers)` でチャンクを並列投入する |

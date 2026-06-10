@@ -22,7 +22,7 @@
 ## 4. 前提条件
 
 1. Python 3.13 以上。
-2. 依存パッケージ: `orjson`, `httpx`, `pydantic`, `toml`（設定読み込み）。
+2. 依存パッケージ: `orjson`, `httpx`, `pydantic`, `tomllib`（Python 3.11+ stdlib、設定読み込み）。
 3. OTel（`opentelemetry-*`）は任意（`otel_enabled=false` の場合はスキップ）。
 4. GitPython は任意（`git_helper.py` 使用時のみ）。
 5. Sudachi は任意（`ChunkSplitter` の日本語処理時のみ）。
@@ -45,9 +45,10 @@
 ## 6. 機能要件
 
 ### 6.1 設定読み込み（shared/config_loader.py）
-- TOML ファイルの読み込みと辞書へのマージ
+- TOML (`.toml`) および JSON (`.json`) ファイルの読み込みと辞書へのマージ
 - 複数ファイルを順番に読み込み、後のファイルが前を上書き
 - `_` プレフィックスのキーはドキュメント用メタデータとして除外
+- 解析エラー時は `ValueError` を送出
 
 ### 6.2 ロギング（shared/logger.py）
 - 名前付きロガー（`Logger(__name__, filepath)`）の構築
@@ -91,7 +92,7 @@
 loader = ConfigLoader()
 cfg = loader.load("agent.toml")            # 単一ファイル
 cfg = loader.load("common.toml", "agent.toml")  # 複数マージ
-cfg = loader.load_all()                    # 全設定ファイルをマージ（common.toml は含まない）
+cfg = loader.load_all()                    # 11ファイルのハードコード済みリストをマージ（common.toml は含まない）
 ```
 
 ### 7.2 Logger
@@ -121,9 +122,14 @@ result, is_error, x_request_id = await tool_executor.execute(
 
 ```
 ConfigLoader().load("agent.toml")
-  → /opt/llm/config/agent.toml を読み込み
+  → config/agent.toml (TOML または JSON) を読み込み
   → `_` プレフィックスのキーを除外
-  → dict を返す
+  → dict を返す（ファイル不存在/解析エラー時は ValueError）
+
+ConfigLoader().load_all()
+  → ハードコード済み11ファイル [llm, http, rag, context, tools, memory, otel, security, system_prompts, mcp_servers, tools_definitions] を順番にマージ
+  → 存在しないファイルはスキップ（ValueError をキャッチして continue）
+  → dict を返す（common.toml は含まない）
 ```
 
 ### 8.2 プラグインロードフロー
@@ -191,7 +197,7 @@ class LLMMessage(TypedDict, total=False):
 ```python
 class ConfigLoader:
     def load(*filenames: str) -> dict[str, Any]
-    def load_all() -> dict[str, Any]  # 全設定ファイルをマージ（common.toml 除外）
+    def load_all() -> dict[str, Any]  # ハードコード済み11ファイル [llm, http, rag, context, tools, memory, otel, security, system_prompts, mcp_servers, tools_definitions] をマージ（common.toml 除外）
 ```
 
 ### 10.2 Logger（shared/logger.py）
@@ -211,7 +217,7 @@ class Logger:
 def load_plugins(plugin_dir: Path) -> int  # ロードしたプラグイン数
 def register_tool(name: str) -> Callable   # デコレータ
 def get_tool(name: str) -> Callable | None
-def list_tools() -> list[str]
+def iter_commands() -> dict[str, tuple[Callable, bool]]  # 登録済みコマンドのスナップショット
 ```
 
 ### 10.4 TokenCounter（shared/token_counter.py）
@@ -245,8 +251,8 @@ def get_repo_info() -> dict | None
 
 | エラー種別 | 対応 |
 |---|---|
-| `ConfigLoader` ファイル不存在 | `FileNotFoundError` を送出 |
-| TOML 解析エラー | `toml.TomlDecodeError` を送出 |
+| `ConfigLoader` ファイル不存在 | `ValueError` を送出（原因をメッセージに含む） |
+| TOML 解析エラー | `ValueError` を送出（原因をメッセージに含む） |
 | `Logger` ファイル書き込みエラー | サイレントフォールバック（StreamHandler のみで継続） |
 | プラグインロードエラー | ログに警告を出力してスキップ（他プラグインに影響しない） |
 | `TokenCounter` 接続エラー | `chars / 4` のフォールバック推定を使用、警告を 1 回だけ出力 |

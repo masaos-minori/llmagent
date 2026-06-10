@@ -4,51 +4,49 @@ API リファレンス → [`docs/03_ref-ingestion.md`](03_ref-ingestion.md)
 
 ## 1. ドキュメント収集・投入
 
-取込は `rag/ingestion/crawler.py` → `rag/ingestion/chunk_splitter.py` → `rag/ingestion/ingester.py` の 3 ステップで実行する。
-事前に `deploy/deploy.sh` でスクリプトが配置済みであること。
+取込は `scripts/rag/ingestion/crawler.py` → `scripts/rag/ingestion/chunk_splitter.py` → `scripts/rag/ingestion/ingester.py` の 3 ステップで実行する。
 
 ### 1.1 前提条件
 
-- `deploy/deploy.sh` が実行済み (スクリプト・設定ファイルが `/opt/llm/scripts/` に配置済み)
 - `embed-llm` サービスが起動済み (`curl -s http://127.0.0.1:8003/health` で確認)
 
 ### 1.2 実行手順
 
 ```bash
-source /opt/llm/venv/bin/activate
+source .venv/bin/activate
 
 # ── ステップ 1: クロール ──────────────────────────────────────────────────────
-# 全 TARGET_URLS のクロール (N100 では長時間: nohup 推奨)
-nohup python /opt/llm/scripts/web_crawler.py > /opt/llm/logs/crawl.log 2>&1 &
+# 全 TARGET_URLS のクロール (長時間時は nohup 推奨)
+nohup uv run python scripts/rag/ingestion/crawler.py > logs/crawl.log 2>&1 &
 
-tail -f /opt/llm/logs/crawl.log
+tail -f logs/crawl.log
 
 # 単一 URL のクロール
-python /opt/llm/scripts/web_crawler.py --url "https://ziglang.org/documentation/master/" --lang en
+uv run python scripts/rag/ingestion/crawler.py --url "https://ziglang.org/documentation/master/" --lang en
 
 # 複数 URL のクロール (同一 --lang が全 URL に適用される)
-python /opt/llm/scripts/web_crawler.py \
+uv run python scripts/rag/ingestion/crawler.py \
     --url "https://ziglang.org/documentation/master/" \
           "https://zig.guide/" \
     --lang en
 
 # ── ステップ 2: チャンク分割 ─────────────────────────────────────────────────
-python /opt/llm/scripts/chunk_splitter.py
+uv run python scripts/rag/ingestion/chunk_splitter.py
 
 # 特定ファイルのみ処理
-python /opt/llm/scripts/chunk_splitter.py --file /opt/llm/rag-src/20240101120000-ziglang.txt
+uv run python scripts/rag/ingestion/chunk_splitter.py --file rag-src/20240101120000-ziglang.txt
 
 # 既存チャンクを再生成する場合 (--force)
-python /opt/llm/scripts/chunk_splitter.py --force
+uv run python scripts/rag/ingestion/chunk_splitter.py --force
 
 # ── ステップ 3: 埋込生成・DB 投入 ────────────────────────────────────────────
 # embed-llm が起動していることを確認
 curl -s http://127.0.0.1:8003/health
 
-python /opt/llm/scripts/rag_ingester.py
+uv run python scripts/rag/ingestion/ingester.py
 
 # 強制再登録 (既登録 URL を最新コンテンツで上書き)
-python /opt/llm/scripts/rag_ingester.py --force
+uv run python scripts/rag/ingestion/ingester.py --force
 ```
 
 ### 1.3 ファイルライフサイクル

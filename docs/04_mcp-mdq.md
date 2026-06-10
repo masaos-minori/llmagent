@@ -72,7 +72,7 @@ curl -s -X POST http://127.0.0.1:8013/search_docs \
 |---|---|---|---|
 | `db_path` | `config/mdq_mcp_server.toml` | `/opt/llm/db/mdq.sqlite` | データベースパス |
 
-`db_path` は `Indexer.__init__()` および `search_chunks()` が `shared.config_loader.get_config("mdq_mcp_server")` 経由で読み込む。`search_docs` の検索件数上限は `SearchDocsRequest.limit` フィールド (デフォルト `10`) でリクエストごとに制御する。
+`db_path` は `MdqService.__init__()` が `shared.config_loader.get_config("mdq_mcp_server")` 経由で読み込む。`search_docs` の検索件数上限は `SearchDocsRequest.limit` フィールド (デフォルト `10`) でリクエストごとに制御する。`SearchDocsRequest.mode` のデフォルト値は `"bm25"` (models.py 定義)。
 
 ### 1.7 実装方式
 
@@ -93,13 +93,13 @@ curl -s -X POST http://127.0.0.1:8013/search_docs \
 
 | ツール | リクエスト | レスポンス |
 |---|---|---|
-| `search_docs` | `{query: str, limit?: int=10, mode?: str="hybrid", path_prefix?: str, tag_filter?: [str], heading_prefix?: str}` | `{hits: [SearchDocsHit], total_hits: int}` (SearchDocsHit: `{chunk_id, source_path, heading_path, score: float, snippet: str, token_count, tags}`) |
-| `get_chunk` | `{chunk_id: int, with_neighbors?: bool=false}` | `{chunk_id: int, source_path: str, heading_path: str, content: str, token_count: int, tags: [str], chunk_order: int}` |
-| `outline` | `{path: str}` | `{path: str, title: str, outline: [OutlineEntry]}` |
-| `index_paths` | `{paths: [str]}` | `{indexed_paths: [str], total_docs: int}` |
-| `refresh_index` | `{paths: [str]}` | `{updated_paths: [str], total_docs: int}` |
-| `stats` | `{}` | `{document_count: int, chunk_count: int, latest_update: str, fts_size: int}` |
-| `grep_docs` | `{pattern: str, paths?: [str]}` | `{pattern: str, matches: [{chunk_id: int, source_path: str, heading_path: str, content: str}], truncated: bool}` |
+| `search_docs` | `{query: str, limit?: int=10, mode?: str="bm25", path_prefix?: str, tag_filter?: [str], heading_prefix?: str}` | `{results: [dict]}` (SearchDocsResponse: `results` field; each hit: `{chunk_id, source_path, heading_path, score, snippet, token_count, tags}`) |
+| `get_chunk` | `{chunk_id: int, with_neighbors?: bool=false}` | `{chunk: str, headings: [str]}` (GetChunkResponse) |
+| `outline` | `{path: str}` | `{headings: [str]}` (OutlineResponse) |
+| `index_paths` | `{paths: [str]}` | `{message: str}` (IndexPathsResponse) |
+| `refresh_index` | `{paths: [str]}` | `{message: str}` (RefreshIndexResponse) |
+| `stats` | `{}` | `{document_count: int, chunk_count: int, index_metadata: dict}` (StatsResponse) |
+| `grep_docs` | `{pattern: str, paths?: [str]}` | `{results: [dict]}` (GrepDocsResponse; pattern is regex per server.py description) |
 
 ### 1.9 エラーハンドリング
 
@@ -131,7 +131,7 @@ curl -s -X POST http://127.0.0.1:8013/search_docs \
 | `search_docs` | `async (request: SearchDocsRequest) -> str` | JSON文字列 (`SearchDocsResponse`) | `search_chunks()` 委譲 |
 | `get_chunk` | `async (request: GetChunkRequest) -> str` | JSON文字列 (`ChunkResponse`) | `with_neighbors` は受け取るが現在未使用; 常に単一チャンクを返す |
 | `outline` | `async (request: OutlineRequest) -> str` | JSON文字列 (`OutlineResponse`) | ファイル不在時 HTTP 404 |
-| `index_paths` | `async (request: IndexPathsRequest) -> str` | JSON文字列 (`IndexPathsResponse`) | ディレクトリ指定時は `.md`/`.markdown`/`.mdx` を再帰探索 |
+| `index_paths` | `async (request: IndexPathsRequest) -> str` | JSON文字列 (`IndexPathsResponse`) | ディレクトリ指定時は `.md` のみを再帰探索 (indexer.py 現実装) |
 | `refresh_index` | `async (request: RefreshIndexRequest) -> str` | JSON文字列 (`RefreshIndexResponse`) | 内部で `Indexer.refresh_paths()` を呼ぶ; 差分判定は `mtime`+`doc_hash` |
 | `stats` | `async (request: StatsRequest) -> str` | JSON文字列 (`StatsResponse`) | `md_documents` / `md_chunks` / `md_chunks_fts` 行数を集計 |
 | `grep_docs` | `async (request: GrepDocsRequest) -> str` | JSON文字列 (`GrepDocsResponse`) | `Indexer.grep_chunks()` 委譲; `truncated` は常に `false` |

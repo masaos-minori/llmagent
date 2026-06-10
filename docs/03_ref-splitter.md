@@ -7,13 +7,13 @@
 
 ### 3.1 クラス概要
 
-`ChunkSplitter` クラス。`/opt/llm/rag-src/*.txt` のクロール済みファイルを読み込み、言語とコンテンツ種別 (テキスト / コード) に応じてチャンクに分割する。チャンクは `/opt/llm/rag-src/chunk/{stem}-{idx:04d}.txt` に JSON 形式で保存する。冪等性を持ち、`{stem}-0000.txt` が既存の場合はスキップする (`--force` で上書き)。`md_index_enable=true` のとき、URL が `.md`/`.markdown`/`.mdx` で終わるか本文に Markdown 見出しが 2 行以上存在する場合は見出し境界でスニペット分割を行う。エージェントの `/ingest --snippets-only` は `md_index_enable` を一時的に `true` にオーバーライドして強制適用する。
+`ChunkSplitter` クラス。`rag-src/*.txt` のクロール済みファイルを読み込み、言語とコンテンツ種別 (テキスト / コード) に応じてチャンクに分割する。チャンクは `rag-src/chunk/{stem}-{idx:04d}.txt` に JSON 形式で保存する。冪等性を持ち、`{stem}-0000.txt` が既存の場合はスキップする (`--force` で上書き)。`md_index_enable=true` のとき、URL が `.md`/`.markdown`/`.mdx` で終わるか本文に Markdown 見出しが 2 行以上存在する場合は見出し境界でスニペット分割を行う。エージェントの `/ingest --snippets-only` は `md_index_enable` を一時的に `true` にオーバーライドして強制適用する。
 
 **公開メソッド**
 
 | メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `__init__` | `(config: dict \| None = None)` | `rag_pipeline.json` を読み込みインスタンスを初期化する。Sudachi 辞書 (`core`) と `SplitMode.C` トークナイザも起動時に初期化する |
+| `__init__` | `(config: dict \| None = None)` | `rag_pipeline.toml` を読み込みインスタンスを初期化する。Sudachi 辞書 (`core`) と `SplitMode.C` トークナイザも起動時に初期化する |
 | `process_all` | `(target: Path \| None = None, force: bool = False) -> int` | `rag-src/*.txt` をすべて処理する。`target` を指定すると単一ファイルのみ処理する。戻り値は書き込んだ総チャンク数 |
 | `process_file` | `(src_path: Path, force: bool = False) -> int` | 単一 JSON ファイルを読み込んでチャンク分割し書き出す。戻り値は書き込んだチャンク数 |
 
@@ -48,9 +48,9 @@
 | `--file PATH` | 特定ファイルのみ処理 (省略時はすべての未処理 `.txt` ファイル) | 全ファイル |
 | `--force` | 既存チャンクを削除して再生成 | false |
 
-**入力:** `/opt/llm/rag-src/*.txt` (web_crawler.py の出力 JSON)
+**入力:** `rag-src/*.txt` (web_crawler.py の出力 JSON)
 
-**出力 JSON フォーマット** (`/opt/llm/rag-src/chunk/{stem}-{idx:04d}.txt`)
+**出力 JSON フォーマット** (`rag-src/chunk/{stem}-{idx:04d}.txt`)
 
 ```json
 {
@@ -86,11 +86,11 @@
 
 ### 3.7 設定項目
 
-すべて `config/rag_pipeline.json` に記載。
+すべて `config/rag_pipeline.toml` に記載。
 
 | パラメータ | デフォルト | 説明 |
 |---|---|---|
-| `rag_src_dir` | `/opt/llm/rag-src` | 入力ファイルのディレクトリ (`{rag_src_dir}/*.txt`) およびチャンク出力先 (`{rag_src_dir}/chunk/`) |
+| `rag_src_dir` | `rag-src` | 入力ファイルのディレクトリ (`{rag_src_dir}/*.txt`) およびチャンク出力先 (`{rag_src_dir}/chunk/`) |
 | `min_chunk` | `40` | チャンクの最小文字数。これ未満のチャンクはノイズとして破棄する |
 | `max_chunk` | `500` | チャンクの最大文字数。コンテキスト長を圧迫しないよう分割する |
 | `en_stopwords` | (リスト) | 英語ストップワードリスト。チャンク分割後のトークンから除外する機能語 |

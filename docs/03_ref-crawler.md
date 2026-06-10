@@ -7,13 +7,13 @@
 
 ### 2.1 クラス概要
 
-`WebCrawler` クラス。指定 URL を起点に同一オリジン内を BFS (幅優先探索: Breadth-First Search) でクロールし、各ページのテキストとコードブロックを JSON 形式で `/opt/llm/rag-src/` に保存する。ファイル名は `yyyymmddhhmmss-{slug}.txt` (slug は URL パスを英数字ハイフンに変換したもの)。`--url` 未指定の場合は `config/rag_pipeline.json` の `target_urls` を使用する。
+`WebCrawler` クラス。指定 URL を起点に同一オリジン内を BFS (幅優先探索: Breadth-First Search) でクロールし、各ページのテキストとコードブロックを JSON 形式で `rag-src/` に保存する。ファイル名は `yyyymmddhhmmss-{slug}.txt` (slug は URL パスを英数字ハイフンに変換したもの)。`--url` 未指定の場合は `config/rag_pipeline.toml` の `target_urls` を使用する。
 
 **公開メソッド**
 
 | メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `__init__` | `(config: dict \| None = None)` | `rag_pipeline.json` を読み込みインスタンスを初期化する。`config` を渡すとファイル読み込みをスキップする (テスト用) |
+| `__init__` | `(config: dict \| None = None)` | `rag_pipeline.toml` を読み込みインスタンスを初期化する。`config` を渡すとファイル読み込みをスキップする (テスト用) |
 | `crawl` | `async (targets: list[tuple[str, str]] \| None = None) -> None` | 全ターゲットをクロールする。`targets` が `None` の場合は設定ファイルの `target_urls` を使用する |
 | `crawl_site` | `async (start_url: str, hint_lang: str) -> None` | 単一の起点 URL から非同期 BFS クロールを実行する |
 | `crawl_file` | `(path: Path, lang: str) -> int` | ローカルファイルをクロール結果 JSON として `rag-src/` に保存する。`.py` はコードブロックとして格納する。成功時 1、失敗時 0 を返す |
@@ -30,7 +30,7 @@
 
 指定 URL を起点に同一オリジン内を BFS で巡回し、各ページのテキストとコードブロックを JSON ファイルとして `rag-src/` に保存。
 
-- テキスト抽出: `trafilatura` で本文テキストを、`BeautifulSoup4` で `<pre>` コードブロックを別途抽出
+- テキスト抽出: `crawler_utils.extract_text()` で本文テキストを、`BeautifulSoup4` で `<pre>` コードブロックを別途抽出
 - 言語検出: CJK 文字比率 (ひらがな + カタカナ + CJK統合漢字 が 10% 以上なら `ja`) でページ言語を自動判定。100 文字未満のページはヒント言語 (`--lang`) を使用。`--lang auto` またはヒント言語 `"auto"` を指定した場合は常に自動判定し、判定不能時は `en` にフォールバック
 - 冪等性: クロール済み URL を `visited` セットで管理し、同一 URL を 2 回以上取得しない
 - 出力: `rag-src/yyyymmddhhmmss-{slug}.txt` (JSON 形式; `url`, `title`, `lang`, `fetched_at`, `content`, `code_blocks` フィールド)
@@ -40,7 +40,7 @@
 | 機能 | 実装 |
 |---|---|
 | HTTP クライアント | `httpx.AsyncClient` (非同期) + 指数バックオフリトライ (`asyncio.sleep`) |
-| HTML 解析 | `BeautifulSoup4` (lxml) でタイトル・`<pre>` コードブロック抽出、`trafilatura` で本文テキスト抽出 |
+| HTML 解析 | `BeautifulSoup4` (lxml) でタイトル・`<pre>` コードブロック抽出、`crawler_utils.extract_text()` で本文テキスト抽出 |
 | 並列 BFS クロール | `asyncio.Queue` + `asyncio.Semaphore(crawl_concurrency)` で同時リクエスト数を制御。`asyncio.wait(FIRST_COMPLETED)` でタスク完了駆動 |
 | URL 正規化 | `normalize_url()` でフラグメント除去・トレイリングスラッシュ除去して重複チェック |
 | 言語検出 | CJK 文字比率で自動判定 (`_detect_lang`)。ヒント言語が `"auto"` のとき `_resolve_lang` は常に自動判定し、短文や判定不能は `en` にフォールバック。`skip_nofollow` / `skip_external` で BFS リンク追加時のフィルタを設定可能 |
@@ -54,10 +54,10 @@
 
 | 引数 | 説明 | デフォルト |
 |---|---|---|
-| `--url URL [URL ...]` | クロール対象 URL (省略時は `config/rag_pipeline.json` の `target_urls`) | なし |
+| `--url URL [URL ...]` | クロール対象 URL (省略時は `config/rag_pipeline.toml` の `target_urls`) | なし |
 | `--lang {en,ja,auto}` | ヒント言語 (既定: `en`)。`auto` を指定するとページ本文の CJK 文字比率で言語を自動判定する | `en` |
 
-**出力 JSON フォーマット** (`/opt/llm/rag-src/yyyymmddhhmmss-{slug}.txt`)
+**出力 JSON フォーマット** (`rag-src/yyyymmddhhmmss-{slug}.txt`)
 
 ```json
 {
@@ -91,7 +91,7 @@
 
 ### 2.7 設定項目
 
-すべて `config/rag_pipeline.json` に記載。
+すべて `config/rag_pipeline.toml` に記載。
 
 | パラメータ | デフォルト | 説明 |
 |---|---|---|
