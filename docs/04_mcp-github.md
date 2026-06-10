@@ -202,13 +202,20 @@ curl -s -X POST http://127.0.0.1:8006/get_file_contents \
 
 ### 1.8 エラーハンドリング
 
-| ケース | 対処 |
-|---|---|
-| `GithubException` (404) | HTTP 404 (リポジトリ・ファイル不存在) |
-| `GithubException` (403) | HTTP 403 (API レート制限またはアクセス拒否) |
-| `GithubException` (その他) | HTTP 502 + エラーコードと詳細 |
-| `GITHUB_TOKEN` 未設定 | 匿名アクセスで動作継続 (60 req/hour 制限) |
-| `per_page` 上限超過 | `min(req.per_page, MAX_PER_PAGE)` でサーバ側で打ち切り |
+service 層は `HTTPException` を発生させず、domain 例外を使用する。`server.py` の `@app.exception_handler` が HTTP レスポンスに変換する。
+
+| ケース | domain 例外 | HTTP |
+|---|---|---|
+| `GithubException` (404) | `GitHubNotFoundError` | 404 |
+| `GithubException` (403) | `GitHubAuthorizationError` | 403 |
+| `GithubException` (409) | `GitHubConflictError` | 409 |
+| `GithubException` (400/422) | `GitHubValidationError` | 400 |
+| `GithubException` (その他) | `GitHubUpstreamError` | 502 |
+| repo/path/branch policy 違反 | `GitHubAuthorizationError` | 403 |
+| ファイルサイズ超過 | `GitHubValidationError` | 400 |
+| 監査ログ書き込み失敗 | `GitHubAuditError` | 500 |
+| `GITHUB_TOKEN` 未設定 | (例外なし) 匿名アクセスで動作継続 (60 req/hour 制限) | — |
+| `per_page` 上限超過 | (例外なし) `min(req.per_page, MAX_PER_PAGE)` でサーバ側で打ち切り | — |
 
 ### 1.9 ログ出力
 

@@ -20,6 +20,7 @@ from mcp.github.models import (
     GitHubAuditError,
     GitHubAuthorizationError,
     GitHubConfig,
+    GitHubNotFoundError,
     GitHubValidationError,
     PushFile,
     PushFilesRequest,
@@ -807,3 +808,69 @@ class TestGitHubDryRun:
                 )
         assert "Merged" in result
         assert "7" in result
+
+
+# ── Fail-fast domain exception tests (added in Step 6) ───────────────────────
+
+
+class TestGitHubDomainExceptions:
+    """Tests for domain exception mapping (fail-fast refactor)."""
+
+    def test_github_api_404_raises_not_found_error(self) -> None:
+        from github import GithubException
+
+        exc = GithubException(404, {"message": "Not Found"}, {})
+        with pytest.raises(GitHubNotFoundError, match="Resource not found"):
+            GitHubService._handle_github_error(exc)
+
+    def test_github_api_403_raises_authorization_error(self) -> None:
+        from github import GithubException
+
+        exc = GithubException(403, {"message": "Forbidden"}, {})
+        with pytest.raises(GitHubAuthorizationError, match="rate limit"):
+            GitHubService._handle_github_error(exc)
+
+    def test_github_api_409_raises_conflict_error(self) -> None:
+        from github import GithubException
+        from mcp.github.models import GitHubConflictError
+
+        exc = GithubException(409, {"message": "Conflict"}, {})
+        with pytest.raises(GitHubConflictError):
+            GitHubService._handle_github_error(exc)
+
+    def test_github_api_500_raises_upstream_error(self) -> None:
+        from github import GithubException
+        from mcp.github.models import GitHubUpstreamError
+
+        exc = GithubException(500, {"message": "Server Error"}, {})
+        with pytest.raises(GitHubUpstreamError, match="status=500"):
+            GitHubService._handle_github_error(exc)
+
+    def test_audit_failure_raises_audit_error(self, tmp_path) -> None:
+        bad_path = str(tmp_path / "nonexistent" / "audit.log")
+        svc = _make_service({"audit_log_path": bad_path})
+        with pytest.raises(GitHubAuditError, match="Audit log write failed"):
+            svc._write_github_audit_log("test_op", key="value")
+
+    def test_github_config_from_dict(self) -> None:
+        from mcp.github.models import GitHubConfig
+
+        cfg = GitHubConfig.from_dict(
+            {
+                "allowed_repos": ["org/repo"],
+                "allowed_repos_mode": "fail_open",
+                "max_per_page": 50,
+            }
+        )
+        assert cfg.allowed_repos == ["org/repo"]
+        assert cfg.allowed_repos_mode == "fail_open"
+        assert cfg.max_per_page == 50
+        assert cfg.protected_branches == []
+
+    def test_github_config_defaults(self) -> None:
+        from mcp.github.models import GitHubConfig
+
+        cfg = GitHubConfig.from_dict({})
+        assert cfg.allowed_repos_mode == "fail_closed"
+        assert cfg.max_per_page == 100
+        assert cfg.audit_log_path == ""
