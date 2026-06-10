@@ -18,6 +18,7 @@ import orjson
 from github import Auth, Github, GithubException, InputGitTreeElement
 from shared.formatters import fmt_md_link
 
+from mcp.github.mapper import issue_to_info, pr_to_info
 from mcp.github.models import (
     AddIssueCommentRequest,
     AddIssueCommentResponse,
@@ -238,36 +239,9 @@ class GitHubService:
         except GithubException as e:
             GitHubService._handle_github_error(e)
 
-    @staticmethod
-    def _issue_to_info(issue: Any) -> IssueInfo:
-        """Convert a PyGithub Issue object to IssueInfo."""
-        return IssueInfo(
-            number=issue.number,
-            title=issue.title,
-            state=issue.state,
-            url=issue.html_url,
-            body=issue.body,
-            created_at=issue.created_at.isoformat(),
-            updated_at=issue.updated_at.isoformat(),
-            labels=[lb.name for lb in issue.labels],
-            assignees=[a.login for a in issue.assignees],
-        )
-
-    @staticmethod
-    def _pr_to_info(pr: Any) -> PullRequestInfo:
-        """Convert a PyGithub PullRequest object to PullRequestInfo."""
-        return PullRequestInfo(
-            number=pr.number,
-            title=pr.title,
-            state=pr.state,
-            url=pr.html_url,
-            body=pr.body,
-            head_ref=pr.head.ref,
-            base_ref=pr.base.ref,
-            created_at=pr.created_at.isoformat(),
-            updated_at=pr.updated_at.isoformat(),
-            draft=pr.draft,
-        )
+    # _issue_to_info and _pr_to_info moved to mcp.github.mapper; aliases for backward compat
+    _issue_to_info = staticmethod(issue_to_info)
+    _pr_to_info = staticmethod(pr_to_info)
 
     # ── Business operation methods ──
 
