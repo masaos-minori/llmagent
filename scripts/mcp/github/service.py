@@ -15,12 +15,10 @@ from datetime import UTC, datetime
 from typing import Any, NoReturn, TypeVar
 
 import orjson
-from fastapi import HTTPException
 from github import Auth, Github, GithubException, InputGitTreeElement
 from shared.formatters import fmt_md_link
 
 from mcp.github.models import (
-    DEFAULT_PER_PAGE,
     AddIssueCommentRequest,
     AddIssueCommentResponse,
     BranchInfo,
@@ -45,6 +43,13 @@ from mcp.github.models import (
     GetIssueResponse,
     GetPullRequestRequest,
     GetPullRequestResponse,
+    GitHubAuditError,
+    GitHubAuthorizationError,
+    GitHubConfig,
+    GitHubConflictError,
+    GitHubNotFoundError,
+    GitHubUpstreamError,
+    GitHubValidationError,
     IssueInfo,
     ListBranchesRequest,
     ListBranchesResponse,
@@ -70,7 +75,6 @@ from mcp.github.models import (
     SearchRepositoriesResponse,
     UpdatePullRequestRequest,
     UpdatePullRequestResponse,
-    _get_cfg,
 )
 from mcp.server import ToolArgs
 
@@ -100,105 +104,86 @@ if not _GITHUB_TOKEN:
 class GitHubService:
     """Encapsulates GitHub API operations via PyGithub."""
 
-    def __init__(self, gh: Github, default_per_page: int, max_per_page: int) -> None:
+    def __init__(self, gh: Github, cfg: GitHubConfig) -> None:
         self._gh = gh
-        self._default_per_page = default_per_page
-        self._max_per_page = max_per_page
+        self._cfg = cfg
+        self._default_per_page = cfg.default_per_page
+        self._max_per_page = cfg.max_per_page
 
     def _clamp_per_page(self, per_page: int) -> int:
         """Clamp per_page to the configured maximum to prevent oversized API calls."""
         return min(per_page, self._max_per_page)
 
     def _assert_allowed_repo(self, owner: str, repo: str) -> None:
-        """Raise HTTPException(403) if owner/repo is not permitted.
+        """Raise GitHubAuthorizationError if owner/repo is not permitted.
 
         Behavior when allowed_repos is empty depends on allowed_repos_mode:
-          fail_open  (default): empty list = allow all repositories
-          fail_closed:          empty list = deny all repositories
+          fail_open:    empty list = allow all repositories
+          fail_closed:  empty list = deny all repositories
         """
-        allowed: list[str] = _get_cfg().get("allowed_repos", [])
-        mode: str = _get_cfg().get("allowed_repos_mode", "fail_closed")
+        allowed = self._cfg.allowed_repos
+        mode = self._cfg.allowed_repos_mode
         slug = f"{owner}/{repo}"
         if not allowed:
             if mode == "fail_closed":
-                raise HTTPException(
-                    status_code=403,
-                    detail=(
-                        f"Repository '{slug}' is denied:"
-                        " allowed_repos is empty (fail_closed mode)"
-                    ),
+                raise GitHubAuthorizationError(
+                    f"Repository '{slug}' is denied:"
+                    " allowed_repos is empty (fail_closed mode)"
                 )
             return  # fail_open: empty list = allow all
         if slug not in allowed:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Repository not in allowed_repos: {slug}",
-            )
+            raise GitHubAuthorizationError(f"Repository not in allowed_repos: {slug}")
 
-    @staticmethod
-    def _assert_allowed_path(path: str) -> None:
-        """Raise HTTPException(403) if path matches a denied glob pattern."""
-        denylist: list[str] = _get_cfg().get("path_denylist", [])
-        for pattern in denylist:
+    def _assert_allowed_path(self, path: str) -> None:
+        """Raise GitHubAuthorizationError if path matches a denied glob pattern."""
+        for pattern in self._cfg.path_denylist:
             if fnmatch.fnmatch(path, pattern):
-                raise HTTPException(
-                    status_code=403,
-                    detail=(
-                        f"Path '{path}' is denied by path_denylist pattern '{pattern}'"
-                    ),
+                raise GitHubAuthorizationError(
+                    f"Path '{path}' is denied by path_denylist pattern '{pattern}'"
                 )
 
-    @staticmethod
-    def _assert_max_file_size(content: str, path: str) -> None:
-        """Raise HTTPException(400) if file content exceeds max_file_size_kb."""
-        max_kb: int = _get_cfg().get("max_file_size_kb", 0)
+    def _assert_max_file_size(self, content: str, path: str) -> None:
+        """Raise GitHubValidationError if file content exceeds max_file_size_kb."""
+        max_kb = self._cfg.max_file_size_kb
         if max_kb <= 0:
             return  # 0 = disabled
         size_kb = len(content.encode("utf-8")) / 1024
         if size_kb > max_kb:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"File '{path}' exceeds max_file_size_kb:"
-                    f" {size_kb:.1f} KB > {max_kb} KB"
-                ),
+            raise GitHubValidationError(
+                f"File '{path}' exceeds max_file_size_kb:"
+                f" {size_kb:.1f} KB > {max_kb} KB"
             )
 
-    @staticmethod
-    def _write_github_audit_log(op: str, **kwargs: Any) -> None:
+    def _write_github_audit_log(self, op: str, **kwargs: Any) -> None:
         """Append one structured audit record to the GitHub audit log file.
 
-        Writing errors are logged but never propagated — audit failure must not
-        block the caller from receiving the operation result.
+        Raises GitHubAuditError when audit_log_path is configured and write fails.
+        Skips silently when audit_log_path is empty.
         """
-        audit_path: str = _get_cfg().get("audit_log_path", "")
-        if not audit_path:
+        if not self._cfg.audit_log_path:
             return
         ts = datetime.now(tz=UTC).isoformat()
         fields = " ".join(f"{k}={v!r}" for k, v in kwargs.items())
         record = f"{ts} op={op} {fields}\n"
         try:
-            with open(audit_path, "a", encoding="utf-8") as fh:
+            with open(self._cfg.audit_log_path, "a", encoding="utf-8") as fh:
                 fh.write(record)
         except OSError as e:
-            logger.error("_write_github_audit_log: failed to write: %s", e)
+            raise GitHubAuditError(
+                f"Audit log write failed ({self._cfg.audit_log_path}): {e}"
+            ) from e
 
-    @staticmethod
-    def _assert_allowed_branch(owner: str, repo: str, branch: str) -> None:
-        """Raise HTTPException(403) if branch matches a protected_branches pattern.
+    def _assert_allowed_branch(self, owner: str, repo: str, branch: str) -> None:
+        """Raise GitHubAuthorizationError if branch matches a protected_branches pattern.
 
         Patterns follow fnmatch glob syntax: 'main' matches exactly, 'release/*'
         matches any release branch. An empty list means no branch restrictions.
         """
-        protected: list[str] = _get_cfg().get("protected_branches", [])
-        for pattern in protected:
+        for pattern in self._cfg.protected_branches:
             if fnmatch.fnmatch(branch, pattern):
-                raise HTTPException(
-                    status_code=403,
-                    detail=(
-                        f"Branch '{branch}' is protected in {owner}/{repo}"
-                        f" (matches pattern '{pattern}')"
-                    ),
+                raise GitHubAuthorizationError(
+                    f"Branch '{branch}' is protected in {owner}/{repo}"
+                    f" (matches pattern '{pattern}')"
                 )
 
     def _get_repo(self, owner: str, repo: str) -> Any:
@@ -213,8 +198,7 @@ class GitHubService:
         When branch is "" (unspecified), the default branch is fetched via GitHub API.
         Skips entirely when protected_branches is empty (no restrictions configured).
         """
-        protected: list[str] = _get_cfg().get("protected_branches", [])
-        if not protected:
+        if not self._cfg.protected_branches:
             return
         if branch:
             self._assert_allowed_branch(owner, repo, branch)
@@ -227,20 +211,22 @@ class GitHubService:
 
     @staticmethod
     def _handle_github_error(e: GithubException) -> NoReturn:
-        """Convert a GithubException to an HTTPException and raise it.
+        """Convert a GithubException to a domain exception and raise it.
         Declared as NoReturn so callers do not need to write their own raise.
         """
         if e.status == 404:
-            raise HTTPException(status_code=404, detail="Resource not found")
+            raise GitHubNotFoundError("Resource not found")
         if e.status == 403:
-            raise HTTPException(
-                status_code=403,
-                detail="GitHub API rate limit exceeded or access denied",
+            raise GitHubAuthorizationError(
+                "GitHub API rate limit exceeded or access denied"
             )
-        raise HTTPException(
-            status_code=502,
-            detail=f"GitHub API error (status={e.status})",
-        )
+        if e.status == 409:
+            raise GitHubConflictError(f"GitHub API conflict (status={e.status})")
+        if e.status in (400, 422):
+            raise GitHubValidationError(
+                f"GitHub API validation error (status={e.status})"
+            )
+        raise GitHubUpstreamError(f"GitHub API error (status={e.status})")
 
     async def _run_github(self, func: Callable[[], T]) -> T:
         """Run a synchronous PyGithub call in the thread pool.
@@ -344,7 +330,7 @@ class GitHubService:
             )
 
         result = await self._run_github(_sync)
-        GitHubService._write_github_audit_log(
+        self._write_github_audit_log(
             "create_branch",
             repo=f"{req.owner}/{req.repo}",
             branch=req.branch_name,
@@ -426,9 +412,8 @@ class GitHubService:
             file_content = repo.get_contents(req.path, **kwargs)
             # Guard: path points to a directory, not a file
             if isinstance(file_content, list):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Path is a directory, not a file: {req.path}",
+                raise GitHubValidationError(
+                    f"Path is a directory, not a file: {req.path}"
                 )
             decoded = file_content.decoded_content.decode("utf-8", errors="replace")
             return GetFileContentsResponse(
@@ -448,8 +433,8 @@ class GitHubService:
         """Create or update a file; providing sha updates an existing file."""
         self._assert_allowed_repo(req.owner, req.repo)
         await self._resolve_and_check_branch(req.owner, req.repo, req.branch)
-        GitHubService._assert_allowed_path(req.path)
-        GitHubService._assert_max_file_size(req.content, req.path)
+        self._assert_allowed_path(req.path)
+        self._assert_max_file_size(req.content, req.path)
 
         def _sync() -> CreateOrUpdateFileResponse:
             repo = self._get_repo(req.owner, req.repo)
@@ -479,7 +464,7 @@ class GitHubService:
             )
 
         result = await self._run_github(_sync)
-        GitHubService._write_github_audit_log(
+        self._write_github_audit_log(
             "create_or_update_file",
             repo=f"{req.owner}/{req.repo}",
             branch=req.branch or "(default)",
@@ -494,8 +479,8 @@ class GitHubService:
         self._assert_allowed_repo(req.owner, req.repo)
         self._assert_allowed_branch(req.owner, req.repo, req.branch)
         for f in req.files:
-            GitHubService._assert_allowed_path(f.path)
-            GitHubService._assert_max_file_size(f.content, f.path)
+            self._assert_allowed_path(f.path)
+            self._assert_max_file_size(f.content, f.path)
 
         def _sync() -> PushFilesResponse:
             repo = self._get_repo(req.owner, req.repo)
@@ -521,7 +506,7 @@ class GitHubService:
             )
 
         result = await self._run_github(_sync)
-        GitHubService._write_github_audit_log(
+        self._write_github_audit_log(
             "push_files",
             repo=f"{req.owner}/{req.repo}",
             branch=req.branch,
@@ -537,7 +522,7 @@ class GitHubService:
         """Delete a file from a repository; sha required to prevent conflicts."""
         self._assert_allowed_repo(req.owner, req.repo)
         await self._resolve_and_check_branch(req.owner, req.repo, req.branch)
-        GitHubService._assert_allowed_path(req.path)
+        self._assert_allowed_path(req.path)
 
         def _sync() -> DeleteRepoFileResponse:
             repo = self._get_repo(req.owner, req.repo)
@@ -549,7 +534,7 @@ class GitHubService:
             return DeleteRepoFileResponse(path=req.path, commit_sha=raw["commit"].sha)
 
         result = await self._run_github(_sync)
-        GitHubService._write_github_audit_log(
+        self._write_github_audit_log(
             "delete_repo_file",
             repo=f"{req.owner}/{req.repo}",
             branch=req.branch or "(default)",
@@ -595,7 +580,7 @@ class GitHubService:
             return GitHubService._issue_to_info(issue)
 
         issue = await self._run_github(_sync)
-        GitHubService._write_github_audit_log(
+        self._write_github_audit_log(
             "create_issue",
             repo=f"{req.owner}/{req.repo}",
             number=issue.number,
@@ -633,7 +618,7 @@ class GitHubService:
             )
 
         result = await self._run_github(_sync)
-        GitHubService._write_github_audit_log(
+        self._write_github_audit_log(
             "add_issue_comment",
             repo=f"{req.owner}/{req.repo}",
             issue=req.issue_number,
@@ -686,7 +671,7 @@ class GitHubService:
             return GitHubService._pr_to_info(pr)
 
         pr = await self._run_github(_sync)
-        GitHubService._write_github_audit_log(
+        self._write_github_audit_log(
             "create_pull_request",
             repo=f"{req.owner}/{req.repo}",
             pr=pr.number,
@@ -738,7 +723,7 @@ class GitHubService:
             return GitHubService._pr_to_info(pr)
 
         pr = await self._run_github(_sync)
-        GitHubService._write_github_audit_log(
+        self._write_github_audit_log(
             "update_pull_request",
             repo=f"{req.owner}/{req.repo}",
             pr=req.pr_number,
@@ -752,30 +737,23 @@ class GitHubService:
         """Merge a pull request using the specified merge method."""
         self._assert_allowed_repo(req.owner, req.repo)
         # Block rebase merge when allow_force_push is false (rebase rewrites history)
-        if (
-            not _get_cfg().get("allow_force_push", True)
-            and req.merge_method == "rebase"
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail="Rebase merge is disabled (allow_force_push=false)",
+        if not self._cfg.allow_force_push and req.merge_method == "rebase":
+            raise GitHubAuthorizationError(
+                "Rebase merge is disabled (allow_force_push=false)"
             )
 
         def _sync() -> MergePullRequestResponse:
             repo = self._get_repo(req.owner, req.repo)
             pr = repo.get_pull(number=req.pr_number)
             # Block merge into protected base branch
-            GitHubService._assert_allowed_branch(req.owner, req.repo, pr.base.ref)
+            self._assert_allowed_branch(req.owner, req.repo, pr.base.ref)
             # Require at least one approved review when require_pr_review is true
-            if _get_cfg().get("require_pr_review", False):
+            if self._cfg.require_pr_review:
                 reviews = pr.get_reviews()
                 if not any(r.state == "APPROVED" for r in reviews):
-                    raise HTTPException(
-                        status_code=403,
-                        detail=(
-                            f"PR #{req.pr_number} has no approved review"
-                            " (require_pr_review=true)"
-                        ),
+                    raise GitHubAuthorizationError(
+                        f"PR #{req.pr_number} has no approved review"
+                        " (require_pr_review=true)"
                     )
             # Build merge kwargs; title/message are optional overrides
             kwargs: dict[str, Any] = {"merge_method": req.merge_method}
@@ -793,7 +771,7 @@ class GitHubService:
             )
 
         result = await self._run_github(_sync)
-        GitHubService._write_github_audit_log(
+        self._write_github_audit_log(
             "merge_pull_request",
             repo=f"{req.owner}/{req.repo}",
             pr=req.pr_number,
@@ -1062,8 +1040,7 @@ class _LazyGitHubService:
         if _LazyGitHubService._instance is None:
             _LazyGitHubService._instance = GitHubService(
                 gh=_gh,
-                default_per_page=DEFAULT_PER_PAGE,
-                max_per_page=_get_cfg().get("max_per_page", 30),
+                cfg=GitHubConfig.load(),
             )
         return getattr(_LazyGitHubService._instance, name)
 
