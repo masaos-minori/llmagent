@@ -449,7 +449,7 @@ store = ToolResultStore()
 
 `row_factory=True` で取得するため、`tool_results` テーブルの全カラムを含む dict を返す:
 
-`id` / `session_id` / `turn` / `tool_name` / `args_json` / `full_text` / `summary` / `is_error` / `created_at`
+`id` / `session_id` / `turn` / `tool_name` / `args_masked` / `full_text` / `summary` / `is_error` / `created_at`
 
 ### tool_results テーブルスキーマ
 
@@ -459,7 +459,7 @@ store = ToolResultStore()
 | `session_id` | INTEGER | セッション ID (NULL 許可) |
 | `turn` | INTEGER | ターン番号 |
 | `tool_name` | TEXT | ツール名 |
-| `args_json` | TEXT | ツール引数の JSON 文字列 |
+| `args_masked` | TEXT | マスク済みツール引数の JSON 文字列 |
 | `full_text` | TEXT | ツール実行結果の全文 |
 | `summary` | TEXT | 要約テキスト (NULL 許可) |
 | `is_error` | INTEGER | エラー有無 (0/1) |

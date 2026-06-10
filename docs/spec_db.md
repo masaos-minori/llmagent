@@ -49,9 +49,9 @@
 - sqlite-vec 拡張の自動ロード
 
 ### 6.2 スキーマ管理
-- `run_schema(db_type)` でテーブル・インデックス・FTS5・vec0 テーブルを作成
-- マイグレーション DDL を `_RAG_MIGRATE_SQL` / `_SESSION_MIGRATE_SQL` で管理
-- idempotent な `IF NOT EXISTS` / `IF EXISTS` で冪等性を保証
+- `create_rag_schema()` / `create_session_schema()` でテーブル・インデックス・FTS5・vec0 テーブルを作成
+- migration コードは削除済み。スキーマは常に最新版のみを `CREATE TABLE IF NOT EXISTS` で作成
+- `IF NOT EXISTS` による冪等性を保証（再実行しても既存テーブルを壊さない）
 
 ### 6.3 保守機能
 - `checkpoint_wal()` — WAL ファイルのフラッシュ
@@ -99,10 +99,8 @@ class DbConfig:
 db/create_schema.py
   → _build_rag_schema_sql(dims) → RAG テーブル DDL 生成
   → _build_session_schema_sql(dims) → Session テーブル DDL 生成
-  → _run_migrations(db, stmts)
-      → 各 DDL を実行
-      → 既知の idempotent エラー（"duplicate column name"）は無視
-      → その他のエラーは再送出
+  → executescript() でスキーマ DDL を一括実行
+      → migration コードは削除済み（最新スキーマのみ）
 
 SQLiteHelper.open()
   → PRAGMA journal_mode = WAL
@@ -320,7 +318,7 @@ class ToolResultStore:
 | `sqlite3.OperationalError` (busy/locked) | `busy_timeout` によって自動待機（デフォルト 30 秒） |
 | `sqlite3.IntegrityError` | 呼び出し元に例外を伝播。upsert を使用している場所では発生しない |
 | sqlite-vec 拡張ロードエラー | `sqlite3.OperationalError` → DB 接続失敗として処理 |
-| `_run_migrations()` でのエラー | "duplicate column name" のみ無視、他は例外を再送出 |
+| スキーマ DDL 実行エラー | `executescript()` 失敗時は例外を再送出 |
 | 整合性チェック失敗 | エラーログ出力 + バックアップが存在する場合は復旧処理を試みる |
 | `prune_old_memories()` の失敗 | `logger.warning()` を出力して継続（REPL を停止しない） |
 
@@ -343,6 +341,4 @@ class ToolResultStore:
 | 項目 | 詳細 |
 |---|---|
 | `common.toml` 非統合 | `build_db_config()` が `load_all()` から `rag_db_path` 等を取得できない。`db/helper.py` と `rag/pipeline.py` が個別に `ConfigLoader().load("common.toml")` を呼ぶ回避策になっている。将来的に `common.toml` を `load_all()` の対象に含めることを検討中 |
-| 旧テーブル DDL 残存 | `_SESSION_SCHEMA_TEMPLATE` に廃止済みの `memory_entries`/`memory_vec` テーブル DDL が残存。`_SESSION_MIGRATE_SQL` の DROP 文で後処理しているが、baseline DDL からの除去が必要 (`implementations/20260606-194632_create_schema.md` 参照) |
 | 埋め込み次元のハードコード | `384` が DDL と `store.py` の両方に重複定義されている。`get_embedding_dims()` で統一済みだが DDL の `float[DIMS]` への統一が必要 |
-| マイグレーション管理 | スキーマバージョン管理が `_run_migrations()` のシンプルな配列追記方式。バージョン番号による管理への移行を検討中 |
