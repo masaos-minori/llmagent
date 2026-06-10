@@ -35,6 +35,7 @@ import time
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
@@ -61,6 +62,12 @@ from mcp.github.models import (
     GetIssueResponse,
     GetPullRequestRequest,
     GetPullRequestResponse,
+    GitHubAuditError,
+    GitHubAuthorizationError,
+    GitHubConflictError,
+    GitHubNotFoundError,
+    GitHubUpstreamError,
+    GitHubValidationError,
     ListBranchesRequest,
     ListBranchesResponse,
     ListCommitsRequest,
@@ -97,6 +104,45 @@ app = FastAPI(
     version="1.0.0",
     description="MCP server equivalent to @modelcontextprotocol/server-github",
 )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Domain exception → HTTP status handlers
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+@app.exception_handler(GitHubAuthorizationError)
+async def _handle_auth_error(
+    request: Request, exc: GitHubAuthorizationError
+) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"detail": str(exc)})
+
+
+@app.exception_handler(GitHubNotFoundError)
+async def _handle_not_found(request: Request, exc: GitHubNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(GitHubValidationError)
+async def _handle_validation(
+    request: Request, exc: GitHubValidationError
+) -> JSONResponse:
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
+@app.exception_handler(GitHubConflictError)
+async def _handle_conflict(request: Request, exc: GitHubConflictError) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"detail": str(exc)})
+
+
+@app.exception_handler(GitHubUpstreamError)
+async def _handle_upstream(request: Request, exc: GitHubUpstreamError) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+
+@app.exception_handler(GitHubAuditError)
+async def _handle_audit(request: Request, exc: GitHubAuditError) -> JSONResponse:
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
 
 
 # ──────────────────────────────────────────────────────────────────────────────
