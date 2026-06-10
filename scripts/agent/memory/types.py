@@ -88,7 +88,9 @@ class MemoryHit:
     """One ranked result from memory retrieval."""
 
     entry: MemoryEntry
-    score: float  # combined BM25 + importance + pin + recency score
+    score: (
+        float  # higher is better; FTS: BM25+boosts rescored; KNN: negated L2 distance
+    )
 
 
 @dataclass
@@ -98,5 +100,5 @@ class EmbeddingResult:
     success: bool
     embedding: list[float] | None = None
     error_kind: str | None = (
-        None  # "disabled"|"circuit_open"|"timeout"|"http_error"|"invalid_response"
+        None  # "disabled"|"circuit_open"|"timeout"|"http_error"|"invalid_response"|"unknown_error"
     )

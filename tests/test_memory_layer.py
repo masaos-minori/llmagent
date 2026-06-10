@@ -89,24 +89,24 @@ class TestOnSessionStart:
         svc, mock_ret, _ = _make_injection_svc()
         entry = _make_entry(content="important rule here")
         mock_ret.top_semantic.return_value = [entry]
-        snippets = svc.on_session_start(session_id=1)
+        snippets = svc.on_session_start()
         assert len(snippets) == 1
         assert "important rule" in snippets[0]
 
     def test_returns_empty_when_no_entries(self) -> None:
         svc, mock_ret, _ = _make_injection_svc()
         mock_ret.top_semantic.return_value = []
-        assert svc.on_session_start(session_id=None) == []
+        assert svc.on_session_start() == []
 
     def test_returns_empty_on_retriever_error(self) -> None:
         svc, mock_ret, _ = _make_injection_svc()
         mock_ret.top_semantic.side_effect = Exception("db error")
-        assert svc.on_session_start(session_id=1) == []
+        assert svc.on_session_start() == []
 
     def test_passes_min_importance_to_retriever(self) -> None:
         svc, mock_ret, _ = _make_injection_svc(min_importance=0.6)
         mock_ret.top_semantic.return_value = []
-        svc.on_session_start(session_id=1)
+        svc.on_session_start()
         call_kwargs = mock_ret.top_semantic.call_args
         assert call_kwargs.kwargs.get("min_importance") == 0.6
 
@@ -501,3 +501,45 @@ class TestLinkDuplicates:
         with patch("agent.memory.ingestion.SQLiteHelper", return_value=mock_helper):
             svc._link_duplicates("mem-1", [0.1, 0.2, 0.3])
         mock_helper.execute.assert_not_called()
+
+
+# ── MemoryServices facade ────────────────────────────────────────────────────
+
+
+class TestMemoryServicesFacade:
+    """Verify MemoryServices delegates lifecycle calls to sub-services."""
+
+    def _make_services(self):  # noqa: ANN201 — private test helper, return type inferred
+        from agent.memory.services import MemoryServices
+
+        inj = MagicMock(spec=MemoryInjectionService)
+        ing = MagicMock(spec=MemoryIngestionService)
+        return MemoryServices(
+            injection=inj,
+            ingestion=ing,
+            store=MagicMock(spec=MemoryStore),
+            retriever=MagicMock(spec=HybridRetriever),
+        )
+
+    def test_on_session_start_delegates(self) -> None:
+        svc = self._make_services()
+        svc.injection.on_session_start.return_value = ["snippet"]
+        result = svc.on_session_start(session_id=1)
+        svc.injection.on_session_start.assert_called_once()
+        assert result == ["snippet"]
+
+    @pytest.mark.asyncio
+    async def test_on_session_stop_delegates(self) -> None:
+        svc = self._make_services()
+        svc.ingestion.on_session_stop = AsyncMock()
+        history: list[LLMMessage] = []
+        await svc.on_session_stop(session_id=1, history=history, turn_id=None)
+        svc.ingestion.on_session_stop.assert_called_once_with(1, history, None)
+
+    @pytest.mark.asyncio
+    async def test_on_user_prompt_delegates(self) -> None:
+        svc = self._make_services()
+        svc.injection.on_user_prompt = AsyncMock(return_value=["hit"])
+        result = await svc.on_user_prompt(query="test query", session_id=1)
+        svc.injection.on_user_prompt.assert_called_once_with("test query", 1)
+        assert result == ["hit"]

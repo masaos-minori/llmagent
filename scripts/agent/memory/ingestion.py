@@ -72,7 +72,11 @@ class MemoryIngestionService:
         history: list[LLMMessage],
         turn_id: str | None = None,
     ) -> None:
-        """Extract memories from history and persist with optional dedup."""
+        """Extract memories from history and persist with optional dedup.
+
+        Applies embedding-based dedup (SKIP_NEW) and records duplicate links.
+        Manual writes via write_semantic/write_episodic bypass dedup intentionally.
+        """
         try:
             entries = extract_memories(
                 history=history,
@@ -121,6 +125,7 @@ class MemoryIngestionService:
         """Return True if a near-duplicate entry exists within dedup threshold."""
         neighbors = self._retriever.knn_search(embedding, memory_type=None, limit=5)
         return any(
+            # score = -distance (higher is better); negate to get raw L2 distance for comparison
             -h.score < self._dedup_policy.threshold and h.entry.memory_id != memory_id
             for h in neighbors
         )
@@ -131,7 +136,9 @@ class MemoryIngestionService:
         for hit in neighbors:
             if hit.entry.memory_id == memory_id:
                 continue
-            distance = -hit.score  # _vec_search returns -distance as score
+            distance = (
+                -hit.score
+            )  # score = -distance (higher is better); restore for threshold check
             if distance < self._dedup_policy.threshold:
                 try:
                     with SQLiteHelper("session").open(write_mode=True) as db:
@@ -181,6 +188,11 @@ class MemoryIngestionService:
         )
 
     async def _persist_entry(self, entry: MemoryEntry) -> None:
+        """Persist one entry directly without dedup or duplicate-link checks.
+
+        Used by write_semantic() and write_episodic() (manual writes).
+        Automatic session extraction uses on_session_stop() which applies dedup.
+        """
         embed_result = await self._embed_client.fetch(entry.content)
         embedding = embed_result.embedding if embed_result.success else None
         await self._jsonl.write(entry)

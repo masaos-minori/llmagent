@@ -42,7 +42,7 @@ class MemoryInjectionService:
         self._project = project
         self._repo = repo
 
-    def on_session_start(self, session_id: int | None) -> list[str]:
+    def on_session_start(self) -> list[str]:
         """Return top semantic snippets for injection at session start (sync)."""
         try:
             entries = self._retriever.top_semantic(
@@ -53,7 +53,10 @@ class MemoryInjectionService:
             )
             if not entries:
                 return []
-            snippets = [f"[Memory] {e.summary or e.content[:100]}" for e in entries]
+            snippets = [
+                f"{self._policy.format_prefix_semantic} {e.summary or e.content[:100]}"
+                for e in entries
+            ]
             logger.info(
                 "MemoryInjectionService.on_session_start: injecting %d entries",
                 len(snippets),

@@ -42,11 +42,15 @@ async def _fetch_embedding(
         logger.warning("embed response missing 'embedding' field")
         return EmbeddingResult(success=False, error_kind="invalid_response")
     except httpx.HTTPStatusError as e:
-        logger.warning(f"EmbeddingClient._fetch_embedding HTTP error: {e}")
+        logger.warning(
+            "EmbeddingClient._fetch_embedding HTTP error: status=%d body=%.200s",
+            e.response.status_code,
+            e.response.text,
+        )
         return EmbeddingResult(success=False, error_kind="http_error")
     except Exception as e:
-        logger.warning(f"EmbeddingClient._fetch_embedding failed: {e}")
-        return EmbeddingResult(success=False, error_kind="http_error")
+        logger.warning("EmbeddingClient._fetch_embedding unexpected error: %s", e)
+        return EmbeddingResult(success=False, error_kind="unknown_error")
 
 
 class EmbeddingClient:

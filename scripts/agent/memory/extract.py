@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from shared.types import LLMMessage
@@ -55,6 +56,19 @@ _EPISODIC_FAILURE_KEYWORDS = re.compile(
     r"|issue|crash|timeout|retry)\b",
     re.IGNORECASE,
 )
+
+
+@dataclass
+class ExtractionPolicy:
+    """Configurable thresholds for memory extraction.
+
+    Pass to extract_memories() to override module-level defaults.
+    """
+
+    min_content_chars: int = MIN_CONTENT_CHARS
+    min_user_content_chars: int = MIN_USER_CONTENT_CHARS
+    min_turns: int = MIN_TURNS
+    max_entries: int = MAX_ENTRIES
 
 
 def _now_iso() -> str:
@@ -136,6 +150,7 @@ def _make_summary(content: str, max_chars: int = 120) -> str:
 def _try_extract_from_assistant(
     msg: LLMMessage,
     *,
+    policy: ExtractionPolicy,
     session_id: int | None,
     turn_id: str | None,
     project: str,
@@ -147,7 +162,7 @@ def _try_extract_from_assistant(
     """Try to extract one MemoryEntry from an assistant message; return None when unqualified."""
     content_raw = msg.get("content") or ""
     content = str(content_raw).strip() if content_raw else ""
-    if len(content) < MIN_CONTENT_CHARS:
+    if len(content) < policy.min_content_chars:
         return None
     if max_content_chars > 0 and len(content) > max_content_chars:
         content = content[:max_content_chars]
@@ -176,6 +191,7 @@ def _try_extract_from_assistant(
 def _try_extract_from_user(
     msg: LLMMessage,
     *,
+    policy: ExtractionPolicy,
     session_id: int | None,
     turn_id: str | None,
     project: str,
@@ -189,7 +205,7 @@ def _try_extract_from_user(
     """
     content_raw = msg.get("content") or ""
     content = str(content_raw).strip() if content_raw else ""
-    if len(content) < MIN_USER_CONTENT_CHARS:
+    if len(content) < policy.min_user_content_chars:
         return None
     if not _SEMANTIC_KEYWORDS.search(content):
         return None
@@ -217,14 +233,17 @@ def extract_memories(
     repo: str = "",
     branch: str = "",
     max_content_chars: int = 500,
+    policy: ExtractionPolicy | None = None,
 ) -> list[MemoryEntry]:
     """Extract MemoryEntry candidates from a conversation history list.
 
     Runs synchronously; called at Stop time before HistoryManager compression.
     Returns an empty list when the conversation is too short or has no substance.
+    Pass a custom ExtractionPolicy to override extraction thresholds.
     """
+    _policy = policy or ExtractionPolicy()
     non_system = [m for m in history if m.get("role") != "system"]
-    if len(non_system) < MIN_TURNS:
+    if len(non_system) < _policy.min_turns:
         logger.debug(
             f"extract_memories: skipping — only {len(non_system)} non-system turns",
         )
@@ -237,6 +256,7 @@ def extract_memories(
         if role == "assistant":
             entry = _try_extract_from_assistant(
                 msg,
+                policy=_policy,
                 session_id=session_id,
                 turn_id=turn_id,
                 project=project,
@@ -248,6 +268,7 @@ def extract_memories(
         elif role == "user":
             entry = _try_extract_from_user(
                 msg,
+                policy=_policy,
                 session_id=session_id,
                 turn_id=turn_id,
                 project=project,
@@ -261,7 +282,7 @@ def extract_memories(
             candidates.append(entry)
 
     candidates.sort(key=lambda e: e.importance, reverse=True)
-    entries = candidates[:MAX_ENTRIES]
+    entries = candidates[: _policy.max_entries]
 
     logger.debug(
         f"extract_memories: extracted {len(entries)} entries"

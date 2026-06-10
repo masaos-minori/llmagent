@@ -29,6 +29,7 @@ from agent.memory.types import MemoryEntry
 logger = logging.getLogger(__name__)
 
 
+# TODO: consolidate _now_iso into shared/ to remove duplication with extract.py
 def _now_iso() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -205,7 +206,7 @@ class MemoryStore:
             return [row_to_entry(r) for r in rows]
 
     def count_by_type(self) -> dict[str, int]:
-        """Return {memory_type: count} for all rows in memories."""
+        """Return {memory_type: count} for all rows in memories. Diagnostic use only."""
         with SQLiteHelper("session").open() as db:
             rows = db.fetchall(
                 "SELECT memory_type, COUNT(*) FROM memories GROUP BY memory_type",
@@ -213,7 +214,7 @@ class MemoryStore:
             return {row[0]: row[1] for row in rows}
 
     def count_vec(self) -> int:
-        """Return total entry count in memories_vec; 0 if table unavailable."""
+        """Return total entry count in memories_vec. Diagnostic use only; 0 if table unavailable."""
         try:
             with SQLiteHelper("session").open() as db:
                 rows = db.fetchall("SELECT COUNT(*) FROM memories_vec")
@@ -223,7 +224,7 @@ class MemoryStore:
             return 0
 
     def check_consistency(self) -> dict[str, int]:
-        """Return row counts for memories / memories_fts / memories_vec.
+        """Return row counts for memories / memories_fts / memories_vec. Diagnostic use only.
 
         Use to detect index drift after unexpected failures.
         """

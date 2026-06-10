@@ -228,7 +228,7 @@ class VectorRetriever:
             d = dict(row)
             distance = float(d.pop("distance", 999.0))
             entry = row_to_entry(d)
-            # Use negative distance as score: closer = higher score
+            # Negate distance: MemoryHit.score convention is higher-is-better
             hits.append(MemoryHit(entry=entry, score=-distance))
         return hits
 
@@ -274,7 +274,8 @@ class HybridRetriever:
             return fts_hits
 
         merged = _rrf_merge([fts_hits, vec_hits], k=self._rrf_k)
-        # Re-apply rescoring on the merged list
+        # After RRF merge, re-apply _score so FTS boosts (importance, pin, recency) are reflected.
+        # bm25_rank=0.0: RRF already captured rank signal; only additive boosts are applied here.
         for hit in merged:
             hit.score = _score(0.0, hit.entry, project, repo, self._recency_days)
         merged.sort(key=lambda h: h.score, reverse=True)

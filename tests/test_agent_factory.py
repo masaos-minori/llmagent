@@ -3,7 +3,7 @@ tests/test_agent_factory.py
 Unit tests for agent/factory.py:
   - build_agent_context: ctx.services.* にすべてのサービスが注入されること
   - init_tracer: build_tracer を正しく呼ぶこと
-  - use_memory_layer フラグによる MemoryLayer の有無
+  - use_memory_layer フラグによる MemoryServices の有無
 """
 
 from __future__ import annotations

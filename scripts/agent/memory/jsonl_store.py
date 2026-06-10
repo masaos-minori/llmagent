@@ -15,6 +15,7 @@ from pathlib import Path
 
 import orjson
 
+from agent.memory.mapper import row_to_entry
 from agent.memory.types import MEMORY_TYPES, MemoryEntry
 
 logger = logging.getLogger(__name__)
@@ -27,23 +28,7 @@ def _entry_from_dict(d: dict) -> MemoryEntry | None:
         if memory_type not in MEMORY_TYPES:
             logger.warning(f"Skipping JSONL entry: invalid memory_type={memory_type!r}")
             return None
-        return MemoryEntry(
-            memory_id=str(d["memory_id"]),
-            memory_type=memory_type,
-            source_type=d.get("source_type", "conversation"),
-            session_id=d.get("session_id"),
-            turn_id=d.get("turn_id"),
-            project=d.get("project", ""),
-            repo=d.get("repo", ""),
-            branch=d.get("branch", ""),
-            content=str(d.get("content", "")),
-            summary=str(d.get("summary", "")),
-            tags=list(d.get("tags", [])),
-            importance=float(d.get("importance", 0.5)),
-            pinned=bool(d.get("pinned", False)),
-            created_at=str(d.get("created_at", "")),
-            updated_at=str(d.get("updated_at", "")),
-        )
+        return row_to_entry(d)
     except Exception as e:
         logger.warning(f"Skipping malformed JSONL entry: {e}")
         return None
