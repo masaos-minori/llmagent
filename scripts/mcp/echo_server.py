@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Minimal JSON-RPC echo server for integration tests."""
+"""Minimal JSON-RPC echo server for connectivity testing and integration tests.
+
+WARNING: This server is for connectivity testing and integration test use only.
+Do NOT use it as a template for production MCP servers.
+It does not implement authentication, audit logging, or validation.
+"""
 
 import os
 import sys

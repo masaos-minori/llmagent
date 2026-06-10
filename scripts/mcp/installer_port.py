@@ -28,13 +28,15 @@ def _ports_from_config(config_dir: Path) -> set[int]:
     try:
         with agent_toml.open("rb") as f:
             cfg = tomllib.load(f)
-        for srv in cfg.get("mcp_servers", {}).values():
-            url = srv.get("url", "")
-            m = re.search(r":(\d+)/?$", url)
-            if m:
-                ports.add(int(m.group(1)))
-    except Exception:
-        pass
+    except OSError as e:
+        raise OSError(f"Cannot read {agent_toml}: {e}") from e
+    except tomllib.TOMLDecodeError as e:
+        raise ValueError(f"Invalid TOML in {agent_toml}: {e}") from e
+    for srv in cfg.get("mcp_servers", {}).values():
+        url = srv.get("url", "")
+        m = re.search(r":(\d+)/?$", url)
+        if m:
+            ports.add(int(m.group(1)))
     return ports
 
 

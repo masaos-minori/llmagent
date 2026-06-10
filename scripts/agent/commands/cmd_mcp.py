@@ -105,9 +105,10 @@ class _McpMixin(MixinBase):
             validate_server_name,  # noqa: PLC0415 — lazy: heavy installer module deferred to /mcp install
         )
 
-        err = validate_server_name(server_name)
-        if err:
-            print(err)
+        try:
+            validate_server_name(server_name)
+        except ValueError as e:
+            print(str(e))
             print("Usage: /mcp install <server-name>  (e.g., my-api)")
             return
 

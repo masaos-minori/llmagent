@@ -4,11 +4,13 @@ Structured audit logging helper extracted from mcp/server.py.
 
 from __future__ import annotations
 
-from typing import Any
+import logging
+
+from shared.logger import Logger as _SharedLogger
 
 
 def _audit_log(
-    server_logger: Any,  # logging.Logger or shared.logger.Logger (duck-type compatible)
+    server_logger: logging.Logger | _SharedLogger,
     session_id: str,
     request_id: str,
     action: str,

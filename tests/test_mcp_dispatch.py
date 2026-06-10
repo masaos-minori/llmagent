@@ -5,28 +5,7 @@ Unit tests for mcp/dispatch.py — dispatch_tool.
 from __future__ import annotations
 
 import pytest
-from mcp.dispatch import _handle_tool_exception, dispatch_tool
-
-
-class TestHandleToolException:
-    def test_http_exception_returns_error_message(self) -> None:
-        """HTTPException-like error returns formatted message."""
-
-        class FakeHTTPException(Exception):
-            status_code = 404
-            detail = "Not found"
-
-        exc = FakeHTTPException()
-        msg, is_error = _handle_tool_exception("test_tool", exc)
-        assert is_error
-        assert "HTTP error (404): Not found" in msg
-
-    def test_generic_exception_returns_error_message(self) -> None:
-        """Generic exception returns error message."""
-        exc = ValueError("something went wrong")
-        msg, is_error = _handle_tool_exception("test_tool", exc)
-        assert is_error
-        assert "Tool error:" in msg
+from mcp.dispatch import dispatch_tool
 
 
 class TestDispatchTool:
@@ -72,19 +51,29 @@ class TestDispatchTool:
         assert "Unknown tool" in result
 
     @pytest.mark.asyncio
-    async def test_handler_exception_returns_error(self) -> None:
-        """Handler exception returns error."""
+    async def test_value_error_from_handler_returns_validation_error(self) -> None:
+        """ValueError from handler returns validation error result."""
 
         async def handler(args: dict) -> str:
-            raise ValueError("boom")
+            raise ValueError("bad input")
 
-        result, is_error = await dispatch_tool({"boom": handler}, "boom", {})
+        result, is_error = await dispatch_tool({"tool": handler}, "tool", {})
         assert is_error
-        assert "Tool error:" in result
+        assert "Validation error" in result
 
     @pytest.mark.asyncio
-    async def test_handler_http_exception_returns_error(self) -> None:
-        """Handler HTTPException returns formatted error."""
+    async def test_non_value_error_propagates(self) -> None:
+        """Non-ValueError exceptions (runtime errors) propagate to the caller."""
+
+        async def handler(args: dict) -> str:
+            raise RuntimeError("internal failure")
+
+        with pytest.raises(RuntimeError, match="internal failure"):
+            await dispatch_tool({"tool": handler}, "tool", {})
+
+    @pytest.mark.asyncio
+    async def test_http_exception_propagates(self) -> None:
+        """HTTP exceptions propagate to the caller (not swallowed)."""
 
         class FakeHTTPException(Exception):
             status_code = 403
@@ -93,9 +82,8 @@ class TestDispatchTool:
         async def handler(args: dict) -> str:
             raise FakeHTTPException()
 
-        result, is_error = await dispatch_tool({"boom": handler}, "boom", {})
-        assert is_error
-        assert "HTTP error (403): Forbidden" in result
+        with pytest.raises(FakeHTTPException):
+            await dispatch_tool({"tool": handler}, "tool", {})
 
 
 if __name__ == "__main__":

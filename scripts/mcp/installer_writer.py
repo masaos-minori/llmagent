@@ -31,9 +31,7 @@ def install_mcp_server(
     Raises FileExistsError if any target file already exists.
     Raises ValueError if server_name fails validation.
     """
-    err = validate_server_name(server_name)
-    if err:
-        raise ValueError(err)
+    validate_server_name(server_name)  # raises ValueError on invalid input
 
     root = repo_root if repo_root is not None else _REPO_ROOT
     module = name_to_module(server_name)

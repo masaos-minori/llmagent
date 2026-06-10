@@ -29,6 +29,8 @@ class CallToolRequest(BaseModel):
     def validate_args(self) -> None:
         """Run tool-specific argument validation if a validator is registered.
 
+        Must be called explicitly before dispatching the tool call.
+        Pydantic does not call this automatically.
         Raises ValueError when args violate tool constraints.
         """
         validate_tool_args(self.name, self.args)

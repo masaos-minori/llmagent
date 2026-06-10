@@ -173,8 +173,13 @@ class MCPServer:
                     result = tr.text
                     truncated = tr.truncated
                     total_bytes = tr.total_bytes
+            except orjson.JSONDecodeError as e:
+                logger.error(f"run_stdio JSON decode error: {e}")
+                result = f"JSON decode error: {e}"
+                is_error = True
             except Exception as e:
-                logger.error(f"run_stdio dispatch error: {e}")
+                # Last-resort handler: stdio transport must always write a response.
+                logger.error(f"run_stdio unexpected error: {e}")
                 result = f"Internal server error: {e}"
                 is_error = True
 
