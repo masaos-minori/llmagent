@@ -5,37 +5,110 @@ Config loading and Pydantic request/response models for mcp/github/server.py.
 Dependency direction: mcp.github.models → (no local deps)
 """
 
+import dataclasses
+import logging
 from typing import Any
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
-from shared.logger import Logger
+
+logger = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Config loading (config/github_mcp_server.toml)
+# Typed config object
 # ──────────────────────────────────────────────────────────────────────────────
-# Logger is defined here only for config-load warnings; the main log path lives
-# in mcp/github/server.py (where Logger("/opt/llm/logs/github-mcp.log") is set).
-_models_logger = Logger(__name__, "/opt/llm/logs/github-mcp.log")
+
+DEFAULT_PER_PAGE: int = 10
+
+
+@dataclasses.dataclass
+class GitHubConfig:
+    """Typed configuration for the GitHub MCP server."""
+
+    allowed_repos: list[str] = dataclasses.field(default_factory=list)
+    allowed_repos_mode: str = "fail_closed"
+    path_denylist: list[str] = dataclasses.field(default_factory=list)
+    protected_branches: list[str] = dataclasses.field(default_factory=list)
+    max_file_size_kb: int = 0
+    audit_log_path: str = ""
+    allow_force_push: bool = True
+    require_pr_review: bool = False
+    default_per_page: int = DEFAULT_PER_PAGE
+    max_per_page: int = 100
+    llm_url: str = ""
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "GitHubConfig":
+        """Construct from a raw config dict (e.g. loaded from TOML)."""
+        return cls(
+            allowed_repos=list(d.get("allowed_repos", [])),
+            allowed_repos_mode=str(d.get("allowed_repos_mode", "fail_closed")),
+            path_denylist=list(d.get("path_denylist", [])),
+            protected_branches=list(d.get("protected_branches", [])),
+            max_file_size_kb=int(d.get("max_file_size_kb", 0)),
+            audit_log_path=str(d.get("audit_log_path", "")),
+            allow_force_push=bool(d.get("allow_force_push", True)),
+            require_pr_review=bool(d.get("require_pr_review", False)),
+            default_per_page=int(d.get("default_per_page", DEFAULT_PER_PAGE)),
+            max_per_page=int(d.get("max_per_page", 100)),
+            llm_url=str(d.get("llm_url", "")),
+        )
+
+    @classmethod
+    def load(cls) -> "GitHubConfig":
+        """Load from github_mcp_server.toml; raises on failure (fail-fast)."""
+        return cls.from_dict(ConfigLoader().load("github_mcp_server.toml"))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Domain exceptions
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class GitHubAuthorizationError(RuntimeError):
+    """Raised when a repo/path/branch policy check fails (HTTP 403)."""
+
+
+class GitHubNotFoundError(RuntimeError):
+    """Raised when a GitHub resource is not found (HTTP 404)."""
+
+
+class GitHubValidationError(ValueError):
+    """Raised on invalid input (HTTP 400/422)."""
+
+
+class GitHubConflictError(RuntimeError):
+    """Raised on a GitHub conflict (HTTP 409)."""
+
+
+class GitHubUpstreamError(RuntimeError):
+    """Raised on GitHub API 5xx or unexpected upstream failures."""
+
+
+class GitHubAuditError(RuntimeError):
+    """Raised when audit log writing fails and audit_log_path is configured."""
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Backward-compat config cache (used by service.py until Step 2 migration)
+# ──────────────────────────────────────────────────────────────────────────────
 
 _cfg: dict[str, Any] | None = None
 
 
 def _get_cfg() -> dict[str, Any]:
-    """Load config on first call; cached for the module lifetime."""
+    """Load config on first call; cached for the module lifetime.
+
+    Kept for backward compatibility with service.py — removed after Step 2.
+    """
     global _cfg
     if _cfg is None:
         try:
             _cfg = ConfigLoader().load("github_mcp_server.toml")
         except Exception as e:
-            _models_logger.warning(f"Config load failed: {e}")
+            logger.warning(f"Config load failed: {e}")
             _cfg = {}
     return _cfg
-
-
-# DEFAULT_PER_PAGE must be available at Pydantic schema definition time.
-# MAX_PER_PAGE is accessed lazily via _get_cfg() inside _LazyGitHubService.
-DEFAULT_PER_PAGE: int = _get_cfg().get("default_per_page", 10)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

@@ -171,10 +171,12 @@ curl -s -X POST http://127.0.0.1:8006/get_file_contents \
 |---|---|
 | フレームワーク | FastAPI + Uvicorn (ポート 8006) |
 | 起動モード | HTTP モード (ポート 8006、OpenRC サービス `github-mcp`) |
-| サービスクラス | `GitHubService` (`mcp/github/service.py`) がすべての GitHub API 操作を実装する。`GitHubService(gh, default_per_page, max_per_page)` で初期化し、`_LazyGitHubService` プロキシにより初回アクセス時まで初期化を遅延する |
+| 設定クラス | `GitHubConfig` dataclass (`mcp/github/models.py`): 設定値を型付きで保持。`GitHubConfig.load()` で TOML から読み込み; `GitHubConfig.from_dict(d)` でテスト用に直接構築可能 |
+| サービスクラス | `GitHubService` (`mcp/github/service.py`) がすべての GitHub API 操作を実装する。`GitHubService(gh, cfg: GitHubConfig)` で初期化し、`_LazyGitHubService` プロキシにより初回アクセス時まで初期化を遅延する |
 | GitHub API クライアント | PyGithub (同期ライブラリ) を `asyncio.to_thread` でスレッドプール実行 |
 | 認証 | `GITHUB_TOKEN` 環境変数 (PAT) → `Github(auth=Auth.Token(...))` で初期化; 未設定時は匿名 (60 req/hour) |
-| エラー変換 | `GitHubService._handle_github_error()` で `GithubException` を HTTP ステータスコード (404/403/502) に変換して raise (`NoReturn` 宣言済み) |
+| エラー変換 | `GitHubService._handle_github_error()` で `GithubException` を domain 例外 (`GitHubNotFoundError`/`GitHubAuthorizationError`/`GitHubUpstreamError`) に変換; server.py の `@app.exception_handler` が HTTP 応答に変換する |
+| domain 例外 | `GitHubAuthorizationError` (403) / `GitHubNotFoundError` (404) / `GitHubValidationError` (400) / `GitHubConflictError` (409) / `GitHubUpstreamError` (502) / `GitHubAuditError` (500) — すべて `mcp.github.models` で定義 |
 | ページネーション | `itertools.islice` で `per_page` 件に打ち切り。`_clamp_per_page()` で `max_per_page` を超えないよう制限 |
 
 ### 1.7 入出力インタフェース
