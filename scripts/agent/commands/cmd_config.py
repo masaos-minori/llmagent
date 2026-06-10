@@ -15,7 +15,6 @@ Provides _ConfigMixin with:
 import logging
 from typing import TYPE_CHECKING, Any
 
-from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
 
 from agent.commands.mixin_base import MixinBase
@@ -222,11 +221,17 @@ class _ConfigMixin(MixinBase):
         """Print retrieval settings including DB path and search parameters."""
         ctx = self._ctx
         print("Search settings:")
-        # NOTE: _RAG_PATH/_SESSION_PATH are convention-private class attributes set by
-        # _ensure_config(). No public getter API exists; direct access is intentional here.
-        SQLiteHelper._ensure_config()
-        print(f"  rag_db_path         : {SQLiteHelper._RAG_PATH}")
-        print(f"  session_db_path     : {SQLiteHelper._SESSION_PATH}")
+        from db.config import (
+            build_db_config as _build_db_cfg,  # noqa: PLC0415 — lazy: only needed here
+        )
+
+        try:
+            _db_cfg = _build_db_cfg()
+            print(f"  rag_db_path         : {_db_cfg.rag_db_path}")
+            print(f"  session_db_path     : {_db_cfg.session_db_path}")
+        except Exception as e:
+            print(f"  rag_db_path         : (config error: {e})")
+            print(f"  session_db_path     : (config error: {e})")
         print(f"  top_k_search        : {ctx.cfg.rag.top_k_search}")
         print(f"  top_k_rerank        : {ctx.cfg.rag.top_k_rerank}")
         print(f"  max_chunks_per_doc  : {ctx.cfg.rag.max_chunks_per_doc}")

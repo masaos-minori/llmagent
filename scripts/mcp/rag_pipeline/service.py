@@ -46,7 +46,6 @@ class RagPipelineMCPService:
 
     async def start(self) -> None:
         """Initialize shared resources; must be called once before first request."""
-        import db.helper as sqlite_helper  # noqa: PLC0415 — lazy: heavy DB init deferred to first start()
         import rag.llm as rag_llm  # noqa: PLC0415 — lazy: heavy RAG module init deferred to first start()
         import rag.pipeline as agent_rag  # noqa: PLC0415 — lazy import avoids module-load side effects
         from rag.pipeline import (
@@ -59,9 +58,7 @@ class RagPipelineMCPService:
         # rag_pipeline_mcp_server.toml.  Process-scoped; no cross-process contamination.
         agent_rag._cfg = cfg  # noqa: SLF001 — override module cache for process-scoped config
         rag_llm._cfg = cfg  # noqa: SLF001
-        # db.helper no longer has a module-level _cfg; reset class-level cache so that
-        # SQLiteHelper._ensure_config() re-reads rag_db_path / session_db_path from common.toml.
-        sqlite_helper.SQLiteHelper._config_loaded = False  # noqa: SLF001
+        # db.helper resolves config per-instance in __init__; no class-level cache to reset.
 
         rag_cfg = build_rag_cfg_adapter(cfg)
         http_timeout = float(cfg.get("http_timeout", 120.0))

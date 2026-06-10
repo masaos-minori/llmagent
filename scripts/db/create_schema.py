@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """create_schema.py
 Initialize SQLite schemas for rag.sqlite (RAG pipeline) and session.sqlite (sessions/memory).
-Run once only. Existing tables are protected by IF NOT EXISTS.
+
+Creates the latest schema only. No migration logic.
+Existing tables are protected by IF NOT EXISTS for idempotent re-runs.
 
 Functions:
   create_rag_schema()     — rag.sqlite: documents, chunks, chunks_vec, chunks_fts, triggers
@@ -11,6 +13,9 @@ Functions:
 
 import sys
 
+from shared.config_loader import (
+    ConfigLoader,  # noqa: PLC0415 — used in _get_schema_log_path
+)
 from shared.logger import Logger
 
 from db.helper import SQLiteHelper
@@ -18,36 +23,17 @@ from db.store import get_embedding_dims
 
 
 def _get_schema_log_path() -> str:
-    """Return the schema log file path from config, falling back to the default."""
-    try:
-        from shared.config_loader import (
-            ConfigLoader,  # noqa: PLC0415 — lazy: only needed here
-        )
-
-        cfg = ConfigLoader().load("common.toml")
-        log_dir = cfg.get("log_dir", "/opt/llm/logs")
-        return f"{log_dir}/create_schema.log"
-    except Exception:
-        return "/opt/llm/logs/create_schema.log"
+    """Return the schema log file path from config."""
+    cfg = ConfigLoader().load("common.toml")
+    log_dir = cfg.get("log_dir", "/opt/llm/logs")
+    return f"{log_dir}/create_schema.log"
 
 
 # Entry script: use Logger with a dedicated log file.
 logger = Logger(__name__, _get_schema_log_path())
 
-# DEPRECATED: _SAFE_MIGRATION_ERRORS will be removed once versioned migration
-# replaces the IF NOT EXISTS + safe-skip approach. Do not add new entries here.
-_SAFE_MIGRATION_ERRORS: tuple[str, ...] = (
-    "duplicate column name",  # ALTER TABLE ADD COLUMN already applied
-    "already exists",  # CREATE TRIGGER IF NOT EXISTS on an existing trigger
-    "no such column",  # RENAME COLUMN already applied on fresh install
-)
-
 
 _RAG_SCHEMA_TEMPLATE: str = """
-    CREATE TABLE IF NOT EXISTS schema_version (
-        version    INTEGER NOT NULL,
-        applied_at TEXT    NOT NULL DEFAULT (datetime('now'))
-    );
     CREATE TABLE IF NOT EXISTS documents (
         doc_id        INTEGER PRIMARY KEY AUTOINCREMENT,
         url           TEXT    NOT NULL UNIQUE,
@@ -105,10 +91,6 @@ def _build_rag_schema_sql(dims: int) -> str:
 
 
 _SESSION_SCHEMA_TEMPLATE: str = """
-    CREATE TABLE IF NOT EXISTS schema_version (
-        version    INTEGER NOT NULL,
-        applied_at TEXT    NOT NULL DEFAULT (datetime('now'))
-    );
     CREATE TABLE IF NOT EXISTS sessions (
         session_id INTEGER PRIMARY KEY AUTOINCREMENT,
         created_at TEXT    NOT NULL DEFAULT (datetime('now')),
@@ -181,128 +163,28 @@ def _build_session_schema_sql(dims: int) -> str:
     return _SESSION_SCHEMA_TEMPLATE.replace("DIMS", str(dims))
 
 
-# ALTER TABLE migration statements for rag.sqlite.
-_RAG_MIGRATE_SQL: list[str] = [
-    "ALTER TABLE documents ADD COLUMN etag TEXT",
-    "ALTER TABLE documents ADD COLUMN last_modified TEXT",
-    "ALTER TABLE chunks ADD COLUMN normalized_content TEXT",
-    "DROP TRIGGER IF EXISTS chunks_ai",
-    "DROP TRIGGER IF EXISTS chunks_ad",
-    "DROP TRIGGER IF EXISTS chunks_au",
-    """CREATE TRIGGER IF NOT EXISTS chunks_ai
-       AFTER INSERT ON chunks BEGIN
-           INSERT INTO chunks_fts (rowid, content)
-           VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
-       END""",
-    """CREATE TRIGGER IF NOT EXISTS chunks_ad
-       AFTER DELETE ON chunks BEGIN
-           INSERT INTO chunks_fts (chunks_fts, rowid, content)
-           VALUES ('delete', old.chunk_id,
-                   COALESCE(old.normalized_content, old.content));
-       END""",
-    """CREATE TRIGGER IF NOT EXISTS chunks_au
-       AFTER UPDATE ON chunks BEGIN
-           INSERT INTO chunks_fts (chunks_fts, rowid, content)
-           VALUES ('delete', old.chunk_id,
-                   COALESCE(old.normalized_content, old.content));
-           INSERT INTO chunks_fts (rowid, content)
-           VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
-       END""",
-    "DROP TRIGGER IF EXISTS chunks_vec_ad",
-    """CREATE TRIGGER IF NOT EXISTS chunks_vec_ad
-       AFTER DELETE ON chunks BEGIN
-           DELETE FROM chunks_vec WHERE chunk_id = old.chunk_id;
-       END""",
-]
-
-# ALTER TABLE migration statements for session.sqlite.
-_SESSION_MIGRATE_SQL: list[str] = [
-    "ALTER TABLE messages ADD COLUMN tool_call_id TEXT",
-    # Phase 1 persistent semantic memory tables
-    """CREATE TABLE IF NOT EXISTS memories (
-        memory_id   TEXT PRIMARY KEY,
-        memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),
-        source_type TEXT NOT NULL DEFAULT 'conversation',
-        session_id  INTEGER,
-        turn_id     TEXT,
-        project     TEXT NOT NULL DEFAULT '',
-        repo        TEXT NOT NULL DEFAULT '',
-        branch      TEXT NOT NULL DEFAULT '',
-        content     TEXT NOT NULL,
-        summary     TEXT NOT NULL DEFAULT '',
-        tags        TEXT NOT NULL DEFAULT '[]',
-        importance  REAL NOT NULL DEFAULT 0.5,
-        pinned      INTEGER NOT NULL DEFAULT 0,
-        created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
-    )""",
-    """CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
-        memory_id UNINDEXED,
-        content,
-        summary,
-        tags
-    )""",
-    """CREATE TABLE IF NOT EXISTS memory_links (
-        src_id  TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
-        dst_id  TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
-        PRIMARY KEY (src_id, dst_id)
-    )""",
-    # Phase 2 persistent semantic memory: embedding index
-    "CREATE VIRTUAL TABLE IF NOT EXISTS memories_vec USING vec0("
-    "memory_id TEXT PRIMARY KEY, embedding float[384])",
-    # Rename args_json → args_masked to reflect that stored values are sanitised
-    "ALTER TABLE tool_results RENAME COLUMN args_json TO args_masked",
-]
-
-
-def _run_migrations(db: SQLiteHelper, stmts: list[str]) -> None:
-    """Execute migration DDL; re-raise unexpected failures; silently skip known safe no-ops."""
-    for stmt in stmts:
-        try:
-            db.execute(stmt)
-        except Exception as e:
-            msg = str(e).lower()
-            if any(safe in msg for safe in _SAFE_MIGRATION_ERRORS):
-                logger.debug(f"Migration stmt skipped (already applied): {e}")
-            else:
-                logger.error(f"Migration DDL failed: {e!r}")
-                raise
-    db.commit()
-
-
 def create_rag_schema() -> None:
     """Create rag.sqlite tables, virtual tables, and triggers."""
     dims = get_embedding_dims()
     with SQLiteHelper("rag").open(write_mode=True) as db:
-        assert db.conn is not None
         try:
-            db.conn.executescript(_build_rag_schema_sql(dims))
+            db.conn.executescript(_build_rag_schema_sql(dims))  # type: ignore[union-attr]  # conn is set by open()
         except Exception as e:
             logger.error(f"Failed to execute RAG schema DDL: {e}")
             raise
-        _run_migrations(db, _RAG_MIGRATE_SQL)
-    logger.info("RAG schema created/migrated successfully.")
+    logger.info("RAG schema created successfully.")
 
 
 def create_session_schema() -> None:
     """Create session.sqlite tables for conversations, notes, tool results, and memory."""
     dims = get_embedding_dims()
     with SQLiteHelper("session").open(write_mode=True) as db:
-        assert db.conn is not None
         try:
-            db.conn.executescript(_build_session_schema_sql(dims))
+            db.conn.executescript(_build_session_schema_sql(dims))  # type: ignore[union-attr]  # conn is set by open()
         except Exception as e:
             logger.error(f"Failed to execute session schema DDL: {e}")
             raise
-        _run_migrations(db, _SESSION_MIGRATE_SQL)
-        # Verify tool_call_id column exists after migration.
-        cols = [row[1] for row in db.fetchall("PRAGMA table_info(messages)")]
-        if "tool_call_id" not in cols:
-            logger.error(
-                "Migration check failed: messages.tool_call_id column not found."
-                " Run manually: ALTER TABLE messages ADD COLUMN tool_call_id TEXT",
-            )
-    logger.info("Session schema created/migrated successfully.")
+    logger.info("Session schema created successfully.")
 
 
 def create_schema() -> None:

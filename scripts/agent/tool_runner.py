@@ -105,15 +105,19 @@ def _collect_tool_result_msgs(
         else:
             print(f"  [tool] {name} → {text}")
         summarized = is_summarized(ctx.cfg, text, llm_text, is_error)
-        result_id = ctx.tool_result_store.store(
-            session_id=ctx.session.session_id,
-            turn=turn,
-            tool_name=name,
-            args_masked=orjson.dumps(masked).decode(),
-            full_text=text,
-            summary=llm_text if summarized else None,
-            is_error=is_error,
-        )
+        try:
+            result_id = ctx.tool_result_store.store(
+                session_id=ctx.session.session_id,
+                turn=turn,
+                tool_name=name,
+                args_masked=orjson.dumps(masked).decode(),
+                full_text=text,
+                summary=llm_text if summarized else None,
+                is_error=is_error,
+            )
+        except Exception:
+            logger.warning("ToolResultStore.store failed; result not persisted")
+            result_id = None
         limit = ctx.cfg.tool.tool_results_turn_max_chars
         turn_chars += len(llm_text)
         if limit > 0 and turn_chars > limit:

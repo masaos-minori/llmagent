@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""db_maintenance.py
+"""db/maintenance.py
 SQLite operational maintenance: WAL checkpoint, VACUUM, DB rotation,
 session retention, and corruption recovery.
 
@@ -17,6 +17,7 @@ Typical maintenance schedule:
 
 import logging
 import shutil
+import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -42,12 +43,8 @@ class RetentionConfig:
 
     @classmethod
     def from_config(cls) -> "RetentionConfig":
-        """Construct from common.toml values."""
-        try:
-            cfg = ConfigLoader().load("common.toml")
-        except Exception as e:
-            logger.warning(f"Config load failed: {e}")
-            cfg = {}
+        """Construct from common.toml values; raises on config load failure."""
+        cfg = ConfigLoader().load("common.toml")
         return cls(
             max_sessions=int(cfg.get("sqlite_retention_max_sessions", 100)),
             max_age_days=int(cfg.get("sqlite_retention_max_age_days", 90)),
@@ -70,11 +67,7 @@ class RecoveryResult:
 def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> dict[str, int]:
     """Flush the WAL file and return checkpoint counters; mode defaults to sqlite_wal_checkpoint_mode (TRUNCATE); raises ValueError for unknown mode."""
     if mode is None:
-        try:
-            cfg = ConfigLoader().load("common.toml")
-        except Exception as e:
-            logger.warning(f"Config load failed: {e}")
-            cfg = {}
+        cfg = ConfigLoader().load("common.toml")
         mode = cfg.get("sqlite_wal_checkpoint_mode", "TRUNCATE").upper()
     return db.checkpoint(mode)
 
@@ -129,11 +122,6 @@ def prune_old_memories(db: SQLiteHelper, older_than_days: int) -> int:
     """Delete memories older than older_than_days via SQLiteMemoryDeleteStore; return count deleted."""
     store = SQLiteMemoryDeleteStore(db)
     result = store.delete_memories_before(older_than_days)
-    if result.vec_skipped:
-        logger.warning(
-            "prune_old_memories: memories_vec deletion failed",
-            extra={"error": result.vec_error, "days": older_than_days},
-        )
     logger.info(
         f"prune_old_memories: removed {result.deleted} entries"
         f" older than {older_than_days} days",
@@ -142,15 +130,12 @@ def prune_old_memories(db: SQLiteHelper, older_than_days: int) -> int:
 
 
 def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
-    """Copy a single DB file (plus WAL/SHM side-files) to the archive directory."""
+    """Create a WAL-consistent backup of db_path using the SQLite online backup API."""
     if not db_path.exists():
         raise FileNotFoundError(f"DB file not found: {db_path}")
 
     if archive_dir is None:
-        try:
-            cfg = ConfigLoader().load("common.toml")
-        except Exception:
-            cfg = {}
+        cfg = ConfigLoader().load("common.toml")
         archive_dir = cfg.get("sqlite_archive_dir", "/opt/llm/db/archive")
 
     dest_dir = Path(archive_dir)
@@ -158,15 +143,17 @@ def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     dest = dest_dir / f"{db_path.stem}_{ts}{db_path.suffix}"
-    shutil.copy2(db_path, dest)
 
-    for side_ext in ("-wal", "-shm"):
-        side = Path(str(db_path) + side_ext)
-        if side.exists():
-            shutil.copy2(side, dest_dir / (dest.name + side_ext))
+    src = sqlite3.connect(str(db_path))
+    dst = sqlite3.connect(str(dest))
+    try:
+        src.backup(dst)
+    finally:
+        dst.close()
+        src.close()
 
     size = dest.stat().st_size
-    logger.info(f"DB rotated: {dest} ({size:,} bytes)")
+    logger.info(f"DB archived: {dest} ({size:,} bytes)")
     return dest
 
 
@@ -189,16 +176,16 @@ def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]:
     return rag_dest, ses_dest
 
 
-def _run_integrity_check(db_path: Path) -> tuple[str | None, str | None]:
+def _run_integrity_check(
+    db_path: Path, target: str = "rag"
+) -> tuple[str | None, str | None]:
     """Open DB and run PRAGMA integrity_check; returns (check_result, error_detail).
 
     Returns (None, error_detail) if the DB cannot be opened.
     """
     try:
-        with SQLiteHelper("rag").open() as db:
-            if db.conn is None:
-                raise RuntimeError("DB connection not established after open()")
-            result: str = db.conn.execute("PRAGMA integrity_check").fetchone()[0]
+        with SQLiteHelper(target).open() as db:
+            result: str = db.conn.execute("PRAGMA integrity_check").fetchone()[0]  # type: ignore[union-attr]  # conn is set by open()
             return result, None
     except Exception as e:
         logger.error(f"Cannot open DB for integrity check: {e}")
@@ -222,14 +209,15 @@ def _handle_dry_run(check_result: str) -> RecoveryResult:
     )
 
 
-def _vacuum_db() -> RecoveryResult:
-    """Run VACUUM and return result."""
+def _vacuum_db(target: str = "rag") -> RecoveryResult:
+    """Run VACUUM on target DB and return result; returns success=False on failure."""
     logger.info("Integrity check passed; running VACUUM")
     try:
-        with SQLiteHelper("rag").open(write_mode=True) as db:
+        with SQLiteHelper(target).open(write_mode=True) as db:
             db.vacuum()
     except Exception as e:
-        logger.warning(f"VACUUM after integrity check failed: {e}")
+        logger.error(f"VACUUM failed: {e}")
+        return RecoveryResult(success=False, action="vacuum_failed", detail=str(e))
     return RecoveryResult(success=True, action="vacuum")
 
 
@@ -266,20 +254,23 @@ def _restore_from_backup(
 def recover_corruption(
     backup_path: str | Path | None = None,
     *,
+    target: str = "rag",
     dry_run: bool = False,
 ) -> RecoveryResult:
-    """Detect and recover from corruption in rag.sqlite; returns RecoveryResult with action and detail.
+    """Detect and recover from corruption in the target DB; returns RecoveryResult.
 
+    target: "rag" (default) or "session".
     action values:
-      "vacuum"    — integrity ok; VACUUM executed (or skipped in dry_run)
-      "restored"  — integrity failed; DB restored from backup_path
-      "no_backup" — integrity failed; no usable backup_path
-      "error"     — could not open DB or OS-level failure
+      "vacuum"        — integrity ok; VACUUM executed (or skipped in dry_run)
+      "vacuum_failed" — integrity ok but VACUUM raised
+      "restored"      — integrity failed; DB restored from backup_path
+      "no_backup"     — integrity failed; no usable backup_path
+      "error"         — could not open DB or OS-level failure
     """
     db_cfg = build_db_config()
-    db_path = Path(db_cfg.rag_db_path)
+    db_path = Path(db_cfg.rag_db_path if target == "rag" else db_cfg.session_db_path)
 
-    check_result, error_detail = _run_integrity_check(db_path)
+    check_result, error_detail = _run_integrity_check(db_path, target)
     if check_result is None:
         return RecoveryResult(
             success=False, action="error", detail=error_detail, dry_run=dry_run
@@ -289,7 +280,7 @@ def recover_corruption(
         return _handle_dry_run(check_result)
 
     if check_result == "ok":
-        return _vacuum_db()
+        return _vacuum_db(target)
 
     logger.error(f"Integrity check failed: {check_result}")
     return _restore_from_backup(db_path, backup_path)

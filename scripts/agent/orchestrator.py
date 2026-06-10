@@ -247,15 +247,18 @@ class Orchestrator:
                 LLMMessage(role="assistant", content=incomplete_msg)
             )
             ctx.session.save("assistant", incomplete_msg)
-            ctx.tool_result_store.store(
-                session_id=ctx.session.session_id,
-                turn=ctx.stats.stat_turns,
-                tool_name="llm_partial_completion",
-                args_masked="{}",
-                full_text=e.detail or f"partial={len(e.partial_text)} chars",
-                summary=f"[INCOMPLETE: {e.kind}]",
-                is_error=True,
-            )
+            try:
+                ctx.tool_result_store.store(
+                    session_id=ctx.session.session_id,
+                    turn=ctx.stats.stat_turns,
+                    tool_name="llm_partial_completion",
+                    args_masked="{}",
+                    full_text=e.detail or f"partial={len(e.partial_text)} chars",
+                    summary=f"[INCOMPLETE: {e.kind}]",
+                    is_error=True,
+                )
+            except Exception:
+                logger.warning("ToolResultStore.store failed for partial completion")
             if ctx.services.llm is not None:
                 ctx.services.llm.stat_partial_completions += 1
             logger.warning(f"Partial LLM completion saved: {e.kind}")

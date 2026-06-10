@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""sqlite_helper.py
+"""db/helper.py
 SQLite connection manager for RAG and session databases.
-Provides open/close lifecycle methods with sqlite-vec extension and WAL setup.
-target="rag" (default) → rag_db_path; target="session" → session_db_path (common.toml).
+
+Provides open/close lifecycle with optional sqlite-vec extension and WAL setup.
+target="rag" (default) loads vec extension by default.
+target="session" skips vec extension by default.
+Config is resolved at construction time; failure raises RuntimeError immediately.
 """
 
 import logging
@@ -15,74 +18,60 @@ from db.config import build_db_config
 
 logger = logging.getLogger(__name__)
 
-# Default busy_timeout in milliseconds; overridable via sqlite_busy_timeout_ms in common.toml.
-# 30 seconds matches the sqlite_timeout connect parameter (also 30 s) for consistent behaviour.
 _DEFAULT_BUSY_TIMEOUT_MS: int = 30000
 
 
 class SQLiteHelper:
-    """SQLite connection manager with sqlite-vec extension support; WAL/synchronous=NORMAL/busy_timeout applied to every connection."""
-
-    _RAG_PATH: str = ""
-    _SESSION_PATH: str = ""
-    SQLITE_VEC_SO: str = ""
-    _SQLITE_TIMEOUT: int = 30
-    _BUSY_TIMEOUT_MS: int = _DEFAULT_BUSY_TIMEOUT_MS
-    _config_loaded: bool = False
-
-    @classmethod
-    def _ensure_config(cls) -> None:
-        """Populate all class-level config attrs from DbConfig on first call."""
-        if cls._config_loaded:
-            return
-        try:
-            db_cfg = build_db_config()
-        except Exception as e:
-            logger.warning(f"DbConfig load failed: {e}")
-            return
-        cls._RAG_PATH = db_cfg.rag_db_path
-        cls._SESSION_PATH = db_cfg.session_db_path
-        cls.SQLITE_VEC_SO = db_cfg.sqlite_vec_so
-        cls._SQLITE_TIMEOUT = db_cfg.sqlite_timeout
-        cls._BUSY_TIMEOUT_MS = db_cfg.sqlite_busy_timeout_ms
-        cls._config_loaded = True
+    """SQLite connection manager with optional sqlite-vec extension; WAL/synchronous=NORMAL/busy_timeout applied to every connection."""
 
     def __init__(self, target: str = "rag") -> None:
         if target not in ("rag", "session"):
             raise ValueError(f"target must be 'rag' or 'session', got: {target!r}")
         self._target = target
+        self._default_load_vec = target == "rag"
         self.conn: sqlite3.Connection | None = None
+        try:
+            db_cfg = build_db_config()
+        except Exception as e:
+            raise RuntimeError(
+                f"DbConfig load failed for target={target!r}: {e}"
+            ) from e
+        self._db_path = (
+            db_cfg.rag_db_path if target == "rag" else db_cfg.session_db_path
+        )
+        self._vec_so = db_cfg.sqlite_vec_so
+        self._sqlite_timeout = db_cfg.sqlite_timeout
+        self._busy_timeout_ms = db_cfg.sqlite_busy_timeout_ms
 
     @property
     def DB_PATH(self) -> str:
         """Return the configured DB path for this instance's target."""
-        self._ensure_config()
-        return self._RAG_PATH if self._target == "rag" else self._SESSION_PATH
+        return self._db_path
 
     def _connect(self) -> sqlite3.Connection:
         """Open a raw SQLite connection; raise on DB_PATH misconfiguration."""
-        self._ensure_config()
-        db_path = self.DB_PATH
         key = "rag_db_path" if self._target == "rag" else "session_db_path"
-        if not db_path:
+        if not self._db_path:
             raise ValueError(f"{key} is not configured in common.toml")
         try:
-            return sqlite3.connect(db_path, timeout=self._SQLITE_TIMEOUT)
+            return sqlite3.connect(self._db_path, timeout=self._sqlite_timeout)
         except sqlite3.OperationalError as e:
-            logger.error(f"Failed to connect to '{db_path}': {e}")
+            logger.error(f"Failed to connect to '{self._db_path}': {e}")
             raise
 
     def _load_vec_extension(self, conn: sqlite3.Connection) -> None:
         """Load the sqlite-vec extension and immediately disable extension loading."""
-        if not self.SQLITE_VEC_SO:
-            raise ValueError("SQLITE_VEC_SO is not configured in common.toml")
+        if not self._vec_so:
+            raise ValueError(
+                "sqlite_vec_so is not configured — cannot load vec extension"
+            )
         try:
             conn.enable_load_extension(True)
-            conn.load_extension(self.SQLITE_VEC_SO)
+            conn.load_extension(self._vec_so)
             conn.enable_load_extension(False)
         except sqlite3.OperationalError as e:
             conn.close()
-            logger.error(f"Failed to load sqlite-vec '{self.SQLITE_VEC_SO}': {e}")
+            logger.error(f"Failed to load sqlite-vec '{self._vec_so}': {e}")
             raise
 
     def _apply_connection_pragmas(
@@ -91,11 +80,10 @@ class SQLiteHelper:
         *,
         write_mode: bool,
     ) -> None:
-        """Apply WAL/synchronous=NORMAL/busy_timeout to every connection; foreign_keys enforced only in write_mode to avoid read overhead."""
-        busy_ms = self._BUSY_TIMEOUT_MS
+        """Apply WAL/synchronous=NORMAL/busy_timeout; foreign_keys enforced only in write_mode."""
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute(f"PRAGMA busy_timeout={busy_ms}")
+        conn.execute(f"PRAGMA busy_timeout={self._busy_timeout_ms}")
         if write_mode:
             conn.execute("PRAGMA foreign_keys=ON")
 
@@ -104,15 +92,23 @@ class SQLiteHelper:
         *,
         write_mode: bool = False,
         row_factory: bool = False,
+        load_vec: bool | None = None,
     ) -> "SQLiteHelper":
-        """Open a connection with sqlite-vec loaded and WAL pragmas applied; write_mode enforces FK constraints; row_factory enables column-name access; returns self."""
+        """Open a connection with optional vec extension and WAL pragmas.
+
+        load_vec: None = use instance default (True for rag, False for session).
+        write_mode: enforce FK constraints.
+        row_factory: enable column-name access on result rows.
+        """
+        use_vec = self._default_load_vec if load_vec is None else load_vec
         conn = self._connect()
-        self._load_vec_extension(conn)
+        if use_vec and self._vec_so:
+            self._load_vec_extension(conn)
         self._apply_connection_pragmas(conn, write_mode=write_mode)
         if row_factory:
             conn.row_factory = sqlite3.Row
         self.conn = conn
-        logger.debug(f"SQLite connection opened: {self.DB_PATH} (write={write_mode})")
+        logger.debug(f"SQLite connection opened: {self._db_path} (write={write_mode})")
         return self
 
     def __enter__(self) -> "SQLiteHelper":
@@ -134,8 +130,9 @@ class SQLiteHelper:
 
     @contextmanager
     def begin_immediate(self) -> Generator[None]:
-        """Wrap a block in BEGIN IMMEDIATE...COMMIT; serializes concurrent writers; use for atomic multi-statement write operations like chunk ingestion."""
-        assert self.conn is not None, "DB not open — call open() first"
+        """Wrap a block in BEGIN IMMEDIATE...COMMIT; serializes concurrent writers."""
+        if self.conn is None:
+            raise RuntimeError("DB not open — call open() first")
         self.conn.execute("BEGIN IMMEDIATE")
         try:
             yield
@@ -149,8 +146,9 @@ class SQLiteHelper:
 
     @contextmanager
     def begin_exclusive(self) -> Generator[None]:
-        """Wrap a block in BEGIN EXCLUSIVE...COMMIT; blocks all readers and writers; use only for VACUUM or schema migrations."""
-        assert self.conn is not None, "DB not open — call open() first"
+        """Wrap a block in BEGIN EXCLUSIVE...COMMIT; use only for VACUUM or schema migrations."""
+        if self.conn is None:
+            raise RuntimeError("DB not open — call open() first")
         self.conn.execute("BEGIN EXCLUSIVE")
         try:
             yield
@@ -163,8 +161,9 @@ class SQLiteHelper:
             raise
 
     def health_check(self) -> dict[str, Any]:
-        """Return DB health metrics (journal mode, PRAGMA quick_check, page stats); quick_check catches common corruption patterns faster than integrity_check."""
-        assert self.conn is not None, "DB not open — call open() first"
+        """Return DB health metrics (journal mode, quick_check, page stats)."""
+        if self.conn is None:
+            raise RuntimeError("DB not open — call open() first")
         journal_mode = self.conn.execute("PRAGMA journal_mode").fetchone()[0]
         integrity = self.conn.execute("PRAGMA quick_check").fetchone()[0]
         page_count = self.conn.execute("PRAGMA page_count").fetchone()[0]
@@ -184,22 +183,24 @@ class SQLiteHelper:
     )
 
     def checkpoint(self, mode: str = "TRUNCATE") -> dict[str, int]:
-        """Run WAL checkpoint and return {busy, pages_in_wal, pages_checkpointed}; PASSIVE=non-blocking, FULL/RESTART/TRUNCATE block until WAL flushed; default TRUNCATE reclaims disk."""
+        """Run WAL checkpoint; return {busy, pages_in_wal, pages_checkpointed}."""
         if mode not in self._CHECKPOINT_MODES:
             raise ValueError(
                 f"checkpoint mode must be one of {sorted(self._CHECKPOINT_MODES)}",
             )
-        assert self.conn is not None, "DB not open — call open() first"
+        if self.conn is None:
+            raise RuntimeError("DB not open — call open() first")
         row = self.conn.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()
         result = {"busy": row[0], "pages_in_wal": row[1], "pages_checkpointed": row[2]}
         logger.info(f"WAL checkpoint ({mode}): {result}")
         return result
 
     def vacuum(self) -> None:
-        """Rebuild the DB file in place to reclaim free pages; requires ~2× DB size in free disk space; cannot run inside a transaction."""
-        assert self.conn is not None, "DB not open — call open() first"
+        """Rebuild the DB file in place to reclaim free pages."""
+        if self.conn is None:
+            raise RuntimeError("DB not open — call open() first")
         self.conn.execute("VACUUM")
-        logger.info(f"VACUUM completed: {self.DB_PATH}")
+        logger.info(f"VACUUM completed: {self._db_path}")
 
     def _check_ready(self, sql: str) -> None:
         """Guard: raise if connection is not open or sql is invalid."""
@@ -215,8 +216,7 @@ class SQLiteHelper:
     ) -> sqlite3.Cursor:
         """Execute a SQL statement with positional (tuple) or named (dict) params."""
         self._check_ready(sql)
-        assert self.conn is not None  # guaranteed by _check_ready()
-        return self.conn.execute(sql, params)
+        return self.conn.execute(sql, params)  # type: ignore[union-attr]  # guarded by _check_ready
 
     def executemany(
         self,
@@ -225,8 +225,7 @@ class SQLiteHelper:
     ) -> sqlite3.Cursor:
         """Execute a SQL statement once per row in params_seq."""
         self._check_ready(sql)
-        assert self.conn is not None
-        return self.conn.executemany(sql, params_seq)
+        return self.conn.executemany(sql, params_seq)  # type: ignore[union-attr]  # guarded by _check_ready
 
     def fetchall(
         self,
@@ -235,8 +234,7 @@ class SQLiteHelper:
     ) -> list[Any]:
         """Execute a SQL statement and return all result rows as a list."""
         self._check_ready(sql)
-        assert self.conn is not None  # guaranteed by _check_ready()
-        return self.conn.execute(sql, params).fetchall()
+        return self.conn.execute(sql, params).fetchall()  # type: ignore[union-attr]  # guarded by _check_ready
 
     def commit(self) -> None:
         """Commit the current transaction on self.conn."""

@@ -176,11 +176,20 @@ class TestPurgeOldSessions:
 
 
 class TestRotateDb:
+    def _make_real_sqlite(self, path: Path) -> None:
+        """Create a minimal valid SQLite database file."""
+        import sqlite3
+
+        conn = sqlite3.connect(str(path))
+        conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+        conn.commit()
+        conn.close()
+
     def test_rotate_rag_db_creates_archive(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         db_file = tmp_path / "rag.sqlite"
-        db_file.write_bytes(b"fake-db-content")
+        self._make_real_sqlite(db_file)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
             "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
@@ -191,13 +200,18 @@ class TestRotateDb:
         assert dest.exists()
         assert dest.name.startswith("rag_")
         assert dest.suffix == ".sqlite"
-        assert dest.read_bytes() == b"fake-db-content"
+        # Verify the backup is a valid SQLite DB
+        import sqlite3 as _s
+
+        conn = _s.connect(str(dest))
+        assert conn.execute("SELECT name FROM sqlite_master").fetchall() is not None
+        conn.close()
 
     def test_rotate_session_db_creates_archive(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         db_file = tmp_path / "session.sqlite"
-        db_file.write_bytes(b"session-content")
+        self._make_real_sqlite(db_file)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
             "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
@@ -208,21 +222,24 @@ class TestRotateDb:
         assert dest.exists()
         assert dest.name.startswith("session_")
 
-    def test_rotate_rag_db_copies_wal_side_file(
+    def test_rotate_rag_db_backup_api_is_wal_safe(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # The backup API integrates WAL data automatically; no separate WAL file copy needed.
         db_file = tmp_path / "rag.sqlite"
-        db_file.write_bytes(b"db")
-        wal_file = tmp_path / "rag.sqlite-wal"
-        wal_file.write_bytes(b"wal-data")
+        self._make_real_sqlite(db_file)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
             "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
         dest = rotate_rag_db(archive_dir=archive_dir)
-        wal_dest = archive_dir / (dest.name + "-wal")
-        assert wal_dest.exists()
+        # Backup destination must be a valid SQLite database (no "file is not a database").
+        import sqlite3 as _s
+
+        conn = _s.connect(str(dest))
+        conn.execute("PRAGMA integrity_check")
+        conn.close()
 
     def test_rotate_rag_db_missing_file_raises(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -316,7 +333,7 @@ class TestPruneOldMemories:
         assert any("DELETE FROM memories_fts" in c for c in calls)
         mock_db.commit.assert_called_once()
 
-    def test_memories_vec_exception_is_suppressed(self) -> None:
+    def test_memories_vec_exception_raises(self) -> None:
         from db.maintenance import prune_old_memories
 
         mid = "abc-uuid"
@@ -324,14 +341,14 @@ class TestPruneOldMemories:
             fetchall_return=[(mid,)],
             rowcount=1,
         )
-        # memories_vec の削除で例外が発生しても suppress されること
+        # memories_vec deletion failure propagates (fail-fast)
         mock_db.execute.side_effect = [
             MagicMock(rowcount=1),  # DELETE FROM memories
             MagicMock(),  # DELETE FROM memories_fts
-            Exception("no vec table"),  # DELETE FROM memories_vec
+            Exception("no vec table"),  # DELETE FROM memories_vec — must raise
         ]
-        result = prune_old_memories(mock_db, older_than_days=30)
-        assert result == 1  # 例外があっても rowcount は使われる
+        with pytest.raises(Exception, match="no vec table"):
+            prune_old_memories(mock_db, older_than_days=30)
 
 
 # ── recover_corruption ─────────────────────────────────────────────────────────

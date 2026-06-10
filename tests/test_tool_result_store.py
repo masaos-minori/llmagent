@@ -1,6 +1,8 @@
 """tests/test_tool_result_store.py
 Unit tests for ToolResultStore: store, get, list_recent.
 SQLiteHelper is replaced with an in-memory SQLite connection (session target).
+
+DB errors are re-raised (fail-fast); callers (tool_runner.py) must handle them.
 """
 
 import sqlite3
@@ -85,21 +87,21 @@ class TestToolResultStoreStore:
         assert isinstance(row_id, int)
         assert row_id > 0
 
-    def test_returns_none_on_db_error(self) -> None:
+    def test_raises_on_db_error(self) -> None:
         def _raise(target: str = "session") -> None:  # noqa: ARG001
             raise RuntimeError("db unavailable")
 
         with patch("db.tool_results.SQLiteHelper", side_effect=_raise):
-            result = ToolResultStore().store(
-                session_id=None,
-                turn=1,
-                tool_name="tool",
-                args_masked="{}",
-                full_text="text",
-                summary=None,
-                is_error=False,
-            )
-        assert result is None
+            with pytest.raises(RuntimeError, match="db unavailable"):
+                ToolResultStore().store(
+                    session_id=None,
+                    turn=1,
+                    tool_name="tool",
+                    args_masked="{}",
+                    full_text="text",
+                    summary=None,
+                    is_error=False,
+                )
 
     def test_stores_error_flag(self, store: ToolResultStore) -> None:
         row_id = store.store(
@@ -138,12 +140,13 @@ class TestToolResultStoreGet:
     def test_returns_none_for_missing_id(self, store: ToolResultStore) -> None:
         assert store.get(99999) is None
 
-    def test_returns_none_on_db_error(self) -> None:
+    def test_raises_on_db_error(self) -> None:
         def _raise(target: str = "session") -> None:  # noqa: ARG001
             raise RuntimeError("db unavailable")
 
         with patch("db.tool_results.SQLiteHelper", side_effect=_raise):
-            assert ToolResultStore().get(1) is None
+            with pytest.raises(RuntimeError, match="db unavailable"):
+                ToolResultStore().get(1)
 
 
 class TestToolResultStoreListRecent:
@@ -173,9 +176,17 @@ class TestToolResultStoreListRecent:
         results = store.list_recent(1, n=3)
         assert len(results) == 3
 
-    def test_returns_empty_on_db_error(self) -> None:
+    def test_raises_on_db_error(self) -> None:
         def _raise(target: str = "session") -> None:  # noqa: ARG001
             raise RuntimeError("db unavailable")
 
         with patch("db.tool_results.SQLiteHelper", side_effect=_raise):
-            assert ToolResultStore().list_recent(1) == []
+            with pytest.raises(RuntimeError, match="db unavailable"):
+                ToolResultStore().list_recent(1)
+
+    def test_no_full_text_in_results(self, store: ToolResultStore) -> None:
+        store.store(1, 1, "tool", "{}", "full content here", "summary text", False)
+        results = store.list_recent(1)
+        assert len(results) == 1
+        assert "full_text" not in results[0]
+        assert "summary" in results[0]

@@ -28,11 +28,8 @@ from db.helper import SQLiteHelper
 
 
 def get_embedding_dims() -> int:
-    """Return embedding dimensions from DbConfig; fallback to 384."""
-    try:
-        return build_db_config().embedding_dims
-    except Exception:
-        return 384
+    """Return embedding dimensions from DbConfig; raises on config error."""
+    return build_db_config().embedding_dims
 
 
 def get_embedding_bytes() -> int:
@@ -201,21 +198,12 @@ class SQLiteDocumentStore:
         etag: str | None,
         last_modified: str | None,
     ) -> int:
-        row = self._db.fetchall("SELECT doc_id FROM documents WHERE url = ?", (url,))
-        if row:
-            doc_id = int(row[0][0])
-            self._db.execute(
-                "UPDATE documents SET title=?, lang=?, etag=?, last_modified=?"
-                " WHERE doc_id=?",
-                (title, lang, etag, last_modified, doc_id),
-            )
-            return doc_id
         cur = self._db.execute(
-            "INSERT INTO documents (url, title, lang, etag, last_modified)"
+            "INSERT OR REPLACE INTO documents (url, title, lang, etag, last_modified)"
             " VALUES (?, ?, ?, ?, ?)",
             (url, title, lang, etag, last_modified),
         )
-        assert cur.lastrowid is not None  # INSERT always sets lastrowid on success
+        assert cur.lastrowid is not None  # INSERT OR REPLACE always sets lastrowid
         return int(cur.lastrowid)
 
     def doc_get(self, url: str) -> dict[str, Any] | None:
@@ -347,8 +335,6 @@ class MemoryDeleteResult:
     """Result of an atomic cross-table memory deletion operation."""
 
     deleted: int
-    vec_skipped: bool
-    vec_error: str | None
 
 
 @runtime_checkable
@@ -361,7 +347,7 @@ class MemoryDeleteStore(Protocol):
 
 
 class SQLiteMemoryDeleteStore:
-    """SQLite-backed MemoryDeleteStore; vec deletion failures are non-fatal."""
+    """SQLite-backed MemoryDeleteStore; all deletions are atomic."""
 
     def __init__(self, db: SQLiteHelper) -> None:
         self._db = db
@@ -372,7 +358,7 @@ class SQLiteMemoryDeleteStore:
             (f"-{older_than_days} days",),
         )
         if not rows:
-            return MemoryDeleteResult(deleted=0, vec_skipped=False, vec_error=None)
+            return MemoryDeleteResult(deleted=0)
 
         mids = [row[0] for row in rows]
         placeholders = ",".join("?" * len(mids))
@@ -380,21 +366,11 @@ class SQLiteMemoryDeleteStore:
             f"DELETE FROM memories WHERE memory_id IN ({placeholders})",  # nosec B608 — mids are UUIDs from DB; placeholders use ?
             tuple(mids),
         )
+        deleted = cur.rowcount
         for mid in mids:
             self._db.execute("DELETE FROM memories_fts WHERE memory_id=?", (mid,))
-
-        deleted = cur.rowcount
-        vec_skipped = False
-        vec_error: str | None = None
         for mid in mids:
-            try:
-                self._db.execute("DELETE FROM memories_vec WHERE memory_id=?", (mid,))
-            except Exception as e:  # noqa: BLE001 — memories_vec may not exist in older DB schemas
-                vec_skipped = True
-                vec_error = str(e)
-                break
+            self._db.execute("DELETE FROM memories_vec WHERE memory_id=?", (mid,))
 
         self._db.commit()
-        return MemoryDeleteResult(
-            deleted=deleted, vec_skipped=vec_skipped, vec_error=vec_error
-        )
+        return MemoryDeleteResult(deleted=deleted)

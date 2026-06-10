@@ -30,9 +30,9 @@ class _ToolingMixin(MixinBase):
         print("-" * 55)
         for entry in entries:
             flag = "yes" if entry.get("summary") else "no"
+            summary_len = len(entry.get("summary") or "")
             print(
-                f"{entry['id']:>6}  {entry['tool_name']:<22}"
-                f"  {len(entry['full_text']):>7}  {flag}",
+                f"{entry['id']:>6}  {entry['tool_name']:<22}  {summary_len:>7}  {flag}",
             )
 
     def _tool_show(self, arg: str) -> None:
