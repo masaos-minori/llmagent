@@ -48,9 +48,12 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | github-mcp specifics | `docs/04_mcp-github.md` |
 | RAG pipeline modification | `docs/06_ref-rag.md` + `docs/06_common.md` |
 | rag-pipeline-mcp specifics | `docs/04_mcp-rag.md` |
-| sqlite-mcp specifics | `docs/04_mcp-servers.md` + `docs/06_ref-sqlite.md` |
+| sqlite-mcp specifics | `docs/04_mcp-sqlite.md` + `docs/06_ref-sqlite.md` |
+| shell-mcp specifics | `docs/04_mcp-shell.md` |
+| mdq-mcp specifics | `docs/04_mcp-mdq.md` |
 | cicd-mcp specifics | `docs/04_mcp-cicd.md` |
 | git-mcp specifics | `docs/04_mcp-git.md` |
+| Agent REPL slash commands (`CommandRegistry`) | `docs/06_ref-agent-commands.md` |
 | Agent startup / verification / troubleshooting | `docs/05_agent-ops.md` |
 | Agent features / slash commands / tool calling | `docs/05_agent.md` + `docs/06_ref-agent-commands.md` |
 | Plugin tool handler / @register_tool | `docs/06_ref-agent-repl.md` + `docs/06_common.md` |
