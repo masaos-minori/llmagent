@@ -5,6 +5,7 @@ Shared utilities for the RAG ingestion pipeline
 """
 
 import logging
+import math
 import struct
 import unicodedata
 from urllib.parse import urlparse
@@ -34,7 +35,8 @@ def floats_to_blob(values: list[float]) -> bytes:
     little-endian 32-bit floats packed contiguously in a BLOB.
 
     Raises TypeError  if *values* is not a list.
-    Raises ValueError if *values* is empty or contains non-numeric elements.
+    Raises ValueError if *values* is empty, contains non-numeric elements,
+                      or contains non-finite values (NaN, inf, -inf).
     Raises struct.error if packing fails (e.g. value out of float32 range).
     """
     _validate_float_list(values)
@@ -47,11 +49,8 @@ def floats_to_blob(values: list[float]) -> bytes:
 
 def validate_url(url: str) -> bool:
     """Return True if the URL has a valid http/https scheme and a non-empty netloc."""
-    try:
-        parsed = urlparse(url)
-        return parsed.scheme in ("http", "https") and bool(parsed.netloc)
-    except Exception:
-        return False
+    parsed = urlparse(url)
+    return parsed.scheme in ("http", "https") and bool(parsed.netloc)
 
 
 # ------------------------------------------------------------------
@@ -60,17 +59,19 @@ def validate_url(url: str) -> bool:
 
 
 def _validate_float_list(values: list[float]) -> None:
-    """Guard: ensure *values* is a non-empty list of numeric elements."""
+    """Guard: ensure *values* is a non-empty list of finite numeric elements."""
     if not isinstance(values, list):
         raise TypeError(
             f"floats_to_blob expects list[float], got {type(values).__name__}",
         )
     if not values:
         raise ValueError("floats_to_blob received an empty list.")
-    # Check only the first element to avoid O(N) overhead on large embeddings;
-    # struct.pack will catch type errors for remaining elements.
-    if not isinstance(values[0], int | float):
-        raise ValueError(
-            f"floats_to_blob: first element must be numeric, "
-            f"got {type(values[0]).__name__}",
-        )
+    for i, v in enumerate(values):
+        if not isinstance(v, int | float):
+            raise ValueError(
+                f"floats_to_blob: element {i} must be numeric, got {type(v).__name__}",
+            )
+        if not math.isfinite(v):
+            raise ValueError(
+                f"floats_to_blob: element {i} is not finite ({v!r})",
+            )

@@ -65,6 +65,24 @@ class TestFloatsToBlob:
         with pytest.raises(ValueError):
             floats_to_blob(["a", "b"])
 
+    def test_nan_element_raises_value_error(self):
+        import math
+
+        with pytest.raises(ValueError, match="not finite"):
+            floats_to_blob([1.0, math.nan, 3.0])
+
+    def test_inf_element_raises_value_error(self):
+        with pytest.raises(ValueError, match="not finite"):
+            floats_to_blob([float("inf")])
+
+    def test_neg_inf_element_raises_value_error(self):
+        with pytest.raises(ValueError, match="not finite"):
+            floats_to_blob([1.0, float("-inf")])
+
+    def test_non_numeric_mid_list_raises_value_error(self):
+        with pytest.raises(ValueError, match="element 2 must be numeric"):
+            floats_to_blob([1.0, 2.0, "x", 4.0])
+
 
 # ── validate_url ─────────────────────────────────────────────────────────────
 
