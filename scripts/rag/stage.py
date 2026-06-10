@@ -7,6 +7,8 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Protocol
 
+from rag.types import RagHit
+
 
 @dataclasses.dataclass
 class PipelineContext:
@@ -17,13 +19,13 @@ class PipelineContext:
     queries: list[str] = dataclasses.field(default_factory=list)
     search_results: list[Any] = dataclasses.field(
         default_factory=list
-    )  # list[list[RagHit]]
-    merged: list[Any] = dataclasses.field(default_factory=list)  # list[RagHit]
-    reranked: list[Any] = dataclasses.field(default_factory=list)  # list[RagHit]
+    )  # list[list[RawHit]] in practice
+    merged: list[RagHit] = dataclasses.field(default_factory=list)
+    reranked: list[RagHit] = dataclasses.field(default_factory=list)
     augment_result: str = ""
-    observers: list = dataclasses.field(default_factory=list)
+    observers: list[Any] = dataclasses.field(default_factory=list)
 
-    def add_observer(self, observer) -> None:
+    def add_observer(self, observer: Any) -> None:
         """Add an observer to be notified when stages complete."""
         self.observers.append(observer)
 

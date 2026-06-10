@@ -260,7 +260,9 @@ class RagLLM:
                 # Remove low-relevance chunks below the configured minimum score
                 if rag_min_score > 0.0:
                     result = [
-                        c for c in result if c.get("rerank_score", 0.0) >= rag_min_score
+                        c
+                        for c in result
+                        if cast(float, c.get("rerank_score", 0.0)) >= rag_min_score
                     ]
                     logger.info(
                         f"Rerank score filter: {len(result)} chunks remain"
