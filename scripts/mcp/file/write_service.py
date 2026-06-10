@@ -15,20 +15,23 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-from fastapi import HTTPException
-
-from mcp.file.common import require_file, resolve_safe
+from mcp.file.common import (
+    FileAuthorizationError,
+    FileValidationError,
+    require_file,
+    resolve_safe,
+)
 from mcp.file.write_models import (
     CreateDirectoryRequest,
     CreateDirectoryResponse,
     EditFileRequest,
     EditFileResponse,
     EditOperation,
+    FileWriteConfig,
     MoveFileRequest,
     MoveFileResponse,
     WriteFileRequest,
     WriteFileResponse,
-    _get_cfg,
 )
 from mcp.server import ToolArgs
 
@@ -60,15 +63,12 @@ class WriteFileService:
 
     @staticmethod
     def _apply_text_edits(content: str, edits: list[EditOperation]) -> str:
-        """Apply each edit in order. Raises HTTPException 422 if old_text not found."""
+        """Apply each edit in order. Raises FileValidationError if old_text not found."""
         modified = content
         for i, op in enumerate(edits, start=1):
             if op.old_text not in modified:
-                raise HTTPException(
-                    status_code=422,
-                    detail=(
-                        f"Edit {i}: replacement target not found: {op.old_text[:80]!r}"
-                    ),
+                raise FileValidationError(
+                    (f"Edit {i}: replacement target not found: {op.old_text[:80]!r}"),
                 )
             modified = modified.replace(op.old_text, op.new_text, 1)
         return modified
@@ -96,7 +96,7 @@ class WriteFileService:
                 target.write_text(modified, encoding="utf-8")
                 applied = True
             except PermissionError as e:
-                raise HTTPException(status_code=403, detail=str(e))
+                raise FileAuthorizationError(str(e))
         return diff, applied
 
     # ── Business operation methods ──
@@ -130,10 +130,10 @@ class WriteFileService:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(req.content, encoding="utf-8")
         except PermissionError as e:
-            raise HTTPException(status_code=403, detail=str(e))
+            raise FileAuthorizationError(str(e))
         except OSError as e:
             logger.error(f"write_file: OS error writing '{target}': {e}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise FileValidationError(str(e))
 
         size = target.stat().st_size
         return WriteFileResponse(path=str(target), size=size, applied=True, diff="")
@@ -145,12 +145,11 @@ class WriteFileService:
         try:
             original = target.read_text(encoding="utf-8")
         except UnicodeDecodeError:
-            raise HTTPException(
-                status_code=415,
-                detail="File cannot be decoded as UTF-8",
+            raise FileValidationError(
+                "File cannot be decoded as UTF-8",
             )
         except PermissionError as e:
-            raise HTTPException(status_code=403, detail=str(e))
+            raise FileAuthorizationError(str(e))
         modified = WriteFileService._apply_text_edits(original, req.edits)
         diff, applied = WriteFileService._write_if_changed(
             target,
@@ -168,10 +167,10 @@ class WriteFileService:
         try:
             target.mkdir(parents=True, exist_ok=True)
         except PermissionError as e:
-            raise HTTPException(status_code=403, detail=str(e))
+            raise FileAuthorizationError(str(e))
         except OSError as e:
             logger.error(f"create_directory: OS error creating '{target}': {e}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise FileValidationError(str(e))
 
         created = not already_exists
         return CreateDirectoryResponse(path=str(target), created=created)
@@ -196,19 +195,18 @@ class WriteFileService:
 
         # Guard: source must exist before attempting the move
         if not src.exists():
-            raise HTTPException(
-                status_code=404,
-                detail=f"Source does not exist: {req.source}",
+            raise FileNotFoundError(
+                f"Source does not exist: {req.source}",
             )
 
         try:
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(src), str(dest))
         except PermissionError as e:
-            raise HTTPException(status_code=403, detail=str(e))
+            raise FileAuthorizationError(str(e))
         except OSError as e:
             logger.error(f"move_file: OS error moving '{src}' to '{dest}': {e}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise FileValidationError(str(e))
 
         return MoveFileResponse(source=str(src), destination=str(dest), dry_run_info="")
 
@@ -271,13 +269,13 @@ class _LazyWriteFileService:
 
     def __getattr__(self, name: str) -> Any:
         if _LazyWriteFileService._instance is None:
-            cfg = _get_cfg()
-            allowed_dirs = [Path(d) for d in cfg.get("allowed_dirs", [])]
+            cfg = FileWriteConfig.load()
+            allowed_dirs = [Path(d) for d in cfg.allowed_dirs]
             if not allowed_dirs:
                 logger.warning("ALLOWED_DIRS is empty — all paths will be rejected")
             _LazyWriteFileService._instance = WriteFileService(
                 allowed_dirs=allowed_dirs,
-                max_write_bytes=cfg.get("max_write_bytes", 1048576),
+                max_write_bytes=cfg.max_write_bytes,
             )
         return getattr(_LazyWriteFileService._instance, name)
 

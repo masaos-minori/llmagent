@@ -1,31 +1,76 @@
 #!/usr/bin/env python3
 """mcp/cicd/models.py
-Config loading and Pydantic request models for cicd-mcp.
+Config loading, Pydantic models, and domain exceptions for cicd-mcp.
 """
 
 from __future__ import annotations
 
+import dataclasses
+import logging
 from typing import Any
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
-from shared.logger import Logger
 
-_models_logger = Logger(__name__, "/opt/llm/logs/cicd-mcp.log")
-
-_cfg: dict[str, Any] | None = None
+logger = logging.getLogger(__name__)
 
 
-def _get_cfg() -> dict[str, Any]:
-    """Load config on first call; cached for the module lifetime."""
-    global _cfg
-    if _cfg is None:
-        try:
-            _cfg = ConfigLoader().load("cicd_mcp_server.toml")
-        except Exception as e:
-            _models_logger.warning(f"Config load failed: {e}")
-            _cfg = {}
-    return _cfg
+# ──────────────────────────────────────────────────────────────────────────────
+# Typed config object
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+@dataclasses.dataclass
+class CicdConfig:
+    """Typed configuration for the CICD MCP server."""
+
+    auth_token: str = ""
+    repo_allowlist: list[str] = dataclasses.field(default_factory=list)
+    workflow_allowlist: list[str] = dataclasses.field(default_factory=list)
+    max_log_size_kb: int = 256
+    github_token: str = ""
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> CicdConfig:
+        """Construct from a raw config dict (e.g. loaded from TOML)."""
+        return cls(
+            auth_token=str(d.get("auth_token", "")),
+            repo_allowlist=list(d.get("repo_allowlist", [])),
+            workflow_allowlist=list(d.get("workflow_allowlist", [])),
+            max_log_size_kb=int(d.get("max_log_size_kb", 256)),
+            github_token=str(d.get("github_token", "")),
+        )
+
+    @classmethod
+    def load(cls) -> CicdConfig:
+        """Load from cicd_mcp_server.toml; raises on failure (fail-fast)."""
+        return cls.from_dict(ConfigLoader().load("cicd_mcp_server.toml"))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Domain exceptions
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class CicdAuthorizationError(RuntimeError):
+    """Raised when authentication/authorization fails."""
+
+
+class CicdNotFoundError(ValueError):
+    """Raised when a CICD resource is not found."""
+
+
+class CicdValidationError(ValueError):
+    """Raised on invalid input."""
+
+
+class CicdUpstreamError(RuntimeError):
+    """Raised on upstream service failures (e.g. GitHub API 5xx)."""
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pydantic schema definitions
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 class TriggerWorkflowRequest(BaseModel):

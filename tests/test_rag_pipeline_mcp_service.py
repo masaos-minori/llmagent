@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from mcp.rag_pipeline.models import (
     RagDebugResponse,
+    RagPipelineConfig,
     RagRunRequest,
     RagRunResponse,
     RagSearchRequest,
@@ -23,7 +24,8 @@ from mcp.rag_pipeline.service import RagPipelineMCPService
 
 class TestBuildRagCfgAdapter:
     def test_defaults_when_cfg_empty(self) -> None:
-        ns = build_rag_cfg_adapter({})
+        cfg = RagPipelineConfig()
+        ns = build_rag_cfg_adapter(cfg)
         assert ns.use_mqe is True
         assert ns.use_rrf is True
         assert ns.use_rerank is True
@@ -42,22 +44,22 @@ class TestBuildRagCfgAdapter:
         assert ns.refiner_timeout == 30.0
 
     def test_overrides_from_cfg(self) -> None:
-        cfg = {
-            "use_mqe": False,
-            "use_rrf": False,
-            "use_rerank": False,
-            "use_refiner": True,
-            "top_k_search": 10,
-            "top_k_rerank": 20,
-            "rag_top_k": 3,
-            "rag_min_score": 5.0,
-            "max_chunks_per_doc": 1,
-            "semantic_cache_max_size": 64,
-            "semantic_cache_threshold": 0.85,
-            "refiner_max_tokens": 256,
-            "refiner_max_chars_per_chunk": 400,
-            "refiner_timeout": 15.0,
-        }
+        cfg = RagPipelineConfig(
+            use_mqe=False,
+            use_rrf=False,
+            use_rerank=False,
+            use_refiner=True,
+            top_k_search=10,
+            top_k_rerank=20,
+            rag_top_k=3,
+            rag_min_score=5.0,
+            max_chunks_per_doc=1,
+            semantic_cache_max_size=64,
+            semantic_cache_threshold=0.85,
+            refiner_max_tokens=256,
+            refiner_max_chars_per_chunk=400,
+            refiner_timeout=15.0,
+        )
         ns = build_rag_cfg_adapter(cfg)
         assert ns.use_mqe is False
         assert ns.use_rrf is False
@@ -76,11 +78,13 @@ class TestBuildRagCfgAdapter:
 
     def test_rag_service_url_always_empty(self) -> None:
         # rag_service_url must always be "" to prevent HTTP loop in MCP process
-        ns = build_rag_cfg_adapter({"rag_service_url": "http://127.0.0.1:9999"})
+        cfg = RagPipelineConfig()
+        ns = build_rag_cfg_adapter(cfg)
         assert ns.rag_service_url == ""
 
     def test_use_search_always_true(self) -> None:
-        ns = build_rag_cfg_adapter({"use_search": False})
+        cfg = RagPipelineConfig()
+        ns = build_rag_cfg_adapter(cfg)
         assert ns.use_search is True
 
 
@@ -353,9 +357,17 @@ class TestServiceStart:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """start() builds httpx.AsyncClient and RagPipeline from config."""
-        import mcp.rag_pipeline.service as svc_module
 
-        monkeypatch.setattr(svc_module, "_get_cfg", lambda: {"http_timeout": 1.0})
+        import mcp.rag_pipeline.models as models_module
+
+        fake_cfg = models_module.RagPipelineConfig(
+            use_mqe=True,
+            use_rrf=True,
+            use_rerank=True,
+            top_k_search=5,
+            top_k_rerank=10,
+        )
+        monkeypatch.setattr(models_module.RagPipelineConfig, "load", lambda: fake_cfg)
 
         svc = RagPipelineMCPService()
         await svc.start()
@@ -372,25 +384,3 @@ class TestServiceStart:
         svc._pipeline = None
         await svc.stop()
         mock_http.aclose.assert_awaited_once()
-
-
-# ── _get_cfg error path ───────────────────────────────────────────────────────
-
-
-class TestGetCfgErrorPath:
-    def test_get_cfg_falls_back_to_empty_dict_on_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """_get_cfg() returns {} when ConfigLoader raises."""
-        import mcp.rag_pipeline.models as models_module
-        from shared.config_loader import ConfigLoader
-
-        monkeypatch.setattr(models_module, "_cfg", None)
-        monkeypatch.setattr(
-            ConfigLoader,
-            "load",
-            lambda self, *args: (_ for _ in ()).throw(OSError("no file")),
-        )
-        result = models_module._get_cfg()
-        assert result == {}
-        monkeypatch.setattr(models_module, "_cfg", None)

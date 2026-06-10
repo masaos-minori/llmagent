@@ -22,10 +22,12 @@ from mcp.git.models import (
     GitBranchRequest,
     GitCheckoutRequest,
     GitCommitRequest,
+    GitConfig,
     GitDiffRequest,
     GitLogRequest,
     GitPullRequest,
     GitPushRequest,
+    GitServiceError,
     GitShowRequest,
     GitStatusRequest,
 )
@@ -111,7 +113,7 @@ class GitService:
             return "\n".join(lines)
         except _GIT_ERRORS as e:
             logger.error(f"git_status error: {e}")
-            return f"[ERROR] git_status: {e}"
+            raise GitServiceError(f"git_status failed: {e}") from e
 
     async def git_log(self, args: ToolArgs) -> str:
 
@@ -138,7 +140,7 @@ class GitService:
             return "\n".join(lines) if lines else "(no commits)"
         except _GIT_ERRORS as e:
             logger.error(f"git_log error: {e}")
-            return f"[ERROR] git_log: {e}"
+            raise GitServiceError(f"git_log failed: {e}") from e
 
     async def git_diff(self, args: ToolArgs) -> str:
 
@@ -157,7 +159,7 @@ class GitService:
             return diff or "(no diff)"
         except _GIT_ERRORS as e:
             logger.error(f"git_diff error: {e}")
-            return f"[ERROR] git_diff: {e}"
+            raise GitServiceError(f"git_diff failed: {e}") from e
 
     async def git_branch(self, args: ToolArgs) -> str:
 
@@ -175,7 +177,7 @@ class GitService:
             return "\n".join(branches) if branches else "(no branches)"
         except _GIT_ERRORS as e:
             logger.error(f"git_branch error: {e}")
-            return f"[ERROR] git_branch: {e}"
+            raise GitServiceError(f"git_branch failed: {e}") from e
 
     async def git_show(self, args: ToolArgs) -> str:
 
@@ -189,7 +191,7 @@ class GitService:
             return output[:8000] if len(output) > 8000 else output
         except _GIT_ERRORS as e:
             logger.error(f"git_show error: {e}")
-            return f"[ERROR] git_show: {e}"
+            raise GitServiceError(f"git_show failed: {e}") from e
 
     # ── Write tools ───────────────────────────────────────────────────────────
 
@@ -215,7 +217,7 @@ class GitService:
             return f"Staged: {req.paths}"
         except _GIT_ERRORS as e:
             logger.error(f"git_add error: {e}")
-            return f"[ERROR] git_add: {e}"
+            raise GitServiceError(f"git_add failed: {e}") from e
 
     async def git_commit(self, args: ToolArgs) -> str:
 
@@ -232,12 +234,12 @@ class GitService:
             if req.dry_run:
                 return f"[DRY RUN] Would commit {len(staged)} file(s): {staged}\nMessage: {req.message!r}"
             if not staged:
-                return "[ERROR] Nothing staged to commit"
+                raise GitServiceError("nothing staged to commit")
             commit = repo.index.commit(req.message)
             return f"Committed: {commit.hexsha[:8]} {req.message!r}"
         except _GIT_ERRORS as e:
             logger.error(f"git_commit error: {e}")
-            return f"[ERROR] git_commit: {e}"
+            raise GitServiceError(f"git_commit failed: {e}") from e
 
     async def git_checkout(self, args: ToolArgs) -> str:
 
@@ -265,7 +267,7 @@ class GitService:
             return f"Switched to branch '{req.branch}'"
         except _GIT_ERRORS as e:
             logger.error(f"git_checkout error: {e}")
-            return f"[ERROR] git_checkout: {e}"
+            raise GitServiceError(f"git_checkout failed: {e}") from e
 
     async def git_pull(self, args: ToolArgs) -> str:
 
@@ -288,7 +290,7 @@ class GitService:
             return result or "Already up to date."
         except _GIT_ERRORS as e:
             logger.error(f"git_pull error: {e}")
-            return f"[ERROR] git_pull: {e}"
+            raise GitServiceError(f"git_pull failed: {e}") from e
 
     async def git_push(self, args: ToolArgs) -> str:
 
@@ -308,7 +310,7 @@ class GitService:
             return result or f"Pushed '{branch}' to '{req.remote}'"
         except _GIT_ERRORS as e:
             logger.error(f"git_push error: {e}")
-            return f"[ERROR] git_push: {e}"
+            raise GitServiceError(f"git_push failed: {e}") from e
 
     # ── Dispatch table ────────────────────────────────────────────────────────
 
@@ -329,11 +331,11 @@ class GitService:
         }
 
 
-def build_service(cfg: dict) -> GitService:
-    """Construct GitService from a config dict (injected by server.py)."""
-    allowed = list(cfg.get("allowed_repo_paths", []))
-    read_only = bool(cfg.get("read_only", True))
-    max_log = int(cfg.get("max_log_entries", 50))
+def build_service(cfg: GitConfig) -> GitService:
+    """Construct GitService from a typed GitConfig (injected by server.py)."""
+    allowed = list(cfg.allowed_repo_paths)
+    read_only = bool(cfg.read_only)
+    max_log = int(cfg.max_log_entries)
     if read_only:
         logger.info("git-mcp: read_only=true — write tools are disabled")
     if not allowed:

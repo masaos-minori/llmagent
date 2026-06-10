@@ -9,7 +9,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import orjson
 import pytest
-from fastapi import HTTPException
+from mcp.cicd.models import (
+    CicdAuthorizationError,
+    CicdConfig,
+    CicdNotFoundError,
+    CicdUpstreamError,
+    CicdValidationError,
+)
 from mcp.cicd.service import CiCdService, GitHubActionsBackend
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -39,13 +45,11 @@ def _make_service(
     workflow_allowlist: list[str] | None = None,
     backend: Any = None,
 ) -> CiCdService:
-    cfg: dict[str, Any] = {
-        "repo_allowlist": repo_allowlist if repo_allowlist is not None else [],
-        "workflow_allowlist": workflow_allowlist
-        if workflow_allowlist is not None
-        else [],
-        "max_log_size_kb": 256,
-    }
+    cfg = CicdConfig(
+        repo_allowlist=repo_allowlist if repo_allowlist is not None else [],
+        workflow_allowlist=workflow_allowlist if workflow_allowlist is not None else [],
+        max_log_size_kb=256,
+    )
     if backend is None:
         backend = AsyncMock()
     return CiCdService(cfg=cfg, backend=backend)
@@ -59,10 +63,9 @@ def _make_service(
 class TestAssertAllowedRepo:
     def test_empty_allowlist_denies_all(self) -> None:
         svc = _make_service(repo_allowlist=[])
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CicdAuthorizationError) as exc_info:
             svc._assert_allowed_repo("owner/repo")
-        assert exc_info.value.status_code == 403
-        assert "fail-closed" in exc_info.value.detail
+        assert "fail-closed" in str(exc_info.value)
 
     def test_repo_in_allowlist_passes(self) -> None:
         svc = _make_service(repo_allowlist=["owner/repo"])
@@ -70,10 +73,9 @@ class TestAssertAllowedRepo:
 
     def test_repo_not_in_allowlist_denied(self) -> None:
         svc = _make_service(repo_allowlist=["owner/allowed"])
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CicdAuthorizationError) as exc_info:
             svc._assert_allowed_repo("owner/other")
-        assert exc_info.value.status_code == 403
-        assert "repo_allowlist" in exc_info.value.detail
+        assert "repo_allowlist" in str(exc_info.value)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -92,10 +94,9 @@ class TestAssertAllowedWorkflow:
 
     def test_workflow_not_in_allowlist_denied(self) -> None:
         svc = _make_service(repo_allowlist=["o/r"], workflow_allowlist=["ci.yml"])
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CicdAuthorizationError) as exc_info:
             svc._assert_allowed_workflow("deploy.yml")
-        assert exc_info.value.status_code == 403
-        assert "workflow_allowlist" in exc_info.value.detail
+        assert "workflow_allowlist" in str(exc_info.value)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -109,10 +110,9 @@ class TestParseRepo:
         assert owner == "myorg"
         assert repo == "myrepo"
 
-    def test_invalid_slug_raises_http400(self) -> None:
-        with pytest.raises(HTTPException) as exc_info:
+    def test_invalid_slug_raises_validation_error(self) -> None:
+        with pytest.raises(CicdValidationError):
             CiCdService._parse_repo("nodash")
-        assert exc_info.value.status_code == 400
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -140,7 +140,7 @@ class TestHandleTriggerWorkflow:
         backend = AsyncMock()
         svc = _make_service(repo_allowlist=[], backend=backend)
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(CicdAuthorizationError):
             await svc.handle_trigger_workflow(
                 {"repo": "owner/repo", "workflow": "ci.yml"}
             )
@@ -195,12 +195,12 @@ class TestHandleGetWorkflowLogs:
 
 
 class TestCheckResponse:
-    def test_404_raises_http404(self) -> None:
+    def test_404_raises_not_found(self) -> None:
         backend = GitHubActionsBackend("token", MagicMock(), 256)
         resp = _make_http_response(404)
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CicdNotFoundError) as exc_info:
             backend._check_response(resp, "test context")
-        assert exc_info.value.status_code == 404
+        assert "Not found" in str(exc_info.value)
 
     def test_403_rate_limit_includes_reset_time(self) -> None:
         backend = GitHubActionsBackend("token", MagicMock(), 256)
@@ -209,33 +209,32 @@ class TestCheckResponse:
             body={"message": "API rate limit exceeded for ..."},
         )
         resp.headers = {"X-RateLimit-Reset": "1714000000"}
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CicdAuthorizationError) as exc_info:
             backend._check_response(resp, "test context")
-        assert exc_info.value.status_code == 403
-        assert "rate limit" in exc_info.value.detail.lower()
-        assert "1714000000" in exc_info.value.detail
+        assert "rate limit" in str(exc_info.value).lower()
+        assert "1714000000" in str(exc_info.value)
 
-    def test_403_non_rate_limit_raises_403(self) -> None:
+    def test_403_non_rate_limit_raises_auth_error(self) -> None:
         backend = GitHubActionsBackend("token", MagicMock(), 256)
         resp = _make_http_response(403, body={"message": "Forbidden"})
         resp.headers = {}
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CicdAuthorizationError) as exc_info:
             backend._check_response(resp, "test context")
-        assert exc_info.value.status_code == 403
+        assert "Access denied" in str(exc_info.value)
 
-    def test_422_raises_422(self) -> None:
+    def test_422_raises_validation_error(self) -> None:
         backend = GitHubActionsBackend("token", MagicMock(), 256)
         resp = _make_http_response(422, body={"message": "No ref found for 'bad-ref'"})
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CicdValidationError) as exc_info:
             backend._check_response(resp, "test context")
-        assert exc_info.value.status_code == 422
+        assert "Validation failed" in str(exc_info.value)
 
-    def test_502_on_unexpected_status(self) -> None:
+    def test_500_raises_upstream_error(self) -> None:
         backend = GitHubActionsBackend("token", MagicMock(), 256)
         resp = _make_http_response(500)
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CicdUpstreamError) as exc_info:
             backend._check_response(resp, "test context")
-        assert exc_info.value.status_code == 502
+        assert "GitHub API error" in str(exc_info.value)
 
     def test_200_does_not_raise(self) -> None:
         backend = GitHubActionsBackend("token", MagicMock(), 256)
@@ -260,14 +259,13 @@ class TestGitHubActionsBackendTriggerWorkflow:
         assert "owner/repo" in result
 
     @pytest.mark.asyncio
-    async def test_404_raises_http_exception(self) -> None:
+    async def test_404_raises_not_found(self) -> None:
         http = AsyncMock()
         http.post.return_value = _make_http_response(404)
         backend = GitHubActionsBackend("token", http, 256)
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CicdNotFoundError):
             await backend.trigger_workflow("owner", "repo", "ci.yml", "main", {})
-        assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
     async def test_request_uses_correct_url(self) -> None:
@@ -503,14 +501,11 @@ class TestTriggerWorkflowDryRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_denied_by_repo_allowlist(self) -> None:
-        from fastapi import HTTPException
-
         svc = _make_service(repo_allowlist=[])
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(CicdAuthorizationError):
             await svc.handle_trigger_workflow(
                 {"repo": "owner/repo", "workflow": "ci.yml", "dry_run": True}
             )
-        assert exc_info.value.status_code == 403
 
 
 class TestGitHubActionsBackendRepr:

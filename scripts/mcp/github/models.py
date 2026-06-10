@@ -90,28 +90,6 @@ class GitHubAuditError(RuntimeError):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Backward-compat config cache (used by service.py until Step 2 migration)
-# ──────────────────────────────────────────────────────────────────────────────
-
-_cfg: dict[str, Any] | None = None
-
-
-def _get_cfg() -> dict[str, Any]:
-    """Load config on first call; cached for the module lifetime.
-
-    Kept for backward compatibility with service.py — removed after Step 2.
-    """
-    global _cfg
-    if _cfg is None:
-        try:
-            _cfg = ConfigLoader().load("github_mcp_server.toml")
-        except Exception as e:
-            logger.warning(f"Config load failed: {e}")
-            _cfg = {}
-    return _cfg
-
-
-# ──────────────────────────────────────────────────────────────────────────────
 # Pydantic schema definitions
 # ──────────────────────────────────────────────────────────────────────────────
 class SearchRepositoriesRequest(BaseModel):

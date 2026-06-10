@@ -27,10 +27,10 @@ from fastapi import FastAPI
 from mcp.dispatch import dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs, attach_auth_middleware
-from mcp.sqlite.models import _get_cfg
+from mcp.sqlite.models import SqliteConfig
 from mcp.sqlite.service import _service
 
-_cfg = _get_cfg()
+_cfg = SqliteConfig.load()
 
 app = FastAPI(
     title="sqlite-mcp",
@@ -38,7 +38,7 @@ app = FastAPI(
     description="SQLite read-only query MCP server",
 )
 
-attach_auth_middleware(app, _cfg.get("auth_token", ""))
+attach_auth_middleware(app, _cfg.auth_token or "")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

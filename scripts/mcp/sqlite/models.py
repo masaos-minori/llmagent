@@ -5,27 +5,50 @@ Config loading and Pydantic request/response models for sqlite-mcp.
 
 from __future__ import annotations
 
+import dataclasses
+import logging
 from typing import Any
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
-from shared.logger import Logger
 
-_models_logger = Logger(__name__, "/opt/llm/logs/sqlite-mcp.log")
+logger = logging.getLogger(__name__)
 
-_cfg: dict[str, Any] | None = None
+# ──────────────────────────────────────────────────────────────────────────────
+# Typed config object
+# ──────────────────────────────────────────────────────────────────────────────
 
 
-def _get_cfg() -> dict[str, Any]:
-    """Load config on first call; cached for the module lifetime."""
-    global _cfg
-    if _cfg is None:
-        try:
-            _cfg = ConfigLoader().load("sqlite_mcp_server.toml")
-        except Exception as e:
-            _models_logger.warning(f"Config load failed: {e}")
-            _cfg = {}
-    return _cfg
+@dataclasses.dataclass
+class SqliteConfig:
+    """Typed configuration for the SQLite MCP server."""
+
+    db_paths: dict[str, str] = dataclasses.field(default_factory=dict)
+    db_allowlist: list[str] = dataclasses.field(default_factory=list)
+    max_rows: int = 100
+    timeout_sec: float = 30.0
+    auth_token: str = ""
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> SqliteConfig:
+        """Construct from a raw config dict (e.g. loaded from TOML)."""
+        return cls(
+            db_paths=dict(d.get("db_paths", {})),
+            db_allowlist=list(d.get("db_allowlist", [])),
+            max_rows=int(d.get("max_rows", 100)),
+            timeout_sec=float(d.get("timeout_sec", 30.0)),
+            auth_token=str(d.get("auth_token", "")),
+        )
+
+    @classmethod
+    def load(cls) -> SqliteConfig:
+        """Load from sqlite_mcp_server.toml; raises on failure (fail-fast)."""
+        return cls.from_dict(ConfigLoader().load("sqlite_mcp_server.toml"))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pydantic schema definitions
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 class QueryRequest(BaseModel):

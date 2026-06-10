@@ -20,7 +20,7 @@ from typing import Any
 import orjson
 
 from mcp.server import ToolArgs
-from mcp.sqlite.models import _get_cfg
+from mcp.sqlite.models import SqliteConfig
 
 logger = logging.getLogger(__name__)
 
@@ -131,10 +131,10 @@ class _LazySqliteMCPService:
 
     def __getattr__(self, name: str) -> Any:
         if _LazySqliteMCPService._instance is None:
-            cfg = _get_cfg()
-            db_paths: dict[str, str] = dict(cfg.get("db_paths", {}))
-            db_allowlist: list[str] = list(cfg.get("db_allowlist", []))
-            max_rows: int = int(cfg.get("max_rows", 100))
+            cfg = SqliteConfig.load()
+            db_paths: dict[str, str] = dict(cfg.db_paths)
+            db_allowlist: list[str] = list(cfg.db_allowlist)
+            max_rows: int = cfg.max_rows
             if not db_allowlist:
                 logger.warning(
                     "sqlite-mcp: db_allowlist is empty — all DB requests will be rejected",

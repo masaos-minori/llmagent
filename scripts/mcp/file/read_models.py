@@ -5,28 +5,43 @@ Config loading and Pydantic request/response models for file-read-mcp.
 
 from __future__ import annotations
 
+import dataclasses
+import logging
 from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 from shared.config_loader import ConfigLoader
-from shared.logger import Logger
 
-# Logger for config-load warnings; main log path is /opt/llm/logs/file-read-mcp.log
-_models_logger = Logger(__name__, "/opt/llm/logs/file-read-mcp.log")
+logger = logging.getLogger(__name__)
 
-_cfg: dict[str, Any] | None = None
+# ──────────────────────────────────────────────────────────────────────────────
+# Typed config object
+# ──────────────────────────────────────────────────────────────────────────────
 
 
-def _get_cfg() -> dict[str, Any]:
-    """Load config on first call; cached for the module lifetime."""
-    global _cfg
-    if _cfg is None:
-        try:
-            _cfg = ConfigLoader().load("file_read_mcp_server.toml")
-        except Exception as e:
-            _models_logger.warning(f"Config load failed: {e}")
-            _cfg = {}
-    return _cfg
+@dataclasses.dataclass
+class FileReadConfig:
+    """Typed configuration for the File Read MCP server."""
+
+    max_file_size_kb: int = 1000
+    allowed_dirs: list[str] = dataclasses.field(default_factory=list)
+    max_depth: int = 5
+    max_files_per_batch: int = 100
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> FileReadConfig:
+        """Construct from a raw config dict (e.g. loaded from TOML)."""
+        return cls(
+            max_file_size_kb=int(d.get("max_read_bytes", 1024000)) // 1024,
+            allowed_dirs=list(d.get("allowed_dirs", [])),
+            max_depth=int(d.get("max_tree_depth", 5)),
+            max_files_per_batch=int(d.get("max_search_results", 100)),
+        )
+
+    @classmethod
+    def load(cls) -> FileReadConfig:
+        """Load from file_read_mcp_server.toml; raises on failure (fail-fast)."""
+        return cls.from_dict(ConfigLoader().load("file_read_mcp_server.toml"))
 
 
 # ──────────────────────────────────────────────────────────────────────────────

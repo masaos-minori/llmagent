@@ -177,6 +177,14 @@ class MCPServer:
                 logger.error(f"run_stdio JSON decode error: {e}")
                 result = f"JSON decode error: {e}"
                 is_error = True
+            except (ValueError, OSError) as e:
+                logger.error(f"run_stdio expected error: {e}")
+                result = f"Error: {e}"
+                is_error = True
+            except RuntimeError as e:
+                logger.error(f"run_stdio runtime error: {e}")
+                result = f"Runtime error: {e}"
+                is_error = True
             except Exception as e:
                 # Last-resort handler: stdio transport must always write a response.
                 logger.error(f"run_stdio unexpected error: {e}")

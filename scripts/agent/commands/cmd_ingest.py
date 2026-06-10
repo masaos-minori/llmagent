@@ -13,6 +13,7 @@ import logging
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import render_export, write_export
+from mcp.rag_pipeline.models import RagPipelineConfig, build_rag_cfg_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +110,7 @@ class _IngestMixin(MixinBase):
             print("RAG search is disabled (use_search=false in config).")
             return
 
-        rag_cfg = build_rag_cfg_adapter(rag_cfg_dict)
+        rag_cfg = build_rag_cfg_adapter(RagPipelineConfig.from_dict(rag_cfg_dict))
         pipeline = RagPipeline(ctx.services.http, rag_cfg)
         context = await pipeline.augment(query)
         if not context:

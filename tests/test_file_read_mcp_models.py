@@ -2,11 +2,13 @@
 Minimal coverage tests for mcp.file.read_models.
 """
 
+import dataclasses
+
 import pytest
 from mcp.file.read_models import (
+    FileReadConfig,
     ListDirectoryRequest,
     ReadTextFileRequest,
-    _get_cfg,
 )
 
 
@@ -20,19 +22,33 @@ class TestReadModelsImport:
             ReadTextFileRequest(path="/tmp/f.txt", head=5, tail=3)
 
 
-class TestReadModelsGetCfg:
-    def test_get_cfg_falls_back_to_empty_on_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import mcp.file.read_models as models_mod
-        from shared.config_loader import ConfigLoader
+class TestFileReadConfig:
+    def test_from_dict_defaults(self) -> None:
+        cfg = FileReadConfig.from_dict({})
+        assert cfg.max_file_size_kb == 1000
+        assert cfg.allowed_dirs == []
+        assert cfg.max_depth == 5
+        assert cfg.max_files_per_batch == 100
 
-        monkeypatch.setattr(models_mod, "_cfg", None)
-        monkeypatch.setattr(
-            ConfigLoader,
-            "load",
-            lambda self, *args: (_ for _ in ()).throw(OSError("no file")),
+    def test_from_dict_custom_values(self) -> None:
+        cfg = FileReadConfig.from_dict(
+            {
+                "max_read_bytes": 2097152,
+                "allowed_dirs": ["/data", "/tmp"],
+                "max_tree_depth": 10,
+                "max_search_results": 200,
+            },
         )
-        result = _get_cfg()
-        assert result == {}
-        monkeypatch.setattr(models_mod, "_cfg", None)
+        assert cfg.max_file_size_kb == 2048
+        assert cfg.allowed_dirs == ["/data", "/tmp"]
+        assert cfg.max_depth == 10
+        assert cfg.max_files_per_batch == 200
+
+    def test_dataclass_fields(self) -> None:
+        fields = {f.name for f in dataclasses.fields(FileReadConfig)}
+        assert fields == {
+            "max_file_size_kb",
+            "allowed_dirs",
+            "max_depth",
+            "max_files_per_batch",
+        }

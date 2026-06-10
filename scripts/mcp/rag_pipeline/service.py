@@ -17,11 +17,11 @@ from rag.types import RagHit
 
 from mcp.rag_pipeline.models import (
     RagDebugResponse,
+    RagPipelineConfig,
     RagRunRequest,
     RagRunResponse,
     RagSearchRequest,
     RagSearchResponse,
-    _get_cfg,
     build_rag_cfg_adapter,
 )
 from mcp.server import ToolArgs
@@ -51,16 +51,18 @@ class RagPipelineMCPService:
             RagPipeline,  # noqa: PLC0415 — lazy: avoids circular import (_pipeline typed as Any)
         )
 
-        cfg = _get_cfg()
+        cfg = RagPipelineConfig.load()
 
         # Override module-level config caches so RagLLM and RagPipeline read from
         # rag_pipeline_mcp_server.toml.  Process-scoped; no cross-process contamination.
-        agent_rag._cfg = cfg  # noqa: SLF001 — override module cache for process-scoped config
+        import dataclasses as _dc
+
+        agent_rag._cfg = _dc.asdict(cfg)  # noqa: SLF001 — override module cache for process-scoped config
         # db.helper resolves config per-instance in __init__; no class-level cache to reset.
         # rag.llm no longer has a module-level _cfg cache; RagLLM receives cfg via constructor.
 
         rag_cfg = build_rag_cfg_adapter(cfg)
-        http_timeout = float(cfg.get("http_timeout", 120.0))
+        http_timeout = 120.0  # process-level HTTP client timeout
         self._http = httpx.AsyncClient(timeout=http_timeout)
         # SimpleNamespace satisfies RagPipeline's cfg.* attribute access pattern
         self._pipeline = RagPipeline(self._http, rag_cfg)

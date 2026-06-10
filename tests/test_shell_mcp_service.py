@@ -12,8 +12,12 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi import HTTPException
-from mcp.shell.models import ShellRunRequest, load_shell_policy
+from mcp.shell.models import (
+    ShellAuthorizationError,
+    ShellRunRequest,
+    ShellValidationError,
+    load_shell_policy,
+)
 from mcp.shell.service import ShellService, _init_sandbox, _make_preexec
 from shared.protocols.shell import ShellPolicy
 
@@ -150,16 +154,14 @@ class TestResolveCwd:
     def test_explicit_cwd_outside_allowed_dirs_raises(self, tmp_path: Path) -> None:
         outside = tmp_path.parent
         svc = _make_service(tmp_path)
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ShellAuthorizationError):
             svc._resolve_cwd(str(outside))
-        assert exc_info.value.status_code == 403
 
     def test_default_cwd_outside_allowed_dirs_raises(self, tmp_path: Path) -> None:
         # default_cwd points outside the allowed dirs list
         svc = _make_service(tmp_path, default_cwd=str(tmp_path.parent))
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ShellAuthorizationError):
             svc._resolve_cwd(None)
-        assert exc_info.value.status_code == 403
 
     def test_explicit_cwd_at_root_of_allowed_dir_passes(self, tmp_path: Path) -> None:
         svc = _make_service(tmp_path)
@@ -217,16 +219,14 @@ class TestCheckCommand:
         svc = _make_service(tmp_path)
         # Unclosed quote causes shlex.split to raise ValueError
         req = ShellRunRequest(command='ls "unclosed')
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ShellValidationError):
             svc._check_command(req)
-        assert exc_info.value.status_code == 400
 
     def test_command_not_in_allowlist_raises_403(self, tmp_path: Path) -> None:
         svc = _make_service(tmp_path)
         req = ShellRunRequest(command="rm -rf /")
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ShellAuthorizationError):
             svc._check_command(req)
-        assert exc_info.value.status_code == 403
 
 
 # ── _write_audit_log ──────────────────────────────────────────────────────────
@@ -287,23 +287,25 @@ class TestOutputTruncation:
 
 class TestLoadShellPolicy:
     def test_builds_policy_from_cfg(self, tmp_path: Path) -> None:
-        fake_cfg = {
-            "command_allowlist": ["pytest", "git"],
-            "shell_cwd_allowed_dirs": [str(tmp_path)],
-            "default_cwd": str(tmp_path),
-            "max_timeout_sec": 120,
-            "max_output_kb": 1024,
-            "max_memory_mb": 256,
-            "kill_policy": "sigkill_only",
-            "kill_grace_sec": 1.0,
-            "execution_user": "",
-            "shell_path": "/opt/venv/bin:/usr/bin",
-            "audit_log_path": "/tmp/audit.log",
-            "shell_sandbox_backend": "none",
-            "env_allowlist": [],
-            "env_denylist": ["LD_PRELOAD"],
-        }
-        with patch("mcp.shell.models._get_cfg", return_value=fake_cfg):
+        from mcp.shell.models import ShellConfig
+
+        fake_cfg = ShellConfig(
+            command_allowlist=["pytest", "git"],
+            shell_cwd_allowed_dirs=[str(tmp_path)],
+            default_cwd=str(tmp_path),
+            max_timeout_sec=120,
+            max_output_kb=1024,
+            max_memory_mb=256,
+            kill_policy="sigkill_only",
+            kill_grace_sec=1.0,
+            execution_user="",
+            shell_path="/opt/venv/bin:/usr/bin",
+            audit_log_path="/tmp/audit.log",
+            shell_sandbox_backend="none",
+            env_allowlist=[],
+            env_denylist=["LD_PRELOAD"],
+        )
+        with patch.object(ShellConfig, "load", return_value=fake_cfg):
             policy = load_shell_policy()
 
         assert "pytest" in policy.allowed_commands

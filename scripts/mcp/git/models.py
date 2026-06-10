@@ -5,28 +5,59 @@ Config loading and Pydantic request models for git-mcp.
 
 from __future__ import annotations
 
+import dataclasses
+import logging
 from typing import Any
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
-from shared.logger import Logger
 
-_models_logger = Logger(__name__, "/opt/llm/logs/git-mcp.log")
+logger = logging.getLogger(__name__)
 
-_cfg: dict[str, Any] | None = None
+# ──────────────────────────────────────────────────────────────────────────────
+# Typed config object
+# ──────────────────────────────────────────────────────────────────────────────
 
 
-def load_git_config() -> dict[str, Any]:
-    """Load config on first call; cached for the module lifetime."""
-    global _cfg
-    if _cfg is None:
-        try:
-            _cfg = ConfigLoader().load("git_mcp_server.toml")
-        except Exception as e:
-            _models_logger.warning(f"Config load failed: {e}")
-            _cfg = {}
-    return _cfg
+@dataclasses.dataclass
+class GitConfig:
+    """Typed configuration for the Git MCP server."""
 
+    allowed_repo_paths: list[str] = dataclasses.field(default_factory=list)
+    read_only: bool = True
+    auth_token: str = ""
+    max_log_entries: int = 50
+    audit_log_path: str = ""
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> GitConfig:
+        """Construct from a raw config dict (e.g. loaded from TOML)."""
+        return cls(
+            allowed_repo_paths=list(d.get("allowed_repo_paths", [])),
+            read_only=bool(d.get("read_only", True)),
+            auth_token=str(d.get("auth_token", "")),
+            max_log_entries=int(d.get("max_log_entries", 50)),
+            audit_log_path=str(d.get("audit_log_path", "")),
+        )
+
+    @classmethod
+    def load(cls) -> GitConfig:
+        """Load from git_mcp_server.toml; raises on failure (fail-fast)."""
+        return cls.from_dict(ConfigLoader().load("git_mcp_server.toml"))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Domain exceptions
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class GitServiceError(RuntimeError):
+    """Raised on general git service errors."""
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pydantic schema definitions
+# ──────────────────────────────────────────────────────────────────────────────
 
 # ── Read-only tool request models ────────────────────────────────────────────
 

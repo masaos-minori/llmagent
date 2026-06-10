@@ -7,6 +7,7 @@ Dependency direction: rag_pipeline_mcp_models → rag_pipeline_mcp_service → r
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from types import SimpleNamespace
 from typing import Any
@@ -16,45 +17,79 @@ from shared.config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 
-_cfg: dict[str, Any] | None = None
+# ──────────────────────────────────────────────────────────────────────────────
+# Typed config object
+# ──────────────────────────────────────────────────────────────────────────────
 
 
-def _get_cfg() -> dict[str, Any]:
-    """Load rag_pipeline_mcp_server.toml on first call; cached for the module lifetime."""
-    global _cfg
-    if _cfg is None:
-        try:
-            _cfg = ConfigLoader().load("rag_pipeline_mcp_server.toml")
-        except Exception as e:
-            logger.warning(f"rag_pipeline_mcp: config load failed: {e}")
-            _cfg = {}
-    return _cfg
+@dataclasses.dataclass
+class RagPipelineConfig:
+    """Typed configuration for the RAG Pipeline MCP server."""
+
+    use_mqe: bool = True
+    use_rrf: bool = True
+    use_rerank: bool = True
+    use_refiner: bool = False
+    top_k_search: int = 5
+    top_k_rerank: int = 10
+    rag_top_k: int = 5
+    rag_min_score: float = 0.0
+    max_chunks_per_doc: int = 3
+    semantic_cache_max_size: int = 128
+    semantic_cache_threshold: float = 0.92
+    refiner_max_tokens: int = 512
+    refiner_max_chars_per_chunk: int = 800
+    refiner_timeout: float = 30.0
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> RagPipelineConfig:
+        """Construct from a raw config dict (e.g. loaded from TOML)."""
+        return cls(
+            use_mqe=bool(d.get("use_mqe", True)),
+            use_rrf=bool(d.get("use_rrf", True)),
+            use_rerank=bool(d.get("use_rerank", True)),
+            use_refiner=bool(d.get("use_refiner", False)),
+            top_k_search=int(d.get("top_k_search", 5)),
+            top_k_rerank=int(d.get("top_k_rerank", 10)),
+            rag_top_k=int(d.get("rag_top_k", 5)),
+            rag_min_score=float(d.get("rag_min_score", 0.0)),
+            max_chunks_per_doc=int(d.get("max_chunks_per_doc", 3)),
+            semantic_cache_max_size=int(d.get("semantic_cache_max_size", 128)),
+            semantic_cache_threshold=float(d.get("semantic_cache_threshold", 0.92)),
+            refiner_max_tokens=int(d.get("refiner_max_tokens", 512)),
+            refiner_max_chars_per_chunk=int(d.get("refiner_max_chars_per_chunk", 800)),
+            refiner_timeout=float(d.get("refiner_timeout", 30.0)),
+        )
+
+    @classmethod
+    def load(cls) -> RagPipelineConfig:
+        """Load from rag_pipeline_mcp_server.toml; raises on failure (fail-fast)."""
+        return cls.from_dict(ConfigLoader().load("rag_pipeline_mcp_server.toml"))
 
 
-def build_rag_cfg_adapter(cfg: dict) -> SimpleNamespace:
+def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> SimpleNamespace:
     """Build a SimpleNamespace that satisfies RagPipeline's cfg.* access pattern.
 
     RagPipeline accesses AgentConfig fields via cfg.* attributes.  This adapter
-    populates only the fields RagPipeline reads, sourced from rag_pipeline_mcp_server.toml
-    instead of the full AgentConfig.
+    populates only the fields RagPipeline reads, sourced from RagPipelineConfig.
     """
     return SimpleNamespace(
-        use_mqe=bool(cfg.get("use_mqe", True)),
-        use_rrf=bool(cfg.get("use_rrf", True)),
-        use_rerank=bool(cfg.get("use_rerank", True)),
-        use_refiner=bool(cfg.get("use_refiner", False)),
+        use_mqe=bool(cfg.use_mqe),
+        use_rrf=bool(cfg.use_rrf),
+        use_rerank=bool(cfg.use_rerank),
+        use_refiner=bool(cfg.use_refiner),
         use_search=True,  # always True in MCP mode; checked in augment()
         rag_service_url="",  # prevent HTTP loop when augment() is called in-process
-        top_k_search=int(cfg.get("top_k_search", 5)),
-        top_k_rerank=int(cfg.get("top_k_rerank", 10)),
-        rag_top_k=int(cfg.get("rag_top_k", 5)),
-        rag_min_score=float(cfg.get("rag_min_score", 0.0)),
-        max_chunks_per_doc=int(cfg.get("max_chunks_per_doc", 3)),
-        semantic_cache_max_size=int(cfg.get("semantic_cache_max_size", 128)),
-        semantic_cache_threshold=float(cfg.get("semantic_cache_threshold", 0.92)),
-        refiner_max_tokens=int(cfg.get("refiner_max_tokens", 512)),
-        refiner_max_chars_per_chunk=int(cfg.get("refiner_max_chars_per_chunk", 800)),
-        refiner_timeout=float(cfg.get("refiner_timeout", 30.0)),
+        top_k_search=int(cfg.top_k_search),
+        top_k_rerank=int(cfg.top_k_rerank),
+        rag_top_k=int(cfg.rag_top_k),
+        rag_min_score=float(cfg.rag_min_score),
+        max_chunks_per_doc=int(cfg.max_chunks_per_doc),
+        semantic_cache_max_size=int(cfg.semantic_cache_max_size),
+        semantic_cache_threshold=float(cfg.semantic_cache_threshold),
+        refiner_max_tokens=int(cfg.refiner_max_tokens),
+        refiner_max_chars_per_chunk=int(cfg.refiner_max_chars_per_chunk),
+        refiner_timeout=float(cfg.refiner_timeout),
     )
 
 

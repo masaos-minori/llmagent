@@ -4,13 +4,12 @@ Unit tests for mcp.file.common — shared security helpers for file-read/write/d
 
 from __future__ import annotations
 
-import os
-import stat as _stat
 from pathlib import Path
 
 import pytest
-from fastapi import HTTPException
 from mcp.file.common import (
+    FileAuthorizationError,
+    FileValidationError,
     check_size_limit,
     format_permissions,
     require_dir,
@@ -38,15 +37,13 @@ class TestResolveSafe:
 
     def test_outside_allowed_dir_raises_403(self, tmp_path: Path) -> None:
         other = Path("/tmp/other_dir_xyz")
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileAuthorizationError):
             resolve_safe(str(other), [tmp_path])
-        assert exc_info.value.status_code == 403
 
     def test_parent_of_allowed_dir_raises_403(self, tmp_path: Path) -> None:
         parent = tmp_path.parent
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileAuthorizationError):
             resolve_safe(str(parent), [tmp_path])
-        assert exc_info.value.status_code == 403
 
     def test_multiple_allowed_dirs_first_match(self, tmp_path: Path) -> None:
         a = tmp_path / "a"
@@ -69,9 +66,8 @@ class TestResolveSafe:
         assert result == target
 
     def test_empty_allowed_dirs_raises_403(self, tmp_path: Path) -> None:
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileAuthorizationError):
             resolve_safe(str(tmp_path / "x"), [])
-        assert exc_info.value.status_code == 403
 
 
 class TestRequireFile:
@@ -82,16 +78,14 @@ class TestRequireFile:
 
     def test_nonexistent_file_raises_404(self, tmp_path: Path) -> None:
         target = tmp_path / "missing.txt"
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileNotFoundError):
             require_file(target, str(target))
-        assert exc_info.value.status_code == 404
 
     def test_directory_raises_400(self, tmp_path: Path) -> None:
         sub = tmp_path / "subdir"
         sub.mkdir()
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileValidationError):
             require_file(sub, str(sub))
-        assert exc_info.value.status_code == 400
 
 
 class TestRequireDir:
@@ -102,16 +96,14 @@ class TestRequireDir:
 
     def test_nonexistent_directory_raises_404(self, tmp_path: Path) -> None:
         target = tmp_path / "missing_dir"
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileNotFoundError):
             require_dir(target, str(target))
-        assert exc_info.value.status_code == 404
 
     def test_file_raises_400(self, tmp_path: Path) -> None:
         target = tmp_path / "file.txt"
         target.write_text("x", encoding="utf-8")
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileValidationError):
             require_dir(target, str(target))
-        assert exc_info.value.status_code == 400
 
 
 class TestCheckSizeLimit:
@@ -130,16 +122,15 @@ class TestCheckSizeLimit:
     def test_over_limit_raises_413(self, tmp_path: Path) -> None:
         target = tmp_path / "big.txt"
         target.write_text("hello world", encoding="utf-8")
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ValueError):
             check_size_limit(target, 5)
-        assert exc_info.value.status_code == 413
 
     def test_error_message_contains_sizes(self, tmp_path: Path) -> None:
         target = tmp_path / "big.txt"
         target.write_text("hello world", encoding="utf-8")
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             check_size_limit(target, 5)
-        assert "11" in exc_info.value.detail
+        assert "11" in str(exc_info.value)
 
 
 class TestFormatPermissions:

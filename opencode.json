@@ -9,7 +9,7 @@
       },
       "models": {
         "local-model": {
-          "name": "Qwen3-Coder (llama.cpp)",
+          "name": "Qwen3.6 (llama.cpp)",
           "limit": {
             "context": 65536,
             "output": 4096

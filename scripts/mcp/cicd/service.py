@@ -18,14 +18,17 @@ from typing import Any, Protocol
 
 import httpx
 import orjson
-from fastapi import HTTPException
 
 from mcp.cicd.models import (
+    CicdAuthorizationError,
+    CicdConfig,
+    CicdNotFoundError,
+    CicdUpstreamError,
+    CicdValidationError,
     GetWorkflowLogsRequest,
     GetWorkflowRunsRequest,
     GetWorkflowStatusRequest,
     TriggerWorkflowRequest,
-    _get_cfg,
 )
 from mcp.server import ToolArgs
 
@@ -110,35 +113,33 @@ class GitHubActionsBackend:
         return headers
 
     def _check_response(self, resp: httpx.Response, context: str) -> None:
-        """Raise HTTPException for non-2xx responses with contextual messages."""
+        """Raise domain exceptions for non-2xx responses with contextual messages."""
         if resp.status_code == 404:
-            raise HTTPException(status_code=404, detail=f"Not found: {context}")
+            raise CicdNotFoundError(f"Not found: {context}")
         if resp.status_code == 422:
             try:
                 msg_422 = orjson.loads(resp.content).get(
                     "message",
                     "Unprocessable Entity",
                 )
-            except Exception:
+            except (orjson.JSONDecodeError, UnicodeDecodeError):
                 msg_422 = "Unprocessable Entity"
-            raise HTTPException(status_code=422, detail=f"Validation failed: {msg_422}")
+            raise CicdValidationError(f"Validation failed: {msg_422}")
         if resp.status_code in (401, 403):
             try:
                 body = orjson.loads(resp.content)
                 msg: str = body.get("message", "Access denied")
-            except Exception:
+            except (orjson.JSONDecodeError, UnicodeDecodeError):
                 msg = "Access denied"
             if "rate limit" in msg.lower():
                 reset_ts = resp.headers.get("X-RateLimit-Reset", "unknown")
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"GitHub API rate limit exceeded. Reset at epoch: {reset_ts}",
+                raise CicdAuthorizationError(
+                    f"GitHub API rate limit exceeded. Reset at epoch: {reset_ts}",
                 )
-            raise HTTPException(status_code=403, detail=f"Access denied: {msg}")
+            raise CicdAuthorizationError(f"Access denied: {msg}")
         if not resp.is_success:
-            raise HTTPException(
-                status_code=502,
-                detail=f"GitHub API error (status={resp.status_code}): {context}",
+            raise CicdUpstreamError(
+                f"GitHub API error (status={resp.status_code}): {context}",
             )
 
     @staticmethod
@@ -319,7 +320,11 @@ class GitHubActionsBackend:
                         output_parts.append(
                             f"(log fetch failed: HTTP {log_resp.status_code})\n",
                         )
-                except Exception as e:
+                except (
+                    httpx.HTTPStatusError,
+                    httpx.RequestError,
+                    orjson.JSONDecodeError,
+                ) as e:
                     logger.warning(
                         "get_workflow_logs: log fetch error job=%d: %s",
                         job_id,
@@ -343,14 +348,14 @@ class CiCdService:
 
     def __init__(
         self,
-        cfg: dict[str, Any],
+        cfg: CicdConfig,
         backend: CiBackend,
     ) -> None:
         self._backend = backend
         # Empty allowlist = deny all (fail-closed, U-3)
-        self._repo_allowlist: list[str] = list(cfg.get("repo_allowlist", []))
+        self._repo_allowlist: list[str] = list(cfg.repo_allowlist)
         # Empty allowlist = allow all for workflow names
-        self._workflow_allowlist: list[str] = list(cfg.get("workflow_allowlist", []))
+        self._workflow_allowlist: list[str] = list(cfg.workflow_allowlist)
 
         if not self._repo_allowlist:
             logger.warning(
@@ -358,44 +363,41 @@ class CiCdService:
             )
 
     def _assert_allowed_repo(self, repo: str) -> None:
-        """Raise HTTPException(403) when repo is not in the allowlist.
+        """Raise CicdAuthorizationError when repo is not in the allowlist.
 
         Empty allowlist = deny all (fail-closed per U-3).
         """
         if not self._repo_allowlist:
-            raise HTTPException(
-                status_code=403,
-                detail=(
+            raise CicdAuthorizationError(
+                (
                     f"Repository '{repo}' is denied:"
                     " repo_allowlist is empty (fail-closed mode)"
                 ),
             )
         if repo not in self._repo_allowlist:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Repository not in repo_allowlist: {repo}",
+            raise CicdAuthorizationError(
+                f"Repository not in repo_allowlist: {repo}",
             )
 
     def _assert_allowed_workflow(self, workflow: str) -> None:
-        """Raise HTTPException(403) when workflow_allowlist is set and workflow is absent.
+        """Raise CicdAuthorizationError when workflow_allowlist is set and workflow is absent.
 
         Empty allowlist = allow all workflows.
         """
         if not self._workflow_allowlist:
             return
         if workflow not in self._workflow_allowlist:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Workflow not in workflow_allowlist: {workflow}",
+            raise CicdAuthorizationError(
+                f"Workflow not in workflow_allowlist: {workflow}",
             )
 
     @staticmethod
     def _parse_repo(repo: str) -> tuple[str, str]:
-        """Split 'owner/repo' slug; raise HTTPException(400) on bad format."""
+        """Split 'owner/repo' slug; raise CicdValidationError on bad format."""
         try:
             return GitHubActionsBackend._split_repo(repo)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from e
+            raise CicdValidationError(str(e)) from e
 
     # ── Dispatch handlers ──────────────────────────────────────────────────────
 
@@ -466,14 +468,14 @@ class _LazyCiCdService:
 
     def __getattr__(self, name: str) -> Any:
         if _LazyCiCdService._instance is None:
-            cfg = _get_cfg()
+            cfg = CicdConfig.load()
             # Read token from env (set via /etc/conf.d/cicd-mcp by OpenRC)
-            github_token = os.environ.get("GITHUB_TOKEN", cfg.get("github_token", ""))
+            github_token = os.environ.get("GITHUB_TOKEN", cfg.github_token)
             if not github_token:
                 logger.warning(
                     "cicd-mcp: GITHUB_TOKEN is not set; API rate limit will be 60 req/hr",
                 )
-            max_log_size_kb = int(cfg.get("max_log_size_kb", 256))
+            max_log_size_kb = cfg.max_log_size_kb
             http = httpx.AsyncClient(timeout=30.0)
             backend: CiBackend = GitHubActionsBackend(
                 github_token=github_token,

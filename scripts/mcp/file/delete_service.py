@@ -17,15 +17,19 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import HTTPException
-
-from mcp.file.common import require_dir, require_file, resolve_safe
+from mcp.file.common import (
+    FileAuthorizationError,
+    FileValidationError,
+    require_dir,
+    require_file,
+    resolve_safe,
+)
 from mcp.file.delete_models import (
     DeleteDirectoryRequest,
     DeleteDirectoryResponse,
     DeleteFileRequest,
     DeleteFileResponse,
-    _get_cfg,
+    FileDeleteConfig,
 )
 from mcp.server import ToolArgs
 
@@ -98,10 +102,10 @@ class DeleteFileService:
         try:
             target.unlink()
         except PermissionError as e:
-            raise HTTPException(status_code=403, detail=str(e))
+            raise FileAuthorizationError(str(e))
         except OSError as e:
             logger.error(f"delete_file: OS error deleting '{target}': {e}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise FileValidationError(str(e))
 
         # Audit log written after successful deletion
         self._write_audit_log("delete_file", str(target))
@@ -165,9 +169,9 @@ class DeleteFileService:
                 target.rmdir()
         except PermissionError as e:
             # PermissionError is a subclass of OSError, so catch it first
-            raise HTTPException(status_code=403, detail=str(e))
+            raise FileAuthorizationError(str(e))
         except OSError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise FileValidationError(str(e))
 
         # Audit log written after successful deletion
         self._write_audit_log("delete_directory", str(target))
@@ -208,16 +212,13 @@ class _LazyDeleteFileService:
 
     def __getattr__(self, name: str) -> Any:
         if _LazyDeleteFileService._instance is None:
-            cfg = _get_cfg()
-            allowed_dirs = [Path(d) for d in cfg.get("allowed_dirs", [])]
+            cfg = FileDeleteConfig.load()
+            allowed_dirs = [Path(d) for d in cfg.allowed_dirs]
             if not allowed_dirs:
                 logger.warning("ALLOWED_DIRS is empty — all paths will be rejected")
             _LazyDeleteFileService._instance = DeleteFileService(
                 allowed_dirs=allowed_dirs,
-                audit_log_path=cfg.get(
-                    "audit_log_path",
-                    "/opt/llm/logs/delete_audit.log",
-                ),
+                audit_log_path="/opt/llm/logs/delete_audit.log",
             )
         return getattr(_LazyDeleteFileService._instance, name)
 

@@ -22,7 +22,8 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
@@ -39,6 +40,18 @@ from mcp.rag_pipeline.service import RagPipelineMCPService, _service
 from mcp.server import MCPServer, ToolArgs
 
 logger = Logger(__name__, "/opt/llm/logs/rag-mcp.log")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Domain exception
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class RagPipelineServiceError(RuntimeError):
+    """Raised when the RAG pipeline service is not ready."""
+
+    pass
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # FastAPI lifespan: start / stop the shared service instance
@@ -60,6 +73,17 @@ app = FastAPI(
     description="RAG Pipeline MCP server (MQE→Search→RRF→Rerank→Dedup→Augment)",
     lifespan=_lifespan,
 )
+
+
+@app.exception_handler(RagPipelineServiceError)
+async def _handle_rag_service_error(
+    _req: Any, exc: RagPipelineServiceError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"error": str(exc)},
+    )
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Direct HTTP endpoints
@@ -106,7 +130,7 @@ async def v1_search(req: RagSearchRequest) -> RagSearchResponse:
     for two-stage fetch without REPL-side changes.
     """
     if _service._pipeline is None:  # noqa: SLF001 — readiness guard before dispatch
-        raise HTTPException(status_code=503, detail="Service not ready")
+        raise RagPipelineServiceError("Service not ready")
     t0 = time.perf_counter()
     result = await _service.run_search(req)
     ms = (time.perf_counter() - t0) * 1000

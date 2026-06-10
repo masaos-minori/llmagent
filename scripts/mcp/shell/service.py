@@ -23,11 +23,16 @@ from pathlib import Path
 from typing import Any
 
 import orjson
-from fastapi import HTTPException
 from shared.protocols.shell import ShellPolicy
 
 from mcp.server import ToolArgs
-from mcp.shell.models import ShellRunRequest, ShellRunResponse, load_shell_policy
+from mcp.shell.models import (
+    ShellAuthorizationError,
+    ShellRunRequest,
+    ShellRunResponse,
+    ShellValidationError,
+    load_shell_policy,
+)
 
 # Standard library logger; log path is owned by shell_mcp_server.py
 logger = logging.getLogger(__name__)
@@ -143,7 +148,7 @@ class ShellService:
 
         When req.argv is provided it is used directly (prevents shell injection);
         otherwise req.command is split with shlex.split().
-        Returns the validated argv list. Raises HTTPException 403/400 if not allowed.
+        Returns the validated argv list. Raises domain exceptions if not allowed.
         """
         if req.argv is not None:
             argv = req.argv
@@ -151,18 +156,16 @@ class ShellService:
             try:
                 argv = shlex.split(req.command)
             except ValueError as e:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid command string: {e}",
+                raise ShellValidationError(
+                    f"Invalid command string: {e}",
                 )
         if not argv:
-            raise HTTPException(status_code=400, detail="Empty command")
+            raise ShellValidationError("Empty command")
         # Compare base name to handle full-path commands like /usr/bin/ls
         base = os.path.basename(argv[0])
         if base not in self._allowlist:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Command not in allowlist: {base!r}",
+            raise ShellAuthorizationError(
+                f"Command not in allowlist: {base!r}",
             )
         return argv
 
@@ -201,16 +204,15 @@ class ShellService:
         try:
             resolved = Path(raw_cwd).resolve()
         except OSError:
-            raise HTTPException(status_code=400, detail="Invalid cwd path")
+            raise ShellValidationError("Invalid cwd path")
         for allowed in self._cwd_allowed_dirs:
             try:
                 resolved.relative_to(allowed.resolve())
                 return str(resolved)
             except ValueError:
                 continue
-        raise HTTPException(
-            status_code=403,
-            detail="cwd is outside allowed directories",
+        raise ShellAuthorizationError(
+            "cwd is outside allowed directories",
         )
 
     def _write_audit_log(
@@ -344,7 +346,7 @@ class ShellService:
             stdout_b, stderr_b, max_output_bytes
         )
 
-        # Decode bytes to strings; replace undecodable bytes to avoid HTTPException
+        # Decode bytes to strings; replace undecodable bytes to avoid decode errors
         stdout = stdout_b.decode("utf-8", errors="replace")
         stderr = stderr_b.decode("utf-8", errors="replace")
 

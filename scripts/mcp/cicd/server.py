@@ -24,7 +24,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 
 from mcp.audit import _audit_log
-from mcp.cicd.models import _get_cfg
+from mcp.cicd.models import CicdConfig
 from mcp.cicd.service import _service
 from mcp.dispatch import ToolArgs, dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
@@ -35,7 +35,7 @@ from mcp.server import (
 
 logger = logging.getLogger(__name__)
 
-_cfg = _get_cfg()
+_cfg = CicdConfig.load()
 
 app = FastAPI(
     title="cicd-mcp",
@@ -43,7 +43,7 @@ app = FastAPI(
     description="CI/CD (GitHub Actions) MCP server",
 )
 
-attach_auth_middleware(app, _cfg.get("auth_token", ""))
+attach_auth_middleware(app, _cfg.auth_token or "")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

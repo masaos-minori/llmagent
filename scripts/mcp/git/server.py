@@ -23,12 +23,12 @@ from typing import Any
 from fastapi import FastAPI
 
 from mcp.dispatch import dispatch_tool
-from mcp.git.models import load_git_config
+from mcp.git.models import GitConfig
 from mcp.git.service import build_service
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs, attach_auth_middleware
 
-_cfg = load_git_config()
+_cfg = GitConfig.load()
 _service = build_service(_cfg)
 
 app = FastAPI(
@@ -37,7 +37,7 @@ app = FastAPI(
     description="Local git operations MCP server",
 )
 
-attach_auth_middleware(app, _cfg.get("auth_token", ""))
+attach_auth_middleware(app, _cfg.auth_token or "")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

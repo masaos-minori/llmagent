@@ -18,10 +18,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import HTTPException
 from shared.formatters import fmt_size
 
 from mcp.file.common import (
+    FileAuthorizationError,
+    FileValidationError,
     check_size_limit,
     format_permissions,
     require_dir,
@@ -33,6 +34,7 @@ from mcp.file.read_models import (
     DirectoryTreeResponse,
     FileEntry,
     FileInfo,
+    FileReadConfig,
     FileResult,
     GetFileInfoRequest,
     GetFileInfoResponse,
@@ -50,7 +52,6 @@ from mcp.file.read_models import (
     SearchFilesRequest,
     SearchFilesResponse,
     TreeNode,
-    _get_cfg,
 )
 from mcp.server import ToolArgs
 
@@ -203,7 +204,7 @@ class ReadFileService:
                     ),
                 )
         except PermissionError as e:
-            raise HTTPException(status_code=403, detail=str(e))
+            raise FileAuthorizationError(str(e))
 
         return ListDirectoryResponse(path=str(target), entries=entries)
 
@@ -224,12 +225,11 @@ class ReadFileService:
         try:
             raw_content = target.read_text(encoding="utf-8")
         except UnicodeDecodeError:
-            raise HTTPException(
-                status_code=415,
-                detail="File cannot be decoded as UTF-8",
+            raise FileValidationError(
+                "File cannot be decoded as UTF-8",
             )
         except PermissionError as e:
-            raise HTTPException(status_code=403, detail=str(e))
+            raise FileAuthorizationError(str(e))
 
         content = ReadFileService._slice_lines(raw_content, req.head, req.tail)
         return ReadTextFileResponse(path=str(target), content=content, size=size)
@@ -243,10 +243,10 @@ class ReadFileService:
         try:
             data = target.read_bytes()
         except PermissionError as e:
-            raise HTTPException(status_code=403, detail=str(e))
+            raise FileAuthorizationError(str(e))
         except OSError as e:
             logger.error(f"read_media_file: OS error reading '{target}': {e}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise FileValidationError(str(e))
 
         # Fall back to application/octet-stream when the MIME type cannot be determined
         mime_type, _ = mimetypes.guess_type(str(target))
@@ -273,8 +273,8 @@ class ReadFileService:
                 )
             content = target.read_text(encoding="utf-8")
             return FileResult(path=str(target), content=content, size=size)
-        except HTTPException as e:
-            return FileResult(path=raw_path, content=None, error=e.detail)
+        except (FileAuthorizationError, FileValidationError) as e:
+            return FileResult(path=raw_path, content=None, error=str(e))
         except UnicodeDecodeError:
             return FileResult(
                 path=raw_path,
@@ -353,9 +353,8 @@ class ReadFileService:
         try:
             compiled = re.compile(req.pattern)
         except re.error as e:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid regular expression: {e}",
+            raise FileValidationError(
+                f"Invalid regular expression: {e}",
             )
         matches, truncated = self._collect_grep_matches(
             base,
@@ -374,16 +373,15 @@ class ReadFileService:
         target = self._resolve_safe(req.path)
         # Guard: path must exist before calling stat()
         if not target.exists():
-            raise HTTPException(
-                status_code=404,
-                detail=f"Path does not exist: {req.path}",
+            raise FileNotFoundError(
+                f"Path does not exist: {req.path}",
             )
 
         try:
             st = target.stat()
         except OSError as e:
             logger.error(f"get_file_info: stat failed for '{target}': {e}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise FileValidationError(str(e))
 
         perms = format_permissions(st.st_mode)
         info = FileInfo(
@@ -521,15 +519,15 @@ class _LazyReadFileService:
 
     def __getattr__(self, name: str) -> Any:
         if _LazyReadFileService._instance is None:
-            cfg = _get_cfg()
-            allowed_dirs = [Path(d) for d in cfg.get("allowed_dirs", [])]
+            cfg = FileReadConfig.load()
+            allowed_dirs = [Path(d) for d in cfg.allowed_dirs]
             if not allowed_dirs:
                 logger.warning("ALLOWED_DIRS is empty — all paths will be rejected")
             _LazyReadFileService._instance = ReadFileService(
                 allowed_dirs=allowed_dirs,
-                max_read_bytes=cfg.get("max_read_bytes", 1048576),
-                max_tree_depth=cfg.get("max_tree_depth", 5),
-                max_search_results=cfg.get("max_search_results", 100),
+                max_read_bytes=cfg.max_file_size_kb * 1024,
+                max_tree_depth=cfg.max_depth,
+                max_search_results=cfg.max_files_per_batch,
             )
         return getattr(_LazyReadFileService._instance, name)
 

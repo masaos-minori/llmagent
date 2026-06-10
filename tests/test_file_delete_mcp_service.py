@@ -213,14 +213,13 @@ class TestPathAllowlist:
     def test_delete_outside_allowed_dir_raises_403(
         self, service: DeleteFileService, tmp_path: Path
     ) -> None:
-        from fastapi import HTTPException
+        from mcp.file.common import FileAuthorizationError
 
         target = tmp_path / "f.txt"
         target.write_text("x")
         req = DeleteFileRequest(path="/etc/shadow", dry_run=True)
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileAuthorizationError):
             service.delete_file(req)
-        assert exc_info.value.status_code == 403
 
     def test_delete_inside_allowed_dir_succeeds(
         self, service: DeleteFileService, tmp_path: Path
