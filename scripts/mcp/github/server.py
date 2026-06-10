@@ -85,7 +85,7 @@ from mcp.github.models import (
     UpdatePullRequestResponse,
 )
 from mcp.github.service import _GITHUB_TOKEN, _service
-from mcp.github.tools import _MCP_TOOLS
+from mcp.github.tools import TOOL_LIST
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs
 
@@ -514,7 +514,7 @@ async def list_tools() -> dict[str, Any]:
     return {
         "tools": [
             {"name": t["name"], "description": t.get("description", "")}
-            for t in _MCP_TOOLS
+            for t in TOOL_LIST
         ],
     }
 
@@ -551,7 +551,7 @@ class GithubMCPServer(MCPServer):
     server_version = "1.0.0"
     http_port = 8006
     app_module = "github_mcp_server:app"
-    mcp_tools = _MCP_TOOLS
+    mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
         return await _dispatch_github_tool(name, args)

@@ -3,6 +3,8 @@
 MCP tool schema definitions for github-mcp server (inputSchema format).
 
 Imported by mcp/github/server.py to keep the server module under 400 lines.
+
+TOOL_LIST is the canonical export; _MCP_TOOLS is kept for backward compatibility.
 """
 
 from __future__ import annotations
@@ -500,3 +502,6 @@ _MCP_TOOLS = [
         },
     },
 ]
+
+# Canonical export — server.py imports TOOL_LIST, not _MCP_TOOLS directly.
+TOOL_LIST: list[dict] = _MCP_TOOLS
