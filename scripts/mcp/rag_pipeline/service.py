@@ -46,7 +46,6 @@ class RagPipelineMCPService:
 
     async def start(self) -> None:
         """Initialize shared resources; must be called once before first request."""
-        import rag.llm as rag_llm  # noqa: PLC0415 — lazy: heavy RAG module init deferred to first start()
         import rag.pipeline as agent_rag  # noqa: PLC0415 — lazy import avoids module-load side effects
         from rag.pipeline import (
             RagPipeline,  # noqa: PLC0415 — lazy: avoids circular import (_pipeline typed as Any)
@@ -57,8 +56,8 @@ class RagPipelineMCPService:
         # Override module-level config caches so RagLLM and RagPipeline read from
         # rag_pipeline_mcp_server.toml.  Process-scoped; no cross-process contamination.
         agent_rag._cfg = cfg  # noqa: SLF001 — override module cache for process-scoped config
-        rag_llm._cfg = cfg  # noqa: SLF001
         # db.helper resolves config per-instance in __init__; no class-level cache to reset.
+        # rag.llm no longer has a module-level _cfg cache; RagLLM receives cfg via constructor.
 
         rag_cfg = build_rag_cfg_adapter(cfg)
         http_timeout = float(cfg.get("http_timeout", 120.0))

@@ -21,23 +21,22 @@ from rag.types import LLMMessage, RagHit
 
 logger = logging.getLogger(__name__)
 
+
 # ─────────────────────────────────────────────────────────────────────────────
-# Config (common.toml + agent.toml — same files as agent_rag._get_cfg)
+# Exception types
 # ─────────────────────────────────────────────────────────────────────────────
 
-_cfg: dict[str, Any] | None = None
+
+class MqeParseError(ValueError):
+    """Raised when the MQE LLM response cannot be parsed as a valid query list."""
 
 
-def _get_cfg() -> dict[str, Any]:
-    """Load config on first call; cached for the module lifetime."""
-    global _cfg
-    if _cfg is None:
-        try:
-            _cfg = ConfigLoader().load("common.toml", "agent.toml")
-        except Exception as e:
-            logger.warning(f"Config load failed: {e}")
-            _cfg = {}
-    return _cfg
+class RagExpansionError(RuntimeError):
+    """Raised when MQE query expansion fails (HTTP, parse, or connection error)."""
+
+
+class RagRerankError(RuntimeError):
+    """Raised when cross-encoder reranking fails (HTTP, parse, or connection error)."""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -87,13 +86,12 @@ _DEFAULT_RERANK_SCORE = 5.0
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _mqe_prompt(query: str, context: str = "") -> str:
+def _mqe_prompt(query: str, context: str, cfg: dict[str, Any]) -> str:
     """Build the MQE rephrasing prompt, prepending conversation context when given.
 
     context holds recent user utterances; it is search-only and is never sent
     directly to the final LLM answer prompt.
     """
-    cfg = _get_cfg()
     prompt = cfg.get("mqe_prompt_template", "").format(
         n_queries=cfg.get("mqe_n_queries", 3),
         query=query,
@@ -104,17 +102,21 @@ def _mqe_prompt(query: str, context: str = "") -> str:
 
 
 def _parse_mqe_response(raw: str, original_query: str) -> list[str]:
-    """Extract and validate a JSON array of paraphrases from raw LLM output."""
+    """Extract and validate a JSON array of paraphrases from raw LLM output.
+
+    Raises MqeParseError when the response cannot be parsed as a string list.
+    """
     m = re.search(r"\[.*\]", raw, re.DOTALL)
     if not m:
-        return [original_query]
+        raise MqeParseError(f"MQE response contains no JSON array: {raw!r}")
     try:
         expanded = orjson.loads(m.group())
-    except orjson.JSONDecodeError:
-        logger.warning("MQE response JSON is malformed, fallback to original query")
-        return [original_query]
+    except orjson.JSONDecodeError as e:
+        raise MqeParseError(f"MQE response JSON is malformed: {e}") from e
     if not isinstance(expanded, list):
-        return [original_query]
+        raise MqeParseError(
+            f"MQE response JSON is not a list: {type(expanded).__name__}"
+        )
     valid = [q for q in expanded if isinstance(q, str) and q.strip()]
     logger.info(f"MQE: {len(valid)} queries expanded from original")
     return [original_query] + valid
@@ -134,16 +136,18 @@ def _extract_chat_content(data: dict[str, Any]) -> str:
     return str(content).strip()
 
 
-def _build_rerank_prompt(query: str, candidates: list[RagHit]) -> str:
+def _build_rerank_prompt(
+    query: str, candidates: list[RagHit], cfg: dict[str, Any]
+) -> str:
     """Build the Cross-Encoder scoring prompt from the configured template."""
     items_text = ""
     for i, chunk in enumerate(candidates, start=1):
         preview = chunk["content"][:300].replace("\n", " ")
         items_text += f"\n{i}. {preview}"
     return str(
-        _get_cfg()
-        .get("rerank_prompt_template", "")
-        .format(query=query, items_text=items_text),
+        cfg.get("rerank_prompt_template", "").format(
+            query=query, items_text=items_text
+        ),
     )
 
 
@@ -176,7 +180,7 @@ def _apply_rerank_scores(
             )
             score = _DEFAULT_RERANK_SCORE
         scored.append({**chunk, "rerank_score": score})
-    scored.sort(key=lambda x: cast("float", x["rerank_score"]), reverse=True)
+    scored.sort(key=lambda x: cast(float, x["rerank_score"]), reverse=True)
     logger.info(f"Cross-Encoder rerank: top_k={top_k} selected")
     return cast("list[RagHit]", scored[:top_k])
 
@@ -189,9 +193,15 @@ def _apply_rerank_scores(
 class RagLLM:
     """LLM-based query expansion (MQE) and cross-encoder reranking."""
 
-    def __init__(self, client: httpx.AsyncClient, llm_url: str) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        llm_url: str,
+        cfg: dict[str, Any] | None = None,
+    ) -> None:
         self._client = client
         self._llm_url = llm_url
+        self._cfg: dict[str, Any] = cfg if cfg is not None else {}
 
     async def _call_llm(
         self,
@@ -212,32 +222,24 @@ class RagLLM:
         return _extract_chat_content(orjson.loads(resp.content))
 
     async def expand_queries(self, query: str, context: str = "") -> list[str]:
-        """Expand query to MQE paraphrases via LLM; context disambiguates multi-turn pronouns; returns [query] on failure."""
+        """Expand query to MQE paraphrases via LLM.
+
+        Raises RagExpansionError on HTTP failure, connection error, or parse failure.
+        """
         try:
             raw = await self._call_llm(
-                [{"role": "user", "content": _mqe_prompt(query, context)}],
+                [{"role": "user", "content": _mqe_prompt(query, context, self._cfg)}],
                 _MQE_TEMPERATURE,
                 _MQE_MAX_TOKENS,
             )
             return _parse_mqe_response(raw, query)
-        except httpx.HTTPStatusError as e:
-            logger.warning(
-                f"MQE failed (HTTP {e.response.status_code}),"
-                f" fallback to original query: {e}",
-            )
-        except httpx.RequestError as e:
-            logger.warning(
-                f"MQE failed (connection error), fallback to original query: {e}",
-            )
-        except orjson.JSONDecodeError as e:
-            logger.warning(
-                f"MQE failed (JSON parse error), fallback to original query: {e}",
-            )
-        except Exception:
-            logger.exception(
-                "MQE failed (unexpected error), fallback to original query",
-            )
-        return [query]
+        except (
+            httpx.HTTPStatusError,
+            httpx.RequestError,
+            orjson.JSONDecodeError,
+            MqeParseError,
+        ) as e:
+            raise RagExpansionError(f"MQE expansion failed: {e}") from e
 
     async def cross_encoder_rerank(
         self,
@@ -246,49 +248,39 @@ class RagLLM:
         top_k: int,
         rag_min_score: float = 0.0,
     ) -> list[RagHit]:
-        """Re-rank candidates with a single batch LLM call; drops below rag_min_score; falls back to RRF order on failure."""
+        """Re-rank candidates with a single batch LLM call; drops below rag_min_score.
+
+        Raises RagRerankError on HTTP failure, connection error, or parse failure.
+        """
         if not candidates:
             return []
         try:
             raw = await self._call_llm(
-                [{"role": "user", "content": _build_rerank_prompt(query, candidates)}],
+                [
+                    {
+                        "role": "user",
+                        "content": _build_rerank_prompt(query, candidates, self._cfg),
+                    }
+                ],
                 _RERANK_TEMPERATURE,
                 _RERANK_MAX_TOKENS,
             )
-            result = _apply_rerank_scores(raw, candidates, top_k)
-            if result is not None:
-                # Remove low-relevance chunks below the configured minimum score
-                if rag_min_score > 0.0:
-                    result = [
-                        c
-                        for c in result
-                        if cast(float, c.get("rerank_score", 0.0)) >= rag_min_score
-                    ]
-                    logger.info(
-                        f"Rerank score filter: {len(result)} chunks remain"
-                        f" (min_score={rag_min_score})",
-                    )
-                return result
-        except httpx.HTTPStatusError as e:
-            logger.warning(
-                f"Cross-Encoder rerank failed (HTTP {e.response.status_code}),"
-                f" fallback to RRF order: {e}",
+        except (httpx.HTTPStatusError, httpx.RequestError, orjson.JSONDecodeError) as e:
+            raise RagRerankError(f"Cross-encoder rerank LLM call failed: {e}") from e
+        result = _apply_rerank_scores(raw, candidates, top_k)
+        if result is None:
+            raise RagRerankError("Cross-encoder rerank: score parse returned no result")
+        if rag_min_score > 0.0:
+            result = [
+                c
+                for c in result
+                if cast(float, c.get("rerank_score", 0.0)) >= rag_min_score
+            ]
+            logger.info(
+                f"Rerank score filter: {len(result)} chunks remain"
+                f" (min_score={rag_min_score})",
             )
-        except httpx.RequestError as e:
-            logger.warning(
-                "Cross-Encoder rerank failed (connection error),"
-                f" fallback to RRF order: {e}",
-            )
-        except orjson.JSONDecodeError as e:
-            logger.warning(
-                "Cross-Encoder rerank failed (JSON parse error),"
-                f" fallback to RRF order: {e}",
-            )
-        except Exception:
-            logger.exception(
-                "Cross-Encoder rerank failed (unexpected error), fallback to RRF order",
-            )
-        return candidates[:top_k]
+        return result
 
     async def summarize_tool_result(
         self,
@@ -296,7 +288,10 @@ class RagLLM:
         tool_name: str,
         args: dict[str, Any],
     ) -> str:
-        """Summarize a long tool result via LLM (3-5 sentences); returns original text on any error."""
+        """Summarize a long tool result via LLM (3-5 sentences).
+
+        Raises on any HTTP or parse failure — callers decide how to handle.
+        """
         text_preview = text[:_SUMMARIZE_INPUT_MAX_CHARS]
         args_str = orjson.dumps(args).decode()[:200]
         prompt = _SUMMARIZE_PROMPT_TEMPLATE.format(
@@ -304,15 +299,11 @@ class RagLLM:
             args_str=args_str,
             text_preview=text_preview,
         )
-        try:
-            return await self._call_llm(
-                [{"role": "user", "content": prompt}],
-                _SUMMARIZE_TEMPERATURE,
-                _SUMMARIZE_MAX_TOKENS,
-            )
-        except Exception as e:
-            logger.warning(f"Tool summarization failed for {tool_name!r}: {e}")
-            return text
+        return await self._call_llm(
+            [{"role": "user", "content": prompt}],
+            _SUMMARIZE_TEMPERATURE,
+            _SUMMARIZE_MAX_TOKENS,
+        )
 
     async def refine_context(
         self,
@@ -348,13 +339,15 @@ class RagLLM:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-async def get_embedding(text: str, client: httpx.AsyncClient) -> list[float]:
+async def get_embedding(
+    text: str, client: httpx.AsyncClient, embed_url: str
+) -> list[float]:
     """Convert text to a 384-dimensional float embedding vector.
     E5 model requires "query: " prefix for query input.
     (Ingestion uses "passage: " prefix)
     """
     resp = await client.post(
-        _get_cfg().get("embed_url", ""),
+        embed_url,
         json={"content": f"query: {text}"},
     )
     resp.raise_for_status()
@@ -369,10 +362,14 @@ async def summarize_tool_result(
     tool_name: str,
     args: dict[str, Any],
     client: httpx.AsyncClient,
+    llm_url: str | None = None,
 ) -> str:
-    """Tool result summarization. Delegates to RagLLM."""
-    return await RagLLM(client, _get_cfg().get("llm_url", "")).summarize_tool_result(
-        text,
-        tool_name,
-        args,
-    )
+    """Tool result summarization. Delegates to RagLLM.
+
+    llm_url: if None, reads from common.toml/agent.toml at call time.
+    Raises on config load failure or LLM call failure.
+    """
+    if llm_url is None:
+        cfg = ConfigLoader().load("common.toml", "agent.toml")
+        llm_url = cfg.get("llm_url", "")
+    return await RagLLM(client, llm_url).summarize_tool_result(text, tool_name, args)

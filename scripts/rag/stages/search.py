@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from rag.repository import RagRepository
 from rag.stage import PipelineContext, PipelineStage
@@ -17,13 +17,21 @@ logger = logging.getLogger(__name__)
 
 
 async def _search_all_queries(
-    queries: list[str], db: SQLiteHelper, cfg: dict[str, Any]
+    queries: list[str],
+    db: SQLiteHelper,
+    cfg: dict[str, Any],
+    http: httpx.AsyncClient | None,
+    embed_url: str,
 ) -> list[list]:
     """Run concurrent embedding fetches then sequential DB searches; sequential DB avoids shared-connection conflicts."""
-    from rag.llm import get_embedding
+    import httpx as _httpx  # noqa: PLC0415 — lazy: avoids circular import at module level
+
+    from rag.llm import (
+        get_embedding,  # noqa: PLC0415 — lazy: avoids circular import at module level
+    )
 
     raw = await asyncio.gather(
-        *(get_embedding(q, db._http) for q in queries),  # type: ignore[attr-defined]
+        *(get_embedding(q, cast(_httpx.AsyncClient, http), embed_url) for q in queries),
         return_exceptions=True,
     )
     all_results: list[list] = []
@@ -49,17 +57,22 @@ async def _search_all_queries(
 
 class SearchStage(PipelineStage):
     def __init__(
-        self, cfg: dict[str, Any], http: httpx.AsyncClient | None = None
+        self,
+        cfg: dict[str, Any],
+        http: httpx.AsyncClient | None = None,
+        embed_url: str = "",
     ) -> None:
         self._cfg = cfg
         self._http = http
+        self._embed_url = embed_url
 
     async def run(
         self, ctx: PipelineContext, db: SQLiteHelper | None = None, **kwargs: Any
     ) -> None:
-        # Moves logic from RagPipeline.search_queries()
         if db is None:
             logger.warning("SearchStage.run: db is None, returning empty results")
             ctx.search_results = []
             return
-        ctx.search_results = await _search_all_queries(ctx.queries, db, self._cfg)
+        ctx.search_results = await _search_all_queries(
+            ctx.queries, db, self._cfg, self._http, self._embed_url
+        )

@@ -122,18 +122,17 @@ class RagPipeline:
             max_size=cfg.semantic_cache_max_size,
             threshold=cfg.semantic_cache_threshold,
         )
-        # Initialize stages
-        self._llm = RagLLM(self._http, _get_cfg().get("llm_url", ""))
+        # Initialize stages; load url/config from module-level cfg cache
+        _module_cfg = _get_cfg()
+        self._llm = RagLLM(self._http, _module_cfg.get("llm_url", ""), cfg=_module_cfg)
+        self._embed_url: str = _module_cfg.get("embed_url", "")
 
     async def expand_queries_safe(self, query: str, context: str = "") -> list[str]:
         """Run MQE with fallback to original query on any error."""
         if not self._cfg.use_mqe:
             return [query]
         try:
-            return await RagLLM(
-                self._http,
-                _get_cfg().get("llm_url", ""),
-            ).expand_queries(query, context=context)
+            return await self._llm.expand_queries(query, context=context)
         except Exception as e:
             logger.warning(f"MQE failed, using original query: {e}")
             return [query]
@@ -145,7 +144,7 @@ class RagPipeline:
     ) -> list[list[RagHit]]:
         """Run concurrent embedding fetches then sequential DB searches; sequential DB avoids shared-connection conflicts."""
         raw = await asyncio.gather(
-            *(get_embedding(q, self._http) for q in queries),
+            *(get_embedding(q, self._http, self._embed_url) for q in queries),
             return_exceptions=True,
         )
         all_results: list[list[RagHit]] = []
@@ -172,10 +171,7 @@ class RagPipeline:
             result = merged[: self._cfg.rag_top_k]
             return deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
         try:
-            result = await RagLLM(
-                self._http,
-                _get_cfg().get("llm_url", ""),
-            ).cross_encoder_rerank(
+            result = await self._llm.cross_encoder_rerank(
                 query,
                 merged[: self._cfg.top_k_rerank],
                 self._cfg.rag_top_k,
@@ -199,7 +195,7 @@ class RagPipeline:
             self.last_timings = {}
             stages: list = [
                 MqeStage(self._cfg.__dict__, self._llm),
-                SearchStage(self._cfg.__dict__),
+                SearchStage(self._cfg.__dict__, self._http, self._embed_url),
                 FusionStage(self._cfg.__dict__),
                 RerankStage(self._cfg.__dict__, self._llm),
                 AugmentStage(),
@@ -245,10 +241,7 @@ class RagPipeline:
         """Run the chunk refiner; returns None on empty output or any exception so caller falls back to raw chunks."""
         try:
             self._on_status("refining context...")
-            refined = await RagLLM(
-                self._http,
-                _get_cfg().get("llm_url", ""),
-            ).refine_context(
+            refined = await self._llm.refine_context(
                 reranked,
                 query,
                 max_tokens=self._cfg.refiner_max_tokens,
