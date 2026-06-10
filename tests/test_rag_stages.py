@@ -316,15 +316,14 @@ class TestMqeStage:
 
     @pytest.mark.asyncio
     async def test_run_llm_exception(self, mock_context, mock_llm):
-        """Test MqeStage handles LLM exceptions with fallback."""
+        """Test MqeStage propagates LLM exceptions (fail-fast)."""
         mock_llm.expand_queries.side_effect = Exception("LLM error")
 
         cfg = {"use_mqe": True}
         stage = MqeStage(cfg, mock_llm)
 
-        await stage.run(mock_context)
-
-        assert mock_context.queries == ["test query"]
+        with pytest.raises(Exception, match="LLM error"):
+            await stage.run(mock_context)
 
     @pytest.mark.asyncio
     async def test_run_empty_expansion(self, mock_context, mock_llm):
@@ -363,14 +362,13 @@ class TestRunMqe:
         mock_llm.expand_queries.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_mqe_exception_fallback(self, mock_llm):
-        """Test _run_mqe falls back to original query on exception."""
+    async def test_mqe_exception_propagates(self, mock_llm):
+        """Test _run_mqe propagates exceptions (fail-fast)."""
         mock_llm.expand_queries.side_effect = Exception("Error")
         cfg = {"use_mqe": True}
 
-        result = await _run_mqe("original query", cfg, mock_llm)
-
-        assert result == ["original query"]
+        with pytest.raises(Exception, match="Error"):
+            await _run_mqe("original query", cfg, mock_llm)
 
 
 class TestFusionStage:
@@ -529,7 +527,7 @@ class TestRerankStage:
 
     @pytest.mark.asyncio
     async def test_run_llm_exception(self, mock_context, mock_llm):
-        """Test RerankStage handles LLM exceptions with fallback."""
+        """Test RerankStage propagates LLM exceptions (fail-fast)."""
         mock_context.merged = [
             {"chunk_id": 1, "content": "result1", "url": "http://example.com/1"},
         ]
@@ -545,9 +543,8 @@ class TestRerankStage:
         }
         stage = RerankStage(cfg, mock_llm)
 
-        await stage.run(mock_context)
-
-        assert len(mock_context.reranked) == 1
+        with pytest.raises(Exception, match="LLM error"):
+            await stage.run(mock_context)
 
     @pytest.mark.asyncio
     async def test_run_empty_merged(self, mock_context, mock_llm):
@@ -636,8 +633,8 @@ class TestRerank:
         mock_llm.cross_encoder_rerank.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_rerank_exception_fallback(self, mock_llm):
-        """Test _rerank falls back to RRF order on exception."""
+    async def test_rerank_exception_propagates(self, mock_llm):
+        """Test _rerank propagates LLM exceptions (fail-fast)."""
         merged = [
             {"chunk_id": 1, "content": "result1", "url": "http://example.com/1"},
         ]
@@ -651,9 +648,8 @@ class TestRerank:
             "rag_min_score": 0.0,
         }
 
-        result = await _rerank("test query", merged, cfg, mock_llm)
-
-        assert len(result) == 1
+        with pytest.raises(Exception, match="Error"):
+            await _rerank("test query", merged, cfg, mock_llm)
 
 
 class TestAugmentStage:

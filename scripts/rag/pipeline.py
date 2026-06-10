@@ -15,9 +15,8 @@ Module layout:
   rag/pipeline.py    — RagPipeline (this file)
 """
 
-import asyncio
 import logging
-import re
+import sqlite3
 import time
 from collections.abc import Callable
 from typing import Any
@@ -42,49 +41,35 @@ from rag.stages.mqe import MqeStage
 from rag.stages.rerank import RerankStage
 from rag.stages.search import SearchStage
 from rag.types import RagHit
+from rag.utils import sanitize_document
 
 # Re-export symbols that external callers import from this module
 __all__ = [
     "RagHit",
     "RagPipeline",
+    "RagPipelineError",
     "fetch_full_document",
     "get_embedding",
+    "sanitize_document",
 ]
 
 logger = logging.getLogger(__name__)
 
 _cfg: dict[str, Any] | None = None
 
-# Patterns known to be used in prompt injection attacks
-_INJECTION_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"(?i)(ignore\s+(?:(?:all|previous)\s+)*instructions?)", re.MULTILINE),
-    re.compile(r"(?i)(system\s*:\s*)", re.MULTILINE),
-    re.compile(r"(?i)\[SYSTEM\s*OVERRIDE\]", re.MULTILINE),
-    re.compile(
-        r"(?i)(disregard\s+(?:(?:all|prior|previous)\s+)*instructions?)", re.MULTILINE
-    ),
-    re.compile(r"(?i)(new\s+instructions?:)", re.MULTILINE),
-]
-
-
-def sanitize_document(text: str) -> str:
-    """Remove known prompt injection patterns from retrieved document text.
-
-    Only strips specific high-confidence injection patterns.
-    Does not modify code blocks, configuration, or regular text.
-    Returns the sanitized text with injection patterns replaced by [REMOVED].
-    """
-    for pattern in _INJECTION_PATTERNS:
-        text = pattern.sub("[REMOVED]", text)
-    return text
-
-
 _RAG_BLOCK_START = "[RAG_CONTEXT_START]"
 _RAG_BLOCK_END = "[RAG_CONTEXT_END]"
 
 
+class RagPipelineError(RuntimeError):
+    """Raised when a pipeline-level operation fails (e.g. DB open, stage failure)."""
+
+
 def _get_cfg() -> dict[str, Any]:
-    """Load config on first call; cached for the module lifetime."""
+    """Load config on first call; cached for the module lifetime.
+
+    Used by service.py to override config via module-level _cfg assignment.
+    """
     global _cfg
     if _cfg is None:
         try:
@@ -127,22 +112,14 @@ class RagPipeline:
         self._llm = RagLLM(self._http, _module_cfg.get("llm_url", ""), cfg=_module_cfg)
         self._embed_url: str = _module_cfg.get("embed_url", "")
 
-    async def expand_queries_safe(self, query: str, context: str = "") -> list[str]:
-        """Run MQE with fallback to original query on any error."""
-        if not self._cfg.use_mqe:
-            return [query]
-        try:
-            return await self._llm.expand_queries(query, context=context)
-        except Exception as e:
-            logger.warning(f"MQE failed, using original query: {e}")
-            return [query]
-
     async def search_queries(
         self,
         queries: list[str],
         db: SQLiteHelper,
     ) -> list[list[RagHit]]:
         """Run concurrent embedding fetches then sequential DB searches; sequential DB avoids shared-connection conflicts."""
+        import asyncio
+
         raw = await asyncio.gather(
             *(get_embedding(q, self._http, self._embed_url) for q in queries),
             return_exceptions=True,
@@ -161,27 +138,25 @@ class RagPipeline:
                     all_results.append(vec_res)
                 if fts_res:
                     all_results.append(fts_res)
-            except Exception as e:
-                logger.warning(f"Search failed for '{q}': {e}")
+            except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
+                logger.warning(f"Search DB failure for '{q}': {e}")
         return all_results
 
     async def rerank_candidates(self, query: str, merged: list[RagHit]) -> list[RagHit]:
-        """Apply Cross-Encoder rerank then dedup; fall back to RRF order on error."""
+        """Apply Cross-Encoder rerank then dedup.
+
+        Raises RagRerankError on LLM failure when use_rerank=True.
+        """
         if not self._cfg.use_rerank:
             result = merged[: self._cfg.rag_top_k]
             return deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
-        try:
-            result = await self._llm.cross_encoder_rerank(
-                query,
-                merged[: self._cfg.top_k_rerank],
-                self._cfg.rag_top_k,
-                rag_min_score=self._cfg.rag_min_score,
-            )
-            return deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
-        except Exception as e:
-            logger.warning(f"Rerank failed, using RRF order: {e}")
-            result = merged[: self._cfg.rag_top_k]
-            return deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
+        result = await self._llm.cross_encoder_rerank(
+            query,
+            merged[: self._cfg.top_k_rerank],
+            self._cfg.rag_top_k,
+            rag_min_score=self._cfg.rag_min_score,
+        )
+        return deduplicate_chunks(result, self._cfg.max_chunks_per_doc)
 
     async def run(
         self,
@@ -231,14 +206,19 @@ class RagPipeline:
                 # store for two-stage fetch callers (orchestrator._fetch_two_stage_context)
                 self.last_reranked = hits
             return str(body.get("context", ""))
-        except Exception as e:
+        except (
+            httpx.HTTPStatusError,
+            httpx.RequestError,
+            orjson.JSONDecodeError,
+            ValueError,
+        ) as e:
             logger.warning(
                 f"RAG service call failed ({rag_url}), falling back to in-process: {e}",
             )
             return None
 
     async def _augment_refiner(self, reranked: list[RagHit], query: str) -> str | None:
-        """Run the chunk refiner; returns None on empty output or any exception so caller falls back to raw chunks."""
+        """Run the chunk refiner; returns None on empty output or LLM failure so caller falls back to raw chunks."""
         try:
             self._on_status("refining context...")
             refined = await self._llm.refine_context(
@@ -251,7 +231,7 @@ class RagPipeline:
             if refined:
                 return refined
             logger.warning("Refiner returned empty output; falling back to chunks")
-        except Exception as e:
+        except (httpx.HTTPStatusError, httpx.RequestError, ValueError) as e:
             logger.warning(f"Refiner failed, falling back to original chunks: {e}")
         return None
 
@@ -285,9 +265,8 @@ class RagPipeline:
                 return result
         try:
             db = SQLiteHelper().open(row_factory=True)
-        except Exception as e:
-            logger.warning(f"DB open failed (RAG unavailable): {e}")
-            return ""
+        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
+            raise RagPipelineError(f"DB open failed (RAG unavailable): {e}") from e
         with db:
             queries, all_results, merged, reranked = await self.run(
                 query,

@@ -6,12 +6,36 @@ Shared utilities for the RAG ingestion pipeline
 
 import logging
 import math
+import re
 import struct
 import unicodedata
 from urllib.parse import urlparse
 
 # Library module — no FileHandler; caller controls log routing
 logger = logging.getLogger(__name__)
+
+# Patterns known to be used in prompt injection attacks
+_INJECTION_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"(?i)(ignore\s+(?:(?:all|previous)\s+)*instructions?)", re.MULTILINE),
+    re.compile(r"(?i)(system\s*:\s*)", re.MULTILINE),
+    re.compile(r"(?i)\[SYSTEM\s*OVERRIDE\]", re.MULTILINE),
+    re.compile(
+        r"(?i)(disregard\s+(?:(?:all|prior|previous)\s+)*instructions?)", re.MULTILINE
+    ),
+    re.compile(r"(?i)(new\s+instructions?:)", re.MULTILINE),
+]
+
+
+def sanitize_document(text: str) -> str:
+    """Remove known prompt injection patterns from retrieved document text.
+
+    Only strips specific high-confidence injection patterns.
+    Does not modify code blocks, configuration, or regular text.
+    Returns the sanitized text with injection patterns replaced by [REMOVED].
+    """
+    for pattern in _INJECTION_PATTERNS:
+        text = pattern.sub("[REMOVED]", text)
+    return text
 
 
 def normalize_unicode(text: str) -> str:

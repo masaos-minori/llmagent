@@ -89,13 +89,14 @@ class TestMqeStage:
         llm.expand_queries.assert_called_once_with("hello")
 
     @pytest.mark.asyncio
-    async def test_mqe_falls_back_on_llm_error(self) -> None:
+    async def test_mqe_raises_on_llm_error(self) -> None:
+        """MqeStage propagates RagExpansionError instead of falling back."""
         llm = MagicMock()
         llm.expand_queries = AsyncMock(side_effect=RuntimeError("LLM unavailable"))
         stage = MqeStage({"use_mqe": True}, llm)
         ctx = PipelineContext(query="hello")
-        await stage.run(ctx)
-        assert ctx.queries == ["hello"]
+        with pytest.raises(RuntimeError, match="LLM unavailable"):
+            await stage.run(ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -202,9 +203,14 @@ class TestRerankStage:
         llm.cross_encoder_rerank.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_rerank_falls_back_on_error(self) -> None:
+    async def test_rerank_raises_on_error(self) -> None:
+        """RerankStage propagates RagRerankError instead of falling back to RRF order."""
+        from rag.llm import RagRerankError
+
         llm = MagicMock()
-        llm.cross_encoder_rerank = AsyncMock(side_effect=RuntimeError("rerank failed"))
+        llm.cross_encoder_rerank = AsyncMock(
+            side_effect=RagRerankError("rerank failed")
+        )
         cfg = {
             "use_rerank": True,
             "rag_top_k": 2,
@@ -219,8 +225,8 @@ class TestRerankStage:
         ]
         ctx = PipelineContext(query="q")
         ctx.merged = hits
-        await stage.run(ctx)
-        assert len(ctx.reranked) <= 2
+        with pytest.raises(RagRerankError, match="rerank failed"):
+            await stage.run(ctx)
 
 
 # ---------------------------------------------------------------------------

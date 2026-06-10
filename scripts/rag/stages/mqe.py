@@ -1,22 +1,18 @@
 """MQE stage for RAG pipeline."""
 
-import logging
-
-from rag.llm import RagLLM
+from rag.llm import RagExpansionError, RagLLM  # noqa: F401 — re-exported for callers
 from rag.stage import PipelineContext, PipelineStage
-
-logger = logging.getLogger(__name__)
 
 
 async def _run_mqe(query: str, cfg: dict, llm: RagLLM) -> list[str]:
-    """Run MQE with fallback to original query on any error."""
+    """Run MQE query expansion.
+
+    Raises RagExpansionError on LLM failure.
+    Returns [query] when MQE is disabled.
+    """
     if not cfg.get("use_mqe", True):
         return [query]
-    try:
-        return await llm.expand_queries(query)
-    except Exception as e:
-        logger.warning(f"MQE failed, using original query: {e}")
-        return [query]
+    return await llm.expand_queries(query)
 
 
 class MqeStage(PipelineStage):
@@ -25,5 +21,4 @@ class MqeStage(PipelineStage):
         self._llm = llm
 
     async def run(self, ctx: PipelineContext, **kwargs: object) -> None:
-        # Moves MQE logic from RagPipeline._expand_queries() / run()
         ctx.queries = await _run_mqe(ctx.query, self._cfg, self._llm)
