@@ -29,11 +29,17 @@ class _SessionMixin(MixinBase):
 
     async def _generate_session_title(self, first_input: str) -> None:
         """Generate and persist a session title via LLM (background task)."""
+        from agent.services.exceptions import (
+            SessionTitleGenerationError,  # noqa: PLC0415 — lazy: deferred to avoid import cost
+        )
         from agent.services.session_title import (
             SessionTitleService,  # noqa: PLC0415 — lazy: deferred to avoid import cost
         )
 
-        await SessionTitleService().generate(self._ctx, first_input)
+        try:
+            await SessionTitleService().generate(self._ctx, first_input)
+        except SessionTitleGenerationError as e:
+            logger.warning("Session title generation failed: %s", e)
 
     def _session_load_safe(self, arg: str) -> None:
         """Parse arg as an integer session ID and load it; print error on invalid."""
