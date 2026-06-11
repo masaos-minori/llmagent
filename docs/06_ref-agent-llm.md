@@ -138,5 +138,6 @@ err = format_transport_error(
 
 | スクリプト | 使用箇所 |
 |---|---|
-| `agent/repl.py` | `ctx.services.llm = LLMClient(...)` を `run()` で生成 |
-| `agent/orchestrator.py` | `_run_turn()` で `ctx.services.llm.stream()` を呼び出し。`LLMTransportError` を捕捉して pre_stream / partial completion / tool continuation fail に分岐。`ctx.tool_result_store` に LLM 失敗を保存 |
+| `agent/repl.py` | `ctx.services.llm = LLMClient(...)` を `run()` で生成。`apply_config()` でホットリロードも対応 |
+| `agent/orchestrator.py` | `_handle_llm_turn()` が `LLMTurnRunner.run()` を呼び出し (streaming + inner tool-call loop への委譲)。`LLMTransportError` を捕捉して `_handle_llm_transport_error()` で partial completion / pre-stream fail に分岐。`ctx.tool_result_store` に LLM 失敗を保存 |
+| `agent/orchestrator.py` | `_handle_llm_transport_error()` で `partial_text` ありの場合は `[INCOMPLETE: <kind>]` 付き assistant メッセージを history/session に保存し、`stat_partial_completions += 1` をインクリメント。`partial_text` なし (pre-stream) の場合は直前の user メッセージを pop |

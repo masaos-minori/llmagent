@@ -4,7 +4,7 @@
 
 | モジュール | 役割 |
 |---|---|
-| `shared/config_loader.py` | JSON 設定ファイルの読込・マージ |
+| `shared/config_loader.py` | TOML / JSON 設定ファイルの読込・マージ |
 | `rag/utils.py` | テキスト正規化・埋込 BLOB 変換 |
 | `shared/logger.py` | ロギング共通セットアップ |
 | `shared/formatters.py` | MCP ツール結果・ログメッセージ共通フォーマットユーティリティ |
@@ -21,7 +21,7 @@ SQLite 接続マネージャ → [`docs/06_ref-sqlite.md`](06_ref-sqlite.md)
 
 ### 1.1 機能概要
 
-`config/` ディレクトリ内の JSON ファイルを読み込んで辞書にマージ。
+`config/` ディレクトリ内の TOML または JSON ファイルを読み込んで辞書にマージ。
 `_` で始まるキー (例: `_doc`) はドキュメントメタデータとして除外。
 
 ### 1.2 API
@@ -35,9 +35,15 @@ cfg = ConfigLoader().load("common.toml", "agent.toml")
 | クラス / メソッド | 引数 | 戻り値 | 説明 |
 |---|---|---|---|
 | `ConfigLoader(config_dir=None)` | `config_dir: Path` — 省略時はスクリプト 2 階層上の `config/` | `ConfigLoader` | インスタンスを生成 |
-| `ConfigLoader.load(*names)` | `names: str` — `config/` 相対のファイル名 (複数可) | `dict[str, Any]` | TOML ファイルを順に読み込んでマージ。後から読んだキーで上書き。ファイル未存在・TOML 不正の場合は `ValueError` を送出 |
+| `ConfigLoader.load(*names)` | `names: str` — `config/` 相対のファイル名 (複数可)。拡張子 `.toml` / `.json` または拡張子なし (`.toml` が暗黙付与) | `dict[str, Any]` | TOML / JSON ファイルを順に読み込んでマージ。後から読んだキーで上書き。ファイル未存在・フォーマット不正の場合は `ValueError` を送出 |
+| `ConfigLoader.load_all()` | — | `dict[str, Any]` | `_BASE_CONFIG_FILES` 定義の全基本設定ファイル (`llm.toml`, `http.toml`, `rag.toml` など) を順に読み込んでマージ。未存在ファイルはログ出力してスキップ |
+| `get_config(name)` | `name: str` — 設定名またはファイル名 | `dict[str, Any]` | 簡易ラッパー: `name` に `.toml` を付与して `ConfigLoader().load()` を呼び出す |
 
-### 1.3 設定ファイルの検索パス
+### 1.3 ファイル名の解決ルール
+
+拡張子 `.toml` / `.json` で終わる名前はそのままパスとして扱う。それ以外の文字列には `.toml` を暗黙付与する (例: `"common"` → `"common.toml"`)。
+
+### 1.4 設定ファイルの検索パス
 
 スクリプトファイルの 2 階層上の `config/` ディレクトリを使用:
 
@@ -47,7 +53,7 @@ cfg = ConfigLoader().load("common.toml", "agent.toml")
 /opt/llm/config/
 ```
 
-### 1.4 使用スクリプト
+### 1.5 使用スクリプト
 
 全スクリプト (`rag/ingestion/crawler.py`, `rag/ingestion/chunk_splitter.py`, `rag/ingestion/ingester.py`, `create_schema.py`, `agent.py` など)
 
@@ -178,20 +184,14 @@ logger = logging.getLogger(__name__)
 | `rag/ingestion/ingester.py` | `/opt/llm/logs/ingest.log` | — |
 | `agent/repl.py` | `/opt/llm/logs/agent.log` | — |
 | `agent/repl_health.py` | `/opt/llm/logs/agent.log` | repl と共用 |
-| `agent/tool_runner.py` | `/opt/llm/logs/agent.log` | repl と共用 |
-| `agent/tool_approval.py` | `/opt/llm/logs/agent.log` | repl と共用 |
 | `agent/orchestrator.py` | `/opt/llm/logs/agent.log` | repl と共用 |
 | `agent/repl.py` (`audit_logger`) | `cfg.audit_log_file` (デフォルト `/opt/llm/logs/audit.log`) | `structured_log=True` (JSON Lines) |
 | `mcp/file/read_server.py` | `/opt/llm/logs/file-read-mcp.log` | — |
 | `mcp/file/write_server.py` | `/opt/llm/logs/file-write-mcp.log` | — |
 | `mcp/file/delete_server.py` | `/opt/llm/logs/file-delete-mcp.log` | — |
 | `mcp/web_search/server.py` | `/opt/llm/logs/web-search-mcp.log` | — |
-| `mcp/github/server.py` | `/opt/llm/logs/github-mcp.log` | — |
 | `mcp/shell/server.py` | `/opt/llm/logs/shell-mcp.log` | — |
 | `mcp/rag_pipeline/server.py` | `/opt/llm/logs/rag-mcp.log` | — |
-| `mcp/cicd/models.py` | `/opt/llm/logs/cicd-mcp.log` | — |
-| `mcp/sqlite/models.py` | `/opt/llm/logs/sqlite-mcp.log` | — |
-| `mcp/git/models.py` | `/opt/llm/logs/git-mcp.log` | — |
 
 ---
 
@@ -343,7 +343,7 @@ from shared.tool_constants import RAG_TOOLS, CICD_TOOLS, MDQ_TOOLS, GIT_TOOLS
 
 | frozenset | 説明 | 含まれるツール例 |
 |---|---|---|
-| `READ_TOOLS` | 読み取り専用ファイル操作ツール | `list_directory` / `read_text_file` / `grep_files` など 9 ツール |
+| `READ_TOOLS` | 読み取り専用ファイル操作ツール | `list_directory` / `list_directory_with_sizes` / `directory_tree` / `read_text_file` / `read_media_file` / `read_multiple_files` / `search_files` / `grep_files` / `get_file_info` など 13 ツール |
 | `WRITE_TOOLS` | ファイル書き込みツール | `write_file` / `edit_file` / `create_directory` / `move_file` |
 | `DELETE_TOOLS` | ファイル削除ツール | `delete_file` / `delete_directory` |
 | `RAG_TOOLS` | RAG パイプライン MCP ツール | `rag_run_pipeline` / `rag_debug_pipeline` |
@@ -357,7 +357,8 @@ from shared.tool_constants import RAG_TOOLS, CICD_TOOLS, MDQ_TOOLS, GIT_TOOLS
 |---|---|
 | `shared/route_resolver.py` | 静的ルーティング (ツール名 → サーバキー) |
 | `shared/tool_executor.py` | 副作用検出 (`is_side_effect()` 関数; `WRITE_TOOLS \| DELETE_TOOLS \| {"shell_run"}` を `_SIDE_EFFECT_TOOLS` として使用) |
-| `agent/tool_approval.py` | リスク分類・承認ロジック |
+| `agent/tool_runner.py` | 実行時のツール分類判定 |
+| `agent/tool_policy.py` | ツールポリシーに基づく認可判断 |
 
 ---
 
@@ -379,9 +380,9 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 
 | クラス / メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `ToolRouteResolver(server_configs)` | `server_configs: dict[str, McpServerConfig]` | 初期化時に `cfg.tool_names` から逆引き辞書 (`tool_name → server_key`) を構築する |
+| `ToolRouteResolver(server_configs, *, warn_on_fallback=False)` | `server_configs: dict[str, McpServerConfig]`, `warn_on_fallback: bool` — 静的フォールバック使用時に警告ログを出力するフラグ | 初期化時に `cfg.tool_names` から逆引き辞書 (`tool_name → server_key`) を構築する。`_EXACT_ROUTES` (`shell_run` → `"shell"`, `search_web` → `"web_search"`) と `_SET_ROUTES` (各 frozenset → サーバキー) も保持 |
 | `resolve(tool_name)` | `(tool_name: str) -> str` | まず設定マップを参照し、なければ `_fallback_route()` で静的ルーティングを試みる。どちらも一致しない場合は `ValueError` を送出する |
-| `_fallback_route(tool_name)` | `(tool_name: str) -> str` | `tool_constants.py` の各 frozenset と `github_` プレフィックスを使った静的フォールバック。`READ_TOOLS` → `"file_read"` / `WRITE_TOOLS` → `"file_write"` / `DELETE_TOOLS` → `"file_delete"` / `"shell_run"` → `"shell"` / `"search_web"` → `"web_search"` / `github_*` → `"github"` / `RAG_TOOLS` → `"rag_pipeline"` / `CICD_TOOLS` → `"cicd"` / `MDQ_TOOLS` → `"mdq"` / `GIT_TOOLS` → `"git"` |
+| `_fallback_route(tool_name)` | `(tool_name: str) -> str` | 優先順: (1) `_EXACT_ROUTES` (`shell_run` → `"shell"`, `search_web` → `"web_search"`) / (2) `github_` プレフィックス → `"github"` / (3) 各 frozenset 所属チェック。いずれも一致しない場合は `ValueError` を送出 |
 
 ### 8.3 使用スクリプト
 

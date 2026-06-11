@@ -27,31 +27,28 @@ SQLiteHelper(target: str = "rag")
 
 インスタンス属性 `conn: sqlite3.Connection | None` は `open()` 前は `None`。
 
-### クラス属性
+### インスタンス属性 (コンストラクタ時に `build_db_config()` で解決)
 
 ```python
-SQLiteHelper._ensure_config()   # 一度呼べばクラス変数が確定する
-print(SQLiteHelper._RAG_PATH)         # rag.sqlite の絶対パス
-print(SQLiteHelper._SESSION_PATH)     # session.sqlite の絶対パス
-print(SQLiteHelper.SQLITE_VEC_SO)     # vec0.so の絶対パス
-print(SQLiteHelper._config_loaded)    # _ensure_config() 呼び出し済みフラグ
-print(SQLiteHelper._SQLITE_TIMEOUT)   # sqlite3.connect() timeout (秒)
-print(SQLiteHelper._BUSY_TIMEOUT_MS)  # PRAGMA busy_timeout 値 (ミリ秒)
+db = SQLiteHelper("rag")
+print(db._db_path)           # rag.sqlite の絶対パス
+print(db._vec_so)            # vec0.so の絶対パス (空文字列の場合は vec 不要)
+print(db._sqlite_timeout)    # sqlite3.connect() timeout (秒、デフォルト 30)
+print(db._busy_timeout_ms)   # PRAGMA busy_timeout 値 (ミリ秒、デフォルト 30000)
+print(db._default_load_vec)  # target="rag" → True、target="session" → False
 ```
 
-| クラス属性 | 説明 |
+| インスタンス属性 | 説明 |
 |---|---|
-| `SQLiteHelper._RAG_PATH` | `DbConfig.rag_db_path` (例: `/opt/llm/db/rag.sqlite`)。`_ensure_config()` 後に確定 |
-| `SQLiteHelper._SESSION_PATH` | `DbConfig.session_db_path` (例: `/opt/llm/db/session.sqlite`)。同上 |
-| `SQLiteHelper.SQLITE_VEC_SO` | `config/common.toml` の `sqlite_vec_so` (例: `/opt/llm/sqlite-vec/vec0.so`)。同上 |
-| `SQLiteHelper._SQLITE_TIMEOUT` | `config/common.toml` の `sqlite_timeout` (デフォルト 30 秒)。同上 |
-| `SQLiteHelper._BUSY_TIMEOUT_MS` | `config/common.toml` の `sqlite_busy_timeout_ms` (デフォルト 30000 ms)。同上 |
-| `SQLiteHelper._config_loaded` | `_ensure_config()` が一度でも呼ばれたかどうかのフラグ。`True` 以降は再読み込みをスキップ |
+| `db._db_path` | `DbConfig.rag_db_path` または `DbConfig.session_db_path`。`__init__()` 時に確定 |
+| `db._vec_so` | `config/common.toml` の `sqlite_vec_so`。空文字列は vec 拡張不要を意味する |
+| `db._sqlite_timeout` | `config/common.toml` の `sqlite_timeout` (デフォルト 30 秒) |
+| `db._busy_timeout_ms` | `config/common.toml` の `sqlite_busy_timeout_ms` (デフォルト 30000 ms) |
+| `db._default_load_vec` | `target="rag"` → `True`、`target="session"` → `False`。`open()` で vec ロードのデフォルト値 |
 
-`_ensure_config()` は `build_db_config()` (`db.config`) を呼び出してクラス属性に格納する。module-level グローバルキャッシュは存在しない。
+`__init__()` は内部で `build_db_config()` (`db.config`) を呼び出し、インスタンス属性に格納する。不正な `target` 値は `ValueError` を送出する。
 
-インスタンス属性 `DB_PATH` はプロパティ — `target` に応じて `_RAG_PATH` か `_SESSION_PATH` を返す。
-`open()` は内部で `_ensure_config()` を呼ぶため、接続前に明示的な初期化は不要。
+インスタンス属性 `DB_PATH` はプロパティ — `self._db_path` を返す。
 
 ### API
 
@@ -72,6 +69,7 @@ with SQLiteHelper("session").open(write_mode=True) as db:
 |---|---|
 | `open(*, write_mode=False, row_factory=False) -> SQLiteHelper` | 接続を開いて `self.conn` に格納し `self` を返す。`with` ブロックと組み合わせて使用可 |
 | `execute(sql, params=()) -> sqlite3.Cursor` | SQL を実行してカーソルを返す。`params` は tuple (位置) または dict (名前付き)。接続未開時は `RuntimeError`、空 SQL は `ValueError` |
+| `executemany(sql, params_seq) -> sqlite3.Cursor` | 複数行を一括実行する。`params_seq` は `list[tuple[Any, ...]]`。接続未開時は `RuntimeError`、空 SQL は `ValueError` |
 | `fetchall(sql, params=()) -> list[Any]` | SQL を実行して全結果行をリストで返す (execute + fetchall の合成) |
 | `commit() -> None` | `self.conn` のトランザクションをコミット。`OperationalError` はログ出力後に再送出 |
 | `close() -> None` | `self.conn` を閉じて `None` にリセットする (冪等) |
@@ -86,14 +84,14 @@ with SQLiteHelper("session").open(write_mode=True) as db:
 #### SQLiteHelper.open
 
 ```python
-def open(self, *, write_mode: bool = False, row_factory: bool = False) -> "SQLiteHelper"
+def open(self, *, write_mode: bool = False, row_factory: bool = False, load_vec: bool | None = None) -> "SQLiteHelper"
 ```
 
 sqlite-vec 拡張をロード済みの接続を `self.conn` に格納し、`self` を返す。
 
 接続確立後に以下を順番に適用する:
 
-1. sqlite-vec 拡張ロード (`SQLITE_VEC_SO`)。ロード後に `enable_load_extension(False)` を呼んでセキュリティを確保
+1. sqlite-vec 拡張ロード (`self._vec_so`)。ロード後に `enable_load_extension(False)` を呼んでセキュリティを確保
 2. `PRAGMA journal_mode=WAL`
 3. `PRAGMA synchronous=NORMAL`
 4. `PRAGMA busy_timeout=<sqlite_busy_timeout_ms>` (デフォルト 30000 ms)
@@ -103,6 +101,7 @@ sqlite-vec 拡張をロード済みの接続を `self.conn` に格納し、`self
 |---|---|---|
 | `write_mode` | `False` | `True` のとき `PRAGMA foreign_keys=ON` を追加設定 |
 | `row_factory` | `False` | `True` のとき `conn.row_factory = sqlite3.Row` を設定し、列名属性アクセスを有効化 |
+| `load_vec` | `None` (= target 依存) | `True` で vec 強制ロード、`False` でスキップ。`None` は target="rag" → 有効、target="session" → 無効のインスタンスデフォルトを使用 |
 
 呼び出しパターン:
 
@@ -128,6 +127,14 @@ def execute(self, sql: str, params: dict[str, Any] | tuple[Any, ...] = ()) -> sq
 |---|---|---|
 | `tuple` | `?` (位置) | `db.execute("SELECT * FROM t WHERE id = ?", (1,))` |
 | `dict` | `:name` (名前付き) | `db.execute("SELECT * FROM t WHERE id = :id", {"id": 1})` |
+
+#### SQLiteHelper.executemany
+
+```python
+def executemany(self, sql: str, params_seq: list[tuple[Any, ...]]) -> sqlite3.Cursor
+```
+
+`self.conn.executemany(sql, params_seq)` を呼び出して複数行を一括実行する。接続が未開 (`conn is None`) の場合は `RuntimeError`、`sql` が空または文字列でない場合は `ValueError` を送出する。バッチINSERT / UPDATE に使用する。
 
 #### SQLiteHelper.fetchall
 
@@ -168,7 +175,7 @@ with SQLiteHelper("rag").open(write_mode=True) as db:
 | `begin_immediate()` | `BEGIN IMMEDIATE` で書き込みロックを取得。複数ステートメントをアトミックに実行する書き込みトランザクション (chunk 投入、ドキュメント削除など) に使用 |
 | `begin_exclusive()` | `BEGIN EXCLUSIVE` で読み書き全排他ロック。VACUUM やスキーママイグレーションなど他のリーダーを完全にブロックする必要がある場合のみ使用 |
 
-どちらも `@contextmanager` — `with db.begin_immediate():` の形式で使用。`open()` 前に呼ぶと `AssertionError`。例外発生時は自動的に `ROLLBACK`。
+どちらも `@contextmanager` — `with db.begin_immediate():` の形式で使用。`open()` 前に呼ぶと `RuntimeError`。例外発生時は自動的に `ROLLBACK`。
 
 #### SQLiteHelper.health_check
 
@@ -178,7 +185,7 @@ metrics = SQLiteHelper("rag").open().health_check()
 #  "page_size": 4096, "freelist_count": 10, "db_size_bytes": 4194304}
 ```
 
-`PRAGMA quick_check` (高速版 integrity check) を実行し、journal mode / integrity / page stats を dict で返す。`/db health` コマンドから呼ばれる。`open()` 前に呼ぶと `AssertionError`。
+`PRAGMA quick_check` (高速版 integrity check) を実行し、journal mode / integrity / page stats を dict で返す。`/db health` コマンドから呼ばれる。`open()` 前に呼ぶと `RuntimeError`。
 
 #### SQLiteHelper.checkpoint
 
@@ -194,7 +201,7 @@ result = db.checkpoint(mode="TRUNCATE")
 | `RESTART` | FULL + WAL 書き込み位置をリセット |
 | `TRUNCATE` | RESTART + WAL を 0 バイトに切り詰め (デフォルト。大量書き込み後のディスク回収に使用) |
 
-不正な `mode` 値は `ValueError` を送出する。`open()` 前に呼ぶと `AssertionError`。
+不正な `mode` 値は `ValueError` を送出する。`open()` 前に呼ぶと `RuntimeError`。
 
 #### SQLiteHelper.vacuum
 
@@ -202,7 +209,7 @@ result = db.checkpoint(mode="TRUNCATE")
 db.vacuum()
 ```
 
-`VACUUM` を実行してDBファイルをインプレース再構築。空きページを回収してデフラグ。実行にはDB サイズの約2倍の空きディスクが必要。トランザクション外で呼ぶこと。`open()` 前に呼ぶと `AssertionError`。
+`VACUUM` を実行してDBファイルをインプレース再構築。空きページを回収してデフラグ。実行にはDB サイズの約2倍の空きディスクが必要。トランザクション外で呼ぶこと。`open()` 前に呼ぶと `RuntimeError`。
 
 ### 使用スクリプト
 

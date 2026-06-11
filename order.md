@@ -1,4 +1,4 @@
-Analyze all Python files under `./scripts/agent/` and produce a Markdown refactoring plan.
+Analyze all Python files under `./scripts/agent/command` and produce a Markdown refactoring plan.
 
 Your task is to read the codebase and generate a concrete, file-by-file refactoring plan.
 

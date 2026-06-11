@@ -6,6 +6,8 @@
 
 Markdown Context Compression Engine MCP Server (mdq-mcp) は、Markdown文書のコンテキストを効率的に管理し、大規模なMarkdown文書を部分的に取得してLLMのコンテキストに注入できるようにするMCPサーバです。
 
+> **注意:** サーバースキーマとツール定義は実装済みですが、サービス層 (`MdqService`) と検索ロジックはプレースホルダ実装です。本格的なFTS5検索・インデックス構築は今後の実装予定。
+
 ### 1.2 ツール一覧
 
 | ツール名 | 説明 |
@@ -14,7 +16,7 @@ Markdown Context Compression Engine MCP Server (mdq-mcp) は、Markdown文書の
 | `get_chunk` | Markdownチャンクをchunk_idで取得する |
 | `outline` | Markdownファイルの見出し構造を取得する |
 | `index_paths` | 対象のパスをインデックスする |
-| `refresh_index` | 指定パスを再インデックスする (内部では `index_paths` と同等の処理) |
+| `refresh_index` | 指定パスを再インデックスする |
 | `stats` | インデックスの統計情報を取得する |
 | `grep_docs` | Markdownチャンクを部分文字列マッチで検索する |
 
@@ -22,15 +24,15 @@ Markdown Context Compression Engine MCP Server (mdq-mcp) は、Markdown文書の
 
 | ファイル | 配置先 | 説明 |
 |---|---|---|
-| `scripts/mcp/mdq/service.py` | `/opt/llm/scripts/mcp/mdq/service.py` | mdqサービス層 (`MdqService`) |
-| `scripts/mcp/mdq/parser.py` | `/opt/llm/scripts/mcp/mdq/parser.py` | Markdownパーサー |
-| `scripts/mcp/mdq/indexer.py` | `/opt/llm/scripts/mcp/mdq/indexer.py` | インデクサー (`Indexer`) |
-| `scripts/mcp/mdq/search.py` | `/opt/llm/scripts/mcp/mdq/search.py` | 検索ロジック (`search_chunks`) |
+| `scripts/mcp/mdq/server.py` | `/opt/llm/scripts/mcp/mdq/server.py` | FastAPI + MCPServer 継承サーバ本体 (ポート 8013) |
+| `scripts/mcp/mdq/service.py` | `/opt/llm/scripts/mcp/mdq/service.py` | mdqサービス層 (`MdqService`) — プレースホルダ実装 |
+| `scripts/mcp/mdq/parser.py` | `/opt/llm/scripts/mcp/mdq/parser.py` | Markdownパーサー (`parse_markdown` 非同期関数) |
+| `scripts/mcp/mdq/indexer.py` | `/opt/llm/scripts/mcp/mdq/indexer.py` | インデックス処理 (スタンドアロン非同期関数群) |
+| `scripts/mcp/mdq/search.py` | `/opt/llm/scripts/mcp/mdq/search.py` | 検索ロジック (`search_docs` 非同期関数) |
 | `scripts/mcp/mdq/models.py` | `/opt/llm/scripts/mcp/mdq/models.py` | Pydantic モデル定義 |
+| `scripts/mcp/mdq/tools.py` | `/opt/llm/scripts/mcp/mdq/tools.py` | MCP ツールスキーマ (`_MCP_TOOLS`) |
 | `config/mdq_mcp_server.toml` | `/opt/llm/config/mdq_mcp_server.toml` | 設定ファイル |
 | `init.d/mdq-mcp` | `/etc/init.d/mdq-mcp` | OpenRC起動スクリプト |
-
-> **注意:** `mcp/mdq/server.py` は実装済みです。HTTP サーバとしてポート 8013 で起動します。
 
 ### 1.4 インストール
 
@@ -47,7 +49,7 @@ rc-service mdq-mcp start
 
 # 3. 動作確認
 curl -s http://127.0.0.1:8013/health
-# → {"status": "ok"}
+# → {"status": "ok", "service": "mdq-mcp"}
 ```
 
 ### 1.5 使用方法
@@ -59,10 +61,10 @@ python /opt/llm/scripts/agent.py
 # agent[chat]> Markdownファイルの見出し構造を取得してください
 # agent[chat]> /mcp status でmdq-mcpが表示されることを確認
 
-# HTTP API直接呼び出し
-curl -s -X POST http://127.0.0.1:8013/search_docs \
-  -H "Content-Type: application/json" \
-  -d '{"query": "LLMの設定方法"}' \
+# HTTP API直接呼び出し (POST /v1/call_tool)
+curl -s -X POST http://127.0.0.1:8013/v1/call_tool \
+  -H "Content-Type": "application/json" \
+  -d '{"name": "outline", "args": {"path": "/path/to/file.md"}}' \
   | python3 -m json.tool
 ```
 
@@ -70,110 +72,124 @@ curl -s -X POST http://127.0.0.1:8013/search_docs \
 
 | パラメータ | ファイル | デフォルト | 説明 |
 |---|---|---|---|
-| `db_path` | `config/mdq_mcp_server.toml` | `/opt/llm/db/mdq.sqlite` | データベースパス |
+| `db_path` | コードハードコード | `/opt/llm/db/mdq.db` | データベースパス (`MdqService.__init__()` で固定値) |
 
-`db_path` は `MdqService.__init__()` が `shared.config_loader.get_config("mdq_mcp_server")` 経由で読み込む。`search_docs` の検索件数上限は `SearchDocsRequest.limit` フィールド (デフォルト `10`) でリクエストごとに制御する。`SearchDocsRequest.mode` のデフォルト値は `"bm25"` (models.py 定義)。
+`search_docs` の検索件数上限は `SearchDocsRequest.limit` フィールド (デフォルト `10`) でリクエストごとに制御する。`SearchDocsRequest.mode` のデフォルト値は `"bm25"` (models.py 定義)。
 
 ### 1.7 実装方式
 
 | 機能 | 実装 |
 |---|---|
 | フレームワーク | FastAPI + Uvicorn (ポート 8013) |
-| 起動モード | HTTPモード (OpenRCサービス `mdq-mcp`) |
-| 責務分割 | `MdqService` がビジネスロジックを担当し、`Indexer` がインデックス処理を担当 |
-| パーサー | `Markdown` ライブラリを使用した見出しベースの解析 |
-| インデクサー | SQLiteを使用したインデックス構築 |
-| 検索モード | `mode="bm25"`: FTS5 (BM25ランク順) / `mode="grep"`: content の LIKE 検索 / `mode="hybrid"` (デフォルト): BM25+grep の結果をマージして重複除去 |
+| 起動モード | HTTPモード (OpenRCサービス `mdq-mcp`)、stdioモード (`--stdio` フラグ) |
+| ベースクラス | `mcp.server.MCPServer` を継承 |
+| 責務分割 | `_DISPATCH_TABLE` でツール名 → ハンドラ非同期関数をマッピング |
+| パーサー | `parse_markdown()` — ファイル内容を読み取り、現在はそのまま返す |
+| インデクサー | `index_paths()`, `_index_single_file()`, `_index_directory()` — 現在プレースホルダ |
+| 検索ロジック | `search_docs()` — 現在プレースホルダ (`"Search results for: {query}"` を返す) |
+
+**実装ステータス:** ツールスキーマ、HTTPエンドポイント、MCPServer基底クラスは完成済み。ビジネスロジック層 (インデックス構築・FTS5検索・チャンク取得) はプレースホルダ実装のため、実際のデータ操作は行われません。
 
 ### 1.8 入出力インタフェース
 
-**HTTP API** (ツールの入出力インタフェースを参照)
+**HTTP API エンドポイント**
 
-主要なリクエスト/レスポンス:
-
-| ツール | リクエスト | レスポンス |
+| エンドポイント | メソッド | 説明 |
 |---|---|---|
-| `search_docs` | `{query: str, limit?: int=10, mode?: str="bm25", path_prefix?: str, tag_filter?: [str], heading_prefix?: str}` | `{results: [dict]}` (SearchDocsResponse: `results` field; each hit: `{chunk_id, source_path, heading_path, score, snippet, token_count, tags}`) |
-| `get_chunk` | `{chunk_id: int, with_neighbors?: bool=false}` | `{chunk: str, headings: [str]}` (GetChunkResponse) |
-| `outline` | `{path: str}` | `{headings: [str]}` (OutlineResponse) |
-| `index_paths` | `{paths: [str]}` | `{message: str}` (IndexPathsResponse) |
-| `refresh_index` | `{paths: [str]}` | `{message: str}` (RefreshIndexResponse) |
-| `stats` | `{}` | `{document_count: int, chunk_count: int, index_metadata: dict}` (StatsResponse) |
-| `grep_docs` | `{pattern: str, paths?: [str]}` | `{results: [dict]}` (GrepDocsResponse; pattern is regex per server.py description) |
+| `/v1/tools` | GET | ツールリスト `{tools: [{name, description}]}` |
+| `/v1/call_tool` | POST | ツール実行 `{name, args} → {result, is_error}` |
+| `/health` | GET | ヘルスチェック `{status: "ok", service: "mdq-mcp"}` |
+
+**MCP ツール (tools/call 経由)**
+
+| ツール名 | 引数 | 戻り値 (現在) | 戻り値 (予定) |
+|---|---|---|---|
+| `search_docs` | `{query, limit?, mode?, path_prefix?, tag_filter?, heading_prefix?}` | `"Search results for: {query}"` | JSON (`SearchDocsResponse.results`) |
+| `get_chunk` | `{chunk_id, with_neighbors?}` | `"Retrieved chunk {chunk_id}"` | JSON (`GetChunkResponse.chunk, headings`) |
+| `outline` | `{path}` | ファイル内容 (そのまま) | JSON (`OutlineResponse.headings`) |
+| `index_paths` | `{paths}` | `"Indexing complete"` | JSON (`IndexPathsResponse.message`) |
+| `refresh_index` | `{paths}` | `"Index refreshed"` | JSON (`RefreshIndexResponse.message`) |
+| `stats` | `{}` | `"Stats retrieved"` | JSON (`StatsResponse.document_count, chunk_count, index_metadata`) |
+| `grep_docs` | `{pattern, paths?}` | `"Grep results for pattern: {pattern}"` | JSON (`GrepDocsResponse.results`) |
 
 ### 1.9 エラーハンドリング
 
 | HTTPステータス | 発生条件 |
 |---|---|
-| 400 | 無効なリクエストパラメータ |
-| 404 | ファイルまたはチャンクが存在しない |
-| 500 | サーバ内部エラー |
+| 500 | `MdqServiceError` 例外 (FastAPI exception handler) |
+
+現在、入力検証やビジネスロジックのプレースホルダ実装のため、400/404 は未実装です。本実装時に追加予定。
 
 ### 1.10 ログ出力
 
 - **ファイル:** `/opt/llm/logs/mdq-mcp.log` + 標準エラー出力
-- **フォーマット:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
+- **フォーマット:** 各モジュールの `logging.getLogger(__name__)` を使用
 
 | レベル | タイミング |
 |---|---|
-| `INFO` | 各操作のパス・バイト数・件数 |
-| `WARNING` | インデックス更新時の警告 |
+| `INFO` | 検索・インデックス処理の開始 |
+| `WARNING` | パス未存在、非Markdownファイルのスキップ |
 | `ERROR` | サーバエラー |
 
 ### 1.11 クラス API
 
-> **注意:** `mcp/mdq/server.py` は現時点で未実装のため、`MdqMCPServer` クラスは存在しない。サービス層 (`MdqService`) および検索ロジック (`search_chunks`) は実装済み。HTTP サーバを実装する場合は `MCPServer` を継承し `server_name="mdq-mcp"` / `http_port=8013` を設定すること。
-
-**`MdqService` メソッド一覧** (`mcp/mdq/service.py`)
-
-| メソッド | シグネチャ | 戻り値 | 備考 |
-|---|---|---|---|
-| `search_docs` | `async (request: SearchDocsRequest) -> str` | JSON文字列 (`SearchDocsResponse`) | `search_chunks()` 委譲 |
-| `get_chunk` | `async (request: GetChunkRequest) -> str` | JSON文字列 (`ChunkResponse`) | `with_neighbors` は受け取るが現在未使用; 常に単一チャンクを返す |
-| `outline` | `async (request: OutlineRequest) -> str` | JSON文字列 (`OutlineResponse`) | ファイル不在時 HTTP 404 |
-| `index_paths` | `async (request: IndexPathsRequest) -> str` | JSON文字列 (`IndexPathsResponse`) | ディレクトリ指定時は `.md` のみを再帰探索 (indexer.py 現実装) |
-| `refresh_index` | `async (request: RefreshIndexRequest) -> str` | JSON文字列 (`RefreshIndexResponse`) | 内部で `Indexer.refresh_paths()` を呼ぶ; 差分判定は `mtime`+`doc_hash` |
-| `stats` | `async (request: StatsRequest) -> str` | JSON文字列 (`StatsResponse`) | `md_documents` / `md_chunks` / `md_chunks_fts` 行数を集計 |
-| `grep_docs` | `async (request: GrepDocsRequest) -> str` | JSON文字列 (`GrepDocsResponse`) | `Indexer.grep_chunks()` 委譲; `truncated` は常に `false` |
-
-`MdqService.__init__()` は `Indexer()` を生成し `self._db_path` に `indexer.db_path` を保持する。全メソッドは `orjson` でシリアライズした JSON 文字列を返す (`_dump()` ヘルパー経由)。
-
-**`Indexer` メソッド一覧** (`mcp/mdq/indexer.py`)
-
-| メソッド | シグネチャ | 戻り値 | 備考 |
-|---|---|---|---|
-| `index_paths` | `(paths: list[str]) -> list[str]` | インデックスしたファイルパスのリスト | ディレクトリ内は再帰走査 |
-| `refresh_paths` | `(paths: list[str]) -> list[str]` | 更新されたファイルパスのリスト | 現実装は `index_paths` と同等 |
-| `get_chunk` | `(chunk_id: int) -> dict \| None` | チャンク辞書またはNone | `md_chunks` をIDで1行取得 |
-| `get_stats` | `() -> dict` | `{document_count, chunk_count, latest_update, fts_size}` | `latest_update` は `md_documents.updated_at` の最大値; 未更新時は `"Never"` |
-| `grep_chunks` | `(pattern: str, paths: list[str] \| None = None) -> list[dict]` | `[{chunk_id, source_path, heading_path, content}]` のリスト | `pattern` は部分文字列マッチ (`in` 演算子); 正規表現ではない |
-
-**`search_chunks()` 関数** (`mcp/mdq/search.py`)
+**`MdqMCPServer`** (`mcp/mdq/server.py:150-160`)
 
 ```python
-def search_chunks(
-    query: str,
-    limit: int | None = 10,
-    mode: str | None = "hybrid",
-    path_prefix: str | None = None,
-    tag_filter: list[str] | None = None,
-    heading_prefix: str | None = None,
-) -> list[dict]:
+from mcp.mdq.server import MdqMCPServer
+
+MdqMCPServer().run_http()
 ```
 
-戻り値の各要素: `{chunk_id: int, source_path: str, heading_path: str, score: float, snippet: str, token_count: int, tags: list[str]}`
-
-- `mode="bm25"`: `md_chunks_fts MATCH ?` でFTS5 BM25ランク順
-- `mode="grep"`: `content LIKE ?` で部分文字列検索; `score` は常に `0.0`
-- `mode="hybrid"`: BM25 と grep を `limit*2` ずつ取得し `chunk_id` で重複除去後 `limit` 件に切り詰め
-
-`_apply_filters()` が付加するフィルタ種別:
-
-| パラメータ | SQL フィルタ | 備考 |
+| クラス属性 | 値 | 説明 |
 |---|---|---|
-| `path_prefix` | `d.source_path LIKE '{prefix}%'` | ドキュメントパスのプレフィックス一致 |
-| `heading_prefix` | `c.heading_path LIKE '{prefix}%'` | 見出しパスのプレフィックス一致 |
-| `tag_filter` | `c.tags LIKE '%{tag}%'` (各タグの OR 条件) | タグの部分文字列一致 (JSON 配列を文字列として照合)
+| `server_name` | `"mdq-mcp"` | MCP `initialize` レスポンスのサーバ識別名 |
+| `server_version` | `"1.0.0"` | バージョン文字列 |
+| `http_port` | `8013` | HTTP モード待受ポート |
+| `app_module` | `"mcp.mdq.server:app"` | uvicorn 起動ターゲット |
+| `mcp_tools` | `_MCP_TOOLS` | `tools/list` に返すツール定義 (7種) |
+
+| メソッド | 説明 |
+|---|---|
+| `dispatch(name, args)` | `_DISPATCH_TABLE[name]` 経由でサービス層に委譲。`(result_text, is_error)` を返す |
+
+**`MdqService`** (`mcp/mdq/service.py:31-74`)
+
+| メソッド | シグネチャ | 戻り値 | 備考 |
+|---|---|---|---|
+| `search_docs` | `async (req: SearchDocsRequest) -> str` | `"Search results for: {req.query}"` | プレースホルダ。本実装時は `search.search_docs()` に委譲予定 |
+| `get_chunk` | `async (req: GetChunkRequest) -> str` | `"Retrieved chunk {req.chunk_id}"` | プレースホルダ |
+| `outline` | `async (req: OutlineRequest) -> str` | ファイル内容 | `parser.parse_markdown()` に委譲。ファイル不在時は `FileNotFoundError` |
+| `index_paths` | `async (req: IndexPathsRequest) -> str` | `"Indexing complete"` | `indexer.index_paths()` に委譲。ディレクトリ指定時は `.md` のみを再帰探索 |
+| `refresh_index` | `async (req: RefreshIndexRequest) -> str` | `"Index refreshed"` | プレースホルダ |
+| `stats` | `async (req: StatsRequest) -> str` | `"Stats retrieved"` | プレースホルダ |
+| `grep_docs` | `async (req: GrepDocsRequest) -> str` | `"Grep results for pattern: {req.pattern}"` | プレースホルダ |
+
+`MdqService.__init__()` は `self.db_path = "/opt/llm/db/mdq.db"` を設定し `_init_db()` を呼ぶ (現在何もしない)。
+
+**スタンドアロン非同期関数** (`mcp/mdq/indexer.py`, `mcp/mdq/search.py`)
+
+| 関数 | シグネチャ | 戻り値 | 備考 |
+|---|---|---|---|
+| `index_paths` | `async (service, req: IndexPathsRequest) -> str` | `"Indexing complete"` | `Path.is_file()` で `.md` をフィルタ、`Path.is_dir()` で再帰走査 |
+| `_index_single_file` | `async (service, path: Path) -> None` | なし | プレースホルダ |
+| `_index_directory` | `async (service, path: Path) -> None` | なし | `rglob("*.md")` で再帰走査 |
+| `search_docs` | `async (service, req: SearchDocsRequest) -> str` | `"Search results for: {req.query}"` | プレースホルダ。本実装時は FTS5 検索予定 |
+
+**Pydantic モデル** (`mcp/mdq/models.py`)
+
+| モデル | フィールド |
+|---|---|
+| `SearchDocsRequest` | `query`, `limit=10`, `mode="bm25"`, `path_prefix?`, `tag_filter?`, `heading_prefix?` |
+| `GetChunkRequest` | `chunk_id`, `with_neighbors=False` |
+| `OutlineRequest` | `path` |
+| `IndexPathsRequest` | `paths: list[str]` |
+| `RefreshIndexRequest` | `paths: list[str]` |
+| `StatsRequest` | (なし) |
+| `GrepDocsRequest` | `pattern`, `paths?` |
+| `ParseMarkdownRequest` | `path` |
+
+レスポンスモデル: `SearchDocsResponse(results)`, `GetChunkResponse(chunk, headings)`, `OutlineResponse(headings)`, `IndexPathsResponse(message)`, `RefreshIndexResponse(message)`, `StatsResponse(document_count, chunk_count, index_metadata)`, `GrepDocsResponse(results)`
 
 **HTTPエンドポイント `POST /v1/call_tool`**
 
@@ -181,6 +197,6 @@ def search_chunks(
 // リクエスト
 {"name": "search_docs", "args": {"query": "LLMの設定方法"}}
 
-// レスポンス
-{"result": "{\"hits\": [...], \"total_hits\": 5}", "is_error": false}
+// レスポンス (現在: プレースホルダ)
+{"result": "Search results for: LLMの設定方法", "is_error": false}
 ```
