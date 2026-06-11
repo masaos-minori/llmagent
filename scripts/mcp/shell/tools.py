@@ -22,6 +22,11 @@ _MCP_TOOLS: list[dict[str, Any]] = [
                     "type": "string",
                     "description": "Command string (argv[0] must be in allowlist)",
                 },
+                "argv": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Explicit argv list; when provided, used instead of shlex.split(command) to prevent shell injection",
+                },
                 "timeout_sec": {
                     "type": "integer",
                     "description": "Timeout in seconds (default: 30, max: server-configured)",
@@ -37,6 +42,10 @@ _MCP_TOOLS: list[dict[str, Any]] = [
                 "max_output_kb": {
                     "type": "integer",
                     "description": "Output size limit in KB (default: 512)",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "Preview only; command is not executed",
                 },
             },
             "required": ["command"],
