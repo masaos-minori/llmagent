@@ -160,6 +160,13 @@ class DeleteFileService:
                 dir_info=f"{count_str} files, {total_size} bytes",
             )
 
+        if req.recursive:
+            for allowed in self._allowed_dirs:
+                if target == allowed.resolve():
+                    raise FileAuthorizationError(
+                        f"Deleting an allowed root directory is not permitted: {target}",
+                    )
+
         try:
             if req.recursive:
                 shutil.rmtree(str(target))

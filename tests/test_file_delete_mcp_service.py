@@ -229,3 +229,44 @@ class TestPathAllowlist:
         req = DeleteFileRequest(path=str(target), dry_run=True)
         result = service.delete_file(req)
         assert result is not None
+
+
+class TestDeleteDirectoryRecursiveSafety:
+    def test_recursive_delete_of_allowed_root_raises_auth_error(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp.file.common import FileAuthorizationError
+
+        svc = DeleteFileService(
+            allowed_dirs=[tmp_path],
+            audit_log_path=str(tmp_path / "audit.log"),
+        )
+        (tmp_path / "subdir").mkdir()
+        req = DeleteDirectoryRequest(path=str(tmp_path), recursive=True)
+        with pytest.raises(FileAuthorizationError, match="allowed root"):
+            svc.delete_directory(req)
+
+    def test_recursive_delete_of_subdir_succeeds(
+        self, service: DeleteFileService, tmp_path: Path
+    ) -> None:
+        subdir = tmp_path / "toremove"
+        subdir.mkdir()
+        (subdir / "file.txt").write_text("data", encoding="utf-8")
+        req = DeleteDirectoryRequest(path=str(subdir), recursive=True)
+        result = service.delete_directory(req)
+        assert result.deleted is True
+        assert not subdir.exists()
+
+    def test_non_recursive_root_directory_not_blocked_by_guard(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp.file.common import FileValidationError
+
+        svc = DeleteFileService(
+            allowed_dirs=[tmp_path],
+            audit_log_path=str(tmp_path / "audit.log"),
+        )
+        (tmp_path / "subdir").mkdir()
+        req = DeleteDirectoryRequest(path=str(tmp_path), recursive=False)
+        with pytest.raises(FileValidationError):
+            svc.delete_directory(req)

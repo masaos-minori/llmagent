@@ -68,14 +68,16 @@ class TestWriteFileDryRun:
         assert not result.applied
         assert result.diff == ""
 
-    def test_dry_run_unreadable_file_returns_no_diff(
+    def test_dry_run_permission_error_raises_auth_error(
         self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """PermissionError when reading existing file for diff must be handled gracefully."""
+        """PermissionError when reading existing file for dry-run diff must raise FileAuthorizationError."""
+        from pathlib import Path as _Path
+
+        from mcp.file.common import FileAuthorizationError
+
         target = tmp_path / "locked.txt"
         target.write_text("old", encoding="utf-8")
-
-        from pathlib import Path as _Path
 
         original_read = _Path.read_text
 
@@ -86,9 +88,8 @@ class TestWriteFileDryRun:
 
         monkeypatch.setattr(_Path, "read_text", _fail_read)
         req = WriteFileRequest(path=str(target), content="new", dry_run=True)
-        result = service.write_file(req)
-        assert not result.applied
-        assert result.diff == ""
+        with pytest.raises(FileAuthorizationError):
+            service.write_file(req)
 
     def test_dry_run_false_writes_file(
         self, service: WriteFileService, tmp_path: Path
@@ -241,3 +242,38 @@ class TestPathAllowlist:
         req = WriteFileRequest(path=str(target), content="ok", dry_run=True)
         result = service.write_file(req)
         assert result is not None
+
+
+class TestWriteServiceErrorPaths:
+    def test_content_exceeds_limit_raises_validation_error(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp.file.common import FileValidationError
+
+        svc = WriteFileService(allowed_dirs=[tmp_path], max_write_bytes=10)
+        req = WriteFileRequest(path=str(tmp_path / "out.txt"), content="x" * 100)
+        with pytest.raises(FileValidationError, match="write limit"):
+            svc.write_file(req)
+
+    def test_dry_run_non_utf8_existing_file_raises_validation_error(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp.file.common import FileValidationError
+
+        svc = WriteFileService(allowed_dirs=[tmp_path], max_write_bytes=1024 * 1024)
+        target = tmp_path / "binary.bin"
+        target.write_bytes(b"\xff\xfe bad bytes that cannot be decoded as utf-8")
+        req = WriteFileRequest(path=str(target), content="new content", dry_run=True)
+        with pytest.raises(FileValidationError, match="UTF-8"):
+            svc.write_file(req)
+
+    def test_write_file_atomic_creates_correct_content(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "atomic.txt"
+        req = WriteFileRequest(path=str(target), content="atomic content")
+        result = service.write_file(req)
+        assert result.applied is True
+        assert target.read_text(encoding="utf-8") == "atomic content"
+        tmp = target.parent / f".tmp_{target.name}"
+        assert not tmp.exists()

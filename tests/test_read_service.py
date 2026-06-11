@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
 """Unit tests for mcp.file.read_service.ReadFileService."""
 
-import asyncio
 import base64
 from pathlib import Path
 
 import pytest
-
 from fastapi import HTTPException
-
-from mcp.file.read_models import TreeNode, FileEntry
+from mcp.file.read_models import FileEntry, TreeNode
 from mcp.file.read_service import ReadFileService
 
 
@@ -20,7 +17,9 @@ def service(tmp_path: Path):
     (root / "subdir").mkdir()
     (root / "subdir" / "nested.txt").write_text("nested content", encoding="utf-8")
     (root / "file_a.py").write_text("# Python file\nprint('hello')\n", encoding="utf-8")
-    (root / "file_b.log").write_text("INFO line 1\nWARN line 2\nERROR line 3\n", encoding="utf-8")
+    (root / "file_b.log").write_text(
+        "INFO line 1\nWARN line 2\nERROR line 3\n", encoding="utf-8"
+    )
     (root / "binary.bin").write_bytes(b"\x89PNG\r\n\x1a\n")
     (root / "large.txt").write_text("x" * 2048, encoding="utf-8")
 
@@ -92,7 +91,9 @@ class TestStaticHelpers:
         assert ReadFileService._slice_lines(content, 1, 10) == "line1\n"
 
     def test_fmt_tree_node_file(self):
-        node = TreeNode(name="test.txt", path="/x/test.txt", type="file", size=100, children=[])
+        node = TreeNode(
+            name="test.txt", path="/x/test.txt", type="file", size=100, children=[]
+        )
         result = ReadFileService._fmt_tree_node(node)
         assert "[FILE] test.txt (100 B)" in result
 
@@ -102,7 +103,14 @@ class TestStaticHelpers:
         assert "[DIR] mydir/" in result
 
     def test_fmt_tree_node_depth_limit_note(self):
-        node = TreeNode(name="limited", path="/x", type="dir", size=0, children=[], depth_limited=True)
+        node = TreeNode(
+            name="limited",
+            path="/x",
+            type="dir",
+            size=0,
+            children=[],
+            depth_limited=True,
+        )
         result = ReadFileService._fmt_tree_node(node)
         assert "(depth limit reached)" in result
 
@@ -121,11 +129,15 @@ class TestStaticHelpers:
         assert "[DIR] b_dir" in result
 
     def test_has_depth_limit_true(self):
-        node = TreeNode(name="x", path="/x", type="dir", size=0, children=[], depth_limited=True)
+        node = TreeNode(
+            name="x", path="/x", type="dir", size=0, children=[], depth_limited=True
+        )
         assert ReadFileService._has_depth_limit(node) is True
 
     def test_has_depth_limit_false(self):
-        node = TreeNode(name="x", path="/x", type="dir", size=0, children=[], depth_limited=False)
+        node = TreeNode(
+            name="x", path="/x", type="dir", size=0, children=[], depth_limited=False
+        )
         assert ReadFileService._has_depth_limit(node) is False
 
     def test_build_tree_single_file(self, service):
@@ -583,7 +595,9 @@ class TestGetFileInfo:
         from mcp.file.read_models import GetFileInfoRequest
 
         with pytest.raises(HTTPException) as exc_info:
-            svc.get_file_info(GetFileInfoRequest(path=str(tmp_workspace / "nonexistent.txt")))
+            svc.get_file_info(
+                GetFileInfoRequest(path=str(tmp_workspace / "nonexistent.txt"))
+            )
         assert exc_info.value.status_code == 404
 
     def test_get_file_info_path_outside_allowed(self, service):
@@ -707,3 +721,33 @@ class TestDispatchTable:
         table = svc.get_dispatch_table()
         for key, handler in table.items():
             assert callable(handler)
+
+
+# -- Error-path tests (domain exceptions) ------------------------------------
+
+
+class TestErrorPaths:
+    def test_check_size_limit_raises_file_validation_error(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp.file.common import FileValidationError, check_size_limit
+
+        f = tmp_path / "big.txt"
+        f.write_text("x" * 200, encoding="utf-8")
+        with pytest.raises(FileValidationError, match="exceeds"):
+            check_size_limit(f, max_bytes=10)
+
+    def test_grep_files_invalid_regex_raises_file_validation_error(
+        self, service
+    ) -> None:
+        from mcp.file.common import FileValidationError
+        from mcp.file.read_models import GrepFilesRequest
+
+        svc, root = service
+        req = GrepFilesRequest(path=str(root), pattern="[invalid(regex")
+        with pytest.raises(FileValidationError, match="Invalid regular expression"):
+            svc.grep_files(req)
+
+    def test_read_service_max_tree_depth_property(self, service) -> None:
+        svc, _ = service
+        assert svc.max_tree_depth == 3

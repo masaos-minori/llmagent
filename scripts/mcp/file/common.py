@@ -58,7 +58,7 @@ def check_size_limit(target: Path, max_bytes: int) -> int:
     except OSError as e:
         raise FileValidationError(str(e))
     if size > max_bytes:
-        raise ValueError(
+        raise FileValidationError(
             f"File size exceeds the limit ({max_bytes} bytes): {size} bytes",
         )
     return size

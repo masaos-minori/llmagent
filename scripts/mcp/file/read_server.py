@@ -122,7 +122,7 @@ async def directory_tree(req: DirectoryTreeRequest) -> DirectoryTreeResponse:
     t0 = time.perf_counter()
     result = _service.build_directory_tree(req)
     ms = (time.perf_counter() - t0) * 1000
-    depth = min(req.depth, _service._max_tree_depth)
+    depth = min(req.depth, _service.max_tree_depth)
     logger.info(
         fmt_kvlog("directory_tree", path=result.root.path, depth=depth, ms=f"{ms:.0f}"),
     )

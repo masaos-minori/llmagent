@@ -73,6 +73,11 @@ class ReadFileService:
         self._max_tree_depth = max_tree_depth
         self._max_search_results = max_search_results
 
+    @property
+    def max_tree_depth(self) -> int:
+        """Maximum tree recursion depth configured for this service."""
+        return self._max_tree_depth
+
     # ── Security wrappers (delegate to file_mcp_common) ──
 
     def _resolve_safe(self, raw_path: str) -> Path:

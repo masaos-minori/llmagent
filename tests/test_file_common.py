@@ -45,6 +45,18 @@ class TestResolveSafe:
         with pytest.raises(FileAuthorizationError):
             resolve_safe(str(parent), [tmp_path])
 
+    def test_symlink_escaping_allowed_dir_raises_403(self, tmp_path: Path) -> None:
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        secret = outside / "secret.txt"
+        secret.write_text("secret", encoding="utf-8")
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        link = workspace / "escape_link"
+        link.symlink_to(outside)
+        with pytest.raises(FileAuthorizationError):
+            resolve_safe(str(link / "secret.txt"), [workspace])
+
     def test_multiple_allowed_dirs_first_match(self, tmp_path: Path) -> None:
         a = tmp_path / "a"
         b = tmp_path / "b"
@@ -119,16 +131,16 @@ class TestCheckSizeLimit:
         result = check_size_limit(target, 5)
         assert result == 5
 
-    def test_over_limit_raises_413(self, tmp_path: Path) -> None:
+    def test_over_limit_raises_file_validation_error(self, tmp_path: Path) -> None:
         target = tmp_path / "big.txt"
         target.write_text("hello world", encoding="utf-8")
-        with pytest.raises(ValueError):
+        with pytest.raises(FileValidationError):
             check_size_limit(target, 5)
 
     def test_error_message_contains_sizes(self, tmp_path: Path) -> None:
         target = tmp_path / "big.txt"
         target.write_text("hello world", encoding="utf-8")
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(FileValidationError) as exc_info:
             check_size_limit(target, 5)
         assert "11" in str(exc_info.value)
 

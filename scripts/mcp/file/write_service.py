@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import difflib
 import logging
+import os
 import shutil
 from collections.abc import Awaitable, Callable
 from pathlib import Path
@@ -121,21 +122,28 @@ class WriteFileService:
                         req.content,
                         True,
                     )
-                except (UnicodeDecodeError, PermissionError):
-                    pass
+                except UnicodeDecodeError:
+                    raise FileValidationError(
+                        "Existing file cannot be decoded as UTF-8"
+                    )
+                except PermissionError as e:
+                    raise FileAuthorizationError(str(e))
             return WriteFileResponse(
                 path=str(target),
                 size=size,
                 applied=False,
                 diff=diff,
             )
+        tmp = target.parent / f".tmp_{target.name}"
         try:
-            # Ensure parent directory exists before writing
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(req.content, encoding="utf-8")
+            tmp.write_text(req.content, encoding="utf-8")
+            os.replace(str(tmp), str(target))
         except PermissionError as e:
+            tmp.unlink(missing_ok=True)
             raise FileAuthorizationError(str(e))
         except OSError as e:
+            tmp.unlink(missing_ok=True)
             logger.error(f"write_file: OS error writing '{target}': {e}")
             raise FileValidationError(str(e))
 
