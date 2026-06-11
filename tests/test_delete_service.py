@@ -5,15 +5,13 @@ Unit tests for DeleteFileService business logic, audit logging, and dispatch tab
 
 from __future__ import annotations
 
-import os
 import stat as stat_module
 import time
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
-from fastapi import HTTPException
+from mcp.file.common import FileAuthorizationError, FileValidationError
 
 
 @pytest.fixture()
@@ -39,24 +37,21 @@ class TestSecurityWrappers:
 
     def test_resolve_safe_rejects_outside_allowed_dir(self, service: tuple):
         svc, _ = service
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileAuthorizationError):
             svc._resolve_safe("/etc/passwd")
-        assert exc_info.value.status_code == 403
 
     def test_require_file_raises_for_directory(self, service: tuple):
         svc, tmp_path = service
         (tmp_path / "adir").mkdir()
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileValidationError):
             svc._require_file(tmp_path / "adir", str(tmp_path / "adir"))
-        assert exc_info.value.status_code == 400
 
     def test_require_dir_raises_for_file(self, service: tuple):
         svc, tmp_path = service
         fpath = tmp_path / "file.txt"
         fpath.write_text("x")
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileValidationError):
             svc._require_dir(fpath, str(fpath))
-        assert exc_info.value.status_code == 400
 
 
 # ── Audit log ──
@@ -85,7 +80,7 @@ class TestAuditLog:
     def test_write_audit_log_handles_os_error(self, service: tuple):
         svc, _ = service
         svc._audit_log_path = "/nonexistent/dir/that/does/not/exist.log"
-        with patch.object(svc, "_write_audit_log") as mock:
+        with patch.object(svc, "_write_audit_log"):
             # Force an OSError by writing to a path that doesn't exist
             ts = time.strftime("%Y-%m-%dT%H:%M:%S+00:00")
             record = f"{ts} op=test path=/test user=llm-agent\n"
@@ -104,7 +99,9 @@ class TestDeleteFile:
         fpath.write_text("hello")
         assert fpath.exists()
 
-        result = svc.delete_file(type("Request", (), {"path": str(fpath), "dry_run": False})())
+        result = svc.delete_file(
+            type("Request", (), {"path": str(fpath), "dry_run": False})()
+        )
         assert result.deleted is True
         assert result.path == str(fpath)
         assert not fpath.exists()
@@ -116,7 +113,9 @@ class TestDeleteFile:
         st = fpath.stat()
         mode = oct(stat_module.S_IMODE(st.st_mode))
 
-        result = svc.delete_file(type("Request", (), {"path": str(fpath), "dry_run": True})())
+        result = svc.delete_file(
+            type("Request", (), {"path": str(fpath), "dry_run": True})()
+        )
         assert result.deleted is False
         assert fpath.exists()
         assert f"size={st.st_size}" in result.file_info
@@ -129,21 +128,25 @@ class TestDeleteFile:
             fpath = tmp_path / "test.txt"
             fpath.write_text("x")
 
-            with pytest.raises(HTTPException) as exc_info:
-                svc.delete_file(type("Request", (), {"path": str(fpath), "dry_run": False})())
-            assert exc_info.value.status_code == 403
+            with pytest.raises(FileAuthorizationError):
+                svc.delete_file(
+                    type("Request", (), {"path": str(fpath), "dry_run": False})()
+                )
 
     def test_delete_file_os_error_raises_400(self, service: tuple):
         svc, _ = service
-        with patch.object(svc, "_resolve_safe") as mock_resolve, \
-             patch.object(svc, "_require_file"), \
-             patch("pathlib.Path.unlink") as mock_unlink:
+        with (
+            patch.object(svc, "_resolve_safe") as mock_resolve,
+            patch.object(svc, "_require_file"),
+            patch("pathlib.Path.unlink") as mock_unlink,
+        ):
             mock_resolve.return_value = Path("/fake/path")
             mock_unlink.side_effect = OSError("fake os error")
 
-            with pytest.raises(HTTPException) as exc_info:
-                svc.delete_file(type("Request", (), {"path": "/fake/path", "dry_run": False})())
-            assert exc_info.value.status_code == 400
+            with pytest.raises(FileValidationError):
+                svc.delete_file(
+                    type("Request", (), {"path": "/fake/path", "dry_run": False})()
+                )
 
 
 # ── delete_directory ──
@@ -155,7 +158,13 @@ class TestDeleteDirectory:
         dpath = tmp_path / "empty_dir"
         dpath.mkdir()
 
-        result = svc.delete_directory(type("Request", (), {"path": str(dpath), "recursive": False, "dry_run": False})())
+        result = svc.delete_directory(
+            type(
+                "Request",
+                (),
+                {"path": str(dpath), "recursive": False, "dry_run": False},
+            )()
+        )
         assert result.deleted is True
         assert not dpath.exists()
 
@@ -165,9 +174,14 @@ class TestDeleteDirectory:
         dpath.mkdir()
         (dpath / "file.txt").write_text("x")
 
-        with pytest.raises(HTTPException) as exc_info:
-            svc.delete_directory(type("Request", (), {"path": str(dpath), "recursive": False, "dry_run": False})())
-        assert exc_info.value.status_code == 400
+        with pytest.raises(FileValidationError):
+            svc.delete_directory(
+                type(
+                    "Request",
+                    (),
+                    {"path": str(dpath), "recursive": False, "dry_run": False},
+                )()
+            )
 
     def test_delete_directory_recursive(self, service: tuple):
         svc, tmp_path = service
@@ -176,7 +190,11 @@ class TestDeleteDirectory:
         inner.mkdir(parents=True)
         (inner / "file.txt").write_text("content")
 
-        result = svc.delete_directory(type("Request", (), {"path": str(dpath), "recursive": True, "dry_run": False})())
+        result = svc.delete_directory(
+            type(
+                "Request", (), {"path": str(dpath), "recursive": True, "dry_run": False}
+            )()
+        )
         assert result.deleted is True
         assert not dpath.exists()
 
@@ -187,7 +205,11 @@ class TestDeleteDirectory:
         (dpath / "a.txt").write_text("aaa")
         (dpath / "b.txt").write_text("bbb")
 
-        result = svc.delete_directory(type("Request", (), {"path": str(dpath), "recursive": False, "dry_run": True})())
+        result = svc.delete_directory(
+            type(
+                "Request", (), {"path": str(dpath), "recursive": False, "dry_run": True}
+            )()
+        )
         assert result.deleted is False
         assert dpath.exists()
         assert "2 files" in result.dir_info
@@ -199,9 +221,14 @@ class TestDeleteDirectory:
 
         with patch("shutil.rmtree") as mock_rmtree:
             mock_rmtree.side_effect = PermissionError("Permission denied")
-            with pytest.raises(HTTPException) as exc_info:
-                svc.delete_directory(type("Request", (), {"path": str(dpath), "recursive": True, "dry_run": False})())
-            assert exc_info.value.status_code == 403
+            with pytest.raises(FileAuthorizationError):
+                svc.delete_directory(
+                    type(
+                        "Request",
+                        (),
+                        {"path": str(dpath), "recursive": True, "dry_run": False},
+                    )()
+                )
 
     def test_delete_directory_os_error_raises_400(self, service: tuple):
         svc, tmp_path = service
@@ -210,9 +237,14 @@ class TestDeleteDirectory:
 
         with patch("pathlib.Path.rmdir") as mock_rmdir:
             mock_rmdir.side_effect = OSError("fake error")
-            with pytest.raises(HTTPException) as exc_info:
-                svc.delete_directory(type("Request", (), {"path": str(dpath), "recursive": False, "dry_run": False})())
-            assert exc_info.value.status_code == 400
+            with pytest.raises(FileValidationError):
+                svc.delete_directory(
+                    type(
+                        "Request",
+                        (),
+                        {"path": str(dpath), "recursive": False, "dry_run": False},
+                    )()
+                )
 
 
 # ── _scan_directory_for_dry_run ──

@@ -5,7 +5,7 @@ import base64
 from pathlib import Path
 
 import pytest
-from fastapi import HTTPException
+from mcp.file.common import FileAuthorizationError, FileValidationError
 from mcp.file.read_models import FileEntry, TreeNode
 from mcp.file.read_service import ReadFileService
 
@@ -42,21 +42,18 @@ class TestSecurityWrappers:
 
     def test_resolve_safe_rejects_outside_allowed_dirs(self, service):
         svc, _ = service
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileAuthorizationError):
             svc._resolve_safe("/etc/passwd")
-        assert exc_info.value.status_code == 403
 
     def test_require_file_raises_for_directory(self, service):
         svc, tmp_workspace = service
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileValidationError):
             svc._require_file(tmp_workspace, "some_path")
-        assert exc_info.value.status_code == 400
 
     def test_require_dir_raises_for_file(self, service):
         svc, tmp_workspace = service
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileValidationError):
             svc._require_dir(tmp_workspace / "file_a.py", "some_path")
-        assert exc_info.value.status_code == 400
 
     def test_check_size_limit_passes_under_limit(self, service):
         svc, tmp_workspace = service
@@ -65,9 +62,8 @@ class TestSecurityWrappers:
 
     def test_check_size_limit_raises_over_limit(self, service):
         svc, tmp_workspace = service
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileValidationError):
             svc._check_size_limit(tmp_workspace / "large.txt")
-        assert exc_info.value.status_code == 413
 
 
 # -- Static helper tests -----------------------------------------------------
@@ -225,23 +221,21 @@ class TestListDirEntries:
         svc, _ = service
         from mcp.file.read_models import ListDirectoryRequest
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileAuthorizationError):
             svc.list_dir_entries(
                 ListDirectoryRequest(path="/etc"),
                 include_dir_sizes=False,
             )
-        assert exc_info.value.status_code == 403
 
     def test_list_dir_path_is_file_raises(self, service):
         svc, tmp_workspace = service
         from mcp.file.read_models import ListDirectoryRequest
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileValidationError):
             svc.list_dir_entries(
                 ListDirectoryRequest(path=str(tmp_workspace / "file_a.py")),
                 include_dir_sizes=False,
             )
-        assert exc_info.value.status_code == 400
 
 
 # -- build_directory_tree tests ----------------------------------------------
@@ -320,29 +314,26 @@ class TestReadTextFile:
         svc, tmp_workspace = service
         from mcp.file.read_models import ReadTextFileRequest
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileValidationError):
             svc.read_text_file(
                 ReadTextFileRequest(path=str(tmp_workspace / "binary.bin"))
             )
-        assert exc_info.value.status_code == 415
 
     def test_read_text_size_limit_exceeded(self, service):
         svc, tmp_workspace = service
         from mcp.file.read_models import ReadTextFileRequest
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileValidationError):
             svc.read_text_file(
                 ReadTextFileRequest(path=str(tmp_workspace / "large.txt"))
             )
-        assert exc_info.value.status_code == 413
 
     def test_read_text_nonexistent_path(self, service):
         svc, _ = service
         from mcp.file.read_models import ReadTextFileRequest
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileAuthorizationError):
             svc.read_text_file(ReadTextFileRequest(path="/nonexistent/file.txt"))
-        assert exc_info.value.status_code == 403
 
     def test_read_text_response_fields(self, service):
         svc, tmp_workspace = service
@@ -392,11 +383,10 @@ class TestReadMediaFile:
         svc, tmp_workspace = service
         from mcp.file.read_models import ReadMediaFileRequest
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileValidationError):
             svc.read_media_file(
                 ReadMediaFileRequest(path=str(tmp_workspace / "large.txt"))
             )
-        assert exc_info.value.status_code == 413
 
 
 # -- read_multiple_files tests ------------------------------------------------
@@ -496,9 +486,8 @@ class TestSearchFiles:
         svc, _ = service
         from mcp.file.read_models import SearchFilesRequest
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileAuthorizationError):
             svc.search_files(SearchFilesRequest(path="/etc", pattern="*"))
-        assert exc_info.value.status_code == 403
 
 
 # -- grep_files tests --------------------------------------------------------
@@ -539,7 +528,7 @@ class TestGrepFiles:
         svc, tmp_workspace = service
         from mcp.file.read_models import GrepFilesRequest
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileValidationError):
             svc.grep_files(
                 GrepFilesRequest(
                     path=str(tmp_workspace),
@@ -548,7 +537,6 @@ class TestGrepFiles:
                     max_matches=50,
                 )
             )
-        assert exc_info.value.status_code == 400
 
     def test_grep_files_truncated(self, service):
         svc, tmp_workspace = service
@@ -594,19 +582,17 @@ class TestGetFileInfo:
         svc, tmp_workspace = service
         from mcp.file.read_models import GetFileInfoRequest
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileNotFoundError):
             svc.get_file_info(
                 GetFileInfoRequest(path=str(tmp_workspace / "nonexistent.txt"))
             )
-        assert exc_info.value.status_code == 404
 
     def test_get_file_info_path_outside_allowed(self, service):
         svc, _ = service
         from mcp.file.read_models import GetFileInfoRequest
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileAuthorizationError):
             svc.get_file_info(GetFileInfoRequest(path="/etc/passwd"))
-        assert exc_info.value.status_code == 403
 
 
 # -- Async formatter tests ---------------------------------------------------

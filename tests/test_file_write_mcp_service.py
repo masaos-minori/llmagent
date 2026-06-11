@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from fastapi import HTTPException
+from mcp.file.common import FileAuthorizationError
 from mcp.file.write_models import (
     EditFileRequest,
     EditOperation,
@@ -176,9 +176,8 @@ class TestMoveFileDryRun:
         src = tmp_path / "ghost.txt"
         dest = tmp_path / "dest.txt"
         req = MoveFileRequest(source=str(src), destination=str(dest), dry_run=False)
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileNotFoundError):
             service.move_file(req)
-        assert exc_info.value.status_code == 404
 
 
 # ── async fmt_* handlers ──────────────────────────────────────────────────────
@@ -228,12 +227,9 @@ class TestPathAllowlist:
     def test_write_outside_allowed_dir_raises_403(
         self, service: WriteFileService, tmp_path: Path
     ) -> None:
-        from fastapi import HTTPException
-
         req = WriteFileRequest(path="/etc/passwd", content="x", dry_run=True)
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(FileAuthorizationError):
             service.write_file(req)
-        assert exc_info.value.status_code == 403
 
     def test_write_inside_allowed_dir_succeeds(
         self, service: WriteFileService, tmp_path: Path

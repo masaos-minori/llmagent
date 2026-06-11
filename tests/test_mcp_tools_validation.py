@@ -113,6 +113,28 @@ def mcp_server(request: pytest.FixtureRequest) -> Any:
         proc.kill()
 
 
+def test_read_tools_schema_matches_hand_written() -> None:
+    """Generated schema must have the expected tool names and valid inputSchema structure."""
+    from mcp.file.read_tools import _MCP_TOOLS
+
+    names = [t["name"] for t in _MCP_TOOLS]
+    assert names == [
+        "list_directory",
+        "list_directory_with_sizes",
+        "directory_tree",
+        "read_text_file",
+        "read_media_file",
+        "read_multiple_files",
+        "search_files",
+        "grep_files",
+        "get_file_info",
+    ]
+    for tool in _MCP_TOOLS:
+        assert "inputSchema" in tool
+        assert tool["inputSchema"]["type"] == "object"
+        assert "properties" in tool["inputSchema"]
+
+
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "mcp_server",
