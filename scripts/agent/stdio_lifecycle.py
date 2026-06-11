@@ -16,6 +16,7 @@ from shared.mcp_config import McpServerConfig
 from shared.tool_executor import StdioTransport, ToolExecutor
 
 from agent.lifecycle import LifecycleState
+from agent.tool_exceptions import LifecycleConfigurationError
 
 logger = logging.getLogger(__name__)
 
@@ -78,16 +79,14 @@ class StdioServerLifecycleManager:
     async def _start(self, server_key: str) -> None:
         """Create and start a StdioTransport for the given server key."""
         cfg = self._server_configs.get(server_key)
-        if cfg is None or not cfg.cmd:
-            logger.warning(
+        if cfg is None:
+            raise LifecycleConfigurationError(
+                f"Lifecycle: no config for server {server_key!r}",
+            )
+        if not cfg.cmd:
+            raise LifecycleConfigurationError(
                 f"Lifecycle: cannot start {server_key!r}: no cmd configured",
             )
-            self._handles[server_key] = TransportHandle(
-                transport=None,
-                state=LifecycleState.FAILED,
-                last_error="no cmd configured",
-            )
-            return
         new_transport = StdioTransport(
             cfg.cmd,
             server_key=server_key,
@@ -102,7 +101,7 @@ class StdioServerLifecycleManager:
                 transport=new_transport, state=LifecycleState.RUNNING
             )
             logger.info(f"Lifecycle: ondemand stdio server {server_key!r} started")
-        except Exception as e:
+        except (ValueError, OSError) as e:
             logger.error(
                 f"Lifecycle: failed to start ondemand server {server_key!r}: {e}",
             )
@@ -117,7 +116,7 @@ class StdioServerLifecycleManager:
             self._handles[key] = TransportHandle(
                 transport=None, state=LifecycleState.STOPPED
             )
-        except Exception as e:
+        except OSError as e:
             logger.warning("Lifecycle: error stopping stdio %r: %s", key, e)
             self._handles[key] = TransportHandle(
                 transport=None, state=LifecycleState.FAILED, last_error=str(e)

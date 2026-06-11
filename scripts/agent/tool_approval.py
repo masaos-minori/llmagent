@@ -14,13 +14,35 @@ from typing import TYPE_CHECKING, Any, TypedDict
 import orjson
 
 from agent.tool_audit import audit_approval
-from agent.tool_policy import classify_risk, preflight_deny_reason
+from agent.tool_enums import ApprovalDecisionType, RiskLevel
+from agent.tool_exceptions import ApprovalPreviewError, ToolArgumentsDecodeError
+from agent.tool_output import (
+    emit_approval_prompt,
+    emit_denied,
+    emit_plan_blocked,
+    emit_skipped,
+)
+from agent.tool_policy import check_preflight, classify_risk
 from agent.tool_result_formatter import build_preview, mask_args
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
+
+
+class ApprovalDecision(TypedDict, total=False):
+    """Deprecated: use ApprovalOutcome DTO instead.
+
+    Retained for backward compatibility with existing callers.
+    """
+
+    tool_name: str
+    risk_level: str
+    decision: str
+    escalation_reason: str
+    preview: str
+
 
 _GITHUB_WRITE_TOOLS: frozenset[str] = frozenset(
     {
@@ -35,22 +57,16 @@ _GITHUB_WRITE_TOOLS: frozenset[str] = frozenset(
 )
 
 
-class ApprovalDecision(TypedDict, total=False):
-    """Structured result of a single tool approval evaluation."""
-
-    tool_name: str
-    risk_level: str  # "none" | "medium" | "high"
-    decision: str  # "approved" | "denied" | "dry_run" | "preview_only"
-    escalation_reason: str  # why the risk was escalated (or "" if no escalation)
-    preview: str  # dry_run result text (or "")
-
-
 async def _build_preview_with_dry_run(
     ctx: AgentContext,
     tool_name: str,
     args: dict[str, Any],
 ) -> str:
-    """Return preview string, optionally enriched with dry-run output."""
+    """Return preview string, optionally enriched with dry-run output.
+
+    Raises ApprovalPreviewError when dry-run execution fails, unless
+    approval_dry_run_tools is not configured or tools is unavailable.
+    """
     preview = build_preview(tool_name, args)
     if (
         tool_name not in ctx.cfg.approval.approval_dry_run_tools
@@ -58,19 +74,27 @@ async def _build_preview_with_dry_run(
     ):
         return preview
     try:
-        dry_text, _, _x_req = await ctx.services.tools.execute(
+        dry_text, is_error, _x_req = await ctx.services.tools.execute(
             tool_name,
             {**args, "dry_run": True},
         )
+        if is_error:
+            raise ApprovalPreviewError(
+                f"Dry-run for {tool_name!r} returned an error: {dry_text[:200]}"
+            )
         preview += f"\n  Dry-run: {dry_text[:300]}"
-    except Exception:
-        pass
+    except ApprovalPreviewError:
+        raise
+    except (OSError, TimeoutError, ValueError) as e:
+        raise ApprovalPreviewError(
+            f"Dry-run execution failed for {tool_name!r}: {e}"
+        ) from e
     return preview
 
 
-async def _prompt_user_approval(risk: str) -> bool:
-    """Prompt the user interactively; 'high' requires full word 'yes'."""
-    if risk == "high":
+async def _prompt_user_approval(risk: RiskLevel) -> bool:
+    """Prompt the user interactively; HIGH requires full word 'yes'."""
+    if risk == RiskLevel.HIGH:
         answer = (
             (await asyncio.to_thread(input, "  Execute? [yes/no]: ")).strip().lower()
         )
@@ -87,37 +111,55 @@ async def check_approval(
     """Return True when the tool call may proceed.
 
     Pre-flight deny → False immediately.
-    Risk 'none' → auto-approved.
-    Risk 'medium'/'high' → interactive prompt (with optional dry-run preview).
+    Risk NONE → auto-approved.
+    Risk MEDIUM/HIGH → interactive prompt (with optional dry-run preview).
+
+    Note: dry-run preview failures downgrade to text-only preview rather
+    than failing the entire approval, to avoid blocking approvals when the
+    MCP server has a connection issue.
     """
     if ctx.cfg.approval.gitops_push_blocked and tool_name in _GITHUB_WRITE_TOOLS:
         msg = f"  [DENIED] {tool_name}: gitops_push_blocked is set; write operations are disabled"
-        audit_approval(ctx, tool_name, "high", args, "denied_gitops_push_blocked")
-        print(msg)
+        audit_approval(
+            ctx, tool_name, RiskLevel.HIGH, args, "denied_gitops_push_blocked"
+        )
+        emit_denied(tool_name, msg)
         return False
 
-    deny = preflight_deny_reason(ctx.cfg, tool_name, args)
-    if deny is not None:
-        audit_decision, message = deny
-        audit_approval(ctx, tool_name, "high", args, audit_decision)
-        print(message)
+    try:
+        check_preflight(ctx.cfg, tool_name, args)
+    except Exception as preflight_exc:  # noqa: BLE001 — PolicyViolationError from check_preflight
+        from agent.tool_exceptions import PolicyViolationError
+
+        if not isinstance(preflight_exc, PolicyViolationError):
+            raise
+        audit_approval(
+            ctx, tool_name, RiskLevel.HIGH, args, preflight_exc.audit_decision
+        )
+        emit_denied(tool_name, str(preflight_exc))
         return False
 
     risk = classify_risk(ctx.cfg, tool_name, args)
 
-    if risk == "none":
-        audit_approval(ctx, tool_name, risk, args, "auto")
+    if risk == RiskLevel.NONE:
+        audit_approval(ctx, tool_name, risk, args, ApprovalDecisionType.AUTO)
         return True
 
-    preview = await _build_preview_with_dry_run(ctx, tool_name, args)
-    print(f"\n[{risk} risk] {tool_name}")
-    print(f"  Preview: {preview}")
+    try:
+        preview = await _build_preview_with_dry_run(ctx, tool_name, args)
+    except ApprovalPreviewError as e:
+        logger.warning("Dry-run preview unavailable for %r: %s", tool_name, e)
+        preview = build_preview(tool_name, args)
+
+    emit_approval_prompt(risk, tool_name, preview)
 
     approved = await _prompt_user_approval(risk)
-    decision = "approved" if approved else "denied"
+    decision = (
+        ApprovalDecisionType.APPROVED if approved else ApprovalDecisionType.DENIED
+    )
     audit_approval(ctx, tool_name, risk, args, decision)
     if not approved:
-        print(f"  Skipped: {tool_name}")
+        emit_skipped(tool_name)
     return approved
 
 
@@ -128,25 +170,27 @@ async def run_approval_checks(
     """Run plan-mode block and interactive approval for each tool call.
 
     Returns (approved_calls, denied_ids). Runs serially — approval is interactive.
+    Raises ToolArgumentsDecodeError when arguments JSON is malformed.
     """
     approved_calls: list[dict] = []
     denied_ids: list[str] = []
     for tc in tool_calls:
         tc_name = tc["function"]["name"]
-        args_preview: dict[str, Any]
+        args_str = tc["function"].get("arguments", "{}")
         try:
-            args_preview = orjson.loads(tc["function"].get("arguments", "{}"))
-        except orjson.JSONDecodeError:
-            args_preview = {}
+            args_preview: dict[str, Any] = orjson.loads(args_str)
+        except orjson.JSONDecodeError as e:
+            raise ToolArgumentsDecodeError(
+                f"Invalid JSON in tool arguments for {tc_name!r}: {args_str!r}"
+            ) from e
         masked_preview = mask_args(args_preview, ctx.cfg.tool.masked_fields)
         if ctx.conv.plan_mode and tc_name in ctx.cfg.tool.plan_blocked_tools:
-            print(f"  [plan mode] Blocked: {tc_name}")
-            print(f"  args: {orjson.dumps(masked_preview).decode()}")
+            emit_plan_blocked(tc_name, orjson.dumps(masked_preview).decode())
             logger.info(f"Plan mode blocked tool: {tc_name}")
             denied_ids.append(tc["id"])
             continue
         if not await check_approval(ctx, tc_name, args_preview):
-            print(f"  args: {orjson.dumps(masked_preview).decode()}")
+            emit_denied(tc_name, orjson.dumps(masked_preview).decode())
             denied_ids.append(tc["id"])
             continue
         approved_calls.append(tc)

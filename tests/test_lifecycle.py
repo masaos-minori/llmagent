@@ -133,7 +133,9 @@ class TestEnsureReady:
         ex.set_transport.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_ondemand_no_cmd_logs_warning(self) -> None:
+    async def test_ondemand_no_cmd_raises_lifecycle_error(self) -> None:
+        from agent.tool_exceptions import LifecycleConfigurationError
+
         cfg = McpServerConfig(
             "stdio", "", ["python", "s.py"], "", startup_mode="ondemand"
         )
@@ -141,8 +143,8 @@ class TestEnsureReady:
         configs = {"od": cfg}
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex, {})
-        # Must not raise; logs a warning
-        await mgr.ensure_ready("od")
+        with pytest.raises(LifecycleConfigurationError, match="no cmd configured"):
+            await mgr.ensure_ready("od")
         ex.set_transport.assert_not_called()
 
     @pytest.mark.asyncio
@@ -243,7 +245,7 @@ class TestShutdownIdle:
     async def test_tolerates_stop_error(self) -> None:
         transport = AsyncMock()
         transport.is_alive = MagicMock(return_value=True)
-        transport.stop.side_effect = RuntimeError("crash")
+        transport.stop.side_effect = OSError("crash")
         configs = {"od": _stdio_ondemand_idle(idle_sec=30)}
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex, {"od": transport})
@@ -576,7 +578,7 @@ class TestShutdownAll:
     @pytest.mark.asyncio
     async def test_shutdown_tolerates_stop_errors(self) -> None:
         t1 = AsyncMock()
-        t1.stop.side_effect = RuntimeError("crash")
+        t1.stop.side_effect = OSError("crash")
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex, {"a": t1})

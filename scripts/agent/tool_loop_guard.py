@@ -119,10 +119,17 @@ class ToolLoopGuard:
             return None
         for tc in message["tool_calls"]:
             func = tc.get("function", {})
+            args_str = func.get("arguments", "{}")
             try:
-                tc_args = orjson.loads(func.get("arguments", "{}"))
-            except (orjson.JSONDecodeError, TypeError):
-                tc_args = {}
+                tc_args = orjson.loads(args_str)
+            except (orjson.JSONDecodeError, TypeError) as e:
+                from agent.tool_exceptions import (
+                    ToolArgumentsDecodeError,  # noqa: PLC0415
+                )
+
+                raise ToolArgumentsDecodeError(
+                    f"Invalid JSON in tool arguments: {args_str!r}"
+                ) from e
             if tool_call_key(func.get("name", ""), tc_args) in failed_calls:
                 name = func.get("name", "<unknown>")
                 logger.warning(f"Retry of failed tool call blocked: {name!r}")

@@ -11,12 +11,13 @@ from typing import TYPE_CHECKING
 
 import orjson
 
+from agent.tool_enums import ApprovalDecisionType, RiskLevel
+from agent.tool_models import ApprovalOutcome
 from agent.tool_policy import classify_operation_type
 from agent.tool_result_formatter import mask_args
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
-    from agent.tool_approval import ApprovalDecision
 
 
 def _extract_resource_scope(ctx: AgentContext, masked: dict) -> dict:
@@ -29,9 +30,9 @@ def _extract_resource_scope(ctx: AgentContext, masked: dict) -> dict:
 def audit_approval(
     ctx: AgentContext,
     tool_name: str,
-    risk: str,
+    risk: RiskLevel | str,
     args: dict,
-    decision: str,
+    decision: ApprovalDecisionType | str,
 ) -> None:
     """Write a structured tool_approval event to the audit log."""
     if ctx.services.audit_logger is None:
@@ -55,7 +56,7 @@ def audit_approval(
     )
 
 
-def log_approval_decision(ctx: AgentContext, decision: ApprovalDecision) -> None:
+def log_approval_decision(ctx: AgentContext, outcome: ApprovalOutcome) -> None:
     """Write a structured approval_decision event to the audit log."""
     if ctx.services.audit_logger is None:
         return
@@ -64,10 +65,10 @@ def log_approval_decision(ctx: AgentContext, decision: ApprovalDecision) -> None
             {
                 "event": "approval_decision",
                 "task_id": ctx.turn.current_turn_id,
-                "tool": decision.get("tool_name"),
-                "risk_level": decision.get("risk_level"),
-                "decision": decision.get("decision"),
-                "escalation_reason": decision.get("escalation_reason", ""),
+                "tool": outcome.tool_name,
+                "risk_level": outcome.risk_level,
+                "decision": outcome.decision,
+                "escalation_reason": outcome.escalation_reason,
                 "ts": time.time(),
             }
         ).decode()

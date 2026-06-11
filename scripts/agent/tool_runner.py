@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sqlite3
 from typing import TYPE_CHECKING, Any
 
 import orjson
@@ -18,6 +19,8 @@ from shared.tool_executor import is_side_effect, tool_call_key
 
 from agent.tool_approval import run_approval_checks
 from agent.tool_audit import audit_tool_exec
+from agent.tool_exceptions import ToolArgumentsDecodeError, ToolExecutorUnavailableError
+from agent.tool_output import emit_tool_call, emit_tool_result
 from agent.tool_result_formatter import (
     TURN_LIMIT_HINT,
     is_summarized,
@@ -42,16 +45,22 @@ async def execute_one_tool_call(
     """Parse, execute, and optionally summarize one tool_call dict.
 
     Returns (tc_id, name, args, full_text, is_error, llm_text).
+    Raises ToolExecutorUnavailableError when ctx.services.tools is None.
+    Raises ToolArgumentsDecodeError when arguments JSON is malformed.
     """
-    assert ctx.services.tools is not None
+    if ctx.services.tools is None:
+        raise ToolExecutorUnavailableError(
+            "Tool executor is not available (ctx.services.tools is None)"
+        )
     func = tc["function"]
     name = func["name"]
     args_str = func.get("arguments", "{}")
     try:
         args = orjson.loads(args_str)
-    except orjson.JSONDecodeError:
-        logger.warning(f"Invalid JSON in tool arguments for {name!r}: {args_str!r}")
-        args = {}
+    except orjson.JSONDecodeError as e:
+        raise ToolArgumentsDecodeError(
+            f"Invalid JSON in tool arguments for {name!r}: {args_str!r}"
+        ) from e
 
     text, is_error, x_request_id = await ctx.services.tools.execute(name, args)
     audit_tool_exec(ctx, name, args, is_error, x_request_id)
@@ -85,6 +94,7 @@ def _collect_tool_result_msgs(
     """Log, display, persist, and append tool results to history.
 
     Returns tool_msgs for session.save_many(). Applies per-turn char limit.
+    Raises sqlite3.Error when tool result persistence fails.
     """
     tool_msgs: list[tuple[str, str, list[dict] | None, str | None]] = []
     turn_chars = 0
@@ -96,28 +106,24 @@ def _collect_tool_result_msgs(
                 out_failed_keys.add(tool_call_key(name, args))
         masked = mask_args(args, ctx.cfg.tool.masked_fields)
         logger.info(f"Tool call (turn {turn + 1}): {name}({masked})")
-        print(f"  [tool] {name}({orjson.dumps(masked).decode()})")
+        emit_tool_call(name, orjson.dumps(masked).decode())
         if len(text) > _TOOL_RESULT_MAX_CHARS:
             n_lines = len(text.splitlines())
             logger.info(f"Tool result {name} (full): {text}")
             display = f"{n_lines} lines / {len(text)} chars (truncated)"
-            print(f"  [tool] {name} → {display}")
+            emit_tool_result(name, display)
         else:
-            print(f"  [tool] {name} → {text}")
+            emit_tool_result(name, text)
         summarized = is_summarized(ctx.cfg, text, llm_text, is_error)
-        try:
-            result_id = ctx.tool_result_store.store(
-                session_id=ctx.session.session_id,
-                turn=turn,
-                tool_name=name,
-                args_masked=orjson.dumps(masked).decode(),
-                full_text=text,
-                summary=llm_text if summarized else None,
-                is_error=is_error,
-            )
-        except Exception:
-            logger.warning("ToolResultStore.store failed; result not persisted")
-            result_id = None
+        result_id = ctx.tool_result_store.store(
+            session_id=ctx.session.session_id,
+            turn=turn,
+            tool_name=name,
+            args_masked=orjson.dumps(masked).decode(),
+            full_text=text,
+            summary=llm_text if summarized else None,
+            is_error=is_error,
+        )
         limit = ctx.cfg.tool.tool_results_turn_max_chars
         turn_chars += len(llm_text)
         if limit > 0 and turn_chars > limit:
@@ -222,3 +228,7 @@ async def execute_all_tool_calls(
         )
         tool_msgs.append(("tool", "Tool execution denied by user.", None, denied_id))
     ctx.session.save_many(tool_msgs)
+
+
+# Expose sqlite3 in module scope so callers can catch the right exception type.
+_sqlite3_error = sqlite3.Error
