@@ -265,8 +265,8 @@ class TestDbHealth:
             MockHelper.return_value = helper_mock
             cmd._cmd_db("health")
             out = capsys.readouterr().out
-            assert "journal_mode" in out
-            assert "wal" in out
+            assert "integrity_ok" in out
+            assert "True" in out
 
     def test_health_error_raises(self) -> None:
         import sqlite3
@@ -302,7 +302,11 @@ class TestDbCheckpoint:
             with patch(
                 "agent.services.db_maintenance_service.checkpoint_wal"
             ) as mock_cp:
-                mock_cp.return_value = "CHECKPOINT_DONE"
+                mock_cp.return_value = {
+                    "busy": 0,
+                    "pages_in_wal": 10,
+                    "pages_checkpointed": 10,
+                }
                 cmd._cmd_db("checkpoint")
                 out = capsys.readouterr().out
                 assert "complete" in out.lower()
@@ -320,7 +324,11 @@ class TestDbCheckpoint:
             with patch(
                 "agent.services.db_maintenance_service.checkpoint_wal"
             ) as mock_cp:
-                mock_cp.return_value = "CHECKPOINT_DONE"
+                mock_cp.return_value = {
+                    "busy": 0,
+                    "pages_in_wal": 5,
+                    "pages_checkpointed": 5,
+                }
                 cmd._cmd_db("checkpoint FULL")
                 out = capsys.readouterr().out
                 assert "complete" in out.lower()
@@ -447,12 +455,19 @@ class TestDbPurge:
 
 
 class TestDbRecover:
+    def _make_recovery_result(self, success: bool, action: str = "vacuum") -> MagicMock:
+        result = MagicMock()
+        result.success = success
+        result.action = action
+        result.detail = "integrity ok" if success else "integrity failed"
+        return result
+
     def test_recover_success(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         with patch(
             "agent.services.db_maintenance_service.recover_corruption"
         ) as mock_rec:
-            mock_rec.return_value = True
+            mock_rec.return_value = self._make_recovery_result(True)
             cmd._cmd_db("recover")
             out = capsys.readouterr().out
             assert "succeeded" in out.lower()
@@ -462,7 +477,7 @@ class TestDbRecover:
         with patch(
             "agent.services.db_maintenance_service.recover_corruption"
         ) as mock_rec:
-            mock_rec.return_value = True
+            mock_rec.return_value = self._make_recovery_result(True, "restored")
             cmd._cmd_db("recover /path/to/backup.db")
             mock_rec.assert_called_once_with("/path/to/backup.db")
 
@@ -471,7 +486,7 @@ class TestDbRecover:
         with patch(
             "agent.services.db_maintenance_service.recover_corruption"
         ) as mock_rec:
-            mock_rec.return_value = False
+            mock_rec.return_value = self._make_recovery_result(False, "no_backup")
             cmd._cmd_db("recover")
             out = capsys.readouterr().out
             assert "failed" in out.lower()

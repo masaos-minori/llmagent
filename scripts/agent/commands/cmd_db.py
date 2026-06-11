@@ -79,10 +79,10 @@ class _DbMixin(MixinBase):
         result = DbMaintenanceService().stats()
         print_kv_list(
             [
-                ("documents", f"{result['docs']:,}"),
-                ("chunks", f"{result['chunks']:,}"),
-                ("sessions", f"{result['sessions']:,}"),
-                ("messages", f"{result['messages']:,}"),
+                ("documents", f"{result.docs:,}"),
+                ("chunks", f"{result.chunks:,}"),
+                ("sessions", f"{result.sessions:,}"),
+                ("messages", f"{result.messages:,}"),
             ]
         )
 
@@ -118,23 +118,22 @@ class _DbMixin(MixinBase):
         print_success("FTS5 index rebuilt.")
 
     def _db_health(self) -> None:
-        """Print DB health metrics: journal mode, integrity, page stats."""
+        """Print DB health metrics: integrity, size."""
         info = DbMaintenanceService().health()
         print_kv_list(
             [
-                ("journal_mode", str(info["journal_mode"])),
-                ("integrity", str(info["integrity"])),
-                ("page_count", f"{info['page_count']:,}"),
-                ("page_size", f"{info['page_size']:,} bytes"),
-                ("freelist_count", f"{info['freelist_count']:,}"),
-                ("db_size", f"{info['db_size_bytes']:,} bytes"),
+                ("integrity_ok", str(info.integrity_ok)),
+                ("db_size", f"{info.size_bytes:,} bytes"),
             ]
         )
 
     def _db_checkpoint(self, mode: str | None) -> None:
         """Run WAL checkpoint. mode: PASSIVE|FULL|RESTART|TRUNCATE (default from config)."""
         result = DbMaintenanceService().checkpoint(mode)
-        print_success(f"WAL checkpoint complete: {result}")
+        print_success(
+            f"WAL checkpoint complete: mode={result.mode},"
+            f" pages_written={result.pages_written}"
+        )
 
     def _db_vacuum(self) -> None:
         """Run VACUUM to rebuild the DB file and reclaim free pages."""
@@ -157,14 +156,12 @@ class _DbMixin(MixinBase):
             else None
         )
         result = DbMaintenanceService().purge(max_sessions, max_age_days)
-        print_success(
-            f"Purged: {result['age_deleted']} by age, {result['count_deleted']} by count"
-        )
+        print_success(f"Purged: {result.sessions_removed} session(s) removed")
 
     def _db_recover(self, backup_path: str | None) -> None:
         """Run integrity check; restore from backup_path if corruption found."""
-        ok = DbMaintenanceService().recover(backup_path)
-        if ok:
-            print_success("Recovery succeeded.")
+        result = DbMaintenanceService().recover(backup_path)
+        if result.integrity_ok:
+            print_success(f"Recovery succeeded: {result.detail}")
         else:
-            print_no_data("Recovery failed — check logs.")
+            print_no_data(f"Recovery failed: {result.detail}")
