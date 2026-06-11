@@ -9,10 +9,12 @@ import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from agent.memory.enums import MemoryType
+
 _ISO8601_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
-# Valid values for MemoryEntry.memory_type
-MEMORY_TYPES: frozenset[str] = frozenset({"semantic", "episodic"})
+# Derived from MemoryType enum for backward compatibility
+MEMORY_TYPES: frozenset[str] = frozenset(m.value for m in MemoryType)
 
 
 class SourceType(StrEnum):
@@ -42,13 +44,13 @@ class EmbeddingErrorKind(StrEnum):
     UNKNOWN_ERROR = "unknown_error"
 
 
-@dataclass
+@dataclass(frozen=True)
 class MemoryEntry:
     """One persistent memory unit stored in JSONL and indexed in SQLite."""
 
     memory_id: str
-    memory_type: str  # "semantic" | "episodic"
-    source_type: SourceType  # use SourceType enum values
+    memory_type: MemoryType
+    source_type: SourceType
     session_id: int | None
     turn_id: str | None
     project: str
@@ -63,27 +65,35 @@ class MemoryEntry:
     updated_at: str = ""
 
     def __post_init__(self) -> None:
-        if self.memory_type not in MEMORY_TYPES:
-            raise ValueError(
-                f"Invalid memory_type={self.memory_type!r}; must be one of {MEMORY_TYPES}",
-            )
-        # Coerce string → SourceType; raises ValueError for unknown values.
+        # Coerce str → MemoryType
+        if not isinstance(self.memory_type, MemoryType):
+            try:
+                object.__setattr__(self, "memory_type", MemoryType(self.memory_type))
+            except ValueError:
+                raise ValueError(
+                    f"Invalid memory_type={self.memory_type!r};"
+                    f" must be one of {[m.value for m in MemoryType]}",
+                )
+        # Coerce str → SourceType
         if not isinstance(self.source_type, SourceType):
             try:
                 object.__setattr__(self, "source_type", SourceType(self.source_type))
             except ValueError:
                 raise ValueError(
-                    f"Invalid source_type={self.source_type!r}; must be one of {[v.value for v in SourceType]}",
+                    f"Invalid source_type={self.source_type!r};"
+                    f" must be one of {[v.value for v in SourceType]}",
                 )
         if not (0.0 <= self.importance <= 1.0):
             raise ValueError(f"importance must be in [0.0, 1.0], got {self.importance}")
         if self.created_at and not _ISO8601_RE.match(self.created_at):
             raise ValueError(
-                f"created_at must be ISO-8601 UTC (YYYY-MM-DDTHH:MM:SSZ), got {self.created_at!r}",
+                f"created_at must be ISO-8601 UTC (YYYY-MM-DDTHH:MM:SSZ),"
+                f" got {self.created_at!r}",
             )
         if self.updated_at and not _ISO8601_RE.match(self.updated_at):
             raise ValueError(
-                f"updated_at must be ISO-8601 UTC (YYYY-MM-DDTHH:MM:SSZ), got {self.updated_at!r}",
+                f"updated_at must be ISO-8601 UTC (YYYY-MM-DDTHH:MM:SSZ),"
+                f" got {self.updated_at!r}",
             )
 
 
@@ -92,17 +102,22 @@ class MemoryQuery:
     """Search parameters for memory retrieval."""
 
     query: str
-    memory_type: str | None = None  # None = both semantic and episodic
+    memory_type: MemoryType | None = None  # None = both semantic and episodic
     limit: int = 10
 
     def __post_init__(self) -> None:
         if not self.query.strip():
             raise ValueError("MemoryQuery.query must not be empty")
-        if self.memory_type is not None and self.memory_type not in MEMORY_TYPES:
-            raise ValueError(
-                f"MemoryQuery.memory_type must be 'semantic', 'episodic', or None;"
-                f" got {self.memory_type!r}"
-            )
+        if self.memory_type is not None and not isinstance(
+            self.memory_type, MemoryType
+        ):
+            try:
+                object.__setattr__(self, "memory_type", MemoryType(self.memory_type))
+            except ValueError:
+                raise ValueError(
+                    f"MemoryQuery.memory_type must be MemoryType or None;"
+                    f" got {self.memory_type!r}"
+                )
         if self.limit < 1:
             raise ValueError(f"MemoryQuery.limit must be >= 1, got {self.limit}")
 

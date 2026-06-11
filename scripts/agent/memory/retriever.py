@@ -59,7 +59,8 @@ def _recency_boost(created_at: str, recency_days: float = _RECENCY_DAYS) -> floa
         if age_days >= recency_days:
             return 0.0
         return _RECENCY_MAX_BOOST * (1.0 - age_days / recency_days)
-    except (ValueError, OverflowError):
+    except (ValueError, OverflowError) as e:
+        logger.warning("_recency_boost: invalid created_at %r: %s", created_at, e)
         return 0.0
 
 

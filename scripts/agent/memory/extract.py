@@ -24,8 +24,8 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from shared.types import LLMMessage
-
+from agent.memory.enums import MemoryType
+from agent.memory.models import HistoryMessage
 from agent.memory.types import MemoryEntry, SourceType
 
 logger = logging.getLogger(__name__)
@@ -79,23 +79,23 @@ def _classify_content(
     content: str,
     semantic_hits: int,
     failure_hits: int,
-) -> tuple[str, SourceType, list[str]] | None:
+) -> tuple[MemoryType, SourceType, list[str]] | None:
     """Return (memory_type, source_type, tags) classification, or None if not extractable."""
     if semantic_hits >= 2 or (semantic_hits >= 1 and len(content) >= 200):
         source = (
             SourceType.DECISION if "decided" in content.lower() else SourceType.RULE
         )
-        return "semantic", source, ["auto-extracted", "semantic"]
+        return MemoryType.SEMANTIC, source, ["auto-extracted", "semantic"]
     if failure_hits >= 1:
-        return "episodic", SourceType.FAILURE, ["auto-extracted", "failure"]
+        return MemoryType.EPISODIC, SourceType.FAILURE, ["auto-extracted", "failure"]
     if len(content) >= MIN_CONTENT_CHARS * 2:
-        return "episodic", SourceType.CONVERSATION, ["auto-extracted", "qa"]
+        return MemoryType.EPISODIC, SourceType.CONVERSATION, ["auto-extracted", "qa"]
     return None
 
 
 def _make_entry(
     *,
-    memory_type: str,
+    memory_type: MemoryType,
     source_type: SourceType,
     tags: list[str],
     content: str,
@@ -148,7 +148,7 @@ def _make_summary(content: str, max_chars: int = 120) -> str:
 
 
 def _try_extract_from_assistant(
-    msg: LLMMessage,
+    msg: HistoryMessage,
     *,
     policy: ExtractionPolicy,
     session_id: int | None,
@@ -160,8 +160,7 @@ def _try_extract_from_assistant(
     now: str,
 ) -> MemoryEntry | None:
     """Try to extract one MemoryEntry from an assistant message; return None when unqualified."""
-    content_raw = msg.get("content") or ""
-    content = str(content_raw).strip() if content_raw else ""
+    content = msg.content.strip()
     if len(content) < policy.min_content_chars:
         return None
     if max_content_chars > 0 and len(content) > max_content_chars:
@@ -189,7 +188,7 @@ def _try_extract_from_assistant(
 
 
 def _try_extract_from_user(
-    msg: LLMMessage,
+    msg: HistoryMessage,
     *,
     policy: ExtractionPolicy,
     session_id: int | None,
@@ -203,15 +202,14 @@ def _try_extract_from_user(
 
     Short messages and messages without rule/policy keywords are ignored.
     """
-    content_raw = msg.get("content") or ""
-    content = str(content_raw).strip() if content_raw else ""
+    content = msg.content.strip()
     if len(content) < policy.min_user_content_chars:
         return None
     if not _SEMANTIC_KEYWORDS.search(content):
         return None
     importance = _importance_from_content(content, is_semantic=True)
     return _make_entry(
-        memory_type="semantic",
+        memory_type=MemoryType.SEMANTIC,
         source_type=SourceType.RULE,
         tags=["auto-extracted", "user-rule"],
         content=content,
@@ -226,7 +224,7 @@ def _try_extract_from_user(
 
 
 def extract_memories(
-    history: list[LLMMessage],
+    history: list[HistoryMessage],
     session_id: int | None = None,
     turn_id: str | None = None,
     project: str = "",
@@ -242,7 +240,7 @@ def extract_memories(
     Pass a custom ExtractionPolicy to override extraction thresholds.
     """
     _policy = policy or ExtractionPolicy()
-    non_system = [m for m in history if m.get("role") != "system"]
+    non_system = [m for m in history if m.role != "system"]
     if len(non_system) < _policy.min_turns:
         logger.debug(
             f"extract_memories: skipping — only {len(non_system)} non-system turns",
@@ -252,7 +250,7 @@ def extract_memories(
     candidates: list[MemoryEntry] = []
     now = _now_iso()
     for msg in history:
-        role = msg.get("role")
+        role = msg.role
         if role == "assistant":
             entry = _try_extract_from_assistant(
                 msg,

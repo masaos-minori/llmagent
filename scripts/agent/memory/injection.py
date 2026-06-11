@@ -10,6 +10,8 @@ import logging
 from dataclasses import dataclass
 
 from agent.memory.embedding_client import EmbeddingClient
+from agent.memory.enums import MemoryType
+from agent.memory.exceptions import InjectionValidationError
 from agent.memory.retriever import HybridRetriever
 from agent.memory.types import MemoryQuery
 
@@ -69,13 +71,13 @@ class MemoryInjectionService:
     ) -> list[str]:
         """Return relevant snippets for the current user query (async)."""
         if not query.strip():
-            return []
+            raise InjectionValidationError("on_user_prompt query must not be empty")
         embed_result = await self._embed_client.fetch(query)
         embedding = embed_result.embedding if embed_result.success else None
         hits_s = self._retriever.search(
             MemoryQuery(
                 query=query,
-                memory_type="semantic",
+                memory_type=MemoryType.SEMANTIC,
                 limit=self._policy.max_semantic,
             ),
             embedding=embedding,
@@ -85,7 +87,7 @@ class MemoryInjectionService:
         hits_e = self._retriever.search(
             MemoryQuery(
                 query=query,
-                memory_type="episodic",
+                memory_type=MemoryType.EPISODIC,
                 limit=self._policy.max_episodic,
             ),
             embedding=embedding,

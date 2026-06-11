@@ -9,6 +9,7 @@ MemoryStore, HybridRetriever, and JsonlMemoryStore are MagicMock-patched.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,10 +17,10 @@ from agent.memory.embedding_client import EmbeddingClient, EmbeddingClientConfig
 from agent.memory.ingestion import DedupPolicy, MemoryIngestionService
 from agent.memory.injection import InjectionPolicy, MemoryInjectionService
 from agent.memory.jsonl_store import JsonlMemoryStore
+from agent.memory.models import HistoryMessage
 from agent.memory.retriever import HybridRetriever
 from agent.memory.store import MemoryStore
 from agent.memory.types import EmbeddingResult, MemoryEntry, MemoryHit
-from shared.types import LLMMessage
 
 
 def _make_entry(
@@ -134,9 +135,12 @@ class TestOnUserPrompt:
         assert any("Episodic" in s for s in snippets)
 
     @pytest.mark.asyncio
-    async def test_returns_empty_for_blank_query(self) -> None:
+    async def test_raises_for_blank_query(self) -> None:
+        from agent.memory.exceptions import InjectionValidationError
+
         svc, _, _ = _make_injection_svc()
-        assert await svc.on_user_prompt("   ", session_id=1) == []
+        with pytest.raises(InjectionValidationError):
+            await svc.on_user_prompt("   ", session_id=1)
 
     @pytest.mark.asyncio
     async def test_raises_on_retriever_error(self) -> None:
@@ -168,16 +172,16 @@ class TestOnSessionStop:
         svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
             return_value=EmbeddingResult(success=False, error_kind="disabled")
         )
-        history: list[LLMMessage] = [
-            {"role": "user", "content": "What is the rule?"},
-            {
-                "role": "assistant",
-                "content": (
+        history: list[HistoryMessage] = [
+            HistoryMessage(role="user", content="What is the rule?"),
+            HistoryMessage(
+                role="assistant",
+                content=(
                     "The rule is that we should always follow the policy "
                     "and constraint established by the team. This is a decided rule "
                     "and everyone must comply with the guideline going forward."
                 ),
-            },
+            ),
         ]
         await svc.on_session_stop(session_id=1, history=history)
         assert mock_store.upsert.called or not mock_store.upsert.called
@@ -185,7 +189,7 @@ class TestOnSessionStop:
     @pytest.mark.asyncio
     async def test_no_op_on_short_history(self) -> None:
         svc, mock_store, _, mock_jsonl = _make_ingestion_svc()
-        history: list[LLMMessage] = [{"role": "user", "content": "hi"}]
+        history: list[HistoryMessage] = [HistoryMessage(role="user", content="hi")]
         await svc.on_session_stop(session_id=1, history=history)
         mock_store.upsert.assert_not_called()
         mock_jsonl.write.assert_not_called()
@@ -197,16 +201,16 @@ class TestOnSessionStop:
             return_value=EmbeddingResult(success=False, error_kind="disabled")
         )
         mock_store.upsert.side_effect = Exception("db error")
-        history: list[LLMMessage] = [
-            {"role": "user", "content": "What is the rule?"},
-            {
-                "role": "assistant",
-                "content": (
+        history: list[HistoryMessage] = [
+            HistoryMessage(role="user", content="What is the rule?"),
+            HistoryMessage(
+                role="assistant",
+                content=(
                     "The rule is that we should always follow the policy "
                     "and constraint set by the team. This is a decided rule "
                     "everyone must comply with the guideline."
                 ),
-            },
+            ),
         ]
         with pytest.raises(Exception, match="db error"):
             await svc.on_session_stop(session_id=1, history=history)
@@ -265,16 +269,16 @@ class TestEmbeddingInOnSessionStop:
         )
         mock_retriever.knn_search.return_value = []
 
-        history: list[LLMMessage] = [
-            {"role": "user", "content": "What is the rule?"},
-            {
-                "role": "assistant",
-                "content": (
+        history: list[HistoryMessage] = [
+            HistoryMessage(role="user", content="What is the rule?"),
+            HistoryMessage(
+                role="assistant",
+                content=(
                     "The rule is that we should always follow the policy "
                     "and constraint established by the team. This is a decided rule "
                     "and everyone must comply with the guideline going forward."
                 ),
-            },
+            ),
         ]
         await svc.on_session_stop(session_id=1, history=history)
 
@@ -301,16 +305,16 @@ class TestEmbeddingInOnSessionStop:
             return_value=EmbeddingResult(success=False, error_kind="http_error")
         )
 
-        history: list[LLMMessage] = [
-            {"role": "user", "content": "What is the rule?"},
-            {
-                "role": "assistant",
-                "content": (
+        history: list[HistoryMessage] = [
+            HistoryMessage(role="user", content="What is the rule?"),
+            HistoryMessage(
+                role="assistant",
+                content=(
                     "The rule is that we should always follow the policy "
                     "and constraint established by the team. This is a decided rule "
                     "and everyone must comply with the guideline."
                 ),
-            },
+            ),
         ]
         await svc.on_session_stop(session_id=1, history=history)
 
@@ -383,8 +387,7 @@ class TestIngestionDedup:
         mock_jsonl = MagicMock(spec=JsonlMemoryStore)
 
         fake_embedding = [0.1, 0.2, 0.3]
-        near_dup = _make_entry()
-        near_dup.memory_id = "existing-id"
+        near_dup = dataclasses.replace(_make_entry(), memory_id="existing-id")
         # Distance 0.1 < threshold 0.3 → near-duplicate
         mock_retriever.knn_search.return_value = [
             MemoryHit(entry=near_dup, score=-0.1),
@@ -403,15 +406,15 @@ class TestIngestionDedup:
             return_value=EmbeddingResult(success=True, embedding=fake_embedding)
         )
 
-        history: list[LLMMessage] = [
-            {"role": "user", "content": "What is the rule?"},
-            {
-                "role": "assistant",
-                "content": (
+        history: list[HistoryMessage] = [
+            HistoryMessage(role="user", content="What is the rule?"),
+            HistoryMessage(
+                role="assistant",
+                content=(
                     "Always follow the policy and constraint established "
                     "by the team. This is a decided rule everyone must comply with."
                 ),
-            },
+            ),
         ]
         await svc.on_session_stop(session_id=1, history=history)
         mock_store.upsert.assert_not_called()
@@ -438,15 +441,15 @@ class TestIngestionDedup:
             return_value=EmbeddingResult(success=True, embedding=fake_embedding)
         )
 
-        history: list[LLMMessage] = [
-            {"role": "user", "content": "What is the rule?"},
-            {
-                "role": "assistant",
-                "content": (
+        history: list[HistoryMessage] = [
+            HistoryMessage(role="user", content="What is the rule?"),
+            HistoryMessage(
+                role="assistant",
+                content=(
                     "Always follow the policy and constraint established "
                     "by the team. This is a decided rule everyone must comply with."
                 ),
-            },
+            ),
         ]
         mock_helper = MagicMock()
         mock_helper.__enter__ = MagicMock(return_value=mock_helper)
@@ -493,8 +496,7 @@ class TestLinkDuplicates:
             embed_client=MagicMock(spec=EmbeddingClient),
             dedup_policy=DedupPolicy(threshold=0.9),
         )
-        self_entry = _make_entry()
-        self_entry.memory_id = "mem-1"
+        self_entry = dataclasses.replace(_make_entry(), memory_id="mem-1")
         mock_retriever.knn_search.return_value = [
             MemoryHit(entry=self_entry, score=-0.01)
         ]
@@ -537,7 +539,7 @@ class TestMemoryServicesFacade:
     async def test_on_session_stop_delegates(self) -> None:
         svc = self._make_services()
         svc.ingestion.on_session_stop = AsyncMock()
-        history: list[LLMMessage] = []
+        history: list[HistoryMessage] = []
         await svc.on_session_stop(session_id=1, history=history, turn_id=None)
         svc.ingestion.on_session_stop.assert_called_once_with(1, history, None)
 

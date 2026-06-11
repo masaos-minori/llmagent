@@ -6,10 +6,9 @@ Replaces MemoryLayer as the AppServices.memory type.
 
 from __future__ import annotations
 
-from shared.types import LLMMessage
-
 from agent.memory.ingestion import MemoryIngestionService
 from agent.memory.injection import MemoryInjectionService
+from agent.memory.models import HistoryMessage
 from agent.memory.retriever import HybridRetriever
 from agent.memory.store import MemoryStore
 
@@ -38,7 +37,7 @@ class MemoryServices:
     async def on_session_stop(
         self,
         session_id: int | None,
-        history: list[LLMMessage],
+        history: list[HistoryMessage],
         turn_id: str | None = None,
     ) -> None:
         """Extract and persist memories from session history."""

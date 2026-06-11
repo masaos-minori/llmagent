@@ -7,6 +7,7 @@ SQLiteHelper is patched with _FakeSQLiteHelper backed by in-memory SQLite.
 
 from __future__ import annotations
 
+import dataclasses
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -157,13 +158,18 @@ class TestAdd:
         ).fetchall()
         assert len(rows) == 1
 
-    def test_add_sets_timestamps_when_empty(self, store: MemoryStore) -> None:
-        entry = _make_entry()
-        entry.created_at = ""
-        entry.updated_at = ""
+    def test_add_sets_timestamps_when_empty(
+        self, store: MemoryStore, db_conn: sqlite3.Connection
+    ) -> None:
+        entry = dataclasses.replace(_make_entry(), created_at="", updated_at="")
         store.add(entry)
-        assert entry.created_at != ""
-        assert entry.updated_at != ""
+        row = db_conn.execute(
+            "SELECT created_at, updated_at FROM memories WHERE memory_id=?",
+            (entry.memory_id,),
+        ).fetchone()
+        assert row is not None
+        assert row[0] != ""
+        assert row[1] != ""
 
     def test_add_multiple_unique_ids(
         self, store: MemoryStore, db_conn: sqlite3.Connection
@@ -191,8 +197,8 @@ class TestUpsert:
     ) -> None:
         entry = _make_entry(content="original", memory_id="fixed-id")
         store.upsert(entry)
-        entry.content = "updated"
-        store.upsert(entry)
+        entry2 = dataclasses.replace(entry, content="updated")
+        store.upsert(entry2)
         rows = db_conn.execute(
             "SELECT content FROM memories WHERE memory_id='fixed-id'"
         ).fetchall()
@@ -204,8 +210,8 @@ class TestUpsert:
     ) -> None:
         entry = _make_entry(content="old word", memory_id="fixed-id")
         store.upsert(entry)
-        entry.content = "new keyword"
-        store.upsert(entry)
+        entry2 = dataclasses.replace(entry, content="new keyword")
+        store.upsert(entry2)
         rows = db_conn.execute(
             "SELECT memory_id FROM memories_fts WHERE memories_fts MATCH 'new'"
         ).fetchall()
@@ -319,8 +325,7 @@ class TestPinUnpin:
     def test_unpin_clears_pinned(
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
-        entry = _make_entry(memory_id="unpin-test")
-        entry.pinned = True
+        entry = dataclasses.replace(_make_entry(memory_id="unpin-test"), pinned=True)
         store.add(entry)
         ok = store.unpin("unpin-test")
         assert ok is True

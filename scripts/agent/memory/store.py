@@ -15,7 +15,9 @@ Responsibilities:
 
 from __future__ import annotations
 
+import dataclasses
 import logging
+import sqlite3
 import struct
 from datetime import UTC, datetime
 from typing import Any
@@ -23,7 +25,9 @@ from typing import Any
 import orjson
 from db.helper import SQLiteHelper
 
+from agent.memory.exceptions import MemoryConsistencyError
 from agent.memory.mapper import row_to_entry
+from agent.memory.models import ConsistencyReport
 from agent.memory.types import MemoryEntry
 
 logger = logging.getLogger(__name__)
@@ -32,6 +36,19 @@ logger = logging.getLogger(__name__)
 # TODO: consolidate _now_iso into shared/ to remove duplication with extract.py
 def _now_iso() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _stamp_entry(entry: MemoryEntry, now: str) -> MemoryEntry:
+    """Return entry with created_at/updated_at filled if empty (frozen-safe)."""
+    need_created = not entry.created_at
+    need_updated = not entry.updated_at
+    if need_created and need_updated:
+        return dataclasses.replace(entry, created_at=now, updated_at=now)
+    if need_created:
+        return dataclasses.replace(entry, created_at=now)
+    if need_updated:
+        return dataclasses.replace(entry, updated_at=now)
+    return entry
 
 
 def _floats_to_blob(values: list[float], expected_dim: int | None = None) -> bytes:
@@ -126,16 +143,13 @@ class MemoryStore:
         Uses BEGIN IMMEDIATE for atomicity across memories + memories_fts + memories_vec.
         """
         now = _now_iso()
-        if not entry.created_at:
-            entry.created_at = now
-        if not entry.updated_at:
-            entry.updated_at = now
+        stamped = _stamp_entry(entry, now)
         with SQLiteHelper("session").open(write_mode=True) as db:
             with db.begin_immediate():
-                db.execute(self._INSERT_SQL, self._build_row_params(entry))
-                self._write_fts(db, entry)
+                db.execute(self._INSERT_SQL, self._build_row_params(stamped))
+                self._write_fts(db, stamped)
                 if embedding is not None:
-                    self._write_vec(db, entry.memory_id, embedding)
+                    self._write_vec(db, stamped.memory_id, embedding)
         logger.debug(f"MemoryStore.add memory_id={entry.memory_id!r}")
 
     def upsert(self, entry: MemoryEntry, embedding: list[float] | None = None) -> None:
@@ -144,20 +158,23 @@ class MemoryStore:
         When embedding is provided, also upserts memories_vec.
         Uses BEGIN IMMEDIATE for atomicity across memories + memories_fts + memories_vec.
         """
-        entry.updated_at = _now_iso()
-        if not entry.created_at:
-            entry.created_at = entry.updated_at
+        now = _now_iso()
+        stamped = dataclasses.replace(
+            entry,
+            updated_at=now,
+            created_at=entry.created_at or now,
+        )
         with SQLiteHelper("session").open(write_mode=True) as db:
             with db.begin_immediate():
-                db.execute(self._UPSERT_SQL, self._build_row_params(entry))
+                db.execute(self._UPSERT_SQL, self._build_row_params(stamped))
                 # Sync FTS5: delete old row (if any) then re-insert
                 db.execute(
                     "DELETE FROM memories_fts WHERE memory_id = ?",
-                    (entry.memory_id,),
+                    (stamped.memory_id,),
                 )
-                self._write_fts(db, entry)
+                self._write_fts(db, stamped)
                 if embedding is not None:
-                    self._write_vec(db, entry.memory_id, embedding)
+                    self._write_vec(db, stamped.memory_id, embedding)
         logger.debug(f"MemoryStore.upsert memory_id={entry.memory_id!r}")
 
     def delete(self, memory_id: str) -> bool:
@@ -219,38 +236,35 @@ class MemoryStore:
             return {row[0]: row[1] for row in rows}
 
     def count_vec(self) -> int:
-        """Return total entry count in memories_vec. Diagnostic use only; 0 if table unavailable."""
-        try:
-            with SQLiteHelper("session").open() as db:
-                rows = db.fetchall("SELECT COUNT(*) FROM memories_vec")
-                return int(rows[0][0]) if rows else 0
-        except Exception as e:
-            logger.warning(f"MemoryStore.count_vec failed: {e}")
-            return 0
+        """Return total entry count in memories_vec. Raises sqlite3.OperationalError if unavailable."""
+        with SQLiteHelper("session").open() as db:
+            rows = db.fetchall("SELECT COUNT(*) FROM memories_vec")
+            return int(rows[0][0]) if rows else 0
 
-    def check_consistency(self) -> dict[str, int]:
-        """Return row counts for memories / memories_fts / memories_vec. Diagnostic use only.
+    def check_consistency(self) -> ConsistencyReport:
+        """Return row counts for memories / memories_fts / memories_vec.
 
-        Use to detect index drift after unexpected failures.
+        Raises MemoryConsistencyError if FTS count cannot be determined.
         """
-        result: dict[str, int] = {}
         with SQLiteHelper("session").open() as db:
             rows = db.fetchall("SELECT COUNT(*) FROM memories")
-            result["memories"] = int(rows[0][0]) if rows else 0
+            memories = int(rows[0][0]) if rows else 0
             try:
                 fts_rows = db.fetchall(
                     "SELECT COUNT(*) FROM memories_fts WHERE memories_fts MATCH '*'"
                 )
-                result["memories_fts"] = int(fts_rows[0][0]) if fts_rows else 0
-            except Exception:
+                fts = int(fts_rows[0][0]) if fts_rows else 0
+            except sqlite3.OperationalError:
                 # Fallback: direct count without FTS predicate
                 try:
-                    fts_rows = db.fetchall("SELECT COUNT(*) FROM memories_fts")
-                    result["memories_fts"] = int(fts_rows[0][0]) if fts_rows else 0
-                except Exception:
-                    result["memories_fts"] = -1
-        result["memories_vec"] = self.count_vec()
-        return result
+                    fts_rows2 = db.fetchall("SELECT COUNT(*) FROM memories_fts")
+                    fts = int(fts_rows2[0][0]) if fts_rows2 else 0
+                except sqlite3.OperationalError as e:
+                    raise MemoryConsistencyError(
+                        f"Cannot count memories_fts: {e}"
+                    ) from e
+        vec = self.count_vec()
+        return ConsistencyReport(memories=memories, fts=fts, vec=vec)
 
     def pin(self, memory_id: str) -> bool:
         """Set pinned=1 for memory_id; return True when found."""
@@ -285,24 +299,16 @@ class MemoryStore:
         return row_to_entry(rows[0]) if rows else None
 
     def count_entries(self) -> int:
-        """Return total entry count across all types; 0 on DB error."""
-        try:
-            with SQLiteHelper("session").open() as db:
-                rows = db.fetchall("SELECT COUNT(*) FROM memories")
-            return int(rows[0][0]) if rows else 0
-        except Exception as e:
-            logger.warning("MemoryStore.count_entries failed: %s", e)
-            return 0
+        """Return total entry count across all types. Raises sqlite3.OperationalError on DB error."""
+        with SQLiteHelper("session").open() as db:
+            rows = db.fetchall("SELECT COUNT(*) FROM memories")
+        return int(rows[0][0]) if rows else 0
 
     def count_prunable(self, days: int) -> int:
-        """Return count of entries older than `days` days without deleting."""
-        try:
-            with SQLiteHelper("session").open() as db:
-                row = db.fetchall(
-                    "SELECT COUNT(*) FROM memories WHERE created_at < datetime('now', ?)",
-                    (f"-{days} days",),
-                )
-                return int(row[0][0]) if row else 0
-        except Exception as e:
-            logger.warning("MemoryStore.count_prunable failed: %s", e)
-            return 0
+        """Return count of entries older than `days` days. Raises sqlite3.OperationalError on DB error."""
+        with SQLiteHelper("session").open() as db:
+            row = db.fetchall(
+                "SELECT COUNT(*) FROM memories WHERE created_at < datetime('now', ?)",
+                (f"-{days} days",),
+            )
+            return int(row[0][0]) if row else 0

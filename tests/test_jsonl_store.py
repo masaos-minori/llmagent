@@ -9,6 +9,7 @@ from pathlib import Path
 
 import orjson
 import pytest
+from agent.memory.exceptions import JsonlFormatError, MemorySchemaError
 from agent.memory.jsonl_store import JsonlMemoryStore, _entry_from_dict
 from agent.memory.types import MemoryEntry, SourceType
 
@@ -45,6 +46,7 @@ class TestEntryFromDict:
             "memory_type": "semantic",
             "source_type": "conversation",
             "content": "test content",
+            "importance": 0.5,
         }
         entry = _entry_from_dict(d)
         assert entry is not None
@@ -52,45 +54,40 @@ class TestEntryFromDict:
         assert entry.memory_type == "semantic"
         assert entry.content == "test content"
 
-    def test_invalid_memory_type_returns_none(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_invalid_memory_type_raises(self) -> None:
         d = {"memory_id": "m-1", "memory_type": "invalid"}
-        entry = _entry_from_dict(d)
-        assert entry is None
-        assert "invalid memory_type" in caplog.text
+        with pytest.raises((JsonlFormatError, ValueError)):
+            _entry_from_dict(d)
 
-    def test_missing_memory_id_raises_value_error(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_missing_memory_id_raises(self) -> None:
         d = {"memory_type": "semantic", "source_type": "conversation"}
-        entry = _entry_from_dict(d)
-        assert entry is None
-        assert "memory_id" in caplog.text
+        with pytest.raises(MemorySchemaError):
+            _entry_from_dict(d)
 
-    def test_invalid_source_type_raises_value_error(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_invalid_source_type_raises(self) -> None:
         d = {
             "memory_id": "m-1",
             "memory_type": "semantic",
             "source_type": "nonexistent",
+            "importance": 0.5,
+            "content": "x",
         }
-        entry = _entry_from_dict(d)
-        assert entry is None
+        with pytest.raises((MemorySchemaError, ValueError)):
+            _entry_from_dict(d)
 
     def test_defaults_are_applied(self) -> None:
         d = {
             "memory_id": "m-2",
             "memory_type": "episodic",
             "source_type": "conversation",
+            "content": "test content",
+            "importance": 0.5,
         }
         entry = _entry_from_dict(d)
         assert entry is not None
         assert entry.project == ""
         assert entry.repo == ""
         assert entry.branch == ""
-        assert entry.content == ""
         assert entry.summary == ""
         assert entry.tags == []
         assert entry.importance == 0.5
@@ -101,6 +98,8 @@ class TestEntryFromDict:
             "memory_id": "m-3",
             "memory_type": "semantic",
             "source_type": "conversation",
+            "content": "test",
+            "importance": 0.5,
             "tags": ["a", "b"],
         }
         entry = _entry_from_dict(d)
@@ -112,6 +111,7 @@ class TestEntryFromDict:
             "memory_id": "m-4",
             "memory_type": "semantic",
             "source_type": "conversation",
+            "content": "test",
             "importance": "0.9",
         }
         entry = _entry_from_dict(d)
@@ -123,6 +123,8 @@ class TestEntryFromDict:
             "memory_id": "m-5",
             "memory_type": "semantic",
             "source_type": "conversation",
+            "content": "test",
+            "importance": 0.5,
             "pinned": True,
         }
         entry = _entry_from_dict(d)
@@ -138,7 +140,6 @@ class TestReadAllEmpty:
         store = JsonlMemoryStore(tmp_path / "nope.jsonl")
         entries = store.read_all()
         assert entries == []
-        assert store.malformed_count == 0
 
 
 # ── JsonlMemoryStore — write and read ────────────────────────────────────────
@@ -190,20 +191,19 @@ class TestWriteRead:
         assert entries[0].memory_id == "m-a"
         assert entries[1].memory_id == "m-b"
 
-    def test_malformed_count_stays_zero_on_clean_file(self, tmp_path: Path) -> None:
+    def test_write_and_read_count(self, tmp_path: Path) -> None:
         store = JsonlMemoryStore(tmp_path / "store.jsonl")
         entry = _make_entry()
         asyncio.run(store.write(entry))
         entries = store.read_all()
         assert len(entries) == 1
-        assert store.malformed_count == 0
 
 
 # ── JsonlMemoryStore — malformed lines ──────────────────────────────────────
 
 
 class TestMalformedLines:
-    def test_json_decode_error_increments_malformed_count(self, tmp_path: Path) -> None:
+    def test_json_decode_error_raises(self, tmp_path: Path) -> None:
         path = tmp_path / "store.jsonl"
         path.write_text(
             orjson.dumps(_make_entry()).decode()
@@ -214,13 +214,10 @@ class TestMalformedLines:
             encoding="utf-8",
         )
         store = JsonlMemoryStore(path)
-        entries = store.read_all()
-        assert len(entries) == 2
-        assert store.malformed_count == 1
+        with pytest.raises(JsonlFormatError):
+            store.read_all()
 
-    def test_invalid_memory_type_increments_malformed_count(
-        self, tmp_path: Path
-    ) -> None:
+    def test_invalid_memory_type_raises(self, tmp_path: Path) -> None:
         path = tmp_path / "store.jsonl"
         d = {
             "memory_id": "m-3",
@@ -235,9 +232,8 @@ class TestMalformedLines:
             encoding="utf-8",
         )
         store = JsonlMemoryStore(path)
-        entries = store.read_all()
-        assert len(entries) == 1
-        assert store.malformed_count == 1
+        with pytest.raises(JsonlFormatError):
+            store.read_all()
 
     def test_empty_lines_are_skipped(self, tmp_path: Path) -> None:
         path = tmp_path / "store.jsonl"
@@ -248,11 +244,8 @@ class TestMalformedLines:
         store = JsonlMemoryStore(path)
         entries = store.read_all()
         assert len(entries) == 1
-        assert store.malformed_count == 0
 
-    def test_missing_required_field_increments_malformed_count(
-        self, tmp_path: Path
-    ) -> None:
+    def test_missing_required_field_raises(self, tmp_path: Path) -> None:
         path = tmp_path / "store.jsonl"
         d = {"memory_type": "semantic"}  # missing memory_id
         path.write_text(
@@ -263,9 +256,8 @@ class TestMalformedLines:
             encoding="utf-8",
         )
         store = JsonlMemoryStore(path)
-        entries = store.read_all()
-        assert len(entries) == 1
-        assert store.malformed_count == 1
+        with pytest.raises((JsonlFormatError, MemorySchemaError)):
+            store.read_all()
 
 
 # ── JsonlMemoryStore — _get_lock lazy init ──────────────────────────────────

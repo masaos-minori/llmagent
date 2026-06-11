@@ -11,17 +11,19 @@ the new entry is discarded instead of stored.
 from __future__ import annotations
 
 import logging
+import sqlite3
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 
 from db.helper import SQLiteHelper
-from shared.types import LLMMessage
 
 from agent.memory.embedding_client import EmbeddingClient
+from agent.memory.enums import MemoryType
 from agent.memory.extract import extract_memories
 from agent.memory.jsonl_store import JsonlMemoryStore
+from agent.memory.models import HistoryMessage
 from agent.memory.retriever import HybridRetriever
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry, SourceType
@@ -69,7 +71,7 @@ class MemoryIngestionService:
     async def on_session_stop(
         self,
         session_id: int | None,
-        history: list[LLMMessage],
+        history: list[HistoryMessage],
         turn_id: str | None = None,
     ) -> None:
         """Extract memories from history and persist with optional dedup.
@@ -147,7 +149,7 @@ class MemoryIngestionService:
                         hit.entry.memory_id,
                         distance,
                     )
-                except Exception as e:
+                except (sqlite3.OperationalError, sqlite3.IntegrityError) as e:
                     logger.warning("memory_links insert failed: %s", e)
 
     # ── Manual write ──────────────────────────────────────────────────────────
@@ -155,7 +157,7 @@ class MemoryIngestionService:
     def _build_manual_entry(
         self,
         *,
-        memory_type: str,
+        memory_type: MemoryType,
         source_type: SourceType,
         content: str,
         session_id: int | None,
@@ -200,7 +202,7 @@ class MemoryIngestionService:
     async def write_semantic(self, session_id: int | None, content: str) -> None:
         """Persist a semantic memory entry manually."""
         entry = self._build_manual_entry(
-            memory_type="semantic",
+            memory_type=MemoryType.SEMANTIC,
             source_type=SourceType.RULE,
             content=content,
             session_id=session_id,
@@ -211,7 +213,7 @@ class MemoryIngestionService:
     async def write_episodic(self, session_id: int | None, content: str) -> None:
         """Persist an episodic memory entry manually."""
         entry = self._build_manual_entry(
-            memory_type="episodic",
+            memory_type=MemoryType.EPISODIC,
             source_type=SourceType.CONVERSATION,
             content=content,
             session_id=session_id,

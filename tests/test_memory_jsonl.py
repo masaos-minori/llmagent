@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+from agent.memory.exceptions import JsonlFormatError
 from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.types import MemoryEntry
 
@@ -110,20 +111,17 @@ class TestReadAll:
         asyncio.run(store.write(_make_entry(memory_id="good-id")))
         with path.open("ab") as f:
             f.write(b"{{not valid json}}\n")
-        with pytest.raises(ValueError, match="Malformed JSONL"):
+        with pytest.raises(JsonlFormatError, match="Malformed JSONL"):
             store.read_all()
 
-    def test_malformed_json_quarantined(self, tmp_path) -> None:
+    def test_malformed_json_raises_before_good_entry(self, tmp_path) -> None:
         path = tmp_path / "memories.jsonl"
-        quarantine = tmp_path / "quarantine.jsonl"
-        store = JsonlMemoryStore(path, quarantine_path=quarantine)
-        asyncio.run(store.write(_make_entry(memory_id="good-id")))
+        store = JsonlMemoryStore(path)
         with path.open("ab") as f:
             f.write(b"{{not valid json}}\n")
-        entries = store.read_all()
-        assert len(entries) == 1
-        assert entries[0].memory_id == "good-id"
-        assert quarantine.exists()
+        asyncio.run(store.write(_make_entry(memory_id="good-id")))
+        with pytest.raises(JsonlFormatError, match="Malformed JSONL"):
+            store.read_all()
 
     def test_invalid_memory_type_raises_by_default(self, tmp_path) -> None:
         import orjson
@@ -139,15 +137,14 @@ class TestReadAll:
         }
         with path.open("ab") as f:
             f.write(orjson.dumps(bad) + b"\n")
-        with pytest.raises(ValueError, match="Malformed JSONL"):
+        with pytest.raises(JsonlFormatError, match="Malformed JSONL"):
             store.read_all()
 
-    def test_invalid_memory_type_quarantined(self, tmp_path) -> None:
+    def test_invalid_memory_type_raises(self, tmp_path) -> None:
         import orjson
 
         path = tmp_path / "memories.jsonl"
-        quarantine = tmp_path / "quarantine.jsonl"
-        store = JsonlMemoryStore(path, quarantine_path=quarantine)
+        store = JsonlMemoryStore(path)
         asyncio.run(store.write(_make_entry(memory_id="valid-id")))
         bad = {
             "memory_id": "bad-id",
@@ -157,9 +154,8 @@ class TestReadAll:
         }
         with path.open("ab") as f:
             f.write(orjson.dumps(bad) + b"\n")
-        entries = store.read_all()
-        assert len(entries) == 1
-        assert entries[0].memory_id == "valid-id"
+        with pytest.raises(JsonlFormatError):
+            store.read_all()
 
     def test_episodic_entry_round_trips(self, tmp_path) -> None:
         path = tmp_path / "memories.jsonl"
@@ -180,25 +176,23 @@ class TestReadAll:
         entries = store.read_all()
         assert len(entries) == 2
 
-    def test_malformed_line_increments_counter_with_quarantine(self, tmp_path) -> None:
-        """Malformed JSONL line increments malformed_count when quarantine is set."""
+    def test_malformed_line_raises_fail_fast(self, tmp_path) -> None:
+        """read_all() raises immediately on a malformed line (fail-fast)."""
         path = tmp_path / "mem.jsonl"
-        quarantine = tmp_path / "quarantine.jsonl"
         path.write_text(
             '{"bad": "data"}\n{"memory_id": "x", "memory_type": "semantic", "source_type": "rule", "content": "valid"}\n'
         )
-        store = JsonlMemoryStore(path, quarantine_path=quarantine)
-        entries = store.read_all()
-        assert store.malformed_count >= 1
-        assert len(entries) == 1
+        store = JsonlMemoryStore(path)
+        with pytest.raises(JsonlFormatError):
+            store.read_all()
 
-    def test_strict_mode_raises_on_malformed(self, tmp_path) -> None:
-        """strict=True raises on first malformed line."""
+    def test_raises_on_malformed(self, tmp_path) -> None:
+        """read_all() raises JsonlFormatError on first malformed line."""
         path = tmp_path / "mem.jsonl"
         path.write_text('{"bad": "data"}\n')
         store = JsonlMemoryStore(path)
-        with pytest.raises(ValueError, match="Malformed JSONL"):
-            store.read_all(strict=True)
+        with pytest.raises(JsonlFormatError, match="Malformed JSONL"):
+            store.read_all()
 
 
 class TestConcurrentWrites:
@@ -279,7 +273,7 @@ class TestEntryFromDict:
         with path.open("wb") as f:
             f.write(orjson.dumps(data) + b"\n")
         store = JsonlMemoryStore(path)
-        with pytest.raises(ValueError, match="Malformed JSONL"):
+        with pytest.raises(JsonlFormatError, match="Malformed JSONL"):
             store.read_all()
 
     def test_exception_during_entry_parsing_raises(self, tmp_path) -> None:
