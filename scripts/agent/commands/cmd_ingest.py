@@ -11,9 +11,10 @@ Provides _IngestMixin with:
 
 import logging
 
+from mcp.rag_pipeline.models import RagPipelineConfig, build_rag_cfg_adapter
+
 from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import render_export, write_export
-from mcp.rag_pipeline.models import RagPipelineConfig, build_rag_cfg_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,9 @@ class _IngestMixin(MixinBase):
         Usage: /ingest <url|path> [ja|en] [--snippets-only]
         --snippets-only forces heading-based Markdown snippet chunking.
         """
+        from agent.services.exceptions import (
+            IngestStageError,  # noqa: PLC0415 — lazy: deferred to avoid import cost
+        )
         from agent.services.ingest_workflow import (
             IngestWorkflowService,  # noqa: PLC0415 — lazy: heavy ingest pipeline deferred to /ingest call
         )
@@ -62,12 +66,13 @@ class _IngestMixin(MixinBase):
                 snippets_only = True
 
         svc = IngestWorkflowService()
-        result = await svc.run(target, lang=lang, snippets_only=snippets_only)
-        for msg in result.messages:
-            print(f"  {msg}")
-        if result.error:
-            logger.error(f"Ingest failed at stage={result.stage}: {result.error}")
-            print(f"  [ingest] error ({result.stage}): {result.error}")
+        try:
+            result = await svc.run(target, lang=lang, snippets_only=snippets_only)
+            for msg in result.messages:
+                print(f"  {msg}")
+        except IngestStageError as e:
+            logger.error("Ingest failed at stage=%s: %s", e.stage, e.detail)
+            print(f"  [ingest] error ({e.stage}): {e.detail}")
 
     async def _cmd_rag(self, args: str) -> None:
         """Search the RAG knowledge base with a query.
@@ -76,9 +81,6 @@ class _IngestMixin(MixinBase):
           /rag search <query>           Run RAG search and print context
           /rag search <query> --debug   Also print per-stage latency
         """
-        from mcp.rag_pipeline.models import (
-            build_rag_cfg_adapter,  # noqa: PLC0415 — lazy: heavy RAG module deferred to /rag call
-        )
         from rag.pipeline import (
             RagPipeline,  # noqa: PLC0415 — lazy: heavy RAG module deferred to /rag call
         )
