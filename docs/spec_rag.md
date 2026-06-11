@@ -8,7 +8,7 @@ Web クロール・チャンク分割・埋め込み生成・SQLite 格納の 4 
 
 ## 2. スコープ
 
-- **インジェスト:** `rag/ingestion/web_crawler.py`、`rag/ingestion/chunk_splitter.py`、`rag/ingestion/rag_ingester.py`
+- **インジェスト:** `scripts/rag/ingestion/crawler.py`、`scripts/rag/ingestion/chunk_splitter.py`、`scripts/rag/ingestion/ingester.py`
 - **クエリ:** `rag/pipeline.py`、`rag/repository.py`、`rag/llm.py`
 - **ユーティリティ:** `rag/utils.py`
 - **MCP ラッパー:** `mcp/rag_pipeline/server.py`（ポート 8010）
@@ -35,7 +35,7 @@ Web クロール・チャンク分割・埋め込み生成・SQLite 格納の 4 
 
 | 制約 | 内容 |
 |---|---|
-| 言語検出 | 日本語・英語のみ対応。100 文字未満のページは言語不明として除外 |
+| 言語検出 | CJK 文字比率（閾値 0.1）で ja/en を判定。100 文字未満は None（除外） |
 | チャンクサイズ | `min_chunk=40`〜`max_chunk=500` 文字 |
 | チャンク重複 | `chunk_overlap=50` 文字のスライディングウィンドウ |
 | 埋め込み次元 | 384 次元（float32 little-endian BLOB、1536 バイト） |
@@ -133,12 +133,12 @@ RagPipeline.augment(
 
 ```
 WebCrawler.crawl(target_urls)
-  → BFS クロール（同一オリジン、max_pages=500, max_depth=6）
+  → asyncio.Semaphore(concurrency=3) + FIRST_COMPLETED ループによる BFS
   → Conditional GET（ETag/Last-Modified → 304 スキップ）
   → trafilatura でメインテキスト抽出
   → BeautifulSoup でコードブロック抽出
-  → langdetect で言語判定（ja/en 以外は除外）
-  → rag-src/*.txt に保存
+  → CJK 文字比率 >= 0.1 で ja / 未満で en を判定（100 文字未満は除外）
+  → rag-src/yyyymmddhhmmss-{slug}.txt に保存
 
 ChunkSplitter.split(source_files)
   → 日本語: NFKC + Sudachi SplitMode.C + stopword 除去 + 40-500 文字境界
@@ -242,7 +242,7 @@ RagPipeline.augment(query)
 
 ## 10. 公開インターフェース仕様
 
-### 10.1 RagPipeline（rag/pipeline.py）
+### 10.1 RagPipeline（scripts/rag/pipeline.py）
 
 ```python
 class RagPipeline:
@@ -261,18 +261,20 @@ class RagPipeline:
     # 戻り値: コンテキストブロック（空文字列 = 検索無効または結果なし）
 ```
 
-### 10.2 WebCrawler（rag/ingestion/crawler.py）
+### 10.2 WebCrawler（scripts/rag/ingestion/crawler.py）
 
 ```python
 class WebCrawler:
+    def __init__(config: dict[str, Any] | None = None)
     async def crawl(targets: list[tuple[str, str]] | None = None) -> None
     # targets: [(url_or_path, hint_lang), ...] — None の場合は config から読み込み
     async def crawl_site(start_url: str, hint_lang: str) -> None
+    # asyncio.Semaphore + FIRST_COMPLETED による並列 BFS
     def crawl_file(path: Path, lang: str) -> int
     # 戻り値: 取り込んだページ数（crawl_file）
 ```
 
-### 10.3 ChunkSplitter（rag/ingestion/chunk_splitter.py）
+### 10.3 ChunkSplitter（scripts/rag/ingestion/chunk_splitter.py）
 
 ```python
 class ChunkSplitter:
@@ -281,7 +283,7 @@ class ChunkSplitter:
     def process_file(src_path: Path, force: bool = False) -> int
 ```
 
-### 10.4 RagIngester（rag/ingestion/ingester.py）
+### 10.4 RagIngester（scripts/rag/ingestion/ingester.py）
 
 ```python
 class RagIngester:
@@ -289,7 +291,7 @@ class RagIngester:
     def ingest_url_group(url_group: str, force: bool = False) -> None
 ```
 
-### 10.5 PipelineStage（rag/stage.py）
+### 10.5 PipelineStage（scripts/rag/stage.py）
 
 ```python
 class PipelineStage(Protocol):
@@ -306,7 +308,7 @@ class PipelineStage(Protocol):
 | 埋め込みサーバー接続エラー | `embed_retry` 回（デフォルト 3）リトライ後に例外を送出 |
 | DB オープンエラー | `logger.warning()` を出力して `augment()` が `""` を返す |
 | クロール HTTP エラー | ページをスキップして次の URL に進む |
-| 言語判定エラー | `langdetect` 例外時はページをスキップ |
+| 言語判定エラー | CJK 検出で None 返却時はページをスキップ（100 文字未満等） |
 | セマンティックキャッシュ | `use_semantic_cache=false` の場合は常にキャッシュバイパス |
 
 ---

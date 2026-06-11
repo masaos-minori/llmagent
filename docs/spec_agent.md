@@ -15,7 +15,7 @@ LLM エージェント REPL（Read-Eval-Print Loop）として、ユーザーの
 
 ## 3. 背景
 
-現行システムは HTTP 経由で MCP サーバー群を呼び出す単一エージェント REPL 構成である。ユーザーは CLI から直接操作し、コードレビュー・ドキュメント参照・ファイル操作・Git 操作などを自然言語で指示できる。セッション履歴は SQLite に永続化される。
+現行システムは HTTP および stdio (Subprocess) の両方の転送方式で MCP サーバー群を呼び出す単一エージェント REPL 構成である。ユーザーは CLI から直接操作し、コードレビュー・ドキュメント参照・ファイル操作・Git 操作などを自然言語で指示できる。セッション履歴は SQLite に永続化される。
 
 ---
 
@@ -48,7 +48,7 @@ LLM エージェント REPL（Read-Eval-Print Loop）として、ユーザーの
 ### 6.1 REPL 基本機能
 - ユーザー入力の受付（readline、複数行入力は行末 `\` で継続）
 - LLM へのメッセージ送信とストリーミングレスポンス表示
-- スラッシュコマンド（35 種以上）の処理
+- スラッシュコマンド（22 種）の処理
 - セッション開始・終了・切り替え
 
 ### 6.2 ツール呼び出し機能
@@ -116,14 +116,16 @@ LLM エージェント REPL（Read-Eval-Print Loop）として、ユーザーの
 
 [1ターンの処理]
   ユーザー入力
-    → RAG augment (use_search=true の場合)
-    → Orchestrator.handle_turn(user_message)
+    → Orchestrator.handle_turn(user_message, allowed_tools=None)
       → HistoryManager.compress() (コンテキスト上限超過時)
+        → tuple[list[LLMMessage], CompressResult] を返す (compressed_count, protected_count, summary_added 付き)
       → LLMClient.send_message() [SSEストリーミング]
       → tool_calls あり？
           Yes → run_approval_checks() → execute_all_tool_calls()
               → ループ (max_tool_turns まで)
           No  → 最終応答を表示・DB 保存
+
+※ RAG augment は仕様 (§6.3, §8) で定義されているが、実際のコード (orchestrator.py, llm_turn_runner.py) では呼び出し実装がない。
 
 [セッション終了]
   MemoryIngestionService.on_session_stop() (use_memory_layer=true の場合)
@@ -136,36 +138,47 @@ LLM エージェント REPL（Read-Eval-Print Loop）として、ユーザーの
 
 ### 9.1 AgentConfig サブ設定
 
+AgentConfig は 7 つのサブ config を compose する構造（`config.py:401-415`）。`cfg.llm.llm_url` のようにネストしてアクセスする。
+
 | サブ設定 | 主要フィールド |
 |---|---|
-| `LLMConfig` | `llm_url`, `http_timeout=30.0`, `llm_max_retries=3`, `llm_temperature=0.2`, `llm_max_tokens=1024`, `context_char_limit=8000`, `context_compress_turns=4`, `tokenize_url`, `context_token_limit=0` |
-| `RAGConfig` | `top_k_search=20`, `top_k_rerank=15`, `max_chunks_per_doc=2`, `embed_url`, `use_semantic_cache=False`, `use_refiner=False` |
-| `ToolConfig` | `tool_cache_ttl=300.0`, `serial_tool_calls=False`, `max_tool_turns=5`, `tool_definitions=[]`, `allowed_tools=[]`, `use_tool_dag=False`, `tool_result_max_llm_chars=8000` |
-| `MemoryConfig` | `use_memory_layer=False`, `memory_jsonl_dir`, `memory_max_inject_semantic=5`, `memory_max_inject_episodic=3`, `memory_embed_enabled=False`, `memory_embed_dim=384` |
-| `MCPConfig` | `mcp_servers={}`, `mcp_watchdog_interval=0.0`, `mcp_watchdog_max_restarts=3` |
-| `ApprovalConfig` | `approval_risk_rules`, `approval_protected_paths`, `approval_high_risk_branches`, `approval_github_allowed_repos=[]` |
+| `LLMConfig` | `llm_url`, `http_timeout=30.0`, `llm_retry_base_delay=1.0`, `llm_max_retries=3`, `llm_temperature=0.2`, `llm_max_tokens=1024`, `title_llm_temperature`, `title_llm_max_tokens`, `context_char_limit=8000`, `context_compress_turns=4`, `context_token_limit=0`, `tokenize_url`, `sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`, `llm_stream_retry_on_heartbeat_timeout`, `llm_stream_retry_on_malformed_chunk`, `history_protect_turns`, `budget_warn_ratio` |
+| `RAGConfig` | `top_k_search=20`, `top_k_rerank=15`, `max_chunks_per_doc=2`, `embed_url`, `use_semantic_cache=False`, `semantic_cache_threshold`, `semantic_cache_max_size`, `web_search_url`, `web_search_max_results`, `refiner_max_tokens`, `refiner_timeout`, `refiner_max_chars_per_chunk` |
+| `ToolConfig` | `tool_cache_ttl=300.0`, `tool_cache_max_size`, `serial_tool_calls=False`, `max_tool_turns=5`, `tool_definitions=[]`, `allowed_tools=[]`, `use_tool_dag=False`, `tool_result_max_llm_chars=8000`, `use_tool_summarize`, `tool_summarize_threshold`, `tool_definitions_strict`, `tool_dedup_max_repeats`, `tool_cycle_detect_window`, `tool_error_retry_max`, `tool_concurrency_limits`, `masked_fields`, `plan_blocked_tools`, `tool_results_turn_max_chars` |
+| `MemoryConfig` | `use_memory_layer=False`, `memory_jsonl_dir`, `memory_max_inject_semantic=5`, `memory_max_inject_episodic=3`, `memory_embed_enabled=False`, `memory_embed_dim=384`, `memory_min_importance`, `memory_dedup_threshold`, `memory_max_content_chars`, `memory_embed_timeout_sec`, `memory_retention_days`, `memory_fts_limit=50`, `memory_rrf_k=60`, `memory_recency_days=7.0` |
+| `MCPConfig` | `mcp_servers={}`, `mcp_watchdog_interval=0.0`, `mcp_watchdog_max_restarts=3`, `github_url` |
+| `ApprovalConfig` | `approval_risk_rules`, `approval_protected_paths`, `approval_high_risk_branches`, `approval_github_allowed_repos=[]`, `approval_shell_safe_prefixes`, `approval_resource_keys`, `approval_dry_run_tools`, `tool_safety_tiers`, `allowed_root`, `gitops_push_blocked=False`, `gitops_force_push_blocked=True`, `gitops_protected_branches` |
 | `ObservabilityConfig` | `otel_enabled=False`, `otel_endpoint`, `audit_log_file`, `structured_log=False` |
+
+※ `_cfg` モジュール変数と `_get_cfg()` キャッシュは削除された。`load_config()` は毎回 `ConfigLoader().load_all()` を呼ぶ。
 
 ### 9.2 ConversationState
 
 ```python
 @dataclass
 class ConversationState:
-    history: list[LLMMessage]       # 会話履歴
-    session_id: int | None
-    system_prompt_name: str
-    llm_url: str
+    history: list[LLMMessage]           # 会話履歴
+    llm_url: str                        # LLM エンドポイント
+    debug_mode: bool                    # デバッグモード
+    plan_mode: bool                     # プランモード
+    system_prompt_name: str             # システムプロンプト名
+    system_prompt_content: str | None   # システムプロンプト本文
+    shutdown_requested: bool            # シャットダウン要求フラグ
 ```
+
+※ `session_id` は ConversationState に含まれない。`ctx.session.session_id` でアクセスする。
 
 ### 9.3 LLMMessage (TypedDict)
 
 ```python
 class LLMMessage(TypedDict, total=False):
-    role: str          # "user" | "assistant" | "tool" | "system"
+    role: Literal["user", "assistant", "tool", "system"]
     content: str | None
     tool_calls: list[dict]
     tool_call_id: str
     name: str
+    importance: float   # 圧縮スコアリング用 (0.0〜1.0)
+    pinned: bool        # 圧縮防止フラグ
 ```
 
 ### 9.4 MemoryEntry フィールド
@@ -197,48 +210,57 @@ class AgentREPL:
 
 ```python
 class Orchestrator:
-    def __init__(ctx: AgentContext, *, on_turn_start, on_turn_end, on_error, on_first_turn, tracer)
-    async def handle_turn(user_message: str) -> TurnResult
+    def __init__(ctx: AgentContext, *, on_turn_start, on_turn_end, on_error, on_first_turn, tracer, allowed_tools: list[str] | None = None)
+    async def handle_turn(user_message: str, allowed_tools: list[str] | None = None) -> TurnResult
 ```
+
+※ `allowed_tools` は §13 で「未実装」と記載されていたが、実際には実装済み (`orchestrator.py:47-70`, `orchestrator.py:72-86`)。
 
 ### 10.3 HistoryManager
 
 ```python
 class HistoryManager:
-    async def compress(history: list[LLMMessage]) -> list[LLMMessage]
-    async def force_compress(history: list[LLMMessage]) -> list[LLMMessage]
+    def compress(history: list[LLMMessage]) -> tuple[list[LLMMessage], CompressResult]
+    def force_compress(history: list[LLMMessage]) -> tuple[list[LLMMessage], CompressResult]
+    # CompressResult: namedtuple(compressed_count, protected_count, summary_added)
     def count_chars(history: list[LLMMessage]) -> int
     def count_tokens(history: list[LLMMessage], last_input_tokens: int | None = None) -> int
-    async def count_tokens_async(history: list[LLMMessage], last_input_tokens: int | None = None) -> tuple[int, bool]
-    # count_tokens: chars // 4 による推定（last_input_tokens 指定時は直接返却）
-    # count_tokens_async: /tokenize エンドポイントによる正確なカウント（利用不可時は chars // 4）
+    # count_tokens: last_input_tokens 指定時はその値をそのまま返す（chars//4 推定をスキップ）
 ```
+
+※ `compress()` / `force_compress()` は `list[LLMMessage]` のみを返さず、`tuple[list[LLMMessage], CompressResult]` を返す。
 
 ### 10.4 CommandRegistry (スラッシュコマンド)
 
-主要コマンド一覧:
+実装は 22 種 (`commands/registry.py:64-206`)。主要コマンド一覧:
 
 | コマンド | 説明 |
 |---|---|
 | `/help` | コマンド一覧 |
 | `/config [key]` | 設定表示 |
-| `/reload` | 設定ファイル再読み込み |
-| `/stats` | セッション統計 |
-| `/context` | コンテキスト利用状況 |
-| `/session list\|load\|rename\|delete [id]` | セッション管理 |
-| `/db stats\|urls\|clean\|rebuild-fts` | DB 操作 |
-| `/ingest <url\|path>` | ドキュメント取り込み |
-| `/undo` | 直前メッセージの取り消し |
-| `/clear [new]` | 会話リセット |
-| `/compact` | 強制履歴圧縮 |
-| `/note add\|list\|delete` | ノート管理 |
-| `/memory list\|search\|show\|pin\|delete\|prune` | メモリ層管理 |
+| `/stats` | セッション統計（ステップ別レイテンシは "llm" のみ表示） |
+| `/context [new]` | コンテキスト利用状況 |
 | `/plan` | プランモード切り替え |
+| `/undo` | 直前メッセージの取り消し |
+| `/reload` | 設定ファイル再読み込み（`ConfigReloadService.apply_config_dict()` 経由） |
+| `/compact` | 強制履歴圧縮（`force_compress()` 使用） |
 | `/mcp [status\|install]` | MCP サーバー状態確認・テンプレート生成 |
+| `/session list\|load\|rename\|delete [id]` | セッション管理 |
+| `/clear [new]` | 会話リセット |
+| `/ingest <url\|path>` | ドキュメント取り込み |
+| `/rag search <query>` | RAG 検索（未実装の augment とは別） |
 | `/export [md\|json] [file]` | 会話エクスポート |
+| `/history [n]` | 会話履歴表示 |
+| `/system [name]` | システムプロンプト切替 |
+| `/db stats\|urls\|clean\|rebuild-fts` | DB 操作 |
+| `/note add\|list\|delete` | ノート管理 |
+| `/tool [filter]` | ツール情報 |
 | `/set temperature\|max_tokens <value>` | LLM パラメータ上書き |
+| `/memory list\|search\|show\|pin\|delete\|prune` | メモリ層管理 |
 | `/debug` | デバッグモード切り替え |
 | `/exit` | 終了 |
+
+※ `/rag`, `/history`, `/system` は仕様当初は未記載だったが実装済み。
 
 ### 10.5 MemoryServices
 
@@ -251,6 +273,9 @@ class MemoryServices:
     ingestion: MemoryIngestionService   # on_session_stop / write_semantic / write_episodic
     store: MemoryStore                  # CRUD (get_by_id / pin / unpin / delete / count_*)
     retriever: HybridRetriever          # search / top_semantic / knn_search
+
+# convenience method (memory/services.py)
+mem.on_user_prompt(query, session_id) -> list[str]  # injection 経由
 
 # ライフサイクルフック
 mem.injection.on_session_start(session_id) -> list[str]
@@ -268,6 +293,8 @@ mem.store.count_prunable(days) -> int
 # 検索
 mem.retriever.search(query, embedding=None) -> list[MemoryHit]
 ```
+
+※ `orchestrator.py:111` では `ctx.services.memory.on_user_prompt()` (convenience method 経由) が使われている。
 
 ---
 
@@ -303,7 +330,8 @@ mem.retriever.search(query, embedding=None) -> list[MemoryHit]
 
 | 項目 | 詳細 |
 |---|---|
-| Worker ロール別 allowed-tools | `Orchestrator` に `allowed_tools` パラメータを追加する仕組みが未実装 (`implementations/20260606-194332_orchestrator.md` 参照) |
+| RAG augment 未実装 | `spec_agent.md:§6.3, §8` で RAG augment の呼び出しが定義されているが、`orchestrator.py` および `llm_turn_runner.py` での actual 呼び出し実装がない。`RagPipeline.augment()` は存在するがエージェントターンでは呼ばれていない |
 | `common.toml` 非統合問題 | `load_all()` が `common.toml` を読み込まないため、`build_db_config()` で空文字列になり `ValueError` が発生する。回避策として `db/helper.py` と `rag/pipeline.py` が個別に `ConfigLoader().load("common.toml")` を呼ぶ設計になっている。将来的な統合を検討中。 |
 | `AgentConfig.__getattr__`/`__setattr__` | backward-compat レイヤーが残存。`cfg.llm_url` 等のフラットアクセスを廃止して `cfg.llm.llm_url` に統一する作業が未完了 (`implementations/20260606-194837_config_context_compat.md` 参照) |
 | `repl_debug.py`/`context_detection.py`/`rag_debug.py` | 参照元のない廃止スタブファイルが残存。削除対象 (`implementations/20260606-194821_delete_obsolete_files.md` 参照) |
+| rag-mcp スタブのポート競合 | `mcp/rag/server.py` (port 8014) と `mcp/git/server.py` (port 8014) がポート 8014 で競合。`rag/server.py` はドキュメントなし |

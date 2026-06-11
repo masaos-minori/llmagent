@@ -80,13 +80,14 @@ with SQLiteHelper(db_type="rag") as db:
 ### 7.2 DbConfig
 
 ```python
-@dataclass
+@dataclass(frozen=True)
 class DbConfig:
     rag_db_path: str          # rag.sqlite のパス
     session_db_path: str      # session.sqlite のパス
-    sqlite_vec_so: str        # sqlite-vec 拡張ファイルパス
-    embed_url: str            # 埋め込みサーバー URL
-    sqlite_timeout: int = 30  # busy_timeout（秒）
+    sqlite_vec_so: str = ""   # sqlite-vec 拡張ファイルパス（空文字列 = 不要）
+    sqlite_timeout: int = 30  # busy_timeout（秒、1 以上）
+
+※ embed_url は DbConfig に存在しない（agent/config.py の EmbeddingConfig が担当）
 ```
 
 ---

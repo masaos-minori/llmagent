@@ -9,7 +9,7 @@ Model Context Protocol（MCP）に基づいた HTTP および stdio トランス
 ## 2. スコープ
 
 - **対象コンポーネント:** `mcp/` 配下の全サーバー、`shared/tool_executor.py`、`shared/route_resolver.py`、`shared/mcp_config.py`
-- **MCP サーバー:** web-search・file-read/write/delete・github・shell・rag-pipeline・sqlite・cicd・mdq・git（11 サーバー、合計 64 ツール）
+- **MCP サーバー:** web-search・file-read/write/delete・github・shell・rag-pipeline・sqlite・cicd・mdq・git（11 サーバー、合計 62 ツール）
 - **対象外:** エージェント REPL の内部実装、RAG パイプラインの検索ロジック
 
 ---
@@ -62,12 +62,12 @@ Model Context Protocol（MCP）に基づいた HTTP および stdio トランス
 | github-mcp | 8006 | `github_search_repositories`, `github_get_file_contents`, `github_push_files`, `github_create_pull_request`, `github_merge_pull_request`, `github_create_issue`, `github_add_issue_comment`, 他（21 ツール） |
 | file-write-mcp | 8007 | `write_file`, `edit_file`, `create_directory`, `move_file`（4 ツール） |
 | file-delete-mcp | 8008 | `delete_file`, `delete_directory`（2 ツール） |
-| shell-mcp | 8009 | `shell_run`, `shell_run_bg`（2 ツール） |
+| shell-mcp | 8009 | `shell_run`（1 ツール、`shell_run_bg` は未実装） |
 | rag-pipeline-mcp | 8010 | `rag_run_pipeline`, `rag_debug_pipeline`（2 ツール） |
 | sqlite-mcp | 8011 | `query_sqlite`（1 ツール） |
 | cicd-mcp | 8012 | GitHub Actions 関連 4 ツール |
 | mdq-mcp | 8013 | `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`（7 ツール） |
-| git-mcp | 8014 | `git_status`, `git_log`, `git_diff`, `git_branch`, `git_show`, `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push`（10 ツール） |
+| git-mcp / rag-mcp | 8014 | `git_status`, `git_log`, `git_diff`, `git_branch`, `git_show`, `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push`（10 ツール）※ `/rag/server.py` も同一ポートで競合（未文書化） |
 
 ---
 

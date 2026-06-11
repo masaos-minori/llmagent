@@ -220,12 +220,21 @@ def get_tool(name: str) -> Callable | None
 def iter_commands() -> dict[str, tuple[Callable, bool]]  # 登録済みコマンドのスナップショット
 ```
 
-### 10.4 TokenCounter（shared/token_counter.py）
+### 10.4 トークンカウント（shared/token_counter.py）
 
 ```python
-class TokenCounter:
-    def __init__(tokenize_url: str = "")
-    async def count(text: str) -> int  # トークン数（フォールバック: len(text) // 4）
+# モジュール関数（クラスではない）
+async def get_token_count(
+    history: list[LLMMessage],
+    tokenize_url: str,
+    http: httpx.AsyncClient,
+    timeout: float = 3.0,
+) -> tuple[int, bool]  # (token_count, is_exact)
+
+# priority:
+#   1. last_input_tokens（呼び出し元が渡す）
+#   2. POST /tokenize endpoint → n_tokens を返す
+#   3. chars // 4 フォールバック
 ```
 
 ### 10.5 build_tracer（shared/otel_tracer.py）
@@ -255,7 +264,7 @@ def get_repo_info() -> dict | None
 | TOML 解析エラー | `ValueError` を送出（原因をメッセージに含む） |
 | `Logger` ファイル書き込みエラー | サイレントフォールバック（StreamHandler のみで継続） |
 | プラグインロードエラー | ログに警告を出力してスキップ（他プラグインに影響しない） |
-| `TokenCounter` 接続エラー | `chars / 4` のフォールバック推定を使用、警告を 1 回だけ出力 |
+| `get_token_count()` 接続エラー | `chars // 4` のフォールバック推定を使用、`_WarnOnce` で警告を 1 回だけ出力 |
 | `get_repo_info()` の例外 | `None` を返す（GitPython 未インストール・Git リポジトリ外を含む） |
 
 ---
