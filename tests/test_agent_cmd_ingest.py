@@ -9,6 +9,7 @@ import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from agent.commands.cmd_ingest import _IngestMixin
 
 # ── Test harness ──────────────────────────────────────────────────────────────
@@ -129,3 +130,46 @@ class TestCmdIngest:
         asyncio.run(cmd._cmd_ingest("/nonexistent/path/file.md"))
         out = capsys.readouterr().out
         assert "not found" in out or "error" in out.lower()
+
+
+# ── IngestStageError propagation ─────────────────────────────────────────────
+
+
+class TestIngestStageError:
+    def test_crawl_os_error_raises_ingest_stage_error(self) -> None:
+        """OSError during crawl stage raises IngestStageError with stage=CRAWL."""
+        from unittest.mock import AsyncMock, patch
+
+        from agent.services.enums import IngestStage
+        from agent.services.exceptions import IngestStageError
+        from agent.services.ingest_workflow import IngestWorkflowService
+
+        svc = IngestWorkflowService()
+        with patch(
+            "agent.services.ingest_workflow.IngestWorkflowService._crawl",
+            new_callable=AsyncMock,
+            side_effect=IngestStageError(IngestStage.CRAWL, "network fail"),
+        ):
+            with pytest.raises(IngestStageError) as exc_info:
+                asyncio.run(svc.run("http://example.com"))
+        assert exc_info.value.stage == IngestStage.CRAWL
+        assert "network fail" in exc_info.value.detail
+
+    def test_cmd_ingest_catches_stage_error_and_prints(self, capsys: Any) -> None:
+        """cmd_ingest prints error message when IngestStageError is raised."""
+        from unittest.mock import AsyncMock, patch
+
+        from agent.services.enums import IngestStage
+        from agent.services.exceptions import IngestStageError
+
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "agent.services.ingest_workflow.IngestWorkflowService.run",
+            new_callable=AsyncMock,
+            side_effect=IngestStageError(IngestStage.SPLIT, "split failed"),
+        ):
+            asyncio.run(cmd._cmd_ingest("http://example.com"))
+        out = capsys.readouterr().out
+        assert "error" in out.lower()
+        assert "split" in out.lower()
