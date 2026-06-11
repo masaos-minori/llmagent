@@ -62,6 +62,10 @@ scripts/agent/history_selection_policy.py  →  /opt/llm/scripts/agent/history_s
 scripts/agent/error_injection_service.py   →  /opt/llm/scripts/agent/error_injection_service.py
 scripts/agent/lifecycle_protocol.py        →  /opt/llm/scripts/agent/lifecycle_protocol.py
 scripts/agent/tool_scheduler.py            →  /opt/llm/scripts/agent/tool_scheduler.py
+scripts/agent/services/enums.py            →  /opt/llm/scripts/agent/services/enums.py
+scripts/agent/services/exceptions.py      →  /opt/llm/scripts/agent/services/exceptions.py
+scripts/agent/services/models.py          →  /opt/llm/scripts/agent/services/models.py
+scripts/agent/services/io_ports.py        →  /opt/llm/scripts/agent/services/io_ports.py
 scripts/agent/services/config_reload.py    →  /opt/llm/scripts/agent/services/config_reload.py
 scripts/agent/services/context_view.py     →  /opt/llm/scripts/agent/services/context_view.py
 scripts/agent/services/db_maintenance_service.py → /opt/llm/scripts/agent/services/db_maintenance_service.py
