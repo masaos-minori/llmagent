@@ -13,12 +13,13 @@ import logging
 
 from agent.commands.mixin_base import MixinBase
 from agent.services.mcp_install import CliInstallQA, McpInstallService, ScaffoldResult
-from agent.services.mcp_status import McpServerStatus, McpStatusService
+from agent.services.mcp_status import TIER_LABELS, McpStatusService
+from agent.services.models import McpProbeResult
 
 logger = logging.getLogger(__name__)
 
 
-def _format_mcp_table(rows: list[McpServerStatus]) -> str:
+def _format_mcp_table(rows: list[McpProbeResult]) -> str:
     """Format MCP server status rows as a fixed-width table string."""
     col = "{:<14} {:<6} {:<11} {:<5} {:<12} {:<12} {:<16} {}"
     lines = [
@@ -33,10 +34,10 @@ def _format_mcp_table(rows: list[McpServerStatus]) -> str:
                 r.key,
                 r.transport,
                 r.startup_mode,
-                r.auth,
-                r.write,
+                "yes" if r.auth else "no",
+                TIER_LABELS.get(r.tier, r.tier.value),
                 r.role,
-                f"{r.availability}/{r.health}",
+                f"{r.availability.value}/{r.health}",
                 r.endpoint,
             )
         )

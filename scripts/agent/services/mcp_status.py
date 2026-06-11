@@ -7,45 +7,33 @@ tested without a running REPL.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import httpx
 from shared.mcp_config import McpServerHealthState
 
+from agent.services.enums import McpAvailability, McpTier
+from agent.services.exceptions import McpProbeError
+from agent.services.models import McpProbeResult
+
 if TYPE_CHECKING:
     from agent.context import AgentContext
 
 # Tier priority for determining the highest-risk tier across a server's tool set.
-_TIER_PRIORITY: dict[str, int] = {
-    "READ_ONLY": 0,
-    "WRITE_SAFE": 1,
-    "WRITE_DANGEROUS": 2,
-    "ADMIN": 3,
+_TIER_PRIORITY: dict[McpTier, int] = {
+    McpTier.READ_ONLY: 0,
+    McpTier.WRITE_SAFE: 1,
+    McpTier.WRITE_DANGEROUS: 2,
+    McpTier.ADMIN: 3,
 }
 
-# Display labels for each tier value in the WRITE column.
-_TIER_LABEL: dict[str, str] = {
-    "READ_ONLY": "no",
-    "WRITE_SAFE": "write-safe",
-    "WRITE_DANGEROUS": "dangerous",
-    "ADMIN": "admin",
+# Display labels for each tier value in the WRITE column (used by renderers).
+TIER_LABELS: dict[McpTier, str] = {
+    McpTier.READ_ONLY: "no",
+    McpTier.WRITE_SAFE: "write-safe",
+    McpTier.WRITE_DANGEROUS: "dangerous",
+    McpTier.ADMIN: "admin",
 }
-
-
-@dataclass
-class McpServerStatus:
-    key: str
-    transport: str
-    startup_mode: str
-    auth: str
-    write: str
-    role: str
-    availability: (
-        str  # "OK" | "HTTP NNN" | "FAIL (...)" | "STOPPED" | "NOT_STARTED" | ...
-    )
-    health: str  # "HEALTHY" | "DEGRADED" | "UNAVAILABLE"
-    endpoint: str
 
 
 class McpStatusService:
@@ -54,14 +42,14 @@ class McpStatusService:
     def __init__(self, ctx: AgentContext) -> None:
         self._ctx = ctx
 
-    async def probe_all(self) -> list[McpServerStatus]:
+    async def probe_all(self) -> list[McpProbeResult]:
         ctx = self._ctx
         tiers: dict[str, str] = ctx.cfg.approval.tool_safety_tiers
-        results: list[McpServerStatus] = []
+        results: list[McpProbeResult] = []
         async with httpx.AsyncClient(timeout=5.0) as probe:
             for key, cfg in ctx.cfg.mcp.mcp_servers.items():
-                auth = "yes" if cfg.auth_token else "no"
-                write = _tier_label_for_server(cfg.tool_names, tiers)
+                auth = bool(cfg.auth_token)
+                tier = _tier_for_server(cfg.tool_names, tiers)
                 if cfg.transport == "http":
                     availability = await self._get_http_status(probe, cfg.url)
                     endpoint = cfg.url
@@ -73,16 +61,14 @@ class McpStatusService:
                     if ctx.services.health_registry
                     else McpServerHealthState.HEALTHY
                 )
-                health = (
-                    health_state.value.upper()
-                )  # "HEALTHY" | "DEGRADED" | "UNAVAILABLE"
+                health = health_state.value.upper()
                 results.append(
-                    McpServerStatus(
+                    McpProbeResult(
                         key=key,
                         transport=cfg.transport,
                         startup_mode=cfg.startup_mode,
                         auth=auth,
-                        write=write,
+                        tier=tier,
                         role=cfg.role or "",
                         availability=availability,
                         health=health,
@@ -91,32 +77,49 @@ class McpStatusService:
                 )
         return results
 
-    async def _get_http_status(self, probe: httpx.AsyncClient, url: str) -> str:
+    async def _get_http_status(
+        self, probe: httpx.AsyncClient, url: str
+    ) -> McpAvailability:
         if not url:
-            return "no-url"
+            return McpAvailability.NO_URL
         try:
             r = await probe.get(f"{url}/health")
-            return "OK" if r.status_code == 200 else f"HTTP {r.status_code}"
-        except Exception as e:
-            return f"FAIL ({e})"
+            return (
+                McpAvailability.OK
+                if r.status_code == 200
+                else McpAvailability.HTTP_ERROR
+            )
+        except (httpx.RequestError, httpx.HTTPStatusError):
+            return McpAvailability.FAIL
 
-    def _get_stdio_status(self, ctx: AgentContext, key: str, startup_mode: str) -> str:
+    def _get_stdio_status(
+        self, ctx: AgentContext, key: str, startup_mode: str
+    ) -> McpAvailability:
         transport = ctx.services.stdio_procs.get(key)
         if transport is None:
-            return "STOPPED" if startup_mode == "ondemand" else "NOT_STARTED"
-        return "RUNNING" if transport.is_alive() else "DEAD"
+            return (
+                McpAvailability.STOPPED
+                if startup_mode == "ondemand"
+                else McpAvailability.NOT_STARTED
+            )
+        return McpAvailability.OK if transport.is_alive() else McpAvailability.DEAD
 
 
-def _tier_label_for_server(tool_names: list[str], tiers: dict[str, str]) -> str:
-    """Return the WRITE column label for a server based on its tool_safety_tiers.
+def _tier_for_server(tool_names: list[str], tiers: dict[str, str]) -> McpTier:
+    """Return the highest-risk McpTier for a server based on its tool_safety_tiers.
 
-    Iterates the server's tool_names, looks each up in the global tiers map,
-    and returns the label for the highest-risk tier found.  Falls back to
-    'no' (READ_ONLY) when tiers is empty or no tool is classified.
+    Raises McpProbeError for unknown tier strings.
+    Falls back to READ_ONLY when tiers is empty or no tool is classified.
     """
-    best = "READ_ONLY"
+    best = McpTier.READ_ONLY
     for name in tool_names:
-        tier = tiers.get(name, "READ_ONLY")
+        raw = tiers.get(name)
+        if raw is None:
+            continue
+        try:
+            tier = McpTier(raw)
+        except ValueError:
+            raise McpProbeError(f"Unknown tier {raw!r} for tool {name!r}")
         if _TIER_PRIORITY.get(tier, 0) > _TIER_PRIORITY.get(best, 0):
             best = tier
-    return _TIER_LABEL.get(best, "no")
+    return best
