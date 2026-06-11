@@ -11,6 +11,9 @@ import logging
 from typing import TYPE_CHECKING
 
 from agent.commands.mixin_base import reset_session_stats
+from agent.services.enums import ConversationActionType
+from agent.services.exceptions import ConversationStateError
+from agent.services.models import ConversationActionResult
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -18,31 +21,35 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def clear_conversation(ctx: AgentContext, *, new_session: bool = False) -> str:
-    """Reset conversation history to system prompt only and clear session stats.
-
-    Returns a human-readable status message.
-    """
+def clear_conversation(
+    ctx: AgentContext, *, new_session: bool = False
+) -> ConversationActionResult:
+    """Reset conversation history to system prompt only and clear session stats."""
     ctx.conv.history = ctx.conv.history[:1]
     reset_session_stats(ctx)
     if new_session:
         ctx.session.start()
         logger.info("History cleared; new session started")
-        return "History cleared. New session started."
+        return ConversationActionResult(
+            action=ConversationActionType.CLEAR,
+            message="History cleared. New session started.",
+        )
     logger.info("History cleared; session stats reset")
-    return "History cleared. Session stats reset."
+    return ConversationActionResult(
+        action=ConversationActionType.CLEAR,
+        message="History cleared. Session stats reset.",
+    )
 
 
-def switch_system_prompt(ctx: AgentContext, name: str) -> str:
+def switch_system_prompt(ctx: AgentContext, name: str) -> ConversationActionResult:
     """Switch the active system prompt to a named preset.
 
-    Returns a human-readable status message.
-    Raises ValueError if the preset name is not found.
+    Raises ConversationStateError if the preset name is not found.
     """
     prompts = ctx.cfg.tool.system_prompts
     if name not in prompts:
         available = ", ".join(prompts.keys())
-        raise ValueError(f"Unknown preset {name!r}. Available: {available}")
+        raise ConversationStateError(f"Unknown preset {name!r}. Available: {available}")
     ctx.conv.system_prompt_name = name
     ctx.conv.system_prompt_content = prompts[name]
     if ctx.conv.history and ctx.conv.history[0]["role"] == "system":
@@ -52,4 +59,7 @@ def switch_system_prompt(ctx: AgentContext, name: str) -> str:
             0, {"role": "system", "content": ctx.conv.system_prompt_content}
         )
     logger.info(f"System prompt switched to {name!r}")
-    return f"System prompt: {name}"
+    return ConversationActionResult(
+        action=ConversationActionType.SWITCH_PROMPT,
+        message=f"System prompt: {name}",
+    )

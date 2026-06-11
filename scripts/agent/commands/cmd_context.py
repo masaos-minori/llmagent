@@ -28,6 +28,7 @@ from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import parse_command_args
 from agent.services.context_view import collect_context_state
 from agent.services.conversation_service import clear_conversation, switch_system_prompt
+from agent.services.exceptions import ConversationStateError
 
 logger = logging.getLogger(__name__)
 
@@ -103,8 +104,8 @@ class _ContextMixin(MixinBase):
         """
         parsed = parse_command_args(args.split())
         new_session = parsed.subcommand == "new"
-        msg = clear_conversation(self._ctx, new_session=new_session)
-        print(f"  {msg}")
+        result = clear_conversation(self._ctx, new_session=new_session)
+        print(f"  {result.message}")
 
     def _cmd_undo(self) -> None:
         """Roll back the last user+assistant turn from in-memory history and DB."""
@@ -154,7 +155,7 @@ class _ContextMixin(MixinBase):
             print(f"  Available: {names}")
             return
         try:
-            msg = switch_system_prompt(ctx, name)
-            print(f"  {msg}")
-        except ValueError as e:
+            result = switch_system_prompt(ctx, name)
+            print(f"  {result.message}")
+        except ConversationStateError as e:
             print_validation_error(str(e))
