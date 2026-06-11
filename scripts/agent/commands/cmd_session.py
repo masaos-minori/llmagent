@@ -108,9 +108,18 @@ class _SessionMixin(MixinBase):
 
     def _load_session(self, session_id: int) -> None:
         """Restore a previous session via session_restore service."""
+        from agent.services.exceptions import (
+            SessionNotFoundError,  # noqa: PLC0415 — lazy: deferred to avoid import cost
+        )
         from agent.services.session_restore import (
             restore_session,  # noqa: PLC0415 — lazy: deferred to avoid import cost
         )
 
-        _, message = restore_session(self._ctx, session_id)
-        print(message)
+        try:
+            result = restore_session(self._ctx, session_id)
+            print_success(
+                f"Session {result.session_id} loaded:"
+                f" {result.n_messages} messages restored."
+            )
+        except SessionNotFoundError as e:
+            print_no_data(str(e))
