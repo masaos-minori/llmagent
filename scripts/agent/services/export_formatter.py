@@ -13,6 +13,10 @@ from pathlib import Path
 import orjson
 from shared.types import LLMMessage
 
+from agent.services.enums import ExportFormat
+from agent.services.exceptions import ExportWriteError
+from agent.services.io_ports import ExportOutputPort
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +30,8 @@ def render_history_md(history: list[LLMMessage]) -> str:
         role = msg.get("role", "")
         if role == "system":
             continue
-        text = str(msg.get("content") or "")
+        content = msg.get("content") or ""
+        text = content if isinstance(content, str) else str(content)
         if role == "user":
             lines.append(f"## User\n\n{text}\n")
         elif role == "assistant":
@@ -37,23 +42,41 @@ def render_history_md(history: list[LLMMessage]) -> str:
     return "\n".join(lines)
 
 
-def render_export(history: list[LLMMessage], fmt: str) -> str:
+def render_export(history: list[LLMMessage], fmt: ExportFormat | str) -> str:
     """Render conversation history to a string in the requested format."""
-    if fmt == "json":
+    if fmt == ExportFormat.JSON or fmt == "json":
         return orjson.dumps(history, option=orjson.OPT_INDENT_2).decode()
     return render_history_md(history)
 
 
-def write_export(content: str, outfile: str | None, n_messages: int) -> None:
-    """Write export content to stdout or a file."""
+def write_export(
+    content: str,
+    outfile: str | None,
+    n_messages: int,
+    out: ExportOutputPort | None = None,
+) -> None:
+    """Write export content to stdout or a file.
+
+    When out is None, falls back to the built-in CliExportOutput behaviour
+    for backward compatibility with call sites that have not been updated.
+    """
+    _out = out if out is not None else _CliExportOutput()
     if not outfile:
-        print(content)
+        _out.write(content)
         return
     try:
         Path(outfile).write_text(content, encoding="utf-8")
-        print(
-            f"Exported {n_messages} messages to {outfile} ({len(content)} chars)",
-        )
+        _out.write_file(content, outfile, n_messages)
         logger.info(f"Conversation exported to {outfile}")
     except OSError as e:
-        print(f"Export failed: {e}")
+        raise ExportWriteError(str(e)) from e
+
+
+class _CliExportOutput:
+    """Default CLI implementation of ExportOutputPort used when no port is supplied."""
+
+    def write(self, content: str) -> None:
+        print(content)
+
+    def write_file(self, content: str, path: str, n_messages: int) -> None:
+        print(f"Exported {n_messages} messages to {path} ({len(content)} chars)")
