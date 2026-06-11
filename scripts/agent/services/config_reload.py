@@ -13,17 +13,23 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from agent.services.exceptions import ConfigReloadValidationError
+from agent.services.models import ConfigReloadRequest
+
 if TYPE_CHECKING:
     from agent.context import AgentContext
 
 
 @dataclass
-class ConfigReloadResult:
+class ConfigReloadOutcome:
     """Structured report of what changed after a /reload."""
 
     applied: list[str] = field(default_factory=list)
     needs_restart: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
+
+
+ConfigReloadResult = ConfigReloadOutcome
 
 
 class ConfigReloadService:
@@ -38,7 +44,19 @@ class ConfigReloadService:
 
     # ── Public entry point ────────────────────────────────────────────────────
 
-    def apply_config_dict(self, new_cfg: dict[str, Any]) -> ConfigReloadResult:
+    def apply_config(self, req: ConfigReloadRequest) -> ConfigReloadOutcome:
+        """Update ctx.cfg from a typed ConfigReloadRequest, sync services, return a report.
+
+        Raises ConfigReloadValidationError on type-level field violations.
+        """
+        if req.masked_fields is not None and not isinstance(req.masked_fields, list):
+            raise ConfigReloadValidationError(
+                f"masked_fields must be a list, got {type(req.masked_fields).__name__}"
+            )
+        new_cfg = self._req_to_dict(req)
+        return self.apply_config_dict(new_cfg)
+
+    def apply_config_dict(self, new_cfg: dict[str, Any]) -> ConfigReloadOutcome:
         """Update ctx.cfg from new_cfg, sync live services, return a report.
 
         Replaces _apply_config_params() + all _apply_* helpers from _ConfigMixin.
@@ -56,6 +74,24 @@ class ConfigReloadService:
         result.applied.extend(service_result.applied)
         result.skipped.extend(service_result.skipped)
         return result
+
+    @staticmethod
+    def _req_to_dict(req: ConfigReloadRequest) -> dict[str, Any]:
+        """Convert ConfigReloadRequest to the raw dict format expected by _apply_* helpers."""
+        d: dict[str, Any] = {}
+        if req.mcp_servers is not None:
+            d["mcp_servers"] = req.mcp_servers
+        if req.approval is not None:
+            d["approval"] = req.approval
+        if req.llm is not None:
+            d.update(req.llm)
+        if req.masked_fields is not None:
+            d["masked_fields"] = req.masked_fields
+        if req.rag_tool is not None:
+            d.update(req.rag_tool)
+        if req.sse is not None:
+            d.update(req.sse)
+        return d
 
     # ── Service sync ──────────────────────────────────────────────────────────
 
