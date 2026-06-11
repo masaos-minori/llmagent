@@ -12,12 +12,6 @@ Provides _SessionMixin with:
 
 import logging
 
-from agent.commands.formatter import (
-    print_no_data,
-    print_success,
-    print_table,
-    print_validation_error,
-)
 from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import parse_command_args
 
@@ -44,24 +38,24 @@ class _SessionMixin(MixinBase):
     def _session_load_safe(self, arg: str) -> None:
         """Parse arg as an integer session ID and load it; print error on invalid."""
         if not arg.isdigit():
-            print_validation_error(f"Invalid session ID: {arg}")
+            self._out.write_validation_error(f"Invalid session ID: {arg}")
             return
         self._load_session(int(arg))
 
     def _session_delete(self, arg: str) -> None:
         """Parse arg as an integer session ID and delete it; guard current session."""
         if not arg.isdigit():
-            print_validation_error(f"Invalid session ID: {arg}")
+            self._out.write_validation_error(f"Invalid session ID: {arg}")
             return
         sid = int(arg)
         if sid == self._ctx.session.session_id:
-            print_validation_error("Cannot delete the current session.")
+            self._out.write_validation_error("Cannot delete the current session.")
             return
         ok = self._ctx.session.delete_session(sid)
         if ok:
-            print_success(f"Session {sid} deleted.")
+            self._out.write_success(f"Session {sid} deleted.")
         else:
-            print_no_data(f"Session {sid} not found.")
+            self._out.write_no_data(f"Session {sid} not found.")
 
     def _cmd_session(self, args: str) -> None:
         """Handle /session list [n] | load <id> | rename <title> | delete <id>."""
@@ -73,19 +67,20 @@ class _SessionMixin(MixinBase):
             limit = int(limit_raw) if limit_raw.isdigit() else 20
             rows = self._ctx.session.list_sessions(limit)
             if not rows:
-                print_no_data("No sessions found")
+                self._out.write_no_data("No sessions found")
                 return
-            table_rows = [
-                [
-                    f"{r['session_id']:>4}{'*' if r['is_current'] else ' '}",
-                    (r["title"] or "")[:29] + "..."
-                    if len(r["title"] or "") > 32
-                    else (r["title"] or ""),
-                    r["created_at"],
-                ]
-                for r in rows
-            ]
-            print_table(["ID  ", "Title", "Created"], table_rows)
+            table_rows = []
+            for r in rows:
+                title = r["title"] if r["title"] is not None else ""
+                title_display = title[:29] + "..." if len(title) > 32 else title
+                table_rows.append(
+                    [
+                        f"{r['session_id']:>4}{'*' if r['is_current'] else ' '}",
+                        title_display,
+                        r["created_at"],
+                    ]
+                )
+            self._out.write_table(["ID  ", "Title", "Created"], table_rows)
             return
 
         if sub == "load":
@@ -96,10 +91,10 @@ class _SessionMixin(MixinBase):
         if sub == "rename":
             title = " ".join(parsed.positional)
             if not title:
-                print_validation_error("/session rename <title>")
+                self._out.write_validation_error("/session rename <title>")
                 return
             self._ctx.session.set_title(title)
-            print_success(f"Session renamed: {title[:50]!r}")
+            self._out.write_success(f"Session renamed: {title[:50]!r}")
             return
 
         if sub == "delete":
@@ -107,7 +102,7 @@ class _SessionMixin(MixinBase):
             self._session_delete(arg)
             return
 
-        print_validation_error(
+        self._out.write_validation_error(
             "/session list [n] | /session load <id>"
             " | /session rename <title> | /session delete <id>"
         )
@@ -123,9 +118,9 @@ class _SessionMixin(MixinBase):
 
         try:
             result = restore_session(self._ctx, session_id)
-            print_success(
+            self._out.write_success(
                 f"Session {result.session_id} loaded:"
                 f" {result.n_messages} messages restored."
             )
         except SessionNotFoundError as e:
-            print_no_data(str(e))
+            self._out.write_no_data(str(e))

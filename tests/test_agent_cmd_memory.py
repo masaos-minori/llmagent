@@ -233,3 +233,25 @@ class TestMemoryPin:
         audit.info.assert_called_once()
         payload = audit.info.call_args[0][0]
         assert "pinned" in payload
+
+
+class TestMemoryUnknownSubcommand:
+    def test_unknown_subcommand_raises(self) -> None:
+        from agent.commands.exceptions import UnknownSubcommandError
+
+        svc = _make_services()
+        cmd = _make_cmd()
+        cmd._ctx.services.memory = svc  # type: ignore[attr-defined]
+        with pytest.raises(UnknownSubcommandError) as exc_info:
+            cmd._cmd_memory("badcmd")
+        assert exc_info.value.sub == "badcmd"
+        assert "list" in exc_info.value.valid
+
+    def test_memory_disabled_writes_message(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        cmd = _make_cmd()
+        cmd._ctx.services.memory = None  # type: ignore[attr-defined]
+        cmd._cmd_memory("list")
+        out = capsys.readouterr().out
+        assert "disabled" in out

@@ -29,27 +29,27 @@ class _DebugMixin(MixinBase):
             # Show the last 20 lines of audit.log for quick troubleshooting
             audit_path = pathlib.Path(ctx.cfg.obs.audit_log_file)
             if not audit_path.exists():
-                print(f"Audit log not found: {audit_path}")
+                self._out.write(f"Audit log not found: {audit_path}")
                 return
             try:
                 lines = audit_path.read_text(encoding="utf-8").splitlines()
                 for line in lines[-_AUDIT_TAIL_LINES:]:
-                    print(line)
+                    self._out.write(line)
             except OSError as e:
-                print(f"Cannot read audit log: {e}")
+                self._out.write(f"Cannot read audit log: {e}")
             return
 
         if sub == "verbose":
             for name in _DEBUG_LOGGER_NAMES:
                 logging.getLogger(name).setLevel(logging.DEBUG)
-            print("Log level: DEBUG")
+            self._out.write("Log level: DEBUG")
             logger.info("Log level set to DEBUG")
             return
 
         if sub == "normal":
             for name in _DEBUG_LOGGER_NAMES:
                 logging.getLogger(name).setLevel(logging.INFO)
-            print("Log level: INFO")
+            self._out.write("Log level: INFO")
             logger.info("Log level restored to INFO")
             return
 
@@ -57,6 +57,6 @@ class _DebugMixin(MixinBase):
         ctx.conv.debug_mode = not ctx.conv.debug_mode
         state = "ON" if ctx.conv.debug_mode else "OFF"
         logger.info(f"Debug mode toggled: {state}")
-        print(
+        self._out.write(
             f"Debug mode: {state}  (use /debug audit | verbose | normal for more options)",
         )

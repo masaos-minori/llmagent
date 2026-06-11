@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from agent.commands.cmd_notes import _NotesMixin
+from agent.commands.exceptions import UnknownSubcommandError
 
 
 def _make_cmd(
@@ -89,7 +90,9 @@ class TestNoteDelete:
 
 
 class TestNoteUnknownSubcommand:
-    def test_unknown_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
+    def test_unknown_raises_unknown_subcommand_error(self) -> None:
         cmd = _make_cmd()
-        cmd._cmd_note("unknown")
-        assert "usage" in capsys.readouterr().out.lower()
+        with pytest.raises(UnknownSubcommandError) as exc_info:
+            cmd._cmd_note("unknown")
+        assert exc_info.value.sub == "unknown"
+        assert "add" in exc_info.value.valid

@@ -34,6 +34,7 @@ from agent.commands.cmd_memory import _MemoryMixin
 from agent.commands.cmd_notes import _NotesMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_tooling import _ToolingMixin
+from agent.commands.output_port import CliOutputPort, OutputPort
 from agent.context import AgentContext
 
 __all__ = ["CommandRegistry"]
@@ -224,8 +225,9 @@ class CommandRegistry(
     with no dependency on AgentREPL itself.
     """
 
-    def __init__(self, ctx: AgentContext) -> None:
+    def __init__(self, ctx: AgentContext, out: OutputPort | None = None) -> None:
         self._ctx = ctx
+        self._out: OutputPort = out if out is not None else CliOutputPort()
 
     def _cmd_help(self) -> None:
         """Print help and available tool count."""
@@ -236,14 +238,14 @@ class CommandRegistry(
             if ctx.session.session_id
             else "no session"
         )
-        print("Agent REPL — type a question and press Enter.")
-        print("Conversation history is preserved within the session.")
-        print()
-        print("Slash commands:")
+        self._out.write("Agent REPL — type a question and press Enter.")
+        self._out.write("Conversation history is preserved within the session.")
+        self._out.write("")
+        self._out.write("Slash commands:")
         for cmd in _COMMANDS:
-            print(f"  {cmd.name:<22} {cmd.help}")
-        print()
-        print(f"Tools: {n_tools}  |  LLM: {ctx.cfg.llm.llm_url}  |  {sid}")
+            self._out.write(f"  {cmd.name:<22} {cmd.help}")
+        self._out.write("")
+        self._out.write(f"Tools: {n_tools}  |  LLM: {ctx.cfg.llm.llm_url}  |  {sid}")
 
     async def dispatch(self, line: str) -> bool:
         """Dispatch a slash command; return True if matched, False otherwise.

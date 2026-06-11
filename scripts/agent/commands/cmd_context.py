@@ -18,12 +18,6 @@ from __future__ import annotations
 
 import logging
 
-from agent.commands.formatter import (
-    print_kv_list,
-    print_no_data,
-    print_success,
-    print_validation_error,
-)
 from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import parse_command_args
 from agent.services.context_view import collect_context_state
@@ -58,7 +52,7 @@ class _ContextMixin(MixinBase):
             token_value = f"{token_estimate:,} ({src}, limit={token_limit:,} [active] {token_pct}%)"
         else:
             token_value = f"{token_estimate:,} ({src})"
-        print_kv_list(
+        self._out.write_kv(
             [
                 (token_label, token_value),
                 ("Token limit     ", token_limit_str),
@@ -71,7 +65,7 @@ class _ContextMixin(MixinBase):
         try:
             state = collect_context_state(ctx)
         except ContextStateBuildError as e:
-            print_no_data(str(e))
+            self._out.write_no_data(str(e))
             return
         breakdown = state.breakdown
         total_bd = sum(breakdown.values()) or 1
@@ -80,7 +74,7 @@ class _ContextMixin(MixinBase):
             if state.git_branch and state.git_commit
             else "unavailable"
         )
-        print_kv_list(
+        self._out.write_kv(
             [
                 ("Messages        ", str(state.n_msgs)),
                 ("Total chars     ", f"{state.total_chars:,}"),
@@ -95,16 +89,16 @@ class _ContextMixin(MixinBase):
             ]
         )
         self._print_token_line(state)
-        print_kv_list(
+        self._out.write_kv(
             [
                 ("Memory layer    ", state.mem_status),
                 ("Git             ", git_str),
             ]
         )
-        print("Budget breakdown:")
+        self._out.write("Budget breakdown:")
         for cat, n in breakdown.items():
             pct = n * 100 // total_bd
-            print(f"  {cat:<14}: {n:>8,} chars ({pct:>3}%)")
+            self._out.write(f"  {cat:<14}: {n:>8,} chars ({pct:>3}%)")
 
     def _cmd_clear(self, args: str = "") -> None:
         """Reset conversation history to system prompt only and clear session stats.
@@ -115,7 +109,7 @@ class _ContextMixin(MixinBase):
         parsed = parse_command_args(args.split())
         new_session = parsed.subcommand == "new"
         result = clear_conversation(self._ctx, new_session=new_session)
-        print(f"  {result.message}")
+        self._out.write_success(result.message)
 
     def _cmd_undo(self) -> None:
         """Roll back the last user+assistant turn from in-memory history and DB."""
@@ -128,9 +122,11 @@ class _ContextMixin(MixinBase):
 
         try:
             result = undo_last_turn(self._ctx)
-            print_success(f"Last turn undone. ({result.n_removed} messages removed)")
+            self._out.write_success(
+                f"Last turn undone. ({result.n_removed} messages removed)"
+            )
         except NothingToUndoError as e:
-            print_no_data(str(e))
+            self._out.write_no_data(str(e))
 
     def _cmd_history(self, args: str) -> None:
         """Print last N user/assistant messages in compact form."""
@@ -139,20 +135,21 @@ class _ContextMixin(MixinBase):
         try:
             n = int(raw)
         except ValueError:
-            print_validation_error("/history [n]")
+            self._out.write_validation_error("/history [n]")
             return
         ctx = self._ctx
         turns = [m for m in ctx.conv.history if m["role"] in ("user", "assistant")]
         recent = turns[-n:]
         if not recent:
-            print_no_data("No conversation history.")
+            self._out.write_no_data("No conversation history.")
             return
         for msg in recent:
-            content = msg.get("content") or ""
+            content_raw = msg.get("content")
+            content = content_raw if isinstance(content_raw, str) else ""
             preview = content[:120].replace("\n", " ")
             if len(content) > 120:
                 preview += "..."
-            print(f"[{msg['role']}] {preview}")
+            self._out.write(f"[{msg['role']}] {preview}")
 
     def _cmd_system(self, args: str) -> None:
         """Switch the active system prompt to a named preset defined in agent.toml."""
@@ -161,11 +158,11 @@ class _ContextMixin(MixinBase):
         if not name:
             prompts = ctx.cfg.tool.system_prompts
             names = ", ".join(prompts.keys()) if prompts else "(none)"
-            print(f"  Current: {ctx.conv.system_prompt_name}")
-            print(f"  Available: {names}")
+            self._out.write(f"  Current: {ctx.conv.system_prompt_name}")
+            self._out.write(f"  Available: {names}")
             return
         try:
             result = switch_system_prompt(ctx, name)
-            print(f"  {result.message}")
+            self._out.write(f"  {result.message}")
         except ConversationStateError as e:
-            print_validation_error(str(e))
+            self._out.write_validation_error(str(e))

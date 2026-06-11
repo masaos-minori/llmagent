@@ -54,7 +54,7 @@ class _IngestMixin(MixinBase):
 
         parts = args.strip().split()
         if not parts:
-            print("Usage: /ingest <url|path> [lang=ja|en] [--snippets-only]")
+            self._out.write("Usage: /ingest <url|path> [lang=ja|en] [--snippets-only]")
             return
         target = parts[0]
         lang = "ja"
@@ -69,10 +69,10 @@ class _IngestMixin(MixinBase):
         try:
             result = await svc.run(target, lang=lang, snippets_only=snippets_only)
             for msg in result.messages:
-                print(f"  {msg}")
+                self._out.write(f"  {msg}")
         except IngestStageError as e:
             logger.error("Ingest failed at stage=%s: %s", e.stage, e.detail)
-            print(f"  [ingest] error ({e.stage}): {e.detail}")
+            self._out.write(f"  [ingest] error ({e.stage}): {e.detail}")
 
     async def _cmd_rag(self, args: str) -> None:
         """Search the RAG knowledge base with a query.
@@ -92,40 +92,40 @@ class _IngestMixin(MixinBase):
         parts = args.strip().split(None, 1)
         sub = parts[0] if parts else ""
         if sub != "search" or len(parts) < 2:
-            print("Usage: /rag search <query> [--debug]")
+            self._out.write("Usage: /rag search <query> [--debug]")
             return
 
         remainder = parts[1]
         debug = "--debug" in remainder
         query = remainder.replace("--debug", "").strip()
         if not query:
-            print("Usage: /rag search <query> [--debug]")
+            self._out.write("Usage: /rag search <query> [--debug]")
             return
 
         if ctx.services is None or ctx.services.http is None:
-            print("HTTP client not available.")
+            self._out.write("HTTP client not available.")
             return
 
         rag_cfg_dict = ConfigLoader().load("common.toml", "rag.toml")
 
         if not rag_cfg_dict.get("use_search", True):
-            print("RAG search is disabled (use_search=false in config).")
+            self._out.write("RAG search is disabled (use_search=false in config).")
             return
 
         rag_cfg = build_rag_cfg_adapter(RagPipelineConfig.from_dict(rag_cfg_dict))
         pipeline = RagPipeline(ctx.services.http, rag_cfg)
         context = await pipeline.augment(query)
         if not context:
-            print("No results found.")
+            self._out.write("No results found.")
         else:
-            print(context)
+            self._out.write(context)
 
         if debug:
             timings = pipeline.last_timings
             if timings:
-                print("\n--- Stage timings ---")
+                self._out.write("\n--- Stage timings ---")
                 for stage_name, elapsed in timings.items():
-                    print(f"  {stage_name}: {elapsed * 1000:.1f} ms")
+                    self._out.write(f"  {stage_name}: {elapsed * 1000:.1f} ms")
 
     async def _cmd_compact(self) -> None:
         """Force immediate compression of conversation history.
@@ -135,12 +135,12 @@ class _IngestMixin(MixinBase):
         """
         ctx = self._ctx
         if ctx.services.hist_mgr is None:
-            print("History manager not available.")
+            self._out.write("History manager not available.")
             return
         turn_msgs = [m for m in ctx.conv.history if m["role"] != "system"]
         # compress_turns * 2: each "turn" = 1 user + 1 assistant message
         n_compress = ctx.services.hist_mgr.compress_turns * 2
         if len(turn_msgs) <= n_compress:
-            print("Nothing to compact: history too short.")
+            self._out.write("Nothing to compact: history too short.")
             return
         ctx.conv.history = await ctx.services.hist_mgr.force_compress(ctx.conv.history)

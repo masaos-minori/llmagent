@@ -17,13 +17,6 @@ Provides _DbMixin with:
 
 import logging
 
-from agent.commands.formatter import (
-    print_kv_list,
-    print_no_data,
-    print_success,
-    print_table,
-    print_validation_error,
-)
 from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import parse_command_args
 from agent.services.db_maintenance_service import DbMaintenanceService
@@ -54,7 +47,7 @@ class _DbMixin(MixinBase):
         if handler:
             handler()
         else:
-            print_validation_error(
+            self._out.write_validation_error(
                 "/db stats | /db urls [--lang ja|en] [--limit N]"
                 " | /db clean <url> | /db rebuild-fts"
                 " | /db health | /db checkpoint [MODE]"
@@ -66,18 +59,18 @@ class _DbMixin(MixinBase):
         """Delete a document by URL from the vector store."""
         url = rest.strip()
         if not url:
-            print_validation_error("/db clean <url>")
+            self._out.write_validation_error("/db clean <url>")
             return
         ok = self._ctx.session.delete_document(url)
         if ok:
-            print_success(f"Document deleted: {url}")
+            self._out.write_success(f"Document deleted: {url}")
         else:
-            print_no_data(f"Document not found: {url}")
+            self._out.write_no_data(f"Document not found: {url}")
 
     def _db_stats(self) -> None:
         """Print document/chunk/session/message counts from both DBs."""
         result = DbMaintenanceService().stats()
-        print_kv_list(
+        self._out.write_kv(
             [
                 ("documents", f"{result.docs:,}"),
                 ("chunks", f"{result.chunks:,}"),
@@ -95,7 +88,7 @@ class _DbMixin(MixinBase):
         limit = int(limit_raw) if limit_raw and str(limit_raw).isdigit() else 20
         rows = self._ctx.session.list_documents(lang, limit)
         if not rows:
-            print_no_data("No documents found")
+            self._out.write_no_data("No documents found")
             return
         table_rows = [
             [
@@ -110,17 +103,17 @@ class _DbMixin(MixinBase):
             ]
             for r in rows
         ]
-        print_table(["URL", "Lang", "Chunks", "Fetched"], table_rows)
+        self._out.write_table(["URL", "Lang", "Chunks", "Fetched"], table_rows)
 
     def _db_rebuild_fts(self) -> None:
         """Rebuild the FTS5 chunks_fts index in rag.sqlite."""
         DbMaintenanceService().rebuild_fts()
-        print_success("FTS5 index rebuilt.")
+        self._out.write_success("FTS5 index rebuilt.")
 
     def _db_health(self) -> None:
         """Print DB health metrics: integrity, size."""
         info = DbMaintenanceService().health()
-        print_kv_list(
+        self._out.write_kv(
             [
                 ("integrity_ok", str(info.integrity_ok)),
                 ("db_size", f"{info.size_bytes:,} bytes"),
@@ -130,7 +123,7 @@ class _DbMixin(MixinBase):
     def _db_checkpoint(self, mode: str | None) -> None:
         """Run WAL checkpoint. mode: PASSIVE|FULL|RESTART|TRUNCATE (default from config)."""
         result = DbMaintenanceService().checkpoint(mode)
-        print_success(
+        self._out.write_success(
             f"WAL checkpoint complete: mode={result.mode},"
             f" pages_written={result.pages_written}"
         )
@@ -138,7 +131,7 @@ class _DbMixin(MixinBase):
     def _db_vacuum(self) -> None:
         """Run VACUUM to rebuild the DB file and reclaim free pages."""
         DbMaintenanceService().vacuum()
-        print_success("VACUUM complete.")
+        self._out.write_success("VACUUM complete.")
 
     def _db_purge(self, rest: str) -> None:
         """Purge old sessions. Options: --max-sessions N --max-age-days N"""
@@ -156,12 +149,12 @@ class _DbMixin(MixinBase):
             else None
         )
         result = DbMaintenanceService().purge(max_sessions, max_age_days)
-        print_success(f"Purged: {result.sessions_removed} session(s) removed")
+        self._out.write_success(f"Purged: {result.sessions_removed} session(s) removed")
 
     def _db_recover(self, backup_path: str | None) -> None:
         """Run integrity check; restore from backup_path if corruption found."""
         result = DbMaintenanceService().recover(backup_path)
         if result.integrity_ok:
-            print_success(f"Recovery succeeded: {result.detail}")
+            self._out.write_success(f"Recovery succeeded: {result.detail}")
         else:
-            print_no_data(f"Recovery failed: {result.detail}")
+            self._out.write_no_data(f"Recovery failed: {result.detail}")

@@ -20,10 +20,8 @@ from dataclasses import dataclass, field
 
 import orjson
 
-from agent.commands.formatter import (
-    print_success,
-    print_validation_error,
-)
+from agent.commands.enums import MemoryAction
+from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
 from agent.context import AgentContext
 from agent.memory.services import MemoryServices
@@ -38,7 +36,7 @@ class MemoryOpResult:
 
     ok: bool
     memory_id: str
-    action: str  # "deleted" | "pinned" | "unpinned" | "pruned"
+    action: MemoryAction | str
     dry_run: bool = False
     count: int = 0  # number of entries affected by prune
     messages: list[str] = field(default_factory=list)
@@ -66,11 +64,13 @@ class _MemoryMixin(MixinBase):
         sub_tokens = raw_tokens[1:] if raw_tokens else []
 
         if not sub or sub == "help":
-            print(_MEMORY_HELP)
+            self._out.write(_MEMORY_HELP)
             return
 
         if mem is None:
-            print("  [memory] Memory layer is disabled (use_memory_layer=false)")
+            self._out.write(
+                "  [memory] Memory layer is disabled (use_memory_layer=false)"
+            )
             return
 
         dispatch = {
@@ -86,7 +86,7 @@ class _MemoryMixin(MixinBase):
         if handler:
             handler()
         else:
-            print_validation_error(f"Unknown subcommand: {sub!r}. Try /memory help")
+            raise UnknownSubcommandError(sub, tuple(dispatch.keys()))
 
     def _memory_list(self, mem: MemoryServices, args: list[str]) -> None:
         mem_type = next((a for a in args if a in ("semantic", "episodic")), "")
@@ -103,94 +103,96 @@ class _MemoryMixin(MixinBase):
             ]
 
         if not entries:
-            print("  [memory] No entries found")
+            self._out.write("  [memory] No entries found")
             return
-        print(f"  {'ID':36}  {'Type':8}  {'Imp':4}  {'Pin':3}  Summary")
-        print(f"  {'-' * 36}  {'-' * 8}  {'-' * 4}  {'-' * 3}  {'-' * 40}")
+        self._out.write(f"  {'ID':36}  {'Type':8}  {'Imp':4}  {'Pin':3}  Summary")
+        self._out.write(f"  {'-' * 36}  {'-' * 8}  {'-' * 4}  {'-' * 3}  {'-' * 40}")
         for e in entries:
             pin_mark = "Y" if e.pinned else "-"
             summary = (e.summary or e.content[:60]).replace("\n", " ")[:60]
-            print(
+            self._out.write(
                 f"  {e.memory_id:36}  {e.memory_type:8}"
                 f"  {e.importance:.2f}  {pin_mark:3}  {summary}",
             )
 
     def _memory_search(self, mem: MemoryServices, args: list[str]) -> None:
         if not args:
-            print_validation_error("/memory search <query>")
+            self._out.write_validation_error("/memory search <query>")
             return
         query = " ".join(args)
         hits = mem.retriever.search(MemoryQuery(query=query, limit=10))
         if not hits:
-            print(f"  [memory] No results for {query!r}")
+            self._out.write(f"  [memory] No results for {query!r}")
             return
-        print(f"  Results for {query!r}:")
+        self._out.write(f"  Results for {query!r}:")
         for hit in hits:
             e = hit.entry
             summary = (e.summary or e.content[:60]).replace("\n", " ")[:60]
-            print(
+            self._out.write(
                 f"    [{hit.score:+.3f}] {e.memory_type:8}"
                 f"  {e.memory_id[:12]}…  {summary}",
             )
 
     def _memory_show(self, mem: MemoryServices, args: list[str]) -> None:
         if not args:
-            print_validation_error("/memory show <id>")
+            self._out.write_validation_error("/memory show <id>")
             return
         mid = args[0]
         entry = mem.store.get_by_id(mid)
         if entry is None:
-            print(f"  [memory] Entry not found: {mid!r}")
+            self._out.write(f"  [memory] Entry not found: {mid!r}")
             return
-        print(f"  memory_id  : {entry.memory_id}")
-        print(f"  type       : {entry.memory_type} / {entry.source_type}")
-        print(f"  importance : {entry.importance:.2f}  pinned: {entry.pinned}")
-        print(
+        self._out.write(f"  memory_id  : {entry.memory_id}")
+        self._out.write(f"  type       : {entry.memory_type} / {entry.source_type}")
+        self._out.write(
+            f"  importance : {entry.importance:.2f}  pinned: {entry.pinned}"
+        )
+        self._out.write(
             f"  project    : {entry.project}  repo: {entry.repo}  branch: {entry.branch}",
         )
-        print(f"  created_at : {entry.created_at}")
-        print(f"  tags       : {entry.tags}")
-        print(f"  summary    : {entry.summary}")
-        print(f"  content:\n{entry.content}")
+        self._out.write(f"  created_at : {entry.created_at}")
+        self._out.write(f"  tags       : {entry.tags}")
+        self._out.write(f"  summary    : {entry.summary}")
+        self._out.write(f"  content:\n{entry.content}")
 
     def _memory_pin(self, mem: MemoryServices, args: list[str], *, pin: bool) -> None:
         if not args:
             cmd = "pin" if pin else "unpin"
-            print_validation_error(f"/memory {cmd} <id>")
+            self._out.write_validation_error(f"/memory {cmd} <id>")
             return
         mid = args[0]
         ok = mem.store.pin(mid) if pin else mem.store.unpin(mid)
         action = "pinned" if pin else "unpinned"
         if ok:
-            print(f"  [memory] {action}: {mid}")
+            self._out.write(f"  [memory] {action}: {mid}")
             self._emit_memory_audit(
                 MemoryOpResult(ok=True, memory_id=mid, action=action)
             )
         else:
-            print(f"  [memory] Entry not found: {mid!r}")
+            self._out.write(f"  [memory] Entry not found: {mid!r}")
 
     def _memory_delete(self, mem: MemoryServices, args: list[str]) -> None:
         dry_run = "--dry-run" in args
         ids = [a for a in args if not a.startswith("--")]
         if not ids:
-            print_validation_error("/memory delete [--dry-run] <id>")
+            self._out.write_validation_error("/memory delete [--dry-run] <id>")
             return
         mid = ids[0]
         if dry_run:
             exists = mem.store.get_by_id(mid) is not None
             if exists:
-                print(f"  [memory] (dry-run) would delete: {mid}")
+                self._out.write(f"  [memory] (dry-run) would delete: {mid}")
             else:
-                print(f"  [memory] (dry-run) Entry not found: {mid!r}")
+                self._out.write(f"  [memory] (dry-run) Entry not found: {mid!r}")
             self._emit_memory_audit(
                 MemoryOpResult(ok=exists, memory_id=mid, action="deleted", dry_run=True)
             )
             return
         ok = mem.store.delete(mid)
         if ok:
-            print(f"  [memory] Deleted: {mid}")
+            self._out.write(f"  [memory] Deleted: {mid}")
         else:
-            print(f"  [memory] Entry not found: {mid!r}")
+            self._out.write(f"  [memory] Entry not found: {mid!r}")
         self._emit_memory_audit(MemoryOpResult(ok=ok, memory_id=mid, action="deleted"))
 
     def _memory_prune(
@@ -204,7 +206,7 @@ class _MemoryMixin(MixinBase):
         days = int(day_args[0]) if day_args else ctx.cfg.memory.memory_retention_days
         if dry_run:
             count = mem.store.count_prunable(days)
-            print(
+            self._out.write(
                 f"  [memory] (dry-run) would prune {count} entries older than {days} days"
             )
             self._emit_memory_audit(
@@ -215,7 +217,7 @@ class _MemoryMixin(MixinBase):
             return
         with SQLiteHelper("session").open(write_mode=True) as db:
             deleted = prune_old_memories(db, days)
-        print_success(f"Pruned {deleted} entries older than {days} days")
+        self._out.write_success(f"Pruned {deleted} entries older than {days} days")
         self._emit_memory_audit(
             MemoryOpResult(ok=True, memory_id="", action="pruned", count=deleted)
         )

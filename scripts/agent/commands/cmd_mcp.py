@@ -11,6 +11,7 @@ Formatting (table, next-steps) is handled in this module — not in the services
 
 import logging
 
+from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
 from agent.services.mcp_install import CliInstallQA, McpInstallService
 from agent.services.mcp_status import TIER_LABELS, McpStatusService
@@ -51,12 +52,12 @@ class _McpMixin(MixinBase):
         """Print MCP server status table."""
         ctx = self._ctx
         svc = McpStatusService(ctx)
-        print(
+        self._out.write(
             f"  Tools       {len(ctx.cfg.tool.tool_definitions)} (from config/agent.toml)"
         )
-        print()
+        self._out.write("")
         rows = await svc.probe_all()
-        print(_format_mcp_table(rows))
+        self._out.write(_format_mcp_table(rows))
 
     async def _cmd_mcp_install(self, server_name: str) -> None:
         """Interactive wizard: generate MCP server template files for server_name."""
@@ -67,28 +68,28 @@ class _McpMixin(MixinBase):
         try:
             validate_server_name(server_name)
         except ValueError as e:
-            print(str(e))
-            print("Usage: /mcp install <server-name>  (e.g., my-api)")
+            self._out.write(str(e))
+            self._out.write("Usage: /mcp install <server-name>  (e.g., my-api)")
             return
 
-        print(f"MCP install wizard — server: {server_name!r}")
-        print()
+        self._out.write(f"MCP install wizard — server: {server_name!r}")
+        self._out.write("")
 
         svc = McpInstallService()
         qa = CliInstallQA()
         try:
             result = await svc.run(server_name, qa)
         except (FileExistsError, ValueError) as e:
-            print(f"Aborted: {e}")
+            self._out.write(f"Aborted: {e}")
             return
         except OSError as e:
-            print(f"File write error: {e}")
+            self._out.write(f"File write error: {e}")
             return
 
         for path in result.created_files:
-            print(f"  Created: {path}")
+            self._out.write(f"  Created: {path}")
 
-        print(svc.format_next_steps(result))
+        self._out.write(svc.format_next_steps(result))
 
     async def _cmd_mcp(self, args: str = "") -> None:
         """MCP server status, tool list, connectivity check, or install wizard."""
@@ -99,8 +100,8 @@ class _McpMixin(MixinBase):
             await self._cmd_mcp_install(name)
         elif sub in ("status", ""):
             if not sub:
-                print("Usage: /mcp [status|install <name>]")
-                print()
+                self._out.write("Usage: /mcp [status|install <name>]")
+                self._out.write("")
             await self._cmd_mcp_status()
         else:
-            print(f"Unknown subcommand: {sub!r}. Usage: /mcp [status|install <name>]")
+            raise UnknownSubcommandError(sub, ("status", "install"))
