@@ -12,7 +12,7 @@ Formatting (table, next-steps) is handled in this module — not in the services
 import logging
 
 from agent.commands.mixin_base import MixinBase
-from agent.services.mcp_install import CliInstallQA, McpInstallService, ScaffoldResult
+from agent.services.mcp_install import CliInstallQA, McpInstallService
 from agent.services.mcp_status import TIER_LABELS, McpStatusService
 from agent.services.models import McpProbeResult
 
@@ -42,48 +42,6 @@ def _format_mcp_table(rows: list[McpProbeResult]) -> str:
             )
         )
     return "\n".join(lines)
-
-
-def _print_mcp_install_next_steps(result: ScaffoldResult) -> None:
-    """Print post-install checklist for the newly scaffolded MCP server."""
-    print()
-    print("Next steps:")
-    print(
-        f"  1. Edit scripts/mcp/{result.module}/server.py — implement _DISPATCH handlers",
-    )
-    print()
-    print("  2. Add tool definition to config/agent.toml (tool_definitions array):")
-    for line in result.tool_snippet.splitlines():
-        print(f"     {line}")
-    print()
-    print("  3. Add to config/agent.toml [mcp_servers]:")
-    for line in (result.agent_toml_snippet or "").splitlines():
-        print(f"     {line}")
-    print()
-    print("  4. Add to deploy/deploy.sh:")
-    print(
-        f'     cp -r "${{REPO_ROOT}}/scripts/mcp/{result.module}"'
-        f' "${{DEPLOY_SCRIPTS}}/mcp/"',
-    )
-    print(
-        f'     cp "${{REPO_ROOT}}/config/{result.module}_mcp_server.toml"'
-        f' "${{DEPLOY_CONFIG}}/"',
-    )
-    print()
-    print("  5. Add to deploy/setup_services.sh (service list and conf.d copy):")
-    print(f"     {result.server_name}  (add to the for-loop service list)")
-    if result.with_confd:
-        print(
-            f'     cp "${{REPO_ROOT}}/conf.d/{result.server_name}"'
-            f' "/etc/conf.d/{result.server_name}"',
-        )
-    print()
-    print("  6. Deploy and start:")
-    print("     bash deploy/deploy.sh")
-    print(f"     cp init.d/{result.server_name} /etc/init.d/{result.server_name}")
-    print(f"     chmod +x /etc/init.d/{result.server_name}")
-    print(f"     rc-update add {result.server_name} default")
-    print(f"     rc-service {result.server_name} start")
 
 
 class _McpMixin(MixinBase):
@@ -130,7 +88,7 @@ class _McpMixin(MixinBase):
         for path in result.created_files:
             print(f"  Created: {path}")
 
-        _print_mcp_install_next_steps(result)
+        print(svc.format_next_steps(result))
 
     async def _cmd_mcp(self, args: str = "") -> None:
         """MCP server status, tool list, connectivity check, or install wizard."""

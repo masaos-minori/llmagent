@@ -12,6 +12,8 @@ import asyncio
 from dataclasses import dataclass
 from typing import Protocol
 
+_VALID_ROLES: frozenset[str] = frozenset({"generic", "sqlite", "shell", "git", "ci"})
+
 
 @dataclass
 class ScaffoldResult:
@@ -63,10 +65,25 @@ class CliInstallQA:
 
     async def ask_role(self) -> str:
         if self._role is not None:
+            if self._role not in _VALID_ROLES:
+                raise ValueError(
+                    f"Unknown role: {self._role!r}. Valid: {sorted(_VALID_ROLES)}"
+                )
             return self._role
-        print("Role [generic | sqlite | shell | git | ci] (default: generic):")
-        raw = (await asyncio.to_thread(input, "Role: ")).strip().lower()
-        return raw if raw in ("sqlite", "shell", "git", "ci") else "generic"
+        raw = (
+            (
+                await asyncio.to_thread(
+                    input, "Role [generic|sqlite|shell|git|ci] (default: generic): "
+                )
+            )
+            .strip()
+            .lower()
+        )
+        if not raw:
+            return "generic"
+        if raw not in _VALID_ROLES:
+            raise ValueError(f"Unknown role: {raw!r}. Valid: {sorted(_VALID_ROLES)}")
+        return raw
 
     async def ask_confd(self) -> bool:
         if self._with_confd is not None:
@@ -121,43 +138,46 @@ class McpInstallService:
             agent_toml_snippet=generate_agent_toml_mcp_snippet(server_name, port, role),
         )
 
-    def print_next_steps(self, result: ScaffoldResult) -> None:
-        """Print manual post-install checklist."""
-        print()
-        print("Next steps:")
-        print(
+    def format_next_steps(self, result: ScaffoldResult) -> str:
+        """Format post-install checklist as a string (no I/O side effects)."""
+        lines: list[str] = [
+            "",
+            "Next steps:",
             f"  1. Edit scripts/mcp/{result.module}/server.py — implement _DISPATCH handlers",
-        )
-        print()
-        print("  2. Add tool definition to config/agent.toml (tool_definitions array):")
+            "",
+            "  2. Add tool definition to config/agent.toml (tool_definitions array):",
+        ]
         for line in result.tool_snippet.splitlines():
-            print(f"     {line}")
-        print()
-        print("  3. Add to config/agent.toml [mcp_servers]:")
+            lines.append(f"     {line}")
+        lines += [
+            "",
+            "  3. Add to config/agent.toml [mcp_servers]:",
+        ]
         for line in (result.agent_toml_snippet or "").splitlines():
-            print(f"     {line}")
-        print()
-        print("  4. Add to deploy/deploy.sh:")
-        print(
+            lines.append(f"     {line}")
+        lines += [
+            "",
+            "  4. Add to deploy/deploy.sh:",
             f'     cp -r "${{REPO_ROOT}}/scripts/mcp/{result.module}"'
             f' "${{DEPLOY_SCRIPTS}}/mcp/"',
-        )
-        print(
             f'     cp "${{REPO_ROOT}}/config/{result.module}_mcp_server.toml"'
             f' "${{DEPLOY_CONFIG}}/"',
-        )
-        print()
-        print("  5. Add to deploy/setup_services.sh (service list and conf.d copy):")
-        print(f"     {result.server_name}  (add to the for-loop service list)")
+            "",
+            "  5. Add to deploy/setup_services.sh (service list and conf.d copy):",
+            f"     {result.server_name}  (add to the for-loop service list)",
+        ]
         if result.with_confd:
-            print(
+            lines.append(
                 f'     cp "${{REPO_ROOT}}/conf.d/{result.server_name}"'
-                f' "/etc/conf.d/{result.server_name}"',
+                f' "/etc/conf.d/{result.server_name}"'
             )
-        print()
-        print("  6. Deploy and start:")
-        print("     bash deploy/deploy.sh")
-        print(f"     cp init.d/{result.server_name} /etc/init.d/{result.server_name}")
-        print(f"     chmod +x /etc/init.d/{result.server_name}")
-        print(f"     rc-update add {result.server_name} default")
-        print(f"     rc-service {result.server_name} start")
+        lines += [
+            "",
+            "  6. Deploy and start:",
+            "     bash deploy/deploy.sh",
+            f"     cp init.d/{result.server_name} /etc/init.d/{result.server_name}",
+            f"     chmod +x /etc/init.d/{result.server_name}",
+            f"     rc-update add {result.server_name} default",
+            f"     rc-service {result.server_name} start",
+        ]
+        return "\n".join(lines)
