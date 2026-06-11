@@ -10,7 +10,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-
 from agent.memory.embedding_client import (
     EmbeddingClient,
     EmbeddingClientConfig,
@@ -34,7 +33,9 @@ def config() -> EmbeddingClientConfig:
 
 class TestDisabledPaths:
     @pytest.mark.asyncio
-    async def test_disabled_client_returns_disabled_error(self, config: EmbeddingClientConfig) -> None:
+    async def test_disabled_client_returns_disabled_error(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         client = EmbeddingClient(config, enabled=False)
         result = await client.fetch("hello")
         assert isinstance(result, EmbeddingResult)
@@ -42,7 +43,9 @@ class TestDisabledPaths:
         assert result.error_kind == "disabled"
 
     @pytest.mark.asyncio
-    async def test_no_http_client_returns_disabled_error(self, config: EmbeddingClientConfig) -> None:
+    async def test_no_http_client_returns_disabled_error(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         client = EmbeddingClient(config, http=None, enabled=True)
         result = await client.fetch("hello")
         assert isinstance(result, EmbeddingResult)
@@ -50,7 +53,9 @@ class TestDisabledPaths:
         assert result.error_kind == "disabled"
 
     @pytest.mark.asyncio
-    async def test_empty_embed_url_returns_disabled_error(self, config: EmbeddingClientConfig) -> None:
+    async def test_empty_embed_url_returns_disabled_error(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         config.embed_url = ""
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         client = EmbeddingClient(config, http=mock_http, enabled=True)
@@ -65,7 +70,9 @@ class TestDisabledPaths:
 
 class TestCircuitBreaker:
     @pytest.mark.asyncio
-    async def test_circuit_open_blocks_requests(self, config: EmbeddingClientConfig) -> None:
+    async def test_circuit_open_blocks_requests(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         client = EmbeddingClient(config)
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         client._http = mock_http
@@ -78,7 +85,9 @@ class TestCircuitBreaker:
             assert result.error_kind == "circuit_open"
 
     @pytest.mark.asyncio
-    async def test_circuit_auto_resets_after_timeout(self, config: EmbeddingClientConfig) -> None:
+    async def test_circuit_auto_resets_after_timeout(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         client = EmbeddingClient(config)
         client._circuit_opened_at = 0.0
         with patch.object(time, "monotonic", return_value=100.0):
@@ -88,7 +97,9 @@ class TestCircuitBreaker:
             assert result.error_kind != "circuit_open"
 
     @pytest.mark.asyncio
-    async def test_circuit_opens_after_consecutive_failures(self, config: EmbeddingClientConfig) -> None:
+    async def test_circuit_opens_after_consecutive_failures(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         config.circuit_open_after = 2
         client = EmbeddingClient(config)
         mock_http = AsyncMock(spec=httpx.AsyncClient)
@@ -105,7 +116,9 @@ class TestCircuitBreaker:
 
         assert client._is_circuit_open() is True
 
-    def test_record_failure_increments_counter(self, config: EmbeddingClientConfig) -> None:
+    def test_record_failure_increments_counter(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         client = EmbeddingClient(config)
         client._record_failure()
         assert client._fail_count == 1
@@ -116,7 +129,9 @@ class TestCircuitBreaker:
 
 class TestSuccessfulEmbedding:
     @pytest.mark.asyncio
-    async def test_valid_response_returns_embedding(self, config: EmbeddingClientConfig) -> None:
+    async def test_valid_response_returns_embedding(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         client = EmbeddingClient(config)
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"embedding": [0.1, 0.2, 0.3]}
@@ -133,7 +148,8 @@ class TestSuccessfulEmbedding:
 
     @pytest.mark.asyncio
     async def test_response_with_non_list_embedding_returns_error(
-        self, config: EmbeddingClientConfig,
+        self,
+        config: EmbeddingClientConfig,
     ) -> None:
         config.max_retries = 0
         client = EmbeddingClient(config)
@@ -151,7 +167,9 @@ class TestSuccessfulEmbedding:
         assert result.error_kind == "invalid_response"
 
     @pytest.mark.asyncio
-    async def test_empty_embedding_list_returns_error(self, config: EmbeddingClientConfig) -> None:
+    async def test_empty_embedding_list_returns_error(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         config.max_retries = 0
         client = EmbeddingClient(config)
         mock_resp = MagicMock()
@@ -173,7 +191,9 @@ class TestSuccessfulEmbedding:
 
 class TestErrorHandling:
     @pytest.mark.asyncio
-    async def test_http_status_error_returns_error(self, config: EmbeddingClientConfig) -> None:
+    async def test_http_status_error_returns_error(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         config.max_retries = 0
         client = EmbeddingClient(config)
         mock_resp = MagicMock()
@@ -191,7 +211,9 @@ class TestErrorHandling:
         assert result.error_kind == "http_error"
 
     @pytest.mark.asyncio
-    async def test_generic_exception_returns_error(self, config: EmbeddingClientConfig) -> None:
+    async def test_generic_exception_returns_error(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         config.max_retries = 0
         client = EmbeddingClient(config)
         mock_http = AsyncMock(spec=httpx.AsyncClient)
@@ -209,7 +231,9 @@ class TestErrorHandling:
 
 class TestRetry:
     @pytest.mark.asyncio
-    async def test_retries_on_failure_then_succeeds(self, config: EmbeddingClientConfig) -> None:
+    async def test_retries_on_failure_then_succeeds(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         config.max_retries = 2
         client = EmbeddingClient(config)
         call_count = 0
@@ -237,7 +261,8 @@ class TestRetry:
 
     @pytest.mark.asyncio
     async def test_all_retries_fail_returns_last_error(
-        self, config: EmbeddingClientConfig,
+        self,
+        config: EmbeddingClientConfig,
     ) -> None:
         config.max_retries = 1
         client = EmbeddingClient(config)
@@ -261,7 +286,9 @@ class TestRetry:
 
 class TestTimeout:
     @pytest.mark.asyncio
-    async def test_timeout_returns_timeout_error(self, config: EmbeddingClientConfig) -> None:
+    async def test_timeout_returns_timeout_error(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         config.max_retries = 0
         client = EmbeddingClient(config)
 
@@ -285,7 +312,8 @@ class TestTimeout:
 class TestTimeoutCircuit:
     @pytest.mark.asyncio
     async def test_timeout_triggers_circuit_after_max_failures(
-        self, config: EmbeddingClientConfig,
+        self,
+        config: EmbeddingClientConfig,
     ) -> None:
         config.max_retries = 0
         config.circuit_open_after = 2
@@ -312,7 +340,9 @@ class TestTimeoutCircuit:
 
 class TestSuccessResetsFailCount:
     @pytest.mark.asyncio
-    async def test_success_resets_fail_count(self, config: EmbeddingClientConfig) -> None:
+    async def test_success_resets_fail_count(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         config.circuit_open_after = 3
         config.max_retries = 0
         client = EmbeddingClient(config)

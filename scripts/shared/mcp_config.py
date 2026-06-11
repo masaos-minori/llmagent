@@ -47,9 +47,13 @@ class McpServerConfig:
                 f"McpServerConfig.transport must be 'http' or 'stdio', got {self.transport!r}"
             )
         if self.transport == "http" and not self.url:
-            raise ValueError("McpServerConfig: url must not be empty when transport='http'")
+            raise ValueError(
+                "McpServerConfig: url must not be empty when transport='http'"
+            )
         if self.transport == "stdio" and not self.cmd:
-            raise ValueError("McpServerConfig: cmd must not be empty when transport='stdio'")
+            raise ValueError(
+                "McpServerConfig: cmd must not be empty when transport='stdio'"
+            )
 
     def _validate_startup_mode(self) -> None:
         if self.startup_mode not in ("persistent", "ondemand", "subprocess"):
@@ -83,7 +87,11 @@ class McpServerHealthRegistry:
     def record_failure(self, server_key: str) -> McpServerHealthState:
         count = self._failure_counts.get(server_key, 0) + 1
         self._failure_counts[server_key] = count
-        state = McpServerHealthState.UNAVAILABLE if count >= self._failure_threshold else McpServerHealthState.DEGRADED
+        state = (
+            McpServerHealthState.UNAVAILABLE
+            if count >= self._failure_threshold
+            else McpServerHealthState.DEGRADED
+        )
         self._states[server_key] = state
         return state
 

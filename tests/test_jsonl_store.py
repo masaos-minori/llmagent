@@ -9,7 +9,6 @@ from pathlib import Path
 
 import orjson
 import pytest
-
 from agent.memory.jsonl_store import JsonlMemoryStore, _entry_from_dict
 from agent.memory.types import MemoryEntry, SourceType
 
@@ -53,19 +52,25 @@ class TestEntryFromDict:
         assert entry.memory_type == "semantic"
         assert entry.content == "test content"
 
-    def test_invalid_memory_type_returns_none(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_invalid_memory_type_returns_none(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         d = {"memory_id": "m-1", "memory_type": "invalid"}
         entry = _entry_from_dict(d)
         assert entry is None
         assert "invalid memory_type" in caplog.text
 
-    def test_missing_memory_id_raises_value_error(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_missing_memory_id_raises_value_error(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         d = {"memory_type": "semantic", "source_type": "conversation"}
         entry = _entry_from_dict(d)
         assert entry is None
         assert "memory_id" in caplog.text
 
-    def test_invalid_source_type_raises_value_error(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_invalid_source_type_raises_value_error(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         d = {
             "memory_id": "m-1",
             "memory_type": "semantic",
@@ -201,9 +206,11 @@ class TestMalformedLines:
     def test_json_decode_error_increments_malformed_count(self, tmp_path: Path) -> None:
         path = tmp_path / "store.jsonl"
         path.write_text(
-            orjson.dumps(_make_entry()).decode() + "\n"
+            orjson.dumps(_make_entry()).decode()
+            + "\n"
             + "this is not json\n"
-            + orjson.dumps(_make_entry(memory_id="m-2")).decode() + "\n",
+            + orjson.dumps(_make_entry(memory_id="m-2")).decode()
+            + "\n",
             encoding="utf-8",
         )
         store = JsonlMemoryStore(path)
@@ -211,12 +218,20 @@ class TestMalformedLines:
         assert len(entries) == 2
         assert store.malformed_count == 1
 
-    def test_invalid_memory_type_increments_malformed_count(self, tmp_path: Path) -> None:
+    def test_invalid_memory_type_increments_malformed_count(
+        self, tmp_path: Path
+    ) -> None:
         path = tmp_path / "store.jsonl"
-        d = {"memory_id": "m-3", "memory_type": "invalid_type", "source_type": "conversation"}
+        d = {
+            "memory_id": "m-3",
+            "memory_type": "invalid_type",
+            "source_type": "conversation",
+        }
         path.write_text(
-            orjson.dumps(_make_entry(memory_id="m-1")).decode() + "\n"
-            + orjson.dumps(d).decode() + "\n",
+            orjson.dumps(_make_entry(memory_id="m-1")).decode()
+            + "\n"
+            + orjson.dumps(d).decode()
+            + "\n",
             encoding="utf-8",
         )
         store = JsonlMemoryStore(path)
@@ -235,12 +250,16 @@ class TestMalformedLines:
         assert len(entries) == 1
         assert store.malformed_count == 0
 
-    def test_missing_required_field_increments_malformed_count(self, tmp_path: Path) -> None:
+    def test_missing_required_field_increments_malformed_count(
+        self, tmp_path: Path
+    ) -> None:
         path = tmp_path / "store.jsonl"
         d = {"memory_type": "semantic"}  # missing memory_id
         path.write_text(
-            orjson.dumps(_make_entry(memory_id="m-1")).decode() + "\n"
-            + orjson.dumps(d).decode() + "\n",
+            orjson.dumps(_make_entry(memory_id="m-1")).decode()
+            + "\n"
+            + orjson.dumps(d).decode()
+            + "\n",
             encoding="utf-8",
         )
         store = JsonlMemoryStore(path)

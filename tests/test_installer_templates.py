@@ -5,18 +5,15 @@ All functions return strings; no file I/O.
 
 from __future__ import annotations
 
-import pytest
-
 from mcp.installer_templates import (
     generate_agent_toml_mcp_snippet,
+    generate_confd_template,
     generate_config_toml,
     generate_config_toml_for_role,
-    generate_confd_template,
     generate_initd_script,
     generate_server_script,
     tool_definition_snippet,
 )
-
 
 # ── generate_server_script ───────────────────────────────────────────────────
 

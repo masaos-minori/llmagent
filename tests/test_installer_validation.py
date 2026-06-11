@@ -5,14 +5,11 @@ Unit tests for mcp/installer_validation.py — validate_server_name, name_to_mod
 
 from __future__ import annotations
 
-import pytest
-
 from scripts.mcp.installer_validation import (
     name_to_class,
     name_to_module,
     validate_server_name,
 )
-
 
 # ── validate_server_name ──
 

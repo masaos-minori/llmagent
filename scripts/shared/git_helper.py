@@ -7,7 +7,6 @@ Returns branch and last commit info for display in /context output.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 logger = logging.getLogger(__name__)
 

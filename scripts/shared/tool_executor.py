@@ -27,7 +27,6 @@ from shared import plugin_registry
 from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
-    McpServerHealthState,
 )
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
