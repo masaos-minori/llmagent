@@ -21,6 +21,7 @@ import logging
 from agent.commands.formatter import (
     print_kv_list,
     print_no_data,
+    print_success,
     print_validation_error,
 )
 from agent.commands.mixin_base import MixinBase
@@ -107,12 +108,18 @@ class _ContextMixin(MixinBase):
 
     def _cmd_undo(self) -> None:
         """Roll back the last user+assistant turn from in-memory history and DB."""
+        from agent.services.exceptions import (
+            NothingToUndoError,  # noqa: PLC0415 — lazy: avoids import at module load
+        )
         from agent.services.undo_service import (
             undo_last_turn,  # noqa: PLC0415 — lazy: avoids import at module load
         )
 
-        _, message = undo_last_turn(self._ctx)
-        print(message)
+        try:
+            result = undo_last_turn(self._ctx)
+            print_success(f"Last turn undone. ({result.n_removed} messages removed)")
+        except NothingToUndoError as e:
+            print_no_data(str(e))
 
     def _cmd_history(self, args: str) -> None:
         """Print last N user/assistant messages in compact form."""
