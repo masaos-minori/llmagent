@@ -28,7 +28,8 @@ from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import parse_command_args
 from agent.services.context_view import collect_context_state
 from agent.services.conversation_service import clear_conversation, switch_system_prompt
-from agent.services.exceptions import ConversationStateError
+from agent.services.exceptions import ContextStateBuildError, ConversationStateError
+from agent.services.models import ContextStateView
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +46,13 @@ def _token_source_label(token_is_exact: bool, tokenize_configured: bool) -> str:
 class _ContextMixin(MixinBase):
     """Context, history, and database slash-command handlers."""
 
-    def _print_token_line(self, state: dict) -> None:
+    def _print_token_line(self, state: ContextStateView) -> None:
         """Print token count / estimate with source label and optional limit info."""
-        token_estimate = state["token_estimate"]
-        token_limit = state["token_limit"]
+        token_estimate = state.token_estimate or 0
+        token_limit = state.token_limit
         token_limit_str = f"{token_limit:,}" if token_limit > 0 else "disabled"
-        token_label = "Token count  " if state["token_is_exact"] else "Token estimate"
-        src = _token_source_label(state["token_is_exact"], state["tokenize_configured"])
+        token_label = "Token count  " if state.token_is_exact else "Token estimate"
+        src = _token_source_label(state.token_is_exact, state.tokenize_configured)
         if token_limit > 0:
             token_pct = int(token_estimate * 100 / token_limit)
             token_value = f"{token_estimate:,} ({src}, limit={token_limit:,} [active] {token_pct}%)"
@@ -67,28 +68,37 @@ class _ContextMixin(MixinBase):
     def _cmd_context(self) -> None:
         """Print runtime conversation context state."""
         ctx = self._ctx
-        state = collect_context_state(ctx)
-        breakdown = state["breakdown"]
+        try:
+            state = collect_context_state(ctx)
+        except ContextStateBuildError as e:
+            print_no_data(str(e))
+            return
+        breakdown = state.breakdown
         total_bd = sum(breakdown.values()) or 1
+        git_str = (
+            f"{state.git_branch} @ {state.git_commit}"
+            if state.git_branch and state.git_commit
+            else "unavailable"
+        )
         print_kv_list(
             [
-                ("Messages        ", str(state["n_msgs"])),
-                ("Total chars     ", f"{state['total_chars']:,}"),
-                ("Compress limit  ", f"{state['compress_limit']:,}"),
+                ("Messages        ", str(state.n_msgs)),
+                ("Total chars     ", f"{state.total_chars:,}"),
+                ("Compress limit  ", f"{state.compress_limit:,}"),
                 (
                     "Remaining       ",
-                    f"{state['compress_limit'] - state['total_chars']:,} chars until compression",
+                    f"{state.compress_limit - state.total_chars:,} chars until compression",
                 ),
-                ("Compress count  ", str(state["compress_count"])),
+                ("Compress count  ", str(state.compress_count)),
                 ("System prompt   ", ctx.conv.system_prompt_name),
-                ("System preview  ", repr(state["sys_preview"])),
+                ("System preview  ", repr(state.sys_preview)),
             ]
         )
         self._print_token_line(state)
         print_kv_list(
             [
-                ("Memory layer    ", state["mem_status"]),
-                ("Git             ", state["git_str"]),
+                ("Memory layer    ", state.mem_status),
+                ("Git             ", git_str),
             ]
         )
         print("Budget breakdown:")

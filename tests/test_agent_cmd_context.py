@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
 from agent.commands.cmd_context import _ContextMixin, _token_source_label
 from agent.services.context_view import _format_memory_status
 from agent.services.context_view import budget_breakdown as _budget_breakdown
@@ -334,15 +335,21 @@ class TestCmdHistory:
 
 
 class TestCollectContextState:
-    def test_collect_context_state_returns_dict(self) -> None:
+    def test_collect_context_state_returns_context_state_view(self) -> None:
         from agent.services.context_view import collect_context_state
+        from agent.services.models import ContextStateView
 
         ctx = _make_ctx()
         ctx.conv.history = [_system_msg("sys")]
+        hist_mgr = MagicMock()
+        hist_mgr.count_chars.return_value = 3
+        hist_mgr.stat_compress_count = 0
+        hist_mgr.count_tokens.return_value = None
+        ctx.services.hist_mgr = hist_mgr
         result = collect_context_state(ctx)
-        assert isinstance(result, dict)
-        assert "total_chars" in result
-        assert "n_msgs" in result
+        assert isinstance(result, ContextStateView)
+        assert result.total_chars == 3
+        assert result.n_msgs == 1
 
     def test_collect_context_state_with_hist_mgr(self) -> None:
         from agent.services.context_view import collect_context_state
@@ -355,32 +362,53 @@ class TestCollectContextState:
         hist_mgr.count_tokens.return_value = 25
         ctx.services.hist_mgr = hist_mgr
         result = collect_context_state(ctx)
-        assert result["total_chars"] == 100
+        assert result.total_chars == 100
+
+    def test_collect_context_state_no_hist_mgr_raises(self) -> None:
+        from agent.services.context_view import collect_context_state
+        from agent.services.exceptions import ContextStateBuildError
+
+        ctx = _make_ctx()
+        ctx.services.hist_mgr = None
+        with pytest.raises(ContextStateBuildError, match="hist_mgr"):
+            collect_context_state(ctx)
 
     def test_collect_context_state_with_memory(self) -> None:
         from agent.services.context_view import collect_context_state
 
         ctx = _make_ctx()
+        hist_mgr = MagicMock()
+        hist_mgr.count_chars.return_value = 0
+        hist_mgr.stat_compress_count = 0
+        hist_mgr.count_tokens.return_value = None
+        ctx.services.hist_mgr = hist_mgr
         mem = MagicMock()
         mem.store.count_entries.return_value = 10
         mem.store.count_vec.return_value = 5
         mem.store.count_by_type.return_value = {"semantic": 3}
         ctx.services.memory = mem
         result = collect_context_state(ctx)
-        assert "enabled" in result["mem_status"]
+        assert "enabled" in result.mem_status
 
 
 # ── _cmd_context ──────────────────────────────────────────────────────────────
 
 
 class TestCmdContext:
+    def _add_hist_mgr(self, ctx: MagicMock, n_chars: int = 10) -> None:
+        hist_mgr = MagicMock()
+        hist_mgr.count_chars.return_value = n_chars
+        hist_mgr.stat_compress_count = 0
+        hist_mgr.count_tokens.return_value = None
+        ctx.services.hist_mgr = hist_mgr
+
     def test_cmd_context_prints_state(self, capsys: Any) -> None:
         ctx = _make_ctx()
         ctx.conv.history = [_system_msg("system prompt")]
+        self._add_hist_mgr(ctx)
         cmd = _FakeCmd(ctx)
         cmd._cmd_context()
         out = capsys.readouterr().out
-        assert "Messages" in out
         assert "Messages" in out
 
     def test_cmd_context_prints_breakdown(self, capsys: Any) -> None:
@@ -390,6 +418,7 @@ class TestCmdContext:
             _user_msg("user msg"),
             {"role": "tool", "content": "tool result"},
         ]
+        self._add_hist_mgr(ctx)
         cmd = _FakeCmd(ctx)
         cmd._cmd_context()
         out = capsys.readouterr().out
