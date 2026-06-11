@@ -16,7 +16,6 @@ import re
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from shared.formatters import fmt_size
 
@@ -512,26 +511,14 @@ class ReadFileService:
         }
 
 
-class _LazyReadFileService:
-    """Lazy singleton proxy: defers ReadFileService init until first attribute access."""
-
-    _instance: ReadFileService | None = None
-
-    def __getattr__(self, name: str) -> Any:
-        if _LazyReadFileService._instance is None:
-            cfg = FileReadConfig.load()
-            allowed_dirs = [Path(d) for d in cfg.allowed_dirs]
-            if not allowed_dirs:
-                logger.warning("ALLOWED_DIRS is empty — all paths will be rejected")
-            _LazyReadFileService._instance = ReadFileService(
-                allowed_dirs=allowed_dirs,
-                max_read_bytes=cfg.max_file_size_kb * 1024,
-                max_tree_depth=cfg.max_depth,
-                max_search_results=cfg.max_files_per_batch,
-            )
-        return getattr(_LazyReadFileService._instance, name)
-
-
-# NOTE: type: ignore[assignment] -- _LazyReadFileService is a proxy whose __getattr__
-# delegates to the real ReadFileService instance; mypy sees a type mismatch.
-_service: ReadFileService = _LazyReadFileService()  # type: ignore[assignment]
+def build_service(cfg: FileReadConfig) -> ReadFileService:
+    """Construct a ReadFileService from a typed config object."""
+    allowed_dirs = [Path(d) for d in cfg.allowed_dirs]
+    if not allowed_dirs:
+        logger.warning("ALLOWED_DIRS is empty — all paths will be rejected")
+    return ReadFileService(
+        allowed_dirs=allowed_dirs,
+        max_read_bytes=cfg.max_file_size_kb * 1024,
+        max_tree_depth=cfg.max_depth,
+        max_search_results=cfg.max_files_per_batch,
+    )

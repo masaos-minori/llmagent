@@ -20,17 +20,25 @@ Provided endpoints:
 
 from __future__ import annotations
 
+import logging
+import time
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from shared.formatters import fmt_kvlog
 
 from mcp.dispatch import dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs, attach_auth_middleware
-from mcp.sqlite.models import SqliteConfig
-from mcp.sqlite.service import _service
+from mcp.sqlite.models import SqliteConfig, SqliteServiceError, SqliteValidationError
+from mcp.sqlite.service import SqliteMCPService, build_service
+from mcp.sqlite.tools import _MCP_TOOLS
+
+logger = logging.getLogger(__name__)
 
 _cfg = SqliteConfig.load()
+_service: SqliteMCPService = build_service(_cfg)
 
 app = FastAPI(
     title="sqlite-mcp",
@@ -41,34 +49,16 @@ app = FastAPI(
 attach_auth_middleware(app, _cfg.auth_token or "")
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# MCP tool definitions
-# ──────────────────────────────────────────────────────────────────────────────
+@app.exception_handler(SqliteServiceError)
+async def _on_sqlite_service_error(_req: Any, exc: SqliteServiceError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=500)
 
-_MCP_TOOLS = [
-    {
-        "name": "query_sqlite",
-        "description": (
-            "Execute a read-only SELECT query against a named SQLite database. "
-            "Only SELECT statements are permitted. "
-            "Results are capped at max_rows (default: 100)."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "db": {
-                    "type": "string",
-                    "description": "Database name (e.g., 'rag' or 'session')",
-                },
-                "sql": {
-                    "type": "string",
-                    "description": "SELECT query string (non-SELECT statements are rejected)",
-                },
-            },
-            "required": ["db", "sql"],
-        },
-    },
-]
+
+@app.exception_handler(SqliteValidationError)
+async def _on_sqlite_validation_error(
+    _req: Any, exc: SqliteValidationError
+) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=422)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -97,7 +87,10 @@ async def list_tools() -> dict[str, Any]:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
+    t0 = time.perf_counter()
     result, is_error = await _dispatch_sqlite_tool(req.name, req.args)
+    ms = (time.perf_counter() - t0) * 1000
+    logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
     return CallToolResponse(result=result, is_error=is_error)
 
 

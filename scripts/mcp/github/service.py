@@ -231,7 +231,7 @@ class GitHubService:
 
     async def _run_github(self, func: Callable[[], T]) -> T:
         """Run a synchronous PyGithub call in the thread pool.
-        Converts GithubException to HTTPException so endpoints stay free of
+        Converts GithubException to domain exceptions so endpoints stay free of
         try/except boilerplate.
         """
         try:
@@ -1005,20 +1005,6 @@ class GitHubService:
         }
 
 
-class _LazyGitHubService:
-    """Lazy singleton proxy: defers GitHubService init until first attribute access."""
-
-    _instance: "GitHubService | None" = None
-
-    def __getattr__(self, name: str) -> Any:
-        if _LazyGitHubService._instance is None:
-            _LazyGitHubService._instance = GitHubService(
-                gh=_gh,
-                cfg=GitHubConfig.load(),
-            )
-        return getattr(_LazyGitHubService._instance, name)
-
-
-# NOTE: type: ignore[assignment] -- _LazyGitHubService is a proxy whose __getattr__
-# delegates to the real GitHubService instance; mypy sees a type mismatch.
-_service: GitHubService = _LazyGitHubService()  # type: ignore[assignment]
+def build_service(cfg: GitHubConfig) -> GitHubService:
+    """Construct a GitHubService from a typed config object."""
+    return GitHubService(gh=_gh, cfg=cfg)

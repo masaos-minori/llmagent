@@ -31,26 +31,17 @@ from mcp.dispatch import dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.rag_pipeline.models import (
     RagDebugResponse,
+    RagPipelineServiceError,
     RagRunRequest,
     RagRunResponse,
     RagSearchRequest,
     RagSearchResponse,
 )
 from mcp.rag_pipeline.service import RagPipelineMCPService, _service
+from mcp.rag_pipeline.tools import _MCP_TOOLS
 from mcp.server import MCPServer, ToolArgs
 
 logger = Logger(__name__, "/opt/llm/logs/rag-mcp.log")
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Domain exception
-# ──────────────────────────────────────────────────────────────────────────────
-
-
-class RagPipelineServiceError(RuntimeError):
-    """Raised when the RAG pipeline service is not ready."""
-
-    pass
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -60,7 +51,6 @@ class RagPipelineServiceError(RuntimeError):
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI) -> AsyncGenerator[None]:
-    # _LazyRagPipelineMCPService proxy returns RagPipelineMCPService at runtime
     svc: RagPipelineMCPService = _service
     await svc.start()
     yield
@@ -148,55 +138,6 @@ async def v1_search(req: RagSearchRequest) -> RagSearchResponse:
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# MCP tool definitions (minimal format for /v1/tools)
-# ──────────────────────────────────────────────────────────────────────────────
-
-_MCP_TOOLS = [
-    {
-        "name": "rag_run_pipeline",
-        "description": (
-            "Run MQE, Search, RRF, Rerank, Dedup and Augment as a single integrated"
-            " RAG pipeline."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Original user query."},
-                "history_context": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Recent user utterances used only for MQE.",
-                },
-                "debug": {
-                    "type": "boolean",
-                    "description": "Return intermediate outputs when true.",
-                },
-            },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "rag_debug_pipeline",
-        "description": (
-            "Run integrated RAG pipeline and return all intermediate stage outputs"
-            " for debugging."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Original user query."},
-                "history_context": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                },
-            },
-            "required": ["query"],
-        },
-    },
-]
 
 
 # ──────────────────────────────────────────────────────────────────────────────

@@ -17,32 +17,54 @@ Provided endpoints:
 import time
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
 from mcp.dispatch import dispatch_tool
+from mcp.file.common import FileAuthorizationError, FileValidationError
 from mcp.file.write_models import (
     CreateDirectoryRequest,
     CreateDirectoryResponse,
     EditFileRequest,
     EditFileResponse,
+    FileWriteConfig,
     MoveFileRequest,
     MoveFileResponse,
     WriteFileRequest,
     WriteFileResponse,
 )
-from mcp.file.write_service import _service
+from mcp.file.write_service import WriteFileService, build_service
+from mcp.file.write_tools import _MCP_TOOLS
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs
 
 logger = Logger(__name__, "/opt/llm/logs/file-write-mcp.log")
+
+_cfg = FileWriteConfig.load()
+_service: WriteFileService = build_service(_cfg)
 
 app = FastAPI(
     title="file-write-mcp",
     version="1.0.0",
     description="MCP server for write filesystem operations",
 )
+
+
+@app.exception_handler(FileAuthorizationError)
+async def _on_auth_error(_req: Request, exc: FileAuthorizationError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=403)
+
+
+@app.exception_handler(FileNotFoundError)
+async def _on_not_found(_req: Request, exc: FileNotFoundError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=404)
+
+
+@app.exception_handler(FileValidationError)
+async def _on_validation_error(_req: Request, exc: FileValidationError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=422)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -113,100 +135,6 @@ async def health() -> dict[str, str]:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# MCP tool definitions
-# ──────────────────────────────────────────────────────────────────────────────
-
-_MCP_TOOLS = [
-    {
-        "name": "write_file",
-        "description": "Create or overwrite a file",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Absolute path of the file to write",
-                },
-                "content": {
-                    "type": "string",
-                    "description": "Content to write (UTF-8 text)",
-                },
-            },
-            "required": ["path", "content"],
-        },
-    },
-    {
-        "name": "edit_file",
-        "description": "Apply string replacements to a file. When dry_run=true, return only the diff without writing",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Absolute path of the file to edit",
-                },
-                "edits": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "old_text": {
-                                "type": "string",
-                                "description": "String to replace (exact match)",
-                            },
-                            "new_text": {
-                                "type": "string",
-                                "description": "Replacement string",
-                            },
-                        },
-                        "required": ["old_text", "new_text"],
-                    },
-                    "description": "List of replacement operations applied in order",
-                },
-                "dry_run": {
-                    "type": "boolean",
-                    "description": "When true, return only the diff without writing (default: false)",
-                },
-            },
-            "required": ["path", "edits"],
-        },
-    },
-    {
-        "name": "create_directory",
-        "description": "Create a directory, including parent directories recursively",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Absolute path of the directory to create",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    {
-        "name": "move_file",
-        "description": "Move or rename a file or directory",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "source": {
-                    "type": "string",
-                    "description": "Absolute path of the source",
-                },
-                "destination": {
-                    "type": "string",
-                    "description": "Absolute path of the destination",
-                },
-            },
-            "required": ["source", "destination"],
-        },
-    },
-]
-
-
-# ──────────────────────────────────────────────────────────────────────────────
 # Tool dispatch and unified call endpoint
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -242,7 +170,7 @@ class FileWriteMCPServer(MCPServer):
     server_name = "file-write-mcp"
     server_version = "1.0.0"
     http_port = 8007
-    app_module = "file_write_mcp_server:app"
+    app_module = "mcp.file.write_server:app"
     mcp_tools = _MCP_TOOLS
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:

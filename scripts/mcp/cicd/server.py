@@ -19,13 +19,23 @@ Provided endpoints:
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from shared.formatters import fmt_kvlog
 
 from mcp.audit import _audit_log
-from mcp.cicd.models import CicdConfig
-from mcp.cicd.service import _service
+from mcp.cicd.models import (
+    CicdAuthorizationError,
+    CicdConfig,
+    CicdNotFoundError,
+    CicdUpstreamError,
+    CicdValidationError,
+)
+from mcp.cicd.service import CiCdService, build_service
+from mcp.cicd.tools import _MCP_TOOLS
 from mcp.dispatch import ToolArgs, dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import (
@@ -36,6 +46,7 @@ from mcp.server import (
 logger = logging.getLogger(__name__)
 
 _cfg = CicdConfig.load()
+_service: CiCdService = build_service(_cfg)
 
 app = FastAPI(
     title="cicd-mcp",
@@ -46,107 +57,26 @@ app = FastAPI(
 attach_auth_middleware(app, _cfg.auth_token or "")
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# MCP tool definitions
-# ──────────────────────────────────────────────────────────────────────────────
+@app.exception_handler(CicdAuthorizationError)
+async def _on_cicd_auth_error(_req: Any, exc: CicdAuthorizationError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=403)
 
-_MCP_TOOLS = [
-    {
-        "name": "trigger_workflow",
-        "description": (
-            "Trigger a GitHub Actions workflow dispatch event. "
-            "Requires the repo to be in repo_allowlist."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo": {
-                    "type": "string",
-                    "description": "Repository slug in 'owner/repo' format",
-                },
-                "workflow": {
-                    "type": "string",
-                    "description": "Workflow file name (e.g. ci.yml) or numeric workflow ID",
-                },
-                "ref": {
-                    "type": "string",
-                    "description": "Branch, tag, or SHA to run the workflow on (default: main)",
-                },
-                "inputs": {
-                    "type": "object",
-                    "description": "Optional workflow input parameters (key-value pairs)",
-                },
-            },
-            "required": ["repo", "workflow"],
-        },
-    },
-    {
-        "name": "get_workflow_runs",
-        "description": (
-            "List recent workflow runs for a repository. "
-            "Returns run status, conclusion, timestamps, and URLs."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo": {
-                    "type": "string",
-                    "description": "Repository slug in 'owner/repo' format",
-                },
-                "workflow": {
-                    "type": "string",
-                    "description": "Workflow file name (e.g. ci.yml) or numeric workflow ID",
-                },
-                "limit": {
-                    "type": "integer",
-                    "description": "Maximum number of runs to return (default: 10, max: 50)",
-                },
-            },
-            "required": ["repo", "workflow"],
-        },
-    },
-    {
-        "name": "get_workflow_status",
-        "description": (
-            "Get the current status and details of a specific workflow run by run ID."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo": {
-                    "type": "string",
-                    "description": "Repository slug in 'owner/repo' format",
-                },
-                "run_id": {
-                    "type": "integer",
-                    "description": "Workflow run ID (from get_workflow_runs output)",
-                },
-            },
-            "required": ["repo", "run_id"],
-        },
-    },
-    {
-        "name": "get_workflow_logs",
-        "description": (
-            "Retrieve job summaries and log text for a workflow run. "
-            "Output is capped at max_log_size_kb (default: 256 KB)."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo": {
-                    "type": "string",
-                    "description": "Repository slug in 'owner/repo' format",
-                },
-                "run_id": {
-                    "type": "integer",
-                    "description": "Workflow run ID (from get_workflow_runs output)",
-                },
-            },
-            "required": ["repo", "run_id"],
-        },
-    },
-]
+
+@app.exception_handler(CicdNotFoundError)
+async def _on_cicd_not_found(_req: Any, exc: CicdNotFoundError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=404)
+
+
+@app.exception_handler(CicdValidationError)
+async def _on_cicd_validation_error(
+    _req: Any, exc: CicdValidationError
+) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=422)
+
+
+@app.exception_handler(CicdUpstreamError)
+async def _on_cicd_upstream_error(_req: Any, exc: CicdUpstreamError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=502)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -175,11 +105,14 @@ async def list_tools() -> dict[str, Any]:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
+    t0 = time.perf_counter()
     session_id = request.headers.get("x-session-id", "")
     request_id = getattr(
         request.state, "request_id", request.headers.get("x-request-id", "")
     )
     result, is_error = await _dispatch_cicd_tool(req.name, req.args)
+    ms = (time.perf_counter() - t0) * 1000
+    logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
     _audit_log(
         logger,
         session_id=session_id,

@@ -191,17 +191,4 @@ class RagPipelineMCPService:
         }
 
 
-class _LazyRagPipelineMCPService:
-    """Lazy singleton proxy; actual service is created on first attribute access."""
-
-    _instance: RagPipelineMCPService | None = None
-
-    def __getattr__(self, name: str) -> Any:
-        if _LazyRagPipelineMCPService._instance is None:
-            _LazyRagPipelineMCPService._instance = RagPipelineMCPService()
-        return getattr(_LazyRagPipelineMCPService._instance, name)
-
-
-# NOTE: type: ignore[assignment] -- _LazyRagPipelineMCPService is a proxy whose __getattr__
-# delegates to the real RagPipelineMCPService instance; mypy sees a type mismatch.
-_service: RagPipelineMCPService = _LazyRagPipelineMCPService()  # type: ignore[assignment]
+_service: RagPipelineMCPService = RagPipelineMCPService()

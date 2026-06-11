@@ -13,7 +13,6 @@ import logging
 import shutil
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Any
 
 from mcp.file.common import (
     FileAuthorizationError,
@@ -104,7 +103,12 @@ class WriteFileService:
     def write_file(self, req: WriteFileRequest) -> WriteFileResponse:
         """Create or overwrite a file; parent directories created automatically."""
         target = self._resolve_safe(req.path)
-        size = len(req.content.encode("utf-8"))
+        raw_bytes = req.content.encode("utf-8")
+        size = len(raw_bytes)
+        if size > self._max_write_bytes:
+            raise FileValidationError(
+                f"content exceeds {self._max_write_bytes} bytes write limit"
+            )
         if req.dry_run:
             # Return diff against existing content without writing
             diff = ""
@@ -262,24 +266,12 @@ class WriteFileService:
         }
 
 
-class _LazyWriteFileService:
-    """Lazy singleton proxy: defers WriteFileService init until first attribute access."""
-
-    _instance: WriteFileService | None = None
-
-    def __getattr__(self, name: str) -> Any:
-        if _LazyWriteFileService._instance is None:
-            cfg = FileWriteConfig.load()
-            allowed_dirs = [Path(d) for d in cfg.allowed_dirs]
-            if not allowed_dirs:
-                logger.warning("ALLOWED_DIRS is empty — all paths will be rejected")
-            _LazyWriteFileService._instance = WriteFileService(
-                allowed_dirs=allowed_dirs,
-                max_write_bytes=cfg.max_write_bytes,
-            )
-        return getattr(_LazyWriteFileService._instance, name)
-
-
-# NOTE: type: ignore[assignment] -- _LazyWriteFileService is a proxy whose __getattr__
-# delegates to the real WriteFileService instance; mypy sees a type mismatch.
-_service: WriteFileService = _LazyWriteFileService()  # type: ignore[assignment]
+def build_service(cfg: FileWriteConfig) -> WriteFileService:
+    """Construct a WriteFileService from a typed config object."""
+    allowed_dirs = [Path(d) for d in cfg.allowed_dirs]
+    if not allowed_dirs:
+        logger.warning("ALLOWED_DIRS is empty — all paths will be rejected")
+    return WriteFileService(
+        allowed_dirs=allowed_dirs,
+        max_write_bytes=cfg.max_write_bytes,
+    )

@@ -9,7 +9,7 @@ import dataclasses
 import logging
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
@@ -54,23 +54,6 @@ class WriteFileRequest(BaseModel):
         default=False,
         description="When true, return diff without writing",
     )
-
-    @field_validator("content")
-    @classmethod
-    def _check_content_bytes(cls, v: str) -> str:
-        # Deferred import breaks the circular dependency:
-        # file_write_mcp_models → file_write_mcp_service → file_write_mcp_models (avoided).
-        # This validator runs only at validation time, not at import time.
-        from mcp.file.write_service import (
-            _service,  # noqa: PLC0415 — circular: write_models ↔ write_service
-        )
-
-        # len() returns character count, which may undercount the write limit
-        # for multibyte characters. Check the byte limit after UTF-8 encoding.
-        limit: int = _service._max_write_bytes
-        if len(v.encode("utf-8")) > limit:
-            raise ValueError(f"content exceeds {limit} bytes write limit")
-        return v
 
 
 class WriteFileResponse(BaseModel):

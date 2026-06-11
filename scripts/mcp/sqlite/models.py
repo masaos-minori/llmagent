@@ -15,6 +15,19 @@ from shared.config_loader import ConfigLoader
 logger = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Domain exceptions
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class SqliteServiceError(RuntimeError):
+    """Raised on sqlite service failures (DB not in allowlist, connection error, etc.)."""
+
+
+class SqliteValidationError(ValueError):
+    """Raised on invalid input (non-SELECT statement, missing DB name, etc.)."""
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Typed config object
 # ──────────────────────────────────────────────────────────────────────────────
 

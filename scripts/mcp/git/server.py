@@ -18,15 +18,22 @@ Provided endpoints:
 
 from __future__ import annotations
 
+import logging
+import time
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from shared.formatters import fmt_kvlog
 
 from mcp.dispatch import dispatch_tool
-from mcp.git.models import GitConfig
+from mcp.git.models import GitConfig, GitServiceError
 from mcp.git.service import build_service
+from mcp.git.tools import _MCP_TOOLS
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs, attach_auth_middleware
+
+logger = logging.getLogger(__name__)
 
 _cfg = GitConfig.load()
 _service = build_service(_cfg)
@@ -40,237 +47,9 @@ app = FastAPI(
 attach_auth_middleware(app, _cfg.auth_token or "")
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# MCP tool definitions
-# ──────────────────────────────────────────────────────────────────────────────
-
-_MCP_TOOLS = [
-    {
-        "name": "git_status",
-        "description": "Show the working tree status of a local git repository.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
-            },
-            "required": ["repo_path"],
-        },
-    },
-    {
-        "name": "git_log",
-        "description": "Show commit history. Results capped at max_log_entries (default: 20).",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
-                "max_entries": {
-                    "type": "integer",
-                    "description": "Max commits to return (1–200)",
-                    "default": 20,
-                },
-                "branch": {
-                    "type": "string",
-                    "description": "Branch or ref; empty = current HEAD",
-                    "default": "",
-                },
-            },
-            "required": ["repo_path"],
-        },
-    },
-    {
-        "name": "git_diff",
-        "description": "Show diff of working tree, staged changes, or against a commit.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
-                "staged": {
-                    "type": "boolean",
-                    "description": "When true, show staged diff (--cached)",
-                    "default": False,
-                },
-                "commit": {
-                    "type": "string",
-                    "description": "Commit ref to diff against; empty = working tree",
-                    "default": "",
-                },
-            },
-            "required": ["repo_path"],
-        },
-    },
-    {
-        "name": "git_branch",
-        "description": "List all local branches. Current branch is marked with *.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
-            },
-            "required": ["repo_path"],
-        },
-    },
-    {
-        "name": "git_show",
-        "description": "Show the content of a commit (stat + patch). Output capped at 8000 chars.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
-                "ref": {
-                    "type": "string",
-                    "description": "Commit ref or tag",
-                    "default": "HEAD",
-                },
-            },
-            "required": ["repo_path"],
-        },
-    },
-    {
-        "name": "git_add",
-        "description": "Stage files for commit. Requires read_only=false in config.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
-                "paths": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "File paths to stage",
-                },
-                "dry_run": {
-                    "type": "boolean",
-                    "description": "Preview only without staging",
-                    "default": False,
-                },
-            },
-            "required": ["repo_path", "paths"],
-        },
-    },
-    {
-        "name": "git_commit",
-        "description": "Commit staged changes. Requires read_only=false in config.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
-                "message": {"type": "string", "description": "Commit message"},
-                "dry_run": {
-                    "type": "boolean",
-                    "description": "Preview staged files without committing",
-                    "default": False,
-                },
-            },
-            "required": ["repo_path", "message"],
-        },
-    },
-    {
-        "name": "git_checkout",
-        "description": "Switch or create a branch. Requires read_only=false in config.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
-                "branch": {
-                    "type": "string",
-                    "description": "Branch name to checkout or create",
-                },
-                "create": {
-                    "type": "boolean",
-                    "description": "When true, create a new branch (-b)",
-                    "default": False,
-                },
-                "dry_run": {
-                    "type": "boolean",
-                    "description": "Preview only without switching",
-                    "default": False,
-                },
-            },
-            "required": ["repo_path", "branch"],
-        },
-    },
-    {
-        "name": "git_pull",
-        "description": "Pull from remote. Requires read_only=false in config.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
-                "remote": {
-                    "type": "string",
-                    "description": "Remote name",
-                    "default": "origin",
-                },
-                "branch": {
-                    "type": "string",
-                    "description": "Branch name; empty = current tracking branch",
-                    "default": "",
-                },
-                "dry_run": {
-                    "type": "boolean",
-                    "description": "Perform fetch --dry-run only",
-                    "default": False,
-                },
-            },
-            "required": ["repo_path"],
-        },
-    },
-    {
-        "name": "git_push",
-        "description": "Push branch to remote. Requires read_only=false in config.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo_path": {
-                    "type": "string",
-                    "description": "Absolute path to the git repository",
-                },
-                "remote": {
-                    "type": "string",
-                    "description": "Remote name",
-                    "default": "origin",
-                },
-                "branch": {
-                    "type": "string",
-                    "description": "Branch name; empty = current branch",
-                    "default": "",
-                },
-                "dry_run": {
-                    "type": "boolean",
-                    "description": "Preview only without pushing",
-                    "default": False,
-                },
-            },
-            "required": ["repo_path"],
-        },
-    },
-]
+@app.exception_handler(GitServiceError)
+async def _on_git_service_error(_req: Request, exc: GitServiceError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=500)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -299,7 +78,10 @@ async def list_tools() -> dict[str, Any]:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
+    t0 = time.perf_counter()
     result, is_error = await _dispatch_git_tool(req.name, req.args)
+    ms = (time.perf_counter() - t0) * 1000
+    logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
     return CallToolResponse(result=result, is_error=is_error)
 
 

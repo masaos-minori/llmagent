@@ -50,12 +50,16 @@ def _import_sdk() -> Any | None:
             SimpleSpanProcessor,
         )
 
-        return type("SDK", (), {
-            "Resource": Resource,
-            "TracerProvider": TracerProvider,
-            "ConsoleSpanExporter": ConsoleSpanExporter,
-            "SimpleSpanProcessor": SimpleSpanProcessor,
-        })
+        return type(
+            "SDK",
+            (),
+            {
+                "Resource": Resource,
+                "TracerProvider": TracerProvider,
+                "ConsoleSpanExporter": ConsoleSpanExporter,
+                "SimpleSpanProcessor": SimpleSpanProcessor,
+            },
+        )
     except ImportError:
         return None
 
@@ -65,18 +69,26 @@ def _attach_exporter(provider: Any, otlp_endpoint: str, service_name: str) -> No
     if not otlp_endpoint:
         processor = _ConsoleProcessor()
         provider.add_span_processor(processor)
-        logger.info("OTel tracer configured: ConsoleSpanExporter service=%s", service_name)
+        logger.info(
+            "OTel tracer configured: ConsoleSpanExporter service=%s", service_name
+        )
         return
 
     otlp = _import_otlp()
     if otlp is None:
         provider.add_span_processor(_ConsoleProcessor())
-        logger.warning("opentelemetry-exporter-otlp not installed; falling back to ConsoleSpanExporter")
+        logger.warning(
+            "opentelemetry-exporter-otlp not installed; falling back to ConsoleSpanExporter"
+        )
         return
 
     exporter = otlp.OTLPSpanExporter(endpoint=otlp_endpoint)
     provider.add_span_processor(otlp.BatchSpanProcessor(exporter))
-    logger.info("OTel tracer configured: OTLP endpoint=%s service=%s", otlp_endpoint, service_name)
+    logger.info(
+        "OTel tracer configured: OTLP endpoint=%s service=%s",
+        otlp_endpoint,
+        service_name,
+    )
 
 
 def _import_otlp() -> Any | None:
@@ -87,7 +99,14 @@ def _import_otlp() -> Any | None:
         )
         from opentelemetry.sdk.trace.export import BatchSpanProcessor  # noqa: PLC0415
 
-        return type("OTLP", (), {"OTLPSpanExporter": OTLPSpanExporter, "BatchSpanProcessor": BatchSpanProcessor})
+        return type(
+            "OTLP",
+            (),
+            {
+                "OTLPSpanExporter": OTLPSpanExporter,
+                "BatchSpanProcessor": BatchSpanProcessor,
+            },
+        )
     except ImportError:
         return None
 
@@ -96,7 +115,10 @@ class _ConsoleProcessor:
     """Thin wrapper that delegates to SimpleSpanProcessor(ConsoleSpanExporter())."""
 
     def __init__(self) -> None:
-        from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor  # noqa: PLC0415
+        from opentelemetry.sdk.trace.export import (  # noqa: PLC0415
+            ConsoleSpanExporter,
+            SimpleSpanProcessor,
+        )
 
         self._processor = SimpleSpanProcessor(ConsoleSpanExporter())
 
@@ -110,13 +132,14 @@ class _ConsoleProcessor:
         self._processor.shutdown(*args, **kwargs)
 
     def force_flush(self, *args: Any, **kwargs: Any) -> bool:
-        return self._processor.force_flush(*args, **kwargs)
+        result = self._processor.force_flush(*args, **kwargs)
+        return bool(result)
 
 
 class _NoOpTracer:
     """Minimal tracer stub for otel_enabled=False."""
 
-    def start_as_current_span(self, name: str, **kwargs: Any) -> "_NoOpSpan":
+    def start_as_current_span(self, name: str, **kwargs: Any) -> _NoOpSpan:
         return _NoOpSpan()
 
     def __repr__(self) -> str:
@@ -126,7 +149,7 @@ class _NoOpTracer:
 class _NoOpSpan:
     """No-op span that supports context manager protocol and set_attribute()."""
 
-    def __enter__(self) -> "_NoOpSpan":
+    def __enter__(self) -> _NoOpSpan:
         return self
 
     def __exit__(self, *args: object) -> None:

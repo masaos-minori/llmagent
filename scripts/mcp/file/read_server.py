@@ -22,14 +22,17 @@ Provided endpoints:
 import time
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
 from mcp.dispatch import dispatch_tool
+from mcp.file.common import FileAuthorizationError, FileValidationError
 from mcp.file.read_models import (
     DirectoryTreeRequest,
     DirectoryTreeResponse,
+    FileReadConfig,
     GetFileInfoRequest,
     GetFileInfoResponse,
     GrepFilesRequest,
@@ -45,18 +48,36 @@ from mcp.file.read_models import (
     SearchFilesRequest,
     SearchFilesResponse,
 )
-from mcp.file.read_service import _service
+from mcp.file.read_service import ReadFileService, build_service
 from mcp.file.read_tools import _MCP_TOOLS
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs
 
 logger = Logger(__name__, "/opt/llm/logs/file-read-mcp.log")
 
+_cfg = FileReadConfig.load()
+_service: ReadFileService = build_service(_cfg)
+
 app = FastAPI(
     title="file-read-mcp",
     version="1.0.0",
     description="MCP server for read-only filesystem operations",
 )
+
+
+@app.exception_handler(FileAuthorizationError)
+async def _on_auth_error(_req: Request, exc: FileAuthorizationError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=403)
+
+
+@app.exception_handler(FileNotFoundError)
+async def _on_not_found(_req: Request, exc: FileNotFoundError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=404)
+
+
+@app.exception_handler(FileValidationError)
+async def _on_validation_error(_req: Request, exc: FileValidationError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=422)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -239,7 +260,7 @@ class FileReadMCPServer(MCPServer):
     server_name = "file-read-mcp"
     server_version = "1.0.0"
     http_port = 8005
-    app_module = "file_read_mcp_server:app"
+    app_module = "mcp.file.read_server:app"
     mcp_tools = _MCP_TOOLS
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:

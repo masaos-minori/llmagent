@@ -14,7 +14,6 @@ Providers are tried in order; on failure or zero results the next provider is us
 from __future__ import annotations
 
 import asyncio
-import dataclasses
 import os
 import time
 from typing import Any
@@ -24,66 +23,27 @@ import orjson
 from duckduckgo_search import DDGS
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
-from shared.config_loader import ConfigLoader
 from shared.formatters import MAX_SNIPPET_CHARS, fmt_kvlog, truncate
 from shared.logger import Logger
 
 from mcp.dispatch import dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer
+from mcp.web_search.models import (
+    SearchRequest,
+    SearchResponse,
+    SearchResult,
+    WebSearchConfig,
+    WebSearchUpstreamError,
+)
+from mcp.web_search.tools import _MCP_TOOLS
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Domain exception
-# ──────────────────────────────────────────────────────────────────────────────
-
-
-class WebSearchUpstreamError(RuntimeError):
-    """Raised when all search providers fail."""
-
-    pass
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Typed config object
+# Typed config object (module-level singleton)
 # ──────────────────────────────────────────────────────────────────────────────
 logger = Logger(__name__, "/opt/llm/logs/web-search-mcp.log")
 
-
-@dataclasses.dataclass
-class WebSearchConfig:
-    """Typed configuration for the Web Search MCP server."""
-
-    default_max_results: int = 5
-    max_results_limit: int = 20
-    http_timeout: float = 30.0
-    search_providers: list[str] = dataclasses.field(
-        default_factory=lambda: ["duckduckgo"]
-    )
-    brave_search_url: str = ""
-    bing_search_url: str = ""
-
-    @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> WebSearchConfig:
-        """Construct from a raw config dict (e.g. loaded from TOML)."""
-        return cls(
-            default_max_results=int(d.get("default_max_results", 5)),
-            max_results_limit=int(d.get("max_results_limit", 20)),
-            http_timeout=float(d.get("http_timeout", 30.0)),
-            search_providers=list(d.get("search_providers", ["duckduckgo"])),
-            brave_search_url=str(d.get("brave_search_url", "")),
-            bing_search_url=str(d.get("bing_search_url", "")),
-        )
-
-    @classmethod
-    def load(cls) -> WebSearchConfig:
-        """Load from web_search_mcp_server.toml; raises on failure (fail-fast)."""
-        return cls.from_dict(ConfigLoader().load("web_search_mcp_server.toml"))
-
-
-# DEFAULT_MAX_RESULTS and MAX_RESULTS_LIMIT as class-level constants for Pydantic schema
-DEFAULT_MAX_RESULTS: int = 5
-MAX_RESULTS_LIMIT: int = 20
+_cfg: WebSearchConfig = WebSearchConfig.load()
 
 # API keys read from environment variables (configured in /etc/conf.d/web-search-mcp)
 BRAVE_API_KEY = os.environ.get("BRAVE_API_KEY", "")
@@ -109,43 +69,6 @@ async def _handle_web_search_error(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Pydantic schema definitions
-# ──────────────────────────────────────────────────────────────────────────────
-class SearchRequest(BaseModel):
-    """Request schema for POST /search"""
-
-    query: str = Field(
-        ...,
-        min_length=1,
-        max_length=500,
-        description="Search query string",
-    )
-    max_results: int = Field(
-        DEFAULT_MAX_RESULTS,
-        ge=1,
-        le=MAX_RESULTS_LIMIT,
-        description="Maximum number of results to return (max 20)",
-    )
-
-
-class SearchResult(BaseModel):
-    """Schema for a single search result item"""
-
-    title: str
-    url: str
-    body: str
-    provider: str  # Name of the provider that returned this result
-
-
-class SearchResponse(BaseModel):
-    """Response schema for POST /search"""
-
-    query: str
-    results: list[SearchResult]
-    provider: str  # Name of the provider actually used
-
-
-# ──────────────────────────────────────────────────────────────────────────────
 # Per-provider search implementations
 # ──────────────────────────────────────────────────────────────────────────────
 async def _search_brave(query: str, max_results: int) -> list[SearchResult]:
@@ -154,16 +77,15 @@ async def _search_brave(query: str, max_results: int) -> list[SearchResult]:
     """
     if not BRAVE_API_KEY:
         return []
-    cfg = WebSearchConfig.load()
     headers = {
         "Accept": "application/json",
         "Accept-Encoding": "gzip",
         "X-Subscription-Token": BRAVE_API_KEY,
     }
     params: dict[str, str | int] = {"q": query, "count": max_results}
-    async with httpx.AsyncClient(timeout=float(cfg.http_timeout)) as client:
+    async with httpx.AsyncClient(timeout=float(_cfg.http_timeout)) as client:
         resp = await client.get(
-            str(cfg.brave_search_url),
+            str(_cfg.brave_search_url),
             headers=headers,
             params=params,
         )
@@ -186,13 +108,12 @@ async def _search_bing(query: str, max_results: int) -> list[SearchResult]:
     """
     if not BING_API_KEY:
         return []
-    cfg = WebSearchConfig.load()
     headers = {"Ocp-Apim-Subscription-Key": BING_API_KEY}
     # mkt is fixed for this Japanese-only deployment
     params: dict[str, str | int] = {"q": query, "count": max_results, "mkt": "ja-JP"}
-    async with httpx.AsyncClient(timeout=float(cfg.http_timeout)) as client:
+    async with httpx.AsyncClient(timeout=float(_cfg.http_timeout)) as client:
         resp = await client.get(
-            str(cfg.bing_search_url),
+            str(_cfg.bing_search_url),
             headers=headers,
             params=params,
         )
@@ -275,8 +196,7 @@ async def search(req: SearchRequest) -> SearchResponse:
     Returns 502 if all providers fail.
     """
     t0 = time.perf_counter()
-    cfg = WebSearchConfig.load()
-    for provider in cfg.search_providers:
+    for provider in _cfg.search_providers:
         try:
             results = await _try_provider(provider, req.query, req.max_results)
             if results is not None:
@@ -309,38 +229,12 @@ async def search(req: SearchRequest) -> SearchResponse:
 @app.get("/health")
 async def health() -> dict[str, Any]:
     """Health check endpoint. Returns configured providers and API key availability."""
-    cfg = WebSearchConfig.load()
     return {
         "status": "ok",
-        "providers": cfg.search_providers,
+        "providers": _cfg.search_providers,
         "brave_key": "set" if BRAVE_API_KEY else "not_set",
         "bing_key": "set" if BING_API_KEY else "not_set",
     }
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# MCP tool definitions (MCP inputSchema format, used by /v1/call_tool routing)
-# ──────────────────────────────────────────────────────────────────────────────
-_MCP_TOOLS = [
-    {
-        "name": "search_web",
-        "description": (
-            "Search the web for the latest information. "
-            "Use when the local DB does not contain the needed information"
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Search query string"},
-                "max_results": {
-                    "type": "integer",
-                    "description": "Maximum number of results (default: configured)",
-                },
-            },
-            "required": ["query"],
-        },
-    },
-]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -407,7 +301,7 @@ class WebSearchMCPServer(MCPServer):
     server_name = "web-search-mcp"
     server_version = "3.0.0"
     http_port = 8004
-    app_module = "web_search_mcp_server:app"
+    app_module = "mcp.web_search.server:app"
     mcp_tools = _MCP_TOOLS
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:

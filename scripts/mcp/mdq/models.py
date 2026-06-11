@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """mcp/mdq/models.py
-Pydantic models for request/response handling.
+Pydantic models, and domain exceptions for mdq-mcp.
 """
 
 from __future__ import annotations
@@ -8,6 +8,14 @@ from __future__ import annotations
 from typing import Any
 
 from pydantic import BaseModel
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Domain exceptions
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class MdqServiceError(RuntimeError):
+    """Raised on mdq service failures (index not ready, I/O error, etc.)."""
 
 
 class ParseMarkdownRequest(BaseModel):

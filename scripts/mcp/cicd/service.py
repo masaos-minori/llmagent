@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """mcp/cicd/service.py
-CiBackend protocol, GitHubActionsBackend, CiCdService, and lazy singleton proxy.
+CiBackend protocol, GitHubActionsBackend, CiCdService, and top-level service init.
 
 Security guards:
   - repo_allowlist: empty list = deny all repositories (fail-closed)
@@ -457,34 +457,17 @@ class CiCdService:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Lazy singleton
-# ──────────────────────────────────────────────────────────────────────────────
-
-
-class _LazyCiCdService:
-    """Lazy singleton proxy: defers CiCdService init until first attribute access."""
-
-    _instance: CiCdService | None = None
-
-    def __getattr__(self, name: str) -> Any:
-        if _LazyCiCdService._instance is None:
-            cfg = CicdConfig.load()
-            # Read token from env (set via /etc/conf.d/cicd-mcp by OpenRC)
-            github_token = os.environ.get("GITHUB_TOKEN", cfg.github_token)
-            if not github_token:
-                logger.warning(
-                    "cicd-mcp: GITHUB_TOKEN is not set; API rate limit will be 60 req/hr",
-                )
-            max_log_size_kb = cfg.max_log_size_kb
-            http = httpx.AsyncClient(timeout=30.0)
-            backend: CiBackend = GitHubActionsBackend(
-                github_token=github_token,
-                http=http,
-                max_log_size_kb=max_log_size_kb,
-            )
-            _LazyCiCdService._instance = CiCdService(cfg=cfg, backend=backend)
-        return getattr(_LazyCiCdService._instance, name)
-
-
-# _LazyCiCdService is a proxy whose __getattr__ delegates to CiCdService.
-_service: CiCdService = _LazyCiCdService()  # type: ignore[assignment]
+def build_service(cfg: CicdConfig) -> CiCdService:
+    """Construct a CiCdService from a typed config object."""
+    github_token = os.environ.get("GITHUB_TOKEN", cfg.github_token)
+    if not github_token:
+        logger.warning(
+            "cicd-mcp: GITHUB_TOKEN is not set; API rate limit will be 60 req/hr",
+        )
+    http = httpx.AsyncClient(timeout=30.0)
+    backend: CiBackend = GitHubActionsBackend(
+        github_token=github_token,
+        max_log_size_kb=cfg.max_log_size_kb,
+        http=http,
+    )
+    return CiCdService(cfg=cfg, backend=backend)

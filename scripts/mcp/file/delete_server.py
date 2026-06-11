@@ -15,28 +15,50 @@ Provided endpoints:
 import time
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
 from mcp.dispatch import dispatch_tool
+from mcp.file.common import FileAuthorizationError, FileValidationError
 from mcp.file.delete_models import (
     DeleteDirectoryRequest,
     DeleteDirectoryResponse,
     DeleteFileRequest,
     DeleteFileResponse,
+    FileDeleteConfig,
 )
-from mcp.file.delete_service import _service
+from mcp.file.delete_service import DeleteFileService, build_service
+from mcp.file.delete_tools import _MCP_TOOLS
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs
 
 logger = Logger(__name__, "/opt/llm/logs/file-delete-mcp.log")
+
+_cfg = FileDeleteConfig.load()
+_service: DeleteFileService = build_service(_cfg)
 
 app = FastAPI(
     title="file-delete-mcp",
     version="1.0.0",
     description="MCP server for delete filesystem operations",
 )
+
+
+@app.exception_handler(FileAuthorizationError)
+async def _on_auth_error(_req: Request, exc: FileAuthorizationError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=403)
+
+
+@app.exception_handler(FileNotFoundError)
+async def _on_not_found(_req: Request, exc: FileNotFoundError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=404)
+
+
+@app.exception_handler(FileValidationError)
+async def _on_validation_error(_req: Request, exc: FileValidationError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=422)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -75,46 +97,6 @@ async def health() -> dict[str, str]:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# MCP tool definitions
-# ──────────────────────────────────────────────────────────────────────────────
-
-_MCP_TOOLS = [
-    {
-        "name": "delete_file",
-        "description": "Delete the specified file",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Absolute path of the file to delete",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    {
-        "name": "delete_directory",
-        "description": "Delete a directory. When recursive=true, delete contents recursively",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Absolute path of the directory to delete",
-                },
-                "recursive": {
-                    "type": "boolean",
-                    "description": "When true, delete contents recursively (default: false)",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-]
-
-
-# ──────────────────────────────────────────────────────────────────────────────
 # Tool dispatch and unified call endpoint
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -150,7 +132,7 @@ class FileDeleteMCPServer(MCPServer):
     server_name = "file-delete-mcp"
     server_version = "1.0.0"
     http_port = 8008
-    app_module = "file_delete_mcp_server:app"
+    app_module = "mcp.file.delete_server:app"
     mcp_tools = _MCP_TOOLS
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:

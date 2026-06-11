@@ -18,6 +18,15 @@ from shared.config_loader import ConfigLoader
 logger = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Domain exceptions
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class RagPipelineServiceError(RuntimeError):
+    """Raised when the RAG pipeline service is not ready."""
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Typed config object
 # ──────────────────────────────────────────────────────────────────────────────
 

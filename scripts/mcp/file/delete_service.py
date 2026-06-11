@@ -15,7 +15,6 @@ import stat as stat_module
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 from mcp.file.common import (
     FileAuthorizationError,
@@ -205,24 +204,12 @@ class DeleteFileService:
         }
 
 
-class _LazyDeleteFileService:
-    """Lazy singleton proxy: defers DeleteFileService init until first attribute access."""
-
-    _instance: DeleteFileService | None = None
-
-    def __getattr__(self, name: str) -> Any:
-        if _LazyDeleteFileService._instance is None:
-            cfg = FileDeleteConfig.load()
-            allowed_dirs = [Path(d) for d in cfg.allowed_dirs]
-            if not allowed_dirs:
-                logger.warning("ALLOWED_DIRS is empty — all paths will be rejected")
-            _LazyDeleteFileService._instance = DeleteFileService(
-                allowed_dirs=allowed_dirs,
-                audit_log_path="/opt/llm/logs/delete_audit.log",
-            )
-        return getattr(_LazyDeleteFileService._instance, name)
-
-
-# NOTE: type: ignore[assignment] -- _LazyDeleteFileService is a proxy whose __getattr__
-# delegates to the real DeleteFileService instance; mypy sees a type mismatch.
-_service: DeleteFileService = _LazyDeleteFileService()  # type: ignore[assignment]
+def build_service(cfg: FileDeleteConfig) -> DeleteFileService:
+    """Construct a DeleteFileService from a typed config object."""
+    allowed_dirs = [Path(d) for d in cfg.allowed_dirs]
+    if not allowed_dirs:
+        logger.warning("ALLOWED_DIRS is empty — all paths will be rejected")
+    return DeleteFileService(
+        allowed_dirs=allowed_dirs,
+        audit_log_path="/opt/llm/logs/delete_audit.log",
+    )

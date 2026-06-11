@@ -65,7 +65,9 @@ class ConfigLoader:
             raise ValueError("At least one config file name must be provided.")
         for name in names:
             if not isinstance(name, str) or not name.strip():
-                raise TypeError(f"Config file name must be a non-empty str, got: {name!r}")
+                raise TypeError(
+                    f"Config file name must be a non-empty str, got: {name!r}"
+                )
 
     @staticmethod
     def _load_single(name: str) -> dict[str, Any]:
@@ -74,7 +76,7 @@ class ConfigLoader:
         try:
             if suffix == ".toml":
                 return tomllib.loads(path.read_text(encoding="utf-8"))
-            return orjson.loads(path.read_bytes())
+            return dict(orjson.loads(path.read_bytes()))
         except FileNotFoundError as exc:
             raise ValueError(f"Config file not found: {path}") from exc
         except (tomllib.TOMLDecodeError, orjson.JSONDecodeError) as exc:

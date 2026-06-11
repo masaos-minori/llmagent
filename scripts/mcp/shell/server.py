@@ -19,6 +19,7 @@ import time
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
@@ -26,16 +27,37 @@ from mcp.audit import _audit_log
 from mcp.dispatch import dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs
-from mcp.shell.models import ShellRunRequest, ShellRunResponse
-from mcp.shell.service import _service
+from mcp.shell.models import (
+    ShellAuthorizationError,
+    ShellRunRequest,
+    ShellRunResponse,
+    ShellValidationError,
+    load_shell_policy,
+)
+from mcp.shell.service import ShellService, build_service
+from mcp.shell.tools import _MCP_TOOLS
 
 logger = Logger(__name__, "/opt/llm/logs/shell-mcp.log")
+
+_service: ShellService = build_service(load_shell_policy())
 
 app = FastAPI(
     title="shell-mcp",
     version="1.0.0",
     description="MCP server for sandboxed shell command execution",
 )
+
+
+@app.exception_handler(ShellAuthorizationError)
+async def _on_shell_auth_error(_req: Any, exc: ShellAuthorizationError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=403)
+
+
+@app.exception_handler(ShellValidationError)
+async def _on_shell_validation_error(
+    _req: Any, exc: ShellValidationError
+) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=422)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -64,48 +86,6 @@ async def shell_run(req: ShellRunRequest) -> ShellRunResponse:
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# MCP tool definitions
-# ──────────────────────────────────────────────────────────────────────────────
-
-_MCP_TOOLS = [
-    {
-        "name": "shell_run",
-        "description": (
-            "Execute a sandboxed shell command. "
-            "argv[0] must be in the configured allowlist. "
-            "cwd must be under an allowed directory."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "command": {
-                    "type": "string",
-                    "description": "Command string (argv[0] must be in allowlist)",
-                },
-                "timeout_sec": {
-                    "type": "integer",
-                    "description": "Timeout in seconds (default: 30, max: server-configured)",
-                },
-                "cwd": {
-                    "type": "string",
-                    "description": "Working directory (must be under allowed dirs)",
-                },
-                "env": {
-                    "type": "object",
-                    "description": "Additional environment variables to merge",
-                },
-                "max_output_kb": {
-                    "type": "integer",
-                    "description": "Output size limit in KB (default: 512)",
-                },
-            },
-            "required": ["command"],
-        },
-    },
-]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -156,7 +136,7 @@ class ShellMCPServer(MCPServer):
     server_name = "shell-mcp"
     server_version = "1.0.0"
     http_port = 8009
-    app_module = "shell_mcp_server:app"
+    app_module = "mcp.shell.server:app"
     mcp_tools = _MCP_TOOLS
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:

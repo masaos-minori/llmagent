@@ -124,28 +124,15 @@ class SqliteMCPService:
         }
 
 
-class _LazySqliteMCPService:
-    """Lazy singleton proxy: defers SqliteMCPService init until first attribute access."""
-
-    _instance: SqliteMCPService | None = None
-
-    def __getattr__(self, name: str) -> Any:
-        if _LazySqliteMCPService._instance is None:
-            cfg = SqliteConfig.load()
-            db_paths: dict[str, str] = dict(cfg.db_paths)
-            db_allowlist: list[str] = list(cfg.db_allowlist)
-            max_rows: int = cfg.max_rows
-            if not db_allowlist:
-                logger.warning(
-                    "sqlite-mcp: db_allowlist is empty — all DB requests will be rejected",
-                )
-            _LazySqliteMCPService._instance = SqliteMCPService(
-                db_allowlist=db_allowlist,
-                db_paths=db_paths,
-                max_rows=max_rows,
-            )
-        return getattr(_LazySqliteMCPService._instance, name)
-
-
-# _LazySqliteMCPService is a proxy whose __getattr__ delegates to SqliteMCPService.
-_service: SqliteMCPService = _LazySqliteMCPService()  # type: ignore[assignment]
+def build_service(cfg: SqliteConfig) -> SqliteMCPService:
+    """Construct a SqliteMCPService from a typed config object."""
+    db_allowlist = list(cfg.db_allowlist)
+    if not db_allowlist:
+        logger.warning(
+            "sqlite-mcp: db_allowlist is empty — all DB requests will be rejected",
+        )
+    return SqliteMCPService(
+        db_allowlist=db_allowlist,
+        db_paths=dict(cfg.db_paths),
+        max_rows=cfg.max_rows,
+    )

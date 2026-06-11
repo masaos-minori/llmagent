@@ -64,6 +64,7 @@ from mcp.github.models import (
     GetPullRequestResponse,
     GitHubAuditError,
     GitHubAuthorizationError,
+    GitHubConfig,
     GitHubConflictError,
     GitHubNotFoundError,
     GitHubUpstreamError,
@@ -91,13 +92,16 @@ from mcp.github.models import (
     UpdatePullRequestRequest,
     UpdatePullRequestResponse,
 )
-from mcp.github.service import _GITHUB_TOKEN, _service
+from mcp.github.service import _GITHUB_TOKEN, GitHubService, build_service
 from mcp.github.tools import TOOL_LIST
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs
 
 # Log path is owned here; service module uses logging.getLogger(__name__)
 logger = Logger(__name__, "/opt/llm/logs/github-mcp.log")
+
+_cfg = GitHubConfig.load()
+_service: GitHubService = build_service(_cfg)
 
 app = FastAPI(
     title="github-mcp",

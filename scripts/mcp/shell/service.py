@@ -20,7 +20,6 @@ import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import orjson
 from shared.protocols.shell import ShellPolicy
@@ -31,7 +30,6 @@ from mcp.shell.models import (
     ShellRunRequest,
     ShellRunResponse,
     ShellValidationError,
-    load_shell_policy,
 )
 
 # Standard library logger; log path is owned by shell_mcp_server.py
@@ -399,26 +397,14 @@ class ShellService:
         }
 
 
-class _LazyShellService:
-    """Lazy singleton proxy: defers ShellService init until first attribute access."""
-
-    _instance: ShellService | None = None
-
-    def __getattr__(self, name: str) -> Any:
-        if _LazyShellService._instance is None:
-            policy = load_shell_policy()
-            if not policy.cwd_allowed_dirs:
-                logger.warning(
-                    "shell_cwd_allowed_dirs is empty — all cwd values will be rejected",
-                )
-            if not policy.allowed_commands:
-                logger.warning(
-                    "command_allowlist is empty — all commands will be rejected",
-                )
-            _LazyShellService._instance = ShellService(policy)
-        return getattr(_LazyShellService._instance, name)
-
-
-# NOTE: type: ignore[assignment] -- _LazyShellService is a proxy whose __getattr__
-# delegates to the real ShellService instance; mypy sees a type mismatch.
-_service: ShellService = _LazyShellService()  # type: ignore[assignment]
+def build_service(policy: ShellPolicy) -> ShellService:
+    """Construct a ShellService from a ShellPolicy object."""
+    if not policy.cwd_allowed_dirs:
+        logger.warning(
+            "shell_cwd_allowed_dirs is empty — all cwd values will be rejected",
+        )
+    if not policy.allowed_commands:
+        logger.warning(
+            "command_allowlist is empty — all commands will be rejected",
+        )
+    return ShellService(policy)

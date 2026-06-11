@@ -13,9 +13,12 @@ Provided endpoints:
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from shared.formatters import fmt_kvlog
 
 from mcp.audit import _audit_log
 from mcp.dispatch import dispatch_tool
@@ -23,12 +26,14 @@ from mcp.mdq.models import (
     GetChunkRequest,
     GrepDocsRequest,
     IndexPathsRequest,
+    MdqServiceError,
     OutlineRequest,
     RefreshIndexRequest,
     SearchDocsRequest,
     StatsRequest,
 )
 from mcp.mdq.service import MdqService
+from mcp.mdq.tools import _MCP_TOOLS
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs
 
@@ -40,114 +45,12 @@ app = FastAPI(
     description="Markdown Context Compression Engine MCP server",
 )
 
-# Lazy singleton; created on first request.
-_service: MdqService | None = None
+_service: MdqService = MdqService()
 
 
-def _get_service() -> MdqService:
-    global _service
-    if _service is None:
-        _service = MdqService()
-    return _service
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# MCP tool definitions
-# ──────────────────────────────────────────────────────────────────────────────
-
-_MCP_TOOLS: list[dict[str, Any]] = [
-    {
-        "name": "search_docs",
-        "description": "Search indexed Markdown sections by query.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Search query string"},
-                "limit": {
-                    "type": "integer",
-                    "description": "Max results (default: 10)",
-                },
-                "mode": {
-                    "type": "string",
-                    "description": "Search mode: bm25/grep/hybrid",
-                },
-                "path_prefix": {
-                    "type": "string",
-                    "description": "Filter by path prefix",
-                },
-                "tag_filter": {"type": "array", "description": "Filter by tags"},
-                "heading_prefix": {
-                    "type": "string",
-                    "description": "Filter by heading prefix",
-                },
-            },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "get_chunk",
-        "description": "Retrieve a Markdown chunk by its ID.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "chunk_id": {"type": "integer", "description": "Chunk ID"},
-                "with_neighbors": {
-                    "type": "boolean",
-                    "description": "Include adjacent headings",
-                },
-            },
-            "required": ["chunk_id"],
-        },
-    },
-    {
-        "name": "outline",
-        "description": "Get the heading structure of a Markdown file.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"path": {"type": "string", "description": "File path"}},
-            "required": ["path"],
-        },
-    },
-    {
-        "name": "index_paths",
-        "description": "Index a set of paths into the in-process SQLite DB.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "paths": {"type": "array", "description": "Paths to index"},
-            },
-            "required": ["paths"],
-        },
-    },
-    {
-        "name": "refresh_index",
-        "description": "Incrementally refresh the index for a set of paths.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "paths": {"type": "array", "description": "Paths to refresh"},
-            },
-            "required": ["paths"],
-        },
-    },
-    {
-        "name": "stats",
-        "description": "Return document/chunk count and index metadata.",
-        "inputSchema": {"type": "object", "properties": {}, "required": []},
-    },
-    {
-        "name": "grep_docs",
-        "description": "Search Markdown chunks with a regex pattern.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "pattern": {"type": "string", "description": "Regex pattern"},
-                "paths": {"type": "array", "description": "Optional path filter"},
-            },
-            "required": ["pattern"],
-        },
-    },
-]
+@app.exception_handler(MdqServiceError)
+async def _on_mdq_service_error(_req: Any, exc: MdqServiceError) -> JSONResponse:
+    return JSONResponse({"detail": str(exc)}, status_code=500)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -156,31 +59,31 @@ _MCP_TOOLS: list[dict[str, Any]] = [
 
 
 async def _handle_search_docs(args: ToolArgs) -> str:
-    return await _get_service().search_docs(SearchDocsRequest(**args))
+    return await _service.search_docs(SearchDocsRequest(**args))
 
 
 async def _handle_get_chunk(args: ToolArgs) -> str:
-    return await _get_service().get_chunk(GetChunkRequest(**args))
+    return await _service.get_chunk(GetChunkRequest(**args))
 
 
 async def _handle_outline(args: ToolArgs) -> str:
-    return await _get_service().outline(OutlineRequest(**args))
+    return await _service.outline(OutlineRequest(**args))
 
 
 async def _handle_index_paths(args: ToolArgs) -> str:
-    return await _get_service().index_paths(IndexPathsRequest(**args))
+    return await _service.index_paths(IndexPathsRequest(**args))
 
 
 async def _handle_refresh_index(args: ToolArgs) -> str:
-    return await _get_service().refresh_index(RefreshIndexRequest(**args))
+    return await _service.refresh_index(RefreshIndexRequest(**args))
 
 
 async def _handle_stats(args: ToolArgs) -> str:
-    return await _get_service().stats(StatsRequest(**args))
+    return await _service.stats(StatsRequest(**args))
 
 
 async def _handle_grep_docs(args: ToolArgs) -> str:
-    return await _get_service().grep_docs(GrepDocsRequest(**args))
+    return await _service.grep_docs(GrepDocsRequest(**args))
 
 
 _DISPATCH_TABLE = {
@@ -215,11 +118,14 @@ async def list_tools() -> dict[str, Any]:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
+    t0 = time.perf_counter()
     session_id = request.headers.get("x-session-id", "")
     request_id = getattr(
         request.state, "request_id", request.headers.get("x-request-id", "")
     )
     result, is_error = await _dispatch_mdq_tool(req.name, req.args)
+    ms = (time.perf_counter() - t0) * 1000
+    logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
     _audit_log(
         logger,
         session_id=session_id,
