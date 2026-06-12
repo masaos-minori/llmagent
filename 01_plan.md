@@ -9,9 +9,9 @@
 Show progress while working.
 Follow these steps strictly.
 
-1. Search for files matching `~/llmagent/instructions/*_instruction.md`.
+1. Search for files matching `~/llmagent/requires/*_require.md`.
    Do not read files under the `done` directory.
-   If there are no files in `~/llmagent/instructions/`, stop the task.
+   If there are no files in `~/llmagent/requires/`, stop the task.
    Sort the matching files in ascending order by filename.
    Select the first file as the target instruction file and read it.
 
@@ -47,7 +47,7 @@ Follow these steps strictly.
    Add any necessary mitigation steps to the work plan.
    If any issues remain unresolved, write them to `~/llmagent/issues/yyyyymmdd-hhmmss.md`.
 
-7. After the work plan is complete, move the processed instruction file to `~/llmagent/instructions/done`.
+7. After the work plan is complete, move the processed instruction file to `~/llmagent/requires/done`.
 
 8. Create the necessary directories for the implementation.
 
