@@ -83,9 +83,10 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         if is_already_processed(sentinel, force):
             logger.info(f"skip (already chunked): {src_path.name}")
             return 0
-        data = self._read_source_data(src_path)
-        if data is None:
+        chunk_doc = self._read_source_data(src_path)
+        if chunk_doc is None:
             return 0
+        data = chunk_doc
         chunks = self._build_chunk_list(data)
         written = self._write_chunk_files(chunks, data, src_path)
         logger.info(f"chunked {written} chunks from {src_path.name}")
@@ -140,9 +141,17 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     # ── File I/O ──────────────────────────────────────────────────────────────
 
-    def _read_source_data(self, src_path: Path) -> dict[str, Any] | None:
-        """Read and parse a JSON crawl file. Delegates to pipeline_utils."""
-        return read_json_file(src_path)
+    def _read_source_data(self, src_path: Path) -> "dict[str, Any] | None":
+        """Read and parse a JSON crawl file; wraps ChunkDocument as dict."""
+        import dataclasses  # noqa: PLC0415
+
+        from rag.exceptions import ChunkFormatError  # noqa: PLC0415
+
+        try:
+            return dataclasses.asdict(read_json_file(src_path))
+        except (FileNotFoundError, ChunkFormatError) as e:
+            logger.error(f"skip {src_path.name}: {e}")
+            return None
 
     def _build_chunk_list(self, data: dict[str, Any]) -> list[tuple[str, str, str]]:
         """Extract content from a crawl record and split into (chunk_type, content, normalized_content) triples; normalized populated only for Japanese text."""
@@ -215,7 +224,8 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     def _collect_targets(self, target: Path | None) -> list[Path]:
         """Return source files to process. Delegates to pipeline_utils."""
-        return collect_source_files(self._rag_src_dir, target)
+        files, _ = collect_source_files(self._rag_src_dir, target)
+        return files
 
 
 # ──────────────────────────────────────────────────────────────────────────────

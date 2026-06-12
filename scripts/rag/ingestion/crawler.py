@@ -8,6 +8,7 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 
 import argparse
 import asyncio
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -105,8 +106,8 @@ class WebCrawler:
             logger.info(f"=== start: {url} (lang={lang}) ===")
             try:
                 await self.crawl_site(url, lang)
-            except Exception:
-                logger.exception(f"crawl_site failed: {url}")
+            except (httpx.RequestError, httpx.HTTPStatusError, OSError) as _crawl_err:
+                logger.exception(f"crawl_site failed: {url}: {_crawl_err}")
             logger.info(f"=== done:  {url} ===")
 
     def _drain_queue_to_tasks(
@@ -200,7 +201,7 @@ class WebCrawler:
                 if rows[0]["last_modified"]:
                     hdrs["If-Modified-Since"] = rows[0]["last_modified"]
                 return hdrs
-        except Exception as e:
+        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.debug(f"DB lookup for conditional headers failed ({url}): {e}")
         return {}
 

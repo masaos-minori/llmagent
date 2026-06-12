@@ -13,6 +13,7 @@ from typing import Any
 
 from shared.logger import Logger
 
+from rag.exceptions import TokenizationError
 from rag.utils import normalize_unicode
 
 logger = Logger(__name__, "/opt/llm/logs/chunk.log")
@@ -55,8 +56,9 @@ class ChunkJapaneseMixin:
         try:
             morphemes = self._sd_tkn.tokenize(text, self._split_c)
         except RuntimeError as e:
-            logger.debug(f"Sudachi tokenize error for {text[:50]!r}: {e}")
-            return ""
+            raise TokenizationError(
+                f"Sudachi tokenize error for {text[:50]!r}: {e}"
+            ) from e
         tokens: list[str] = []
         for m in morphemes:
             pos = m.part_of_speech()[0]

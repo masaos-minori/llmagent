@@ -11,6 +11,8 @@ import struct
 import unicodedata
 from urllib.parse import urlparse
 
+from rag.models import SanitizeResult
+
 # Library module — no FileHandler; caller controls log routing
 logger = logging.getLogger(__name__)
 
@@ -37,15 +39,23 @@ def cosine_sim(a: list[float], b: list[float]) -> float:
 
 
 def sanitize_document(text: str) -> str:
-    """Remove known prompt injection patterns from retrieved document text.
-
-    Only strips specific high-confidence injection patterns.
-    Does not modify code blocks, configuration, or regular text.
-    Returns the sanitized text with injection patterns replaced by [REMOVED].
-    """
+    """Remove known prompt injection patterns; return sanitized text."""
+    # Contract: returns 0.0 equivalent — no error on clean text.
     for pattern in _INJECTION_PATTERNS:
         text = pattern.sub("[REMOVED]", text)
     return text
+
+
+def sanitize_document_full(text: str) -> SanitizeResult:
+    """Remove injection patterns; return SanitizeResult with audit trail."""
+    detected: list[str] = []
+    for pattern in _INJECTION_PATTERNS:
+        if pattern.search(text):
+            detected.append(pattern.pattern)
+            text = pattern.sub("[REMOVED]", text)
+    return SanitizeResult(
+        text=text, was_sanitized=bool(detected), patterns_detected=detected
+    )
 
 
 def normalize_unicode(text: str) -> str:

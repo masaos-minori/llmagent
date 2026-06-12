@@ -94,7 +94,12 @@ def parse_target_urls(target_raw: list[Any]) -> list[tuple[str, str]]:
             raise ValueError(
                 "Each entry in target_urls must be a 2-element list of [url, lang]",
             )
-        url, lang = str(entry[0]), str(entry[1])
+        url_raw, lang_raw = entry[0], entry[1]
+        if not isinstance(url_raw, str) or not isinstance(lang_raw, str):
+            raise ValueError(
+                f"target_urls entry must be [str, str], got [{type(url_raw).__name__}, {type(lang_raw).__name__}]"
+            )
+        url, lang = url_raw, lang_raw
         if not validate_url(url):
             raise ValueError(f"Invalid URL in target_urls: {url!r}")
         if lang not in _VALID_HINT_LANGS:

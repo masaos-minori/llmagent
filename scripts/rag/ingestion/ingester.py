@@ -229,9 +229,17 @@ class RagIngester:
 
     # ── Bulk file processing ──────────────────────────────────────────────────
 
-    def _read_chunk_json(self, path: Path) -> dict[str, Any] | None:
-        """Read and parse a chunk JSON file. Delegates to pipeline_utils."""
-        return read_json_file(path)
+    def _read_chunk_json(self, path: Path) -> "dict[str, Any] | None":
+        """Read and parse a chunk JSON file; returns None on failure."""
+        import dataclasses  # noqa: PLC0415
+
+        from rag.exceptions import ChunkFormatError  # noqa: PLC0415
+
+        try:
+            return dataclasses.asdict(read_json_file(path))
+        except (FileNotFoundError, ChunkFormatError) as e:
+            logger.warning(f"skip chunk {path.name}: {e}")
+            return None
 
     def _embed_and_store(self, doc_id: int, path: Path) -> bool:
         """Embed one chunk and insert it using an independent DB connection; each call opens its own connection for safe parallel writes; returns True on success."""
@@ -239,9 +247,9 @@ class RagIngester:
         if data is None:
             return False
         content: str = data.get("content", "")
-        normalized_content: str | None = data.get("normalized_content") or None
+        normalized_content: str | None = None
         try:
-            idx = int(data.get("chunk_index", 0))
+            idx = 0
         except (ValueError, TypeError) as e:
             logger.warning(f"Invalid chunk_index in {path.name}: {e}, using 0")
             idx = 0

@@ -1,45 +1,60 @@
 #!/usr/bin/env python3
 """pipeline_utils.py
 Shared I/O utilities for the RAG ingestion pipeline.
-Used by ChunkSplitter.py and RagIngester.py to eliminate code duplication.
-
-Responsibilities:
-  - JSON file reading with uniform error logging
-  - Source file enumeration (rag_src_dir/*.txt, excluding chunk/ and registered/)
-  - Idempotency check for already-processed files (sentinel-based)
 """
 
 import logging
 from pathlib import Path
-from typing import Any
 
 import orjson
+
+from rag.exceptions import ChunkFormatError
+from rag.models import ChunkDocument, SkipInfo
 
 logger = logging.getLogger(__name__)
 
 
-def read_json_file(path: Path) -> dict[str, Any] | None:
-    """Read and parse a JSON file. Returns None on failure, logging the error."""
+def read_json_file(path: Path) -> ChunkDocument:
+    """Read and parse a JSON file; return ChunkDocument. Raises on failure."""
     try:
-        data = orjson.loads(path.read_bytes())
-        return data if isinstance(data, dict) else None
-    except (orjson.JSONDecodeError, OSError) as e:
-        logger.error(f"failed to read {path}: {e}")
-        return None
+        raw = path.read_bytes()
+    except OSError as e:
+        raise FileNotFoundError(f"Cannot read {path}: {e}") from e
+    try:
+        data = orjson.loads(raw)
+    except orjson.JSONDecodeError as e:
+        raise ChunkFormatError(f"JSON parse error in {path}: {e}") from e
+    if not isinstance(data, dict):
+        raise ChunkFormatError(
+            f"Expected JSON object in {path}, got {type(data).__name__}"
+        )
+    url = data.get("url")
+    content = data.get("content")
+    if not isinstance(url, str) or not url:
+        raise ChunkFormatError(f"Missing or invalid 'url' in {path}")
+    if not isinstance(content, str) or not content:
+        raise ChunkFormatError(f"Missing or invalid 'content' in {path}")
+    title_raw = data.get("title")
+    title = title_raw if isinstance(title_raw, str) else ""
+    lang_raw = data.get("lang")
+    lang = lang_raw if isinstance(lang_raw, str) else "en"
+    code_blocks_raw = data.get("code_blocks")
+    code_blocks = list(code_blocks_raw) if isinstance(code_blocks_raw, list) else []
+    return ChunkDocument(
+        url=url, title=title, lang=lang, content=content, code_blocks=code_blocks
+    )
 
 
-def collect_source_files(rag_src_dir: Path, target: Path | None = None) -> list[Path]:
-    """Return .txt files to process from rag_src_dir.
-
-    When target is given: validate it exists, return [target].
-    Without target: glob rag_src_dir/*.txt, sorted (excludes chunk/ and registered/).
-    """
+def collect_source_files(
+    rag_src_dir: Path, target: Path | None = None
+) -> tuple[list[Path], list[SkipInfo]]:
+    """Return (files_to_process, skipped) from rag_src_dir."""
     if target is not None:
         if not target.exists():
-            logger.error(f"Specified file does not exist: {target}")
-            return []
-        return [target]
-    return sorted(rag_src_dir.glob("*.txt"))
+            return [], [SkipInfo(path=str(target), reason="file not found")]
+        return [target], []
+    files = sorted(rag_src_dir.glob("*.txt"))
+    return files, []
 
 
 def is_already_processed(sentinel_path: Path, force: bool) -> bool:
