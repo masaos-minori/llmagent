@@ -61,7 +61,9 @@
   "chunk_index": 0,
   "chunk_type": "text",
   "content": "チャンクテキスト (原文)",
-  "normalized_content": "正規化 形 (日本語のみ; 英語・コードは null)"
+  "normalized_content": "正規化 形 (日本語のみ; 英語・コードは null)",
+  "etag": "optional-etag-string",
+  "last_modified": "optional-http-date"
 }
 ```
 

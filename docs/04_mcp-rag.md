@@ -2,7 +2,7 @@
 
 ## 1. 概要
 
-`rag-pipeline-mcp` は 6 ステップの RAG パイプライン (MQE → Search → RRF → Rerank → Dedup → Augment) を HTTP MCP サーバとして公開するサービス。
+`rag-pipeline-mcp` は 5 ステップの RAG パイプライン (MQE → Search → Fusion(RRF) → Rerank → Augment) を HTTP MCP サーバとして公開するサービス。
 
 - **ポート:** 8010
 - **OpenRC サービス名:** `rag-pipeline-mcp`
@@ -133,13 +133,16 @@ mcp/rag_pipeline/models → mcp/rag_pipeline/service → mcp/rag_pipeline/server
 | `use_rerank` | Rerank 有効フラグ | `true` |
 | `use_refiner` | Refiner 有効フラグ | `false` |
 | `rrf_k` | RRF スムージング定数 | `60` |
-| `top_k_search` | KNN/FTS5 取得件数 | `20` |
-| `top_k_rerank` | Rerank 候補数 | `15` |
+| `top_k_search` | KNN/FTS5 取得件数 | `5` |
+| `top_k_rerank` | Rerank 候補数 | `10` |
 | `rag_top_k` | Augment 最終選択数 | `5` |
 | `rag_min_score` | Rerank 最低スコア閾値 | `0.0` |
-| `max_chunks_per_doc` | 同一 Doc からの最大チャンク数 | `2` |
-| `semantic_cache_max_size` | セマンティックキャッシュ最大エントリ数 | `100` |
+| `max_chunks_per_doc` | 同一 Doc からの最大チャンク数 | `3` |
+| `semantic_cache_max_size` | セマンティックキャッシュ最大エントリ数 | `128` |
 | `semantic_cache_threshold` | キャッシュヒット閾値 | `0.92` |
+| `refiner_max_tokens` | Refiner 最大トークン数 | `512` |
+| `refiner_max_chars_per_chunk` | Refiner チャンク最大文字数 | `800` |
+| `refiner_timeout` | Refiner HTTP タイムアウト (秒) | `30.0` |
 
 ---
 
@@ -192,16 +195,12 @@ rag_debug_pipeline = "READ_ONLY"
 
 ### モジュールレベル `_cfg` キャッシュの上書き
 
-`RagPipelineMCPService.start()` は `rag/pipeline.py`, `rag/llm.py`, `db/helper.py` の 3 モジュールの設定キャッシュを `rag_pipeline_mcp_server.toml` から読み込んだ値で上書きする。各 MCP サーバは独立プロセスで動作するため、プロセス間汚染は発生しない。
+`RagPipelineMCPService.start()` は `rag/pipeline.py` のモジュールレベル `_cfg` を `rag_pipeline_mcp_server.toml` から読み込んだ値で上書きする。`rag/llm.py` はモジュールレベル `_cfg` を持たない (RagLLM はコンストラクタ経由で config を受け取る)。`db/helper.py` はインスタンス初期化時に設定を解決するためクラスレベルのキャッシュリセットは不要。各 MCP サーバは独立プロセスで動作するため、プロセス間汚染は発生しない。
 
-### SQLiteHelper 設定の強制再読み込み
+### SQLiteHelper 設定の解決
 
-```python
-sqlite_helper.SQLiteHelper._config_loaded = False
-```
+`RagRepository` が `db.helper.SQLiteHelper` を経由して DB に接続する。`SQLiteHelper` はインスタンス初期化時に `rag_db_path` を設定ファイルから読み込むため、クラスレベルのキャッシュリセットは不要。
 
-`start()` 内でこのフラグをリセットし、次の `open()` 呼び出し時に `rag_db_path` を `rag_pipeline_mcp_server.toml` から再読み込みさせる。
+### `_service` モジュールレベルシングルトン
 
-### `_LazyRagPipelineMCPService` プロキシ
-
-`_service` はモジュールロード時ではなく、最初の属性アクセス時に `RagPipelineMCPService` インスタンスを生成する遅延シングルトンプロキシ。テスト時の副作用を最小化する。
+`_service` は `RagPipelineMCPService()` のインスタンス。モジュールロード時に即座に生成される。テスト時は `mcp.rag_pipeline.service._service` を直接操作する。

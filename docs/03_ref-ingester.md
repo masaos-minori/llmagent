@@ -7,7 +7,7 @@
 
 ### 4.1 クラス概要
 
-`RagIngester` クラス。`rag-src/chunk/*.txt` のチャンクファイルを読み込み、`embed-llm` サービス (multilingual-E5-small, ポート 8003) で埋込ベクトルを生成して SQLite の 4 テーブル (`documents` / `chunks` / `chunks_vec` / `chunks_fts`) に登録する。処理済みチャンクファイルは `rag-src/registered/` に移動する。
+`RagIngester` クラス。`rag-src/chunk/*.txt` のチャンクファイルを読み込み、`embed-llm` サービスで埋込ベクトルを生成して SQLite の 3 テーブル (`documents` / `chunks` / `chunks_vec`) に登録する。`chunks_fts` はトリガにより自動同期される。処理済みチャンクファイルは `rag-src/registered/` に移動する。
 
 **公開メソッド**
 
@@ -19,7 +19,7 @@
 
 ### 4.2 機能概要
 
-`rag-src/chunk/*.txt` のチャンクファイルを URL 単位でグループ化し、`embed-llm` API でベクトルを生成して SQLite の 4 テーブルに登録。登録済みファイルは `rag-src/registered/` に移動。
+`rag-src/chunk/*.txt` のチャンクファイルを URL 単位でグループ化し、`embed-llm` API でベクトルを生成して SQLite の 3 テーブル (`documents` / `chunks` / `chunks_vec`) に登録。`chunks_fts` はトリガにより自動同期される。登録済みファイルは `rag-src/registered/` に移動。
 
 - E5 プレフィックス: 埋込 API リクエスト時に `passage: {text}` を付与 (クエリ時の `query: ` と区別)
 - ベクトル格納: `struct.pack("<{N}f", ...)` で little-endian float32 BLOB に変換して `chunks_vec` に INSERT
@@ -53,7 +53,7 @@
 ```
 POST http://127.0.0.1:8003/embedding
 リクエスト : {"content": "passage: {テキスト}"}
-レスポンス : {"embedding": [float, ...]}  # 384 次元 (llama.cpp レガシーエンドポイント)
+レスポンス : {"embedding": [float, ...]}  # モデル依存の埋込ベクトル (例: E5-multilingual-small は 768 次元)
 ```
 
 **DB 更新テーブル**

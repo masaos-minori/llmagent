@@ -54,7 +54,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 | パス | 生成元 | フォーマット |
 |---|---|---|
 | `rag-src/yyyymmddhhmmss-{slug}.txt` | `rag/ingestion/crawler.py` | JSON: `{url, title, lang, fetched_at, content, code_blocks: [...]}` |
-| `rag-src/chunk/{stem}-{idx:04d}.txt` | `rag/ingestion/chunk_splitter.py` | JSON: `{url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content}` |
+| `rag-src/chunk/{stem}-{idx:04d}.txt` | `rag/ingestion/chunk_splitter.py` | JSON: `{url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified}` |
 | `rag-src/registered/{stem}-{idx:04d}.txt` | `rag/ingestion/ingester.py` が移動 | 上記と同一 (処理済みを示す) |
 
 拡張子は `.txt` でも中身は JSON。
