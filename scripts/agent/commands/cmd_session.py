@@ -70,15 +70,21 @@ class _SessionMixin(MixinBase):
             if not raw_rows:
                 self._out.write_no_data("No sessions found")
                 return
-            session_rows = [
-                SessionRow(
-                    session_id=int(r["session_id"]),
-                    title=r.get("title"),
-                    created_at=str(r.get("created_at", "")),
-                    is_current=bool(r.get("is_current", False)),
+            session_rows = []
+            for r in raw_rows:
+                ca = r.get("created_at")
+                if ca is not None and not isinstance(ca, str):
+                    raise TypeError(
+                        f"created_at must be str or None, got {type(ca).__name__}"
+                    )
+                session_rows.append(
+                    SessionRow(
+                        session_id=r["session_id"],
+                        title=r.get("title"),
+                        created_at=ca if ca is not None else "",
+                        is_current=bool(r.get("is_current", False)),
+                    )
                 )
-                for r in raw_rows
-            ]
             table_rows = []
             for sr in session_rows:
                 title = sr.title if sr.title is not None else ""

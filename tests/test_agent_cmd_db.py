@@ -247,17 +247,19 @@ class TestDbRebuildFts:
 
 class TestDbHealth:
     def test_health_prints_metrics(self, capsys: pytest.CaptureFixture) -> None:
+        from db.models import DbHealthMetrics
+
         cmd = _make_cmd()
         with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
-            mock_db.health_check.return_value = {
-                "journal_mode": "wal",
-                "integrity": "ok",
-                "page_count": 100,
-                "page_size": 4096,
-                "freelist_count": 0,
-                "db_size_bytes": 10240,
-            }
+            mock_db.health_check.return_value = DbHealthMetrics(
+                journal_mode="wal",
+                integrity="ok",
+                page_count=100,
+                page_size=4096,
+                freelist_count=0,
+                db_size_bytes=10240,
+            )
             open_mock = MagicMock()
             open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
             open_mock.return_value.__exit__ = MagicMock(return_value=False)

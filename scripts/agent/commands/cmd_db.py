@@ -90,19 +90,29 @@ class _DbMixin(MixinBase):
         if not rows:
             self._out.write_no_data("No documents found")
             return
-        table_rows = [
-            [
-                (
-                    str(r["url"])[:57] + "..."
-                    if len(str(r["url"])) > 60
-                    else str(r["url"])
-                ),
-                str(r["lang"] or "?"),
-                str(r["chunk_count"]),
-                str(r["fetched_at"]),
-            ]
-            for r in rows
-        ]
+        table_rows = []
+        for r in rows:
+            url = r["url"]
+            if not isinstance(url, str):
+                raise TypeError(f"url must be str, got {type(url).__name__}")
+            url_display = url[:57] + "..." if len(url) > 60 else url
+
+            lang_val = r["lang"]
+            lang_display = lang_val if isinstance(lang_val, str) else "?"
+
+            chunk_count = r["chunk_count"]
+            if not isinstance(chunk_count, int):
+                raise TypeError(
+                    f"chunk_count must be int, got {type(chunk_count).__name__}"
+                )
+            chunk_display = str(chunk_count)
+
+            fetched_at = r["fetched_at"]
+            fetched_display = fetched_at if isinstance(fetched_at, str) else ""
+
+            table_rows.append(
+                [url_display, lang_display, chunk_display, fetched_display]
+            )
         self._out.write_table(["URL", "Lang", "Chunks", "Fetched"], table_rows)
 
     def _db_rebuild_fts(self) -> None:
