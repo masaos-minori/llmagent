@@ -11,6 +11,7 @@ Extracted from agent_rag.py.  Contains:
 
 import logging
 import re
+from dataclasses import dataclass
 from typing import Any, cast
 
 import httpx
@@ -85,6 +86,18 @@ _REFINER_PROMPT_TEMPLATE: str = (
 _DEFAULT_RERANK_SCORE = 5.0
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Internal DTOs
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class MqeParseResult:
+    """Internal typed result from MQE JSON parsing."""
+
+    queries: list[str]  # original_query included as first element
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Internal prompt helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -104,7 +117,7 @@ def _mqe_prompt(query: str, context: str, cfg: dict[str, Any]) -> str:
     return str(prompt)
 
 
-def _parse_mqe_response(raw: str, original_query: str) -> list[str]:
+def _parse_mqe_response(raw: str, original_query: str) -> MqeParseResult:
     """Extract and validate a JSON array of paraphrases from raw LLM output.
 
     Raises MqeParseError when the response cannot be parsed as a string list.
@@ -122,7 +135,7 @@ def _parse_mqe_response(raw: str, original_query: str) -> list[str]:
         )
     valid = [q for q in expanded if isinstance(q, str) and q.strip()]
     logger.info(f"MQE: {len(valid)} queries expanded from original")
-    return [original_query] + valid
+    return MqeParseResult(queries=[original_query] + valid)
 
 
 def _extract_chat_content(data: dict[str, Any]) -> str:
@@ -254,7 +267,8 @@ class RagLLM:
                 _MQE_TEMPERATURE,
                 _MQE_MAX_TOKENS,
             )
-            return _parse_mqe_response(raw, query)
+            result = _parse_mqe_response(raw, query)
+            return result.queries
         except (
             httpx.HTTPStatusError,
             httpx.RequestError,
