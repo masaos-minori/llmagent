@@ -64,23 +64,24 @@ matched = await cmds.dispatch("/stats")
 | メソッド | 説明 |
 |---|---|
 | `_cmd_session(args) -> None` | `/session list [n]` / `/session load <id>` / `/session rename <title>` / `/session delete <id>` をディスパッチ |
-| `_generate_session_title(first_input) -> None` (async) | `SessionTitleService.generate()` に委譲。チャットモデルで 8 語以内のタイトルを生成して保存。失敗時は入力先頭 50 文字にフォールバック |
+| `_generate_session_title(first_input) -> None` (async) | `SessionTitleService.generate()` に委譲。LLM で 8 語以内のタイトルを生成して `ctx.session.set_title()` で保存。失敗時はログに記録のみ（フォールバックなし） |
 | `_session_load_safe(arg) -> None` | arg を整数 session_id としてパースし `_load_session()` を呼び出し。不正値はエラーメッセージを表示 |
 | `_session_delete(arg) -> None` | arg を整数 session_id としてパースし、現在セッションへの削除を拒否した上で削除を実行 |
-| `_load_session(session_id) -> None` | `ctx.session.fetch_messages()` でメッセージを取得し、システムメッセージを保持した上で `ctx.conv.history` に統合 |
+| `_load_session(session_id) -> None` | `restore_session(self._ctx, session_id)` に委譲（`agent/services/session_restore.py`）。`SessionRestoreResult.session_id` / `.n_messages` を使用して成功メッセージを表示 |
 
 ### 3.4 /mcp 系 (_McpMixin)
 
 `_McpMixin` は薄いディスパッチャ。実処理は `agent/services/` のサービスクラスに委譲:
-- `McpStatusService` (`agent/services/mcp_status.py`): `probe_all() -> list[McpServerStatus]` (table formatting moved to `cmd_mcp._format_mcp_table()`)
-- `McpInstallService` (`agent/services/mcp_install.py`): `run(server_name, qa) -> ScaffoldResult` (next-steps output moved to `cmd_mcp._print_mcp_install_next_steps()`)
+- `McpStatusService` (`agent/services/mcp_status.py`): `probe_all() -> list[McpProbeResult]` (table formatting moved to `cmd_mcp._format_mcp_table()`)
+- `McpInstallService` (`agent/services/mcp_install.py`): `run(server_name, qa) -> ScaffoldResult`, `format_next_steps(result) -> str` (next-steps はサービス内で完結)
+- `ScaffoldResult` (dataclass): `server_name`, `module`, `port`, `with_confd`, `created_files`, `tool_snippet`, `agent_toml_snippet`
 - `InstallQA` (Protocol) / `CliInstallQA` (CLI 実装): I/O を抽象化。`CliInstallQA(port, role, with_confd)` — 非 None 値はそのまま返し、None は `input()` で問い合わせ
 
 | メソッド | 説明 |
 |---|---|
 | `_cmd_mcp(args) -> None` (async) | `args` が `"install <name>"` の場合はウィザードを起動、それ以外はサーバ状態テーブルを表示 |
 | `_cmd_mcp_status() -> None` (async) | `McpStatusService.probe_all()` で全サーバの状態を取得し `_format_mcp_table()` で表示。HTTP サーバは `/health` エンドポイントへの実際の疎通確認を行う (タイムアウト 5 秒) |
-| `_cmd_mcp_install(server_name) -> None` (async) | `CliInstallQA` を生成し `McpInstallService.run()` でテンプレートファイルを生成、`_print_mcp_install_next_steps()` で次ステップチェックリストを表示 |
+| `_cmd_mcp_install(server_name) -> None` (async) | `CliInstallQA` を生成し `McpInstallService.run()` でテンプレートファイルを生成、`svc.format_next_steps(result)` で次ステップチェックリストを表示 |
 
 ### 3.5 /config, /stats, /set, /reload (_ConfigMixin)
 
