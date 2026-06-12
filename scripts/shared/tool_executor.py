@@ -96,6 +96,33 @@ class HttpTransport:
         """Inject session ID to be forwarded as X-Session-Id header on every call."""
         self._session_id = session_id
 
+    @staticmethod
+    def _parse_http_response(resp: httpx.Response) -> ToolCallResult:
+        """Parse HTTP response body and return a ToolCallResult.
+
+        Raises ValueError if the response structure is invalid.
+        """
+        data = orjson.loads(resp.content)
+        if not isinstance(data, dict):
+            raise ValueError(
+                f"MCP /v1/call_tool returned non-dict: {type(data).__name__}"
+            )
+        result_val = data.get("result")
+        if not isinstance(result_val, str):
+            raise ValueError("MCP /v1/call_tool missing 'result' str field")
+        is_error_val = data.get("is_error", False)
+        if not isinstance(is_error_val, bool):
+            raise ValueError(
+                f"MCP 'is_error' must be bool, got {type(is_error_val).__name__}"
+            )
+        x_request_id = resp.headers.get("x-request-id", "")
+        return ToolCallResult(
+            output=result_val,
+            is_error=is_error_val,
+            request_id=x_request_id,
+            server_key="",  # set by caller
+        )
+
     async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
         """POST to /v1/call_tool and return ToolCallResult."""
         headers: dict[str, str] = {}
@@ -110,24 +137,11 @@ class HttpTransport:
                 headers=headers,
             )
             resp.raise_for_status()
-            data = orjson.loads(resp.content)
-            if not isinstance(data, dict):
-                raise ValueError(
-                    f"MCP /v1/call_tool returned non-dict: {type(data).__name__}"
-                )
-            result_val = data.get("result")
-            if not isinstance(result_val, str):
-                raise ValueError("MCP /v1/call_tool missing 'result' str field")
-            is_error_val = data.get("is_error", False)
-            if not isinstance(is_error_val, bool):
-                raise ValueError(
-                    f"MCP 'is_error' must be bool, got {type(is_error_val).__name__}"
-                )
-            x_request_id = resp.headers.get("x-request-id", "")
+            result = self._parse_http_response(resp)
             return ToolCallResult(
-                output=result_val,
-                is_error=is_error_val,
-                request_id=x_request_id,
+                output=result.output,
+                is_error=result.is_error,
+                request_id=result.request_id,
                 server_key=self._server_key,
             )
         except httpx.HTTPStatusError as e:
@@ -209,6 +223,20 @@ class StdioTransport:
         """Return True when the subprocess is running (returncode is None)."""
         return self._proc is not None and self._proc.returncode is None
 
+    @staticmethod
+    def _parse_stdio_response(resp_bytes: bytes) -> ToolCallResult:
+        """Parse a JSON-RPC response line and return ToolCallResult.
+
+        Raises (orjson.JSONDecodeError, KeyError) if the response is invalid.
+        """
+        resp = orjson.loads(resp_bytes)
+        return ToolCallResult(
+            output=str(resp["result"]),
+            is_error=bool(resp["is_error"]),
+            request_id="",
+            server_key="",  # set by caller
+        )
+
     async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
         """Send one JSON-RPC request and return ToolCallResult; acquires per-instance lock so concurrent callers are serialized."""
         if not self.is_alive():
@@ -269,11 +297,11 @@ class StdioTransport:
                     server_key=self._server_key,
                 )
             try:
-                resp = orjson.loads(resp_bytes)
+                result = self._parse_stdio_response(resp_bytes)
                 return ToolCallResult(
-                    output=str(resp["result"]),
-                    is_error=bool(resp["is_error"]),
-                    request_id="",
+                    output=result.output,
+                    is_error=result.is_error,
+                    request_id=result.request_id,
                     server_key=self._server_key,
                 )
             except (orjson.JSONDecodeError, KeyError) as e:
@@ -545,7 +573,10 @@ class ToolExecutor:
         plugin_fn = plugin_registry.get_tool(tool_name)
         if plugin_fn is not None:
             result_raw = await plugin_fn(args)
-            if not isinstance(result_raw, tuple) or len(result_raw) < _PLUGIN_RESULT_TUPLE_LENGTH:
+            if (
+                not isinstance(result_raw, tuple)
+                or len(result_raw) < _PLUGIN_RESULT_TUPLE_LENGTH
+            ):
                 raise ValueError(
                     f"Plugin tool {tool_name!r} must return tuple[str, bool], got {type(result_raw).__name__}"
                 )

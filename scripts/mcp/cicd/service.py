@@ -266,6 +266,59 @@ class GitHubActionsBackend:
             + "\n"
         )
 
+    async def _append_job_log(
+        self,
+        owner: str,
+        repo: str,
+        job_id: int,
+        output_parts: list[str],
+        total_bytes: int,
+        max_bytes: int,
+    ) -> tuple[list[str], int]:
+        """Fetch and append log for a single job, respecting the byte limit.
+
+        Returns (output_parts, total_bytes) which may be updated if truncation occurred.
+        """
+        log_url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/actions/jobs/{job_id}/logs"
+        try:
+            log_resp = await self._http.get(
+                log_url,
+                headers=self._auth_headers(),
+                follow_redirects=True,
+            )
+            if log_resp.is_success:
+                log_text = log_resp.text
+                log_bytes = len(log_text.encode())
+                remaining = max_bytes - total_bytes
+                if log_bytes > remaining:
+                    truncated = log_text.encode()[: max(0, remaining - 60)].decode(
+                        "utf-8", errors="replace"
+                    )
+                    output_parts.append(
+                        truncated
+                        + f"\n[TRUNCATED: exceeded {self._max_log_size_kb} KB limit]\n",
+                    )
+                    return output_parts, max_bytes
+                output_parts.append(log_text + "\n")
+                total_bytes += log_bytes
+            else:
+                output_parts.append(
+                    f"(log fetch failed: HTTP {log_resp.status_code})\n",
+                )
+        except (
+            httpx.HTTPStatusError,
+            httpx.RequestError,
+            orjson.JSONDecodeError,
+        ) as e:
+            logger.warning(
+                "get_workflow_logs: log fetch error job=%d: %s",
+                job_id,
+                e,
+            )
+            output_parts.append(f"(log fetch error: {e})\n")
+
+        return output_parts, total_bytes
+
     async def get_workflow_logs(self, owner: str, repo: str, run_id: int) -> str:
         """Return job summaries and log text for a workflow run.
 
@@ -295,45 +348,9 @@ class GitHubActionsBackend:
             total_bytes += len(header.encode())
 
             if job_id:
-                log_url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/actions/jobs/{job_id}/logs"
-                try:
-                    log_resp = await self._http.get(
-                        log_url,
-                        headers=self._auth_headers(),
-                        follow_redirects=True,
-                    )
-                    if log_resp.is_success:
-                        log_text = log_resp.text
-                        log_bytes = len(log_text.encode())
-                        remaining = max_bytes - total_bytes
-                        if log_bytes > remaining:
-                            # Truncate at byte boundary and append notice
-                            truncated = log_text.encode()[
-                                : max(0, remaining - 60)
-                            ].decode("utf-8", errors="replace")
-                            output_parts.append(
-                                truncated
-                                + f"\n[TRUNCATED: exceeded {self._max_log_size_kb} KB limit]\n",
-                            )
-                            total_bytes = max_bytes
-                            break
-                        output_parts.append(log_text + "\n")
-                        total_bytes += log_bytes
-                    else:
-                        output_parts.append(
-                            f"(log fetch failed: HTTP {log_resp.status_code})\n",
-                        )
-                except (
-                    httpx.HTTPStatusError,
-                    httpx.RequestError,
-                    orjson.JSONDecodeError,
-                ) as e:
-                    logger.warning(
-                        "get_workflow_logs: log fetch error job=%d: %s",
-                        job_id,
-                        e,
-                    )
-                    output_parts.append(f"(log fetch error: {e})\n")
+                output_parts, total_bytes = await self._append_job_log(
+                    owner, repo, job_id, output_parts, total_bytes, max_bytes
+                )
 
             if total_bytes >= max_bytes:
                 break

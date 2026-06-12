@@ -251,6 +251,14 @@ class ConfigReloadService:
     ) -> None:
         """Apply tool cache, LLM retry, refiner, and watchdog settings (diff-apply)."""
         cfg = ctx.cfg
+        self._apply_llm_context_params(cfg, new_cfg)
+        self._apply_tool_params(cfg, new_cfg)
+        self._apply_rag_params(cfg, new_cfg)
+        self._apply_llm_retry_params(cfg, new_cfg)
+        self._apply_mcp_watchdog_params(cfg, new_cfg)
+
+    def _apply_llm_context_params(self, cfg: Any, new_cfg: dict[str, Any]) -> None:
+        """Apply LLM context window settings."""
         _apply_int(
             new_cfg,
             "context_char_limit",
@@ -261,27 +269,11 @@ class ConfigReloadService:
             "context_compress_turns",
             lambda v: setattr(cfg.llm, "context_compress_turns", v),
         )
+
+    def _apply_tool_params(self, cfg: Any, new_cfg: dict[str, Any]) -> None:
+        """Apply tool execution settings."""
         _apply_float(
             new_cfg, "tool_cache_ttl", lambda v: setattr(cfg.tool, "tool_cache_ttl", v)
-        )
-        _apply_int(
-            new_cfg, "top_k_search", lambda v: setattr(cfg.rag, "top_k_search", v)
-        )
-        _apply_int(
-            new_cfg, "top_k_rerank", lambda v: setattr(cfg.rag, "top_k_rerank", v)
-        )
-        _apply_int(
-            new_cfg, "llm_max_retries", lambda v: setattr(cfg.llm, "llm_max_retries", v)
-        )
-        _apply_float(
-            new_cfg,
-            "llm_retry_base_delay",
-            lambda v: setattr(cfg.llm, "llm_retry_base_delay", v),
-        )
-        _apply_int(
-            new_cfg,
-            "max_chunks_per_doc",
-            lambda v: setattr(cfg.rag, "max_chunks_per_doc", v),
         )
         _apply_bool(
             new_cfg,
@@ -305,6 +297,30 @@ class ConfigReloadService:
         )
         _apply_bool(
             new_cfg,
+            "tool_definitions_strict",
+            lambda v: setattr(cfg.tool, "tool_definitions_strict", v),
+        )
+        _apply_list(
+            new_cfg,
+            "plan_blocked_tools",
+            lambda v: setattr(cfg.tool, "plan_blocked_tools", list(v)),
+        )
+
+    def _apply_rag_params(self, cfg: Any, new_cfg: dict[str, Any]) -> None:
+        """Apply RAG (retrieval-augmented generation) settings."""
+        _apply_int(
+            new_cfg, "top_k_search", lambda v: setattr(cfg.rag, "top_k_search", v)
+        )
+        _apply_int(
+            new_cfg, "top_k_rerank", lambda v: setattr(cfg.rag, "top_k_rerank", v)
+        )
+        _apply_int(
+            new_cfg,
+            "max_chunks_per_doc",
+            lambda v: setattr(cfg.rag, "max_chunks_per_doc", v),
+        )
+        _apply_bool(
+            new_cfg,
             "use_semantic_cache",
             lambda v: setattr(cfg.rag, "use_semantic_cache", v),
         )
@@ -317,26 +333,6 @@ class ConfigReloadService:
             new_cfg,
             "semantic_cache_max_size",
             lambda v: setattr(cfg.rag, "semantic_cache_max_size", v),
-        )
-        _apply_bool(
-            new_cfg,
-            "tool_definitions_strict",
-            lambda v: setattr(cfg.tool, "tool_definitions_strict", v),
-        )
-        _apply_float(
-            new_cfg,
-            "mcp_watchdog_interval",
-            lambda v: setattr(cfg.mcp, "mcp_watchdog_interval", v),
-        )
-        _apply_int(
-            new_cfg,
-            "mcp_watchdog_max_restarts",
-            lambda v: setattr(cfg.mcp, "mcp_watchdog_max_restarts", v),
-        )
-        _apply_list(
-            new_cfg,
-            "plan_blocked_tools",
-            lambda v: setattr(cfg.tool, "plan_blocked_tools", list(v)),
         )
         _apply_bool(
             new_cfg, "use_refiner", lambda v: setattr(cfg.rag, "use_refiner", v)
@@ -353,6 +349,30 @@ class ConfigReloadService:
             new_cfg,
             "refiner_max_chars_per_chunk",
             lambda v: setattr(cfg.rag, "refiner_max_chars_per_chunk", v),
+        )
+
+    def _apply_llm_retry_params(self, cfg: Any, new_cfg: dict[str, Any]) -> None:
+        """Apply LLM retry settings."""
+        _apply_int(
+            new_cfg, "llm_max_retries", lambda v: setattr(cfg.llm, "llm_max_retries", v)
+        )
+        _apply_float(
+            new_cfg,
+            "llm_retry_base_delay",
+            lambda v: setattr(cfg.llm, "llm_retry_base_delay", v),
+        )
+
+    def _apply_mcp_watchdog_params(self, cfg: Any, new_cfg: dict[str, Any]) -> None:
+        """Apply MCP watchdog settings."""
+        _apply_float(
+            new_cfg,
+            "mcp_watchdog_interval",
+            lambda v: setattr(cfg.mcp, "mcp_watchdog_interval", v),
+        )
+        _apply_int(
+            new_cfg,
+            "mcp_watchdog_max_restarts",
+            lambda v: setattr(cfg.mcp, "mcp_watchdog_max_restarts", v),
         )
 
     def _apply_mcp_url_reload(

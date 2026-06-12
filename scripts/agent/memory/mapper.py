@@ -35,50 +35,65 @@ def _require(d: dict[str, Any], key: str) -> Any:
         raise MemorySchemaError(f"Memory row missing required field: {key!r}")
 
 
-def row_to_entry(row: sqlite3.Row | dict[str, Any]) -> MemoryEntry:
-    """Convert a sqlite3.Row or dict to MemoryEntry.
+def _parse_tags(raw: Any) -> list[str]:
+    """Parse tags from a JSON string or list value."""
+    if isinstance(raw, str):
+        return orjson.loads(raw)  # type: ignore[no-any-return]
+    if isinstance(raw, list):
+        return list(raw)
+    raise MemorySchemaError(
+        f"tags must be a JSON string or list, got {type(raw).__name__}"
+    )
 
-    Required fields (NOT NULL in schema): memory_id, memory_type, source_type,
-    content, importance, created_at, updated_at.
-    Missing required fields raise MemorySchemaError.
-    Optional fields (nullable): session_id, turn_id, project, repo, branch, summary, tags, pinned.
-    """
-    d = dict(row)
-    tags_raw = d.get("tags", "[]")
-    if isinstance(tags_raw, str):
-        tags: list[str] = orjson.loads(tags_raw)
-    elif isinstance(tags_raw, list):
-        tags = list(tags_raw)
-    else:
-        raise MemorySchemaError(
-            f"tags must be a JSON string or list, got {type(tags_raw).__name__}"
-        )
+
+def _parse_importance(d: dict[str, Any]) -> float:
+    """Parse importance with a default of 0.5 when None."""
+    val = d.get("importance")
+    if val is None:
+        return 0.5
     try:
-        importance = float(_require(d, "importance"))
+        return float(val)
     except (TypeError, ValueError) as e:
         raise MemorySchemaError(
             f"Invalid importance value: {d.get('importance')!r}"
         ) from e
+
+
+def _parse_memory_type(d: dict[str, Any]) -> MemoryType:
+    """Parse and validate the memory_type field."""
     try:
-        memory_type = MemoryType(str(_require(d, "memory_type")))
+        return MemoryType(str(_require(d, "memory_type")))
     except ValueError as e:
         raise MemorySchemaError(str(e)) from e
+
+
+def _parse_source_type(raw: Any | None) -> SourceType:
+    """Parse source_type with CONVERSATION as default."""
+    if raw is None:
+        return SourceType.CONVERSATION
     try:
-        source_type = SourceType(str(_require(d, "source_type")))
+        return SourceType(str(raw))
     except ValueError as e:
-        raise MemorySchemaError(str(e)) from e
-    pinned_raw = d.get("pinned")
-    pinned = bool(pinned_raw) if pinned_raw is not None else False
+        raise MemorySchemaError(f"Invalid source_type: {e}") from e
+
+
+def row_to_entry(row: sqlite3.Row | dict[str, Any]) -> MemoryEntry:
+    """Convert a sqlite3.Row or dict to MemoryEntry.
+
+    Required fields (NOT NULL in schema): memory_id, memory_type, content.
+    Optional fields with defaults: source_type → CONVERSATION, importance → 0.5.
+    Other optional fields (nullable): session_id, turn_id, project, repo, branch, summary, tags, pinned.
+    """
+    d = dict(row)
     _mid = _require(d, "memory_id")
-    if not isinstance(_mid, str):
-        raise MemorySchemaError(f"memory_id must be str, got {type(_mid).__name__}")
+    _mid = str(_mid) if not isinstance(_mid, str) else _mid
     _content = _require(d, "content")
     if not isinstance(_content, str):
         raise MemorySchemaError(f"content must be str, got {type(_content).__name__}")
     return MemoryEntry(
         memory_id=_mid,
-        memory_type=memory_type,
-        source_type=source_type,
+        memory_type=_parse_memory_type(d),
+        source_type=_parse_source_type(d.get("source_type")),
         session_id=d.get("session_id"),
         turn_id=d.get("turn_id"),
         project=_opt_str(d, "project"),
@@ -86,9 +101,9 @@ def row_to_entry(row: sqlite3.Row | dict[str, Any]) -> MemoryEntry:
         branch=_opt_str(d, "branch"),
         content=_content,
         summary=_opt_str(d, "summary"),
-        tags=tags,
-        importance=importance,
-        pinned=pinned,
+        tags=_parse_tags(d.get("tags", "[]")),
+        importance=_parse_importance(d),
+        pinned=bool(d.get("pinned")) if d.get("pinned") is not None else False,
         created_at=_opt_str(d, "created_at"),
         updated_at=_opt_str(d, "updated_at"),
     )

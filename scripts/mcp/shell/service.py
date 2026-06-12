@@ -254,7 +254,6 @@ class ShellService:
             except OSError:
                 pass
         else:
-            # sigterm_then_sigkill: send SIGTERM, wait grace period, then SIGKILL
             try:
                 os.killpg(proc.pid, signal.SIGTERM)
             except OSError:
@@ -270,6 +269,39 @@ class ShellService:
             await asyncio.wait_for(proc.wait(), timeout=5.0)
         except TimeoutError:
             pass
+
+    async def _run_subprocess(
+        self,
+        argv: list[str],
+        cwd: str | None,
+        env: dict[str, str],
+        timeout_sec: int,
+    ) -> tuple[asyncio.subprocess.Process, bytes, bytes, bool]:
+        """Launch subprocess and wait with timeout; kill on TimeoutError.
+
+        Returns (process, stdout, stderr, timed_out).
+        """
+        proc = await asyncio.create_subprocess_exec(
+            *argv,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=cwd,
+            env=env,
+            start_new_session=True,
+            preexec_fn=_make_preexec(
+                self._max_memory_mb, timeout_sec, self._exec_uid, self._exec_gid
+            ),
+        )
+        try:
+            stdout_b, stderr_b = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=timeout_sec,
+            )
+        except TimeoutError:
+            await self._kill_timed_out_process(proc)
+            return proc, b"", b"", True
+        return proc, stdout_b, stderr_b, False
 
     @staticmethod
     def _truncate_output(
@@ -308,34 +340,9 @@ class ShellService:
         env = {**os.environ, "PATH": self._path, **filtered_env}
 
         start = time.monotonic()
-        timed_out = False
-
-        proc = await asyncio.create_subprocess_exec(
-            *argv,
-            stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=cwd,
-            env=env,
-            # start_new_session=True creates a new process group so we can
-            # kill the entire group (including children) on timeout
-            start_new_session=True,
-            preexec_fn=_make_preexec(
-                self._max_memory_mb, timeout_sec, self._exec_uid, self._exec_gid
-            ),
+        proc, stdout_b, stderr_b, timed_out = await self._run_subprocess(
+            argv, cwd, env, timeout_sec
         )
-
-        try:
-            stdout_b, stderr_b = await asyncio.wait_for(
-                proc.communicate(),
-                timeout=timeout_sec,
-            )
-        except TimeoutError:
-            timed_out = True
-            await self._kill_timed_out_process(proc)
-            stdout_b = b""
-            stderr_b = b""
-
         elapsed = time.monotonic() - start
         exit_code = proc.returncode if proc.returncode is not None else -1
 
