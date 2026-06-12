@@ -156,7 +156,7 @@ class TestCheckToolDefinitions:
             mock_collect.return_value = {"read_file", "write_file"}
             result = await _check_tool_definitions(ctx, strict=False)
 
-        assert result == []
+        assert not result.has_issues
 
     @pytest.mark.asyncio
     async def test_returns_warning_on_missing_in_server(self) -> None:
@@ -172,8 +172,9 @@ class TestCheckToolDefinitions:
             mock_collect.return_value = {"read_file"}
             result = await _check_tool_definitions(ctx, strict=False)
 
-        assert len(result) == 1
-        assert "write_file" in result[0]
+        msgs = result.warning_messages()
+        assert len(msgs) == 1
+        assert "write_file" in msgs[0]
 
     @pytest.mark.asyncio
     async def test_logs_warning_on_missing_in_cfg(self) -> None:
@@ -188,7 +189,7 @@ class TestCheckToolDefinitions:
             mock_collect.return_value = {"read_file", "delete_file"}
             result = await _check_tool_definitions(ctx, strict=False)
 
-        assert result == []
+        assert not result.has_issues
 
     @pytest.mark.asyncio
     async def test_raises_in_strict_mode(self) -> None:
@@ -217,7 +218,7 @@ class TestCheckToolDefinitions:
             mock_collect.return_value = set()
             result = await _check_tool_definitions(ctx, strict=False)
 
-        assert result == []
+        assert not result.has_issues
 
 
 # ── check_service_health() ────────────────────────────────────────────────────
@@ -239,7 +240,7 @@ class TestCheckServiceHealth:
 
         result = await check_service_health(ctx)
 
-        assert result == []
+        assert not result.has_issues
 
     @pytest.mark.asyncio
     async def test_returns_warning_on_non_200(self) -> None:
@@ -256,8 +257,9 @@ class TestCheckServiceHealth:
 
         result = await check_service_health(ctx)
 
-        assert len(result) == 1
-        assert "503" in result[0]
+        msgs = result.warning_messages()
+        assert len(msgs) == 1
+        assert "503" in msgs[0]
 
     @pytest.mark.asyncio
     async def test_returns_warning_on_exception(self) -> None:
@@ -272,8 +274,9 @@ class TestCheckServiceHealth:
 
         result = await check_service_health(ctx)
 
-        assert len(result) == 1
-        assert "refused" in result[0]
+        msgs = result.warning_messages()
+        assert len(msgs) == 1
+        assert "refused" in msgs[0]
 
     @pytest.mark.asyncio
     async def test_skips_empty_urls(self) -> None:
@@ -285,4 +288,4 @@ class TestCheckServiceHealth:
 
         result = await check_service_health(ctx)
 
-        assert result == []
+        assert not result.has_issues

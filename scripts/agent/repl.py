@@ -105,11 +105,13 @@ class AgentREPL:
     # ── Health checks / watchdog — delegated to agent_repl_health ─────────────
 
     async def _check_service_health(self) -> None:
-        for msg in await check_service_health(self._ctx):
+        result = await check_service_health(self._ctx)
+        for msg in result.warning_messages():
             self._view.write_warning(msg)
 
     async def _check_tool_definitions(self) -> None:
-        for msg in await check_tool_definitions_runtime(self._ctx):
+        result = await check_tool_definitions_runtime(self._ctx)
+        for msg in result.warning_messages():
             self._view.write_warning(msg)
 
     async def _watchdog_loop(self) -> None:

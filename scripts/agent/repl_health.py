@@ -18,6 +18,7 @@ from shared.logger import Logger
 from shared.tool_executor import StdioTransport
 
 from agent.context import AgentContext
+from agent.shared.health_models import HealthCheckResult, ServiceWarning
 
 if TYPE_CHECKING:
     from shared.mcp_config import McpServerConfig
@@ -37,7 +38,7 @@ async def probe_mcp_health(http: httpx.AsyncClient, base_url: str) -> bool:
         return False
 
 
-async def check_service_health(ctx: AgentContext) -> list[str]:
+async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
     """Probe LLM and Embed service health at startup; return warning strings on failure.
 
     Failure is non-fatal: the REPL continues regardless.
@@ -49,7 +50,7 @@ async def check_service_health(ctx: AgentContext) -> list[str]:
         ("llm", ctx.cfg.llm.llm_url),
         ("embed-llm", ctx.cfg.rag.embed_url),
     ]
-    warnings: list[str] = []
+    warnings: list[ServiceWarning] = []
     for label, url in checks:
         if not url:
             continue
@@ -60,12 +61,14 @@ async def check_service_health(ctx: AgentContext) -> list[str]:
             if resp.status_code != HTTPStatus.OK:
                 msg = f"{label} health check returned HTTP {resp.status_code}"
                 logger.warning(msg)
-                warnings.append(msg)
+                warnings.append(
+                    ServiceWarning(label=label, url=health_url, message=msg)
+                )
         except (httpx.HTTPError, OSError) as e:
             msg = f"{label} unreachable at {health_url}: {e}"
             logger.warning(msg)
-            warnings.append(msg)
-    return warnings
+            warnings.append(ServiceWarning(label=label, url=health_url, message=msg))
+    return HealthCheckResult(warnings=warnings)
 
 
 async def _fetch_stdio_tools(transport: object) -> set[str]:
@@ -120,7 +123,9 @@ async def _collect_server_tool_names(ctx: AgentContext) -> set[str]:
     return server_names
 
 
-async def _check_tool_definitions(ctx: AgentContext, strict: bool = False) -> list[str]:
+async def _check_tool_definitions(
+    ctx: AgentContext, strict: bool = False
+) -> HealthCheckResult:
     """Shared logic: compare tool_definitions against live server tool lists."""
     cfg_names = {
         td["function"]["name"]
@@ -129,24 +134,24 @@ async def _check_tool_definitions(ctx: AgentContext, strict: bool = False) -> li
     }
     server_names = await _collect_server_tool_names(ctx)
     if not server_names:
-        return []  # All servers unreachable; skip validation
+        return HealthCheckResult()  # All servers unreachable; skip validation
     missing_in_server = cfg_names - server_names
     missing_in_cfg = server_names - cfg_names
-    warnings: list[str] = []
+    warnings: list[ServiceWarning] = []
     if missing_in_server:
         msg = f"Tools in agent.toml but not on any server: {sorted(missing_in_server)}"
         logger.warning(msg)
-        warnings.append(msg)
+        warnings.append(ServiceWarning(label="tool_definitions", url="", message=msg))
     if missing_in_cfg:
         logger.warning(
             f"Tools on servers but not in agent.toml: {sorted(missing_in_cfg)}",
         )
     if (missing_in_server or missing_in_cfg) and strict:
         raise RuntimeError("Strict mode: tool definition mismatch detected")
-    return warnings
+    return HealthCheckResult(warnings=warnings)
 
 
-async def check_tool_definitions_runtime(ctx: AgentContext) -> list[str]:
+async def check_tool_definitions_runtime(ctx: AgentContext) -> HealthCheckResult:
     """Runtime validation: no raise, warnings only."""
     return await _check_tool_definitions(ctx, strict=False)
 
