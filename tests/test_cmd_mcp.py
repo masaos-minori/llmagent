@@ -29,6 +29,7 @@ class _Ctx:
         self.cfg.approval.tool_safety_tiers = tool_safety_tiers or {}
         self.services = MagicMock()
         self.services.stdio_procs = stdio_procs or {}
+        self.services.health_registry = None
 
 
 class _Mcp(_McpMixin):
@@ -88,7 +89,7 @@ class TestCmdMcpStatus:
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
-        assert "HTTP 503" in out
+        assert "http_error" in out
 
     @pytest.mark.asyncio
     async def test_http_connection_error(self, capsys: pytest.CaptureFixture) -> None:
@@ -102,7 +103,7 @@ class TestCmdMcpStatus:
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
-        assert "FAIL" in out
+        assert "fail" in out
 
     @pytest.mark.asyncio
     async def test_stdio_running(self, capsys: pytest.CaptureFixture) -> None:
@@ -117,7 +118,7 @@ class TestCmdMcpStatus:
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
-        assert "RUNNING" in out
+        assert "OK" in out
         assert "worker" in out
 
     @pytest.mark.asyncio
@@ -267,6 +268,44 @@ class TestCmdMcp:
 
         out = capsys.readouterr().out
         assert "SERVER" in out
+
+
+class TestCmdMcpInstall:
+    @pytest.mark.asyncio
+    async def test_install_invalid_name_shows_error(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _Ctx({})
+        mcp = _Mcp(ctx)
+        with patch(
+            "mcp.installer_validation.validate_server_name",
+            side_effect=ValueError("invalid name"),
+        ):
+            await mcp._cmd_mcp_install("bad name!")
+        out = capsys.readouterr().out
+        assert "invalid name" in out
+        assert "Usage" in out
+
+    @pytest.mark.asyncio
+    async def test_install_uses_validated_server_name(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _Ctx({})
+        mcp = _Mcp(ctx)
+        mock_result = MagicMock()
+        mock_result.created_files = []
+        mock_svc = MagicMock()
+        mock_svc.run = AsyncMock(return_value=mock_result)
+        mock_svc.format_next_steps.return_value = "Next steps..."
+        with (
+            patch("mcp.installer_validation.validate_server_name"),
+            patch("agent.commands.cmd_mcp.McpInstallService", return_value=mock_svc),
+            patch("agent.commands.cmd_mcp.CliInstallQA"),
+        ):
+            await mcp._cmd_mcp_install("my-server")
+        assert mock_svc.run.call_args.args[0] == "my-server"
+        out = capsys.readouterr().out
+        assert "my-server" in out
 
 
 class TestAppServicesMemoryOptional:

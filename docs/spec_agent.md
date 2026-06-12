@@ -186,7 +186,7 @@ class LLMMessage(TypedDict, total=False):
 | フィールド | 型 | 説明 |
 |---|---|---|
 | `memory_id` | str | UUID |
-| `memory_type` | str | `"semantic"` または `"episodic"` |
+| `memory_type` | `MemoryType` (StrEnum) | `MemoryType.SEMANTIC` / `MemoryType.EPISODIC`; str との等値比較可 |
 | `source_type` | SourceType | `conversation`, `rule`, `decision` 等 |
 | `importance` | float | 0.0〜1.0 |
 | `pinned` | bool | 常時保持フラグ |

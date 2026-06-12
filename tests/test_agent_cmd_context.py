@@ -330,6 +330,14 @@ class TestCmdHistory:
         out = capsys.readouterr().out
         assert "..." in out
 
+    def test_history_none_content_does_not_crash(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [_system_msg(), {"role": "user", "content": None}]
+        cmd = _FakeCmd(ctx)
+        cmd._cmd_history("1")
+        out = capsys.readouterr().out
+        assert "[user]" in out
+
 
 # ── collect_context_state ─────────────────────────────────────────────────────
 

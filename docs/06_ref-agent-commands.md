@@ -171,7 +171,22 @@ matched = await cmds.dispatch("/stats")
 | `_memory_delete(mem, args) -> None` | `<id>` で 1 件を削除する内部ヘルパー |
 | `_memory_prune(mem, ctx, args) -> None` | `[days]` を受け取り、指定日数より古いエントリを削除する内部ヘルパー。days 省略時は `ctx.cfg.memory_retention_days` を使用 |
 
-## 4. 使用スクリプト
+## 4. 内部型 (foundation files)
+
+コマンド層共通の型・例外・プロトコルは以下のファイルで定義:
+
+| ファイル | 定義内容 |
+|---|---|
+| `agent/commands/enums.py` | `CommandKind`, `MemoryAction`, `DbAction`, `McpAction`, `SessionAction` (StrEnum) |
+| `agent/commands/exceptions.py` | `CommandParseError`, `CommandValidationError`, `CommandDispatchError`, `CommandRenderingError`, `UnknownSubcommandError`, `UnknownPresetError`, `UnknownTierError` |
+| `agent/commands/models.py` | `StatsViewModel`, `ToolResultView`, `McpInstallRequest`, `McpInstallRenderModel` (frozen dataclass) |
+| `agent/commands/output_port.py` | `OutputPort` (Protocol), `CliOutputPort` (stdout 実装) |
+| `agent/commands/formatter.py` | `print_success`, `print_error`, `print_no_data`, `print_validation_error`, `print_table`, `print_kv_list` — `CliOutputPort` への薄いシム |
+| `agent/commands/mixin_base.py` | `MixinBase` — `_ctx: AgentContext` と `_out: OutputPort` を提供する基底クラス |
+
+`OutputPort` の設計方針: `CommandRegistry.__init__` が `out: OutputPort | None = None` を受け取り、`None` の場合は `CliOutputPort()` を使用。テストでは代替 `OutputPort` 実装を注入可能。
+
+## 5. 使用スクリプト
 
 | スクリプト | 使用箇所 |
 |---|---|

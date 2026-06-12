@@ -22,7 +22,7 @@ def get_repo_info(path: str = ".") -> dict[str, str] | None:
         return {
             "branch": branch,
             "commit": head.commit.hexsha[:8],
-            "message": head.commit.message.strip().splitlines()[0],
+            "message": str(head.commit.message).strip().splitlines()[0],
             "author": str(head.commit.author),
         }
     except Exception as e:

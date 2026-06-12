@@ -1,8 +1,5 @@
 """tests/test_cmd_context_refactor.py
 Unit tests for _ContextMixin._print_token_line extracted helper.
-
-_print_token_line now accepts a pre-built state dict produced by
-_collect_context_state(); these tests build that dict directly.
 """
 
 from __future__ import annotations
@@ -11,6 +8,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from agent.commands.cmd_context import _ContextMixin, _token_source_label
+from agent.services.models import ContextStateView
 
 
 class _CtxMixin(_ContextMixin):
@@ -24,14 +22,23 @@ def _make_state(
     token_estimate: int = 1000,
     token_limit: int = 0,
     tokenize_configured: bool = False,
-) -> dict:
-    """Build a minimal state dict for _print_token_line."""
-    return {
-        "token_is_exact": token_is_exact,
-        "token_estimate": token_estimate,
-        "token_limit": token_limit,
-        "tokenize_configured": tokenize_configured,
-    }
+) -> ContextStateView:
+    """Build a minimal ContextStateView for _print_token_line."""
+    return ContextStateView(
+        total_chars=0,
+        compress_limit=0,
+        n_msgs=0,
+        sys_preview="",
+        compress_count=0,
+        token_is_exact=token_is_exact,
+        token_estimate=token_estimate,
+        token_limit=token_limit,
+        tokenize_configured=tokenize_configured,
+        mem_status="",
+        git_branch=None,
+        git_commit=None,
+        breakdown={},
+    )
 
 
 def _make_ctx_mock() -> Any:

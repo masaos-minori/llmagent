@@ -273,3 +273,54 @@ class TestApplyConfigDict:
         call_kwargs = hist_mgr.apply_config.call_args.kwargs
         assert call_kwargs.get("token_limit") == 4000
         assert call_kwargs.get("tokenize_url") == "http://llm/tok"
+
+
+# ── _print_rag_config error path ──────────────────────────────────────────────
+
+
+class TestPrintRagConfig:
+    def test_db_config_error_shows_message(self, capsys: Any) -> None:
+        from unittest.mock import patch
+
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        with patch("db.config.build_db_config", side_effect=ValueError("bad config")):
+            cmd._print_rag_config()
+        out = capsys.readouterr().out
+        assert "config error" in out
+        assert "bad config" in out
+
+
+# ── _cmd_reload error paths ───────────────────────────────────────────────────
+
+
+class TestCmdReload:
+    def test_reload_oserror_shows_message(self, capsys: Any) -> None:
+        from unittest.mock import patch
+
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "shared.config_loader.ConfigLoader.load",
+            side_effect=OSError("file not found"),
+        ):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert "Reload failed" in out
+        assert "I/O error" in out
+
+    def test_reload_valueerror_shows_message(self, capsys: Any) -> None:
+        from unittest.mock import patch
+
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "shared.config_loader.ConfigLoader.load",
+            side_effect=ValueError("parse error"),
+        ):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert "Reload failed" in out
+        assert "parse error" in out
