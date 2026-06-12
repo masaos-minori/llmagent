@@ -16,7 +16,9 @@ from rag.pipeline import (
     RagPipelineError,
     sanitize_document,
 )
-from rag.types import RagHit
+from rag.types import MergedHit, RankedHit, RawHit
+
+RagHit = RawHit | MergedHit | RankedHit
 
 # ── sanitize_document ─────────────────────────────────────────────────────────
 
@@ -75,14 +77,8 @@ class TestSanitizeDocument:
 class TestFormatChunks:
     def _hit(
         self, content: str, url: str = "http://example.com", title: str | None = None
-    ) -> RagHit:
-        return {
-            "chunk_id": 1,
-            "url": url,
-            "title": title,
-            "content": content,
-            "score": 1.0,
-        }
+    ) -> RankedHit:
+        return RankedHit(chunk_id=1, content=content, url=url, title=title or "")
 
     def test_wraps_with_start_marker(self) -> None:
         result = RagPipeline._format_chunks([self._hit("hello")])

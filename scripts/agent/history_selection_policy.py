@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from rag.types import LLMMessage
+from shared.types import LLMMessage
 
 
 @dataclass(frozen=True)

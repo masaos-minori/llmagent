@@ -16,8 +16,11 @@ from typing import Any, cast
 import httpx
 import orjson
 from shared.config_loader import ConfigLoader
+from shared.types import LLMMessage
 
-from rag.types import LLMMessage, RagHit
+from rag.types import MergedHit, RankedHit, RawHit
+
+RagHit = RawHit | MergedHit | RankedHit
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +145,7 @@ def _build_rerank_prompt(
     """Build the Cross-Encoder scoring prompt from the configured template."""
     items_text = ""
     for i, chunk in enumerate(candidates, start=1):
-        preview = chunk["content"][:300].replace("\n", " ")
+        preview = chunk.content[:300].replace("\n", " ")
         items_text += f"\n{i}. {preview}"
     return str(
         cfg.get("rerank_prompt_template", "").format(
@@ -179,8 +182,19 @@ def _apply_rerank_scores(
                 f" for candidate {i}, using default",
             )
             score = _DEFAULT_RERANK_SCORE
-        scored.append({**chunk, "rerank_score": score})
-    scored.sort(key=lambda x: cast(float, x["rerank_score"]), reverse=True)
+        scored.append(
+            RankedHit(
+                chunk_id=chunk.chunk_id,
+                content=chunk.content,
+                url=chunk.url,
+                title=chunk.title,
+                distance=chunk.distance,
+                bm25_score=chunk.bm25_score,
+                rrf_score=getattr(chunk, "rrf_score", 0.0),
+                rerank_score=score,
+            )
+        )
+    scored.sort(key=lambda x: cast(float, x.rerank_score or 0.0), reverse=True)
     logger.info(f"Cross-Encoder rerank: top_k={top_k} selected")
     return cast("list[RagHit]", scored[:top_k])
 
@@ -274,7 +288,7 @@ class RagLLM:
             result = [
                 c
                 for c in result
-                if cast(float, c.get("rerank_score", 0.0)) >= rag_min_score
+                if cast(float, getattr(c, "rerank_score", None) or 0.0) >= rag_min_score
             ]
             logger.info(
                 f"Rerank score filter: {len(result)} chunks remain"
@@ -316,8 +330,8 @@ class RagLLM:
         """Compress chunks to query-relevant key points via a single LLM call; raises on error so callers can fall back."""
         items = []
         for i, c in enumerate(chunks, 1):
-            title = c.get("title") or c.get("url", "")
-            text = c["content"][:per_chunk_chars]
+            title = c.title if c.title else c.url
+            text = c.content[:per_chunk_chars]
             items.append(f"[{i}] {title}\n{text}")
         items_text = "\n\n".join(items)
         prompt = _REFINER_PROMPT_TEMPLATE.format(query=query, items_text=items_text)

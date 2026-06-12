@@ -16,52 +16,15 @@ from rag.stages.rerank import RerankStage
 from rag.stages.search import SearchStage
 
 
-class TestPipelineContextObserver:
-    """Test PipelineContext observer functionality."""
+class TestPipelineContextFields:
+    """Test PipelineContext field defaults."""
 
-    def test_add_observer(self) -> None:
-        """Test adding an observer to PipelineContext."""
+    def test_context_initializes_with_empty_lists(self) -> None:
         ctx = PipelineContext(query="test query")
-        observer = MagicMock()
-
-        ctx.add_observer(observer)
-
-        assert len(ctx.observers) == 1
-        assert ctx.observers[0] == observer
-
-    @pytest.mark.asyncio
-    async def test_observer_notified_on_stage_complete(self) -> None:
-        """Test that observers are notified when a stage completes."""
-        ctx = PipelineContext(query="test query")
-        observer = AsyncMock()
-        ctx.add_observer(observer)
-
-        # Create a mock stage that implements the protocol
-        class MockStage:
-            async def run(self, ctx, **kwargs):
-                ctx.queries = ["mock query"]
-                # Notify observers manually for testing
-                for obs in ctx.observers:
-                    try:
-                        await obs.on_stage_complete("mock", ctx)
-                    except Exception:
-                        pass
-
-        stage = MockStage()
-        await stage.run(ctx)
-
-        # Verify observer was called
-        observer.on_stage_complete.assert_called_once_with("mock", ctx)
-
-
-class TestPipelineStageObserverIntegration:
-    """Test integration of observer functionality with actual pipeline stages."""
-
-    def test_pipeline_context_has_observers_field(self) -> None:
-        """Test that PipelineContext has observers field."""
-        ctx = PipelineContext(query="test query")
-        assert hasattr(ctx, "observers")
-        assert isinstance(ctx.observers, list)
+        assert ctx.queries == []
+        assert ctx.search_results == []
+        assert ctx.merged == []
+        assert ctx.reranked == []
 
 
 # ---------------------------------------------------------------------------
@@ -120,10 +83,12 @@ class TestSearchStage:
         ctx.queries = ["q"]
         mock_db = MagicMock()
 
+        from rag.types import RawHit
+
         with patch(
             "rag.stages.search._search_all_queries", new_callable=AsyncMock
         ) as mock_search:
-            mock_search.return_value = [[{"chunk_id": 1, "content": "a", "url": "u"}]]
+            mock_search.return_value = [[RawHit(chunk_id=1, content="a", url="u")]]
             await stage.run(ctx, db=mock_db)
 
         assert len(ctx.search_results) == 1
@@ -146,13 +111,15 @@ class TestFusionStage:
 
     @pytest.mark.asyncio
     async def test_fusion_combines_multiple_result_lists(self) -> None:
+        from rag.types import RawHit
+
         stage = FusionStage({"rrf_k": 60})
         ctx = PipelineContext(query="q")
-        hit1 = {"chunk_id": 1, "score": 0.9, "content": "a", "url": "u1"}
-        hit2 = {"chunk_id": 2, "score": 0.8, "content": "b", "url": "u2"}
-        ctx.search_results = [[hit1], [hit2]]
+        hit1 = RawHit(chunk_id=1, content="a", url="u1")
+        hit2 = RawHit(chunk_id=2, content="b", url="u2")
+        ctx.search_results = [[hit1], [hit2]]  # type: ignore[assignment]
         await stage.run(ctx)
-        chunk_ids = {h["chunk_id"] for h in ctx.merged}
+        chunk_ids = {h.chunk_id for h in ctx.merged}
         assert {1, 2}.issubset(chunk_ids)
 
 
@@ -173,22 +140,24 @@ class TestRerankStage:
             "rag_min_score": 0.0,
         }
         stage = RerankStage(cfg, llm)
-        hits = [
-            {"chunk_id": i, "score": 0.9, "content": f"c{i}", "url": "u", "doc_id": 999}
-            for i in range(5)
-        ]
+        from rag.types import MergedHit
+
+        hits = [MergedHit(chunk_id=i, content=f"c{i}", url="u") for i in range(5)]
         ctx = PipelineContext(query="q")
-        ctx.merged = hits
+        ctx.merged = hits  # type: ignore[assignment]
         await stage.run(ctx)
         assert len(ctx.reranked) <= 2
 
     @pytest.mark.asyncio
     async def test_rerank_enabled_calls_cross_encoder(self) -> None:
         llm = MagicMock()
-        expected = [
-            {"chunk_id": 1, "score": 0.95, "content": "a", "url": "u", "doc_id": 1}
+        from rag.types import MergedHit, RankedHit
+
+        expected_merged = [MergedHit(chunk_id=1, content="a", url="u")]
+        expected_ranked = [
+            RankedHit(chunk_id=1, content="a", url="u", rerank_score=0.95)
         ]
-        llm.cross_encoder_rerank = AsyncMock(return_value=expected)
+        llm.cross_encoder_rerank = AsyncMock(return_value=expected_ranked)
         cfg = {
             "use_rerank": True,
             "rag_top_k": 2,
@@ -198,7 +167,7 @@ class TestRerankStage:
         }
         stage = RerankStage(cfg, llm)
         ctx = PipelineContext(query="q")
-        ctx.merged = expected
+        ctx.merged = expected_merged  # type: ignore[assignment]
         await stage.run(ctx)
         llm.cross_encoder_rerank.assert_called_once()
 
@@ -219,12 +188,11 @@ class TestRerankStage:
             "rag_min_score": 0.0,
         }
         stage = RerankStage(cfg, llm)
-        hits = [
-            {"chunk_id": i, "score": 0.9, "content": f"c{i}", "url": "u", "doc_id": 999}
-            for i in range(3)
-        ]
+        from rag.types import MergedHit
+
+        hits = [MergedHit(chunk_id=i, content=f"c{i}", url="u") for i in range(3)]
         ctx = PipelineContext(query="q")
-        ctx.merged = hits
+        ctx.merged = hits  # type: ignore[assignment]
         with pytest.raises(RagRerankError, match="rerank failed"):
             await stage.run(ctx)
 
@@ -246,11 +214,13 @@ class TestAugmentStage:
 
     @pytest.mark.asyncio
     async def test_augment_formats_hits_into_block(self) -> None:
+        from rag.types import RankedHit
+
         stage = AugmentStage()
         ctx = PipelineContext(query="q")
         ctx.reranked = [
-            {"chunk_id": 1, "content": "text body", "url": "http://x.com", "title": "T"}
-        ]
+            RankedHit(chunk_id=1, content="text body", url="http://x.com", title="T")
+        ]  # type: ignore[assignment]
         await stage.run(ctx)
         assert "text body" in ctx.augment_result
         assert "http://x.com" in ctx.augment_result
@@ -347,14 +317,14 @@ class TestSemanticCacheDimensionGuard:
     """Test SemanticCache dimension validation added in fail-fast refactor."""
 
     def test_put_sets_dimension_on_first_entry(self) -> None:
-        from rag.repository import SemanticCache
+        from rag.cache import SemanticCache
 
         cache = SemanticCache()
         cache.put([1.0, 2.0, 3.0], "ctx")
         assert cache._dim == 3
 
     def test_put_raises_on_dimension_mismatch(self) -> None:
-        from rag.repository import SemanticCache
+        from rag.cache import SemanticCache
 
         cache = SemanticCache()
         cache.put([1.0, 2.0, 3.0], "ctx")
@@ -362,7 +332,7 @@ class TestSemanticCacheDimensionGuard:
             cache.put([1.0, 2.0], "other")
 
     def test_lookup_raises_on_dimension_mismatch(self) -> None:
-        from rag.repository import SemanticCache
+        from rag.cache import SemanticCache
 
         cache = SemanticCache()
         cache.put([1.0, 2.0, 3.0], "ctx")
@@ -370,7 +340,7 @@ class TestSemanticCacheDimensionGuard:
             cache.lookup([1.0, 2.0])
 
     def test_lookup_empty_cache_returns_none(self) -> None:
-        from rag.repository import SemanticCache
+        from rag.cache import SemanticCache
 
         cache = SemanticCache()
         assert cache.lookup([1.0, 2.0, 3.0]) is None

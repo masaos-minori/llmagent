@@ -11,8 +11,8 @@ from dataclasses import dataclass
 
 import httpx
 import orjson
-from rag.types import LLMMessage
 from shared.token_counter import get_token_count
+from shared.types import LLMMessage
 
 from agent.history_selection_policy import HistorySelectionPolicy
 

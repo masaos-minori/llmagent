@@ -26,8 +26,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from db.tool_results import ToolResultStore
-from rag.types import LLMMessage
 from shared.mcp_config import McpServerHealthRegistry
+from shared.types import LLMMessage
 
 from agent.config import build_agent_config
 from agent.session import AgentSession

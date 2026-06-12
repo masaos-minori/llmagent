@@ -7,7 +7,7 @@ import logging
 
 import orjson
 from db.helper import SQLiteHelper
-from rag.types import LLMMessage
+from shared.types import LLMMessage
 
 logger = logging.getLogger(__name__)
 

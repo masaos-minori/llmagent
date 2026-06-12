@@ -40,8 +40,10 @@ from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage
 from rag.stages.rerank import RerankStage
 from rag.stages.search import SearchStage
-from rag.types import RagHit
+from rag.types import MergedHit, RankedHit, RawHit
 from rag.utils import sanitize_document
+
+RagHit = RawHit | MergedHit | RankedHit
 
 # Re-export symbols that external callers import from this module
 __all__ = [
@@ -163,7 +165,7 @@ class RagPipeline:
         query: str,
         db: SQLiteHelper,
         history_context: str = "",
-    ) -> tuple[list[str], list[list[RagHit]], list[RagHit], list[RagHit]]:
+    ) -> tuple[list[str], list[list[RawHit]], list[RagHit], list[RagHit]]:
         """Execute MQE→search→RRF→rerank on an open DB; returns (queries, all_results, merged, reranked); on_clear() called on exit."""
         try:
             ctx = PipelineContext(query=query, history_context=history_context)
@@ -239,7 +241,7 @@ class RagPipeline:
     def _format_chunks(reranked: list[RagHit]) -> str:
         """Format reranked hits with sanitization and boundary markers."""
         blocks = [
-            f"[Source: {c.get('title') or c['url']} | {c['url']}]\n{sanitize_document(c['content'])}"
+            f"[Source: {c.title if c.title else c.url} | {c.url}]\n{sanitize_document(c.content)}"
             for c in reranked
         ]
         content = "\n\n---\n\n".join(blocks)
@@ -249,7 +251,7 @@ class RagPipeline:
         self,
         query: str,
         debug_fn: Callable[
-            [list[str], list[list[RagHit]], list[RagHit], list[RagHit]],
+            [list[str], list[list[RawHit]], list[RagHit], list[RagHit]],
             None,
         ]
         | None = None,

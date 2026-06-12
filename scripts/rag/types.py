@@ -2,57 +2,61 @@
 """rag/types.py
 Shared type definitions for the RAG pipeline.
 
-LLMMessage is defined in shared.types and re-exported here for backward compatibility.
 RawHit / MergedHit / RankedHit model the three search pipeline stages.
-RagHit is a Union alias kept for backward compatibility with existing callers.
 """
 
 from __future__ import annotations
 
 import dataclasses
-from typing import Required, TypedDict
 
-from shared.types import LLMMessage
+from rag.enums import PipelineStageName
 
 __all__ = [
-    "LLMMessage",
     "MergedHit",
     "PipelineStageResult",
-    "RagHit",
     "RagQuery",
     "RankedHit",
     "RawHit",
 ]
 
 
-class RawHit(TypedDict, total=False):
-    """Search result from vector_search or fts_search.
+@dataclasses.dataclass
+class RawHit:
+    """Search result from vector_search or fts_search."""
 
-    chunk_id and content are always present; distance/bm25_score depend on search type.
-    """
-
-    chunk_id: Required[int]
-    content: Required[str]
-    url: str
-    title: str
-    distance: float  # vector search: L2 distance (lower = closer)
-    bm25_score: float  # fts search: BM25 score (negative; more negative = better)
+    chunk_id: int
+    content: str
+    url: str = ""
+    title: str = ""
+    distance: float = 0.0  # vector search: L2 distance (lower = closer)
+    bm25_score: float = 0.0  # fts search: BM25 score (negative; more negative = better)
 
 
-class MergedHit(RawHit, total=False):
+@dataclasses.dataclass
+class MergedHit:
     """RawHit after RRF merge; carries aggregated rrf_score."""
 
-    rrf_score: float
+    chunk_id: int
+    content: str
+    url: str = ""
+    title: str = ""
+    distance: float = 0.0
+    bm25_score: float = 0.0
+    rrf_score: float = 0.0
 
 
-class RankedHit(MergedHit, total=False):
+@dataclasses.dataclass
+class RankedHit:
     """MergedHit after cross-encoder rerank; carries rerank_score."""
 
-    rerank_score: float
-
-
-# Union alias — kept for backward compatibility with existing callers.
-RagHit = RawHit | MergedHit | RankedHit
+    chunk_id: int
+    content: str
+    url: str = ""
+    title: str = ""
+    distance: float = 0.0
+    bm25_score: float = 0.0
+    rrf_score: float = 0.0
+    rerank_score: float | None = None
 
 
 @dataclasses.dataclass
@@ -67,7 +71,7 @@ class RagQuery:
 class PipelineStageResult:
     """Records the outcome of a single pipeline stage execution."""
 
-    stage: str
+    stage: PipelineStageName | str
     success: bool
     failure_reason: str | None = None
     elapsed_s: float = 0.0

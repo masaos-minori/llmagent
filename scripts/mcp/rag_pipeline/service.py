@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 import orjson
-from rag.types import RagHit
+from rag.types import MergedHit, RankedHit, RawHit
 
 from mcp.rag_pipeline.models import (
     RagDebugResponse,
@@ -25,6 +25,8 @@ from mcp.rag_pipeline.models import (
     build_rag_cfg_adapter,
 )
 from mcp.server import ToolArgs
+
+RagHit = RawHit | MergedHit | RankedHit
 
 logger = logging.getLogger(__name__)
 

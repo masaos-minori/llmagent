@@ -6,7 +6,7 @@ AgentSession facade — delegates to domain-specific repository modules.
 import logging
 
 from db.helper import SQLiteHelper
-from rag.types import LLMMessage
+from shared.types import LLMMessage
 
 from agent.document_repo import DocumentRepository
 from agent.note_repo import NoteRepository

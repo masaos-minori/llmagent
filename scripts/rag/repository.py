@@ -18,12 +18,10 @@ from typing import Any, cast
 
 from db.helper import SQLiteHelper
 
-from rag.cache import (
-    SemanticCache as SemanticCache,  # noqa: F401 — backward compat re-export
-)
-from rag.types import RagHit, RawHit
-from rag.utils import cosine_sim as cosine_sim  # noqa: F401 — backward compat re-export
+from rag.types import MergedHit, RankedHit, RawHit
 from rag.utils import floats_to_blob
+
+RagHit = RawHit | MergedHit | RankedHit
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +126,19 @@ class RagRepository:
         t0 = time.perf_counter()
         rows = self._db.fetchall(self._SQL_VEC, (floats_to_blob(embedding), top_k))
         elapsed_ms = (time.perf_counter() - t0) * 1000
-        results: list[RagHit] = cast("list[RagHit]", [dict(r) for r in rows])
+        results: list[RagHit] = cast(
+            "list[RagHit]",
+            [
+                RawHit(
+                    chunk_id=r["chunk_id"],
+                    content=r["content"],
+                    url=r["url"] or "",
+                    title=r["title"] or "",
+                    distance=float(r["distance"] or 0.0),
+                )
+                for r in rows
+            ],
+        )
         logger.info(
             f"vector_search: top_k={top_k} hits={len(results)}"
             f" elapsed_ms={elapsed_ms:.1f}",
@@ -144,7 +154,19 @@ class RagRepository:
         t0 = time.perf_counter()
         rows = self._db.fetchall(self._SQL_FTS, (fts_query, top_k))
         elapsed_ms = (time.perf_counter() - t0) * 1000
-        results: list[RagHit] = cast("list[RagHit]", [dict(r) for r in rows])
+        results: list[RagHit] = cast(
+            "list[RagHit]",
+            [
+                RawHit(
+                    chunk_id=r["chunk_id"],
+                    content=r["content"],
+                    url=r["url"] or "",
+                    title=r["title"] or "",
+                    bm25_score=float(r["bm25_score"] or 0.0),
+                )
+                for r in rows
+            ],
+        )
         logger.info(
             f"fts_search: query={query!r} fts_query={fts_query!r}"
             f" top_k={top_k} hits={len(results)} elapsed_ms={elapsed_ms:.1f}",
@@ -156,19 +178,32 @@ class RagScorer:
     """Reciprocal Rank Fusion for merging multiple search result lists."""
 
     @staticmethod
-    def rrf_merge(results_list: list[list[RagHit]], rrf_k: int = 60) -> list[RagHit]:
+    def rrf_merge(
+        results_list: list[list[RawHit]] | list[list[RagHit]], rrf_k: int = 60
+    ) -> list[RagHit]:
         """Merge ranked lists via RRF: score(d)=Σ 1/(rrf_k+rank_i(d)); returns descending by score."""
         scores: dict[int, float] = {}
         meta: dict[int, RagHit] = {}
         for results in results_list:
             for rank, item in enumerate(results, start=1):
-                cid = item["chunk_id"]
+                cid = item.chunk_id
                 scores[cid] = scores.get(cid, 0.0) + 1.0 / (rrf_k + rank)
                 meta[cid] = item
-        merged = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        merged_list = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         return cast(
             "list[RagHit]",
-            [{**meta[cid], "rrf_score": score} for cid, score in merged],
+            [
+                MergedHit(
+                    chunk_id=meta[cid].chunk_id,
+                    content=meta[cid].content,
+                    url=meta[cid].url,
+                    title=meta[cid].title,
+                    distance=meta[cid].distance,
+                    bm25_score=meta[cid].bm25_score,
+                    rrf_score=score,
+                )
+                for cid, score in merged_list
+            ],
         )
 
 
@@ -217,7 +252,18 @@ def fetch_full_document(
             " ORDER BY c.chunk_index",
             (doc_id, max(0, chunk_index - window), chunk_index + window),
         )
-    return cast("list[RawHit]", [dict(r) for r in rows])
+    return cast(
+        "list[RawHit]",
+        [
+            RawHit(
+                chunk_id=r["chunk_id"],
+                content=r["content"],
+                url=r["url"] or "",
+                title=r["title"] or "",
+            )
+            for r in rows
+        ],
+    )
 
 
 def deduplicate_chunks(hits: list[RagHit], max_per_doc: int) -> list[RagHit]:
@@ -229,7 +275,7 @@ def deduplicate_chunks(hits: list[RagHit], max_per_doc: int) -> list[RagHit]:
     counts: dict[str, int] = {}
     result: list[RagHit] = []
     for hit in hits:
-        url = hit.get("url", "")
+        url = hit.url
         n = counts.get(url, 0)
         if n < max_per_doc:
             result.append(hit)
@@ -246,7 +292,17 @@ def _dedup_hits(all_results: list[list[RagHit]]) -> list[RagHit]:
     merged: list[RagHit] = []
     for results in all_results:
         for item in results:
-            if item["chunk_id"] not in seen:
-                seen.add(item["chunk_id"])
-                merged.append({**item, "rrf_score": 0.0})
+            if item.chunk_id not in seen:
+                seen.add(item.chunk_id)
+                merged.append(
+                    MergedHit(
+                        chunk_id=item.chunk_id,
+                        content=item.content,
+                        url=item.url,
+                        title=item.title,
+                        distance=item.distance,
+                        bm25_score=item.bm25_score,
+                        rrf_score=0.0,
+                    )
+                )
     return merged
