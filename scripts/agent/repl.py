@@ -296,7 +296,7 @@ class AgentREPL:
             )
             if memory_snippets:
                 memory_block = "\n\n[Relevant memories]\n" + "\n".join(
-                    f"- {s}" for s in memory_snippets
+                    f"- {snippet.text}" for snippet in memory_snippets
                 )
                 initial_prompt = initial_prompt + memory_block
         ctx.conv.system_prompt_content = initial_prompt

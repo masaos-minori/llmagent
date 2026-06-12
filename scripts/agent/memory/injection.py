@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from agent.memory.embedding_client import EmbeddingClient
 from agent.memory.enums import MemoryType
 from agent.memory.exceptions import InjectionValidationError
+from agent.memory.models import MemorySnippet
 from agent.memory.retriever import HybridRetriever
 from agent.memory.types import MemoryQuery
 
@@ -44,7 +45,7 @@ class MemoryInjectionService:
         self._project = project
         self._repo = repo
 
-    def on_session_start(self) -> list[str]:
+    def on_session_start(self) -> list[MemorySnippet]:
         """Return top semantic snippets for injection at session start (sync)."""
         entries = self._retriever.top_semantic(
             limit=self._policy.max_semantic,
@@ -55,8 +56,10 @@ class MemoryInjectionService:
         if not entries:
             return []
         snippets = [
-            f"{self._policy.format_prefix_semantic} "
-            f"{e.summary if e.summary else e.content[:100]}"
+            MemorySnippet(
+                text=f"{self._policy.format_prefix_semantic} {e.summary if e.summary else e.content[:100]}",
+                source="semantic",
+            )
             for e in entries
         ]
         logger.info(
@@ -69,7 +72,7 @@ class MemoryInjectionService:
         self,
         query: str,
         session_id: int | None,
-    ) -> list[str]:
+    ) -> list[MemorySnippet]:
         """Return relevant snippets for the current user query (async)."""
         if not query.strip():
             raise InjectionValidationError("on_user_prompt query must not be empty")
@@ -95,17 +98,27 @@ class MemoryInjectionService:
             project=self._project,
             repo=self._repo,
         )
-        snippets: list[str] = []
+        snippets: list[MemorySnippet] = []
         for hit in hits_s:
             snippet = (
                 hit.entry.summary if hit.entry.summary else hit.entry.content[:100]
             )
-            snippets.append(f"{self._policy.format_prefix_semantic} {snippet}")
+            snippets.append(
+                MemorySnippet(
+                    text=f"{self._policy.format_prefix_semantic} {snippet}",
+                    source="semantic",
+                )
+            )
         for hit in hits_e:
             snippet = (
                 hit.entry.summary if hit.entry.summary else hit.entry.content[:100]
             )
-            snippets.append(f"{self._policy.format_prefix_episodic} {snippet}")
+            snippets.append(
+                MemorySnippet(
+                    text=f"{self._policy.format_prefix_episodic} {snippet}",
+                    source="episodic",
+                )
+            )
         if snippets:
             logger.debug(
                 "MemoryInjectionService.on_user_prompt: returning %d snippets",

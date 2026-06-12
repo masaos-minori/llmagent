@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from agent.memory.ingestion import MemoryIngestionService
 from agent.memory.injection import MemoryInjectionService
-from agent.memory.models import HistoryMessage
+from agent.memory.models import HistoryMessage, MemorySnippet
 from agent.memory.retriever import HybridRetriever
 from agent.memory.store import MemoryStore
 
@@ -28,7 +28,7 @@ class MemoryServices:
         self.store = store
         self.retriever = retriever
 
-    def on_session_start(self, session_id: int | None) -> list[str]:
+    def on_session_start(self, session_id: int | None) -> list[MemorySnippet]:
         """Return top semantic snippets for injection at session start."""
         return (
             self.injection.on_session_start()
@@ -47,6 +47,6 @@ class MemoryServices:
         self,
         query: str,
         session_id: int | None,
-    ) -> list[str]:
+    ) -> list[MemorySnippet]:
         """Return relevant snippets for the current user query."""
         return await self.injection.on_user_prompt(query, session_id)

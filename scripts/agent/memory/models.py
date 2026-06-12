@@ -69,3 +69,12 @@ class InjectionSnippet:
     text: str
     memory_id: str
     memory_type: str
+
+
+@dataclass(frozen=True)
+class MemorySnippet:
+    """One memory snippet ready for LLM context injection."""
+
+    text: str  # formatted string (includes prefix like "[Semantic memory]")
+    source: str = ""  # "semantic" or "episodic"
+    score: float = 0.0

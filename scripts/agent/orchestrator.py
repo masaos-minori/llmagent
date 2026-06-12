@@ -107,7 +107,7 @@ class Orchestrator:
             )
             if memory_snippets:
                 memory_block = "[Relevant memories]\n" + "\n".join(
-                    f"- {s}" for s in memory_snippets
+                    f"- {snippet.text}" for snippet in memory_snippets
                 )
                 ctx.conv.history.append(
                     {

@@ -17,7 +17,7 @@ from agent.memory.embedding_client import EmbeddingClient, EmbeddingClientConfig
 from agent.memory.ingestion import DedupPolicy, MemoryIngestionService
 from agent.memory.injection import InjectionPolicy, MemoryInjectionService
 from agent.memory.jsonl_store import JsonlMemoryStore
-from agent.memory.models import HistoryMessage
+from agent.memory.models import HistoryMessage, MemorySnippet
 from agent.memory.retriever import HybridRetriever
 from agent.memory.store import MemoryStore
 from agent.memory.types import EmbeddingResult, MemoryEntry, MemoryHit
@@ -92,7 +92,7 @@ class TestOnSessionStart:
         mock_ret.top_semantic.return_value = [entry]
         snippets = svc.on_session_start()
         assert len(snippets) == 1
-        assert "important rule" in snippets[0]
+        assert "important rule" in snippets[0].text
 
     def test_returns_empty_when_no_entries(self) -> None:
         svc, mock_ret, _ = _make_injection_svc()
@@ -131,8 +131,8 @@ class TestOnUserPrompt:
         )
         snippets = await svc.on_user_prompt("some query", session_id=1)
         assert len(snippets) == 2
-        assert any("Semantic" in s for s in snippets)
-        assert any("Episodic" in s for s in snippets)
+        assert any("Semantic" in s.text for s in snippets)
+        assert any("Episodic" in s.text for s in snippets)
 
     @pytest.mark.asyncio
     async def test_raises_for_blank_query(self) -> None:
@@ -530,10 +530,10 @@ class TestMemoryServicesFacade:
 
     def test_on_session_start_delegates(self) -> None:
         svc = self._make_services()
-        svc.injection.on_session_start.return_value = ["snippet"]
+        svc.injection.on_session_start.return_value = [MemorySnippet(text="snippet")]
         result = svc.on_session_start(session_id=1)
         svc.injection.on_session_start.assert_called_once()
-        assert result == ["snippet"]
+        assert result == [MemorySnippet(text="snippet")]
 
     @pytest.mark.asyncio
     async def test_on_session_stop_delegates(self) -> None:
@@ -546,7 +546,9 @@ class TestMemoryServicesFacade:
     @pytest.mark.asyncio
     async def test_on_user_prompt_delegates(self) -> None:
         svc = self._make_services()
-        svc.injection.on_user_prompt = AsyncMock(return_value=["hit"])
+        svc.injection.on_user_prompt = AsyncMock(
+            return_value=[MemorySnippet(text="hit")]
+        )
         result = await svc.on_user_prompt(query="test query", session_id=1)
         svc.injection.on_user_prompt.assert_called_once_with("test query", 1)
-        assert result == ["hit"]
+        assert result == [MemorySnippet(text="hit")]
