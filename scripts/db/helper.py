@@ -15,6 +15,7 @@ from contextlib import contextmanager
 from typing import Any
 
 from db.config import build_db_config
+from db.models import DbHealthMetrics, WalCheckpointCounts
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class SQLiteHelper:
         self.conn: sqlite3.Connection | None = None
         try:
             db_cfg = build_db_config()
-        except Exception as e:
+        except ValueError as e:
             raise RuntimeError(
                 f"DbConfig load failed for target={target!r}: {e}"
             ) from e
@@ -123,7 +124,7 @@ class SQLiteHelper:
             return
         try:
             self.conn.close()
-        except Exception as e:
+        except OSError as e:
             logger.warning(f"Error while closing SQLite connection: {e}")
         finally:
             self.conn = None
@@ -140,7 +141,7 @@ class SQLiteHelper:
         except BaseException:
             try:
                 self.conn.execute("ROLLBACK")
-            except Exception:
+            except sqlite3.OperationalError:
                 pass
             raise
 
@@ -156,11 +157,11 @@ class SQLiteHelper:
         except BaseException:
             try:
                 self.conn.execute("ROLLBACK")
-            except Exception:
+            except sqlite3.OperationalError:
                 pass
             raise
 
-    def health_check(self) -> dict[str, Any]:
+    def health_check(self) -> DbHealthMetrics:
         """Return DB health metrics (journal mode, quick_check, page stats)."""
         if self.conn is None:
             raise RuntimeError("DB not open — call open() first")
@@ -169,21 +170,21 @@ class SQLiteHelper:
         page_count = self.conn.execute("PRAGMA page_count").fetchone()[0]
         page_size = self.conn.execute("PRAGMA page_size").fetchone()[0]
         freelist = self.conn.execute("PRAGMA freelist_count").fetchone()[0]
-        return {
-            "journal_mode": journal_mode,
-            "integrity": integrity,
-            "page_count": page_count,
-            "page_size": page_size,
-            "freelist_count": freelist,
-            "db_size_bytes": page_count * page_size,
-        }
+        return DbHealthMetrics(
+            journal_mode=str(journal_mode),
+            integrity=str(integrity),
+            page_count=int(page_count),
+            page_size=int(page_size),
+            freelist_count=int(freelist),
+            db_size_bytes=int(page_count) * int(page_size),
+        )
 
     _CHECKPOINT_MODES: frozenset[str] = frozenset(
         {"PASSIVE", "FULL", "RESTART", "TRUNCATE"},
     )
 
-    def checkpoint(self, mode: str = "TRUNCATE") -> dict[str, int]:
-        """Run WAL checkpoint; return {busy, pages_in_wal, pages_checkpointed}."""
+    def checkpoint(self, mode: str = "TRUNCATE") -> WalCheckpointCounts:
+        """Run WAL checkpoint; return WalCheckpointCounts."""
         if mode not in self._CHECKPOINT_MODES:
             raise ValueError(
                 f"checkpoint mode must be one of {sorted(self._CHECKPOINT_MODES)}",
@@ -191,7 +192,11 @@ class SQLiteHelper:
         if self.conn is None:
             raise RuntimeError("DB not open — call open() first")
         row = self.conn.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()
-        result = {"busy": row[0], "pages_in_wal": row[1], "pages_checkpointed": row[2]}
+        result = WalCheckpointCounts(
+            busy=int(row[0]),
+            log_size=int(row[1]),
+            pages_checkpointed=int(row[2]),
+        )
         logger.info(f"WAL checkpoint ({mode}): {result}")
         return result
 

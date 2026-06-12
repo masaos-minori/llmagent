@@ -45,3 +45,44 @@ class ToolResultRow:
     args_masked: str = ""
     full_text: str = ""
     created_at: str = ""
+
+
+@dataclass(frozen=True)
+class DbHealthMetrics:
+    """DB health metrics returned by SQLiteHelper.health_check()."""
+
+    journal_mode: str
+    integrity: str
+    page_count: int
+    page_size: int
+    freelist_count: int
+    db_size_bytes: int
+
+
+@dataclass(frozen=True)
+class DocumentRow:
+    """One row from the documents table (doc_list query result)."""
+
+    doc_id: int
+    url: str
+    title: str | None
+    lang: str | None
+    fetched_at: str
+
+
+@dataclass(frozen=True)
+class SessionRow:
+    """One row from the sessions table (session_list query result)."""
+
+    session_id: int
+    created_at: str
+    title: str | None
+
+
+@dataclass(frozen=True)
+class MessageRow:
+    """One row from the messages table (message_list query result)."""
+
+    role: str
+    content: str
+    tool_calls: str | None

@@ -70,12 +70,7 @@ def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> WalCheckpointCo
     if mode is None:
         cfg = ConfigLoader().load("common.toml")
         mode = cfg.get("sqlite_wal_checkpoint_mode", "TRUNCATE").upper()
-    raw = db.checkpoint(mode)
-    return WalCheckpointCounts(
-        busy=raw["busy"],
-        log_size=raw["pages_in_wal"],
-        pages_checkpointed=raw["pages_checkpointed"],
-    )
+    return db.checkpoint(mode)
 
 
 def vacuum_db(db: SQLiteHelper) -> None:

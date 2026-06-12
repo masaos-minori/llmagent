@@ -257,16 +257,22 @@ class TestRotateDb:
 
 
 class TestCheckpointAndVacuum:
-    def _make_mock_db(self, checkpoint_return: dict | None = None) -> MagicMock:
+    def _make_mock_db(self, checkpoint_return: object = None) -> MagicMock:
+        from db.models import WalCheckpointCounts as _WCC
+
         mock = MagicMock(spec=SQLiteHelper)
         if checkpoint_return is not None:
             mock.checkpoint.return_value = checkpoint_return
+        else:
+            mock.checkpoint.return_value = _WCC(
+                busy=0, log_size=0, pages_checkpointed=0
+            )
         return mock
 
     def test_checkpoint_wal_uses_mode(self) -> None:
-        mock_db = self._make_mock_db(
-            {"busy": 0, "pages_in_wal": 0, "pages_checkpointed": 0}
-        )
+        from db.models import WalCheckpointCounts as _WCC
+
+        mock_db = self._make_mock_db(_WCC(busy=0, log_size=0, pages_checkpointed=0))
         result = checkpoint_wal(mock_db, mode="FULL")
         mock_db.checkpoint.assert_called_once_with("FULL")
         assert result.busy == 0

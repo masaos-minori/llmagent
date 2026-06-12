@@ -21,10 +21,11 @@ Embedding helpers:
 """
 
 from dataclasses import dataclass
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from db.config import build_db_config
 from db.helper import SQLiteHelper
+from db.models import DocumentRow, MessageRow, SessionRow
 
 
 def get_embedding_dims() -> int:
@@ -89,11 +90,11 @@ class DocumentStore(Protocol):
         """Insert or update a document record; return doc_id."""
         ...
 
-    def doc_get(self, url: str) -> dict[str, Any] | None:
+    def doc_get(self, url: str) -> DocumentRow | None:
         """Return the document row for url, or None if not found."""
         ...
 
-    def doc_list(self, lang: str | None, limit: int) -> list[dict[str, Any]]:
+    def doc_list(self, lang: str | None, limit: int) -> list[DocumentRow]:
         """Return up to limit document rows, optionally filtered by lang."""
         ...
 
@@ -124,7 +125,7 @@ class SessionStore(Protocol):
         """Create a new session row; return session_id."""
         ...
 
-    def session_list(self, limit: int) -> list[dict[str, Any]]:
+    def session_list(self, limit: int) -> list[SessionRow]:
         """Return up to limit most-recent session rows (desc by created_at)."""
         ...
 
@@ -146,7 +147,7 @@ class SessionStore(Protocol):
         """Append a message to the session."""
         ...
 
-    def message_list(self, session_id: int) -> list[dict[str, Any]]:
+    def message_list(self, session_id: int) -> list[MessageRow]:
         """Return all messages for session_id in insertion order."""
         ...
 
@@ -203,29 +204,29 @@ class SQLiteDocumentStore:
             " VALUES (?, ?, ?, ?, ?)",
             (url, title, lang, etag, last_modified),
         )
-        assert cur.lastrowid is not None  # INSERT OR REPLACE always sets lastrowid
+        if cur.lastrowid is None:
+            raise RuntimeError(
+                "doc_insert: INSERT OR REPLACE did not produce a lastrowid"
+            )
         return int(cur.lastrowid)
 
-    def doc_get(self, url: str) -> dict[str, Any] | None:
+    def doc_get(self, url: str) -> DocumentRow | None:
         rows = self._db.fetchall(
-            "SELECT doc_id, url, title, lang, fetched_at, etag, last_modified"
-            " FROM documents WHERE url = ?",
+            "SELECT doc_id, url, title, lang, fetched_at FROM documents WHERE url = ?",
             (url,),
         )
         if not rows:
             return None
         r = rows[0]
-        return {
-            "doc_id": r[0],
-            "url": r[1],
-            "title": r[2],
-            "lang": r[3],
-            "fetched_at": r[4],
-            "etag": r[5],
-            "last_modified": r[6],
-        }
+        return DocumentRow(
+            doc_id=int(r[0]),
+            url=str(r[1]),
+            title=r[2],
+            lang=r[3],
+            fetched_at=str(r[4]) if r[4] is not None else "",
+        )
 
-    def doc_list(self, lang: str | None, limit: int) -> list[dict[str, Any]]:
+    def doc_list(self, lang: str | None, limit: int) -> list[DocumentRow]:
         if lang:
             rows = self._db.fetchall(
                 "SELECT doc_id, url, title, lang, fetched_at FROM documents"
@@ -239,13 +240,13 @@ class SQLiteDocumentStore:
                 (limit,),
             )
         return [
-            {
-                "doc_id": r[0],
-                "url": r[1],
-                "title": r[2],
-                "lang": r[3],
-                "fetched_at": r[4],
-            }
+            DocumentRow(
+                doc_id=int(r[0]),
+                url=str(r[1]),
+                title=r[2],
+                lang=r[3],
+                fetched_at=str(r[4]) if r[4] is not None else "",
+            )
             for r in rows
         ]
 
@@ -269,7 +270,8 @@ class SQLiteDocumentStore:
             " VALUES (?, ?, ?, ?)",
             (doc_id, index, content, normalized),
         )
-        assert cur.lastrowid is not None  # INSERT always sets lastrowid on success
+        if cur.lastrowid is None:
+            raise RuntimeError("chunk_insert: INSERT did not produce a lastrowid")
         return int(cur.lastrowid)
 
     def chunk_count(self) -> int:
@@ -285,16 +287,24 @@ class SQLiteSessionStore:
 
     def session_create(self) -> int:
         cur = self._db.execute("INSERT INTO sessions (title) VALUES (NULL)")
-        assert cur.lastrowid is not None  # INSERT always sets lastrowid on success
+        if cur.lastrowid is None:
+            raise RuntimeError("session_create: INSERT did not produce a lastrowid")
         return int(cur.lastrowid)
 
-    def session_list(self, limit: int) -> list[dict[str, Any]]:
+    def session_list(self, limit: int) -> list[SessionRow]:
         rows = self._db.fetchall(
             "SELECT session_id, created_at, title FROM sessions"
             " ORDER BY created_at DESC LIMIT ?",
             (limit,),
         )
-        return [{"session_id": r[0], "created_at": r[1], "title": r[2]} for r in rows]
+        return [
+            SessionRow(
+                session_id=int(r[0]),
+                created_at=str(r[1]) if r[1] is not None else "",
+                title=r[2],
+            )
+            for r in rows
+        ]
 
     def session_rename(self, session_id: int, title: str) -> None:
         self._db.execute(
@@ -318,13 +328,20 @@ class SQLiteSessionStore:
             (session_id, role, content, tool_calls),
         )
 
-    def message_list(self, session_id: int) -> list[dict[str, Any]]:
+    def message_list(self, session_id: int) -> list[MessageRow]:
         rows = self._db.fetchall(
             "SELECT role, content, tool_calls FROM messages"
             " WHERE session_id = ? ORDER BY message_id",
             (session_id,),
         )
-        return [{"role": r[0], "content": r[1], "tool_calls": r[2]} for r in rows]
+        return [
+            MessageRow(
+                role=str(r[0]),
+                content=str(r[1]) if r[1] is not None else "",
+                tool_calls=r[2],
+            )
+            for r in rows
+        ]
 
 
 # ── Memory deletion store ──────────────────────────────────────────────────────

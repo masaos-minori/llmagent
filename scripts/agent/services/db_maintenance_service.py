@@ -49,9 +49,9 @@ class DbMaintenanceService:
         with SQLiteHelper("session").open() as db:
             raw = db.health_check()
         return DbHealth(
-            integrity_ok=raw.get("integrity") == "ok",
+            integrity_ok=raw.integrity == "ok",
             wal_pages=0,
-            size_bytes=raw.get("db_size_bytes", 0),
+            size_bytes=raw.db_size_bytes,
         )
 
     def checkpoint(self, mode: str | None) -> DbCheckpointResult:
