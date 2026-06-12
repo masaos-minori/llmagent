@@ -99,7 +99,11 @@ class _DbMixin(MixinBase):
             url = r["url"]
             if not isinstance(url, str):
                 raise TypeError(f"url must be str, got {type(url).__name__}")
-            url_display = url[:URL_DISPLAY_TRUNCATE_LENGTH] + "..." if len(url) > URL_DISPLAY_MAX_LENGTH else url
+            url_display = (
+                url[:URL_DISPLAY_TRUNCATE_LENGTH] + "..."
+                if len(url) > URL_DISPLAY_MAX_LENGTH
+                else url
+            )
 
             lang_val = r["lang"]
             lang_display = lang_val if isinstance(lang_val, str) else "?"

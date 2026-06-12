@@ -251,29 +251,109 @@ class ConfigReloadService:
     ) -> None:
         """Apply tool cache, LLM retry, refiner, and watchdog settings (diff-apply)."""
         cfg = ctx.cfg
-        _apply_int(new_cfg, "context_char_limit", lambda v: setattr(cfg.llm, "context_char_limit", v))
-        _apply_int(new_cfg, "context_compress_turns", lambda v: setattr(cfg.llm, "context_compress_turns", v))
-        _apply_float(new_cfg, "tool_cache_ttl", lambda v: setattr(cfg.tool, "tool_cache_ttl", v))
-        _apply_int(new_cfg, "top_k_search", lambda v: setattr(cfg.rag, "top_k_search", v))
-        _apply_int(new_cfg, "top_k_rerank", lambda v: setattr(cfg.rag, "top_k_rerank", v))
-        _apply_int(new_cfg, "llm_max_retries", lambda v: setattr(cfg.llm, "llm_max_retries", v))
-        _apply_float(new_cfg, "llm_retry_base_delay", lambda v: setattr(cfg.llm, "llm_retry_base_delay", v))
-        _apply_int(new_cfg, "max_chunks_per_doc", lambda v: setattr(cfg.rag, "max_chunks_per_doc", v))
-        _apply_bool(new_cfg, "serial_tool_calls", lambda v: setattr(cfg.tool, "serial_tool_calls", v))
-        _apply_bool(new_cfg, "auto_inject_notes", lambda v: setattr(cfg.tool, "auto_inject_notes", v))
-        _apply_bool(new_cfg, "use_tool_summarize", lambda v: setattr(cfg.tool, "use_tool_summarize", v))
-        _apply_int(new_cfg, "tool_summarize_threshold", lambda v: setattr(cfg.tool, "tool_summarize_threshold", v))
-        _apply_bool(new_cfg, "use_semantic_cache", lambda v: setattr(cfg.rag, "use_semantic_cache", v))
-        _apply_float(new_cfg, "semantic_cache_threshold", lambda v: setattr(cfg.rag, "semantic_cache_threshold", v))
-        _apply_int(new_cfg, "semantic_cache_max_size", lambda v: setattr(cfg.rag, "semantic_cache_max_size", v))
-        _apply_bool(new_cfg, "tool_definitions_strict", lambda v: setattr(cfg.tool, "tool_definitions_strict", v))
-        _apply_float(new_cfg, "mcp_watchdog_interval", lambda v: setattr(cfg.mcp, "mcp_watchdog_interval", v))
-        _apply_int(new_cfg, "mcp_watchdog_max_restarts", lambda v: setattr(cfg.mcp, "mcp_watchdog_max_restarts", v))
-        _apply_list(new_cfg, "plan_blocked_tools", lambda v: setattr(cfg.tool, "plan_blocked_tools", list(v)))
-        _apply_bool(new_cfg, "use_refiner", lambda v: setattr(cfg.rag, "use_refiner", v))
-        _apply_int(new_cfg, "refiner_max_tokens", lambda v: setattr(cfg.rag, "refiner_max_tokens", v))
-        _apply_float(new_cfg, "refiner_timeout", lambda v: setattr(cfg.rag, "refiner_timeout", v))
-        _apply_int(new_cfg, "refiner_max_chars_per_chunk", lambda v: setattr(cfg.rag, "refiner_max_chars_per_chunk", v))
+        _apply_int(
+            new_cfg,
+            "context_char_limit",
+            lambda v: setattr(cfg.llm, "context_char_limit", v),
+        )
+        _apply_int(
+            new_cfg,
+            "context_compress_turns",
+            lambda v: setattr(cfg.llm, "context_compress_turns", v),
+        )
+        _apply_float(
+            new_cfg, "tool_cache_ttl", lambda v: setattr(cfg.tool, "tool_cache_ttl", v)
+        )
+        _apply_int(
+            new_cfg, "top_k_search", lambda v: setattr(cfg.rag, "top_k_search", v)
+        )
+        _apply_int(
+            new_cfg, "top_k_rerank", lambda v: setattr(cfg.rag, "top_k_rerank", v)
+        )
+        _apply_int(
+            new_cfg, "llm_max_retries", lambda v: setattr(cfg.llm, "llm_max_retries", v)
+        )
+        _apply_float(
+            new_cfg,
+            "llm_retry_base_delay",
+            lambda v: setattr(cfg.llm, "llm_retry_base_delay", v),
+        )
+        _apply_int(
+            new_cfg,
+            "max_chunks_per_doc",
+            lambda v: setattr(cfg.rag, "max_chunks_per_doc", v),
+        )
+        _apply_bool(
+            new_cfg,
+            "serial_tool_calls",
+            lambda v: setattr(cfg.tool, "serial_tool_calls", v),
+        )
+        _apply_bool(
+            new_cfg,
+            "auto_inject_notes",
+            lambda v: setattr(cfg.tool, "auto_inject_notes", v),
+        )
+        _apply_bool(
+            new_cfg,
+            "use_tool_summarize",
+            lambda v: setattr(cfg.tool, "use_tool_summarize", v),
+        )
+        _apply_int(
+            new_cfg,
+            "tool_summarize_threshold",
+            lambda v: setattr(cfg.tool, "tool_summarize_threshold", v),
+        )
+        _apply_bool(
+            new_cfg,
+            "use_semantic_cache",
+            lambda v: setattr(cfg.rag, "use_semantic_cache", v),
+        )
+        _apply_float(
+            new_cfg,
+            "semantic_cache_threshold",
+            lambda v: setattr(cfg.rag, "semantic_cache_threshold", v),
+        )
+        _apply_int(
+            new_cfg,
+            "semantic_cache_max_size",
+            lambda v: setattr(cfg.rag, "semantic_cache_max_size", v),
+        )
+        _apply_bool(
+            new_cfg,
+            "tool_definitions_strict",
+            lambda v: setattr(cfg.tool, "tool_definitions_strict", v),
+        )
+        _apply_float(
+            new_cfg,
+            "mcp_watchdog_interval",
+            lambda v: setattr(cfg.mcp, "mcp_watchdog_interval", v),
+        )
+        _apply_int(
+            new_cfg,
+            "mcp_watchdog_max_restarts",
+            lambda v: setattr(cfg.mcp, "mcp_watchdog_max_restarts", v),
+        )
+        _apply_list(
+            new_cfg,
+            "plan_blocked_tools",
+            lambda v: setattr(cfg.tool, "plan_blocked_tools", list(v)),
+        )
+        _apply_bool(
+            new_cfg, "use_refiner", lambda v: setattr(cfg.rag, "use_refiner", v)
+        )
+        _apply_int(
+            new_cfg,
+            "refiner_max_tokens",
+            lambda v: setattr(cfg.rag, "refiner_max_tokens", v),
+        )
+        _apply_float(
+            new_cfg, "refiner_timeout", lambda v: setattr(cfg.rag, "refiner_timeout", v)
+        )
+        _apply_int(
+            new_cfg,
+            "refiner_max_chars_per_chunk",
+            lambda v: setattr(cfg.rag, "refiner_max_chars_per_chunk", v),
+        )
 
     def _apply_mcp_url_reload(
         self,
@@ -308,19 +388,51 @@ class ConfigReloadService:
     ) -> None:
         """Apply hot-reloadable URL, HTTP, LLM generation, tool definition, and prompt settings (diff-apply)."""
         cfg = ctx.cfg
-        _apply_float(new_cfg, "llm_temperature", lambda v: setattr(cfg.llm, "llm_temperature", v))
-        _apply_int(new_cfg, "llm_max_tokens", lambda v: setattr(cfg.llm, "llm_max_tokens", v))
+        _apply_float(
+            new_cfg, "llm_temperature", lambda v: setattr(cfg.llm, "llm_temperature", v)
+        )
+        _apply_int(
+            new_cfg, "llm_max_tokens", lambda v: setattr(cfg.llm, "llm_max_tokens", v)
+        )
         _apply_str(new_cfg, "llm_url", lambda v: setattr(cfg.llm, "llm_url", v))
-        _apply_str(new_cfg, "github_server_url", lambda v: setattr(cfg.mcp, "github_url", v))
-        _apply_str(new_cfg, "web_search_url", lambda v: setattr(cfg.rag, "web_search_url", v))
+        _apply_str(
+            new_cfg, "github_server_url", lambda v: setattr(cfg.mcp, "github_url", v)
+        )
+        _apply_str(
+            new_cfg, "web_search_url", lambda v: setattr(cfg.rag, "web_search_url", v)
+        )
         _apply_str(new_cfg, "embed_url", lambda v: setattr(cfg.rag, "embed_url", v))
-        _apply_float(new_cfg, "http_timeout", lambda v: setattr(cfg.llm, "http_timeout", v))
-        _apply_int(new_cfg, "web_search_max_results", lambda v: setattr(cfg.rag, "web_search_max_results", v))
-        _apply_int(new_cfg, "max_tool_turns", lambda v: setattr(cfg.tool, "max_tool_turns", v))
-        _apply_int(new_cfg, "tool_result_max_llm_chars", lambda v: setattr(cfg.tool, "tool_result_max_llm_chars", v))
-        _apply_list_nonempty(new_cfg, "tool_definitions", lambda v: setattr(cfg.tool, "tool_definitions", list(v)))
-        _apply_str_nonempty(new_cfg, "system_prompt_tool", lambda v: setattr(cfg.tool, "system_prompt_tool", v))
-        _apply_dict_nonempty(new_cfg, "system_prompts", lambda v: setattr(cfg.tool, "system_prompts", dict(v)))
+        _apply_float(
+            new_cfg, "http_timeout", lambda v: setattr(cfg.llm, "http_timeout", v)
+        )
+        _apply_int(
+            new_cfg,
+            "web_search_max_results",
+            lambda v: setattr(cfg.rag, "web_search_max_results", v),
+        )
+        _apply_int(
+            new_cfg, "max_tool_turns", lambda v: setattr(cfg.tool, "max_tool_turns", v)
+        )
+        _apply_int(
+            new_cfg,
+            "tool_result_max_llm_chars",
+            lambda v: setattr(cfg.tool, "tool_result_max_llm_chars", v),
+        )
+        _apply_list_nonempty(
+            new_cfg,
+            "tool_definitions",
+            lambda v: setattr(cfg.tool, "tool_definitions", list(v)),
+        )
+        _apply_str_nonempty(
+            new_cfg,
+            "system_prompt_tool",
+            lambda v: setattr(cfg.tool, "system_prompt_tool", v),
+        )
+        _apply_dict_nonempty(
+            new_cfg,
+            "system_prompts",
+            lambda v: setattr(cfg.tool, "system_prompts", dict(v)),
+        )
 
     def _apply_sse_reload_params(
         self,

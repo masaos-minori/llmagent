@@ -169,7 +169,9 @@ class AgentREPL:
     async def _dispatch_line(self, line: str, ctx: AgentContext) -> None:
         """Dispatch a non-empty, non-exit line to commands or the orchestrator."""
         assert self._cmds is not None, "_dispatch_line called before _init_components()"
-        assert self._orchestrator is not None, "_dispatch_line called before _init_components()"
+        assert self._orchestrator is not None, (
+            "_dispatch_line called before _init_components()"
+        )
         if line.startswith("/"):
             matched = await self._cmds.dispatch(line)
             if not matched:
