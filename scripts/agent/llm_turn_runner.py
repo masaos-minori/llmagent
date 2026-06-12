@@ -15,6 +15,7 @@ from shared.types import LLMMessage
 
 from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
 from agent.tool_runner import execute_all_tool_calls
+from agent.turn_result import TurnResult
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -52,8 +53,8 @@ class LLMTurnRunner:
 
     # ── Public entry point ────────────────────────────────────────────────────
 
-    async def run(self, llm_url: str) -> str:
-        """Send ctx.conv.history to LLM, execute tool calls, return final answer."""
+    async def run(self, llm_url: str) -> TurnResult:
+        """Send ctx.conv.history to LLM, execute tool calls, return TurnResult."""
         ctx = self._ctx
         state = TurnLoopState()
 
@@ -61,14 +62,14 @@ class LLMTurnRunner:
             try:
                 response = await self._stream_llm(llm_url, turn)
             except LLMTransportError as e:
-                # Handle LLM transport error by delegating to error handler
                 return await self._handle_llm_error(e, turn)
 
             message, finish_reason = response.message, response.finish_reason
 
             has_tool_calls = bool(message.get("tool_calls"))
             if (finish_reason != "tool_calls") or not has_tool_calls:
-                return await self._finalize_answer(message)
+                answer = await self._finalize_answer_text(message)
+                return TurnResult(action="continue", answer=answer)
 
             ctx.conv.history.append(message)
             ctx.session.save(
@@ -83,7 +84,7 @@ class LLMTurnRunner:
                 state.failed_calls,
                 message,
             ):
-                return msg
+                return TurnResult(action="fail", answer=msg, reason="tool_loop_guard")
 
             errors_before = ctx.stats.stat_tool_errors
             await execute_all_tool_calls(
@@ -97,19 +98,26 @@ class LLMTurnRunner:
                 state.consecutive_errors, n_errors, len(message["tool_calls"])
             )
             if msg := self._guard.check_error_limit(state.consecutive_errors):
-                return msg
+                return TurnResult(action="fail", answer=msg, reason="error_limit")
 
         logger.warning(f"Reached max_tool_turns={ctx.cfg.tool.max_tool_turns}")
-        return "Maximum tool turns reached."
+        return TurnResult(
+            action="fail",
+            answer="Maximum tool turns reached.",
+            reason="max_tool_turns",
+        )
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
-    async def _handle_llm_error(self, e: LLMTransportError, turn: int) -> str:
+    async def _handle_llm_error(self, e: LLMTransportError, turn: int) -> TurnResult:
         """Handle LLM transport error by delegating to error injection service."""
         from agent.error_injection_service import ErrorInjectionService
 
         error_service = ErrorInjectionService(self._ctx)
-        return error_service.inject_mid_turn_error(e, turn)
+        summary = error_service.inject_mid_turn_error(e, turn)
+        return TurnResult(
+            action="fail", answer=summary, reason="llm_transport_error", exception=e
+        )
 
     def _span_ctx(self, name: str) -> Any:
         """Return a real OTel span or a no-op context manager when no tracer."""
@@ -117,7 +125,7 @@ class LLMTurnRunner:
             return self._tracer.start_as_current_span(name)
         return nullcontext(_NoOpSpan())
 
-    async def _finalize_answer(self, message: LLMMessage) -> str:
+    async def _finalize_answer_text(self, message: LLMMessage) -> str:
         """Append the done-turn message to history and return the answer text."""
         ctx = self._ctx
         ctx.conv.history.append(message)

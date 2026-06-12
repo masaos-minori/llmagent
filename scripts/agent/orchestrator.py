@@ -23,17 +23,9 @@ from shared.types import LLMMessage
 from agent.context import AgentContext
 from agent.llm_turn_runner import LLMTurnRunner
 from agent.tool_loop_guard import ToolLoopGuard
+from agent.turn_result import TurnResult
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
-
-
-class TurnResult:
-    """Represents the result of a turn execution."""
-
-    def __init__(self, success: bool, answer: str = "", error_kind: str | None = None):
-        self.success = success
-        self.answer = answer
-        self.error_kind = error_kind
 
 
 class Orchestrator:
@@ -139,17 +131,24 @@ class Orchestrator:
                 self._on_turn_start()
             with self._llm_runner._span_ctx("llm") as llm_span:
                 llm_span.set_attribute("model_url", llm_url)
-                answer = await self._llm_runner.run(llm_url)
-                logger.info(f"LLM response: {answer}")
-                ctx.session.save("assistant", answer)
-                if self._on_turn_end:
-                    self._on_turn_end()
-                return TurnResult(success=True, answer=answer)
+                result = await self._llm_runner.run(llm_url)
+                logger.info(f"LLM response: {result.answer}")
+                ctx.session.save("assistant", result.answer)
+                if result.exception is not None:
+                    # run() caught LLMTransportError internally; propagate callbacks
+                    self._handle_llm_transport_error(result.exception, ctx)
+                    if self._on_error:
+                        self._on_error(result.exception)
+                else:
+                    if self._on_turn_end:
+                        self._on_turn_end()
+                return result
         except LLMTransportError as e:
+            # Reached when run() is mocked with side_effect=e (tests) or re-raises
             self._handle_llm_transport_error(e, ctx)
             if self._on_error:
                 self._on_error(e)
-            return TurnResult(success=False, answer="", error_kind=str(e))
+            return TurnResult(action="fail", answer="", error_kind=str(e), exception=e)
 
     async def _process_turn(
         self, line: str, ctx: AgentContext, turn_started_at: float
