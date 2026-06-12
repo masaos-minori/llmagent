@@ -51,8 +51,6 @@ __all__ = [
     "RagPipeline",
     "RagPipelineError",
     "fetch_full_document",
-    "get_embedding",
-    "sanitize_document",
 ]
 
 logger = logging.getLogger(__name__)
@@ -76,7 +74,7 @@ def _get_cfg() -> dict[str, Any]:
     if _cfg is None:
         try:
             _cfg = ConfigLoader().load("common.toml", "agent.toml")
-        except Exception as e:
+        except (FileNotFoundError, ValueError) as e:
             logger.warning(f"Config load failed: {e}")
             _cfg = {}
     return _cfg

@@ -7,8 +7,9 @@ Extracted from rag/repository.py to separate cache concerns from SQL access.
 from __future__ import annotations
 
 import logging
-from typing import Any, Protocol
+from typing import Protocol
 
+from rag.models import CacheEntry
 from rag.utils import cosine_sim
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ class SemanticCache:
     """In-memory nearest-neighbour cache; returns context when cosine sim >= threshold, pruned by max_size."""
 
     def __init__(self, max_size: int = 100, threshold: float = 0.92) -> None:
-        self._entries: list[dict[str, Any]] = []  # [{embedding, context_str}]
+        self._entries: list[CacheEntry] = []
         self._max_size = max_size
         self._threshold = threshold
         self._dim: int | None = None
@@ -44,10 +45,10 @@ class SemanticCache:
         best_sim = -1.0
         best_ctx: str | None = None
         for entry in self._entries:
-            sim = cosine_sim(embedding, entry["embedding"])
+            sim = cosine_sim(embedding, entry.embedding)
             if sim > best_sim:
                 best_sim = sim
-                best_ctx = entry["context_str"]
+                best_ctx = entry.context_str
         if best_sim >= self._threshold:
             logger.debug(f"SemanticCache hit: sim={best_sim:.4f}")
             return best_ctx
@@ -65,7 +66,7 @@ class SemanticCache:
                 f"SemanticCache dimension mismatch: expected {self._dim},"
                 f" got {len(embedding)}",
             )
-        self._entries.append({"embedding": embedding, "context_str": context_str})
+        self._entries.append(CacheEntry(embedding=embedding, context_str=context_str))
         self.prune()
 
     def prune(self) -> None:

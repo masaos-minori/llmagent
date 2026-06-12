@@ -14,7 +14,7 @@ Extracted from rag/pipeline.py.  Contains:
 import logging
 import re
 import time
-from typing import Any, cast
+from typing import cast
 
 from db.helper import SQLiteHelper
 
@@ -30,29 +30,46 @@ _MAX_FTS_TOKENS = 20
 # Sudachi POS categories retained for Japanese FTS5 query tokens (content words only)
 _FTS_KEEP_POS: frozenset[str] = frozenset({"名詞", "動詞", "形容詞"})
 
-# Lazily-initialized Sudachi tokenizer for FTS5 query tokenization
-_sd_tkn: Any = None
-_sd_split_c: Any = None
+
+class _SudachiTokenizer:
+    """Lazy wrapper around sudachipy Tokenizer — loaded on first use."""
+
+    def __init__(self) -> None:
+        self._tkn: object = None
+        self._mode: object = None
+
+    def _ensure_loaded(self) -> None:
+        if self._tkn is None:
+            from sudachipy import (  # noqa: PLC0415
+                dictionary as _sd_dict,
+            )
+            from sudachipy import (  # noqa: PLC0415
+                tokenizer as _sd_tok,
+            )
+
+            d = _sd_dict.Dictionary(dict="core")
+            self._tkn = d.create()
+            self._mode = _sd_tok.Tokenizer.SplitMode.C
+
+    def tokenize_pos_filter(self, text: str, keep_pos: frozenset[str]) -> list[str]:
+        """Return normalized_form() for tokens whose part_of_speech()[0] is in keep_pos."""
+        self._ensure_loaded()
+        try:
+            return [
+                m.normalized_form()
+                for m in self._tkn.tokenize(text, self._mode)  # type: ignore[attr-defined]
+                if m.part_of_speech()[0] in keep_pos and m.normalized_form().strip()
+            ]
+        except RuntimeError as e:
+            raise RuntimeError(f"Sudachi tokenization failed: {e}") from e
 
 
-def _get_sudachi_tokenizer() -> tuple[Any, Any]:
-    """Lazy-initialize Sudachi tokenizer for FTS5 Japanese query POS filtering.
+_sudachi = _SudachiTokenizer()
 
-    Raises ImportError if sudachipy is not installed.
-    """
-    global _sd_tkn, _sd_split_c
-    if _sd_tkn is None:
-        from sudachipy import (
-            dictionary as sudachi_dict,  # noqa: PLC0415 — lazy: optional Japanese NLP library loaded on first tokenizer call
-        )
-        from sudachipy import (
-            tokenizer as sudachi_tok,  # noqa: PLC0415 — lazy: optional Japanese NLP library loaded on first tokenizer call
-        )
 
-        _sd_dict = sudachi_dict.Dictionary(dict="core")
-        _sd_tkn = _sd_dict.create()
-        _sd_split_c = sudachi_tok.Tokenizer.SplitMode.C
-    return _sd_tkn, _sd_split_c
+def _get_sudachi_tokenizer() -> _SudachiTokenizer:
+    """Return the module-level lazy Sudachi tokenizer."""
+    return _sudachi
 
 
 def _build_fts_tokens_ja(text: str) -> list[str]:
@@ -63,15 +80,7 @@ def _build_fts_tokens_ja(text: str) -> list[str]:
     Raises ImportError if Sudachi is not installed.
     Raises RuntimeError on tokenization failure.
     """
-    tkn, split_c = _get_sudachi_tokenizer()
-    try:
-        return [
-            m.normalized_form()
-            for m in tkn.tokenize(text, split_c)
-            if m.part_of_speech()[0] in _FTS_KEEP_POS and m.normalized_form().strip()
-        ]
-    except RuntimeError as e:
-        raise RuntimeError(f"Sudachi tokenization failed: {e}") from e
+    return _get_sudachi_tokenizer().tokenize_pos_filter(text, _FTS_KEEP_POS)
 
 
 def _build_fts_query(text: str) -> str:

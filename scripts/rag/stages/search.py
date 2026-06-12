@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sqlite3
 from typing import TYPE_CHECKING, Any, cast
 
 from rag.repository import RagRepository
@@ -50,7 +51,7 @@ async def _search_all_queries(
                 all_results.append(vec_res)
             if fts_res:
                 all_results.append(fts_res)
-        except Exception as e:
+        except (sqlite3.OperationalError, RuntimeError) as e:
             logger.warning(f"Search failed for '{q}': {e}")
     return all_results
 

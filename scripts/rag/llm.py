@@ -131,12 +131,20 @@ def _extract_chat_content(data: dict[str, Any]) -> str:
     Raises ValueError if the response is malformed or missing expected fields.
     """
     choices = data.get("choices")
-    if not choices or not isinstance(choices, list):
-        raise ValueError("Unexpected LLM response: missing 'choices' field")
-    content = choices[0].get("message", {}).get("content")
-    if content is None:
-        raise ValueError("Unexpected LLM response: missing 'content' field")
-    return str(content).strip()
+    if not isinstance(choices, list) or not choices:
+        raise ValueError("Unexpected LLM response: missing or empty 'choices'")
+    first = choices[0]
+    if not isinstance(first, dict):
+        raise ValueError("Unexpected LLM response: choices[0] is not a dict")
+    message = first.get("message")
+    if not isinstance(message, dict):
+        raise ValueError("Unexpected LLM response: choices[0].message is not a dict")
+    content = message.get("content")
+    if not isinstance(content, str):
+        raise ValueError(
+            f"Unexpected LLM response: content is not a str, got {type(content).__name__}"
+        )
+    return content.strip()
 
 
 def _build_rerank_prompt(

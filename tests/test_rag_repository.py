@@ -8,24 +8,24 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from rag.cache import SemanticCache
 from rag.repository import (
     RagRepository,
     RagScorer,
-    SemanticCache,
     _build_fts_query,
     _dedup_hits,
-    cosine_sim,
     deduplicate_chunks,
 )
+from rag.types import RawHit as _RawHit
+from rag.utils import cosine_sim
 
 
-def _hit(chunk_id: int, url: str = "http://example.com", title: str = "Test") -> dict:
-    return {
-        "chunk_id": chunk_id,
-        "content": f"content_{chunk_id}",
-        "url": url,
-        "title": title,
-    }
+def _hit(
+    chunk_id: int, url: str = "http://example.com", title: str = "Test"
+) -> _RawHit:
+    return _RawHit(
+        chunk_id=chunk_id, content=f"content_{chunk_id}", url=url, title=title
+    )
 
 
 # ── cosine_sim ────────────────────────────────────────────────────────────────
@@ -76,15 +76,15 @@ class TestRagScorer:
     def test_single_list_preserves_order(self) -> None:
         hits = [_hit(1), _hit(2), _hit(3)]
         result = RagScorer.rrf_merge([hits])
-        assert [h["chunk_id"] for h in result] == [1, 2, 3]
+        assert [h.chunk_id for h in result] == [1, 2, 3]
 
     def test_multiple_lists_aggregate_scores(self) -> None:
         hits_a = [_hit(1), _hit(2)]
         hits_b = [_hit(2), _hit(1)]
         result = RagScorer.rrf_merge([hits_a, hits_b])
         # chunk_id=1 appears at rank 1 in A and rank 2 in B => higher score than chunk_id=2
-        assert result[0]["chunk_id"] == 1
-        assert result[1]["chunk_id"] == 2
+        assert result[0].chunk_id == 1
+        assert result[1].chunk_id == 2
 
     def test_empty_input_returns_empty(self) -> None:
         result = RagScorer.rrf_merge([])
@@ -94,12 +94,12 @@ class TestRagScorer:
         hits = [_hit(1)]
         result = RagScorer.rrf_merge([[], hits])
         assert len(result) == 1
-        assert result[0]["chunk_id"] == 1
+        assert result[0].chunk_id == 1
 
     def test_rrf_score_values_are_correct(self) -> None:
         hits = [_hit(42)]
         result = RagScorer.rrf_merge([hits], rrf_k=10)
-        score = result[0]["rrf_score"]
+        score = result[0].rrf_score
         expected = 1.0 / (10 + 1)
         assert score == pytest.approx(expected)
 
@@ -107,8 +107,7 @@ class TestRagScorer:
         hits_a = [_hit(1), _hit(2)]
         hits_b = [_hit(1), _hit(3)]
         result = RagScorer.rrf_merge([hits_a, hits_b])
-        chunk_ids = [h["chunk_id"] for h in result]
-        assert chunk_ids.count(1) == 1
+        assert [h.chunk_id for h in result].count(1) == 1
 
 
 # ── SemanticCache ─────────────────────────────────────────────────────────────
@@ -191,7 +190,7 @@ class TestDeduplicateChunks:
         ]
         result = deduplicate_chunks(hits, max_per_doc=1)
         assert len(result) == 1
-        assert result[0]["chunk_id"] == 1
+        assert result[0].chunk_id == 1
 
     def test_multiple_documents_independent_limits(self) -> None:
         hits = [
@@ -203,8 +202,8 @@ class TestDeduplicateChunks:
         ]
         result = deduplicate_chunks(hits, max_per_doc=1)
         assert len(result) == 2
-        assert result[0]["chunk_id"] == 1
-        assert result[1]["chunk_id"] == 3
+        assert result[0].chunk_id == 1
+        assert result[1].chunk_id == 3
 
     def test_empty_input_returns_empty(self) -> None:
         result = deduplicate_chunks([], max_per_doc=1)
@@ -219,7 +218,7 @@ class TestDeduplicateChunks:
         hits = [_hit(3), _hit(1), _hit(2)]
         result = deduplicate_chunks(hits, max_per_doc=1)
         # All hits share empty url (no url specified), so only first is kept
-        assert [h["chunk_id"] for h in result] == [3]
+        assert [h.chunk_id for h in result] == [3]
 
 
 # ── _dedup_hits ───────────────────────────────────────────────────────────────
@@ -230,7 +229,7 @@ class TestDedupHits:
         hits_a = [_hit(1), _hit(2)]
         hits_b = [_hit(2), _hit(3)]
         result = _dedup_hits([hits_a, hits_b])
-        chunk_ids = [h["chunk_id"] for h in result]
+        chunk_ids = [h.chunk_id for h in result]
         assert chunk_ids == [1, 2, 3]
 
     def test_empty_input_returns_empty(self) -> None:
@@ -241,12 +240,12 @@ class TestDedupHits:
         hits = [_hit(42), _hit(42)]
         result = _dedup_hits([hits, hits])
         assert len(result) == 1
-        assert result[0]["chunk_id"] == 42
+        assert result[0].chunk_id == 42
 
     def test_rrf_score_set_to_zero(self) -> None:
         hits = [_hit(1)]
         result = _dedup_hits([hits])
-        assert result[0]["rrf_score"] == 0.0
+        assert result[0].rrf_score == 0.0
 
 
 # ── RagRepository ─────────────────────────────────────────────────────────────
@@ -267,7 +266,7 @@ class TestRagRepository:
         repo = RagRepository(mock_db)
         result = repo.vector_search([0.1, 0.2, 0.3], top_k=5)
         assert len(result) == 1
-        assert result[0]["chunk_id"] == 1
+        assert result[0].chunk_id == 1
         mock_db.fetchall.assert_called_once()
 
     def test_fts_search_delegates_to_db(self) -> None:
@@ -284,7 +283,7 @@ class TestRagRepository:
         repo = RagRepository(mock_db)
         result = repo.fts_search("test query", top_k=10)
         assert len(result) == 1
-        assert result[0]["chunk_id"] == 2
+        assert result[0].chunk_id == 2
 
     def test_fts_search_operational_error_propagates(self) -> None:
         """fts_search propagates OperationalError (fail-fast); callers must handle."""
