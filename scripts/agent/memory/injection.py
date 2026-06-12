@@ -18,7 +18,7 @@ from agent.memory.types import MemoryQuery
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True)
 class InjectionPolicy:
     max_semantic: int = 5
     max_episodic: int = 3
@@ -55,7 +55,8 @@ class MemoryInjectionService:
         if not entries:
             return []
         snippets = [
-            f"{self._policy.format_prefix_semantic} {e.summary or e.content[:100]}"
+            f"{self._policy.format_prefix_semantic} "
+            f"{e.summary if e.summary else e.content[:100]}"
             for e in entries
         ]
         logger.info(
@@ -96,15 +97,15 @@ class MemoryInjectionService:
         )
         snippets: list[str] = []
         for hit in hits_s:
-            snippets.append(
-                f"{self._policy.format_prefix_semantic}"
-                f" {hit.entry.summary or hit.entry.content[:100]}",
+            snippet = (
+                hit.entry.summary if hit.entry.summary else hit.entry.content[:100]
             )
+            snippets.append(f"{self._policy.format_prefix_semantic} {snippet}")
         for hit in hits_e:
-            snippets.append(
-                f"{self._policy.format_prefix_episodic}"
-                f" {hit.entry.summary or hit.entry.content[:100]}",
+            snippet = (
+                hit.entry.summary if hit.entry.summary else hit.entry.content[:100]
             )
+            snippets.append(f"{self._policy.format_prefix_episodic} {snippet}")
         if snippets:
             logger.debug(
                 "MemoryInjectionService.on_user_prompt: returning %d snippets",

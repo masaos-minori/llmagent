@@ -12,6 +12,7 @@ import asyncio
 import logging
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 import orjson
 
@@ -22,9 +23,15 @@ from agent.memory.types import MEMORY_TYPES, MemoryEntry
 logger = logging.getLogger(__name__)
 
 
-def _entry_from_dict(d: dict) -> MemoryEntry:
+def _entry_from_dict(d: dict[str, Any]) -> MemoryEntry:
     """Deserialise one JSONL dict to MemoryEntry; raises JsonlFormatError on error."""
-    memory_type = d.get("memory_type", "")
+    if "memory_type" not in d:
+        raise JsonlFormatError("Missing required field: 'memory_type'")
+    memory_type = d["memory_type"]
+    if not isinstance(memory_type, str):
+        raise JsonlFormatError(
+            f"'memory_type' must be a str, got {type(memory_type).__name__}"
+        )
     if memory_type not in MEMORY_TYPES:
         raise JsonlFormatError(f"Invalid memory_type={memory_type!r}")
     return row_to_entry(d)

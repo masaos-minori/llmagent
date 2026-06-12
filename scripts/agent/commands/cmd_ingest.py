@@ -14,7 +14,7 @@ import logging
 from mcp.rag_pipeline.models import RagPipelineConfig, build_rag_cfg_adapter
 
 from agent.commands.mixin_base import MixinBase
-from agent.commands.utils import render_export, write_export
+from agent.services.export_formatter import render_export, write_export
 
 logger = logging.getLogger(__name__)
 

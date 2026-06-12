@@ -9,14 +9,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-# Re-exported from agent.services.export_formatter for backward compatibility.
-# New callers should import directly from agent.services.export_formatter.
-from agent.services.export_formatter import (
-    render_export,
-    render_history_md,
-    write_export,
-)
-
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -24,9 +16,6 @@ __all__ = [
     "parse_command_args",
     "parse_flag_int",
     "parse_flag_str",
-    "render_export",
-    "render_history_md",
-    "write_export",
 ]
 
 

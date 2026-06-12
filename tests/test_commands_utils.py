@@ -9,7 +9,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from agent.commands.utils import render_export, render_history_md, write_export
+from agent.services.export_formatter import (
+    render_export,
+    render_history_md,
+    write_export,
+)
 from shared.types import LLMMessage
 
 
@@ -113,9 +117,9 @@ class TestWriteExport:
         assert "Exported 7 messages" in captured.out
         assert str(out) in captured.out
 
-    def test_prints_error_on_oserror(self, capsys: pytest.CaptureFixture) -> None:
+    def test_raises_export_write_error_on_oserror(self) -> None:
+        from agent.services.exceptions import ExportWriteError
+
         with patch.object(Path, "write_text", side_effect=OSError("permission denied")):
-            write_export("data", "/nonexistent/export.md", 3)
-        captured = capsys.readouterr()
-        assert "Export failed" in captured.out
-        assert "permission denied" in captured.out
+            with pytest.raises(ExportWriteError, match="permission denied"):
+                write_export("data", "/nonexistent/export.md", 3)

@@ -16,6 +16,12 @@ from agent.memory.exceptions import MemorySchemaError
 from agent.memory.types import MemoryEntry, SourceType
 
 
+def _opt_str(d: dict[str, Any], key: str) -> str:
+    """Return string value for key, or "" if absent or None."""
+    v = d.get(key)
+    return str(v) if v is not None else ""
+
+
 def _require(d: dict[str, Any], key: str) -> Any:
     try:
         return d[key]
@@ -55,20 +61,22 @@ def row_to_entry(row: sqlite3.Row | dict[str, Any]) -> MemoryEntry:
         source_type = SourceType(str(_require(d, "source_type")))
     except ValueError as e:
         raise MemorySchemaError(str(e)) from e
+    pinned_raw = d.get("pinned")
+    pinned = bool(pinned_raw) if pinned_raw is not None else False
     return MemoryEntry(
         memory_id=str(_require(d, "memory_id")),
         memory_type=memory_type,
         source_type=source_type,
         session_id=d.get("session_id"),
         turn_id=d.get("turn_id"),
-        project=d.get("project") or "",
-        repo=d.get("repo") or "",
-        branch=d.get("branch") or "",
+        project=_opt_str(d, "project"),
+        repo=_opt_str(d, "repo"),
+        branch=_opt_str(d, "branch"),
         content=str(_require(d, "content")),
-        summary=d.get("summary") or "",
+        summary=_opt_str(d, "summary"),
         tags=tags,
         importance=importance,
-        pinned=bool(d.get("pinned", 0)),
-        created_at=d.get("created_at") or "",
-        updated_at=d.get("updated_at") or "",
+        pinned=pinned,
+        created_at=_opt_str(d, "created_at"),
+        updated_at=_opt_str(d, "updated_at"),
     )

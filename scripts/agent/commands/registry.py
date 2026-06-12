@@ -20,7 +20,9 @@ Mixin split:
 """
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 from shared import plugin_registry
 
@@ -228,6 +230,21 @@ class CommandRegistry(
     def __init__(self, ctx: AgentContext, out: OutputPort | None = None) -> None:
         self._ctx = ctx
         self._out: OutputPort = out if out is not None else CliOutputPort()
+        # Fail-fast: validate all handler strings refer to existing methods.
+        for _cmd in _COMMANDS:
+            if not hasattr(self, _cmd.handler):
+                raise AttributeError(
+                    f"CommandDef references unknown handler: {_cmd.handler!r}"
+                )
+
+    def _get_handler(self, cmd: CommandDef) -> Callable[..., Any]:
+        """Return the bound callable for cmd.handler; raises AttributeError if missing."""
+        handler = getattr(self, cmd.handler, None)
+        if handler is None:
+            raise AttributeError(
+                f"CommandRegistry has no handler method {cmd.handler!r}"
+            )
+        return handler  # type: ignore[no-any-return]  # getattr returns Any; safe — validated by hasattr check above
 
     def _cmd_help(self) -> None:
         """Print help and available tool count."""
@@ -255,7 +272,7 @@ class CommandRegistry(
         substring false-positives.
         """
         for cmd in _COMMANDS:
-            handler = getattr(self, cmd.handler)
+            handler = self._get_handler(cmd)
             if cmd.prefix:
                 if line == cmd.name or line.startswith(cmd.name + " "):
                     args = line[len(cmd.name) :]

@@ -20,6 +20,75 @@ if TYPE_CHECKING:
     from agent.context import AgentContext
 
 
+# ── Typed boundary extraction helpers ────────────────────────────────────────
+
+
+def _get_int(d: dict[str, Any], key: str) -> int | None:
+    v = d.get(key)
+    if v is None:
+        return None
+    if not isinstance(v, int) or isinstance(v, bool):
+        raise ConfigReloadValidationError(
+            f"config key {key!r} must be int, got {type(v).__name__}"
+        )
+    return v
+
+
+def _get_float(d: dict[str, Any], key: str) -> float | None:
+    v = d.get(key)
+    if v is None:
+        return None
+    if not isinstance(v, (int, float)) or isinstance(v, bool):
+        raise ConfigReloadValidationError(
+            f"config key {key!r} must be float, got {type(v).__name__}"
+        )
+    return float(v)
+
+
+def _get_bool(d: dict[str, Any], key: str) -> bool | None:
+    v = d.get(key)
+    if v is None:
+        return None
+    if not isinstance(v, bool):
+        raise ConfigReloadValidationError(
+            f"config key {key!r} must be bool, got {type(v).__name__}"
+        )
+    return v
+
+
+def _get_str(d: dict[str, Any], key: str) -> str | None:
+    v = d.get(key)
+    if v is None:
+        return None
+    if not isinstance(v, str):
+        raise ConfigReloadValidationError(
+            f"config key {key!r} must be str, got {type(v).__name__}"
+        )
+    return v
+
+
+def _get_list(d: dict[str, Any], key: str) -> list[Any] | None:
+    v = d.get(key)
+    if v is None:
+        return None
+    if not isinstance(v, list):
+        raise ConfigReloadValidationError(
+            f"config key {key!r} must be list, got {type(v).__name__}"
+        )
+    return v
+
+
+def _get_dict(d: dict[str, Any], key: str) -> dict[str, Any] | None:
+    v = d.get(key)
+    if v is None:
+        return None
+    if not isinstance(v, dict):
+        raise ConfigReloadValidationError(
+            f"config key {key!r} must be dict, got {type(v).__name__}"
+        )
+    return v
+
+
 @dataclass
 class ConfigReloadOutcome:
     """Structured report of what changed after a /reload."""
@@ -141,64 +210,52 @@ class ConfigReloadService:
         new_cfg: dict[str, Any],
     ) -> None:
         """Apply tool cache, LLM retry, refiner, and watchdog settings (diff-apply)."""
-        if "context_char_limit" in new_cfg:
-            ctx.cfg.llm.context_char_limit = int(new_cfg["context_char_limit"])
-        if "context_compress_turns" in new_cfg:
-            ctx.cfg.llm.context_compress_turns = int(new_cfg["context_compress_turns"])
-        if "tool_cache_ttl" in new_cfg:
-            ctx.cfg.tool.tool_cache_ttl = float(new_cfg["tool_cache_ttl"])
-        if "top_k_search" in new_cfg:
-            ctx.cfg.rag.top_k_search = int(new_cfg["top_k_search"])
-        if "top_k_rerank" in new_cfg:
-            ctx.cfg.rag.top_k_rerank = int(new_cfg["top_k_rerank"])
-        if "llm_max_retries" in new_cfg:
-            ctx.cfg.llm.llm_max_retries = int(new_cfg["llm_max_retries"])
-        if "llm_retry_base_delay" in new_cfg:
-            ctx.cfg.llm.llm_retry_base_delay = float(new_cfg["llm_retry_base_delay"])
-        if "max_chunks_per_doc" in new_cfg:
-            ctx.cfg.rag.max_chunks_per_doc = int(new_cfg["max_chunks_per_doc"])
-        if "serial_tool_calls" in new_cfg:
-            ctx.cfg.tool.serial_tool_calls = bool(new_cfg["serial_tool_calls"])
-        if "auto_inject_notes" in new_cfg:
-            ctx.cfg.tool.auto_inject_notes = bool(new_cfg["auto_inject_notes"])
-        if "use_tool_summarize" in new_cfg:
-            ctx.cfg.tool.use_tool_summarize = bool(new_cfg["use_tool_summarize"])
-        if "tool_summarize_threshold" in new_cfg:
-            ctx.cfg.tool.tool_summarize_threshold = int(
-                new_cfg["tool_summarize_threshold"]
-            )
-        if "use_semantic_cache" in new_cfg:
-            ctx.cfg.rag.use_semantic_cache = bool(new_cfg["use_semantic_cache"])
-        if "semantic_cache_threshold" in new_cfg:
-            ctx.cfg.rag.semantic_cache_threshold = float(
-                new_cfg["semantic_cache_threshold"]
-            )
-        if "semantic_cache_max_size" in new_cfg:
-            ctx.cfg.rag.semantic_cache_max_size = int(
-                new_cfg["semantic_cache_max_size"]
-            )
-        if "tool_definitions_strict" in new_cfg:
-            ctx.cfg.tool.tool_definitions_strict = bool(
-                new_cfg["tool_definitions_strict"]
-            )
-        if "mcp_watchdog_interval" in new_cfg:
-            ctx.cfg.mcp.mcp_watchdog_interval = float(new_cfg["mcp_watchdog_interval"])
-        if "mcp_watchdog_max_restarts" in new_cfg:
-            ctx.cfg.mcp.mcp_watchdog_max_restarts = int(
-                new_cfg["mcp_watchdog_max_restarts"]
-            )
-        if "plan_blocked_tools" in new_cfg:
-            ctx.cfg.tool.plan_blocked_tools = list(new_cfg["plan_blocked_tools"])
-        if "use_refiner" in new_cfg:
-            ctx.cfg.rag.use_refiner = bool(new_cfg["use_refiner"])
-        if "refiner_max_tokens" in new_cfg:
-            ctx.cfg.rag.refiner_max_tokens = int(new_cfg["refiner_max_tokens"])
-        if "refiner_timeout" in new_cfg:
-            ctx.cfg.rag.refiner_timeout = float(new_cfg["refiner_timeout"])
-        if "refiner_max_chars_per_chunk" in new_cfg:
-            ctx.cfg.rag.refiner_max_chars_per_chunk = int(
-                new_cfg["refiner_max_chars_per_chunk"]
-            )
+        if (vi := _get_int(new_cfg, "context_char_limit")) is not None:
+            ctx.cfg.llm.context_char_limit = vi
+        if (vi := _get_int(new_cfg, "context_compress_turns")) is not None:
+            ctx.cfg.llm.context_compress_turns = vi
+        if (vf := _get_float(new_cfg, "tool_cache_ttl")) is not None:
+            ctx.cfg.tool.tool_cache_ttl = vf
+        if (vi := _get_int(new_cfg, "top_k_search")) is not None:
+            ctx.cfg.rag.top_k_search = vi
+        if (vi := _get_int(new_cfg, "top_k_rerank")) is not None:
+            ctx.cfg.rag.top_k_rerank = vi
+        if (vi := _get_int(new_cfg, "llm_max_retries")) is not None:
+            ctx.cfg.llm.llm_max_retries = vi
+        if (vf := _get_float(new_cfg, "llm_retry_base_delay")) is not None:
+            ctx.cfg.llm.llm_retry_base_delay = vf
+        if (vi := _get_int(new_cfg, "max_chunks_per_doc")) is not None:
+            ctx.cfg.rag.max_chunks_per_doc = vi
+        if (vb := _get_bool(new_cfg, "serial_tool_calls")) is not None:
+            ctx.cfg.tool.serial_tool_calls = vb
+        if (vb := _get_bool(new_cfg, "auto_inject_notes")) is not None:
+            ctx.cfg.tool.auto_inject_notes = vb
+        if (vb := _get_bool(new_cfg, "use_tool_summarize")) is not None:
+            ctx.cfg.tool.use_tool_summarize = vb
+        if (vi := _get_int(new_cfg, "tool_summarize_threshold")) is not None:
+            ctx.cfg.tool.tool_summarize_threshold = vi
+        if (vb := _get_bool(new_cfg, "use_semantic_cache")) is not None:
+            ctx.cfg.rag.use_semantic_cache = vb
+        if (vf := _get_float(new_cfg, "semantic_cache_threshold")) is not None:
+            ctx.cfg.rag.semantic_cache_threshold = vf
+        if (vi := _get_int(new_cfg, "semantic_cache_max_size")) is not None:
+            ctx.cfg.rag.semantic_cache_max_size = vi
+        if (vb := _get_bool(new_cfg, "tool_definitions_strict")) is not None:
+            ctx.cfg.tool.tool_definitions_strict = vb
+        if (vf := _get_float(new_cfg, "mcp_watchdog_interval")) is not None:
+            ctx.cfg.mcp.mcp_watchdog_interval = vf
+        if (vi := _get_int(new_cfg, "mcp_watchdog_max_restarts")) is not None:
+            ctx.cfg.mcp.mcp_watchdog_max_restarts = vi
+        if (lst := _get_list(new_cfg, "plan_blocked_tools")) is not None:
+            ctx.cfg.tool.plan_blocked_tools = list(lst)
+        if (vb := _get_bool(new_cfg, "use_refiner")) is not None:
+            ctx.cfg.rag.use_refiner = vb
+        if (vi := _get_int(new_cfg, "refiner_max_tokens")) is not None:
+            ctx.cfg.rag.refiner_max_tokens = vi
+        if (vf := _get_float(new_cfg, "refiner_timeout")) is not None:
+            ctx.cfg.rag.refiner_timeout = vf
+        if (vi := _get_int(new_cfg, "refiner_max_chars_per_chunk")) is not None:
+            ctx.cfg.rag.refiner_max_chars_per_chunk = vi
 
     def _apply_mcp_url_reload(
         self,
@@ -232,34 +289,32 @@ class ConfigReloadService:
         new_cfg: dict[str, Any],
     ) -> None:
         """Apply hot-reloadable URL, HTTP, LLM generation, tool definition, and prompt settings (diff-apply)."""
-        if "llm_temperature" in new_cfg:
-            ctx.cfg.llm.llm_temperature = float(new_cfg["llm_temperature"])
-        if "llm_max_tokens" in new_cfg:
-            ctx.cfg.llm.llm_max_tokens = int(new_cfg["llm_max_tokens"])
-        if "llm_url" in new_cfg:
-            ctx.cfg.llm.llm_url = new_cfg["llm_url"]
-        if "github_server_url" in new_cfg:
-            ctx.cfg.mcp.github_url = new_cfg["github_server_url"]
-        if "web_search_url" in new_cfg:
-            ctx.cfg.rag.web_search_url = new_cfg["web_search_url"]
-        if "embed_url" in new_cfg:
-            ctx.cfg.rag.embed_url = new_cfg["embed_url"]
-        if "http_timeout" in new_cfg:
-            ctx.cfg.llm.http_timeout = float(new_cfg["http_timeout"])
-        if "web_search_max_results" in new_cfg:
-            ctx.cfg.rag.web_search_max_results = int(new_cfg["web_search_max_results"])
-        if "max_tool_turns" in new_cfg:
-            ctx.cfg.tool.max_tool_turns = int(new_cfg["max_tool_turns"])
-        if "tool_result_max_llm_chars" in new_cfg:
-            ctx.cfg.tool.tool_result_max_llm_chars = int(
-                new_cfg["tool_result_max_llm_chars"]
-            )
-        if new_cfg.get("tool_definitions"):
-            ctx.cfg.tool.tool_definitions = list(new_cfg["tool_definitions"])
-        if new_cfg.get("system_prompt_tool"):
-            ctx.cfg.tool.system_prompt_tool = new_cfg["system_prompt_tool"]
-        if new_cfg.get("system_prompts"):
-            ctx.cfg.tool.system_prompts = dict(new_cfg["system_prompts"])
+        if (vf := _get_float(new_cfg, "llm_temperature")) is not None:
+            ctx.cfg.llm.llm_temperature = vf
+        if (vi := _get_int(new_cfg, "llm_max_tokens")) is not None:
+            ctx.cfg.llm.llm_max_tokens = vi
+        if (vs := _get_str(new_cfg, "llm_url")) is not None:
+            ctx.cfg.llm.llm_url = vs
+        if (vs := _get_str(new_cfg, "github_server_url")) is not None:
+            ctx.cfg.mcp.github_url = vs
+        if (vs := _get_str(new_cfg, "web_search_url")) is not None:
+            ctx.cfg.rag.web_search_url = vs
+        if (vs := _get_str(new_cfg, "embed_url")) is not None:
+            ctx.cfg.rag.embed_url = vs
+        if (vf := _get_float(new_cfg, "http_timeout")) is not None:
+            ctx.cfg.llm.http_timeout = vf
+        if (vi := _get_int(new_cfg, "web_search_max_results")) is not None:
+            ctx.cfg.rag.web_search_max_results = vi
+        if (vi := _get_int(new_cfg, "max_tool_turns")) is not None:
+            ctx.cfg.tool.max_tool_turns = vi
+        if (vi := _get_int(new_cfg, "tool_result_max_llm_chars")) is not None:
+            ctx.cfg.tool.tool_result_max_llm_chars = vi
+        if (lst := _get_list(new_cfg, "tool_definitions")) is not None and lst:
+            ctx.cfg.tool.tool_definitions = list(lst)
+        if (vs := _get_str(new_cfg, "system_prompt_tool")) is not None and vs:
+            ctx.cfg.tool.system_prompt_tool = vs
+        if (d := _get_dict(new_cfg, "system_prompts")) is not None and d:
+            ctx.cfg.tool.system_prompts = dict(d)
 
     def _apply_sse_reload_params(
         self,
@@ -267,20 +322,20 @@ class ConfigReloadService:
         new_cfg: dict[str, Any],
     ) -> None:
         """Apply SSE stream resilience settings (diff-apply)."""
-        if "sse_heartbeat_timeout" in new_cfg:
-            ctx.cfg.llm.sse_heartbeat_timeout = float(new_cfg["sse_heartbeat_timeout"])
-        if "sse_malformed_retry" in new_cfg:
-            ctx.cfg.llm.sse_malformed_retry = int(new_cfg["sse_malformed_retry"])
-        if "sse_reconnect_max" in new_cfg:
-            ctx.cfg.llm.sse_reconnect_max = int(new_cfg["sse_reconnect_max"])
-        if "llm_stream_retry_on_heartbeat_timeout" in new_cfg:
-            ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout = bool(
-                new_cfg["llm_stream_retry_on_heartbeat_timeout"]
-            )
-        if "llm_stream_retry_on_malformed_chunk" in new_cfg:
-            ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = bool(
-                new_cfg["llm_stream_retry_on_malformed_chunk"]
-            )
+        if (vf := _get_float(new_cfg, "sse_heartbeat_timeout")) is not None:
+            ctx.cfg.llm.sse_heartbeat_timeout = vf
+        if (vi := _get_int(new_cfg, "sse_malformed_retry")) is not None:
+            ctx.cfg.llm.sse_malformed_retry = vi
+        if (vi := _get_int(new_cfg, "sse_reconnect_max")) is not None:
+            ctx.cfg.llm.sse_reconnect_max = vi
+        if (
+            vb := _get_bool(new_cfg, "llm_stream_retry_on_heartbeat_timeout")
+        ) is not None:
+            ctx.cfg.llm.llm_stream_retry_on_heartbeat_timeout = vb
+        if (
+            vb := _get_bool(new_cfg, "llm_stream_retry_on_malformed_chunk")
+        ) is not None:
+            ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = vb
 
     def _reload_approval_config(
         self,
@@ -289,31 +344,24 @@ class ConfigReloadService:
     ) -> None:
         """Update ApprovalConfig fields in ctx.cfg when present in new_cfg."""
         approval = ctx.cfg.approval
-        if "approval_risk_rules" in new_cfg:
-            approval.approval_risk_rules = dict(new_cfg["approval_risk_rules"])
-        if "approval_protected_paths" in new_cfg:
-            approval.approval_protected_paths = list(
-                new_cfg["approval_protected_paths"]
-            )
-        if "approval_high_risk_branches" in new_cfg:
-            approval.approval_high_risk_branches = list(
-                new_cfg["approval_high_risk_branches"]
-            )
-        if "approval_shell_safe_prefixes" in new_cfg:
-            approval.approval_shell_safe_prefixes = list(
-                new_cfg["approval_shell_safe_prefixes"]
-            )
-        if "approval_resource_keys" in new_cfg:
-            approval.approval_resource_keys = dict(new_cfg["approval_resource_keys"])
-        if "approval_dry_run_tools" in new_cfg:
-            approval.approval_dry_run_tools = list(new_cfg["approval_dry_run_tools"])
-        if "tool_safety_tiers" in new_cfg:
-            approval.tool_safety_tiers = dict(new_cfg["tool_safety_tiers"])
-        approval.allowed_root = new_cfg.get("allowed_root", approval.allowed_root)
-        if "approval_github_allowed_repos" in new_cfg:
-            approval.approval_github_allowed_repos = list(
-                new_cfg["approval_github_allowed_repos"]
-            )
+        if (d := _get_dict(new_cfg, "approval_risk_rules")) is not None:
+            approval.approval_risk_rules = dict(d)
+        if (lst := _get_list(new_cfg, "approval_protected_paths")) is not None:
+            approval.approval_protected_paths = list(lst)
+        if (lst := _get_list(new_cfg, "approval_high_risk_branches")) is not None:
+            approval.approval_high_risk_branches = list(lst)
+        if (lst := _get_list(new_cfg, "approval_shell_safe_prefixes")) is not None:
+            approval.approval_shell_safe_prefixes = list(lst)
+        if (d := _get_dict(new_cfg, "approval_resource_keys")) is not None:
+            approval.approval_resource_keys = dict(d)
+        if (lst := _get_list(new_cfg, "approval_dry_run_tools")) is not None:
+            approval.approval_dry_run_tools = list(lst)
+        if (d := _get_dict(new_cfg, "tool_safety_tiers")) is not None:
+            approval.tool_safety_tiers = dict(d)
+        if (v := _get_str(new_cfg, "allowed_root")) is not None:
+            approval.allowed_root = v
+        if (lst := _get_list(new_cfg, "approval_github_allowed_repos")) is not None:
+            approval.approval_github_allowed_repos = list(lst)
 
     def _reload_approval_settings(
         self,
@@ -322,7 +370,7 @@ class ConfigReloadService:
     ) -> None:
         """Update approval, tool, and memory config fields when present in new_cfg."""
         self._reload_approval_config(ctx, new_cfg)
-        if "allowed_tools" in new_cfg:
-            ctx.cfg.tool.allowed_tools = list(new_cfg["allowed_tools"])
-        if "memory_retention_days" in new_cfg:
-            ctx.cfg.memory.memory_retention_days = int(new_cfg["memory_retention_days"])
+        if (lst := _get_list(new_cfg, "allowed_tools")) is not None:
+            ctx.cfg.tool.allowed_tools = list(lst)
+        if (v := _get_int(new_cfg, "memory_retention_days")) is not None:
+            ctx.cfg.memory.memory_retention_days = v

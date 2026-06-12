@@ -171,8 +171,11 @@ class TestRecencyBoost:
     def test_old_entry_returns_zero(self) -> None:
         assert _recency_boost("2020-01-01T00:00:00Z") == pytest.approx(0.0)
 
-    def test_invalid_date_returns_zero(self) -> None:
-        assert _recency_boost("not-a-date") == pytest.approx(0.0)
+    def test_invalid_date_raises_schema_error(self) -> None:
+        from agent.memory.exceptions import MemorySchemaError
+
+        with pytest.raises(MemorySchemaError, match="invalid created_at"):
+            _recency_boost("not-a-date")
 
 
 class TestScore:

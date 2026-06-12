@@ -15,6 +15,16 @@ from typing import Protocol
 _VALID_ROLES: frozenset[str] = frozenset({"generic", "sqlite", "shell", "git", "ci"})
 
 
+@dataclass(frozen=True)
+class McpInstallParams:
+    """Validated parameters collected from the install wizard."""
+
+    server_name: str
+    port: int
+    role: str
+    with_confd: bool
+
+
 @dataclass
 class ScaffoldResult:
     server_name: str
@@ -103,11 +113,29 @@ class CliInstallQA:
 class McpInstallService:
     """Generate MCP server scaffold files from wizard answers."""
 
-    async def run(self, server_name: str, qa: InstallQA) -> ScaffoldResult:
-        """Prompt the user via qa, create files, and return a ScaffoldResult."""
+    async def collect_params(self, server_name: str, qa: InstallQA) -> McpInstallParams:
+        """Collect and validate install parameters from InstallQA; return frozen DTO."""
         from mcp.installer_port import (
             suggest_port,  # noqa: PLC0415 — lazy: heavy installer module deferred to /mcp install
         )
+
+        port_default = suggest_port()
+        port = await qa.ask_port(port_default)
+        role = await qa.ask_role()
+        if role not in _VALID_ROLES:
+            raise ValueError(
+                f"Invalid role {role!r}. Valid: {', '.join(sorted(_VALID_ROLES))}"
+            )
+        with_confd = await qa.ask_confd()
+        return McpInstallParams(
+            server_name=server_name,
+            port=port,
+            role=role,
+            with_confd=with_confd,
+        )
+
+    async def run(self, params: McpInstallParams) -> ScaffoldResult:
+        """Create scaffold files from validated McpInstallParams; return ScaffoldResult."""
         from mcp.installer_templates import (
             generate_agent_toml_mcp_snippet,  # noqa: PLC0415 — lazy: heavy installer module deferred to /mcp install
             tool_definition_snippet,  # noqa: PLC0415 — lazy: heavy installer module deferred to /mcp install
@@ -119,23 +147,23 @@ class McpInstallService:
             install_mcp_server,  # noqa: PLC0415 — lazy: heavy installer module deferred to /mcp install
         )
 
-        module = name_to_module(server_name)
-        port_default = suggest_port()
-        port = await qa.ask_port(port_default)
-        role = await qa.ask_role()
-        with_confd = await qa.ask_confd()
-
+        module = name_to_module(params.server_name)
         created = install_mcp_server(
-            server_name, port, with_confd=with_confd, role=role
+            params.server_name,
+            params.port,
+            with_confd=params.with_confd,
+            role=params.role,
         )
         return ScaffoldResult(
-            server_name=server_name,
+            server_name=params.server_name,
             module=module,
-            port=port,
-            with_confd=with_confd,
+            port=params.port,
+            with_confd=params.with_confd,
             created_files=[str(p) for p in created],
-            tool_snippet=tool_definition_snippet(module, server_name),
-            agent_toml_snippet=generate_agent_toml_mcp_snippet(server_name, port, role),
+            tool_snippet=tool_definition_snippet(module, params.server_name),
+            agent_toml_snippet=generate_agent_toml_mcp_snippet(
+                params.server_name, params.port, params.role
+            ),
         )
 
     def format_next_steps(self, result: ScaffoldResult) -> str:

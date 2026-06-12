@@ -290,11 +290,17 @@ class TestCmdMcpInstall:
     async def test_install_uses_validated_server_name(
         self, capsys: pytest.CaptureFixture
     ) -> None:
+        from agent.services.mcp_install import McpInstallParams
+
         ctx = _Ctx({})
         mcp = _Mcp(ctx)
+        mock_params = McpInstallParams(
+            server_name="my-server", port=8000, role="generic", with_confd=False
+        )
         mock_result = MagicMock()
         mock_result.created_files = []
         mock_svc = MagicMock()
+        mock_svc.collect_params = AsyncMock(return_value=mock_params)
         mock_svc.run = AsyncMock(return_value=mock_result)
         mock_svc.format_next_steps.return_value = "Next steps..."
         with (
@@ -303,7 +309,7 @@ class TestCmdMcpInstall:
             patch("agent.commands.cmd_mcp.CliInstallQA"),
         ):
             await mcp._cmd_mcp_install("my-server")
-        assert mock_svc.run.call_args.args[0] == "my-server"
+        assert mock_svc.run.call_args.args[0].server_name == "my-server"
         out = capsys.readouterr().out
         assert "my-server" in out
 

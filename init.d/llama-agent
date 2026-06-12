@@ -1,15 +1,15 @@
 #!/sbin/openrc-run
 # llama-agent: ローカル AI エージェント (CLI REPL) の OpenRC 起動スクリプト
-# agent.py は FastAPI アプリではなく対話型 REPL のため uvicorn は使用しない
+# python -m agent で起動する対話型 REPL; uvicorn は使用しない
 
 description="Local AI Agent (CLI REPL)"
 
 command="/opt/llm/venv/bin/python"
-command_args="agent.py"
+command_args="-m agent"
 command_background="yes"
 command_user="root"
 
-# agent.py が存在するディレクトリに移動してから起動する
+# scripts/ ディレクトリをカレントディレクトリとして起動する
 # Python モジュール解決 (ConfigLoader 等の絶対インポート) はカレントディレクトリを参照するため必須
 directory="/opt/llm/scripts"
 
@@ -21,7 +21,7 @@ depend() {
     # ネットワーク起動後に実行する
     need net
     # llama-server および web-search-mcp が起動してから実行する
-    # file-mcp / github-mcp は agent.py が stdio サブプロセスとして起動するため依存不要
+    # file-mcp / github-mcp は agent が stdio サブプロセスとして起動するため依存不要
     after embed-llm llama-chat-llm llama-coding-llm web-search-mcp
 }
 

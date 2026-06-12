@@ -28,6 +28,7 @@ from datetime import UTC, datetime
 
 from db.helper import SQLiteHelper
 
+from agent.memory.exceptions import MemorySchemaError
 from agent.memory.mapper import row_to_entry
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 
@@ -60,8 +61,9 @@ def _recency_boost(created_at: str, recency_days: float = _RECENCY_DAYS) -> floa
             return 0.0
         return _RECENCY_MAX_BOOST * (1.0 - age_days / recency_days)
     except (ValueError, OverflowError) as e:
-        logger.warning("_recency_boost: invalid created_at %r: %s", created_at, e)
-        return 0.0
+        raise MemorySchemaError(
+            f"_recency_boost: invalid created_at {created_at!r}: {e}"
+        ) from e
 
 
 def _context_boost(entry: MemoryEntry, project: str, repo: str) -> float:

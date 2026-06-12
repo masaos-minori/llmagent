@@ -78,7 +78,8 @@ class _McpMixin(MixinBase):
         svc = McpInstallService()
         qa = CliInstallQA()
         try:
-            result = await svc.run(server_name, qa)
+            params = await svc.collect_params(server_name, qa)
+            result = await svc.run(params)
         except (FileExistsError, ValueError) as e:
             self._out.write(f"Aborted: {e}")
             return
