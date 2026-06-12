@@ -69,8 +69,8 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         for path in paths:
             try:
                 total += self.process_file(path, force)
-            except Exception:
-                logger.exception(f"process_file failed: {path}")
+            except (OSError, RuntimeError, ValueError) as e:
+                logger.exception(f"process_file failed: {path}: {e}")
         logger.info(f"=== done: {total} chunks from {len(paths)} files ===")
         return total
 

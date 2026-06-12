@@ -130,7 +130,11 @@ class RagPipeline:
             if isinstance(result, Exception):
                 logger.warning(f"Embedding failed for '{q}': {result}")
                 continue
-            assert isinstance(result, list)
+            if not isinstance(result, list):
+                logger.warning(
+                    f"Unexpected embedding result type for '{q}': {type(result).__name__}"
+                )
+                continue
             try:
                 vec_res = repo.vector_search(result, self._cfg.top_k_search)
                 fts_res = repo.fts_search(q, self._cfg.top_k_search)
@@ -205,7 +209,15 @@ class RagPipeline:
             if hits:
                 # store for two-stage fetch callers (orchestrator._fetch_two_stage_context)
                 self.last_reranked = hits
-            return str(body.get("context", ""))
+            context_raw = body.get("context")
+            if context_raw is None:
+                return ""
+            if not isinstance(context_raw, str):
+                raise ValueError(
+                    f"RAG service 'context' field must be str,"
+                    f" got {type(context_raw).__name__}"
+                )
+            return context_raw
         except (
             httpx.HTTPStatusError,
             httpx.RequestError,

@@ -9,6 +9,7 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 
 import argparse
 import shutil
+import sqlite3
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -56,7 +57,7 @@ class RagIngester:
     def __del__(self) -> None:
         try:
             self._client.close()
-        except Exception:
+        except OSError:
             pass
 
     # ── Public interface ──────────────────────────────────────────────────────
@@ -277,7 +278,13 @@ class RagIngester:
                 try:
                     if future.result():
                         inserted += 1
-                except Exception as e:
+                except (
+                    httpx.HTTPStatusError,
+                    httpx.RequestError,
+                    OSError,
+                    ValueError,
+                    TypeError,
+                ) as e:
                     logger.error(f"Failed to ingest {path}: {e}")
         return inserted
 
@@ -309,7 +316,7 @@ class RagIngester:
         for url, paths in url_groups.items():
             try:
                 self.ingest_url_group(db, url, paths, force)
-            except Exception:
+            except (OSError, RuntimeError, ValueError, sqlite3.OperationalError):
                 logger.exception(f"ingest_url_group failed: {url}")
 
     def _move_to_registered(self, paths: list[Path]) -> None:
