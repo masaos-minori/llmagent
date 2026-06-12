@@ -10,6 +10,9 @@ from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import parse_command_args
 
+NOTE_CONTENT_MAX_CHARS = 44
+NOTE_CONTENT_TRUNCATE_AT = NOTE_CONTENT_MAX_CHARS - 3
+
 
 class _NotesMixin(MixinBase):
     """Persistent notes slash-command handlers."""
@@ -35,7 +38,7 @@ class _NotesMixin(MixinBase):
             [
                 str(n["note_id"]),
                 n["created_at"][:19],
-                (n["content"][:41] + "..." if len(n["content"]) > 44 else n["content"]),
+                (n["content"][:NOTE_CONTENT_TRUNCATE_AT] + "..." if len(n["content"]) > NOTE_CONTENT_MAX_CHARS else n["content"]),
             ]
             for n in notes
         ]

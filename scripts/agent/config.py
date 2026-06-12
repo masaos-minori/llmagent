@@ -12,6 +12,8 @@ from typing import Any
 from shared.config_loader import ConfigLoader
 from shared.mcp_config import McpServerConfig, _build_mcp_servers
 
+LLM_TEMPERATURE_MAX = 2.0
+
 __all__ = ["AgentConfig", "ConfigLoadError", "McpServerConfig"]
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
@@ -76,9 +78,9 @@ class LLMConfig:
             raise ValueError(
                 f"llm_retry_base_delay must be > 0, got {self.llm_retry_base_delay}",
             )
-        if not 0.0 <= self.llm_temperature <= 2.0:
+        if not 0.0 <= self.llm_temperature <= LLM_TEMPERATURE_MAX:
             raise ValueError(
-                f"llm_temperature must be in [0.0, 2.0], got {self.llm_temperature}",
+                f"llm_temperature must be in [0.0, {LLM_TEMPERATURE_MAX}], got {self.llm_temperature}",
             )
         if self.llm_max_tokens < 1:
             raise ValueError(f"llm_max_tokens must be >= 1, got {self.llm_max_tokens}")

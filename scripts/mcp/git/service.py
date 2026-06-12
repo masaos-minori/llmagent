@@ -40,6 +40,8 @@ _GIT_ERRORS = (git.exc.GitError, OSError, ValueError)
 
 logger = logging.getLogger(__name__)
 
+GIT_SHOW_OUTPUT_MAX_CHARS = 8000
+
 _WRITE_TOOLS: frozenset[str] = frozenset(
     {"git_add", "git_commit", "git_checkout", "git_pull", "git_push"},
 )
@@ -188,7 +190,7 @@ class GitService:
         try:
             repo = self._open_repo(req.repo_path)
             output: str = repo.git.show(req.ref, "--stat", "--patch")
-            return output[:8000] if len(output) > 8000 else output
+            return output[:GIT_SHOW_OUTPUT_MAX_CHARS] if len(output) > GIT_SHOW_OUTPUT_MAX_CHARS else output
         except _GIT_ERRORS as e:
             logger.error(f"git_show error: {e}")
             raise GitServiceError(f"git_show failed: {e}") from e

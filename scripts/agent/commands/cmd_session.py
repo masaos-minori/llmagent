@@ -18,6 +18,9 @@ from agent.services.models import SessionRow
 
 logger = logging.getLogger(__name__)
 
+SESSION_TITLE_MAX_CHARS = 32
+SESSION_TITLE_TRUNCATE_AT = SESSION_TITLE_MAX_CHARS - 3
+
 
 class _SessionMixin(MixinBase):
     """Session management slash-command handlers."""
@@ -88,7 +91,7 @@ class _SessionMixin(MixinBase):
             table_rows = []
             for sr in session_rows:
                 title = sr.title if sr.title is not None else ""
-                title_display = title[:29] + "..." if len(title) > 32 else title
+                title_display = title[:SESSION_TITLE_TRUNCATE_AT] + "..." if len(title) > SESSION_TITLE_MAX_CHARS else title
                 table_rows.append(
                     [
                         f"{sr.session_id:>4}{'*' if sr.is_current else ' '}",

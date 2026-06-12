@@ -15,7 +15,7 @@ from urllib.parse import urldefrag, urlparse
 import trafilatura
 from bs4 import BeautifulSoup
 
-from rag.utils import validate_url
+from rag.utils import MIN_TEXT_LENGTH_FOR_DETECTION, validate_url
 
 # Supported language codes for resolved (output) lang values
 _SUPPORTED_LANGS: frozenset[str] = frozenset({"en", "ja"})
@@ -23,6 +23,17 @@ _SUPPORTED_LANGS: frozenset[str] = frozenset({"en", "ja"})
 _VALID_HINT_LANGS: frozenset[str] = frozenset({"en", "ja", "auto"})
 # CJK character ratio threshold above which text is classified as Japanese
 _CJK_RATIO_THRESHOLD: float = 0.1
+
+# Expected element count for target_urls entries: [url, lang]
+_TARGET_URL_ENTRY_LENGTH = 2
+
+# Unicode code point ranges for CJK character detection in detect_lang()
+_HIRAGANA_KATAKANA_START = "぀"
+_HIRAGANA_KATAKANA_END = "ヿ"
+_CJK_UNIFIED_START = "一"
+_CJK_UNIFIED_END = "鿿"
+_CJK_EXT_A_START = "㐀"
+_CJK_EXT_A_END = "䶿"
 
 
 def url_to_slug(url: str) -> str:
@@ -73,15 +84,15 @@ def detect_lang(text: str) -> str | None:
     Returns None for texts shorter than 100 characters (too short for reliable
     detection).
     """
-    if len(text) < 100:
+    if len(text) < MIN_TEXT_LENGTH_FOR_DETECTION:
         return None
     # Count Hiragana, Katakana, and CJK Unified Ideographs (incl. Extension A)
     cjk_count = sum(
         1
         for c in text
-        if ("぀" <= c <= "ヿ")  # Hiragana + Katakana
-        or ("一" <= c <= "鿿")  # CJK Unified Ideographs
-        or ("㐀" <= c <= "䶿")  # CJK Extension A
+        if (_HIRAGANA_KATAKANA_START <= c <= _HIRAGANA_KATAKANA_END)
+        or (_CJK_UNIFIED_START <= c <= _CJK_UNIFIED_END)
+        or (_CJK_EXT_A_START <= c <= _CJK_EXT_A_END)
     )
     return "ja" if cjk_count / len(text) >= _CJK_RATIO_THRESHOLD else "en"
 
@@ -90,7 +101,7 @@ def parse_target_urls(target_raw: list[Any]) -> list[tuple[str, str]]:
     """Validate and parse the target_urls config list into (url, lang) tuples."""
     result: list[tuple[str, str]] = []
     for entry in target_raw:
-        if not isinstance(entry, list | tuple) or len(entry) != 2:
+        if not isinstance(entry, list | tuple) or len(entry) != _TARGET_URL_ENTRY_LENGTH:
             raise ValueError(
                 "Each entry in target_urls must be a 2-element list of [url, lang]",
             )

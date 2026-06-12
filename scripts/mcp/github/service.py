@@ -12,6 +12,7 @@ import logging
 import os
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from http import HTTPStatus
 from typing import Any, NoReturn, TypeVar
 
 import orjson
@@ -215,15 +216,15 @@ class GitHubService:
         """Convert a GithubException to a domain exception and raise it.
         Declared as NoReturn so callers do not need to write their own raise.
         """
-        if e.status == 404:
+        if e.status == HTTPStatus.NOT_FOUND:
             raise GitHubNotFoundError("Resource not found")
-        if e.status == 403:
+        if e.status == HTTPStatus.FORBIDDEN:
             raise GitHubAuthorizationError(
                 "GitHub API rate limit exceeded or access denied"
             )
-        if e.status == 409:
+        if e.status == HTTPStatus.CONFLICT:
             raise GitHubConflictError(f"GitHub API conflict (status={e.status})")
-        if e.status in (400, 422):
+        if e.status in (HTTPStatus.BAD_REQUEST, HTTPStatus.UNPROCESSABLE_ENTITY):
             raise GitHubValidationError(
                 f"GitHub API validation error (status={e.status})"
             )

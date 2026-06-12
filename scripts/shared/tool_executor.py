@@ -34,6 +34,9 @@ from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
 
 logger = logging.getLogger(__name__)
 
+# Plugin tool return value: (output: str, is_error: bool)
+_PLUGIN_RESULT_TUPLE_LENGTH = 2
+
 # Seconds to wait for a stdio server response before treating it as a timeout.
 _STDIO_CALL_TIMEOUT: float = 60.0
 
@@ -542,7 +545,7 @@ class ToolExecutor:
         plugin_fn = plugin_registry.get_tool(tool_name)
         if plugin_fn is not None:
             result_raw = await plugin_fn(args)
-            if not isinstance(result_raw, tuple) or len(result_raw) < 2:
+            if not isinstance(result_raw, tuple) or len(result_raw) < _PLUGIN_RESULT_TUPLE_LENGTH:
                 raise ValueError(
                     f"Plugin tool {tool_name!r} must return tuple[str, bool], got {type(result_raw).__name__}"
                 )

@@ -13,6 +13,7 @@ import os
 import subprocess  # nosec B404 — used to launch admin-controlled MCP server processes
 import time
 from dataclasses import dataclass
+from http import HTTPStatus
 
 import httpx
 from shared.mcp_config import McpServerConfig
@@ -133,7 +134,7 @@ class HttpServerLifecycleManager:
                     raise HttpStartupError(failure)
                 try:
                     resp = await client.get(health_url)
-                    if resp.status_code == 200:
+                    if resp.status_code == HTTPStatus.OK:
                         logger.info(
                             f"Lifecycle: HTTP subprocess {server_key!r} ready",
                         )

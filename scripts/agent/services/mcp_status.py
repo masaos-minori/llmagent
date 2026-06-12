@@ -7,6 +7,7 @@ tested without a running REPL.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import httpx
@@ -86,7 +87,7 @@ class McpStatusService:
             r = await probe.get(f"{url}/health")
             return (
                 McpAvailability.OK
-                if r.status_code == 200
+                if r.status_code == HTTPStatus.OK
                 else McpAvailability.HTTP_ERROR
             )
         except (httpx.RequestError, httpx.HTTPStatusError):

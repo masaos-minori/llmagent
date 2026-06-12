@@ -14,6 +14,9 @@ from typing import Protocol
 
 _VALID_ROLES: frozenset[str] = frozenset({"generic", "sqlite", "shell", "git", "ci"})
 
+MIN_PORT = 1024
+MAX_PORT = 65535
+
 
 @dataclass(frozen=True)
 class McpInstallParams:
@@ -67,7 +70,7 @@ class CliInstallQA:
         raw = (await asyncio.to_thread(input, f"Port [{default}]: ")).strip()
         try:
             port = int(raw) if raw else default
-            if not 1024 <= port <= 65535:
+            if not MIN_PORT <= port <= MAX_PORT:
                 raise ValueError
             return port
         except ValueError:

@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Awaitable, Callable
+from http import HTTPStatus
 from typing import Any, Protocol
 
 import httpx
@@ -33,6 +34,8 @@ from mcp.cicd.models import (
 from mcp.server import ToolArgs
 
 logger = logging.getLogger(__name__)
+
+GITHUB_REPO_PARTS_COUNT = 2
 
 _GITHUB_API_BASE = "https://api.github.com"
 # GitHub Actions REST API version header
@@ -114,9 +117,9 @@ class GitHubActionsBackend:
 
     def _check_response(self, resp: httpx.Response, context: str) -> None:
         """Raise domain exceptions for non-2xx responses with contextual messages."""
-        if resp.status_code == 404:
+        if resp.status_code == HTTPStatus.NOT_FOUND:
             raise CicdNotFoundError(f"Not found: {context}")
-        if resp.status_code == 422:
+        if resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY:
             try:
                 msg_422 = orjson.loads(resp.content).get(
                     "message",
@@ -146,7 +149,7 @@ class GitHubActionsBackend:
     def _split_repo(repo: str) -> tuple[str, str]:
         """Split 'owner/repo' slug into (owner, repo); raises ValueError on bad format."""
         parts = repo.split("/", 1)
-        if len(parts) != 2 or not parts[0] or not parts[1]:
+        if len(parts) != GITHUB_REPO_PARTS_COUNT or not parts[0] or not parts[1]:
             raise ValueError(
                 f"Invalid repo slug {repo!r}: expected 'owner/repo' format",
             )
@@ -169,7 +172,7 @@ class GitHubActionsBackend:
             content=body,
         )
         # 204 No Content = success (no body returned by GitHub)
-        if resp.status_code == 204:
+        if resp.status_code == HTTPStatus.NO_CONTENT:
             logger.info(
                 "trigger_workflow: dispatched repo=%s/%s workflow=%s ref=%s",
                 owner,

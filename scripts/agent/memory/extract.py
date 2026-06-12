@@ -42,6 +42,13 @@ MIN_TURNS = 2
 # Maximum entries extracted per on_session_stop call
 MAX_ENTRIES = 20
 
+# Semantic classification thresholds
+SEMANTIC_HITS_REQUIRED_STRONG = 2
+SEMANTIC_CONTENT_THRESHOLD = 200
+
+# Importance scoring divisor for length-based bonus
+IMPORTANCE_LENGTH_DIVISOR = 2000.0
+
 # Keywords that strongly suggest semantic (rule/policy/decision) content
 _SEMANTIC_KEYWORDS = re.compile(
     r"\b(rule|policy|always|never|should|constraint|decided|decision"
@@ -81,7 +88,7 @@ def _classify_content(
     failure_hits: int,
 ) -> tuple[MemoryType, SourceType, list[str]] | None:
     """Return (memory_type, source_type, tags) classification, or None if not extractable."""
-    if semantic_hits >= 2 or (semantic_hits >= 1 and len(content) >= 200):
+    if semantic_hits >= SEMANTIC_HITS_REQUIRED_STRONG or (semantic_hits >= 1 and len(content) >= SEMANTIC_CONTENT_THRESHOLD):
         source = (
             SourceType.DECISION if "decided" in content.lower() else SourceType.RULE
         )
@@ -130,7 +137,7 @@ def _make_entry(
 def _importance_from_content(content: str, is_semantic: bool) -> float:
     """Heuristic importance score based on length and keyword density."""
     base = 0.4
-    length_bonus = min(len(content) / 2000.0, 0.3)
+    length_bonus = min(len(content) / IMPORTANCE_LENGTH_DIVISOR, 0.3)
     if is_semantic:
         keyword_hits = len(_SEMANTIC_KEYWORDS.findall(content))
         keyword_bonus = min(keyword_hits * 0.05, 0.2)

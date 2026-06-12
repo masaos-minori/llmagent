@@ -30,6 +30,9 @@ from rag.ingestion.pipeline_utils import (
     read_json_file,
 )
 
+MIN_HEADING_LINES_FOR_MARKDOWN = 2
+MARKDOWN_HEADING_RE = r"^#{1,6}"
+
 logger = Logger(__name__, "/opt/llm/logs/chunk.log")
 
 
@@ -107,12 +110,12 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             return True
         content = data.get("content", "")
         # Treat as Markdown when at least two heading lines are found
-        return len(re.findall(r"^#{1,6} .+", content, re.MULTILINE)) >= 2
+        return len(re.findall(rf"{MARKDOWN_HEADING_RE} .+", content, re.MULTILINE)) >= MIN_HEADING_LINES_FOR_MARKDOWN
 
     def _chunk_markdown_by_heading(self, text: str) -> list[str]:
         """Split Markdown text at heading boundaries into snippet chunks; sections exceeding md_snippet_max_chars are further split via _chunk_english."""
         # Split before each heading line; keep the heading with its section
-        sections = re.split(r"(?=^#{1,6} )", text.strip(), flags=re.MULTILINE)
+        sections = re.split(rf"(?={MARKDOWN_HEADING_RE} )", text.strip(), flags=re.MULTILINE)
         chunks: list[str] = []
         for section in sections:
             section = section.strip()

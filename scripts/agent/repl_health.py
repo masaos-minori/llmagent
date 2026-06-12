@@ -8,6 +8,7 @@ health check or watchdog behaviour.
 from __future__ import annotations
 
 import asyncio
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -28,7 +29,7 @@ async def probe_mcp_health(http: httpx.AsyncClient, base_url: str) -> bool:
     """Return True if the MCP server at base_url responds to /health with 200."""
     try:
         resp = await http.get(f"{base_url}/health", timeout=5.0)
-        ok: bool = resp.status_code == 200  # explicit type for older mypy stubs
+        ok: bool = resp.status_code == HTTPStatus.OK  # explicit type for older mypy stubs
         return ok
     except (httpx.HTTPError, OSError, TimeoutError):
         return False
@@ -54,7 +55,7 @@ async def check_service_health(ctx: AgentContext) -> list[str]:
         health_url = f"{parsed.scheme}://{parsed.netloc}/health"
         try:
             resp = await ctx.services.http.get(health_url, timeout=2.0)
-            if resp.status_code != 200:
+            if resp.status_code != HTTPStatus.OK:
                 msg = f"{label} health check returned HTTP {resp.status_code}"
                 logger.warning(msg)
                 warnings.append(msg)
@@ -104,7 +105,7 @@ async def _collect_server_tool_names(ctx: AgentContext) -> set[str]:
                     f"{srv_cfg.url}/v1/tools",
                     timeout=5.0,
                 )
-                if resp.status_code == 200:
+                if resp.status_code == HTTPStatus.OK:
                     server_names.update(t["name"] for t in resp.json().get("tools", []))
             except (httpx.HTTPError, OSError) as e:
                 logger.warning(f"Cannot reach {srv_cfg.url}/v1/tools: {e}")

@@ -18,6 +18,8 @@ from agent.services.export_formatter import render_export, write_export
 
 logger = logging.getLogger(__name__)
 
+RAG_SEARCH_PARTS_COUNT = 2
+
 
 class _IngestMixin(MixinBase):
     """Export, ingest, and compact slash-command handlers."""
@@ -91,7 +93,7 @@ class _IngestMixin(MixinBase):
         ctx = self._ctx
         parts = args.strip().split(None, 1)
         sub = parts[0] if parts else ""
-        if sub != "search" or len(parts) < 2:
+        if sub != "search" or len(parts) < RAG_SEARCH_PARTS_COUNT:
             self._out.write("Usage: /rag search <query> [--debug]")
             return
 

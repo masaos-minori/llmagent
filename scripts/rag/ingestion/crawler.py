@@ -10,6 +10,7 @@ import argparse
 import asyncio
 import sqlite3
 from datetime import datetime
+from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -30,7 +31,7 @@ from rag.ingestion.crawler_utils import (
     same_origin,
     url_to_slug,
 )
-from rag.utils import validate_url
+from rag.utils import MIN_TEXT_LENGTH_FOR_DETECTION, validate_url
 
 logger = Logger(__name__, "/opt/llm/logs/crawl.log")
 
@@ -222,8 +223,8 @@ class WebCrawler:
         for i in range(self._fetch_retry):
             try:
                 resp = await client.get(url, headers=req_headers)
-                if resp.status_code == 304:
-                    logger.info(f"304 Not Modified, skipping: {url}")
+                if resp.status_code == HTTPStatus.NOT_MODIFIED:
+                    logger.info(f"{HTTPStatus.NOT_MODIFIED} Not Modified, skipping: {url}")
                     return None
                 resp.raise_for_status()
                 etag = resp.headers.get("ETag") or resp.headers.get("etag")
@@ -329,10 +330,10 @@ class WebCrawler:
     def _resolve_lang(self, text: str, hint_lang: str) -> str:
         """Determine page language; 'auto' uses CJK-ratio detection with 'en' fallback for short/inconclusive texts; returns a _SUPPORTED_LANGS value."""
         if hint_lang == "auto":
-            if len(text) < 100:
+            if len(text) < MIN_TEXT_LENGTH_FOR_DETECTION:
                 return "en"
             return detect_lang(text) or "en"
-        if len(text) < 100:
+        if len(text) < MIN_TEXT_LENGTH_FOR_DETECTION:
             return hint_lang
         detected = detect_lang(text)
         return detected if detected is not None else hint_lang

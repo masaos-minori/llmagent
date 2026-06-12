@@ -13,6 +13,8 @@ from urllib.parse import urlparse
 
 from rag.models import SanitizeResult
 
+MIN_TEXT_LENGTH_FOR_DETECTION = 100
+
 # Library module — no FileHandler; caller controls log routing
 logger = logging.getLogger(__name__)
 

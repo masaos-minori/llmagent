@@ -15,6 +15,9 @@ FileopMCPServer, WebSearchMCPServer, and GithubMCPServer.
 # Maximum body/snippet characters per result item for LLM context (token-saving)
 MAX_SNIPPET_CHARS: int = 400
 
+# Bytes-to-KB conversion base (powers of 1024)
+_BYTES_PER_KB: int = 1024
+
 
 # ── Text utilities ─────────────────────────────────────────────────────────────
 
@@ -28,11 +31,11 @@ def truncate(text: str, max_chars: int) -> str:
 
 def fmt_size(size: int) -> str:
     """Return a human-readable file size string (B / KB / MB)."""
-    if size < 1024:
+    if size < _BYTES_PER_KB:
         return f"{size} B"
-    if size < 1024 * 1024:
-        return f"{size // 1024} KB"
-    return f"{size // (1024 * 1024)} MB"
+    if size < _BYTES_PER_KB * _BYTES_PER_KB:
+        return f"{size // _BYTES_PER_KB} KB"
+    return f"{size // (_BYTES_PER_KB * _BYTES_PER_KB)} MB"
 
 
 def fmt_md_link(text: str, url: str) -> str:
