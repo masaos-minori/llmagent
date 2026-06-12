@@ -8,7 +8,6 @@ from __future__ import annotations
 import pytest
 
 from scripts.agent.memory.types import (
-    MEMORY_TYPES,
     EmbeddingResult,
     MemoryEntry,
     MemoryHit,
@@ -157,20 +156,6 @@ class TestMemoryEntry:
         entry = MemoryEntry(**base_kwargs)
         assert entry.session_id is None
         assert entry.turn_id is None
-
-
-# ── MEMORY_TYPES constant ──
-
-
-class TestMemoryTypesConstant:
-    def test_memory_types_contains_semantic(self):
-        assert "semantic" in MEMORY_TYPES
-
-    def test_memory_types_contains_episodic(self):
-        assert "episodic" in MEMORY_TYPES
-
-    def test_memory_types_is_frozenset(self):
-        assert isinstance(MEMORY_TYPES, frozenset)
 
 
 # ── MemoryQuery ──

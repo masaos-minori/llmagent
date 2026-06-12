@@ -16,9 +16,10 @@ from typing import Any
 
 import orjson
 
+from agent.memory.enums import MemoryType
 from agent.memory.exceptions import JsonlFormatError
 from agent.memory.mapper import row_to_entry
-from agent.memory.types import MEMORY_TYPES, MemoryEntry
+from agent.memory.types import MemoryEntry
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,10 @@ def _entry_from_dict(d: dict[str, Any]) -> MemoryEntry:
         raise JsonlFormatError(
             f"'memory_type' must be a str, got {type(memory_type).__name__}"
         )
-    if memory_type not in MEMORY_TYPES:
-        raise JsonlFormatError(f"Invalid memory_type={memory_type!r}")
+    try:
+        MemoryType(memory_type)
+    except ValueError:
+        raise JsonlFormatError(f"Invalid memory_type={memory_type!r}") from None
     return row_to_entry(d)
 
 

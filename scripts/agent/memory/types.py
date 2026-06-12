@@ -13,9 +13,6 @@ from agent.memory.enums import MemoryType
 
 _ISO8601_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
-# Derived from MemoryType enum for backward compatibility
-MEMORY_TYPES: frozenset[str] = frozenset(m.value for m in MemoryType)
-
 
 class SourceType(StrEnum):
     """Taxonomy of memory source types.

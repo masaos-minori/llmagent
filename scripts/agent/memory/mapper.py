@@ -17,9 +17,15 @@ from agent.memory.types import MemoryEntry, SourceType
 
 
 def _opt_str(d: dict[str, Any], key: str) -> str:
-    """Return string value for key, or "" if absent or None."""
+    """Return string value for key, or "" if absent or None; raises MemorySchemaError on wrong type."""
     v = d.get(key)
-    return str(v) if v is not None else ""
+    if v is None:
+        return ""
+    if not isinstance(v, str):
+        raise MemorySchemaError(
+            f"Field {key!r} must be str or None, got {type(v).__name__}"
+        )
+    return v
 
 
 def _require(d: dict[str, Any], key: str) -> Any:
@@ -63,8 +69,14 @@ def row_to_entry(row: sqlite3.Row | dict[str, Any]) -> MemoryEntry:
         raise MemorySchemaError(str(e)) from e
     pinned_raw = d.get("pinned")
     pinned = bool(pinned_raw) if pinned_raw is not None else False
+    _mid = _require(d, "memory_id")
+    if not isinstance(_mid, str):
+        raise MemorySchemaError(f"memory_id must be str, got {type(_mid).__name__}")
+    _content = _require(d, "content")
+    if not isinstance(_content, str):
+        raise MemorySchemaError(f"content must be str, got {type(_content).__name__}")
     return MemoryEntry(
-        memory_id=str(_require(d, "memory_id")),
+        memory_id=_mid,
         memory_type=memory_type,
         source_type=source_type,
         session_id=d.get("session_id"),
@@ -72,7 +84,7 @@ def row_to_entry(row: sqlite3.Row | dict[str, Any]) -> MemoryEntry:
         project=_opt_str(d, "project"),
         repo=_opt_str(d, "repo"),
         branch=_opt_str(d, "branch"),
-        content=str(_require(d, "content")),
+        content=_content,
         summary=_opt_str(d, "summary"),
         tags=tags,
         importance=importance,
