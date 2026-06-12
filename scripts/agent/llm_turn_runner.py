@@ -130,7 +130,8 @@ class LLMTurnRunner:
     ) -> Any:
         """Stream one LLM response; raise on first-turn failure, inject on mid-turn."""
         ctx = self._ctx
-        assert ctx.services.llm is not None
+        if ctx.services.llm is None:
+            raise RuntimeError("llm service not initialized")
         response = await ctx.services.llm.stream(
             llm_url,
             ctx.conv.history,

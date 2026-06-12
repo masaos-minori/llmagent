@@ -89,7 +89,8 @@ class Orchestrator:
 
     async def _handle_turn_start(self, line: str) -> None:
         ctx = self._ctx
-        assert ctx.services.hist_mgr is not None
+        if ctx.services.hist_mgr is None:
+            raise RuntimeError("hist_mgr service not initialized")
         ctx.turn.current_turn_id = str(uuid.uuid4())
         session_id = str(ctx.session.session_id) if ctx.session.session_id else "none"
         if ctx.services.audit_logger is not None:
@@ -126,7 +127,8 @@ class Orchestrator:
 
     async def _handle_history_compression(self) -> None:
         ctx = self._ctx
-        assert ctx.services.hist_mgr is not None
+        if ctx.services.hist_mgr is None:
+            raise RuntimeError("hist_mgr service not initialized")
         with self._llm_runner._span_ctx("compress"):
             ctx.conv.history, _ = await ctx.services.hist_mgr.compress(ctx.conv.history)
 

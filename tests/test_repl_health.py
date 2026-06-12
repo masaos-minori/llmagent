@@ -54,7 +54,7 @@ class TestProbeMcpHealth:
     @pytest.mark.asyncio
     async def test_returns_false_on_exception(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
-        http.get = _async_result(ValueError("fail"))
+        http.get.side_effect = httpx.ConnectError("fail")
 
         result = await probe_mcp_health(http, "http://localhost:8000")
         assert result is False

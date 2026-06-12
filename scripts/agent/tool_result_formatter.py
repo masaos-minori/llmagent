@@ -48,8 +48,10 @@ def is_summarized(
 
 def build_github_preview(args: dict[str, Any]) -> str:
     """Build preview string for github_* tools showing repo and extra args."""
-    owner = str(args.get("owner", ""))
-    repo = str(args.get("repo", ""))
+    _owner = args.get("owner")
+    owner = _owner if isinstance(_owner, str) else ""
+    _repo = args.get("repo")
+    repo = _repo if isinstance(_repo, str) else ""
     repo_str = f"{owner}/{repo}" if owner and repo else owner or repo or "?"
     extra = {k: v for k, v in args.items() if k not in ("owner", "repo")}
     extra_str = orjson.dumps(extra, option=orjson.OPT_SORT_KEYS).decode()[:200]
@@ -60,14 +62,17 @@ def build_preview(tool_name: str, args: dict[str, Any]) -> str:
     """Build a human-readable operation preview shown before approval prompts."""
     if tool_name in ("write_file", "edit_file"):
         path = args.get("path") or args.get("file_path", "?")
-        content = str(args.get("content") or args.get("new_content") or "")[:200]
+        _content = args.get("content") or args.get("new_content") or ""
+        content = _content[:200] if isinstance(_content, str) else ""
         return f"{path}\n    content: {content!r}"
     if tool_name in ("delete_file", "delete_directory", "create_directory"):
-        return str(args.get("path") or args.get("directory_path", "?"))
+        _path = args.get("path") or args.get("directory_path")
+        return _path if isinstance(_path, str) else "?"
     if tool_name == "move_file":
         return f"{args.get('source', '?')} → {args.get('destination', '?')}"
     if tool_name == "shell_run":
-        return str(args.get("command", "?"))
+        _cmd = args.get("command")
+        return _cmd if isinstance(_cmd, str) else "?"
     if tool_name.startswith("github_"):
         return build_github_preview(args)
     raw: str = orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()

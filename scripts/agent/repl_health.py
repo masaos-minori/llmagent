@@ -30,7 +30,7 @@ async def probe_mcp_health(http: httpx.AsyncClient, base_url: str) -> bool:
         resp = await http.get(f"{base_url}/health", timeout=5.0)
         ok: bool = resp.status_code == 200  # explicit type for older mypy stubs
         return ok
-    except Exception:
+    except (httpx.HTTPError, OSError, TimeoutError):
         return False
 
 
@@ -40,7 +40,8 @@ async def check_service_health(ctx: AgentContext) -> list[str]:
     Failure is non-fatal: the REPL continues regardless.
     Derives the /health URL by stripping the path from each endpoint URL.
     """
-    assert ctx.services.http is not None
+    if ctx.services.http is None:
+        raise RuntimeError("http service not initialized")
     checks = [
         ("llm", ctx.cfg.llm.llm_url),
         ("embed-llm", ctx.cfg.rag.embed_url),
@@ -57,7 +58,7 @@ async def check_service_health(ctx: AgentContext) -> list[str]:
                 msg = f"{label} health check returned HTTP {resp.status_code}"
                 logger.warning(msg)
                 warnings.append(msg)
-        except Exception as e:
+        except (httpx.HTTPError, OSError) as e:
             msg = f"{label} unreachable at {health_url}: {e}"
             logger.warning(msg)
             warnings.append(msg)
@@ -91,7 +92,8 @@ async def _collect_server_tool_names(ctx: AgentContext) -> set[str]:
     HTTP servers: probed via GET /v1/tools.
     Stdio servers: probed via the __list_tools__ reserved RPC (only when running).
     """
-    assert ctx.services.http is not None
+    if ctx.services.http is None:
+        raise RuntimeError("http service not initialized")
     server_names: set[str] = set()
     for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
         if srv_cfg.transport == "http":
@@ -104,7 +106,7 @@ async def _collect_server_tool_names(ctx: AgentContext) -> set[str]:
                 )
                 if resp.status_code == 200:
                     server_names.update(t["name"] for t in resp.json().get("tools", []))
-            except Exception as e:
+            except (httpx.HTTPError, OSError) as e:
                 logger.warning(f"Cannot reach {srv_cfg.url}/v1/tools: {e}")
         elif srv_cfg.transport == "stdio":
             transport = ctx.services.stdio_procs.get(key)
@@ -159,7 +161,8 @@ async def _watchdog_check_http(
     ctx.services.lifecycle.restart().  Other modes (externally-managed) only
     log a warning because the agent does not own those processes.
     """
-    assert ctx.services.http is not None
+    if ctx.services.http is None:
+        raise RuntimeError("http service not initialized")
     if not srv_cfg.url:
         return
     ok = await probe_mcp_health(ctx.services.http, srv_cfg.url)
@@ -183,7 +186,7 @@ async def _watchdog_check_http(
         try:
             await ctx.services.lifecycle.restart(key)
             restart_counts[key] = count + 1
-        except Exception as e:
+        except (OSError, RuntimeError) as e:
             logger.error(f"Watchdog: failed to restart {key!r}: {e}")
     else:
         logger.warning(
@@ -233,7 +236,7 @@ async def _watchdog_check_stdio(
         try:
             await ctx.services.lifecycle.restart_stdio(key)
             restart_counts[key] = count + 1
-        except Exception as e:
+        except (OSError, RuntimeError) as e:
             logger.error(f"Watchdog: failed to restart stdio server {key!r}: {e}")
     if ctx.services.health_registry:
         ctx.services.health_registry.record_failure(key)

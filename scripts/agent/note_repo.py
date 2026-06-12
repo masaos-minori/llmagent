@@ -19,7 +19,8 @@ class NoteRepository:
             cur = db.execute("INSERT INTO notes (content) VALUES (?)", (content,))
             note_id = cur.lastrowid
             db.commit()
-        assert note_id is not None  # SQLite always sets lastrowid after INSERT
+        if note_id is None:
+            raise RuntimeError("SQLite did not set lastrowid after INSERT into notes")
         logger.info(f"Note added: note_id={note_id}")
         return note_id
 

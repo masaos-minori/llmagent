@@ -138,7 +138,7 @@ class HttpServerLifecycleManager:
                             f"Lifecycle: HTTP subprocess {server_key!r} ready",
                         )
                         return
-                except Exception as e:
+                except (httpx.HTTPError, OSError) as e:
                     logger.debug(f"Lifecycle: health-check poll {server_key!r}: {e}")
                 await asyncio.sleep(0.5)
 
@@ -166,7 +166,7 @@ class HttpServerLifecycleManager:
             if proc.poll() is None:
                 try:
                     await self._terminate_with_timeout(proc, key, timeout=5.0)
-                except Exception as e:
+                except (OSError, TimeoutError) as e:
                     logger.warning(
                         f"Lifecycle: error stopping HTTP subprocess {key!r}: {e}"
                     )

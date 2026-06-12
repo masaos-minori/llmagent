@@ -15,7 +15,11 @@ import orjson
 
 from agent.tool_audit import audit_approval
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
-from agent.tool_exceptions import ApprovalPreviewError, ToolArgumentsDecodeError
+from agent.tool_exceptions import (
+    ApprovalPreviewError,
+    PolicyViolationError,
+    ToolArgumentsDecodeError,
+)
 from agent.tool_output import (
     emit_approval_prompt,
     emit_denied,
@@ -115,11 +119,7 @@ async def check_approval(
 
     try:
         check_preflight(ctx.cfg, tool_name, args)
-    except Exception as preflight_exc:  # noqa: BLE001 — PolicyViolationError from check_preflight
-        from agent.tool_exceptions import PolicyViolationError
-
-        if not isinstance(preflight_exc, PolicyViolationError):
-            raise
+    except PolicyViolationError as preflight_exc:
         audit_approval(
             ctx, tool_name, RiskLevel.HIGH, args, preflight_exc.audit_decision
         )

@@ -200,7 +200,7 @@ class HistoryManager:
                 logger.warning("Context compression: LLM returned empty summary")
                 return None
             return str(raw_content).strip()
-        except Exception as e:
+        except (httpx.HTTPError, orjson.JSONDecodeError, KeyError, TypeError) as e:
             logger.warning(f"Context compression failed: {e}")
             return None
 

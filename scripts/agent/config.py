@@ -26,7 +26,7 @@ def load_config() -> dict[str, Any]:
     """Load configuration from files.  No module-level cache — always fresh."""
     try:
         return ConfigLoader().load_all()
-    except Exception as e:
+    except (OSError, ValueError, TypeError) as e:
         raise ConfigLoadError(f"Config load failed: {e}") from e
 
 
@@ -514,7 +514,7 @@ def _build_llm_config(cfg: dict[str, Any]) -> "LLMConfig":
         llm_stream_retry_on_malformed_chunk=bool(
             cfg.get("llm_stream_retry_on_malformed_chunk", False),
         ),
-        tokenize_url=str(cfg.get("tokenize_url", "")),
+        tokenize_url=cfg.get("tokenize_url", ""),
         context_token_limit=int(cfg.get("context_token_limit", 0)),
         context_char_limit=int(cfg.get("context_char_limit", 8000)),
         context_compress_turns=int(cfg.get("context_compress_turns", 4)),
@@ -575,7 +575,7 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> "ToolCon
 def _build_memory_config(cfg: dict[str, Any]) -> "MemoryConfig":
     return MemoryConfig(
         use_memory_layer=bool(cfg.get("use_memory_layer", False)),
-        memory_jsonl_dir=str(cfg.get("memory_jsonl_dir", "/opt/llm/memory")),
+        memory_jsonl_dir=cfg.get("memory_jsonl_dir", "/opt/llm/memory"),
         memory_max_inject_semantic=int(cfg.get("memory_max_inject_semantic", 5)),
         memory_max_inject_episodic=int(cfg.get("memory_max_inject_episodic", 3)),
         memory_min_importance=float(cfg.get("memory_min_importance", 0.3)),
