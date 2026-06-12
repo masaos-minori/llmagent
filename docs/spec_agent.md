@@ -48,7 +48,7 @@ LLM エージェント REPL（Read-Eval-Print Loop）として、ユーザーの
 ### 6.1 REPL 基本機能
 - ユーザー入力の受付（readline、複数行入力は行末 `\` で継続）
 - LLM へのメッセージ送信とストリーミングレスポンス表示
-- スラッシュコマンド（22 種）の処理
+- スラッシュコマンド（23 種）の処理
 - セッション開始・終了・切り替え
 
 ### 6.2 ツール呼び出し機能
@@ -101,7 +101,7 @@ LLM エージェント REPL（Read-Eval-Print Loop）として、ユーザーの
 - `tool_calls` フィールドにツール呼び出し情報が含まれる場合あり
 
 ### 7.4 ツール実行結果
-- `(result: str, is_error: bool, x_request_id: str)` タプル
+- `execute_one_tool_call()` は `(tc_id, name, args, full_text, is_error, llm_text)` の6要素タプルを返す (tool_runner.py:40-86)
 
 ---
 
@@ -116,16 +116,20 @@ LLM エージェント REPL（Read-Eval-Print Loop）として、ユーザーの
 
 [1ターンの処理]
   ユーザー入力
-    → Orchestrator.handle_turn(user_message, allowed_tools=None)
-      → HistoryManager.compress() (コンテキスト上限超過時)
-        → tuple[list[LLMMessage], CompressResult] を返す (compressed_count, protected_count, summary_added 付き)
-      → LLMClient.send_message() [SSEストリーミング]
-      → tool_calls あり？
-          Yes → run_approval_checks() → execute_all_tool_calls()
-              → ループ (max_tool_turns まで)
-          No  → 最終応答を表示・DB 保存
+    → Orchestrator.handle_turn(line: str) -> None (repl.py:180, orchestrator.py:74)
+      → _handle_memory_injection() (memory snippet を history に注入)
+      → _append_user_message() (system prompt sync + user message 追加)
+      → _handle_history_compression() (コンテキスト上限超過時)
+        → tuple[list[LLMMessage], CompressResult] を返す
+      → _handle_llm_turn() via LLMTurnRunner.run(llm_url) (orchestrator.py:142)
+        → LLMClient.stream() [SSEストリーミング]
+        → tool_calls あり？
+            Yes → run_approval_checks() → execute_all_tool_calls()
+                → ToolLoopGuard で cycle/dedup/retry/error 制限 (tool_loop_guard.py:49)
+                → ループ (max_tool_turns まで)
+            No  → 最終応答を表示・DB 保存
 
-※ RAG augment は仕様 (§6.3, §8) で定義されているが、実際のコード (orchestrator.py, llm_turn_runner.py) では呼び出し実装がない。
+※ RAG augment は仕様 (§6.3, §8) で定義されているが、エージェントターンでは呼ばれていない。
 
 [セッション終了]
   MemoryIngestionService.on_session_stop() (use_memory_layer=true の場合)
@@ -143,16 +147,16 @@ AgentConfig は 7 つのサブ config を compose する構造（`config.py:401-
 | サブ設定 | 主要フィールド |
 |---|---|
 | `LLMConfig` | `llm_url`, `http_timeout=30.0`, `llm_retry_base_delay=1.0`, `llm_max_retries=3`, `llm_temperature=0.2`, `llm_max_tokens=1024`, `title_llm_temperature`, `title_llm_max_tokens`, `context_char_limit=8000`, `context_compress_turns=4`, `context_token_limit=0`, `tokenize_url`, `sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`, `llm_stream_retry_on_heartbeat_timeout`, `llm_stream_retry_on_malformed_chunk`, `history_protect_turns`, `budget_warn_ratio` |
-| `RAGConfig` | `top_k_search=20`, `top_k_rerank=15`, `max_chunks_per_doc=2`, `embed_url`, `use_semantic_cache=False`, `semantic_cache_threshold`, `semantic_cache_max_size`, `web_search_url`, `web_search_max_results`, `refiner_max_tokens`, `refiner_timeout`, `refiner_max_chars_per_chunk` |
+| `RAGConfig` | `top_k_search=10`, `top_k_rerank=15`, `max_chunks_per_doc=2`, `embed_url`, `use_semantic_cache=False`, `semantic_cache_threshold`, `semantic_cache_max_size`, `web_search_url`, `web_search_max_results`, `refiner_max_tokens`, `refiner_timeout`, `refiner_max_chars_per_chunk`, `use_refiner=False` |
 | `ToolConfig` | `tool_cache_ttl=300.0`, `tool_cache_max_size=200`, `serial_tool_calls=False`, `auto_inject_notes=True`, `use_tool_summarize=False`, `tool_summarize_threshold=3000`, `tool_definitions_strict=False`, `tool_dedup_max_repeats=3`, `tool_cycle_detect_window=2`, `tool_error_max_consecutive=3`, `tool_error_retry_max=1`, `tool_concurrency_limits={}`, `masked_fields=["file_content"]`, `plan_blocked_tools=["write_file","create_directory","delete_file","delete_directory"]`, `max_tool_turns=5`, `tool_result_max_llm_chars=8000`, `tool_results_turn_max_chars=50000`, `use_tool_dag=False`, `tool_definitions=[]`, `system_prompts={}`, `system_prompt_tool=""`, `allowed_tools=[]` |
 | `MemoryConfig` | `use_memory_layer=False`, `memory_jsonl_dir`, `memory_max_inject_semantic=5`, `memory_max_inject_episodic=3`, `memory_embed_enabled=False`, `memory_embed_dim=384`, `memory_min_importance`, `memory_dedup_threshold`, `memory_max_content_chars`, `memory_embed_timeout_sec`, `memory_retention_days`, `memory_fts_limit=50`, `memory_rrf_k=60`, `memory_recency_days=7.0` |
 | `MCPConfig` | `mcp_servers={}`, `mcp_watchdog_interval=0.0`, `mcp_watchdog_max_restarts=3`, `github_url` |
 | `ApprovalConfig` | `approval_risk_rules`, `approval_protected_paths`, `approval_high_risk_branches`, `approval_github_allowed_repos=[]`, `approval_shell_safe_prefixes`, `approval_resource_keys`, `approval_dry_run_tools`, `tool_safety_tiers`, `allowed_root`, `gitops_push_blocked=False`, `gitops_force_push_blocked=True`, `gitops_protected_branches` |
-| `ObservabilityConfig` | `otel_enabled=False`, `otel_endpoint`, `audit_log_file`, `structured_log=False` |
+| `ObservabilityConfig` | `otel_enabled=False`, `otel_endpoint`, `otel_service_name="llm-agent"`, `audit_log_file`, `structured_log=False` |
 
 ※ `_cfg` モジュール変数と `_get_cfg()` キャッシュは削除された。`load_config()` は毎回 `ConfigLoader().load_all()` を呼ぶ。
 
-### 9.2 ConversationState
+### 9.2 ConversationState / TurnState
 
 ```python
 @dataclass
@@ -161,9 +165,15 @@ class ConversationState:
     llm_url: str                        # LLM エンドポイント
     debug_mode: bool                    # デバッグモード
     plan_mode: bool                     # プランモード
-    system_prompt_name: str             # システムプロンプト名
-    system_prompt_content: str | None   # システムプロンプト本文
+    system_prompt_name: str             # システムプロンプト名 (default="default")
+    system_prompt_content: str          # システムプロンプト本文
     shutdown_requested: bool            # シャットダウン要求フラグ
+
+@dataclass
+class TurnState:
+    current_turn_id: str | None         # UUID4; Orchestrator.handle_turn() で設定
+    background_tasks: set[asyncio.Task] # このターン中に生成されたバックグラウンドタスク
+    last_error_kind: str | None         # 直近のターン失敗の原因種別
 ```
 
 ※ `session_id` は ConversationState に含まれない。`ctx.session.session_id` でアクセスする。
@@ -186,13 +196,22 @@ class LLMMessage(TypedDict, total=False):
 | フィールド | 型 | 説明 |
 |---|---|---|
 | `memory_id` | str | UUID |
-| `memory_type` | `MemoryType` (StrEnum) | `MemoryType.SEMANTIC` / `MemoryType.EPISODIC`; str との等値比較可 |
-| `source_type` | SourceType | `conversation`, `rule`, `decision` 等 |
+| `memory_type` | `MemoryType` (StrEnum) | `MemoryType.SEMANTIC` / `MemoryType.EPISODIC`; str との等値比較可。`__post_init__` で str → MemoryType の自動変換あり |
+| `source_type` | SourceType | `conversation`, `rule`, `decision`, `failure` 等。StrEnum |
+| `session_id` | int \| None | 生成元セッション |
+| `turn_id` | str \| None | 生成元ターンID |
+| `project` | str | プロジェクト名 |
+| `repo` | str | リポジトリ名 |
+| `branch` | str | ブランチ名 |
+| `content` | str | 本文 |
+| `summary` | str |要約 |
+| `tags` | list[str] | タグリスト |
 | `importance` | float | 0.0〜1.0 |
 | `pinned` | bool | 常時保持フラグ |
-| `content` | str | 本文 |
-| `session_id` | int \| None | 生成元セッション |
 | `created_at` | str | ISO-8601 UTC |
+| `updated_at` | str | ISO-8601 UTC |
+
+※ MemoryEntry は `@dataclass(frozen=True)` で定義される (memory/types.py:44)。
 
 ---
 
@@ -210,11 +229,13 @@ class AgentREPL:
 
 ```python
 class Orchestrator:
-    def __init__(ctx: AgentContext, *, on_turn_start, on_turn_end, on_error, on_first_turn, tracer, allowed_tools: list[str] | None = None)
-    async def handle_turn(user_message: str, allowed_tools: list[str] | None = None) -> TurnResult
+    def __init__(ctx: AgentContext, *, allowed_tools: list[str] | None = None, on_turn_start, on_turn_end, on_error, on_first_turn, tracer) -> None
+    # allowed_tools は init 時に self._allowed_tools として保存され、_process_turn() で一時的に適用される
+    async def handle_turn(line: str) -> None
+    # TurnResult を返さない。side effects (DB save, callbacks) で結果を出力する
 ```
 
-※ `allowed_tools` は §13 で「未実装」と記載されていたが、実際には実装済み (`orchestrator.py:47-70`, `orchestrator.py:72-86`)。
+※ `allowed_tools` はコンストラクタで受け取り `self._allowed_tools` として保持 (§47-59)。`handle_turn()` の引数ではない (§74)。
 
 ### 10.3 HistoryManager
 
@@ -226,13 +247,20 @@ class HistoryManager:
     def count_chars(history: list[LLMMessage]) -> int
     def count_tokens(history: list[LLMMessage], last_input_tokens: int | None = None) -> int
     # count_tokens: last_input_tokens 指定時はその値をそのまま返す（chars//4 推定をスキップ）
+    def count_tokens_async(history, last_input_tokens) -> tuple[int, bool]
+    # 非同期版: (token_count, is_exact) を返す
+    def apply_config(char_limit, compress_turns, token_limit, tokenize_url) -> None
+    # 設定のホットリロード
+    @property
+    def compress_turns: int
+    # 圧縮対象ターン数
 ```
 
 ※ `compress()` / `force_compress()` は `list[LLMMessage]` のみを返さず、`tuple[list[LLMMessage], CompressResult]` を返す。
 
 ### 10.4 CommandRegistry (スラッシュコマンド)
 
-実装は 22 種 (`commands/registry.py:64-206`)。主要コマンド一覧:
+実装は 23 種 (`commands/registry.py:67-209`)。主要コマンド一覧:
 
 | コマンド | 説明 |
 |---|---|
@@ -267,18 +295,20 @@ class HistoryManager:
 MemoryLayer 廃止後の memory サブサービスコンテナ。`AppServices.memory: MemoryServices | None`。
 
 ```python
-@dataclass
 class MemoryServices:
+    # regular class (not @dataclass), defined in memory/services.py:16
     injection: MemoryInjectionService   # on_session_start / on_user_prompt
     ingestion: MemoryIngestionService   # on_session_stop / write_semantic / write_episodic
     store: MemoryStore                  # CRUD (get_by_id / pin / unpin / delete / count_*)
     retriever: HybridRetriever          # search / top_semantic / knn_search
 
-# convenience method (memory/services.py)
-mem.on_user_prompt(query, session_id) -> list[str]  # injection 経由
+# convenience methods (memory/services.py)
+mem.on_session_start(session_id) -> list[str]
+await mem.on_session_stop(session_id, history, turn_id) -> None
+await mem.on_user_prompt(query, session_id) -> list[str]
 
-# ライフサイクルフック
-mem.injection.on_session_start(session_id) -> list[str]
+# ライフサイクルフック（sub-service 経由）
+mem.injection.on_session_start() -> list[str]
 await mem.injection.on_user_prompt(query, session_id) -> list[str]
 await mem.ingestion.on_session_stop(session_id, history, turn_id) -> None
 # 手動書き込み
@@ -290,11 +320,28 @@ mem.store.pin(memory_id) / mem.store.unpin(memory_id) -> bool
 mem.store.delete(memory_id) -> bool
 mem.store.count_entries() -> int
 mem.store.count_prunable(days) -> int
+# 追加のストア操作 (store.py)
+mem.store.clear_by_session(session_id) -> int
+mem.store.search_by_type(memory_type, limit, min_importance) -> list[MemoryEntry]
+mem.store.count_by_type() -> dict[str, int]
+mem.store.count_vec() -> int
+mem.store.check_consistency() -> ConsistencyReport
 # 検索
 mem.retriever.search(query, embedding=None) -> list[MemoryHit]
 ```
 
 ※ `orchestrator.py:111` では `ctx.services.memory.on_user_prompt()` (convenience method 経由) が使われている。
+
+### 10.6 AgentContext 追加メンバ
+
+```python
+# context.py:147
+tool_result_store: ToolResultStore  # ツール結果の永続保存 (/tool show <id> で参照)
+
+# context.py:152-159
+@property
+def services_required -> AppServices  # None チェック付きで services を取得
+```
 
 ---
 
@@ -335,3 +382,4 @@ mem.retriever.search(query, embedding=None) -> list[MemoryHit]
 | `AgentConfig.__getattr__`/`__setattr__` | backward-compat レイヤーが残存。`cfg.llm_url` 等のフラットアクセスを廃止して `cfg.llm.llm_url` に統一する作業が未完了 (`implementations/20260606-194837_config_context_compat.md` 参照) |
 | `repl_debug.py`/`context_detection.py`/`rag_debug.py` | 参照元のない廃止スタブファイルが残存。削除対象 (`implementations/20260606-194821_delete_obsolete_files.md` 参照) |
 | rag-mcp スタブのポート競合 | `mcp/rag/server.py` (port 8014) と `mcp/git/server.py` (port 8014) がポート 8014 で競合。`rag/server.py` はドキュメントなし |
+| `_embed_and_store` の chunk_index ハードコード | `scripts/rag/ingestion/ingester.py:245-266` で `idx = 0` がハードコードされており、全チャンクが `chunk_index=0` で DB に登録される (ingester.py:245) |

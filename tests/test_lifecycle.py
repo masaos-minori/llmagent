@@ -665,9 +665,9 @@ class TestEnsureReadyIntegration:
         try:
             await transport.start()
             assert transport.is_alive()
-            result, is_error, _ = await transport.call("cwd_query", {})
-            assert not is_error
-            assert Path(result).resolve() == tmp_path.resolve()
+            result = await transport.call("cwd_query", {})
+            assert not result.is_error
+            assert Path(result.output).resolve() == tmp_path.resolve()
         finally:
             await transport.stop()
 

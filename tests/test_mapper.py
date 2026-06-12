@@ -31,7 +31,7 @@ class TestRowToEntry:
             "updated_at": "2024-01-02T00:00:00Z",
         }
         entry = row_to_entry(row)
-        assert entry.memory_id == 1
+        assert entry.memory_id == "1"
         assert entry.memory_type == "episodic"
         assert entry.source_type == SourceType.CONVERSATION
         assert entry.session_id == 42
@@ -54,7 +54,7 @@ class TestRowToEntry:
             "content": "minimal",
         }
         entry = row_to_entry(row)
-        assert entry.memory_id == 1
+        assert entry.memory_id == "1"
         assert entry.memory_type == "semantic"
         assert entry.content == "minimal"
         assert entry.source_type == SourceType.CONVERSATION
@@ -151,7 +151,7 @@ class TestRowToEntry:
         row = conn.execute("SELECT * FROM t").fetchone()
         assert row is not None
         entry = row_to_entry(row)
-        assert entry.memory_id == 10
+        assert entry.memory_id == "10"
         assert entry.memory_type == "episodic"
         assert entry.content == "content"
         assert entry.tags == ["x"]

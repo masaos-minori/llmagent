@@ -29,7 +29,9 @@ async def probe_mcp_health(http: httpx.AsyncClient, base_url: str) -> bool:
     """Return True if the MCP server at base_url responds to /health with 200."""
     try:
         resp = await http.get(f"{base_url}/health", timeout=5.0)
-        ok: bool = resp.status_code == HTTPStatus.OK  # explicit type for older mypy stubs
+        ok: bool = (
+            resp.status_code == HTTPStatus.OK
+        )  # explicit type for older mypy stubs
         return ok
     except (httpx.HTTPError, OSError, TimeoutError):
         return False

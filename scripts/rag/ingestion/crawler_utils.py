@@ -101,7 +101,10 @@ def parse_target_urls(target_raw: list[Any]) -> list[tuple[str, str]]:
     """Validate and parse the target_urls config list into (url, lang) tuples."""
     result: list[tuple[str, str]] = []
     for entry in target_raw:
-        if not isinstance(entry, list | tuple) or len(entry) != _TARGET_URL_ENTRY_LENGTH:
+        if (
+            not isinstance(entry, list | tuple)
+            or len(entry) != _TARGET_URL_ENTRY_LENGTH
+        ):
             raise ValueError(
                 "Each entry in target_urls must be a 2-element list of [url, lang]",
             )

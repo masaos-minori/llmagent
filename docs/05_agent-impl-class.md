@@ -12,9 +12,9 @@ CLI REPL ツール。`agent>` (または `agent[:#N]>`) プロンプトで対話
 
 | 機能 | 実装 |
 |---|---|
-| エントリポイント | `python agent.py` (uvicorn 不要; foreground CLI プロセス) |
+| エントリポイント | `python -m agent` (`scripts/agent/__main__.py`; uvicorn 不要; foreground CLI プロセス) |
 | 行編集・補完 | Readline ベース; タブ補完でスラッシュコマンドを補完; 履歴は `~/.agent_history` に保存 |
-| スラッシュコマンド | `/help` / `/mcp` / `/mcp install` / `/config` / `/stats` / `/context` / `/compact` / `/clear [new]` / `/session` / `/db` / `/ingest` / `/debug` / `/note` / `/tool` / `/plan` / `/undo` / `/history` / `/system` / `/set` / `/reload` / `/memory` / `/export` / `/exit` (Ctrl-D も終了) |
+| スラッシュコマンド | 23 種。`/help` / `/config` / `/stats` / `/context` / `/plan` / `/undo` / `/reload` / `/compact` / `/mcp [status\|install]` / `/session [list\|load\|rename\|delete]` / `/clear [new]` / `/ingest <url\|path>` / `/rag search <query>` / `/export [md\|json]` / `/history [n]` / `/system [name]` / `/db [stats\|urls\|clean\|rebuild-fts\|health\|checkpoint\|vacuum\|purge\|recover]` / `/note add\|list\|delete` / `/tool [list\|show]` / `/set [temperature\|max_tokens]` / `/memory [list\|search\|pin\|unpin\|delete\|show\|prune]` / `/debug [audit\|verbose\|normal]` / `/exit` |
 | マルチライン入力 | 行末が `\` のとき次行に継続し、空行または `\` のない行で確定。継続プロンプトは `... ` |
 | 会話履歴 | セッション中はメッセージリストを保持してマルチターン対話に対応 |
 | HTTP クライアント | `httpx.AsyncClient` を起動時生成・終了時クローズ。`ctx.services.http` に保持 |
@@ -37,7 +37,7 @@ CLI REPL ツール。`agent>` (または `agent[:#N]>`) プロンプトで対話
 | `/mcp` | MCP サーバの状態・ツール一覧・疎通確認を表示 |
 | `/mcp install <name>` | 新規 MCP サーバのテンプレートファイルを生成するウィザード。スクリプト骨格・設定 JSON・OpenRC スクリプト・任意で conf.d テンプレートを生成し、手動対応手順 (agent.json への tool 定義追加、deploy.sh への追記等) を表示 |
 | `/config` | 設定ファイルのパスと主要設定値を表示 |
-| `/stats` | セッション統計 (ターン数・ツール呼び出し数・LLM リトライ回数・ツールエラー回数・入出力トークン数等) を表示 |
+| `/stats` | セッション統計 (ターン数・ツール呼び出し数・RAG ヒット数・エラー数・LLM メトリクス: retries/reconnects/heartbeat_timeouts/partial_completions/parse_errors) を表示 |
 | `/context` | ランタイム・コンテキスト状態 (メッセージ数・総文字数・圧縮閾値残余量・圧縮回数・現在のシステムプロンプト名・冒頭) を表示。Budget breakdown として system / history / tool_results のカテゴリ別文字数と割合も表示 |
 | `/compact` | `context_char_limit` の閾値に関わらず会話履歴を即時圧縮。ターン数が `context_compress_turns * 2` 以下の場合はメッセージを表示してスキップ |
 | `/clear [new]` | 会話履歴をシステムプロンプトのみにリセットし、セッション統計・ツールキャッシュをクリア。`new` を付けると新規 DB セッションも開始 |
@@ -65,7 +65,7 @@ CLI REPL ツール。`agent>` (または `agent[:#N]>`) プロンプトで対話
 
 ### 1.4 MCP サーバツール一覧
 
-以下の MCP サーバが利用可能で、設定ファイル `config/agent.toml` の `[mcp_servers.mdq]` セクションで有効化されています。
+以下の MCP サーバが利用可能で、設定ファイルの `MCPConfig.mcp_servers: dict[str, McpServerConfig]` で管理される（`config/agent.toml` の `[mcp_servers.*]` セクション）。
 
 | ツール名 | 説明 |
 |---|---|
@@ -110,9 +110,11 @@ CLI REPL ツール。`agent>` (または `agent[:#N]>`) プロンプトで対話
 
 | クラス | 概要 | 参照ドキュメント |
 |---|---|---|
-| `AgentREPL` | 全コンポーネントを AgentContext へ DI し REPL ループを駆動する薄いコーディネータ | [06_ref-agent-repl.md](06_ref-agent-repl.md) |
-| `Orchestrator` | ターンレベルのファサード（メモリ注入 → 圧縮 → LLM → ツール実行） | [06_ref-agent-repl.md](06_ref-agent-repl.md) |
-| `ServerLifecycleManager` | MCP サーバーサブプロセスの起動・停止・アイドルタイムアウト管理 | [04_mcp-protocol.md](04_mcp-protocol.md) |
-| `AgentContext` | 全コンポーネント参照と per-session state を一元管理する DI ハブ | [06_ref-agent-context.md](06_ref-agent-context.md) |
+| `AgentREPL` (repl.py) | 全コンポーネントを AgentContext へ DI し REPL ループを駆動する薄いコーディネータ | [06_ref-agent-repl.md](06_ref-agent-repl.md) |
+| `Orchestrator` | ターンレベルのファサード（メモリ注入 → ユーザーメッセージ追加 → 圧縮 → LLM → ツール実行） | [05_agent-impl-flow.md](05_agent-impl-flow.md) |
+| `LLMTurnRunner` | LLM ストリーミング + 内側ツールコールループ (llm_turn_runner.py) | [06_ref-agent-llm.md](06_ref-agent-llm.md) |
+| `ToolLoopGuard` | ツールループの cycle/dedup/retry/error リストリクタ (tool_loop_guard.py) | [05_agent-impl-flow.md](05_agent-impl-flow.md) |
+| `AgentContext` | 全コンポーネント参照と per-session state を一元管理する DI ハブ。`tool_result_store` と `services_required` プロパティも持つ | [06_ref-agent-context.md](06_ref-agent-context.md) |
 | `CLIView` | readline・進捗表示・マルチライン入力を担うプレゼンテーション層 | [06_ref-agent-view.md](06_ref-agent-view.md) |
 | `CommandRegistry` | スラッシュコマンドディスパッチャ（10 個のミックスインで構成） | [06_ref-agent-commands.md](06_ref-agent-commands.md) |
+| `_ServerLifecycleRouter` (factory.py) | `ServerLifecycleManager` に代わって routing を担当。`agent/lifecycle.py` の `restart_stdio()` は残存 | [04_mcp-protocol.md](04_mcp-protocol.md) |

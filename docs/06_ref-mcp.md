@@ -76,7 +76,7 @@ MCP サーバの HTTP 起動ロジックを提供する基底クラス。`mcp/fi
 |---|---|
 | `async dispatch(name, args) -> tuple[str, bool]` | ツール呼び出しを処理する抽象メソッド。サブクラスが必ずオーバーライド。`(result_text, is_error)` を返す。未実装の場合は `NotImplementedError` を送出する |
 | `list_tools() -> list[str]` | `mcp_tools` クラス属性 (またはインスタンス属性) からツール名リストを返す。`mcp_tools` 未定義なら空リスト |
-| `health() -> dict[str, str]` | `{"status": "ok"}` を返す。HTTP サブクラスでオーバーライド可。stdio サブクラスはプロセス生存確認を使用 |
+| `health() -> dict[str, str]` | `{"status": "ok"}` を返す。HTTP サブクラスでオーバーライド (例: github-mcp は `{"status":"ok","github_token":"set"}` / `"not_set"` 追加)。stdio サブクラスはプロセス生存確認を使用 |
 | `run_http() -> None` | uvicorn で HTTP サーバを起動する主要メソッド |
 | `async run_stdio() -> None` | stdin/stdout で行区切り JSON-RPC を処理。リクエスト形式: `{"id": <int>, "name": <str>, "args": {}}` / レスポンス形式: `{"id": <int>, "result": <str>, "is_error": <bool>, "truncated": <bool>, "total_bytes": <int>}`。`__list_tools__` を予約 RPC として intercept しツール名リストを返す。stdin EOF でループを終了する |
 
@@ -134,14 +134,15 @@ executor = ToolExecutor(
     cache_max_size=200,
     concurrency_limits={"file_write": 1},  # optional per-server limit
 )
-result, is_error, x_request_id = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
+res: ToolCallResult = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
+# res.data, res.is_error, res.request_id, res.server_key
 ```
 
 `HttpTransport` クラス:
 
 | メソッド | 説明 |
 |---|---|
-| `call(name, args) -> tuple[str, bool, str]` | `POST /v1/call_tool` を呼び出す。戻り値は `(result, is_error, x_request_id)`。HTTP エラー / 接続エラー時は `(msg, True, "")` を返す |
+| `call(name, args) -> ToolCallResult` | `POST /v1/call_tool` を呼び出す。戻り値は `ToolCallResult(data, is_error, request_id, server_key)`。HTTP エラー / 接続エラー時は `ToolCallResult(msg, True, "", server_key)` を返す |
 
 `StdioTransport` クラス:
 
@@ -158,7 +159,7 @@ result, is_error, x_request_id = await executor.execute("read_text_file", {"path
 |---|---|
 | `start() -> None` | サブプロセスを起動。既に起動済みなら無操作。`working_dir` が空でない場合は事前に `Path.is_dir()` を確認し、存在しなければ `ValueError` を送出 |
 | `is_alive() -> bool` | サブプロセスが実行中 (returncode is None) なら `True` |
-| `call(name, args) -> tuple[str, bool, str]` | JSON-RPC リクエストを送信して応答を受け取る。戻り値は `(result, is_error, "")`。タイムアウト (`_STDIO_CALL_TIMEOUT=60s`) で `(msg, True, "")` を返す |
+| `call(name, args) -> ToolCallResult` | JSON-RPC リクエストを送信して応答を受け取る。戻り値は `ToolCallResult(data, is_error, "", server_key)`。タイムアウト (`_STDIO_CALL_TIMEOUT=60s`) で `ToolCallResult(msg, True, "", server_key)` を返す |
 | `stop() -> None` | stdin をクローズして graceful shutdown。5 秒でタイムアウト後 terminate/kill |
 
 `ToolExecutor` クラス:
@@ -167,7 +168,7 @@ result, is_error, x_request_id = await executor.execute("read_text_file", {"path
 |---|---|
 | `set_transport(server_key, transport) -> None` | stdio サーバのプロセス起動後に `StdioTransport` を登録 |
 | `set_lifecycle(lifecycle) -> None` | `LifecycleProtocol` 実装を注入。`None` でクリア |
-| `execute(tool_name, args) -> tuple[str, bool, str]` | plugin ツール → `_execute_with_cache()` の順で解決。plugin エラー時も MCP ルーティングには fall-through しない。`_execute_with_cache()` はキャッシュ miss 時に `_raw_execute()` を呼び出し、成功結果のみキャッシュに書き込む (LRU eviction あり)。キャッシュヒット時は `x_request_id=""` を返す |
+| `execute(tool_name, args) -> ToolCallResult` | plugin ツール → `_execute_with_cache()` の順で解決。plugin エラー時も MCP ルーティングには fall-through しない。戻り値は `ToolCallResult(data, is_error, request_id, server_key)` dataclass |
 | `clear_cache() -> None` | ツール結果キャッシュを全クリア (`/clear` コマンドから呼ばれる) |
 
 ルーティング規則 (`ToolRouteResolver.resolve()`):
@@ -217,7 +218,7 @@ async def my_tool(args: dict) -> tuple[str, bool]:
 
 | スクリプト | 使用箇所 |
 |---|---|
-| `agent/factory.py` | `build_agent_context()` で `ToolExecutor` と `ServerLifecycleManager` を生成し `ctx.services.tools` / `ctx.services.lifecycle` に保持。`_start_subprocess_servers()` で persistent stdio / HTTP subprocess サーバを起動後に `set_transport()` で登録 |
+| `agent/factory.py` | `build_agent_context()` で `ToolExecutor` を生成し `ctx.services.tools` に保持。`_start_subprocess_servers()` で persistent stdio / HTTP subprocess サーバを起動後に `set_transport()` で登録。routing は `_ServerLifecycleRouter` が担当 |
 
 ---
 

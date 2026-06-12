@@ -105,9 +105,9 @@ await orch.handle_turn(line)
 
 | メソッド | 説明 |
 |---|---|
-| `execute(tool_name, args) -> tuple[str, bool, str]` | プラグインツール優先 (`plugin_registry.get_tool()`) → キャッシュヒット → `_raw_execute()` (MCP ルーティング) |
-| `_raw_execute(tool_name, args) -> tuple[str, bool, str]` | サーバキー解決 → ヘルスチェック → `LifecycleProtocol.ensure_ready()` → トランスポート呼出 |
-| `_execute_with_cache(tool_name, args) -> tuple[str, bool, str]` | TTL キャッシュ (LRU, max_size) のヒット/ミスを処理。成功時のみキャッシュに保存 |
+| `execute(tool_name, args) -> ToolCallResult` | プラグインツール優先 → キャッシュヒット → `_raw_execute()` (MCP ルーティング)。戻り値は `ToolCallResult(data, is_error, request_id, server_key)` dataclass |
+| `_raw_execute(tool_name, args) -> ToolCallResult` | サーバキー解決 → ヘルスチェック → `LifecycleProtocol.ensure_ready()` → トランスポート呼出。戻り値は `ToolCallResult(data, is_error, request_id, server_key)` |
+| `_execute_with_cache(tool_name, args) -> ToolCallResult` | TTL キャッシュ (LRU, max_size) のヒット/ミスを処理。戻り値は `ToolCallResult(data, is_error, request_id, server_key)`。成功時のみキャッシュに保存。キャッシュヒット時は `request_id=""` を含む結果を返す |
 
 ### トランスポート
 
@@ -143,7 +143,7 @@ AgentREPL からはデリゲートメソッド (`_check_service_health`, `_check
 | `probe_mcp_health(http, base_url) -> bool` | `{base_url}/health` に GET して HTTP 200 なら `True` を返す。エラー時は `False` |
 | `check_service_health(ctx) -> list[str]` | LLM / Embed サービスの `/health` をプローブ。失敗は警告のみ (REPL は継続)。warning 文字列のリストを返す |
 | `check_tool_definitions_runtime(ctx) -> list[str]` | `tool_definitions` と各 MCP サーバの実ツールリストを比較して警告。`strict=True` のとき不一致で `RuntimeError` を送出 |
-| `watchdog_loop(ctx) -> None` | `mcp_watchdog_interval` 秒ごとに HTTP サーバは lifecycle manager 経由で、stdio サーバはプロセス再起動で復旧。キャンセルされるまで無限ループ。`mcp_watchdog_max_restarts` でリトライ上限を制御 |
+| `watchdog_loop(ctx) -> None` | `mcp_watchdog_interval` 秒ごとに HTTP サーバは `_ServerLifecycleRouter` 経由で、stdio サーバはプロセス再起動で復旧。キャンセルされるまで無限ループ。`mcp_watchdog_max_restarts` でリトライ上限を制御 |
 
 **stdio 向け追加チェック:** `McpServerConfig.healthcheck_mode == "ping_tool"` のとき、プロセス生存確認に加えて `__list_tools__` RPC で応答確認を行う。`ondemand` サーバはウォッチドッグ対象外。
 

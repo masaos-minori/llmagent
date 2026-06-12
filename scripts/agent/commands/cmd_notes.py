@@ -38,7 +38,11 @@ class _NotesMixin(MixinBase):
             [
                 str(n["note_id"]),
                 n["created_at"][:19],
-                (n["content"][:NOTE_CONTENT_TRUNCATE_AT] + "..." if len(n["content"]) > NOTE_CONTENT_MAX_CHARS else n["content"]),
+                (
+                    n["content"][:NOTE_CONTENT_TRUNCATE_AT] + "..."
+                    if len(n["content"]) > NOTE_CONTENT_MAX_CHARS
+                    else n["content"]
+                ),
             ]
             for n in notes
         ]

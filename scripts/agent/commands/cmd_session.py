@@ -91,7 +91,11 @@ class _SessionMixin(MixinBase):
             table_rows = []
             for sr in session_rows:
                 title = sr.title if sr.title is not None else ""
-                title_display = title[:SESSION_TITLE_TRUNCATE_AT] + "..." if len(title) > SESSION_TITLE_MAX_CHARS else title
+                title_display = (
+                    title[:SESSION_TITLE_TRUNCATE_AT] + "..."
+                    if len(title) > SESSION_TITLE_MAX_CHARS
+                    else title
+                )
                 table_rows.append(
                     [
                         f"{sr.session_id:>4}{'*' if sr.is_current else ' '}",

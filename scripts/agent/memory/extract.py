@@ -88,7 +88,9 @@ def _classify_content(
     failure_hits: int,
 ) -> tuple[MemoryType, SourceType, list[str]] | None:
     """Return (memory_type, source_type, tags) classification, or None if not extractable."""
-    if semantic_hits >= SEMANTIC_HITS_REQUIRED_STRONG or (semantic_hits >= 1 and len(content) >= SEMANTIC_CONTENT_THRESHOLD):
+    if semantic_hits >= SEMANTIC_HITS_REQUIRED_STRONG or (
+        semantic_hits >= 1 and len(content) >= SEMANTIC_CONTENT_THRESHOLD
+    ):
         source = (
             SourceType.DECISION if "decided" in content.lower() else SourceType.RULE
         )

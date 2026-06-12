@@ -6,7 +6,7 @@
 
 ## 1. 概要
 
-`agent.py` は MCP ツールコーリング (OpenAI 互換 function calling) を統合した CLI REPL ツール。
+`python -m agent` (`scripts/agent/__main__.py`) がエントリポイント。MCP ツールコーリング (OpenAI 互換 function calling) を統合した CLI REPL ツール。
 `agent>` (または `agent[:#N]>`) プロンプトで対話し、セッション中は会話履歴を保持してマルチターン対話が可能。
 行編集は Readline ベースで bash と同様のキーバインドを使用可能。セッション履歴は `~/.agent_history` に保存。
 LLM 応答は SSE (Server-Sent Events: サーバー送信イベント) ストリーミングでトークン逐次表示。
@@ -35,7 +35,7 @@ LLM 応答は SSE (Server-Sent Events: サーバー送信イベント) ストリ
 | `/mcp` | MCP サーバの状態・ツール一覧・疎通確認を表示 |
 | `/mcp install <name>` | 新規 MCP サーバのテンプレートファイルを生成するウィザード |
 | `/config` | 設定ファイルのパスと主要設定値を表示 |
-| `/stats` | セッション統計 (ターン数・ツール呼び出し数・入出力トークン数・エラー数等) を表示 |
+| `/stats` | セッション統計 (ターン数・ツール呼び出し数・RAG ヒット数・LLM メトリクス: retries/reconnects/heartbeat_timeouts/partial_completions/parse_errors) を表示 |
 | `/context` | ランタイム・コンテキスト状態 (メッセージ数・総文字数・圧縮閾値残余・system/history/tool_results 別内訳) を表示 |
 | `/compact` | `context_char_limit` の閾値に関わらず会話履歴を即時圧縮 |
 | `/clear [new]` | 会話履歴をリセットし統計をクリア。`new` を付けると新規 DB セッションも開始 |
@@ -131,8 +131,6 @@ LLM 応答は SSE (Server-Sent Events: サーバー送信イベント) ストリ
 | `http_timeout` | `config/http.toml` | 120 秒 | 生成が遅い場合は増やす |
 | `llm_max_retries` | `config/llm.toml` | 3 | HTTP 503/429・接続エラー時のリトライ上限 |
 | `max_tool_turns` | `config/tools.toml` | 5 | ツールコーリング最大ターン数; 超過時は最後の assistant メッセージを返す |
-| `--threads` | `init.d/` 各スクリプト | 4 | 同時起動モデル数に応じて配分を調整 |
-| `--ctx-size` | `init.d/` 各スクリプト | 各設定参照 | RAM 不足の場合は削減 |
 
 ## 6. 前提条件
 

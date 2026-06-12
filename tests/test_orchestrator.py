@@ -13,6 +13,7 @@ from agent.history import CompressResult
 from agent.orchestrator import Orchestrator
 from agent.tool_loop_guard import ToolLoopGuard
 from shared.llm_client import LLMErrorKind, LLMTransportError
+from shared.llm_types import LLMMessage, LLMResponse
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -189,22 +190,18 @@ class TestRunTurnLLMTransportError:
         tool_calls = [
             {"id": "tc1", "function": {"name": "test_tool", "arguments": "{}"}}
         ]
-        first_response = {
-            "choices": [
-                {
-                    "message": {
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": tool_calls,
-                    },
-                    "finish_reason": "tool_calls",
-                }
-            ]
-        }
+        first_response = LLMResponse(
+            message=LLMMessage(
+                role="assistant",
+                content=None,
+                tool_calls=tool_calls,
+            ),
+            finish_reason="tool_calls",
+        )
         err = _make_err(kind="CONNECT_ERROR", partial_text="")
         call_count = 0
 
-        async def _mock_stream(*_args: object, **_kwargs: object) -> dict:
+        async def _mock_stream(*_args: object, **_kwargs: object) -> LLMResponse:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -250,22 +247,18 @@ class TestRunTurnLLMTransportError:
         tool_calls = [
             {"id": "tc1", "function": {"name": "test_tool", "arguments": "{}"}}
         ]
-        first_response = {
-            "choices": [
-                {
-                    "message": {
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": tool_calls,
-                    },
-                    "finish_reason": "tool_calls",
-                }
-            ]
-        }
+        first_response = LLMResponse(
+            message=LLMMessage(
+                role="assistant",
+                content=None,
+                tool_calls=tool_calls,
+            ),
+            finish_reason="tool_calls",
+        )
         err = _make_err(kind="HEARTBEAT_TIMEOUT", partial_text="")
         call_count = 0
 
-        async def _mock_stream(*_args: object, **_kwargs: object) -> dict:
+        async def _mock_stream(*_args: object, **_kwargs: object) -> LLMResponse:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -293,20 +286,16 @@ class TestRunTurnNormalCompletion:
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
 
-        stop_response = {
-            "choices": [
-                {
-                    "message": {
-                        "role": "assistant",
-                        "content": "hello world",
-                        "tool_calls": None,
-                    },
-                    "finish_reason": "stop",
-                }
-            ]
-        }
+        stop_response = LLMResponse(
+            message=LLMMessage(
+                role="assistant",
+                content="hello world",
+                tool_calls=None,
+            ),
+            finish_reason="stop",
+        )
 
-        async def _mock_stream(*_args: object, **_kwargs: object) -> dict:
+        async def _mock_stream(*_args: object, **_kwargs: object) -> LLMResponse:
             return stop_response
 
         ctx.services.llm.stream = _mock_stream
@@ -323,20 +312,16 @@ class TestRunTurnNormalCompletion:
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
 
-        stop_response = {
-            "choices": [
-                {
-                    "message": {
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": None,
-                    },
-                    "finish_reason": "stop",
-                }
-            ]
-        }
+        stop_response = LLMResponse(
+            message=LLMMessage(
+                role="assistant",
+                content=None,
+                tool_calls=None,
+            ),
+            finish_reason="stop",
+        )
 
-        async def _mock_stream(*_args: object, **_kwargs: object) -> dict:
+        async def _mock_stream(*_args: object, **_kwargs: object) -> LLMResponse:
             return stop_response
 
         ctx.services.llm.stream = _mock_stream

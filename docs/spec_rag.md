@@ -24,7 +24,7 @@ Web クロール・チャンク分割・埋め込み生成・SQLite 格納の 4 
 
 ## 4. 前提条件
 
-1. 埋め込みサーバーがポート 8003 で起動済みであること（multilingual-E5-small 384 次元）。
+1. 埋め込みサーバーがポート 8003 で起動済みであること。デフォルト次元は 768（`models.py:56`）。
 2. SQLite + sqlite-vec 拡張（`/opt/llm/sqlite-vec/vec0.so`）がロード可能であること。
 3. `config/rag_pipeline.toml` が設定済みであること。
 4. インジェスト対象の URL または Markdown ファイルが指定されていること。
@@ -35,12 +35,12 @@ Web クロール・チャンク分割・埋め込み生成・SQLite 格納の 4 
 
 | 制約 | 内容 |
 |---|---|
-| 言語検出 | CJK 文字比率（閾値 0.1）で ja/en を判定。100 文字未満は None（除外） |
+| 言語検出 | CJK 文字比率（閾値 0.1）で ja/en を判定。100 文字未満は `None` を返し、フォールバックで `"en"` に置換（`crawler_utils.py:87-88`, `crawler.py:336-339`） |
 | チャンクサイズ | `min_chunk=40`〜`max_chunk=500` 文字 |
 | チャンク重複 | `chunk_overlap=50` 文字のスライディングウィンドウ |
-| 埋め込み次元 | 384 次元（float32 little-endian BLOB、1536 バイト） |
+| 埋め込み次元 | デフォルト 768 次元（`models.py:56`）。float32 little-endian BLOB として保存（`repository.py:136`: `struct.pack("<{n}f", ...)`） |
 | クロール制限 | 最大 500 ページ、同一オリジン、深さ 6 |
-| クロール遅延 | 1.5 秒/リクエスト |
+| クロール遅延 | `crawl_delay` 設定値（秒）。デフォルト値は `crawler.py:57` で `float(cfg["crawl_delay"])` から読み込み |
 | FTS5 日本語 | Sudachi（SplitMode.C）による正規化テキスト（`normalized_content`）を使用 |
 | レプリカ構成 | 単一ノード（SQLite）のみ対応 |
 
@@ -96,9 +96,16 @@ Web クロール・チャンク分割・埋め込み生成・SQLite 格納の 4 
   "chunk_index": 0,
   "content": "チャンク本文...",
   "normalized_content": "正規化済みテキスト（JA のみ）",
-  "lang": "ja"
+  "lang": "ja",
+  "title": "...",
+  "source_file": "...",
+  "chunk_type": "text" | "code",
+  "etag": "...",
+  "last_modified": "..."
 }
 ```
+
+※ `chunk_type` は `text` または `code`（`chunk_splitter.py:210-223`）。
 
 **Stage 3:** SQLite `documents` + `chunks` + `chunks_fts` + `chunks_vec` にアップサート
 
@@ -207,10 +214,15 @@ RagPipeline.augment(query)
 **chunks_fts（FTS5 バーチャルテーブル）:**
 - `COALESCE(normalized_content, content)` を全文検索対象
 
-**chunks_vec（sqlite-vec バーチャルテーブル）:**
-- `embedding float[384]` — KNN 検索対象
+**chunks_vec（sqlite-vec ビュー）:**
+- `embedding` — BLOB 形式（`repository.py:136`: `floats_to_blob(embedding)` で `struct.pack("<{n}f", ...)` 変換後 INSERT）。次元数は `embed_dimension` 設定依存（デフォルト 768）
 
-### 9.2 RagHit TypedDict フィールド
+### 9.2 RagHit union 型フィールド
+
+```python
+# rag/types.py: RawHit, MergedHit, RankedHit の 3 dataclass
+# pipeline.py:46 → RagHit = RawHit | MergedHit | RankedHit
+```
 
 | フィールド | 型 | 付与ステージ |
 |---|---|---|
@@ -227,7 +239,7 @@ RagPipeline.augment(query)
 
 | パラメータ | デフォルト | 説明 |
 |---|---|---|
-| `top_k_search` | 20 | ベクター/FTS 検索結果数 |
+| `top_k_search` | 10 | ベクター/FTS 検索結果数（`models.py:39`） |
 | `top_k_rerank` | 15 | リランク候補数 |
 | `rag_top_k` | 5 | 最終 LLM コンテキスト注入数 |
 | `max_chunks_per_doc` | 2 | ドキュメントあたりの上限チャンク数 |
@@ -250,8 +262,9 @@ class RagPipeline:
         query: str,
         db: SQLiteHelper,
         history_context: str = "",
-    ) -> tuple[list[str], list[list[RagHit]], list[RagHit], list[RagHit]]
-    # 戻り値: (queries, all_results, merged, reranked)
+    ) -> tuple[list[str], list[list[RawHit]], list[RagHit], list[RagHit]]
+    # 戻り値: (queries, all_results(search=RawHit), merged, reranked)
+    # 5 ステージ実行: [1] MQE → [2] Search → [3] RRF(Fusion) → [4] Rerank → [5] Augment(ctx.augment_result に格納)
 
     async def augment(
         query: str,
@@ -288,14 +301,18 @@ class ChunkSplitter:
 ```python
 class RagIngester:
     def ingest_all(force: bool = False) -> None
-    def ingest_url_group(url_group: str, force: bool = False) -> None
+    def ingest_url_group(db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> None
+    # ingest_url_group は 4 引数: db, url, chunk_files, force (ingester.py:76-82)
 ```
+
+※ `_embed_and_store()` で `idx = 0` がハードコードされており、全チャンクが `chunk_index=0` で登録されるバグあり (ingester.py:245)。
 
 ### 10.5 PipelineStage（scripts/rag/stage.py）
 
 ```python
 class PipelineStage(Protocol):
-    async def run(self, ctx: PipelineContext, **kwargs: Any) -> None
+    async def run(self, ctx: PipelineContext, **kwargs: object) -> None
+# kwargs の型は Any ではなく object (stage.py:29)
 # 実装クラス: SearchStage, MqeStage, FusionStage, RerankStage, AugmentStage（rag/stages/）
 ```
 
@@ -306,7 +323,7 @@ class PipelineStage(Protocol):
 | エラー種別 | 対応 |
 |---|---|
 | 埋め込みサーバー接続エラー | `embed_retry` 回（デフォルト 3）リトライ後に例外を送出 |
-| DB オープンエラー | `logger.warning()` を出力して `augment()` が `""` を返す |
+| DB オープンエラー | `pipeline.py:280-281` で `RagPipelineError` 例外を送出（`""` を返すではない） |
 | クロール HTTP エラー | ページをスキップして次の URL に進む |
 | 言語判定エラー | CJK 検出で None 返却時はページをスキップ（100 文字未満等） |
 | セマンティックキャッシュ | `use_semantic_cache=false` の場合は常にキャッシュバイパス |
@@ -329,6 +346,6 @@ class PipelineStage(Protocol):
 
 | 項目 | 詳細 |
 |---|---|
-| Prompt Injection 防御 | RAG ドキュメントのサニタイゼーションおよび `[RAG_CONTEXT_START/END]` 境界マーカーが未実装 (`implementations/20260606-195251_rag_sanitize.md` 参照) |
+| Prompt Injection 防御 | `utils.py:43-48` の `sanitize_document()` が prompt injection パターンを `[REMOVED]` に置換。`pipeline.py:254`, `stages/augment.py:13` で呼ばれている（実装済み） |
 | 外部 RAG サービス | `rag_service_url` 設定時の外部委譲は実装済みだが、認証・エラー処理の仕様が未定義 |
 | MDQ との分離 | Markdown 専用インデックス（`mdq-mcp`）との責務分担が `04_mcp-mdq.md` に記載されているが、移行基準が未定義 |

@@ -36,7 +36,7 @@
 | 単一ノード | SQLite の分散・レプリカ構成は対象外 |
 | WAL モード | 書き込みと読み取りを分離するため WAL（Write-Ahead Logging）を有効化 |
 | `busy_timeout` | ロック待ち時間を設定（`config/common.toml` の `sqlite_timeout`、デフォルト 30 秒）で指定 |
-| 埋め込み次元 | 384 次元固定（`get_embedding_dims()` でコンフィグ取得、fallback=384） |
+| 埋め込み次元 | `db/config.py` の `embedding_dims` で設定（デフォルト 384）。ただし `rag/models.py:56` では `embed_dimension=768` がデフォルト |
 | `common.toml` 非統合 | `load_all()` が `common.toml` を読み込まないため、`build_db_config()` で空文字列になる可能性あり（既知問題） |
 
 ---
@@ -80,14 +80,16 @@ with SQLiteHelper(db_type="rag") as db:
 ### 7.2 DbConfig
 
 ```python
-@dataclass(frozen=True)
+@dataclass  # frozen=False（dataclass デフォルト）
 class DbConfig:
     rag_db_path: str          # rag.sqlite のパス
     session_db_path: str      # session.sqlite のパス
     sqlite_vec_so: str = ""   # sqlite-vec 拡張ファイルパス（空文字列 = 不要）
     sqlite_timeout: int = 30  # busy_timeout（秒、1 以上）
+    sqlite_busy_timeout_ms: int = 30000  # busy_timeout（ミリ秒、db/config.py:25）
+    embedding_dims: int = 384  # 埋め込み次元数 (db/config.py:27)
 
-※ embed_url は DbConfig に存在しない（agent/config.py の EmbeddingConfig が担当）
+※ `__post_init__` で親ディレクトリの存在検証を行う。embed_url は存在しない。
 ```
 
 ---
@@ -161,12 +163,10 @@ CREATE VIRTUAL TABLE chunks_fts USING fts5(
 )
 ```
 
-**chunks_vec（sqlite-vec バーチャルテーブル）:**
+**chunks_vec（sqlite-vec ビュー）:**
 ```sql
-CREATE VIRTUAL TABLE chunks_vec USING vec0(
-    chunk_id INTEGER PRIMARY KEY,
-    embedding float[384]
-)
+CREATE VIEW chunks_vec AS SELECT chunk_id, embedding FROM chunks
+-- embedding は BLOB 形式 (struct.pack("<{n}f", ...) でパック)。float[DIMS] ではない。
 ```
 
 ### 9.2 session.sqlite スキーマ
@@ -238,8 +238,8 @@ CREATE VIRTUAL TABLE chunks_vec USING vec0(
 **memories_fts（FTS5 バーチャルテーブル）:**
 - `memory_id UNINDEXED`, `content`, `summary`, `tags`
 
-**memories_vec（sqlite-vec バーチャルテーブル）:**
-- `memory_id TEXT PRIMARY KEY`, `embedding float[384]`
+**memories_vec（sqlite-vec ビュー）:**
+- `memory_id TEXT PRIMARY KEY`, `embedding BLOB`（float BLOB 形式）
 
 **memory_links テーブル:**
 
@@ -270,9 +270,10 @@ class SQLiteHelper:
     @contextmanager
     def begin_exclusive() -> Generator[None]  # BEGIN EXCLUSIVE...COMMIT (VACUUM/DDL 用)
     def health_check() -> dict[str, Any]  # {journal_mode, integrity, page_count, page_size, freelist_count, db_size_bytes}
-    def checkpoint(mode: str = "TRUNCATE") -> dict[str, int]  # {"PASSIVE", "FULL", "RESTART", "TRUNCATE"} → {busy, pages_in_wal, pages_checkpointed}
+    def checkpoint(mode: str = "TRUNCATE") -> WalCheckpointCounts  # {"PASSIVE", "FULL", "RESTART", "TRUNCATE"} → {busy, log_size, pages_checkpointed}（`pages_in_wal` ではなく `log_size`）
     def vacuum() -> None
-    def execute(sql: str, params=()) -> sqlite3.Cursor
+    def execute(sql: str, params: dict[str, Any] | tuple[Any, ...] = ()) -> sqlite3.Cursor
+   # params は辞書（名前付きパラメータ）とタプルの両方に対応
     def executemany(sql: str, params_seq: list[tuple[Any, ...]]) -> sqlite3.Cursor
     def fetchall(sql: str, params=()) -> list[Any]
     def commit() -> None
@@ -283,9 +284,10 @@ class SQLiteHelper:
 ### 10.2 スキーマ管理（db/create_schema.py）
 
 ```python
-def run_schema(db: SQLiteHelper, db_type: str) -> None
-def get_schema_version(db: SQLiteHelper) -> int
-def get_embedding_dims() -> int  # コンフィグから取得、fallback=384
+def create_rag_schema(db: SQLiteHelper, dims: int | None = None) -> None
+def create_session_schema(db: SQLiteHelper, dims: int | None = None) -> None
+def create_schema(db: SQLiteHelper, db_type: str, dims: int | None = None) -> None
+# run_schema() と get_schema_version() は存在しない。代わりに上記 3 関数を使用。
 ```
 
 ### 10.3 保守関数（db/maintenance.py）
@@ -310,8 +312,9 @@ def rotate_session_db(archive_dir: str | Path | None = None) -> Path
 def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]
 
 # 障害復旧
-def recover_corruption(backup_path: str | Path | None = None, *, dry_run: bool = False) -> RecoveryResult
-# RecoveryResult: @dataclass(success: bool, action: str, detail: str|None=None, dry_run: bool=False) — action: "vacuum" | "restored" | "no_backup" | "error"
+def recover_corruption(target: str = "rag", backup_path: str | Path | None = None, *, dry_run: bool = False) -> RecoveryResult
+# target: "rag" または "session"（両方をサポート。デフォルト "rag"）
+# RecoveryResult: @dataclass(success: bool, action: str, detail: str|None=None, dry_run: bool=False) — action: "vacuum" | "vacuum_failed" | "restored" | "no_backup" | "error"
 ```
 
 ### 10.4 ツール結果（db/tool_results.py）
@@ -320,7 +323,7 @@ def recover_corruption(backup_path: str | Path | None = None, *, dry_run: bool =
 class ToolResultStore:
     def store(session_id: int | None, turn: int, tool_name: str, args_masked: str,
               full_text: str, summary: str | None, is_error: bool) -> int | None
-    # 戻り値: 新規行の id（DB エラー時は None）
+    # 戻り値: 新規行の id（DB エラー時は例外を送出する。None を返さない）
     def get(result_id: int) -> dict | None
     def list_recent(session_id: int | None, n: int = 20) -> list[dict]
 ```
@@ -336,7 +339,7 @@ class ToolResultStore:
 | sqlite-vec 拡張ロードエラー | `sqlite3.OperationalError` → DB 接続失敗として処理 |
 | スキーマ DDL 実行エラー | `executescript()` 失敗時は例外を再送出 |
 | 整合性チェック失敗 | エラーログ出力 + バックアップが存在する場合は復旧処理を試みる |
-| `prune_old_memories()` の失敗 | `logger.warning()` を出力して継続（REPL を停止しない） |
+| `prune_old_memories()` の失敗 | 例外のまま伝播する（try/except は実装されていない、maintenance.py:122-130） |
 
 ---
 
@@ -357,4 +360,4 @@ class ToolResultStore:
 | 項目 | 詳細 |
 |---|---|
 | `common.toml` 非統合 | `build_db_config()` が `load_all()` から `rag_db_path` 等を取得できない。`db/helper.py` と `rag/pipeline.py` が個別に `ConfigLoader().load("common.toml")` を呼ぶ回避策になっている。将来的に `common.toml` を `load_all()` の対象に含めることを検討中 |
-| 埋め込み次元のハードコード | `384` が DDL と `store.py` の両方に重複定義されている。`get_embedding_dims()` で統一済みだが DDL の `float[DIMS]` への統一が必要 |
+| トリガー未在書 | `chunks_ai`, `chunks_ad`, `chunks_au`, `chunks_vec_ad` 等の自動トリガーが create_schema.py で定義されるが、仕様書のテーブルセクションでは言及なし (create_schema.py:65-85) |

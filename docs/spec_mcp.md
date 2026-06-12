@@ -58,14 +58,14 @@ Model Context Protocol（MCP）に基づいた HTTP および stdio トランス
 | サーバー | ポート | 主要ツール |
 |---|---|---|
 | web-search-mcp | 8004 | `search_web`（Brave/Bing/DuckDuckGo フォールバック） |
-| file-read-mcp | 8005 | `read_text_file`, `list_directory`, `directory_tree`, `search_files`, `grep_files`, `get_file_info`, `list_directory_with_sizes`, `read_media_file`, `read_multiple_files`（9 ツール） |
+| file-read-mcp | 8005 | `read_text_file`, `list_directory`, `directory_tree`, `search_files`, `grep_files`, `get_file_info`, `list_directory_with_sizes`, `read_media_file`, `read_multiple_files`（9 ツール） + `GET /list_allowed_directories` エンドポイント |
 | github-mcp | 8006 | `github_search_repositories`, `github_get_file_contents`, `github_push_files`, `github_create_pull_request`, `github_merge_pull_request`, `github_create_issue`, `github_add_issue_comment`, 他（21 ツール） |
 | file-write-mcp | 8007 | `write_file`, `edit_file`, `create_directory`, `move_file`（4 ツール） |
 | file-delete-mcp | 8008 | `delete_file`, `delete_directory`（2 ツール） |
-| shell-mcp | 8009 | `shell_run`（1 ツール、`shell_run_bg` は未実装） |
-| rag-pipeline-mcp | 8010 | `rag_run_pipeline`, `rag_debug_pipeline`（2 ツール） |
+| shell-mcp | 8009 | `shell_run`（1 ツール、`shell_run_bg` は未実装）。入力スキーマ: `command`, `timeout_sec`, `cwd`, `env`, `max_output_kb`, `dry_run` |
+| rag-pipeline-mcp | 8010 | `rag_run_pipeline`, `rag_debug_pipeline`（2 ツール） + `GET /v1/search` エンドポイント (backward-compat) |
 | sqlite-mcp | 8011 | `query_sqlite`（1 ツール） |
-| cicd-mcp | 8012 | GitHub Actions 関連 4 ツール |
+| cicd-mcp | 8012 | GitHub Actions 関連 4 ツール（`trigger_workflow` に `dry_run` 引数あり） |
 | mdq-mcp | 8013 | `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`（7 ツール） |
 | git-mcp / rag-mcp | 8014 | `git_status`, `git_log`, `git_diff`, `git_branch`, `git_show`, `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push`（10 ツール）※ `/rag/server.py` も同一ポートで競合（未文書化） |
 
@@ -99,7 +99,7 @@ GET /v1/tools
 **ヘルスチェック:**
 ```
 GET /health
-→ {"status": "ok", ...}
+→ {"status": "ok", ...}  (サーバーによって追加フィールド異なる: github は github_token 等、web-search は providers/brave_key/bing_key、mdq は service 等)
 ```
 
 ### 7.2 stdio トランスポート
@@ -129,16 +129,15 @@ GET /health
 ```
 LLM が tool_call を返す
   → ToolRouteResolver.resolve(tool_name) → server_key
-  → ServerLifecycleManager.ensure_ready(server_key)
-      [persistent HTTP]  → 起動確認のみ
-      [subprocess HTTP]  → /health が 200 になるまでポーリング
-      [stdio ondemand]   → StdioTransport.start() 起動
-      [stdio persistent] → 起動時に起動済み
-  → キャッシュ確認（TTL 以内なら結果を返す）
-  → HttpTransport.call() または StdioTransport.call()
-  → 結果をキャッシュ（is_error=false の場合のみ）
-  → (result, is_error, x_request_id) を返す
+  → ToolExecutor.execute(tool_name, args)
+      → McpServerHealthRegistry で UNAVAILABLE チェック (unavailable ならエラー即返)
+      → キャッシュ確認（TTL + LRU、is_error=false のみキャッシュ）
+      → HttpTransport.call() または StdioTransport.call()
+          [stdio] per-instance asyncio.Lock で同時実行シリアライズ
+      → 結果を ToolCallResult(output, is_error, request_id, server_key) として返す
 ```
+
+※ `ServerLifecycleManager` は削除された。routing は `factory.py` の `_ServerLifecycleRouter` が担当する。
 
 ### 8.2 ツールルーティング優先順
 
@@ -232,7 +231,8 @@ class MCPServer:
 
 ```python
 class ToolExecutor:
-    async def execute(tool_name: str, args: dict) -> tuple[str, bool, str]
+    async def execute(tool_name: str, args: dict) -> ToolCallResult
+    # ToolCallResult: dataclass(output: str, is_error: bool, request_id: str, server_key: str)
     def set_transport(server_key: str, transport: StdioTransport) -> None
     def set_lifecycle(lifecycle: LifecycleProtocol) -> None
     def set_session_id(session_id: str) -> None
@@ -241,11 +241,14 @@ class ToolExecutor:
     def set_health_registry(registry: McpServerHealthRegistry) -> None
 ```
 
+※ 戻り値は `tuple[str, bool, str]` ではなく `ToolCallResult` dataclass (4フィールド)。
+
 ### 10.3 HttpTransport（shared/tool_executor.py）
 
 ```python
 class HttpTransport:
-    async def call(name: str, args: dict) -> tuple[str, bool, str]
+    async def call(name: str, args: dict) -> ToolCallResult
+    # ToolCallResult: dataclass(output, is_error, request_id, server_key)
     def set_session_id(session_id: str) -> None
 ```
 
@@ -255,20 +258,21 @@ class HttpTransport:
 class StdioTransport:
     async def start() -> None
     def is_alive() -> bool
-    async def call(name: str, args: dict) -> tuple[str, bool, str]
+    async def call(name: str, args: dict) -> ToolCallResult
+    # ToolCallResult: dataclass(output, is_error, request_id, server_key)
     async def stop() -> None
+    # per-instance asyncio.Lock で同時実行をシリアライズ
 ```
 
-### 10.5 ServerLifecycleManager（agent/lifecycle.py）
+### 10.5 ServerLifecycleManager（削除済み）
+
+`ServerLifecycleManager` は `agent/lifecycle.py` から削除された。routing は `factory.py` の `_ServerLifecycleRouter` が担当する。残っているのは `restart_stdio(server_key)` のみ。
 
 ```python
-class ServerLifecycleManager:
-    async def ensure_ready(server_key: str) -> None
-    async def shutdown_all() -> None
-    async def shutdown_idle() -> None
-    async def restart(server_key: str) -> None
-    async def restart_stdio(server_key: str) -> None
-    def get_transport_state(server_key: str) -> LifecycleState
+# factory.py の _ServerLifecycleRouter が以下の責務を引き受け:
+# - ensure_ready(server_key)
+# - shutdown_all()
+# - restart_stdio(server_key)  (agent/lifecycle.py に残存)
 ```
 
 ### 10.6 ToolRouteResolver（shared/route_resolver.py）
@@ -290,7 +294,7 @@ class ToolRouteResolver:
 | stdio タイムアウト（60 秒） | `TimeoutError` をキャッチして `(タイムアウトメッセージ, True, "")` を返す |
 | stdio 接続切断 | 空バイト検出で `(接続切断メッセージ, True, "")` を返す |
 | stdio 不正 JSON | `orjson.JSONDecodeError` をキャッチしてエラーメッセージを返す |
-| レスポンスサイズ超過 | 512 KB を超える部分を切り詰めて `[TRUNCATED: X bytes total, showing Y bytes]` を付加 |
+| レスポンスサイズ超過 | 512 KB を超える部分を切り詰めて `[TRUNCATED: {total:,} bytes total, showing {max_bytes:,} bytes]` を付加。Y は制限値 (512KB) であり表示済みバイト数ではない (mcp/server.py:50) |
 | ツール名未解決 | `ValueError: Unknown tool: 'xxx'` を送出 |
 | サーバー起動タイムアウト | `RuntimeError` を送出し、stderr（先頭 200 文字）をログに含める |
 
@@ -312,7 +316,8 @@ class ToolRouteResolver:
 | 項目 | 詳細 |
 |---|---|
 | `McpServerConfig.transport` 型 | 現在 `str` 型。`Literal["http", "stdio"]` への型強化が未実装 (`implementations/20260606-194710_shared_types.md` 参照) |
-| MCP ヘルス劣化制御 | `healthy/degraded/unavailable` 状態管理が未実装。現在は起動時警告表示のみ (`implementations/20260606-195339_mcp_health_states.md` 参照) |
+| MCP ヘルス劣化制御 | `healthy/degraded/unavailable` 状態管理は **実装済み** (`shared/mcp_config.py:70-105`)。`ToolExecutor._raw_execute()` で `is_unavailable()` によるディスパッチブロックあり (`shared/tool_executor.py:509-516`) |
 | ツール依存関係スケジューリング | `resource_scope` による部分並列化が未実装。現在は全並列/全直列の二択 (`implementations/20260606-195109_tool_scheduler.md` 参照) |
 | `CallToolRequest.args` バリデーション | ツール名ベースのバリデーション層が未実装 |
 | mdq サーバーの Phase 2/3 機能 | 埋め込みインデックス（`md_chunks_vec`）、サマリーキャッシュ、AST パーサーが未実装 |
+| `startup_mode="subprocess"` + `transport="stdio"` バリデーション | `mcp_config.py:57-67` で `ValueError` を送出するが、ドキュメント記載なし |

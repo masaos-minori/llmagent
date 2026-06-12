@@ -1,4 +1,4 @@
-# Core Principles for AI Instructions
+# Core Principles
 
 - One Section, One Purpose: Dedicate each section to a single, specific objective.
 - Structured Formatting: Use bullet points, tables, and numbered steps instead of long paragraphs.

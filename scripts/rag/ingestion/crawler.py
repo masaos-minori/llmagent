@@ -224,7 +224,9 @@ class WebCrawler:
             try:
                 resp = await client.get(url, headers=req_headers)
                 if resp.status_code == HTTPStatus.NOT_MODIFIED:
-                    logger.info(f"{HTTPStatus.NOT_MODIFIED} Not Modified, skipping: {url}")
+                    logger.info(
+                        f"{HTTPStatus.NOT_MODIFIED} Not Modified, skipping: {url}"
+                    )
                     return None
                 resp.raise_for_status()
                 etag = resp.headers.get("ETag") or resp.headers.get("etag")

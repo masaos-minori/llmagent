@@ -16,7 +16,7 @@ from agent.repl_health import (
     _fetch_stdio_tools,
     probe_mcp_health,
 )
-from shared.tool_executor import StdioTransport
+from shared.tool_executor import StdioTransport, ToolCallResult
 
 
 def _async_result(value: object) -> AsyncMock:
@@ -88,7 +88,12 @@ class TestFetchStdioTools:
         transport = MagicMock(spec=StdioTransport)
         transport.is_alive.return_value = True
         transport.call = _async_result(
-            ('{"tools": ["read_file", "write_file"]}', False, "req-123")
+            ToolCallResult(
+                output='{"tools": ["read_file", "write_file"]}',
+                is_error=False,
+                request_id="req-123",
+                server_key="test",
+            )
         )
 
         result = await _fetch_stdio_tools(transport)
@@ -98,7 +103,11 @@ class TestFetchStdioTools:
     async def test_returns_empty_on_rpc_error(self) -> None:
         transport = MagicMock(spec=StdioTransport)
         transport.is_alive.return_value = True
-        transport.call = _async_result(("error", True, "req-123"))
+        transport.call = _async_result(
+            ToolCallResult(
+                output="error", is_error=True, request_id="req-123", server_key="test"
+            )
+        )
 
         result = await _fetch_stdio_tools(transport)
         assert result == set()
@@ -107,7 +116,7 @@ class TestFetchStdioTools:
     async def test_returns_empty_on_exception(self) -> None:
         transport = MagicMock(spec=StdioTransport)
         transport.is_alive.return_value = True
-        transport.call = AsyncMock(side_effect=RuntimeError("timeout"))
+        transport.call = AsyncMock(side_effect=TimeoutError("timeout"))
 
         result = await _fetch_stdio_tools(transport)
         assert result == set()
@@ -117,7 +126,12 @@ class TestFetchStdioTools:
         transport = MagicMock(spec=StdioTransport)
         transport.is_alive.return_value = True
         transport.call = _async_result(
-            ('{"tools": ["read_file", 123]}', False, "req-123")
+            ToolCallResult(
+                output='{"tools": ["read_file", 123]}',
+                is_error=False,
+                request_id="req-123",
+                server_key="test",
+            )
         )
 
         result = await _fetch_stdio_tools(transport)

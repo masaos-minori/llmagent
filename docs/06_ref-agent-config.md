@@ -45,8 +45,8 @@ __post_init__ でバリデーション:
 起動モード:
 
 - persistent: エージェント起動時に即座に StdioTransport.start() を呼ぶ。stdio サーバ専用。
-- ondemand: 初回ツール呼び出し時に ServerLifecycleManager.ensure_ready() が起動。並行呼び出しは per-server asyncio.Lock + double-checked locking で1回のみ。
-- subprocess: エージェント起動時に ServerLifecycleManager.start_http_subprocess() が uvicorn サブプロセスを起動し、startup_timeout_sec 秒以内に /health が 200 を返すまでポーリング。
+- ondemand: 初回ツール呼び出し時に LifecycleProtocol.ensure_ready() が起動。並行呼び出しは per-server asyncio.Lock + double-checked locking で1回のみ。
+- subprocess: エージェント起動時に _ServerLifecycleRouter.start_http_subprocess() が uvicorn サブプロセスを起動し、startup_timeout_sec 秒以内に /health が 200 を返すまでポーリング。
 
 working_dir / env の動作 (stdio のみ):
 
@@ -118,7 +118,7 @@ __post_init__ バリデーション: context_char_limit >= 0, budget_warn_ratio 
 
 | フィールド | 型 | デフォルト | 説明 |
 |---|---|---|---|
-| top_k_search | int | 20 | ベクトル / FTS 検索返却件数 |
+| top_k_search | int | 10 | ベクトル / FTS 検索返却件数 |
 | top_k_rerank | int | 15 | Cross-Encoder に渡す候補件数 |
 | max_chunks_per_doc | int | 2 | 同一ドキュメントから取得する最大チャンク数 |
 | web_search_url | str | "" | Web 検索 API エンドポイント |

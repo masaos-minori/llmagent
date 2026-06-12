@@ -4,18 +4,16 @@
 
 ## 1. エージェント起動
 
-`agent.py` は CLI REPL ツール。`deploy/deploy.sh` 実行後、LLM サービスが起動済みであることを確認してから起動。
+`python -m agent` (`scripts/agent/__main__.py`) が CLI REPL のエントリポイント。`deploy/deploy.sh` 実行後、LLM サービスが起動済みであることを確認してから起動。
 
 ```bash
-# agent.py とパッケージ群を配置する (deploy.sh で一括実施可能)
-cp scripts/agent.py                /opt/llm/scripts/
+# パッケージ群を配置する (deploy.sh で一括実施可能)
 cp -r scripts/agent               /opt/llm/scripts/agent
 cp -r scripts/shared              /opt/llm/scripts/shared
 
 # エージェントを起動する
-# agent.py 先頭で sys.path を自動設定するため、任意のディレクトリから起動可能
 source /opt/llm/venv/bin/activate
-python /opt/llm/scripts/agent.py
+cd /opt/llm/scripts && python -m agent
 ```
 
 ---

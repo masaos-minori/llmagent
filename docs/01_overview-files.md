@@ -223,7 +223,7 @@ conf.d/github-mcp                          →  /etc/conf.d/github-mcp
 │   │   ├─ factory.py                       # AgentFactory: エージェントコンポーネント構築
 │   │   ├─ repl_health.py                   # ヘルスチェックサテライト
 │   │   ├─ cli_view.py                      # CLIView: readline 設定・RAG 進捗表示・マルチライン入力
-│   │   ├─ lifecycle.py                      # ServerLifecycleManager: stdio サーバ起動管理
+│   │   ├─ lifecycle.py                      # restart_stdio(): 残存関数 (routing は factory.py の _ServerLifecycleRouter が担当)
 │   │   ├─ http_lifecycle.py                 # HTTP ライフサイクル管理
 │   │   ├─ stdio_lifecycle.py                # Stdio ライフサイクル管理
 │   │   ├─ llm_turn_runner.py                # LLM ターン実行

@@ -48,7 +48,7 @@
 - TOML (`.toml`) および JSON (`.json`) ファイルの読み込みと辞書へのマージ
 - 複数ファイルを順番に読み込み、後のファイルが前を上書き
 - `_` プレフィックスのキーはドキュメント用メタデータとして除外
-- 解析エラー時は `ValueError` を送出
+- `load()` ではファイル不存在/解析エラー時に `ValueError` を送出。ただし `load_all()` では存在しないファイルを silent skip（`ValueError` をキャッチして continue）
 
 ### 6.2 ロギング（shared/logger.py）
 - 名前付きロガー（`Logger(__name__, filepath)`）の構築
@@ -79,8 +79,10 @@
 
 ### 6.8 テキストフォーマッター（shared/formatters.py）
 - `truncate(text, max_chars)` — 文字数制限と末尾省略記号
-- `fmt_kvlog(event, **kwargs)` — key=value 形式のログ文字列生成
+- `fmt_kvlog(op, **kwargs)` — key=value 形式のログ文字列生成（パラメータ名は `op`）
 - `MAX_SNIPPET_CHARS` — スニペット表示の最大文字数定数
+- `fmt_size(size)` — 人間可読なバイト表記（B/KB/MB）
+- `fmt_md_link(text, url)` — Markdown リンク形式生成
 
 ---
 
@@ -89,10 +91,10 @@
 ### 7.1 ConfigLoader
 
 ```python
-loader = ConfigLoader()
+loader = ConfigLoader(config_dir: Path | None = None)  # config_dir はオプション
 cfg = loader.load("agent.toml")            # 単一ファイル
 cfg = loader.load("common.toml", "agent.toml")  # 複数マージ
-cfg = loader.load_all()                    # 11ファイルのハードコード済みリストをマージ（common.toml は含まない）
+cfg = loader.load_all()                    # 11ファイルのハードコード済みリストをマージ（common.toml は含まない）。存在しないファイルは silent skip。
 ```
 
 ### 7.2 Logger
@@ -108,10 +110,11 @@ logger.set_context(turn_id="T001", session_id=42)  # コンテキスト注入
 ### 7.3 ToolExecutor（主要入出力）
 
 ```python
-result, is_error, x_request_id = await tool_executor.execute(
+result: ToolCallResult = await tool_executor.execute(
     tool_name="read_text_file",
     args={"path": "/opt/llm/docs/README.md"}
 )
+# ToolCallResult: dataclass(output: str, is_error: bool, request_id: str, server_key: str)
 ```
 
 ---
@@ -144,16 +147,18 @@ plugin_registry.load_plugins(plugin_dir)
 ### 8.3 ToolExecutor 実行フロー
 
 ```
-ToolExecutor.execute(tool_name, args)
+ToolExecutor.execute(tool_name, args) -> ToolCallResult
   → plugin_registry.get_tool(tool_name) → プラグイン優先
-  → キャッシュ確認（TTL 以内 → キャッシュ返却）
+  → McpServerHealthRegistry で UNAVAILABLE チェック
+  → TTL + LRU キャッシュ確認（TTL 以内 → キャッシュ返却、is_error=false のみ）
   → _raw_execute(tool_name, args)
-      → ServerLifecycleManager.ensure_ready(server_key)
       → Semaphore 取得（concurrency_limits 設定時）
-      → transport.call(tool_name, args)
+      → HttpTransport.call() または StdioTransport.call()
   → キャッシュ保存（is_error=false 時のみ）
-  → (result, is_error, x_request_id) を返す
+  → ToolCallResult(output, is_error, request_id, server_key) を返す
 ```
+
+※ `ServerLifecycleManager` は削除済み。routing は `factory.py` の `_ServerLifecycleRouter` が担当。
 
 ---
 
@@ -163,7 +168,7 @@ ToolExecutor.execute(tool_name, args)
 
 ```python
 class LLMMessage(TypedDict, total=False):
-    role: str           # "user" | "assistant" | "tool" | "system"
+    role: Literal["user", "assistant", "tool", "system"]  # type 強化済み (types.py:9-12)
     content: str | None
     tool_calls: list[dict]
     tool_call_id: str
@@ -209,15 +214,20 @@ class Logger:
     def warning(msg: str, *args, **kwargs) -> None
     def error(msg: str, *args, **kwargs) -> None
     def set_context(**kwargs) -> None
+    def clear_context() -> None  # コンテキストをクリア
 ```
 
 ### 10.3 plugin_registry（shared/plugin_registry.py）
 
 ```python
-def load_plugins(plugin_dir: Path) -> int  # ロードしたプラグイン数
+def load_plugins(plugin_dir: Path) -> int  # ロードしたプラグイン数（存在しない dir は 0 を返す）
 def register_tool(name: str) -> Callable   # デコレータ
 def get_tool(name: str) -> Callable | None
 def iter_commands() -> dict[str, tuple[Callable, bool]]  # 登録済みコマンドのスナップショット
+def get_command(name: str) -> Callable | None
+def get_pipeline_post_stages() -> list[Callable]
+def register_command(name: str, prefix: bool = False) -> Callable  # コマンド登録
+def register_pipeline_stage(when: str = "post") -> Callable  # パイプラインステージ登録
 ```
 
 ### 10.4 トークンカウント（shared/token_counter.py）
@@ -250,8 +260,9 @@ def build_tracer(
 ### 10.6 git_helper（shared/git_helper.py）
 
 ```python
-def get_repo_info() -> dict | None
-# 戻り値: {"branch": str, "commit": str, "origin": str} または None（Git 未使用時）
+def get_repo_info(path: str = ".") -> dict | None
+# 戻り値: {"branch": str, "commit": str (8文字切り詰め), "message": str, "author": str} または None
+# "origin" フィールドは存在しない。commit は HEAD commit の hexsha[:8]
 ```
 
 ---
@@ -285,9 +296,11 @@ def get_repo_info() -> dict | None
 
 | 項目 | 詳細 |
 |---|---|
-| `LLMMessage.role` 型 | `str` のまま。`Literal["user", "assistant", "tool", "system"]` への型強化が未実装 (`implementations/20260606-194710_shared_types.md` 参照) |
 | `McpServerConfig.transport` 型 | `str` のまま。`Literal["http", "stdio"]` への型強化が未実装 |
 | `token_counter._warned_unavailable` | モジュールグローバル変数。インスタンス変数への移動が未実装 (`implementations/20260606-194738_shared_global_state.md` 参照) |
-| `ToolRouteResolver` fallback 警告 | 設定外のツールが静的フォールバックを使用する際の警告が未実装（`warn_on_fallback` オプション追加が必要） |
-| `plugin_registry.load_plugins()` | ロード失敗詳細の機械可読なレポートが未実装（成功/失敗/理由の構造化返却が必要） |
+| `ToolRouteResolver` fallback 警告 | **実装済み**: `warn_on_fallback: bool = False` パラメータと警告ログあり (route_resolver.py:62,74-79) |
+| `plugin_registry.load_plugins()` | ロード失敗詳細の機械可読なレポートが未実装（成功/失敗/理由の構造化返却が必要）。ただし存在しない dir は silent 0 を返す |
 | `git_helper.get_repo_info()` | `except Exception` で全例外を飲み込んで `None` を返す。理由コード付き結果型への変更が必要 |
+| `LLMClient` 未在書 | `shared/llm_client.py:67-622` の `RobustSSEParser` と `LLMClient`（exponential-backoff retry、reconnect-aware SSE streaming）が未在書。約600行の主要モジュール |
+| `ToolExecutor` 未在書詳細 | `shared/tool_executor.py` の `ToolCallResult` dataclass、TTL+LRU キャッシュ、McpServerHealthRegistry ゲーティング等在書漏れ |
+| `LLMUsage` / `LLMResponse` 未在書 | `shared/llm_types.py` の DTO が未在書 |
