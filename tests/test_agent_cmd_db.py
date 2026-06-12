@@ -11,6 +11,7 @@ import pytest
 from agent.commands.cmd_db import _DbMixin
 from agent.commands.utils import parse_flag_int as _parse_flag_int
 from agent.commands.utils import parse_flag_str as _parse_flag_str
+from db.models import PurgeCounts, WalCheckpointCounts
 
 
 def _make_cmd(*, delete_doc_return: bool = True) -> _DbMixin:
@@ -302,11 +303,9 @@ class TestDbCheckpoint:
             with patch(
                 "agent.services.db_maintenance_service.checkpoint_wal"
             ) as mock_cp:
-                mock_cp.return_value = {
-                    "busy": 0,
-                    "pages_in_wal": 10,
-                    "pages_checkpointed": 10,
-                }
+                mock_cp.return_value = WalCheckpointCounts(
+                    busy=0, log_size=10, pages_checkpointed=10
+                )
                 cmd._cmd_db("checkpoint")
                 out = capsys.readouterr().out
                 assert "complete" in out.lower()
@@ -324,11 +323,9 @@ class TestDbCheckpoint:
             with patch(
                 "agent.services.db_maintenance_service.checkpoint_wal"
             ) as mock_cp:
-                mock_cp.return_value = {
-                    "busy": 0,
-                    "pages_in_wal": 5,
-                    "pages_checkpointed": 5,
-                }
+                mock_cp.return_value = WalCheckpointCounts(
+                    busy=0, log_size=5, pages_checkpointed=5
+                )
                 cmd._cmd_db("checkpoint FULL")
                 out = capsys.readouterr().out
                 assert "complete" in out.lower()
@@ -390,7 +387,7 @@ class TestDbPurge:
             with patch(
                 "agent.services.db_maintenance_service.purge_old_sessions"
             ) as mock_purge:
-                mock_purge.return_value = {"age_deleted": 5, "count_deleted": 3}
+                mock_purge.return_value = PurgeCounts(age_deleted=5, count_deleted=3)
                 cmd._cmd_db("purge")
                 out = capsys.readouterr().out
                 assert "Purged" in out
@@ -408,7 +405,7 @@ class TestDbPurge:
             with patch(
                 "agent.services.db_maintenance_service.purge_old_sessions"
             ) as mock_purge:
-                mock_purge.return_value = {"age_deleted": 0, "count_deleted": 0}
+                mock_purge.return_value = PurgeCounts(age_deleted=0, count_deleted=0)
                 cmd._cmd_db("purge --max-sessions 10")
                 mock_purge.assert_called_once()
                 call_args = mock_purge.call_args
@@ -427,7 +424,7 @@ class TestDbPurge:
             with patch(
                 "agent.services.db_maintenance_service.purge_old_sessions"
             ) as mock_purge:
-                mock_purge.return_value = {"age_deleted": 0, "count_deleted": 0}
+                mock_purge.return_value = PurgeCounts(age_deleted=0, count_deleted=0)
                 cmd._cmd_db("purge --max-age-days 30")
                 mock_purge.assert_called_once()
 

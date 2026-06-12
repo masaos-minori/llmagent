@@ -109,7 +109,8 @@ class TestPurgeOldSessions:
         )
         cfg = RetentionConfig(max_sessions=10, max_age_days=0)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
-        assert result == {"age_deleted": 0, "count_deleted": 0}
+        assert result.age_deleted == 0
+        assert result.count_deleted == 0
 
     def test_age_based_deletion(self) -> None:
         # One very old session, one recent
@@ -121,8 +122,8 @@ class TestPurgeOldSessions:
         )
         cfg = RetentionConfig(max_sessions=100, max_age_days=1)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
-        assert result["age_deleted"] == 1
-        assert result["count_deleted"] == 0
+        assert result.age_deleted == 1
+        assert result.count_deleted == 0
 
     def test_count_based_deletion(self) -> None:
         # 5 sessions, keep only 2 most recent
@@ -137,7 +138,7 @@ class TestPurgeOldSessions:
         )
         cfg = RetentionConfig(max_sessions=2, max_age_days=0)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
-        assert result["count_deleted"] == 3
+        assert result.count_deleted == 3
         # Verify only 2 rows remain
         assert db.conn is not None
         rows = db.conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
@@ -147,7 +148,7 @@ class TestPurgeOldSessions:
         db = _make_session_db([("old", "2000-01-01 00:00:00")])
         cfg = RetentionConfig(max_sessions=100, max_age_days=0)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
-        assert result["age_deleted"] == 0
+        assert result.age_deleted == 0
 
     def test_cascade_deletes_messages(self) -> None:
         db = _make_session_db(
@@ -268,7 +269,7 @@ class TestCheckpointAndVacuum:
         )
         result = checkpoint_wal(mock_db, mode="FULL")
         mock_db.checkpoint.assert_called_once_with("FULL")
-        assert result["busy"] == 0
+        assert result.busy == 0
 
     def test_checkpoint_wal_default_mode_from_config(
         self, monkeypatch: pytest.MonkeyPatch
@@ -367,21 +368,13 @@ class TestRecoverCorruption:
     def test_db_conn_none_raises_runtime_error(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """db.conn が None のとき RuntimeError が発生し RecoveryResult(success=False) が返ること。"""
-        from unittest.mock import MagicMock, patch
-
-        mock_db = MagicMock()
-        mock_db.conn = None
-
-        class FakeContext:
-            def __enter__(self) -> MagicMock:
-                return mock_db
-
-            def __exit__(self, *args: object) -> None:
-                pass
+        """open() が RuntimeError を上げるとき RecoveryResult(success=False) が返ること。"""
+        from unittest.mock import patch
 
         with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
-            mock_helper_cls.return_value.open.return_value = FakeContext()
+            mock_helper_cls.return_value.open.side_effect = RuntimeError(
+                "conn not open"
+            )
             result = recover_corruption()
 
         assert isinstance(result, RecoveryResult)
@@ -567,11 +560,12 @@ class TestRecoverCorruption:
         assert result.action == "error"
 
     def test_open_db_exception_returns_error(self) -> None:
-        """Exception during DB open -> error."""
+        """OperationalError during DB open -> error."""
+        import sqlite3 as _sqlite3
         from unittest.mock import MagicMock, patch
 
         mock_helper = MagicMock()
-        mock_helper.open.side_effect = Exception("cannot open")
+        mock_helper.open.side_effect = _sqlite3.OperationalError("cannot open")
 
         with patch("db.maintenance.SQLiteHelper", return_value=mock_helper):
             result = recover_corruption()

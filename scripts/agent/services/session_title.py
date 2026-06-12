@@ -51,10 +51,18 @@ class SessionTitleService:
             )
             resp.raise_for_status()
             data = orjson.loads(resp.content)
-            choices = data.get("choices", [])
-            if not choices:
+            choices = data.get("choices")
+            if not isinstance(choices, list) or not choices:
                 raise SessionTitleGenerationError("LLM response has no choices")
-            title = choices[0].get("message", {}).get("content", "").strip()
+            first = choices[0]
+            if not isinstance(first, dict):
+                raise SessionTitleGenerationError("LLM choices[0] is not a dict")
+            message = first.get("message")
+            if not isinstance(message, dict):
+                raise SessionTitleGenerationError(
+                    "LLM choices[0].message is not a dict"
+                )
+            title = str(message.get("content", "")).strip()
             if not title:
                 raise SessionTitleGenerationError("LLM returned empty title")
             ctx.session.set_title(title)

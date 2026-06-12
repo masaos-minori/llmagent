@@ -10,6 +10,7 @@ callers can decide how to handle failures (e.g. log and continue in the REPL).
 import logging
 
 from db.helper import SQLiteHelper
+from db.models import ToolResultRow
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class ToolResultStore:
             db.commit()
         return row_id
 
-    def get(self, result_id: int) -> dict | None:
+    def get(self, result_id: int) -> ToolResultRow | None:
         """Fetch one tool result by id; return None when not found. Raises on DB error."""
         with SQLiteHelper("session").open(row_factory=True) as db:
             rows = db.fetchall(
@@ -59,13 +60,24 @@ class ToolResultStore:
             )
         if not rows:
             return None
-        return dict(rows[0])
+        r = rows[0]
+        return ToolResultRow(
+            id=r["id"],
+            session_id=r["session_id"],
+            turn=r["turn"],
+            tool_name=r["tool_name"],
+            args_masked=r["args_masked"] or "",
+            full_text=r["full_text"] or "",
+            summary=r["summary"],
+            is_error=bool(r["is_error"]),
+            created_at=r["created_at"] or "",
+        )
 
-    def list_recent(self, session_id: int | None, n: int = 20) -> list[dict]:
+    def list_recent(self, session_id: int | None, n: int = 20) -> list[ToolResultRow]:
         """Return the n most recent tool results for session_id oldest first.
 
         Returns [] when session_id is None. Raises on DB error.
-        Result dicts contain: id, tool_name, summary, is_error (no full_text).
+        Rows contain id, tool_name, summary, is_error; other fields default to empty/0.
         """
         if session_id is None:
             return []
@@ -77,4 +89,12 @@ class ToolResultStore:
                 " ORDER BY id DESC LIMIT ?",
                 (session_id, n),
             )
-        return [dict(r) for r in reversed(rows)]
+        return [
+            ToolResultRow(
+                id=r["id"],
+                tool_name=r["tool_name"],
+                summary=r["summary"],
+                is_error=bool(r["is_error"]),
+            )
+            for r in reversed(rows)
+        ]

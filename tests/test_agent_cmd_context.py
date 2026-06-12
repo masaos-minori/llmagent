@@ -217,27 +217,27 @@ class TestBudgetBreakdown:
     def test_budget_breakdown_counts_system(self) -> None:
         messages = [{"role": "system", "content": "hello"}]
         result = _budget_breakdown(messages)
-        assert result["system"] == 5
+        assert result.system == 5
 
     def test_budget_breakdown_counts_tool(self) -> None:
         messages = [{"role": "tool", "content": "result"}]
         result = _budget_breakdown(messages)
-        assert result["tool_results"] == 6
+        assert result.tool_results == 6
 
     def test_budget_breakdown_counts_assistant(self) -> None:
         messages = [{"role": "assistant", "content": "answer"}]
         result = _budget_breakdown(messages)
-        assert result["history"] == 6
+        assert result.history == 6
 
     def test_budget_breakdown_counts_tool_calls(self) -> None:
         messages = [{"role": "assistant", "content": "", "tool_calls": [{"id": "t1"}]}]
         result = _budget_breakdown(messages)
-        assert result["tool_results"] > 0
+        assert result.tool_results > 0
 
     def test_budget_breakdown_counts_user_as_history(self) -> None:
         messages = [{"role": "user", "content": "question"}]
         result = _budget_breakdown(messages)
-        assert result["history"] == 8
+        assert result.history == 8
 
 
 # ── _format_memory_status ─────────────────────────────────────────────────────

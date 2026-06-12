@@ -2,11 +2,15 @@
 Immutable DTO models for the agent/services subsystem.
 
 Imports only from agent.services.enums to avoid circular dependencies.
+db-layer DTOs (WalCheckpointCounts, PurgeCounts, ToolResultRow) are defined in
+db.models and re-exported here for agent-layer callers.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+
+from db.models import PurgeCounts, ToolResultRow, WalCheckpointCounts
 
 from agent.services.enums import (
     ConversationActionType,
@@ -73,7 +77,7 @@ class ContextStateView:
     mem_status: str
     git_branch: str | None
     git_commit: str | None
-    breakdown: dict[str, int]
+    breakdown: ContextBudget
 
 
 @dataclass(frozen=True)
@@ -126,3 +130,44 @@ class ConfigReloadRequest:
     masked_fields: list[str] | None = field(default=None)
     rag_tool: dict | None = field(default=None)
     sse: dict | None = field(default=None)
+
+
+# ── Re-exports from db.models (available to agent-layer callers) ──────────────
+
+__all__ = [
+    "PurgeCounts",
+    "ToolResultRow",
+    "WalCheckpointCounts",
+]
+
+
+# ── Agent-layer-only DTOs ─────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class DocumentRow:
+    """One row from the documents table as returned by session.list_documents()."""
+
+    url: str
+    lang: str | None
+    chunk_count: int
+    fetched_at: str
+
+
+@dataclass(frozen=True)
+class SessionRow:
+    """One row from the sessions table as returned by session.list_sessions()."""
+
+    session_id: int
+    title: str | None
+    created_at: str
+    is_current: bool
+
+
+@dataclass(frozen=True)
+class ContextBudget:
+    """Per-category character counts for /context budget breakdown display."""
+
+    system: int
+    history: int
+    tool_results: int

@@ -11,6 +11,7 @@ import logging
 from typing import Any
 
 import orjson
+from db.models import ToolResultRow
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.models import ToolResultView
@@ -29,13 +30,13 @@ def _decode_args(raw: str | None) -> dict[str, Any]:
         return {}
 
 
-def _to_tool_result_view(entry: dict[str, Any]) -> ToolResultView:
+def _to_tool_result_view(entry: ToolResultRow) -> ToolResultView:
     return ToolResultView(
-        result_id=int(entry["id"]),
-        tool_name=str(entry["tool_name"]),
-        summary=entry.get("summary"),
-        args_masked=_decode_args(entry.get("args_masked")),
-        is_error=bool(entry.get("is_error", False)),
+        result_id=entry.id,
+        tool_name=entry.tool_name,
+        summary=entry.summary,
+        args_masked=_decode_args(entry.args_masked),
+        is_error=entry.is_error,
     )
 
 
@@ -72,7 +73,7 @@ class _ToolingMixin(MixinBase):
         flag = " [summarized]" if view.summary else ""
         self._out.write(f"Tool: {view.tool_name}{flag}")
         self._out.write(f"Args: {orjson.dumps(view.args_masked).decode()}")
-        full_text = str(raw.get("full_text", ""))
+        full_text = raw.full_text
         self._out.write(f"Size: {len(full_text)} chars")
         if view.summary:
             self._out.write(f"Summary: {view.summary}")

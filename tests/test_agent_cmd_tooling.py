@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from agent.commands.cmd_tooling import _ToolingMixin
+from db.models import ToolResultRow
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -22,19 +23,19 @@ def _make_entry(
     *,
     id: int = 1,
     tool_name: str = "bash",
-    args_masked: str | None = '{"cmd": "ls"}',
+    args_masked: str = '{"cmd": "ls"}',
     full_text: str = "output",
     summary: str | None = None,
     is_error: bool = False,
-) -> dict:
-    return {
-        "id": id,
-        "tool_name": tool_name,
-        "args_masked": args_masked,
-        "full_text": full_text,
-        "summary": summary,
-        "is_error": is_error,
-    }
+) -> ToolResultRow:
+    return ToolResultRow(
+        id=id,
+        tool_name=tool_name,
+        args_masked=args_masked,
+        full_text=full_text,
+        summary=summary,
+        is_error=is_error,
+    )
 
 
 def _make_cmd(*, entries=None, get_return=None):

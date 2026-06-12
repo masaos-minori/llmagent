@@ -39,7 +39,3 @@ class MixinBase:
 
     _ctx: AgentContext
     _out: OutputPort = CliOutputPort()  # overridden by CommandRegistry.__init__
-
-    def _reset_session_stats(self, ctx: AgentContext) -> None:
-        """Delegate to module-level reset_session_stats for backward compatibility."""
-        reset_session_stats(ctx)

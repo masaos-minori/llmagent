@@ -14,31 +14,33 @@ from shared.git_helper import get_repo_info
 from shared.types import LLMMessage
 
 from agent.services.exceptions import ContextStateBuildError
-from agent.services.models import ContextStateView
+from agent.services.models import ContextBudget, ContextStateView
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
 
 
-def budget_breakdown(messages: list[LLMMessage]) -> dict[str, int]:
+def budget_breakdown(messages: list[LLMMessage]) -> ContextBudget:
     """Compute per-category character counts (system / history / tool_results)."""
-    counts: dict[str, int] = {"system": 0, "history": 0, "tool_results": 0}
+    system = 0
+    history = 0
+    tool_results = 0
     for m in messages:
         role = m.get("role", "")
-        content = m.get("content") or ""
-        text = content if isinstance(content, str) else str(content)
+        content_raw = m.get("content")
+        text = content_raw if isinstance(content_raw, str) else ""
         tool_calls = m.get("tool_calls") or []
         if role == "system":
-            counts["system"] += len(text)
+            system += len(text)
         elif role == "tool":
-            counts["tool_results"] += len(text)
+            tool_results += len(text)
         elif role == "assistant":
-            counts["history"] += len(text)
+            history += len(text)
             if tool_calls:
-                counts["tool_results"] += len(orjson.dumps(tool_calls))
+                tool_results += len(orjson.dumps(tool_calls))
         else:
-            counts["history"] += len(text)
-    return counts
+            history += len(text)
+    return ContextBudget(system=system, history=history, tool_results=tool_results)
 
 
 def _format_memory_status(ctx: AgentContext) -> str:
@@ -64,7 +66,11 @@ def collect_context_state(ctx: AgentContext) -> ContextStateView:
         raise ContextStateBuildError("hist_mgr is not configured")
     total_chars = ctx.services.hist_mgr.count_chars(ctx.conv.history)
     system_msgs = [m for m in ctx.conv.history if m["role"] == "system"]
-    sys_preview = str(system_msgs[0].get("content", ""))[:80] if system_msgs else ""
+    if system_msgs:
+        content_raw = system_msgs[0].get("content")
+        sys_preview = content_raw[:80] if isinstance(content_raw, str) else ""
+    else:
+        sys_preview = ""
     compress_count = ctx.services.hist_mgr.stat_compress_count
     token_is_exact = ctx.stats.stat_input_tokens is not None
     token_estimate = ctx.services.hist_mgr.count_tokens(

@@ -26,6 +26,7 @@ from shared.config_loader import ConfigLoader
 
 from db.config import build_db_config
 from db.helper import SQLiteHelper
+from db.models import PurgeCounts, WalCheckpointCounts
 from db.store import SQLiteMemoryDeleteStore
 
 logger = logging.getLogger(__name__)
@@ -64,12 +65,17 @@ class RecoveryResult:
 # ── Maintenance operations ─────────────────────────────────────────────────────
 
 
-def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> dict[str, int]:
+def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> WalCheckpointCounts:
     """Flush the WAL file and return checkpoint counters; mode defaults to sqlite_wal_checkpoint_mode (TRUNCATE); raises ValueError for unknown mode."""
     if mode is None:
         cfg = ConfigLoader().load("common.toml")
         mode = cfg.get("sqlite_wal_checkpoint_mode", "TRUNCATE").upper()
-    return db.checkpoint(mode)
+    raw = db.checkpoint(mode)
+    return WalCheckpointCounts(
+        busy=raw["busy"],
+        log_size=raw["pages_in_wal"],
+        pages_checkpointed=raw["pages_checkpointed"],
+    )
 
 
 def vacuum_db(db: SQLiteHelper) -> None:
@@ -80,8 +86,8 @@ def vacuum_db(db: SQLiteHelper) -> None:
 def purge_old_sessions(
     db: SQLiteHelper,
     cfg: RetentionConfig | None = None,
-) -> dict[str, int]:
-    """Delete sessions exceeding the retention policy (age-based then count-based); CASCADE removes messages; returns {age_deleted, count_deleted}."""
+) -> PurgeCounts:
+    """Delete sessions exceeding the retention policy (age-based then count-based); CASCADE removes messages; returns PurgeCounts(age_deleted, count_deleted)."""
     if cfg is None:
         cfg = RetentionConfig.from_config()
 
@@ -115,7 +121,7 @@ def purge_old_sessions(
         )
 
     db.commit()
-    return {"age_deleted": age_deleted, "count_deleted": count_deleted}
+    return PurgeCounts(age_deleted=age_deleted, count_deleted=count_deleted)
 
 
 def prune_old_memories(db: SQLiteHelper, older_than_days: int) -> int:
@@ -187,7 +193,7 @@ def _run_integrity_check(
         with SQLiteHelper(target).open() as db:
             result: str = db.conn.execute("PRAGMA integrity_check").fetchone()[0]  # type: ignore[union-attr]  # conn is set by open()
             return result, None
-    except Exception as e:
+    except (sqlite3.OperationalError, ValueError, RuntimeError) as e:
         logger.error(f"Cannot open DB for integrity check: {e}")
         return None, str(e)
 
@@ -215,7 +221,7 @@ def _vacuum_db(target: str = "rag") -> RecoveryResult:
     try:
         with SQLiteHelper(target).open(write_mode=True) as db:
             db.vacuum()
-    except Exception as e:
+    except (sqlite3.OperationalError, RuntimeError) as e:
         logger.error(f"VACUUM failed: {e}")
         return RecoveryResult(success=False, action="vacuum_failed", detail=str(e))
     return RecoveryResult(success=True, action="vacuum")

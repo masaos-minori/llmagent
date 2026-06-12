@@ -116,7 +116,7 @@ class TestToolResultStoreStore:
         assert row_id is not None
         row = store.get(row_id)
         assert row is not None
-        assert row["is_error"] == 1
+        assert row.is_error is True
 
 
 class TestToolResultStoreGet:
@@ -133,9 +133,9 @@ class TestToolResultStoreGet:
         assert row_id is not None
         row = store.get(row_id)
         assert row is not None
-        assert row["tool_name"] == "list_dir"
-        assert row["full_text"] == "dir listing"
-        assert row["session_id"] == 5
+        assert row.tool_name == "list_dir"
+        assert row.full_text == "dir listing"
+        assert row.session_id == 5
 
     def test_returns_none_for_missing_id(self, store: ToolResultStore) -> None:
         assert store.get(99999) is None
@@ -159,7 +159,7 @@ class TestToolResultStoreListRecent:
         store.store(2, 1, "tool_c", "{}", "out_c", None, False)
         results = store.list_recent(1)
         assert len(results) == 2
-        names = [r["tool_name"] for r in results]
+        names = [r.tool_name for r in results]
         assert "tool_a" in names
         assert "tool_b" in names
 
@@ -167,8 +167,8 @@ class TestToolResultStoreListRecent:
         store.store(1, 1, "first", "{}", "out1", None, False)
         store.store(1, 2, "second", "{}", "out2", None, False)
         results = store.list_recent(1)
-        assert results[0]["tool_name"] == "first"
-        assert results[1]["tool_name"] == "second"
+        assert results[0].tool_name == "first"
+        assert results[1].tool_name == "second"
 
     def test_respects_n_limit(self, store: ToolResultStore) -> None:
         for i in range(10):
@@ -188,5 +188,5 @@ class TestToolResultStoreListRecent:
         store.store(1, 1, "tool", "{}", "full content here", "summary text", False)
         results = store.list_recent(1)
         assert len(results) == 1
-        assert "full_text" not in results[0]
-        assert "summary" in results[0]
+        assert results[0].full_text == ""
+        assert results[0].summary == "summary text"

@@ -60,7 +60,7 @@ class DbMaintenanceService:
             raw = checkpoint_wal(db, mode)
         return DbCheckpointResult(
             mode=mode or "TRUNCATE",
-            pages_written=raw.get("pages_checkpointed", 0),
+            pages_written=raw.pages_checkpointed,
         )
 
     def vacuum(self) -> None:
@@ -81,7 +81,7 @@ class DbMaintenanceService:
         with SQLiteHelper("session").open(write_mode=True) as db:
             raw = purge_old_sessions(db, cfg)
         return DbPurgeResult(
-            sessions_removed=raw.get("age_deleted", 0) + raw.get("count_deleted", 0),
+            sessions_removed=raw.age_deleted + raw.count_deleted,
         )
 
     def recover(self, backup_path: str | None) -> DbRecoverResult:

@@ -14,6 +14,7 @@ import logging
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import parse_command_args
+from agent.services.models import SessionRow
 
 logger = logging.getLogger(__name__)
 
@@ -65,19 +66,28 @@ class _SessionMixin(MixinBase):
         if sub == "list":
             limit_raw = parsed.positional[0] if parsed.positional else "20"
             limit = int(limit_raw) if limit_raw.isdigit() else 20
-            rows = self._ctx.session.list_sessions(limit)
-            if not rows:
+            raw_rows = self._ctx.session.list_sessions(limit)
+            if not raw_rows:
                 self._out.write_no_data("No sessions found")
                 return
+            session_rows = [
+                SessionRow(
+                    session_id=int(r["session_id"]),
+                    title=r.get("title"),
+                    created_at=str(r.get("created_at", "")),
+                    is_current=bool(r.get("is_current", False)),
+                )
+                for r in raw_rows
+            ]
             table_rows = []
-            for r in rows:
-                title = r["title"] if r["title"] is not None else ""
+            for sr in session_rows:
+                title = sr.title if sr.title is not None else ""
                 title_display = title[:29] + "..." if len(title) > 32 else title
                 table_rows.append(
                     [
-                        f"{r['session_id']:>4}{'*' if r['is_current'] else ' '}",
+                        f"{sr.session_id:>4}{'*' if sr.is_current else ' '}",
                         title_display,
-                        r["created_at"],
+                        sr.created_at,
                     ]
                 )
             self._out.write_table(["ID  ", "Title", "Created"], table_rows)

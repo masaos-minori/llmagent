@@ -68,7 +68,7 @@ class _ContextMixin(MixinBase):
             self._out.write_no_data(str(e))
             return
         breakdown = state.breakdown
-        total_bd = sum(breakdown.values()) or 1
+        total_bd = (breakdown.system + breakdown.history + breakdown.tool_results) or 1
         git_str = (
             f"{state.git_branch} @ {state.git_commit}"
             if state.git_branch and state.git_commit
@@ -96,7 +96,11 @@ class _ContextMixin(MixinBase):
             ]
         )
         self._out.write("Budget breakdown:")
-        for cat, n in breakdown.items():
+        for cat, n in [
+            ("system", breakdown.system),
+            ("history", breakdown.history),
+            ("tool_results", breakdown.tool_results),
+        ]:
             pct = n * 100 // total_bd
             self._out.write(f"  {cat:<14}: {n:>8,} chars ({pct:>3}%)")
 

@@ -35,7 +35,7 @@ matched = await cmds.dispatch("/stats")
 
 | 関数 | 定義元 | 説明 |
 |---|---|---|
-| `budget_breakdown(messages) -> dict[str, int]` | `services/context_view.py` | メッセージリストを system / history / tool_results に分類して文字数を集計 |
+| `budget_breakdown(messages) -> ContextBudget` | `services/context_view.py` | メッセージリストを system / history / tool_results に分類して文字数を集計。`ContextBudget(system, history, tool_results)` を返す |
 | `mask_args(args, masked_fields) -> dict` | `registry.py` | `masked_fields` に含まれるキーの値を `"***"` に置換して返す |
 
 ## 3. CommandRegistry メソッド一覧
