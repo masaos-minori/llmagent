@@ -22,6 +22,7 @@ AgentREPL responsibilities:
 """
 
 import asyncio
+import sqlite3
 
 from db.helper import SQLiteHelper
 from shared.logger import Logger
@@ -97,7 +98,7 @@ class AgentREPL:
                 rows = db.fetchall("SELECT COUNT(*) FROM chunks")
             count = rows[0][0] if rows else 0
             return f"{count:,}"
-        except Exception as e:
+        except (sqlite3.Error, OSError, RuntimeError) as e:
             logger.debug(f"Failed to get chunk count: {e}")
             return "?"
 
@@ -196,13 +197,15 @@ class AgentREPL:
         Ondemand servers are excluded; they start on first tool call via ensure_ready().
         """
         ctx = self._ctx
-        assert ctx.services.tools is not None
-        assert ctx.services.lifecycle is not None
+        if ctx.services.tools is None:
+            raise RuntimeError("tools service not initialized")
+        if ctx.services.lifecycle is None:
+            raise RuntimeError("lifecycle service not initialized")
         for key, cfg in ctx.cfg.mcp.mcp_servers.items():
             if cfg.startup_mode == "subprocess" and cfg.transport == "http":
                 try:
                     await ctx.services.lifecycle.start_http_subprocess(key, cfg)
-                except Exception as e:
+                except (OSError, RuntimeError) as e:
                     logger.error(
                         f"Failed to start HTTP subprocess MCP server {key!r}: {e}"
                     )
@@ -227,7 +230,7 @@ class AgentREPL:
                 await transport.start()
                 ctx.services.tools.set_transport(key, transport)
                 ctx.services.stdio_procs[key] = transport
-            except Exception as e:
+            except (OSError, RuntimeError) as e:
                 logger.error(f"Failed to start stdio MCP server {key!r}: {e}")
                 print(f"[warn] stdio MCP server {key!r} failed to start: {e}")
 
@@ -302,7 +305,7 @@ class AgentREPL:
                         history=ctx.conv.history,
                         turn_id=ctx.turn.current_turn_id,
                     )
-                except Exception:
+                except (RuntimeError, sqlite3.Error, OSError):
                     logger.exception(
                         "Memory on_session_stop failed; session data may be incomplete"
                     )
