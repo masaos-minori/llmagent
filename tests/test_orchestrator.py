@@ -12,6 +12,7 @@ import pytest
 from agent.history import CompressResult
 from agent.orchestrator import Orchestrator
 from agent.tool_loop_guard import ToolLoopGuard
+from agent.turn_result import TurnResult
 from shared.llm_client import LLMErrorKind, LLMTransportError
 from shared.llm_types import LLMMessage, LLMResponse
 
@@ -158,7 +159,11 @@ class TestHandleTurnLLMTransportError:
         ctx.services.audit_logger = MagicMock()
         orch = _make_orchestrator(ctx)
 
-        with patch.object(orch._llm_runner, "run", AsyncMock(return_value="answer")):
+        with patch.object(
+            orch._llm_runner,
+            "run",
+            AsyncMock(return_value=TurnResult(action="continue", answer="answer")),
+        ):
             await orch.handle_turn("hello")
 
         assert ctx.services.audit_logger.info.called
@@ -213,7 +218,7 @@ class TestRunTurnLLMTransportError:
         with patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()):
             result = await orch._llm_runner.run("http://llm-test")
 
-        assert "CONNECT_ERROR" in result
+        assert "CONNECT_ERROR" in result.answer
         synthetic = [
             m for m in ctx.conv.history if m.get("name") == "llm_transport_error"
         ]
@@ -233,7 +238,7 @@ class TestRunTurnLLMTransportError:
         ctx.services.llm.stream = _mock_stream
 
         result = await orch._llm_runner.run("http://llm-test")
-        assert "CONNECT_ERROR" in result
+        assert "CONNECT_ERROR" in result.answer
         synthetic = [
             m for m in ctx.conv.history if m.get("name") == "llm_transport_error"
         ]
@@ -302,7 +307,7 @@ class TestRunTurnNormalCompletion:
 
         result = await orch._llm_runner.run("http://llm-test")
 
-        assert result == "hello world"
+        assert result.answer == "hello world"
         assistant_msgs = [m for m in ctx.conv.history if m.get("role") == "assistant"]
         assert len(assistant_msgs) == 1
 
@@ -328,7 +333,7 @@ class TestRunTurnNormalCompletion:
 
         result = await orch._llm_runner.run("http://llm-test")
 
-        assert result == ""
+        assert result.answer == ""
 
 
 # ── handle_turn: tool_result_store ───────────────────────────────────────────
@@ -478,9 +483,7 @@ class TestAllowedToolsOverride:
             with patch.object(
                 orch._llm_runner,
                 "run",
-                AsyncMock(
-                    return_value=MagicMock(answer="ok", success=True, error_kind=None)
-                ),
+                AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
             ):
                 await orch.handle_turn("test")
 
@@ -496,9 +499,7 @@ class TestAllowedToolsOverride:
             with patch.object(
                 orch._llm_runner,
                 "run",
-                AsyncMock(
-                    return_value=MagicMock(answer="ok", success=True, error_kind=None)
-                ),
+                AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
             ):
                 await orch.handle_turn("test")
         assert ctx.cfg.tool.allowed_tools == ["write_file"]
@@ -513,9 +514,7 @@ class TestAllowedToolsOverride:
             with patch.object(
                 orch._llm_runner,
                 "run",
-                AsyncMock(
-                    return_value=MagicMock(answer="ok", success=True, error_kind=None)
-                ),
+                AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
             ):
                 await orch.handle_turn("test")
         assert ctx.cfg.tool.allowed_tools == ["read_text_file"]

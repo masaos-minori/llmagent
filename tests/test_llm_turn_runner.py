@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from agent.llm_turn_runner import LLMTurnRunner
 from shared.llm_client import LLMTransportError
+from shared.llm_types import LLMResponse
 
 pytestmark = pytest.mark.asyncio
 
@@ -70,7 +71,7 @@ class TestFinalizeAnswer:
     async def test_appends_to_history(self, runner: LLMTurnRunner) -> None:
         message: dict[str, Any] = {"role": "assistant", "content": "Hello"}
 
-        result = await runner._finalize_answer(message)
+        result = await runner._finalize_answer_text(message)
 
         assert result == "Hello"
         assert runner._ctx.conv.history == [message]
@@ -80,7 +81,7 @@ class TestFinalizeAnswer:
     ) -> None:
         message: dict[str, Any] = {"role": "assistant"}
 
-        result = await runner._finalize_answer(message)
+        result = await runner._finalize_answer_text(message)
 
         assert result == ""
 
@@ -100,81 +101,61 @@ class TestHandleLlmError:
 
             result = await runner._handle_llm_error(error, 0)
 
-        assert result == expected
+        assert result.answer == expected
+        assert result.action == "fail"
+        assert result.exception is error
         MockErrorService.assert_called_once_with(runner._ctx)
         service_instance.inject_mid_turn_error.assert_called_once_with(error, 0)
 
 
 class TestRun:
     async def test_returns_answer_on_stop(self, runner: LLMTurnRunner) -> None:
-        with (
-            patch.object(
-                runner._ctx.services.llm,
-                "stream",
-                AsyncMock(),
-            ) as mock_stream,
-            patch(
-                "agent.llm_turn_runner.LLMClient.extract_message",
-            ) as mock_extract,
-        ):
-            mock_stream.return_value = {"id": "resp_1"}
-            mock_extract.return_value = (
-                {"role": "assistant", "content": "Hello"},
-                "stop",
-            )
-
+        stop_response = LLMResponse(
+            message={"role": "assistant", "content": "Hello"},
+            finish_reason="stop",
+        )
+        with patch.object(runner, "_stream_llm", AsyncMock(return_value=stop_response)):
             result = await runner.run("http://llm")
 
-        assert result == "Hello"
+        assert result.answer == "Hello"
 
     async def test_executes_tool_calls_then_returns(
         self, runner: LLMTurnRunner
     ) -> None:
-        tool_msg: dict[str, Any] = {
-            "role": "assistant",
-            "content": "",
-            "tool_calls": [{"id": "c1", "function": {"name": "read_file"}}],
-        }
-        final_msg: dict[str, Any] = {"role": "assistant", "content": "Done"}
+        tool_calls = [{"id": "c1", "function": {"name": "read_file"}}]
+        tool_response = LLMResponse(
+            message={"role": "assistant", "content": "", "tool_calls": tool_calls},
+            finish_reason="tool_calls",
+        )
+        final_response = LLMResponse(
+            message={"role": "assistant", "content": "Done"},
+            finish_reason="stop",
+        )
 
         with (
             patch.object(
-                runner._ctx.services.llm,
-                "stream",
-                AsyncMock(),
+                runner,
+                "_stream_llm",
+                AsyncMock(side_effect=[tool_response, final_response]),
             ),
-            patch(
-                "agent.llm_turn_runner.LLMClient.extract_message",
-            ) as mock_extract,
             patch(
                 "agent.llm_turn_runner.execute_all_tool_calls",
             ) as mock_exec,
         ):
-            mock_extract.side_effect = [
-                (tool_msg, "tool_calls"),
-                (final_msg, "stop"),
-            ]
-
             result = await runner.run("http://llm")
 
-        assert result == "Done"
+        assert result.answer == "Done"
         mock_exec.assert_awaited_once()
         assert len(runner._ctx.conv.history) == 2
         assert runner._ctx.conv.history[0]["tool_calls"] is not None
 
     async def test_handles_transport_error(self, runner: LLMTurnRunner) -> None:
+        err = LLMTransportError("CONNECT_ERROR", "pre_stream", "http://llm")
         with (
             patch.object(
-                runner._ctx.services.llm,
-                "stream",
-                AsyncMock(
-                    side_effect=LLMTransportError(
-                        "CONNECT_ERROR", "pre_stream", "http://llm"
-                    )
-                ),
-            ),
-            patch(
-                "agent.llm_turn_runner.LLMClient.extract_message",
+                runner,
+                "_stream_llm",
+                AsyncMock(side_effect=err),
             ),
             patch(
                 "agent.error_injection_service.ErrorInjectionService",
@@ -184,83 +165,62 @@ class TestRun:
 
             result = await runner.run("http://llm")
 
-        assert result == "handled"
+        assert result.answer == "handled"
+        assert result.action == "fail"
 
     async def test_reaches_max_tool_turns(self, runner: LLMTurnRunner) -> None:
-        tool_msg: dict[str, Any] = {
-            "role": "assistant",
-            "content": "",
-            "tool_calls": [{"id": "c1"}],
-        }
+        tool_calls = [{"id": "c1"}]
+        tool_response = LLMResponse(
+            message={"role": "assistant", "content": "", "tool_calls": tool_calls},
+            finish_reason="tool_calls",
+        )
 
         with (
             patch.object(
-                runner._ctx.services.llm,
-                "stream",
-                AsyncMock(),
+                runner,
+                "_stream_llm",
+                AsyncMock(return_value=tool_response),
             ),
-            patch(
-                "agent.llm_turn_runner.LLMClient.extract_message",
-            ) as mock_extract,
             patch(
                 "agent.llm_turn_runner.execute_all_tool_calls",
             ),
         ):
-            mock_extract.return_value = (tool_msg, "tool_calls")
             runner._ctx.cfg.tool.max_tool_turns = 2
 
             result = await runner.run("http://llm")
 
-        assert "Maximum tool turns reached" in result
+        assert "Maximum tool turns reached" in result.answer
 
     async def test_guard_check_all_blocks(self, runner: LLMTurnRunner) -> None:
-        tool_msg: dict[str, Any] = {
-            "role": "assistant",
-            "content": "",
-            "tool_calls": [{"id": "c1"}],
-        }
+        tool_calls = [{"id": "c1"}]
+        tool_response = LLMResponse(
+            message={"role": "assistant", "content": "", "tool_calls": tool_calls},
+            finish_reason="tool_calls",
+        )
 
-        with (
-            patch.object(
-                runner._ctx.services.llm,
-                "stream",
-                AsyncMock(),
-            ),
-            patch(
-                "agent.llm_turn_runner.LLMClient.extract_message",
-            ) as mock_extract,
-        ):
-            mock_extract.return_value = (tool_msg, "tool_calls")
+        with patch.object(runner, "_stream_llm", AsyncMock(return_value=tool_response)):
             runner._guard.check_all.return_value = "Blocked by guard"
 
             result = await runner.run("http://llm")
 
-        assert "Blocked by guard" in result
+        assert "Blocked by guard" in result.answer
 
     async def test_check_error_limit_triggers(self, runner: LLMTurnRunner) -> None:
-        tool_msg: dict[str, Any] = {
-            "role": "assistant",
-            "content": "",
-            "tool_calls": [{"id": "c1"}],
-        }
+        tool_calls = [{"id": "c1"}]
+        tool_response = LLMResponse(
+            message={"role": "assistant", "content": "", "tool_calls": tool_calls},
+            finish_reason="tool_calls",
+        )
 
         with (
-            patch.object(
-                runner._ctx.services.llm,
-                "stream",
-                AsyncMock(),
-            ),
-            patch(
-                "agent.llm_turn_runner.LLMClient.extract_message",
-            ) as mock_extract,
+            patch.object(runner, "_stream_llm", AsyncMock(return_value=tool_response)),
             patch(
                 "agent.llm_turn_runner.execute_all_tool_calls",
             ),
         ):
-            mock_extract.return_value = (tool_msg, "tool_calls")
             runner._guard.check_all.return_value = None
             runner._guard.check_error_limit.return_value = "Error limit reached"
 
             result = await runner.run("http://llm")
 
-        assert "Error limit reached" in result
+        assert "Error limit reached" in result.answer
