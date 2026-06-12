@@ -36,7 +36,7 @@ cfg = ConfigLoader().load("common.toml", "agent.toml")
 |---|---|---|---|
 | `ConfigLoader(config_dir=None)` | `config_dir: Path` — 省略時はスクリプト 2 階層上の `config/` | `ConfigLoader` | インスタンスを生成 |
 | `ConfigLoader.load(*names)` | `names: str` — `config/` 相対のファイル名 (複数可)。拡張子 `.toml` / `.json` または拡張子なし (`.toml` が暗黙付与) | `dict[str, Any]` | TOML / JSON ファイルを順に読み込んでマージ。後から読んだキーで上書き。ファイル未存在・フォーマット不正の場合は `ValueError` を送出 |
-| `ConfigLoader.load_all()` | — | `dict[str, Any]` | `_BASE_CONFIG_FILES` 定義の全基本設定ファイル (`llm.toml`, `http.toml`, `rag.toml` など) を順に読み込んでマージ。未存在ファイルはログ出力してスキップ |
+| `ConfigLoader.load_all()` | — | `dict[str, Any]` | `_BASE_CONFIG_FILES` 定義の全基本設定ファイル (`llm.toml`, `http.toml`, `rag.toml`, `context.toml`, `tools.toml`, `memory.toml`, `otel.toml`, `security.toml`, `system_prompts.toml`, `mcp_servers.toml`, `tools_definitions.toml`) を順に読み込んでマージ。未存在ファイルはログ出力してスキップ |
 | `get_config(name)` | `name: str` — 設定名またはファイル名 | `dict[str, Any]` | 簡易ラッパー: `name` に `.toml` を付与して `ConfigLoader().load()` を呼び出す |
 
 ### 1.3 ファイル名の解決ルール
@@ -118,7 +118,7 @@ audit.clear_context()
 
 | クラス / メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `Logger(name, log_file, *, structured_log=False)` | `name: str`, `log_file: str`, `structured_log: bool` | 名前付きロガーに `FileHandler` と `StreamHandler` を付与し `propagate=False` に設定。`name` または `log_file` が空文字列の場合は `ValueError` を送出 |
+| `Logger(name, log_file, *, structured_log=False)` | `name: str`, `log_file: str`, `structured_log: bool` | 名前付きロガーに `FileHandler` と `StreamHandler` を付与し `propagate=False` に設定。`name` または `log_file` が空文字列、または文字列型でない場合は `ValueError` を送出 |
 | `Logger.set_context(**fields)` | `**fields: Any` — `turn_id` / `session_id` / `rag_query_id` など | 以降のすべてのログレコードに指定フィールドを注入。`None` 値のキーは除外される |
 | `Logger.clear_context()` | — | 注入済みコンテキストフィールドをすべてクリアする |
 | `Logger.info / warning / error / exception / debug` | `msg: str, *args, **kwargs` | 内部 `logging.Logger` の同名メソッドに委譲 (`__getattr__` 経由) |
@@ -343,7 +343,7 @@ from shared.tool_constants import RAG_TOOLS, CICD_TOOLS, MDQ_TOOLS, GIT_TOOLS
 
 | frozenset | 説明 | 含まれるツール例 |
 |---|---|---|
-| `READ_TOOLS` | 読み取り専用ファイル操作ツール | `list_directory` / `list_directory_with_sizes` / `directory_tree` / `read_text_file` / `read_media_file` / `read_multiple_files` / `search_files` / `grep_files` / `get_file_info` など 13 ツール |
+| `READ_TOOLS` | 読み取り専用ファイル操作ツール | `list_directory` / `list_directory_with_sizes` / `directory_tree` / `read_text_file` / `read_media_file` / `read_multiple_files` / `search_files` / `grep_files` / `get_file_info` の 9 ツール |
 | `WRITE_TOOLS` | ファイル書き込みツール | `write_file` / `edit_file` / `create_directory` / `move_file` |
 | `DELETE_TOOLS` | ファイル削除ツール | `delete_file` / `delete_directory` |
 | `RAG_TOOLS` | RAG パイプライン MCP ツール | `rag_run_pipeline` / `rag_debug_pipeline` |

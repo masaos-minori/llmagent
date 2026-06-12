@@ -295,7 +295,7 @@ class RagIngester:
 
 ```python
 class PipelineStage(Protocol):
-    async def run(ctx: PipelineContext) -> PipelineContext
+    async def run(self, ctx: PipelineContext, **kwargs: Any) -> None
 # 実装クラス: SearchStage, MqeStage, FusionStage, RerankStage, AugmentStage（rag/stages/）
 ```
 

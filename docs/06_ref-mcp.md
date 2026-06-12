@@ -275,9 +275,10 @@ from shared.mcp_config import McpServerConfig
 | `url` | `str` | 必須 (http) | HTTP トランスポートのベース URL (例: `"http://127.0.0.1:8004"`) |
 | `cmd` | `list[str]` | 必須 (stdio) | stdio サーバの起動コマンド argv |
 | `openrc_service` | `str` | 必須 | OpenRC サービス名 (ウォッチドッグ再起動に使用) |
-| `startup_mode` | `str` | `"persistent"` | `"persistent"`: エージェント起動時に即時起動 / `"ondemand"`: 初回ツール呼び出し時に自動起動 (stdio のみ有効) |
+| `startup_mode` | `str` | `"persistent"` | `"persistent"`: エージェント起動時に即時起動 / `"ondemand"`: 初回ツール呼び出し時に自動起動 (stdio のみ有効) / `"subprocess"`: エージェント起動時にサブプロセスとして起動し /health をポーリング (http のみ有効) |
 | `healthcheck_mode` | `str` | `""` | `"http"` / `"process"` / `"ping_tool"` のいずれか。空文字のとき transport から自動推論 (`"http"` → `"http"`, `"stdio"` → `"process"`) |
 | `idle_timeout_sec` | `int` | `0` | ondemand サーバのアイドル自動停止秒数。`0` = 無効 |
+| `startup_timeout_sec` | `int` | `30` | subprocess モードの起動待ちポーリングタイムアウト秒数 |
 | `working_dir` | `str` | `""` | stdio サブプロセスの作業ディレクトリ。空文字のとき親プロセスの cwd を継承 |
 | `env` | `dict[str, str]` | `{}` | stdio サブプロセスに追加注入する環境変数。非空のとき `{**os.environ, **env}` でマージ |
 | `tool_names` | `list[str]` | `[]` | このサーバが担当するツール名リスト。空のとき静的 fallback ルーティングを使用 |
@@ -288,8 +289,20 @@ from shared.mcp_config import McpServerConfig
 - `transport` が `"http"` / `"stdio"` 以外 → `ValueError`
 - `transport="http"` かつ `url` が空 → `ValueError`
 - `transport="stdio"` かつ `cmd` が空 → `ValueError`
-- `startup_mode` が `"persistent"` / `"ondemand"` 以外 → `ValueError`
+- `startup_mode` が `"persistent"` / `"ondemand"` / `"subprocess"` 以外 → `ValueError`
+- `startup_mode="subprocess"` かつ `transport="stdio"` → `ValueError` (http のみ有効)
 - `healthcheck_mode` が `"http"` / `"process"` / `"ping_tool"` 以外 → `ValueError`
+
+### 6.3 McpServerHealthRegistry
+
+`ToolExecutor` に注入されるサーバヘルス状態追跡クラス。連続障害回数が閾値 (既定 3) を超えると `UNAVAILABLE` 状態になり、`ToolExecutor._raw_execute()` でディスパッチがブロックされる。
+
+| メソッド | 説明 |
+|---|---|
+| `record_failure(server_key)` | 障害を記録。閾値未満なら `DEGRADED`、以上なら `UNAVAILABLE` を返す |
+| `record_success(server_key)` | 成功を記録。状態を `HEALTHY` にリセットし障害回数を 0 にする |
+| `get_state(server_key)` | 現在の健康状態を返す。未登録なら `HEALTHY` |
+| `is_unavailable(server_key)` | `UNAVAILABLE` 状態なら `True` |
 
 ---
 

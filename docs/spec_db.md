@@ -258,9 +258,24 @@ CREATE VIRTUAL TABLE chunks_vec USING vec0(
 ```python
 class SQLiteHelper:
     def __init__(target: str = "rag")  # "rag" | "session"
-    def open(*, write_mode: bool = False, row_factory: bool = False) -> "SQLiteHelper"
+    @property
+    def DB_PATH(self) -> str
+    def open(*, write_mode: bool = False, row_factory: bool = False, load_vec: bool | None = None) -> "SQLiteHelper"
+    # load_vec=None: instance デフォルト (rag=True, session=False)
     def __enter__() -> "SQLiteHelper"
     def __exit__(...) -> None
+    def close() -> None
+    @contextmanager
+    def begin_immediate() -> Generator[None]  # BEGIN IMMEDIATE...COMMIT
+    @contextmanager
+    def begin_exclusive() -> Generator[None]  # BEGIN EXCLUSIVE...COMMIT (VACUUM/DDL 用)
+    def health_check() -> dict[str, Any]  # {journal_mode, integrity, page_count, page_size, freelist_count, db_size_bytes}
+    def checkpoint(mode: str = "TRUNCATE") -> dict[str, int]  # {"PASSIVE", "FULL", "RESTART", "TRUNCATE"} → {busy, pages_in_wal, pages_checkpointed}
+    def vacuum() -> None
+    def execute(sql: str, params=()) -> sqlite3.Cursor
+    def executemany(sql: str, params_seq: list[tuple[Any, ...]]) -> sqlite3.Cursor
+    def fetchall(sql: str, params=()) -> list[Any]
+    def commit() -> None
     # conn: sqlite3.Connection が利用可能
     # write_mode=True: FK 制約を有効化する書き込みセッション
 ```

@@ -157,14 +157,14 @@ LLM が tool_call を返す
 | `url` | `str` | HTTP サーバーのベース URL |
 | `cmd` | `list[str]` | stdio サブプロセス起動コマンド |
 | `openrc_service` | `str` | OpenRC サービス名（watchdog 再起動用） |
-| `startup_mode` | `str` | `"persistent"` / `"ondemand"` / `"subprocess"` |
-| `healthcheck_mode` | `str` | `"http"` / `"process"` / `"ping_tool"` |
+| `startup_mode` | `str` | `"persistent"` / `"ondemand"` (stdio のみ) / `"subprocess"` (http のみ) |
+| `healthcheck_mode` | `str` | `"http"` / `"process"` / `"ping_tool"`。空のとき transport から自動推論 |
 | `idle_timeout_sec` | `int` | ondemand サーバーのアイドルタイムアウト（秒、0=無効） |
-| `startup_timeout_sec` | `int` | subprocess 起動待ちタイムアウト（デフォルト 30 秒） |
-| `working_dir` | `str` | stdio subprocess の作業ディレクトリ |
-| `env` | `dict[str, str]` | stdio subprocess の環境変数 |
+| `startup_timeout_sec` | `int` | subprocess モードの起動待ちポーリングタイムアウト（デフォルト 30 秒） |
+| `working_dir` | `str` | stdio subprocess の作業ディレクトリ。空のとき親プロセスの cwd を継承 |
+| `env` | `dict[str, str]` | stdio subprocess の環境変数。非空のとき `{**os.environ, **env}` でマージ |
 | `tool_names` | `list[str]` | 設定駆動ルーティング用ツール名リスト |
-| `auth_token` | `str` | Bearer 認証トークン |
+| `auth_token` | `str` | Bearer 認証トークン。空のとき認証無効 |
 | `role` | `str` | /mcp 表示用ロールラベル |
 
 ### 9.2 スタートアップモード対応表
@@ -172,7 +172,7 @@ LLM が tool_call を返す
 | transport | startup_mode | 挙動 |
 |---|---|---|
 | `http` | `persistent` | エージェント外で常時稼働（OpenRC 管理） |
-| `http` | `subprocess` | エージェント起動時にサブプロセスとして起動し /health をポーリング |
+| `http` | `subprocess` | エージェント起動時にサブプロセスとして起動し `/health` をポーリング。`startup_timeout_sec` 秒経過でタイムアウト |
 | `stdio` | `persistent` | エージェント起動時にサブプロセス起動、セッション中ずっと稼働 |
 | `stdio` | `ondemand` | 最初のツール呼び出し時に起動、`idle_timeout_sec` 後に自動停止 |
 
@@ -188,7 +188,22 @@ class MCPServer:
     mcp_tools: list[dict]     # ツール定義リスト
 ```
 
-### 9.4 TruncationResult
+### 9.4 McpServerHealthState
+
+```python
+from enum import Enum
+
+class McpServerHealthState(Enum):
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"   # 連続障害が閾値未満
+    UNAVAILABLE = "unavailable"  # 連続障害が閾値以上。ディスパッチ停止
+```
+
+### 9.5 McpServerHealthRegistry
+
+`ToolExecutor` に注入される per-server 健康状態追跡クラス。連続障害回数が閾値（既定 3）を超えると `UNAVAILABLE` になり、`ToolExecutor._raw_execute()` でディスパッチがブロックされる。成功時に `HEALTHY` にリセットし障害回数を 0 にする。
+
+### 9.6 TruncationResult
 
 ```python
 @dataclass(frozen=True)
@@ -223,6 +238,7 @@ class ToolExecutor:
     def set_session_id(session_id: str) -> None
     def apply_config(*, cache_ttl: float | None) -> None
     def clear_cache() -> None
+    def set_health_registry(registry: McpServerHealthRegistry) -> None
 ```
 
 ### 10.3 HttpTransport（shared/tool_executor.py）
