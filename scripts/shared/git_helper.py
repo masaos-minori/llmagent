@@ -25,6 +25,6 @@ def get_repo_info(path: str = ".") -> dict[str, str] | None:
             "message": str(head.commit.message).strip().splitlines()[0],
             "author": str(head.commit.author),
         }
-    except Exception as e:
+    except (ImportError, ValueError, OSError) as e:
         logger.debug("get_repo_info: %s", e)
         return None

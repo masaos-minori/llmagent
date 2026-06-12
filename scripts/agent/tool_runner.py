@@ -62,7 +62,8 @@ async def execute_one_tool_call(
             f"Invalid JSON in tool arguments for {name!r}: {args_str!r}"
         ) from e
 
-    text, is_error, x_request_id = await ctx.services.tools.execute(name, args)
+    result = await ctx.services.tools.execute(name, args)
+    text, is_error, x_request_id = result.output, result.is_error, result.request_id
     audit_tool_exec(ctx, name, args, is_error, x_request_id)
 
     if (

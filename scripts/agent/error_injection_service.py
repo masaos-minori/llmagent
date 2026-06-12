@@ -44,7 +44,7 @@ class ErrorInjectionService:
         ctx.conv.history.append(
             {
                 "role": "tool",
-                "content": err["detail"],
+                "content": err.detail,
                 "name": "llm_transport_error",
                 "tool_call_id": f"synthetic_{uuid.uuid4().hex[:8]}",
             },
@@ -54,11 +54,11 @@ class ErrorInjectionService:
             turn=turn,
             tool_name="llm_transport_error",
             args_masked="{}",
-            full_text=err["detail"],
-            summary=err["summary"],
+            full_text=err.detail,
+            summary=err.summary,
             is_error=True,
         )
         logger.warning(
             f"LLM transport error during tool continuation (turn={turn}): {e.kind}",
         )
-        return err["summary"]
+        return err.summary

@@ -15,16 +15,22 @@ not install opentelemetry-sdk.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
+
+
+class TracerProtocol(Protocol):
+    """Minimal protocol for OTel-compatible tracers used by the agent pipeline."""
+
+    def start_as_current_span(self, name: str, **kwargs: Any) -> Any: ...
 
 
 def build_tracer(
     enabled: bool,
     service_name: str = "llm-agent",
     otlp_endpoint: str = "",
-) -> Any:
+) -> TracerProtocol:
     """Build and return a private OTel Tracer (or NoOp) without modifying the global provider."""
     if not enabled:
         return _NoOpTracer()
@@ -37,7 +43,7 @@ def build_tracer(
     resource = sdk.Resource.create({"service.name": service_name})
     provider = sdk.TracerProvider(resource=resource)
     _attach_exporter(provider, otlp_endpoint, service_name)
-    return provider.get_tracer(service_name)
+    return provider.get_tracer(service_name)  # type: ignore[no-any-return]  # OTel Tracer satisfies TracerProtocol at runtime
 
 
 def _import_sdk() -> Any | None:
@@ -122,8 +128,8 @@ class _ConsoleProcessor:
 
         self._processor = SimpleSpanProcessor(ConsoleSpanExporter())
 
-    def start_span(self, *args: Any, **kwargs: Any) -> Any:
-        return self._processor.start_span(*args, **kwargs)
+    def on_start(self, span: Any, parent_context: Any = None) -> None:
+        self._processor.on_start(span, parent_context)
 
     def on_end(self, *args: Any, **kwargs: Any) -> None:
         self._processor.on_end(*args, **kwargs)

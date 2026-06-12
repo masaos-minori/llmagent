@@ -6,16 +6,36 @@ Cross-layer type definitions shared by shared, rag, and agent packages.
 from typing import Any, Literal, Protocol, TypedDict, runtime_checkable
 
 
-class LLMMessage(TypedDict, total=False):
-    """OpenAI-compatible chat message; role always required; content for user/system/assistant; tool_calls on assistant; tool_call_id/name on tool result messages."""
+class _LLMMessageRequired(TypedDict):
+    """Required fields for every LLM chat message."""
 
     role: Literal["user", "assistant", "tool", "system"]
+
+
+class LLMMessage(_LLMMessageRequired, total=False):
+    """OpenAI-compatible chat message; role always required; other fields depend on message type."""
+
     content: str | None  # text content; None for tool_calls-only assistant messages
     tool_calls: list[dict[str, Any]]  # tool call requests on assistant messages
     tool_call_id: str  # tool result messages: ID from the triggering tool_call
     name: str  # tool result messages: name of the called tool
     importance: float  # message importance score for compression
     pinned: bool  # whether message should be preserved during compression
+
+
+class ToolCallFunction(TypedDict):
+    """Function descriptor inside a tool call."""
+
+    name: str
+    arguments: str  # JSON-encoded string
+
+
+class ToolCallDict(TypedDict):
+    """One tool call entry in an assistant message's tool_calls list."""
+
+    id: str
+    type: Literal["function"]
+    function: ToolCallFunction
 
 
 @runtime_checkable

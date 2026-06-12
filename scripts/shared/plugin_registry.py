@@ -37,13 +37,16 @@ from __future__ import annotations
 
 import importlib.util
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
 _F = TypeVar("_F", bound=Callable[..., Any])
+
+# Type alias for registered tool handlers: async function (args dict) → (output, is_error)
+ToolHandler = Callable[[dict[str, Any]], Awaitable[tuple[str, bool]]]
 
 # ── Internal registries ───────────────────────────────────────────────────────
 
@@ -134,7 +137,7 @@ def load_plugins(plugin_dir: str | Path) -> int:
                 spec.loader.exec_module(mod)
                 loaded += 1
                 logger.info("Plugin loaded: %s", py_file.name)
-        except Exception as e:
+        except (ImportError, SyntaxError, AttributeError) as e:
             logger.warning("Plugin load failed (%s): %s", py_file.name, e)
     return loaded
 

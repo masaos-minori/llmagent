@@ -17,6 +17,7 @@ import logging
 import os
 import time
 from collections import OrderedDict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -35,6 +36,36 @@ logger = logging.getLogger(__name__)
 
 # Seconds to wait for a stdio server response before treating it as a timeout.
 _STDIO_CALL_TIMEOUT: float = 60.0
+
+
+# ── Typed result DTOs ─────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class ToolCallResult:
+    """Typed result from a single tool call execution."""
+
+    output: str
+    is_error: bool
+    request_id: str  # x-request-id from HTTP transport; "" for stdio/plugin/cache
+    server_key: str  # server key that handled the call; "" for plugin tools
+
+
+@dataclass(frozen=True)
+class TransportErrorInfo:
+    """Structured error info for LLM/tool transport failures (audit logs)."""
+
+    summary: str
+    detail: str  # JSON-encoded dict for audit log
+
+
+@dataclass(frozen=True)
+class _CacheEntry:
+    """Internal cache entry (output, is_error, timestamp)."""
+
+    output: str
+    is_error: bool
+    cached_at: float
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -62,8 +93,8 @@ class HttpTransport:
         """Inject session ID to be forwarded as X-Session-Id header on every call."""
         self._session_id = session_id
 
-    async def call(self, name: str, args: dict[str, Any]) -> tuple[str, bool, str]:
-        """POST to /v1/call_tool and return (result, is_error, x_request_id)."""
+    async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
+        """POST to /v1/call_tool and return ToolCallResult."""
         headers: dict[str, str] = {}
         if self._auth_token:
             headers["Authorization"] = f"Bearer {self._auth_token}"
@@ -76,9 +107,26 @@ class HttpTransport:
                 headers=headers,
             )
             resp.raise_for_status()
-            data = resp.json()
+            data = orjson.loads(resp.content)
+            if not isinstance(data, dict):
+                raise ValueError(
+                    f"MCP /v1/call_tool returned non-dict: {type(data).__name__}"
+                )
+            result_val = data.get("result")
+            if not isinstance(result_val, str):
+                raise ValueError("MCP /v1/call_tool missing 'result' str field")
+            is_error_val = data.get("is_error", False)
+            if not isinstance(is_error_val, bool):
+                raise ValueError(
+                    f"MCP 'is_error' must be bool, got {type(is_error_val).__name__}"
+                )
             x_request_id = resp.headers.get("x-request-id", "")
-            return data["result"], data["is_error"], x_request_id
+            return ToolCallResult(
+                output=result_val,
+                is_error=is_error_val,
+                request_id=x_request_id,
+                server_key=self._server_key,
+            )
         except httpx.HTTPStatusError as e:
             msg = (
                 f"[HTTPStatusError] tool={name} url={self._base_url}"
@@ -87,18 +135,18 @@ class HttpTransport:
                 f" — check {self._base_url}/health"
             )
             logger.warning(msg)
-            return msg, True, ""
-        except httpx.RequestError as e:
+            return ToolCallResult(
+                output=msg, is_error=True, request_id="", server_key=self._server_key
+            )
+        except (httpx.RequestError, ValueError) as e:
             msg = (
                 f"[{type(e).__name__}] tool={name} url={self._base_url}: {e}"
                 f" — check {self._base_url}/health"
             )
             logger.warning(msg)
-            return msg, True, ""
-        except Exception as e:
-            msg = f"[{type(e).__name__}] tool={name} url={self._base_url}: {e}"
-            logger.error(msg)
-            return msg, True, ""
+            return ToolCallResult(
+                output=msg, is_error=True, request_id="", server_key=self._server_key
+            )
 
 
 class StdioTransport:
@@ -158,10 +206,15 @@ class StdioTransport:
         """Return True when the subprocess is running (returncode is None)."""
         return self._proc is not None and self._proc.returncode is None
 
-    async def call(self, name: str, args: dict[str, Any]) -> tuple[str, bool, str]:
-        """Send one JSON-RPC request and return (result, is_error, x_request_id); acquires per-instance lock so concurrent callers are serialized."""
+    async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
+        """Send one JSON-RPC request and return ToolCallResult; acquires per-instance lock so concurrent callers are serialized."""
         if not self.is_alive():
-            return f"stdio server not running (key={self._server_key!r})", True, ""
+            return ToolCallResult(
+                output=f"stdio server not running (key={self._server_key!r})",
+                is_error=True,
+                request_id="",
+                server_key=self._server_key,
+            )
 
         lock = self._get_lock()
         async with lock:
@@ -173,10 +226,11 @@ class StdioTransport:
 
             if not (self._proc and self._proc.stdin and self._proc.stdout):
                 # Unreachable after is_alive() guard above; defensive check for type narrowing
-                return (
-                    f"stdio server process invalid (key={self._server_key!r})",
-                    True,
-                    "",
+                return ToolCallResult(
+                    output=f"stdio server process invalid (key={self._server_key!r})",
+                    is_error=True,
+                    request_id="",
+                    server_key=self._server_key,
                 )
             try:
                 self._proc.stdin.write(payload.encode())
@@ -188,28 +242,49 @@ class StdioTransport:
             except TimeoutError:
                 msg = f"stdio server timeout (key={self._server_key!r} tool={name})"
                 logger.warning(msg)
-                return msg, True, ""
-            except Exception as e:
+                return ToolCallResult(
+                    output=msg,
+                    is_error=True,
+                    request_id="",
+                    server_key=self._server_key,
+                )
+            except (OSError, BrokenPipeError) as e:
                 msg = f"stdio transport error (key={self._server_key!r}): {e}"
                 logger.error(msg)
-                return msg, True, ""
+                return ToolCallResult(
+                    output=msg,
+                    is_error=True,
+                    request_id="",
+                    server_key=self._server_key,
+                )
 
             if not resp_bytes:
-                return (
-                    f"stdio server closed connection (key={self._server_key!r})",
-                    True,
-                    "",
+                return ToolCallResult(
+                    output=f"stdio server closed connection (key={self._server_key!r})",
+                    is_error=True,
+                    request_id="",
+                    server_key=self._server_key,
                 )
             try:
                 resp = orjson.loads(resp_bytes)
-                return str(resp["result"]), bool(resp["is_error"]), ""
+                return ToolCallResult(
+                    output=str(resp["result"]),
+                    is_error=bool(resp["is_error"]),
+                    request_id="",
+                    server_key=self._server_key,
+                )
             except (orjson.JSONDecodeError, KeyError) as e:
                 msg = (
                     f"stdio server invalid response (key={self._server_key!r}): {e}"
                     f" raw={resp_bytes[:200]!r}"
                 )
                 logger.error(msg)
-                return msg, True, ""
+                return ToolCallResult(
+                    output=msg,
+                    is_error=True,
+                    request_id="",
+                    server_key=self._server_key,
+                )
 
     async def stop(self) -> None:
         """Gracefully shut down the subprocess (close stdin → wait → kill)."""
@@ -229,7 +304,7 @@ class StdioTransport:
                 await asyncio.wait_for(self._proc.wait(), timeout=3.0)
             except TimeoutError:
                 self._proc.kill()
-        except Exception as e:
+        except (OSError, BrokenPipeError) as e:
             logger.warning("stdio server %r stop error: %s", self._server_key, e)
             self._proc.kill()
         logger.info("stdio MCP server stopped: key=%r", self._server_key)
@@ -269,8 +344,8 @@ def format_transport_error(
     status_code: int | None,
     retryable: bool,
     partial: bool,
-) -> dict[str, str]:
-    """Return {summary, detail} for LLM/tool transport failures; summary is one-line user-facing; detail is JSON for audit logs."""
+) -> TransportErrorInfo:
+    """Return TransportErrorInfo for LLM/tool transport failures; summary is one-line user-facing; detail is JSON for audit logs."""
     detail = orjson.dumps(
         {
             "source": source,
@@ -283,7 +358,7 @@ def format_transport_error(
         },
     ).decode()
     summary = f"[{source.upper()} {kind}] {phase} failure (retryable={retryable})"
-    return {"summary": summary, "detail": detail}
+    return TransportErrorInfo(summary=summary, detail=detail)
 
 
 def tool_call_key(name: str, args: dict[str, Any]) -> str:
@@ -315,7 +390,7 @@ class ToolExecutor:
         self._cache_ttl = cache_ttl
         self._cache_max_size = cache_max_size
         self._server_configs = server_configs
-        self._cache: OrderedDict[str, tuple[str, bool, float]] = OrderedDict()
+        self._cache: OrderedDict[str, _CacheEntry] = OrderedDict()
         self.stat_cache_hits: int = 0
         self._lifecycle: LifecycleProtocol | None = lifecycle
         self._health_registry: McpServerHealthRegistry | None = None
@@ -397,22 +472,26 @@ class ToolExecutor:
         self,
         tool_name: str,
         args: dict[str, Any],
-    ) -> tuple[str, bool, str]:
-        """Execute tool via the appropriate transport; applies per-server-key Semaphore when configured; semaphores created lazily to avoid event loop issues."""
+    ) -> ToolCallResult:
+        """Execute tool via the appropriate transport; applies per-server-key Semaphore when configured."""
         server_key = self._resolver.resolve(tool_name)
         if self._health_registry is not None and self._health_registry.is_unavailable(
             server_key
         ):
             msg = f"MCP server {server_key!r} is currently unavailable (health check failed)"
             logger.warning(msg)
-            return msg, True, ""
+            return ToolCallResult(
+                output=msg, is_error=True, request_id="", server_key=server_key
+            )
         if self._lifecycle is not None:
             await self._lifecycle.ensure_ready(server_key)
         transport = self._transports.get(server_key)
         if transport is None:
             msg = self._transport_missing_msg(server_key)
             logger.error(msg)
-            return msg, True, ""
+            return ToolCallResult(
+                output=msg, is_error=True, request_id="", server_key=server_key
+            )
 
         self._ensure_semaphores()
         sem = (self._semaphores or {}).get(server_key)
@@ -425,44 +504,58 @@ class ToolExecutor:
         self,
         tool_name: str,
         args: dict[str, Any],
-    ) -> tuple[str, bool, str]:
+    ) -> ToolCallResult:
         """Execute a tool: return cached result on hit; execute and store on miss."""
         cache_key = (
             f"{tool_name}:{orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()}"
         )
         cached = self._cache.get(cache_key)
         if cached is not None:
-            result, is_error, ts = cached
-            age = time.time() - ts
+            age = time.time() - cached.cached_at
             if age < self._cache_ttl:
                 self._cache.move_to_end(cache_key)  # LRU: mark as recently used
                 self.stat_cache_hits += 1
                 logger.info("Tool cache hit: %s (age=%.0fs)", tool_name, age)
-                # Cached results have no live X-Request-Id.
-                return result, is_error, ""
+                return ToolCallResult(
+                    output=cached.output,
+                    is_error=cached.is_error,
+                    request_id="",
+                    server_key="",
+                )
             del self._cache[cache_key]
-        result, is_error, x_request_id = await self._raw_execute(tool_name, args)
-        if not is_error:
-            self._cache[cache_key] = (result, is_error, time.time())
+        result = await self._raw_execute(tool_name, args)
+        if not result.is_error:
+            self._cache[cache_key] = _CacheEntry(
+                output=result.output, is_error=result.is_error, cached_at=time.time()
+            )
             if self._cache_max_size > 0 and len(self._cache) > self._cache_max_size:
                 evicted_key, _ = self._cache.popitem(last=False)
                 logger.debug("Tool cache LRU evict: %r", evicted_key)
-        return result, is_error, x_request_id
+        return result
 
     async def execute(
         self,
         tool_name: str,
         args: dict[str, Any],
-    ) -> tuple[str, bool, str]:
+    ) -> ToolCallResult:
         """Execute a tool. Plugin tools bypass cache and MCP routing; others use cache."""
         plugin_fn = plugin_registry.get_tool(tool_name)
         if plugin_fn is not None:
-            try:
-                result_raw = await plugin_fn(args)
-                return str(result_raw[0]), bool(result_raw[1]), ""
-            except Exception as e:
-                logger.error("Plugin tool %r raised: %s", tool_name, e)
-                return f"[plugin error] {tool_name}: {e}", True, ""
+            result_raw = await plugin_fn(args)
+            if not isinstance(result_raw, tuple) or len(result_raw) < 2:
+                raise ValueError(
+                    f"Plugin tool {tool_name!r} must return tuple[str, bool], got {type(result_raw).__name__}"
+                )
+            output, is_error = result_raw[0], result_raw[1]
+            if not isinstance(output, str):
+                raise TypeError(
+                    f"Plugin {tool_name!r}: output must be str, got {type(output).__name__}"
+                )
+            if not isinstance(is_error, bool):
+                raise TypeError(f"Plugin {tool_name!r}: is_error must be bool")
+            return ToolCallResult(
+                output=output, is_error=is_error, request_id="", server_key=""
+            )
         return await self._execute_with_cache(tool_name, args)
 
     def clear_cache(self) -> None:

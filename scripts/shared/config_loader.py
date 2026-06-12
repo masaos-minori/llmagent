@@ -76,7 +76,12 @@ class ConfigLoader:
         try:
             if suffix == ".toml":
                 return tomllib.loads(path.read_text(encoding="utf-8"))
-            return dict(orjson.loads(path.read_bytes()))
+            parsed = orjson.loads(path.read_bytes())
+            if not isinstance(parsed, dict):
+                raise ValueError(
+                    f"Config file {path} must be a JSON object, got {type(parsed).__name__}"
+                )
+            return dict(parsed)
         except FileNotFoundError as exc:
             raise ValueError(f"Config file not found: {path}") from exc
         except (tomllib.TOMLDecodeError, orjson.JSONDecodeError) as exc:
@@ -92,9 +97,3 @@ class ConfigLoader:
     @staticmethod
     def _filter_meta_keys(data: dict[str, Any]) -> dict[str, Any]:
         return {k: v for k, v in data.items() if not k.startswith("_")}
-
-
-def get_config(name: str) -> dict[str, Any]:
-    """Convenience wrapper: load a single TOML config by base name or file name."""
-    toml_name = name if name.endswith(".toml") else f"{name}.toml"
-    return ConfigLoader().load(toml_name)

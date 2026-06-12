@@ -6,7 +6,6 @@ Placed in shared/ so tool_executor.py can reference it without depending on agen
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -107,32 +106,27 @@ class McpServerHealthRegistry:
 
 
 def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
-    """Build per-server transport config from agent.toml; uses mcp_servers section when present, falls back to legacy URL constants."""
-    raw: dict[str, Any] = cfg.get("mcp_servers", {})
-    if raw:
-        return {key: _build_single_server(key, v) for key, v in raw.items()}
-
-    warnings.warn(
-        "mcp_servers config section missing; falling back to legacy URL constants. "
-        "Add [mcp_servers] to config/mcp_servers.toml.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return {
-        "web_search": _build_single_server("web_search", cfg),
-        "github": McpServerConfig(
-            transport="http",
-            url=cfg.get("github_server_url", "http://127.0.0.1:8006"),
-            cmd=[],
-            openrc_service="github-mcp",
-        ),
-    }
+    """Build per-server transport config from mcp_servers.toml [mcp_servers] section."""
+    raw = cfg.get("mcp_servers")
+    if not isinstance(raw, dict) or not raw:
+        raise ValueError(
+            "mcp_servers config section is missing or empty. "
+            "Add [mcp_servers] to config/mcp_servers.toml."
+        )
+    return {key: _build_single_server(key, v) for key, v in raw.items()}
 
 
 def _build_single_server(key: str, v: Any) -> McpServerConfig:
     """Construct McpServerConfig from a raw dict, applying defaults."""
+    if not isinstance(v, dict):
+        raise ValueError(f"mcp_servers[{key!r}] must be a dict, got {type(v).__name__}")
+    transport = v.get("transport", "http")
+    if not isinstance(transport, str):
+        raise ValueError(
+            f"mcp_servers[{key!r}].transport must be str, got {type(transport).__name__}"
+        )
     return McpServerConfig(
-        transport=v.get("transport", "http"),
+        transport=transport,
         url=v.get("url", ""),
         cmd=list(v.get("cmd", [])),
         openrc_service=v.get("openrc_service", ""),

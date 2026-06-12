@@ -72,15 +72,15 @@ async def _fetch_stdio_tools(transport: object) -> set[str]:
     if not isinstance(transport, StdioTransport) or not transport.is_alive():
         return set()
     try:
-        raw, is_error, _ = await asyncio.wait_for(
+        result = await asyncio.wait_for(
             transport.call("__list_tools__", {}),
             timeout=5.0,
         )
-        if is_error:
+        if result.is_error:
             return set()
-        data = orjson.loads(raw)
+        data = orjson.loads(result.output)
         return {str(n) for n in data.get("tools", [])}
-    except Exception as e:
+    except (TimeoutError, orjson.JSONDecodeError, OSError) as e:
         logger.warning(f"__list_tools__ RPC failed: {e}")
         return set()
 

@@ -10,7 +10,7 @@ import logging
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any
 
-from shared.llm_client import LLMClient, LLMTransportError
+from shared.llm_client import LLMTransportError
 from shared.types import LLMMessage
 
 from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
@@ -64,7 +64,7 @@ class LLMTurnRunner:
                 # Handle LLM transport error by delegating to error handler
                 return await self._handle_llm_error(e, turn)
 
-            message, finish_reason = LLMClient.extract_message(response)
+            message, finish_reason = response.message, response.finish_reason
 
             has_tool_calls = bool(message.get("tool_calls"))
             if (finish_reason != "tool_calls") or not has_tool_calls:

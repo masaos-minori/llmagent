@@ -23,7 +23,7 @@ from shared.types import LLMMessage
 
 def _reset_warned() -> None:
     """Reset module-level warn-once flag between tests."""
-    tc_module._warned_unavailable = False
+    tc_module._warned_unavailable._warned = False
 
 
 def _history(*pairs: tuple[str, str]) -> list[LLMMessage]:
@@ -35,6 +35,7 @@ def _make_http(*, status: int = 200, body: dict | None = None) -> httpx.AsyncCli
     mock = AsyncMock(spec=httpx.AsyncClient)
     response = MagicMock()
     response.status_code = status
+    response.content = orjson.dumps(body or {})
     response.json.return_value = body or {}
     if status >= 400:
         response.raise_for_status.side_effect = httpx.HTTPStatusError(

@@ -35,11 +35,12 @@ _warned_unavailable = _WarnOnce()
 
 def _estimate_chars(history: list[LLMMessage]) -> int:
     """Count total characters across all messages (content + serialised tool_calls)."""
-    return sum(
-        len(str(msg.get("content") or ""))
-        + sum(len(orjson.dumps(tc)) for tc in msg.get("tool_calls") or [])
-        for msg in history
-    )
+    total = 0
+    for msg in history:
+        content = msg.get("content")
+        total += len(content) if isinstance(content, str) else 0
+        total += sum(len(orjson.dumps(tc)) for tc in msg.get("tool_calls") or [])
+    return total
 
 
 def _serialise_for_tokenize(history: list[LLMMessage]) -> str:
@@ -47,7 +48,8 @@ def _serialise_for_tokenize(history: list[LLMMessage]) -> str:
     parts: list[str] = []
     for msg in history:
         role = msg.get("role", "")
-        content = str(msg.get("content") or "")
+        content_raw = msg.get("content")
+        content = content_raw if isinstance(content_raw, str) else ""
         if content:
             parts.append(f"{role}: {content}")
         for tc in msg.get("tool_calls") or []:
@@ -74,13 +76,22 @@ async def get_token_count(
             timeout=timeout,
         )
         resp.raise_for_status()
-        data = resp.json()
-        n_tokens = data.get("n_tokens") or len(data.get("tokens") or [])
+        data = orjson.loads(resp.content)
+        if not isinstance(data, dict):
+            raise ValueError(f"/tokenize returned non-dict: {type(data).__name__}")
+        n_tokens_raw = data.get("n_tokens")
+        tokens_raw = data.get("tokens")
+        if isinstance(n_tokens_raw, int) and n_tokens_raw > 0:
+            n_tokens = n_tokens_raw
+        elif isinstance(tokens_raw, list):
+            n_tokens = len(tokens_raw)
+        else:
+            n_tokens = 0
         if n_tokens > 0:
             _warned_unavailable._warned = False
             return n_tokens, True
         logger.warning("token_counter: /tokenize returned n_tokens=0, falling back")
-    except Exception as exc:
+    except (TimeoutError, httpx.HTTPStatusError, httpx.RequestError, ValueError) as exc:
         _warned_unavailable.log(
             "token_counter: /tokenize unavailable (%s), using chars/4 fallback",
             exc,

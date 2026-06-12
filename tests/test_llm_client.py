@@ -261,7 +261,7 @@ class TestLLMClientStream:
                 "http://llm/v1/chat", [{"role": "user", "content": "hi"}], []
             )
 
-        assert "hello" in result["choices"][0]["message"]["content"]
+        assert "hello" in result.message.get("content", "")
         assert "hello" in tokens
 
     @pytest.mark.asyncio
@@ -355,7 +355,7 @@ class TestLLMClientStream:
 
         assert call_count[0] == 2
         assert client.stat_reconnects == 1
-        assert "hello" in result["choices"][0]["message"]["content"]
+        assert "hello" in result.message.get("content", "")
 
     @pytest.mark.asyncio
     async def test_no_reconnect_on_partial_output(self) -> None:
@@ -439,7 +439,7 @@ class TestLLMClientStream:
             result = await client.stream(
                 "http://llm/v1/chat", [{"role": "user", "content": "hi"}], []
             )
-        assert "hi" in result["choices"][0]["message"]["content"]
+        assert "hi" in result.message.get("content", "")
 
     @pytest.mark.asyncio
     async def test_on_usage_callback_called(self) -> None:
@@ -480,10 +480,13 @@ class TestLLMClientStream:
             result = await client.stream(
                 "http://llm/v1/chat", [{"role": "user", "content": "hi"}], []
             )
-        assert "ok" in result["choices"][0]["message"]["content"]
+        assert "ok" in result.message.get("content", "")
 
     @pytest.mark.asyncio
-    async def test_unknown_exception_becomes_unknown_stream_error(self) -> None:
+    async def test_unknown_exception_propagates(self) -> None:
+        """RuntimeError from byte stream propagates directly (not wrapped in LLMTransportError)
+        because except Exception was narrowed to specific HTTP/stream exception types."""
+
         async def _byte_gen() -> AsyncIterator[bytes]:
             yield b'data: {"choices":[{"delta":{},"finish_reason":null}]}\n\n'
             raise RuntimeError("unexpected failure")  # noqa: B904
@@ -494,13 +497,10 @@ class TestLLMClientStream:
             respx.post("http://llm/v1/chat").mock(
                 return_value=httpx.Response(200, stream=_MockStream(_byte_gen()))
             )
-            with pytest.raises(LLMTransportError) as exc_info:
+            with pytest.raises(RuntimeError, match="unexpected failure"):
                 await client.stream(
                     "http://llm/v1/chat", [{"role": "user", "content": "hi"}], []
                 )
-        assert exc_info.value.kind == "UNKNOWN_STREAM_ERROR"
-        assert exc_info.value.phase == "in_stream"
-        assert exc_info.value.retryable is False
 
     @pytest.mark.asyncio
     async def test_malformed_sse_reconnect_when_flag_enabled(self) -> None:
@@ -527,7 +527,7 @@ class TestLLMClientStream:
                 "http://llm/v1/chat", [{"role": "user", "content": "hi"}], []
             )
         assert call_count[0] == 2
-        assert "hello" in result["choices"][0]["message"]["content"]
+        assert "hello" in result.message.get("content", "")
 
 
 # ── AgentConfig SSE validation ────────────────────────────────────────────────

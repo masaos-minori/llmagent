@@ -18,6 +18,7 @@ from typing import Any, Literal, cast
 import httpx
 import orjson
 
+from shared.llm_types import LLMResponse, LLMUsage
 from shared.types import LLMMessage
 
 logger = logging.getLogger(__name__)
@@ -306,15 +307,39 @@ class LLMClient:
             payload["stream"] = True
         return payload
 
-    def _emit_usage(self, data: dict[str, Any]) -> None:
-        """Fire on_usage callback when both token counts are present in data."""
-        if self._on_usage is None:
-            return
-        usage = data.get("usage", {})
-        pt = usage.get("prompt_tokens")
-        ct = usage.get("completion_tokens")
-        if pt is not None and ct is not None:
-            self._on_usage(int(pt), int(ct))
+    def _parse_usage(self, data: dict[str, Any]) -> LLMUsage | None:
+        """Extract token usage from response data; fire on_usage callback; return LLMUsage or None."""
+        usage_raw = data.get("usage")
+        if not isinstance(usage_raw, dict):
+            return None
+        pt = usage_raw.get("prompt_tokens")
+        ct = usage_raw.get("completion_tokens")
+        if not isinstance(pt, int) or not isinstance(ct, int):
+            return None
+        if self._on_usage is not None:
+            self._on_usage(pt, ct)
+        return LLMUsage(prompt_tokens=pt, completion_tokens=ct)
+
+    def _parse_response(self, raw: dict[str, Any]) -> LLMResponse:
+        """Validate and parse raw LLM JSON into LLMResponse DTO; raises ValueError on schema mismatch."""
+        choices = raw.get("choices")
+        if not isinstance(choices, list) or not choices:
+            raise ValueError("Unexpected LLM response: missing or empty 'choices'")
+        choice = choices[0]
+        if not isinstance(choice, dict):
+            raise ValueError("Unexpected LLM response: choices[0] is not a dict")
+        message_raw = choice.get("message")
+        if not isinstance(message_raw, dict):
+            raise ValueError("Unexpected LLM response: 'message' is not a dict")
+        finish_reason = choice.get("finish_reason")
+        if finish_reason is not None and not isinstance(finish_reason, str):
+            finish_reason = None
+        usage = self._parse_usage(raw)
+        return LLMResponse(
+            message=cast("LLMMessage", message_raw),
+            finish_reason=finish_reason,
+            usage=usage,
+        )
 
     # ── Non-streaming call ────────────────────────────────────────────────────
 
@@ -323,15 +348,16 @@ class LLMClient:
         url: str,
         history: list[LLMMessage],
         tool_defs: list[dict[str, Any]],
-    ) -> dict[str, Any]:
-        """Send conversation history to LLM and return the raw response JSON."""
+    ) -> LLMResponse:
+        """Send conversation history to LLM and return a typed LLMResponse."""
         resp = await self.request_with_retry(
             url,
             self.build_payload(history, tool_defs),
         )
-        data = dict(resp.json())
-        self._emit_usage(data)
-        return data
+        raw = orjson.loads(resp.content)
+        if not isinstance(raw, dict):
+            raise ValueError(f"LLM response is not a JSON object: {type(raw).__name__}")
+        return self._parse_response(raw)
 
     # ── SSE streaming helpers ─────────────────────────────────────────────────
 
@@ -447,7 +473,7 @@ class LLMClient:
             reason = self._process_sse_chunk(chunk, content_parts, tool_calls_map)
             if reason:
                 finish_reason = reason
-            self._emit_usage(chunk)
+            self._parse_usage(chunk)
         return finish_reason
 
     def _translate_stream_error(self, e: Exception, url: str) -> LLMTransportError:
@@ -524,7 +550,12 @@ class LLMClient:
 
         except LLMTransportError:
             raise
-        except Exception as e:
+        except (
+            TimeoutError,
+            httpx.ConnectError,
+            httpx.ReadTimeout,
+            httpx.RemoteProtocolError,
+        ) as e:
             raise self._translate_stream_error(e, url) from e
 
         return finish_reason
@@ -545,8 +576,8 @@ class LLMClient:
         url: str,
         history: list[LLMMessage],
         tool_defs: list[dict[str, Any]],
-    ) -> dict[str, Any]:
-        """Stream a chat completion via SSE with reconnect on retryable errors; raises LLMTransportError with partial_text on partial output or non-retryable errors."""
+    ) -> LLMResponse:
+        """Stream a chat completion via SSE; returns LLMResponse; raises LLMTransportError with partial_text on failure."""
         content_parts: list[str] = []
         tool_calls_map: dict[int, dict[str, Any]] = {}
         finish_reason: str | None = None
@@ -587,21 +618,5 @@ class LLMClient:
 
         if content_parts and self._on_token:
             self._on_token("\n")
-        return self._build_stream_response(content_parts, tool_calls_map, finish_reason)
-
-    # ── Response parsing ──────────────────────────────────────────────────────
-
-    @staticmethod
-    def extract_message(
-        response: dict,
-    ) -> tuple[LLMMessage, str | None]:
-        """Validate and extract (message, finish_reason) from an LLM response dict; raises ValueError when expected fields are missing."""
-        choices = response.get("choices")
-        if not choices or not isinstance(choices, list):
-            raise ValueError("Unexpected LLM response: missing 'choices' field")
-        choice = choices[0]
-        message = choice.get("message")
-        if not isinstance(message, dict):
-            raise ValueError("Unexpected LLM response: missing 'message' field")
-        finish_reason: str | None = choice.get("finish_reason")
-        return cast("LLMMessage", message), finish_reason
+        raw = self._build_stream_response(content_parts, tool_calls_map, finish_reason)
+        return self._parse_response(raw)
