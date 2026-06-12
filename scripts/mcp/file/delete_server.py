@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
-from mcp.dispatch import dispatch_tool
+from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.file.common import FileAuthorizationError, FileValidationError
 from mcp.file.delete_models import (
     DeleteDirectoryRequest,
@@ -101,7 +101,7 @@ async def health() -> dict[str, str]:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-async def _dispatch_delete_tool(name: str, args: ToolArgs) -> tuple[str, bool]:
+async def _dispatch_delete_tool(name: str, args: ToolArgs) -> DispatchResult:
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
@@ -117,8 +117,8 @@ async def list_tools() -> dict[str, Any]:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
-    result, is_error = await _dispatch_delete_tool(req.name, req.args)
-    return CallToolResponse(result=result, is_error=is_error)
+    r = await _dispatch_delete_tool(req.name, req.args)
+    return CallToolResponse(result=r.output, is_error=r.is_error)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ class FileDeleteMCPServer(MCPServer):
     app_module = "mcp.file.delete_server:app"
     mcp_tools = _MCP_TOOLS
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
+    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_delete_tool(name, args)
 
 

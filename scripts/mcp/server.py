@@ -17,6 +17,8 @@ from typing import Any
 
 import orjson
 
+from mcp.dispatch import DispatchResult
+
 # Library module: use standard getLogger without a dedicated log file.
 logger = logging.getLogger(__name__)
 
@@ -97,7 +99,7 @@ class MCPServer:
         dict[str, Any]
     ]  # tool definitions (retained for subclass reference)
 
-    async def dispatch(self, name: str, args: ToolArgs) -> tuple[str, bool]:
+    async def dispatch(self, name: str, args: ToolArgs) -> DispatchResult:
         """Handle a tools/call request. Subclasses must override this."""
         raise NotImplementedError(f"{type(self).__name__}.dispatch is not implemented")
 
@@ -171,11 +173,12 @@ class MCPServer:
                     result = orjson.dumps({"tools": self.list_tools()}).decode()
                     is_error = False
                 else:
-                    raw_result, is_error = await self.dispatch(
+                    dispatch_result = await self.dispatch(
                         name,
                         dict(req.get("args", {})),
                     )
-                    tr = _truncate_with_meta(raw_result)
+                    tr = _truncate_with_meta(dispatch_result.output)
+                    is_error = dispatch_result.is_error
                     result = tr.text
                     truncated = tr.truncated
                     total_bytes = tr.total_bytes

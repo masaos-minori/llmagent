@@ -36,7 +36,7 @@ from mcp.cicd.models import (
 )
 from mcp.cicd.service import CiCdService, build_service
 from mcp.cicd.tools import _MCP_TOOLS
-from mcp.dispatch import ToolArgs, dispatch_tool
+from mcp.dispatch import DispatchResult, ToolArgs, dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import (
     MCPServer,
@@ -84,7 +84,7 @@ async def _on_cicd_upstream_error(_req: Any, exc: CicdUpstreamError) -> JSONResp
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-async def _dispatch_cicd_tool(name: str, args: ToolArgs) -> tuple[str, bool]:
+async def _dispatch_cicd_tool(name: str, args: ToolArgs) -> DispatchResult:
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
@@ -110,7 +110,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     request_id = getattr(
         request.state, "request_id", request.headers.get("x-request-id", "")
     )
-    result, is_error = await _dispatch_cicd_tool(req.name, req.args)
+    r = await _dispatch_cicd_tool(req.name, req.args)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
     _audit_log(
@@ -119,9 +119,9 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         request_id=request_id,
         action=req.name,
         target=req.args.get("repo", ""),
-        outcome="error" if is_error else "ok",
+        outcome="error" if r.is_error else "ok",
     )
-    return CallToolResponse(result=result, is_error=is_error)
+    return CallToolResponse(result=r.output, is_error=r.is_error)
 
 
 @app.get("/health")
@@ -143,7 +143,7 @@ class CiCdMCPServer(MCPServer):
     app_module = "mcp.cicd.server:app"
     mcp_tools = _MCP_TOOLS
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
+    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_cicd_tool(name, args)
 
 

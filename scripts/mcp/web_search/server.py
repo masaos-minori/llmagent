@@ -26,7 +26,7 @@ from fastapi.responses import JSONResponse
 from shared.formatters import MAX_SNIPPET_CHARS, fmt_kvlog, truncate
 from shared.logger import Logger
 
-from mcp.dispatch import dispatch_tool
+from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer
 from mcp.web_search.models import (
@@ -263,7 +263,7 @@ _WEB_DISPATCH = {
 }
 
 
-async def _dispatch_web_tool(name: str, args: dict[str, Any]) -> tuple[str, bool]:
+async def _dispatch_web_tool(name: str, args: dict[str, Any]) -> DispatchResult:
     """Route a tool call through the web-search dispatch table."""
     return await dispatch_tool(_WEB_DISPATCH, name, args)
 
@@ -288,8 +288,8 @@ async def list_tools() -> dict[str, Any]:
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
     """Execute a web search tool by name and return the formatted text result."""
-    result, is_error = await _dispatch_web_tool(req.name, req.args)
-    return CallToolResponse(result=result, is_error=is_error)
+    r = await _dispatch_web_tool(req.name, req.args)
+    return CallToolResponse(result=r.output, is_error=r.is_error)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -304,7 +304,7 @@ class WebSearchMCPServer(MCPServer):
     app_module = "mcp.web_search.server:app"
     mcp_tools = _MCP_TOOLS
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
+    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_web_tool(name, args)
 
 

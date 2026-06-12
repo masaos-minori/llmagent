@@ -29,7 +29,7 @@ def generate_server_script(server_name: str, module: str, port: int) -> str:
 
         from fastapi import FastAPI
         from mcp.server import MCPServer, ToolArgs
-        from mcp.dispatch import dispatch_tool
+        from mcp.dispatch import DispatchResult, dispatch_tool
         from mcp.models import CallToolRequest, CallToolResponse
 
         logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ def generate_server_script(server_name: str, module: str, port: int) -> str:
             app_module = "{pkg_path}:app"
             mcp_tools = _MCP_TOOLS
 
-            async def dispatch(self, name: str, args: dict) -> tuple[str, bool]:
+            async def dispatch(self, name: str, args: dict) -> DispatchResult:
                 return await dispatch_tool(_DISPATCH, name, args)
 
 
@@ -79,8 +79,8 @@ def generate_server_script(server_name: str, module: str, port: int) -> str:
 
         @app.post("/v1/call_tool")
         async def call_tool(req: CallToolRequest) -> CallToolResponse:
-            result, is_error = await {cls}().dispatch(req.name, req.args)
-            return CallToolResponse(result=result, is_error=is_error)
+            r = await {cls}().dispatch(req.name, req.args)
+            return CallToolResponse(result=r.output, is_error=r.is_error)
 
 
         if __name__ == "__main__":

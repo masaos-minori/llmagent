@@ -26,7 +26,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 
-from mcp.dispatch import dispatch_tool
+from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.git.models import GitConfig, GitServiceError
 from mcp.git.service import build_service
 from mcp.git.tools import _MCP_TOOLS
@@ -57,7 +57,7 @@ async def _on_git_service_error(_req: Request, exc: GitServiceError) -> JSONResp
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-async def _dispatch_git_tool(name: str, args: ToolArgs) -> tuple[str, bool]:
+async def _dispatch_git_tool(name: str, args: ToolArgs) -> DispatchResult:
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
@@ -79,10 +79,10 @@ async def list_tools() -> dict[str, Any]:
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
     t0 = time.perf_counter()
-    result, is_error = await _dispatch_git_tool(req.name, req.args)
+    r = await _dispatch_git_tool(req.name, req.args)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
-    return CallToolResponse(result=result, is_error=is_error)
+    return CallToolResponse(result=r.output, is_error=r.is_error)
 
 
 @app.get("/health")
@@ -104,7 +104,7 @@ class GitMCPServer(MCPServer):
     app_module = "mcp.git.server:app"
     mcp_tools = _MCP_TOOLS
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
+    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_git_tool(name, args)
 
 

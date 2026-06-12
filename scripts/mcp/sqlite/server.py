@@ -28,7 +28,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 
-from mcp.dispatch import dispatch_tool
+from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs, attach_auth_middleware
 from mcp.sqlite.models import SqliteConfig, SqliteServiceError, SqliteValidationError
@@ -66,7 +66,7 @@ async def _on_sqlite_validation_error(
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-async def _dispatch_sqlite_tool(name: str, args: ToolArgs) -> tuple[str, bool]:
+async def _dispatch_sqlite_tool(name: str, args: ToolArgs) -> DispatchResult:
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
@@ -88,10 +88,10 @@ async def list_tools() -> dict[str, Any]:
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
     t0 = time.perf_counter()
-    result, is_error = await _dispatch_sqlite_tool(req.name, req.args)
+    r = await _dispatch_sqlite_tool(req.name, req.args)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
-    return CallToolResponse(result=result, is_error=is_error)
+    return CallToolResponse(result=r.output, is_error=r.is_error)
 
 
 @app.get("/health")
@@ -113,7 +113,7 @@ class SqliteMCPServer(MCPServer):
     app_module = "mcp.sqlite.server:app"
     mcp_tools = _MCP_TOOLS
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
+    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_sqlite_tool(name, args)
 
 

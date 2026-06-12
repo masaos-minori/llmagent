@@ -27,7 +27,7 @@ from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
-from mcp.dispatch import dispatch_tool
+from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.rag_pipeline.models import (
     RagDebugResponse,
@@ -155,14 +155,14 @@ async def list_tools() -> dict[str, Any]:
     }
 
 
-async def _dispatch_rag_tool(name: str, args: ToolArgs) -> tuple[str, bool]:
+async def _dispatch_rag_tool(name: str, args: ToolArgs) -> DispatchResult:
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest) -> CallToolResponse:
-    result, is_error = await _dispatch_rag_tool(req.name, req.args)
-    return CallToolResponse(result=result, is_error=is_error)
+    r = await _dispatch_rag_tool(req.name, req.args)
+    return CallToolResponse(result=r.output, is_error=r.is_error)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ class RagPipelineMCPServer(MCPServer):
     app_module = "mcp.rag_pipeline.server:app"
     mcp_tools = _MCP_TOOLS
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
+    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_rag_tool(name, args)
 
 

@@ -40,7 +40,7 @@ from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
 from mcp.audit import _audit_log
-from mcp.dispatch import dispatch_tool
+from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.github.models import (
     AddIssueCommentRequest,
     AddIssueCommentResponse,
@@ -550,7 +550,7 @@ async def health() -> dict[str, str]:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-async def _dispatch_github_tool(name: str, args: ToolArgs) -> tuple[str, bool]:
+async def _dispatch_github_tool(name: str, args: ToolArgs) -> DispatchResult:
     """Route a tool call to GitHubService via its dispatch table."""
     return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
@@ -579,16 +579,16 @@ async def call_tool(req: CallToolRequest, request: "Request") -> CallToolRespons
     request_id = getattr(
         request.state, "request_id", request.headers.get("x-request-id", "")
     )
-    result, is_error = await _dispatch_github_tool(req.name, req.args)
+    r = await _dispatch_github_tool(req.name, req.args)
     _audit_log(
         logger,
         session_id=session_id,
         request_id=request_id,
         action=req.name,
         target=f"repo={req.args.get('owner', '')}/{req.args.get('repo', '')}",
-        outcome="error" if is_error else "ok",
+        outcome="error" if r.is_error else "ok",
     )
-    return CallToolResponse(result=result, is_error=is_error)
+    return CallToolResponse(result=r.output, is_error=r.is_error)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -603,7 +603,7 @@ class GithubMCPServer(MCPServer):
     app_module = "github_mcp_server:app"
     mcp_tools = TOOL_LIST
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
+    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_github_tool(name, args)
 
 
