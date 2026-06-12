@@ -62,7 +62,12 @@ class SessionTitleService:
                 raise SessionTitleGenerationError(
                     "LLM choices[0].message is not a dict"
                 )
-            title = str(message.get("content", "")).strip()
+            content_raw = message.get("content")
+            if not isinstance(content_raw, str):
+                raise SessionTitleGenerationError(
+                    f"LLM title content must be str, got {type(content_raw).__name__}"
+                )
+            title = content_raw.strip()
             if not title:
                 raise SessionTitleGenerationError("LLM returned empty title")
             ctx.session.set_title(title)
