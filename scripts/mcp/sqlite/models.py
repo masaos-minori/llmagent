@@ -19,6 +19,16 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+def _get_str(d: dict[str, Any], key: str, default: str = "") -> str:
+    """Return d[key] as str, or default if absent/None; raises ValueError on wrong type."""
+    v = d.get(key)
+    if v is None:
+        return default
+    if not isinstance(v, str):
+        raise ValueError(f"Config key {key!r} must be str, got {type(v).__name__}")
+    return v
+
+
 class SqliteServiceError(RuntimeError):
     """Raised on sqlite service failures (DB not in allowlist, connection error, etc.)."""
 
@@ -50,7 +60,7 @@ class SqliteConfig:
             db_allowlist=list(d.get("db_allowlist", [])),
             max_rows=int(d.get("max_rows", 100)),
             timeout_sec=float(d.get("timeout_sec", 30.0)),
-            auth_token=str(d.get("auth_token", "")),
+            auth_token=_get_str(d, "auth_token"),
         )
 
     @classmethod

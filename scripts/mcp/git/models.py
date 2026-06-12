@@ -19,6 +19,16 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+def _get_str(d: dict[str, Any], key: str, default: str = "") -> str:
+    """Return d[key] as str, or default if absent/None; raises ValueError on wrong type."""
+    v = d.get(key)
+    if v is None:
+        return default
+    if not isinstance(v, str):
+        raise ValueError(f"Config key {key!r} must be str, got {type(v).__name__}")
+    return v
+
+
 @dataclasses.dataclass
 class GitConfig:
     """Typed configuration for the Git MCP server."""
@@ -35,9 +45,9 @@ class GitConfig:
         return cls(
             allowed_repo_paths=list(d.get("allowed_repo_paths", [])),
             read_only=bool(d.get("read_only", True)),
-            auth_token=str(d.get("auth_token", "")),
+            auth_token=_get_str(d, "auth_token"),
             max_log_entries=int(d.get("max_log_entries", 50)),
-            audit_log_path=str(d.get("audit_log_path", "")),
+            audit_log_path=_get_str(d, "audit_log_path"),
         )
 
     @classmethod

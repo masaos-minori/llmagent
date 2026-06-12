@@ -98,8 +98,15 @@ class SqliteMCPService:
 
     async def handle_query_sqlite(self, args: ToolArgs) -> str:
         """Dispatch handler: validates args, executes query, returns JSON string."""
-        db = str(args.get("db", ""))
-        sql = str(args.get("sql", ""))
+        db_raw = args.get("db", "")
+        if not isinstance(db_raw, str):
+            raise ValueError(f"'db' must be str, got {type(db_raw).__name__}")
+        db = db_raw
+
+        sql_raw = args.get("sql", "")
+        if not isinstance(sql_raw, str):
+            raise ValueError(f"'sql' must be str, got {type(sql_raw).__name__}")
+        sql = sql_raw
 
         if db not in self._db_allowlist:
             raise ValueError(

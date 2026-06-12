@@ -10,6 +10,7 @@ Audit log helpers live in mcp/audit.py.
 import asyncio
 import dataclasses
 import logging
+import sqlite3
 import sys
 import uuid
 from typing import Any
@@ -159,7 +160,12 @@ class MCPServer:
             try:
                 req = orjson.loads(line)
                 req_id = int(req.get("id", 0))
-                name = str(req.get("name", ""))
+                name_raw = req.get("name", "")
+                if not isinstance(name_raw, str):
+                    raise ValueError(
+                        f"Request 'name' must be str, got {type(name_raw).__name__}"
+                    )
+                name = name_raw
                 if name == "__list_tools__":
                     # Reserved introspection call — return tool list as JSON string
                     result = orjson.dumps({"tools": self.list_tools()}).decode()
@@ -185,7 +191,13 @@ class MCPServer:
                 logger.error(f"run_stdio runtime error: {e}")
                 result = f"Runtime error: {e}"
                 is_error = True
-            except Exception as e:
+            except (
+                TypeError,
+                AttributeError,
+                KeyError,
+                sqlite3.OperationalError,
+                sqlite3.DatabaseError,
+            ) as e:
                 # Last-resort handler: stdio transport must always write a response.
                 logger.error(f"run_stdio unexpected error: {e}")
                 result = f"Internal server error: {e}"
