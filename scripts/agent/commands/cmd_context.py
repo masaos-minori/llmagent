@@ -27,6 +27,8 @@ from agent.services.models import ContextStateView
 
 logger = logging.getLogger(__name__)
 
+CONTEXT_PREVIEW_LENGTH = 120
+
 
 def _token_source_label(token_is_exact: bool, tokenize_configured: bool) -> str:
     """Return a human-readable label for the token count source."""
@@ -150,8 +152,8 @@ class _ContextMixin(MixinBase):
         for msg in recent:
             content_raw = msg.get("content")
             content = content_raw if isinstance(content_raw, str) else ""
-            preview = content[:120].replace("\n", " ")
-            if len(content) > 120:
+            preview = content[:CONTEXT_PREVIEW_LENGTH].replace("\n", " ")
+            if len(content) > CONTEXT_PREVIEW_LENGTH:
                 preview += "..."
             self._out.write(f"[{msg['role']}] {preview}")
 

@@ -89,6 +89,46 @@ def _get_dict(d: dict[str, Any], key: str) -> dict[str, Any] | None:
     return v
 
 
+def _apply_int(d: dict[str, Any], key: str, setter: Any) -> None:
+    if (v := _get_int(d, key)) is not None:
+        setter(v)
+
+
+def _apply_float(d: dict[str, Any], key: str, setter: Any) -> None:
+    if (v := _get_float(d, key)) is not None:
+        setter(v)
+
+
+def _apply_bool(d: dict[str, Any], key: str, setter: Any) -> None:
+    if (v := _get_bool(d, key)) is not None:
+        setter(v)
+
+
+def _apply_list(d: dict[str, Any], key: str, setter: Any) -> None:
+    if (v := _get_list(d, key)) is not None:
+        setter(v)
+
+
+def _apply_str(d: dict[str, Any], key: str, setter: Any) -> None:
+    if (v := _get_str(d, key)) is not None:
+        setter(v)
+
+
+def _apply_list_nonempty(d: dict[str, Any], key: str, setter: Any) -> None:
+    if (v := _get_list(d, key)) is not None and v:
+        setter(v)
+
+
+def _apply_str_nonempty(d: dict[str, Any], key: str, setter: Any) -> None:
+    if (v := _get_str(d, key)) is not None and v:
+        setter(v)
+
+
+def _apply_dict_nonempty(d: dict[str, Any], key: str, setter: Any) -> None:
+    if (v := _get_dict(d, key)) is not None and v:
+        setter(v)
+
+
 @dataclass
 class ConfigReloadOutcome:
     """Structured report of what changed after a /reload."""
@@ -210,52 +250,30 @@ class ConfigReloadService:
         new_cfg: dict[str, Any],
     ) -> None:
         """Apply tool cache, LLM retry, refiner, and watchdog settings (diff-apply)."""
-        if (vi := _get_int(new_cfg, "context_char_limit")) is not None:
-            ctx.cfg.llm.context_char_limit = vi
-        if (vi := _get_int(new_cfg, "context_compress_turns")) is not None:
-            ctx.cfg.llm.context_compress_turns = vi
-        if (vf := _get_float(new_cfg, "tool_cache_ttl")) is not None:
-            ctx.cfg.tool.tool_cache_ttl = vf
-        if (vi := _get_int(new_cfg, "top_k_search")) is not None:
-            ctx.cfg.rag.top_k_search = vi
-        if (vi := _get_int(new_cfg, "top_k_rerank")) is not None:
-            ctx.cfg.rag.top_k_rerank = vi
-        if (vi := _get_int(new_cfg, "llm_max_retries")) is not None:
-            ctx.cfg.llm.llm_max_retries = vi
-        if (vf := _get_float(new_cfg, "llm_retry_base_delay")) is not None:
-            ctx.cfg.llm.llm_retry_base_delay = vf
-        if (vi := _get_int(new_cfg, "max_chunks_per_doc")) is not None:
-            ctx.cfg.rag.max_chunks_per_doc = vi
-        if (vb := _get_bool(new_cfg, "serial_tool_calls")) is not None:
-            ctx.cfg.tool.serial_tool_calls = vb
-        if (vb := _get_bool(new_cfg, "auto_inject_notes")) is not None:
-            ctx.cfg.tool.auto_inject_notes = vb
-        if (vb := _get_bool(new_cfg, "use_tool_summarize")) is not None:
-            ctx.cfg.tool.use_tool_summarize = vb
-        if (vi := _get_int(new_cfg, "tool_summarize_threshold")) is not None:
-            ctx.cfg.tool.tool_summarize_threshold = vi
-        if (vb := _get_bool(new_cfg, "use_semantic_cache")) is not None:
-            ctx.cfg.rag.use_semantic_cache = vb
-        if (vf := _get_float(new_cfg, "semantic_cache_threshold")) is not None:
-            ctx.cfg.rag.semantic_cache_threshold = vf
-        if (vi := _get_int(new_cfg, "semantic_cache_max_size")) is not None:
-            ctx.cfg.rag.semantic_cache_max_size = vi
-        if (vb := _get_bool(new_cfg, "tool_definitions_strict")) is not None:
-            ctx.cfg.tool.tool_definitions_strict = vb
-        if (vf := _get_float(new_cfg, "mcp_watchdog_interval")) is not None:
-            ctx.cfg.mcp.mcp_watchdog_interval = vf
-        if (vi := _get_int(new_cfg, "mcp_watchdog_max_restarts")) is not None:
-            ctx.cfg.mcp.mcp_watchdog_max_restarts = vi
-        if (lst := _get_list(new_cfg, "plan_blocked_tools")) is not None:
-            ctx.cfg.tool.plan_blocked_tools = list(lst)
-        if (vb := _get_bool(new_cfg, "use_refiner")) is not None:
-            ctx.cfg.rag.use_refiner = vb
-        if (vi := _get_int(new_cfg, "refiner_max_tokens")) is not None:
-            ctx.cfg.rag.refiner_max_tokens = vi
-        if (vf := _get_float(new_cfg, "refiner_timeout")) is not None:
-            ctx.cfg.rag.refiner_timeout = vf
-        if (vi := _get_int(new_cfg, "refiner_max_chars_per_chunk")) is not None:
-            ctx.cfg.rag.refiner_max_chars_per_chunk = vi
+        cfg = ctx.cfg
+        _apply_int(new_cfg, "context_char_limit", lambda v: setattr(cfg.llm, "context_char_limit", v))
+        _apply_int(new_cfg, "context_compress_turns", lambda v: setattr(cfg.llm, "context_compress_turns", v))
+        _apply_float(new_cfg, "tool_cache_ttl", lambda v: setattr(cfg.tool, "tool_cache_ttl", v))
+        _apply_int(new_cfg, "top_k_search", lambda v: setattr(cfg.rag, "top_k_search", v))
+        _apply_int(new_cfg, "top_k_rerank", lambda v: setattr(cfg.rag, "top_k_rerank", v))
+        _apply_int(new_cfg, "llm_max_retries", lambda v: setattr(cfg.llm, "llm_max_retries", v))
+        _apply_float(new_cfg, "llm_retry_base_delay", lambda v: setattr(cfg.llm, "llm_retry_base_delay", v))
+        _apply_int(new_cfg, "max_chunks_per_doc", lambda v: setattr(cfg.rag, "max_chunks_per_doc", v))
+        _apply_bool(new_cfg, "serial_tool_calls", lambda v: setattr(cfg.tool, "serial_tool_calls", v))
+        _apply_bool(new_cfg, "auto_inject_notes", lambda v: setattr(cfg.tool, "auto_inject_notes", v))
+        _apply_bool(new_cfg, "use_tool_summarize", lambda v: setattr(cfg.tool, "use_tool_summarize", v))
+        _apply_int(new_cfg, "tool_summarize_threshold", lambda v: setattr(cfg.tool, "tool_summarize_threshold", v))
+        _apply_bool(new_cfg, "use_semantic_cache", lambda v: setattr(cfg.rag, "use_semantic_cache", v))
+        _apply_float(new_cfg, "semantic_cache_threshold", lambda v: setattr(cfg.rag, "semantic_cache_threshold", v))
+        _apply_int(new_cfg, "semantic_cache_max_size", lambda v: setattr(cfg.rag, "semantic_cache_max_size", v))
+        _apply_bool(new_cfg, "tool_definitions_strict", lambda v: setattr(cfg.tool, "tool_definitions_strict", v))
+        _apply_float(new_cfg, "mcp_watchdog_interval", lambda v: setattr(cfg.mcp, "mcp_watchdog_interval", v))
+        _apply_int(new_cfg, "mcp_watchdog_max_restarts", lambda v: setattr(cfg.mcp, "mcp_watchdog_max_restarts", v))
+        _apply_list(new_cfg, "plan_blocked_tools", lambda v: setattr(cfg.tool, "plan_blocked_tools", list(v)))
+        _apply_bool(new_cfg, "use_refiner", lambda v: setattr(cfg.rag, "use_refiner", v))
+        _apply_int(new_cfg, "refiner_max_tokens", lambda v: setattr(cfg.rag, "refiner_max_tokens", v))
+        _apply_float(new_cfg, "refiner_timeout", lambda v: setattr(cfg.rag, "refiner_timeout", v))
+        _apply_int(new_cfg, "refiner_max_chars_per_chunk", lambda v: setattr(cfg.rag, "refiner_max_chars_per_chunk", v))
 
     def _apply_mcp_url_reload(
         self,
@@ -289,32 +307,20 @@ class ConfigReloadService:
         new_cfg: dict[str, Any],
     ) -> None:
         """Apply hot-reloadable URL, HTTP, LLM generation, tool definition, and prompt settings (diff-apply)."""
-        if (vf := _get_float(new_cfg, "llm_temperature")) is not None:
-            ctx.cfg.llm.llm_temperature = vf
-        if (vi := _get_int(new_cfg, "llm_max_tokens")) is not None:
-            ctx.cfg.llm.llm_max_tokens = vi
-        if (vs := _get_str(new_cfg, "llm_url")) is not None:
-            ctx.cfg.llm.llm_url = vs
-        if (vs := _get_str(new_cfg, "github_server_url")) is not None:
-            ctx.cfg.mcp.github_url = vs
-        if (vs := _get_str(new_cfg, "web_search_url")) is not None:
-            ctx.cfg.rag.web_search_url = vs
-        if (vs := _get_str(new_cfg, "embed_url")) is not None:
-            ctx.cfg.rag.embed_url = vs
-        if (vf := _get_float(new_cfg, "http_timeout")) is not None:
-            ctx.cfg.llm.http_timeout = vf
-        if (vi := _get_int(new_cfg, "web_search_max_results")) is not None:
-            ctx.cfg.rag.web_search_max_results = vi
-        if (vi := _get_int(new_cfg, "max_tool_turns")) is not None:
-            ctx.cfg.tool.max_tool_turns = vi
-        if (vi := _get_int(new_cfg, "tool_result_max_llm_chars")) is not None:
-            ctx.cfg.tool.tool_result_max_llm_chars = vi
-        if (lst := _get_list(new_cfg, "tool_definitions")) is not None and lst:
-            ctx.cfg.tool.tool_definitions = list(lst)
-        if (vs := _get_str(new_cfg, "system_prompt_tool")) is not None and vs:
-            ctx.cfg.tool.system_prompt_tool = vs
-        if (d := _get_dict(new_cfg, "system_prompts")) is not None and d:
-            ctx.cfg.tool.system_prompts = dict(d)
+        cfg = ctx.cfg
+        _apply_float(new_cfg, "llm_temperature", lambda v: setattr(cfg.llm, "llm_temperature", v))
+        _apply_int(new_cfg, "llm_max_tokens", lambda v: setattr(cfg.llm, "llm_max_tokens", v))
+        _apply_str(new_cfg, "llm_url", lambda v: setattr(cfg.llm, "llm_url", v))
+        _apply_str(new_cfg, "github_server_url", lambda v: setattr(cfg.mcp, "github_url", v))
+        _apply_str(new_cfg, "web_search_url", lambda v: setattr(cfg.rag, "web_search_url", v))
+        _apply_str(new_cfg, "embed_url", lambda v: setattr(cfg.rag, "embed_url", v))
+        _apply_float(new_cfg, "http_timeout", lambda v: setattr(cfg.llm, "http_timeout", v))
+        _apply_int(new_cfg, "web_search_max_results", lambda v: setattr(cfg.rag, "web_search_max_results", v))
+        _apply_int(new_cfg, "max_tool_turns", lambda v: setattr(cfg.tool, "max_tool_turns", v))
+        _apply_int(new_cfg, "tool_result_max_llm_chars", lambda v: setattr(cfg.tool, "tool_result_max_llm_chars", v))
+        _apply_list_nonempty(new_cfg, "tool_definitions", lambda v: setattr(cfg.tool, "tool_definitions", list(v)))
+        _apply_str_nonempty(new_cfg, "system_prompt_tool", lambda v: setattr(cfg.tool, "system_prompt_tool", v))
+        _apply_dict_nonempty(new_cfg, "system_prompts", lambda v: setattr(cfg.tool, "system_prompts", dict(v)))
 
     def _apply_sse_reload_params(
         self,

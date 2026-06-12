@@ -23,6 +23,10 @@ from agent.services.db_maintenance_service import DbMaintenanceService
 
 logger = logging.getLogger(__name__)
 
+DB_PARTS_COUNT = 2
+URL_DISPLAY_MAX_LENGTH = 60
+URL_DISPLAY_TRUNCATE_LENGTH = URL_DISPLAY_MAX_LENGTH - 3
+
 
 class _DbMixin(MixinBase):
     """Database management slash-command handlers."""
@@ -31,7 +35,7 @@ class _DbMixin(MixinBase):
         """Handle /db stats|urls|clean|rebuild-fts|health|checkpoint|vacuum|purge|recover."""
         parts = args.strip().split(None, 1)
         subcmd = parts[0] if parts else ""
-        rest = parts[1] if len(parts) == 2 else ""
+        rest = parts[1] if len(parts) == DB_PARTS_COUNT else ""
         dispatch = {
             "stats": self._db_stats,
             "urls": lambda: self._db_list_urls(rest),
@@ -95,7 +99,7 @@ class _DbMixin(MixinBase):
             url = r["url"]
             if not isinstance(url, str):
                 raise TypeError(f"url must be str, got {type(url).__name__}")
-            url_display = url[:57] + "..." if len(url) > 60 else url
+            url_display = url[:URL_DISPLAY_TRUNCATE_LENGTH] + "..." if len(url) > URL_DISPLAY_MAX_LENGTH else url
 
             lang_val = r["lang"]
             lang_display = lang_val if isinstance(lang_val, str) else "?"

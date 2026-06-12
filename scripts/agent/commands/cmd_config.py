@@ -25,6 +25,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+MAX_TEMPERATURE = 2.0
+SET_PARTS_COUNT = 2
+
 
 class _ConfigMixin(MixinBase):
     """Configuration and statistics slash-command handlers."""
@@ -269,10 +272,10 @@ class _ConfigMixin(MixinBase):
         """Parse and apply llm_temperature from value_str."""
         try:
             val = float(value_str)
-            if not 0.0 <= val <= 2.0:
+            if not 0.0 <= val <= MAX_TEMPERATURE:
                 raise ValueError
         except ValueError:
-            self._out.write("temperature must be a float in [0.0, 2.0]")
+            self._out.write(f"temperature must be a float in [0.0, {MAX_TEMPERATURE}]")
             return
         ctx.cfg.llm.llm_temperature = val
         if ctx.services.llm is not None:
@@ -312,7 +315,7 @@ class _ConfigMixin(MixinBase):
                 "Use: /set temperature <float> | /set max_tokens <int>",
             )
             return
-        if len(parts) != 2:
+        if len(parts) != SET_PARTS_COUNT:
             self._out.write("Usage: /set temperature <float> | /set max_tokens <int>")
             return
         param, value_str = parts

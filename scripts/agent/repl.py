@@ -135,33 +135,47 @@ class AgentREPL:
             raise RuntimeError("_repl_loop called before _init_components()")
         loop = asyncio.get_running_loop()
         while True:
-            try:
-                line = await loop.run_in_executor(None, lambda: input(self._prompt))
-            except (EOFError, KeyboardInterrupt):
-                print()
+            line = await self._read_input(loop)
+            if line is None:
                 break
-
-            # Exit cleanly when a graceful shutdown was requested via signal
-            if ctx.conv.shutdown_requested:
-                print("\nShutdown requested, exiting...")
-                break
-
-            line = line.strip()
             if not line:
                 continue
-            # Multiline: trailing backslash continues input on the next line
-            if line.endswith("\\"):
-                line = await self._view.read_multiline(loop, line)
-                if not line.strip():
-                    continue
-            if line == "/exit":
+            if self._should_exit(line, ctx):
                 break
-            if line.startswith("/"):
-                matched = await self._cmds.dispatch(line)
-                if not matched:
-                    print(f"Unknown command: {line}  (type /help for commands)")
-            else:
-                await self._orchestrator.handle_turn(line)
+            await self._dispatch_line(line, ctx)
+
+    async def _read_input(self, loop: asyncio.AbstractEventLoop) -> str | None:
+        """Read a single input line, handling EOF/keyboard interrupt and multiline continuation."""
+        try:
+            raw = await loop.run_in_executor(None, lambda: input(self._prompt))
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return None
+        line = raw.strip()
+        if line.endswith("\\"):
+            line = await self._view.read_multiline(loop, line)
+            line = line.strip()
+        return line
+
+    def _should_exit(self, line: str, ctx: AgentContext) -> bool:
+        """Return True when the REPL loop should terminate."""
+        if ctx.conv.shutdown_requested:
+            print("\nShutdown requested, exiting...")
+            return True
+        if line == "/exit":
+            return True
+        return False
+
+    async def _dispatch_line(self, line: str, ctx: AgentContext) -> None:
+        """Dispatch a non-empty, non-exit line to commands or the orchestrator."""
+        assert self._cmds is not None, "_dispatch_line called before _init_components()"
+        assert self._orchestrator is not None, "_dispatch_line called before _init_components()"
+        if line.startswith("/"):
+            matched = await self._cmds.dispatch(line)
+            if not matched:
+                print(f"Unknown command: {line}  (type /help for commands)")
+        else:
+            await self._orchestrator.handle_turn(line)
 
     def _init_command_registry(self, ctx: AgentContext) -> None:
         """Instantiate CommandRegistry and assign to self._cmds."""
