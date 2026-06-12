@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any
 
 import orjson
 
@@ -29,19 +29,6 @@ if TYPE_CHECKING:
     from agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
-
-
-class ApprovalDecision(TypedDict, total=False):
-    """Deprecated: use ApprovalOutcome DTO instead.
-
-    Retained for backward compatibility with existing callers.
-    """
-
-    tool_name: str
-    risk_level: str
-    decision: str
-    escalation_reason: str
-    preview: str
 
 
 _GITHUB_WRITE_TOOLS: frozenset[str] = frozenset(

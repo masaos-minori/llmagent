@@ -8,8 +8,9 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from agent.config import AgentConfig, build_agent_config
-from agent.tool_approval import ApprovalDecision
 from agent.tool_audit import audit_tool_exec, log_approval_decision
+from agent.tool_enums import ApprovalDecisionType, RiskLevel
+from agent.tool_models import ApprovalOutcome
 
 
 def _make_cfg(**overrides: Any) -> AgentConfig:
@@ -75,13 +76,13 @@ class TestLogApprovalDecision:
         ctx = _make_ctx()
         ctx.services.audit_logger = MagicMock()
         ctx.turn.current_turn_id = "turn-xyz"
-        decision: ApprovalDecision = {
-            "tool_name": "write_file",
-            "risk_level": "medium",
-            "decision": "approved",
-            "escalation_reason": "",
-        }
-        log_approval_decision(ctx, decision)
+        outcome = ApprovalOutcome(
+            tool_name="write_file",
+            risk_level=RiskLevel.MEDIUM,
+            decision=ApprovalDecisionType.APPROVED,
+            escalation_reason="",
+        )
+        log_approval_decision(ctx, outcome)
         ctx.services.audit_logger.info.assert_called_once()
         logged = ctx.services.audit_logger.info.call_args[0][0]
         assert "approval_decision" in logged
@@ -93,8 +94,12 @@ class TestLogApprovalDecision:
     def test_no_op_when_audit_logger_none(self) -> None:
         ctx = _make_ctx()
         ctx.services.audit_logger = None
-        decision: ApprovalDecision = {"tool_name": "write_file", "decision": "approved"}
-        log_approval_decision(ctx, decision)  # must not raise
+        outcome = ApprovalOutcome(
+            tool_name="write_file",
+            risk_level=RiskLevel.NONE,
+            decision=ApprovalDecisionType.APPROVED,
+        )
+        log_approval_decision(ctx, outcome)  # must not raise
 
 
 class TestAuditToolExec:
