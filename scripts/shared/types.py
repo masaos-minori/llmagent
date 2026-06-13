@@ -58,3 +58,4 @@ class RagConfig(Protocol):
     refiner_max_tokens: int
     refiner_max_chars_per_chunk: int
     refiner_timeout: float
+    use_semantic_cache: bool

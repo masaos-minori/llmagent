@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import orjson
 import pytest
+from rag.models import TwoStageFetchResult
 from rag.pipeline import RagPipeline
 
 
@@ -45,7 +46,7 @@ def _make_cfg(**kwargs: object) -> SimpleNamespace:
 
 class TestAugmentHttpMode:
     @pytest.mark.asyncio
-    async def test_stores_selected_hits_in_last_reranked(self) -> None:
+    async def test_stores_selected_hits_in_last_fetch_result(self) -> None:
         hits = [
             {
                 "chunk_id": "c1",
@@ -77,10 +78,11 @@ class TestAugmentHttpMode:
         result = await pipeline.augment("test query")
 
         assert result == "RAG context"
-        assert pipeline.last_reranked == hits
+        assert pipeline.last_fetch_result is not None
+        assert pipeline.last_fetch_result.hits == hits
 
     @pytest.mark.asyncio
-    async def test_does_not_overwrite_last_reranked_when_hits_empty(self) -> None:
+    async def test_does_not_overwrite_last_fetch_result_when_hits_empty(self) -> None:
         resp_body = {"context": "some context", "selected_hits": []}
 
         mock_resp = MagicMock(spec=httpx.Response)
@@ -92,7 +94,7 @@ class TestAugmentHttpMode:
 
         cfg = _make_cfg()
         pipeline = RagPipeline(http, cfg)
-        # Pre-populate last_reranked to confirm it is NOT overwritten
+        # Pre-populate last_fetch_result to confirm it is NOT overwritten
         initial_hit = {
             "chunk_id": "prev",
             "score": 5.0,
@@ -100,12 +102,15 @@ class TestAugmentHttpMode:
             "title": "T",
             "url": "U",
         }
-        pipeline.last_reranked = [initial_hit]  # type: ignore[list-item]
+        pipeline.last_fetch_result = TwoStageFetchResult(
+            hits=[initial_hit], min_score_applied=0.0, max_chunks_per_doc=0
+        )
 
         await pipeline.augment("test query")
 
-        # When selected_hits is empty, last_reranked must remain unchanged
-        assert pipeline.last_reranked == [initial_hit]
+        # When selected_hits is empty, last_fetch_result must remain unchanged
+        assert pipeline.last_fetch_result is not None
+        assert pipeline.last_fetch_result.hits == [initial_hit]
 
     @pytest.mark.asyncio
     async def test_returns_context_string(self) -> None:
@@ -140,7 +145,7 @@ class TestAugmentHttpMode:
         result = await pipeline.augment("q")
 
         assert result == "ctx"
-        assert pipeline.last_reranked == []
+        assert pipeline.last_fetch_result is None
 
     @pytest.mark.asyncio
     async def test_fallback_to_inprocess_on_http_error(self) -> None:

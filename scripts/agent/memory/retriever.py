@@ -94,11 +94,15 @@ def _score(
 
 
 def _build_fts_query(text: str) -> str:
-    """Build an FTS5 MATCH query from free-form text; quotes multi-word tokens."""
+    """Build FTS5 MATCH query with token quoting to escape reserved terms.
+
+    All tokens are double-quoted to escape AND/OR/NOT/NEAR as literals.
+    No column filter: memories_fts searches content, summary, and tags.
+    """
     tokens = re.findall(r"\w+", text)
     if not tokens:
         return '""'
-    return " OR ".join(tokens)
+    return " OR ".join(f'"{t}"' for t in tokens)
 
 
 def _floats_to_blob(values: list[float]) -> bytes:

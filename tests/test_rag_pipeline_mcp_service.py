@@ -18,6 +18,7 @@ from mcp.rag_pipeline.models import (
     build_rag_cfg_adapter,
 )
 from mcp.rag_pipeline.service import RagPipelineMCPService
+from rag.models import TwoStageFetchResult
 
 # ── build_rag_cfg_adapter ─────────────────────────────────────────────────────
 
@@ -113,7 +114,9 @@ class TestRunPipeline:
         }
         pipeline = MagicMock()
         pipeline.augment = AsyncMock(return_value="[Source: T | U]\nhello")
-        pipeline.last_reranked = [hit]
+        pipeline.last_fetch_result = TwoStageFetchResult(
+            hits=[hit], min_score_applied=0.0, max_chunks_per_doc=0
+        )
 
         svc = _make_service_with_pipeline(pipeline)
         req = RagRunRequest(query="test query")
@@ -129,7 +132,7 @@ class TestRunPipeline:
     async def test_empty_augmented_text(self) -> None:
         pipeline = MagicMock()
         pipeline.augment = AsyncMock(return_value="")
-        pipeline.last_reranked = []
+        pipeline.last_fetch_result = None
 
         svc = _make_service_with_pipeline(pipeline)
         req = RagRunRequest(query="nothing matches")
@@ -142,7 +145,7 @@ class TestRunPipeline:
     async def test_history_context_joined(self) -> None:
         pipeline = MagicMock()
         pipeline.augment = AsyncMock(return_value="ctx")
-        pipeline.last_reranked = []
+        pipeline.last_fetch_result = None
 
         svc = _make_service_with_pipeline(pipeline)
         req = RagRunRequest(query="q", history_context=["utt1", "utt2"])
@@ -155,7 +158,7 @@ class TestRunPipeline:
     async def test_debug_fn_passed_when_debug_true(self) -> None:
         pipeline = MagicMock()
         pipeline.augment = AsyncMock(return_value="ctx")
-        pipeline.last_reranked = []
+        pipeline.last_fetch_result = None
 
         svc = _make_service_with_pipeline(pipeline)
         req = RagRunRequest(query="q", debug=True)
@@ -177,7 +180,9 @@ class TestRunPipeline:
 
         pipeline = MagicMock()
         pipeline.augment = fake_augment_calls_debug
-        pipeline.last_reranked = [{"chunk_id": 2}]
+        pipeline.last_fetch_result = TwoStageFetchResult(
+            hits=[{"chunk_id": 2}], min_score_applied=0.0, max_chunks_per_doc=0
+        )
 
         svc = _make_service_with_pipeline(pipeline)
         req = RagRunRequest(query="q", debug=True)
@@ -188,7 +193,7 @@ class TestRunPipeline:
     async def test_debug_fn_none_when_debug_false(self) -> None:
         pipeline = MagicMock()
         pipeline.augment = AsyncMock(return_value="ctx")
-        pipeline.last_reranked = []
+        pipeline.last_fetch_result = None
 
         svc = _make_service_with_pipeline(pipeline)
         req = RagRunRequest(query="q", debug=False)
@@ -231,7 +236,9 @@ class TestRunDebugPipeline:
 
         pipeline = MagicMock()
         pipeline.augment = fake_augment
-        pipeline.last_reranked = [hit_reranked]
+        pipeline.last_fetch_result = TwoStageFetchResult(
+            hits=[hit_reranked], min_score_applied=0.0, max_chunks_per_doc=0
+        )
         pipeline.last_timings = {"mqe": 0.1, "search": 0.2}
 
         svc = _make_service_with_pipeline(pipeline)
@@ -261,7 +268,9 @@ class TestRunSearch:
         }
         pipeline = MagicMock()
         pipeline.augment = AsyncMock(return_value="ctx_text")
-        pipeline.last_reranked = [hit]
+        pipeline.last_fetch_result = TwoStageFetchResult(
+            hits=[hit], min_score_applied=0.0, max_chunks_per_doc=0
+        )
 
         svc = _make_service_with_pipeline(pipeline)
         req = RagSearchRequest(query="q", history_context="prev utt")
@@ -275,7 +284,7 @@ class TestRunSearch:
     async def test_empty_history_context(self) -> None:
         pipeline = MagicMock()
         pipeline.augment = AsyncMock(return_value="")
-        pipeline.last_reranked = []
+        pipeline.last_fetch_result = None
 
         svc = _make_service_with_pipeline(pipeline)
         req = RagSearchRequest(query="q", history_context="")
@@ -304,7 +313,9 @@ class TestFmtRunPipeline:
     async def test_returns_augmented_text(self) -> None:
         pipeline = MagicMock()
         pipeline.augment = AsyncMock(return_value="RAG context block")
-        pipeline.last_reranked = [{"chunk_id": "c1"}]
+        pipeline.last_fetch_result = TwoStageFetchResult(
+            hits=[{"chunk_id": "c1"}], min_score_applied=0.0, max_chunks_per_doc=0
+        )
 
         svc = _make_service_with_pipeline(pipeline)
         result = await svc.fmt_run_pipeline({"query": "q"})
@@ -314,7 +325,7 @@ class TestFmtRunPipeline:
     async def test_returns_fallback_when_empty(self) -> None:
         pipeline = MagicMock()
         pipeline.augment = AsyncMock(return_value="")
-        pipeline.last_reranked = []
+        pipeline.last_fetch_result = None
 
         svc = _make_service_with_pipeline(pipeline)
         result = await svc.fmt_run_pipeline({"query": "q"})
@@ -333,7 +344,7 @@ class TestFmtDebugPipeline:
 
         pipeline = MagicMock()
         pipeline.augment = fake_augment
-        pipeline.last_reranked = []
+        pipeline.last_fetch_result = None
         pipeline.last_timings = {}
 
         svc = _make_service_with_pipeline(pipeline)

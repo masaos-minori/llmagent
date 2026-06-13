@@ -18,9 +18,13 @@ logger = logging.getLogger(__name__)
 class CacheService(Protocol):
     """Protocol for semantic embedding cache implementations."""
 
-    def lookup(self, embedding: list[float]) -> str | None: ...
+    def lookup(
+        self, embedding: list[float], history_context: str = ""
+    ) -> str | None: ...
 
-    def put(self, embedding: list[float], context_str: str) -> None: ...
+    def put(
+        self, embedding: list[float], history_context: str, context_str: str
+    ) -> None: ...
 
 
 class SemanticCache:
@@ -32,8 +36,8 @@ class SemanticCache:
         self._threshold = threshold
         self._dim: int | None = None
 
-    def lookup(self, embedding: list[float]) -> str | None:
-        """Return cached context for the nearest embedding, or None on miss.
+    def lookup(self, embedding: list[float], history_context: str = "") -> str | None:
+        """Return cached context for the nearest embedding with matching history_context, or None on miss.
 
         Raises ValueError if embedding dimension differs from stored entries.
         """
@@ -45,6 +49,8 @@ class SemanticCache:
         best_sim = -1.0
         best_ctx: str | None = None
         for entry in self._entries:
+            if entry.history_context != history_context:
+                continue
             sim = cosine_sim(embedding, entry.embedding)
             if sim > best_sim:
                 best_sim = sim
@@ -54,7 +60,9 @@ class SemanticCache:
             return best_ctx
         return None
 
-    def put(self, embedding: list[float], context_str: str) -> None:
+    def put(
+        self, embedding: list[float], history_context: str, context_str: str
+    ) -> None:
         """Add a new entry, then prune if over capacity.
 
         Raises ValueError if embedding dimension differs from previously stored entries.
@@ -66,7 +74,13 @@ class SemanticCache:
                 f"SemanticCache dimension mismatch: expected {self._dim},"
                 f" got {len(embedding)}",
             )
-        self._entries.append(CacheEntry(embedding=embedding, context_str=context_str))
+        self._entries.append(
+            CacheEntry(
+                embedding=embedding,
+                context_str=context_str,
+                history_context=history_context,
+            )
+        )
         self.prune()
 
     def prune(self) -> None:

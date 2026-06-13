@@ -46,6 +46,7 @@ class RagPipelineConfig:
     max_chunks_per_doc: int = 3
     semantic_cache_max_size: int = 128
     semantic_cache_threshold: float = 0.92
+    use_semantic_cache: bool = False
     refiner_max_tokens: int = 512
     refiner_max_chars_per_chunk: int = 800
     refiner_timeout: float = 30.0
@@ -65,6 +66,7 @@ class RagPipelineConfig:
             max_chunks_per_doc=int(d.get("max_chunks_per_doc", 3)),
             semantic_cache_max_size=int(d.get("semantic_cache_max_size", 128)),
             semantic_cache_threshold=float(d.get("semantic_cache_threshold", 0.92)),
+            use_semantic_cache=bool(d.get("use_semantic_cache", False)),
             refiner_max_tokens=int(d.get("refiner_max_tokens", 512)),
             refiner_max_chars_per_chunk=int(d.get("refiner_max_chars_per_chunk", 800)),
             refiner_timeout=float(d.get("refiner_timeout", 30.0)),
@@ -96,6 +98,7 @@ def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> SimpleNamespace:
         max_chunks_per_doc=int(cfg.max_chunks_per_doc),
         semantic_cache_max_size=int(cfg.semantic_cache_max_size),
         semantic_cache_threshold=float(cfg.semantic_cache_threshold),
+        use_semantic_cache=bool(cfg.use_semantic_cache),
         refiner_max_tokens=int(cfg.refiner_max_tokens),
         refiner_max_chars_per_chunk=int(cfg.refiner_max_chars_per_chunk),
         refiner_timeout=float(cfg.refiner_timeout),
@@ -158,7 +161,7 @@ class RagSearchResponse(BaseModel):
     """Backward-compat response for POST /v1/search.
 
     Extends the original {context: str} response with selected_hits so that
-    agent_rag.augment() can populate self.last_reranked for two-stage fetch.
+    agent_rag.augment() can populate self.last_fetch_result for two-stage fetch.
     """
 
     context: str

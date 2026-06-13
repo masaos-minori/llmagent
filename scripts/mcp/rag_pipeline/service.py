@@ -110,7 +110,10 @@ class RagPipelineMCPService:
             debug_fn=capture_fn if req.debug else None,
             history_context=history_str,
         )
-        selected_hits: list[dict[str, Any]] = [dict(h) for h in pipeline.last_reranked]
+        _fetch = pipeline.last_fetch_result
+        selected_hits: list[dict[str, Any]] = (
+            [dict(h) for h in _fetch.hits] if _fetch is not None else []
+        )
         return RagRunResponse(
             query=req.query,
             augmented_text=augmented_text,
@@ -127,7 +130,10 @@ class RagPipelineMCPService:
             debug_fn=capture_fn,
             history_context=history_str,
         )
-        selected_hits: list[dict[str, Any]] = [dict(h) for h in pipeline.last_reranked]
+        _fetch = pipeline.last_fetch_result
+        selected_hits: list[dict[str, Any]] = (
+            [dict(h) for h in _fetch.hits] if _fetch is not None else []
+        )
 
         return RagDebugResponse(
             query=req.query,
@@ -143,7 +149,7 @@ class RagPipelineMCPService:
         """/v1/search backward-compat handler for agent_rag.augment() integration.
 
         Accepts {query, history_context: str} and returns {context, selected_hits}
-        so that augment() can store selected_hits in self.last_reranked for
+        so that augment() can store selected_hits in self.last_fetch_result for
         two-stage fetch without requiring REPL-side changes.
         """
         run_req = RagRunRequest(
