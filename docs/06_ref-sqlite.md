@@ -75,8 +75,8 @@ with SQLiteHelper("session").open(write_mode=True) as db:
 | `close() -> None` | `self.conn` を閉じて `None` にリセットする (冪等) |
 | `begin_immediate() -> contextmanager` | `BEGIN IMMEDIATE` トランザクションブロック。例外時は自動 `ROLLBACK` |
 | `begin_exclusive() -> contextmanager` | `BEGIN EXCLUSIVE` トランザクションブロック。例外時は自動 `ROLLBACK` |
-| `health_check() -> dict[str, Any]` | DB ヘルスメトリクスを dict で返す |
-| `checkpoint(mode="TRUNCATE") -> dict[str, int]` | WAL チェックポイントを実行し `{busy, pages_in_wal, pages_checkpointed}` を返す |
+| `health_check() -> DbHealthMetrics` | DB ヘルスメトリクス (`DbHealthMetrics`) を返す |
+| `checkpoint(mode="TRUNCATE") -> WalCheckpointCounts` | WAL チェックポイントを実行し `{busy, log_size, pages_checkpointed}` を返す |
 | `vacuum() -> None` | `VACUUM` を実行してDBファイルをインプレース再構築 |
 | `__enter__() -> SQLiteHelper` | コンテキストマネージャ開始。`self` を返す |
 | `__exit__(...) -> None` | コンテキストマネージャ終了。`close()` を呼び出す |
@@ -191,7 +191,7 @@ metrics = SQLiteHelper("rag").open().health_check()
 
 ```python
 result = db.checkpoint(mode="TRUNCATE")
-# {"busy": 0, "pages_in_wal": 512, "pages_checkpointed": 512}
+# WalCheckpointCounts(busy=0, log_size=512, pages_checkpointed=512)
 ```
 
 | mode | 動作 |
@@ -329,7 +329,7 @@ class SessionStore(Protocol):
 | `SQLiteVectorStore(db)` | `VectorStore` | `db: SQLiteHelper` | `chunks_vec` 仮想テーブル経由の sqlite-vec KNN 検索。`vec_insert` は `validate_embedding_blob` で BLOB サイズを検証する |
 | `SQLiteDocumentStore(db)` | `DocumentStore` | `db: SQLiteHelper` | `documents` / `chunks` テーブルへの CRUD。`doc_upsert` は URL で SELECT し、存在すれば UPDATE、なければ INSERT する |
 | `SQLiteSessionStore(db)` | `SessionStore` | `db: SQLiteHelper` | `sessions` / `messages` テーブルへの CRUD。`session_list` は `created_at DESC` 順で返す |
-| `SQLiteMemoryDeleteStore(db)` | `MemoryDeleteStore` | `db: SQLiteHelper` | `memories` / `memories_fts` / `memories_vec` の cross-table 削除。vec 失敗は `MemoryDeleteResult.vec_skipped=True` で返す (fail-open) |
+| `SQLiteMemoryDeleteStore(db)` | `MemoryDeleteStore` | `db: SQLiteHelper` | `memories` / `memories_fts` / `memories_vec` の cross-table 削除。アトミックに実行し `MemoryDeleteResult(deleted=N)` を返す |
 
 #### MemoryDeleteStore / SQLiteMemoryDeleteStore
 
@@ -338,9 +338,7 @@ from db.store import MemoryDeleteStore, SQLiteMemoryDeleteStore, MemoryDeleteRes
 
 store = SQLiteMemoryDeleteStore(db)
 result: MemoryDeleteResult = store.delete_memories_before(older_than_days=30)
-# result.deleted   — 削除件数
-# result.vec_skipped — memories_vec 削除失敗フラグ (vec0 なし環境で True になる)
-# result.vec_error   — 失敗時のエラーメッセージ
+# result.deleted — 削除件数
 ```
 
 `maintenance.py` の `prune_old_memories()` は内部でこのクラスに委譲する。
@@ -357,14 +355,14 @@ SQLite 運用メンテナンス操作 (WAL チェックポイント / VACUUM / D
 
 | 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `checkpoint_wal(db, mode=None) -> dict[str, int]` | `(db: SQLiteHelper, mode: str \| None = None)` | WAL をフラッシュして `{busy, pages_in_wal, pages_checkpointed}` を返す。`mode` 未指定時は `common.toml` の `sqlite_wal_checkpoint_mode` (デフォルト `TRUNCATE`) を使用 |
+| `checkpoint_wal(db, mode=None) -> WalCheckpointCounts` | `(db: SQLiteHelper, mode: str \| None = None)` | WAL をフラッシュして `{busy, log_size, pages_checkpointed}` を返す。`mode` 未指定時は `common.toml` の `sqlite_wal_checkpoint_mode` (デフォルト `TRUNCATE`) を使用 |
 | `vacuum_db(db) -> None` | `(db: SQLiteHelper)` | `db.vacuum()` に委譲。トランザクション外で呼ぶこと |
-| `purge_old_sessions(db, cfg=None) -> dict[str, int]` | `(db: SQLiteHelper, cfg: RetentionConfig \| None = None)` | 保持ポリシーに従いセッションを削除。`{age_deleted, count_deleted}` を返す |
+| `purge_old_sessions(db, cfg=None) -> PurgeCounts` | `(db: SQLiteHelper, cfg: RetentionConfig \| None = None)` | 保持ポリシーに従いセッションを削除。`PurgeCounts(age_deleted, count_deleted)` を返す |
 | `prune_old_memories(db, older_than_days) -> int` | `(db: SQLiteHelper, older_than_days: int)` | `memories` / `memories_fts` / `memories_vec` テーブルから古いメモリを削除して削除数を返す |
-| `rotate_rag_db(archive_dir=None) -> Path` | `(archive_dir: str \| Path \| None = None)` | `rag.sqlite` をタイムスタンプ付きファイル名でアーカイブ。WAL/SHM サイドファイルも同時コピー |
+| `rotate_rag_db(archive_dir=None) -> Path` | `(archive_dir: str \| Path \| None = None)` | `rag.sqlite` をタイムスタンプ付きファイル名でアーカイブ。SQLite online backup API で WAL 整合性を保証 |
 | `rotate_session_db(archive_dir=None) -> Path` | `(archive_dir: str \| Path \| None = None)` | `session.sqlite` をタイムスタンプ付きでアーカイブ |
 | `rotate_db(archive_dir=None) -> tuple[Path, Path]` | `(archive_dir: str \| Path \| None = None)` | `rag.sqlite` と `session.sqlite` を両方アーカイブ。`(rag_dest, session_dest)` を返す |
-| `recover_corruption(backup_path=None, *, dry_run=False) -> RecoveryResult` | `(backup_path: str \| Path \| None = None, *, dry_run: bool = False)` | `rag.sqlite` の integrity_check → 正常時は VACUUM。破損時はアーカイブしてバックアップから復元。`RecoveryResult` を返す |
+| `recover_corruption(backup_path=None, *, target="rag", dry_run=False) -> RecoveryResult` | `(backup_path: str \| Path \| None = None, *, target: str = "rag", dry_run: bool = False)` | `target` の DB に対して integrity_check → 正常時は VACUUM。破損時はアーカイブしてバックアップから復元。`RecoveryResult` を返す |
 
 #### RetentionConfig
 
@@ -387,8 +385,8 @@ class RetentionConfig:
 #### prune_old_memories の動作
 
 1. `memories` テーブルから `older_than_days` より古い `memory_id` を収集する
-2. `memories` / `memories_fts` / `memories_vec` の 3 テーブルから対象行を削除する (`memories_vec` の削除失敗は無視)
-3. `db.conn.commit()` を呼び、削除件数を返す
+2. `memories` / `memories_fts` / `memories_vec` の 3 テーブルから対象行を削除する
+3. `db.commit()` を呼び、`MemoryDeleteResult(deleted=N)` を返す。失敗時は例外が伝播する
 
 #### RecoveryResult
 
@@ -396,7 +394,7 @@ class RetentionConfig:
 @dataclass(frozen=True)
 class RecoveryResult:
     success: bool
-    action: str        # "vacuum" | "restored" | "no_backup" | "error"
+    action: str        # "vacuum" | "vacuum_failed" | "restored" | "no_backup" | "error"
     detail: str | None = None
     dry_run: bool = False
 ```
@@ -404,20 +402,21 @@ class RecoveryResult:
 | `action` 値 | 意味 |
 |---|---|
 | `"vacuum"` | integrity_check OK。VACUUM を実行 (または dry_run でスキップ) |
+| `"vacuum_failed"` | integrity_check OK だが VACUUM 実行中に失敗 |
 | `"restored"` | 破損検出。`backup_path` から復元成功 |
 | `"no_backup"` | 破損検出。使用可能な backup_path なし |
 | `"error"` | DB オープン失敗または OS レベルのエラー |
 
 #### recover_corruption の動作
 
-1. `rag.sqlite` に対して `PRAGMA integrity_check` を実行する
+1. `target` で指定された DB に対して `PRAGMA integrity_check` を実行する
 2. `dry_run=True` の場合: VACUUM/復元を行わず integrity 結果のみ返す
-3. 結果が `"ok"` の場合: VACUUM を実行して `RecoveryResult(success=True, action="vacuum")` を返す (VACUUM 失敗は `WARNING` ログで無視)
+3. 結果が `"ok"` の場合: VACUUM を実行して `RecoveryResult(success=True, action="vacuum")` を返す。VACUUM 失敗は `RecoveryResult(success=False, action="vacuum_failed", detail=...)` を返す
 4. 結果が `"ok"` 以外の場合: 破損ファイルを `{stem}_corrupt_{timestamp}{suffix}` 名でアーカイブし、`backup_path` からコピーして復元する。成功時は `action="restored"`、`backup_path` 未指定・不存在時は `action="no_backup"`、OSError 発生時は `action="error"`
 
 #### rotate_* の動作
 
-`archive_dir` 未指定時は `common.toml` の `sqlite_archive_dir` (デフォルト `/opt/llm/db/archive`) を使用する。アーカイブ先ファイル名は `{stem}_{YYYYMMDD_HHMMSS}{suffix}` 形式。WAL (`-wal`) / SHM (`-shm`) サイドファイルが存在する場合は同じディレクトリに併せてコピーする。
+`archive_dir` 未指定時は `common.toml` の `sqlite_archive_dir` (デフォルト `/opt/llm/db/archive`) を使用する。アーカイブ先ファイル名は `{stem}_{YYYYMMDD_HHMMSS}{suffix}` 形式。SQLite online backup API (`src.backup(dst)`) で WAL 整合性を保証したコピーを作成する。
 
 ---
 
@@ -425,7 +424,7 @@ class RecoveryResult:
 
 ### 機能概要
 
-ツール実行結果の全文を `tool_results` テーブルに保存する。LLM 履歴には要約または切り詰めのみが含まれるため、全文は `/tool show <id>` で後追い確認できるようにここに保持する。DB エラー時はサイレントにフォールバックして REPL を継続させる。
+ツール実行結果の全文を `tool_results` テーブルに保存する。LLM 履歴には要約または切り詰めのみが含まれるため、全文は `/tool show <id>` で後追い確認できるようにここに保持する。DB エラー時は例外を送出し、呼び出し元で処理する。
 
 ### コンストラクタ
 
@@ -444,17 +443,17 @@ store = ToolResultStore()
 
 | メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `store(session_id, turn, tool_name, args_masked, full_text, summary, is_error) -> int \| None` | `(session_id: int \| None, turn: int, tool_name: str, args_masked: str, full_text: str, summary: str \| None, is_error: bool)` | `tool_results` テーブルに 1 行 INSERT して新規 `id` を返す。エラー時は `None` |
-| `get(result_id) -> dict \| None` | `(result_id: int)` | `id` で 1 件取得。見つからない場合は `None`。`row_factory=True` で取得するため返り値は全カラムを含む dict |
-| `list_recent(session_id, n=20) -> list[dict]` | `(session_id: int \| None, n: int = 20)` | 指定セッションの最新 `n` 件を古い順 (昇順) で返す。`session_id=None` またはエラー時は `[]` |
+| `store(session_id, turn, tool_name, args_masked, full_text, summary, is_error) -> int \| None` | `(session_id: int \| None, turn: int, tool_name: str, args_masked: str, full_text: str, summary: str \| None, is_error: bool)` | `tool_results` テーブルに 1 行 INSERT して新規 `id` を返す。DB エラー時は例外を送出（戻り値の `None` は安全性のため残り） |
+| `get(result_id) -> ToolResultRow \| None` | `(result_id: int)` | `id` で 1 件取得。見つからない場合は `None`。`ToolResultRow(id, tool_name, is_error, summary, session_id, turn, args_masked, full_text, created_at)` を返す |
+| `list_recent(session_id, n=20) -> list[ToolResultRow]` | `(session_id: int \| None, n: int = 20)` | 指定セッションの最新 `n` 件を古い順 (昇順) で返す。`session_id=None` の場合は `[]` を返す。DB エラー時は例外を送出 |
 
 #### list_recent の実装詳細
 
-内部では `ORDER BY id DESC LIMIT ?` で最新 `n` 件を取得し、`reversed()` で古い順に並べ直して返す。返り値の各要素は `{id, tool_name, full_text, summary, is_error}` のみを含む (`session_id`, `turn`, `created_at` は含まない)。
+内部では `ORDER BY id DESC LIMIT ?` で最新 `n` 件を取得し、`reversed()` で古い順に並べ直して返す。返り値の各要素は `{id, tool_name, summary, is_error}` を明示的に設定 (`session_id=None`, `turn=0`, `args_masked=""`, `full_text=""`, `created_at=""` のデフォルト値を持つ)。
 
 #### get の返り値フィールド
 
-`row_factory=True` で取得するため、`tool_results` テーブルの全カラムを含む dict を返す:
+`row_factory=True` で取得するため、`tool_results` テーブルの全カラムを含む `ToolResultRow` を返す:
 
 `id` / `session_id` / `turn` / `tool_name` / `args_masked` / `full_text` / `summary` / `is_error` / `created_at`
 
@@ -470,7 +469,7 @@ store = ToolResultStore()
 | `full_text` | TEXT | ツール実行結果の全文 |
 | `summary` | TEXT | 要約テキスト (NULL 許可) |
 | `is_error` | INTEGER | エラー有無 (0/1) |
-| `created_at` | DATETIME | 作成日時 |
+| `created_at` | TEXT | 作成日時 (ISO 8601) |
 
 ---
 
