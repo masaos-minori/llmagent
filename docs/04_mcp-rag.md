@@ -2,7 +2,7 @@
 
 ## 1. 概要
 
-`rag-pipeline-mcp` は 5 ステップの RAG パイプライン (MQE → Search → Fusion(RRF) → Rerank → Augment) を HTTP MCP サーバとして公開するサービス。
+`rag-pipeline-mcp` は 6 ステップの RAG パイプライン (MQE → Search → RRF → Rerank → Dedup → Augment) を HTTP MCP サーバとして公開するサービス。
 
 - **ポート:** 8010
 - **OpenRC サービス名:** `rag-pipeline-mcp`
@@ -133,7 +133,7 @@ mcp/rag_pipeline/models → mcp/rag_pipeline/service → mcp/rag_pipeline/server
 | `use_rerank` | Rerank 有効フラグ | `true` |
 | `use_refiner` | Refiner 有効フラグ | `false` |
 | `rrf_k` | RRF スムージング定数 | `60` |
-| `top_k_search` | KNN/FTS5 取得件数 | `5` |
+| `top_k_search` | KNN/FTS5 取得件数 | `10` |
 | `top_k_rerank` | Rerank 候補数 | `10` |
 | `rag_top_k` | Augment 最終選択数 | `5` |
 | `rag_min_score` | Rerank 最低スコア閾値 | `0.0` |

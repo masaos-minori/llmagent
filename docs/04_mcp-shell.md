@@ -132,7 +132,7 @@ MCP サーバの `/v1/call_tool` エンドポイントも `AUDIT` ログを `she
 | `max_output_kb` | 4096 | 出力上限 (KB) |
 | `max_memory_mb` | 512 | 子プロセスメモリ上限 (MB) |
 | `shell_path` | `/usr/bin:/bin` | 子プロセスの `PATH` |
-| `audit_log_path` | `""` | 監査ログパス (空のとき監査ログなし) |
+| `audit_log_path` | `""` | 監査ログパス (`/opt/llm/logs/shell_audit.log` を推奨); 空のとき監査ログなし |
 | `shell_sandbox_backend` | `"none"` | `"firejail"` または `"none"` |
 | `env_allowlist` | `[]` | 許可する req.env キー (非空時 allowlist モード) |
 | `env_denylist` | `["LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH"]` | 拒否する req.env キーのグロブ (env_allowlist 空時に有効) |

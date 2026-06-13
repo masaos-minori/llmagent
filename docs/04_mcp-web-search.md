@@ -99,7 +99,7 @@ curl -s -X POST http://127.0.0.1:8004/search \
 |---|---|---|---|
 | `web_search_url` | `config/agent.toml` | `http://127.0.0.1:8004` | web-search-mcp サーバのベース URL |
 | `web_search_max_results` | `config/agent.toml` | 5 | Web 検索で取得する上位件数 |
-| `search_providers` | `config/web_search_mcp_server.toml` | `["brave","bing","duckduckgo"]` | プロバイダの優先順位リスト |
+| `search_providers` | `config/web_search_mcp_server.toml` | `["duckduckgo"]` | プロバイダの優先順位リスト (設定ファイルで `["brave","bing","duckduckgo"]` を推奨) |
 | `default_max_results` | `config/web_search_mcp_server.toml` | 5 | リクエストで `max_results` 省略時のデフォルト件数 |
 | `max_results_limit` | `config/web_search_mcp_server.toml` | 20 | サーバ側の件数上限 (負荷抑制) |
 
@@ -165,13 +165,13 @@ WebSearchMCPServer().run_http()
 | `server_name` | `"web-search-mcp"` | MCP `initialize` レスポンスのサーバ識別名 |
 | `server_version` | `"3.0.0"` | バージョン文字列 |
 | `http_port` | `8004` | HTTP モード待受ポート |
-| `app_module` | `"web_search_mcp_server:app"` | uvicorn 起動ターゲット |
+| `app_module` | `"mcp.web_search.server:app"` | uvicorn 起動ターゲット |
 | `mcp_tools` | `_MCP_TOOLS` | `tools/list` に返すツール定義 (`search_web` 1 種) |
 
 | メソッド | 説明 |
 |---|---|
 | `dispatch(name, args) -> tuple[str, bool]` | `_dispatch_web_tool(name, args)` に委譲する。`search_web` を処理し、`(result_text, is_error)` を返す |
-| `run() -> None` | HTTP サーバを起動する (継承) |
+| `run_http() -> None` | HTTP サーバを起動する (`MCPServer` から継承) |
 
 **HTTP エンドポイント `POST /v1/call_tool`**
 

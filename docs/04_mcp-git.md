@@ -131,7 +131,7 @@ git_push     = "WRITE_DANGEROUS"
 | メソッド (ガード) | シグネチャ | 説明 |
 |---|---|---|
 | `_check_repo_path` | `(repo_path: str) -> tuple[bool, str]` | `allowed_repo_paths` 内のプレフィックスに一致するか確認。空リスト時は常に拒否 |
-| `_check_write` | `() -> tuple[bool, str]` | `read_only=True` のとき `[DENIED]` を返す |
+| `_check_write` | `() -> None` | `read_only=True` のとき `GitServiceError` を raise (`[DENIED]`) |
 | `_open_repo` | `(repo_path: str) -> git.Repo` | GitPython の `Repo` を開く。`search_parent_directories=False` |
 | `get_dispatch_table` | `() -> dict[str, Callable]` | ツール名 → コルーチンのディスパッチテーブルを返す |
 
