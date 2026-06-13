@@ -354,7 +354,7 @@ class HistoryManager:
 | `/history [n]` | 会話履歴表示 |
 | `/system [name]` | システムプロンプト切替 |
 | `/db stats\|urls\|clean\|rebuild-fts` | DB 操作（`/db urls` は URL・Lang・Chunks・Fetched・Strategy の 5 列を表示） |
-| `/note add\|list\|delete` | ノート管理 |
+| `/note add\|list\|delete\|pin\|unpin\|search` | ノート管理（ピン留めノートはセッション開始時に注入、`search` はターン毎の類似検索） |
 | `/tool [filter]` | ツール情報 |
 | `/set temperature\|max_tokens <value>` | LLM パラメータ上書き |
 | `/memory list\|search\|show\|pin\|delete\|prune` | メモリ層管理 |
@@ -405,7 +405,21 @@ mem.retriever.search(query, embedding=None) -> list[MemoryHit]
 
 ※ `orchestrator.py:111` では `ctx.services.memory.on_user_prompt()` (convenience method 経由) が使われている。
 
-### 10.6 AgentContext 追加メンバ
+### 10.6 NoteRepository（agent/note_repo.py）
+
+```python
+class NoteRepository:
+    def add_note(content: str) -> int             # 戻り値: note_id
+    def list_notes() -> list[dict]                # note_id, content, created_at, pinned
+    def delete_note(note_id: int) -> bool
+    def pin_note(note_id: int) -> bool
+    def unpin_note(note_id: int) -> bool
+    def get_pinned_notes() -> list[dict]          # pinned=1 のノートのみ
+    def search_notes(query: str, limit: int = 5) -> list[dict]  # content LIKE '%query%'
+    def get_all_note_contents() -> list[str]      # content のみリスト
+```
+
+### 10.7 AgentContext 追加メンバ
 
 ```python
 # context.py:147

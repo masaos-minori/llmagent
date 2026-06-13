@@ -352,6 +352,9 @@ class PipelineStage(Protocol):
 
 | 項目 | 詳細 |
 |---|---|
+| **[BUG] chunking_strategy が常に `'text'`** | `ingester._read_chunk_json()` が `dataclasses.asdict(read_json_file(path))` 経由で JSON を読むため、`ChunkDocument` に存在しない `chunking_strategy` フィールドが消える。結果として `.md` ファイルでも DB には常に `'text'` が保存される。修正方針: `_read_chunk_json()` を生 JSON 読み取り（`orjson.loads`）に変更し `ChunkDocument` を経由させない (`ingester.py:237-245`) |
+| `_embed_and_store` の chunk_index ハードコード | `ingester.py:257-260` の `try: idx = 0` ブロックが空のため `chunk_index` は常に 0 になる。全チャンクが `chunk_index=0` で DB に登録される（バグ） |
 | Prompt Injection 防御 | `utils.py:43-48` の `sanitize_document()` が prompt injection パターンを `[REMOVED]` に置換。`pipeline.py:254`, `stages/augment.py:13` で呼ばれている（実装済み） |
 | 外部 RAG サービス | `rag_service_url` 設定時の外部委譲は実装済みだが、認証・エラー処理の仕様が未定義 |
 | MDQ との分離 | Markdown 専用インデックス（`mdq-mcp`）との責務分担が `04_mcp-mdq.md` に記載されているが、移行基準が未定義 |
+| テスト未作成 | `test_ingester.py` が未作成（インジェスト系の DB 書き込み・`chunking_strategy` 反映が無検証）。`test_agent_cmd_db.py` の Strategy カラム出力も未検証 |

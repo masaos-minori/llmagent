@@ -316,7 +316,8 @@ class ToolRouteResolver:
 | 項目 | 詳細 |
 |---|---|
 | `McpServerConfig.transport` 型 | 現在 `str` 型。`Literal["http", "stdio"]` への型強化が未実装 (`implementations/20260606-194710_shared_types.md` 参照) |
-| MCP ヘルス劣化制御 | `healthy/degraded/unavailable` 状態管理は **実装済み** (`shared/mcp_config.py:70-105`)。`ToolExecutor._raw_execute()` で `is_unavailable()` によるディスパッチブロックあり (`shared/tool_executor.py:509-516`) |
+| **[BUG] HealthRegistry 記録欠落** | `ToolExecutor._raw_execute()` は `is_unavailable()` でディスパッチブロックを行うが、成功時の `record_success()` と失敗時の `record_failure()` が呼ばれていない。そのため障害カウントが更新されず `DEGRADED`/`UNAVAILABLE` 状態に遷移しない（機能不全）。`tool_executor.py:509-516` に `_raw_execute()` の結果を受けて記録処理を追加する必要あり |
+| MCP ヘルス劣化制御（状態クラス） | `healthy/degraded/unavailable` 状態クラスは **実装済み** (`shared/mcp_config.py:70-105`)。ただし上記 BUG により遷移が機能していない |
 | ツール依存関係スケジューリング | `resource_scope` による部分並列化が未実装。現在は全並列/全直列の二択 (`implementations/20260606-195109_tool_scheduler.md` 参照) |
 | `CallToolRequest.args` バリデーション | ツール名ベースのバリデーション層が未実装 |
 | mdq サーバーの Phase 2/3 機能 | 埋め込みインデックス（`md_chunks_vec`）、サマリーキャッシュ、AST パーサーが未実装 |

@@ -199,6 +199,7 @@ CREATE VIEW chunks_vec AS SELECT chunk_id, embedding FROM chunks
 | `note_id` | INTEGER | PRIMARY KEY AUTOINCREMENT |
 | `content` | TEXT | NOT NULL |
 | `created_at` | TEXT | NOT NULL DEFAULT datetime('now') |
+| `pinned` | INTEGER | NOT NULL DEFAULT 0（1=ピン留め、セッション開始時に注入対象） |
 
 **tool_results テーブル:**
 
