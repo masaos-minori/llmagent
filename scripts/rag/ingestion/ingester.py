@@ -92,6 +92,7 @@ class RagIngester:
         lang: str = first_data.get("lang", "en")
         etag: str | None = first_data.get("etag")
         last_modified: str | None = first_data.get("last_modified")
+        chunking_strategy: str = first_data.get("chunking_strategy", "text")
         doc_id = self._get_or_create_document(
             db,
             url,
@@ -100,6 +101,7 @@ class RagIngester:
             force,
             etag,
             last_modified,
+            chunking_strategy,
         )
         if doc_id is None:
             logger.info(f"already registered, skipping: {url}")
@@ -180,6 +182,7 @@ class RagIngester:
         force: bool,
         etag: str | None = None,
         last_modified: str | None = None,
+        chunking_strategy: str = "text",
     ) -> int | None:
         """Register a URL in documents and return its doc_id; returns None when already registered and force=False; force=True deletes existing record first."""
         # Guard: reject lang values that violate the DB CHECK constraint early
@@ -201,9 +204,10 @@ class RagIngester:
             # force=True: remove old document (and its chunks) before re-inserting
             self._delete_existing_document(db, existing_doc_id)
         cur = db.execute(
-            "INSERT INTO documents (url, title, lang, etag, last_modified)"
-            " VALUES (?, ?, ?, ?, ?)",
-            (url, title, lang, etag, last_modified),
+            "INSERT INTO documents"
+            " (url, title, lang, etag, last_modified, chunking_strategy)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (url, title, lang, etag, last_modified, chunking_strategy),
         )
         return cur.lastrowid
 

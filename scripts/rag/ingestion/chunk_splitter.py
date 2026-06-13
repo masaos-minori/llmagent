@@ -91,7 +91,8 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             return 0
         data = chunk_doc
         chunks = self._build_chunk_list(data)
-        written = self._write_chunk_files(chunks, data, src_path)
+        chunking_strategy = "heading" if self._is_markdown_source(data) else "text"
+        written = self._write_chunk_files(chunks, data, src_path, chunking_strategy)
         logger.info(f"chunked {written} chunks from {src_path.name}")
         return written
 
@@ -102,12 +103,16 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
     # ── Markdown heading chunking ──────────────────────────────────────────────
 
     def _is_markdown_source(self, data: dict[str, Any]) -> bool:
-        """Return True when the source should use heading-based snippet chunking (.md extension or heading count ≥ 2 when md_index_enable is set)."""
-        if not self._md_index_enable:
-            return False
+        """Return True when the source should use heading-based snippet chunking.
+
+        .md / .markdown / .mdx files always use heading chunking regardless of md_index_enable.
+        Non-.md files use heuristic detection only when md_index_enable is set.
+        """
         url = data.get("url", "")
         if url.endswith((".md", ".markdown", ".mdx")):
             return True
+        if not self._md_index_enable:
+            return False
         content = data.get("content", "")
         # Treat as Markdown when at least two heading lines are found
         return (
@@ -194,6 +199,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         chunks: list[tuple[str, str, str]],
         data: dict[str, Any],
         src_path: Path,
+        chunking_strategy: str = "text",
     ) -> int:
         """Write (chunk_type, content, normalized_content) triples to chunk_dir."""
         # Guard: nothing to write
@@ -220,6 +226,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
                 "normalized_content": norm_content or None,
                 "etag": etag,
                 "last_modified": last_modified,
+                "chunking_strategy": chunking_strategy,
             }
             try:
                 out_path.write_bytes(

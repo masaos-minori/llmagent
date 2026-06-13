@@ -36,13 +36,14 @@ logger = Logger(__name__, _get_schema_log_path())
 
 _RAG_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS documents (
-        doc_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-        url           TEXT    NOT NULL UNIQUE,
-        title         TEXT,
-        lang          TEXT    NOT NULL CHECK (lang IN ('ja', 'en')),
-        fetched_at    TEXT    NOT NULL DEFAULT (datetime('now')),
-        etag          TEXT,
-        last_modified TEXT
+        doc_id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        url                TEXT    NOT NULL UNIQUE,
+        title              TEXT,
+        lang               TEXT    NOT NULL CHECK (lang IN ('ja', 'en')),
+        fetched_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+        etag               TEXT,
+        last_modified      TEXT,
+        chunking_strategy  TEXT    NOT NULL DEFAULT 'text'
     );
     CREATE TABLE IF NOT EXISTS chunks (
         chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -186,6 +187,23 @@ def create_session_schema() -> None:
             logger.error(f"Failed to execute session schema DDL: {e}")
             raise
     logger.info("Session schema created successfully.")
+
+
+def migrate_schema(db_name: str = "rag") -> None:
+    """Apply incremental schema migrations to an existing DB.
+
+    Safe to call on an already-migrated DB — duplicate column errors are suppressed.
+    """
+    with SQLiteHelper(db_name).open(write_mode=True) as db:
+        try:
+            db.execute(
+                "ALTER TABLE documents ADD COLUMN"
+                " chunking_strategy TEXT NOT NULL DEFAULT 'text'"
+            )
+            db.commit()
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e):
+                raise
 
 
 def create_schema() -> None:

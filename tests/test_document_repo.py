@@ -18,13 +18,14 @@ from agent.document_repo import DocumentRepository
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS documents (
-    doc_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    url           TEXT    NOT NULL UNIQUE,
-    title         TEXT,
-    lang          TEXT    NOT NULL CHECK (lang IN ('ja', 'en')),
-    fetched_at    TEXT    NOT NULL DEFAULT (datetime('now')),
-    etag          TEXT,
-    last_modified TEXT
+    doc_id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    url                TEXT    NOT NULL UNIQUE,
+    title              TEXT,
+    lang               TEXT    NOT NULL CHECK (lang IN ('ja', 'en')),
+    fetched_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+    etag               TEXT,
+    last_modified      TEXT,
+    chunking_strategy  TEXT    NOT NULL DEFAULT 'text'
 );
 CREATE TABLE IF NOT EXISTS chunks (
     chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -180,6 +181,7 @@ class TestListDocuments:
             "title",
             "lang",
             "fetched_at",
+            "chunking_strategy",
             "chunk_count",
         }
 

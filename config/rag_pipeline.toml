@@ -36,7 +36,8 @@ max_pages = 500
 # chunk_overlap: sliding window chunk overlap (chars); prepends this many chars from previous chunk tail; 0 = disabled
 chunk_overlap = 50
 
-# md_index_enable: when true, Markdown files are chunked by heading (# / ## / ###) as snippets
+# md_index_enable: enables heading-based chunking for non-.md files via heuristic detection.
+# Note: .md / .markdown / .mdx files always use heading-based chunking regardless of this flag.
 md_index_enable = false
 
 # md_snippet_max_chars: max chars per Markdown heading section; exceeded sections fall back to text chunking

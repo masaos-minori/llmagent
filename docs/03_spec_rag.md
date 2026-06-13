@@ -150,7 +150,8 @@ WebCrawler.crawl(target_urls)
 ChunkSplitter.split(source_files)
   → 日本語: NFKC + Sudachi SplitMode.C + stopword 除去 + 40-500 文字境界
   → 英語: 文境界分割 + 40-500 文字
-  → Markdown: heading 境界（md_index_enable=true 時）
+  → Markdown (.md/.markdown/.mdx): heading 境界（md_index_enable に関係なく常に適用）
+  → 非.md コンテンツ: md_index_enable=true かつ見出し行 ≥ 2 のときのみ heading 境界
   → chunk_overlap=50 文字のオーバーラップ
   → rag-src/chunk/*.txt に保存
 
