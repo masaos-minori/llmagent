@@ -8,7 +8,7 @@
 
 ## 2. スコープ
 
-- **対象コンポーネント:** `shared/` 配下の全モジュール（config_loader、logger、types、tool_constants、route_resolver、mcp_config、tool_executor、plugin_registry、otel_tracer、token_counter、git_helper、formatters）
+- **対象コンポーネント:** `shared/` 配下の全モジュール（config_loader、logger、types、llm_types、tool_constants、route_resolver、mcp_config、tool_executor、plugin_registry、otel_tracer、token_counter、git_helper、formatters、action_result、events、protocols/shell）
 - **対象外:** MCP サーバー実装、RAG パイプライン、エージェント REPL、DB 層
 
 ---
@@ -83,6 +83,25 @@
 - `MAX_SNIPPET_CHARS` — スニペット表示の最大文字数定数
 - `fmt_size(size)` — 人間可読なバイト表記（B/KB/MB）
 - `fmt_md_link(text, url)` — Markdown リンク形式生成
+
+### 6.9 LLM レスポンス DTO（shared/llm_types.py）
+- `LLMUsage` — トークン使用量（`prompt_tokens`, `completion_tokens`）
+- `LLMResponse` — LLM 呼び出し結果（`message: LLMMessage`, `finish_reason: str|None`, `usage: LLMUsage|None`）
+- `LLMClient` の呼び出し元が DTO のみをインポートできるよう、`llm_client.py` から分離
+
+### 6.10 アクション結果 DTO（shared/action_result.py）
+- `ActionResult` — 機械判断パス用の汎用アクション/結果スキーマ
+- `action: ActionType`（`continue`/`call_tool`/`retrieve_more_context`/`ask_user`/`fail`/`retry`）
+- `reason`, `required_context`, `payload`, `errors`, `confidence` フィールドを持つ
+
+### 6.11 エージェントイベント（shared/events.py）
+- `ArtifactEvent` (TypedDict) — リポジトリ成果物の作成・更新・削除通知
+- フィールド: `event_type`, `repo`, `branch`, `commit`, `path`, `pr_number`, `session_id`, `timestamp`
+- イベントバスは未実装（純粋データ定義のみ）
+
+### 6.12 シェルポリシー（shared/protocols/shell.py）
+- `ShellPolicy` — `mcp/shell` が使用するシェル実行ポリシー設定の純粋 dataclass
+- `fastapi`・`mcp`・`agent` 依存なし（`shared/` の制約に準拠）
 
 ---
 
@@ -193,6 +212,55 @@ class LLMMessage(TypedDict, total=False):
 
 → `docs/spec_mcp.md` 「9.1 McpServerConfig フィールド」を参照
 
+### 9.4 LLM レスポンス DTO（shared/llm_types.py）
+
+```python
+@dataclass(frozen=True)
+class LLMUsage:
+    prompt_tokens: int
+    completion_tokens: int
+
+@dataclass(frozen=True)
+class LLMResponse:
+    message: LLMMessage      # shared/types.py の LLMMessage TypedDict
+    finish_reason: str | None
+    usage: LLMUsage | None = None
+```
+
+### 9.5 ActionResult（shared/action_result.py）
+
+```python
+ActionType = Literal["continue", "call_tool", "retrieve_more_context", "ask_user", "fail", "retry"]
+
+@dataclass(frozen=True)
+class ActionResult:
+    action: ActionType
+    reason: str = ""
+    required_context: list[str] = field(default_factory=list)
+    payload: dict[str, object] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
+    confidence: float = 1.0
+```
+
+### 9.6 ArtifactEvent（shared/events.py）
+
+```python
+class ArtifactEvent(TypedDict, total=False):
+    event_type: str   # "artifact.updated" | "artifact.created" | "artifact.deleted"
+    repo: str         # "owner/repo"
+    branch: str
+    commit: str       # commit SHA or empty
+    path: str         # file path or empty
+    pr_number: int    # PR number or 0
+    session_id: int
+    timestamp: str    # ISO-8601 UTC
+```
+
+### 9.7 ShellPolicy（shared/protocols/shell.py）
+
+- `mcp/shell/service.py` が使用するシェル実行ポリシー設定 dataclass
+- フィールド詳細: `shared/protocols/shell.py` を参照
+
 ---
 
 ## 10. 公開インターフェース仕様
@@ -265,6 +333,16 @@ def get_repo_info(path: str = ".") -> dict | None
 # "origin" フィールドは存在しない。commit は HEAD commit の hexsha[:8]
 ```
 
+### 10.7 LLM レスポンス DTO（shared/llm_types.py）
+
+```python
+# callers can import LLMUsage/LLMResponse without importing LLMClient
+from shared.llm_types import LLMUsage, LLMResponse
+```
+
+- `LLMUsage`: `prompt_tokens: int`, `completion_tokens: int`
+- `LLMResponse`: `message: LLMMessage`, `finish_reason: str|None`, `usage: LLMUsage|None`
+
 ---
 
 ## 11. エラーハンドリング
@@ -301,6 +379,6 @@ def get_repo_info(path: str = ".") -> dict | None
 | `ToolRouteResolver` fallback 警告 | **実装済み**: `warn_on_fallback: bool = False` パラメータと警告ログあり (route_resolver.py:62,74-79) |
 | `plugin_registry.load_plugins()` | ロード失敗詳細の機械可読なレポートが未実装（成功/失敗/理由の構造化返却が必要）。ただし存在しない dir は silent 0 を返す |
 | `git_helper.get_repo_info()` | `except Exception` で全例外を飲み込んで `None` を返す。理由コード付き結果型への変更が必要 |
-| `LLMClient` 未在書 | `shared/llm_client.py:67-622` の `RobustSSEParser` と `LLMClient`（exponential-backoff retry、reconnect-aware SSE streaming）が未在書。約600行の主要モジュール |
-| `ToolExecutor` 未在書詳細 | `shared/tool_executor.py` の `ToolCallResult` dataclass、TTL+LRU キャッシュ、McpServerHealthRegistry ゲーティング等在書漏れ |
-| `LLMUsage` / `LLMResponse` 未在書 | `shared/llm_types.py` の DTO が未在書 |
+| `LLMClient` 未在書 | `shared/llm_client.py` の `RobustSSEParser` と `LLMClient`（exponential-backoff retry、reconnect-aware SSE streaming）が未在書。約600行の主要モジュール |
+| `ToolExecutor` 未在書詳細 | `shared/tool_executor.py` の `ToolCallResult` dataclass、TTL+LRU キャッシュ、McpServerHealthRegistry ゲーティング等の詳細が未在書 |
+| `ArtifactEvent` イベントバス未実装 | `shared/events.py` はデータ定義のみ。イベント配信・購読の仕組みは未実装 |
