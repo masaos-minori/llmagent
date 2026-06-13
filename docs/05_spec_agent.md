@@ -72,8 +72,8 @@ LLM エージェント REPL（Read-Eval-Print Loop）として、ユーザーの
 - `/session load <id>` で過去セッションの復元
 
 ### 6.6 ノート管理
-- `/note add|list|delete` でセッション間永続の固定知識を管理
-- `auto_inject_notes=true`（デフォルト）でシステムプロンプトに自動注入
+- `/note add|list|delete|pin|unpin|search` でセッション間永続の固定知識を管理
+- `auto_inject_notes=true`（デフォルト）で起動時にピン留めノートをシステムプロンプトに注入 + ターン毎に検索マッチノートを注入
 
 ---
 

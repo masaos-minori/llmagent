@@ -17,11 +17,17 @@ def _make_cmd(
     add_return: int | None = 1,
     list_return: list | None = None,
     delete_return: bool = True,
+    pin_return: bool = True,
+    unpin_return: bool = True,
+    search_return: list | None = None,
 ) -> _NotesMixin:
     session = MagicMock()
     session.add_note.return_value = add_return
     session.list_notes.return_value = list_return or []
     session.delete_note.return_value = delete_return
+    session.pin_note.return_value = pin_return
+    session.unpin_note.return_value = unpin_return
+    session.search_notes.return_value = search_return or []
     ctx = SimpleNamespace(session=session)
     cmd = object.__new__(_NotesMixin)
     cmd._ctx = ctx  # type: ignore[attr-defined]
@@ -55,7 +61,12 @@ class TestNoteList:
 
     def test_list_shows_notes(self, capsys: pytest.CaptureFixture) -> None:
         notes = [
-            {"note_id": 1, "content": "hello", "created_at": "2026-01-01 00:00:00"}
+            {
+                "note_id": 1,
+                "content": "hello",
+                "pinned": 0,
+                "created_at": "2026-01-01 00:00:00",
+            }
         ]
         cmd = _make_cmd(list_return=notes)
         cmd._cmd_note("list")
@@ -87,6 +98,73 @@ class TestNoteDelete:
         cmd._cmd_note("delete abc")
         assert "usage" in capsys.readouterr().out.lower()
         cmd._ctx.session.delete_note.assert_not_called()
+
+
+class TestNotePin:
+    def test_pin_success(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd(pin_return=True)
+        cmd._cmd_note("pin 1")
+        assert "pinned" in capsys.readouterr().out.lower()
+        cmd._ctx.session.pin_note.assert_called_once_with(1)
+
+    def test_pin_not_found(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd(pin_return=False)
+        cmd._cmd_note("pin 99")
+        assert "not found" in capsys.readouterr().out.lower()
+
+    def test_pin_invalid_id_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        cmd._cmd_note("pin abc")
+        assert "usage" in capsys.readouterr().out.lower()
+        cmd._ctx.session.pin_note.assert_not_called()
+
+
+class TestNoteUnpin:
+    def test_unpin_success(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd(unpin_return=True)
+        cmd._cmd_note("unpin 1")
+        assert "unpinned" in capsys.readouterr().out.lower()
+        cmd._ctx.session.unpin_note.assert_called_once_with(1)
+
+    def test_unpin_not_found(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd(unpin_return=False)
+        cmd._cmd_note("unpin 99")
+        assert "not found" in capsys.readouterr().out.lower()
+
+    def test_unpin_invalid_id_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        cmd._cmd_note("unpin abc")
+        assert "usage" in capsys.readouterr().out.lower()
+        cmd._ctx.session.unpin_note.assert_not_called()
+
+
+class TestNoteSearch:
+    def test_search_empty_query_shows_usage(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        cmd = _make_cmd()
+        cmd._cmd_note("search")
+        assert "usage" in capsys.readouterr().out.lower()
+
+    def test_search_no_results(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd(search_return=[])
+        cmd._cmd_note("search xyz")
+        assert "No matching" in capsys.readouterr().out
+
+    def test_search_shows_results(self, capsys: pytest.CaptureFixture) -> None:
+        notes = [
+            {
+                "note_id": 1,
+                "content": "hello",
+                "pinned": 1,
+                "created_at": "2026-01-01 00:00:00",
+            }
+        ]
+        cmd = _make_cmd(search_return=notes)
+        cmd._cmd_note("search hello")
+        out = capsys.readouterr().out
+        assert "hello" in out
+        cmd._ctx.session.search_notes.assert_called_once_with("hello")
 
 
 class TestNoteUnknownSubcommand:

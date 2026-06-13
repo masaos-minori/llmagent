@@ -28,7 +28,7 @@ class NoteRepository:
         """Return all notes ordered by note_id ascending; raises sqlite3.Error on failure."""
         with SQLiteHelper("session").open(row_factory=True) as db:
             rows = db.fetchall(
-                "SELECT note_id, content, created_at FROM notes ORDER BY note_id",
+                "SELECT note_id, content, pinned, created_at FROM notes ORDER BY note_id",
             )
         return [dict(r) for r in rows]
 
@@ -45,6 +45,55 @@ class NoteRepository:
             db.commit()
         logger.info(f"Note deleted: note_id={note_id}")
         return True
+
+    def pin_note(self, note_id: int) -> bool:
+        """Set pinned=1. Returns False when note not found."""
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            row = db.execute(
+                "SELECT note_id FROM notes WHERE note_id = ?", (note_id,)
+            ).fetchone()
+            if row is None:
+                return False
+            db.execute("UPDATE notes SET pinned=1 WHERE note_id=?", (note_id,))
+            db.commit()
+        logger.info(f"Note pinned: note_id={note_id}")
+        return True
+
+    def unpin_note(self, note_id: int) -> bool:
+        """Set pinned=0. Returns False when note not found."""
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            row = db.execute(
+                "SELECT note_id FROM notes WHERE note_id = ?", (note_id,)
+            ).fetchone()
+            if row is None:
+                return False
+            db.execute("UPDATE notes SET pinned=0 WHERE note_id=?", (note_id,))
+            db.commit()
+        logger.info(f"Note unpinned: note_id={note_id}")
+        return True
+
+    def get_pinned_notes(self) -> list[dict]:
+        """Return all pinned notes ordered by note_id."""
+        with SQLiteHelper("session").open(row_factory=True) as db:
+            rows = db.fetchall(
+                "SELECT note_id, content, pinned, created_at FROM notes "
+                "WHERE pinned=1 ORDER BY note_id",
+            )
+        return [dict(r) for r in rows]
+
+    def search_notes(self, query: str, limit: int = 5) -> list[dict]:
+        """Return notes matching query via LIKE search, ordered by note_id.
+
+        Escapes LIKE metacharacters (%, _, \\) to prevent unintended wildcard matches.
+        """
+        escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        with SQLiteHelper("session").open(row_factory=True) as db:
+            rows = db.fetchall(
+                "SELECT note_id, content, pinned, created_at FROM notes "
+                "WHERE content LIKE ? ESCAPE '\\' ORDER BY note_id LIMIT ?",
+                (f"%{escaped}%", limit),
+            )
+        return [dict(r) for r in rows]
 
     def get_all_note_contents(self) -> list[str]:
         """Return all note content strings in creation order; raises sqlite3.Error on failure."""

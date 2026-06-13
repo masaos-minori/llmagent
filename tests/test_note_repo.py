@@ -19,6 +19,7 @@ _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS notes (
     note_id    INTEGER PRIMARY KEY AUTOINCREMENT,
     content    TEXT    NOT NULL,
+    pinned     INTEGER NOT NULL DEFAULT 0,
     created_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 """
@@ -120,7 +121,7 @@ class TestListNotes:
         repo.add_note("content")
         notes = repo.list_notes()
         assert len(notes) == 1
-        assert set(notes[0].keys()) == {"note_id", "content", "created_at"}
+        assert set(notes[0].keys()) == {"note_id", "content", "pinned", "created_at"}
 
     def test_ordered_by_note_id_ascending(self, repo: NoteRepository) -> None:
         repo.add_note("A")
@@ -216,3 +217,91 @@ class TestGetAllNoteContents:
         with patch("agent.note_repo.SQLiteHelper", side_effect=_make):
             with pytest.raises(sqlite3.OperationalError):
                 NoteRepository().get_all_note_contents()
+
+
+# ── pin_note() / unpin_note() ──────────────────────────────────────────────────
+
+
+class TestPinNote:
+    def test_pin_returns_true_when_found(self, repo: NoteRepository) -> None:
+        note_id = repo.add_note("pinnable")
+        assert repo.pin_note(note_id) is True
+
+    def test_pin_sets_pinned_flag(self, repo: NoteRepository) -> None:
+        note_id = repo.add_note("pinnable")
+        repo.pin_note(note_id)
+        notes = repo.list_notes()
+        assert notes[0]["pinned"] == 1
+
+    def test_pin_returns_false_for_unknown_id(self, repo: NoteRepository) -> None:
+        assert repo.pin_note(9999) is False
+
+
+class TestUnpinNote:
+    def test_unpin_returns_true_when_found(self, repo: NoteRepository) -> None:
+        note_id = repo.add_note("pinnable")
+        repo.pin_note(note_id)
+        assert repo.unpin_note(note_id) is True
+
+    def test_unpin_clears_pinned_flag(self, repo: NoteRepository) -> None:
+        note_id = repo.add_note("pinnable")
+        repo.pin_note(note_id)
+        repo.unpin_note(note_id)
+        notes = repo.list_notes()
+        assert notes[0]["pinned"] == 0
+
+    def test_unpin_returns_false_for_unknown_id(self, repo: NoteRepository) -> None:
+        assert repo.unpin_note(9999) is False
+
+
+# ── get_pinned_notes() ────────────────────────────────────────────────────────
+
+
+class TestGetPinnedNotes:
+    def test_empty_returns_empty(self, repo: NoteRepository) -> None:
+        repo.add_note("not pinned")
+        assert repo.get_pinned_notes() == []
+
+    def test_returns_only_pinned(self, repo: NoteRepository) -> None:
+        nid1 = repo.add_note("pinned note")
+        repo.add_note("not pinned")
+        repo.pin_note(nid1)
+        pinned = repo.get_pinned_notes()
+        assert len(pinned) == 1
+        assert pinned[0]["note_id"] == nid1
+        assert pinned[0]["pinned"] == 1
+
+    def test_result_has_correct_keys(self, repo: NoteRepository) -> None:
+        nid = repo.add_note("content")
+        repo.pin_note(nid)
+        pinned = repo.get_pinned_notes()
+        assert set(pinned[0].keys()) == {"note_id", "content", "pinned", "created_at"}
+
+
+# ── search_notes() ────────────────────────────────────────────────────────────
+
+
+class TestSearchNotes:
+    def test_returns_matching_notes(self, repo: NoteRepository) -> None:
+        repo.add_note("Python tips")
+        repo.add_note("Java guide")
+        results = repo.search_notes("Python")
+        assert len(results) == 1
+        assert results[0]["content"] == "Python tips"
+
+    def test_empty_when_no_match(self, repo: NoteRepository) -> None:
+        repo.add_note("Python tips")
+        assert repo.search_notes("Rust") == []
+
+    def test_limit_respected(self, repo: NoteRepository) -> None:
+        for i in range(10):
+            repo.add_note(f"note {i}")
+        results = repo.search_notes("note", limit=3)
+        assert len(results) == 3
+
+    def test_escapes_like_metacharacters(self, repo: NoteRepository) -> None:
+        repo.add_note("50% discount")
+        repo.add_note("other note")
+        results = repo.search_notes("50%")
+        assert len(results) == 1
+        assert results[0]["content"] == "50% discount"
