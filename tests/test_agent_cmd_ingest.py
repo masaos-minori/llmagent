@@ -173,3 +173,99 @@ class TestIngestStageError:
         out = capsys.readouterr().out
         assert "error" in out.lower()
         assert "split" in out.lower()
+
+
+# ── _cmd_rag ──────────────────────────────────────────────────────────────────
+
+
+class TestCmdRag:
+    def test_no_search_subcommand_prints_usage(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        asyncio.run(cmd._cmd_rag(""))
+        assert "Usage" in capsys.readouterr().out
+
+    def test_search_missing_query_prints_usage(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        asyncio.run(cmd._cmd_rag("search"))
+        assert "Usage" in capsys.readouterr().out
+
+    def test_search_blank_query_after_debug_flag_prints_usage(
+        self, capsys: Any
+    ) -> None:
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        asyncio.run(cmd._cmd_rag("search --debug"))
+        assert "Usage" in capsys.readouterr().out
+
+    def test_no_http_client_prints_unavailable(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        ctx.services.http = None
+        cmd = _FakeCmd(ctx)
+        asyncio.run(cmd._cmd_rag("search hello"))
+        assert "HTTP client not available" in capsys.readouterr().out
+
+    def test_use_search_false_prints_disabled(self, capsys: Any) -> None:
+        from unittest.mock import patch
+
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        with patch("shared.config_loader.ConfigLoader") as mock_cfg_cls:
+            mock_cfg_cls.return_value.load.return_value = {"use_search": False}
+            asyncio.run(cmd._cmd_rag("search hello"))
+        assert "disabled" in capsys.readouterr().out.lower()
+
+    def test_search_no_results_prints_message(self, capsys: Any) -> None:
+        from unittest.mock import patch
+
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        with (
+            patch("shared.config_loader.ConfigLoader") as mock_cfg_cls,
+            patch("rag.pipeline.RagPipeline") as mock_pipeline_cls,
+        ):
+            mock_cfg_cls.return_value.load.return_value = {"use_search": True}
+            mock_pipeline = MagicMock()
+            mock_pipeline.augment = AsyncMock(return_value="")
+            mock_pipeline.last_timings = {}
+            mock_pipeline_cls.return_value = mock_pipeline
+            asyncio.run(cmd._cmd_rag("search hello"))
+        assert "No results found" in capsys.readouterr().out
+
+    def test_search_returns_context(self, capsys: Any) -> None:
+        from unittest.mock import patch
+
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        with (
+            patch("shared.config_loader.ConfigLoader") as mock_cfg_cls,
+            patch("rag.pipeline.RagPipeline") as mock_pipeline_cls,
+        ):
+            mock_cfg_cls.return_value.load.return_value = {"use_search": True}
+            mock_pipeline = MagicMock()
+            mock_pipeline.augment = AsyncMock(return_value="[RAG context block]")
+            mock_pipeline.last_timings = {}
+            mock_pipeline_cls.return_value = mock_pipeline
+            asyncio.run(cmd._cmd_rag("search hello"))
+        assert "[RAG context block]" in capsys.readouterr().out
+
+    def test_debug_flag_prints_stage_timings(self, capsys: Any) -> None:
+        from unittest.mock import patch
+
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        with (
+            patch("shared.config_loader.ConfigLoader") as mock_cfg_cls,
+            patch("rag.pipeline.RagPipeline") as mock_pipeline_cls,
+        ):
+            mock_cfg_cls.return_value.load.return_value = {"use_search": True}
+            mock_pipeline = MagicMock()
+            mock_pipeline.augment = AsyncMock(return_value="ctx")
+            mock_pipeline.last_timings = {"MqeStage": 0.05, "SearchStage": 0.12}
+            mock_pipeline_cls.return_value = mock_pipeline
+            asyncio.run(cmd._cmd_rag("search hello --debug"))
+        out = capsys.readouterr().out
+        assert "Stage timings" in out
+        assert "MqeStage" in out
+        assert "50.0 ms" in out

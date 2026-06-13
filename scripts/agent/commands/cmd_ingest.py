@@ -123,11 +123,15 @@ class _IngestMixin(MixinBase):
             self._out.write(context)
 
         if debug:
-            timings = pipeline.last_timings
-            if timings:
-                self._out.write("\n--- Stage timings ---")
-                for stage_name, elapsed in timings.items():
-                    self._out.write(f"  {stage_name}: {elapsed * 1000:.1f} ms")
+            self._print_rag_timings(pipeline.last_timings)
+
+    def _print_rag_timings(self, timings: dict[str, float]) -> None:
+        """Print per-stage wall-clock timings from a RAG pipeline run."""
+        if not timings:
+            return
+        self._out.write("\n--- Stage timings ---")
+        for stage_name, elapsed in timings.items():
+            self._out.write(f"  {stage_name}: {elapsed * 1000:.1f} ms")
 
     async def _cmd_compact(self) -> None:
         """Force immediate compression of conversation history.
