@@ -244,7 +244,7 @@ HttpTransport(
 
 | メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `call` | `async (name: str, args: dict[str, Any]) -> tuple[str, bool, str]` | `POST /v1/call_tool` を実行し `(result, is_error, x_request_id)` を返す。`httpx.HTTPStatusError` / `httpx.RequestError` / その他例外はすべてキャッチし `is_error=True` で返す |
+| `call` | `async (name: str, args: dict[str, Any]) -> ToolCallResult` | `POST /v1/call_tool` を実行し `ToolCallResult(output, is_error, request_id, server_key)` を返す。`httpx.HTTPStatusError` / `httpx.RequestError` / その他例外はすべてキャッチし `is_error=True` で返す |
 
 #### StdioTransport
 
@@ -270,7 +270,7 @@ StdioTransport(
 |---|---|---|
 | `start` | `async () -> None` | サブプロセスを起動する。既に生存中なら no-op |
 | `is_alive` | `() -> bool` | サブプロセスが実行中 (`returncode is None`) のとき `True` |
-| `call` | `async (name: str, args: dict[str, Any]) -> tuple[str, bool, str]` | JSON-RPC リクエストを送信し `(result, is_error, x_request_id)` を返す。`x_request_id` は常に `""`。タイムアウト (`_STDIO_CALL_TIMEOUT = 60.0` 秒) / 未起動 / 不正レスポンスはいずれも `is_error=True` で返す |
+| `call` | `async (name: str, args: dict[str, Any]) -> ToolCallResult` | JSON-RPC リクエストを送信し `ToolCallResult(output, is_error, request_id, server_key)` を返す。`request_id` は常に `""`。タイムアウト (`_STDIO_CALL_TIMEOUT = 60.0` 秒) / 未起動 / 不正レスポンスはいずれも `is_error=True` で返す |
 | `stop` | `async () -> None` | stdin クローズ → 5 秒 wait → `terminate()` → 3 秒 wait → `kill()` の順で終了処理 |
 
 #### ToolRouteResolver
@@ -321,7 +321,7 @@ ToolExecutor(
 |---|---|---|
 | `set_transport` | `(server_key: str, transport: StdioTransport) -> None` | 起動済み `StdioTransport` を指定サーバーキーに登録する |
 | `set_lifecycle` | `(lifecycle: LifecycleProtocol \| None) -> None` | 構築後に lifecycle manager を注入・差し替える |
-| `execute` | `async (tool_name: str, args: dict[str, Any]) -> tuple[str, bool, str]` | プラグインツールを優先確認し、次いでキャッシュ付きで MCP ツール実行する。戻り値は `(result, is_error, x_request_id)` |
+| `execute` | `async (tool_name: str, args: dict[str, Any]) -> ToolCallResult` | プラグインツールを優先確認し、次いでキャッシュ付きで MCP ツール実行する。戻り値は `ToolCallResult(output, is_error, request_id, server_key)` |
 | `clear_cache` | `() -> None` | キャッシュエントリをすべて削除する |
 
 **キャッシュ仕様:**
@@ -355,7 +355,7 @@ ToolExecutor(
 |---|---|---|
 | `is_side_effect` | `(tool_name: str) -> bool` | `_SIDE_EFFECT_TOOLS` (`WRITE_TOOLS \| DELETE_TOOLS \| {"shell_run"}`) に含まれるとき `True` を返す |
 | `tool_call_key` | `(name: str, args: dict[str, Any]) -> str` | `(tool_name, args)` ペアを dict キー順正規化した上で MD5 ハッシュ化し文字列で返す。重複排除用の一意キー生成に使用 (非セキュリティ用途) |
-| `format_transport_error` | `(*, source, phase, kind, url, status_code, retryable, partial) -> dict[str, str]` | LLM / ツール トランスポート失敗を統一形式 `{"summary": str, "detail": str}` に整形する。`summary` はユーザー向け一行メッセージ、`detail` は orjson シリアライズされた JSON 文字列 |
+| `format_transport_error` | `(*, source, phase, kind, url, status_code, retryable, partial) -> TransportErrorInfo` | LLM / ツール トランスポート失敗を `TransportErrorInfo(summary, detail)` dataclass に整形する。`summary` はユーザー向け一行メッセージ、`detail` は orjson シリアライズされた JSON 文字列 |
 
 ### 2.9 GitHub 許可リスト (`allowed_repos`)
 
@@ -363,8 +363,8 @@ ToolExecutor(
 
 | `allowed_repos_mode` | `allowed_repos` が空 | `allowed_repos` に列挙あり |
 |---|---|---|
-| `"fail_open"` (デフォルト) | 全リポジトリを許可 | 列挙済みのみ許可 |
-| `"fail_closed"` | 全リポジトリを拒否 | 列挙済みのみ許可 |
+| `"fail_closed"` (デフォルト) | 全リポジトリを拒否 | 列挙済みのみ許可 |
+| `"fail_open"` | 全リポジトリを許可 | 列挙済みのみ許可 |
 
 ### 2.10 新規 MCP サーバー追加手順
 

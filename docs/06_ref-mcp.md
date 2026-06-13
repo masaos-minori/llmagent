@@ -135,14 +135,14 @@ executor = ToolExecutor(
     concurrency_limits={"file_write": 1},  # optional per-server limit
 )
 res: ToolCallResult = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
-# res.data, res.is_error, res.request_id, res.server_key
+# res.output, res.is_error, res.request_id, res.server_key
 ```
 
 `HttpTransport` クラス:
 
 | メソッド | 説明 |
 |---|---|
-| `call(name, args) -> ToolCallResult` | `POST /v1/call_tool` を呼び出す。戻り値は `ToolCallResult(data, is_error, request_id, server_key)`。HTTP エラー / 接続エラー時は `ToolCallResult(msg, True, "", server_key)` を返す |
+| `call(name, args) -> ToolCallResult` | `POST /v1/call_tool` を呼び出す。戻り値は `ToolCallResult(output, is_error, request_id, server_key)`。HTTP エラー / 接続エラー時は `ToolCallResult(msg, True, "", server_key)` を返す |
 
 `StdioTransport` クラス:
 
@@ -159,7 +159,7 @@ res: ToolCallResult = await executor.execute("read_text_file", {"path": "/opt/ll
 |---|---|
 | `start() -> None` | サブプロセスを起動。既に起動済みなら無操作。`working_dir` が空でない場合は事前に `Path.is_dir()` を確認し、存在しなければ `ValueError` を送出 |
 | `is_alive() -> bool` | サブプロセスが実行中 (returncode is None) なら `True` |
-| `call(name, args) -> ToolCallResult` | JSON-RPC リクエストを送信して応答を受け取る。戻り値は `ToolCallResult(data, is_error, "", server_key)`。タイムアウト (`_STDIO_CALL_TIMEOUT=60s`) で `ToolCallResult(msg, True, "", server_key)` を返す |
+| `call(name, args) -> ToolCallResult` | JSON-RPC リクエストを送信して応答を受け取る。戻り値は `ToolCallResult(output, is_error, "", server_key)`。タイムアウト (`_STDIO_CALL_TIMEOUT=60s`) で `ToolCallResult(msg, True, "", server_key)` を返す |
 | `stop() -> None` | stdin をクローズして graceful shutdown。5 秒でタイムアウト後 terminate/kill |
 
 `ToolExecutor` クラス:
@@ -168,7 +168,7 @@ res: ToolCallResult = await executor.execute("read_text_file", {"path": "/opt/ll
 |---|---|
 | `set_transport(server_key, transport) -> None` | stdio サーバのプロセス起動後に `StdioTransport` を登録 |
 | `set_lifecycle(lifecycle) -> None` | `LifecycleProtocol` 実装を注入。`None` でクリア |
-| `execute(tool_name, args) -> ToolCallResult` | plugin ツール → `_execute_with_cache()` の順で解決。plugin エラー時も MCP ルーティングには fall-through しない。戻り値は `ToolCallResult(data, is_error, request_id, server_key)` dataclass |
+| `execute(tool_name, args) -> ToolCallResult` | plugin ツール → `_execute_with_cache()` の順で解決。plugin エラー時も MCP ルーティングには fall-through しない。戻り値は `ToolCallResult(output, is_error, request_id, server_key)` dataclass |
 | `clear_cache() -> None` | ツール結果キャッシュを全クリア (`/clear` コマンドから呼ばれる) |
 
 ルーティング規則 (`ToolRouteResolver.resolve()`):
@@ -211,7 +211,7 @@ async def my_tool(args: dict) -> tuple[str, bool]:
 | 関数 | 説明 |
 |---|---|
 | `is_side_effect(tool_name) -> bool` | write / delete / shell_run ツールのとき `True` を返す。`execute_all_tool_calls()` の直列化判定に使用 |
-| `format_transport_error(*, source, phase, kind, url, status_code, retryable, partial) -> dict[str, str]` | LLM / ツール transport 失敗の `{"summary", "detail"}` 辞書を生成 |
+| `format_transport_error(*, source, phase, kind, url, status_code, retryable, partial) -> TransportErrorInfo` | LLM / ツール transport 失敗の `TransportErrorInfo(summary, detail)` dataclass を生成 |
 | `tool_call_key(name, args) -> str` | `(tool_name, args)` の正規化 MD5 ハッシュキー。dedup 判定で使用 |
 
 ### 3.3 使用スクリプト
