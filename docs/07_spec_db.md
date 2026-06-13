@@ -50,8 +50,8 @@
 
 ### 6.2 スキーマ管理
 - `create_rag_schema()` / `create_session_schema()` でテーブル・インデックス・FTS5・vec0 テーブルを作成
-- migration コードは削除済み。スキーマは常に最新版のみを `CREATE TABLE IF NOT EXISTS` で作成
 - `IF NOT EXISTS` による冪等性を保証（再実行しても既存テーブルを壊さない）
+- `migrate_schema(db_name)` でインクリメンタルなカラム追加（`ALTER TABLE ... ADD COLUMN`）を適用。既存 DB に安全に追加可能（`duplicate column name` エラーは抑制）
 
 ### 6.3 保守機能
 - `checkpoint_wal()` — WAL ファイルのフラッシュ
@@ -142,6 +142,7 @@ RagRepository.vector_search(query, db, top_k)
 | `fetched_at` | TEXT | NOT NULL DEFAULT (datetime('now')) |
 | `etag` | TEXT | |
 | `last_modified` | TEXT | |
+| `chunking_strategy` | TEXT | NOT NULL DEFAULT 'text'（`migrate_schema()` で追加） |
 
 **chunks テーブル:**
 
@@ -288,6 +289,11 @@ def create_rag_schema(db: SQLiteHelper, dims: int | None = None) -> None
 def create_session_schema(db: SQLiteHelper, dims: int | None = None) -> None
 def create_schema(db: SQLiteHelper, db_type: str, dims: int | None = None) -> None
 # run_schema() と get_schema_version() は存在しない。代わりに上記 3 関数を使用。
+
+def migrate_schema(db_name: str = "rag") -> None
+# 既存 DB へインクリメンタルな ALTER TABLE ADD COLUMN を適用。
+# 重複カラムエラー（sqlite3.OperationalError: "duplicate column name"）は抑制するため、
+# 移行済み DB に対して安全に再実行できる。
 ```
 
 ### 10.3 保守関数（db/maintenance.py）

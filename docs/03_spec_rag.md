@@ -100,12 +100,14 @@ Web クロール・チャンク分割・埋め込み生成・SQLite 格納の 4 
   "title": "...",
   "source_file": "...",
   "chunk_type": "text" | "code",
+  "chunking_strategy": "text" | "heading",
   "etag": "...",
   "last_modified": "..."
 }
 ```
 
-※ `chunk_type` は `text` または `code`（`chunk_splitter.py:210-223`）。
+※ `chunk_type` は `text` または `code`（`chunk_splitter.py:210-223`）。  
+※ `chunking_strategy` は `"text"`（通常分割）または `"heading"`（Markdown 見出し境界分割）。Stage 3 で documents テーブルに書き込まれる。
 
 **Stage 3:** SQLite `documents` + `chunks` + `chunks_fts` + `chunks_vec` にアップサート
 
@@ -201,6 +203,7 @@ RagPipeline.augment(query)
 | `fetched_at` | TEXT | 取得日時（ISO-8601） |
 | `etag` | TEXT | HTTP ETag |
 | `last_modified` | TEXT | HTTP Last-Modified |
+| `chunking_strategy` | TEXT DEFAULT `'text'` | チャンク分割戦略（`text`/`heading`）。既存 DB には `migrate_schema()` で追加 |
 
 **chunks テーブル:**
 
@@ -250,6 +253,8 @@ RagPipeline.augment(query)
 | `use_rerank` | True | クロスエンコーダーリランク有効フラグ |
 | `embed_url` | `http://127.0.0.1:8003/embedding` | 埋め込みサーバー URL |
 | `embed_workers` | 4 | 並列埋め込み生成スレッド数 |
+| `md_index_enable` | False | 非 `.md` コンテンツへの heading chunking ヒューリスティックを有効化（`.md/.markdown/.mdx` は常に有効） |
+| `md_snippet_max_chars` | 600 | Markdown 見出しセクションの最大文字数。超過時は通常 text chunking にフォールバック |
 
 ---
 
@@ -335,7 +340,7 @@ class PipelineStage(Protocol):
 
 | 検証項目 | ツール | 合格基準 |
 |---|---|---|
-| ユニットテスト | `uv run pytest tests/test_rag_pipeline.py tests/test_rag_utils.py` | 全パス |
+| ユニットテスト | `uv run pytest tests/test_rag_pipeline.py tests/test_rag_utils.py tests/test_chunk_splitter.py` | 全パス |
 | 型チェック | `uv run mypy scripts/rag/` | 新規エラーなし |
 | セキュリティ | `uv run bandit -r scripts/rag/` | HIGH 未対応なし |
 | 統合テスト | `/ingest <url>` → `/rag search <q>` | ヒット返却を確認 |
