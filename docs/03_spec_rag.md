@@ -352,8 +352,7 @@ class PipelineStage(Protocol):
 
 | 項目 | 詳細 |
 |---|---|
-| **[BUG] chunking_strategy が常に `'text'`** | `ingester._read_chunk_json()` が `dataclasses.asdict(read_json_file(path))` 経由で JSON を読むため、`ChunkDocument` に存在しない `chunking_strategy` フィールドが消える。結果として `.md` ファイルでも DB には常に `'text'` が保存される。修正方針: `_read_chunk_json()` を生 JSON 読み取り（`orjson.loads`）に変更し `ChunkDocument` を経由させない (`ingester.py:237-245`) |
-| `_embed_and_store` の chunk_index ハードコード | `ingester.py:257-260` の `try: idx = 0` ブロックが空のため `chunk_index` は常に 0 になる。全チャンクが `chunk_index=0` で DB に登録される（バグ） |
+| **[BUG-1/2/3] `_read_chunk_json()` による 3 フィールド欠落** | 根本原因: `ingester._read_chunk_json()` が `dataclasses.asdict(read_json_file(path))` を経由するため `ChunkDocument` に存在しないフィールドが消える。派生バグ 3 件: (1) `chunking_strategy` 欠落 → 常に `'text'` が DB 保存 (`ingester.py:94`)、(2) `normalized_content` が `None` ハードコード → 日本語 FTS5 が Sudachi 正規化テキストを無視し検索精度低下 (`ingester.py:255`)、(3) `chunk_index` が `try: idx=0` の dead code で常に 0 → 全チャンクが `chunk_index=0` で登録 (`ingester.py:257-260`)。修正方針: `_read_chunk_json()` を `orjson.loads(path.read_bytes())` に変更 (`ingester.py:237-245`) |
 | Prompt Injection 防御 | `utils.py:43-48` の `sanitize_document()` が prompt injection パターンを `[REMOVED]` に置換。`pipeline.py:254`, `stages/augment.py:13` で呼ばれている（実装済み） |
 | 外部 RAG サービス | `rag_service_url` 設定時の外部委譲は実装済みだが、認証・エラー処理の仕様が未定義 |
 | MDQ との分離 | Markdown 専用インデックス（`mdq-mcp`）との責務分担が `04_mcp-mdq.md` に記載されているが、移行基準が未定義 |
