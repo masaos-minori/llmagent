@@ -36,7 +36,7 @@
 | 単一ノード | SQLite の分散・レプリカ構成は対象外 |
 | WAL モード | 書き込みと読み取りを分離するため WAL（Write-Ahead Logging）を有効化 |
 | `busy_timeout` | ロック待ち時間を設定（`config/common.toml` の `sqlite_timeout`、デフォルト 30 秒）で指定 |
-| 埋め込み次元 | `db/config.py` の `embedding_dims` で設定（デフォルト 384）。ただし `rag/models.py:56` では `embed_dimension=768` がデフォルト |
+| 埋め込み次元 | `db/config.py` の `embedding_dims` で設定（デフォルト 384） |
 | `common.toml` 非統合 | `load_all()` が `common.toml` を読み込まないため、`build_db_config()` で空文字列になる可能性あり（既知問題） |
 
 ---
@@ -44,7 +44,7 @@
 ## 6. 機能要件
 
 ### 6.1 接続管理
-- `SQLiteHelper(db_type="rag"|"session")` でデータベースごとの接続を管理
+- `SQLiteHelper(target="rag"|"session")` でデータベースごとの接続を管理
 - WAL モード・`PRAGMA synchronous = NORMAL`・`busy_timeout` の自動設定
 - sqlite-vec 拡張の自動ロード
 
@@ -73,7 +73,7 @@ db = SQLiteHelper(target="session").open(row_factory=True)
 # target: "rag" → rag.sqlite, "session" → session.sqlite
 
 # コンテキストマネージャーとして使用
-with SQLiteHelper(db_type="rag") as db:
+with SQLiteHelper(target="rag") as db:
     result = db.conn.execute("SELECT ...", params)
 ```
 
@@ -85,7 +85,7 @@ class DbConfig:
     rag_db_path: str          # rag.sqlite のパス
     session_db_path: str      # session.sqlite のパス
     sqlite_vec_so: str = ""   # sqlite-vec 拡張ファイルパス（空文字列 = 不要）
-    sqlite_timeout: int = 30  # busy_timeout（秒、1 以上）
+    sqlite_timeout: int = 30  # sqlite3.connect() timeout (秒、1 以上)
     sqlite_busy_timeout_ms: int = 30000  # busy_timeout（ミリ秒、db/config.py:25）
     embedding_dims: int = 384  # 埋め込み次元数 (db/config.py:27)
 
@@ -117,7 +117,7 @@ SQLiteHelper.open()
 
 ```
 RagRepository.vector_search(query, db, top_k)
-  → floats_to_blob(query_embedding)  # struct.pack("<384f", ...)
+  → validate_embedding_blob(embedding_blob)  # get_embedding_bytes() でサイズ検証
   → SELECT chunk_id, distance FROM chunks_vec
       WHERE embedding MATCH ?
       ORDER BY distance LIMIT top_k
@@ -164,10 +164,13 @@ CREATE VIRTUAL TABLE chunks_fts USING fts5(
 )
 ```
 
-**chunks_vec（sqlite-vec ビュー）:**
+**chunks_vec（sqlite-vec 仮想テーブル）:**
 ```sql
-CREATE VIEW chunks_vec AS SELECT chunk_id, embedding FROM chunks
--- embedding は BLOB 形式 (struct.pack("<{n}f", ...) でパック)。float[DIMS] ではない。
+CREATE VIRTUAL TABLE chunks_vec USING vec0(
+    chunk_id  INTEGER PRIMARY KEY,
+    embedding float[DIMS]
+)
+-- DIMS は embedding_dims config から動的に置換 (create_schema.py:_build_rag_schema_sql)
 ```
 
 ### 9.2 session.sqlite スキーマ
@@ -271,8 +274,8 @@ class SQLiteHelper:
     def begin_immediate() -> Generator[None]  # BEGIN IMMEDIATE...COMMIT
     @contextmanager
     def begin_exclusive() -> Generator[None]  # BEGIN EXCLUSIVE...COMMIT (VACUUM/DDL 用)
-    def health_check() -> dict[str, Any]  # {journal_mode, integrity, page_count, page_size, freelist_count, db_size_bytes}
-    def checkpoint(mode: str = "TRUNCATE") -> WalCheckpointCounts  # {"PASSIVE", "FULL", "RESTART", "TRUNCATE"} → {busy, log_size, pages_checkpointed}（`pages_in_wal` ではなく `log_size`）
+    def health_check() -> DbHealthMetrics  # {journal_mode, integrity, page_count, page_size, freelist_count, db_size_bytes}
+    def checkpoint(mode: str = "TRUNCATE") -> WalCheckpointCounts  # {"PASSIVE", "FULL", "RESTART", "TRUNCATE"} → {busy, log_size, pages_checkpointed}
     def vacuum() -> None
     def execute(sql: str, params: dict[str, Any] | tuple[Any, ...] = ()) -> sqlite3.Cursor
    # params は辞書（名前付きパラメータ）とタプルの両方に対応
@@ -286,10 +289,10 @@ class SQLiteHelper:
 ### 10.2 スキーマ管理（db/create_schema.py）
 
 ```python
-def create_rag_schema(db: SQLiteHelper, dims: int | None = None) -> None
-def create_session_schema(db: SQLiteHelper, dims: int | None = None) -> None
-def create_schema(db: SQLiteHelper, db_type: str, dims: int | None = None) -> None
-# run_schema() と get_schema_version() は存在しない。代わりに上記 3 関数を使用。
+def create_rag_schema() -> None      # config から dims を取得して rag.sqlite に適用
+def create_session_schema() -> None  # config から dims を取得して session.sqlite に適用
+def create_schema() -> None          # 上記 2 関数を順に呼び出す
+# run_schema() と get_schema_version() は存在しない。
 
 def migrate_schema(db_name: str = "rag") -> None
 # 既存 DB へインクリメンタルな ALTER TABLE ADD COLUMN を適用。
@@ -301,13 +304,13 @@ def migrate_schema(db_name: str = "rag") -> None
 
 ```python
 # WAL チェックポイント
-def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> dict[str, int]
+def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> WalCheckpointCounts
 
 # VACUUM
 def vacuum_db(db: SQLiteHelper) -> None
 
 # セッション保持ポリシー
-def purge_old_sessions(db: SQLiteHelper, cfg: RetentionConfig | None = None) -> dict[str, int]
+def purge_old_sessions(db: SQLiteHelper, cfg: RetentionConfig | None = None) -> PurgeCounts
 # RetentionConfig: @dataclass(max_age_days, max_sessions) — from_config() で common.toml から生成
 
 # メモリ保持
@@ -319,7 +322,7 @@ def rotate_session_db(archive_dir: str | Path | None = None) -> Path
 def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]
 
 # 障害復旧
-def recover_corruption(target: str = "rag", backup_path: str | Path | None = None, *, dry_run: bool = False) -> RecoveryResult
+def recover_corruption(backup_path: str | Path | None = None, *, target: str = "rag", dry_run: bool = False) -> RecoveryResult
 # target: "rag" または "session"（両方をサポート。デフォルト "rag"）
 # RecoveryResult: @dataclass(success: bool, action: str, detail: str|None=None, dry_run: bool=False) — action: "vacuum" | "vacuum_failed" | "restored" | "no_backup" | "error"
 ```
@@ -330,9 +333,9 @@ def recover_corruption(target: str = "rag", backup_path: str | Path | None = Non
 class ToolResultStore:
     def store(session_id: int | None, turn: int, tool_name: str, args_masked: str,
               full_text: str, summary: str | None, is_error: bool) -> int | None
-    # 戻り値: 新規行の id（DB エラー時は例外を送出する。None を返さない）
-    def get(result_id: int) -> dict | None
-    def list_recent(session_id: int | None, n: int = 20) -> list[dict]
+    # 戻り値: 新規行の id（DB エラー時は例外を送出。戻り値の None は安全性のため残り）
+    def get(result_id: int) -> ToolResultRow | None
+    def list_recent(session_id: int | None, n: int = 20) -> list[ToolResultRow]
 ```
 
 ---
