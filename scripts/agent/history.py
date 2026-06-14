@@ -14,7 +14,10 @@ import orjson
 from shared.token_counter import get_token_count
 from shared.types import LLMMessage
 
-from agent.history_selection_policy import HistorySelectionPolicy
+from agent.history_selection_policy import (
+    HistorySelectionPolicy,
+    SelectionResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -246,44 +249,62 @@ class HistoryManager:
         _no_op = CompressResult(
             compressed_count=0, protected_count=0, summary_added=False
         )
-        over_char = (
-            self._char_limit > 0 and self.count_chars(history) > self._char_limit
-        )
-        if self._token_limit > 0:
-            token_count, _ = await self.count_tokens_async(history)
-            over_token = token_count > self._token_limit
-        else:
-            token_count = 0
-            over_token = False
+        over_char = self._is_over_char_limit(history)
+        token_count, over_token = await self._check_limits(history, over_char)
         if not over_char and not over_token:
             return history, _no_op
         split = self._selection_policy.select_turns_to_compress(history)
         if split is None:
-            logger.warning(
-                f"History compression skipped: protect_turns={self._protect_turns}"
-                f" + compress_turns={self._compress_turns} >= available turns."
-                f" chars={self.count_chars(history)} limit={self._char_limit}"
-                f" tokens={token_count} token_limit={self._token_limit}."
-                " Consider reducing protect_turns or increasing"
-                " context_char_limit.",
-            )
+            self._log_skip_warning(history, token_count)
             return history, _no_op
-        system_msgs = split.system_msgs
-        to_compress = split.to_compress
-        remaining = split.remaining
-        summary_text = await self._call_compress_llm(
-            self._build_history_text(to_compress),
-        )
+        summary_text = await self._get_summary_text(split.to_compress)
         if summary_text is None:
             return history, _no_op
+        return self._build_compressed_result(split, summary_text)
 
-        summary_msg = self._build_summary_msg(system_msgs, summary_text)
-        n = len(to_compress)
+    def _is_over_char_limit(self, history: list[LLMMessage]) -> bool:
+        """Return True when history exceeds the character limit."""
+        return self._char_limit > 0 and self.count_chars(history) > self._char_limit
+
+    async def _check_limits(
+        self, history: list[LLMMessage], over_char: bool
+    ) -> tuple[int, bool]:
+        """Return (token_count, over_token). Returns (0, False) when char already exceeds."""
+        if not over_char and self._token_limit > 0:
+            token_count, _ = await self.count_tokens_async(history)
+            return token_count, token_count > self._token_limit
+        return 0, False
+
+    def _log_skip_warning(
+        self, history: list[LLMMessage], token_count: int
+    ) -> None:
+        """Log why compression was skipped."""
+        logger.warning(
+            f"History compression skipped: protect_turns={self._protect_turns}"
+            f" + compress_turns={self._compress_turns} >= available turns."
+            f" chars={self.count_chars(history)} limit={self._char_limit}"
+            f" tokens={token_count} token_limit={self._token_limit}."
+            " Consider reducing protect_turns or increasing"
+            " context_char_limit.",
+        )
+
+    async def _get_summary_text(self, to_compress: list[LLMMessage]) -> str | None:
+        """Send compressed history to LLM and return summary text, or None on failure."""
+        return await self._call_compress_llm(self._build_history_text(to_compress))
+
+    def _build_compressed_result(
+        self, split: SelectionResult, summary_text: str
+    ) -> tuple[list[LLMMessage], CompressResult]:
+        """Build the compressed history list and CompressResult."""
+        system_msgs = split.system_msgs
+        remaining = split.remaining
+        n = len(split.to_compress)
         protected = len(remaining) - len(system_msgs)
         self.stat_compress_count += 1
         logger.info(f"History compressed: {n} messages summarized")
         if self._on_compress:
             self._on_compress(n)
+        summary_msg = self._build_summary_msg(system_msgs, summary_text)
         result = CompressResult(
             compressed_count=n,
             protected_count=protected,

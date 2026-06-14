@@ -219,16 +219,29 @@ async def execute_all_tool_calls(
         results = await _execute_standard(ctx, approved_calls, turn)
 
     tool_msgs = _collect_tool_result_msgs(ctx, results, turn, out_failed_keys)
+    denied_history, denied_msgs = _build_denied_messages(denied_ids)
+    ctx.conv.history.extend(denied_history)  # type: ignore[arg-type]
+    tool_msgs.extend(denied_msgs)
+    ctx.session.save_many(tool_msgs)
+
+
+def _build_denied_messages(
+    denied_ids: list[str],
+) -> tuple[list[dict], list[tuple[str, str, None, str]]]:
+    """Build history entries and tool_msgs for denied tool calls."""
+    denied_text = "Tool execution denied by user."
+    history_entries: list[dict] = []
+    messages: list[tuple[str, str, None, str]] = []
     for denied_id in denied_ids:
-        ctx.conv.history.append(
+        history_entries.append(
             {
                 "role": "tool",
                 "tool_call_id": denied_id,
-                "content": "Tool execution denied by user.",
+                "content": denied_text,
             },
         )
-        tool_msgs.append(("tool", "Tool execution denied by user.", None, denied_id))
-    ctx.session.save_many(tool_msgs)
+        messages.append(("tool", denied_text, None, denied_id))
+    return history_entries, messages
 
 
 # Expose sqlite3 in module scope so callers can catch the right exception type.
