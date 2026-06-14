@@ -62,36 +62,63 @@ class LLMConfig:
     budget_warn_ratio: float = 0.8
 
     def __post_init__(self) -> None:
+        self._validate_context_char_limit()
+        self._validate_budget_warn_ratio()
+        self._validate_llm_max_retries()
+        self._validate_llm_retry_base_delay()
+        self._validate_llm_temperature()
+        self._validate_llm_max_tokens()
+        self._validate_sse_heartbeat_timeout()
+        self._validate_sse_malformed_retry()
+        self._validate_sse_reconnect_max()
+
+    def _validate_context_char_limit(self) -> None:
         if self.context_char_limit < 0:
             raise ValueError(
                 f"context_char_limit must be >= 0, got {self.context_char_limit}",
             )
+
+    def _validate_budget_warn_ratio(self) -> None:
         if not 0.0 < self.budget_warn_ratio <= 1.0:
             raise ValueError(
                 f"budget_warn_ratio must be in (0.0, 1.0], got {self.budget_warn_ratio}",
             )
+
+    def _validate_llm_max_retries(self) -> None:
         if self.llm_max_retries < 0:
             raise ValueError(
                 f"llm_max_retries must be >= 0, got {self.llm_max_retries}",
             )
+
+    def _validate_llm_retry_base_delay(self) -> None:
         if self.llm_retry_base_delay <= 0:
             raise ValueError(
                 f"llm_retry_base_delay must be > 0, got {self.llm_retry_base_delay}",
             )
+
+    def _validate_llm_temperature(self) -> None:
         if not 0.0 <= self.llm_temperature <= LLM_TEMPERATURE_MAX:
             raise ValueError(
                 f"llm_temperature must be in [0.0, {LLM_TEMPERATURE_MAX}], got {self.llm_temperature}",
             )
+
+    def _validate_llm_max_tokens(self) -> None:
         if self.llm_max_tokens < 1:
             raise ValueError(f"llm_max_tokens must be >= 1, got {self.llm_max_tokens}")
+
+    def _validate_sse_heartbeat_timeout(self) -> None:
         if self.sse_heartbeat_timeout < 0:
             raise ValueError(
                 f"sse_heartbeat_timeout must be >= 0, got {self.sse_heartbeat_timeout}",
             )
+
+    def _validate_sse_malformed_retry(self) -> None:
         if self.sse_malformed_retry < 0:
             raise ValueError(
                 f"sse_malformed_retry must be >= 0, got {self.sse_malformed_retry}",
             )
+
+    def _validate_sse_reconnect_max(self) -> None:
         if self.sse_reconnect_max < 0:
             raise ValueError(
                 f"sse_reconnect_max must be >= 0, got {self.sse_reconnect_max}",
@@ -117,20 +144,38 @@ class RAGConfig:
     refiner_max_chars_per_chunk: int = 300
 
     def __post_init__(self) -> None:
+        self._validate_top_k_search()
+        self._validate_top_k_rerank()
+        self._validate_max_chunks_per_doc()
+        self._validate_refiner_max_tokens()
+        self._validate_refiner_timeout()
+        self._validate_refiner_max_chars_per_chunk()
+
+    def _validate_top_k_search(self) -> None:
         if self.top_k_search < 1:
             raise ValueError(f"top_k_search must be >= 1, got {self.top_k_search}")
+
+    def _validate_top_k_rerank(self) -> None:
         if self.top_k_rerank < 1:
             raise ValueError(f"top_k_rerank must be >= 1, got {self.top_k_rerank}")
+
+    def _validate_max_chunks_per_doc(self) -> None:
         if self.max_chunks_per_doc < 1:
             raise ValueError(
                 f"max_chunks_per_doc must be >= 1, got {self.max_chunks_per_doc}",
             )
+
+    def _validate_refiner_max_tokens(self) -> None:
         if self.refiner_max_tokens < 1:
             raise ValueError(
                 f"refiner_max_tokens must be >= 1, got {self.refiner_max_tokens}",
             )
+
+    def _validate_refiner_timeout(self) -> None:
         if self.refiner_timeout <= 0:
             raise ValueError(f"refiner_timeout must be > 0, got {self.refiner_timeout}")
+
+    def _validate_refiner_max_chars_per_chunk(self) -> None:
         if self.refiner_max_chars_per_chunk < 1:
             raise ValueError(
                 f"refiner_max_chars_per_chunk must be >= 1,"
@@ -187,24 +232,39 @@ class ToolConfig:
     allowed_tools: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        self._validate_tool_dedup_max_repeats()
+        self._validate_tool_cycle_detect_window()
+        self._validate_tool_error_max_consecutive()
+        self._validate_tool_cache_max_size()
+        self._validate_tool_error_retry_max()
+
+    def _validate_tool_dedup_max_repeats(self) -> None:
         if self.tool_dedup_max_repeats < 1:
             raise ValueError(
                 f"tool_dedup_max_repeats must be >= 1, got {self.tool_dedup_max_repeats}",
             )
+
+    def _validate_tool_cycle_detect_window(self) -> None:
         if self.tool_cycle_detect_window < 0:
             raise ValueError(
                 "tool_cycle_detect_window must be >= 0,"
                 f" got {self.tool_cycle_detect_window}",
             )
+
+    def _validate_tool_error_max_consecutive(self) -> None:
         if self.tool_error_max_consecutive < 0:
             raise ValueError(
                 "tool_error_max_consecutive must be >= 0,"
                 f" got {self.tool_error_max_consecutive}",
             )
+
+    def _validate_tool_cache_max_size(self) -> None:
         if self.tool_cache_max_size < 0:
             raise ValueError(
                 f"tool_cache_max_size must be >= 0, got {self.tool_cache_max_size}",
             )
+
+    def _validate_tool_error_retry_max(self) -> None:
         if self.tool_error_retry_max < 0:
             raise ValueError(
                 f"tool_error_retry_max must be >= 0, got {self.tool_error_retry_max}",
@@ -240,14 +300,23 @@ class MemoryConfig:
     memory_recency_days: float = 7.0
 
     def __post_init__(self) -> None:
+        self._validate_memory_fts_limit()
+        self._validate_memory_rrf_k()
+        self._validate_memory_recency_days()
+
+    def _validate_memory_fts_limit(self) -> None:
         if self.memory_fts_limit < 1:
             raise ValueError(
                 f"memory_fts_limit must be >= 1, got {self.memory_fts_limit}",
             )
+
+    def _validate_memory_rrf_k(self) -> None:
         if self.memory_rrf_k < 1:
             raise ValueError(
                 f"memory_rrf_k must be >= 1, got {self.memory_rrf_k}",
             )
+
+    def _validate_memory_recency_days(self) -> None:
         if self.memory_recency_days <= 0:
             raise ValueError(
                 f"memory_recency_days must be > 0, got {self.memory_recency_days}",
@@ -361,6 +430,10 @@ class ApprovalConfig:
     )
 
     def __post_init__(self) -> None:
+        self._validate_approval_risk_rules()
+        self._validate_tool_safety_tiers()
+
+    def _validate_approval_risk_rules(self) -> None:
         _valid_risk = {"none", "medium", "high"}
         bad = {
             k: v for k, v in self.approval_risk_rules.items() if v not in _valid_risk
@@ -370,6 +443,8 @@ class ApprovalConfig:
                 f"approval_risk_rules: invalid levels {bad};"
                 " must be 'none', 'medium', or 'high'",
             )
+
+    def _validate_tool_safety_tiers(self) -> None:
         _valid_tiers = {"READ_ONLY", "WRITE_SAFE", "WRITE_DANGEROUS", "ADMIN"}
         bad_tiers = {
             k: v for k, v in self.tool_safety_tiers.items() if v not in _valid_tiers
@@ -421,14 +496,23 @@ class AgentConfig:
 
     def _validate_cross_field(self) -> None:
         """Validate interdependent settings that span sub-config boundaries."""
+        self._validate_semantic_cache_url()
+        self._validate_memory_jsonl_dir()
+        self._validate_memory_embed_url()
+
+    def _validate_semantic_cache_url(self) -> None:
         if self.rag.use_semantic_cache and not self.rag.embed_url:
             raise ValueError(
                 "use_semantic_cache=True requires embed_url to be non-empty",
             )
+
+    def _validate_memory_jsonl_dir(self) -> None:
         if self.memory.use_memory_layer and not self.memory.memory_jsonl_dir:
             raise ValueError(
                 "use_memory_layer=True requires memory_jsonl_dir to be non-empty",
             )
+
+    def _validate_memory_embed_url(self) -> None:
         if self.memory.memory_embed_enabled and not self.rag.embed_url:
             raise ValueError(
                 "memory_embed_enabled=True requires embed_url to be non-empty",

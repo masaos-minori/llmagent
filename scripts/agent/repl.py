@@ -117,6 +117,35 @@ class AgentREPL:
     async def _watchdog_loop(self) -> None:
         await watchdog_loop(self._ctx)
 
+    async def _start_watchdog(self, ctx: AgentContext) -> "asyncio.Task | None":
+        """Create the watchdog task if watchdog_interval > 0."""
+        if ctx.cfg.mcp.mcp_watchdog_interval > 0:
+            return asyncio.create_task(self._watchdog_loop())
+        return None
+
+    async def _stop_watchdog(self, task: "asyncio.Task | None") -> None:
+        """Cancel and await the watchdog task, suppressing CancelledError."""
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+    async def _persist_session_memories(self, ctx: AgentContext) -> None:
+        """Extract and persist session memories before compression or resource close."""
+        if ctx.services.memory is not None:
+            try:
+                await ctx.services.memory.on_session_stop(
+                    session_id=ctx.session.session_id,
+                    history=ctx.conv.history,
+                    turn_id=ctx.turn.current_turn_id,
+                )
+            except (RuntimeError, sqlite3.Error, OSError):
+                logger.exception(
+                    "Memory on_session_stop failed; session data may be incomplete"
+                )
+
     async def _close_resources(self) -> None:
         """Close all session resources. Called in the run() finally block."""
         self._view.write_history()
@@ -307,34 +336,16 @@ class AgentREPL:
     async def _run_repl_loop(self) -> None:
         """Run the main REPL loop with watchdog if enabled."""
         ctx = self._ctx
-        _watchdog_task: asyncio.Task | None = None
+        _watchdog_task = await self._start_watchdog(ctx)
         try:
             self._print_startup_banner()
             ctx.session.start()
             if ctx.services.tools is not None and ctx.session.session_id is not None:
                 ctx.services.tools.set_session_id(str(ctx.session.session_id))
-            if ctx.cfg.mcp.mcp_watchdog_interval > 0:
-                _watchdog_task = asyncio.create_task(self._watchdog_loop())
             await self._repl_loop()
         finally:
-            # Stop: extract and persist memories before compression or resource close
-            if ctx.services.memory is not None:
-                try:
-                    await ctx.services.memory.on_session_stop(
-                        session_id=ctx.session.session_id,
-                        history=ctx.conv.history,
-                        turn_id=ctx.turn.current_turn_id,
-                    )
-                except (RuntimeError, sqlite3.Error, OSError):
-                    logger.exception(
-                        "Memory on_session_stop failed; session data may be incomplete"
-                    )
-            if _watchdog_task is not None:
-                _watchdog_task.cancel()
-                try:
-                    await _watchdog_task
-                except asyncio.CancelledError:
-                    pass
+            await self._persist_session_memories(ctx)
+            await self._stop_watchdog(_watchdog_task)
             await self._close_resources()
 
     async def run(self) -> None:
