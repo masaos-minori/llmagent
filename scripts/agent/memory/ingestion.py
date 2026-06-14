@@ -19,7 +19,7 @@ from enum import StrEnum
 
 from db.helper import SQLiteHelper
 
-from agent.memory.embedding_client import EmbeddingClient
+from agent.memory.embedding_client import EmbeddingClient, EmbeddingResult
 from agent.memory.enums import MemoryType
 from agent.memory.extract import extract_memories
 from agent.memory.jsonl_store import JsonlMemoryStore
@@ -92,27 +92,39 @@ class MemoryIngestionService:
             logger.debug("MemoryIngestionService.on_session_stop: no entries extracted")
             return
         for entry in entries:
-            embed_result = await self._embed_client.fetch(entry.content)
-            embedding = embed_result.embedding if embed_result.success else None
-            if (
-                self._dedup_policy.action == DedupAction.SKIP_NEW
-                and embed_result.success
-                and embed_result.embedding is not None
-                and self._has_near_duplicate(entry.memory_id, embed_result.embedding)
-            ):
-                logger.debug("memory.skip_dup memory_id=%r", entry.memory_id)
-                continue
-            await self._jsonl.write(entry)
-            self._store.upsert(entry, embedding=embedding)
-            if embed_result.success and embed_result.embedding is not None:
-                self._link_duplicates(entry.memory_id, embed_result.embedding)
-            logger.info(
-                "memory.persist memory_id=%r type=%s importance=%.2f",
-                entry.memory_id,
-                entry.memory_type,
-                entry.importance,
-            )
+            await self._persist_entry_with_dedup(entry)
         logger.info("MemoryIngestionService.on_session_stop: persisted entries")
+
+    async def _persist_entry_with_dedup(self, entry: MemoryEntry) -> None:
+        """Embed, dedup-check, and persist a single memory entry."""
+        embed_result = await self._embed_client.fetch(entry.content)
+        embedding = embed_result.embedding if embed_result.success else None
+        if self._should_skip_dedup(embed_result, entry.memory_id):
+            return
+        await self._jsonl.write(entry)
+        self._store.upsert(entry, embedding=embedding)
+        if embed_result.success and embed_result.embedding is not None:
+            self._link_duplicates(entry.memory_id, embed_result.embedding)
+        logger.info(
+            "memory.persist memory_id=%r type=%s importance=%.2f",
+            entry.memory_id,
+            entry.memory_type,
+            entry.importance,
+        )
+
+    def _should_skip_dedup(
+        self, embed_result: EmbeddingResult, memory_id: str
+    ) -> bool:
+        """Return True when dedup skips this entry."""
+        if (
+            self._dedup_policy.action == DedupAction.SKIP_NEW
+            and embed_result.success
+            and embed_result.embedding is not None
+            and self._has_near_duplicate(memory_id, embed_result.embedding)
+        ):
+            logger.debug("memory.skip_dup memory_id=%r", memory_id)
+            return True
+        return False
 
     # ── Dedup helpers ─────────────────────────────────────────────────────────
 

@@ -63,6 +63,27 @@ def _floats_to_blob(values: list[float], expected_dim: int | None = None) -> byt
     return struct.pack(f"{len(values)}f", *values)
 
 
+def _count_fts(db: SQLiteHelper) -> int:
+    """Return row count in memories_fts; try MATCH predicate, fall back to plain COUNT.
+
+    Raises MemoryConsistencyError when neither query succeeds.
+    """
+    try:
+        rows = db.fetchall(
+            "SELECT COUNT(*) FROM memories_fts WHERE memories_fts MATCH '*'"
+        )
+        return int(rows[0][0]) if rows else 0
+    except sqlite3.OperationalError:
+        pass
+    try:
+        rows = db.fetchall("SELECT COUNT(*) FROM memories_fts")
+        return int(rows[0][0]) if rows else 0
+    except sqlite3.OperationalError as e:
+        raise MemoryConsistencyError(
+            f"Cannot count memories_fts: {e}"
+        ) from e
+
+
 class MemoryStore:
     """CRUD operations for memories, memories_fts, and memories_vec tables."""
 
@@ -249,20 +270,7 @@ class MemoryStore:
         with SQLiteHelper("session").open() as db:
             rows = db.fetchall("SELECT COUNT(*) FROM memories")
             memories = int(rows[0][0]) if rows else 0
-            try:
-                fts_rows = db.fetchall(
-                    "SELECT COUNT(*) FROM memories_fts WHERE memories_fts MATCH '*'"
-                )
-                fts = int(fts_rows[0][0]) if fts_rows else 0
-            except sqlite3.OperationalError:
-                # Fallback: direct count without FTS predicate
-                try:
-                    fts_rows2 = db.fetchall("SELECT COUNT(*) FROM memories_fts")
-                    fts = int(fts_rows2[0][0]) if fts_rows2 else 0
-                except sqlite3.OperationalError as e:
-                    raise MemoryConsistencyError(
-                        f"Cannot count memories_fts: {e}"
-                    ) from e
+            fts = _count_fts(db)
         vec = self.count_vec()
         return ConsistencyReport(memories=memories, fts=fts, vec=vec)
 

@@ -14,7 +14,7 @@ from agent.memory.enums import MemoryType
 from agent.memory.exceptions import InjectionValidationError
 from agent.memory.models import MemorySnippet
 from agent.memory.retriever import HybridRetriever
-from agent.memory.types import MemoryQuery
+from agent.memory.types import MemoryHit, MemoryQuery
 
 logger = logging.getLogger(__name__)
 
@@ -98,30 +98,29 @@ class MemoryInjectionService:
             project=self._project,
             repo=self._repo,
         )
-        snippets: list[MemorySnippet] = []
-        for hit in hits_s:
-            snippet = (
-                hit.entry.summary if hit.entry.summary else hit.entry.content[:100]
-            )
-            snippets.append(
-                MemorySnippet(
-                    text=f"{self._policy.format_prefix_semantic} {snippet}",
-                    source="semantic",
-                )
-            )
-        for hit in hits_e:
-            snippet = (
-                hit.entry.summary if hit.entry.summary else hit.entry.content[:100]
-            )
-            snippets.append(
-                MemorySnippet(
-                    text=f"{self._policy.format_prefix_episodic} {snippet}",
-                    source="episodic",
-                )
-            )
+        snippets_s = self._build_snippets_from_hits(hits_s, self._policy.format_prefix_semantic, "semantic")
+        snippets_e = self._build_snippets_from_hits(hits_e, self._policy.format_prefix_episodic, "episodic")
+        snippets = snippets_s + snippets_e
         if snippets:
             logger.debug(
                 "MemoryInjectionService.on_user_prompt: returning %d snippets",
                 len(snippets),
+            )
+        return snippets
+
+    def _build_snippets_from_hits(
+        self, hits: list[MemoryHit], prefix: str, source: str
+    ) -> list[MemorySnippet]:
+        """Build MemorySnippet list from ranked hits."""
+        snippets: list[MemorySnippet] = []
+        for hit in hits:
+            snippet_text = (
+                hit.entry.summary if hit.entry.summary else hit.entry.content[:100]
+            )
+            snippets.append(
+                MemorySnippet(
+                    text=f"{prefix} {snippet_text}",
+                    source=source,
+                )
             )
         return snippets

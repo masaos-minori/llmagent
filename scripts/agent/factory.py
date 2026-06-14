@@ -208,69 +208,107 @@ def _build_memory_services(
     """Build and return MemoryServices when use_memory_layer=True, else None."""
     if not ctx.cfg.memory.use_memory_layer:
         return None
+
     # Deferred imports to reduce startup cost when memory is disabled
-    from agent.memory.embedding_client import (
-        EmbeddingClient,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
-        EmbeddingClientConfig,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+    from agent.memory.embedding_client import (  # noqa: PLC0415 — lazy
+        EmbeddingClient,
+        EmbeddingClientConfig,
     )
-    from agent.memory.ingestion import (
-        DedupPolicy,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
-        MemoryIngestionService,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+    from agent.memory.ingestion import (  # noqa: PLC0415 — lazy
+        DedupPolicy,
+        MemoryIngestionService,
     )
-    from agent.memory.injection import (
-        InjectionPolicy,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
-        MemoryInjectionService,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+    from agent.memory.injection import (  # noqa: PLC0415 — lazy
+        InjectionPolicy,
+        MemoryInjectionService,
     )
-    from agent.memory.jsonl_store import (
-        JsonlMemoryStore,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
-    )
-    from agent.memory.retriever import (
-        HybridRetriever,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
-    )
-    from agent.memory.services import (
-        MemoryServices,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
-    )
-    from agent.memory.store import (
-        MemoryStore,  # noqa: PLC0415 — lazy: reduces startup cost when use_memory_layer=false
+    from agent.memory.jsonl_store import JsonlMemoryStore  # noqa: PLC0415 — lazy
+    from agent.memory.retriever import HybridRetriever  # noqa: PLC0415 — lazy
+    from agent.memory.services import MemoryServices  # noqa: PLC0415 — lazy
+    from agent.memory.store import MemoryStore  # noqa: PLC0415 — lazy
+
+    embed_client = _build_embedding_client(ctx, http, EmbeddingClient, EmbeddingClientConfig)
+    retriever = _build_retriever(ctx, HybridRetriever)
+    store = MemoryStore()
+    jsonl = _build_jsonl_store(ctx, JsonlMemoryStore)
+    injection = _build_injection_service(embed_client, retriever, ctx, InjectionPolicy, MemoryInjectionService)
+    ingestion = _build_ingestion_service(store, jsonl, retriever, embed_client, ctx, DedupPolicy, MemoryIngestionService)
+
+    _build_audit_logger(ctx).info("MemoryServices initialised (use_memory_layer=True)")
+    return MemoryServices(
+        injection=injection,  # type: ignore[arg-type]
+        ingestion=ingestion,  # type: ignore[arg-type]
+        store=store,
+        retriever=retriever,  # type: ignore[arg-type]
     )
 
-    embed_cfg = EmbeddingClientConfig(
+
+def _build_embedding_client(
+    ctx: AgentContext,
+    http: httpx.AsyncClient,
+    client_cls: type,
+    config_cls: type,
+) -> object:
+    """Build and return the embedding client instance."""
+    cfg = config_cls(
         embed_url=ctx.cfg.rag.embed_url,
         timeout=ctx.cfg.memory.memory_embed_timeout_sec,
     )
-    embed_client = EmbeddingClient(
-        embed_cfg, http, enabled=ctx.cfg.memory.memory_embed_enabled
-    )
-    retriever = HybridRetriever(
+    return client_cls(cfg, http, enabled=ctx.cfg.memory.memory_embed_enabled)
+
+
+def _build_retriever(ctx: AgentContext, retriever_cls: type) -> object:
+    """Build and return the hybrid retriever instance."""
+    return retriever_cls(
         fts_limit=ctx.cfg.memory.memory_fts_limit,
         rrf_k=ctx.cfg.memory.memory_rrf_k,
         recency_days=ctx.cfg.memory.memory_recency_days,
     )
-    store = MemoryStore()
-    jsonl = JsonlMemoryStore(f"{ctx.cfg.memory.memory_jsonl_dir}/memories.jsonl")
-    injection = MemoryInjectionService(
-        policy=InjectionPolicy(
-            max_semantic=ctx.cfg.memory.memory_max_inject_semantic,
-            max_episodic=ctx.cfg.memory.memory_max_inject_episodic,
-            min_importance=ctx.cfg.memory.memory_min_importance,
-        ),
+
+
+def _build_jsonl_store(ctx: AgentContext, jsonl_cls: type) -> object:
+    """Build and return the JSONL memory store instance."""
+    return jsonl_cls(f"{ctx.cfg.memory.memory_jsonl_dir}/memories.jsonl")
+
+
+def _build_injection_service(
+    embed_client: object,
+    retriever: object,
+    ctx: AgentContext,
+    policy_cls: type,
+    service_cls: type,
+) -> object:
+    """Build and return the memory injection service."""
+    policy = policy_cls(
+        max_semantic=ctx.cfg.memory.memory_max_inject_semantic,
+        max_episodic=ctx.cfg.memory.memory_max_inject_episodic,
+        min_importance=ctx.cfg.memory.memory_min_importance,
+    )
+    return service_cls(
+        policy=policy,
         retriever=retriever,
         embed_client=embed_client,
     )
-    ingestion = MemoryIngestionService(
+
+
+def _build_ingestion_service(
+    store: object,
+    jsonl: object,
+    retriever: object,
+    embed_client: object,
+    ctx: AgentContext,
+    dedup_cls: type,
+    service_cls: type,
+) -> object:
+    """Build and return the memory ingestion service."""
+    dedup_policy = dedup_cls(threshold=ctx.cfg.memory.memory_dedup_threshold)
+    return service_cls(
         store=store,
         jsonl=jsonl,
         retriever=retriever,
         embed_client=embed_client,
-        dedup_policy=DedupPolicy(threshold=ctx.cfg.memory.memory_dedup_threshold),
+        dedup_policy=dedup_policy,
         max_content_chars=ctx.cfg.memory.memory_max_content_chars,
-    )
-    _build_audit_logger(ctx).info("MemoryServices initialised (use_memory_layer=True)")
-    return MemoryServices(
-        injection=injection,
-        ingestion=ingestion,
-        store=store,
-        retriever=retriever,
     )
 
 

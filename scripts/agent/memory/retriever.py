@@ -155,11 +155,20 @@ class FtsRetriever:
         if not fts_query or fts_query == '""':
             return []
 
+        sql, params = self._build_search_query(fts_query, query.memory_type)
+        hits = self._fetch_hits(sql, tuple(params), project, repo)
+        hits.sort(key=lambda h: h.score, reverse=True)
+        return hits[: query.limit]
+
+    def _build_search_query(
+        self, fts_query: str, memory_type: str | None
+    ) -> tuple[str, list[object]]:
+        """Build FTS5 search SQL and parameter tuple."""
         type_filter = ""
         params: list[object] = [fts_query, self._fts_limit]
-        if query.memory_type:
+        if memory_type:
             type_filter = "AND m.memory_type = ?"
-            params.insert(1, query.memory_type)
+            params.insert(1, memory_type)
 
         sql = f"""
             SELECT m.memory_id, m.memory_type, m.source_type, m.session_id, m.turn_id,
@@ -173,9 +182,14 @@ class FtsRetriever:
             ORDER BY f.rank
             LIMIT ?
         """  # nosec B608 — type_filter is a literal string; all values use ? placeholders
+        return sql, params
 
+    def _fetch_hits(
+        self, sql: str, params: tuple[object, ...], project: str, repo: str
+    ) -> list[MemoryHit]:
+        """Execute query and build scored MemoryHit list."""
         with SQLiteHelper("session").open(row_factory=True) as db:
-            rows = db.fetchall(sql, tuple(params))
+            rows = db.fetchall(sql, params)
 
         hits: list[MemoryHit] = []
         for row in rows:
@@ -184,9 +198,7 @@ class FtsRetriever:
             entry = row_to_entry(d)
             s = _score(bm25_rank, entry, project, repo, self._recency_days)
             hits.append(MemoryHit(entry=entry, score=s))
-
-        hits.sort(key=lambda h: h.score, reverse=True)
-        return hits[: query.limit]
+        return hits
 
 
 class VectorRetriever:

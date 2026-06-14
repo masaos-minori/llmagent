@@ -202,30 +202,34 @@ class Orchestrator:
         ctx = self._ctx
         elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
         if ctx.services.audit_logger is not None:
-            llm = ctx.services.llm
-            ctx.services.audit_logger.info(
-                orjson.dumps(
-                    {
-                        "event": "turn_end",
-                        "task_id": ctx.turn.current_turn_id,
-                        "elapsed_ms": elapsed_ms,
-                        "input_tokens": ctx.stats.stat_input_tokens,
-                        "output_tokens": ctx.stats.stat_output_tokens,
-                        "parse_error_count": (
-                            llm.stat_parse_errors if llm is not None else 0
-                        ),
-                        "heartbeat_timeout_count": (
-                            llm.stat_heartbeat_timeouts if llm is not None else 0
-                        ),
-                        "reconnect_count": (
-                            llm.stat_reconnects if llm is not None else 0
-                        ),
-                        "partial_completion": False,
-                        "error_kind": error_kind,
-                    },
-                ).decode(),
+            event = self._build_turn_end_event(
+                elapsed_ms, error_kind, ctx.turn.current_turn_id
             )
+            ctx.services.audit_logger.info(orjson.dumps(event).decode())
         ctx.turn.current_turn_id = None
+
+    def _build_turn_end_event(
+        self,
+        elapsed_ms: float,
+        error_kind: str | None,
+        task_id: str | None,
+    ) -> dict[str, object]:
+        """Build turn_end audit log event dict."""
+        llm = self._ctx.services.llm
+        return {
+            "event": "turn_end",
+            "task_id": task_id,
+            "elapsed_ms": elapsed_ms,
+            "input_tokens": self._ctx.stats.stat_input_tokens,
+            "output_tokens": self._ctx.stats.stat_output_tokens,
+            "parse_error_count": llm.stat_parse_errors if llm is not None else 0,
+            "heartbeat_timeout_count": (
+                llm.stat_heartbeat_timeouts if llm is not None else 0
+            ),
+            "reconnect_count": llm.stat_reconnects if llm is not None else 0,
+            "partial_completion": False,
+            "error_kind": error_kind,
+        }
 
     # ── User message helpers ──────────────────────────────────────────────────
 
