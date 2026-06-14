@@ -250,8 +250,8 @@ CREATE VIRTUAL TABLE chunks_vec USING vec0(
 
 | カラム | 型 | 制約 |
 |---|---|---|
-| `src_id` | TEXT | NOT NULL FK → memories ON DELETE CASCADE |
-| `dst_id` | TEXT | NOT NULL FK → memories ON DELETE CASCADE |
+| `src_id` | TEXT | NOT NULL, PRIMARY KEY 一部。FK なし（`INSERT OR IGNORE` で永続化） |
+| `dst_id` | TEXT | NOT NULL, PRIMARY KEY 一部。FK なし（`INSERT OR IGNORE` で永続化） |
 | PRIMARY KEY | (src_id, dst_id) | |
 
 ---

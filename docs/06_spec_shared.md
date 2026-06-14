@@ -288,11 +288,11 @@ class Logger:
 ### 10.3 plugin_registry（shared/plugin_registry.py）
 
 ```python
-def load_plugins(plugin_dir: Path) -> int  # ロードしたプラグイン数（存在しない dir は 0 を返す）
+def load_plugins(plugin_dir: str | Path) -> int  # ロードしたプラグイン数（存在しない dir は 0 を返す）
 def register_tool(name: str) -> Callable   # デコレータ
 def get_tool(name: str) -> Callable | None
 def iter_commands() -> dict[str, tuple[Callable, bool]]  # 登録済みコマンドのスナップショット
-def get_command(name: str) -> Callable | None
+def get_command(name: str) -> tuple[Callable, bool] | None
 def get_pipeline_post_stages() -> list[Callable]
 def register_command(name: str, prefix: bool = False) -> Callable  # コマンド登録
 def register_pipeline_stage(when: str = "post") -> Callable  # パイプラインステージ登録
@@ -310,9 +310,8 @@ async def get_token_count(
 ) -> tuple[int, bool]  # (token_count, is_exact)
 
 # priority:
-#   1. last_input_tokens（呼び出し元が渡す）
-#   2. POST /tokenize endpoint → n_tokens を返す
-#   3. chars // 4 フォールバック
+#   1. POST /tokenize endpoint → n_tokens を返す
+#   2. chars // 4 フォールバック
 ```
 
 ### 10.5 build_tracer（shared/otel_tracer.py）
@@ -320,9 +319,9 @@ async def get_token_count(
 ```python
 def build_tracer(
     enabled: bool,
-    service_name: str,
+    service_name: str = "llm-agent",
     otlp_endpoint: str = "",
-) -> opentelemetry.trace.Tracer
+) -> TracerProtocol
 ```
 
 ### 10.6 git_helper（shared/git_helper.py）

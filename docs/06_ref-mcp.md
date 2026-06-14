@@ -74,7 +74,7 @@ MCP サーバの HTTP 起動ロジックを提供する基底クラス。`mcp/fi
 
 | メソッド | 説明 |
 |---|---|
-| `async dispatch(name, args) -> tuple[str, bool]` | ツール呼び出しを処理する抽象メソッド。サブクラスが必ずオーバーライド。`(result_text, is_error)` を返す。未実装の場合は `NotImplementedError` を送出する |
+| `async dispatch(name, args) -> DispatchResult` | ツール呼び出しを処理する抽象メソッド。サブクラスが必ずオーバーライド。`DispatchResult(output, is_error)` dataclass を返す。未実装の場合は `NotImplementedError` を送出する |
 | `list_tools() -> list[str]` | `mcp_tools` クラス属性 (またはインスタンス属性) からツール名リストを返す。`mcp_tools` 未定義なら空リスト |
 | `health() -> dict[str, str]` | `{"status": "ok"}` を返す。HTTP サブクラスでオーバーライド (例: github-mcp は `{"status":"ok","github_token":"set"}` / `"not_set"` 追加)。stdio サブクラスはプロセス生存確認を使用 |
 | `run_http() -> None` | uvicorn で HTTP サーバを起動する主要メソッド |
@@ -92,7 +92,7 @@ class WebSearchMCPServer(MCPServer):
     app_module     = "web_search_mcp_server:app"  # uvicorn 起動ターゲット
     mcp_tools      = _MCP_TOOLS
 
-    async def dispatch(self, name: str, args: dict) -> tuple[str, bool]:
+    async def dispatch(self, name: str, args: dict) -> DispatchResult:
         return await _dispatch_web_tool(name, args)
 
 if __name__ == "__main__":
@@ -121,11 +121,11 @@ from shared.tool_executor import HttpTransport, StdioTransport, ToolExecutor
 from shared.mcp_config import McpServerConfig  # shared/mcp_config.py; re-exported from agent/config.py
 
 server_configs = {
-    "web_search":  McpServerConfig("http", "http://127.0.0.1:8004", [], "web-search-mcp"),
-    "file_read":   McpServerConfig("http", "http://127.0.0.1:8005", [], "file-read-mcp"),
-    "file_write":  McpServerConfig("http", "http://127.0.0.1:8007", [], "file-write-mcp"),
-    "file_delete": McpServerConfig("http", "http://127.0.0.1:8008", [], "file-delete-mcp"),
-    "github":      McpServerConfig("http", "http://127.0.0.1:8006", [], "github-mcp"),
+    "web_search":  McpServerConfig(transport="http", url="http://127.0.0.1:8004", cmd=[], openrc_service="web-search-mcp"),
+    "file_read":   McpServerConfig(transport="http", url="http://127.0.0.1:8005", cmd=[], openrc_service="file-read-mcp"),
+    "file_write":  McpServerConfig(transport="http", url="http://127.0.0.1:8007", cmd=[], openrc_service="file-write-mcp"),
+    "file_delete": McpServerConfig(transport="http", url="http://127.0.0.1:8008", cmd=[], openrc_service="file-delete-mcp"),
+    "github":      McpServerConfig(transport="http", url="http://127.0.0.1:8006", cmd=[], openrc_service="github-mcp"),
 }
 executor = ToolExecutor(
     http=httpx.AsyncClient(...),
@@ -185,7 +185,8 @@ res: ToolCallResult = await executor.execute("read_text_file", {"path": "/opt/ll
    - `CICD_TOOLS` (`trigger_workflow`, `get_workflow_runs`, `get_workflow_status`, `get_workflow_logs`) → `"cicd"`
    - `MDQ_TOOLS` (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`) → `"mdq"`
    - `GIT_TOOLS` (`git_status`, `git_log`, `git_diff`, `git_branch`, `git_show`, `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push`) → `"git"`
-   - その他 → `ValueError` を送出 (未知のツール名は登録必須)
+    - `query_sqlite` → `"sqlite"`（ただし `tool_constants.py` には含まれず、`route_resolver.py` の `_SET_ROUTES` で prefix ルールとして定義）
+    - その他 → `ValueError` を送出 (未知のツール名は登録必須)
 
 **plugin tool サポート**
 
@@ -224,37 +225,13 @@ async def my_tool(args: dict) -> tuple[str, bool]:
 
 ## 4. shared/tool_constants.py
 
-### 4.1 機能概要
-
-MCP ツール分類 frozenset の正規定義。複数モジュール (`route_resolver.py` / `tool_executor.py` / `agent/tool_runner.py`) が同じ定数を参照するため、ここに一元化している。
-
-### 4.2 定数
-
-| 定数 | 内容 |
-|---|---|
-| `READ_TOOLS` | ファイル読み取り系 9 ツール (`list_directory`, `list_directory_with_sizes`, `directory_tree`, `read_text_file`, `read_media_file`, `read_multiple_files`, `search_files`, `grep_files`, `get_file_info`) |
-| `WRITE_TOOLS` | ファイル書き込み系 4 ツール (`write_file`, `edit_file`, `create_directory`, `move_file`) |
-| `DELETE_TOOLS` | ファイル削除系 2 ツール (`delete_file`, `delete_directory`) |
-| `RAG_TOOLS` | RAG パイプライン系 2 ツール (`rag_run_pipeline`, `rag_debug_pipeline`) |
-| `CICD_TOOLS` | GitHub Actions CI/CD 系 4 ツール (`trigger_workflow`, `get_workflow_runs`, `get_workflow_status`, `get_workflow_logs`) |
-| `MDQ_TOOLS` | Markdown Context Compression Engine 系 7 ツール (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`) |
-| `GIT_TOOLS` | ローカル git 操作系 10 ツール (`git_status`, `git_log`, `git_diff`, `git_branch`, `git_show`, `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push`) |
+MCP ツール分類 frozenset の正規定義。詳細は [`06_ref-infra.md`](06_ref-infra.md) §7 を参照。
 
 ---
 
 ## 5. shared/route_resolver.py
 
-### 5.1 機能概要
-
-`ToolExecutor` が使用するツール名 → サーバキー変換ロジック。config-driven routing を優先し、フォールバックとして静的プレフィックス判定を行う。
-
-### 5.2 API
-
-| クラス/メソッド | 説明 |
-|---|---|
-| `ToolRouteResolver(server_configs)` | 初期化時に `McpServerConfig.tool_names` から逆引きマップを構築 |
-| `resolve(tool_name) -> str` | config-driven → 静的 fallback の順で解決。不明ツールは `ValueError` |
-| `_fallback_route(tool_name) -> str` | `tool_constants` の frozenset と prefix ルールによる静的判定 |
+ツール名 → サーバキー変換ロジック。詳細は [`06_ref-infra.md`](06_ref-infra.md) §8 を参照。
 
 ---
 
@@ -266,33 +243,7 @@ MCP ツール分類 frozenset の正規定義。複数モジュール (`route_re
 
 ### 6.2 McpServerConfig フィールド
 
-```python
-from shared.mcp_config import McpServerConfig
-```
-
-| フィールド | 型 | デフォルト | 説明 |
-|---|---|---|---|
-| `transport` | `str` | 必須 | `"http"` または `"stdio"` のいずれか |
-| `url` | `str` | 必須 (http) | HTTP トランスポートのベース URL (例: `"http://127.0.0.1:8004"`) |
-| `cmd` | `list[str]` | 必須 (stdio) | stdio サーバの起動コマンド argv |
-| `openrc_service` | `str` | 必須 | OpenRC サービス名 (ウォッチドッグ再起動に使用) |
-| `startup_mode` | `str` | `"persistent"` | `"persistent"`: エージェント起動時に即時起動 / `"ondemand"`: 初回ツール呼び出し時に自動起動 (stdio のみ有効) / `"subprocess"`: エージェント起動時にサブプロセスとして起動し /health をポーリング (http のみ有効) |
-| `healthcheck_mode` | `str` | `""` | `"http"` / `"process"` / `"ping_tool"` のいずれか。空文字のとき transport から自動推論 (`"http"` → `"http"`, `"stdio"` → `"process"`) |
-| `idle_timeout_sec` | `int` | `0` | ondemand サーバのアイドル自動停止秒数。`0` = 無効 |
-| `startup_timeout_sec` | `int` | `30` | subprocess モードの起動待ちポーリングタイムアウト秒数 |
-| `working_dir` | `str` | `""` | stdio サブプロセスの作業ディレクトリ。空文字のとき親プロセスの cwd を継承 |
-| `env` | `dict[str, str]` | `{}` | stdio サブプロセスに追加注入する環境変数。非空のとき `{**os.environ, **env}` でマージ |
-| `tool_names` | `list[str]` | `[]` | このサーバが担当するツール名リスト。空のとき静的 fallback ルーティングを使用 |
-| `auth_token` | `str` | `""` | `HttpTransport` が `Authorization: Bearer <token>` ヘッダに設定するトークン。空文字のとき認証無効 |
-| `role` | `str` | `""` | `/mcp status` コマンドで表示する人間可読ラベル (例: `"search"`, `"vcs"`) |
-
-**バリデーション (`__post_init__`):**
-- `transport` が `"http"` / `"stdio"` 以外 → `ValueError`
-- `transport="http"` かつ `url` が空 → `ValueError`
-- `transport="stdio"` かつ `cmd` が空 → `ValueError`
-- `startup_mode` が `"persistent"` / `"ondemand"` / `"subprocess"` 以外 → `ValueError`
-- `startup_mode="subprocess"` かつ `transport="stdio"` → `ValueError` (http のみ有効)
-- `healthcheck_mode` が `"http"` / `"process"` / `"ping_tool"` 以外 → `ValueError`
+詳細は [`05_ref-agent-config.md`](05_ref-agent-config.md) §2 を参照（フィールド一覧・バリデーション・起動モード・working_dir/env ルール・tool_names ルーティング）。
 
 ### 6.3 McpServerHealthRegistry
 
@@ -324,13 +275,13 @@ from mcp.dispatch import ToolArgs, dispatch_tool
 
 | エイリアス | 定義 | 説明 |
 |---|---|---|
-| `ToolArgs` | `dict[str, Any]` | MCP ツール引数辞書の型エイリアス。ディスパッチテーブルのシグネチャを統一するために使用。`mcp/server.py` と `mcp/dispatch.py` の両方で独立定義 |
+| `ToolArgs` | `dict[str, Any]` | MCP ツール引数辞書の型エイリアス。ディスパッチテーブルのシグネチャを統一するために使用。`mcp/dispatch.py:16` で定義され、`mcp/server.py:27` でも同義の型エイリアスが定義されている |
 
 関数:
 
 | 関数 | シグネチャ | 説明 |
 |---|---|---|
-| `dispatch_tool` | `async (table: Mapping[str, Callable[[ToolArgs], Awaitable[str]]], name: str, args: ToolArgs) -> tuple[str, bool]` | ディスパッチテーブル経由でツール呼び出しを実行し `(result_text, is_error)` を返す。`name` が空文字または空白文字のみのとき `("Tool name must be a non-empty string", True)` を返す。未知のツール名は `("Unknown tool: <name>", True)` を返す。`ValueError` はバリデーションエラーとして `("Validation error: <e>", True)` に変換。その他の例外 (RuntimeError, IOError, HTTPException など) は呼び出し元に伝搬する |
+| `dispatch_tool` | `async (table: Mapping[str, Callable[[ToolArgs], Awaitable[str]]], name: str, args: ToolArgs) -> DispatchResult` | ディスパッチテーブル経由でツール呼び出しを実行し `DispatchResult(output, is_error)` dataclass を返す。`name` が空文字または空白文字のみのとき `("Tool name must be a non-empty string", True)` を返す。未知のツール名は `("Unknown tool: <name>", True)` を返す。`ValueError` はバリデーションエラーとして `("Validation error: <e>", True)` に変換。その他の例外 (RuntimeError, IOError, HTTPException など) は呼び出し元に伝搬する |
 
 各 MCP サーバの `_dispatch_*_tool()` 関数が `dispatch_tool` を使用。
 

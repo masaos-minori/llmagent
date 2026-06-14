@@ -169,15 +169,15 @@ __post_init__ バリデーション: tool_dedup_max_repeats >= 1, tool_cycle_det
 | フィールド | 型 | デフォルト | 説明 |
 |---|---|---|---|
 | use_memory_layer | bool | False | True のとき永続セマンティックメモリを有効化 |
-| memory_jsonl_dir | str | "/opt/llm/memory" | JSONL 正源ファイルの保存ディレクトリ |
-| memory_max_inject_semantic | int | 5 | SessionStart 時に注入する semantic エントリ上限 |
-| memory_max_inject_episodic | int | 3 | UserPromptSubmit 時に注入する episodic エントリ上限 |
-| memory_min_importance | float | 0.3 | 注入対象の最低 importance スコア (0.0-1.0) |
-| memory_embed_enabled | bool | False | True のとき埋め込み生成と KNN 検索を有効化 |
+| memory_jsonl_dir | str | "/opt/llm/memory" | JSONL 正源ファイルの保存ディレクトリ。実際のファイルは `{memory_jsonl_dir}/memories.jsonl` |
+| memory_max_inject_semantic | int | 5 | SessionStart 時に注入する semantic エントリ上限。`InjectionPolicy` に渡される |
+| memory_max_inject_episodic | int | 3 | UserPromptSubmit 時に注入する episodic エントリ上限。`InjectionPolicy` に渡される |
+| memory_min_importance | float | 0.3 | 注入対象の最低 importance スコア (0.0-1.0)。`InjectionPolicy` に渡される |
+| memory_embed_enabled | bool | False | True のとき埋め込み生成と KNN 検索を有効化。`EmbeddingClient(enabled=...)` に渡される |
 | memory_embed_dim | int | 384 | 埋め込みベクトルの次元数 (vec0 スキーマと一致させること) |
 | memory_dedup_threshold | float | 0.3 | 重複リンク判定の L2 距離閾値 (未満で memory_links に記録) |
 | memory_max_content_chars | int | 500 | 抽出時に保存するコンテンツの最大文字数 |
-| memory_embed_timeout_sec | float | 5.0 | 埋め込み HTTP 呼び出しのタイムアウト秒数 |
+| memory_embed_timeout_sec | float | 5.0 | 埋め込み HTTP 呼び出しのタイムアウト秒数（`EmbeddingClientConfig.timeout`）。`query_prefix` は `"query: "` でハードコード |
 | memory_retention_days | int | 90 | メモリエントリの保持期間 (日数); 超過分は pruning 対象 |
 | memory_fts_limit | int | 50 | FTS5 キャンディデート上限（再スコアリング前） |
 | memory_rrf_k | int | 60 | RRF fusion 定数 |

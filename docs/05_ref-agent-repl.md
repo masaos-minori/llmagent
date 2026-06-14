@@ -122,7 +122,7 @@ await orch.handle_turn(line)
 |---|---|
 | `is_side_effect(tool_name) -> bool` | 副作用ありツール (`write`/`delete`/`shell_run`) の判定 |
 | `tool_call_key(name, args) -> str` | (name, args) の安定した MD5 ハッシュキー (dedup用) |
-| `format_transport_error(...) -> dict[str, str]` | トランスポートエラーの要約・詳細文字列生成 |
+| `format_transport_error(...) -> TransportErrorInfo` | トランスポートエラーの要約・詳細 dataclass 生成 |
 
 ### プラグインツール戻り値規約
 
@@ -203,7 +203,7 @@ AgentREPL.run()
 | `iter_commands() -> dict[str, tuple[Callable, bool]]` | 全登録コマンドのスナップショット (`dict` のコピー) を返す |
 | `get_tool(name) -> Callable | None` | 登録済みローカルツールハンドラを返す。未登録は `None` |
 | `get_pipeline_post_stages() -> list[Callable]` | 全登録 post-rerank パイプラインステージフックのスナップショットを返す |
-| `load_plugins(plugin_dir) -> int` | `plugin_dir` の `*.py` をアルファベット順にインポートしてロード数を返す。エラーはログ記録してスキップ (fail-open)。ディレクトリ不在時は `0` を返す |
+| `load_plugins(plugin_dir: str | Path) -> int` | `plugin_dir` の `*.py` をアルファベット順にインポートしてロード数を返す。エラーはログ記録してスキップ (fail-open)。ディレクトリ不在時は `0` を返す |
 | `_reset_for_testing() -> None` | 全レジストリをクリア。テスト用途のみ |
 
 ### ディスパッチ順序

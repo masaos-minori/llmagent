@@ -80,5 +80,5 @@ per-turn 一時フィールド。`Orchestrator.handle_turn()` が各ターンで
 | `hist_mgr` | `HistoryManager` | — | 履歴文字数カウント・圧縮担当 |
 | `lifecycle` | `_ServerLifecycleRouter` / `LifecycleProtocol` | — | stdio サーバの lifecycle 管理 (`factory.py` の `_ServerLifecycleRouter` が routing を担当)。`agent/lifecycle.py` の `restart_stdio()` は残存 |
 | `audit_logger` | `Logger` | — | JSON-lines 形式で `audit.log` にターンイベントを書き込む構造化ロガー |
-| `memory` | `MemoryServices \| None` | `None` | memory サブサービスコンテナ。`AgentConfig.use_memory_layer=False` (デフォルト) のとき `None`。`mem.injection` / `mem.ingestion` / `mem.store` / `mem.retriever` で各サービスに直接アクセス |
+| `memory` | `MemoryServices \| None` | `None` | memory サブサービスコンテナ。`AgentConfig.use_memory_layer=False` (デフォルト) のとき `None`。`mem.injection` / `mem.ingestion` / `mem.store` / `mem.retriever` で各サービスに直接アクセス。`EmbeddingClient` は `injection._embed_client` 経由で参照 |
 | `stdio_procs` | `dict[str, StdioTransport]` | `{}` | サーバキー → StdioTransport。stdio トランスポートのプロセスを管理 |
