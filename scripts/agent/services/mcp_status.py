@@ -8,10 +8,10 @@ tested without a running REPL.
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import httpx
-from shared.mcp_config import McpServerHealthState
+from shared.mcp_config import McpServerHealthRegistry, McpServerHealthState
 
 from agent.services.enums import McpAvailability, McpTier
 from agent.services.exceptions import McpProbeError
@@ -37,6 +37,15 @@ TIER_LABELS: dict[McpTier, str] = {
 }
 
 
+def _resolve_health_state(ctx: AgentContext, key: str) -> McpServerHealthState:
+    """Get the health state for a server, falling back to HEALTHY."""
+    registry = ctx.services.health_registry
+    if registry is None:
+        return McpServerHealthState.HEALTHY
+    typed_registry = cast(McpServerHealthRegistry, registry)
+    return typed_registry.get_state(key)
+
+
 class McpStatusService:
     """Probe all configured MCP servers and format their status table."""
 
@@ -49,34 +58,49 @@ class McpStatusService:
         results: list[McpProbeResult] = []
         async with httpx.AsyncClient(timeout=5.0) as probe:
             for key, cfg in ctx.cfg.mcp.mcp_servers.items():
-                auth = bool(cfg.auth_token)
-                tier = _tier_for_server(cfg.tool_names, tiers)
-                if cfg.transport == "http":
-                    availability = await self._get_http_status(probe, cfg.url)
-                    endpoint = cfg.url
-                else:
-                    availability = self._get_stdio_status(ctx, key, cfg.startup_mode)
-                    endpoint = " ".join(cfg.cmd) if cfg.cmd else ""
-                health_state = (
-                    ctx.services.health_registry.get_state(key)
-                    if ctx.services.health_registry
-                    else McpServerHealthState.HEALTHY
-                )
-                health = health_state.value.upper()
-                results.append(
-                    McpProbeResult(
-                        key=key,
-                        transport=cfg.transport,
-                        startup_mode=cfg.startup_mode,
-                        auth=auth,
-                        tier=tier,
-                        role=cfg.role or "",
-                        availability=availability,
-                        health=health,
-                        endpoint=endpoint,
-                    )
-                )
+                result = await self._probe_single_server(probe, ctx, key, cfg, tiers)
+                results.append(result)
         return results
+
+    async def _probe_single_server(
+        self,
+        probe: httpx.AsyncClient,
+        ctx: AgentContext,
+        key: str,
+        cfg: Any,
+        tiers: dict[str, str],
+    ) -> McpProbeResult:
+        """Probe a single MCP server and return its status result."""
+        auth = bool(cfg.auth_token)
+        tier = _tier_for_server(cfg.tool_names, tiers)
+        availability, endpoint = await self._resolve_endpoint(probe, ctx, key, cfg)
+        health = _resolve_health_state(ctx, key).value.upper()
+        return McpProbeResult(
+            key=key,
+            transport=cfg.transport,
+            startup_mode=cfg.startup_mode,
+            auth=auth,
+            tier=tier,
+            role=cfg.role or "",
+            availability=availability,
+            health=health,
+            endpoint=endpoint,
+        )
+
+    async def _resolve_endpoint(
+        self,
+        probe: httpx.AsyncClient,
+        ctx: AgentContext,
+        key: str,
+        cfg: Any,
+    ) -> tuple[McpAvailability, str]:
+        """Resolve availability and endpoint string for a single server."""
+        if cfg.transport == "http":
+            return (await self._get_http_status(probe, cfg.url), cfg.url)
+        return (
+            self._get_stdio_status(ctx, key, cfg.startup_mode),
+            " ".join(cfg.cmd) if cfg.cmd else "",
+        )
 
     async def _get_http_status(
         self, probe: httpx.AsyncClient, url: str

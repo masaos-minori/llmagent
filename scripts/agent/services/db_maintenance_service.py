@@ -7,6 +7,8 @@ independently of the REPL command layer.
 
 from __future__ import annotations
 
+from typing import Any
+
 from db.helper import SQLiteHelper
 from db.maintenance import (
     RetentionConfig,
@@ -31,12 +33,17 @@ class DbMaintenanceService:
     def stats(self) -> DbStats:
         """Return document/chunk/session/message counts from both DBs."""
         with SQLiteHelper("rag").open(row_factory=True) as db:
-            docs = db.fetchall("SELECT COUNT(*) AS n FROM documents")[0]["n"]
-            chunks = db.fetchall("SELECT COUNT(*) AS n FROM chunks")[0]["n"]
+            docs = self._count_table(db, "documents")
+            chunks = self._count_table(db, "chunks")
         with SQLiteHelper("session").open(row_factory=True) as db:
-            sessions = db.fetchall("SELECT COUNT(*) AS n FROM sessions")[0]["n"]
-            messages = db.fetchall("SELECT COUNT(*) AS n FROM messages")[0]["n"]
+            sessions = self._count_table(db, "sessions")
+            messages = self._count_table(db, "messages")
         return DbStats(docs=docs, chunks=chunks, sessions=sessions, messages=messages)
+
+    @staticmethod
+    def _count_table(db: Any, table: str) -> int:
+        """Return row count for a single table."""
+        return int(db.fetchall(f"SELECT COUNT(*) AS n FROM {table}")[0]["n"])
 
     def rebuild_fts(self) -> None:
         """Rebuild the FTS5 chunks_fts index in rag.sqlite."""
@@ -72,12 +79,7 @@ class DbMaintenanceService:
         self, max_sessions: int | None, max_age_days: int | None
     ) -> DbPurgeResult:
         """Purge old sessions per retention config."""
-        cfg_kwargs: dict[str, int] = {}
-        if max_sessions is not None:
-            cfg_kwargs["max_sessions"] = max_sessions
-        if max_age_days is not None:
-            cfg_kwargs["max_age_days"] = max_age_days
-        cfg = RetentionConfig(**cfg_kwargs) if cfg_kwargs else None
+        cfg = _build_retention_config(max_sessions, max_age_days)
         with SQLiteHelper("session").open(write_mode=True) as db:
             raw = purge_old_sessions(db, cfg)
         return DbPurgeResult(
@@ -92,3 +94,15 @@ class DbMaintenanceService:
             recovered=result.action == "restored",
             detail=result.detail or "",
         )
+
+
+def _build_retention_config(
+    max_sessions: int | None, max_age_days: int | None
+) -> RetentionConfig | None:
+    """Build a RetentionConfig from optional parameters."""
+    kwargs: dict[str, int] = {}
+    if max_sessions is not None:
+        kwargs["max_sessions"] = max_sessions
+    if max_age_days is not None:
+        kwargs["max_age_days"] = max_age_days
+    return RetentionConfig(**kwargs) if kwargs else None
