@@ -25,53 +25,53 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 
 | Task scope | Reference docs |
 |---|---|
-| エージェント仕様（全体・設計・未解決事項） | `docs/spec_agent.md` |
-| MCP サーバー仕様（全体・設計・未解決事項） | `docs/spec_mcp.md` |
-| RAG パイプライン仕様（全体・設計・未解決事項） | `docs/spec_rag.md` |
-| DB 層仕様（スキーマ・保守・未解決事項） | `docs/spec_db.md` |
-| 共有インフラ仕様（設定・ログ・型・定数） | `docs/spec_shared.md` |
+| エージェント仕様（全体・設計・未解決事項） | `docs/05_spec_agent.md` |
+| MCP サーバー仕様（全体・設計・未解決事項） | `docs/04_spec_mcp.md` |
+| RAG パイプライン仕様（全体・設計・未解決事項） | `docs/03_spec_rag.md` |
+| DB 層仕様（スキーマ・保守・未解決事項） | `docs/07_spec_db.md` |
+| 共有インフラ仕様（設定・ログ・型・定数） | `docs/06_spec_shared.md` |
 
 ### 詳細リファレンス（実装レベルの参照用）
 
 | Task scope | Reference docs |
 |---|---|
-| Memory layer (types / store / retriever / extract / jsonl_store / layer) | `docs/06_ref-agent-context.md` + `docs/06_ref-agent-config.md` |
-| OTel observability (otel_tracer.py) | `docs/05_agent-ops.md` + `docs/06_ref-agent-config.md` |
+| Memory layer (types / store / retriever / extract / jsonl_store / layer) | `docs/05_ref-agent-context.md` + `docs/05_ref-agent-config.md` |
+| OTel observability (otel_tracer.py) | `docs/05_agent-ops.md` + `docs/05_ref-agent-config.md` |
 | System-wide architecture overview | `docs/01_overview-arch.md` |
 | File / module layout | `docs/01_overview-files.md` |
 | MCP server implementation | `docs/04_mcp-protocol.md` + `docs/06_ref-mcp.md` |
-| MCP transport / startup_mode / lifecycle | `docs/04_mcp-protocol.md` + `docs/06_ref-agent-config.md` |
-| ToolRouteResolver / route_resolver.py | `docs/06_ref-agent-config.md` + `docs/04_mcp-protocol.md` |
-| ServerLifecycleManager / lifecycle.py | `docs/04_mcp-protocol.md` + `docs/06_ref-agent-context.md` |
+| MCP transport / startup_mode / lifecycle | `docs/04_mcp-protocol.md` + `docs/05_ref-agent-config.md` |
+| ToolRouteResolver / route_resolver.py | `docs/05_ref-agent-config.md` + `docs/04_mcp-protocol.md` |
+| ServerLifecycleManager / lifecycle.py | `docs/04_mcp-protocol.md` + `docs/05_ref-agent-context.md` |
 | web-search-mcp specifics | `docs/04_mcp-web-search.md` |
 | file-mcp specifics | `docs/04_mcp-file.md` |
 | github-mcp specifics | `docs/04_mcp-github.md` |
-| RAG pipeline modification | `docs/06_ref-rag.md` + `docs/06_common.md` |
+| RAG pipeline modification | `docs/05_ref-rag.md` + `docs/06_shared.md` |
 | rag-pipeline-mcp specifics | `docs/04_mcp-rag.md` |
-| sqlite-mcp specifics | `docs/04_mcp-sqlite.md` + `docs/06_ref-sqlite.md` |
+| sqlite-mcp specifics | `docs/04_mcp-sqlite.md` + `docs/07_ref-sqlite.md` |
 | shell-mcp specifics | `docs/04_mcp-shell.md` |
 | mdq-mcp specifics | `docs/04_mcp-mdq.md` |
 | cicd-mcp specifics | `docs/04_mcp-cicd.md` |
 | git-mcp specifics | `docs/04_mcp-git.md` |
-| Agent REPL slash commands (`CommandRegistry`) | `docs/06_ref-agent-commands.md` |
+| Agent REPL slash commands (`CommandRegistry`) | `docs/05_ref-agent-commands.md` |
 | Agent startup / verification / troubleshooting | `docs/05_agent-ops.md` |
-| Agent features / slash commands / tool calling | `docs/05_agent.md` + `docs/06_ref-agent-commands.md` |
-| Plugin tool handler / @register_tool | `docs/06_ref-agent-repl.md` + `docs/06_common.md` |
-| Agent REPL class structure | `docs/05_agent-impl-class.md` + `docs/06_ref-agent-repl.md` |
-| Agent REPL flow / tool execution | `docs/05_agent-impl-flow.md` + `docs/06_ref-agent-history.md` |
-| AgentContext / DI hub | `docs/06_ref-agent-context.md` |
-| AgentConfig / config constants | `docs/06_ref-agent-config.md` |
-| Session / DB persistence | `docs/06_ref-agent-session.md` + `docs/06_ref-sqlite.md` |
-| LLM client (streaming/retry) | `docs/06_ref-agent-llm.md` |
-| CLI view / readline | `docs/06_ref-agent-view.md` |
-| RAG types / repository / LLM utils | `docs/06_ref-rag.md` + `docs/06_common.md` |
-| SQLite / DB connection / WAL / transactions | `docs/06_ref-sqlite.md` |
+| Agent features / slash commands / tool calling | `docs/05_agent.md` + `docs/05_ref-agent-commands.md` |
+| Plugin tool handler / @register_tool | `docs/05_ref-agent-repl.md` + `docs/06_shared.md` |
+| Agent REPL class structure | `docs/05_agent-impl-class.md` + `docs/05_ref-agent-repl.md` |
+| Agent REPL flow / tool execution | `docs/05_agent-impl-flow.md` + `docs/05_ref-agent-history.md` |
+| AgentContext / DI hub | `docs/05_ref-agent-context.md` |
+| AgentConfig / config constants | `docs/05_ref-agent-config.md` |
+| Session / DB persistence | `docs/05_ref-agent-session.md` + `docs/07_ref-sqlite.md` |
+| LLM client (streaming/retry) | `docs/05_ref-agent-llm.md` |
+| CLI view / readline | `docs/05_ref-agent-view.md` |
+| RAG types / repository / LLM utils | `docs/05_ref-rag.md` + `docs/06_shared.md` |
+| SQLite / DB connection / WAL / transactions | `docs/07_ref-sqlite.md` |
 | Config / logger / formatters / rag_utils | `docs/06_ref-infra.md` |
-| Ingestion pipeline run (execute commands, file lifecycle) | `docs/03_ingestion-run.md` |
-| web_crawler.py changes / API reference | `docs/03_ref-crawler.md` |
-| chunk_splitter.py changes / API reference | `docs/03_ref-splitter.md` |
-| rag_ingester.py changes / API reference | `docs/03_ref-ingester.md` |
-| Ingestion shared implementation notes | `docs/03_ref-ingestion.md` |
+| Ingestion pipeline run (execute commands, file lifecycle) | `docs/03_rag-ingestion-run.md` |
+| web_crawler.py changes / API reference | `docs/03_rag-ref-crawler.md` |
+| chunk_splitter.py changes / API reference | `docs/03_rag-ref-splitter.md` |
+| rag_ingester.py changes / API reference | `docs/03_rag-ref-ingester.md` |
+| Ingestion shared implementation notes | `docs/03_rag-ref-ingestion.md` |
 | Deployment / env setup | `docs/02_deployment.md` + `rules/env.md` |
 
 ## Always load alongside the skill
