@@ -116,7 +116,7 @@ async def rag_debug_pipeline(req: RagRunRequest) -> RagDebugResponse:
 async def v1_search(req: RagSearchRequest) -> RagSearchResponse:
     """Backward-compat endpoint for agent_rag.augment() via rag_service_url.
 
-    Response includes selected_hits so augment() can populate self.last_reranked
+    Response includes selected_hits so augment() can populate self.last_fetch_result
     for two-stage fetch without REPL-side changes.
     """
     if _service._pipeline is None:  # noqa: SLF001 — readiness guard before dispatch

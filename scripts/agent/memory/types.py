@@ -14,6 +14,14 @@ from agent.memory.enums import MemoryType
 _ISO8601_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
+def _validate_iso8601(value: str, field: str) -> None:
+    """Raise ValueError if value is non-empty and not ISO-8601 UTC format."""
+    if value and not _ISO8601_RE.match(value):
+        raise ValueError(
+            f"{field} must be ISO-8601 UTC (YYYY-MM-DDTHH:MM:SSZ), got {value!r}",
+        )
+
+
 class SourceType(StrEnum):
     """Taxonomy of memory source types.
 
@@ -82,16 +90,8 @@ class MemoryEntry:
                 )
         if not (0.0 <= self.importance <= 1.0):
             raise ValueError(f"importance must be in [0.0, 1.0], got {self.importance}")
-        if self.created_at and not _ISO8601_RE.match(self.created_at):
-            raise ValueError(
-                f"created_at must be ISO-8601 UTC (YYYY-MM-DDTHH:MM:SSZ),"
-                f" got {self.created_at!r}",
-            )
-        if self.updated_at and not _ISO8601_RE.match(self.updated_at):
-            raise ValueError(
-                f"updated_at must be ISO-8601 UTC (YYYY-MM-DDTHH:MM:SSZ),"
-                f" got {self.updated_at!r}",
-            )
+        _validate_iso8601(self.created_at, "created_at")
+        _validate_iso8601(self.updated_at, "updated_at")
 
 
 @dataclass

@@ -77,12 +77,12 @@ RagPipeline(
 
 | 属性 / メソッド | 説明 |
 |---|---|
-| `last_reranked: list[RagHit]` | 直前の `run()` / `augment()` が生成した再ランク済みヒットリスト (二段階取得用)。外部 RAG サービス経由でも更新される |
+| `last_fetch_result: TwoStageFetchResult \| None` | 直前の `run()` / `augment()` が生成した再ランク済みヒット結果 (二段階取得用)。`hits`, `min_score_applied`, `max_chunks_per_doc` を保持。外部 RAG サービス経由でも更新される (その場合 score/dedup 情報は 0.0/0) |
 | `last_timings: dict[str, float]` | 直前の `run()` 呼び出しのステップ別壁時計秒 (`MqeStage` / `SearchStage` / `FusionStage` / `RerankStage`) |
 | `semantic_cache: SemanticCache` | インメモリ最近傍キャッシュ (`cfg.semantic_cache_max_size` / `cfg.semantic_cache_threshold` で初期化) |
 | `search_queries(queries, db) -> list[list[RagHit]]` | 埋込生成を並行実行し、DB 検索を逐次実行 (接続競合回避)。各クエリで `vector_search` + `fts_search` の結果をそれぞれ `all_results` に追加。ステージ外からの再利用用ヘルパー |
 | `rerank_candidates(query, merged) -> list[RagHit]` | `cfg.use_rerank=False` のとき RRF 順で `rag_top_k` 件を返す。クロスエンコーダ失敗時も RRF 順にフォールバック。`deduplicate_chunks` で後処理。ステージ外からの再利用用ヘルパー |
-| `run(query, db, history_context="") -> tuple[list[str], list[list[RagHit]], list[RagHit], list[RagHit]]` | **async**。MQE→Search→Fusion→Rerank の 4 ステージを実行; `(queries, search_results, merged, reranked)` を返す; `finally` で必ず `on_clear()` を呼ぶ; 実行結果を `last_reranked` に格納する |
+| `run(query, db, history_context="") -> tuple[list[str], list[list[RagHit]], list[RagHit], list[RagHit]]` | **async**。MQE→Search→Fusion→Rerank の 4 ステージを実行; `(queries, search_results, merged, reranked)` を返す; `finally` で必ず `on_clear()` を呼ぶ; 実行結果を `last_fetch_result` に格納する |
 | `augment(query, debug_fn=None, history_context="") -> str` | **async**。パイプラインを実行してコンテキストブロック文字列を返す。`use_search=False` または結果なし時は `""`。`cfg.rag_service_url` が設定されていれば `_augment_http()` で外部 RAG サービスに委譲し、失敗時のみ in-process にフォールバック。`use_refiner=True` のとき `_augment_refiner()` でチャンクを圧縮し、空出力・例外時はそのまま生チャンクを返す |
 
 `RagPipeline.run()` 内部のステージリスト (stage.py の `PipelineStage` Protocol 準拠):
@@ -148,7 +148,7 @@ ctx = PipelineContext(query="検索クエリ", history_context="会話履歴")
 
 | メソッド | シグネチャ | 説明 |
 |---|---|---|
-| `_augment_http` | `(rag_url: str, query: str, history_context: str) -> str \| None` | `{rag_url}/v1/search` に POST して外部 RAG サービスの結果を取得; ヒットがあれば `last_reranked` を更新; 失敗時は `None` を返し in-process フォールバックを促す |
+| `_augment_http` | `(rag_url: str, query: str, history_context: str) -> str \| None` | `{rag_url}/v1/search` に POST して外部 RAG サービスの結果を取得; ヒットがあれば `last_fetch_result` を更新; 失敗時は `None` を返し in-process フォールバックを促す |
 | `_augment_refiner` | `(reranked: list[RagHit], query: str) -> str \| None` | `RagLLM.refine_context` を呼び出してチャンクを圧縮; 空出力・例外時は `None` を返す |
 | `_format_chunks` (static) | `(reranked: list[RagHit]) -> str` | reranked ヒットを `[Source: title \| url]\ncontent` 形式のブロックに整形し `\n\n---\n\n` 区切りで連結。`[RAG_CONTEXT_START]` / `[RAG_CONTEXT_END]` マーカーで囲む。同名関数は `rag/stages/augment.py` にも存在 |
 
@@ -178,8 +178,8 @@ cache = SemanticCache(max_size=100, threshold=0.92)
 
 | メソッド / プロパティ | 説明 |
 |---|---|
-| `lookup(embedding) -> str \| None` | コサイン類似度 >= `threshold` のエントリを探してコンテキスト文字列を返す。なければ `None` |
-| `put(embedding, context_str) -> None` | エントリを格納。`prune()` で `max_size` 上限管理 |
+| `lookup(embedding, history_context="") -> str \| None` | `history_context` が一致するエントリの中でコサイン類似度 >= `threshold` のものを返す。なければ `None` |
+| `put(embedding, history_context, context_str) -> None` | エントリを格納。`history_context` はキャッシュキーの一部。`prune()` で `max_size` 上限管理 |
 | `prune() -> None` | `max_size` 超のエントリを古い順に削除 (FIFO) |
 | `size` (property) | 現在のエントリ数 (`int`); `cache.size` でアクセス |
 

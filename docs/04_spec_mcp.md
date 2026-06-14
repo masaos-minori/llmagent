@@ -9,7 +9,7 @@ Model Context Protocol（MCP）に基づいた HTTP および stdio トランス
 ## 2. スコープ
 
 - **対象コンポーネント:** `mcp/` 配下の全サーバー、`shared/tool_executor.py`、`shared/route_resolver.py`、`shared/mcp_config.py`
-- **MCP サーバー:** web-search・file-read/write/delete・github・shell・rag-pipeline・sqlite・cicd・mdq・git（11 サーバー、合計 62 ツール）
+- **MCP サーバー:** web-search・file-read/write/delete・github・shell・rag-pipeline・sqlite・cicd・mdq・git（11 サーバー、合計 66 ツール）
 - **対象外:** エージェント REPL の内部実装、RAG パイプラインの検索ロジック
 
 ---
@@ -59,15 +59,15 @@ Model Context Protocol（MCP）に基づいた HTTP および stdio トランス
 |---|---|---|
 | web-search-mcp | 8004 | `search_web`（Brave/Bing/DuckDuckGo フォールバック） |
 | file-read-mcp | 8005 | `read_text_file`, `list_directory`, `directory_tree`, `search_files`, `grep_files`, `get_file_info`, `list_directory_with_sizes`, `read_media_file`, `read_multiple_files`（9 ツール） + `GET /list_allowed_directories` エンドポイント |
-| github-mcp | 8006 | `github_search_repositories`, `github_get_file_contents`, `github_push_files`, `github_create_pull_request`, `github_merge_pull_request`, `github_create_issue`, `github_add_issue_comment`, 他（21 ツール） |
+| github-mcp | 8006 | `github_search_repositories`, `github_get_file_contents`, `github_push_files`, `github_create_pull_request`, `github_merge_pull_request`, `github_create_issue`, `github_add_issue_comment`, 他（25 ツール） |
 | file-write-mcp | 8007 | `write_file`, `edit_file`, `create_directory`, `move_file`（4 ツール） |
 | file-delete-mcp | 8008 | `delete_file`, `delete_directory`（2 ツール） |
 | shell-mcp | 8009 | `shell_run`（1 ツール、`shell_run_bg` は未実装）。入力スキーマ: `command`, `timeout_sec`, `cwd`, `env`, `max_output_kb`, `dry_run` |
 | rag-pipeline-mcp | 8010 | `rag_run_pipeline`, `rag_debug_pipeline`（2 ツール） + `GET /v1/search` エンドポイント (backward-compat) |
-| sqlite-mcp | 8011 | `query_sqlite`（1 ツール） |
+| sqlite-mcp | 8011 | `query_sqlite`（1 ツール）※静的fallbackルーティングには含まれず、config-driven routing（tool_names）で明示的に指定必要 |
 | cicd-mcp | 8012 | GitHub Actions 関連 4 ツール（`trigger_workflow` に `dry_run` 引数あり） |
 | mdq-mcp | 8013 | `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`（7 ツール） |
-| git-mcp / rag-mcp | 8014 | `git_status`, `git_log`, `git_diff`, `git_branch`, `git_show`, `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push`（10 ツール）※ `/rag/server.py` も同一ポートで競合（未文書化） |
+| git-mcp | 8014 | `git_status`, `git_log`, `git_diff`, `git_branch`, `git_show`, `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push`（10 ツール） |
 
 ---
 
@@ -220,7 +220,7 @@ class TruncationResult:
 
 ```python
 class MCPServer:
-    async def dispatch(name: str, args: ToolArgs) -> tuple[str, bool]
+    async def dispatch(name: str, args: ToolArgs) -> DispatchResult
     def list_tools() -> list[str]
     def health() -> dict[str, str]
     def run_http() -> None
@@ -234,11 +234,11 @@ class ToolExecutor:
     async def execute(tool_name: str, args: dict) -> ToolCallResult
     # ToolCallResult: dataclass(output: str, is_error: bool, request_id: str, server_key: str)
     def set_transport(server_key: str, transport: StdioTransport) -> None
-    def set_lifecycle(lifecycle: LifecycleProtocol) -> None
+    def set_lifecycle(lifecycle: LifecycleProtocol | None) -> None
     def set_session_id(session_id: str) -> None
-    def apply_config(*, cache_ttl: float | None) -> None
+    def apply_config(*, cache_ttl: float | None = None) -> None
     def clear_cache() -> None
-    def set_health_registry(registry: McpServerHealthRegistry) -> None
+    def set_health_registry(registry: McpServerHealthRegistry | None) -> None
 ```
 
 ※ 戻り値は `tuple[str, bool, str]` ではなく `ToolCallResult` dataclass (4フィールド)。
@@ -279,7 +279,7 @@ class StdioTransport:
 
 ```python
 class ToolRouteResolver:
-    def __init__(server_configs: dict[str, McpServerConfig])
+    def __init__(server_configs: dict[str, McpServerConfig], *, warn_on_fallback: bool = False)
     def resolve(tool_name: str) -> str  # raises ValueError on no match
 ```
 
@@ -316,7 +316,8 @@ class ToolRouteResolver:
 | 項目 | 詳細 |
 |---|---|
 | `McpServerConfig.transport` 型 | 現在 `str` 型。`Literal["http", "stdio"]` への型強化が未実装 (`implementations/20260606-194710_shared_types.md` 参照) |
-| MCP ヘルス劣化制御 | `healthy/degraded/unavailable` 状態管理は **実装済み** (`shared/mcp_config.py:70-105`)。`ToolExecutor._raw_execute()` で `is_unavailable()` によるディスパッチブロックあり (`shared/tool_executor.py:509-516`) |
+| **[BUG] HealthRegistry 記録欠落** | `ToolExecutor._raw_execute()` は `is_unavailable()` でディスパッチブロックを行うが、成功時の `record_success()` と失敗時の `record_failure()` が呼ばれていない。そのため障害カウントが更新されず `DEGRADED`/`UNAVAILABLE` 状態に遷移しない（機能不全）。`tool_executor.py:509-516` に `_raw_execute()` の結果を受けて記録処理を追加する必要あり |
+| MCP ヘルス劣化制御（状態クラス） | `healthy/degraded/unavailable` 状態クラスは **実装済み** (`shared/mcp_config.py:70-105`)。ただし上記 BUG により遷移が機能していない |
 | ツール依存関係スケジューリング | `resource_scope` による部分並列化が未実装。現在は全並列/全直列の二択 (`implementations/20260606-195109_tool_scheduler.md` 参照) |
 | `CallToolRequest.args` バリデーション | ツール名ベースのバリデーション層が未実装 |
 | mdq サーバーの Phase 2/3 機能 | 埋め込みインデックス（`md_chunks_vec`）、サマリーキャッシュ、AST パーサーが未実装 |

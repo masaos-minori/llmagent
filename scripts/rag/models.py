@@ -5,6 +5,7 @@ Typed DTO, config, and result dataclasses for the RAG and ingestion layer.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from rag.enums import LanguageCode, MqeStatus
 
@@ -110,6 +111,16 @@ class RegisteredDocument:
 class CacheEntry:
     embedding: list[float]
     context_str: str
+    history_context: str = ""
+
+
+@dataclass(frozen=True)
+class TwoStageFetchResult:
+    """Typed result capturing reranked hits with applied filter/dedup parameters."""
+
+    hits: list[Any]  # list[RagHit] in-process; list[dict] HTTP mode
+    min_score_applied: float  # rag_min_score used (0.0 = no score filter)
+    max_chunks_per_doc: int  # per-doc dedup limit applied
 
 
 # ── Result DTOs ────────────────────────────────────────────────────────────────

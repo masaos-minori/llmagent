@@ -101,7 +101,7 @@ CLI REPL ツール。`agent>` (または `agent[:#N]>`) プロンプトで対話
 
 ### 1.6 設定項目
 
-→ [`docs/06_ref-agent-config.md`](06_ref-agent-config.md) を参照。`common.toml` / `llm.toml` / `tools.toml` 等の全設定パラメータ、デフォルト値、バリデーション仕様を記載している。
+→ [`05_ref-agent-config.md`](05_ref-agent-config.md) を参照。`common.toml` / `llm.toml` / `tools.toml` 等の全設定パラメータ、デフォルト値、バリデーション仕様を記載している。
 
 
 ### 1.7 クラス API
@@ -110,11 +110,11 @@ CLI REPL ツール。`agent>` (または `agent[:#N]>`) プロンプトで対話
 
 | クラス | 概要 | 参照ドキュメント |
 |---|---|---|
-| `AgentREPL` (repl.py) | 全コンポーネントを AgentContext へ DI し REPL ループを駆動する薄いコーディネータ | [06_ref-agent-repl.md](06_ref-agent-repl.md) |
+| `AgentREPL` (repl.py) | 全コンポーネントを AgentContext へ DI し REPL ループを駆動する薄いコーディネータ | [05_ref-agent-repl.md](05_ref-agent-repl.md) |
 | `Orchestrator` | ターンレベルのファサード（メモリ注入 → ユーザーメッセージ追加 → 圧縮 → LLM → ツール実行） | [05_agent-impl-flow.md](05_agent-impl-flow.md) |
-| `LLMTurnRunner` | LLM ストリーミング + 内側ツールコールループ (llm_turn_runner.py) | [06_ref-agent-llm.md](06_ref-agent-llm.md) |
+| `LLMTurnRunner` | LLM ストリーミング + 内側ツールコールループ (llm_turn_runner.py) | [05_ref-agent-llm.md](05_ref-agent-llm.md) |
 | `ToolLoopGuard` | ツールループの cycle/dedup/retry/error リストリクタ (tool_loop_guard.py) | [05_agent-impl-flow.md](05_agent-impl-flow.md) |
-| `AgentContext` | 全コンポーネント参照と per-session state を一元管理する DI ハブ。`tool_result_store` と `services_required` プロパティも持つ | [06_ref-agent-context.md](06_ref-agent-context.md) |
-| `CLIView` | readline・進捗表示・マルチライン入力を担うプレゼンテーション層 | [06_ref-agent-view.md](06_ref-agent-view.md) |
-| `CommandRegistry` | スラッシュコマンドディスパッチャ（10 個のミックスインで構成） | [06_ref-agent-commands.md](06_ref-agent-commands.md) |
+| `AgentContext` | 全コンポーネント参照と per-session state を一元管理する DI ハブ。`tool_result_store` と `services_required` プロパティも持つ | [05_ref-agent-context.md](05_ref-agent-context.md) |
+| `CLIView` | readline・進捗表示・マルチライン入力を担うプレゼンテーション層 | [05_ref-agent-view.md](05_ref-agent-view.md) |
+| `CommandRegistry` | スラッシュコマンドディスパッチャ（10 個のミックスインで構成） | [05_ref-agent-commands.md](05_ref-agent-commands.md) |
 | `_ServerLifecycleRouter` (factory.py) | `ServerLifecycleManager` に代わって routing を担当。`agent/lifecycle.py` の `restart_stdio()` は残存 | [04_mcp-protocol.md](04_mcp-protocol.md) |

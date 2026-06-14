@@ -61,49 +61,52 @@ class _SessionMixin(MixinBase):
         else:
             self._out.write_no_data(f"Session {sid} not found.")
 
+    def _session_list(self, limit_arg: str) -> None:
+        """List sessions table; limit_arg is the raw CLI positional (digit string or empty)."""
+        limit = int(limit_arg) if limit_arg.isdigit() else 20
+        raw_rows = self._ctx.session.list_sessions(limit)
+        if not raw_rows:
+            self._out.write_no_data("No sessions found")
+            return
+        session_rows = []
+        for r in raw_rows:
+            ca = r.get("created_at")
+            if ca is not None and not isinstance(ca, str):
+                raise TypeError(
+                    f"created_at must be str or None, got {type(ca).__name__}"
+                )
+            session_rows.append(
+                SessionRow(
+                    session_id=r["session_id"],
+                    title=r.get("title"),
+                    created_at=ca if ca is not None else "",
+                    is_current=bool(r.get("is_current", False)),
+                )
+            )
+        table_rows = []
+        for sr in session_rows:
+            title = sr.title if sr.title is not None else ""
+            title_display = (
+                title[:SESSION_TITLE_TRUNCATE_AT] + "..."
+                if len(title) > SESSION_TITLE_MAX_CHARS
+                else title
+            )
+            table_rows.append(
+                [
+                    f"{sr.session_id:>4}{'*' if sr.is_current else ' '}",
+                    title_display,
+                    sr.created_at,
+                ]
+            )
+        self._out.write_table(["ID  ", "Title", "Created"], table_rows)
+
     def _cmd_session(self, args: str) -> None:
         """Handle /session list [n] | load <id> | rename <title> | delete <id>."""
         parsed = parse_command_args(args.strip().split())
         sub = parsed.subcommand or "list"
 
         if sub == "list":
-            limit_raw = parsed.positional[0] if parsed.positional else "20"
-            limit = int(limit_raw) if limit_raw.isdigit() else 20
-            raw_rows = self._ctx.session.list_sessions(limit)
-            if not raw_rows:
-                self._out.write_no_data("No sessions found")
-                return
-            session_rows = []
-            for r in raw_rows:
-                ca = r.get("created_at")
-                if ca is not None and not isinstance(ca, str):
-                    raise TypeError(
-                        f"created_at must be str or None, got {type(ca).__name__}"
-                    )
-                session_rows.append(
-                    SessionRow(
-                        session_id=r["session_id"],
-                        title=r.get("title"),
-                        created_at=ca if ca is not None else "",
-                        is_current=bool(r.get("is_current", False)),
-                    )
-                )
-            table_rows = []
-            for sr in session_rows:
-                title = sr.title if sr.title is not None else ""
-                title_display = (
-                    title[:SESSION_TITLE_TRUNCATE_AT] + "..."
-                    if len(title) > SESSION_TITLE_MAX_CHARS
-                    else title
-                )
-                table_rows.append(
-                    [
-                        f"{sr.session_id:>4}{'*' if sr.is_current else ' '}",
-                        title_display,
-                        sr.created_at,
-                    ]
-                )
-            self._out.write_table(["ID  ", "Title", "Created"], table_rows)
+            self._session_list(parsed.positional[0] if parsed.positional else "20")
             return
 
         if sub == "load":

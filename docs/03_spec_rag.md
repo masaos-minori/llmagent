@@ -100,12 +100,14 @@ Web クロール・チャンク分割・埋め込み生成・SQLite 格納の 4 
   "title": "...",
   "source_file": "...",
   "chunk_type": "text" | "code",
+  "chunking_strategy": "text" | "heading",
   "etag": "...",
   "last_modified": "..."
 }
 ```
 
-※ `chunk_type` は `text` または `code`（`chunk_splitter.py:210-223`）。
+※ `chunk_type` は `text` または `code`（`chunk_splitter.py:210-223`）。  
+※ `chunking_strategy` は `"text"`（通常分割）または `"heading"`（Markdown 見出し境界分割）。Stage 3 で documents テーブルに書き込まれる。
 
 **Stage 3:** SQLite `documents` + `chunks` + `chunks_fts` + `chunks_vec` にアップサート
 
@@ -150,7 +152,8 @@ WebCrawler.crawl(target_urls)
 ChunkSplitter.split(source_files)
   → 日本語: NFKC + Sudachi SplitMode.C + stopword 除去 + 40-500 文字境界
   → 英語: 文境界分割 + 40-500 文字
-  → Markdown: heading 境界（md_index_enable=true 時）
+  → Markdown (.md/.markdown/.mdx): heading 境界（md_index_enable に関係なく常に適用）
+  → 非.md コンテンツ: md_index_enable=true かつ見出し行 ≥ 2 のときのみ heading 境界
   → chunk_overlap=50 文字のオーバーラップ
   → rag-src/chunk/*.txt に保存
 
@@ -200,6 +203,7 @@ RagPipeline.augment(query)
 | `fetched_at` | TEXT | 取得日時（ISO-8601） |
 | `etag` | TEXT | HTTP ETag |
 | `last_modified` | TEXT | HTTP Last-Modified |
+| `chunking_strategy` | TEXT DEFAULT `'text'` | チャンク分割戦略（`text`/`heading`）。既存 DB には `migrate_schema()` で追加 |
 
 **chunks テーブル:**
 
@@ -249,6 +253,8 @@ RagPipeline.augment(query)
 | `use_rerank` | True | クロスエンコーダーリランク有効フラグ |
 | `embed_url` | `http://127.0.0.1:8003/embedding` | 埋め込みサーバー URL |
 | `embed_workers` | 4 | 並列埋め込み生成スレッド数 |
+| `md_index_enable` | False | 非 `.md` コンテンツへの heading chunking ヒューリスティックを有効化（`.md/.markdown/.mdx` は常に有効） |
+| `md_snippet_max_chars` | 600 | Markdown 見出しセクションの最大文字数。超過時は通常 text chunking にフォールバック |
 
 ---
 
@@ -334,7 +340,7 @@ class PipelineStage(Protocol):
 
 | 検証項目 | ツール | 合格基準 |
 |---|---|---|
-| ユニットテスト | `uv run pytest tests/test_rag_pipeline.py tests/test_rag_utils.py` | 全パス |
+| ユニットテスト | `uv run pytest tests/test_rag_pipeline.py tests/test_rag_utils.py tests/test_chunk_splitter.py` | 全パス |
 | 型チェック | `uv run mypy scripts/rag/` | 新規エラーなし |
 | セキュリティ | `uv run bandit -r scripts/rag/` | HIGH 未対応なし |
 | 統合テスト | `/ingest <url>` → `/rag search <q>` | ヒット返却を確認 |
@@ -346,6 +352,8 @@ class PipelineStage(Protocol):
 
 | 項目 | 詳細 |
 |---|---|
+| **[BUG-1/2/3] `_read_chunk_json()` による 3 フィールド欠落** | 根本原因: `ingester._read_chunk_json()` が `dataclasses.asdict(read_json_file(path))` を経由するため `ChunkDocument` に存在しないフィールドが消える。派生バグ 3 件: (1) `chunking_strategy` 欠落 → 常に `'text'` が DB 保存 (`ingester.py:94`)、(2) `normalized_content` が `None` ハードコード → 日本語 FTS5 が Sudachi 正規化テキストを無視し検索精度低下 (`ingester.py:255`)、(3) `chunk_index` が `try: idx=0` の dead code で常に 0 → 全チャンクが `chunk_index=0` で登録 (`ingester.py:257-260`)。修正方針: `_read_chunk_json()` を `orjson.loads(path.read_bytes())` に変更 (`ingester.py:237-245`) |
 | Prompt Injection 防御 | `utils.py:43-48` の `sanitize_document()` が prompt injection パターンを `[REMOVED]` に置換。`pipeline.py:254`, `stages/augment.py:13` で呼ばれている（実装済み） |
 | 外部 RAG サービス | `rag_service_url` 設定時の外部委譲は実装済みだが、認証・エラー処理の仕様が未定義 |
 | MDQ との分離 | Markdown 専用インデックス（`mdq-mcp`）との責務分担が `04_mcp-mdq.md` に記載されているが、移行基準が未定義 |
+| テスト未作成 | `test_ingester.py` が未作成（インジェスト系の DB 書き込み・`chunking_strategy` 反映が無検証）。`test_agent_cmd_db.py` の Strategy カラム出力も未検証 |

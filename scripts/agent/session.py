@@ -69,6 +69,22 @@ class AgentSession:
         """Return all note content strings in creation order for prompt injection."""
         return self._note_repo.get_all_note_contents()
 
+    def pin_note(self, note_id: int) -> bool:
+        """Pin a note by ID."""
+        return self._note_repo.pin_note(note_id)
+
+    def unpin_note(self, note_id: int) -> bool:
+        """Unpin a note by ID."""
+        return self._note_repo.unpin_note(note_id)
+
+    def get_pinned_notes(self) -> list[dict]:
+        """Return all pinned notes."""
+        return self._note_repo.get_pinned_notes()
+
+    def search_notes(self, query: str, limit: int = 5) -> list[dict]:
+        """Search notes by content LIKE query."""
+        return self._note_repo.search_notes(query, limit)
+
     # ── DocumentRepository delegation ─────────────────────────────────────────
 
     def list_documents(self, lang: str | None = None, limit: int = 20) -> list[dict]:

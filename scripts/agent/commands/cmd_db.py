@@ -118,10 +118,20 @@ class _DbMixin(MixinBase):
             fetched_at = r["fetched_at"]
             fetched_display = fetched_at if isinstance(fetched_at, str) else ""
 
+            strategy_display = r.get("chunking_strategy") or "text"
+
             table_rows.append(
-                [url_display, lang_display, chunk_display, fetched_display]
+                [
+                    url_display,
+                    lang_display,
+                    chunk_display,
+                    fetched_display,
+                    strategy_display,
+                ]
             )
-        self._out.write_table(["URL", "Lang", "Chunks", "Fetched"], table_rows)
+        self._out.write_table(
+            ["URL", "Lang", "Chunks", "Fetched", "Strategy"], table_rows
+        )
 
     def _db_rebuild_fts(self) -> None:
         """Rebuild the FTS5 chunks_fts index in rag.sqlite."""

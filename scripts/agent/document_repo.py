@@ -22,7 +22,7 @@ class DocumentRepository:
         Raises sqlite3.Error on DB failure.
         """
         sql = (
-            "SELECT d.url, d.title, d.lang, d.fetched_at,"
+            "SELECT d.url, d.title, d.lang, d.fetched_at, d.chunking_strategy,"
             " COUNT(c.chunk_id) AS n"
             " FROM documents d"
             " LEFT JOIN chunks c USING(doc_id)"
@@ -33,7 +33,7 @@ class DocumentRepository:
             params.append(lang)
         sql += " GROUP BY d.doc_id ORDER BY d.fetched_at DESC LIMIT ?"
         params.append(limit)
-        with SQLiteHelper("session").open(row_factory=True) as db:
+        with SQLiteHelper("rag").open(row_factory=True) as db:
             rows = db.fetchall(sql, tuple(params))
         return [
             {
@@ -41,6 +41,7 @@ class DocumentRepository:
                 "title": r["title"],
                 "lang": r["lang"],
                 "fetched_at": r["fetched_at"],
+                "chunking_strategy": r["chunking_strategy"],
                 "chunk_count": r["n"],
             }
             for r in rows
@@ -54,7 +55,7 @@ class DocumentRepository:
         Returns True when found and deleted, False when not found.
         Raises sqlite3.Error on DB failure.
         """
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("rag").open(write_mode=True) as db:
             row = db.execute(
                 "SELECT doc_id FROM documents WHERE url = ?",
                 (url,),

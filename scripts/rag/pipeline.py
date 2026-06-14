@@ -29,6 +29,7 @@ from shared.types import RagConfig
 
 from rag.cache import SemanticCache
 from rag.llm import RagLLM, get_embedding
+from rag.models import TwoStageFetchResult
 from rag.repository import (
     RagRepository,
     deduplicate_chunks,
@@ -99,7 +100,7 @@ class RagPipeline:
         self._on_status = on_status or (lambda _: None)
         self._on_clear = on_clear or (lambda: None)
         # Populated after each run(); enables two-stage fetch by callers
-        self.last_reranked: list[RagHit] = []
+        self.last_fetch_result: TwoStageFetchResult | None = None
         # Per-step wall-clock seconds from the most recent run() call
         self.last_timings: dict[str, float] = {}
         # In-memory nearest-neighbour cache; threshold/max_size read from cfg
@@ -185,7 +186,11 @@ class RagPipeline:
                 self.last_timings[stage.__class__.__name__] = time.perf_counter() - t0
 
             # Store for two-stage fetch callers (e.g. REPLAgent._run_turn)
-            self.last_reranked = ctx.reranked
+            self.last_fetch_result = TwoStageFetchResult(
+                hits=ctx.reranked,
+                min_score_applied=self._cfg.rag_min_score,
+                max_chunks_per_doc=self._cfg.max_chunks_per_doc,
+            )
 
             return ctx.queries, ctx.search_results, ctx.merged, ctx.reranked
         finally:
@@ -197,7 +202,7 @@ class RagPipeline:
         query: str,
         history_context: str,
     ) -> str | None:
-        """Delegate to external RAG service; None on failure triggers in-process fallback; stores hits in last_reranked."""
+        """Delegate to external RAG service; None on failure triggers in-process fallback; stores hits in last_fetch_result."""
         try:
             resp = await self._http.post(
                 f"{rag_url}/v1/search",
@@ -208,7 +213,11 @@ class RagPipeline:
             hits = body.get("selected_hits", [])
             if hits:
                 # store for two-stage fetch callers (orchestrator._fetch_two_stage_context)
-                self.last_reranked = hits
+                self.last_fetch_result = TwoStageFetchResult(
+                    hits=hits,
+                    min_score_applied=0.0,
+                    max_chunks_per_doc=0,
+                )
             context_raw = body.get("context")
             if context_raw is None:
                 return ""
@@ -275,6 +284,17 @@ class RagPipeline:
             result = await self._augment_http(rag_url, query, history_context)
             if result is not None:
                 return result
+        # Semantic cache lookup (in-process mode only)
+        emb: list[float] | None = None
+        if self._cfg.use_semantic_cache and self._embed_url:
+            try:
+                emb = await get_embedding(query, self._http, self._embed_url)
+            except (httpx.HTTPError, OSError, TimeoutError):
+                emb = None
+            if emb is not None:
+                cached = self.semantic_cache.lookup(emb, history_context)
+                if cached is not None:
+                    return cached
         try:
             db = SQLiteHelper().open(row_factory=True)
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
@@ -295,4 +315,7 @@ class RagPipeline:
             refined = await self._augment_refiner(reranked, query)
             if refined is not None:
                 return refined
-        return self._format_chunks(reranked)
+        context_block = self._format_chunks(reranked)
+        if self._cfg.use_semantic_cache and emb is not None and context_block:
+            self.semantic_cache.put(emb, history_context, context_block)
+        return context_block

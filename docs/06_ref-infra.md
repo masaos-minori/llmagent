@@ -13,7 +13,7 @@
 | `shared/tool_constants.py` | ツール分類の正規 `frozenset` 定義 (`READ_TOOLS` / `WRITE_TOOLS` / `DELETE_TOOLS` / `RAG_TOOLS` / `CICD_TOOLS` / `MDQ_TOOLS` / `GIT_TOOLS`) |
 | `shared/route_resolver.py` | ツール名 → サーバキーのマッピング (`ToolRouteResolver`) |
 
-SQLite 接続マネージャ → [`docs/06_ref-sqlite.md`](06_ref-sqlite.md)
+SQLite 接続マネージャ → [`07_ref-sqlite.md`](07_ref-sqlite.md)
 
 ---
 
@@ -37,7 +37,6 @@ cfg = ConfigLoader().load("common.toml", "agent.toml")
 | `ConfigLoader(config_dir=None)` | `config_dir: Path` — 省略時はスクリプト 2 階層上の `config/` | `ConfigLoader` | インスタンスを生成 |
 | `ConfigLoader.load(*names)` | `names: str` — `config/` 相対のファイル名 (複数可)。拡張子 `.toml` / `.json` または拡張子なし (`.toml` が暗黙付与) | `dict[str, Any]` | TOML / JSON ファイルを順に読み込んでマージ。後から読んだキーで上書き。ファイル未存在・フォーマット不正の場合は `ValueError` を送出 |
 | `ConfigLoader.load_all()` | — | `dict[str, Any]` | `_BASE_CONFIG_FILES` 定義の全基本設定ファイル (`llm.toml`, `http.toml`, `rag.toml`, `context.toml`, `tools.toml`, `memory.toml`, `otel.toml`, `security.toml`, `system_prompts.toml`, `mcp_servers.toml`, `tools_definitions.toml`) を順に読み込んでマージ。未存在ファイルはログ出力してスキップ |
-| `get_config(name)` | `name: str` — 設定名またはファイル名 | `dict[str, Any]` | 簡易ラッパー: `name` に `.toml` を付与して `ConfigLoader().load()` を呼び出す |
 
 ### 1.3 ファイル名の解決ルール
 
@@ -263,6 +262,7 @@ OpenTelemetry (OTel) トレーサーの初期化ユーティリティ。`build_t
 from shared.otel_tracer import build_tracer
 
 tracer = build_tracer(enabled=True, service_name="llm-agent", otlp_endpoint="")
+# service_name デフォルト: "llm-agent", otlp_endpoint デフォルト: ""
 ```
 
 | 関数/クラス | シグネチャ | 説明 |

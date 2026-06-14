@@ -283,11 +283,13 @@ class AgentREPL:
             ctx.conv.system_prompt_name,
             ctx.cfg.tool.system_prompt_tool,
         )
-        # Append persisted notes to system prompt when auto_inject_notes is enabled
+        # Inject pinned notes into system prompt at session start
         if ctx.cfg.tool.auto_inject_notes:
-            note_texts = ctx.session.get_all_note_contents()
-            if note_texts:
-                notes_block = "\n\n[Notes]\n" + "\n".join(f"- {t}" for t in note_texts)
+            pinned_notes = ctx.session.get_pinned_notes()
+            if pinned_notes:
+                notes_block = "\n\n[Pinned Notes]\n" + "\n".join(
+                    f"- {n['content']}" for n in pinned_notes
+                )
                 initial_prompt = initial_prompt + notes_block
         # SessionStart: inject top semantic memories into system prompt
         if ctx.services.memory is not None:

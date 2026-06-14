@@ -143,13 +143,13 @@ def retriever(db_conn: sqlite3.Connection) -> Generator[MemoryRetriever]:
 
 class TestBuildFtsQuery:
     def test_single_word(self) -> None:
-        assert _build_fts_query("policy") == "policy"
+        assert _build_fts_query("policy") == '"policy"'
 
     def test_multi_word_joins_with_or(self) -> None:
         result = _build_fts_query("rule policy")
-        assert "rule" in result
+        assert '"rule"' in result
         assert "OR" in result
-        assert "policy" in result
+        assert '"policy"' in result
 
     def test_empty_string_returns_fallback(self) -> None:
         assert _build_fts_query("") == '""'

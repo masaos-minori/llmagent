@@ -132,7 +132,7 @@ POST :8006/v1/call_tool     {"name": "github_search_repositories", "args": {"que
 |---|---|---|
 | RAG 検索 | `rag/pipeline.py` | MQE + KNN + BM25 + RRF + Cross-Encoder |
 | MCP ツールコーリング | `agent/repl.py` | HTTP / stdio デュアルトランスポート (11 サーバ, :8004〜:8014) |
-| メモリレイヤー (4 層) | `agent/memory/layer.py` / `store.py` / `retriever.py` / `extract.py` | `SessionStart` → `UserPrompt` → `Stop` ライフサイクルで semantic / episodic を `memories` + `memories_fts` + `memories_vec` テーブルに永続化。`use_memory_layer=true` で有効化 |
+| メモリレイヤー | `agent/memory/` (`store.py`, `retriever.py`, `extract.py`, `ingestion.py`, `injection.py`, `embedding_client.py`, `jsonl_store.py`) | `SessionStart` → `UserPrompt` → `Stop` ライフサイクルで semantic / episodic を `memories` + `memories_fts` + `memories_vec` テーブルに永続化。`use_memory_layer=true` で有効化 |
 | セッション永続化 | `agent/session.py` | sessions / messages テーブルへの SQLite 保存 |
 | セッション復元 | `agent/commands.CommandRegistry._cmd_session` | `/session load <id>` で過去会話を復元 |
 | コンテキスト圧縮 | `history_manager.HistoryManager.compress` | 履歴が `context_char_limit` 超で LLM 要約 |

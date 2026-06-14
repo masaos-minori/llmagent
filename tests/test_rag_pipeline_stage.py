@@ -320,22 +320,22 @@ class TestSemanticCacheDimensionGuard:
         from rag.cache import SemanticCache
 
         cache = SemanticCache()
-        cache.put([1.0, 2.0, 3.0], "ctx")
+        cache.put([1.0, 2.0, 3.0], "", "ctx")
         assert cache._dim == 3
 
     def test_put_raises_on_dimension_mismatch(self) -> None:
         from rag.cache import SemanticCache
 
         cache = SemanticCache()
-        cache.put([1.0, 2.0, 3.0], "ctx")
+        cache.put([1.0, 2.0, 3.0], "", "ctx")
         with pytest.raises(ValueError, match="dimension mismatch"):
-            cache.put([1.0, 2.0], "other")
+            cache.put([1.0, 2.0], "", "other")
 
     def test_lookup_raises_on_dimension_mismatch(self) -> None:
         from rag.cache import SemanticCache
 
         cache = SemanticCache()
-        cache.put([1.0, 2.0, 3.0], "ctx")
+        cache.put([1.0, 2.0, 3.0], "", "ctx")
         with pytest.raises(ValueError, match="dimension mismatch"):
             cache.lookup([1.0, 2.0])
 

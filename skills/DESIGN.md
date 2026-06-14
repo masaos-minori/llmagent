@@ -15,9 +15,12 @@
 | Optimize for token efficiency | Front-load critical rules; cut prose that does not constrain behavior |
 | Design to prevent failure | Anticipate common error modes and encode the guard or recovery inline |
 
-**Runtime policy** — every skill execution must load the files listed in `routing.md` (`## Always load alongside the skill`). Do not repeat their content inside SKILL.md files.
+**Execution model** — universal rules for running any skill:
+- Execute phases in order; do not skip mandatory phases
+- Skip optional phases only when the defined skip condition applies
+- If a phase reveals missing information or blocking issues, stop, resolve, then continue
 
-**File organization** — when splitting a skill file or creating a new one, apply the 4 principles from CLAUDE.md's "File Split Rule": routing / dependency direction / minimal loading / shared normalization.
+**File organization** — when splitting a skill file or creating a new one, apply the 4 principles from AGENTS.md's File Split Rule: routing / dependency direction / minimal loading / shared normalization.
 
 **Evaluation criteria** — a SKILL is good when it:
 
