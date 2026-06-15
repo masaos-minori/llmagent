@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-DEPLOY_SCRIPTS="/opt/llm/scripts"
+DEPLOY_SCRIPTS="/opt/llm/scripts/db"
 DEPLOY_DB="/opt/llm/db"
 
 echo "=== init_db.sh: DB 初期化開始 ==="
