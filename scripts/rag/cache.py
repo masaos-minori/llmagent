@@ -56,7 +56,7 @@ class SemanticCache:
                 best_sim = sim
                 best_ctx = entry.context_str
         if best_sim >= self._threshold:
-            logger.debug(f"SemanticCache hit: sim={best_sim:.4f}")
+            logger.debug("SemanticCache hit: sim=%.4f", best_sim)
             return best_ctx
         return None
 

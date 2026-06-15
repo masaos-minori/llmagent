@@ -79,8 +79,9 @@ class ToolLoopGuard:
         ).hexdigest()
         if round_fingerprints.count(round_key) >= ctx.cfg.tool.tool_cycle_detect_window:
             logger.warning(
-                f"Cyclic planning detected: round fingerprint {round_key!r}"
-                f" repeated {round_fingerprints.count(round_key)} times",
+                "Cyclic planning detected: round fingerprint %r repeated %s times",
+                round_key,
+                round_fingerprints.count(round_key),
             )
             ctx.conv.history.append({"role": "user", "content": CYCLE_HINT})
             return "Cyclic tool call pattern detected."
@@ -103,7 +104,7 @@ class ToolLoopGuard:
             seen_calls[key] = seen_calls.get(key, 0) + 1
             if seen_calls[key] >= ctx.cfg.tool.tool_dedup_max_repeats:
                 name = func.get("name", "<unknown>")
-                logger.warning(f"Duplicate tool call blocked: {name!r}")
+                logger.warning("Duplicate tool call blocked: %r", name)
                 ctx.conv.history.append({"role": "user", "content": DEDUP_HINT})
                 return "Repeated tool call detected."
         return None
@@ -132,7 +133,7 @@ class ToolLoopGuard:
                 ) from e
             if tool_call_key(func.get("name", ""), tc_args) in failed_calls:
                 name = func.get("name", "<unknown>")
-                logger.warning(f"Retry of failed tool call blocked: {name!r}")
+                logger.warning("Retry of failed tool call blocked: %r", name)
                 ctx.conv.history.append({"role": "user", "content": DEDUP_HINT})
                 return "Repeated failed tool call detected."
         return None
@@ -171,7 +172,8 @@ class ToolLoopGuard:
         ):
             return None
         logger.warning(
-            f"Aborting turn: {consecutive_errors} consecutive all-error"
-            f" tool turns (max={ctx.cfg.tool.tool_error_max_consecutive})",
+            "Aborting turn: %s consecutive all-error tool turns (max=%s)",
+            consecutive_errors,
+            ctx.cfg.tool.tool_error_max_consecutive,
         )
         return "Too many consecutive tool errors."

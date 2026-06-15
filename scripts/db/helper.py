@@ -57,7 +57,7 @@ class SQLiteHelper:
         try:
             return sqlite3.connect(self._db_path, timeout=self._sqlite_timeout)
         except sqlite3.OperationalError as e:
-            logger.error(f"Failed to connect to '{self._db_path}': {e}")
+            logger.error("Failed to connect to '%s': %s", self._db_path, e)
             raise
 
     def _load_vec_extension(self, conn: sqlite3.Connection) -> None:
@@ -72,7 +72,7 @@ class SQLiteHelper:
             conn.enable_load_extension(False)
         except sqlite3.OperationalError as e:
             conn.close()
-            logger.error(f"Failed to load sqlite-vec '{self._vec_so}': {e}")
+            logger.error("Failed to load sqlite-vec '%s': %s", self._vec_so, e)
             raise
 
     def _apply_connection_pragmas(
@@ -109,7 +109,9 @@ class SQLiteHelper:
         if row_factory:
             conn.row_factory = sqlite3.Row
         self.conn = conn
-        logger.debug(f"SQLite connection opened: {self._db_path} (write={write_mode})")
+        logger.debug(
+            "SQLite connection opened: %s (write=%s)", self._db_path, write_mode
+        )
         return self
 
     def __enter__(self) -> "SQLiteHelper":
@@ -125,7 +127,7 @@ class SQLiteHelper:
         try:
             self.conn.close()
         except OSError as e:
-            logger.warning(f"Error while closing SQLite connection: {e}")
+            logger.warning("Error while closing SQLite connection: %s", e)
         finally:
             self.conn = None
 
@@ -197,7 +199,7 @@ class SQLiteHelper:
             log_size=int(row[1]),
             pages_checkpointed=int(row[2]),
         )
-        logger.info(f"WAL checkpoint ({mode}): {result}")
+        logger.info("WAL checkpoint (%s): %s", mode, result)
         return result
 
     def vacuum(self) -> None:
@@ -205,7 +207,7 @@ class SQLiteHelper:
         if self.conn is None:
             raise RuntimeError("DB not open — call open() first")
         self.conn.execute("VACUUM")
-        logger.info(f"VACUUM completed: {self._db_path}")
+        logger.info("VACUUM completed: %s", self._db_path)
 
     def _check_ready(self, sql: str) -> None:
         """Guard: raise if connection is not open or sql is invalid."""
@@ -248,5 +250,5 @@ class SQLiteHelper:
         try:
             self.conn.commit()
         except sqlite3.OperationalError as e:
-            logger.error(f"Commit failed: {e}")
+            logger.error("Commit failed: %s", e)
             raise

@@ -44,7 +44,7 @@ async def dispatch_tool(
 
     handler = table.get(name)
     if handler is None:
-        logger.warning(f"Unknown tool requested: {name}")
+        logger.warning("Unknown tool requested: %s", name)
         return DispatchResult(output=f"Unknown tool: {name}", is_error=True)
 
     try:
@@ -52,6 +52,6 @@ async def dispatch_tool(
         return DispatchResult(output=result, is_error=False)
     except ValueError as e:
         # Validation / user-input errors: return as tool error, not server fault
-        logger.warning(f"Tool '{name}' validation error: {e}")
+        logger.warning("Tool '%s' validation error: %s", name, e)
         return DispatchResult(output=f"Validation error: {e}", is_error=True)
     # All other exceptions (RuntimeError, IOError, HTTPException, etc.) propagate to caller.

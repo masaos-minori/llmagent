@@ -149,8 +149,10 @@ class RagRepository:
             ],
         )
         logger.info(
-            f"vector_search: top_k={top_k} hits={len(results)}"
-            f" elapsed_ms={elapsed_ms:.1f}",
+            "vector_search: top_k=%s hits=%s elapsed_ms=%.1f",
+            top_k,
+            len(results),
+            elapsed_ms,
         )
         return results
 
@@ -177,8 +179,12 @@ class RagRepository:
             ],
         )
         logger.info(
-            f"fts_search: query={query!r} fts_query={fts_query!r}"
-            f" top_k={top_k} hits={len(results)} elapsed_ms={elapsed_ms:.1f}",
+            "fts_search: query=%r fts_query=%r top_k=%s hits=%s elapsed_ms=%.1f",
+            query,
+            fts_query,
+            top_k,
+            len(results),
+            elapsed_ms,
         )
         return results
 
@@ -290,7 +296,10 @@ def deduplicate_chunks(hits: list[RagHit], max_per_doc: int) -> list[RagHit]:
             result.append(hit)
             counts[url] = n + 1
     logger.info(
-        f"deduplicate_chunks: {len(hits)} → {len(result)} (max_per_doc={max_per_doc})",
+        "deduplicate_chunks: %s → %s (max_per_doc=%s)",
+        len(hits),
+        len(result),
+        max_per_doc,
     )
     return result
 

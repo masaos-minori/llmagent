@@ -144,7 +144,7 @@ class WriteFileService:
             raise FileAuthorizationError(str(e))
         except OSError as e:
             tmp.unlink(missing_ok=True)
-            logger.error(f"write_file: OS error writing '{target}': {e}")
+            logger.error("write_file: OS error writing '%s': %s", target, e)
             raise FileValidationError(str(e))
 
         size = target.stat().st_size
@@ -181,7 +181,7 @@ class WriteFileService:
         except PermissionError as e:
             raise FileAuthorizationError(str(e))
         except OSError as e:
-            logger.error(f"create_directory: OS error creating '{target}': {e}")
+            logger.error("create_directory: OS error creating '%s': %s", target, e)
             raise FileValidationError(str(e))
 
         created = not already_exists
@@ -217,7 +217,7 @@ class WriteFileService:
         except PermissionError as e:
             raise FileAuthorizationError(str(e))
         except OSError as e:
-            logger.error(f"move_file: OS error moving '{src}' to '{dest}': {e}")
+            logger.error("move_file: OS error moving '%s' to '%s': %s", src, dest, e)
             raise FileValidationError(str(e))
 
         return MoveFileResponse(source=str(src), destination=str(dest), dry_run_info="")

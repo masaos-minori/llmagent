@@ -73,12 +73,12 @@ class WebCrawler:
         """Save a local file as a crawl result JSON in rag-src/; .py files stored as code blocks; returns 1 on success, 0 on failure."""
         # Guard: file must exist before reading
         if not path.exists():
-            logger.error(f"Local file not found: {path}")
+            logger.error("Local file not found: %s", path)
             return 0
         try:
             content = path.read_text(encoding="utf-8", errors="ignore")
         except OSError as e:
-            logger.error(f"Failed to read local file {path}: {e}")
+            logger.error("Failed to read local file %s: %s", path, e)
             return 0
         # Resolve "auto" lang by CJK-ratio detection on the file content
         resolved_lang: str = (
@@ -98,18 +98,18 @@ class WebCrawler:
         self._rag_src_dir.mkdir(parents=True, exist_ok=True)
         out = self._make_crawl_filepath(url)
         out.write_bytes(orjson.dumps(payload, option=orjson.OPT_INDENT_2))
-        logger.info(f"saved local file: {out.name}")
+        logger.info("saved local file: %s", out.name)
         return 1
 
     async def crawl(self, targets: list[tuple[str, str]] | None = None) -> None:
         """Crawl all given targets, or config target_urls when targets is None."""
         for url, lang in targets or self._target_urls:
-            logger.info(f"=== start: {url} (lang={lang}) ===")
+            logger.info("=== start: %s (lang=%s) ===", url, lang)
             try:
                 await self.crawl_site(url, lang)
             except (httpx.RequestError, httpx.HTTPStatusError, OSError) as _crawl_err:
-                logger.exception(f"crawl_site failed: {url}: {_crawl_err}")
-            logger.info(f"=== done:  {url} ===")
+                logger.exception("crawl_site failed: %s: %s", url, _crawl_err)
+            logger.info("=== done:  %s ===", url)
 
     def _drain_queue_to_tasks(
         self,
@@ -145,7 +145,7 @@ class WebCrawler:
     async def crawl_site(self, start_url: str, hint_lang: str) -> None:
         """Async BFS crawl within the same origin up to max_depth levels via asyncio.Semaphore concurrency and FIRST_COMPLETED loop."""
         if not validate_url(start_url):
-            logger.error(f"Invalid start URL (must be http/https): {start_url!r}")
+            logger.error("Invalid start URL (must be http/https): %r", start_url)
             return
 
         sem = asyncio.Semaphore(self._concurrency)
@@ -162,8 +162,9 @@ class WebCrawler:
             while not queue.empty() or pending:
                 if len(visited) >= self._max_pages:
                     logger.warning(
-                        f"Reached max_pages={self._max_pages};"
-                        f" stopping BFS at {start_url}",
+                        "Reached max_pages=%s; stopping BFS at %s",
+                        self._max_pages,
+                        start_url,
                     )
                     break
                 pending |= self._drain_queue_to_tasks(
@@ -182,7 +183,7 @@ class WebCrawler:
                 )
                 for t in done:
                     if exc := t.exception():
-                        logger.error(f"Crawl task error: {exc}")
+                        logger.error("Crawl task error: %s", exc)
 
     # ── Private helpers ───────────────────────────────────────────────────────
 
@@ -203,7 +204,7 @@ class WebCrawler:
                     hdrs["If-Modified-Since"] = rows[0]["last_modified"]
                 return hdrs
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-            logger.debug(f"DB lookup for conditional headers failed ({url}): {e}")
+            logger.debug("DB lookup for conditional headers failed (%s): %s", url, e)
         return {}
 
     def _make_crawl_filepath(self, url: str) -> Path:
@@ -225,7 +226,9 @@ class WebCrawler:
                 resp = await client.get(url, headers=req_headers)
                 if resp.status_code == HTTPStatus.NOT_MODIFIED:
                     logger.info(
-                        f"{HTTPStatus.NOT_MODIFIED} Not Modified, skipping: {url}"
+                        "%s Not Modified, skipping: %s",
+                        HTTPStatus.NOT_MODIFIED,
+                        url,
                     )
                     return None
                 resp.raise_for_status()
@@ -235,7 +238,9 @@ class WebCrawler:
                 )
                 return resp.text, etag, last_modified
             except httpx.HTTPError as e:
-                logger.warning(f"fetch failed ({i + 1}/{self._fetch_retry}) {url}: {e}")
+                logger.warning(
+                    "fetch failed (%s/%s) %s: %s", i + 1, self._fetch_retry, url, e
+                )
                 if i < self._fetch_retry - 1:
                     await asyncio.sleep(min(2**i, 10))
         return None
@@ -285,7 +290,7 @@ class WebCrawler:
         if last_modified:
             payload["last_modified"] = last_modified
         path.write_bytes(orjson.dumps(payload, option=orjson.OPT_INDENT_2))
-        logger.info(f"saved: {path.name}")
+        logger.info("saved: %s", path.name)
         return path
 
     async def _fetch_and_extract_async(
@@ -301,7 +306,7 @@ class WebCrawler:
         html, etag, last_modified = fetch_result
         title, text, code_blocks = self._extract_content(html, url)
         if not text and not code_blocks:
-            logger.debug(f"no content: {url}")
+            logger.debug("no content: %s", url)
             return None
         return html, title, text, code_blocks, etag, last_modified
 
@@ -352,7 +357,7 @@ class WebCrawler:
     ) -> None:
         """Fetch, extract, save one URL and enqueue its outbound links; semaphore caps concurrency; crawl_delay throttles; ETag/Last-Modified enable 304 skip."""
         async with sem:
-            logger.info(f"[depth={depth}] {url}")
+            logger.info("[depth=%s] %s", depth, url)
             await asyncio.sleep(self._crawl_delay)
 
             # Guard: use cached ETag / Last-Modified for conditional GET (304 skip)
@@ -366,7 +371,7 @@ class WebCrawler:
             resolved_lang: str = self._resolve_lang(text, hint_lang)
             # Guard: skip pages whose detected language is not supported
             if resolved_lang not in _SUPPORTED_LANGS:
-                logger.debug(f"lang={resolved_lang!r} not supported: {url}")
+                logger.debug("lang=%r not supported: %s", resolved_lang, url)
                 return
 
             self._save_crawl_file(

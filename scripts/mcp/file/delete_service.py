@@ -77,7 +77,7 @@ class DeleteFileService:
             with open(self._audit_log_path, "a", encoding="utf-8") as fh:
                 fh.write(record)
         except OSError as e:
-            logger.error(f"_write_audit_log: failed to write audit log: {e}")
+            logger.error("_write_audit_log: failed to write audit log: %s", e)
 
     # ── Business operation methods ──
 
@@ -103,7 +103,7 @@ class DeleteFileService:
         except PermissionError as e:
             raise FileAuthorizationError(str(e))
         except OSError as e:
-            logger.error(f"delete_file: OS error deleting '{target}': {e}")
+            logger.error("delete_file: OS error deleting '%s': %s", target, e)
             raise FileValidationError(str(e))
 
         # Audit log written after successful deletion

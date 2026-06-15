@@ -44,5 +44,5 @@ def undo_last_turn(ctx: AgentContext) -> UndoResult:
     ctx.conv.history = ctx.conv.history[:cut_idx]
     ctx.stats.stat_turns = max(0, ctx.stats.stat_turns - 1)
     ctx.session.undo_last_turn()
-    logger.info(f"Undo: removed {removed} messages from history")
+    logger.info("Undo: removed %s messages from history", removed)
     return UndoResult(n_removed=removed)

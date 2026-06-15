@@ -91,8 +91,9 @@ class _ServerLifecycleRouter:
         cfg = self._server_configs.get(server_key)
         if cfg is None or cfg.startup_mode != "subprocess":
             _logger.warning(
-                f"Lifecycle: restart {server_key!r}: not a subprocess-mode server;"
+                "Lifecycle: restart %r: not a subprocess-mode server;"
                 " manual restart required",
+                server_key,
             )
             return
         await self._http_mgr.restart(server_key, cfg)
@@ -114,7 +115,8 @@ class _ServerLifecycleRouter:
         cfg = self._server_configs.get(server_key)
         if cfg is None or cfg.transport != "stdio":
             _logger.warning(
-                f"Lifecycle: restart_stdio {server_key!r}: not a stdio server",
+                "Lifecycle: restart_stdio %r: not a stdio server",
+                server_key,
             )
             return
         await self._stdio_mgr.restart(server_key)
@@ -227,12 +229,18 @@ def _build_memory_services(
     from agent.memory.services import MemoryServices  # noqa: PLC0415 — lazy
     from agent.memory.store import MemoryStore  # noqa: PLC0415 — lazy
 
-    embed_client = _build_embedding_client(ctx, http, EmbeddingClient, EmbeddingClientConfig)
+    embed_client = _build_embedding_client(
+        ctx, http, EmbeddingClient, EmbeddingClientConfig
+    )
     retriever = _build_retriever(ctx, HybridRetriever)
     store = MemoryStore()
     jsonl = _build_jsonl_store(ctx, JsonlMemoryStore)
-    injection = _build_injection_service(embed_client, retriever, ctx, InjectionPolicy, MemoryInjectionService)
-    ingestion = _build_ingestion_service(store, jsonl, retriever, embed_client, ctx, DedupPolicy, MemoryIngestionService)
+    injection = _build_injection_service(
+        embed_client, retriever, ctx, InjectionPolicy, MemoryInjectionService
+    )
+    ingestion = _build_ingestion_service(
+        store, jsonl, retriever, embed_client, ctx, DedupPolicy, MemoryIngestionService
+    )
 
     _build_audit_logger(ctx).info("MemoryServices initialised (use_memory_layer=True)")
     return MemoryServices(
@@ -317,7 +325,7 @@ def _init_plugin_registry(audit_logger: Logger) -> None:
     plugin_dir = Path(__file__).parent.parent.parent / "plugins"
     n_plugins = plugin_registry.load_plugins(plugin_dir)
     if n_plugins:
-        audit_logger.info(f"Loaded {n_plugins} plugin(s) from {plugin_dir}")
+        audit_logger.info("Loaded %s plugin(s) from %s", n_plugins, plugin_dir)
 
 
 def init_tracer(ctx: AgentContext) -> object:

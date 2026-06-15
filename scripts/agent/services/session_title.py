@@ -71,7 +71,7 @@ class SessionTitleService:
             if not title:
                 raise SessionTitleGenerationError("LLM returned empty title")
             ctx.session.set_title(title)
-            logger.info(f"Session title generated: {title!r}")
+            logger.info("Session title generated: %r", title)
             return SessionTitleResult(title=title)
         except SessionTitleGenerationError:
             raise

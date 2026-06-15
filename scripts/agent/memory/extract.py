@@ -252,7 +252,8 @@ def extract_memories(
     non_system = [m for m in history if m.role != "system"]
     if len(non_system) < _policy.min_turns:
         logger.debug(
-            f"extract_memories: skipping — only {len(non_system)} non-system turns",
+            "extract_memories: skipping — only %s non-system turns",
+            len(non_system),
         )
         return []
 
@@ -292,7 +293,8 @@ def extract_memories(
     entries = candidates[: _policy.max_entries]
 
     logger.debug(
-        f"extract_memories: extracted {len(entries)} entries"
-        f" from {len(history)} history messages",
+        "extract_memories: extracted %s entries from %s history messages",
+        len(entries),
+        len(history),
     )
     return entries

@@ -100,7 +100,7 @@ class LLMTurnRunner:
             if msg := self._guard.check_error_limit(state.consecutive_errors):
                 return TurnResult(action="fail", answer=msg, reason="error_limit")
 
-        logger.warning(f"Reached max_tool_turns={ctx.cfg.tool.max_tool_turns}")
+        logger.warning("Reached max_tool_turns=%s", ctx.cfg.tool.max_tool_turns)
         return TurnResult(
             action="fail",
             answer="Maximum tool turns reached.",

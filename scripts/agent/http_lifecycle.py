@@ -56,14 +56,16 @@ class HttpServerLifecycleManager:
             await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=timeout)
         except TimeoutError:
             logger.warning(
-                f"Lifecycle: force-killing {server_key!r} (terminate timed out)",
+                "Lifecycle: force-killing %r (terminate timed out)",
+                server_key,
             )
             proc.kill()
             try:
                 await asyncio.wait_for(asyncio.to_thread(proc.wait), timeout=timeout)
             except TimeoutError:
                 logger.warning(
-                    f"Lifecycle: {server_key!r} still not terminated after kill",
+                    "Lifecycle: %r still not terminated after kill",
+                    server_key,
                 )
 
     def verify_running(self, server_key: str) -> bool:
@@ -74,8 +76,9 @@ class HttpServerLifecycleManager:
         proc = self._http_procs.get(server_key)
         if proc is None or proc.poll() is not None:
             logger.warning(
-                f"Lifecycle: HTTP subprocess {server_key!r} is not running;"
+                "Lifecycle: HTTP subprocess %r is not running;"
                 " it should have been started at agent init",
+                server_key,
             )
             return False
         return True
@@ -94,12 +97,15 @@ class HttpServerLifecycleManager:
         existing = self._http_procs.get(server_key)
         if existing is not None and existing.poll() is None:
             logger.info(
-                f"Lifecycle: HTTP subprocess {server_key!r} already running (reusing)",
+                "Lifecycle: HTTP subprocess %r already running (reusing)",
+                server_key,
             )
             return
 
         logger.info(
-            f"Lifecycle: starting HTTP subprocess {server_key!r}: {cfg.cmd}",
+            "Lifecycle: starting HTTP subprocess %r: %s",
+            server_key,
+            cfg.cmd,
         )
         env = None
         if cfg.env:
@@ -128,19 +134,22 @@ class HttpServerLifecycleManager:
                         stderr_full=stderr_full,
                     )
                     logger.error(
-                        f"Lifecycle: {server_key!r} exited early;"
-                        f" stderr ({len(stderr_full)} chars): {stderr_full[:500]}",
+                        "Lifecycle: %r exited early; stderr (%s chars): %s",
+                        server_key,
+                        len(stderr_full),
+                        stderr_full[:500],
                     )
                     raise HttpStartupError(failure)
                 try:
                     resp = await client.get(health_url)
                     if resp.status_code == HTTPStatus.OK:
                         logger.info(
-                            f"Lifecycle: HTTP subprocess {server_key!r} ready",
+                            "Lifecycle: HTTP subprocess %r ready",
+                            server_key,
                         )
                         return
                 except (httpx.HTTPError, OSError) as e:
-                    logger.debug(f"Lifecycle: health-check poll {server_key!r}: {e}")
+                    logger.debug("Lifecycle: health-check poll %r: %s", server_key, e)
                 await asyncio.sleep(0.5)
 
         # Handle timeout case with stderr collection
@@ -157,7 +166,7 @@ class HttpServerLifecycleManager:
         """Terminate and restart an HTTP subprocess server."""
         proc = self._http_procs.pop(server_key, None)
         if proc is not None and proc.poll() is None:
-            logger.info(f"Lifecycle: terminating {server_key!r} for restart")
+            logger.info("Lifecycle: terminating %r for restart", server_key)
             await self._terminate_with_timeout(proc, server_key)
         await self.start(server_key, cfg)
 
@@ -169,5 +178,7 @@ class HttpServerLifecycleManager:
                     await self._terminate_with_timeout(proc, key, timeout=5.0)
                 except (OSError, TimeoutError) as e:
                     logger.warning(
-                        f"Lifecycle: error stopping HTTP subprocess {key!r}: {e}"
+                        "Lifecycle: error stopping HTTP subprocess %r: %s",
+                        key,
+                        e,
                     )

@@ -120,7 +120,7 @@ class SqliteMCPService:
         try:
             return self._execute_query(db, sql)
         except sqlite3.Error as e:
-            logger.error(f"SQLite error db={db!r}: {e}")
+            logger.error("SQLite error db=%r: %s", db, e)
             raise ValueError(f"SQLite error: {e}") from e
 
     def get_dispatch_table(

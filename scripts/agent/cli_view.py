@@ -62,7 +62,7 @@ class CLIView:
             try:
                 readline.read_history_file(str(self.HISTORY_FILE))
             except OSError as e:
-                logger.debug(f"Could not read history file: {e}")
+                logger.debug("Could not read history file: %s", e)
 
         cmds = self._slash_commands
 
@@ -79,7 +79,7 @@ class CLIView:
         try:
             readline.write_history_file(str(self.HISTORY_FILE))
         except OSError as e:
-            logger.debug(f"Could not write history file: {e}")
+            logger.debug("Could not write history file: %s", e)
 
     def write_token(self, token: str) -> None:
         """Write one streaming token to stdout without a trailing newline."""

@@ -58,7 +58,7 @@ def switch_system_prompt(ctx: AgentContext, name: str) -> ConversationActionResu
         ctx.conv.history.insert(
             0, {"role": "system", "content": ctx.conv.system_prompt_content}
         )
-    logger.info(f"System prompt switched to {name!r}")
+    logger.info("System prompt switched to %r", name)
     return ConversationActionResult(
         action=ConversationActionType.SWITCH_PROMPT,
         message=f"System prompt: {name}",

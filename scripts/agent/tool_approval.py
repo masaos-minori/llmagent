@@ -173,7 +173,7 @@ async def run_approval_checks(
         masked_preview = mask_args(args_preview, ctx.cfg.tool.masked_fields)
         if ctx.conv.plan_mode and tc_name in ctx.cfg.tool.plan_blocked_tools:
             emit_plan_blocked(tc_name, orjson.dumps(masked_preview).decode())
-            logger.info(f"Plan mode blocked tool: {tc_name}")
+            logger.info("Plan mode blocked tool: %s", tc_name)
             denied_ids.append(tc["id"])
             continue
         if not await check_approval(ctx, tc_name, args_preview):

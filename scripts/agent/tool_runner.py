@@ -75,7 +75,10 @@ async def execute_one_tool_call(
     ):
         llm_text = await summarize_tool_result(text, name, args, ctx.services.http)
         logger.info(
-            f"Tool result {name} summarized: {len(text)} → {len(llm_text)} chars",
+            "Tool result %s summarized: %s → %s chars",
+            name,
+            len(text),
+            len(llm_text),
         )
     else:
         llm_text = (
@@ -107,11 +110,11 @@ def _collect_tool_result_msgs(
             if out_failed_keys is not None:
                 out_failed_keys.add(tool_call_key(name, args))
         masked = mask_args(args, ctx.cfg.tool.masked_fields)
-        logger.info(f"Tool call (turn {turn + 1}): {name}({masked})")
+        logger.info("Tool call (turn %s): %s(%s)", turn + 1, name, masked)
         emit_tool_call(name, orjson.dumps(masked).decode())
         if len(text) > _TOOL_RESULT_MAX_CHARS:
             n_lines = len(text.splitlines())
-            logger.info(f"Tool result {name} (full): {text}")
+            logger.info("Tool result %s (full): %s", name, text)
             display = f"{n_lines} lines / {len(text)} chars (truncated)"
             emit_tool_result(name, display)
         else:
@@ -132,8 +135,11 @@ def _collect_tool_result_msgs(
             id_hint = f" (id={result_id})" if result_id is not None else ""
             llm_text = TURN_LIMIT_HINT.replace("]", f"{id_hint}]")
             logger.info(
-                f"Per-turn tool result limit reached: {turn_chars} chars"
-                f" > {limit}; result replaced with hint (id={result_id})",
+                "Per-turn tool result limit reached: %s chars > %s;"
+                " result replaced with hint (id=%s)",
+                turn_chars,
+                limit,
+                result_id,
             )
         ctx.conv.history.append(
             {"role": "tool", "tool_call_id": tc_id, "content": llm_text}
@@ -189,8 +195,8 @@ async def _execute_standard(
     if use_serial:
         if has_side_effect and not ctx.cfg.tool.serial_tool_calls:
             logger.info(
-                "Side-effect tool detected; downgrading to serial execution"
-                f" ({[tc['function']['name'] for tc in approved_calls]})",
+                "Side-effect tool detected; downgrading to serial execution (%s)",
+                [tc["function"]["name"] for tc in approved_calls],
             )
         results: list[Any] = []
         for tc in approved_calls:

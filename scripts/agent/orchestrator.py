@@ -151,7 +151,7 @@ class Orchestrator:
             with self._llm_runner._span_ctx("llm") as llm_span:
                 llm_span.set_attribute("model_url", llm_url)
                 result = await self._llm_runner.run(llm_url)
-                logger.info(f"LLM response: {result.answer}")
+                logger.info("LLM response: %s", result.answer)
                 ctx.session.save("assistant", result.answer)
                 if result.exception is not None:
                     # run() caught LLMTransportError internally; propagate callbacks
@@ -277,15 +277,18 @@ class Orchestrator:
                 )
             except (RuntimeError, OSError) as store_err:
                 logger.warning(
-                    f"ToolResultStore.store failed for partial completion: {store_err}"
+                    "ToolResultStore.store failed for partial completion: %s",
+                    store_err,
                 )
             if ctx.services.llm is not None:
                 ctx.services.llm.stat_partial_completions += 1
-            logger.warning(f"Partial LLM completion saved: {e.kind}")
+            logger.warning("Partial LLM completion saved: %s", e.kind)
             return True
         if ctx.conv.history and ctx.conv.history[-1]["role"] == "user":
             ctx.conv.history.pop()
         logger.error(
-            f"LLM transport error (pre-stream): {e.kind} status={e.status_code}",
+            "LLM transport error (pre-stream): %s status=%s",
+            e.kind,
+            e.status_code,
         )
         return False

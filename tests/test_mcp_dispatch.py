@@ -16,39 +16,37 @@ class TestDispatchTool:
         async def handler(args: dict) -> str:
             return f"result:{args.get('x')}"
 
-        result, is_error = await dispatch_tool(
-            {"my_tool": handler}, "my_tool", {"x": 123}
-        )
-        assert not is_error
-        assert result == "result:123"
+        res = await dispatch_tool({"my_tool": handler}, "my_tool", {"x": 123})
+        assert not res.is_error
+        assert res.output == "result:123"
 
     @pytest.mark.asyncio
     async def test_empty_tool_name_returns_error(self) -> None:
         """Empty tool name returns error."""
-        result, is_error = await dispatch_tool({}, "", {})
-        assert is_error
-        assert "non-empty" in result
+        res = await dispatch_tool({}, "", {})
+        assert res.is_error
+        assert "non-empty" in res.output
 
     @pytest.mark.asyncio
     async def test_non_string_tool_name_returns_error(self) -> None:
         """Non-string tool name returns error."""
-        result, is_error = await dispatch_tool({}, 123, {})  # type: ignore[arg-type]
-        assert is_error
-        assert "non-empty" in result
+        res = await dispatch_tool({}, 123, {})  # type: ignore[arg-type]
+        assert res.is_error
+        assert "non-empty" in res.output
 
     @pytest.mark.asyncio
     async def test_whitespace_tool_name_returns_error(self) -> None:
         """Whitespace-only tool name returns error."""
-        result, is_error = await dispatch_tool({}, "   ", {})
-        assert is_error
-        assert "non-empty" in result
+        res = await dispatch_tool({}, "   ", {})
+        assert res.is_error
+        assert "non-empty" in res.output
 
     @pytest.mark.asyncio
     async def test_unknown_tool_returns_error(self) -> None:
         """Unknown tool returns error."""
-        result, is_error = await dispatch_tool({"known": lambda a: ""}, "unknown", {})
-        assert is_error
-        assert "Unknown tool" in result
+        res = await dispatch_tool({"known": lambda a: ""}, "unknown", {})
+        assert res.is_error
+        assert "Unknown tool" in res.output
 
     @pytest.mark.asyncio
     async def test_value_error_from_handler_returns_validation_error(self) -> None:
@@ -57,9 +55,9 @@ class TestDispatchTool:
         async def handler(args: dict) -> str:
             raise ValueError("bad input")
 
-        result, is_error = await dispatch_tool({"tool": handler}, "tool", {})
-        assert is_error
-        assert "Validation error" in result
+        res = await dispatch_tool({"tool": handler}, "tool", {})
+        assert res.is_error
+        assert "Validation error" in res.output
 
     @pytest.mark.asyncio
     async def test_non_value_error_propagates(self) -> None:

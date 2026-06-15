@@ -76,7 +76,7 @@ def _get_cfg() -> dict[str, Any]:
         try:
             _cfg = ConfigLoader().load("common.toml", "agent.toml")
         except (FileNotFoundError, ValueError) as e:
-            logger.warning(f"Config load failed: {e}")
+            logger.warning("Config load failed: %s", e)
             _cfg = {}
     return _cfg
 
@@ -129,11 +129,13 @@ class RagPipeline:
         repo = RagRepository(db)
         for q, result in zip(queries, raw):
             if isinstance(result, Exception):
-                logger.warning(f"Embedding failed for '{q}': {result}")
+                logger.warning("Embedding failed for '%s': %s", q, result)
                 continue
             if not isinstance(result, list):
                 logger.warning(
-                    f"Unexpected embedding result type for '{q}': {type(result).__name__}"
+                    "Unexpected embedding result type for '%s': %s",
+                    q,
+                    type(result).__name__,
                 )
                 continue
             try:
@@ -144,7 +146,7 @@ class RagPipeline:
                 if fts_res:
                     all_results.append(fts_res)
             except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-                logger.warning(f"Search DB failure for '{q}': {e}")
+                logger.warning("Search DB failure for '%s': %s", q, e)
         return all_results
 
     async def rerank_candidates(self, query: str, merged: list[RagHit]) -> list[RagHit]:
@@ -234,7 +236,9 @@ class RagPipeline:
             ValueError,
         ) as e:
             logger.warning(
-                f"RAG service call failed ({rag_url}), falling back to in-process: {e}",
+                "RAG service call failed (%s), falling back to in-process: %s",
+                rag_url,
+                e,
             )
             return None
 
@@ -253,7 +257,7 @@ class RagPipeline:
                 return refined
             logger.warning("Refiner returned empty output; falling back to chunks")
         except (httpx.HTTPStatusError, httpx.RequestError, ValueError) as e:
-            logger.warning(f"Refiner failed, falling back to original chunks: {e}")
+            logger.warning("Refiner failed, falling back to original chunks: %s", e)
         return None
 
     @staticmethod

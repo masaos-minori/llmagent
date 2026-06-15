@@ -183,15 +183,15 @@ class MCPServer:
                     truncated = tr.truncated
                     total_bytes = tr.total_bytes
             except orjson.JSONDecodeError as e:
-                logger.error(f"run_stdio JSON decode error: {e}")
+                logger.error("run_stdio JSON decode error: %s", e)
                 result = f"JSON decode error: {e}"
                 is_error = True
             except (ValueError, OSError) as e:
-                logger.error(f"run_stdio expected error: {e}")
+                logger.error("run_stdio expected error: %s", e)
                 result = f"Error: {e}"
                 is_error = True
             except RuntimeError as e:
-                logger.error(f"run_stdio runtime error: {e}")
+                logger.error("run_stdio runtime error: %s", e)
                 result = f"Runtime error: {e}"
                 is_error = True
             except (
@@ -202,7 +202,7 @@ class MCPServer:
                 sqlite3.DatabaseError,
             ) as e:
                 # Last-resort handler: stdio transport must always write a response.
-                logger.error(f"run_stdio unexpected error: {e}")
+                logger.error("run_stdio unexpected error: %s", e)
                 result = f"Internal server error: {e}"
                 is_error = True
 

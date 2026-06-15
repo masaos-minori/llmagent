@@ -97,8 +97,9 @@ def purge_old_sessions(
         age_deleted = cur.rowcount
         if age_deleted:
             logger.info(
-                f"Retention: removed {age_deleted} sessions"
-                f" older than {cfg.max_age_days} days",
+                "Retention: removed %s sessions older than %s days",
+                age_deleted,
+                cfg.max_age_days,
             )
 
     rows = db.fetchall("SELECT session_id FROM sessions ORDER BY created_at DESC")
@@ -111,8 +112,9 @@ def purge_old_sessions(
         )
         count_deleted = cur.rowcount
         logger.info(
-            f"Retention: removed {count_deleted} sessions"
-            f" beyond limit of {cfg.max_sessions}",
+            "Retention: removed %s sessions beyond limit of %s",
+            count_deleted,
+            cfg.max_sessions,
         )
 
     db.commit()
@@ -124,8 +126,9 @@ def prune_old_memories(db: SQLiteHelper, older_than_days: int) -> int:
     store = SQLiteMemoryDeleteStore(db)
     result = store.delete_memories_before(older_than_days)
     logger.info(
-        f"prune_old_memories: removed {result.deleted} entries"
-        f" older than {older_than_days} days",
+        "prune_old_memories: removed %s entries older than %s days",
+        result.deleted,
+        older_than_days,
     )
     return result.deleted
 
@@ -154,7 +157,7 @@ def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
         src.close()
 
     size = dest.stat().st_size
-    logger.info(f"DB archived: {dest} ({size:,} bytes)")
+    logger.info("DB archived: %s (%, bytes)", dest, size)
     return dest
 
 
@@ -189,7 +192,7 @@ def _run_integrity_check(
             result: str = db.conn.execute("PRAGMA integrity_check").fetchone()[0]  # type: ignore[union-attr]  # conn is set by open()
             return result, None
     except (sqlite3.OperationalError, ValueError, RuntimeError) as e:
-        logger.error(f"Cannot open DB for integrity check: {e}")
+        logger.error("Cannot open DB for integrity check: %s", e)
         return None, str(e)
 
 
@@ -217,7 +220,7 @@ def _vacuum_db(target: str = "rag") -> RecoveryResult:
         with SQLiteHelper(target).open(write_mode=True) as db:
             db.vacuum()
     except (sqlite3.OperationalError, RuntimeError) as e:
-        logger.error(f"VACUUM failed: {e}")
+        logger.error("VACUUM failed: %s", e)
         return RecoveryResult(success=False, action="vacuum_failed", detail=str(e))
     return RecoveryResult(success=True, action="vacuum")
 
@@ -234,7 +237,7 @@ def _restore_from_backup(
 
     backup = Path(backup_path)
     if not backup.exists():
-        logger.error(f"Backup not found: {backup}")
+        logger.error("Backup not found: %s", backup)
         return RecoveryResult(
             success=False, action="no_backup", detail=f"backup not found: {backup}"
         )
@@ -243,12 +246,12 @@ def _restore_from_backup(
     corrupt_archive = db_path.with_name(f"{db_path.stem}_corrupt_{ts}{db_path.suffix}")
     try:
         shutil.copy2(db_path, corrupt_archive)
-        logger.info(f"Corrupt DB archived: {corrupt_archive}")
+        logger.info("Corrupt DB archived: %s", corrupt_archive)
         shutil.copy2(backup, db_path)
-        logger.info(f"DB restored from backup: {backup}")
+        logger.info("DB restored from backup: %s", backup)
         return RecoveryResult(success=True, action="restored", detail=str(backup))
     except OSError as e:
-        logger.error(f"Recovery failed: {e}")
+        logger.error("Recovery failed: %s", e)
         return RecoveryResult(success=False, action="error", detail=str(e))
 
 
@@ -283,5 +286,5 @@ def recover_corruption(
     if check_result == "ok":
         return _vacuum_db(target)
 
-    logger.error(f"Integrity check failed: {check_result}")
+    logger.error("Integrity check failed: %s", check_result)
     return _restore_from_backup(db_path, backup_path)

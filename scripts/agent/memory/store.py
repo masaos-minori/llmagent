@@ -79,9 +79,7 @@ def _count_fts(db: SQLiteHelper) -> int:
         rows = db.fetchall("SELECT COUNT(*) FROM memories_fts")
         return int(rows[0][0]) if rows else 0
     except sqlite3.OperationalError as e:
-        raise MemoryConsistencyError(
-            f"Cannot count memories_fts: {e}"
-        ) from e
+        raise MemoryConsistencyError(f"Cannot count memories_fts: {e}") from e
 
 
 class MemoryStore:
@@ -171,7 +169,7 @@ class MemoryStore:
                 self._write_fts(db, stamped)
                 if embedding is not None:
                     self._write_vec(db, stamped.memory_id, embedding)
-        logger.debug(f"MemoryStore.add memory_id={entry.memory_id!r}")
+        logger.debug("MemoryStore.add memory_id=%r", entry.memory_id)
 
     def upsert(self, entry: MemoryEntry, embedding: list[float] | None = None) -> None:
         """Insert or replace a MemoryEntry; updates updated_at.
@@ -196,7 +194,7 @@ class MemoryStore:
                 self._write_fts(db, stamped)
                 if embedding is not None:
                     self._write_vec(db, stamped.memory_id, embedding)
-        logger.debug(f"MemoryStore.upsert memory_id={entry.memory_id!r}")
+        logger.debug("MemoryStore.upsert memory_id=%r", entry.memory_id)
 
     def delete(self, memory_id: str) -> bool:
         """Delete one entry by memory_id; return True when found and deleted."""

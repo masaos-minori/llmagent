@@ -16,6 +16,7 @@ Structured log (JSON-lines):
 
 import logging
 import sys
+from contextvars import ContextVar
 from typing import Any
 
 import orjson
@@ -28,20 +29,24 @@ def _require_str(value: Any, name: str) -> None:
 
 
 class _ContextFilter(logging.Filter):
-    """Injects per-turn trace fields into every LogRecord on this logger."""
+    """Injects per-turn trace fields into every LogRecord on this logger.
+
+    Uses contextvars.ContextVar so each asyncio task gets its own context,
+    preventing field leakage between concurrent coroutines sharing the same logger.
+    """
 
     def __init__(self) -> None:
         super().__init__()
-        self._fields: dict[str, Any] = {}
+        self._cv: ContextVar[dict[str, Any]] = ContextVar("_log_context", default={})
 
     def set(self, **fields: Any) -> None:
-        self._fields = {k: v for k, v in fields.items() if v is not None}
+        self._cv.set({k: v for k, v in fields.items() if v is not None})
 
     def clear(self) -> None:
-        self._fields = {}
+        self._cv.set({})
 
     def filter(self, record: logging.LogRecord) -> bool:
-        for k, v in self._fields.items():
+        for k, v in self._cv.get().items():
             setattr(record, k, v)
         return True
 

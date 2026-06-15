@@ -134,7 +134,7 @@ def _parse_mqe_response(raw: str, original_query: str) -> MqeParseResult:
             f"MQE response JSON is not a list: {type(expanded).__name__}"
         )
     valid = [q for q in expanded if isinstance(q, str) and q.strip()]
-    logger.info(f"MQE: {len(valid)} queries expanded from original")
+    logger.info("MQE: %s queries expanded from original", len(valid))
     return MqeParseResult(queries=[original_query] + valid)
 
 
@@ -199,8 +199,9 @@ def _apply_rerank_scores(
             score = float(score_val)
         except (ValueError, TypeError):
             logger.warning(
-                f"Rerank: non-numeric score {score_val!r}"
-                f" for candidate {i}, using default",
+                "Rerank: non-numeric score %r for candidate %s, using default",
+                score_val,
+                i,
             )
             score = _DEFAULT_RERANK_SCORE
         scored.append(
@@ -216,7 +217,7 @@ def _apply_rerank_scores(
             )
         )
     scored.sort(key=lambda x: cast(float, x.rerank_score or 0.0), reverse=True)
-    logger.info(f"Cross-Encoder rerank: top_k={top_k} selected")
+    logger.info("Cross-Encoder rerank: top_k=%s selected", top_k)
     return cast("list[RagHit]", scored[:top_k])
 
 
@@ -313,8 +314,9 @@ class RagLLM:
                 if cast(float, getattr(c, "rerank_score", None) or 0.0) >= rag_min_score
             ]
             logger.info(
-                f"Rerank score filter: {len(result)} chunks remain"
-                f" (min_score={rag_min_score})",
+                "Rerank score filter: %s chunks remain (min_score=%s)",
+                len(result),
+                rag_min_score,
             )
         return result
 

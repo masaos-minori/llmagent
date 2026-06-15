@@ -34,5 +34,5 @@ def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreResult:
     ctx.conv.history = system_msgs + messages
     ctx.session.session_id = session_id
     reset_session_stats(ctx)
-    logger.info(f"Session {session_id} loaded: {len(messages)} messages")
+    logger.info("Session %s loaded: %s messages", session_id, len(messages))
     return SessionRestoreResult(session_id=session_id, n_messages=len(messages))

@@ -280,7 +280,7 @@ class _ConfigMixin(MixinBase):
         ctx.cfg.llm.llm_temperature = val
         if ctx.services.llm is not None:
             ctx.services.llm.apply_config(temperature=val)
-        logger.info(f"llm_temperature set to {val}")
+        logger.info("llm_temperature set to %s", val)
         self._out.write(f"temperature set to {val}")
 
     def _set_max_tokens(self, ctx: "AgentContext", value_str: str) -> None:
@@ -295,7 +295,7 @@ class _ConfigMixin(MixinBase):
         ctx.cfg.llm.llm_max_tokens = val
         if ctx.services.llm is not None:
             ctx.services.llm.apply_config(max_tokens=val)
-        logger.info(f"llm_max_tokens set to {val}")
+        logger.info("llm_max_tokens set to %s", val)
         self._out.write(f"max_tokens set to {val}")
 
     def _cmd_set(self, args: str) -> None:
@@ -347,8 +347,8 @@ class _ConfigMixin(MixinBase):
                 )
             self._out.write("Config reloaded.")
         except OSError as e:
-            logger.warning(f"Config reload I/O error: {e}")
+            logger.warning("Config reload I/O error: %s", e)
             self._out.write(f"Reload failed (I/O error): {e}")
         except ValueError as e:
-            logger.warning(f"Config reload failed: {e}")
+            logger.warning("Config reload failed: %s", e)
             self._out.write(f"Reload failed: {e}")

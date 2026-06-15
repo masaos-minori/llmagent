@@ -114,7 +114,7 @@ class GitService:
                 lines.append("Nothing to commit, working tree clean")
             return "\n".join(lines)
         except _GIT_ERRORS as e:
-            logger.error(f"git_status error: {e}")
+            logger.error("git_status error: %s", e)
             raise GitServiceError(f"git_status failed: {e}") from e
 
     async def git_log(self, args: ToolArgs) -> str:
@@ -141,7 +141,7 @@ class GitService:
                 )
             return "\n".join(lines) if lines else "(no commits)"
         except _GIT_ERRORS as e:
-            logger.error(f"git_log error: {e}")
+            logger.error("git_log error: %s", e)
             raise GitServiceError(f"git_log failed: {e}") from e
 
     async def git_diff(self, args: ToolArgs) -> str:
@@ -160,7 +160,7 @@ class GitService:
                 diff = repo.git.diff()
             return diff or "(no diff)"
         except _GIT_ERRORS as e:
-            logger.error(f"git_diff error: {e}")
+            logger.error("git_diff error: %s", e)
             raise GitServiceError(f"git_diff failed: {e}") from e
 
     async def git_branch(self, args: ToolArgs) -> str:
@@ -178,7 +178,7 @@ class GitService:
             ]
             return "\n".join(branches) if branches else "(no branches)"
         except _GIT_ERRORS as e:
-            logger.error(f"git_branch error: {e}")
+            logger.error("git_branch error: %s", e)
             raise GitServiceError(f"git_branch failed: {e}") from e
 
     async def git_show(self, args: ToolArgs) -> str:
@@ -196,7 +196,7 @@ class GitService:
                 else output
             )
         except _GIT_ERRORS as e:
-            logger.error(f"git_show error: {e}")
+            logger.error("git_show error: %s", e)
             raise GitServiceError(f"git_show failed: {e}") from e
 
     # ── Write tools ───────────────────────────────────────────────────────────
@@ -222,7 +222,7 @@ class GitService:
             repo.index.add(req.paths)
             return f"Staged: {req.paths}"
         except _GIT_ERRORS as e:
-            logger.error(f"git_add error: {e}")
+            logger.error("git_add error: %s", e)
             raise GitServiceError(f"git_add failed: {e}") from e
 
     async def git_commit(self, args: ToolArgs) -> str:
@@ -244,7 +244,7 @@ class GitService:
             commit = repo.index.commit(req.message)
             return f"Committed: {commit.hexsha[:8]} {req.message!r}"
         except _GIT_ERRORS as e:
-            logger.error(f"git_commit error: {e}")
+            logger.error("git_commit error: %s", e)
             raise GitServiceError(f"git_commit failed: {e}") from e
 
     async def git_checkout(self, args: ToolArgs) -> str:
@@ -272,7 +272,7 @@ class GitService:
                 repo.git.checkout(req.branch)
             return f"Switched to branch '{req.branch}'"
         except _GIT_ERRORS as e:
-            logger.error(f"git_checkout error: {e}")
+            logger.error("git_checkout error: %s", e)
             raise GitServiceError(f"git_checkout failed: {e}") from e
 
     async def git_pull(self, args: ToolArgs) -> str:
@@ -295,7 +295,7 @@ class GitService:
             result = repo.git.pull(*pull_args)
             return result or "Already up to date."
         except _GIT_ERRORS as e:
-            logger.error(f"git_pull error: {e}")
+            logger.error("git_pull error: %s", e)
             raise GitServiceError(f"git_pull failed: {e}") from e
 
     async def git_push(self, args: ToolArgs) -> str:
@@ -315,7 +315,7 @@ class GitService:
             result = repo.git.push(req.remote, branch)
             return result or f"Pushed '{branch}' to '{req.remote}'"
         except _GIT_ERRORS as e:
-            logger.error(f"git_push error: {e}")
+            logger.error("git_push error: %s", e)
             raise GitServiceError(f"git_push failed: {e}") from e
 
     # ── Dispatch table ────────────────────────────────────────────────────────

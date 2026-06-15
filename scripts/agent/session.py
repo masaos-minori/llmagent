@@ -103,7 +103,7 @@ class AgentSession:
             cur = db.execute("INSERT INTO sessions (title) VALUES (NULL)")
             self.session_id = cur.lastrowid
             db.commit()
-        logger.info(f"Session started: id={self.session_id}")
+        logger.info("Session started: id=%s", self.session_id)
         self._message_repo = SessionMessageRepository(self.session_id)
 
     def set_title(self, title: str) -> None:
@@ -165,7 +165,9 @@ class AgentSession:
             )
             db.commit()
         logger.info(
-            f"Deleted last turn from session {self.session_id}: {len(ids)} messages",
+            "Deleted last turn from session %s: %s messages",
+            self.session_id,
+            len(ids),
         )
 
     def undo_last_turn(self) -> int:
@@ -203,7 +205,9 @@ class AgentSession:
             )
             db.commit()
         logger.info(
-            f"Undo: deleted {deleted} messages from session {self.session_id}",
+            "Undo: deleted %s messages from session %s",
+            deleted,
+            self.session_id,
         )
         return deleted
 
@@ -222,5 +226,5 @@ class AgentSession:
                 return False
             db.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
             db.commit()
-        logger.info(f"Session {session_id} deleted")
+        logger.info("Session %s deleted", session_id)
         return True

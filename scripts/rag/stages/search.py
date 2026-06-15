@@ -39,10 +39,10 @@ async def _search_all_queries(
     repo = RagRepository(db)
     for q, result in zip(queries, raw):
         if isinstance(result, Exception):
-            logger.warning(f"Embedding failed for '{q}': {result}")
+            logger.warning("Embedding failed for '%s': %s", q, result)
             continue
         if not isinstance(result, list):
-            logger.warning(f"Unexpected embedding type for '{q}': {type(result)}")
+            logger.warning("Unexpected embedding type for '%s': %s", q, type(result))
             continue
         try:
             vec_res = repo.vector_search(result, cfg["top_k_search"])
@@ -52,7 +52,7 @@ async def _search_all_queries(
             if fts_res:
                 all_results.append(fts_res)
         except (sqlite3.OperationalError, RuntimeError) as e:
-            logger.warning(f"Search failed for '{q}': {e}")
+            logger.warning("Search failed for '%s': %s", q, e)
     return all_results
 
 

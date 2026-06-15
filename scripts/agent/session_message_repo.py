@@ -31,7 +31,7 @@ class SessionMessageRepository:
         if self.session_id is None:
             return
         if role not in _VALID_ROLES:
-            logger.warning(f"Invalid role {role!r}; message not saved")
+            logger.warning("Invalid role %r; message not saved", role)
             return
         tc_json = orjson.dumps(tool_calls).decode() if tool_calls else None
         with SQLiteHelper("session").open(write_mode=True) as db:
@@ -101,7 +101,9 @@ class SessionMessageRepository:
                     msg["tool_calls"] = orjson.loads(r["tool_calls"])
                 except orjson.JSONDecodeError as e:
                     logger.warning(
-                        f"Invalid tool_calls JSON in session {session_id}: {e}",
+                        "Invalid tool_calls JSON in session %s: %s",
+                        session_id,
+                        e,
                     )
                     logger.warning(
                         orjson.dumps(

@@ -21,7 +21,7 @@ class NoteRepository:
             db.commit()
         if note_id is None:
             raise RuntimeError("SQLite did not set lastrowid after INSERT into notes")
-        logger.info(f"Note added: note_id={note_id}")
+        logger.info("Note added: note_id=%s", note_id)
         return note_id
 
     def list_notes(self) -> list[dict]:
@@ -43,7 +43,7 @@ class NoteRepository:
                 return False
             db.execute("DELETE FROM notes WHERE note_id = ?", (note_id,))
             db.commit()
-        logger.info(f"Note deleted: note_id={note_id}")
+        logger.info("Note deleted: note_id=%s", note_id)
         return True
 
     def pin_note(self, note_id: int) -> bool:
@@ -56,7 +56,7 @@ class NoteRepository:
                 return False
             db.execute("UPDATE notes SET pinned=1 WHERE note_id=?", (note_id,))
             db.commit()
-        logger.info(f"Note pinned: note_id={note_id}")
+        logger.info("Note pinned: note_id=%s", note_id)
         return True
 
     def unpin_note(self, note_id: int) -> bool:
@@ -69,7 +69,7 @@ class NoteRepository:
                 return False
             db.execute("UPDATE notes SET pinned=0 WHERE note_id=?", (note_id,))
             db.commit()
-        logger.info(f"Note unpinned: note_id={note_id}")
+        logger.info("Note unpinned: note_id=%s", note_id)
         return True
 
     def get_pinned_notes(self) -> list[dict]:

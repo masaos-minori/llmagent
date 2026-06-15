@@ -99,7 +99,7 @@ class AgentREPL:
             count = rows[0][0] if rows else 0
             return f"{count:,}"
         except (sqlite3.Error, OSError, RuntimeError) as e:
-            logger.debug(f"Failed to get chunk count: {e}")
+            logger.debug("Failed to get chunk count: %s", e)
             return "?"
 
     # ── Health checks / watchdog — delegated to agent_repl_health ─────────────
@@ -254,7 +254,9 @@ class AgentREPL:
                     await ctx.services.lifecycle.start_http_subprocess(key, cfg)
                 except (OSError, RuntimeError) as e:
                     logger.error(
-                        f"Failed to start HTTP subprocess MCP server {key!r}: {e}"
+                        "Failed to start HTTP subprocess MCP server %r: %s",
+                        key,
+                        e,
                     )
                     print(
                         f"[warn] HTTP subprocess MCP server {key!r} failed to start: {e}"
@@ -278,7 +280,7 @@ class AgentREPL:
                 ctx.services.tools.set_transport(key, transport)
                 ctx.services.stdio_procs[key] = transport
             except (OSError, RuntimeError) as e:
-                logger.error(f"Failed to start stdio MCP server {key!r}: {e}")
+                logger.error("Failed to start stdio MCP server %r: %s", key, e)
                 print(f"[warn] stdio MCP server {key!r} failed to start: {e}")
 
     def _print_startup_banner(self) -> None:

@@ -100,10 +100,12 @@ class StdioServerLifecycleManager:
             self._handles[server_key] = TransportHandle(
                 transport=new_transport, state=LifecycleState.RUNNING
             )
-            logger.info(f"Lifecycle: ondemand stdio server {server_key!r} started")
+            logger.info("Lifecycle: ondemand stdio server %r started", server_key)
         except (ValueError, OSError) as e:
             logger.error(
-                f"Lifecycle: failed to start ondemand server {server_key!r}: {e}",
+                "Lifecycle: failed to start ondemand server %r: %s",
+                server_key,
+                e,
             )
             self._handles[server_key] = TransportHandle(
                 transport=None, state=LifecycleState.FAILED, last_error=str(e)

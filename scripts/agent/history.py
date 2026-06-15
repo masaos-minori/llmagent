@@ -204,7 +204,7 @@ class HistoryManager:
                 return None
             return str(raw_content).strip()
         except (httpx.HTTPError, orjson.JSONDecodeError, KeyError, TypeError) as e:
-            logger.warning(f"Context compression failed: {e}")
+            logger.warning("Context compression failed: %s", e)
             return None
 
     def _build_history_text(self, messages: list[LLMMessage]) -> str:
@@ -275,17 +275,21 @@ class HistoryManager:
             return token_count, token_count > self._token_limit
         return 0, False
 
-    def _log_skip_warning(
-        self, history: list[LLMMessage], token_count: int
-    ) -> None:
+    def _log_skip_warning(self, history: list[LLMMessage], token_count: int) -> None:
         """Log why compression was skipped."""
         logger.warning(
-            f"History compression skipped: protect_turns={self._protect_turns}"
-            f" + compress_turns={self._compress_turns} >= available turns."
-            f" chars={self.count_chars(history)} limit={self._char_limit}"
-            f" tokens={token_count} token_limit={self._token_limit}."
+            "History compression skipped: protect_turns=%s"
+            " + compress_turns=%s >= available turns."
+            " chars=%s limit=%s"
+            " tokens=%s token_limit=%s."
             " Consider reducing protect_turns or increasing"
             " context_char_limit.",
+            self._protect_turns,
+            self._compress_turns,
+            self.count_chars(history),
+            self._char_limit,
+            token_count,
+            self._token_limit,
         )
 
     async def _get_summary_text(self, to_compress: list[LLMMessage]) -> str | None:
@@ -301,7 +305,7 @@ class HistoryManager:
         n = len(split.to_compress)
         protected = len(remaining) - len(system_msgs)
         self.stat_compress_count += 1
-        logger.info(f"History compressed: {n} messages summarized")
+        logger.info("History compressed: %s messages summarized", n)
         if self._on_compress:
             self._on_compress(n)
         summary_msg = self._build_summary_msg(system_msgs, summary_text)

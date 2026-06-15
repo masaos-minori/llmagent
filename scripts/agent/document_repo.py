@@ -71,5 +71,5 @@ class DocumentRepository:
             )
             db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
             db.commit()
-        logger.info(f"Document deleted: url={url!r} doc_id={doc_id}")
+        logger.info("Document deleted: url=%r doc_id=%s", url, doc_id)
         return True

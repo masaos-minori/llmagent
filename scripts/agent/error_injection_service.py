@@ -59,6 +59,8 @@ class ErrorInjectionService:
             is_error=True,
         )
         logger.warning(
-            f"LLM transport error during tool continuation (turn={turn}): {e.kind}",
+            "LLM transport error during tool continuation (turn=%s): %s",
+            turn,
+            e.kind,
         )
         return err.summary

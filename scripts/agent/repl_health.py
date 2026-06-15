@@ -88,7 +88,7 @@ async def _fetch_stdio_tools(transport: object) -> set[str]:
         data = orjson.loads(result.output)
         return {str(n) for n in data.get("tools", [])}
     except (TimeoutError, orjson.JSONDecodeError, OSError) as e:
-        logger.warning(f"__list_tools__ RPC failed: {e}")
+        logger.warning("__list_tools__ RPC failed: %s", e)
         return set()
 
 
@@ -113,7 +113,7 @@ async def _collect_server_tool_names(ctx: AgentContext) -> set[str]:
                 if resp.status_code == HTTPStatus.OK:
                     server_names.update(t["name"] for t in resp.json().get("tools", []))
             except (httpx.HTTPError, OSError) as e:
-                logger.warning(f"Cannot reach {srv_cfg.url}/v1/tools: {e}")
+                logger.warning("Cannot reach %s/v1/tools: %s", srv_cfg.url, e)
         elif srv_cfg.transport == "stdio":
             transport = ctx.services.stdio_procs.get(key)
             if transport is None:
@@ -144,7 +144,8 @@ async def _check_tool_definitions(
         warnings.append(ServiceWarning(label="tool_definitions", url="", message=msg))
     if missing_in_cfg:
         logger.warning(
-            f"Tools on servers but not in agent.toml: {sorted(missing_in_cfg)}",
+            "Tools on servers but not in agent.toml: %s",
+            sorted(missing_in_cfg),
         )
     if (missing_in_server or missing_in_cfg) and strict:
         raise RuntimeError("Strict mode: tool definition mismatch detected")
@@ -182,12 +183,16 @@ async def _watchdog_check_http(
     count = restart_counts.get(key, 0)
     if count >= max_restarts:
         logger.warning(
-            f"Watchdog: {key!r} unreachable; restart limit reached ({max_restarts})",
+            "Watchdog: %r unreachable; restart limit reached (%s)",
+            key,
+            max_restarts,
         )
         return
     logger.warning(
-        f"Watchdog: {key!r} health check failed,"
-        f" restarting (attempt {count + 1}/{max_restarts})",
+        "Watchdog: %r health check failed, restarting (attempt %s/%s)",
+        key,
+        count + 1,
+        max_restarts,
     )
     # Delegate restart to lifecycle manager
     if srv_cfg.startup_mode == "subprocess" and ctx.services.lifecycle is not None:
@@ -195,11 +200,12 @@ async def _watchdog_check_http(
             await ctx.services.lifecycle.restart(key)
             restart_counts[key] = count + 1
         except (OSError, RuntimeError) as e:
-            logger.error(f"Watchdog: failed to restart {key!r}: {e}")
+            logger.error("Watchdog: failed to restart %r: %s", key, e)
     else:
         logger.warning(
-            f"Watchdog: {key!r} is not a subprocess-mode server;"
+            "Watchdog: %r is not a subprocess-mode server;"
             " manual intervention required",
+            key,
         )
     if ctx.services.health_registry:
         ctx.services.health_registry.record_failure(key)
@@ -232,20 +238,23 @@ async def _watchdog_check_stdio(
     count = restart_counts.get(key, 0)
     if count >= max_restarts:
         logger.warning(
-            f"Watchdog: stdio server {key!r} dead;"
-            f" restart limit reached ({max_restarts})",
+            "Watchdog: stdio server %r dead; restart limit reached (%s)",
+            key,
+            max_restarts,
         )
         return
     logger.warning(
-        f"Watchdog: stdio server {key!r} died,"
-        f" restarting (attempt {count + 1}/{max_restarts})",
+        "Watchdog: stdio server %r died, restarting (attempt %s/%s)",
+        key,
+        count + 1,
+        max_restarts,
     )
     if ctx.services.lifecycle is not None:
         try:
             await ctx.services.lifecycle.restart_stdio(key)
             restart_counts[key] = count + 1
         except (OSError, RuntimeError) as e:
-            logger.error(f"Watchdog: failed to restart stdio server {key!r}: {e}")
+            logger.error("Watchdog: failed to restart stdio server %r: %s", key, e)
     if ctx.services.health_registry:
         ctx.services.health_registry.record_failure(key)
 

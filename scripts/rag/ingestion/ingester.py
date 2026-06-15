@@ -71,7 +71,7 @@ class RagIngester:
         url_groups = self._group_chunks_by_url(chunk_files)
         with SQLiteHelper().open(write_mode=True) as db:
             self._process_url_groups(db, url_groups, force)
-        logger.info(f"=== done: {len(url_groups)} URLs processed ===")
+        logger.info("=== done: %s URLs processed ===", len(url_groups))
 
     def ingest_url_group(
         self,
@@ -82,7 +82,7 @@ class RagIngester:
     ) -> None:
         """Ingest all chunk files for one URL into SQLite in ascending chunk_index order; moves files to registered/ after processing including on skip."""
         if not chunk_files:
-            logger.warning(f"No chunk files provided for URL: {url}")
+            logger.warning("No chunk files provided for URL: %s", url)
             return
         chunk_files = sorted(chunk_files, key=lambda p: p.stem)
         first_data = self._read_chunk_json(chunk_files[0])
@@ -104,13 +104,13 @@ class RagIngester:
             chunking_strategy,
         )
         if doc_id is None:
-            logger.info(f"already registered, skipping: {url}")
+            logger.info("already registered, skipping: %s", url)
             self._move_to_registered(chunk_files)
             return
         # Commit document record before parallel chunk inserts (FK dependency).
         db.commit()
         inserted = self._ingest_chunk_files(doc_id, chunk_files)
-        logger.info(f"inserted {inserted}/{len(chunk_files)} chunks: {url}")
+        logger.info("inserted %s/%s chunks: %s", inserted, len(chunk_files), url)
         self._move_to_registered(chunk_files)
 
     # ── Embedding ─────────────────────────────────────────────────────────────
@@ -138,7 +138,10 @@ class RagIngester:
                 ValueError,
             ) as e:
                 logger.warning(
-                    f"embedding attempt {attempt + 1}/{self._embed_retry}: {e}",
+                    "embedding attempt %s/%s: %s",
+                    attempt + 1,
+                    self._embed_retry,
+                    e,
                 )
                 if attempt < self._embed_retry - 1:
                     time.sleep(min(2**attempt, 10))
@@ -243,7 +246,7 @@ class RagIngester:
         try:
             return dataclasses.asdict(read_json_file(path))
         except (FileNotFoundError, ChunkFormatError) as e:
-            logger.warning(f"skip chunk {path.name}: {e}")
+            logger.warning("skip chunk %s: %s", path.name, e)
             return None
 
     def _embed_and_store(self, doc_id: int, path: Path) -> bool:
@@ -256,13 +259,13 @@ class RagIngester:
         try:
             idx = 0
         except (ValueError, TypeError) as e:
-            logger.warning(f"Invalid chunk_index in {path.name}: {e}, using 0")
+            logger.warning("Invalid chunk_index in %s: %s, using 0", path.name, e)
             idx = 0
         # Embed original content; E5 understands raw Japanese.
         # normalized_content is for FTS only and not used for embedding.
         embedding = self._get_embedding(content)
         if embedding is None:
-            logger.warning(f"embedding failed for {path.name}: {content[:60]!r}")
+            logger.warning("embedding failed for %s: %r", path.name, content[:60])
             return False
         with SQLiteHelper().open(write_mode=True) as db:
             self._insert_chunk(db, doc_id, idx, content, normalized_content, embedding)
@@ -289,7 +292,7 @@ class RagIngester:
                     ValueError,
                     TypeError,
                 ) as e:
-                    logger.error(f"Failed to ingest {path}: {e}")
+                    logger.error("Failed to ingest %s: %s", path, e)
         return inserted
 
     def _group_chunks_by_url(self, chunk_files: list[Path]) -> dict[str, list[Path]]:
@@ -301,11 +304,11 @@ class RagIngester:
                 continue
             url: str = data.get("url", "")
             if not url:
-                logger.warning(f"url field missing: {path.name}")
+                logger.warning("url field missing: %s", path.name)
                 continue
             # Accept file:// URLs from local file ingestion in addition to http/https
             if not validate_url(url) and not url.startswith("file://"):
-                logger.warning(f"invalid url {url!r} in {path.name}, skipping")
+                logger.warning("invalid url %r in %s, skipping", url, path.name)
                 continue
             url_groups[url].append(path)
         return url_groups
@@ -321,7 +324,7 @@ class RagIngester:
             try:
                 self.ingest_url_group(db, url, paths, force)
             except (OSError, RuntimeError, ValueError, sqlite3.OperationalError):
-                logger.exception(f"ingest_url_group failed: {url}")
+                logger.exception("ingest_url_group failed: %s", url)
 
     def _move_to_registered(self, paths: list[Path]) -> None:
         """Move ingested chunk files to registered/."""
@@ -331,7 +334,7 @@ class RagIngester:
             try:
                 shutil.move(str(path), str(dest))
             except OSError as e:
-                logger.error(f"move failed {path} → {dest}: {e}")
+                logger.error("move failed %s → %s: %s", path, dest, e)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

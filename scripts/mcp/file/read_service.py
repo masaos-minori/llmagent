@@ -122,7 +122,7 @@ class ReadFileService:
                         ),
                     )
             except PermissionError as e:
-                logger.debug(f"Permission denied listing directory {path}: {e}")
+                logger.debug("Permission denied listing directory %s: %s", path, e)
         else:
             # Mark as depth-limited when the directory has contents that were omitted
             try:
@@ -249,7 +249,7 @@ class ReadFileService:
         except PermissionError as e:
             raise FileAuthorizationError(str(e))
         except OSError as e:
-            logger.error(f"read_media_file: OS error reading '{target}': {e}")
+            logger.error("read_media_file: OS error reading '%s': %s", target, e)
             raise FileValidationError(str(e))
 
         # Fall back to application/octet-stream when the MIME type cannot be determined
@@ -286,7 +286,9 @@ class ReadFileService:
                 error="File cannot be decoded as UTF-8",
             )
         except OSError as e:
-            logger.warning(f"read_multiple_files: OS error reading '{raw_path}': {e}")
+            logger.warning(
+                "read_multiple_files: OS error reading '%s': %s", raw_path, e
+            )
             return FileResult(path=raw_path, content=None, error=str(e))
 
     def read_multiple_files(
@@ -310,7 +312,7 @@ class ReadFileService:
                 if fnmatch.fnmatch(p.name, req.pattern):
                     matches.append(str(p))
         except PermissionError as e:
-            logger.debug(f"Permission denied during file search in {base}: {e}")
+            logger.debug("Permission denied during file search in %s: %s", base, e)
 
         return SearchFilesResponse(pattern=req.pattern, matches=matches)
 
@@ -346,7 +348,8 @@ class ReadFileService:
                             return matches, True
         except PermissionError as e:
             logger.warning(
-                f"grep_files: directory traversal stopped due to permission error: {e}",
+                "grep_files: directory traversal stopped due to permission error: %s",
+                e,
             )
         return matches, False
 
@@ -384,7 +387,7 @@ class ReadFileService:
         try:
             st = target.stat()
         except OSError as e:
-            logger.error(f"get_file_info: stat failed for '{target}': {e}")
+            logger.error("get_file_info: stat failed for '%s': %s", target, e)
             raise FileValidationError(str(e))
 
         perms = format_permissions(st.st_mode)

@@ -73,18 +73,18 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             try:
                 total += self.process_file(path, force)
             except (OSError, RuntimeError, ValueError) as e:
-                logger.exception(f"process_file failed: {path}: {e}")
-        logger.info(f"=== done: {total} chunks from {len(paths)} files ===")
+                logger.exception("process_file failed: %s: %s", path, e)
+        logger.info("=== done: %s chunks from %s files ===", total, len(paths))
         return total
 
     def process_file(self, src_path: Path, force: bool = False) -> int:
         """Read a crawler JSON file, split into chunks, and write to chunk_dir; returns chunk count; skips already-chunked files when force=False."""
         if not src_path.exists():
-            logger.error(f"Source file does not exist: {src_path}")
+            logger.error("Source file does not exist: %s", src_path)
             return 0
         sentinel = self._chunk_dir / f"{src_path.stem}-0000.txt"
         if is_already_processed(sentinel, force):
-            logger.info(f"skip (already chunked): {src_path.name}")
+            logger.info("skip (already chunked): %s", src_path.name)
             return 0
         chunk_doc = self._read_source_data(src_path)
         if chunk_doc is None:
@@ -93,7 +93,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         chunks = self._build_chunk_list(data)
         chunking_strategy = "heading" if self._is_markdown_source(data) else "text"
         written = self._write_chunk_files(chunks, data, src_path, chunking_strategy)
-        logger.info(f"chunked {written} chunks from {src_path.name}")
+        logger.info("chunked %s chunks from %s", written, src_path.name)
         return written
 
     # ── English and Japanese chunking ─────────────────────────────────────────
@@ -163,7 +163,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         try:
             return dataclasses.asdict(read_json_file(src_path))
         except (FileNotFoundError, ChunkFormatError) as e:
-            logger.error(f"skip {src_path.name}: {e}")
+            logger.error("skip %s: %s", src_path.name, e)
             return None
 
     def _build_chunk_list(self, data: dict[str, Any]) -> list[tuple[str, str, str]]:
@@ -234,7 +234,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
                 )
                 written += 1
             except OSError as e:
-                logger.error(f"failed to write chunk {out_path}: {e}")
+                logger.error("failed to write chunk %s: %s", out_path, e)
         return written
 
     def _collect_targets(self, target: Path | None) -> list[Path]:

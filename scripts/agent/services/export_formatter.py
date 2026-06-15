@@ -72,6 +72,6 @@ def write_export(
     try:
         Path(outfile).write_text(content, encoding="utf-8")
         out.write_file(content, outfile, n_messages)
-        logger.info(f"Conversation exported to {outfile}")
+        logger.info("Conversation exported to %s", outfile)
     except OSError as e:
         raise ExportWriteError(str(e)) from e
