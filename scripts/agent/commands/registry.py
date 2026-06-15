@@ -26,6 +26,7 @@ from typing import Any
 
 from shared import plugin_registry
 
+from agent.commands.cmd_audit import _AuditMixin
 from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.cmd_context import _ContextMixin
 from agent.commands.cmd_db import _DbMixin
@@ -206,6 +207,13 @@ _COMMANDS: list[CommandDef] = [
         "_cmd_debug",
         "[audit|verbose|normal]  Toggle debug; subcommands: audit=tail log, verbose/normal=log level",
     ),
+    CommandDef(
+        "/audit",
+        True,
+        False,
+        "_cmd_audit",
+        "tail [N] | turn <task_id> | tool <name>  Browse audit log events",
+    ),
 ]
 
 
@@ -218,6 +226,7 @@ class CommandRegistry(
     _ToolingMixin,
     _NotesMixin,
     _DebugMixin,
+    _AuditMixin,
     _IngestMixin,
     _MemoryMixin,
 ):

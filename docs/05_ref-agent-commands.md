@@ -16,6 +16,7 @@
 | `_ToolingMixin` | `agent/commands/cmd_tooling.py` | `/tool`, `/plan` |
 | `_NotesMixin` | `agent/commands/cmd_notes.py` | `/note` |
 | `_DebugMixin` | `agent/commands/cmd_debug.py` | `/debug` |
+| `_AuditMixin` | `agent/commands/cmd_audit.py` | `/audit` |
 | `_IngestMixin` | `agent/commands/cmd_ingest.py` | `/ingest`, `/export`, `/compact`, `/rag` |
 | `_MemoryMixin` | `agent/commands/cmd_memory.py` | `/memory` 系 |
 
@@ -51,7 +52,7 @@ matched = await cmds.dispatch("/stats")
 
 完全一致 async コマンド (引数なし): `/compact`
 
-プレフィックスコマンド (trailing args を渡す): `/mcp`(async), `/session`, `/clear`, `/ingest`(async), `/rag`(async), `/export`, `/history`, `/system`, `/db`, `/note`, `/tool`, `/set`, `/memory`, `/debug`
+プレフィックスコマンド (trailing args を渡す): `/mcp`(async), `/session`, `/clear`, `/ingest`(async), `/rag`(async), `/export`, `/history`, `/system`, `/db`, `/note`, `/tool`, `/set`, `/memory`, `/debug`, `/audit`
 
 ### 3.2 /help
 
@@ -150,7 +151,18 @@ matched = await cmds.dispatch("/stats")
 |---|---|
 | `_cmd_debug(args) -> None` | 引数なしで `ctx.conv.debug_mode` をトグル。`args="audit"` で audit.log 末尾 20 行を表示、`args="verbose"` / `"normal"` でログレベルを切り替え |
 
-### 3.11 /ingest, /export, /compact, /rag (_IngestMixin)
+### 3.11 /audit (_AuditMixin)
+
+| メソッド | 説明 |
+|---|---|
+| `_cmd_audit(args) -> None` | `tail [N]` で audit.log 末尾 N 行を raw 表示 (デフォルト 20)。`turn <task_id>` で指定 turn の全イベントを表示。`tool <name>` で直近 1000 JSONL 行から指定ツールのイベントを最大 50 件表示。引数なし時は `tail 20` と同じ動作 |
+| `_audit_tail(n) -> None` | `deque(file, maxlen=n)` で末尾 N 行をストリーム読み込みして表示する内部ヘルパー |
+| `_audit_turn(task_id) -> None` | 全 JSONL 行をストリームし `task_id` 一致イベントのみ表示する内部ヘルパー |
+| `_audit_tool(tool_name) -> None` | 末尾 1000 JSONL 行から `tool` 一致イベントを最大 50 件表示する内部ヘルパー |
+| `_audit_log_path() -> Path` | `ctx.cfg.obs.audit_log_file` を `pathlib.Path` として返す |
+| `_iter_audit_lines(path) -> Iterator[dict]` | ファイルを行単位で読み JSON パース。失敗行はスキップ |
+
+### 3.12 /ingest, /export, /compact, /rag (_IngestMixin)
 
 | メソッド | 説明 |
 |---|---|
@@ -160,7 +172,7 @@ matched = await cmds.dispatch("/stats")
 | `_cmd_compact() -> None` (async) | 閾値に関わらず会話履歴を即時圧縮。`hist_mgr.force_compress(history)` を使用 — `_char_limit` への直書きを廃止 |
 | `_cmd_rag(args) -> None` (async) | インプロセス RAG パイプラインで検索を実行。引数: `search <query> [--debug]`。`--debug` 指定時はステージ別 latency を表示。`rag.toml` の `use_search=false` 時は無効メッセージを返す |
 
-### 3.12 /memory 系 (_MemoryMixin)
+### 3.13 /memory 系 (_MemoryMixin)
 
 | メソッド | 説明 |
 |---|---|
