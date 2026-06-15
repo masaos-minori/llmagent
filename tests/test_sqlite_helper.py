@@ -40,7 +40,9 @@ class TestSQLiteHelperTarget:
         assert db._target == "session"
 
     def test_invalid_target_raises(self) -> None:
-        with pytest.raises(ValueError, match="target must be 'rag' or 'session'"):
+        with pytest.raises(
+            ValueError, match="target must be 'rag', 'session', or 'workflow'"
+        ):
             SQLiteHelper("invalid")
 
     def test_db_path_returns_rag_path(self) -> None:
@@ -64,7 +66,9 @@ class TestSQLiteHelperTarget:
         db.close()  # must not raise
 
     def test_invalid_target_empty_string(self) -> None:
-        with pytest.raises(ValueError, match="target must be 'rag' or 'session'"):
+        with pytest.raises(
+            ValueError, match="target must be 'rag', 'session', or 'workflow'"
+        ):
             SQLiteHelper("")
 
     def test_config_load_failure_raises_runtime_error(self) -> None:

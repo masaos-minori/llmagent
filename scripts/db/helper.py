@@ -26,8 +26,10 @@ class SQLiteHelper:
     """SQLite connection manager with optional sqlite-vec extension; WAL/synchronous=NORMAL/busy_timeout applied to every connection."""
 
     def __init__(self, target: str = "rag") -> None:
-        if target not in ("rag", "session"):
-            raise ValueError(f"target must be 'rag' or 'session', got: {target!r}")
+        if target not in ("rag", "session", "workflow"):
+            raise ValueError(
+                f"target must be 'rag', 'session', or 'workflow', got: {target!r}"
+            )
         self._target = target
         self._default_load_vec = target == "rag"
         self.conn: sqlite3.Connection | None = None
@@ -37,9 +39,12 @@ class SQLiteHelper:
             raise RuntimeError(
                 f"DbConfig load failed for target={target!r}: {e}"
             ) from e
-        self._db_path = (
-            db_cfg.rag_db_path if target == "rag" else db_cfg.session_db_path
-        )
+        if target == "rag":
+            self._db_path = db_cfg.rag_db_path
+        elif target == "session":
+            self._db_path = db_cfg.session_db_path
+        else:
+            self._db_path = db_cfg.workflow_db_path
         self._vec_so = db_cfg.sqlite_vec_so
         self._sqlite_timeout = db_cfg.sqlite_timeout
         self._busy_timeout_ms = db_cfg.sqlite_busy_timeout_ms
@@ -51,7 +56,12 @@ class SQLiteHelper:
 
     def _connect(self) -> sqlite3.Connection:
         """Open a raw SQLite connection; raise on DB_PATH misconfiguration."""
-        key = "rag_db_path" if self._target == "rag" else "session_db_path"
+        if self._target == "rag":
+            key = "rag_db_path"
+        elif self._target == "session":
+            key = "session_db_path"
+        else:
+            key = "workflow_db_path"
         if not self._db_path:
             raise ValueError(f"{key} is not configured in common.toml")
         try:

@@ -24,6 +24,10 @@ from agent.context import AgentContext
 from agent.llm_turn_runner import LLMTurnRunner
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_result import TurnResult
+from agent.workflow.models import WorkflowDef
+from agent.workflow.state_store import StateStore
+from agent.workflow.workflow_engine import WorkflowEngine, WorkflowHaltError
+from agent.workflow.workflow_loader import WorkflowLoader, WorkflowLoadError
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -60,6 +64,11 @@ class Orchestrator:
             self._guard,
             tracer=tracer,
         )
+        self._workflow_def: WorkflowDef | None = None
+        try:
+            self._workflow_def = WorkflowLoader().load()
+        except (WorkflowLoadError, Exception):
+            logger.warning("WorkflowLoader failed — workflow tracking disabled")
 
     # ── Public entry point ────────────────────────────────────────────────────
 
@@ -68,14 +77,59 @@ class Orchestrator:
         ctx = self._ctx
         turn_started_at = time.perf_counter()
 
-        # Start turn processing
         await self._handle_turn_start(line)
 
-        # Process the turn and handle errors
-        answer, error_kind = await self._process_turn(line, ctx, turn_started_at)
+        answer: str = ""
+        error_kind: str | None = None
 
-        # End turn processing
-        await self._handle_turn_end(line, answer, turn_started_at, error_kind)
+        if self._workflow_def is None:
+            answer, error_kind = await self._process_turn(line, ctx, turn_started_at)
+            await self._handle_turn_end(line, answer, turn_started_at, error_kind)
+            return
+
+        store: StateStore | None = None
+        try:
+            store = StateStore()
+        except RuntimeError as exc:
+            logger.warning(
+                "StateStore unavailable, skipping workflow tracking: %s", exc
+            )
+            answer, error_kind = await self._process_turn(line, ctx, turn_started_at)
+            await self._handle_turn_end(line, answer, turn_started_at, error_kind)
+            return
+
+        try:
+            session_id = (
+                str(ctx.session.session_id) if ctx.session.session_id else "none"
+            )
+            task = store.create_task(
+                session_id=session_id,
+                turn_number=ctx.stats.stat_turns,
+                workflow_version=self._workflow_def.version,
+            )
+            engine = WorkflowEngine(self._workflow_def, store)
+
+            async def plan_fn() -> str | None:
+                return None  # _handle_turn_start already completed
+
+            async def execute_fn() -> str | None:
+                nonlocal answer, error_kind
+                answer, error_kind = await self._process_turn(
+                    line, ctx, turn_started_at
+                )
+                return None
+
+            async def verify_fn() -> str | None:
+                await self._handle_turn_end(line, answer, turn_started_at, error_kind)
+                return None
+
+            await engine.run(task, plan_fn, execute_fn, verify_fn)
+        except WorkflowHaltError as exc:
+            logger.error("Turn halted by workflow engine: %s", exc)
+            if self._on_error:
+                self._on_error(exc)
+        finally:
+            store.close()
 
     # ── Turn lifecycle ────────────────────────────────────────────────────────
 

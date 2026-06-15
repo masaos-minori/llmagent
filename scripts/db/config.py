@@ -22,6 +22,7 @@ class DbConfig:
 
     rag_db_path: str
     session_db_path: str
+    workflow_db_path: str = "/opt/llm/db/workflow.sqlite"
     sqlite_vec_so: str = ""  # empty = vec extension not required
     sqlite_timeout: int = 30
     sqlite_busy_timeout_ms: int = 30000
@@ -32,6 +33,8 @@ class DbConfig:
             raise ValueError("rag_db_path must not be empty")
         if not self.session_db_path:
             raise ValueError("session_db_path must not be empty")
+        if not self.workflow_db_path:
+            raise ValueError("workflow_db_path must not be empty")
         if self.sqlite_timeout < 1:
             raise ValueError(f"sqlite_timeout must be >= 1, got {self.sqlite_timeout}")
         if self.embedding_dims < 1:
@@ -41,6 +44,7 @@ class DbConfig:
         for label, path_str in (
             ("rag_db_path", self.rag_db_path),
             ("session_db_path", self.session_db_path),
+            ("workflow_db_path", self.workflow_db_path),
         ):
             parent = Path(path_str).parent
             if not parent.exists():
@@ -53,6 +57,7 @@ def build_db_config() -> DbConfig:
     return DbConfig(
         rag_db_path=cfg.get("rag_db_path", ""),
         session_db_path=cfg.get("session_db_path", ""),
+        workflow_db_path=cfg.get("workflow_db_path", "/opt/llm/db/workflow.sqlite"),
         sqlite_vec_so=cfg.get("sqlite_vec_so", ""),
         sqlite_timeout=int(cfg.get("sqlite_timeout", 30)),
         sqlite_busy_timeout_ms=int(cfg.get("sqlite_busy_timeout_ms", 30000)),

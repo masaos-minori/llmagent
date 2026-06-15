@@ -69,6 +69,11 @@ cp "${REPO_ROOT}/config/git_mcp_server.toml"           "${DEPLOY_CONFIG}/"
 echo "--- db/rrf.sql → ${DEPLOY_DB}/ ---"
 cp "${REPO_ROOT}/db/rrf.sql" "${DEPLOY_DB}/"
 
+# ── ワークフロー定義 ──────────────────────────────────────────────────────────
+echo "--- config/workflows/ → ${DEPLOY_CONFIG}/workflows/ ---"
+mkdir -p "${DEPLOY_CONFIG}/workflows"
+cp -r "${REPO_ROOT}/config/workflows/." "${DEPLOY_CONFIG}/workflows/"
+
 echo "=== deploy.sh: 完了 ==="
 echo ""
 echo "次のステップ:"
