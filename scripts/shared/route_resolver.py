@@ -59,6 +59,7 @@ class ToolRouteResolver:
         server_configs: dict[str, McpServerConfig],
         *,
         warn_on_fallback: bool = False,
+        strict_mode: bool = False,
     ) -> None:
         # Build reverse map: tool_name -> server_key from explicitly configured tool_names.
         self._config_map: dict[str, str] = {}
@@ -66,11 +67,17 @@ class ToolRouteResolver:
             for tool_name in cfg.tool_names:
                 self._config_map[tool_name] = key
         self._warn_on_fallback = warn_on_fallback
+        self._strict_mode = strict_mode
 
     def resolve(self, tool_name: str) -> str:
         """Return the server key for tool_name; raises ValueError when no match."""
         if (key := self._config_map.get(tool_name)) is not None:
             return key
+        if self._strict_mode:
+            raise ValueError(
+                f"ToolRouteResolver: tool {tool_name!r} not in config map "
+                f"and strict_mode=True; add it to tool_names in mcp_servers config"
+            )
         if self._warn_on_fallback:
             logger.warning(
                 "ToolRouteResolver: tool %r not in config map; using static fallback. "

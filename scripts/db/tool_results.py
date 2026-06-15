@@ -18,6 +18,18 @@ logger = logging.getLogger(__name__)
 class ToolResultStore:
     """Persists full tool call results to the tool_results table; each result has a stable integer id retrievable via /tool show <id>."""
 
+    def _make_helper(
+        self, *, write_mode: bool = False, row_factory: bool = False
+    ) -> SQLiteHelper:
+        """Return an open SQLiteHelper for session.sqlite.
+
+        Overriding this method in tests allows injecting an alternative database
+        without patching build_db_config globally.
+        """
+        return SQLiteHelper("session").open(
+            write_mode=write_mode, row_factory=row_factory
+        )
+
     def store(
         self,
         session_id: int | None,
@@ -29,7 +41,7 @@ class ToolResultStore:
         is_error: bool,
     ) -> int | None:
         """Insert one tool result row; return the new row id. Raises on DB error."""
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with self._make_helper(write_mode=True) as db:
             cur = db.execute(
                 "INSERT INTO tool_results"
                 " (session_id, turn, tool_name, args_masked,"
@@ -51,7 +63,7 @@ class ToolResultStore:
 
     def get(self, result_id: int) -> ToolResultRow | None:
         """Fetch one tool result by id; return None when not found. Raises on DB error."""
-        with SQLiteHelper("session").open(row_factory=True) as db:
+        with self._make_helper(row_factory=True) as db:
             rows = db.fetchall(
                 "SELECT id, session_id, turn, tool_name, args_masked,"
                 " full_text, summary, is_error, created_at"
@@ -81,7 +93,7 @@ class ToolResultStore:
         """
         if session_id is None:
             return []
-        with SQLiteHelper("session").open(row_factory=True) as db:
+        with self._make_helper(row_factory=True) as db:
             rows = db.fetchall(
                 "SELECT id, tool_name, summary, is_error"
                 " FROM tool_results"

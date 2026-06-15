@@ -7,20 +7,45 @@ Placed in shared/ so tool_executor.py can reference it without depending on agen
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
+
+
+class TransportType(StrEnum):
+    """MCP server transport protocol."""
+
+    HTTP = "http"
+    STDIO = "stdio"
+
+
+class StartupMode(StrEnum):
+    """MCP server startup lifecycle mode."""
+
+    PERSISTENT = "persistent"
+    ONDEMAND = "ondemand"
+    SUBPROCESS = "subprocess"
+
+
+class HealthcheckMode(StrEnum):
+    """MCP server health-check strategy."""
+
+    HTTP = "http"
+    PROCESS = "process"
+    PING_TOOL = "ping_tool"
 
 
 @dataclass
 class McpServerConfig:
     """Transport configuration for one MCP server."""
 
-    transport: str  # "http" | "stdio"
-    url: str  # base URL (transport="http")
-    cmd: list[str]  # command argv (transport="stdio")
-    openrc_service: str  # e.g. "file-mcp"  (transport="http", watchdog restart)
-    startup_mode: str = "persistent"  # "persistent" | "ondemand" | "subprocess"
-    healthcheck_mode: str = ""  # "http" | "process" | "ping_tool" | ""
+    transport: TransportType
+    url: str  # base URL (transport=HTTP)
+    cmd: list[str]  # command argv (transport=STDIO)
+    openrc_service: str  # e.g. "file-mcp"  (transport=HTTP, watchdog restart)
+    startup_mode: StartupMode = StartupMode.PERSISTENT
+    healthcheck_mode: HealthcheckMode = (
+        HealthcheckMode.HTTP
+    )  # resolved in __post_init__
     idle_timeout_sec: int = 0  # ondemand auto-stop delay in seconds
     startup_timeout_sec: int = 30  # subprocess startup health-poll timeout in seconds
     working_dir: str = ""  # stdio subprocess working directory; "" = inherit
@@ -30,37 +55,35 @@ class McpServerConfig:
     role: str = ""  # human-readable role label
 
     def __post_init__(self) -> None:
-        self._validate_transport()
-        self._validate_startup_mode()
-        if not self.healthcheck_mode:
-            self.healthcheck_mode = "http" if self.transport == "http" else "process"
-        if self.healthcheck_mode not in ("http", "process", "ping_tool"):
-            raise ValueError(
-                f"McpServerConfig.healthcheck_mode must be 'http', 'process', or "
-                f"'ping_tool', got {self.healthcheck_mode!r}"
-            )
+        # Cast str inputs from config files to enum types; invalid values raise ValueError.
+        if not isinstance(self.transport, TransportType):
+            self.transport = TransportType(self.transport)
+        if not isinstance(self.startup_mode, StartupMode):
+            self.startup_mode = StartupMode(self.startup_mode)
+        if not isinstance(self.healthcheck_mode, HealthcheckMode):
+            if not self.healthcheck_mode:
+                self.healthcheck_mode = (
+                    HealthcheckMode.HTTP
+                    if self.transport == TransportType.HTTP
+                    else HealthcheckMode.PROCESS
+                )
+            else:
+                self.healthcheck_mode = HealthcheckMode(self.healthcheck_mode)
+        self._validate_cross_fields()
 
-    def _validate_transport(self) -> None:
-        if self.transport not in ("http", "stdio"):
-            raise ValueError(
-                f"McpServerConfig.transport must be 'http' or 'stdio', got {self.transport!r}"
-            )
-        if self.transport == "http" and not self.url:
+    def _validate_cross_fields(self) -> None:
+        if self.transport == TransportType.HTTP and not self.url:
             raise ValueError(
                 "McpServerConfig: url must not be empty when transport='http'"
             )
-        if self.transport == "stdio" and not self.cmd:
+        if self.transport == TransportType.STDIO and not self.cmd:
             raise ValueError(
                 "McpServerConfig: cmd must not be empty when transport='stdio'"
             )
-
-    def _validate_startup_mode(self) -> None:
-        if self.startup_mode not in ("persistent", "ondemand", "subprocess"):
-            raise ValueError(
-                f"McpServerConfig.startup_mode must be 'persistent', 'ondemand', or "
-                f"'subprocess', got {self.startup_mode!r}"
-            )
-        if self.startup_mode == "subprocess" and self.transport == "stdio":
+        if (
+            self.startup_mode == StartupMode.SUBPROCESS
+            and self.transport == TransportType.STDIO
+        ):
             raise ValueError(
                 "startup_mode='subprocess' is only valid for transport='http'; "
                 "stdio servers use 'persistent' or 'ondemand'"
@@ -126,12 +149,14 @@ def _build_single_server(key: str, v: Any) -> McpServerConfig:
             f"mcp_servers[{key!r}].transport must be str, got {type(transport).__name__}"
         )
     return McpServerConfig(
-        transport=transport,
+        transport=TransportType(transport),
         url=v.get("url", ""),
         cmd=list(v.get("cmd", [])),
         openrc_service=v.get("openrc_service", ""),
-        startup_mode=v.get("startup_mode", "persistent"),
-        healthcheck_mode=v.get("healthcheck_mode", ""),
+        startup_mode=StartupMode(v.get("startup_mode", "persistent")),
+        healthcheck_mode=HealthcheckMode(v.get("healthcheck_mode", ""))
+        if v.get("healthcheck_mode")
+        else HealthcheckMode.HTTP,
         idle_timeout_sec=int(v.get("idle_timeout_sec", 0)),
         startup_timeout_sec=int(v.get("startup_timeout_sec", 30)),
         working_dir=v.get("working_dir", ""),

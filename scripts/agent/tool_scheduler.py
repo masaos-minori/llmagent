@@ -10,12 +10,12 @@ Groups tool calls so that:
 
 from __future__ import annotations
 
+from shared.tool_spec import ToolSpec
+
 
 def build_execution_groups(
     tool_calls: list[dict],
-    tool_meta: dict[
-        str, dict
-    ],  # tool_name -> {resource_scope, requires_serial, is_write}
+    tool_meta: dict[str, ToolSpec],  # tool_name -> ToolSpec
 ) -> list[list[dict]]:
     """Return an ordered list of groups; each group runs concurrently within itself,
     groups are executed sequentially.
@@ -33,12 +33,12 @@ def build_execution_groups(
 
     for tc in tool_calls:
         name = tc["function"]["name"]
-        meta = tool_meta.get(name, {})
-        if meta.get("requires_serial"):
+        meta = tool_meta.get(name)
+        if meta is not None and meta.requires_serial:
             serial_barrier.append(tc)
             continue
-        scope = meta.get("resource_scope", "")
-        is_write = meta.get("is_write", False)
+        scope = meta.resource_scope if meta is not None else ""
+        is_write = meta.is_write if meta is not None else False
         if scope and is_write:
             resource_groups.setdefault(scope, []).append(tc)
         elif is_write:

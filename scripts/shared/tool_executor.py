@@ -30,6 +30,7 @@ from shared.mcp_config import (
     McpServerHealthRegistry,
 )
 from shared.route_resolver import ToolRouteResolver
+from shared.tool_cache import _CacheEntry
 from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
 
 logger = logging.getLogger(__name__)
@@ -60,15 +61,6 @@ class TransportErrorInfo:
 
     summary: str
     detail: str  # JSON-encoded dict for audit log
-
-
-@dataclass(frozen=True)
-class _CacheEntry:
-    """Internal cache entry (output, is_error, timestamp)."""
-
-    output: str
-    is_error: bool
-    cached_at: float
 
 
 # ─────────────────────────────────────────────────────────────────────────────

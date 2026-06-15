@@ -43,6 +43,10 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | MCP transport / startup_mode / lifecycle | `docs/04_mcp-protocol.md` + `docs/05_ref-agent-config.md` |
 | ToolRouteResolver / route_resolver.py | `docs/05_ref-agent-config.md` + `docs/04_mcp-protocol.md` |
 | ServerLifecycleManager / lifecycle.py | `docs/04_mcp-protocol.md` + `docs/05_ref-agent-context.md` |
+| ToolSpec / tool_spec.py (execution metadata DAG) | `docs/06_ref-agent-config.md` |
+| tool_cache.py (_CacheEntry LRU cache) | `docs/06_ref-agent-config.md` |
+| TransportType / StartupMode / HealthcheckMode enums (mcp_config.py) | `docs/04_mcp-protocol.md` + `docs/06_ref-agent-config.md` |
+| ServerLifecycleManager / lifecycle.py | `docs/04_mcp-protocol.md` + `docs/06_ref-agent-context.md` |
 | web-search-mcp specifics | `docs/04_mcp-web-search.md` |
 | file-mcp specifics | `docs/04_mcp-file.md` |
 | github-mcp specifics | `docs/04_mcp-github.md` |

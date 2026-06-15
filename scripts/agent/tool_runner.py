@@ -16,6 +16,7 @@ import orjson
 from rag.llm import summarize_tool_result
 from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
 from shared.tool_executor import is_side_effect, tool_call_key
+from shared.tool_spec import ToolSpec
 
 from agent.tool_approval import run_approval_checks
 from agent.tool_audit import audit_tool_exec
@@ -152,16 +153,18 @@ async def _execute_with_dag(
     for tools without resource_scope metadata.
     """
     tool_definitions = ctx.cfg.tool.tool_definitions
-    tool_meta: dict[str, dict] = {}
+    tool_meta: dict[str, ToolSpec] = {}
     for td in tool_definitions:
         fn = td.get("function", {})
         name = fn.get("name", "")
         if name:
-            tool_meta[name] = {
-                "resource_scope": fn.get("resource_scope", ""),
-                "requires_serial": fn.get("requires_serial", False),
-                "is_write": name in WRITE_TOOLS or name in DELETE_TOOLS,
-            }
+            tool_meta[name] = ToolSpec(
+                call_id="",
+                name=name,
+                resource_scope=fn.get("resource_scope", ""),
+                requires_serial=fn.get("requires_serial", False),
+                is_write=name in WRITE_TOOLS or name in DELETE_TOOLS,
+            )
 
     groups = build_execution_groups(approved_calls, tool_meta)
     results: list[Any] = []
