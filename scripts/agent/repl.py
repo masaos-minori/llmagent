@@ -180,7 +180,7 @@ class AgentREPL:
         try:
             raw = await loop.run_in_executor(None, lambda: input(self._prompt))
         except (EOFError, KeyboardInterrupt):
-            print()
+            self._view.write_turn_end()
             return None
         line = raw.strip()
         if line.endswith("\\"):
@@ -191,7 +191,7 @@ class AgentREPL:
     def _should_exit(self, line: str, ctx: AgentContext) -> bool:
         """Return True when the REPL loop should terminate."""
         if ctx.conv.shutdown_requested:
-            print("\nShutdown requested, exiting...")
+            self._view.write_warning("Shutdown requested, exiting...")
             return True
         if line == "/exit":
             return True
@@ -206,7 +206,9 @@ class AgentREPL:
         if line.startswith("/"):
             matched = await self._cmds.dispatch(line)
             if not matched:
-                print(f"Unknown command: {line}  (type /help for commands)")
+                self._view.write_warning(
+                    f"Unknown command: {line}  (type /help for commands)"
+                )
         else:
             await self._orchestrator.handle_turn(line)
 
@@ -258,8 +260,8 @@ class AgentREPL:
                         key,
                         e,
                     )
-                    print(
-                        f"[warn] HTTP subprocess MCP server {key!r} failed to start: {e}"
+                    self._view.write_warning(
+                        f"HTTP subprocess MCP server {key!r} failed to start: {e}"
                     )
                 continue
             # ondemand and non-stdio servers are excluded: they start on first tool call
@@ -281,7 +283,9 @@ class AgentREPL:
                 ctx.services.stdio_procs[key] = transport
             except (OSError, RuntimeError) as e:
                 logger.error("Failed to start stdio MCP server %r: %s", key, e)
-                print(f"[warn] stdio MCP server {key!r} failed to start: {e}")
+                self._view.write_warning(
+                    f"stdio MCP server {key!r} failed to start: {e}"
+                )
 
     def _print_startup_banner(self) -> None:
         """Print the startup line showing DB chunks and tool count."""
