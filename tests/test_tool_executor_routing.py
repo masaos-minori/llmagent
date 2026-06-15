@@ -20,6 +20,7 @@ from shared.tool_executor import (
     HttpTransport,
     LifecycleProtocol,
     StdioTransport,
+    ToolCallResult,
     ToolExecutor,
 )
 
@@ -113,9 +114,11 @@ class TestRawExecuteWithLifecycle:
         # Patch the transport to record call order
         mock_transport = AsyncMock()
 
-        def _record_and_ok(*a: object, **kw: object) -> tuple[str, bool, str]:
+        def _record_and_ok(*a: object, **kw: object) -> ToolCallResult:
             call_order.append("call")
-            return ("ok", False, "")
+            return ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key=""
+            )
 
         mock_transport.call = AsyncMock(side_effect=_record_and_ok)
         ex._transports["file_read"] = mock_transport
@@ -132,10 +135,15 @@ class TestRawExecuteWithLifecycle:
         assert ex._lifecycle is None
 
         mock_transport = AsyncMock()
-        mock_transport.call = AsyncMock(return_value=("result", False, ""))
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="result", is_error=False, request_id="", server_key=""
+            )
+        )
         ex._transports["file_read"] = mock_transport
 
-        result, is_err, _ = await ex._raw_execute("read_text_file", {})
+        res = await ex._raw_execute("read_text_file", {})
+        _result, is_err = res.output, res.is_error
         assert not is_err
 
     @pytest.mark.asyncio
@@ -144,7 +152,8 @@ class TestRawExecuteWithLifecycle:
         configs = {"shell": _stdio_cfg()}
         ex = ToolExecutor(http, cache_ttl=60.0, server_configs=configs)
         # stdio transport starts as None (not yet started)
-        result, is_err, _ = await ex._raw_execute("shell_run", {})
+        res = await ex._raw_execute("shell_run", {})
+        result, is_err = res.output, res.is_error
         assert is_err
         assert "not started" in result or "No transport" in result
 
@@ -210,7 +219,8 @@ class TestHttpTransportAuthHeader:
         mock_http.post = AsyncMock(return_value=mock_resp)
 
         transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
-        _result, _is_err, x_req_id = await transport.call("my_tool", {})
+        res = await transport.call("my_tool", {})
+        x_req_id = res.request_id
 
         assert x_req_id == "abc-123"
 
@@ -224,7 +234,8 @@ class TestHttpTransportAuthHeader:
         mock_http.post = AsyncMock(return_value=mock_resp)
 
         transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
-        _result, _is_err, x_req_id = await transport.call("my_tool", {})
+        res = await transport.call("my_tool", {})
+        x_req_id = res.request_id
 
         assert x_req_id == ""
 
@@ -241,7 +252,8 @@ class TestHttpTransportErrors:
             )
         )
         transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
-        result, is_err, x_req_id = await transport.call("my_tool", {})
+        res = await transport.call("my_tool", {})
+        result, is_err, x_req_id = res.output, res.is_error, res.request_id
         assert is_err
         assert "HTTPStatusError" in result
         assert x_req_id == ""
@@ -254,7 +266,8 @@ class TestHttpTransportErrors:
             side_effect=httpx.ConnectError("refused", request=req)
         )
         transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
-        result, is_err, x_req_id = await transport.call("my_tool", {})
+        res = await transport.call("my_tool", {})
+        _result, is_err, x_req_id = res.output, res.is_error, res.request_id
         assert is_err
         assert x_req_id == ""
 
@@ -263,7 +276,8 @@ class TestHttpTransportErrors:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.post = AsyncMock(side_effect=RuntimeError("unexpected"))
         transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
-        result, is_err, x_req_id = await transport.call("my_tool", {})
+        res = await transport.call("my_tool", {})
+        result, is_err, x_req_id = res.output, res.is_error, res.request_id
         assert is_err
         assert "RuntimeError" in result
         assert x_req_id == ""
@@ -273,7 +287,8 @@ class TestStdioTransportCall:
     @pytest.mark.asyncio
     async def test_not_alive_returns_error(self) -> None:
         transport = StdioTransport(["python", "s.py"], "key")
-        result, is_err, x_req_id = await transport.call("my_tool", {})
+        res = await transport.call("my_tool", {})
+        result, is_err, x_req_id = res.output, res.is_error, res.request_id
         assert is_err
         assert "not running" in result
         assert x_req_id == ""
@@ -290,7 +305,8 @@ class TestStdioTransportCall:
             return_value=b'{"result": "ok", "is_error": false}\n'
         )
         transport._proc = mock_proc
-        result, is_err, x_req_id = await transport.call("my_tool", {})
+        res = await transport.call("my_tool", {})
+        result, is_err, x_req_id = res.output, res.is_error, res.request_id
         assert not is_err
         assert result == "ok"
         assert x_req_id == ""
@@ -305,7 +321,8 @@ class TestStdioTransportCall:
         mock_proc.stdout = MagicMock()
         mock_proc.stdout.readline = AsyncMock(return_value=b"not-json\n")
         transport._proc = mock_proc
-        result, is_err, x_req_id = await transport.call("my_tool", {})
+        res = await transport.call("my_tool", {})
+        _result, is_err, x_req_id = res.output, res.is_error, res.request_id
         assert is_err
         assert x_req_id == ""
 
@@ -319,7 +336,8 @@ class TestStdioTransportCall:
         mock_proc.stdout = MagicMock()
         transport._proc = mock_proc
         with patch("asyncio.wait_for", new=AsyncMock(side_effect=TimeoutError())):
-            result, is_err, x_req_id = await transport.call("my_tool", {})
+            res = await transport.call("my_tool", {})
+        result, is_err, x_req_id = res.output, res.is_error, res.request_id
         assert is_err
         assert "timeout" in result
         assert x_req_id == ""
@@ -333,7 +351,8 @@ class TestStdioTransportCall:
         mock_proc.stdin.drain = AsyncMock(side_effect=OSError("pipe broken"))
         mock_proc.stdout = MagicMock()
         transport._proc = mock_proc
-        result, is_err, x_req_id = await transport.call("my_tool", {})
+        res = await transport.call("my_tool", {})
+        _result, is_err, x_req_id = res.output, res.is_error, res.request_id
         assert is_err
         assert x_req_id == ""
 
@@ -348,7 +367,8 @@ class TestToolExecutorExecute:
             return "plugin result", False
 
         ex = _make_executor()
-        result, is_err, x_req = await ex.execute("plugin_ok_tool", {})
+        res = await ex.execute("plugin_ok_tool", {})
+        result, is_err, x_req = res.output, res.is_error, res.request_id
         assert result == "plugin result"
         assert not is_err
         assert x_req == ""
@@ -363,7 +383,8 @@ class TestToolExecutorExecute:
             raise RuntimeError("boom")
 
         ex = _make_executor()
-        result, is_err, x_req = await ex.execute("plugin_bad_tool", {})
+        res = await ex.execute("plugin_bad_tool", {})
+        result, is_err, x_req = res.output, res.is_error, res.request_id
         assert is_err
         assert "[plugin error]" in result
         assert x_req == ""
@@ -373,11 +394,19 @@ class TestToolExecutorExecute:
     async def test_cache_hit_returns_empty_x_request_id(self) -> None:
         ex = _make_executor()
         mock_transport = AsyncMock()
-        mock_transport.call = AsyncMock(return_value=("cached result", False, "req-1"))
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="cached result",
+                is_error=False,
+                request_id="req-1",
+                server_key="",
+            )
+        )
         ex._transports["file_read"] = mock_transport
 
         await ex.execute("read_text_file", {"path": "f"})
-        result, is_err, x_req = await ex.execute("read_text_file", {"path": "f"})
+        res = await ex.execute("read_text_file", {"path": "f"})
+        result, is_err, x_req = res.output, res.is_error, res.request_id
         assert result == "cached result"
         assert not is_err
         assert x_req == ""
@@ -392,11 +421,16 @@ class TestToolExecutorExecute:
             server_configs={"file_read": _http_cfg()},
         )
         mock_transport = AsyncMock()
-        mock_transport.call = AsyncMock(return_value=("result", False, "req-1"))
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="result", is_error=False, request_id="req-1", server_key=""
+            )
+        )
         ex._transports["file_read"] = mock_transport
 
         await ex.execute("read_text_file", {"path": "f"})
-        result, is_err, x_req = await ex.execute("read_text_file", {"path": "f"})
+        res = await ex.execute("read_text_file", {"path": "f"})
+        result, _is_err, _x_req = res.output, res.is_error, res.request_id
         assert result == "result"
         assert mock_transport.call.call_count == 2
 
@@ -404,10 +438,15 @@ class TestToolExecutorExecute:
     async def test_execute_propagates_x_request_id_on_cache_miss(self) -> None:
         ex = _make_executor()
         mock_transport = AsyncMock()
-        mock_transport.call = AsyncMock(return_value=("ok", False, "req-xyz"))
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="req-xyz", server_key=""
+            )
+        )
         ex._transports["file_read"] = mock_transport
 
-        _result, _is_err, x_req = await ex.execute("read_text_file", {"path": "f"})
+        res = await ex.execute("read_text_file", {"path": "f"})
+        x_req = res.request_id
         assert x_req == "req-xyz"
 
 
@@ -615,7 +654,8 @@ class TestToolExecutorHealthGate:
         ex.set_health_registry(registry)
 
         with patch.object(ex, "_transports", {}):
-            result, is_error, _ = await ex._raw_execute("read_text_file", {})
+            res = await ex._raw_execute("read_text_file", {})
+        result, is_error = res.output, res.is_error
 
         assert is_error
         assert "unavailable" in result.lower()
@@ -628,10 +668,15 @@ class TestToolExecutorHealthGate:
         ex.set_health_registry(registry)
 
         mock_transport = AsyncMock()
-        mock_transport.call = AsyncMock(return_value=("ok", False, "req-1"))
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="req-1", server_key=""
+            )
+        )
         ex._transports = {"file_read": mock_transport}
 
-        result, is_error, _ = await ex._raw_execute("read_text_file", {})
+        res = await ex._raw_execute("read_text_file", {})
+        _result, is_error = res.output, res.is_error
         mock_transport.call.assert_called_once()
         assert not is_error
 

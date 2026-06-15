@@ -15,7 +15,7 @@ import orjson
 import pytest
 from agent.history import HistoryManager
 from agent.history_selection_policy import _POLICY_KEYWORDS
-from rag.types import LLMMessage
+from shared.types import LLMMessage
 
 _classify_importance = HistoryManager._classify_importance
 

@@ -30,8 +30,14 @@ def _get_schema_log_path() -> str:
     return f"{log_dir}/create_schema.log"
 
 
-# Entry script: use Logger with a dedicated log file.
-logger = Logger(__name__, _get_schema_log_path())
+_logger: Logger | None = None
+
+
+def _get_logger() -> Logger:
+    global _logger
+    if _logger is None:
+        _logger = Logger(__name__, _get_schema_log_path())
+    return _logger
 
 
 _RAG_SCHEMA_TEMPLATE: str = """
@@ -172,9 +178,9 @@ def create_rag_schema() -> None:
         try:
             db.conn.executescript(_build_rag_schema_sql(dims))  # type: ignore[union-attr]  # conn is set by open()
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-            logger.error(f"Failed to execute RAG schema DDL: {e}")
+            _get_logger().error(f"Failed to execute RAG schema DDL: {e}")
             raise
-    logger.info("RAG schema created successfully.")
+    _get_logger().info("RAG schema created successfully.")
 
 
 def create_session_schema() -> None:
@@ -184,9 +190,9 @@ def create_session_schema() -> None:
         try:
             db.conn.executescript(_build_session_schema_sql(dims))  # type: ignore[union-attr]  # conn is set by open()
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-            logger.error(f"Failed to execute session schema DDL: {e}")
+            _get_logger().error(f"Failed to execute session schema DDL: {e}")
             raise
-    logger.info("Session schema created successfully.")
+    _get_logger().info("Session schema created successfully.")
 
 
 def migrate_schema(db_name: str = "rag") -> None:
@@ -210,7 +216,7 @@ def create_schema() -> None:
     """Create schemas for both rag.sqlite and session.sqlite."""
     create_rag_schema()
     create_session_schema()
-    logger.info("All schemas created successfully.")
+    _get_logger().info("All schemas created successfully.")
 
 
 if __name__ == "__main__":
@@ -222,5 +228,5 @@ if __name__ == "__main__":
         sqlite3.DatabaseError,
         OSError,
     ) as e:
-        logger.exception(f"Schema creation failed: {e}")
+        _get_logger().exception(f"Schema creation failed: {e}")
         sys.exit(1)

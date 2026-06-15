@@ -17,6 +17,7 @@ from shared.llm_client import (
     RobustSSEParser,
     _anext_or_done,
 )
+from shared.tool_executor import TransportErrorInfo
 
 # ── LLMTransportError ─────────────────────────────────────────────────────────
 
@@ -617,52 +618,47 @@ class TestFormatTransportError:
         status_code: int | None = 500,
         retryable: bool = False,
         partial: bool = False,
-    ) -> dict[str, str]:
-        from typing import cast
+    ) -> TransportErrorInfo:
+        from shared.tool_executor import format_transport_error  # noqa: PLC0415
 
-        from shared.tool_executor import format_transport_error
-
-        return cast(
-            dict[str, str],
-            format_transport_error(
-                source=source,
-                phase=phase,
-                kind=kind,
-                url=url,
-                status_code=status_code,
-                retryable=retryable,
-                partial=partial,
-            ),
+        return format_transport_error(
+            source=source,
+            phase=phase,
+            kind=kind,
+            url=url,
+            status_code=status_code,
+            retryable=retryable,
+            partial=partial,
         )
 
     def test_returns_summary_and_detail(self) -> None:
         result = self._call()
-        assert "summary" in result
-        assert "detail" in result
+        assert result.summary
+        assert result.detail
 
     def test_summary_contains_source_and_kind(self) -> None:
         result = self._call(source="llm", kind="HTTP_STATUS_FATAL")
-        assert "LLM" in result["summary"]
-        assert "HTTP_STATUS_FATAL" in result["summary"]
+        assert "LLM" in result.summary
+        assert "HTTP_STATUS_FATAL" in result.summary
 
     def test_detail_is_valid_json(self) -> None:
         import orjson
 
         result = self._call()
-        data = orjson.loads(result["detail"])
+        data = orjson.loads(result.detail)
         assert data["source"] == "llm"
         assert data["kind"] == "HTTP_STATUS_FATAL"
         assert data["retryable"] is False
 
     def test_tool_source(self) -> None:
         result = self._call(source="tool", kind="CONNECT_ERROR", phase="tool_http")
-        assert "TOOL" in result["summary"]
+        assert "TOOL" in result.summary
 
     def test_partial_flag_in_detail(self) -> None:
         import orjson
 
         result = self._call(partial=True)
-        data = orjson.loads(result["detail"])
+        data = orjson.loads(result.detail)
         assert data["partial"] is True
 
 

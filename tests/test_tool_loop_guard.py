@@ -52,6 +52,9 @@ def _cfg(**overrides: dict) -> AgentConfig:
         "tool_cycle_detect_window": 2,
         "tool_error_retry_max": 1,
         "tool_error_max_consecutive": 3,
+        "mcp_servers": {
+            "_dummy": {"transport": "http", "url": "http://127.0.0.1:9999"}
+        },
     }
     defaults.update(overrides)
     return build_agent_config(defaults)

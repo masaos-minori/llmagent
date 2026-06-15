@@ -18,6 +18,7 @@ from agent.tool_audit import audit_tool_exec as _audit_tool_exec
 from agent.tool_policy import classify_risk as _classify_risk
 from agent.tool_result_formatter import build_preview as _build_preview
 from agent.tool_runner import execute_one_tool_call
+from shared.tool_executor import ToolCallResult
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,9 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             "tool_error_max_consecutive": 3,
             "web_search_url": "http://127.0.0.1:8004",
             "github_server_url": "http://127.0.0.1:8006",
+            "mcp_servers": {
+                "_dummy": {"transport": "http", "url": "http://127.0.0.1:9999"}
+            },
             # Standard tier classification; mirrors config/agent.json defaults
             "tool_safety_tiers": {
                 "list_directory": "READ_ONLY",
@@ -672,7 +676,11 @@ class TestExecuteOneToolCall:
     async def test_unpacks_three_tuple_from_execute(self) -> None:
         ctx = _make_ctx()
         ctx.services.tools = MagicMock()
-        ctx.services.tools.execute = AsyncMock(return_value=("result text", False, ""))
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="result text", is_error=False, request_id="", server_key=""
+            )
+        )
         ctx.services.audit_logger = None
         ctx.cfg.use_tool_summarize = False
         ctx.cfg.tool_result_max_llm_chars = 4000
@@ -698,7 +706,11 @@ class TestExecuteOneToolCall:
     async def test_audit_tool_exec_called_with_x_request_id(self) -> None:
         ctx = _make_ctx()
         ctx.services.tools = MagicMock()
-        ctx.services.tools.execute = AsyncMock(return_value=("ok", False, "req-999"))
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="req-999", server_key=""
+            )
+        )
         ctx.services.audit_logger = MagicMock()
         ctx.cfg.use_tool_summarize = False
         ctx.cfg.tool_result_max_llm_chars = 4000

@@ -56,6 +56,9 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             "tool_error_max_consecutive": 3,
             "web_search_url": "http://127.0.0.1:8004",
             "github_server_url": "http://127.0.0.1:8006",
+            "mcp_servers": {
+                "_dummy": {"transport": "http", "url": "http://127.0.0.1:9999"}
+            },
             **overrides,
         }
     )

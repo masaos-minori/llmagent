@@ -35,6 +35,7 @@ def _search_docs_structured(
     """Run FTS5 search; return SearchDocsResult DTO."""
     if not req.query or not req.query.strip():
         return SearchDocsResult(query=req.query, results=[], total=0)
+    logger.info("MDQ search query: %s", req.query)
     try:
         import sqlite3  # noqa: PLC0415
 

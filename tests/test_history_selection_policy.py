@@ -6,7 +6,7 @@ Unit tests for HistorySelectionPolicy — pure classification/sorting logic.
 from __future__ import annotations
 
 from agent.history_selection_policy import HistorySelectionPolicy
-from rag.types import LLMMessage
+from shared.types import LLMMessage
 
 
 def _msg(

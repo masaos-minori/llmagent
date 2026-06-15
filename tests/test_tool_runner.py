@@ -14,6 +14,7 @@ from agent.tool_runner import (
     _execute_with_dag,
     execute_all_tool_calls,
 )
+from shared.tool_executor import ToolCallResult
 
 
 def _cfg(**overrides: Any) -> AgentConfig:
@@ -56,6 +57,9 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "tool_results_turn_max_chars": 0,
         "web_search_url": "http://127.0.0.1:8004",
         "github_server_url": "http://127.0.0.1:8006",
+        "mcp_servers": {
+            "_dummy": {"transport": "http", "url": "http://127.0.0.1:9999"}
+        },
     }
     defaults.update(overrides)
     return build_agent_config(defaults)
@@ -67,7 +71,11 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.turn.current_turn_id = "test-turn-id"
     ctx.services.audit_logger = None
     ctx.services.tools = MagicMock()
-    ctx.services.tools.execute = AsyncMock(return_value=("result", False, "req-1"))
+    ctx.services.tools.execute = AsyncMock(
+        return_value=ToolCallResult(
+            output="result", is_error=False, request_id="req-1", server_key=""
+        )
+    )
     ctx.stats = MagicMock()
     ctx.stats.stat_tool_calls = 0
     ctx.stats.stat_tool_errors = 0
@@ -122,12 +130,18 @@ class TestExecuteWithDag:
             ]
         )
         ctx = _make_ctx(cfg)
-        ctx.services.tools.execute = AsyncMock(return_value=("ok", False, "req-1"))
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="req-1", server_key=""
+            )
+        )
         call_order: list[str] = []
 
-        async def _record_exec(name: str, _args: dict) -> tuple[str, bool, str]:
+        async def _record_exec(name: str, _args: dict) -> ToolCallResult:
             call_order.append(name)
-            return ("ok", False, "req-1")
+            return ToolCallResult(
+                output="ok", is_error=False, request_id="req-1", server_key=""
+            )
 
         ctx.services.tools.execute = AsyncMock(side_effect=_record_exec)
         await _execute_with_dag(ctx, [_tc("read_text_file"), _tc("write_file")], 0)
@@ -159,9 +173,11 @@ class TestExecuteWithDag:
         ctx = _make_ctx(cfg)
         call_order: list[str] = []
 
-        async def _record_exec(name: str, _args: dict) -> tuple[str, bool, str]:
+        async def _record_exec(name: str, _args: dict) -> ToolCallResult:
             call_order.append(name)
-            return ("ok", False, "req-1")
+            return ToolCallResult(
+                output="ok", is_error=False, request_id="req-1", server_key=""
+            )
 
         ctx.services.tools.execute = AsyncMock(side_effect=_record_exec)
         await _execute_with_dag(ctx, [_tc("shell_run"), _tc("read_text_file")], 0)
@@ -180,7 +196,11 @@ class TestExecuteAllToolCalls:
         cfg = _cfg(use_tool_dag=True)
         ctx = _make_ctx(cfg)
         ctx.services.audit_logger = MagicMock()
-        ctx.services.tools.execute = AsyncMock(return_value=("result", False, "req-1"))
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="result", is_error=False, request_id="req-1", server_key=""
+            )
+        )
         ctx.tool_result_store.store = MagicMock(return_value=1)
 
         with patch("agent.tool_runner.run_approval_checks") as mock_approval:
@@ -201,7 +221,11 @@ class TestExecuteAllToolCalls:
         cfg = _cfg(use_tool_dag=True)
         ctx = _make_ctx(cfg)
         ctx.services.audit_logger = MagicMock()
-        ctx.services.tools.execute = AsyncMock(return_value=("result", False, "req-1"))
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="result", is_error=False, request_id="req-1", server_key=""
+            )
+        )
 
         denied_id = "call_denied_1"
         approved = [_tc("read_text_file", '{"path": "/tmp/f"}')]
