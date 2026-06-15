@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Protocol
 
-from rag.models import CacheEntry
+from rag.models_data import CacheEntry
 from rag.utils import cosine_sim
 
 logger = logging.getLogger(__name__)

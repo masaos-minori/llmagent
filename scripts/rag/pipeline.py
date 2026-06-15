@@ -12,24 +12,26 @@ Module layout:
   rag/types.py       — RagHit TypedDict; re-exports LLMMessage from shared/types.py
   rag/repository.py  — RagRepository, RagScorer, SemanticCache, FTS helpers
   rag/llm.py         — RagLLM, get_embedding, summarize_tool_result
-  rag/pipeline.py    — RagPipeline (this file)
+  rag/pipeline_service.py — External RAG service delegation
+  rag/pipeline_refiner.py — Context refiner (chunk compression)
+  rag/pipeline.py    — RagPipeline core orchestration (this file)
 """
 
 import logging
 import sqlite3
 import time
 from collections.abc import Callable
-from typing import Any
 
 import httpx
-import orjson
 from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
 from shared.types import RagConfig
 
 from rag.cache import SemanticCache
 from rag.llm import RagLLM, get_embedding
-from rag.models import TwoStageFetchResult
+from rag.models_data import TwoStageFetchResult
+from rag.pipeline_refiner import refine_context
+from rag.pipeline_service import call_rag_service
 from rag.repository import (
     RagRepository,
     deduplicate_chunks,
@@ -56,21 +58,14 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-_cfg: dict[str, Any] | None = None
+_cfg: dict | None = None
 
 _RAG_BLOCK_START = "[RAG_CONTEXT_START]"
 _RAG_BLOCK_END = "[RAG_CONTEXT_END]"
 
 
-class RagPipelineError(RuntimeError):
-    """Raised when a pipeline-level operation fails (e.g. DB open, stage failure)."""
-
-
-def _get_cfg() -> dict[str, Any]:
-    """Load config on first call; cached for the module lifetime.
-
-    Used by service.py to override config via module-level _cfg assignment.
-    """
+def _get_cfg() -> dict:
+    """Load config on first call; cached for the module lifetime."""
     global _cfg
     if _cfg is None:
         try:
@@ -79,6 +74,10 @@ def _get_cfg() -> dict[str, Any]:
             logger.warning("Config load failed: %s", e)
             _cfg = {}
     return _cfg
+
+
+class RagPipelineError(RuntimeError):
+    """Raised when a pipeline-level operation fails (e.g. DB open, stage failure)."""
 
 
 class RagPipeline:
@@ -204,61 +203,26 @@ class RagPipeline:
         query: str,
         history_context: str,
     ) -> str | None:
-        """Delegate to external RAG service; None on failure triggers in-process fallback; stores hits in last_fetch_result."""
-        try:
-            resp = await self._http.post(
-                f"{rag_url}/v1/search",
-                json={"query": query, "history_context": history_context},
-            )
-            resp.raise_for_status()
-            body = orjson.loads(resp.content)
-            hits = body.get("selected_hits", [])
-            if hits:
-                # store for two-stage fetch callers (orchestrator._fetch_two_stage_context)
-                self.last_fetch_result = TwoStageFetchResult(
-                    hits=hits,
-                    min_score_applied=0.0,
-                    max_chunks_per_doc=0,
-                )
-            context_raw = body.get("context")
-            if context_raw is None:
-                return ""
-            if not isinstance(context_raw, str):
-                raise ValueError(
-                    f"RAG service 'context' field must be str,"
-                    f" got {type(context_raw).__name__}"
-                )
-            return context_raw
-        except (
-            httpx.HTTPStatusError,
-            httpx.RequestError,
-            orjson.JSONDecodeError,
-            ValueError,
-        ) as e:
-            logger.warning(
-                "RAG service call failed (%s), falling back to in-process: %s",
-                rag_url,
-                e,
-            )
-            return None
+        """Delegate to external RAG service; None on failure triggers in-process fallback."""
+        return await call_rag_service(
+            self._http,
+            rag_url,
+            query,
+            history_context,
+            set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
+        )
 
     async def _augment_refiner(self, reranked: list[RagHit], query: str) -> str | None:
         """Run the chunk refiner; returns None on empty output or LLM failure so caller falls back to raw chunks."""
-        try:
-            self._on_status("refining context...")
-            refined = await self._llm.refine_context(
-                reranked,
-                query,
-                max_tokens=self._cfg.refiner_max_tokens,
-                per_chunk_chars=self._cfg.refiner_max_chars_per_chunk,
-                timeout=self._cfg.refiner_timeout,
-            )
-            if refined:
-                return refined
-            logger.warning("Refiner returned empty output; falling back to chunks")
-        except (httpx.HTTPStatusError, httpx.RequestError, ValueError) as e:
-            logger.warning("Refiner failed, falling back to original chunks: %s", e)
-        return None
+        return await refine_context(
+            self._llm,
+            self._on_status,
+            reranked,
+            query,
+            max_tokens=self._cfg.refiner_max_tokens,
+            per_chunk_chars=self._cfg.refiner_max_chars_per_chunk,
+            timeout=self._cfg.refiner_timeout,
+        )
 
     @staticmethod
     def _format_chunks(reranked: list[RagHit]) -> str:

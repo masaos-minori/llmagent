@@ -9,7 +9,8 @@ from pathlib import Path
 import orjson
 
 from rag.exceptions import ChunkFormatError
-from rag.models import ChunkDocument, SkipInfo
+from rag.models_data import ChunkDocument
+from rag.models_result import SkipInfo
 
 logger = logging.getLogger(__name__)
 

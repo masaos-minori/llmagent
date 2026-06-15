@@ -11,7 +11,7 @@ import struct
 import unicodedata
 from urllib.parse import urlparse
 
-from rag.models import SanitizeResult
+from rag.models_result import SanitizeResult
 
 MIN_TEXT_LENGTH_FOR_DETECTION = 100
 
