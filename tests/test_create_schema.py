@@ -2,7 +2,7 @@
 Unit tests for create_schema: create_rag_schema, create_session_schema, idempotency.
 
 vec0 virtual tables (chunks_vec, memories_vec) require the sqlite-vec extension.
-Those DDL statements are excluded by patching _build_*_schema_sql so the tests
+Those DDL statements are excluded by patching build_*_schema_sql so the tests
 run without the extension installed.
 Migration code has been removed from create_schema.py; no migration tests here.
 """
@@ -135,8 +135,8 @@ def rag_tmp_db(tmp_path: Path) -> sqlite3.Connection:
     cfg = _make_db_config(db_file, "rag")
     with (
         patch("db.helper.build_db_config", return_value=cfg),
-        patch("db.store.build_db_config", return_value=cfg),
-        patch.object(cs, "_build_rag_schema_sql", return_value=_RAG_SCHEMA_NO_VEC0),
+        patch("db.store_protocols.build_db_config", return_value=cfg),
+        patch("db.create_schema.build_rag_schema_sql", return_value=_RAG_SCHEMA_NO_VEC0),
         patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
         patch.object(
             cs, "_get_logger", return_value=logging.getLogger("test.create_schema")
@@ -153,9 +153,9 @@ def session_tmp_db(tmp_path: Path) -> sqlite3.Connection:
     cfg = _make_db_config(db_file, "session")
     with (
         patch("db.helper.build_db_config", return_value=cfg),
-        patch("db.store.build_db_config", return_value=cfg),
-        patch.object(
-            cs, "_build_session_schema_sql", return_value=_SESSION_SCHEMA_NO_VEC0
+        patch("db.store_protocols.build_db_config", return_value=cfg),
+        patch(
+            "db.create_schema.build_session_schema_sql", return_value=_SESSION_SCHEMA_NO_VEC0
         ),
         patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
         patch.object(
@@ -198,8 +198,8 @@ class TestCreateRagSchema:
         cfg = _make_db_config(db_file, "rag")
         with (
             patch("db.helper.build_db_config", return_value=cfg),
-            patch("db.store.build_db_config", return_value=cfg),
-            patch.object(cs, "_build_rag_schema_sql", return_value=_RAG_SCHEMA_NO_VEC0),
+            patch("db.store_protocols.build_db_config", return_value=cfg),
+            patch("db.create_schema.build_rag_schema_sql", return_value=_RAG_SCHEMA_NO_VEC0),
             patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
             patch.object(
                 cs, "_get_logger", return_value=logging.getLogger("test.create_schema")
@@ -252,9 +252,9 @@ class TestCreateSessionSchema:
         cfg = _make_db_config(db_file, "session")
         with (
             patch("db.helper.build_db_config", return_value=cfg),
-            patch("db.store.build_db_config", return_value=cfg),
-            patch.object(
-                cs, "_build_session_schema_sql", return_value=_SESSION_SCHEMA_NO_VEC0
+            patch("db.store_protocols.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_session_schema_sql", return_value=_SESSION_SCHEMA_NO_VEC0
             ),
             patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
             patch.object(
