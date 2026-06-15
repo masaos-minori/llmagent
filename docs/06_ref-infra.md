@@ -5,7 +5,6 @@
 | モジュール | 役割 |
 |---|---|
 | `shared/config_loader.py` | TOML / JSON 設定ファイルの読込・マージ |
-| `rag/utils.py` | テキスト正規化・埋込 BLOB 変換 |
 | `shared/logger.py` | ロギング共通セットアップ |
 | `shared/formatters.py` | MCP ツール結果・ログメッセージ共通フォーマットユーティリティ |
 | `shared/otel_tracer.py` | OpenTelemetry トレーサー初期化 (`build_tracer()`) |
@@ -58,42 +57,9 @@ cfg = ConfigLoader().load("common.toml", "agent.toml")
 
 ---
 
-## 2. rag/utils.py
+## 2. logger.py
 
 ### 2.1 機能概要
-
-RAG 取込パイプライン (`rag/ingestion/crawler.py`, `rag/ingestion/chunk_splitter.py`, `rag/ingestion/ingester.py`) とベクトル検索 (`rag/pipeline.py`) で共用するテキスト処理ユーティリティ。
-
-### 2.2 API
-
-```python
-from rag.utils import normalize_unicode, floats_to_blob, validate_url
-```
-
-| 関数 | 引数 | 戻り値 | 説明 |
-|---|---|---|---|
-| `normalize_unicode(text)` | `text: str` | `str` | NFKC 正規化。全角英数字・異体字を標準形に変換 |
-| `floats_to_blob(values)` | `values: list[float]` | `bytes` | float リストを little-endian float32 BLOB に変換 |
-| `validate_url(url)` | `url: str` | `bool` | `http`/`https` スキームかつ netloc が空でない場合に `True` を返す |
-
-### 2.3 実装注意
-
-`floats_to_blob` は sqlite-vec の `MATCH` 演算子が要求するバイト形式 (little-endian float32 = `struct.pack("<{N}f", ...)`) で出力。埋込次元が 384 の場合、出力は 384 × 4 = 1536 バイト。
-
-### 2.4 使用スクリプト
-
-| スクリプト | 使用関数 |
-|---|---|
-| `rag/ingestion/chunk_splitter.py` | `normalize_unicode` |
-| `rag/pipeline.py` | `floats_to_blob` |
-| `rag/ingestion/ingester.py` | `floats_to_blob`, `validate_url` |
-| `rag/ingestion/crawler.py` | `validate_url` |
-
----
-
-## 3. logger.py
-
-### 3.1 機能概要
 
 エントリスクリプト専用のロギングセットアップクラス。`FileHandler` と `StreamHandler` を名前付きロガーに直接付与することで、複数のエントリスクリプトがそれぞれ独立したログファイルに書き込める。`propagate=False` でルートロガーへの伝播を遮断し重複出力を防止。
 
@@ -101,7 +67,7 @@ from rag.utils import normalize_unicode, floats_to_blob, validate_url
 
 `set_context()` / `clear_context()` はターン境界でコンテキストフィールド (`turn_id` / `session_id` / `rag_query_id`) を全レコードに自動付与する。実装は `_ContextFilter` (内部クラス) が `logging.Filter.filter()` でフィールドを `LogRecord` に注入する。
 
-### 3.2 API
+### 2.2 API
 
 ```python
 from shared.logger import Logger
@@ -122,7 +88,7 @@ audit.clear_context()
 | `Logger.clear_context()` | — | 注入済みコンテキストフィールドをすべてクリアする |
 | `Logger.info / warning / error / exception / debug` | `msg: str, *args, **kwargs` | 内部 `logging.Logger` の同名メソッドに委譲 (`__getattr__` 経由) |
 
-### 3.3 ログ設定
+### 2.3 ログ設定
 
 #### テキスト形式 (`structured_log=False`、デフォルト)
 
@@ -147,7 +113,7 @@ audit.clear_context()
 
 ログファイルが開けない場合は stderr 出力のみにフォールバック。同一プロセス内で同じ `name` で 2 回目の `Logger()` を生成してもハンドラが重複付与されないよう (`self._logger.handlers` チェック) 冪等に動作。
 
-### 3.4 使用パターン
+### 2.4 使用パターン
 
 エントリスクリプト (スクリプトごとに異なる log_file を指定):
 ```python
@@ -170,7 +136,7 @@ import logging
 logger = logging.getLogger(__name__)
 ```
 
-### 3.5 ログファイル一覧
+### 2.5 ログファイル一覧
 
 `Logger(__name__, log_file)` で直接ログファイルを指定しているスクリプト一覧。
 
@@ -194,19 +160,19 @@ logger = logging.getLogger(__name__)
 
 ---
 
-## 4. shared/formatters.py
+## 3. shared/formatters.py
 
-### 4.1 機能概要
+### 3.1 機能概要
 
 MCP サーバのツール結果テキスト整形と構造化ログ出力に使う共通ユーティリティ。複数の MCP サーバが import。Pure 関数のみで副作用なし。
 
-### 4.2 定数
+### 3.2 定数
 
 | 定数 | 型 | 値 | 説明 |
 |---|---|---|---|
 | `MAX_SNIPPET_CHARS` | `int` | `400` | 検索スニペットの切り詰め上限文字数。`WebSearchMCPServer._fmt_search_result()` が使用する |
 
-### 4.3 API
+### 3.3 API
 
 ```python
 from shared.formatters import MAX_SNIPPET_CHARS, truncate, fmt_size, fmt_md_link, fmt_kvlog
@@ -219,7 +185,7 @@ from shared.formatters import MAX_SNIPPET_CHARS, truncate, fmt_size, fmt_md_link
 | `fmt_md_link` | `(text: str, url: str) -> str` | `[text](url)` 形式の Markdown リンク文字列を返す。`GitHubService.fmt_search_repositories()` が使用する |
 | `fmt_kvlog` | `(op: str, **kwargs: object) -> str` | `op=<op> key=val ...` 形式のキーバリューログ文字列を生成。`None` 値のキーは出力に含めない。`logger.info(fmt_kvlog("search", q=..., n=5, ms=12))` のように使う |
 
-### 4.4 fmt_kvlog 出力例
+### 3.4 fmt_kvlog 出力例
 
 ```python
 fmt_kvlog("search", q="python asyncio", provider="brave", n=10, ms="12")
@@ -232,7 +198,7 @@ fmt_kvlog("search_try", provider="bing", q="test", n=0, result="zero_results_fal
 # → "op=search_try provider=bing q=test n=0 result=zero_results_fallback"
 ```
 
-### 4.5 使用スクリプト
+### 3.5 使用スクリプト
 
 | スクリプト | 使用関数 |
 |---|---|
@@ -248,15 +214,15 @@ fmt_kvlog("search_try", provider="bing", q="test", n=0, result="zero_results_fal
 
 ---
 
-## 5. shared/otel_tracer.py
+## 4. shared/otel_tracer.py
 
-### 5.1 機能概要
+### 4.1 機能概要
 
 OpenTelemetry (OTel) トレーサーの初期化ユーティリティ。`build_tracer()` はプライベートな `TracerProvider` インスタンスを生成し、グローバルプロバイダ (`trace.set_tracer_provider()`) を設定しない。これによりテスト間のプロバイダ汚染を防ぎ、同一プロセス内で複数の独立したトレーサーが共存できる。
 
 `enabled=False` のとき、OpenTelemetry SDK をインポートせずに `_NoOpTracer` を返す。SDK がオプション依存のまま維持される。
 
-### 5.2 API
+### 4.2 API
 
 ```python
 from shared.otel_tracer import build_tracer
@@ -285,7 +251,7 @@ enabled=True, otlp_endpoint 空
   → ConsoleSpanExporter + SimpleSpanProcessor
 ```
 
-### 5.3 使用スクリプト
+### 4.3 使用スクリプト
 
 | スクリプト | 使用箇所 |
 |---|---|
@@ -293,13 +259,13 @@ enabled=True, otlp_endpoint 空
 
 ---
 
-## 6. shared/git_helper.py
+## 5. shared/git_helper.py
 
-### 6.1 機能概要
+### 5.1 機能概要
 
 GitPython を使用してローカル git リポジトリのメタデータ (ブランチ名・コミット情報) を取得するユーティリティ。`/context` コマンドの出力に git 情報を追加するために `agent/commands/cmd_context.py` が使用。lazy import でスタートアップ時のオーバーヘッドを抑制する。
 
-### 6.2 API
+### 5.2 API
 
 ```python
 from shared.git_helper import get_repo_info
@@ -320,7 +286,7 @@ info = get_repo_info("/opt/llm")  # git リポジトリ外では None
 | `message` | `str` | コミットメッセージの 1 行目 |
 | `author` | `str` | コミット作者名 |
 
-### 6.3 使用スクリプト
+### 5.3 使用スクリプト
 
 | スクリプト | 使用箇所 |
 |---|---|
@@ -328,9 +294,9 @@ info = get_repo_info("/opt/llm")  # git リポジトリ外では None
 
 ---
 
-## 7. shared/tool_constants.py
+## 6. shared/tool_constants.py
 
-### 7.1 機能概要
+### 6.1 機能概要
 
 MCP ツール分類の正規 `frozenset` 定義を集中管理するモジュール。ツールリストが変更された際にここのみを更新し、参照側での重複定義を防ぐ。
 
@@ -339,7 +305,7 @@ from shared.tool_constants import READ_TOOLS, WRITE_TOOLS, DELETE_TOOLS
 from shared.tool_constants import RAG_TOOLS, CICD_TOOLS, MDQ_TOOLS, GIT_TOOLS
 ```
 
-### 7.2 定義一覧
+### 6.2 定義一覧
 
 | frozenset | 説明 | 含まれるツール例 |
 |---|---|---|
@@ -351,7 +317,7 @@ from shared.tool_constants import RAG_TOOLS, CICD_TOOLS, MDQ_TOOLS, GIT_TOOLS
 | `MDQ_TOOLS` | Markdown Context Compression Engine ツール | `search_docs` / `get_chunk` / `outline` / `index_paths` / `refresh_index` / `stats` / `grep_docs` |
 | `GIT_TOOLS` | ローカル git 操作ツール (git-mcp, :8014) | `git_status` / `git_log` / `git_diff` / `git_branch` / `git_show` / `git_add` / `git_commit` / `git_checkout` / `git_pull` / `git_push` |
 
-### 7.3 使用スクリプト
+### 6.3 使用スクリプト
 
 | スクリプト | 使用内容 |
 |---|---|
@@ -362,9 +328,9 @@ from shared.tool_constants import RAG_TOOLS, CICD_TOOLS, MDQ_TOOLS, GIT_TOOLS
 
 ---
 
-## 8. shared/route_resolver.py
+## 7. shared/route_resolver.py
 
-### 8.1 機能概要
+### 7.1 機能概要
 
 ツール名からサーバキーへのマッピングを担当する `ToolRouteResolver` クラス。設定ドリブン (`McpServerConfig.tool_names` フィールド) を優先し、設定に含まれない場合は `tool_constants.py` の frozenset を使った静的フォールバックで解決する。
 
@@ -376,7 +342,7 @@ resolver = ToolRouteResolver(server_configs)
 server_key = resolver.resolve("read_text_file")  # → "file_read"
 ```
 
-### 8.2 API
+### 7.2 API
 
 | クラス / メソッド | シグネチャ | 説明 |
 |---|---|---|
@@ -384,7 +350,7 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 | `resolve(tool_name)` | `(tool_name: str) -> str` | まず設定マップを参照し、なければ `_fallback_route()` で静的ルーティングを試みる。どちらも一致しない場合は `ValueError` を送出する |
 | `_fallback_route(tool_name)` | `(tool_name: str) -> str` | 優先順: (1) `_EXACT_ROUTES` (`shell_run` → `"shell"`, `search_web` → `"web_search"`) / (2) `github_` プレフィックス → `"github"` / (3) 各 frozenset 所属チェック。いずれも一致しない場合は `ValueError` を送出 |
 
-### 8.3 使用スクリプト
+### 7.3 使用スクリプト
 
 | スクリプト | 使用箇所 |
 |---|---|
