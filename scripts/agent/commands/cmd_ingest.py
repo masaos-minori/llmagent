@@ -14,6 +14,7 @@ import logging
 from mcp.rag_pipeline.models import RagPipelineConfig, build_rag_cfg_adapter
 
 from agent.commands.mixin_base import MixinBase
+from agent.history import HistoryCompressionError
 from agent.services.export_formatter import render_export, write_export
 
 logger = logging.getLogger(__name__)
@@ -149,4 +150,10 @@ class _IngestMixin(MixinBase):
         if len(turn_msgs) <= n_compress:
             self._out.write("Nothing to compact: history too short.")
             return
-        ctx.conv.history = await ctx.services.hist_mgr.force_compress(ctx.conv.history)
+        try:
+            ctx.conv.history = await ctx.services.hist_mgr.force_compress(
+                ctx.conv.history
+            )
+        except HistoryCompressionError as e:
+            self._out.write_error(f"Compression failed: {e}")
+            return

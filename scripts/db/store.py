@@ -200,13 +200,19 @@ class SQLiteDocumentStore:
         last_modified: str | None,
     ) -> int:
         cur = self._db.execute(
-            "INSERT OR REPLACE INTO documents (url, title, lang, etag, last_modified)"
-            " VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO documents (url, title, lang, etag, last_modified)"
+            " VALUES (?, ?, ?, ?, ?)"
+            " ON CONFLICT(url) DO UPDATE SET"
+            "  title = excluded.title,"
+            "  lang = excluded.lang,"
+            "  etag = excluded.etag,"
+            "  last_modified = excluded.last_modified,"
+            "  fetched_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
             (url, title, lang, etag, last_modified),
         )
         if cur.lastrowid is None:
             raise RuntimeError(
-                "doc_insert: INSERT OR REPLACE did not produce a lastrowid"
+                "doc_insert: INSERT ... ON CONFLICT did not produce a lastrowid"
             )
         return int(cur.lastrowid)
 

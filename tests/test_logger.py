@@ -26,13 +26,13 @@ class TestContextFilter:
         f = _ContextFilter()
         f.set(turn_id="abc", session_id=None)
         # None fields should not be stored
-        assert "session_id" not in f._fields
+        assert "session_id" not in f._cv.get()
 
     def test_clear_removes_all_fields(self) -> None:
         f = _ContextFilter()
         f.set(turn_id="abc")
         f.clear()
-        assert f._fields == {}
+        assert f._cv.get() == {}
 
     def test_filter_does_not_mutate_record_keys(self) -> None:
         record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
@@ -133,21 +133,21 @@ class TestLoggerContext:
         logger = Logger("ctx_test", log_file)
         logger.set_context(turn_id="t1", session_id="s1")
         # The filter should have the fields
-        assert logger._filter._fields.get("turn_id") == "t1"
-        assert logger._filter._fields.get("session_id") == "s1"
+        assert logger._filter._cv.get().get("turn_id") == "t1"
+        assert logger._filter._cv.get().get("session_id") == "s1"
 
     def test_clear_context_removes_fields(self, tmp_path: Path) -> None:
         log_file = str(tmp_path / "test.log")
         logger = Logger("ctx_test", log_file)
         logger.set_context(turn_id="t1")
         logger.clear_context()
-        assert logger._filter._fields == {}
+        assert logger._filter._cv.get() == {}
 
     def test_set_context_with_none_omits_field(self, tmp_path: Path) -> None:
         log_file = str(tmp_path / "test.log")
         logger = Logger("ctx_test", log_file)
         logger.set_context(turn_id="t1", session_id=None)
-        assert "session_id" not in logger._filter._fields
+        assert "session_id" not in logger._filter._cv.get()
 
 
 class TestLoggerDelegation:

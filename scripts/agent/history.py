@@ -25,6 +25,10 @@ logger = logging.getLogger(__name__)
 _DEFAULT_PROTECT_IMPORTANCE: float = 0.7
 
 
+class HistoryCompressionError(RuntimeError):
+    """Raised when LLM-based history compression fails."""
+
+
 @dataclass
 class CompressResult:
     """Metadata returned by compress() and force_compress()."""
@@ -200,12 +204,12 @@ class HistoryManager:
                 choices[0].get("message", {}).get("content") if choices else None
             )
             if not raw_content:
-                logger.warning("Context compression: LLM returned empty summary")
-                return None
+                raise HistoryCompressionError(
+                    "Context compression: LLM returned empty summary"
+                )
             return str(raw_content).strip()
         except (httpx.HTTPError, orjson.JSONDecodeError, KeyError, TypeError) as e:
-            logger.warning("Context compression failed: %s", e)
-            return None
+            raise HistoryCompressionError(f"Context compression failed: {e}") from e
 
     def _build_history_text(self, messages: list[LLMMessage]) -> str:
         """Render messages as a plain-text transcript for LLM summarisation."""
