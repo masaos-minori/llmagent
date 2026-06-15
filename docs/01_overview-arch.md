@@ -10,10 +10,7 @@ CPU 専用のローカル環境 (Intel N100 / 16 GB RAM) に llama.cpp を用い
 
 | 項目 | 値 |
 |---|---|
-| OS | Gentoo Linux + OpenRC |
-| CPU | Intel N100 (GPU なし、AVX2 非対応) |
-| RAM | 16 GB |
-| Python | `/opt/llm/venv/` (venv) |
+| OS | Gentoo Linux or Ubuntu Linux |
 | 用途 | コーディング補助・日本語チャット |
 
 ## 2. アーキテクチャ
