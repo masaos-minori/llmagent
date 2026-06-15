@@ -11,7 +11,6 @@
 | [01_overview-arch.md](01_overview-arch.md) | システム全体アーキテクチャ |
 | [01_overview-files.md](01_overview-files.md) | ファイル／モジュール構成 |
 | [02_deployment.md](02_deployment.md) | 導入手順・デプロイ |
-| [03_rag-ingestion-pipeline.md](03_rag-ingestion-pipeline.md) | RAG 取込パイプライン インデックス |
 | [03_rag-ingestion-run.md](03_rag-ingestion-run.md) | 取込実行ガイド (コマンド・ファイルライフサイクル) |
 | [03_spec_rag.md](03_spec_rag.md) | RAG スキーマ仕様 |
 | [03_rag-ref-ingestion.md](03_rag-ref-ingestion.md) | RAG 取込 API リファレンス (web_crawler / chunk_splitter / rag_ingester) |
@@ -33,7 +32,6 @@
 | [05_agent.md](05_agent.md) | エージェント ツール仕様・チューニング・実装注意 |
 | [05_spec_agent.md](05_spec_agent.md) | エージェント仕様 |
 | [05_agent-ops.md](05_agent-ops.md) | エージェント 起動・確認・トラブルシューティング |
-| [05_agent-impl.md](05_agent-impl.md) | エージェント実装詳細・REPL フロー |
 | [05_agent-impl-flow.md](05_agent-impl-flow.md) | エージェント実装詳細 - フロー |
 | [05_agent-impl-class.md](05_agent-impl-class.md) | エージェント実装詳細 - クラス |
 | [05_ref-agent-context.md](05_ref-agent-context.md) | AgentContext / AppServices 詳細 |
@@ -45,7 +43,6 @@
 | [06_ref-infra.md](06_ref-infra.md) | インフラ共通モジュール (shared/config_loader / rag/utils / formatters) |
 | [06_ref-mcp.md](06_ref-mcp.md) | MCP プロトコル層モジュール (mcp/models.py / shared/tool_executor.py 等) |
 | [05_ref-rag.md](05_ref-rag.md) | RAG パイプラインモジュール (rag/pipeline.py) |
-| [05_ref-agent.md](05_ref-agent.md) | エージェント実行層モジュール (agent/repl.py / agent/config.py 等) |
 | [05_ref-agent-config.md](05_ref-agent-config.md) | AgentConfig / MemoryConfig / MCPConfig 詳細 |
 | [05_ref-agent-llm.md](05_ref-agent-llm.md) | LLMClient (SSE ストリーミング・リトライ) 詳細 |
 | [05_ref-agent-repl.md](05_ref-agent-repl.md) | AgentREPL / Orchestrator / ToolExecutor 詳細 |

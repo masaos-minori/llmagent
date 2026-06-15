@@ -1,7 +1,7 @@
 # 取込パイプライン — web_crawler.py API リファレンス
 
-実行ガイド → [`03_ingestion-run.md`](03_ingestion-run.md)  
-共通実装注意事項 → [`03_ref-ingestion.md`](03_ref-ingestion.md)
+実行ガイド → [`03_rag-ingestion-run.md`](03_rag-ingestion-run.md)  
+共通実装注意事項 → [`03_rag-ref-ingestion.md`](03_rag-ref-ingestion.md)
 
 ## 2. web_crawler.py
 

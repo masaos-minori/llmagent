@@ -40,7 +40,7 @@ tail -f /opt/llm/logs/agent.log
 ## Architecture
 
 - Ingestion pipeline (data flow, FTS5 implementation): `docs/03_ingestion-pipeline.md` §5
-- Agent REPL pipeline (MQE → Search → RRF → Rerank): `docs/05_agent-impl.md` §2
+- Agent REPL pipeline (MQE → Search → RRF → Rerank): `docs/05_agent-impl-class.md` §1
 - MCP transport modes and adding new servers: `docs/04_mcp-protocol.md` §2
 
 Config directory resolution: `Path(__file__).resolve().parent.parent / "config"` — one level above `scripts/`.
@@ -157,12 +157,10 @@ API keys via OpenRC conf.d (not shell env):
 | `docs/04_mcp-github.md` | github-mcp 詳細 (port 8006) |
 | `docs/04_mcp-protocol.md` | HTTP API フォーマット / トランスポート / 追加手順 |
 | `docs/05_agent.md` | Agent 概要・設定・スラッシュコマンド (L1-344) |
-| `docs/05_agent-impl.md` | Agent 実装詳細・REPL フロー・クラス API |
-| `docs/06_common.md` | 共通モジュール index (→ 以下4ファイルへのリンク集) |
+| `docs/05_agent-impl-class.md` | Agent 実装詳細 - クラス API |
 | `docs/06_ref-infra.md` | config_loader / rag_utils / sqlite_helper / logger / formatters |
 | `docs/06_ref-mcp.md` | mcp_models / mcp_server / tool_executor |
 | `docs/06_ref-rag.md` | agent_rag (RAG パイプライン) |
-| `docs/06_ref-agent.md` | agent_session / agent_repl / agent_config / agent_context / cli_view / agent_commands / llm_client / history_manager |
 
 ## Deploy commands
 

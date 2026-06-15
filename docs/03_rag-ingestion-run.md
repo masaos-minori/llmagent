@@ -1,6 +1,8 @@
 # 取込パイプライン — 実行ガイド
 
-API リファレンス → [`docs/03_ref-ingestion.md`](03_ref-ingestion.md)
+| 関連ドキュメント | 内容 |
+|---|---|
+| [API リファレンス](03_rag-ref-ingestion.md) | web_crawler / chunk_splitter / rag_ingester API・実装注意事項 |
 
 ## 1. ドキュメント収集・投入
 

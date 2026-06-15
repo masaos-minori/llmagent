@@ -6,11 +6,8 @@
 
 | ファイル | 収録モジュール |
 |---|---|
-| [`06_ref-sqlite.md`](06_ref-sqlite.md) | `db/helper.py` |
 | [`06_ref-infra.md`](06_ref-infra.md) | `shared/config_loader.py` / `rag/utils.py` / `shared/logger.py` / `shared/formatters.py` / `shared/otel_tracer.py` / `shared/git_helper.py` / `shared/tool_constants.py` / `shared/route_resolver.py` |
 | [`06_ref-mcp.md`](06_ref-mcp.md) | `mcp/models.py` / `mcp/server.py` / `shared/tool_executor.py` |
-| [`06_ref-rag.md`](06_ref-rag.md) | `rag/pipeline.py` (RAG MCP サーバ `mcp/rag_pipeline/` 側の実装詳細。agent 本体からは直接参照しない) |
-| [`06_ref-agent.md`](06_ref-agent.md) | `agent/session.py` / `agent/repl.py` / `agent/config.py` / `agent/context.py` / `agent/cli_view.py` / `agent/commands/registry.py` / `shared/llm_client.py` / `agent/history.py` |
 
 ---
 
