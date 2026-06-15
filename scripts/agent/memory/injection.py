@@ -98,8 +98,12 @@ class MemoryInjectionService:
             project=self._project,
             repo=self._repo,
         )
-        snippets_s = self._build_snippets_from_hits(hits_s, self._policy.format_prefix_semantic, "semantic")
-        snippets_e = self._build_snippets_from_hits(hits_e, self._policy.format_prefix_episodic, "episodic")
+        snippets_s = self._build_snippets_from_hits(
+            hits_s, self._policy.format_prefix_semantic, "semantic"
+        )
+        snippets_e = self._build_snippets_from_hits(
+            hits_e, self._policy.format_prefix_episodic, "episodic"
+        )
         snippets = snippets_s + snippets_e
         if snippets:
             logger.debug(

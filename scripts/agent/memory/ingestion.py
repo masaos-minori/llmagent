@@ -112,9 +112,7 @@ class MemoryIngestionService:
             entry.importance,
         )
 
-    def _should_skip_dedup(
-        self, embed_result: EmbeddingResult, memory_id: str
-    ) -> bool:
+    def _should_skip_dedup(self, embed_result: EmbeddingResult, memory_id: str) -> bool:
         """Return True when dedup skips this entry."""
         if (
             self._dedup_policy.action == DedupAction.SKIP_NEW
