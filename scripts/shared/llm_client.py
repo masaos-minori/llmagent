@@ -1,161 +1,39 @@
-#!/usr/bin/env python3
-"""llm_client.py
+"""shared/llm_client.py
 LLM communication layer with robust SSE streaming.
 
+Backward-compatible re-exports (also available from sub-modules):
+  shared.llm_exceptions → LLMErrorKind, LLMTransportError
+  shared.sse_parser     → RobustSSEParser, _anext_or_done
+
 Key components:
-  LLMTransportError  — structured exception covering all LLM transport failure modes
-  RobustSSEParser    — incremental UTF-8 decoder + heartbeat tracking + malformed retry
-  LLMClient          — HTTP retry, payload construction, reconnect-aware SSE streaming
+  LLMClient — HTTP retry, payload construction, reconnect-aware SSE streaming
 """
 
+from __future__ import annotations
+
 import asyncio
-import codecs
 import logging
-import time
 from collections.abc import AsyncIterator, Callable
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 import httpx
 import orjson
 
+from shared.llm_exceptions import LLMErrorKind, LLMTransportError
 from shared.llm_types import LLMResponse, LLMUsage
+from shared.sse_parser import RobustSSEParser, _anext_or_done
 from shared.types import LLMMessage
 
-logger = logging.getLogger(__name__)
-
-# ── Exception ─────────────────────────────────────────────────────────────────
-
-LLMErrorKind = Literal[
-    "HTTP_STATUS_RETRYABLE",
-    "HTTP_STATUS_FATAL",
-    "CONNECT_ERROR",
-    "READ_TIMEOUT",
-    "HEARTBEAT_TIMEOUT",
-    "MALFORMED_SSE_FRAME",
-    "UTF8_PARTIAL_DECODE_ERROR",
-    "PREMATURE_EOF",
-    "UNKNOWN_STREAM_ERROR",
+# Re-exports for backward compatibility
+__all__ = [
+    "LLMClient",
+    "LLMTransportError",
+    "LLMErrorKind",
+    "RobustSSEParser",
+    "_anext_or_done",
 ]
 
-
-class LLMTransportError(Exception):
-    """Structured exception for all LLM HTTP/SSE transport failures; partial_text holds content before failure; retryable signals reconnect eligibility."""
-
-    def __init__(
-        self,
-        kind: LLMErrorKind,
-        phase: Literal["pre_stream", "in_stream"],
-        url: str,
-        status_code: int | None = None,
-        retryable: bool = False,
-        partial_text: str = "",
-        detail: str = "",
-    ) -> None:
-        super().__init__(f"{kind} phase={phase} retryable={retryable}")
-        self.kind: LLMErrorKind = kind
-        self.phase: Literal["pre_stream", "in_stream"] = phase
-        self.url = url
-        self.status_code = status_code
-        self.retryable = retryable
-        self.partial_text = partial_text
-        self.detail = detail
-
-
-# ── SSE Parser ────────────────────────────────────────────────────────────────
-
-
-class RobustSSEParser:
-    """Stateful SSE parser: incremental UTF-8 decoder + heartbeat tracking + malformed frame budget; one instance per connection."""
-
-    def __init__(self, malformed_retry: int, heartbeat_timeout: float) -> None:
-        self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
-        self._buf = ""
-        self._malformed_retry = malformed_retry
-        self._heartbeat_timeout = heartbeat_timeout
-        self._last_event_at: float = time.monotonic()
-        self._malformed_count: int = 0
-        # Accumulated per-feed parse error count; caller resets after reading
-        self.stat_parse_errors: int = 0
-
-    def feed(self, raw: bytes) -> tuple[list[str], bool]:
-        """Decode raw bytes and extract complete SSE data payloads; returns (payloads, is_done); raises MALFORMED_SSE_FRAME after malformed budget exhausted."""
-        text = self._decoder.decode(raw, final=False)
-        self._buf += text
-        payloads: list[str] = []
-        is_done = False
-        while "\n" in self._buf:
-            line, self._buf = self._buf.split("\n", 1)
-            line = line.rstrip("\r")
-            result = self._parse_line(line)
-            if result is None:
-                continue
-            payload, done = result
-            if done:
-                is_done = True
-                break
-            if payload is not None:
-                payloads.append(payload)
-        return payloads, is_done
-
-    def _parse_line(self, line: str) -> tuple[str | None, bool] | None:
-        """Parse one SSE text line; returns None to skip, (None, True) for [DONE], (payload_str, False) for valid data; raises MALFORMED_SSE_FRAME on budget exhaustion."""
-        if not line:
-            # Blank line (SSE event boundary) acts as keepalive
-            self._last_event_at = time.monotonic()
-            return None
-        if line.startswith(":"):
-            # SSE comment line = keepalive
-            self._last_event_at = time.monotonic()
-            return None
-        if not line.startswith("data:"):
-            # Unknown SSE field (event:, id:, retry:) — ignore
-            return None
-        payload = line[5:].lstrip(" ")  # handle "data:" and "data: "
-        if payload.strip() == "[DONE]":
-            self._last_event_at = time.monotonic()
-            return None, True
-        try:
-            orjson.loads(payload)
-        except (orjson.JSONDecodeError, ValueError):
-            self._malformed_count += 1
-            self.stat_parse_errors += 1
-            if self._malformed_count > self._malformed_retry:
-                raise LLMTransportError(
-                    kind="MALFORMED_SSE_FRAME",
-                    phase="in_stream",
-                    url="",
-                    retryable=False,
-                    detail=f"malformed SSE frame (count={self._malformed_count})",
-                )
-            return None  # within retry budget: skip this frame
-        self._last_event_at = time.monotonic()
-        return payload, False
-
-    def check_heartbeat(self, url: str) -> None:
-        """Raise HEARTBEAT_TIMEOUT when stream has been idle longer than timeout."""
-        if self._heartbeat_timeout <= 0:
-            return
-        elapsed = time.monotonic() - self._last_event_at
-        if elapsed > self._heartbeat_timeout:
-            raise LLMTransportError(
-                kind="HEARTBEAT_TIMEOUT",
-                phase="in_stream",
-                url=url,
-                retryable=True,
-                detail=f"no SSE event for {elapsed:.1f}s",
-            )
-
-
-# ── LLM Client ────────────────────────────────────────────────────────────────
-
-
-async def _anext_or_done(aiter: AsyncIterator[bytes]) -> tuple[bytes, bool]:
-    """Await one item from an async bytes iterator; returns (item, False) on success or (b"", True) on StopAsyncIteration; prevents PEP 479 RuntimeError in wait_for."""
-    try:
-        item = await aiter.__anext__()
-        return item, False
-    except StopAsyncIteration:
-        return b"", True
+logger = logging.getLogger(__name__)
 
 
 class LLMClient:
@@ -445,7 +323,7 @@ class LLMClient:
 
     # ── Single-connection SSE attempt ─────────────────────────────────────────
 
-    def _raise_http_status_error(self, e: "httpx.HTTPStatusError", url: str) -> None:
+    def _raise_http_status_error(self, e: httpx.HTTPStatusError, url: str) -> None:
         """Convert an httpx HTTP status error into LLMTransportError and raise it."""
         code = e.response.status_code
         retryable = code in (429, 503)
