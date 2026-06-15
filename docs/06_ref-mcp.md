@@ -138,55 +138,188 @@ res: ToolCallResult = await executor.execute("read_text_file", {"path": "/opt/ll
 # res.output, res.is_error, res.request_id, res.server_key
 ```
 
-`HttpTransport` クラス:
+#### LifecycleProtocol
 
-| メソッド | 説明 |
-|---|---|
-| `call(name, args) -> ToolCallResult` | `POST /v1/call_tool` を呼び出す。戻り値は `ToolCallResult(output, is_error, request_id, server_key)`。HTTP エラー / 接続エラー時は `ToolCallResult(msg, True, "", server_key)` を返す |
+`shared/tool_executor.py` に定義された `typing.Protocol`。`factory.py` の `_ServerLifecycleRouter` が実装する。`agent/lifecycle.py` の `restart_stdio()` は残存 (非推奨)。
 
-`StdioTransport` クラス:
+| メソッド | シグネチャ | 説明 |
+|---|---|---|
+| `ensure_ready` | `async (server_key: str) -> None` | 指定サーバーが呼び出し可能な状態であることを保証する。ondemand stdio サーバを初回呼び出し時に自動起動する |
 
-コンストラクタ: `StdioTransport(cmd, server_key, working_dir="", env=None)`
+#### _ServerLifecycleRouter
 
-| パラメータ | 説明 |
-|---|---|
-| `cmd` | サブプロセス起動コマンド (`list[str]`) |
-| `server_key` | サーバ識別キー (ログ / エラーメッセージに使用) |
-| `working_dir` | サブプロセスの作業ディレクトリ。`""` のとき親プロセスの cwd を継承 |
-| `env` | サブプロセスに追加注入する環境変数 dict。`None` または `{}` のとき OS 環境をそのまま継承。非空のとき `{**os.environ, **env}` で `start()` 呼び出し時にマージ |
+`factory.py`。HTTP subprocess と stdio サーバのルーティングを一元管理。`LifecycleProtocol` を実装し `ToolExecutor.set_lifecycle()` で注入する。`AgentREPL._init_components()` で生成し `ctx.services.lifecycle` として保持する。
 
-| メソッド | 説明 |
-|---|---|
-| `start() -> None` | サブプロセスを起動。既に起動済みなら無操作。`working_dir` が空でない場合は事前に `Path.is_dir()` を確認し、存在しなければ `ValueError` を送出 |
-| `is_alive() -> bool` | サブプロセスが実行中 (returncode is None) なら `True` |
-| `call(name, args) -> ToolCallResult` | JSON-RPC リクエストを送信して応答を受け取る。戻り値は `ToolCallResult(output, is_error, "", server_key)`。タイムアウト (`_STDIO_CALL_TIMEOUT=60s`) で `ToolCallResult(msg, True, "", server_key)` を返す |
-| `stop() -> None` | stdin をクローズして graceful shutdown。5 秒でタイムアウト後 terminate/kill |
+**コンストラクタ:**
 
-`ToolExecutor` クラス:
+```python
+_ServerLifecycleRouter(
+    server_configs: dict[str, McpServerConfig],
+    tool_executor: ToolExecutor,
+    stdio_procs: dict[str, StdioTransport],
+)
+```
 
-| メソッド | 説明 |
-|---|---|
-| `set_transport(server_key, transport) -> None` | stdio サーバのプロセス起動後に `StdioTransport` を登録 |
-| `set_lifecycle(lifecycle) -> None` | `LifecycleProtocol` 実装を注入。`None` でクリア |
-| `execute(tool_name, args) -> ToolCallResult` | plugin ツール → `_execute_with_cache()` の順で解決。plugin エラー時も MCP ルーティングには fall-through しない。戻り値は `ToolCallResult(output, is_error, request_id, server_key)` dataclass |
-| `clear_cache() -> None` | ツール結果キャッシュを全クリア (`/clear` コマンドから呼ばれる) |
+**主要メソッド:**
+
+| メソッド | シグネチャ | 説明 |
+|---|---|---|
+| `ensure_ready` | `async (server_key: str) -> None` | `http+subprocess` → `_verify_http_subprocess()` で生死確認 (起動はしない)。`persistent` stdio → no-op。`ondemand` stdio → `_ensure_ondemand_stdio()` で per-server `asyncio.Lock` によるダブルチェックロッキングで単一起動を保証 |
+| `shutdown_all` | `async () -> None` | 実行中のすべての stdio サーバを停止する |
+| `shutdown_idle` | `async () -> None` | `idle_timeout_sec` を超えたアイドル ondemand サーバを停止する |
+
+**ensure_ready の内部フロー (ondemand):**
+
+1. ロック取得前に `transport.is_alive()` をチェック (fast path)
+2. per-server `asyncio.Lock` を取得 (`_start_locks.setdefault(server_key, asyncio.Lock())`)
+3. ロック取得後に再度 `transport.is_alive()` をチェック (double-check)
+4. 未起動の場合のみ `StdioTransport.start()` を呼び出し、`tool_executor.set_transport()` で登録する
+
+#### HttpTransport
+
+`shared/tool_executor.py`。HTTP MCP サーバーへの非同期 POST を担当。
+
+**コンストラクタ:**
+
+```python
+HttpTransport(
+    http: httpx.AsyncClient,
+    base_url: str,
+    server_key: str,
+    cfg: McpServerConfig | None = None,
+)
+```
+
+- `cfg.auth_token` が非空のとき `Authorization: Bearer <token>` ヘッダを付与する
+- `cfg` が `None` のとき認証なし
+
+**主要メソッド:**
+
+| メソッド | シグネチャ | 説明 |
+|---|---|---|
+| `call` | `async (name: str, args: dict[str, Any]) -> ToolCallResult` | `POST /v1/call_tool` を実行し `ToolCallResult(output, is_error, request_id, server_key)` を返す。`httpx.HTTPStatusError` / `httpx.RequestError` / その他例外はすべてキャッチし `is_error=True` で返す |
+
+#### StdioTransport
+
+`shared/tool_executor.py`。stdin/stdout 経由の行区切り JSON-RPC でサブプロセス MCP サーバーを呼び出す。per-instance `asyncio.Lock` で同時呼び出しをシリアル化する。
+
+**コンストラクタ:**
+
+```python
+StdioTransport(
+    cmd: list[str],
+    server_key: str,
+    working_dir: str = "",
+    env: dict[str, str] | None = None,
+)
+```
+
+- `working_dir` が非空のとき `start()` 前に `Path(working_dir).is_dir()` を確認し、存在しなければ `ValueError`
+- `env` が非空のとき `{**os.environ, **env}` でマージしてサブプロセスに渡す
+
+**主要メソッド:**
+
+| メソッド | シグネチャ | 説明 |
+|---|---|---|
+| `start` | `async () -> None` | サブプロセスを起動する。既に生存中なら no-op |
+| `is_alive` | `() -> bool` | サブプロセスが実行中 (`returncode is None`) のとき `True` |
+| `call` | `async (name: str, args: dict[str, Any]) -> ToolCallResult` | JSON-RPC リクエストを送信し `ToolCallResult(output, is_error, request_id, server_key)` を返す。`request_id` は常に `""`。タイムアウト (`_STDIO_CALL_TIMEOUT = 60.0` 秒) / 未起動 / 不正レスポンスはいずれも `is_error=True` で返す |
+| `stop` | `async () -> None` | stdin クローズ → 5 秒 wait → `terminate()` → 3 秒 wait → `kill()` の順で終了処理 |
+
+#### ToolRouteResolver
+
+`shared/route_resolver.py`。ツール名 → サーバーキーの解決を担当。
+
+**コンストラクタ:**
+
+```python
+ToolRouteResolver(server_configs: dict[str, McpServerConfig])
+```
+
+コンストラクタで `cfg.tool_names` から逆引きマップ (`tool_name -> server_key`) を構築する。
+
+**主要メソッド:**
+
+| メソッド | シグネチャ | 説明 |
+|---|---|---|
+| `resolve` | `(tool_name: str) -> str` | config-driven マップを検索し、見つからなければ `_fallback_route()` にフォールバック。いずれにも該当しない場合は `ValueError` |
+| `_fallback_route` | `(tool_name: str) -> str` | `shared/tool_constants.py` の frozenset と文字列一致で静的ルーティング |
+
+#### ToolExecutor
+
+`shared/tool_executor.py`。`ToolRouteResolver` でルーティングし、TTL キャッシュ付きでツール呼び出しを実行する中心クラス。
+
+**コンストラクタ:**
+
+```python
+ToolExecutor(
+    http: httpx.AsyncClient,
+    cache_ttl: float,
+    server_configs: dict[str, McpServerConfig],
+    cache_max_size: int = 0,
+    concurrency_limits: dict[str, int] | None = None,
+    lifecycle: LifecycleProtocol | None = None,
+)
+```
+
+- HTTP サーバーは構築時に `HttpTransport` を生成する
+- stdio サーバーのトランスポートは `None` で初期化され、`set_transport()` で後から登録する
+- `cache_max_size=0` のときキャッシュサイズ上限なし
+- `concurrency_limits`: サーバーキー → 最大同時実行数。`asyncio.Semaphore` を `_raw_execute()` 内で遅延生成する
+- `concurrency_limits` に存在しないサーバーキーが指定された場合は警告ログのみ (エラーにならない)
+
+**主要メソッド:**
+
+| メソッド | シグネチャ | 説明 |
+|---|---|---|
+| `set_transport` | `(server_key: str, transport: StdioTransport) -> None` | 起動済み `StdioTransport` を指定サーバーキーに登録する |
+| `set_lifecycle` | `(lifecycle: LifecycleProtocol | None) -> None` | 構築後に lifecycle manager を注入・差し替える |
+| `execute` | `async (tool_name: str, args: dict[str, Any]) -> ToolCallResult` | プラグインツールを優先確認し、次いでキャッシュ付きで MCP ツール実行する。戻り値は `ToolCallResult(output, is_error, request_id, server_key)` |
+| `clear_cache` | `() -> None` | キャッシュエントリをすべて削除する |
+
+**キャッシュ仕様:**
+- 成功結果 (`is_error=False`) のみキャッシュする
+- キャッシュキーは `tool_name + orjson(args, OPT_SORT_KEYS)`
+- `cache_ttl` 秒を超えたエントリはミス扱いでキャッシュから削除される
+- `cache_max_size > 0` のとき LRU で古いエントリを evict する
+- キャッシュヒット時の `x_request_id` は `""` (ライブリクエストなし)
+
+**副作用ツールの判定 (`is_side_effect`):**
+
+`_SIDE_EFFECT_TOOLS = WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})` が定義されており、`is_side_effect(tool_name: str) -> bool` でチェックできる。`execute_all_tool_calls()` (呼び出し元) が副作用ツールを含む場合は並列実行をシリアルに切り替える。
+
+**plugin tool サポート**
+
+`@register_tool("tool_name")` で登録したローカル Python 関数は、`execute()` 内で最初に照合する。マッチした場合はキャッシュおよび MCP ルーティングをスキップして直接呼び出す。戻り値は `tuple[str, bool]` (result_text, is_error)。
+
+```python
+from plugin_registry import register_tool
+
+@register_tool("my_tool")
+async def my_tool(args: dict) -> tuple[str, bool]:
+    return "result", False
+```
+
+**並行数制限 (concurrency_limits)**
+
+`ToolExecutor(concurrency_limits={"file_write": 1})` のように渡すと、指定したサーバキーへの同時呼び出しを `asyncio.Semaphore` で制限する。Semaphore はイベントループ生成後に遅延初期化する。不明なサーバキーは `logger.warning` を出力してスルーする (`ValueError` にはしない)。
 
 ルーティング規則 (`ToolRouteResolver.resolve()`):
 
 1. **config-driven**: `McpServerConfig.tool_names` にツール名が列挙されているサーバを優先
 2. **静的 fallback** (tool_names が空のとき、`shared/tool_constants.py` の frozenset を使用):
-   - `READ_TOOLS` (`list_directory`, `read_text_file`, …) → `"file_read"`
-   - `WRITE_TOOLS` (`write_file`, `edit_file`, `create_directory`, `move_file`) → `"file_write"`
-   - `DELETE_TOOLS` (`delete_file`, `delete_directory`) → `"file_delete"`
-   - `shell_run` → `"shell"`
-   - `search_web` → `"web_search"`
-   - `github_*` → `"github"`
-   - `RAG_TOOLS` (`rag_run_pipeline`, `rag_debug_pipeline`) → `"rag_pipeline"`
-   - `CICD_TOOLS` (`trigger_workflow`, `get_workflow_runs`, `get_workflow_status`, `get_workflow_logs`) → `"cicd"`
-   - `MDQ_TOOLS` (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`) → `"mdq"`
-   - `GIT_TOOLS` (`git_status`, `git_log`, `git_diff`, `git_branch`, `git_show`, `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push`) → `"git"`
+    - `READ_TOOLS` (`list_directory`, `read_text_file`, …) → `"file_read"`
+    - `WRITE_TOOLS` (`write_file`, `edit_file`, `create_directory`, `move_file`) → `"file_write"`
+    - `DELETE_TOOLS` (`delete_file`, `delete_directory`) → `"file_delete"`
+    - `shell_run` → `"shell"`
+    - `search_web` → `"web_search"`
+    - `github_*` → `"github"`
+    - `RAG_TOOLS` (`rag_run_pipeline`, `rag_debug_pipeline`) → `"rag_pipeline"`
+    - `CICD_TOOLS` (`trigger_workflow`, `get_workflow_runs`, `get_workflow_status`, `get_workflow_logs`) → `"cicd"`
+    - `MDQ_TOOLS` (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`) → `"mdq"`
+    - `GIT_TOOLS` (`git_status`, `git_log`, `git_diff`, `git_branch`, `git_show`, `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push`) → `"git"`
     - `query_sqlite` → `"sqlite"`（ただし `tool_constants.py` には含まれず、`route_resolver.py` の `_SET_ROUTES` で prefix ルールとして定義）
-    - その他 → `ValueError` を送出 (未知のツール名は登録必須)
+    - いずれにも該当しない → `ValueError` を送出 (未知のツール名は登録必須)
 
 **plugin tool サポート**
 
@@ -207,13 +340,17 @@ async def my_tool(args: dict) -> tuple[str, bool]:
 統計属性:
 - `stat_cache_hits: int` — セッション通算キャッシュヒット回数
 
+**副作用ツールの判定 (`is_side_effect`):**
+
+`_SIDE_EFFECT_TOOLS = WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})` が定義されており、`is_side_effect(tool_name: str) -> bool` でチェックできる。`execute_all_tool_calls()` (呼び出し元) が副作用ツールを含む場合は並列実行をシリアルに切り替える。
+
 モジュールレベルユーティリティ:
 
-| 関数 | 説明 |
-|---|---|
-| `is_side_effect(tool_name) -> bool` | write / delete / shell_run ツールのとき `True` を返す。`execute_all_tool_calls()` の直列化判定に使用 |
-| `format_transport_error(*, source, phase, kind, url, status_code, retryable, partial) -> TransportErrorInfo` | LLM / ツール transport 失敗の `TransportErrorInfo(summary, detail)` dataclass を生成 |
-| `tool_call_key(name, args) -> str` | `(tool_name, args)` の正規化 MD5 ハッシュキー。dedup 判定で使用 |
+| 関数 | シグネチャ | 説明 |
+|---|---|---|
+| `is_side_effect` | `(tool_name: str) -> bool` | `_SIDE_EFFECT_TOOLS` (`WRITE_TOOLS | DELETE_TOOLS | {"shell_run"}`) に含まれるとき `True` を返す |
+| `tool_call_key` | `(name: str, args: dict[str, Any]) -> str` | `(tool_name, args)` ペアを dict キー順正規化した上で MD5 ハッシュ化し文字列で返す。重複排除用の一意キー生成に使用 (非セキュリティ用途) |
+| `format_transport_error` | `(*, source, phase, kind, url, status_code, retryable, partial) -> TransportErrorInfo` | LLM / ツール トランスポート失敗を `TransportErrorInfo(summary, detail)` dataclass に整形する。`summary` はユーザー向け一行メッセージ、`detail` は orjson シリアライズされた JSON 文字列 |
 
 ### 3.3 使用スクリプト
 
@@ -225,7 +362,7 @@ async def my_tool(args: dict) -> tuple[str, bool]:
 
 ## 4. shared/tool_constants.py
 
-MCP ツール分類 frozenset の正規定義。詳細は [`06_ref-infra.md`](06_ref-infra.md) §7 を参照。
+MCP ツール分類 frozenset の正規定義。詳細は [`06_ref-infra.md`](06_ref-infra.md) §7 を参照。`route_resolver.py` / `tool_executor.py` / `tool_runner.py` の 3 箇所で参照する。
 
 ---
 
