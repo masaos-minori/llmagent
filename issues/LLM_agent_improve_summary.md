@@ -48,20 +48,6 @@
   - worker runtime
   - event bus replication
 
-## Metadata DB / Workflow 定義 / 冪等性管理の整備
-- 改善案: Metadata DB / Workflow 定義 / 冪等性管理の整備
-- 難易度: 中
-- 実装方式: 状態管理強化
-- 実装手順概要:
-  - plan / execute / verify / retry の段階モデルを formal workflow 化する。
-  - task state、attempt、processed event_id、artifact 参照を Metadata DB に保持する。
-  - YAML ベース workflow と timeout / retry を定義する。
-  - idempotency key、processed_event_id で重複排除する。
-- 実装対象:
-  - workflows/default.yaml
-  - orchestrator/state/
-  - metadata DB schema
-
 ## Skills 読み込み機構
 - 課題: 「コードレビュー」「テスト生成」「移行ガイド」など定型手順を毎回会話で指示するのはコスト高。
 - 改善案: skills/<name>/SKILL.md に手順テンプレートを定義し、/skill <name> [args] で呼び出せるようにする。
