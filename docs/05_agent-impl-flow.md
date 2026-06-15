@@ -8,12 +8,17 @@
 
 ```
 ユーザー入力
-  ① Memory   — MemoryInjectionService.on_user_prompt() で関連メモリを system ロールとして履歴注入 (use_memory_layer=True のとき)
-  ② Append   — ユーザーメッセージをそのまま履歴に追記 (Orchestrator._append_user_message)
-  ③ Compress — HistoryManager.compress() が char/token 上限超過時に古いターンを LLM 要約に置換
-  ④ LLM      — ツール定義と会話履歴を SSE ストリーミングで送信 (全ターン共通)
-  ⑤ Tool loop — tool_calls があれば MCP 実行 → 履歴追記 → 再送信 (MAX_TOOL_TURNS=5 上限)
+  ① TurnStart — Orchestrator._handle_turn_start() で current_turn_id (UUID4) をセット、監査ログ出力
+  ② Memory   — MemoryInjectionService.on_user_prompt() で関連メモリを system ロールとして履歴注入 (use_memory_layer=True のとき)
+  ③ Append   — ユーザーメッセージをそのまま履歴に追記 (Orchestrator._append_user_message)
+  ④ Compress — HistoryManager.compress() が char/token 上限超過時に古いターンを LLM 要約に置換
+  ⑤ LLM      — ツール定義と会話履歴を SSE ストリーミングで送信 (全ターン共通)
+  ⑥ Tool loop — tool_calls があれば MCP 実行 → 履歴追記 → 再送信 (MAX_TOOL_TURNS=5 上限)
 ```
+
+`Orchestrator.handle_turn()` は `WorkflowEngine` 経由でターンを実行する（workflow.sqlite に task / attempt / event を記録）。`config/workflows/default.json` が見つからない / workflow DB が利用不可の場合は従来フローにフォールバックする。
+
+ワークフロー詳細 → `agent/workflow/` パッケージ（models, workflow_loader, state_store, workflow_engine）。
 
 RAG パイプラインは `mcp/rag_pipeline/` (port 8010) 経由で MCP ツールとして提供。in-process RagPipeline / 自動 RAG 挿入 / two-stage fetch はすべて削除済み。
 

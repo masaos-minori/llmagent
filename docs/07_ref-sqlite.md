@@ -15,15 +15,16 @@ SQLite (sqlite-vec 拡張付き) の接続ライフサイクル管理と SQL 実
 
 ```python
 SQLiteHelper(target: str = "rag")
-# target: "rag" | "session"
+# target: "rag" | "session" | "workflow"
 ```
 
 | target | DB ファイル | 格納テーブル |
 |---|---|---|
 | `"rag"` (デフォルト) | `rag.sqlite` (`rag_db_path`) | documents, chunks, chunks_vec, chunks_fts |
 | `"session"` | `session.sqlite` (`session_db_path`) | sessions, messages, notes, tool_results, memories, memories_fts, memories_vec, memory_links |
+| `"workflow"` | `workflow.sqlite` (`workflow_db_path`) | tasks, attempts, processed_events, artifacts |
 
-不正な `target` 値は `ValueError` を送出する。
+不正な `target` 値は `ValueError` を送出する。sqlite-vec 拡張は `target="rag"` のみロードする（`target="workflow"` / `"session"` はロードしない）。
 
 インスタンス属性 `conn: sqlite3.Connection | None` は `open()` 前は `None`。
 
@@ -40,7 +41,7 @@ print(db._default_load_vec)  # target="rag" → True、target="session" → Fals
 
 | インスタンス属性 | 説明 |
 |---|---|
-| `db._db_path` | `DbConfig.rag_db_path` または `DbConfig.session_db_path`。`__init__()` 時に確定 |
+| `db._db_path` | `DbConfig.rag_db_path` / `session_db_path` / `workflow_db_path`。`__init__()` 時に確定 |
 | `db._vec_so` | `config/common.toml` の `sqlite_vec_so`。空文字列は vec 拡張不要を意味する |
 | `db._sqlite_timeout` | `config/common.toml` の `sqlite_timeout` (デフォルト 30 秒) |
 | `db._busy_timeout_ms` | `config/common.toml` の `sqlite_busy_timeout_ms` (デフォルト 30000 ms) |
@@ -529,4 +530,72 @@ store = MemoryStore()
 | `pin(memory_id)` / `unpin(memory_id)` | `(memory_id: str) -> bool` | ピン留め / 解除。見つかった場合は `True` |
 | `clear_by_session(session_id)` | `(session_id: int) -> int` | 指定セッションの全エントリを削除して削除数を返す |
 | `count_entries()` | `() -> int` | 全メモリ件数を返す。DB エラー時は `0` |
+
+---
+
+## db/workflow_schema.py — Metadata DB
+
+### 機能概要
+
+`workflow.sqlite` の DDL 定義と初期化エントリポイント。`agent/workflow/state_store.py` が使用する 4 テーブルを `CREATE TABLE IF NOT EXISTS` で作成する（冪等）。
+
+```bash
+# 初期化コマンド (deploy/init_db.sh から呼び出される)
+PYTHONPATH=scripts python -m db.workflow_schema
+```
+
+### スキーマ（workflow.sqlite）
+
+**tasks テーブル:**
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `task_id` | TEXT PK | UUID4 |
+| `session_id` | TEXT | セッション ID |
+| `turn_number` | INTEGER | ターン番号 |
+| `workflow_version` | TEXT | ワークフロー定義バージョン |
+| `status` | TEXT | `pending` / `running` / `completed` / `failed` / `halted` |
+| `idempotency_key` | TEXT UNIQUE | `session_id:turn_number` — 重複防止 |
+| `created_at` | TEXT | ISO-8601 UTC |
+| `updated_at` | TEXT | ISO-8601 UTC |
+
+**attempts テーブル:**
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `attempt_id` | TEXT PK | UUID4 |
+| `task_id` | TEXT FK | `tasks(task_id)` ON DELETE CASCADE |
+| `stage_id` | TEXT | `plan` / `execute` / `verify` |
+| `status` | TEXT | `running` / `completed` / `failed` |
+| `started_at` | TEXT | ISO-8601 UTC |
+| `ended_at` | TEXT \| NULL | 完了時刻 |
+| `error_msg` | TEXT \| NULL | 失敗理由 |
+
+**processed_events テーブル:**
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `event_id` | TEXT PK | `{task_id}:{stage_id}:{attempt}` — ステージの冪等キー |
+| `task_id` | TEXT FK | `tasks(task_id)` ON DELETE CASCADE |
+| `stage_id` | TEXT | ステージ名 |
+| `recorded_at` | TEXT | ISO-8601 UTC |
+
+**artifacts テーブル:**
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `artifact_id` | TEXT PK | UUID4 |
+| `task_id` | TEXT FK | `tasks(task_id)` ON DELETE CASCADE |
+| `stage_id` | TEXT | ステージ名 |
+| `uri` | TEXT | アーティファクトの URI |
+| `created_at` | TEXT | ISO-8601 UTC |
+
+### API
+
+```python
+from db.workflow_schema import init_schema
+
+init_schema("/opt/llm/db/workflow.sqlite")
+# → 4 テーブルを CREATE TABLE IF NOT EXISTS で作成
+```
 | `count_prunable(days)` | `(days: int) -> int` | `days` 日より古いエントリ件数を返す (削除なし) |
