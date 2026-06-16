@@ -69,7 +69,7 @@ def generate_server_script(server_name: str, module: str, port: int) -> str:
 
         @app.get("/health")
         async def health() -> dict:
-            return {{"status": "ok"}}
+            return {{"status": "ok", "ready": True, "dependencies": {{}}, "details": {{}}}}
 
 
         @app.get("/v1/tools")

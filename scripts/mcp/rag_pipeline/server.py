@@ -136,8 +136,20 @@ async def v1_search(req: RagSearchRequest) -> RagSearchResponse:
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+async def health() -> dict[str, object]:
+    deps: dict[str, str] = {}
+    try:
+        from shared.config_loader import ConfigLoader
+
+        cfg = ConfigLoader().load_all()
+        common = cfg.get("common", {}) if isinstance(cfg.get("common"), dict) else {}
+        embed_url = common.get("embed_url")
+        if not embed_url or not isinstance(embed_url, str):
+            deps["embed_url"] = "not configured"
+    except Exception:
+        deps["config"] = "check failed"
+    ready = len(deps) == 0
+    return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
 
 
 # ──────────────────────────────────────────────────────────────────────────────

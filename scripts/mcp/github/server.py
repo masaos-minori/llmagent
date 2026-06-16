@@ -129,10 +129,12 @@ app.include_router(pr_router)
 # ──────────────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
-async def health() -> dict[str, str]:
+async def health() -> dict[str, object]:
     """Health check endpoint. Returns GitHub token availability."""
-    token_status = "set" if _GITHUB_TOKEN else "not_set"
-    return {"status": "ok", "github_token": token_status}
+    deps: dict[str, str] = {}
+    if not _GITHUB_TOKEN:
+        deps["github_token"] = "not_set"
+    return {"status": "ok", "ready": len(deps) == 0, "dependencies": deps, "details": {}}
 
 
 # ──────────────────────────────────────────────────────────────────────────────

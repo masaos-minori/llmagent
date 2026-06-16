@@ -112,12 +112,20 @@ class MCPServer:
         """
         return [t["name"] for t in getattr(self, "mcp_tools", [])]
 
-    def health(self) -> dict[str, str]:
+    def health(self) -> dict[str, object]:
         """Return a health status dict for HTTP server diagnostics.
 
         HTTP subclasses may override; stdio subclasses use process liveness instead.
+        Returns a standardized shape: {status, ready, dependencies, details}.
         """
-        return {"status": "ok"}
+        deps: dict[str, str] = {}
+        ready = len(deps) == 0
+        return {
+            "status": "ok",
+            "ready": ready,
+            "dependencies": deps,
+            "details": {},
+        }
 
     def run_http(self) -> None:
         """Launch the HTTP server via uvicorn."""

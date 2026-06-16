@@ -84,8 +84,16 @@ async def shell_run(req: ShellRunRequest) -> ShellRunResponse:
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+async def health() -> dict[str, object]:
+    deps: dict[str, str] = {}
+    try:
+        import shutil as _shutil
+        if _shutil.which("sh") is None:
+            deps["shell"] = "sh not found in PATH"
+    except Exception:
+        deps["shell"] = "check failed"
+    ready = len(deps) == 0
+    return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
 
 
 # ──────────────────────────────────────────────────────────────────────────────

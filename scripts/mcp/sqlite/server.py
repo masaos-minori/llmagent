@@ -95,8 +95,37 @@ async def call_tool(req: CallToolRequest) -> CallToolResponse:
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+async def health() -> dict[str, object]:
+    deps: dict[str, str] = {}
+    try:
+        from shared.config_loader import ConfigLoader
+
+        cfg = ConfigLoader().load_all()
+        common = cfg.get("common", {}) if isinstance(cfg.get("common"), dict) else {}
+        sqlite_cfg = cfg.get("sqlite_mcp_server", {}) if isinstance(cfg.get("sqlite_mcp_server"), dict) else {}
+        db_paths: dict[str, str] = {}
+        for key, val in sqlite_cfg.items():
+            if isinstance(val, dict):
+                dp = val.get("db_path")
+                if dp and isinstance(dp, str):
+                    db_paths[key] = dp
+            elif isinstance(val, str) and key.endswith("_path"):
+                db_paths[key] = val
+        if not db_paths:
+            common_db = common.get("sqlite_rag_path") or common.get("rag_db_path")
+            if isinstance(common_db, str):
+                db_paths["default"] = common_db
+        for name, path in db_paths.items():
+            try:
+                import os as _os
+                if not _os.path.isfile(path):
+                    deps[name] = f"file not found: {path}"
+            except Exception:
+                deps[name] = "check failed"
+    except Exception:
+        deps["config"] = "unable to load config"
+    ready = len(deps) == 0
+    return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
 
 
 # ──────────────────────────────────────────────────────────────────────────────

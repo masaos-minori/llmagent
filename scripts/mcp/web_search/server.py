@@ -229,11 +229,16 @@ async def search(req: SearchRequest) -> SearchResponse:
 @app.get("/health")
 async def health() -> dict[str, Any]:
     """Health check endpoint. Returns configured providers and API key availability."""
+    deps: dict[str, str] = {}
+    if not BRAVE_API_KEY:
+        deps["brave_api_key"] = "not_set"
+    if not BING_API_KEY:
+        deps["bing_api_key"] = "not_set"
     return {
         "status": "ok",
-        "providers": _cfg.search_providers,
-        "brave_key": "set" if BRAVE_API_KEY else "not_set",
-        "bing_key": "set" if BING_API_KEY else "not_set",
+        "ready": len(deps) == 0,
+        "dependencies": deps,
+        "details": {"providers": _cfg.search_providers},
     }
 
 

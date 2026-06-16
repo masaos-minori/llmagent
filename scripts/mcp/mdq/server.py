@@ -138,8 +138,23 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "mdq-mcp"}
+async def health() -> dict[str, object]:
+    deps: dict[str, str] = {}
+    try:
+        import os as _os
+
+        from shared.config_loader import ConfigLoader
+
+        cfg = ConfigLoader().load_all()
+        common = cfg.get("common", {}) if isinstance(cfg.get("common"), dict) else {}
+        rag_db = common.get("rag_db_path") or common.get("sqlite_rag_path")
+        if isinstance(rag_db, str):
+            if not _os.path.isfile(rag_db):
+                deps["rag_db"] = f"not found: {rag_db}"
+    except Exception:
+        deps["config"] = "check failed"
+    ready = len(deps) == 0
+    return {"status": "ok", "ready": ready, "dependencies": deps, "details": {"service": "mdq-mcp"}}
 
 
 # ──────────────────────────────────────────────────────────────────────────────

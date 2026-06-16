@@ -220,8 +220,16 @@ async def list_allowed_directories() -> dict[str, list[str]]:
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+async def health() -> dict[str, object]:
+    deps: dict[str, str] = {}
+    try:
+        import os as _os
+        if not _os.path.isdir("/workspace"):
+            deps["filesystem"] = "/workspace not found"
+    except Exception:
+        deps["filesystem"] = "check failed"
+    ready = len(deps) == 0
+    return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
