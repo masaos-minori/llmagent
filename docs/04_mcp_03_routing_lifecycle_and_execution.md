@@ -187,13 +187,14 @@ class _ServerLifecycleRouter:
 
 ## Watchdog (`_watchdog_loop`)
 
-Runs as asyncio background task. Activated when `mcp_watchdog_interval > 0` (default `0` = disabled).
+Runs as asyncio background task. Activated when `mcp_watchdog_interval > 0` (default `30` = enabled).
 
-- Polls every `mcp_watchdog_interval` seconds
-- Checks `/health` for HTTP servers with `startup_mode="subprocess"`
-- On failure: calls `_ServerLifecycleRouter.restart(server_key)`
+- Polls every `mcp_watchdog_interval` seconds (default 30s)
+- Checks `/health` for HTTP servers (all modes: subprocess, persistent, externally-managed)
+- On failure: calls `_ServerLifecycleRouter.restart(server_key)` for subprocess-mode servers
   1. `proc.terminate()` → wait 3s → `proc.kill()` if needed
   2. `start_http_subprocess()` — respawn + poll `/health`
+- Externally-managed servers: logs warning only (no restart capability)
 - Max restarts: `mcp_watchdog_max_restarts` (default 3)
 - `healthcheck_mode="ping_tool"` (stdio): sends `__list_tools__` RPC to verify response
 

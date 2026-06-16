@@ -318,8 +318,8 @@ class MCPConfig:
     """MCP server lifecycle and watchdog settings."""
 
     mcp_servers: dict[str, McpServerConfig] = field(default_factory=dict)
-    # Probe interval in seconds; 0 disables watchdog
-    mcp_watchdog_interval: float = 0.0
+    # Probe interval in seconds; 0 disables watchdog. Default 30s for production self-healing.
+    mcp_watchdog_interval: float = 30.0
     mcp_watchdog_max_restarts: int = 3
     github_url: str = "http://127.0.0.1:8006"
 
