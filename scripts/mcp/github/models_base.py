@@ -20,3 +20,16 @@ class IssueInfo(BaseModel):
     updated_at: str
     labels: list[str]
     assignees: list[str]
+
+
+class PullRequestInfo(BaseModel):
+    number: int
+    title: str
+    state: str
+    url: str
+    body: str | None
+    head_ref: str
+    base_ref: str
+    created_at: str
+    updated_at: str
+    draft: bool

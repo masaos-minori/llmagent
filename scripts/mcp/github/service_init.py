@@ -28,7 +28,7 @@ if not _github_token:
     )
 
 
-def build_service(cfg):  
+def build_service(cfg):
     """Construct a GitHubService from a typed config object."""
     from mcp.github.service_dispatch import GitHubService
 

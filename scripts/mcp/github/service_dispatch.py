@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class GitHubService(_GitHubServiceCore):
     """GitHubService with dispatch formatters (extends service_business.GitHubService)."""
 
-    async def fmt_search_repositories(self, args: dict) -> str:  
+    async def fmt_search_repositories(self, args: dict) -> str:
         result = await self.search_repositories(args)  # type: ignore[arg-type]
         lines = [
             f"{fmt_md_link(r.full_name, r.url)} ★{r.stars}\n{r.description or ''}"
@@ -41,7 +41,7 @@ class GitHubService(_GitHubServiceCore):
         ]
         return "\n\n".join(lines) if lines else "No results found."
 
-    async def fmt_list_branches(self, args: dict) -> str:  
+    async def fmt_list_branches(self, args: dict) -> str:
         result = await self.list_branches(args)  # type: ignore[arg-type]
         lines = [
             f"{b.name} ({b.sha[:8]}){' [protected]' if b.protected else ''}"
@@ -56,7 +56,7 @@ class GitHubService(_GitHubServiceCore):
 
         return orjson.dumps({"preview": preview, "dry_run": True}).decode()
 
-    async def fmt_create_branch(self, args: dict) -> str:  
+    async def fmt_create_branch(self, args: dict) -> str:
         req = CreateBranchRequest(**args)
         self._assert_allowed_repo(req.owner, req.repo)
         if req.dry_run:
@@ -68,12 +68,12 @@ class GitHubService(_GitHubServiceCore):
         result = await self.create_branch(req)
         return f"Branch created: {result.branch_name} (SHA: {result.sha[:8]})"
 
-    async def fmt_list_commits(self, args: dict) -> str:  
+    async def fmt_list_commits(self, args: dict) -> str:
         result = await self.list_commits(args)  # type: ignore[arg-type]
         lines = [f"{c.sha[:8]} {c.message} ({c.author})" for c in result.commits]
         return "\n".join(lines) if lines else "No commits found."
 
-    async def fmt_get_commit(self, args: dict) -> str:  
+    async def fmt_get_commit(self, args: dict) -> str:
         result = await self.get_commit(args)  # type: ignore[arg-type]
         c = result.commit
         return (
@@ -82,16 +82,16 @@ class GitHubService(_GitHubServiceCore):
             f"Files changed: {c.files_changed}\nURL: {c.url}"
         )
 
-    async def fmt_search_code(self, args: dict) -> str:  
+    async def fmt_search_code(self, args: dict) -> str:
         result = await self.search_code(args)  # type: ignore[arg-type]
         lines = [f"[{r.repository}/{r.path}]({r.url})" for r in result.results]
         return "\n".join(lines) if lines else "No results found."
 
-    async def fmt_get_file_contents(self, args: dict) -> str:  
+    async def fmt_get_file_contents(self, args: dict) -> str:
         result = await self.get_file_contents(args)  # type: ignore[arg-type]
         return result.content
 
-    async def fmt_create_or_update_file(self, args: dict) -> str:  
+    async def fmt_create_or_update_file(self, args: dict) -> str:
         req = CreateOrUpdateFileRequest(**args)
         self._assert_allowed_repo(req.owner, req.repo)
         if req.dry_run:
@@ -104,7 +104,7 @@ class GitHubService(_GitHubServiceCore):
         result = await self.create_or_update_file(req)
         return f"{result.operation}: {result.path} (commit: {result.commit_sha[:8]})"
 
-    async def fmt_push_files(self, args: dict) -> str:  
+    async def fmt_push_files(self, args: dict) -> str:
         req = PushFilesRequest(**args)
         self._assert_allowed_repo(req.owner, req.repo)
         if req.dry_run:
@@ -120,7 +120,7 @@ class GitHubService(_GitHubServiceCore):
             f" files={result.files_pushed} commit={sha_short}"
         )
 
-    async def fmt_delete_file(self, args: dict) -> str:  
+    async def fmt_delete_file(self, args: dict) -> str:
         req = DeleteRepoFileRequest(**args)
         self._assert_allowed_repo(req.owner, req.repo)
         if req.dry_run:
@@ -132,17 +132,17 @@ class GitHubService(_GitHubServiceCore):
         result = await self.delete_repo_file(req)
         return f"Deleted: {result.path} (commit: {result.commit_sha[:8]})"
 
-    async def fmt_list_issues(self, args: dict) -> str:  
+    async def fmt_list_issues(self, args: dict) -> str:
         result = await self.list_issues(args)  # type: ignore[arg-type]
         lines = [GitHubService._fmt_issue_line(i) for i in result.issues]
         return "\n\n".join(lines) if lines else "No issues found."
 
-    async def fmt_get_issue(self, args: dict) -> str:  
+    async def fmt_get_issue(self, args: dict) -> str:
         result = await self.get_issue(args)  # type: ignore[arg-type]
         i = result.issue
         return f"#{i.number} [{i.state}] {i.title}\n{i.body or ''}\nURL: {i.url}"
 
-    async def fmt_create_issue(self, args: dict) -> str:  
+    async def fmt_create_issue(self, args: dict) -> str:
         req = CreateIssueRequest(**args)
         self._assert_allowed_repo(req.owner, req.repo)
         if req.dry_run:
@@ -154,12 +154,12 @@ class GitHubService(_GitHubServiceCore):
         i = result.issue
         return f"Created: #{i.number} {i.title}\n{i.url}"
 
-    async def fmt_search_issues(self, args: dict) -> str:  
+    async def fmt_search_issues(self, args: dict) -> str:
         result = await self.search_issues(args)  # type: ignore[arg-type]
         lines = [GitHubService._fmt_issue_line(i) for i in result.results]
         return "\n\n".join(lines) if lines else "No results found."
 
-    async def fmt_add_issue_comment(self, args: dict) -> str:  
+    async def fmt_add_issue_comment(self, args: dict) -> str:
         req = AddIssueCommentRequest(**args)
         self._assert_allowed_repo(req.owner, req.repo)
         if req.dry_run:
@@ -170,12 +170,12 @@ class GitHubService(_GitHubServiceCore):
         result = await self.add_issue_comment(req)
         return f"Comment posted: #{result.issue_number} {result.comment_url}"
 
-    async def fmt_list_pull_requests(self, args: dict) -> str:  
+    async def fmt_list_pull_requests(self, args: dict) -> str:
         result = await self.list_pull_requests(args)  # type: ignore[arg-type]
         lines = [GitHubService._fmt_pr_line(pr) for pr in result.pull_requests]
         return "\n\n".join(lines) if lines else "No pull requests found."
 
-    async def fmt_get_pull_request(self, args: dict) -> str:  
+    async def fmt_get_pull_request(self, args: dict) -> str:
         result = await self.get_pull_request(args)  # type: ignore[arg-type]
         pr = result.pull_request
         return (
@@ -184,7 +184,7 @@ class GitHubService(_GitHubServiceCore):
             f"{pr.body or ''}\nURL: {pr.url}"
         )
 
-    async def fmt_create_pull_request(self, args: dict) -> str:  
+    async def fmt_create_pull_request(self, args: dict) -> str:
         req = CreatePullRequestRequest(**args)
         self._assert_allowed_repo(req.owner, req.repo)
         if req.dry_run:
@@ -200,12 +200,12 @@ class GitHubService(_GitHubServiceCore):
             f"URL: {pr.url}"
         )
 
-    async def fmt_search_pull_requests(self, args: dict) -> str:  
+    async def fmt_search_pull_requests(self, args: dict) -> str:
         result = await self.search_pull_requests(args)  # type: ignore[arg-type]
         lines = [GitHubService._fmt_issue_line(i) for i in result.results]
         return "\n\n".join(lines) if lines else "No results found."
 
-    async def fmt_update_pull_request(self, args: dict) -> str:  
+    async def fmt_update_pull_request(self, args: dict) -> str:
         req = UpdatePullRequestRequest(**args)
         self._assert_allowed_repo(req.owner, req.repo)
         if req.dry_run:
@@ -222,7 +222,7 @@ class GitHubService(_GitHubServiceCore):
         pr = result.pull_request
         return f"Updated: #{pr.number} [{pr.state}] {pr.title}\n{pr.url}"
 
-    async def fmt_merge_pull_request(self, args: dict) -> str:  
+    async def fmt_merge_pull_request(self, args: dict) -> str:
         req = MergePullRequestRequest(**args)
         self._assert_allowed_repo(req.owner, req.repo)
         if req.dry_run:

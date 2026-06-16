@@ -11,7 +11,7 @@ import dataclasses
 
 from pydantic import BaseModel, Field
 
-from .models_base import IssueInfo
+from .models_base import IssueInfo, PullRequestInfo
 
 
 class ListPullRequestsRequest(BaseModel):
@@ -19,19 +19,6 @@ class ListPullRequestsRequest(BaseModel):
     repo: str = Field(..., description="Repository name")
     state: str = Field(default="open", pattern="^(open|closed|all)$")
     per_page: int = Field(default=10, ge=1)
-
-
-class PullRequestInfo(BaseModel):
-    number: int
-    title: str
-    state: str
-    url: str
-    body: str | None
-    head_ref: str
-    base_ref: str
-    created_at: str
-    updated_at: str
-    draft: bool
 
 
 class ListPullRequestsResponse(BaseModel):
