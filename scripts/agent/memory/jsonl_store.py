@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import orjson
+from shared.json_utils import dumps as _json_dumps
 
 from agent.memory.enums import MemoryType
 from agent.memory.exceptions import JsonlFormatError
@@ -55,7 +56,7 @@ class JsonlMemoryStore:
     async def write(self, entry: MemoryEntry) -> None:
         """Append one entry to the JSONL file; serialized by asyncio.Lock."""
         async with self._get_lock():
-            line = orjson.dumps(asdict(entry)).decode() + "\n"
+            line = _json_dumps(asdict(entry)) + "\n"
             self._path.parent.mkdir(parents=True, exist_ok=True)
             with self._path.open("a", encoding="utf-8") as f:
                 f.write(line)

@@ -12,11 +12,11 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 
-import orjson
+from shared.json_utils import dumps as _json_dumps
 
 from mcp.cicd.models import CicdConfig
-from mcp.server import ToolArgs
 from mcp.cicd.service_defs import CiBackend
+from mcp.server import ToolArgs
 
 from .service_github_actions import GitHubActionsBackend
 from .service_guards import CiCdGuards
@@ -55,7 +55,7 @@ class CiCdService(CiCdGuards):
             )
             if req.inputs:
                 preview += f" with inputs={req.inputs}"
-            return orjson.dumps({"preview": preview, "dry_run": True}).decode()
+            return _json_dumps({"preview": preview, "dry_run": True})
         owner, repo = self._parse_repo(req.repo)
         return await self._backend.trigger_workflow(
             owner,

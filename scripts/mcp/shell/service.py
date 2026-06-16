@@ -23,7 +23,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-import orjson
+from shared.json_utils import dumps as _json_dumps
 from shared.protocols.shell import ShellPolicy
 
 from mcp.server import ToolArgs
@@ -33,8 +33,6 @@ from mcp.shell.models import (
     ShellRunResponse,
     ShellValidationError,
 )
-
-import shutil
 
 from .service_static_helpers import (
     init_sandbox,
@@ -333,7 +331,7 @@ class ShellService:
             cwd = req.cwd or "(default)"
             cmd_display = req.command
             preview = f"Would execute: {cmd_display} (cwd: {cwd})"
-            return orjson.dumps({"preview": preview, "dry_run": True}).decode()
+            return _json_dumps({"preview": preview, "dry_run": True})
         result = await self.run_command(req)
         parts: list[str] = []
         if result.timed_out:

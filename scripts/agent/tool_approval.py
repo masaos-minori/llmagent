@@ -12,6 +12,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import orjson
+from shared.json_utils import dumps as _json_dumps
 
 from agent.tool_audit import audit_approval
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
@@ -172,12 +173,12 @@ async def run_approval_checks(
             ) from e
         masked_preview = mask_args(args_preview, ctx.cfg.tool.masked_fields)
         if ctx.conv.plan_mode and tc_name in ctx.cfg.tool.plan_blocked_tools:
-            emit_plan_blocked(tc_name, orjson.dumps(masked_preview).decode())
+            emit_plan_blocked(tc_name, _json_dumps(masked_preview))
             logger.info("Plan mode blocked tool: %s", tc_name)
             denied_ids.append(tc["id"])
             continue
         if not await check_approval(ctx, tc_name, args_preview):
-            emit_denied(tc_name, orjson.dumps(masked_preview).decode())
+            emit_denied(tc_name, _json_dumps(masked_preview))
             denied_ids.append(tc["id"])
             continue
         approved_calls.append(tc)

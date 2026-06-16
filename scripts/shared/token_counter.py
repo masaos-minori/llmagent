@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 import orjson
 
+from shared.json_utils import dumps as _json_dumps
 from shared.types import LLMMessage
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ def _serialise_for_tokenize(history: list[LLMMessage]) -> str:
         if content:
             parts.append(f"{role}: {content}")
         for tc in msg.get("tool_calls") or []:
-            parts.append(orjson.dumps(tc).decode())
+            parts.append(_json_dumps(tc))
     return "\n".join(parts)
 
 

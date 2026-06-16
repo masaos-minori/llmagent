@@ -15,6 +15,7 @@ from collections.abc import Iterator
 from typing import Any
 
 import orjson
+from shared.json_utils import dumps as _json_dumps
 
 from agent.commands.mixin_base import MixinBase
 
@@ -69,7 +70,7 @@ class _AuditMixin(MixinBase):
         try:
             for rec in self._iter_audit_lines(path):
                 if rec.get("task_id") == task_id:
-                    self._out.write(orjson.dumps(rec).decode())
+                    self._out.write(_json_dumps(rec))
                     count += 1
         except OSError as e:
             self._out.write_error(f"Cannot read audit log: {e}")
@@ -94,7 +95,7 @@ class _AuditMixin(MixinBase):
             self._out.write_no_data(f"No events found for tool: {tool_name}")
             return
         for rec in results[:_AUDIT_TOOL_MAX_RESULTS]:
-            self._out.write(orjson.dumps(rec).decode())
+            self._out.write(_json_dumps(rec))
         if len(results) > _AUDIT_TOOL_MAX_RESULTS:
             self._out.write(
                 f"  ... {len(results) - _AUDIT_TOOL_MAX_RESULTS} more events omitted"

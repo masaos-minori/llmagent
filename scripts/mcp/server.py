@@ -16,6 +16,7 @@ import uuid
 from typing import Any
 
 import orjson
+from shared.json_utils import dumps as _json_dumps
 
 from mcp.dispatch import DispatchResult
 
@@ -170,7 +171,7 @@ class MCPServer:
                 name = name_raw
                 if name == "__list_tools__":
                     # Reserved introspection call — return tool list as JSON string
-                    result = orjson.dumps({"tools": self.list_tools()}).decode()
+                    result = _json_dumps({"tools": self.list_tools()})
                     is_error = False
                 else:
                     dispatch_result = await self.dispatch(
@@ -206,7 +207,7 @@ class MCPServer:
                 result = f"Internal server error: {e}"
                 is_error = True
 
-            resp = orjson.dumps(
+            resp = _json_dumps(
                 {
                     "id": req_id,
                     "result": result,
@@ -214,6 +215,6 @@ class MCPServer:
                     "truncated": truncated,
                     "total_bytes": total_bytes,
                 },
-            ).decode()
+            )
             sys.stdout.write(resp + "\n")
             sys.stdout.flush()

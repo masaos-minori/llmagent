@@ -12,6 +12,7 @@ from typing import Any
 
 import orjson
 from db.models import ToolResultRow
+from shared.json_utils import dumps as _json_dumps
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.models import ToolResultView
@@ -72,7 +73,7 @@ class _ToolingMixin(MixinBase):
         view = _to_tool_result_view(raw)
         flag = " [summarized]" if view.summary else ""
         self._out.write(f"Tool: {view.tool_name}{flag}")
-        self._out.write(f"Args: {orjson.dumps(view.args_masked).decode()}")
+        self._out.write(f"Args: {_json_dumps(view.args_masked)}")
         full_text = raw.full_text
         self._out.write(f"Size: {len(full_text)} chars")
         if view.summary:

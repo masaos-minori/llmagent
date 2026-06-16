@@ -16,6 +16,7 @@ from collections.abc import Callable
 from typing import Any
 
 import orjson
+from shared.json_utils import dumps as _json_dumps
 from shared.llm_client import LLMTransportError
 from shared.logger import Logger
 from shared.types import LLMMessage
@@ -263,7 +264,7 @@ class Orchestrator:
             event = self._build_turn_end_event(
                 elapsed_ms, error_kind, ctx.turn.current_turn_id
             )
-            ctx.services.audit_logger.info(orjson.dumps(event).decode())
+            ctx.services.audit_logger.info(_json_dumps(event))
         ctx.turn.current_turn_id = None
 
     def _build_turn_end_event(

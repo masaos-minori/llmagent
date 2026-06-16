@@ -19,8 +19,6 @@ import sys
 from contextvars import ContextVar
 from typing import Any
 
-import orjson
-
 
 def _require_str(value: Any, name: str) -> None:
     """Validate that value is a non-empty string; raises ValueError otherwise."""
@@ -69,7 +67,9 @@ class _JsonFormatter(logging.Formatter):
                 entry[key] = val
         if record.exc_info:
             entry["exc"] = self.formatException(record.exc_info)
-        return orjson.dumps(entry).decode()
+        from shared.json_utils import dumps as _json_dumps
+
+        return _json_dumps(entry)
 
 
 class Logger:

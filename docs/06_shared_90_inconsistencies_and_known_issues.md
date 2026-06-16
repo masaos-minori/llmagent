@@ -176,13 +176,12 @@ Each entry uses the required format:
 
 ### API-01: `orjson.dumps()` returns `bytes`, not `str` — `.decode()` required
 
-- **Type:** Document inconsistency (API contract)
-- **Impact scope:** All uses of `orjson.dumps()` in `shared/`, `db/`, `agent/`, `mcp/`, `rag/`
-- **Statement A:** `06_spec_shared.md §5` documents: "`orjson.dumps()` returns `bytes`; call `.decode()` when `str` is needed."
-- **Statement B:** Stdlib `json.dumps()` returns `str`. Code mixing the two libraries will have type errors.
-- **Current safe interpretation:** Always call `orjson.dumps(...).decode()` when a string is needed. `orjson.dumps()` alone returns `bytes`.
-- **Recommended action:** Add type annotations or use `orjson.dumps(...).decode("utf-8")` consistently.
-- **Notes for AI reference:** `orjson` is used project-wide. Do not substitute `json.dumps()` — it is prohibited by `rules/coding.md`.
+- **Type:** Resolved
+- **Impact scope:** `shared/json_utils.py::dumps()`; all call sites in `shared/`, `db/`, `agent/`, `mcp/`, `rag/`
+- **Description:** Added `shared/json_utils.dumps()` helper that wraps `orjson.dumps().decode()` returning `str` directly. All 29 call sites across the codebase replaced with `_json_dumps()` import. Default behavior uses `OPT_SORT_KEYS` for deterministic output.
+- **Current safe interpretation:** Use `from shared.json_utils import dumps as _json_dumps` for string JSON serialization. For indented output, pass `option=orjson.OPT_INDENT_2`.
+- **Recommended action:** None — already implemented and all call sites migrated.
+- **Notes for AI reference:** Direct `.decode()` repetition reduced to zero outside `json_utils.py` itself.
 
 ---
 

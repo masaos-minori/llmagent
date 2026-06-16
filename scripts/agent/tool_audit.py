@@ -10,7 +10,7 @@ import dataclasses
 import time
 from typing import TYPE_CHECKING
 
-import orjson
+from shared.json_utils import dumps as _json_dumps
 
 from agent.shared.models import ApprovalDecisionEvent, ToolApprovalEvent, ToolExecEvent
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
@@ -52,7 +52,7 @@ def audit_approval(
         args_preview=masked,
         ts=time.time(),
     )
-    ctx.services.audit_logger.info(orjson.dumps(dataclasses.asdict(evt)).decode())
+    ctx.services.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 
 
 def log_approval_decision(ctx: AgentContext, outcome: ApprovalOutcome) -> None:
@@ -68,7 +68,7 @@ def log_approval_decision(ctx: AgentContext, outcome: ApprovalOutcome) -> None:
         escalation_reason=outcome.escalation_reason,
         ts=time.time(),
     )
-    ctx.services.audit_logger.info(orjson.dumps(dataclasses.asdict(evt)).decode())
+    ctx.services.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 
 
 def audit_tool_exec(
@@ -94,4 +94,4 @@ def audit_tool_exec(
         args_preview=masked,
         ts=time.time(),
     )
-    ctx.services.audit_logger.info(orjson.dumps(dataclasses.asdict(evt)).decode())
+    ctx.services.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))

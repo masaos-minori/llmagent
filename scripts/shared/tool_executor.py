@@ -25,6 +25,7 @@ import httpx
 import orjson
 
 from shared import plugin_registry
+from shared.json_utils import dumps as _json_dumps
 from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
@@ -253,9 +254,7 @@ class StdioTransport:
         async with lock:
             self._req_id += 1
             req_id = self._req_id
-            payload = (
-                orjson.dumps({"id": req_id, "name": name, "args": args}).decode() + "\n"
-            )
+            payload = _json_dumps({"id": req_id, "name": name, "args": args}) + "\n"
 
             if not (self._proc and self._proc.stdin and self._proc.stdout):
                 # Unreachable after is_alive() guard above; defensive check for type narrowing
@@ -356,7 +355,7 @@ def format_transport_error(
     partial: bool,
 ) -> TransportErrorInfo:
     """Return TransportErrorInfo for LLM/tool transport failures; summary is one-line user-facing; detail is JSON for audit logs."""
-    detail = orjson.dumps(
+    detail = _json_dumps(
         {
             "source": source,
             "phase": phase,
@@ -366,7 +365,7 @@ def format_transport_error(
             "retryable": retryable,
             "partial": partial,
         },
-    ).decode()
+    )
     summary = f"[{source.upper()} {kind}] {phase} failure (retryable={retryable})"
     return TransportErrorInfo(summary=summary, detail=detail)
 
@@ -374,7 +373,7 @@ def format_transport_error(
 def tool_call_key(name: str, args: dict[str, Any]) -> str:
     """Return a stable MD5 hash key for a (tool name, args) pair; normalizes dict key order via sort_keys to ensure identity across LLM-generated args."""
     return hashlib.md5(  # nosec B324 — non-security hash for dedup key identity
-        f"{name}:{orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()}".encode(),
+        f"{name}:{_json_dumps(args)}".encode(),
         usedforsecurity=False,
     ).hexdigest()
 
@@ -540,9 +539,7 @@ class ToolExecutor:
         args: dict[str, Any],
     ) -> ToolCallResult:
         """Execute a tool: return cached result on hit; execute and store on miss."""
-        cache_key = (
-            f"{tool_name}:{orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()}"
-        )
+        cache_key = f"{tool_name}:{_json_dumps(args)}"
         cached = self._cache.get(cache_key)
         if cached is not None:
             age = time.time() - cached.cached_at

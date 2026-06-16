@@ -10,6 +10,7 @@ import os
 import sys
 
 import orjson
+from shared.json_utils import dumps as _json_dumps
 
 # Counters for observability during integration tests.
 _stats: dict[str, int] = {
@@ -48,7 +49,7 @@ def main() -> None:
         elif name == "__stats__":
             resp = {
                 "id": req_id,
-                "result": orjson.dumps(_stats).decode(),
+                "result": _json_dumps(_stats),
                 "is_error": False,
             }
         elif name == "cwd_query":
@@ -59,7 +60,7 @@ def main() -> None:
                 "result": f"echo: {req.get('args', {})}",
                 "is_error": False,
             }
-        sys.stdout.write(orjson.dumps(resp).decode() + "\n")
+        sys.stdout.write(_json_dumps(resp) + "\n")
         sys.stdout.flush()
 
 

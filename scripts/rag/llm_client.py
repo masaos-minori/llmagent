@@ -18,6 +18,7 @@ from typing import Any, cast
 import httpx
 import orjson
 from shared.config_loader import ConfigLoader
+from shared.json_utils import dumps as _json_dumps
 from shared.types import LLMMessage
 
 from rag.llm_prompts import (
@@ -157,7 +158,7 @@ class RagLLM:
         Raises on any HTTP or parse failure \u2014 callers decide how to handle.
         """
         text_preview = text[:_SUMMARIZE_INPUT_MAX_CHARS]
-        args_str = orjson.dumps(args).decode()[:200]
+        args_str = _json_dumps(args)[:200]
         prompt = _SUMMARIZE_PROMPT_TEMPLATE.format(
             tool_name=tool_name,
             args_str=args_str,

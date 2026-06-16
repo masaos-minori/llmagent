@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import orjson
+from shared.json_utils import dumps as _json_dumps
 
 if TYPE_CHECKING:
     from agent.config import AgentConfig
@@ -54,7 +54,7 @@ def build_github_preview(args: dict[str, Any]) -> str:
     repo = _repo if isinstance(_repo, str) else ""
     repo_str = f"{owner}/{repo}" if owner and repo else owner or repo or "?"
     extra = {k: v for k, v in args.items() if k not in ("owner", "repo")}
-    extra_str = orjson.dumps(extra, option=orjson.OPT_SORT_KEYS).decode()[:200]
+    extra_str = _json_dumps(extra)[:200]
     return f"{repo_str} {extra_str}"
 
 
@@ -87,5 +87,5 @@ def build_preview(tool_name: str, args: dict[str, Any]) -> str:
         return _preview_shell_cmd(args)
     if tool_name.startswith("github_"):
         return build_github_preview(args)
-    raw: str = orjson.dumps(args, option=orjson.OPT_SORT_KEYS).decode()
+    raw: str = _json_dumps(args)
     return raw[:300]

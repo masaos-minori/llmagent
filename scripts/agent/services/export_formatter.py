@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 
 import orjson
+from shared.json_utils import dumps as _json_dumps
 from shared.types import LLMMessage
 
 from agent.services.enums import ExportFormat
@@ -45,7 +46,7 @@ def render_history_md(history: list[LLMMessage]) -> str:
 def render_export(history: list[LLMMessage], fmt: ExportFormat | str) -> str:
     """Render conversation history to a string in the requested format."""
     if fmt == ExportFormat.JSON or fmt == "json":
-        return orjson.dumps(history, option=orjson.OPT_INDENT_2).decode()
+        return _json_dumps(history, option=orjson.OPT_INDENT_2)
     return render_history_md(history)
 
 

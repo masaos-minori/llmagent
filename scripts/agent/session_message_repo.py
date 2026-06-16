@@ -7,6 +7,7 @@ import logging
 
 import orjson
 from db.helper import SQLiteHelper
+from shared.json_utils import dumps as _json_dumps
 from shared.types import LLMMessage
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ class SessionMessageRepository:
         if role not in _VALID_ROLES:
             logger.warning("Invalid role %r; message not saved", role)
             return
-        tc_json = orjson.dumps(tool_calls).decode() if tool_calls else None
+        tc_json = _json_dumps(tool_calls) if tool_calls else None
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute(
                 "INSERT INTO messages"
@@ -61,7 +62,7 @@ class SessionMessageRepository:
                 self.session_id,
                 role,
                 content,
-                orjson.dumps(tc).decode() if tc else None,
+                _json_dumps(tc) if tc else None,
                 tc_id,
             )
             for role, content, tc, tc_id in messages

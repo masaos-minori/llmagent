@@ -52,9 +52,9 @@ class GitHubService(_GitHubServiceCore):
     @staticmethod
     def _dry_run_preview(preview: str) -> str:
         """Return a JSON dry-run preview response string."""
-        import orjson
+        from shared.json_utils import dumps as _json_dumps
 
-        return orjson.dumps({"preview": preview, "dry_run": True}).decode()
+        return _json_dumps({"preview": preview, "dry_run": True})
 
     async def fmt_create_branch(self, args: dict) -> str:
         req = CreateBranchRequest(**args)

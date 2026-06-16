@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 import orjson
 from rag.llm import summarize_tool_result
+from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
 from shared.tool_executor import is_side_effect, tool_call_key
 from shared.tool_spec import ToolSpec
@@ -111,7 +112,7 @@ def _collect_tool_result_msgs(
                 out_failed_keys.add(tool_call_key(name, args))
         masked = mask_args(args, ctx.cfg.tool.masked_fields)
         logger.info("Tool call (turn %s): %s(%s)", turn + 1, name, masked)
-        emit_tool_call(name, orjson.dumps(masked).decode())
+        emit_tool_call(name, _json_dumps(masked))
         if len(text) > _TOOL_RESULT_MAX_CHARS:
             n_lines = len(text.splitlines())
             logger.info("Tool result %s (full): %s", name, text)
@@ -124,7 +125,7 @@ def _collect_tool_result_msgs(
             session_id=ctx.session.session_id,
             turn=turn,
             tool_name=name,
-            args_masked=orjson.dumps(masked).decode(),
+            args_masked=_json_dumps(masked),
             full_text=text,
             summary=llm_text if summarized else None,
             is_error=is_error,
