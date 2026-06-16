@@ -119,11 +119,16 @@ CREATE VIRTUAL TABLE chunks_fts USING fts5(
 )
 ```
 
-Synchronized by triggers: `chunks_ai` (after INSERT), `chunks_au` (after UPDATE), `chunks_ad` (after DELETE).
-`chunks_vec_ad` trigger removes vec entry on chunk delete.
+**Auto-sync triggers:** These triggers maintain `chunks_fts` consistency automatically. Manual sync is NOT needed.
 
-> **Known issue:** Triggers are defined in `create_schema.py` (lines 65–85) but not documented
-> in the specification tables. See [06_shared_90 UNDOC-03](06_shared_90_inconsistencies_and_known_issues.md).
+| Trigger | Event | Behavior |
+|---|---|---|
+| `chunks_ai` | AFTER INSERT ON chunks | Inserts new row into `chunks_fts` using `COALESCE(new.normalized_content, new.content)` |
+| `chunks_au` | AFTER UPDATE ON chunks | Deletes old row, inserts new row in `chunks_fts` |
+| `chunks_ad` | AFTER DELETE ON chunks | Deletes row from `chunks_fts` using `COALESCE(old.normalized_content, old.content)` |
+| `chunks_vec_ad` | AFTER DELETE ON chunks | Deletes corresponding entry from `chunks_vec` where `chunk_id = old.chunk_id` |
+
+> **Important:** Never manually synchronize `chunks_fts` after INSERT/UPDATE/DELETE — triggers handle this automatically.
 
 ### `chunks_vec` (sqlite-vec virtual table)
 

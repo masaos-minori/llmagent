@@ -129,14 +129,13 @@ Each entry uses the required format:
 
 ---
 
-### UNDOC-03: DB triggers in `create_schema.py` are not documented in specification tables
+### UNDOC-03: DB triggers in `schema_sql.py` are documented in specification tables
 
-- **Type:** Undocumented
-- **Impact scope:** `db/create_schema.py` lines 65–85; `chunks_fts` and `chunks_vec` synchronization
-- **Statement A:** `07_spec_db.md §13` notes: "`chunks_ai`, `chunks_ad`, `chunks_au`, `chunks_vec_ad` triggers are defined in `create_schema.py` but not mentioned in specification table sections."
-- **Statement B:** The schema section in `07_spec_db.md` describes `chunks_fts` as a virtual table but does not show the trigger DDL.
+- **Type:** Resolved
+- **Impact scope:** `scripts/db/schema_sql.py` lines 43–63; `chunks_fts` and `chunks_vec` synchronization
+- **Description:** Trigger DDL added to [06_shared_04_db_architecture_and_schema.md](06_shared_04_db_architecture_and_schema.md) with full trigger table showing behavior for each trigger (`chunks_ai`, `chunks_au`, `chunks_ad`, `chunks_vec_ad`).
 - **Current safe interpretation:** Triggers exist and automatically synchronize `chunks_fts` on `chunks` INSERT/UPDATE/DELETE, and remove `chunks_vec` entries on chunk delete.
-- **Recommended action:** Add trigger DDL to schema documentation.
+- **Recommended action:** None - already documented.
 - **Notes for AI reference:** Do NOT manually synchronize `chunks_fts` after INSERT/UPDATE/DELETE — triggers handle this automatically.
 
 ---

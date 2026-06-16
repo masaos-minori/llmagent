@@ -68,7 +68,6 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 | `load_all()` omits `common.toml` | [06_shared_90 CONFIG-01/02/03](06_shared_90_inconsistencies_and_known_issues.md) |
 | `McpServerConfig.transport` not typed as `Literal` | [06_shared_90 TYPE-01](06_shared_90_inconsistencies_and_known_issues.md) |
 | `LLMClient` undocumented in shared-layer specs | [06_shared_90 UNDOC-01](06_shared_90_inconsistencies_and_known_issues.md) |
-| DB triggers not documented in spec tables | [06_shared_90 UNDOC-03](06_shared_90_inconsistencies_and_known_issues.md) |
 | `ArtifactEvent` has no event bus | [06_shared_90 UNIMPL-01](06_shared_90_inconsistencies_and_known_issues.md) |
 | `workflow.sqlite` absent from `07_spec_db.md` | [06_shared_90 DOCMISS-01](06_shared_90_inconsistencies_and_known_issues.md) |
 | `LLMMessage` field count discrepancy (5 vs 7) | [06_shared_90 DOCFIELD-01](06_shared_90_inconsistencies_and_known_issues.md) |
@@ -94,7 +93,7 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 | [06_shared_03_runtime_and_execution.md](06_shared_03_runtime_and_execution.md) | ConfigLoader, Logger, plugin_registry, token_counter, OTel, git_helper, formatters, ToolExecutor flow, McpServerConfig |
 | [06_shared_04_db_architecture_and_schema.md](06_shared_04_db_architecture_and_schema.md) | DB file structure, DbConfig, all table schemas (rag/session/workflow), FTS5/vec, schema init |
 | [06_shared_05_db_api_and_operations.md](06_shared_05_db_api_and_operations.md) | SQLiteHelper full API, store protocols, SQLite implementations, ToolResultStore, memory ops, maintenance, corruption recovery |
-| [06_shared_90_inconsistencies_and_known_issues.md](06_shared_90_inconsistencies_and_known_issues.md) | 19 cataloged issues: DOCREF-01, CONFIG-01/02/03, TYPE-01, GLOBAL-01, PLUGIN-01, EXCEPT-01, UNDOC-01/02/03/04, UNIMPL-01, IMPORT-01, API-01, DESIGN-01/02, DOCFIELD-01, DOCMISS-01 |
+| [06_shared_90_inconsistencies_and_known_issues.md](06_shared_90_inconsistencies_and_known_issues.md) | 18 cataloged issues: DOCREF-01, CONFIG-01/02/03, TYPE-01, GLOBAL-01, PLUGIN-01, EXCEPT-01, UNDOC-01/02/04, UNIMPL-01, IMPORT-01, API-01, DESIGN-01/02, DOCFIELD-01, DOCMISS-01 |
 | [06_shared_99_source_mapping.md](06_shared_99_source_mapping.md) | Audit: maps every source section to its new location; coverage summary |
 
 ---
