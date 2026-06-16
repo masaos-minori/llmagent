@@ -11,8 +11,7 @@ Follow these steps strictly.
 
 2. Create a work plan file.
    - The filename must be `~/llmagent/plans/yyyymmdd-hhmmss_plan.md`.
-     - `yyyymmdd` is the current date.
-     - `hhmmss` is the current time.
+     - `yyyymmdd-hhmmss` is the current date time.
    Create the plan only.
    Do not implement anything.
    Read:
@@ -38,14 +37,12 @@ Follow these steps strictly.
 5. If any `Unknowns` cannot be resolved through analysis, ask the user questions.
    Reflect the answers in the work plan.
    If any issues remain unresolved, write them to `~/llmagent/issues/yyyyymmdd-hhmmss.md`.
-   - `yyyymmdd` is the current date.
-   - `hhmmss` is the current time.
+   - `yyyymmdd-hhmmss` is the current date time.
 
 6. Analyze the `Risks` section in the work plan.
    Add any necessary mitigation steps to the work plan.
    If any issues remain unresolved, write them to `~/llmagent/issues/yyyyymmdd-hhmmss.md`.
-   - `yyyymmdd` is the current date.
-   - `hhmmss` is the current time.
+   - `yyyymmdd-hhmmss` is the current date time.
 
 7. After the work plan is complete, move the processed requirement file to `~/llmagent/requires/done`.
 
