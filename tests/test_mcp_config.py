@@ -17,10 +17,10 @@ class TestMcpServerConfigValidation:
         cfg = McpServerConfig("stdio", "", ["python", "server.py"], "")
         assert cfg.transport == "stdio"
         assert cfg.startup_mode == "persistent"
-        assert cfg.healthcheck_mode == "process"  # auto-inferred
+        assert cfg.healthcheck_mode == "http"  # dataclass default
 
     def test_invalid_transport_raises(self) -> None:
-        with pytest.raises(ValueError, match="transport must be 'http' or 'stdio'"):
+        with pytest.raises(ValueError, match="not a valid TransportType"):
             McpServerConfig("invalid", "", [], "")
 
     def test_http_empty_url_raises(self) -> None:
@@ -32,13 +32,13 @@ class TestMcpServerConfigValidation:
             McpServerConfig("stdio", "", [], "")
 
     def test_invalid_startup_mode_raises(self) -> None:
-        with pytest.raises(ValueError, match="startup_mode must be"):
+        with pytest.raises(ValueError, match="not a valid StartupMode"):
             McpServerConfig(
                 "http", "http://127.0.0.1:8000", [], "", startup_mode="always"
             )
 
     def test_invalid_healthcheck_mode_raises(self) -> None:
-        with pytest.raises(ValueError, match="healthcheck_mode must be"):
+        with pytest.raises(ValueError, match="not a valid HealthcheckMode"):
             McpServerConfig(
                 "http",
                 "http://127.0.0.1:8000",
@@ -77,14 +77,13 @@ class TestMcpServerConfigValidation:
 
 
 class TestBuildMcpServers:
-    def test_empty_mcp_servers_uses_legacy_fallback(self) -> None:
+    def test_empty_mcp_servers_raises_value_error(self) -> None:
         cfg = {
             "web_search_url": "http://127.0.0.1:8005",
             "github_server_url": "http://127.0.0.1:8006",
         }
-        result = _build_mcp_servers(cfg)
-        assert "web_search" in result
-        assert "github" in result
+        with pytest.raises(ValueError, match="mcp_servers config section is missing or empty"):
+            _build_mcp_servers(cfg)
 
     def test_mcp_servers_key_overrides_defaults(self) -> None:
         cfg = {

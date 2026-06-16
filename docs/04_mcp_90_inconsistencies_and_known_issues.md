@@ -49,14 +49,14 @@ Each entry format:
 
 ---
 
-### UNDOC-02: McpServerConfig.transport field is str, not Literal type
+### UNDOC-02: McpServerConfig.transport field uses StrEnum, not Literal type
 
-- **Type:** Needs confirmation
-- **Impact scope:** `shared/mcp_config.py` `McpServerConfig.transport`
-- **Description:** `transport` is typed as `str`. The valid values are `"http"` and `"stdio"` only (validated in `__post_init__`), but the type annotation does not use `Literal["http", "stdio"]`. This makes type checkers unable to catch invalid values at the call site.
-- **Current safe interpretation:** Use only `"http"` or `"stdio"`. Any other value raises `ValueError` at runtime.
-- **Recommended action:** Change annotation to `transport: Literal["http", "stdio"]` in `McpServerConfig`. Referenced in `implementations/20260606-194710_shared_types.md`.
-- **Notes for AI reference:** No functional impact. Type-safety enhancement only.
+- **Type:** Resolved
+- **Impact scope:** `shared/mcp_config.py` `McpServerConfig.transport`, `startup_mode`, `healthcheck_mode`
+- **Description:** Fields use `StrEnum` types (`TransportType`, `StartupMode`, `HealthcheckMode`) which provide stronger typing than `Literal`. Invalid values are caught at runtime via `ValueError` from enum construction. Tests updated to match actual error messages.
+- **Current safe interpretation:** Use only valid enum values. Invalid values raise `ValueError: 'X' is not a valid <EnumName>`.
+- **Recommended action:** None - already resolved. StrEnum is preferred over Literal for these fields.
+- **Notes for AI reference:** `transport`, `startup_mode`, and `healthcheck_mode` are enum-typed. Use `TransportType.HTTP`, `StartupMode.PERSISTENT`, etc.
 
 ---
 
