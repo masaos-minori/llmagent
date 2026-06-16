@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from unittest.mock import patch
+from tempfile import mkstemp
 
 import pytest
 from mcp.mdq.indexer import _index_directory, _index_single_file, index_paths
@@ -28,10 +28,15 @@ from mcp.mdq.service import MdqService
 
 
 @pytest.fixture
-def service() -> MdqService:
-    """MdqService with DB init patched out."""
-    with patch.object(MdqService, "_init_db", return_value=None):
-        return MdqService()
+def service(tmp_path: Path) -> MdqService:
+    """MdqService with a temp DB path."""
+    fd, db = mkstemp(suffix=".db", dir=str(tmp_path))
+    try:
+        return MdqService(db_path=db)
+    finally:
+        import os  # noqa: PLC0415
+
+        os.close(fd)
 
 
 @pytest.fixture
@@ -96,12 +101,23 @@ class TestModels:
 
 
 class TestParseMarkdown:
-    def test_returns_file_content(self, service: MdqService, md_file: Path) -> None:
-        result = asyncio.run(
-            parse_markdown(service, ParseMarkdownRequest(path=str(md_file)))
-        )
-        assert "# Title" in result
-        assert "Content here." in result
+    def test_returns_sections_with_headings(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        sections = asyncio.run(parse_markdown(service, ParseMarkdownRequest(path=str(md_file))))
+        assert len(sections) == 1
+        assert sections[0]["heading"] == "Title"
+        assert "Content here." in sections[0]["content"]
+
+    def test_returns_root_for_content_before_heading(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        f = tmp_path / "root.md"
+        f.write_text("Intro text.\n\n## Section\n\nBody.", encoding="utf-8")
+        sections = asyncio.run(parse_markdown(service, ParseMarkdownRequest(path=str(f))))
+        headings = [s["heading"] for s in sections]
+        assert "<root>" in headings
+        assert "Section" in headings
 
     def test_raises_for_missing_file(self, service: MdqService, tmp_path: Path) -> None:
         with pytest.raises(FileNotFoundError, match="not_exist.md"):
@@ -116,25 +132,28 @@ class TestParseMarkdown:
 
 
 class TestIndexer:
-    def test_index_single_file_logs(
-        self, service: MdqService, md_file: Path, caplog: pytest.LogCaptureFixture
+    def test_index_single_file_stores_in_db(
+        self, service: MdqService, md_file: Path
     ) -> None:
-        import logging
-
-        with caplog.at_level(logging.INFO, logger="mcp.mdq.indexer"):
-            asyncio.run(_index_single_file(service, md_file))
-        assert str(md_file) in caplog.text
+        asyncio.run(_index_single_file(service, md_file))
+        conn = service._get_db_connection()
+        try:
+            row = conn.execute("SELECT heading, content FROM sections WHERE file_path = ?", (str(md_file),)).fetchone()
+            assert row is not None
+            assert "Title" in row["heading"]
+        finally:
+            conn.close()
 
     def test_index_directory_processes_md_files(
-        self, service: MdqService, md_dir: Path, caplog: pytest.LogCaptureFixture
+        self, service: MdqService, md_dir: Path
     ) -> None:
-        import logging
-
-        with caplog.at_level(logging.INFO, logger="mcp.mdq.indexer"):
-            asyncio.run(_index_directory(service, md_dir))
-        assert "a.md" in caplog.text
-        assert "b.md" in caplog.text
-        assert "ignore.txt" not in caplog.text
+        asyncio.run(_index_directory(service, md_dir))
+        conn = service._get_db_connection()
+        try:
+            count = conn.execute("SELECT COUNT(*) as cnt FROM sections").fetchone()["cnt"]
+            assert count == 2  # a.md and b.md
+        finally:
+            conn.close()
 
     def test_index_paths_skips_nonexistent(
         self, service: MdqService, tmp_path: Path, caplog: pytest.LogCaptureFixture
@@ -179,10 +198,19 @@ class TestIndexer:
 
 
 class TestSearchDocs:
-    def test_returns_placeholder_with_query(self, service: MdqService) -> None:
-        req = SearchDocsRequest(query="python")
+    def test_returns_results_after_indexing(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
+        req = SearchDocsRequest(query="Content")
         result = asyncio.run(search_docs(service, req))
-        assert "python" in result
+        assert "Content" in result
+        assert "found" in result
+
+    def test_returns_no_results_for_empty_query(self, service: MdqService) -> None:
+        req = SearchDocsRequest(query="")
+        result = asyncio.run(search_docs(service, req))
+        assert "No results found" in result
 
     def test_logs_query(
         self, service: MdqService, caplog: pytest.LogCaptureFixture
@@ -204,37 +232,69 @@ class TestMdqService:
         result = asyncio.run(service.search_docs(req))
         assert "test" in result
 
-    def test_get_chunk_placeholder(self, service: MdqService) -> None:
-        req = GetChunkRequest(chunk_id=7)
+    def test_get_chunk_returns_content_after_indexing(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
+        req = GetChunkRequest(chunk_id=1)
         result = asyncio.run(service.get_chunk(req))
-        assert "7" in result
+        assert "Title" in result
+        assert "Content here." in result
 
-    def test_refresh_index_placeholder(self, service: MdqService) -> None:
-        req = RefreshIndexRequest(paths=[])
+    def test_get_chunk_not_found(self, service: MdqService) -> None:
+        req = GetChunkRequest(chunk_id=999)
+        result = asyncio.run(service.get_chunk(req))
+        assert "not found" in result.lower()
+
+    def test_refresh_index_delegates_to_indexer(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        req = RefreshIndexRequest(paths=[str(md_file)])
         result = asyncio.run(service.refresh_index(req))
-        assert result == "Index refreshed"
+        assert result == "Indexing complete"
 
-    def test_stats_placeholder(self, service: MdqService) -> None:
+    def test_stats_returns_counts_after_indexing(
+        self, service: MdqService, md_dir: Path
+    ) -> None:
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_dir)])))
         req = StatsRequest()
         result = asyncio.run(service.stats(req))
-        assert result == "Stats retrieved"
+        assert "Documents:" in result
+        assert "Chunks:" in result
 
-    def test_grep_docs_placeholder(self, service: MdqService) -> None:
-        req = GrepDocsRequest(pattern=r"\bword\b")
+    def test_grep_docs_returns_matches_after_indexing(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
+        req = GrepDocsRequest(pattern="Content")
         result = asyncio.run(service.grep_docs(req))
-        assert r"\bword\b" in result
+        assert "Chunk" in result or "Content" in result
+
+    def test_grep_docs_no_match(self, service: MdqService) -> None:
+        req = GrepDocsRequest(pattern="nonexistent_xyz")
+        result = asyncio.run(service.grep_docs(req))
+        assert "No matches found" in result
 
     def test_index_paths_delegates(self, service: MdqService, md_dir: Path) -> None:
         req = IndexPathsRequest(paths=[str(md_dir)])
         result = asyncio.run(service.index_paths(req))
         assert result == "Indexing complete"
 
-    def test_outline_delegates_to_parser(
+    def test_outline_returns_headings(
         self, service: MdqService, md_file: Path
     ) -> None:
         req = OutlineRequest(path=str(md_file))
         result = asyncio.run(service.outline(req))
-        assert "# Title" in result
+        assert "Title" in result
 
-    def test_db_path_default(self, service: MdqService) -> None:
-        assert service.db_path == "/opt/llm/db/mdq.db"
+    def test_db_path_configurable(self) -> None:
+        from tempfile import mkstemp  # noqa: PLC0415
+
+        fd, db = mkstemp(suffix=".db")
+        try:
+            svc = MdqService(db_path=db)
+            assert svc.db_path == db
+        finally:
+            import os  # noqa: PLC0415
+
+            os.close(fd)
