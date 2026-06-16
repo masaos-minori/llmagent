@@ -1,8 +1,7 @@
 ---
 name: python-documentation
 description: |
-  Strictly inspect an existing Python repository and produce concise, evidence-based documentation from source code, configuration, tests, and CI/CD.
-  Treat implementation as the only source of truth, reject unsupported claims, keep uncertainty explicit, minimize unnecessary edits, and follow the required reporting format exactly.
+  Use this skill proactively whenever writing or modifying Python document.
 ---
 
 # Python Documentation Skill
