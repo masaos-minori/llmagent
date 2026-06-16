@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""shell_mcp_service.py
+"""mcp/shell/service.py
 ShellService business logic and lazy singleton proxy for shell-mcp.
 
-Dependency direction: shell_mcp_models → shell_mcp_service → shell_mcp_server
+Dependency direction: shell_mcp_models -> shell_mcp_service -> shell_mcp_server
+
+Split layout:
+  service_static_helpers.py — Pure static helpers (sandbox, resource limits, preexec)
+  service.py                — ShellService class + dispatch table factory + build_service
 """
 
 from __future__ import annotations
@@ -12,9 +16,7 @@ import fnmatch
 import logging
 import os
 import pwd
-import resource
 import shlex
-import shutil
 import signal
 import time
 from collections.abc import Awaitable, Callable
@@ -32,72 +34,22 @@ from mcp.shell.models import (
     ShellValidationError,
 )
 
+import shutil
+
+from .service_static_helpers import (
+    init_sandbox,
+    make_preexec,
+    set_resource_limits,
+)
+
 # Standard library logger; log path is owned by shell_mcp_server.py
 logger = logging.getLogger(__name__)
 
 
-def _init_sandbox(backend: str) -> str:
-    """Validate firejail availability at startup; fall back to 'none' if not found.
-
-    Called once during ShellService.__init__ so the warning appears at startup
-    rather than on every command execution.
-    """
-    if backend == "firejail":
-        if shutil.which("firejail") is None:
-            logger.warning(
-                "firejail not found in PATH; shell_sandbox_backend falling back to 'none'",
-            )
-            return "none"
-    return backend
-
-
-def _set_resource_limits(max_memory_mb: int, timeout_sec: int) -> None:
-    """Set resource limits in the child process via preexec_fn.
-
-    Called inside the forked child before exec, so it affects only that process.
-    Limits set:
-      RLIMIT_CPU  — CPU time ceiling (2x timeout as a safety margin)
-      RLIMIT_AS   — virtual address space (max_memory_mb)
-      RLIMIT_NOFILE — open file descriptors
-      RLIMIT_NPROC  — subprocess count (prevent fork bombs)
-      RLIMIT_FSIZE  — written file size (prevent runaway writes)
-    """
-    mb = 1024 * 1024
-    # CPU limit: 2x timeout_sec so asyncio timeout fires first under normal conditions
-    cpu_limit = max(timeout_sec * 2, 60)
-    resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit, cpu_limit))
-    # Address space: cap at max_memory_mb (soft == hard to make it a hard limit)
-    mem_bytes = max_memory_mb * mb
-    resource.setrlimit(resource.RLIMIT_AS, (mem_bytes, mem_bytes))
-    # File descriptors: generous but bounded to prevent descriptor leaks
-    resource.setrlimit(resource.RLIMIT_NOFILE, (256, 256))
-    # Subprocesses: allow a small number but block fork bombs
-    resource.setrlimit(resource.RLIMIT_NPROC, (64, 64))
-    # Write size: cap at 256 MB to prevent runaway writes
-    fsize = 256 * mb
-    resource.setrlimit(resource.RLIMIT_FSIZE, (fsize, fsize))
-
-
-def _make_preexec(
-    max_memory_mb: int,
-    timeout_sec: int,
-    uid: int | None,
-    gid: int | None,
-) -> Callable[[], None]:
-    """Build preexec_fn for the child process.
-
-    Optionally switches OS user (setgid then setuid) when uid/gid are provided.
-    Always applies resource limits. No logging here — called in forked child.
-    """
-
-    def _preexec() -> None:
-        if gid is not None:
-            os.setgid(gid)
-        if uid is not None:
-            os.setuid(uid)
-        _set_resource_limits(max_memory_mb, timeout_sec)
-
-    return _preexec
+# Re-export for backward compatibility with tests that import these directly.
+_init_sandbox = init_sandbox
+_make_preexec = make_preexec
+_set_resource_limits = set_resource_limits
 
 
 class ShellService:
@@ -116,7 +68,7 @@ class ShellService:
         self._max_memory_mb = policy.max_memory_mb
         self._audit_log_path = policy.audit_log_path
         # Validate firejail availability once at init; falls back to "none" if absent
-        self._sandbox_backend = _init_sandbox(policy.sandbox_backend)
+        self._sandbox_backend = init_sandbox(policy.sandbox_backend)
         self._default_cwd = policy.default_cwd
         self._env_allowlist: list[str] = list(policy.env_allowlist)
         self._env_denylist: list[str] = list(policy.env_denylist)
@@ -289,7 +241,7 @@ class ShellService:
             cwd=cwd,
             env=env,
             start_new_session=True,
-            preexec_fn=_make_preexec(
+            preexec_fn=make_preexec(
                 self._max_memory_mb, timeout_sec, self._exec_uid, self._exec_gid
             ),
         )
