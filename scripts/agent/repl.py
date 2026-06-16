@@ -34,6 +34,7 @@ from agent.context import AgentContext
 from agent.factory import build_agent_context, init_tracer
 from agent.orchestrator import Orchestrator
 from agent.repl_health import (
+    audit_security_defaults,
     check_service_health,
     check_tool_definitions_runtime,
     watchdog_loop,
@@ -304,7 +305,10 @@ class AgentREPL:
         await self._start_subprocess_servers()
 
     async def _check_services(self) -> None:
-        """Probe LLM / Embed service health and validate tool definitions."""
+        """Probe LLM / Embed service health, validate tool definitions, and audit security defaults."""
+        # Audit security-related configuration defaults (warns on risky settings)
+        audit_security_defaults(self._ctx)
+
         # Probe LLM / Embed service health; warnings only, REPL continues on failure
         await self._check_service_health()
 

@@ -326,3 +326,50 @@ async def watchdog_loop(ctx: AgentContext) -> None:
                 )
         if ctx.services.lifecycle is not None:
             await ctx.services.lifecycle.shutdown_idle()
+
+
+def audit_security_defaults(ctx: AgentContext) -> list[str]:
+    """Audit security-related configuration defaults and return warning strings.
+
+    Checks for risky settings such as:
+      - auth_token disabled (empty) on servers that support it
+      - shell sandbox disabled (none backend)
+      - GitHub workflow allowlist empty (fail-open)
+      - Allowed tools empty (allow all)
+    Returns a list of warning messages; empty list means no issues.
+    """
+    warnings: list[str] = []
+
+    # Check auth_token settings
+    for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
+        if not srv_cfg.auth_token and srv_cfg.transport == "http" and srv_cfg.url:
+            msg = f"Security: {key} has no auth_token configured (auth disabled)"
+            warnings.append(msg)
+
+    # Check shell sandbox backend
+    shell_policy = getattr(ctx.cfg, "shell_policy", None)
+    if shell_policy is not None:
+        sandbox_backend = getattr(shell_policy, "sandbox_backend", "unknown")
+        if sandbox_backend == "none":
+            msg = "Security: shell_sandbox_backend=none (no sandbox for shell commands)"
+            warnings.append(msg)
+
+    # Check GitHub workflow allowlist
+    github_cfg = getattr(ctx.cfg, "github", None)
+    if github_cfg is not None:
+        allowed_workflows = getattr(github_cfg, "allowed_workflows", None)
+        if isinstance(allowed_workflows, (list, tuple)) and len(allowed_workflows) == 0:
+            msg = "Security: github.allowed_workflows is empty (fail-open: all workflows allowed)"
+            warnings.append(msg)
+
+    # Check allowed_tools (empty = allow all tools)
+    tool_cfg = getattr(ctx.cfg, "tool", None)
+    if tool_cfg is not None:
+        allowed_tools = getattr(tool_cfg, "allowed_tools", None)
+        if isinstance(allowed_tools, (list, tuple)) and len(allowed_tools) == 0:
+            msg = "Security: tool.allowed_tools is empty (all tools allowed; use allowlist to restrict)"
+            warnings.append(msg)
+
+    for w in warnings:
+        logger.warning(w)
+    return warnings
