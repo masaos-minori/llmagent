@@ -22,6 +22,7 @@ from shared.tool_executor import (
     StdioTransport,
     ToolCallResult,
     ToolExecutor,
+    TransportError,
 )
 
 
@@ -166,7 +167,7 @@ class TestHttpTransportAuthHeader:
         )
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {"result": "ok", "is_error": False}
+        mock_resp.content = b'{"result":"ok","is_error":false}'
         mock_resp.raise_for_status = MagicMock()
         mock_resp.headers = {}
         mock_http.post = AsyncMock(return_value=mock_resp)
@@ -182,7 +183,7 @@ class TestHttpTransportAuthHeader:
         cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "", auth_token="")
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {"result": "ok", "is_error": False}
+        mock_resp.content = b'{"result":"ok","is_error":false}'
         mock_resp.raise_for_status = MagicMock()
         mock_resp.headers = {}
         mock_http.post = AsyncMock(return_value=mock_resp)
@@ -198,7 +199,7 @@ class TestHttpTransportAuthHeader:
         """Backward-compat: HttpTransport without cfg arg sends no auth header."""
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {"result": "ok", "is_error": False}
+        mock_resp.content = b'{"result":"ok","is_error":false}'
         mock_resp.raise_for_status = MagicMock()
         mock_resp.headers = {}
         mock_http.post = AsyncMock(return_value=mock_resp)
@@ -213,7 +214,7 @@ class TestHttpTransportAuthHeader:
     async def test_x_request_id_captured_from_response_header(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {"result": "ok", "is_error": False}
+        mock_resp.content = b'{"result":"ok","is_error":false}'
         mock_resp.raise_for_status = MagicMock()
         mock_resp.headers = {"x-request-id": "abc-123"}
         mock_http.post = AsyncMock(return_value=mock_resp)
@@ -228,7 +229,7 @@ class TestHttpTransportAuthHeader:
     async def test_x_request_id_empty_when_header_absent(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {"result": "ok", "is_error": False}
+        mock_resp.content = b'{"result":"ok","is_error":false}'
         mock_resp.raise_for_status = MagicMock()
         mock_resp.headers = {}
         mock_http.post = AsyncMock(return_value=mock_resp)
@@ -242,7 +243,7 @@ class TestHttpTransportAuthHeader:
 
 class TestHttpTransportErrors:
     @pytest.mark.asyncio
-    async def test_http_status_error_returns_error_tuple(self) -> None:
+    async def test_http_status_error_raises_transport_error(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         req = httpx.Request("POST", "http://127.0.0.1:8000/v1/call_tool")
         resp_obj = httpx.Response(500, request=req)
@@ -252,46 +253,39 @@ class TestHttpTransportErrors:
             )
         )
         transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
-        res = await transport.call("my_tool", {})
-        result, is_err, x_req_id = res.output, res.is_error, res.request_id
-        assert is_err
-        assert "HTTPStatusError" in result
-        assert x_req_id == ""
+        with pytest.raises(TransportError) as exc_info:
+            await transport.call("my_tool", {})
+        assert "HTTPStatusError" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_request_error_returns_error_tuple(self) -> None:
+    async def test_request_error_raises_transport_error(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         req = httpx.Request("POST", "http://127.0.0.1:8000/v1/call_tool")
         mock_http.post = AsyncMock(
             side_effect=httpx.ConnectError("refused", request=req)
         )
         transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
-        res = await transport.call("my_tool", {})
-        _result, is_err, x_req_id = res.output, res.is_error, res.request_id
-        assert is_err
-        assert x_req_id == ""
+        with pytest.raises(TransportError):
+            await transport.call("my_tool", {})
 
     @pytest.mark.asyncio
-    async def test_generic_exception_returns_error_tuple(self) -> None:
+    async def test_invalid_response_raises_transport_error(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
-        mock_http.post = AsyncMock(side_effect=RuntimeError("unexpected"))
+        req = httpx.Request("POST", "http://127.0.0.1:8000/v1/call_tool")
+        resp_obj = httpx.Response(200, request=req, content=b"not-json")
+        mock_http.post = AsyncMock(return_value=resp_obj)
         transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc")
-        res = await transport.call("my_tool", {})
-        result, is_err, x_req_id = res.output, res.is_error, res.request_id
-        assert is_err
-        assert "RuntimeError" in result
-        assert x_req_id == ""
+        with pytest.raises(TransportError):
+            await transport.call("my_tool", {})
 
 
 class TestStdioTransportCall:
     @pytest.mark.asyncio
-    async def test_not_alive_returns_error(self) -> None:
+    async def test_not_alive_raises_transport_error(self) -> None:
         transport = StdioTransport(["python", "s.py"], "key")
-        res = await transport.call("my_tool", {})
-        result, is_err, x_req_id = res.output, res.is_error, res.request_id
-        assert is_err
-        assert "not running" in result
-        assert x_req_id == ""
+        with pytest.raises(TransportError) as exc_info:
+            await transport.call("my_tool", {})
+        assert "not running" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_success_response_returns_result(self) -> None:
@@ -312,7 +306,7 @@ class TestStdioTransportCall:
         assert x_req_id == ""
 
     @pytest.mark.asyncio
-    async def test_invalid_json_returns_error(self) -> None:
+    async def test_invalid_json_raises_transport_error(self) -> None:
         transport = StdioTransport(["python", "s.py"], "key")
         mock_proc = MagicMock()
         mock_proc.returncode = None
@@ -321,13 +315,11 @@ class TestStdioTransportCall:
         mock_proc.stdout = MagicMock()
         mock_proc.stdout.readline = AsyncMock(return_value=b"not-json\n")
         transport._proc = mock_proc
-        res = await transport.call("my_tool", {})
-        _result, is_err, x_req_id = res.output, res.is_error, res.request_id
-        assert is_err
-        assert x_req_id == ""
+        with pytest.raises(TransportError):
+            await transport.call("my_tool", {})
 
     @pytest.mark.asyncio
-    async def test_timeout_returns_error(self) -> None:
+    async def test_timeout_raises_transport_error(self) -> None:
         transport = StdioTransport(["python", "s.py"], "key")
         mock_proc = MagicMock()
         mock_proc.returncode = None
@@ -336,14 +328,12 @@ class TestStdioTransportCall:
         mock_proc.stdout = MagicMock()
         transport._proc = mock_proc
         with patch("asyncio.wait_for", new=AsyncMock(side_effect=TimeoutError())):
-            res = await transport.call("my_tool", {})
-        result, is_err, x_req_id = res.output, res.is_error, res.request_id
-        assert is_err
-        assert "timeout" in result
-        assert x_req_id == ""
+            with pytest.raises(TransportError) as exc_info:
+                await transport.call("my_tool", {})
+        assert "timeout" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_transport_exception_returns_error(self) -> None:
+    async def test_transport_exception_raises_transport_error(self) -> None:
         transport = StdioTransport(["python", "s.py"], "key")
         mock_proc = MagicMock()
         mock_proc.returncode = None
@@ -351,10 +341,8 @@ class TestStdioTransportCall:
         mock_proc.stdin.drain = AsyncMock(side_effect=OSError("pipe broken"))
         mock_proc.stdout = MagicMock()
         transport._proc = mock_proc
-        res = await transport.call("my_tool", {})
-        _result, is_err, x_req_id = res.output, res.is_error, res.request_id
-        assert is_err
-        assert x_req_id == ""
+        with pytest.raises(TransportError):
+            await transport.call("my_tool", {})
 
 
 class TestToolExecutorExecute:
@@ -517,7 +505,7 @@ class TestSetSessionId:
         cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "")
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {"result": "ok", "is_error": False}
+        mock_resp.content = b'{"result":"ok","is_error":false}'
         mock_resp.raise_for_status = MagicMock()
         mock_resp.headers = {}
         mock_http.post = AsyncMock(return_value=mock_resp)
@@ -690,3 +678,79 @@ class TestToolExecutorHealthGate:
         ex = _make_executor()
         ex.set_health_registry(None)
         assert ex._health_registry is None
+
+    @pytest.mark.asyncio
+    async def test_transport_success_calls_record_success(self) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key="file_read"
+            )
+        )
+        ex._transports["file_read"] = mock_transport
+        res = await ex._raw_execute("read_text_file", {})
+        assert not res.is_error
+        assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
+
+    @pytest.mark.asyncio
+    async def test_transport_failure_calls_record_failure(self) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(side_effect=TransportError("connection refused"))
+        ex._transports["file_read"] = mock_transport
+        res = await ex._raw_execute("read_text_file", {})
+        assert res.is_error
+        assert "connection refused" in res.output
+        assert registry.get_state("file_read") == McpServerHealthState.DEGRADED
+
+    @pytest.mark.asyncio
+    async def test_repeated_failures_reach_unavailable(self) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(side_effect=TransportError("fail"))
+        ex._transports["file_read"] = mock_transport
+        for _ in range(3):
+            await ex._raw_execute("read_text_file", {})
+        assert registry.is_unavailable("file_read")
+
+    @pytest.mark.asyncio
+    async def test_unavailable_server_blocks_dispatch(self) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=1)
+        registry.record_failure("file_read")
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key=""
+            )
+        )
+        ex._transports["file_read"] = mock_transport
+        res = await ex._raw_execute("read_text_file", {})
+        assert res.is_error
+        assert "unavailable" in res.output.lower()
+        mock_transport.call.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_tool_error_does_not_affect_health(self) -> None:
+        """Tool-level error (is_error=true from server) should NOT increment failure counter."""
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="tool error", is_error=True, request_id="", server_key="file_read"
+            )
+        )
+        ex._transports["file_read"] = mock_transport
+        res = await ex._raw_execute("read_text_file", {})
+        assert res.is_error
+        assert registry.get_state("file_read") == McpServerHealthState.HEALTHY

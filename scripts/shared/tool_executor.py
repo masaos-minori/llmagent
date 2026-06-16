@@ -68,6 +68,14 @@ class TransportErrorInfo:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+class TransportError(Exception):
+    """Raised by transport layers when a transport-level failure occurs.
+
+    Distinguishes transport failures (network down, timeout, process crash)
+    from tool-level errors (MCP server responds with is_error=true).
+    """
+
+
 class HttpTransport:
     """Calls /v1/call_tool on a running HTTP MCP server via httpx."""
 
@@ -116,7 +124,12 @@ class HttpTransport:
         )
 
     async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
-        """POST to /v1/call_tool and return ToolCallResult."""
+        """POST to /v1/call_tool and return ToolCallResult.
+
+        Raises TransportError on transport-level failures (network errors,
+        timeouts, invalid responses).  Tool-level errors from the MCP server
+        are returned as-is with is_error=True in the result.
+        """
         headers: dict[str, str] = {}
         if self._auth_token:
             headers["Authorization"] = f"Bearer {self._auth_token}"
@@ -144,18 +157,14 @@ class HttpTransport:
                 f" — check {self._base_url}/health"
             )
             logger.warning(msg)
-            return ToolCallResult(
-                output=msg, is_error=True, request_id="", server_key=self._server_key
-            )
+            raise TransportError(msg) from e
         except (httpx.RequestError, ValueError) as e:
             msg = (
                 f"[{type(e).__name__}] tool={name} url={self._base_url}: {e}"
                 f" — check {self._base_url}/health"
             )
             logger.warning(msg)
-            return ToolCallResult(
-                output=msg, is_error=True, request_id="", server_key=self._server_key
-            )
+            raise TransportError(msg) from e
 
 
 class StdioTransport:
@@ -230,14 +239,15 @@ class StdioTransport:
         )
 
     async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
-        """Send one JSON-RPC request and return ToolCallResult; acquires per-instance lock so concurrent callers are serialized."""
+        """Send one JSON-RPC request and return ToolCallResult; acquires per-instance lock so concurrent callers are serialized.
+
+        Raises TransportError on transport-level failures (process crash,
+        timeout, broken pipe, invalid response).  Tool-level errors from the
+        MCP server are returned as-is with is_error=True in the result.
+        """
         if not self.is_alive():
-            return ToolCallResult(
-                output=f"stdio server not running (key={self._server_key!r})",
-                is_error=True,
-                request_id="",
-                server_key=self._server_key,
-            )
+            msg = f"stdio server not running (key={self._server_key!r})"
+            raise TransportError(msg)
 
         lock = self._get_lock()
         async with lock:
@@ -249,12 +259,8 @@ class StdioTransport:
 
             if not (self._proc and self._proc.stdin and self._proc.stdout):
                 # Unreachable after is_alive() guard above; defensive check for type narrowing
-                return ToolCallResult(
-                    output=f"stdio server process invalid (key={self._server_key!r})",
-                    is_error=True,
-                    request_id="",
-                    server_key=self._server_key,
-                )
+                msg = f"stdio server process invalid (key={self._server_key!r})"
+                raise TransportError(msg)
             try:
                 self._proc.stdin.write(payload.encode())
                 await self._proc.stdin.drain()
@@ -265,29 +271,15 @@ class StdioTransport:
             except TimeoutError:
                 msg = f"stdio server timeout (key={self._server_key!r} tool={name})"
                 logger.warning(msg)
-                return ToolCallResult(
-                    output=msg,
-                    is_error=True,
-                    request_id="",
-                    server_key=self._server_key,
-                )
+                raise TransportError(msg) from None
             except (OSError, BrokenPipeError) as e:
                 msg = f"stdio transport error (key={self._server_key!r}): {e}"
                 logger.error(msg)
-                return ToolCallResult(
-                    output=msg,
-                    is_error=True,
-                    request_id="",
-                    server_key=self._server_key,
-                )
+                raise TransportError(msg) from e
 
             if not resp_bytes:
-                return ToolCallResult(
-                    output=f"stdio server closed connection (key={self._server_key!r})",
-                    is_error=True,
-                    request_id="",
-                    server_key=self._server_key,
-                )
+                msg = f"stdio server closed connection (key={self._server_key!r})"
+                raise TransportError(msg)
             try:
                 result = self._parse_stdio_response(resp_bytes)
                 return ToolCallResult(
@@ -302,12 +294,7 @@ class StdioTransport:
                     f" raw={resp_bytes[:200]!r}"
                 )
                 logger.error(msg)
-                return ToolCallResult(
-                    output=msg,
-                    is_error=True,
-                    request_id="",
-                    server_key=self._server_key,
-                )
+                raise TransportError(msg) from e
 
     async def stop(self) -> None:
         """Gracefully shut down the subprocess (close stdin → wait → kill)."""
@@ -518,10 +505,30 @@ class ToolExecutor:
 
         self._ensure_semaphores()
         sem = (self._semaphores or {}).get(server_key)
-        if sem is not None:
-            async with sem:
-                return await transport.call(tool_name, args)
-        return await transport.call(tool_name, args)
+
+        async def _do_call() -> ToolCallResult:
+            if sem is not None:
+                async with sem:
+                    return await transport.call(tool_name, args)
+            return await transport.call(tool_name, args)
+
+        try:
+            result = await _do_call()
+            # Transport succeeded — record success regardless of tool-level errors.
+            # Tool-level errors (is_error=true in response body) mean the server
+            # is reachable and functioning; only transport failures affect health.
+            if self._health_registry is not None:
+                self._health_registry.record_success(server_key)
+            return result
+        except TransportError as e:
+            # Transport-level failure — increment failure counter.
+            if self._health_registry is not None:
+                state = self._health_registry.record_failure(server_key)
+                logger.warning(
+                    "transport failure for %r: %s (state=%s)",
+                    server_key, e, state.value,
+                )
+            return ToolCallResult(output=str(e), is_error=True, request_id="", server_key=server_key)
 
     async def _execute_with_cache(
         self,
