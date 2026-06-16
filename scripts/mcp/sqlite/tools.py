@@ -29,5 +29,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["db", "sql"],
         },
+        "status": "production",
+        "requires_config": True,
     },
 ]

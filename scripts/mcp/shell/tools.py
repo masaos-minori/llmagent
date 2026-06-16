@@ -50,5 +50,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["command"],
         },
+        "status": "production",
+        "requires_config": True,
     },
 ]

@@ -25,5 +25,6 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["query"],
         },
+        "status": "production",
     },
 ]

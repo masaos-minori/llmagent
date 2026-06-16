@@ -30,6 +30,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["query"],
         },
+        "status": "production",
     },
     {
         "name": "rag_debug_pipeline",
@@ -48,5 +49,6 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["query"],
         },
+        "status": "production",
     },
 ]

@@ -36,6 +36,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo", "workflow"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "get_workflow_runs",
@@ -61,6 +63,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo", "workflow"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "get_workflow_status",
@@ -81,6 +85,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo", "run_id"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "get_workflow_logs",
@@ -102,5 +108,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo", "run_id"],
         },
+        "status": "production",
+        "requires_config": True,
     },
 ]

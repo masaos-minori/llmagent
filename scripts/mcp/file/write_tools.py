@@ -25,6 +25,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["path", "content"],
         },
+        "status": "production",
+        "requires_config": False,
     },
     {
         "name": "edit_file",
@@ -61,6 +63,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["path", "edits"],
         },
+        "status": "production",
+        "requires_config": False,
     },
     {
         "name": "create_directory",
@@ -75,6 +79,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["path"],
         },
+        "status": "production",
+        "requires_config": False,
     },
     {
         "name": "move_file",
@@ -93,5 +99,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["source", "destination"],
         },
+        "status": "production",
+        "requires_config": False,
     },
 ]

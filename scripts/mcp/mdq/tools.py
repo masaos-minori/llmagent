@@ -35,6 +35,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["query"],
         },
+        "status": "production",
     },
     {
         "name": "get_chunk",
@@ -50,6 +51,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["chunk_id"],
         },
+        "status": "production",
     },
     {
         "name": "outline",
@@ -59,6 +61,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             "properties": {"path": {"type": "string", "description": "File path"}},
             "required": ["path"],
         },
+        "status": "production",
     },
     {
         "name": "index_paths",
@@ -70,6 +73,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["paths"],
         },
+        "status": "production",
     },
     {
         "name": "refresh_index",
@@ -81,11 +85,13 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["paths"],
         },
+        "status": "production",
     },
     {
         "name": "stats",
         "description": "Return document/chunk count and index metadata.",
         "inputSchema": {"type": "object", "properties": {}, "required": []},
+        "status": "production",
     },
     {
         "name": "grep_docs",
@@ -98,5 +104,6 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["pattern"],
         },
+        "status": "production",
     },
 ]

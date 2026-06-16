@@ -27,6 +27,8 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["query"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "github_list_branches",
@@ -42,6 +44,8 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "github_create_branch",
@@ -65,6 +69,8 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo", "branch_name"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "github_list_commits",
@@ -84,6 +90,8 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "github_get_commit",
@@ -103,6 +111,8 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["owner", "repo", "sha"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "github_search_code",
@@ -120,5 +130,7 @@ TOOL_LIST: list[dict] = [
             },
             "required": ["query"],
         },
+        "status": "production",
+        "requires_config": True,
     },
 ]

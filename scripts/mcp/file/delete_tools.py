@@ -21,6 +21,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["path"],
         },
+        "status": "production",
+        "requires_config": False,
     },
     {
         "name": "delete_directory",
@@ -39,5 +41,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["path"],
         },
+        "status": "production",
+        "requires_config": False,
     },
 ]

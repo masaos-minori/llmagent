@@ -21,6 +21,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo_path"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "git_log",
@@ -45,6 +47,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo_path"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "git_diff",
@@ -69,6 +73,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo_path"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "git_branch",
@@ -83,6 +89,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo_path"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "git_show",
@@ -102,6 +110,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo_path"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "git_add",
@@ -126,6 +136,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo_path", "paths"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "git_commit",
@@ -146,6 +158,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo_path", "message"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "git_checkout",
@@ -174,6 +188,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo_path", "branch"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "git_pull",
@@ -203,6 +219,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo_path"],
         },
+        "status": "production",
+        "requires_config": True,
     },
     {
         "name": "git_push",
@@ -232,5 +250,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["repo_path"],
         },
+        "status": "production",
+        "requires_config": True,
     },
 ]

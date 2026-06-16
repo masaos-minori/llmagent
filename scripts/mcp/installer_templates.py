@@ -41,6 +41,8 @@ def generate_server_script(server_name: str, module: str, port: int) -> str:
             {{
                 "name": "{module}_sample_tool",
                 "description": "Sample tool for {server_name}. Replace with real description.",
+                "status": "production",
+                "requires_config": False,
             }},
         ]
 
