@@ -37,15 +37,14 @@ Each entry format:
 
 ---
 
-### UNDOC-01: startup_mode="subprocess" + transport="stdio" validation not documented
+### UNDOC-01: startup_mode × transport compatibility matrix documented
 
-- **Type:** Document inconsistency / Needs confirmation
-- **Impact scope:** `shared/mcp_config.py` `McpServerConfig.__post_init__()` (line 57-67)
-- **Statement A:** `04_spec_mcp.md §9.2` shows a startup_mode table covering `http` and `stdio` transports but does not mention validation errors.
-- **Statement B:** `04_spec_mcp.md §13` notes that `startup_mode="subprocess"` + `transport="stdio"` raises `ValueError` in `mcp_config.py:57-67`. This validation is not described in the startup mode compatibility table.
-- **Current safe interpretation:** `startup_mode="subprocess"` is ONLY valid with `transport="http"`. Using it with `transport="stdio"` raises `ValueError` at agent startup.
-- **Recommended action:** Add explicit compatibility table to `McpServerConfig` documentation noting the invalid combination.
-- **Notes for AI reference:** Always pair `startup_mode="subprocess"` with `transport="http"`. Never use it with `transport="stdio"`.
+- **Type:** Resolved
+- **Impact scope:** `shared/mcp_config.py`, `04_mcp_01_system_overview.md`
+- **Description:** Compatibility matrix exists in `04_mcp_01_system_overview.md` (Startup Modes section). Validation error message in `McpServerConfig.__post_init__()` explains valid alternatives: "startup_mode='subprocess' is only valid for transport='http'; stdio servers use 'persistent' or 'ondemand'".
+- **Valid combinations:** persistent+http, subprocess+http, persistent+stdio, ondemand+stdio. Invalid: subprocess+stdio.
+- **Recommended action:** None - already documented and enforced.
+- **Notes for AI reference:** Always pair `startup_mode="subprocess"` with `transport="http"`.
 
 ---
 

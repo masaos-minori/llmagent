@@ -75,7 +75,6 @@ as the primary reference. Source files are retained unchanged.
 |---|---|
 | HealthRegistry record_success/failure never called (BUG) | [04_mcp_90 §BUG-01](04_mcp_90_inconsistencies_and_known_issues.md) |
 | mdq-mcp service layer is placeholder (all 7 tools) | [04_mcp_90 §MISSING-01](04_mcp_90_inconsistencies_and_known_issues.md) |
-| startup_mode="subprocess" + transport="stdio" validation | [04_mcp_90 §UNDOC-01](04_mcp_90_inconsistencies_and_known_issues.md) |
 
 ---
 
