@@ -26,6 +26,7 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | Task scope | Reference docs |
 |---|---|
 | エージェント仕様（全体・設計・未解決事項） | `docs/05_agent_00_document-guide.md` + `docs/05_agent_01_system-overview.md` |
+| エージェント 既知問題・不整合 | `docs/05_agent_90_inconsistencies_and_known_issues.md` |
 | MCP サーバー仕様（全体・設計・未解決事項） | `docs/04_mcp_00_document-guide.md` + `docs/04_mcp_01_system_overview.md` |
 | RAG パイプライン仕様（全体・設計・未解決事項） | `docs/03_rag_00_document-guide.md` + `docs/03_rag_01_system_overview.md` |
 | DB 層仕様（スキーマ・保守・未解決事項） | `docs/06_shared_04_db_architecture_and_schema.md` + `docs/06_shared_05_db_api_and_operations.md` |

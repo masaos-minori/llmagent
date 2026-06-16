@@ -86,12 +86,17 @@ retained unchanged.
 
 ## Spec Conflicts and Open Questions
 
-| Issue | Location |
+All known issues, spec conflicts, and open questions are consolidated in
+[05_agent_90_inconsistencies_and_known_issues.md](05_agent_90_inconsistencies_and_known_issues.md).
+
+| Issue | ID |
 |---|---|
-| `repl_tool_exec.py` deletion (tool logic moved to `ToolExecutor`) | [02 §Spec Conflict](05_agent_02_runtime-architecture.md) |
-| `ServerLifecycleManager` deletion (`_ServerLifecycleRouter` in factory.py) | [02 §Spec Conflict](05_agent_02_runtime-architecture.md) |
-| `AgentSession` owning RAG table access (responsibility boundary) | [12 §AgentSession](05_agent_12_reference-api.md) |
-| Workflow engine fallback conditions | [03 §WorkflowEngine](05_agent_03_turn-processing-flow.md) |
+| `repl_tool_exec.py` deletion (tool logic moved to `ToolExecutor`) | DOC-01 |
+| `ServerLifecycleManager` deletion (`_ServerLifecycleRouter` in factory.py) | DOC-02 |
+| `MCPConfig.github_url` field vs `github_server_url` config key | DOC-03 |
+| `AgentSession` owning RAG table access (responsibility boundary) | OQ-01 |
+| Workflow engine fallback conditions | OQ-02 |
+| Memory layer API undocumented in restructured docs | UNDOC-01 |
 
 ---
 
@@ -111,12 +116,13 @@ retained unchanged.
 | [05_agent_10_operations-and-observability.md](05_agent_10_operations-and-observability.md) | Startup, verification, audit log, OTel, /context, /stats, troubleshooting |
 | [05_agent_11_extension-points.md](05_agent_11_extension-points.md) | Plugin architecture, @register_command/tool/pipeline_stage, new MCP server |
 | [05_agent_12_reference-api.md](05_agent_12_reference-api.md) | Concise per-module API: role, callers, callees, config, failure |
+| [05_agent_90_inconsistencies_and_known_issues.md](05_agent_90_inconsistencies_and_known_issues.md) | Known bugs, spec conflicts, open questions, undocumented areas |
 
 ---
 
 ## Known Limitations
 
-- Old source files (`05_agent.md`, `05_ref-agent-*.md`, etc.) are retained unchanged.
-  This document set supersedes them as the primary reference.
-- Memory layer documentation (`agent/memory/`) is summarized only; detailed API
-  is in `docs/05_ref-agent-context.md` (retained source file).
+- Old source files (`05_agent.md`, `05_ref-agent-*.md`, etc.) have been deleted.
+  This document set is the primary reference.
+- Memory layer (`agent/memory/`) is summarized in `05_agent_02` §Memory Services.
+  No standalone per-module API reference exists in the restructured set. See UNDOC-01.
