@@ -164,32 +164,47 @@ MAX_SNIPPET_CHARS: int                   # max chars for snippet display
 
 ## 9. `ToolExecutor` and Surrounding Concepts (`shared/tool_executor.py`)
 
-**Note:** `06_spec_shared.md` documents the execution flow. Detailed class API is in
-[04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md).
-See [06_shared_90 UNDOC-02](06_shared_90_inconsistencies_and_known_issues.md) for undocumented details.
+**Responsibility:** Core tool dispatch engine — resolves tool → server, handles caching, concurrency limits, health gating, and transport communication.
 
-**`ToolCallResult` dataclass:**
+**`ToolCallResult` dataclass (result contract):**
 ```python
 @dataclass
 class ToolCallResult:
-    output: str
-    is_error: bool
-    request_id: str
-    server_key: str
+    output: str          # Tool output string (truncated if > MCP_MAX_RESPONSE_BYTES)
+    is_error: bool       # True if the tool call failed
+    request_id: str      # X-Request-Id from the MCP server response
+    server_key: str      # Server key used for routing (e.g. "file_read", "shell")
 ```
 
 **Execution flow:**
 ```
 ToolExecutor.execute(tool_name, args) -> ToolCallResult
   1. plugin_registry.get_tool(tool_name) → plugin takes priority
-  2. McpServerHealthRegistry.is_unavailable(server_key) → block if UNAVAILABLE
-  3. TTL + LRU cache check (is_error=False results only)
-  4. _raw_execute(tool_name, args)
-       → Semaphore acquire (if concurrency_limits set)
+  2. ToolRouteResolver.resolve(tool_name) → server_key
+  3. McpServerHealthRegistry.is_unavailable(server_key) → block if UNAVAILABLE
+  4. TTL + LRU cache check (is_error=False results only)
+  5. _raw_execute(tool_name, args)
+       → Semaphore acquire (if concurrency_limits set for server_key)
        → HttpTransport.call() or StdioTransport.call()
-  5. Cache store (is_error=False only)
-  6. Return ToolCallResult
+  6. Cache store (is_error=False only; TTL from config)
+  7. Return ToolCallResult
 ```
+
+**Cache behavior:**
+- Only `is_error=False` results are cached
+- TTL + LRU eviction (configurable via `tool_cache_ttl_sec`, `tool_cache_maxsize`)
+- Cache key: `(tool_name, serialized_args)`
+- Side-effect tools bypass cache entirely
+
+**Health gate:**
+- `McpServerHealthRegistry.is_unavailable(server_key)` blocks dispatch when UNAVAILABLE
+- Consecutive transport failures → DEGRADED → UNAVAILABLE state transitions
+- Successful response → resets to HEALTHY
+
+**Concurrency behavior:**
+- `concurrency_limits` dict maps server_key → max concurrent calls
+- Semaphore-based throttling in `_raw_execute()`
+- When `execute_all_tool_calls()` detects any side-effect tool, all calls in that round are serialized
 
 **Side-effect detection:**
 ```python
@@ -200,9 +215,50 @@ is_side_effect(tool_name: str) -> bool
 When `execute_all_tool_calls()` detects any side-effect tool, all calls in that round
 are serialized regardless of `serial_tool_calls` setting.
 
+**Routing:** Config-driven (`tool_names` in `McpServerConfig`) first; static fallback (`_SET_ROUTES`, `_EXACT_ROUTES`) second. See [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) for full routing details.
+
 ---
 
-## 10. `McpServerConfig` / `McpServerHealthRegistry`
+## 10. `LLMClient` (`shared/llm_client.py`)
+
+**Responsibility:** HTTP client for LLM API communication with retry logic, SSE streaming, and error handling.
+
+**Main API:**
+```python
+class LLMClient:
+    def __init__(
+        http: AsyncClient,
+        max_retries: int,
+        retry_base_delay: float,
+        temperature: float,
+        max_tokens: int,
+        on_token: Callable[[str], None] | None = None,
+        on_usage: Callable[[int, int], None] | None = None,
+        sse_heartbeat_timeout: float = 30.0,
+    )
+
+    async def call(messages, tool_calls=None) -> LLMResponse      # Non-streaming
+    async def stream(messages, tool_calls=None) -> AsyncIterator[str]  # Streaming
+    def build_payload(messages, tool_calls=None) -> dict         # Payload construction
+```
+
+**Error behavior:**
+- HTTP errors → `LLMTransportError` with `LLMErrorKind` classification
+- SSE heartbeat timeout → retry (configurable via `llm_stream_retry_on_heartbeat_timeout`)
+- SSE malformed chunk → retry (configurable via `llm_stream_retry_on_malformed_chunk`)
+- Max retries exhausted → raises `LLMTransportError`
+
+**Retry:** Exponential backoff starting at `retry_base_delay`, capped at `max_retries`.
+
+**Statistics (instance-level):** `stat_retries`, `stat_reconnects`, `stat_heartbeat_timeouts`, `stat_partial_completions`, `stat_parse_errors`
+
+**Configuration:** `apply_config()` hot-reloads temperature, max_tokens, and other fields from config dict.
+
+**Full details:** See [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md) for streaming protocol details and SSE parser internals.
+
+---
+
+## 11. `McpServerConfig` / `McpServerHealthRegistry`
 
 Both defined in `shared/mcp_config.py`. Full field reference in
 [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) and
@@ -213,12 +269,11 @@ Both defined in `shared/mcp_config.py`. Full field reference in
 - `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE`
 - `McpServerHealthRegistry`: tracks consecutive failures; `UNAVAILABLE` blocks dispatch
 
-> **Known issue:** `McpServerConfig.transport` is typed as `str` rather than `Literal["http", "stdio"]`.
-> See [06_shared_90 TYPE-01](06_shared_90_inconsistencies_and_known_issues.md).
+> **Note:** `McpServerConfig.transport` uses `TransportType` enum (not plain `str`). See [06_shared_90 TYPE-01](06_shared_90_inconsistencies_and_known_issues.md).
 
 ---
 
-## 11. Execution Flow Summary
+## 12. Execution Flow Summary
 
 **Config loading:**
 ```
@@ -243,15 +298,15 @@ ToolExecutor.execute(tool_name, args)
 
 ---
 
-## 12. Import Boundaries and Design Notes
+## 13. Import Boundaries and Design Notes
 
 - `shared/` must NOT import from `agent/`, `mcp/`, `rag/`, `db/`
-- `LLMClient` (`shared/llm_client.py`) is undocumented in current specs — see [06_shared_90 UNDOC-01](06_shared_90_inconsistencies_and_known_issues.md)
-- `ToolExecutor` details beyond this document are covered in `04_mcp_03` and `05_agent_06`
+- `LLMClient` details are in this document (§10) and [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md)
+- `ToolExecutor` details are in this document (§9), [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md), and [05_agent_06_tool-execution-and-approval.md](05_agent_06_tool-execution-and-approval.md)
 
 ---
 
-## 13. AI Reference Guide
+## 14. AI Reference Guide
 
 | Question | Answer |
 |---|---|

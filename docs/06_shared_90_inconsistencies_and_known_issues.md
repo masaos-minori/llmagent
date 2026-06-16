@@ -105,27 +105,25 @@ Each entry uses the required format:
 
 ---
 
-### UNDOC-01: `shared/llm_client.py` (`LLMClient`, `RobustSSEParser`) is undocumented in shared-layer specs
+### UNDOC-01: `shared/llm_client.py` (`LLMClient`, `RobustSSEParser`) is documented in shared-layer specs
 
-- **Type:** Undocumented
-- **Impact scope:** `shared/llm_client.py` (~600 lines)
-- **Statement A:** `06_spec_shared.md §13` explicitly notes: "`shared/llm_client.py` with `RobustSSEParser` and `LLMClient` (exponential-backoff retry, reconnect-aware SSE streaming) is undocumented. ~600-line primary module."
-- **Statement B:** `LLMClient` and `RobustSSEParser` are documented in `docs/05_agent_05_llm-and-streaming.md`.
-- **Current safe interpretation:** Refer to `05_agent_05_llm-and-streaming.md` for `LLMClient` API details.
-- **Recommended action:** Add `shared/llm_client.py` reference to shared-layer documentation, or add link from this file set.
-- **Notes for AI reference:** Full `LLMClient` API is in `05_agent_05_llm-and-streaming.md`, not in `06_shared_*` files.
+- **Type:** Resolved
+- **Impact scope:** `shared/llm_client.py`; `06_shared_03_runtime_and_execution.md` §10
+- **Description:** Added shared-layer documentation for `LLMClient` including responsibility, main API (`call()`, `stream()`, `build_payload()`), error behavior, retry logic, and statistics. Cross-reference to `05_agent_05_llm-and-streaming.md` for streaming protocol details.
+- **Current safe interpretation:** See `06_shared_03` §10 for shared-layer view; `05_agent_05` for full streaming details.
+- **Recommended action:** None - already documented.
+- **Notes for AI reference:** `LLMClient` uses exponential backoff retry, SSE streaming with heartbeat timeout handling.
 
 ---
 
-### UNDOC-02: `shared/tool_executor.py` detailed behavior is undocumented in shared-layer specs
+### UNDOC-02: `shared/tool_executor.py` detailed behavior is documented in shared-layer specs
 
-- **Type:** Undocumented
-- **Impact scope:** `shared/tool_executor.py` — `ToolCallResult` dataclass, TTL+LRU cache details, `McpServerHealthRegistry` gating
-- **Statement A:** `06_spec_shared.md §13` notes: "`ToolCallResult` dataclass, TTL+LRU cache, `McpServerHealthRegistry` gating etc. are undocumented."
-- **Statement B:** Partial documentation exists in `04_mcp_03_routing_lifecycle_and_execution.md` and `05_agent_06_tool-execution-and-approval.md`.
-- **Current safe interpretation:** Use `04_mcp_03` for routing/lifecycle details; use `05_agent_06` for approval flow.
-- **Recommended action:** Add `shared/tool_executor.py` cross-reference from this file set.
-- **Notes for AI reference:** `ToolExecutor` details are split across `04_mcp_03` and `05_agent_06`. Neither document covers everything.
+- **Type:** Resolved
+- **Impact scope:** `shared/tool_executor.py`; `06_shared_03_runtime_and_execution.md` §9
+- **Description:** Added shared-layer documentation for `ToolExecutor` including execution flow, cache behavior (TTL+LRU, is_error=False only), health gate (UNAVAILABLE blocks dispatch), concurrency behavior (Semaphore-based), side-effect detection, and result contract (`ToolCallResult`).
+- **Current safe interpretation:** See `06_shared_03` §9 for shared-layer view; `04_mcp_03` for routing details; `05_agent_06` for approval flow.
+- **Recommended action:** None - already documented.
+- **Notes for AI reference:** `ToolExecutor.execute()` → plugin priority → health gate → cache → raw MCP call.
 
 ---
 
