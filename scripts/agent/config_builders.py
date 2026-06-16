@@ -190,6 +190,7 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
         ),
         system_prompt_tool=system_prompt_tool,
         allowed_tools=list(cfg.get("allowed_tools", [])),
+        plugin_tool_override=bool(cfg.get("plugin_tool_override", False)),
     )
 
 
@@ -273,4 +274,3 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
             structured_log=bool(cfg.get("structured_log", False)),
         ),
     )
-

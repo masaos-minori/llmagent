@@ -320,10 +320,26 @@ def _build_ingestion_service(
     )
 
 
-def _init_plugin_registry(audit_logger: Logger) -> None:
+def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
     """Load and register plugins from the plugins/ directory."""
+    from shared.tool_constants import get_all_mcp_tool_names
+
     plugin_dir = Path(__file__).parent.parent.parent / "plugins"
-    n_plugins = plugin_registry.load_plugins(plugin_dir)
+    override_policy = "allow" if ctx.cfg.tool.plugin_tool_override else "reject"
+
+    if ctx.cfg.tool.plugin_tool_override:
+        audit_logger.info(
+            "Plugin tool override policy: allow (shadowing MCP tools permitted)"
+        )
+
+    known_tools = (
+        get_all_mcp_tool_names() if override_policy == "reject" else frozenset()
+    )
+    n_plugins = plugin_registry.load_plugins(
+        plugin_dir,
+        known_tools=known_tools,
+        override_policy=override_policy,
+    )
     if n_plugins:
         audit_logger.info("Loaded %s plugin(s) from %s", n_plugins, plugin_dir)
 
@@ -365,4 +381,4 @@ def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
         stdio_procs=stdio_procs,
     )
 
-    _init_plugin_registry(audit_logger)
+    _init_plugin_registry(ctx, audit_logger)

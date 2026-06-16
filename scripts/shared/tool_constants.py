@@ -94,3 +94,21 @@ SQLITE_TOOLS: frozenset[str] = frozenset(
         "query_sqlite",
     },
 )
+
+
+def get_all_mcp_tool_names() -> frozenset[str]:
+    """Return all known MCP tool names for conflict checking.
+
+    This is the source of truth used by plugin_registry to detect
+    plugin tools that shadow MCP tools.
+    """
+    return frozenset(
+        READ_TOOLS
+        | WRITE_TOOLS
+        | DELETE_TOOLS
+        | RAG_TOOLS
+        | CICD_TOOLS
+        | MDQ_TOOLS
+        | GIT_TOOLS
+        | SQLITE_TOOLS,
+    )

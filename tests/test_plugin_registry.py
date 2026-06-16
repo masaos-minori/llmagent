@@ -6,6 +6,7 @@ Unit tests for plugin_registry: decorators, accessors, and load_plugins().
 from __future__ import annotations
 
 import asyncio
+import logging
 import textwrap
 from pathlib import Path
 
@@ -91,6 +92,144 @@ class TestRegisterTool:
         result, is_error = asyncio.run(handler({"text": "hello"}))
         assert result == "hello"
         assert is_error is False
+
+
+# ── @register_tool conflict detection (via _validate_tool_conflicts) ─────────
+
+
+class TestRegisterToolConflict:
+    def test_conflict_rejected_by_default(self, caplog):
+        # Register a tool that conflicts with a known MCP tool name
+        @plugin_registry.register_tool("list_directory")
+        async def handler(args: dict) -> tuple[str, bool]:
+            return "ok", False
+
+        assert plugin_registry.get_tool("list_directory") is not None
+
+        mcp_tools = frozenset({"list_directory"})
+        plugin_registry._validate_tool_conflicts(mcp_tools, "reject")
+
+        assert plugin_registry.get_tool("list_directory") is None
+        assert any("rejected" in r.message for r in caplog.records)
+
+    def test_conflict_allowed_with_override(self, caplog):
+        @plugin_registry.register_tool("list_directory")
+        async def handler(args: dict) -> tuple[str, bool]:
+            return "ok", False
+
+        assert plugin_registry.get_tool("list_directory") is not None
+
+        mcp_tools = frozenset({"list_directory"})
+        with caplog.at_level(logging.WARNING):
+            plugin_registry._validate_tool_conflicts(mcp_tools, "allow")
+
+        assert plugin_registry.get_tool("list_directory") is not None
+        assert any("shadows MCP tool" in r.message for r in caplog.records)
+
+    def test_no_conflict_succeeds(self):
+        @plugin_registry.register_tool("my_unique_tool")
+        async def handler(args: dict) -> tuple[str, bool]:
+            return "ok", False
+
+        mcp_tools = frozenset({"list_directory"})
+        plugin_registry._validate_tool_conflicts(mcp_tools, "reject")
+
+        assert plugin_registry.get_tool("my_unique_tool") is not None
+
+    def test_no_known_tools_disables_check(self):
+        @plugin_registry.register_tool("list_directory")
+        async def handler(args: dict) -> tuple[str, bool]:
+            return "ok", False
+
+        plugin_registry._validate_tool_conflicts(frozenset(), "reject")
+        assert plugin_registry.get_tool("list_directory") is not None
+
+
+# ── load_plugins conflict detection ──────────────────────────────────────────
+
+
+class TestLoadPluginsConflict:
+    def test_conflicting_plugin_skipped_in_reject_mode(self, tmp_path: Path):
+        (tmp_path / "conflict_plugin.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("list_directory")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        (tmp_path / "good_plugin.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("my_tool")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        mcp_tools = frozenset({"list_directory"})
+        n = plugin_registry.load_plugins(
+            tmp_path,
+            known_tools=mcp_tools,
+            override_policy="reject",
+        )
+        # Both modules load (n=2), but conflicting tool is removed
+        assert n == 2
+        assert plugin_registry.get_tool("my_tool") is not None
+        assert plugin_registry.get_tool("list_directory") is None
+
+    def test_conflicting_plugin_allowed_in_allow_mode(self, tmp_path: Path):
+        (tmp_path / "conflict_plugin.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("list_directory")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        mcp_tools = frozenset({"list_directory"})
+        n = plugin_registry.load_plugins(
+            tmp_path,
+            known_tools=mcp_tools,
+            override_policy="allow",
+        )
+        assert n == 1
+        assert plugin_registry.get_tool("list_directory") is not None
+
+    def test_non_conflicting_plugin_loads_in_reject_mode(self, tmp_path: Path):
+        (tmp_path / "safe_plugin.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("my_safe_tool")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        mcp_tools = frozenset({"list_directory"})
+        n = plugin_registry.load_plugins(
+            tmp_path,
+            known_tools=mcp_tools,
+            override_policy="reject",
+        )
+        assert n == 1
+        assert plugin_registry.get_tool("my_safe_tool") is not None
+
+    def test_load_plugins_default_no_conflict_check(self, tmp_path: Path):
+        # Default params: no known_tools, so no conflict check
+        (tmp_path / "shadow_plugin.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("list_directory")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        n = plugin_registry.load_plugins(tmp_path)
+        assert n == 1
 
 
 # ── @register_pipeline_stage ──────────────────────────────────────────────────

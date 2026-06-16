@@ -220,6 +220,8 @@ class ToolConfig:
     system_prompt_tool: str = ""
     # Empty = all tools allowed; non-empty = only listed tools allowed
     allowed_tools: list[str] = field(default_factory=list)
+    # Reject plugin tools that shadow MCP tool names; true = allow with warning
+    plugin_tool_override: bool = False
 
     def __post_init__(self) -> None:
         self._validate_tool_dedup_max_repeats()
@@ -227,6 +229,14 @@ class ToolConfig:
         self._validate_tool_error_max_consecutive()
         self._validate_tool_cache_max_size()
         self._validate_tool_error_retry_max()
+        self._validate_plugin_tool_override()
+
+    def _validate_plugin_tool_override(self) -> None:
+        if not isinstance(self.plugin_tool_override, bool):
+            raise ValueError(
+                f"plugin_tool_override must be bool, "
+                f"got {type(self.plugin_tool_override).__name__}"
+            )
 
     def _validate_tool_dedup_max_repeats(self) -> None:
         if self.tool_dedup_max_repeats < 1:
@@ -507,4 +517,3 @@ class AgentConfig:
             raise ValueError(
                 "memory_embed_enabled=True requires embed_url to be non-empty",
             )
-

@@ -68,6 +68,10 @@ md_snippet_max_chars = 600
 # When true, executes tool_calls sequentially in a loop instead of asyncio.gather() parallel execution; use when ordering is required for write->read dependencies
 serial_tool_calls = false
 
+# When true, allow plugin tools to shadow MCP tools by the same name;
+# default false -- conflicts are rejected at startup with a clear error
+plugin_tool_override = false
+
 # When true, appends all notes from the notes table to the end of the system prompt at startup
 auto_inject_notes = true
 

@@ -113,6 +113,11 @@ def get_tool(name: str) -> Callable[..., Any] | None:
     return _tools.get(name)
 
 
+def iter_tools() -> dict[str, Callable[..., Any]]:
+    """Return a snapshot of all registered plugin tools."""
+    return dict(_tools)
+
+
 def get_pipeline_post_stages() -> list[Callable[..., Any]]:
     """Return a snapshot of all registered post-rerank pipeline stage hooks."""
     return list(_pipeline_post)
@@ -121,8 +126,48 @@ def get_pipeline_post_stages() -> list[Callable[..., Any]]:
 # ── Plugin auto-discovery ─────────────────────────────────────────────────────
 
 
-def load_plugins(plugin_dir: str | Path) -> int:
-    """Import all *.py files from plugin_dir; returns count loaded; errors are logged and skipped."""
+def _validate_tool_conflicts(
+    known_tools: frozenset[str],
+    override_policy: str,
+) -> dict[str, bool]:
+    """Validate plugin tools against known MCP tool names.
+
+    Returns a dict mapping tool_name → True if the tool was removed (rejected).
+    """
+    if not known_tools:
+        return {}
+
+    removed: dict[str, bool] = {}
+    for tool_name in list(_tools.keys()):
+        if tool_name in known_tools:
+            if override_policy == "allow":
+                logger.warning(
+                    "Plugin tool %r shadows MCP tool; override policy allows it",
+                    tool_name,
+                )
+            else:
+                del _tools[tool_name]
+                removed[tool_name] = True
+                logger.error(
+                    "Plugin tool %r rejected: conflicts with MCP tool. "
+                    "Set plugin_tool_override = true to allow.",
+                    tool_name,
+                )
+    return removed
+
+
+def load_plugins(
+    plugin_dir: str | Path,
+    *,
+    known_tools: frozenset[str] = frozenset(),
+    override_policy: str = "reject",
+) -> int:
+    """Import all *.py files from plugin_dir; returns count loaded.
+
+    When *known_tools* is non-empty and *override_policy* is ``"reject"``,
+    plugin tools that conflict with known MCP tools are removed after loading
+    (not the entire directory -- other plugins continue loading).
+    """
     plugin_path = Path(plugin_dir)
     if not plugin_path.is_dir():
         logger.debug("Plugin dir not found, skipping: %s", plugin_dir)
@@ -137,8 +182,11 @@ def load_plugins(plugin_dir: str | Path) -> int:
                 spec.loader.exec_module(mod)
                 loaded += 1
                 logger.info("Plugin loaded: %s", py_file.name)
-        except (ImportError, SyntaxError, AttributeError) as e:
+        except (ImportError, SyntaxError, AttributeError, RuntimeError) as e:
             logger.warning("Plugin load failed (%s): %s", py_file.name, e)
+
+    # Run conflict validation after all modules are loaded
+    _validate_tool_conflicts(known_tools, override_policy)
     return loaded
 
 

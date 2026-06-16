@@ -61,7 +61,7 @@ Built-in commands in `_COMMANDS` list are matched first. If no built-in matches,
 ## `@register_tool`
 
 ```python
-@register_tool(name: str)
+@register_tool(name: str, *, known_tools: frozenset[str] = frozenset(), override_policy: str = "reject")
 async handler(args: dict) -> tuple[str, bool]   # (result_text, is_error)
 ```
 
@@ -71,8 +71,45 @@ async handler(args: dict) -> tuple[str, bool]   # (result_text, is_error)
 - Return value: `(result_text: str, is_error: bool)`
 - Access: `plugin_registry.get_tool(name)` → `Callable | None`
 
+### Plugin Tool Precedence and Conflict Policy
+
+Plugin tools are registered via the `@register_tool()` decorator in plugin files
+located in the `plugins/` directory. By default, plugin tools **shadow** MCP tools
+when they share the same name — this is because plugin tool lookup in
+`ToolExecutor.execute()` runs before MCP routing.
+
+#### Conflict Detection
+
+When `plugin_tool_override = false` (default):
+
+- At startup, all known MCP tool names are collected from `tool_constants.py`.
+- If a plugin tool name matches any known MCP tool, registration is **rejected**
+  with a clear error message: `Plugin tool "name" conflicts with MCP tool "name". Set plugin_tool_override = true to allow.`
+- Only the conflicting plugin file is skipped; other plugins continue loading.
+
+When `plugin_tool_override = true`:
+
+- Conflicts are allowed but logged as warnings: `Plugin tool "name" shadows MCP tool; override policy allows it`.
+- The plugin tool takes precedence over the MCP tool for the session.
+
+#### Configuration
+
+Set in `config/agent.toml`:
+
+```toml
+plugin_tool_override = false  # or true to allow shadowing
+```
+
+#### Precedence Order
+
+1. Plugin tools (checked first in `ToolExecutor.execute()`)
+2. MCP tools (routed via `ToolRouteResolver`)
+3. Built-in commands (slash commands, not tool calls)
+
+To avoid confusion, give plugin tools names that do not overlap with existing MCP tool names.
+
 **Priority vs MCP:** plugin tools are checked first. A plugin tool with the same name as
-an MCP tool will shadow the MCP tool for all calls in that session.
+an MCP tool will shadow the MCP tool for all calls in that session (unless conflict detection rejects it).
 
 ---
 
@@ -102,7 +139,7 @@ and pre-rerank hooks are not yet implemented.
 | `iter_commands()` | Dict snapshot of all registered commands |
 | `get_tool(name)` | `Callable \| None` |
 | `get_pipeline_post_stages()` | List snapshot of all post-rerank stage handlers |
-| `load_plugins(plugin_dir)` | Import all `*.py` in dir; return count |
+| `load_plugins(plugin_dir, *, known_tools, override_policy)` | Import all `*.py` in dir; return count; skip conflicting plugins when policy is "reject" |
 | `_reset_for_testing()` | Clear all registries (test-only) |
 
 ---
