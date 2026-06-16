@@ -2,18 +2,17 @@
 """mcp/git/service.py
 GitService: local git operations via GitPython with repo-path allowlist and read_only guard.
 
-Security guards:
-  - allowed_repo_paths: only listed absolute path prefixes are accessible (empty = deny all)
-  - read_only: when True, all write tools (add/commit/checkout/pull/push) are rejected
-  - dry_run: supported by all write tools; returns preview without side effects
-  - max_log_entries: caps git_log output to prevent large dumps
+Dependency direction: git_models -> git_security -> service
+
+Split layout:
+  git_security.py — GitSecurityGuards mixin (repo-path + read-only guards)
+  service.py      — GitService class + dispatch table factory + build_service
 """
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
-from pathlib import Path
 
 import git
 
@@ -33,6 +32,8 @@ from mcp.git.models import (
 )
 from mcp.server import ToolArgs
 
+from .git_security import GitSecurityGuards
+
 # All git tool handlers catch this union; git.exc.GitError is the base for all
 # GitPython exceptions; OSError covers filesystem errors; ValueError covers
 # bad argument formats (e.g. invalid ref names).
@@ -47,11 +48,7 @@ _WRITE_TOOLS: frozenset[str] = frozenset(
 )
 
 
-def _repo_denied_msg(repo_path: str) -> str:
-    return f"[DENIED] repo_path {repo_path!r} is not in allowed_repo_paths"
-
-
-class GitService:
+class GitService(GitSecurityGuards):
     """Executes local git operations against an allowlisted set of repositories."""
 
     def __init__(
@@ -60,31 +57,8 @@ class GitService:
         read_only: bool = True,
         max_log_entries: int = 50,
     ) -> None:
-        # Normalize to resolved absolute paths for consistent comparison.
-        self._allowed: list[Path] = [Path(p).resolve() for p in allowed_repo_paths]
-        self._read_only = read_only
+        GitSecurityGuards.__init__(self, allowed_repo_paths, read_only)
         self._max_log_entries = max_log_entries
-
-    # ── Guards ────────────────────────────────────────────────────────────────
-
-    def _check_repo_path(self, repo_path: str) -> tuple[bool, str]:
-        """Return (ok, error); ok=True when repo_path is within an allowed path prefix."""
-        if not self._allowed:
-            return False, _repo_denied_msg(repo_path)
-        target = Path(repo_path).resolve()
-        for allowed in self._allowed:
-            try:
-                target.relative_to(allowed)
-                return True, ""
-            except ValueError:
-                continue
-        return False, _repo_denied_msg(repo_path)
-
-    def _check_write(self) -> tuple[bool, str]:
-        """Return (ok, error); ok=True when write operations are permitted."""
-        if self._read_only:
-            return False, "[DENIED] git-mcp is configured with read_only=true"
-        return True, ""
 
     def _open_repo(self, repo_path: str) -> git.Repo:
         """Open a git.Repo at repo_path; raises git.InvalidGitRepositoryError on failure."""
