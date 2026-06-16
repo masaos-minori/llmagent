@@ -116,7 +116,6 @@ retained unchanged.
 
 ## Known Limitations
 
-- `routing.md` entries for the old `05_*` files will be updated as part of this task.
 - Old source files (`05_agent.md`, `05_ref-agent-*.md`, etc.) are retained unchanged.
   This document set supersedes them as the primary reference.
 - Memory layer documentation (`agent/memory/`) is summarized only; detailed API

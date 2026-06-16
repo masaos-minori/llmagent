@@ -84,6 +84,30 @@ Each entry format:
 
 ---
 
+### SPEC-02: shell-mcp startup_mode — `subprocess` vs `persistent`
+
+- **Type:** Document inconsistency
+- **Impact scope:** `04_mcp_01_system_overview.md`, `04_mcp_04_server_catalog.md`, `04_mcp_06_configuration_and_operations.md`
+- **Statement A:** `04_mcp-shell.md §1` (canonical per-server reference) states `startup_mode = "subprocess"` — the agent manages the server subprocess directly, without OpenRC.
+- **Statement B:** Earlier versions of `04_mcp_01` and `04_mcp_04` listed shell-mcp as `persistent (HTTP, OpenRC shell-mcp)`.
+- **Current safe interpretation:** `subprocess` is correct per the canonical source. shell-mcp is NOT managed by OpenRC. The agent starts it as a subprocess via `_ServerLifecycleRouter.start_http_subprocess()`.
+- **Recommended action:** Fixed in `04_mcp_01` and `04_mcp_04` (2026-06-16). Verify in `config/mcp_servers.toml` that `startup_mode = "subprocess"` is set for the shell server key.
+- **Notes for AI reference:** shell-mcp does NOT have an OpenRC `init.d` service. It starts and stops with the agent process.
+
+---
+
+### SPEC-03: shell-mcp `max_output_kb` tool input default — 512 vs 256
+
+- **Type:** Document inconsistency
+- **Impact scope:** `04_mcp_04_server_catalog.md` shell-mcp tool input table
+- **Statement A:** `04_mcp-shell.md §2.4` (canonical per-server reference) states the tool input `max_output_kb` default is 512 KB. The §3 input schema example also shows `"max_output_kb": 512`.
+- **Statement B:** Earlier version of `04_mcp_04` listed 256 as the default.
+- **Current safe interpretation:** 512 KB is the correct tool input default. The config server-side cap (`max_output_kb` in `config/shell_mcp_server.toml`) defaults to 4096 KB.
+- **Recommended action:** Fixed in `04_mcp_04` (2026-06-16).
+- **Notes for AI reference:** Two distinct limits: tool input `max_output_kb` (request-level, default 512 KB) vs config `max_output_kb` (server-side cap, default 4096 KB). The server clamps the request value to the config cap.
+
+---
+
 ### SPEC-01: tool_definitions_strict + /v1/tools mismatch behavior undocumented per-server
 
 - **Type:** Needs confirmation

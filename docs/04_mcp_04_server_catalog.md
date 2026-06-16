@@ -150,7 +150,7 @@ All providers failed → HTTP 502.
 ## shell-mcp (port 8009)
 
 **Purpose:** Sandboxed shell command execution within `command_allowlist`.
-**Startup mode:** persistent (HTTP, OpenRC `shell-mcp`)
+**Startup mode:** `subprocess` (agent-managed subprocess; NOT OpenRC-managed)
 **Config:** `config/shell_mcp_server.toml`
 
 **Tools (1):** `shell_run`
@@ -161,7 +161,7 @@ All providers failed → HTTP 502.
 | `argv` | `null` | Direct argv (skips shlex; preferred for injection prevention) |
 | `cwd` | `null` | Working directory (must be in `shell_cwd_allowed_dirs`) |
 | `timeout_sec` | `30` | Timeout (capped at `max_timeout_sec`) |
-| `max_output_kb` | `256` | Output limit KB (capped at config `max_output_kb`) |
+| `max_output_kb` | `512` | Output limit KB (capped at config `max_output_kb`; config server default: 4096) |
 | `env` | `{}` | Additional env vars (filtered by allowlist/denylist) |
 
 **Output:** `{stdout, stderr, exit_code, timed_out, truncated, elapsed_sec}`

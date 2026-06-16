@@ -108,6 +108,5 @@ as the primary reference. Source files are retained unchanged.
 
 ## Known Limitations
 
-- `routing.md` entries for old `04_mcp-*` / `06_ref-mcp` files will be updated as part of this task.
 - Original source files are retained unchanged. This document set supersedes them.
 - `04_spec_mcp.md` §13 known issues are fully transcribed into `04_mcp_90`.

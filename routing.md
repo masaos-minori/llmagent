@@ -25,7 +25,7 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 
 | Task scope | Reference docs |
 |---|---|
-| エージェント仕様（全体・設計・未解決事項） | `docs/05_spec_agent.md` |
+| エージェント仕様（全体・設計・未解決事項） | `docs/05_agent_00_document-guide.md` + `docs/05_agent_01_system-overview.md` |
 | MCP サーバー仕様（全体・設計・未解決事項） | `docs/04_mcp_00_document-guide.md` + `docs/04_mcp_01_system_overview.md` |
 | RAG パイプライン仕様（全体・設計・未解決事項） | `docs/03_rag_00_document-guide.md` + `docs/03_rag_01_system_overview.md` |
 | DB 層仕様（スキーマ・保守・未解決事項） | `docs/06_shared_04_db_architecture_and_schema.md` + `docs/06_shared_05_db_api_and_operations.md` |
@@ -43,8 +43,8 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | MCP transport / startup_mode / lifecycle | `docs/04_mcp_03_routing_lifecycle_and_execution.md` + `docs/05_agent_08_configuration.md` |
 | ToolRouteResolver / route_resolver.py | `docs/04_mcp_03_routing_lifecycle_and_execution.md` + `docs/05_agent_08_configuration.md` |
 | ServerLifecycleManager / lifecycle.py | `docs/04_mcp_03_routing_lifecycle_and_execution.md` + `docs/05_agent_02_runtime-architecture.md` |
-| ToolSpec / tool_spec.py (execution metadata DAG) | `docs/06_ref-agent-config.md` |
-| tool_cache.py (_CacheEntry LRU cache) | `docs/06_ref-agent-config.md` |
+| ToolSpec / tool_spec.py (execution metadata DAG) | `docs/05_agent_08_configuration.md` |
+| tool_cache.py (_CacheEntry LRU cache) | `docs/05_agent_08_configuration.md` |
 | TransportType / StartupMode / HealthcheckMode enums (mcp_config.py) | `docs/04_mcp_03_routing_lifecycle_and_execution.md` + `docs/04_mcp_06_configuration_and_operations.md` |
 | MCP security model (allowlist / denylist / fail-closed) | `docs/04_mcp_05_security_and_safety_model.md` |
 | web-search-mcp specifics | `docs/04_mcp_04_server_catalog.md` |

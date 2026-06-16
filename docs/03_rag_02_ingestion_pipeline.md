@@ -165,7 +165,8 @@ saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.txt` exists (`--for
 |---|---|
 | Japanese text | Sudachi SplitMode.C morphological analysis; `(original_sentence, normalized_form_space_joined)` pairs |
 | English text | Regex sentence boundary split (`(?<=[.!?])\s+`) |
-| Markdown (`.md`/`.markdown`/`.mdx` or ≥2 heading lines) | Heading boundary split (`#`/`##`/`###`); fallback to English split if section > `md_snippet_max_chars` |
+| `.md`/`.markdown`/`.mdx` URL | Heading boundary split (`#`/`##`/`###`); always applied regardless of `md_index_enable` |
+| Non-`.md` content with ≥2 heading lines | Heading boundary split; applied only when `md_index_enable=true` |
 | Code blocks | Blank-line split (language-agnostic) |
 
 - Japanese chunks: `content` = original text, `normalized_content` = Sudachi normalized forms
@@ -265,7 +266,7 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 ```
 POST http://127.0.0.1:8003/embedding
 Request:  {"content": "passage: {text}"}
-Response: {"embedding": [float, ...]}   # e.g., 768-dim for E5-multilingual-small
+Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config/common.toml::embedding_dims)
 ```
 
 ### 4.5 DB tables updated

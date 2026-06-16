@@ -50,7 +50,7 @@ CPU 専用のローカル環境 (Intel N100 / 16 GB RAM) に llama.cpp を用い
 
 ### 2.2 取込パイプライン
 
-詳細 → [`03_rag-ingestion-pipeline.md`](03_rag-ingestion-pipeline.md)
+詳細 → [`03_rag_02_ingestion_pipeline.md`](03_rag_02_ingestion_pipeline.md)
 
 ```
 target_urls → crawler.py (BFS クロール) → rag-src/*.txt
@@ -60,7 +60,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.txt
 
 ### 2.3 クエリパイプライン
 
-詳細 → [`05_agent.md`](05_agent.md)
+詳細 → [`05_agent_01_system-overview.md`](05_agent_01_system-overview.md)
 
 ```
 ユーザー入力
@@ -71,7 +71,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.txt
 
 ### 2.4 エージェント機能・コマンド一覧
 
-詳細 → [`05_agent.md`](05_agent.md)
+詳細 → [`05_agent_01_system-overview.md`](05_agent_01_system-overview.md)
 
 ### 2.5 実装済み機能サマリ
 
@@ -86,6 +86,6 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.txt
 | SSE ストリーミング | `shared/llm_client.py` |
 | スラッシュコマンド群 | `agent/commands/` |
 
-詳細 → [`05_agent.md`](05_agent.md)
+詳細 → [`05_agent_01_system-overview.md`](05_agent_01_system-overview.md)
 
 ---

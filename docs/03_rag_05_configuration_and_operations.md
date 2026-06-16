@@ -191,7 +191,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 | Language detection threshold | CJK ratio ≥ 0.10 → `ja`; pages < 100 chars → use hint language |
 | Chunk size range | 40–500 chars (configurable) |
 | Chunk overlap | 50 chars sliding window |
-| Embedding dimension | 768 (default); stored as float32 little-endian BLOB |
+| Embedding dimension | 384 (production, `config/common.toml:43`); dataclass default 768. float32 little-endian BLOB |
 | Crawl depth | max 6 hops |
 | Crawl page limit | max 500 pages/site |
 | Replica | Single-node SQLite only |

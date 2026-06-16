@@ -4,7 +4,19 @@
 
 | Tool | Phase | Role |
 |---|---|---|
-| | | |
+| `Bash` (`ls`, `find`) | 1 Scope, 2 Inventory | discover directory layout and identify target files |
+| `Bash` (`grep`) | 2 Inventory – 7 Quality | cross-search symbols, import paths, env vars, config keys |
+| `Read` | 2 Inventory – 9 Consistency | read individual files in full detail |
+| `Agent` (Explore) | 2 Inventory, 4 Architecture | broad codebase exploration when 3+ targeted queries are needed |
+| `Write` | 8 Write Docs | create new documentation files from scratch |
+| `Edit` | 8 Write Docs, 9 Consistency | apply minimal-diff updates to existing documentation |
+| `WebFetch` | 3 Runtime, 6 Config | fetch external library or framework docs (only when necessary) |
+
+### Tool selection rules
+- Prefer `Bash (grep/find)` + `Read` for targeted lookups before spawning `Agent (Explore)`.
+- Spawn `Agent (Explore)` only when the search spans many directories or requires 3+ queries.
+- Use `Edit` over `Write` whenever the doc file already exists — preserve existing content.
+- `WebFetch` is a last resort; most behavior should be confirmable from the local codebase.
 
 ---
 

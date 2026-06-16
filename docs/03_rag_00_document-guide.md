@@ -80,7 +80,5 @@ The source files are retained as-is for historical reference.
 
 ## Known Limitations
 
-- `routing.md` has not yet been updated to reference these new files. Until updated,
-  task routing will point to the old source files.
 - The original source files (`03_spec_rag.md`, `03_rag-ref-*.md`, etc.) are retained
   unchanged. This document set supersedes them as the primary reference.

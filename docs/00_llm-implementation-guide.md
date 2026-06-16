@@ -11,41 +11,38 @@
 | [01_overview-arch.md](01_overview-arch.md) | システム全体アーキテクチャ |
 | [01_overview-files.md](01_overview-files.md) | ファイル／モジュール構成 |
 | [02_deployment.md](02_deployment.md) | 導入手順・デプロイ |
-| [03_rag-ingestion-run.md](03_rag-ingestion-run.md) | 取込実行ガイド (コマンド・ファイルライフサイクル) |
-| [03_spec_rag.md](03_spec_rag.md) | RAG スキーマ仕様 |
-| [03_rag-ref-ingestion.md](03_rag-ref-ingestion.md) | RAG 取込 API リファレンス (web_crawler / chunk_splitter / rag_ingester) |
-| [03_rag-ref-ingester.md](03_rag-ref-ingester.md) | rag_ingester 詳細 |
-| [03_rag-ref-crawler.md](03_rag-ref-crawler.md) | web_crawler 詳細 |
-| [03_rag-ref-splitter.md](03_rag-ref-splitter.md) | chunk_splitter 詳細 |
-| [04_mcp-servers.md](04_mcp-servers.md) | MCP サーバ インデックス |
-| [04_mcp-web-search.md](04_mcp-web-search.md) | web-search-mcp 詳細 |
-| [04_mcp-file.md](04_mcp-file.md) | file-mcp 詳細 |
-| [04_mcp-github.md](04_mcp-github.md) | github-mcp 詳細 |
-| [04_mcp-sqlite.md](04_mcp-sqlite.md) | sqlite-mcp 詳細 |
-| [04_mcp-shell.md](04_mcp-shell.md) | shell-mcp 詳細 |
-| [04_mcp-git.md](04_mcp-git.md) | git-mcp 詳細 |
-| [04_mcp-cicd.md](04_mcp-cicd.md) | cicd-mcp 詳細 |
-| [04_mcp-mdq.md](04_mcp-mdq.md) | mdq-mcp 詳細 |
-| [04_mcp-rag.md](04_mcp-rag.md) | rag-pipeline-mcp 詳細 |
-| [04_mcp-protocol.md](04_mcp-protocol.md) | HTTP API / トランスポート / 追加手順 |
-| [04_spec_mcp.md](04_spec_mcp.md) | MCP プロトコル仕様 |
-| [05_agent.md](05_agent.md) | エージェント ツール仕様・チューニング・実装注意 |
-| [05_spec_agent.md](05_spec_agent.md) | エージェント仕様 |
-| [05_agent-ops.md](05_agent-ops.md) | エージェント 起動・確認・トラブルシューティング |
-| [05_agent-impl-flow.md](05_agent-impl-flow.md) | エージェント実装詳細 - フロー |
-| [05_agent-impl-class.md](05_agent-impl-class.md) | エージェント実装詳細 - クラス |
-| [05_ref-agent-context.md](05_ref-agent-context.md) | AgentContext / AppServices 詳細 |
-| [05_ref-agent-session.md](05_ref-agent-session.md) | AgentSession 詳細 |
-| [05_ref-agent-commands.md](05_ref-agent-commands.md) | コマンドレジストリ詳細 |
-| [05_ref-agent-view.md](05_ref-agent-view.md) | CLI ビュー詳細 |
-| [06_shared.md](06_shared.md) | 共通モジュール インデックス |
-| [06_spec_shared.md](06_spec_shared.md) | 共有モジュール仕様 |
-| [06_ref-infra.md](06_ref-infra.md) | インフラ共通モジュール (shared/config_loader / rag/utils / formatters) |
-| [06_ref-mcp.md](06_ref-mcp.md) | MCP プロトコル層モジュール (mcp/models.py / shared/tool_executor.py 等) |
-| [05_ref-rag.md](05_ref-rag.md) | RAG パイプラインモジュール (rag/pipeline.py) |
-| [05_ref-agent-config.md](05_ref-agent-config.md) | AgentConfig / MemoryConfig / MCPConfig 詳細 |
-| [05_ref-agent-llm.md](05_ref-agent-llm.md) | LLMClient (SSE ストリーミング・リトライ) 詳細 |
-| [05_ref-agent-repl.md](05_ref-agent-repl.md) | AgentREPL / Orchestrator / ToolExecutor 詳細 |
-| [05_ref-agent-history.md](05_ref-agent-history.md) | HistoryManager (会話履歴管理) 詳細 |
-| [07_spec_db.md](07_spec_db.md) | DB スキーマ仕様 |
-| [07_ref-sqlite.md](07_ref-sqlite.md) | db/helper.py (DB 接続・WAL・トランザクション) |
+| [03_rag_00_document-guide.md](03_rag_00_document-guide.md) | RAG ドキュメントセット ガイド |
+| [03_rag_01_system_overview.md](03_rag_01_system_overview.md) | RAG システム概要 |
+| [03_rag_02_ingestion_pipeline.md](03_rag_02_ingestion_pipeline.md) | 取込パイプライン（CLI・API・設定） |
+| [03_rag_03_query_pipeline.md](03_rag_03_query_pipeline.md) | クエリパイプライン |
+| [03_rag_04_data_model_and_interfaces.md](03_rag_04_data_model_and_interfaces.md) | データモデル・インターフェース |
+| [03_rag_05_configuration_and_operations.md](03_rag_05_configuration_and_operations.md) | RAG 設定・運用 |
+| [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) | RAG 既知問題・不整合 |
+| [04_mcp_00_document-guide.md](04_mcp_00_document-guide.md) | MCP ドキュメントセット ガイド |
+| [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md) | MCP システム概要 |
+| [04_mcp_02_protocol_and_transport.md](04_mcp_02_protocol_and_transport.md) | MCP プロトコル・トランスポート |
+| [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) | ルーティング・ライフサイクル・実行 |
+| [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) | MCP サーバカタログ（全11サーバ） |
+| [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) | MCP セキュリティ・安全モデル |
+| [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) | MCP 設定・運用 |
+| [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | MCP 既知問題・不整合 |
+| [05_agent_00_document-guide.md](05_agent_00_document-guide.md) | エージェント ドキュメントセット ガイド |
+| [05_agent_01_system-overview.md](05_agent_01_system-overview.md) | エージェント システム概要 |
+| [05_agent_02_runtime-architecture.md](05_agent_02_runtime-architecture.md) | ランタイムアーキテクチャ |
+| [05_agent_03_turn-processing-flow.md](05_agent_03_turn-processing-flow.md) | ターン処理フロー |
+| [05_agent_04_state-and-persistence.md](05_agent_04_state-and-persistence.md) | 状態・永続化 |
+| [05_agent_05_llm-and-streaming.md](05_agent_05_llm-and-streaming.md) | LLM・SSE ストリーミング |
+| [05_agent_06_tool-execution-and-approval.md](05_agent_06_tool-execution-and-approval.md) | ツール実行・承認フロー |
+| [05_agent_07_cli-and-commands.md](05_agent_07_cli-and-commands.md) | CLI・スラッシュコマンド |
+| [05_agent_08_configuration.md](05_agent_08_configuration.md) | エージェント設定 |
+| [05_agent_09_data-layer.md](05_agent_09_data-layer.md) | データレイヤー |
+| [05_agent_10_operations-and-observability.md](05_agent_10_operations-and-observability.md) | 起動・確認・トラブルシューティング・OTel |
+| [05_agent_11_extension-points.md](05_agent_11_extension-points.md) | 拡張ポイント（プラグイン） |
+| [05_agent_12_reference-api.md](05_agent_12_reference-api.md) | API リファレンス |
+| [06_shared_00_document-guide.md](06_shared_00_document-guide.md) | shared/DB ドキュメントセット ガイド |
+| [06_shared_01_overview.md](06_shared_01_overview.md) | shared/DB 層概要 |
+| [06_shared_02_types_and_protocols.md](06_shared_02_types_and_protocols.md) | 共通型・プロトコル定義 |
+| [06_shared_03_runtime_and_execution.md](06_shared_03_runtime_and_execution.md) | 実行インフラ（ConfigLoader・Logger・プラグイン） |
+| [06_shared_04_db_architecture_and_schema.md](06_shared_04_db_architecture_and_schema.md) | DB 構造・スキーマ |
+| [06_shared_05_db_api_and_operations.md](06_shared_05_db_api_and_operations.md) | DB API・保守運用 |
+| [06_shared_90_inconsistencies_and_known_issues.md](06_shared_90_inconsistencies_and_known_issues.md) | shared/DB 既知問題・不整合 |

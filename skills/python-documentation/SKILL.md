@@ -1,13 +1,28 @@
 ---
 name: python-documentation
 description: |
-  Use this skill proactively whenever writing or modifying Python document.
+  Use this skill proactively whenever writing or modifying Python documentation.
 ---
 
 # Python Documentation Skill
 
 ## When to use
-Use this skill only for documenting an existing Python repository from actual code, config, tests, and CI/C*.
+Use this skill only for documenting an existing Python repository from actual code, config, tests, and CI/CD.
+
+---
+
+## Toolchain
+
+| Tool | Primary phases | Role |
+|---|---|---|
+| `Bash` (`find`, `ls`, `grep`) | 1 Scope – 7 Quality | discover structure; cross-search symbols, config, patterns |
+| `Read` | 2 Inventory – 9 Consistency | read individual files in detail |
+| `Agent` (Explore) | 2 Inventory, 4 Architecture | broad search when 3+ queries are needed |
+| `Write` | 8 Write Docs | create new documentation files |
+| `Edit` | 8 Write Docs, 9 Consistency | apply minimal-diff updates to existing docs |
+| `WebFetch` | 3 Runtime, 6 Config | fetch external library docs (only when necessary) |
+
+See `workflow.md` for per-phase tool guidance.
 
 ## When not to use
 Do not use this skill for:

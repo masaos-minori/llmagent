@@ -32,7 +32,7 @@ a set of independent server processes.
 | github-mcp | 8006 | HTTP | persistent | 21 | GitHub API |
 | file-write-mcp | 8007 | HTTP | persistent | 4 | Local file writing |
 | file-delete-mcp | 8008 | HTTP | persistent | 2 | Local file deletion |
-| shell-mcp | 8009 | HTTP | persistent | 1 | Sandboxed shell execution |
+| shell-mcp | 8009 | HTTP | subprocess | 1 | Sandboxed shell execution |
 | rag-pipeline-mcp | 8010 | HTTP | persistent | 2 | RAG retrieval pipeline |
 | sqlite-mcp | 8011 | HTTP | subprocess | 1 | Read-only SQLite queries |
 | cicd-mcp | 8012 | HTTP | persistent | 4 | GitHub Actions CI/CD |
