@@ -328,8 +328,13 @@ async def watchdog_loop(ctx: AgentContext) -> None:
             await ctx.services.lifecycle.shutdown_idle()
 
 
-def audit_security_defaults(ctx: AgentContext) -> list[str]:
+def audit_security_defaults(
+    ctx: AgentContext, production_mode: bool = False
+) -> list[str]:
     """Audit security-related configuration defaults and return warning strings.
+
+    In production mode (production_mode=True), HTTP servers without auth_token
+    raise RuntimeError instead of returning a warning.
 
     Checks for risky settings such as:
       - auth_token disabled (empty) on servers that support it
@@ -340,11 +345,31 @@ def audit_security_defaults(ctx: AgentContext) -> list[str]:
     """
     warnings: list[str] = []
 
+    profile_label = "PRODUCTION" if production_mode else "LOCAL"
+    auth_required = "yes" if production_mode else "no"
+    logger.info(
+        "Security profile: %s — auth required for HTTP servers: %s",
+        profile_label,
+        auth_required,
+    )
+
     # Check auth_token settings
+    violations: list[str] = []
     for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
         if not srv_cfg.auth_token and srv_cfg.transport == "http" and srv_cfg.url:
-            msg = f"Security: {key} has no auth_token configured (auth disabled)"
-            warnings.append(msg)
+            msg = f"{key}: no auth_token configured (auth disabled)"
+            violations.append(msg)
+
+    if production_mode and violations:
+        servers_str = "; ".join(violations)
+        raise RuntimeError(
+            f"Production mode requires auth_token on all HTTP MCP servers. "
+            f"Violations: {servers_str}"
+        )
+
+    for v in violations:
+        logger.warning("Security: %s", v)
+        warnings.append(f"Security: {v}")
 
     # Check shell sandbox backend
     shell_policy = getattr(ctx.cfg, "shell_policy", None)

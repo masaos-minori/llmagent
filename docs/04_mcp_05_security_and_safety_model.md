@@ -153,6 +153,26 @@ Applies to: all servers (configured per-server via `McpServerConfig.auth_token`)
 
 ---
 
+## Security Profile (`security_profile`)
+
+```toml
+# In config/agent.toml [mcp_servers] section
+security_profile = "local"   # or "production"
+```
+
+Controls whether Bearer-token authentication is required for HTTP MCP servers:
+
+| Profile | Behavior |
+|---|---|
+| `local` (default) | Auth optional. Missing `auth_token` on HTTP servers produces a warning at startup. |
+| `production` | Auth required. Startup fails with `RuntimeError` if any HTTP server lacks `auth_token`. |
+
+Stdio servers are always exempt from this check regardless of profile.
+
+**Enforcement point:** `audit_security_defaults()` in `agent/repl_health.py` raises during startup when `security_profile == "production"` and an HTTP server has an empty `auth_token`.
+
+---
+
 ## Output and Resource Limits
 
 | Limit | Default | Server |

@@ -15,6 +15,7 @@ from typing import Any
 
 from shared.config_loader import ConfigLoader
 from shared.mcp_config import (
+    SecurityProfile,  # noqa: F401 — used by build_agent_config
     _build_mcp_servers,  # noqa: F401 — re-exported via agent.config
 )
 
@@ -264,6 +265,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
             mcp_watchdog_interval=float(cfg.get("mcp_watchdog_interval", 0.0)),
             mcp_watchdog_max_restarts=int(cfg.get("mcp_watchdog_max_restarts", 3)),
             github_url=cfg.get("github_server_url", "http://127.0.0.1:8006"),
+            security_profile=SecurityProfile(cfg.get("security_profile", "local")),
         ),
         approval=_build_approval_config(cfg),
         obs=ObservabilityConfig(

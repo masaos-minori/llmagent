@@ -34,6 +34,13 @@ class HealthcheckMode(StrEnum):
     PING_TOOL = "ping_tool"
 
 
+class SecurityProfile(StrEnum):
+    """Deployment security profile for MCP auth enforcement."""
+
+    LOCAL = "local"
+    PRODUCTION = "production"
+
+
 @dataclass
 class McpServerConfig:
     """Transport configuration for one MCP server."""

@@ -3,7 +3,7 @@ Unit tests for shared.mcp_config.McpServerConfig validation and _build_mcp_serve
 """
 
 import pytest
-from shared.mcp_config import McpServerConfig, _build_mcp_servers
+from shared.mcp_config import McpServerConfig, SecurityProfile, _build_mcp_servers
 
 
 class TestMcpServerConfigValidation:
@@ -82,7 +82,9 @@ class TestBuildMcpServers:
             "web_search_url": "http://127.0.0.1:8005",
             "github_server_url": "http://127.0.0.1:8006",
         }
-        with pytest.raises(ValueError, match="mcp_servers config section is missing or empty"):
+        with pytest.raises(
+            ValueError, match="mcp_servers config section is missing or empty"
+        ):
             _build_mcp_servers(cfg)
 
     def test_mcp_servers_key_overrides_defaults(self) -> None:
@@ -173,3 +175,21 @@ class TestBuildMcpServers:
     def test_role_default_empty(self) -> None:
         cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "")
         assert cfg.role == ""
+
+
+class TestSecurityProfile:
+    def test_local_value(self) -> None:
+        assert SecurityProfile.LOCAL == "local"
+
+    def test_production_value(self) -> None:
+        assert SecurityProfile.PRODUCTION == "production"
+
+    def test_invalid_value_raises(self) -> None:
+        with pytest.raises(ValueError):
+            SecurityProfile("invalid")
+
+    def test_str_to_enum_local(self) -> None:
+        assert SecurityProfile("local") == SecurityProfile.LOCAL
+
+    def test_str_to_enum_production(self) -> None:
+        assert SecurityProfile("production") == SecurityProfile.PRODUCTION

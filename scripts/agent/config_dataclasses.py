@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from shared.mcp_config import McpServerConfig
+from shared.mcp_config import McpServerConfig, SecurityProfile
 
 LLM_TEMPERATURE_MAX = 2.0
 
@@ -332,6 +332,12 @@ class MCPConfig:
     mcp_watchdog_interval: float = 30.0
     mcp_watchdog_max_restarts: int = 3
     github_url: str = "http://127.0.0.1:8006"
+    # Deployment security profile: "local" (auth optional) or "production" (auth required for HTTP).
+    security_profile: SecurityProfile = SecurityProfile.LOCAL
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.security_profile, SecurityProfile):
+            self.security_profile = SecurityProfile(self.security_profile)
 
 
 @dataclass

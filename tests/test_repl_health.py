@@ -7,6 +7,7 @@ httpx.AsyncClient, StdioTransport, and AgentContext are mocked.
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -14,6 +15,7 @@ import pytest
 from agent.repl_health import (
     _check_tool_definitions,
     _fetch_stdio_tools,
+    audit_security_defaults,
     probe_mcp_health,
 )
 from shared.tool_executor import StdioTransport, ToolCallResult
@@ -289,3 +291,120 @@ class TestCheckServiceHealth:
         result = await check_service_health(ctx)
 
         assert not result.has_issues
+
+
+# ── audit_security_defaults with production mode ─────────────────────────────
+
+
+class TestAuditSecurityDefaults:
+    """Tests for audit_security_defaults with production mode enforcement."""
+
+    def _make_ctx(
+        self,
+        servers: dict[str, dict] | None = None,
+        security_profile: str = "local",
+    ) -> MagicMock:
+        """Build a minimal mocked AgentContext for testing."""
+        from shared.mcp_config import McpServerConfig, SecurityProfile
+
+        mcp_servers: dict[str, Any] = {}
+        if servers:
+            for key, vals in servers.items():
+                transport = vals.get("transport", "http")
+                url = vals.get("url", "http://127.0.0.1:8000") if transport == "http" else ""
+                cmd = vals.get("cmd", ["python", "server.py"]) if transport == "stdio" else []
+                mcp_servers[key] = McpServerConfig(
+                    transport=transport,
+                    url=url,
+                    cmd=cmd,
+                    openrc_service=vals.get("openrc_service", ""),
+                    auth_token=vals.get("auth_token", ""),
+                )
+
+        ctx = MagicMock()
+        ctx.cfg.mcp.mcp_servers = mcp_servers
+        ctx.cfg.mcp.security_profile = SecurityProfile(security_profile)
+        ctx.cfg.shell_policy = None
+        ctx.cfg.github = None
+        ctx.cfg.tool = MagicMock()
+        ctx.cfg.tool.allowed_tools = []
+        return ctx
+
+    def test_local_mode_no_auth_returns_warnings(self) -> None:
+        """Local mode with missing auth_token returns warnings, no exception."""
+        from shared.mcp_config import SecurityProfile
+
+        ctx = self._make_ctx(
+            servers={"web_search": {"auth_token": ""}},
+            security_profile="local",
+        )
+        ctx.cfg.mcp.security_profile = SecurityProfile.LOCAL
+        warnings = audit_security_defaults(ctx, production_mode=False)
+        auth_warnings = [w for w in warnings if "web_search" in w]
+        assert len(auth_warnings) == 1
+
+    def test_production_mode_no_auth_raises(self) -> None:
+        """Production mode with missing auth_token raises RuntimeError."""
+        from shared.mcp_config import SecurityProfile
+
+        ctx = self._make_ctx(
+            servers={"web_search": {"auth_token": ""}, "file_read": {"auth_token": ""}},
+            security_profile="production",
+        )
+        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
+        with pytest.raises(RuntimeError, match="Production mode requires auth_token"):
+            audit_security_defaults(ctx, production_mode=True)
+
+    def test_production_mode_all_authed_no_error(self) -> None:
+        """Production mode with all HTTP servers having auth_token → no error."""
+        from shared.mcp_config import SecurityProfile
+
+        ctx = self._make_ctx(
+            servers={
+                "web_search": {"auth_token": "tok1"},
+                "file_read": {"auth_token": "tok2"},
+            },
+            security_profile="production",
+        )
+        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
+        warnings = audit_security_defaults(ctx, production_mode=True)
+        auth_warnings = [w for w in warnings if "auth_token" in w]
+        assert len(auth_warnings) == 0
+
+    def test_stdio_servers_ignored_in_production(self) -> None:
+        """Stdio servers are not checked for auth_token even in production mode."""
+        from shared.mcp_config import SecurityProfile
+
+        ctx = self._make_ctx(
+            servers={
+                "stdio_server": {
+                    "transport": "stdio",
+                    "auth_token": "",
+                },
+            },
+            security_profile="production",
+        )
+        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
+        warnings = audit_security_defaults(ctx, production_mode=True)
+        http_warnings = [w for w in warnings if "http" in w.lower() or "transport" in w.lower()]
+        stdio_auth_warnings = [w for w in warnings if "stdio_server" in w]
+        assert len(stdio_auth_warnings) == 0
+
+    def test_production_mode_mixed_http_stdio(self) -> None:
+        """Production mode: HTTP without auth raises, stdio is ignored."""
+        from shared.mcp_config import SecurityProfile
+
+        ctx = self._make_ctx(
+            servers={
+                "http_server": {"auth_token": ""},
+                "stdio_server": {
+                    "transport": "stdio",
+                    "url": "",
+                    "auth_token": "",
+                },
+            },
+            security_profile="production",
+        )
+        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
+        with pytest.raises(RuntimeError, match="Production mode requires auth_token"):
+            audit_security_defaults(ctx, production_mode=True)

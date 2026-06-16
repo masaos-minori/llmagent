@@ -99,6 +99,9 @@ mcp_watchdog_interval = 0
 # Maximum restart count the watchdog performs for the same server; after exceeding, only logs a warning
 mcp_watchdog_max_restarts = 3
 
+# Security profile: "local" (auth optional) or "production" (auth required for HTTP MCP servers); changeable at runtime via /set security_profile <value>
+security_profile = "local"
+
 # LLM generation temperature (0.0-2.0); lower means more reproducible, higher means more diverse output; changeable at runtime via /set temperature <value>
 llm_temperature = 0.2
 

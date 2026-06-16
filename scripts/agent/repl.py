@@ -26,6 +26,7 @@ import sqlite3
 
 from db.helper import SQLiteHelper
 from shared.logger import Logger
+from shared.mcp_config import SecurityProfile
 from shared.tool_executor import StdioTransport
 
 from agent.cli_view import CLIView
@@ -306,8 +307,11 @@ class AgentREPL:
 
     async def _check_services(self) -> None:
         """Probe LLM / Embed service health, validate tool definitions, and audit security defaults."""
-        # Audit security-related configuration defaults (warns on risky settings)
-        audit_security_defaults(self._ctx)
+        # Audit security-related configuration defaults (warns on risky settings; raises in production mode)
+        production_mode = (
+            self._ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION
+        )
+        audit_security_defaults(self._ctx, production_mode=production_mode)
 
         # Probe LLM / Embed service health; warnings only, REPL continues on failure
         await self._check_service_health()
