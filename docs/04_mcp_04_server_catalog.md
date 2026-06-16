@@ -178,7 +178,6 @@ All providers failed → HTTP 502.
 | `shell_sandbox_backend` | `"none"` | `"firejail"` or `"none"` |
 | `audit_log_path` | `"/opt/llm/logs/shell_audit.log"` | Audit log |
 
-**Known limitation:** `shell_run_bg` is listed in tool constants but NOT implemented.
 **Log:** `/opt/llm/logs/shell-mcp.log`
 
 ---
@@ -233,7 +232,6 @@ All providers failed → HTTP 502.
 | `max_rows` | `100` |
 | `auth_token` | `""` |
 
-**Important:** `query_sqlite` is NOT in the static routing table. Must set `tool_names = ["query_sqlite"]` in `mcp_servers.sqlite` config.
 **Databases:** `rag` → `/opt/llm/db/rag.sqlite`; `session` → `/opt/llm/db/session.sqlite`
 
 ---

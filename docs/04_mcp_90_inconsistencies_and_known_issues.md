@@ -37,30 +37,6 @@ Each entry format:
 
 ---
 
-### MISSING-02: shell_run_bg tool is not implemented
-
-- **Type:** Unimplemented
-- **Impact scope:** `mcp/shell/server.py`, `shared/tool_constants.py`
-- **Statement A:** `shell_run_bg` appears in documentation references (`04_spec_mcp.md §6.2` mentions it in the shell server tool list).
-- **Statement B:** The tool is NOT implemented in `mcp/shell/server.py`. Only `shell_run` is implemented.
-- **Current safe interpretation:** `shell_run_bg` cannot be called. Calling it will return `("Unknown tool: shell_run_bg", True)`.
-- **Recommended action:** Either implement `shell_run_bg` (background command execution with job ID tracking) or remove references from documentation.
-- **Notes for AI reference:** Use `shell_run` only. Do not attempt `shell_run_bg`.
-
----
-
-### MISSING-03: query_sqlite not in static routing table
-
-- **Type:** Undefined / Document inconsistency
-- **Impact scope:** `shared/tool_constants.py`, `shared/route_resolver.py`, `ToolRouteResolver._fallback_route()`
-- **Statement A:** `04_spec_mcp.md §6.2` includes `sqlite-mcp` in the server list with `query_sqlite` as its tool.
-- **Statement B:** `query_sqlite` is NOT defined in any frozenset in `shared/tool_constants.py`. The static routing table in `ToolRouteResolver._fallback_route()` does not include it. A comment in `06_ref-mcp.md §3` notes it is defined separately as a prefix rule in `route_resolver.py`.
-- **Current safe interpretation:** `query_sqlite` MUST be declared in `McpServerConfig.tool_names` for the `sqlite` server key. Without `tool_names`, routing will fail with `ValueError: Unknown tool: 'query_sqlite'`.
-- **Recommended action:** Add `query_sqlite` to `shared/tool_constants.py` as part of a `SQLITE_TOOLS` frozenset, OR confirm `tool_names = ["query_sqlite"]` is always set in config.
-- **Notes for AI reference:** Always verify sqlite-mcp config includes `tool_names = ["query_sqlite"]`.
-
----
-
 ### UNDOC-01: startup_mode="subprocess" + transport="stdio" validation not documented
 
 - **Type:** Document inconsistency / Needs confirmation
