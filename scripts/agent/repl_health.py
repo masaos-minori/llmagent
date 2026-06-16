@@ -92,15 +92,17 @@ async def _fetch_stdio_tools(transport: object) -> set[str]:
         return set()
 
 
-async def _collect_server_tool_names(ctx: AgentContext) -> set[str]:
-    """Probe all configured MCP servers and return the union of their tool names.
+async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[str]]:
+    """Probe all configured MCP servers and return (tool_names, unreachable_keys).
 
     HTTP servers: probed via GET /v1/tools.
     Stdio servers: probed via the __list_tools__ reserved RPC (only when running).
+    Returns a tuple of (union of tool names, list of server keys that were unreachable).
     """
     if ctx.services.http is None:
         raise RuntimeError("http service not initialized")
     server_names: set[str] = set()
+    unreachable: list[str] = []
     for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
         if srv_cfg.transport == "http":
             if not srv_cfg.url:
@@ -112,29 +114,55 @@ async def _collect_server_tool_names(ctx: AgentContext) -> set[str]:
                 )
                 if resp.status_code == HTTPStatus.OK:
                     server_names.update(t["name"] for t in resp.json().get("tools", []))
+                else:
+                    msg = f"{key} /v1/tools returned HTTP {resp.status_code}"
+                    logger.warning(msg)
+                    unreachable.append(key)
             except (httpx.HTTPError, OSError) as e:
-                logger.warning("Cannot reach %s/v1/tools: %s", srv_cfg.url, e)
+                msg = f"{key} unreachable at {srv_cfg.url}/v1/tools: {e}"
+                logger.warning(msg)
+                unreachable.append(key)
         elif srv_cfg.transport == "stdio":
             transport = ctx.services.stdio_procs.get(key)
             if transport is None:
-                continue  # not yet started (ondemand or failed persistent)
+                msg = f"{key} stdio process not running (ondemand or failed)"
+                logger.warning(msg)
+                unreachable.append(key)
+                continue
             names = await _fetch_stdio_tools(transport)
+            if not names:
+                msg = f"{key} __list_tools__ returned empty tool list"
+                logger.warning(msg)
+                unreachable.append(key)
             server_names.update(names)
-    return server_names
+    return server_names, unreachable
 
 
 async def _check_tool_definitions(
     ctx: AgentContext, strict: bool = False
 ) -> HealthCheckResult:
-    """Shared logic: compare tool_definitions against live server tool lists."""
+    """Compare tool_definitions against live server tool lists.
+
+    Distinguishes failure cases:
+      - server unreachable (logged as warning, included in unreachable list)
+      - /v1/tools fetch failed (HTTP non-200)
+      - tool mismatch (missing_in_server or missing_in_cfg)
+      - all servers unreachable -> skip validation with info log
+    """
     cfg_names = {
         td["function"]["name"]
         for td in ctx.cfg.tool.tool_definitions
         if "function" in td
     }
-    server_names = await _collect_server_tool_names(ctx)
+    server_names, unreachable = await _collect_server_tool_names(ctx)
     if not server_names:
-        return HealthCheckResult()  # All servers unreachable; skip validation
+        if unreachable:
+            msg = f"All MCP servers unreachable during strict validation: {sorted(set(unreachable))}; skipping tool definition check"
+            logger.info(msg)
+        else:
+            msg = "No tool definitions in config and no servers reachable; skipping validation"
+            logger.info(msg)
+        return HealthCheckResult()
     missing_in_server = cfg_names - server_names
     missing_in_cfg = server_names - cfg_names
     warnings: list[ServiceWarning] = []
@@ -143,12 +171,20 @@ async def _check_tool_definitions(
         logger.warning(msg)
         warnings.append(ServiceWarning(label="tool_definitions", url="", message=msg))
     if missing_in_cfg:
-        logger.warning(
-            "Tools on servers but not in agent.toml: %s",
-            sorted(missing_in_cfg),
-        )
+        msg = f"Tools on servers but not in agent.toml: {sorted(missing_in_cfg)}"
+        logger.warning(msg)
     if (missing_in_server or missing_in_cfg) and strict:
-        raise RuntimeError("Strict mode: tool definition mismatch detected")
+        reasons: list[str] = []
+        if missing_in_server:
+            reasons.append(f"missing_in_server={sorted(missing_in_server)}")
+        if missing_in_cfg:
+            reasons.append(f"extra_on_servers={sorted(missing_in_cfg)}")
+        if unreachable:
+            reasons.append(f"unreachable_servers={sorted(set(unreachable))}")
+        reason_str = "; ".join(reasons)
+        msg = f"Strict mode: tool definition mismatch detected ({reason_str})"
+        logger.error(msg)
+        raise RuntimeError(msg)
     return HealthCheckResult(warnings=warnings)
 
 

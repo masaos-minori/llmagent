@@ -153,7 +153,7 @@ class TestCheckToolDefinitions:
         with patch(
             "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
-            mock_collect.return_value = {"read_file", "write_file"}
+            mock_collect.return_value = ({"read_file", "write_file"}, [])
             result = await _check_tool_definitions(ctx, strict=False)
 
         assert not result.has_issues
@@ -169,7 +169,7 @@ class TestCheckToolDefinitions:
         with patch(
             "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
-            mock_collect.return_value = {"read_file"}
+            mock_collect.return_value = ({"read_file"}, [])
             result = await _check_tool_definitions(ctx, strict=False)
 
         msgs = result.warning_messages()
@@ -186,7 +186,7 @@ class TestCheckToolDefinitions:
         with patch(
             "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
-            mock_collect.return_value = {"read_file", "delete_file"}
+            mock_collect.return_value = ({"read_file", "delete_file"}, [])
             result = await _check_tool_definitions(ctx, strict=False)
 
         assert not result.has_issues
@@ -201,7 +201,7 @@ class TestCheckToolDefinitions:
         with patch(
             "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
-            mock_collect.return_value = {"read_file", "delete_file"}
+            mock_collect.return_value = ({"read_file", "delete_file"}, [])
             with pytest.raises(RuntimeError, match="Strict mode"):
                 await _check_tool_definitions(ctx, strict=True)
 
@@ -215,7 +215,7 @@ class TestCheckToolDefinitions:
         with patch(
             "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
-            mock_collect.return_value = set()
+            mock_collect.return_value = (set(), [])
             result = await _check_tool_definitions(ctx, strict=False)
 
         assert not result.has_issues
