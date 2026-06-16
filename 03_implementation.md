@@ -1,9 +1,3 @@
-[rules]
-
-- `yyyymmdd` is the current date.
-- `hhmmss` is the current time.
-- `_nn_` is a sequential number.
-
 [tasks]
 
 Show progress while working.

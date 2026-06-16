@@ -1,9 +1,3 @@
-[rules]
-
-- `yyyymmdd` is the current date.
-- `hhmmss` is the current time.
-- `_nn_` is a sequential number.
-
 [tasks]
 
 Show progress while working.
@@ -27,6 +21,8 @@ Follow these instructions exactly.
    Create the document only.
    Do not implement anything.
    Save it as `~/llmagent/implementations/yyyymmdd-hhmmss_{target_file_name}.md`.
+   - `yyyymmdd` is the current date.
+   - `hhmmss` is the current time.
    Write it in clear and concise English for AI understanding.
    Use this section structure:
    - Goal
