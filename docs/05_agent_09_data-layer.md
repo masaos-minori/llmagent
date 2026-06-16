@@ -56,8 +56,8 @@ When `auto_inject_notes=True`, all notes are appended to the system prompt at st
 
 ## rag.sqlite Tables (Agent-facing)
 
-The agent layer does NOT own rag.sqlite. These tables are owned by the RAG pipeline.
-The agent only reads/deletes from them via `AgentSession` (for `/db` commands).
+The agent layer does NOT own rag.sqlite. These tables are owned by the RAG layer.
+The agent accesses them exclusively through `DbMaintenanceService` (for `/db` commands).
 
 | Table | Used by agent for |
 |---|---|
@@ -66,13 +66,13 @@ The agent only reads/deletes from them via `AgentSession` (for `/db` commands).
 | `chunks_fts` | `/db rebuild-fts` (FTS5 virtual table) |
 | `chunks_vec` | `/db stats` |
 
-**Responsibility boundary:** The agent deletes via `AgentSession.delete_document(url)`,
+**Responsibility boundary:** The agent deletes via `DbMaintenanceService.delete_document(url)`,
 which cascades from `documents` → `chunks` → `chunks_fts` (trigger). `chunks_vec` is a
 sqlite-vec virtual table with no FK constraint; `delete_document()` also deletes it explicitly.
 
-**Open Question:** `/db clean` and `/db stats` are agent-layer commands that access RAG
-data. Future refactoring may move these to the rag-pipeline-mcp service. See
-[05_agent_12_reference-api.md §AgentSession](05_agent_12_reference-api.md).
+**Note:** `/db urls`, `/db clean`, `/db stats`, `/db rebuild-fts` are agent-layer commands
+that access RAG data through `DbMaintenanceService`. Future refactoring may move these to
+the rag-pipeline-mcp service. See [05_agent_12_reference-api.md](05_agent_12_reference-api.md).
 
 ---
 

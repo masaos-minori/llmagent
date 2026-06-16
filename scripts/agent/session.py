@@ -8,7 +8,6 @@ import logging
 from db.helper import SQLiteHelper
 from shared.types import LLMMessage
 
-from agent.document_repo import DocumentRepository
 from agent.note_repo import NoteRepository
 from agent.session_message_repo import SessionMessageRepository
 
@@ -25,7 +24,6 @@ class AgentSession:
     def __init__(self) -> None:
         self.session_id: int | None = None  # current session DB row ID
         self._message_repo = SessionMessageRepository(self.session_id)
-        self._document_repo = DocumentRepository()
         self._note_repo = NoteRepository()
 
     # ── SessionMessageRepository delegation ──────────────────────────────────
@@ -84,16 +82,6 @@ class AgentSession:
     def search_notes(self, query: str, limit: int = 5) -> list[dict]:
         """Search notes by content LIKE query."""
         return self._note_repo.search_notes(query, limit)
-
-    # ── DocumentRepository delegation ─────────────────────────────────────────
-
-    def list_documents(self, lang: str | None = None, limit: int = 20) -> list[dict]:
-        """Return registered documents as structured data."""
-        return self._document_repo.list_documents(lang, limit)
-
-    def delete_document(self, url: str) -> bool:
-        """Delete a document and its chunks from DB by URL."""
-        return self._document_repo.delete_document(url)
 
     # ── Session lifecycle ────────────────────────────────────────────────────
 

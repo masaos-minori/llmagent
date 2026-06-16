@@ -65,7 +65,7 @@ class _DbMixin(MixinBase):
         if not url:
             self._out.write_validation_error("/db clean <url>")
             return
-        ok = self._ctx.session.delete_document(url)
+        ok = DbMaintenanceService().delete_document(url)
         if ok:
             self._out.write_success(f"Document deleted: {url}")
         else:
@@ -84,13 +84,13 @@ class _DbMixin(MixinBase):
         )
 
     def _db_list_urls(self, rest: str) -> None:
-        """Parse --lang / --limit options from rest and delegate to AgentSession."""
+        """Parse --lang / --limit options from rest and delegate to DbMaintenanceService."""
         parsed = parse_command_args(rest.split())
         lang_raw = parsed.flags.get("lang")
         lang: str | None = str(lang_raw) if lang_raw in ("ja", "en") else None
         limit_raw = parsed.flags.get("limit")
         limit = int(limit_raw) if limit_raw and str(limit_raw).isdigit() else 20
-        rows = self._ctx.session.list_documents(lang, limit)
+        rows = DbMaintenanceService().list_documents(lang, limit)
         if not rows:
             self._out.write_no_data("No documents found")
             return

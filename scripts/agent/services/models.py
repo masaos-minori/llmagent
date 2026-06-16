@@ -152,6 +152,7 @@ class DocumentRow:
     lang: str | None
     chunk_count: int
     fetched_at: str
+    chunking_strategy: str = "text"
 
 
 @dataclass(frozen=True)

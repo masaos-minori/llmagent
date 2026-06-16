@@ -24,7 +24,6 @@ AgentREPL responsibilities:
 import asyncio
 import sqlite3
 
-from db.helper import SQLiteHelper
 from shared.logger import Logger
 from shared.mcp_config import SecurityProfile
 from shared.tool_executor import StdioTransport
@@ -40,6 +39,7 @@ from agent.repl_health import (
     check_tool_definitions_runtime,
     watchdog_loop,
 )
+from agent.services.db_maintenance_service import DbMaintenanceService
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -96,9 +96,7 @@ class AgentREPL:
     def _get_chunk_count(self) -> str:
         """Return formatted chunk count from DB, or '?' on error."""
         try:
-            with SQLiteHelper("rag").open() as db:
-                rows = db.fetchall("SELECT COUNT(*) FROM chunks")
-            count = rows[0][0] if rows else 0
+            count = DbMaintenanceService().stats().chunks
             return f"{count:,}"
         except (sqlite3.Error, OSError, RuntimeError) as e:
             logger.debug("Failed to get chunk count: %s", e)
