@@ -281,7 +281,7 @@ async def list_tools() -> dict[str, Any]:
     """Return tool names and descriptions for agent.json definition validation."""
     return {
         "tools": [
-            {"name": t["name"], "description": t.get("description", "")}
+            {**t, "server_key": "web_search"}
             for t in _MCP_TOOLS
         ],
     }

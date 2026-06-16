@@ -97,7 +97,7 @@ async def _dispatch_cicd_tool(name: str, args: ToolArgs) -> DispatchResult:
 async def list_tools() -> dict[str, Any]:
     return {
         "tools": [
-            {"name": t["name"], "description": t.get("description", "")}
+            {**t, "server_key": "cicd"}
             for t in _MCP_TOOLS
         ],
     }

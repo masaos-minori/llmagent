@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """shared/route_resolver.py
 Config-driven tool-name to server-key resolution for ToolExecutor.
+
+Routing priority:
+  1. Live-discovered tool metadata from /v1/tools (server_key field)
+  2. Config-driven tool_names from mcp_servers config
+  3. Static fallback constants (compatibility/emergency use only)
 """
 
 from __future__ import annotations
@@ -49,20 +54,62 @@ _EXACT_ROUTES: dict[str, str] = {
 _GITHUB_PREFIX = "github_"
 
 
+def build_discovery_map(
+    server_tool_lists: dict[str, list[dict[str, object]]],
+) -> dict[str, str]:
+    """Build a routing map from live-discovered tool metadata.
+
+    Each server's tool list should include a 'server_key' field per tool.
+    Returns {tool_name: server_key} mapping. Duplicate tool names across servers
+    log a warning and use the first occurrence.
+
+    Example:
+        >>> build_discovery_map({
+        ...     "file_read": [{"name": "read_file", "server_key": "file_read"}],
+        ...     "shell": [{"name": "shell_run", "server_key": "shell"}],
+        ... })
+        {'read_file': 'file_read', 'shell_run': 'shell'}
+    """
+    route_map: dict[str, str] = {}
+    for server_key, tools in server_tool_lists.items():
+        for tool in tools:
+            name: str = tool.get("name", "") or ""  # type: ignore[assignment]
+            tk: str = tool.get("server_key", server_key) or server_key  # type: ignore[assignment]
+            if not name:
+                continue
+            if name in route_map and route_map[name] != tk:
+                logger.warning(
+                    "Tool %r claimed by both %r and %r; using %r first",
+                    name,
+                    route_map[name],
+                    tk,
+                    route_map[name],
+                )
+            else:
+                route_map[name] = tk
+    return route_map
+
+
 class ToolRouteResolver:
     """Map tool_name → server_key.
 
-    Config-driven (tool_names list) first; static prefix fallback second.
-    Raises ValueError when neither path matches.
+    Routing priority:
+      1. Discovery map (live /v1/tools metadata with server_key)
+      2. Config-driven (tool_names list from mcp_servers config)
+      3. Static fallback (SET_ROUTES, EXACT_ROUTES, prefix matching)
+    Raises ValueError when none of the above match.
     """
 
     def __init__(
         self,
         server_configs: dict[str, McpServerConfig],
         *,
+        discovery_map: dict[str, str] | None = None,
         warn_on_fallback: bool = False,
         strict_mode: bool = False,
     ) -> None:
+        # Discovery map from live /v1/tools metadata (highest priority).
+        self._discovery_map: dict[str, str] = discovery_map or {}
         # Build reverse map: tool_name -> server_key from explicitly configured tool_names.
         self._config_map: dict[str, str] = {}
         for key, cfg in server_configs.items():
@@ -73,6 +120,9 @@ class ToolRouteResolver:
 
     def resolve(self, tool_name: str) -> str:
         """Return the server key for tool_name; raises ValueError when no match."""
+        # Priority 1: discovery map (live server metadata).
+        if (key := self._discovery_map.get(tool_name)) is not None:
+            return key
         if (key := self._config_map.get(tool_name)) is not None:
             return key
         if self._strict_mode:

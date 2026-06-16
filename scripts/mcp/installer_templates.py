@@ -44,6 +44,9 @@ def generate_server_script(server_name: str, module: str, port: int) -> str:
             }},
         ]
 
+        # Server key used for live discovery-based routing.
+        _SERVER_KEY = "{{server_key}}"  # fmt: skip
+
         # Dispatch table: tool name -> async handler coroutine.
         _DISPATCH: dict[str, Any] = {{}}
 
@@ -74,7 +77,8 @@ def generate_server_script(server_name: str, module: str, port: int) -> str:
 
         @app.get("/v1/tools")
         async def list_tools() -> dict:
-            return {{"tools": _MCP_TOOLS}}
+            tools_with_keys = [{{**t, "server_key": _SERVER_KEY}} for t in _MCP_TOOLS]
+            return {{"tools": tools_with_keys}}
 
 
         @app.post("/v1/call_tool")

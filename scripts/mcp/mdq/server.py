@@ -110,7 +110,7 @@ async def _dispatch_mdq_tool(name: str, args: ToolArgs) -> DispatchResult:
 async def list_tools() -> dict[str, Any]:
     return {
         "tools": [
-            {"name": t["name"], "description": t.get("description", "")}
+            {**t, "server_key": "mdq"}
             for t in _MCP_TOOLS
         ],
     }

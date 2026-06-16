@@ -117,7 +117,7 @@ async def _dispatch_delete_tool(name: str, args: ToolArgs) -> DispatchResult:
 async def list_tools() -> dict[str, Any]:
     return {
         "tools": [
-            {"name": t["name"], "description": t.get("description", "")}
+            {**t, "server_key": "file_delete"}
             for t in _MCP_TOOLS
         ],
     }

@@ -79,7 +79,7 @@ async def _dispatch_sqlite_tool(name: str, args: ToolArgs) -> DispatchResult:
 async def list_tools() -> dict[str, Any]:
     return {
         "tools": [
-            {"name": t["name"], "description": t.get("description", "")}
+            {**t, "server_key": "sqlite"}
             for t in _MCP_TOOLS
         ],
     }

@@ -109,7 +109,7 @@ async def _dispatch_shell_tool(name: str, args: ToolArgs) -> DispatchResult:
 async def list_tools() -> dict[str, Any]:
     return {
         "tools": [
-            {"name": t["name"], "description": t.get("description", "")}
+            {**t, "server_key": "shell"}
             for t in _MCP_TOOLS
         ],
     }

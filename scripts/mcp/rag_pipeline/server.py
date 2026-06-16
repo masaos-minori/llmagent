@@ -161,7 +161,7 @@ async def health() -> dict[str, object]:
 async def list_tools() -> dict[str, Any]:
     return {
         "tools": [
-            {"name": t["name"], "description": t.get("description", "")}
+            {**t, "server_key": "rag_pipeline"}
             for t in _MCP_TOOLS
         ],
     }

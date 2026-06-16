@@ -112,6 +112,19 @@ class MCPServer:
         """
         return [t["name"] for t in getattr(self, "mcp_tools", [])]
 
+    def list_tools_with_server_key(self) -> list[dict[str, object]]:
+        """Return tool metadata including server_key for live discovery-based routing.
+
+        Each tool dict includes: name, description, inputSchema, server_key.
+        Used by /v1/tools endpoint and startup tool discovery.
+        """
+        server_key = getattr(self, "server_key", type(self).__name__)
+        tools = getattr(self, "mcp_tools", [])
+        return [
+            {**t, "server_key": server_key}
+            for t in tools
+        ]
+
     def health(self) -> dict[str, object]:
         """Return a health status dict for HTTP server diagnostics.
 
