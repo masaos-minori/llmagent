@@ -27,7 +27,7 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 |---|---|
 | エージェント仕様（全体・設計・未解決事項） | `docs/05_spec_agent.md` |
 | MCP サーバー仕様（全体・設計・未解決事項） | `docs/04_spec_mcp.md` |
-| RAG パイプライン仕様（全体・設計・未解決事項） | `docs/03_spec_rag.md` |
+| RAG パイプライン仕様（全体・設計・未解決事項） | `docs/03_rag_00_document-guide.md` + `docs/03_rag_01_system_overview.md` |
 | DB 層仕様（スキーマ・保守・未解決事項） | `docs/07_spec_db.md` |
 | 共有インフラ仕様（設定・ログ・型・定数） | `docs/06_spec_shared.md` |
 
@@ -50,7 +50,7 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | web-search-mcp specifics | `docs/04_mcp-web-search.md` |
 | file-mcp specifics | `docs/04_mcp-file.md` |
 | github-mcp specifics | `docs/04_mcp-github.md` |
-| RAG pipeline modification | `docs/05_ref-rag.md` + `docs/06_shared.md` |
+| RAG pipeline modification | `docs/03_rag_03_query_pipeline.md` + `docs/03_rag_04_data_model_and_interfaces.md` + `docs/06_shared.md` |
 | rag-pipeline-mcp specifics | `docs/04_mcp-rag.md` |
 | sqlite-mcp specifics | `docs/04_mcp-sqlite.md` + `docs/07_ref-sqlite.md` |
 | shell-mcp specifics | `docs/04_mcp-shell.md` |
@@ -68,14 +68,15 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | Session / DB persistence | `docs/05_ref-agent-session.md` + `docs/07_ref-sqlite.md` |
 | LLM client (streaming/retry) | `docs/05_ref-agent-llm.md` |
 | CLI view / readline | `docs/05_ref-agent-view.md` |
-| RAG types / repository / LLM utils | `docs/05_ref-rag.md` + `docs/06_shared.md` |
+| RAG types / repository / LLM utils | `docs/03_rag_04_data_model_and_interfaces.md` + `docs/06_shared.md` |
 | SQLite / DB connection / WAL / transactions | `docs/07_ref-sqlite.md` |
 | Config / logger / formatters / rag_utils | `docs/06_ref-infra.md` |
-| Ingestion pipeline run (execute commands, file lifecycle) | `docs/03_rag-ingestion-run.md` |
-| web_crawler.py changes / API reference | `docs/03_rag-ref-crawler.md` |
-| chunk_splitter.py changes / API reference | `docs/03_rag-ref-splitter.md` |
-| rag_ingester.py changes / API reference | `docs/03_rag-ref-ingester.md` |
-| Ingestion shared implementation notes | `docs/03_rag-ref-ingestion.md` |
+| Ingestion pipeline run (execute commands, file lifecycle) | `docs/03_rag_02_ingestion_pipeline.md` + `docs/03_rag_05_configuration_and_operations.md` |
+| crawler.py changes / API reference | `docs/03_rag_02_ingestion_pipeline.md` |
+| chunk_splitter.py changes / API reference | `docs/03_rag_02_ingestion_pipeline.md` |
+| ingester.py changes / API reference | `docs/03_rag_02_ingestion_pipeline.md` |
+| RAG known bugs / inconsistencies | `docs/03_rag_90_inconsistencies_and_known_issues.md` |
+| RAG configuration parameters | `docs/03_rag_05_configuration_and_operations.md` |
 | Deployment / env setup | `docs/02_deployment.md` + `rules/env.md` |
 
 ## Always load alongside the skill
