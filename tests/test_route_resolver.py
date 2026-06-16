@@ -33,6 +33,7 @@ class TestStaticFallbackRouting:
             "github": _http("github"),
             "rag_pipeline": _http("rag_pipeline"),
             "cicd": _http("cicd"),
+            "sqlite": _http("sqlite"),
         }
         self.resolver = ToolRouteResolver(configs)
 
@@ -80,6 +81,10 @@ class TestStaticFallbackRouting:
             "get_workflow_logs",
         ]:
             assert self.resolver.resolve(name) == "cicd", name
+
+    def test_sqlite_tools(self) -> None:
+        for name in ["query_sqlite"]:
+            assert self.resolver.resolve(name) == "sqlite", name
 
     def test_unknown_tool_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown tool"):

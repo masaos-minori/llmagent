@@ -87,3 +87,10 @@ GIT_TOOLS: frozenset[str] = frozenset(
         "git_push",
     },
 )
+
+# SQLite query tools (sqlite-mcp, port 8011)
+SQLITE_TOOLS: frozenset[str] = frozenset(
+    {
+        "query_sqlite",
+    },
+)

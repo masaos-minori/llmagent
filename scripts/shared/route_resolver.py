@@ -15,6 +15,7 @@ from shared.tool_constants import (
     MDQ_TOOLS,
     RAG_TOOLS,
     READ_TOOLS,
+    SQLITE_TOOLS,
     WRITE_TOOLS,
 )
 
@@ -37,6 +38,7 @@ _SET_ROUTES: tuple[_SetRoute, ...] = (
     _SetRoute(CICD_TOOLS, "cicd"),
     _SetRoute(MDQ_TOOLS, "mdq"),
     _SetRoute(GIT_TOOLS, "git"),
+    _SetRoute(SQLITE_TOOLS, "sqlite"),
 )
 
 _EXACT_ROUTES: dict[str, str] = {
