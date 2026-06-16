@@ -1,0 +1,256 @@
+# MCP Routing, Lifecycle, and Execution
+
+- System overview → [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md)
+
+## Purpose
+
+Document tool routing, server startup/shutdown lifecycle, ToolExecutor internals,
+watchdog behavior, idle timeout, and the procedure for adding a new server.
+
+---
+
+## Tool Call Dispatch Flow
+
+```
+LLM returns tool_call
+  → ToolRouteResolver.resolve(tool_name) → server_key
+  → ToolExecutor.execute(tool_name, args)
+       1. Plugin tool check (@register_tool)   — bypasses cache and MCP
+       2. Cache check (TTL + LRU)             — returns cached result if hit
+       3. _raw_execute()
+            → McpServerHealthRegistry: is_unavailable? → return error immediately
+            → LifecycleProtocol.ensure_ready(server_key)
+            → concurrency semaphore acquire (if configured)
+            → HttpTransport.call() or StdioTransport.call()
+            → return ToolCallResult(output, is_error, request_id, server_key)
+```
+
+---
+
+## ToolRouteResolver (`shared/route_resolver.py`)
+
+Resolves `tool_name → server_key` in two steps:
+
+1. **Config-driven (priority):** `McpServerConfig.tool_names` provides an explicit mapping.
+   Built at constructor time into an inverse dict `{tool_name: server_key}`.
+
+2. **Static fallback:** `_fallback_route()` uses frozensets in `shared/tool_constants.py`:
+
+| Tool set | Server key |
+|---|---|
+| `READ_TOOLS` (9 tools: list_directory, read_text_file, etc.) | `file_read` |
+| `WRITE_TOOLS` (write_file, edit_file, create_directory, move_file) | `file_write` |
+| `DELETE_TOOLS` (delete_file, delete_directory) | `file_delete` |
+| `shell_run` | `shell` |
+| `search_web` | `web_search` |
+| `github_*` (prefix match) | `github` |
+| `RAG_TOOLS` (rag_run_pipeline, rag_debug_pipeline) | `rag_pipeline` |
+| `CICD_TOOLS` (trigger_workflow, get_workflow_runs, get_workflow_status, get_workflow_logs) | `cicd` |
+| `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs) | `mdq` |
+| `GIT_TOOLS` (git_status, git_log, git_diff, git_branch, git_show, git_add, git_commit, git_checkout, git_pull, git_push) | `git` |
+| No match | `ValueError` |
+
+**Note:** `query_sqlite` is NOT in tool_constants.py static table. It must be listed
+explicitly in `McpServerConfig.tool_names` for `sqlite` server key.
+
+```python
+resolver = ToolRouteResolver(server_configs)
+server_key = resolver.resolve("read_text_file")  # → "file_read"
+```
+
+---
+
+## ToolExecutor (`shared/tool_executor.py`)
+
+```python
+executor = ToolExecutor(
+    http=httpx.AsyncClient(...),
+    cache_ttl=300.0,
+    server_configs=server_configs,
+    cache_max_size=200,
+    concurrency_limits={"file_write": 1},
+    lifecycle=lifecycle_router,
+)
+result = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
+# result: ToolCallResult(output, is_error, request_id, server_key)
+```
+
+### Cache behavior
+
+- Only caches `is_error=False` results
+- Cache key: `MD5(tool_name + orjson_sorted(args))`
+- Entries expire after `cache_ttl` seconds
+- LRU eviction when `cache_max_size > 0` (`0` = unlimited)
+- Cache hit: `request_id=""` (no live request made)
+- Statistics: `stat_cache_hits: int`
+
+### Concurrency limits
+
+`concurrency_limits={"server_key": N}` limits concurrent calls to N per server.
+Implemented as lazily-created `asyncio.Semaphore`. Unknown keys → warning log only.
+
+### Side-effect detection
+
+```python
+_SIDE_EFFECT_TOOLS = WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
+is_side_effect(tool_name: str) -> bool
+```
+
+When `execute_all_tool_calls()` detects any side-effect tool, it serializes all calls in
+that round (even non-side-effect tools), regardless of `serial_tool_calls` setting.
+
+---
+
+## HttpTransport (`shared/tool_executor.py`)
+
+```python
+HttpTransport(http, base_url, server_key, cfg=McpServerConfig)
+result = await transport.call("tool_name", {"arg": "val"})
+```
+
+- Adds `Authorization: Bearer <token>` when `cfg.auth_token` is non-empty
+- Catches all HTTP and request errors; returns `is_error=True` with message
+- `set_session_id(session_id)` injects `X-Session-Id` header per request
+
+---
+
+## StdioTransport (`shared/tool_executor.py`)
+
+```python
+transport = StdioTransport(cmd=["python", "-m", "mcp.shell.server", "--stdio"],
+                            server_key="shell", working_dir="", env=None)
+await transport.start()
+result = await transport.call("shell_run", {"command": "ls"})
+await transport.stop()
+```
+
+- per-instance `asyncio.Lock` serializes concurrent calls
+- `is_alive() -> bool`: `returncode is None`
+- Timeout: `_STDIO_CALL_TIMEOUT = 60.0` seconds
+- `stop()`: close stdin → wait 5s → SIGTERM → wait 3s → SIGKILL
+- `working_dir` non-empty: `Path(working_dir).is_dir()` checked at `start()` (raises `ValueError` if missing)
+- `env` non-empty: `{**os.environ, **env}` merged for subprocess
+
+---
+
+## McpServerHealthRegistry (`shared/mcp_config.py`)
+
+Per-server failure tracker injected into `ToolExecutor`.
+
+| State | Condition |
+|---|---|
+| `HEALTHY` | No failures or after successful call |
+| `DEGRADED` | Failure count < threshold (default 3) |
+| `UNAVAILABLE` | Failure count ≥ threshold; `_raw_execute()` blocks dispatch |
+
+| Method | Description |
+|---|---|
+| `record_failure(server_key)` | Increment failure; return new state |
+| `record_success(server_key)` | Reset failure count; return HEALTHY |
+| `get_state(server_key)` | Current state; returns HEALTHY for unknown key |
+| `is_unavailable(server_key)` | `True` if UNAVAILABLE |
+
+> **Known Issue (BUG):** `ToolExecutor._raw_execute()` calls `is_unavailable()` but does NOT
+> call `record_failure()` or `record_success()`. Therefore DEGRADED/UNAVAILABLE transitions
+> never occur in practice. See [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md).
+
+---
+
+## _ServerLifecycleRouter (`factory.py`)
+
+Manages HTTP subprocess and stdio server lifecycle. Implements `LifecycleProtocol`.
+
+```python
+class _ServerLifecycleRouter:
+    async def ensure_ready(server_key: str) -> None
+    async def shutdown_all() -> None
+    async def shutdown_idle() -> None
+    def restart(server_key: str) -> None  # for watchdog
+```
+
+### ensure_ready (ondemand stdio)
+
+1. Fast path: `transport.is_alive()` (no lock)
+2. Acquire per-server `asyncio.Lock`
+3. Double-check: `transport.is_alive()` again
+4. If not alive: `StdioTransport.start()` + `tool_executor.set_transport()`
+
+### startup_mode behavior
+
+| startup_mode | When | Action |
+|---|---|---|
+| `persistent` (stdio) | Agent launch | `StdioTransport.start()` immediately |
+| `ondemand` (stdio) | First tool call | `ensure_ready()` auto-starts |
+| `subprocess` (http) | Agent launch | `start_http_subprocess()` — spawn uvicorn, poll `/health` up to `startup_timeout_sec` |
+
+---
+
+## Watchdog (`_watchdog_loop`)
+
+Runs as asyncio background task. Activated when `mcp_watchdog_interval > 0` (default `0` = disabled).
+
+- Polls every `mcp_watchdog_interval` seconds
+- Checks `/health` for HTTP servers with `startup_mode="subprocess"`
+- On failure: calls `_ServerLifecycleRouter.restart(server_key)`
+  1. `proc.terminate()` → wait 3s → `proc.kill()` if needed
+  2. `start_http_subprocess()` — respawn + poll `/health`
+- Max restarts: `mcp_watchdog_max_restarts` (default 3)
+- `healthcheck_mode="ping_tool"` (stdio): sends `__list_tools__` RPC to verify response
+
+### idle_timeout for ondemand servers
+
+- `0` (default): server stays alive until agent exits
+- Positive value: `shutdown_idle()` in each watchdog cycle stops servers idle > `idle_timeout_sec`
+- Actual stop may be delayed up to `idle_timeout_sec + mcp_watchdog_interval`
+
+---
+
+## Lifecycle Flow
+
+```
+AgentREPL.run()
+  → _start_mcp_servers()
+       → startup_mode="persistent" (stdio): StdioTransport.start()
+       → startup_mode="subprocess" (http): start_http_subprocess() + health poll
+  → [REPL loop]
+       → first tool call on ondemand server: ensure_ready() auto-starts
+       → watchdog task: health check + restart on failure
+  → finally: lifecycle.shutdown_all() + AsyncClient.close()
+```
+
+---
+
+## Adding a New MCP Server
+
+### Option 1: Wizard (recommended)
+
+```
+agent[:#N]> /mcp install <server-name>
+```
+
+Generates:
+- `scripts/mcp/<name>/server.py` — FastAPI scaffold (`MCPServer` subclass)
+- `config/<module>_mcp_server.json` — config template
+- `init.d/<server-name>` — OpenRC startup script (mode 755)
+- `conf.d/<server-name>` — API key env template (optional)
+
+### Option 2: Manual steps
+
+1. Subclass `MCPServer` in `mcp/<name>/server.py`; override `dispatch()`
+2. Add `GET /v1/tools` endpoint returning tool definitions
+3. Add tool definitions to `config/agent.toml` → `tool_definitions`
+4. Add `[mcp_servers.<key>]` entry to `config/mcp_servers.toml`
+5. Add new files to `deploy/deploy.sh` copy list
+6. Add OpenRC script to `init.d/`; update `deploy/setup_services.sh`
+
+### Config-driven routing for new server
+
+If the new server's tools don't appear in `shared/tool_constants.py`, add `tool_names` to
+the server config:
+
+```toml
+[mcp_servers.my_server]
+transport = "http"
+url = "http://127.0.0.1:8015"
+tool_names = ["my_tool_a", "my_tool_b"]
+```
