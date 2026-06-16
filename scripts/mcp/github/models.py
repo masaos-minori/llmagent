@@ -44,11 +44,13 @@ from .models_issues import (
     CreateIssueResponse,
     GetIssueRequest,
     GetIssueResponse,
-    IssueInfo as _IssuesIssueInfo,  # noqa: F401 — re-export from models_base
     ListIssuesRequest,
     ListIssuesResponse,
     SearchIssuesRequest,
     SearchIssuesResponse,
+)
+from .models_issues import (
+    IssueInfo as _IssuesIssueInfo,  # noqa: F401 — re-export from models_base
 )
 from .models_pull_requests import (
     CreatePullRequestRequest,

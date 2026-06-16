@@ -224,6 +224,7 @@ async def health() -> dict[str, object]:
     deps: dict[str, str] = {}
     try:
         import os as _os
+
         if not _os.path.isdir("/workspace"):
             deps["filesystem"] = "/workspace not found"
     except Exception:
@@ -244,10 +245,7 @@ async def _dispatch_read_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     return {
-        "tools": [
-            {**t, "server_key": "file_read"}
-            for t in _MCP_TOOLS
-        ],
+        "tools": [{**t, "server_key": "file_read"} for t in _MCP_TOOLS],
     }
 
 

@@ -311,8 +311,16 @@ class TestAuditSecurityDefaults:
         if servers:
             for key, vals in servers.items():
                 transport = vals.get("transport", "http")
-                url = vals.get("url", "http://127.0.0.1:8000") if transport == "http" else ""
-                cmd = vals.get("cmd", ["python", "server.py"]) if transport == "stdio" else []
+                url = (
+                    vals.get("url", "http://127.0.0.1:8000")
+                    if transport == "http"
+                    else ""
+                )
+                cmd = (
+                    vals.get("cmd", ["python", "server.py"])
+                    if transport == "stdio"
+                    else []
+                )
                 mcp_servers[key] = McpServerConfig(
                     transport=transport,
                     url=url,
@@ -386,7 +394,6 @@ class TestAuditSecurityDefaults:
         )
         ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         warnings = audit_security_defaults(ctx, production_mode=True)
-        http_warnings = [w for w in warnings if "http" in w.lower() or "transport" in w.lower()]
         stdio_auth_warnings = [w for w in warnings if "stdio_server" in w]
         assert len(stdio_auth_warnings) == 0
 

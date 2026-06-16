@@ -197,10 +197,14 @@ class ReadFileService:
                 error="File cannot be decoded as UTF-8",
             )
         except OSError as e:
-            logger.warning("read_multiple_files: OS error reading '%s': %s", raw_path, e)
+            logger.warning(
+                "read_multiple_files: OS error reading '%s': %s", raw_path, e
+            )
             return FileResult(path=raw_path, content=None, error=str(e))
 
-    def read_multiple_files(self, req: ReadMultipleFilesRequest) -> ReadMultipleFilesResponse:
+    def read_multiple_files(
+        self, req: ReadMultipleFilesRequest
+    ) -> ReadMultipleFilesResponse:
         """Retrieve multiple files; continues even if individual errors occur."""
         results = [self.read_single_file(raw_path) for raw_path in req.paths]
         return ReadMultipleFilesResponse(results=results)
@@ -252,7 +256,8 @@ class ReadFileService:
                             return matches, True
         except PermissionError as e:
             logger.warning(
-                "grep_files: directory traversal stopped due to permission error: %s", e,
+                "grep_files: directory traversal stopped due to permission error: %s",
+                e,
             )
         return matches, False
 
@@ -266,9 +271,14 @@ class ReadFileService:
             raise FileValidationError(f"Invalid regular expression: {e}")
 
         matches, truncated = self._collect_grep_matches(
-            base, compiled, req.file_pattern, req.max_matches,
+            base,
+            compiled,
+            req.file_pattern,
+            req.max_matches,
         )
-        return GrepFilesResponse(pattern=req.pattern, matches=matches, truncated=truncated)
+        return GrepFilesResponse(
+            pattern=req.pattern, matches=matches, truncated=truncated
+        )
 
     def get_file_info(self, req: GetFileInfoRequest) -> GetFileInfoResponse:
         """Return metadata (size, timestamps, permissions) for a file or directory."""

@@ -678,8 +678,9 @@ class TestDbMaintenanceServiceDocuments:
 
     def test_delete_document_returns_true_when_exists(self, tmp_path: Path) -> None:
         """delete_document() returns True when URL exists and deletes all related rows."""
-        from agent.services.db_maintenance_service import DbMaintenanceService
         from unittest.mock import MagicMock, patch
+
+        from agent.services.db_maintenance_service import DbMaintenanceService
 
         mock_conn = MagicMock()
         mock_conn.execute.return_value.fetchone.return_value = (42,)  # doc_id
@@ -706,8 +707,9 @@ class TestDbMaintenanceServiceDocuments:
 
     def test_delete_document_returns_false_when_not_found(self, tmp_path: Path) -> None:
         """delete_document() returns False when URL does not exist."""
-        from agent.services.db_maintenance_service import DbMaintenanceService
         from unittest.mock import MagicMock, patch
+
+        from agent.services.db_maintenance_service import DbMaintenanceService
 
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = None  # no doc found
@@ -732,8 +734,9 @@ class TestDbMaintenanceServiceDocuments:
 
     def test_delete_document_cascades_from_chunks_vec(self, tmp_path: Path) -> None:
         """delete_document() executes chunks_vec DELETE before documents DELETE."""
-        from agent.services.db_maintenance_service import DbMaintenanceService
         from unittest.mock import MagicMock, patch
+
+        from agent.services.db_maintenance_service import DbMaintenanceService
 
         mock_conn = MagicMock()
         mock_conn.execute.return_value.fetchone.return_value = (99,)  # doc_id
@@ -754,7 +757,9 @@ class TestDbMaintenanceServiceDocuments:
         # Verify chunks_vec deletion happens before documents deletion
         delete_calls = [str(c) for c in mock_db.execute.call_args_list]
         vec_idx = next(i for i, c in enumerate(delete_calls) if "chunks_vec" in c)
-        doc_idx = next(i for i, c in enumerate(delete_calls) if "documents WHERE doc_id" in c)
+        doc_idx = next(
+            i for i, c in enumerate(delete_calls) if "documents WHERE doc_id" in c
+        )
         assert vec_idx < doc_idx, "chunks_vec DELETE must precede documents DELETE"
 
     def test_list_documents_filters_by_lang(self, tmp_path: Path) -> None:

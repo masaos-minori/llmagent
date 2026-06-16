@@ -160,10 +160,7 @@ async def health() -> dict[str, object]:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     return {
-        "tools": [
-            {**t, "server_key": "rag_pipeline"}
-            for t in _MCP_TOOLS
-        ],
+        "tools": [{**t, "server_key": "rag_pipeline"} for t in _MCP_TOOLS],
     }
 
 

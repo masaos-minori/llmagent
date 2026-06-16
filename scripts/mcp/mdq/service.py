@@ -146,9 +146,7 @@ class MdqService:
         conn = self._get_db_connection()
         try:
             compiled = re.compile(req.pattern)
-            rows = conn.execute(
-                "SELECT id, heading, content FROM sections"
-            ).fetchall()
+            rows = conn.execute("SELECT id, heading, content FROM sections").fetchall()
             matches = []
             for row in rows:
                 if compiled.search(row["content"]) or compiled.search(row["heading"]):

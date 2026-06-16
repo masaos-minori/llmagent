@@ -136,7 +136,9 @@ def rag_tmp_db(tmp_path: Path) -> sqlite3.Connection:
     with (
         patch("db.helper.build_db_config", return_value=cfg),
         patch("db.store_protocols.build_db_config", return_value=cfg),
-        patch("db.create_schema.build_rag_schema_sql", return_value=_RAG_SCHEMA_NO_VEC0),
+        patch(
+            "db.create_schema.build_rag_schema_sql", return_value=_RAG_SCHEMA_NO_VEC0
+        ),
         patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
         patch.object(
             cs, "_get_logger", return_value=logging.getLogger("test.create_schema")
@@ -155,7 +157,8 @@ def session_tmp_db(tmp_path: Path) -> sqlite3.Connection:
         patch("db.helper.build_db_config", return_value=cfg),
         patch("db.store_protocols.build_db_config", return_value=cfg),
         patch(
-            "db.create_schema.build_session_schema_sql", return_value=_SESSION_SCHEMA_NO_VEC0
+            "db.create_schema.build_session_schema_sql",
+            return_value=_SESSION_SCHEMA_NO_VEC0,
         ),
         patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
         patch.object(
@@ -199,7 +202,10 @@ class TestCreateRagSchema:
         with (
             patch("db.helper.build_db_config", return_value=cfg),
             patch("db.store_protocols.build_db_config", return_value=cfg),
-            patch("db.create_schema.build_rag_schema_sql", return_value=_RAG_SCHEMA_NO_VEC0),
+            patch(
+                "db.create_schema.build_rag_schema_sql",
+                return_value=_RAG_SCHEMA_NO_VEC0,
+            ),
             patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
             patch.object(
                 cs, "_get_logger", return_value=logging.getLogger("test.create_schema")
@@ -254,7 +260,8 @@ class TestCreateSessionSchema:
             patch("db.helper.build_db_config", return_value=cfg),
             patch("db.store_protocols.build_db_config", return_value=cfg),
             patch(
-                "db.create_schema.build_session_schema_sql", return_value=_SESSION_SCHEMA_NO_VEC0
+                "db.create_schema.build_session_schema_sql",
+                return_value=_SESSION_SCHEMA_NO_VEC0,
             ),
             patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
             patch.object(

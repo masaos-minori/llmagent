@@ -49,7 +49,13 @@ async def list_issues(
 ) -> ListIssuesResponse:
     t0 = time.perf_counter()
     result = await svc.list_issues(req)
-    _info("list_issues", repo=f"{req.owner}/{req.repo}", state=req.state, n=len(result.issues), ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "list_issues",
+        repo=f"{req.owner}/{req.repo}",
+        state=req.state,
+        n=len(result.issues),
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -60,7 +66,12 @@ async def get_issue(
 ) -> GetIssueResponse:
     t0 = time.perf_counter()
     result = await svc.get_issue(req)
-    _info("get_issue", repo=f"{req.owner}/{req.repo}", issue=req.issue_number, ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "get_issue",
+        repo=f"{req.owner}/{req.repo}",
+        issue=req.issue_number,
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -71,7 +82,12 @@ async def create_issue(
 ) -> CreateIssueResponse:
     t0 = time.perf_counter()
     result = await svc.create_issue(req)
-    _info("create_issue", repo=f"{req.owner}/{req.repo}", issue=result.issue.number, ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "create_issue",
+        repo=f"{req.owner}/{req.repo}",
+        issue=result.issue.number,
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -82,7 +98,12 @@ async def search_issues(
 ) -> SearchIssuesResponse:
     t0 = time.perf_counter()
     result = await svc.search_issues(req)
-    _info("search_issues", q=req.query[:80], n=len(result.results), ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "search_issues",
+        q=req.query[:80],
+        n=len(result.results),
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -93,5 +114,10 @@ async def add_issue_comment(
 ) -> AddIssueCommentResponse:
     t0 = time.perf_counter()
     result = await svc.add_issue_comment(req)
-    _info("add_issue_comment", repo=f"{req.owner}/{req.repo}", issue=req.issue_number, ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "add_issue_comment",
+        repo=f"{req.owner}/{req.repo}",
+        issue=req.issue_number,
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result

@@ -120,10 +120,7 @@ class MCPServer:
         """
         server_key = getattr(self, "server_key", type(self).__name__)
         tools = getattr(self, "mcp_tools", [])
-        return [
-            {**t, "server_key": server_key}
-            for t in tools
-        ]
+        return [{**t, "server_key": server_key} for t in tools]
 
     def health(self) -> dict[str, object]:
         """Return a health status dict for HTTP server diagnostics.

@@ -88,6 +88,7 @@ async def health() -> dict[str, object]:
     deps: dict[str, str] = {}
     try:
         import shutil as _shutil
+
         if _shutil.which("sh") is None:
             deps["shell"] = "sh not found in PATH"
     except Exception:
@@ -108,10 +109,7 @@ async def _dispatch_shell_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     return {
-        "tools": [
-            {**t, "server_key": "shell"}
-            for t in _MCP_TOOLS
-        ],
+        "tools": [{**t, "server_key": "shell"} for t in _MCP_TOOLS],
     }
 
 

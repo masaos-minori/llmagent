@@ -14,6 +14,6 @@ Sub-modules:
 from __future__ import annotations
 
 # Re-export public symbols from the combined module for convenience
-from mcp.github.service import GitHubService, build_service, _GITHUB_TOKEN  # noqa: F401
+from mcp.github.service import _GITHUB_TOKEN, GitHubService, build_service  # noqa: F401
 
 __all__ = ["GitHubService", "build_service", "_GITHUB_TOKEN"]

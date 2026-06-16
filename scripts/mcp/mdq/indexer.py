@@ -39,7 +39,12 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
         for section in sections:
             conn.execute(
                 "INSERT INTO sections (file_path, heading, content, file_mtime) VALUES (?, ?, ?, ?)",
-                (str(path), section["heading"], section["content"], path.stat().st_mtime),
+                (
+                    str(path),
+                    section["heading"],
+                    section["content"],
+                    path.stat().st_mtime,
+                ),
             )
 
         conn.commit()

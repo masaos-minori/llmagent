@@ -13,9 +13,7 @@ from __future__ import annotations
 import orjson
 
 
-def dumps(
-    obj: object, option: int | None = orjson.OPT_SORT_KEYS
-) -> str:
+def dumps(obj: object, option: int | None = orjson.OPT_SORT_KEYS) -> str:
     """Serialize obj to a JSON string.
 
     Wrapper around orjson.dumps().decode() that returns str directly.

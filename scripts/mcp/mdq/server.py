@@ -109,10 +109,7 @@ async def _dispatch_mdq_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     return {
-        "tools": [
-            {**t, "server_key": "mdq"}
-            for t in _MCP_TOOLS
-        ],
+        "tools": [{**t, "server_key": "mdq"} for t in _MCP_TOOLS],
     }
 
 
@@ -154,7 +151,12 @@ async def health() -> dict[str, object]:
     except Exception:
         deps["config"] = "check failed"
     ready = len(deps) == 0
-    return {"status": "ok", "ready": ready, "dependencies": deps, "details": {"service": "mdq-mcp"}}
+    return {
+        "status": "ok",
+        "ready": ready,
+        "dependencies": deps,
+        "details": {"service": "mdq-mcp"},
+    }
 
 
 # ──────────────────────────────────────────────────────────────────────────────

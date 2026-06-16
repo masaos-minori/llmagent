@@ -27,9 +27,7 @@ async def search_docs(service: MdqService, req: SearchDocsRequest) -> str:
     return "\n".join(lines)
 
 
-def _search_docs_structured(
-    service: MdqService, req: SearchDocsRequest
-) -> dict:
+def _search_docs_structured(service: MdqService, req: SearchDocsRequest) -> dict:
     """Run FTS5 search; return structured result dict."""
     if not req.query or not req.query.strip():
         return {"query": req.query, "results": [], "total": 0}

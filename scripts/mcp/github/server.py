@@ -128,13 +128,19 @@ app.include_router(pr_router)
 # Health check
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @app.get("/health")
 async def health() -> dict[str, object]:
     """Health check endpoint. Returns GitHub token availability."""
     deps: dict[str, str] = {}
     if not _GITHUB_TOKEN:
         deps["github_token"] = "not_set"
-    return {"status": "ok", "ready": len(deps) == 0, "dependencies": deps, "details": {}}
+    return {
+        "status": "ok",
+        "ready": len(deps) == 0,
+        "dependencies": deps,
+        "details": {},
+    }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -151,20 +157,19 @@ async def _dispatch_github_tool(name: str, args: ToolArgs) -> DispatchResult:
 # Tool listing endpoint (for client-side definition validation)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     """Return tool names and descriptions for agent.json definition validation."""
     return {
-        "tools": [
-            {**t, "server_key": "github"}
-            for t in TOOL_LIST
-        ],
+        "tools": [{**t, "server_key": "github"} for t in TOOL_LIST],
     }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Unified tool call endpoint
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: "Request") -> CallToolResponse:
@@ -188,6 +193,7 @@ async def call_tool(req: CallToolRequest, request: "Request") -> CallToolRespons
 # ──────────────────────────────────────────────────────────────────────────────
 # Entry point
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class GithubMCPServer(MCPServer):
     """MCPServer subclass for github-mcp."""

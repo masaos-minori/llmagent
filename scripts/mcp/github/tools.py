@@ -19,9 +19,7 @@ from .tools_issues import TOOL_LIST as _issue_tools
 from .tools_pull_requests import TOOL_LIST as _pr_tools
 from .tools_repository import TOOL_LIST as _repo_tools
 
-_MCP_TOOLS = (
-    _repo_tools + _file_tools + _issue_tools + _pr_tools
-)
+_MCP_TOOLS = _repo_tools + _file_tools + _issue_tools + _pr_tools
 
 # Canonical export — server.py imports TOOL_LIST, not _MCP_TOOLS directly.
 TOOL_LIST: list[dict] = _MCP_TOOLS

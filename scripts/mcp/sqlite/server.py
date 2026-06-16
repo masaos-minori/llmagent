@@ -78,10 +78,7 @@ async def _dispatch_sqlite_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     return {
-        "tools": [
-            {**t, "server_key": "sqlite"}
-            for t in _MCP_TOOLS
-        ],
+        "tools": [{**t, "server_key": "sqlite"} for t in _MCP_TOOLS],
     }
 
 
@@ -102,7 +99,11 @@ async def health() -> dict[str, object]:
 
         cfg = ConfigLoader().load_all()
         common = cfg.get("common", {}) if isinstance(cfg.get("common"), dict) else {}
-        sqlite_cfg = cfg.get("sqlite_mcp_server", {}) if isinstance(cfg.get("sqlite_mcp_server"), dict) else {}
+        sqlite_cfg = (
+            cfg.get("sqlite_mcp_server", {})
+            if isinstance(cfg.get("sqlite_mcp_server"), dict)
+            else {}
+        )
         db_paths: dict[str, str] = {}
         for key, val in sqlite_cfg.items():
             if isinstance(val, dict):
@@ -118,6 +119,7 @@ async def health() -> dict[str, object]:
         for name, path in db_paths.items():
             try:
                 import os as _os
+
                 if not _os.path.isfile(path):
                     deps[name] = f"file not found: {path}"
             except Exception:

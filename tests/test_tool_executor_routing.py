@@ -701,7 +701,9 @@ class TestToolExecutorHealthGate:
         ex = _make_executor(configs={"file_read": _http_cfg()})
         ex.set_health_registry(registry)
         mock_transport = AsyncMock()
-        mock_transport.call = AsyncMock(side_effect=TransportError("connection refused"))
+        mock_transport.call = AsyncMock(
+            side_effect=TransportError("connection refused")
+        )
         ex._transports["file_read"] = mock_transport
         res = await ex._raw_execute("read_text_file", {})
         assert res.is_error
@@ -747,7 +749,10 @@ class TestToolExecutorHealthGate:
         mock_transport = AsyncMock()
         mock_transport.call = AsyncMock(
             return_value=ToolCallResult(
-                output="tool error", is_error=True, request_id="", server_key="file_read"
+                output="tool error",
+                is_error=True,
+                request_id="",
+                server_key="file_read",
             )
         )
         ex._transports["file_read"] = mock_transport

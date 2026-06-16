@@ -51,7 +51,13 @@ async def list_pull_requests(
 ) -> ListPullRequestsResponse:
     t0 = time.perf_counter()
     result = await svc.list_pull_requests(req)
-    _info("list_pull_requests", repo=f"{req.owner}/{req.repo}", state=req.state, n=len(result.pull_requests), ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "list_pull_requests",
+        repo=f"{req.owner}/{req.repo}",
+        state=req.state,
+        n=len(result.pull_requests),
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -62,7 +68,12 @@ async def get_pull_request(
 ) -> GetPullRequestResponse:
     t0 = time.perf_counter()
     result = await svc.get_pull_request(req)
-    _info("get_pull_request", repo=f"{req.owner}/{req.repo}", pr=req.pr_number, ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "get_pull_request",
+        repo=f"{req.owner}/{req.repo}",
+        pr=req.pr_number,
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -73,7 +84,12 @@ async def create_pull_request(
 ) -> CreatePullRequestResponse:
     t0 = time.perf_counter()
     result = await svc.create_pull_request(req)
-    _info("create_pull_request", repo=f"{req.owner}/{req.repo}", pr=result.pull_request.number, ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "create_pull_request",
+        repo=f"{req.owner}/{req.repo}",
+        pr=result.pull_request.number,
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -84,7 +100,12 @@ async def search_pull_requests(
 ) -> SearchPullRequestsResponse:
     t0 = time.perf_counter()
     result = await svc.search_pull_requests(req)
-    _info("search_pull_requests", q=req.query[:80], n=len(result.results), ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "search_pull_requests",
+        q=req.query[:80],
+        n=len(result.results),
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -95,7 +116,12 @@ async def update_pull_request(
 ) -> UpdatePullRequestResponse:
     t0 = time.perf_counter()
     result = await svc.update_pull_request(req)
-    _info("update_pull_request", repo=f"{req.owner}/{req.repo}", pr=req.pr_number, ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "update_pull_request",
+        repo=f"{req.owner}/{req.repo}",
+        pr=req.pr_number,
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -106,5 +132,11 @@ async def merge_pull_request(
 ) -> MergePullRequestResponse:
     t0 = time.perf_counter()
     result = await svc.merge_pull_request(req)
-    _info("merge_pull_request", repo=f"{req.owner}/{req.repo}", pr=req.pr_number, merged=result.merged, ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "merge_pull_request",
+        repo=f"{req.owner}/{req.repo}",
+        pr=req.pr_number,
+        merged=result.merged,
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result

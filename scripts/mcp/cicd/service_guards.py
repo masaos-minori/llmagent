@@ -19,7 +19,12 @@ logger = logging.getLogger(__name__)
 class CiCdGuards:
     """Mixin providing repo/workflow allowlist guards for CiCdService."""
 
-    def __init__(self, backend: CiBackend, repo_allowlist: list[str], workflow_allowlist: list[str]) -> None:
+    def __init__(
+        self,
+        backend: CiBackend,
+        repo_allowlist: list[str],
+        workflow_allowlist: list[str],
+    ) -> None:
         self._backend = backend
         # Empty allowlist = deny all (fail-closed, U-3)
         self._repo_allowlist: list[str] = list(repo_allowlist)

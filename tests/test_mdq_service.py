@@ -104,7 +104,9 @@ class TestParseMarkdown:
     def test_returns_sections_with_headings(
         self, service: MdqService, md_file: Path
     ) -> None:
-        sections = asyncio.run(parse_markdown(service, ParseMarkdownRequest(path=str(md_file))))
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(md_file)))
+        )
         assert len(sections) == 1
         assert sections[0]["heading"] == "Title"
         assert "Content here." in sections[0]["content"]
@@ -114,7 +116,9 @@ class TestParseMarkdown:
     ) -> None:
         f = tmp_path / "root.md"
         f.write_text("Intro text.\n\n## Section\n\nBody.", encoding="utf-8")
-        sections = asyncio.run(parse_markdown(service, ParseMarkdownRequest(path=str(f))))
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
         headings = [s["heading"] for s in sections]
         assert "<root>" in headings
         assert "Section" in headings
@@ -138,7 +142,10 @@ class TestIndexer:
         asyncio.run(_index_single_file(service, md_file))
         conn = service._get_db_connection()
         try:
-            row = conn.execute("SELECT heading, content FROM sections WHERE file_path = ?", (str(md_file),)).fetchone()
+            row = conn.execute(
+                "SELECT heading, content FROM sections WHERE file_path = ?",
+                (str(md_file),),
+            ).fetchone()
             assert row is not None
             assert "Title" in row["heading"]
         finally:
@@ -150,7 +157,9 @@ class TestIndexer:
         asyncio.run(_index_directory(service, md_dir))
         conn = service._get_db_connection()
         try:
-            count = conn.execute("SELECT COUNT(*) as cnt FROM sections").fetchone()["cnt"]
+            count = conn.execute("SELECT COUNT(*) as cnt FROM sections").fetchone()[
+                "cnt"
+            ]
             assert count == 2  # a.md and b.md
         finally:
             conn.close()
@@ -280,9 +289,7 @@ class TestMdqService:
         result = asyncio.run(service.index_paths(req))
         assert result == "Indexing complete"
 
-    def test_outline_returns_headings(
-        self, service: MdqService, md_file: Path
-    ) -> None:
+    def test_outline_returns_headings(self, service: MdqService, md_file: Path) -> None:
         req = OutlineRequest(path=str(md_file))
         result = asyncio.run(service.outline(req))
         assert "Title" in result

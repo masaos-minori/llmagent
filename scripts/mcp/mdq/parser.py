@@ -39,15 +39,17 @@ async def parse_markdown(service: MdqService, req: ParseMarkdownRequest) -> list
         if stripped.startswith("#"):
             # Save previous section if any
             if in_section and current_heading:
-                sections.append({
-                    "heading": current_heading,
-                    "content": "\n".join(current_content).strip(),
-                })
+                sections.append(
+                    {
+                        "heading": current_heading,
+                        "content": "\n".join(current_content).strip(),
+                    }
+                )
 
             # Start new section
             heading_level = len(stripped) - len(stripped.lstrip("#"))
             if heading_level <= 6 and stripped[heading_level:].startswith(" "):
-                current_heading = stripped[heading_level + 1:].strip()
+                current_heading = stripped[heading_level + 1 :].strip()
                 current_content = []
                 in_section = True
             else:
@@ -64,9 +66,11 @@ async def parse_markdown(service: MdqService, req: ParseMarkdownRequest) -> list
 
     # Save last section
     if in_section and current_heading:
-        sections.append({
-            "heading": current_heading,
-            "content": "\n".join(current_content).strip(),
-        })
+        sections.append(
+            {
+                "heading": current_heading,
+                "content": "\n".join(current_content).strip(),
+            }
+        )
 
     return sections

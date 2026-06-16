@@ -51,7 +51,12 @@ async def search_repositories(
 ) -> SearchRepositoriesResponse:
     t0 = time.perf_counter()
     result = await svc.search_repositories(req)
-    _info("search_repositories", q=req.query[:80], n=len(result.results), ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "search_repositories",
+        q=req.query[:80],
+        n=len(result.results),
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -62,7 +67,12 @@ async def list_branches(
 ) -> ListBranchesResponse:
     t0 = time.perf_counter()
     result = await svc.list_branches(req)
-    _info("list_branches", repo=f"{req.owner}/{req.repo}", n=len(result.branches), ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "list_branches",
+        repo=f"{req.owner}/{req.repo}",
+        n=len(result.branches),
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -73,7 +83,12 @@ async def create_branch(
 ) -> CreateBranchResponse:
     t0 = time.perf_counter()
     result = await svc.create_branch(req)
-    _info("create_branch", repo=f"{req.owner}/{req.repo}", branch=req.branch_name, ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "create_branch",
+        repo=f"{req.owner}/{req.repo}",
+        branch=req.branch_name,
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -84,7 +99,12 @@ async def list_commits(
 ) -> ListCommitsResponse:
     t0 = time.perf_counter()
     result = await svc.list_commits(req)
-    _info("list_commits", repo=f"{req.owner}/{req.repo}", n=len(result.commits), ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "list_commits",
+        repo=f"{req.owner}/{req.repo}",
+        n=len(result.commits),
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -95,7 +115,12 @@ async def get_commit(
 ) -> GetCommitResponse:
     t0 = time.perf_counter()
     result = await svc.get_commit(req)
-    _info("get_commit", repo=f"{req.owner}/{req.repo}", sha=req.sha[:8], ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "get_commit",
+        repo=f"{req.owner}/{req.repo}",
+        sha=req.sha[:8],
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -106,5 +131,10 @@ async def search_code(
 ) -> SearchCodeResponse:
     t0 = time.perf_counter()
     result = await svc.search_code(req)
-    _info("search_code", q=req.query[:80], n=len(result.results), ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "search_code",
+        q=req.query[:80],
+        n=len(result.results),
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result

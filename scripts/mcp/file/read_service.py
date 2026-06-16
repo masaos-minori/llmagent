@@ -100,7 +100,9 @@ class ReadFileService(_ReadFileServiceCore):
         result = await asyncio.to_thread(
             lambda: self.search_files(SearchFilesRequest(**args)),
         )
-        return "\n".join(result.matches) if result.matches else "No matching files found."
+        return (
+            "\n".join(result.matches) if result.matches else "No matching files found."
+        )
 
     async def fmt_grep_files(self, args: ToolArgs) -> str:
         from mcp.file.read_models import GrepFilesRequest  # noqa: PLC0415
@@ -123,15 +125,17 @@ class ReadFileService(_ReadFileServiceCore):
             lambda: self.get_file_info(GetFileInfoRequest(**args)),
         )
         info = result.info
-        return "\n".join([
-            f"path: {info.path}",
-            f"name: {info.name}",
-            f"type: {info.type}",
-            f"size: {info.size}",
-            f"created_at: {info.created_at}",
-            f"modified_at: {info.modified_at}",
-            f"permissions: {info.permissions}",
-        ])
+        return "\n".join(
+            [
+                f"path: {info.path}",
+                f"name: {info.name}",
+                f"type: {info.type}",
+                f"size: {info.size}",
+                f"created_at: {info.created_at}",
+                f"modified_at: {info.modified_at}",
+                f"permissions: {info.permissions}",
+            ]
+        )
 
     def get_dispatch_table(
         self,

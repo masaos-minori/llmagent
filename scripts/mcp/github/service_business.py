@@ -21,7 +21,6 @@ from mcp.github.service_file import FileOps
 from mcp.github.service_issues import IssuesOps
 from mcp.github.service_pull_requests import PullRequestOps
 from mcp.github.service_repository import RepositoryOps
-from mcp.github.service_security import GitHubSecurityGuards
 
 
 class GitHubService(

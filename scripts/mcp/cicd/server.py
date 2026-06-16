@@ -96,10 +96,7 @@ async def _dispatch_cicd_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     return {
-        "tools": [
-            {**t, "server_key": "cicd"}
-            for t in _MCP_TOOLS
-        ],
+        "tools": [{**t, "server_key": "cicd"} for t in _MCP_TOOLS],
     }
 
 
@@ -129,6 +126,7 @@ async def health() -> dict[str, object]:
     deps: dict[str, str] = {}
     try:
         import os as _os
+
         token = _os.environ.get("GITHUB_TOKEN", "")
         if not token:
             deps["github_token"] = "not_set"

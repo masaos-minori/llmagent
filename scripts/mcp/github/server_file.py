@@ -47,7 +47,12 @@ async def get_file_contents(
 ) -> GetFileContentsResponse:
     t0 = time.perf_counter()
     result = await svc.get_file_contents(req)
-    _info("get_file_contents", repo=f"{req.owner}/{req.repo}", path=req.path, ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "get_file_contents",
+        repo=f"{req.owner}/{req.repo}",
+        path=req.path,
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -58,7 +63,13 @@ async def create_or_update_file(
 ) -> CreateOrUpdateFileResponse:
     t0 = time.perf_counter()
     result = await svc.create_or_update_file(req)
-    _info("create_or_update_file", repo=f"{req.owner}/{req.repo}", path=req.path, operation=result.operation, ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "create_or_update_file",
+        repo=f"{req.owner}/{req.repo}",
+        path=req.path,
+        operation=result.operation,
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -69,7 +80,13 @@ async def push_files(
 ) -> PushFilesResponse:
     t0 = time.perf_counter()
     result = await svc.push_files(req)
-    _info("push_files", repo=f"{req.owner}/{req.repo}", branch=req.branch, n=result.files_pushed, ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "push_files",
+        repo=f"{req.owner}/{req.repo}",
+        branch=req.branch,
+        n=result.files_pushed,
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
 
 
@@ -80,5 +97,10 @@ async def delete_repo_file(
 ) -> DeleteRepoFileResponse:
     t0 = time.perf_counter()
     result = await svc.delete_repo_file(req)
-    _info("delete_repo_file", repo=f"{req.owner}/{req.repo}", path=req.path, ms=f"{(time.perf_counter() - t0) * 1000:.0f}")
+    _info(
+        "delete_repo_file",
+        repo=f"{req.owner}/{req.repo}",
+        path=req.path,
+        ms=f"{(time.perf_counter() - t0) * 1000:.0f}",
+    )
     return result
