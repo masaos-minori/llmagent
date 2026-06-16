@@ -526,9 +526,13 @@ class ToolExecutor:
                 state = self._health_registry.record_failure(server_key)
                 logger.warning(
                     "transport failure for %r: %s (state=%s)",
-                    server_key, e, state.value,
+                    server_key,
+                    e,
+                    state.value,
                 )
-            return ToolCallResult(output=str(e), is_error=True, request_id="", server_key=server_key)
+            return ToolCallResult(
+                output=str(e), is_error=True, request_id="", server_key=server_key
+            )
 
     async def _execute_with_cache(
         self,
@@ -571,18 +575,27 @@ class ToolExecutor:
         """Execute a tool. Plugin tools bypass cache and MCP routing; others use cache."""
         plugin_fn = plugin_registry.get_tool(tool_name)
         if plugin_fn is not None:
-            result_raw = await plugin_fn(args)
+            try:
+                result_raw = await plugin_fn(args)
+            except Exception as e:  # noqa: BLE001 — plugin errors must not propagate
+                msg = f"[plugin error] {tool_name}: {e}"
+                logger.error(msg)
+                return ToolCallResult(
+                    output=msg, is_error=True, request_id="", server_key=""
+                )
             if (
                 not isinstance(result_raw, tuple)
                 or len(result_raw) < _PLUGIN_RESULT_TUPLE_LENGTH
             ):
                 raise ValueError(
-                    f"Plugin tool {tool_name!r} must return tuple[str, bool], got {type(result_raw).__name__}"
+                    f"Plugin tool {tool_name!r} must return tuple[str, bool],"
+                    f" got {type(result_raw).__name__}"
                 )
             output, is_error = result_raw[0], result_raw[1]
             if not isinstance(output, str):
                 raise TypeError(
-                    f"Plugin {tool_name!r}: output must be str, got {type(output).__name__}"
+                    f"Plugin {tool_name!r}: output must be str,"
+                    f" got {type(output).__name__}"
                 )
             if not isinstance(is_error, bool):
                 raise TypeError(f"Plugin {tool_name!r}: is_error must be bool")

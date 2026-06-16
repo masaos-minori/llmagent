@@ -13,7 +13,27 @@ Import from here:  from agent.commands.command_defs import _COMMANDS, CommandDef
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+
+
+@dataclass
+class SubcommandSpec:
+    """Declarative metadata for one subcommand."""
+
+    name: str
+    help: str
+
+
+@dataclass
+class CommandDef:
+    """Declarative metadata for one slash command."""
+
+    name: str  # e.g. "/help"
+    prefix: bool  # True = prefix match (args passed); False = exact match (no args)
+    is_async: bool
+    handler: str  # method name on CommandRegistry
+    help: str  # one-line description shown in /help output
+    subcommands: list[SubcommandSpec] = field(default_factory=list)
+
 
 # Single source of truth for all built-in slash commands.
 # Exact-match commands are listed first, followed by prefix commands.
