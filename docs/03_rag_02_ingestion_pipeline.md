@@ -312,7 +312,7 @@ from rag.utils import normalize_unicode, floats_to_blob, validate_url
 | Function | Signature | Returns | Description |
 |---|---|---|---|
 | `normalize_unicode` | `(text: str) -> str` | `str` | NFKC normalization; converts full-width alphanumerics and variant chars |
-| `floats_to_blob` | `(values: list[float]) -> bytes` | `bytes` | Little-endian float32 BLOB; sqlite-vec `MATCH` operator format. 768-dim → 3072 bytes |
+| `floats_to_blob` | `(values: list[float]) -> bytes` | `bytes` | Little-endian float32 BLOB; sqlite-vec `MATCH` operator format. Dimension from `common.toml::embedding_dims` (production: 384 → 1536 bytes; dataclass default: 768 → 3072 bytes) |
 | `validate_url` | `(url: str) -> bool` | `bool` | `True` if `http`/`https` scheme with non-empty netloc |
 
 **Used by:**

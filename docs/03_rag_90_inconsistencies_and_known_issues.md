@@ -206,3 +206,39 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
   HTTP error, empty result, or only connection failure?
 - **Recommended action:** Document the explicit conditions that cause `_augment_http()` to
   return `None`.
+
+---
+
+### DOC-01: `SemanticCache` import path incorrect in docs
+
+- **Type:** Document inconsistency
+- **Impact scope:** `docs/03_rag_03_query_pipeline.md §6`
+- **Statement A:** Previous doc stated `from rag.repository import SemanticCache # re-exported`.
+- **Statement B:** **Confirmed** (`rag/pipeline.py:30`): `from rag.cache import SemanticCache`. `rag/repository.py` does NOT re-export `SemanticCache`.
+- **Current safe interpretation:** Import from `rag.cache` directly. `rag/cache.py:30` is the canonical definition.
+- **Recommended action:** Fixed in doc (2026-06-16).
+- **Notes for AI reference:** Use `from rag.cache import SemanticCache`.
+
+---
+
+### DOC-02: `PipelineContext.observers` and `add_observer()` do not exist
+
+- **Type:** Document inconsistency
+- **Impact scope:** `docs/03_rag_03_query_pipeline.md §4 PipelineContext`
+- **Statement A:** Previous doc listed `observers: list[Any]` field and `add_observer(observer)` method.
+- **Statement B:** **Confirmed** (`rag/stage.py:16-26`): `PipelineContext` has 7 fields only: `query`, `history_context`, `queries`, `search_results`, `merged`, `reranked`, `augment_result`. No `observers` field or `add_observer()` method.
+- **Current safe interpretation:** `PipelineContext` has exactly 7 fields. Do not reference `observers` or `add_observer()`.
+- **Recommended action:** Fixed in doc (2026-06-16).
+- **Notes for AI reference:** Stage communication is via `ctx` field mutation only.
+
+---
+
+### DOC-03: Embedding dimension — dataclass default 768 vs configured production value 384
+
+- **Type:** Document inconsistency
+- **Impact scope:** `docs/03_rag_04_data_model_and_interfaces.md`, `docs/03_rag_02_ingestion_pipeline.md`
+- **Statement A:** `models_config.py:53` — `IngesterConfig.embed_dimension: int = 768` (dataclass default).
+- **Statement B:** **Confirmed** (`config/common.toml:43`): `embedding_dims = 384` with comment "all-MiniLM-L6-v2 = 384". `ingester.py:119` docstring also says "384-dim vector".
+- **Current safe interpretation:** The production embedding dimension is **384** (set by `common.toml`). The dataclass default of 768 is overridden at runtime. `floats_to_blob` for 384-dim produces 1536 bytes (not 3072).
+- **Recommended action:** Fixed in doc (2026-06-16). Old reference to `models.py:56` was also incorrect — correct location is `models_config.py:53`.
+- **Notes for AI reference:** Use `common.toml::embedding_dims` (384) as the authoritative value, not the dataclass default (768).

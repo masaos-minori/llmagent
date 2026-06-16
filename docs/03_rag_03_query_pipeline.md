@@ -104,9 +104,6 @@ ctx = PipelineContext(query="search query", history_context="conversation histor
 | `merged` | `list[RagHit]` | `[]` | `FusionStage` |
 | `reranked` | `list[RagHit]` | `[]` | `RerankStage` |
 | `augment_result` | `str` | `""` | `AugmentStage` |
-| `observers` | `list[Any]` | `[]` | — |
-
-**Method:** `add_observer(observer: Any) -> None`
 
 ---
 
@@ -173,7 +170,7 @@ AugmentStage()
 ## 6. SemanticCache (`rag/cache.py`)
 
 ```python
-from rag.repository import SemanticCache  # canonical: rag.cache; re-exported from rag.repository
+from rag.cache import SemanticCache  # defined in rag/cache.py:30; imported by rag/pipeline.py:30
 
 cache = SemanticCache(max_size=100, threshold=0.92)
 ```
