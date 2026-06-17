@@ -19,23 +19,18 @@ import dataclasses
 import logging
 import sqlite3
 import struct
-from datetime import UTC, datetime
 from typing import Any
 
 import orjson
 from db.helper import SQLiteHelper
 
 from agent.memory.exceptions import MemoryConsistencyError
+from agent.memory.extract import _now_iso
 from agent.memory.mapper import row_to_entry
 from agent.memory.models import ConsistencyReport
 from agent.memory.types import MemoryEntry
 
 logger = logging.getLogger(__name__)
-
-
-# TODO: consolidate _now_iso into shared/ to remove duplication with extract.py
-def _now_iso() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _stamp_entry(entry: MemoryEntry, now: str) -> MemoryEntry:
