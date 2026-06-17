@@ -244,10 +244,10 @@ def _build_memory_services(
 
     _build_audit_logger(ctx).info("MemoryServices initialised (use_memory_layer=True)")
     return MemoryServices(
-        injection=injection,  # type: ignore[arg-type]
-        ingestion=ingestion,  # type: ignore[arg-type]
+        injection=injection,  # type: ignore[arg-type]  # builder returns object; lazy factory pattern, correct at runtime
+        ingestion=ingestion,  # type: ignore[arg-type]  # builder returns object; lazy factory pattern, correct at runtime
         store=store,
-        retriever=retriever,  # type: ignore[arg-type]
+        retriever=retriever,  # type: ignore[arg-type]  # builder returns object; lazy factory pattern, correct at runtime
     )
 
 
