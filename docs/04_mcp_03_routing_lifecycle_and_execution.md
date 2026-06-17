@@ -187,9 +187,22 @@ class _ServerLifecycleRouter:
 
 ## Watchdog (`_watchdog_loop`)
 
-Runs as asyncio background task. Activated when `mcp_watchdog_interval > 0` (default `30` = enabled).
+Runs as asyncio background task. Activated when `mcp_watchdog_interval > 0`.
 
-- Polls every `mcp_watchdog_interval` seconds (default 30s)
+**Profile-aware defaults:**
+
+| `security_profile` | `mcp_watchdog_interval` default |
+|---|---|
+| `local` (default) | `0.0` — watchdog disabled |
+| `production` | `30.0` — watchdog enabled |
+
+Set `mcp_watchdog_interval` explicitly in `config/agent.toml` to override the profile default.
+
+At startup, the agent logs one of:
+- `Watchdog enabled: interval=<N>s, max_restarts=<M>` — when interval > 0
+- `Watchdog disabled (mcp_watchdog_interval=0)` — when interval is 0
+
+- Polls every `mcp_watchdog_interval` seconds
 - Checks `/health` for HTTP servers (all modes: subprocess, persistent, externally-managed)
 - On failure: calls `_ServerLifecycleRouter.restart(server_key)` for subprocess-mode servers
   1. `proc.terminate()` → wait 3s → `proc.kill()` if needed

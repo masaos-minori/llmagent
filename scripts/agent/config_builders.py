@@ -256,6 +256,10 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
     """
     cfg = cfg_override if cfg_override is not None else load_config()
     system_prompt_tool = cfg.get("system_prompt_tool", "")
+    security_profile_val = SecurityProfile(cfg.get("security_profile", "local"))
+    watchdog_interval_default = (
+        30.0 if security_profile_val == SecurityProfile.PRODUCTION else 0.0
+    )
     return AgentConfig(
         llm=_build_llm_config(cfg),
         rag=_build_rag_config(cfg),
@@ -263,10 +267,12 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
         memory=_build_memory_config(cfg),
         mcp=MCPConfig(
             mcp_servers=_build_mcp_servers(cfg),
-            mcp_watchdog_interval=float(cfg.get("mcp_watchdog_interval", 0.0)),
+            mcp_watchdog_interval=float(
+                cfg.get("mcp_watchdog_interval", watchdog_interval_default)
+            ),
             mcp_watchdog_max_restarts=int(cfg.get("mcp_watchdog_max_restarts", 3)),
             github_url=cfg.get("github_server_url", "http://127.0.0.1:8006"),
-            security_profile=SecurityProfile(cfg.get("security_profile", "local")),
+            security_profile=security_profile_val,
         ),
         approval=_build_approval_config(cfg),
         obs=ObservabilityConfig(

@@ -114,8 +114,15 @@ class AgentREPL:
 
     async def _start_watchdog(self, ctx: AgentContext) -> "asyncio.Task | None":
         """Create the watchdog task if watchdog_interval > 0."""
-        if ctx.cfg.mcp.mcp_watchdog_interval > 0:
+        watchdog_interval = ctx.cfg.mcp.mcp_watchdog_interval
+        if watchdog_interval > 0:
+            logger.info(
+                "Watchdog enabled: interval=%ss, max_restarts=%s",
+                watchdog_interval,
+                ctx.cfg.mcp.mcp_watchdog_max_restarts,
+            )
             return asyncio.create_task(self._watchdog_loop())
+        logger.info("Watchdog disabled (mcp_watchdog_interval=0)")
         return None
 
     async def _stop_watchdog(self, task: "asyncio.Task | None") -> None:

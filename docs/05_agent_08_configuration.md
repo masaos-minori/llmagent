@@ -170,7 +170,7 @@ Source: `config/mcp_servers.toml`
 | Field | Default | Description |
 |---|---|---|
 | `mcp_servers` | `{}` | Dict of `McpServerConfig` by server key |
-| `mcp_watchdog_interval` | `0.0` | Watchdog poll interval (seconds; 0=disabled) |
+| `mcp_watchdog_interval` | `30.0` (PRODUCTION) / `0.0` (LOCAL) | Watchdog poll interval (seconds; 0=disabled); profile-aware default |
 | `mcp_watchdog_max_restarts` | `3` | Max watchdog restart attempts |
 | `github_url` | `http://127.0.0.1:8006` | GitHub MCP server URL |
 

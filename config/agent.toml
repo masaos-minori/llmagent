@@ -95,8 +95,9 @@ semantic_cache_max_size = 100
 # When true, treats tool definition mismatch at startup (diff between agent.json and /v1/tools) as RuntimeError and aborts
 tool_definitions_strict = false
 
-# MCP server health-check interval in seconds; 0 disables the watchdog
-mcp_watchdog_interval = 0
+# MCP server health-check interval in seconds; 0 disables the watchdog.
+# Default is profile-aware: 30s for security_profile=production, 0 for local.
+# Set explicitly to override.
 
 # Maximum restart count the watchdog performs for the same server; after exceeding, only logs a warning
 mcp_watchdog_max_restarts = 3
