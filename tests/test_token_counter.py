@@ -79,13 +79,16 @@ def test_serialise_includes_role_prefix() -> None:
 
 
 def test_serialise_skips_empty_content() -> None:
+    from shared.json_utils import dumps as _json_dumps
+
     tc = {"id": "c1", "function": {"name": "f", "arguments": "{}"}}
     msgs: list[LLMMessage] = [
         {"role": "assistant", "content": None, "tool_calls": [tc]}
     ]
     result = _serialise_for_tokenize(msgs)
     assert "assistant:" not in result
-    assert orjson.dumps(tc).decode() in result
+    # _serialise_for_tokenize uses _json_dumps (OPT_SORT_KEYS); match same encoding
+    assert _json_dumps(tc) in result
 
 
 # ── get_token_count — tokenize_url="" (disabled) ───────────────────────────────
