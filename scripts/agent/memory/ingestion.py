@@ -10,17 +10,16 @@ the new entry is discarded instead of stored.
 
 from __future__ import annotations
 
+import datetime
 import logging
 import sqlite3
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
-from enum import StrEnum
 
 from db.helper import SQLiteHelper
 
 from agent.memory.embedding_client import EmbeddingClient, EmbeddingResult
-from agent.memory.enums import MemoryType
+from agent.memory.enums import DedupAction, DedupPolicy, MemoryType
 from agent.memory.extract import extract_memories
 from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.models import HistoryMessage
@@ -29,16 +28,6 @@ from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry, SourceType
 
 logger = logging.getLogger(__name__)
-
-
-class DedupAction(StrEnum):
-    SKIP_NEW = "skip_new"  # skip new entry when a near-duplicate already exists
-
-
-@dataclass
-class DedupPolicy:
-    action: DedupAction = DedupAction.SKIP_NEW
-    threshold: float = 0.3
 
 
 class MemoryIngestionService:
@@ -130,7 +119,6 @@ class MemoryIngestionService:
         """Return True if a near-duplicate entry exists within dedup threshold."""
         neighbors = self._retriever.knn_search(embedding, memory_type=None, limit=5)
         return any(
-            # score = -distance (higher is better); negate to get raw L2 distance for comparison
             -h.score < self._dedup_policy.threshold and h.entry.memory_id != memory_id
             for h in neighbors
         )
@@ -141,9 +129,7 @@ class MemoryIngestionService:
         for hit in neighbors:
             if hit.entry.memory_id == memory_id:
                 continue
-            distance = (
-                -hit.score
-            )  # score = -distance (higher is better); restore for threshold check
+            distance = -hit.score
             if distance < self._dedup_policy.threshold:
                 try:
                     with SQLiteHelper("session").open(write_mode=True) as db:
@@ -173,7 +159,7 @@ class MemoryIngestionService:
         session_id: int | None,
         importance: float,
     ) -> MemoryEntry:
-        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        now = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         return MemoryEntry(
             memory_id=str(uuid.uuid4()),
             memory_type=memory_type,

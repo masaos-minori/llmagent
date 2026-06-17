@@ -46,32 +46,6 @@ class ConsistencyReport:
 
 
 @dataclass(frozen=True)
-class EmbeddingRequest:
-    """Input to the embedding service."""
-
-    text: str
-    query_prefix: str
-
-
-@dataclass(frozen=True)
-class EmbeddingResponse:
-    """Validated response from the embedding service."""
-
-    embedding: list[float]
-    model: str | None = None
-
-
-@dataclass(frozen=True)
-class InjectionSnippet:
-    """One memory snippet to inject into the LLM context."""
-
-    prefix: str
-    text: str
-    memory_id: str
-    memory_type: str
-
-
-@dataclass(frozen=True)
 class MemorySnippet:
     """One memory snippet ready for LLM context injection."""
 

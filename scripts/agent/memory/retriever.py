@@ -21,10 +21,10 @@ Scoring formula (FtsRetriever):
 
 from __future__ import annotations
 
+import datetime
 import logging
 import re
 import struct
-from datetime import UTC, datetime
 
 from db.helper import SQLiteHelper
 
@@ -39,7 +39,7 @@ _FTS_CANDIDATE_LIMIT = 50
 
 # Boost amounts
 _PIN_BOOST = 0.3
-_IMPORTANCE_BOOST_SCALE = 0.5  # importance (0–1) × scale
+_IMPORTANCE_BOOST_SCALE = 0.5  # importance (0–1) x scale
 _RECENCY_MAX_BOOST = 0.2  # applied to entries within 7 days
 _CONTEXT_MATCH_BOOST = 0.1
 
@@ -54,8 +54,8 @@ _RRF_K = 60
 def _recency_boost(created_at: str, recency_days: float = _RECENCY_DAYS) -> float:
     """Return 0.0–RECENCY_MAX_BOOST based on age in days (newer = higher)."""
     try:
-        dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-        now = datetime.now(UTC)
+        dt = datetime.datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        now = datetime.datetime.now(datetime.UTC)
         age_days = (now - dt).total_seconds() / _SECS_PER_DAY
         if age_days >= recency_days:
             return 0.0

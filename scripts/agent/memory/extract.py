@@ -22,7 +22,7 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 
 from agent.memory.enums import MemoryType
 from agent.memory.models import HistoryMessage
@@ -76,10 +76,6 @@ class ExtractionPolicy:
     min_user_content_chars: int = MIN_USER_CONTENT_CHARS
     min_turns: int = MIN_TURNS
     max_entries: int = MAX_ENTRIES
-
-
-def _now_iso() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _classify_content(
@@ -153,7 +149,7 @@ def _make_summary(content: str, max_chars: int = 120) -> str:
     first_line = content.split("\n", maxsplit=1)[0].strip()
     if len(first_line) <= max_chars:
         return first_line
-    return content[:max_chars].rstrip() + "…"
+    return content[:max_chars].rstrip() + "\u2026"
 
 
 def _try_extract_from_assistant(
@@ -258,7 +254,7 @@ def extract_memories(
         return []
 
     candidates: list[MemoryEntry] = []
-    now = _now_iso()
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     for msg in history:
         role = msg.role
         if role == "assistant":

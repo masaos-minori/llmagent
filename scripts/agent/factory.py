@@ -216,8 +216,8 @@ def _build_memory_services(
         EmbeddingClient,
         EmbeddingClientConfig,
     )
+    from agent.memory.enums import DedupPolicy  # noqa: PLC0415 — lazy
     from agent.memory.ingestion import (  # noqa: PLC0415 — lazy
-        DedupPolicy,
         MemoryIngestionService,
     )
     from agent.memory.injection import (  # noqa: PLC0415 — lazy

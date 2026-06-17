@@ -1,12 +1,15 @@
 """agent/memory/mapper.py
-Shared SQLite row → MemoryEntry conversion helper.
+Shared SQLite row → MemoryEntry conversion helper, plus shared utilities.
 
 Used by both store.py (Row objects) and retriever.py (dict rows).
 """
 
 from __future__ import annotations
 
+import datetime
 import sqlite3
+import struct
+from dataclasses import replace
 from typing import Any
 
 import orjson
@@ -14,6 +17,35 @@ import orjson
 from agent.memory.enums import MemoryType
 from agent.memory.exceptions import MemorySchemaError
 from agent.memory.types import MemoryEntry, SourceType
+
+
+def _now_iso() -> str:
+    return datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _stamp_entry(entry: MemoryEntry, now: str) -> MemoryEntry:
+    """Return entry with created_at/updated_at filled if empty (frozen-safe)."""
+    need_created = not entry.created_at
+    need_updated = not entry.updated_at
+    if need_created and need_updated:
+        return replace(entry, created_at=now, updated_at=now)
+    if need_created:
+        return replace(entry, created_at=now)
+    if need_updated:
+        return replace(entry, updated_at=now)
+    return entry
+
+
+def _floats_to_blob(values: list[float], expected_dim: int | None = None) -> bytes:
+    """Pack float list to little-endian IEEE-754 BLOB for vec0 MATCH queries.
+
+    When expected_dim is set, raises ValueError if len(values) != expected_dim.
+    """
+    if expected_dim is not None and len(values) != expected_dim:
+        raise ValueError(
+            f"Embedding dimension mismatch: expected {expected_dim}, got {len(values)}",
+        )
+    return struct.pack(f"{len(values)}f", *values)
 
 
 def _opt_str(d: dict[str, Any], key: str) -> str:

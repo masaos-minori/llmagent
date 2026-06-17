@@ -15,47 +15,17 @@ Responsibilities:
 
 from __future__ import annotations
 
-import dataclasses
 import logging
 import sqlite3
-import struct
-from typing import Any
 
-import orjson
 from db.helper import SQLiteHelper
 
 from agent.memory.exceptions import MemoryConsistencyError
-from agent.memory.extract import _now_iso
-from agent.memory.mapper import row_to_entry
+from agent.memory.mapper import _now_iso, row_to_entry, _stamp_entry
 from agent.memory.models import ConsistencyReport
 from agent.memory.types import MemoryEntry
 
 logger = logging.getLogger(__name__)
-
-
-def _stamp_entry(entry: MemoryEntry, now: str) -> MemoryEntry:
-    """Return entry with created_at/updated_at filled if empty (frozen-safe)."""
-    need_created = not entry.created_at
-    need_updated = not entry.updated_at
-    if need_created and need_updated:
-        return dataclasses.replace(entry, created_at=now, updated_at=now)
-    if need_created:
-        return dataclasses.replace(entry, created_at=now)
-    if need_updated:
-        return dataclasses.replace(entry, updated_at=now)
-    return entry
-
-
-def _floats_to_blob(values: list[float], expected_dim: int | None = None) -> bytes:
-    """Pack float list to little-endian IEEE-754 BLOB for vec0 MATCH queries.
-
-    When expected_dim is set, raises ValueError if len(values) != expected_dim.
-    """
-    if expected_dim is not None and len(values) != expected_dim:
-        raise ValueError(
-            f"Embedding dimension mismatch: expected {expected_dim}, got {len(values)}",
-        )
-    return struct.pack(f"{len(values)}f", *values)
 
 
 def _count_fts(db: SQLiteHelper) -> int:
@@ -86,8 +56,10 @@ class MemoryStore:
 
     # ── Private helpers ───────────────────────────────────────────────────────
 
-    def _build_row_params(self, entry: MemoryEntry) -> tuple[Any, ...]:
+    def _build_row_params(self, entry: MemoryEntry) -> tuple[object, ...]:
         """Return the param tuple for a memories INSERT statement."""
+        import orjson
+
         tags_json: bytes = orjson.dumps(entry.tags)
         return (
             entry.memory_id,
@@ -143,6 +115,8 @@ class MemoryStore:
         self, db: SQLiteHelper, memory_id: str, embedding: list[float]
     ) -> None:
         """Upsert one embedding into memories_vec; raises on failure."""
+        from agent.memory.mapper import _floats_to_blob
+
         db.execute(
             "INSERT OR REPLACE INTO memories_vec(memory_id, embedding) VALUES (?,?)",
             (memory_id, _floats_to_blob(embedding, self._embed_dim)),
@@ -172,6 +146,8 @@ class MemoryStore:
         When embedding is provided, also upserts memories_vec.
         Uses BEGIN IMMEDIATE for atomicity across memories + memories_fts + memories_vec.
         """
+        import dataclasses
+
         now = _now_iso()
         stamped = dataclasses.replace(
             entry,
