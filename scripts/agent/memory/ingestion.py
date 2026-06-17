@@ -14,7 +14,6 @@ import datetime
 import logging
 import sqlite3
 import uuid
-from dataclasses import dataclass
 
 from db.helper import SQLiteHelper
 

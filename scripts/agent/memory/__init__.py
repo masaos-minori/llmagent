@@ -35,8 +35,8 @@ from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.mapper import (
     _floats_to_blob,
     _now_iso,
-    row_to_entry,
     _stamp_entry,
+    row_to_entry,
 )
 from agent.memory.models import ConsistencyReport, HistoryMessage, MemorySnippet
 from agent.memory.retriever import FtsRetriever, HybridRetriever, VectorRetriever
