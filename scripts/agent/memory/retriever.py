@@ -24,12 +24,11 @@ from __future__ import annotations
 import datetime
 import logging
 import re
-import struct
 
 from db.helper import SQLiteHelper
 
 from agent.memory.exceptions import MemorySchemaError
-from agent.memory.mapper import row_to_entry
+from agent.memory.mapper import _floats_to_blob, row_to_entry
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 
 logger = logging.getLogger(__name__)
@@ -103,11 +102,6 @@ def _build_fts_query(text: str) -> str:
     if not tokens:
         return '""'
     return " OR ".join(f'"{t}"' for t in tokens)
-
-
-def _floats_to_blob(values: list[float]) -> bytes:
-    """Pack float list to little-endian IEEE-754 BLOB for vec0 MATCH queries."""
-    return struct.pack(f"{len(values)}f", *values)
 
 
 def _rrf_merge(
