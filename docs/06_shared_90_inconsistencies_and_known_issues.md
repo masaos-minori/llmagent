@@ -19,13 +19,13 @@ Each entry uses the required format:
 
 ### CONFIG-01: `ConfigLoader.load_all()` does not include `common.toml`
 
-- **Type:** Document inconsistency / Needs confirmation
+- **Type:** Document inconsistency / Documentation gap resolved (see §2a Config Ownership in [06_shared_03](06_shared_03_runtime_and_execution.md))
 - **Impact scope:** `shared/config_loader.py`, `agent/config.py`, `db/helper.py`, `rag/pipeline.py`
 - **Statement A:** `ConfigLoader.load_all()` merges 11 hardcoded files and is described as loading "all configuration."
 - **Statement B:** `common.toml` (which contains `rag_db_path`, `session_db_path`, `sqlite_vec_so`, `embed_url`, etc.) is NOT in the 11-file list.
 - **Current safe interpretation:** `common.toml` is always loaded separately. Do not assume `load_all()` provides DB or embedding paths.
-- **Recommended action:** Either add `common.toml` to `load_all()` or document explicitly that it must be loaded separately.
-- **Notes for AI reference:** Code calling `build_db_config()` must separately call `ConfigLoader().load("common.toml")`.
+- **Recommended action:** Either add `common.toml` to `load_all()` or document explicitly that it must be loaded separately. (Documentation gap resolved — see [06_shared_03](06_shared_03_runtime_and_execution.md) §2a Config Ownership for canonical ownership table.)
+- **Notes for AI reference:** Code calling `build_db_config()` must separately call `ConfigLoader().load("common.toml")`. Canonical ownership table is in [06_shared_03](06_shared_03_runtime_and_execution.md) §2a.
 
 ---
 
@@ -33,19 +33,19 @@ Each entry uses the required format:
 
 - **Type:** RESOLVED (Implementation bug — fixed)
 - **Resolution:** `build_db_config()` now explicitly uses `ConfigLoader().load("common.toml")` instead of `load_all()`, which does not include `common.toml`. The docstring is updated to explain why. This eliminates the silent empty-string fallback for `rag_db_path` / `session_db_path` and makes the loading intent explicit.
-- **Notes for AI reference:** `build_db_config()` uses `load("common.toml")`. Do not use `load_all()` for DB path configuration.
+- **Notes for AI reference:** `build_db_config()` uses `load("common.toml")`. Do not use `load_all()` for DB path configuration. See [06_shared_03](06_shared_03_runtime_and_execution.md) §2a Config Ownership for the full ownership table.
 
 ---
 
 ### CONFIG-03: `common.toml` non-integration is a documented DB-layer known issue
 
-- **Type:** Needs confirmation
+- **Type:** Needs confirmation (ownership documented in [06_shared_03](06_shared_03_runtime_and_execution.md) §2a Config Ownership)
 - **Impact scope:** `07_spec_db.md §5`, `07_spec_db.md §13`
 - **Statement A:** `07_spec_db.md §13` explicitly documents: "`build_db_config()` cannot obtain `rag_db_path` etc. from `load_all()`. `db/helper.py` and `rag/pipeline.py` use the workaround of calling `ConfigLoader().load('common.toml')` separately."
 - **Statement B:** Future consideration: include `common.toml` in `load_all()`.
 - **Current safe interpretation:** The current system works. Any refactoring must maintain backward compatibility.
-- **Recommended action:** Decide whether to merge `common.toml` into `load_all()` list before the next major config refactor.
-- **Notes for AI reference:** The issue is tracked and acknowledged, not a hidden defect.
+- **Recommended action:** Decide whether to merge `common.toml` into `load_all()` list before the next major config refactor. (Ownership is now documented in [06_shared_03](06_shared_03_runtime_and_execution.md) §2a Config Ownership.)
+- **Notes for AI reference:** The issue is tracked and acknowledged, not a hidden defect. Canonical ownership table is in [06_shared_03](06_shared_03_runtime_and_execution.md) §2a.
 
 ---
 

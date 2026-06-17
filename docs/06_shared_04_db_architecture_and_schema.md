@@ -53,7 +53,7 @@ class DbConfig:
 - `__post_init__` validates that parent directories exist
 - `embed_url` field does NOT exist in `DbConfig`
 - Constructed by `build_db_config()` in `db/config.py`
-- `common.toml` is loaded separately (NOT via `ConfigLoader.load_all()`) — see [06_shared_90 CONFIG-01/02/03](06_shared_90_inconsistencies_and_known_issues.md)
+- `common.toml` is loaded separately (NOT via `ConfigLoader.load_all()`) — see [06_shared_03](06_shared_03_runtime_and_execution.md) §2a Config Ownership for the full ownership table; detailed issue tracking in [06_shared_90 CONFIG-01/02/03](06_shared_90_inconsistencies_and_known_issues.md)
 
 ---
 
@@ -291,7 +291,7 @@ init_schema("/opt/llm/db/workflow.sqlite")
 | Embedding dimension | 384 default (`common.toml::embedding_dims`) |
 | Float format | float32 little-endian BLOB |
 | Single-node only | No distributed/replica support |
-| `common.toml` loading | `db/helper.py` calls `ConfigLoader().load("common.toml")` directly |
+| `common.toml` loading | Loaded separately by `db/helper.py`, `rag/pipeline.py` — see [06_shared_03](06_shared_03_runtime_and_execution.md) §2a Config Ownership for ownership table |
 
 ---
 

@@ -28,7 +28,38 @@ class ConfigLoader:
 **`load_all()`**
 - Merges a hardcoded list of 11 files: `llm`, `http`, `rag`, `context`, `tools`, `memory`, `otel`, `security`, `system_prompts`, `mcp_servers`, `tools_definitions`
 - Missing files are silently skipped (catches `ValueError` and continues)
-- **`common.toml` is NOT included** — this is a known architectural issue (see [06_shared_90 CONFIG-01](06_shared_90_inconsistencies_and_known_issues.md))
+- **`common.toml` is NOT included** — see [Config Ownership](#config-ownership) below for full ownership table
+
+---
+
+## 2a. Config Ownership
+
+The following table documents which config files are loaded by `load_all()`, which are loaded separately, and which layer owns each file. This is the canonical reference — do not duplicate this information elsewhere; cross-reference this section instead.
+
+| File | Loaded by `load_all()`? | Loaded Separately By | Owning Layer | Notes |
+|---|---|---|---|---|
+| `llm.toml` | Yes | — | shared | LLM API settings (temperature, max_tokens, model) |
+| `http.toml` | Yes | — | shared | HTTP client settings (timeouts, proxy) |
+| `rag.toml` | Yes | — | rag | RAG pipeline settings (chunking strategy, batch size) |
+| `context.toml` | Yes | — | agent | Context window and prompt settings |
+| `tools.toml` | Yes | — | mcp | Tool configuration (tool_names per server) |
+| `memory.toml` | Yes | — | agent/memory | Memory layer settings (embedding enabled, retention) |
+| `otel.toml` | Yes | — | shared | OpenTelemetry tracing (enabled, endpoint) |
+| `security.toml` | Yes | — | shared | Security policy (tool approval, shell policy) |
+| `system_prompts.toml` | Yes | — | agent | System prompt templates |
+| `mcp_servers.toml` | Yes | — | mcp | MCP server definitions (transport, cmd, url) |
+| `tools_definitions.toml` | Yes | — | mcp | Tool definition metadata |
+| `common.toml` | **No** | `db/helper.py`, `rag/pipeline.py` | shared/db | DB paths, embedding URL, sqlite-vec path, busy_timeout |
+
+**Ownership rule:** The "Owning Layer" column indicates which layer is primarily responsible for reading and using the config values from each file. A file may be read by multiple layers at runtime, but only one layer owns its semantic meaning.
+
+**`common.toml` loading pattern:** Because `common.toml` is not in `load_all()`, callers that need its values must explicitly load it:
+```python
+ConfigLoader().load("common.toml")   # returns dict with db paths, embed_url, etc.
+```
+This is intentional — `common.toml` contains infrastructure-level settings (DB paths, embedding config) that are not part of the agent's business configuration loaded by `load_all()`.
+
+> **Future note:** `common.toml` may be added to `_BASE_CONFIG_FILES` in a future refactor. If so, update this table and the cross-references in `06_shared_01`, `06_shared_04`, and `06_shared_00`.
 
 **Config loading flow:**
 ```
@@ -278,8 +309,8 @@ Both defined in `shared/mcp_config.py`. Full field reference in
 **Config loading:**
 ```
 build_agent_config()
-  → ConfigLoader().load_all()     [11 files; common.toml excluded]
-  → ConfigLoader().load("common.toml")   [loaded separately by db/ and rag/]
+  → ConfigLoader().load_all()     [11 files — see §2a Config Ownership for full table]
+  → ConfigLoader().load("common.toml")   [loaded separately by db/ and rag/ — see §2a Config Ownership]
 ```
 
 **Plugin loading:**
@@ -311,7 +342,8 @@ ToolExecutor.execute(tool_name, args)
 | Question | Answer |
 |---|---|
 | How to load config files | `ConfigLoader().load("filename.toml")` or `load_all()` |
-| Does `load_all()` include `common.toml`? | **No** — loaded separately |
+| Config ownership table | **See §2a Config Ownership** — canonical reference for all 12 TOML files |
+| Does `load_all()` include `common.toml`? | **No** — loaded separately (see §2a Config Ownership) |
 | How to register a plugin tool | `@register_tool("name")` decorator in `plugins/*.py` |
 | When does ToolExecutor use cache? | `is_error=False` results only; TTL + LRU |
 | Is `git_helper.get_repo_info()` reliable? | Returns `None` on any exception; no error reason |
