@@ -92,7 +92,7 @@ def _make_err(
 
 class TestHandleTurnLLMTransportError:
     @pytest.mark.asyncio
-    async def test_partial_completion_saves_incomplete_message(self) -> None:
+    async def test_partial_completion_not_in_conversation_history(self) -> None:
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="PREMATURE_EOF", partial_text="partial answer")
@@ -103,8 +103,24 @@ class TestHandleTurnLLMTransportError:
         incomplete = [
             m for m in ctx.conv.history if "[INCOMPLETE" in m.get("content", "")
         ]
-        assert len(incomplete) == 1
-        assert "partial answer" in incomplete[0]["content"]
+        assert len(incomplete) == 0, (
+            "Incomplete output must not pollute conversation history"
+        )
+
+    @pytest.mark.asyncio
+    async def test_partial_completion_saved_to_diagnostic_channel(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="PREMATURE_EOF", partial_text="partial answer")
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            with patch.object(ctx.session, "save_diagnostic") as mock_diag:
+                await orch.handle_turn("hello")
+
+        mock_diag.assert_called_once()
+        saved_content = mock_diag.call_args[0][0]
+        assert "partial answer" in saved_content
+        assert "[INCOMPLETE: PREMATURE_EOF]" in saved_content
 
     @pytest.mark.asyncio
     async def test_partial_completion_increments_stat(self) -> None:

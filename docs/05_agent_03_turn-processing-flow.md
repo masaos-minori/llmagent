@@ -117,9 +117,11 @@ Action:
 Condition: `LLMTransportError` with non-empty `partial_text`.
 
 Action:
-- Save `[INCOMPLETE: {kind}]` prefixed assistant message to history and session
-- Save failure detail to `ctx.tool_result_store` (accessible via `/tool show`)
+- **Diagnostic channel only**: persist `[INCOMPLETE: {kind}]` prefixed message via `ctx.session.save_diagnostic()` — role `"diagnostic"`, NOT added to `ctx.conv.history`
+- Save failure detail to `ctx.tool_result_store` (accessible via `/tool show llm_partial_completion`)
 - `stat_partial_completions += 1`
+
+Incomplete outputs are isolated from normal conversation history so they do not pollute future LLM context. The partial content remains accessible through `/tool show` and DB queries on the `messages` table (role = `"diagnostic"`).
 
 ### Tool Continuation Failure (turn > 0)
 

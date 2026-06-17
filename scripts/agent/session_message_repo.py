@@ -13,6 +13,7 @@ from shared.types import LLMMessage
 logger = logging.getLogger(__name__)
 
 _VALID_ROLES: frozenset[str] = frozenset({"user", "assistant", "tool", "system"})
+_DIAGNOSTIC_ROLE: str = "diagnostic"
 
 
 class SessionMessageRepository:
@@ -27,11 +28,16 @@ class SessionMessageRepository:
         content: str,
         tool_calls: list[dict] | None = None,
         tool_call_id: str | None = None,
+        _diagnostic: bool = False,
     ) -> None:
-        """Persist a single message to DB under the current session."""
+        """Persist a single message to DB under the current session.
+
+        If _diagnostic=True, role validation is skipped (internal use only for
+        diagnostic messages that should not appear in normal conversation history).
+        """
         if self.session_id is None:
             return
-        if role not in _VALID_ROLES:
+        if not _diagnostic and role not in _VALID_ROLES:
             logger.warning("Invalid role %r; message not saved", role)
             return
         tc_json = _json_dumps(tool_calls) if tool_calls else None

@@ -19,7 +19,6 @@ import orjson
 from shared.json_utils import dumps as _json_dumps
 from shared.llm_client import LLMTransportError
 from shared.logger import Logger
-from shared.types import LLMMessage
 
 from agent.context import AgentContext
 from agent.llm_turn_runner import LLMTurnRunner
@@ -320,10 +319,8 @@ class Orchestrator:
     ) -> bool:
         if e.partial_text:
             incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
-            ctx.conv.history.append(
-                LLMMessage(role="assistant", content=incomplete_msg)
-            )
-            ctx.session.save("assistant", incomplete_msg)
+            # Store in diagnostic channel only — do NOT add to conversation history
+            ctx.session.save_diagnostic(incomplete_msg)
             try:
                 ctx.tool_result_store.store(
                     session_id=ctx.session.session_id,

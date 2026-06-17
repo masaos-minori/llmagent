@@ -9,7 +9,7 @@ from db.helper import SQLiteHelper
 from shared.types import LLMMessage
 
 from agent.note_repo import NoteRepository
-from agent.session_message_repo import SessionMessageRepository
+from agent.session_message_repo import _DIAGNOSTIC_ROLE, SessionMessageRepository
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,14 @@ class AgentSession:
     ) -> None:
         """Persist multiple messages in a single DB transaction."""
         self._message_repo.save_many(messages)
+
+    def save_diagnostic(self, content: str) -> None:
+        """Persist a diagnostic-only message; not included in normal history retrieval."""
+        self._message_repo.save(
+            role=_DIAGNOSTIC_ROLE,
+            content=content,
+            _diagnostic=True,
+        )
 
     def fetch_messages(self, session_id: int) -> list[LLMMessage]:
         """Fetch messages for a session from DB. Returns [] when session has no messages."""
