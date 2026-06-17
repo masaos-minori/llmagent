@@ -57,7 +57,7 @@ Used by RagPipeline (loaded via `_get_cfg()` on first access):
 |---|---|
 | `use_search` | Global RAG on/off switch |
 | `use_mqe` | Enable query expansion |
-| `use_rrf` | RRF flag (currently unused — see [03_rag_90](03_rag_90_inconsistencies_and_known_issues.md)) |
+| `use_rrf` | Enable RRF merge (True) or simple dedup fallback (False) |
 | `use_rerank` | Enable cross-encoder reranking |
 | `use_refiner` | Enable chunk compression via LLM |
 | `top_k_search` | KNN/FTS hit count per query |

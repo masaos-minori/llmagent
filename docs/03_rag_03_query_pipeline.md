@@ -141,8 +141,7 @@ FusionStage(cfg: dict)
 - `rrf_k` default: 60 (from `cfg.get("rrf_k", 60)`)
 - Assigns `rrf_score` to each `MergedHit`; stores in `ctx.merged`
 
-> **Known Issue:** `use_rrf=False` has no effect — `FusionStage` always executes RRF.
-> `_dedup_hits` fallback is dead code. See [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md).
+> `use_rrf=False` activates `_dedup_hits()` fallback (simple chunk_id dedup, all `rrf_score=0.0`). `pipeline.py` passes `use_rrf=self._cfg.use_rrf` to `FusionStage`.
 
 ### 5.4 RerankStage
 
