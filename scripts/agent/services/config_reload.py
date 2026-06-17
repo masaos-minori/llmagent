@@ -5,7 +5,7 @@ Responsibilities:
   apply_config_dict()  — update ctx.cfg fields from raw dict and sync services
   _sync_services()     — propagate already-updated cfg to live service instances (private)
 
-Both return ConfigReloadResult so callers can display what changed.
+Both return ConfigReloadOutcome so callers can display what changed.
 """
 
 from __future__ import annotations
@@ -139,9 +139,6 @@ class ConfigReloadOutcome:
     source_files: list[str] = field(default_factory=list)
 
 
-ConfigReloadResult = ConfigReloadOutcome
-
-
 class ConfigReloadService:
     """Propagate an updated config dict to live service instances.
 
@@ -205,9 +202,9 @@ class ConfigReloadService:
 
     # ── Service sync ──────────────────────────────────────────────────────────
 
-    def _sync_services(self, new_cfg: dict[str, Any]) -> ConfigReloadResult:
+    def _sync_services(self, new_cfg: dict[str, Any]) -> ConfigReloadOutcome:
         """Apply new_cfg values to running service instances; return a report."""
-        result = ConfigReloadResult()
+        result = ConfigReloadOutcome()
         ctx = self._ctx
 
         if ctx.services.llm is not None:
@@ -380,13 +377,13 @@ class ConfigReloadService:
         self,
         ctx: AgentContext,
         new_cfg: dict[str, Any],
-    ) -> ConfigReloadResult:
+    ) -> ConfigReloadOutcome:
         """Update HTTP MCP server URLs; classify transport changes as needs_restart."""
         from agent.config import (
             _build_mcp_servers,  # noqa: PLC0415 — lazy: avoids circular import at module level
         )
 
-        result = ConfigReloadResult()
+        result = ConfigReloadOutcome()
         new_mcp = _build_mcp_servers(new_cfg)
         for key, new_srv in new_mcp.items():
             old_srv = ctx.cfg.mcp.mcp_servers.get(key)

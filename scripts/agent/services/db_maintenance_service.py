@@ -43,7 +43,7 @@ class DbMaintenanceService:
     @staticmethod
     def _count_table(db: Any, table: str) -> int:
         """Return row count for a single table."""
-        return int(db.fetchall(f"SELECT COUNT(*) AS n FROM {table}")[0]["n"])
+        return int(db.fetchall(f"SELECT COUNT(*) AS n FROM {table}")[0]["n"])  # nosec B608 — table is always a hardcoded name, never user input
 
     def rebuild_fts(self) -> None:
         """Rebuild the FTS5 chunks_fts index in rag.sqlite."""

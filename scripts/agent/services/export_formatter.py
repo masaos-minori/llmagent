@@ -8,6 +8,7 @@ can be tested independently and reused outside the command layer.
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 
 import orjson
@@ -54,10 +55,12 @@ class _CliExportOutput:
     """Default CLI implementation of ExportOutputPort used when no port is supplied."""
 
     def write(self, content: str) -> None:
-        print(content)
+        sys.stdout.write(content + "\n")
 
     def write_file(self, content: str, path: str, n_messages: int) -> None:
-        print(f"Exported {n_messages} messages to {path} ({len(content)} chars)")
+        sys.stdout.write(
+            f"Exported {n_messages} messages to {path} ({len(content)} chars)\n"
+        )
 
 
 def write_export(
