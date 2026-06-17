@@ -157,7 +157,7 @@ def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
         src.close()
 
     size = dest.stat().st_size
-    logger.info("DB archived: %s (%, bytes)", dest, size)
+    logger.info("DB archived: %s (%s bytes)", dest, size)
     return dest
 
 

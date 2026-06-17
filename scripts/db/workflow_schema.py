@@ -8,10 +8,13 @@ Run as: PYTHONPATH=scripts python -m db.workflow_schema
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from pathlib import Path
 
 from db.config import build_db_config
+
+logger = logging.getLogger(__name__)
 
 _DDL = """
 PRAGMA journal_mode=WAL;
@@ -66,7 +69,8 @@ def init_schema(db_path: str) -> None:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     cfg = build_db_config()
     Path(cfg.workflow_db_path).parent.mkdir(parents=True, exist_ok=True)
     init_schema(cfg.workflow_db_path)
-    print(f"workflow schema initialised: {cfg.workflow_db_path}")
+    logger.info("workflow schema initialised: %s", cfg.workflow_db_path)

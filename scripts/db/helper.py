@@ -25,6 +25,10 @@ _DEFAULT_BUSY_TIMEOUT_MS: int = 30000
 class SQLiteHelper:
     """SQLite connection manager with optional sqlite-vec extension; WAL/synchronous=NORMAL/busy_timeout applied to every connection."""
 
+    _CHECKPOINT_MODES: frozenset[str] = frozenset(
+        {"PASSIVE", "FULL", "RESTART", "TRUNCATE"},
+    )
+
     def __init__(self, target: str = "rag") -> None:
         if target not in ("rag", "session", "workflow"):
             raise ValueError(
@@ -56,14 +60,8 @@ class SQLiteHelper:
 
     def _connect(self) -> sqlite3.Connection:
         """Open a raw SQLite connection; raise on DB_PATH misconfiguration."""
-        if self._target == "rag":
-            key = "rag_db_path"
-        elif self._target == "session":
-            key = "session_db_path"
-        else:
-            key = "workflow_db_path"
         if not self._db_path:
-            raise ValueError(f"{key} is not configured in common.toml")
+            raise ValueError(f"{self._target}_db_path is not configured in common.toml")
         try:
             return sqlite3.connect(self._db_path, timeout=self._sqlite_timeout)
         except sqlite3.OperationalError as e:
@@ -190,10 +188,6 @@ class SQLiteHelper:
             freelist_count=int(freelist),
             db_size_bytes=int(page_count) * int(page_size),
         )
-
-    _CHECKPOINT_MODES: frozenset[str] = frozenset(
-        {"PASSIVE", "FULL", "RESTART", "TRUNCATE"},
-    )
 
     def checkpoint(self, mode: str = "TRUNCATE") -> WalCheckpointCounts:
         """Run WAL checkpoint; return WalCheckpointCounts."""

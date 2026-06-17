@@ -13,34 +13,15 @@ Functions:
   create_schema()         — convenience wrapper calling both
 """
 
+import logging
 import sqlite3
 import sys
-
-from shared.config_loader import (
-    ConfigLoader,  # noqa: PLC0415 — used in _get_schema_log_path
-)
-from shared.logger import Logger
 
 from db.helper import SQLiteHelper
 from db.schema_sql import build_rag_schema_sql, build_session_schema_sql
 from db.store_protocols import get_embedding_dims
 
-
-def _get_schema_log_path() -> str:
-    """Return the schema log file path from config."""
-    cfg = ConfigLoader().load("common.toml")
-    log_dir = cfg.get("log_dir", "/opt/llm/logs")
-    return f"{log_dir}/create_schema.log"
-
-
-_logger: Logger | None = None
-
-
-def _get_logger() -> Logger:
-    global _logger
-    if _logger is None:
-        _logger = Logger(__name__, _get_schema_log_path())
-    return _logger
+logger = logging.getLogger(__name__)
 
 
 def create_rag_schema() -> None:
@@ -50,9 +31,9 @@ def create_rag_schema() -> None:
         try:
             db.conn.executescript(build_rag_schema_sql(dims))  # type: ignore[union-attr]  # conn is set by open()
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-            _get_logger().error(f"Failed to execute RAG schema DDL: {e}")
+            logger.error("Failed to execute RAG schema DDL: %s", e)
             raise
-    _get_logger().info("RAG schema created successfully.")
+    logger.info("RAG schema created successfully.")
 
 
 def create_session_schema() -> None:
@@ -62,19 +43,20 @@ def create_session_schema() -> None:
         try:
             db.conn.executescript(build_session_schema_sql(dims))  # type: ignore[union-attr]  # conn is set by open()
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-            _get_logger().error(f"Failed to execute session schema DDL: {e}")
+            logger.error("Failed to execute session schema DDL: %s", e)
             raise
-    _get_logger().info("Session schema created successfully.")
+    logger.info("Session schema created successfully.")
 
 
 def create_schema() -> None:
     """Create schemas for both rag.sqlite and session.sqlite."""
     create_rag_schema()
     create_session_schema()
-    _get_logger().info("All schemas created successfully.")
+    logger.info("All schemas created successfully.")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     try:
         create_schema()
     except (
@@ -83,5 +65,5 @@ if __name__ == "__main__":
         sqlite3.DatabaseError,
         OSError,
     ) as e:
-        _get_logger().exception(f"Schema creation failed: {e}")
+        logger.exception("Schema creation failed: %s", e)
         sys.exit(1)

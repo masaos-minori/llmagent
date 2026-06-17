@@ -7,7 +7,6 @@ run without the extension installed.
 Migration code has been removed from create_schema.py; no migration tests here.
 """
 
-import logging
 import sqlite3
 from pathlib import Path
 from unittest.mock import patch
@@ -140,9 +139,6 @@ def rag_tmp_db(tmp_path: Path) -> sqlite3.Connection:
             "db.create_schema.build_rag_schema_sql", return_value=_RAG_SCHEMA_NO_VEC0
         ),
         patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
-        patch.object(
-            cs, "_get_logger", return_value=logging.getLogger("test.create_schema")
-        ),
     ):
         cs.create_rag_schema()
     return sqlite3.connect(str(db_file))
@@ -161,9 +157,6 @@ def session_tmp_db(tmp_path: Path) -> sqlite3.Connection:
             return_value=_SESSION_SCHEMA_NO_VEC0,
         ),
         patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
-        patch.object(
-            cs, "_get_logger", return_value=logging.getLogger("test.create_schema")
-        ),
     ):
         cs.create_session_schema()
     return sqlite3.connect(str(db_file))
@@ -207,9 +200,6 @@ class TestCreateRagSchema:
                 return_value=_RAG_SCHEMA_NO_VEC0,
             ),
             patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
-            patch.object(
-                cs, "_get_logger", return_value=logging.getLogger("test.create_schema")
-            ),
         ):
             cs.create_rag_schema()
             cs.create_rag_schema()  # must not raise
@@ -264,9 +254,6 @@ class TestCreateSessionSchema:
                 return_value=_SESSION_SCHEMA_NO_VEC0,
             ),
             patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
-            patch.object(
-                cs, "_get_logger", return_value=logging.getLogger("test.create_schema")
-            ),
         ):
             cs.create_session_schema()
             cs.create_session_schema()  # must not raise
