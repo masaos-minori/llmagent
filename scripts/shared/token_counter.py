@@ -43,6 +43,10 @@ class _WarnOnce:
             logger.warning(msg, *args)
             self._warned = True
 
+    def reset(self) -> None:
+        """Reset the warn-once flag after a successful call."""
+        self._warned = False
+
 
 _warned_unavailable = _WarnOnce()
 
@@ -164,7 +168,7 @@ async def get_token_count(
         else:
             n_tokens = 0
         if n_tokens > 0:
-            _warned_unavailable._warned = False
+            _warned_unavailable.reset()
             return n_tokens, True
         logger.warning("token_counter: /tokenize returned n_tokens=0, falling back")
     except (TimeoutError, httpx.HTTPStatusError, httpx.RequestError, ValueError) as exc:

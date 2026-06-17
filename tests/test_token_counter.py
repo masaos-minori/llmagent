@@ -24,7 +24,7 @@ from shared.types import LLMMessage
 
 def _reset_warned() -> None:
     """Reset module-level warn-once flag between tests."""
-    tc_module._warned_unavailable._warned = False
+    tc_module._warned_unavailable.reset()
 
 
 def _history(*pairs: tuple[str, str]) -> list[LLMMessage]:

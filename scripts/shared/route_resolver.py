@@ -73,8 +73,10 @@ def build_discovery_map(
     route_map: dict[str, str] = {}
     for server_key, tools in server_tool_lists.items():
         for tool in tools:
-            name: str = tool.get("name", "") or ""  # type: ignore[assignment]
-            tk: str = tool.get("server_key", server_key) or server_key  # type: ignore[assignment]
+            name_raw = tool.get("name")
+            name = name_raw if isinstance(name_raw, str) and name_raw else ""
+            tk_raw = tool.get("server_key")
+            tk = tk_raw if isinstance(tk_raw, str) and tk_raw else server_key
             if not name:
                 continue
             if name in route_map and route_map[name] != tk:

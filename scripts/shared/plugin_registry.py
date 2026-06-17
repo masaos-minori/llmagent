@@ -145,7 +145,7 @@ async def run_pipeline_stages(
                 result = hook(hits, query)
             if result is not None:
                 hits = result
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — plugin hook may raise any exception type
             msg = (
                 f'Plugin hook "{hook.__name__}" failed on query "{query[:60]}": '
                 f"{type(exc).__name__}: {exc}"
