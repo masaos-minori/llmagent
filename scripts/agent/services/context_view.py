@@ -43,6 +43,75 @@ def budget_breakdown(messages: list[LLMMessage]) -> ContextBudget:
     return ContextBudget(system=system, history=history, tool_results=tool_results)
 
 
+def _build_budget(messages: list[LLMMessage], token_is_exact: bool) -> ContextBudget:
+    """Build ContextBudget with optional token breakdown.
+
+    When ``token_is_exact`` is True (LLM usage or /tokenize provided exact counts),
+    only character breakdown is returned.  When False, category-aware token
+    estimates are included alongside character counts.
+    """
+    char_budget = budget_breakdown(messages)
+    if token_is_exact:
+        return char_budget
+    ts, th, tt = _token_breakdown(messages)
+    return ContextBudget(
+        system=char_budget.system,
+        history=char_budget.history,
+        tool_results=char_budget.tool_results,
+        token_system=ts,
+        token_history=th,
+        token_tool_results=tt,
+    )
+
+
+def _token_breakdown(
+    messages: list[LLMMessage],
+) -> tuple[int | None, int | None, int | None]:
+    """Estimate per-category token counts using category-aware ratios.
+
+    Returns ``(token_system, token_history, token_tool_results)`` or
+    ``(None, None, None)`` when there is no content to estimate.
+
+    Maps the internal token estimator categories (text, tool_calls, system)
+    to budget display categories (system, history, tool_results):
+
+    - system → system
+    - text from user/assistant/tool → history or tool_results by role
+    - tool_calls JSON → tool_results
+    """
+    _RATIO_TEXT: float = 4.0
+    _RATIO_TOOL_CALL: float = 2.5
+    _RATIO_SYSTEM: float = 3.5
+
+    sys_tokens = 0
+    hist_tokens = 0
+    tool_tokens = 0
+
+    for m in messages:
+        role = m.get("role", "")
+        content_raw = m.get("content")
+        text = content_raw if isinstance(content_raw, str) else ""
+        tool_calls = m.get("tool_calls") or []
+
+        if role == "system":
+            if text:
+                sys_tokens += int(len(text) / _RATIO_SYSTEM)
+        elif role == "assistant" and tool_calls:
+            if text:
+                hist_tokens += int(len(text) / _RATIO_TEXT)
+            for tc in tool_calls:
+                tool_tokens += int(len(orjson.dumps(tc)) / _RATIO_TOOL_CALL)
+        elif role == "tool":
+            if text:
+                tool_tokens += int(len(text) / _RATIO_TEXT)
+        else:
+            # user, assistant (text-only)
+            if text:
+                hist_tokens += int(len(text) / _RATIO_TEXT)
+
+    return sys_tokens or None, hist_tokens or None, tool_tokens or None
+
+
 def _format_memory_status(ctx: AgentContext) -> str:
     """Return a one-line summary of the memory layer state."""
     if ctx.services.memory is None:
@@ -94,5 +163,5 @@ def collect_context_state(ctx: AgentContext) -> ContextStateView:
         mem_status=_format_memory_status(ctx),
         git_branch=git_info["branch"] if git_info else None,
         git_commit=git_info["commit"] if git_info else None,
-        breakdown=budget_breakdown(history),
+        breakdown=_build_budget(history, token_is_exact),
     )

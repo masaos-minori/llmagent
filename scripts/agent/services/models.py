@@ -167,8 +167,17 @@ class SessionRow:
 
 @dataclass(frozen=True)
 class ContextBudget:
-    """Per-category character counts for /context budget breakdown display."""
+    """Per-category character and token counts for /context budget breakdown.
+
+    Character counts (*system*, *history*, *tool_results*) are always present.
+    Token estimates are ``None`` when the source is exact (LLM usage or
+    /tokenize endpoint); they are populated only when a category-aware fallback
+    estimate is used.
+    """
 
     system: int
     history: int
     tool_results: int
+    token_system: int | None = None
+    token_history: int | None = None
+    token_tool_results: int | None = None

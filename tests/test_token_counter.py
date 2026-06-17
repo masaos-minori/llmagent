@@ -15,6 +15,7 @@ import pytest
 from shared import token_counter as tc_module
 from shared.token_counter import (
     _estimate_chars,
+    _estimate_tokens,
     _serialise_for_tokenize,
     get_token_count,
 )
@@ -178,3 +179,106 @@ async def test_warn_only_once_on_repeated_failure(
         await get_token_count(msgs, "http://host/tokenize", http)
     warnings = [r for r in caplog.records if "unavailable" in r.message]
     assert len(warnings) == 1
+
+
+# ── _estimate_tokens ───────────────────────────────────────────────────────────
+
+
+def test_estimate_tokens_empty() -> None:
+    total, breakdown = _estimate_tokens([])
+    assert total == 0
+    assert breakdown == {"text": 0, "tool_calls": 0, "system": 0}
+
+
+def test_estimate_tokens_text_only() -> None:
+    msgs: list[LLMMessage] = [{"role": "user", "content": "hello world"}]
+    total, breakdown = _estimate_tokens(msgs)
+    assert breakdown["text"] > 0
+    assert breakdown["tool_calls"] == 0
+    assert breakdown["system"] == 0
+    assert total == breakdown["text"]
+
+
+def test_estimate_tokens_tool_calls() -> None:
+    tc = {"id": "c1", "function": {"name": "f", "arguments": "{}"}}
+    msgs: list[LLMMessage] = [
+        {"role": "assistant", "content": None, "tool_calls": [tc]}
+    ]
+    total, breakdown = _estimate_tokens(msgs)
+    assert breakdown["tool_calls"] > 0
+    assert breakdown["text"] == 0
+    assert breakdown["system"] == 0
+    assert total == breakdown["tool_calls"]
+
+
+def test_estimate_tokens_system_message() -> None:
+    msgs: list[LLMMessage] = [
+        {"role": "system", "content": "You are a helpful assistant."}
+    ]
+    total, breakdown = _estimate_tokens(msgs)
+    assert breakdown["system"] > 0
+    assert breakdown["text"] == 0
+    assert breakdown["tool_calls"] == 0
+    assert total == breakdown["system"]
+
+
+def test_estimate_tokens_mixed_history() -> None:
+    msgs: list[LLMMessage] = [
+        {"role": "system", "content": "Be helpful"},
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": "Hi there!"},
+    ]
+    total, breakdown = _estimate_tokens(msgs)
+    assert total > 0
+    assert breakdown["system"] > 0
+    assert breakdown["text"] > 0
+    assert breakdown["tool_calls"] == 0
+    assert total == breakdown["system"] + breakdown["text"] + breakdown["tool_calls"]
+
+
+def test_estimate_tokens_assistant_with_tool_calls_and_content() -> None:
+    tc = {"id": "c1", "function": {"name": "f", "arguments": "{}"}}
+    msgs: list[LLMMessage] = [
+        {"role": "assistant", "content": "Let me check.", "tool_calls": [tc]}
+    ]
+    total, breakdown = _estimate_tokens(msgs)
+    assert breakdown["text"] > 0
+    assert breakdown["tool_calls"] > 0
+    assert breakdown["system"] == 0
+    assert total == breakdown["text"] + breakdown["tool_calls"]
+
+
+def test_estimate_tokens_ratio_text_vs_tool_call() -> None:
+    """Tool call JSON should have a lower chars/token ratio than text."""
+    text_msg: list[LLMMessage] = [{"role": "user", "content": "a" * 40}]
+    total_text, bd_text = _estimate_tokens(text_msg)
+
+    tc = {"id": "c1", "function": {"name": "f", "arguments": "{}" * 10}}
+    tool_msg: list[LLMMessage] = [
+        {"role": "assistant", "content": None, "tool_calls": [tc]}
+    ]
+    total_tool, bd_tool = _estimate_tokens(tool_msg)
+
+    assert total_text > 0
+    assert total_tool > 0
+    # Tool call JSON (2.5 ratio) should yield more tokens per char than text (4.0 ratio)
+    text_ratio = len("a" * 40) / total_text if total_text > 0 else float("inf")
+    tool_json_len = len(orjson.dumps(tc))
+    tool_ratio = tool_json_len / total_tool if total_tool > 0 else float("inf")
+    assert tool_ratio < text_ratio
+
+
+@pytest.mark.asyncio
+async def test_get_token_count_uses_estimate_tokens() -> None:
+    """Verify get_token_count falls back to _estimate_tokens when URL is empty."""
+    _reset_warned()
+    http = AsyncMock(spec=httpx.AsyncClient)
+    msgs: list[LLMMessage] = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "hello"},
+    ]
+    count, is_exact = await get_token_count(msgs, "", http, timeout=1.0)
+    assert is_exact is False
+    expected_total, _ = _estimate_tokens(msgs)
+    assert count == expected_total
+    http.post.assert_not_called()

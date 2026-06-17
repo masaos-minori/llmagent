@@ -36,7 +36,7 @@ def _token_source_label(token_is_exact: bool, tokenize_configured: bool) -> str:
         return "LLM usage"
     if tokenize_configured:
         return "/tokenize (next turn)"
-    return "chars/4"
+    return "category-aware estimate"
 
 
 class _ContextMixin(MixinBase):
@@ -105,6 +105,20 @@ class _ContextMixin(MixinBase):
         ]:
             pct = n * 100 // total_bd
             self._out.write(f"  {cat:<14}: {n:>8,} chars ({pct:>3}%)")
+        if not state.token_is_exact:
+            ts = breakdown.token_system
+            th = breakdown.token_history
+            tt = breakdown.token_tool_results
+            if ts is not None and th is not None and tt is not None:
+                total_tokens = ts + th + tt
+                self._out.write("Token estimate:")
+                for cat, n in [
+                    ("system", ts),
+                    ("history", th),
+                    ("tool_results", tt),
+                ]:
+                    pct = n * 100 // total_tokens if total_tokens > 0 else 0
+                    self._out.write(f"  {cat:<14}: {n:>8,} tokens ({pct:>3}%)")
 
     def _cmd_clear(self, args: str = "") -> None:
         """Reset conversation history to system prompt only and clear session stats.

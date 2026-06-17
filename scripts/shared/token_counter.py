@@ -2,9 +2,22 @@
 Accurate token counting via llamacpp /tokenize endpoint.
 
 Priority:
-  1. LLM usage.prompt_tokens (passed as last_input_tokens)
-  2. POST /tokenize endpoint   (llamacpp standard API)
-  3. chars // 4               (fallback)
+  1. LLM usage.prompt_tokens (passed as last_input_tokens) — exact
+  2. POST /tokenize endpoint   (llamacpp standard API)      — exact
+  3. Category-aware estimate                               — estimated
+
+When exact token counts are unavailable (sources 1 and 2), the fallback uses
+category-aware estimation with different character-to-token ratios per content
+type:
+
+  - Natural language text (user/assistant/tool):   4.0 chars/token
+  - Structured JSON (assistant tool_calls):        2.5 chars/token
+  - System messages (mixed format):                3.5 chars/token
+
+This is more accurate than the legacy ``chars // 4`` heuristic, especially for
+multilingual text and structured tool payloads.  The count is marked
+``is_exact=False`` to distinguish it from LLM-provided or /tokenize-derived
+counts.
 """
 
 import logging
@@ -44,6 +57,68 @@ def _estimate_chars(history: list[LLMMessage]) -> int:
     return total
 
 
+# Character-to-token ratios by content category.
+# Values tuned for typical English text and JSON-structured tool calls.
+_RATIO_TEXT: float = 4.0
+_RATIO_TOOL_CALL: float = 2.5
+_RATIO_SYSTEM: float = 3.5
+
+
+def _estimate_tokens(history: list[LLMMessage]) -> tuple[int, dict[str, int]]:
+    """Estimate token count using category-aware character-to-token ratios.
+
+    Returns ``(total_tokens, breakdown)`` where *breakdown* maps category names
+    to estimated token counts.  Categories:
+
+    - ``"text"`` — natural language content (user messages, assistant text, tool results)
+    - ``"tool_calls"`` — serialised JSON from assistant tool_calls
+    - ``"system"`` — system prompt content
+
+    Ratios:
+
+    ======  =====  ============================================
+    Category   Ratio  Rationale
+    ======  =====  ============================================
+    text       4.0    English natural language ~4 chars/token
+    tool_calls 2.5    JSON is verbose (braces, quotes, keywords)
+    system     3.5    Mixed format: instructions + code snippets
+    ======  =====  ============================================
+
+    This replaces the legacy ``chars // 4`` fallback with a more accurate estimate
+    that accounts for structured vs unstructured content.
+    """
+    total = 0
+    breakdown: dict[str, int] = {"text": 0, "tool_calls": 0, "system": 0}
+    for msg in history:
+        role = msg.get("role", "")
+        content_raw = msg.get("content")
+        text = content_raw if isinstance(content_raw, str) else ""
+        tool_calls = msg.get("tool_calls") or []
+
+        if role == "system":
+            if text:
+                n = int(len(text) / _RATIO_SYSTEM)
+                breakdown["system"] += n
+                total += n
+        elif role == "assistant" and tool_calls:
+            # Assistant with tool calls: content (text ratio) + serialised tool_calls
+            if text:
+                n = int(len(text) / _RATIO_TEXT)
+                breakdown["text"] += n
+                total += n
+            for tc in tool_calls:
+                n = int(len(orjson.dumps(tc)) / _RATIO_TOOL_CALL)
+                breakdown["tool_calls"] += n
+                total += n
+        else:
+            # user, tool, assistant (text-only)
+            if text:
+                n = int(len(text) / _RATIO_TEXT)
+                breakdown["text"] += n
+                total += n
+    return total, breakdown
+
+
 def _serialise_for_tokenize(history: list[LLMMessage]) -> str:
     """Flatten history to a single string for the /tokenize endpoint."""
     parts: list[str] = []
@@ -66,7 +141,7 @@ async def get_token_count(
 ) -> tuple[int, bool]:
     """Return (token_count, is_exact) for the given history."""
     if not tokenize_url:
-        return _estimate_chars(history) // 4, False
+        return _estimate_tokens(history)[0], False
 
     text = _serialise_for_tokenize(history)
     try:
@@ -94,8 +169,8 @@ async def get_token_count(
         logger.warning("token_counter: /tokenize returned n_tokens=0, falling back")
     except (TimeoutError, httpx.HTTPStatusError, httpx.RequestError, ValueError) as exc:
         _warned_unavailable.log(
-            "token_counter: /tokenize unavailable (%s), using chars/4 fallback",
+            "token_counter: /tokenize unavailable (%s), using category-aware estimate",
             exc,
         )
 
-    return _estimate_chars(history) // 4, False
+    return _estimate_tokens(history)[0], False

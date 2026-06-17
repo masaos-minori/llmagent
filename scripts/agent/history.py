@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import httpx
 import orjson
-from shared.token_counter import get_token_count
+from shared.token_counter import _estimate_tokens, get_token_count
 from shared.types import LLMMessage
 
 from agent.history_selection_policy import (
@@ -148,13 +148,22 @@ class HistoryManager:
     ) -> int:
         """Estimate total tokens in a history list.
 
-        When last_input_tokens is provided (from LLM usage), return it directly
-        as a precise measurement. Otherwise fall back to chars // 4 (local LLMs
-        may not return usage fields consistently).
+        Priority:
+
+          1. ``last_input_tokens`` (from LLM ``usage.prompt_tokens``) — exact count
+          2. Category-aware estimate                                  — estimated
+
+        The category-aware estimator uses different character-to-token ratios for
+        natural language text (4.0), structured JSON tool calls (2.5), and system
+        messages (3.5).  This is more accurate than the legacy ``chars // 4``
+        heuristic, especially for multilingual text and tool payloads.
+
+        When ``last_input_tokens`` is ``None`` the returned value is an estimate
+        (``is_exact=False`` in async context).
         """
         if last_input_tokens is not None:
             return last_input_tokens
-        return self.count_chars(history) // 4
+        return _estimate_tokens(history)[0]
 
     async def count_tokens_async(
         self,
