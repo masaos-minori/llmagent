@@ -1,8 +1,8 @@
 """agent/tool_policy.py
 Tool risk classification and pre-flight access checks.
 
-Extracted from repl_tool_exec.py so policy rules can be tested and
-modified without loading the full approval/execution stack.
+Policy rules are isolated here so they can be tested independently
+of the approval/execution stack.
 """
 
 from __future__ import annotations

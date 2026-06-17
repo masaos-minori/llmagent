@@ -417,7 +417,9 @@ class ConfigReloadService:
         )
         _apply_str(new_cfg, "llm_url", lambda v: setattr(cfg.llm, "llm_url", v))
         _apply_str(
-            new_cfg, "github_server_url", lambda v: setattr(cfg.mcp, "github_url", v)
+            new_cfg,
+            "github_server_url",
+            lambda v: setattr(cfg.mcp, "github_server_url", v),
         )
         _apply_str(
             new_cfg, "web_search_url", lambda v: setattr(cfg.rag, "web_search_url", v)

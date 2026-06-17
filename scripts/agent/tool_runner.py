@@ -2,7 +2,7 @@
 Tool execution orchestration: single call dispatch, DAG/serial ordering,
 result collection and history injection.
 
-Extracted from repl_tool_exec.py. Public entry point: execute_all_tool_calls().
+Public entry point: execute_all_tool_calls().
 """
 
 from __future__ import annotations

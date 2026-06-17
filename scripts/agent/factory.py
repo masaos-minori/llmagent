@@ -363,7 +363,7 @@ def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
     and assigns it to ctx.services.  CommandRegistry and Orchestrator are wired
     by AgentREPL._init_components() after this returns.
     """
-    # Shared stdio_procs dict — same object passed to ServerLifecycleManager
+    # Shared stdio_procs dict — same object passed to _ServerLifecycleRouter
     # and AppServices so that _start_stdio_servers() mutations are reflected in both.
     stdio_procs: dict = {}
 

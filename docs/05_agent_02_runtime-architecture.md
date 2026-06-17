@@ -172,6 +172,5 @@ Accessed via `ctx.services.memory`.
 
 **Spec Conflict:**
 - `04_spec_mcp.md §10.5` notes `ServerLifecycleManager` was deleted from `agent/lifecycle.py`.
-- `05_ref-agent-repl.md §6` and `05_ref-agent-context.md §6` confirm `_ServerLifecycleRouter`
-  in `factory.py` took over routing. Only `restart_stdio()` remains in `agent/lifecycle.py`.
+- `_ServerLifecycleRouter` in `factory.py` took over routing. Only `restart_stdio()` remains in `agent/lifecycle.py`.
 - **Safe interpretation:** Use `_ServerLifecycleRouter` for lifecycle. Do not use `ServerLifecycleManager`.

@@ -5,7 +5,7 @@ Canonical frozenset definitions for MCP tool classification.
 These sets are used in three places:
   shared/route_resolver.py  — static routing (tool_name → server_key)
   shared/tool_executor.py   — side-effect detection (is_side_effect())
-  agent/repl_tool_exec.py   — risk classification and approval logic
+  agent/tool_policy.py      — risk classification and approval logic
 
 Centralised here to avoid silent drift when tool lists change.
 All sets are frozensets; treat them as read-only.

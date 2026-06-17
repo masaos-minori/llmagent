@@ -187,9 +187,7 @@ Source: `config/mcp_servers.toml`
 | `mcp_servers` | `{}` | Dict of `McpServerConfig` by server key |
 | `mcp_watchdog_interval` | `30.0` (PRODUCTION) / `0.0` (LOCAL) | Watchdog poll interval (seconds; 0=disabled); profile-aware default |
 | `mcp_watchdog_max_restarts` | `3` | Max watchdog restart attempts |
-| `github_url` | `http://127.0.0.1:8006` | GitHub MCP server URL |
-
-**Note:** config key is `github_server_url`; dataclass field is `github_url`.
+| `github_server_url` | `http://127.0.0.1:8006` | GitHub MCP server URL |
 
 See [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) for `McpServerConfig` fields.
 

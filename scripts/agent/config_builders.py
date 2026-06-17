@@ -271,7 +271,7 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
                 cfg.get("mcp_watchdog_interval", watchdog_interval_default)
             ),
             mcp_watchdog_max_restarts=int(cfg.get("mcp_watchdog_max_restarts", 3)),
-            github_url=cfg.get("github_server_url", "http://127.0.0.1:8006"),
+            github_server_url=cfg.get("github_server_url", "http://127.0.0.1:8006"),
             security_profile=security_profile_val,
         ),
         approval=_build_approval_config(cfg),

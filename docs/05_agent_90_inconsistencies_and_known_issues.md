@@ -17,49 +17,33 @@ Each entry format:
 
 ### DOC-01: `repl_tool_exec.py` was deleted — do not reference
 
-- **Type:** Document inconsistency (resolved)
-- **Impact scope:** Any code or doc referencing `agent/repl_tool_exec.py`
-- **Statement A:** Older source docs (`05_agent-impl-class.md`, `05_ref-agent-repl.md`) described `repl_tool_exec.py` as containing tool approval/execution logic.
-- **Statement B:** `repl_tool_exec.py` was deleted. All tool approval and execution logic was consolidated into `shared/tool_executor.py` (`ToolExecutor`).
-- **Current safe interpretation:** `agent/repl_tool_exec.py` does not exist. Use `ToolExecutor.execute()` in `shared/tool_executor.py` for all tool dispatch.
-- **Recommended action:** Any remaining references to `repl_tool_exec.py` in code or docs must be removed.
-- **Notes for AI reference:** `ToolExecutor` in `shared/tool_executor.py` is the single authoritative tool execution entry point. See `05_agent_06_tool-execution-and-approval.md`.
+- **Type:** RESOLVED (Document inconsistency)
+- **Resolution:** All remaining stale references removed: `shared/tool_constants.py` comment updated (`agent/tool_policy.py` is now the correct reference); "Extracted from repl_tool_exec.py" lines removed from module docstrings in `tool_policy.py`, `tool_approval.py`, `tool_runner.py`, `tool_audit.py`, `tool_result_formatter.py`.
+- **Notes for AI reference:** `ToolExecutor` in `shared/tool_executor.py` is the single authoritative tool execution entry point. Risk classification lives in `agent/tool_policy.py`. See `05_agent_06_tool-execution-and-approval.md`.
 
 ---
 
 ### DOC-02: `ServerLifecycleManager` was deleted from `agent/lifecycle.py`
 
-- **Type:** Document inconsistency (resolved)
-- **Impact scope:** `agent/lifecycle.py`, `factory.py`, any code referencing `ServerLifecycleManager`
-- **Statement A:** Older specs described `ServerLifecycleManager` as owning HTTP subprocess and stdio server lifecycle (start/stop/restart/ensure_ready/shutdown_all).
-- **Statement B:** `ServerLifecycleManager` was deleted. Lifecycle routing moved to `_ServerLifecycleRouter` in `factory.py`. Only `restart_stdio()` remains in `agent/lifecycle.py`.
-- **Current safe interpretation:** Use `_ServerLifecycleRouter` for all lifecycle operations. Do not import or instantiate `ServerLifecycleManager`.
-- **Recommended action:** Verify no remaining imports of `ServerLifecycleManager` exist.
-- **Notes for AI reference:** `_ServerLifecycleRouter` (private class in `factory.py`) is the canonical lifecycle coordinator. It implements `LifecycleProtocol` and is injected into `ToolExecutor` via `set_lifecycle()`.
+- **Type:** RESOLVED (Document inconsistency)
+- **Resolution:** Verified: no remaining imports of the old monolithic `ServerLifecycleManager`. Stale comment in `factory.py` updated (`ServerLifecycleManager` → `_ServerLifecycleRouter`). Stale reference to `05_ref-agent-context.md §6` removed from `05_agent_02_runtime-architecture.md`.
+- **Notes for AI reference:** `_ServerLifecycleRouter` (private class in `factory.py`) is the canonical lifecycle coordinator; it delegates to `HttpServerLifecycleManager` (`http_lifecycle.py`) and `StdioServerLifecycleManager` (`stdio_lifecycle.py`).
 
 ---
 
 ### DOC-03: `MCPConfig.github_url` field name differs from `github_server_url` config key
 
-- **Type:** Document inconsistency / Needs confirmation
-- **Impact scope:** `shared/mcp_config.py MCPConfig`, `config/agent.toml`, `agent/config.py build_agent_config()`
-- **Statement A:** The `MCPConfig` dataclass field is named `github_url`.
-- **Statement B:** The configuration file (`config/agent.toml`) and `build_agent_config()` read this value via the key `github_server_url` (not `github_url`).
-- **Current safe interpretation:** In `config/agent.toml`, use `github_server_url = "http://127.0.0.1:8006"`. Do not use `github_url` as a config key.
-- **Recommended action:** Align the dataclass field name to `github_server_url` for clarity, or document the mapping explicitly in `MCPConfig`.
-- **Notes for AI reference:** `build_agent_config()` calls `cfg.get("github_server_url", "http://127.0.0.1:8006")` to populate `MCPConfig.github_url`. The dataclass field name and the TOML key are different.
+- **Type:** RESOLVED (Document inconsistency / naming misalignment — fixed)
+- **Resolution:** `MCPConfig.github_url` renamed to `MCPConfig.github_server_url`. All callers updated: `config_builders.py`, `config_reload.py`, `cmd_config_display.py`, `tests/test_agent_cmd_config.py`. Doc table in `05_agent_08_configuration.md` updated. TOML key and dataclass field are now identical.
+- **Notes for AI reference:** Use `ctx.cfg.mcp.github_server_url`. In `config/agent.toml`, the key is `github_server_url`.
 
 ---
 
 ### DOC-04: `05_agent_00` Known Limitations references deleted file `05_ref-agent-context.md`
 
-- **Type:** Document inconsistency (stale reference)
-- **Impact scope:** `docs/05_agent_00_document-guide.md §Known Limitations`
-- **Statement A:** `05_agent_00_document-guide.md` states: "Memory layer documentation (agent/memory/) is summarized only; detailed API is in `docs/05_ref-agent-context.md` (retained source file)."
-- **Statement B:** `docs/05_ref-agent-context.md` was deleted as part of the documentation restructuring.
-- **Current safe interpretation:** Memory layer API is summarized in `05_agent_02_runtime-architecture.md §Memory Services` and `05_agent_04_state-and-persistence.md`. No separate detailed reference exists.
-- **Recommended action:** Update the Known Limitations section in `05_agent_00_document-guide.md` to remove the stale reference.
-- **Notes for AI reference:** Do not look for `05_ref-agent-context.md` — it no longer exists.
+- **Type:** RESOLVED (Document inconsistency — stale reference removed)
+- **Resolution:** `05_agent_00_document-guide.md §Known Limitations` no longer references `05_ref-agent-context.md`; text now reads "No standalone per-module API reference exists in the restructured set." Remaining reference in `05_agent_02_runtime-architecture.md §ServerLifecycleManager Deletion` also removed.
+- **Notes for AI reference:** `05_ref-agent-context.md` does not exist. Memory layer API: see `05_agent_02 §Memory Services` and `05_agent_04_state-and-persistence.md`.
 
 ---
 

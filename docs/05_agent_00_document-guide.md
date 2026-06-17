@@ -91,11 +91,12 @@ All known issues, spec conflicts, and open questions are consolidated in
 
 | Issue | ID |
 |---|---|
-| `repl_tool_exec.py` deletion (tool logic moved to `ToolExecutor`) | DOC-01 |
-| `ServerLifecycleManager` deletion (`_ServerLifecycleRouter` in factory.py) | DOC-02 |
-| `MCPConfig.github_url` field vs `github_server_url` config key | DOC-03 |
+| `repl_tool_exec.py` deletion — stale references removed | DOC-01 ✓ |
+| `ServerLifecycleManager` deletion — stale references removed | DOC-02 ✓ |
+| `MCPConfig.github_server_url` field aligned to TOML key | DOC-03 ✓ |
+| stale `05_ref-agent-context.md` reference removed | DOC-04 ✓ |
 | `AgentSession` owning RAG table access (responsibility boundary) | OQ-01 |
-| Workflow engine fallback conditions | OQ-02 |
+| Workflow engine fallback conditions — explicit workflow_mode added | OQ-02 ✓ |
 | Memory layer API undocumented in restructured docs | UNDOC-01 |
 
 ---

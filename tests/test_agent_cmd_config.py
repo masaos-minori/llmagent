@@ -97,7 +97,7 @@ class TestPrintConfigValues:
         ctx = _make_ctx()
         ctx.cfg.llm.llm_url = "http://llm"
         ctx.cfg.rag.web_search_url = "http://ws"
-        ctx.cfg.mcp.github_url = "http://gh"
+        ctx.cfg.mcp.github_server_url = "http://gh"
         ctx.cfg.tool.max_tool_turns = 5
         ctx.cfg.llm.http_timeout = 30.0
         ctx.cfg.rag.web_search_max_results = 10

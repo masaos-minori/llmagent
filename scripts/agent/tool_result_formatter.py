@@ -1,8 +1,7 @@
 """agent/tool_result_formatter.py
 Tool argument masking and result preview/display helpers.
 
-Extracted from repl_tool_exec.py and agent/commands/registry.py.
-mask_args moved here from registry.py (re-export removed).
+mask_args was moved here from agent/commands/registry.py (re-export removed).
 """
 
 from __future__ import annotations

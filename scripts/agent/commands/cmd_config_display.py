@@ -34,7 +34,7 @@ class _ConfigDisplayMixin(MixinBase):
         self._out.write("Settings:")
         self._out.write(f"  llm_url             : {ctx.cfg.llm.llm_url}")
         self._out.write(f"  web_search_url      : {ctx.cfg.rag.web_search_url}")
-        self._out.write(f"  github_server_url   : {ctx.cfg.mcp.github_url}")
+        self._out.write(f"  github_server_url   : {ctx.cfg.mcp.github_server_url}")
         self._out.write(f"  max_tool_turns      : {ctx.cfg.tool.max_tool_turns}")
         self._out.write(f"  http_timeout        : {ctx.cfg.llm.http_timeout}s")
         self._out.write(f"  web_search_max      : {ctx.cfg.rag.web_search_max_results}")

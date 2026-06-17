@@ -1,8 +1,8 @@
 """agent/tool_approval.py
 Interactive tool approval flow: risk-based prompts and plan-mode blocking.
 
-Extracted from repl_tool_exec.py. Depends on tool_policy / tool_audit /
-tool_result_formatter but has no dependency on tool_runner.
+Depends on tool_policy / tool_audit / tool_result_formatter but has no
+dependency on tool_runner.
 """
 
 from __future__ import annotations

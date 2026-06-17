@@ -1,7 +1,7 @@
 """agent/tool_audit.py
 Structured audit-log writers for tool approval and execution events.
 
-Extracted from repl_tool_exec.py to isolate audit concern.
+Isolated here to keep audit concerns separate from execution logic.
 """
 
 from __future__ import annotations
