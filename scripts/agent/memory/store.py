@@ -17,11 +17,13 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from dataclasses import replace
 
+import orjson
 from db.helper import SQLiteHelper
 
 from agent.memory.exceptions import MemoryConsistencyError
-from agent.memory.mapper import _now_iso, row_to_entry, _stamp_entry
+from agent.memory.mapper import _floats_to_blob, _now_iso, _stamp_entry, row_to_entry
 from agent.memory.models import ConsistencyReport
 from agent.memory.types import MemoryEntry
 
@@ -58,8 +60,6 @@ class MemoryStore:
 
     def _build_row_params(self, entry: MemoryEntry) -> tuple[object, ...]:
         """Return the param tuple for a memories INSERT statement."""
-        import orjson
-
         tags_json: bytes = orjson.dumps(entry.tags)
         return (
             entry.memory_id,
@@ -115,8 +115,6 @@ class MemoryStore:
         self, db: SQLiteHelper, memory_id: str, embedding: list[float]
     ) -> None:
         """Upsert one embedding into memories_vec; raises on failure."""
-        from agent.memory.mapper import _floats_to_blob
-
         db.execute(
             "INSERT OR REPLACE INTO memories_vec(memory_id, embedding) VALUES (?,?)",
             (memory_id, _floats_to_blob(embedding, self._embed_dim)),
@@ -146,10 +144,8 @@ class MemoryStore:
         When embedding is provided, also upserts memories_vec.
         Uses BEGIN IMMEDIATE for atomicity across memories + memories_fts + memories_vec.
         """
-        import dataclasses
-
         now = _now_iso()
-        stamped = dataclasses.replace(
+        stamped = replace(
             entry,
             updated_at=now,
             created_at=entry.created_at or now,
