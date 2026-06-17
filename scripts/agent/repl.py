@@ -35,7 +35,7 @@ from agent.factory import build_agent_context, init_tracer
 from agent.orchestrator import Orchestrator
 from agent.repl_health import (
     audit_security_defaults,
-    check_service_health,
+    check_readiness,
     check_tool_definitions_runtime,
     watchdog_loop,
 )
@@ -103,11 +103,6 @@ class AgentREPL:
             return "?"
 
     # ── Health checks / watchdog — delegated to agent_repl_health ─────────────
-
-    async def _check_service_health(self) -> None:
-        result = await check_service_health(self._ctx)
-        for msg in result.warning_messages():
-            self._view.write_warning(msg)
 
     async def _check_tool_definitions(self) -> None:
         result = await check_tool_definitions_runtime(self._ctx)
@@ -311,8 +306,10 @@ class AgentREPL:
         )
         audit_security_defaults(self._ctx, production_mode=production_mode)
 
-        # Probe LLM / Embed service health; warnings only, REPL continues on failure
-        await self._check_service_health()
+        # Readiness check: raises in production mode if critical services are down
+        result = await check_readiness(self._ctx, production_mode=production_mode)
+        for msg in result.warning_messages():
+            self._view.write_warning(msg)
 
         # Validate tool definitions against live MCP servers (warns or raises)
         await self._check_tool_definitions()

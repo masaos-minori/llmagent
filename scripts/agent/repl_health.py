@@ -71,6 +71,27 @@ async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
     return HealthCheckResult(warnings=warnings)
 
 
+async def check_readiness(
+    ctx: AgentContext, *, production_mode: bool = False
+) -> HealthCheckResult:
+    """Probe required services at startup; raise in production mode on failure.
+
+    In production mode, any failed health check raises RuntimeError listing
+    which services are unavailable.
+    In development mode, behaves like check_service_health(): warnings only.
+    """
+    result = await check_service_health(ctx)
+    if production_mode and result.has_issues:
+        error_msgs = [f"{w.label}: {w.message}" for w in result.warnings]
+        msg = (
+            "Startup readiness check failed (required services unavailable): "
+            + "; ".join(error_msgs)
+        )
+        logger.error(msg)
+        raise RuntimeError(msg)
+    return result
+
+
 async def _fetch_stdio_tools(transport: object) -> set[str]:
     """Query a running stdio server for its tool list via the __list_tools__ RPC.
 

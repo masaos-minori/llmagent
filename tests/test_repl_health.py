@@ -16,6 +16,7 @@ from agent.repl_health import (
     _check_tool_definitions,
     _fetch_stdio_tools,
     audit_security_defaults,
+    check_readiness,
     probe_mcp_health,
 )
 from shared.tool_executor import StdioTransport, ToolCallResult
@@ -415,3 +416,73 @@ class TestAuditSecurityDefaults:
         ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         with pytest.raises(RuntimeError, match="Production mode requires auth_token"):
             audit_security_defaults(ctx, production_mode=True)
+
+
+# ── check_readiness() — production vs development mode ───────────────────────
+
+
+class TestCheckReadiness:
+    """Tests for check_readiness() production/dev mode behavior."""
+
+    def _make_ctx(self, mock_http: object) -> MagicMock:
+        ctx = MagicMock()
+        ctx.cfg.llm.llm_url = "http://127.0.0.1:8001/v1/chat"
+        ctx.cfg.rag.embed_url = "http://127.0.0.1:8003/embedding"
+        ctx.services.http = mock_http
+        return ctx
+
+    @pytest.mark.asyncio
+    async def test_production_all_healthy_no_raise(self) -> None:
+        resp = MagicMock()
+        resp.status_code = 200
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(resp)
+        ctx = self._make_ctx(http)
+        result = await check_readiness(ctx, production_mode=True)
+        assert not result.has_issues
+
+    @pytest.mark.asyncio
+    async def test_production_service_down_raises(self) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
+        ctx = self._make_ctx(http)
+        with pytest.raises(RuntimeError, match="Startup readiness check failed"):
+            await check_readiness(ctx, production_mode=True)
+
+    @pytest.mark.asyncio
+    async def test_production_non_200_raises(self) -> None:
+        resp = MagicMock()
+        resp.status_code = 503
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(resp)
+        ctx = self._make_ctx(http)
+        with pytest.raises(RuntimeError, match="Startup readiness check failed"):
+            await check_readiness(ctx, production_mode=True)
+
+    @pytest.mark.asyncio
+    async def test_dev_mode_service_down_warns_only(self) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
+        ctx = self._make_ctx(http)
+        result = await check_readiness(ctx, production_mode=False)
+        assert result.has_issues
+        assert len(result.warning_messages()) > 0
+
+    @pytest.mark.asyncio
+    async def test_dev_mode_healthy_no_issues(self) -> None:
+        resp = MagicMock()
+        resp.status_code = 200
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(resp)
+        ctx = self._make_ctx(http)
+        result = await check_readiness(ctx, production_mode=False)
+        assert not result.has_issues
+
+    @pytest.mark.asyncio
+    async def test_error_message_contains_service_label(self) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
+        ctx = self._make_ctx(http)
+        with pytest.raises(RuntimeError) as exc_info:
+            await check_readiness(ctx, production_mode=True)
+        assert "llm" in str(exc_info.value)

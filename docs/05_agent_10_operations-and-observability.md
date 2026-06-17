@@ -68,12 +68,21 @@ sqlite3 /opt/llm/db/rag.sqlite "SELECT chunk_id, LENGTH(embedding) AS bytes FROM
 
 ## Health Probes
 
-`AgentREPL._check_service_health()` probes at startup (warning only; REPL continues):
+`check_readiness()` in `agent/repl_health.py` probes required services at startup:
 
 | Service | Probe |
 |---|---|
-| LLM endpoint | `GET {llm_url}/health` or lightweight POST |
-| Embed endpoint | `GET http://127.0.0.1:8003/health` |
+| LLM endpoint | `GET {llm_url}/health` |
+| Embed endpoint | `GET {embed_url}/health` |
+
+**Startup readiness policy:**
+
+| Mode | Behavior |
+|---|---|
+| `security_profile = "local"` (default) | Warning only — REPL continues even if LLM/Embed are unreachable |
+| `security_profile = "production"` | Fail-fast — raises `RuntimeError` listing all unavailable services; REPL does not start |
+
+Error message format: `Startup readiness check failed (required services unavailable): <label>: <detail>; ...`
 
 `/mcp` command probes all MCP HTTP servers at `/health` endpoint (5 second timeout).
 
