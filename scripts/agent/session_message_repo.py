@@ -120,13 +120,14 @@ class SessionMessageRepository:
         """Fetch and parse messages for a session from DB.
 
         Returns a list of message dicts (role/content/tool_calls) in insertion order,
-        or [] if no messages exist. Raises sqlite3.Error on DB failure.
+        excluding diagnostic-role messages (role='diagnostic').
+        Returns [] if no messages exist. Raises sqlite3.Error on DB failure.
         """
         with SQLiteHelper("session").open(row_factory=True) as db:
             rows = db.fetchall(
                 "SELECT message_id, role, content, tool_calls, tool_call_id"
-                " FROM messages WHERE session_id = ? ORDER BY message_id",
-                (session_id,),
+                " FROM messages WHERE session_id = ? AND role != ? ORDER BY message_id",
+                (session_id, _DIAGNOSTIC_ROLE),
             )
         if not rows:
             return []
