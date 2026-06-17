@@ -47,6 +47,21 @@ RagHit = RawHit | MergedHit | RankedHit
 
 logger = logging.getLogger(__name__)
 
+# Module-level cached llm_url; loaded once and reused across calls.
+_llm_url_cache: str | None = None
+
+
+def _get_cached_llm_url() -> str:
+    """Return the cached llm_url, loading from config on first call."""
+    global _llm_url_cache
+    if _llm_url_cache is None:
+        try:
+            cfg = ConfigLoader().load("common.toml", "agent.toml")
+            _llm_url_cache = cfg.get("llm_url", "")
+        except (FileNotFoundError, ValueError):
+            _llm_url_cache = ""
+    return _llm_url_cache
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # RagLLM class
@@ -231,12 +246,11 @@ async def summarize_tool_result(
 ) -> str:
     """Tool result summarization. Delegates to RagLLM.
 
-    llm_url: if None, reads from common.toml/agent.toml at call time.
-    Raises on config load failure or LLM call failure.
+    llm_url: if None, uses cached config value (loaded once per process).
+    Raises on LLM call failure.
     """
     if llm_url is None:
-        cfg = ConfigLoader().load("common.toml", "agent.toml")
-        llm_url = cfg.get("llm_url", "")
+        llm_url = _get_cached_llm_url()
     return await RagLLM(client, llm_url).summarize_tool_result(text, tool_name, args)
 
 
