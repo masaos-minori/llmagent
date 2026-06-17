@@ -57,7 +57,7 @@ class _SudachiTokenizer:
         try:
             return [
                 m.normalized_form()
-                for m in self._tkn.tokenize(text, self._mode)  # type: ignore[attr-defined]
+                for m in self._tkn.tokenize(text, self._mode)  # type: ignore[attr-defined]  # self._tkn is object; sudachipy loaded lazily
                 if m.part_of_speech()[0] in keep_pos and m.normalized_form().strip()
             ]
         except RuntimeError as e:
