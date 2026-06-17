@@ -462,6 +462,39 @@ class TestFusionStage:
         for result in mock_context.merged:
             assert result.rrf_score > 0.0
 
+    def test_init_use_rrf_default_true(self) -> None:
+        stage = FusionStage()
+        assert stage._use_rrf is True
+
+    def test_init_use_rrf_false(self) -> None:
+        stage = FusionStage(use_rrf=False)
+        assert stage._use_rrf is False
+
+    @pytest.mark.asyncio
+    async def test_use_rrf_false_dedup_fallback(self, mock_context) -> None:
+        """use_rrf=False uses _dedup_hits: all rrf_score=0.0, no RRF calculation."""
+        mock_context.search_results = [
+            [RawHit(chunk_id=1, content="a"), RawHit(chunk_id=2, content="b")],
+            [RawHit(chunk_id=1, content="a_dup"), RawHit(chunk_id=3, content="c")],
+        ]
+        stage = FusionStage(use_rrf=False)
+        await stage.run(mock_context)
+        assert len(mock_context.merged) == 3
+        for hit in mock_context.merged:
+            assert hit.rrf_score == 0.0
+
+    @pytest.mark.asyncio
+    async def test_use_rrf_true_assigns_nonzero_scores(self, mock_context) -> None:
+        """use_rrf=True (default) assigns non-zero RRF scores via RagScorer."""
+        mock_context.search_results = [
+            [RawHit(chunk_id=1, content="a")],
+            [RawHit(chunk_id=2, content="b")],
+        ]
+        stage = FusionStage(use_rrf=True)
+        await stage.run(mock_context)
+        for hit in mock_context.merged:
+            assert hit.rrf_score > 0.0
+
 
 class TestRerankStage:
     """Tests for RerankStage."""

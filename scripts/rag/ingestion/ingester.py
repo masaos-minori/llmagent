@@ -237,13 +237,11 @@ class RagIngester:
     # ── Bulk file processing ──────────────────────────────────────────────────
 
     def _read_chunk_json(self, path: Path) -> "dict[str, Any] | None":
-        """Read and parse a chunk JSON file as raw dict; returns None on failure."""
-        import orjson  # noqa: PLC0415
-
+        """Read and parse a chunk JSON file as a raw dict preserving all fields; returns None on failure."""
         try:
             raw = path.read_bytes()
-        except OSError as e:
-            logger.warning("skip chunk %s: cannot read: %s", path.name, e)
+        except FileNotFoundError as e:
+            logger.warning("skip chunk %s: %s", path.name, e)
             return None
         try:
             data = orjson.loads(raw)
@@ -257,6 +255,14 @@ class RagIngester:
                 type(data).__name__,
             )
             return None
+        url = data.get("url")
+        content = data.get("content")
+        if not isinstance(url, str) or not url:
+            logger.warning("skip chunk %s: missing or invalid 'url'", path.name)
+            return None
+        if not isinstance(content, str) or not content:
+            logger.warning("skip chunk %s: missing or invalid 'content'", path.name)
+            return None
         return data
 
     def _embed_and_store(self, doc_id: int, path: Path) -> bool:
@@ -265,10 +271,13 @@ class RagIngester:
         if data is None:
             return False
         content: str = data.get("content", "")
-        normalized_content: str | None = data.get("normalized_content") or None
-        raw_idx = data.get("chunk_index")
+        nc_raw = data.get("normalized_content")
+        normalized_content: str | None = (
+            nc_raw if isinstance(nc_raw, str) and nc_raw else None
+        )
+        idx_raw = data.get("chunk_index", 0)
         try:
-            idx = int(raw_idx) if raw_idx is not None else 0
+            idx = int(idx_raw)
         except (ValueError, TypeError) as e:
             logger.warning("Invalid chunk_index in %s: %s, using 0", path.name, e)
             idx = 0

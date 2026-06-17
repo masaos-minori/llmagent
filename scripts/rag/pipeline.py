@@ -179,7 +179,7 @@ class RagPipeline:
             pre_augment_stages: list = [
                 MqeStage(self._cfg, self._llm),
                 SearchStage(self._cfg, self._http, self._embed_url),
-                FusionStage(),
+                FusionStage(use_rrf=self._cfg.use_rrf),
                 RerankStage(self._cfg, self._llm),
             ]
             for stage in pre_augment_stages:

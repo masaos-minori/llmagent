@@ -11,54 +11,28 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ### BUG-1: `chunking_strategy` field lost in ingester
 
-- **Type:** BUG
+- **Type:** RESOLVED (BUG — fixed)
 - **Impact scope:** `scripts/rag/ingestion/ingester.py`, `documents` table
-- **Description:** `_read_chunk_json()` uses `dataclasses.asdict(read_json_file(path))`.
-  `read_json_file()` returns a `ChunkDocument` dataclass, which does not declare
-  `chunking_strategy`. Fields not in the dataclass definition are silently dropped.
-  Result: `chunking_strategy` is always written as `'text'` (default) regardless of
-  the actual chunk strategy. (`ingester.py:94`)
-- **Current safe interpretation:** `documents.chunking_strategy` is unreliable; always `'text'`.
-- **Recommended action:** Replace `_read_chunk_json()` with `orjson.loads(path.read_bytes())`
-  to read the raw JSON dict, bypassing the dataclass conversion. (`ingester.py:237-245`)
-- **Source reference:** `03_spec_rag.md §13`
-- **Notes for AI:** Do not rely on `documents.chunking_strategy` for logic until this is fixed.
+- **Resolution:** `_read_chunk_json()` was rewritten to use `orjson.loads(path.read_bytes())` directly instead of `dataclasses.asdict(read_json_file(path))`. All JSON fields (including `chunking_strategy`, `normalized_content`, `chunk_index`) are now preserved.
+- **Notes for AI:** `documents.chunking_strategy` is now written correctly from the chunk JSON file.
 
 ---
 
 ### BUG-2: `normalized_content` hardcoded to None in ingester
 
-- **Type:** BUG
+- **Type:** RESOLVED (BUG — fixed, same fix as BUG-1)
 - **Impact scope:** `scripts/rag/ingestion/ingester.py`, `chunks` table, FTS5 search quality
-- **Description:** Same root cause as BUG-1. `normalized_content` (Sudachi normalized text)
-  is present in the chunk JSON file but is not a field in `ChunkDocument`, so it is dropped
-  by `dataclasses.asdict()`. The ingester writes `normalized_content = None` for all chunks
-  regardless of language. (`ingester.py:255`)
-  Consequence: `chunks_fts` indexes `content` (original text) instead of normalized forms
-  for Japanese chunks. FTS5 Japanese search quality degrades — Sudachi normalization
-  is effectively bypassed.
-- **Current safe interpretation:** Japanese FTS5 search uses raw text, not normalized forms.
-  Expect degraded recall for morphological variants.
-- **Recommended action:** Same fix as BUG-1 (`orjson.loads` in `_read_chunk_json()`).
-- **Source reference:** `03_spec_rag.md §13`
-- **Notes for AI:** `/rag search` results for Japanese queries are affected. This is a known
-  quality issue, not a system failure.
+- **Resolution:** `_embed_and_store()` now reads `normalized_content` from the JSON dict via `data.get("normalized_content")`. Japanese FTS5 indexing via `chunks_ai` trigger now receives the Sudachi-normalized form when present.
+- **Notes for AI:** Japanese FTS5 search quality is restored for chunks that include `normalized_content` in their JSON files.
 
 ---
 
 ### BUG-3: `chunk_index` always 0 in ingester
 
-- **Type:** BUG
+- **Type:** RESOLVED (BUG — fixed, same fix as BUG-1)
 - **Impact scope:** `scripts/rag/ingestion/ingester.py`, `chunks.chunk_index` column
-- **Description:** Same root cause as BUG-1/2. `chunk_index` is not a field in `ChunkDocument`.
-  The `_embed_and_store()` method has dead code `try: idx = 0` that hardcodes the value.
-  All chunks for a document are registered with `chunk_index=0`. (`ingester.py:257-260`)
-  Consequence: `fetch_full_document()` cannot reconstruct document order by `chunk_index`.
-- **Current safe interpretation:** `chunks.chunk_index` is always 0; document-order reconstruction
-  via `chunk_index` is not reliable.
-- **Recommended action:** Same fix as BUG-1/2. After fix, verify `fetch_full_document()` ordering.
-- **Source reference:** `03_spec_rag.md §13`
-- **Notes for AI:** BUG-1, BUG-2, BUG-3 share a single root cause. One fix resolves all three.
+- **Resolution:** Dead code `try: idx = 0` replaced with `idx = int(data.get("chunk_index", 0))`. `fetch_full_document()` ordering by `chunk_index` is now reliable.
+- **Notes for AI:** BUG-1, BUG-2, BUG-3 shared a single root cause. All three are fixed in `_read_chunk_json()` + `_embed_and_store()`. Test coverage added in `tests/test_rag_ingester.py`.
 
 ---
 
@@ -66,19 +40,10 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ### SPEC-1: `use_rrf=False` has no effect
 
-- **Type:** SPEC_CONFLICT
+- **Type:** RESOLVED (SPEC_CONFLICT — implemented)
 - **Impact scope:** `rag/stages/fusion.py`, `RagConfig.use_rrf`, `rag/repository._dedup_hits`
-- **Statement A:** `RagConfig.use_rrf` is documented as a flag to disable RRF merging and fall
-  back to `_dedup_hits()` (simple deduplication by chunk_id, all `rrf_score=0.0`).
-- **Statement B:** `FusionStage` implementation does not check `use_rrf`; it always executes RRF.
-  `_dedup_hits()` is dead code.
-- **Preferred source:** `05_ref-rag.md` (canonical; explicitly states current implementation ignores flag)
-- **Current safe interpretation:** Setting `use_rrf=False` in config has no effect.
-  RRF is always applied.
-- **Recommended action:** Either implement the flag check in `FusionStage`, or remove `use_rrf`
-  from `RagConfig` and documentation. Document the decision.
-- **Source reference:** `05_ref-rag.md §1.1`
-- **Notes for AI:** Do not interpret `use_rrf=False` as "dedup fallback is active."
+- **Resolution:** `FusionStage` now accepts `use_rrf: bool = True`. When `use_rrf=False`, it calls `_dedup_hits()` (simple chunk_id dedup, `rrf_score=0.0` for all). `pipeline.py` passes `use_rrf=self._cfg.use_rrf` to `FusionStage`. `_dedup_hits()` is no longer dead code.
+- **Notes for AI:** `use_rrf=False` in config activates the dedup fallback path. Test coverage added in `tests/test_rag_stages.py::TestFusionStage`.
 
 ---
 

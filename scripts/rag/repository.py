@@ -304,7 +304,7 @@ def deduplicate_chunks(hits: list[RagHit], max_per_doc: int) -> list[RagHit]:
     return result
 
 
-def _dedup_hits(all_results: list[list[RagHit]]) -> list[RagHit]:
+def _dedup_hits(all_results: list[list[RawHit]] | list[list[RagHit]]) -> list[RagHit]:
     """Deduplicate hits by chunk_id, keeping the first occurrence per chunk."""
     seen: set[int] = set()
     merged: list[RagHit] = []
