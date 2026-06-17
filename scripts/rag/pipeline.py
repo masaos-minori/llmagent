@@ -25,6 +25,7 @@ from collections.abc import Callable
 import httpx
 from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
+from shared.plugin_registry import get_pipeline_post_stages, run_pipeline_stages
 from shared.types import RagConfig
 
 from rag.cache import SemanticCache
@@ -169,22 +170,37 @@ class RagPipeline:
         query: str,
         db: SQLiteHelper,
         history_context: str = "",
+        hook_strict: bool = False,
     ) -> tuple[list[str], list[list[RawHit]], list[RagHit], list[RagHit]]:
         """Execute MQE→search→RRF→rerank on an open DB; returns (queries, all_results, merged, reranked); on_clear() called on exit."""
         try:
             ctx = PipelineContext(query=query, history_context=history_context)
             self.last_timings = {}
-            stages: list = [
+            pre_augment_stages: list = [
                 MqeStage(self._cfg.__dict__, self._llm),
                 SearchStage(self._cfg.__dict__, self._http, self._embed_url),
                 FusionStage(self._cfg.__dict__),
                 RerankStage(self._cfg.__dict__, self._llm),
-                AugmentStage(),
             ]
-            for stage in stages:
+            for stage in pre_augment_stages:
                 t0 = time.perf_counter()
                 await stage.run(ctx, db=db)
                 self.last_timings[stage.__class__.__name__] = time.perf_counter() - t0
+
+            # Post-rerank plugin hooks (before AugmentStage)
+            if get_pipeline_post_stages():
+                t0 = time.perf_counter()
+                ctx.reranked = await run_pipeline_stages(
+                    ctx.reranked, query, strict=hook_strict
+                )
+                self.last_timings["PluginHooks"] = time.perf_counter() - t0
+
+            augment_stage = AugmentStage()
+            t0 = time.perf_counter()
+            await augment_stage.run(ctx, db=db)
+            self.last_timings[augment_stage.__class__.__name__] = (
+                time.perf_counter() - t0
+            )
 
             # Store for two-stage fetch callers (e.g. REPLAgent._run_turn)
             self.last_fetch_result = TwoStageFetchResult(

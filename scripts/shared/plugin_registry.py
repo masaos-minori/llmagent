@@ -35,6 +35,7 @@ Example plugin (plugins/my_plugin.py):
 
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import logging
 from collections.abc import Awaitable, Callable
@@ -121,6 +122,39 @@ def iter_tools() -> dict[str, Callable[..., Any]]:
 def get_pipeline_post_stages() -> list[Callable[..., Any]]:
     """Return a snapshot of all registered post-rerank pipeline stage hooks."""
     return list(_pipeline_post)
+
+
+async def run_pipeline_stages(
+    hits: list[Any],
+    query: str,
+    *,
+    strict: bool = False,
+) -> list[Any]:
+    """Execute all registered post-rerank hooks with error isolation.
+
+    Iterates get_pipeline_post_stages(); calls each hook with (hits, query).
+    Supports both sync and async hooks (detected via asyncio.iscoroutinefunction).
+    Failed hooks are logged and skipped; strict=True re-raises the first failure.
+    Returns the (possibly modified) hits list.
+    """
+    for hook in get_pipeline_post_stages():
+        try:
+            if asyncio.iscoroutinefunction(hook):
+                result = await hook(hits, query)
+            else:
+                result = hook(hits, query)
+            if result is not None:
+                hits = result
+        except Exception as exc:
+            msg = (
+                f'Plugin hook "{hook.__name__}" failed on query "{query[:60]}": '
+                f"{type(exc).__name__}: {exc}"
+            )
+            if strict:
+                logger.error(msg)
+                raise
+            logger.warning(msg)
+    return hits
 
 
 # ── Plugin auto-discovery ─────────────────────────────────────────────────────

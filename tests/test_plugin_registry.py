@@ -390,3 +390,93 @@ class TestLoadPluginsStrictMode:
     def test_missing_dir_strict_mode_returns_zero(self, tmp_path: Path):
         n = plugin_registry.load_plugins(tmp_path / "nonexistent", strict_mode=True)
         assert n == 0
+
+
+# ── run_pipeline_stages() error isolation ─────────────────────────────────────
+
+
+class TestRunPipelineStages:
+    """Tests for run_pipeline_stages() hook error isolation."""
+
+    @pytest.mark.asyncio
+    async def test_no_hooks_returns_original(self) -> None:
+        hits: list = [{"url": "u1"}, {"url": "u2"}]
+        result = await plugin_registry.run_pipeline_stages(hits, "test query")
+        assert result == hits
+
+    @pytest.mark.asyncio
+    async def test_hook_modifies_hits(self) -> None:
+        @plugin_registry.register_pipeline_stage(when="post")
+        def add_score(hits: list, query: str) -> list:
+            return [{**h, "score": 1.0} for h in hits]
+
+        hits: list = [{"url": "u1"}]
+        result = await plugin_registry.run_pipeline_stages(hits, "q")
+        assert result[0]["score"] == 1.0
+
+    @pytest.mark.asyncio
+    async def test_async_hook_modifies_hits(self) -> None:
+        @plugin_registry.register_pipeline_stage(when="post")
+        async def async_tag(hits: list, query: str) -> list:
+            return [{**h, "async": True} for h in hits]
+
+        hits: list = [{"url": "u1"}]
+        result = await plugin_registry.run_pipeline_stages(hits, "q")
+        assert result[0]["async"] is True
+
+    @pytest.mark.asyncio
+    async def test_hook_isolation_skips_failed_sync(self) -> None:
+        @plugin_registry.register_pipeline_stage(when="post")
+        def bad_hook(hits: list, query: str) -> list:
+            raise RuntimeError("sync failure")
+
+        hits: list = [{"url": "u1"}]
+        result = await plugin_registry.run_pipeline_stages(hits, "q")
+        assert result == hits
+
+    @pytest.mark.asyncio
+    async def test_hook_isolation_skips_failed_async(self) -> None:
+        @plugin_registry.register_pipeline_stage(when="post")
+        async def bad_async(hits: list, query: str) -> list:
+            raise ValueError("async failure")
+
+        hits: list = [{"url": "u1"}]
+        result = await plugin_registry.run_pipeline_stages(hits, "q")
+        assert result == hits
+
+    @pytest.mark.asyncio
+    async def test_hook_strict_mode_re_raises(self) -> None:
+        @plugin_registry.register_pipeline_stage(when="post")
+        def strict_fail(hits: list, query: str) -> list:
+            raise RuntimeError("strict mode error")
+
+        with pytest.raises(RuntimeError, match="strict mode error"):
+            await plugin_registry.run_pipeline_stages([{"url": "u"}], "q", strict=True)
+
+    @pytest.mark.asyncio
+    async def test_multiple_hooks_first_fails_second_runs(self) -> None:
+        ran: dict[str, bool] = {"second": False}
+
+        @plugin_registry.register_pipeline_stage(when="post")
+        def first_fail(hits: list, query: str) -> list:
+            raise RuntimeError("first fails")
+
+        @plugin_registry.register_pipeline_stage(when="post")
+        def second_ok(hits: list, query: str) -> list:
+            ran["second"] = True
+            return hits
+
+        hits: list = [{"url": "u"}]
+        result = await plugin_registry.run_pipeline_stages(hits, "q")
+        assert ran["second"] is True
+        assert result == hits
+
+    @pytest.mark.asyncio
+    async def test_hook_returning_none_keeps_prior_hits(self) -> None:
+        @plugin_registry.register_pipeline_stage(when="post")
+        def no_return(hits: list, query: str) -> None:
+            return None
+
+        hits: list = [{"url": "u1"}]
+        result = await plugin_registry.run_pipeline_stages(hits, "q")
+        assert result == hits

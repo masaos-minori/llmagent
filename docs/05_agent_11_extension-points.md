@@ -158,8 +158,20 @@ and pre-rerank hooks are not yet implemented.
 1. Plugin tools cannot be cached by `ToolExecutor` (only MCP tool results are cached)
 2. Plugin commands cannot use the same name as any built-in command
 3. Plugin files that raise exceptions during import are skipped silently — always test plugins before deployment
-4. `@register_pipeline_stage` hooks run inside the RAG pipeline context; exceptions in hooks propagate to `RagPipeline.run()`
+4. `@register_pipeline_stage` hooks run inside the RAG pipeline context; exceptions are caught and logged by `run_pipeline_stages()` — the pipeline continues with the hits unchanged
 5. Plugin tool handlers must be `async` functions; command handlers can be sync or async
+
+#### Hook Failure Behavior
+
+In normal mode (default), exceptions raised by post-rerank hooks are:
+- Caught by `run_pipeline_stages()` in `shared/plugin_registry.py`
+- Logged as warnings with the hook name, error type, and query context
+- Skipped: the pipeline continues with the hits as they were before that hook ran
+
+In strict mode (`hook_strict=True` on `RagPipeline.run()`), the first hook failure
+raises the original exception to the caller. Use this mode in tests to verify hook behavior.
+
+Log format: `Plugin hook "<name>" failed on query "<query>": <ErrorType>: <message>`
 
 ---
 
