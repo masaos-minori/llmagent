@@ -7,10 +7,25 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any, TypedDict
 
 import orjson
 
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
+
+
+class _WorkflowJson(TypedDict):
+    name: str
+    version: str
+    stages: list[dict[str, Any]]
+    retry_policy: dict[str, Any]
+
+
+class _StageJson(TypedDict):
+    id: str
+    description: str
+    timeout_sec: int
+    retryable: bool
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +44,7 @@ class WorkflowLoadError(Exception):
     """Raised when a workflow JSON file cannot be loaded or fails validation."""
 
 
-def _validate(data: dict) -> None:
+def _validate(data: _WorkflowJson) -> None:
     """Raise WorkflowLoadError if required keys are missing or have wrong types."""
     for key in ("name", "version", "stages", "retry_policy"):
         if key not in data:
@@ -57,9 +72,10 @@ class WorkflowLoader:
         if not path.exists():
             raise WorkflowLoadError(f"workflow file not found: {path}")
         try:
-            data = orjson.loads(path.read_bytes())
+            raw: Any = orjson.loads(path.read_bytes())
         except orjson.JSONDecodeError as e:
             raise WorkflowLoadError(f"JSON parse error in {path}: {e}") from e
+        data: _WorkflowJson = raw
         _validate(data)
         stages = [
             StageDefinition(
