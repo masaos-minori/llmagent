@@ -78,8 +78,12 @@ AgentREPL.run()
 ### Message save rules
 
 - `save(role, content)` saves only valid roles: `user`, `assistant`, `tool`, `system`
-- Invalid roles are silently skipped
-- `save_many()` batches multiple messages in one transaction
+- Invalid roles are logged as warnings and counted (`stat_skipped_invalid_role`)
+- Missing `session_id` is logged as a warning and counted (`stat_skipped_no_session`)
+- When `strict_mode=True`, both conditions raise `RuntimeError` instead of skipping
+- Counters accessible via `session.skipped_no_session_count` and `session.skipped_invalid_role_count`
+- `save_many()` batches multiple messages in one transaction; invalid roles are skipped with a single warning log
+- `save_diagnostic(content)` persists to role `"diagnostic"` — not returned by `fetch_messages()` for history reconstruction
 
 ---
 

@@ -19,8 +19,13 @@ _DIAGNOSTIC_ROLE: str = "diagnostic"
 class SessionMessageRepository:
     """Repository for session message operations."""
 
-    def __init__(self, session_id: int | None = None) -> None:
+    def __init__(
+        self, session_id: int | None = None, *, strict_mode: bool = False
+    ) -> None:
         self.session_id = session_id
+        self.strict_mode = strict_mode
+        self.stat_skipped_no_session: int = 0
+        self.stat_skipped_invalid_role: int = 0
 
     def save(
         self,
@@ -36,9 +41,18 @@ class SessionMessageRepository:
         diagnostic messages that should not appear in normal conversation history).
         """
         if self.session_id is None:
+            self.stat_skipped_no_session += 1
+            logger.warning("Persistence skipped: no session_id (role=%r)", role)
+            if self.strict_mode:
+                raise RuntimeError("Cannot save message: no session_id (strict mode)")
             return
         if not _diagnostic and role not in _VALID_ROLES:
+            self.stat_skipped_invalid_role += 1
             logger.warning("Invalid role %r; message not saved", role)
+            if self.strict_mode:
+                raise RuntimeError(
+                    f"Cannot save message with invalid role {role!r} (strict mode)"
+                )
             return
         tc_json = _json_dumps(tool_calls) if tool_calls else None
         with SQLiteHelper("session").open(write_mode=True) as db:
@@ -58,11 +72,22 @@ class SessionMessageRepository:
         """Persist multiple messages in a single DB transaction.
 
         Each tuple: (role, content, tool_calls, tool_call_id).
-        Rows with invalid roles are silently skipped.
+        Rows with invalid roles are skipped with a warning and counted.
         Opens exactly one DB connection regardless of the number of messages.
         """
         if self.session_id is None or not messages:
+            if self.session_id is None and messages:
+                self.stat_skipped_no_session += 1
+                logger.warning(
+                    "Persistence skipped: no session_id (save_many, %d messages)",
+                    len(messages),
+                )
+                if self.strict_mode:
+                    raise RuntimeError(
+                        "Cannot save messages: no session_id (strict mode)"
+                    )
             return
+        invalid_count = sum(1 for role, _, _, _ in messages if role not in _VALID_ROLES)
         rows = [
             (
                 self.session_id,
@@ -74,6 +99,11 @@ class SessionMessageRepository:
             for role, content, tc, tc_id in messages
             if role in _VALID_ROLES
         ]
+        if invalid_count:
+            self.stat_skipped_invalid_role += invalid_count
+            logger.warning(
+                "Persistence skipped: %d messages had invalid roles", invalid_count
+            )
         if not rows:
             return
         with SQLiteHelper("session").open(write_mode=True) as db:

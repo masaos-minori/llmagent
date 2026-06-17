@@ -21,9 +21,12 @@ class AgentSession:
     Imported by REPLAgent to decouple persistence from REPL logic.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, strict_mode: bool = False) -> None:
         self.session_id: int | None = None  # current session DB row ID
-        self._message_repo = SessionMessageRepository(self.session_id)
+        self._strict_mode = strict_mode
+        self._message_repo = SessionMessageRepository(
+            self.session_id, strict_mode=strict_mode
+        )
         self._note_repo = NoteRepository()
 
     # ── SessionMessageRepository delegation ──────────────────────────────────
@@ -52,6 +55,16 @@ class AgentSession:
             content=content,
             _diagnostic=True,
         )
+
+    @property
+    def skipped_no_session_count(self) -> int:
+        """Number of save calls skipped due to missing session_id."""
+        return self._message_repo.stat_skipped_no_session
+
+    @property
+    def skipped_invalid_role_count(self) -> int:
+        """Number of save calls skipped due to invalid role."""
+        return self._message_repo.stat_skipped_invalid_role
 
     def fetch_messages(self, session_id: int) -> list[LLMMessage]:
         """Fetch messages for a session from DB. Returns [] when session has no messages."""
@@ -100,7 +113,9 @@ class AgentSession:
             self.session_id = cur.lastrowid
             db.commit()
         logger.info("Session started: id=%s", self.session_id)
-        self._message_repo = SessionMessageRepository(self.session_id)
+        self._message_repo = SessionMessageRepository(
+            self.session_id, strict_mode=self._strict_mode
+        )
 
     def set_title(self, title: str) -> None:
         """Set the session title using the first user input (truncated to 50 chars). Raises sqlite3.Error on failure."""

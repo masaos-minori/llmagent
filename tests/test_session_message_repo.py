@@ -182,6 +182,65 @@ class TestSaveMany:
         assert repo.fetch_messages(1) == []
 
 
+@pytest.fixture
+def strict_repo() -> Generator[SessionMessageRepository]:
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(_SCHEMA_SQL)
+    conn.commit()
+
+    def _make(target: str = "rag") -> _FakeSQLiteHelper:
+        return _FakeSQLiteHelper(conn)
+
+    with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
+        yield SessionMessageRepository(session_id=1, strict_mode=True)
+
+
+class TestCountersAndStrictMode:
+    def test_save_increments_no_session_counter(self) -> None:
+        r = SessionMessageRepository(session_id=None)
+        r.save("user", "hello")
+        assert r.stat_skipped_no_session == 1
+
+    def test_save_increments_invalid_role_counter(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        repo.save("bad_role", "x")
+        assert repo.stat_skipped_invalid_role == 1
+
+    def test_save_many_increments_no_session_counter(self) -> None:
+        r = SessionMessageRepository(session_id=None)
+        r.save_many([("user", "x", None, None)])
+        assert r.stat_skipped_no_session == 1
+
+    def test_save_many_increments_invalid_role_counter(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        repo.save_many([("bad", "x", None, None)])
+        assert repo.stat_skipped_invalid_role == 1
+
+    def test_strict_mode_save_raises_on_no_session(self) -> None:
+        r = SessionMessageRepository(session_id=None, strict_mode=True)
+        with pytest.raises(RuntimeError, match="no session_id"):
+            r.save("user", "hello")
+
+    def test_strict_mode_save_raises_on_invalid_role(
+        self, strict_repo: SessionMessageRepository
+    ) -> None:
+        with pytest.raises(RuntimeError, match="invalid role"):
+            strict_repo.save("bad_role", "x")
+
+    def test_strict_mode_save_many_raises_on_no_session(self) -> None:
+        r = SessionMessageRepository(session_id=None, strict_mode=True)
+        with pytest.raises(RuntimeError, match="no session_id"):
+            r.save_many([("user", "x", None, None)])
+
+    def test_non_strict_mode_does_not_raise(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        repo.save("invalid_role", "x")  # must not raise
+        assert repo.stat_skipped_invalid_role == 1
+
+
 class TestFetchMessages:
     def test_returns_empty_when_session_not_found(
         self, repo: SessionMessageRepository
