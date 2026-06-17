@@ -222,11 +222,55 @@ Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 
 ---
 
+## Runtime Diagnostics (session-end summary)
+
+At session end, a lightweight diagnostic summary is persisted to `<session_db_dir>/diagnostics.jsonl` as one JSON-lines record per session. This survives beyond the REPL session for post-mortem analysis.
+
+**Fields in each record:**
+
+| Field | Description |
+|---|---|
+| `session_id` | SQLite session row ID |
+| `timestamp` | ISO-8601 UTC timestamp of session end |
+| `turns` | Total turns processed |
+| `tool_calls` | Total tool calls executed |
+| `tool_errors` | Tool call failures |
+| `partial_completions` | LLM partial completions (interrupted streams) |
+| `parse_errors` | SSE parse errors |
+| `heartbeat_timeouts` | SSE heartbeat timeouts |
+| `reconnects` | LLM transport reconnects |
+| `semantic_cache_hits` | Semantic cache lookups that matched |
+| `input_tokens` | Total input tokens (if available) |
+| `output_tokens` | Total output tokens (if available) |
+| `compress_count` | History compression operations |
+| `latency_summary` | Per-step mean/max latency in ms |
+| `tool_result_summary` | `{total: N, errors: M}` from tool_results table |
+
+**Reading diagnostics:**
+
+```bash
+# View all session summaries
+cat /opt/llm/db/diagnostics.jsonl | jq .
+
+# Filter sessions with high error rates
+cat /opt/llm/db/diagnostics.jsonl \
+  | jq 'select(.tool_errors > 0) | {session_id, turns, tool_errors, timestamp}'
+
+# Aggregate stats across sessions
+cat /opt/llm/db/diagnostics.jsonl \
+  | jq -s '{total_sessions: length, avg_turns: (map(.turns) | add / length), total_tool_errors: (map(.tool_errors) | add)}'
+```
+
+The file is appended to on each session end. Diagnostics persistence failures are logged at DEBUG level and do not affect REPL shutdown.
+
+---
+
 ## Graceful Shutdown
 
 - `SIGTERM` → converted to `SystemExit(0)` by `agent.py`
 - `_shutdown_requested` flag set → REPL loop exits after current input wait
 - `finally` block in `_run_repl_loop()`:
+  - `_persist_session_diagnostics()` → write runtime summary to `diagnostics.jsonl`
   - `memory.on_session_stop()` → extract + persist memories
   - `watchdog_task.cancel()`
   - `_close_resources()` → readline history save, `lifecycle.shutdown_all()`, HTTP client close

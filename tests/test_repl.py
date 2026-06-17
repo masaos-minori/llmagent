@@ -301,3 +301,103 @@ class TestStartSubprocessServers:
 
         repl._ctx.services.lifecycle.start_http_subprocess.assert_called_once()
         mock_transport.start.assert_called_once()
+
+
+class TestPersistSessionDiagnostics:
+    """Tests for AgentREPL._persist_session_diagnostics."""
+
+    def _make_repl(self):
+        repl = AgentREPL.__new__(AgentREPL)
+        ctx = MagicMock()
+        ctx.stats.stat_turns = 5
+        ctx.stats.stat_tool_calls = 12
+        ctx.stats.stat_tool_errors = 2
+        ctx.stats.stat_latency = {"llm": [0.1, 0.2], "compress": [0.05]}
+        ctx.stats.stat_semantic_cache_hits = 3
+        ctx.stats.stat_input_tokens = 1000
+        ctx.stats.stat_output_tokens = 500
+        ctx.session.session_id = 42
+        ctx.services = MagicMock()
+        ctx.services.llm.stat_partial_completions = 1
+        ctx.services.llm.stat_parse_errors = 0
+        ctx.services.llm.stat_heartbeat_timeouts = 0
+        ctx.services.llm.stat_reconnects = 2
+        ctx.services.hist_mgr.stat_compress_count = 2
+        repl._ctx = ctx
+        return repl
+
+    def test_writes_jsonl_file(self, tmp_path):
+        import json as json_mod
+
+        repl = self._make_repl()
+        diag_file = tmp_path / "diagnostics.jsonl"
+        parent_dir = diag_file.parent
+
+        mock_row = {"cnt": 8, "errs": 3}
+        mock_helper = MagicMock()
+        mock_ctx_mgr = MagicMock()
+        mock_ctx_mgr.__enter__ = MagicMock(return_value=mock_helper)
+        mock_ctx_mgr.__exit__ = MagicMock(return_value=False)
+        mock_helper.open = MagicMock(return_value=mock_ctx_mgr)
+        mock_helper.fetchall = MagicMock(return_value=[mock_row])
+
+        with (
+            patch("agent.repl.build_db_config") as mock_cfg,
+            patch("agent.repl.SQLiteHelper", return_value=mock_helper),
+        ):
+            mock_cfg.return_value.session_db_path = str(parent_dir / "session.sqlite")
+            repl._persist_session_diagnostics(repl._ctx)
+
+        assert diag_file.exists()
+        lines = diag_file.read_text().strip().split("\n")
+        assert len(lines) == 1
+        data = json_mod.loads(lines[0])
+        assert data["session_id"] == 42
+        assert data["turns"] == 5
+        assert data["tool_calls"] == 12
+        assert data["tool_errors"] == 2
+        assert data["partial_completions"] == 1
+        assert data["reconnects"] == 2
+        assert data["semantic_cache_hits"] == 3
+        assert data["input_tokens"] == 1000
+        assert data["output_tokens"] == 500
+        assert data["compress_count"] == 2
+        assert "llm" in data["latency_summary"]
+        assert data["latency_summary"]["llm"]["count"] == 2
+        assert data["tool_result_summary"]["total"] == 8
+        assert data["tool_result_summary"]["errors"] == 3
+
+    def test_handles_none_session_id(self, tmp_path):
+        repl = self._make_repl()
+        repl._ctx.session.session_id = None
+
+        mock_helper = MagicMock()
+        mock_ctx_mgr = MagicMock()
+        mock_ctx_mgr.__enter__ = MagicMock(return_value=mock_helper)
+        mock_ctx_mgr.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch("agent.repl.build_db_config") as mock_cfg,
+            patch("agent.repl.SQLiteHelper", return_value=mock_helper),
+        ):
+            mock_cfg.return_value.session_db_path = str(tmp_path / "session.sqlite")
+            repl._persist_session_diagnostics(repl._ctx)
+
+    def test_handles_none_services(self, tmp_path):
+        repl = self._make_repl()
+        repl._ctx.services = None
+
+        mock_ctx_mgr = MagicMock()
+        mock_ctx_mgr.__enter__ = MagicMock(return_value=mock_ctx_mgr)
+        mock_ctx_mgr.__exit__ = MagicMock(return_value=False)
+        mock_ctx_mgr.fetchall = MagicMock(return_value=[])
+
+        mock_helper = MagicMock()
+        mock_helper.open = MagicMock(return_value=mock_ctx_mgr)
+
+        with (
+            patch("agent.repl.build_db_config") as mock_cfg,
+            patch("agent.repl.SQLiteHelper", return_value=mock_helper),
+        ):
+            mock_cfg.return_value.session_db_path = str(tmp_path / "session.sqlite")
+            repl._persist_session_diagnostics(repl._ctx)

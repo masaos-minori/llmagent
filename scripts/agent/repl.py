@@ -22,8 +22,13 @@ AgentREPL responsibilities:
 """
 
 import asyncio
+import json
 import sqlite3
+import time
+from pathlib import Path
 
+from db.config import build_db_config
+from db.helper import SQLiteHelper
 from shared.logger import Logger
 from shared.mcp_config import SecurityProfile
 from shared.tool_executor import StdioTransport
@@ -147,6 +152,74 @@ class AgentREPL:
                 logger.exception(
                     "Memory on_session_stop failed; session data may be incomplete"
                 )
+
+    def _persist_session_diagnostics(self, ctx: AgentContext) -> None:
+        """Persist a lightweight runtime diagnostics summary at session end."""
+        try:
+            stats = ctx.stats
+            llm = ctx.services.llm if ctx.services is not None else None
+            hist_mgr = ctx.services.hist_mgr if ctx.services is not None else None
+            tool_results = ctx.tool_result_store
+            session_id = ctx.session.session_id
+
+            latency_summary = {}
+            for step, samples in stats.stat_latency.items():
+                if samples:
+                    latency_summary[step] = {
+                        "count": len(samples),
+                        "mean_ms": round(sum(samples) / len(samples) * 1000, 2),
+                        "max_ms": round(max(samples) * 1000, 2),
+                    }
+
+            tool_result_summary: dict[str, int] = {}
+            if session_id is not None and tool_results is not None:
+                try:
+                    with SQLiteHelper("session").open(row_factory=True) as db:
+                        rows = db.fetchall(
+                            "SELECT COUNT(*) as cnt, SUM(is_error) as errs"
+                            " FROM tool_results WHERE session_id = ?",
+                            (session_id,),
+                        )
+                        if rows:
+                            row = rows[0]
+                            tool_result_summary = {
+                                "total": row["cnt"],
+                                "errors": row["errs"] or 0,
+                            }
+                except sqlite3.Error:
+                    pass
+
+            summary = {
+                "session_id": session_id,
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "turns": stats.stat_turns,
+                "tool_calls": stats.stat_tool_calls,
+                "tool_errors": stats.stat_tool_errors,
+                "partial_completions": (
+                    llm.stat_partial_completions if llm is not None else 0
+                ),
+                "parse_errors": llm.stat_parse_errors if llm is not None else 0,
+                "heartbeat_timeouts": (
+                    llm.stat_heartbeat_timeouts if llm is not None else 0
+                ),
+                "reconnects": llm.stat_reconnects if llm is not None else 0,
+                "semantic_cache_hits": stats.stat_semantic_cache_hits,
+                "input_tokens": stats.stat_input_tokens,
+                "output_tokens": stats.stat_output_tokens,
+                "compress_count": (
+                    hist_mgr.stat_compress_count if hist_mgr is not None else 0
+                ),
+                "latency_summary": latency_summary,
+                "tool_result_summary": tool_result_summary,
+            }
+
+            db_cfg = build_db_config()
+            diag_path = Path(db_cfg.session_db_path).parent / "diagnostics.jsonl"
+            with open(diag_path, "a") as f:
+                f.write(json.dumps(summary) + "\n")
+
+        except (OSError, sqlite3.Error):
+            logger.debug("Failed to persist session diagnostics", exc_info=True)
 
     async def _close_resources(self) -> None:
         """Close all session resources. Called in the run() finally block."""
@@ -373,6 +446,7 @@ class AgentREPL:
                 ctx.services.tools.set_session_id(str(ctx.session.session_id))
             await self._repl_loop()
         finally:
+            self._persist_session_diagnostics(ctx)
             await self._persist_session_memories(ctx)
             await self._stop_watchdog(_watchdog_task)
             await self._close_resources()
