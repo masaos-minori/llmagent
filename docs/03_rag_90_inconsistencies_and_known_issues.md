@@ -7,45 +7,7 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
-## Implementation Bugs
-
-### BUG-1: `chunking_strategy` field lost in ingester
-
-- **Type:** RESOLVED (BUG — fixed)
-- **Impact scope:** `scripts/rag/ingestion/ingester.py`, `documents` table
-- **Resolution:** `_read_chunk_json()` was rewritten to use `orjson.loads(path.read_bytes())` directly instead of `dataclasses.asdict(read_json_file(path))`. All JSON fields (including `chunking_strategy`, `normalized_content`, `chunk_index`) are now preserved.
-- **Notes for AI:** `documents.chunking_strategy` is now written correctly from the chunk JSON file.
-
----
-
-### BUG-2: `normalized_content` hardcoded to None in ingester
-
-- **Type:** RESOLVED (BUG — fixed, same fix as BUG-1)
-- **Impact scope:** `scripts/rag/ingestion/ingester.py`, `chunks` table, FTS5 search quality
-- **Resolution:** `_embed_and_store()` now reads `normalized_content` from the JSON dict via `data.get("normalized_content")`. Japanese FTS5 indexing via `chunks_ai` trigger now receives the Sudachi-normalized form when present.
-- **Notes for AI:** Japanese FTS5 search quality is restored for chunks that include `normalized_content` in their JSON files.
-
----
-
-### BUG-3: `chunk_index` always 0 in ingester
-
-- **Type:** RESOLVED (BUG — fixed, same fix as BUG-1)
-- **Impact scope:** `scripts/rag/ingestion/ingester.py`, `chunks.chunk_index` column
-- **Resolution:** Dead code `try: idx = 0` replaced with `idx = int(data.get("chunk_index", 0))`. `fetch_full_document()` ordering by `chunk_index` is now reliable.
-- **Notes for AI:** BUG-1, BUG-2, BUG-3 shared a single root cause. All three are fixed in `_read_chunk_json()` + `_embed_and_store()`. Test coverage added in `tests/test_rag_ingester.py`.
-
----
-
 ## Spec Conflicts
-
-### SPEC-1: `use_rrf=False` has no effect
-
-- **Type:** RESOLVED (SPEC_CONFLICT — implemented)
-- **Impact scope:** `rag/stages/fusion.py`, `RagConfig.use_rrf`, `rag/repository._dedup_hits`
-- **Resolution:** `FusionStage` now accepts `use_rrf: bool = True`. When `use_rrf=False`, it calls `_dedup_hits()` (simple chunk_id dedup, `rrf_score=0.0` for all). `pipeline.py` passes `use_rrf=self._cfg.use_rrf` to `FusionStage`. `_dedup_hits()` is no longer dead code.
-- **Notes for AI:** `use_rrf=False` in config activates the dedup fallback path. Test coverage added in `tests/test_rag_stages.py::TestFusionStage`.
-
----
 
 ### SPEC-2: Ingestion stage count — "3 steps" vs "4 phases"
 
@@ -120,12 +82,9 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ### OQ-3: `test_ingester.py` missing
 
-- **Type:** OPEN_QUESTION
+- **Type:** Addressed
 - **Impact scope:** Test coverage for `scripts/rag/ingestion/ingester.py`
-- **Description:** No unit test file covers `ingester.py`. DB write behavior, BUG-1/2/3 fixes,
-  and `chunking_strategy` column reflection are all untested.
-- **Recommended action:** Create `tests/test_ingester.py` covering: `ingest_url_group()`,
-  `_read_chunk_json()` field preservation, `chunk_index` correctness, and `--force` behavior.
+- **Current state:** `tests/test_rag_ingester.py` created with 9 tests covering `_read_chunk_json()` field preservation (chunking_strategy, normalized_content, chunk_index), error handling (missing file, invalid JSON, missing url/content). DB write and `--force` behavior remain untested.
 
 ---
 
@@ -206,7 +165,7 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 - **Type:** Needs confirmation
 - **Impact scope:** `chunks` table, `chunks_fts` virtual table, `rag/repository.py _build_fts_query()`, `rag/stages/augment.py`
 - **Description:** Japanese chunks store two text representations. `chunks.content` (original text) is injected into the LLM context by `AugmentStage`. `chunks.normalized_content` (Sudachi `normalized_form()` space-joined) is indexed by the `chunks_ai` trigger via `COALESCE(normalized_content, content)` into `chunks_fts`. FTS5 query-side also normalizes Japanese terms in `_build_fts_tokens_ja()`. English and code chunks have `normalized_content=NULL`; FTS5 falls back to `content`. This separation ensures LLM receives readable original text while BM25 search uses morphologically normalized forms.
-- **Current safe interpretation:** If BUG-2 is not fixed (`normalized_content=None` in ingester), FTS5 indexes raw content for all chunks, reducing Japanese recall for morphological variants.
+- **Current safe interpretation:** `normalized_content` is now correctly read from chunk JSON (BUG-2 fixed). FTS5 indexing uses Sudachi-normalized forms for Japanese chunks when present.
 - **Notes for AI reference:** Never replace `content` with `normalized_content` in the Augment stage output. The separation is intentional. Source: `03_rag-ingestion-pipeline.md §FTS5/LLM content separation`.
 
 ---

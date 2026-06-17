@@ -47,7 +47,6 @@ class LLMMessage(TypedDict, total=False):
 
 - `total=False` means all fields are technically optional, but `role` is always required
 - Re-exported from `rag/types.py` — importable as `from rag.types import LLMMessage`
-- `importance` and `pinned` fields exist in `06_spec_shared.md §9.1` but are absent from `06_shared.md` (see [06_shared_90 DOCFIELD-01](06_shared_90_inconsistencies_and_known_issues.md))
 
 ---
 

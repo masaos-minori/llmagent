@@ -15,7 +15,10 @@ def get_repo_info(path: str = ".") -> dict[str, str] | None:
     """Return current branch and last commit info, or None outside a git repo."""
     try:
         import git  # noqa: PLC0415 — lazy import keeps startup fast when gitpython is unused
-
+    except ImportError:
+        logger.debug("get_repo_info: GitPython not installed")
+        return None
+    try:
         repo = git.Repo(path, search_parent_directories=True)
         head = repo.head
         branch = head.ref.name if not repo.head.is_detached else "HEAD (detached)"
@@ -25,6 +28,9 @@ def get_repo_info(path: str = ".") -> dict[str, str] | None:
             "message": str(head.commit.message).strip().splitlines()[0],
             "author": str(head.commit.author),
         }
-    except Exception as e:  # noqa: BLE001 — catch all git/import/OS errors, return None
-        logger.debug("get_repo_info: %s", e)
+    except git.exc.GitError as e:
+        logger.debug("get_repo_info: git error: %s", e)
+        return None
+    except (OSError, AttributeError, ValueError) as e:
+        logger.debug("get_repo_info: %s: %s", type(e).__name__, e)
         return None

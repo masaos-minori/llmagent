@@ -11,13 +11,9 @@ Each entry uses the required format:
 
 ### DOCREF-01: `06_shared.md` references `06_ref-sqlite.md` — actual file is `07_ref-sqlite.md`
 
-- **Type:** Document inconsistency
-- **Impact scope:** `docs/06_shared.md` line 3; any reader following the link
-- **Statement A:** `06_shared.md` header links to `06_ref-infra.md` and `06_ref-mcp.md` for module details.
-- **Statement B:** The DB reference document is `docs/07_ref-sqlite.md`. There is no `docs/06_ref-sqlite.md`.
-- **Current safe interpretation:** Follow `07_ref-sqlite.md` for all SQLiteHelper and db/ API details.
-- **Recommended action:** Update `06_shared.md` to reference `07_ref-sqlite.md` or the new restructured files.
-- **Notes for AI reference:** Do not look for `06_ref-sqlite.md` — it does not exist.
+- **Type:** RESOLVED (Document inconsistency)
+- **Resolution:** `06_shared.md` (the old monolithic doc) no longer exists — it was restructured into `06_shared_0*` files. No stale reference to `06_ref-sqlite.md` remains in the current docs. `06_shared_05_db_api_and_operations.md` and `06_shared_04_db_architecture_and_schema.md` serve as the authoritative DB API references.
+- **Notes for AI reference:** Use `06_shared_05_db_api_and_operations.md` for `SQLiteHelper` API. `07_ref-sqlite.md` is a legacy reference file.
 
 ---
 
@@ -35,13 +31,9 @@ Each entry uses the required format:
 
 ### CONFIG-02: `build_db_config()` uses a separate load as a workaround
 
-- **Type:** Implementation bug (architectural workaround)
-- **Impact scope:** `db/helper.py`, `db/config.py`
-- **Statement A:** `build_db_config()` loads `common.toml` independently via `ConfigLoader().load("common.toml")` rather than using `load_all()`.
-- **Statement B:** This is a known workaround because `load_all()` omits `common.toml`.
-- **Current safe interpretation:** The workaround works correctly. DB paths are properly resolved.
-- **Recommended action:** Track with CONFIG-01 resolution.
-- **Notes for AI reference:** This is intentional, not accidental. The workaround is documented in `07_spec_db.md §5`.
+- **Type:** RESOLVED (Implementation bug — fixed)
+- **Resolution:** `build_db_config()` now explicitly uses `ConfigLoader().load("common.toml")` instead of `load_all()`, which does not include `common.toml`. The docstring is updated to explain why. This eliminates the silent empty-string fallback for `rag_db_path` / `session_db_path` and makes the loading intent explicit.
+- **Notes for AI reference:** `build_db_config()` uses `load("common.toml")`. Do not use `load_all()` for DB path configuration.
 
 ---
 
@@ -71,13 +63,11 @@ Each entry uses the required format:
 
 ### GLOBAL-01: `token_counter._warned_unavailable` is a module-level global variable
 
-- **Type:** Implementation bug (design concern)
-- **Impact scope:** `shared/token_counter.py::_warned_unavailable`
-- **Statement A:** `_warned_unavailable` is a module-level boolean that suppresses repeated "tokenize endpoint unavailable" warnings.
-- **Statement B:** Module-level state persists across test runs and multiple `ToolExecutor` instances, making tests non-isolated.
-- **Current safe interpretation:** The warning suppression works correctly in production (single process). Test isolation may be affected.
-- **Recommended action:** Move to instance variable. Tracked in `implementations/20260606-194738_shared_global_state.md`.
-- **Notes for AI reference:** Do not rely on warning count in tests. In production, warning fires once per process lifetime.
+- **Type:** Addressed (design concern — test isolation resolved)
+- **Impact scope:** `shared/token_counter.py::_WarnOnce`
+- **Current state:** `_warned_unavailable` is a `_WarnOnce` instance (not a bare bool). A `reset()` method was added to `_WarnOnce`, and tests use `tc_module._warned_unavailable.reset()` between test cases for isolation. Module-level state is still present but managed correctly.
+- **Current safe interpretation:** Test isolation is handled via `reset()`. In production, warning fires once per process lifetime.
+- **Notes for AI reference:** Use `_warned_unavailable.reset()` in tests that check warning count. Do not access `_warned` directly.
 
 ---
 
@@ -95,13 +85,10 @@ Each entry uses the required format:
 
 ### EXCEPT-01: `git_helper.get_repo_info()` catches broad exceptions and returns `None`
 
-- **Type:** Implementation bug (design concern)
+- **Type:** RESOLVED (Implementation bug — fixed)
 - **Impact scope:** `shared/git_helper.py::get_repo_info()`
-- **Statement A:** Returns `{"branch", "commit", "message", "author"}` on success.
-- **Statement B:** Catches `except Exception` broadly — covers `GitPython not installed`, `not a git repo`, permission errors, and any other exception — returning `None` in all cases.
-- **Current safe interpretation:** `None` return means "could not get repo info." Reason is unknown from return value alone.
-- **Recommended action:** Return a typed result `{"ok": bool, "data": dict | None, "reason": str}` or raise specific exceptions.
-- **Notes for AI reference:** Do not attempt to distinguish between "not a git repo" and "GitPython not installed" from the return value.
+- **Resolution:** `ImportError` is now caught separately (when GitPython is not installed). The git operation block catches `git.exc.GitError` (covers all GitPython-specific errors including `InvalidGitRepositoryError`), `OSError`, `AttributeError`, and `ValueError`. The `except Exception` catch-all is removed.
+- **Notes for AI reference:** `None` still means "could not get repo info." Call is always safe. Cause is logged at DEBUG level per exception type.
 
 ---
 
@@ -140,13 +127,9 @@ Each entry uses the required format:
 
 ### UNDOC-04: `ToolExecutor` referenced in `shared/` specs but details depend on other documents
 
-- **Type:** Undocumented (cross-reference gap)
-- **Impact scope:** `06_spec_shared.md §7.3`, `§8.3`; `shared/tool_executor.py`
-- **Statement A:** `06_spec_shared.md` documents `ToolExecutor.execute()` input/output and the execution flow.
-- **Statement B:** Full details (concurrency limits, health registry integration, cache eviction policy) are in `04_mcp_03` and `05_agent_06`.
-- **Current safe interpretation:** For routing and lifecycle: see `04_mcp_03`. For approval flow: see `05_agent_06`. For shared-layer type contracts: see this document set.
-- **Recommended action:** Add explicit cross-references in `06_shared_03_runtime_and_execution.md`.
-- **Notes for AI reference:** Do not look for `ToolExecutor` field-level documentation in `06_shared_*` — it is in `04_mcp_03`.
+- **Type:** RESOLVED (cross-reference gap — documented)
+- **Resolution:** `06_shared_03_runtime_and_execution.md §13` now contains: "`ToolExecutor` details are in this document (§9), `04_mcp_03_routing_lifecycle_and_execution.md`, and `05_agent_06_tool-execution-and-approval.md`." The cross-references are explicit.
+- **Notes for AI reference:** For routing: `04_mcp_03`. For approval flow: `05_agent_06`. For execution flow and type contracts: `06_shared_03 §9`.
 
 ---
 
@@ -211,22 +194,16 @@ Each entry uses the required format:
 
 ### DOCFIELD-01: `LLMMessage` field discrepancy between `06_shared.md` and `06_spec_shared.md`
 
-- **Type:** Document inconsistency
-- **Impact scope:** `shared/types.py::LLMMessage`
-- **Statement A:** `06_shared.md` lists 5 fields: `role`, `content`, `tool_calls`, `tool_call_id`, `name`.
-- **Statement B:** `06_spec_shared.md §9.1` lists 7 fields, adding: `importance: float` (compression prioritization) and `pinned: bool` (preserve during compression).
-- **Current safe interpretation:** `06_spec_shared.md` is canonical. `LLMMessage` has 7 fields including `importance` and `pinned`. Both are optional (`total=False`).
-- **Recommended action:** Update `06_shared.md` to reflect the current 7-field definition.
-- **Notes for AI reference:** When building `LLMMessage` objects, `importance` and `pinned` fields may be present. Do not filter them out.
+- **Type:** RESOLVED (Document inconsistency)
+- **Resolution:** `06_shared.md` (the old monolithic doc) no longer exists. `06_shared_02_types_and_protocols.md §3` documents the complete 7-field definition including `importance: float` and `pinned: bool`. The stale "(see DOCFIELD-01)" note has been removed from that doc.
+- **Notes for AI reference:** `LLMMessage` has 7 fields: `role` (required), `content`, `tool_calls`, `tool_call_id`, `name`, `importance`, `pinned`. All except `role` are optional (`total=False`). Source: `shared/types.py`.
 
 ---
 
 ### DOCMISS-01: `SQLiteHelper target="workflow"` and `db/workflow_schema.py` absent from `07_spec_db.md`
 
-- **Type:** Document inconsistency
-- **Impact scope:** `07_spec_db.md` (specification); `07_ref-sqlite.md` (reference)
-- **Statement A:** `07_ref-sqlite.md` documents `SQLiteHelper` constructor with three valid targets: `"rag"`, `"session"`, `"workflow"`, and includes a section on `db/workflow_schema.py`.
-- **Statement B:** `07_spec_db.md §2` only mentions `rag.sqlite` and `session.sqlite`. `workflow.sqlite` and `db/workflow_schema.py` are absent.
-- **Current safe interpretation:** `workflow.sqlite` and `"workflow"` target exist and are production code. Trust `07_ref-sqlite.md` for the complete picture.
+- **Type:** RESOLVED (Document inconsistency)
+- **Resolution:** `06_shared_04_db_architecture_and_schema.md §7` now documents `workflow.sqlite` schema (`tasks`, `attempts`, `processed_events`, `artifacts` tables) and the `"workflow"` target in `SQLiteHelper`. `06_shared_05_db_api_and_operations.md` includes `target="workflow"` in the constructor reference and AI FAQ.
+- **Notes for AI reference:** `SQLiteHelper("workflow")` is valid and connects to `workflow.sqlite`. Schema initialized by `db/workflow_schema.py::init_schema()`.
 - **Recommended action:** Add `workflow.sqlite` to `07_spec_db.md` specification.
 - **Notes for AI reference:** `SQLiteHelper("workflow")` is valid. It connects to `workflow.sqlite` with schema managed by `db/workflow_schema.py`.

@@ -13,15 +13,6 @@ Each entry format:
 
 ---
 
-### BUG-01: McpServerHealthRegistry record_success/record_failure never called
-
-- **Type:** RESOLVED (Implementation bug — fixed)
-- **Impact scope:** `shared/tool_executor.py` (`ToolExecutor._raw_execute()`), `shared/mcp_config.py` (`McpServerHealthRegistry`)
-- **Resolution:** `ToolExecutor._raw_execute()` now calls `record_success()` on transport success and `record_failure()` on `TransportError`. The HEALTHY → DEGRADED → UNAVAILABLE state machine functions as designed. Test coverage added in `tests/test_tool_executor_routing.py` (`TestToolExecutorHealthGate`).
-- **Notes for AI reference:** Health state transitions are now active. A server reaching UNAVAILABLE will be blocked from dispatch by the `is_unavailable()` check. The registry resets to HEALTHY on the next successful call via `record_success()`.
-
----
-
 ### MISSING-01: mdq-mcp service layer is placeholder implementation
 
 - **Type:** Unimplemented
@@ -31,28 +22,6 @@ Each entry format:
 - **Current safe interpretation:** mdq-mcp tools always return stub strings. They do not search, index, or retrieve any data. `outline` is the only tool with partial real behavior (reads file content via `parse_markdown()` but returns it as-is).
 - **Recommended action:** Implement `MdqService` with real FTS5 indexing and search before using in production.
 - **Notes for AI reference:** Do NOT use `search_docs`, `get_chunk`, `stats`, `index_paths`, `refresh_index`, or `grep_docs` to retrieve actual document content. Use `rag-pipeline-mcp` instead. Only `outline` may return file content (partial implementation).
-
----
-
-### UNDOC-01: startup_mode × transport compatibility matrix documented
-
-- **Type:** Resolved
-- **Impact scope:** `shared/mcp_config.py`, `04_mcp_01_system_overview.md`
-- **Description:** Compatibility matrix exists in `04_mcp_01_system_overview.md` (Startup Modes section). Validation error message in `McpServerConfig.__post_init__()` explains valid alternatives: "startup_mode='subprocess' is only valid for transport='http'; stdio servers use 'persistent' or 'ondemand'".
-- **Valid combinations:** persistent+http, subprocess+http, persistent+stdio, ondemand+stdio. Invalid: subprocess+stdio.
-- **Recommended action:** None - already documented and enforced.
-- **Notes for AI reference:** Always pair `startup_mode="subprocess"` with `transport="http"`.
-
----
-
-### UNDOC-02: McpServerConfig.transport field uses StrEnum, not Literal type
-
-- **Type:** Resolved
-- **Impact scope:** `shared/mcp_config.py` `McpServerConfig.transport`, `startup_mode`, `healthcheck_mode`
-- **Description:** Fields use `StrEnum` types (`TransportType`, `StartupMode`, `HealthcheckMode`) which provide stronger typing than `Literal`. Invalid values are caught at runtime via `ValueError` from enum construction. Tests updated to match actual error messages.
-- **Current safe interpretation:** Use only valid enum values. Invalid values raise `ValueError: 'X' is not a valid <EnumName>`.
-- **Recommended action:** None - already resolved. StrEnum is preferred over Literal for these fields.
-- **Notes for AI reference:** `transport`, `startup_mode`, and `healthcheck_mode` are enum-typed. Use `TransportType.HTTP`, `StartupMode.PERSISTENT`, etc.
 
 ---
 
