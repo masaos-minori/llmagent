@@ -17,6 +17,7 @@ Module layout:
   rag/pipeline.py    — RagPipeline core orchestration (this file)
 """
 
+import asyncio
 import logging
 import sqlite3
 import time
@@ -59,22 +60,25 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-_cfg: dict | None = None
-
 _RAG_BLOCK_START = "[RAG_CONTEXT_START]"
 _RAG_BLOCK_END = "[RAG_CONTEXT_END]"
 
 
-def _get_cfg() -> dict:
-    """Load config on first call; cached for the module lifetime."""
-    global _cfg
-    if _cfg is None:
-        try:
-            _cfg = ConfigLoader().load("common.toml", "agent.toml")
-        except (FileNotFoundError, ValueError) as e:
-            logger.warning("Config load failed: %s", e)
-            _cfg = {}
-    return _cfg
+class _ModuleConfig:
+    """Class-level cached config loader for RagPipeline."""
+
+    _cache: dict | None = None
+
+    @classmethod
+    def get(cls) -> dict:
+        """Load config on first call; cached for the class lifetime."""
+        if cls._cache is None:
+            try:
+                cls._cache = ConfigLoader().load("common.toml", "agent.toml")
+            except (FileNotFoundError, ValueError) as e:
+                logger.warning("Config load failed: %s", e)
+                cls._cache = {}
+        return cls._cache
 
 
 class RagPipelineError(RuntimeError):
@@ -108,8 +112,8 @@ class RagPipeline:
             max_size=cfg.semantic_cache_max_size,
             threshold=cfg.semantic_cache_threshold,
         )
-        # Initialize stages; load url/config from module-level cfg cache
-        _module_cfg = _get_cfg()
+        # Initialize stages; load url/config from class-level cache
+        _module_cfg = _ModuleConfig.get()
         self._llm = RagLLM(self._http, _module_cfg.get("llm_url", ""), cfg=_module_cfg)
         self._embed_url: str = _module_cfg.get("embed_url", "")
 
@@ -119,8 +123,6 @@ class RagPipeline:
         db: SQLiteHelper,
     ) -> list[list[RagHit]]:
         """Run concurrent embedding fetches then sequential DB searches; sequential DB avoids shared-connection conflicts."""
-        import asyncio
-
         raw = await asyncio.gather(
             *(get_embedding(q, self._http, self._embed_url) for q in queries),
             return_exceptions=True,

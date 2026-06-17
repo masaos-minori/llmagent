@@ -150,7 +150,7 @@ class TestRagPipelineErrorOnDbOpen:
             refiner_timeout=10.0,
         )
         http = MagicMock()
-        with patch("rag.pipeline._get_cfg", return_value={}):
+        with patch("rag.pipeline._ModuleConfig.get", return_value={}):
             return RagPipeline(http, cfg)
 
     @pytest.mark.asyncio

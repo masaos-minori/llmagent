@@ -11,14 +11,14 @@ from shared.config_loader import ConfigLoader
 
 class TestRagPipelineGetCfg:
     def test_get_cfg_error_path(self, monkeypatch) -> None:
-        """pipeline._get_cfg() returns {} when ConfigLoader raises."""
+        """_ModuleConfig.get() returns {} when ConfigLoader raises."""
         import rag.pipeline as pipeline_mod
 
-        monkeypatch.setattr(pipeline_mod, "_cfg", None)
+        monkeypatch.setattr(pipeline_mod._ModuleConfig, "_cache", None)
         with patch.object(ConfigLoader, "load", side_effect=OSError("no file")):
-            result = pipeline_mod._get_cfg()
+            result = pipeline_mod._ModuleConfig.get()
         assert result == {}
-        monkeypatch.setattr(pipeline_mod, "_cfg", None)
+        monkeypatch.setattr(pipeline_mod._ModuleConfig, "_cache", None)
 
 
 class TestRagLlmExceptions:
