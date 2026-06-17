@@ -22,7 +22,6 @@ from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 
-from rag.ingestion.pipeline_utils import read_json_file
 from rag.utils import floats_to_blob, validate_url
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
@@ -238,16 +237,27 @@ class RagIngester:
     # ── Bulk file processing ──────────────────────────────────────────────────
 
     def _read_chunk_json(self, path: Path) -> "dict[str, Any] | None":
-        """Read and parse a chunk JSON file; returns None on failure."""
-        import dataclasses  # noqa: PLC0415
-
-        from rag.exceptions import ChunkFormatError  # noqa: PLC0415
+        """Read and parse a chunk JSON file as raw dict; returns None on failure."""
+        import orjson  # noqa: PLC0415
 
         try:
-            return dataclasses.asdict(read_json_file(path))
-        except (FileNotFoundError, ChunkFormatError) as e:
-            logger.warning("skip chunk %s: %s", path.name, e)
+            raw = path.read_bytes()
+        except OSError as e:
+            logger.warning("skip chunk %s: cannot read: %s", path.name, e)
             return None
+        try:
+            data = orjson.loads(raw)
+        except orjson.JSONDecodeError as e:
+            logger.warning("skip chunk %s: JSON parse error: %s", path.name, e)
+            return None
+        if not isinstance(data, dict):
+            logger.warning(
+                "skip chunk %s: expected JSON object, got %s",
+                path.name,
+                type(data).__name__,
+            )
+            return None
+        return data
 
     def _embed_and_store(self, doc_id: int, path: Path) -> bool:
         """Embed one chunk and insert it using an independent DB connection; each call opens its own connection for safe parallel writes; returns True on success."""
@@ -255,9 +265,10 @@ class RagIngester:
         if data is None:
             return False
         content: str = data.get("content", "")
-        normalized_content: str | None = None
+        normalized_content: str | None = data.get("normalized_content") or None
+        raw_idx = data.get("chunk_index")
         try:
-            idx = 0
+            idx = int(raw_idx) if raw_idx is not None else 0
         except (ValueError, TypeError) as e:
             logger.warning("Invalid chunk_index in %s: %s, using 0", path.name, e)
             idx = 0
