@@ -67,11 +67,6 @@ class _SudachiTokenizer:
 _sudachi = _SudachiTokenizer()
 
 
-def _get_sudachi_tokenizer() -> _SudachiTokenizer:
-    """Return the module-level lazy Sudachi tokenizer."""
-    return _sudachi
-
-
 def _build_fts_tokens_ja(text: str) -> list[str]:
     """Extract normalized_form() of nouns/verbs/adjectives from Japanese text.
 
@@ -80,7 +75,7 @@ def _build_fts_tokens_ja(text: str) -> list[str]:
     Raises ImportError if Sudachi is not installed.
     Raises RuntimeError on tokenization failure.
     """
-    return _get_sudachi_tokenizer().tokenize_pos_filter(text, _FTS_KEEP_POS)
+    return _sudachi.tokenize_pos_filter(text, _FTS_KEEP_POS)
 
 
 def _build_fts_query(text: str) -> str:
