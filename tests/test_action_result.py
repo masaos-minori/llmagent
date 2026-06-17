@@ -23,9 +23,11 @@ class TestActionResultDefaults:
         assert r.confidence == 1.0
 
     def test_frozen_immutable(self) -> None:
+        import dataclasses
+
         r = ActionResult(action="continue")
-        with pytest.raises((AttributeError, TypeError)):
-            object.__setattr__(r, "action", "fail")
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            setattr(r, "action", "fail")
 
 
 class TestActionResultAllTypes:
