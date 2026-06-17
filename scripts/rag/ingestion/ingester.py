@@ -47,6 +47,7 @@ class RagIngester:
         self._embed_url: str = cfg["embed_url"]
         self._embed_retry: int = int(cfg["embed_retry"])
         self._embed_workers: int = int(cfg.get("embed_workers", 4))
+        self._expected_dims: int = int(cfg.get("embedding_dims", 384))
         self._client = httpx.Client(timeout=60)
 
     def close(self) -> None:
@@ -115,7 +116,11 @@ class RagIngester:
     # ── Embedding ─────────────────────────────────────────────────────────────
 
     def _get_embedding(self, text: str) -> list[float] | None:
-        """Send text to the embed-llm API with 'passage: ' prefix and retrieve a 384-dim vector; returns None on failure or empty input."""
+        """Return embedding vector for text; validates dimension against embedding_dims config.
+
+        Returns None on empty input, network failure, or dimension mismatch.
+        Expected dimension is read from common.toml::embedding_dims (default 384).
+        """
         if not text or not text.strip():
             return None
         for attempt in range(self._embed_retry):
@@ -129,6 +134,11 @@ class RagIngester:
                 embedding = orjson.loads(resp.content).get("embedding")
                 if not isinstance(embedding, list) or not embedding:
                     raise ValueError("missing or empty 'embedding' field in response")
+                if len(embedding) != self._expected_dims:
+                    raise ValueError(
+                        f"embedding dimension mismatch: expected {self._expected_dims},"
+                        f" got {len(embedding)}"
+                    )
                 return embedding
             except (
                 httpx.RequestError,

@@ -50,7 +50,6 @@ class ChunkSplitterConfig:
 class IngesterConfig:
     embed_url: str = ""
     embed_timeout: float = 5.0
-    embed_dimension: int = 768
     batch_size: int = 32
 
 
