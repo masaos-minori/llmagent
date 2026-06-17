@@ -136,6 +136,7 @@ class ConfigReloadOutcome:
     applied: list[str] = field(default_factory=list)
     needs_restart: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
+    source_files: list[str] = field(default_factory=list)
 
 
 ConfigReloadResult = ConfigReloadOutcome

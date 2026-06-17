@@ -37,6 +37,20 @@ the `AgentConfig` dataclass.
 `ctx.cfg` holds the config. `/reload` triggers `build_agent_config(new_cfg)` to
 replace `ctx.cfg` and sync all services.
 
+### Config file ownership and hot-reload eligibility
+
+| File | Purpose | Hot-reloadable? |
+|---|---|---|
+| `config/common.toml` | LLM, RAG, observability settings | Yes (via `/reload`) |
+| `config/agent.toml` | Tool execution, memory, MCP servers, approval | Yes (partial) |
+| `config/tools_definitions.toml` | MCP tool name definitions | No (restart required) |
+| `config/mcp_servers.toml` | MCP server transport/URL config | URL only (new servers need restart) |
+| `config/security.toml` | Approval and security defaults | No (restart required) |
+| `config/system_prompts.toml` | System prompt presets | Yes (via `/reload`) |
+
+`/reload` loads only `common.toml` and `agent.toml`. Changes to other files take
+effect only after restarting the agent process.
+
 ---
 
 ## AgentConfig Structure

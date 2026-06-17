@@ -44,14 +44,27 @@ class _ConfigMixin(
         try:
             from shared.config_loader import ConfigLoader
 
-            new_cfg = ConfigLoader().load("common.toml", "agent.toml")
+            source_files = ["common.toml", "agent.toml"]
+            new_cfg = ConfigLoader().load(*source_files)
             result = ConfigReloadService(self._ctx).apply_config_dict(new_cfg)
-            logger.info("Config reloaded")
+            result.source_files = source_files
+
+            self._out.write(f"Config reloaded from: {', '.join(source_files)}")
+            if result.applied:
+                self._out.write("Applied (runtime):")
+                for item in result.applied:
+                    self._out.write(f"  - {item}")
             if result.needs_restart:
-                self._out.write(
-                    f"Restart required for: {', '.join(result.needs_restart)}"
-                )
-            self._out.write("Config reloaded.")
+                self._out.write("Restart required:")
+                for item in result.needs_restart:
+                    self._out.write(f"  - {item}")
+            if not result.applied and not result.needs_restart:
+                self._out.write("No changes detected.")
+            logger.info(
+                "Config reloaded: applied=%s, needs_restart=%s",
+                result.applied,
+                result.needs_restart,
+            )
         except OSError as e:
             logger.warning("Config reload I/O error: %s", e)
             self._out.write(f"Reload failed (I/O error): {e}")

@@ -324,3 +324,86 @@ class TestCmdReload:
         out = capsys.readouterr().out
         assert "Reload failed" in out
         assert "parse error" in out
+
+    def test_reload_shows_source_files(self, capsys: Any) -> None:
+        from unittest.mock import patch
+
+        from agent.services.config_reload import ConfigReloadOutcome
+
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        outcome = ConfigReloadOutcome(applied=["llm"], needs_restart=[])
+        with (
+            patch("shared.config_loader.ConfigLoader.load", return_value={}),
+            patch(
+                "agent.services.config_reload.ConfigReloadService.apply_config_dict",
+                return_value=outcome,
+            ),
+        ):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert "Config reloaded from: common.toml, agent.toml" in out
+
+    def test_reload_shows_applied_items(self, capsys: Any) -> None:
+        from unittest.mock import patch
+
+        from agent.services.config_reload import ConfigReloadOutcome
+
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        outcome = ConfigReloadOutcome(applied=["llm", "hist_mgr"], needs_restart=[])
+        with (
+            patch("shared.config_loader.ConfigLoader.load", return_value={}),
+            patch(
+                "agent.services.config_reload.ConfigReloadService.apply_config_dict",
+                return_value=outcome,
+            ),
+        ):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert "Applied (runtime):" in out
+        assert "  - llm" in out
+        assert "  - hist_mgr" in out
+
+    def test_reload_shows_needs_restart(self, capsys: Any) -> None:
+        from unittest.mock import patch
+
+        from agent.services.config_reload import ConfigReloadOutcome
+
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        outcome = ConfigReloadOutcome(applied=[], needs_restart=["server1"])
+        with (
+            patch("shared.config_loader.ConfigLoader.load", return_value={}),
+            patch(
+                "agent.services.config_reload.ConfigReloadService.apply_config_dict",
+                return_value=outcome,
+            ),
+        ):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert "Restart required:" in out
+        assert "  - server1" in out
+
+    def test_reload_no_changes_shows_message(self, capsys: Any) -> None:
+        from unittest.mock import patch
+
+        from agent.services.config_reload import ConfigReloadOutcome
+
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        outcome = ConfigReloadOutcome(applied=[], needs_restart=[])
+        with (
+            patch("shared.config_loader.ConfigLoader.load", return_value={}),
+            patch(
+                "agent.services.config_reload.ConfigReloadService.apply_config_dict",
+                return_value=outcome,
+            ),
+        ):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert "No changes detected." in out

@@ -168,7 +168,26 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 
 ## Hot-Reload Scope (`/reload`)
 
-`/reload` reloads split config files and applies via `_apply_config_params()`:
+`/reload` loads `common.toml` and `agent.toml` and applies changes immediately.
+
+### Output format
+
+```
+Config reloaded from: common.toml, agent.toml
+
+Applied (runtime):
+  - llm
+  - hist_mgr
+  - tools
+
+Restart required:
+  - server1 (new server — restart required)
+```
+
+If nothing changed: `No changes detected.`
+If the file cannot be read: `Reload failed (I/O error): <message>`
+
+### What changes immediately vs. requires restart
 
 | Reloadable at runtime | Requires restart |
 |---|---|
@@ -176,7 +195,7 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | `llm_max_retries`, `retry_base_delay` | embed model dimension |
 | `tool_cache_ttl` | DB paths |
 | `temperature`, `max_tokens` (from config) | plugin directory |
-| SSE settings (heartbeat_timeout, etc.) | |
+| SSE settings (heartbeat_timeout, etc.) | New MCP server entries |
 | Approval rules, protected paths | |
-| MCP server URLs | |
+| MCP server URLs (HTTP only) | |
 | System prompts | |
