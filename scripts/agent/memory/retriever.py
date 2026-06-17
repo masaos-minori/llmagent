@@ -27,6 +27,7 @@ import re
 
 from db.helper import SQLiteHelper
 
+from agent.memory.enums import MemoryType
 from agent.memory.exceptions import MemorySchemaError
 from agent.memory.mapper import _floats_to_blob, row_to_entry
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
@@ -80,8 +81,8 @@ def _score(
     recency_days: float = _RECENCY_DAYS,
 ) -> float:
     """Combined score; higher is better."""
-    importance_w = 1.0 if entry.memory_type == "semantic" else 0.5
-    recency_w = 0.5 if entry.memory_type == "semantic" else 1.0
+    importance_w = 1.0 if entry.memory_type == MemoryType.SEMANTIC else 0.5
+    recency_w = 0.5 if entry.memory_type == MemoryType.SEMANTIC else 1.0
 
     return (
         -bm25_rank  # FTS5 rank is negative (lower magnitude = better match)
