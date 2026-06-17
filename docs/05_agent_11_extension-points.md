@@ -98,7 +98,16 @@ Set in `config/agent.toml`:
 
 ```toml
 plugin_tool_override = false  # or true to allow shadowing
+plugin_strict = false         # or true to fail startup on first plugin import error
 ```
+
+#### Strict Plugin Loading Mode
+
+When `plugin_strict = true`, the first plugin import failure raises an exception that aborts agent startup. This is useful for CI/CD pipelines where plugin failures should be treated as build errors.
+
+Default is `false` (fail-open): plugin import failures are logged as warnings and other plugins continue loading.
+
+Error message format (both modes): `Plugin load failed (<filename>): <error_type>: <message>`
 
 #### Precedence Order
 

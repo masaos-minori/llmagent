@@ -161,8 +161,12 @@ def load_plugins(
     *,
     known_tools: frozenset[str] = frozenset(),
     override_policy: str = "reject",
+    strict_mode: bool = False,
 ) -> int:
     """Import all *.py files from plugin_dir; returns count loaded.
+
+    When *strict_mode* is True, the first plugin import failure raises
+    the original exception instead of logging and continuing.
 
     When *known_tools* is non-empty and *override_policy* is ``"reject"``,
     plugin tools that conflict with known MCP tools are removed after loading
@@ -183,7 +187,11 @@ def load_plugins(
                 loaded += 1
                 logger.info("Plugin loaded: %s", py_file.name)
         except (ImportError, SyntaxError, AttributeError, RuntimeError) as e:
-            logger.warning("Plugin load failed (%s): %s", py_file.name, e)
+            error_msg = f"Plugin load failed ({py_file.name}): {type(e).__name__}: {e}"
+            if strict_mode:
+                logger.error(error_msg)
+                raise
+            logger.warning(error_msg)
 
     # Run conflict validation after all modules are loaded
     _validate_tool_conflicts(known_tools, override_policy)

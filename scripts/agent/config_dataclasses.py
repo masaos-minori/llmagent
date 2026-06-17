@@ -222,6 +222,8 @@ class ToolConfig:
     allowed_tools: list[str] = field(default_factory=list)
     # Reject plugin tools that shadow MCP tool names; true = allow with warning
     plugin_tool_override: bool = False
+    # Fail startup on first plugin import error; false = fail-open (log warning and continue)
+    plugin_strict: bool = False
 
     def __post_init__(self) -> None:
         self._validate_tool_dedup_max_repeats()
@@ -230,12 +232,19 @@ class ToolConfig:
         self._validate_tool_cache_max_size()
         self._validate_tool_error_retry_max()
         self._validate_plugin_tool_override()
+        self._validate_plugin_strict()
 
     def _validate_plugin_tool_override(self) -> None:
         if not isinstance(self.plugin_tool_override, bool):
             raise ValueError(
                 f"plugin_tool_override must be bool, "
                 f"got {type(self.plugin_tool_override).__name__}"
+            )
+
+    def _validate_plugin_strict(self) -> None:
+        if not isinstance(self.plugin_strict, bool):
+            raise ValueError(
+                f"plugin_strict must be bool, got {type(self.plugin_strict).__name__}"
             )
 
     def _validate_tool_dedup_max_repeats(self) -> None:

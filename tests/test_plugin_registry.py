@@ -346,3 +346,47 @@ class TestReset:
         assert plugin_registry.get_command("/x") is None
         assert plugin_registry.get_tool("x") is None
         assert plugin_registry.get_pipeline_post_stages() == []
+
+
+# ── Strict plugin loading mode ────────────────────────────────────────────────
+
+
+class TestLoadPluginsStrictMode:
+    def test_strict_mode_all_load_success(self, tmp_path: Path):
+        plugin_file = tmp_path / "ok.py"
+        plugin_file.write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("strict_tool")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        n = plugin_registry.load_plugins(tmp_path, strict_mode=True)
+        assert n == 1
+        assert plugin_registry.get_tool("strict_tool") is not None
+
+    def test_strict_mode_broken_plugin_raises(self, tmp_path: Path):
+        (tmp_path / "bad.py").write_text("raise RuntimeError('boom')")
+        with pytest.raises(RuntimeError, match="boom"):
+            plugin_registry.load_plugins(tmp_path, strict_mode=True)
+
+    def test_non_strict_mode_broken_plugin_continues(self, tmp_path: Path):
+        (tmp_path / "bad.py").write_text("raise RuntimeError('oops')")
+        (tmp_path / "good.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("survive_tool")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        n = plugin_registry.load_plugins(tmp_path, strict_mode=False)
+        assert n == 1
+        assert plugin_registry.get_tool("survive_tool") is not None
+
+    def test_missing_dir_strict_mode_returns_zero(self, tmp_path: Path):
+        n = plugin_registry.load_plugins(tmp_path / "nonexistent", strict_mode=True)
+        assert n == 0

@@ -71,6 +71,8 @@ serial_tool_calls = false
 # When true, allow plugin tools to shadow MCP tools by the same name;
 # default false -- conflicts are rejected at startup with a clear error
 plugin_tool_override = false
+# When true, fail startup on first plugin import error; false = fail-open (log warning and continue)
+plugin_strict = false
 
 # When true, appends all notes from the notes table to the end of the system prompt at startup
 auto_inject_notes = true

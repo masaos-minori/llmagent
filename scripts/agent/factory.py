@@ -335,10 +335,13 @@ def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
     known_tools = (
         get_all_mcp_tool_names() if override_policy == "reject" else frozenset()
     )
+    mode_str = "strict" if ctx.cfg.tool.plugin_strict else "fail-open"
+    audit_logger.info("Plugin loading mode: %s", mode_str)
     n_plugins = plugin_registry.load_plugins(
         plugin_dir,
         known_tools=known_tools,
         override_policy=override_policy,
+        strict_mode=ctx.cfg.tool.plugin_strict,
     )
     if n_plugins:
         audit_logger.info("Loaded %s plugin(s) from %s", n_plugins, plugin_dir)
