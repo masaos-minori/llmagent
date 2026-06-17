@@ -137,6 +137,7 @@ class TestRagPipelineErrorOnDbOpen:
             use_mqe=False,
             use_rerank=False,
             use_rrf=True,
+            use_semantic_cache=False,
             top_k_search=5,
             rag_top_k=3,
             top_k_rerank=10,

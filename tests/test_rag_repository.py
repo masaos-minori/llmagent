@@ -122,14 +122,14 @@ class TestSemanticCache:
     def test_hit_above_threshold_returns_context(self) -> None:
         cache = SemanticCache(threshold=0.9)
         embedding = [1.0, 0.0, 0.0]
-        cache.put(embedding, "cached context")
+        cache.put(embedding, "", "cached context")
         result = cache.lookup([0.95, 0.0, 0.0])
         assert result == "cached context"
 
     def test_hit_below_threshold_returns_none(self) -> None:
         cache = SemanticCache(threshold=0.9)
         embedding = [1.0, 0.0, 0.0]
-        cache.put(embedding, "cached context")
+        cache.put(embedding, "", "cached context")
         # Perpendicular vector => cosine_sim = 0.0 < 0.9
         result = cache.lookup([0.0, 1.0, 0.0])
         assert result is None
@@ -137,14 +137,14 @@ class TestSemanticCache:
     def test_exact_match_returns_context(self) -> None:
         cache = SemanticCache(threshold=0.92)
         embedding = [0.577, 0.577, 0.577]
-        cache.put(embedding, "exact match")
+        cache.put(embedding, "", "exact match")
         result = cache.lookup([0.577, 0.577, 0.577])
         assert result == "exact match"
 
     def test_prune_removes_oldest(self) -> None:
         cache = SemanticCache(max_size=3)
         for i in range(5):
-            cache.put([float(i)], f"context_{i}")
+            cache.put([float(i)], "", f"context_{i}")
         assert cache.size == 3
         # Oldest entries removed; only last 3 remain (context_2, context_3, context_4)
         result = cache.lookup([4.0])
@@ -152,23 +152,23 @@ class TestSemanticCache:
 
     def test_prune_no_op_when_under_capacity(self) -> None:
         cache = SemanticCache(max_size=10)
-        cache.put([1.0], "a")
-        cache.put([2.0], "b")
+        cache.put([1.0], "", "a")
+        cache.put([2.0], "", "b")
         assert cache.size == 2
 
     def test_put_over_capacity_prunes(self) -> None:
         cache = SemanticCache(max_size=2)
-        cache.put([1.0], "a")
-        cache.put([2.0], "b")
-        cache.put([3.0], "c")
+        cache.put([1.0], "", "a")
+        cache.put([2.0], "", "b")
+        cache.put([3.0], "", "c")
         assert cache.size == 2
 
     def test_nearest_entry_returned(self) -> None:
         cache = SemanticCache(threshold=0.5)
         embedding_far = [1.0, 0.0, 0.0]
         embedding_near = [0.8, 0.6, 0.0]
-        cache.put(embedding_far, "far context")
-        cache.put(embedding_near, "near context")
+        cache.put(embedding_far, "", "far context")
+        cache.put(embedding_near, "", "near context")
         result = cache.lookup([1.0, 0.0, 0.0])
         assert result == "far context"
 
