@@ -54,6 +54,7 @@ class Orchestrator:
         on_error: Callable[[Exception], None] | None = None,
         on_first_turn: Callable[[str], Any] | None = None,
         tracer: Any = None,
+        workflow_mode: str = "auto",
     ) -> None:
         self._ctx = ctx
         self._allowed_tools: list[str] | None = allowed_tools
@@ -62,6 +63,7 @@ class Orchestrator:
         self._on_turn_end = on_turn_end
         self._on_error = on_error
         self._tracer = tracer
+        self._workflow_mode = workflow_mode
         self._guard = ToolLoopGuard(ctx)
         self._llm_runner = LLMTurnRunner(
             ctx,
@@ -69,12 +71,23 @@ class Orchestrator:
             tracer=tracer,
         )
         self._workflow_def: WorkflowDef | None = None
-        try:
-            self._workflow_def = WorkflowLoader().load()
-        except (WorkflowLoadError, Exception):
-            logger.warning("WorkflowLoader failed — workflow tracking disabled")
+        if self._workflow_mode != "disabled":
+            try:
+                self._workflow_def = WorkflowLoader().load()
+            except (WorkflowLoadError, Exception):
+                logger.warning("WorkflowLoader failed — workflow tracking disabled")
 
     # ── Public entry point ────────────────────────────────────────────────────
+
+    def _log_fallback(self, reason: str) -> None:
+        """Log workflow fallback reason; raise in required mode."""
+        if self._workflow_mode == "required":
+            raise RuntimeError(
+                f"Workflow mode=required but workflow unavailable: {reason}"
+            )
+        logger.warning(
+            "Workflow tracking disabled (%s), falling back to direct execution", reason
+        )
 
     async def handle_turn(self, line: str) -> None:
         """Call LLM with the user message and persist to DB."""
@@ -86,7 +99,14 @@ class Orchestrator:
         answer: str = ""
         error_kind: str | None = None
 
+        if self._workflow_mode == "disabled":
+            logger.info("Workflow mode=disabled — direct execution")
+            answer, error_kind = await self._process_turn(line, ctx, turn_started_at)
+            await self._handle_turn_end(line, answer, turn_started_at, error_kind)
+            return
+
         if self._workflow_def is None:
+            self._log_fallback("workflow definition not loaded")
             answer, error_kind = await self._process_turn(line, ctx, turn_started_at)
             await self._handle_turn_end(line, answer, turn_started_at, error_kind)
             return
@@ -95,9 +115,7 @@ class Orchestrator:
         try:
             store = StateStore()
         except RuntimeError as exc:
-            logger.warning(
-                "StateStore unavailable, skipping workflow tracking: %s", exc
-            )
+            self._log_fallback(f"state_store unavailable: {exc}")
             answer, error_kind = await self._process_turn(line, ctx, turn_started_at)
             await self._handle_turn_end(line, answer, turn_started_at, error_kind)
             return

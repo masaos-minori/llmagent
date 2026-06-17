@@ -103,12 +103,10 @@ Each entry format:
 
 ### OQ-02: WorkflowEngine fallback trigger conditions are not fully specified
 
-- **Type:** Open Question / Needs confirmation
+- **Type:** RESOLVED
 - **Impact scope:** `agent/workflow/`, `agent/orchestrator.py Orchestrator.handle_turn()`
-- **Description:** `Orchestrator.handle_turn()` uses `WorkflowEngine` when `config/workflows/default.json` exists AND `workflow.sqlite` is available. Falls back to direct execution otherwise. The exact exception types that trigger fallback (vs. hard failure), and whether partial `workflow.sqlite` state is cleaned up on fallback, are not documented.
-- **Current safe interpretation:** If `config/workflows/default.json` is absent or `workflow.sqlite` is inaccessible, the agent falls back to direct turn execution with no workflow state recorded.
-- **Recommended action:** Document fallback conditions explicitly in `agent/orchestrator.py`. Add test coverage for the fallback path.
-- **Notes for AI reference:** WorkflowEngine is optional. Absence of `config/workflows/default.json` is the simplest way to disable it. Do not assume workflow state exists for turns executed before the workflow DB was available.
+- **Resolution:** Workflow mode is now explicit via `workflow_mode` field on `AgentConfig`. Three modes: `"auto"` (implicit fallback with warning log), `"required"` (raises `RuntimeError` on any unavailability), `"disabled"` (always direct execution, no loader attempted). Default is `"auto"` for backward compatibility. Fallback conditions are: (1) workflow definition file not loaded, (2) `StateStore()` raises `RuntimeError`. Both are logged at `WARNING` level in `auto` mode and raise in `required` mode. Test coverage added in `tests/test_orchestrator.py`.
+- **Notes for AI reference:** WorkflowEngine is optional. Set `workflow_mode = "disabled"` in agent config to unconditionally skip it. `workflow_mode = "required"` enforces hard failure if either workflow JSON or `workflow.sqlite` is unavailable.
 
 ---
 

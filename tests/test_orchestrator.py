@@ -550,3 +550,99 @@ class TestAllowedToolsOverride:
                 await orch.handle_turn("test")
 
         assert ctx.cfg.tool.allowed_tools == []
+
+
+# ── workflow_mode ─────────────────────────────────────────────────────────────
+
+
+class TestWorkflowMode:
+    """Tests for explicit workflow_mode parameter on Orchestrator and AgentConfig."""
+
+    def _ok_run(self) -> AsyncMock:
+        return AsyncMock(return_value=TurnResult(action="continue", answer="ok"))
+
+    # -- disabled mode -------------------------------------------------------
+
+    def test_disabled_mode_does_not_load_workflow(self) -> None:
+        ctx = _make_ctx()
+        with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
+            Orchestrator(ctx, workflow_mode="disabled")
+        mock_loader.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_disabled_mode_handle_turn_skips_state_store(self) -> None:
+        ctx = _make_ctx()
+        orch = Orchestrator(ctx, workflow_mode="disabled")
+        with (
+            patch("agent.orchestrator.StateStore") as mock_store,
+            patch.object(orch._llm_runner, "run", self._ok_run()),
+        ):
+            await orch.handle_turn("hello")
+        mock_store.assert_not_called()
+
+    # -- auto mode (no workflow def) -----------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_auto_mode_no_workflow_def_runs_direct(self) -> None:
+        ctx = _make_ctx()
+        with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
+            mock_loader.return_value.load.side_effect = Exception("not found")
+            orch = Orchestrator(ctx, workflow_mode="auto")
+        assert orch._workflow_def is None
+        with patch.object(orch._llm_runner, "run", self._ok_run()):
+            await orch.handle_turn("hello")  # must not raise
+
+    @pytest.mark.asyncio
+    async def test_auto_mode_state_store_failure_falls_back(self) -> None:
+        ctx = _make_ctx()
+        mock_wf = MagicMock()
+        with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
+            mock_loader.return_value.load.return_value = mock_wf
+            orch = Orchestrator(ctx, workflow_mode="auto")
+        assert orch._workflow_def is mock_wf
+        with (
+            patch("agent.orchestrator.StateStore", side_effect=RuntimeError("db gone")),
+            patch.object(orch._llm_runner, "run", self._ok_run()),
+        ):
+            await orch.handle_turn("hello")  # must not raise
+
+    # -- required mode -------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_required_mode_no_workflow_def_raises(self) -> None:
+        ctx = _make_ctx()
+        with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
+            mock_loader.return_value.load.side_effect = Exception("not found")
+            orch = Orchestrator(ctx, workflow_mode="required")
+        assert orch._workflow_def is None
+        with pytest.raises(RuntimeError, match="workflow unavailable"):
+            await orch.handle_turn("hello")
+
+    @pytest.mark.asyncio
+    async def test_required_mode_state_store_failure_raises(self) -> None:
+        ctx = _make_ctx()
+        mock_wf = MagicMock()
+        with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
+            mock_loader.return_value.load.return_value = mock_wf
+            orch = Orchestrator(ctx, workflow_mode="required")
+        assert orch._workflow_def is mock_wf
+        with (
+            patch("agent.orchestrator.StateStore", side_effect=RuntimeError("db gone")),
+            pytest.raises(RuntimeError, match="workflow unavailable"),
+        ):
+            await orch.handle_turn("hello")
+
+    # -- AgentConfig validation ----------------------------------------------
+
+    def test_agent_config_accepts_valid_modes(self) -> None:
+        from agent.config_dataclasses import AgentConfig
+
+        for mode in ("auto", "required", "disabled"):
+            cfg = AgentConfig(workflow_mode=mode)
+            assert cfg.workflow_mode == mode
+
+    def test_agent_config_rejects_invalid_mode(self) -> None:
+        from agent.config_dataclasses import AgentConfig
+
+        with pytest.raises(ValueError, match="workflow_mode must be one of"):
+            AgentConfig(workflow_mode="on")

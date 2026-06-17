@@ -230,6 +230,7 @@ class AgentREPL:
             on_error=self._view.write_llm_error,
             on_first_turn=self._cmds._generate_session_title,
             tracer=tracer,
+            workflow_mode=ctx.cfg.workflow_mode,
         )
 
     def _init_components(self) -> None:
@@ -289,10 +290,22 @@ class AgentREPL:
                     f"stdio MCP server {key!r} failed to start: {e}"
                 )
 
+    def _get_workflow_status(self) -> str:
+        """Return a human-readable workflow status string for the startup banner."""
+        if self._orchestrator is None:
+            return "unknown"
+        mode = self._orchestrator._workflow_mode
+        if mode == "disabled":
+            return "disabled"
+        if self._orchestrator._workflow_def is not None:
+            return f"{mode} (tracking enabled)"
+        return f"{mode} (definition not loaded)"
+
     def _print_startup_banner(self) -> None:
-        """Print the startup line showing DB chunks and tool count."""
+        """Print the startup line showing DB chunks, tool count, and workflow status."""
         chunk_count = self._get_chunk_count()
-        self._view.write_startup_banner(chunk_count, self._n_tools)
+        workflow_status = self._get_workflow_status()
+        self._view.write_startup_banner(chunk_count, self._n_tools, workflow_status)
 
     async def _initialize_session(self) -> None:
         """Initialize session and setup components."""
