@@ -245,7 +245,7 @@ tail -100 /opt/llm/logs/git-mcp.log
 | `db_allowlist` = `[]` | sqlite-mcp denies everything |
 | `read_only = true` (git-mcp) | git writes blocked even if `allowed_repo_paths` is set |
 | `tool_definitions_strict = true` | Agent startup aborts on tool name mismatch |
-| `mcp_watchdog_interval = 0` | No auto-restart of failed subprocess servers |
+| `mcp_watchdog_interval = 0` | No auto-restart of failed subprocess servers (LOCAL profile default; PRODUCTION default is 30.0) |
 
 ---
 

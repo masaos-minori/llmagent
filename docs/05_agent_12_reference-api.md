@@ -116,11 +116,13 @@ Full details: [05_agent_07_cli-and-commands.md §CLIView](05_agent_07_cli-and-co
 ## AgentSession (`agent/session.py`)
 
 - **Role:** SQLite persistence for sessions, messages, notes, and RAG document ops
-- **Primary API:** `start()`, `save(role, content)`, `fetch_messages(session_id)`, `add_note(content)`
+- **Primary API:** `start()`, `save(role, content)`, `save_diagnostic(content)`, `fetch_messages(session_id)`, `add_note(content)`
+- **Skip counters:** `skipped_no_session_count`, `skipped_invalid_role_count` (per-session, read-only properties)
+- **Strict mode:** `AgentSession(strict_mode=True)` raises `RuntimeError` on first skipped save instead of warning
 - **Callers:** `Orchestrator`, `CommandRegistry` (all `/session`, `/note`, `/db` commands)
 - **Callees:** `SQLiteHelper`
 - **Config:** DB path from `config/common.toml`
-- **Failure:** `sqlite3.Error` on critical failures; silently skips on `session_id=None`
+- **Failure:** `sqlite3.Error` on critical failures; logs warning and increments counter on `session_id=None`
 
 **Open Question:** `/db clean` and `/db stats` access RAG-layer tables via `AgentSession`.
 This responsibility may be moved to `rag-pipeline-mcp` in a future refactor.

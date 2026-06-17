@@ -55,7 +55,7 @@ _initialize_session()
   → _init_orchestrator
 _start_mcp_servers()                 [persistent stdio + HTTP subprocess]
 _check_services()
-  → _check_service_health()
+  → check_readiness()              [repl_health.py — raises in production mode if services down]
   → _check_tool_definitions()
 _setup_initial_prompt()
   → system prompt init

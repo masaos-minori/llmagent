@@ -151,6 +151,7 @@ Source: `config/tools.toml` + `config/system_prompts.toml` + `config/tools_defin
 | `tool_definitions` | `[]` | Tool definitions from `tools_definitions.toml` |
 | `system_prompts` | `{}` | System prompt preset dict |
 | `allowed_tools` | `[]` | Session tool whitelist (empty = all allowed) |
+| `plugin_strict` | `False` | Raise on first plugin import error (fail-fast for CI/CD) |
 
 ---
 

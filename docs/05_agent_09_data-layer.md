@@ -35,11 +35,15 @@ and the responsibility boundary between the agent layer and the RAG layer.
 |---|---|---|
 | `message_id` | INTEGER PK | Auto-increment |
 | `session_id` | INTEGER FK | → `sessions(session_id)` ON DELETE CASCADE |
-| `role` | TEXT | `user` / `assistant` / `tool` / `system` |
+| `role` | TEXT | `user` / `assistant` / `tool` / `system` / `diagnostic` |
 | `content` | TEXT | Message text content |
 | `tool_calls` | TEXT | JSON-serialized tool_calls (assistant role only) |
 | `tool_call_id` | TEXT | Tool call response correlation ID (tool role only) |
 | `created_at` | TEXT | Row creation timestamp |
+
+`diagnostic` role messages are written by `AgentSession.save_diagnostic()` to persist
+incomplete LLM output without polluting conversation history. They are excluded from
+`fetch_messages()` results and therefore never restored to `ctx.conv.history`.
 
 ### `notes` table
 

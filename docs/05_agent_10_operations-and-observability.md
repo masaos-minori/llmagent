@@ -96,19 +96,28 @@ Each turn produces two events:
 
 **`turn_start` event:**
 ```json
-{"event": "turn_start", "task_id": "<uuid>", "session_id": "<id>", "input_preview": "..."}
+{
+  "event": "turn_start",
+  "task_id": "<uuid4>",
+  "worker_id": "<session_id>",
+  "event_id": "<uuid4>",
+  "ts": 1718600000.123
+}
 ```
 
 **`turn_end` event:**
 ```json
 {
   "event": "turn_end",
-  "task_id": "<uuid>",
+  "task_id": "<uuid4>",
   "elapsed_ms": 1234.5,
   "input_tokens": 512,
   "output_tokens": 128,
+  "parse_error_count": 0,
+  "heartbeat_timeout_count": 0,
   "reconnect_count": 0,
-  "tool_calls": 2
+  "partial_completion": false,
+  "error_kind": null
 }
 ```
 
