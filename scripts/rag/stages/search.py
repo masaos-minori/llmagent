@@ -7,6 +7,8 @@ import logging
 import sqlite3
 from typing import TYPE_CHECKING, Any, cast
 
+from shared.types import RagConfig
+
 from rag.repository import RagRepository
 from rag.stage import PipelineContext, PipelineStage
 
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 async def _search_all_queries(
     queries: list[str],
     db: SQLiteHelper,
-    cfg: dict[str, Any],
+    cfg: RagConfig,
     http: httpx.AsyncClient | None,
     embed_url: str,
 ) -> list[list]:
@@ -45,8 +47,8 @@ async def _search_all_queries(
             logger.warning("Unexpected embedding type for '%s': %s", q, type(result))
             continue
         try:
-            vec_res = repo.vector_search(result, cfg["top_k_search"])
-            fts_res = repo.fts_search(q, cfg["top_k_search"])
+            vec_res = repo.vector_search(result, cfg.top_k_search)
+            fts_res = repo.fts_search(q, cfg.top_k_search)
             if vec_res:
                 all_results.append(vec_res)
             if fts_res:
@@ -59,7 +61,7 @@ async def _search_all_queries(
 class SearchStage(PipelineStage):
     def __init__(
         self,
-        cfg: dict[str, Any],
+        cfg: RagConfig,
         http: httpx.AsyncClient | None = None,
         embed_url: str = "",
     ) -> None:

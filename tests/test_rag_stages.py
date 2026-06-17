@@ -7,6 +7,7 @@ of each RAG stage. Tests cover:
 - Error handling and fallbacks
 """
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,6 +17,7 @@ from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage, _run_mqe
 from rag.stages.rerank import RerankStage, _rerank
 from rag.stages.search import SearchStage
+from rag.types import MergedHit, RawHit
 
 
 @pytest.fixture
@@ -49,18 +51,17 @@ def mock_db():
 
 @pytest.fixture
 def sample_cfg():
-    """Create a sample configuration dict."""
-    return {
-        "use_mqe": True,
-        "use_rerank": True,
-        "use_search": True,
-        "top_k_search": 10,
-        "top_k_rerank": 20,
-        "rag_top_k": 5,
-        "rrf_k": 60,
-        "max_chunks_per_doc": 3,
-        "rag_min_score": 0.0,
-    }
+    """Create a sample RagConfig-compatible configuration object."""
+    return SimpleNamespace(
+        use_mqe=True,
+        use_rerank=True,
+        use_search=True,
+        top_k_search=10,
+        top_k_rerank=20,
+        rag_top_k=5,
+        max_chunks_per_doc=3,
+        rag_min_score=0.0,
+    )
 
 
 class TestSearchStage:
@@ -68,17 +69,17 @@ class TestSearchStage:
 
     def test_init(self):
         """Test SearchStage initialization with http client."""
-        cfg = {"top_k_search": 10}
+        cfg = SimpleNamespace(top_k_search=10)
         http = AsyncMock()
         stage = SearchStage(cfg, http)
-        assert stage._cfg == cfg
-        assert stage._http == http
+        assert stage._cfg is cfg
+        assert stage._http is http
 
     def test_init_without_http(self):
         """Test SearchStage initialization without http client."""
-        cfg = {"top_k_search": 10}
+        cfg = SimpleNamespace(top_k_search=10)
         stage = SearchStage(cfg)
-        assert stage._cfg == cfg
+        assert stage._cfg is cfg
         assert stage._http is None
 
     @pytest.mark.asyncio
@@ -102,7 +103,7 @@ class TestSearchStage:
                 {"chunk_id": 2, "content": "fts_result"}
             ]
 
-            cfg = {"top_k_search": 10}
+            cfg = SimpleNamespace(top_k_search=10)
             stage = SearchStage(cfg, mock_llm)
 
             await stage.run(mock_context, db=mock_db)
@@ -118,7 +119,7 @@ class TestSearchStage:
         """Test SearchStage with None db returns empty results."""
         mock_context.queries = ["test query"]
 
-        cfg = {"top_k_search": 10}
+        cfg = SimpleNamespace(top_k_search=10)
         stage = SearchStage(cfg)
 
         await stage.run(mock_context, db=None)
@@ -131,7 +132,7 @@ class TestSearchStage:
         mock_context = MagicMock(spec=PipelineContext)
         mock_context.queries = []
 
-        cfg = {"top_k_search": 10}
+        cfg = SimpleNamespace(top_k_search=10)
         stage = SearchStage(cfg)
 
         await stage.run(mock_context, db=mock_db)
@@ -149,7 +150,7 @@ class TestSearchStage:
             ) as mock_get_embedding,
         ):
             mock_get_embedding.side_effect = Exception("Embedding failed")
-            cfg = {"top_k_search": 10}
+            cfg = SimpleNamespace(top_k_search=10)
             stage = SearchStage(cfg)
 
             await stage.run(mock_context, db=mock_db)
@@ -179,7 +180,7 @@ class TestSearchStage:
             ]
             mock_repo_instance.fts_search.return_value = []
 
-            cfg = {"top_k_search": 10}
+            cfg = SimpleNamespace(top_k_search=10)
             stage = SearchStage(cfg)
 
             await stage.run(mock_context, db=mock_db)
@@ -205,7 +206,7 @@ class TestSearchStage:
             ]
             mock_repo_instance.fts_search.return_value = []
 
-            cfg = {"top_k_search": 10}
+            cfg = SimpleNamespace(top_k_search=10)
             stage = SearchStage(cfg)
 
             await stage.run(mock_context, db=mock_db)
@@ -231,7 +232,7 @@ class TestSearchStage:
                 {"chunk_id": 1, "content": "fts_result"}
             ]
 
-            cfg = {"top_k_search": 10}
+            cfg = SimpleNamespace(top_k_search=10)
             stage = SearchStage(cfg)
 
             await stage.run(mock_context, db=mock_db)
@@ -249,7 +250,7 @@ class TestSearchStage:
             ) as mock_get_embedding,
         ):
             mock_get_embedding.return_value = "not a list"
-            cfg = {"top_k_search": 10}
+            cfg = SimpleNamespace(top_k_search=10)
             stage = SearchStage(cfg)
 
             await stage.run(mock_context, db=mock_db)
@@ -258,7 +259,9 @@ class TestSearchStage:
 
     @pytest.mark.asyncio
     async def test_run_search_exception(self, mock_context, mock_db):
-        """Test SearchStage handles search exceptions gracefully."""
+        """Test SearchStage handles sqlite3.OperationalError gracefully."""
+        import sqlite3
+
         mock_context.queries = ["test query"]
 
         with (
@@ -270,9 +273,11 @@ class TestSearchStage:
             mock_get_embedding.return_value = [0.1, 0.2, 0.3]
             mock_repo_instance = MagicMock()
             mock_repo.return_value = mock_repo_instance
-            mock_repo_instance.vector_search.side_effect = Exception("Search error")
+            mock_repo_instance.vector_search.side_effect = sqlite3.OperationalError(
+                "DB error"
+            )
 
-            cfg = {"top_k_search": 10}
+            cfg = SimpleNamespace(top_k_search=10)
             stage = SearchStage(cfg)
 
             await stage.run(mock_context, db=mock_db)
@@ -285,18 +290,18 @@ class TestMqeStage:
 
     def test_init(self):
         """Test MqeStage initialization."""
-        cfg = {"use_mqe": True}
+        cfg = SimpleNamespace(use_mqe=True)
         llm = AsyncMock()
         stage = MqeStage(cfg, llm)
-        assert stage._cfg == cfg
-        assert stage._llm == llm
+        assert stage._cfg is cfg
+        assert stage._llm is llm
 
     @pytest.mark.asyncio
     async def test_run_success(self, mock_context, mock_llm):
         """Test successful execution of MqeStage."""
         mock_llm.expand_queries.return_value = ["mqe_query_1", "mqe_query_2"]
 
-        cfg = {"use_mqe": True}
+        cfg = SimpleNamespace(use_mqe=True)
         stage = MqeStage(cfg, mock_llm)
 
         await stage.run(mock_context)
@@ -306,7 +311,7 @@ class TestMqeStage:
     @pytest.mark.asyncio
     async def test_run_mqe_disabled(self, mock_context, mock_llm):
         """Test MqeStage with MQE disabled returns original query."""
-        cfg = {"use_mqe": False}
+        cfg = SimpleNamespace(use_mqe=False)
         stage = MqeStage(cfg, mock_llm)
 
         await stage.run(mock_context)
@@ -319,7 +324,7 @@ class TestMqeStage:
         """Test MqeStage propagates LLM exceptions (fail-fast)."""
         mock_llm.expand_queries.side_effect = Exception("LLM error")
 
-        cfg = {"use_mqe": True}
+        cfg = SimpleNamespace(use_mqe=True)
         stage = MqeStage(cfg, mock_llm)
 
         with pytest.raises(Exception, match="LLM error"):
@@ -330,7 +335,7 @@ class TestMqeStage:
         """Test MqeStage with empty expansion result."""
         mock_llm.expand_queries.return_value = []
 
-        cfg = {"use_mqe": True}
+        cfg = SimpleNamespace(use_mqe=True)
         stage = MqeStage(cfg, mock_llm)
 
         await stage.run(mock_context)
@@ -345,7 +350,7 @@ class TestRunMqe:
     async def test_mqe_enabled_success(self, mock_llm):
         """Test _run_mqe with MQE enabled and successful expansion."""
         mock_llm.expand_queries.return_value = ["expanded1", "expanded2"]
-        cfg = {"use_mqe": True}
+        cfg = SimpleNamespace(use_mqe=True)
 
         result = await _run_mqe("original query", cfg, mock_llm)
 
@@ -354,7 +359,7 @@ class TestRunMqe:
     @pytest.mark.asyncio
     async def test_mqe_disabled(self, mock_llm):
         """Test _run_mqe with MQE disabled."""
-        cfg = {"use_mqe": False}
+        cfg = SimpleNamespace(use_mqe=False)
 
         result = await _run_mqe("original query", cfg, mock_llm)
 
@@ -365,7 +370,7 @@ class TestRunMqe:
     async def test_mqe_exception_propagates(self, mock_llm):
         """Test _run_mqe propagates exceptions (fail-fast)."""
         mock_llm.expand_queries.side_effect = Exception("Error")
-        cfg = {"use_mqe": True}
+        cfg = SimpleNamespace(use_mqe=True)
 
         with pytest.raises(Exception, match="Error"):
             await _run_mqe("original query", cfg, mock_llm)
@@ -374,36 +379,31 @@ class TestRunMqe:
 class TestFusionStage:
     """Tests for FusionStage."""
 
-    def test_init(self):
-        """Test FusionStage initialization with custom rrf_k."""
-        cfg = {"rrf_k": 20}
-        stage = FusionStage(cfg)
-        assert stage._cfg == cfg
-        assert stage._rrf_k == 20
-
     def test_init_default_rrf_k(self):
         """Test FusionStage initialization with default rrf_k."""
-        cfg = {}
-        stage = FusionStage(cfg)
-        assert stage._cfg == cfg
+        stage = FusionStage()
         assert stage._rrf_k == 60
+
+    def test_init_custom_rrf_k(self):
+        """Test FusionStage initialization with custom rrf_k."""
+        stage = FusionStage(rrf_k=20)
+        assert stage._rrf_k == 20
 
     @pytest.mark.asyncio
     async def test_run_success(self, mock_context):
         """Test successful execution of FusionStage."""
         mock_context.search_results = [
             [
-                {"chunk_id": 1, "content": "result1"},
-                {"chunk_id": 2, "content": "result2"},
+                RawHit(chunk_id=1, content="result1"),
+                RawHit(chunk_id=2, content="result2"),
             ],
             [
-                {"chunk_id": 3, "content": "result3"},
-                {"chunk_id": 4, "content": "result4"},
+                RawHit(chunk_id=3, content="result3"),
+                RawHit(chunk_id=4, content="result4"),
             ],
         ]
 
-        cfg = {"rrf_k": 20}
-        stage = FusionStage(cfg)
+        stage = FusionStage(rrf_k=20)
 
         await stage.run(mock_context)
 
@@ -415,8 +415,7 @@ class TestFusionStage:
         """Test FusionStage with empty search results."""
         mock_context.search_results = []
 
-        cfg = {"rrf_k": 20}
-        stage = FusionStage(cfg)
+        stage = FusionStage()
 
         await stage.run(mock_context)
 
@@ -425,10 +424,9 @@ class TestFusionStage:
     @pytest.mark.asyncio
     async def test_run_single_result_list(self, mock_context):
         """Test FusionStage with single result list."""
-        mock_context.search_results = [[{"chunk_id": 1, "content": "result1"}]]
+        mock_context.search_results = [[RawHit(chunk_id=1, content="result1")]]
 
-        cfg = {"rrf_k": 20}
-        stage = FusionStage(cfg)
+        stage = FusionStage()
 
         await stage.run(mock_context)
 
@@ -438,33 +436,31 @@ class TestFusionStage:
     async def test_run_with_duplicates(self, mock_context):
         """Test FusionStage with duplicate chunk_ids across lists."""
         mock_context.search_results = [
-            [{"chunk_id": 1, "content": "result1"}],
-            [{"chunk_id": 1, "content": "result1_duplicate"}],
+            [RawHit(chunk_id=1, content="result1")],
+            [RawHit(chunk_id=1, content="result1_duplicate")],
         ]
 
-        cfg = {"rrf_k": 20}
-        stage = FusionStage(cfg)
+        stage = FusionStage()
 
         await stage.run(mock_context)
 
         assert len(mock_context.merged) == 1
-        assert mock_context.merged[0]["chunk_id"] == 1
+        assert mock_context.merged[0].chunk_id == 1
 
     @pytest.mark.asyncio
     async def test_run_rrf_scores_assigned(self, mock_context):
         """Test FusionStage assigns RRF scores to results."""
         mock_context.search_results = [
-            [{"chunk_id": 1, "content": "result1"}],
-            [{"chunk_id": 2, "content": "result2"}],
+            [RawHit(chunk_id=1, content="result1")],
+            [RawHit(chunk_id=2, content="result2")],
         ]
 
-        cfg = {"rrf_k": 60}
-        stage = FusionStage(cfg)
+        stage = FusionStage()
 
         await stage.run(mock_context)
 
         for result in mock_context.merged:
-            assert "rrf_score" in result
+            assert result.rrf_score > 0.0
 
 
 class TestRerankStage:
@@ -472,32 +468,32 @@ class TestRerankStage:
 
     def test_init(self):
         """Test RerankStage initialization."""
-        cfg = {"use_rerank": True}
+        cfg = SimpleNamespace(use_rerank=True)
         llm = AsyncMock()
         stage = RerankStage(cfg, llm)
-        assert stage._cfg == cfg
-        assert stage._llm == llm
+        assert stage._cfg is cfg
+        assert stage._llm is llm
 
     @pytest.mark.asyncio
     async def test_run_success(self, mock_context, mock_llm):
         """Test successful execution of RerankStage."""
         mock_context.merged = [
-            {"chunk_id": 1, "content": "result1", "title": "Title 1"},
-            {"chunk_id": 2, "content": "result2", "title": "Title 2"},
+            MergedHit(chunk_id=1, content="result1", title="Title 1"),
+            MergedHit(chunk_id=2, content="result2", title="Title 2"),
         ]
 
         mock_llm.cross_encoder_rerank.return_value = [
-            {"chunk_id": 2, "content": "result2", "title": "Title 2", "score": 0.9},
-            {"chunk_id": 1, "content": "result1", "title": "Title 1", "score": 0.8},
+            MergedHit(chunk_id=2, content="result2", title="Title 2"),
+            MergedHit(chunk_id=1, content="result1", title="Title 1"),
         ]
 
-        cfg = {
-            "use_rerank": True,
-            "rag_top_k": 5,
-            "max_chunks_per_doc": 3,
-            "top_k_rerank": 20,
-            "rag_min_score": 0.0,
-        }
+        cfg = SimpleNamespace(
+            use_rerank=True,
+            rag_top_k=5,
+            max_chunks_per_doc=3,
+            top_k_rerank=20,
+            rag_min_score=0.0,
+        )
         stage = RerankStage(cfg, mock_llm)
 
         await stage.run(mock_context)
@@ -509,15 +505,15 @@ class TestRerankStage:
     async def test_run_rerank_disabled(self, mock_context, mock_llm):
         """Test RerankStage with rerank disabled uses RRF order."""
         mock_context.merged = [
-            {"chunk_id": 1, "content": "result1", "url": "http://example.com/1"},
-            {"chunk_id": 2, "content": "result2", "url": "http://example.com/2"},
+            MergedHit(chunk_id=1, content="result1", url="http://example.com/1"),
+            MergedHit(chunk_id=2, content="result2", url="http://example.com/2"),
         ]
 
-        cfg = {
-            "use_rerank": False,
-            "rag_top_k": 5,
-            "max_chunks_per_doc": 3,
-        }
+        cfg = SimpleNamespace(
+            use_rerank=False,
+            rag_top_k=5,
+            max_chunks_per_doc=3,
+        )
         stage = RerankStage(cfg, mock_llm)
 
         await stage.run(mock_context)
@@ -529,18 +525,18 @@ class TestRerankStage:
     async def test_run_llm_exception(self, mock_context, mock_llm):
         """Test RerankStage propagates LLM exceptions (fail-fast)."""
         mock_context.merged = [
-            {"chunk_id": 1, "content": "result1", "url": "http://example.com/1"},
+            MergedHit(chunk_id=1, content="result1", url="http://example.com/1"),
         ]
 
         mock_llm.cross_encoder_rerank.side_effect = Exception("LLM error")
 
-        cfg = {
-            "use_rerank": True,
-            "rag_top_k": 5,
-            "max_chunks_per_doc": 3,
-            "top_k_rerank": 20,
-            "rag_min_score": 0.0,
-        }
+        cfg = SimpleNamespace(
+            use_rerank=True,
+            rag_top_k=5,
+            max_chunks_per_doc=3,
+            top_k_rerank=20,
+            rag_min_score=0.0,
+        )
         stage = RerankStage(cfg, mock_llm)
 
         with pytest.raises(Exception, match="LLM error"):
@@ -551,13 +547,13 @@ class TestRerankStage:
         """Test RerankStage with empty merged results."""
         mock_context.merged = []
 
-        cfg = {
-            "use_rerank": True,
-            "rag_top_k": 5,
-            "max_chunks_per_doc": 3,
-            "top_k_rerank": 20,
-            "rag_min_score": 0.0,
-        }
+        cfg = SimpleNamespace(
+            use_rerank=True,
+            rag_top_k=5,
+            max_chunks_per_doc=3,
+            top_k_rerank=20,
+            rag_min_score=0.0,
+        )
         stage = RerankStage(cfg, mock_llm)
 
         await stage.run(mock_context)
@@ -568,21 +564,21 @@ class TestRerankStage:
     async def test_run_deduplication(self, mock_context, mock_llm):
         """Test RerankStage applies deduplication."""
         mock_context.merged = [
-            {"chunk_id": 1, "content": "result1", "url": "http://example.com/1"},
-            {"chunk_id": 2, "content": "result2", "url": "http://example.com/1"},
-            {"chunk_id": 3, "content": "result3", "url": "http://example.com/1"},
-            {"chunk_id": 4, "content": "result4", "url": "http://example.com/1"},
+            MergedHit(chunk_id=1, content="result1", url="http://example.com/1"),
+            MergedHit(chunk_id=2, content="result2", url="http://example.com/1"),
+            MergedHit(chunk_id=3, content="result3", url="http://example.com/1"),
+            MergedHit(chunk_id=4, content="result4", url="http://example.com/1"),
         ]
 
         mock_llm.cross_encoder_rerank.return_value = mock_context.merged
 
-        cfg = {
-            "use_rerank": True,
-            "rag_top_k": 10,
-            "max_chunks_per_doc": 2,
-            "top_k_rerank": 20,
-            "rag_min_score": 0.0,
-        }
+        cfg = SimpleNamespace(
+            use_rerank=True,
+            rag_top_k=10,
+            max_chunks_per_doc=2,
+            top_k_rerank=20,
+            rag_min_score=0.0,
+        )
         stage = RerankStage(cfg, mock_llm)
 
         await stage.run(mock_context)
@@ -596,18 +592,16 @@ class TestRerank:
     @pytest.mark.asyncio
     async def test_rerank_enabled_success(self, mock_llm):
         """Test _rerank with rerank enabled and successful execution."""
-        merged = [
-            {"chunk_id": 1, "content": "result1", "url": "http://example.com/1"},
-        ]
+        merged = [MergedHit(chunk_id=1, content="result1", url="http://example.com/1")]
         mock_llm.cross_encoder_rerank.return_value = merged
 
-        cfg = {
-            "use_rerank": True,
-            "rag_top_k": 5,
-            "max_chunks_per_doc": 3,
-            "top_k_rerank": 20,
-            "rag_min_score": 0.0,
-        }
+        cfg = SimpleNamespace(
+            use_rerank=True,
+            rag_top_k=5,
+            max_chunks_per_doc=3,
+            top_k_rerank=20,
+            rag_min_score=0.0,
+        )
 
         result = await _rerank("test query", merged, cfg, mock_llm)
 
@@ -617,15 +611,15 @@ class TestRerank:
     async def test_rerank_disabled(self, mock_llm):
         """Test _rerank with rerank disabled."""
         merged = [
-            {"chunk_id": 1, "content": "result1", "url": "http://example.com/1"},
-            {"chunk_id": 2, "content": "result2", "url": "http://example.com/2"},
+            MergedHit(chunk_id=1, content="result1", url="http://example.com/1"),
+            MergedHit(chunk_id=2, content="result2", url="http://example.com/2"),
         ]
 
-        cfg = {
-            "use_rerank": False,
-            "rag_top_k": 1,
-            "max_chunks_per_doc": 3,
-        }
+        cfg = SimpleNamespace(
+            use_rerank=False,
+            rag_top_k=1,
+            max_chunks_per_doc=3,
+        )
 
         result = await _rerank("test query", merged, cfg, mock_llm)
 
@@ -635,18 +629,16 @@ class TestRerank:
     @pytest.mark.asyncio
     async def test_rerank_exception_propagates(self, mock_llm):
         """Test _rerank propagates LLM exceptions (fail-fast)."""
-        merged = [
-            {"chunk_id": 1, "content": "result1", "url": "http://example.com/1"},
-        ]
+        merged = [MergedHit(chunk_id=1, content="result1", url="http://example.com/1")]
         mock_llm.cross_encoder_rerank.side_effect = Exception("Error")
 
-        cfg = {
-            "use_rerank": True,
-            "rag_top_k": 5,
-            "max_chunks_per_doc": 3,
-            "top_k_rerank": 20,
-            "rag_min_score": 0.0,
-        }
+        cfg = SimpleNamespace(
+            use_rerank=True,
+            rag_top_k=5,
+            max_chunks_per_doc=3,
+            top_k_rerank=20,
+            rag_min_score=0.0,
+        )
 
         with pytest.raises(Exception, match="Error"):
             await _rerank("test query", merged, cfg, mock_llm)
@@ -664,8 +656,8 @@ class TestAugmentStage:
     async def test_run_success(self, mock_context):
         """Test successful execution of AugmentStage."""
         mock_context.reranked = [
-            {"chunk_id": 1, "content": "result1", "url": "http://example.com/1"},
-            {"chunk_id": 2, "content": "result2", "url": "http://example.com/2"},
+            RawHit(chunk_id=1, content="result1", url="http://example.com/1"),
+            RawHit(chunk_id=2, content="result2", url="http://example.com/2"),
         ]
 
         stage = AugmentStage()
@@ -691,12 +683,12 @@ class TestAugmentStage:
     async def test_run_with_title(self, mock_context):
         """Test AugmentStage with title field."""
         mock_context.reranked = [
-            {
-                "chunk_id": 1,
-                "content": "result1",
-                "url": "http://example.com/1",
-                "title": "Test Title",
-            }
+            RawHit(
+                chunk_id=1,
+                content="result1",
+                url="http://example.com/1",
+                title="Test Title",
+            ),
         ]
 
         stage = AugmentStage()
@@ -709,7 +701,7 @@ class TestAugmentStage:
     async def test_run_source_format(self, mock_context):
         """Test AugmentStage source format."""
         mock_context.reranked = [
-            {"chunk_id": 1, "content": "result1", "url": "http://example.com/1"}
+            RawHit(chunk_id=1, content="result1", url="http://example.com/1"),
         ]
 
         stage = AugmentStage()
@@ -725,8 +717,8 @@ class TestAugmentStage:
     async def test_run_separator(self, mock_context):
         """Test AugmentStage separator between chunks."""
         mock_context.reranked = [
-            {"chunk_id": 1, "content": "result1", "url": "http://example.com/1"},
-            {"chunk_id": 2, "content": "result2", "url": "http://example.com/2"},
+            RawHit(chunk_id=1, content="result1", url="http://example.com/1"),
+            RawHit(chunk_id=2, content="result2", url="http://example.com/2"),
         ]
 
         stage = AugmentStage()

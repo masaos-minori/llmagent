@@ -177,10 +177,10 @@ class RagPipeline:
             ctx = PipelineContext(query=query, history_context=history_context)
             self.last_timings = {}
             pre_augment_stages: list = [
-                MqeStage(self._cfg.__dict__, self._llm),
-                SearchStage(self._cfg.__dict__, self._http, self._embed_url),
-                FusionStage(self._cfg.__dict__),
-                RerankStage(self._cfg.__dict__, self._llm),
+                MqeStage(self._cfg, self._llm),
+                SearchStage(self._cfg, self._http, self._embed_url),
+                FusionStage(),
+                RerankStage(self._cfg, self._llm),
             ]
             for stage in pre_augment_stages:
                 t0 = time.perf_counter()
