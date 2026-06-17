@@ -15,13 +15,10 @@ Each entry format:
 
 ### BUG-01: McpServerHealthRegistry record_success/record_failure never called
 
-- **Type:** Implementation bug
+- **Type:** RESOLVED (Implementation bug — fixed)
 - **Impact scope:** `shared/tool_executor.py` (`ToolExecutor._raw_execute()`), `shared/mcp_config.py` (`McpServerHealthRegistry`)
-- **Statement A:** `McpServerHealthRegistry` is designed to transition servers through HEALTHY → DEGRADED → UNAVAILABLE states based on consecutive failures. `ToolExecutor._raw_execute()` checks `is_unavailable()` and blocks dispatch when UNAVAILABLE.
-- **Statement B:** `ToolExecutor._raw_execute()` does NOT call `record_failure()` on transport errors or `record_success()` on success. The failure counter is never incremented.
-- **Current safe interpretation:** DEGRADED and UNAVAILABLE states are never reached in practice. The health registry always returns HEALTHY. The `is_unavailable()` check at the start of `_raw_execute()` is effectively dead code.
-- **Recommended action:** Add `record_failure()` call after transport errors in `_raw_execute()` and `record_success()` call after successful responses. (`tool_executor.py:509-516`)
-- **Notes for AI reference:** Do not rely on health state transitions to detect degraded MCP servers. Use `/mcp` health probes or log monitoring instead.
+- **Resolution:** `ToolExecutor._raw_execute()` now calls `record_success()` on transport success and `record_failure()` on `TransportError`. The HEALTHY → DEGRADED → UNAVAILABLE state machine functions as designed. Test coverage added in `tests/test_tool_executor_routing.py` (`TestToolExecutorHealthGate`).
+- **Notes for AI reference:** Health state transitions are now active. A server reaching UNAVAILABLE will be blocked from dispatch by the `is_unavailable()` check. The registry resets to HEALTHY on the next successful call via `record_success()`.
 
 ---
 

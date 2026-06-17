@@ -79,12 +79,10 @@ Each entry format:
 
 ### BUG-01 (cross-reference): `McpServerHealthRegistry` state never transitions
 
-- **Type:** Implementation bug
+- **Type:** RESOLVED (Implementation bug — fixed)
 - **Impact scope:** `shared/tool_executor.py ToolExecutor._raw_execute()`, `shared/mcp_config.py McpServerHealthRegistry`
-- **Description:** `ToolExecutor._raw_execute()` checks `is_unavailable()` and blocks dispatch when UNAVAILABLE, but never calls `record_failure()` on transport error or `record_success()` on success. The HEALTHY→DEGRADED→UNAVAILABLE transition never occurs in practice. See full details in [`04_mcp_90_inconsistencies_and_known_issues.md §BUG-01`](04_mcp_90_inconsistencies_and_known_issues.md).
-- **Current safe interpretation:** `McpServerHealthRegistry` always returns HEALTHY. The `is_unavailable()` check in `_raw_execute()` is effectively dead code. Degraded MCP servers will not be blocked from dispatch.
-- **Recommended action:** Add `record_failure()` after transport errors and `record_success()` after successful responses in `_raw_execute()`. See `tool_executor.py:509-516`.
-- **Notes for AI reference:** Do not rely on `McpServerHealthRegistry` to detect or isolate failing MCP servers. Use `/mcp` health probes or log monitoring instead.
+- **Resolution:** `record_failure()` and `record_success()` are now called in `_raw_execute()`. The HEALTHY → DEGRADED → UNAVAILABLE state machine is active. See full details in [`04_mcp_90_inconsistencies_and_known_issues.md §BUG-01`](04_mcp_90_inconsistencies_and_known_issues.md).
+- **Notes for AI reference:** Health state transitions are now functional. Servers accumulating transport failures transition to DEGRADED then UNAVAILABLE and are blocked from dispatch until a successful call resets them to HEALTHY.
 
 ---
 
