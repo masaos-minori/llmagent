@@ -51,7 +51,7 @@ class WorkflowEngine:
         except (WorkflowHaltError, WorkflowTimeoutError):
             self._store.update_task_status(task.task_id, "halted")
             raise
-        except Exception:
+        except Exception:  # noqa: BLE001 — catch-all to mark task failed before re-raising
             self._store.update_task_status(task.task_id, "failed")
             raise
         self._store.update_task_status(task.task_id, "completed")
@@ -69,7 +69,7 @@ class WorkflowEngine:
                 return
             except WorkflowTimeoutError:
                 raise
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — catch-all to apply retry/halt logic before re-raising
                 if attempt >= policy.max_attempts:
                     logger.error(
                         "Task %s: execute halted after %d attempts: %s",
@@ -116,7 +116,7 @@ class WorkflowEngine:
             raise WorkflowTimeoutError(
                 f"stage {stage_id!r} timed out after {timeout}s"
             ) from exc
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — catch-all to persist failure state before re-raising
             self._store.finish_attempt(attempt_rec.attempt_id, "failed", str(exc))
             raise
 
