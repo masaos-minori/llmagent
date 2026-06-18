@@ -56,17 +56,16 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ## Open Questions
 
-### OQ-1: External RAG service — authentication and error handling undefined
+### OQ-1: External RAG service — authentication and error handling (RESOLVED)
 
-- **Type:** OPEN_QUESTION
-- **Impact scope:** `RagPipeline._augment_http()`, `cfg.rag_service_url`
-- **Description:** When `rag_service_url` is configured, `_augment_http()` delegates to the
-  external service. No authentication mechanism is specified. Error handling (timeout, 5xx,
-  malformed response) falls back to in-process pipeline, but retry policy is unspecified.
-- **Current safe interpretation:** External RAG delegation works for simple setups; production
-  use with authentication requirements is unsupported.
-- **Recommended action:** Define authentication headers and retry policy before enabling in production.
-- **Source reference:** `05_ref-rag.md §1.1`, `03_spec_rag.md §13`
+- **Type:** RESOLVED
+- **Impact scope:** `RagPipeline._augment_http()`, `cfg.rag_service_url`, `cfg.rag_auth_token`
+- **Resolution:** Implemented in `rag/pipeline_service.py` and `shared/types.py`.
+  - **Auth:** optional `X-RAG-Token` header sent when `rag_auth_token != ""` (default `""` = no auth; backward-compatible)
+  - **Timeout:** 10.0 seconds per HTTP attempt (connect + read)
+  - **Retry:** up to 2 retries on 5xx or transport errors; exponential backoff (1s after first failure, 2s after second); no retry on 4xx client errors or parse errors
+  - **Fallback:** `None` returned from `call_rag_service()` → in-process pipeline; empty string `""` is accepted as a valid empty-result response
+- **Source reference:** `rag/pipeline_service.py`, `shared/types.py`, `mcp/rag_pipeline/models.py`
 
 ---
 

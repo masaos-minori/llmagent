@@ -227,6 +227,7 @@ class RagPipeline:
             rag_url,
             query,
             history_context,
+            auth_token=self._cfg.rag_auth_token,
             set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
         )
 

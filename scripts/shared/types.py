@@ -54,6 +54,7 @@ class RagConfig(Protocol):
     use_rrf: bool
     use_search: bool
     rag_service_url: str
+    rag_auth_token: str
     use_refiner: bool
     refiner_max_tokens: int
     refiner_max_chars_per_chunk: int

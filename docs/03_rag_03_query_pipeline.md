@@ -72,6 +72,23 @@ RagPipeline(
 | `_augment_refiner(reranked, query) -> str \| None` | Compress chunks via `RagLLM.refine_context`; return `None` on empty/error |
 | `_format_chunks(reranked) -> str` (static) | Format as `[Source: title \| url]\ncontent` blocks with `[RAG_CONTEXT_START]`/`[RAG_CONTEXT_END]` markers |
 
+### HTTP Mode (`rag_service_url`)
+
+When `rag_service_url` is non-empty, `augment()` delegates to the external RAG service via
+`call_rag_service()` in `rag/pipeline_service.py` instead of running the in-process pipeline.
+
+| Behavior | Detail |
+|---|---|
+| Auth | `X-RAG-Token: {rag_auth_token}` header added when `rag_auth_token != ""` (default: no header) |
+| Timeout | 10.0 seconds per HTTP attempt (connect + read) |
+| Retry | Up to 2 retries on 5xx or transport errors; exponential backoff (1s, 2s); no retry on 4xx |
+| Fallback | `None` returned → in-process pipeline; `""` (empty context) → accepted as valid result |
+| Anti-loop | MCP adapter hardcodes `rag_service_url=""` so in-process `augment()` never re-delegates |
+
+Config fields in `RagConfig` Protocol (`shared/types.py`):
+- `rag_service_url: str` — remote endpoint URL; empty string disables HTTP mode
+- `rag_auth_token: str` — optional bearer token for `X-RAG-Token` header; `""` = no auth (default)
+
 ---
 
 ## 3. PipelineStage Protocol (`rag/stage.py`)

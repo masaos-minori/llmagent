@@ -50,6 +50,7 @@ class RagPipelineConfig:
     refiner_max_tokens: int = 512
     refiner_max_chars_per_chunk: int = 800
     refiner_timeout: float = 30.0
+    rag_auth_token: str = ""
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> RagPipelineConfig:
@@ -70,6 +71,7 @@ class RagPipelineConfig:
             refiner_max_tokens=int(d.get("refiner_max_tokens", 512)),
             refiner_max_chars_per_chunk=int(d.get("refiner_max_chars_per_chunk", 800)),
             refiner_timeout=float(d.get("refiner_timeout", 30.0)),
+            rag_auth_token=str(d.get("rag_auth_token", "")),
         )
 
     @classmethod
@@ -91,6 +93,7 @@ def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> SimpleNamespace:
         use_refiner=bool(cfg.use_refiner),
         use_search=True,  # always True in MCP mode; checked in augment()
         rag_service_url="",  # prevent HTTP loop when augment() is called in-process
+        rag_auth_token="",
         top_k_search=int(cfg.top_k_search),
         top_k_rerank=int(cfg.top_k_rerank),
         rag_top_k=int(cfg.rag_top_k),

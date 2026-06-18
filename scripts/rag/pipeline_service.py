@@ -5,6 +5,7 @@ Contains the HTTP delegate logic for external RAG pipeline services.
 Imported by rag/pipeline.py during orchestrator construction.
 """
 
+import asyncio
 import logging
 from collections.abc import Callable
 
@@ -15,6 +16,18 @@ from rag.models_data import TwoStageFetchResult
 
 logger = logging.getLogger(__name__)
 
+_MAX_ATTEMPTS = 3
+
+
+def _log_retry(rag_url: str, attempt: int, error: Exception) -> None:
+    logger.warning(
+        "RAG service call failed (%s) attempt %d/%d: %s",
+        rag_url,
+        attempt + 1,
+        _MAX_ATTEMPTS,
+        error,
+    )
+
 
 async def call_rag_service(
     http: httpx.AsyncClient,
@@ -22,48 +35,73 @@ async def call_rag_service(
     query: str,
     history_context: str,
     *,
+    auth_token: str = "",
     set_fetch_result: Callable[[TwoStageFetchResult], None],
 ) -> str | None:
     """Delegate to external RAG service.
 
     Returns context string on success, empty string on empty results,
     or None on failure (triggering in-process fallback).
+    Retries up to _MAX_ATTEMPTS times on 5xx or transport errors with
+    exponential backoff.  4xx and parse errors are not retried.
     Stores hits in last_fetch_result via the callback.
     """
-    try:
-        resp = await http.post(
-            f"{rag_url}/v1/search",
-            json={"query": query, "history_context": history_context},
-        )
-        resp.raise_for_status()
-        body = orjson.loads(resp.content)
-        hits = body.get("selected_hits", [])
-        if hits:
-            set_fetch_result(
-                TwoStageFetchResult(
-                    hits=hits,
-                    min_score_applied=0.0,
-                    max_chunks_per_doc=0,
+    headers: dict[str, str] = {}
+    if auth_token:
+        headers["X-RAG-Token"] = auth_token
+
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            resp = await http.post(
+                f"{rag_url}/v1/search",
+                json={"query": query, "history_context": history_context},
+                headers=headers,
+                timeout=10.0,
+            )
+            resp.raise_for_status()
+            body = orjson.loads(resp.content)
+            hits = body.get("selected_hits", [])
+            if hits:
+                set_fetch_result(
+                    TwoStageFetchResult(
+                        hits=hits,
+                        min_score_applied=0.0,
+                        max_chunks_per_doc=0,
+                    )
                 )
+            context_raw = body.get("context")
+            if context_raw is None:
+                return ""
+            if not isinstance(context_raw, str):
+                raise ValueError(
+                    f"RAG service 'context' field must be str,"
+                    f" got {type(context_raw).__name__}"
+                )
+            return context_raw
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code < 500:
+                logger.warning(
+                    "RAG service client error (%s) %s, falling back to in-process",
+                    rag_url,
+                    e,
+                )
+                return None
+            _log_retry(rag_url, attempt, e)
+        except httpx.TransportError as e:
+            _log_retry(rag_url, attempt, e)
+        except (orjson.JSONDecodeError, ValueError) as e:
+            logger.warning(
+                "RAG service parse error (%s), falling back to in-process: %s",
+                rag_url,
+                e,
             )
-        context_raw = body.get("context")
-        if context_raw is None:
-            return ""
-        if not isinstance(context_raw, str):
-            raise ValueError(
-                f"RAG service 'context' field must be str,"
-                f" got {type(context_raw).__name__}"
-            )
-        return context_raw
-    except (
-        httpx.HTTPStatusError,
-        httpx.RequestError,
-        orjson.JSONDecodeError,
-        ValueError,
-    ) as e:
-        logger.warning(
-            "RAG service call failed (%s), falling back to in-process: %s",
-            rag_url,
-            e,
-        )
-        return None
+            return None
+        if attempt < _MAX_ATTEMPTS - 1:
+            await asyncio.sleep(min(2**attempt, 5))
+
+    logger.warning(
+        "RAG service (%s) failed after %d attempts, falling back to in-process",
+        rag_url,
+        _MAX_ATTEMPTS,
+    )
+    return None
