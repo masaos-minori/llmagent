@@ -10,7 +10,7 @@ from typing import Any
 
 import orjson
 import pytest
-from shared.logger import Logger, _ContextFilter, _JsonFormatter
+from shared.logger import Logger, _ContextFilter, _fallback_logger, _JsonFormatter
 
 
 class TestContextFilter:
@@ -220,3 +220,17 @@ class TestLoggerHandlerDuplication:
         # Should not add duplicate handlers
         handler_count = len(second._logger.handlers)
         assert handler_count <= 2  # FileHandler + StreamHandler (max 2)
+
+
+class TestLoggerFileFallback:
+    def test_file_failure_emits_warning(self, tmp_path: Path) -> None:
+        """When file logging fails, a WARNING is emitted via the fallback logger."""
+        from unittest.mock import patch
+
+        log_file = str(tmp_path / "nonexistent_dir" / "test.log")
+
+        with patch.object(_fallback_logger, "warning") as mock_warn:
+            Logger("fallback_test", log_file)
+            mock_warn.assert_called_once()
+            msg = mock_warn.call_args[0][0]
+            assert "Cannot open log file" in msg

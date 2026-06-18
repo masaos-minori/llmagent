@@ -19,6 +19,11 @@ import sys
 from contextvars import ContextVar
 from typing import Any
 
+_fallback_logger = logging.getLogger("shared.logger.fallback")
+if not _fallback_logger.handlers:
+    _fallback_logger.addHandler(logging.StreamHandler(sys.stderr))
+    _fallback_logger.setLevel(logging.WARNING)
+
 
 def _require_str(value: Any, name: str) -> None:
     """Validate that value is a non-empty string; raises ValueError otherwise."""
@@ -114,9 +119,10 @@ class Logger:
             fh.setFormatter(formatter)
             self._logger.addHandler(fh)
         except OSError as exc:
-            sys.stderr.write(
-                f"[Logger] Cannot open log file {log_file}: {exc}"
-                " — falling back to stderr only.\n",
+            _fallback_logger.warning(
+                "Cannot open log file %s: %s — falling back to stream handler only",
+                log_file,
+                exc,
             )
         sh = logging.StreamHandler(sys.stderr)
         sh.setFormatter(formatter)

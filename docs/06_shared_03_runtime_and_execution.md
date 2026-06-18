@@ -93,7 +93,7 @@ class Logger:
 - Configures `FileHandler` + `StreamHandler` automatically (`propagate=False` prevents duplication)
 - `structured_log=True` → JSON Lines format for log file
 - Context injection: `set_context(turn_id="T001", session_id=42)` adds fields to all subsequent log lines
-- File write errors → silent fallback (StreamHandler only; no exception raised)
+- File write errors → WARNING logged via `shared.logger.fallback` logger (visible on stderr), then falls back to StreamHandler only; no exception raised
 - Log messages must be in **English only** (no Japanese)
 
 ---
