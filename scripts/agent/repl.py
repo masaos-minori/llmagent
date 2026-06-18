@@ -35,6 +35,7 @@ from shared.logger import Logger
 from agent.cli_view import CLIView
 from agent.commands.registry import CommandRegistry
 from agent.context import AgentContext
+from agent.diagnostic_store import DiagnosticStore
 from agent.repl_health import watchdog_loop
 from agent.services.db_maintenance_service import DbMaintenanceService
 
@@ -85,6 +86,7 @@ class AgentREPL:
         self._view = CLIView(AgentREPL.SLASH_COMMANDS)
         self._cmds: CommandRegistry | None = None
         self._orchestrator: Orchestrator | None = None
+        self._diagnostic_store = DiagnosticStore()
 
     @property
     def _prompt(self) -> str:
@@ -209,6 +211,16 @@ class AgentREPL:
             diag_path = Path(db_cfg.session_db_path).parent / "diagnostics.jsonl"
             with open(diag_path, "a") as f:
                 f.write(json.dumps(summary) + "\n")
+
+            # Also persist to queryable DiagnosticStore
+            try:
+                self._diagnostic_store.save(
+                    session_id,
+                    kind="session_summary",
+                    content=json.dumps(summary),
+                )
+            except (RuntimeError, sqlite3.Error) as e:
+                logger.debug("DiagnosticStore.save failed: %s", e)
 
         except (OSError, sqlite3.Error):
             logger.debug("Failed to persist session diagnostics", exc_info=True)
