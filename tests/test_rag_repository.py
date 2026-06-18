@@ -5,6 +5,7 @@ deduplicate_chunks, _dedup_hits, and FTS query building.
 
 from __future__ import annotations
 
+import sqlite3
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,6 +19,239 @@ from rag.repository import (
 )
 from rag.types import RawHit as _RawHit
 from rag.utils import cosine_sim
+
+# ── FTS5 fallback to content when normalized_content IS NULL ──────────────────
+
+
+def _make_test_repo() -> RagRepository:
+    """Create an in-memory SQLite DB with the RAG schema (no vec) and return a repository."""
+    conn = sqlite3.connect(":memory:")
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.row_factory = sqlite3.Row
+
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS documents (
+            doc_id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            url                TEXT    NOT NULL UNIQUE,
+            title              TEXT,
+            lang               TEXT    NOT NULL CHECK (lang IN ('ja', 'en')),
+            fetched_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+            etag               TEXT,
+            last_modified      TEXT,
+            chunking_strategy  TEXT    NOT NULL DEFAULT 'text'
+        );
+        CREATE TABLE IF NOT EXISTS chunks (
+            chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            doc_id             INTEGER NOT NULL
+                               REFERENCES documents(doc_id) ON DELETE CASCADE,
+            chunk_index        INTEGER NOT NULL,
+            content            TEXT    NOT NULL,
+            normalized_content TEXT
+        );
+        CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+            content,
+            content       = 'chunks',
+            content_rowid = 'chunk_id',
+            tokenize      = 'unicode61'
+        );
+        CREATE TRIGGER IF NOT EXISTS chunks_ai
+        AFTER INSERT ON chunks BEGIN
+            INSERT INTO chunks_fts (rowid, content)
+            VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
+        END;
+        CREATE TRIGGER IF NOT EXISTS chunks_ad
+        AFTER DELETE ON chunks BEGIN
+            INSERT INTO chunks_fts (chunks_fts, rowid, content)
+            VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
+        END;
+        CREATE TRIGGER IF NOT EXISTS chunks_au
+        AFTER UPDATE ON chunks BEGIN
+            INSERT INTO chunks_fts (chunks_fts, rowid, content)
+            VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
+            INSERT INTO chunks_fts (rowid, content)
+            VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
+        END;
+        """
+    )
+    conn.commit()
+
+    class _TestHelper:
+        def fetchall(self, sql, params=()):
+            return list(conn.execute(sql, params).fetchall())
+
+    return RagRepository(_TestHelper())
+
+
+class TestFtsFallback:
+    def test_english_fts_fallback(self) -> None:
+        """FTS5 matches raw content when normalized_content is NULL (English)."""
+        conn = sqlite3.connect(":memory:")
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.row_factory = sqlite3.Row
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS documents (
+                doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT NOT NULL UNIQUE, title TEXT, lang TEXT NOT NULL CHECK (lang IN ('ja', 'en')),
+                fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS chunks (
+                chunk_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_id INTEGER NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+                chunk_index INTEGER NOT NULL, content TEXT NOT NULL, normalized_content TEXT
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+                content, content = 'chunks', content_rowid = 'chunk_id', tokenize = 'unicode61'
+            );
+            CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN
+                INSERT INTO chunks_fts (rowid, content)
+                VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
+            END;
+            CREATE TRIGGER chunks_ad AFTER DELETE ON chunks BEGIN
+                INSERT INTO chunks_fts (chunks_fts, rowid, content)
+                VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
+            END;
+            """
+        )
+        conn.commit()
+
+        conn.execute(
+            "INSERT INTO documents (url, title, lang) VALUES (?, ?, ?)",
+            ("http://example.com/sql", "SQL docs", "en"),
+        )
+        doc_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.execute(
+            "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content) VALUES (?, ?, ?, ?)",
+            (doc_id, 0, "SELECT * FROM users WHERE id = 1", None),
+        )
+        conn.commit()
+
+        class _TestHelper:
+            def fetchall(self, sql, params=()):
+                return list(conn.execute(sql, params).fetchall())
+
+        repo = RagRepository(_TestHelper())
+        results = repo.fts_search("SELECT", top_k=10)
+        assert len(results) >= 1
+        assert "SELECT * FROM users WHERE id = 1" in results[0].content
+
+    def test_code_fts_fallback(self) -> None:
+        """FTS5 matches raw content when normalized_content is NULL (code)."""
+        conn = sqlite3.connect(":memory:")
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.row_factory = sqlite3.Row
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS documents (
+                doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT NOT NULL UNIQUE, title TEXT, lang TEXT NOT NULL CHECK (lang IN ('ja', 'en')),
+                fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS chunks (
+                chunk_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_id INTEGER NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+                chunk_index INTEGER NOT NULL, content TEXT NOT NULL, normalized_content TEXT
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+                content, content = 'chunks', content_rowid = 'chunk_id', tokenize = 'unicode61'
+            );
+            CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN
+                INSERT INTO chunks_fts (rowid, content)
+                VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
+            END;
+            CREATE TRIGGER chunks_ad AFTER DELETE ON chunks BEGIN
+                INSERT INTO chunks_fts (chunks_fts, rowid, content)
+                VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
+            END;
+            """
+        )
+        conn.commit()
+
+        conn.execute(
+            "INSERT INTO documents (url, title, lang) VALUES (?, ?, ?)",
+            ("http://example.com/code", "Code sample", "en"),
+        )
+        doc_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.execute(
+            "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content) VALUES (?, ?, ?, ?)",
+            (doc_id, 0, "def foo():\n    return 42", None),
+        )
+        conn.commit()
+
+        class _TestHelper:
+            def fetchall(self, sql, params=()):
+                return list(conn.execute(sql, params).fetchall())
+
+        repo = RagRepository(_TestHelper())
+        results = repo.fts_search("return 42", top_k=10)
+        assert len(results) >= 1
+        assert "def foo():" in results[0].content or "return 42" in results[0].content
+
+    def test_normalized_content_takes_precedence(self) -> None:
+        """FTS5 index uses normalized_content when present (COALESCE precedence)."""
+        conn = sqlite3.connect(":memory:")
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.row_factory = sqlite3.Row
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS documents (
+                doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT NOT NULL UNIQUE, title TEXT, lang TEXT NOT NULL CHECK (lang IN ('ja', 'en')),
+                fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS chunks (
+                chunk_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_id INTEGER NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+                chunk_index INTEGER NOT NULL, content TEXT NOT NULL, normalized_content TEXT
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+                content, content = 'chunks', content_rowid = 'chunk_id', tokenize = 'unicode61'
+            );
+            CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN
+                INSERT INTO chunks_fts (rowid, content)
+                VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
+            END;
+            CREATE TRIGGER chunks_ad AFTER DELETE ON chunks BEGIN
+                INSERT INTO chunks_fts (chunks_fts, rowid, content)
+                VALUES ('delete', old.chunk_id, COALESCE(old.normalized_content, old.content));
+            END;
+            """
+        )
+        conn.commit()
+
+        conn.execute(
+            "INSERT INTO documents (url, title, lang) VALUES (?, ?, ?)",
+            ("http://example.com/normal", "Normalization test", "en"),
+        )
+        doc_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.execute(
+            "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content) VALUES (?, ?, ?, ?)",
+            (doc_id, 0, "raw text with stopwords", "better text without noise"),
+        )
+        conn.commit()
+
+        class _TestHelper:
+            def fetchall(self, sql, params=()):
+                return list(conn.execute(sql, params).fetchall())
+
+        repo = RagRepository(_TestHelper())
+
+        # "better" matches normalized_content → should find the chunk
+        results_better = repo.fts_search("better", top_k=10)
+        assert len(results_better) >= 1
+
+        # Both "raw" and "noise" appear in the underlying chunks.content column.
+        # The FTS5 trigger indexes COALESCE(normalized_content, content), so
+        # normalized_content is what gets indexed. Verify that the indexed content
+        # matches normalized_content by checking that the returned chunk's content
+        # column still holds the original raw value (proving the index and table
+        # are separate).
+        assert results_better[0].content == "raw text with stopwords"
 
 
 def _hit(
