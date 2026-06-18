@@ -32,6 +32,17 @@ from agent.tool_result_formatter import (
 )
 from agent.tool_scheduler import build_execution_groups
 
+_serialization_stats: dict[str, int] = {
+    "total_events": 0,
+    "total_tools_affected": 0,
+    "tools_affected_last_round": 0,
+}
+
+
+def get_serialization_stats() -> dict[str, int]:
+    """Return current serialization statistics."""
+    return dict(_serialization_stats)
+
 if TYPE_CHECKING:
     from agent.context import AgentContext
 
@@ -175,35 +186,19 @@ async def _execute_with_dag(
                 is_write=name in WRITE_TOOLS or name in DELETE_TOOLS,
             )
 
-    groups = build_execution_groups(approved_calls, tool_meta)
-    serial_tools_count = 0
-    for group in groups:
-        if len(group) == 1:
-            name = group[0]["function"]["name"]
-            meta = tool_meta.get(name)
-            if meta is not None and meta.requires_serial:
-                logger.info(
-                    "ROUND_SERIALIZATION: triggered by %s (requires_serial)"
-                    " — 1 tool serialized in this round",
-                    name,
-                )
-                serial_tools_count += 1
-        elif len(group) > 1:
-            names = [tc["function"]["name"] for tc in group]
-            first_meta = tool_meta.get(names[0])
-            scope = first_meta.resource_scope if first_meta else ""
-            reason = "resource_scope_conflict" if scope else "is_write_overlap"
-            logger.info(
-                "ROUND_SERIALIZATION: triggered by %s (%s)"
-                " — %d tools serialized in this round",
-                names[0],
-                reason,
-                len(group),
-            )
-            serial_tools_count += len(group)
-    if serial_tools_count > 0:
-        ctx.services.serialization_events += 1
-        ctx.services.serialization_tools_affected += serial_tools_count
+  groups, metadata = build_execution_groups(approved_calls, tool_meta)
+    serialization_events = metadata.serialization_events
+    if serialization_events:
+        total_affected = sum(e.tools_count for e in serialization_events)
+        _serialization_stats["total_events"] += len(serialization_events)
+        _serialization_stats["total_tools_affected"] += total_affected
+        _serialization_stats["tools_affected_last_round"] = total_affected
+        logger.info(
+            "Serialization impact: %d tools grouped serially (normally would run in parallel)",
+            total_affected,
+        )
+    else:
+        _serialization_stats["tools_affected_last_round"] = 0
     results: list[Any] = []
     for group in groups:
         group_results = await asyncio.gather(

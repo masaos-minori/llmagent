@@ -235,6 +235,32 @@ tail -100 /opt/llm/logs/git-mcp.log
 
 ---
 
+### Side-Effect Serialization
+
+When a round contains side-effect tools (write operations), the scheduler groups them to prevent concurrent modifications. This is intentional for safety but reduces parallelism.
+
+**Serialization triggers:**
+
+| Trigger | Condition | Effect |
+|---|---|---|
+| `requires_serial` | Tool metadata has `requires_serial=true` | Tool runs alone in its own single-element group |
+| `resource_scope_conflict` | Multiple writes to same resource scope | All tools in that scope run serially |
+| `is_write_overlap` | Multiple writes without specific scope | All write tools grouped together (write-first) |
+
+**Log format:**
+```
+ROUND_SERIALIZATION: triggered by shell_run (requires_serial) — 1 tools serialized in this round
+Serialization impact: 3 tools grouped serially (normally would run in parallel)
+```
+
+**Viewing stats:**
+Run `/mcp` to see serialization statistics at the bottom of the MCP status output.
+
+**Why this matters:**
+Serialization reduces parallelism but prevents race conditions on shared resources. Before attempting to optimize parallelism, review serialization logs to understand which tools and scopes trigger grouping most frequently.
+
+---
+
 ## Settings with High Operational Impact
 
 | Setting | Impact |

@@ -10,15 +10,34 @@ Groups tool calls so that:
 
 from __future__ import annotations
 
+import logging
+from dataclasses import dataclass, field
+
 from shared.tool_spec import ToolSpec
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _SerializationEvent:
+    trigger_tool: str
+    reason: str
+    tools_count: int
+
+
+@dataclass
+class _GroupMetadata:
+    total_tools: int
+    total_groups: int
+    serialization_events: list[_SerializationEvent] = field(default_factory=list)
 
 
 def build_execution_groups(
     tool_calls: list[dict],
     tool_meta: dict[str, ToolSpec],  # tool_name -> ToolSpec
-) -> list[list[dict]]:
-    """Return an ordered list of groups; each group runs concurrently within itself,
-    groups are executed sequentially.
+) -> tuple[list[list[dict]], _GroupMetadata]:
+    """Return (groups, metadata) where groups is an ordered list of execution groups
+    and metadata contains serialization event information.
 
     Rules:
     1. requires_serial=True tools form their own single-element group (acts as barrier)
@@ -55,4 +74,42 @@ def build_execution_groups(
         groups.append(write_first)  # write-first group
     if parallel:
         groups.append(parallel)
-    return groups
+
+    metadata = _GroupMetadata(
+        total_tools=len(tool_calls),
+        total_groups=len(groups),
+    )
+
+    for tc in serial_barrier:
+        name = tc["function"]["name"]
+        metadata.serialization_events.append(_SerializationEvent(
+            trigger_tool=name,
+            reason="requires_serial",
+            tools_count=1,
+        ))
+
+    for scope, scope_tcs in resource_groups.items():
+        trigger = scope_tcs[0]["function"]["name"]
+        metadata.serialization_events.append(_SerializationEvent(
+            trigger_tool=trigger,
+            reason="resource_scope_conflict",
+            tools_count=len(scope_tcs),
+        ))
+
+    if write_first:
+        trigger = write_first[0]["function"]["name"]
+        metadata.serialization_events.append(_SerializationEvent(
+            trigger_tool=trigger,
+            reason="is_write_overlap",
+            tools_count=len(write_first),
+        ))
+
+    for evt in metadata.serialization_events:
+        logger.info(
+            "ROUND_SERIALIZATION: triggered by %s (%s) — %d tools serialized in this round",
+            evt.trigger_tool,
+            evt.reason,
+            evt.tools_count,
+        )
+
+    return groups, metadata
