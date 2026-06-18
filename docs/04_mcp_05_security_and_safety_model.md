@@ -221,6 +221,27 @@ shell_sandbox_backend = "none"   # or "firejail"
 | `path_denylist` (github-mcp) | Fail-open (no block by default) | All paths allowed |
 | `protected_branches` (github-mcp) | Fail-open (no block by default) | All branches allowed |
 
+### Startup Audit
+
+`audit_security_defaults()` in `agent/repl_health.py` runs at agent startup and logs a
+security posture summary. It checks the following settings by loading each server's config file:
+
+| Setting | Server config file | Checked |
+|---|---|---|
+| `shell_sandbox_backend` | `shell_mcp_server.toml` | warns when `"none"` |
+| `command_allowlist` | `shell_mcp_server.toml` | warns when empty (fail-closed) |
+| `db_allowlist` | `sqlite_mcp_server.toml` | warns when empty (fail-closed) |
+| `allowed_repo_paths` | `git_mcp_server.toml` | warns when empty (fail-closed) |
+
+At the end of the check, a summary line is logged:
+
+```
+Security posture summary — fail-closed (deny when empty): <list>; fail-open (allow when empty): <list>
+```
+
+Fail-closed settings being empty is the intended safe default (access is denied). Fail-open
+settings being empty are highlighted as warnings because they allow unrestricted access.
+
 ---
 
 ## Dry-Run Support

@@ -417,6 +417,67 @@ class TestAuditSecurityDefaults:
         with pytest.raises(RuntimeError, match="Production mode requires auth_token"):
             audit_security_defaults(ctx, production_mode=True)
 
+    def test_shell_config_load_failure_is_silenced(self) -> None:
+        """ShellConfig.load() raising an exception does not propagate."""
+        ctx = self._make_ctx()
+        with patch(
+            "agent.repl_health.ShellConfig.load", side_effect=OSError("no file")
+        ):
+            warnings = audit_security_defaults(ctx, production_mode=False)
+        shell_warnings = [w for w in warnings if "shell" in w.lower()]
+        assert shell_warnings == []
+
+    def test_sqlite_config_empty_db_allowlist_warns(self) -> None:
+        """sqlite.db_allowlist empty triggers a fail-closed warning."""
+        from mcp.sqlite.models import SqliteConfig
+
+        ctx = self._make_ctx()
+        empty_cfg = SqliteConfig(db_allowlist=[])
+        with patch("agent.repl_health.SqliteConfig.load", return_value=empty_cfg):
+            with patch("agent.repl_health.ShellConfig.load", side_effect=OSError):
+                with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
+                    warnings = audit_security_defaults(ctx, production_mode=False)
+        assert any("sqlite.db_allowlist" in w for w in warnings)
+        assert any("fail-closed" in w for w in warnings)
+
+    def test_git_config_empty_allowed_repo_paths_warns(self) -> None:
+        """git.allowed_repo_paths empty triggers a fail-closed warning."""
+        from mcp.git.models import GitConfig
+
+        ctx = self._make_ctx()
+        empty_cfg = GitConfig(allowed_repo_paths=[])
+        with patch("agent.repl_health.GitConfig.load", return_value=empty_cfg):
+            with patch("agent.repl_health.ShellConfig.load", side_effect=OSError):
+                with patch("agent.repl_health.SqliteConfig.load", side_effect=OSError):
+                    warnings = audit_security_defaults(ctx, production_mode=False)
+        assert any("git.allowed_repo_paths" in w for w in warnings)
+
+    def test_shell_sandbox_none_warns(self) -> None:
+        """shell_sandbox_backend=none triggers a warning."""
+        from mcp.shell.models import ShellConfig as ShellCfg
+
+        ctx = self._make_ctx()
+        cfg = ShellCfg(shell_sandbox_backend="none", command_allowlist=["ls"])
+        with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
+            with patch("agent.repl_health.SqliteConfig.load", side_effect=OSError):
+                with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
+                    warnings = audit_security_defaults(ctx, production_mode=False)
+        assert any("shell_sandbox_backend=none" in w for w in warnings)
+
+    def test_security_posture_summary_included(self) -> None:
+        """Summary line appended when any fail-closed or fail-open setting is empty."""
+        from mcp.git.models import GitConfig
+
+        ctx = self._make_ctx()
+        empty_git = GitConfig(allowed_repo_paths=[])
+        with patch("agent.repl_health.GitConfig.load", return_value=empty_git):
+            with patch("agent.repl_health.ShellConfig.load", side_effect=OSError):
+                with patch("agent.repl_health.SqliteConfig.load", side_effect=OSError):
+                    warnings = audit_security_defaults(ctx, production_mode=False)
+        summary_lines = [w for w in warnings if "Security posture summary" in w]
+        assert len(summary_lines) == 1
+        assert "fail-closed" in summary_lines[0]
+
 
 # ── check_readiness() — production vs development mode ───────────────────────
 

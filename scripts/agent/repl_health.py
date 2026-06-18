@@ -14,6 +14,9 @@ from urllib.parse import urlparse
 
 import httpx
 import orjson
+from mcp.git.models import GitConfig
+from mcp.shell.models import ShellConfig
+from mcp.sqlite.models import SqliteConfig
 from shared.logger import Logger
 from shared.tool_executor import StdioTransport
 
@@ -423,30 +426,76 @@ def audit_security_defaults(
         logger.warning("Security: %s", v)
         warnings.append(f"Security: {v}")
 
-    # Check shell sandbox backend
-    shell_policy = getattr(ctx.cfg, "shell_policy", None)
-    if shell_policy is not None:
-        sandbox_backend = getattr(shell_policy, "sandbox_backend", "unknown")
-        if sandbox_backend == "none":
-            msg = "Security: shell_sandbox_backend=none (no sandbox for shell commands)"
-            warnings.append(msg)
+    fail_closed_empty: list[str] = []  # deny access when empty (safe default)
+    fail_open_empty: list[str] = []  # allow all access when empty (risky default)
 
-    # Check GitHub workflow allowlist
+    # Check shell sandbox and command_allowlist
+    try:
+        shell_cfg = ShellConfig.load()
+        if shell_cfg.shell_sandbox_backend == "none":
+            msg = "Security: shell_sandbox_backend=none (no sandbox for shell commands)"
+            logger.warning(msg)
+            warnings.append(msg)
+        if not shell_cfg.command_allowlist:
+            fail_closed_empty.append("shell.command_allowlist")
+            msg = "Security: shell.command_allowlist is empty (fail-closed: all shell commands denied)"
+            logger.warning(msg)
+            warnings.append(msg)
+    except Exception:
+        pass
+
+    # Check sqlite db_allowlist
+    try:
+        sqlite_cfg = SqliteConfig.load()
+        if not sqlite_cfg.db_allowlist:
+            fail_closed_empty.append("sqlite.db_allowlist")
+            msg = "Security: sqlite.db_allowlist is empty (fail-closed: all DB queries denied)"
+            logger.warning(msg)
+            warnings.append(msg)
+    except Exception:
+        pass
+
+    # Check git allowed_repo_paths
+    try:
+        git_cfg = GitConfig.load()
+        if not git_cfg.allowed_repo_paths:
+            fail_closed_empty.append("git.allowed_repo_paths")
+            msg = "Security: git.allowed_repo_paths is empty (fail-closed: all repo access denied)"
+            logger.warning(msg)
+            warnings.append(msg)
+    except Exception:
+        pass
+
+    # Check GitHub workflow allowlist (fail-open — no github config on AgentConfig)
     github_cfg = getattr(ctx.cfg, "github", None)
     if github_cfg is not None:
         allowed_workflows = getattr(github_cfg, "allowed_workflows", None)
         if isinstance(allowed_workflows, (list, tuple)) and len(allowed_workflows) == 0:
+            fail_open_empty.append("github.allowed_workflows")
             msg = "Security: github.allowed_workflows is empty (fail-open: all workflows allowed)"
+            logger.warning(msg)
             warnings.append(msg)
 
-    # Check allowed_tools (empty = allow all tools)
+    # Check allowed_tools (fail-open: empty = allow all tools)
     tool_cfg = getattr(ctx.cfg, "tool", None)
     if tool_cfg is not None:
         allowed_tools = getattr(tool_cfg, "allowed_tools", None)
         if isinstance(allowed_tools, (list, tuple)) and len(allowed_tools) == 0:
+            fail_open_empty.append("tool.allowed_tools")
             msg = "Security: tool.allowed_tools is empty (all tools allowed; use allowlist to restrict)"
+            logger.warning(msg)
             warnings.append(msg)
 
-    for w in warnings:
-        logger.warning(w)
+    # Security posture summary
+    if fail_closed_empty or fail_open_empty:
+        fc_str = ", ".join(fail_closed_empty) if fail_closed_empty else "none"
+        fo_str = ", ".join(fail_open_empty) if fail_open_empty else "none"
+        summary = (
+            f"Security posture summary — "
+            f"fail-closed (deny when empty): {fc_str}; "
+            f"fail-open (allow when empty): {fo_str}"
+        )
+        logger.warning(summary)
+        warnings.append(summary)
+
     return warnings
