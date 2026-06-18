@@ -53,10 +53,10 @@ Always applies: vec load (if enabled), WAL, NORMAL sync, busy_timeout.
 | `execute(sql, params=())` | `-> sqlite3.Cursor` | `params`: tuple (positional `?`) or dict (named `:name`). `RuntimeError` if conn None; `ValueError` if sql empty |
 | `executemany(sql, params_seq)` | `-> sqlite3.Cursor` | Batch INSERT/UPDATE. `params_seq: list[tuple[Any, ...]]` |
 | `fetchall(sql, params=())` | `-> list[Any]` | `execute + fetchall` combined |
-| `commit()` | `-> None` | Logs + re-raises `sqlite3.OperationalError` |
+| `commit()` | `-> None` | Logs ERROR on `sqlite3.OperationalError` then re-raises |
 | `close()` | `-> None` | Idempotent; logs WARNING on close error but does not raise |
-| `begin_immediate()` | `@contextmanager` | `BEGIN IMMEDIATE ... COMMIT`; auto-ROLLBACK on exception |
-| `begin_exclusive()` | `@contextmanager` | `BEGIN EXCLUSIVE ... COMMIT`; for VACUUM/DDL only |
+| `begin_immediate()` | `@contextmanager` | `BEGIN IMMEDIATE ... COMMIT`; auto-ROLLBACK on `Exception` (not `BaseException`) |
+| `begin_exclusive()` | `@contextmanager` | `BEGIN EXCLUSIVE ... COMMIT`; for VACUUM/DDL only; auto-ROLLBACK on `Exception` (not `BaseException`) |
 | `health_check()` | `-> DbHealthMetrics` | `PRAGMA quick_check`; returns `{journal_mode, integrity, page_count, page_size, freelist_count, db_size_bytes}` |
 | `checkpoint(mode="TRUNCATE")` | `-> WalCheckpointCounts` | Modes: PASSIVE/FULL/RESTART/TRUNCATE. Invalid mode → `ValueError` |
 | `vacuum()` | `-> None` | In-place DB rebuild; requires ~2× DB size free disk; call outside transaction |

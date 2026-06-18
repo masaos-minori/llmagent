@@ -173,7 +173,6 @@ Stores float32 little-endian BLOB. `DIMS` is substituted dynamically by `_build_
 | `note_id` | INTEGER | PRIMARY KEY AUTOINCREMENT |
 | `content` | TEXT | NOT NULL |
 | `created_at` | TEXT | NOT NULL DEFAULT `datetime('now')` |
-| `pinned` | INTEGER | NOT NULL DEFAULT 0 (1 = pinned; injected at session start) |
 
 ### `tool_results` table
 

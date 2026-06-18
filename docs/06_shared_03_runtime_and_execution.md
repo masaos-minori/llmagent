@@ -100,23 +100,32 @@ class Logger:
 ## 4. `plugin_registry` (`shared/plugin_registry.py`)
 
 ```python
-def load_plugins(plugin_dir: str | Path) -> int
+def load_plugins(
+    plugin_dir: str | Path,
+    *,
+    known_tools: frozenset[str] = frozenset(),
+    override_policy: str = "reject",
+    strict_mode: bool = False,
+) -> int
 def register_tool(name: str) -> Callable          # decorator
 def get_tool(name: str) -> Callable | None
 def register_command(name: str, prefix: bool = False) -> Callable
 def get_command(name: str) -> tuple[Callable, bool] | None
 def iter_commands() -> dict[str, tuple[Callable, bool]]
-def register_pipeline_stage(when: str = "post") -> Callable
+def iter_tools() -> dict[str, Callable[..., Any]]
+def register_pipeline_stage(when: "post") -> Callable
 def get_pipeline_post_stages() -> list[Callable]
+async def run_pipeline_stages(hits, query, *, strict=False) -> list[Any]
 ```
 
 **Plugin loading flow:**
 ```
-plugin_registry.load_plugins(plugin_dir)
+plugin_registry.load_plugins(plugin_dir, known_tools=..., override_policy="reject", strict_mode=False)
   → glob plugins/*.py in alphabetical order
   → import each file
   → @register_* decorators run at import time
-  → errors: logged as WARNING, plugin skipped (fail-open)
+  → errors: logged as WARNING, plugin skipped (fail-open); strict_mode=True raises on first error
+  → after all loaded: _validate_tool_conflicts() removes conflicting tools from known MCP set
   → missing dir: returns 0 (no error)
 ```
 
@@ -141,10 +150,11 @@ async def get_token_count(
 
 **Priority:**
 1. `POST {tokenize_url}/tokenize` → exact count (`is_exact=True`)
-2. `chars // 4` fallback → estimate (`is_exact=False`)
+2. Category-aware character-to-token estimate (text: 4.0, tool_calls: 2.5, system: 3.5) → estimate (`is_exact=False`)
 
-- Connection errors fall back silently; `_warned_unavailable` module-level flag prevents repeated warnings
-- See [06_shared_90 GLOBAL-01](06_shared_90_inconsistencies_and_known_issues.md) for the global state concern
+- Connection errors fall back silently; `_WarnOnce` instance (`_warned_unavailable`) suppresses repeated warnings per process lifetime
+- Category-aware estimation replaces the legacy `chars // 4` heuristic for better accuracy with multilingual text and structured tool payloads
+- `_estimate_tokens()` returns `(total_tokens, breakdown: dict[str, int])` with per-category counts
 
 ---
 
@@ -173,8 +183,9 @@ def get_repo_info(path: str = ".") -> dict | None
 # Returns None on any error (GitPython not installed, not a git repo, etc.)
 ```
 
-> **Known issue:** Catches `except Exception` broadly and returns `None` without a reason code.
-> See [06_shared_90 EXCEPT-01](06_shared_90_inconsistencies_and_known_issues.md).
+- `ImportError` caught separately (when GitPython is not installed)
+- Git operations catch `git.exc.GitError`, `OSError`, `AttributeError`, `ValueError` specifically
+- The `except Exception` catch-all has been removed; each error type is logged at DEBUG level with its cause
 
 - `"origin"` field is NOT in the return dict
 - `"commit"` is `HEAD.hexsha[:8]` (8 characters only)

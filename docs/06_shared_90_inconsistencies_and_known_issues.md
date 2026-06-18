@@ -63,11 +63,11 @@ Each entry uses the required format:
 
 ### GLOBAL-01: `token_counter._warned_unavailable` is a module-level global variable
 
-- **Type:** Addressed (design concern — test isolation resolved)
-- **Impact scope:** `shared/token_counter.py::_WarnOnce`
-- **Current state:** `_warned_unavailable` is a `_WarnOnce` instance (not a bare bool). A `reset()` method was added to `_WarnOnce`, and tests use `tc_module._warned_unavailable.reset()` between test cases for isolation. Module-level state is still present but managed correctly.
-- **Current safe interpretation:** Test isolation is handled via `reset()`. In production, warning fires once per process lifetime.
-- **Notes for AI reference:** Use `_warned_unavailable.reset()` in tests that check warning count. Do not access `_warned` directly.
+- **Type:** Addressed (design concern — global state removed from token_counter)
+- **Impact scope:** `shared/token_counter.py`, `agent/history.py`
+- **Current state:** `_WarnOnce` class with `reset()` method exists in `token_counter.py`, and the `_warned_unavailable` instance remains at module level. The caller (`HistoryManager` in `agent/history.py`) now manages its own `_WarnOnce` instance via `_WarnOnce.log()` instead of relying on the module-level global. Tests can use `token_counter._warned_unavailable.reset()` between test cases for isolation.
+- **Current safe interpretation:** The warning suppression mechanism is still present at module level in `token_counter.py`, but callers manage their own instances. In production, each `_WarnOnce` fires once per process lifetime.
+- **Notes for AI reference:** For tests that need to verify warning behavior, call `token_counter._warned_unavailable.reset()` between test cases. The `_estimate_tokens()` function returns `(total, breakdown)` with per-category token counts.
 
 ---
 
@@ -87,7 +87,7 @@ Each entry uses the required format:
 
 - **Type:** RESOLVED (Implementation bug — fixed)
 - **Impact scope:** `shared/git_helper.py::get_repo_info()`
-- **Resolution:** `ImportError` is now caught separately (when GitPython is not installed). The git operation block catches `git.exc.GitError` (covers all GitPython-specific errors including `InvalidGitRepositoryError`), `OSError`, `AttributeError`, and `ValueError`. The `except Exception` catch-all is removed.
+- **Resolution:** `ImportError` is now caught separately (when GitPython is not installed). The git operation block catches `git.exc.GitError` (covers all GitPython-specific errors including `InvalidGitRepositoryError`), `OSError`, `AttributeError`, and `ValueError`. The `except Exception` catch-all is removed. Failure reasons are logged at DEBUG level per exception type.
 - **Notes for AI reference:** `None` still means "could not get repo info." Call is always safe. Cause is logged at DEBUG level per exception type.
 
 ---
