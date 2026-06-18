@@ -302,14 +302,30 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 ## 5. Shared Utilities (`rag/utils.py`)
 
 ```python
-from rag.utils import normalize_unicode, floats_to_blob, validate_url
+from rag.utils import (
+    cosine_sim,
+    floats_to_blob,
+    normalize_unicode,
+    sanitize_document,
+    sanitize_document_full,
+    validate_url,
+)
 ```
 
-| Function | Signature | Returns | Description |
+| Function / Constant | Signature | Returns | Description |
 |---|---|---|---|
 | `normalize_unicode` | `(text: str) -> str` | `str` | NFKC normalization; converts full-width alphanumerics and variant chars |
-| `floats_to_blob` | `(values: list[float]) -> bytes` | `bytes` | Little-endian float32 BLOB; sqlite-vec `MATCH` operator format. Dimension from `common.toml::embedding_dims` (production: 384 → 1536 bytes; dataclass default: 768 → 3072 bytes) |
+| `floats_to_blob` | `(values: list[float]) -> bytes` | `bytes` | Little-endian float32 BLOB; sqlite-vec `MATCH` operator format. Raises TypeError/ValueError on invalid input |
 | `validate_url` | `(url: str) -> bool` | `bool` | `True` if `http`/`https` scheme with non-empty netloc |
+| `cosine_sim` | `(a: list[float], b: list[float]) -> float` | `float` | Cosine similarity; returns 0.0 when either vector has zero magnitude. Used by SemanticCache |
+| `sanitize_document` | `(text: str) -> str` | `str` | Remove prompt injection patterns (e.g., "ignore instructions", "[SYSTEM OVERRIDE]"); replaces matches with `[REMOVED]` |
+| `sanitize_document_full` | `(text: str) -> SanitizeResult` | `SanitizeResult` | Same as sanitize_document but returns audit trail (detected patterns, was_sanitized flag) |
+
+**Constants:**
+
+| Constant | Value | Description |
+|---|---|---|
+| `MIN_TEXT_LENGTH_FOR_DETECTION` | `100` | Minimum text length for language detection; pages shorter than this use hint language |
 
 **Used by:**
 
@@ -318,7 +334,8 @@ from rag.utils import normalize_unicode, floats_to_blob, validate_url
 | `rag/ingestion/chunk_splitter.py` | `normalize_unicode` |
 | `rag/ingestion/ingester.py` | `floats_to_blob`, `validate_url` |
 | `rag/ingestion/crawler.py` | `validate_url` |
-| `rag/pipeline.py` | `floats_to_blob` |
+| `rag/pipeline.py` | `sanitize_document`, `floats_to_blob` |
+| `rag/cache.py` | `cosine_sim` |
 
 ---
 
@@ -337,5 +354,12 @@ to `chunks_fts`. English and code chunks have `normalized_content = NULL`, so FT
 
 `rag/repository.py` `_build_fts_query()` processes Japanese queries via `_build_fts_tokens_ja()`:
 extracts `normalized_form()` for nouns, verbs, and adjectives only (excludes particles, auxiliaries).
-English queries use regex tokenization. Sudachi tokenizer is lazily initialized in
-`_get_sudachi_tokenizer()` (zero import-time side effects).
+English queries use regex `[a-zA-Z0-9]+` tokenization. Sudachi tokenizer is lazily initialized in
+`_SudachiTokenizer` class (zero import-time side effects).
+
+### FTS5 query token limit
+
+Maximum tokens in an FTS5 query: `_MAX_FTS_TOKENS = 20` (`repository.py:29`).
+Excess tokens are silently truncated to prevent query explosion. Double-quotes (FTS5 metachar)
+and whitespace are stripped from each token; empty tokens are dropped. If no valid tokens remain,
+returns `'""'` (empty FTS5 query).

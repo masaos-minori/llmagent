@@ -118,14 +118,14 @@ Created by `ChunkSplitter`. Same `.txt` extension; content is JSON.
 
 ## 3. Hit Type Hierarchy
 
-Defined in `rag/types.py`. Each stage produces a progressively richer hit type.
+Defined in `rag/types.py`. Each stage produces a progressively richer hit type. All three are `@dataclasses.dataclass` (not TypedDict).
 
 ```
 RawHit      — after SearchStage
 MergedHit   — after FusionStage  (extends RawHit + rrf_score)
 RankedHit   — after RerankStage  (extends MergedHit + rerank_score)
 
-RagHit = RawHit | MergedHit | RankedHit  (backward-compat union alias)
+RagHit = RawHit | MergedHit | RankedHit  (type union alias, not TypedDict)
 ```
 
 | Field | Type | Available in |
@@ -134,10 +134,10 @@ RagHit = RawHit | MergedHit | RankedHit  (backward-compat union alias)
 | `content` | str | RawHit, MergedHit, RankedHit |
 | `url` | str | RawHit, MergedHit, RankedHit |
 | `title` | str | RawHit, MergedHit, RankedHit |
-| `distance` | float | RawHit (KNN only) |
-| `bm25_score` | float | RawHit (FTS only) |
-| `rrf_score` | float | MergedHit, RankedHit |
-| `rerank_score` | float | RankedHit |
+| `distance` | float | RawHit (KNN only; default: 0.0) |
+| `bm25_score` | float | RawHit (FTS only; default: 0.0) |
+| `rrf_score` | float | MergedHit, RankedHit (default: 0.0) |
+| `rerank_score` | float \| None | RankedHit (default: None) |
 
 ---
 
@@ -194,17 +194,91 @@ Structural type that `AgentConfig` implements. Injected as `cfg` into `RagPipeli
 |---|---|---|
 | `use_search` | bool | False → skip pipeline entirely |
 | `use_mqe` | bool | False → skip query expansion |
-| `use_rrf` | bool | Currently unused (FusionStage always runs RRF) |
+| `use_rrf` | bool | Controls FusionStage: True → RRF merge; False → `_dedup_hits()` fallback |
 | `use_rerank` | bool | False → skip cross-encoder |
 | `use_refiner` | bool | True → compress chunks via LLM |
+| `use_semantic_cache` | bool | True → enable semantic cache lookup/insert |
 | `top_k_search` | int | KNN/FTS result count per query |
 | `top_k_rerank` | int | Candidates passed to cross-encoder |
 | `rag_top_k` | int | Final chunks returned to LLM |
 | `rag_min_score` | float | Cross-encoder score threshold |
 | `max_chunks_per_doc` | int | Per-document chunk cap |
 | `rag_service_url` | str | External RAG service URL; empty = in-process only |
+| `rag_auth_token` | str | Optional auth token for `X-RAG-Token` header; `""` = no auth (default) |
 | `semantic_cache_max_size` | int | SemanticCache entry limit |
 | `semantic_cache_threshold` | float | Cache hit cosine similarity threshold |
 | `refiner_max_tokens` | int | Max tokens for refiner LLM call |
 | `refiner_max_chars_per_chunk` | int | Max chars per chunk for refiner |
 | `refiner_timeout` | float | Refiner LLM call timeout (seconds) |
+
+### 5.5 RagQuery (`rag/types.py`)
+
+```python
+from rag.types import RagQuery
+
+query = RagQuery(query="search term", context="optional context")
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `query` | str | The query string (required) |
+| `context` | str | Optional context for MQE expansion |
+
+### 5.6 CacheService Protocol (`rag/cache.py`)
+
+```python
+from rag.cache import CacheService, SemanticCache
+```
+
+Protocol defining the interface for semantic cache implementations. `SemanticCache` is the concrete implementation.
+
+| Method | Signature | Description |
+|---|---|---|
+| `lookup` | `(embedding: list[float], history_context: str = "") -> str \| None` | Return cached context if cosine similarity ≥ threshold among matching `history_context` entries; else `None` |
+| `put` | `(embedding: list[float], history_context: str, context_str: str) -> None` | Store entry; prunes if over capacity |
+
+### 5.7 RAG Enums (`rag/enums.py`)
+
+All defined as `StrEnum` subclasses.
+
+#### LanguageCode
+
+| Value | Description |
+|---|---|
+| `"en"` | English |
+| `"ja"` | Japanese |
+
+#### PipelineStageName
+
+| Value | Description |
+|---|---|
+| `"mqe"` | Query expansion stage |
+| `"search"` | Vector/FTS search stage |
+| `"fusion"` | RRF merge stage |
+| `"rerank"` | Cross-encoder rerank stage |
+| `"augment"` | Context formatting stage |
+
+#### HitKind
+
+| Value | Description |
+|---|---|
+| `"vector"` | KNN result |
+| `"fts"` | BM25 result |
+| `"merged"` | RRF-merged result |
+| `"ranked"` | Post-rerank result |
+
+#### SearchBackend
+
+| Value | Description |
+|---|---|
+| `"vector"` | sqlite-vec KNN |
+| `"fts"` | FTS5 BM25 |
+| `"hybrid"` | Combined vector + FTS |
+
+#### MqeStatus
+
+| Value | Description |
+|---|---|
+| `"expanded"` | Query was expanded |
+| `"disabled"` | MQE disabled in config |
+| `"failed"` | MQE LLM call failed |

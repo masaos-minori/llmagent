@@ -54,7 +54,7 @@ LLM turn.
       v
 +----------------------+    MCP :8010    +-------------------+
 | mcp/rag_pipeline/    | <-------------> | RagPipeline       |
-| service.py           |                 | (5-stage pipeline)|
+| service.py           |                 | (6 logical stages)|
 +----------------------+                 +-------------------+
                                                    |
                                           +--------+--------+
@@ -95,15 +95,16 @@ config/rag_pipeline.toml [target_urls]
 
 ## Query Pipeline
 
-**5 stages executed per agent turn**
+**6 logical stages executed per agent turn** (5 fixed + PluginHooks optional)
 
 | Stage | Class | Function |
 |---|---|---|
 | 1. MQE | `MqeStage` | Expand query into N variants for higher recall |
 | 2. Search | `SearchStage` | KNN (sqlite-vec) + BM25 (FTS5) per query variant |
-| 3. Fusion | `FusionStage` | Merge multi-query results using RRF (Σ 1/(60+rank)) |
-| 4. Rerank | `RerankStage` | Cross-encoder LLM scoring; filter by `rag_min_score` |
-| 5. Augment | `AugmentStage` | Format chunks as `[RAG_CONTEXT_START]...[RAG_CONTEXT_END]` |
+| 3. Fusion | `FusionStage` | Merge multi-query results using RRF (Σ 1/(rrf_k+rank)); `rrf_k` configurable via config (default: 60) |
+| 4. Rerank | `RerankStage` | Cross-encoder LLM scoring; filter by `rag_min_score`; post-rerank dedup by URL |
+| 5. PluginHooks | registered hooks | Post-rerank plugin stage; runs after RerankStage, before AugmentStage; error-isolated (failures logged, skipped); configurable via `hook_strict` in `run()` |
+| 6. Augment | `AugmentStage` | Format chunks as `[RAG_CONTEXT_START]...[RAG_CONTEXT_END]` |
 
 **Entry point:** `RagPipeline.augment(query) -> str`  
 **Caller:** `mcp/rag_pipeline/service.py` via MCP HTTP (port 8010)
@@ -111,7 +112,7 @@ config/rag_pipeline.toml [target_urls]
 ### Semantic cache
 
 When `use_semantic_cache=True`, query embedding cosine similarity ≥ `semantic_cache_threshold`
-(default 0.92) returns the cached context block, skipping the 5-stage pipeline.
+(default 0.92) returns the cached context block, skipping the pipeline. Thread-safe via `threading.RLock`. LRU cache; max size = `semantic_cache_max_size` (default 100 entries).
 LRU cache; max size = `semantic_cache_max_size` (default 100 entries).
 
 ---

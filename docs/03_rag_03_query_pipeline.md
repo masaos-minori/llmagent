@@ -15,12 +15,13 @@ and mutates a shared `PipelineContext` dataclass in-place.
 RagPipeline.augment(query)
   → use_search=False? → return ""
   → rag_service_url set? → _augment_http() → fallback to in-process on failure
-  → run(query, db, history_context)
+  → run(query, db, history_context, hook_strict=False)
       [1] MqeStage    — expand query into N variants
       [2] SearchStage — KNN + BM25 per variant
-      [3] FusionStage — RRF merge (Σ 1/(60+rank))
-      [4] RerankStage — cross-encoder scoring + dedup
-      [5] AugmentStage — format [RAG_CONTEXT_START]...[RAG_CONTEXT_END]
+      [3] FusionStage — RRF merge (Σ 1/(rrf_k+rank); rrf_k configurable via config, default: 60)
+      [4] RerankStage — cross-encoder scoring; filter by rag_min_score; post-rerank dedup by URL
+      [5] PluginHooks — registered post-rerank hooks (error-isolated; strict mode re-raises); runs between RerankStage and AugmentStage
+      [6] AugmentStage — format [RAG_CONTEXT_START]...[RAG_CONTEXT_END]
   → use_refiner=True? → _augment_refiner() (compress chunks; fallback to raw on error)
   → return context block string
 ```
@@ -59,7 +60,7 @@ RagPipeline(
 
 | Method | Signature | Description |
 |---|---|---|
-| `run` | `async (query, db, history_context="") -> tuple[list[str], list[list[RagHit]], list[RagHit], list[RagHit]]` | Execute MQE→Search→Fusion→Rerank; return `(queries, search_results, merged, reranked)`; always calls `on_clear()` in `finally` |
+| `run` | `async (query, db, history_context="", hook_strict=False) -> tuple[list[str], list[list[RawHit]], list[RagHit], list[RagHit]]` | Execute MQE→search→RRF→rerank+PluginHooks; return `(queries, search_results, merged, reranked)`; `hook_strict=True` re-raises first plugin hook failure (default: log warning and skip); always calls `on_clear()` in `finally` |
 | `augment` | `async (query, debug_fn=None, history_context="") -> str` | Full pipeline + Augment stage; returns context block string or `""` |
 | `search_queries` | `(queries, db) -> list[list[RagHit]]` | Standalone helper: parallel embed + sequential DB search |
 | `rerank_candidates` | `(query, merged) -> list[RagHit]` | Standalone helper: cross-encoder or RRF fallback + dedup |
@@ -151,25 +152,25 @@ SearchStage(cfg: dict, http: httpx.AsyncClient | None, embed_url: str)
 ### 5.3 FusionStage
 
 ```python
-FusionStage(cfg: dict)
+FusionStage(use_rrf: bool)
 ```
 
 - Merges `ctx.search_results` using Reciprocal Rank Fusion: score = Σ 1/(rrf_k + rank)
-- `rrf_k` default: 60 (from `cfg.get("rrf_k", 60)`)
+- `rrf_k` default: 60; configurable via `cfg.get("rrf_k", 60)` (not hardcoded)
 - Assigns `rrf_score` to each `MergedHit`; stores in `ctx.merged`
 
-> `use_rrf=False` activates `_dedup_hits()` fallback (simple chunk_id dedup, all `rrf_score=0.0`). `pipeline.py` passes `use_rrf=self._cfg.use_rrf` to `FusionStage`.
+> `use_rrf=False` activates `_dedup_hits()` fallback (simple chunk_id dedup, all `rrf_score=0.0`). `pipeline.py:184` passes `use_rrf=self._cfg.use_rrf` to `FusionStage`.
 
 ### 5.4 RerankStage
 
 ```python
-RerankStage(cfg: dict, llm: RagLLM)
+RerankStage(cfg: RagConfig, llm: RagLLM)
 ```
 
 - `use_rerank=False`: return top `rag_top_k` by RRF order via `deduplicate_chunks`
 - `use_rerank=True`: `RagLLM.cross_encoder_rerank(query, candidates, top_k, rag_min_score)`
 - Filters by `rag_min_score`; fallback to RRF order on cross-encoder failure
-- Post-process: `deduplicate_chunks(hits, max_chunks_per_doc)`
+- Post-rerank dedup: `deduplicate_chunks(hits, max_chunks_per_doc)` — caps same-URL hits; input must be descending-sorted; applied AFTER reranking (not before)
 
 ### 5.5 AugmentStage
 

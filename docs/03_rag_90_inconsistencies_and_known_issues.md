@@ -93,14 +93,12 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
-### OQ-5: `SemanticCache.prune()` concurrent access behavior
+### OQ-5: `SemanticCache` concurrent access behavior (RESOLVED)
 
-- **Type:** OPEN_QUESTION
+- **Type:** RESOLVED
 - **Impact scope:** `rag/cache.py SemanticCache`
-- **Description:** `prune()` removes oldest entries (FIFO). Thread safety under concurrent
-  `put()`/`lookup()` calls is not specified.
-- **Recommended action:** Verify or add a lock if `RagPipeline` instances are shared across
-  async tasks that call `put()` concurrently.
+- **Resolution:** `SemanticCache` uses `threading.RLock` (`cache.py:39`). All public methods (`lookup`, `put`, `prune`) acquire the lock via `with self._lock:`. Dimension validation is also protected by the same lock. Thread-safe under concurrent access from multiple threads.
+- **Source reference:** `rag/cache.py:39` (`self._lock: threading.RLock = threading.RLock()`), lines 46, 73, 92 (lock acquisition in each public method)
 
 ---
 
@@ -125,6 +123,21 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
   HTTP error, empty result, or only connection failure?
 - **Recommended action:** Document the explicit conditions that cause `_augment_http()` to
   return `None`.
+
+---
+
+### DOC-05: RRF `rrf_k` is configurable; `use_rrf=False` activates dedup fallback
+
+- **Type:** RESOLVED (doc correction)
+- **Impact scope:** `docs/03_rag_*.md`, `rag/repository.py`, `rag/pipeline.py`
+- **Previous doc claim:** RRF used hardcoded constant `60`; `use_rrf=False` was described as "currently unused."
+- **Current implementation:**
+  - `rrf_k` is configurable via `cfg.get("rrf_k", 60)` — default is 60 but any value can be set in config
+  - `use_rrf=False` activates `_dedup_hits()` fallback in `FusionStage` (simple chunk_id dedup, all `rrf_score=0.0`)
+  - `pipeline.py:184`: `FusionStage(use_rrf=self._cfg.use_rrf)`
+  - `repository.py:302-321`: `_dedup_hits()` deduplicates by chunk_id, keeping first occurrence per chunk
+- **Recommended action:** Corrected in docs (2026-06-18). Use `config/rag_pipeline.toml::rrf_k` as the authoritative value.
+- **Notes for AI reference:** `use_rrf=True` → RRF merge with configurable `rrf_k`; `use_rrf=False` → chunk_id dedup fallback.
 
 ---
 
