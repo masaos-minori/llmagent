@@ -5,11 +5,20 @@ PipelineStage Protocol and shared PipelineContext dataclass.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Protocol
+from typing import Any, Protocol, TypedDict
 
 from rag.types import MergedHit, RankedHit, RawHit
 
 RagHit = RawHit | MergedHit | RankedHit
+
+
+class StageResult(TypedDict):
+    """Per-stage outcome recorded by RagPipeline.run()."""
+
+    stage_name: str
+    status: str  # "success" | "fallback" | "failure"
+    elapsed_seconds: float
+    fallback_reason: str | None
 
 
 @dataclasses.dataclass
@@ -23,6 +32,7 @@ class PipelineContext:
     merged: list[RagHit] = dataclasses.field(default_factory=list)
     reranked: list[RagHit] = dataclasses.field(default_factory=list)
     augment_result: str = ""
+    stage_results: list[StageResult] = dataclasses.field(default_factory=list)
 
 
 class PipelineStage(Protocol):

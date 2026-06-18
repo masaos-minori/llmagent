@@ -39,7 +39,7 @@ from rag.repository import (
     deduplicate_chunks,
     fetch_full_document,
 )
-from rag.stage import PipelineContext
+from rag.stage import PipelineContext, StageResult
 from rag.stages.augment import AugmentStage
 from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage
@@ -107,6 +107,8 @@ class RagPipeline:
         self.last_fetch_result: TwoStageFetchResult | None = None
         # Per-step wall-clock seconds from the most recent run() call
         self.last_timings: dict[str, float] = {}
+        # Per-stage outcomes from the most recent run() call
+        self.last_stage_results: list[StageResult] = []
         # In-memory nearest-neighbour cache; threshold/max_size read from cfg
         self.semantic_cache: SemanticCache = SemanticCache(
             max_size=cfg.semantic_cache_max_size,
@@ -116,6 +118,28 @@ class RagPipeline:
         _module_cfg = _ModuleConfig.get()
         self._llm = RagLLM(self._http, _module_cfg.get("llm_url", ""), cfg=_module_cfg)
         self._embed_url: str = _module_cfg.get("embed_url", "")
+
+    def _get_stage_status(
+        self, stage: object, ctx: PipelineContext
+    ) -> tuple[str, str | None]:
+        name = type(stage).__name__
+        if name == "MqeStage":
+            if not self._cfg.use_mqe:
+                return "fallback", "use_mqe=False"
+            return "success", None
+        if name == "SearchStage":
+            if not ctx.search_results:
+                return "fallback", "no search results"
+            return "success", None
+        if name == "FusionStage":
+            if not self._cfg.use_rrf:
+                return "fallback", "use_rrf=False"
+            return "success", None
+        if name == "RerankStage":
+            if not self._cfg.use_rerank:
+                return "fallback", "use_rerank=False"
+            return "success", None
+        return "success", None
 
     async def search_queries(
         self,
@@ -187,7 +211,17 @@ class RagPipeline:
             for stage in pre_augment_stages:
                 t0 = time.perf_counter()
                 await stage.run(ctx, db=db)
-                self.last_timings[stage.__class__.__name__] = time.perf_counter() - t0
+                elapsed = time.perf_counter() - t0
+                self.last_timings[stage.__class__.__name__] = elapsed
+                status, reason = self._get_stage_status(stage, ctx)
+                ctx.stage_results.append(
+                    StageResult(
+                        stage_name=stage.__class__.__name__,
+                        status=status,
+                        elapsed_seconds=elapsed,
+                        fallback_reason=reason,
+                    )
+                )
 
             # Post-rerank plugin hooks (before AugmentStage)
             if get_pipeline_post_stages():
@@ -195,13 +229,29 @@ class RagPipeline:
                 ctx.reranked = await run_pipeline_stages(
                     ctx.reranked, query, strict=hook_strict
                 )
-                self.last_timings["PluginHooks"] = time.perf_counter() - t0
+                elapsed = time.perf_counter() - t0
+                self.last_timings["PluginHooks"] = elapsed
+                ctx.stage_results.append(
+                    StageResult(
+                        stage_name="PluginHooks",
+                        status="success",
+                        elapsed_seconds=elapsed,
+                        fallback_reason=None,
+                    )
+                )
 
             augment_stage = AugmentStage()
             t0 = time.perf_counter()
             await augment_stage.run(ctx, db=db)
-            self.last_timings[augment_stage.__class__.__name__] = (
-                time.perf_counter() - t0
+            elapsed = time.perf_counter() - t0
+            self.last_timings[augment_stage.__class__.__name__] = elapsed
+            ctx.stage_results.append(
+                StageResult(
+                    stage_name=augment_stage.__class__.__name__,
+                    status="success",
+                    elapsed_seconds=elapsed,
+                    fallback_reason=None,
+                )
             )
 
             # Store for two-stage fetch callers (e.g. REPLAgent._run_turn)
@@ -210,6 +260,15 @@ class RagPipeline:
                 min_score_applied=self._cfg.rag_min_score,
                 max_chunks_per_doc=self._cfg.max_chunks_per_doc,
             )
+            self.last_stage_results = list(ctx.stage_results)
+            fallbacks = [r for r in ctx.stage_results if r["status"] == "fallback"]
+            if fallbacks:
+                logger.info(
+                    "Pipeline fallback stages: %s",
+                    ", ".join(
+                        f"{r['stage_name']}({r['fallback_reason']})" for r in fallbacks
+                    ),
+                )
 
             return ctx.queries, ctx.search_results, ctx.merged, ctx.reranked
         finally:
