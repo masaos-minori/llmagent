@@ -169,13 +169,13 @@ class TestLoadPluginsConflict:
             """)
         )
         mcp_tools = frozenset({"list_directory"})
-        n = plugin_registry.load_plugins(
+        result = plugin_registry.load_plugins(
             tmp_path,
             known_tools=mcp_tools,
             override_policy="reject",
         )
-        # Both modules load (n=2), but conflicting tool is removed
-        assert n == 2
+        # Both modules load (loaded_count=2), but conflicting tool is removed
+        assert result.loaded_count == 2
         assert plugin_registry.get_tool("my_tool") is not None
         assert plugin_registry.get_tool("list_directory") is None
 
@@ -190,12 +190,12 @@ class TestLoadPluginsConflict:
             """)
         )
         mcp_tools = frozenset({"list_directory"})
-        n = plugin_registry.load_plugins(
+        result = plugin_registry.load_plugins(
             tmp_path,
             known_tools=mcp_tools,
             override_policy="allow",
         )
-        assert n == 1
+        assert result.loaded_count == 1
         assert plugin_registry.get_tool("list_directory") is not None
 
     def test_non_conflicting_plugin_loads_in_reject_mode(self, tmp_path: Path):
@@ -209,12 +209,12 @@ class TestLoadPluginsConflict:
             """)
         )
         mcp_tools = frozenset({"list_directory"})
-        n = plugin_registry.load_plugins(
+        result = plugin_registry.load_plugins(
             tmp_path,
             known_tools=mcp_tools,
             override_policy="reject",
         )
-        assert n == 1
+        assert result.loaded_count == 1
         assert plugin_registry.get_tool("my_safe_tool") is not None
 
     def test_load_plugins_default_no_conflict_check(self, tmp_path: Path):
@@ -228,8 +228,8 @@ class TestLoadPluginsConflict:
                     return "", False
             """)
         )
-        n = plugin_registry.load_plugins(tmp_path)
-        assert n == 1
+        result = plugin_registry.load_plugins(tmp_path)
+        assert result.loaded_count == 1
 
 
 # ── @register_pipeline_stage ──────────────────────────────────────────────────
@@ -280,13 +280,13 @@ class TestRegisterPipelineStage:
 
 class TestLoadPlugins:
     def test_missing_dir_returns_zero(self, tmp_path: Path):
-        n = plugin_registry.load_plugins(tmp_path / "nonexistent")
-        assert n == 0
+        result = plugin_registry.load_plugins(tmp_path / "nonexistent")
+        assert result.loaded_count == 0
 
     def test_empty_dir_returns_zero(self, tmp_path: Path):
         (tmp_path / "plugins").mkdir()
-        n = plugin_registry.load_plugins(tmp_path / "plugins")
-        assert n == 0
+        result = plugin_registry.load_plugins(tmp_path / "plugins")
+        assert result.loaded_count == 0
 
     def test_plugin_file_loaded_and_registers(self, tmp_path: Path):
         plugin_file = tmp_path / "my_plugin.py"
@@ -299,8 +299,8 @@ class TestLoadPlugins:
                     pass
             """)
         )
-        n = plugin_registry.load_plugins(tmp_path)
-        assert n == 1
+        result = plugin_registry.load_plugins(tmp_path)
+        assert result.loaded_count == 1
         assert plugin_registry.get_command("/hello") is not None
 
     def test_broken_plugin_skipped(self, tmp_path: Path):
@@ -314,14 +314,35 @@ class TestLoadPlugins:
                     return "", False
             """)
         )
-        n = plugin_registry.load_plugins(tmp_path)
+        result = plugin_registry.load_plugins(tmp_path)
         # bad.py fails but good.py succeeds
-        assert n == 1
+        assert result.loaded_count == 1
         assert plugin_registry.get_tool("good_tool") is not None
 
     def test_load_plugins_accepts_string_path(self, tmp_path: Path):
-        n = plugin_registry.load_plugins(str(tmp_path))
-        assert n == 0
+        result = plugin_registry.load_plugins(str(tmp_path))
+        assert result.loaded_count == 0
+
+    def test_failure_details_included(self, tmp_path: Path):
+        (tmp_path / "bad.py").write_text("raise RuntimeError('boom')")
+        result = plugin_registry.load_plugins(tmp_path)
+        assert len(result.failed) == 1
+        assert result.failed[0].path == "bad.py"
+        assert "RuntimeError" in result.failed[0].error
+        assert "boom" in result.failed[0].error
+
+    def test_empty_failed_when_all_succeed(self, tmp_path: Path):
+        (tmp_path / "good.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("ok_tool")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        result = plugin_registry.load_plugins(tmp_path)
+        assert result.failed == ()
 
 
 # ── _reset_for_testing ────────────────────────────────────────────────────────
@@ -363,8 +384,8 @@ class TestLoadPluginsStrictMode:
                     return "", False
             """)
         )
-        n = plugin_registry.load_plugins(tmp_path, strict_mode=True)
-        assert n == 1
+        result = plugin_registry.load_plugins(tmp_path, strict_mode=True)
+        assert result.loaded_count == 1
         assert plugin_registry.get_tool("strict_tool") is not None
 
     def test_strict_mode_broken_plugin_raises(self, tmp_path: Path):
@@ -383,13 +404,20 @@ class TestLoadPluginsStrictMode:
                     return "", False
             """)
         )
-        n = plugin_registry.load_plugins(tmp_path, strict_mode=False)
-        assert n == 1
+        result = plugin_registry.load_plugins(tmp_path, strict_mode=False)
+        assert result.loaded_count == 1
         assert plugin_registry.get_tool("survive_tool") is not None
 
     def test_missing_dir_strict_mode_returns_zero(self, tmp_path: Path):
-        n = plugin_registry.load_plugins(tmp_path / "nonexistent", strict_mode=True)
-        assert n == 0
+        result = plugin_registry.load_plugins(
+            tmp_path / "nonexistent", strict_mode=True
+        )
+        assert result.loaded_count == 0
+
+    def test_strict_mode_does_not_collect_failures(self, tmp_path: Path):
+        (tmp_path / "bad.py").write_text("raise RuntimeError('strict_boom')")
+        with pytest.raises(RuntimeError, match="strict_boom"):
+            plugin_registry.load_plugins(tmp_path, strict_mode=True)
 
 
 # ── run_pipeline_stages() error isolation ─────────────────────────────────────

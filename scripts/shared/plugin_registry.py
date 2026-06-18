@@ -39,6 +39,7 @@ import asyncio
 import importlib.util
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -157,6 +158,21 @@ async def run_pipeline_stages(
     return hits
 
 
+# ── Plugin load result types ─────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class PluginFailure:
+    path: str
+    error: str
+
+
+@dataclass(frozen=True)
+class PluginLoadResult:
+    loaded_count: int
+    failed: tuple[PluginFailure, ...]
+
+
 # ── Plugin auto-discovery ─────────────────────────────────────────────────────
 
 
@@ -196,8 +212,8 @@ def load_plugins(
     known_tools: frozenset[str] = frozenset(),
     override_policy: str = "reject",
     strict_mode: bool = False,
-) -> int:
-    """Import all *.py files from plugin_dir; returns count loaded.
+) -> PluginLoadResult:
+    """Import all *.py files from plugin_dir; returns PluginLoadResult with success/failure details.
 
     When *strict_mode* is True, the first plugin import failure raises
     the original exception instead of logging and continuing.
@@ -209,9 +225,10 @@ def load_plugins(
     plugin_path = Path(plugin_dir)
     if not plugin_path.is_dir():
         logger.debug("Plugin dir not found, skipping: %s", plugin_dir)
-        return 0
+        return PluginLoadResult(loaded_count=0, failed=())
 
     loaded = 0
+    failures: list[PluginFailure] = []
     for py_file in sorted(plugin_path.glob("*.py")):
         try:
             spec = importlib.util.spec_from_file_location(py_file.stem, py_file)
@@ -222,6 +239,7 @@ def load_plugins(
                 logger.info("Plugin loaded: %s", py_file.name)
         except (ImportError, SyntaxError, AttributeError, RuntimeError) as e:
             error_msg = f"Plugin load failed ({py_file.name}): {type(e).__name__}: {e}"
+            failures.append(PluginFailure(path=py_file.name, error=error_msg))
             if strict_mode:
                 logger.error(error_msg)
                 raise
@@ -229,7 +247,7 @@ def load_plugins(
 
     # Run conflict validation after all modules are loaded
     _validate_tool_conflicts(known_tools, override_policy)
-    return loaded
+    return PluginLoadResult(loaded_count=loaded, failed=tuple(failures))
 
 
 # ── Test helper ───────────────────────────────────────────────────────────────

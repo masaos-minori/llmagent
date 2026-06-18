@@ -337,14 +337,16 @@ def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
     )
     mode_str = "strict" if ctx.cfg.tool.plugin_strict else "fail-open"
     audit_logger.info("Plugin loading mode: %s", mode_str)
-    n_plugins = plugin_registry.load_plugins(
+    result = plugin_registry.load_plugins(
         plugin_dir,
         known_tools=known_tools,
         override_policy=override_policy,
         strict_mode=ctx.cfg.tool.plugin_strict,
     )
-    if n_plugins:
-        audit_logger.info("Loaded %s plugin(s) from %s", n_plugins, plugin_dir)
+    if result.loaded_count:
+        audit_logger.info(
+            "Loaded %d plugin(s) from %s", result.loaded_count, plugin_dir
+        )
 
 
 def init_tracer(ctx: AgentContext) -> object:
