@@ -8,8 +8,9 @@ import logging
 from db.helper import SQLiteHelper
 from shared.types import LLMMessage
 
+from agent.diagnostic_store import DiagnosticStore
 from agent.note_repo import NoteRepository
-from agent.session_message_repo import _DIAGNOSTIC_ROLE, SessionMessageRepository
+from agent.session_message_repo import SessionMessageRepository
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class AgentSession:
             self.session_id, strict_mode=strict_mode
         )
         self._note_repo = NoteRepository()
+        self._diagnostic_store = DiagnosticStore(self.session_id)
 
     # ── SessionMessageRepository delegation ──────────────────────────────────
 
@@ -50,10 +52,8 @@ class AgentSession:
 
     def save_diagnostic(self, content: str) -> None:
         """Persist a diagnostic-only message; not included in normal history retrieval."""
-        self._message_repo.save(
-            role=_DIAGNOSTIC_ROLE,
-            content=content,
-            _diagnostic=True,
+        self._diagnostic_store.save(
+            self.session_id, kind="llm_transport_error", content=content
         )
 
     @property

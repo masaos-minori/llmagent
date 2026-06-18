@@ -13,7 +13,6 @@ from shared.types import LLMMessage
 logger = logging.getLogger(__name__)
 
 _VALID_ROLES: frozenset[str] = frozenset({"user", "assistant", "tool", "system"})
-_DIAGNOSTIC_ROLE: str = "diagnostic"
 
 
 class SessionMessageRepository:
@@ -33,20 +32,15 @@ class SessionMessageRepository:
         content: str,
         tool_calls: list[dict] | None = None,
         tool_call_id: str | None = None,
-        _diagnostic: bool = False,
     ) -> None:
-        """Persist a single message to DB under the current session.
-
-        If _diagnostic=True, role validation is skipped (internal use only for
-        diagnostic messages that should not appear in normal conversation history).
-        """
+        """Persist a single message to DB under the current session."""
         if self.session_id is None:
             self.stat_skipped_no_session += 1
             logger.warning("Persistence skipped: no session_id (role=%r)", role)
             if self.strict_mode:
                 raise RuntimeError("Cannot save message: no session_id (strict mode)")
             return
-        if not _diagnostic and role not in _VALID_ROLES:
+        if role not in _VALID_ROLES:
             self.stat_skipped_invalid_role += 1
             logger.warning("Invalid role %r; message not saved", role)
             if self.strict_mode:
@@ -119,15 +113,14 @@ class SessionMessageRepository:
     def fetch_messages(self, session_id: int) -> list[LLMMessage]:
         """Fetch and parse messages for a session from DB.
 
-        Returns a list of message dicts (role/content/tool_calls) in insertion order,
-        excluding diagnostic-role messages (role='diagnostic').
+        Returns a list of message dicts (role/content/tool_calls) in insertion order.
         Returns [] if no messages exist. Raises sqlite3.Error on DB failure.
         """
         with SQLiteHelper("session").open(row_factory=True) as db:
             rows = db.fetchall(
                 "SELECT message_id, role, content, tool_calls, tool_call_id"
-                " FROM messages WHERE session_id = ? AND role != ? ORDER BY message_id",
-                (session_id, _DIAGNOSTIC_ROLE),
+                " FROM messages WHERE session_id = ? ORDER BY message_id",
+                (session_id,),
             )
         if not rows:
             return []
