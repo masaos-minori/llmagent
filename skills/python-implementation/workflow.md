@@ -332,14 +332,6 @@ When removing a module: remove from all of the above, delete the file, run `rg` 
 
 ---
 
-## Composes with
-
-- `python-lint-typecheck` — if Phase 9 reveals pre-existing lint/type errors outside task scope
-- `python-test-and-fix` — if Phase 9 reveals test failures not introduced by the task
-- `deploy` — after Phase 11 if scripts/ or config/ files changed
-
----
-
 ## Prohibited behavior
 
 - do not rewrite large unrelated sections without request

@@ -14,8 +14,10 @@ Skills in the Load column can be invoked as slash commands (e.g. `/python-implem
 | Test / pytest / flaky | test, pytest, flaky, coverage, assertion, regression | `skills/python-test-and-fix/SKILL.md` |
 | Refactor / rename / CST | refactor, rename, restructure, split, move, import cycle | `skills/python-refactoring/SKILL.md` |
 | Plan / design / ticket | plan, design, analyze, assess, spec, ticket | `skills/python-issue-to-plan/SKILL.md` |
+| Architecture / module design | architecture, module, interface, data model, component | `skills/python-design/SKILL.md` |
 | MCP server / new server | mcp server, new server, install server | `skills/mcp-server-add/SKILL.md` + `rules/env.md` + `docs/04_mcp_03_routing_lifecycle_and_execution.md` + `docs/04_mcp_06_configuration_and_operations.md` |
 | Deploy / production | deploy, /opt/llm, service restart, init.d | `skills/deploy/SKILL.md` + `rules/env.md` + `docs/05_agent_10_operations-and-observability.md` |
+| Documentation / docs | document, doc, write docs, readme, changelog | `skills/python-documentation/SKILL.md` |
 
 ## Docs → task mapping (minimal loading)
 
@@ -38,8 +40,9 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 |---|---|
 | Memory layer (types / store / retriever / extract / jsonl_store / layer) | `docs/05_agent_04_state-and-persistence.md` + `docs/05_agent_08_configuration.md` |
 | OTel observability (otel_tracer.py) | `docs/05_agent_10_operations-and-observability.md` + `docs/05_agent_08_configuration.md` |
-| System-wide architecture overview | `docs/01_overview-arch.md` |
+| System-wide architecture overview | `docs/01_overview.md` + `docs/01_overview-arch.md` |
 | File / module layout | `docs/01_overview-files.md` |
+| Documentation set index / navigation | `docs/00_llm-implementation-guide.md` |
 | MCP server implementation | `docs/04_mcp_02_protocol_and_transport.md` + `docs/04_mcp_03_routing_lifecycle_and_execution.md` |
 | MCP transport / startup_mode / lifecycle | `docs/04_mcp_03_routing_lifecycle_and_execution.md` + `docs/05_agent_08_configuration.md` |
 | ToolRouteResolver / route_resolver.py | `docs/04_mcp_03_routing_lifecycle_and_execution.md` + `docs/05_agent_08_configuration.md` |

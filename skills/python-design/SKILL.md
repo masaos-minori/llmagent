@@ -159,6 +159,18 @@ You must not:
 - overcomplicate the architecture
 - mix current design with speculative future design without labeling it
 
+---
+
+See `workflow.md` for detailed phase content.
+
+## Composes with
+
+- `python-issue-to-plan` — called when a plan identifies that architecture/design work is needed before implementation
+
+## Called by
+
+- `python-issue-to-plan` — during planning phase when design decisions or architecture analysis is required
+
 ## Default Template
 Use this order unless the user requests another format:
 

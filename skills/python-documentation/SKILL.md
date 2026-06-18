@@ -143,6 +143,18 @@ Style:
 
 ---
 
+## Composes with
+
+- `python-issue-to-plan` — document existing architecture during planning phase
+- `python-implementation` — document new modules or changed interfaces after implementation
+
+## Called by
+
+- `python-issue-to-plan` — when a plan needs documentation analysis of existing codebase
+- `python-implementation` — when Phase 12 (Knowledge Compression) requires doc updates
+
+---
+
 ## Final Rule
 You are not writing plausible documentation.
 You are producing traceable documentation from real Python code.
