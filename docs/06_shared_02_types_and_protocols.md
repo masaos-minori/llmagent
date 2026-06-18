@@ -68,10 +68,12 @@ class RagConfig(Protocol):
     use_rrf: bool
     use_search: bool
     rag_service_url: str
+    rag_auth_token: str
     use_refiner: bool
     refiner_max_tokens: int
     refiner_max_chars_per_chunk: int
     refiner_timeout: float
+    use_semantic_cache: bool
 ```
 
 - `@runtime_checkable` — `isinstance()` check works
@@ -201,11 +203,12 @@ All constants are `frozenset[str]`. Used by `ToolRouteResolver` for static fallb
 | `CICD_TOOLS` | `trigger_workflow`, `get_workflow_runs`, `get_workflow_status`, `get_workflow_logs` |
 | `MDQ_TOOLS` | `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs` |
 | `GIT_TOOLS` | `git_status`, `git_log`, `git_diff`, `git_branch`, `git_show`, `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push` |
+| `SQLITE_TOOLS` | `query_sqlite` |
+| `SHELL_TOOLS` | `shell_run` |
+| `WEB_SEARCH_TOOLS` | `search_web` |
 
 Used by `ToolRouteResolver._fallback_route()` in `shared/route_resolver.py`.
 Referenced also by `shared/tool_executor.py` and `agent/tool_runner.py`.
-
-**Note:** `query_sqlite` is NOT in any frozenset — must be declared in `McpServerConfig.tool_names`.
 
 ---
 

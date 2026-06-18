@@ -29,7 +29,7 @@ Three DB files:
 |---|---|---|
 | `rag.sqlite` | `common.toml::rag_db_path` | `documents`, `chunks`, `chunks_fts`, `chunks_vec` |
 | `session.sqlite` | `common.toml::session_db_path` | `sessions`, `messages`, `notes`, `tool_results`, `memories`, `memories_fts`, `memories_vec`, `memory_links` |
-| `workflow.sqlite` | `common.toml::workflow_db_path` | `tasks`, `attempts`, `processed_events`, `artifacts` |
+| `workflow.sqlite` | `common.toml::workflow_db_path` | `tasks`, `attempts`, `processed_events`, `artifacts`, `approvals` |
 
 **Why separate DB files?** RAG indexing and conversation state have different access patterns.
 `rag.sqlite` is write-heavy during ingestion, read-heavy during queries.
@@ -44,6 +44,7 @@ Three DB files:
 class DbConfig:
     rag_db_path: str           # path to rag.sqlite
     session_db_path: str       # path to session.sqlite
+    workflow_db_path: str = "/opt/llm/db/workflow.sqlite"  # path to workflow.sqlite
     sqlite_vec_so: str = ""    # path to vec0.so (empty = vec extension not needed)
     sqlite_timeout: int = 30   # sqlite3.connect() timeout (seconds, >= 1)
     sqlite_busy_timeout_ms: int = 30000   # PRAGMA busy_timeout (ms)
@@ -245,11 +246,23 @@ Initialized by `init_schema(path)`. Used by `agent/workflow/state_store.py`.
 | `task_id` | TEXT PK | UUID4 |
 | `session_id` | TEXT | |
 | `turn_number` | INTEGER | |
-| `workflow_version` | TEXT | |
+| `workflow_version` | TEXT | NOT NULL |
 | `status` | TEXT | `pending`/`running`/`completed`/`failed`/`halted` |
 | `idempotency_key` | TEXT UNIQUE | `session_id:turn_number` |
 | `created_at` | TEXT | ISO-8601 UTC |
 | `updated_at` | TEXT | ISO-8601 UTC |
+
+### `approvals` table
+
+| Column | Type | Note |
+|---|---|---|
+| `approval_id` | TEXT PK | UUID4 |
+| `task_id` | TEXT NOT NULL | FK → `tasks(task_id)` ON DELETE CASCADE |
+| `stage_id` | TEXT | |
+| `status` | TEXT | `pending`/`approved`/`rejected` |
+| `reason` | TEXT | |
+| `created_at` | TEXT | ISO-8601 UTC |
+| `resolved_at` | TEXT | |
 
 ### `attempts`, `processed_events`, `artifacts` tables
 

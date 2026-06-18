@@ -70,7 +70,7 @@ ConfigLoader().load("agent.toml")
   → return dict  (ValueError on missing or parse error)
 
 ConfigLoader().load_all()
-  → iterate hardcoded 11-file list
+  → iterate hardcoded 12-file list
   → skip missing files silently
   → merge all into single dict
   → return dict  (common.toml IS included at index 0)

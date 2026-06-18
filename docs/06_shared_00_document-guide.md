@@ -7,7 +7,7 @@ Read this file first to choose which chapter to open.
 
 ## Purpose of This Document Set
 
-These 8 files document the `shared/` layer (common types, config, logging, plugins,
+These 7 files document the `shared/` layer (common types, config, logging, plugins,
 OTel, tool routing) and the `db/` layer (SQLite connection management, schemas, store
 protocols, and maintenance). They replace the 4 source files as the primary reference.
 
@@ -27,8 +27,6 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 05 DB API and Operations    — SQLiteHelper API, store protocols, maintenance
     ↓
 90 Inconsistencies          — known bugs, undocumented areas, design concerns
-    ↓
-99 Source Mapping           — audit table (verification only)
 ```
 
 ---
@@ -92,7 +90,6 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 | [06_shared_04_db_architecture_and_schema.md](06_shared_04_db_architecture_and_schema.md) | DB file structure, DbConfig, all table schemas (rag/session/workflow), FTS5/vec, schema init |
 | [06_shared_05_db_api_and_operations.md](06_shared_05_db_api_and_operations.md) | SQLiteHelper full API, store protocols, SQLite implementations, ToolResultStore, memory ops, maintenance, corruption recovery |
 | [06_shared_90_inconsistencies_and_known_issues.md](06_shared_90_inconsistencies_and_known_issues.md) | 16 cataloged issues: DOCREF-01, CONFIG-01/02/03, TYPE-01, GLOBAL-01, PLUGIN-01, EXCEPT-01, UNDOC-04, UNIMPL-01, IMPORT-01, API-01, DESIGN-01/02, DOCFIELD-01, DOCMISS-01 |
-| [06_shared_99_source_mapping.md](06_shared_99_source_mapping.md) | Audit: maps every source section to its new location; coverage summary |
 
 ---
 
