@@ -15,6 +15,7 @@ DEPLOY_CONFIG="/opt/llm/config"
 DEPLOY_DB="/opt/llm/db"
 DEPLOY_LOGS="/opt/llm/logs"
 DEPLOY_RAG_SRC="/opt/llm/rag-src"
+DEPLOY_TESTS="/opt/llm/tests"
 
 echo "=== deploy.sh: デプロイ開始 ==="
 echo "リポジトリ: ${REPO_ROOT}"
@@ -28,6 +29,7 @@ mkdir -p "${DEPLOY_LOGS}"
 mkdir -p "${DEPLOY_RAG_SRC}/chunk"
 mkdir -p "${DEPLOY_RAG_SRC}/registered"
 mkdir -p /opt/llm/memory
+mkdir -p "${DEPLOY_TESTS}"
 
 # ── uv プロジェクト設定 ───────────────────────────────────────────────────────
 echo "--- pyproject.toml / uv.lock → /opt/llm/ ---"
@@ -73,6 +75,14 @@ cp "${REPO_ROOT}/db/rrf.sql" "${DEPLOY_DB}/"
 echo "--- config/workflows/ → ${DEPLOY_CONFIG}/workflows/ ---"
 mkdir -p "${DEPLOY_CONFIG}/workflows"
 cp -r "${REPO_ROOT}/config/workflows/." "${DEPLOY_CONFIG}/workflows/"
+
+# ── テスト ────────────────────────────────────────────────────────────────────
+echo "--- tests/ → ${DEPLOY_TESTS}/ ---"
+rsync -av --delete \
+  --exclude="__pycache__/" \
+  --exclude="*.pyc" \
+  --exclude="*.pyo" \
+  "${REPO_ROOT}/tests/" "${DEPLOY_TESTS}/"
 
 echo "=== deploy.sh: 完了 ==="
 echo ""
