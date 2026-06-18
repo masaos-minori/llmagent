@@ -296,3 +296,33 @@ Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).
 
 7. **`dry_run=True` preview before destructive ops.** The approval flow in the agent
    auto-injects `dry_run=True` for registered tools before showing the user prompt.
+
+---
+
+## Fail-open vs Fail-closed Defaults
+
+"Fail-closed" means the setting denies access when the list is empty.
+"Fail-open" means the setting allows all access when the list is empty.
+
+| Server | Setting | Default | Behavior when empty |
+|---|---|---|---|
+| shell-mcp | `command_allowlist` | `[]` | **Fail-closed** — all shell commands denied |
+| sqlite-mcp | `db_allowlist` | `[]` | **Fail-closed** — all DB queries denied |
+| git-mcp | `allowed_repo_paths` | `[]` | **Fail-closed** — all repo access denied |
+| github-mcp | `allowed_repos` | `[]` | **Fail-closed** — all GitHub write ops denied |
+| cicd-mcp | `workflow_allowlist` | `[]` | **Fail-open** — all workflows can be triggered |
+| github-mcp | `allowed_workflows` | `[]` | **Fail-open** — all workflows allowed |
+
+### Dangerous defaults to review before production deployment
+
+- `shell-mcp`: `sandbox_backend = "none"` (default) means no OS-level sandboxing.
+  Set to `"firejail"` for production; visible in `/health` response.
+- `cicd-mcp`: `workflow_allowlist = []` is fail-open; explicitly list permitted workflows.
+- `github-mcp`: `allow_force_push = true` (default); set to `false` in production.
+
+### Startup audit
+
+`audit_security_defaults()` in `agent/repl_health.py` runs at startup and logs:
+- All fail-closed settings that are empty (informational — access is correctly denied)
+- All fail-open settings that are empty (warning — unintended access may be allowed)
+- A summary line: `Security posture summary — fail-closed (...): ...; fail-open (...): ...`
