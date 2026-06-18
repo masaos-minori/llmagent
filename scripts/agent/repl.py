@@ -26,25 +26,20 @@ import json
 import sqlite3
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from db.config import build_db_config
 from db.helper import SQLiteHelper
 from shared.logger import Logger
-from shared.mcp_config import SecurityProfile
-from shared.tool_executor import StdioTransport
 
 from agent.cli_view import CLIView
 from agent.commands.registry import CommandRegistry
 from agent.context import AgentContext
-from agent.factory import build_agent_context, init_tracer
-from agent.orchestrator import Orchestrator
-from agent.repl_health import (
-    audit_security_defaults,
-    check_readiness,
-    check_tool_definitions_runtime,
-    watchdog_loop,
-)
+from agent.repl_health import watchdog_loop
 from agent.services.db_maintenance_service import DbMaintenanceService
+
+if TYPE_CHECKING:
+    from agent.orchestrator import Orchestrator
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -107,12 +102,7 @@ class AgentREPL:
             logger.debug("Failed to get chunk count: %s", e)
             return "?"
 
-    # ── Health checks / watchdog — delegated to agent_repl_health ─────────────
-
-    async def _check_tool_definitions(self) -> None:
-        result = await check_tool_definitions_runtime(self._ctx)
-        for msg in result.warning_messages():
-            self._view.write_warning(msg)
+    # ── Watchdog — delegated to agent_repl_health ─────────────────────────────
 
     async def _watchdog_loop(self) -> None:
         await watchdog_loop(self._ctx)
@@ -287,82 +277,6 @@ class AgentREPL:
         else:
             await self._orchestrator.handle_turn(line)
 
-    def _init_command_registry(self, ctx: AgentContext) -> None:
-        """Instantiate CommandRegistry and assign to self._cmds."""
-        self._cmds = CommandRegistry(ctx)
-
-    def _init_orchestrator(self, ctx: AgentContext) -> None:
-        """Instantiate Orchestrator and assign to self._orchestrator."""
-        if self._cmds is None:
-            raise RuntimeError("_init_orchestrator requires _cmds to be set first")
-        tracer = init_tracer(ctx)
-        self._orchestrator = Orchestrator(
-            ctx,
-            on_turn_start=self._view.write_turn_start,
-            on_turn_end=self._view.write_turn_end,
-            on_error=self._view.write_llm_error,
-            on_first_turn=self._cmds._generate_session_title,
-            tracer=tracer,
-            workflow_mode=ctx.cfg.workflow_mode,
-        )
-
-    def _init_components(self) -> None:
-        """Inject services via factory.build_agent_context(), then wire CommandRegistry and Orchestrator."""
-        ctx = self._ctx
-        build_agent_context(ctx, self._view)
-        self._init_command_registry(ctx)
-        self._init_orchestrator(ctx)
-
-    async def _start_subprocess_servers(self) -> None:
-        """Spawn subprocesses for persistent stdio and HTTP subprocess MCP servers.
-
-        Handles:
-        - stdio + startup_mode='persistent': start StdioTransport subprocess
-        - http  + startup_mode='subprocess': start HTTP server subprocess, poll /health
-        Ondemand servers are excluded; they start on first tool call via ensure_ready().
-        """
-        ctx = self._ctx
-        if ctx.services.tools is None:
-            raise RuntimeError("tools service not initialized")
-        if ctx.services.lifecycle is None:
-            raise RuntimeError("lifecycle service not initialized")
-        for key, cfg in ctx.cfg.mcp.mcp_servers.items():
-            if cfg.startup_mode == "subprocess" and cfg.transport == "http":
-                try:
-                    await ctx.services.lifecycle.start_http_subprocess(key, cfg)
-                except (OSError, RuntimeError) as e:
-                    logger.error(
-                        "Failed to start HTTP subprocess MCP server %r: %s",
-                        key,
-                        e,
-                    )
-                    self._view.write_warning(
-                        f"HTTP subprocess MCP server {key!r} failed to start: {e}"
-                    )
-                continue
-            # ondemand and non-stdio servers are excluded: they start on first tool call
-            if (
-                cfg.transport != "stdio"
-                or not cfg.cmd
-                or cfg.startup_mode != "persistent"
-            ):
-                continue
-            transport = StdioTransport(
-                cfg.cmd,
-                server_key=key,
-                working_dir=cfg.working_dir,
-                env=cfg.env or None,
-            )
-            try:
-                await transport.start()
-                ctx.services.tools.set_transport(key, transport)
-                ctx.services.stdio_procs[key] = transport
-            except (OSError, RuntimeError) as e:
-                logger.error("Failed to start stdio MCP server %r: %s", key, e)
-                self._view.write_warning(
-                    f"stdio MCP server {key!r} failed to start: {e}"
-                )
-
     def _get_workflow_status(self) -> str:
         """Return a human-readable workflow status string for the startup banner."""
         if self._orchestrator is None:
@@ -379,61 +293,6 @@ class AgentREPL:
         chunk_count = self._get_chunk_count()
         workflow_status = self._get_workflow_status()
         self._view.write_startup_banner(chunk_count, self._n_tools, workflow_status)
-
-    async def _initialize_session(self) -> None:
-        """Initialize session and setup components."""
-        ctx = self._ctx
-        self._view.setup_readline()
-        self._init_components()
-        ctx.conv.llm_url = ctx.cfg.llm.llm_url
-
-    async def _start_mcp_servers(self) -> None:
-        """Spawn stdio/HTTP subprocess MCP servers before health/tool checks."""
-        await self._start_subprocess_servers()
-
-    async def _check_services(self) -> None:
-        """Probe LLM / Embed service health, validate tool definitions, and audit security defaults."""
-        # Audit security-related configuration defaults (warns on risky settings; raises in production mode)
-        production_mode = (
-            self._ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION
-        )
-        audit_security_defaults(self._ctx, production_mode=production_mode)
-
-        # Readiness check: raises in production mode if critical services are down
-        result = await check_readiness(self._ctx, production_mode=production_mode)
-        for msg in result.warning_messages():
-            self._view.write_warning(msg)
-
-        # Validate tool definitions against live MCP servers (warns or raises)
-        await self._check_tool_definitions()
-
-    async def _setup_initial_prompt(self) -> None:
-        """Setup initial system prompt with notes and memories."""
-        ctx = self._ctx
-        initial_prompt = ctx.cfg.tool.system_prompts.get(
-            ctx.conv.system_prompt_name,
-            ctx.cfg.tool.system_prompt_tool,
-        )
-        # Inject pinned notes into system prompt at session start
-        if ctx.cfg.tool.auto_inject_notes:
-            pinned_notes = ctx.session.get_pinned_notes()
-            if pinned_notes:
-                notes_block = "\n\n[Pinned Notes]\n" + "\n".join(
-                    f"- {n['content']}" for n in pinned_notes
-                )
-                initial_prompt = initial_prompt + notes_block
-        # SessionStart: inject top semantic memories into system prompt
-        if ctx.services.memory is not None:
-            memory_snippets = ctx.services.memory.on_session_start(
-                ctx.session.session_id,
-            )
-            if memory_snippets:
-                memory_block = "\n\n[Relevant memories]\n" + "\n".join(
-                    f"- {snippet.text}" for snippet in memory_snippets
-                )
-                initial_prompt = initial_prompt + memory_block
-        ctx.conv.system_prompt_content = initial_prompt
-        ctx.conv.history = [{"role": "system", "content": initial_prompt}]
 
     async def _run_repl_loop(self) -> None:
         """Run the main REPL loop with watchdog if enabled."""
@@ -454,12 +313,14 @@ class AgentREPL:
     async def run(self) -> None:
         """Start the interactive REPL.
 
-        Initialises all components via AgentContext, creates a session record,
-        processes user messages with RAG augmentation, and preserves conversation
-        and readline history for the session.
+        Delegates startup orchestration to StartupOrchestrator (component init,
+        MCP server spawning, health checks, security audit, initial prompt setup),
+        then enters the main input loop.
         """
-        await self._initialize_session()
-        await self._start_mcp_servers()
-        await self._check_services()
-        await self._setup_initial_prompt()
+        from agent.startup import (
+            StartupOrchestrator,  # noqa: PLC0415 — lazy: avoids circular import at module level
+        )
+
+        startup = StartupOrchestrator(self._ctx, self._view)
+        self._cmds, self._orchestrator = await startup.run()
         await self._run_repl_loop()

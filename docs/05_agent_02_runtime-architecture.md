@@ -13,7 +13,8 @@ boundaries so that an engineer or AI can locate where any behavior is implemente
 
 ```
 agent/__main__.py
-  └─ AgentREPL (agent/repl.py)          — REPL coordinator; thin; no business logic
+  └─ AgentREPL (agent/repl.py)          — REPL coordinator; input loop + output only
+       ├─ StartupOrchestrator (agent/startup.py) — startup sequence; created once in run()
        ├─ AgentContext (agent/context.py) — per-session DI hub; shared mutable state
        │    ├─ AgentConfig               — hot-reloadable runtime configuration
        │    ├─ AgentSession              — SQLite session/message/note persistence
@@ -40,28 +41,37 @@ agent/__main__.py
 
 ### AgentREPL (`agent/repl.py`)
 
-- Owns startup sequence: readline setup → DI wiring → MCP startup → service health check → REPL loop
-- Dispatches each user input to `Orchestrator.handle_turn()` or `CommandRegistry.dispatch()`
+- Owns the input/dispatch loop: read line → command or LLM turn
+- Delegates entire startup sequence to `StartupOrchestrator`
 - Owns graceful shutdown (SIGTERM → `SystemExit(0)` conversion, `_close_resources()`)
-- No business logic; delegates everything to sub-components
+- No business logic; contains only UI loop, command dispatch, and output display
 
-**Startup sequence:**
+**Startup sequence (delegated to `StartupOrchestrator.run()`):**
 
 ```
-_initialize_session()
-  → _view.setup_readline()
-  → build_agent_context(ctx, view)   [factory.py]
-  → _init_command_registry
-  → _init_orchestrator
-_start_mcp_servers()                 [persistent stdio + HTTP subprocess]
-_check_services()
-  → check_readiness()              [repl_health.py — raises in production mode if services down]
-  → _check_tool_definitions()
-_setup_initial_prompt()
-  → system prompt init
-  → memory.on_session_start()
+StartupOrchestrator.run()
+  _initialize()
+    → _view.setup_readline()
+    → build_agent_context(ctx, view)   [factory.py]
+    → _init_command_registry()
+    → _init_orchestrator()
+  _start_servers()                     [persistent stdio + HTTP subprocess MCP servers]
+  _check_services()
+    → audit_security_defaults()      [repl_health.py]
+    → check_readiness()              [repl_health.py — warns in local, raises in production]
+    → check_tool_definitions_runtime()
+  _setup_prompt()
+    → system prompt init
+    → memory.on_session_start()
+→ returns (CommandRegistry, Orchestrator)
 _run_repl_loop()
 ```
+
+### StartupOrchestrator (`agent/startup.py`)
+
+- Houses all startup orchestration extracted from `AgentREPL`
+- Constructed with `(ctx, view)`; `run()` returns `(CommandRegistry, Orchestrator)`
+- Isolates startup complexity so `AgentREPL` contains only UI concerns
 
 ### Orchestrator (`agent/orchestrator.py`)
 
