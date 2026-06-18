@@ -53,6 +53,17 @@ class RetentionConfig:
 
 
 @dataclass(frozen=True)
+class RagConsistencyReport:
+    """Counts from chunks, chunks_fts, and chunks_vec for consistency verification."""
+
+    chunks: int
+    fts: int
+    vec: int
+    orphan_vec_count: int
+    fts_gap: int  # chunks - fts; 0 = consistent
+
+
+@dataclass(frozen=True)
 class RecoveryResult:
     """Structured result of a corruption recovery attempt."""
 
@@ -288,3 +299,49 @@ def recover_corruption(
 
     logger.error("Integrity check failed: %s", check_result)
     return _restore_from_backup(db_path, backup_path)
+
+
+def check_rag_consistency(db: SQLiteHelper) -> RagConsistencyReport:
+    """Return row counts from chunks, chunks_fts, and chunks_vec for consistency verification.
+
+    All queries are read-only. Orphan vec rows are chunk_id values in chunks_vec
+    with no matching row in chunks (possible when the chunks_vec_ad trigger fails).
+    """
+    chunks = db.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+    fts = db.execute("SELECT COUNT(*) FROM chunks_fts_docsize").fetchone()[0]
+    vec = db.execute("SELECT COUNT(*) FROM chunks_vec").fetchone()[0]
+    orphan_vec_count = db.execute(
+        "SELECT COUNT(*) FROM chunks_vec WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks)"
+    ).fetchone()[0]
+    return RagConsistencyReport(
+        chunks=chunks,
+        fts=fts,
+        vec=vec,
+        orphan_vec_count=orphan_vec_count,
+        fts_gap=chunks - fts,
+    )
+
+
+def is_consistent(report: RagConsistencyReport) -> bool:
+    """Return True when fts_gap == 0, orphan_vec_count == 0, and vec == chunks."""
+    return (
+        report.fts_gap == 0
+        and report.orphan_vec_count == 0
+        and report.vec == report.chunks
+    )
+
+
+def summarize_issues(report: RagConsistencyReport) -> list[str]:
+    """Return human-readable descriptions of any consistency issues found in report."""
+    issues: list[str] = []
+    if report.fts_gap != 0:
+        issues.append(
+            f"FTS gap: chunks={report.chunks}, fts={report.fts}, gap={report.fts_gap}"
+        )
+    if report.orphan_vec_count > 0:
+        issues.append(
+            f"Orphan vec rows: {report.orphan_vec_count} chunk_id(s) not in chunks"
+        )
+    if report.vec != report.chunks:
+        issues.append(f"Vec count mismatch: chunks={report.chunks}, vec={report.vec}")
+    return issues

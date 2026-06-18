@@ -133,6 +133,41 @@ uv run python scripts/rag/ingestion/ingester.py --force
 | `chunk_splitter.py` | Delete existing `{stem}-*.txt` chunks and regenerate |
 | `ingester.py` | Delete `chunks_vec` → `chunks` → `documents` records for the URL, then re-insert |
 
+### 2.6 RAG Consistency Checks (`db/maintenance.py`)
+
+Use `check_rag_consistency(db)` to detect trigger-based sync failures and orphan records.
+Run after large ingestion, after force-reinsertion, or during diagnostics.
+
+```python
+from db.maintenance import check_rag_consistency, is_consistent, summarize_issues
+from db.helper import SQLiteHelper
+
+with SQLiteHelper("rag").open() as db:
+    report = check_rag_consistency(db)
+    if not is_consistent(report):
+        for issue in summarize_issues(report):
+            print(issue)
+```
+
+**`RagConsistencyReport` fields:**
+
+| Field | Description |
+|---|---|
+| `chunks` | Row count in `chunks` table |
+| `fts` | Indexed document count in `chunks_fts_docsize` shadow table |
+| `vec` | Row count in `chunks_vec` table |
+| `orphan_vec_count` | `chunks_vec` rows whose `chunk_id` has no matching row in `chunks` |
+| `fts_gap` | `chunks - fts`; 0 = FTS index is in sync |
+
+**Notes:**
+- `fts` is read from `chunks_fts_docsize` (FTS5 shadow table), not from `chunks_fts` directly.
+  This gives the true FTS5 indexed document count, independent of the backing table join.
+- `orphan_vec_count > 0` indicates a vec trigger failure; repair by re-running `ingester.py --force`
+  for the affected URL.
+- This function is read-only; it does not repair inconsistencies.
+- Performance: the `NOT IN` subquery in orphan detection is O(vec × chunks). Run during
+  maintenance windows on large datasets.
+
 ---
 
 ## 3. Logging
