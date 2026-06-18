@@ -124,6 +124,15 @@ _SESSION_SCHEMA_TEMPLATE: str = """
         dst_id  TEXT NOT NULL REFERENCES memories(memory_id) ON DELETE CASCADE,
         PRIMARY KEY (src_id, dst_id)
     );
+    CREATE TABLE IF NOT EXISTS session_diagnostics (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,
+        kind       TEXT    NOT NULL,
+        content    TEXT    NOT NULL,
+        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_session_diagnostics_session
+        ON session_diagnostics(session_id);
     CREATE VIRTUAL TABLE IF NOT EXISTS memories_vec USING vec0(
         memory_id TEXT PRIMARY KEY,
         embedding float[DIMS]
