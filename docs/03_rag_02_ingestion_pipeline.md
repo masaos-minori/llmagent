@@ -30,13 +30,16 @@ uv run python scripts/rag/ingestion/crawler.py \
     --lang en
 ```
 
+**Note:** All file paths (`rag_src_dir`) are resolved from `config/rag_pipeline.toml`. Production default: `/opt/llm/rag-src/`.
+
 ### Step 2: Chunk split
 
 ```bash
+# All unprocessed .txt files in {rag_src_dir}/
 uv run python scripts/rag/ingestion/chunk_splitter.py
 
-# Single file only
-uv run python scripts/rag/ingestion/chunk_splitter.py --file rag-src/20240101120000-ziglang.txt
+# Single file only (path relative to rag_src_dir)
+uv run python scripts/rag/ingestion/chunk_splitter.py --file /opt/llm/rag-src/20240101120000-ziglang.txt
 
 # Regenerate existing chunks
 uv run python scripts/rag/ingestion/chunk_splitter.py --force
@@ -45,6 +48,9 @@ uv run python scripts/rag/ingestion/chunk_splitter.py --force
 ### Step 3: Embed and store
 
 ```bash
+# Confirm embed-llm is running
+curl -s http://127.0.0.1:8003/health
+
 uv run python scripts/rag/ingestion/ingester.py
 
 # Force re-register existing URLs
@@ -54,10 +60,12 @@ uv run python scripts/rag/ingestion/ingester.py --force
 ### File lifecycle
 
 | Path | Created by | Format |
-|---|---|---|
-| `rag-src/yyyymmddhhmmss-{slug}.txt` | `crawler.py` | JSON (url, title, lang, fetched_at, content, code_blocks) |
-| `rag-src/chunk/{stem}-{idx:04d}.txt` | `chunk_splitter.py` | JSON (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified) |
-| `rag-src/registered/{stem}-{idx:04d}.txt` | `ingester.py` (moved) | Same as chunk file |
+|---|---|---|---|
+| `{rag_src_dir}/yyyymmddhhmmss-{slug}.txt` | `crawler.py` | JSON (url, title, lang, fetched_at, content, code_blocks) |
+| `{rag_src_dir}/chunk/{stem}-{idx:04d}.txt` | `chunk_splitter.py` | JSON (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified) |
+| `{rag_src_dir}/registered/{stem}-{idx:04d}.txt` | `ingester.py` (moved) | Same as chunk file |
+
+Production config: `rag_src_dir = "/opt/llm/rag-src"`. The default value `rag-src` is used only when no config is present.
 
 ---
 
@@ -221,10 +229,11 @@ See [03_rag_05_configuration_and_operations.md §1.1](03_rag_05_configuration_an
 
 ## 4. RagIngester (`scripts/rag/ingestion/ingester.py`)
 
-> **Known Issue (BUG-1/2/3):** `_read_chunk_json()` uses `dataclasses.asdict(read_json_file(path))`,
-> which drops fields not present in `ChunkDocument`. This causes `chunking_strategy`,
-> `normalized_content`, and `chunk_index` to be lost.
-> See [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) BUG-1/2/3.
+**BUG-1/2/3 resolved:** `_read_chunk_json()` now reads raw bytes and parses with `orjson` directly,
+returning a raw `dict` that preserves all fields including `chunking_strategy`, `normalized_content`,
+and `chunk_index`. The earlier `dataclasses.asdict(read_json_file(path))` approach (which dropped
+fields not in `ChunkDocument`) is no longer used. See [03_rag_90](03_rag_90_inconsistencies_and_known_issues.md)
+for resolution details.
 
 ### 4.1 Class overview
 
@@ -239,6 +248,7 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 | `__init__` | `(config: dict \| None = None)` | Merge `common.toml` + `rag_pipeline.toml`; init `httpx.Client` |
 | `ingest_all` | `(force: bool = False) -> None` | Group chunk files by URL; call `ingest_url_group` for each |
 | `ingest_url_group` | `(db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> None` | Process one URL group; move processed files to `registered/` |
+| `close` | `() -> None` | Close the underlying `httpx.Client` |
 
 ### 4.2 Behavior details
 

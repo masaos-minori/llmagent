@@ -5,6 +5,10 @@ discovered during the restructuring of RAG documentation.
 
 Each entry uses: Type / Impact / Description / Safe interpretation / Recommended action / Source.
 
+**Resolved entries removed from this file:**
+- BUG-1/2/3 (chunk field drop via `dataclasses.asdict`): fixed — `_read_chunk_json()` now uses raw `orjson` parsing, preserving all fields including `chunking_strategy`, `normalized_content`, and `chunk_index`.
+- OQ-3 (`test_ingester.py` missing): addressed — `tests/test_rag_ingester.py` exists with 9 tests.
+
 ---
 
 ## Open Questions
@@ -49,15 +53,18 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
-### OQ-7: `_augment_http()` fallback trigger condition
+### OQ-7: `_augment_http()` fallback trigger condition (resolved)
 
-- **Type:** OPEN_QUESTION
-- **Impact scope:** `RagPipeline._augment_http()`
-- **Description:** The method returns `None` to signal "fall back to in-process pipeline."
-  The exact conditions that trigger this (`None` return) are not documented. Is it any exception,
-  HTTP error, empty result, or only connection failure?
-- **Recommended action:** Document the explicit conditions that cause `_augment_http()` to
-  return `None`.
+- **Type:** Documented
+- **Impact scope:** `RagPipeline._augment_http()`, `rag/pipeline_service.py`
+- **Description:** `call_rag_service()` returns `None` on failure (triggering in-process fallback)
+  in the following cases:
+  - **4xx client errors** (e.g. 404, 422): return `None` immediately (no retry).
+  - **JSON parse / ValueError errors**: return `None` immediately.
+  - **5xx server errors + transport errors**: retry up to 3 attempts with exponential backoff
+    (`min(2**attempt, 5)` sec); return `None` when all attempts exhausted.
+  - **Empty `context` field**: returns `""` (empty string — treated as a valid result, not a fallback).
+- **Recommended action:** Documented in this entry.
 
 ---
 

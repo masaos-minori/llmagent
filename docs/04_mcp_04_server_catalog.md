@@ -35,7 +35,7 @@ All providers failed → HTTP 502.
 | `default_max_results` | `5` | Default result count |
 | `max_results_limit` | `20` | Server-side cap |
 
-**Health:** `{"status":"ok","providers":[...],"brave_key":"set","bing_key":"not_set"}`
+**Health:** `{"status":"ok","ready":true,"dependencies":{"brave_api_key":"set","bing_api_key":"not_set"},"details":{"providers":[...]}}`
 **Log:** `/opt/llm/logs/web-search-mcp.log`
 **When to use:** Real-time information not in RAG index; latest releases; news.
 
@@ -82,13 +82,13 @@ All providers failed → HTTP 502.
 **Auth:** `GITHUB_TOKEN` env var (PAT); without it: 60 req/hour anonymous
 
 **Tools (21):** All prefixed `github_`: `search_repositories`, `get_file_contents`,
-`push_files`, `delete_repo_file`, `list_branches`, `get_commit`, `list_issues`, `get_issue`,
+`push_files`, `github_delete_file`, `list_branches`, `get_commit`, `list_issues`, `get_issue`,
 `create_issue`, `search_issues`, `list_pull_requests`, `get_pull_request`,
 `search_pull_requests`, `update_pull_request`, `merge_pull_request`, `list_commits`,
 `search_code`, `create_pull_request`, `create_branch`, `create_or_update_file`, `add_issue_comment`
 
 **Write operations (9) are subject to repo allowlist:**
-`create_branch`, `create_or_update_file`, `push_files`, `delete_repo_file`,
+`create_branch`, `create_or_update_file`, `push_files`, `github_delete_file`,
 `create_issue`, `add_issue_comment`, `create_pull_request`, `update_pull_request`, `merge_pull_request`
 
 **Security controls:**
@@ -102,7 +102,7 @@ All providers failed → HTTP 502.
 **Domain exceptions** (in `mcp/github/models.py`): `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403),
 `GitHubConflictError` (409), `GitHubValidationError` (400), `GitHubUpstreamError` (502), `GitHubAuditError` (500)
 
-**Health:** `{"status":"ok","github_token":"set"}` or `"not_set"`
+**Health:** `{"status":"ok","ready":true,"dependencies":{"github_token":"set"},"details":{}}`
 **Log:** `/opt/llm/logs/github-mcp.log`
 **Audit log:** `config/github_mcp_server.toml::audit_log_path`
 
@@ -118,10 +118,10 @@ All providers failed → HTTP 502.
 
 | Tool | Input | dry_run behavior |
 |---|---|---|
-| `write_file` | `{path, content, dry_run?}` | Returns diff only; no write |
+| `write_file` | `{path, content, dry_run?}` | Returns diff only; no write (`dry_run` in model but NOT in inputSchema) |
 | `edit_file` | `{path, edits: [{old_text, new_text}], dry_run?}` | Returns diff; no write |
-| `create_directory` | `{path, dry_run?}` | Returns existence check |
-| `move_file` | `{source, destination, dry_run?}` | Returns move feasibility |
+| `create_directory` | `{path}` | Creates directory; **no** `dry_run` support |
+| `move_file` | `{source, destination, dry_run?}` | Returns move feasibility (`dry_run` in model but NOT in inputSchema) |
 
 **Config:** `max_write_bytes` (default 1 MB; enforced as UTF-8 byte count via Pydantic)
 **Error codes:** 400, 403 (outside allowed_dirs), 404, 413/422 (size limit)
@@ -139,8 +139,8 @@ All providers failed → HTTP 502.
 
 | Tool | Input | dry_run behavior |
 |---|---|---|
-| `delete_file` | `{path, dry_run?}` | Returns file info; no delete |
-| `delete_directory` | `{path, recursive?, dry_run?}` | Scans contents (up to 1000 files); no delete |
+| `delete_file` | `{path, dry_run?}` | Returns file info; no delete (`dry_run` in model but NOT in inputSchema) |
+| `delete_directory` | `{path, recursive?, dry_run?}` | Scans contents (up to 1000 files); no delete (`dry_run` in model but NOT in inputSchema) |
 
 **Delete audit log:** `/opt/llm/logs/delete_audit.log` (ISO8601 UTC + op + path + user)
 **Log:** `/opt/llm/logs/file-delete-mcp.log`
@@ -255,7 +255,7 @@ All providers failed → HTTP 502.
 **Security:**
 - `repo_allowlist`: fail-closed (empty = deny all)
 - `workflow_allowlist`: fail-open (empty = allow all)
-- `trigger_workflow` supports `dry_run` argument
+- `trigger_workflow` supports `dry_run` argument (in Pydantic model but NOT in inputSchema)
 
 **Log limits:** max 5 jobs, 256 KB total (default)
 **Architecture:** `CiCdService → CiBackend (Protocol) → GitHubActionsBackend`
@@ -313,4 +313,4 @@ All providers failed → HTTP 502.
 | `max_log_entries` | `50` | `git_log` entry cap |
 | `audit_log_path` | `"/opt/llm/logs/git-mcp.log"` | Operations log |
 
-**Note:** `git_show` truncates at 8000 chars. `git_log max_entries` is capped by config.
+**Note:** `git_show` truncates at 8000 chars. `git_log` inputSchema defaults to `max_entries=20`; config cap `max_log_entries` defaults to `50`.

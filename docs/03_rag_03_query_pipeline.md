@@ -8,8 +8,8 @@
 
 ## 1. Pipeline Overview
 
-`RagPipeline` orchestrates 5 sequential stages. Each stage implements `PipelineStage` Protocol
-and mutates a shared `PipelineContext` dataclass in-place.
+`RagPipeline` orchestrates 6 sequential stages (5 fixed + PluginHooks). Each stage implements
+`PipelineStage` Protocol and mutates a shared `PipelineContext` dataclass in-place.
 
 ```
 RagPipeline.augment(query)
@@ -54,6 +54,7 @@ RagPipeline(
 |---|---|---|
 | `last_fetch_result` | `TwoStageFetchResult \| None` | Reranked hits from last `run()`/`augment()`. Holds `hits`, `min_score_applied`, `max_chunks_per_doc` |
 | `last_timings` | `dict[str, float]` | Wall-clock seconds per stage from last `run()` |
+| `last_stage_results` | `list[StageResult]` | Per-stage outcome records (status, fallback reason, elapsed) from last `run()` |
 | `semantic_cache` | `SemanticCache` | In-memory nearest-neighbor cache |
 
 ### Public methods
@@ -70,8 +71,9 @@ RagPipeline(
 | Method | Description |
 |---|---|
 | `_augment_http(rag_url, query, history_context) -> str \| None` | POST to `{rag_url}/v1/search`; update `last_fetch_result`; return `None` on failure |
-| `_augment_refiner(reranked, query) -> str \| None` | Compress chunks via `RagLLM.refine_context`; return `None` on empty/error |
+| `_augment_refiner(reranked, query) -> str \| None` | Compress chunks via `refine_context()` in `rag/pipeline_refiner.py`; return `None` on empty/error |
 | `_format_chunks(reranked) -> str` (static) | Format as `[Source: title \| url]\ncontent` blocks with `[RAG_CONTEXT_START]`/`[RAG_CONTEXT_END]` markers |
+| `_get_stage_status(stage, ctx) -> tuple[str, str \| None]` | Determine status (`"success"`/`"fallback"`) and reason for each stage (used internally by `run()`) |
 
 ### HTTP Mode (`rag_service_url`)
 
@@ -122,6 +124,21 @@ ctx = PipelineContext(query="search query", history_context="conversation histor
 | `merged` | `list[RagHit]` | `[]` | `FusionStage` |
 | `reranked` | `list[RagHit]` | `[]` | `RerankStage` |
 | `augment_result` | `str` | `""` | `AugmentStage` |
+| `stage_results` | `list[StageResult]` | `[]` | `RagPipeline.run()` |
+
+### 4.1 StageResult TypedDict (`rag/stage.py`)
+
+```
+StageResult = TypedDict with keys:
+  stage_name: str         — class name of the stage
+  status: str             — "success" | "fallback" | "failure"
+  elapsed_seconds: float  — wall-clock seconds for the stage
+  fallback_reason: str | None — reason when status is "fallback"
+```
+
+`RagPipeline.run()` records a `StageResult` per stage and also exposes the full list as
+`pipeline.last_stage_results: list[StageResult]`. The same list is stored in
+`PipelineContext.stage_results` for debugging and inspection.
 
 ---
 
@@ -228,16 +245,28 @@ Owns all SQL. Used internally by stages.
 |---|---|---|
 | `rrf_merge` (static) | `(results_list: list[list[RagHit]], rrf_k: int = 60) -> list[RagHit]` | RRF score Σ 1/(rrf_k+rank); descending order; assigns `rrf_score` |
 
-### 7.3 RagLLM (`rag/llm.py`)
+### 7.3 RagLLM (`rag/llm.py` — re-export stub)
+
+`rag/llm.py` is a backward-compatibility re-export module. The actual implementations live in:
+
+- `rag/llm_client.py` — `RagLLM` class, `get_embedding()`, `summarize_tool_result()`
+- `rag/llm_prompts.py` — prompt templates, `RagExpansionError`, `RagRerankError`, `MqeParseError`
 
 ```python
-from rag.llm import RagLLM
+from rag.llm import RagLLM  # re-exported from rag.llm_client
 llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8002/v1/chat/completions")
 ```
 
 | Method | Signature | Description |
 |---|---|---|
-| `expand_queries` | `(query: str, context: str = "") -> list[str]` | MQE; returns `[query]` on failure |
-| `cross_encoder_rerank` | `(query, candidates, top_k, rag_min_score=0.0) -> list[RagHit]` | Cross-encoder; RRF fallback on failure |
-| `summarize_tool_result` | `(text, tool_name, args) -> str` | Summarize tool output; returns `text` on failure |
-| `refine_context` | `(chunks, query, max_tokens, per_chunk_chars, timeout) -> str` | Compress chunks to query-relevant points; caller handles fallback on error |
+| `expand_queries` | `(query: str, context: str = "") -> list[str]` | MQE; raises `RagExpansionError` on failure |
+| `cross_encoder_rerank` | `(query, candidates, top_k, rag_min_score=0.0) -> list[RagHit]` | Cross-encoder; raises `RagRerankError` on failure; filters by `rag_min_score` |
+| `summarize_tool_result` | `(text, tool_name, args) -> str` | Summarize tool output; raises on HTTP/parse failure |
+| `refine_context` | `(chunks, query, max_tokens, per_chunk_chars, timeout) -> str` | Compress chunks to query-relevant points via `rag/pipeline_refiner.py`; caller handles fallback on error |
+
+**Module-level functions:**
+
+| Function | Signature | Description |
+|---|---|---|
+| `get_embedding` | `(text, client, embed_url) -> list[float]` | Convert text to embedding vector; uses `"query: "` prefix (E5 convention) |
+| `summarize_tool_result` | `(text, tool_name, args, client, llm_url=None) -> str` | Standalone summarization; loads `llm_url` from cached config when `None` |

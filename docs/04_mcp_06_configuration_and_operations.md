@@ -158,18 +158,20 @@ env = {}
 ### Health probes
 
 ```bash
-# Individual server health checks
-curl -s http://127.0.0.1:8004/health   # web-search: {status, providers, brave_key, bing_key}
-curl -s http://127.0.0.1:8005/health   # file-read: {status: "ok"}
-curl -s http://127.0.0.1:8006/health   # github: {status, github_token}
-curl -s http://127.0.0.1:8007/health   # file-write: {status: "ok"}
-curl -s http://127.0.0.1:8008/health   # file-delete: {status: "ok"}
-curl -s http://127.0.0.1:8009/health   # shell: {status: "ok"}
-curl -s http://127.0.0.1:8010/health   # rag-pipeline: {status: "ok"}
-curl -s http://127.0.0.1:8011/health   # sqlite: {status: "ok"}
-curl -s http://127.0.0.1:8012/health   # cicd: {status: "ok"}
-curl -s http://127.0.0.1:8013/health   # mdq: {status: "ok", service: "mdq-mcp"}
-curl -s http://127.0.0.1:8014/health   # git: {status: "ok"}
+# Individual server health checks (all return 4-field nested format)
+curl -s http://127.0.0.1:8004/health | jq   # web-search: dependencies.brave_api_key/bing_api_key, details.providers
+curl -s http://127.0.0.1:8005/health | jq   # file-read: base response only
+curl -s http://127.0.0.1:8006/health | jq   # github: dependencies.github_token
+curl -s http://127.0.0.1:8007/health | jq   # file-write: base response only
+curl -s http://127.0.0.1:8008/health | jq   # file-delete: base response only
+curl -s http://127.0.0.1:8009/health | jq   # shell: base response only
+curl -s http://127.0.0.1:8010/health | jq   # rag-pipeline: base response only
+curl -s http://127.0.0.1:8011/health | jq   # sqlite: base response only
+curl -s http://127.0.0.1:8012/health | jq   # cicd: dependencies.github_token
+curl -s http://127.0.0.1:8013/health | jq   # mdq: details.service
+curl -s http://127.0.0.1:8014/health | jq   # git: base response only
+
+# Base response shape: {"status":"ok","ready":bool,"dependencies":{},"details":{}}
 ```
 
 ### /v1/tools verification

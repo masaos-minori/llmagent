@@ -126,16 +126,17 @@ All MCP servers inherit from `MCPServer`.
 | `server_version` | `str` | `"3.0.0"` |
 | `http_host` | `str` | `"127.0.0.1"` |
 | `http_port` | `int` | `8004` |
-| `app_module` | `str` | `"mcp.web_search.server:app"` |
+| `app_module` | `str` | `"mcp.web_search.server:app"` (most servers); `github-mcp` uses bare `"github_mcp_server:app"` (see `04_mcp_90`) |
 | `mcp_tools` | `list[dict]` | Tool definitions list |
 
 ### Methods
 
 | Method | Description |
-|---|---|
+|---|---|---|
 | `async dispatch(name, args) -> DispatchResult` | Abstract; must be overridden. Returns `DispatchResult(output, is_error)` |
 | `list_tools() -> list[str]` | Tool names from `mcp_tools`. Returns `[]` if not defined |
-| `health() -> dict[str, object]` | `{"status": "ok", "ready": bool, "dependencies": dict, "details": dict}` by default; overridden per server (e.g. github adds `github_token`, web-search adds `providers`/`brave_key`/`bing_key`, mdq adds `service`) |
+| `list_tools_with_server_key() -> list[dict[str, object]]` | Tool metadata including `server_key`; used by `/v1/tools` endpoint |
+| `health() -> dict[str, object]` | `{"status": "ok", "ready": bool, "dependencies": dict, "details": dict}` by default; overridden per server (e.g. github adds `github_token` to `dependencies`, web-search adds `brave_api_key`/`bing_api_key` to `dependencies` and `providers` to `details`, mdq adds `service` to `details`) |
 | `run_http() -> None` | Start uvicorn HTTP server |
 | `async run_stdio() -> None` | Handle newline-delimited JSON-RPC on stdin/stdout |
 
@@ -193,12 +194,12 @@ When result exceeds 512 KB:
 
 ## Server-Specific Health Response Fields
 
-| Server | Additional `/health` fields |
-|---|---|
-| web-search-mcp | `providers`, `brave_key`, `bing_key` |
-| github-mcp | `github_token` (`"set"` / `"not_set"`) |
-| mdq-mcp | `service: "mdq-mcp"` |
-| Others | `{"status": "ok"}` only |
+| Server | `/health` overrides |
+|---|---|---|
+| web-search-mcp | `dependencies.brave_api_key`, `dependencies.bing_api_key` (both `"set"`/`"not_set"`); `details.providers` (list) |
+| github-mcp | `dependencies.github_token` (`"set"`/`"not_set"`) |
+| mdq-mcp | `details.service: "mdq-mcp"` |
+| Others | Base response only: `{"status":"ok","ready":bool,"dependencies":{},"details":{}}` |
 
 ---
 
@@ -251,3 +252,5 @@ result = await dispatch_tool(dispatch_table, name, args)
 - Unknown `name` → `("Unknown tool: <name>", True)`
 - `ValueError` from handler → `("Validation error: <e>", True)`
 - Other exceptions propagate to caller
+
+**Note:** For HTTP transport, `CallToolRequest.name_must_not_be_blank()` validator in `mcp/models.py` catches empty names before `dispatch_tool()` is reached. The `dispatch_tool()` empty-name check is redundant for HTTP but relevant for stdio mode.

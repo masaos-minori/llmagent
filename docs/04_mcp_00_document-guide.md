@@ -7,7 +7,7 @@ Read this file first to choose which chapter to open.
 
 ## Purpose of This Document Set
 
-These 9 files document the MCP (Model Context Protocol) layer: 11 tool servers that give
+These 8 files document the MCP (Model Context Protocol) layer: 11 tool servers that give
 the agent safe, controlled access to external resources.
 
 They replace the original 13 source files (`04_spec_mcp.md`, `04_mcp-*.md`, `06_ref-mcp.md`)
@@ -28,11 +28,9 @@ as the primary reference. Source files are retained unchanged.
     ↓
 05 Security and Safety Model     — allowlists, denylist, fail-open/closed, risk tiers
     ↓
-06 Configuration and Operations  — config files, OpenRC, health probes, new server checklist
+    06 Configuration and Operations  — config files, OpenRC, health probes, new server checklist
     ↓
-90 Inconsistencies and Issues    — bugs, placeholders, spec conflicts
-    ↓
-99 Source Mapping                — audit table (verification only)
+    90 Inconsistencies and Issues    — bugs, placeholders, spec conflicts
 ```
 
 ---
@@ -65,7 +63,6 @@ as the primary reference. Source files are retained unchanged.
 | How do I verify a server is healthy? | `04_mcp_06` |
 | What are the default config values? | `04_mcp_06` |
 | What is broken or not yet implemented? | `04_mcp_90` |
-| Does McpServerHealthRegistry actually work? | `04_mcp_03` (resolved 2026-06-18) |
 
 ---
 
@@ -99,7 +96,6 @@ as the primary reference. Source files are retained unchanged.
 | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) | Allowlists, denylist, fail-open/closed, dry_run, risk tiers, AI safety notes |
 | [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) | Config file inventory, McpServerConfig fields, defaults, OpenRC, health probes, new-server checklist |
 | [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | MISSING-01/SPEC-01/02/03 with AI safety guidance (BUG-01 resolved 2026-06-18) |
-| [04_mcp_99_source_mapping.md](04_mcp_99_source_mapping.md) | Audit: maps every source section to new location; 13 source files fully mapped |
 
 ---
 

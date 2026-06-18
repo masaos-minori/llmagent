@@ -64,7 +64,7 @@ allowed_repos_mode = "fail_closed"   # default
 | `fail_open` | All repos allowed | Only listed repos allowed |
 
 Applies to 9 write operations: `create_branch`, `create_or_update_file`, `push_files`,
-`delete_repo_file`, `create_issue`, `add_issue_comment`, `create_pull_request`,
+`github_delete_file`, `create_issue`, `add_issue_comment`, `create_pull_request`,
 `update_pull_request`, `merge_pull_request`.
 
 ### `repo_allowlist` (cicd-mcp)
@@ -93,7 +93,7 @@ protected_branches = ["main", "master", "release/*"]   # fnmatch patterns
 path_denylist = [".github/**", "Dockerfile*"]   # fnmatch glob patterns
 ```
 
-- Applies to `create_or_update_file`, `push_files`, `delete_repo_file`
+- Applies to `create_or_update_file`, `push_files`, `github_delete_file`
 - Empty list (default): all paths allowed
 
 ---
@@ -169,7 +169,7 @@ Controls whether Bearer-token authentication is required for HTTP MCP servers:
 
 Stdio servers are always exempt from this check regardless of profile.
 
-**Enforcement point:** `audit_security_defaults()` in `agent/repl_health.py` raises during startup when `security_profile == "production"` and an HTTP server has an empty `auth_token`.
+**Enforcement point:** `audit_security_defaults()` in `agent/repl_health.py` raises during startup when `security_profile == "production"` and an HTTP server has an empty `auth_token`. It also warns on `shell_sandbox_backend == "none"`, empty `github.allowed_workflows`, and empty `tool.allowed_tools`.
 
 ---
 
@@ -229,7 +229,7 @@ Tools that support `dry_run=True` (pre-execution preview without side effects):
 
 | Server | Tools with dry_run support |
 |---|---|
-| file-write-mcp | `write_file`, `edit_file`, `create_directory`, `move_file` |
+| file-write-mcp | `write_file`, `edit_file`, `move_file` |
 | file-delete-mcp | `delete_file`, `delete_directory` |
 | shell-mcp | `shell_run` (arg: `dry_run`) |
 | git-mcp | `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push` |

@@ -12,8 +12,8 @@
 Used by: crawler.py, chunk_splitter.py, ingester.py
 
 | Parameter | Default | Description |
-|---|---|---|
-| `rag_src_dir` | `rag-src` | Base directory for all pipeline files. crawler output: `{rag_src_dir}/*.txt`; chunks: `{rag_src_dir}/chunk/`; registered: `{rag_src_dir}/registered/` |
+|---|---|---|---|
+| `rag_src_dir` | `/opt/llm/rag-src` | Base directory for all pipeline files. crawler output: `{rag_src_dir}/*.txt`; chunks: `{rag_src_dir}/chunk/`; registered: `{rag_src_dir}/registered/` |
 | `crawl_delay` | `1.5` | Seconds to wait between crawl requests (minimum 1.0 recommended) |
 | `max_depth` | `6` | BFS maximum hop depth from start URL |
 | `fetch_retry` | `3` | HTTP request retry limit (exponential backoff: `min(2**i, 10)` sec) |
@@ -30,12 +30,15 @@ Used by: crawler.py, chunk_splitter.py, ingester.py
 | `md_snippet_max_chars` | `600` | Max chars per Markdown heading section; fallback to text split if exceeded |
 | `embed_retry` | `3` | Embed API retry limit (exponential backoff) |
 | `embed_workers` | `4` | `ThreadPoolExecutor` thread count for parallel embedding |
+| `en_stopwords` | (see config) | English stopwords excluded from FTS5 indexing and chunking (articles, prepositions, conjunctions, common verbs) |
+| `ja_stop_pos` | `["助詞", "助動詞", "補助記号", "空白", "感動詞", "接続詞"]` | Sudachi POS categories treated as stop words in Japanese FTS5 indexing |
 
 ### 1.2 `config/common.toml`
 
 | Parameter | Default | Description |
-|---|---|---|
+|---|---|---|---|
 | `embed_url` | `http://127.0.0.1:8003/embedding` | Embedding API endpoint (llama.cpp legacy format) |
+| `embedding_dims` | `384` | Dimensionality of float32 embedding vectors (must match model: all-MiniLM-L6-v2 = 384) |
 | `rag_db_path` | `/opt/llm/db/rag.sqlite` | SQLite database path |
 | `sqlite_vec_so` | `/opt/llm/sqlite-vec/vec0.so` | sqlite-vec extension shared library path |
 
@@ -81,6 +84,9 @@ Used by RagPipeline (loaded via `_get_cfg()` on first access):
 ```bash
 # Confirm embed-llm is running
 curl -s http://127.0.0.1:8003/health
+
+# Confirm config file is present (defines rag_src_dir, defaults to /opt/llm/rag-src)
+ls -la config/rag_pipeline.toml
 ```
 
 ### 2.2 Step 1: Crawl
@@ -103,11 +109,11 @@ uv run python scripts/rag/ingestion/crawler.py \
 ### 2.3 Step 2: Chunk split
 
 ```bash
-# All unprocessed .txt files
+# All unprocessed .txt files in {rag_src_dir}/
 uv run python scripts/rag/ingestion/chunk_splitter.py
 
-# Single file
-uv run python scripts/rag/ingestion/chunk_splitter.py --file rag-src/20240101120000-ziglang.txt
+# Single file (use absolute path from config)
+uv run python scripts/rag/ingestion/chunk_splitter.py --file /opt/llm/rag-src/20240101120000-ziglang.txt
 
 # Regenerate existing chunks (--force)
 uv run python scripts/rag/ingestion/chunk_splitter.py --force

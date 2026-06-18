@@ -51,8 +51,7 @@ Resolves `tool_name → server_key` in two steps:
 | `SQLITE_TOOLS` (query_sqlite) | `sqlite` |
 | No match | `ValueError` |
 
-**Note:** `query_sqlite` is NOT in tool_constants.py static table. It must be listed
-explicitly in `McpServerConfig.tool_names` for `sqlite` server key.
+**Note:** `query_sqlite` IS in `tool_constants.py` static table (routed to `sqlite` server key). No explicit `tool_names` config is required.
 
 ```python
 resolver = ToolRouteResolver(server_configs)
@@ -79,7 +78,7 @@ result = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
 ### Cache behavior
 
 - Only caches `is_error=False` results
-- Cache key: `MD5(tool_name + orjson_sorted(args))`
+- Cache key: `f"{tool_name}:{orjson_dumps(args)}"` (plain string; NOT MD5)
 - Entries expire after `cache_ttl` seconds
 - LRU eviction when `cache_max_size > 0` (`0` = unlimited)
 - Cache hit: `request_id=""` (no live request made)
@@ -147,7 +146,7 @@ Per-server failure tracker injected into `ToolExecutor`.
 | Method | Description |
 |---|---|
 | `record_failure(server_key)` | Increment failure; return new state |
-| `record_success(server_key)` | Reset failure count; return HEALTHY |
+| `record_success(server_key)` | Reset failure count; returns `None` |
 | `get_state(server_key)` | Current state; returns HEALTHY for unknown key |
 | `is_unavailable(server_key)` | `True` if UNAVAILABLE |
 

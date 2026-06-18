@@ -179,12 +179,25 @@ TypedDict with `total=False` (all keys optional per role).
 
 ### 5.3 PipelineStageResult (`rag/types.py`)
 
+Legacy type retained for backward compatibility. The current pipeline uses `StageResult` from `rag/stage.py` (see §5.3a).
+
 | Field | Type | Description |
 |---|---|---|
-| `stage` | str | Stage name |
+| `stage` | `PipelineStageName \| str` | Stage name |
 | `success` | bool | Execution success |
 | `failure_reason` | str \| None | Reason on failure; None on success |
 | `elapsed_s` | float | Elapsed seconds |
+
+### 5.3a StageResult (`rag/stage.py`)
+
+Used by `RagPipeline.last_stage_results` and `PipelineContext.stage_results`.
+
+| Field | Type | Description |
+|---|---|---|
+| `stage_name` | str | Class name of the stage |
+| `status` | str | `"success"` / `"fallback"` / `"failure"` |
+| `elapsed_seconds` | float | Wall-clock seconds for the stage |
+| `fallback_reason` | str \| None | Reason when status is `"fallback"`; `None` on success |
 
 ### 5.4 RagConfig Protocol (`shared/types.py`)
 

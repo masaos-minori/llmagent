@@ -13,6 +13,53 @@ Each entry format:
 
 ---
 
+### BUG-02: `app_module` value in github-mcp inconsistent with other servers
+
+- **Type:** Implementation bug
+- **Impact scope:** `mcp/github/server.py`, `MCPServer.run_http()`
+- **Description:** `GithubMCPServer.app_module = "github_mcp_server:app"` (bare module name) while all other 10 servers use the dotted path `"mcp.<submodule>.server:app"`. If `run_http()` were called on github-mcp, uvicorn would fail to import the module.
+- **Mitigation:** github-mcp uses OpenRC-managed persistent HTTP mode, so `run_http()` is never called. The entry point script (`scripts/mcp/github/server.py`) uses `uvicorn.run("mcp.github.server:app", ...)` directly.
+- **Recommended action:** Fix the class attribute for consistency, or add a doc comment explaining why it differs.
+
+---
+
+### BUG-03: Dry-run inputSchema omission for file/github/cicd tools
+
+- **Type:** Implementation issue
+- **Impact scope:** `mcp/file/write_tools.py`, `mcp/file/delete_tools.py`, `mcp/cicd/tools.py` — `inputSchema` definitions
+- **Description:** Several tools support `dry_run` in their Pydantic request models and service layer, but do NOT expose it in the MCP tool `inputSchema`. The LLM therefore never sees `dry_run` as an available parameter unless it already knows about it.
+- **Affected tools:**
+  | Server | Tool | dry_run in model | dry_run in inputSchema | dry_run in service |
+  |---|---|---|---|---|
+  | file-write-mcp | `write_file` | Yes | **No** | Yes |
+  | file-write-mcp | `move_file` | Yes | **No** | Yes |
+  | file-delete-mcp | `delete_file` | Yes | **No** | Yes |
+  | file-delete-mcp | `delete_directory` | Yes | **No** | Yes |
+  | cicd-mcp | `trigger_workflow` | Yes | **No** | Yes |
+- **Impact:** Tools still accept `dry_run` if manually specified (Pydantic ignores undeclared inputSchema fields), but LLMs cannot discover the parameter from the schema.
+- **Recommended action:** Add `dry_run` to the `inputSchema` definitions for all affected tools.
+
+---
+
+### BUG-04: CreateDirectoryRequest lacks dry_run entirely
+
+- **Type:** Implementation gap
+- **Impact scope:** `mcp/file/write_models.py`, `mcp/file/write_service.py`
+- **Description:** `CreateDirectoryRequest` has no `dry_run` field in its Pydantic model, inputSchema, or service handler. The 04_mcp_04 documentation previously claimed it supported dry_run (now corrected).
+- **Recommended action:** Add `dry_run` field to `CreateDirectoryRequest` model, inputSchema, and `create_directory()` service method if dry-run support is desired.
+
+---
+
+### DOC-01: Cache key documented as MD5, code uses plain string
+
+- **Type:** Document inconsistency
+- **Impact scope:** `shared/tool_executor.py`, `04_mcp_03_routing_lifecycle_and_execution.md`
+- **Description:** Docs state cache key is `MD5(tool_name + orjson_sorted(args))`. The code uses `f"{tool_name}:{_json_dumps(args)}"` — a plain string without hashing. A separate `tool_call_key()` MD5 helper function exists in the codebase but is never called in the cache path.
+- **Current safe interpretation:** The cache key is a plain concatenation of tool name and JSON args with colon separator. No hash is computed.
+- **Recommended action:** Update the doc or remove the unused `tool_call_key()` function.
+
+---
+
 ### SPEC-01: tool_definitions_strict + /v1/tools mismatch behavior undocumented per-server
 
 - **Type:** Needs confirmation
