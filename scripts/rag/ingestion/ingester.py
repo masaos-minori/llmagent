@@ -30,6 +30,22 @@ logger = Logger(__name__, "/opt/llm/logs/ingest.log")
 _VALID_LANGS: frozenset[str] = frozenset({"en", "ja"})
 
 
+def delete_document_chain(db: SQLiteHelper, doc_id: int) -> None:
+    """Delete chunks_vec → chunks → documents for doc_id.
+
+    chunks_vec has no FK to chunks, so it must be deleted first.
+    chunks deletion fires FTS5 triggers automatically (via ON DELETE trigger on chunks).
+    documents deletion cascades to any remaining chunks rows.
+    """
+    db.execute(
+        "DELETE FROM chunks_vec"
+        " WHERE chunk_id IN (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
+        (doc_id,),
+    )
+    db.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
+    db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # RagIngester class
 # ──────────────────────────────────────────────────────────────────────────────
@@ -160,15 +176,7 @@ class RagIngester:
 
     def _delete_existing_document(self, db: SQLiteHelper, doc_id: int) -> None:
         """Delete a document and its chunks; chunks_vec removed first because it has no FK constraint to chunks."""
-        # Delete order: chunks_vec → chunks → documents
-        # chunks_vec has no FK to chunks, so it must be removed explicitly first.
-        db.execute(
-            "DELETE FROM chunks_vec"
-            " WHERE chunk_id IN (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
-            (doc_id,),
-        )
-        db.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
-        db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
+        delete_document_chain(db, doc_id)
 
     def _update_etag(
         self,

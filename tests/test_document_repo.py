@@ -250,3 +250,36 @@ class TestDeleteDocument:
         with patch("agent.document_repo.SQLiteHelper", side_effect=_make):
             with pytest.raises(sqlite3.OperationalError):
                 DocumentRepository().delete_document("https://a.com")
+
+    def test_no_orphaned_chunks_vec_after_delete(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_SCHEMA_SQL)
+        conn.execute(
+            "INSERT INTO documents (url, title, lang) VALUES (?, ?, ?)",
+            ("https://b.com", "B", "en"),
+        )
+        conn.commit()
+        doc_id = conn.execute(
+            "SELECT doc_id FROM documents WHERE url = ?", ("https://b.com",)
+        ).fetchone()[0]
+        conn.execute(
+            "INSERT INTO chunks (doc_id, chunk_index, content) VALUES (?, ?, ?)",
+            (doc_id, 0, "text"),
+        )
+        conn.commit()
+        chunk_id = conn.execute(
+            "SELECT chunk_id FROM chunks WHERE doc_id = ?", (doc_id,)
+        ).fetchone()[0]
+        conn.execute("INSERT INTO chunks_vec (chunk_id) VALUES (?)", (chunk_id,))
+        conn.commit()
+
+        fake = _FakeSQLiteHelper(conn)
+
+        def _make(target: str = "rag") -> _FakeSQLiteHelper:
+            return fake
+
+        with patch("agent.document_repo.SQLiteHelper", side_effect=_make):
+            result = DocumentRepository().delete_document("https://b.com")
+        assert result is True
+        remaining = conn.execute("SELECT COUNT(*) FROM chunks_vec").fetchone()[0]
+        assert remaining == 0
