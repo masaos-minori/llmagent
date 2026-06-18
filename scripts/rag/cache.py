@@ -7,6 +7,7 @@ Extracted from rag/repository.py to separate cache concerns from SQL access.
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Protocol
 
 from rag.models_data import CacheEntry
@@ -35,30 +36,32 @@ class SemanticCache:
         self._max_size = max_size
         self._threshold = threshold
         self._dim: int | None = None
+        self._lock: threading.RLock = threading.RLock()
 
     def lookup(self, embedding: list[float], history_context: str = "") -> str | None:
         """Return cached context for the nearest embedding with matching history_context, or None on miss.
 
         Raises ValueError if embedding dimension differs from stored entries.
         """
-        if self._dim is not None and len(embedding) != self._dim:
-            raise ValueError(
-                f"SemanticCache dimension mismatch: expected {self._dim},"
-                f" got {len(embedding)}",
-            )
-        best_sim = -1.0
-        best_ctx: str | None = None
-        for entry in self._entries:
-            if entry.history_context != history_context:
-                continue
-            sim = cosine_sim(embedding, entry.embedding)
-            if sim > best_sim:
-                best_sim = sim
-                best_ctx = entry.context_str
-        if best_sim >= self._threshold:
-            logger.debug("SemanticCache hit: sim=%.4f", best_sim)
-            return best_ctx
-        return None
+        with self._lock:
+            if self._dim is not None and len(embedding) != self._dim:
+                raise ValueError(
+                    f"SemanticCache dimension mismatch: expected {self._dim},"
+                    f" got {len(embedding)}",
+                )
+            best_sim = -1.0
+            best_ctx: str | None = None
+            for entry in self._entries:
+                if entry.history_context != history_context:
+                    continue
+                sim = cosine_sim(embedding, entry.embedding)
+                if sim > best_sim:
+                    best_sim = sim
+                    best_ctx = entry.context_str
+            if best_sim >= self._threshold:
+                logger.debug("SemanticCache hit: sim=%.4f", best_sim)
+                return best_ctx
+            return None
 
     def put(
         self, embedding: list[float], history_context: str, context_str: str
@@ -67,26 +70,28 @@ class SemanticCache:
 
         Raises ValueError if embedding dimension differs from previously stored entries.
         """
-        if self._dim is None:
-            self._dim = len(embedding)
-        elif len(embedding) != self._dim:
-            raise ValueError(
-                f"SemanticCache dimension mismatch: expected {self._dim},"
-                f" got {len(embedding)}",
+        with self._lock:
+            if self._dim is None:
+                self._dim = len(embedding)
+            elif len(embedding) != self._dim:
+                raise ValueError(
+                    f"SemanticCache dimension mismatch: expected {self._dim},"
+                    f" got {len(embedding)}",
+                )
+            self._entries.append(
+                CacheEntry(
+                    embedding=embedding,
+                    context_str=context_str,
+                    history_context=history_context,
+                )
             )
-        self._entries.append(
-            CacheEntry(
-                embedding=embedding,
-                context_str=context_str,
-                history_context=history_context,
-            )
-        )
-        self.prune()
+            self.prune()
 
     def prune(self) -> None:
         """Remove oldest entries when size exceeds max_size."""
-        if len(self._entries) > self._max_size:
-            self._entries = self._entries[-self._max_size :]
+        with self._lock:
+            if len(self._entries) > self._max_size:
+                self._entries = self._entries[-self._max_size :]
 
     @property
     def size(self) -> int:
