@@ -15,7 +15,7 @@
   │   └─ multilingual-E5-small.gguf             # 埋込用 LLM (384 次元, :8003)
   ├─ rag-src/                           # クロール済みテキスト (yyyymmddhhmmss-{slug}.txt)
   │   ├─ chunk/                         # チャンク分割済みファイル ({stem}-{idx:04d}.txt)
-  │   └─ registered/                    # DB 投入済みファイル (rag_ingester.py が移動)
+  │   └─ registered/                    # DB 投入済みファイル (ingester.py が移動)
   ├─ db/
   │   ├─ rag.sqlite                     # RAG ベクトル DB (documents/chunks/chunks_vec/chunks_fts)
   │   └─ rrf.sql                        # SQL クエリ参照定義 (KNN・BM25・RRF の説明コメント付き)

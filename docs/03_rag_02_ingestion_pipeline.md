@@ -3,11 +3,6 @@
 - System overview → [03_rag_01_system_overview.md](03_rag_01_system_overview.md)
 - Configuration → [03_rag_05_configuration_and_operations.md](03_rag_05_configuration_and_operations.md)
 
-> **Document inconsistency note:** This file was titled `web_crawler.py` in the original
-> reference doc. The actual script is `crawler.py` (class: `WebCrawler`).
-> Similarly, `rag_ingester.py` in the original reference; actual: `ingester.py` (class: `RagIngester`).
-> See [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md).
-
 ---
 
 ## 1. Execution Guide

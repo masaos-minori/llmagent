@@ -9,47 +9,43 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ## Spec Conflicts
 
-### SPEC-2: Ingestion stage count — "3 steps" vs "4 phases"
+### SPEC-2: Ingestion stage count — "3 steps" vs "4 phases" (RESOLVED)
 
 - **Type:** SPEC_CONFLICT
 - **Impact scope:** Documentation only; no code defect
+- **Resolution:** Standardized on "3 steps" (crawler → chunk_splitter → ingester) matching CLI execution order.
+  The 4-phase wording (crawl/chunk/embed/store) remains valid as a sub-phase description when needed.
+  Inconsistency note block removed from `03_rag_02_ingestion_pipeline.md`.
 - **Statement A:** `03_spec_rag.md §1` describes "4段階" (4 phases): crawl / chunk split /
   embedding generation / SQLite storage.
 - **Statement B:** `03_rag-ingestion-run.md §1` describes "3ステップ" (3 steps): crawler /
   chunk_splitter / ingester.
-- **Preferred interpretation:** Both are correct from different perspectives.
-  3 scripts, 4 processing phases (embedding generation and storage are both done by `ingester.py`).
-- **Current safe interpretation:** Use "3 scripts / 4 processing phases" when both accuracy
-  and brevity are needed.
 - **Source reference:** `03_spec_rag.md §1`, `03_rag-ingestion-run.md §1`
-- **Notes for AI:** When counting "stages" in the ingestion pipeline, clarify whether you
-  mean scripts (3) or processing phases (4).
 
 ---
 
 ## Document Inconsistencies
 
-### DOC-1: Module name — `web_crawler.py` vs `crawler.py`
+### DOC-1: Module name — `web_crawler.py` vs `crawler.py` (RESOLVED)
 
 - **Type:** DOC_INCONSISTENCY
+- **Resolution:** All execution docs now use `crawler.py`. `03_rag-ref-crawler.md` does not exist
+  on disk — stale reference removed. Inconsistency note block removed from `03_rag_02_ingestion_pipeline.md`.
 - **Impact scope:** Documentation references only; actual file is `scripts/rag/ingestion/crawler.py`
-- **Description:** `03_rag-ref-crawler.md` title says `web_crawler.py`. Execution docs and spec
-  say `crawler.py`. The class is `WebCrawler`.
 - **Authoritative name:** `crawler.py` (confirmed by `03_rag-ingestion-run.md` CLI commands
   and `03_spec_rag.md §2`)
-- **Recommended action:** Correct the title in `03_rag-ref-crawler.md` if the file is retained.
 - **Notes for AI:** Use `crawler.py` in all file path references.
 
 ---
 
-### DOC-2: Module name — `rag_ingester.py` vs `ingester.py`
+### DOC-2: Module name — `rag_ingester.py` vs `ingester.py` (RESOLVED)
 
 - **Type:** DOC_INCONSISTENCY
+- **Resolution:** All execution docs now use `ingester.py`. `03_rag-ref-ingester.md` does not exist
+  on disk — stale reference removed. `docs/01_overview-files.md` comment updated from `rag_ingester.py`
+  to `ingester.py`.
 - **Impact scope:** Documentation references only; actual file is `scripts/rag/ingestion/ingester.py`
-- **Description:** `03_rag-ref-ingester.md` title says `rag_ingester.py`. Execution docs and spec
-  say `ingester.py`. The class is `RagIngester`.
 - **Authoritative name:** `ingester.py` (confirmed by `03_rag-ingestion-run.md` CLI commands)
-- **Recommended action:** Correct the title in `03_rag-ref-ingester.md` if the file is retained.
 - **Notes for AI:** Use `ingester.py` in all file path references.
 
 ---
