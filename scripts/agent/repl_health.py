@@ -119,6 +119,19 @@ async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[
     HTTP servers: probed via GET /v1/tools.
     Stdio servers: probed via the __list_tools__ reserved RPC (only when running).
     Returns a tuple of (union of tool names, list of server keys that were unreachable).
+
+    Scenarios and expected log output:
+      - One HTTP server unreachable:
+          WARNING "{key} unreachable at {url}/v1/tools: ..."
+          returns (names_from_remaining_servers, [key])
+      - All HTTP servers unreachable:
+          WARNING per server (as above)
+          returns (set(), [key1, key2, ...])
+      - Stdio server not running (persistent mode):
+          WARNING "{key} stdio process not running (ondemand or failed)"
+          returns (set(), [key])
+      - All servers reachable:
+          returns (union_of_all_tool_names, [])
     """
     if ctx.services.http is None:
         raise RuntimeError("http service not initialized")
@@ -169,6 +182,21 @@ async def _check_tool_definitions(
       - /v1/tools fetch failed (HTTP non-200)
       - tool mismatch (missing_in_server or missing_in_cfg)
       - all servers unreachable -> skip validation with info log
+
+    Scenarios and expected log output:
+      - Partial unreachable (some servers respond):
+          WARNING per unreachable server (from _collect_server_tool_names)
+          WARNING "Tools in agent.toml but not on any server: [...]" (if mismatch)
+          returns HealthCheckResult(warnings=[...]) or HealthCheckResult()
+      - All servers unreachable:
+          INFO "All MCP servers unreachable during strict validation: [...]; skipping tool definition check"
+          returns HealthCheckResult() — no warnings, no error even in strict mode
+      - Tool mismatch, strict=False:
+          WARNING "Tools in agent.toml but not on any server: [...]"
+          returns HealthCheckResult(warnings=[ServiceWarning(...)])
+      - Tool mismatch, strict=True:
+          ERROR "Strict mode: tool definition mismatch detected. Mismatches: .... Unreachable servers: ...."
+          raises RuntimeError
     """
     cfg_names = {
         td["function"]["name"]
@@ -195,15 +223,18 @@ async def _check_tool_definitions(
         msg = f"Tools on servers but not in agent.toml: {sorted(missing_in_cfg)}"
         logger.warning(msg)
     if (missing_in_server or missing_in_cfg) and strict:
-        reasons: list[str] = []
+        mismatch_parts: list[str] = []
         if missing_in_server:
-            reasons.append(f"missing_in_server={sorted(missing_in_server)}")
+            mismatch_parts.append(f"missing_in_server={sorted(missing_in_server)}")
         if missing_in_cfg:
-            reasons.append(f"extra_on_servers={sorted(missing_in_cfg)}")
-        if unreachable:
-            reasons.append(f"unreachable_servers={sorted(set(unreachable))}")
-        reason_str = "; ".join(reasons)
-        msg = f"Strict mode: tool definition mismatch detected ({reason_str})"
+            mismatch_parts.append(f"extra_on_servers={sorted(missing_in_cfg)}")
+        mismatch_str = ", ".join(mismatch_parts) if mismatch_parts else "none"
+        unreachable_str = sorted(set(unreachable)) if unreachable else []
+        msg = (
+            f"Strict mode: tool definition mismatch detected. "
+            f"Mismatches: {mismatch_str}. "
+            f"Unreachable servers: {unreachable_str}."
+        )
         logger.error(msg)
         raise RuntimeError(msg)
     return HealthCheckResult(warnings=warnings)

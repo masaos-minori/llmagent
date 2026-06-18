@@ -251,6 +251,23 @@ tail -100 /opt/llm/logs/git-mcp.log
 
 ---
 
+## Startup Validation Behavior (`tool_definitions_strict`)
+
+`_check_tool_definitions` runs at agent startup and compares `tool_definitions` from `config/agent.toml` against live `/v1/tools` responses. Behavior depends on server reachability and `tool_definitions_strict`:
+
+| Scenario | `strict = false` | `strict = true` |
+|---|---|---|
+| **Partial unreachable** — some servers respond | Validation proceeds with reachable servers; unreachable servers logged as `WARNING` | Same — only reachable tools compared; mismatch in reachable tools raises `RuntimeError` |
+| **All unreachable** — no server responds | Validation skipped; `INFO: "All MCP servers unreachable ... skipping tool definition check"` | Same — cannot validate zero tools; skipped |
+| **Tool mismatch** — reachable but names differ | `WARNING` per direction (missing_in_server / extra_on_servers) | `RuntimeError: "Strict mode: tool definition mismatch detected. Mismatches: .... Unreachable servers: ...."` |
+
+**Key points:**
+- Unreachable servers never cause `RuntimeError` by themselves; only a tool name mismatch in strict mode does.
+- When all servers are unreachable, strict mode does **not** raise — validation is skipped.
+- The error message clearly separates mismatches from unreachable servers for operator debugging.
+
+---
+
 ## New Tool Registration Procedure
 
 When adding a new tool to an **existing** MCP server:

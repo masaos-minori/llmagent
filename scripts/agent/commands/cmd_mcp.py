@@ -13,6 +13,7 @@ import logging
 
 from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
+from agent.services.enums import McpAvailability
 from agent.services.mcp_install import CliInstallQA, McpInstallService
 from agent.services.mcp_status import TIER_LABELS, McpStatusService
 from agent.services.models import McpProbeResult
@@ -58,6 +59,17 @@ class _McpMixin(MixinBase):
         self._out.write("")
         rows = await svc.probe_all()
         self._out.write(_format_mcp_table(rows))
+        _UNREACHABLE = {
+            McpAvailability.FAIL,
+            McpAvailability.HTTP_ERROR,
+            McpAvailability.DEAD,
+        }
+        ok_count = sum(1 for r in rows if r.availability == McpAvailability.OK)
+        unreachable_count = sum(1 for r in rows if r.availability in _UNREACHABLE)
+        self._out.write(
+            f"\n  Servers     {len(rows)} configured"
+            f" ({ok_count} ok, {unreachable_count} unreachable)"
+        )
 
     async def _cmd_mcp_install(self, server_name: str) -> None:
         """Interactive wizard: generate MCP server template files for server_name."""
