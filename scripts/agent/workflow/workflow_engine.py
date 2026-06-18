@@ -12,6 +12,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from contextlib import nullcontext
+from typing import Any
 
 from agent.workflow.models import TaskRecord, WorkflowDef
 from agent.workflow.state_store import StateStore
@@ -19,6 +21,16 @@ from agent.workflow.state_store import StateStore
 logger = logging.getLogger(__name__)
 
 StageCallback = Callable[[], Awaitable[str | None]]  # returns artifact URI or None
+
+
+class _NoOpSpan:
+    """No-op OTel span used when no tracer is configured."""
+
+    def set_attribute(self, key: str, value: object) -> None:
+        pass
+
+    def record_exception(self, exc: BaseException) -> None:
+        pass
 
 
 class WorkflowHaltError(Exception):
@@ -46,10 +58,17 @@ class WorkflowEngine:
         workflow_def: WorkflowDef,
         store: StateStore,
         require_approval: bool = False,
+        tracer: Any = None,
     ) -> None:
         self._wdef = workflow_def
         self._store = store
         self._require_approval = require_approval
+        self._tracer = tracer
+
+    def _span_ctx(self, name: str) -> Any:
+        if self._tracer is not None:
+            return self._tracer.start_as_current_span(name)
+        return nullcontext(_NoOpSpan())
 
     async def run(
         self,
@@ -59,22 +78,25 @@ class WorkflowEngine:
         verify_fn: StageCallback,
     ) -> None:
         """Execute plan -> execute -> [approval gate] -> verify with retry on execute failure."""
-        self._store.update_task_status(task.task_id, "running")
-        try:
-            await self._run_stage(task, "plan", plan_fn)
-            await self._run_execute_with_retry(task, execute_fn)
-            if self._require_approval:
-                await self._gate_approval(task)
-            await self._run_stage(task, "verify", verify_fn)
-        except WorkflowPendingApprovalError:
-            raise
-        except (WorkflowHaltError, WorkflowTimeoutError):
-            self._store.update_task_status(task.task_id, "halted")
-            raise
-        except Exception:  # noqa: BLE001 — catch-all to mark task failed before re-raising
-            self._store.update_task_status(task.task_id, "failed")
-            raise
-        self._store.update_task_status(task.task_id, "completed")
+        with self._span_ctx("workflow.run") as span:
+            span.set_attribute("workflow.task_id", task.task_id)
+            span.set_attribute("workflow.version", task.workflow_version)
+            self._store.update_task_status(task.task_id, "running")
+            try:
+                await self._run_stage(task, "plan", plan_fn)
+                await self._run_execute_with_retry(task, execute_fn)
+                if self._require_approval:
+                    await self._gate_approval(task)
+                await self._run_stage(task, "verify", verify_fn)
+            except WorkflowPendingApprovalError:
+                raise
+            except (WorkflowHaltError, WorkflowTimeoutError):
+                self._store.update_task_status(task.task_id, "halted")
+                raise
+            except Exception:  # noqa: BLE001 — catch-all to mark task failed before re-raising
+                self._store.update_task_status(task.task_id, "failed")
+                raise
+            self._store.update_task_status(task.task_id, "completed")
 
     async def _gate_approval(self, task: TaskRecord) -> None:
         """Suspend execution until a human approves the task."""
@@ -131,29 +153,36 @@ class WorkflowEngine:
         attempt: int = 1,
     ) -> None:
         """Run a single stage with idempotency check and timeout enforcement."""
-        stage_def = self._wdef.get_stage(stage_id)
-        timeout = stage_def.timeout_sec if stage_def else 60
-        event_id = f"{task.task_id}:{stage_id}:{attempt}"
+        with self._span_ctx("workflow.stage") as span:
+            span.set_attribute("workflow.stage_id", stage_id)
+            span.set_attribute("workflow.attempt", attempt)
+            stage_def = self._wdef.get_stage(stage_id)
+            timeout = stage_def.timeout_sec if stage_def else 60
+            event_id = f"{task.task_id}:{stage_id}:{attempt}"
 
-        attempt_rec = self._store.begin_stage_if_new(event_id, task.task_id, stage_id)
-        if attempt_rec is None:
-            logger.info("Stage %s skipped (already processed): %s", stage_id, event_id)
-            return
-
-        try:
-            artifact_uri = await asyncio.wait_for(fn(), timeout=timeout)
-        except TimeoutError as exc:
-            self._store.finish_attempt(
-                attempt_rec.attempt_id, "failed", f"timeout after {timeout}s"
+            attempt_rec = self._store.begin_stage_if_new(
+                event_id, task.task_id, stage_id
             )
-            raise WorkflowTimeoutError(
-                f"stage {stage_id!r} timed out after {timeout}s"
-            ) from exc
-        except Exception as exc:  # noqa: BLE001 — catch-all to persist failure state before re-raising
-            self._store.finish_attempt(attempt_rec.attempt_id, "failed", str(exc))
-            raise
+            if attempt_rec is None:
+                logger.info(
+                    "Stage %s skipped (already processed): %s", stage_id, event_id
+                )
+                return
 
-        self._store.finish_attempt(attempt_rec.attempt_id, "completed")
-        if artifact_uri:
-            self._store.record_artifact(task.task_id, stage_id, artifact_uri)
-        logger.info("Stage %s completed: task=%s", stage_id, task.task_id)
+            try:
+                artifact_uri = await asyncio.wait_for(fn(), timeout=timeout)
+            except TimeoutError as exc:
+                self._store.finish_attempt(
+                    attempt_rec.attempt_id, "failed", f"timeout after {timeout}s"
+                )
+                raise WorkflowTimeoutError(
+                    f"stage {stage_id!r} timed out after {timeout}s"
+                ) from exc
+            except Exception as exc:  # noqa: BLE001 — catch-all to persist failure state before re-raising
+                self._store.finish_attempt(attempt_rec.attempt_id, "failed", str(exc))
+                raise
+
+            self._store.finish_attempt(attempt_rec.attempt_id, "completed")
+            if artifact_uri:
+                self._store.record_artifact(task.task_id, stage_id, artifact_uri)
+            logger.info("Stage %s completed: task=%s", stage_id, task.task_id)

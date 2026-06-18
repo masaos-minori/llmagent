@@ -71,6 +71,59 @@ def log_approval_decision(ctx: AgentContext, outcome: ApprovalOutcome) -> None:
     ctx.services.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 
 
+def audit_workflow_start(
+    ctx: AgentContext, task_id: str, workflow_version: str
+) -> None:
+    """Write workflow_start event to audit log."""
+    if ctx.services.audit_logger is None:
+        return
+    ctx.services.audit_logger.info(
+        _json_dumps(
+            {
+                "event": "workflow_start",
+                "task_id": task_id,
+                "workflow_version": workflow_version,
+                "ts": time.time(),
+            }
+        )
+    )
+
+
+def audit_stage_completed(
+    ctx: AgentContext, task_id: str, stage_id: str, elapsed_ms: float
+) -> None:
+    """Write stage_completed event to audit log."""
+    if ctx.services.audit_logger is None:
+        return
+    ctx.services.audit_logger.info(
+        _json_dumps(
+            {
+                "event": "stage_completed",
+                "task_id": task_id,
+                "stage_id": stage_id,
+                "elapsed_ms": elapsed_ms,
+                "ts": time.time(),
+            }
+        )
+    )
+
+
+def audit_approval_requested(ctx: AgentContext, task_id: str, approval_id: str) -> None:
+    """Write approval_requested event to audit log."""
+    if ctx.services.audit_logger is None:
+        return
+    ctx.services.audit_logger.info(
+        _json_dumps(
+            {
+                "event": "approval_requested",
+                "task_id": task_id,
+                "approval_id": approval_id,
+                "ts": time.time(),
+            }
+        )
+    )
+
+
 def audit_tool_exec(
     ctx: AgentContext,
     tool_name: str,

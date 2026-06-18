@@ -22,6 +22,11 @@ from shared.logger import Logger
 
 from agent.context import AgentContext
 from agent.llm_turn_runner import LLMTurnRunner
+from agent.tool_audit import (
+    audit_approval_requested,
+    audit_stage_completed,
+    audit_workflow_start,
+)
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_result import TurnResult
 from agent.workflow import (
@@ -130,16 +135,20 @@ class Orchestrator:
                 turn_number=ctx.stats.stat_turns,
                 workflow_version=self._workflow_def.version,
             )
-            engine = WorkflowEngine(self._workflow_def, store)
+            audit_workflow_start(ctx, task.task_id, self._workflow_def.version)
+            engine = WorkflowEngine(self._workflow_def, store, tracer=self._tracer)
 
             async def plan_fn() -> str | None:
                 return None  # _handle_turn_start already completed
 
             async def execute_fn() -> str | None:
                 nonlocal answer, error_kind
+                _t0 = time.perf_counter()
                 answer, error_kind = await self._process_turn(
                     line, ctx, turn_started_at
                 )
+                elapsed_ms = round((time.perf_counter() - _t0) * 1000, 1)
+                audit_stage_completed(ctx, task.task_id, "execute", elapsed_ms)
                 return None
 
             async def verify_fn() -> str | None:
@@ -153,6 +162,7 @@ class Orchestrator:
                 exc.approval_id,
                 exc.task_id,
             )
+            audit_approval_requested(ctx, exc.task_id, exc.approval_id)
             ctx.turn.pending_approval_id = exc.approval_id
         except WorkflowHaltError as exc:
             logger.error("Turn halted by workflow engine: %s", exc)

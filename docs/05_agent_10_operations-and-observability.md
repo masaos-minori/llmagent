@@ -173,6 +173,55 @@ Expected spans:
 ```json
 {"name": "compress", ...}
 {"name": "llm", "attributes": {"model_url": "http://127.0.0.1:8002/..."}, ...}
+{"name": "workflow.run", "attributes": {"workflow.task_id": "...", "workflow.version": "1.0"}, ...}
+{"name": "workflow.stage", "attributes": {"workflow.stage_id": "execute", "workflow.attempt": 1}, ...}
+```
+
+---
+
+## Workflow Observability
+
+### OTel Spans
+
+`WorkflowEngine` emits two span types when a tracer is configured:
+
+| Span name | Emitted by | Attributes |
+|---|---|---|
+| `workflow.run` | `WorkflowEngine.run()` | `workflow.task_id`, `workflow.version` |
+| `workflow.stage` | `WorkflowEngine._run_stage()` | `workflow.stage_id`, `workflow.attempt` |
+
+The tracer is propagated from `Orchestrator` → `WorkflowEngine` so all workflow spans share the same trace context as the enclosing `llm` span.
+
+### Audit Events
+
+Three workflow-specific events are appended to `audit.log` per turn:
+
+**`workflow_start` event** (emitted when a task is created):
+```json
+{"event": "workflow_start", "task_id": "...", "workflow_version": "1.0", "ts": 1718600000.1}
+```
+
+**`stage_completed` event** (emitted after the execute stage):
+```json
+{"event": "stage_completed", "task_id": "...", "stage_id": "execute", "elapsed_ms": 1234.5, "ts": 1718600001.4}
+```
+
+**`approval_requested` event** (emitted when human approval is required):
+```json
+{"event": "approval_requested", "task_id": "...", "approval_id": "...", "ts": 1718600001.5}
+```
+
+### Reading workflow audit events
+
+```bash
+# All workflow events
+grep -E '"workflow_start"|"stage_completed"|"approval_requested"' /opt/llm/logs/audit.log | jq .
+
+# Execute stage latency
+grep '"stage_completed"' /opt/llm/logs/audit.log | jq '{task_id, stage_id, elapsed_ms}'
+
+# Pending approvals
+grep '"approval_requested"' /opt/llm/logs/audit.log | jq '{task_id, approval_id}'
 ```
 
 ---
