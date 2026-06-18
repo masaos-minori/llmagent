@@ -10,14 +10,10 @@ These tests prevent regression of BUG-1/BUG-2/BUG-3 where chunk metadata
 from __future__ import annotations
 
 import json
-import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from rag.ingestion.ingester import RagIngester
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

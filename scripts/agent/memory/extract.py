@@ -176,7 +176,9 @@ def _try_extract_from_assistant(
     if classification is None:
         return None
     mem_type, source_type, tags = classification
-    importance = _importance_from_content(content, is_semantic=(mem_type == MemoryType.SEMANTIC))
+    importance = _importance_from_content(
+        content, is_semantic=(mem_type == MemoryType.SEMANTIC)
+    )
     return _make_entry(
         memory_type=mem_type,
         source_type=source_type,

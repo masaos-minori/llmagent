@@ -27,6 +27,7 @@ class _StageJson(TypedDict):
     timeout_sec: int
     retryable: bool
 
+
 logger = logging.getLogger(__name__)
 
 # config/workflows/ is four parent levels up from this file:

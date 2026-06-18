@@ -38,6 +38,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import logging
+import typing
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -76,6 +77,14 @@ def register_tool(name: str) -> Callable[[_F], _F]:
 
     def decorator(fn: _F) -> _F:
         _tools[name] = fn
+        hints = typing.get_type_hints(fn)
+        return_hint = hints.get("return")
+        if return_hint is not None and return_hint != tuple[str, bool]:
+            logger.warning(
+                "Plugin tool %r: expected return type 'tuple[str, bool]', got %s",
+                name,
+                return_hint,
+            )
         logger.debug("Plugin tool registered: %s", name)
         return fn
 
@@ -206,6 +215,32 @@ def _validate_tool_conflicts(
     return removed
 
 
+def _validate_command_conflicts(strict_mode: bool = False) -> dict[str, bool]:
+    """Warn when a plugin command shadows a built-in command name.
+
+    Returns a dict mapping command_name to True when shadowing was detected.
+    """
+    try:
+        from agent.commands.command_defs import _COMMANDS  # noqa: I001 — deferred: avoid circular import at module level
+    except ImportError:
+        return {}
+
+    builtin_names = frozenset(cmd.name for cmd in _COMMANDS)
+    shadowed: dict[str, bool] = {}
+    for name in list(_commands.keys()):
+        if name in builtin_names:
+            shadowed[name] = True
+            msg = (
+                f"Plugin command {name!r} shadows built-in command."
+                " The built-in command will take precedence."
+            )
+            if strict_mode:
+                logger.error(msg)
+            else:
+                logger.warning(msg)
+    return shadowed
+
+
 def load_plugins(
     plugin_dir: str | Path,
     *,
@@ -247,6 +282,7 @@ def load_plugins(
 
     # Run conflict validation after all modules are loaded
     _validate_tool_conflicts(known_tools, override_policy)
+    _validate_command_conflicts(strict_mode)
     return PluginLoadResult(loaded_count=loaded, failed=tuple(failures))
 
 

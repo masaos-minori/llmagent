@@ -40,8 +40,12 @@ async def call_rag_service(
 ) -> str | None:
     """Delegate to external RAG service.
 
-    Returns context string on success, empty string on empty results,
-    or None on failure (triggering in-process fallback).
+    Return contract:
+        str (non-empty)           — HTTP 200 with body["context"] as a non-empty string
+        ""                        — HTTP 200 with body["context"] missing or None
+        None                      — 4xx client error, transport error, JSON parse error,
+                                    all retries exhausted on 5xx
+
     Retries up to _MAX_ATTEMPTS times on 5xx or transport errors with
     exponential backoff.  4xx and parse errors are not retried.
     Stores hits in last_fetch_result via the callback.

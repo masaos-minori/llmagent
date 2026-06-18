@@ -13,13 +13,12 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ## Open Questions
 
-### OQ-2: MDQ vs RAG boundary — migration criteria undefined
+### OQ-2: MDQ vs RAG boundary — resolved
 
-- **Type:** OPEN_QUESTION
+- **Type:** RESOLVED
 - **Impact scope:** `mcp/mdq/`, `mcp/rag_pipeline/`
-- **Description:** MDQ (Markdown-dedicated index) and RAG serve overlapping use cases for
-  Markdown content. The boundary for when to use MDQ vs RAG is not defined.
-- **Recommended action:** Define migration criteria in `docs/04_mcp-mdq.md`.
+- **Resolution:** Boundary defined in `docs/04_mcp-mdq.md`. MDQ is Markdown-dedicated with FTS5 search; RAG is production-ready with semantic embeddings and hybrid search. The agent accesses both via MCP tool calls only.
+- **Recommended action:** Use `docs/04_mcp-mdq.md` as the authoritative reference for choosing between systems.
 
 ---
 

@@ -80,6 +80,18 @@ the rag-pipeline-mcp service. See [05_agent_12_reference-api.md](05_agent_12_ref
 
 ---
 
+## Agent-Side Document Access Patterns
+
+The agent accesses document data through three paths:
+
+| Path | Mechanism | When to use |
+|---|---|---|
+| MCP tools (primary) | `ToolRouteResolver` → MCP server (rag-pipeline-mcp or mdq-mcp) | Normal operation; all agent turns |
+| `/db` commands (admin) | `DbMaintenanceService` → direct SQLite access | Admin maintenance tasks only |
+| Direct DB access | Not recommended | Never in application code |
+
+MCP tools are the preferred and supported path. The agent layer never imports `sqlite3` against `rag.sqlite` or `mdq.sqlite` directly. See [04_mcp-mdq.md](04_mcp-mdq.md) for the boundary between RAG and MDQ systems.
+
 ## Memory Tables (optional)
 
 When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:

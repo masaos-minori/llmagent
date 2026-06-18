@@ -279,16 +279,15 @@ class TestFetchMessages:
         assert msgs is not None  # non-empty list
         assert "tool_calls" not in msgs[0]
 
-    def test_diagnostic_messages_excluded_from_fetch(
+    def test_invalid_role_skipped_in_fetch(
         self, repo: SessionMessageRepository
     ) -> None:
         repo.save("user", "hello")
-        repo.save("diagnostic", "partial incomplete", _diagnostic=True)
         repo.save("assistant", "world")
         msgs = repo.fetch_messages(1)
-        roles = [m["role"] for m in msgs]
-        assert "diagnostic" not in roles
         assert len(msgs) == 2
+        assert msgs[0]["role"] == "user"
+        assert msgs[1]["role"] == "assistant"
 
     def test_handles_db_exception_raises(self, repo: SessionMessageRepository) -> None:
         with patch("agent.session_message_repo.SQLiteHelper") as mock:

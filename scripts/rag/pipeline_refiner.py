@@ -31,8 +31,13 @@ async def refine_context(
 ) -> str | None:
     """Run the chunk refiner.
 
-    Returns refined context string on success, or None on empty output
-    or LLM failure so caller falls back to raw chunks.
+    Return contract:
+        str (non-empty)  — LLM returned a non-empty refined string
+        None             — LLM returned empty output (falsy), or any of:
+                           httpx.HTTPStatusError, httpx.RequestError, ValueError
+
+    An empty string from the LLM is treated as falsy (None), causing the caller
+    to fall back to raw chunks. All caught exceptions log a warning before returning None.
     """
     effective_timeout: float = timeout if timeout is not None else 30.0
     try:

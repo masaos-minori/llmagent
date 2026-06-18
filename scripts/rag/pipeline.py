@@ -280,7 +280,12 @@ class RagPipeline:
         query: str,
         history_context: str,
     ) -> str | None:
-        """Delegate to external RAG service; None on failure triggers in-process fallback."""
+        """Delegate to external RAG service; None on failure triggers in-process fallback.
+
+        See ``call_rag_service`` for the full return contract (str / "" / None).
+        The caller in ``augment()`` treats ``None`` as "fall back to in-process" and
+        any other return value (including "") as the final result.
+        """
         return await call_rag_service(
             self._http,
             rag_url,
@@ -291,7 +296,11 @@ class RagPipeline:
         )
 
     async def _augment_refiner(self, reranked: list[RagHit], query: str) -> str | None:
-        """Run the chunk refiner; returns None on empty output or LLM failure so caller falls back to raw chunks."""
+        """Run the chunk refiner; returns None on empty output or LLM failure.
+
+        The caller in ``augment()`` falls back to ``_format_chunks(reranked)`` (raw chunks)
+        when this returns None. See ``refine_context()`` for the full return contract.
+        """
         return await refine_context(
             self._llm,
             self._on_status,
@@ -322,7 +331,17 @@ class RagPipeline:
         | None = None,
         history_context: str = "",
     ) -> str:
-        """Run full pipeline and return a context block; '' when disabled or no results; delegates to rag_service_url when set."""
+        """Run full pipeline and return a context block; '' when disabled or no results.
+
+        Fallback chain (each step produces the final result unless it signals failure):
+        1. HTTP mode: ``_augment_http()`` returns str/"" on success, None on failure.
+           None triggers in-process fallback below.
+        2. Semantic cache lookup (in-process only): returns cached string or continues.
+        3. Search pipeline (semantic + FTS5 + merge + rerank): produces reranked hits.
+        4. Refiner: ``_augment_refiner()`` returns refined text on success, None on empty
+           output or LLM failure. None falls through to raw chunks.
+        5. Raw chunks: ``_format_chunks()`` formats reranked hits as the final context block.
+        """
         if not self._cfg.use_search:
             return ""
         # HTTP mode: delegate to external RAG service when rag_service_url is configured

@@ -17,8 +17,16 @@ Plugins are Python files in `plugins/*.py` (relative to the project root, 2 leve
 1. `AgentREPL._init_plugin_registry()` calls `plugin_registry.load_plugins(plugin_dir)` at startup
 2. Each `*.py` file is imported in alphabetical order
 3. `@register_*` decorators run at import time and register handlers globally
-4. Errors during load are logged and skipped (fail-open)
-5. Directory not found → 0 plugins loaded (no error)
+4. Errors during load are logged individually with file name and error reason (fail-open by default)
+5. When `plugin_strict=true` in config, the first import failure aborts startup
+6. After loading, plugin command names are checked against built-in commands; shadowing is logged as a warning
+7. Directory not found → 0 plugins loaded (no error)
+
+Startup log format (individual failure):
+`Plugin load failure: <filename> — <ErrorType>: <message>`
+
+Startup log format (command shadowing warning):
+`Plugin command "/name" shadows built-in command. The built-in command will take precedence.`
 
 ```python
 # plugins/my_plugin.py
@@ -69,6 +77,12 @@ async handler(args: dict) -> tuple[str, bool]   # (result_text, is_error)
 - Bypasses MCP routing entirely
 - Called by `ToolExecutor.execute()` **before** cache check and MCP dispatch
 - Return value: `(result_text: str, is_error: bool)`
+
+**Return-type validation:** At registration time, `@register_tool` inspects the
+function's return annotation. If the annotation is present and is not
+`tuple[str, bool]`, a warning is logged. This check is non-blocking — the tool
+is still registered regardless of the annotation.
+
 - Access: `plugin_registry.get_tool(name)` → `Callable | None`
 
 ### Plugin Tool Precedence and Conflict Policy

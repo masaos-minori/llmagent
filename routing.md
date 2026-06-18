@@ -31,6 +31,7 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | Agent known issues / inconsistencies | `docs/05_agent_90_inconsistencies_and_known_issues.md` |
 | MCP server spec (overview, design, known issues) | `docs/04_mcp_00_document-guide.md` + `docs/04_mcp_01_system_overview.md` |
 | RAG pipeline spec (overview, design, known issues) | `docs/03_rag_00_document-guide.md` + `docs/03_rag_01_system_overview.md` |
+| MDQ vs RAG boundary | `docs/04_mcp-mdq.md` |
 | DB layer spec (schema, ops, known issues) | `docs/06_shared_04_db_architecture_and_schema.md` + `docs/06_shared_05_db_api_and_operations.md` |
 | Shared infra spec (config, logging, types, constants) | `docs/06_shared_00_document-guide.md` + `docs/06_shared_01_overview.md` |
 
@@ -38,7 +39,7 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 
 | Task scope | Reference docs |
 |---|---|
-| Memory layer (types / store / retriever / extract / jsonl_store / layer) | `docs/05_agent_04_state-and-persistence.md` + `docs/05_agent_08_configuration.md` |
+| Memory layer (types / store / retriever / extract / jsonl_store / services.py) | `docs/05_agent_04_state-and-persistence.md` + `docs/05_agent_08_configuration.md` + `docs/05_agent_12_memory.md` |
 | OTel observability (otel_tracer.py) | `docs/05_agent_10_operations-and-observability.md` + `docs/05_agent_08_configuration.md` |
 | System-wide architecture overview | `docs/01_overview.md` + `docs/01_overview-arch.md` |
 | File / module layout | `docs/01_overview-files.md` |

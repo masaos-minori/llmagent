@@ -78,3 +78,13 @@ Each entry uses the required format:
 - **Notes for AI reference:** When querying conversation history, use `messages`. When retrieving full tool output, use `ToolResultStore.get(id)`.
 
 ---
+
+### UNIMPL-01: `ArtifactEvent` has no event bus (RESOLVED)
+
+- **Type:** Unimplemented (resolved)
+- **Impact scope:** `shared/events.py::ArtifactEvent`
+- **Description:** `ArtifactEvent` is a TypedDict with no delivery system, no consumers. Future event-envelope fields (`event_id`, `source`, `correlation_id`) are documented as aspirational in the module docstring and in [06_shared_02](06_shared_02_types_and_protocols.md).
+- **Current safe interpretation:** Creating an `ArtifactEvent` instance triggers no action. It is a type annotation only.
+- **Recommended action:** Complete. Future envelope design is documented; implementation is deferred.
+
+---

@@ -348,6 +348,12 @@ def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
             "Loaded %d plugin(s) from %s", result.loaded_count, plugin_dir
         )
 
+    if result.failed:
+        for failure in result.failed:
+            audit_logger.warning(
+                "Plugin load failure: %s — %s", failure.path, failure.error
+            )
+
 
 def init_tracer(ctx: AgentContext) -> object:
     """Build and return an OTel tracer; returns a NoOp stub when otel_enabled=False."""
