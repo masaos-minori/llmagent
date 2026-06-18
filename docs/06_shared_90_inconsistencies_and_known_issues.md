@@ -196,8 +196,7 @@ Each entry uses the required format:
 
 ### DOCMISS-01: `SQLiteHelper target="workflow"` and `db/workflow_schema.py` absent from `07_spec_db.md`
 
-- **Type:** RESOLVED (Document inconsistency)
-- **Resolution:** `06_shared_04_db_architecture_and_schema.md §7` now documents `workflow.sqlite` schema (`tasks`, `attempts`, `processed_events`, `artifacts` tables) and the `"workflow"` target in `SQLiteHelper`. `06_shared_05_db_api_and_operations.md` includes `target="workflow"` in the constructor reference and AI FAQ.
-- **Notes for AI reference:** `SQLiteHelper("workflow")` is valid and connects to `workflow.sqlite`. Schema initialized by `db/workflow_schema.py::init_schema()`.
-- **Recommended action:** Add `workflow.sqlite` to `07_spec_db.md` specification.
-- **Notes for AI reference:** `SQLiteHelper("workflow")` is valid. It connects to `workflow.sqlite` with schema managed by `db/workflow_schema.py`.
+- **Type:** RESOLVED (Document inconsistency — workflow.sqlite now consistently documented)
+- **Resolution:** `06_shared_04_db_architecture_and_schema.md §7` documents `workflow.sqlite` schema (`tasks`, `attempts`, `processed_events`, `artifacts` tables) and the `"workflow"` target in `SQLiteHelper`. `06_shared_05_db_api_and_operations.md` includes `target="workflow"` in the constructor reference. Agent-layer docs (`01_overview-files`, `02_deployment`, `05_agent_04`, `05_agent_07`, `05_agent_10`) now also mention `workflow.sqlite` consistently alongside `rag.sqlite` and `session.sqlite`.
+- **Recommended action:** None — `workflow.sqlite` is now consistently documented across all relevant docs. The `07_spec_db.md` spec file does not exist in the current doc structure; canonical reference is `06_shared_04_db_architecture_and_schema.md §7`.
+- **Notes for AI reference:** `SQLiteHelper("workflow")` is valid and connects to `workflow.sqlite`. Schema initialized by `db/workflow_schema.py::init_schema()`. Path configured via `workflow_db_path` in `common.toml`.

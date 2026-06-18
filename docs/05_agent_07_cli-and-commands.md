@@ -119,6 +119,8 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | `/db purge [--max-sessions N] [--max-age-days N]` | DELETE old sessions | Based on count or age |
 | `/db recover [backup-path]` | Integrity check; restore from backup if corrupt | Destructive if corrupt |
 
+> **Note:** `/db` commands operate on `rag.sqlite` (RAG documents, sessions, messages) by default. `session.sqlite` and `workflow.sqlite` are accessed via `SQLiteHelper(target=...)` in code, not through `/db` commands. Schema details: `06_shared_04`.
+
 ### Tool / plan category
 
 | Command | Side effects | Related state |

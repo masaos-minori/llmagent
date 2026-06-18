@@ -17,7 +17,9 @@
   │   ├─ chunk/                         # チャンク分割済みファイル ({stem}-{idx:04d}.txt)
   │   └─ registered/                    # DB 投入済みファイル (ingester.py が移動)
   ├─ db/
-  │   ├─ rag.sqlite                     # RAG ベクトル DB (documents/chunks/chunks_vec/chunks_fts)
+  │   ├─ rag.sqlite                     # RAG ベクトル DB (documents/chunks/chunks_vec/chunks_fts) — see 06_shared_04 §3-§6
+  │   ├─ session.sqlite                 # エージェントセッション + メッセージ — see 06_shared_04 §2
+  │   ├─ workflow.sqlite                # タスク追跡 + イベント処理 — see 06_shared_04 §7
   │   └─ rrf.sql                        # SQL クエリ参照定義 (KNN・BM25・RRF の説明コメント付き)
   ├─ sqlite-vec/
   │   └─ vec0.so                        # SQLite ベクトル検索拡張 (ロード可能拡張モジュール)

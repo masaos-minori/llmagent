@@ -57,12 +57,25 @@ Expected: all servers listed with `OK` status.
 
 ### DB verification
 
+Three platform databases to verify:
+
 ```bash
+# rag.sqlite — RAG documents, chunks, embeddings
 sqlite3 /opt/llm/db/rag.sqlite "SELECT lang, COUNT(*) AS docs FROM documents GROUP BY lang;"
 sqlite3 /opt/llm/db/rag.sqlite "SELECT COUNT(*) AS chunks FROM chunks;"
 sqlite3 /opt/llm/db/rag.sqlite "SELECT chunk_id, LENGTH(embedding) AS bytes FROM chunks_vec LIMIT 3;"
 # Expected bytes: 1536 (384 dimensions × 4 bytes)
+
+# session.sqlite — agent sessions and messages
+sqlite3 /opt/llm/db/session.sqlite "SELECT session_id, created_at, title FROM sessions ORDER BY session_id DESC LIMIT 5;"
+sqlite3 /opt/llm/db/session.sqlite "SELECT COUNT(*) AS messages FROM messages;"
+
+# workflow.sqlite — task tracking and event processing
+sqlite3 /opt/llm/db/workflow.sqlite "SELECT COUNT(*) AS tasks FROM tasks;"
+sqlite3 /opt/llm/db/workflow.sqlite "SELECT status, COUNT(*) FROM tasks GROUP BY status;"
 ```
+
+Schema details for all three: `06_shared_04_db_architecture_and_schema.md`.
 
 ---
 

@@ -195,6 +195,18 @@ agent[chat]> /mcp status
 
 ## 3. DB 初期化
 
+### 3.0 プラットフォーム DB 概要
+
+エージェントは 3 つの SQLite データベースを使用する。すべてのパスは `common.toml` で設定する。
+
+| DB | デフォルトパス | 設定キー | 用途 |
+|---|---|---|---|
+| `rag.sqlite` | `/opt/llm/db/rag.sqlite` | `rag_db_path` | RAG ドキュメント・チャンク・埋込 |
+| `session.sqlite` | `/opt/llm/db/session.sqlite` | `session_db_path` | エージェントセッション・メッセージ |
+| `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` | タスク追跡・イベント処理 |
+
+スキーマ詳細: `06_shared_04_db_architecture_and_schema.md`
+
 ### 3.1 スキーマ適用
 
 ```bash
