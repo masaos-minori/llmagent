@@ -506,6 +506,7 @@ class AgentConfig:
     Composes 7 domain-specific sub-configs.
     Access fields via nested paths: cfg.llm.llm_url, cfg.rag.top_k_search, etc.
     workflow_mode: "auto" (fallback with warning), "required" (hard error), "disabled" (always direct).
+    security_lockdown_enabled: suppress DENY-ALL warnings for intentional lockdowns.
     """
 
     llm: LLMConfig = field(default_factory=LLMConfig)
@@ -516,6 +517,7 @@ class AgentConfig:
     approval: ApprovalConfig = field(default_factory=ApprovalConfig)
     obs: ObservabilityConfig = field(default_factory=ObservabilityConfig)
     workflow_mode: str = "auto"
+    security_lockdown_enabled: bool = False
 
     def __post_init__(self) -> None:
         self._validate_workflow_mode()

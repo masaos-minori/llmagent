@@ -229,9 +229,11 @@ security posture summary. It checks the following settings by loading each serve
 | Setting | Server config file | Checked |
 |---|---|---|
 | `shell_sandbox_backend` | `shell_mcp_server.toml` | warns when `"none"` |
-| `command_allowlist` | `shell_mcp_server.toml` | warns when empty (fail-closed) |
-| `db_allowlist` | `sqlite_mcp_server.toml` | warns when empty (fail-closed) |
-| `allowed_repo_paths` | `git_mcp_server.toml` | warns when empty (fail-closed) |
+| `command_allowlist` | `shell_mcp_server.toml` | DENY-ALL warning when empty (fail-closed) |
+| `db_allowlist` | `sqlite_mcp_server.toml` | DENY-ALL warning when empty (fail-closed) |
+| `allowed_repo_paths` | `git_mcp_server.toml` | DENY-ALL warning when empty (fail-closed) |
+
+Empty allowlist warnings use the format: `DENY-ALL detected: {setting} is empty. {server} will reject ALL requests from this category. Verify this is intentional or add allowed values to config.`
 
 At the end of the check, a summary line is logged:
 
@@ -322,7 +324,7 @@ Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).
 
 ### Startup audit
 
-`audit_security_defaults()` in `agent/repl_health.py` runs at startup and logs:
+  `audit_security_defaults()` in `agent/repl_health.py` runs at startup and logs:
 - All fail-closed settings that are empty (informational — access is correctly denied)
 - All fail-open settings that are empty (warning — unintended access may be allowed)
 - A summary line: `Security posture summary — fail-closed (...): ...; fail-open (...): ...`
@@ -352,9 +354,9 @@ certain tool categories entirely (e.g., no shell commands, no DB queries).
    command_allowlist = []   # deny all shell commands
    ```
 
-2. Acknowledge the lockdown in `agent.toml` or `common.toml` to suppress
-   startup warnings:
+2. Acknowledge the lockdown in `config/agent.toml` to suppress startup warnings:
    ```toml
+   [agent]
    security_lockdown_enabled = true
    ```
 
@@ -374,7 +376,10 @@ WARNING DENY-ALL detected: shell.command_allowlist is empty. shell-mcp will
 
 If `security_lockdown_enabled=False` (default), these warnings appear at every
 startup — a deliberate reminder to review the config. Set it to `true` only
-when the deny-all state is confirmed intentional.
+when the deny-all state is confirmed intentional. When enabled:
+- DENY-ALL warnings for fail-closed settings (`command_allowlist`, `db_allowlist`, `allowed_repo_paths`) are suppressed
+- Fail-open warnings (`github.allowed_workflows`, `tool.allowed_tools`) still appear
+- The security posture summary line still appears with full detail
 
 ### Reverting a lockdown
 
