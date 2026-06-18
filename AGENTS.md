@@ -30,29 +30,10 @@
 Task → routing.md → Minimal Skills + Shared Rules → Relevant docs → Execution
 ```
 
-Always-load rules are in `routing.md` (`## Always load alongside the skill`).
-
-## File Split Rule
-
-When a document or skill file grows too large, split it according to these rules.
-
-**Trigger:** a single file exceeds 400 lines AND contains multiple independent responsibilities.
-
-**Four principles:**
-
-| Principle | Rule |
-|---|---|
-| **routing** | After splitting, add task-type → file entries to the "Docs → task mapping" table in `routing.md` |
-| **dependency direction** | Keep dependencies between new files strictly one-directional; no circular imports or references |
-| **minimal loading** | Draw responsibility boundaries so that any single task requires reading as few files as possible |
-| **shared normalization** | Consolidate shared specs or protocol definitions into one file; all others reference it, never duplicate |
-
-**Procedure:**
-
-1. Group sections/functions by responsibility and write the split proposal in a temporary plan file (e.g. `04_split_plan.md`); review the plan before touching any file
-2. After splitting, convert the original file to an index (link list) or remove its content
-3. Apply ripple-effect changes in the same pass: `routing.md`, `rules/env.md`, skill references, `docs/00_llm-implementation-guide.md`, `docs/06_common.md`
-4. For code files, confirm `ruff` / `mypy` / `pytest` pass before closing the task
+- Task routing rules: this file, AGENTS.md
+- Shared design and architectural rules: `skills/DESIGN.md`
+- Task-specific procedures: `skills/<task>/SKILL.md` + `skills/<task>/workflow.md`
+- Always-load rules are in `routing.md` (`## Always load alongside the skill`)
 
 ## Target environment
 
@@ -84,4 +65,4 @@ Key library choices and coding conventions: `rules/coding.md`
 Skills are registered as slash commands in `.claude/commands/`. Invoke with `/skill-name [task]` or via `Skill("skill-name")`. Each SKILL.md declares `Composes with` / `Called by` — use these to chain skills across multi-phase tasks.
 
 Task→skill and task→docs mapping: `routing.md` (canonical; do not duplicate here).
-Skill design principles (when creating or improving a SKILL): `skills/DESIGN.md`.
+Skill design principles and file-split rules: `skills/DESIGN.md`.
