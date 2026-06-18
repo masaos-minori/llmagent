@@ -26,9 +26,9 @@ class ConfigLoader:
 - Raises `ValueError` on file-not-found or parse error
 
 **`load_all()`**
-- Merges a hardcoded list of 11 files: `llm`, `http`, `rag`, `context`, `tools`, `memory`, `otel`, `security`, `system_prompts`, `mcp_servers`, `tools_definitions`
+- Merges a hardcoded list of 12 files: `common`, `llm`, `http`, `rag`, `context`, `tools`, `memory`, `otel`, `security`, `system_prompts`, `mcp_servers`, `tools_definitions`
 - Missing files are silently skipped (catches `ValueError` and continues)
-- **`common.toml` is NOT included** — see [Config Ownership](#config-ownership) below for full ownership table
+- **`common.toml` IS included** (at index 0, providing baseline infrastructure keys) — see [Config Ownership](#config-ownership) below for full ownership table
 
 ---
 
@@ -49,17 +49,18 @@ The following table documents which config files are loaded by `load_all()`, whi
 | `system_prompts.toml` | Yes | — | agent | System prompt templates |
 | `mcp_servers.toml` | Yes | — | mcp | MCP server definitions (transport, cmd, url) |
 | `tools_definitions.toml` | Yes | — | mcp | Tool definition metadata |
-| `common.toml` | **No** | `db/helper.py`, `rag/pipeline.py` | shared/db | DB paths, embedding URL, sqlite-vec path, busy_timeout |
+| `common.toml` | **Yes** | — | shared/db | DB paths, embedding URL, sqlite-vec path, busy_timeout; loaded at index 0 so downstream files can override if needed |
 
 **Ownership rule:** The "Owning Layer" column indicates which layer is primarily responsible for reading and using the config values from each file. A file may be read by multiple layers at runtime, but only one layer owns its semantic meaning.
 
-**`common.toml` loading pattern:** Because `common.toml` is not in `load_all()`, callers that need its values must explicitly load it:
+**`common.toml` loading pattern:** `common.toml` is now part of `load_all()` (added at index 0). Callers no longer need to load it explicitly:
 ```python
-ConfigLoader().load("common.toml")   # returns dict with db paths, embed_url, etc.
+ConfigLoader().load_all()   # now includes common.toml keys: rag_db_path, embed_url, etc.
 ```
-This is intentional — `common.toml` contains infrastructure-level settings (DB paths, embedding config) that are not part of the agent's business configuration loaded by `load_all()`.
-
-> **Future note:** `common.toml` may be added to `_BASE_CONFIG_FILES` in a future refactor. If so, update this table and the cross-references in `06_shared_01`, `06_shared_04`, and `06_shared_00`.
+Modules that also need `rag_pipeline.toml` (which is ingester-specific and NOT in `load_all()`) merge both:
+```python
+{**ConfigLoader().load_all(), **ConfigLoader().load("rag_pipeline.toml")}
+```
 
 **Config loading flow:**
 ```
@@ -72,7 +73,7 @@ ConfigLoader().load_all()
   → iterate hardcoded 11-file list
   → skip missing files silently
   → merge all into single dict
-  → return dict  (common.toml NOT included)
+  → return dict  (common.toml IS included at index 0)
 ```
 
 ---
@@ -320,8 +321,7 @@ Both defined in `shared/mcp_config.py`. Full field reference in
 **Config loading:**
 ```
 build_agent_config()
-  → ConfigLoader().load_all()     [11 files — see §2a Config Ownership for full table]
-  → ConfigLoader().load("common.toml")   [loaded separately by db/ and rag/ — see §2a Config Ownership]
+  → ConfigLoader().load_all()     [12 files incl. common.toml — see §2a Config Ownership for full table]
 ```
 
 **Plugin loading:**
@@ -354,7 +354,7 @@ ToolExecutor.execute(tool_name, args)
 |---|---|
 | How to load config files | `ConfigLoader().load("filename.toml")` or `load_all()` |
 | Config ownership table | **See §2a Config Ownership** — canonical reference for all 12 TOML files |
-| Does `load_all()` include `common.toml`? | **No** — loaded separately (see §2a Config Ownership) |
+| Does `load_all()` include `common.toml`? | **Yes** — included at index 0 of `_BASE_CONFIG_FILES` (see §2a Config Ownership) |
 | How to register a plugin tool | `@register_tool("name")` decorator in `plugins/*.py` |
 | When does ToolExecutor use cache? | `is_error=False` results only; TTL + LRU |
 | Is `git_helper.get_repo_info()` reliable? | Returns `None` on any exception; no error reason |

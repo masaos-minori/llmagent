@@ -44,7 +44,7 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 | What is `RagConfig`? | `06_shared_02` §4 |
 | What tool frozensets exist? | `06_shared_02` §10 |
 | How does `ConfigLoader.load_all()` work? | `06_shared_03` §2 |
-| Does `load_all()` include `common.toml`? | **No** — `06_shared_03` §2a Config Ownership (canonical table) + `06_shared_90` CONFIG-01 |
+| Does `load_all()` include `common.toml`? | **Yes** — included at index 0 of `_BASE_CONFIG_FILES`; see `06_shared_03` §2a Config Ownership |
 | How do plugins load? | `06_shared_03` §4 |
 | How does `ToolExecutor.execute()` work? | `06_shared_03` §9 |
 | What SQLite DBs exist? | `06_shared_04` §2 |
@@ -65,7 +65,6 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 | Issue | Location |
 |---|---|
 | `06_shared.md` references non-existent `06_ref-sqlite.md` | [06_shared_90 DOCREF-01](06_shared_90_inconsistencies_and_known_issues.md) |
-| `load_all()` omits `common.toml` | [06_shared_90 CONFIG-01/02/03](06_shared_90_inconsistencies_and_known_issues.md) |
 | `McpServerConfig.transport` not typed as `Literal` | [06_shared_90 TYPE-01](06_shared_90_inconsistencies_and_known_issues.md) |
 | `ArtifactEvent` has no event bus | [06_shared_90 UNIMPL-01](06_shared_90_inconsistencies_and_known_issues.md) |
 | `workflow.sqlite` absent from `07_spec_db.md` | [06_shared_90 DOCMISS-01](06_shared_90_inconsistencies_and_known_issues.md) |
@@ -99,7 +98,7 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 
 ## Guidance for Safe AI Use
 
-1. **Do not assume `load_all()` covers all config.** `common.toml` (DB paths, embedding URL) is loaded separately — see [06_shared_03](06_shared_03_runtime_and_execution.md) §2a Config Ownership for the full ownership table.
+1. **`load_all()` now includes `common.toml`** (DB paths, embedding URL, sqlite-vec path) at index 0. See [06_shared_03](06_shared_03_runtime_and_execution.md) §2a Config Ownership for the full ownership table. Only `rag_pipeline.toml` still requires explicit loading.
 2. **`orjson.dumps()` returns `bytes`.** Call `.decode()` before using as string.
 3. **`ArtifactEvent` is data only.** No event bus exists.
 4. **`LLMMessage` has 7 fields** including `importance` and `pinned` (not 5 as in the old `06_shared.md`).
