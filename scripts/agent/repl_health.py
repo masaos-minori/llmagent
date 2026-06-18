@@ -360,6 +360,17 @@ async def watchdog_loop(ctx: AgentContext) -> None:
     interval = ctx.cfg.mcp.mcp_watchdog_interval
     max_restarts = ctx.cfg.mcp.mcp_watchdog_max_restarts
     restart_counts: dict[str, int] = {}
+    if interval > 0:
+        logger.info(
+            "Watchdog: enabled (interval=%.0fs, max_restarts=%d)",
+            interval,
+            max_restarts,
+        )
+    else:
+        logger.warning(
+            "Watchdog: disabled (interval=%.0f) — failed servers will not be auto-restarted",
+            interval,
+        )
     while True:
         await asyncio.sleep(interval)
         for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():

@@ -268,6 +268,49 @@ tail -100 /opt/llm/logs/git-mcp.log
 
 ---
 
+## Watchdog Behavior
+
+The watchdog loop (`watchdog_loop()` in `agent/repl_health.py`) periodically probes all MCP
+servers and attempts to restart them when they fail. It runs as a background asyncio task.
+
+### Configuration
+
+| Setting | LOCAL default | PRODUCTION default | Effect |
+|---|---|---|---|
+| `mcp_watchdog_interval` | `0` (disabled) | `30.0` | Probe interval in seconds; `0` = disabled |
+| `mcp_watchdog_max_restarts` | `3` | `3` | Max restart attempts per server before giving up |
+
+### Disabled state consequences
+
+When `mcp_watchdog_interval = 0`:
+- The watchdog loop still starts but logs a warning: `Watchdog: disabled (interval=0) — failed servers will not be auto-restarted`
+- Crashed HTTP servers will remain unreachable until the agent process is restarted manually
+- Crashed subprocess servers (shell-mcp, sqlite-mcp) will not be restarted automatically
+
+### Verifying watchdog state
+
+Two places show the current watchdog state:
+
+1. **Startup logs** (`/opt/llm/logs/agent.log`):
+   ```
+   INFO  Watchdog: enabled (interval=30s, max_restarts=3)
+   ```
+   or
+   ```
+   WARNING Watchdog: disabled (interval=0) — failed servers will not be auto-restarted
+   ```
+
+2. **`/mcp status` command** (REPL):
+   ```
+   Watchdog    enabled (interval=30s, max_restarts=3)
+   ```
+   or
+   ```
+   Watchdog    disabled (interval=0) — no auto-restart
+   ```
+
+---
+
 ## New Tool Registration Procedure
 
 When adding a new tool to an **existing** MCP server:

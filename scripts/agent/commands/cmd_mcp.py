@@ -75,6 +75,13 @@ class _McpMixin(MixinBase):
             f"\n  Servers     {len(rows)} configured"
             f" ({ok_count} ok, {unreachable_count} unreachable)"
         )
+        wd_interval = ctx.cfg.mcp.mcp_watchdog_interval
+        wd_max = ctx.cfg.mcp.mcp_watchdog_max_restarts
+        if wd_interval > 0:
+            wd_status = f"enabled (interval={wd_interval:.0f}s, max_restarts={wd_max})"
+        else:
+            wd_status = "disabled (interval=0) — no auto-restart"
+        self._out.write(f"  Watchdog    {wd_status}")
 
     async def _cmd_mcp_install(self, server_name: str) -> None:
         """Interactive wizard: generate MCP server template files for server_name."""

@@ -27,6 +27,8 @@ class _Ctx:
         self.cfg.mcp.mcp_servers = mcp_servers
         # tier-based WRITE column requires a real dict; MagicMock's .get() returns MagicMock
         self.cfg.approval.tool_safety_tiers = tool_safety_tiers or {}
+        self.cfg.mcp.mcp_watchdog_interval = 0.0
+        self.cfg.mcp.mcp_watchdog_max_restarts = 3
         self.services = MagicMock()
         self.services.stdio_procs = stdio_procs or {}
         self.services.health_registry = None
