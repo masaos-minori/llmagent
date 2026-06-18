@@ -301,10 +301,10 @@ From Step 7. Flag blocking unknowns explicitly.
 Always include `deploy/deploy.sh` impact: "existing", "add cp line", or "remove cp line".
 
 When listing affected documentation, use the current split structure:
-- slash command changes → `docs/06_ref-agent-commands.md`
-- RAG pipeline changes → `docs/06_ref-rag.md`
-- AgentConfig field changes → `docs/06_ref-agent-config.md`
-- MCP tool changes → `docs/04_mcp-<server>.md` (one file per server; e.g. `docs/04_mcp-github.md`)
+- slash command changes → `docs/05_agent_07_cli-and-commands.md`
+- RAG pipeline changes → `docs/03_rag_02_ingestion_pipeline.md`
+- AgentConfig field changes → `docs/05_agent_08_configuration.md`
+- MCP server/tool changes → `docs/04_mcp_04_server_catalog.md`
 - new modules → `routing.md` (always update when new modules are added)
 
 ### 6. Implementation Steps

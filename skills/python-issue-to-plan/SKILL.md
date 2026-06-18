@@ -48,7 +48,7 @@ Turn a task description into a concrete, reviewable implementation plan grounded
 2. scope (in / out)
 3. assumptions
 4. unknowns (template; blocking flagged)
-5. affected areas (tool evidence; blast radius; churn; bus factor; deploy.sh impact)
+5. affected areas (tool evidence, blast radius, churn, bus factor, deploy.sh impact)
 6. implementation steps (ordered; deploy step included)
 7. validation plan (full table)
 8. risks

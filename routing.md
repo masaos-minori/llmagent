@@ -23,18 +23,18 @@ Skills in the Load column can be invoked as slash commands (e.g. `/python-implem
 
 Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 
-### ドメイン仕様書（新構造 — 13 章形式）
+### Domain specs
 
 | Task scope | Reference docs |
 |---|---|
-| エージェント仕様（全体・設計・未解決事項） | `docs/05_agent_00_document-guide.md` + `docs/05_agent_01_system-overview.md` |
-| エージェント 既知問題・不整合 | `docs/05_agent_90_inconsistencies_and_known_issues.md` |
-| MCP サーバー仕様（全体・設計・未解決事項） | `docs/04_mcp_00_document-guide.md` + `docs/04_mcp_01_system_overview.md` |
-| RAG パイプライン仕様（全体・設計・未解決事項） | `docs/03_rag_00_document-guide.md` + `docs/03_rag_01_system_overview.md` |
-| DB 層仕様（スキーマ・保守・未解決事項） | `docs/06_shared_04_db_architecture_and_schema.md` + `docs/06_shared_05_db_api_and_operations.md` |
-| 共有インフラ仕様（設定・ログ・型・定数） | `docs/06_shared_00_document-guide.md` + `docs/06_shared_01_overview.md` |
+| Agent spec (overview, design, known issues) | `docs/05_agent_00_document-guide.md` + `docs/05_agent_01_system-overview.md` |
+| Agent known issues / inconsistencies | `docs/05_agent_90_inconsistencies_and_known_issues.md` |
+| MCP server spec (overview, design, known issues) | `docs/04_mcp_00_document-guide.md` + `docs/04_mcp_01_system_overview.md` |
+| RAG pipeline spec (overview, design, known issues) | `docs/03_rag_00_document-guide.md` + `docs/03_rag_01_system_overview.md` |
+| DB layer spec (schema, ops, known issues) | `docs/06_shared_04_db_architecture_and_schema.md` + `docs/06_shared_05_db_api_and_operations.md` |
+| Shared infra spec (config, logging, types, constants) | `docs/06_shared_00_document-guide.md` + `docs/06_shared_01_overview.md` |
 
-### 詳細リファレンス（実装レベルの参照用）
+### Implementation reference
 
 | Task scope | Reference docs |
 |---|---|
@@ -73,11 +73,10 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 | Session / DB persistence | `docs/05_agent_09_data-layer.md` + `docs/06_shared_05_db_api_and_operations.md` |
 | LLM client (streaming/retry) | `docs/05_agent_05_llm-and-streaming.md` |
 | CLI view / readline | `docs/05_agent_07_cli-and-commands.md` |
-| エージェント仕様（全体・設計・未解決事項） | `docs/05_agent_00_document-guide.md` + `docs/05_agent_01_system-overview.md` |
 | RAG types / repository / LLM utils | `docs/03_rag_04_data_model_and_interfaces.md` + `docs/06_shared_02_types_and_protocols.md` |
 | SQLite / DB connection / WAL / transactions | `docs/06_shared_05_db_api_and_operations.md` |
 | Config / logger / formatters / rag_utils | `docs/06_shared_03_runtime_and_execution.md` |
-| shared 層 / DB 層 既知の問題・非一貫性 | `docs/06_shared_90_inconsistencies_and_known_issues.md` |
+| Shared layer / DB layer known issues / inconsistencies | `docs/06_shared_90_inconsistencies_and_known_issues.md` |
 | Ingestion pipeline run (execute commands, file lifecycle) | `docs/03_rag_02_ingestion_pipeline.md` + `docs/03_rag_05_configuration_and_operations.md` |
 | crawler.py changes / API reference | `docs/03_rag_02_ingestion_pipeline.md` |
 | chunk_splitter.py changes / API reference | `docs/03_rag_02_ingestion_pipeline.md` |

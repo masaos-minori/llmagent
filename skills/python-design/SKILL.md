@@ -39,68 +39,89 @@ Do not use this skill for:
 
 If the task mixes design and implementation, do the design first.
 
+## Phase overview
+
+| Step | Name | Goal |
+|------|------|------|
+| 1 | Understand the task | clarify goals, constraints, and context |
+| 2 | Extract requirements | functional, non-functional, assumptions |
+| 3 | Define architecture | components, responsibility boundaries, data/control flow |
+| 4 | Design modules and interfaces | package layout, module responsibilities, public APIs |
+| 5 | Design data and persistence | entities, DTOs, validation, storage ownership |
+| 6 | Define error handling | failure modes, exception/retry/logging policy |
+| 7 | Define test strategy | unit, integration, edge cases, failure-path tests |
+| 8 | Produce an implementation plan | ordered phases, dependency-aware task order |
+| 9 | Review the design | verify completeness, consistency, and testability |
+
 ## Required Output
 When relevant, produce these sections:
 
 1. Goal
    - what the program does
    - what problem it solves
-   - scope / non-scope
 
-2. Requirements
+2. Scope
+   - in scope
+   - out of scope
+
+3. Requirements
    - functional requirements
    - non-functional requirements
    - constraints
    - assumptions
    - dependencies
 
-3. Architecture
+4. Architecture
    - main components
    - responsibility boundaries
    - control flow
    - data flow
 
-4. Module Design
+5. Module Design
    - package layout
    - module responsibilities
    - dependency direction
 
-5. Interface Design
+6. Interface Design
    - public classes
    - public functions
    - input/output contracts
    - abstractions only when justified
 
-6. Data Model
+7. Data Model
    - key entities
    - DTOs / dataclasses / TypedDict / Pydantic models if needed
    - validation rules
    - persistence model if needed
 
-7. Error Handling
+8. Error Handling
    - failure modes
    - exception policy
    - retry policy
    - logging policy
 
-8. Configuration
+9. Configuration
    - config sources
    - config ownership
    - runtime vs startup-only settings
    - environment variable usage
 
-9. Test Strategy
-   - unit tests
-   - integration tests
-   - edge cases
-   - failure-path tests
+10. Test Strategy
+    - unit tests
+    - integration tests
+    - edge cases
+    - failure-path tests
 
-10. Implementation Plan
-   - ordered phases
-   - dependency-aware task order
-   - risks and follow-up items
+11. Implementation Plan
+    - ordered phases
+    - dependency-aware task order
 
-## Design Rules
+12. Risks / Open Questions
+    - risk descriptions with mitigations
+    - unresolved design decisions
+
+## Rules
+
 - Keep modules small and explicit.
 - Keep dependency direction clean.
 - Separate current design from future ideas.
@@ -108,56 +129,14 @@ When relevant, produce these sections:
 - Do not add abstraction without a clear reason.
 - Include failure paths, not only success paths.
 - Make runtime behavior explicit when relevant.
-
-## Python Guidance
-Prefer:
-- dataclasses
-- pathlib
-- typing
-- context managers
-- explicit configuration objects
-- dependency injection through constructor/function arguments
-
-If concurrency is needed:
-- explain why
-- define boundaries
-- define timeout / cancellation behavior
-
-If persistence is needed:
-- define storage ownership
-- define transaction boundaries
-- define schema evolution if relevant
-
-If multiple entry points exist:
-- keep CLI / API / worker thin
-- keep business logic outside transport layers
-
-## Output Style
-Use:
-- headings
-- bullets
-- numbered lists
-- short, direct statements
-
-Avoid:
-- unnecessary prose
-- unnecessary abstraction
-- vague phrases when a concrete decision is possible
-
-## Constraints
-You must:
-- define responsibilities
-- define boundaries
-- state assumptions
-- include test strategy
-- include failure handling
-- provide an implementation-ready plan
-
-You must not:
-- write production code unless explicitly requested
-- replace design with large code blocks
-- overcomplicate the architecture
-- mix current design with speculative future design without labeling it
+- Define responsibilities and boundaries for every component.
+- State assumptions explicitly.
+- Include test strategy and failure handling in the design.
+- Provide an implementation-ready plan.
+- Do not write production code unless explicitly requested.
+- Do not replace design with large code blocks.
+- Do not overcomplicate the architecture.
+- Do not mix current design with speculative future design without labeling it.
 
 ---
 

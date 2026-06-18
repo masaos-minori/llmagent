@@ -22,7 +22,22 @@ Use this skill only for documenting an existing Python repository from actual co
 | `Edit` | 8 Write Docs, 9 Consistency | apply minimal-diff updates to existing docs |
 | `WebFetch` | 3 Runtime, 6 Config | fetch external library docs (only when necessary) |
 
-See `workflow.md` for per-phase tool guidance.
+## Phase overview
+
+| Phase | Name | Goal |
+|-------|------|------|
+| 1 | Scope | fix target scope before analysis starts |
+| 2 | Inventory | build a repository map before writing anything |
+| 3 | Runtime and Entrypoints | find how the system is installed, started, and tested |
+| 4 | Architecture | explain package responsibilities and dependency flow |
+| 5 | Interfaces | describe what is exposed to users or other systems |
+| 6 | Configuration and Operations | document how behavior is controlled at runtime |
+| 7 | Quality and Delivery | document how the code is verified and delivered |
+| 8 | Write Docs | convert analysis into maintainable documentation |
+| 9 | Consistency Review | remove contradictions across docs and code |
+| 10 | Final Report | return results in a strict final format |
+
+See `workflow.md` for per-phase tool guidance and detailed gates.
 
 ## When not to use
 Do not use this skill for:
@@ -34,112 +49,46 @@ Do not use this skill for:
 
 ---
 
-## Core Rules
+## Rules
 
 ### 1. Source of Truth
-- Trust Python source code and config files first
-- README, comments, and docs are only supporting references
-- If docs and code conflict, code wins
+- Code and config files are the source of truth; docs are supporting references.
+- If docs and code conflict, code wins.
 
 ### 2. Evidence First
-- Important statements must include file-path evidence
-- When possible, reference:
-  - package / module names
-  - classes / functions
-  - routes / commands / tasks
-  - config keys
-  - environment variables
-- Do not make unsupported claims
+- Every important statement must include file-path evidence (module, class, function, route, config key, env var).
+- Do not make unsupported claims.
 
 ### 3. No Hallucination
-- Do not invent missing behavior
-- Do not assume framework patterns without evidence
-- Do not treat unused code as active behavior
+- Do not invent missing behavior.
+- Do not assume framework patterns without evidence.
+- Do not treat dead code, unused code, or dead migrations as active behavior.
 
 ### 4. Explicit Uncertainty
-Use these labels:
-- Confirmed = directly verified in code
-- Inferred = strongly supported by multiple clues
-- Unknown = cannot be confirmed
+Label every claim: `Confirmed` (directly verified), `Inferred` (strongly supported), or `Unknown` (cannot be confirmed).
 
 ### 5. Minimal Diff
-- If docs already exist, do not rewrite everything unnecessarily
-- Fix errors, fill gaps, reduce duplication
-- Prefer minimal changes with maximum clarity
+- Fix errors, fill gaps, reduce duplication. Do not rewrite unnecessarily.
+
+### 6. Boundaries
+- Do not expand scope beyond the requested target.
+- Do not expose secrets.
+- Do not paste long code blocks unless essential.
+- Do not infer runtime behavior from `requirements.txt` alone.
+- Do not trust README claims without verification.
+
+### 7. Track Evidence
+During analysis, track for each item: path, kind, why_it_matters, confirmed_facts, open_questions.
 
 ---
 
-## Working Method
+## Before Writing
 
 ### 1. Inventory First
-Before writing, identify:
-- main directories
-- Python packages
-- config files
-- entrypoints
-- public interfaces
-- test structure
-- CI/CD and Docker presence
+Identify: main directories, Python packages, config files, entrypoints, public interfaces, test structure, CI/CD and Docker presence.
 
 ### 2. Read in Order
-Read in this order when possible:
-
-1. README / docs
-2. `pyproject.toml`, `setup.cfg`, `setup.py`, `requirements*`
-3. entrypoints (`__main__.py`, `main.py`, `app.py`, `manage.py`, console scripts)
-4. route / command / worker registration
-5. config loading
-6. services / domain / models
-7. repositories / DB / integrations
-8. tests / `conftest.py`
-9. CI/CD / Docker / migrations / release files
-
-### 3. Keep Evidence Notes
-Track:
-- `path`
-- `kind`
-- `why_it_matters`
-- `confirmed_facts`
-- `open_questions`
-
-### 4. Separate These Clearly
-- Fact = directly visible in implementation
-- Interpretation = strongly supported conclusion
-- Proposal = improvement suggestion
-
-### 5. Keep Unknowns Visible
-- Record unresolved items in `docs/known-unknowns.md`
-- Do not hide uncertainty, especially when multiple entrypoints exist
-
----
-
-## Never Do These
-- Do not document features not confirmed by code
-- Do not trust README claims without verification
-- Do not infer runtime behavior from `requirements.txt` alone
-- Do not treat dead code, dead tasks, or dead migrations as active behavior
-- Do not expose secrets
-- Do not paste long code blocks unless necessary
-- Do not expand scope beyond the requested target
-
----
-
-## Output Style
-Use this structure when possible:
-
-1. Overview
-2. Scope
-3. Evidence Reviewed
-4. Implementation Facts
-5. Notes / Caveats
-6. Unknowns
-
-Style:
-- concise
-- professional
-- maintenance-friendly
-- evidence-based
-- uncertainty labeled as `Confirmed`, `Inferred`, or `Unknown`
+README → `pyproject.toml` / `setup.*` → entrypoints → route/command registration → config loading → services/domain/models → repositories/DB/integrations → tests → CI/CD/Docker/migrations.
 
 ---
 

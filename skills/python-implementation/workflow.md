@@ -307,10 +307,10 @@ Checklist (in addition to `rules/toolchain.md`):
 
 - **`CLAUDE.md` Architecture section**: add one-line role description for each new module
 - **`routing.md`**: add task-type → doc mapping entry for new modules
-- **`docs/06_ref-agent-commands.md`**: update if slash commands changed
-- **`docs/06_ref-rag.md`**: update if RAG pipeline modules changed
-- **`docs/04_mcp-<server>.md`**: update the relevant MCP doc if MCP tools changed (one file per server)
-- **`docs/06_ref-agent-config.md`**: update if `AgentConfig` fields changed
+- **`docs/05_agent_07_cli-and-commands.md`**: update if slash commands changed
+- **`docs/03_rag_02_ingestion_pipeline.md`** or **`docs/03_rag_03_query_pipeline.md`**: update if RAG pipeline modules changed
+- **`docs/04_mcp_04_server_catalog.md`**: update if MCP tools changed
+- **`docs/05_agent_08_configuration.md`**: update if `AgentConfig` fields changed
 - **`deploy/deploy.sh`**: add `cp` lines for new files; remove lines for deleted files
 
 When removing a module: remove from all of the above, delete the file, run `rg` for dangling imports.
