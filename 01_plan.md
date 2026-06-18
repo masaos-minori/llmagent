@@ -3,20 +3,20 @@
 Show progress while working.
 Follow these steps strictly.
 
-1. Search for files matching `~/llmagent/requires/*_require.md`.
+1. Search for files matching `requires/*_require.md`.
    Do not read files under the `done` directory.
-   If there are no files in `~/llmagent/requires/`, stop the task.
+   If there are no files in `requires/`, stop the task.
    Sort the matching files in ascending order by filename.
    Select the first file as the target requirement file and read it.
 
 2. Create a work plan file.
-   - The filename must be `~/llmagent/plans/yyyymmdd-hhmmss_plan.md`.
+   - The filename must be `plans/{yyyymmdd-hhmmss}_plan.md`.
      - `yyyymmdd-hhmmss` is the current date time.
    Create the plan only.
    Do not implement anything.
    Read:
-   - `~/llmagent/skills/python-issue-to-plan/SKILL.md`
-   - `~/llmagent/skills/python-issue-to-plan/workflow.md`
+   - `skills/python-issue-to-plan/SKILL.md`
+   - `skills/python-issue-to-plan/workflow.md`
    Use the following section structure in the work plan:
    - Goal
    - Scope
@@ -28,7 +28,7 @@ Follow these steps strictly.
    - Validation plan
    - Risks
 
-3. Check `~/llmagent/routing.md` to identify the source code files that would be modified.
+3. Check `routing.md` to identify the source code files that would be modified.
    Read those files.
 
 4. Analyze the `Unknowns` section in the work plan.
@@ -36,15 +36,19 @@ Follow these steps strictly.
 
 5. If any `Unknowns` cannot be resolved through analysis, ask the user questions.
    Reflect the answers in the work plan.
-   If any issues remain unresolved, write them to `~/llmagent/issues/yyyyymmdd-hhmmss.md`.
+   If any issues remain unresolved, output the result as a GitHub Issue Markdown template file.
+   The file name is `issues/{yyyyymmdd-hhmmss}_issues.md`.
    - `yyyymmdd-hhmmss` is the current date time.
+   - 1 issue = 1 section
 
 6. Analyze the `Risks` section in the work plan.
    Add any necessary mitigation steps to the work plan.
-   If any issues remain unresolved, write them to `~/llmagent/issues/yyyyymmdd-hhmmss.md`.
+   If any issues remain unresolved, output the result as a GitHub Issue Markdown template file.
+   The file name is `issues/{yyyyymmdd-hhmmss}_issues.md`.
    - `yyyymmdd-hhmmss` is the current date time.
+   - 1 issue = 1 section
 
-7. After the work plan is complete, move the processed requirement file to `~/llmagent/requires/done`.
+7. After the work plan is complete, move the processed requirement file to `requires/done`.
 
 8. Create a Git commit.
 
