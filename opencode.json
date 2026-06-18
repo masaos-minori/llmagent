@@ -18,5 +18,6 @@
       }
     }
   },
-  "model": "llama-cpp/local-model"
+  "model": "llama-cpp/local-model",
+  "temperature": 0.5
 }
