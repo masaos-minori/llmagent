@@ -65,7 +65,7 @@ as the primary reference. Source files are retained unchanged.
 | How do I verify a server is healthy? | `04_mcp_06` |
 | What are the default config values? | `04_mcp_06` |
 | What is broken or not yet implemented? | `04_mcp_90` |
-| Does McpServerHealthRegistry actually work? | `04_mcp_90` (BUG-01: no) |
+| Does McpServerHealthRegistry actually work? | `04_mcp_03` (resolved 2026-06-18) |
 
 ---
 
@@ -73,7 +73,7 @@ as the primary reference. Source files are retained unchanged.
 
 | Issue | Location |
 |---|---|
-| HealthRegistry record_success/failure never called (BUG) | [04_mcp_90 §BUG-01](04_mcp_90_inconsistencies_and_known_issues.md) |
+| HealthRegistry record_success/failure not called (BUG) | RESOLVED 2026-06-18 — now properly called in `04_mcp_03` |
 | mdq-mcp service layer is placeholder (all 7 tools) | [04_mcp_90 §MISSING-01](04_mcp_90_inconsistencies_and_known_issues.md) |
 
 ---
@@ -98,7 +98,7 @@ as the primary reference. Source files are retained unchanged.
 | [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) | Per-server specs for all 11 servers: tools, config, security, logs, limitations |
 | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) | Allowlists, denylist, fail-open/closed, dry_run, risk tiers, AI safety notes |
 | [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) | Config file inventory, McpServerConfig fields, defaults, OpenRC, health probes, new-server checklist |
-| [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | BUG-01/MISSING-01/02/03/UNDOC-01/02/SPEC-01 with AI safety guidance |
+| [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | MISSING-01/SPEC-01/02/03 with AI safety guidance (BUG-01 resolved 2026-06-18) |
 | [04_mcp_99_source_mapping.md](04_mcp_99_source_mapping.md) | Audit: maps every source section to new location; 13 source files fully mapped |
 
 ---

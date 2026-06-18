@@ -48,6 +48,7 @@ Resolves `tool_name → server_key` in two steps:
 | `CICD_TOOLS` (trigger_workflow, get_workflow_runs, get_workflow_status, get_workflow_logs) | `cicd` |
 | `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs) | `mdq` |
 | `GIT_TOOLS` (git_status, git_log, git_diff, git_branch, git_show, git_add, git_commit, git_checkout, git_pull, git_push) | `git` |
+| `SQLITE_TOOLS` (query_sqlite) | `sqlite` |
 | No match | `ValueError` |
 
 **Note:** `query_sqlite` is NOT in tool_constants.py static table. It must be listed
@@ -150,9 +151,7 @@ Per-server failure tracker injected into `ToolExecutor`.
 | `get_state(server_key)` | Current state; returns HEALTHY for unknown key |
 | `is_unavailable(server_key)` | `True` if UNAVAILABLE |
 
-> **Known Issue (BUG):** `ToolExecutor._raw_execute()` calls `is_unavailable()` but does NOT
-> call `record_failure()` or `record_success()`. Therefore DEGRADED/UNAVAILABLE transitions
-> never occur in practice. See [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md).
+> **Resolved (2026-06-18):** `ToolExecutor._raw_execute()` now calls `record_success()` on transport success and `record_failure()` on `TransportError`. DEGRADED/UNAVAILABLE transitions work correctly.
 
 ---
 

@@ -112,6 +112,12 @@ Used by `healthcheck_mode="ping_tool"` to verify the server is alive.
 
 All MCP servers inherit from `MCPServer`.
 
+### Data classes
+
+| Class | Fields | Purpose |
+|---|---|---|
+| `TruncationResult` | `text: str`, `truncated: bool`, `total_bytes: int` | Return value of `_truncate_with_meta()` |
+
 ### Class attributes (declared by subclasses)
 
 | Attribute | Type | Example |
@@ -129,7 +135,7 @@ All MCP servers inherit from `MCPServer`.
 |---|---|
 | `async dispatch(name, args) -> DispatchResult` | Abstract; must be overridden. Returns `DispatchResult(output, is_error)` |
 | `list_tools() -> list[str]` | Tool names from `mcp_tools`. Returns `[]` if not defined |
-| `health() -> dict[str, str]` | `{"status": "ok"}` by default; overridden per server |
+| `health() -> dict[str, object]` | `{"status": "ok", "ready": bool, "dependencies": dict, "details": dict}` by default; overridden per server (e.g. github adds `github_token`, web-search adds `providers`/`brave_key`/`bing_key`, mdq adds `service`) |
 | `run_http() -> None` | Start uvicorn HTTP server |
 | `async run_stdio() -> None` | Handle newline-delimited JSON-RPC on stdin/stdout |
 
