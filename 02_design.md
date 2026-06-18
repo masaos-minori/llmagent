@@ -40,4 +40,6 @@ Follow these instructions exactly.
 
 6. Create a Git commit.
 
-7. End the task.
+7. Compress the current context immediately.
+
+8. End the task.

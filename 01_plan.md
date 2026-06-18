@@ -48,4 +48,6 @@ Follow these steps strictly.
 
 8. Create a Git commit.
 
-9. End the task.
+9. Compress the current context immediately.
+
+10. End the task.
