@@ -1,23 +1,41 @@
 {
-  "$schema": "https://opencode.ai/config.json",
-  "enabled_providers": [ "llama-cpp" ],
-  "provider": {
-    "llama-cpp": {
-      "npm": "@ai-sdk/openai-compatible",
-      "options": {
-        "baseURL": "http://192.168.11.197:8080/v1"
-      },
-      "models": {
-        "local-model": {
-          "name": "Qwen3.6 (llama.cpp)",
-          "limit": {
-            "context": 131072,
-            "output": 4096
-          }
+    "$schema": "https://opencode.ai/config.json",
+    "enabled_providers": [ "llama-cpp" ],
+    "provider": {
+        "llama-cpp": {
+            "npm": "@ai-sdk/openai-compatible",
+            "options": {
+                "baseURL": "http://192.168.11.197:8080/v1"
+            },
+            "models": {
+                "local-model": {
+                    "name": "Qwen3.6 (llama.cpp)",
+                    "limit": {
+                        "context": 65536,
+                        "output": 4096
+                    }
+                }
+            }
         }
-      }
+    },
+    "model": "llama-cpp/local-model",
+    "watcher": {
+        "ignore": [
+            ".git/**",
+            "node_modules/**",
+            "dist/**",
+            "build/**",
+            ".next/**",
+            "coverage/**",
+            "target/**",
+            "venv/**",
+            ".venv/**",
+            "__pycache__/**",
+            ".mypy_cache/**",
+            ".pytest_cache/**",
+            ".ruff_cache/**",
+            "*.log",
+            "*.tmp"
+        ]
     }
-  },
-  "model": "llama-cpp/local-model",
-  "temperature": 0.5
 }
