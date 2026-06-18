@@ -37,6 +37,7 @@ from agent.commands.cmd_memory import _MemoryMixin
 from agent.commands.cmd_notes import _NotesMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_tooling import _ToolingMixin
+from agent.commands.cmd_workflow import _WorkflowMixin
 from agent.commands.output_port import CliOutputPort, OutputPort
 from agent.context import AgentContext
 
@@ -214,6 +215,20 @@ _COMMANDS: list[CommandDef] = [
         "_cmd_audit",
         "tail [N] | turn <task_id> | tool <name>  Browse audit log events",
     ),
+    CommandDef(
+        "/approve",
+        True,
+        False,
+        "_cmd_approve",
+        "[reason]  Approve the pending workflow task",
+    ),
+    CommandDef(
+        "/reject",
+        True,
+        False,
+        "_cmd_reject",
+        "[reason]  Reject the pending workflow task",
+    ),
 ]
 
 
@@ -229,6 +244,7 @@ class CommandRegistry(
     _AuditMixin,
     _IngestMixin,
     _MemoryMixin,
+    _WorkflowMixin,
 ):
     """Slash-command dispatcher for AgentREPL.
 

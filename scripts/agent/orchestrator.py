@@ -31,6 +31,7 @@ from agent.workflow import (
     WorkflowHaltError,
     WorkflowLoader,
     WorkflowLoadError,
+    WorkflowPendingApprovalError,
 )
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
@@ -146,6 +147,13 @@ class Orchestrator:
                 return None
 
             await engine.run(task, plan_fn, execute_fn, verify_fn)
+        except WorkflowPendingApprovalError as exc:
+            logger.info(
+                "Turn suspended: awaiting approval %s for task %s",
+                exc.approval_id,
+                exc.task_id,
+            )
+            ctx.turn.pending_approval_id = exc.approval_id
         except WorkflowHaltError as exc:
             logger.error("Turn halted by workflow engine: %s", exc)
             if self._on_error:

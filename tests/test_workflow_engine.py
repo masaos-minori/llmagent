@@ -14,6 +14,7 @@ from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 from agent.workflow.workflow_engine import (
     WorkflowEngine,
     WorkflowHaltError,
+    WorkflowPendingApprovalError,
     WorkflowTimeoutError,
 )
 from db.config import DbConfig
@@ -184,3 +185,46 @@ class TestWorkflowEngineIdempotency:
         # Second run — all event_ids already in processed_events → all skipped
         await engine.run(task, counting_fn, counting_fn, counting_fn)
         assert call_count["n"] == first_count  # no additional calls
+
+
+class TestWorkflowEngineApprovalGate:
+    @pytest.mark.asyncio
+    async def test_require_approval_raises_pending(self, store) -> None:
+        wdef = _make_wdef()
+        task = store.create_task("s", 1, wdef.version)
+        engine = WorkflowEngine(wdef, store, require_approval=True)
+        with pytest.raises(WorkflowPendingApprovalError) as exc_info:
+            await engine.run(task, _noop, _noop, _noop)
+        assert exc_info.value.task_id == task.task_id
+
+    @pytest.mark.asyncio
+    async def test_no_approval_required_completes(self, store) -> None:
+        wdef = _make_wdef()
+        task = store.create_task("s", 1, wdef.version)
+        engine = WorkflowEngine(wdef, store, require_approval=False)
+        await engine.run(task, _noop, _noop, _noop)
+        found = store.get_task_by_idempotency_key("s:1")
+        assert found is not None
+        assert found.status == "completed"
+
+    @pytest.mark.asyncio
+    async def test_approved_task_gate_passes(self, store) -> None:
+        wdef = _make_wdef()
+        task = store.create_task("s", 1, wdef.version)
+        engine = WorkflowEngine(wdef, store, require_approval=True)
+        approval = store.request_approval(task.task_id)
+        store.resolve_approval(approval.approval_id, "approved")
+        await engine._gate_approval(task)  # must not raise
+
+    @pytest.mark.asyncio
+    async def test_rejected_task_halts(self, store) -> None:
+        wdef = _make_wdef()
+        task = store.create_task("s", 1, wdef.version)
+        engine = WorkflowEngine(wdef, store, require_approval=True)
+        with pytest.raises(WorkflowPendingApprovalError):
+            await engine.run(task, _noop, _noop, _noop)
+        approval = store.get_pending_approval(task.task_id)
+        assert approval is not None
+        store.resolve_approval(approval.approval_id, "rejected", "not safe")
+        with pytest.raises(WorkflowHaltError, match="approval rejected"):
+            await engine._gate_approval(task)

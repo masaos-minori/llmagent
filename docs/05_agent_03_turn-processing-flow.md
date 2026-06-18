@@ -145,13 +145,32 @@ Action:
 ## WorkflowEngine Integration
 
 `Orchestrator.handle_turn()` runs via `WorkflowEngine` when `config/workflows/default.json`
-exists and workflow DB is available. Each turn creates a `task` / `attempt` / `event`
-record in `workflow.sqlite`.
+exists and workflow DB is available. Workflow state is the primary execution model;
+conversation history is maintained as a subordinate concern.
+
+Each turn creates a `task` / `attempt` / `event` record in `workflow.sqlite`:
+- `tasks` — one per turn; status: `pending → running → [pending_approval →] completed | halted | failed`
+- `attempts` — one per stage execution (plan/execute/verify), with retry tracking
+- `approvals` — one per approval gate; status: `pending → approved | rejected`
+- `artifacts` — URIs produced by stage callbacks
 
 Fallback: if `config/workflows/default.json` is missing or workflow DB is unavailable,
 the traditional direct-execution flow is used.
 
 Workflow package: `agent/workflow/` (models, workflow_loader, state_store, workflow_engine).
+
+### Approval Gate
+
+When `WorkflowEngine(require_approval=True)`, the engine suspends after the execute stage
+completes and before the verify stage runs:
+
+1. Engine calls `store.request_approval(task_id)` → `ApprovalRecord` with `status=pending`
+2. Task status → `pending_approval`
+3. `WorkflowPendingApprovalError` raised → orchestrator stores `approval_id` in `ctx.turn.pending_approval_id`
+4. User runs `/approve [reason]` or `/reject [reason]`
+5. On next workflow run with the same task, engine checks approval status:
+   - `approved` → continue to verify stage
+   - `rejected` → `WorkflowHaltError` raised; task halted
 
 ---
 

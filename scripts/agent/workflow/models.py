@@ -11,13 +11,24 @@ from dataclasses import dataclass, field
 @dataclass
 class TaskRecord:
     task_id: str
-    session_id: str
-    turn_number: int
+    session_id: str | None
+    turn_number: int | None
     workflow_version: str
-    status: str  # pending | running | completed | failed | halted
+    status: str  # pending | running | pending_approval | completed | failed | halted
     idempotency_key: str
     created_at: str  # ISO-8601
     updated_at: str  # ISO-8601
+
+
+@dataclass
+class ApprovalRecord:
+    approval_id: str
+    task_id: str
+    stage_id: str | None  # None = task-level gate
+    status: str  # pending | approved | rejected
+    reason: str | None
+    created_at: str  # ISO-8601
+    resolved_at: str | None
 
 
 @dataclass

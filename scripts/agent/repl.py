@@ -75,6 +75,8 @@ class AgentREPL:
         "/db",
         "/set",
         "/reload",
+        "/approve",
+        "/reject",
         "/exit",
     ]
 

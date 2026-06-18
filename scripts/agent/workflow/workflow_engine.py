@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """agent/workflow/workflow_engine.py
-Stage transition engine: plan -> execute -> verify -> (retry loop).
+Stage transition engine: plan -> execute -> [approval gate] -> verify -> (retry loop).
 
 Callers pass async callbacks for each stage. WorkflowEngine handles
-timeout enforcement, retry counting, idempotency, and state persistence.
+timeout enforcement, retry counting, idempotency, state persistence, and
+optional human approval gates between execute and verify.
 """
 
 from __future__ import annotations
@@ -28,12 +29,27 @@ class WorkflowTimeoutError(Exception):
     """Raised when a stage exceeds its timeout_sec."""
 
 
+class WorkflowPendingApprovalError(Exception):
+    """Raised when a task is suspended waiting for human approval."""
+
+    def __init__(self, approval_id: str, task_id: str) -> None:
+        self.approval_id = approval_id
+        self.task_id = task_id
+        super().__init__(f"task {task_id} awaiting approval {approval_id}")
+
+
 class WorkflowEngine:
     """Runs a workflow definition against a set of stage callbacks."""
 
-    def __init__(self, workflow_def: WorkflowDef, store: StateStore) -> None:
+    def __init__(
+        self,
+        workflow_def: WorkflowDef,
+        store: StateStore,
+        require_approval: bool = False,
+    ) -> None:
         self._wdef = workflow_def
         self._store = store
+        self._require_approval = require_approval
 
     async def run(
         self,
@@ -42,12 +58,16 @@ class WorkflowEngine:
         execute_fn: StageCallback,
         verify_fn: StageCallback,
     ) -> None:
-        """Execute plan -> execute -> verify with retry on execute failure."""
+        """Execute plan -> execute -> [approval gate] -> verify with retry on execute failure."""
         self._store.update_task_status(task.task_id, "running")
         try:
             await self._run_stage(task, "plan", plan_fn)
             await self._run_execute_with_retry(task, execute_fn)
+            if self._require_approval:
+                await self._gate_approval(task)
             await self._run_stage(task, "verify", verify_fn)
+        except WorkflowPendingApprovalError:
+            raise
         except (WorkflowHaltError, WorkflowTimeoutError):
             self._store.update_task_status(task.task_id, "halted")
             raise
@@ -55,6 +75,19 @@ class WorkflowEngine:
             self._store.update_task_status(task.task_id, "failed")
             raise
         self._store.update_task_status(task.task_id, "completed")
+
+    async def _gate_approval(self, task: TaskRecord) -> None:
+        """Suspend execution until a human approves the task."""
+        existing = self._store.get_pending_approval(task.task_id)
+        if existing is None:
+            approval = self._store.request_approval(task.task_id)
+            self._store.update_task_status(task.task_id, "pending_approval")
+            raise WorkflowPendingApprovalError(approval.approval_id, task.task_id)
+        if existing.status == "pending":
+            raise WorkflowPendingApprovalError(existing.approval_id, task.task_id)
+        if existing.status == "rejected":
+            self._store.update_task_status(task.task_id, "halted")
+            raise WorkflowHaltError(f"approval rejected: {existing.reason}")
 
     async def _run_execute_with_retry(
         self, task: TaskRecord, execute_fn: StageCallback

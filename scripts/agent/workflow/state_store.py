@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 
 from db.helper import SQLiteHelper
 
-from agent.workflow.models import ArtifactRef, AttemptRecord, TaskRecord
+from agent.workflow.models import ApprovalRecord, ArtifactRef, AttemptRecord, TaskRecord
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +34,15 @@ class StateStore:
 
     def create_task(
         self,
-        session_id: str,
-        turn_number: int,
+        session_id: str | None,
+        turn_number: int | None,
         workflow_version: str,
     ) -> TaskRecord:
-        """Create a new task record; idempotency_key is session_id:turn_number."""
-        idempotency_key = f"{session_id}:{turn_number}"
+        """Create a new task record."""
+        if session_id is not None and turn_number is not None:
+            idempotency_key = f"{session_id}:{turn_number}"
+        else:
+            idempotency_key = str(uuid.uuid4())
         task_id = str(uuid.uuid4())
         now = _now()
         self._db.execute(
@@ -194,4 +197,59 @@ class StateStore:
             stage_id=stage_id,
             uri=uri,
             created_at=now,
+        )
+
+    # ── Approval ──────────────────────────────────────────────────────────────
+
+    def request_approval(
+        self, task_id: str, stage_id: str | None = None
+    ) -> ApprovalRecord:
+        """Insert a pending approval gate for a task (or specific stage)."""
+        approval_id = str(uuid.uuid4())
+        now = _now()
+        self._db.execute(
+            """
+            INSERT INTO approvals (approval_id, task_id, stage_id, status, created_at)
+            VALUES (?, ?, ?, 'pending', ?)
+            """,
+            (approval_id, task_id, stage_id, now),
+        )
+        self._db.commit()
+        return ApprovalRecord(
+            approval_id=approval_id,
+            task_id=task_id,
+            stage_id=stage_id,
+            status="pending",
+            reason=None,
+            created_at=now,
+            resolved_at=None,
+        )
+
+    def resolve_approval(
+        self, approval_id: str, status: str, reason: str | None = None
+    ) -> None:
+        """Set approval status to 'approved' or 'rejected'."""
+        self._db.execute(
+            "UPDATE approvals SET status=?, reason=?, resolved_at=? WHERE approval_id=?",
+            (status, reason, _now(), approval_id),
+        )
+        self._db.commit()
+
+    def get_pending_approval(self, task_id: str) -> ApprovalRecord | None:
+        """Return the most recent approval record for a task, or None if absent."""
+        rows = self._db.fetchall(
+            "SELECT * FROM approvals WHERE task_id=? ORDER BY created_at DESC LIMIT 1",
+            (task_id,),
+        )
+        if not rows:
+            return None
+        r = rows[0]
+        return ApprovalRecord(
+            approval_id=r["approval_id"],
+            task_id=r["task_id"],
+            stage_id=r["stage_id"],
+            status=r["status"],
+            reason=r["reason"],
+            created_at=r["created_at"],
+            resolved_at=r["resolved_at"],
         )

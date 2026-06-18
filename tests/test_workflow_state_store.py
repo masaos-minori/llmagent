@@ -135,3 +135,54 @@ class TestArtifacts:
         ref = store.record_artifact(task.task_id, "execute", "file:///tmp/result.json")
         assert ref.task_id == task.task_id
         assert ref.uri == "file:///tmp/result.json"
+
+
+class TestApprovals:
+    def test_request_approval_returns_pending_record(self, store) -> None:
+        task = store.create_task("s", 1, "1.0.0")
+        approval = store.request_approval(task.task_id)
+        assert approval.task_id == task.task_id
+        assert approval.status == "pending"
+        assert approval.stage_id is None
+        assert approval.resolved_at is None
+
+    def test_request_approval_with_stage(self, store) -> None:
+        task = store.create_task("s", 1, "1.0.0")
+        approval = store.request_approval(task.task_id, stage_id="execute")
+        assert approval.stage_id == "execute"
+
+    def test_get_pending_approval_returns_latest(self, store) -> None:
+        task = store.create_task("s", 1, "1.0.0")
+        store.request_approval(task.task_id)
+        found = store.get_pending_approval(task.task_id)
+        assert found is not None
+        assert found.status == "pending"
+
+    def test_get_pending_approval_returns_none_when_absent(self, store) -> None:
+        task = store.create_task("s", 1, "1.0.0")
+        assert store.get_pending_approval(task.task_id) is None
+
+    def test_resolve_approval_approved(self, store) -> None:
+        task = store.create_task("s", 1, "1.0.0")
+        approval = store.request_approval(task.task_id)
+        store.resolve_approval(approval.approval_id, "approved", "looks good")
+        found = store.get_pending_approval(task.task_id)
+        assert found is not None
+        assert found.status == "approved"
+        assert found.reason == "looks good"
+        assert found.resolved_at is not None
+
+    def test_resolve_approval_rejected(self, store) -> None:
+        task = store.create_task("s", 1, "1.0.0")
+        approval = store.request_approval(task.task_id)
+        store.resolve_approval(approval.approval_id, "rejected", "too risky")
+        found = store.get_pending_approval(task.task_id)
+        assert found is not None
+        assert found.status == "rejected"
+        assert found.reason == "too risky"
+
+    def test_create_task_without_session_id(self, store) -> None:
+        task = store.create_task(None, None, "1.0.0")
+        assert task.session_id is None
+        assert task.turn_number is None
+        assert task.status == "pending"

@@ -1,5 +1,5 @@
 """tests/test_workflow_schema.py
-Unit tests for db/workflow_schema.py — init_schema creates the 4 required tables.
+Unit tests for db/workflow_schema.py — init_schema creates the 5 required tables.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from db.workflow_schema import init_schema
 
 
 class TestInitSchema:
-    def test_creates_all_four_tables(self, tmp_path: Path) -> None:
+    def test_creates_all_tables(self, tmp_path: Path) -> None:
         db_path = str(tmp_path / "workflow.sqlite")
         init_schema(db_path)
         conn = sqlite3.connect(db_path)
@@ -23,7 +23,13 @@ class TestInitSchema:
             ).fetchall()
         }
         conn.close()
-        assert {"tasks", "attempts", "processed_events", "artifacts"} <= tables
+        assert {
+            "tasks",
+            "attempts",
+            "processed_events",
+            "artifacts",
+            "approvals",
+        } <= tables
 
     def test_idempotent_second_call(self, tmp_path: Path) -> None:
         db_path = str(tmp_path / "workflow.sqlite")

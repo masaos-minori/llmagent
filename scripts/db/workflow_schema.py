@@ -2,7 +2,7 @@
 """db/workflow_schema.py
 DDL for the Metadata DB (workflow.sqlite).
 
-Tables: tasks, attempts, processed_events, artifacts.
+Tables: tasks, attempts, processed_events, artifacts, approvals.
 Run as: PYTHONPATH=scripts python -m db.workflow_schema
 """
 
@@ -22,8 +22,8 @@ PRAGMA foreign_keys=ON;
 
 CREATE TABLE IF NOT EXISTS tasks (
     task_id          TEXT PRIMARY KEY,
-    session_id       TEXT NOT NULL,
-    turn_number      INTEGER NOT NULL,
+    session_id       TEXT,
+    turn_number      INTEGER,
     workflow_version TEXT NOT NULL,
     status           TEXT NOT NULL DEFAULT 'pending',
     idempotency_key  TEXT UNIQUE NOT NULL,
@@ -54,6 +54,16 @@ CREATE TABLE IF NOT EXISTS artifacts (
     stage_id    TEXT NOT NULL,
     uri         TEXT NOT NULL,
     created_at  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS approvals (
+    approval_id TEXT PRIMARY KEY,
+    task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+    stage_id    TEXT,
+    status      TEXT NOT NULL DEFAULT 'pending',
+    reason      TEXT,
+    created_at  TEXT NOT NULL,
+    resolved_at TEXT
 );
 """
 

@@ -73,6 +73,8 @@ class TurnState:
     background_tasks: set[asyncio.Task[Any]] = field(default_factory=set)
     # Error kind from the most recent turn failure; None when last turn succeeded
     last_error_kind: str | None = None
+    # Approval ID when the last workflow turn was suspended for human approval
+    pending_approval_id: str | None = None
 
 
 @dataclass
