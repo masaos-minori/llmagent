@@ -58,15 +58,3 @@ Each entry format:
 - **Notes for AI reference:** Plugin tools bypass MCP routing and TTL cache. A plugin with the same name as an MCP tool shadows the MCP tool.
 
 ---
-
-### DOCMISS-01: `workflow.sqlite` visibility across agent-layer docs
-
-- **Type:** RESOLVED (docs updated to mention `workflow.sqlite` consistently)
-- **Impact scope:** Cross-doc consistency for the three platform databases
-- **Resolution:** `workflow.sqlite` now appears in:
-  - `01_overview-files.md` — file tree db/ section
-  - `02_deployment.md §3.0` — platform DB overview table with config keys
-  - `05_agent_04_state-and-persistence.md` — "Platform Databases" section
-  - `05_agent_07_cli-and-commands.md` — note after /db commands table
-  - `05_agent_10_operations-and-observability.md` — DB verification section
-- **Notes for AI reference:** Canonical schema reference is `06_shared_04_db_architecture_and_schema.md §7`. All three DB paths (`rag_db_path`, `session_db_path`, `workflow_db_path`) are configured in `common.toml`.

@@ -7,63 +7,7 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
-## Spec Conflicts
-
-### SPEC-2: Ingestion stage count — "3 steps" vs "4 phases" (RESOLVED)
-
-- **Type:** SPEC_CONFLICT
-- **Impact scope:** Documentation only; no code defect
-- **Resolution:** Standardized on "3 steps" (crawler → chunk_splitter → ingester) matching CLI execution order.
-  The 4-phase wording (crawl/chunk/embed/store) remains valid as a sub-phase description when needed.
-  Inconsistency note block removed from `03_rag_02_ingestion_pipeline.md`.
-- **Statement A:** `03_spec_rag.md §1` describes "4段階" (4 phases): crawl / chunk split /
-  embedding generation / SQLite storage.
-- **Statement B:** `03_rag-ingestion-run.md §1` describes "3ステップ" (3 steps): crawler /
-  chunk_splitter / ingester.
-- **Source reference:** `03_spec_rag.md §1`, `03_rag-ingestion-run.md §1`
-
----
-
-## Document Inconsistencies
-
-### DOC-1: Module name — `web_crawler.py` vs `crawler.py` (RESOLVED)
-
-- **Type:** DOC_INCONSISTENCY
-- **Resolution:** All execution docs now use `crawler.py`. `03_rag-ref-crawler.md` does not exist
-  on disk — stale reference removed. Inconsistency note block removed from `03_rag_02_ingestion_pipeline.md`.
-- **Impact scope:** Documentation references only; actual file is `scripts/rag/ingestion/crawler.py`
-- **Authoritative name:** `crawler.py` (confirmed by `03_rag-ingestion-run.md` CLI commands
-  and `03_spec_rag.md §2`)
-- **Notes for AI:** Use `crawler.py` in all file path references.
-
----
-
-### DOC-2: Module name — `rag_ingester.py` vs `ingester.py` (RESOLVED)
-
-- **Type:** DOC_INCONSISTENCY
-- **Resolution:** All execution docs now use `ingester.py`. `03_rag-ref-ingester.md` does not exist
-  on disk — stale reference removed. `docs/01_overview-files.md` comment updated from `rag_ingester.py`
-  to `ingester.py`.
-- **Impact scope:** Documentation references only; actual file is `scripts/rag/ingestion/ingester.py`
-- **Authoritative name:** `ingester.py` (confirmed by `03_rag-ingestion-run.md` CLI commands)
-- **Notes for AI:** Use `ingester.py` in all file path references.
-
----
-
 ## Open Questions
-
-### OQ-1: External RAG service — authentication and error handling (RESOLVED)
-
-- **Type:** RESOLVED
-- **Impact scope:** `RagPipeline._augment_http()`, `cfg.rag_service_url`, `cfg.rag_auth_token`
-- **Resolution:** Implemented in `rag/pipeline_service.py` and `shared/types.py`.
-  - **Auth:** optional `X-RAG-Token` header sent when `rag_auth_token != ""` (default `""` = no auth; backward-compatible)
-  - **Timeout:** 10.0 seconds per HTTP attempt (connect + read)
-  - **Retry:** up to 2 retries on 5xx or transport errors; exponential backoff (1s after first failure, 2s after second); no retry on 4xx client errors or parse errors
-  - **Fallback:** `None` returned from `call_rag_service()` → in-process pipeline; empty string `""` is accepted as a valid empty-result response
-- **Source reference:** `rag/pipeline_service.py`, `shared/types.py`, `mcp/rag_pipeline/models.py`
-
----
 
 ### OQ-2: MDQ vs RAG boundary — migration criteria undefined
 
@@ -93,15 +37,6 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
-### OQ-5: `SemanticCache` concurrent access behavior (RESOLVED)
-
-- **Type:** RESOLVED
-- **Impact scope:** `rag/cache.py SemanticCache`
-- **Resolution:** `SemanticCache` uses `threading.RLock` (`cache.py:39`). All public methods (`lookup`, `put`, `prune`) acquire the lock via `with self._lock:`. Dimension validation is also protected by the same lock. Thread-safe under concurrent access from multiple threads.
-- **Source reference:** `rag/cache.py:39` (`self._lock: threading.RLock = threading.RLock()`), lines 46, 73, 92 (lock acquisition in each public method)
-
----
-
 ### OQ-6: `chunks_fts` COALESCE trigger behavior for `normalized_content=None`
 
 - **Type:** OPEN_QUESTION
@@ -123,21 +58,6 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
   HTTP error, empty result, or only connection failure?
 - **Recommended action:** Document the explicit conditions that cause `_augment_http()` to
   return `None`.
-
----
-
-### DOC-05: RRF `rrf_k` is configurable; `use_rrf=False` activates dedup fallback
-
-- **Type:** RESOLVED (doc correction)
-- **Impact scope:** `docs/03_rag_*.md`, `rag/repository.py`, `rag/pipeline.py`
-- **Previous doc claim:** RRF used hardcoded constant `60`; `use_rrf=False` was described as "currently unused."
-- **Current implementation:**
-  - `rrf_k` is configurable via `cfg.get("rrf_k", 60)` — default is 60 but any value can be set in config
-  - `use_rrf=False` activates `_dedup_hits()` fallback in `FusionStage` (simple chunk_id dedup, all `rrf_score=0.0`)
-  - `pipeline.py:184`: `FusionStage(use_rrf=self._cfg.use_rrf)`
-  - `repository.py:302-321`: `_dedup_hits()` deduplicates by chunk_id, keeping first occurrence per chunk
-- **Recommended action:** Corrected in docs (2026-06-18). Use `config/rag_pipeline.toml::rrf_k` as the authoritative value.
-- **Notes for AI reference:** `use_rrf=True` → RRF merge with configurable `rrf_k`; `use_rrf=False` → chunk_id dedup fallback.
 
 ---
 
@@ -236,3 +156,5 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 - **Current safe interpretation:** The production embedding dimension is **384** (set by `common.toml`). The dataclass default of 768 is overridden at runtime. `floats_to_blob` for 384-dim produces 1536 bytes (not 3072).
 - **Recommended action:** Fixed in doc (2026-06-16). Old reference to `models.py:56` was also incorrect — correct location is `models_config.py:53`.
 - **Notes for AI reference:** Use `common.toml::embedding_dims` (384) as the authoritative value, not the dataclass default (768).
+
+---
