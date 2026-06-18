@@ -19,7 +19,7 @@ picture of persistent data.
 
 **In scope:**
 - All modules under `shared/`: `config_loader`, `logger`, `types`, `llm_types`, `tool_constants`, `route_resolver`, `mcp_config`, `tool_executor`, `plugin_registry`, `otel_tracer`, `token_counter`, `git_helper`, `formatters`, `action_result`, `events`, `protocols/shell`
-- All modules under `db/`: `helper.py`, `create_schema.py`, `store.py`, `maintenance.py`, `tool_results.py`, `workflow_schema.py`
+- All modules under `db/`: `config.py`, `helper.py`, `create_schema.py`, `models.py`, `schema_sql.py`, `store.py`, `store_impl.py`, `store_protocols.py`, `maintenance.py`, `tool_results.py`, `workflow_schema.py`
 - DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`
 
 **Out of scope:**
@@ -83,9 +83,14 @@ Import direction is enforced by `.importlinter`. Violations fail `lint-imports`.
 
 | Module | Responsibility |
 |---|---|
+| `config.py` | `DbConfig` dataclass, `build_db_config()` — DB path resolution from config |
 | `helper.py` | `SQLiteHelper` — connection lifecycle, WAL/PRAGMA, vec extension |
 | `create_schema.py` | Schema DDL creation (idempotent via `IF NOT EXISTS`) |
-| `store.py` | `VectorStore`, `DocumentStore`, `SessionStore`, `MemoryDeleteStore` Protocols + SQLite implementations |
+| `models.py` | DTO dataclasses: `DocumentRow`, `MessageRow`, `SessionRow`, `ToolResultRow`, `DbHealthMetrics`, `PurgeCounts`, `RecoveryResult`, `WalCheckpointCounts` |
+| `schema_sql.py` | DDL template strings (separation of SQL text from execution) |
+| `store.py` | Re-export stub — delegates to `store_protocols.py` + `store_impl.py` |
+| `store_protocols.py` | `VectorStore`, `DocumentStore`, `SessionStore`, `MemoryDeleteStore` Protocols + embedding helpers |
+| `store_impl.py` | `SQLiteVectorStore`, `SQLiteDocumentStore`, `SQLiteSessionStore`, `SQLiteMemoryDeleteStore` implementations |
 | `maintenance.py` | WAL checkpoint, VACUUM, session purge, memory prune, DB rotate, corruption recovery |
 | `tool_results.py` | `ToolResultStore` — full tool result text storage |
 | `workflow_schema.py` | `workflow.sqlite` DDL initialization |

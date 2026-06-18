@@ -27,6 +27,7 @@ across `agent/`, `mcp/`, `rag/`, and `db/` layers.
 | `ActionResult` | frozen dataclass | `shared/action_result.py` | `agent/` |
 | `ArtifactEvent` | TypedDict | `shared/events.py` | `agent/`, `mcp/github/` |
 | `ShellPolicy` | dataclass | `shared/protocols/shell.py` | `mcp/shell/` |
+| `DbConfig` | dataclass | `db/config.py` | `db/`, `agent/` |
 | `CallToolRequest` / `CallToolResponse` | Pydantic models | `mcp/models.py` | `mcp/` only |
 | Tool frozensets | `frozenset[str]` | `shared/tool_constants.py` | `shared/`, `agent/`, `mcp/` |
 
@@ -46,7 +47,7 @@ class LLMMessage(TypedDict, total=False):
 ```
 
 - `total=False` means all fields are technically optional, but `role` is always required
-- Re-exported from `rag/types.py` — importable as `from rag.types import LLMMessage`
+- Canonical import: `from shared.types import LLMMessage` (used by 20+ modules across agent/, rag/, shared/)
 
 ---
 
@@ -164,6 +165,26 @@ class ArtifactEvent(TypedDict, total=False):
 - Used by `mcp/shell/service.py` as its configuration object
 - Fields: see `shared/protocols/shell.py` source directly
 - Purpose: decouple shell execution policy from MCP server implementation
+
+---
+
+## 9. `DbConfig` (`db/config.py`)
+
+```python
+@dataclass
+class DbConfig:
+    rag_db_path: str
+    session_db_path: str
+    workflow_db_path: str = "/opt/llm/db/workflow.sqlite"
+    sqlite_vec_so: str = ""       # empty = vec extension not required
+    sqlite_timeout: int = 30
+    sqlite_busy_timeout_ms: int = 30000
+    embedding_dims: int = 384
+```
+
+- Validated in `__post_init__`: parent directories must exist; timeout/embedding_dims >= 1
+- Built by `build_db_config()` which reads `common.toml` via `ConfigLoader().load("common.toml")`
+- Used by `SQLiteHelper`, `maintenance.py`, and session factory code
 
 ---
 
