@@ -147,7 +147,7 @@ StageResult = TypedDict with keys:
 ### 5.1 MqeStage
 
 ```python
-MqeStage(cfg: dict, llm: RagLLM)
+MqeStage(cfg: RagConfig, llm: RagLLM)
 ```
 
 - `use_mqe=False`: sets `ctx.queries = [ctx.query]` (single query, no expansion)
@@ -157,7 +157,7 @@ MqeStage(cfg: dict, llm: RagLLM)
 ### 5.2 SearchStage
 
 ```python
-SearchStage(cfg: dict, http: httpx.AsyncClient | None, embed_url: str)
+SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: str = "")
 ```
 
 - Parallel embed generation for all queries in `ctx.queries`
@@ -173,7 +173,7 @@ FusionStage(use_rrf: bool)
 ```
 
 - Merges `ctx.search_results` using Reciprocal Rank Fusion: score = Σ 1/(rrf_k + rank)
-- `rrf_k` default: 60; configurable via `cfg.get("rrf_k", 60)` (not hardcoded)
+- `rrf_k` default: 60; configurable via `cfg.get("rrf_k", 60)` (not hardcoded; `RagConfig` Protocol includes `rrf_k` field but pipeline currently uses the default 60)
 - Assigns `rrf_score` to each `MergedHit`; stores in `ctx.merged`
 
 > `use_rrf=False` activates `_dedup_hits()` fallback (simple chunk_id dedup, all `rrf_score=0.0`). `pipeline.py:184` passes `use_rrf=self._cfg.use_rrf` to `FusionStage`.
@@ -211,8 +211,8 @@ cache = SemanticCache(max_size=100, threshold=0.92)
 
 | Method / Property | Signature | Description |
 |---|---|---|
-| `lookup` | `(embedding, history_context="") -> str \| None` | Return cached result if cosine similarity ≥ threshold among matching `history_context` entries; else `None` |
-| `put` | `(embedding, history_context, context_str) -> None` | Store entry; `history_context` is part of cache key; call `prune()` after |
+| `lookup` | `(embedding, history_context="") -> str \| None` | Return cached result if cosine similarity ≥ threshold among matching `history_context` entries; raises `ValueError` on embedding dimension mismatch; else `None` |
+| `put` | `(embedding, history_context, context_str) -> None` | Store entry; `history_context` is part of cache key; raises `ValueError` on embedding dimension mismatch; calls `prune()` after |
 | `prune` | `() -> None` | Remove oldest entries (FIFO) until `len ≤ max_size` |
 | `size` | property `int` | Current entry count |
 

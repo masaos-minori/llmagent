@@ -147,9 +147,9 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 - **Type:** Document inconsistency
 - **Impact scope:** `docs/03_rag_03_query_pipeline.md §4 PipelineContext`
 - **Statement A:** Previous doc listed `observers: list[Any]` field and `add_observer(observer)` method.
-- **Statement B:** **Confirmed** (`rag/stage.py:16-26`): `PipelineContext` has 7 fields only: `query`, `history_context`, `queries`, `search_results`, `merged`, `reranked`, `augment_result`. No `observers` field or `add_observer()` method.
-- **Current safe interpretation:** `PipelineContext` has exactly 7 fields. Do not reference `observers` or `add_observer()`.
-- **Recommended action:** Fixed in doc (2026-06-16).
+- **Statement B:** **Confirmed** (`rag/stage.py:16-35`): `PipelineContext` has 8 fields: `query`, `history_context`, `queries`, `search_results`, `merged`, `reranked`, `augment_result`, `stage_results`. No `observers` field or `add_observer()` method (the `stage_results` field was added later; earlier docs counted 7).
+- **Current safe interpretation:** `PipelineContext` has exactly 8 fields. Do not reference `observers` or `add_observer()`.
+- **Recommended action:** Fixed in doc (2026-06-16). Updated to reflect 8 fields (2026-06-18).
 - **Notes for AI reference:** Stage communication is via `ctx` field mutation only.
 
 ---
