@@ -165,6 +165,10 @@ with SQLiteHelper("rag").open() as db:
 | `orphan_vec_count` | `chunks_vec` rows whose `chunk_id` has no matching row in `chunks` |
 | `fts_gap` | `chunks - fts`; 0 = FTS index is in sync |
 
+**CLI:** `/db consistency` runs the same check from the REPL and prints issues.
+
+**Post-ingest warning:** `ingester.py` runs a non-blocking consistency check after each `ingest_all()` run; warnings are logged but ingestion does not abort.
+
 **Notes:**
 - `fts` is read from `chunks_fts_docsize` (FTS5 shadow table), not from `chunks_fts` directly.
   This gives the true FTS5 indexed document count, independent of the backing table join.

@@ -243,6 +243,7 @@ All functions accept a `SQLiteHelper` instance and delegate low-level operations
 | `rotate_session_db(archive_dir=None)` | `-> Path` | Archive `session.sqlite` |
 | `rotate_db(archive_dir=None)` | `-> tuple[Path, Path]` | Archive both DBs; returns `(rag_dest, session_dest)` |
 | `recover_corruption(backup_path=None, *, target="rag", dry_run=False)` | `-> RecoveryResult` | Integrity check + VACUUM or restore from backup |
+| `check_rag_consistency(db)` | `-> RagConsistencyReport` | Read-only: chunks/FTS/vec row counts + orphan detection |
 
 ### `MaintenanceMode` and `MaintenanceResult`
 
@@ -330,6 +331,33 @@ class RecoveryResult:
     dry_run: bool = False
 ```
 
+### `RagConsistencyReport`
+
+```python
+@dataclass(frozen=True)
+class RagConsistencyReport:
+    chunks: int
+    fts: int
+    vec: int
+    orphan_vec_count: int
+    fts_gap: int
+```
+
+**Usage:**
+
+```python
+from db.maintenance import check_rag_consistency, is_consistent, summarize_issues
+
+report = check_rag_consistency(db)
+if not is_consistent(report):
+    for issue in summarize_issues(report):
+        print(issue)
+```
+
+- `fts_gap > 0` → FTS trigger missed some inserts; fix: `/db rebuild-fts`
+- `orphan_vec_count > 0` → vec trigger failed; fix: re-ingest affected URLs
+- Read-only; does not repair inconsistencies.
+
 **Recovery flow:**
 1. `PRAGMA integrity_check` on `target` DB
 2. `dry_run=True` → return result without modifying DB
@@ -393,3 +421,4 @@ sqlite3 /opt/llm/db/session.sqlite ".tables"
 | Where does `ToolResultStore` save data | `tool_results` table in `session.sqlite` |
 | Does `prune_old_memories` catch exceptions? | **STRICT** (default): propagates; **BEST_EFFORT**: caught and returned in `MaintenanceResult` |
 | How to use BEST_EFFORT mode | Pass `mode=MaintenanceMode.BEST_EFFORT` to `vacuum_db`, `purge_old_sessions`, or `prune_old_memories` |
+| How to check RAG consistency | `check_rag_consistency(db)` → `is_consistent(report)` + `summarize_issues(report)` |

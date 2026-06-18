@@ -142,7 +142,7 @@ _COMMANDS: list[CommandDef] = [
         True,
         False,
         "_cmd_db",
-        "stats | urls [--lang ja|en] [--limit N] | clean <url> | rebuild-fts | health | checkpoint | vacuum | purge | recover",
+        "stats | urls [--lang ja|en] [--limit N] | clean <url> | rebuild-fts | health | checkpoint | vacuum | purge | recover | consistency",
     ),
     CommandDef(
         "/note",

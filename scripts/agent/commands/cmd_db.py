@@ -46,6 +46,7 @@ class _DbMixin(MixinBase):
             "vacuum": self._db_vacuum,
             "purge": lambda: self._db_purge(rest),
             "recover": lambda: self._db_recover(rest.strip() or None),
+            "consistency": self._db_consistency,
         }
         handler = dispatch.get(subcmd)
         if handler:
@@ -56,7 +57,7 @@ class _DbMixin(MixinBase):
                 " | /db clean <url> | /db rebuild-fts"
                 " | /db health | /db checkpoint [MODE]"
                 " | /db vacuum | /db purge [--max-sessions N] [--max-age-days N]"
-                " | /db recover [<backup-path>]"
+                " | /db recover [<backup-path>] | /db consistency"
             )
 
     def _db_clean(self, rest: str) -> None:
@@ -186,3 +187,12 @@ class _DbMixin(MixinBase):
             self._out.write_success(f"Recovery succeeded: {result.detail}")
         else:
             self._out.write_no_data(f"Recovery failed: {result.detail}")
+
+    def _db_consistency(self) -> None:
+        """Run RAG consistency check: chunks vs FTS vs vec index sync."""
+        consistent, issues = DbMaintenanceService().consistency()
+        if consistent:
+            self._out.write_success("RAG consistency: OK (chunks/FTS/vec in sync)")
+        else:
+            for issue in issues:
+                self._out.write_error(f"Consistency issue: {issue}")

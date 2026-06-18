@@ -19,6 +19,7 @@ from typing import Any
 import httpx
 import orjson
 from db.helper import SQLiteHelper
+from db.maintenance import check_rag_consistency, is_consistent, summarize_issues
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 
@@ -88,6 +89,14 @@ class RagIngester:
         with SQLiteHelper().open(write_mode=True) as db:
             self._process_url_groups(db, url_groups, force)
         logger.info("=== done: %s URLs processed ===", len(url_groups))
+        try:
+            report = check_rag_consistency(db)
+            if not is_consistent(report):
+                issues = summarize_issues(report)
+                for issue in issues:
+                    logger.warning("Post-ingest consistency warning: %s", issue)
+        except Exception:
+            logger.exception("Post-ingest consistency check failed")
 
     def ingest_url_group(
         self,

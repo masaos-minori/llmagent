@@ -12,9 +12,12 @@ from typing import Any
 from db.helper import SQLiteHelper
 from db.maintenance import (
     RetentionConfig,
+    check_rag_consistency,
     checkpoint_wal,
+    is_consistent,
     purge_old_sessions,
     recover_corruption,
+    summarize_issues,
     vacuum_db,
 )
 
@@ -95,6 +98,12 @@ class DbMaintenanceService:
             recovered=result.action == "restored",
             detail=result.detail or "",
         )
+
+    def consistency(self) -> tuple[bool, list[str]]:
+        """Run RAG consistency check on rag.sqlite; returns (is_consistent, issue_strings)."""
+        with SQLiteHelper("rag").open() as db:
+            report = check_rag_consistency(db)
+        return is_consistent(report), summarize_issues(report)
 
     def list_documents(self, lang: str | None = None, limit: int = 20) -> list[dict]:
         """Return registered documents as structured data (delegates to rag.sqlite)."""
