@@ -149,7 +149,7 @@ def collect_context_state(ctx: AgentContext) -> ContextStateView:
     token_estimate = ctx.services.hist_mgr.count_tokens(
         history, ctx.stats.stat_input_tokens
     )
-    git_info = get_repo_info()
+    repo_result = get_repo_info()
     return ContextStateView(
         total_chars=total_chars,
         compress_limit=ctx.cfg.llm.context_char_limit,
@@ -161,7 +161,11 @@ def collect_context_state(ctx: AgentContext) -> ContextStateView:
         token_limit=ctx.cfg.llm.context_token_limit,
         tokenize_configured=bool(ctx.cfg.llm.tokenize_url),
         mem_status=_format_memory_status(ctx),
-        git_branch=git_info["branch"] if git_info else None,
-        git_commit=git_info["commit"] if git_info else None,
+        git_branch=repo_result.data["branch"]
+        if (repo_result.success and repo_result.data)
+        else None,
+        git_commit=repo_result.data["commit"]
+        if (repo_result.success and repo_result.data)
+        else None,
         breakdown=_build_budget(history, token_is_exact),
     )

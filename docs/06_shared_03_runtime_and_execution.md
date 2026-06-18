@@ -179,7 +179,8 @@ def build_tracer(
 ## 7. `git_helper` (`shared/git_helper.py`)
 
 ```python
-def get_repo_info(path: str = ".") -> dict | None
+def get_repo_info(path: str = ".") -> RepoInfoResult
+# RepoInfoResult(success: bool, data: dict[str, str] | None, failure_reason: FailureReason | None)
 # Returns: {"branch": str, "commit": str (8-char), "message": str, "author": str}
 # Returns None on any error (GitPython not installed, not a git repo, etc.)
 ```
@@ -357,5 +358,5 @@ ToolExecutor.execute(tool_name, args)
 | Does `load_all()` include `common.toml`? | **Yes** — included at index 0 of `_BASE_CONFIG_FILES` (see §2a Config Ownership) |
 | How to register a plugin tool | `@register_tool("name")` decorator in `plugins/*.py` |
 | When does ToolExecutor use cache? | `is_error=False` results only; TTL + LRU |
-| Is `git_helper.get_repo_info()` reliable? | Returns `None` on any exception; no error reason |
+| Is `git_helper.get_repo_info()` reliable? | Returns `RepoInfoResult`; check `.success` and `.failure_reason` (FailureReason enum) |
 | How to get exact token count | `await get_token_count(history, tokenize_url, http)` |

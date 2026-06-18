@@ -7,30 +7,62 @@ Returns branch and last commit info for display in /context output.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
 
-def get_repo_info(path: str = ".") -> dict[str, str] | None:
-    """Return current branch and last commit info, or None outside a git repo."""
+class FailureReason(StrEnum):
+    GITPYTHON_NOT_INSTALLED = "gitpython_not_installed"
+    NOT_A_GIT_REPO = "not_a_git_repo"
+    PERMISSION_DENIED = "permission_denied"
+    GIT_ERROR = "git_error"
+    OTHER_ERROR = "other_error"
+
+
+@dataclass(frozen=True)
+class RepoInfoResult:
+    success: bool
+    data: dict[str, str] | None = None
+    failure_reason: FailureReason | None = None
+
+
+def get_repo_info(path: str = ".") -> RepoInfoResult:
+    """Return current branch and last commit info, or a RepoInfoResult with failure_reason on error."""
     try:
         import git  # noqa: PLC0415 — lazy import keeps startup fast when gitpython is unused
     except ImportError:
         logger.debug("get_repo_info: GitPython not installed")
-        return None
+        return RepoInfoResult(
+            success=False, failure_reason=FailureReason.GITPYTHON_NOT_INSTALLED
+        )
     try:
         repo = git.Repo(path, search_parent_directories=True)
         head = repo.head
         branch = head.ref.name if not repo.head.is_detached else "HEAD (detached)"
-        return {
-            "branch": branch,
-            "commit": head.commit.hexsha[:8],
-            "message": str(head.commit.message).strip().splitlines()[0],
-            "author": str(head.commit.author),
-        }
+        return RepoInfoResult(
+            success=True,
+            data={
+                "branch": branch,
+                "commit": head.commit.hexsha[:8],
+                "message": str(head.commit.message).strip().splitlines()[0],
+                "author": str(head.commit.author),
+            },
+        )
+    except git.exc.InvalidGitRepositoryError:
+        logger.debug("get_repo_info: not a git repo at %s", path)
+        return RepoInfoResult(
+            success=False, failure_reason=FailureReason.NOT_A_GIT_REPO
+        )
+    except PermissionError as e:
+        logger.debug("get_repo_info: permission error: %s", e)
+        return RepoInfoResult(
+            success=False, failure_reason=FailureReason.PERMISSION_DENIED
+        )
     except git.exc.GitError as e:
         logger.debug("get_repo_info: git error: %s", e)
-        return None
+        return RepoInfoResult(success=False, failure_reason=FailureReason.GIT_ERROR)
     except (OSError, AttributeError, ValueError) as e:
         logger.debug("get_repo_info: %s: %s", type(e).__name__, e)
-        return None
+        return RepoInfoResult(success=False, failure_reason=FailureReason.OTHER_ERROR)

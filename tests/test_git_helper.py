@@ -7,24 +7,25 @@ from __future__ import annotations
 
 import os
 
-from shared.git_helper import get_repo_info
+from shared.git_helper import FailureReason, RepoInfoResult, get_repo_info
 
 
 class TestGetRepoInfo:
     def test_returns_none_when_not_in_git_repo(self, tmp_path) -> None:
-        """Returns None when called outside a git repository."""
+        """Returns failure result when called outside a git repository."""
         result = get_repo_info(str(tmp_path))
-        assert result is None
+        assert isinstance(result, RepoInfoResult)
+        assert result.success is False
+        assert result.failure_reason == FailureReason.NOT_A_GIT_REPO
+        assert result.data is None
 
     def test_returns_repo_info_in_valid_git_repo(self, tmp_path) -> None:
         """Returns branch and commit info in a valid git repo."""
-        # Initialize a git repo
         os.chdir(tmp_path)
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@test.com'")
         os.system("git config user.name 'Test User'")
 
-        # Create and commit a file
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
         os.system("git add test.txt > /dev/null 2>&1")
@@ -32,14 +33,15 @@ class TestGetRepoInfo:
 
         result = get_repo_info(str(tmp_path))
 
-        assert result is not None
-        assert "branch" in result
-        assert "commit" in result
-        assert "message" in result
-        assert "author" in result
-        assert result["branch"] == "main" or result["branch"] == "master"
-        assert len(result["commit"]) == 8
-        assert result["message"] == "Initial commit"
+        assert result.success is True
+        assert result.data is not None
+        assert "branch" in result.data
+        assert "commit" in result.data
+        assert "message" in result.data
+        assert "author" in result.data
+        assert result.data["branch"] in ("main", "master")
+        assert len(result.data["commit"]) == 8
+        assert result.data["message"] == "Initial commit"
 
     def test_returns_detached_head_info(self, tmp_path) -> None:
         """Returns 'HEAD (detached)' when in detached HEAD state."""
@@ -53,13 +55,13 @@ class TestGetRepoInfo:
         os.system("git add test.txt > /dev/null 2>&1")
         os.system('git commit -m "Initial commit" > /dev/null 2>&1')
 
-        # Detach HEAD
         os.system("git checkout --detach > /dev/null 2>&1")
 
         result = get_repo_info(str(tmp_path))
 
-        assert result is not None
-        assert result["branch"] == "HEAD (detached)"
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["branch"] == "HEAD (detached)"
 
     def test_returns_info_from_parent_directory(self, tmp_path) -> None:
         """Finds git repo in parent directory."""
@@ -73,14 +75,14 @@ class TestGetRepoInfo:
         os.system("git add test.txt > /dev/null 2>&1")
         os.system('git commit -m "Initial commit" > /dev/null 2>&1')
 
-        # Create subdirectory and call from there
         subdir = tmp_path / "subdir"
         subdir.mkdir()
 
         result = get_repo_info(str(subdir))
 
-        assert result is not None
-        assert "branch" in result
+        assert result.success is True
+        assert result.data is not None
+        assert "branch" in result.data
 
     def test_multiline_commit_message_returns_first_line(self, tmp_path) -> None:
         """Returns only the first line of a multiline commit message."""
@@ -98,8 +100,9 @@ class TestGetRepoInfo:
 
         result = get_repo_info(str(tmp_path))
 
-        assert result is not None
-        assert result["message"] == "First line"
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["message"] == "First line"
 
     def test_author_format(self, tmp_path) -> None:
         """Author format includes name and email."""
@@ -115,14 +118,16 @@ class TestGetRepoInfo:
 
         result = get_repo_info(str(tmp_path))
 
-        assert result is not None
-        assert "Test Author" in result["author"]
+        assert result.success is True
+        assert result.data is not None
+        assert "Test Author" in result.data["author"]
 
     def test_handles_gitpython_exception_gracefully(self) -> None:
-        """Handles GitPython exceptions and returns None."""
-        # Use a path that definitely doesn't exist and is not in a git repo
+        """Handles GitPython exceptions and returns failure result."""
         result = get_repo_info("/nonexistent/path/that/does/not/exist")
-        assert result is None
+        assert result.success is False
+        assert result.failure_reason is not None
+        assert result.data is None
 
     def test_commit_hash_is_8_chars(self, tmp_path) -> None:
         """Commit hash is always truncated to 8 characters."""
@@ -138,5 +143,6 @@ class TestGetRepoInfo:
 
         result = get_repo_info(str(tmp_path))
 
-        assert result is not None
-        assert len(result["commit"]) == 8
+        assert result.success is True
+        assert result.data is not None
+        assert len(result.data["commit"]) == 8

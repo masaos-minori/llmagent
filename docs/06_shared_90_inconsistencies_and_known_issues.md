@@ -81,10 +81,10 @@ Each entry uses the required format:
 
 ### EXCEPT-01: `git_helper.get_repo_info()` catches broad exceptions and returns `None`
 
-- **Type:** RESOLVED (Implementation bug — fixed)
+- **Type:** RESOLVED (Structured result with failure reasons implemented)
 - **Impact scope:** `shared/git_helper.py::get_repo_info()`
-- **Resolution:** `ImportError` is now caught separately (when GitPython is not installed). The git operation block catches `git.exc.GitError` (covers all GitPython-specific errors including `InvalidGitRepositoryError`), `OSError`, `AttributeError`, and `ValueError`. The `except Exception` catch-all is removed. Failure reasons are logged at DEBUG level per exception type.
-- **Notes for AI reference:** `None` still means "could not get repo info." Call is always safe. Cause is logged at DEBUG level per exception type.
+- **Resolution:** `get_repo_info()` now returns `RepoInfoResult` (frozen dataclass) instead of `dict | None`. On success: `RepoInfoResult(success=True, data={branch, commit, message, author})`. On failure: `RepoInfoResult(success=False, failure_reason=FailureReason.*)`. `FailureReason` is a `StrEnum` with 5 values: `GITPYTHON_NOT_INSTALLED`, `NOT_A_GIT_REPO`, `PERMISSION_DENIED`, `GIT_ERROR`, `OTHER_ERROR`. `git.exc.InvalidGitRepositoryError` is now distinguished from generic `git.exc.GitError`.
+- **Notes for AI reference:** Check `result.success` (not truthiness — `RepoInfoResult` is always truthy). Access data via `result.data["branch"]` etc. Inspect `result.failure_reason` for precise failure cause.
 
 ---
 
