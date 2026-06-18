@@ -51,13 +51,10 @@ Each entry uses the required format:
 
 ### TYPE-01: `McpServerConfig.transport` is typed as `str`, not `Literal["http", "stdio"]`
 
-- **Type:** Needs confirmation
+- **Type:** RESOLVED (code already uses `TransportType` StrEnum)
 - **Impact scope:** `shared/mcp_config.py::McpServerConfig.transport`
-- **Statement A:** `transport` field is validated in `__post_init__` to only accept `"http"` or `"stdio"`.
-- **Statement B:** The type annotation is `str`, so type checkers cannot catch invalid values at call sites.
-- **Current safe interpretation:** Only `"http"` or `"stdio"` are valid at runtime. Use these values only.
-- **Recommended action:** Change annotation to `transport: Literal["http", "stdio"]`.
-- **Notes for AI reference:** Referenced in `implementations/20260606-194710_shared_types.md`. No functional impact; type-safety enhancement only.
+- **Resolution:** `McpServerConfig.transport` is typed as `TransportType` (a `StrEnum` with `HTTP = "http"`, `STDIO = "stdio"`). `__post_init__` converts string inputs from config files via `TransportType(self.transport)`. The type annotation in `04_mcp_06_configuration_and_operations.md` was stale and has been updated to `TransportType`.
+- **Notes for AI reference:** Use `TransportType.HTTP` or `TransportType.STDIO` for type-safe construction. String values `"http"` / `"stdio"` are accepted at runtime via `__post_init__` conversion. `TransportType` is consistent with `StartupMode` and `HealthcheckMode` enums on the same dataclass.
 
 ---
 

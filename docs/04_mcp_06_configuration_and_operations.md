@@ -51,7 +51,7 @@ verification, health probes, audit log reading, and the new-server addition chec
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `transport` | `str` | required | `"http"` or `"stdio"` |
+| `transport` | `TransportType` | required | `TransportType.HTTP` (`"http"`) or `TransportType.STDIO` (`"stdio"`); string literals accepted at runtime via `__post_init__` conversion |
 | `url` | `str` | required | HTTP server base URL (http only) |
 | `cmd` | `list[str]` | required | Subprocess command (stdio or subprocess mode) |
 | `openrc_service` | `str` | required | OpenRC service name for watchdog restart |
