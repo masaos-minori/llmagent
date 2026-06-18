@@ -59,7 +59,7 @@ class RagPipelineMCPService:
         # rag_pipeline_mcp_server.toml.  Process-scoped; no cross-process contamination.
         import dataclasses as _dc
 
-        agent_rag._cfg = _dc.asdict(cfg)  # noqa: SLF001 — override module cache for process-scoped config
+        agent_rag._cfg = _dc.asdict(cfg)  # type: ignore[attr-defined]  # noqa: SLF001 -- dynamic module attr; rag.pipeline exposes _cfg for process-scoped MCP config override
         # db.helper resolves config per-instance in __init__; no class-level cache to reset.
         # rag.llm no longer has a module-level _cfg cache; RagLLM receives cfg via constructor.
 
