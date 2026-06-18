@@ -95,6 +95,17 @@ AgentREPL.run()
   → /session delete <id>              — DELETE sessions + messages (CASCADE)
 ```
 
+### Session title generation
+
+On the first user turn, `_generate_session_title()` (in `cmd_session.py`) calls `SessionTitleService.generate()` to produce an LLM-based short title. This runs as a background task.
+
+If LLM generation fails (`SessionTitleGenerationError`), a fallback title is derived from `first_input`:
+- Truncated to `SESSION_TITLE_MAX_CHARS` (32 characters)
+- Appended with `...` if the original input exceeds the limit
+- Persisted via `ctx.session.set_title()`
+
+This guarantees every session has a non-empty, meaningful title even when the LLM endpoint is unavailable.
+
 ### Message save rules
 
 - `save(role, content)` saves only valid roles: `user`, `assistant`, `tool`, `system`
@@ -103,7 +114,10 @@ AgentREPL.run()
 - When `strict_mode=True`, both conditions raise `RuntimeError` instead of skipping
 - Counters accessible via `session.skipped_no_session_count` and `session.skipped_invalid_role_count`
 - `save_many()` batches multiple messages in one transaction; invalid roles are skipped with a single warning log
-- `save_diagnostic(content)` persists to role `"diagnostic"` — not returned by `fetch_messages()` for history reconstruction
+- Diagnostic data (LLM transport errors, session runtime summaries) is persisted via `DiagnosticStore` (`agent/diagnostic_store.py`) to the `session_diagnostics` table — separate from the `messages` table
+- `DiagnosticStore` methods: `save(session_id, kind, content)`, `fetch(session_id)`, `fetch_all(limit=50)`
+- A lightweight session summary is also written to `<session_db_dir>/diagnostics.jsonl` by `repl.py` (may be deprecated in future)
+- `fetch_messages()` no longer filters out `diagnostic` role — diagnostic data is in its own table
 
 ---
 

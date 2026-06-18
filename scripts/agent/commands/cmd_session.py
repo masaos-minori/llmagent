@@ -38,6 +38,12 @@ class _SessionMixin(MixinBase):
             await SessionTitleService().generate(self._ctx, first_input)
         except SessionTitleGenerationError as e:
             logger.warning("Session title generation failed: %s", e)
+            truncated = first_input[:SESSION_TITLE_TRUNCATE_AT]
+            if len(first_input) > SESSION_TITLE_MAX_CHARS:
+                fallback_title = truncated + "..."
+            else:
+                fallback_title = truncated
+            self._ctx.session.set_title(fallback_title)
 
     def _session_load_safe(self, arg: str) -> None:
         """Parse arg as an integer session ID and load it; print error on invalid."""
