@@ -60,11 +60,10 @@ Each entry uses the required format:
 
 ### GLOBAL-01: `token_counter._warned_unavailable` is a module-level global variable
 
-- **Type:** Addressed (design concern — global state removed from token_counter)
+- **Type:** RESOLVED (global removed, state moved to caller)
 - **Impact scope:** `shared/token_counter.py`, `agent/history.py`
-- **Current state:** `_WarnOnce` class with `reset()` method exists in `token_counter.py`, and the `_warned_unavailable` instance remains at module level. The caller (`HistoryManager` in `agent/history.py`) now manages its own `_WarnOnce` instance via `_WarnOnce.log()` instead of relying on the module-level global. Tests can use `token_counter._warned_unavailable.reset()` between test cases for isolation.
-- **Current safe interpretation:** The warning suppression mechanism is still present at module level in `token_counter.py`, but callers manage their own instances. In production, each `_WarnOnce` fires once per process lifetime.
-- **Notes for AI reference:** For tests that need to verify warning behavior, call `token_counter._warned_unavailable.reset()` between test cases. The `_estimate_tokens()` function returns `(total, breakdown)` with per-category token counts.
+- **Resolution:** The `_warned_unavailable` module-level global has been removed. `get_token_count()` now accepts `warn_once: _WarnOnce | None = None`. `HistoryManager.__init__` creates `self._warn_once = _WarnOnce()` and passes it to `get_token_count()`. Tests use local `_WarnOnce()` instances — no global state access needed.
+- **Notes for AI reference:** Do NOT access `token_counter._warned_unavailable` — it no longer exists. Tests that verify warn-once behavior should create a local `_WarnOnce()` and pass it as `warn_once=`. The `_estimate_tokens()` function returns `(total, breakdown)` with per-category token counts.
 
 ---
 

@@ -12,19 +12,14 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import orjson
 import pytest
-from shared import token_counter as tc_module
 from shared.token_counter import (
     _estimate_chars,
     _estimate_tokens,
     _serialise_for_tokenize,
+    _WarnOnce,
     get_token_count,
 )
 from shared.types import LLMMessage
-
-
-def _reset_warned() -> None:
-    """Reset module-level warn-once flag between tests."""
-    tc_module._warned_unavailable.reset()
 
 
 def _history(*pairs: tuple[str, str]) -> list[LLMMessage]:
@@ -96,7 +91,7 @@ def test_serialise_skips_empty_content() -> None:
 
 @pytest.mark.asyncio
 async def test_empty_url_returns_fallback() -> None:
-    _reset_warned()
+
     http = AsyncMock(spec=httpx.AsyncClient)
     msgs = _history(("user", "1234"))  # 4 chars → 1 token
     count, is_exact = await get_token_count(msgs, "", http, timeout=1.0)
@@ -110,7 +105,7 @@ async def test_empty_url_returns_fallback() -> None:
 
 @pytest.mark.asyncio
 async def test_successful_tokenize_n_tokens() -> None:
-    _reset_warned()
+
     http = _make_http(body={"n_tokens": 42, "tokens": list(range(42))})
     msgs = _history(("user", "test"))
     count, is_exact = await get_token_count(msgs, "http://host/tokenize", http)
@@ -121,7 +116,7 @@ async def test_successful_tokenize_n_tokens() -> None:
 @pytest.mark.asyncio
 async def test_successful_tokenize_tokens_list_fallback() -> None:
     """When n_tokens is absent, len(tokens) is used."""
-    _reset_warned()
+
     http = _make_http(body={"tokens": [1, 2, 3]})
     msgs = _history(("user", "abc"))
     count, is_exact = await get_token_count(msgs, "http://host/tokenize", http)
@@ -134,7 +129,7 @@ async def test_successful_tokenize_tokens_list_fallback() -> None:
 
 @pytest.mark.asyncio
 async def test_http_error_falls_back_to_chars4() -> None:
-    _reset_warned()
+
     http = _make_http(status=503)
     msgs = _history(("user", "abcd"))  # 4 chars → 1 token
     count, is_exact = await get_token_count(msgs, "http://host/tokenize", http)
@@ -144,7 +139,7 @@ async def test_http_error_falls_back_to_chars4() -> None:
 
 @pytest.mark.asyncio
 async def test_timeout_falls_back_to_chars4() -> None:
-    _reset_warned()
+
     http = AsyncMock(spec=httpx.AsyncClient)
     http.post.side_effect = httpx.TimeoutException("timed out")
     msgs = _history(("user", "abcd"))
@@ -156,7 +151,7 @@ async def test_timeout_falls_back_to_chars4() -> None:
 @pytest.mark.asyncio
 async def test_n_tokens_zero_falls_back() -> None:
     """n_tokens=0 with empty tokens list should fall back."""
-    _reset_warned()
+
     http = _make_http(body={"n_tokens": 0, "tokens": []})
     msgs = _history(("user", "abcd"))
     count, is_exact = await get_token_count(msgs, "http://host/tokenize", http)
@@ -171,15 +166,15 @@ async def test_n_tokens_zero_falls_back() -> None:
 async def test_warn_only_once_on_repeated_failure(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    _reset_warned()
     http = AsyncMock(spec=httpx.AsyncClient)
     http.post.side_effect = httpx.ConnectError("refused")
     msgs = _history(("user", "x" * 8))
+    warn_once = _WarnOnce()
     import logging
 
     with caplog.at_level(logging.WARNING, logger="shared.token_counter"):
-        await get_token_count(msgs, "http://host/tokenize", http)
-        await get_token_count(msgs, "http://host/tokenize", http)
+        await get_token_count(msgs, "http://host/tokenize", http, warn_once=warn_once)
+        await get_token_count(msgs, "http://host/tokenize", http, warn_once=warn_once)
     warnings = [r for r in caplog.records if "unavailable" in r.message]
     assert len(warnings) == 1
 
@@ -274,7 +269,7 @@ def test_estimate_tokens_ratio_text_vs_tool_call() -> None:
 @pytest.mark.asyncio
 async def test_get_token_count_uses_estimate_tokens() -> None:
     """Verify get_token_count falls back to _estimate_tokens when URL is empty."""
-    _reset_warned()
+
     http = AsyncMock(spec=httpx.AsyncClient)
     msgs: list[LLMMessage] = [
         {"role": "system", "content": "sys"},

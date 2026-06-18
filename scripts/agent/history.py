@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import httpx
 import orjson
-from shared.token_counter import _estimate_tokens, get_token_count
+from shared.token_counter import _estimate_tokens, _WarnOnce, get_token_count
 from shared.types import LLMMessage
 
 from agent.history_selection_policy import (
@@ -77,6 +77,8 @@ class HistoryManager:
         self._tokenize_url = tokenize_url
         # Cumulative compression count for this session
         self.stat_compress_count: int = 0
+        # Warn-once suppressor for /tokenize unavailability (one warning per session)
+        self._warn_once = _WarnOnce()
         # Selection policy encapsulates importance scoring and candidate selection
         self._selection_policy = HistorySelectionPolicy(compress_turns, protect_turns)
 
@@ -181,7 +183,9 @@ class HistoryManager:
         """
         if last_input_tokens is not None:
             return last_input_tokens, True
-        return await get_token_count(history, self._tokenize_url, self._http)
+        return await get_token_count(
+            history, self._tokenize_url, self._http, warn_once=self._warn_once
+        )
 
     # Delegate classification to HistorySelectionPolicy; kept as staticmethod
     # aliases so existing callers (e.g. tests) can still reference them here.

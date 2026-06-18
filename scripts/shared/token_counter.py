@@ -48,9 +48,6 @@ class _WarnOnce:
         self._warned = False
 
 
-_warned_unavailable = _WarnOnce()
-
-
 def _estimate_chars(history: list[LLMMessage]) -> int:
     """Count total characters across all messages (content + serialised tool_calls)."""
     total = 0
@@ -142,6 +139,7 @@ async def get_token_count(
     tokenize_url: str,
     http: httpx.AsyncClient,
     timeout: float = 3.0,
+    warn_once: _WarnOnce | None = None,
 ) -> tuple[int, bool]:
     """Return (token_count, is_exact) for the given history."""
     if not tokenize_url:
@@ -168,13 +166,20 @@ async def get_token_count(
         else:
             n_tokens = 0
         if n_tokens > 0:
-            _warned_unavailable.reset()
+            if warn_once is not None:
+                warn_once.reset()
             return n_tokens, True
         logger.warning("token_counter: /tokenize returned n_tokens=0, falling back")
     except (TimeoutError, httpx.HTTPStatusError, httpx.RequestError, ValueError) as exc:
-        _warned_unavailable.log(
-            "token_counter: /tokenize unavailable (%s), using category-aware estimate",
-            exc,
-        )
+        if warn_once is not None:
+            warn_once.log(
+                "token_counter: /tokenize unavailable (%s), using category-aware estimate",
+                exc,
+            )
+        else:
+            logger.warning(
+                "token_counter: /tokenize unavailable (%s), using category-aware estimate",
+                exc,
+            )
 
     return _estimate_tokens(history)[0], False
