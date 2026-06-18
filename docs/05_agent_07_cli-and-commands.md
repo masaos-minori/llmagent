@@ -107,17 +107,19 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 
 ### DB category
 
-| Command | Side effects | Related state |
-|---|---|---|
-| `/db stats` | None | Document/chunk/session/message counts |
-| `/db urls [--lang] [--limit]` | None | List registered documents |
-| `/db clean <url>` | DELETE document + chunks from DB | Cascaded delete |
-| `/db rebuild-fts` | Rebuilds `chunks_fts` index | FTS5 rebuild |
-| `/db health` | None | journal_mode / integrity / page stats |
-| `/db checkpoint [MODE]` | WAL checkpoint | Flush WAL to main DB |
-| `/db vacuum` | VACUUM | Recover free pages |
-| `/db purge [--max-sessions N] [--max-age-days N]` | DELETE old sessions | Based on count or age |
-| `/db recover [backup-path]` | Integrity check; restore from backup if corrupt | Destructive if corrupt |
+| Command | Target DB | Side effects | Related state |
+|---|---|---|---|
+| `/db help` | rag + session | None | Shows subcommand table |
+| `/db stats` | rag + session | None | Document/chunk/session/message counts |
+| `/db urls [--lang] [--limit]` | rag | None | List registered documents |
+| `/db clean <url>` | rag | DELETE document + chunks from DB | Cascaded delete |
+| `/db rebuild-fts` | rag | Rebuilds `chunks_fts` index | FTS5 rebuild |
+| `/db health` | rag + session | None | journal_mode / integrity / page stats |
+| `/db checkpoint [MODE]` | session | WAL checkpoint | Flush WAL to main DB |
+| `/db vacuum` | session | VACUUM | Recover free pages |
+| `/db purge [--max-sessions N] [--max-age-days N]` | session | DELETE old sessions | Based on count or age |
+| `/db recover [backup-path]` | session | Integrity check; restore from backup if corrupt | Destructive if corrupt |
+| `/db consistency` | rag | None | Chunks/FTS/vector index sync check |
 
 > **Note:** `/db` commands operate on `rag.sqlite` (RAG documents, sessions, messages) by default. `session.sqlite` and `workflow.sqlite` are accessed via `SQLiteHelper(target=...)` in code, not through `/db` commands. Schema details: `06_shared_04`.
 

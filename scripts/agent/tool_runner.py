@@ -10,7 +10,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import sqlite3
+import time
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 import orjson
 from rag.llm import summarize_tool_result
@@ -20,7 +22,7 @@ from shared.tool_executor import is_side_effect, tool_call_key
 from shared.tool_spec import ToolSpec
 
 from agent.tool_approval import run_approval_checks
-from agent.tool_audit import audit_tool_exec
+from agent.tool_audit import audit_tool_exec, write_round_exec
 from agent.tool_exceptions import ToolArgumentsDecodeError, ToolExecutorUnavailableError
 from agent.tool_output import emit_tool_call, emit_tool_result
 from agent.tool_result_formatter import (
@@ -189,10 +191,17 @@ async def _execute_standard(
     turn: int,
 ) -> list[Any]:
     """Run approved calls in parallel, or serially when side effects are detected."""
-    has_side_effect = any(
-        is_side_effect(tc["function"]["name"]) for tc in approved_calls
-    )
+    round_id = str(uuid4())
+    t0 = time.perf_counter()
+    has_side_effect = False
+    trigger_tool: str | None = None
+    for tc in approved_calls:
+        if is_side_effect(tc["function"]["name"]):
+            has_side_effect = True
+            trigger_tool = tc["function"]["name"]
+            break
     use_serial = ctx.cfg.tool.serial_tool_calls or has_side_effect
+    mode = "serial" if use_serial else "parallel"
     if use_serial:
         if has_side_effect and not ctx.cfg.tool.serial_tool_calls:
             logger.info(
@@ -202,12 +211,23 @@ async def _execute_standard(
         results: list[Any] = []
         for tc in approved_calls:
             results.append(await execute_one_tool_call(ctx, tc, turn))
-        return results
-    return list(
-        await asyncio.gather(
-            *(execute_one_tool_call(ctx, tc, turn) for tc in approved_calls),
-        ),
+    else:
+        results = list(
+            await asyncio.gather(
+                *(execute_one_tool_call(ctx, tc, turn) for tc in approved_calls),
+            ),
+        )
+    elapsed_ms = (time.perf_counter() - t0) * 1000
+    write_round_exec(
+        ctx,
+        round_id=round_id,
+        tool_count=len(approved_calls),
+        mode=mode,
+        has_side_effect=has_side_effect,
+        trigger_tool=trigger_tool,
+        elapsed_ms=elapsed_ms,
     )
+    return results
 
 
 async def execute_all_tool_calls(

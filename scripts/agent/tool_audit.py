@@ -148,3 +148,29 @@ def audit_tool_exec(
         ts=time.time(),
     )
     ctx.services.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
+
+
+def write_round_exec(
+    ctx: AgentContext,
+    *,
+    round_id: str,
+    tool_count: int,
+    mode: str,
+    has_side_effect: bool,
+    trigger_tool: str | None,
+    elapsed_ms: float,
+) -> None:
+    """Log a round-wide execution event, capturing serialization impact."""
+    if ctx.services.audit_logger is None:
+        return
+    ctx.services.audit_logger.info(
+        "round_exec",
+        extra={
+            "round_id": round_id,
+            "tool_count": tool_count,
+            "mode": mode,
+            "has_side_effect": has_side_effect,
+            "trigger_tool": trigger_tool,
+            "elapsed_ms": round(elapsed_ms, 1),
+        },
+    )

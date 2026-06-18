@@ -44,6 +44,31 @@ Side-effect detection: `is_side_effect(tool_name: str) -> bool`
 
 ---
 
+### Serialization Event Schema
+
+Every round of tool calls executed by `_execute_standard()` emits a `round_exec`
+audit event with the following fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `round_id` | string | UUIDv4 identifying this round |
+| `tool_count` | int | Number of tool calls in the round |
+| `mode` | string | `"parallel"`, `"serial"`, or `"dag"` |
+| `has_side_effect` | bool | True if at least one tool is a side-effect tool |
+| `trigger_tool` | string or null | Name of the first side-effect tool that triggered serial mode |
+| `elapsed_ms` | float | Wall-clock time for the full round in milliseconds |
+
+Use `elapsed_ms` to identify serialization overhead. A round with
+`mode="serial"` and a high `elapsed_ms` compared to equivalent parallel rounds
+is a candidate for optimization.
+
+Query the audit log:
+```
+grep round_exec /path/to/audit.log | jq '.'
+```
+
+---
+
 ## Approval Flow
 
 `check_approval()` runs before each tool execution:
