@@ -35,10 +35,10 @@ MCP_MAX_RESPONSE_BYTES: int = 512 * 1024
 class TruncationResult:
     """Metadata returned by _truncate_with_meta()."""
 
-    text: str
+   text: str
     truncated: bool
     total_bytes: int
-    visible_bytes: int
+    actual_visible_bytes: int = 0
 
 
 def _truncate_with_meta(
@@ -51,14 +51,12 @@ def _truncate_with_meta(
         return TruncationResult(
             text=text, truncated=False, total_bytes=total, visible_bytes=total
         )
-    shown = encoded[:max_bytes].decode("utf-8", errors="ignore")
-    visible = len(shown.encode("utf-8"))
+   shown = encoded[:max_bytes].decode("utf-8", errors="ignore")
+    actual_visible = len(shown.encode("utf-8"))
     truncated_text = (
-        shown + f"\n[TRUNCATED: {total:,} bytes total, showing {visible:,} bytes]"
+        shown + f"\n[TRUNCATED: {total:,} bytes total, showing {actual_visible:,} bytes]"
     )
-    return TruncationResult(
-        text=truncated_text, truncated=True, total_bytes=total, visible_bytes=visible
-    )
+    return TruncationResult(text=truncated_text, truncated=True, total_bytes=total, actual_visible_bytes=actual_visible)
 
 
 def attach_auth_middleware(app: Any, token: str) -> None:
@@ -184,6 +182,7 @@ class MCPServer:
             req_id = 0
             truncated = False
             total_bytes = 0
+            actual_visible_bytes = 0
             try:
                 req = orjson.loads(line)
                 req_id = int(req.get("id", 0))
@@ -207,6 +206,7 @@ class MCPServer:
                     result = tr.text
                     truncated = tr.truncated
                     total_bytes = tr.total_bytes
+                    actual_visible_bytes = tr.actual_visible_bytes
             except orjson.JSONDecodeError as e:
                 logger.error("run_stdio JSON decode error: %s", e)
                 result = f"JSON decode error: {e}"
@@ -236,8 +236,9 @@ class MCPServer:
                     "id": req_id,
                     "result": result,
                     "is_error": is_error,
-                    "truncated": truncated,
+                  "truncated": truncated,
                     "total_bytes": total_bytes,
+                    "actual_visible_bytes": actual_visible_bytes,
                 },
             )
             sys.stdout.write(resp + "\n")
