@@ -15,7 +15,8 @@ recovery, error handling, and the operational verification plan.
 ### Constructor
 
 ```python
-SQLiteHelper(target: str = "rag")
+SQLiteHelper(target: DbTarget | str = "rag")
+# DbTarget.RAG, DbTarget.SESSION, DbTarget.WORKFLOW, or string literal
 # "rag" → rag.sqlite  |  "session" → session.sqlite  |  "workflow" → workflow.sqlite
 # Invalid target → ValueError
 ```

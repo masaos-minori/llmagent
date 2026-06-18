@@ -62,11 +62,11 @@ class DbConfig:
 `SQLiteHelper` manages connection lifecycle. Constructor resolves config at init time.
 
 ```python
-SQLiteHelper(target: str = "rag")
-# target values:
-#   "rag"      → rag.sqlite
-#   "session"  → session.sqlite
-#   "workflow" → workflow.sqlite  (documented in 07_ref-sqlite.md; not in 07_spec_db.md)
+SQLiteHelper(target: DbTarget | str = "rag")
+# DbTarget.RAG, DbTarget.SESSION, DbTarget.WORKFLOW, or string literal
+# "rag"      → rag.sqlite
+# "session"  → session.sqlite
+# "workflow" → workflow.sqlite  (documented in 07_ref-sqlite.md; not in 07_spec_db.md)
 ```
 
 > **Note:** `"workflow"` target exists in `07_ref-sqlite.md` but is absent from `07_spec_db.md`.

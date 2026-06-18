@@ -12,6 +12,7 @@ import logging
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
+from enum import StrEnum
 from typing import Any
 
 from db.config import build_db_config
@@ -22,6 +23,14 @@ logger = logging.getLogger(__name__)
 _DEFAULT_BUSY_TIMEOUT_MS: int = 30000
 
 
+class DbTarget(StrEnum):
+    """SQLite database target type."""
+
+    RAG = "rag"
+    SESSION = "session"
+    WORKFLOW = "workflow"
+
+
 class SQLiteHelper:
     """SQLite connection manager with optional sqlite-vec extension; WAL/synchronous=NORMAL/busy_timeout applied to every connection."""
 
@@ -29,12 +38,17 @@ class SQLiteHelper:
         {"PASSIVE", "FULL", "RESTART", "TRUNCATE"},
     )
 
-    def __init__(self, target: str = "rag") -> None:
-        if target not in ("rag", "session", "workflow"):
-            raise ValueError(
-                f"target must be 'rag', 'session', or 'workflow', got: {target!r}"
-            )
-        self._target = target
+    def __init__(self, target: DbTarget | str = "rag") -> None:
+        """Accepts DbTarget enum members or string literals ('rag', 'session', 'workflow')."""
+        if isinstance(target, DbTarget):
+            resolved = target.value
+        else:
+            if target not in ("rag", "session", "workflow"):
+                raise ValueError(
+                    f"target must be 'rag', 'session', or 'workflow', got: {target!r}"
+                )
+            resolved = target
+        self._target = resolved
         self._default_load_vec = target == "rag"
         self.conn: sqlite3.Connection | None = None
         try:
