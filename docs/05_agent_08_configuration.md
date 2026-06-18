@@ -19,6 +19,7 @@ the `AgentConfig` dataclass.
 
 | File | Sub-config |
 |---|---|
+| `config/common.toml` | LLMConfig (http fields), RAGConfig, DbConfig |
 | `config/llm.toml` | LLMConfig |
 | `config/http.toml` | LLMConfig (http fields) |
 | `config/context.toml` | LLMConfig (context fields) |
@@ -31,17 +32,26 @@ the `AgentConfig` dataclass.
 | `config/mcp_servers.toml` | MCPConfig |
 | `config/tools_definitions.toml` | ToolConfig (tool_definitions) |
 
-**NOT loaded by `load_all()` (loaded independently):**
-- `config/common.toml` — used by `db/helper.py` and `rag/pipeline.py` directly
+For the canonical config ownership table (owning layer per file), see
+[06_shared_03 §2a Config Ownership](06_shared_03_runtime_and_execution.md#2a-config-ownership).
 
-`ctx.cfg` holds the config. `/reload` triggers `build_agent_config(new_cfg)` to
-replace `ctx.cfg` and sync all services.
+`ctx.cfg` holds the config. `/reload` calls `ConfigLoader().load_all()` to
+re-read all 12 base config files, then passes the merged dict to
+`ConfigReloadService.apply_config_dict(new_cfg)` which updates `ctx.cfg`
+fields and syncs live service instances.
+
+The call chain is:
+1. `ConfigLoader().load_all()` — re-reads all 12 files from `config/`
+2. `ConfigReloadService.apply_config_dict(new_cfg)` — updates `ctx.cfg`
+   fields and propagates changes to services
+3. `ConfigReloadOutcome` — returned to the caller with `applied`,
+   `needs_restart`, `skipped`, and `source_files` fields
 
 ### Config file ownership and hot-reload eligibility
 
-`/reload` calls `ConfigLoader().load_all()`, which reads all 12 base config files —
-the same set loaded at startup. `ConfigReloadService` classifies each changed key as
-either hot-reloadable or restart-required.
+`/reload` reads all 12 base config files — the same set loaded at startup.
+`ConfigReloadService` classifies each changed key as either hot-reloadable
+or restart-required.
 
 | File | Purpose | Hot-reloadable? |
 |---|---|---|
@@ -53,15 +63,42 @@ either hot-reloadable or restart-required.
 | `config/tools.toml` | Tool execution, system prompt name | Yes |
 | `config/memory.toml` | Memory layer settings | Yes |
 | `config/otel.toml` | Observability / tracing | Yes |
-| `config/security.toml` | Approval and security defaults | Restart required |
+| `config/security.toml` | Approval and security defaults | Yes (most fields); per-server MCP fields (auth_token, startup_mode) require restart |
 | `config/system_prompts.toml` | System prompt presets | Yes |
-| `config/mcp_servers.toml` | MCP server transport/URL config | URL only; new servers and transport changes need restart |
-| `config/tools_definitions.toml` | MCP tool name definitions | Restart required |
+| `config/mcp_servers.toml` | MCP server transport/URL config | HTTP URL changes: Yes; new servers, transport type changes, auth_token, startup_mode: Restart required |
+| `config/tools_definitions.toml` | MCP tool name definitions | Yes |
 
 **Restart-required settings** (applied by `ConfigReloadService` with `needs_restart`):
 - MCP server transport type changes (`stdio` ↔ `http`)
 - New MCP servers added to `mcp_servers.toml`
 - `auth_token`, `startup_mode` per server
+
+> **Note:** Changes to `auth_token` and `startup_mode` per MCP server are
+> currently not flagged by `/reload` as restart-required. These changes take
+> effect only after a full restart.
+
+### Reload execution pipeline
+
+`ConfigReloadService` (`agent/services/config_reload.py`) applies the reloaded
+config to live service instances:
+
+| Service | Method called | Config fields propagated |
+|---|---|---|
+| `LLMClient` | `.apply_config()` | temperature, max_tokens, max_retries, retry_base_delay, SSE params |
+| `HistoryManager` | `.apply_config()` | context_char_limit, context_compress_turns, context_token_limit, tokenize_url |
+| `ToolExecutor` | `.apply_config()` | tool_cache_ttl |
+| System prompt | direct write | system_prompt_tool → `ctx.conv.system_prompt_content` |
+
+**`ConfigReloadOutcome` fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `applied` | `list[str]` | Changes applied at runtime (hot-reloaded) |
+| `needs_restart` | `list[str]` | Changes that require a full restart |
+| `skipped` | `list[str]` | Changes skipped (e.g. new MCP server added) |
+| `source_files` | `list[str]` | Config files that were reloaded |
+
+See `agent/services/config_reload.py` for the full field-level mapping.
 
 ---
 
