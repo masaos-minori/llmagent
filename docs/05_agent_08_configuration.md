@@ -39,17 +39,29 @@ replace `ctx.cfg` and sync all services.
 
 ### Config file ownership and hot-reload eligibility
 
+`/reload` calls `ConfigLoader().load_all()`, which reads all 12 base config files —
+the same set loaded at startup. `ConfigReloadService` classifies each changed key as
+either hot-reloadable or restart-required.
+
 | File | Purpose | Hot-reloadable? |
 |---|---|---|
-| `config/common.toml` | LLM, RAG, observability settings | Yes (via `/reload`) |
-| `config/agent.toml` | Tool execution, memory, MCP servers, approval | Yes (partial) |
-| `config/tools_definitions.toml` | MCP tool name definitions | No (restart required) |
-| `config/mcp_servers.toml` | MCP server transport/URL config | URL only (new servers need restart) |
-| `config/security.toml` | Approval and security defaults | No (restart required) |
-| `config/system_prompts.toml` | System prompt presets | Yes (via `/reload`) |
+| `config/common.toml` | LLM URL, RAG, observability defaults | Yes |
+| `config/llm.toml` | LLM model, temperature, max_tokens | Yes |
+| `config/http.toml` | HTTP client timeouts, retries | Yes |
+| `config/rag.toml` | RAG search settings | Yes |
+| `config/context.toml` | Context length, compression settings | Yes |
+| `config/tools.toml` | Tool execution, system prompt name | Yes |
+| `config/memory.toml` | Memory layer settings | Yes |
+| `config/otel.toml` | Observability / tracing | Yes |
+| `config/security.toml` | Approval and security defaults | Restart required |
+| `config/system_prompts.toml` | System prompt presets | Yes |
+| `config/mcp_servers.toml` | MCP server transport/URL config | URL only; new servers and transport changes need restart |
+| `config/tools_definitions.toml` | MCP tool name definitions | Restart required |
 
-`/reload` loads only `common.toml` and `agent.toml`. Changes to other files take
-effect only after restarting the agent process.
+**Restart-required settings** (applied by `ConfigReloadService` with `needs_restart`):
+- MCP server transport type changes (`stdio` ↔ `http`)
+- New MCP servers added to `mcp_servers.toml`
+- `auth_token`, `startup_mode` per server
 
 ---
 

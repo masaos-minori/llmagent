@@ -302,7 +302,7 @@ class TestCmdReload:
         ctx.conv.history = []
         cmd = _FakeCmd(ctx)
         with patch(
-            "shared.config_loader.ConfigLoader.load",
+            "shared.config_loader.ConfigLoader.load_all",
             side_effect=OSError("file not found"),
         ):
             cmd._cmd_reload()
@@ -317,7 +317,7 @@ class TestCmdReload:
         ctx.conv.history = []
         cmd = _FakeCmd(ctx)
         with patch(
-            "shared.config_loader.ConfigLoader.load",
+            "shared.config_loader.ConfigLoader.load_all",
             side_effect=ValueError("parse error"),
         ):
             cmd._cmd_reload()
@@ -335,7 +335,7 @@ class TestCmdReload:
         cmd = _FakeCmd(ctx)
         outcome = ConfigReloadOutcome(applied=["llm"], needs_restart=[])
         with (
-            patch("shared.config_loader.ConfigLoader.load", return_value={}),
+            patch("shared.config_loader.ConfigLoader.load_all", return_value={}),
             patch(
                 "agent.services.config_reload.ConfigReloadService.apply_config_dict",
                 return_value=outcome,
@@ -343,7 +343,7 @@ class TestCmdReload:
         ):
             cmd._cmd_reload()
         out = capsys.readouterr().out
-        assert "Config reloaded from: common.toml, agent.toml" in out
+        assert "Config reloaded (all base config files)" in out
 
     def test_reload_shows_applied_items(self, capsys: Any) -> None:
         from unittest.mock import patch
@@ -355,7 +355,7 @@ class TestCmdReload:
         cmd = _FakeCmd(ctx)
         outcome = ConfigReloadOutcome(applied=["llm", "hist_mgr"], needs_restart=[])
         with (
-            patch("shared.config_loader.ConfigLoader.load", return_value={}),
+            patch("shared.config_loader.ConfigLoader.load_all", return_value={}),
             patch(
                 "agent.services.config_reload.ConfigReloadService.apply_config_dict",
                 return_value=outcome,
@@ -377,7 +377,7 @@ class TestCmdReload:
         cmd = _FakeCmd(ctx)
         outcome = ConfigReloadOutcome(applied=[], needs_restart=["server1"])
         with (
-            patch("shared.config_loader.ConfigLoader.load", return_value={}),
+            patch("shared.config_loader.ConfigLoader.load_all", return_value={}),
             patch(
                 "agent.services.config_reload.ConfigReloadService.apply_config_dict",
                 return_value=outcome,
@@ -398,7 +398,7 @@ class TestCmdReload:
         cmd = _FakeCmd(ctx)
         outcome = ConfigReloadOutcome(applied=[], needs_restart=[])
         with (
-            patch("shared.config_loader.ConfigLoader.load", return_value={}),
+            patch("shared.config_loader.ConfigLoader.load_all", return_value={}),
             patch(
                 "agent.services.config_reload.ConfigReloadService.apply_config_dict",
                 return_value=outcome,

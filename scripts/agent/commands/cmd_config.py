@@ -42,14 +42,16 @@ class _ConfigMixin(
         )
 
         try:
-            from shared.config_loader import ConfigLoader
+            from shared.config_loader import (  # noqa: PLC0415
+                _BASE_CONFIG_FILES,
+                ConfigLoader,
+            )
 
-            source_files = ["common.toml", "agent.toml"]
-            new_cfg = ConfigLoader().load(*source_files)
+            new_cfg = ConfigLoader().load_all()
             result = ConfigReloadService(self._ctx).apply_config_dict(new_cfg)
-            result.source_files = source_files
+            result.source_files = list(_BASE_CONFIG_FILES)
 
-            self._out.write(f"Config reloaded from: {', '.join(source_files)}")
+            self._out.write("Config reloaded (all base config files)")
             if result.applied:
                 self._out.write("Applied (runtime):")
                 for item in result.applied:
