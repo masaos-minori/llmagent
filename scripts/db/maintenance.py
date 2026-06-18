@@ -19,7 +19,7 @@ import logging
 import shutil
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from shared.config_loader import ConfigLoader
@@ -145,7 +145,7 @@ def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
     dest_dir = Path(archive_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")  # noqa: UP017
     dest = dest_dir / f"{db_path.stem}_{ts}{db_path.suffix}"
 
     src = sqlite3.connect(str(db_path))
@@ -242,7 +242,7 @@ def _restore_from_backup(
             success=False, action="no_backup", detail=f"backup not found: {backup}"
         )
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")  # noqa: UP017
     corrupt_archive = db_path.with_name(f"{db_path.stem}_corrupt_{ts}{db_path.suffix}")
     try:
         shutil.copy2(db_path, corrupt_archive)
