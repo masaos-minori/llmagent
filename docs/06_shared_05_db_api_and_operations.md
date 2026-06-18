@@ -236,13 +236,46 @@ All functions accept a `SQLiteHelper` instance and delegate low-level operations
 | Function | Signature | Description |
 |---|---|---|
 | `checkpoint_wal(db, mode=None)` | `-> WalCheckpointCounts` | WAL flush; default mode from `common.toml::sqlite_wal_checkpoint_mode` (default `TRUNCATE`) |
-| `vacuum_db(db)` | `-> None` | Delegates to `db.vacuum()`; call outside transaction |
-| `purge_old_sessions(db, cfg=None)` | `-> PurgeCounts` | Age-based + count-based session purge; commits internally |
-| `prune_old_memories(db, older_than_days)` | `-> int` | Delete old memories via `SQLiteMemoryDeleteStore`; exceptions propagate |
+| `vacuum_db(db, mode=STRICT)` | `-> MaintenanceResult` | Delegates to `db.vacuum()`; call outside transaction |
+| `purge_old_sessions(db, cfg=None, mode=STRICT)` | `-> MaintenanceResult` | Age-based + count-based session purge; commits internally |
+| `prune_old_memories(db, older_than_days, mode=STRICT)` | `-> MaintenanceResult` | Delete old memories via `SQLiteMemoryDeleteStore` |
 | `rotate_rag_db(archive_dir=None)` | `-> Path` | Archive `rag.sqlite` with timestamp suffix via SQLite online backup API |
 | `rotate_session_db(archive_dir=None)` | `-> Path` | Archive `session.sqlite` |
 | `rotate_db(archive_dir=None)` | `-> tuple[Path, Path]` | Archive both DBs; returns `(rag_dest, session_dest)` |
 | `recover_corruption(backup_path=None, *, target="rag", dry_run=False)` | `-> RecoveryResult` | Integrity check + VACUUM or restore from backup |
+
+### `MaintenanceMode` and `MaintenanceResult`
+
+```python
+class MaintenanceMode(StrEnum):
+    STRICT = "strict"        # Exceptions propagate (default; preserves existing behavior)
+    BEST_EFFORT = "best_effort"  # Exceptions caught, logged, returned in MaintenanceResult
+
+@dataclass(frozen=True)
+class MaintenanceResult:
+    success: bool
+    action: str              # "vacuum" | "vacuum_failed" | "purge" | "purge_failed" | "prune" | "prune_failed"
+    mode: MaintenanceMode
+    detail: str | None = None  # Exception message on failure
+    data: dict | None = None   # e.g. {"age_deleted": N, "count_deleted": N} or {"deleted": N}
+```
+
+**Mode semantics:**
+- `STRICT` (default): behavior unchanged from pre-mode code — exceptions propagate; on success a `MaintenanceResult(success=True)` is returned
+- `BEST_EFFORT`: exceptions are caught, logged as ERROR, and returned as `MaintenanceResult(success=False, detail=str(exc))`; callers MUST check `result.success`
+
+```python
+from db.maintenance import MaintenanceMode, MaintenanceResult, vacuum_db
+
+# STRICT mode (default) — raises on error
+result = vacuum_db(db)
+assert result.success
+
+# BEST_EFFORT mode — caller checks result
+result = vacuum_db(db, mode=MaintenanceMode.BEST_EFFORT)
+if not result.success:
+    logger.error("vacuum failed: %s", result.detail)
+```
 
 ### `RetentionConfig`
 
@@ -262,13 +295,15 @@ class RetentionConfig:
 2. If remaining count > `max_sessions`: delete oldest excess sessions (`count_deleted`)
 3. Assumes `messages` has `ON DELETE CASCADE`
 4. Calls `db.conn.commit()` at end
+5. Returns `MaintenanceResult(success=True, data={"age_deleted": N, "count_deleted": N})`
 
 ### `prune_old_memories` behavior
 
 1. Collect `memory_id` values older than `older_than_days`
 2. Delete from `memories`, `memories_fts`, `memories_vec`
 3. Call `db.commit()`
-4. On failure: exception propagates (no try/except — `maintenance.py:122–130`)
+4. Returns `MaintenanceResult(success=True, data={"deleted": N})`
+5. On failure in STRICT mode: exception propagates; in BEST_EFFORT mode: returns `success=False`
 
 ---
 
@@ -316,7 +351,7 @@ Uses SQLite online backup API to preserve WAL integrity.
 | sqlite-vec load error | `sqlite3.OperationalError` → connection failure |
 | Schema DDL failure | Exception re-raised from `executescript()` |
 | Integrity check failure | Error logged + backup restore attempted |
-| `prune_old_memories` failure | Exception propagates (no catch) |
+| `prune_old_memories` failure | STRICT: exception propagates; BEST_EFFORT: returns `MaintenanceResult(success=False)` |
 | `commit()` error | Logs WARNING + re-raises `sqlite3.OperationalError` |
 | `close()` error | Logs WARNING; does NOT raise |
 
@@ -353,7 +388,8 @@ sqlite3 /opt/llm/db/session.sqlite ".tables"
 | How to write atomically | `with db.begin_immediate():` inside an `open(write_mode=True)` context |
 | What does `target="workflow"` connect to | `workflow.sqlite` — task tracking DB |
 | How to validate embedding BLOB | `validate_embedding_blob(blob)` from `db.store` |
-| How to purge old sessions | `purge_old_sessions(db, RetentionConfig(...))` |
+| How to purge old sessions | `purge_old_sessions(db, RetentionConfig(...))` — returns `MaintenanceResult`; check `.success` |
 | How to recover from corruption | `recover_corruption(backup_path=..., target="rag")` |
 | Where does `ToolResultStore` save data | `tool_results` table in `session.sqlite` |
-| Does `prune_old_memories` catch exceptions? | **No** — exceptions propagate (`maintenance.py:122–130`) |
+| Does `prune_old_memories` catch exceptions? | **STRICT** (default): propagates; **BEST_EFFORT**: caught and returned in `MaintenanceResult` |
+| How to use BEST_EFFORT mode | Pass `mode=MaintenanceMode.BEST_EFFORT` to `vacuum_db`, `purge_old_sessions`, or `prune_old_memories` |

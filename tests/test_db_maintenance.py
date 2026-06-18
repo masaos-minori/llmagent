@@ -10,9 +10,12 @@ import pytest
 from db.config import DbConfig
 from db.helper import SQLiteHelper
 from db.maintenance import (
+    MaintenanceMode,
+    MaintenanceResult,
     RecoveryResult,
     RetentionConfig,
     checkpoint_wal,
+    prune_old_memories,
     purge_old_sessions,
     recover_corruption,
     rotate_rag_db,
@@ -109,8 +112,10 @@ class TestPurgeOldSessions:
         )
         cfg = RetentionConfig(max_sessions=10, max_age_days=0)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
-        assert result.age_deleted == 0
-        assert result.count_deleted == 0
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["age_deleted"] == 0
+        assert result.data["count_deleted"] == 0
 
     def test_age_based_deletion(self) -> None:
         # One very old session, one recent
@@ -122,8 +127,10 @@ class TestPurgeOldSessions:
         )
         cfg = RetentionConfig(max_sessions=100, max_age_days=1)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
-        assert result.age_deleted == 1
-        assert result.count_deleted == 0
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["age_deleted"] == 1
+        assert result.data["count_deleted"] == 0
 
     def test_count_based_deletion(self) -> None:
         # 5 sessions, keep only 2 most recent
@@ -138,7 +145,9 @@ class TestPurgeOldSessions:
         )
         cfg = RetentionConfig(max_sessions=2, max_age_days=0)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
-        assert result.count_deleted == 3
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["count_deleted"] == 3
         # Verify only 2 rows remain
         assert db.conn is not None
         rows = db.conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
@@ -148,7 +157,9 @@ class TestPurgeOldSessions:
         db = _make_session_db([("old", "2000-01-01 00:00:00")])
         cfg = RetentionConfig(max_sessions=100, max_age_days=0)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
-        assert result.age_deleted == 0
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["age_deleted"] == 0
 
     def test_cascade_deletes_messages(self) -> None:
         db = _make_session_db(
@@ -295,8 +306,10 @@ class TestCheckpointAndVacuum:
 
     def test_vacuum_db_delegates(self) -> None:
         mock_db = self._make_mock_db()
-        vacuum_db(mock_db)
+        result = vacuum_db(mock_db)
         mock_db.vacuum.assert_called_once()
+        assert result.success is True
+        assert result.action == "vacuum"
 
 
 # ── prune_old_memories ────────────────────────────────────────────────────────
@@ -316,16 +329,14 @@ class TestPruneOldMemories:
         return mock
 
     def test_no_old_memories_returns_zero(self) -> None:
-        from db.maintenance import prune_old_memories
-
         mock_db = self._make_db(fetchall_return=[])
         result = prune_old_memories(mock_db, older_than_days=30)
-        assert result == 0
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["deleted"] == 0
         mock_db.execute.assert_not_called()
 
     def test_deletes_old_memories_and_fts(self) -> None:
-        from db.maintenance import prune_old_memories
-
         mid = "abc-uuid"
         mock_db = self._make_db(
             fetchall_return=[(mid,)],
@@ -333,7 +344,9 @@ class TestPruneOldMemories:
         )
         result = prune_old_memories(mock_db, older_than_days=30)
 
-        assert result == 1
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["deleted"] == 1
         # memories テーブルと memories_fts テーブルから削除されること
         calls = [str(c) for c in mock_db.execute.call_args_list]
         assert any("DELETE FROM memories WHERE" in c for c in calls)
@@ -341,14 +354,12 @@ class TestPruneOldMemories:
         mock_db.commit.assert_called_once()
 
     def test_memories_vec_exception_raises(self) -> None:
-        from db.maintenance import prune_old_memories
-
         mid = "abc-uuid"
         mock_db = self._make_db(
             fetchall_return=[(mid,)],
             rowcount=1,
         )
-        # memories_vec deletion failure propagates (fail-fast)
+        # memories_vec deletion failure propagates in STRICT mode (default)
         mock_db.execute.side_effect = [
             MagicMock(rowcount=1),  # DELETE FROM memories
             MagicMock(),  # DELETE FROM memories_fts
@@ -795,3 +806,80 @@ class TestDbMaintenanceServiceDocuments:
         call_args = mock_cls.return_value.open.return_value.__enter__.return_value.fetchall.call_args
         sql_used = call_args[0][0]
         assert "WHERE d.lang = ?" in sql_used
+
+
+# ── MaintenanceMode ────────────────────────────────────────────────────────────
+
+
+class TestMaintenanceMode:
+    def test_vacuum_strict_mode_raises_on_error(self) -> None:
+        mock_db = MagicMock(spec=SQLiteHelper)
+        mock_db.vacuum.side_effect = sqlite3.OperationalError("disk full")
+        with pytest.raises(sqlite3.OperationalError, match="disk full"):
+            vacuum_db(mock_db, mode=MaintenanceMode.STRICT)
+
+    def test_vacuum_best_effort_returns_failure_result(self) -> None:
+        mock_db = MagicMock(spec=SQLiteHelper)
+        mock_db.vacuum.side_effect = sqlite3.OperationalError("disk full")
+        result = vacuum_db(mock_db, mode=MaintenanceMode.BEST_EFFORT)
+        assert isinstance(result, MaintenanceResult)
+        assert result.success is False
+        assert result.action == "vacuum_failed"
+        assert result.detail is not None
+        assert "disk full" in result.detail
+        assert result.mode == MaintenanceMode.BEST_EFFORT
+
+    def test_vacuum_best_effort_returns_success_result(self) -> None:
+        mock_db = MagicMock(spec=SQLiteHelper)
+        result = vacuum_db(mock_db, mode=MaintenanceMode.BEST_EFFORT)
+        assert result.success is True
+        assert result.action == "vacuum"
+        assert result.mode == MaintenanceMode.BEST_EFFORT
+
+    def test_purge_best_effort_returns_partial_result_on_error(self) -> None:
+        mock_db = MagicMock(spec=SQLiteHelper)
+        mock_db.execute.side_effect = sqlite3.OperationalError("lock timeout")
+        # max_age_days=1 triggers the age-based DELETE (execute), which raises
+        result = purge_old_sessions(
+            mock_db,  # type: ignore[arg-type]
+            RetentionConfig(max_sessions=100, max_age_days=1),
+            mode=MaintenanceMode.BEST_EFFORT,
+        )
+        assert isinstance(result, MaintenanceResult)
+        assert result.success is False
+        assert result.action == "purge_failed"
+        assert result.detail is not None
+        assert "lock timeout" in result.detail
+        assert result.mode == MaintenanceMode.BEST_EFFORT
+
+    def test_purge_strict_raises_on_error(self) -> None:
+        mock_db = MagicMock(spec=SQLiteHelper)
+        mock_db.execute.side_effect = sqlite3.OperationalError("lock timeout")
+        # max_age_days=1 triggers the age-based DELETE (execute), which raises
+        with pytest.raises(sqlite3.OperationalError, match="lock timeout"):
+            purge_old_sessions(
+                mock_db,  # type: ignore[arg-type]
+                RetentionConfig(max_sessions=100, max_age_days=1),
+                mode=MaintenanceMode.STRICT,
+            )
+
+    def test_prune_best_effort_returns_failure_on_error(self) -> None:
+        mock_db = MagicMock(spec=SQLiteHelper)
+        mock_db.fetchall.return_value = [("uuid-1",)]
+        mock_db.execute.side_effect = Exception("no vec table")
+        result = prune_old_memories(
+            mock_db, older_than_days=30, mode=MaintenanceMode.BEST_EFFORT
+        )
+        assert isinstance(result, MaintenanceResult)
+        assert result.success is False
+        assert result.action == "prune_failed"
+        assert result.detail is not None
+        assert "no vec table" in result.detail
+        assert result.mode == MaintenanceMode.BEST_EFFORT
+
+    def test_prune_strict_raises_on_error(self) -> None:
+        mock_db = MagicMock(spec=SQLiteHelper)
+        mock_db.fetchall.return_value = [("uuid-1",)]
+        mock_db.execute.side_effect = Exception("no vec table")
+        with pytest.raises(Exception, match="no vec table"):
+            prune_old_memories(mock_db, older_than_days=30, mode=MaintenanceMode.STRICT)

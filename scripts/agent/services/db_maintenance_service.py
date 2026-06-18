@@ -82,8 +82,9 @@ class DbMaintenanceService:
         cfg = _build_retention_config(max_sessions, max_age_days)
         with SQLiteHelper("session").open(write_mode=True) as db:
             raw = purge_old_sessions(db, cfg)
+        data = raw.data or {}
         return DbPurgeResult(
-            sessions_removed=raw.age_deleted + raw.count_deleted,
+            sessions_removed=data.get("age_deleted", 0) + data.get("count_deleted", 0),
         )
 
     def recover(self, backup_path: str | None) -> DbRecoverResult:

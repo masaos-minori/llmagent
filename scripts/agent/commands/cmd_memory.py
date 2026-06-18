@@ -216,7 +216,8 @@ class _MemoryMixin(MixinBase):
             )
             return
         with SQLiteHelper("session").open(write_mode=True) as db:
-            deleted = prune_old_memories(db, days)
+            prune_result = prune_old_memories(db, days)
+        deleted = (prune_result.data or {}).get("deleted", 0)
         self._out.write_success(f"Pruned {deleted} entries older than {days} days")
         self._emit_memory_audit(
             MemoryOpResult(ok=True, memory_id="", action="pruned", count=deleted)
