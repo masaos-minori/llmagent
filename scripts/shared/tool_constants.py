@@ -95,6 +95,12 @@ SQLITE_TOOLS: frozenset[str] = frozenset(
     },
 )
 
+# Shell execution tools (shell-mcp)
+SHELL_TOOLS: frozenset[str] = frozenset({"shell_run"})
+
+# Web search tools (web-search-mcp)
+WEB_SEARCH_TOOLS: frozenset[str] = frozenset({"search_web"})
+
 
 def get_all_mcp_tool_names() -> frozenset[str]:
     """Return all known MCP tool names for conflict checking.
@@ -110,5 +116,7 @@ def get_all_mcp_tool_names() -> frozenset[str]:
         | CICD_TOOLS
         | MDQ_TOOLS
         | GIT_TOOLS
-        | SQLITE_TOOLS,
+        | SQLITE_TOOLS
+        | SHELL_TOOLS
+        | WEB_SEARCH_TOOLS,
     )

@@ -20,7 +20,9 @@ from shared.tool_constants import (
     MDQ_TOOLS,
     RAG_TOOLS,
     READ_TOOLS,
+    SHELL_TOOLS,
     SQLITE_TOOLS,
+    WEB_SEARCH_TOOLS,
     WRITE_TOOLS,
 )
 
@@ -44,12 +46,9 @@ _SET_ROUTES: tuple[_SetRoute, ...] = (
     _SetRoute(MDQ_TOOLS, "mdq"),
     _SetRoute(GIT_TOOLS, "git"),
     _SetRoute(SQLITE_TOOLS, "sqlite"),
+    _SetRoute(SHELL_TOOLS, "shell"),
+    _SetRoute(WEB_SEARCH_TOOLS, "web_search"),
 )
-
-_EXACT_ROUTES: dict[str, str] = {
-    "shell_run": "shell",
-    "search_web": "web_search",
-}
 
 _GITHUB_PREFIX = "github_"
 
@@ -98,7 +97,7 @@ class ToolRouteResolver:
     Routing priority:
       1. Discovery map (live /v1/tools metadata with server_key)
       2. Config-driven (tool_names list from mcp_servers config)
-      3. Static fallback (SET_ROUTES, EXACT_ROUTES, prefix matching)
+      3. Static fallback (SET_ROUTES, github prefix matching)
     Raises ValueError when none of the above match.
     """
 
@@ -109,6 +108,7 @@ class ToolRouteResolver:
         discovery_map: dict[str, str] | None = None,
         warn_on_fallback: bool = False,
         strict_mode: bool = False,
+        known_tools: frozenset[str] | None = None,
     ) -> None:
         # Discovery map from live /v1/tools metadata (highest priority).
         self._discovery_map: dict[str, str] = discovery_map or {}
@@ -119,6 +119,8 @@ class ToolRouteResolver:
                 self._config_map[tool_name] = key
         self._warn_on_fallback = warn_on_fallback
         self._strict_mode = strict_mode
+        if known_tools:
+            self._log_routing_coverage(known_tools)
 
     def resolve(self, tool_name: str) -> str:
         """Return the server key for tool_name; raises ValueError when no match."""
@@ -142,11 +144,34 @@ class ToolRouteResolver:
 
     def _fallback_route(self, tool_name: str) -> str:
         """Static routing preserved from the original ToolExecutor._route()."""
-        if (route := _EXACT_ROUTES.get(tool_name)) is not None:
-            return route
         if tool_name.startswith(_GITHUB_PREFIX):
             return "github"
         for entry in _SET_ROUTES:
             if tool_name in entry.tool_set:
                 return entry.server_key
         raise ValueError(f"Unknown tool: {tool_name!r}")
+
+    def _log_routing_coverage(self, known_tools: frozenset[str]) -> None:
+        """Log routing coverage for all known tools at startup."""
+        mapped: list[str] = []
+        unmapped: list[str] = []
+        for tool_name in sorted(known_tools):
+            if tool_name in self._discovery_map or tool_name in self._config_map:
+                mapped.append(tool_name)
+                continue
+            try:
+                self._fallback_route(tool_name)
+                mapped.append(tool_name)
+            except ValueError:
+                unmapped.append(tool_name)
+        total = len(known_tools)
+        if unmapped:
+            logger.warning(
+                "Routing: %d/%d tools mapped; %d unmapped: %s",
+                len(mapped),
+                total,
+                len(unmapped),
+                unmapped,
+            )
+        else:
+            logger.info("Routing: %d/%d tools mapped", total, total)
