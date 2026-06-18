@@ -69,7 +69,12 @@ def _make_ctx() -> MagicMock:
 
 def _make_orchestrator(ctx: MagicMock, on_error: Any = None) -> Orchestrator:
     on_first_turn = AsyncMock()
-    return Orchestrator(ctx, on_error=on_error, on_first_turn=on_first_turn)
+    return Orchestrator(
+        ctx,
+        on_error=on_error,
+        on_first_turn=on_first_turn,
+        workflow_mode="disabled",
+    )
 
 
 def _make_err(
@@ -492,7 +497,7 @@ class TestAllowedToolsOverride:
         async def _capture_allowed(*_: object, **__: object) -> None:
             captured.append(list(ctx.cfg.tool.allowed_tools))
 
-        orch = Orchestrator(ctx, allowed_tools=["search_web"])
+        orch = Orchestrator(ctx, allowed_tools=["search_web"], workflow_mode="disabled")
         with patch.object(
             orch, "_handle_memory_injection", side_effect=_capture_allowed
         ):
@@ -510,7 +515,7 @@ class TestAllowedToolsOverride:
         """ctx.cfg.tool.allowed_tools is restored to its original value after the turn."""
         ctx = _make_ctx()
         ctx.cfg.tool.allowed_tools = ["write_file"]
-        orch = Orchestrator(ctx, allowed_tools=["search_web"])
+        orch = Orchestrator(ctx, allowed_tools=["search_web"], workflow_mode="disabled")
         with patch.object(orch, "_handle_memory_injection", AsyncMock()):
             with patch.object(
                 orch._llm_runner,
@@ -593,7 +598,7 @@ class TestWorkflowMode:
             await orch.handle_turn("hello")  # must not raise
 
     @pytest.mark.asyncio
-    async def test_auto_mode_state_store_failure_falls_back(self) -> None:
+    async def test_auto_mode_state_store_failure_raises(self) -> None:
         ctx = _make_ctx()
         mock_wf = MagicMock()
         with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
@@ -602,9 +607,9 @@ class TestWorkflowMode:
         assert orch._workflow_def is mock_wf
         with (
             patch("agent.orchestrator.StateStore", side_effect=RuntimeError("db gone")),
-            patch.object(orch._llm_runner, "run", self._ok_run()),
+            pytest.raises(RuntimeError, match="db gone"),
         ):
-            await orch.handle_turn("hello")  # must not raise
+            await orch.handle_turn("hello")
 
     # -- required mode -------------------------------------------------------
 
@@ -628,7 +633,7 @@ class TestWorkflowMode:
         assert orch._workflow_def is mock_wf
         with (
             patch("agent.orchestrator.StateStore", side_effect=RuntimeError("db gone")),
-            pytest.raises(RuntimeError, match="workflow unavailable"),
+            pytest.raises(RuntimeError, match="db gone"),
         ):
             await orch.handle_turn("hello")
 

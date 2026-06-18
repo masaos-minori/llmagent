@@ -117,15 +117,7 @@ class Orchestrator:
             await self._handle_turn_end(line, answer, turn_started_at, error_kind)
             return
 
-        store: StateStore | None = None
-        try:
-            store = StateStore()
-        except RuntimeError as exc:
-            self._log_fallback(f"state_store unavailable: {exc}")
-            answer, error_kind = await self._process_turn(line, ctx, turn_started_at)
-            await self._handle_turn_end(line, answer, turn_started_at, error_kind)
-            return
-
+        store = StateStore()
         try:
             session_id = (
                 str(ctx.session.session_id) if ctx.session.session_id else "none"
@@ -136,6 +128,9 @@ class Orchestrator:
                 workflow_version=self._workflow_def.version,
             )
             audit_workflow_start(ctx, task.task_id, self._workflow_def.version)
+            ctx.workflow.current_task_id = task.task_id
+            ctx.workflow.current_workflow_version = self._workflow_def.version
+            ctx.workflow.active = True
             engine = WorkflowEngine(self._workflow_def, store, tracer=self._tracer)
 
             async def plan_fn() -> str | None:
@@ -156,6 +151,8 @@ class Orchestrator:
                 return None
 
             await engine.run(task, plan_fn, execute_fn, verify_fn)
+            ctx.workflow.active = False
+            ctx.workflow.current_task_id = None
         except WorkflowPendingApprovalError as exc:
             logger.info(
                 "Turn suspended: awaiting approval %s for task %s",
@@ -164,8 +161,11 @@ class Orchestrator:
             )
             audit_approval_requested(ctx, exc.task_id, exc.approval_id)
             ctx.turn.pending_approval_id = exc.approval_id
+            ctx.workflow.approval_pending = True
         except WorkflowHaltError as exc:
             logger.error("Turn halted by workflow engine: %s", exc)
+            ctx.workflow.active = False
+            ctx.workflow.current_task_id = None
             if self._on_error:
                 self._on_error(exc)
         finally:

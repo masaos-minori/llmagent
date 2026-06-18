@@ -40,6 +40,23 @@ Turn-scoped. Reset between turns.
 | `last_error_kind` | `str\|None` | `None` | Error kind from the most recent turn failure; `None` when last turn succeeded |
 | `pending_approval_id` | `str\|None` | `None` | Approval ID when the last workflow turn was suspended for human approval |
 
+### WorkflowState (`ctx.workflow`)
+
+Session-scoped workflow runtime state. Transient — not persisted across REPL restarts.
+Durable task state lives in `workflow.sqlite` (via `StateStore`).
+
+| Field | Type | Initial | Description |
+|---|---|---|---|
+| `active` | `bool` | `False` | `True` while `WorkflowEngine.run()` is executing |
+| `current_task_id` | `str\|None` | `None` | Task ID of the running workflow task; `None` when idle |
+| `current_workflow_version` | `str\|None` | `None` | Workflow version string from `WorkflowDef` |
+| `approval_pending` | `bool` | `False` | `True` when the turn was suspended at an approval gate |
+| `last_session_id` | `str\|None` | `None` | Session ID used on the most recent `create_task()` call |
+
+`Orchestrator.handle_turn()` sets `active=True` and `current_task_id` on task creation;
+clears both after engine completion or `WorkflowHaltError`.
+`approval_pending=True` is set on `WorkflowPendingApprovalError` (turn suspended).
+
 ### RuntimeStats (`ctx.stats`)
 
 Session-cumulative counters and latency samples.

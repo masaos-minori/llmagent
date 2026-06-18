@@ -92,6 +92,17 @@ class RuntimeStats:
     stat_output_tokens: int | None = None
 
 
+@dataclass
+class WorkflowState:
+    """Per-session workflow runtime state; transient, not persisted."""
+
+    active: bool = False
+    current_task_id: str | None = None
+    current_workflow_version: str | None = None
+    approval_pending: bool = False
+    last_session_id: str | None = None
+
+
 class AppServices:
     """Fully-initialized service references built by factory.py.
 
@@ -133,8 +144,8 @@ class AppServices:
 class AgentContext:
     """Mutable runtime state shared between AgentREPL and CommandRegistry.
 
-    Composes ConversationState, TurnState, RuntimeStats, and AppServices.
-    Access sub-structures directly: ctx.conv.*, ctx.turn.*, ctx.stats.*.
+    Composes ConversationState, TurnState, RuntimeStats, WorkflowState, and AppServices.
+    Access sub-structures directly: ctx.conv.*, ctx.turn.*, ctx.stats.*, ctx.workflow.*.
 
     ctx.services is None until factory.build_agent_context() completes.
     """
@@ -143,6 +154,7 @@ class AgentContext:
         self.conv = ConversationState()
         self.turn = TurnState()
         self.stats = RuntimeStats()
+        self.workflow = WorkflowState()
         self.cfg = build_agent_config()
         self.session = AgentSession()
         # Persistent store for full tool results; /tool show <id> retrieves them

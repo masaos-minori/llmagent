@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from db.helper import SQLiteHelper
 
@@ -81,11 +82,7 @@ class StateStore:
         )
         self._db.commit()
 
-    def get_task_by_idempotency_key(self, key: str) -> TaskRecord | None:
-        rows = self._db.fetchall("SELECT * FROM tasks WHERE idempotency_key=?", (key,))
-        if not rows:
-            return None
-        r = rows[0]
+    def _row_to_task(self, r: Any) -> TaskRecord:
         return TaskRecord(
             task_id=r["task_id"],
             session_id=r["session_id"],
@@ -96,6 +93,38 @@ class StateStore:
             created_at=r["created_at"],
             updated_at=r["updated_at"],
         )
+
+    def get_task_by_idempotency_key(self, key: str) -> TaskRecord | None:
+        rows = self._db.fetchall("SELECT * FROM tasks WHERE idempotency_key=?", (key,))
+        if not rows:
+            return None
+        return self._row_to_task(rows[0])
+
+    def get_task_by_session(self, session_id: str) -> list[TaskRecord]:
+        """Return all tasks for a session ordered by created_at ascending."""
+        rows = self._db.fetchall(
+            "SELECT * FROM tasks WHERE session_id=? ORDER BY created_at ASC",
+            (session_id,),
+        )
+        return [self._row_to_task(r) for r in rows]
+
+    def get_latest_task(self, session_id: str) -> TaskRecord | None:
+        """Return the most recently created task for a session."""
+        rows = self._db.fetchall(
+            "SELECT * FROM tasks WHERE session_id=? ORDER BY created_at DESC LIMIT 1",
+            (session_id,),
+        )
+        if not rows:
+            return None
+        return self._row_to_task(rows[0])
+
+    def list_tasks(self, limit: int = 50) -> list[TaskRecord]:
+        """Return up to `limit` tasks ordered by created_at descending."""
+        rows = self._db.fetchall(
+            "SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        )
+        return [self._row_to_task(r) for r in rows]
 
     # ── Attempt ───────────────────────────────────────────────────────────────
 
