@@ -56,6 +56,10 @@ class _ConfigMixin(
                 self._out.write("Applied (runtime):")
                 for item in result.applied:
                     self._out.write(f"  - {item}")
+            if result.skipped:
+                self._out.write("Skipped:")
+                for item in result.skipped:
+                    self._out.write(f"  - {item}")
             if result.needs_restart:
                 self._out.write("Restart required:")
                 for item in result.needs_restart:
