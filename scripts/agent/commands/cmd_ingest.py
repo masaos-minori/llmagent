@@ -109,7 +109,7 @@ class _IngestMixin(MixinBase):
             self._out.write("HTTP client not available.")
             return
 
-        rag_cfg_dict = ConfigLoader().load("common.toml", "rag.toml")
+        rag_cfg_dict = ConfigLoader().load_all()
 
         if not rag_cfg_dict.get("use_search", True):
             self._out.write("RAG search is disabled (use_search=false in config).")

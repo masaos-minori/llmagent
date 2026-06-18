@@ -74,7 +74,7 @@ class _ModuleConfig:
         """Load config on first call; cached for the class lifetime."""
         if cls._cache is None:
             try:
-                cls._cache = ConfigLoader().load("common.toml", "agent.toml")
+                cls._cache = ConfigLoader().load_all()
             except (FileNotFoundError, ValueError) as e:
                 logger.warning("Config load failed: %s", e)
                 cls._cache = {}

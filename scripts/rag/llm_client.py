@@ -56,7 +56,7 @@ def _get_cached_llm_url() -> str:
     global _llm_url_cache
     if _llm_url_cache is None:
         try:
-            cfg = ConfigLoader().load("common.toml", "agent.toml")
+            cfg = ConfigLoader().load_all()
             _llm_url_cache = cfg.get("llm_url", "")
         except (FileNotFoundError, ValueError):
             _llm_url_cache = ""

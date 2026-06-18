@@ -53,10 +53,10 @@ class RagIngester:
     """Embeds chunk files produced by ChunkSplitter and inserts them into SQLite; chunks are grouped by URL and moved to registered/ after ingestion."""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
-        cfg: dict[str, Any] = config or ConfigLoader().load(
-            "common.toml",
-            "rag_pipeline.toml",
-        )
+        cfg: dict[str, Any] = config or {
+            **ConfigLoader().load_all(),
+            **ConfigLoader().load("rag_pipeline.toml"),
+        }
         rag_src_dir = Path(cfg["rag_src_dir"])
         self._chunk_dir: Path = rag_src_dir / "chunk"
         self._registered_dir: Path = rag_src_dir / "registered"

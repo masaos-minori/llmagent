@@ -16,6 +16,7 @@ import orjson
 logger = logging.getLogger(__name__)
 
 _BASE_CONFIG_FILES: tuple[str, ...] = (
+    "common.toml",
     "llm.toml",
     "http.toml",
     "rag.toml",
