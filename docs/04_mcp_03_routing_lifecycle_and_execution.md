@@ -78,7 +78,7 @@ result = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
 ### Cache behavior
 
 - Only caches `is_error=False` results
-- Cache key: `f"{tool_name}:{orjson_dumps(args)}"` (plain string; NOT MD5)
+- Cache key: `f"{tool_name}:{_json_dumps(args)}"` (plain string; NOT MD5)
 - Entries expire after `cache_ttl` seconds
 - LRU eviction when `cache_max_size > 0` (`0` = unlimited)
 - Cache hit: `request_id=""` (no live request made)

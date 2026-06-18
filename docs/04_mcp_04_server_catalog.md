@@ -81,15 +81,15 @@ All providers failed → HTTP 502.
 **Config:** `config/github_mcp_server.toml`
 **Auth:** `GITHUB_TOKEN` env var (PAT); without it: 60 req/hour anonymous
 
-**Tools (21):** All prefixed `github_`: `search_repositories`, `get_file_contents`,
-`push_files`, `github_delete_file`, `list_branches`, `get_commit`, `list_issues`, `get_issue`,
-`create_issue`, `search_issues`, `list_pull_requests`, `get_pull_request`,
-`search_pull_requests`, `update_pull_request`, `merge_pull_request`, `list_commits`,
-`search_code`, `create_pull_request`, `create_branch`, `create_or_update_file`, `add_issue_comment`
+**Tools (21):** All prefixed `github_`: `github_search_repositories`, `github_get_file_contents`,
+`github_push_files`, `github_delete_file`, `github_list_branches`, `github_get_commit`, `github_list_issues`, `github_get_issue`,
+`github_create_issue`, `github_search_issues`, `github_list_pull_requests`, `github_get_pull_request`,
+`github_search_pull_requests`, `github_update_pull_request`, `github_merge_pull_request`, `github_list_commits`,
+`github_search_code`, `github_create_pull_request`, `github_create_branch`, `github_create_or_update_file`, `github_add_issue_comment`
 
 **Write operations (9) are subject to repo allowlist:**
-`create_branch`, `create_or_update_file`, `push_files`, `github_delete_file`,
-`create_issue`, `add_issue_comment`, `create_pull_request`, `update_pull_request`, `merge_pull_request`
+`github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`,
+`github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`, `github_update_pull_request`, `github_merge_pull_request`
 
 **Security controls:**
 - `allowed_repos` / `allowed_repos_mode` (fail-closed by default)
@@ -150,7 +150,7 @@ All providers failed → HTTP 502.
 ## shell-mcp (port 8009)
 
 **Purpose:** Sandboxed shell command execution within `command_allowlist`.
-**Startup mode:** `subprocess` (agent-managed subprocess; NOT OpenRC-managed)
+**Startup mode:** persistent (HTTP, OpenRC `shell-mcp`)
 **Config:** `config/shell_mcp_server.toml`
 
 **Tools (1):** `shell_run`
@@ -215,7 +215,7 @@ All providers failed → HTTP 502.
 ## sqlite-mcp (port 8011)
 
 **Purpose:** Read-only SELECT queries against registered SQLite databases.
-**Startup mode:** `subprocess` (agent-managed subprocess; NOT OpenRC)
+**Startup mode:** persistent (HTTP, OpenRC `sqlite-mcp`)
 **Config:** `config/sqlite_mcp_server.toml`
 
 **Tools (1):** `query_sqlite`

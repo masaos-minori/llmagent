@@ -52,11 +52,12 @@ Each entry format:
 
 ### DOC-01: Cache key documented as MD5, code uses plain string
 
-- **Type:** Document inconsistency
+- **Type:** Document inconsistency (resolved)
 - **Impact scope:** `shared/tool_executor.py`, `04_mcp_03_routing_lifecycle_and_execution.md`
 - **Description:** Docs state cache key is `MD5(tool_name + orjson_sorted(args))`. The code uses `f"{tool_name}:{_json_dumps(args)}"` — a plain string without hashing. A separate `tool_call_key()` MD5 helper function exists in the codebase but is never called in the cache path.
+- **Resolution:** Doc updated 2026-06-18 — cache key documented as plain string, NOT MD5. The `tool_call_key()` function remains unused (available for future use).
 - **Current safe interpretation:** The cache key is a plain concatenation of tool name and JSON args with colon separator. No hash is computed.
-- **Recommended action:** Update the doc or remove the unused `tool_call_key()` function.
+- **Recommended action:** Complete.
 
 ---
 

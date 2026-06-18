@@ -129,6 +129,13 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | `/tool show <id>` | None | Display full tool result |
 | `/plan` | None | Toggle `ctx.conv.plan_mode` |
 
+### Workflow category
+
+| Command | Side effects | Related state |
+|---|---|---|
+| `/approve [reason]` | Resolves suspended workflow approval as approved | `ctx.turn.pending_approval_id` |
+| `/reject [reason]` | Resolves suspended workflow approval as rejected | `ctx.turn.pending_approval_id` |
+
 ### Note category
 
 | Command | Side effects | Related state |

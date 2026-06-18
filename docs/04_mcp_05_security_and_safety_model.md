@@ -63,9 +63,9 @@ allowed_repos_mode = "fail_closed"   # default
 | `fail_closed` (default) | All writes denied | Only listed repos allowed |
 | `fail_open` | All repos allowed | Only listed repos allowed |
 
-Applies to 9 write operations: `create_branch`, `create_or_update_file`, `push_files`,
-`github_delete_file`, `create_issue`, `add_issue_comment`, `create_pull_request`,
-`update_pull_request`, `merge_pull_request`.
+Applies to 9 write operations: `github_create_branch`, `github_create_or_update_file`, `github_push_files`,
+`github_delete_file`, `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`,
+`github_update_pull_request`, `github_merge_pull_request`.
 
 ### `repo_allowlist` (cicd-mcp)
 

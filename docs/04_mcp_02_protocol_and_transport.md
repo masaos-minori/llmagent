@@ -198,7 +198,7 @@ When result exceeds 512 KB:
 |---|---|---|
 | web-search-mcp | `dependencies.brave_api_key`, `dependencies.bing_api_key` (both `"set"`/`"not_set"`); `details.providers` (list) |
 | github-mcp | `dependencies.github_token` (`"set"`/`"not_set"`) |
-| mdq-mcp | `details.service: "mdq-mcp"` |
+| mdq-mcp | root-level `"stub": true` (marks experimental status); `details.service: "mdq-mcp"` |
 | Others | Base response only: `{"status":"ok","ready":bool,"dependencies":{},"details":{}}` |
 
 ---

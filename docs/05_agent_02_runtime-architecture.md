@@ -127,7 +127,7 @@ all services. Sub-structures:
 
 ### CommandRegistry (`agent/commands/registry.py`)
 
-10 mixins, each owning a command group. Dispatches built-in commands first, then plugin commands.
+12 mixins, each owning a command group. Dispatches built-in commands first, then plugin commands.
 
 | Mixin | Commands |
 |---|---|
@@ -142,6 +142,7 @@ all services. Sub-structures:
 | `_AuditMixin` | `/audit` |
 | `_IngestMixin` | `/ingest`, `/export`, `/compact`, `/rag` |
 | `_MemoryMixin` | `/memory` |
+| `_WorkflowMixin` | `/approve`, `/reject` |
 
 ### CLIView (`agent/cli_view.py`)
 

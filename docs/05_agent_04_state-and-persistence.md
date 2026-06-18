@@ -36,6 +36,9 @@ Turn-scoped. Reset between turns.
 | Field | Type | Initial | Description |
 |---|---|---|---|
 | `current_turn_id` | `str\|None` | `None` | UUID4 set at turn start; `None` between turns |
+| `background_tasks` | `set[asyncio.Task[Any]]` | `set()` | Background tasks spawned during this turn; tracked for clean shutdown |
+| `last_error_kind` | `str\|None` | `None` | Error kind from the most recent turn failure; `None` when last turn succeeded |
+| `pending_approval_id` | `str\|None` | `None` | Approval ID when the last workflow turn was suspended for human approval |
 
 ### RuntimeStats (`ctx.stats`)
 

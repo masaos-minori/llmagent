@@ -98,6 +98,7 @@ The most recent `history_protect_turns` (default 2) turns are always protected.
 | Context | `/context`, `/compact`, `/system` |
 | DB | `/db stats\|urls\|clean\|rebuild-fts\|health\|checkpoint\|vacuum\|purge\|recover` |
 | Tool / plan | `/tool list\|show`, `/plan` |
+| Workflow | `/approve [reason]`, `/reject [reason]` |
 | Note | `/note add\|list\|delete` |
 | Debug / audit | `/debug`, `/audit` |
 | Ingest / RAG | `/ingest`, `/rag search`, `/compact` |
