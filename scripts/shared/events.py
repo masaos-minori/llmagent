@@ -2,7 +2,10 @@
 """shared/events.py
 Typed event definitions for agent lifecycle and artifact notifications.
 
-ArtifactEvent is a pure data definition — no event bus yet.
+ArtifactEvent is a pure data structure (TypedDict). It has no delivery system,
+no event bus, and no consumers. It exists solely as a type annotation for code
+that may emit artifact events in the future. Do not assume that creating an
+ArtifactEvent instance triggers any action.
 """
 
 from __future__ import annotations

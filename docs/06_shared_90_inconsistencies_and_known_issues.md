@@ -131,13 +131,11 @@ Each entry uses the required format:
 
 ### UNIMPL-01: `ArtifactEvent` event bus is not implemented
 
-- **Type:** Unimplemented
+- **Type:** RESOLVED (Option A — documented as data-only)
 - **Impact scope:** `shared/events.py::ArtifactEvent`
-- **Statement A:** `ArtifactEvent` is a `TypedDict` with fields for `event_type`, `repo`, `branch`, `commit`, `path`, `pr_number`, `session_id`, `timestamp`.
-- **Statement B:** `06_spec_shared.md §6.11` explicitly states: "Event bus is not implemented (pure data definition only)."
-- **Current safe interpretation:** `ArtifactEvent` is a data structure only. No publish/subscribe mechanism exists. Do not assume events are delivered to any subscriber.
-- **Recommended action:** Implement event bus before using `ArtifactEvent` in production workflows.
-- **Notes for AI reference:** Creating an `ArtifactEvent` dict does nothing. No listeners will receive it.
+- **Resolution (Option A selected):** Module docstring now explicitly states `ArtifactEvent` is a pure data structure with no delivery system, no event bus, and no consumers. The ambiguous phrase "no event bus yet" was replaced with clear documentation that creating an `ArtifactEvent` instance triggers no action.
+- **Recommended action:** None — use `ArtifactEvent` only as a type annotation. If an event bus is needed in the future, implement it as a separate feature.
+- **Notes for AI reference:** Creating an `ArtifactEvent` dict does nothing. No listeners will receive it. No consumers exist in the current codebase.
 
 ---
 
