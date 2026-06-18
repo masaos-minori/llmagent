@@ -271,14 +271,14 @@ All providers failed → HTTP 502.
 
 **Tools (7):** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`
 
-> **IMPORTANT — Placeholder Implementation:** The server schema, HTTP endpoints, and MCPServer
-> base class are complete. The service layer (`MdqService`) and search/index logic are PLACEHOLDERS.
-> All tools return stub strings (e.g., `"Search results for: {query}"`). No actual data operations occur.
-> See [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md).
+> **Experimental — Not Production-Ready:** FTS5 search and indexing are functionally implemented
+> (`MdqService` uses SQLite FTS5 virtual tables). All 7 tools carry `"status": "stub"` in their
+> tool metadata and the `/health` endpoint returns `"stub": true`. The server is not validated for
+> production load. Use `rag-pipeline-mcp` for production RAG search.
 
-**DB path:** `/opt/llm/db/mdq.db` (hardcoded in `MdqService.__init__()`)
+**DB path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)
 **Log:** `/opt/llm/logs/mdq-mcp.log`
-**When to use:** Currently stub only. Use `rag-pipeline-mcp` for actual search.
+**When to use:** Experimental only. Use `rag-pipeline-mcp` for production search.
 
 ---
 

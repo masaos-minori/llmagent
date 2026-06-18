@@ -1,5 +1,7 @@
 # Markdown Context Compression Engine MCP Server Configuration
 
+status = "stub"
+
 # Database path
 db_path = "/opt/llm/db/mdq.sqlite"
 

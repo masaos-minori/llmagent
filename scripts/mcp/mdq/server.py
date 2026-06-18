@@ -154,6 +154,7 @@ async def health() -> dict[str, object]:
     return {
         "status": "ok",
         "ready": ready,
+        "stub": True,
         "dependencies": deps,
         "details": {"service": "mdq-mcp"},
     }

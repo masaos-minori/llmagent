@@ -22,3 +22,15 @@ Each entry format:
 - **Recommended action:** Document the skip condition ("all servers unreachable → skip") in `05_agent_02_runtime-architecture.md`.
 
 ---
+
+### MISSING-01: mdq-mcp documentation claimed stub behavior but FTS5 is functional
+
+- **Type:** Document inconsistency (resolved)
+- **Impact scope:** `docs/04_mcp_04_server_catalog.md`, `scripts/mcp/mdq/tools.py`, `scripts/mcp/mdq/server.py`
+- **Statement A:** Documentation (catalog) stated "All tools return stub strings. No actual data operations occur."
+- **Statement B:** Code (`MdqService`) implements real FTS5 search/indexing using SQLite virtual tables (`sections_fts`).
+- **Resolution:** Statement B is correct. The service layer is functional. Tools carry `"status": "stub"` as metadata to signal the server is not production-validated, not that it is non-functional.
+- **Current safe interpretation:** mdq-mcp performs real FTS5 search/indexing. It is experimental and not production-validated. Prefer `rag-pipeline-mcp` for production workloads.
+- **Recommended action:** Completed — catalog updated to reflect FTS5 is functional; tool status set to `"stub"` as metadata signal; `/health` returns `"stub": true`.
+
+---
