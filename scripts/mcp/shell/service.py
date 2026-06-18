@@ -91,6 +91,11 @@ class ShellService:
                         policy.execution_user,
                     )
 
+    @property
+    def sandbox_backend(self) -> str:
+        """Return the resolved sandbox backend ('firejail' or 'none')."""
+        return self._sandbox_backend
+
     def _check_command(self, req: ShellRunRequest) -> list[str]:
         """Parse command and verify argv[0] is in the allowlist.
 

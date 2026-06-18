@@ -31,6 +31,11 @@ def _format_mcp_table(rows: list[McpProbeResult]) -> str:
         "-" * 99,
     ]
     for r in rows:
+        role_display = (
+            f"{r.role} [sb:{r.sandbox_backend}]".strip()
+            if r.sandbox_backend
+            else r.role
+        )
         lines.append(
             col.format(
                 r.key,
@@ -38,7 +43,7 @@ def _format_mcp_table(rows: list[McpProbeResult]) -> str:
                 r.startup_mode,
                 "yes" if r.auth else "no",
                 TIER_LABELS.get(r.tier, r.tier.value),
-                r.role,
+                role_display,
                 f"{r.availability.value}/{r.health}",
                 r.endpoint,
             )

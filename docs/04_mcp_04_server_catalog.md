@@ -180,6 +180,12 @@ All providers failed → HTTP 502.
 
 **Log:** `/opt/llm/logs/shell-mcp.log`
 
+> **Security note — Sandbox is disabled by default:** `sandbox_backend` defaults to `"none"`.
+> Shell commands run with the agent process's OS user and permissions — no container, no namespace isolation.
+> To enable sandboxing, install firejail and set `sandbox_backend = "firejail"` in
+> `config/shell_mcp_server.toml`. The active backend is visible in the `/health` response
+> (`"sandbox_backend": "none"` or `"sandbox_backend": "firejail"`).
+
 ---
 
 ## rag-pipeline-mcp (port 8010)

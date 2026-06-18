@@ -73,7 +73,9 @@ class McpStatusService:
         """Probe a single MCP server and return its status result."""
         auth = bool(cfg.auth_token)
         tier = _tier_for_server(cfg.tool_names, tiers)
-        availability, endpoint = await self._resolve_endpoint(probe, ctx, key, cfg)
+        availability, endpoint, sandbox_backend = await self._resolve_endpoint(
+            probe, ctx, key, cfg
+        )
         health = _resolve_health_state(ctx, key).value.upper()
         return McpProbeResult(
             key=key,
@@ -85,6 +87,7 @@ class McpStatusService:
             availability=availability,
             health=health,
             endpoint=endpoint,
+            sandbox_backend=sandbox_backend,
         )
 
     async def _resolve_endpoint(
@@ -93,29 +96,38 @@ class McpStatusService:
         ctx: AgentContext,
         key: str,
         cfg: Any,
-    ) -> tuple[McpAvailability, str]:
-        """Resolve availability and endpoint string for a single server."""
+    ) -> tuple[McpAvailability, str, str]:
+        """Resolve availability, endpoint string, and sandbox_backend for a single server."""
         if cfg.transport == "http":
-            return (await self._get_http_status(probe, cfg.url), cfg.url)
+            availability, sandbox_backend = await self._get_http_status(probe, cfg.url)
+            return availability, cfg.url, sandbox_backend
         return (
             self._get_stdio_status(ctx, key, cfg.startup_mode),
             " ".join(cfg.cmd) if cfg.cmd else "",
+            "",
         )
 
     async def _get_http_status(
         self, probe: httpx.AsyncClient, url: str
-    ) -> McpAvailability:
+    ) -> tuple[McpAvailability, str]:
         if not url:
-            return McpAvailability.NO_URL
+            return McpAvailability.NO_URL, ""
         try:
             r = await probe.get(f"{url}/health")
-            return (
-                McpAvailability.OK
-                if r.status_code == HTTPStatus.OK
-                else McpAvailability.HTTP_ERROR
-            )
+            if r.status_code == HTTPStatus.OK:
+                try:
+                    body = r.json()
+                    sandbox = (
+                        body.get("sandbox_backend", "")
+                        if isinstance(body, dict)
+                        else ""
+                    )
+                except Exception:
+                    sandbox = ""
+                return McpAvailability.OK, str(sandbox) if sandbox else ""
+            return McpAvailability.HTTP_ERROR, ""
         except (httpx.RequestError, httpx.HTTPStatusError):
-            return McpAvailability.FAIL
+            return McpAvailability.FAIL, ""
 
     def _get_stdio_status(
         self, ctx: AgentContext, key: str, startup_mode: str

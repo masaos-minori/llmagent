@@ -44,6 +44,7 @@ class McpProbeResult:
     availability: McpAvailability
     health: str
     endpoint: str
+    sandbox_backend: str = ""
 
 
 @dataclass(frozen=True)

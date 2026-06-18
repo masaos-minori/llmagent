@@ -94,7 +94,13 @@ async def health() -> dict[str, object]:
     except Exception:
         deps["shell"] = "check failed"
     ready = len(deps) == 0
-    return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
+    return {
+        "status": "ok",
+        "ready": ready,
+        "sandbox_backend": _service.sandbox_backend,
+        "dependencies": deps,
+        "details": {},
+    }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
