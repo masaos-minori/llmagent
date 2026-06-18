@@ -21,6 +21,7 @@ from shared.llm_client import LLMTransportError
 from shared.logger import Logger
 
 from agent.context import AgentContext
+from agent.diagnostic_store import DiagnosticStore
 from agent.llm_turn_runner import LLMTurnRunner
 from agent.tool_audit import (
     audit_approval_requested,
@@ -70,6 +71,7 @@ class Orchestrator:
         self._on_error = on_error
         self._tracer = tracer
         self._workflow_mode = workflow_mode
+        self._diagnostic_store = DiagnosticStore()
         self._guard = ToolLoopGuard(ctx)
         self._llm_runner = LLMTurnRunner(
             ctx,
@@ -356,7 +358,9 @@ class Orchestrator:
         if e.partial_text:
             incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
             # Store in diagnostic channel only — do NOT add to conversation history
-            ctx.session.save_diagnostic(incomplete_msg)
+            self._diagnostic_store.save(
+                ctx.session.session_id, "llm_transport_error", incomplete_msg
+            )
             try:
                 ctx.tool_result_store.store(
                     session_id=ctx.session.session_id,
