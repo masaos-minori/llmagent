@@ -311,10 +311,28 @@ class RagPipeline:
         )
 
     async def _augment_refiner(self, reranked: list[RagHit], query: str) -> str | None:
-        """Run the chunk refiner; returns None on empty output or LLM failure.
+        """Run the chunk refiner via ``refine_context()``.
 
-        The caller in ``augment()`` falls back to ``_format_chunks(reranked)`` (raw chunks)
-        when this returns None. See ``refine_context()`` for the full return contract.
+        This is a thin wrapper that adds status tracking and delegates to
+        ``refine_context()``. The refiner compresses reranked hits into
+        query-relevant key points using the LLM.
+
+        Config gates:
+            Only invoked when ``self._cfg.use_refiner`` is truthy. When disabled,
+            the caller skips directly to raw-chunk formatting.
+
+        Return semantics (delegated to ``refine_context()``):
+            - ``str`` (non-empty): Refined key points → returned as final result
+            - ``None``: Empty LLM output or any error → triggers raw-chunk fallback
+
+        Side effects:
+            Calls ``on_status("refining context...")`` if provided.
+            Updates ``self.last_stage_results`` with "Refiner" stage status
+            (``"success"`` or ``"fallback"``).
+
+        See Also:
+            refine_context: Full return contract, parameters, and error handling.
+            augment: Complete fallback chain including raw-chunk formatting.
         """
         return await refine_context(
             self._llm,
@@ -344,14 +362,39 @@ class RagPipeline:
     ) -> str:
         """Run full pipeline and return a context block; '' when disabled or no results.
 
-        Fallback chain (each step produces the final result unless it signals failure):
-        1. HTTP mode: ``_augment_http()`` returns str/"" on success, None on failure.
-           None triggers in-process fallback below.
-        2. Semantic cache lookup (in-process only): returns cached string or continues.
-        3. Search pipeline (semantic + FTS5 + merge + rerank): produces reranked hits.
-        4. Refiner: ``_augment_refiner()`` returns refined text on success, None on empty
-           output or LLM failure. None falls through to raw chunks.
-        5. Raw chunks: ``_format_chunks()`` formats reranked hits as the final context block.
+        Return values:
+            - ``str`` (non-empty): Augmented context from one of the pipeline stages
+            - ``""`` (empty string): Pipeline disabled (``use_search=False``), no cache
+              hit, no search results, or all stages produced empty output
+
+        Identity vs truthiness:
+            The HTTP and refiner stages use ``is not None`` identity checks (not
+            truthiness). This means ``""`` from HTTP is treated as a valid result,
+            while only explicit ``None`` triggers fallback.
+
+        Fallback chain (each step produces the final result unless it returns None):
+            1. HTTP mode: ``_augment_http()`` → str/"" (final) or None (fallback)
+            2. Semantic cache: cached string (final) or None (fallback)
+            3. Search pipeline: semantic + FTS5 + RRF merge + rerank → reranked hits
+            4. Refiner: ``_augment_refiner()`` → refined text (final) or None (fallback)
+            5. Raw chunks: ``_format_chunks(reranked)`` → formatted text (final)
+
+        Raw-chunk fallback conditions (step 5 is reached when):
+            - ``use_refiner=False`` (config disabled) → skip refiner, go to raw chunks
+            - Refiner returned ``None`` (empty LLM output or error) → use raw reranked hits
+            - HTTP stage returned ``None`` → entire in-process pipeline runs, ending at raw chunks
+
+        Raw-chunk format:
+            ``_format_chunks()`` wraps reranked hits in ``[RAG_CONTEXT_START]...[RAG_CONTEXT_END]``
+            markers with chunk content and metadata (title, URL, score).
+
+        Side effects:
+            - Updates ``self.last_stage_results`` with per-stage status
+            - Updates ``self.last_fetch_result`` when HTTP stage is used
+            - May update semantic cache on successful augment
+
+        Raises:
+            RagPipelineError: If the underlying database connection fails.
         """
         if not self._cfg.use_search:
             return ""
