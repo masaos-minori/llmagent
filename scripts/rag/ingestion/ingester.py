@@ -8,6 +8,7 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 """
 
 import argparse
+import dataclasses
 import shutil
 import sqlite3
 import time
@@ -26,6 +27,17 @@ from shared.logger import Logger
 from rag.utils import floats_to_blob, validate_url
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
+
+
+@dataclasses.dataclass(frozen=True)
+class IngestUrlResult:
+    """Per-URL ingestion outcome returned by ingest_url_group()."""
+
+    url: str
+    n_success: int
+    n_failed: int
+    skipped: bool
+
 
 # Accepted lang values enforced by the documents.lang CHECK constraint
 _VALID_LANGS: frozenset[str] = frozenset({"en", "ja"})
@@ -87,14 +99,16 @@ class RagIngester:
             return
         url_groups = self._group_chunks_by_url(chunk_files)
         with SQLiteHelper().open(write_mode=True) as db:
-            total_inserted, total_failed = self._process_url_groups(
-                db, url_groups, force
-            )
+            results = self._process_url_groups(db, url_groups, force)
+        total_success = sum(r.n_success for r in results)
+        total_failed = sum(r.n_failed for r in results if r.n_failed > 0)
+        total_skipped = sum(1 for r in results if r.skipped)
         logger.info(
-            "=== done: %s URLs, %s chunks inserted, %s chunks failed ===",
-            len(url_groups),
-            total_inserted,
+            "=== done: %s URLs processed (%d success, %d failed, %d skipped) ===",
+            len(results),
+            total_success,
             total_failed,
+            total_skipped,
         )
         try:
             report = check_rag_consistency(db)
@@ -111,15 +125,17 @@ class RagIngester:
         url: str,
         chunk_files: list[Path],
         force: bool,
-    ) -> tuple[int, int]:
-        """Ingest all chunk files for one URL into SQLite in ascending chunk_index order; moves files to registered/ after processing including on skip. Returns (n_inserted, n_failed)."""
+    ) -> IngestUrlResult:
+        """Ingest all chunk files for one URL into SQLite in ascending chunk_index order; moves files to registered/ after processing including on skip."""
         if not chunk_files:
             logger.warning("No chunk files provided for URL: %s", url)
-            return 0, 0
+            return IngestUrlResult(url=url, n_success=0, n_failed=0, skipped=True)
         chunk_files = sorted(chunk_files, key=lambda p: p.stem)
         first_data = self._read_chunk_json(chunk_files[0])
         if first_data is None:
-            return 0, 0
+            return IngestUrlResult(
+                url=url, n_success=0, n_failed=len(chunk_files), skipped=False
+            )
         title: str = first_data.get("title", "")
         lang: str = first_data.get("lang", "en")
         etag: str | None = first_data.get("etag")
@@ -138,7 +154,7 @@ class RagIngester:
         if doc_id is None:
             logger.info("already registered, skipping: %s", url)
             self._move_to_registered(chunk_files)
-            return 0, 0
+            return IngestUrlResult(url=url, n_success=0, n_failed=0, skipped=True)
         # Commit document record before parallel chunk inserts (FK dependency).
         db.commit()
         inserted, failed = self._ingest_chunk_files(doc_id, chunk_files)
@@ -150,7 +166,9 @@ class RagIngester:
             url,
         )
         self._move_to_registered(chunk_files)
-        return inserted, failed
+        return IngestUrlResult(
+            url=url, n_success=inserted, n_failed=failed, skipped=False
+        )
 
     # ── Embedding ─────────────────────────────────────────────────────────────
 
@@ -385,18 +403,18 @@ class RagIngester:
         db: SQLiteHelper,
         url_groups: dict[str, list[Path]],
         force: bool,
-    ) -> tuple[int, int]:
-        """Iterate over URL groups and ingest each; log exceptions without stopping. Returns (total_inserted, total_failed)."""
-        total_inserted = 0
-        total_failed = 0
+    ) -> list[IngestUrlResult]:
+        """Iterate over URL groups and ingest each; log exceptions without stopping."""
+        results: list[IngestUrlResult] = []
         for url, paths in url_groups.items():
             try:
-                n_in, n_fail = self.ingest_url_group(db, url, paths, force)
-                total_inserted += n_in
-                total_failed += n_fail
+                results.append(self.ingest_url_group(db, url, paths, force))
             except (OSError, RuntimeError, ValueError, sqlite3.OperationalError):
                 logger.exception("ingest_url_group failed: %s", url)
-        return total_inserted, total_failed
+                results.append(
+                    IngestUrlResult(url=url, n_success=0, n_failed=-1, skipped=False)
+                )
+        return results
 
     def _move_to_registered(self, paths: list[Path]) -> None:
         """Move ingested chunk files to registered/."""
