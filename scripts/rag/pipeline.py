@@ -118,6 +118,11 @@ class RagPipeline:
         _module_cfg = _ModuleConfig.get()
         self._llm = RagLLM(self._http, _module_cfg.get("llm_url", ""), cfg=_module_cfg)
         self._embed_url: str = _module_cfg.get("embed_url", "")
+        logger.info(
+            "RagPipeline init: use_rrf=%s rrf_k=%d",
+            self._cfg.use_rrf,
+            self._cfg.rrf_k,
+        )
 
     def _get_stage_status(
         self, stage: object, ctx: PipelineContext
