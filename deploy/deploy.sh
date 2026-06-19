@@ -87,5 +87,6 @@ rsync -av --delete \
 echo "=== deploy.sh: 完了 ==="
 echo ""
 echo "次のステップ:"
-echo "  1. bash deploy/init_db.sh      # DB スキーマ初期化"
-echo "  2. bash deploy/setup_services.sh  # OpenRC サービス登録・起動"
+echo "  1. bash deploy/build_sqlite_vec.sh  # sqlite-vec 拡張ビルド (初回のみ)"
+echo "  2. bash deploy/init_db.sh           # DB スキーマ初期化"
+echo "  3. bash deploy/setup_services.sh    # OpenRC サービス登録・起動"

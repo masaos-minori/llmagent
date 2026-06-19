@@ -8,6 +8,7 @@ Migration code has been removed from create_schema.py; no migration tests here.
 """
 
 import sqlite3
+from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import patch
 
@@ -128,7 +129,7 @@ def _make_db_config(db_file: Path, target: str) -> DbConfig:
 
 
 @pytest.fixture
-def rag_tmp_db(tmp_path: Path) -> sqlite3.Connection:
+def rag_tmp_db(tmp_path: Path) -> Generator[sqlite3.Connection]:
     """Open a temp rag.sqlite via SQLiteHelper with vec0 skipped."""
     db_file = tmp_path / "rag.sqlite"
     cfg = _make_db_config(db_file, "rag")
@@ -141,11 +142,13 @@ def rag_tmp_db(tmp_path: Path) -> sqlite3.Connection:
         patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
     ):
         cs.create_rag_schema()
-    return sqlite3.connect(str(db_file))
+    conn = sqlite3.connect(str(db_file))
+    yield conn
+    conn.close()
 
 
 @pytest.fixture
-def session_tmp_db(tmp_path: Path) -> sqlite3.Connection:
+def session_tmp_db(tmp_path: Path) -> Generator[sqlite3.Connection]:
     """Open a temp session.sqlite via SQLiteHelper with vec0 skipped."""
     db_file = tmp_path / "session.sqlite"
     cfg = _make_db_config(db_file, "session")
@@ -159,7 +162,9 @@ def session_tmp_db(tmp_path: Path) -> sqlite3.Connection:
         patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
     ):
         cs.create_session_schema()
-    return sqlite3.connect(str(db_file))
+    conn = sqlite3.connect(str(db_file))
+    yield conn
+    conn.close()
 
 
 class TestCreateRagSchema:
