@@ -117,22 +117,57 @@ class _IngestMixin(MixinBase):
 
         rag_cfg = build_rag_cfg_adapter(RagPipelineConfig.from_dict(rag_cfg_dict))
         pipeline = RagPipeline(ctx.services.http, rag_cfg)
-        context = await pipeline.augment(query)
+
+        debug_fn = None
+        if debug:
+
+            def debug_fn(
+                queries: list,
+                all_results: list,
+                merged: list,
+                reranked: list,
+            ) -> None:
+                self._out.write_debug_rag(
+                    {
+                        "queries": queries,
+                        "all_results": all_results,
+                        "merged": [dict(c) for c in merged],
+                        "reranked": [dict(c) for c in reranked],
+                        "use_rrf": rag_cfg.use_rrf,
+                        "rrf_k": rag_cfg.rrf_k,
+                    }
+                )
+
+        context = await pipeline.augment(query, debug_fn=debug_fn)
         if not context:
             self._out.write("No results found.")
         else:
             self._out.write(context)
 
         if debug:
-            self._print_rag_timings(pipeline.last_timings)
+            self._print_rag_timings(pipeline.last_timings, pipeline.last_stage_results)
 
-    def _print_rag_timings(self, timings: dict[str, float]) -> None:
-        """Print per-stage wall-clock timings from a RAG pipeline run."""
+    def _print_rag_timings(
+        self,
+        timings: dict[str, float],
+        stage_results: list | None = None,
+    ) -> None:
+        """Print per-stage wall-clock timings and fallback reasons from a RAG pipeline run."""
         if not timings:
             return
         self._out.write("\n--- Stage timings ---")
         for stage_name, elapsed in timings.items():
             self._out.write(f"  {stage_name}: {elapsed * 1000:.1f} ms")
+        if stage_results:
+            fallbacks = [
+                r for r in stage_results if r["status"] in ("fallback", "failure")
+            ]
+            if fallbacks:
+                self._out.write("\n--- Fallbacks / Failures ---")
+                for r in fallbacks:
+                    self._out.write(
+                        f"  {r['stage_name']} [{r['status']}]: {r['fallback_reason']}"
+                    )
 
     async def _cmd_compact(self) -> None:
         """Force immediate compression of conversation history.

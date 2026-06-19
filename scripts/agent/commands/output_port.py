@@ -15,6 +15,7 @@ class OutputPort(Protocol):
     def write_no_data(self, text: str) -> None: ...
     def write_validation_error(self, text: str) -> None: ...
     def write_kv(self, pairs: list[tuple[str, str]], key_width: int = 22) -> None: ...
+    def write_debug_rag(self, data: dict) -> None: ...
 
 
 class CliOutputPort:
@@ -50,3 +51,34 @@ class CliOutputPort:
     def write_kv(self, pairs: list[tuple[str, str]], key_width: int = 22) -> None:
         for k, v in pairs:
             print(f"  {k:<{key_width}}: {v}")
+
+    def write_debug_rag(self, data: dict) -> None:
+        queries: list = data.get("queries", [])
+        all_results: list = data.get("all_results", [])
+        merged: list = data.get("merged", [])
+        reranked: list = data.get("reranked", [])
+        use_rrf = data.get("use_rrf", True)
+        rrf_k = data.get("rrf_k", 60)
+        print(f"  [debug] MQE queries ({len(queries)}):")
+        for i, q in enumerate(queries, 1):
+            print(f"    {i}: {q}")
+        total = sum(len(r) for r in all_results)
+        print(
+            f"  [debug] search: {len(all_results)} result lists, {total} total candidates"
+        )
+        print(f"  [debug] fusion: use_rrf={use_rrf} rrf_k={rrf_k}")
+        print(f"  [debug] RRF merge: {len(merged)} unique candidates (top 5):")
+        for c in merged[:5]:
+            print(
+                f"    chunk_id={c.get('chunk_id')}"
+                f" rrf={c.get('rrf_score', 0):.4f}"
+                f" url={str(c.get('url', ''))[:60]}"
+            )
+        print(f"  [debug] reranked top-{len(reranked)}:")
+        for c in reranked:
+            score = c.get("rerank_score", c.get("rrf_score", 0))
+            print(
+                f"    chunk_id={c.get('chunk_id')}"
+                f" score={score:.4f}"
+                f" url={str(c.get('url', ''))[:60]}"
+            )
