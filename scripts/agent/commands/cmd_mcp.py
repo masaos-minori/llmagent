@@ -82,6 +82,12 @@ class _McpMixin(MixinBase):
         else:
             wd_status = "disabled (interval=0) — no auto-restart"
         self._out.write(f"  Watchdog    {wd_status}")
+        serial_events = getattr(ctx.services, "serialization_events", 0)
+        serial_affected = getattr(ctx.services, "serialization_tools_affected", 0)
+        self._out.write("")
+        self._out.write("--- Tool Scheduling ---")
+        self._out.write(f"  Serialization events this session: {serial_events}")
+        self._out.write(f"  Tools affected by serialization:   {serial_affected}")
 
     async def _cmd_mcp_install(self, server_name: str) -> None:
         """Interactive wizard: generate MCP server template files for server_name."""

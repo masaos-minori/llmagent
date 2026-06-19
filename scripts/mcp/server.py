@@ -38,6 +38,7 @@ class TruncationResult:
     text: str
     truncated: bool
     total_bytes: int
+    visible_bytes: int
 
 
 def _truncate_with_meta(
@@ -47,12 +48,17 @@ def _truncate_with_meta(
     encoded = text.encode("utf-8")
     total = len(encoded)
     if total <= max_bytes:
-        return TruncationResult(text=text, truncated=False, total_bytes=total)
+        return TruncationResult(
+            text=text, truncated=False, total_bytes=total, visible_bytes=total
+        )
     shown = encoded[:max_bytes].decode("utf-8", errors="ignore")
+    visible = len(shown.encode("utf-8"))
     truncated_text = (
-        shown + f"\n[TRUNCATED: {total:,} bytes total, showing {max_bytes:,} bytes]"
+        shown + f"\n[TRUNCATED: {total:,} bytes total, showing {visible:,} bytes]"
     )
-    return TruncationResult(text=truncated_text, truncated=True, total_bytes=total)
+    return TruncationResult(
+        text=truncated_text, truncated=True, total_bytes=total, visible_bytes=visible
+    )
 
 
 def attach_auth_middleware(app: Any, token: str) -> None:

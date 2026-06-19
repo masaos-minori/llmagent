@@ -176,6 +176,34 @@ async def _execute_with_dag(
             )
 
     groups = build_execution_groups(approved_calls, tool_meta)
+    serial_tools_count = 0
+    for group in groups:
+        if len(group) == 1:
+            name = group[0]["function"]["name"]
+            meta = tool_meta.get(name)
+            if meta is not None and meta.requires_serial:
+                logger.info(
+                    "ROUND_SERIALIZATION: triggered by %s (requires_serial)"
+                    " — 1 tool serialized in this round",
+                    name,
+                )
+                serial_tools_count += 1
+        elif len(group) > 1:
+            names = [tc["function"]["name"] for tc in group]
+            first_meta = tool_meta.get(names[0])
+            scope = first_meta.resource_scope if first_meta else ""
+            reason = "resource_scope_conflict" if scope else "is_write_overlap"
+            logger.info(
+                "ROUND_SERIALIZATION: triggered by %s (%s)"
+                " — %d tools serialized in this round",
+                names[0],
+                reason,
+                len(group),
+            )
+            serial_tools_count += len(group)
+    if serial_tools_count > 0:
+        ctx.services.serialization_events += 1
+        ctx.services.serialization_tools_affected += serial_tools_count
     results: list[Any] = []
     for group in groups:
         group_results = await asyncio.gather(
@@ -208,6 +236,9 @@ async def _execute_standard(
                 "Side-effect tool detected; downgrading to serial execution (%s)",
                 [tc["function"]["name"] for tc in approved_calls],
             )
+        if use_serial and has_side_effect:
+            ctx.services.serialization_events += 1
+            ctx.services.serialization_tools_affected += len(approved_calls)
         results: list[Any] = []
         for tc in approved_calls:
             results.append(await execute_one_tool_call(ctx, tc, turn))

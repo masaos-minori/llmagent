@@ -134,6 +134,8 @@ class AppServices:
             stdio_procs if stdio_procs is not None else {}
         )
         self.health_registry = health_registry
+        self.serialization_events: int = 0
+        self.serialization_tools_affected: int = 0
 
 
 # ---------------------------------------------------------------------------

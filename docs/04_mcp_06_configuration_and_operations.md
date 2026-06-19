@@ -361,6 +361,60 @@ grep "error_type=transport" agent.log
 
 ---
 
+### Tool scheduling and serialization
+
+The agent executes tool calls in resource-scoped groups. Most tools run in parallel,
+but certain conditions force serial execution within a round:
+
+| Condition | Trigger | Log reason |
+|-----------|---------|------------|
+| Tool has `requires_serial=True` | Any tool with this flag | `requires_serial` |
+| Multiple write tools share a `resource_scope` | Two+ write tools with same scope | `resource_scope_conflict` |
+| Write tools without a `resource_scope` | Any write tool lacking scope metadata | `is_write_overlap` |
+| Side-effect tool in round (`_execute_standard` path) | Any side-effect tool | logged as "Side-effect tool detected" |
+
+Serialization is intentional safety behavior — it prevents concurrent writes from corrupting
+shared resources. It does not indicate a configuration error.
+
+#### Reading serialization log entries
+
+Each serialization event logs:
+
+```
+INFO ROUND_SERIALIZATION: triggered by <tool_name> (<reason>)
+     — <N> tools serialized in this round
+```
+
+Example:
+
+```
+INFO ROUND_SERIALIZATION: triggered by write_file (is_write_overlap)
+     — 2 tools serialized in this round
+```
+
+#### Serialization stats in /mcp status
+
+Run `/mcp status` to see cumulative session stats:
+
+```
+--- Tool Scheduling ---
+  Serialization events this session: 5
+  Tools affected by serialization:   12
+```
+
+These counters reset on agent restart. A high serialization count relative to
+total tool calls may indicate candidates for `resource_scope` annotation or
+`requires_serial=False` review — but only after analyzing which tools are
+triggering it.
+
+#### Before optimizing
+
+Do not change `requires_serial` or `resource_scope` values without reviewing
+the serialization log data. The observability layer provides the data needed
+to make safe decisions.
+
+---
+
 ## New Tool Registration Procedure
 
 When adding a new tool to an **existing** MCP server:
