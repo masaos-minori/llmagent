@@ -1,10 +1,10 @@
 # routing.md
 
-Maps task type to files that must be loaded. Read this immediately after CLAUDE.md.
+Maps task type to files that must be loaded. Read this immediately after AGENTS.md.
 
-## Task → file mapping
+## Task → skill mapping
 
-Skills in the Load column can be invoked as slash commands (e.g. `/python-implementation`) or via `Skill("python-implementation")`. The command reads `skills/*/SKILL.md` automatically.
+Skills can be invoked as slash commands (e.g. `/python-implementation`) or via `Skill("python-implementation")`. The command reads `skills/*/SKILL.md` automatically.
 
 | Task type | Keywords | Load |
 |---|---|---|
@@ -19,9 +19,9 @@ Skills in the Load column can be invoked as slash commands (e.g. `/python-implem
 | Deploy / production | deploy, /opt/llm, service restart, init.d | `skills/deploy/SKILL.md` + `rules/env.md` + `docs/05_agent_10_operations-and-observability.md` |
 | Documentation / docs | document, doc, write docs, readme, changelog | `skills/python-documentation/SKILL.md` |
 
-## Docs → task mapping (minimal loading)
+## Docs → task mapping
 
-Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
+Load only the docs relevant to the specific task. Do NOT load all `docs/*.md`.
 
 ### Domain specs
 
@@ -97,4 +97,4 @@ Load only the docs relevant to the specific task. Do NOT load all docs/*.md.
 
 ## Multiple task types
 
-If a task spans multiple types, load the union of required files.
+If a task spans multiple types, load the union of all required skills and docs.
