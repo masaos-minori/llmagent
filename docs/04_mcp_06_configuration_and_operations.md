@@ -235,6 +235,55 @@ tail -100 /opt/llm/logs/git-mcp.log
 
 ---
 
+### Error Type Distinction in Audit Logs
+
+Tool execution audit events include an `error_type` field:
+
+| error_type | Meaning | Example cause |
+|---|---|---|
+| `transport` | MCP server unreachable (network failure, timeout, crash) | Server process died, port not listening, HTTP 5xx |
+| `tool` | MCP server reachable but tool returned is_error=true | Tool validation failed, database constraint violation |
+| _(empty)_ | Successful execution | — |
+
+Example audit log line:
+```json
+{"event":"tool_exec","tool":"shell_run","is_error":true,"error_type":"transport",...}
+```
+
+Filter by error type:
+```bash
+# Transport failures (server issues)
+grep '"error_type":"transport"' /opt/llm/logs/audit.log
+
+# Tool-level failures (business logic errors)
+grep '"error_type":"tool"' /opt/llm/logs/audit.log
+```
+
+### Per-Server Error Counters
+
+`ToolExecutor` maintains per-server error counters accessible via `ToolExecutor.get_error_counters()`:
+
+```python
+{
+    "shell-mcp": {"transport": 2, "tool": 5},
+    "github-mcp": {"transport": 0, "tool": 1},
+}
+```
+
+These counters are in-memory (not persisted) and reset on agent restart.
+
+### Repeated Failure Detection
+
+When a tool fails 3+ times within a 5-minute sliding window, a warning is logged:
+
+```
+WARNING: Repeated tool failures detected: shell_run failed 3 times in 300s window
+```
+
+> **Note:** The watchdog monitors transport availability (health checks). Tool-level errors (`error_type=tool`) do not trigger watchdog restarts — only transport failures (`error_type=transport`) affect server health state.
+
+---
+
 ### Side-Effect Serialization
 
 When a round contains side-effect tools (write operations), the scheduler groups them to prevent concurrent modifications. This is intentional for safety but reduces parallelism.

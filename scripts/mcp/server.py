@@ -149,26 +149,27 @@ class MCPServer:
         }
 
     def _ensure_error_tracking(self) -> None:
-        """Ensure per-instance error tracking is initialized."""
-        if not hasattr(self, "_tool_errors"):
-            self._tool_errors: list[float] = []
+        """Ensure per-instance error tracking lists are initialized (lazy init)."""
+        if not hasattr(self, "_tool_error_timestamps"):
+            self._tool_error_timestamps: list[float] = []
+            self._error_window_sec: float = 300.0
+            self._error_threshold: int = 3
 
     def _record_tool_error(self, tool_name: str) -> None:
-        """Record a tool error timestamp and warn if threshold exceeded.
-
-        Uses a sliding window of 300 seconds. Warns when 3 or more errors
-        occur for the same tool within the window.
-        """
+        """Record a tool error timestamp; warn if repeated failures exceed threshold."""
         self._ensure_error_tracking()
         now = time.time()
-        cutoff = now - 300.0
-        self._tool_errors = [t for t in self._tool_errors if t > cutoff]
-        self._tool_errors.append(now)
-        if len(self._tool_errors) >= 3:
+        cutoff = now - self._error_window_sec
+        self._tool_error_timestamps = [
+            t for t in self._tool_error_timestamps if t > cutoff
+        ]
+        self._tool_error_timestamps.append(now)
+        if len(self._tool_error_timestamps) >= self._error_threshold:
             logger.warning(
-                "Repeated tool failures detected: %s failed %d times in 300s window",
+                "Repeated tool failures detected: %s failed %d times in %.0fs window",
                 tool_name,
-                len(self._tool_errors),
+                len(self._tool_error_timestamps),
+                self._error_window_sec,
             )
 
     def run_http(self) -> None:

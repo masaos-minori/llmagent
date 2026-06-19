@@ -54,7 +54,7 @@ class ToolCallResult:
     is_error: bool
     request_id: str  # x-request-id from HTTP transport; "" for stdio/plugin/cache
     server_key: str  # server key that handled the call; "" for plugin tools
-    error_type: str = ""  # "transport" | "tool" | "" (none for success)
+    error_type: str = ""  # "transport" | "tool" | "" (empty on success)
 
 
 @dataclass(frozen=True)
@@ -235,13 +235,13 @@ class StdioTransport:
         Raises (orjson.JSONDecodeError, KeyError) if the response is invalid.
         """
         resp = orjson.loads(resp_bytes)
-        is_err = bool(resp.get("is_error"))
+        is_error = bool(resp["is_error"])
         return ToolCallResult(
             output=str(resp["result"]),
-            is_error=is_err,
+            is_error=is_error,
             request_id="",
             server_key="",  # set by caller
-            error_type="tool" if is_err else "",
+            error_type="tool" if is_error else "",
         )
 
     async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
@@ -409,6 +409,7 @@ class ToolExecutor:
         self._cache: OrderedDict[str, _CacheEntry] = OrderedDict()
         self.stat_cache_hits: int = 0
         self.stat_tool_errors: dict[str, int] = {}
+        self.stat_transport_errors: dict[str, int] = {}
         self._tool_error_threshold = repeated_tool_error_threshold
         self._lifecycle: LifecycleProtocol | None = lifecycle
         self._health_registry: McpServerHealthRegistry | None = None
@@ -439,10 +440,6 @@ class ToolExecutor:
 
         self._resolver = ToolRouteResolver(server_configs)
 
-        # Per-server error counters: server_key -> {"transport": int, "tool": int}
-        self._error_counters: dict[str, dict[str, int]] = {
-            key: {"transport": 0, "tool": 0} for key in server_configs
-        }
 
     def set_transport(self, server_key: str, transport: StdioTransport) -> None:
         """Register a started StdioTransport for the given server key."""
@@ -541,15 +538,15 @@ class ToolExecutor:
             if self._health_registry is not None:
                 self._health_registry.record_success(server_key)
             if result.is_error and result.error_type == "tool":
-                counters = self._error_counters.get(
-                    server_key, {"transport": 0, "tool": 0}
+                self.stat_tool_errors[server_key] = (
+                    self.stat_tool_errors.get(server_key, 0) + 1
                 )
-                counters["tool"] += 1
             return result
         except TransportError as e:
-            # Transport-level failure — increment counter.
-            counters = self._error_counters.get(server_key, {"transport": 0, "tool": 0})
-            counters["transport"] += 1
+            # Transport-level failure — increment failure counter.
+            self.stat_transport_errors[server_key] = (
+                self.stat_transport_errors.get(server_key, 0) + 1
+            )
             if self._health_registry is not None:
                 state = self._health_registry.record_failure(server_key)
                 logger.warning(
@@ -648,5 +645,12 @@ class ToolExecutor:
         self._cache.clear()
 
     def get_error_counters(self) -> dict[str, dict[str, int]]:
-        """Return per-server error counters: {server_key: {transport: N, tool: N}}."""
-        return {k: dict(v) for k, v in self._error_counters.items()}
+        """Return per-server error counters: {server_key: {"transport": N, "tool": N}}."""
+        all_keys = set(self.stat_transport_errors) | set(self.stat_tool_errors)
+        return {
+            k: {
+                "transport": self.stat_transport_errors.get(k, 0),
+                "tool": self.stat_tool_errors.get(k, 0),
+            }
+            for k in all_keys
+        }

@@ -49,4 +49,4 @@ class ToolExecEvent:
     is_error: bool
     args_preview: dict[str, object]
     ts: float
-    error_type: str = ""  # "transport" | "tool" | "" (none)
+    error_type: str = ""  # "transport" | "tool" | "" (empty on success)

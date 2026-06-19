@@ -148,6 +148,7 @@ def audit_tool_exec(
         error_type=error_type,
         args_preview=masked,
         ts=time.time(),
+        error_type=error_type,
     )
     ctx.services.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 
