@@ -311,6 +311,56 @@ Two places show the current watchdog state:
 
 ---
 
+### Tool error monitoring
+
+`ToolExecutor` distinguishes two error categories:
+
+| Category | Log field | Condition |
+|----------|-----------|-----------|
+| Transport error | `error_type=transport` | Network failure, timeout, server unreachable |
+| Tool error | `error_type=tool` | Server reachable; tool execution returned `is_error=true` |
+
+Transport errors affect the MCP server health state and may trigger watchdog restarts.
+Tool errors do not — the server is functioning, but the specific tool call failed
+(e.g., invalid arguments, upstream API error).
+
+#### Per-server tool error counters
+
+`ToolExecutor.stat_tool_errors` is a `dict[str, int]` (server_key → count) available
+for the lifetime of the process. Read it from the agent context:
+
+```python
+ctx.services.tools.stat_tool_errors   # {"rag_pipeline": 3, "github": 0}
+```
+
+#### Repeated-failure warnings
+
+When the per-server tool error count reaches a multiple of
+`repeated_tool_error_threshold` (default: 3), a warning is logged:
+
+```
+WARNING repeated tool errors from 'rag_pipeline': 3 failures (error_type=tool)
+```
+
+The threshold is configurable at `ToolExecutor` construction time. Counters reset
+on process restart. There is no automatic server restart on tool errors (only
+transport failures trigger the watchdog).
+
+#### Grep patterns for monitoring
+
+```bash
+# Find tool errors for a specific server
+grep "error_type=tool" agent.log | grep "rag_pipeline"
+
+# Find repeated-failure warnings
+grep "repeated tool errors" agent.log
+
+# Find transport failures
+grep "error_type=transport" agent.log
+```
+
+---
+
 ## New Tool Registration Procedure
 
 When adding a new tool to an **existing** MCP server:

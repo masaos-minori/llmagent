@@ -394,6 +394,7 @@ class ToolExecutor:
         cache_max_size: int = 0,
         concurrency_limits: dict[str, int] | None = None,
         lifecycle: LifecycleProtocol | None = None,
+        repeated_tool_error_threshold: int = 3,
     ) -> None:
         self._http = http
         self._cache_ttl = cache_ttl
@@ -401,6 +402,8 @@ class ToolExecutor:
         self._server_configs = server_configs
         self._cache: OrderedDict[str, _CacheEntry] = OrderedDict()
         self.stat_cache_hits: int = 0
+        self.stat_tool_errors: dict[str, int] = {}
+        self._tool_error_threshold = repeated_tool_error_threshold
         self._lifecycle: LifecycleProtocol | None = lifecycle
         self._health_registry: McpServerHealthRegistry | None = None
 
@@ -518,13 +521,27 @@ class ToolExecutor:
             # is reachable and functioning; only transport failures affect health.
             if self._health_registry is not None:
                 self._health_registry.record_success(server_key)
+            if result.is_error:
+                count = self.stat_tool_errors.get(server_key, 0) + 1
+                self.stat_tool_errors[server_key] = count
+                logger.debug(
+                    "tool error from %r: %s (error_type=tool)",
+                    server_key,
+                    result.output[:120],
+                )
+                if count % self._tool_error_threshold == 0:
+                    logger.warning(
+                        "repeated tool errors from %r: %d failures (error_type=tool)",
+                        server_key,
+                        count,
+                    )
             return result
         except TransportError as e:
             # Transport-level failure — increment failure counter.
             if self._health_registry is not None:
                 state = self._health_registry.record_failure(server_key)
                 logger.warning(
-                    "transport failure for %r: %s (state=%s)",
+                    "transport failure for %r: %s (state=%s, error_type=transport)",
                     server_key,
                     e,
                     state.value,
