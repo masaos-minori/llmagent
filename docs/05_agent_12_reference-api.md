@@ -115,7 +115,7 @@ Full details: [05_agent_07_cli-and-commands.md §CLIView](05_agent_07_cli-and-co
 
 ## AgentSession (`agent/session.py`)
 
-- **Role:** SQLite persistence for sessions, messages, and notes (RAG operations moved to rag-pipeline-mcp)
+- **Role:** SQLite persistence for sessions, messages, and notes (RAG document ops moved to rag-pipeline-mcp)
 - **Primary API:** `start()`, `save(role, content)`, `save_diagnostic(content)`, `fetch_messages(session_id)`, `add_note(content)`
 - **Skip counters:** `skipped_no_session_count`, `skipped_invalid_role_count` (per-session, read-only properties)
 - **Strict mode:** `AgentSession(strict_mode=True)` raises `RuntimeError` on first skipped save instead of warning
