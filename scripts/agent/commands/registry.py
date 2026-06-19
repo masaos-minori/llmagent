@@ -169,7 +169,7 @@ _COMMANDS: list[CommandDef] = [
     CommandDef(
         "/db",
         True,
-        False,
+        True,
         "_cmd_db",
         "stats | urls [--lang ja|en] [--limit N] | clean <url> | rebuild-fts | health | checkpoint | vacuum | purge | recover",
     ),

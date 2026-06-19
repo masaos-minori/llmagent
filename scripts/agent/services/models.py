@@ -146,17 +146,6 @@ __all__ = [
 
 
 @dataclass(frozen=True)
-class DocumentRow:
-    """One row from the documents table as returned by session.list_documents()."""
-
-    url: str
-    lang: str | None
-    chunk_count: int
-    fetched_at: str
-    chunking_strategy: str = "text"
-
-
-@dataclass(frozen=True)
 class SessionRow:
     """One row from the sessions table as returned by session.list_sessions()."""
 

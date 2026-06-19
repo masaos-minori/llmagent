@@ -5,8 +5,8 @@ Database management mixin for CommandRegistry.
 Provides _DbMixin with:
   _cmd_db         — /db dispatcher
   _db_stats       — DB record counts (delegates to DbMaintenanceService)
-  _db_list_urls   — list document URLs with filters
-  _db_clean       — delete a document from the vector store
+  _db_list_urls   — list document URLs via rag-pipeline-mcp
+  _db_clean       — delete a document via rag-pipeline-mcp
   _db_rebuild_fts — rebuild the FTS5 index (delegates to DbMaintenanceService)
   _db_health      — print DB health metrics (delegates to DbMaintenanceService)
   _db_checkpoint  — run WAL checkpoint (delegates to DbMaintenanceService)
@@ -15,7 +15,9 @@ Provides _DbMixin with:
   _db_recover     — integrity check and restore (delegates to DbMaintenanceService)
 """
 
+import inspect
 import logging
+from typing import Any
 
 from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import parse_command_args
@@ -31,12 +33,12 @@ URL_DISPLAY_TRUNCATE_LENGTH = URL_DISPLAY_MAX_LENGTH - 3
 class _DbMixin(MixinBase):
     """Database management slash-command handlers."""
 
-    def _cmd_db(self, args: str) -> None:
+    async def _cmd_db(self, args: str) -> None:
         """Handle /db stats|urls|clean|rebuild-fts|health|checkpoint|vacuum|purge|recover."""
         parts = args.strip().split(None, 1)
         subcmd = parts[0] if parts else ""
         rest = parts[1] if len(parts) == DB_PARTS_COUNT else ""
-        dispatch = {
+        dispatch: dict[str, Any] = {
             "help": self._db_help,
             "stats": self._db_stats,
             "urls": lambda: self._db_list_urls(rest),
@@ -51,7 +53,9 @@ class _DbMixin(MixinBase):
         }
         handler = dispatch.get(subcmd)
         if handler:
-            handler()
+            result = handler()
+            if inspect.isawaitable(result):
+                await result
         else:
             self._out.write_validation_error(
                 "/db help | /db stats | /db urls [--lang ja|en] [--limit N]"
@@ -85,17 +89,27 @@ class _DbMixin(MixinBase):
             rows,
         )
 
-    def _db_clean(self, rest: str) -> None:
-        """Delete a document by URL from the vector store."""
+    async def _db_clean(self, rest: str) -> None:
+        """Delete a document by URL from the vector store via rag-pipeline-mcp."""
         url = rest.strip()
         if not url:
             self._out.write_validation_error("/db clean <url>")
             return
-        ok = DbMaintenanceService().delete_document(url)
-        if ok:
-            self._out.write_success(f"Document deleted: {url} [rag]")
-        else:
-            self._out.write_no_data(f"Document not found: {url} [rag]")
+        if self._ctx.services.tools is None:
+            self._out.write_error(
+                "rag-pipeline-mcp unavailable: tool executor not initialized"
+            )
+            return
+        try:
+            result = await self._ctx.services.tools.execute(
+                "rag_delete_document", {"url": url}
+            )
+            if result.is_error:
+                self._out.write_error(result.output)
+            else:
+                self._out.write(result.output)
+        except Exception as e:  # noqa: BLE001
+            self._out.write_error(f"rag-pipeline-mcp unavailable: {e}")
 
     def _db_stats(self) -> None:
         """Print document/chunk/session/message counts from both DBs."""
@@ -110,55 +124,31 @@ class _DbMixin(MixinBase):
             ]
         )
 
-    def _db_list_urls(self, rest: str) -> None:
-        """Parse --lang / --limit options from rest and delegate to DbMaintenanceService."""
+    async def _db_list_urls(self, rest: str) -> None:
+        """List indexed documents via rag-pipeline-mcp."""
         parsed = parse_command_args(rest.split())
         lang_raw = parsed.flags.get("lang")
         lang: str | None = str(lang_raw) if lang_raw in ("ja", "en") else None
         limit_raw = parsed.flags.get("limit")
         limit = int(limit_raw) if limit_raw and str(limit_raw).isdigit() else 20
-        rows = DbMaintenanceService().list_documents(lang, limit)
-        if not rows:
-            self._out.write_no_data("No documents found")
+        args_dict: dict[str, Any] = {"limit": limit}
+        if lang:
+            args_dict["lang"] = lang
+        if self._ctx.services.tools is None:
+            self._out.write_error(
+                "rag-pipeline-mcp unavailable: tool executor not initialized"
+            )
             return
-        table_rows = []
-        for r in rows:
-            url = r["url"]
-            if not isinstance(url, str):
-                raise TypeError(f"url must be str, got {type(url).__name__}")
-            url_display = (
-                url[:URL_DISPLAY_TRUNCATE_LENGTH] + "..."
-                if len(url) > URL_DISPLAY_MAX_LENGTH
-                else url
+        try:
+            result = await self._ctx.services.tools.execute(
+                "rag_list_documents", args_dict
             )
-
-            lang_val = r["lang"]
-            lang_display = lang_val if isinstance(lang_val, str) else "?"
-
-            chunk_count = r["chunk_count"]
-            if not isinstance(chunk_count, int):
-                raise TypeError(
-                    f"chunk_count must be int, got {type(chunk_count).__name__}"
-                )
-            chunk_display = str(chunk_count)
-
-            fetched_at = r["fetched_at"]
-            fetched_display = fetched_at if isinstance(fetched_at, str) else ""
-
-            strategy_display = r.get("chunking_strategy") or "text"
-
-            table_rows.append(
-                [
-                    url_display,
-                    lang_display,
-                    chunk_display,
-                    fetched_display,
-                    strategy_display,
-                ]
-            )
-        self._out.write_table(
-            ["URL", "Lang", "Chunks", "Fetched", "Strategy"], table_rows
-        )
+            if result.is_error:
+                self._out.write_error(result.output)
+            else:
+                self._out.write(result.output)
+        except Exception as e:  # noqa: BLE001
+            self._out.write_error(f"rag-pipeline-mcp unavailable: {e}")
 
     def _db_rebuild_fts(self) -> None:
         """Rebuild the FTS5 chunks_fts index in rag.sqlite."""
