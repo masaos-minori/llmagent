@@ -10,7 +10,6 @@ Provides _IngestMixin with:
 """
 
 import logging
-from typing import Any
 
 from mcp.rag_pipeline.models import RagPipelineConfig, build_rag_cfg_adapter
 
@@ -69,11 +68,14 @@ class _IngestMixin(MixinBase):
             elif p == "--snippets-only":
                 snippets_only = True
 
+        def on_status(msg: str) -> None:
+            self._out.write(f"  {msg}")
+
         svc = IngestWorkflowService()
         try:
-            result = await svc.run(target, lang=lang, snippets_only=snippets_only)
-            for msg in result.messages:
-                self._out.write(f"  {msg}")
+            await svc.run(
+                target, lang=lang, snippets_only=snippets_only, on_status=on_status
+            )
         except IngestStageError as e:
             logger.error("Ingest failed at stage=%s: %s", e.stage, e.detail)
             self._out.write(f"  [ingest] error ({e.stage}): {e.detail}")
@@ -127,7 +129,7 @@ class _IngestMixin(MixinBase):
                 all_results: list,
                 merged: list,
                 reranked: list,
-                **kwargs: Any,
+                rrf_config: dict | None = None,
             ) -> None:
                 self._out.write_debug_rag(
                     {
@@ -135,10 +137,7 @@ class _IngestMixin(MixinBase):
                         "all_results": all_results,
                         "merged": [dict(c) for c in merged],
                         "reranked": [dict(c) for c in reranked],
-                        "rrf_config": {
-                            "use_rrf": rag_cfg.use_rrf,
-                            "rrf_k": rag_cfg.rrf_k,
-                        },
+                        "rrf_config": rrf_config or {},
                     }
                 )
 
@@ -149,29 +148,31 @@ class _IngestMixin(MixinBase):
             self._out.write(context)
 
         if debug:
-            self._print_rag_timings(pipeline.last_timings, pipeline.last_stage_results)
+            self._print_rag_debug(pipeline.last_timings, pipeline.last_stage_results)
 
-    def _print_rag_timings(
+    def _print_rag_debug(
         self,
         timings: dict[str, float],
         stage_results: list | None = None,
     ) -> None:
-        """Print per-stage wall-clock timings and fallback reasons from a RAG pipeline run."""
+        """Print per-stage wall-clock timings and stage results from a RAG pipeline run."""
         if not timings:
             return
         self._out.write("\n--- Stage timings ---")
         for stage_name, elapsed in timings.items():
             self._out.write(f"  {stage_name}: {elapsed * 1000:.1f} ms")
         if stage_results:
-            fallbacks = [
-                r for r in stage_results if r["status"] in ("fallback", "failure")
-            ]
-            if fallbacks:
-                self._out.write("\n--- Fallbacks / Failures ---")
-                for r in fallbacks:
-                    self._out.write(
-                        f"  {r['stage_name']} [{r['status']}]: {r['fallback_reason']}"
-                    )
+            self._out.write("\n--- Stage results ---")
+            _icons = {"success": "✓", "fallback": "~", "failure": "✗"}
+            for sr in stage_results:
+                icon = _icons.get(sr["status"], "?")
+                line = (
+                    f"  {icon} {sr['stage_name']}: {sr['status']}"
+                    f" ({sr['elapsed_seconds'] * 1000:.1f} ms)"
+                )
+                if sr.get("fallback_reason"):
+                    line += f" — {sr['fallback_reason']}"
+                self._out.write(line)
 
     async def _cmd_compact(self) -> None:
         """Force immediate compression of conversation history.

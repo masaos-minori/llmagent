@@ -82,27 +82,33 @@ def build_execution_groups(
 
     for tc in serial_barrier:
         name = tc["function"]["name"]
-        metadata.serialization_events.append(_SerializationEvent(
-            trigger_tool=name,
-            reason="requires_serial",
-            tools_count=1,
-        ))
+        metadata.serialization_events.append(
+            _SerializationEvent(
+                trigger_tool=name,
+                reason="requires_serial",
+                tools_count=1,
+            )
+        )
 
     for scope, scope_tcs in resource_groups.items():
         trigger = scope_tcs[0]["function"]["name"]
-        metadata.serialization_events.append(_SerializationEvent(
-            trigger_tool=trigger,
-            reason="resource_scope_conflict",
-            tools_count=len(scope_tcs),
-        ))
+        metadata.serialization_events.append(
+            _SerializationEvent(
+                trigger_tool=trigger,
+                reason="resource_scope_conflict",
+                tools_count=len(scope_tcs),
+            )
+        )
 
     if write_first:
         trigger = write_first[0]["function"]["name"]
-        metadata.serialization_events.append(_SerializationEvent(
-            trigger_tool=trigger,
-            reason="is_write_overlap",
-            tools_count=len(write_first),
-        ))
+        metadata.serialization_events.append(
+            _SerializationEvent(
+                trigger_tool=trigger,
+                reason="is_write_overlap",
+                tools_count=len(write_first),
+            )
+        )
 
     for evt in metadata.serialization_events:
         logger.info(

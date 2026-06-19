@@ -43,6 +43,7 @@ def get_serialization_stats() -> dict[str, int]:
     """Return current serialization statistics."""
     return dict(_serialization_stats)
 
+
 if TYPE_CHECKING:
     from agent.context import AgentContext
 
