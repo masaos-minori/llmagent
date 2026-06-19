@@ -333,6 +333,7 @@ class TestAuditSecurityDefaults:
         ctx = MagicMock()
         ctx.cfg.mcp.mcp_servers = mcp_servers
         ctx.cfg.mcp.security_profile = SecurityProfile(security_profile)
+        ctx.cfg.mcp.security_lockdown_enabled = False
         ctx.cfg.shell_policy = None
         ctx.cfg.github = None
         ctx.cfg.tool = MagicMock()

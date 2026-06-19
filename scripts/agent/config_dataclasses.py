@@ -350,6 +350,8 @@ class MCPConfig:
     github_server_url: str = "http://127.0.0.1:8006"
     # Deployment security profile: "local" (auth optional) or "production" (auth required for HTTP).
     security_profile: SecurityProfile = SecurityProfile.LOCAL
+    # Set to True to suppress deny-all startup warnings when deny-all is intentional.
+    security_lockdown_enabled: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.security_profile, SecurityProfile):

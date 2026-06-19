@@ -326,3 +326,57 @@ Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).
 - All fail-closed settings that are empty (informational — access is correctly denied)
 - All fail-open settings that are empty (warning — unintended access may be allowed)
 - A summary line: `Security posture summary — fail-closed (...): ...; fail-open (...): ...`
+
+---
+
+## Intentional deny-all lockdown
+
+An empty fail-closed allowlist disables an entire MCP server's operation category.
+This is the correct behavior for security-restricted deployments that want to prevent
+certain tool categories entirely (e.g., no shell commands, no DB queries).
+
+### Which settings cause deny-all
+
+| Setting | Server | Effect when empty |
+|---------|--------|-------------------|
+| `shell.command_allowlist` | shell-mcp | All shell commands denied |
+| `sqlite.db_allowlist` | sqlite-mcp | All DB queries denied |
+| `git.allowed_repo_paths` | git-mcp | All git operations denied |
+| `github.allowed_repos` | github-mcp | All repo access denied |
+
+### Configuring an intentional lockdown
+
+1. Set the desired allowlist(s) to empty in the relevant TOML:
+   ```toml
+   # shell_mcp_server.toml
+   command_allowlist = []   # deny all shell commands
+   ```
+
+2. Acknowledge the lockdown in `agent.toml` or `common.toml` to suppress
+   startup warnings:
+   ```toml
+   security_lockdown_enabled = true
+   ```
+
+3. Restart the agent. The startup log will show:
+   ```
+   INFO Security: security_lockdown_enabled=True — deny-all warnings suppressed
+   ```
+
+### Verifying deny-all state at runtime
+
+At startup, `audit_security_defaults()` logs each deny-all state:
+```
+WARNING DENY-ALL detected: shell.command_allowlist is empty. shell-mcp will
+        reject ALL shell commands. Verify this is intentional or add allowed
+        commands to shell_mcp_server.toml.
+```
+
+If `security_lockdown_enabled=False` (default), these warnings appear at every
+startup — a deliberate reminder to review the config. Set it to `true` only
+when the deny-all state is confirmed intentional.
+
+### Reverting a lockdown
+
+Add the allowed values back to the relevant TOML and set
+`security_lockdown_enabled = false`. Restart the agent to apply.

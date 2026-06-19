@@ -440,42 +440,80 @@ def audit_security_defaults(
     fail_closed_empty: list[str] = []  # deny access when empty (safe default)
     fail_open_empty: list[str] = []  # allow all access when empty (risky default)
 
-    # Check shell sandbox and command_allowlist
-    try:
-        shell_cfg = ShellConfig.load()
-        if shell_cfg.shell_sandbox_backend == "none":
-            msg = "Security: shell_sandbox_backend=none (no sandbox for shell commands)"
-            logger.warning(msg)
-            warnings.append(msg)
-        if not shell_cfg.command_allowlist:
-            fail_closed_empty.append("shell.command_allowlist")
-            msg = "Security: shell.command_allowlist is empty (fail-closed: all shell commands denied)"
-            logger.warning(msg)
-            warnings.append(msg)
-    except Exception:
-        pass
+    lockdown = getattr(ctx.cfg.mcp, "security_lockdown_enabled", False)
+    if lockdown:
+        logger.info(
+            "Security: security_lockdown_enabled=True — deny-all warnings suppressed"
+            " (intentional lockdown acknowledged)"
+        )
+    else:
+        # Check shell sandbox and command_allowlist
+        try:
+            shell_cfg = ShellConfig.load()
+            if shell_cfg.shell_sandbox_backend == "none":
+                msg = "Security: shell_sandbox_backend=none (no sandbox for shell commands)"
+                logger.warning(msg)
+                warnings.append(msg)
+            if not shell_cfg.command_allowlist:
+                fail_closed_empty.append("shell.command_allowlist")
+                msg = (
+                    "DENY-ALL detected: shell.command_allowlist is empty. "
+                    "shell-mcp will reject ALL shell commands. "
+                    "Verify this is intentional or add allowed commands to shell_mcp_server.toml."
+                )
+                logger.warning(msg)
+                warnings.append(msg)
+        except Exception:
+            pass
 
-    # Check sqlite db_allowlist
-    try:
-        sqlite_cfg = SqliteConfig.load()
-        if not sqlite_cfg.db_allowlist:
-            fail_closed_empty.append("sqlite.db_allowlist")
-            msg = "Security: sqlite.db_allowlist is empty (fail-closed: all DB queries denied)"
-            logger.warning(msg)
-            warnings.append(msg)
-    except Exception:
-        pass
+        # Check sqlite db_allowlist
+        try:
+            sqlite_cfg = SqliteConfig.load()
+            if not sqlite_cfg.db_allowlist:
+                fail_closed_empty.append("sqlite.db_allowlist")
+                msg = (
+                    "DENY-ALL detected: sqlite.db_allowlist is empty. "
+                    "sqlite-mcp will reject ALL DB queries. "
+                    "Verify this is intentional or add allowed DB paths to sqlite_mcp_server.toml."
+                )
+                logger.warning(msg)
+                warnings.append(msg)
+        except Exception:
+            pass
 
-    # Check git allowed_repo_paths
-    try:
-        git_cfg = GitConfig.load()
-        if not git_cfg.allowed_repo_paths:
-            fail_closed_empty.append("git.allowed_repo_paths")
-            msg = "Security: git.allowed_repo_paths is empty (fail-closed: all repo access denied)"
-            logger.warning(msg)
-            warnings.append(msg)
-    except Exception:
-        pass
+        # Check git allowed_repo_paths
+        try:
+            git_cfg = GitConfig.load()
+            if not git_cfg.allowed_repo_paths:
+                fail_closed_empty.append("git.allowed_repo_paths")
+                msg = (
+                    "DENY-ALL detected: git.allowed_repo_paths is empty. "
+                    "git-mcp will reject ALL repository operations. "
+                    "Verify this is intentional or add allowed paths to git_mcp_server.toml."
+                )
+                logger.warning(msg)
+                warnings.append(msg)
+        except Exception:
+            pass
+
+        # Check github allowed_repos (fail-closed — empty = deny all repo access)
+        try:
+            from mcp.github.models_config import (
+                GitHubConfig,  # noqa: PLC0415 — lazy import; github-mcp optional
+            )
+
+            github_mcp_cfg = GitHubConfig.load()
+            if not github_mcp_cfg.allowed_repos:
+                fail_closed_empty.append("github.allowed_repos")
+                msg = (
+                    "DENY-ALL detected: github.allowed_repos is empty. "
+                    "github-mcp will reject ALL repo access requests. "
+                    "Verify this is intentional or add allowed repos to github_mcp_server.toml."
+                )
+                logger.warning(msg)
+                warnings.append(msg)
+        except Exception:
+            pass
 
     # Check GitHub workflow allowlist (fail-open — no github config on AgentConfig)
     github_cfg = getattr(ctx.cfg, "github", None)
