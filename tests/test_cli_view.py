@@ -192,9 +192,12 @@ class TestDisplayHelpers:
             "reranked": [
                 {"chunk_id": 1, "url": "https://example.com", "rerank_score": 0.9}
             ],
+            "use_rrf": True,
+            "rrf_k": 60,
         }
         view.write_debug_rag(data)
         captured = capsys.readouterr()
         assert "MQE queries" in captured.out
+        assert "fusion: use_rrf=True rrf_k=60" in captured.out
         assert "RRF merge" in captured.out
         assert "reranked" in captured.out

@@ -141,6 +141,9 @@ class CLIView:
             f" {total} total candidates",
         )
 
+        use_rrf = data.get("use_rrf", True)
+        rrf_k = data.get("rrf_k", 60)
+        print(f"  [debug] fusion: use_rrf={use_rrf} rrf_k={rrf_k}")
         print(f"  [debug] RRF merge: {len(merged)} unique candidates (top 5):")
         for c in merged[:5]:
             print(
