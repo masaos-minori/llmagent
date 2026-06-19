@@ -5,37 +5,56 @@
         "llama-cpp": {
             "npm": "@ai-sdk/openai-compatible",
             "options": {
-                "baseURL": "http://192.168.11.197:8080/v1"
+                "baseURL": "http://giratina.local:8080/v1",
+                "apiKey": "not-needed-for-local"
             },
             "models": {
                 "local-model": {
                     "name": "Qwen3.6 (llama.cpp)",
                     "limit": {
-                        "context": 65536,
+                        "context": 32768,
                         "output": 4096
                     }
                 }
             }
         }
     },
-    "model": "llama-cpp/local-model",
+    "agent": {
+        "build": {
+            "model": "llama-cpp/local-model",
+            "temperature": 0.5
+        },
+        "plan": {
+            "model": "llama-cpp/local-model",
+            "temperature": 0.2
+        }
+    },
+    "compaction": {
+        "threshould": 0.50,
+        "strategy": "summarize",
+        "preserveRecentMessages": 8
+    },
     "watcher": {
         "ignore": [
-            ".git/**",
-            "node_modules/**",
-            "dist/**",
-            "build/**",
-            ".next/**",
-            "coverage/**",
-            "target/**",
-            "venv/**",
-            ".venv/**",
-            "__pycache__/**",
-            ".mypy_cache/**",
-            ".pytest_cache/**",
-            ".ruff_cache/**",
+            "*.csv",
+            "*.db",
+            "*.json",
             "*.log",
-            "*.tmp"
+            "*.sqlite",
+            "*.tmp",
+            ".git/",
+            ".mypy_cache/",
+            ".next/",
+            ".pytest_cache/",
+            ".ruff_cache/",
+            ".venv/",
+            "__pycache__/",
+            "build/",
+            "coverage/",
+            "dist/",
+            "node_modules/",
+            "target/",
+            "venv/"
         ]
     }
 }
