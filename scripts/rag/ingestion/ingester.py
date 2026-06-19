@@ -87,8 +87,15 @@ class RagIngester:
             return
         url_groups = self._group_chunks_by_url(chunk_files)
         with SQLiteHelper().open(write_mode=True) as db:
-            self._process_url_groups(db, url_groups, force)
-        logger.info("=== done: %s URLs processed ===", len(url_groups))
+            total_inserted, total_failed = self._process_url_groups(
+                db, url_groups, force
+            )
+        logger.info(
+            "=== done: %s URLs, %s chunks inserted, %s chunks failed ===",
+            len(url_groups),
+            total_inserted,
+            total_failed,
+        )
         try:
             report = check_rag_consistency(db)
             if not is_consistent(report):
@@ -104,15 +111,15 @@ class RagIngester:
         url: str,
         chunk_files: list[Path],
         force: bool,
-    ) -> None:
-        """Ingest all chunk files for one URL into SQLite in ascending chunk_index order; moves files to registered/ after processing including on skip."""
+    ) -> tuple[int, int]:
+        """Ingest all chunk files for one URL into SQLite in ascending chunk_index order; moves files to registered/ after processing including on skip. Returns (n_inserted, n_failed)."""
         if not chunk_files:
             logger.warning("No chunk files provided for URL: %s", url)
-            return
+            return 0, 0
         chunk_files = sorted(chunk_files, key=lambda p: p.stem)
         first_data = self._read_chunk_json(chunk_files[0])
         if first_data is None:
-            return
+            return 0, 0
         title: str = first_data.get("title", "")
         lang: str = first_data.get("lang", "en")
         etag: str | None = first_data.get("etag")
@@ -131,12 +138,19 @@ class RagIngester:
         if doc_id is None:
             logger.info("already registered, skipping: %s", url)
             self._move_to_registered(chunk_files)
-            return
+            return 0, 0
         # Commit document record before parallel chunk inserts (FK dependency).
         db.commit()
-        inserted = self._ingest_chunk_files(doc_id, chunk_files)
-        logger.info("inserted %s/%s chunks: %s", inserted, len(chunk_files), url)
+        inserted, failed = self._ingest_chunk_files(doc_id, chunk_files)
+        logger.info(
+            "inserted %s/%s chunks (%s failed): %s",
+            inserted,
+            len(chunk_files),
+            failed,
+            url,
+        )
         self._move_to_registered(chunk_files)
+        return inserted, failed
 
     # ── Embedding ─────────────────────────────────────────────────────────────
 
@@ -319,9 +333,12 @@ class RagIngester:
             db.commit()
         return True
 
-    def _ingest_chunk_files(self, doc_id: int, chunk_files: list[Path]) -> int:
-        """Embed and insert chunk files in parallel via ThreadPoolExecutor; returns count of inserted chunks."""
+    def _ingest_chunk_files(
+        self, doc_id: int, chunk_files: list[Path]
+    ) -> tuple[int, int]:
+        """Embed and insert chunk files in parallel via ThreadPoolExecutor; returns (n_inserted, n_failed)."""
         inserted = 0
+        failed = 0
         with ThreadPoolExecutor(max_workers=self._embed_workers) as executor:
             futures = {
                 executor.submit(self._embed_and_store, doc_id, path): path
@@ -332,6 +349,8 @@ class RagIngester:
                 try:
                     if future.result():
                         inserted += 1
+                    else:
+                        failed += 1
                 except (
                     httpx.HTTPStatusError,
                     httpx.RequestError,
@@ -340,7 +359,8 @@ class RagIngester:
                     TypeError,
                 ) as e:
                     logger.error("Failed to ingest %s: %s", path, e)
-        return inserted
+                    failed += 1
+        return inserted, failed
 
     def _group_chunks_by_url(self, chunk_files: list[Path]) -> dict[str, list[Path]]:
         """Group chunk files by URL read from their JSON 'url' field."""
@@ -365,13 +385,18 @@ class RagIngester:
         db: SQLiteHelper,
         url_groups: dict[str, list[Path]],
         force: bool,
-    ) -> None:
-        """Iterate over URL groups and ingest each; log exceptions without stopping."""
+    ) -> tuple[int, int]:
+        """Iterate over URL groups and ingest each; log exceptions without stopping. Returns (total_inserted, total_failed)."""
+        total_inserted = 0
+        total_failed = 0
         for url, paths in url_groups.items():
             try:
-                self.ingest_url_group(db, url, paths, force)
+                n_in, n_fail = self.ingest_url_group(db, url, paths, force)
+                total_inserted += n_in
+                total_failed += n_fail
             except (OSError, RuntimeError, ValueError, sqlite3.OperationalError):
                 logger.exception("ingest_url_group failed: %s", url)
+        return total_inserted, total_failed
 
     def _move_to_registered(self, paths: list[Path]) -> None:
         """Move ingested chunk files to registered/."""
