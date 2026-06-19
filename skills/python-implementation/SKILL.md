@@ -32,14 +32,14 @@ Use this skill by default for production Python work.
 | 1 | Task Classification | task type; interface / runtime / security impact |
 | 2 | Repository Intelligence | modules, entry points, tests, downstream dependencies |
 | 3 | Architecture Boundary Analysis | layer boundaries, dependency direction violations |
-| 4 | Convention Extraction | naming, typing, error handling, test style |
-| 5 | Semantic Safe Modification | smallest change; preserve unrelated behavior |
+| 4 | Convention Extraction | naming, typing (PEP 484/526), error handling, test style |
+| 5 | Semantic Safe Modification | smallest change; preserve unrelated behavior; apply modern Python features |
 | 6 | Runtime Contract Validation | request/response contracts, MCP endpoint compatibility (MCP changes only) |
-| 7 | Observability Injection | structured logging / tracing (skip unless project-wide pattern exists) |
-| 8 | Security Validation | file I/O, subprocess, SQL, shell, credentials, serialization |
-| 9 | Validation Orchestration | tests, lint, type checks; separate task-caused from pre-existing failures |
-| 10 | Scope Control | diff proportional to task; diff-cover; benchmark only on hot paths |
-| 11 | Production Readiness | code/tests/typing/config consistent; no placeholders or debug leftovers |
+| 7 | Observability Injection | structured logging (using `logging` framework) / tracing (skip unless project pattern exists) |
+| 8 | Security Validation | Check for: `eval`/`exec`, `pickle`, `subprocess(shell=True)`, SQL injection, unvalidated serialization |
+| 9 | Validation Orchestration | Run validation tools: `pytest`, `ruff check`, `mypy`/`pyright`; separate task-caused from pre-existing failures |
+| 10 | Scope Control | diff proportional to task; diff-cover ≥ 90%; benchmark only on hot paths |
+| 11 | Production Readiness | No placeholders (`pass`, `TODO`); strict typing; docstrings (PEP 257) updated; no debug leftovers (`print`) |
 | 12 | Knowledge Compression | routing.md, docs/, deploy.sh updated |
 
 See `workflow.md` for detailed phase content including commands and tools.
@@ -56,11 +56,13 @@ Use only for small, self-contained bug fixes satisfying ALL of:
 - no performance benchmarking needed
 
 Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benchmark.
+*Note: Even in Fast Path, passing `ruff` and `mypy/pyright` checks in Phase 9 is mandatory.*
 
 ---
 
 ## Core implementation rules
 
+### Code Correctness & Architecture
 - Prefer existing repository patterns over new local inventions
 - Prefer typed, explicit, maintainable code
 - Prefer small, reviewable diffs
@@ -68,7 +70,19 @@ Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benc
 - Do not change unrelated behavior
 - Do not treat uncertainty as approval; inspect the repository first
 - Do not assume conventions; extract them from nearby code
-- Do not consider the task complete until validation is finished
+- Do not consider the task complete until validation (`pytest`, `ruff`, `mypy`) is finished
+
+### Pythonic Code Quality & Safety Constraints
+- **Never use mutable objects (`list`, `dict`, etc.) as default arguments** in functions or methods. Use `None` and initialize inside the function instead.
+- **Never catch broad exceptions** like `except Exception:` without re-raising, unless logging and safely terminating the process. Always catch specific exceptions.
+- **Always use context managers (`with` statements)** for resource management (files, network connections, locks) to ensure guaranteed release.
+- **Avoid raw `dict[str, Any]` for core domain data**. Use `dataclasses`, `Pydantic` models, or `TypedDict` to enforce structural type safety.
+- **Strictly forbid unsafe dynamic execution**: Do not use `eval()`, `exec()`, or `pickle` for untrusted input. When using `subprocess`, always set `shell=False` and pass arguments as a list.
+- **Ensure Async-Safety**: When modifying or adding `async def` functions, never introduce blocking I/O calls (e.g., standard `time.sleep()`, synchronous file/network I/O). Use `await asyncio.sleep()` or run blocking paths in executors.
+
+### Production Readiness
+- **No Placeholders**: Never leave `pass`, `...`, or `# TODO` in the final implementation. Every logical path must be fully implemented.
+- **No Debug Artifacts**: Remove all `print()` statements, commented-out code, and temporary debug variables before moving to Phase 11. Use the proper `logging` library.
 
 ---
 
