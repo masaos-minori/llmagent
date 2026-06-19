@@ -215,16 +215,26 @@ class RagPipeline:
             ]
             for stage in pre_augment_stages:
                 t0 = time.perf_counter()
-                await stage.run(ctx, db=db)
+                exc_msg: str | None = None
+                try:
+                    await stage.run(ctx, db=db)
+                except Exception as e:
+                    exc_msg = str(e)
+                    logger.warning("Stage %s failed: %s", stage.__class__.__name__, e)
                 elapsed = time.perf_counter() - t0
                 self.last_timings[stage.__class__.__name__] = elapsed
-                status, reason = self._get_stage_status(stage, ctx)
+                stage_status: str
+                stage_reason: str | None
+                if exc_msg is not None:
+                    stage_status, stage_reason = "failure", exc_msg
+                else:
+                    stage_status, stage_reason = self._get_stage_status(stage, ctx)
                 ctx.stage_results.append(
                     StageResult(
                         stage_name=stage.__class__.__name__,
-                        status=status,
+                        status=stage_status,
                         elapsed_seconds=elapsed,
-                        fallback_reason=reason,
+                        fallback_reason=stage_reason,
                     )
                 )
 
@@ -351,7 +361,18 @@ class RagPipeline:
             return ""
         # HTTP mode: delegate to external RAG service when rag_service_url is configured
         if rag_url := self._cfg.rag_service_url:
+            t0 = time.perf_counter()
             result = await self._augment_http(rag_url, query, history_context)
+            elapsed = time.perf_counter() - t0
+            http_status = "success" if result is not None else "fallback"
+            self.last_stage_results.append(
+                StageResult(
+                    stage_name="HttpAugment",
+                    status=http_status,
+                    elapsed_seconds=elapsed,
+                    fallback_reason="in-process fallback" if result is None else None,
+                )
+            )
             if result is not None:
                 return result
         # Semantic cache lookup (in-process mode only)
@@ -382,7 +403,20 @@ class RagPipeline:
             return ""
         # Refiner: compress chunks to query-relevant key points before injection
         if self._cfg.use_refiner:
+            t0 = time.perf_counter()
             refined = await self._augment_refiner(reranked, query)
+            elapsed = time.perf_counter() - t0
+            refiner_status = "success" if refined is not None else "fallback"
+            self.last_stage_results.append(
+                StageResult(
+                    stage_name="Refiner",
+                    status=refiner_status,
+                    elapsed_seconds=elapsed,
+                    fallback_reason="refiner returned None"
+                    if refined is None
+                    else None,
+                )
+            )
             if refined is not None:
                 return refined
         context_block = self._format_chunks(reranked)
