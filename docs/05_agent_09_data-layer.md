@@ -15,6 +15,7 @@ and the responsibility boundary between the agent layer and the RAG layer.
 |---|---|---|---|
 | `session.sqlite` | `/opt/llm/db/session.sqlite` | Agent layer | Sessions, messages, notes |
 | `rag.sqlite` | `/opt/llm/db/rag.sqlite` | RAG layer | Documents, chunks, vectors |
+| `mdq.sqlite` | `/opt/llm/db/mdq.sqlite` | MCP (mdq-mcp) | Markdown document query (experimental) |
 | `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | Workflow engine | Tasks, attempts, events |
 
 ---
@@ -88,6 +89,8 @@ The agent accesses document data through three paths:
 | Direct DB access | Not recommended | Never in application code |
 
 MCP tools are the preferred and supported path. The agent layer never imports `sqlite3` against `rag.sqlite` or `mdq.sqlite` directly. See [04_mcp-mdq.md](04_mcp-mdq.md) for the boundary between RAG and MDQ systems.
+
+- **MDQ**: Experimental markdown query server. Access via `mdq-mcp` tools only. FTS5 search is functional but not production-validated. Tool responses may be stub data in some configurations. See [04_mcp-mdq.md](04_mcp-mdq.md) for the RAG/MDQ boundary and known issues.
 
 ## Memory Tables (optional)
 

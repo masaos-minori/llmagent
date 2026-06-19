@@ -81,7 +81,13 @@ No automatic migration path exists. Migration would require:
 
 ## Current Status
 
-- **MDQ:** Experimental. FTS5 search is functional but not production-validated. Tool responses may be stub data in some configurations.
+- **MDQ:** Experimental. FTS5 search is functional but not production-validated. Tool responses may be stub data in some configurations (see [server catalog](04_mcp_04_server_catalog.md)).
 - **RAG:** Production-ready. Full ingestion pipeline, embedding support, and hybrid search (RRF) available.
 
 For production workloads involving general-purpose document retrieval, prefer `rag-pipeline-mcp`. Use `mdq-mcp` only for Markdown-specific structural queries where embedding quality is not critical.
+
+---
+
+## Known Issues
+
+- **DB path mismatch:** TOML config (`config/mdq_mcp_server.toml`) uses `mdq.sqlite`, JSON config (`config/mdq_mcp_server.json`) uses `mdq.db`. Documentation and code default to `mdq.sqlite`. Recommend aligning the JSON config to use `mdq.sqlite` for consistency with RAG's naming convention (`rag.sqlite`).

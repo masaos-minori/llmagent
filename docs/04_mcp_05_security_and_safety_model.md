@@ -293,8 +293,7 @@ Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).
 5. **`workflow_allowlist` is fail-open** (unlike `repo_allowlist`). All workflows are reachable
    unless explicitly restricted.
 
-6. **mdq-mcp tools return stub data.** Do not rely on `search_docs`, `get_chunk`, etc. for
-   actual content — they are placeholder implementations.
+6. **mdq-mcp tools return stub data.** MDQ is experimental (see [MDQ boundary doc](04_mcp-mdq.md)). Do not rely on `search_docs`, `get_chunk`, etc. for actual content — they are placeholder implementations. Production RAG content is served via the rag-pipeline-mcp server.
 
 7. **`dry_run=True` preview before destructive ops.** The approval flow in the agent
    auto-injects `dry_run=True` for registered tools before showing the user prompt.
