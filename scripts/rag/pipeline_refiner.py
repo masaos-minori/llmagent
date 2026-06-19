@@ -8,6 +8,7 @@ Imported by rag/pipeline.py during orchestrator construction.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from collections.abc import Callable
 
@@ -19,6 +20,16 @@ from rag.types import MergedHit, RankedHit, RawHit
 logger = logging.getLogger(__name__)
 
 
+@dataclasses.dataclass
+class RefineResult:
+    """Result of a refine_context() call."""
+
+    text: str | None
+    reason: (
+        str | None
+    )  # None on success; "refiner_returned_empty" or "refiner_exception: ..." on fallback
+
+
 async def refine_context(
     llm: RagLLM,
     on_status: Callable[[str], None],
@@ -28,50 +39,13 @@ async def refine_context(
     max_tokens: int = 2048,
     per_chunk_chars: int = 512,
     timeout: float | None = None,
-) -> str | None:
-    """Run the chunk refiner to compress reranked hits into query-relevant key points.
-
-    The refiner sends all reranked hits to the LLM with a prompt asking it to
-    extract concise, query-focused key points from the chunks. This reduces the
-    context size injected into the conversation while preserving relevance.
+) -> RefineResult:
+    """Run the chunk refiner.
 
     Return contract:
-
-        ┌─────────────┬──────────────────────────────────────────────────┐
-        │ Return value │ Condition                                       │
-        ├─────────────┼──────────────────────────────────────────────────┤
-        │ ``str``      │ LLM returned a non-empty refined string.         │
-        │              │ The string contains compressed key points from   │
-        │              │ the reranked hits, focused on the query.         │
-        ├─────────────┼──────────────────────────────────────────────────┤
-        │ ``None``     │ One of:                                           │
-        │              │ - LLM returned empty/falsy output                │
-        │              │ - HTTP error (httpx.HTTPStatusError)             │
-        │              │ - Network/transport error (httpx.RequestError)   │
-        │              │ - Parse error or unexpected response (ValueError)│
-        │              │ None triggers raw-chunk fallback in the caller.  │
-        └─────────────┴──────────────────────────────────────────────────┘
-
-    Error handling:
-        All exceptions (HTTPStatusError, RequestError, ValueError) are caught,
-        logged as warnings, and converted to None. No retry is performed —
-        refiner failures are non-critical; raw chunks serve as the fallback.
-
-    Args:
-        llm: The RagLLM instance used for refinement.
-        on_status: Optional callback for UI status updates (e.g. "Refining...").
-        reranked: List of reranked hit objects from the fusion/rerank stages.
-        query: The original user query (used in the refiner prompt).
-        max_tokens: Maximum tokens in the refined output (default: 2048).
-        per_chunk_chars: Max characters per chunk in the prompt (default: 512).
-        timeout: Request timeout in seconds (default: 30.0).
-
-    Returns:
-        Refined context string, or None to signal failure and trigger fallback.
-
-    See Also:
-        _augment_refiner: Thin wrapper that adds status tracking.
-        augment: Full fallback chain including raw-chunk fallback.
+        RefineResult(text=str, reason=None)              — LLM returned a non-empty refined string
+        RefineResult(text=None, reason="refiner_returned_empty")  — LLM returned empty output
+        RefineResult(text=None, reason="refiner_exception: ...")  — exception during LLM call
     """
     effective_timeout: float = timeout if timeout is not None else 30.0
     try:
@@ -84,8 +58,9 @@ async def refine_context(
             timeout=effective_timeout,
         )
         if refined:
-            return refined
+            return RefineResult(text=refined, reason=None)
         logger.warning("Refiner returned empty output; falling back to chunks")
+        return RefineResult(text=None, reason="refiner_returned_empty")
     except (httpx.HTTPStatusError, httpx.RequestError, ValueError) as e:
         logger.warning("Refiner failed, falling back to original chunks: %s", e)
-    return None
+        return RefineResult(text=None, reason=f"refiner_exception: {e}")

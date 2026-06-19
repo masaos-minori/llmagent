@@ -37,6 +37,7 @@ async def call_rag_service(
     *,
     auth_token: str = "",
     set_fetch_result: Callable[[TwoStageFetchResult], None],
+    set_fallback_reason: Callable[[str], None] | None = None,
 ) -> str | None:
     """Delegate to external RAG service.
 
@@ -49,6 +50,7 @@ async def call_rag_service(
     Retries up to _MAX_ATTEMPTS times on 5xx or transport errors with
     exponential backoff.  4xx and parse errors are not retried.
     Stores hits in last_fetch_result via the callback.
+    When set_fallback_reason is provided, it is called with a reason string on each failure path.
     """
     headers: dict[str, str] = {}
     if auth_token:
@@ -65,12 +67,14 @@ async def call_rag_service(
             resp.raise_for_status()
             body = orjson.loads(resp.content)
             hits = body.get("selected_hits", [])
+            min_score = body.get("min_score_applied", 0.0)
+            max_chunks = body.get("max_chunks_per_doc", 0)
             if hits:
                 set_fetch_result(
                     TwoStageFetchResult(
                         hits=hits,
-                        min_score_applied=0.0,
-                        max_chunks_per_doc=0,
+                        min_score_applied=float(min_score),
+                        max_chunks_per_doc=int(max_chunks),
                     )
                 )
             context_raw = body.get("context")
@@ -89,6 +93,8 @@ async def call_rag_service(
                     rag_url,
                     e,
                 )
+                if set_fallback_reason is not None:
+                    set_fallback_reason(f"http_client_error: {e.response.status_code}")
                 return None
             _log_retry(rag_url, attempt, e)
         except httpx.TransportError as e:
@@ -99,6 +105,8 @@ async def call_rag_service(
                 rag_url,
                 e,
             )
+            if set_fallback_reason is not None:
+                set_fallback_reason(f"http_parse_error: {e}")
             return None
         if attempt < _MAX_ATTEMPTS - 1:
             await asyncio.sleep(min(2**attempt, 5))
@@ -108,4 +116,6 @@ async def call_rag_service(
         rag_url,
         _MAX_ATTEMPTS,
     )
+    if set_fallback_reason is not None:
+        set_fallback_reason(f"http_max_retries: {_MAX_ATTEMPTS} attempts failed")
     return None

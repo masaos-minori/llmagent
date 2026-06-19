@@ -32,7 +32,7 @@ from shared.types import RagConfig
 from rag.cache import SemanticCache
 from rag.llm import RagLLM, get_embedding
 from rag.models_data import TwoStageFetchResult
-from rag.pipeline_refiner import refine_context
+from rag.pipeline_refiner import RefineResult, refine_context
 from rag.pipeline_service import call_rag_service
 from rag.repository import (
     RagRepository,
@@ -294,6 +294,7 @@ class RagPipeline:
         rag_url: str,
         query: str,
         history_context: str,
+        set_fallback_reason: Callable[[str], None] | None = None,
     ) -> str | None:
         """Delegate to external RAG service; None on failure triggers in-process fallback.
 
@@ -308,31 +309,16 @@ class RagPipeline:
             history_context,
             auth_token=self._cfg.rag_auth_token,
             set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
+            set_fallback_reason=set_fallback_reason,
         )
 
-    async def _augment_refiner(self, reranked: list[RagHit], query: str) -> str | None:
-        """Run the chunk refiner via ``refine_context()``.
+    async def _augment_refiner(
+        self, reranked: list[RagHit], query: str
+    ) -> RefineResult:
+        """Run the chunk refiner; returns RefineResult with reason on empty output or LLM failure.
 
-        This is a thin wrapper that adds status tracking and delegates to
-        ``refine_context()``. The refiner compresses reranked hits into
-        query-relevant key points using the LLM.
-
-        Config gates:
-            Only invoked when ``self._cfg.use_refiner`` is truthy. When disabled,
-            the caller skips directly to raw-chunk formatting.
-
-        Return semantics (delegated to ``refine_context()``):
-            - ``str`` (non-empty): Refined key points → returned as final result
-            - ``None``: Empty LLM output or any error → triggers raw-chunk fallback
-
-        Side effects:
-            Calls ``on_status("refining context...")`` if provided.
-            Updates ``self.last_stage_results`` with "Refiner" stage status
-            (``"success"`` or ``"fallback"``).
-
-        See Also:
-            refine_context: Full return contract, parameters, and error handling.
-            augment: Complete fallback chain including raw-chunk formatting.
+        The caller in ``augment()`` falls back to ``_format_chunks(reranked)`` (raw chunks)
+        when RefineResult.text is None. See ``refine_context()`` for the full return contract.
         """
         return await refine_context(
             self._llm,
@@ -401,15 +387,26 @@ class RagPipeline:
         # HTTP mode: delegate to external RAG service when rag_service_url is configured
         if rag_url := self._cfg.rag_service_url:
             t0 = time.perf_counter()
-            result = await self._augment_http(rag_url, query, history_context)
+            http_fallback_reasons: list[str] = []
+            result = await self._augment_http(
+                rag_url,
+                query,
+                history_context,
+                set_fallback_reason=http_fallback_reasons.append,
+            )
             elapsed = time.perf_counter() - t0
             http_status = "success" if result is not None else "fallback"
+            http_fallback_reason = (
+                http_fallback_reasons[0]
+                if http_fallback_reasons
+                else "in-process fallback"
+            )
             self.last_stage_results.append(
                 StageResult(
                     stage_name="HttpAugment",
                     status=http_status,
                     elapsed_seconds=elapsed,
-                    fallback_reason="in-process fallback" if result is None else None,
+                    fallback_reason=http_fallback_reason if result is None else None,
                 )
             )
             if result is not None:
@@ -454,19 +451,17 @@ class RagPipeline:
             t0 = time.perf_counter()
             refined = await self._augment_refiner(reranked, query)
             elapsed = time.perf_counter() - t0
-            refiner_status = "success" if refined is not None else "fallback"
+            refiner_status = "success" if refined.text is not None else "fallback"
             self.last_stage_results.append(
                 StageResult(
                     stage_name="Refiner",
                     status=refiner_status,
                     elapsed_seconds=elapsed,
-                    fallback_reason="refiner returned None"
-                    if refined is None
-                    else None,
+                    fallback_reason=refined.reason,
                 )
             )
-            if refined is not None:
-                return refined
+            if refined.text is not None:
+                return refined.text
         context_block = self._format_chunks(reranked)
         if self._cfg.use_semantic_cache and emb is not None and context_block:
             self.semantic_cache.put(emb, history_context, context_block)
