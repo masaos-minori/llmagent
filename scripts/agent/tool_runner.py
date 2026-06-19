@@ -79,7 +79,7 @@ async def execute_one_tool_call(
 
     result = await ctx.services.tools.execute(name, args)
     text, is_error, x_request_id = result.output, result.is_error, result.request_id
-    audit_tool_exec(ctx, name, args, is_error, x_request_id)
+    audit_tool_exec(ctx, name, args, is_error, x_request_id, result.error_type)
 
     if (
         ctx.cfg.tool.use_tool_summarize

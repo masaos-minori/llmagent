@@ -12,6 +12,7 @@ import dataclasses
 import logging
 import sqlite3
 import sys
+import time
 import uuid
 from typing import Any
 
@@ -49,7 +50,7 @@ def _truncate_with_meta(
     total = len(encoded)
     if total <= max_bytes:
         return TruncationResult(
-            text=text, truncated=False, total_bytes=total, visible_bytes=total
+            text=text, truncated=False, total_bytes=total, actual_visible_bytes=total
         )
     shown = encoded[:max_bytes].decode("utf-8", errors="ignore")
     actual_visible = len(shown.encode("utf-8"))
@@ -147,6 +148,29 @@ class MCPServer:
             "details": {},
         }
 
+    def _ensure_error_tracking(self) -> None:
+        """Ensure per-instance error tracking is initialized."""
+        if not hasattr(self, "_tool_errors"):
+            self._tool_errors: list[float] = []
+
+    def _record_tool_error(self, tool_name: str) -> None:
+        """Record a tool error timestamp and warn if threshold exceeded.
+
+        Uses a sliding window of 300 seconds. Warns when 3 or more errors
+        occur for the same tool within the window.
+        """
+        self._ensure_error_tracking()
+        now = time.time()
+        cutoff = now - 300.0
+        self._tool_errors = [t for t in self._tool_errors if t > cutoff]
+        self._tool_errors.append(now)
+        if len(self._tool_errors) >= 3:
+            logger.warning(
+                "Repeated tool failures detected: %s failed %d times in 300s window",
+                tool_name,
+                len(self._tool_errors),
+            )
+
     def run_http(self) -> None:
         """Launch the HTTP server via uvicorn."""
         import uvicorn
@@ -236,6 +260,9 @@ class MCPServer:
                 logger.error("run_stdio unexpected error: %s", e)
                 result = f"Internal server error: {e}"
                 is_error = True
+
+            if is_error and name != "__list_tools__":
+                self._record_tool_error(name)
 
             resp = _json_dumps(
                 {

@@ -130,6 +130,7 @@ def audit_tool_exec(
     args: dict,
     is_error: bool,
     mcp_request_id: str,
+    error_type: str = "",
 ) -> None:
     """Write a tool_exec event with mcp_request_id to the audit log."""
     if ctx.services.audit_logger is None or not mcp_request_id:
@@ -144,6 +145,7 @@ def audit_tool_exec(
         resource_scope=resource_scope,
         mcp_request_id=mcp_request_id,
         is_error=is_error,
+        error_type=error_type,
         args_preview=masked,
         ts=time.time(),
     )
