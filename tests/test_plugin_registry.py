@@ -107,7 +107,8 @@ class TestRegisterToolConflict:
         assert plugin_registry.get_tool("list_directory") is not None
 
         mcp_tools = frozenset({"list_directory"})
-        plugin_registry._validate_tool_conflicts(mcp_tools, "reject")
+        with caplog.at_level(logging.INFO, logger="shared.plugin_registry"):
+            plugin_registry._validate_tool_conflicts(mcp_tools, "reject")
 
         assert plugin_registry.get_tool("list_directory") is None
         assert any("rejected" in r.message for r in caplog.records)
@@ -120,7 +121,7 @@ class TestRegisterToolConflict:
         assert plugin_registry.get_tool("list_directory") is not None
 
         mcp_tools = frozenset({"list_directory"})
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.INFO, logger="shared.plugin_registry"):
             plugin_registry._validate_tool_conflicts(mcp_tools, "allow")
 
         assert plugin_registry.get_tool("list_directory") is not None
@@ -390,7 +391,7 @@ class TestLoadPluginsStrictMode:
 
     def test_strict_mode_broken_plugin_raises(self, tmp_path: Path):
         (tmp_path / "bad.py").write_text("raise RuntimeError('boom')")
-        with pytest.raises(RuntimeError, match="boom"):
+        with pytest.raises(plugin_registry.PluginLoadError, match="boom"):
             plugin_registry.load_plugins(tmp_path, strict_mode=True)
 
     def test_non_strict_mode_broken_plugin_continues(self, tmp_path: Path):
@@ -414,9 +415,9 @@ class TestLoadPluginsStrictMode:
         )
         assert result.loaded_count == 0
 
-    def test_strict_mode_does_not_collect_failures(self, tmp_path: Path):
+    def test_strict_mode_raises_plugin_load_error(self, tmp_path: Path):
         (tmp_path / "bad.py").write_text("raise RuntimeError('strict_boom')")
-        with pytest.raises(RuntimeError, match="strict_boom"):
+        with pytest.raises(plugin_registry.PluginLoadError, match="strict_boom"):
             plugin_registry.load_plugins(tmp_path, strict_mode=True)
 
 
@@ -508,3 +509,103 @@ class TestRunPipelineStages:
         hits: list = [{"url": "u1"}]
         result = await plugin_registry.run_pipeline_stages(hits, "q")
         assert result == hits
+
+
+# ── New behaviors (Steps 1-4) ─────────────────────────────────────────────────
+
+
+class TestPluginLoadError:
+    def test_is_runtime_error_subclass(self):
+        assert issubclass(plugin_registry.PluginLoadError, RuntimeError)
+
+    def test_aggregated_error_strict_mode(self, tmp_path: Path):
+        (tmp_path / "bad1.py").write_text("raise RuntimeError('first_fail')")
+        (tmp_path / "bad2.py").write_text("raise RuntimeError('second_fail')")
+        with pytest.raises(plugin_registry.PluginLoadError) as exc_info:
+            plugin_registry.load_plugins(tmp_path, strict_mode=True)
+        msg = str(exc_info.value)
+        assert "first_fail" in msg
+        assert "second_fail" in msg
+
+    def test_aggregated_error_contains_all_module_names(self, tmp_path: Path):
+        (tmp_path / "alpha.py").write_text("raise ImportError('no_module')")
+        (tmp_path / "beta.py").write_text("raise RuntimeError('bad_runtime')")
+        with pytest.raises(plugin_registry.PluginLoadError) as exc_info:
+            plugin_registry.load_plugins(tmp_path, strict_mode=True)
+        msg = str(exc_info.value)
+        assert "alpha.py" in msg
+        assert "beta.py" in msg
+
+
+class TestConflictLogging:
+    def test_conflict_log_has_plugin_prefix(self, caplog):
+        @plugin_registry.register_tool("search_web")
+        async def handler(args: dict) -> tuple[str, bool]:
+            return "ok", False
+
+        with caplog.at_level(logging.INFO, logger="shared.plugin_registry"):
+            plugin_registry._validate_tool_conflicts(
+                frozenset({"search_web"}), "reject"
+            )
+
+        assert any("[plugin] conflict:" in r.message for r in caplog.records)
+
+    def test_conflict_log_contains_module_name(self, caplog, tmp_path: Path):
+        (tmp_path / "mymod.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("conflict_tool")
+                async def t(args: dict) -> tuple[str, bool]:
+                    return "", False
+            """)
+        )
+        with caplog.at_level(logging.INFO, logger="shared.plugin_registry"):
+            plugin_registry.load_plugins(
+                tmp_path,
+                known_tools=frozenset({"conflict_tool"}),
+                override_policy="reject",
+            )
+        assert any("mymod" in r.message for r in caplog.records)
+
+
+class TestSignatureWarning:
+    def test_missing_return_annotation_warns(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="shared.plugin_registry"):
+
+            @plugin_registry.register_tool("no_return_type")
+            async def handler(args: dict):  # type: ignore[return]  # intentionally missing annotation
+                return "ok", False
+
+        assert any(
+            "missing return type annotation" in r.message for r in caplog.records
+        )
+
+    def test_correct_return_annotation_no_warning(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="shared.plugin_registry"):
+
+            @plugin_registry.register_tool("correct_return")
+            async def handler(args: dict) -> tuple[str, bool]:
+                return "ok", False
+
+        assert not any(
+            "missing return type annotation" in r.message for r in caplog.records
+        )
+
+
+class TestCommandShadowLogging:
+    def test_command_shadow_always_logged_at_info(self, caplog, tmp_path: Path):
+        (tmp_path / "shadow_cmd.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_command
+
+                @register_command("/debug")
+                async def cmd(ctx, args):
+                    pass
+            """)
+        )
+        with caplog.at_level(logging.INFO, logger="shared.plugin_registry"):
+            plugin_registry.load_plugins(tmp_path, strict_mode=False)
+
+        info_records = [r for r in caplog.records if r.levelno == logging.INFO]
+        assert any("command shadow" in r.message for r in info_records)

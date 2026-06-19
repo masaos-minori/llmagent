@@ -227,9 +227,13 @@ class ToolConfig:
     system_prompt_tool: str = ""
     # Empty = all tools allowed; non-empty = only listed tools allowed
     allowed_tools: list[str] = field(default_factory=list)
-    # Reject plugin tools that shadow MCP tool names; true = allow with warning
+    # Tools that shadow MCP tool names are rejected by default.
+    # true = allow shadowing with warning; false = reject (default)
+    # Recommended for production: False (fail-closed)
     plugin_tool_override: bool = False
-    # Fail startup on first plugin import error; false = fail-open (log warning and continue)
+    # Fail startup on first plugin import error.
+    # true = fail-fast (CI/production); false = fail-open (log and continue, dev)
+    # Recommended for production: True
     plugin_strict: bool = False
 
     def __post_init__(self) -> None:

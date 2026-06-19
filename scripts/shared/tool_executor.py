@@ -440,7 +440,6 @@ class ToolExecutor:
 
         self._resolver = ToolRouteResolver(server_configs)
 
-
     def set_transport(self, server_key: str, transport: StdioTransport) -> None:
         """Register a started StdioTransport for the given server key."""
         self._transports[server_key] = transport

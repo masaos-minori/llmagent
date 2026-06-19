@@ -8,6 +8,7 @@ REPL instance state directly.
 from __future__ import annotations
 
 import logging
+import sys
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -337,22 +338,42 @@ def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
     )
     mode_str = "strict" if ctx.cfg.tool.plugin_strict else "fail-open"
     audit_logger.info("Plugin loading mode: %s", mode_str)
+
+    # Route plugin INFO logs to stdout so diagnostics are visible at startup.
+    plugin_logger = logging.getLogger("shared.plugin_registry")
+    if not any(
+        isinstance(h, logging.StreamHandler) and h.stream is sys.stdout
+        for h in plugin_logger.handlers
+    ):
+        _stdout_handler = logging.StreamHandler(sys.stdout)
+        _stdout_handler.setFormatter(logging.Formatter("%(message)s"))
+        _stdout_handler.setLevel(logging.INFO)
+        plugin_logger.addHandler(_stdout_handler)
+
     result = plugin_registry.load_plugins(
         plugin_dir,
         known_tools=known_tools,
         override_policy=override_policy,
         strict_mode=ctx.cfg.tool.plugin_strict,
     )
-    if result.loaded_count:
-        audit_logger.info(
-            "Loaded %d plugin(s) from %s", result.loaded_count, plugin_dir
-        )
 
     if result.failed:
         for failure in result.failed:
             audit_logger.warning(
                 "Plugin load failure: %s — %s", failure.path, failure.error
             )
+
+    total_discovered = result.loaded_count + len(result.failed)
+    audit_logger.info(
+        "Plugin startup: discovered=%d, loaded=%d, skipped=%d,"
+        " tool_conflicts_shadowed=%d, tool_conflicts_allowed=%d, command_shadows=%d",
+        total_discovered,
+        result.loaded_count,
+        len(result.failed),
+        result.tool_conflicts_shadowed,
+        result.tool_conflicts_allowed,
+        result.command_shadows,
+    )
 
 
 def init_tracer(ctx: AgentContext) -> object:

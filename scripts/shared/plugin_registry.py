@@ -53,9 +53,15 @@ ToolHandler = Callable[[dict[str, Any]], Awaitable[tuple[str, bool]]]
 
 # ── Internal registries ───────────────────────────────────────────────────────
 
-_commands: dict[str, tuple[Callable[..., Any], bool]] = {}
-_tools: dict[str, Callable[..., Any]] = {}
+# Stores (handler, is_prefix, module_name) per command name.
+_commands: dict[str, tuple[Callable[..., Any], bool, str]] = {}
+# Stores (handler, module_name) per tool name.
+_tools: dict[str, tuple[Callable[..., Any], str]] = {}
 _pipeline_post: list[Callable[..., Any]] = []
+
+# Set by load_plugins() around each exec_module() call so that decorators can
+# record the originating module name without an explicit parameter.
+_current_loading_module: str = ""
 
 
 # ── Decorators ────────────────────────────────────────────────────────────────
@@ -65,8 +71,8 @@ def register_command(name: str, *, prefix: bool = False) -> Callable[[_F], _F]:
     """Register a slash-command plugin; name includes the leading slash; prefix=True allows trailing args."""
 
     def decorator(fn: _F) -> _F:
-        _commands[name] = (fn, prefix)
-        logger.debug("Plugin command registered: %s", name)
+        _commands[name] = (fn, prefix, _current_loading_module)
+        logger.debug("[plugin] command registered: %s", name)
         return fn
 
     return decorator
@@ -76,16 +82,20 @@ def register_tool(name: str) -> Callable[[_F], _F]:
     """Register a local async function as a tool handler; bypasses MCP entirely."""
 
     def decorator(fn: _F) -> _F:
-        _tools[name] = fn
+        _tools[name] = (fn, _current_loading_module)
         hints = typing.get_type_hints(fn)
         return_hint = hints.get("return")
-        if return_hint is not None and return_hint != tuple[str, bool]:
+        if return_hint is None:
             logger.warning(
-                "Plugin tool %r: expected return type 'tuple[str, bool]', got %s",
+                "[plugin] warn: tool '%s' missing return type annotation", name
+            )
+        elif return_hint != tuple[str, bool]:
+            logger.warning(
+                "[plugin] warn: tool '%s' expected return type 'tuple[str, bool]', got %s",
                 name,
                 return_hint,
             )
-        logger.debug("Plugin tool registered: %s", name)
+        logger.debug("[plugin] tool registered: %s", name)
         return fn
 
     return decorator
@@ -111,22 +121,30 @@ def register_pipeline_stage(*, when: str = "post") -> Callable[[_F], _F]:
 
 def get_command(name: str) -> tuple[Callable[..., Any], bool] | None:
     """Return (handler, is_prefix) for the registered command, or None."""
-    return _commands.get(name)
+    entry = _commands.get(name)
+    if entry is None:
+        return None
+    fn, prefix, _mod = entry
+    return (fn, prefix)
 
 
 def iter_commands() -> dict[str, tuple[Callable[..., Any], bool]]:
     """Return a snapshot of all registered plugin commands."""
-    return dict(_commands)
+    return {name: (fn, prefix) for name, (fn, prefix, _mod) in _commands.items()}
 
 
 def get_tool(name: str) -> Callable[..., Any] | None:
     """Return the registered local tool handler, or None."""
-    return _tools.get(name)
+    entry = _tools.get(name)
+    if entry is None:
+        return None
+    fn, _mod = entry
+    return fn
 
 
 def iter_tools() -> dict[str, Callable[..., Any]]:
     """Return a snapshot of all registered plugin tools."""
-    return dict(_tools)
+    return {name: fn for name, (fn, _mod) in _tools.items()}
 
 
 def get_pipeline_post_stages() -> list[Callable[..., Any]]:
@@ -180,6 +198,13 @@ class PluginFailure:
 class PluginLoadResult:
     loaded_count: int
     failed: tuple[PluginFailure, ...]
+    tool_conflicts_shadowed: int = 0
+    tool_conflicts_allowed: int = 0
+    command_shadows: int = 0
+
+
+class PluginLoadError(RuntimeError):
+    """Raised in strict mode when one or more plugins fail to load."""
 
 
 # ── Plugin auto-discovery ─────────────────────────────────────────────────────
@@ -188,57 +213,73 @@ class PluginLoadResult:
 def _validate_tool_conflicts(
     known_tools: frozenset[str],
     override_policy: str,
-) -> dict[str, bool]:
+) -> tuple[int, int]:
     """Validate plugin tools against known MCP tool names.
 
-    Returns a dict mapping tool_name → True if the tool was removed (rejected).
+    Returns (shadowed_count, allowed_count).
     """
     if not known_tools:
-        return {}
+        return (0, 0)
 
-    removed: dict[str, bool] = {}
+    shadowed_count = 0
+    allowed_count = 0
     for tool_name in list(_tools.keys()):
         if tool_name in known_tools:
+            _fn, module_name = _tools[tool_name]
             if override_policy == "allow":
-                logger.warning(
-                    "Plugin tool %r shadows MCP tool; override policy allows it",
+                allowed_count += 1
+                logger.info(
+                    "[plugin] conflict: tool '%s' in '%s' shadows MCP tool — allowed",
                     tool_name,
+                    module_name,
                 )
             else:
                 del _tools[tool_name]
-                removed[tool_name] = True
-                logger.error(
-                    "Plugin tool %r rejected: conflicts with MCP tool. "
-                    "Set plugin_tool_override = true to allow.",
+                shadowed_count += 1
+                logger.info(
+                    "[plugin] conflict: tool '%s' in '%s' shadows MCP tool — rejected",
                     tool_name,
+                    module_name,
                 )
-    return removed
+    if shadowed_count or allowed_count:
+        logger.info(
+            "[plugin] tool conflicts: shadowed=%d, allowed=%d",
+            shadowed_count,
+            allowed_count,
+        )
+    return (shadowed_count, allowed_count)
 
 
-def _validate_command_conflicts(strict_mode: bool = False) -> dict[str, bool]:
+def _validate_command_conflicts(strict_mode: bool = False) -> int:
     """Warn when a plugin command shadows a built-in command name.
 
-    Returns a dict mapping command_name to True when shadowing was detected.
+    Returns the number of shadowed commands.
     """
     try:
         from agent.commands.command_defs import _COMMANDS  # noqa: I001 — deferred: avoid circular import at module level
     except ImportError:
-        return {}
+        return 0
 
     builtin_names = frozenset(cmd.name for cmd in _COMMANDS)
-    shadowed: dict[str, bool] = {}
+    shadowed_count = 0
     for name in list(_commands.keys()):
         if name in builtin_names:
-            shadowed[name] = True
-            msg = (
-                f"Plugin command {name!r} shadows built-in command."
-                " The built-in command will take precedence."
+            _fn, _prefix, module_name = _commands[name]
+            shadowed_count += 1
+            logger.info(
+                "[plugin] command shadow: '%s' in '%s' shadows built-in",
+                name,
+                module_name,
             )
             if strict_mode:
-                logger.error(msg)
-            else:
-                logger.warning(msg)
-    return shadowed
+                logger.error(
+                    "[plugin] command shadow: '%s' in '%s' shadows built-in (strict mode)",
+                    name,
+                    module_name,
+                )
+    if shadowed_count:
+        logger.info("[plugin] command shadows: %d", shadowed_count)
+    return shadowed_count
 
 
 def load_plugins(
@@ -250,13 +291,16 @@ def load_plugins(
 ) -> PluginLoadResult:
     """Import all *.py files from plugin_dir; returns PluginLoadResult with success/failure details.
 
-    When *strict_mode* is True, the first plugin import failure raises
-    the original exception instead of logging and continuing.
+    When *strict_mode* is True, all plugins are attempted first, then a single
+    PluginLoadError is raised with aggregated failure details (rather than
+    stopping on the first failure).
 
     When *known_tools* is non-empty and *override_policy* is ``"reject"``,
     plugin tools that conflict with known MCP tools are removed after loading
     (not the entire directory -- other plugins continue loading).
     """
+    global _current_loading_module
+
     plugin_path = Path(plugin_dir)
     if not plugin_path.is_dir():
         logger.debug("Plugin dir not found, skipping: %s", plugin_dir)
@@ -265,25 +309,40 @@ def load_plugins(
     loaded = 0
     failures: list[PluginFailure] = []
     for py_file in sorted(plugin_path.glob("*.py")):
+        _current_loading_module = py_file.stem
         try:
             spec = importlib.util.spec_from_file_location(py_file.stem, py_file)
             if spec and spec.loader:
                 mod = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(mod)
                 loaded += 1
-                logger.info("Plugin loaded: %s", py_file.name)
+                logger.info("[plugin] loaded: %s", py_file.name)
         except (ImportError, SyntaxError, AttributeError, RuntimeError) as e:
             error_msg = f"Plugin load failed ({py_file.name}): {type(e).__name__}: {e}"
             failures.append(PluginFailure(path=py_file.name, error=error_msg))
-            if strict_mode:
-                logger.error(error_msg)
-                raise
-            logger.warning(error_msg)
+            logger.warning("[plugin] skipped: %s (%s)", py_file.name, type(e).__name__)
+        finally:
+            _current_loading_module = ""
+
+    logger.info("[plugin] loaded=%d, skipped=%d", loaded, len(failures))
 
     # Run conflict validation after all modules are loaded
-    _validate_tool_conflicts(known_tools, override_policy)
-    _validate_command_conflicts(strict_mode)
-    return PluginLoadResult(loaded_count=loaded, failed=tuple(failures))
+    shadowed, allowed = _validate_tool_conflicts(known_tools, override_policy)
+    cmd_shadows = _validate_command_conflicts(strict_mode)
+
+    if strict_mode and failures:
+        details = "; ".join(f.error for f in failures)
+        raise PluginLoadError(
+            f"Plugin load failed ({len(failures)} error(s)): {details}"
+        )
+
+    return PluginLoadResult(
+        loaded_count=loaded,
+        failed=tuple(failures),
+        tool_conflicts_shadowed=shadowed,
+        tool_conflicts_allowed=allowed,
+        command_shadows=cmd_shadows,
+    )
 
 
 # ── Test helper ───────────────────────────────────────────────────────────────
@@ -291,6 +350,8 @@ def load_plugins(
 
 def _reset_for_testing() -> None:
     """Clear all registries.  Call from test setUp / pytest fixtures only."""
+    global _current_loading_module
     _commands.clear()
     _tools.clear()
     _pipeline_post.clear()
+    _current_loading_module = ""

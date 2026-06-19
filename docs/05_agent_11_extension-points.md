@@ -17,16 +17,20 @@ Plugins are Python files in `plugins/*.py` (relative to the project root, 2 leve
 1. `AgentREPL._init_plugin_registry()` calls `plugin_registry.load_plugins(plugin_dir)` at startup
 2. Each `*.py` file is imported in alphabetical order
 3. `@register_*` decorators run at import time and register handlers globally
-4. Errors during load are logged individually with file name and error reason (fail-open by default)
-5. When `plugin_strict=true` in config, the first import failure aborts startup
-6. After loading, plugin command names are checked against built-in commands; shadowing is logged as a warning
-7. Directory not found → 0 plugins loaded (no error)
+4. Errors during load are logged individually with `[plugin] skipped: <filename> (<ErrorType>)`
+5. When `plugin_strict=true` in config, all plugins are attempted; a single `PluginLoadError` is raised at the end with aggregated details
+6. After loading, a summary line is logged: `[plugin] loaded=N, skipped=M`
+7. After loading, plugin tool and command names are checked against built-in names; each conflict is logged with the source module name
+8. Directory not found → 0 plugins loaded (no error)
 
-Startup log format (individual failure):
-`Plugin load failure: <filename> — <ErrorType>: <message>`
+Startup log format (individual skip):
+`[plugin] skipped: <filename> (<ErrorType>)`
 
-Startup log format (command shadowing warning):
-`Plugin command "/name" shadows built-in command. The built-in command will take precedence.`
+Startup log format (conflict):
+`[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — rejected|allowed`
+
+Startup log format (command shadow):
+`[plugin] command shadow: '<name>' in '<module>' shadows built-in`
 
 ```python
 # plugins/my_plugin.py
@@ -79,9 +83,9 @@ async handler(args: dict) -> tuple[str, bool]   # (result_text, is_error)
 - Return value: `(result_text: str, is_error: bool)`
 
 **Return-type validation:** At registration time, `@register_tool` inspects the
-function's return annotation. If the annotation is present and is not
-`tuple[str, bool]`, a warning is logged. This check is non-blocking — the tool
-is still registered regardless of the annotation.
+function's return annotation. If the annotation is missing entirely, or if it is
+present but is not `tuple[str, bool]`, a warning is logged. This check is
+non-blocking — the tool is still registered regardless of the annotation.
 
 - Access: `plugin_registry.get_tool(name)` → `Callable | None`
 
@@ -97,13 +101,13 @@ when they share the same name — this is because plugin tool lookup in
 When `plugin_tool_override = false` (default):
 
 - At startup, all known MCP tool names are collected from `tool_constants.py`.
-- If a plugin tool name matches any known MCP tool, registration is **rejected**
-  with a clear error message: `Plugin tool "name" conflicts with MCP tool "name". Set plugin_tool_override = true to allow.`
-- Only the conflicting plugin file is skipped; other plugins continue loading.
+- If a plugin tool name matches any known MCP tool, the tool is **rejected** (removed from the registry).
+- Log: `[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — rejected`
+- Only the conflicting tool is removed; the plugin module and other tools continue loading.
 
 When `plugin_tool_override = true`:
 
-- Conflicts are allowed but logged as warnings: `Plugin tool "name" shadows MCP tool; override policy allows it`.
+- Conflicts are allowed and logged: `[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — allowed`
 - The plugin tool takes precedence over the MCP tool for the session.
 
 #### Configuration
@@ -117,11 +121,13 @@ plugin_strict = false         # or true to fail startup on first plugin import e
 
 #### Strict Plugin Loading Mode
 
-When `plugin_strict = true`, the first plugin import failure raises an exception that aborts agent startup. This is useful for CI/CD pipelines where plugin failures should be treated as build errors.
+When `plugin_strict = true`, all plugin files are attempted first. After the full load loop, if any failures occurred, a single `PluginLoadError` (subclass of `RuntimeError`) is raised with all failure details aggregated in the message. This is useful for CI/CD pipelines where plugin failures should be treated as build errors.
 
-Default is `false` (fail-open): plugin import failures are logged as warnings and other plugins continue loading.
+Default is `false` (fail-open): failures are logged as `[plugin] skipped: <filename> (<ErrorType>)` and loading continues.
 
-Error message format (both modes): `Plugin load failed (<filename>): <error_type>: <message>`
+Per-failure entry in `PluginLoadResult.failed`: `PluginFailure(path="<filename>", error="Plugin load failed (<filename>): <ErrorType>: <message>")`
+
+`PluginLoadResult` fields: `loaded_count`, `failed`, `tool_conflicts_shadowed`, `tool_conflicts_allowed`, `command_shadows`
 
 #### Precedence Order
 
@@ -162,7 +168,7 @@ and pre-rerank hooks are not yet implemented.
 | `iter_commands()` | Dict snapshot of all registered commands |
 | `get_tool(name)` | `Callable \| None` |
 | `get_pipeline_post_stages()` | List snapshot of all post-rerank stage handlers |
-| `load_plugins(plugin_dir, *, known_tools, override_policy)` | Import all `*.py` in dir; return count; skip conflicting plugins when policy is "reject" |
+| `load_plugins(plugin_dir, *, known_tools, override_policy, strict_mode)` | Import all `*.py` in dir; returns `PluginLoadResult` with loaded/failed/conflict counts; raises `PluginLoadError` in strict mode |
 | `_reset_for_testing()` | Clear all registries (test-only) |
 
 ---
