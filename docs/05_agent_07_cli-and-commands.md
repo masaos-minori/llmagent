@@ -111,8 +111,8 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 |---|---|---|---|
 | `/db help` | rag + session | None | Shows subcommand table |
 | `/db stats` | rag + session | None | Document/chunk/session/message counts |
-| `/db urls [--lang] [--limit]` | rag | None | List registered documents |
-| `/db clean <url>` | rag | DELETE document + chunks from DB | Cascaded delete |
+| `/db urls [--lang] [--limit]` | rag | None | List registered documents via rag-pipeline-mcp |
+| `/db clean <url>` | rag | Delete document + chunks via rag-pipeline-mcp | Cascaded delete |
 | `/db rebuild-fts` | rag | Rebuilds `chunks_fts` index | FTS5 rebuild |
 | `/db health` | rag + session | None | journal_mode / integrity / page stats |
 | `/db checkpoint [MODE]` | session | WAL checkpoint | Flush WAL to main DB |
@@ -121,7 +121,7 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | `/db recover [backup-path]` | session | Integrity check; restore from backup if corrupt | Destructive if corrupt |
 | `/db consistency` | rag | None | Chunks/FTS/vector index sync check |
 
-> **Note:** `/db` commands operate on `rag.sqlite` (RAG documents, sessions, messages) by default. `session.sqlite` and `workflow.sqlite` are accessed via `SQLiteHelper(target=...)` in code, not through `/db` commands. Schema details: `06_shared_04`.
+> **Note:** `/db urls` and `/db clean` call rag-pipeline-mcp MCP tools (`rag_list_documents`, `rag_delete_document`) via the agent's tool executor. Other `/db` commands use `DbMaintenanceService` for direct SQLite access. Schema details: `06_shared_04`.
 
 ### Tool / plan category
 
