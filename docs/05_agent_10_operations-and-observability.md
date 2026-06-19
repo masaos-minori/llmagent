@@ -327,6 +327,67 @@ The file is appended to on each session end. Diagnostics persistence failures ar
 
 ---
 
+## RAG Pipeline Diagnostics
+
+### /rag search --debug output
+
+Running `/rag search <query> --debug` prints a structured debug trace after the result.
+
+Example output:
+
+```
+  [debug] fusion: use_rrf=True rrf_k=60
+  [debug] MQE queries (2):
+    1: what is the retry policy
+    2: retry policy configuration
+  [debug] search: 2 result lists, 18 total candidates
+  [debug] RRF merge: 12 unique candidates (top 5):
+    chunk_id=4821 rrf=0.0312 url=file:///opt/llm/docs/config.md
+    ...
+  [debug] reranked top-5:
+    chunk_id=4821 score=0.9241 url=file:///opt/llm/docs/config.md
+    ...
+
+  --- Stage timings ---
+    MqeStage: 142.3 ms
+    SearchStage: 38.1 ms
+    FusionStage: 2.4 ms
+    RerankStage: 95.7 ms
+
+  --- Fallbacks / Failures ---
+    RerankStage [fallback]: use_rerank=False
+```
+
+### StageResult fields
+
+Each pipeline run populates `pipeline.last_stage_results` (a list of `StageResult` dicts):
+
+| Field | Type | Description |
+|---|---|---|
+| `stage_name` | str | Class name of the stage (e.g. `"MqeStage"`) |
+| `status` | str | `"success"`, `"fallback"`, or `"failure"` |
+| `elapsed_seconds` | float | Wall-clock seconds for this stage |
+| `fallback_reason` | str or None | Reason string when status is `"fallback"` or `"failure"` |
+
+### Status values
+
+| Status | Meaning |
+|---|---|
+| `success` | Stage completed normally |
+| `fallback` | Stage bypassed due to config flag (e.g. `use_rrf=False`) |
+| `failure` | Stage raised an exception; pipeline continued with degraded output |
+
+### Refiner and HTTP fallback stages
+
+Two additional entries appear in `last_stage_results` when applicable:
+
+| stage_name | Appears when | fallback_reason on fallback |
+|---|---|---|
+| `HttpAugment` | `rag_service_url` is set | `"in-process fallback"` |
+| `Refiner` | `use_refiner=True` | `"refiner returned None"` |
+
+---
+
 ## Graceful Shutdown
 
 - `SIGTERM` → converted to `SystemExit(0)` by `agent.py`
