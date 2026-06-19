@@ -102,6 +102,42 @@ a JSON file in `rag-src/`. Supports conditional GET (ETag/Last-Modified) and loc
 - **Conditional GET:** reads `documents.etag` / `documents.last_modified` from SQLite;
   sends `If-None-Match` / `If-Modified-Since`; skips file save on 304
 
+### Local file ingestion
+
+`crawl_file(path, lang)` reads a local file and writes a crawl JSON to `rag-src/`.
+Unlike web URLs, no HTTP round-trip occurs.
+
+#### Current behavior (no freshness check)
+
+`crawl_file()` always reads and rewrites the JSON regardless of file age.
+The ingester skips re-embedding if the URL already exists in `documents`
+(force=False). This means: if a file changes, the old embedding persists
+until the operator runs ingestion with `--force`.
+
+#### Proposed incremental strategy (not yet implemented)
+
+| Signal | Source | Storage | Skip condition |
+|---|---|---|---|
+| File mtime | `path.stat().st_mtime` | `documents.last_modified` (ISO-8601) | mtime <= stored last_modified → skip |
+| Content hash | SHA-256 of full content | `documents.etag` (prefix `sha256:`) | hash matches stored etag → skip |
+
+Resolution order:
+1. If mtime <= stored `last_modified` → skip (fast path)
+2. Else compute SHA-256; if hash matches stored `etag` → skip (detects touch/chmod)
+3. Else re-crawl, chunk, and re-embed
+
+Storage reuses existing columns — no DB schema change needed.
+The prefix `sha256:` in `etag` distinguishes file hashes from HTTP ETags.
+
+#### Contrast with web ingestion
+
+| Aspect | Web (HTTP) | Local file (file://) |
+|---|---|---|
+| Freshness signal | ETag / Last-Modified header | File mtime / SHA-256 |
+| Skip mechanism | 304 Not Modified | Stored mtime or hash compare |
+| Force re-index | `--force` flag | `--force` flag |
+| Current state | Implemented | Not yet implemented |
+
 ### 2.3 CLI arguments
 
 | Argument | Description | Default |

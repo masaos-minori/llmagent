@@ -240,3 +240,60 @@ with SQLiteHelper("rag").open() as db:
 | Crawl depth | max 6 hops |
 | Crawl page limit | max 500 pages/site |
 | Replica | Single-node SQLite only |
+
+---
+
+## 6. Local file re-ingestion
+
+### First-time ingestion
+
+Add the file path to `target_urls` in `rag_crawler.toml` with scheme `file://`:
+
+```toml
+[[target_urls]]
+url = "file:///path/to/file.py"
+lang = "en"
+```
+
+Then run:
+
+```
+/ingest run
+```
+
+The crawler calls `crawl_file()`, writes a JSON to `rag-src/`, chunks it,
+and embeds it into the SQLite vector store.
+
+### Re-ingesting after file changes
+
+**Current behavior (no incremental check):**
+If the file has changed, the ingester skips re-embedding because the URL
+already exists in `documents` (force=False). To pick up changes:
+
+```
+/ingest run --force
+```
+
+`--force` deletes the existing document and re-embeds all chunks from scratch.
+
+**Future behavior (incremental — not yet implemented):**
+Once the mtime/hash strategy is implemented, running `/ingest run` without
+`--force` will detect changed files by comparing mtime and SHA-256 hash
+against stored values. Unchanged files are skipped automatically.
+
+### Batch re-ingestion of many local files
+
+When multiple files change, use `--force` to re-embed all `file://` URLs in `target_urls`:
+
+```
+/ingest run --force
+```
+
+### Comparison: local files vs. web URLs
+
+| Aspect | Web URL | Local file (file://) |
+|---|---|---|
+| Skip unchanged | Yes (ETag/304) | No (`--force` required now) |
+| Force re-index | `--force` | `--force` |
+| Future skip | Already works | Planned (mtime + hash) |
+
