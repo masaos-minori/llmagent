@@ -70,9 +70,8 @@ class ConfigLoader:
                     f"Config file name must be a non-empty str, got: {name!r}"
                 )
 
-    @staticmethod
-    def _load_single(name: str) -> dict[str, Any]:
-        path = ConfigLoader._resolve_path(name)
+    def _load_single(self, name: str) -> dict[str, Any]:
+        path = self._resolve_path(name)
         suffix = path.suffix.lower()
         try:
             if suffix == ".toml":
@@ -80,20 +79,21 @@ class ConfigLoader:
             parsed = orjson.loads(path.read_bytes())
             if not isinstance(parsed, dict):
                 raise ValueError(
-                    f"Config file {path} must be a JSON object, got {type(parsed).__name__}"
+                    f"Config file {path} must be a top-level mapping, got {type(parsed).__name__}"
                 )
             return dict(parsed)
         except FileNotFoundError as exc:
             raise ValueError(f"Config file not found: {path}") from exc
-        except (tomllib.TOMLDecodeError, orjson.JSONDecodeError) as exc:
-            raise ValueError(f"Invalid config in {path}: {exc}") from exc
+        except tomllib.TOMLDecodeError as exc:
+            raise ValueError(f"Invalid TOML in {path}: {exc}") from exc
+        except orjson.JSONDecodeError as exc:
+            raise ValueError(f"Invalid JSON in {path}: {exc}") from exc
         except OSError as exc:
             raise ValueError(f"Cannot read config file {path}: {exc}") from exc
 
-    @staticmethod
-    def _resolve_path(name: str) -> Path:
-        # Called internally after validation; caller ensures name is valid.
-        return Path(name) if name.endswith((".toml", ".json")) else Path(f"{name}.toml")
+    def _resolve_path(self, name: str) -> Path:
+        p = Path(name) if name.endswith((".toml", ".json")) else Path(f"{name}.toml")
+        return self._config_dir / p.name
 
     @staticmethod
     def _filter_meta_keys(data: dict[str, Any]) -> dict[str, Any]:
