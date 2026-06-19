@@ -336,7 +336,7 @@ Running `/rag search <query> --debug` prints a structured debug trace after the 
 Example output:
 
 ```
-  [debug] fusion: use_rrf=True rrf_k=60
+  [debug] RRF config: use_rrf=True rrf_k=60
   [debug] MQE queries (2):
     1: what is the retry policy
     2: retry policy configuration
@@ -357,6 +357,17 @@ Example output:
   --- Fallbacks / Failures ---
     RerankStage [fallback]: use_rerank=False
 ```
+
+### Stage result interpretation
+
+| Stage | `"success"` | `"fallback"` | `"failure"` |
+|---|---|---|---|
+| `MqeStage` | MQE queries generated | `use_mqe=False`; original query used | LLM call failed |
+| `SearchStage` | Results returned | No matching chunks (empty result) | DB error or embedding failure |
+| `FusionStage` | RRF merge applied | `use_rrf=False`; raw results used | Merge error |
+| `RerankStage` | Cross-encoder rerank applied | `use_rerank=False`; RRF scores used | LLM call failed |
+| `HttpAugment` | External RAG service returned result | `"in-process fallback"` | HTTP error |
+| `Refiner` | Refiner compressed chunks | `"refiner returned None"` | LLM call failed |
 
 ### StageResult fields
 
@@ -385,6 +396,29 @@ Two additional entries appear in `last_stage_results` when applicable:
 |---|---|---|
 | `HttpAugment` | `rag_service_url` is set | `"in-process fallback"` |
 | `Refiner` | `use_refiner=True` | `"refiner returned None"` |
+
+### Ingestion diagnostic output
+
+Running `/ingest run` prints per-URL progress and a summary line:
+
+```
+[ingest] crawling https://example.com/docs (lang=en)...
+[ingest] splitting chunks...
+[ingest] 12 chunks written
+[ingest] ingesting to DB...
+inserted 10/12 chunks: https://example.com/docs/page1
+inserted 8/8 chunks: https://example.com/docs/page2
+inserted 0/5 chunks: https://example.com/docs/page3  <- skipped (already registered)
+=== done: 3 URLs processed (18 success, 0 failed, 1 skipped) ===
+```
+
+| Field | Description |
+|---|---|
+| `inserted N/M chunks: <url>` | N chunks embedded, M total in crawl JSON; 0/M means URL was skipped (already in DB without `--force`) |
+| `done: X URLs processed` | Aggregate across all URL groups in this run |
+| `success` | Chunks successfully embedded and stored |
+| `failed` | Chunks where embedding or DB write failed |
+| `skipped` | URL groups skipped because the URL already exists in `documents` (use `--force` to re-embed) |
 
 ---
 
