@@ -15,14 +15,17 @@ Each entry format:
 
 ## Open Questions
 
-### OQ-01: `AgentSession` owns RAG-layer table access — responsibility boundary unclear
+### OQ-01: `AgentSession` owns RAG-layer table access (RESOLVED)
 
-- **Type:** Open Question / Needs confirmation
-- **Impact scope:** `agent/session.py AgentSession`, `/db clean`, `/db stats` commands, `RAG` layer
-- **Description:** `AgentSession` (`agent/session.py`) implements `delete_document(url)` and `list_documents()`, which directly access the RAG layer tables (`documents`, `chunks`, `chunks_vec`) in `rag.sqlite`. This makes the agent layer depend on the RAG schema.
-- **Current safe interpretation:** The current implementation works. `AgentSession` accesses RAG tables for `/db clean` and `/db stats` as a convenience. This is a known responsibility boundary violation.
-- **Recommended action:** Consider moving RAG document management to `rag-pipeline-mcp` and having agent commands call it via MCP. Track before any RAG layer schema refactoring.
-- **Notes for AI reference:** When modifying `AgentSession`, be aware it contains both session-layer and RAG-layer operations. Do not assume `agent/session.py` touches only `session.sqlite`.
+- **Type:** Open Question (resolved)
+- **Impact scope:** `/db clean`, `/db urls`, `DbMaintenanceService`
+- **Resolution:** RAG document operations (`list_documents`, `delete_document`) moved to
+  `rag-pipeline-mcp` (`rag_list_documents`, `rag_delete_document` tools).
+  `DbMaintenanceService` no longer accesses RAG tables for document management.
+  `/db clean` and `/db urls` call rag-pipeline-mcp via the agent MCP client.
+- **Notes for AI reference:** `DbMaintenanceService.stats()` still reads RAG counts
+  for `/db stats`; this is an acceptable residual dependency until stats are also
+  moved to MCP.
 
 ---
 

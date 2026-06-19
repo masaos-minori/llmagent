@@ -124,8 +124,9 @@ Full details: [05_agent_07_cli-and-commands.md §CLIView](05_agent_07_cli-and-co
 - **Config:** DB path from `config/common.toml`
 - **Failure:** `sqlite3.Error` on critical failures; logs warning and increments counter on `session_id=None`
 
-**Open Question:** `/db clean` and `/db stats` access RAG-layer tables via `AgentSession`.
-This responsibility may be moved to `rag-pipeline-mcp` in a future refactor.
+**Note:** `/db clean` and `/db urls` now call `rag_delete_document` and `rag_list_documents`
+via rag-pipeline-mcp. `/db stats` retains a direct `DbMaintenanceService.stats()` call for
+RAG counts only.
 
 Full details: [05_agent_09_data-layer.md](05_agent_09_data-layer.md)
 

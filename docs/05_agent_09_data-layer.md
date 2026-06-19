@@ -61,22 +61,19 @@ When `auto_inject_notes=True`, all notes are appended to the system prompt at st
 ## rag.sqlite Tables (Agent-facing)
 
 The agent layer does NOT own rag.sqlite. These tables are owned by the RAG layer.
-The agent accesses them exclusively through `DbMaintenanceService` (for `/db` commands).
+The agent accesses document-level data through `rag-pipeline-mcp` (for `/db urls` and `/db clean`),
+and counts through `DbMaintenanceService.stats()` (for `/db stats`).
 
 | Table | Used by agent for |
 |---|---|
-| `documents` | `/db urls`, `/db clean <url>` |
+| `documents` | `/db urls` (via `rag_list_documents` MCP), `/db clean` (via `rag_delete_document` MCP) |
 | `chunks` | `/db stats`, `/db rebuild-fts` |
 | `chunks_fts` | `/db rebuild-fts` (FTS5 virtual table) |
 | `chunks_vec` | `/db stats` |
 
-**Responsibility boundary:** The agent deletes via `DbMaintenanceService.delete_document(url)`,
-which cascades from `documents` → `chunks` → `chunks_fts` (trigger). `chunks_vec` is a
-sqlite-vec virtual table with no FK constraint; `delete_document()` also deletes it explicitly.
-
-**Note:** `/db urls`, `/db clean`, `/db stats`, `/db rebuild-fts` are agent-layer commands
-that access RAG data through `DbMaintenanceService`. Future refactoring may move these to
-the rag-pipeline-mcp service. See [05_agent_12_reference-api.md](05_agent_12_reference-api.md).
+**Responsibility boundary:** `/db urls` and `/db clean` call `rag_list_documents` and
+`rag_delete_document` via rag-pipeline-mcp. `DbMaintenanceService` no longer owns RAG
+document access for listing or deletion.
 
 ---
 
@@ -87,7 +84,7 @@ The agent accesses document data through three paths:
 | Path | Mechanism | When to use |
 |---|---|---|
 | MCP tools (primary) | `ToolRouteResolver` → MCP server (rag-pipeline-mcp or mdq-mcp) | Normal operation; all agent turns |
-| `/db` commands (admin) | `DbMaintenanceService` → direct SQLite access | Admin maintenance tasks only |
+| `/db` commands (admin) | `/db urls`+`/db clean` → rag-pipeline-mcp; `/db stats`+maintenance → `DbMaintenanceService` | Admin tasks only |
 | Direct DB access | Not recommended | Never in application code |
 
 MCP tools are the preferred and supported path. The agent layer never imports `sqlite3` against `rag.sqlite` or `mdq.sqlite` directly. See [04_mcp-mdq.md](04_mcp-mdq.md) for the boundary between RAG and MDQ systems.
