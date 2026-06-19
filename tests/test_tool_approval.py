@@ -108,6 +108,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.cfg = cfg or _make_cfg()
     ctx.turn.current_turn_id = "test-turn-id"
     ctx.services.audit_logger = None
+    ctx.services.tools = AsyncMock()
     return ctx
 
 
@@ -800,19 +801,20 @@ class TestGitopsGuards:
 
 class TestLogApprovalDecision:
     def test_logs_structured_event(self) -> None:
-        from agent.tool_approval import ApprovalDecision
         from agent.tool_audit import log_approval_decision
+        from agent.tool_enums import ApprovalDecisionType, RiskLevel
+        from agent.tool_models import ApprovalOutcome
 
         ctx = _make_ctx()
         ctx.services.audit_logger = MagicMock()
         ctx.turn.current_turn_id = "turn-xyz"
-        decision: ApprovalDecision = {
-            "tool_name": "write_file",
-            "risk_level": "medium",
-            "decision": "approved",
-            "escalation_reason": "",
-        }
-        log_approval_decision(ctx, decision)
+        outcome = ApprovalOutcome(
+            tool_name="write_file",
+            risk_level=RiskLevel.MEDIUM,
+            decision=ApprovalDecisionType.APPROVED,
+            escalation_reason="",
+        )
+        log_approval_decision(ctx, outcome)
         ctx.services.audit_logger.info.assert_called_once()
         logged = ctx.services.audit_logger.info.call_args[0][0]
         assert "approval_decision" in logged
@@ -822,13 +824,18 @@ class TestLogApprovalDecision:
         assert "ts" in logged
 
     def test_no_op_when_audit_logger_none(self) -> None:
-        from agent.tool_approval import ApprovalDecision
         from agent.tool_audit import log_approval_decision
+        from agent.tool_enums import ApprovalDecisionType, RiskLevel
+        from agent.tool_models import ApprovalOutcome
 
         ctx = _make_ctx()
         ctx.services.audit_logger = None
-        decision: ApprovalDecision = {"tool_name": "write_file", "decision": "approved"}
-        log_approval_decision(ctx, decision)  # must not raise
+        outcome = ApprovalOutcome(
+            tool_name="write_file",
+            risk_level=RiskLevel.MEDIUM,
+            decision=ApprovalDecisionType.APPROVED,
+        )
+        log_approval_decision(ctx, outcome)  # must not raise
 
 
 # ── run_approval_checks() ─────────────────────────────────────────────────────

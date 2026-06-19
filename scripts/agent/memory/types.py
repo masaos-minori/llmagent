@@ -101,6 +101,7 @@ class MemoryQuery:
     query: str
     memory_type: MemoryType | None = None  # None = both semantic and episodic
     limit: int = 10
+    session_id: int | None = None
 
     def __post_init__(self) -> None:
         if not self.query.strip():

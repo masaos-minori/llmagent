@@ -165,6 +165,8 @@ class TestPersistSessionDiagnostics:
     """Tests for AgentREPL._persist_session_diagnostics."""
 
     def _make_repl(self):
+        from unittest.mock import MagicMock
+
         repl = AgentREPL.__new__(AgentREPL)
         ctx = MagicMock()
         ctx.stats.stat_turns = 5
@@ -182,6 +184,7 @@ class TestPersistSessionDiagnostics:
         ctx.services.llm.stat_reconnects = 2
         ctx.services.hist_mgr.stat_compress_count = 2
         repl._ctx = ctx
+        repl._diagnostic_store = MagicMock()
         return repl
 
     def test_writes_jsonl_file(self, tmp_path):

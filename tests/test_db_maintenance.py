@@ -295,8 +295,8 @@ class TestCheckpointAndVacuum:
 
         monkeypatch.setattr(
             db_maintenance.ConfigLoader,
-            "load",
-            lambda self, _: {"sqlite_wal_checkpoint_mode": "PASSIVE"},
+            "load_all",
+            lambda self: {"sqlite_wal_checkpoint_mode": "PASSIVE"},
         )
         mock_db = self._make_mock_db(
             {"busy": 0, "pages_in_wal": 0, "pages_checkpointed": 0}

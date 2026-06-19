@@ -21,6 +21,7 @@ def _make_cfg(**overrides: object) -> SimpleNamespace:
         use_search=True,
         rag_service_url="",
         rag_auth_token="",
+        rrf_k=60,
         use_semantic_cache=False,
         top_k_search=5,
         top_k_rerank=10,

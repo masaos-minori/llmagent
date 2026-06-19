@@ -276,7 +276,7 @@ class TestTokenSourceLabel:
 
     def test_token_source_label_chars_div_4(self) -> None:
         result = _token_source_label(False, False)
-        assert result == "chars/4"
+        assert result == "category-aware estimate"
 
 
 # ── _cmd_history ──────────────────────────────────────────────────────────────

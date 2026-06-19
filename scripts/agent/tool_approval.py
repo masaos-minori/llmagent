@@ -19,7 +19,6 @@ from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_exceptions import (
     ApprovalPreviewError,
     PolicyViolationError,
-    ToolArgumentsDecodeError,
 )
 from agent.tool_output import (
     emit_approval_prompt,
@@ -77,7 +76,7 @@ async def _build_preview_with_dry_run(
         preview += f"\n  Dry-run: {dry_text[:300]}"
     except ApprovalPreviewError:
         raise
-    except (OSError, TimeoutError, ValueError) as e:
+    except Exception as e:
         raise ApprovalPreviewError(
             f"Dry-run execution failed for {tool_name!r}: {e}"
         ) from e
@@ -158,7 +157,7 @@ async def run_approval_checks(
     """Run plan-mode block and interactive approval for each tool call.
 
     Returns (approved_calls, denied_ids). Runs serially — approval is interactive.
-    Raises ToolArgumentsDecodeError when arguments JSON is malformed.
+    Invalid JSON arguments are treated as empty dicts; approval continues normally.
     """
     approved_calls: list[dict] = []
     denied_ids: list[str] = []
@@ -167,10 +166,12 @@ async def run_approval_checks(
         args_str = tc["function"].get("arguments", "{}")
         try:
             args_preview: dict[str, Any] = orjson.loads(args_str)
-        except orjson.JSONDecodeError as e:
-            raise ToolArgumentsDecodeError(
-                f"Invalid JSON in tool arguments for {tc_name!r}: {args_str!r}"
-            ) from e
+        except orjson.JSONDecodeError:
+            logger.warning(
+                "run_approval_checks: invalid JSON for %r; proceeding with empty args",
+                tc_name,
+            )
+            args_preview = {}
         masked_preview = mask_args(args_preview, ctx.cfg.tool.masked_fields)
         if ctx.conv.plan_mode and tc_name in ctx.cfg.tool.plan_blocked_tools:
             emit_plan_blocked(tc_name, _json_dumps(masked_preview))

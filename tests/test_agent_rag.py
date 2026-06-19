@@ -19,6 +19,7 @@ def _make_cfg(**kwargs: object) -> SimpleNamespace:
     defaults = {
         "use_search": True,
         "rag_service_url": "http://127.0.0.1:8010",
+        "rag_auth_token": "",
         "use_mqe": True,
         "use_rrf": True,
         "use_rerank": True,

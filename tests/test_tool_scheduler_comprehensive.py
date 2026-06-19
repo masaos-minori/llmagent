@@ -5,6 +5,7 @@ Comprehensive unit tests for agent/tool_scheduler.py — build_execution_groups.
 from __future__ import annotations
 
 from agent.tool_scheduler import build_execution_groups
+from shared.tool_spec import ToolSpec
 
 
 def _tc(name: str) -> dict:
@@ -16,12 +17,14 @@ def _meta(
     resource_scope: str = "",
     requires_serial: bool = False,
     is_write: bool = False,
-) -> dict:
-    return {
-        "resource_scope": resource_scope,
-        "requires_serial": requires_serial,
-        "is_write": is_write,
-    }
+) -> ToolSpec:
+    return ToolSpec(
+        call_id="",
+        name="",
+        resource_scope=resource_scope,
+        requires_serial=requires_serial,
+        is_write=is_write,
+    )
 
 
 class TestBuildExecutionGroupsEdgeCases:

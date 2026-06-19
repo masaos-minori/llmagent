@@ -17,6 +17,7 @@ import pytest
 from agent.commands.cmd_memory import MemoryOpResult, _MemoryMixin
 from agent.memory.services import MemoryServices
 from agent.memory.store import MemoryStore
+from db.maintenance import MaintenanceMode, MaintenanceResult
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -148,9 +149,17 @@ class TestMemoryPrune:
         mock_helper.__enter__ = MagicMock(return_value=mock_helper)
         mock_helper.__exit__ = MagicMock(return_value=False)
         mock_helper.open.return_value = mock_helper
+        prune_result = MaintenanceResult(
+            success=True,
+            action="prune",
+            mode=MaintenanceMode.STRICT,
+            data={"deleted": 7},
+        )
         with (
             patch("db.helper.SQLiteHelper", return_value=mock_helper),
-            patch("db.maintenance.prune_old_memories", return_value=7) as mock_prune,
+            patch(
+                "db.maintenance.prune_old_memories", return_value=prune_result
+            ) as mock_prune,
         ):
             cmd._memory_prune(svc, ctx, ["14"])  # type: ignore[arg-type]
         out = capsys.readouterr().out
@@ -161,9 +170,15 @@ class TestMemoryPrune:
         svc = _make_services()
         cmd = _make_cmd(memory_retention_days=60)
         ctx = cmd._ctx
+        prune_result = MaintenanceResult(
+            success=True,
+            action="prune",
+            mode=MaintenanceMode.STRICT,
+            data={"deleted": 0},
+        )
         with (
             patch("db.helper.SQLiteHelper") as mock_helper_cls,
-            patch("db.maintenance.prune_old_memories", return_value=0),
+            patch("db.maintenance.prune_old_memories", return_value=prune_result),
         ):
             mock_h = MagicMock()
             mock_h.__enter__ = MagicMock(return_value=mock_h)
@@ -190,9 +205,15 @@ class TestMemoryPrune:
         svc = _make_services()
         cmd = _make_cmd(audit_logger=audit)
         ctx = cmd._ctx
+        prune_result = MaintenanceResult(
+            success=True,
+            action="prune",
+            mode=MaintenanceMode.STRICT,
+            data={"deleted": 3},
+        )
         with (
             patch("db.helper.SQLiteHelper") as mock_helper_cls,
-            patch("db.maintenance.prune_old_memories", return_value=3),
+            patch("db.maintenance.prune_old_memories", return_value=prune_result),
         ):
             mock_h = MagicMock()
             mock_h.__enter__ = MagicMock(return_value=mock_h)

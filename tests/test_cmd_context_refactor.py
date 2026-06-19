@@ -56,7 +56,7 @@ class TestTokenSourceLabel:
         assert _token_source_label(False, True) == "/tokenize (next turn)"
 
     def test_fallback_returns_chars4(self) -> None:
-        assert _token_source_label(False, False) == "chars/4"
+        assert _token_source_label(False, False) == "category-aware estimate"
 
 
 class TestPrintTokenLine:

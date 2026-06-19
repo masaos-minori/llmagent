@@ -85,7 +85,6 @@ def session() -> Generator[AgentSession]:
     with (
         patch("agent.session.SQLiteHelper", side_effect=_make),
         patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
-        patch("agent.document_repo.SQLiteHelper", side_effect=_make),
         patch("agent.note_repo.SQLiteHelper", side_effect=_make),
     ):
         yield AgentSession()

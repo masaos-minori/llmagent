@@ -12,6 +12,7 @@ import orjson
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from mcp.dispatch import DispatchResult
 from mcp.server import MCPServer, attach_auth_middleware
 
 
@@ -26,10 +27,10 @@ class _SimpleServer(MCPServer):
         {"name": "tool_b", "description": "Tool B"},
     ]
 
-    async def dispatch(self, name: str, args: dict) -> tuple[str, bool]:
+    async def dispatch(self, name: str, args: dict) -> DispatchResult:
         if name == "tool_a":
-            return "result_a", False
-        return f"unknown: {name}", True
+            return DispatchResult("result_a", False)
+        return DispatchResult(f"unknown: {name}", True)
 
 
 class _EmptyServer(MCPServer):
@@ -38,8 +39,8 @@ class _EmptyServer(MCPServer):
     http_port = 9998
     app_module = "empty:app"
 
-    async def dispatch(self, name: str, args: dict) -> tuple[str, bool]:
-        return "noop", False
+    async def dispatch(self, name: str, args: dict) -> DispatchResult:
+        return DispatchResult("noop", False)
 
 
 class TestListTools:
@@ -55,7 +56,12 @@ class TestListTools:
 class TestHealth:
     def test_default_health_returns_ok(self) -> None:
         srv = _SimpleServer()
-        assert srv.health() == {"status": "ok"}
+        assert srv.health() == {
+            "status": "ok",
+            "ready": True,
+            "dependencies": {},
+            "details": {},
+        }
 
 
 class TestRunStdio:

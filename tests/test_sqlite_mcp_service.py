@@ -158,13 +158,13 @@ class TestSqliteMCPService:
         from mcp.dispatch import dispatch_tool  # noqa: PLC0415
 
         svc = _make_service(tmp_db)
-        result, is_err = await dispatch_tool(
+        dr = await dispatch_tool(
             svc.get_dispatch_table(),
             "query_sqlite",
             {"db": "test", "sql": "INSERT INTO items VALUES (99, 'bad')"},
         )
-        assert is_err
-        assert "SELECT" in result
+        assert dr.is_error
+        assert "SELECT" in dr.output
 
     @pytest.mark.asyncio
     async def test_unknown_db_via_dispatch_returns_error_tuple(
@@ -173,10 +173,10 @@ class TestSqliteMCPService:
         from mcp.dispatch import dispatch_tool  # noqa: PLC0415
 
         svc = _make_service(tmp_db)
-        result, is_err = await dispatch_tool(
+        dr = await dispatch_tool(
             svc.get_dispatch_table(),
             "query_sqlite",
             {"db": "evil", "sql": "SELECT 1"},
         )
-        assert is_err
-        assert "allowlist" in result
+        assert dr.is_error
+        assert "allowlist" in dr.output

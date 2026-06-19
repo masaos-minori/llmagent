@@ -177,11 +177,14 @@ class TestInitSandbox:
         assert _init_sandbox("none") == "none"
 
     def test_firejail_found_returns_firejail(self) -> None:
-        with patch("mcp.shell.service.shutil.which", return_value="/usr/bin/firejail"):
+        with patch(
+            "mcp.shell.service_static_helpers.shutil.which",
+            return_value="/usr/bin/firejail",
+        ):
             assert _init_sandbox("firejail") == "firejail"
 
     def test_firejail_not_found_falls_back_to_none(self) -> None:
-        with patch("mcp.shell.service.shutil.which", return_value=None):
+        with patch("mcp.shell.service_static_helpers.shutil.which", return_value=None):
             assert _init_sandbox("firejail") == "none"
 
 
@@ -357,7 +360,9 @@ class TestExecutionUser:
 class TestMakePreexec:
     def test_preexec_calls_resource_limits_when_no_uid_gid(self) -> None:
         preexec = _make_preexec(max_memory_mb=128, timeout_sec=10, uid=None, gid=None)
-        with patch("mcp.shell.service._set_resource_limits") as mock_limits:
+        with patch(
+            "mcp.shell.service_static_helpers.set_resource_limits"
+        ) as mock_limits:
             preexec()
         mock_limits.assert_called_once_with(128, 10)
 
@@ -447,7 +452,7 @@ class TestLazyShellService:
     ) -> None:
         import logging
 
-        from mcp.shell.service import _LazyShellService
+        from mcp.shell.service import build_service
 
         policy = ShellPolicy(
             allowed_commands=frozenset(["echo"]),
@@ -465,20 +470,16 @@ class TestLazyShellService:
             env_allowlist=(),
             env_denylist=(),
         )
-        _LazyShellService._instance = None
         with caplog.at_level(logging.WARNING, logger="mcp.shell.service"):
-            with patch("mcp.shell.service.load_shell_policy", return_value=policy):
-                svc = _LazyShellService()
-                _ = svc.get_dispatch_table  # trigger __getattr__
+            build_service(policy)
         assert any("cwd" in r.message for r in caplog.records)
-        _LazyShellService._instance = None  # reset singleton
 
     def test_empty_allowlist_logs_warning(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         import logging
 
-        from mcp.shell.service import _LazyShellService
+        from mcp.shell.service import build_service
 
         policy = ShellPolicy(
             allowed_commands=frozenset(),  # empty
@@ -496,13 +497,9 @@ class TestLazyShellService:
             env_allowlist=(),
             env_denylist=(),
         )
-        _LazyShellService._instance = None
         with caplog.at_level(logging.WARNING, logger="mcp.shell.service"):
-            with patch("mcp.shell.service.load_shell_policy", return_value=policy):
-                svc = _LazyShellService()
-                _ = svc.get_dispatch_table  # trigger __getattr__
+            build_service(policy)
         assert any("command_allowlist" in r.message for r in caplog.records)
-        _LazyShellService._instance = None  # reset singleton
 
 
 # ── dry_run ───────────────────────────────────────────────────────────────────

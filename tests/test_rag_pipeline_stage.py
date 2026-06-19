@@ -36,7 +36,7 @@ class TestMqeStage:
     @pytest.mark.asyncio
     async def test_mqe_disabled_returns_original_query(self) -> None:
         llm = MagicMock()
-        stage = MqeStage({"use_mqe": False}, llm)
+        stage = MqeStage(SimpleNamespace(use_mqe=False), llm)
         ctx = PipelineContext(query="hello")
         await stage.run(ctx)
         assert ctx.queries == ["hello"]
@@ -45,7 +45,7 @@ class TestMqeStage:
     async def test_mqe_enabled_calls_llm_expand(self) -> None:
         llm = MagicMock()
         llm.expand_queries = AsyncMock(return_value=["hello", "hi there"])
-        stage = MqeStage({"use_mqe": True}, llm)
+        stage = MqeStage(SimpleNamespace(use_mqe=True), llm)
         ctx = PipelineContext(query="hello")
         await stage.run(ctx)
         assert ctx.queries == ["hello", "hi there"]
@@ -56,7 +56,7 @@ class TestMqeStage:
         """MqeStage propagates RagExpansionError instead of falling back."""
         llm = MagicMock()
         llm.expand_queries = AsyncMock(side_effect=RuntimeError("LLM unavailable"))
-        stage = MqeStage({"use_mqe": True}, llm)
+        stage = MqeStage(SimpleNamespace(use_mqe=True), llm)
         ctx = PipelineContext(query="hello")
         with pytest.raises(RuntimeError, match="LLM unavailable"):
             await stage.run(ctx)
@@ -70,7 +70,7 @@ class TestMqeStage:
 class TestSearchStage:
     @pytest.mark.asyncio
     async def test_search_none_db_returns_empty(self) -> None:
-        stage = SearchStage({"top_k_search": 5})
+        stage = SearchStage(SimpleNamespace(top_k_search=5))
         ctx = PipelineContext(query="q")
         ctx.queries = ["q"]
         await stage.run(ctx, db=None)
@@ -78,7 +78,7 @@ class TestSearchStage:
 
     @pytest.mark.asyncio
     async def test_search_calls_repository(self) -> None:
-        stage = SearchStage({"top_k_search": 5})
+        stage = SearchStage(SimpleNamespace(top_k_search=5))
         ctx = PipelineContext(query="q")
         ctx.queries = ["q"]
         mock_db = MagicMock()
@@ -103,7 +103,7 @@ class TestSearchStage:
 class TestFusionStage:
     @pytest.mark.asyncio
     async def test_fusion_empty_results_yields_empty_merged(self) -> None:
-        stage = FusionStage({"rrf_k": 60})
+        stage = FusionStage(rrf_k=60)
         ctx = PipelineContext(query="q")
         ctx.search_results = []
         await stage.run(ctx)
@@ -113,7 +113,7 @@ class TestFusionStage:
     async def test_fusion_combines_multiple_result_lists(self) -> None:
         from rag.types import RawHit
 
-        stage = FusionStage({"rrf_k": 60})
+        stage = FusionStage(rrf_k=60)
         ctx = PipelineContext(query="q")
         hit1 = RawHit(chunk_id=1, content="a", url="u1")
         hit2 = RawHit(chunk_id=2, content="b", url="u2")
@@ -132,13 +132,13 @@ class TestRerankStage:
     @pytest.mark.asyncio
     async def test_rerank_disabled_returns_top_k(self) -> None:
         llm = MagicMock()
-        cfg = {
-            "use_rerank": False,
-            "rag_top_k": 2,
-            "max_chunks_per_doc": 5,
-            "top_k_rerank": 10,
-            "rag_min_score": 0.0,
-        }
+        cfg = SimpleNamespace(
+            use_rerank=False,
+            rag_top_k=2,
+            max_chunks_per_doc=5,
+            top_k_rerank=10,
+            rag_min_score=0.0,
+        )
         stage = RerankStage(cfg, llm)
         from rag.types import MergedHit
 
@@ -158,13 +158,13 @@ class TestRerankStage:
             RankedHit(chunk_id=1, content="a", url="u", rerank_score=0.95)
         ]
         llm.cross_encoder_rerank = AsyncMock(return_value=expected_ranked)
-        cfg = {
-            "use_rerank": True,
-            "rag_top_k": 2,
-            "max_chunks_per_doc": 5,
-            "top_k_rerank": 10,
-            "rag_min_score": 0.0,
-        }
+        cfg = SimpleNamespace(
+            use_rerank=True,
+            rag_top_k=2,
+            max_chunks_per_doc=5,
+            top_k_rerank=10,
+            rag_min_score=0.0,
+        )
         stage = RerankStage(cfg, llm)
         ctx = PipelineContext(query="q")
         ctx.merged = expected_merged  # type: ignore[assignment]
@@ -180,13 +180,13 @@ class TestRerankStage:
         llm.cross_encoder_rerank = AsyncMock(
             side_effect=RagRerankError("rerank failed")
         )
-        cfg = {
-            "use_rerank": True,
-            "rag_top_k": 2,
-            "max_chunks_per_doc": 5,
-            "top_k_rerank": 10,
-            "rag_min_score": 0.0,
-        }
+        cfg = SimpleNamespace(
+            use_rerank=True,
+            rag_top_k=2,
+            max_chunks_per_doc=5,
+            top_k_rerank=10,
+            rag_min_score=0.0,
+        )
         stage = RerankStage(cfg, llm)
         from rag.types import MergedHit
 
@@ -239,6 +239,8 @@ def _make_rag_cfg() -> SimpleNamespace:
         use_search=True,
         use_refiner=False,
         rag_service_url="",
+        rag_auth_token="",
+        rrf_k=60,
         top_k_search=5,
         top_k_rerank=10,
         rag_top_k=3,
