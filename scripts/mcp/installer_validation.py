@@ -23,18 +23,10 @@ def validate_server_name(server_name: str) -> str:
 
 
 def name_to_module(server_name: str) -> str:
-    """Convert service name (hyphens allowed) to Python module identifier.
-
-    Raises ValueError if server_name fails validation.
-    """
-    validate_server_name(server_name)
+    """Convert service name to Python module identifier."""
     return re.sub(r"[^a-z0-9]", "_", server_name.lower())
 
 
 def name_to_class(server_name: str) -> str:
-    """Convert service name to PascalCase class name prefix.
-
-    Raises ValueError if server_name fails validation.
-    """
-    validate_server_name(server_name)
+    """Convert service name to PascalCase class name prefix."""
     return "".join(w.capitalize() for w in re.split(r"[-_]+", server_name))

@@ -5,6 +5,8 @@ Unit tests for mcp/installer_validation.py — validate_server_name, name_to_mod
 
 from __future__ import annotations
 
+import pytest
+
 from scripts.mcp.installer_validation import (
     name_to_class,
     name_to_module,
@@ -16,59 +18,49 @@ from scripts.mcp.installer_validation import (
 
 class TestValidateServerName:
     def test_valid_simple_name(self):
-        result = validate_server_name("my-server")
-        assert result is None
+        assert validate_server_name("my-server") == "my-server"
 
     def test_valid_alphanumeric_name(self):
-        result = validate_server_name("server123")
-        assert result is None
+        assert validate_server_name("server123") == "server123"
 
-    def test_valid_underscore_name(self):
-        result = validate_server_name("a_b_c")
-        assert result is not None
-        assert "Invalid server name" in result
+    def test_invalid_underscore_name(self):
+        with pytest.raises(ValueError, match="Invalid server name"):
+            validate_server_name("a_b_c")
 
     def test_empty_string_raises_error(self):
-        result = validate_server_name("")
-        assert result == "Server name must not be empty."
+        with pytest.raises(ValueError, match="must not be empty"):
+            validate_server_name("")
 
-    def test_none_returns_empty_error(self):
-        result = validate_server_name(None)  # type: ignore
-        assert result == "Server name must not be empty."
+    def test_none_raises_error(self):
+        with pytest.raises(ValueError, match="must not be empty"):
+            validate_server_name(None)  # type: ignore
 
     def test_starts_with_digit_rejected(self):
-        result = validate_server_name("1server")
-        assert result is not None
-        assert "Invalid server name" in result
-        assert "1server" in result
+        with pytest.raises(ValueError, match="Invalid server name.*1server"):
+            validate_server_name("1server")
 
     def test_uppercase_rejected(self):
-        result = validate_server_name("MyServer")
-        assert result is not None
-        assert "Invalid server name" in result
+        with pytest.raises(ValueError, match="Invalid server name"):
+            validate_server_name("MyServer")
 
     def test_special_characters_rejected(self):
-        result = validate_server_name("my@server")
-        assert result is not None
-        assert "Invalid server name" in result
+        with pytest.raises(ValueError, match="Invalid server name"):
+            validate_server_name("my@server")
 
     def test_spaces_rejected(self):
-        result = validate_server_name("my server")
-        assert result is not None
-        assert "Invalid server name" in result
+        with pytest.raises(ValueError, match="Invalid server name"):
+            validate_server_name("my server")
 
     def test_emoji_rejected(self):
-        result = validate_server_name("server🚀")
-        assert result is not None
-        assert "Invalid server name" in result
+        with pytest.raises(ValueError, match="Invalid server name"):
+            validate_server_name("server🚀")
 
     def test_hyphens_only_rejected(self):
-        result = validate_server_name("---")
-        assert result is not None
+        with pytest.raises(ValueError, match="Invalid server name"):
+            validate_server_name("---")
 
     def test_single_letter_valid(self):
-        result = validate_server_name("a")
-        assert result is None
+        assert validate_server_name("a") == "a"
 
 
 # ── name_to_module ──
