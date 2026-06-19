@@ -5,6 +5,7 @@ All functions return strings; no file I/O.
 
 from __future__ import annotations
 
+import pytest
 from mcp.installer_templates import (
     generate_agent_toml_mcp_snippet,
     generate_confd_template,
@@ -86,11 +87,9 @@ class TestGenerateConfigTomlForRole:
         assert "workflow_allowlist" in result
         assert "max_log_size_kb = 256" in result
 
-    def test_unknown_role_falls_back_to_basic(self) -> None:
-        result = generate_config_toml_for_role("svc", "unknown")
-        assert "http_timeout = 30.0" in result
-        assert "db_allowlist" not in result
-        assert "command_allowlist" not in result
+    def test_unknown_role_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="Unknown role"):
+            generate_config_toml_for_role("svc", "unknown")
 
 
 # ── generate_agent_toml_mcp_snippet ─────────────────────────────────────────
@@ -121,10 +120,9 @@ class TestGenerateAgentTomlMcpSnippet:
         assert "trigger_workflow" in result
         assert "get_workflow_logs" in result
 
-    def test_unknown_role(self) -> None:
-        result = generate_agent_toml_mcp_snippet("svc", 5000, "unknown")
-        assert 'role             = ""' in result
-        assert "tool_names       = []" in result
+    def test_unknown_role_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="Unknown role"):
+            generate_agent_toml_mcp_snippet("svc", 5000, "unknown")
 
 
 # ── generate_initd_script ───────────────────────────────────────────────────

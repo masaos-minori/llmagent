@@ -69,12 +69,14 @@ def _make_ctx() -> MagicMock:
 
 def _make_orchestrator(ctx: MagicMock, on_error: Any = None) -> Orchestrator:
     on_first_turn = AsyncMock()
-    return Orchestrator(
+    orch = Orchestrator(
         ctx,
         on_error=on_error,
         on_first_turn=on_first_turn,
         workflow_mode="disabled",
     )
+    orch._diagnostic_store = MagicMock()
+    return orch
 
 
 def _make_err(
@@ -119,11 +121,11 @@ class TestHandleTurnLLMTransportError:
         err = _make_err(kind="PREMATURE_EOF", partial_text="partial answer")
 
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
-            with patch.object(ctx.session, "save_diagnostic") as mock_diag:
-                await orch.handle_turn("hello")
+            await orch.handle_turn("hello")
 
-        mock_diag.assert_called_once()
-        saved_content = mock_diag.call_args[0][0]
+        orch._diagnostic_store.save.assert_called_once()
+        # DiagnosticStore.save(session_id, kind, content)
+        saved_content = orch._diagnostic_store.save.call_args[0][2]
         assert "partial answer" in saved_content
         assert "[INCOMPLETE: PREMATURE_EOF]" in saved_content
 
@@ -545,7 +547,8 @@ class TestAllowedToolsOverride:
         """ctx.cfg.tool.allowed_tools is restored even when an exception propagates."""
         ctx = _make_ctx()
         ctx.cfg.tool.allowed_tools = []
-        orch = Orchestrator(ctx, allowed_tools=["search_web"])
+        orch = Orchestrator(ctx, allowed_tools=["search_web"], workflow_mode="disabled")
+        orch._diagnostic_store = MagicMock()
 
         async def _raise(*_: object, **__: object) -> None:
             raise RuntimeError("unexpected error")

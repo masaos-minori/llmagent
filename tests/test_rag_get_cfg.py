@@ -15,7 +15,7 @@ class TestRagPipelineGetCfg:
         import rag.pipeline as pipeline_mod
 
         monkeypatch.setattr(pipeline_mod._ModuleConfig, "_cache", None)
-        with patch.object(ConfigLoader, "load", side_effect=OSError("no file")):
+        with patch.object(ConfigLoader, "load_all", side_effect=ValueError("no file")):
             result = pipeline_mod._ModuleConfig.get()
         assert result == {}
         monkeypatch.setattr(pipeline_mod._ModuleConfig, "_cache", None)
@@ -68,6 +68,7 @@ class TestRagLlmExceptions:
         self,
     ) -> None:
         from rag.llm import RagLLM, RagRerankError
+        from rag.types import MergedHit
 
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_response = MagicMock()
@@ -77,9 +78,9 @@ class TestRagLlmExceptions:
         mock_client.post.return_value = mock_response
 
         llm = RagLLM(mock_client, "http://llm/v1/chat")
-        candidates = [{"chunk_id": 1, "content": "text", "url": "u"}]
+        candidates = [MergedHit(chunk_id=1, content="text", url="u")]
         with pytest.raises(RagRerankError, match="rerank LLM call failed"):
-            await llm.cross_encoder_rerank("query", candidates, top_k=1)  # type: ignore[arg-type]
+            await llm.cross_encoder_rerank("query", candidates, top_k=1)
 
 
 class TestAgentConfigGetCfg:
@@ -94,12 +95,10 @@ class TestAgentConfigGetCfg:
 
 
 class TestDeleteModelsGetCfg:
-    def test_get_cfg_error_path(self, monkeypatch) -> None:
-        """_get_cfg() returns {} when ConfigLoader raises."""
-        import mcp.file.delete_models as models_mod
+    def test_get_cfg_error_path(self) -> None:
+        """FileDeleteConfig.load() raises ValueError when ConfigLoader raises."""
+        from mcp.file.delete_models import FileDeleteConfig
 
-        monkeypatch.setattr(models_mod, "_cfg", None)
-        with patch.object(ConfigLoader, "load", side_effect=OSError("no file")):
-            result = models_mod._get_cfg()
-        assert result == {}
-        monkeypatch.setattr(models_mod, "_cfg", None)
+        with patch.object(ConfigLoader, "load", side_effect=ValueError("not found")):
+            with pytest.raises(ValueError, match="not found"):
+                FileDeleteConfig.load()

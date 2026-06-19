@@ -627,7 +627,7 @@ class TestCountTokensAsync:
             count, exact = await mgr.count_tokens_async(h)
         assert count == 50
         assert exact is False
-        mock_get.assert_awaited_once_with(h, "", mgr._http)
+        mock_get.assert_awaited_once_with(h, "", mgr._http, warn_once=mgr._warn_once)
 
     @pytest.mark.asyncio
     async def test_exact_from_tokenize(self) -> None:

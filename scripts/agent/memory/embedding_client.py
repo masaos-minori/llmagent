@@ -66,6 +66,9 @@ async def _fetch_embedding(
         return EmbeddingResult(
             success=False, error_kind=EmbeddingErrorKind.INVALID_RESPONSE
         )
+    except Exception as e:
+        logger.warning("EmbeddingClient._fetch_embedding unexpected error: %s", e)
+        return EmbeddingResult(success=False, error_kind=EmbeddingErrorKind.HTTP_ERROR)
 
 
 class EmbeddingClient:

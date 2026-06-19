@@ -168,10 +168,11 @@ class TestChunkMetadataStorage:
 
         # Verify _insert_chunk was called with correct chunk_index values
         calls = mock_cur.execute.call_args_list
-        chunk_inserts = [c for c in calls if "INSERT INTO chunks" in str(c)]
+        # Exclude chunks_vec inserts — "INSERT INTO chunks (" won't match "chunks_vec"
+        chunk_inserts = [c for c in calls if "INSERT INTO chunks (" in str(c)]
         assert len(chunk_inserts) == 3
-        args_list = [c[0] for c in chunk_inserts]
-        idx_values = {args[2] for args in args_list if len(args) > 2}
+        # call.args = (sql_str, params_tuple); params_tuple[1] = chunk_index
+        idx_values = {c[0][1][1] for c in chunk_inserts}
         assert idx_values == {0, 1, 2}
 
     def test_normalized_content_stored_correctly(self, tmp_path):
@@ -250,9 +251,9 @@ class TestChunkMetadataStorage:
         calls = mock_db.execute.call_args_list
         doc_inserts = [c for c in calls if "INSERT INTO documents" in str(c)]
         assert len(doc_inserts) >= 1
-        insert_args = doc_inserts[0][0]
-        # 6th parameter (index 5) is chunking_strategy
-        assert insert_args[5] == "heading"
+        # call.args = (sql_str, params_tuple); params_tuple[5] = chunking_strategy
+        params = doc_inserts[0][0][1]
+        assert params[5] == "heading"
 
 
 # ── Force reinsert tests ──────────────────────────────────────────────────────

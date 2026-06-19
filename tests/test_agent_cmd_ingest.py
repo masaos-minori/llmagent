@@ -212,7 +212,7 @@ class TestCmdRag:
         ctx = _make_ctx()
         cmd = _FakeCmd(ctx)
         with patch("shared.config_loader.ConfigLoader") as mock_cfg_cls:
-            mock_cfg_cls.return_value.load.return_value = {"use_search": False}
+            mock_cfg_cls.return_value.load_all.return_value = {"use_search": False}
             asyncio.run(cmd._cmd_rag("search hello"))
         assert "disabled" in capsys.readouterr().out.lower()
 

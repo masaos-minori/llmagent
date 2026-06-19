@@ -9,6 +9,7 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import orjson
 import pytest
 from agent.memory.embedding_client import (
     EmbeddingClient,
@@ -134,7 +135,7 @@ class TestSuccessfulEmbedding:
     ) -> None:
         client = EmbeddingClient(config)
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {"embedding": [0.1, 0.2, 0.3]}
+        mock_resp.content = orjson.dumps({"embedding": [0.1, 0.2, 0.3]})
         mock_resp.raise_for_status = MagicMock()
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
@@ -246,7 +247,7 @@ class TestRetry:
                 raise httpx.HTTPStatusError(
                     "fail", request=MagicMock(), response=MagicMock(status_code=500)
                 )
-            mock_resp.json.return_value = {"embedding": [0.1]}
+            mock_resp.content = orjson.dumps({"embedding": [0.1]})
             mock_resp.raise_for_status = MagicMock()
             return mock_resp
 
@@ -347,7 +348,7 @@ class TestSuccessResetsFailCount:
         config.max_retries = 0
         client = EmbeddingClient(config)
         mock_resp_ok = MagicMock()
-        mock_resp_ok.json.return_value = {"embedding": [0.1]}
+        mock_resp_ok.content = orjson.dumps({"embedding": [0.1]})
         mock_resp_ok.raise_for_status = MagicMock()
 
         call_count = 0

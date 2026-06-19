@@ -8,6 +8,11 @@ It does not implement authentication, audit logging, or validation.
 
 import os
 import sys
+from pathlib import Path
+
+# Make `shared` importable when started as a subprocess (e.g. from integration tests)
+# without PYTHONPATH set — scripts/ is the package root.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import orjson
 from shared.json_utils import dumps as _json_dumps

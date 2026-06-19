@@ -311,7 +311,11 @@ class HistoryManager:
 
     async def _get_summary_text(self, to_compress: list[LLMMessage]) -> str | None:
         """Send compressed history to LLM and return summary text, or None on failure."""
-        return await self._call_compress_llm(self._build_history_text(to_compress))
+        try:
+            return await self._call_compress_llm(self._build_history_text(to_compress))
+        except HistoryCompressionError as e:
+            logger.warning("History compression failed, returning original: %s", e)
+            return None
 
     def _build_compressed_result(
         self, split: SelectionResult, summary_text: str
