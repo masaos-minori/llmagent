@@ -145,7 +145,6 @@ def audit_tool_exec(
         resource_scope=resource_scope,
         mcp_request_id=mcp_request_id,
         is_error=is_error,
-        error_type=error_type,
         args_preview=masked,
         ts=time.time(),
         error_type=error_type,
