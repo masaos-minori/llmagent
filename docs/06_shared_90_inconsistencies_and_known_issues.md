@@ -55,14 +55,14 @@ Each entry uses the required format:
 
 ---
 
-### DESIGN-01: Responsibility boundary between `MemoryDeleteStore` and `SQLiteMemoryDeleteStore`
+### DESIGN-01: Responsibility boundary between `MemoryDeleteStore` and `SQLiteMemoryDeleteStore` (RESOLVED)
 
-- **Type:** Needs confirmation
-- **Impact scope:** `db/store.py::MemoryDeleteStore` (Protocol), `db/store.py::SQLiteMemoryDeleteStore` (implementation)
+- **Type:** Document inconsistency (resolved)
+- **Impact scope:** `db/store_protocols.py::MemoryDeleteStore` (Protocol), `db/store_impl.py::SQLiteMemoryDeleteStore` (implementation)
 - **Statement A:** `MemoryDeleteStore` is a `Protocol` defining `delete_memories_before(older_than_days)`.
 - **Statement B:** `SQLiteMemoryDeleteStore` implements this protocol for SQLite (deletes from `memories`, `memories_fts`, `memories_vec` atomically).
 - **Current safe interpretation:** The Protocol/implementation split allows future non-SQLite backends. For current SQLite-only deployments, use `SQLiteMemoryDeleteStore` directly.
-- **Recommended action:** Document that `MemoryDeleteStore` protocol exists for extensibility, not because non-SQLite backends are planned.
+- **Resolution:** Extensibility rationale documented in [06_shared_05 §4 MemoryDeleteStore](06_shared_05_db_api_and_operations.md). Directory listing updated in [06_shared_04](06_shared_04_db_architecture_and_schema.md).
 - **Notes for AI reference:** Do not confuse `SQLiteMemoryDeleteStore` (cross-table delete) with `MemoryStore.delete()` (single-entry delete).
 
 ---

@@ -17,7 +17,9 @@ initialization approach.
 db/
 ├── helper.py          SQLiteHelper — connection lifecycle, PRAGMA, vec extension
 ├── create_schema.py   DDL creation (rag + session schemas; idempotent)
-├── store.py           Protocol definitions + SQLite implementations
+├── store_protocols.py Protocol definitions (MemoryDeleteStore, VectorStore, ...)
+├── store_impl.py      SQLite implementations of store protocols
+├── store.py           Re-export stub — public API surface for db.store imports
 ├── maintenance.py     WAL checkpoint, VACUUM, purge, rotate, recover
 ├── tool_results.py    ToolResultStore — full tool result storage
 └── workflow_schema.py workflow.sqlite DDL initialization

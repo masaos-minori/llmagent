@@ -159,6 +159,22 @@ class ArtifactEvent(TypedDict, total=False):
 > **Note:** `ArtifactEvent` is a data definition only. No event bus is implemented.
 > See [06_shared_90 UNIMPL-01](06_shared_90_inconsistencies_and_known_issues.md).
 
+### Future event envelope (aspirational — not implemented)
+
+These fields are reserved for a future event-bus layer. They are documented
+in `shared/events.py` as design direction only. Do not assume they exist on
+any current `ArtifactEvent` instance.
+
+| Field | Type | Purpose |
+|---|---|---|
+| `event_id` | str | UUID v7 — unique identifier per event |
+| `source` | str | Emitting module (e.g. `"mcp/github"`) |
+| `timestamp` | str | ISO-8601 UTC — already present as a field |
+| `correlation_id` | str | Trace ID linking related events |
+
+When an event bus is implemented, these fields will be added to `ArtifactEvent`
+and populated by the emitter before delivery to subscribers.
+
 ---
 
 ## 9. `ShellPolicy` (`shared/protocols/shell.py`)
