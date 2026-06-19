@@ -22,7 +22,6 @@ import logging
 import sqlite3
 import time
 from collections.abc import Callable
-from typing import Any
 
 import httpx
 from db.helper import SQLiteHelper
