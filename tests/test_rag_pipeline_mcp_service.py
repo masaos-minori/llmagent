@@ -395,3 +395,60 @@ class TestServiceStart:
         svc._pipeline = None
         await svc.stop()
         mock_http.aclose.assert_awaited_once()
+
+
+# ── Document management ───────────────────────────────────────────────────────
+
+
+class TestFmtListDocuments:
+    async def test_returns_rows(self, monkeypatch: Any) -> None:
+        service = RagPipelineMCPService()
+        monkeypatch.setattr(
+            service,
+            "list_documents",
+            lambda lang=None, limit=20: [
+                {"url": "file:///a.md", "lang": "en", "chunk_count": 3}
+            ],
+        )
+        result = await service.fmt_list_documents({"limit": 5})
+        assert "file:///a.md" in result
+        assert "3 chunks" in result
+
+    async def test_returns_no_documents_when_empty(self, monkeypatch: Any) -> None:
+        service = RagPipelineMCPService()
+        monkeypatch.setattr(service, "list_documents", lambda lang=None, limit=20: [])
+        result = await service.fmt_list_documents({})
+        assert "No documents" in result
+
+    async def test_passes_lang_filter(self, monkeypatch: Any) -> None:
+        called_with: dict[str, Any] = {}
+
+        def _list(lang: str | None = None, limit: int = 20) -> list[dict]:
+            called_with["lang"] = lang
+            called_with["limit"] = limit
+            return []
+
+        service = RagPipelineMCPService()
+        monkeypatch.setattr(service, "list_documents", _list)
+        await service.fmt_list_documents({"lang": "ja", "limit": 10})
+        assert called_with["lang"] == "ja"
+        assert called_with["limit"] == 10
+
+
+class TestFmtDeleteDocument:
+    async def test_found_returns_deleted(self, monkeypatch: Any) -> None:
+        service = RagPipelineMCPService()
+        monkeypatch.setattr(service, "delete_document", lambda url: True)
+        result = await service.fmt_delete_document({"url": "file:///a.md"})
+        assert "Deleted" in result
+
+    async def test_not_found_returns_not_found(self, monkeypatch: Any) -> None:
+        service = RagPipelineMCPService()
+        monkeypatch.setattr(service, "delete_document", lambda url: False)
+        result = await service.fmt_delete_document({"url": "file:///a.md"})
+        assert "Not found" in result
+
+    async def test_missing_url_returns_error(self) -> None:
+        service = RagPipelineMCPService()
+        result = await service.fmt_delete_document({})
+        assert "Error" in result or "required" in result.lower()
