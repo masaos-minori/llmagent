@@ -98,6 +98,7 @@ class WorkflowState:
 
     active: bool = False
     current_task_id: str | None = None
+    workflow_id: str | None = None
     current_workflow_version: str | None = None
     approval_pending: bool = False
     last_session_id: str | None = None

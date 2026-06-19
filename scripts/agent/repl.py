@@ -183,6 +183,52 @@ class AgentREPL:
                 except sqlite3.Error:
                     pass
 
+            workflow_count = 0
+            task_count = 0
+            approval_events = 0
+            retry_count = 0
+            artifacts: list[str] = []
+            if session_id is not None:
+                try:
+                    with SQLiteHelper("workflow").open(row_factory=True) as wdb:
+                        sid = str(session_id)
+                        rows = wdb.fetchall(
+                            "SELECT COUNT(*) as cnt FROM tasks WHERE session_id=?",
+                            (sid,),
+                        )
+                        task_count = int(rows[0]["cnt"]) if rows else 0
+                        rows = wdb.fetchall(
+                            "SELECT COUNT(DISTINCT workflow_id) as cnt"
+                            " FROM tasks WHERE session_id=? AND workflow_id IS NOT NULL",
+                            (sid,),
+                        )
+                        workflow_count = int(rows[0]["cnt"]) if rows else 0
+                        rows = wdb.fetchall(
+                            "SELECT COUNT(*) as cnt FROM approvals"
+                            " WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)",
+                            (sid,),
+                        )
+                        approval_events = int(rows[0]["cnt"]) if rows else 0
+                        rows = wdb.fetchall(
+                            "SELECT COUNT(*) as cnt FROM attempts"
+                            " WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)"
+                            " AND stage_id='execute'",
+                            (sid,),
+                        )
+                        retry_count = (
+                            max(0, int(rows[0]["cnt"]) - task_count) if rows else 0
+                        )
+                        art_rows = wdb.fetchall(
+                            "SELECT uri FROM artifacts"
+                            " WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)",
+                            (sid,),
+                        )
+                        artifacts = [
+                            uri for r in art_rows if (uri := dict(r).get("uri"))
+                        ]
+                except (RuntimeError, sqlite3.Error):
+                    pass
+
             summary = {
                 "session_id": session_id,
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -205,6 +251,11 @@ class AgentREPL:
                 ),
                 "latency_summary": latency_summary,
                 "tool_result_summary": tool_result_summary,
+                "workflow_count": workflow_count,
+                "task_count": task_count,
+                "approval_events": approval_events,
+                "retry_count": retry_count,
+                "artifacts": artifacts,
             }
 
             db_cfg = build_db_config()

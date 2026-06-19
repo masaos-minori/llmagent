@@ -51,6 +51,8 @@ def audit_approval(
         decision=str(decision),
         args_preview=masked,
         ts=time.time(),
+        workflow_id=ctx.workflow.workflow_id or "",
+        session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
     )
     ctx.services.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 
@@ -67,12 +69,18 @@ def log_approval_decision(ctx: AgentContext, outcome: ApprovalOutcome) -> None:
         decision=str(outcome.decision),
         escalation_reason=outcome.escalation_reason,
         ts=time.time(),
+        workflow_id=ctx.workflow.workflow_id or "",
+        session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
     )
     ctx.services.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 
 
 def audit_workflow_start(
-    ctx: AgentContext, task_id: str, workflow_version: str
+    ctx: AgentContext,
+    task_id: str,
+    workflow_version: str,
+    workflow_id: str = "",
+    session_id: str = "",
 ) -> None:
     """Write workflow_start event to audit log."""
     if ctx.services.audit_logger is None:
@@ -82,6 +90,8 @@ def audit_workflow_start(
             {
                 "event": "workflow_start",
                 "task_id": task_id,
+                "workflow_id": workflow_id,
+                "session_id": session_id,
                 "workflow_version": workflow_version,
                 "ts": time.time(),
             }
@@ -90,7 +100,12 @@ def audit_workflow_start(
 
 
 def audit_stage_completed(
-    ctx: AgentContext, task_id: str, stage_id: str, elapsed_ms: float
+    ctx: AgentContext,
+    task_id: str,
+    stage_id: str,
+    elapsed_ms: float,
+    workflow_id: str = "",
+    session_id: str = "",
 ) -> None:
     """Write stage_completed event to audit log."""
     if ctx.services.audit_logger is None:
@@ -100,6 +115,8 @@ def audit_stage_completed(
             {
                 "event": "stage_completed",
                 "task_id": task_id,
+                "workflow_id": workflow_id,
+                "session_id": session_id,
                 "stage_id": stage_id,
                 "elapsed_ms": elapsed_ms,
                 "ts": time.time(),
@@ -108,7 +125,13 @@ def audit_stage_completed(
     )
 
 
-def audit_approval_requested(ctx: AgentContext, task_id: str, approval_id: str) -> None:
+def audit_approval_requested(
+    ctx: AgentContext,
+    task_id: str,
+    approval_id: str,
+    workflow_id: str = "",
+    session_id: str = "",
+) -> None:
     """Write approval_requested event to audit log."""
     if ctx.services.audit_logger is None:
         return
@@ -117,6 +140,8 @@ def audit_approval_requested(ctx: AgentContext, task_id: str, approval_id: str) 
             {
                 "event": "approval_requested",
                 "task_id": task_id,
+                "workflow_id": workflow_id,
+                "session_id": session_id,
                 "approval_id": approval_id,
                 "ts": time.time(),
             }
@@ -131,6 +156,7 @@ def audit_tool_exec(
     is_error: bool,
     mcp_request_id: str,
     error_type: str = "",
+    artifact_uri: str | None = None,
 ) -> None:
     """Write a tool_exec event with mcp_request_id to the audit log."""
     if ctx.services.audit_logger is None or not mcp_request_id:
@@ -148,6 +174,9 @@ def audit_tool_exec(
         args_preview=masked,
         ts=time.time(),
         error_type=error_type,
+        workflow_id=ctx.workflow.workflow_id or "",
+        session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
+        artifact_uri=artifact_uri,
     )
     ctx.services.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 

@@ -57,7 +57,7 @@ class _ContextFilter(logging.Filter):
 class _JsonFormatter(logging.Formatter):
     """Format a LogRecord as a single JSON line for structured log output."""
 
-    _CONTEXT_KEYS = ("turn_id", "session_id", "rag_query_id")
+    _CONTEXT_KEYS = ("turn_id", "session_id", "rag_query_id", "workflow_id", "task_id")
 
     def format(self, record: logging.LogRecord) -> str:
         entry: dict[str, Any] = {

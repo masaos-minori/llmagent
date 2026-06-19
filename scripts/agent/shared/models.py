@@ -21,6 +21,8 @@ class ToolApprovalEvent:
     decision: str
     args_preview: dict[str, object]
     ts: float
+    workflow_id: str = ""
+    session_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -34,6 +36,8 @@ class ApprovalDecisionEvent:
     decision: str
     escalation_reason: str
     ts: float
+    workflow_id: str = ""
+    session_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -50,3 +54,6 @@ class ToolExecEvent:
     args_preview: dict[str, object]
     ts: float
     error_type: str = ""  # "transport" | "tool" | "" (empty on success)
+    workflow_id: str = ""
+    session_id: str = ""
+    artifact_uri: str | None = None

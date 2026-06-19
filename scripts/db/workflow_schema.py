@@ -23,6 +23,7 @@ PRAGMA foreign_keys=ON;
 CREATE TABLE IF NOT EXISTS tasks (
     task_id          TEXT PRIMARY KEY,
     session_id       TEXT,
+    workflow_id      TEXT,
     turn_number      INTEGER,
     workflow_version TEXT NOT NULL,
     status           TEXT NOT NULL DEFAULT 'pending',
@@ -74,6 +75,12 @@ def init_schema(db_path: str) -> None:
     try:
         conn.executescript(_DDL)
         conn.commit()
+        # Migration: add workflow_id column to tasks if missing
+        cursor = conn.execute("PRAGMA table_info(tasks)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if "workflow_id" not in columns:
+            conn.execute("ALTER TABLE tasks ADD COLUMN workflow_id TEXT")
+            conn.commit()
     finally:
         conn.close()
 

@@ -107,6 +107,8 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx = MagicMock()
     ctx.cfg = cfg or _make_cfg()
     ctx.turn.current_turn_id = "test-turn-id"
+    ctx.workflow.workflow_id = None
+    ctx.session.session_id = None
     ctx.services.audit_logger = None
     ctx.services.tools = AsyncMock()
     return ctx

@@ -38,6 +38,7 @@ class StateStore:
         session_id: str | None,
         turn_number: int | None,
         workflow_version: str,
+        workflow_id: str | None = None,
     ) -> TaskRecord:
         """Create a new task record."""
         if session_id is not None and turn_number is not None:
@@ -49,13 +50,14 @@ class StateStore:
         self._db.execute(
             """
             INSERT INTO tasks
-                (task_id, session_id, turn_number, workflow_version,
+                (task_id, session_id, workflow_id, turn_number, workflow_version,
                  status, idempotency_key, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)
             """,
             (
                 task_id,
                 session_id,
+                workflow_id,
                 turn_number,
                 workflow_version,
                 idempotency_key,
@@ -73,6 +75,7 @@ class StateStore:
             idempotency_key=idempotency_key,
             created_at=now,
             updated_at=now,
+            workflow_id=workflow_id,
         )
 
     def update_task_status(self, task_id: str, status: str) -> None:
@@ -83,15 +86,17 @@ class StateStore:
         self._db.commit()
 
     def _row_to_task(self, r: Any) -> TaskRecord:
+        row = dict(r)
         return TaskRecord(
-            task_id=r["task_id"],
-            session_id=r["session_id"],
-            turn_number=r["turn_number"],
-            workflow_version=r["workflow_version"],
-            status=r["status"],
-            idempotency_key=r["idempotency_key"],
-            created_at=r["created_at"],
-            updated_at=r["updated_at"],
+            task_id=row["task_id"],
+            session_id=row["session_id"],
+            turn_number=row["turn_number"],
+            workflow_version=row["workflow_version"],
+            status=row["status"],
+            idempotency_key=row["idempotency_key"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            workflow_id=row.get("workflow_id"),
         )
 
     def get_task_by_idempotency_key(self, key: str) -> TaskRecord | None:

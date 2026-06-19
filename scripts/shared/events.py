@@ -32,3 +32,17 @@ class ArtifactEvent(TypedDict, total=False):
     pr_number: int  # PR number or 0
     session_id: int  # agent session that triggered the event
     timestamp: str  # ISO-8601 UTC
+
+
+class RetryEvent(TypedDict):
+    """Emitted when a workflow stage retry is triggered."""
+
+    event_type: str
+    workflow_id: str
+    task_id: str
+    attempt_number: int
+    max_attempts: int
+    error_type: str
+    backoff_sec: float
+    session_id: str
+    timestamp: str  # ISO-8601 UTC

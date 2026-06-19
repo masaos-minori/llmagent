@@ -20,13 +20,21 @@ class DiagnosticStore:
     def __init__(self, session_id: int | None = None) -> None:
         self.session_id = session_id
 
-    def save(self, session_id: int | None, kind: str, content: str) -> None:
+    def save(
+        self,
+        session_id: int | None,
+        kind: str,
+        content: str,
+        workflow_id: str | None = None,
+        task_id: str | None = None,
+    ) -> None:
         """Persist one diagnostic entry."""
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute(
-                "INSERT INTO session_diagnostics (session_id, kind, content)"
-                " VALUES (?, ?, ?)",
-                (session_id, kind, content),
+                "INSERT INTO session_diagnostics"
+                " (session_id, kind, content, workflow_id, task_id)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (session_id, kind, content, workflow_id, task_id),
             )
             db.commit()
 

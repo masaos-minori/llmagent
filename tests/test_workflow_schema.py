@@ -42,14 +42,14 @@ class TestInitSchema:
         conn = sqlite3.connect(db_path)
         now = "2026-01-01T00:00:00+00:00"
         conn.execute(
-            "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?)",
-            ("t1", "s1", 1, "1.0.0", "pending", "s1:1", now, now),
+            "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?)",
+            ("t1", "s1", None, 1, "1.0.0", "pending", "s1:1", now, now),
         )
         conn.commit()
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute(
-                "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?)",
-                ("t2", "s1", 1, "1.0.0", "pending", "s1:1", now, now),
+                "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?)",
+                ("t2", "s1", None, 1, "1.0.0", "pending", "s1:1", now, now),
             )
             conn.commit()
         conn.close()
@@ -61,8 +61,8 @@ class TestInitSchema:
         conn.execute("PRAGMA foreign_keys=ON")
         now = "2026-01-01T00:00:00+00:00"
         conn.execute(
-            "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?)",
-            ("t1", "s1", 1, "1.0.0", "pending", "s1:1", now, now),
+            "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?)",
+            ("t1", "s1", None, 1, "1.0.0", "pending", "s1:1", now, now),
         )
         conn.execute(
             "INSERT INTO attempts VALUES (?,?,?,?,?,?,?)",

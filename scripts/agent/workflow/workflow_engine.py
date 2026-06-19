@@ -81,6 +81,8 @@ class WorkflowEngine:
         with self._span_ctx("workflow.run") as span:
             span.set_attribute("workflow.task_id", task.task_id)
             span.set_attribute("workflow.version", task.workflow_version)
+            span.set_attribute("workflow.workflow_id", task.workflow_id or "")
+            span.set_attribute("workflow.session_id", task.session_id or "")
             self._store.update_task_status(task.task_id, "running")
             try:
                 await self._run_stage(task, "plan", plan_fn)
@@ -101,15 +103,23 @@ class WorkflowEngine:
     async def _gate_approval(self, task: TaskRecord) -> None:
         """Suspend execution until a human approves the task."""
         existing = self._store.get_pending_approval(task.task_id)
-        if existing is None:
-            approval = self._store.request_approval(task.task_id)
-            self._store.update_task_status(task.task_id, "pending_approval")
-            raise WorkflowPendingApprovalError(approval.approval_id, task.task_id)
-        if existing.status == "pending":
-            raise WorkflowPendingApprovalError(existing.approval_id, task.task_id)
-        if existing.status == "rejected":
-            self._store.update_task_status(task.task_id, "halted")
-            raise WorkflowHaltError(f"approval rejected: {existing.reason}")
+        with self._span_ctx("workflow.approval") as approval_span:
+            approval_span.set_attribute("workflow.workflow_id", task.workflow_id or "")
+            if existing is None:
+                approval = self._store.request_approval(task.task_id)
+                self._store.update_task_status(task.task_id, "pending_approval")
+                approval_span.set_attribute(
+                    "workflow.approval_id", approval.approval_id
+                )
+                approval_span.set_attribute("workflow.approval_status", "pending")
+                raise WorkflowPendingApprovalError(approval.approval_id, task.task_id)
+            approval_span.set_attribute("workflow.approval_id", existing.approval_id)
+            approval_span.set_attribute("workflow.approval_status", existing.status)
+            if existing.status == "pending":
+                raise WorkflowPendingApprovalError(existing.approval_id, task.task_id)
+            if existing.status == "rejected":
+                self._store.update_task_status(task.task_id, "halted")
+                raise WorkflowHaltError(f"approval rejected: {existing.reason}")
 
     async def _run_execute_with_retry(
         self, task: TaskRecord, execute_fn: StageCallback
@@ -143,6 +153,14 @@ class WorkflowEngine:
                     wait,
                     exc,
                 )
+                with self._span_ctx("workflow.retry") as retry_span:
+                    retry_span.set_attribute(
+                        "workflow.workflow_id", task.workflow_id or ""
+                    )
+                    retry_span.set_attribute("workflow.task_id", task.task_id)
+                    retry_span.set_attribute("retry.attempt", attempt)
+                    retry_span.set_attribute("retry.max_attempts", policy.max_attempts)
+                    retry_span.set_attribute("retry.error_type", type(exc).__name__)
                 await asyncio.sleep(wait)
 
     async def _run_stage(
@@ -156,6 +174,7 @@ class WorkflowEngine:
         with self._span_ctx("workflow.stage") as span:
             span.set_attribute("workflow.stage_id", stage_id)
             span.set_attribute("workflow.attempt", attempt)
+            span.set_attribute("workflow.workflow_id", task.workflow_id or "")
             stage_def = self._wdef.get_stage(stage_id)
             timeout = stage_def.timeout_sec if stage_def else 60
             event_id = f"{task.task_id}:{stage_id}:{attempt}"

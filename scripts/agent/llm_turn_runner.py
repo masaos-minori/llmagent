@@ -119,10 +119,23 @@ class LLMTurnRunner:
             action="fail", answer=summary, reason="llm_transport_error", exception=e
         )
 
-    def _span_ctx(self, name: str) -> Any:
+    def _span_ctx(
+        self,
+        name: str,
+        task_id: str = "",
+        session_id: str = "",
+        model_url: str = "",
+    ) -> Any:
         """Return a real OTel span or a no-op context manager when no tracer."""
         if self._tracer is not None:
-            return self._tracer.start_as_current_span(name)
+            attrs: dict[str, object] = {}
+            if task_id:
+                attrs["workflow.task_id"] = task_id
+            if session_id:
+                attrs["workflow.session_id"] = session_id
+            if model_url:
+                attrs["llm.model_url"] = model_url
+            return self._tracer.start_as_current_span(name, attributes=attrs or None)
         return nullcontext(_NoOpSpan())
 
     async def _finalize_answer_text(self, message: LLMMessage) -> str:

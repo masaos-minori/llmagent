@@ -125,11 +125,13 @@ _SESSION_SCHEMA_TEMPLATE: str = """
         PRIMARY KEY (src_id, dst_id)
     );
     CREATE TABLE IF NOT EXISTS session_diagnostics (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,
-        kind       TEXT    NOT NULL,
-        content    TEXT    NOT NULL,
-        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id  INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,
+        kind        TEXT    NOT NULL,
+        content     TEXT    NOT NULL,
+        workflow_id TEXT,
+        task_id     TEXT,
+        created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
     );
     CREATE INDEX IF NOT EXISTS idx_session_diagnostics_session
         ON session_diagnostics(session_id);

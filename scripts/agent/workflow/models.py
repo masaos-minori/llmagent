@@ -18,6 +18,7 @@ class TaskRecord:
     idempotency_key: str
     created_at: str  # ISO-8601
     updated_at: str  # ISO-8601
+    workflow_id: str | None = None
 
 
 @dataclass

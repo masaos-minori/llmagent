@@ -124,13 +124,22 @@ class Orchestrator:
             session_id = (
                 str(ctx.session.session_id) if ctx.session.session_id else "none"
             )
+            workflow_id = str(uuid.uuid4())
             task = store.create_task(
                 session_id=session_id,
                 turn_number=ctx.stats.stat_turns,
                 workflow_version=self._workflow_def.version,
+                workflow_id=workflow_id,
             )
-            audit_workflow_start(ctx, task.task_id, self._workflow_def.version)
+            audit_workflow_start(
+                ctx,
+                task.task_id,
+                self._workflow_def.version,
+                workflow_id=workflow_id,
+                session_id=session_id,
+            )
             ctx.workflow.current_task_id = task.task_id
+            ctx.workflow.workflow_id = workflow_id
             ctx.workflow.current_workflow_version = self._workflow_def.version
             ctx.workflow.active = True
             engine = WorkflowEngine(self._workflow_def, store, tracer=self._tracer)
@@ -145,7 +154,14 @@ class Orchestrator:
                     line, ctx, turn_started_at
                 )
                 elapsed_ms = round((time.perf_counter() - _t0) * 1000, 1)
-                audit_stage_completed(ctx, task.task_id, "execute", elapsed_ms)
+                audit_stage_completed(
+                    ctx,
+                    task.task_id,
+                    "execute",
+                    elapsed_ms,
+                    workflow_id=workflow_id,
+                    session_id=session_id,
+                )
                 return None
 
             async def verify_fn() -> str | None:
@@ -155,19 +171,27 @@ class Orchestrator:
             await engine.run(task, plan_fn, execute_fn, verify_fn)
             ctx.workflow.active = False
             ctx.workflow.current_task_id = None
+            ctx.workflow.workflow_id = None
         except WorkflowPendingApprovalError as exc:
             logger.info(
                 "Turn suspended: awaiting approval %s for task %s",
                 exc.approval_id,
                 exc.task_id,
             )
-            audit_approval_requested(ctx, exc.task_id, exc.approval_id)
+            audit_approval_requested(
+                ctx,
+                exc.task_id,
+                exc.approval_id,
+                workflow_id=ctx.workflow.workflow_id or "",
+                session_id=session_id,
+            )
             ctx.turn.pending_approval_id = exc.approval_id
             ctx.workflow.approval_pending = True
         except WorkflowHaltError as exc:
             logger.error("Turn halted by workflow engine: %s", exc)
             ctx.workflow.active = False
             ctx.workflow.current_task_id = None
+            ctx.workflow.workflow_id = None
             if self._on_error:
                 self._on_error(exc)
         finally:
@@ -311,13 +335,16 @@ class Orchestrator:
         task_id: str | None,
     ) -> dict[str, object]:
         """Build turn_end audit log event dict."""
-        llm = self._ctx.services.llm
+        ctx = self._ctx
+        llm = ctx.services.llm
         return {
             "event": "turn_end",
             "task_id": task_id,
+            "workflow_id": ctx.workflow.workflow_id or "",
+            "session_id": str(ctx.session.session_id) if ctx.session.session_id else "",
             "elapsed_ms": elapsed_ms,
-            "input_tokens": self._ctx.stats.stat_input_tokens,
-            "output_tokens": self._ctx.stats.stat_output_tokens,
+            "input_tokens": ctx.stats.stat_input_tokens,
+            "output_tokens": ctx.stats.stat_output_tokens,
             "parse_error_count": llm.stat_parse_errors if llm is not None else 0,
             "heartbeat_timeout_count": (
                 llm.stat_heartbeat_timeouts if llm is not None else 0

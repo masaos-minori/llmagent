@@ -44,6 +44,7 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_tool_calls = 0
     ctx.turn.current_turn_id = None
     ctx.session.session_id = "test-session"
+    ctx.workflow.workflow_id = None
     # services
     hist_mgr = AsyncMock()
     hist_mgr.stat_compress_count = 0
