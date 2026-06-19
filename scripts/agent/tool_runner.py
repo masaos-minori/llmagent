@@ -186,7 +186,7 @@ async def _execute_with_dag(
                 is_write=name in WRITE_TOOLS or name in DELETE_TOOLS,
             )
 
-  groups, metadata = build_execution_groups(approved_calls, tool_meta)
+    groups, metadata = build_execution_groups(approved_calls, tool_meta)
     serialization_events = metadata.serialization_events
     if serialization_events:
         total_affected = sum(e.tools_count for e in serialization_events)

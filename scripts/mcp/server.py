@@ -35,7 +35,7 @@ MCP_MAX_RESPONSE_BYTES: int = 512 * 1024
 class TruncationResult:
     """Metadata returned by _truncate_with_meta()."""
 
-   text: str
+    text: str
     truncated: bool
     total_bytes: int
     actual_visible_bytes: int = 0
@@ -51,12 +51,18 @@ def _truncate_with_meta(
         return TruncationResult(
             text=text, truncated=False, total_bytes=total, visible_bytes=total
         )
-   shown = encoded[:max_bytes].decode("utf-8", errors="ignore")
+    shown = encoded[:max_bytes].decode("utf-8", errors="ignore")
     actual_visible = len(shown.encode("utf-8"))
     truncated_text = (
-        shown + f"\n[TRUNCATED: {total:,} bytes total, showing {actual_visible:,} bytes]"
+        shown
+        + f"\n[TRUNCATED: {total:,} bytes total, showing {actual_visible:,} bytes]"
     )
-    return TruncationResult(text=truncated_text, truncated=True, total_bytes=total, actual_visible_bytes=actual_visible)
+    return TruncationResult(
+        text=truncated_text,
+        truncated=True,
+        total_bytes=total,
+        actual_visible_bytes=actual_visible,
+    )
 
 
 def attach_auth_middleware(app: Any, token: str) -> None:
@@ -236,7 +242,7 @@ class MCPServer:
                     "id": req_id,
                     "result": result,
                     "is_error": is_error,
-                  "truncated": truncated,
+                    "truncated": truncated,
                     "total_bytes": total_bytes,
                     "actual_visible_bytes": actual_visible_bytes,
                 },

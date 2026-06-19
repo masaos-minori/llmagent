@@ -82,7 +82,7 @@ class _McpMixin(MixinBase):
         else:
             wd_status = "disabled (interval=0) — no auto-restart"
         self._out.write(f"  Watchdog    {wd_status}")
-       from agent.tool_runner import get_serialization_stats
+        from agent.tool_runner import get_serialization_stats
 
         stats = get_serialization_stats()
         if stats["total_events"] > 0:

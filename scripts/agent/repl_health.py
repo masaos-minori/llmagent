@@ -440,7 +440,7 @@ def audit_security_defaults(
     fail_closed_empty: list[str] = []  # deny access when empty (safe default)
     fail_open_empty: list[str] = []  # allow all access when empty (risky default)
 
-   lockdown = getattr(ctx.cfg.mcp, "security_lockdown_enabled", False)
+    lockdown = getattr(ctx.cfg.mcp, "security_lockdown_enabled", False)
     if lockdown:
         logger.info(
             "Security: security_lockdown_enabled=True — deny-all warnings suppressed"

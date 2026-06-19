@@ -22,6 +22,7 @@ import logging
 import sqlite3
 import time
 from collections.abc import Callable
+from typing import Any
 
 import httpx
 from db.helper import SQLiteHelper
@@ -339,11 +340,7 @@ class RagPipeline:
     async def augment(
         self,
         query: str,
-        debug_fn: Callable[
-            [list[str], list[list[RawHit]], list[RagHit], list[RagHit]],
-            None,
-        ]
-        | None = None,
+        debug_fn: Callable[..., None] | None = None,
         history_context: str = "",
     ) -> str:
         """Run full pipeline and return a context block; '' when disabled or no results.
@@ -398,7 +395,16 @@ class RagPipeline:
             )
         # run() already calls on_clear() in its finally block
         if debug_fn is not None:
-            debug_fn(queries, all_results, merged, reranked)
+            debug_fn(
+                queries,
+                all_results,
+                merged,
+                reranked,
+                rrf_config={
+                    "use_rrf": self._cfg.use_rrf,
+                    "rrf_k": self._cfg.rrf_k,
+                },
+            )
         if not reranked:
             return ""
         # Refiner: compress chunks to query-relevant key points before injection

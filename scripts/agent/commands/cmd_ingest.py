@@ -10,6 +10,7 @@ Provides _IngestMixin with:
 """
 
 import logging
+from typing import Any
 
 from mcp.rag_pipeline.models import RagPipelineConfig, build_rag_cfg_adapter
 
@@ -126,6 +127,7 @@ class _IngestMixin(MixinBase):
                 all_results: list,
                 merged: list,
                 reranked: list,
+                **kwargs: Any,
             ) -> None:
                 self._out.write_debug_rag(
                     {
@@ -133,8 +135,10 @@ class _IngestMixin(MixinBase):
                         "all_results": all_results,
                         "merged": [dict(c) for c in merged],
                         "reranked": [dict(c) for c in reranked],
-                        "use_rrf": rag_cfg.use_rrf,
-                        "rrf_k": rag_cfg.rrf_k,
+                        "rrf_config": {
+                            "use_rrf": rag_cfg.use_rrf,
+                            "rrf_k": rag_cfg.rrf_k,
+                        },
                     }
                 )
 

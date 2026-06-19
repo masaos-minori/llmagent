@@ -126,6 +126,12 @@ class CLIView:
 
     def write_debug_rag(self, data: dict) -> None:
         """Render structured RAG pipeline debug data to stdout."""
+        rrf_config: dict = data.get("rrf_config", {})
+        print(
+            f"  [debug] RRF config: use_rrf={rrf_config.get('use_rrf', True)} "
+            f"rrf_k={rrf_config.get('rrf_k', 60)}"
+        )
+
         queries: list[str] = data.get("queries", [])
         all_results: list[list[dict]] = data.get("all_results", [])
         merged: list[dict] = data.get("merged", [])
