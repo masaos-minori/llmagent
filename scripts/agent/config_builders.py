@@ -160,6 +160,7 @@ def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
         refiner_max_tokens=int(cfg.get("refiner_max_tokens", 512)),
         refiner_timeout=float(cfg.get("refiner_timeout", 30.0)),
         refiner_max_chars_per_chunk=int(cfg.get("refiner_max_chars_per_chunk", 300)),
+        rrf_k=int(cfg.get("rrf_k", 60)),
     )
 
 

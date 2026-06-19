@@ -132,6 +132,8 @@ class RAGConfig:
     refiner_max_tokens: int = 512
     refiner_timeout: float = 30.0
     refiner_max_chars_per_chunk: int = 300
+    # RRF fusion constant for RAG pipeline
+    rrf_k: int = 60
 
     def __post_init__(self) -> None:
         self._validate_top_k_search()
@@ -140,6 +142,7 @@ class RAGConfig:
         self._validate_refiner_max_tokens()
         self._validate_refiner_timeout()
         self._validate_refiner_max_chars_per_chunk()
+        self._validate_rrf_k()
 
     def _validate_top_k_search(self) -> None:
         if self.top_k_search < 1:
@@ -171,6 +174,10 @@ class RAGConfig:
                 f"refiner_max_chars_per_chunk must be >= 1,"
                 f" got {self.refiner_max_chars_per_chunk}",
             )
+
+    def _validate_rrf_k(self) -> None:
+        if self.rrf_k < 1:
+            raise ValueError(f"rrf_k must be >= 1, got {self.rrf_k}")
 
 
 @dataclass

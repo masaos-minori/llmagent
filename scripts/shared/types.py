@@ -52,6 +52,7 @@ class RagConfig(Protocol):
     top_k_rerank: int
     rag_min_score: float
     use_rrf: bool
+    rrf_k: int
     use_search: bool
     rag_service_url: str
     rag_auth_token: str

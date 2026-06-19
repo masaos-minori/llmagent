@@ -37,6 +37,7 @@ class RagPipelineConfig:
 
     use_mqe: bool = True
     use_rrf: bool = True
+    rrf_k: int = 60
     use_rerank: bool = True
     use_refiner: bool = False
     top_k_search: int = 5
@@ -58,6 +59,7 @@ class RagPipelineConfig:
         return cls(
             use_mqe=bool(d.get("use_mqe", True)),
             use_rrf=bool(d.get("use_rrf", True)),
+            rrf_k=int(d.get("rrf_k", 60)),
             use_rerank=bool(d.get("use_rerank", True)),
             use_refiner=bool(d.get("use_refiner", False)),
             top_k_search=int(d.get("top_k_search", 5)),
@@ -89,6 +91,7 @@ def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> SimpleNamespace:
     return SimpleNamespace(
         use_mqe=bool(cfg.use_mqe),
         use_rrf=bool(cfg.use_rrf),
+        rrf_k=int(cfg.rrf_k),
         use_rerank=bool(cfg.use_rerank),
         use_refiner=bool(cfg.use_refiner),
         use_search=True,  # always True in MCP mode; checked in augment()
