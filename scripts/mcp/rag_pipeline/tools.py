@@ -51,4 +51,38 @@ _MCP_TOOLS: list[dict[str, Any]] = [
         },
         "status": "production",
     },
+    {
+        "name": "rag_list_documents",
+        "description": "List indexed documents in the RAG store.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "lang": {
+                    "type": "string",
+                    "description": "Filter by language ('ja' or 'en').",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Max results (default 20).",
+                },
+            },
+            "required": [],
+        },
+        "status": "production",
+    },
+    {
+        "name": "rag_delete_document",
+        "description": "Delete a document and all its chunks from the RAG store by URL.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "Exact document URL to delete.",
+                },
+            },
+            "required": ["url"],
+        },
+        "status": "production",
+    },
 ]

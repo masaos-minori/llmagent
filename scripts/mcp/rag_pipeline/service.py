@@ -13,6 +13,7 @@ from typing import Any
 
 import httpx
 import orjson
+from db.helper import SQLiteHelper
 from rag.types import MergedHit, RankedHit, RawHit
 
 from mcp.rag_pipeline.models import (
@@ -162,6 +163,53 @@ class RagPipelineMCPService:
             selected_hits=result.selected_hits,
         )
 
+    # ── Document management (sync; wrap SQLiteHelper directly) ───────────────
+
+    def list_documents(self, lang: str | None = None, limit: int = 20) -> list[dict]:
+        sql = (
+            "SELECT d.url, d.title, d.lang, d.fetched_at, d.chunking_strategy,"
+            " COUNT(c.chunk_id) AS n"
+            " FROM documents d"
+            " LEFT JOIN chunks c USING(doc_id)"
+        )
+        params: list[str | int] = []
+        if lang:
+            sql += " WHERE d.lang = ?"
+            params.append(lang)
+        sql += " GROUP BY d.doc_id ORDER BY d.fetched_at DESC LIMIT ?"
+        params.append(limit)
+        with SQLiteHelper("rag").open(row_factory=True) as db:
+            rows = db.fetchall(sql, tuple(params))
+        return [
+            {
+                "url": r["url"],
+                "title": r["title"],
+                "lang": r["lang"],
+                "fetched_at": r["fetched_at"],
+                "chunking_strategy": r["chunking_strategy"],
+                "chunk_count": r["n"],
+            }
+            for r in rows
+        ]
+
+    def delete_document(self, url: str) -> bool:
+        with SQLiteHelper("rag").open(write_mode=True) as db:
+            row = db.execute(
+                "SELECT doc_id FROM documents WHERE url = ?", (url,)
+            ).fetchone()
+            if row is None:
+                return False
+            doc_id = row[0]
+            db.execute(
+                "DELETE FROM chunks_vec"
+                " WHERE chunk_id IN"
+                " (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
+                (doc_id,),
+            )
+            db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
+            db.commit()
+        return True
+
     # ── MCP tool dispatch formatters ──────────────────────────────────────────
 
     async def fmt_run_pipeline(self, args: ToolArgs) -> str:
@@ -171,6 +219,23 @@ class RagPipelineMCPService:
         if not result.augmented_text:
             return "(No relevant documents found in the knowledge base.)"
         return result.augmented_text
+
+    async def fmt_list_documents(self, args: ToolArgs) -> str:
+        lang = args.get("lang")
+        limit = int(args.get("limit", 20))
+        rows = self.list_documents(lang if isinstance(lang, str) else None, limit)
+        if not rows:
+            return "No documents found."
+        return "\n".join(
+            f"{r['url']} [{r['lang']}] {r['chunk_count']} chunks" for r in rows
+        )
+
+    async def fmt_delete_document(self, args: ToolArgs) -> str:
+        url = str(args.get("url", "")).strip()
+        if not url:
+            return "Error: url is required."
+        ok = self.delete_document(url)
+        return f"Deleted: {url}" if ok else f"Not found: {url}"
 
     async def fmt_debug_pipeline(self, args: ToolArgs) -> str:
         """Format rag_debug_pipeline result as JSON summary for LLM tool result."""
@@ -196,6 +261,8 @@ class RagPipelineMCPService:
         return {
             "rag_run_pipeline": self.fmt_run_pipeline,
             "rag_debug_pipeline": self.fmt_debug_pipeline,
+            "rag_list_documents": self.fmt_list_documents,
+            "rag_delete_document": self.fmt_delete_document,
         }
 
 
