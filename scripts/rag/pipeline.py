@@ -328,10 +328,28 @@ class RagPipeline:
     async def _augment_refiner(
         self, reranked: list[RagHit], query: str
     ) -> RefineResult:
-        """Run the chunk refiner; returns RefineResult with reason on empty output or LLM failure.
+        """Run the chunk refiner via ``refine_context()``.
 
-        The caller in ``augment()`` falls back to ``_format_chunks(reranked)`` (raw chunks)
-        when RefineResult.text is None. See ``refine_context()`` for the full return contract.
+        Thin wrapper that delegates to ``refine_context()``. The refiner
+        compresses reranked hits into query-relevant key points using the LLM.
+
+        Config gate:
+            Only invoked when ``self._cfg.use_refiner`` is truthy. When disabled,
+            ``augment()`` skips directly to raw-chunk formatting.
+
+        Return semantics (delegated from ``refine_context()``):
+            - ``RefineResult(text=str)`` (non-empty): Refined key points → final result
+            - ``RefineResult(text=None, reason=...)`` : Empty output or LLM error →
+              ``augment()`` falls back to ``_format_chunks(reranked)`` (raw chunks)
+
+        Side effects:
+            Calls ``on_status("refining context...")`` if provided.
+            ``augment()`` records ``last_stage_results["Refiner"]`` with
+            ``"success"`` or ``"fallback"`` based on ``RefineResult.text``.
+
+        See Also:
+            refine_context: Full return contract, parameters, and error handling.
+            augment: Complete fallback chain including raw-chunk formatting.
         """
         return await refine_context(
             self._llm,

@@ -40,12 +40,51 @@ async def refine_context(
     per_chunk_chars: int = 512,
     timeout: float | None = None,
 ) -> RefineResult:
-    """Run the chunk refiner.
+    """Run the chunk refiner to compress reranked hits into query-relevant key points.
+
+    The refiner sends all reranked hits to the LLM with a prompt asking it to
+    extract concise, query-focused key points. This reduces context size while
+    preserving relevance before injection into the conversation.
 
     Return contract:
-        RefineResult(text=str, reason=None)              — LLM returned a non-empty refined string
-        RefineResult(text=None, reason="refiner_returned_empty")  — LLM returned empty output
-        RefineResult(text=None, reason="refiner_exception: ...")  — exception during LLM call
+
+        +----------------------------------------------------+-----------------------------------+
+        | Return value                                       | Condition                         |
+        +====================================================+===================================+
+        | ``RefineResult(text=str, reason=None)``            | LLM returned a non-empty string.  |
+        |                                                    | Used as final context block.      |
+        +----------------------------------------------------+-----------------------------------+
+        | ``RefineResult(text=None, reason=               `` | LLM returned empty/falsy output.  |
+        | ``"refiner_returned_empty")``                      | Caller falls back to raw chunks.  |
+        +----------------------------------------------------+-----------------------------------+
+        | ``RefineResult(text=None, reason=               `` | Exception during LLM call         |
+        | ``"refiner_exception: ...")``                      | (HTTP error, transport error,     |
+        |                                                    | ValueError). Non-retried; caller  |
+        |                                                    | falls back to raw chunks.         |
+        +----------------------------------------------------+-----------------------------------+
+
+    Error handling:
+        HTTPStatusError, RequestError, and ValueError are caught, logged as
+        warnings, and converted to ``RefineResult(text=None, reason=...)``.
+        No retry is performed — refiner failures are non-critical.
+
+    Args:
+        llm: The RagLLM instance used for refinement.
+        on_status: Callback for UI status updates (e.g. ``"refining context..."``).
+        reranked: List of hit objects from the fusion/rerank stage.
+        query: The original user query (used in the refiner prompt).
+        max_tokens: Maximum tokens in the refined output (default: 2048).
+        per_chunk_chars: Max characters per chunk in the prompt (default: 512).
+        timeout: Request timeout in seconds; None uses a 30.0s default.
+
+    Returns:
+        ``RefineResult`` with text set on success, or text=None with a reason
+        string on failure. The caller uses ``result.text is None`` to detect
+        failure and fall back to raw-chunk formatting.
+
+    See Also:
+        _augment_refiner: Thin wrapper that adds per-stage status tracking.
+        augment: Complete fallback chain including raw-chunk formatting.
     """
     effective_timeout: float = timeout if timeout is not None else 30.0
     try:
