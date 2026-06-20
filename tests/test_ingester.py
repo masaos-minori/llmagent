@@ -37,7 +37,9 @@ CREATE TABLE IF NOT EXISTS chunks (
                            REFERENCES documents(doc_id) ON DELETE CASCADE,
     chunk_index        INTEGER NOT NULL,
     content            TEXT    NOT NULL,
-    normalized_content TEXT
+    normalized_content TEXT,
+    chunk_type         TEXT,
+    source_file        TEXT
 );
 CREATE TABLE IF NOT EXISTS chunks_vec (
     chunk_id  INTEGER PRIMARY KEY,

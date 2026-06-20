@@ -24,6 +24,15 @@ from db.store_protocols import get_embedding_dims
 logger = logging.getLogger(__name__)
 
 
+def _migrate_rag_schema(conn: sqlite3.Connection) -> None:
+    """Add missing chunk columns idempotently."""
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(chunks)").fetchall()}
+    if "chunk_type" not in existing:
+        conn.execute("ALTER TABLE chunks ADD COLUMN chunk_type TEXT")
+    if "source_file" not in existing:
+        conn.execute("ALTER TABLE chunks ADD COLUMN source_file TEXT")
+
+
 def create_rag_schema() -> None:
     """Create rag.sqlite tables, virtual tables, and triggers."""
     dims = get_embedding_dims()
@@ -33,6 +42,7 @@ def create_rag_schema() -> None:
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.error("Failed to execute RAG schema DDL: %s", e)
             raise
+        _migrate_rag_schema(db.conn)  # type: ignore[arg-type]  # conn is set by open()
     logger.info("RAG schema created successfully.")
 
 

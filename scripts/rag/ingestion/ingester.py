@@ -280,12 +280,14 @@ class RagIngester:
         content: str,
         normalized_content: str | None,
         embedding: list[float],
+        chunk_type: str = "",
+        source_file: str = "",
     ) -> None:
         """Insert a chunk and its embedding vector; chunks_fts synced via trigger using COALESCE(normalized_content, content); embedding stored as float32 BLOB."""
         cur = db.execute(
-            "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content)"
-            " VALUES (?, ?, ?, ?)",
-            (doc_id, idx, content, normalized_content or None),
+            "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content, chunk_type, source_file)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (doc_id, idx, content, normalized_content or None, chunk_type, source_file),
         )
         chunk_id = cur.lastrowid
         db.execute(
@@ -340,6 +342,8 @@ class RagIngester:
         except (ValueError, TypeError) as e:
             logger.warning("Invalid chunk_index in %s: %s, using 0", path.name, e)
             idx = 0
+        chunk_type: str = data.get("chunk_type", "") or ""
+        source_file: str = data.get("source_file", "") or ""
         # Embed original content; E5 understands raw Japanese.
         # normalized_content is for FTS only and not used for embedding.
         embedding = self._get_embedding(content)
@@ -347,7 +351,16 @@ class RagIngester:
             logger.warning("embedding failed for %s: %r", path.name, content[:60])
             return False
         with SQLiteHelper().open(write_mode=True) as db:
-            self._insert_chunk(db, doc_id, idx, content, normalized_content, embedding)
+            self._insert_chunk(
+                db,
+                doc_id,
+                idx,
+                content,
+                normalized_content,
+                embedding,
+                chunk_type,
+                source_file,
+            )
             db.commit()
         return True
 

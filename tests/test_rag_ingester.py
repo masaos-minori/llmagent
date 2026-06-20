@@ -358,3 +358,171 @@ class TestChunkOrder:
         assert sorted_files[0].stem == "chunk_0"
         assert sorted_files[1].stem == "chunk_1"
         assert sorted_files[2].stem == "chunk_2"
+
+
+# ── chunk_type / source_file storage ─────────────────────────────────────────
+
+
+def _make_insert_spy(tmp_path: Path):
+    """Return (ingester, captured_insert_calls) for _insert_chunk call inspection."""
+    ingester = _make_ingester(tmp_path)
+    insert_calls: list[tuple] = []
+    original = ingester._insert_chunk
+
+    def spy(db, doc_id, idx, content, nc, embedding, chunk_type="", source_file=""):
+        insert_calls.append((chunk_type, source_file))
+        original(db, doc_id, idx, content, nc, embedding, chunk_type, source_file)
+
+    ingester._insert_chunk = spy  # type: ignore[method-assign]
+    return ingester, insert_calls
+
+
+class TestChunkMetadataFields:
+    def test_chunk_type_stored_correctly(self, tmp_path):
+        """chunk_type from JSON is passed through to _insert_chunk."""
+        ingester, insert_calls = _make_insert_spy(tmp_path)
+        chunk_dir = tmp_path / "chunk"
+
+        data = _make_chunk_json(content="Hello")
+        data["chunk_type"] = "heading"
+        _write_chunk_file(chunk_dir, "chunk_0", data)
+
+        mock_resp = MagicMock()
+        mock_resp.content = json.dumps({"embedding": [0.1] * 384}).encode()
+        mock_cur = MagicMock()
+        mock_cur.lastrowid = 1
+        mock_cur.fetchone.return_value = None
+        mock_db = MagicMock()
+        mock_db.execute.return_value = mock_cur
+        mock_sh = MagicMock()
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__ = MagicMock(return_value=mock_cur)
+        mock_ctx.__exit__ = MagicMock(return_value=False)
+        mock_sh.open = MagicMock(return_value=mock_ctx)
+
+        with (
+            patch.object(ingester._client, "post", return_value=mock_resp),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
+        ):
+            ingester.ingest_url_group(
+                db=mock_db,
+                url="http://example.com/page",
+                chunk_files=[chunk_dir / "chunk_0.txt"],
+                force=False,
+            )
+
+        assert len(insert_calls) == 1
+        assert insert_calls[0][0] == "heading"
+
+    def test_source_file_stored_correctly(self, tmp_path):
+        """source_file from JSON is passed through to _insert_chunk."""
+        ingester, insert_calls = _make_insert_spy(tmp_path)
+        chunk_dir = tmp_path / "chunk"
+
+        data = _make_chunk_json(content="Hello")
+        data["source_file"] = "docs/guide.md"
+        _write_chunk_file(chunk_dir, "chunk_0", data)
+
+        mock_resp = MagicMock()
+        mock_resp.content = json.dumps({"embedding": [0.1] * 384}).encode()
+        mock_cur = MagicMock()
+        mock_cur.lastrowid = 1
+        mock_cur.fetchone.return_value = None
+        mock_db = MagicMock()
+        mock_db.execute.return_value = mock_cur
+        mock_sh = MagicMock()
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__ = MagicMock(return_value=mock_cur)
+        mock_ctx.__exit__ = MagicMock(return_value=False)
+        mock_sh.open = MagicMock(return_value=mock_ctx)
+
+        with (
+            patch.object(ingester._client, "post", return_value=mock_resp),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
+        ):
+            ingester.ingest_url_group(
+                db=mock_db,
+                url="http://example.com/page",
+                chunk_files=[chunk_dir / "chunk_0.txt"],
+                force=False,
+            )
+
+        assert len(insert_calls) == 1
+        assert insert_calls[0][1] == "docs/guide.md"
+
+    def test_missing_fields_default_to_empty_string(self, tmp_path):
+        """chunk_type/source_file default to empty string when absent from JSON."""
+        ingester, insert_calls = _make_insert_spy(tmp_path)
+        chunk_dir = tmp_path / "chunk"
+
+        data = _make_chunk_json(content="Hello")
+        _write_chunk_file(chunk_dir, "chunk_0", data)
+
+        mock_resp = MagicMock()
+        mock_resp.content = json.dumps({"embedding": [0.1] * 384}).encode()
+        mock_cur = MagicMock()
+        mock_cur.lastrowid = 1
+        mock_cur.fetchone.return_value = None
+        mock_db = MagicMock()
+        mock_db.execute.return_value = mock_cur
+        mock_sh = MagicMock()
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__ = MagicMock(return_value=mock_cur)
+        mock_ctx.__exit__ = MagicMock(return_value=False)
+        mock_sh.open = MagicMock(return_value=mock_ctx)
+
+        with (
+            patch.object(ingester._client, "post", return_value=mock_resp),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
+        ):
+            ingester.ingest_url_group(
+                db=mock_db,
+                url="http://example.com/page",
+                chunk_files=[chunk_dir / "chunk_0.txt"],
+                force=False,
+            )
+
+        assert len(insert_calls) == 1
+        assert insert_calls[0] == ("", "")
+
+
+class TestSchemaMigration:
+    def test_adds_missing_chunk_columns(self, tmp_path):
+        """_migrate_rag_schema adds chunk_type/source_file if absent."""
+        import sqlite3
+
+        from db.create_schema import _migrate_rag_schema
+
+        conn = sqlite3.connect(str(tmp_path / "rag.sqlite"))
+        conn.execute(
+            "CREATE TABLE chunks (chunk_id INTEGER PRIMARY KEY, doc_id INTEGER, chunk_index INTEGER, content TEXT, normalized_content TEXT)"
+        )
+        conn.commit()
+
+        _migrate_rag_schema(conn)
+        conn.commit()
+
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(chunks)").fetchall()}
+        assert "chunk_type" in cols
+        assert "source_file" in cols
+        conn.close()
+
+    def test_migration_idempotent_when_columns_exist(self, tmp_path):
+        """_migrate_rag_schema is a no-op when columns already exist."""
+        import sqlite3
+
+        from db.create_schema import _migrate_rag_schema
+
+        conn = sqlite3.connect(str(tmp_path / "rag.sqlite"))
+        conn.execute(
+            "CREATE TABLE chunks (chunk_id INTEGER PRIMARY KEY, doc_id INTEGER, chunk_index INTEGER, content TEXT, normalized_content TEXT, chunk_type TEXT, source_file TEXT)"
+        )
+        conn.commit()
+
+        _migrate_rag_schema(conn)
+        conn.commit()
+
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(chunks)").fetchall()}
+        assert "chunk_type" in cols
+        assert "source_file" in cols
+        conn.close()
