@@ -201,7 +201,7 @@ class GithubMCPServer(MCPServer):
     server_name = "github-mcp"
     server_version = "1.0.0"
     http_port = 8006
-    app_module = "github_mcp_server:app"
+    app_module = "mcp.github.server:app"
     mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:

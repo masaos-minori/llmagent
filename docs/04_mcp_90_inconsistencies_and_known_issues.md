@@ -13,16 +13,6 @@ Each entry format:
 
 ---
 
-### BUG-02: `app_module` value in github-mcp inconsistent with other servers
-
-- **Type:** Implementation bug
-- **Impact scope:** `mcp/github/server.py`, `MCPServer.run_http()`
-- **Description:** `GithubMCPServer.app_module = "github_mcp_server:app"` (bare module name) while all other 10 servers use the dotted path `"mcp.<submodule>.server:app"`. If `run_http()` were called on github-mcp, uvicorn would fail to import the module.
-- **Mitigation:** github-mcp uses OpenRC-managed persistent HTTP mode, so `run_http()` is never called. The entry point script (`scripts/mcp/github/server.py`) uses `uvicorn.run("mcp.github.server:app", ...)` directly.
-- **Recommended action:** Fix the class attribute for consistency, or add a doc comment explaining why it differs.
-
----
-
 ### BUG-03: Dry-run inputSchema omission for file/github/cicd tools
 
 - **Type:** Implementation issue
