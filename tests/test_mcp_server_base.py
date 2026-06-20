@@ -6,7 +6,9 @@ __list_tools__ introspection protocol, and attach_auth_middleware.
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import re
+from pathlib import Path
 
 import orjson
 import pytest
@@ -285,3 +287,26 @@ class TestAuditLog:
         msg = next(r.message for r in caplog.records if "AUDIT" in r.message)
         assert "session=-" in msg
         assert "request=-" in msg
+
+
+class TestAppModuleImportability:
+    def test_all_server_app_modules_are_importable(self) -> None:
+        scripts_dir = Path(__file__).parent.parent / "scripts"
+        server_files = list(scripts_dir.glob("mcp/**/*server.py"))
+        assert server_files, "No server.py files found under scripts/mcp/"
+
+        pattern = re.compile(r'app_module\s*=\s*"([^"]+)"')
+        missing: list[str] = []
+
+        for path in server_files:
+            for match in pattern.finditer(path.read_text()):
+                app_module_value = match.group(1)
+                module_path = app_module_value.split(":")[0]
+                spec = importlib.util.find_spec(module_path)
+                if spec is None:
+                    missing.append(f"{path.relative_to(scripts_dir)}: {module_path!r}")
+
+        assert not missing, (
+            "The following app_module paths are not importable:\n"
+            + "\n".join(f"  {m}" for m in missing)
+        )

@@ -177,11 +177,11 @@ class TestCheckRetry:
         assert result is None
 
     def test_retry_of_failed_call_blocked(self) -> None:
-        from shared.tool_executor import tool_call_key
+        from shared.tool_executor import tool_hash_key
 
         ctx = _make_ctx()
         guard = ToolLoopGuard(ctx)
-        failed: set[str] = {tool_call_key("write_file", {})}
+        failed: set[str] = {tool_hash_key("write_file", {})}
         result = guard.check_retry(failed, _msg("write_file"))
         assert result is not None
         assert "Repeated failed" in result

@@ -105,6 +105,7 @@ If LLM generation fails (`SessionTitleGenerationError`), a fallback title is der
 - Persisted via `ctx.session.set_title()`
 
 This guarantees every session has a non-empty, meaningful title even when the LLM endpoint is unavailable.
+Failures are logged at `WARNING` level via `logger.warning(...)` in `cmd_session.py`.
 
 ### Message save rules
 
@@ -219,11 +220,20 @@ DB paths are configured via `rag_db_path`, `session_db_path`, `workflow_db_path`
 ## Session / RAG Responsibility Boundary
 
 `AgentSession` (`agent/session.py`) has zero RAG-layer imports or methods.
-All RAG document operations (ingest, search, chunk management, DB maintenance) go
-through `DbMaintenanceService` (`agent/services/db_maintenance_service.py`) or the
-RAG MCP path — never through the session object.
+All RAG document operations (ingest, search, chunk management) go through the
+RAG MCP path; RAG maintenance operations go through `RagMaintenanceService` —
+never through the session object.
+
+### Service responsibility boundary
+
+| Service | DB | Methods |
+|---|---|---|
+| `DbMaintenanceService` | session.sqlite | `stats` (sessions/messages), `health`, `checkpoint`, `vacuum`, `purge` |
+| `RagMaintenanceService` | rag.sqlite | `stats_rag` (docs/chunks), `rebuild_fts`, `consistency`, `recover` |
+
+`AgentSession` accesses only session.sqlite via `SQLiteHelper("session")`.
 
 Verified boundaries:
 - `agent/session.py` imports only: `db.helper`, `shared.types`, `agent.note_repo`, `agent.session_message_repo`
 - `db/maintenance.py` contains RAG-file utility functions (`rotate_rag_db`, `vacuum_db`) but has zero `rag/` module imports
-- `/db` command routes all RAG subcommands through `DbMaintenanceService`, not through `AgentSession`
+- `/db` command routes RAG maintenance subcommands through `RagMaintenanceService` and session subcommands through `DbMaintenanceService`

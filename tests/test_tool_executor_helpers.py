@@ -1,37 +1,37 @@
 """Unit tests for tool_executor helper functions.
 
 This file contains tests for:
-- tool_call_key: generates consistent hash keys for (tool name, args) pairs
+- tool_hash_key: generates consistent hash keys for (tool name, args) pairs
 - is_side_effect: identifies tools with side effects
 """
 
-from shared.tool_executor import is_side_effect, tool_call_key
+from shared.tool_executor import is_side_effect, tool_hash_key
 
 
-def test_tool_call_key_consistency() -> None:
-    """Test that tool_call_key generates consistent hash keys for identical inputs."""
+def test_tool_hash_key_consistency() -> None:
+    """Test that tool_hash_key generates consistent hash keys for identical inputs."""
     # Test basic case
-    key1 = tool_call_key("read_file", {"path": "/tmp/test.txt"})
-    key2 = tool_call_key("read_file", {"path": "/tmp/test.txt"})
+    key1 = tool_hash_key("read_file", {"path": "/tmp/test.txt"})
+    key2 = tool_hash_key("read_file", {"path": "/tmp/test.txt"})
     assert key1 == key2
 
     # Test different tools have different keys
-    key3 = tool_call_key("write_file", {"path": "/tmp/test.txt"})
+    key3 = tool_hash_key("write_file", {"path": "/tmp/test.txt"})
     assert key1 != key3
 
     # Test different args have different keys
-    key4 = tool_call_key("read_file", {"path": "/tmp/other.txt"})
+    key4 = tool_hash_key("read_file", {"path": "/tmp/other.txt"})
     assert key1 != key4
 
     # Test order independence (sorted args)
-    key5 = tool_call_key("read_file", {"path": "/tmp/test.txt", "mode": "r"})
-    key6 = tool_call_key("read_file", {"mode": "r", "path": "/tmp/test.txt"})
+    key5 = tool_hash_key("read_file", {"path": "/tmp/test.txt", "mode": "r"})
+    key6 = tool_hash_key("read_file", {"mode": "r", "path": "/tmp/test.txt"})
     assert key5 == key6
 
 
-def test_tool_call_key_hash_format() -> None:
-    """Test that tool_call_key returns correct hash format."""
-    key = tool_call_key("test_tool", {"arg": "value"})
+def test_tool_hash_key_hash_format() -> None:
+    """Test that tool_hash_key returns correct hash format."""
+    key = tool_hash_key("test_tool", {"arg": "value"})
     # Should be a valid hex string (32 characters for MD5)
     assert len(key) == 32
     assert all(c in "0123456789abcdef" for c in key)
@@ -74,8 +74,8 @@ def test_is_side_effect_unknown_tool() -> None:
     assert is_side_effect("unknown_tool") is False
 
 
-def test_tool_call_key_with_complex_args() -> None:
-    """Test tool_call_key with complex arguments."""
+def test_tool_hash_key_with_complex_args() -> None:
+    """Test tool_hash_key with complex arguments."""
     args1 = {
         "path": "/tmp/test.txt",
         "content": "hello world",
@@ -89,13 +89,13 @@ def test_tool_call_key_with_complex_args() -> None:
         "metadata": {"author": "test", "version": 1},
     }
 
-    key1 = tool_call_key("write_file", args1)
-    key2 = tool_call_key("write_file", args2)
+    key1 = tool_hash_key("write_file", args1)
+    key2 = tool_hash_key("write_file", args2)
     assert key1 == key2
 
 
-def test_tool_call_key_empty_args() -> None:
-    """Test tool_call_key with empty arguments."""
-    key1 = tool_call_key("read_file", {})
-    key2 = tool_call_key("read_file", {})
+def test_tool_hash_key_empty_args() -> None:
+    """Test tool_hash_key with empty arguments."""
+    key1 = tool_hash_key("read_file", {})
+    key2 = tool_hash_key("read_file", {})
     assert key1 == key2

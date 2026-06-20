@@ -62,6 +62,39 @@ The agent layer accesses both systems through **MCP tool calls** only:
 
 ---
 
+## Agent Routing Policy
+
+The agent uses a lightweight classifier (`agent/mdq_rag_classifier.py`) to guide
+tool selection between MDQ and RAG based on the user's query.
+
+### Classifier heuristics
+
+Queries containing Markdown-structural terms (e.g., "heading", "outline", "hierarchy",
+"section", ".md", "table of contents") are classified as MDQ; all others default to RAG.
+
+### Config override (`mdq_rag_mode`)
+
+Set `mdq_rag_mode` in `config/agent.toml` under `[mcp_servers]`:
+
+| Value | Behavior |
+|---|---|
+| `"auto"` (default) | Use classifier heuristics |
+| `"mdq"` | Force MDQ for all retrieval queries |
+| `"rag"` | Force RAG for all retrieval queries |
+
+### Fallback behavior
+
+| Condition | Behavior |
+|---|---|
+| MDQ selected, mdq-mcp unavailable | Log WARNING; fall back to RAG hint |
+| RAG selected, rag-pipeline-mcp unavailable | Return error; no fallback |
+| Override mode, forced server unavailable | Return error |
+
+The classifier injects a one-line system prompt hint (~20-40 tokens) before each
+LLM turn. The LLM may still deviate; use override mode for deterministic routing.
+
+---
+
 ## Migration Criteria: MDQ to RAG
 
 Consider migrating from MDQ to RAG when:
@@ -88,7 +121,40 @@ For production workloads involving general-purpose document retrieval, prefer `r
 
 ---
 
+## Boundary Enforcement
+
+An automated pytest check (`tests/test_mdq_rag_boundary.py`) verifies the MDQ/RAG
+boundary on every CI run. It scans source files for forbidden cross-DB references
+and disallowed direct SQLite access in the agent layer.
+
+### Allowed access paths
+
+| Layer | DB | Mechanism | Context |
+|---|---|---|---|
+| `mcp/mdq/` | `mdq.sqlite` | Own service | Normal operation |
+| `mcp/rag_pipeline/` | `rag.sqlite` | Own service | Normal operation |
+| Agent layer | `session.sqlite` | `SQLiteHelper("session")` | Normal operation |
+| Agent layer | `workflow.sqlite` | `SQLiteHelper("workflow")` | Normal operation |
+| Agent layer | `rag.sqlite` | `SQLiteHelper("rag")` via `RagMaintenanceService` | Admin-only `/db` commands |
+
+### Forbidden access paths
+
+| Layer | DB | Reason |
+|---|---|---|
+| `mcp/mdq/` | `rag.sqlite` | Cross-DB dependency |
+| `mcp/rag_pipeline/` | `mdq.sqlite` | Cross-DB dependency |
+| Agent layer (normal) | `mdq.sqlite` or `rag.sqlite` | Use MCP tools, not direct DB access |
+
+### Handling false positives
+
+If a new admin maintenance file requires direct `rag.sqlite` access, add its filename
+to the `ALLOWED` set in `tests/test_mdq_rag_boundary.py` and document the exception
+in the allowed-paths table above. Changes to `ALLOWED` require a design review comment
+in the PR.
+
+---
+
 ## Known Issues
 
-- **DB path mismatch:** TOML config (`config/mdq_mcp_server.toml`) uses `mdq.sqlite`, JSON config (`config/mdq_mcp_server.json`) uses `mdq.db`. Documentation and code default to `mdq.sqlite`. Recommend aligning the JSON config to use `mdq.sqlite` for consistency with RAG's naming convention (`rag.sqlite`).
+- **DB path alignment (resolved):** All config files and the code default now use `mdq.sqlite`. If an existing deployment has a `mdq.db` file on disk, rename it to `mdq.sqlite` or update the JSON config path before restarting the service. No code-level compatibility bridge is provided.
 - FTS5 search is functional but not production-validated. Tool responses may be stub data in some configurations (see [server catalog](04_mcp_04_server_catalog.md)).

@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="mdq-mcp",
     version="1.0.0",
-    description="Markdown Context Compression Engine MCP server",
+    description="Markdown Context Compression Engine MCP server (Markdown-only, structure-aware retrieval, experimental)",
 )
 
 _service: MdqService = MdqService()

@@ -19,7 +19,7 @@ import orjson
 from rag.llm import summarize_tool_result
 from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
-from shared.tool_executor import is_side_effect, tool_call_key
+from shared.tool_executor import is_side_effect, tool_hash_key
 from shared.tool_spec import ToolSpec
 
 from agent.tool_approval import run_approval_checks
@@ -138,7 +138,7 @@ def _collect_tool_result_msgs(
         if is_error:
             ctx.stats.stat_tool_errors += 1
             if out_failed_keys is not None:
-                out_failed_keys.add(tool_call_key(name, args))
+                out_failed_keys.add(tool_hash_key(name, args))
         masked = mask_args(args, ctx.cfg.tool.masked_fields)
         logger.info("Tool call (turn %s): %s(%s)", turn + 1, name, masked)
         emit_tool_call(name, _json_dumps(masked))

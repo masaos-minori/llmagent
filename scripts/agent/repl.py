@@ -37,7 +37,7 @@ from agent.commands.registry import CommandRegistry
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
 from agent.repl_health import watchdog_loop
-from agent.services.db_maintenance_service import DbMaintenanceService
+from agent.services.rag_maintenance_service import RagMaintenanceService
 
 if TYPE_CHECKING:
     from agent.orchestrator import Orchestrator
@@ -100,7 +100,7 @@ class AgentREPL:
     def _get_chunk_count(self) -> str:
         """Return formatted chunk count from DB, or '?' on error."""
         try:
-            count = DbMaintenanceService().stats().chunks
+            count = RagMaintenanceService().stats_rag()[1]
             return f"{count:,}"
         except (sqlite3.Error, OSError, RuntimeError) as e:
             logger.debug("Failed to get chunk count: %s", e)
@@ -375,7 +375,12 @@ class AgentREPL:
         """Print the startup line showing DB chunks, tool count, and workflow status."""
         chunk_count = self._get_chunk_count()
         workflow_status = self._get_workflow_status()
-        self._view.write_startup_banner(chunk_count, self._n_tools, workflow_status)
+        self._view.write_startup_banner(
+            chunk_count,
+            self._n_tools,
+            workflow_status,
+            memory_enabled=self._ctx.cfg.memory.use_memory_layer,
+        )
 
     async def _run_repl_loop(self) -> None:
         """Run the main REPL loop with watchdog if enabled."""

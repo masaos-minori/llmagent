@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import orjson
-from shared.tool_executor import tool_call_key
+from shared.tool_executor import tool_hash_key
 from shared.types import LLMMessage
 
 if TYPE_CHECKING:
@@ -154,7 +154,7 @@ class ToolLoopGuard:
                     "check_retry: invalid JSON in tool arguments; skipping retry check"
                 )
                 return None
-            if tool_call_key(func.get("name", ""), tc_args) in failed_calls:
+            if tool_hash_key(func.get("name", ""), tc_args) in failed_calls:
                 name = func.get("name", "<unknown>")
                 logger.warning("Retry of failed tool call blocked: %r", name)
                 if ctx.diagnostics is not None:

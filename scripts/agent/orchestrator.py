@@ -24,6 +24,7 @@ from shared.logger import Logger
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
 from agent.llm_turn_runner import LLMTurnRunner
+from agent.mdq_rag_classifier import MdqRagMode, resolve_mode
 from agent.tool_audit import (
     audit_approval_requested,
     audit_stage_completed,
@@ -42,6 +43,14 @@ from agent.workflow import (
 )
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
+
+
+def _mode_hint(mode: MdqRagMode) -> str:
+    if mode == MdqRagMode.MDQ:
+        return "For this query, prefer MDQ tools (search_docs, outline, get_chunk) for Markdown-structural retrieval."
+    if mode == MdqRagMode.RAG:
+        return "For this query, prefer RAG tools (rag_run_pipeline) for semantic/general retrieval."
+    return ""
 
 
 class Orchestrator:
@@ -305,6 +314,7 @@ class Orchestrator:
         try:
             await self._handle_memory_injection(line)
             await self._handle_note_injection(line)
+            self._classify_and_inject_mode(line)
             self._append_user_message(line)
             await self._handle_history_compression()
 
@@ -368,6 +378,27 @@ class Orchestrator:
         else:
             ctx.conv.history.insert(
                 0, {"role": "system", "content": ctx.conv.system_prompt_content}
+            )
+
+    def _classify_and_inject_mode(self, query: str) -> None:
+        """Inject MDQ/RAG routing hint into system prompt based on query classification."""
+        ctx = self._ctx
+        config_mode = getattr(ctx.cfg, "mdq_rag_mode", None)
+        mode = resolve_mode(query, config_mode)
+        if mode == MdqRagMode.MDQ:
+            mdq_available = any(
+                "search_docs" in (srv.tool_names or [])
+                for srv in ctx.cfg.mcp.mcp_servers.values()
+            )
+            if not mdq_available:
+                logger.warning(
+                    "MDQ mode selected but mdq-mcp tools unavailable; falling back to RAG"
+                )
+                mode = MdqRagMode.RAG
+        hint = _mode_hint(mode)
+        if hint and ctx.conv.system_prompt_content:
+            ctx.conv.system_prompt_content = (
+                ctx.conv.system_prompt_content + "\n" + hint
             )
 
     def _append_user_message(self, line: str) -> None:

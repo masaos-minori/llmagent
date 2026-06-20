@@ -5,6 +5,7 @@ set_lifecycle(), transport-dispatch paths, and auth header injection.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -759,3 +760,40 @@ class TestToolExecutorHealthGate:
         res = await ex._raw_execute("read_text_file", {})
         assert res.is_error
         assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
+
+
+class TestCacheKeyFormat:
+    def test_cache_key_is_plain_string_not_md5(self) -> None:
+        """Cache key must use plain string format, not MD5 hex digest."""
+        from shared.tool_executor import _json_dumps  # type: ignore[attr-defined]
+
+        args: dict[str, Any] = {"path": "/tmp/f.txt"}
+        key = f"read_text_file:{_json_dumps(args)}"
+        assert key.startswith("read_text_file:")
+        assert not re.fullmatch(r"[0-9a-f]{32}", key)
+
+    def test_cache_key_identical_args_produce_identical_key(self) -> None:
+        """Same tool + same args must always produce the same cache key."""
+        from shared.tool_executor import _json_dumps  # type: ignore[attr-defined]
+
+        args: dict[str, Any] = {"path": "/tmp/f.txt", "mode": "r"}
+        key1 = f"read_text_file:{_json_dumps(args)}"
+        key2 = f"read_text_file:{_json_dumps(args)}"
+        assert key1 == key2
+
+    def test_cache_key_different_tool_produces_different_key(self) -> None:
+        """Different tool names must produce different cache keys for same args."""
+        from shared.tool_executor import _json_dumps  # type: ignore[attr-defined]
+
+        args: dict[str, Any] = {"path": "/tmp/f.txt"}
+        key1 = f"read_text_file:{_json_dumps(args)}"
+        key2 = f"write_file:{_json_dumps(args)}"
+        assert key1 != key2
+
+    def test_cache_key_different_args_produce_different_key(self) -> None:
+        """Different args must produce different cache keys for same tool."""
+        from shared.tool_executor import _json_dumps  # type: ignore[attr-defined]
+
+        key1 = f"read_text_file:{_json_dumps({'path': '/tmp/a.txt'})}"
+        key2 = f"read_text_file:{_json_dumps({'path': '/tmp/b.txt'})}"
+        assert key1 != key2
