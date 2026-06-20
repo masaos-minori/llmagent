@@ -95,7 +95,7 @@ All known issues, spec conflicts, and open questions are consolidated in
 | `ServerLifecycleManager` deletion — stale references removed | DOC-02 ✓ |
 | `MCPConfig.github_server_url` field aligned to TOML key | DOC-03 ✓ |
 | stale `05_ref-agent-context.md` reference removed | DOC-04 ✓ |
-| `AgentSession` owning RAG table access (responsibility boundary) | OQ-01 |
+| `AgentSession` owning RAG table access (responsibility boundary) | OQ-01 ✓ |
 | Workflow engine fallback conditions — explicit workflow_mode added | OQ-02 ✓ |
 | Memory layer API undocumented in restructured docs | UNDOC-01 |
 
