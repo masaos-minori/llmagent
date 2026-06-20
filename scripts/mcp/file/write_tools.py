@@ -72,13 +72,17 @@ _MCP_TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "create_directory",
-        "description": "Create a directory, including parent directories recursively",
+        "description": "Create a directory, including parent directories recursively. When dry_run=true, return directory info without creating",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "path": {
                     "type": "string",
                     "description": "Absolute path of the directory to create",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "When true, return directory info without creating (default: false)",
                 },
             },
             "required": ["path"],

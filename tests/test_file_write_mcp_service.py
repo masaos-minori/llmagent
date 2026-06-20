@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from mcp.file.common import FileAuthorizationError
 from mcp.file.write_models import (
+    CreateDirectoryRequest,
     EditFileRequest,
     EditOperation,
     MoveFileRequest,
@@ -183,6 +184,48 @@ class TestMoveFileDryRun:
 # ── async fmt_* handlers ──────────────────────────────────────────────────────
 
 
+# ── create_directory dry_run ──────────────────────────────────────────────────
+
+
+class TestCreateDirectoryDryRun:
+    def test_dry_run_nonexistent_path_returns_would_create(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "new_dir"
+        req = CreateDirectoryRequest(path=str(target), dry_run=True)
+        result = service.create_directory(req)
+        assert not target.exists()
+        assert "would create" in result.dry_run_info
+
+    def test_dry_run_existing_path_returns_exists(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "existing_dir"
+        target.mkdir()
+        req = CreateDirectoryRequest(path=str(target), dry_run=True)
+        result = service.create_directory(req)
+        assert target.exists()
+        assert "exists" in result.dry_run_info
+
+    def test_dry_run_created_flag_is_false(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "new_dir"
+        req = CreateDirectoryRequest(path=str(target), dry_run=True)
+        result = service.create_directory(req)
+        assert result.created is False
+
+    def test_dry_run_false_creates_directory(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "new_dir"
+        req = CreateDirectoryRequest(path=str(target), dry_run=False)
+        result = service.create_directory(req)
+        assert target.exists()
+        assert result.created is True
+        assert result.dry_run_info == ""
+
+
 class TestFmtHandlersDryRun:
     @pytest.mark.asyncio
     async def test_fmt_write_file_dry_run_new_file(
@@ -218,6 +261,38 @@ class TestFmtHandlersDryRun:
             {"source": str(src), "destination": str(dest), "dry_run": True}
         )
         assert "Dry-run" in result
+
+    @pytest.mark.asyncio
+    async def test_fmt_create_directory_dry_run_nonexistent(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "new_dir"
+        result = await service.fmt_create_directory(
+            {"path": str(target), "dry_run": True}
+        )
+        assert "Dry-run" in result
+        assert "would create" in result
+
+    @pytest.mark.asyncio
+    async def test_fmt_create_directory_dry_run_existing(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "existing_dir"
+        target.mkdir()
+        result = await service.fmt_create_directory(
+            {"path": str(target), "dry_run": True}
+        )
+        assert "Dry-run" in result
+        assert "exists" in result
+
+    @pytest.mark.asyncio
+    async def test_fmt_create_directory_no_dry_run(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "new_dir"
+        result = await service.fmt_create_directory({"path": str(target)})
+        assert "created" in result
+        assert "Dry-run" not in result
 
 
 # ── path allowlist security ───────────────────────────────────────────────────
