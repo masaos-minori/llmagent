@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import orjson
 from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,29 @@ class DiagnosticStore:
                 (session_id,),
             )
         return [dict(r) for r in rows]
+
+    def save_serialization_event(
+        self,
+        session_id: int | None,
+        round_id: str,
+        trigger_tool: str,
+        affected_count: int,
+        mode: str,
+        elapsed_ms: float,
+        reason: str,
+    ) -> None:
+        """Persist a round-level serialization event."""
+        content = orjson.dumps(
+            {
+                "round_id": round_id,
+                "trigger_tool": trigger_tool,
+                "affected_count": affected_count,
+                "mode": mode,
+                "elapsed_ms": round(elapsed_ms, 1),
+                "reason": reason,
+            }
+        ).decode()
+        self.save(session_id=session_id, kind="serialization_event", content=content)
 
     def fetch_all(self, limit: int = 50) -> list[dict[str, Any]]:
         """Return most recent diagnostics across all sessions."""

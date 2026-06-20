@@ -316,6 +316,76 @@ class TestCmdMcpInstall:
         assert "my-server" in out
 
 
+class TestCmdMcpStatusSerialization:
+    @pytest.mark.asyncio
+    async def test_serialization_stats_shown_when_events_present(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _Ctx({})
+        ctx.services.health_registry = None
+        # Provide real stat_serialization_events so iteration works
+        ctx.stats = MagicMock()  # type: ignore[assignment]
+        ctx.stats.stat_serialization_events = [
+            {
+                "trigger_tool": "write_file",
+                "affected_count": 2,
+                "serial_reason": "side_effect",
+            },
+            {
+                "trigger_tool": "write_file",
+                "affected_count": 1,
+                "serial_reason": "side_effect",
+            },
+        ]
+        mcp = _Mcp(ctx)
+        with (
+            patch(
+                "agent.services.mcp_status.httpx.AsyncClient",
+                return_value=_mock_client(),
+            ),
+            patch(
+                "agent.tool_runner.get_serialization_stats",
+                return_value={
+                    "total_events": 2,
+                    "total_tools_affected": 3,
+                    "tools_affected_last_round": 1,
+                },
+            ),
+        ):
+            await mcp._cmd_mcp_status()
+        out = capsys.readouterr().out
+        assert "Serialization" in out
+        assert "2 events" in out
+        assert "side_effect" in out
+        assert "write_file" in out
+
+    @pytest.mark.asyncio
+    async def test_serialization_stats_hidden_when_no_events(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _Ctx({})
+        ctx.stats = MagicMock()  # type: ignore[assignment]
+        ctx.stats.stat_serialization_events = []
+        mcp = _Mcp(ctx)
+        with (
+            patch(
+                "agent.services.mcp_status.httpx.AsyncClient",
+                return_value=_mock_client(),
+            ),
+            patch(
+                "agent.tool_runner.get_serialization_stats",
+                return_value={
+                    "total_events": 0,
+                    "total_tools_affected": 0,
+                    "tools_affected_last_round": 0,
+                },
+            ),
+        ):
+            await mcp._cmd_mcp_status()
+        out = capsys.readouterr().out
+        assert "Serialization" not in out
+
+
 class TestAppServicesMemoryOptional:
     def test_memory_is_none_when_not_enabled(self) -> None:
         from unittest.mock import MagicMock

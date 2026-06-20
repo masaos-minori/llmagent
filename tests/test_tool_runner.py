@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from agent.config import AgentConfig, build_agent_config
 from agent.tool_runner import (
+    _compute_serial_overhead,
+    _estimate_parallel_time,
     _execute_with_dag,
     execute_all_tool_calls,
 )
@@ -261,3 +263,90 @@ class TestExecuteAllToolCalls:
 
         ctx.services.tools.execute.assert_not_called()
         ctx.session.save_many.assert_called_once_with([])
+
+
+class TestSerializationHelpers:
+    def test_estimate_parallel_time_empty(self) -> None:
+        assert _estimate_parallel_time({}) == 0.0
+
+    def test_estimate_parallel_time_sums_values(self) -> None:
+        assert _estimate_parallel_time({"a": 10.0, "b": 20.0}) == 30.0
+
+    def test_compute_serial_overhead_zero_parallel(self) -> None:
+        assert _compute_serial_overhead(100.0, 0.0) == 1.0
+
+    def test_compute_serial_overhead_ratio(self) -> None:
+        assert _compute_serial_overhead(30.0, 10.0) == 3.0
+
+    def test_compute_serial_overhead_rounds_to_two(self) -> None:
+        result = _compute_serial_overhead(10.0, 3.0)
+        assert result == round(10.0 / 3.0, 2)
+
+
+class TestExecuteStandardSerialization:
+    @pytest.mark.asyncio
+    async def test_side_effect_tool_records_serialization_event(self) -> None:
+        """When a side-effect tool triggers serial execution, a serialization event is stored."""
+        cfg = _cfg(serial_tool_calls=False, use_tool_dag=False)
+        ctx = _make_ctx(cfg)
+        ctx.services.audit_logger = None
+        ctx.stats.stat_serialization_events = []
+        ctx.stats.stat_serialization_total_overhead_ms = 0.0
+        ctx.diagnostics = None
+
+        with patch("agent.tool_runner.run_approval_checks") as mock_approval:
+            # write_file is in WRITE_TOOLS and triggers is_side_effect=True
+            mock_approval.return_value = ([_tc("write_file", '{"path": "/tmp/f"}')], [])
+            await execute_all_tool_calls(
+                ctx, [_tc("write_file", '{"path": "/tmp/f"}')], 0
+            )
+
+        assert len(ctx.stats.stat_serialization_events) == 1
+        event = ctx.stats.stat_serialization_events[0]
+        assert event["trigger_tool"] == "write_file"
+        assert event["mode"] == "serial"
+        assert event["serial_reason"] == "side_effect"
+        assert "elapsed_ms" in event
+        assert "estimated_parallel_ms" in event
+        assert "serial_overhead" in event
+
+    @pytest.mark.asyncio
+    async def test_no_side_effect_no_serialization_event(self) -> None:
+        """When no side-effect tool is present, no serialization event is recorded."""
+        cfg = _cfg(serial_tool_calls=False, use_tool_dag=False)
+        ctx = _make_ctx(cfg)
+        ctx.services.audit_logger = None
+        ctx.stats.stat_serialization_events = []
+
+        with patch("agent.tool_runner.run_approval_checks") as mock_approval:
+            mock_approval.return_value = (
+                [_tc("read_text_file", '{"path": "/tmp/f"}')],
+                [],
+            )
+            await execute_all_tool_calls(
+                ctx, [_tc("read_text_file", '{"path": "/tmp/f"}')], 0
+            )
+
+        assert ctx.stats.stat_serialization_events == []
+
+    @pytest.mark.asyncio
+    async def test_side_effect_calls_diagnostic_save(self) -> None:
+        """When diagnostics are wired, save_serialization_event is called."""
+        cfg = _cfg(serial_tool_calls=False, use_tool_dag=False)
+        ctx = _make_ctx(cfg)
+        ctx.services.audit_logger = None
+        ctx.stats.stat_serialization_events = []
+        ctx.stats.stat_serialization_total_overhead_ms = 0.0
+        ctx.diagnostics = MagicMock()
+
+        with patch("agent.tool_runner.run_approval_checks") as mock_approval:
+            mock_approval.return_value = ([_tc("write_file", '{"path": "/tmp/f"}')], [])
+            await execute_all_tool_calls(
+                ctx, [_tc("write_file", '{"path": "/tmp/f"}')], 0
+            )
+
+        ctx.diagnostics.save_serialization_event.assert_called_once()
+        call_kwargs = ctx.diagnostics.save_serialization_event.call_args[1]
+        assert call_kwargs["trigger_tool"] == "write_file"
+        assert call_kwargs["mode"] == "serial"
+        assert call_kwargs["reason"] == "side_effect"

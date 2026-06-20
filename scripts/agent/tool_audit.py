@@ -190,6 +190,9 @@ def write_round_exec(
     has_side_effect: bool,
     trigger_tool: str | None,
     elapsed_ms: float,
+    affected_tools: list[str] | None = None,
+    serial_reason: str | None = None,
+    estimated_parallel_ms: float | None = None,
 ) -> None:
     """Log a round-wide execution event, capturing serialization impact."""
     if ctx.services.audit_logger is None:
@@ -203,5 +206,12 @@ def write_round_exec(
             "has_side_effect": has_side_effect,
             "trigger_tool": trigger_tool,
             "elapsed_ms": round(elapsed_ms, 1),
+            "affected_tools": affected_tools or [],
+            "serial_reason": serial_reason,
+            "estimated_parallel_ms": (
+                round(estimated_parallel_ms, 1)
+                if estimated_parallel_ms is not None
+                else None
+            ),
         },
     )

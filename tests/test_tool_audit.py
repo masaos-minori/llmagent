@@ -8,7 +8,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from agent.config import AgentConfig, build_agent_config
-from agent.tool_audit import audit_tool_exec, log_approval_decision
+from agent.tool_audit import audit_tool_exec, log_approval_decision, write_round_exec
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_models import ApprovalOutcome
 
@@ -134,3 +134,56 @@ class TestAuditToolExec:
         ctx.services.audit_logger = MagicMock()
         audit_tool_exec(ctx, "read_text_file", {}, False, "")
         ctx.services.audit_logger.info.assert_not_called()
+
+
+class TestWriteRoundExec:
+    def test_logs_new_fields_when_provided(self) -> None:
+        ctx = _make_ctx()
+        ctx.services.audit_logger = MagicMock()
+        write_round_exec(
+            ctx,
+            round_id="r-1",
+            tool_count=2,
+            mode="serial",
+            has_side_effect=True,
+            trigger_tool="write_file",
+            elapsed_ms=50.0,
+            affected_tools=["write_file", "read_text_file"],
+            serial_reason="side_effect",
+            estimated_parallel_ms=20.0,
+        )
+        ctx.services.audit_logger.info.assert_called_once()
+        extra = ctx.services.audit_logger.info.call_args[1]["extra"]
+        assert extra["affected_tools"] == ["write_file", "read_text_file"]
+        assert extra["serial_reason"] == "side_effect"
+        assert extra["estimated_parallel_ms"] == 20.0
+
+    def test_defaults_to_empty_when_omitted(self) -> None:
+        ctx = _make_ctx()
+        ctx.services.audit_logger = MagicMock()
+        write_round_exec(
+            ctx,
+            round_id="r-2",
+            tool_count=1,
+            mode="parallel",
+            has_side_effect=False,
+            trigger_tool=None,
+            elapsed_ms=10.0,
+        )
+        extra = ctx.services.audit_logger.info.call_args[1]["extra"]
+        assert extra["affected_tools"] == []
+        assert extra["serial_reason"] is None
+        assert extra["estimated_parallel_ms"] is None
+
+    def test_no_op_when_audit_logger_none(self) -> None:
+        ctx = _make_ctx()
+        ctx.services.audit_logger = None
+        write_round_exec(
+            ctx,
+            round_id="r-3",
+            tool_count=1,
+            mode="parallel",
+            has_side_effect=False,
+            trigger_tool=None,
+            elapsed_ms=5.0,
+        )  # must not raise

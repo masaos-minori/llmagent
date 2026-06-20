@@ -11,6 +11,7 @@ import asyncio
 import logging
 import sqlite3
 import time
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -42,6 +43,20 @@ _serialization_stats: dict[str, int] = {
 def get_serialization_stats() -> dict[str, int]:
     """Return current serialization statistics."""
     return dict(_serialization_stats)
+
+
+def _estimate_parallel_time(tool_timings: dict[str, float]) -> float:
+    """Estimate parallel execution time as the sum of per-tool times (conservative lower bound)."""
+    if not tool_timings:
+        return 0.0
+    return sum(tool_timings.values())
+
+
+def _compute_serial_overhead(actual_ms: float, estimated_parallel_ms: float) -> float:
+    """Compute ratio of actual serial time to estimated parallel time."""
+    if estimated_parallel_ms <= 0:
+        return 1.0
+    return round(actual_ms / estimated_parallel_ms, 2)
 
 
 if TYPE_CHECKING:
@@ -187,6 +202,8 @@ async def _execute_with_dag(
                 is_write=name in WRITE_TOOLS or name in DELETE_TOOLS,
             )
 
+    round_id = str(uuid4())
+    t0 = time.perf_counter()
     groups, metadata = build_execution_groups(approved_calls, tool_meta)
     serialization_events = metadata.serialization_events
     if serialization_events:
@@ -206,6 +223,43 @@ async def _execute_with_dag(
             *(execute_one_tool_call(ctx, tc, turn) for tc in group)
         )
         results.extend(group_results)
+    elapsed_ms = (time.perf_counter() - t0) * 1000
+    ts = datetime.now(UTC).isoformat()
+    for se in serialization_events:
+        round_event: dict[str, Any] = {
+            "trigger_tool": se.trigger_tool,
+            "affected_tools": [],
+            "affected_count": se.tools_count,
+            "mode": "serial",
+            "serial_reason": se.reason,
+            "elapsed_ms": round(elapsed_ms, 1),
+            "timestamp": ts,
+        }
+        ctx.stats.stat_serialization_events.append(round_event)
+        ctx.stats.stat_serialization_total_overhead_ms += elapsed_ms
+        if ctx.diagnostics is not None:
+            ctx.diagnostics.save_serialization_event(
+                session_id=ctx.session.session_id,
+                round_id=round_id,
+                trigger_tool=se.trigger_tool,
+                affected_count=se.tools_count,
+                mode="serial",
+                elapsed_ms=elapsed_ms,
+                reason=se.reason,
+            )
+    write_round_exec(
+        ctx,
+        round_id=round_id,
+        tool_count=len(approved_calls),
+        mode="parallel",
+        has_side_effect=bool(serialization_events),
+        trigger_tool=serialization_events[0].trigger_tool
+        if serialization_events
+        else None,
+        elapsed_ms=elapsed_ms,
+        affected_tools=[tc["function"]["name"] for tc in approved_calls],
+        serial_reason=serialization_events[0].reason if serialization_events else None,
+    )
     return results
 
 
@@ -226,6 +280,7 @@ async def _execute_standard(
             break
     use_serial = ctx.cfg.tool.serial_tool_calls or has_side_effect
     mode = "serial" if use_serial else "parallel"
+    tool_timings: dict[str, float] = {}
     if use_serial:
         if has_side_effect and not ctx.cfg.tool.serial_tool_calls:
             logger.info(
@@ -237,7 +292,9 @@ async def _execute_standard(
             ctx.services.serialization_tools_affected += len(approved_calls)
         results: list[Any] = []
         for tc in approved_calls:
+            t_tool = time.perf_counter()
             results.append(await execute_one_tool_call(ctx, tc, turn))
+            tool_timings[tc["function"]["name"]] = (time.perf_counter() - t_tool) * 1000
     else:
         results = list(
             await asyncio.gather(
@@ -245,6 +302,35 @@ async def _execute_standard(
             ),
         )
     elapsed_ms = (time.perf_counter() - t0) * 1000
+    estimated_parallel_ms: float | None = None
+    if use_serial and has_side_effect:
+        estimated_parallel_ms = _estimate_parallel_time(tool_timings)
+        serial_overhead = _compute_serial_overhead(elapsed_ms, estimated_parallel_ms)
+        round_event: dict[str, Any] = {
+            "trigger_tool": trigger_tool,
+            "affected_tools": [tc["function"]["name"] for tc in approved_calls],
+            "affected_count": len(approved_calls),
+            "mode": "serial",
+            "serial_reason": "side_effect",
+            "elapsed_ms": round(elapsed_ms, 1),
+            "estimated_parallel_ms": round(estimated_parallel_ms, 1),
+            "serial_overhead": serial_overhead,
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+        ctx.stats.stat_serialization_events.append(round_event)
+        ctx.stats.stat_serialization_total_overhead_ms += (
+            elapsed_ms - estimated_parallel_ms
+        )
+        if ctx.diagnostics is not None and trigger_tool:
+            ctx.diagnostics.save_serialization_event(
+                session_id=ctx.session.session_id,
+                round_id=round_id,
+                trigger_tool=trigger_tool,
+                affected_count=len(approved_calls),
+                mode="serial",
+                elapsed_ms=elapsed_ms,
+                reason="side_effect",
+            )
     write_round_exec(
         ctx,
         round_id=round_id,
@@ -253,6 +339,9 @@ async def _execute_standard(
         has_side_effect=has_side_effect,
         trigger_tool=trigger_tool,
         elapsed_ms=elapsed_ms,
+        affected_tools=[tc["function"]["name"] for tc in approved_calls],
+        serial_reason="side_effect" if has_side_effect else None,
+        estimated_parallel_ms=estimated_parallel_ms,
     )
     return results
 

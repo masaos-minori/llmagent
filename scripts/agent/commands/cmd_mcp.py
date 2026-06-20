@@ -86,10 +86,32 @@ class _McpMixin(MixinBase):
 
         stats = get_serialization_stats()
         if stats["total_events"] > 0:
+            ctx = self._ctx
+            events = ctx.stats.stat_serialization_events
+            total_events = len(events) or stats["total_events"]
+            reason_counts: dict[str, int] = {}
+            trigger_counts: dict[str, int] = {}
+            total_affected = 0
+            for e in events:
+                reason = e.get("serial_reason") or e.get("reason", "unknown")
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
+                trigger = e.get("trigger_tool", "unknown")
+                trigger_counts[trigger] = trigger_counts.get(trigger, 0) + 1
+                total_affected += e.get("affected_count", 0)
+            avg_affected = total_affected / total_events if total_events > 0 else 0
             self._out.write(
-                f"  Serialization {stats['total_events']} events,"
-                f" {stats['tools_affected_last_round']} tools affected last round"
+                f"  Serialization {total_events} events"
+                f" (avg {avg_affected:.1f} tools/event)"
             )
+            if reason_counts:
+                reason_str = ", ".join(
+                    f"{k}: {v}" for k, v in sorted(reason_counts.items())
+                )
+                self._out.write(f"    By reason: {reason_str}")
+            if trigger_counts:
+                top_triggers = sorted(trigger_counts.items(), key=lambda x: -x[1])[:5]
+                trigger_str = ", ".join(f"{k} ({v})" for k, v in top_triggers)
+                self._out.write(f"    Top triggers: {trigger_str}")
 
     async def _cmd_mcp_install(self, server_name: str) -> None:
         """Interactive wizard: generate MCP server template files for server_name."""
