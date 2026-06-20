@@ -53,23 +53,34 @@ class RobustSSEParser:
 
     def _parse_line(self, line: str) -> tuple[str | None, bool] | None:
         """Parse one SSE text line; returns None to skip, (None, True) for [DONE], (payload_str, False) for valid data; raises MALFORMED_SSE_FRAME on budget exhaustion."""
-        if not line:
-            # Blank line (SSE event boundary) acts as keepalive
-            self._last_event_at = time.monotonic()
-            return None
-        if line.startswith(":"):
-            # SSE comment line = keepalive
-            self._last_event_at = time.monotonic()
+        if self._is_keepalive(line):
             return None
         if not line.startswith("data:"):
-            # Unknown SSE field (event:, id:, retry:) — ignore
             return None
-        payload = line[5:].lstrip(" ")  # handle "data:" and "data: "
+        payload = line[5:].lstrip(" ")
         if payload.strip() == "[DONE]":
             self._last_event_at = time.monotonic()
             return None, True
+        if not self._is_valid_json(payload):
+            return None
+        self._last_event_at = time.monotonic()
+        return payload, False
+
+    def _is_keepalive(self, line: str) -> bool:
+        """Return True for blank lines and SSE comments (keepalive)."""
+        if not line:
+            self._last_event_at = time.monotonic()
+            return True
+        if line.startswith(":"):
+            self._last_event_at = time.monotonic()
+            return True
+        return False
+
+    def _is_valid_json(self, payload: str) -> bool:
+        """Validate that payload is valid JSON; track malformed count."""
         try:
             orjson.loads(payload)
+            return True
         except (orjson.JSONDecodeError, ValueError):
             self._malformed_count += 1
             self.stat_parse_errors += 1
@@ -81,9 +92,7 @@ class RobustSSEParser:
                     retryable=False,
                     detail=f"malformed SSE frame (count={self._malformed_count})",
                 )
-            return None  # within retry budget: skip this frame
-        self._last_event_at = time.monotonic()
-        return payload, False
+            return False
 
     def check_heartbeat(self, url: str) -> None:
         """Raise HEARTBEAT_TIMEOUT when stream has been idle longer than timeout."""

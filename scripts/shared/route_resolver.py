@@ -140,16 +140,14 @@ class ToolRouteResolver:
         if (key := self._discovery_map.get(tool_name)) is not None:
             return key
         # Priority 2: tool registry (canonical source of truth).
-        if self._registry is not None:
-            if (key := self._registry.get_server_for_tool(tool_name)) is not None:
-                return key
+        if (key := self._lookup_registry(tool_name)) is not None:
+            return key
+        # Priority 3: config map.
         if (key := self._config_map.get(tool_name)) is not None:
             return key
+        # No explicit mapping — use static fallback.
         if self._strict_mode:
-            raise ValueError(
-                f"ToolRouteResolver: tool {tool_name!r} not in config map "
-                f"and strict_mode=True; add it to tool_names in mcp_servers config"
-            )
+            self._raise_strict_error(tool_name)
         if self._warn_on_fallback:
             logger.warning(
                 "ToolRouteResolver: tool %r not in config map; using static fallback. "
@@ -157,6 +155,19 @@ class ToolRouteResolver:
                 tool_name,
             )
         return self._fallback_route(tool_name)
+
+    def _lookup_registry(self, tool_name: str) -> str | None:
+        """Look up a tool in the registry; returns server key or None."""
+        if self._registry is not None:
+            return self._registry.get_server_for_tool(tool_name)
+        return None
+
+    def _raise_strict_error(self, tool_name: str) -> None:
+        """Raise ValueError when strict_mode is enabled and no mapping found."""
+        raise ValueError(
+            f"ToolRouteResolver: tool {tool_name!r} not in config map "
+            f"and strict_mode=True; add it to tool_names in mcp_servers config"
+        )
 
     def _fallback_route(self, tool_name: str) -> str:
         """Static routing preserved from the original ToolExecutor._route()."""

@@ -65,6 +65,44 @@ _RATIO_TOOL_CALL: float = 2.5
 _RATIO_SYSTEM: float = 3.5
 
 
+def _estimate_tokens_for_system(
+    text: str,
+    breakdown: dict[str, int],
+) -> int:
+    """Estimate tokens for a system message. Returns added total."""
+    n = int(len(text) / _RATIO_SYSTEM)
+    breakdown["system"] += n
+    return n
+
+
+def _estimate_tokens_for_assistant_with_tool_calls(
+    text: str,
+    tool_calls: list[dict[str, Any]],
+    breakdown: dict[str, int],
+) -> int:
+    """Estimate tokens for an assistant message that contains tool calls. Returns added total."""
+    total = 0
+    if text:
+        n = int(len(text) / _RATIO_TEXT)
+        breakdown["text"] += n
+        total += n
+    for tc in tool_calls:
+        n = int(len(orjson.dumps(tc)) / _RATIO_TOOL_CALL)
+        breakdown["tool_calls"] += n
+        total += n
+    return total
+
+
+def _estimate_tokens_for_text_only(
+    text: str,
+    breakdown: dict[str, int],
+) -> int:
+    """Estimate tokens for user/tool/assistant (text-only) messages. Returns added total."""
+    n = int(len(text) / _RATIO_TEXT)
+    breakdown["text"] += n
+    return n
+
+
 def _estimate_tokens(history: list[LLMMessage]) -> tuple[int, dict[str, int]]:
     """Estimate token count using category-aware character-to-token ratios.
 
@@ -98,25 +136,12 @@ def _estimate_tokens(history: list[LLMMessage]) -> tuple[int, dict[str, int]]:
 
         if role == "system":
             if text:
-                n = int(len(text) / _RATIO_SYSTEM)
-                breakdown["system"] += n
-                total += n
+                total += _estimate_tokens_for_system(text, breakdown)
         elif role == "assistant" and tool_calls:
-            # Assistant with tool calls: content (text ratio) + serialised tool_calls
-            if text:
-                n = int(len(text) / _RATIO_TEXT)
-                breakdown["text"] += n
-                total += n
-            for tc in tool_calls:
-                n = int(len(orjson.dumps(tc)) / _RATIO_TOOL_CALL)
-                breakdown["tool_calls"] += n
-                total += n
+            total += _estimate_tokens_for_assistant_with_tool_calls(text, tool_calls, breakdown)
         else:
-            # user, tool, assistant (text-only)
             if text:
-                n = int(len(text) / _RATIO_TEXT)
-                breakdown["text"] += n
-                total += n
+                total += _estimate_tokens_for_text_only(text, breakdown)
     return total, breakdown
 
 
@@ -147,39 +172,51 @@ async def get_token_count(
 
     text = _serialise_for_tokenize(history)
     try:
-        resp = await http.post(
-            tokenize_url,
-            content=orjson.dumps({"content": text}),
-            headers={"Content-Type": "application/json"},
-            timeout=timeout,
-        )
-        resp.raise_for_status()
-        data = orjson.loads(resp.content)
-        if not isinstance(data, dict):
-            raise ValueError(f"/tokenize returned non-dict: {type(data).__name__}")
-        n_tokens_raw = data.get("n_tokens")
-        tokens_raw = data.get("tokens")
-        if isinstance(n_tokens_raw, int) and n_tokens_raw > 0:
-            n_tokens = n_tokens_raw
-        elif isinstance(tokens_raw, list):
-            n_tokens = len(tokens_raw)
-        else:
-            n_tokens = 0
+        n_tokens = await _fetch_token_count(text, tokenize_url, http, timeout)
         if n_tokens > 0:
             if warn_once is not None:
                 warn_once.reset()
             return n_tokens, True
         logger.warning("token_counter: /tokenize returned n_tokens=0, falling back")
     except (TimeoutError, httpx.HTTPStatusError, httpx.RequestError, ValueError) as exc:
-        if warn_once is not None:
-            warn_once.log(
-                "token_counter: /tokenize unavailable (%s), using category-aware estimate",
-                exc,
-            )
-        else:
-            logger.warning(
-                "token_counter: /tokenize unavailable (%s), using category-aware estimate",
-                exc,
-            )
+        _warn_tokenize_unavailable(exc, warn_once)
 
     return _estimate_tokens(history)[0], False
+
+
+async def _fetch_token_count(
+    text: str,
+    tokenize_url: str,
+    http: httpx.AsyncClient,
+    timeout: float,
+) -> int:
+    """POST to /tokenize and extract n_tokens from the response."""
+    resp = await http.post(
+        tokenize_url,
+        content=orjson.dumps({"content": text}),
+        headers={"Content-Type": "application/json"},
+        timeout=timeout,
+    )
+    resp.raise_for_status()
+    data = orjson.loads(resp.content)
+    if not isinstance(data, dict):
+        raise ValueError(f"/tokenize returned non-dict: {type(data).__name__}")
+    n_tokens_raw = data.get("n_tokens")
+    tokens_raw = data.get("tokens")
+    if isinstance(n_tokens_raw, int) and n_tokens_raw > 0:
+        return n_tokens_raw
+    if isinstance(tokens_raw, list):
+        return len(tokens_raw)
+    return 0
+
+
+def _warn_tokenize_unavailable(
+    exc: Exception,
+    warn_once: _WarnOnce | None = None,
+) -> None:
+    """Log a warning when /tokenize is unavailable."""
+    msg = "token_counter: /tokenize unavailable (%s), using category-aware estimate"
+    if warn_once is not None:
+        warn_once.log(msg, exc)
+    else:
+        logger.warning(msg, exc)

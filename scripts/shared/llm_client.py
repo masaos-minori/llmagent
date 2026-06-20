@@ -401,10 +401,7 @@ class LLMClient:
 
         try:
             async with self._http.stream("POST", url, json=payload) as resp:
-                try:
-                    resp.raise_for_status()
-                except httpx.HTTPStatusError as e:
-                    self._raise_http_status_error(e, url)
+                await self._handle_status(resp, url)
 
                 byte_iter = resp.aiter_bytes().__aiter__()
                 while True:
@@ -413,9 +410,7 @@ class LLMClient:
                         break
 
                     payloads, is_done = parser.feed(raw_chunk)
-                    if parser.stat_parse_errors:
-                        self.stat_parse_errors += parser.stat_parse_errors
-                        parser.stat_parse_errors = 0
+                    self._accumulate_parse_errors(parser)
 
                     reason = self._process_sse_payloads(
                         payloads, content_parts, tool_calls_map
@@ -437,6 +432,21 @@ class LLMClient:
             raise self._translate_stream_error(e, url) from e
 
         return finish_reason
+
+    async def _handle_status(
+        self, resp: httpx.Response, url: str
+    ) -> None:
+        """Raise on HTTP errors."""
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            self._raise_http_status_error(e, url)
+
+    def _accumulate_parse_errors(self, parser: RobustSSEParser) -> None:
+        """Add parse errors to instance stats and reset the parser's counter."""
+        if parser.stat_parse_errors:
+            self.stat_parse_errors += parser.stat_parse_errors
+            parser.stat_parse_errors = 0
 
     # ── Streaming call with reconnect ─────────────────────────────────────────
 

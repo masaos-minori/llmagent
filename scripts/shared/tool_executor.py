@@ -487,6 +487,80 @@ class ToolExecutor:
             )
         return f"No transport configured for server {server_key!r}"
 
+    def _error_result(
+        self,
+        server_key: str,
+        output: str,
+        error_type: str = "tool",
+    ) -> ToolCallResult:
+        """Return a ToolCallResult with is_error=True."""
+        return ToolCallResult(
+            output=output,
+            is_error=True,
+            request_id="",
+            server_key=server_key,
+            error_type=error_type,
+        )
+
+    def _success_result(self, result: ToolCallResult) -> ToolCallResult:
+        """Return the transport result unchanged."""
+        return result
+
+    def _record_success(self, server_key: str, result: ToolCallResult) -> None:
+        """Record a successful transport call; tool-level errors are still success."""
+        if self._health_registry is not None:
+            self._health_registry.record_success(server_key)
+        if result.is_error and result.error_type == "tool":
+            self.stat_tool_errors[server_key] = (
+                self.stat_tool_errors.get(server_key, 0) + 1
+            )
+
+    def _record_transport_error(
+        self, server_key: str, e: TransportError
+    ) -> ToolCallResult:
+        """Record a transport-level failure and return an error result."""
+        self.stat_transport_errors[server_key] = (
+            self.stat_transport_errors.get(server_key, 0) + 1
+        )
+        if self._health_registry is not None:
+            state = self._health_registry.record_failure(server_key)
+            logger.warning(
+                "transport failure for %r: %s (state=%s)",
+                server_key,
+                e,
+                state.value,
+            )
+        return ToolCallResult(
+            output=str(e),
+            is_error=True,
+            request_id="",
+            server_key=server_key,
+            error_type="transport",
+        )
+
+    def _check_health(self, server_key: str) -> ToolCallResult | None:
+        """Return an error result if the server is unavailable; None if healthy."""
+        if self._health_registry is not None and self._health_registry.is_unavailable(
+            server_key
+        ):
+            msg = f"MCP server {server_key!r} is currently unavailable (health check failed)"
+            logger.warning(msg)
+            return self._error_result(server_key, msg, error_type="tool")
+        return None
+
+    async def _execute_with_semaphore(
+        self,
+        transport: HttpTransport | StdioTransport,
+        tool_name: str,
+        args: dict[str, Any],
+        sem: asyncio.Semaphore | None,
+    ) -> ToolCallResult:
+        """Execute via transport, optionally under a semaphore."""
+        if sem is not None:
+            async with sem:
+                return await transport.call(tool_name, args)
+        return await transport.call(tool_name, args)
+
     async def _raw_execute(
         self,
         tool_name: str,
@@ -494,73 +568,31 @@ class ToolExecutor:
     ) -> ToolCallResult:
         """Execute tool via the appropriate transport; applies per-server-key Semaphore when configured."""
         server_key = self._resolver.resolve(tool_name)
-        if self._health_registry is not None and self._health_registry.is_unavailable(
-            server_key
-        ):
-            msg = f"MCP server {server_key!r} is currently unavailable (health check failed)"
-            logger.warning(msg)
-            return ToolCallResult(
-                output=msg,
-                is_error=True,
-                request_id="",
-                server_key=server_key,
-                error_type="tool",
-            )
+
+        # Health check
+        if err := self._check_health(server_key):
+            return err
+
+        # Lifecycle ensure_ready
         if self._lifecycle is not None:
             await self._lifecycle.ensure_ready(server_key)
+
+   # Transport resolution
         transport = self._transports.get(server_key)
         if transport is None:
             msg = self._transport_missing_msg(server_key)
             logger.error(msg)
-            return ToolCallResult(
-                output=msg,
-                is_error=True,
-                request_id="",
-                server_key=server_key,
-                error_type="tool",
-            )
+            return self._error_result(server_key, msg, error_type="tool")
 
         self._ensure_semaphores()
         sem = (self._semaphores or {}).get(server_key)
 
-        async def _do_call() -> ToolCallResult:
-            if sem is not None:
-                async with sem:
-                    return await transport.call(tool_name, args)
-            return await transport.call(tool_name, args)
-
         try:
-            result = await _do_call()
-            # Transport succeeded — record success regardless of tool-level errors.
-            # Tool-level errors (is_error=true in response body) mean the server
-            # is reachable and functioning; only transport failures affect health.
-            if self._health_registry is not None:
-                self._health_registry.record_success(server_key)
-            if result.is_error and result.error_type == "tool":
-                self.stat_tool_errors[server_key] = (
-                    self.stat_tool_errors.get(server_key, 0) + 1
-                )
+            result = await self._execute_with_semaphore(transport, tool_name, args, sem)
+            self._record_success(server_key, result)
             return result
         except TransportError as e:
-            # Transport-level failure — increment failure counter.
-            self.stat_transport_errors[server_key] = (
-                self.stat_transport_errors.get(server_key, 0) + 1
-            )
-            if self._health_registry is not None:
-                state = self._health_registry.record_failure(server_key)
-                logger.warning(
-                    "transport failure for %r: %s (state=%s)",
-                    server_key,
-                    e,
-                    state.value,
-                )
-            return ToolCallResult(
-                output=str(e),
-                is_error=True,
-                request_id="",
-                server_key=server_key,
-                error_type="transport",
-            )
+            return self._record_transport_error(server_key, e)
 
     async def _execute_with_cache(
         self,

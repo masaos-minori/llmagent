@@ -34,9 +34,7 @@ def get_repo_info(path: str = ".") -> RepoInfoResult:
         import git  # noqa: PLC0415 — lazy import keeps startup fast when gitpython is unused
     except ImportError:
         logger.debug("get_repo_info: GitPython not installed")
-        return RepoInfoResult(
-            success=False, failure_reason=FailureReason.GITPYTHON_NOT_INSTALLED
-        )
+        return _failure(FailureReason.GITPYTHON_NOT_INSTALLED)
     try:
         repo = git.Repo(path, search_parent_directories=True)
         head = repo.head
@@ -52,17 +50,18 @@ def get_repo_info(path: str = ".") -> RepoInfoResult:
         )
     except git.exc.InvalidGitRepositoryError:
         logger.debug("get_repo_info: not a git repo at %s", path)
-        return RepoInfoResult(
-            success=False, failure_reason=FailureReason.NOT_A_GIT_REPO
-        )
+        return _failure(FailureReason.NOT_A_GIT_REPO)
     except PermissionError as e:
         logger.debug("get_repo_info: permission error: %s", e)
-        return RepoInfoResult(
-            success=False, failure_reason=FailureReason.PERMISSION_DENIED
-        )
+        return _failure(FailureReason.PERMISSION_DENIED)
     except git.exc.GitError as e:
         logger.debug("get_repo_info: git error: %s", e)
-        return RepoInfoResult(success=False, failure_reason=FailureReason.GIT_ERROR)
+        return _failure(FailureReason.GIT_ERROR)
     except (OSError, AttributeError, ValueError) as e:
         logger.debug("get_repo_info: %s: %s", type(e).__name__, e)
-        return RepoInfoResult(success=False, failure_reason=FailureReason.OTHER_ERROR)
+        return _failure(FailureReason.OTHER_ERROR)
+
+
+def _failure(reason: FailureReason) -> RepoInfoResult:
+    """Return a failure RepoInfoResult for the given reason."""
+    return RepoInfoResult(success=False, failure_reason=reason)
