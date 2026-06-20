@@ -33,16 +33,17 @@ def _meta(
 
 class TestBuildExecutionGroupsEmpty:
     def test_empty_tool_calls_returns_empty(self) -> None:
-        assert build_execution_groups([], {}) == []
+        groups, _ = build_execution_groups([], {})
+        assert groups == []
 
     def test_single_parallel_tool_returns_one_group(self) -> None:
         tc = _tc("read_text_file")
-        groups = build_execution_groups([tc], {"read_text_file": _meta()})
+        groups, _ = build_execution_groups([tc], {"read_text_file": _meta()})
         assert groups == [[tc]]
 
     def test_unknown_tool_goes_to_parallel(self) -> None:
         tc = _tc("some_unknown_tool")
-        groups = build_execution_groups([tc], {})
+        groups, _ = build_execution_groups([tc], {})
         assert groups == [[tc]]
 
 
@@ -52,7 +53,7 @@ class TestBuildExecutionGroupsEmpty:
 class TestRequiresSerialBarrier:
     def test_serial_tool_forms_single_element_group(self) -> None:
         tc = _tc("shell_run")
-        groups = build_execution_groups(
+        groups, _ = build_execution_groups(
             [tc], {"shell_run": _meta(requires_serial=True)}
         )
         assert groups == [[tc]]
@@ -60,7 +61,7 @@ class TestRequiresSerialBarrier:
     def test_serial_tool_precedes_parallel_tools(self) -> None:
         serial = _tc("shell_run")
         parallel = _tc("read_text_file")
-        groups = build_execution_groups(
+        groups, _ = build_execution_groups(
             [serial, parallel],
             {
                 "shell_run": _meta(requires_serial=True),
@@ -73,7 +74,7 @@ class TestRequiresSerialBarrier:
     def test_multiple_serial_tools_each_get_own_group(self) -> None:
         tc1 = _tc("shell_run")
         tc2 = _tc("shell_run")
-        groups = build_execution_groups(
+        groups, _ = build_execution_groups(
             [tc1, tc2], {"shell_run": _meta(requires_serial=True)}
         )
         assert [tc1] in groups
@@ -87,7 +88,7 @@ class TestResourceScopeGrouping:
     def test_write_tools_with_same_scope_are_grouped_together(self) -> None:
         tc1 = _tc("write_file")
         tc2 = _tc("write_file")
-        groups = build_execution_groups(
+        groups, _ = build_execution_groups(
             [tc1, tc2],
             {"write_file": _meta(resource_scope="file", is_write=True)},
         )
@@ -99,7 +100,7 @@ class TestResourceScopeGrouping:
     def test_write_tools_with_different_scopes_form_separate_groups(self) -> None:
         tc_file = _tc("write_file")
         tc_github = _tc("github_push_files")
-        groups = build_execution_groups(
+        groups, _ = build_execution_groups(
             [tc_file, tc_github],
             {
                 "write_file": _meta(resource_scope="file", is_write=True),
@@ -110,7 +111,7 @@ class TestResourceScopeGrouping:
 
     def test_read_tool_with_scope_goes_to_parallel(self) -> None:
         tc = _tc("read_text_file")
-        groups = build_execution_groups(
+        groups, _ = build_execution_groups(
             [tc],
             {"read_text_file": _meta(resource_scope="file", is_write=False)},
         )
@@ -118,7 +119,7 @@ class TestResourceScopeGrouping:
 
     def test_write_tool_without_scope_forms_write_first_group(self) -> None:
         tc = _tc("write_file")
-        groups = build_execution_groups(
+        groups, _ = build_execution_groups(
             [tc],
             {"write_file": _meta(resource_scope="", is_write=True)},
         )
@@ -127,7 +128,7 @@ class TestResourceScopeGrouping:
     def test_multiple_write_tools_without_scope_grouped_together(self) -> None:
         tc1 = _tc("write_file")
         tc2 = _tc("edit_file")
-        groups = build_execution_groups(
+        groups, _ = build_execution_groups(
             [tc1, tc2],
             {
                 "write_file": _meta(resource_scope="", is_write=True),
@@ -140,7 +141,7 @@ class TestResourceScopeGrouping:
     def test_write_first_group_precedes_parallel_read_tools(self) -> None:
         tc_write = _tc("write_file")
         tc_read = _tc("read_text_file")
-        groups = build_execution_groups(
+        groups, _ = build_execution_groups(
             [tc_read, tc_write],
             {
                 "write_file": _meta(resource_scope="", is_write=True),
@@ -162,7 +163,7 @@ class TestResourceScopeGrouping:
             "edit_file": _meta(resource_scope="", is_write=True),
             "read_text_file": _meta(),
         }
-        groups = build_execution_groups(
+        groups, _ = build_execution_groups(
             [tc_serial, tc_scope_write, tc_read, tc_noscope_write], meta
         )
         assert groups[0] == [tc_serial]
@@ -184,7 +185,7 @@ class TestMixedScenarios:
             "write_file": _meta(resource_scope="file", is_write=True),
             "read_text_file": _meta(),
         }
-        groups = build_execution_groups([tc_write1, tc_read, tc_write2], meta)
+        groups, _ = build_execution_groups([tc_write1, tc_read, tc_write2], meta)
         write_group = next(
             g for g in groups if any(tc["function"]["name"] == "write_file" for tc in g)
         )
@@ -198,7 +199,7 @@ class TestMixedScenarios:
             "shell_run": _meta(requires_serial=True),
             "read_text_file": _meta(),
         }
-        groups = build_execution_groups([tc_shell, tc_read], meta)
+        groups, _ = build_execution_groups([tc_shell, tc_read], meta)
         assert groups[0] == [tc_shell]
 
     def test_all_parallel_returns_one_group(self) -> None:
@@ -207,7 +208,7 @@ class TestMixedScenarios:
             name: _meta()
             for name in ("read_text_file", "list_directory", "search_files")
         }
-        groups = build_execution_groups(tcs, meta)
+        groups, _ = build_execution_groups(tcs, meta)
         assert len(groups) == 1
         assert len(groups[0]) == 3
 
@@ -220,7 +221,7 @@ class TestMixedScenarios:
             "write_file": _meta(resource_scope="file", is_write=True),
             "read_text_file": _meta(),
         }
-        groups = build_execution_groups([tc_serial, tc_write, tc_read], meta)
+        groups, _ = build_execution_groups([tc_serial, tc_write, tc_read], meta)
         assert groups[0] == [tc_serial]
         assert any(
             any(tc["function"]["name"] == "write_file" for tc in g) for g in groups

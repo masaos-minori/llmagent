@@ -454,7 +454,7 @@ def audit_security_defaults(
             msg = "Security: shell_sandbox_backend=none (no sandbox for shell commands)"
             logger.warning(msg)
             warnings.append(msg)
-        if not shell_cfg.command_allowlist and not ctx.cfg.security_lockdown_enabled:
+        if not shell_cfg.command_allowlist and not lockdown:
             fail_closed_empty.append("shell.command_allowlist")
             msg = (
                 "DENY-ALL detected: shell.command_allowlist is empty. "
@@ -469,7 +469,7 @@ def audit_security_defaults(
     # Check sqlite db_allowlist
     try:
         sqlite_cfg = SqliteConfig.load()
-        if not sqlite_cfg.db_allowlist and not ctx.cfg.security_lockdown_enabled:
+        if not sqlite_cfg.db_allowlist and not lockdown:
             fail_closed_empty.append("sqlite.db_allowlist")
             msg = (
                 "DENY-ALL detected: sqlite.db_allowlist is empty. "
@@ -484,7 +484,7 @@ def audit_security_defaults(
     # Check git allowed_repo_paths
     try:
         git_cfg = GitConfig.load()
-        if not git_cfg.allowed_repo_paths and not ctx.cfg.security_lockdown_enabled:
+        if not git_cfg.allowed_repo_paths and not lockdown:
             fail_closed_empty.append("git.allowed_repo_paths")
             msg = (
                 "DENY-ALL detected: git.allowed_repo_paths is empty. "
@@ -503,7 +503,7 @@ def audit_security_defaults(
         )
 
         github_mcp_cfg = GitHubConfig.load()
-        if not github_mcp_cfg.allowed_repos and not ctx.cfg.security_lockdown_enabled:
+        if not github_mcp_cfg.allowed_repos and not lockdown:
             fail_closed_empty.append("github.allowed_repos")
             msg = (
                 "DENY-ALL detected: github.allowed_repos is empty. "

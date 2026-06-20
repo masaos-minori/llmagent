@@ -47,7 +47,7 @@ class TestBuildExecutionGroupsEdgeCases:
             "list_directory": _meta(),
         }
 
-        groups = build_execution_groups(
+        groups, _ = build_execution_groups(
             [
                 tc_serial,
                 tc_scope_write1,
@@ -88,7 +88,7 @@ class TestBuildExecutionGroupsEdgeCases:
             "read_text_file": _meta(),
         }
 
-        groups = build_execution_groups([tc_write1, tc_read, tc_write2], meta)
+        groups, _ = build_execution_groups([tc_write1, tc_read, tc_write2], meta)
 
         # Should have 2 groups: write-first and parallel
         assert len(groups) == 2
@@ -109,7 +109,7 @@ class TestBuildExecutionGroupsEdgeCases:
             ),
         }
 
-        groups = build_execution_groups([tc_write_a, tc_write_b, tc_write_c], meta)
+        groups, _ = build_execution_groups([tc_write_a, tc_write_b, tc_write_c], meta)
 
         # Should have 2 groups: one for /path/to/project/a (write_file + create_directory)
         # and one for /path/to/project/b (edit_file)
@@ -127,7 +127,7 @@ class TestBuildExecutionGroupsEdgeCases:
             "create_directory": _meta(resource_scope="shared", is_write=True),
         }
 
-        groups = build_execution_groups([tc_write1, tc_write2, tc_write3], meta)
+        groups, _ = build_execution_groups([tc_write1, tc_write2, tc_write3], meta)
 
         # Should be grouped together
         assert len(groups) == 1
@@ -139,7 +139,7 @@ class TestBuildExecutionGroupsEdgeCases:
         tc_read = _tc("read_text_file")
 
         # Empty metadata dict for unknown tool
-        groups = build_execution_groups([tc_write, tc_read], {})
+        groups, _ = build_execution_groups([tc_write, tc_read], {})
 
         # Should default to parallel group
         assert len(groups) == 1
@@ -153,7 +153,7 @@ class TestBuildExecutionGroupsEdgeCases:
 
         meta = {f"read_file_{i}": _meta() for i in range(20)}
 
-        groups = build_execution_groups(tools, meta)
+        groups, _ = build_execution_groups(tools, meta)
 
         # Should all be in one parallel group
         assert len(groups) == 1
@@ -168,7 +168,7 @@ class TestBuildExecutionGroupsEdgeCases:
             )
         }
 
-        groups = build_execution_groups([tc], meta)
+        groups, _ = build_execution_groups([tc], meta)
 
         # Should be in a single-element group (serial barrier)
         assert len(groups) == 1
