@@ -51,21 +51,30 @@ class _ConfigMixin(
             result = ConfigReloadService(self._ctx).apply_config_dict(new_cfg)
             result.source_files = list(_BASE_CONFIG_FILES)
 
-            self._out.write("Config reloaded (all base config files)")
-            if result.applied:
-                self._out.write("Applied (runtime):")
-                for item in result.applied:
-                    self._out.write(f"  - {item}")
-            if result.skipped:
-                self._out.write("Skipped:")
-                for item in result.skipped:
-                    self._out.write(f"  - {item}")
-            if result.needs_restart:
-                self._out.write("Restart required:")
-                for item in result.needs_restart:
-                    self._out.write(f"  - {item}")
             if not result.applied and not result.needs_restart:
                 self._out.write("No changes detected.")
+            elif result.needs_restart:
+                self._out.write("Config reloaded — some changes require restart")
+            else:
+                self._out.write("Config reloaded — all changes applied")
+            if result.needs_restart:
+                self._out.write(
+                    "WARNING: Some settings require restart to take effect."
+                )
+                count = len(result.needs_restart)
+                self._out.write(f"Restart required: [{count} items]")
+                for item in result.needs_restart:
+                    self._out.write(f"  [RESTART] - {item}")
+            if result.applied:
+                count = len(result.applied)
+                self._out.write(f"Applied (runtime): [{count} items]")
+                for item in result.applied:
+                    self._out.write(f"  [OK] - {item}")
+            if result.skipped:
+                count = len(result.skipped)
+                self._out.write(f"Skipped: [{count} items]")
+                for item in result.skipped:
+                    self._out.write(f"  [SKIP] - {item}")
             logger.info(
                 "Config reloaded: applied=%s, needs_restart=%s",
                 result.applied,

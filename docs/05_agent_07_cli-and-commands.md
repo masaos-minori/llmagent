@@ -184,18 +184,18 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 ### Output format
 
 ```
-Config reloaded from: common.toml, agent.toml
-
-Applied (runtime):
-  - llm
-  - hist_mgr
-  - tools
-
-Restart required:
-  - server1 (new server — restart required)
+Config reloaded — some changes require restart
+WARNING: Some settings require restart to take effect.
+Restart required: [1 items]
+  [RESTART] - server1
+Applied (runtime): [3 items]
+  [OK] - llm
+  [OK] - hist_mgr
+  [OK] - tools
 ```
 
 If nothing changed: `No changes detected.`
+If all changes applied: `Config reloaded — all changes applied`
 If the file cannot be read: `Reload failed (I/O error): <message>`
 
 ### What changes immediately vs. requires restart

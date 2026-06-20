@@ -343,7 +343,7 @@ class TestCmdReload:
         ):
             cmd._cmd_reload()
         out = capsys.readouterr().out
-        assert "Config reloaded (all base config files)" in out
+        assert "Config reloaded — all changes applied" in out
 
     def test_reload_shows_applied_items(self, capsys: Any) -> None:
         from unittest.mock import patch
@@ -363,9 +363,9 @@ class TestCmdReload:
         ):
             cmd._cmd_reload()
         out = capsys.readouterr().out
-        assert "Applied (runtime):" in out
-        assert "  - llm" in out
-        assert "  - hist_mgr" in out
+        assert "Applied (runtime): [2 items]" in out
+        assert "  [OK] - llm" in out
+        assert "  [OK] - hist_mgr" in out
 
     def test_reload_shows_needs_restart(self, capsys: Any) -> None:
         from unittest.mock import patch
@@ -385,8 +385,32 @@ class TestCmdReload:
         ):
             cmd._cmd_reload()
         out = capsys.readouterr().out
-        assert "Restart required:" in out
-        assert "  - server1" in out
+        assert "WARNING: Some settings require restart to take effect." in out
+        assert "Restart required: [1 items]" in out
+        assert "  [RESTART] - server1" in out
+
+    def test_reload_shows_skipped_items(self, capsys: Any) -> None:
+        from unittest.mock import patch
+
+        from agent.services.config_reload import ConfigReloadOutcome
+
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        outcome = ConfigReloadOutcome(
+            applied=["llm"], needs_restart=[], skipped=["debug"]
+        )
+        with (
+            patch("shared.config_loader.ConfigLoader.load_all", return_value={}),
+            patch(
+                "agent.services.config_reload.ConfigReloadService.apply_config_dict",
+                return_value=outcome,
+            ),
+        ):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert "Skipped: [1 items]" in out
+        assert "  [SKIP] - debug" in out
 
     def test_reload_no_changes_shows_message(self, capsys: Any) -> None:
         from unittest.mock import patch
