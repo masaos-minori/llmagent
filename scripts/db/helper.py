@@ -72,6 +72,12 @@ class SQLiteHelper:
         """Return the configured DB path for this instance's target."""
         return self._db_path
 
+    def _require_conn(self) -> sqlite3.Connection:
+        """Return self.conn or raise RuntimeError if not open."""
+        if self.conn is None:
+            raise RuntimeError("DB not open — call open() first")
+        return self.conn
+
     def _connect(self) -> sqlite3.Connection:
         """Open a raw SQLite connection; raise on DB_PATH misconfiguration."""
         if not self._db_path:
@@ -156,15 +162,14 @@ class SQLiteHelper:
     @contextmanager
     def begin_immediate(self) -> Generator[None]:
         """Wrap a block in BEGIN IMMEDIATE...COMMIT; serializes concurrent writers."""
-        if self.conn is None:
-            raise RuntimeError("DB not open — call open() first")
-        self.conn.execute("BEGIN IMMEDIATE")
+        conn = self._require_conn()
+        conn.execute("BEGIN IMMEDIATE")
         try:
             yield
-            self.conn.execute("COMMIT")
+            conn.execute("COMMIT")
         except Exception:
             try:
-                self.conn.execute("ROLLBACK")
+                conn.execute("ROLLBACK")
             except sqlite3.OperationalError:
                 pass
             raise
@@ -172,28 +177,26 @@ class SQLiteHelper:
     @contextmanager
     def begin_exclusive(self) -> Generator[None]:
         """Wrap a block in BEGIN EXCLUSIVE...COMMIT; use only for VACUUM or schema migrations."""
-        if self.conn is None:
-            raise RuntimeError("DB not open — call open() first")
-        self.conn.execute("BEGIN EXCLUSIVE")
+        conn = self._require_conn()
+        conn.execute("BEGIN EXCLUSIVE")
         try:
             yield
-            self.conn.execute("COMMIT")
+            conn.execute("COMMIT")
         except Exception:
             try:
-                self.conn.execute("ROLLBACK")
+                conn.execute("ROLLBACK")
             except sqlite3.OperationalError:
                 pass
             raise
 
     def health_check(self) -> DbHealthMetrics:
         """Return DB health metrics (journal mode, quick_check, page stats)."""
-        if self.conn is None:
-            raise RuntimeError("DB not open — call open() first")
-        journal_mode = self.conn.execute("PRAGMA journal_mode").fetchone()[0]
-        integrity = self.conn.execute("PRAGMA quick_check").fetchone()[0]
-        page_count = self.conn.execute("PRAGMA page_count").fetchone()[0]
-        page_size = self.conn.execute("PRAGMA page_size").fetchone()[0]
-        freelist = self.conn.execute("PRAGMA freelist_count").fetchone()[0]
+        conn = self._require_conn()
+        journal_mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+        integrity = conn.execute("PRAGMA quick_check").fetchone()[0]
+        page_count = conn.execute("PRAGMA page_count").fetchone()[0]
+        page_size = conn.execute("PRAGMA page_size").fetchone()[0]
+        freelist = conn.execute("PRAGMA freelist_count").fetchone()[0]
         return DbHealthMetrics(
             journal_mode=str(journal_mode),
             integrity=str(integrity),
@@ -209,9 +212,8 @@ class SQLiteHelper:
             raise ValueError(
                 f"checkpoint mode must be one of {sorted(self._CHECKPOINT_MODES)}",
             )
-        if self.conn is None:
-            raise RuntimeError("DB not open — call open() first")
-        row = self.conn.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()
+        conn = self._require_conn()
+        row = conn.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()
         result = WalCheckpointCounts(
             busy=int(row[0]),
             log_size=int(row[1]),
@@ -222,17 +224,9 @@ class SQLiteHelper:
 
     def vacuum(self) -> None:
         """Rebuild the DB file in place to reclaim free pages."""
-        if self.conn is None:
-            raise RuntimeError("DB not open — call open() first")
-        self.conn.execute("VACUUM")
+        conn = self._require_conn()
+        conn.execute("VACUUM")
         logger.info("VACUUM completed: %s", self._db_path)
-
-    def _check_ready(self, sql: str) -> None:
-        """Guard: raise if connection is not open or sql is invalid."""
-        if self.conn is None:
-            raise RuntimeError("DB not open — call open() first")
-        if not isinstance(sql, str) or not sql.strip():
-            raise ValueError("sql must be a non-empty string")
 
     def execute(
         self,
@@ -240,8 +234,13 @@ class SQLiteHelper:
         params: dict[str, Any] | tuple[Any, ...] = (),
     ) -> sqlite3.Cursor:
         """Execute a SQL statement with positional (tuple) or named (dict) params."""
-        self._check_ready(sql)
-        return self.conn.execute(sql, params)  # type: ignore[union-attr]  # guarded by _check_ready
+        conn = self._require_conn()
+        return conn.execute(sql, params)
+
+    def executescript(self, sql_script: str) -> None:
+        """Execute multiple SQL statements; commits any pending transaction first."""
+        conn = self._require_conn()
+        conn.executescript(sql_script)
 
     def executemany(
         self,
@@ -249,8 +248,8 @@ class SQLiteHelper:
         params_seq: list[tuple[Any, ...]],
     ) -> sqlite3.Cursor:
         """Execute a SQL statement once per row in params_seq."""
-        self._check_ready(sql)
-        return self.conn.executemany(sql, params_seq)  # type: ignore[union-attr]  # guarded by _check_ready
+        conn = self._require_conn()
+        return conn.executemany(sql, params_seq)
 
     def fetchall(
         self,
@@ -258,15 +257,14 @@ class SQLiteHelper:
         params: dict[str, Any] | tuple[Any, ...] = (),
     ) -> list[Any]:
         """Execute a SQL statement and return all result rows as a list."""
-        self._check_ready(sql)
-        return self.conn.execute(sql, params).fetchall()  # type: ignore[union-attr]  # guarded by _check_ready
+        conn = self._require_conn()
+        return conn.execute(sql, params).fetchall()
 
     def commit(self) -> None:
         """Commit the current transaction on self.conn."""
-        if self.conn is None:
-            raise RuntimeError("DB not open — call open() first")
+        conn = self._require_conn()
         try:
-            self.conn.commit()
+            conn.commit()
         except sqlite3.OperationalError as e:
             logger.error("Commit failed: %s", e)
             raise

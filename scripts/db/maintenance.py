@@ -28,7 +28,7 @@ from shared.config_loader import ConfigLoader
 from db.config import build_db_config
 from db.helper import SQLiteHelper
 from db.models import WalCheckpointCounts
-from db.store import SQLiteMemoryDeleteStore
+from db.store_impl import SQLiteMemoryDeleteStore
 
 logger = logging.getLogger(__name__)
 
@@ -284,7 +284,8 @@ def _run_integrity_check(
     """
     try:
         with SQLiteHelper(target).open() as db:
-            result: str = db.conn.execute("PRAGMA integrity_check").fetchone()[0]  # type: ignore[union-attr]  # conn is set by open()
+            cursor = db.execute("PRAGMA integrity_check")
+            result = str(cursor.fetchone()[0])
             return result, None
     except (sqlite3.OperationalError, ValueError, RuntimeError) as e:
         logger.error("Cannot open DB for integrity check: %s", e)

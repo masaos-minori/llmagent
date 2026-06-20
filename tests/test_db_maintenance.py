@@ -403,10 +403,8 @@ class TestRecoverCorruption:
         """dry_run=True のとき変更なしで RecoveryResult が返ること。"""
         from unittest.mock import MagicMock, patch
 
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchone.return_value = ("ok",)
         mock_db = MagicMock()
-        mock_db.conn = mock_conn
+        mock_db.execute.return_value.fetchone.return_value = ("ok",)
 
         class FakeContext:
             def __enter__(self) -> MagicMock:
@@ -428,10 +426,8 @@ class TestRecoverCorruption:
         """dry_run=True with integrity failure returns error."""
         from unittest.mock import MagicMock, patch
 
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchone.return_value = ("some error",)
         mock_db = MagicMock()
-        mock_db.conn = mock_conn
+        mock_db.execute.return_value.fetchone.return_value = ("some error",)
 
         class FakeContext:
             def __enter__(self) -> MagicMock:
@@ -452,10 +448,8 @@ class TestRecoverCorruption:
         """Integrity ok, not dry_run -> vacuum."""
         from unittest.mock import MagicMock, patch
 
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchone.return_value = ("ok",)
         mock_db = MagicMock()
-        mock_db.conn = mock_conn
+        mock_db.execute.return_value.fetchone.return_value = ("ok",)
 
         class FakeContext:
             def __enter__(self) -> MagicMock:

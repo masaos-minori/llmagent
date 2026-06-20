@@ -38,7 +38,7 @@ def create_rag_schema() -> None:
     dims = get_embedding_dims()
     with SQLiteHelper("rag").open(write_mode=True) as db:
         try:
-            db.conn.executescript(build_rag_schema_sql(dims))  # type: ignore[union-attr]  # conn is set by open()
+            db.executescript(build_rag_schema_sql(dims))
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.error("Failed to execute RAG schema DDL: %s", e)
             raise
@@ -51,7 +51,7 @@ def create_session_schema() -> None:
     dims = get_embedding_dims()
     with SQLiteHelper("session").open(write_mode=True) as db:
         try:
-            db.conn.executescript(build_session_schema_sql(dims))  # type: ignore[union-attr]  # conn is set by open()
+            db.executescript(build_session_schema_sql(dims))
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.error("Failed to execute session schema DDL: %s", e)
             raise
