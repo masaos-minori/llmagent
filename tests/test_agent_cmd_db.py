@@ -537,3 +537,17 @@ class TestDbRecover:
         ):
             with pytest.raises(Exception, match="fail"):
                 _run_db(cmd, "recover")
+
+
+# ── _db_help ──────────────────────────────────────────────────────────────────
+
+
+class TestDbHelp:
+    def test_help_shows_rag_and_session_labels(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "help")
+        out = capsys.readouterr().out
+        assert "RAG" in out
+        assert "Session" in out

@@ -109,17 +109,17 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 
 | Command | Target DB | Side effects | Related state |
 |---|---|---|---|
-| `/db help` | rag + session | None | Shows subcommand table |
-| `/db stats` | rag + session | None | Document/chunk/session/message counts |
-| `/db urls [--lang] [--limit]` | rag | None | List registered documents via rag-pipeline-mcp |
-| `/db clean <url>` | rag | Delete document + chunks via rag-pipeline-mcp | Cascaded delete |
-| `/db rebuild-fts` | rag | Rebuilds `chunks_fts` index | FTS5 rebuild |
-| `/db health` | rag + session | None | journal_mode / integrity / page stats |
-| `/db checkpoint [MODE]` | session | WAL checkpoint | Flush WAL to main DB |
-| `/db vacuum` | session | VACUUM | Recover free pages |
-| `/db purge [--max-sessions N] [--max-age-days N]` | session | DELETE old sessions | Based on count or age |
-| `/db recover [backup-path]` | session | Integrity check; restore from backup if corrupt | Destructive if corrupt |
-| `/db consistency` | rag | None | Chunks/FTS/vector index sync check |
+| `/db help` | RAG + Session | None | Shows subcommand table |
+| `/db stats` | RAG + Session | None | Document/chunk/session/message counts |
+| `/db urls [--lang] [--limit]` | RAG | None | List registered documents via rag-pipeline-mcp |
+| `/db clean <url>` | RAG | Delete document + chunks via rag-pipeline-mcp | Cascaded delete |
+| `/db rebuild-fts` | RAG | Rebuilds `chunks_fts` index | FTS5 rebuild |
+| `/db health` | Session | None | journal_mode / integrity / page stats |
+| `/db checkpoint [MODE]` | Session | WAL checkpoint | Flush WAL to main DB |
+| `/db vacuum` | Session | VACUUM | Recover free pages |
+| `/db purge [--max-sessions N] [--max-age-days N]` | Session | DELETE old sessions | Based on count or age |
+| `/db recover [backup-path]` | RAG | Integrity check; restore from backup if corrupt | Destructive if corrupt |
+| `/db consistency` | RAG | None | Chunks/FTS/vector index sync check |
 
 > **Note:** `/db urls` and `/db clean` call rag-pipeline-mcp MCP tools (`rag_list_documents`, `rag_delete_document`) via the agent's tool executor. Other `/db` commands use `DbMaintenanceService` for direct SQLite access. `session.sqlite` and `workflow.sqlite` are accessed via `SQLiteHelper(target=...)` in code, not through `/db` commands. Schema details: `06_shared_04`.
 

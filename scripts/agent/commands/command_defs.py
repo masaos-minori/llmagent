@@ -144,21 +144,21 @@ _COMMANDS: list[CommandDef] = [
         "_cmd_db",
         "help | stats | urls [--lang ja|en] [--limit N] | clean <url> | rebuild-fts | health | checkpoint | vacuum | purge | recover | consistency",
         subcommands=[
-            SubcommandSpec("help", "[rag+session] Show this help table"),
-            SubcommandSpec("stats", "[rag+session] Record counts for both databases"),
-            SubcommandSpec("urls", "[rag]         List registered document URLs"),
-            SubcommandSpec("clean", "[rag]         Delete a document and its chunks"),
+            SubcommandSpec("help", "[RAG + Session] Show this help table"),
+            SubcommandSpec("stats", "[RAG + Session] Record counts for both databases"),
+            SubcommandSpec("urls", "[RAG]           List registered document URLs"),
+            SubcommandSpec("clean", "[RAG]           Delete a document and its chunks"),
             SubcommandSpec(
-                "rebuild-fts", "[rag]         Rebuild the FTS5 chunks_fts index"
+                "rebuild-fts", "[RAG]           Rebuild the FTS5 chunks_fts index"
             ),
-            SubcommandSpec("health", "[rag+session] Integrity check and size info"),
-            SubcommandSpec("checkpoint", "[session]     WAL checkpoint"),
-            SubcommandSpec("vacuum", "[session]     VACUUM to reclaim free pages"),
-            SubcommandSpec("purge", "[session]     Purge old sessions"),
+            SubcommandSpec("health", "[Session]       Integrity check and size info"),
+            SubcommandSpec("checkpoint", "[Session]       WAL checkpoint"),
+            SubcommandSpec("vacuum", "[Session]       VACUUM to reclaim free pages"),
+            SubcommandSpec("purge", "[Session]       Purge old sessions"),
             SubcommandSpec(
-                "recover", "[session]     Integrity check and backup restore"
+                "recover", "[RAG]           Integrity check and backup restore"
             ),
-            SubcommandSpec("consistency", "[rag]         Chunks/FTS/vec sync check"),
+            SubcommandSpec("consistency", "[RAG]           Chunks/FTS/vec sync check"),
         ],
     ),
     CommandDef(

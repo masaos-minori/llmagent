@@ -68,21 +68,21 @@ class _DbMixin(MixinBase):
     def _db_help(self) -> None:
         """Print a help table for /db subcommands."""
         rows = [
-            ["stats", "rag + session", "", "Record counts"],
-            ["urls", "rag", "--lang --limit", "List document URLs"],
-            ["clean", "rag", "<url>", "Delete a document"],
-            ["rebuild-fts", "rag", "", "Rebuild FTS5 index"],
-            ["health", "rag + session", "", "Integrity check / size"],
-            ["checkpoint", "session", "[MODE]", "WAL checkpoint"],
-            ["vacuum", "session", "", "Reclaim free pages"],
+            ["stats", "RAG + Session", "", "Record counts"],
+            ["urls", "RAG", "--lang --limit", "List document URLs"],
+            ["clean", "RAG", "<url>", "Delete a document"],
+            ["rebuild-fts", "RAG", "", "Rebuild FTS5 index"],
+            ["health", "Session", "", "Integrity check / size"],
+            ["checkpoint", "Session", "[MODE]", "WAL checkpoint"],
+            ["vacuum", "Session", "", "Reclaim free pages"],
             [
                 "purge",
-                "session",
+                "Session",
                 "--max-sessions N\n--max-age-days N",
                 "Purge old sessions",
             ],
-            ["recover", "session", "[backup-path]", "Integrity check / restore"],
-            ["consistency", "rag", "", "Chunks/FTS/vec sync check"],
+            ["recover", "RAG", "[backup-path]", "Integrity check / restore"],
+            ["consistency", "RAG", "", "Chunks/FTS/vec sync check"],
         ]
         self._out.write_table(
             ["Subcommand", "Target DB", "Arguments", "Description"],
@@ -120,7 +120,7 @@ class _DbMixin(MixinBase):
                 ("chunks", f"{result.chunks:,}"),
                 ("sessions", f"{result.sessions:,}"),
                 ("messages", f"{result.messages:,}"),
-                ("target", "rag+session"),
+                ("target", "RAG + Session"),
             ]
         )
 
@@ -153,7 +153,7 @@ class _DbMixin(MixinBase):
     def _db_rebuild_fts(self) -> None:
         """Rebuild the FTS5 chunks_fts index in rag.sqlite."""
         DbMaintenanceService().rebuild_fts()
-        self._out.write_success("FTS5 index rebuilt [rag]")
+        self._out.write_success("FTS5 index rebuilt [RAG]")
 
     def _db_health(self) -> None:
         """Print DB health metrics: integrity, size."""
@@ -162,7 +162,7 @@ class _DbMixin(MixinBase):
             [
                 ("integrity_ok", str(info.integrity_ok)),
                 ("db_size", f"{info.size_bytes:,} bytes"),
-                ("target", "rag+session"),
+                ("target", "Session"),
             ]
         )
 
@@ -171,13 +171,13 @@ class _DbMixin(MixinBase):
         result = DbMaintenanceService().checkpoint(mode)
         self._out.write_success(
             f"WAL checkpoint complete: mode={result.mode},"
-            f" pages_written={result.pages_written} [session]"
+            f" pages_written={result.pages_written} [Session]"
         )
 
     def _db_vacuum(self) -> None:
         """Run VACUUM to rebuild the DB file and reclaim free pages."""
         DbMaintenanceService().vacuum()
-        self._out.write_success("VACUUM complete. [session]")
+        self._out.write_success("VACUUM complete. [Session]")
 
     def _db_purge(self, rest: str) -> None:
         """Purge old sessions. Options: --max-sessions N --max-age-days N"""
@@ -196,24 +196,24 @@ class _DbMixin(MixinBase):
         )
         result = DbMaintenanceService().purge(max_sessions, max_age_days)
         self._out.write_success(
-            f"Purged: {result.sessions_removed} session(s) removed [session]"
+            f"Purged: {result.sessions_removed} session(s) removed [Session]"
         )
 
     def _db_recover(self, backup_path: str | None) -> None:
         """Run integrity check; restore from backup_path if corruption found."""
         result = DbMaintenanceService().recover(backup_path)
         if result.integrity_ok:
-            self._out.write_success(f"Recovery succeeded: {result.detail} [session]")
+            self._out.write_success(f"Recovery succeeded: {result.detail} [RAG]")
         else:
-            self._out.write_no_data(f"Recovery failed: {result.detail} [session]")
+            self._out.write_no_data(f"Recovery failed: {result.detail} [RAG]")
 
     def _db_consistency(self) -> None:
         """Run RAG consistency check: chunks vs FTS vs vec index sync."""
         consistent, issues = DbMaintenanceService().consistency()
         if consistent:
             self._out.write_success(
-                "RAG consistency: OK (chunks/FTS/vec in sync) [rag]"
+                "RAG consistency: OK (chunks/FTS/vec in sync) [RAG]"
             )
         else:
             for issue in issues:
-                self._out.write_error(f"Consistency issue: {issue} [rag]")
+                self._out.write_error(f"Consistency issue: {issue} [RAG]")
