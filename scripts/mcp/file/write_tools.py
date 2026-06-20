@@ -10,7 +10,7 @@ from typing import Any
 _MCP_TOOLS: list[dict[str, Any]] = [
     {
         "name": "write_file",
-        "description": "Create or overwrite a file",
+        "description": "Create or overwrite a file. When dry_run=true, return only the diff without writing",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -21,6 +21,10 @@ _MCP_TOOLS: list[dict[str, Any]] = [
                 "content": {
                     "type": "string",
                     "description": "Content to write (UTF-8 text)",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "When true, return diff without writing (default: false)",
                 },
             },
             "required": ["path", "content"],
@@ -84,7 +88,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "move_file",
-        "description": "Move or rename a file or directory",
+        "description": "Move or rename a file or directory. When dry_run=true, return feasibility info without moving",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -95,6 +99,10 @@ _MCP_TOOLS: list[dict[str, Any]] = [
                 "destination": {
                     "type": "string",
                     "description": "Absolute path of the destination",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "When true, return feasibility info without moving (default: false)",
                 },
             },
             "required": ["source", "destination"],

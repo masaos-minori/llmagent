@@ -10,13 +10,17 @@ from typing import Any
 _MCP_TOOLS: list[dict[str, Any]] = [
     {
         "name": "delete_file",
-        "description": "Delete the specified file",
+        "description": "Delete the specified file. When dry_run=true, return file info without deleting",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "path": {
                     "type": "string",
                     "description": "Absolute path of the file to delete",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "When true, return file info without deleting (default: false)",
                 },
             },
             "required": ["path"],
@@ -26,7 +30,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "delete_directory",
-        "description": "Delete a directory. When recursive=true, delete contents recursively",
+        "description": "Delete a directory. When recursive=true, delete contents recursively. When dry_run=true, return directory info without deleting",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -37,6 +41,10 @@ _MCP_TOOLS: list[dict[str, Any]] = [
                 "recursive": {
                     "type": "boolean",
                     "description": "When true, delete contents recursively (default: false)",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "When true, return directory info without deleting (default: false)",
                 },
             },
             "required": ["path"],

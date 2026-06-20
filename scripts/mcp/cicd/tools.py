@@ -12,7 +12,8 @@ _MCP_TOOLS: list[dict[str, Any]] = [
         "name": "trigger_workflow",
         "description": (
             "Trigger a GitHub Actions workflow dispatch event. "
-            "Requires the repo to be in repo_allowlist."
+            "Requires the repo to be in repo_allowlist. "
+            "When dry_run=true, preview only without triggering dispatch."
         ),
         "inputSchema": {
             "type": "object",
@@ -32,6 +33,10 @@ _MCP_TOOLS: list[dict[str, Any]] = [
                 "inputs": {
                     "type": "object",
                     "description": "Optional workflow input parameters (key-value pairs)",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "Preview only; workflow dispatch is not triggered (default: false)",
                 },
             },
             "required": ["repo", "workflow"],

@@ -13,24 +13,6 @@ Each entry format:
 
 ---
 
-### BUG-03: Dry-run inputSchema omission for file/github/cicd tools
-
-- **Type:** Implementation issue
-- **Impact scope:** `mcp/file/write_tools.py`, `mcp/file/delete_tools.py`, `mcp/cicd/tools.py` — `inputSchema` definitions
-- **Description:** Several tools support `dry_run` in their Pydantic request models and service layer, but do NOT expose it in the MCP tool `inputSchema`. The LLM therefore never sees `dry_run` as an available parameter unless it already knows about it.
-- **Affected tools:**
-  | Server | Tool | dry_run in model | dry_run in inputSchema | dry_run in service |
-  |---|---|---|---|---|
-  | file-write-mcp | `write_file` | Yes | **No** | Yes |
-  | file-write-mcp | `move_file` | Yes | **No** | Yes |
-  | file-delete-mcp | `delete_file` | Yes | **No** | Yes |
-  | file-delete-mcp | `delete_directory` | Yes | **No** | Yes |
-  | cicd-mcp | `trigger_workflow` | Yes | **No** | Yes |
-- **Impact:** Tools still accept `dry_run` if manually specified (Pydantic ignores undeclared inputSchema fields), but LLMs cannot discover the parameter from the schema.
-- **Recommended action:** Add `dry_run` to the `inputSchema` definitions for all affected tools.
-
----
-
 ### BUG-04: CreateDirectoryRequest lacks dry_run entirely
 
 - **Type:** Implementation gap
