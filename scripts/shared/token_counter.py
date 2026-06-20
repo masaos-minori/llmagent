@@ -38,7 +38,7 @@ class _WarnOnce:
     def __init__(self) -> None:
         self._warned: bool = False
 
-    def log(self, msg: str, *args: Any) -> None:
+    def log(self, msg: str, *args: object) -> None:
         if not self._warned:
             logger.warning(msg, *args)
             self._warned = True
@@ -65,13 +65,15 @@ _RATIO_TOOL_CALL: float = 2.5
 _RATIO_SYSTEM: float = 3.5
 
 
-def _estimate_tokens_for_system(
+def _estimate_tokens_for_text(
     text: str,
+    breakdown_key: str,
+    ratio: float,
     breakdown: dict[str, int],
 ) -> int:
-    """Estimate tokens for a system message. Returns added total."""
-    n = int(len(text) / _RATIO_SYSTEM)
-    breakdown["system"] += n
+    """Estimate tokens for a text category. Returns added total."""
+    n = int(len(text) / ratio)
+    breakdown[breakdown_key] += n
     return n
 
 
@@ -83,24 +85,13 @@ def _estimate_tokens_for_assistant_with_tool_calls(
     """Estimate tokens for an assistant message that contains tool calls. Returns added total."""
     total = 0
     if text:
-        n = int(len(text) / _RATIO_TEXT)
-        breakdown["text"] += n
+        n = _estimate_tokens_for_text(text, "text", _RATIO_TEXT, breakdown)
         total += n
     for tc in tool_calls:
         n = int(len(orjson.dumps(tc)) / _RATIO_TOOL_CALL)
         breakdown["tool_calls"] += n
         total += n
     return total
-
-
-def _estimate_tokens_for_text_only(
-    text: str,
-    breakdown: dict[str, int],
-) -> int:
-    """Estimate tokens for user/tool/assistant (text-only) messages. Returns added total."""
-    n = int(len(text) / _RATIO_TEXT)
-    breakdown["text"] += n
-    return n
 
 
 def _estimate_tokens(history: list[LLMMessage]) -> tuple[int, dict[str, int]]:
@@ -136,12 +127,16 @@ def _estimate_tokens(history: list[LLMMessage]) -> tuple[int, dict[str, int]]:
 
         if role == "system":
             if text:
-                total += _estimate_tokens_for_system(text, breakdown)
+                total += _estimate_tokens_for_text(
+                    text, "system", _RATIO_SYSTEM, breakdown
+                )
         elif role == "assistant" and tool_calls:
-            total += _estimate_tokens_for_assistant_with_tool_calls(text, tool_calls, breakdown)
+            total += _estimate_tokens_for_assistant_with_tool_calls(
+                text, tool_calls, breakdown
+            )
         else:
             if text:
-                total += _estimate_tokens_for_text_only(text, breakdown)
+                total += _estimate_tokens_for_text(text, "text", _RATIO_TEXT, breakdown)
     return total, breakdown
 
 

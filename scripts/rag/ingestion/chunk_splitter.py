@@ -11,16 +11,13 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 """
 
 import argparse
+import dataclasses
 import re
 from pathlib import Path
 from typing import Any
 
 import orjson
-from shared.config_loader import ConfigLoader
-from shared.logger import Logger
-from sudachipy import dictionary as sudachi_dict
-from sudachipy import tokenizer as sudachi_tok
-
+from rag.exceptions import ChunkFormatError
 from rag.ingestion.chunk_english import ChunkEnglishMixin
 from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
 from rag.ingestion.chunk_utils import merge_text_items
@@ -29,6 +26,10 @@ from rag.ingestion.pipeline_utils import (
     is_already_processed,
     read_json_file,
 )
+from shared.config_loader import ConfigLoader
+from shared.logger import Logger
+from sudachipy import dictionary as sudachi_dict
+from sudachipy import tokenizer as sudachi_tok
 
 MIN_HEADING_LINES_FOR_MARKDOWN = 2
 MARKDOWN_HEADING_RE = r"^#{1,6}"
@@ -156,10 +157,6 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     def _read_source_data(self, src_path: Path) -> "dict[str, Any] | None":
         """Read and parse a JSON crawl file; wraps ChunkDocument as dict."""
-        import dataclasses  # noqa: PLC0415
-
-        from rag.exceptions import ChunkFormatError  # noqa: PLC0415
-
         try:
             return dataclasses.asdict(read_json_file(src_path))
         except (FileNotFoundError, ChunkFormatError) as e:

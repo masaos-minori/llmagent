@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import sqlite3
 from typing import TYPE_CHECKING, Any, cast
 
@@ -16,7 +15,9 @@ if TYPE_CHECKING:
     import httpx
     from db.helper import SQLiteHelper
 
-logger = logging.getLogger(__name__)
+from shared.logger import Logger
+
+logger = Logger(__name__, "/opt/llm/logs/search.log")
 
 
 async def _search_all_queries(

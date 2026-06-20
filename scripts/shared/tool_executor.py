@@ -31,7 +31,7 @@ from shared.mcp_config import (
     McpServerHealthRegistry,
 )
 from shared.route_resolver import ToolRouteResolver
-from shared.tool_cache import _CacheEntry
+from shared.tool_cache import CacheEntry
 from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
 
 logger = logging.getLogger(__name__)
@@ -55,6 +55,19 @@ class ToolCallResult:
     request_id: str  # x-request-id from HTTP transport; "" for stdio/plugin/cache
     server_key: str  # server key that handled the call; "" for plugin tools
     error_type: str = ""  # "transport" | "tool" | "" (empty on success)
+
+    @classmethod
+    def from_transport(
+        cls, output: str, is_error: bool, request_id: str = ""
+    ) -> "ToolCallResult":
+        """Construct a ToolCallResult with default server_key and error_type."""
+        return cls(
+            output=output,
+            is_error=is_error,
+            request_id=request_id,
+            server_key="",
+            error_type="tool" if is_error else "",
+        )
 
 
 @dataclass(frozen=True)
@@ -118,12 +131,8 @@ class HttpTransport:
                 f"MCP 'is_error' must be bool, got {type(is_error_val).__name__}"
             )
         x_request_id = resp.headers.get("x-request-id", "")
-        return ToolCallResult(
-            output=result_val,
-            is_error=is_error_val,
-            request_id=x_request_id,
-            server_key="",  # set by caller
-            error_type="tool" if is_error_val else "",
+        return ToolCallResult.from_transport(
+            output=result_val, is_error=is_error_val, request_id=x_request_id
         )
 
     async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
@@ -236,12 +245,8 @@ class StdioTransport:
         """
         resp = orjson.loads(resp_bytes)
         is_error = bool(resp["is_error"])
-        return ToolCallResult(
-            output=str(resp["result"]),
-            is_error=is_error,
-            request_id="",
-            server_key="",  # set by caller
-            error_type="tool" if is_error else "",
+        return ToolCallResult.from_transport(
+            output=str(resp["result"]), is_error=is_error
         )
 
     async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
@@ -406,7 +411,7 @@ class ToolExecutor:
         self._cache_ttl = cache_ttl
         self._cache_max_size = cache_max_size
         self._server_configs = server_configs
-        self._cache: OrderedDict[str, _CacheEntry] = OrderedDict()
+        self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self.stat_cache_hits: int = 0
         self.stat_tool_errors: dict[str, int] = {}
         self.stat_transport_errors: dict[str, int] = {}
@@ -577,7 +582,7 @@ class ToolExecutor:
         if self._lifecycle is not None:
             await self._lifecycle.ensure_ready(server_key)
 
-   # Transport resolution
+        # Transport resolution
         transport = self._transports.get(server_key)
         if transport is None:
             msg = self._transport_missing_msg(server_key)
@@ -618,7 +623,7 @@ class ToolExecutor:
             del self._cache[cache_key]
         result = await self._raw_execute(tool_name, args)
         if not result.is_error:
-            self._cache[cache_key] = _CacheEntry(
+            self._cache[cache_key] = CacheEntry(
                 output=result.output, is_error=result.is_error, cached_at=time.time()
             )
             if self._cache_max_size > 0 and len(self._cache) > self._cache_max_size:

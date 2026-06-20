@@ -16,13 +16,19 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 
 from mcp.file.read_business import ReadFileService as _ReadFileServiceCore
 from mcp.file.read_models import (
     DirectoryTreeRequest,
     FileReadConfig,
+    GetFileInfoRequest,
+    GrepFilesRequest,
     ListDirectoryRequest,
+    ReadMediaFileRequest,
+    ReadMultipleFilesRequest,
     ReadTextFileRequest,
+    SearchFilesRequest,
 )
 from mcp.file.read_static_helpers import (
     count_tree_nodes,
@@ -73,16 +79,12 @@ class ReadFileService(_ReadFileServiceCore):
         return result.content
 
     async def fmt_read_media_file(self, args: ToolArgs) -> str:
-        from mcp.file.read_models import ReadMediaFileRequest  # noqa: PLC0415
-
         result = await asyncio.to_thread(
             lambda: self.read_media_file(ReadMediaFileRequest(**args)),
         )
         return f"base64:{result.mime_type};{result.content_base64}"
 
     async def fmt_read_multiple_files(self, args: ToolArgs) -> str:
-        from mcp.file.read_models import ReadMultipleFilesRequest  # noqa: PLC0415
-
         result = await asyncio.to_thread(
             lambda: self.read_multiple_files(ReadMultipleFilesRequest(**args)),
         )
@@ -95,8 +97,6 @@ class ReadFileService(_ReadFileServiceCore):
         return "\n".join(parts) if parts else "(no files)"
 
     async def fmt_search_files(self, args: ToolArgs) -> str:
-        from mcp.file.read_models import SearchFilesRequest  # noqa: PLC0415
-
         result = await asyncio.to_thread(
             lambda: self.search_files(SearchFilesRequest(**args)),
         )
@@ -105,8 +105,6 @@ class ReadFileService(_ReadFileServiceCore):
         )
 
     async def fmt_grep_files(self, args: ToolArgs) -> str:
-        from mcp.file.read_models import GrepFilesRequest  # noqa: PLC0415
-
         result = await asyncio.to_thread(
             lambda: self.grep_files(GrepFilesRequest(**args)),
         )
@@ -119,8 +117,6 @@ class ReadFileService(_ReadFileServiceCore):
         return text
 
     async def fmt_get_file_info(self, args: ToolArgs) -> str:
-        from mcp.file.read_models import GetFileInfoRequest  # noqa: PLC0415
-
         result = await asyncio.to_thread(
             lambda: self.get_file_info(GetFileInfoRequest(**args)),
         )
@@ -156,8 +152,6 @@ class ReadFileService(_ReadFileServiceCore):
 
 def build_service(cfg: FileReadConfig) -> ReadFileService:
     """Construct a ReadFileService from a typed config object."""
-    from pathlib import Path
-
     allowed_dirs = [Path(d) for d in cfg.allowed_dirs]
     if not allowed_dirs:
         logger.warning("ALLOWED_DIRS is empty — all paths will be rejected")

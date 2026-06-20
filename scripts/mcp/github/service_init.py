@@ -30,6 +30,6 @@ if not _github_token:
 
 def build_service(cfg):
     """Construct a GitHubService from a typed config object."""
-    from mcp.github.service_dispatch import GitHubService
+    from mcp.github.service_dispatch import GitHubService  # noqa: PLC0415
 
     return GitHubService(gh=_gh, cfg=cfg)

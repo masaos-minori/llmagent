@@ -15,15 +15,23 @@ not install opentelemetry-sdk.
 from __future__ import annotations
 
 import logging
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 logger = logging.getLogger(__name__)
+
+
+class SpanProtocol(Protocol):
+    """Minimal protocol for OTel-compatible spans used by the agent pipeline."""
+
+    def __enter__(self) -> SpanProtocol: ...
+    def __exit__(self, *args: object) -> None: ...
+    def set_attribute(self, key: str, value: Any) -> None: ...
 
 
 class TracerProtocol(Protocol):
     """Minimal protocol for OTel-compatible tracers used by the agent pipeline."""
 
-    def start_as_current_span(self, name: str, **kwargs: Any) -> Any: ...
+    def start_as_current_span(self, name: str, **kwargs: Any) -> SpanProtocol: ...
 
 
 def build_tracer(
@@ -43,7 +51,7 @@ def build_tracer(
     resource = sdk.Resource.create({"service.name": service_name})
     provider = sdk.TracerProvider(resource=resource)
     _attach_exporter(provider, otlp_endpoint, service_name)
-    return provider.get_tracer(service_name)  # type: ignore[no-any-return]  # OTel Tracer satisfies TracerProtocol at runtime
+    return cast(TracerProtocol, provider.get_tracer(service_name))
 
 
 def _import_sdk() -> Any | None:

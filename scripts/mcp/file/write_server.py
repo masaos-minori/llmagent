@@ -14,6 +14,7 @@ Provided endpoints:
   GET  /health             Health check
 """
 
+import os
 import time
 from typing import Any
 
@@ -133,9 +134,7 @@ async def move_file(req: MoveFileRequest) -> MoveFileResponse:
 async def health() -> dict[str, object]:
     deps: dict[str, str] = {}
     try:
-        import os as _os
-
-        if not _os.path.isdir("/workspace"):
+        if not os.path.isdir("/workspace"):
             deps["filesystem"] = "/workspace not found"
     except Exception:
         deps["filesystem"] = "check failed"

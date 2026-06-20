@@ -574,7 +574,7 @@ class TestSignatureWarning:
         with caplog.at_level(logging.WARNING, logger="shared.plugin_registry"):
 
             @plugin_registry.register_tool("no_return_type")
-            async def handler(args: dict):  # type: ignore[return]  # intentionally missing annotation
+            async def handler(args: dict):
                 return "ok", False
 
         assert any(
@@ -595,17 +595,21 @@ class TestSignatureWarning:
 
 class TestCommandShadowLogging:
     def test_command_shadow_always_logged_at_info(self, caplog, tmp_path: Path):
-        (tmp_path / "shadow_cmd.py").write_text(
-            textwrap.dedent("""\
-                from shared.plugin_registry import register_command
+        plugin_registry.register_builtin_commands(frozenset({"/debug", "/help"}))
+        try:
+            (tmp_path / "shadow_cmd.py").write_text(
+                textwrap.dedent("""\
+                    from shared.plugin_registry import register_command
 
-                @register_command("/debug")
-                async def cmd(ctx, args):
-                    pass
-            """)
-        )
-        with caplog.at_level(logging.INFO, logger="shared.plugin_registry"):
-            plugin_registry.load_plugins(tmp_path, strict_mode=False)
+                    @register_command("/debug")
+                    async def cmd(ctx, args):
+                        pass
+                """)
+            )
+            with caplog.at_level(logging.INFO, logger="shared.plugin_registry"):
+                plugin_registry.load_plugins(tmp_path, strict_mode=False)
 
-        info_records = [r for r in caplog.records if r.levelno == logging.INFO]
-        assert any("command shadow" in r.message for r in info_records)
+            info_records = [r for r in caplog.records if r.levelno == logging.INFO]
+            assert any("command shadow" in r.message for r in info_records)
+        finally:
+            plugin_registry._builtin_command_names = frozenset()

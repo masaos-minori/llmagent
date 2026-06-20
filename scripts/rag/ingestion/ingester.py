@@ -26,10 +26,10 @@ from db.maintenance import (
     is_consistent,
     summarize_issues,
 )
+from rag.ingestion.pipeline_utils import _read_chunk_json_raw
+from rag.utils import floats_to_blob, validate_url
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
-
-from rag.utils import floats_to_blob, validate_url
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
 
@@ -309,33 +309,8 @@ class RagIngester:
     # ── Bulk file processing ──────────────────────────────────────────────────
 
     def _read_chunk_json(self, path: Path) -> "dict[str, Any] | None":
-        """Read and parse a chunk JSON file as a raw dict preserving all fields; returns None on failure."""
-        try:
-            raw = path.read_bytes()
-        except FileNotFoundError as e:
-            logger.warning("skip chunk %s: %s", path.name, e)
-            return None
-        try:
-            data = orjson.loads(raw)
-        except orjson.JSONDecodeError as e:
-            logger.warning("skip chunk %s: JSON parse error: %s", path.name, e)
-            return None
-        if not isinstance(data, dict):
-            logger.warning(
-                "skip chunk %s: expected JSON object, got %s",
-                path.name,
-                type(data).__name__,
-            )
-            return None
-        url = data.get("url")
-        content = data.get("content")
-        if not isinstance(url, str) or not url:
-            logger.warning("skip chunk %s: missing or invalid 'url'", path.name)
-            return None
-        if not isinstance(content, str) or not content:
-            logger.warning("skip chunk %s: missing or invalid 'content'", path.name)
-            return None
-        return data
+        """Read and parse a chunk JSON file as a raw dict; returns None on failure."""
+        return _read_chunk_json_raw(path)
 
     def _embed_and_store(self, doc_id: int, path: Path) -> bool:
         """Embed one chunk and insert it using an independent DB connection; each call opens its own connection for safe parallel writes; returns True on success."""

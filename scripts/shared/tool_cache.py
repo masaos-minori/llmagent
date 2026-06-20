@@ -9,8 +9,8 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class _CacheEntry:
-    """Internal LRU cache entry storing a successful tool call result."""
+class CacheEntry:
+    """LRU cache entry storing a successful tool call result."""
 
     output: str
     is_error: bool

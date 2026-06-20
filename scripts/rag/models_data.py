@@ -30,6 +30,13 @@ class ChunkDocument:
     lang: str
     content: str
     code_blocks: list[str] = field(default_factory=list)
+    etag: str | None = None
+    last_modified: str | None = None
+    chunking_strategy: str = "text"
+    normalized_content: str | None = None
+    chunk_index: int = 0
+    source_file: str = ""
+    chunk_type: str = ""
 
 
 @dataclass(frozen=True)

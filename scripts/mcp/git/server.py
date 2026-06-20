@@ -19,6 +19,7 @@ Provided endpoints:
 from __future__ import annotations
 
 import logging
+import shutil
 import time
 from typing import Any
 
@@ -86,9 +87,7 @@ async def call_tool(req: CallToolRequest) -> CallToolResponse:
 async def health() -> dict[str, object]:
     deps: dict[str, str] = {}
     try:
-        import shutil as _shutil
-
-        if _shutil.which("git") is None:
+        if shutil.which("git") is None:
             deps["git"] = "git not found in PATH"
     except Exception:
         deps["git"] = "check failed"

@@ -126,13 +126,17 @@ class TestConfigDrivenRouting:
 
 
 class TestWarnOnFallback:
-    def test_registry_lookup_no_fallback_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_registry_lookup_no_fallback_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         resolver = ToolRouteResolver({}, warn_on_fallback=True)
         with caplog.at_level(logging.WARNING, logger="shared.route_resolver"):
             resolver.resolve("search_web")
         assert "static fallback" not in caplog.text
 
-    def test_silent_by_default_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_silent_by_default_no_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         resolver = ToolRouteResolver({})
         with caplog.at_level(logging.WARNING, logger="shared.route_resolver"):
             resolver.resolve("search_web")

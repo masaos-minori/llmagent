@@ -351,6 +351,12 @@ def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
         _stdout_handler.setLevel(logging.INFO)
         plugin_logger.addHandler(_stdout_handler)
 
+    # Register builtin command names for conflict detection.
+    from agent.commands.command_defs import _COMMANDS
+
+    builtin_names = frozenset(cmd.name for cmd in _COMMANDS)
+    plugin_registry.register_builtin_commands(builtin_names)
+
     result = plugin_registry.load_plugins(
         plugin_dir,
         known_tools=known_tools,

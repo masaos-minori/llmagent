@@ -19,6 +19,7 @@ Provided endpoints:
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Any
 
@@ -125,9 +126,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 async def health() -> dict[str, object]:
     deps: dict[str, str] = {}
     try:
-        import os as _os
-
-        token = _os.environ.get("GITHUB_TOKEN", "")
+        token = os.environ.get("GITHUB_TOKEN", "")
         if not token:
             deps["github_token"] = "not_set"
     except Exception:

@@ -20,13 +20,15 @@ Provided endpoints:
 
 from __future__ import annotations
 
-import logging
+import os
 import time
 from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from shared.config_loader import ConfigLoader
 from shared.formatters import fmt_kvlog
+from shared.logger import Logger
 
 from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
@@ -35,7 +37,7 @@ from mcp.sqlite.models import SqliteConfig, SqliteServiceError, SqliteValidation
 from mcp.sqlite.service import SqliteMCPService, build_service
 from mcp.sqlite.tools import _MCP_TOOLS
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__, "/opt/llm/logs/sqlite-mcp.log")
 
 _cfg = SqliteConfig.load()
 _service: SqliteMCPService = build_service(_cfg)
@@ -95,8 +97,6 @@ async def call_tool(req: CallToolRequest) -> CallToolResponse:
 async def health() -> dict[str, object]:
     deps: dict[str, str] = {}
     try:
-        from shared.config_loader import ConfigLoader
-
         cfg = ConfigLoader().load_all()
         common = cfg.get("common", {}) if isinstance(cfg.get("common"), dict) else {}
         sqlite_cfg = (
@@ -118,9 +118,7 @@ async def health() -> dict[str, object]:
                 db_paths["default"] = common_db
         for name, path in db_paths.items():
             try:
-                import os as _os
-
-                if not _os.path.isfile(path):
+                if not os.path.isfile(path):
                     deps[name] = f"file not found: {path}"
             except Exception:
                 deps[name] = "check failed"

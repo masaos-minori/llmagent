@@ -28,7 +28,7 @@ router = APIRouter()
 
 
 def _info(msg: str, **kwargs: Any) -> None:
-    from mcp.github.server import logger as srv_logger
+    from mcp.github.server import logger as srv_logger  # noqa: PLC0415
 
     srv_logger.info(fmt_kvlog(msg, **kwargs))
 

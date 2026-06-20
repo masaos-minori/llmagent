@@ -14,7 +14,6 @@ from urllib.parse import urldefrag, urlparse
 
 import trafilatura
 from bs4 import BeautifulSoup
-
 from rag.utils import MIN_TEXT_LENGTH_FOR_DETECTION, validate_url
 
 # Supported language codes for resolved (output) lang values

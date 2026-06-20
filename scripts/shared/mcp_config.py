@@ -146,7 +146,7 @@ def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
     return {key: _build_single_server(key, v) for key, v in raw.items()}
 
 
-def _build_single_server(key: str, v: Any) -> McpServerConfig:
+def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
     """Construct McpServerConfig from a raw dict, applying defaults."""
     if not isinstance(v, dict):
         raise ValueError(f"mcp_servers[{key!r}] must be a dict, got {type(v).__name__}")

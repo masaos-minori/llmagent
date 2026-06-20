@@ -178,7 +178,9 @@ def _populate_default_registry(registry: ToolRegistry) -> None:
     _register_set(registry, WEB_SEARCH_TOOLS, "web_search")
 
 
-def _register_set(registry: ToolRegistry, tool_names: frozenset[str], server_key: str) -> None:
+def _register_set(
+    registry: ToolRegistry, tool_names: frozenset[str], server_key: str
+) -> None:
     """Register a set of tools with a server key."""
     for name in sorted(tool_names):
         registry.register(ToolDefinition(name=name, server_key=server_key))

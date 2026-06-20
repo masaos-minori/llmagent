@@ -122,7 +122,8 @@ class ToolRouteResolver:
             from shared.tool_registry import get_registry
 
             self._registry = get_registry()
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to initialize ToolRegistry: %s", exc)
             self._registry = None
         # Build reverse map: tool_name -> server_key from explicitly configured tool_names.
         self._config_map: dict[str, str] = {}

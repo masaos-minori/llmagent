@@ -63,6 +63,10 @@ _pipeline_post: list[Callable[..., Any]] = []
 # record the originating module name without an explicit parameter.
 _current_loading_module: str = ""
 
+# Registered builtin command names for conflict detection.
+# Populated by agent/factory.py at startup via register_builtin_commands().
+_builtin_command_names: frozenset[str] = frozenset()
+
 
 # ── Decorators ────────────────────────────────────────────────────────────────
 
@@ -150,6 +154,17 @@ def iter_tools() -> dict[str, Callable[..., Any]]:
 def get_pipeline_post_stages() -> list[Callable[..., Any]]:
     """Return a snapshot of all registered post-rerank pipeline stage hooks."""
     return list(_pipeline_post)
+
+
+def register_builtin_commands(names: frozenset[str]) -> None:
+    """Register built-in command names for conflict detection during plugin loading.
+
+    Called by the agent layer at startup to provide the set of builtin command
+    names.  This avoids a direct import from agent to shared, preserving the
+    import architecture constraint (shared must not import from agent).
+    """
+    global _builtin_command_names
+    _builtin_command_names = names
 
 
 async def run_pipeline_stages(
@@ -253,17 +268,15 @@ def _validate_tool_conflicts(
 def _validate_command_conflicts(strict_mode: bool = False) -> int:
     """Warn when a plugin command shadows a built-in command name.
 
-    Returns the number of shadowed commands.
+    Uses names registered via register_builtin_commands(). Returns the number
+    of shadowed commands.
     """
-    try:
-        from agent.commands.command_defs import _COMMANDS  # noqa: I001 — deferred: avoid circular import at module level
-    except ImportError:
+    if not _builtin_command_names:
         return 0
 
-    builtin_names = frozenset(cmd.name for cmd in _COMMANDS)
     shadowed_count = 0
     for name in list(_commands.keys()):
-        if name in builtin_names:
+        if name in _builtin_command_names:
             _fn, _prefix, module_name = _commands[name]
             shadowed_count += 1
             logger.info(
@@ -350,8 +363,9 @@ def load_plugins(
 
 def _reset_for_testing() -> None:
     """Clear all registries.  Call from test setUp / pytest fixtures only."""
-    global _current_loading_module
+    global _current_loading_module, _builtin_command_names
     _commands.clear()
     _tools.clear()
     _pipeline_post.clear()
+    _builtin_command_names = frozenset()
     _current_loading_module = ""

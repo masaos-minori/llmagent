@@ -25,7 +25,7 @@ if not _fallback_logger.handlers:
     _fallback_logger.setLevel(logging.WARNING)
 
 
-def _require_str(value: Any, name: str) -> None:
+def _require_str(value: object, name: str) -> None:
     """Validate that value is a non-empty string; raises ValueError otherwise."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty str, got: {value!r}")

@@ -19,9 +19,6 @@ import httpx
 import orjson
 from bs4 import BeautifulSoup
 from db.helper import SQLiteHelper
-from shared.config_loader import ConfigLoader
-from shared.logger import Logger
-
 from rag.ingestion.crawler_utils import (
     _SUPPORTED_LANGS,
     detect_lang,
@@ -32,6 +29,8 @@ from rag.ingestion.crawler_utils import (
     url_to_slug,
 )
 from rag.utils import MIN_TEXT_LENGTH_FOR_DETECTION, validate_url
+from shared.config_loader import ConfigLoader
+from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/crawl.log")
 

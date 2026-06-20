@@ -11,10 +11,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from shared.logger import Logger
-
 from rag.exceptions import TokenizationError
 from rag.utils import normalize_unicode
+from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/chunk.log")
 

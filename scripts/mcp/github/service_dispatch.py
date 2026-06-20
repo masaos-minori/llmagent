@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 
 from shared.formatters import fmt_md_link
+from shared.json_utils import dumps as _json_dumps
 
 from mcp.github.models import (
     AddIssueCommentRequest,
@@ -52,8 +53,6 @@ class GitHubService(_GitHubServiceCore):
     @staticmethod
     def _dry_run_preview(preview: str) -> str:
         """Return a JSON dry-run preview response string."""
-        from shared.json_utils import dumps as _json_dumps
-
         return _json_dumps({"preview": preview, "dry_run": True})
 
     async def fmt_create_branch(self, args: dict) -> str:

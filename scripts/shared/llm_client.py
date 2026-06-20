@@ -433,9 +433,7 @@ class LLMClient:
 
         return finish_reason
 
-    async def _handle_status(
-        self, resp: httpx.Response, url: str
-    ) -> None:
+    async def _handle_status(self, resp: httpx.Response, url: str) -> None:
         """Raise on HTTP errors."""
         try:
             resp.raise_for_status()
