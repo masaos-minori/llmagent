@@ -234,7 +234,7 @@ def _build_memory_services(
         ctx, http, EmbeddingClient, EmbeddingClientConfig
     )
     retriever = _build_retriever(ctx, HybridRetriever)
-    store = MemoryStore()
+    store = MemoryStore(embed_dim=ctx.cfg.memory.memory_embed_dim)
     jsonl = _build_jsonl_store(ctx, JsonlMemoryStore)
     injection = _build_injection_service(
         embed_client, retriever, ctx, InjectionPolicy, MemoryInjectionService
@@ -262,6 +262,7 @@ def _build_embedding_client(
     cfg = config_cls(
         embed_url=ctx.cfg.rag.embed_url,
         timeout=ctx.cfg.memory.memory_embed_timeout_sec,
+        embed_dim=ctx.cfg.memory.memory_embed_dim,
     )
     return client_cls(cfg, http, enabled=ctx.cfg.memory.memory_embed_enabled)
 

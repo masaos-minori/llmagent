@@ -134,11 +134,31 @@ class StartupOrchestrator:
                     f"stdio MCP server {key!r} failed to start: {e}"
                 )
 
+    def _check_embedding_dimensions(self) -> None:
+        """Verify embedding dimension consistency between memory config and db config."""
+        from db.config import build_db_config  # noqa: PLC0415 — lazy
+
+        ctx = self._ctx
+        memory_dim = ctx.cfg.memory.memory_embed_dim
+        db_dim = build_db_config().embedding_dims
+        if memory_dim != db_dim:
+            logger.error(
+                "Embedding dimension mismatch: memory=%d, db=%d. "
+                "Fix config/memory.toml or db/config.py.",
+                memory_dim,
+                db_dim,
+            )
+            raise RuntimeError(
+                f"Embedding dimension mismatch: memory={memory_dim}, db={db_dim}"
+            )
+        logger.info("Embedding dimensions consistent: %d", memory_dim)
+
     async def _check_services(self) -> None:
         """Probe LLM/Embed health, validate tool definitions, and audit security defaults."""
         ctx = self._ctx
         production_mode = ctx.cfg.mcp.security_profile == SecurityProfile.PRODUCTION
         audit_security_defaults(ctx, production_mode=production_mode)
+        self._check_embedding_dimensions()
         result = await check_readiness(ctx, production_mode=production_mode)
         for msg in result.warning_messages():
             self._view.write_warning(msg)

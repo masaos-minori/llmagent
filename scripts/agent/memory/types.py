@@ -47,6 +47,7 @@ class EmbeddingErrorKind(StrEnum):
     HTTP_ERROR = "http_error"
     INVALID_RESPONSE = "invalid_response"
     UNKNOWN_ERROR = "unknown_error"
+    DIMENSION_MISMATCH = "dimension_mismatch"
 
 
 @dataclass(frozen=True)

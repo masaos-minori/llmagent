@@ -26,6 +26,7 @@ def config() -> EmbeddingClientConfig:
         max_retries=2,
         circuit_open_after=3,
         circuit_reset_sec=0.1,
+        embed_dim=0,  # disable dimension validation in existing tests
     )
 
 
@@ -376,3 +377,72 @@ class TestSuccessResetsFailCount:
         result = await client.fetch("hello")  # success → reset
         assert result.success is True
         assert client._fail_count == 0
+
+
+# ── dimension validation ─────────────────────────────────────────────────────
+
+
+class TestDimensionValidation:
+    @pytest.mark.asyncio
+    async def test_rejects_wrong_dimension(self) -> None:
+        """EmbeddingClient returns DIMENSION_MISMATCH when server returns wrong dims."""
+        from agent.memory.types import EmbeddingErrorKind
+
+        cfg = EmbeddingClientConfig(
+            embed_url="http://localhost:8001/embed",
+            timeout=1.0,
+            max_retries=0,
+            embed_dim=384,
+        )
+        client = EmbeddingClient(cfg, enabled=True)
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.content = orjson.dumps({"embedding": [0.1] * 768})
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.return_value = mock_resp
+        client._http = mock_http
+
+        result = await client.fetch("test")
+        assert result.success is False
+        assert result.error_kind == EmbeddingErrorKind.DIMENSION_MISMATCH
+
+    @pytest.mark.asyncio
+    async def test_accepts_correct_dimension(self) -> None:
+        """EmbeddingClient returns success when dims match."""
+        cfg = EmbeddingClientConfig(
+            embed_url="http://localhost:8001/embed",
+            timeout=1.0,
+            max_retries=0,
+            embed_dim=384,
+        )
+        client = EmbeddingClient(cfg, enabled=True)
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.content = orjson.dumps({"embedding": [0.1] * 384})
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.return_value = mock_resp
+        client._http = mock_http
+
+        result = await client.fetch("test")
+        assert result.success is True
+        assert result.embedding is not None and len(result.embedding) == 384
+
+    @pytest.mark.asyncio
+    async def test_dim_zero_disables_validation(self) -> None:
+        """embed_dim=0 disables dimension validation; any size accepted."""
+        cfg = EmbeddingClientConfig(
+            embed_url="http://localhost:8001/embed",
+            timeout=1.0,
+            max_retries=0,
+            embed_dim=0,
+        )
+        client = EmbeddingClient(cfg, enabled=True)
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.content = orjson.dumps({"embedding": [0.1] * 768})
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.return_value = mock_resp
+        client._http = mock_http
+
+        result = await client.fetch("test")
+        assert result.success is True

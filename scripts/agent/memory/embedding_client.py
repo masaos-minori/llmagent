@@ -27,6 +27,7 @@ class EmbeddingClientConfig:
     query_prefix: str = (
         "query: "  # prepended to input text before sending to embedding API
     )
+    embed_dim: int = 384  # expected output dimension; 0 disables validation
 
 
 async def _fetch_embedding(
@@ -34,6 +35,7 @@ async def _fetch_embedding(
     http: httpx.AsyncClient,
     embed_url: str,
     query_prefix: str,
+    embed_dim: int = 0,
 ) -> EmbeddingResult:
     """Call the embedding endpoint once; return EmbeddingResult with success/error."""
     try:
@@ -42,6 +44,17 @@ async def _fetch_embedding(
         data = orjson.loads(resp.content)
         embedding = data.get("embedding") if isinstance(data, dict) else None
         if isinstance(embedding, list) and embedding:
+            if embed_dim > 0 and len(embedding) != embed_dim:
+                logger.error(
+                    "Embedding dimension mismatch: expected %d, got %d for input '%.40s...'",
+                    embed_dim,
+                    len(embedding),
+                    text,
+                )
+                return EmbeddingResult(
+                    success=False,
+                    error_kind=EmbeddingErrorKind.DIMENSION_MISMATCH,
+                )
             return EmbeddingResult(
                 success=True, embedding=[float(v) for v in embedding]
             )
@@ -136,6 +149,7 @@ class EmbeddingClient:
                         self._http,
                         self._config.embed_url,
                         self._config.query_prefix,
+                        self._config.embed_dim,
                     ),
                     timeout=self._config.timeout,
                 )
