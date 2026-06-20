@@ -29,6 +29,7 @@ def clear_conversation(
     reset_session_stats(ctx)
     if new_session:
         ctx.session.start()
+        ctx.session.set_title("(New Session)")
         logger.info("History cleared; new session started")
         return ConversationActionResult(
             action=ConversationActionType.CLEAR,

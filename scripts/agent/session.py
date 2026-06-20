@@ -25,6 +25,7 @@ class AgentSession:
     def __init__(self, *, strict_mode: bool = False) -> None:
         self.session_id: int | None = None  # current session DB row ID
         self._strict_mode = strict_mode
+        self._title_pending: bool = False
         self._message_repo = SessionMessageRepository(
             self.session_id, strict_mode=strict_mode
         )
@@ -117,8 +118,17 @@ class AgentSession:
             self.session_id, strict_mode=self._strict_mode
         )
 
+    def is_title_pending(self) -> bool:
+        """Return True if title generation is in progress."""
+        return self._title_pending
+
+    def set_title_pending(self, pending: bool) -> None:
+        """Set title generation pending state."""
+        self._title_pending = pending
+
     def set_title(self, title: str) -> None:
         """Set the session title using the first user input (truncated to 50 chars). Raises sqlite3.Error on failure."""
+        self._title_pending = False
         if self.session_id is None:
             return
         with SQLiteHelper("session").open(write_mode=True) as db:

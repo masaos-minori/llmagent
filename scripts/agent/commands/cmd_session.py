@@ -34,16 +34,21 @@ class _SessionMixin(MixinBase):
             SessionTitleService,  # noqa: PLC0415 — lazy: deferred to avoid import cost
         )
 
+        self._ctx.session.set_title_pending(True)
         try:
             await SessionTitleService().generate(self._ctx, first_input)
         except SessionTitleGenerationError as e:
-            logger.warning("Session title generation failed: %s", e)
-            truncated = first_input[:SESSION_TITLE_TRUNCATE_AT]
-            if len(first_input) > SESSION_TITLE_MAX_CHARS:
-                fallback_title = truncated + "..."
+            logger.info("Session title generation failed, using fallback: %s", e)
+            clean_input = first_input.strip() if first_input else ""
+            if not clean_input:
+                fallback_title = "(New Session)"
+            elif len(clean_input) > SESSION_TITLE_MAX_CHARS:
+                fallback_title = clean_input[:SESSION_TITLE_TRUNCATE_AT] + "..."
             else:
-                fallback_title = truncated
+                fallback_title = clean_input
             self._ctx.session.set_title(fallback_title)
+        finally:
+            self._ctx.session.set_title_pending(False)
 
     def _session_load_safe(self, arg: str) -> None:
         """Parse arg as an integer session ID and load it; print error on invalid."""
@@ -89,14 +94,20 @@ class _SessionMixin(MixinBase):
                     is_current=bool(r.get("is_current", False)),
                 )
             )
+        current_id = self._ctx.session.session_id
         table_rows = []
         for sr in session_rows:
-            title = sr.title if sr.title is not None else ""
-            title_display = (
-                title[:SESSION_TITLE_TRUNCATE_AT] + "..."
-                if len(title) > SESSION_TITLE_MAX_CHARS
-                else title
-            )
+            is_current = sr.session_id == current_id
+            if is_current and self._ctx.session.is_title_pending():
+                title_display = "(generating...)"
+            elif sr.title is not None:
+                title_display = (
+                    sr.title[:SESSION_TITLE_TRUNCATE_AT] + "..."
+                    if len(sr.title) > SESSION_TITLE_MAX_CHARS
+                    else sr.title
+                )
+            else:
+                title_display = "(no title)"
             table_rows.append(
                 [
                     f"{sr.session_id:>4}{'*' if sr.is_current else ' '}",

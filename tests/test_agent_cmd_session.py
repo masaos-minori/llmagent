@@ -16,18 +16,25 @@ def _make_session(
     session_id: int | None = 1,
     list_return: list | None = None,
     delete_return: bool = True,
+    title_pending: bool = False,
 ) -> MagicMock:
     s = MagicMock()
     s.session_id = session_id
     s.list_sessions.return_value = list_return or []
     s.delete_session.return_value = delete_return
+    s.is_title_pending.return_value = title_pending
     return s
 
 
 def _make_cmd(
-    *, session_id: int | None = 1, sessions: list | None = None
+    *,
+    session_id: int | None = 1,
+    sessions: list | None = None,
+    title_pending: bool = False,
 ) -> _SessionMixin:
-    session = _make_session(session_id=session_id, list_return=sessions)
+    session = _make_session(
+        session_id=session_id, list_return=sessions, title_pending=title_pending
+    )
     ctx = SimpleNamespace(
         session=session,
         conv=SimpleNamespace(history=[], llm_url=""),
@@ -72,6 +79,38 @@ class TestCmdSessionList:
         cmd = _make_cmd(sessions=[])
         cmd._cmd_session("list 5")
         cmd._ctx.session.list_sessions.assert_called_once_with(5)
+
+    def test_list_shows_generating_when_title_pending(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        sessions = [
+            {
+                "session_id": 1,
+                "title": "Test",
+                "created_at": "2026-01-01",
+                "is_current": True,
+            }
+        ]
+        cmd = _make_cmd(sessions=sessions, title_pending=True)
+        cmd._cmd_session("list")
+        out = capsys.readouterr().out
+        assert "(generating...)" in out
+
+    def test_list_shows_no_title_when_title_is_none(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        sessions = [
+            {
+                "session_id": 2,
+                "title": None,
+                "created_at": "2026-01-01",
+                "is_current": False,
+            }
+        ]
+        cmd = _make_cmd(sessions=sessions)
+        cmd._cmd_session("list")
+        out = capsys.readouterr().out
+        assert "(no title)" in out
 
 
 class TestCmdSessionDelete:
@@ -121,3 +160,90 @@ class TestCmdSessionUsage:
         cmd = _make_cmd(sessions=[])
         cmd._cmd_session("")
         cmd._ctx.session.list_sessions.assert_called_once()
+
+
+class TestGenerateSessionTitle:
+    @pytest.mark.asyncio
+    async def test_fallback_empty_input_sets_new_session_title(self) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        cmd = _make_cmd()
+        from agent.services.exceptions import SessionTitleGenerationError
+
+        with patch(
+            "agent.services.session_title.SessionTitleService",
+        ) as MockSvc:
+            MockSvc.return_value.generate = AsyncMock(
+                side_effect=SessionTitleGenerationError("test fail")
+            )
+            await cmd._generate_session_title("")
+
+        cmd._ctx.session.set_title.assert_called_with("(New Session)")
+
+    @pytest.mark.asyncio
+    async def test_fallback_long_input_truncates_with_ellipsis(self) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        cmd = _make_cmd()
+        from agent.services.exceptions import SessionTitleGenerationError
+
+        long_input = "a" * 40
+        with patch(
+            "agent.services.session_title.SessionTitleService",
+        ) as MockSvc:
+            MockSvc.return_value.generate = AsyncMock(
+                side_effect=SessionTitleGenerationError("test fail")
+            )
+            await cmd._generate_session_title(long_input)
+
+        call_args = cmd._ctx.session.set_title.call_args[0][0]
+        assert call_args.endswith("...")
+        assert len(call_args) <= 32
+
+    @pytest.mark.asyncio
+    async def test_fallback_short_input_uses_as_is(self) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        cmd = _make_cmd()
+        from agent.services.exceptions import SessionTitleGenerationError
+
+        with patch(
+            "agent.services.session_title.SessionTitleService",
+        ) as MockSvc:
+            MockSvc.return_value.generate = AsyncMock(
+                side_effect=SessionTitleGenerationError("test fail")
+            )
+            await cmd._generate_session_title("Hello World")
+
+        cmd._ctx.session.set_title.assert_called_with("Hello World")
+
+    @pytest.mark.asyncio
+    async def test_pending_state_cleared_on_success(self) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        cmd = _make_cmd()
+        with patch(
+            "agent.services.session_title.SessionTitleService",
+        ) as MockSvc:
+            MockSvc.return_value.generate = AsyncMock(return_value=None)
+            await cmd._generate_session_title("hello")
+
+        cmd._ctx.session.set_title_pending.assert_any_call(True)
+        cmd._ctx.session.set_title_pending.assert_called_with(False)
+
+    @pytest.mark.asyncio
+    async def test_pending_state_cleared_on_failure(self) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        cmd = _make_cmd()
+        from agent.services.exceptions import SessionTitleGenerationError
+
+        with patch(
+            "agent.services.session_title.SessionTitleService",
+        ) as MockSvc:
+            MockSvc.return_value.generate = AsyncMock(
+                side_effect=SessionTitleGenerationError("fail")
+            )
+            await cmd._generate_session_title("test")
+
+        cmd._ctx.session.set_title_pending.assert_called_with(False)
