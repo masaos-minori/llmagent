@@ -1,0 +1,172 @@
+"""tests/test_config_builders.py
+Unit tests for agent/config_builders.py:
+_build_llm_config, _build_rag_config, _build_approval_config, _build_memory_config,
+_build_tool_config, build_agent_config, and load_config error handling.
+"""
+
+from __future__ import annotations
+
+from unittest.mock import patch
+
+import pytest
+from agent.config_builders import (
+    ConfigLoadError,
+    _build_approval_config,
+    _build_llm_config,
+    _build_memory_config,
+    _build_rag_config,
+    _build_tool_config,
+    build_agent_config,
+    load_config,
+)
+from agent.config_dataclasses import AgentConfig
+
+# Minimal config satisfying _build_mcp_servers (needs at least one HTTP server with url).
+_MIN_CFG: dict = {
+    "mcp_servers": {
+        "test-server": {"transport": "http", "url": "http://127.0.0.1:9999"}
+    }
+}
+
+
+# ── _build_llm_config ─────────────────────────────────────────────────────────
+
+
+class TestBuildLLMConfig:
+    def test_empty_dict_returns_defaults(self) -> None:
+        cfg = _build_llm_config({})
+        assert cfg.llm_url == ""
+        assert cfg.http_timeout == 30.0
+        assert cfg.llm_max_retries == 3
+        assert cfg.llm_temperature == 0.2
+        assert cfg.llm_max_tokens == 1024
+
+    def test_overrides_are_applied(self) -> None:
+        cfg = _build_llm_config({"llm_url": "http://llm.local", "llm_max_tokens": 512})
+        assert cfg.llm_url == "http://llm.local"
+        assert cfg.llm_max_tokens == 512
+
+    def test_type_coercion_for_numeric_fields(self) -> None:
+        cfg = _build_llm_config({"llm_max_retries": "5", "llm_temperature": "0.5"})
+        assert cfg.llm_max_retries == 5
+        assert cfg.llm_temperature == 0.5
+
+
+# ── _build_rag_config ─────────────────────────────────────────────────────────
+
+
+class TestBuildRAGConfig:
+    def test_empty_dict_returns_defaults(self) -> None:
+        cfg = _build_rag_config({})
+        assert cfg.top_k_search == 20
+        assert cfg.top_k_rerank == 15
+        assert cfg.rrf_k == 60
+        assert cfg.use_semantic_cache is False
+
+    def test_overrides_are_applied(self) -> None:
+        cfg = _build_rag_config({"top_k_search": 5, "rrf_k": 30})
+        assert cfg.top_k_search == 5
+        assert cfg.rrf_k == 30
+
+
+# ── _build_tool_config ────────────────────────────────────────────────────────
+
+
+class TestBuildToolConfig:
+    def test_empty_dict_returns_defaults(self) -> None:
+        cfg = _build_tool_config({}, system_prompt_tool="")
+        assert cfg.max_tool_turns == 5
+        assert cfg.serial_tool_calls is False
+        assert cfg.plugin_strict is False
+
+    def test_system_prompt_tool_is_set(self) -> None:
+        cfg = _build_tool_config({}, system_prompt_tool="You are an assistant.")
+        assert cfg.system_prompt_tool == "You are an assistant."
+
+
+# ── _build_memory_config ──────────────────────────────────────────────────────
+
+
+class TestBuildMemoryConfig:
+    def test_empty_dict_returns_defaults(self) -> None:
+        cfg = _build_memory_config({})
+        assert cfg.use_memory_layer is False
+        assert cfg.memory_fts_limit == 50
+        assert cfg.memory_rrf_k == 60
+        assert cfg.memory_retention_days == 90
+
+
+# ── _build_approval_config ────────────────────────────────────────────────────
+
+
+class TestBuildApprovalConfig:
+    def test_empty_dict_returns_defaults(self) -> None:
+        cfg = _build_approval_config({})
+        assert "write_file" in cfg.approval_risk_rules
+        assert cfg.approval_risk_rules["delete_file"] == "high"
+        assert cfg.gitops_force_push_blocked is True
+
+    def test_invalid_risk_level_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="invalid levels"):
+            _build_approval_config({"approval_risk_rules": {"write_file": "extreme"}})
+
+
+# ── build_agent_config ────────────────────────────────────────────────────────
+
+
+class TestBuildAgentConfig:
+    def test_returns_agent_config_instance(self) -> None:
+        cfg = build_agent_config(_MIN_CFG)
+        assert isinstance(cfg, AgentConfig)
+
+    def test_llm_defaults_reflected(self) -> None:
+        cfg = build_agent_config(_MIN_CFG)
+        assert cfg.llm.llm_url == ""
+        assert cfg.rag.top_k_search == 20
+
+    def test_security_profile_production_sets_watchdog(self) -> None:
+        cfg = build_agent_config({**_MIN_CFG, "security_profile": "production"})
+        assert cfg.mcp.mcp_watchdog_interval == 30.0
+
+    def test_security_profile_local_disables_watchdog(self) -> None:
+        cfg = build_agent_config({**_MIN_CFG, "security_profile": "local"})
+        assert cfg.mcp.mcp_watchdog_interval == 0.0
+
+    def test_mcp_watchdog_interval_override_respected(self) -> None:
+        cfg = build_agent_config(
+            {
+                **_MIN_CFG,
+                "security_profile": "production",
+                "mcp_watchdog_interval": 60.0,
+            }
+        )
+        assert cfg.mcp.mcp_watchdog_interval == 60.0
+
+    def test_none_cfg_override_calls_load_config(self) -> None:
+        with patch("agent.config_builders.ConfigLoader") as MockLoader:
+            MockLoader.return_value.load_all.return_value = _MIN_CFG
+            cfg = build_agent_config(None)
+        assert isinstance(cfg, AgentConfig)
+
+
+# ── load_config ───────────────────────────────────────────────────────────────
+
+
+class TestLoadConfig:
+    def test_raises_on_os_error(self) -> None:
+        with patch("agent.config_builders.ConfigLoader") as MockLoader:
+            MockLoader.return_value.load_all.side_effect = OSError("no config file")
+            with pytest.raises(ConfigLoadError, match="Config load failed"):
+                load_config()
+
+    def test_raises_on_value_error(self) -> None:
+        with patch("agent.config_builders.ConfigLoader") as MockLoader:
+            MockLoader.return_value.load_all.side_effect = ValueError("bad TOML")
+            with pytest.raises(ConfigLoadError, match="Config load failed"):
+                load_config()
+
+    def test_raises_on_type_error(self) -> None:
+        with patch("agent.config_builders.ConfigLoader") as MockLoader:
+            MockLoader.return_value.load_all.side_effect = TypeError("wrong type")
+            with pytest.raises(ConfigLoadError, match="Config load failed"):
+                load_config()
