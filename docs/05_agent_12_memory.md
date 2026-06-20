@@ -365,6 +365,8 @@ Dedup: uses `DedupPolicy(action=SKIP_NEW, threshold=...)` with KNN near-duplicat
 
 **Failure modes:** `sqlite3.OperationalError` on memory_links insert (swallowed with warning).
 
+**Embed failure tracking:** `stat_embed_skip` counter increments whenever `_persist_entry()` or `_persist_entry_with_dedup()` stores an entry without embedding (embedding failed). Logged in `on_session_stop()` summary: `"MemoryIngestionService.on_session_stop: persisted %d entries; %d embed_skipped"`.
+
 ### 10. `extract.py` — Rule-based extraction
 
 | Function / Class | Returns | Description |

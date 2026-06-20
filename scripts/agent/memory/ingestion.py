@@ -53,6 +53,7 @@ class MemoryIngestionService:
         self._repo = repo
         self._branch = branch
         self._max_content_chars = max_content_chars
+        self.stat_embed_skip: int = 0
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -81,11 +82,22 @@ class MemoryIngestionService:
             return
         for entry in entries:
             await self._persist_entry_with_dedup(entry)
-        logger.info("MemoryIngestionService.on_session_stop: persisted entries")
+        logger.info(
+            "MemoryIngestionService.on_session_stop: persisted %d entries; %d embed_skipped",
+            len(entries),
+            self.stat_embed_skip,
+        )
 
     async def _persist_entry_with_dedup(self, entry: MemoryEntry) -> None:
         """Embed, dedup-check, and persist a single memory entry."""
         embed_result = await self._embed_client.fetch(entry.content)
+        if not embed_result.success:
+            self.stat_embed_skip += 1
+            logger.info(
+                "memory.embed_skip: stored without embedding (reason=%s) memory_id=%r",
+                embed_result.error_kind,
+                entry.memory_id,
+            )
         embedding = embed_result.embedding if embed_result.success else None
         if self._should_skip_dedup(embed_result, entry.memory_id):
             return
@@ -184,6 +196,13 @@ class MemoryIngestionService:
         Automatic session extraction uses on_session_stop() which applies dedup.
         """
         embed_result = await self._embed_client.fetch(entry.content)
+        if not embed_result.success:
+            self.stat_embed_skip += 1
+            logger.info(
+                "memory.embed_skip: stored without embedding (reason=%s) memory_id=%r",
+                embed_result.error_kind,
+                entry.memory_id,
+            )
         embedding = embed_result.embedding if embed_result.success else None
         await self._jsonl.write(entry)
         self._store.upsert(entry, embedding=embedding)

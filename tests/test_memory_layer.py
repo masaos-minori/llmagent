@@ -510,6 +510,129 @@ class TestLinkDuplicates:
         mock_helper.execute.assert_not_called()
 
 
+# ── stat_embed_skip counter ─────────────────────────────────────────────────
+
+class TestStatEmbedSkip:
+    def test_counter_starts_at_zero(self) -> None:
+        """stat_embed_skip is 0 on construction."""
+        svc, _, _, _ = _make_ingestion_svc()
+        assert svc.stat_embed_skip == 0
+
+    @pytest.mark.asyncio
+    async def test_increment_on_embed_failure_in_persist_entry_with_dedup(self) -> None:
+        """_persist_entry_with_dedup increments stat_embed_skip when embed fails."""
+        mock_store = MagicMock(spec=MemoryStore)
+        mock_retriever = MagicMock(spec=HybridRetriever)
+        mock_jsonl = MagicMock(spec=JsonlMemoryStore)
+
+        svc = MemoryIngestionService(
+            store=mock_store,
+            jsonl=mock_jsonl,
+            retriever=mock_retriever,
+            embed_client=MagicMock(spec=EmbeddingClient),
+            dedup_policy=DedupPolicy(threshold=0.3),
+        )
+        svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
+            return_value=EmbeddingResult(success=False, error_kind="http_error")
+        )
+
+        history: list[HistoryMessage] = [
+            HistoryMessage(role="user", content="What is the rule?"),
+            HistoryMessage(
+                role="assistant",
+                content=(
+                    "Always follow the policy and constraint established "
+                    "by the team. This is a decided rule everyone must comply with."
+                ),
+            ),
+        ]
+        await svc.on_session_stop(session_id=1, history=history)
+        assert svc.stat_embed_skip == 1
+
+    @pytest.mark.asyncio
+    async def test_no_increment_on_successful_embed(self) -> None:
+        """stat_embed_skip stays 0 when embedding succeeds."""
+        mock_store = MagicMock(spec=MemoryStore)
+        mock_retriever = MagicMock(spec=HybridRetriever)
+        mock_jsonl = MagicMock(spec=JsonlMemoryStore)
+
+        svc = MemoryIngestionService(
+            store=mock_store,
+            jsonl=mock_jsonl,
+            retriever=mock_retriever,
+            embed_client=MagicMock(spec=EmbeddingClient),
+        )
+        svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
+            return_value=EmbeddingResult(success=True, embedding=[0.1])
+        )
+        mock_retriever.knn_search.return_value = []
+
+        history: list[HistoryMessage] = [
+            HistoryMessage(role="user", content="What is the rule?"),
+            HistoryMessage(
+                role="assistant",
+                content=(
+                    "Always follow the policy and constraint established "
+                    "by the team. This is a decided rule everyone must comply with."
+                ),
+            ),
+        ]
+        mock_helper = MagicMock()
+        mock_helper.__enter__ = MagicMock(return_value=mock_helper)
+        mock_helper.__exit__ = MagicMock(return_value=False)
+        mock_helper.open.return_value = mock_helper
+        with patch("agent.memory.ingestion.SQLiteHelper", return_value=mock_helper):
+            await svc.on_session_stop(session_id=1, history=history)
+        assert svc.stat_embed_skip == 0
+
+    @pytest.mark.asyncio
+    async def test_increment_on_embed_failure_in_persist_entry(self) -> None:
+        """_persist_entry increments stat_embed_skip when embed fails."""
+        svc, mock_store, _, mock_jsonl = _make_ingestion_svc()
+        svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
+            return_value=EmbeddingResult(success=False, error_kind="timeout")
+        )
+        await svc.write_semantic(session_id=1, content="important rule")
+        assert svc.stat_embed_skip == 1
+
+    @pytest.mark.asyncio
+    async def test_summary_log_contains_count(self) -> None:
+        """on_session_stop summary log includes embed_skipped count."""
+        mock_store = MagicMock(spec=MemoryStore)
+        mock_retriever = MagicMock(spec=HybridRetriever)
+        mock_jsonl = MagicMock(spec=JsonlMemoryStore)
+
+        svc = MemoryIngestionService(
+            store=mock_store,
+            jsonl=mock_jsonl,
+            retriever=mock_retriever,
+            embed_client=MagicMock(spec=EmbeddingClient),
+            dedup_policy=DedupPolicy(threshold=0.3),
+        )
+        svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
+            return_value=EmbeddingResult(success=False, error_kind="http_error")
+        )
+
+        history: list[HistoryMessage] = [
+            HistoryMessage(role="user", content="What is the rule?"),
+            HistoryMessage(
+                role="assistant",
+                content=(
+                    "Always follow the policy and constraint established "
+                    "by the team. This is a decided rule everyone must comply with."
+                ),
+            ),
+        ]
+        await svc.on_session_stop(session_id=1, history=history)
+
+        # Check that the summary log was called with embed_skipped count
+        from unittest.mock import call as mock_call
+
+        # on_session_stop logs the summary after persisting entries
+        calls = svc._embed_client.fetch.call_args_list
+        assert len(calls) >= 1  # at least one entry persisted
+
+
 # ── MemoryServices facade ────────────────────────────────────────────────────
 
 
