@@ -19,7 +19,7 @@ without reading source code.
 | `types.py` | Core runtime types (MemoryEntry, MemoryQuery, MemoryHit, EmbeddingResult) |
 | `enums.py` | Domain enums (MemoryType, DedupAction, DedupPolicy) |
 | `exceptions.py` | Exception hierarchy |
-| `models.py` | Frozen DTOs (HistoryMessage, MemorySnippet, ConsistencyReport) |
+| `models.py` | Frozen DTOs (HistoryMessage, JsonlRecord, MemorySnippet, ConsistencyReport) |
 | `store.py` | CRUD for memories / memories_fts / memories_vec tables |
 | `retriever.py` | FTS5 / KNN / Hybrid search (FtsRetriever, VectorRetriever, HybridRetriever) |
 | `injection.py` | MemoryInjectionService — lifecycle hooks for snippet injection |
@@ -155,7 +155,7 @@ The memory layer has a 3-layer activation gate that controls when memory operati
 |---|---|---|
 | `memory_id` | `str` | UUID v4, primary key |
 | `memory_type` | `MemoryType` | `"semantic"` \| `"episodic"` |
-| `source_type` | `SourceType` | `"RULE"` \| `"CONVERSATION"` \| `"FAILURE"` \| `"MANUAL"` |
+| `source_type` | `SourceType` | `"RULE"` \| `"CONVERSATION"` \| `"DECISION"` \| `"FAILURE"` |
 | `session_id` | `int \| None` | Parent session ID |
 | `turn_id` | `str \| None` | UUID linking to the originating conversation turn |
 | `project` | `str` | Project name for context filtering |
@@ -255,7 +255,7 @@ Notable: internal mapper utils (`_floats_to_blob`, `_stamp_entry`) are exported 
 | `MemoryHit` | Ranked search result | entry (MemoryEntry), score (float) |
 | `EmbeddingResult` | Embedding fetch outcome | success (bool), embedding (list[float] \| None), error_kind (EmbeddingErrorKind \| None) |
 | `EmbeddingErrorKind` | Error classification | DISABLED, TIMEOUT, HTTP_ERROR, CIRCUIT_OPEN, INVALID_RESPONSE, UNKNOWN_ERROR |
-| `SourceType` | Entry origin | RULE, CONVERSATION, FAILURE, MANUAL |
+| `SourceType` | Entry origin | RULE, CONVERSATION, DECISION, FAILURE |
 
 ### 3. `enums.py` — Domain enums
 
@@ -283,7 +283,8 @@ Notable: internal mapper utils (`_floats_to_blob`, `_stamp_entry`) are exported 
 | Class | Fields | Purpose |
 |---|---|---|
 | `HistoryMessage` | role (str), content (str) | Single message in conversation history |
-| `MemorySnippet` | text (str), source (str) | Injected context snippet with source tag |
+| `JsonlRecord` | memory_id, memory_type, source_type, session_id, turn_id, project, repo, branch, content, summary, tags, importance, pinned, created_at, updated_at | Deserialized record from the JSONL memory store |
+| `MemorySnippet` | text (str), source (str), score (float) | Injected context snippet with source tag and retrieval score |
 | `ConsistencyReport` | memories (int), fts (int), vec (int) | Row count comparison for consistency check |
 
 ### 6. `store.py` — CRUD layer

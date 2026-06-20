@@ -104,7 +104,8 @@ See `agent/services/config_reload.py` for the full field-level mapping.
 
 ## AgentConfig Structure
 
-`AgentConfig` composes 7 domain sub-configs accessed as `cfg.llm.*`, `cfg.rag.*`, etc.
+`AgentConfig` composes 7 domain sub-configs accessed as `cfg.llm.*`, `cfg.rag.*`, etc.,
+plus two top-level scalar fields.
 
 ```python
 @dataclass
@@ -116,7 +117,14 @@ class AgentConfig:
     mcp:      MCPConfig
     approval: ApprovalConfig
     obs:      ObservabilityConfig
+    workflow_mode:              str  = "auto"   # "auto" | "required" | "disabled"
+    security_lockdown_enabled:  bool = False
 ```
+
+`workflow_mode` controls workflow invocation behaviour: `"auto"` falls back with a warning when
+workflow execution fails, `"required"` raises a hard error, `"disabled"` always uses the direct
+LLM path. `security_lockdown_enabled` suppresses DENY-ALL approval warnings for intentional
+lockdown deployments.
 
 Cross-field validation in `_validate_cross_field()`:
 - `rag.use_semantic_cache=True` → `rag.embed_url` must be non-empty
