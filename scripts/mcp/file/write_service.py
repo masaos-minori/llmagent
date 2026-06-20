@@ -174,6 +174,13 @@ class WriteFileService:
     def create_directory(self, req: CreateDirectoryRequest) -> CreateDirectoryResponse:
         """Create a directory; returns as-is if the directory already exists."""
         target = self._resolve_safe(req.path)
+
+        if req.dry_run:
+            status = "exists" if target.exists() else "would create"
+            return CreateDirectoryResponse(
+                path=str(target), created=False, dry_run_info=status
+            )
+
         # Capture existence before mkdir to determine the 'created' flag
         already_exists = target.exists()
         try:
@@ -251,6 +258,8 @@ class WriteFileService:
         result = await asyncio.to_thread(
             lambda: self.create_directory(CreateDirectoryRequest(**args)),
         )
+        if result.dry_run_info:
+            return f"Dry-run: {result.path} [{result.dry_run_info}]"
         status = "created" if result.created else "already exists"
         return f"Directory {status}: {result.path}"
 

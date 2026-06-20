@@ -13,15 +13,6 @@ Each entry format:
 
 ---
 
-### BUG-04: CreateDirectoryRequest lacks dry_run entirely
-
-- **Type:** Implementation gap
-- **Impact scope:** `mcp/file/write_models.py`, `mcp/file/write_service.py`
-- **Description:** `CreateDirectoryRequest` has no `dry_run` field in its Pydantic model, inputSchema, or service handler. The 04_mcp_04 documentation previously claimed it supported dry_run (now corrected).
-- **Recommended action:** Add `dry_run` field to `CreateDirectoryRequest` model, inputSchema, and `create_directory()` service method if dry-run support is desired.
-
----
-
 ### SPEC-01: tool_definitions_strict + /v1/tools mismatch behavior undocumented per-server
 
 - **Type:** Needs confirmation

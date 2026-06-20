@@ -115,6 +115,9 @@ class ToolRouteResolver:
         # Discovery map from live /v1/tools metadata (highest priority).
         self._discovery_map: dict[str, str] = discovery_map or {}
         # Tool registry (canonical source of truth).
+        from shared.tool_registry import ToolRegistry
+
+        self._registry: ToolRegistry | None
         try:
             from shared.tool_registry import get_registry
 

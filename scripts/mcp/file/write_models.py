@@ -94,11 +94,16 @@ class CreateDirectoryRequest(BaseModel):
         description="Absolute path of the directory to create"
         " (parent directories are created automatically)",
     )
+    dry_run: bool = Field(
+        default=False,
+        description="When true, return directory info without creating",
+    )
 
 
 class CreateDirectoryResponse(BaseModel):
     path: str
     created: bool  # true if newly created, false if it already existed
+    dry_run_info: str = ""
 
 
 class MoveFileRequest(BaseModel):
