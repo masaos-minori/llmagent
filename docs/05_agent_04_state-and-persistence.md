@@ -114,8 +114,11 @@ This guarantees every session has a non-empty, meaningful title even when the LL
 - When `strict_mode=True`, both conditions raise `RuntimeError` instead of skipping
 - Counters accessible via `session.skipped_no_session_count` and `session.skipped_invalid_role_count`
 - `save_many()` batches multiple messages in one transaction; invalid roles are skipped with a single warning log
-- Diagnostic data (LLM transport errors, session runtime summaries) is persisted via `DiagnosticStore` (`agent/diagnostic_store.py`) to the `session_diagnostics` table — separate from the `messages` table
+- Diagnostic data (LLM transport errors, guard hints, session runtime summaries) is persisted via `DiagnosticStore` (`agent/diagnostic_store.py`) to the `session_diagnostics` table — separate from the `messages` table
 - `DiagnosticStore` methods: `save(session_id, kind, content)`, `fetch(session_id)`, `fetch_all(limit=50)`
+- `AgentContext.diagnostics` is wired to `Orchestrator._diagnostic_store` on init; `None` before any `Orchestrator` is constructed
+- Kinds written: `"mid_turn_error"` (LLM transport errors from `ErrorInjectionService`, `LLMTurnRunner`, `Orchestrator`), `"guard_hint"` (cycle/dedup/retry events from `ToolLoopGuard`)
+- Guard hints and mid-turn errors are stored only in diagnostics — they do NOT appear in `ctx.conv.history`
 - A lightweight session summary is also written to `<session_db_dir>/diagnostics.jsonl` by `repl.py` (may be deprecated in future)
 - `fetch_messages()` no longer filters out `diagnostic` role — diagnostic data is in its own table
 
