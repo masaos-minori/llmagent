@@ -39,18 +39,59 @@ async def call_rag_service(
     set_fetch_result: Callable[[TwoStageFetchResult], None],
     set_fallback_reason: Callable[[str], None] | None = None,
 ) -> str | None:
-    """Delegate to external RAG service.
+    """Delegate to external RAG service for context augmentation.
+
+    Request details:
+        - Endpoint: ``{rag_url}/v1/search``
+        - Body: ``{"query": query, "history_context": history_context}``
+        - Headers: ``{"X-RAG-Token": auth_token}`` if auth_token is non-empty
+        - Timeout: _TIMEOUT seconds per attempt
 
     Return contract:
-        str (non-empty)           — HTTP 200 with body["context"] as a non-empty string
-        ""                        — HTTP 200 with body["context"] missing or None
-        None                      — 4xx client error, transport error, JSON parse error,
-                                    all retries exhausted on 5xx
 
-    Retries up to _MAX_ATTEMPTS times on 5xx or transport errors with
-    exponential backoff.  4xx and parse errors are not retried.
-    Stores hits in last_fetch_result via the callback.
-    When set_fallback_reason is provided, it is called with a reason string on each failure path.
+        +----------------+---------------------------------------------------+
+        | Return value   | Condition                                         |
+        +================+===================================================+
+        | ``str``        | HTTP 200 + response body has a ``"context"``      |
+        | (non-empty)    | key with a non-empty string value.                |
+        |                | Example: ``{"context": "relevant passage..."}``   |
+        +----------------+---------------------------------------------------+
+        | ``""``         | HTTP 200 but ``"context"`` key is absent, None,   |
+        | (empty string) | or empty. Valid empty result — not a failure.     |
+        |                | Example: ``{"context": null}`` or ``{"hits": []}``|
+        +----------------+---------------------------------------------------+
+        | ``None``       | One of:                                           |
+        |                | - HTTP 4xx (client error, no retry)               |
+        |                | - HTTP 5xx with all retries exhausted             |
+        |                | - Transport error (connection refused, timeout)   |
+        |                | - JSON parse error on response body               |
+        |                | None triggers in-process fallback in the caller.  |
+        +----------------+---------------------------------------------------+
+
+    Retry behavior:
+        - 5xx errors: retry up to ``_MAX_ATTEMPTS`` times with exponential backoff
+        - Transport errors (connection refused, timeout): same retry policy
+        - 4xx errors: no retry (client-side issue)
+        - JSON parse errors: no retry (malformed response)
+
+    Side effects:
+        ``set_fetch_result`` is called with a ``TwoStageFetchResult`` holding
+        fetch stage status and any hits from the response body.
+        If ``set_fallback_reason`` is provided, it is called with a reason
+        string on each non-success path (4xx, transport error, etc.).
+
+    Args:
+        http: An initialized httpx.AsyncClient (caller manages lifecycle).
+        rag_url: Base URL of the RAG service (e.g. ``http://127.0.0.1:8003``).
+        query: The user query string to search for.
+        history_context: Conversation history context appended to query.
+        auth_token: Auth token sent as ``X-RAG-Token`` header; empty = no header.
+        set_fetch_result: Callback to store fetch result metadata.
+        set_fallback_reason: Optional callback called with a reason string on failure.
+
+    Returns:
+        Augmented context string, empty string for valid empty results,
+        or None to signal failure and trigger in-process fallback.
     """
     headers: dict[str, str] = {}
     if auth_token:

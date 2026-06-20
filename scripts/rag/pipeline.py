@@ -296,11 +296,24 @@ class RagPipeline:
         history_context: str,
         set_fallback_reason: Callable[[str], None] | None = None,
     ) -> str | None:
-        """Delegate to external RAG service; None on failure triggers in-process fallback.
+        """Run HTTP-stage augmentation via external RAG service.
 
-        See ``call_rag_service`` for the full return contract (str / "" / None).
-        The caller in ``augment()`` treats ``None`` as "fall back to in-process" and
-        any other return value (including "") as the final result.
+        Thin wrapper around ``call_rag_service()``. All HTTP-level details
+        (endpoint, headers, timeout, retries) are documented there.
+
+        Return semantics:
+            - ``str`` (non-empty): HTTP 200 with valid context → returned as final result
+            - ``""`` (empty string): HTTP 200 with no context → returned as final result;
+              not treated as failure, so no in-process fallback is triggered
+            - ``None``: HTTP error, transport failure, or parse error → triggers
+              in-process fallback chain (semantic cache → search pipeline → raw chunks)
+
+        Side effects:
+            Stores ``TwoStageFetchResult`` on ``self.last_fetch_result`` via the
+            callback passed to ``call_rag_service()``.
+
+        See Also:
+            call_rag_service: Full return contract, HTTP details, and retry behavior.
         """
         return await call_rag_service(
             self._http,
