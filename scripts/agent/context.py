@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from shared.logger import Logger
     from shared.tool_executor import StdioTransport, ToolExecutor
 
+    from agent.diagnostic_store import DiagnosticStore
     from agent.history import HistoryManager
     from agent.lifecycle_protocol import LifecycleManagerProtocol
     from agent.memory.services import MemoryServices
@@ -162,6 +163,9 @@ class AgentContext:
         self.session = AgentSession()
         # Persistent store for full tool results; /tool show <id> retrieves them
         self.tool_result_store = ToolResultStore()
+        # Wired by Orchestrator.__init__() to its DiagnosticStore instance.
+        # None until an Orchestrator is constructed with this context.
+        self.diagnostics: DiagnosticStore | None = None
         # Set to AppServices by factory.build_agent_context() before first use.
         # Typed as Any to avoid cascading union-attr errors until call sites are migrated.
         self.services: Any = None

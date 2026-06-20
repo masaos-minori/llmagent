@@ -77,6 +77,7 @@ def _make_orchestrator(ctx: MagicMock, on_error: Any = None) -> Orchestrator:
         workflow_mode="disabled",
     )
     orch._diagnostic_store = MagicMock()
+    ctx.diagnostics = orch._diagnostic_store  # keep ctx.diagnostics in sync with mock
     return orch
 
 
@@ -142,7 +143,8 @@ class TestHandleTurnLLMTransportError:
         assert ctx.services.llm.stat_partial_completions == 1
 
     @pytest.mark.asyncio
-    async def test_prestream_error_pops_user_message(self) -> None:
+    async def test_prestream_error_stores_diagnostic_not_pop(self) -> None:
+        """Pre-stream errors store a diagnostic entry; user message stays in history."""
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="CONNECT_ERROR", partial_text="")
@@ -151,7 +153,8 @@ class TestHandleTurnLLMTransportError:
             await orch.handle_turn("hello")
 
         user_msgs = [m for m in ctx.conv.history if m.get("role") == "user"]
-        assert len(user_msgs) == 0
+        assert len(user_msgs) == 1
+        orch._diagnostic_store.save.assert_called()
 
     @pytest.mark.asyncio
     async def test_on_error_called_for_partial_completion(self) -> None:
@@ -210,9 +213,10 @@ class TestHandleTurnLLMTransportError:
 
 class TestRunTurnLLMTransportError:
     @pytest.mark.asyncio
-    async def test_transport_error_on_tool_continuation_injects_synthetic_error(
+    async def test_transport_error_on_tool_continuation_stores_in_diagnostic(
         self,
     ) -> None:
+        """Tool-continuation LLM errors go to diagnostic channel; history not modified."""
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
 
@@ -246,12 +250,12 @@ class TestRunTurnLLMTransportError:
         synthetic = [
             m for m in ctx.conv.history if m.get("name") == "llm_transport_error"
         ]
-        assert len(synthetic) == 1
+        assert len(synthetic) == 0
+        ctx.diagnostics.save.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_transport_error_on_first_turn_injects_synthetic_error(self) -> None:
-        # LLMTurnRunner.run() now catches LLMTransportError at turn=0 and injects
-        # a synthetic tool-error message instead of re-raising.
+    async def test_transport_error_on_first_turn_stores_in_diagnostic(self) -> None:
+        """First-turn LLM errors go to diagnostic channel; no synthetic history entry."""
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="CONNECT_ERROR", partial_text="")
@@ -266,10 +270,12 @@ class TestRunTurnLLMTransportError:
         synthetic = [
             m for m in ctx.conv.history if m.get("name") == "llm_transport_error"
         ]
-        assert len(synthetic) == 1
+        assert len(synthetic) == 0
+        ctx.diagnostics.save.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_tool_continuation_fail_saves_to_tool_result_store(self) -> None:
+    async def test_tool_continuation_fail_stores_in_diagnostic(self) -> None:
+        """Tool-continuation LLM errors are stored in diagnostic channel only."""
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
 
@@ -297,12 +303,11 @@ class TestRunTurnLLMTransportError:
         ctx.services.llm.stream = _mock_stream
 
         with patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()):
-            await orch._llm_runner.run("http://llm-test")
+            result = await orch._llm_runner.run("http://llm-test")
 
-        ctx.tool_result_store.store.assert_called_once()
-        call_kwargs = ctx.tool_result_store.store.call_args.kwargs
-        assert call_kwargs["tool_name"] == "llm_transport_error"
-        assert call_kwargs["is_error"] is True
+        assert result.action == "fail"
+        assert "HEARTBEAT_TIMEOUT" in result.answer
+        ctx.diagnostics.save.assert_called_once()
 
 
 # ── _run_turn: normal completion (is_done=True) ──────────────────────────────
@@ -474,6 +479,30 @@ class TestToolLoopGuardHelpers:
         result = orch._guard.check_all(seen, [], set(), msg)
         assert result is not None
         assert "repeated" in result.lower() or "duplicate" in result.lower()
+
+    def test_consolidate_mid_turn_errors_empty_list_noop(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        orch._consolidate_mid_turn_errors(1, [])
+        orch._diagnostic_store.save.assert_not_called()
+
+    def test_consolidate_mid_turn_errors_saves_chain(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        errors = [{"error_type": "Timeout", "turn": 0}]
+        orch._consolidate_mid_turn_errors(1, errors)
+        orch._diagnostic_store.save.assert_called_once()
+        call_args = orch._diagnostic_store.save.call_args[0]
+        assert call_args[1] == "mid_turn_error"
+        assert "error_chain" in call_args[2]
+
+    def test_inject_recovery_context_returns_system_message(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        result = orch._inject_recovery_context("llm_error")
+        assert len(result) == 1
+        assert result[0]["role"] == "system"
+        assert "llm_error" in result[0]["content"]
 
 
 # ── allowed_tools override ────────────────────────────────────────────────────

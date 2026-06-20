@@ -98,7 +98,8 @@ class TestCheckCycle:
         assert len(fingerprints) == 3
         assert len(ctx.conv.history) == 0
 
-    def test_cycle_detected_returns_exit_message(self) -> None:
+    def test_cycle_detected_stores_in_diagnostic_only(self) -> None:
+        """Cycle detection must store hint in diagnostics; history must not be modified."""
         ctx = _make_ctx()
         guard = ToolLoopGuard(ctx)
         msg = _msg("write_file")
@@ -108,8 +109,10 @@ class TestCheckCycle:
         result = guard.check_cycle(fingerprints, msg)
         assert result is not None
         assert "Cyclic" in result
-        assert len(ctx.conv.history) == 1
-        assert "cyclic" in ctx.conv.history[0]["content"].lower()
+        assert len(ctx.conv.history) == 0
+        ctx.diagnostics.save.assert_called_once()
+        call_args = ctx.diagnostics.save.call_args
+        assert call_args[0][1] == "guard_hint"
 
     def test_cycle_below_threshold_returns_none(self) -> None:
         cfg = _cfg(tool_cycle_detect_window=3)
@@ -145,17 +148,19 @@ class TestCheckDedup:
         assert result is not None
         assert "Repeated" in result
 
-    def test_hint_appended_to_history_on_block(self) -> None:
+    def test_hint_stored_in_diagnostic_on_block(self) -> None:
+        """Dedup guard must store hint in diagnostics; history must not be modified."""
         cfg = _cfg(tool_dedup_max_repeats=2)
         ctx = _make_ctx(cfg)
         guard = ToolLoopGuard(ctx)
         seen: dict[str, int] = {}
         guard.check_dedup(seen, _msg("write_file"))
-        guard.check_dedup(seen, _msg("write_file"))
         result = guard.check_dedup(seen, _msg("write_file"))
         assert result is not None
-        assert len(ctx.conv.history) >= 1
-        assert "tool" in ctx.conv.history[0]["content"]
+        assert len(ctx.conv.history) == 0
+        ctx.diagnostics.save.assert_called_once()
+        call_args = ctx.diagnostics.save.call_args
+        assert call_args[0][1] == "guard_hint"
 
 
 class TestCheckRetry:

@@ -87,25 +87,18 @@ class TestFinalizeAnswer:
 
 
 class TestHandleLlmError:
-    async def test_delegates_to_error_injection_service(
+    async def test_stores_in_diagnostic_and_returns_fail(
         self, runner: LLMTurnRunner
     ) -> None:
+        """Mid-turn LLM error is stored in diagnostic channel; returns fail TurnResult."""
         error = LLMTransportError("CONNECT_ERROR", "pre_stream", "http://llm")
-        expected = "injected error"
 
-        with patch(
-            "agent.error_injection_service.ErrorInjectionService",
-        ) as MockErrorService:
-            service_instance = MockErrorService.return_value
-            service_instance.inject_mid_turn_error.return_value = expected
+        result = await runner._handle_llm_error(error, 0)
 
-            result = await runner._handle_llm_error(error, 0)
-
-        assert result.answer == expected
         assert result.action == "fail"
+        assert "CONNECT_ERROR" in result.answer
         assert result.exception is error
-        MockErrorService.assert_called_once_with(runner._ctx)
-        service_instance.inject_mid_turn_error.assert_called_once_with(error, 0)
+        runner._ctx.diagnostics.save.assert_called_once()
 
 
 class TestRun:
@@ -150,23 +143,14 @@ class TestRun:
         assert runner._ctx.conv.history[0]["tool_calls"] is not None
 
     async def test_handles_transport_error(self, runner: LLMTurnRunner) -> None:
+        """LLMTransportError during run() returns fail TurnResult with error detail."""
         err = LLMTransportError("CONNECT_ERROR", "pre_stream", "http://llm")
-        with (
-            patch.object(
-                runner,
-                "_stream_llm",
-                AsyncMock(side_effect=err),
-            ),
-            patch(
-                "agent.error_injection_service.ErrorInjectionService",
-            ) as MockErrSvc,
-        ):
-            MockErrSvc.return_value.inject_mid_turn_error.return_value = "handled"
-
+        with patch.object(runner, "_stream_llm", AsyncMock(side_effect=err)):
             result = await runner.run("http://llm")
 
-        assert result.answer == "handled"
+        assert "CONNECT_ERROR" in result.answer
         assert result.action == "fail"
+        runner._ctx.diagnostics.save.assert_called_once()
 
     async def test_reaches_max_tool_turns(self, runner: LLMTurnRunner) -> None:
         tool_calls = [{"id": "c1"}]

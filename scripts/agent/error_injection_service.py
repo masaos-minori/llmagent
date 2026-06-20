@@ -1,6 +1,6 @@
 """agent/error_injection_service.py
-Converts a mid-turn LLMTransportError into a synthetic tool-result message
-injected into conversation history, allowing the LLM to recover gracefully.
+Stores mid-turn LLMTransportError diagnostics in the diagnostic channel
+and tool-result store; does not modify conversation history.
 
 This is a production path called by llm_turn_runner.py, not a test utility.
 Do not add test-specific error injection to this class.
@@ -8,17 +8,17 @@ Do not add test-specific error injection to this class.
 
 from __future__ import annotations
 
-import uuid
+import logging
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+import orjson
 from shared.tool_executor import format_transport_error
 
 if TYPE_CHECKING:
     from shared.llm_client import LLMTransportError
 
     from agent.context import AgentContext
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class ErrorInjectionService:
         self._ctx = ctx
 
     def inject_mid_turn_error(self, e: LLMTransportError, turn: int) -> str:
-        """Inject a synthetic tool-error message for a mid-turn LLM failure."""
+        """Store mid-turn LLM error in diagnostic and tool-result channels; return summary."""
         ctx = self._ctx
         err = format_transport_error(
             source="llm",
@@ -41,14 +41,19 @@ class ErrorInjectionService:
             retryable=e.retryable,
             partial=bool(e.partial_text),
         )
-        ctx.conv.history.append(
-            {
-                "role": "tool",
-                "content": err.detail,
-                "name": "llm_transport_error",
-                "tool_call_id": f"synthetic_{uuid.uuid4().hex[:8]}",
-            },
-        )
+        if ctx.diagnostics is not None:
+            ctx.diagnostics.save(
+                ctx.session.session_id,
+                "mid_turn_error",
+                orjson.dumps(
+                    {
+                        "error_type": type(e).__name__,
+                        "detail": err.detail,
+                        "turn": turn,
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                ).decode(),
+            )
         ctx.tool_result_store.store(
             session_id=ctx.session.session_id,
             turn=turn,

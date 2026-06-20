@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import orjson
@@ -22,8 +23,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Control hints injected into LLM history when a guard fires.
-# Using history injection (not metadata) keeps the hints visible to the LLM.
+# Human-readable descriptions of guard events stored in the diagnostic channel.
 DEDUP_HINT = (
     "[System] The same tool was called with identical arguments multiple times."
     " Stop retrying and provide your best answer with the information already available."
@@ -83,7 +83,20 @@ class ToolLoopGuard:
                 round_key,
                 round_fingerprints.count(round_key),
             )
-            ctx.conv.history.append({"role": "user", "content": CYCLE_HINT})
+            if ctx.diagnostics is not None:
+                ctx.diagnostics.save(
+                    ctx.session.session_id,
+                    "guard_hint",
+                    orjson.dumps(
+                        {
+                            "guard_type": "cycle",
+                            "round_key": round_key,
+                            "repeat_count": round_fingerprints.count(round_key),
+                            "hint": CYCLE_HINT,
+                            "timestamp": datetime.now(UTC).isoformat(),
+                        }
+                    ).decode(),
+                )
             return "Cyclic tool call pattern detected."
         round_fingerprints.append(round_key)
         return None
@@ -105,7 +118,20 @@ class ToolLoopGuard:
             if seen_calls[key] >= ctx.cfg.tool.tool_dedup_max_repeats:
                 name = func.get("name", "<unknown>")
                 logger.warning("Duplicate tool call blocked: %r", name)
-                ctx.conv.history.append({"role": "user", "content": DEDUP_HINT})
+                if ctx.diagnostics is not None:
+                    ctx.diagnostics.save(
+                        ctx.session.session_id,
+                        "guard_hint",
+                        orjson.dumps(
+                            {
+                                "guard_type": "dedup",
+                                "tool_name": name,
+                                "repeat_count": seen_calls[key],
+                                "hint": DEDUP_HINT,
+                                "timestamp": datetime.now(UTC).isoformat(),
+                            }
+                        ).decode(),
+                    )
                 return "Repeated tool call detected."
         return None
 
@@ -131,7 +157,19 @@ class ToolLoopGuard:
             if tool_call_key(func.get("name", ""), tc_args) in failed_calls:
                 name = func.get("name", "<unknown>")
                 logger.warning("Retry of failed tool call blocked: %r", name)
-                ctx.conv.history.append({"role": "user", "content": DEDUP_HINT})
+                if ctx.diagnostics is not None:
+                    ctx.diagnostics.save(
+                        ctx.session.session_id,
+                        "guard_hint",
+                        orjson.dumps(
+                            {
+                                "guard_type": "retry",
+                                "tool_name": name,
+                                "hint": DEDUP_HINT,
+                                "timestamp": datetime.now(UTC).isoformat(),
+                            }
+                        ).decode(),
+                    )
                 return "Repeated failed tool call detected."
         return None
 

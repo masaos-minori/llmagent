@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import logging
 from contextlib import nullcontext
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+import orjson
 from shared.llm_client import LLMTransportError
 from shared.types import LLMMessage
 
@@ -110,11 +112,27 @@ class LLMTurnRunner:
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     async def _handle_llm_error(self, e: LLMTransportError, turn: int) -> TurnResult:
-        """Handle LLM transport error by delegating to error injection service."""
-        from agent.error_injection_service import ErrorInjectionService
-
-        error_service = ErrorInjectionService(self._ctx)
-        summary = error_service.inject_mid_turn_error(e, turn)
+        """Store mid-turn LLM error in diagnostic channel and return a fail TurnResult."""
+        ctx = self._ctx
+        summary = e.detail or str(e)
+        if ctx.diagnostics is not None:
+            ctx.diagnostics.save(
+                ctx.session.session_id,
+                "mid_turn_error",
+                orjson.dumps(
+                    {
+                        "error_type": type(e).__name__,
+                        "detail": summary,
+                        "turn": turn,
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                ).decode(),
+            )
+        logger.warning(
+            "LLM transport error during tool continuation (turn=%s): %s",
+            turn,
+            e.kind,
+        )
         return TurnResult(
             action="fail", answer=summary, reason="llm_transport_error", exception=e
         )

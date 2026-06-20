@@ -13,6 +13,7 @@ import asyncio
 import time
 import uuid
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 
 import orjson
@@ -72,6 +73,7 @@ class Orchestrator:
         self._tracer = tracer
         self._workflow_mode = workflow_mode
         self._diagnostic_store = DiagnosticStore()
+        ctx.diagnostics = self._diagnostic_store
         self._guard = ToolLoopGuard(ctx)
         self._llm_runner = LLMTurnRunner(
             ctx,
@@ -377,6 +379,33 @@ class Orchestrator:
             asyncio.create_task(self._on_first_turn(line))
         ctx.session.save("user", line)
 
+    def _consolidate_mid_turn_errors(
+        self, session_id: int | None, errors: list[dict]
+    ) -> None:
+        """Store multiple mid-turn errors as a single chained diagnostic entry."""
+        if not errors:
+            return
+        self._diagnostic_store.save(
+            session_id,
+            "mid_turn_error",
+            orjson.dumps(
+                {
+                    "error_chain": errors,
+                    "count": len(errors),
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            ).decode(),
+        )
+
+    def _inject_recovery_context(self, error_summary: str) -> list[dict]:
+        """Return a temporary system message for LLM recovery (not persisted to history)."""
+        return [
+            {
+                "role": "system",
+                "content": f"Previous turn failed: {error_summary}. Please respond directly.",
+            }
+        ]
+
     def _handle_llm_transport_error(
         self,
         e: LLMTransportError,
@@ -407,8 +436,18 @@ class Orchestrator:
                 ctx.services.llm.stat_partial_completions += 1
             logger.warning("Partial LLM completion saved: %s", e.kind)
             return True
-        if ctx.conv.history and ctx.conv.history[-1]["role"] == "user":
-            ctx.conv.history.pop()
+        self._diagnostic_store.save(
+            ctx.session.session_id,
+            "mid_turn_error",
+            orjson.dumps(
+                {
+                    "action": "pre_stream_error",
+                    "reason": "llm_transport_error_non_partial",
+                    "error_kind": e.kind,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            ).decode(),
+        )
         logger.error(
             "LLM transport error (pre-stream): %s status=%s",
             e.kind,

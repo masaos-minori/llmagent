@@ -18,36 +18,35 @@ def _make_context() -> MagicMock:
     return ctx
 
 
+def _make_error(**kwargs) -> MagicMock:
+    e = MagicMock()
+    e.phase = kwargs.get("phase", "stream")
+    e.kind = kwargs.get("kind", "ConnectionError")
+    e.url = kwargs.get("url", "http://localhost")
+    e.status_code = kwargs.get("status_code", None)
+    e.retryable = kwargs.get("retryable", True)
+    e.partial_text = kwargs.get("partial_text", None)
+    return e
+
+
 class TestInjectMidTurnError:
-    def test_appends_tool_message_to_history(self) -> None:
+    def test_stores_in_diagnostic_store_only(self) -> None:
+        """Mid-turn errors must go to diagnostic store, not conversation history."""
         ctx = _make_context()
         svc = ErrorInjectionService(ctx)
-        e = MagicMock()
-        e.phase = "stream"
-        e.kind = "ConnectionError"
-        e.url = "http://localhost"
-        e.status_code = None
-        e.retryable = True
-        e.partial_text = None
+        e = _make_error()
 
         svc.inject_mid_turn_error(e, turn=0)
 
-        assert len(ctx.conv.history) == 1
-        entry = ctx.conv.history[0]
-        assert entry["role"] == "tool"
-        assert entry["name"] == "llm_transport_error"
-        assert "ConnectionError" in entry["content"]
+        assert len(ctx.conv.history) == 0
+        ctx.diagnostics.save.assert_called_once()
+        call_args = ctx.diagnostics.save.call_args
+        assert call_args[0][1] == "mid_turn_error"
 
     def test_stores_in_tool_result_store(self) -> None:
         ctx = _make_context()
         svc = ErrorInjectionService(ctx)
-        e = MagicMock()
-        e.phase = "stream"
-        e.kind = "ConnectionError"
-        e.url = "http://localhost"
-        e.status_code = None
-        e.retryable = True
-        e.partial_text = None
+        e = _make_error()
 
         svc.inject_mid_turn_error(e, turn=3)
 
@@ -56,55 +55,41 @@ class TestInjectMidTurnError:
         assert call_kwargs["turn"] == 3
         assert call_kwargs["tool_name"] == "llm_transport_error"
         assert call_kwargs["is_error"] is True
+        ctx.diagnostics.save.assert_called_once()
 
     def test_returns_summary_string(self) -> None:
         ctx = _make_context()
         svc = ErrorInjectionService(ctx)
-        e = MagicMock()
-        e.phase = "pre_stream"
-        e.kind = "ConnectionError"
-        e.url = "http://localhost"
-        e.status_code = 503
-        e.retryable = False
-        e.partial_text = None
+        e = _make_error(phase="pre_stream", status_code=503, retryable=False)
 
         summary = svc.inject_mid_turn_error(e, turn=0)
 
         assert isinstance(summary, str)
         assert len(summary) > 0
 
-    def test_generates_unique_tool_call_ids(self) -> None:
+    def test_multiple_errors_each_store_in_diagnostics(self) -> None:
+        """Each inject_mid_turn_error call stores exactly one diagnostic entry."""
         ctx1 = _make_context()
         ctx2 = _make_context()
         svc1 = ErrorInjectionService(ctx1)
         svc2 = ErrorInjectionService(ctx2)
-        e = MagicMock()
-        e.phase = "stream"
-        e.kind = "Timeout"
-        e.url = "http://localhost"
-        e.status_code = None
-        e.retryable = True
-        e.partial_text = None
+        e = _make_error(kind="Timeout")
 
         svc1.inject_mid_turn_error(e, turn=0)
         svc2.inject_mid_turn_error(e, turn=0)
 
-        id1 = ctx1.conv.history[0]["tool_call_id"]
-        id2 = ctx2.conv.history[0]["tool_call_id"]
-        assert id1 != id2
+        assert ctx1.diagnostics.save.call_count == 1
+        assert ctx2.diagnostics.save.call_count == 1
 
-    def test_sets_partial_true_in_content(self) -> None:
+    def test_partial_text_reflected_in_diagnostic_content(self) -> None:
+        """Partial-completion errors store detail containing partial flag in diagnostics."""
         ctx = _make_context()
         svc = ErrorInjectionService(ctx)
-        e = MagicMock()
-        e.phase = "stream"
-        e.kind = "ConnectionError"
-        e.url = "http://localhost"
-        e.status_code = None
-        e.retryable = True
-        e.partial_text = "some partial response"
+        e = _make_error(partial_text="some partial response")
 
         svc.inject_mid_turn_error(e, turn=0)
 
-        entry = ctx.conv.history[0]
-        assert '"partial":true' in entry["content"]
+        assert len(ctx.conv.history) == 0
+        ctx.diagnostics.save.assert_called_once()
+        content_arg = ctx.diagnostics.save.call_args[0][2]
+        assert "partial" in content_arg
