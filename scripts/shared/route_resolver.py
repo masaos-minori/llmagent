@@ -4,8 +4,9 @@ Config-driven tool-name to server-key resolution for ToolExecutor.
 
 Routing priority:
   1. Live-discovered tool metadata from /v1/tools (server_key field)
-  2. Config-driven tool_names from mcp_servers config
-  3. Static fallback constants (compatibility/emergency use only)
+  2. Tool registry (canonical source of truth from tool_registry.py)
+  3. Config-driven tool_names from mcp_servers config
+  4. Static fallback constants (compatibility/emergency use only)
 """
 
 from __future__ import annotations
@@ -96,8 +97,9 @@ class ToolRouteResolver:
 
     Routing priority:
       1. Discovery map (live /v1/tools metadata with server_key)
-      2. Config-driven (tool_names list from mcp_servers config)
-      3. Static fallback (SET_ROUTES, github prefix matching)
+      2. Tool registry (canonical source of truth from tool_registry.py)
+      3. Config-driven (tool_names list from mcp_servers config)
+      4. Static fallback (SET_ROUTES, github prefix matching)
     Raises ValueError when none of the above match.
     """
 
@@ -112,6 +114,13 @@ class ToolRouteResolver:
     ) -> None:
         # Discovery map from live /v1/tools metadata (highest priority).
         self._discovery_map: dict[str, str] = discovery_map or {}
+        # Tool registry (canonical source of truth).
+        try:
+            from shared.tool_registry import get_registry
+
+            self._registry = get_registry()
+        except Exception:
+            self._registry = None
         # Build reverse map: tool_name -> server_key from explicitly configured tool_names.
         self._config_map: dict[str, str] = {}
         for key, cfg in server_configs.items():
@@ -127,6 +136,10 @@ class ToolRouteResolver:
         # Priority 1: discovery map (live server metadata).
         if (key := self._discovery_map.get(tool_name)) is not None:
             return key
+        # Priority 2: tool registry (canonical source of truth).
+        if self._registry is not None:
+            if (key := self._registry.get_server_for_tool(tool_name)) is not None:
+                return key
         if (key := self._config_map.get(tool_name)) is not None:
             return key
         if self._strict_mode:

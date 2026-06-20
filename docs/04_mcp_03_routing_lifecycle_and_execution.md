@@ -29,12 +29,18 @@ LLM returns tool_call
 
 ## ToolRouteResolver (`shared/route_resolver.py`)
 
-Resolves `tool_name → server_key` in two steps:
+Resolves `tool_name → server_key` in four steps (priority order):
 
-1. **Config-driven (priority):** `McpServerConfig.tool_names` provides an explicit mapping.
+1. **Discovery map (highest priority):** Live `/v1/tools` metadata with `server_key` field.
+   Built from `build_discovery_map()` at startup when servers respond to `/v1/tools`.
+
+2. **Tool registry:** Canonical source of truth from `shared/tool_registry.py`.
+   The `ToolRegistry` singleton maps each tool name to exactly one server key.
+
+3. **Config-driven:** `McpServerConfig.tool_names` provides an explicit mapping.
    Built at constructor time into an inverse dict `{tool_name: server_key}`.
 
-2. **Static fallback:** `_fallback_route()` uses frozensets in `shared/tool_constants.py`:
+4. **Static fallback (lowest priority):** `_fallback_route()` uses frozensets in `shared/tool_constants.py`:
 
 | Tool set | Server key |
 |---|---|
@@ -60,7 +66,51 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 
 ---
 
-## ToolExecutor (`shared/tool_executor.py`)
+## Tool Registry (`shared/tool_registry.py`)
+
+Single source of truth for MCP tool definitions and ownership.
+
+### Ownership model
+
+- Each tool belongs to **exactly one server** (identified by `server_key`).
+- The registry is populated at import time from `tool_constants.py` frozensets.
+- Config `mcp_servers.toml` `tool_names` lists are validated against the registry but not required as a source of truth.
+- Server `/v1/tools` responses are validated against the registry at startup for drift detection.
+
+### Drift validation
+
+Three comparison functions detect configuration drift:
+
+| Function | Compares | When called |
+|---|---|---|
+| `validate_routing_against_config()` | Config `tool_names` vs registry | Startup |
+| `validate_routing_against_live()` | Live `/v1/tools` vs registry | Startup |
+| `validate_all_routing()` | Both above combined | Startup |
+
+Drift warnings appear at agent startup:
+
+```
+WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in registry but not in config. Update config/mcp_servers.toml tool_names or the registry to resolve.
+```
+
+### Adding a new tool
+
+1. Add the tool name to the appropriate frozenset in `shared/tool_constants.py`.
+2. The registry auto-populates from these frozensets at import time.
+3. Update `config/mcp_servers.toml` `tool_names` for the owning server (validation will warn if missing).
+4. Add full OpenAI function-calling format to `config/tools_definitions.toml` for LLM exposure.
+
+### Key API
+
+```python
+from shared.tool_registry import get_registry, validate_all_routing
+
+registry = get_registry()
+server_key = registry.get_server_for_tool("read_text_file")  # → "file_read"
+tool_names = registry.get_tool_names("file_read")  # → ["read_text_file", ...]
+all_tools = registry.get_all_tool_names()  # → frozenset of all tool names
+mismatches = validate_all_routing(server_configs, live_tool_lists)  # → dict[str, list[str]]
+```
 
 ```python
 executor = ToolExecutor(
@@ -249,16 +299,17 @@ Generates:
 ### Option 2: Manual steps
 
 1. Subclass `MCPServer` in `mcp/<name>/server.py`; override `dispatch()`
-2. Add `GET /v1/tools` endpoint returning tool definitions
-3. Add tool definitions to `config/agent.toml` → `tool_definitions`
-4. Add `[mcp_servers.<key>]` entry to `config/mcp_servers.toml`
-5. Add new files to `deploy/deploy.sh` copy list
-6. Add OpenRC script to `init.d/`; update `deploy/setup_services.sh`
+2. Add `GET /v1/tools` endpoint returning tool definitions with `server_key` field
+3. Add tool names to `shared/tool_constants.py` frozenset (owned by this server)
+4. Add tool definitions to `config/agent.toml` → `tool_definitions`
+5. Add `[mcp_servers.<key>]` entry to `config/mcp_servers.toml` with `tool_names`
+6. Add new files to `deploy/deploy.sh` copy list
+7. Add OpenRC script to `init.d/`; update `deploy/setup_services.sh`
 
 ### Config-driven routing for new server
 
-If the new server's tools don't appear in `shared/tool_constants.py`, add `tool_names` to
-the server config:
+The tool registry auto-populates from `tool_constants.py` frozensets at import time.
+Add `tool_names` to the server config in `mcp_servers.toml` to match the registry:
 
 ```toml
 [mcp_servers.my_server]
@@ -266,3 +317,6 @@ transport = "http"
 url = "http://127.0.0.1:8015"
 tool_names = ["my_tool_a", "my_tool_b"]
 ```
+
+If `tool_names` is omitted or incomplete, the registry will still route correctly (priority 2),
+but startup drift validation will emit warnings.

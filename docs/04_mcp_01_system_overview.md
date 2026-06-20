@@ -87,6 +87,7 @@ Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on
 | `CallToolRequest` / `CallToolResponse` | `mcp/models.py` | Shared Pydantic models for all servers |
 | `ToolExecutor` | `shared/tool_executor.py` | Routing, TTL cache, concurrency, health registry |
 | `ToolRouteResolver` | `shared/route_resolver.py` | tool_name → server_key resolution |
+| `ToolRegistry` | `shared/tool_registry.py` | Single source of truth for tool definitions and ownership |
 | `McpServerConfig` | `shared/mcp_config.py` | Per-server transport configuration |
 | `McpServerHealthRegistry` | `shared/mcp_config.py` | Per-server HEALTHY/DEGRADED/UNAVAILABLE state |
 | `HttpTransport` | `shared/tool_executor.py` | HTTP POST to MCP server |

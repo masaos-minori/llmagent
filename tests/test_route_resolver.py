@@ -92,16 +92,16 @@ class TestStaticFallbackRouting:
 
 
 class TestConfigDrivenRouting:
-    """tool_names in config overrides static fallback for those tools."""
+    """tool_names in config is lower priority than registry (source of truth)."""
 
-    def test_config_map_takes_priority(self) -> None:
+    def test_config_does_not_override_registry(self) -> None:
         configs = {
             "my_server": _stdio("my_server", tool_names=["search_web"]),
             "web_search": _http("web_search"),
         }
         resolver = ToolRouteResolver(configs)
-        # search_web is explicitly mapped to my_server, not web_search
-        assert resolver.resolve("search_web") == "my_server"
+        # registry has search_web → web_search; config-driven is lower priority
+        assert resolver.resolve("search_web") == "web_search"
 
     def test_config_map_partial_coverage_falls_back(self) -> None:
         configs = {
@@ -126,15 +126,13 @@ class TestConfigDrivenRouting:
 
 
 class TestWarnOnFallback:
-    def test_fallback_emits_warning_when_enabled(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_registry_lookup_no_fallback_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         resolver = ToolRouteResolver({}, warn_on_fallback=True)
         with caplog.at_level(logging.WARNING, logger="shared.route_resolver"):
             resolver.resolve("search_web")
-        assert "static fallback" in caplog.text
+        assert "static fallback" not in caplog.text
 
-    def test_fallback_silent_by_default(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_silent_by_default_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         resolver = ToolRouteResolver({})
         with caplog.at_level(logging.WARNING, logger="shared.route_resolver"):
             resolver.resolve("search_web")
