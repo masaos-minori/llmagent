@@ -6,7 +6,7 @@
     "stdio": false
   },
   "database": {
-    "path": "/opt/llm/db/mdq.db"
+    "path": "/opt/llm/db/mdq.sqlite"
   },
   "logging": {
     "level": "INFO"

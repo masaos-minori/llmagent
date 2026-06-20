@@ -35,7 +35,7 @@ class MdqService:
     """Main service class for Mdq functionality."""
 
     def __init__(self, db_path: str | None = None):
-        self.db_path = db_path or "/opt/llm/db/mdq.db"
+        self.db_path = db_path or "/opt/llm/db/mdq.sqlite"
         self._init_db()
 
     def _init_db(self) -> None:

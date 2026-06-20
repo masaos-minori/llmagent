@@ -22,6 +22,7 @@ from typing import Any
 from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import parse_command_args
 from agent.services.db_maintenance_service import DbMaintenanceService
+from agent.services.rag_maintenance_service import RagMaintenanceService
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ class _DbMixin(MixinBase):
     def _db_help(self) -> None:
         """Print a help table for /db subcommands."""
         rows = [
-            ["stats", "RAG + Session", "", "Record counts"],
+            ["stats", "Session", "", "Record counts"],
             ["urls", "RAG", "--lang --limit", "List document URLs"],
             ["clean", "RAG", "<url>", "Delete a document"],
             ["rebuild-fts", "RAG", "", "Rebuild FTS5 index"],
@@ -113,14 +114,15 @@ class _DbMixin(MixinBase):
 
     def _db_stats(self) -> None:
         """Print document/chunk/session/message counts from both DBs."""
+        rag_docs, rag_chunks = RagMaintenanceService().stats_rag()
         result = DbMaintenanceService().stats()
         self._out.write_kv(
             [
-                ("documents", f"{result.docs:,}"),
-                ("chunks", f"{result.chunks:,}"),
+                ("documents", f"{rag_docs:,}"),
+                ("chunks", f"{rag_chunks:,}"),
                 ("sessions", f"{result.sessions:,}"),
                 ("messages", f"{result.messages:,}"),
-                ("target", "RAG + Session"),
+                ("target", "Session"),
             ]
         )
 
@@ -151,8 +153,8 @@ class _DbMixin(MixinBase):
             self._out.write_error(f"rag-pipeline-mcp unavailable: {e}")
 
     def _db_rebuild_fts(self) -> None:
-        """Rebuild the FTS5 chunks_fts index in rag.sqlite."""
-        DbMaintenanceService().rebuild_fts()
+        """Rebuild the RAG full-text search index."""
+        RagMaintenanceService().rebuild_fts()
         self._out.write_success("FTS5 index rebuilt [RAG]")
 
     def _db_health(self) -> None:
@@ -201,15 +203,15 @@ class _DbMixin(MixinBase):
 
     def _db_recover(self, backup_path: str | None) -> None:
         """Run integrity check; restore from backup_path if corruption found."""
-        result = DbMaintenanceService().recover(backup_path)
+        result = RagMaintenanceService().recover(backup_path)
         if result.integrity_ok:
             self._out.write_success(f"Recovery succeeded: {result.detail} [RAG]")
         else:
             self._out.write_no_data(f"Recovery failed: {result.detail} [RAG]")
 
     def _db_consistency(self) -> None:
-        """Run RAG consistency check: chunks vs FTS vs vec index sync."""
-        consistent, issues = DbMaintenanceService().consistency()
+        """Run RAG search index synchronization check."""
+        consistent, issues = RagMaintenanceService().consistency()
         if consistent:
             self._out.write_success(
                 "RAG consistency: OK (chunks/FTS/vec in sync) [RAG]"

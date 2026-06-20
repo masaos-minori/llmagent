@@ -10,10 +10,7 @@ from typing import Any
 _MCP_TOOLS: list[dict[str, Any]] = [
     {
         "name": "rag_run_pipeline",
-        "description": (
-            "Run MQE, Search, RRF, Rerank, Dedup and Augment as a single integrated"
-            " RAG pipeline."
-        ),
+        "description": "Run the full RAG pipeline (MQE→Search→RRF→Rerank→Dedup→Augment) for multi-format, semantic retrieval. Production-ready.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -34,10 +31,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "rag_debug_pipeline",
-        "description": (
-            "Run integrated RAG pipeline and return all intermediate stage outputs"
-            " for debugging."
-        ),
+        "description": "Run the RAG pipeline and return all intermediate stage outputs for debugging. Multi-format, semantic retrieval. Production-ready.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -53,7 +47,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "rag_list_documents",
-        "description": "List indexed documents in the RAG store.",
+        "description": "List indexed documents in the production RAG store (multi-format: PDF, HTML, text, code, Markdown).",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -72,7 +66,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "rag_delete_document",
-        "description": "Delete a document and all its chunks from the RAG store by URL.",
+        "description": "Delete a document and all its chunks from the production RAG store by URL (multi-format store).",
         "inputSchema": {
             "type": "object",
             "properties": {

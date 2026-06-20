@@ -46,6 +46,7 @@ Address high/medium severity findings before proceeding.
 ```bash
 uv run pytest tests/test_<affected_module>.py -v    # targeted
 uv run pytest -v                                     # full suite
+uv run pytest tests/test_mdq_rag_boundary.py -v     # boundary enforcement (MDQ/RAG cross-DB and agent-layer direct access)
 ```
 
 ### 7. Diff-scoped coverage (diff-cover)
@@ -77,6 +78,7 @@ git diff --staged         # confirm what will be committed
 - `uv run bandit -r scripts/ -c pyproject.toml` passes (no high/medium unaddressed)
 - `PYTHONPATH=scripts uv run lint-imports` passes (no architecture boundary violations)
 - `uv run pytest` passes with no new failures
+- `uv run pytest tests/test_mdq_rag_boundary.py` passes (MDQ/RAG boundary clean)
 - `uv run diff-cover coverage.xml --compare-branch=main` ≥ 90% on changed lines
 - `uv run pre-commit run --all-files` passes
 - diff reviewed and staged selectively with `git add <file>`

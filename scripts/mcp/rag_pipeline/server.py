@@ -60,7 +60,7 @@ async def _lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 app = FastAPI(
     title="rag-pipeline-mcp",
     version="1.0.0",
-    description="RAG Pipeline MCP server (MQE→Search→RRF→Rerank→Dedup→Augment)",
+    description="RAG Pipeline MCP server — multi-format semantic retrieval, production-ready",
     lifespan=_lifespan,
 )
 

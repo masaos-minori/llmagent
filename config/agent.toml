@@ -305,6 +305,9 @@ git_push                   = "WRITE_DANGEROUS"
 # MCP server transport configuration.
 # transport='http' uses url; transport='stdio' launches cmd as a subprocess.
 # openrc_service is the OpenRC service name used by the watchdog for restarts (http only).
+# MDQ/RAG routing mode: "auto" (classifier), "mdq" (force MDQ), "rag" (force RAG)
+# mdq_rag_mode = "auto"
+
 [mcp_servers.web_search]
 transport        = "http"
 url              = "http://127.0.0.1:8004"

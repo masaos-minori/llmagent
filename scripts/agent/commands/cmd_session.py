@@ -38,7 +38,7 @@ class _SessionMixin(MixinBase):
         try:
             await SessionTitleService().generate(self._ctx, first_input)
         except SessionTitleGenerationError as e:
-            logger.info("Session title generation failed, using fallback: %s", e)
+            logger.warning("Session title generation failed, using fallback: %s", e)
             clean_input = first_input.strip() if first_input else ""
             if not clean_input:
                 fallback_title = "(New Session)"

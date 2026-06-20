@@ -10,7 +10,7 @@ from typing import Any
 _MCP_TOOLS: list[dict[str, Any]] = [
     {
         "name": "search_docs",
-        "description": "Search indexed Markdown sections by query.",
+        "description": "Search indexed Markdown documents using BM25/FTS5. Markdown-only, structure-aware retrieval. Experimental.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -39,7 +39,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "get_chunk",
-        "description": "Retrieve a Markdown chunk by its ID.",
+        "description": "Retrieve a Markdown chunk by ID, with optional adjacent heading context. Markdown-only. Experimental.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -55,7 +55,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "outline",
-        "description": "Get the heading structure of a Markdown file.",
+        "description": "Get the heading hierarchy of a Markdown file. Structure-aware, Markdown-only. Experimental.",
         "inputSchema": {
             "type": "object",
             "properties": {"path": {"type": "string", "description": "File path"}},
@@ -65,7 +65,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "index_paths",
-        "description": "Index a set of paths into the in-process SQLite DB.",
+        "description": "Index Markdown file paths into the MDQ store. Markdown-only ingestion. Experimental.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -77,7 +77,7 @@ _MCP_TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "refresh_index",
-        "description": "Incrementally refresh the index for a set of paths.",
+        "description": "Incrementally refresh the index for changed Markdown files. Markdown-only. Experimental.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -89,13 +89,13 @@ _MCP_TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "stats",
-        "description": "Return document/chunk count and index metadata.",
+        "description": "Return document/chunk counts and FTS5 index metadata for the Markdown store. Experimental.",
         "inputSchema": {"type": "object", "properties": {}, "required": []},
         "status": "stub",
     },
     {
         "name": "grep_docs",
-        "description": "Search Markdown chunks with a regex pattern.",
+        "description": "Search Markdown chunks with a regex pattern. Structure-aware, Markdown-only. Experimental.",
         "inputSchema": {
             "type": "object",
             "properties": {
