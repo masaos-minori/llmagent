@@ -9,10 +9,11 @@ These tests prevent regression of BUG-1/BUG-2/BUG-3 where chunk metadata
 
 from __future__ import annotations
 
-import json
+import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import orjson
 from rag.ingestion.ingester import RagIngester
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -26,6 +27,8 @@ def _make_chunk_json(
     chunking_strategy: str = "heading",
     normalized_content: str | None = None,
     chunk_index: int = 0,
+    etag: str | None = None,
+    last_modified: str | None = None,
 ) -> dict:
     """Build a chunk JSON dict matching what ChunkSplitter produces."""
     return {
@@ -36,6 +39,8 @@ def _make_chunk_json(
         "chunking_strategy": chunking_strategy,
         "normalized_content": normalized_content,
         "chunk_index": chunk_index,
+        "etag": etag,
+        "last_modified": last_modified,
         "code_blocks": [],
     }
 
@@ -43,16 +48,82 @@ def _make_chunk_json(
 def _write_chunk_file(chunk_dir: Path, name: str, data: dict) -> Path:
     """Write a chunk JSON file with .txt extension (as ChunkSplitter does)."""
     path = chunk_dir / f"{name}.txt"
-    path.write_text(json.dumps(data))
+    path.write_bytes(orjson.dumps(data))
     return path
+
+
+_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS documents (
+    doc_id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    url                TEXT    NOT NULL UNIQUE,
+    title              TEXT,
+    lang               TEXT    NOT NULL CHECK (lang IN ('ja', 'en')),
+    fetched_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+    etag               TEXT,
+    last_modified      TEXT,
+    chunking_strategy  TEXT    NOT NULL DEFAULT 'text'
+);
+CREATE TABLE IF NOT EXISTS chunks (
+    chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_id             INTEGER NOT NULL
+                           REFERENCES documents(doc_id) ON DELETE CASCADE,
+    chunk_index        INTEGER NOT NULL,
+    content            TEXT    NOT NULL,
+    normalized_content TEXT,
+    chunk_type         TEXT,
+    source_file        TEXT
+);
+CREATE TABLE IF NOT EXISTS chunks_vec (
+    chunk_id  INTEGER PRIMARY KEY,
+    embedding BLOB NOT NULL
+);
+"""
+
+_DIM = 384
+_FAKE_EMBEDDING = [0.1] * _DIM
+
+
+class _FakeSQLiteHelper:
+    """In-memory SQLite wrapper satisfying the SQLiteHelper interface used by ingester."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def open(
+        self, *, write_mode: bool = False, row_factory: bool = False
+    ) -> _FakeSQLiteHelper:
+        self._conn.row_factory = sqlite3.Row if row_factory else None
+        return self
+
+    def __enter__(self) -> _FakeSQLiteHelper:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self._conn.row_factory = None
+
+    def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
+        return self._conn.execute(sql, params)
+
+    def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
+        return self._conn.execute(sql, params).fetchall()
+
+    def commit(self) -> None:
+        self._conn.commit()
+
+
+def _make_db() -> tuple[sqlite3.Connection, _FakeSQLiteHelper]:
+    conn = sqlite3.connect(":memory:", check_same_thread=False)
+    conn.executescript(_SCHEMA_SQL)
+    conn.commit()
+    return conn, _FakeSQLiteHelper(conn)
 
 
 def _make_ingester(tmp_path: Path, embed_url: str = "http://127.0.0.1:9999/embedding"):
     """Create a RagIngester with temp directories and mocked config."""
     chunk_dir = tmp_path / "chunk"
-    chunk_dir.mkdir()
+    chunk_dir.mkdir(exist_ok=True)
     registered_dir = tmp_path / "registered"
-    registered_dir.mkdir()
+    registered_dir.mkdir(exist_ok=True)
     cfg = {
         "rag_src_dir": str(tmp_path),
         "embed_url": embed_url,
@@ -136,7 +207,7 @@ class TestChunkMetadataStorage:
 
         # Mock embedding to return a valid vector
         mock_resp = MagicMock()
-        mock_resp.content = json.dumps({"embedding": [0.1] * 384}).encode()
+        mock_resp.content = orjson.dumps({"embedding": [0.1] * 384})
 
         mock_cur = MagicMock()
         mock_cur.lastrowid = 1
@@ -186,7 +257,7 @@ class TestChunkMetadataStorage:
         _write_chunk_file(chunk_dir, "chunk_0", data)
 
         mock_resp = MagicMock()
-        mock_resp.content = json.dumps({"embedding": [0.1] * 384}).encode()
+        mock_resp.content = orjson.dumps({"embedding": [0.1] * 384})
         mock_cur = MagicMock()
         mock_cur.lastrowid = 1
         mock_cur.fetchone.return_value = None
@@ -373,7 +444,7 @@ def _make_insert_spy(tmp_path: Path):
         insert_calls.append((chunk_type, source_file))
         original(db, doc_id, idx, content, nc, embedding, chunk_type, source_file)
 
-    ingester._insert_chunk = spy  # type: ignore[method-assign]
+    ingester._insert_chunk = spy  # noqa: SLF001
     return ingester, insert_calls
 
 
@@ -388,7 +459,7 @@ class TestChunkMetadataFields:
         _write_chunk_file(chunk_dir, "chunk_0", data)
 
         mock_resp = MagicMock()
-        mock_resp.content = json.dumps({"embedding": [0.1] * 384}).encode()
+        mock_resp.content = orjson.dumps({"embedding": [0.1] * 384})
         mock_cur = MagicMock()
         mock_cur.lastrowid = 1
         mock_cur.fetchone.return_value = None
@@ -424,7 +495,7 @@ class TestChunkMetadataFields:
         _write_chunk_file(chunk_dir, "chunk_0", data)
 
         mock_resp = MagicMock()
-        mock_resp.content = json.dumps({"embedding": [0.1] * 384}).encode()
+        mock_resp.content = orjson.dumps({"embedding": [0.1] * 384})
         mock_cur = MagicMock()
         mock_cur.lastrowid = 1
         mock_cur.fetchone.return_value = None
@@ -459,7 +530,7 @@ class TestChunkMetadataFields:
         _write_chunk_file(chunk_dir, "chunk_0", data)
 
         mock_resp = MagicMock()
-        mock_resp.content = json.dumps({"embedding": [0.1] * 384}).encode()
+        mock_resp.content = orjson.dumps({"embedding": [0.1] * 384})
         mock_cur = MagicMock()
         mock_cur.lastrowid = 1
         mock_cur.fetchone.return_value = None
@@ -526,3 +597,206 @@ class TestSchemaMigration:
         assert "chunk_type" in cols
         assert "source_file" in cols
         conn.close()
+
+
+# ── Step 3: validation gap tests ──────────────────────────────────────────────
+
+
+class TestReadChunkJsonValidation:
+    def test_returns_none_for_missing_url(self, tmp_path):
+        chunk_file = tmp_path / "chunk_0.txt"
+        chunk_file.write_bytes(
+            orjson.dumps({"url": "", "content": "test", "lang": "en"})
+        )
+        ingester = _make_ingester(tmp_path)
+        assert ingester._read_chunk_json(chunk_file) is None
+
+    def test_returns_none_for_missing_content(self, tmp_path):
+        chunk_file = tmp_path / "chunk_0.txt"
+        chunk_file.write_bytes(
+            orjson.dumps({"url": "https://example.com", "content": "", "lang": "en"})
+        )
+        ingester = _make_ingester(tmp_path)
+        assert ingester._read_chunk_json(chunk_file) is None
+
+    def test_invalid_chunk_index_defaults_to_zero(self, tmp_path):
+        """chunk_index that can't be cast to int falls back to 0."""
+        ingester = _make_ingester(tmp_path)
+        chunk_dir = tmp_path / "chunk"
+        data = _make_chunk_json(content="Hello")
+        data["chunk_index"] = "abc"
+        _write_chunk_file(chunk_dir, "chunk_0", data)
+
+        conn, fake_db = _make_db()
+        conn.execute(
+            "INSERT INTO documents (url, title, lang, chunking_strategy) VALUES (?, ?, ?, ?)",
+            ("http://example.com/page", "Test Page", "en", "heading"),
+        )
+        conn.commit()
+        doc_id: int = conn.execute("SELECT doc_id FROM documents").fetchone()[0]
+
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps({"embedding": [0.1] * _DIM})
+
+        with (
+            patch.object(ingester._client, "post", return_value=mock_resp),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            ingester._embed_and_store(doc_id, chunk_dir / "chunk_0.txt")
+
+        row = conn.execute(
+            "SELECT chunk_index FROM chunks WHERE doc_id = ?", (doc_id,)
+        ).fetchone()
+        assert row is not None and row[0] == 0
+
+
+# ── Step 1: real DB integration tests ─────────────────────────────────────────
+
+
+def _ingest_via_real_db(
+    tmp_path: Path,
+    chunk_data: dict,
+    force: bool = False,
+) -> tuple[sqlite3.Connection, _FakeSQLiteHelper]:
+    """Helper: write one chunk file, run ingest_url_group against real in-memory DB, return conn+db."""
+    chunk_dir = tmp_path / "chunk"
+    chunk_dir.mkdir(exist_ok=True)
+    (tmp_path / "registered").mkdir(exist_ok=True)
+    _write_chunk_file(chunk_dir, "chunk_0", chunk_data)
+    conn, fake_db = _make_db()
+
+    ingester = _make_ingester(tmp_path)
+    mock_resp = MagicMock()
+    mock_resp.content = orjson.dumps({"embedding": [0.1] * _DIM})
+
+    with (
+        patch.object(ingester._client, "post", return_value=mock_resp),
+        patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+    ):
+        ingester.ingest_url_group(
+            db=fake_db,
+            url=chunk_data["url"],
+            chunk_files=[chunk_dir / "chunk_0.txt"],
+            force=force,
+        )
+
+    return conn, fake_db
+
+
+class TestRealDBFieldPreservation:
+    def test_chunking_strategy_stored_in_documents_real_db(self, tmp_path):
+        data = _make_chunk_json(chunking_strategy="heading")
+        conn, _ = _ingest_via_real_db(tmp_path, data)
+        row = conn.execute(
+            "SELECT chunking_strategy FROM documents WHERE url = ?", (data["url"],)
+        ).fetchone()
+        assert row is not None and row[0] == "heading"
+
+    def test_chunk_index_stored_correctly_real_db(self, tmp_path):
+        data = _make_chunk_json(chunk_index=5)
+        conn, _ = _ingest_via_real_db(tmp_path, data)
+        row = conn.execute("SELECT chunk_index FROM chunks LIMIT 1").fetchone()
+        assert row is not None and row[0] == 5
+
+    def test_normalized_content_stored_correctly_real_db(self, tmp_path):
+        data = _make_chunk_json(normalized_content="normalized form")
+        conn, _ = _ingest_via_real_db(tmp_path, data)
+        row = conn.execute("SELECT normalized_content FROM chunks LIMIT 1").fetchone()
+        assert row is not None and row[0] == "normalized form"
+
+    def test_null_normalized_content_stored_as_null_real_db(self, tmp_path):
+        data = _make_chunk_json(normalized_content=None)
+        conn, _ = _ingest_via_real_db(tmp_path, data)
+        row = conn.execute("SELECT normalized_content FROM chunks LIMIT 1").fetchone()
+        assert row is not None and row[0] is None
+
+    def test_etag_last_modified_stored_in_documents(self, tmp_path):
+        data = _make_chunk_json(etag="etag-abc", last_modified="2024-01-01T00:00:00Z")
+        conn, _ = _ingest_via_real_db(tmp_path, data)
+        row = conn.execute(
+            "SELECT etag, last_modified FROM documents WHERE url = ?", (data["url"],)
+        ).fetchone()
+        assert (
+            row is not None
+            and row[0] == "etag-abc"
+            and row[1] == "2024-01-01T00:00:00Z"
+        )
+
+    def test_chunk_type_stored_in_chunks_real_db(self, tmp_path):
+        data = _make_chunk_json()
+        data["chunk_type"] = "code"
+        conn, _ = _ingest_via_real_db(tmp_path, data)
+        row = conn.execute("SELECT chunk_type FROM chunks LIMIT 1").fetchone()
+        assert row is not None and row[0] == "code"
+
+    def test_source_file_stored_in_chunks_real_db(self, tmp_path):
+        data = _make_chunk_json()
+        data["source_file"] = "docs/guide.md"
+        conn, _ = _ingest_via_real_db(tmp_path, data)
+        row = conn.execute("SELECT source_file FROM chunks LIMIT 1").fetchone()
+        assert row is not None and row[0] == "docs/guide.md"
+
+
+# ── Step 2: force reinsert integration test ───────────────────────────────────
+
+
+class TestForceReinsertMetadata:
+    def test_force_reinsert_preserves_all_metadata(self, tmp_path):
+        """After force reinsert, new chunk data replaces old across all preserved fields."""
+        chunk_dir = tmp_path / "chunk"
+        chunk_dir.mkdir(exist_ok=True)
+        (tmp_path / "registered").mkdir(exist_ok=True)
+        conn, fake_db = _make_db()
+        ingester = _make_ingester(tmp_path)
+        mock_resp = MagicMock()
+        mock_resp.content = orjson.dumps({"embedding": [0.1] * _DIM})
+
+        # First ingest
+        data_v1 = _make_chunk_json(
+            content="Original", chunking_strategy="text", chunk_index=0
+        )
+        _write_chunk_file(chunk_dir, "chunk_0", data_v1)
+        with (
+            patch.object(ingester._client, "post", return_value=mock_resp),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            ingester.ingest_url_group(
+                db=fake_db,
+                url=data_v1["url"],
+                chunk_files=[chunk_dir / "chunk_0.txt"],
+                force=False,
+            )
+
+        # Restore chunk file (moved to registered)
+        (tmp_path / "registered" / "chunk_0.txt").rename(chunk_dir / "chunk_0.txt")
+
+        # Second ingest with force=True and new data
+        data_v2 = _make_chunk_json(
+            content="Updated",
+            chunking_strategy="heading",
+            chunk_index=1,
+            normalized_content="updated normalized",
+        )
+        (chunk_dir / "chunk_0.txt").write_bytes(orjson.dumps(data_v2))
+        with (
+            patch.object(ingester._client, "post", return_value=mock_resp),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            ingester.ingest_url_group(
+                db=fake_db,
+                url=data_v2["url"],
+                chunk_files=[chunk_dir / "chunk_0.txt"],
+                force=True,
+            )
+
+        # Verify old chunks gone, new chunks present with correct metadata
+        chunks = conn.execute(
+            "SELECT chunk_index, content, normalized_content FROM chunks"
+        ).fetchall()
+        assert len(chunks) == 1
+        assert chunks[0][0] == 1
+        assert chunks[0][1] == "Updated"
+        assert chunks[0][2] == "updated normalized"
+
+        doc_row = conn.execute("SELECT chunking_strategy FROM documents").fetchone()
+        assert doc_row is not None and doc_row[0] == "heading"
