@@ -7,28 +7,16 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 **Resolved entries removed from this file:**
 - BUG-1/2/3 (chunk field drop via `dataclasses.asdict`): fixed — `_read_chunk_json()` now uses raw `orjson` parsing, preserving all fields including `chunking_strategy`, `normalized_content`, and `chunk_index`.
+- OQ-2 (MDQ vs RAG boundary): resolved — boundary defined in `docs/04_mcp-mdq.md`.
 - OQ-3 (`test_ingester.py` missing): addressed — `tests/test_rag_ingester.py` exists with 9 tests.
+- OQ-7 (`_augment_http()` fallback trigger condition): documented in-file (2026-06-20 removed).
+- DOC-01 (`SemanticCache` import path): fixed in doc (2026-06-16).
+- DOC-02 (`PipelineContext.observers` non-existent): fixed in doc (2026-06-16, updated 2026-06-18).
+- DOC-03 (embedding dimension dataclass default 768 vs production 384): fixed in doc (2026-06-16).
 
 ---
 
 ## Open Questions
-
-### OQ-2: MDQ vs RAG boundary — resolved
-
-- **Type:** RESOLVED
-- **Impact scope:** `mcp/mdq/`, `mcp/rag_pipeline/`
-- **Resolution:** Boundary defined in `docs/04_mcp-mdq.md`. MDQ is Markdown-dedicated with FTS5 search; RAG is production-ready with semantic embeddings and hybrid search. The agent accesses both via MCP tool calls only.
-- **Recommended action:** Use `docs/04_mcp-mdq.md` as the authoritative reference for choosing between systems.
-
----
-
-### OQ-3: `test_ingester.py` missing
-
-- **Type:** Addressed
-- **Impact scope:** Test coverage for `scripts/rag/ingestion/ingester.py`
-- **Current state:** `tests/test_rag_ingester.py` created with 9 tests covering `_read_chunk_json()` field preservation (chunking_strategy, normalized_content, chunk_index), error handling (missing file, invalid JSON, missing url/content). DB write and `--force` behavior remain untested.
-
----
 
 ### OQ-4: `use_refiner=True` edge cases
 
@@ -49,21 +37,6 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
   back to `content` for indexing and querying in all SQLite versions used.
 - **Recommended action:** Add an integration test asserting English chunk FTS search works
   when `normalized_content` is NULL.
-
----
-
-### OQ-7: `_augment_http()` fallback trigger condition (resolved)
-
-- **Type:** Documented
-- **Impact scope:** `RagPipeline._augment_http()`, `rag/pipeline_service.py`
-- **Description:** `call_rag_service()` returns `None` on failure (triggering in-process fallback)
-  in the following cases:
-  - **4xx client errors** (e.g. 404, 422): return `None` immediately (no retry).
-  - **JSON parse / ValueError errors**: return `None` immediately.
-  - **5xx server errors + transport errors**: retry up to 3 attempts with exponential backoff
-    (`min(2**attempt, 5)` sec); return `None` when all attempts exhausted.
-  - **Empty `context` field**: returns `""` (empty string — treated as a valid result, not a fallback).
-- **Recommended action:** Documented in this entry.
 
 ---
 
@@ -126,41 +99,5 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 - **Description:** Both crawler and ingester support local file ingestion via the `file://` scheme. Crawler: `crawl_file(path, lang)` saves a JSON file to `rag-src/` with `url="file://{path}"`. Ingester: `ingest_url_group` accepts URL groups with `file://` URLs; these are processed identically to web URLs. Conditional GET does not apply to `file://` URLs (no ETag). When ingesting `.py` files, `crawl_file()` stores content as code blocks (not body text).
 - **Current safe interpretation:** `file://` ingestion is supported and functional. The `--force` flag and idempotency behavior apply to `file://` URLs the same as web URLs.
 - **Notes for AI reference:** Do not apply Conditional GET logic to `file://` URLs. The ETag/Last-Modified fields will be NULL for locally-ingested files. Source: `03_rag-ref-crawler.md §2.1`, `03_rag-ref-ingester.md §4.2`.
-
----
-
-### DOC-01: `SemanticCache` import path incorrect in docs
-
-- **Type:** Document inconsistency
-- **Impact scope:** `docs/03_rag_03_query_pipeline.md §6`
-- **Statement A:** Previous doc stated `from rag.repository import SemanticCache # re-exported`.
-- **Statement B:** **Confirmed** (`rag/pipeline.py:30`): `from rag.cache import SemanticCache`. `rag/repository.py` does NOT re-export `SemanticCache`.
-- **Current safe interpretation:** Import from `rag.cache` directly. `rag/cache.py:30` is the canonical definition.
-- **Recommended action:** Fixed in doc (2026-06-16).
-- **Notes for AI reference:** Use `from rag.cache import SemanticCache`.
-
----
-
-### DOC-02: `PipelineContext.observers` and `add_observer()` do not exist
-
-- **Type:** Document inconsistency
-- **Impact scope:** `docs/03_rag_03_query_pipeline.md §4 PipelineContext`
-- **Statement A:** Previous doc listed `observers: list[Any]` field and `add_observer(observer)` method.
-- **Statement B:** **Confirmed** (`rag/stage.py:16-35`): `PipelineContext` has 8 fields: `query`, `history_context`, `queries`, `search_results`, `merged`, `reranked`, `augment_result`, `stage_results`. No `observers` field or `add_observer()` method (the `stage_results` field was added later; earlier docs counted 7).
-- **Current safe interpretation:** `PipelineContext` has exactly 8 fields. Do not reference `observers` or `add_observer()`.
-- **Recommended action:** Fixed in doc (2026-06-16). Updated to reflect 8 fields (2026-06-18).
-- **Notes for AI reference:** Stage communication is via `ctx` field mutation only.
-
----
-
-### DOC-03: Embedding dimension — dataclass default 768 vs configured production value 384
-
-- **Type:** Document inconsistency
-- **Impact scope:** `docs/03_rag_04_data_model_and_interfaces.md`, `docs/03_rag_02_ingestion_pipeline.md`
-- **Statement A:** `models_config.py:53` — `IngesterConfig.embed_dimension: int = 768` (dataclass default).
-- **Statement B:** **Confirmed** (`config/common.toml:43`): `embedding_dims = 384` with comment "all-MiniLM-L6-v2 = 384". `ingester.py:119` docstring also says "384-dim vector".
-- **Current safe interpretation:** The production embedding dimension is **384** (set by `common.toml`). The dataclass default of 768 is overridden at runtime. `floats_to_blob` for 384-dim produces 1536 bytes (not 3072).
-- **Recommended action:** Fixed in doc (2026-06-16). Old reference to `models.py:56` was also incorrect — correct location is `models_config.py:53`.
-- **Notes for AI reference:** Use `common.toml::embedding_dims` (384) as the authoritative value, not the dataclass default (768).
 
 ---

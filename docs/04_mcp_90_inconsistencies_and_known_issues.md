@@ -50,17 +50,6 @@ Each entry format:
 
 ---
 
-### DOC-01: Cache key documented as MD5, code uses plain string
-
-- **Type:** Document inconsistency (resolved)
-- **Impact scope:** `shared/tool_executor.py`, `04_mcp_03_routing_lifecycle_and_execution.md`
-- **Description:** Docs state cache key is `MD5(tool_name + orjson_sorted(args))`. The code uses `f"{tool_name}:{_json_dumps(args)}"` — a plain string without hashing. A separate `tool_call_key()` MD5 helper function exists in the codebase but is never called in the cache path.
-- **Resolution:** Doc updated 2026-06-18 — cache key documented as plain string, NOT MD5. The `tool_call_key()` function remains unused (available for future use).
-- **Current safe interpretation:** The cache key is a plain concatenation of tool name and JSON args with colon separator. No hash is computed.
-- **Recommended action:** Complete.
-
----
-
 ### SPEC-01: tool_definitions_strict + /v1/tools mismatch behavior undocumented per-server
 
 - **Type:** Needs confirmation
@@ -71,14 +60,3 @@ Each entry format:
 
 ---
 
-### MISSING-01: mdq-mcp documentation claimed stub behavior but FTS5 is functional
-
-- **Type:** Document inconsistency (resolved)
-- **Impact scope:** `docs/04_mcp_04_server_catalog.md`, `scripts/mcp/mdq/tools.py`, `scripts/mcp/mdq/server.py`
-- **Statement A:** Documentation (catalog) stated "All tools return stub strings. No actual data operations occur."
-- **Statement B:** Code (`MdqService`) implements real FTS5 search/indexing using SQLite virtual tables (`sections_fts`).
-- **Resolution:** Statement B is correct. The service layer is functional. Tools carry `"status": "stub"` as metadata to signal the server is not production-validated, not that it is non-functional.
-- **Current safe interpretation:** mdq-mcp performs real FTS5 search/indexing. It is experimental and not production-validated. Prefer `rag-pipeline-mcp` for production workloads.
-- **Recommended action:** Completed — catalog updated to reflect FTS5 is functional; tool status set to `"stub"` as metadata signal; `/health` returns `"stub": true`.
-
----
