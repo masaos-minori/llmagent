@@ -113,7 +113,7 @@ session_stop
 The memory layer has a 3-layer activation gate that controls when memory operations execute.
 
 **Layer 1: Config bypass**
-- `use_memory_layer` config flag (default: `True`)
+- `use_memory_layer` config flag (default: `False`)
 - When `False`, `factory._build_memory_services()` returns `None`; `ctx.services.memory` is `None`
 - All callers guard with `if ctx.services.memory is None: return`
 - Bypasses injection, ingestion, and retrieval entirely

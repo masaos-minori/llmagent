@@ -375,7 +375,12 @@ class AgentREPL:
         """Print the startup line showing DB chunks, tool count, and workflow status."""
         chunk_count = self._get_chunk_count()
         workflow_status = self._get_workflow_status()
-        self._view.write_startup_banner(chunk_count, self._n_tools, workflow_status)
+        self._view.write_startup_banner(
+            chunk_count,
+            self._n_tools,
+            workflow_status,
+            memory_enabled=self._ctx.cfg.memory.use_memory_layer,
+        )
 
     async def _run_repl_loop(self) -> None:
         """Run the main REPL loop with watchdog if enabled."""

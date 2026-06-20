@@ -29,7 +29,11 @@ class Writer(Protocol):
     def clear_progress(self) -> None: ...
     def write_warning(self, msg: str) -> None: ...
     def write_startup_banner(
-        self, chunk_count: str, n_tools: int, workflow_status: str = ""
+        self,
+        chunk_count: str,
+        n_tools: int,
+        workflow_status: str = "",
+        memory_enabled: bool | None = None,
     ) -> None: ...
 
 
@@ -116,10 +120,16 @@ class CLIView:
         print(f"[warn] {msg}")
 
     def write_startup_banner(
-        self, chunk_count: str, n_tools: int, workflow_status: str = ""
+        self,
+        chunk_count: str,
+        n_tools: int,
+        workflow_status: str = "",
+        memory_enabled: bool | None = None,
     ) -> None:
         """Print the agent startup line showing DB chunks, tool count, and workflow status."""
         print(f"DB: {chunk_count} chunks | Tools: {n_tools}")
+        if memory_enabled is not None:
+            print(f"Memory: {'enabled' if memory_enabled else 'disabled'}")
         if workflow_status:
             print(f"Workflow: {workflow_status}")
         print("Type /help for commands, /exit to quit.")
