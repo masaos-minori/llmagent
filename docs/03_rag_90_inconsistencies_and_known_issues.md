@@ -40,20 +40,6 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
-## Document Inconsistency (Additional Required Items)
-
-### DOC-4: Markdown heading split condition — inconsistency between sources
-
-- **Type:** Document inconsistency
-- **Impact scope:** `scripts/rag/ingestion/chunk_splitter.py`, `md_index_enable` config behavior
-- **Statement A:** `03_rag-ref-splitter.md §3.1` states that BOTH conditions — URL ending in `.md`/`.markdown`/`.mdx` AND body containing ≥2 heading lines — require `md_index_enable=true` to trigger heading-boundary split.
-- **Statement B:** `03_spec_rag.md §8.1` states that `.md`/`.markdown`/`.mdx` URLs ALWAYS get heading split (regardless of `md_index_enable`); non-`.md` content with ≥2 heading lines requires `md_index_enable=true`.
-- **Current safe interpretation:** Trust `03_spec_rag.md §8.1`. `.md`/`.markdown`/`.mdx` URLs always use heading split; non-`.md` content with ≥2 heading lines is only heading-split when `md_index_enable=true`.
-- **Recommended action:** Verify behavior in `chunk_splitter.py` (`_is_markdown_source()`) and correct `03_rag-ref-splitter.md §3.1` accordingly.
-- **Notes for AI reference:** When modifying `chunk_splitter.py`, apply the two-path model: always-on for `.md` extension, flag-gated for non-`.md` with headings.
-
----
-
 ## Design Notes (Required Explicit Items)
 
 ### DESIGN-1: ETag/Last-Modified and Conditional GET relationship
