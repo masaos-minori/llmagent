@@ -20,7 +20,12 @@ from typing import Any
 import httpx
 import orjson
 from db.helper import SQLiteHelper
-from db.maintenance import check_rag_consistency, is_consistent, summarize_issues
+from db.maintenance import (
+    RagConsistencyReport,
+    check_rag_consistency,
+    is_consistent,
+    summarize_issues,
+)
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 
@@ -91,12 +96,16 @@ class RagIngester:
 
     # ── Public interface ──────────────────────────────────────────────────────
 
-    def ingest_all(self, force: bool = False) -> None:
-        """Process all chunk files in chunk_dir grouped by URL; force=True deletes existing document records before re-inserting."""
+    def ingest_all(self, force: bool = False) -> RagConsistencyReport | None:
+        """Process all chunk files in chunk_dir grouped by URL; force=True deletes existing document records before re-inserting.
+
+        Returns the post-ingestion consistency report, or None if the check failed.
+        Callers that do not inspect the return value are unaffected.
+        """
         chunk_files = sorted(self._chunk_dir.glob("*.txt"))
         if not chunk_files:
             logger.info("No chunk files to process")
-            return
+            return None
         url_groups = self._group_chunks_by_url(chunk_files)
         with SQLiteHelper().open(write_mode=True) as db:
             results = self._process_url_groups(db, url_groups, force)
@@ -115,9 +124,11 @@ class RagIngester:
             if not is_consistent(report):
                 issues = summarize_issues(report)
                 for issue in issues:
-                    logger.warning("Post-ingest consistency warning: %s", issue)
+                    logger.warning("Post-ingest consistency: %s", issue)
+            return report
         except Exception:
             logger.exception("Post-ingest consistency check failed")
+            return None
 
     def ingest_url_group(
         self,

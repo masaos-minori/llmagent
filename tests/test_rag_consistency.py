@@ -126,6 +126,7 @@ class TestRagConsistency:
         assert report.vec == 1
         assert report.orphan_vec_count == 0
         assert report.fts_gap == 0
+        assert report.fts_orphan_count == 0
         assert isinstance(report, RagConsistencyReport)
         assert is_consistent(report)
         assert summarize_issues(report) == []
@@ -199,3 +200,72 @@ class TestRagConsistency:
         assert report.fts == 1
         assert report.vec == 1
         assert is_consistent(report)
+
+
+class TestRagConsistencySeverity:
+    def test_fts_orphan_detected_when_fts_exceeds_chunks(self) -> None:
+        # Simulate stale FTS entries (fts > chunks): insert chunk then delete only the
+        # chunks row without updating the FTS index.
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "stale fts content")
+        # Remove from chunks without triggering the ad trigger (bypass cascade)
+        db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
+        # FTS entry still exists but chunk is gone (ON DELETE CASCADE removed the row,
+        # but the ad trigger ran correctly). Re-insert FTS entry manually to simulate drift.
+        db.execute(
+            "INSERT INTO chunks_fts (rowid, content) VALUES (?, ?)",
+            (chunk_id + 1000, "ghost entry"),
+        )
+        db.commit()
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert report.fts > report.chunks
+        assert report.fts_orphan_count > 0
+        assert not is_consistent(report)
+        issues = summarize_issues(report)
+        assert any(
+            "[CRITICAL]" in i and "FTS index has more entries" in i for i in issues
+        )
+
+    def test_summarize_issues_fts_gap_has_warning_prefix(self) -> None:
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "gap test")
+        db.execute(
+            "INSERT INTO chunks_fts (chunks_fts, rowid, content) VALUES ('delete', ?, ?)",
+            (chunk_id, "gap test"),
+        )
+        db.commit()
+
+        issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
+        assert any("[WARNING]" in i and "FTS gap" in i for i in issues)
+
+    def test_summarize_issues_orphan_vec_has_critical_prefix(self) -> None:
+        db = _make_rag_db()
+        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (99999)", ())
+        db.commit()
+
+        issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
+        assert any("[CRITICAL]" in i and "Orphan vec" in i for i in issues)
+
+    def test_summarize_issues_fts_gap_includes_rebuild_guidance(self) -> None:
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "rebuild guidance test")
+        db.execute(
+            "INSERT INTO chunks_fts (chunks_fts, rowid, content) VALUES ('delete', ?, ?)",
+            (chunk_id, "rebuild guidance test"),
+        )
+        db.commit()
+
+        issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
+        assert any("/db rebuild-fts" in i for i in issues)
+
+    def test_summarize_issues_orphan_vec_includes_force_guidance(self) -> None:
+        db = _make_rag_db()
+        db.execute("INSERT INTO chunks_vec (chunk_id) VALUES (88888)", ())
+        db.commit()
+
+        issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
+        assert any("--force" in i for i in issues)

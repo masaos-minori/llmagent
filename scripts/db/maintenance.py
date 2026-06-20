@@ -84,7 +84,8 @@ class RagConsistencyReport:
     fts: int
     vec: int
     orphan_vec_count: int
-    fts_gap: int  # chunks - fts; 0 = consistent
+    fts_gap: int  # chunks - fts; positive = missing FTS entries
+    fts_orphan_count: int  # fts - chunks; positive = extra FTS entries (data loss risk)
 
 
 @dataclass(frozen=True)
@@ -401,30 +402,43 @@ def check_rag_consistency(db: SQLiteHelper) -> RagConsistencyReport:
         fts=fts,
         vec=vec,
         orphan_vec_count=orphan_vec_count,
-        fts_gap=chunks - fts,
+        fts_gap=max(0, chunks - fts),
+        fts_orphan_count=max(0, fts - chunks),
     )
 
 
 def is_consistent(report: RagConsistencyReport) -> bool:
-    """Return True when fts_gap == 0, orphan_vec_count == 0, and vec == chunks."""
+    """Return True when fts_gap == 0, fts_orphan_count == 0, orphan_vec_count == 0, and vec == chunks."""
     return (
         report.fts_gap == 0
+        and report.fts_orphan_count == 0
         and report.orphan_vec_count == 0
         and report.vec == report.chunks
     )
 
 
 def summarize_issues(report: RagConsistencyReport) -> list[str]:
-    """Return human-readable descriptions of any consistency issues found in report."""
+    """Return severity-prefixed descriptions of consistency issues with repair guidance."""
     issues: list[str] = []
-    if report.fts_gap != 0:
+    if report.fts_gap > 0:
         issues.append(
-            f"FTS gap: chunks={report.chunks}, fts={report.fts}, gap={report.fts_gap}"
+            f"[WARNING] FTS gap detected (chunks={report.chunks}, fts={report.fts},"
+            f" gap={report.fts_gap}). Run '/db rebuild-fts' to repair."
+        )
+    if report.fts_orphan_count > 0:
+        issues.append(
+            f"[CRITICAL] FTS index has more entries than chunks"
+            f" (fts={report.fts}, chunks={report.chunks})."
+            f" Run '/db rebuild-fts' to repair."
         )
     if report.orphan_vec_count > 0:
         issues.append(
-            f"Orphan vec rows: {report.orphan_vec_count} chunk_id(s) not in chunks"
+            f"[CRITICAL] Orphan vec rows detected (count={report.orphan_vec_count})."
+            f" Re-run ingestion with '--force' for affected URLs."
         )
     if report.vec != report.chunks:
-        issues.append(f"Vec count mismatch: chunks={report.chunks}, vec={report.vec}")
+        issues.append(
+            f"[WARNING] Vector count mismatch (chunks={report.chunks}, vec={report.vec})."
+            f" Check for failed ingestion steps."
+        )
     return issues
