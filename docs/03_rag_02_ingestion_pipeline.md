@@ -282,8 +282,8 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 | Method | Signature | Description |
 |---|---|---|
 | `__init__` | `(config: dict \| None = None)` | Merge `common.toml` + `rag_pipeline.toml`; init `httpx.Client` |
-| `ingest_all` | `(force: bool = False) -> None` | Group chunk files by URL; call `ingest_url_group` for each |
-| `ingest_url_group` | `(db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> None` | Process one URL group; move processed files to `registered/` |
+| `ingest_all` | `(force: bool = False) -> RagConsistencyReport \| None` | Group chunk files by URL; call `ingest_url_group` for each |
+| `ingest_url_group` | `(db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> IngestUrlResult` | Process one URL group; returns `{n_success, n_failed, n_embed_failed, skipped}` |
 | `close` | `() -> None` | Close the underlying `httpx.Client` |
 
 ### 4.2 Behavior details
@@ -295,6 +295,8 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 - **WAL mode:** `PRAGMA journal_mode=WAL` for concurrent read/write safety
 - **Upsert (`--force`):** delete in order `chunks_vec` → `chunks` → `documents`, then re-INSERT
 - **Idempotency:** skip URL if already in `documents`; still UPDATE `etag`/`last_modified`
+- **Embed failure tracking:** `_embed_and_store()` returns `(chunk_ok, embed_ok)` tuple;
+  `n_embed_failed` counts embedding-specific failures separately from parse/DB errors
 
 ### 4.3 CLI arguments
 

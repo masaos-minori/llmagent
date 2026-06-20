@@ -42,6 +42,7 @@ class IngestUrlResult:
     n_success: int
     n_failed: int
     skipped: bool
+    n_embed_failed: int = 0  # embedding failures (separate from parse/DB failures)
 
 
 # Accepted lang values enforced by the documents.lang CHECK constraint
@@ -111,12 +112,16 @@ class RagIngester:
             results = self._process_url_groups(db, url_groups, force)
         total_success = sum(r.n_success for r in results)
         total_failed = sum(r.n_failed for r in results if r.n_failed > 0)
+        total_embed_failed = sum(
+            r.n_embed_failed for r in results if r.n_embed_failed > 0
+        )
         total_skipped = sum(1 for r in results if r.skipped)
         logger.info(
-            "=== done: %s URLs processed (%d success, %d failed, %d skipped) ===",
+            "=== done: %s URLs processed (%d success, %d failed, %d embed-failed, %d skipped) ===",
             len(results),
             total_success,
             total_failed,
+            total_embed_failed,
             total_skipped,
         )
         try:
@@ -168,17 +173,22 @@ class RagIngester:
             return IngestUrlResult(url=url, n_success=0, n_failed=0, skipped=True)
         # Commit document record before parallel chunk inserts (FK dependency).
         db.commit()
-        inserted, failed = self._ingest_chunk_files(doc_id, chunk_files)
+        inserted, failed, embed_failed = self._ingest_chunk_files(doc_id, chunk_files)
         logger.info(
-            "inserted %s/%s chunks (%s failed): %s",
+            "inserted %s/%s chunks (%s failed, %s embed-failed): %s",
             inserted,
             len(chunk_files),
             failed,
+            embed_failed,
             url,
         )
         self._move_to_registered(chunk_files)
         return IngestUrlResult(
-            url=url, n_success=inserted, n_failed=failed, skipped=False
+            url=url,
+            n_success=inserted,
+            n_failed=failed,
+            skipped=False,
+            n_embed_failed=embed_failed,
         )
 
     # ── Embedding ─────────────────────────────────────────────────────────────
@@ -312,11 +322,18 @@ class RagIngester:
         """Read and parse a chunk JSON file as a raw dict; returns None on failure."""
         return _read_chunk_json_raw(path)
 
-    def _embed_and_store(self, doc_id: int, path: Path) -> bool:
-        """Embed one chunk and insert it using an independent DB connection; each call opens its own connection for safe parallel writes; returns True on success."""
+    def _embed_and_store(
+        self, doc_id: int, path: Path
+    ) -> tuple[bool, bool]:
+        """Embed one chunk and insert it using an independent DB connection; each call opens its own connection for safe parallel writes.
+
+        Returns (chunk_ok, embed_ok).
+        chunk_ok=False means total failure (parse/DB error or embed failure).
+        embed_ok=False specifically means embedding failed (content was valid).
+        """
         data = self._read_chunk_json(path)
         if data is None:
-            return False
+            return False, False
         content: str = data.get("content", "")
         nc_raw = data.get("normalized_content")
         normalized_content: str | None = (
@@ -335,7 +352,7 @@ class RagIngester:
         embedding = self._get_embedding(content)
         if embedding is None:
             logger.warning("embedding failed for %s: %r", path.name, content[:60])
-            return False
+            return False, False
         with SQLiteHelper().open(write_mode=True) as db:
             self._insert_chunk(
                 db,
@@ -348,14 +365,15 @@ class RagIngester:
                 source_file,
             )
             db.commit()
-        return True
+        return True, True
 
     def _ingest_chunk_files(
         self, doc_id: int, chunk_files: list[Path]
-    ) -> tuple[int, int]:
-        """Embed and insert chunk files in parallel via ThreadPoolExecutor; returns (n_inserted, n_failed)."""
+    ) -> tuple[int, int, int]:
+        """Embed and insert chunk files in parallel via ThreadPoolExecutor; returns (n_inserted, n_failed, n_embed_failed)."""
         inserted = 0
         failed = 0
+        embed_failed = 0
         with ThreadPoolExecutor(max_workers=self._embed_workers) as executor:
             futures = {
                 executor.submit(self._embed_and_store, doc_id, path): path
@@ -364,10 +382,13 @@ class RagIngester:
             for future in as_completed(futures):
                 path = futures[future]
                 try:
-                    if future.result():
+                    chunk_ok, embed_ok = future.result()
+                    if chunk_ok:
                         inserted += 1
                     else:
                         failed += 1
+                        if not embed_ok:
+                            embed_failed += 1
                 except (
                     httpx.HTTPStatusError,
                     httpx.RequestError,
@@ -377,7 +398,7 @@ class RagIngester:
                 ) as e:
                     logger.error("Failed to ingest %s: %s", path, e)
                     failed += 1
-        return inserted, failed
+        return inserted, failed, embed_failed
 
     def _group_chunks_by_url(self, chunk_files: list[Path]) -> dict[str, list[Path]]:
         """Group chunk files by URL read from their JSON 'url' field."""

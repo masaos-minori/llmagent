@@ -169,7 +169,7 @@ class TestEmbedAndStore:
         ):
             result = ingester._embed_and_store(doc_id, path)
 
-        assert result is True
+        assert result == (True, True)
         row = conn.execute(
             "SELECT chunk_index FROM chunks WHERE doc_id = ?", (doc_id,)
         ).fetchone()
@@ -231,7 +231,7 @@ class TestEmbedAndStore:
         ):
             result = ingester._embed_and_store(doc_id, path)
 
-        assert result is False
+        assert result == (False, False)
         count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
         assert count == 0
 
