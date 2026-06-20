@@ -229,6 +229,22 @@ class AgentREPL:
                 except (RuntimeError, sqlite3.Error):
                     pass
 
+            rag_query_count = 0
+            rag_stage_outcomes: list[dict] = []
+            if session_id is not None:
+                try:
+                    entries = self._diagnostic_store.fetch(session_id)
+                    rag_entries = [e for e in entries if e.get("kind") == "rag_query"]
+                    rag_query_count = len(rag_entries)
+                    for e in rag_entries:
+                        try:
+                            diag = json.loads(e["content"])
+                            rag_stage_outcomes.extend(diag.get("stage_results", []))
+                        except (json.JSONDecodeError, KeyError):
+                            pass
+                except (sqlite3.Error, RuntimeError):
+                    pass
+
             summary = {
                 "session_id": session_id,
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -256,6 +272,8 @@ class AgentREPL:
                 "approval_events": approval_events,
                 "retry_count": retry_count,
                 "artifacts": artifacts,
+                "rag_query_count": rag_query_count,
+                "rag_stage_outcomes": rag_stage_outcomes,
             }
 
             db_cfg = build_db_config()

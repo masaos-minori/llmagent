@@ -193,3 +193,74 @@ class TestRagPipelineErrorOnDbOpen:
             result = await pipeline.augment("test query")
 
         assert result == ""
+
+
+# ── RagPipeline.get_diagnostics() ────────────────────────────────────────────
+
+
+class TestGetDiagnostics:
+    def _make_pipeline(self) -> RagPipeline:
+        cfg = SimpleNamespace(
+            use_search=True,
+            rag_service_url="",
+            use_refiner=False,
+            use_mqe=False,
+            use_rerank=False,
+            use_rrf=True,
+            rrf_k=60,
+            use_semantic_cache=False,
+            top_k_search=5,
+            rag_top_k=3,
+            top_k_rerank=10,
+            rag_min_score=0.0,
+            max_chunks_per_doc=3,
+            semantic_cache_max_size=0,
+            semantic_cache_threshold=0.0,
+            refiner_max_tokens=256,
+            refiner_max_chars_per_chunk=500,
+            refiner_timeout=10.0,
+        )
+        http = MagicMock()
+        with patch("rag.pipeline._ModuleConfig.get", return_value={}):
+            return RagPipeline(http, cfg)
+
+    def test_get_diagnostics_returns_empty_before_run(self) -> None:
+        pipeline = self._make_pipeline()
+        diag = pipeline.get_diagnostics()
+        assert diag["stage_results"] == []
+        assert diag["timings"] == {}
+        assert diag["fetch_result"] is None
+        assert diag["fallback_count"] == 0
+        assert diag["fallback_reasons"] == []
+        assert diag["hit_counts"]["merged"] == 0
+
+    def test_get_diagnostics_reflects_last_stage_results(self) -> None:
+        from rag.stage import StageResult
+
+        pipeline = self._make_pipeline()
+        pipeline.last_stage_results = [
+            StageResult(
+                stage_name="MqeStage",
+                status="fallback",
+                elapsed_seconds=0.01,
+                fallback_reason="use_mqe=False",
+            ),
+            StageResult(
+                stage_name="SearchStage",
+                status="success",
+                elapsed_seconds=0.05,
+                fallback_reason=None,
+            ),
+        ]
+        diag = pipeline.get_diagnostics()
+        assert diag["fallback_count"] == 1
+        assert diag["fallback_reasons"] == ["use_mqe=False"]
+        assert len(diag["stage_results"]) == 2
+
+    def test_get_diagnostics_serializable_with_orjson(self) -> None:
+        import orjson
+
+        pipeline = self._make_pipeline()
+        diag = pipeline.get_diagnostics()
+        encoded = orjson.dumps(diag)
+        assert isinstance(encoded, bytes)

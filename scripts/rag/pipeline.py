@@ -497,3 +497,32 @@ class RagPipeline:
         if self._cfg.use_semantic_cache and emb is not None and context_block:
             self.semantic_cache.put(emb, history_context, context_block)
         return context_block
+
+    def get_diagnostics(self) -> dict:
+        """Return structured diagnostics for the last pipeline execution.
+
+        Safe to call before ``run()`` / ``augment()`` — returns empty/zero values.
+        Callers should serialize with ``orjson.dumps(pipeline.get_diagnostics())``.
+        """
+        stage_results = [dict(r) for r in self.last_stage_results]
+        fallbacks = [r for r in stage_results if r.get("status") == "fallback"]
+        fetch = self.last_fetch_result
+        return {
+            "stage_results": stage_results,
+            "timings": dict(self.last_timings),
+            "fetch_result": (
+                {
+                    "hits": len(fetch.hits),
+                    "min_score_applied": fetch.min_score_applied,
+                }
+                if fetch is not None
+                else None
+            ),
+            "fallback_count": len(fallbacks),
+            "fallback_reasons": [
+                r["fallback_reason"] for r in stage_results if r.get("fallback_reason")
+            ],
+            "hit_counts": {
+                "merged": len(fetch.hits) if fetch is not None else 0,
+            },
+        }

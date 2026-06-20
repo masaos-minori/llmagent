@@ -11,6 +11,7 @@ Provides _IngestMixin with:
 
 import logging
 
+import orjson
 from mcp.rag_pipeline.models import RagPipelineConfig, build_rag_cfg_adapter
 
 from agent.commands.mixin_base import MixinBase
@@ -149,6 +150,18 @@ class _IngestMixin(MixinBase):
 
         if debug:
             self._print_rag_debug(pipeline.last_timings, pipeline.last_stage_results)
+
+        if ctx.diagnostics is not None:
+            try:
+                diag = pipeline.get_diagnostics()
+                diag["query"] = query
+                ctx.diagnostics.save(
+                    ctx.session.session_id,
+                    kind="rag_query",
+                    content=orjson.dumps(diag).decode(),
+                )
+            except Exception:  # noqa: BLE001 — diagnostics must not crash the command
+                logger.debug("Failed to persist RAG query diagnostics", exc_info=True)
 
     def _print_rag_debug(
         self,
