@@ -60,7 +60,7 @@ Used by RagPipeline (loaded via `_get_cfg()` on first access):
 |---|---|
 | `use_search` | Global RAG on/off switch |
 | `use_mqe` | Enable query expansion |
-| `use_rrf` | Enable RRF merge (True) or simple dedup fallback (False) |
+| `use_rrf` | Enable RRF merge (`True`, default) for rank-weighted fusion, or dedup-only (`False`). **Quality tradeoff:** `False` disables rank scoring — all hits get `rrf_score=0.0`; MQE provides no additional ranking benefit. Recommended: keep `True` unless minimizing overhead. |
 | `use_rerank` | Enable cross-encoder reranking |
 | `use_refiner` | Enable chunk compression via LLM |
 | `top_k_search` | KNN/FTS hit count per query |
