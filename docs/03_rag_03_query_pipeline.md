@@ -92,6 +92,26 @@ Config fields in `RagConfig` Protocol (`shared/types.py`):
 - `rag_service_url: str` — remote endpoint URL; empty string disables HTTP mode
 - `rag_auth_token: str` — optional bearer token for `X-RAG-Token` header; `""` = no auth (default)
 
+#### HTTP RAG result classification
+
+When `rag_service_url` is set, `augment()` classifies the HTTP result and records it
+in `get_diagnostics()["http_result_kind"]` and in `StageResult.fallback_reason`.
+
+| `http_result_kind` | `StageResult` status | `fallback_reason` | Condition |
+|---|---|---|---|
+| `"remote_nonempty"` | `"success"` | `None` | HTTP call succeeded; non-empty context returned |
+| `"remote_empty"` | `"success"` | `"http_remote_empty"` | HTTP 200 but context field is `""` — valid empty result |
+| `"in_process_fallback"` | `"fallback"` | error string | HTTP error; in-process RAG pipeline ran instead |
+| `None` | — | — | `rag_service_url` not set; HTTP mode not used |
+
+The `"remote_empty"` case is a normal condition (not a failure): the remote service
+responded successfully but found no relevant context. The in-process pipeline does NOT
+run in this case.
+
+The classification is visible in:
+- `get_diagnostics()["http_result_kind"]`
+- `/rag search --debug` stage results: `✓ HttpAugment: success — http_remote_empty`
+
 ---
 
 ## 3. PipelineStage Protocol (`rag/stage.py`)
