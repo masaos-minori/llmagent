@@ -199,6 +199,23 @@ AugmentStage()
 - Joined by `\n\n---\n\n`; wrapped in `[RAG_CONTEXT_START]` / `[RAG_CONTEXT_END]`
 - Stored in `ctx.augment_result`
 
+#### Refiner fallback reasons
+
+When `use_refiner=true` and refinement fails, `augment()` falls back to raw-chunk
+formatting. The fallback reason is recorded in `last_stage_results` and
+`get_diagnostics()["fallback_reasons"]`.
+
+| Reason | Condition |
+|---|---|
+| `refiner_returned_empty` | LLM response content is `""` or whitespace-only after `.strip()`. The `if refined:` guard is falsy. Common causes: content-policy refusal, empty LLM generation, prompt format producing no extractable key points. |
+| `refiner_exception: {e}` | `httpx.HTTPStatusError`, `httpx.RequestError`, or `ValueError` raised during the LLM call. The exception message is included in the reason string. Not retried. |
+
+Both reasons are:
+- Visible at INFO level in application logs (`augment: refiner fallback (reason=...)`)
+- Visible in `/rag search` output as `[warn] refiner fallback: <reason>`
+- Visible in `/rag search --debug` stage results as `~ Refiner: fallback — <reason>`
+- Available via `pipeline.get_diagnostics()["fallback_reasons"]`
+
 ---
 
 ## 6. SemanticCache (`rag/cache.py`)
