@@ -19,6 +19,9 @@ import inspect
 import logging
 from typing import Any
 
+from db.helper import SQLiteHelper
+from db.maintenance import check_rag_consistency, is_consistent, summarize_issues
+
 from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import parse_command_args
 from agent.services.db_maintenance_service import DbMaintenanceService
@@ -211,11 +214,21 @@ class _DbMixin(MixinBase):
 
     def _db_consistency(self) -> None:
         """Run RAG search index synchronization check."""
-        consistent, issues = RagMaintenanceService().consistency()
-        if consistent:
-            self._out.write_success(
-                "RAG consistency: OK (chunks/FTS/vec in sync) [RAG]"
+        try:
+            with SQLiteHelper("rag") as db:
+                report = check_rag_consistency(db)
+            numeric_line = (
+                f"chunks={report.chunks} fts={report.fts} vec={report.vec}"
+                f" fts_gap={report.fts_gap} orphan_vec={report.orphan_vec_count}"
+                f" fts_orphan={report.fts_orphan_count}"
             )
-        else:
-            for issue in issues:
-                self._out.write_error(f"Consistency issue: {issue} [RAG]")
+            if is_consistent(report):
+                self._out.write_success(
+                    f"{numeric_line} RAG consistency: OK (chunks/FTS/vec in sync) [RAG]"
+                )
+            else:
+                self._out.write(f"{numeric_line} RAG consistency: FAIL [RAG]")
+                for issue in summarize_issues(report):
+                    self._out.write_error(f"Consistency issue: {issue} [RAG]")
+        except Exception as e:  # noqa: BLE001 — skip if rag.sqlite absent or unreadable
+            logger.debug("RAG consistency check skipped: %s", e)
