@@ -507,6 +507,7 @@ class RagPipeline:
         stage_results = [dict(r) for r in self.last_stage_results]
         fallbacks = [r for r in stage_results if r.get("status") == "fallback"]
         fetch = self.last_fetch_result
+        fusion_mode = "rrf" if self._cfg.use_rrf else "dedup_only"
         return {
             "stage_results": stage_results,
             "timings": dict(self.last_timings),
@@ -518,6 +519,7 @@ class RagPipeline:
                 if fetch is not None
                 else None
             ),
+            "fusion_mode": fusion_mode,
             "fallback_count": len(fallbacks),
             "fallback_reasons": [
                 r["fallback_reason"] for r in stage_results if r.get("fallback_reason")
