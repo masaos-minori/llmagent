@@ -1,0 +1,107 @@
+# Implementation: Unify Config Loading, Reload Behavior, and Restart-Required Semantics
+
+## Goal
+
+Produce one authoritative reload behavior matrix for all config settings, add a "deferred" category to `ConfigReloadOutcome`, and update `/reload` output to be explicit about applied / deferred / restart-required / unchanged.
+
+## Scope
+
+**In-Scope:**
+- Add `deferred: list[str]` to `ConfigReloadOutcome` for changes that are accepted but take effect only on the next connection/operation (e.g. `auth_token`, `startup_mode`)
+- Update `_apply_mcp_url_reload()` to move `auth_token`/`startup_mode` changes from `needs_restart` to `deferred`
+- Update `_cmd_reload` output: show deferred items separately from restart-required
+- Add startup-only fields to the config classification table in `docs/05_agent_08_configuration.md`: `use_memory_layer`, `plugin_strict`, any field not touched by `apply_config_dict()`
+- Add "unchanged" note: items not in `applied`/`deferred`/`needs_restart`/`skipped` were not changed (no new output line needed — absence is implicit)
+- Clarify `common.toml` ownership: loaded by `/reload` same as other files; primary owner of `llm_url`, RAG defaults, observability defaults
+
+**Out-of-Scope:**
+- Redesigning config file structure or merging config files
+- Making startup-only fields reloadable (requires architectural change)
+- Changing `ConfigLoader.load_all()` behavior
+
+## Assumptions
+
+1. "Deferred" means: the change is stored in `ctx.cfg` (persisted across the run), but the running sub-system (e.g. MCP stdio connector) won't see it until the next connection restart or session reload — not the same as "restart agent".
+2. `auth_token` and `startup_mode` are confirmed as deferred (not immediately applied) because stdio MCP processes are already running — the doc note at line 76 confirms this.
+3. Fields NOT in `apply_config_dict()` (e.g. `use_memory_layer`, `plugin_strict`) are startup-only — verified by scanning `config_reload.py` for the complete set of applied keys.
+4. `/reload` output improvement is backward-compatible — operators who script the text output are not officially supported.
+
+## Unknowns & Gaps
+
+| ID | Unknown | Evidence Missing | Resolution | Blocking |
+|---|---|---|---|---|
+| UNK-01 | Are there additional fields that should be classified as "deferred" besides auth_token, startup_mode? | Only MCP fields confirmed in code | Scan `_apply_mcp_url_reload` for all skipped items; classify each | False |
+| UNK-02 | Does `common.toml` have unique fields not in other TOML files? | No single list of common.toml-only keys | Check `scripts/shared/config_loader.py` and config TOML files; document the overlap | False |
+| UNK-03 | Should startup-only fields emit a WARNING in /reload output? | Require says "restart required" signal; startup-only is stronger | Add "[STARTUP-ONLY] <field> — requires full restart" only when the field value differs | False |
+
+## Implementation
+
+### Target files
+
+- `scripts/agent/services/config_reload.py` — add `deferred: list[str]` to `ConfigReloadOutcome`; update `_apply_mcp_url_reload()` to use `deferred` for auth/startup_mode items
+- `scripts/agent/commands/cmd_config.py` — update `_cmd_reload` to render `deferred` items
+- `docs/05_agent_08_configuration.md` — expand reload table with startup-only classification; add `deferred` to `ConfigReloadOutcome` field table; clarify `common.toml` ownership
+- `tests/test_cmd_config.py` or `test_config_reload.py` — add test for `deferred` field rendering
+
+### Procedure
+
+#### Step 1: Add `deferred` to `ConfigReloadOutcome`
+
+In `config_reload.py`: `deferred: list[str] = field(default_factory=list)`
+
+#### Step 2: Update `_apply_mcp_url_reload()` for `auth_token`/`startup_mode`
+
+When `auth_token` or `startup_mode` differs: classify as `result.deferred` (not `needs_restart`)
+Requires reading the new and old value for these fields.
+
+#### Step 3: Update `_cmd_reload` output
+
+After "Applied (runtime):" block, add:
+```python
+if result.deferred:
+    self._out.write(f"Deferred (next connection): [{len(result.deferred)} items]")
+    for item in result.deferred:
+        self._out.write(f"  [DEFER] - {item}")
+```
+
+#### Step 4: Update `docs/05_agent_08_configuration.md`
+
+- Expand the config file table to have a 4-column classification: `Startup-only | Hot-reloadable | Deferred | Restart-required`
+- Add a row explaining startup-only fields (use_memory_layer, plugin_strict, etc.)
+- Add `deferred` to the `ConfigReloadOutcome` fields table
+- Add `common.toml` ownership note: which keys live exclusively in `common.toml`
+
+#### Step 5: Add test
+
+- Test: `_apply_mcp_url_reload()` with auth_token change → `result.deferred` populated
+- Test: `_cmd_reload` output includes "[DEFER]" line when deferred items present
+
+### Method
+
+- Additive change to `ConfigReloadOutcome` dataclass (default empty list)
+- New output section in `/reload` command
+- Documentation expansion for config classification
+
+### Details
+
+- `deferred` is separate from `needs_restart`: deferred changes are stored but not immediately applied; restart-required means the subsystem must be restarted
+- Only emit `[STARTUP-ONLY]` warning when the value actually differs from current running config — avoid confusing operators about fields that were always startup-only
+
+## Validation plan
+
+| Target | Strategy | Command | Expected |
+|---|---|---|---|
+| `ConfigReloadOutcome.deferred` field | Unit | `uv run pytest tests/ -k config_reload -v` | all pass |
+| `/reload` deferred output | Unit — mock result with deferred items | `uv run pytest tests/ -k cmd_config -v` | [DEFER] rendered |
+| Lint | Static | `uv run ruff check scripts/` | 0 errors |
+| Type check | Static | `uv run mypy scripts/` | no new errors |
+| Full suite | Regression | `uv run pytest -q` | no new failures |
+
+## Risks
+
+- **Risk:** Adding `deferred` to `ConfigReloadOutcome` breaks existing tests that construct it with positional args
+  → **Mitigation:** dataclass field has default — grep for direct construction to verify
+- **Risk:** Moving auth_token changes from `needs_restart` to `deferred` changes observable /reload behavior
+  → **Mitigation:** this is the INTENDED behavior; the doc note says the current classification is wrong
+- **Risk:** startup-only warning could confuse operators if a field was always startup-only
+  → **Mitigation:** only emit [STARTUP-ONLY] warning when the value actually differs from current running config
