@@ -26,13 +26,14 @@
 └───────┬─────────────┬──────────────────┬─────────────┘
         │             │                  │
         ▼             ▼                  ▼
-:8003 embed-LLM  :8001 agent-LLM   MCP サーバ群 (stdio または http)
+:8003 embed-LLM  :8002 agent-LLM   MCP サーバ群 (stdio または http)
 (RAG 検索時)                       11 サーバ (:8004〜:8014)
 ```
 
 | OpenRC サービス | ポート | モデル | 役割 |
 |---|---|---|---|
-| `llama-llm` | 8001 | qwen3.6-27b | エージェント・コード生成 |
+| `llama-chat-llm` | 8002 | gemma-4-e4b-it-Q4_K_M | チャット LLM (MQE・再ランク兼用) |
+| `llama-coding-llm` | 8001 | qwen2.5-coder-7b-instruct-q4_k_m | コード生成 LLM |
 | `embed-llm` | 8003 | multilingual-E5-small | テキスト → 384 次元ベクトル変換 |
 | `web-search-mcp` | 8004 | — | Web 検索 MCP サーバ (Brave/Bing/DuckDuckGo) |
 | `file-read-mcp` | 8005 | — | ファイル読み取り MCP サーバ |
@@ -58,24 +59,24 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.txt
 
 ### 2.3 クエリパイプライン
 
-詳細 → [`05_agent_01_system-overview.md`](05_agent_01_system-overview.md)
+詳細 → [`03_rag_03_query_pipeline.md`](03_rag_03_query_pipeline.md)
 
 ```
 ユーザー入力
-  → MQE + embed → KNN+BM25 → RRF → Rerank → コンテキスト付加
-  → LLM (:800) → tool_calls → MCP サーバ群 (:8004〜:8014)
+  → MQE + embed → KNN+BM25 → RRF → Rerank → Refiner → コンテキスト付加
+  → LLM (:8002) → tool_calls → MCP サーバ群 (:8004〜:8014)
   → 最終回答 (SSE ストリーミング)
 ```
 
 ### 2.4 エージェント機能・コマンド一覧
 
-詳細 → [`05_agent_01_system-overview.md`](05_agent_01_system-overview.md)
+詳細 → [`05_agent_07_cli-and-commands.md`](05_agent_07_cli-and-commands.md)
 
 ### 2.5 実装済み機能サマリ
 
 | 機能 | 実装場所 |
 |---|---|
-| RAG 検索 (MQE + KNN + BM25 + RRF + Rerank) | `rag/pipeline.py` |
+| RAG 検索 (MQE + KNN + BM25 + RRF + Rerank + Refiner) | `rag/pipeline.py` |
 | MCP ツールコーリング (HTTP/stdio, 11 サーバ) | `agent/tool_runner.py`, `shared/tool_executor.py` |
 | メモリレイヤー (semantic/episodic) | `agent/memory/` |
 | セッション永続化・復元 | `agent/session.py`, `db/` |
@@ -83,7 +84,5 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.txt
 | ツール結果 TTL キャッシュ | `shared/tool_cache.py`, `shared/tool_executor.py` |
 | SSE ストリーミング | `shared/llm_client.py` |
 | スラッシュコマンド群 | `agent/commands/` |
-
-詳細 → [`05_agent_01_system-overview.md`](05_agent_01_system-overview.md)
 
 ---
