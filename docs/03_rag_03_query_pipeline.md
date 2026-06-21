@@ -178,6 +178,26 @@ FusionStage(use_rrf: bool)
 
 > `use_rrf=False` activates `_dedup_hits()` fallback (simple chunk_id dedup, all `rrf_score=0.0`). `pipeline.py:184` passes `use_rrf=self._cfg.use_rrf` to `FusionStage`.
 
+#### Retrieval-quality tradeoff: `use_rrf=False` vs `use_rrf=True`
+
+| Mode | Mechanism | Quality impact |
+|---|---|---|
+| `use_rrf=True` (default) | RRF: each hit scored as `Σ 1/(rrf_k + rank)` across all result lists | Chunks seen by multiple queries get promoted; robust cross-list ranking |
+| `use_rrf=False` | `_dedup_hits()`: chunk_id dedup, first-occurrence wins; all hits get `rrf_score=0.0` | No rank signal; MQE results provide no additional ranking benefit |
+
+**When `use_rrf=False`:**
+- `_dedup_hits()` is used: deduplication by `chunk_id`; first occurrence across result lists wins
+- All merged hits receive `rrf_score=0.0` — no rank-weighted scoring
+- MQE-generated multi-query results provide **no additional ranking benefit**: a chunk seen
+  by 3 queries scores identically to one seen by only 1
+- Recommendation: keep `use_rrf=True` (default) unless embedding/FTS overhead must be
+  minimized and ranking quality can be sacrificed
+
+**Observability:**
+- `--debug` shows `~ FusionStage: fallback — use_rrf=False`
+- `get_diagnostics()["fusion_mode"]` returns `"rrf"` or `"dedup_only"`
+- `logger.info("FusionStage: dedup-only mode (use_rrf=False)")` at INFO level
+
 ### 5.4 RerankStage
 
 ```python
