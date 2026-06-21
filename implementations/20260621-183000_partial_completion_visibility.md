@@ -1,0 +1,110 @@
+# Implementation: Improve Visibility of Partial LLM Completions in Normal Runtime
+
+## Goal
+
+Emit a user-visible indicator when a partial LLM completion occurs during normal session interaction, and improve discoverability of the stored partial completion artifact without changing diagnostic isolation.
+
+## Scope
+
+**In-Scope:**
+- Add a terminal-visible warning when a partial completion is stored in the current turn. Mechanism: check `LLMClient.stat_partial_completions` before/after `handle_turn()` in the REPL loop; if it increased, print "[warn] Partial LLM completion detected. Use /stats to see count or query tool_results for session_id=X."
+- Add a short `partial_completions_this_session: int` note to `/stats` output that includes a hint: "stored as tool_result with tool_name='llm_partial_completion'"
+- Update `/stats` help text or output to direct operators to the stored artifact
+
+**Out-of-Scope:**
+- Reinjecting partial outputs into conversation history
+- Adding a new command like `/results partial`
+- Redesigning SSE transport or the `ToolResultStore` schema
+
+## Assumptions
+
+1. `ctx.services.llm.stat_partial_completions` is accessible in the REPL loop.
+2. The REPL turn loop calls `self._orchestrator.handle_turn(line)` synchronously (from the operator's perspective) and the stat is updated before the call returns.
+3. `/stats` output is rendered by `cmd_config_stats.py` which already shows the count.
+4. Adding the hint to existing stats output is backward-compatible.
+
+## Unknowns & Gaps
+
+| ID | Unknown | Evidence Missing | Resolution | Blocking |
+|---|---|---|---|---|
+| UNK-01 | Does the REPL loop have access to `ctx.services.llm` after each turn? | `self._ctx` is set; `self._ctx.services.llm` is accessible | Yes — confirmed from repl.py patterns | False |
+| UNK-02 | Is `stat_partial_completions` reset per turn or cumulative? | Line 467 does `+= 1` | Cumulative — compare before/after each turn to detect new occurrence | False |
+| UNK-03 | Should the warning appear inline during streaming or after the turn completes? | Require says "normal runtime indicator" | After turn completes (post-turn check): simpler, no streaming changes needed | False |
+
+## Implementation
+
+### Target files
+
+- `scripts/agent/repl.py` — add before/after check of `stat_partial_completions` in `_repl_loop()` and call `self._view.write_warning(...)` when count increases
+- `scripts/agent/commands/cmd_config_stats.py` — update partial completion row to add hint about artifact location
+
+### Procedure
+
+#### Step 1: Add per-turn partial completion check to `_repl_loop()`
+
+```python
+# Before handle_turn():
+_prev_partial = (
+    self._ctx.services.llm.stat_partial_completions
+    if self._ctx.services.llm is not None else 0
+)
+
+# ... await self._orchestrator.handle_turn(line) ...
+
+# After handle_turn():
+if (self._ctx.services.llm is not None and
+    self._ctx.services.llm.stat_partial_completions > _prev_partial):
+    self._view.write_warning(
+        "Partial LLM completion stored."
+        " Use /stats to see count or query tool_results"
+        " (tool_name='llm_partial_completion')."
+    )
+```
+
+- `write_warning(msg)` already exists in `cli_view.py:CLIView`
+
+#### Step 2: Update `/stats` partial completion row
+
+Change from:
+```python
+self._out.write(f"  Partial compl : {stats.llm_partial_completions}")
+```
+to:
+```python
+self._out.write(
+    f"  Partial compl : {stats.llm_partial_completions}"
+    f"  (stored as tool_result, tool_name='llm_partial_completion')"
+    if stats.llm_partial_completions > 0
+    else f"  Partial compl : 0"
+)
+```
+
+#### Step 3: Tests
+
+- Test: after `handle_turn()` that triggers partial completion, `write_warning` is called
+- Test: `/stats` output includes artifact hint when count > 0
+
+### Method
+
+- Very low-impact change: 2 lines in repl.py + 1 line in stats
+- Uses existing `write_warning()` method from CLIView
+- Hint only shown when count > 0 (backward-compatible)
+
+## Validation plan
+
+| Target | Strategy | Command | Expected |
+|---|---|---|---|
+| Post-turn warning | Unit — mock `stat_partial_completions` increment | `uv run pytest tests/ -k repl -v` | write_warning called |
+| `/stats` hint | Unit — mock stats with count > 0 | `uv run pytest tests/ -k stats -v` | hint appears in output |
+| Lint | Static | `uv run ruff check scripts/` | 0 errors |
+| Type check | Static | `uv run mypy scripts/` | no new errors |
+| Full suite | Regression | `uv run pytest -q` | no new failures |
+
+## Risks
+
+- **Risk:** Reading `stat_partial_completions` before/after adds overhead if the loop is tight
+  → **Mitigation:** attribute access is O(1); no real overhead
+- **Risk:** `self._ctx.services.llm` may be None (no LLM configured in some test modes)
+  → **Mitigation:** already guarded by `if self._ctx.services.llm is not None`
+- **Risk:** Existing stats tests assert on exact output string and break with added hint
+  → **Mitigation:** test checks "Partial compl : 0" without hint; only triggered when count > 0

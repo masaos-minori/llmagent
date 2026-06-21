@@ -1,0 +1,134 @@
+# Implementation: Operator-Facing Memory Consistency Check and Rebuild
+
+## Goal
+
+Add `/memory check-consistency` and `/memory rebuild` slash commands so operators can detect JSONL-to-SQLite divergence and trigger a supported repair flow without custom scripts.
+
+## Scope
+
+**In-Scope:**
+- `/memory check-consistency`: call `mem.store.check_consistency()`, display counts, flag mismatches (`memories != fts` or `memories != vec` when vec enabled)
+- `/memory rebuild [--dry-run]`: read all JSONL records, truncate SQLite `memories` / `memories_fts` / `memories_vec`, re-insert from JSONL, report counts
+- New `MemoryStore.rebuild_from_jsonl(jsonl_store, *, embed_client=None)` method (or a standalone `rebuild_memory_index()` helper in `memory/maintenance.py`)
+- Emit audit event for `check-consistency` and `rebuild` operations
+- Update `/memory help` text
+
+**Out-of-Scope:**
+- Rewriting extraction heuristics or changing MemoryEntry schema
+- Automatic self-healing triggered outside operator command
+- Changing the JSONL format
+
+## Assumptions
+
+1. `JsonlMemoryStore` provides an iterable over all stored records — likely `iter_all()` or similar; if not, we can implement it.
+2. Re-inserting from JSONL into SQLite uses the same `store.upsert()` path as normal ingestion — no new schema changes needed.
+3. Embedding re-generation during rebuild is optional (`--embed` flag) since the embed client may not be available in all environments.
+4. `--dry-run` for rebuild: report what would happen (count JSONL records, compare to SQLite counts) without modifying SQLite.
+
+## Unknowns & Gaps
+
+| ID | Unknown | Evidence Missing | Resolution | Blocking |
+|---|---|---|---|---|
+| UNK-01 | Does `JsonlMemoryStore` have an `iter_all()` or equivalent? | No grep hit for `iter_all` | Check `jsonl_store.py`; add if missing | False |
+| UNK-02 | Does `MemoryStore` have an `upsert()` method for re-inserting? | No grep hit for `upsert` | Check `store.py`; if only `insert`, add a delete-then-insert path or REPLACE INTO | False |
+| UNK-03 | Should `rebuild` drop and re-create the SQLite tables or truncate? | No policy stated | Truncate rows (DELETE FROM), then re-insert — safer than DROP TABLE | False |
+| UNK-04 | Should `check-consistency` also check JSONL record count vs SQLite count? | Require says "JSONL-to-SQLite divergence" | Yes — also read JSONL count; report (jsonl, sqlite, fts, vec) | False |
+
+## Implementation
+
+### Target files
+
+- `scripts/agent/memory/jsonl_store.py` — add `iter_all()` / `count_all()` if missing
+- `scripts/agent/memory/store.py` — add `rebuild_from_jsonl(jsonl_store, *, dry_run)` method
+- `scripts/agent/commands/cmd_memory.py` — add `check-consistency` and `rebuild` subcommands
+- `tests/test_memory_commands.py` (new or existing) — add command tests
+
+### Procedure
+
+#### Step 1: Add `iter_all()` to `JsonlMemoryStore` (if missing)
+
+Reads all lines from the JSONL file, yields `JsonlRecord` objects. Skips malformed lines with a `logger.warning`.
+
+#### Step 2: Add `rebuild_from_jsonl()` to `MemoryStore`
+
+```python
+def rebuild_from_jsonl(
+    self,
+    jsonl_store: JsonlMemoryStore,
+    *,
+    dry_run: bool = False,
+) -> tuple[int, int]:
+    """Rebuild SQLite memories/FTS from JSONL source.
+    
+    Returns (jsonl_count, inserted_count).
+    JSONL is the canonical source; existing SQLite rows are replaced.
+    """
+```
+
+- Read JSONL count with `jsonl_store.count_all()`
+- If `dry_run`: return (count, 0) without modifying SQLite
+- Else: DELETE FROM memories + memories_fts + memories_vec; iterate and INSERT each
+
+#### Step 3: Add `/memory check-consistency` to `_MemoryMixin`
+
+```python
+def _memory_check_consistency(self, mem: MemoryServices) -> None:
+    report = mem.store.check_consistency()
+    jsonl_count = mem.jsonl_store.count_all()
+    ok = (jsonl_count == report.memories) and (report.memories == report.fts)
+    rows = [
+        ["JSONL records", str(jsonl_count)],
+        ["SQLite memories", str(report.memories)],
+        ["FTS5 rows", str(report.fts)],
+        ["Vec rows", str(report.vec)],
+        ["Consistent", "Yes" if ok else "NO — use /memory rebuild to repair"],
+    ]
+    self._out.write_table(["Metric", "Count"], rows)
+```
+
+#### Step 4: Add `/memory rebuild [--dry-run]` to `_MemoryMixin`
+
+- Call `mem.store.rebuild_from_jsonl(mem.jsonl_store, dry_run=dry_run)`
+- Report `Rebuilt {inserted} entries from {jsonl} JSONL records` or dry-run summary
+- Emit audit event
+
+#### Step 5: Register new subcommands in `_cmd_memory` dispatch dict
+
+- `"check-consistency"` → `_memory_check_consistency`
+- `"rebuild"` → `_memory_rebuild`
+
+#### Step 6: Update `/memory help` text
+
+- Add new lines for `check-consistency` and `rebuild`
+
+#### Step 7: Tests
+
+- Test: `check-consistency` with equal counts → shows "Consistent: Yes"
+- Test: `check-consistency` with FTS mismatch → shows "NO — use /memory rebuild"
+- Test: `rebuild --dry-run` → no SQLite modification, reports JSONL count
+- Test: `rebuild` → deletes and re-inserts from JSONL
+
+### Method
+
+- Additive commands to `/memory` subcommand dispatch
+- New `rebuild_from_jsonl()` method on `MemoryStore`
+- New `iter_all()` / `count_all()` methods on `JsonlMemoryStore` if missing
+
+## Validation plan
+
+| Target | Strategy | Command | Expected |
+|---|---|---|---|
+| `check-consistency` output | Unit | `uv run pytest tests/ -k memory -v` | all pass |
+| `rebuild` logic | Unit — mock jsonl_store and store | `uv run pytest tests/ -k memory -v` | all pass |
+| Lint | Static | `uv run ruff check scripts/` | 0 errors |
+| Type check | Static | `uv run mypy scripts/` | no new errors |
+| Full suite | Regression | `uv run pytest -q` | no new failures |
+
+## Risks
+
+- **Risk:** `rebuild` is destructive — deletes all SQLite rows before re-inserting from JSONL. If JSONL is corrupted or truncated, data is permanently lost.
+  → **Mitigation:** require explicit confirmation (`--confirm` flag) or implement `--dry-run` first; document that JSONL is the canonical source
+- **Risk:** `mem.jsonl_store` may not be accessible from `MemoryServices` interface
+  → **Mitigation:** check `MemoryServices` dataclass for `jsonl_store` field; add if missing
+- **Risk:** `check-consistency` raises `MemoryConsistencyError` if FTS table is missing
+  → **Mitigation:** catch and display as error output; don't crash the REPL
