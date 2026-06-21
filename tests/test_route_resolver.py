@@ -141,3 +141,42 @@ class TestWarnOnFallback:
         with caplog.at_level(logging.WARNING, logger="shared.route_resolver"):
             resolver.resolve("search_web")
         assert "static fallback" not in caplog.text
+
+
+class TestStartupModeValidation:
+    def test_startup_mode_empty_string_raises(self) -> None:
+        """Empty string for startup_mode should raise ValueError."""
+        with pytest.raises(ValueError):
+            McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode="")
+
+    def test_startup_mode_invalid_value_raises(self) -> None:
+        """Invalid startup_mode value should raise ValueError."""
+        with pytest.raises(ValueError):
+            McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode="invalid")
+
+    def test_startup_mode_persistent_is_valid(self) -> None:
+        """StartupMode.PERSISTENT is valid for both transports."""
+        http_cfg = McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode=StartupMode.PERSISTENT)
+        assert http_cfg.startup_mode == StartupMode.PERSISTENT
+
+        stdio_cfg = McpServerConfig(transport="stdio", url="", cmd=["python", "s.py"], startup_mode=StartupMode.PERSISTENT)
+        assert stdio_cfg.startup_mode == StartupMode.PERSISTENT
+
+    def test_startup_mode_subprocess_only_valid_for_http(self) -> None:
+        """StartupMode.SUBPROCESS is only valid for transport='http'."""
+        McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode=StartupMode.SUBPROCESS)
+
+    def test_startup_mode_subprocess_invalid_for_stdio(self) -> None:
+        """StartupMode.SUBPROCESS raises ValueError for transport='stdio'."""
+        with pytest.raises(ValueError, match="startup_mode='subprocess' is only valid for transport='http'"):
+            McpServerConfig(transport="stdio", url="", cmd=["python", "s.py"], startup_mode=StartupMode.SUBPROCESS)
+
+    def test_startup_mode_string_persistent_coerced(self) -> None:
+        """String 'persistent' is coerced to StartupMode.PERSISTENT."""
+        cfg = McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode="persistent")
+        assert cfg.startup_mode == StartupMode.PERSISTENT
+
+    def test_startup_mode_string_subprocess_coerced(self) -> None:
+        """String 'subprocess' is coerced to StartupMode.SUBPROCESS."""
+        cfg = McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode="subprocess")
+        assert cfg.startup_mode == StartupMode.SUBPROCESS
