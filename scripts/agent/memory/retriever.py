@@ -205,7 +205,7 @@ class VectorRetriever:
         memory_type: str | None,
         limit: int,
     ) -> list[MemoryHit]:
-        """KNN search on memories_vec; returns [] when vec extension unavailable."""
+        """KNN search on memories_vec; raises OperationalError when table missing."""
         type_filter = ""
         params: list[object] = [_floats_to_blob(embedding), limit]
         if memory_type:
@@ -270,12 +270,14 @@ class HybridRetriever:
         """
         fts_hits = self._fts.search(query, project, repo)
         if embedding is None:
+            logger.info("retrieval: fts_only (reason=embedding_disabled_or_none)")
             return fts_hits
 
         vec_hits = self._vec.knn_search(
             embedding, query.memory_type, self._fts._fts_limit
         )
         if not vec_hits:
+            logger.info("retrieval: fts_only (reason=vec_returned_empty)")
             return fts_hits
 
         merged = _rrf_merge([fts_hits, vec_hits], k=self._rrf_k)
