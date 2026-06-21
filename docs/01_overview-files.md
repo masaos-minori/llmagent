@@ -125,8 +125,16 @@
   ├─ llama-chat-llm                     # OpenRC: gemma-4-e4b 起動スクリプト (:8002)
   ├─ llama-coding-llm                   # OpenRC: qwen2.5-coder-7b 起動スクリプト (:8001)
   ├─ web-search-mcp                     # OpenRC: Web 検索 MCP サーバ起動スクリプト (:8004)
-  ├─ file-mcp                           # OpenRC: ファイルシステム MCP サーバ起動スクリプト (:8005)
-  └─ github-mcp                         # OpenRC: GitHub MCP サーバ起動スクリプト (:8006)
+  ├─ file-read-mcp                      # OpenRC: ファイル読み取り MCP サーバ起動スクリプト (:8005)
+  ├─ github-mcp                         # OpenRC: GitHub MCP サーバ起動スクリプト (:8006)
+  ├─ file-write-mcp                     # OpenRC: ファイル書き込み MCP サーバ起動スクリプト (:8007)
+  ├─ file-delete-mcp                    # OpenRC: ファイル削除 MCP サーバ起動スクリプト (:8008)
+  ├─ shell-mcp                          # OpenRC: シェルコマンド実行 MCP サーバ起動スクリプト (:8009)
+  ├─ rag-pipeline-mcp                   # OpenRC: RAG パイプライン MCP サーバ起動スクリプト (:8010)
+  ├─ sqlite-mcp                         # OpenRC: SQLite 読み取り専用クエリ MCP サーバ起動スクリプト (:8011)
+  ├─ cicd-mcp                           # OpenRC: GitHub Actions CI/CD MCP サーバ起動スクリプト (:8012)
+  ├─ mdq-mcp                            # OpenRC: Markdown Context Compression Engine MCP サーバ起動スクリプト (:8013)
+  └─ git-mcp                            # OpenRC: ローカル git 操作 MCP サーバ起動スクリプト (:8014)
 /etc/conf.d/
   ├─ web-search-mcp                     # BRAVE_API_KEY / BING_API_KEY 環境変数設定
   └─ github-mcp                         # GITHUB_TOKEN (Personal Access Token) 設定
