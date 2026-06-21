@@ -1,8 +1,9 @@
 """
-tests/test_tool_approval.py
-Unit tests for the risk-based tool approval model.
+tests/test_tool_approval_preflight.py
+Unit tests for check_approval() flows, audit logging, tool execution, and approval checks.
 
-Covers _classify_risk(), _build_preview(), and check_approval().
+Covers check_approval(), _audit_approval(), _audit_tool_exec(),
+execute_one_tool_call(), log_approval_decision(), and run_approval_checks().
 """
 
 from __future__ import annotations
@@ -12,13 +13,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.config import AgentConfig, build_agent_config
-from agent.tool_approval import check_approval
+from agent.tool_approval import check_approval, run_approval_checks
 from agent.tool_audit import audit_approval as _audit_approval
 from agent.tool_audit import audit_tool_exec as _audit_tool_exec
-from agent.tool_policy import classify_risk as _classify_risk
-from agent.tool_result_formatter import build_preview as _build_preview
+from agent.tool_audit import log_approval_decision
+from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_runner import execute_one_tool_call
+from agent.tool_models import ApprovalOutcome
 from shared.tool_executor import ToolCallResult
+
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -112,176 +115,6 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.services.audit_logger = None
     ctx.services.tools = AsyncMock()
     return ctx
-
-
-# ── _classify_risk() ──────────────────────────────────────────────────────────
-
-
-class TestClassifyRisk:
-    def test_write_file_returns_medium(self) -> None:
-        cfg = _make_cfg()
-        assert (
-            _classify_risk(cfg, "write_file", {"path": "/home/user/file.txt"})
-            == "medium"
-        )
-
-    def test_delete_file_returns_high(self) -> None:
-        cfg = _make_cfg()
-        assert (
-            _classify_risk(cfg, "delete_file", {"path": "/home/user/file.txt"})
-            == "high"
-        )
-
-    def test_read_only_tier_tool_returns_none(self) -> None:
-        # list_directory is READ_ONLY tier → "none" (auto-approved)
-        cfg = _make_cfg()
-        assert _classify_risk(cfg, "list_directory", {}) == "none"
-
-    def test_truly_unknown_tool_returns_medium_fail_safe(self) -> None:
-        # Tool absent from both approval_risk_rules and tool_safety_tiers
-        # → Fail-Safe: WRITE_DANGEROUS default → "medium"
-        cfg = _make_cfg()
-        assert _classify_risk(cfg, "some_unregistered_tool", {}) == "medium"
-
-    def test_write_to_protected_path_escalates_to_high(self) -> None:
-        cfg = _make_cfg()
-        assert (
-            _classify_risk(cfg, "write_file", {"path": "/opt/llm/config.json"})
-            == "high"
-        )
-
-    def test_medium_tool_outside_protected_path_stays_medium(self) -> None:
-        cfg = _make_cfg()
-        assert (
-            _classify_risk(cfg, "write_file", {"path": "/home/user/file.txt"})
-            == "medium"
-        )
-
-    def test_shell_run_returns_high_by_default(self) -> None:
-        cfg = _make_cfg()
-        assert (
-            _classify_risk(cfg, "shell_run", {"command": "rm -rf /tmp/test"}) == "high"
-        )
-
-    def test_shell_run_safe_prefix_returns_none(self) -> None:
-        cfg = _make_cfg()
-        assert _classify_risk(cfg, "shell_run", {"command": "ls -la /tmp"}) == "none"
-
-    def test_shell_run_git_log_returns_none(self) -> None:
-        cfg = _make_cfg()
-        assert (
-            _classify_risk(cfg, "shell_run", {"command": "git log --oneline -5"})
-            == "none"
-        )
-
-    def test_github_push_to_main_escalates_to_high(self) -> None:
-        cfg = _make_cfg()
-        # github_create_pull_request is medium by default, but base=main → high
-        assert (
-            _classify_risk(
-                cfg,
-                "github_create_pull_request",
-                {"owner": "foo", "repo": "bar", "base": "main"},
-            )
-            == "high"
-        )
-
-    def test_github_create_pr_to_feature_remains_medium(self) -> None:
-        cfg = _make_cfg()
-        assert (
-            _classify_risk(
-                cfg,
-                "github_create_pull_request",
-                {"owner": "foo", "repo": "bar", "base": "feature/x"},
-            )
-            == "medium"
-        )
-
-    def test_github_push_files_always_high(self) -> None:
-        cfg = _make_cfg()
-        assert (
-            _classify_risk(
-                cfg,
-                "github_push_files",
-                {"owner": "foo", "repo": "bar", "branch": "feature/x"},
-            )
-            == "high"
-        )
-
-    def test_delete_file_on_etc_still_high(self) -> None:
-        # delete_file is already 'high'; protected path shouldn't lower it
-        cfg = _make_cfg()
-        assert _classify_risk(cfg, "delete_file", {"path": "/etc/hosts"}) == "high"
-
-    def test_custom_risk_rules_override_default(self) -> None:
-        cfg = _make_cfg(approval_risk_rules={"my_tool": "medium"})
-        assert _classify_risk(cfg, "my_tool", {}) == "medium"
-
-    def test_empty_risk_rules_falls_back_to_tier(self) -> None:
-        # With empty approval_risk_rules, tier classification kicks in.
-        # delete_file tier=WRITE_DANGEROUS → "medium" (Fail-Safe, not "none")
-        cfg = _make_cfg(approval_risk_rules={})
-        assert _classify_risk(cfg, "delete_file", {}) == "medium"
-
-    def test_empty_risk_rules_read_only_still_none(self) -> None:
-        # READ_ONLY tier tools remain "none" even with empty approval_risk_rules
-        cfg = _make_cfg(approval_risk_rules={})
-        assert _classify_risk(cfg, "list_directory", {}) == "none"
-
-    def test_file_path_arg_key_also_escalates(self) -> None:
-        cfg = _make_cfg()
-        assert (
-            _classify_risk(cfg, "edit_file", {"file_path": "/opt/llm/x.py"}) == "high"
-        )
-
-
-# ── _build_preview() ──────────────────────────────────────────────────────────
-
-
-class TestBuildPreview:
-    def test_write_file_shows_path_and_content(self) -> None:
-        preview = _build_preview(
-            "write_file", {"path": "/tmp/a.txt", "content": "hello"}
-        )
-        assert "/tmp/a.txt" in preview
-        assert "hello" in preview
-
-    def test_delete_file_shows_path(self) -> None:
-        preview = _build_preview("delete_file", {"path": "/tmp/a.txt"})
-        assert "/tmp/a.txt" in preview
-
-    def test_delete_directory_shows_directory_path(self) -> None:
-        preview = _build_preview("delete_directory", {"directory_path": "/tmp/dir"})
-        assert "/tmp/dir" in preview
-
-    def test_move_file_shows_source_and_destination(self) -> None:
-        preview = _build_preview("move_file", {"source": "/a", "destination": "/b"})
-        assert "/a" in preview
-        assert "/b" in preview
-        assert "→" in preview
-
-    def test_shell_run_shows_command(self) -> None:
-        preview = _build_preview("shell_run", {"command": "ls -la"})
-        assert "ls -la" in preview
-
-    def test_github_shows_owner_repo(self) -> None:
-        preview = _build_preview(
-            "github_create_issue",
-            {"owner": "myorg", "repo": "myrepo", "title": "Bug"},
-        )
-        assert "myorg/myrepo" in preview
-
-    def test_unknown_tool_shows_json(self) -> None:
-        preview = _build_preview("read_text_file", {"path": "/tmp/x"})
-        assert "path" in preview
-
-    def test_content_truncated_at_200_chars(self) -> None:
-        long_content = "x" * 500
-        preview = _build_preview(
-            "write_file", {"path": "/tmp/f", "content": long_content}
-        )
-        # Content preview should not include all 500 chars
-        assert long_content not in preview
 
 
 # ── check_approval() ─────────────────────────────────────────────────────────
@@ -453,52 +286,6 @@ class TestAuditApproval:
         assert "owner" not in event["resource_scope"]
 
 
-# ── _classify_operation_type() ───────────────────────────────────────────────
-
-
-class TestClassifyOperationType:
-    def test_write_tools(self) -> None:
-        from agent.tool_policy import (
-            classify_operation_type as _classify_operation_type,
-        )
-
-        for name in ("write_file", "edit_file", "create_directory", "move_file"):
-            assert _classify_operation_type(name) == "write"
-
-    def test_delete_tools(self) -> None:
-        from agent.tool_policy import (
-            classify_operation_type as _classify_operation_type,
-        )
-
-        assert _classify_operation_type("delete_file") == "delete"
-        assert _classify_operation_type("delete_directory") == "delete"
-
-    def test_execute_tools(self) -> None:
-        from agent.tool_policy import (
-            classify_operation_type as _classify_operation_type,
-        )
-
-        assert _classify_operation_type("shell_run") == "execute"
-
-    def test_api_write_tools(self) -> None:
-        from agent.tool_policy import (
-            classify_operation_type as _classify_operation_type,
-        )
-
-        assert _classify_operation_type("github_push_files") == "api_write"
-        assert _classify_operation_type("github_create_pull_request") == "api_write"
-        assert _classify_operation_type("github_merge_pull_request") == "api_write"
-
-    def test_read_tools(self) -> None:
-        from agent.tool_policy import (
-            classify_operation_type as _classify_operation_type,
-        )
-
-        assert _classify_operation_type("list_directory") == "read"
-        assert _classify_operation_type("read_text_file") == "read"
-        assert _classify_operation_type("search_web") == "read"
-
-
 # ── check_approval() dry_run flow ─────────────────────────────────────────────
 
 
@@ -557,86 +344,6 @@ class TestCheckApprovalDryRun:
             )
 
         assert result is True  # approval still proceeds
-
-
-# ── check_approval(): ALLOWED_ROOT pre-flight ─────────────────────────────────
-
-
-class TestCheckApprovalAllowedRoot:
-    @pytest.mark.asyncio
-    async def test_path_outside_root_immediately_denied(self, tmp_path: Any) -> None:
-        import tempfile
-
-        root = tempfile.mkdtemp()
-        cfg = _make_cfg(allowed_root=root)
-        ctx = _make_ctx(cfg=cfg)
-        audit = MagicMock()
-        ctx.services.audit_logger = audit
-
-        result = await check_approval(ctx, "write_file", {"path": "/etc/passwd"})
-
-        assert result is False
-        logged = audit.info.call_args[0][0]
-        assert "denied_root_jail" in logged
-
-    @pytest.mark.asyncio
-    async def test_path_inside_root_proceeds_to_risk_check(self, tmp_path: Any) -> None:
-        import tempfile
-
-        root = tempfile.mkdtemp()
-        cfg = _make_cfg(allowed_root=root)
-        ctx = _make_ctx(cfg=cfg)
-
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
-            result = await check_approval(
-                ctx, "write_file", {"path": f"{root}/file.txt"}
-            )
-
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_disabled_root_does_not_block(self, tmp_path: Any) -> None:
-        # Use tmp_path (not /etc) to avoid triggering approval_protected_paths escalation
-        outside = str(tmp_path / "outside.txt")
-        cfg = _make_cfg(allowed_root="", approval_protected_paths=[])
-        ctx = _make_ctx(cfg=cfg)
-
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
-            result = await check_approval(ctx, "write_file", {"path": outside})
-
-        assert result is True
-
-
-# ── check_approval(): GitHub repo allowlist pre-flight ───────────────────────
-
-
-class TestCheckApprovalGitHubAllowlist:
-    @pytest.mark.asyncio
-    async def test_fail_closed_empty_allowlist_denies_write(self) -> None:
-        cfg = _make_cfg(approval_github_allowed_repos=[])
-        ctx = _make_ctx(cfg=cfg)
-        audit = MagicMock()
-        ctx.services.audit_logger = audit
-
-        result = await check_approval(
-            ctx, "github_push_files", {"owner": "org", "repo": "repo"}
-        )
-
-        assert result is False
-        logged = audit.info.call_args[0][0]
-        assert "denied_repo_allowlist" in logged
-
-    @pytest.mark.asyncio
-    async def test_repo_in_allowlist_proceeds(self) -> None:
-        cfg = _make_cfg(approval_github_allowed_repos=["org/repo"])
-        ctx = _make_ctx(cfg=cfg)
-
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="yes")):
-            result = await check_approval(
-                ctx, "github_push_files", {"owner": "org", "repo": "repo"}
-            )
-
-        assert result is True
 
 
 # ── _audit_tool_exec() ────────────────────────────────────────────────────────
@@ -728,85 +435,11 @@ class TestExecuteOneToolCall:
         assert "req-999" in logged
 
 
-# ── gitops / allowed_repos guards ────────────────────────────────────────────
-
-
-class TestGitopsGuards:
-    @pytest.mark.asyncio
-    async def test_github_push_blocked_when_flag_set(self) -> None:
-        """gitops_push_blocked=True denies GitHub write tools immediately."""
-        cfg = _make_cfg(gitops_push_blocked=True)
-        ctx = _make_ctx(cfg)
-        result = await check_approval(ctx, "github_push_files", {})
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_github_push_blocked_false_does_not_block_by_flag(self) -> None:
-        """gitops_push_blocked=False: the flag itself does not deny the call."""
-        cfg = _make_cfg(
-            gitops_push_blocked=False,
-            approval_github_allowed_repos=["myorg/allowed-repo"],
-        )
-        ctx = _make_ctx(cfg)
-        with patch(
-            "agent.tool_approval._prompt_user_approval", AsyncMock(return_value=True)
-        ):
-            result = await check_approval(
-                ctx, "github_push_files", {"owner": "myorg", "repo": "allowed-repo"}
-            )
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_non_github_tool_not_blocked_by_gitops(self) -> None:
-        """gitops_push_blocked only affects GitHub write tools."""
-        cfg = _make_cfg(gitops_push_blocked=True)
-        ctx = _make_ctx(cfg)
-        result = await check_approval(ctx, "read_text_file", {"path": "/tmp/f"})
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_allowed_repos_rejects_unlisted_repo(self) -> None:
-        """approval_github_allowed_repos non-empty: unlisted owner/repo is denied."""
-        cfg = _make_cfg(approval_github_allowed_repos=["myorg/allowed-repo"])
-        ctx = _make_ctx(cfg)
-        result = await check_approval(
-            ctx, "github_push_files", {"owner": "myorg", "repo": "other-repo"}
-        )
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_allowed_repos_permits_listed_repo(self) -> None:
-        """Repo matching allowed_repos entry is not denied by the repo check."""
-        cfg = _make_cfg(approval_github_allowed_repos=["myorg/allowed-repo"])
-        ctx = _make_ctx(cfg)
-        with patch(
-            "agent.tool_approval._prompt_user_approval", AsyncMock(return_value=True)
-        ):
-            result = await check_approval(
-                ctx, "github_push_files", {"owner": "myorg", "repo": "allowed-repo"}
-            )
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_allowed_repos_empty_denies_all_github_write(self) -> None:
-        """Empty allowed_repos list is fail-closed: all GitHub write tools are denied."""
-        cfg = _make_cfg(approval_github_allowed_repos=[])
-        ctx = _make_ctx(cfg)
-        result = await check_approval(
-            ctx, "github_push_files", {"owner": "any", "repo": "repo"}
-        )
-        assert result is False
-
-
 # ── log_approval_decision ─────────────────────────────────────────────────────
 
 
 class TestLogApprovalDecision:
     def test_logs_structured_event(self) -> None:
-        from agent.tool_audit import log_approval_decision
-        from agent.tool_enums import ApprovalDecisionType, RiskLevel
-        from agent.tool_models import ApprovalOutcome
-
         ctx = _make_ctx()
         ctx.services.audit_logger = MagicMock()
         ctx.turn.current_turn_id = "turn-xyz"
@@ -826,10 +459,6 @@ class TestLogApprovalDecision:
         assert "ts" in logged
 
     def test_no_op_when_audit_logger_none(self) -> None:
-        from agent.tool_audit import log_approval_decision
-        from agent.tool_enums import ApprovalDecisionType, RiskLevel
-        from agent.tool_models import ApprovalOutcome
-
         ctx = _make_ctx()
         ctx.services.audit_logger = None
         outcome = ApprovalOutcome(
@@ -846,8 +475,6 @@ class TestLogApprovalDecision:
 class TestRunApprovalChecks:
     @pytest.mark.asyncio
     async def test_approved_calls_returned(self) -> None:
-        from agent.tool_approval import run_approval_checks
-
         cfg = _make_cfg(approval_risk_rules={"list_directory": "none"})
         ctx = _make_ctx(cfg)
         tool_calls = [
@@ -865,8 +492,6 @@ class TestRunApprovalChecks:
 
     @pytest.mark.asyncio
     async def test_denied_calls_collected(self) -> None:
-        from agent.tool_approval import run_approval_checks
-
         cfg = _make_cfg(approval_risk_rules={"write_file": "medium"})
         ctx = _make_ctx(cfg)
         ctx.services.audit_logger = MagicMock()
@@ -886,8 +511,6 @@ class TestRunApprovalChecks:
 
     @pytest.mark.asyncio
     async def test_plan_mode_blocks_configured_tools(self) -> None:
-        from agent.tool_approval import run_approval_checks
-
         cfg = _make_cfg(
             approval_risk_rules={"write_file": "medium"},
             plan_blocked_tools=["write_file"],
@@ -913,8 +536,6 @@ class TestRunApprovalChecks:
 
     @pytest.mark.asyncio
     async def test_plan_mode_does_not_block_unlisted_tools(self) -> None:
-        from agent.tool_approval import run_approval_checks
-
         cfg = _make_cfg(
             approval_risk_rules={"list_directory": "none"},
             plan_blocked_tools=["write_file"],
@@ -937,8 +558,6 @@ class TestRunApprovalChecks:
 
     @pytest.mark.asyncio
     async def test_invalid_json_arguments_does_not_crash(self) -> None:
-        from agent.tool_approval import run_approval_checks
-
         cfg = _make_cfg(approval_risk_rules={"list_directory": "none"})
         ctx = _make_ctx(cfg)
         tool_calls = [
