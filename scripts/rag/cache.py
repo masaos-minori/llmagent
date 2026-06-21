@@ -29,7 +29,7 @@ class CacheService(Protocol):
 
 
 class SemanticCache:
-    """In-memory nearest-neighbour cache; returns context when cosine sim >= threshold, pruned by max_size."""
+    """In-memory nearest-neighbour cache with FIFO eviction (oldest entry removed first when size > max_size)."""
 
     def __init__(self, max_size: int = 100, threshold: float = 0.92) -> None:
         self._entries: list[CacheEntry] = []
@@ -88,7 +88,7 @@ class SemanticCache:
             self.prune()
 
     def prune(self) -> None:
-        """Remove oldest entries when size exceeds max_size."""
+        """Remove oldest entries (FIFO) when len(self._entries) > max_size."""
         with self._lock:
             if len(self._entries) > self._max_size:
                 self._entries = self._entries[-self._max_size :]
