@@ -65,6 +65,22 @@ uv run python scripts/rag/ingestion/ingester.py --force
 | `{rag_src_dir}/chunk/{stem}-{idx:04d}.txt` | `chunk_splitter.py` | JSON (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified) |
 | `{rag_src_dir}/registered/{stem}-{idx:04d}.txt` | `ingester.py` (moved) | Same as chunk file |
 
+> **Artifact format note:** All `.txt` files listed above contain JSON payloads,
+> not plain text. The `.txt` extension is retained for historical/compatibility reasons.
+> Always parse with `orjson.loads()` or `json.loads()`. Plain-text tools (grep, wc,
+> editors that assume UTF-8 text) will work on the raw bytes but will not interpret
+> the structure. To inspect a file:
+> ```
+> python -c "import orjson; print(orjson.loads(open('FILE', 'rb').read()))"
+> ```
+> Do NOT pass `.txt` artifacts to tools that assume plain-text format.
+
+> **Future compatibility note (Needs confirmation):** Renaming artifacts to `.json` is
+> feasible but requires updating all `glob("*.txt")` calls in `ingester.py` and
+> `chunk_splitter.py`, the sentinel filename check (`{stem}-0000.txt`), and a migration
+> script for existing files in `rag-src/registered/`. Not implemented; requires
+> explicit confirmation before proceeding.
+
 Production config: `rag_src_dir = "/opt/llm/rag-src"`. The default value `rag-src` is used only when no config is present.
 
 ---

@@ -112,8 +112,7 @@ config/rag_pipeline.toml [target_urls]
 ### Semantic cache
 
 When `use_semantic_cache=True`, query embedding cosine similarity ≥ `semantic_cache_threshold`
-(default 0.92) returns the cached context block, skipping the pipeline. Thread-safe via `threading.RLock`. LRU cache; max size = `semantic_cache_max_size` (default 100 entries).
-LRU cache; max size = `semantic_cache_max_size` (default 100 entries).
+(default 0.92) returns the cached context block, skipping the pipeline. Thread-safe via `threading.RLock`. FIFO cache (oldest-first eviction); max size = `semantic_cache_max_size` (default 100 entries).
 
 ---
 

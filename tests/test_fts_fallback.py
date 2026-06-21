@@ -7,6 +7,8 @@ Verifies:
 - English and code chunk tokens are indexed via the fallback path
 - Empty string normalized_content differs from NULL (COALESCE semantics)
 - Mixed-language documents index each chunk independently
+
+Resolves: OQ-6 (docs/03_rag_90_inconsistencies_and_known_issues.md)
 """
 
 from __future__ import annotations

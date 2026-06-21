@@ -173,7 +173,7 @@ Source: `config/rag.toml`
 | `embed_url` | `http://127.0.0.1:8003/embedding` | Embedding API endpoint |
 | `use_semantic_cache` | `False` | Enable semantic cache for RAG results |
 | `semantic_cache_threshold` | `0.92` | Cosine similarity threshold for cache hit |
-| `semantic_cache_max_size` | `100` | Max LRU cache entries |
+| `semantic_cache_max_size` | `100` | Max cache entries (FIFO eviction; oldest removed first) |
 | `use_refiner` | `False` | Compress chunks via LLM after reranking |
 | `refiner_max_tokens` | `512` | Refiner LLM max tokens |
 | `refiner_timeout` | `30.0` | Refiner LLM timeout (seconds) |

@@ -63,6 +63,13 @@ async def refine_context(
         |                                                    | falls back to raw chunks.         |
         +----------------------------------------------------+-----------------------------------+
 
+    Note:
+        ``"refiner_returned_empty"`` fires only when ``_extract_chat_content()`` returns
+        ``""`` or whitespace-only after ``.strip()``.  Common causes: content-policy refusal,
+        empty LLM generation, or a prompt format that extracts no key points.
+        ``ValueError`` from malformed responses always reaches the
+        ``"refiner_exception: ..."`` path instead.
+
     Error handling:
         HTTPStatusError, RequestError, and ValueError are caught, logged as
         warnings, and converted to ``RefineResult(text=None, reason=...)``.

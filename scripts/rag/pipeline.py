@@ -437,8 +437,21 @@ class RagPipeline:
                     stage_name="HttpAugment",
                     status=http_status,
                     elapsed_seconds=elapsed,
-                    fallback_reason=http_fallback_reason if result is None else None,
+                    fallback_reason=(
+                        http_fallback_reason
+                        if result is None
+                        else "http_remote_empty"
+                        if result == ""
+                        else None
+                    ),
                 )
+            )
+            self._http_result_kind = (
+                "remote_nonempty"
+                if result and len(result) > 0
+                else "remote_empty"
+                if result == ""
+                else "in_process_fallback"
             )
             if result is not None:
                 return result
@@ -491,6 +504,11 @@ class RagPipeline:
                     fallback_reason=refined.reason,
                 )
             )
+            if refined.text is None:
+                logger.info(
+                    "augment: refiner fallback (reason=%s); using raw chunks",
+                    refined.reason,
+                )
             if refined.text is not None:
                 return refined.text
         context_block = self._format_chunks(reranked)
@@ -508,6 +526,7 @@ class RagPipeline:
         fallbacks = [r for r in stage_results if r.get("status") == "fallback"]
         fetch = self.last_fetch_result
         fusion_mode = "rrf" if self._cfg.use_rrf else "dedup_only"
+        http_result_kind = getattr(self, "_http_result_kind", None)
         return {
             "stage_results": stage_results,
             "timings": dict(self.last_timings),
@@ -520,6 +539,7 @@ class RagPipeline:
                 else None
             ),
             "fusion_mode": fusion_mode,
+            "http_result_kind": http_result_kind,
             "fallback_count": len(fallbacks),
             "fallback_reasons": [
                 r["fallback_reason"] for r in stage_results if r.get("fallback_reason")

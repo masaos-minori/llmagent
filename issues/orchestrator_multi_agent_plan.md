@@ -9,20 +9,19 @@
 - 現行 REPL は `AgentREPL._handle_user_message()` で **RAG → 履歴追記 → compress → LLM → tool loop** を 1 ターン処理として実装しており、`ToolExecutor` が tool 名から MCP サーバへルーティングする。
 - 現行 Agent は `AgentContext` に `LLMClient`、`ToolExecutor`、`HistoryManager`、`RagPipeline`、`CommandRegistry`、`AgentSession` を注入する責務分離設計であり、複数 Runtime へ役割分化させる土台になる。
 - 初期実装では、**独自 TCP やファイル監視ベースではなく、既存運用資産と整合する HTTP MCP ベース**を正式方式として採用する。ファイル監視型や独自 TCP は将来の補助オプションとして位置付ける。
-- 本計画では、**Orchestrator を中核とし、Planner / PatchWorker / Validator / Integrator を Phase 1 の最小役割構成**として採用する。Reviewer / Researcher / Memory Manager は Phase 2 以降で追加する。これは現行の `plan_mode`、RAG、tool loop、session 永続化を段階的に multi-agent へ拡張しやすいためである。
+- 本計画では、**Orchestrator を中核とし、Planner / PatchWorker / Validator / Integrator / Publisher を Phase 1 の最小役割構成**として採用する。Reviewer / Researcher / Memory Manager は Phase 2 以降で追加する。これは現行の `plan_mode`、RAG、tool loop、session 永続化を段階的に multi-agent へ拡張しやすいためである。
 - 作業分離は **Git worktree** を第一候補とし、成果物は Git に集約する。現行 system には file / github MCP が存在し、ローカルファイル操作と GitHub 操作の責務が整理されているため、worktree 分離と統合制御の基盤として活用可能である。
-- 複数ローカル LLM インスタンスの初期割当は、既存の **`chat_url` / `code_url` の 2 系統流用**を前提とする。Planner / Validator / Integrator は `chat_url`、PatchWorker は `code_url` を優先する運用から開始し、role ごとの専用エンドポイント増設は Phase 2 以降で検討する。現行 Agent はすでに chat / code モードを持つ。
 
 ---
 
 ## 1. 目的
 
-単一の万能エージェントに巨大タスクを一括処理させるのではなく、**役割別エージェント群を並列稼働させ、タスク分解・実装・検証・統合を分担する階層型オーケストレーション基盤**を実現する。ユーザーが求める Planner / PatchWorker / Validator / Integrator を Phase 1 の基本役割として実装し、将来的に Researcher / Reviewer / Memory Manager を追加する。
+単一の万能エージェントに巨大タスクを一括処理させるのではなく、**役割別エージェント群を並列稼働させ、タスク分解・実装・検証・統合を分担する階層型オーケストレーション基盤**を実現する。ユーザーが求める Planner / PatchWorker / Validator / Integrator / Publisher を Phase 1 の基本役割として実装し、将来的に Researcher / Reviewer / Memory Manager を追加する。
 
 ### 期待する効果
 
 - 並列実行による高速化。複数 Worker が独立 worktree で並行に実装・検証を進められるため、単一 Agent の直列処理よりスループットを上げやすい。
-- 専門特化による品質向上。現行でも `chat` / `code` モード切替や `system_prompts`、`plan_mode` が存在するため、役割ごとの prompt / tool 制限へ拡張しやすい。
+- 専門特化による品質向上。
 - 大規模 multi-file change への対応。現行 Agent は context budget / compress / tool loop の制約を持つため、context 分割型 multi-agent は大規模変更の安定性を上げやすい。
 - 実装 → テスト失敗 → 修正 → 再検証の自動反復。現行 Agent は `/tool show`、`/undo`、`/session load`、tool result 保持を持つため、これを run / phase 単位へ昇格することで自動サイクル化が可能になる。
 
@@ -40,6 +39,7 @@ orchestrator-mcp
   ├─ patchworker-agent[*]
   ├─ validator-agent
   ├─ integrator-agent
+  ├ publisher-agent
   ├─ reviewer-agent         (Phase 2)
   ├─ researcher-agent       (Phase 2)
   └─ memory-manager-agent   (Phase 2)

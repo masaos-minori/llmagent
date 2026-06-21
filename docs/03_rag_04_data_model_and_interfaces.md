@@ -104,7 +104,7 @@ Created by `ChunkSplitter`. Same `.txt` extension; content is JSON.
   - `chunks_au` (after UPDATE): `DELETE + INSERT`
   - `chunks_ad` (after DELETE): `DELETE FROM chunks_fts`
 - Japanese: indexed on `normalized_content` (Sudachi forms)
-- English/code: `normalized_content` is NULL → FTS5 uses `content` directly
+- English/code: `normalized_content` is NULL → FTS5 uses `content` directly. Validated by `tests/test_fts_fallback.py`.
 
 ### 2.4 `chunks_vec` (sqlite-vec virtual table)
 

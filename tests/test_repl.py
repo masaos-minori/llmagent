@@ -38,10 +38,9 @@ def _make_bare_repl() -> AgentREPL:
 class TestGetChunkCount:
     def test_returns_formatted_count(self) -> None:
         repl = _make_bare_repl()
-        mock_stats = MagicMock()
-        mock_stats.chunks = 1234
-        with patch("agent.repl.DbMaintenanceService") as mock_svc:
-            mock_svc.return_value.stats.return_value = mock_stats
+        mock_svc = MagicMock()
+        mock_svc.stats_rag.return_value = (0, 1234)
+        with patch("agent.repl.RagMaintenanceService", return_value=mock_svc):
             result = repl._get_chunk_count()
         assert result == "1,234"
 
@@ -55,10 +54,9 @@ class TestGetChunkCount:
 
     def test_returns_zero_when_fetchall_empty(self) -> None:
         repl = _make_bare_repl()
-        mock_stats = MagicMock()
-        mock_stats.chunks = 0
-        with patch("agent.repl.DbMaintenanceService") as mock_svc:
-            mock_svc.return_value.stats.return_value = mock_stats
+        mock_svc = MagicMock()
+        mock_svc.stats_rag.return_value = (0, 0)
+        with patch("agent.repl.RagMaintenanceService", return_value=mock_svc):
             result = repl._get_chunk_count()
         assert result == "0"
 

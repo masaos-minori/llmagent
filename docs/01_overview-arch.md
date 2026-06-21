@@ -4,14 +4,13 @@
 
 ## 1. 概要・目的
 
-CPU 専用のローカル環境 (Intel N100 / 16 GB RAM) に llama.cpp を用いた LLM サーバ群と SQLite ベースのベクトル DB を構築し、日本語・英語双方に対応した高精度 RAG システムを実現。
-
-### 1.1 前提条件
-
-| 項目 | 値 |
-|---|---|
-| OS | Gentoo Linux or Ubuntu Linux |
-| 用途 | コーディング補助・日本語チャット |
+エージェント + MCP サーバによるマルチエージェントオーケストレーションシステムの構築
+- llama.cpp を用いた LLM サーバ群
+- 単一責務ツール実行 MCP サーバ群
+- 日本語・英語双方に対応した LLM エージェント
+- SQLite ベースのベクトル DB による RAG 環境
+- 対象 OS は Gentoo Linux or Ubuntu Linux
+- 用途はプログラム開発
 
 ## 2. アーキテクチャ
 
@@ -27,15 +26,14 @@ CPU 専用のローカル環境 (Intel N100 / 16 GB RAM) に llama.cpp を用い
 └───────┬─────────────┬──────────────────┬─────────────┘
         │             │                  │
         ▼             ▼                  ▼
-:8003 embed-LLM  :8001 code-LLM    MCP サーバ群 (stdio または http)
-(RAG 検索時)     :8002 chat-LLM    11 サーバ (:8004〜:8014)
+:8003 embed-LLM  :8001 agent-LLM   MCP サーバ群 (stdio または http)
+(RAG 検索時)                       11 サーバ (:8004〜:8014)
 ```
 
 | OpenRC サービス | ポート | モデル | 役割 |
 |---|---|---|---|
+| `llama-llm` | 8001 | qwen3.6-27b | エージェント・コード生成 |
 | `embed-llm` | 8003 | multilingual-E5-small | テキスト → 384 次元ベクトル変換 |
-| `llama-chat-llm` | 8002 | gemma-4-e4b | 日本語チャット・MQE・再ランク |
-| `llama-coding-llm` | 8001 | qwen2.5-coder-7b | コード生成 |
 | `web-search-mcp` | 8004 | — | Web 検索 MCP サーバ (Brave/Bing/DuckDuckGo) |
 | `file-read-mcp` | 8005 | — | ファイル読み取り MCP サーバ |
 | `github-mcp` | 8006 | — | GitHub 操作 MCP サーバ |
@@ -65,7 +63,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.txt
 ```
 ユーザー入力
   → MQE + embed → KNN+BM25 → RRF → Rerank → コンテキスト付加
-  → LLM (:8001/:8002) → tool_calls → MCP サーバ群 (:8004〜:8014)
+  → LLM (:800) → tool_calls → MCP サーバ群 (:8004〜:8014)
   → 最終回答 (SSE ストリーミング)
 ```
 

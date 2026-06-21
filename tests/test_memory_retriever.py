@@ -448,12 +448,12 @@ class TestRrfMerge:
 
 @pytest.mark.skipif(not _VEC_AVAILABLE, reason="sqlite-vec not available")
 class TestVecSearch:
-    def test_knn_search_returns_empty_when_table_missing(
+    def test_knn_search_raises_when_table_missing(
         self, retriever: MemoryRetriever
     ) -> None:
-        # memories_vec table does not exist in in-memory DB → should return []
-        result = retriever.knn_search([0.1] * 384, memory_type=None, limit=5)
-        assert result == []
+        # memories_vec table does not exist in in-memory DB → raises OperationalError
+        with pytest.raises(sqlite3.OperationalError, match="no such table"):
+            retriever.knn_search([0.1] * 384, memory_type=None, limit=5)
 
 
 # ── Hybrid search with RRF (mocked embedding) ─────────────────────────────────

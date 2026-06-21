@@ -3,6 +3,9 @@
 BFS web crawler that saves extracted text and code blocks to rag-src/.
 Entry point: python Crawler.py [--url URL ...] [--lang {en,ja}]
 
+Output: rag-src/{timestamp}-{slug}.txt — JSON payload (not plain text).
+Fields: url, title, lang, fetched_at, content, code_blocks, etag, last_modified.
+
 Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 """
 

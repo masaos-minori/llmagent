@@ -56,3 +56,10 @@ class SanitizeResult:
     text: str
     was_sanitized: bool
     patterns_detected: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class SearchDiagnostics:
+    embed_ok: int = 0
+    embed_failed: int = 0
+    fts_errors: int = 0

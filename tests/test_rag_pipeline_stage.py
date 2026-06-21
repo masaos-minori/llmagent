@@ -88,7 +88,12 @@ class TestSearchStage:
         with patch(
             "rag.stages.search._search_all_queries", new_callable=AsyncMock
         ) as mock_search:
-            mock_search.return_value = [[RawHit(chunk_id=1, content="a", url="u")]]
+            from rag.models_result import SearchDiagnostics
+
+            mock_search.return_value = (
+                [[RawHit(chunk_id=1, content="a", url="u")]],
+                SearchDiagnostics(embed_ok=1, embed_failed=0, fts_errors=0),
+            )
             await stage.run(ctx, db=mock_db)
 
         assert len(ctx.search_results) == 1

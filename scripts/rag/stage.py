@@ -7,6 +7,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Protocol, TypedDict
 
+from rag.models_result import SearchDiagnostics
 from rag.types import MergedHit, RankedHit, RawHit
 
 RagHit = RawHit | MergedHit | RankedHit
@@ -33,6 +34,9 @@ class PipelineContext:
     reranked: list[RagHit] = dataclasses.field(default_factory=list)
     augment_result: str = ""
     stage_results: list[StageResult] = dataclasses.field(default_factory=list)
+    search_diagnostics: SearchDiagnostics = dataclasses.field(
+        default_factory=SearchDiagnostics
+    )
 
 
 class PipelineStage(Protocol):

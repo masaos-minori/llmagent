@@ -285,6 +285,218 @@ class TestSearchStage:
             assert mock_context.search_results == []
 
 
+# ── SearchDiagnostics ─────────────────────────────────────────────────────────
+
+from rag.models_result import SearchDiagnostics
+
+
+class TestSearchDiagnostics:
+    """Tests for search diagnostics tracking."""
+
+    def test_default_values(self) -> None:
+        """SearchDiagnostics defaults are all zero."""
+        diag = SearchDiagnostics()
+        assert diag.embed_ok == 0
+        assert diag.embed_failed == 0
+        assert diag.fts_errors == 0
+
+    @pytest.mark.asyncio
+    async def test_embed_failure_counts(self, mock_context, mock_db):
+        """_search_all_queries increments embed_failed on exception."""
+        mock_context.queries = ["test query"]
+
+        with patch(
+            "rag.llm.get_embedding", new_callable=AsyncMock
+        ) as mock_get_embedding:
+            mock_get_embedding.side_effect = Exception("Embedding failed")
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            assert mock_context.search_diagnostics.embed_failed == 1
+            assert mock_context.search_diagnostics.embed_ok == 0
+
+    @pytest.mark.asyncio
+    async def test_non_list_embedding_counts(self, mock_context, mock_db):
+        """_search_all_queries increments embed_failed on non-list result."""
+        mock_context.queries = ["test query"]
+
+        with patch(
+            "rag.llm.get_embedding", new_callable=AsyncMock
+        ) as mock_get_embedding:
+            mock_get_embedding.return_value = "not a list"
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            assert mock_context.search_diagnostics.embed_failed == 1
+            assert mock_context.search_diagnostics.embed_ok == 0
+
+    @pytest.mark.asyncio
+    async def test_fts_error_counts(self, mock_context, mock_db):
+        """_search_all_queries increments fts_errors on sqlite3 error."""
+        import sqlite3
+
+        mock_context.queries = ["test query"]
+
+        with (
+            patch(
+                "rag.llm.get_embedding", new_callable=AsyncMock
+            ) as mock_get_embedding,
+            patch("rag.stages.search.RagRepository") as mock_repo,
+        ):
+            mock_get_embedding.return_value = [0.1, 0.2, 0.3]
+            mock_repo_instance = MagicMock()
+            mock_repo.return_value = mock_repo_instance
+            mock_repo_instance.vector_search.side_effect = sqlite3.OperationalError(
+                "DB error"
+            )
+
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            assert mock_context.search_diagnostics.fts_errors == 1
+            assert mock_context.search_diagnostics.embed_ok == 1
+
+    @pytest.mark.asyncio
+    async def test_diagnostics_set_on_context(self, mock_context, mock_db):
+        """SearchStage sets search_diagnostics on PipelineContext."""
+        mock_context.queries = ["test query"]
+
+        with (
+            patch(
+                "rag.llm.get_embedding", new_callable=AsyncMock
+            ) as mock_get_embedding,
+            patch("rag.stages.search.RagRepository") as mock_repo,
+        ):
+            mock_get_embedding.return_value = [0.1, 0.2, 0.3]
+            mock_repo_instance = MagicMock()
+            mock_repo.return_value = mock_repo_instance
+            mock_repo_instance.vector_search.return_value = []
+            mock_repo_instance.fts_search.return_value = []
+
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            assert isinstance(mock_context.search_diagnostics, SearchDiagnostics)
+
+    @pytest.mark.asyncio
+    async def test_warning_emitted_on_embed_failure(self, mock_context, mock_db):
+        """SearchStage emits warning when embed_failed > 0."""
+        mock_context.queries = ["test query"]
+
+        with (
+            patch(
+                "rag.llm.get_embedding", new_callable=AsyncMock
+            ) as mock_get_embedding,
+            patch("rag.stages.search.logger") as mock_logger,
+        ):
+            mock_get_embedding.side_effect = Exception("Embedding failed")
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            mock_logger.warning.assert_any_call(
+                "search degraded: %d/%d queries lacked embedding", 1, 1
+            )
+
+    @pytest.mark.asyncio
+    async def test_warning_emitted_on_fts_error(self, mock_context, mock_db):
+        """SearchStage emits warning when fts_errors > 0."""
+        import sqlite3
+
+        mock_context.queries = ["test query"]
+
+        with (
+            patch(
+                "rag.llm.get_embedding", new_callable=AsyncMock
+            ) as mock_get_embedding,
+            patch("rag.stages.search.RagRepository") as mock_repo,
+            patch("rag.stages.search.logger") as mock_logger,
+        ):
+            mock_get_embedding.return_value = [0.1, 0.2, 0.3]
+            mock_repo_instance = MagicMock()
+            mock_repo.return_value = mock_repo_instance
+            mock_repo_instance.vector_search.side_effect = sqlite3.OperationalError(
+                "DB error"
+            )
+
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            mock_logger.warning.assert_any_call(
+                "search degraded: %d FTS/vec errors", 1
+            )
+
+    @pytest.mark.asyncio
+    async def test_no_warning_when_all_ok(self, mock_context, mock_db):
+        """SearchStage does not emit degraded warning when all queries succeed."""
+        mock_context.queries = ["test query"]
+
+        with (
+            patch(
+                "rag.llm.get_embedding", new_callable=AsyncMock
+            ) as mock_get_embedding,
+            patch("rag.stages.search.RagRepository") as mock_repo,
+            patch("rag.stages.search.logger") as mock_logger,
+        ):
+            mock_get_embedding.return_value = [0.1, 0.2, 0.3]
+            mock_repo_instance = MagicMock()
+            mock_repo.return_value = mock_repo_instance
+            mock_repo_instance.vector_search.return_value = []
+            mock_repo_instance.fts_search.return_value = []
+
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            degraded_calls = [
+                c for c in mock_logger.warning.call_args_list
+                if "degraded" in str(c)
+            ]
+            assert len(degraded_calls) == 0
+
+    @pytest.mark.asyncio
+    async def test_multiple_queries_mixed_errors(self, mock_context, mock_db):
+        """SearchDiagnostics tracks mixed success/failure across queries."""
+        mock_context.queries = ["q1", "q2", "q3"]
+
+        with (
+            patch(
+                "rag.llm.get_embedding", new_callable=AsyncMock
+            ) as mock_get_embedding,
+            patch("rag.stages.search.RagRepository") as mock_repo,
+        ):
+            mock_get_embedding.side_effect = [
+                Exception("fail"),
+                [0.1, 0.2],
+                "not a list",
+            ]
+            mock_repo_instance = MagicMock()
+            mock_repo.return_value = mock_repo_instance
+            mock_repo_instance.vector_search.return_value = []
+            mock_repo_instance.fts_search.return_value = []
+
+            cfg = SimpleNamespace(top_k_search=10)
+            stage = SearchStage(cfg)
+
+            await stage.run(mock_context, db=mock_db)
+
+            assert mock_context.search_diagnostics.embed_ok == 1
+            assert mock_context.search_diagnostics.embed_failed == 2
+            assert mock_context.search_diagnostics.fts_errors == 0
+
+
 class TestMqeStage:
     """Tests for MqeStage."""
 

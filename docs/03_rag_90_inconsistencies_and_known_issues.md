@@ -30,13 +30,18 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ### OQ-6: `chunks_fts` COALESCE trigger behavior for `normalized_content=None`
 
-- **Type:** OPEN_QUESTION
+- **Type:** RESOLVED
 - **Impact scope:** `chunks_fts`, FTS5 for English/code chunks
 - **Description:** The `chunks_ai` trigger uses `COALESCE(normalized_content, content)`.
   For English and code chunks, `normalized_content` is NULL. Verify FTS5 correctly falls
   back to `content` for indexing and querying in all SQLite versions used.
 - **Recommended action:** Add an integration test asserting English chunk FTS search works
   when `normalized_content` is NULL.
+- **Resolution:** Validated by `tests/test_fts_fallback.py` — 8 integration tests
+  covering English chunks, code chunks, NULL/empty COALESCE semantics, and mixed-language
+  documents. All tests use trigger-backed indexing path (INSERT INTO chunks → trigger fires
+  → chunks_fts populated; no direct FTS5 inserts). Verified on runtime SQLite version
+  (Python built-in sqlite3 module). Recommended action in this entry is complete.
 
 ---
 

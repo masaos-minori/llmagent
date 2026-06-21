@@ -68,7 +68,7 @@ class TestCmdDbStats:
     def test_stats_error_raises(self) -> None:
         cmd = _make_cmd()
         with patch(
-            "agent.services.db_maintenance_service.SQLiteHelper",
+            "agent.services.rag_maintenance_service.SQLiteHelper",
             side_effect=Exception("db error"),
         ):
             with pytest.raises(Exception, match="db error"):
@@ -138,31 +138,41 @@ class TestParseFlagStr:
 class TestDbStats:
     def test_stats_prints_counts(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
-            mock_db = MagicMock()
-            mock_db.fetchall.side_effect = [
+        with patch("agent.services.rag_maintenance_service.SQLiteHelper") as MockHelperRag:
+            mock_db_rag = MagicMock()
+            mock_db_rag.fetchall.side_effect = [
                 [{"n": 100}],
                 [{"n": 500}],
-                [{"n": 10}],
-                [{"n": 200}],
             ]
-            open_mock = MagicMock()
-            open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
-            open_mock.return_value.__exit__ = MagicMock(return_value=False)
-            helper_mock = MagicMock()
-            helper_mock.open = open_mock
-            MockHelper.return_value = helper_mock
-            _run_db(cmd, "stats")
-            out = capsys.readouterr().out
-            assert "documents" in out
-            assert "chunks" in out
-            assert "100" in out
+            open_mock_rag = MagicMock()
+            open_mock_rag.return_value.__enter__ = MagicMock(return_value=mock_db_rag)
+            open_mock_rag.return_value.__exit__ = MagicMock(return_value=False)
+            helper_mock_rag = MagicMock()
+            helper_mock_rag.open = open_mock_rag
+            MockHelperRag.return_value = helper_mock_rag
+            with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelperSession:
+                mock_db_session = MagicMock()
+                mock_db_session.fetchall.side_effect = [
+                    [{"n": 10}],
+                    [{"n": 200}],
+                ]
+                open_mock_session = MagicMock()
+                open_mock_session.return_value.__enter__ = MagicMock(return_value=mock_db_session)
+                open_mock_session.return_value.__exit__ = MagicMock(return_value=False)
+                helper_mock_session = MagicMock()
+                helper_mock_session.open = open_mock_session
+                MockHelperSession.return_value = helper_mock_session
+                _run_db(cmd, "stats")
+                out = capsys.readouterr().out
+                assert "documents" in out
+                assert "chunks" in out
+                assert "100" in out
 
     def test_stats_sqlite_error_raises(self) -> None:
         import sqlite3
 
         cmd = _make_cmd()
-        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
+        with patch("agent.services.rag_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             mock_db.fetchall.side_effect = sqlite3.Error("db error")
             open_mock = MagicMock()
@@ -237,7 +247,7 @@ class TestDbListUrls:
 class TestDbRebuildFts:
     def test_rebuild_fts_success(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
+        with patch("agent.services.rag_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             open_mock = MagicMock()
             open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
@@ -253,7 +263,7 @@ class TestDbRebuildFts:
         import sqlite3
 
         cmd = _make_cmd()
-        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
+        with patch("agent.services.rag_maintenance_service.SQLiteHelper") as MockHelper:
             mock_db = MagicMock()
             mock_db.execute.side_effect = sqlite3.Error("fts error")
             open_mock = MagicMock()
@@ -503,7 +513,7 @@ class TestDbRecover:
     def test_recover_success(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         with patch(
-            "agent.services.db_maintenance_service.recover_corruption"
+            "agent.services.rag_maintenance_service.recover_corruption"
         ) as mock_rec:
             mock_rec.return_value = self._make_recovery_result(True)
             _run_db(cmd, "recover")
@@ -513,7 +523,7 @@ class TestDbRecover:
     def test_recover_with_backup_path(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         with patch(
-            "agent.services.db_maintenance_service.recover_corruption"
+            "agent.services.rag_maintenance_service.recover_corruption"
         ) as mock_rec:
             mock_rec.return_value = self._make_recovery_result(True, "restored")
             _run_db(cmd, "recover /path/to/backup.db")
@@ -522,7 +532,7 @@ class TestDbRecover:
     def test_recover_failure(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         with patch(
-            "agent.services.db_maintenance_service.recover_corruption"
+            "agent.services.rag_maintenance_service.recover_corruption"
         ) as mock_rec:
             mock_rec.return_value = self._make_recovery_result(False, "no_backup")
             _run_db(cmd, "recover")
@@ -532,7 +542,7 @@ class TestDbRecover:
     def test_recover_error_raises(self) -> None:
         cmd = _make_cmd()
         with patch(
-            "agent.services.db_maintenance_service.recover_corruption",
+            "agent.services.rag_maintenance_service.recover_corruption",
             side_effect=Exception("fail"),
         ):
             with pytest.raises(Exception, match="fail"):

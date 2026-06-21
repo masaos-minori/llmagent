@@ -148,6 +148,20 @@ class _IngestMixin(MixinBase):
         else:
             self._out.write(context)
 
+        refiner_fb = next(
+            (
+                sr
+                for sr in pipeline.last_stage_results
+                if sr["stage_name"] == "Refiner" and sr["status"] == "fallback"
+            ),
+            None,
+        )
+        if refiner_fb:
+            self._out.write(
+                f"[warn] refiner fallback: {refiner_fb['fallback_reason']}"
+                " — raw chunks used (run with --debug for stage details)"
+            )
+
         if debug:
             self._print_rag_debug(pipeline.last_timings, pipeline.last_stage_results)
 
