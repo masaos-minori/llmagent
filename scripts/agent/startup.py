@@ -21,6 +21,7 @@ from agent.repl_health import (
     check_readiness,
     check_tool_definitions_runtime,
 )
+from agent.services.rag_maintenance_service import RagMaintenanceService
 
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
@@ -165,6 +166,15 @@ class StartupOrchestrator:
         tool_result = await check_tool_definitions_runtime(ctx)
         for msg in tool_result.warning_messages():
             self._view.write_warning(msg)
+        try:
+            consistent, issues = RagMaintenanceService().consistency()
+            if consistent:
+                logger.info("RAG consistency: OK")
+            else:
+                for issue in issues:
+                    self._view.write_warning(f"[RAG] Consistency issue: {issue}")
+        except Exception as e:  # noqa: BLE001 — skip if rag.sqlite absent or unreadable
+            logger.debug("RAG consistency check skipped: %s", e)
 
     async def _setup_prompt(self) -> None:
         """Inject pinned notes and semantic memories into the initial system prompt."""
