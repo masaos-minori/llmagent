@@ -4,8 +4,8 @@
 
 ## Purpose
 
-Document all configuration files, per-server config keys, OpenRC operations, startup
-verification, health probes, audit log reading, and the new-server addition checklist.
+Document all configuration files, per-server config keys, startup verification,
+health probes, audit log reading, and the new-server addition checklist.
 
 ---
 
@@ -37,7 +37,7 @@ verification, health probes, audit log reading, and the new-server addition chec
 | mdq-mcp | `config/mdq_mcp_server.toml` |
 | git-mcp | `config/git_mcp_server.toml` |
 
-### API key env files (OpenRC `conf.d/`)
+### API key env files (`conf.d/`)
 
 | File | Key |
 |---|---|
@@ -54,7 +54,6 @@ verification, health probes, audit log reading, and the new-server addition chec
 | `transport` | `TransportType` | required | `TransportType.HTTP` (`"http"`) or `TransportType.STDIO` (`"stdio"`); string literals accepted at runtime via `__post_init__` conversion |
 | `url` | `str` | required | HTTP server base URL (http only) |
 | `cmd` | `list[str]` | required | Subprocess command (stdio or subprocess mode) |
-| `openrc_service` | `str` | required | OpenRC service name for watchdog restart |
 | `startup_mode` | `str` | `"persistent"` | `"persistent"` / `"ondemand"` / `"subprocess"` |
 | `healthcheck_mode` | `str` | `""` | `"http"` / `"process"` / `"ping_tool"` (auto-inferred if empty) |
 | `idle_timeout_sec` | `int` | `0` | ondemand auto-stop delay (0 = disabled) |
@@ -89,31 +88,6 @@ verification, health probes, audit log reading, and the new-server addition chec
 | shell max_timeout_sec | 300 sec | `config/shell_mcp_server.toml` |
 | sqlite max_rows | 100 | `config/sqlite_mcp_server.toml` |
 | git max_log_entries | 50 | `config/git_mcp_server.toml` |
-
----
-
-## OpenRC Operations
-
-```bash
-# Start all persistent servers
-rc-service web-search-mcp start
-rc-service file-mcp start
-rc-service github-mcp start
-rc-service shell-mcp start
-rc-service rag-pipeline-mcp start
-rc-service cicd-mcp start
-rc-service mdq-mcp start
-rc-service git-mcp start
-# sqlite-mcp uses startup_mode=subprocess; started by agent automatically
-
-# Check status
-rc-service web-search-mcp status
-
-# Enable at boot
-rc-update add web-search-mcp default
-```
-
-`file-mcp` OpenRC service covers all 3 file servers (read: 8005, write: 8007, delete: 8008).
 
 ---
 
@@ -192,7 +166,7 @@ Probes all HTTP servers. Expected: all show `OK` with tool list.
 
 | Failure | Cause | Check |
 |---|---|---|
-| Server not started | OpenRC not enabled | `rc-service <server> status` |
+| Server not started | Subprocess failed to start | Check stderr; verify port not in use |
 | subprocess timeout | uvicorn fails to start | Check stderr; verify port not in use |
 | Tool definition mismatch | Config out of sync | `/mcp` → tool count; compare with config |
 | `ValueError` on startup | Invalid `startup_mode`+`transport` combo | Check `mcp_servers.toml` |
@@ -522,7 +496,6 @@ When adding a server:
 - [ ] Add tool definitions to `config/tools_definitions.toml`
 - [ ] If tools not in `shared/tool_constants.py` frozensets: set `tool_names` in server config
 - [ ] Add new files to `deploy/deploy.sh` copy list
-- [ ] Create `init.d/<server-name>` OpenRC script (mode 755)
 - [ ] Add startup step to `deploy/setup_services.sh`
 - [ ] Add `tool_safety_tiers` entries to `config/agent.toml` for all new tools
 - [ ] Update `routing.md` if new documentation is needed

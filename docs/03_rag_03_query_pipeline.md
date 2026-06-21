@@ -14,7 +14,7 @@
 ```
 RagPipeline.augment(query)
   → use_search=False? → return ""
-  → rag_service_url set? → _augment_http() → fallback to in-process on failure
+  → rag_service_url set? → call_rag_service() → fallback to in-process on failure
   → run(query, db, history_context, hook_strict=False)
       [1] MqeStage    — expand query into N variants
       [2] SearchStage — KNN + BM25 per variant
@@ -22,7 +22,7 @@ RagPipeline.augment(query)
       [4] RerankStage — cross-encoder scoring; filter by rag_min_score; post-rerank dedup by URL
       [5] PluginHooks — registered post-rerank hooks (error-isolated; strict mode re-raises); runs between RerankStage and AugmentStage
       [6] AugmentStage — format [RAG_CONTEXT_START]...[RAG_CONTEXT_END]
-  → use_refiner=True? → _augment_refiner() (compress chunks; fallback to raw on error)
+  → use_refiner=True? → refine_context() (compress chunks; fallback to raw on error)
   → return context block string
 ```
 
@@ -70,8 +70,6 @@ RagPipeline(
 
 | Method | Description |
 |---|---|
-| `_augment_http(rag_url, query, history_context) -> str \| None` | POST to `{rag_url}/v1/search`; update `last_fetch_result`; return `None` on failure |
-| `_augment_refiner(reranked, query) -> str \| None` | Compress chunks via `refine_context()` in `rag/pipeline_refiner.py`; return `None` on empty/error |
 | `_format_chunks(reranked) -> str` (static) | Format as `[Source: title \| url]\ncontent` blocks with `[RAG_CONTEXT_START]`/`[RAG_CONTEXT_END]` markers |
 | `_get_stage_status(stage, ctx) -> tuple[str, str \| None]` | Determine status (`"success"`/`"fallback"`) and reason for each stage (used internally by `run()`) |
 
@@ -311,7 +309,7 @@ Owns all SQL. Used internally by stages.
 
 ```python
 from rag.llm import RagLLM  # re-exported from rag.llm_client
-llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8002/v1/chat/completions")
+llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8001/v1/chat/completions")
 ```
 
 | Method | Signature | Description |

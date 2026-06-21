@@ -129,9 +129,9 @@ class TestGenerateAgentTomlMcpSnippet:
 
 
 class TestGenerateInitdScript:
-    def test_returns_openrc_script(self) -> None:
+    def test_returns_bash_script(self) -> None:
         result = generate_initd_script("svc", "svcmod", 8080)
-        assert "#!/sbin/openrc-run" in result
+        assert "#!/bin/bash" in result
         assert "uvicorn" in result
         assert "127.0.0.1" in result
         assert "--port 8080" in result
@@ -158,9 +158,9 @@ class TestGenerateConfdTemplate:
         result = generate_confd_template("test-server")
         assert "TEST_SERVER_API_KEY=" in result
 
-    def test_contains_restart_instructions(self) -> None:
+    def test_contains_reload_instruction(self) -> None:
         result = generate_confd_template("svc")
-        assert "rc-service svc restart" in result
+        assert "python3 scripts/agent.py --reload-mcp svc" in result
 
 
 # ── tool_definition_snippet ─────────────────────────────────────────────────

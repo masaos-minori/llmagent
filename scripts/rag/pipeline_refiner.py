@@ -90,7 +90,7 @@ async def refine_context(
         failure and fall back to raw-chunk formatting.
 
     See Also:
-        _augment_refiner: Thin wrapper that adds per-stage status tracking.
+        augment: Complete fallback chain including raw-chunk formatting.
         augment: Complete fallback chain including raw-chunk formatting.
     """
     effective_timeout: float = timeout if timeout is not None else 30.0

@@ -256,7 +256,7 @@ def extract_memories(
         return []
 
     candidates: list[MemoryEntry] = []
-    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     for msg in history:
         role = msg.role
         if role == "assistant":

@@ -103,7 +103,7 @@ uv run --with huggingface-hub huggingface-cli download bartowski/gemma-4-e4b-it-
 
 # コード生成用: Qwen2.5-Coder-7B
 uv run --with huggingface-hub huggingface-cli download Qwen/Qwen2.5-Coder-7B-Instruct-GGUF \
-    qwen2.5-coder-7b-instruct-q4_k_m.gguf \
+    Qwen3.6-Instruct-Q4_K_M.gguf \
     --local-dir /opt/llm/models/
 
 ls -lh /opt/llm/models/
@@ -161,9 +161,9 @@ deploy.sh が行う処理:
 
 ### 2.2 LLM サービス登録・起動
 
-`deploy/setup_services.sh` が LLM サービスの OpenRC 登録・起動を実行。
+`deploy/setup_services.sh` が LLM サービスの初期化を実行。
 
-MCP サーバ (ports 8004-8014) はエージェント起動時に agent-managed subprocess として自動起動するため OpenRC 登録は不要。
+MCP サーバ (ports 8004-8014) はエージェント起動時に agent-managed subprocess として自動起動する。
 
 ```bash
 # deploy.sh 実行後に実行する
@@ -171,16 +171,15 @@ bash deploy/setup_services.sh
 
 # ヘルスチェック (各 LLM サービスがモデルロードを完了するまで待機)
 curl -s http://127.0.0.1:8003/health   # embed-llm
-curl -s http://127.0.0.1:8002/health   # llama-chat-llm
-curl -s http://127.0.0.1:8001/health   # llama-coding-llm
+curl -s http://127.0.0.1:8001/health   # agent-llm
 
-# LLM サービスのモデルロード完了後に llama-agent を起動する
-rc-service llama-agent start
+# LLM サービスのモデルロード完了後にエージェントを起動する
+/opt/llm/scripts/agent.py
 ```
 
-> `setup_services.sh` は `/etc/conf.d/web-search-mcp` および `/etc/conf.d/github-mcp` に空の API キーをコピーする。
-> Web 検索を使う場合は `BRAVE_API_KEY` / `BING_API_KEY` を `/etc/conf.d/web-search-mcp` に設定する。
-> GitHub 操作を使う場合は `GITHUB_TOKEN` を `/etc/conf.d/github-mcp` に設定する。
+> API キーの設定:
+> - Web 検索: `BRAVE_API_KEY` / `BING_API_KEY` を `/etc/conf.d/web-search-mcp` に設定
+> - GitHub 操作: `GITHUB_TOKEN` を `/etc/conf.d/github-mcp` に設定
 
 ### 2.3 MCP サーバの確認
 
@@ -253,8 +252,7 @@ sqlite3 /opt/llm/db/rag.sqlite "SELECT COUNT(*) FROM messages;"
 
 ```bash
 curl -s http://127.0.0.1:8003/health  # embed-llm
-curl -s http://127.0.0.1:8002/health  # llama-chat-llm
-curl -s http://127.0.0.1:8001/health  # llama-coding-llm
+curl -s http://127.0.0.1:8001/health  # agent-llm
 ```
 
 MCP サーバのヘルスチェックはエージェント起動後に行う:

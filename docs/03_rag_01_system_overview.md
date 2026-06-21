@@ -21,7 +21,7 @@ LLM turn.
 **Out of scope:**
 - MDQ (Markdown-dedicated index) — separate service; see [04_mcp-mdq.md](04_mcp-mdq.md) for boundary definition
 - Agent REPL — calls the pipeline via MCP; does not own RAG logic
-- LLM and embedding servers — external services at ports 8002 and 8003
+- LLM and embedding servers — external services at ports 8001 and 8003
 
 ---
 

@@ -52,7 +52,7 @@ Agent ToolExecutor
   ← {"result": "...", "is_error": false}
 ```
 
-Servers run as persistent HTTP processes (OpenRC or subprocess) on loopback.
+Servers run as persistent HTTP processes on loopback.
 
 ### stdio transport (optional)
 
@@ -70,7 +70,7 @@ Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on
 
 | `startup_mode` | `transport` | Behavior |
 |---|---|---|
-| `persistent` (default) | `http` | Pre-started by OpenRC; agent just connects |
+| `persistent` (default) | `http` | Pre-started by agent at launch; agent just connects |
 | `subprocess` | `http` | Agent starts uvicorn subprocess at launch; polls `/health` |
 | `persistent` | `stdio` | Agent starts subprocess at launch; runs for session lifetime |
 | `ondemand` | `stdio` | Agent starts subprocess on first tool call; stops after `idle_timeout_sec` |

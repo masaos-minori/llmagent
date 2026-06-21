@@ -64,24 +64,20 @@ class TestDeleteFileDryRun:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """OSError from stat() inside the dry_run block must return descriptive info."""
-        from pathlib import Path as _Path
+        import pathlib
 
         target = tmp_path / "statfail.txt"
         target.write_text("x", encoding="utf-8")
 
-        original_stat = _Path.stat
-        # require_file() calls exists() → stat() (1st) and is_file() → stat() (2nd).
-        # Fail only on the 3rd call so both exist/is_file checks pass before dry_run.
-        call_count: list[int] = [0]
+        # Patch Path.stat to fail for this specific file during dry_run.
+        original_stat = pathlib.Path.stat
 
-        def _bad_stat(self: _Path, **kwargs: object) -> object:
-            if self.name == "statfail.txt":
-                call_count[0] += 1
-                if call_count[0] > 2:
-                    raise OSError("no stat")
+        def _bad_stat(self: pathlib.Path, **kwargs: object) -> object:
+            if str(self) == str(target):
+                raise OSError("no stat")
             return original_stat(self)
 
-        monkeypatch.setattr(_Path, "stat", _bad_stat)
+        monkeypatch.setattr(pathlib.Path, "stat", _bad_stat)
         req = DeleteFileRequest(path=str(target), dry_run=True)
         result = service.delete_file(req)
         assert result.deleted is False

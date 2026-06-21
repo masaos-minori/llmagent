@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- For Option A: agent REPL must be running (`rc-service llama-agent status`)
+- For Option A: agent REPL must be running (`ps aux | grep agent.py`)
 - Next free port: `grep -r '\-\-port' init.d/ | grep -oP '\d{4,}' | sort -n | tail -1` → use next integer ≥ 8011
 
 ## Idempotency note
@@ -29,7 +29,7 @@ This calls the MCP installer and generates:
 - `scripts/mcp/<name>/service.py` — service logic
 - `scripts/mcp/<name>/models.py` — Pydantic request/response models
 - `config/<name>_mcp_server.toml` — server config
-- `init.d/<name>` — OpenRC init script
+- `init.d/<name>` — optional startup script (subprocess management)
 
 After the wizard completes, continue from Step 1 below.
 
@@ -96,7 +96,6 @@ Add a new entry to the `mcp_servers` section:
 [mcp_servers.<name>]
 transport = "http"
 url = "http://127.0.0.1:<PORT>"
-openrc_service = "<name>"
 # Optional: explicit tool routing (falls back to prefix rules if omitted)
 # tool_names = ["my_tool_a", "my_tool_b"]
 ```
@@ -122,31 +121,23 @@ bash deploy/deploy.sh
 
 ---
 
-## Step 6: Register and start the service (first time)
+## Step 6: Start the service (first time)
 
 ```bash
-rc-update add <name> default
-rc-service <name> start
-rc-service <name> status
+# MCP servers are managed as subprocesses by the agent
 ```
 
 For subsequent deploys after code changes:
 
 ```bash
-rc-service <name> restart
+# Restart via agent REPL or direct process management
 ```
 
 ---
 
 ## Step 7: Add API key (if required)
 
-```bash
-# Create /etc/conf.d/<name> with:
-MY_API_KEY="..."
-```
-
-Reference it from the init.d script via the `source` or `export` mechanism
-matching the pattern in `init.d/github-mcp` or `init.d/web-search-mcp`.
+API keys can be passed via environment variables or config files.
 
 ---
 
@@ -172,6 +163,6 @@ tail -20 /opt/llm/logs/agent.log
 - `scripts/mcp/<name>/server.py` syntax check passes (`python3 -m compileall -q scripts/mcp/<name>/`)
 - `deploy/deploy.sh` updated with `cp` lines for all new files
 - `config/agent.toml mcp_servers.<name>` entry added (verified with `rg`)
-- service registered and running (`rc-service <name> status`)
+- service running and reachable (verify port health)
 - `/mcp` in agent REPL shows the new server as healthy
 - no errors in `agent.log` during tool invocation

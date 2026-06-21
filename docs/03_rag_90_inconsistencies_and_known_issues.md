@@ -20,11 +20,11 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ### OQ-4: `use_refiner=True` edge cases
 
-- **Type:** OPEN_QUESTION
-- **Impact scope:** `RagPipeline._augment_refiner()`
-- **Description:** When `_augment_refiner()` returns an empty string, the caller returns raw
-  chunks. The condition that produces empty string output (vs exception) is not documented.
-- **Recommended action:** Add explicit documentation for the empty-output fallback path.
+- **Type:** RESOLVED
+- **Impact scope:** `RagPipeline.augment()` (refined via `refine_context()`)
+- **Description:** When the refiner returns an empty string, the caller returns raw
+  chunks. The condition that produces empty string output (vs exception) is documented in `rag/pipeline_refiner.py`.
+- **Resolution:** Documented — `refiner_returned_empty` when LLM response content is `""` or whitespace-only; `refiner_exception: {e}` on HTTP/parse errors.
 
 ---
 

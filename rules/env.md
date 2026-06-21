@@ -15,25 +15,22 @@ export PATH="$HOME/.local/bin:$PATH"
 
 | Service | Port |
 |---|---|
-| `llm` | 8001 |
-| `embed` | 8002 |
+| `llm` (agent-llm) | 8001 |
+| `embed` (embed-llm) | 8003 |
 | `web-search-mcp` | 8004 |
 | `file-mcp` | 8005 |
 | `github-mcp` | 8006 |
 
-## OpenRC service names (`init.d/`)
+## Service management
 
-LLM サービス (OpenRC 管理):
+LLM サービス (エージェント管理 subprocess):
 - `embed-llm`
-- `llama-chat-llm`
-- `llama-coding-llm`
+- `agent-llm`
 - `llama-agent`
 
-MCP サーバ (ports 8004-8014) はエージェント管理 subprocess として起動するため OpenRC 登録なし。
+MCP サーバ (ports 8004-8014) はエージェント管理 subprocess として起動。
 
 ```bash
-rc-service <name> status   # LLM サービスの状態確認
-rc-service <name> restart  # LLM サービスの再起動
 tail -f /opt/llm/logs/agent.log
 ```
 
@@ -126,12 +123,12 @@ DB が 2 ファイルに分割されている。`SQLiteHelper(target)` で切り
 | `config/shell_mcp_server.toml` | `shell-mcp` configuration |
 | `config/rag_pipeline_mcp_server.toml` | `rag-pipeline-mcp` standalone configuration (port 8010) |
 
-API keys via OpenRC conf.d (not shell env):
+API keys via environment or config files:
 
 | File | Variables |
 |---|---|
-| `/etc/conf.d/web-search-mcp` | `BRAVE_API_KEY`, `BING_API_KEY` |
-| `/etc/conf.d/github-mcp` | `GITHUB_TOKEN` |
+| `conf.d/web-search-mcp` | `BRAVE_API_KEY`, `BING_API_KEY` |
+| `conf.d/github-mcp` | `GITHUB_TOKEN` |
 
 ### agent.toml key highlights
 
@@ -139,7 +136,7 @@ API keys via OpenRC conf.d (not shell env):
 - `use_mqe` / `use_search` / `use_rrf` / `use_rerank`: disable individual RAG steps
 - `masked_fields`: tool argument keys redacted in console/log (default: `["file_content"]`)
 - `plan_blocked_tools`: tools blocked when `/plan` mode is active
-- `mcp_servers`: per-server transport config (`transport`, `url`, `cmd`, `openrc_service`)
+- `mcp_servers`: per-server transport config (`transport`, `url`, `cmd`)
 - `system_prompts`: preset dict; `"default"` used at startup
 - `_doc` keys: stripped at runtime by `ConfigLoader`
 
@@ -167,7 +164,7 @@ API keys via OpenRC conf.d (not shell env):
 ```bash
 bash deploy/deploy.sh          # copy scripts/ and config/ to /opt/llm/
 bash deploy/init_db.sh         # initialize SQLite schema (first run only)
-bash deploy/setup_services.sh  # register and start OpenRC services (first run only)
+bash deploy/setup_services.sh  # start services (first run only)
 ```
 
 ## Ingestion pipeline

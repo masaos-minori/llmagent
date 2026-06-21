@@ -5,6 +5,7 @@ Verifies that _db_consistency() includes numeric counts in its output.
 from __future__ import annotations
 
 from contextlib import contextmanager
+from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
 from db.maintenance import RagConsistencyReport
@@ -39,17 +40,24 @@ class FakeOut:
         self.error_lines.append(msg)
 
 
+@dataclass(frozen=True)
+class RagConsistencyResult:
+    is_consistent: bool
+    issues: list[str]
+    report: RagConsistencyReport
+
+
 @contextmanager
 def _patch_rag_consistency(report):
-    """Patch check_rag_consistency and SQLiteHelper in cmd_db module."""
-    ctx_mgr = MagicMock()
-    ctx_mgr.__enter__ = MagicMock(return_value=MagicMock())
-    ctx_mgr.__exit__ = MagicMock(return_value=False)
-    with (
-        patch("agent.commands.cmd_db.check_rag_consistency", return_value=report),
-        patch("agent.commands.cmd_db.SQLiteHelper") as mock_helper,
-    ):
-        mock_helper.return_value.open.return_value = ctx_mgr
+    """Patch RagMaintenanceService.consistency() in cmd_db module."""
+    issues = [] if report.chunks == report.fts else [f"FTS gap: {report.fts_gap}"]
+    result = RagConsistencyResult(
+        is_consistent=report.chunks == report.fts,
+        issues=issues,
+        report=report,
+    )
+    with patch("agent.commands.cmd_db.RagMaintenanceService") as mock_svc:
+        mock_svc.return_value.consistency.return_value = result
         yield
 
 

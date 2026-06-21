@@ -158,7 +158,7 @@ if __name__ == "__main__":
 
 | Aspect | HTTP mode | stdio mode |
 |---|---|---|
-| Process management | OpenRC or subprocess | Agent manages via StdioTransport |
+| Process management | subprocess only | Agent manages via StdioTransport |
 | Request format | POST to `/v1/call_tool` | newline-delimited JSON |
 | Concurrency | uvicorn async | per-instance asyncio.Lock (serialized) |
 | Session ID header | `X-Session-Id` | not applicable |

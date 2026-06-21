@@ -17,5 +17,5 @@ max_log_size_kb = 256
 auth_token = ""
 
 # github_token: fallback when GITHUB_TOKEN env var is unset (not recommended)
-# Prefer setting GITHUB_TOKEN in /etc/conf.d/cicd-mcp via OpenRC
+# Prefer setting GITHUB_TOKEN via environment variable or config file
 github_token = ""

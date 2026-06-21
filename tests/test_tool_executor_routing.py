@@ -28,11 +28,11 @@ from shared.tool_executor import (
 
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig("http", url, [], "")
+    return McpServerConfig(transport="http", url=url, cmd=[], auth_token="")
 
 
 def _stdio_cfg() -> McpServerConfig:
-    return McpServerConfig("stdio", "", ["python", "s.py"], "")
+    return McpServerConfig(transport="stdio", url="", cmd=["python", "s.py"], auth_token="")
 
 
 def _make_executor(
@@ -164,7 +164,7 @@ class TestHttpTransportAuthHeader:
     @pytest.mark.asyncio
     async def test_auth_token_set_sends_bearer_header(self) -> None:
         cfg = McpServerConfig(
-            "http", "http://127.0.0.1:8000", [], "", auth_token="my-token"
+            transport="http", url="http://127.0.0.1:8000", cmd=[], auth_token="my-token"
         )
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
@@ -181,7 +181,7 @@ class TestHttpTransportAuthHeader:
 
     @pytest.mark.asyncio
     async def test_no_auth_token_sends_empty_headers(self) -> None:
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "", auth_token="")
+        cfg = McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], auth_token="")
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
         mock_resp.content = b'{"result":"ok","is_error":false}'
@@ -503,7 +503,7 @@ class TestSetSessionId:
     @pytest.mark.asyncio
     async def test_session_id_injected_into_http_transport_header(self) -> None:
         """set_session_id() propagates X-Session-Id to all HttpTransport instances."""
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "")
+        cfg = McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], auth_token="")
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
         mock_resp.content = b'{"result":"ok","is_error":false}'
@@ -524,7 +524,7 @@ class TestSetSessionId:
 
     def test_set_session_id_empty_string_does_not_inject_header(self) -> None:
         """Empty session_id must not add X-Session-Id header."""
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "")
+        cfg = McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], auth_token="")
         mock_http = MagicMock(spec=httpx.AsyncClient)
         ex = ToolExecutor(mock_http, cache_ttl=60.0, server_configs={"srv": cfg})
         ex.set_session_id("")
@@ -535,7 +535,7 @@ class TestSetSessionId:
 
     def test_set_session_id_skips_stdio_transports(self) -> None:
         """set_session_id() must not raise for servers with no HttpTransport."""
-        cfg = McpServerConfig("stdio", "", ["python", "s.py"], "")
+        cfg = McpServerConfig(transport="stdio", url="", cmd=["python", "s.py"], auth_token="")
         mock_http = MagicMock(spec=httpx.AsyncClient)
         ex = ToolExecutor(mock_http, cache_ttl=60.0, server_configs={"stdio_srv": cfg})
         # Must not raise even though the transport is not an HttpTransport
@@ -553,7 +553,7 @@ class TestToolExecutorApplyConfig:
         from shared.mcp_config import McpServerConfig
         from shared.tool_executor import ToolExecutor
 
-        cfg = McpServerConfig("http", "http://localhost:8005", [], "svc")
+        cfg = McpServerConfig(transport="http", url="http://localhost:8005", cmd=[], auth_token="svc")
         return ToolExecutor(
             http=AsyncMock(spec=httpx.AsyncClient),
             cache_ttl=300.0,

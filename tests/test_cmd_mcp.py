@@ -40,14 +40,14 @@ class _Mcp(_McpMixin):
 
 
 def _http(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig("http", url, [], "")
+    return McpServerConfig(transport="http", url=url, cmd=[], auth_token="")
 
 
 def _stdio(
     cmd: list[str] | None = None, startup_mode: str = "persistent"
 ) -> McpServerConfig:
     return McpServerConfig(
-        "stdio", "", cmd or ["python", "s.py"], "", startup_mode=startup_mode
+        transport="stdio", url="", cmd=cmd or ["python", "s.py"], auth_token="", startup_mode=startup_mode
     )
 
 
@@ -188,7 +188,7 @@ class TestCmdMcpStatusNewColumns:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cfg = McpServerConfig(
-            "http", "http://127.0.0.1:8000", [], "", auth_token="secret", role="query"
+            transport="http", url="http://127.0.0.1:8000", cmd=[], auth_token="secret", role="query"
         )
         ctx = _Ctx({"svc": cfg})
         mcp = _Mcp(ctx)
@@ -210,10 +210,10 @@ class TestCmdMcpStatusNewColumns:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cfg = McpServerConfig(
-            "http",
-            "http://127.0.0.1:8000",
-            [],
-            "",
+            transport="http",
+            url="http://127.0.0.1:8000",
+            cmd=[],
+            auth_token="",
             tool_names=["write_file", "edit_file"],
         )
         tiers = {"write_file": "WRITE_SAFE", "edit_file": "WRITE_SAFE"}
@@ -235,10 +235,10 @@ class TestCmdMcpStatusNewColumns:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cfg = McpServerConfig(
-            "http",
-            "http://127.0.0.1:8000",
-            [],
-            "",
+            transport="http",
+            url="http://127.0.0.1:8000",
+            cmd=[],
+            auth_token="",
             tool_names=["read_text_file", "list_directory"],
         )
         ctx = _Ctx({"reader": cfg})

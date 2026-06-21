@@ -576,7 +576,6 @@ class TestAgentConfigSseValidation:
                     "transport": "stdio",
                     "cmd": ["echo"],
                     "url": "",
-                    "openrc_service": "",
                 }
             },
             **overrides,

@@ -206,14 +206,13 @@ agent[:#1]> /mcp install <server-name>
 This generates:
 - `scripts/mcp/<name>/server.py` — FastAPI scaffold (MCPServer subclass)
 - `config/<module>_mcp_server.json` — config template
-- `init.d/<server-name>` — OpenRC startup script (mode 755)
 - `conf.d/<server-name>` — API key env template (optional)
 
 Manual steps after wizard:
 1. Add tool definitions to `config/agent.toml` → `tool_definitions`
 2. Add server entry to `config/mcp_servers.toml` → `[mcp_servers.<key>]`
 3. Add files to `deploy/deploy.sh` copy list
-4. Add OpenRC startup to `deploy/setup_services.sh`
+4. Add subprocess startup to `deploy/setup_services.sh`
 
 See [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)
 for full MCP server addition procedure.

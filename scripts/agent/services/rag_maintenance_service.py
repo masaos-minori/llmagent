@@ -15,7 +15,7 @@ from db.maintenance import (
     summarize_issues,
 )
 
-from agent.services.models import DbRecoverResult
+from agent.services.models import DbRecoverResult, RagConsistencyResult
 
 
 class RagMaintenanceService:
@@ -38,11 +38,15 @@ class RagMaintenanceService:
             db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')")
             db.commit()
 
-    def consistency(self) -> tuple[bool, list[str]]:
+    def consistency(self) -> RagConsistencyResult:
         """Run RAG consistency check on rag.sqlite; return (is_consistent, issue_strings)."""
         with SQLiteHelper("rag").open() as db:
             report = check_rag_consistency(db)
-        return is_consistent(report), summarize_issues(report)
+        return RagConsistencyResult(
+            is_consistent=is_consistent(report),
+            issues=summarize_issues(report),
+            report=report,
+        )
 
     def recover(self, backup_path: str | None) -> DbRecoverResult:
         """Run integrity check; restore from backup_path if corruption found."""

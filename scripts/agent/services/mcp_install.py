@@ -206,9 +206,5 @@ class McpInstallService:
             "",
             "  6. Deploy and start:",
             "     bash deploy/deploy.sh",
-            f"     cp init.d/{result.server_name} /etc/init.d/{result.server_name}",
-            f"     chmod +x /etc/init.d/{result.server_name}",
-            f"     rc-update add {result.server_name} default",
-            f"     rc-service {result.server_name} start",
         ]
         return "\n".join(lines)

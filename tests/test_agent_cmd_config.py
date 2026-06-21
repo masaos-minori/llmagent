@@ -170,7 +170,6 @@ _DUMMY_MCP = {
             "transport": "stdio",
             "cmd": ["echo"],
             "url": "",
-            "openrc_service": "",
         }
     }
 }

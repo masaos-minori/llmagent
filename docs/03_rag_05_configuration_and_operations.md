@@ -48,7 +48,7 @@ Used by RagPipeline (loaded via `_get_cfg()` on first access):
 
 | Parameter | Default | Description |
 |---|---|---|
-| `llm_url` | `http://127.0.0.1:8002/v1/chat/completions` | LLM endpoint for MQE and rerank |
+| `llm_url` | `http://127.0.0.1:8001/v1/chat/completions` | LLM endpoint for MQE and rerank |
 | `mqe_n_queries` | `3` | Number of query variants to generate in MQE |
 | `rrf_k` | `60` | RRF smoothing constant (Σ 1/(rrf_k + rank)) |
 | `mqe_prompt_template` | (built-in) | MQE prompt template; placeholders: `{n_queries}`, `{query}` |

@@ -5,16 +5,16 @@ Unit tests for shared.route_resolver.ToolRouteResolver.
 import logging
 
 import pytest
-from shared.mcp_config import McpServerConfig
+from shared.mcp_config import McpServerConfig, StartupMode
 from shared.route_resolver import ToolRouteResolver
 
 
 def _http(key: str, url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig("http", url, [], "")
+    return McpServerConfig("http", url, [], StartupMode.PERSISTENT)
 
 
 def _stdio(key: str, tool_names: list[str] | None = None) -> McpServerConfig:
-    cfg = McpServerConfig("stdio", "", ["python", "s.py"], "")
+    cfg = McpServerConfig("stdio", "", ["python", "s.py"], StartupMode.PERSISTENT)
     if tool_names:
         cfg.tool_names = tool_names
     return cfg

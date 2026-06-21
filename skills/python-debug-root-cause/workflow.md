@@ -144,20 +144,19 @@ sqlite3 /opt/llm/db/llm.db
 
 ```bash
 # For all service names and ports, see rules/env.md
-rc-service web-search-mcp status   # 8004
-rc-service file-read-mcp status    # 8005
-rc-service github-mcp status       # 8006
-rc-service file-write-mcp status   # 8007
-rc-service file-delete-mcp status  # 8008
-rc-service shell-mcp status        # 8009
-rc-service rag-pipeline-mcp status # 8010
-rc-service sqlite-mcp status       # 8011
-rc-service cicd-mcp status         # 8012
-rc-service mdq-mcp status          # 8013
-rc-service git-mcp status          # 8014
-rc-service embed-llm status        # 8003
-rc-service llama-chat-llm status   # 8002
-rc-service llama-coding-llm status # 8001
+curl -s http://127.0.0.1:8004/health   # web-search-mcp
+curl -s http://127.0.0.1:8005/health   # file-read-mcp
+curl -s http://127.0.0.1:8006/health   # github-mcp
+curl -s http://127.0.0.1:8007/health   # file-write-mcp
+curl -s http://127.0.0.1:8008/health   # file-delete-mcp
+curl -s http://127.0.0.1:8009/health   # shell-mcp
+curl -s http://127.0.0.1:8010/health   # rag-pipeline-mcp
+curl -s http://127.0.0.1:8011/health   # sqlite-mcp
+curl -s http://127.0.0.1:8012/health   # cicd-mcp
+curl -s http://127.0.0.1:8013/health   # mdq-mcp
+curl -s http://127.0.0.1:8014/health   # git-mcp
+curl -s http://127.0.0.1:8003/health   # embed-llm
+curl -s http://127.0.0.1:8001/health   # agent-llm
 ```
 
 #### MCP server health check (from agent REPL)
@@ -258,7 +257,7 @@ import stackprinter; stackprinter.set_excepthook(style="plaintext")
 | Hypothesis | How to falsify |
 |---|---|
 | ConfigLoader path mismatch | Print `ConfigLoader().load(...)` output |
-| MCP server down / port mismatch | `rc-service <name> status` + `http GET .../health` |
+| MCP server down / port mismatch | `curl -s http://127.0.0.1:<PORT>/health` |
 | LLM endpoint unavailable | Check `agent.log` for retry events; mock with `respx` |
 | SQLite extension load failure | `sqlite3 :memory: ".load /opt/llm/sqlite-vec/vec0.so"` |
 | Embedding dimension mismatch | `len(blob) == dim * 4` in `rag_utils.py` |
@@ -376,7 +375,7 @@ Delegate to composed skills when appropriate:
 pytest tests/test_<module>.py -v
 pytest -v
 ruff check scripts/
-rc-service <service-name> restart   # if production code changed
+# Restart MCP server via agent REPL or direct process management if production code changed
 ```
 
 Before committing:

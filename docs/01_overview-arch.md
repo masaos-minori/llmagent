@@ -26,14 +26,13 @@
 └───────┬─────────────┬──────────────────┬─────────────┘
         │             │                  │
         ▼             ▼                  ▼
-:8003 embed-LLM  :8002 agent-LLM   MCP サーバ群 (stdio または http)
+:8003 embed-LLM  :8001 agent-LLM   MCP サーバ群 (stdio または http)
 (RAG 検索時)                       11 サーバ (:8004〜:8014)
 ```
 
-| OpenRC サービス | ポート | モデル | 役割 |
+| サービス | ポート | モデル | 役割 |
 |---|---|---|---|
-| `llama-chat-llm` | 8002 | gemma-4-e4b-it-Q4_K_M | チャット LLM (MQE・再ランク兼用) |
-| `llama-coding-llm` | 8001 | qwen2.5-coder-7b-instruct-q4_k_m | コード生成 LLM |
+| `agent-llm` | 8001 | Qwen3.6-Instruct-Q4_K_M | チャット/コード生成 LLM (MQE・再ランク兼用) |
 | `embed-llm` | 8003 | multilingual-E5-small | テキスト → 384 次元ベクトル変換 |
 | `web-search-mcp` | 8004 | — | Web 検索 MCP サーバ (Brave/Bing/DuckDuckGo) |
 | `file-read-mcp` | 8005 | — | ファイル読み取り MCP サーバ |
@@ -64,7 +63,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.txt
 ```
 ユーザー入力
   → MQE + embed → KNN+BM25 → RRF → Rerank → Refiner → コンテキスト付加
-  → LLM (:8002) → tool_calls → MCP サーバ群 (:8004〜:8014)
+  → LLM (:8001) → tool_calls → MCP サーバ群 (:8004〜:8014)
   → 最終回答 (SSE ストリーミング)
 ```
 

@@ -18,7 +18,7 @@ from shared.mcp_config import McpServerConfig
 
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig("http", url, [], "")
+    return McpServerConfig(transport="http", url=url, cmd=[], auth_token="")
 
 
 def _http_subprocess_cfg(
@@ -27,22 +27,22 @@ def _http_subprocess_cfg(
     timeout: int = 5,
 ) -> McpServerConfig:
     return McpServerConfig(
-        "http",
-        url,
-        cmd or ["python", "srv.py"],
-        "",
+        transport="http",
+        url=url,
+        cmd=cmd or ["python", "srv.py"],
+        auth_token="",
         startup_mode="subprocess",
         startup_timeout_sec=timeout,
     )
 
 
 def _stdio_persistent() -> McpServerConfig:
-    return McpServerConfig("stdio", "", ["python", "s.py"], "")
+    return McpServerConfig(transport="stdio", url="", cmd=["python", "s.py"], auth_token="")
 
 
 def _stdio_ondemand(cmd: list[str] | None = None) -> McpServerConfig:
     return McpServerConfig(
-        "stdio", "", cmd or ["python", "s.py"], "", startup_mode="ondemand"
+        transport="stdio", url="", cmd=cmd or ["python", "s.py"], auth_token="", startup_mode="ondemand"
     )
 
 
@@ -50,10 +50,10 @@ def _stdio_ondemand_idle(
     idle_sec: int, cmd: list[str] | None = None
 ) -> McpServerConfig:
     return McpServerConfig(
-        "stdio",
-        "",
-        cmd or ["python", "s.py"],
-        "",
+        transport="stdio",
+        url="",
+        cmd=cmd or ["python", "s.py"],
+        auth_token="",
         startup_mode="ondemand",
         idle_timeout_sec=idle_sec,
     )
@@ -137,7 +137,7 @@ class TestEnsureReady:
         from agent.tool_exceptions import LifecycleConfigurationError
 
         cfg = McpServerConfig(
-            "stdio", "", ["python", "s.py"], "", startup_mode="ondemand"
+            transport="stdio", url="", cmd=["python", "s.py"], auth_token="", startup_mode="ondemand"
         )
         cfg.cmd = []  # empty cmd after construction
         configs = {"od": cfg}
@@ -611,10 +611,10 @@ def _echo_cmd() -> list[str]:
 
 def _ondemand_echo_cfg(working_dir: str = "") -> McpServerConfig:
     return McpServerConfig(
-        "stdio",
-        "",
-        _echo_cmd(),
-        "",
+        transport="stdio",
+        url="",
+        cmd=_echo_cmd(),
+        auth_token="",
         startup_mode="ondemand",
         working_dir=working_dir,
     )
@@ -699,7 +699,7 @@ class TestShutdownIdleIntegration:
         await transport.start()
         assert transport.is_alive()
 
-        configs = {"echo": McpServerConfig("stdio", "", _echo_cmd(), "")}
+        configs = {"echo": McpServerConfig(transport="stdio", url="", cmd=_echo_cmd(), auth_token="")}
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex, {"echo": transport})
         mgr._last_called["echo"] = 0.0
@@ -724,7 +724,7 @@ class TestLifecycleState:
         assert mgr.get_transport_state("nonexistent") == LifecycleState.UNKNOWN
 
     def test_get_transport_state_http_server_returns_unknown(self) -> None:
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "svc")
+        cfg = McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], auth_token="svc")
         mgr = _ServerLifecycleRouter({"svc": cfg}, _mock_tool_executor(), {})
         assert mgr.get_transport_state("svc") == LifecycleState.UNKNOWN
 

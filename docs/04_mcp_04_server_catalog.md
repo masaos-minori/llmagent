@@ -14,7 +14,7 @@ config, startup, security, logs, operational notes, and known limitations.
 ## web-search-mcp (port 8004)
 
 **Purpose:** Web search with multi-provider fallback (Brave → Bing → DuckDuckGo).
-**Startup mode:** persistent (HTTP, OpenRC `web-search-mcp`)
+**Startup mode:** persistent (HTTP)
 **Config:** `config/web_search_mcp_server.toml`
 
 **Tools:**
@@ -44,7 +44,7 @@ All providers failed → HTTP 502.
 ## file-read-mcp (port 8005)
 
 **Purpose:** Read-only access to local filesystem within `allowed_dirs`.
-**Startup mode:** persistent (HTTP, OpenRC `file-mcp`)
+**Startup mode:** persistent (HTTP)
 **Config:** `config/file_read_mcp_server.toml`
 
 **Tools (9):** `read_text_file`, `list_directory`, `list_directory_with_sizes`, `directory_tree`,
@@ -77,7 +77,7 @@ All providers failed → HTTP 502.
 ## github-mcp (port 8006)
 
 **Purpose:** GitHub API via PyGithub. Reads and writes to GitHub repositories.
-**Startup mode:** persistent (HTTP, OpenRC `github-mcp`)
+**Startup mode:** persistent (HTTP)
 **Config:** `config/github_mcp_server.toml`
 **Auth:** `GITHUB_TOKEN` env var (PAT); without it: 60 req/hour anonymous
 
@@ -111,7 +111,7 @@ All providers failed → HTTP 502.
 ## file-write-mcp (port 8007)
 
 **Purpose:** Local filesystem write operations. All tools support `dry_run=True`.
-**Startup mode:** persistent (HTTP, OpenRC `file-mcp`)
+**Startup mode:** persistent (HTTP)
 **Config:** `config/file_write_mcp_server.toml`
 
 **Tools (4):** `write_file`, `edit_file`, `create_directory`, `move_file`
@@ -132,7 +132,7 @@ All providers failed → HTTP 502.
 ## file-delete-mcp (port 8008)
 
 **Purpose:** Local filesystem deletion. All tools support `dry_run=True`.
-**Startup mode:** persistent (HTTP, OpenRC `file-mcp`)
+**Startup mode:** persistent (HTTP)
 **Config:** `config/file_delete_mcp_server.toml`
 
 **Tools (2):** `delete_file`, `delete_directory`
@@ -150,7 +150,7 @@ All providers failed → HTTP 502.
 ## shell-mcp (port 8009)
 
 **Purpose:** Sandboxed shell command execution within `command_allowlist`.
-**Startup mode:** persistent (HTTP, OpenRC `shell-mcp`)
+**Startup mode:** persistent (HTTP)
 **Config:** `config/shell_mcp_server.toml`
 
 **Tools (1):** `shell_run`
@@ -191,7 +191,7 @@ All providers failed → HTTP 502.
 ## rag-pipeline-mcp (port 8010)
 
 **Purpose:** RAG retrieval pipeline (MQE → Search → RRF → Rerank → Dedup → Augment).
-**Startup mode:** persistent (HTTP, OpenRC `rag-pipeline-mcp`)
+**Startup mode:** persistent (HTTP)
 **Config:** `config/rag_pipeline_mcp_server.toml`
 
 **Tools (2):**
@@ -201,7 +201,7 @@ All providers failed → HTTP 502.
 | `rag_run_pipeline` | `{query, history_context?, debug?}` | `augmented_text` + `selected_hits` |
 | `rag_debug_pipeline` | `{query, history_context?}` | All intermediate stage outputs |
 
-**Additional endpoint:** `POST /v1/search` (backward compat for `RagPipeline._augment_http()`)
+**Additional endpoint:** `POST /v1/search` (backward compat for external RAG service delegation)
 
 **Key config:** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `use_mqe`, `use_rrf`,
 `use_rerank`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`
@@ -215,7 +215,7 @@ All providers failed → HTTP 502.
 ## sqlite-mcp (port 8011)
 
 **Purpose:** Read-only SELECT queries against registered SQLite databases.
-**Startup mode:** persistent (HTTP, OpenRC `sqlite-mcp`)
+**Startup mode:** persistent (HTTP)
 **Config:** `config/sqlite_mcp_server.toml`
 
 **Tools (1):** `query_sqlite`
@@ -245,7 +245,7 @@ All providers failed → HTTP 502.
 ## cicd-mcp (port 8012)
 
 **Purpose:** GitHub Actions workflow management.
-**Startup mode:** persistent (HTTP, OpenRC `cicd-mcp`)
+**Startup mode:** persistent (HTTP)
 **Config:** `config/cicd_mcp_server.toml`
 **Auth:** `GITHUB_TOKEN` (via `conf.d/cicd-mcp`)
 
@@ -272,7 +272,7 @@ All providers failed → HTTP 502.
 ## mdq-mcp (port 8013)
 
 **Purpose:** Markdown document indexing and context compression.
-**Startup mode:** persistent (HTTP, OpenRC `mdq-mcp`)
+**Startup mode:** persistent (HTTP)
 **Config:** `config/mdq_mcp_server.toml`
 
 **Tools (7):** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`
@@ -291,7 +291,7 @@ All providers failed → HTTP 502.
 ## git-mcp (port 8014)
 
 **Purpose:** Local git repository operations with 2-tier safety guards.
-**Startup mode:** persistent (HTTP, OpenRC `git-mcp`)
+**Startup mode:** persistent (HTTP)
 **Config:** `config/git_mcp_server.toml`
 **Auth:** `GITHUB_TOKEN` not needed; uses local git credentials
 

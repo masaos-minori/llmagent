@@ -16,7 +16,8 @@
 #   API キー不要。duckduckgo-search ライブラリが venv に必要
 #   pip install "duckduckgo-search>=6.0.0"
 #
-# 設定後: rc-service web-search-mcp restart
+# 設定後: agent でリロード
+#   python3 scripts/agent.py --reload-mcp web-search-mcp
 
 BRAVE_API_KEY=""
 BING_API_KEY=""

@@ -38,7 +38,7 @@ agent[:#1]>
 ### LLM service check
 
 ```bash
-curl -s http://127.0.0.1:8002/v1/chat/completions -d '{"messages":[{"role":"user","content":"hi"}],"max_tokens":5}' -H 'Content-Type: application/json'
+curl -s http://127.0.0.1:8001/v1/chat/completions -d '{"messages":[{"role":"user","content":"hi"}],"max_tokens":5}' -H 'Content-Type: application/json'
 ```
 
 ### Embedding service check
@@ -172,7 +172,7 @@ tail -f /opt/llm/logs/agent.log | grep '"name":'
 Expected spans:
 ```json
 {"name": "compress", ...}
-{"name": "llm", "attributes": {"model_url": "http://127.0.0.1:8002/..."}, ...}
+{"name": "llm", "attributes": {"model_url": "http://127.0.0.1:8001/..."}, ...}
 {"name": "workflow.run", "attributes": {"workflow.task_id": "...", "workflow.version": "1.0"}, ...}
 {"name": "workflow.stage", "attributes": {"workflow.stage_id": "execute", "workflow.attempt": 1}, ...}
 ```

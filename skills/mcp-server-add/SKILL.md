@@ -1,10 +1,10 @@
 ---
 name: mcp-server-add
 description: |
-  Use this skill PROACTIVELY when adding a new MCP (Model Context Protocol) server
-  to this project. Use this when the task involves creating a new MCP server module,
-  registering it as an OpenRC service, wiring it into the agent, or running
-  /mcp install <name> from the agent REPL.
+ Use this skill PROACTIVELY when adding a new MCP (Model Context Protocol) server
+   to this project. Use this when the task involves creating a new MCP server module,
+   wiring it into the agent, or running
+   /mcp install <name> from the agent REPL.
 ---
 
 # MCP Server Add Skill
@@ -33,7 +33,7 @@ New servers must use port ≥ 8015.
 
 ## Prerequisites
 
-- For Option A (wizard): agent REPL must be running (`rc-service llama-agent status`)
+- For Option A (wizard): agent REPL must be running (`ps aux | grep agent.py`)
 - Next free port: `grep -r '\-\-port' init.d/ | grep -oP '\d{4,}' | sort -n | tail -1` → use next integer ≥ 8011
 
 ## Phase overview
@@ -51,7 +51,7 @@ See `workflow.md` for detailed step content, failure recovery, and idempotency n
 - `scripts/mcp/<name>/server.py` syntax check passes
 - `deploy/deploy.sh` updated with new files
 - `config/agent.toml [mcp_servers].<name>` entry added (verified with `rg`)
-- service registered and running (`rc-service <name> status`)
+- service running and reachable (verify port health)
 - `/mcp` in agent REPL shows the new server as healthy
 - no errors in `agent.log` during tool invocation
 

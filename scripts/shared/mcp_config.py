@@ -48,7 +48,6 @@ class McpServerConfig:
     transport: TransportType
     url: str  # base URL (transport=HTTP)
     cmd: list[str]  # command argv (transport=STDIO)
-    openrc_service: str  # e.g. "file-mcp"  (transport=HTTP, watchdog restart)
     startup_mode: StartupMode = StartupMode.PERSISTENT
     healthcheck_mode: HealthcheckMode = (
         HealthcheckMode.HTTP
@@ -159,7 +158,6 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         transport=TransportType(transport),
         url=v.get("url", ""),
         cmd=list(v.get("cmd", [])),
-        openrc_service=v.get("openrc_service", ""),
         startup_mode=StartupMode(v.get("startup_mode", "persistent")),
         healthcheck_mode=HealthcheckMode(v.get("healthcheck_mode", ""))
         if v.get("healthcheck_mode")

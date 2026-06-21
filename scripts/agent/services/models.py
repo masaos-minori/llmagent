@@ -115,6 +115,13 @@ class DbRecoverResult:
 
 
 @dataclass(frozen=True)
+class RagConsistencyResult:
+    is_consistent: bool
+    issues: list[str]
+    report: Any  # db.maintenance.RagConsistencyReport
+
+
+@dataclass(frozen=True)
 class ExportResult:
     n_messages: int
     content: str

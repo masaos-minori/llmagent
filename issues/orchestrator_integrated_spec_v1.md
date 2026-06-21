@@ -112,7 +112,6 @@
 - `scripts/orchestrator_mcp_server.py`
 - `scripts/orchestrator_state.py`
 - `config/orchestrator_mcp_server.json`
-- `init.d/orchestrator-mcp`
 
 ### 2.2 永続化
 
@@ -587,7 +586,6 @@ artifact 保存方式は当面 DB inline を採用する。対象例は以下と
 - key: `orchestrator`
 - transport: `http`
 - url: `http://127.0.0.1:8009`
-- openrc_service: `orchestrator-mcp`
 
 tool 定義には orchestrator 用 function calling 定義を追加する。
 
@@ -851,7 +849,6 @@ Phase 2 以降の拡張候補は以下とする。
 - `tool_definitions`
 - `scripts/orchestrator_mcp_server.py`
 - `config/orchestrator_mcp_server.json`
-- `init.d/orchestrator-mcp`
 - `deploy/deploy.sh`
 - `deploy/setup_services.sh`
 
@@ -860,7 +857,6 @@ Phase 2 以降の拡張候補は以下とする。
 - `mcp_servers.orchestrator` を追加
 - orchestrator 用 `tool_definitions` を追加
 - `GET /health`、`GET /v1/tools`、`POST /v1/call_tool` を実装
-- OpenRC サービス追加
 - watchdog 連携
 - deploy スクリプト更新
 
@@ -1017,10 +1013,10 @@ Phase 2 以降の拡張候補は以下とする。
 リスクは以下である。
 
 - `tool_definitions` と `/v1/tools` の差分で起動時整合が崩れる
-- watchdog / OpenRC 名不一致で障害時復旧に失敗する
+- watchdog 名不一致で障害時復旧に失敗する
 
 対策は以下とする。
 
 - `orchestrator-mcp` の `/v1/tools` と `config/agent.json` 定義を同時更新する
-- `openrc_service` 名と init.d 名を厳密に一致させる
+- watchdog モニタリング名を厳密に一致させる
 - Phase 10 で deploy と agent 設定を同時反映する

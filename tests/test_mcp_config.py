@@ -8,33 +8,33 @@ from shared.mcp_config import McpServerConfig, SecurityProfile, _build_mcp_serve
 
 class TestMcpServerConfigValidation:
     def test_valid_http_config(self) -> None:
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "file-mcp")
+        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [])
         assert cfg.transport == "http"
         assert cfg.startup_mode == "persistent"
         assert cfg.healthcheck_mode == "http"  # auto-inferred
 
     def test_valid_stdio_config(self) -> None:
-        cfg = McpServerConfig("stdio", "", ["python", "server.py"], "")
+        cfg = McpServerConfig("stdio", "", ["python", "server.py"])
         assert cfg.transport == "stdio"
         assert cfg.startup_mode == "persistent"
         assert cfg.healthcheck_mode == "http"  # dataclass default
 
     def test_invalid_transport_raises(self) -> None:
         with pytest.raises(ValueError, match="not a valid TransportType"):
-            McpServerConfig("invalid", "", [], "")
+            McpServerConfig("invalid", "", [])
 
     def test_http_empty_url_raises(self) -> None:
         with pytest.raises(ValueError, match="url must not be empty"):
-            McpServerConfig("http", "", [], "")
+            McpServerConfig("http", "", [])
 
     def test_stdio_empty_cmd_raises(self) -> None:
         with pytest.raises(ValueError, match="cmd must not be empty"):
-            McpServerConfig("stdio", "", [], "")
+            McpServerConfig("stdio", "", [])
 
     def test_invalid_startup_mode_raises(self) -> None:
         with pytest.raises(ValueError, match="not a valid StartupMode"):
             McpServerConfig(
-                "http", "http://127.0.0.1:8000", [], "", startup_mode="always"
+                "http", "http://127.0.0.1:8000", [], startup_mode="always"
             )
 
     def test_invalid_healthcheck_mode_raises(self) -> None:
@@ -43,13 +43,12 @@ class TestMcpServerConfigValidation:
                 "http",
                 "http://127.0.0.1:8000",
                 [],
-                "",
                 healthcheck_mode="unknown",
             )
 
     def test_explicit_startup_mode_ondemand(self) -> None:
         cfg = McpServerConfig(
-            "stdio", "", ["python", "s.py"], "", startup_mode="ondemand"
+            "stdio", "", ["python", "s.py"], startup_mode="ondemand"
         )
         assert cfg.startup_mode == "ondemand"
 
@@ -58,21 +57,20 @@ class TestMcpServerConfigValidation:
             "stdio",
             "",
             ["python", "s.py"],
-            "",
             healthcheck_mode="ping_tool",
         )
         assert cfg.healthcheck_mode == "ping_tool"
 
     def test_tool_names_default_empty(self) -> None:
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "")
+        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [])
         assert cfg.tool_names == []
 
     def test_env_default_empty_dict(self) -> None:
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "")
+        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [])
         assert cfg.env == {}
 
     def test_idle_timeout_default_zero(self) -> None:
-        cfg = McpServerConfig("stdio", "", ["python", "s.py"], "")
+        cfg = McpServerConfig("stdio", "", ["python", "s.py"])
         assert cfg.idle_timeout_sec == 0
 
 
@@ -94,7 +92,6 @@ class TestBuildMcpServers:
                     "transport": "http",
                     "url": "http://127.0.0.1:9999",
                     "cmd": [],
-                    "openrc_service": "my-svc",
                 }
             }
         }
@@ -109,7 +106,6 @@ class TestBuildMcpServers:
                     "transport": "stdio",
                     "url": "",
                     "cmd": ["python", "s.py"],
-                    "openrc_service": "",
                     "startup_mode": "ondemand",
                     "healthcheck_mode": "ping_tool",
                     "idle_timeout_sec": 300,
@@ -135,7 +131,6 @@ class TestBuildMcpServers:
                     "transport": "http",
                     "url": "http://127.0.0.1:8000",
                     "cmd": [],
-                    "openrc_service": "",
                 }
             }
         }
@@ -157,7 +152,6 @@ class TestBuildMcpServers:
                     "transport": "http",
                     "url": "http://127.0.0.1:8000",
                     "cmd": [],
-                    "openrc_service": "",
                     "auth_token": "my-secret",
                     "role": "file_write",
                 }
@@ -169,11 +163,11 @@ class TestBuildMcpServers:
         assert s.role == "file_write"
 
     def test_auth_token_default_empty(self) -> None:
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "")
+        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [])
         assert cfg.auth_token == ""
 
     def test_role_default_empty(self) -> None:
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [], "")
+        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [])
         assert cfg.role == ""
 
 

@@ -8,7 +8,7 @@
 |---|---|---|---|
 | `__init__.py` | 0 | 空 | パッケージエクスポートがない |
 | `models.py` | 192 | DTO(20種) — config/data/result/audit が混在 | **巨大**。責務が4種類に分裂すべき |
-| `pipeline.py` | 325 | RagPipeline orchestrator | 9モジュールからインポート。外部RAGサービス・キャッシュ・リファイナー・フォーマットが混在 |
+| `pipeline.py` | ~400 | RagPipeline orchestrator | 9モジュールからインポート。外部RAGサービス・キャッシュ・リファイナー・フォーマットが混在 |
 | `llm.py` | 413 | RagLLM + embedding utility | MQE, rerank, summarization, refining, embedding が混在 |
 | `repository.py` | 326 | RagRepository, RagScorer | Sudachi tokenization, FTS query, search, scoring が混在 |
 | `utils.py` | 123 | cosine_sim, sanitize, normalize, validate | なし（適切に分離済み） |
@@ -40,8 +40,8 @@
 
 **目標:**
 - `rag/pipeline.py` — RagPipeline core orchestration (MQE→search→RRF→rerank)
-- `rag/pipeline_service.py` — External RAG service delegation (`_augment_http`)
-- `rag/pipeline_refiner.py` — Context refiner (`_augment_refiner`)
+- `rag/pipeline_service.py` — External RAG service delegation (`call_rag_service()`)
+- `rag/pipeline_refiner.py` — Context refiner (`refine_context()`)
 
 **後方互換:** `rag/pipeline.py` で再エクスポート（既存インポートを壊さない）
 
@@ -89,18 +89,20 @@
 ### Step 2: pipeline の分割 ✅ 完了
 - `pipeline_service.py` — 外部 RAG サービス委譲 (`call_rag_service()`)
 - `pipeline_refiner.py` — コンテキストリファイナー (`refine_context()`)
-- `pipeline.py` — core orchestration のみ + `_augment_http`/`_augment_refiner` は new module に委譲
+- `pipeline.py` — core orchestration のみ + `_augment_http`/`_augment_refiner` は削除し、`call_rag_service()` / `refine_context()` を直接呼び出しにインライン化
 - ruff + mypy + lint-imports 全チェック OK
 - 関連テスト全通過 (test_rag_utils.py, test_chunk_splitter.py, test_rag_pipeline_mcp_service.py, test_agent_rag.py)
 
-### Step 3: __init__.py の整備
-- パッケージ公開APIを定義
+### Step 3: __init__.py の整備 ✅ 完了
+- パッケージ公開APIを定義（20種のDTOを一括エクスポート）
 
-### Step 4: 最終検証
-- ruff format + ruff check
-- mypy scripts/
-- lint-imports
-- pytest (affected tests)
+### Step 4: 最終検証 ✅ 完了
+- ruff format: OK (rerank.py をフォーマット)
+- ruff check: OK (unused import `RefineResult` を削除)
+- mypy pipeline.py: OK — Success, no issues
+- mypy scripts/rag/: 5 errors in crawler.py — 既存エラー（本リファクタリングとは無関係）
+- lint-imports: OK — 4 contracts kept, 0 broken
+- pytest test_chunk_splitter.py: OK — 6 passed
 
 ## 5. 後方互換性
 

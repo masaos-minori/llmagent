@@ -9,7 +9,9 @@ from rag.repository import deduplicate_chunks
 from rag.stage import PipelineContext, PipelineStage
 
 
-async def _rerank(query: str, merged: list[Any], cfg: RagConfig, llm: RagLLM) -> list[Any]:
+async def _rerank(
+    query: str, merged: list[Any], cfg: RagConfig, llm: RagLLM
+) -> list[Any]:
     """Apply Cross-Encoder rerank then dedup.
 
     Raises RagRerankError on LLM failure.

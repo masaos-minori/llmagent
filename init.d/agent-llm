@@ -1,0 +1,12 @@
+#!/bin/bash
+# Agent LLM server (Qwen3.6) on :8001 — subprocess managed by agent
+
+exec /opt/llm/llama.cpp/build/bin/llama-server \
+    --model /opt/llm/models/Qwen3.6-Instruct-Q4_K_M.gguf \
+    --host 127.0.0.1 \
+    --port 8001 \
+    --ctx-size 8192 \
+    --threads 4 \
+    --n-predict 1024 \
+    --repeat-penalty 1.05 \
+    >> /opt/llm/logs/agent-llm.log 2>&1

@@ -158,13 +158,13 @@ def test_web_search_returns_empty_on_404():
 #### pytest-subprocess — intercept subprocess calls
 
 ```python
-def test_openrc_service_start(fake_process):
-    fake_process.register(["rc-service", "file-mcp", "start"], returncode=0)
+def test_subprocess_start(fake_process):
+    fake_process.register(["agent.py", "--start"], returncode=0)
     result = start_service("file-mcp")
     assert result is True
 ```
 
-Prefer `fake_process` over `mocker.patch("subprocess.run")` for OpenRC service calls.
+Prefer `fake_process` over `mocker.patch("subprocess.run")` for subprocess calls.
 
 ---
 

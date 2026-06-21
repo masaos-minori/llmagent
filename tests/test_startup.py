@@ -35,7 +35,6 @@ def _http_subprocess_cfg() -> McpServerConfig:
         transport="http",
         url="http://127.0.0.1:9999",
         cmd=["uvicorn", "srv:app"],
-        openrc_service="",
         startup_mode="subprocess",
     )
 
@@ -45,7 +44,6 @@ def _stdio_persistent_cfg() -> McpServerConfig:
         transport="stdio",
         url="",
         cmd=["python", "server.py"],
-        openrc_service="",
         startup_mode="persistent",
     )
 
@@ -55,7 +53,6 @@ def _stdio_ondemand_cfg() -> McpServerConfig:
         transport="stdio",
         url="",
         cmd=["python", "server.py"],
-        openrc_service="",
         startup_mode="ondemand",
     )
 

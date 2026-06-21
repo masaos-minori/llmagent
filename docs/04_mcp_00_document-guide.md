@@ -28,7 +28,7 @@ as the primary reference. Source files are retained unchanged.
     ↓
 05 Security and Safety Model     — allowlists, denylist, fail-open/closed, risk tiers
     ↓
-    06 Configuration and Operations  — config files, OpenRC, health probes, new server checklist
+    06 Configuration and Operations  — config files, health probes, new server checklist
     ↓
     90 Inconsistencies and Issues    — bugs, placeholders, spec conflicts
 ```
@@ -94,7 +94,7 @@ as the primary reference. Source files are retained unchanged.
 | [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) | ToolRouteResolver, ToolExecutor, HttpTransport, StdioTransport, startup modes, watchdog, new server |
 | [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) | Per-server specs for all 11 servers: tools, config, security, logs, limitations |
 | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) | Allowlists, denylist, fail-open/closed, dry_run, risk tiers, AI safety notes |
-| [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) | Config file inventory, McpServerConfig fields, defaults, OpenRC, health probes, new-server checklist |
+| [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) | Config file inventory, McpServerConfig fields, defaults, health probes, new-server checklist |
 | [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | MISSING-01/SPEC-01/02/03 with AI safety guidance (BUG-01 resolved 2026-06-18) |
 
 ---

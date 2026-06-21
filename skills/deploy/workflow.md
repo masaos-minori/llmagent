@@ -42,7 +42,7 @@ If `deploy/deploy.sh` fails:
 
 ## Phase 3: Service restart
 
-**Gate: `rc-service <name> status` shows running**
+**Gate: port health check returns OK**
 
 Restart **only** the services whose code or config changed.
 
@@ -62,21 +62,19 @@ For service names and ports, see `rules/env.md`.
 
 ```bash
 # Agent (stops REPL session — apply restart decision criteria above first)
-rc-service llama-agent restart
+# Restart via subprocess management
 
 # MCP servers (safe to restart; tool calls will retry)
-rc-service <name> restart   # restart only the affected server; see rules/env.md for all service names
+# Restart via subprocess management
 
 # LLM inference servers (10–30 seconds to load model)
-rc-service embed-llm restart
-rc-service llama-chat-llm restart
-rc-service llama-coding-llm restart
+# Restart via subprocess management
 ```
 
 Check status after restart:
 
 ```bash
-rc-service <name> status
+curl -s http://127.0.0.1:<PORT>/health
 ```
 
 ### Failure recovery (service fails to start)
@@ -98,7 +96,7 @@ If a service fails to start:
 **Gate: service is running; no new errors in logs**
 
 ```bash
-rc-service <name> status
+curl -s http://127.0.0.1:<PORT>/health
 
 tail -20 /opt/llm/logs/agent.log
 tail -20 /opt/llm/logs/file-mcp.log
@@ -121,5 +119,5 @@ Run in this order:
 ```bash
 bash deploy/deploy.sh
 bash deploy/init_db.sh         # creates SQLite schema (IF NOT EXISTS — safe to re-run)
-bash deploy/setup_services.sh  # registers OpenRC services
+bash deploy/setup_services.sh  # starts services via subprocess management
 ```

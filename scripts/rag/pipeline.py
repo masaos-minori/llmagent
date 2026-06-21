@@ -32,7 +32,7 @@ from shared.types import RagConfig
 from rag.cache import SemanticCache
 from rag.llm import RagLLM, get_embedding
 from rag.models_data import TwoStageFetchResult
-from rag.pipeline_refiner import RefineResult, refine_context
+from rag.pipeline_refiner import refine_context
 from rag.pipeline_service import call_rag_service
 from rag.repository import (
     RagRepository,
@@ -289,78 +289,6 @@ class RagPipeline:
         finally:
             self._on_clear()
 
-    async def _augment_http(
-        self,
-        rag_url: str,
-        query: str,
-        history_context: str,
-        set_fallback_reason: Callable[[str], None] | None = None,
-    ) -> str | None:
-        """Run HTTP-stage augmentation via external RAG service.
-
-        Thin wrapper around ``call_rag_service()``. All HTTP-level details
-        (endpoint, headers, timeout, retries) are documented there.
-
-        Return semantics:
-            - ``str`` (non-empty): HTTP 200 with valid context → returned as final result
-            - ``""`` (empty string): HTTP 200 with no context → returned as final result;
-              not treated as failure, so no in-process fallback is triggered
-            - ``None``: HTTP error, transport failure, or parse error → triggers
-              in-process fallback chain (semantic cache → search pipeline → raw chunks)
-
-        Side effects:
-            Stores ``TwoStageFetchResult`` on ``self.last_fetch_result`` via the
-            callback passed to ``call_rag_service()``.
-
-        See Also:
-            call_rag_service: Full return contract, HTTP details, and retry behavior.
-        """
-        return await call_rag_service(
-            self._http,
-            rag_url,
-            query,
-            history_context,
-            auth_token=self._cfg.rag_auth_token,
-            set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
-            set_fallback_reason=set_fallback_reason,
-        )
-
-    async def _augment_refiner(
-        self, reranked: list[RagHit], query: str
-    ) -> RefineResult:
-        """Run the chunk refiner via ``refine_context()``.
-
-        Thin wrapper that delegates to ``refine_context()``. The refiner
-        compresses reranked hits into query-relevant key points using the LLM.
-
-        Config gate:
-            Only invoked when ``self._cfg.use_refiner`` is truthy. When disabled,
-            ``augment()`` skips directly to raw-chunk formatting.
-
-        Return semantics (delegated from ``refine_context()``):
-            - ``RefineResult(text=str)`` (non-empty): Refined key points → final result
-            - ``RefineResult(text=None, reason=...)`` : Empty output or LLM error →
-              ``augment()`` falls back to ``_format_chunks(reranked)`` (raw chunks)
-
-        Side effects:
-            Calls ``on_status("refining context...")`` if provided.
-            ``augment()`` records ``last_stage_results["Refiner"]`` with
-            ``"success"`` or ``"fallback"`` based on ``RefineResult.text``.
-
-        See Also:
-            refine_context: Full return contract, parameters, and error handling.
-            augment: Complete fallback chain including raw-chunk formatting.
-        """
-        return await refine_context(
-            self._llm,
-            self._on_status,
-            reranked,
-            query,
-            max_tokens=self._cfg.refiner_max_tokens,
-            per_chunk_chars=self._cfg.refiner_max_chars_per_chunk,
-            timeout=self._cfg.refiner_timeout,
-        )
-
     @staticmethod
     def _format_chunks(reranked: list[RagHit]) -> str:
         """Format reranked hits with sanitization and boundary markers."""
@@ -390,10 +318,10 @@ class RagPipeline:
             while only explicit ``None`` triggers fallback.
 
         Fallback chain (each step produces the final result unless it returns None):
-            1. HTTP mode: ``_augment_http()`` → str/"" (final) or None (fallback)
+            1. HTTP mode: ``call_rag_service()`` → str/"" (final) or None (fallback)
             2. Semantic cache: cached string (final) or None (fallback)
             3. Search pipeline: semantic + FTS5 + RRF merge + rerank → reranked hits
-            4. Refiner: ``_augment_refiner()`` → refined text (final) or None (fallback)
+            4. Refiner: ``refine_context()`` → refined text (final) or None (fallback)
             5. Raw chunks: ``_format_chunks(reranked)`` → formatted text (final)
 
         Raw-chunk fallback conditions (step 5 is reached when):
@@ -419,10 +347,13 @@ class RagPipeline:
         if rag_url := self._cfg.rag_service_url:
             t0 = time.perf_counter()
             http_fallback_reasons: list[str] = []
-            result = await self._augment_http(
+            result = await call_rag_service(
+                self._http,
                 rag_url,
                 query,
                 history_context,
+                auth_token=self._cfg.rag_auth_token,
+                set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
                 set_fallback_reason=http_fallback_reasons.append,
             )
             elapsed = time.perf_counter() - t0
@@ -493,7 +424,15 @@ class RagPipeline:
         # Refiner: compress chunks to query-relevant key points before injection
         if self._cfg.use_refiner:
             t0 = time.perf_counter()
-            refined = await self._augment_refiner(reranked, query)
+            refined = await refine_context(
+                self._llm,
+                self._on_status,
+                reranked,
+                query,
+                max_tokens=self._cfg.refiner_max_tokens,
+                per_chunk_chars=self._cfg.refiner_max_chars_per_chunk,
+                timeout=self._cfg.refiner_timeout,
+            )
             elapsed = time.perf_counter() - t0
             refiner_status = "success" if refined.text is not None else "fallback"
             self.last_stage_results.append(

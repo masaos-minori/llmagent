@@ -14,7 +14,7 @@ import os
 
 from github import Auth, Github
 
-# GITHUB_TOKEN is set in /etc/conf.d/github-mcp; OpenRC loads it as an env var
+# GITHUB_TOKEN is set via environment variable or config file
 _github_token = os.environ.get("GITHUB_TOKEN", "")
 _GITHUB_TOKEN = _github_token
 if not _github_token:

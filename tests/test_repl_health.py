@@ -326,7 +326,6 @@ class TestAuditSecurityDefaults:
                     transport=transport,
                     url=url,
                     cmd=cmd,
-                    openrc_service=vals.get("openrc_service", ""),
                     auth_token=vals.get("auth_token", ""),
                 )
 

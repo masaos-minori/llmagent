@@ -1,17 +1,17 @@
 ---
 name: deploy
 description: |
-  Use this skill PROACTIVELY when deploying changes to the production environment,
-  initializing the database, registering OpenRC services, or syncing scripts and
-  configs to /opt/llm/. Use this when the task involves deploy.sh, init_db.sh,
-  setup_services.sh, service restarts, or verifying that deployed files are current.
+Use this skill PROACTIVELY when deploying changes to the production environment,
+   initializing the database, or syncing scripts and
+   configs to /opt/llm/. Use this when the task involves deploy.sh, init_db.sh,
+   setup_services.sh, service restarts, or verifying that deployed files are current.
 ---
 
 # Deploy Skill
 
 ## Purpose
 
-Deploy code and config changes safely to `/opt/llm/`; manage OpenRC services without disrupting the running agent or MCP servers.
+Deploy code and config changes safely to `/opt/llm/`; manage services without disrupting the running agent or MCP servers.
 
 For environment details (paths, service names, ports): see `rules/env.md`.
 
@@ -21,7 +21,7 @@ For environment details (paths, service names, ports): see `rules/env.md`.
 |---|---|---|
 | `deploy/deploy.sh` | Copy `scripts/` and `config/` to `/opt/llm/` | Every code or config change |
 | `deploy/init_db.sh` | Initialize SQLite schema via `create_schema.py` | First run only (idempotent but skip if DB exists) |
-| `deploy/setup_services.sh` | Register and enable OpenRC services | First run only |
+| `deploy/setup_services.sh` | Start services (subprocess management) | First run only |
 
 ## Phase overview
 
@@ -29,7 +29,7 @@ For environment details (paths, service names, ports): see `rules/env.md`.
 |---|---|---|
 | 1 Pre-deploy | Syntax check + deploy.sh copy list confirmation | `All scripts OK`; no missing files |
 | 2 Deploy | Copy files to `/opt/llm/` | `bash deploy/deploy.sh` exits 0 |
-| 3 Restart | Restart only affected services | `rc-service <name> status` shows running |
+| 3 Restart | Restart only affected services | Port health check returns OK |
 | 4 Verify | Log check + basic operation | No new errors in logs |
 
 See `workflow.md` for detailed phase content including failure recovery procedures.

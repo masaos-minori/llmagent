@@ -93,7 +93,7 @@ Load only the docs relevant to the specific task. Do NOT load all `docs/*.md`.
 
 ## Load rules/env.md only when task involves
 
-- service ports, DB schema, config files, OpenRC services, or deployment
+- service ports, DB schema, config files, or deployment
 
 ## Multiple task types
 

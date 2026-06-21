@@ -9,6 +9,7 @@
 #   GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
 #   必要なスコープ: Contents (read), Issues (read/write), Pull requests (read/write)
 #
-# 設定後: rc-service github-mcp restart
+# 設定後: agent でリロード
+#   python3 scripts/agent.py --reload-mcp github-mcp
 
 GITHUB_TOKEN=""

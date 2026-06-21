@@ -395,7 +395,6 @@ class ConfigReloadService:
                 result.needs_restart.append(key)
             elif old_srv.transport == "http" and new_srv.transport == "http":
                 old_srv.url = new_srv.url
-                old_srv.openrc_service = new_srv.openrc_service
                 result.applied.append(f"mcp/{key}")
         return result
 
