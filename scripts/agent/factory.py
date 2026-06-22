@@ -233,7 +233,7 @@ def _build_memory_services(
     embed_client = _build_embedding_client(
         ctx, http, EmbeddingClient, EmbeddingClientConfig
     )
-    retriever = _build_retriever(ctx, HybridRetriever)
+    retriever = _build_retriever(ctx, HybridRetriever, embed_client=embed_client)
     store = MemoryStore(embed_dim=ctx.cfg.memory.memory_embed_dim)
     jsonl = _build_jsonl_store(ctx, JsonlMemoryStore)
     injection = _build_injection_service(
@@ -267,12 +267,15 @@ def _build_embedding_client(
     return client_cls(cfg, http, enabled=ctx.cfg.memory.memory_embed_enabled)
 
 
-def _build_retriever(ctx: AgentContext, retriever_cls: type) -> object:
+def _build_retriever(
+    ctx: AgentContext, retriever_cls: type, *, embed_client: object = None
+) -> object:
     """Build and return the hybrid retriever instance."""
     return retriever_cls(
         fts_limit=ctx.cfg.memory.memory_fts_limit,
         rrf_k=ctx.cfg.memory.memory_rrf_k,
         recency_days=ctx.cfg.memory.memory_recency_days,
+        embed_client=embed_client,
     )
 
 

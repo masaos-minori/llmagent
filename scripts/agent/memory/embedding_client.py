@@ -30,6 +30,14 @@ class EmbeddingClientConfig:
     embed_dim: int = 384  # expected output dimension; 0 disables validation
 
 
+@dataclass(frozen=True)
+class EmbeddingClientStatus:
+    enabled: bool
+    circuit_open: bool
+    fail_count: int
+    resets_in_sec: float | None
+
+
 async def _fetch_embedding(
     text: str,
     http: httpx.AsyncClient,
@@ -125,6 +133,20 @@ class EmbeddingClient:
                 "EmbeddingClient circuit opened after %d consecutive failures",
                 self._fail_count,
             )
+
+    def get_status(self) -> EmbeddingClientStatus:
+        """Return a snapshot of current circuit-breaker and enabled state."""
+        circuit_open = self._is_circuit_open()
+        resets_in: float | None = None
+        if circuit_open and self._circuit_opened_at is not None:
+            elapsed = time.monotonic() - self._circuit_opened_at
+            resets_in = max(0.0, self._config.circuit_reset_sec - elapsed)
+        return EmbeddingClientStatus(
+            enabled=self._enabled,
+            circuit_open=circuit_open,
+            fail_count=self._fail_count,
+            resets_in_sec=resets_in,
+        )
 
     async def fetch(self, text: str) -> EmbeddingResult:
         """Generate embedding; return EmbeddingResult indicating success or failure reason."""

@@ -50,6 +50,7 @@ _MEMORY_HELP = """\
 /memory unpin <id>                        Remove pin from an entry
 /memory delete <id>                       Delete one entry by memory_id
 /memory prune [days]                      Delete entries older than N days (default: retention_days config)
+/memory status                            Embedding enabled, circuit state, retrieval mode
 /memory check-consistency                 Compare JSONL, SQLite, FTS5, and vec row counts
 /memory rebuild [--dry-run]               Rebuild SQLite from JSONL source of truth
 """
@@ -67,6 +68,11 @@ class _MemoryMixin(MixinBase):
 
         if not sub or sub == "help":
             self._out.write(_MEMORY_HELP)
+            return
+
+        # status is allowed even when memory is disabled
+        if sub == "status":
+            self._memory_status(mem)
             return
 
         if mem is None:
@@ -226,6 +232,32 @@ class _MemoryMixin(MixinBase):
         self._emit_memory_audit(
             MemoryOpResult(ok=True, memory_id="", action="pruned", count=deleted)
         )
+
+    def _memory_status(self, mem: MemoryServices | None) -> None:
+        if mem is None:
+            self._out.write(
+                "  [memory] Memory layer: disabled (use_memory_layer=false)"
+            )
+            return
+        embed_client = mem.retriever.embed_client
+        if embed_client is None:
+            self._out.write("  [memory] embed_client not available")
+            return
+        status = embed_client.get_status()
+        circuit_detail = ""
+        if status.circuit_open and status.resets_in_sec is not None:
+            circuit_detail = f" (resets in {status.resets_in_sec:.0f}s)"
+        rows = [
+            ["Memory layer", "enabled"],
+            ["Embedding enabled", "Yes" if status.enabled else "No"],
+            [
+                "Circuit",
+                ("OPEN" + circuit_detail) if status.circuit_open else "closed",
+            ],
+            ["Consecutive failures", str(status.fail_count)],
+            ["Last retrieval mode", mem.retriever.last_retrieval_mode],
+        ]
+        self._out.write_table(["Field", "Value"], rows)
 
     def _memory_check_consistency(self, mem: MemoryServices) -> None:
         from agent.memory.exceptions import MemoryConsistencyError
