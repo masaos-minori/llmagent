@@ -39,6 +39,18 @@ echo "--- table check: workflow.sqlite ---"
 sqlite3 "${DEPLOY_DB}/workflow.sqlite" ".tables"
 # expected: artifacts  attempts  processed_events  tasks
 
+echo "--- Event Bus DB 初期化 ---"
+EVENTBUS_DB="/opt/llm/db/eventbus.sqlite"
+EVENTBUS_SCHEMA="/opt/llm/scripts/eventbus/schema.sql"
+
+if [ ! -f "${EVENTBUS_DB}" ]; then
+    echo "  eventbus.sqlite 作成: ${EVENTBUS_DB}"
+    sqlite3 "${EVENTBUS_DB}" < "${EVENTBUS_SCHEMA}"
+    echo "  完了"
+else
+    echo "  eventbus.sqlite 既存のためスキップ"
+fi
+
 echo "=== init_db.sh: 完了 ==="
 echo ""
 echo "次のステップ:"
