@@ -50,32 +50,51 @@ The call chain is:
 ### Config file ownership and hot-reload eligibility
 
 `/reload` reads all 12 base config files — the same set loaded at startup.
-`ConfigReloadService` classifies each changed key as either hot-reloadable
-or restart-required.
+`ConfigReloadService` classifies each changed key into one of four categories.
 
-| File | Purpose | Hot-reloadable? |
+`config/common.toml` is the primary owner of `llm_url`, RAG defaults
+(`top_k_search`, `embed_url`, `web_search_url`), and observability defaults
+(`otel_endpoint`). These keys can also appear in other files; `common.toml`
+provides project-wide defaults.
+
+| File | Purpose | Classification |
 |---|---|---|
-| `config/common.toml` | LLM URL, RAG, observability defaults | Yes |
-| `config/llm.toml` | LLM model, temperature, max_tokens | Yes |
-| `config/http.toml` | HTTP client timeouts, retries | Yes |
-| `config/rag.toml` | RAG search settings | Yes |
-| `config/context.toml` | Context length, compression settings | Yes |
-| `config/tools.toml` | Tool execution, system prompt name | Yes |
-| `config/memory.toml` | Memory layer settings | Yes |
-| `config/otel.toml` | Observability / tracing | Yes |
-| `config/security.toml` | Approval and security defaults | Yes (most fields); per-server MCP fields (auth_token, startup_mode) require restart |
-| `config/system_prompts.toml` | System prompt presets | Yes |
-| `config/mcp_servers.toml` | MCP server transport/URL config | HTTP URL changes: Yes; new servers, transport type changes, auth_token, startup_mode: Restart required |
-| `config/tools_definitions.toml` | MCP tool name definitions | Yes |
+| `config/common.toml` | LLM URL, RAG, observability defaults | Hot-reloadable |
+| `config/llm.toml` | LLM model, temperature, max_tokens | Hot-reloadable |
+| `config/http.toml` | HTTP client timeouts, retries | Hot-reloadable |
+| `config/rag.toml` | RAG search settings | Hot-reloadable |
+| `config/context.toml` | Context length, compression settings | Hot-reloadable |
+| `config/tools.toml` | Tool execution, system prompt name | Hot-reloadable |
+| `config/memory.toml` | Memory layer settings | Hot-reloadable (most); `use_memory_layer` is startup-only |
+| `config/otel.toml` | Observability / tracing | Hot-reloadable |
+| `config/security.toml` | Approval and security defaults | Hot-reloadable (most); `auth_token`, `startup_mode` per server are deferred |
+| `config/system_prompts.toml` | System prompt presets | Hot-reloadable |
+| `config/mcp_servers.toml` | MCP server transport/URL config | HTTP URL: hot-reloadable; `auth_token`, `startup_mode`: deferred; new servers / transport change: restart-required |
+| `config/tools_definitions.toml` | MCP tool name definitions | Hot-reloadable |
 
-**Restart-required settings** (applied by `ConfigReloadService` with `needs_restart`):
+**Classification definitions:**
+
+- **Hot-reloadable** — applied immediately to the running agent; no restart needed.
+- **Deferred** — stored in `ctx.cfg` on `/reload`, but takes effect only on the
+  next connection or subprocess restart. The running MCP connector won't see the
+  new value until it reconnects. `/reload` output shows these as `[DEFER]`.
+- **Restart-required** — the subsystem must be restarted for the change to apply.
+  `/reload` output shows these as `[RESTART]`.
+- **Startup-only** — read once at agent start; never touched by `/reload`.
+  `/reload` emits `[STARTUP-ONLY]` only when the field value differs from the
+  running config.
+
+**Deferred settings** (`deferred` in `ConfigReloadOutcome`):
+- `auth_token` per MCP server (stored in cfg; takes effect on next connection)
+- `startup_mode` per MCP server (stored in cfg; takes effect on next subprocess start)
+
+**Restart-required settings** (`needs_restart` in `ConfigReloadOutcome`):
 - MCP server transport type changes (`stdio` ↔ `http`)
 - New MCP servers added to `mcp_servers.toml`
-- `auth_token`, `startup_mode` per server
 
-> **Note:** Changes to `auth_token` and `startup_mode` per MCP server are
-> currently not flagged by `/reload` as restart-required. These changes take
-> effect only after a full restart.
+**Startup-only settings** (not touched by `apply_config_dict()`):
+- `use_memory_layer` — enables/disables the memory subsystem at boot
+- `plugin_strict` — enables fail-fast on plugin import errors at boot
 
 ### Reload execution pipeline
 
@@ -94,7 +113,8 @@ config to live service instances:
 | Field | Type | Description |
 |---|---|---|
 | `applied` | `list[str]` | Changes applied at runtime (hot-reloaded) |
-| `needs_restart` | `list[str]` | Changes that require a full restart |
+| `needs_restart` | `list[str]` | Changes that require a full agent restart |
+| `deferred` | `list[str]` | Changes stored in cfg but effective only on next connection |
 | `skipped` | `list[str]` | Changes skipped (e.g. new MCP server added) |
 | `source_files` | `list[str]` | Config files that were reloaded |
 

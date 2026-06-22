@@ -306,6 +306,7 @@ Class `MemoryStore(embed_dim=None)`:
 | `get_by_id(memory_id)` | `MemoryEntry \| None` | Lookup by primary key |
 | `count_entries()` | `int` | Total entries |
 | `count_prunable(days)` | `int` | Entries older than `days` days |
+| `rebuild_from_jsonl(jsonl_store, *, dry_run=False)` | `tuple[int, int]` | Rebuild memories/FTS/vec from JSONL; returns (jsonl_count, inserted_count) |
 
 **Failure modes:**
 - `sqlite3.OperationalError` — DB locked, missing vec table, etc.
@@ -319,13 +320,15 @@ Class `MemoryStore(embed_dim=None)`:
 | `VectorRetriever` | KNN search via sqlite-vec |
 | `HybridRetriever` | Primary external interface — composes both with RRF merge |
 
-**`HybridRetriever` methods:**
+**`HybridRetriever` attributes and methods:**
 
-| Method | Returns | Description |
+| Method / Attribute | Returns | Description |
 |---|---|---|
 | `search(query, embedding=None, project="", repo="")` | `list[MemoryHit]` | FTS-only when no embedding; RRF merge when embedding present |
 | `knn_search(embedding, memory_type, limit)` | `list[MemoryHit]` | Delegate to VectorRetriever (used by ingestion dedup) |
 | `top_semantic(limit=5, min_importance=0.0, project="", repo="")` | `list[MemoryEntry]` | Direct SQL — no FTS needed |
+| `embed_client` | `EmbeddingClient \| None` | Injected at construction; used by `/memory status` |
+| `last_retrieval_mode` | `str` | `"hybrid"` / `"fts_only"` / `"unknown"` — set on each `search()` call |
 
 **Scoring formula:**
 ```
@@ -388,6 +391,7 @@ Class `JsonlMemoryStore(path)`:
 |---|---|---|
 | `write(entry)` | `None` | Async append (asyncio.Lock serialised) |
 | `read_all()` | `list[MemoryEntry]` | Sync read of all entries |
+| `count_all()` | `int` | Count of valid records (delegates to `read_all()`) |
 
 **Failure modes:** `JsonlFormatError` on malformed lines.
 
@@ -398,8 +402,11 @@ Class `EmbeddingClient(config, http=None, *, enabled=False)`:
 | Method | Returns | Description |
 |---|---|---|
 | `fetch(text)` | `EmbeddingResult` | Async embedding with retry + circuit breaker |
+| `get_status()` | `EmbeddingClientStatus` | Snapshot of enabled, circuit_open, fail_count, resets_in_sec |
 
 `EmbeddingClientConfig`: embed_url, timeout=5s, max_retries=2, circuit_open_after=3, circuit_reset_sec=60.
+
+`EmbeddingClientStatus` fields: `enabled: bool`, `circuit_open: bool`, `fail_count: int`, `resets_in_sec: float | None` (None when circuit closed).
 
 **Disabled behavior:** When `enabled=False`, `fetch()` returns `EmbeddingResult(success=False, error_kind=DISABLED)` immediately without HTTP call.
 

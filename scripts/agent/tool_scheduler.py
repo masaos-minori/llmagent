@@ -30,6 +30,9 @@ class _GroupMetadata:
     total_tools: int
     total_groups: int
     serialization_events: list[_SerializationEvent] = field(default_factory=list)
+    # Each element is a batch of groups that can run concurrently.
+    # Groups within a batch are safe to gather(); batches run sequentially.
+    concurrent_groups: list[list[list[dict]]] = field(default_factory=list)
 
 
 def build_execution_groups(
@@ -75,9 +78,28 @@ def build_execution_groups(
     if parallel:
         groups.append(parallel)
 
+    # Build concurrent_groups: which batches of groups can run in parallel.
+    # serial_barrier tools each get their own sequential batch.
+    # write_first gets its own sequential batch (no scope — conservative).
+    # All resource-scope groups + parallel group share one concurrent batch.
+    concurrent_batch: list[list[dict]] = []
+    for scope_tcs in resource_groups.values():
+        concurrent_batch.append(scope_tcs)
+    if parallel:
+        concurrent_batch.append(parallel)
+
+    cgr: list[list[list[dict]]] = []
+    for tc in serial_barrier:
+        cgr.append([[tc]])
+    if write_first:
+        cgr.append([write_first])
+    if concurrent_batch:
+        cgr.append(concurrent_batch)
+
     metadata = _GroupMetadata(
         total_tools=len(tool_calls),
         total_groups=len(groups),
+        concurrent_groups=cgr,
     )
 
     for tc in serial_barrier:

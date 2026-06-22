@@ -137,6 +137,7 @@ class ConfigReloadOutcome:
     needs_restart: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
     source_files: list[str] = field(default_factory=list)
+    deferred: list[str] = field(default_factory=list)
 
 
 class ConfigReloadService:
@@ -378,7 +379,7 @@ class ConfigReloadService:
         ctx: AgentContext,
         new_cfg: dict[str, Any],
     ) -> ConfigReloadOutcome:
-        """Update HTTP MCP server URLs; classify transport changes as needs_restart."""
+        """Update MCP server config; classify transport changes as needs_restart, auth/startup as deferred."""
         from agent.config import (
             _build_mcp_servers,  # noqa: PLC0415 — lazy: avoids circular import at module level
         )
@@ -393,9 +394,18 @@ class ConfigReloadService:
             elif old_srv.transport != new_srv.transport:
                 # Transport type change cannot be applied at runtime
                 result.needs_restart.append(key)
-            elif old_srv.transport == "http" and new_srv.transport == "http":
-                old_srv.url = new_srv.url
-                result.applied.append(f"mcp/{key}")
+            else:
+                if old_srv.transport == "http":
+                    old_srv.url = new_srv.url
+                    result.applied.append(f"mcp/{key}")
+                # auth_token and startup_mode are stored in cfg but take effect
+                # only on the next connection, not the currently running process.
+                if old_srv.auth_token != new_srv.auth_token:
+                    old_srv.auth_token = new_srv.auth_token
+                    result.deferred.append(f"mcp/{key}.auth_token")
+                if old_srv.startup_mode != new_srv.startup_mode:
+                    old_srv.startup_mode = new_srv.startup_mode
+                    result.deferred.append(f"mcp/{key}.startup_mode")
         return result
 
     def _apply_llm_prompt_params(

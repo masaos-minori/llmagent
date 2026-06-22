@@ -198,6 +198,9 @@ class Orchestrator:
             )
             ctx.turn.pending_approval_id = exc.approval_id
             ctx.workflow.approval_pending = True
+            logger.warning(
+                "[workflow] Approval required. Use /approve [reason] or /reject [reason]."
+            )
         except WorkflowHaltError as exc:
             logger.error("Turn halted by workflow engine: %s", exc)
             ctx.workflow.active = False

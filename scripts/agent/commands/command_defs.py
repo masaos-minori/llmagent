@@ -203,6 +203,13 @@ _COMMANDS: list[CommandDef] = [
         "_cmd_audit",
         "tail [N] | turn <task_id> | tool <name>  Browse audit log events",
     ),
+    CommandDef(
+        "/plugin",
+        True,
+        False,
+        "_cmd_plugin",
+        "status  Show plugin load results (loaded, failed, conflicts)",
+    ),
 ]
 
 __all__ = ["_COMMANDS", "CommandDef", "SubcommandSpec"]

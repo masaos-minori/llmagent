@@ -17,6 +17,7 @@ Skills can be invoked as slash commands (e.g. `/python-implementation`) or via `
 | Architecture / module design | architecture, module, interface, data model, component | `skills/python-design/SKILL.md` |
 | MCP server / new server | mcp server, new server, install server | `skills/mcp-server-add/SKILL.md` + `rules/env.md` + `docs/04_mcp_03_routing_lifecycle_and_execution.md` + `docs/04_mcp_06_configuration_and_operations.md` |
 | Deploy / production | deploy, /opt/llm, service restart, init.d | `skills/deploy/SKILL.md` + `rules/env.md` + `docs/05_agent_10_operations-and-observability.md` |
+| Event Bus implementation / debug | eventbus, event bus, dlq, sse subscribe, replay | `skills/python-implementation/SKILL.md` + `rules/env.md` |
 | Documentation / docs | document, doc, write docs, readme, changelog | `skills/python-documentation/SKILL.md` |
 
 ## Docs → task mapping
@@ -85,6 +86,7 @@ Load only the docs relevant to the specific task. Do NOT load all `docs/*.md`.
 | RAG known bugs / inconsistencies | `docs/03_rag_90_inconsistencies_and_known_issues.md` |
 | RAG configuration parameters | `docs/03_rag_05_configuration_and_operations.md` |
 | Deployment / env setup | `docs/02_deployment.md` + `rules/env.md` |
+| Event Bus (eventbus/*.py) | `docs/07_eventbus_01_overview.md` (TODO: create) |
 
 ## Always load alongside the skill
 

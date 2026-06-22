@@ -349,23 +349,39 @@ def load_plugins(
             f"Plugin load failed ({len(failures)} error(s)): {details}"
         )
 
-    return PluginLoadResult(
+    result = PluginLoadResult(
         loaded_count=loaded,
         failed=tuple(failures),
         tool_conflicts_shadowed=shadowed,
         tool_conflicts_allowed=allowed,
         command_shadows=cmd_shadows,
     )
+    _set_last_load_result(result)
+    return result
 
 
 # ── Test helper ───────────────────────────────────────────────────────────────
 
 
+_last_load_result: PluginLoadResult | None = None
+
+
+def get_last_load_result() -> PluginLoadResult | None:
+    """Return the most recent PluginLoadResult, or None before first load."""
+    return _last_load_result
+
+
+def _set_last_load_result(result: PluginLoadResult) -> None:
+    global _last_load_result
+    _last_load_result = result
+
+
 def _reset_for_testing() -> None:
     """Clear all registries.  Call from test setUp / pytest fixtures only."""
-    global _current_loading_module, _builtin_command_names
+    global _current_loading_module, _builtin_command_names, _last_load_result
     _commands.clear()
     _tools.clear()
     _pipeline_post.clear()
     _builtin_command_names = frozenset()
     _current_loading_module = ""
+    _last_load_result = None

@@ -21,6 +21,7 @@ def _make_bare_repl() -> AgentREPL:
     repl = AgentREPL.__new__(AgentREPL)
     ctx = MagicMock()
     ctx.conv.shutdown_requested = False
+    ctx.services.llm.stat_partial_completions = 0
     repl._ctx = ctx
     view = MagicMock()
     view.read_multiline = AsyncMock(return_value="")
@@ -154,6 +155,44 @@ class TestReplLoop:
         repl._orchestrator = None  # type: ignore[assignment]
         with pytest.raises((AssertionError, RuntimeError)):
             await repl._repl_loop()
+
+    @pytest.mark.asyncio
+    async def test_partial_completion_warning_emitted(self) -> None:
+        """write_warning is called when stat_partial_completions increases after handle_turn."""
+        repl = _make_bare_repl()
+        repl._ctx.services.llm.stat_partial_completions = 0
+
+        def _increment_partial(*_args, **_kwargs):
+            repl._ctx.services.llm.stat_partial_completions += 1
+
+        repl._orchestrator.handle_turn = AsyncMock(side_effect=_increment_partial)
+        with patch("builtins.input", side_effect=["hello", "/exit"]):
+            await repl._repl_loop()
+        write_warning_calls = repl._view.write_warning.call_args_list
+        partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
+        assert partial_warnings, "Expected partial completion warning"
+
+    @pytest.mark.asyncio
+    async def test_no_partial_completion_no_warning(self) -> None:
+        """write_warning is NOT called for partial completions when stat unchanged."""
+        repl = _make_bare_repl()
+        repl._ctx.services.llm.stat_partial_completions = 0
+        with patch("builtins.input", side_effect=["hello", "/exit"]):
+            await repl._repl_loop()
+        write_warning_calls = repl._view.write_warning.call_args_list
+        partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
+        assert not partial_warnings
+
+    @pytest.mark.asyncio
+    async def test_partial_completion_warning_when_llm_is_none(self) -> None:
+        """No crash when ctx.services.llm is None."""
+        repl = _make_bare_repl()
+        repl._ctx.services.llm = None
+        with patch("builtins.input", side_effect=["hello", "/exit"]):
+            await repl._repl_loop()
+        write_warning_calls = repl._view.write_warning.call_args_list
+        partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
+        assert not partial_warnings
 
 
 # ── _start_subprocess_servers ─────────────────────────────────────────────────

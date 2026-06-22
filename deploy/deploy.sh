@@ -30,6 +30,9 @@ mkdir -p "${DEPLOY_RAG_SRC}/chunk"
 mkdir -p "${DEPLOY_RAG_SRC}/registered"
 mkdir -p /opt/llm/memory
 mkdir -p "${DEPLOY_TESTS}"
+mkdir -p /opt/llm/storage
+mkdir -p /opt/llm/offsets
+mkdir -p /opt/llm/deadletter
 
 # ── uv プロジェクト設定 ───────────────────────────────────────────────────────
 echo "--- pyproject.toml / uv.lock → /opt/llm/ ---"
@@ -66,6 +69,12 @@ cp "${REPO_ROOT}/config/sqlite_mcp_server.toml"         "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/cicd_mcp_server.toml"          "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/mdq_mcp_server.toml"           "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/git_mcp_server.toml"           "${DEPLOY_CONFIG}/"
+cp "${REPO_ROOT}/config/eventbus.toml"                 "${DEPLOY_CONFIG}/"
+
+# ── Event Bus スキーマ配置 ────────────────────────────────────────────────────
+echo "--- schemas/ → /opt/llm/schemas/ ---"
+mkdir -p /opt/llm/schemas
+cp -r "${REPO_ROOT}/schemas/." /opt/llm/schemas/
 
 # ── SQL 参照定義 ──────────────────────────────────────────────────────────────
 echo "--- db/rrf.sql → ${DEPLOY_DB}/ ---"

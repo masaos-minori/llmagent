@@ -50,6 +50,9 @@ _MEMORY_HELP = """\
 /memory unpin <id>                        Remove pin from an entry
 /memory delete <id>                       Delete one entry by memory_id
 /memory prune [days]                      Delete entries older than N days (default: retention_days config)
+/memory status                            Embedding enabled, circuit state, retrieval mode
+/memory check-consistency                 Compare JSONL, SQLite, FTS5, and vec row counts
+/memory rebuild [--dry-run]               Rebuild SQLite from JSONL source of truth
 """
 
 
@@ -67,6 +70,11 @@ class _MemoryMixin(MixinBase):
             self._out.write(_MEMORY_HELP)
             return
 
+        # status is allowed even when memory is disabled
+        if sub == "status":
+            self._memory_status(mem)
+            return
+
         if mem is None:
             self._out.write(
                 "  [memory] Memory layer is disabled (use_memory_layer=false)"
@@ -81,6 +89,8 @@ class _MemoryMixin(MixinBase):
             "unpin": lambda: self._memory_pin(mem, sub_tokens, pin=False),
             "delete": lambda: self._memory_delete(mem, sub_tokens),
             "prune": lambda: self._memory_prune(mem, ctx, sub_tokens),
+            "check-consistency": lambda: self._memory_check_consistency(mem),
+            "rebuild": lambda: self._memory_rebuild(mem, sub_tokens),
         }
         handler = dispatch.get(sub)
         if handler:
@@ -221,6 +231,79 @@ class _MemoryMixin(MixinBase):
         self._out.write_success(f"Pruned {deleted} entries older than {days} days")
         self._emit_memory_audit(
             MemoryOpResult(ok=True, memory_id="", action="pruned", count=deleted)
+        )
+
+    def _memory_status(self, mem: MemoryServices | None) -> None:
+        if mem is None:
+            self._out.write(
+                "  [memory] Memory layer: disabled (use_memory_layer=false)"
+            )
+            return
+        embed_client = mem.retriever.embed_client
+        if embed_client is None:
+            self._out.write("  [memory] embed_client not available")
+            return
+        status = embed_client.get_status()
+        circuit_detail = ""
+        if status.circuit_open and status.resets_in_sec is not None:
+            circuit_detail = f" (resets in {status.resets_in_sec:.0f}s)"
+        rows = [
+            ["Memory layer", "enabled"],
+            ["Embedding enabled", "Yes" if status.enabled else "No"],
+            [
+                "Circuit",
+                ("OPEN" + circuit_detail) if status.circuit_open else "closed",
+            ],
+            ["Consecutive failures", str(status.fail_count)],
+            ["Last retrieval mode", mem.retriever.last_retrieval_mode],
+        ]
+        self._out.write_table(["Field", "Value"], rows)
+
+    def _memory_check_consistency(self, mem: MemoryServices) -> None:
+        from agent.memory.exceptions import MemoryConsistencyError
+
+        try:
+            report = mem.store.check_consistency()
+        except MemoryConsistencyError as e:
+            self._out.write(f"  [memory] check-consistency error: {e}")
+            return
+        jsonl_store = mem.ingestion._jsonl
+        jsonl_count = jsonl_store.count_all()
+        ok = (jsonl_count == report.memories) and (report.memories == report.fts)
+        rows = [
+            ["JSONL records", str(jsonl_count)],
+            ["SQLite memories", str(report.memories)],
+            ["FTS5 rows", str(report.fts)],
+            ["Vec rows", str(report.vec)],
+            ["Consistent", "Yes" if ok else "NO - use /memory rebuild to repair"],
+        ]
+        self._out.write_table(["Metric", "Value"], rows)
+        self._emit_memory_audit(
+            MemoryOpResult(ok=ok, memory_id="", action="check-consistency")
+        )
+
+    def _memory_rebuild(self, mem: MemoryServices, args: list[str]) -> None:
+        dry_run = "--dry-run" in args
+        jsonl_store = mem.ingestion._jsonl
+        jsonl_count, inserted = mem.store.rebuild_from_jsonl(
+            jsonl_store, dry_run=dry_run
+        )
+        if dry_run:
+            self._out.write(
+                f"  [memory] (dry-run) would rebuild from {jsonl_count} JSONL records"
+            )
+        else:
+            self._out.write_success(
+                f"Rebuilt {inserted} entries from {jsonl_count} JSONL records"
+            )
+        self._emit_memory_audit(
+            MemoryOpResult(
+                ok=True,
+                memory_id="",
+                action="rebuild",
+                dry_run=dry_run,
+                count=jsonl_count,
+            )
         )
 
     def _emit_memory_audit(self, result: MemoryOpResult) -> None:

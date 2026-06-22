@@ -154,10 +154,12 @@ bash deploy/deploy.sh
 ```
 
 deploy.sh が行う処理:
-- `/opt/llm/scripts/` に Python スクリプトをコピー
-- `/opt/llm/config/` に設定ファイルをコピー
+- `/opt/llm/scripts/` に Python スクリプトをコピー (`eventbus/` パッケージを含む)
+- `/opt/llm/config/` に設定ファイルをコピー (`eventbus.toml` を含む)
+- `/opt/llm/schemas/` に JSON Schema をコピー (`event_envelope.json` を含む)
 - `/opt/llm/db/` に `rrf.sql` をコピー
 - `/opt/llm/logs/`, `/opt/llm/rag-src/chunk/`, `/opt/llm/rag-src/registered/` を作成
+- `/opt/llm/storage/`, `/opt/llm/offsets/`, `/opt/llm/deadletter/` を作成 (Event Bus 用)
 
 ### 2.2 LLM サービス登録・起動
 

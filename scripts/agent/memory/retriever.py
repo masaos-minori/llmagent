@@ -27,6 +27,7 @@ import re
 
 from db.helper import SQLiteHelper
 
+from agent.memory.embedding_client import EmbeddingClient
 from agent.memory.enums import MemoryType
 from agent.memory.exceptions import MemorySchemaError
 from agent.memory.mapper import _floats_to_blob, row_to_entry
@@ -250,11 +251,14 @@ class HybridRetriever:
         fts_limit: int = _FTS_CANDIDATE_LIMIT,
         rrf_k: int = _RRF_K,
         recency_days: float = _RECENCY_DAYS,
+        embed_client: EmbeddingClient | None = None,
     ) -> None:
         self._fts = FtsRetriever(fts_limit=fts_limit, recency_days=recency_days)
         self._vec = VectorRetriever()
         self._rrf_k = rrf_k
         self._recency_days = recency_days
+        self.embed_client: EmbeddingClient | None = embed_client
+        self.last_retrieval_mode: str = "unknown"
 
     def search(
         self,
@@ -271,6 +275,7 @@ class HybridRetriever:
         fts_hits = self._fts.search(query, project, repo)
         if embedding is None:
             logger.info("retrieval: fts_only (reason=embedding_disabled_or_none)")
+            self.last_retrieval_mode = "fts_only"
             return fts_hits
 
         vec_hits = self._vec.knn_search(
@@ -278,8 +283,10 @@ class HybridRetriever:
         )
         if not vec_hits:
             logger.info("retrieval: fts_only (reason=vec_returned_empty)")
+            self.last_retrieval_mode = "fts_only"
             return fts_hits
 
+        self.last_retrieval_mode = "hybrid"
         merged = _rrf_merge([fts_hits, vec_hits], k=self._rrf_k)
         # hit.score is set to the RRF score by _rrf_merge; already sorted by _rrf_merge.
         return merged[: query.limit]

@@ -167,11 +167,11 @@ class StartupOrchestrator:
         for msg in tool_result.warning_messages():
             self._view.write_warning(msg)
         try:
-            consistent, issues = RagMaintenanceService().consistency()
-            if consistent:
+            rag_check = RagMaintenanceService().consistency()
+            if rag_check.is_consistent:
                 logger.info("RAG consistency: OK")
             else:
-                for issue in issues:
+                for issue in rag_check.issues:
                     self._view.write_warning(f"[RAG] Consistency issue: {issue}")
         except Exception as e:  # noqa: BLE001 — skip if rag.sqlite absent or unreadable
             logger.debug("RAG consistency check skipped: %s", e)

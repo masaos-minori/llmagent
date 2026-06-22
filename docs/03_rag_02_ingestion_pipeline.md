@@ -123,27 +123,25 @@ a JSON file in `rag-src/`. Supports conditional GET (ETag/Last-Modified) and loc
 `crawl_file(path, lang)` reads a local file and writes a crawl JSON to `rag-src/`.
 Unlike web URLs, no HTTP round-trip occurs.
 
-#### Current behavior (no freshness check)
+#### Freshness detection (automatic)
 
-`crawl_file()` always reads and rewrites the JSON regardless of file age.
-The ingester skips re-embedding if the URL already exists in `documents`
-(force=False). This means: if a file changes, the old embedding persists
-until the operator runs ingestion with `--force`.
+`crawl_file()` computes mtime (ISO string) and SHA-256 of the file content and
+stores both in the crawl payload as `last_modified` and `etag` respectively.
 
-#### Proposed incremental strategy (not yet implemented)
+`_get_or_create_document()` in the ingester performs a freshness check for
+`file://` URLs before deciding to skip or re-ingest:
 
-| Signal | Source | Storage | Skip condition |
-|---|---|---|---|
-| File mtime | `path.stat().st_mtime` | `documents.last_modified` (ISO-8601) | mtime <= stored last_modified → skip |
-| Content hash | SHA-256 of full content | `documents.etag` (prefix `sha256:`) | hash matches stored etag → skip |
+| Condition | Decision |
+|---|---|
+| Same `etag` (SHA-256) | Skip — content unchanged |
+| Different `etag` | Auto re-ingest (deletes old record, re-embeds) |
+| `etag` missing in DB | Re-ingest (conservative) |
 
-Resolution order:
-1. If mtime <= stored `last_modified` → skip (fast path)
-2. Else compute SHA-256; if hash matches stored `etag` → skip (detects touch/chmod)
-3. Else re-crawl, chunk, and re-embed
+The `etag` column stores the raw SHA-256 hex digest for local files.
+HTTP ETags are never set for `file://` URLs, so there is no collision.
+`force=True` always re-ingests regardless of the stored hash.
 
-Storage reuses existing columns — no DB schema change needed.
-The prefix `sha256:` in `etag` distinguishes file hashes from HTTP ETags.
+Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto re-ingesting"`.
 
 #### Contrast with web ingestion
 
@@ -310,7 +308,8 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
   each thread uses an independent `SQLiteHelper().open()`
 - **WAL mode:** `PRAGMA journal_mode=WAL` for concurrent read/write safety
 - **Upsert (`--force`):** delete in order `chunks_vec` → `chunks` → `documents`, then re-INSERT
-- **Idempotency:** skip URL if already in `documents`; still UPDATE `etag`/`last_modified`
+- **Idempotency:** skip URL if already in `documents`; still UPDATE `etag`/`last_modified` via skip-path guard (see below)
+- **Skip-path stale guard:** `_update_etag()` compares incoming `fetched_at` (chunk payload) against stored `documents.fetched_at`; if incoming < stored the update is skipped (newer crawl wins — prevents stale chunk files from overwriting fresher metadata). Missing `fetched_at` (legacy chunks) always updates (safe fallback).
 - **Embed failure tracking:** `_embed_and_store()` returns `(chunk_ok, embed_ok)` tuple;
   `n_embed_failed` counts embedding-specific failures separately from parse/DB errors
 

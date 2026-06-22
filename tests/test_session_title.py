@@ -77,6 +77,17 @@ async def test_generate_empty_title_raises() -> None:
 
 
 @pytest.mark.asyncio
+async def test_generate_unexpected_exception_wrapped_as_title_error() -> None:
+    from agent.services.exceptions import SessionTitleGenerationError
+    from agent.services.session_title import SessionTitleService
+
+    ctx = MagicMock()
+    ctx.services.http.post = AsyncMock(side_effect=RuntimeError("boom"))
+    with pytest.raises(SessionTitleGenerationError, match="Unexpected error"):
+        await SessionTitleService().generate(ctx, "hello")
+
+
+@pytest.mark.asyncio
 async def test_generate_success_returns_title() -> None:
     from agent.services.models import SessionTitleResult
     from agent.services.session_title import SessionTitleService

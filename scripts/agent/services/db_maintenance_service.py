@@ -14,6 +14,7 @@ from db.maintenance import (
     RetentionConfig,
     checkpoint_wal,
     purge_old_sessions,
+    recover_corruption,
     vacuum_db,
 )
 
@@ -21,6 +22,7 @@ from agent.services.models import (
     DbCheckpointResult,
     DbHealth,
     DbPurgeResult,
+    DbRecoverResult,
     DbStats,
 )
 
@@ -74,6 +76,15 @@ class DbMaintenanceService:
         data = raw.data or {}
         return DbPurgeResult(
             sessions_removed=data.get("age_deleted", 0) + data.get("count_deleted", 0),
+        )
+
+    def recover_session(self, backup_path: str | None) -> DbRecoverResult:
+        """Run integrity check on session.sqlite; restore from backup_path if corruption found."""
+        raw = recover_corruption(backup_path, target="session")
+        return DbRecoverResult(
+            integrity_ok=raw.success,
+            recovered=raw.action == "restored",
+            detail=raw.detail or "",
         )
 
 

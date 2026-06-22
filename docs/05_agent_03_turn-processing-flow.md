@@ -78,6 +78,9 @@ User input (line)
   - `history` (user/assistant text) → normal priority
 - Most recent `history_protect_turns` (default 2) turn pairs are always protected
 - On success: `CLIView.write_compress_notice(n)` displays compression notice
+- On LLM failure while over char limit: `_fallback_truncate()` drops lowest-importance messages
+  (tool-role first, then sorted by `classify_importance` ascending) until under limit
+- Fallback count tracked in `stat_fallback_truncate_count`; visible via `/context` as "Fallback trunc"
 
 ---
 
@@ -123,6 +126,14 @@ Action:
 
 Incomplete outputs are isolated from normal conversation history so they do not pollute future LLM context. The partial content remains accessible through `/tool show` and DB queries on the `messages` table (role = `"diagnostic"`).
 
+After each turn, `AgentREPL._dispatch_line()` compares `stat_partial_completions` before and after `handle_turn()`. If it increased, a user-visible warning is printed:
+
+```
+[warn] Partial LLM completion stored. Use /stats to see count or query tool_results (tool_name='llm_partial_completion').
+```
+
+`/stats` also shows the artifact location hint when count > 0: `Partial compl : N  (stored as tool_result, tool_name='llm_partial_completion')`.
+
 ### Tool Continuation Failure (turn > 0)
 
 Condition: LLM transport error occurs during a tool continuation turn.
@@ -166,7 +177,7 @@ completes and before the verify stage runs:
 
 1. Engine calls `store.request_approval(task_id)` → `ApprovalRecord` with `status=pending`
 2. Task status → `pending_approval`
-3. `WorkflowPendingApprovalError` raised → orchestrator stores `approval_id` in `ctx.turn.pending_approval_id`
+3. `WorkflowPendingApprovalError` raised → orchestrator stores `approval_id` in `ctx.turn.pending_approval_id`; logs WARNING: `[workflow] Approval required. Use /approve [reason] or /reject [reason].`
 4. User runs `/approve [reason]` or `/reject [reason]`
 5. On next workflow run with the same task, engine checks approval status:
    - `approved` → continue to verify stage

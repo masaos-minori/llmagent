@@ -10,6 +10,7 @@ Import from here:  from agent.config_builders import (
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -193,7 +194,7 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
         system_prompt_tool=system_prompt_tool,
         allowed_tools=list(cfg.get("allowed_tools", [])),
         plugin_tool_override=bool(cfg.get("plugin_tool_override", False)),
-        plugin_strict=bool(cfg.get("plugin_strict", False)),
+        plugin_strict=bool(cfg.get("plugin_strict", os.getenv("CI") is not None)),
     )
 
 

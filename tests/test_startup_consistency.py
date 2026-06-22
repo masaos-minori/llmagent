@@ -32,7 +32,9 @@ async def test_write_warning_on_inconsistency():
         patch("agent.startup.check_tool_definitions_runtime") as mock_tools,
     ):
         mock_svc = MagicMock()
-        mock_svc.consistency.return_value = (False, ["fts_gap=3", "orphan_vec=1"])
+        mock_svc.consistency.return_value = MagicMock(
+            is_consistent=False, issues=["fts_gap=3", "orphan_vec=1"]
+        )
         mock_svc_cls.return_value = mock_svc
 
         mock_readiness.return_value = MagicMock(warning_messages=lambda: [])
@@ -57,7 +59,7 @@ async def test_no_warning_on_consistent():
         patch("agent.startup.check_tool_definitions_runtime") as mock_tools,
     ):
         mock_svc = MagicMock()
-        mock_svc.consistency.return_value = (True, [])
+        mock_svc.consistency.return_value = MagicMock(is_consistent=True, issues=[])
         mock_svc_cls.return_value = mock_svc
 
         mock_readiness.return_value = MagicMock(warning_messages=lambda: [])

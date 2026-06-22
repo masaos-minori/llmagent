@@ -11,6 +11,7 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 
 import argparse
 import asyncio
+import hashlib
 import sqlite3
 from datetime import datetime
 from http import HTTPStatus
@@ -87,6 +88,10 @@ class WebCrawler:
             self._resolve_lang(content, "auto") if lang == "auto" else lang
         )
         url = f"file://{path.resolve()}"
+        # Compute mtime and SHA-256 for freshness detection in ingester
+        stat = path.stat()
+        mtime_iso = datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")
+        sha256 = hashlib.sha256(content.encode("utf-8", errors="ignore")).hexdigest()
         # Python files are stored as code blocks so the code chunker applies.
         is_python = path.suffix == ".py"
         payload: dict[str, Any] = {
@@ -96,6 +101,8 @@ class WebCrawler:
             "fetched_at": datetime.now().isoformat(timespec="seconds"),
             "content": "" if is_python else content,
             "code_blocks": [content] if is_python else [],
+            "etag": sha256,
+            "last_modified": mtime_iso,
         }
         self._rag_src_dir.mkdir(parents=True, exist_ok=True)
         out = self._make_crawl_filepath(url)

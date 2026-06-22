@@ -285,3 +285,32 @@ class MemoryStore:
                 (f"-{days} days",),
             )
             return int(row[0][0]) if row else 0
+
+    def rebuild_from_jsonl(
+        self,
+        jsonl_store: object,
+        *,
+        dry_run: bool = False,
+    ) -> tuple[int, int]:
+        """Rebuild SQLite memories/FTS/vec tables from JSONL source of truth.
+
+        Returns (jsonl_count, inserted_count).
+        When dry_run=True, returns (jsonl_count, 0) without modifying SQLite.
+        """
+        from agent.memory.jsonl_store import JsonlMemoryStore
+
+        assert isinstance(jsonl_store, JsonlMemoryStore)
+        entries = jsonl_store.read_all()
+        jsonl_count = len(entries)
+        if dry_run:
+            return jsonl_count, 0
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            with db.begin_immediate():
+                db.execute("DELETE FROM memories_vec")
+                db.execute("DELETE FROM memories_fts")
+                db.execute("DELETE FROM memories")
+                for entry in entries:
+                    db.execute(self._INSERT_SQL, self._build_row_params(entry))
+                    self._write_fts(db, entry)
+        logger.info("rebuild_from_jsonl: inserted %d entries from JSONL", jsonl_count)
+        return jsonl_count, jsonl_count

@@ -79,3 +79,7 @@ class JsonlMemoryStore:
                         f"Malformed JSONL at line {lineno}: {e}"
                     ) from e
         return entries
+
+    def count_all(self) -> int:
+        """Return total number of valid records in the JSONL file."""
+        return len(self.read_all())

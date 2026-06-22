@@ -35,6 +35,7 @@ from agent.commands.cmd_ingest import _IngestMixin
 from agent.commands.cmd_mcp import _McpMixin
 from agent.commands.cmd_memory import _MemoryMixin
 from agent.commands.cmd_notes import _NotesMixin
+from agent.commands.cmd_plugins import _PluginsMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_tooling import _ToolingMixin
 from agent.commands.cmd_workflow import _WorkflowMixin
@@ -245,6 +246,7 @@ class CommandRegistry(
     _IngestMixin,
     _MemoryMixin,
     _WorkflowMixin,
+    _PluginsMixin,
 ):
     """Slash-command dispatcher for AgentREPL.
 

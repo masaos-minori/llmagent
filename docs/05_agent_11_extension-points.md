@@ -121,13 +121,17 @@ plugin_strict = false         # or true to fail startup on first plugin import e
 
 #### Strict Plugin Loading Mode
 
-When `plugin_strict = true`, all plugin files are attempted first. After the full load loop, if any failures occurred, a single `PluginLoadError` (subclass of `RuntimeError`) is raised with all failure details aggregated in the message. This is useful for CI/CD pipelines where plugin failures should be treated as build errors.
+When `plugin_strict = true`, all plugin files are attempted first. After the full load loop, if any failures occurred, a single `PluginLoadError` (subclass of `RuntimeError`) is raised with all failure details aggregated in the message.
+
+**CI auto-detect:** If `plugin_strict` is absent from config and the `CI` environment variable is set (GitHub Actions, CircleCI, etc.), `plugin_strict` defaults to `True` automatically. Explicit `plugin_strict = false` in config always overrides this.
 
 Default is `false` (fail-open): failures are logged as `[plugin] skipped: <filename> (<ErrorType>)` and loading continues.
 
 Per-failure entry in `PluginLoadResult.failed`: `PluginFailure(path="<filename>", error="Plugin load failed (<filename>): <ErrorType>: <message>")`
 
 `PluginLoadResult` fields: `loaded_count`, `failed`, `tool_conflicts_shadowed`, `tool_conflicts_allowed`, `command_shadows`
+
+The most recent `PluginLoadResult` is accessible via `plugin_registry.get_last_load_result()` and displayed by `/plugin status`.
 
 #### Precedence Order
 

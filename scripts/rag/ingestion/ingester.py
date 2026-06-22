@@ -159,6 +159,7 @@ class RagIngester:
         lang: str = first_data.get("lang", "en")
         etag: str | None = first_data.get("etag")
         last_modified: str | None = first_data.get("last_modified")
+        fetched_at: str | None = first_data.get("fetched_at")
         chunking_strategy: str = first_data.get("chunking_strategy", "text")
         doc_id = self._get_or_create_document(
             db,
@@ -169,6 +170,7 @@ class RagIngester:
             etag,
             last_modified,
             chunking_strategy,
+            fetched_at=fetched_at,
         )
         if doc_id is None:
             logger.info("already registered, skipping: %s", url)
@@ -239,6 +241,18 @@ class RagIngester:
 
     # ── Document helpers ──────────────────────────────────────────────────────
 
+    @staticmethod
+    def _is_file_unchanged(
+        existing_etag: str | None,
+        existing_last_modified: str | None,
+        new_etag: str | None,
+        new_last_modified: str | None,
+    ) -> bool:
+        """Return True when the file SHA-256 hash is unchanged."""
+        if existing_etag is None or new_etag is None:
+            return False
+        return existing_etag == new_etag
+
     def _delete_existing_document(self, db: SQLiteHelper, doc_id: int) -> None:
         """Delete a document and its chunks; chunks_vec removed first because it has no FK constraint to chunks."""
         delete_document_chain(db, doc_id)
@@ -249,14 +263,35 @@ class RagIngester:
         doc_id: int,
         etag: str | None,
         last_modified: str | None,
+        new_fetched_at: str | None = None,
     ) -> None:
-        """Refresh ETag/Last-Modified for an existing document (skip-case)."""
+        """Refresh ETag/Last-Modified for an existing document (skip-case).
+
+        Guards against stale overwrites: if new_fetched_at < stored fetched_at,
+        the incoming data is older and the existing DB values are kept.
+        """
         if etag is None and last_modified is None:
             return
+        if new_fetched_at is not None:
+            rows = db.fetchall(
+                "SELECT fetched_at FROM documents WHERE doc_id = ?", (doc_id,)
+            )
+            stored_fetched_at = rows[0][0] if rows else None
+            if stored_fetched_at and new_fetched_at < stored_fetched_at:
+                logger.info(
+                    "skip-path etag update skipped: incoming stale (%s < %s) for doc_id=%d",
+                    new_fetched_at,
+                    stored_fetched_at,
+                    doc_id,
+                )
+                return
         db.execute(
-            "UPDATE documents SET etag = ?, last_modified = ? WHERE doc_id = ?",
-            (etag, last_modified, doc_id),
+            "UPDATE documents SET etag = ?, last_modified = ?,"
+            " fetched_at = COALESCE(?, fetched_at) WHERE doc_id = ?",
+            (etag, last_modified, new_fetched_at, doc_id),
         )
+        db.commit()
+        logger.info("skip-path etag updated for doc_id=%d", doc_id)
 
     def _get_or_create_document(
         self,
@@ -268,6 +303,7 @@ class RagIngester:
         etag: str | None = None,
         last_modified: str | None = None,
         chunking_strategy: str = "text",
+        fetched_at: str | None = None,
     ) -> int | None:
         """Register a URL in documents and return its doc_id; returns None when already registered and force=False; force=True deletes existing record first."""
         # Guard: reject lang values that violate the DB CHECK constraint early
@@ -283,10 +319,25 @@ class RagIngester:
         if existing_row:
             existing_doc_id: int = existing_row[0]
             if not force:
-                # Refresh ETag/Last-Modified so the next crawl can use conditional GET
-                self._update_etag(db, existing_doc_id, etag, last_modified)
-                return None
-            # force=True: remove old document (and its chunks) before re-inserting
+                if url.startswith("file://"):
+                    stored = db.execute(
+                        "SELECT etag, last_modified FROM documents WHERE doc_id = ?",
+                        (existing_doc_id,),
+                    ).fetchone()
+                    if stored and self._is_file_unchanged(
+                        stored["etag"], stored["last_modified"], etag, last_modified
+                    ):
+                        logger.info("file:// unchanged (sha256 match): %s", url)
+                        return None
+                    logger.info("file:// changed — auto re-ingesting: %s", url)
+                    # fall through to re-ingest below
+                else:
+                    # Refresh ETag/Last-Modified so the next crawl can use conditional GET
+                    self._update_etag(
+                        db, existing_doc_id, etag, last_modified, fetched_at
+                    )
+                    return None
+            # force=True or file:// changed: remove old document before re-inserting
             self._delete_existing_document(db, existing_doc_id)
         cur = db.execute(
             "INSERT INTO documents"

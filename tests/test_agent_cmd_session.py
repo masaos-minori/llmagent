@@ -112,6 +112,22 @@ class TestCmdSessionList:
         out = capsys.readouterr().out
         assert "(no title)" in out
 
+    def test_list_shows_no_title_when_title_is_empty_string(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        sessions = [
+            {
+                "session_id": 3,
+                "title": "",
+                "created_at": "2026-01-01",
+                "is_current": False,
+            }
+        ]
+        cmd = _make_cmd(sessions=sessions)
+        cmd._cmd_session("list")
+        out = capsys.readouterr().out
+        assert "(no title)" in out
+
 
 class TestCmdSessionDelete:
     def test_delete_success(self, capsys: pytest.CaptureFixture) -> None:

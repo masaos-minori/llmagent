@@ -101,7 +101,7 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 
 | Command | Side effects | Related state |
 |---|---|---|
-| `/context` | None | Display history size, budget, system prompt |
+| `/context` | None | Display history size, budget, system prompt, workflow mode, approval-pending state |
 | `/compact` | LLM call (compression) | Compresses history immediately |
 | `/system [name]` | Updates `history[0]` | `ctx.conv.system_prompt_name` |
 
@@ -174,6 +174,9 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | `/memory unpin <id>` | UPDATE pinned flag | Remove session-start injection |
 | `/memory delete <id>` | DELETE entry | Immediate |
 | `/memory prune [days]` | DELETE entries older than N days | Uses `memory_retention_days` default |
+| `/memory status` | None | Embedding enabled, circuit state, retrieval mode; works when memory disabled |
+| `/memory check-consistency` | None | Compare JSONL, SQLite, FTS5, and vec row counts |
+| `/memory rebuild [--dry-run]` | DELETE + INSERT all memories from JSONL | JSONL is canonical source; clears and re-inserts SQLite |
 
 ---
 

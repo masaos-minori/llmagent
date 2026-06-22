@@ -28,10 +28,24 @@ for svc in embed-llm agent-llm; do
     echo "  起動: ${svc}"
 done
 
+# ── Event Bus (port 8015) ──────────────────────────────────────────────────────
+echo "--- Event Bus 起動 ---"
+PYTHONPATH=/opt/llm/scripts \
+    uvicorn eventbus.app:app \
+    --host 127.0.0.1 \
+    --port 8015 \
+    --workers 1 \
+    --log-level info \
+    --access-log \
+    >> /opt/llm/logs/eventbus.log 2>&1 &
+echo "  Event Bus PID: $!"
+echo "  Health: $(sleep 2 && curl -s http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
+
 # ── ヘルスチェック ────────────────────────────────────────────────────────────
 echo "--- ヘルスチェック (モデルロードに数十秒かかる場合があります) ---"
 echo "  embed-llm      (:8003): $(curl -s http://127.0.0.1:8003/health 2>/dev/null || echo 'まだ起動中')"
 echo "  agent-llm      (:8001): $(curl -s http://127.0.0.1:8001/health 2>/dev/null || echo 'まだ起動中')"
+echo "  eventbus       (:8015): $(curl -s http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
 echo ""
 echo "  ※ MCP サーバ (ports 8004-8014) はエージェント起動時に自動起動します"
 echo "     llama-agent 起動後に /mcp status で確認してください"
