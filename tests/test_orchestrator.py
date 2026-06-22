@@ -207,6 +207,63 @@ class TestHandleTurnLLMTransportError:
 
         assert ctx.services.audit_logger.info.called
 
+    @pytest.mark.asyncio
+    async def test_read_timeout_with_partial_increments_stat(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="READ_TIMEOUT", partial_text="chunk text")
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
+
+        assert ctx.services.llm.stat_partial_completions == 1
+        call_args = orch._diagnostic_store.save.call_args_list
+        assert any("llm_transport_error" in str(a) for a in call_args)
+
+    @pytest.mark.asyncio
+    async def test_http_retryable_prestream_saves_mid_turn_diagnostic(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="HTTP_STATUS_RETRYABLE", retryable=True, partial_text="")
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
+
+        assert ctx.services.llm.stat_partial_completions == 0
+        call_args = orch._diagnostic_store.save.call_args_list
+        assert any("mid_turn_error" in str(a) for a in call_args)
+
+    @pytest.mark.asyncio
+    async def test_http_fatal_with_status_code_saves_diagnostic(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        err = LLMTransportError(
+            kind="HTTP_STATUS_FATAL",
+            phase="pre_stream",
+            url="http://llm-test",
+            status_code=503,
+            partial_text="",
+        )
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
+
+        assert ctx.services.llm.stat_partial_completions == 0
+        orch._diagnostic_store.save.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_malformed_sse_with_partial_saves_llm_transport_diagnostic(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="MALFORMED_SSE_FRAME", partial_text="partial frame")
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
+
+        assert ctx.services.llm.stat_partial_completions == 1
+        saved_content = orch._diagnostic_store.save.call_args[0][2]
+        assert "[INCOMPLETE: MALFORMED_SSE_FRAME]" in saved_content
+
 
 # ── _run_turn: tool-continuation LLMTransportError ───────────────────────────
 
@@ -307,6 +364,21 @@ class TestRunTurnLLMTransportError:
 
         assert result.action == "fail"
         assert "HEARTBEAT_TIMEOUT" in result.answer
+        ctx.diagnostics.save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_read_timeout_on_first_turn_stores_in_diagnostic(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="READ_TIMEOUT", partial_text="")
+
+        async def _mock_stream(*_args: object, **_kwargs: object) -> dict:
+            raise err
+
+        ctx.services.llm.stream = _mock_stream
+
+        result = await orch._llm_runner.run("http://llm-test")
+        assert "READ_TIMEOUT" in result.answer
         ctx.diagnostics.save.assert_called_once()
 
 
