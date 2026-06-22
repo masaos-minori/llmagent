@@ -155,6 +155,15 @@ class TestRobustSSEParserFeed:
         payloads, _ = parser.feed(raw)
         assert len(payloads) == 1
 
+    def test_incomplete_line_without_newline_returns_empty(self) -> None:
+        parser = self._parser()
+        payloads, is_done = parser.feed(b'data: {"key": 1}')
+        assert payloads == []
+        assert is_done is False
+        payloads2, is_done2 = parser.feed(b"\n")
+        assert len(payloads2) == 1
+        assert is_done2 is False
+
 
 class TestRobustSSEParserHeartbeat:
     def test_no_timeout_when_disabled(self) -> None:
@@ -210,6 +219,25 @@ class TestAnextOrDone:
         aiter = _gen().__aiter__()
         item, done = await _anext_or_done(aiter)
         assert done is True
+
+    @pytest.mark.asyncio
+    async def test_multiple_yields_then_exhausted(self) -> None:
+        async def _gen() -> AsyncIterator[bytes]:
+            yield b"a"
+            yield b"b"
+
+        aiter = _gen().__aiter__()
+        item1, done1 = await _anext_or_done(aiter)
+        assert item1 == b"a"
+        assert done1 is False
+
+        item2, done2 = await _anext_or_done(aiter)
+        assert item2 == b"b"
+        assert done2 is False
+
+        item3, done3 = await _anext_or_done(aiter)
+        assert item3 == b""
+        assert done3 is True
 
 
 # ── LLMClient.stream() ────────────────────────────────────────────────────────
@@ -529,6 +557,26 @@ class TestLLMClientStream:
             )
         assert call_count[0] == 2
         assert "hello" in result.message.get("content", "")
+
+    @pytest.mark.asyncio
+    async def test_stream_ends_mid_sse_frame(self) -> None:
+        """Stream ends with partial SSE frame (no trailing newline) — treated as
+        stream exhaustion; partial frame is discarded, no exception raised."""
+        partial_stream = (
+            b'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n'
+            b"data: {incomplete"
+        )
+        client = _make_client(sse_reconnect_max=0)
+
+        with respx.mock:
+            respx.post("http://llm/v1/chat").mock(
+                return_value=httpx.Response(200, content=partial_stream)
+            )
+            result = await client.stream(
+                "http://llm/v1/chat", [{"role": "user", "content": "hi"}], []
+            )
+
+        assert "ok" in result.message.get("content", "")
 
 
 # ── AgentConfig SSE validation ────────────────────────────────────────────────
