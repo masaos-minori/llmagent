@@ -58,6 +58,21 @@ class TestResolverIntegration:
         with pytest.raises(ValueError, match="Unknown tool"):
             ex._resolver.resolve("no_such_tool")
 
+    def test_resolver_raises_for_empty_string(self) -> None:
+        ex = _make_executor()
+        with pytest.raises(ValueError, match="Unknown tool"):
+            ex._resolver.resolve("")
+
+    def test_resolver_raises_for_tool_call_id_format(self) -> None:
+        ex = _make_executor()
+        with pytest.raises(ValueError, match="Unknown tool"):
+            ex._resolver.resolve("call_abc123")
+
+    def test_resolver_raises_for_none_input(self) -> None:
+        ex = _make_executor()
+        with pytest.raises((AttributeError, TypeError, ValueError)):
+            ex._resolver.resolve(None)
+
     def test_concurrency_limits_unknown_key_warns(self, caplog: Any) -> None:
         import logging
 
@@ -765,7 +780,7 @@ class TestToolExecutorHealthGate:
 class TestCacheKeyFormat:
     def test_cache_key_is_plain_string_not_md5(self) -> None:
         """Cache key must use plain string format, not MD5 hex digest."""
-        from shared.tool_executor import _json_dumps  # type: ignore[attr-defined]
+        from shared.tool_executor import _json_dumps
 
         args: dict[str, Any] = {"path": "/tmp/f.txt"}
         key = f"read_text_file:{_json_dumps(args)}"
@@ -774,7 +789,7 @@ class TestCacheKeyFormat:
 
     def test_cache_key_identical_args_produce_identical_key(self) -> None:
         """Same tool + same args must always produce the same cache key."""
-        from shared.tool_executor import _json_dumps  # type: ignore[attr-defined]
+        from shared.tool_executor import _json_dumps
 
         args: dict[str, Any] = {"path": "/tmp/f.txt", "mode": "r"}
         key1 = f"read_text_file:{_json_dumps(args)}"
@@ -783,7 +798,7 @@ class TestCacheKeyFormat:
 
     def test_cache_key_different_tool_produces_different_key(self) -> None:
         """Different tool names must produce different cache keys for same args."""
-        from shared.tool_executor import _json_dumps  # type: ignore[attr-defined]
+        from shared.tool_executor import _json_dumps
 
         args: dict[str, Any] = {"path": "/tmp/f.txt"}
         key1 = f"read_text_file:{_json_dumps(args)}"
@@ -792,7 +807,7 @@ class TestCacheKeyFormat:
 
     def test_cache_key_different_args_produce_different_key(self) -> None:
         """Different args must produce different cache keys for same tool."""
-        from shared.tool_executor import _json_dumps  # type: ignore[attr-defined]
+        from shared.tool_executor import _json_dumps
 
         key1 = f"read_text_file:{_json_dumps({'path': '/tmp/a.txt'})}"
         key2 = f"read_text_file:{_json_dumps({'path': '/tmp/b.txt'})}"
