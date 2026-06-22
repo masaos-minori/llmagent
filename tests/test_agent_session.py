@@ -360,6 +360,63 @@ class TestDeleteLastTurn:
         session.delete_last_turn()  # should not raise
 
 
+# ── TestSessionIdConcurrency ──────────────────────────────────────────────────
+
+
+class TestSessionIdConcurrency:
+    """Tests for concurrent session_id generation via AgentSession.start()."""
+
+    def test_concurrent_starts_produce_unique_ids(self) -> None:
+        conn = sqlite3.connect(":memory:", check_same_thread=False, timeout=5)
+        conn.executescript(_SCHEMA_SQL)
+        conn.commit()
+
+        def _make(target: str = "rag") -> _FakeSQLiteHelper:  # noqa: ARG001
+            return _FakeSQLiteHelper(conn)
+
+        with (
+            patch("agent.session.SQLiteHelper", side_effect=_make),
+            patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
+            patch("agent.note_repo.SQLiteHelper", side_effect=_make),
+        ):
+            from concurrent.futures import ThreadPoolExecutor
+
+            sessions: list[AgentSession] = []
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                results = list(executor.map(lambda _: AgentSession(), range(8)))
+            for s in results:
+                s.start()
+                sessions.append(s)
+
+        ids = [s.session_id for s in sessions]
+        assert all(isinstance(sid, int) for sid in ids)
+        assert len(set(ids)) == 8
+
+    def test_concurrent_starts_all_persisted(self) -> None:
+        conn = sqlite3.connect(":memory:", check_same_thread=False, timeout=5)
+        conn.executescript(_SCHEMA_SQL)
+        conn.commit()
+
+        def _make(target: str = "rag") -> _FakeSQLiteHelper:  # noqa: ARG001
+            return _FakeSQLiteHelper(conn)
+
+        with (
+            patch("agent.session.SQLiteHelper", side_effect=_make),
+            patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
+            patch("agent.note_repo.SQLiteHelper", side_effect=_make),
+        ):
+            from concurrent.futures import ThreadPoolExecutor
+
+            sessions: list[AgentSession] = []
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                results = list(executor.map(lambda _: AgentSession(), range(8)))
+            for s in results:
+                s.start()
+                sessions.append(s)
+
+        count = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+        assert count == 8
+
 # ── undo_last_turn() ──────────────────────────────────────────────────────────
 
 
