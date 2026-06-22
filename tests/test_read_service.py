@@ -45,6 +45,49 @@ class TestSecurityWrappers:
         with pytest.raises(FileAuthorizationError):
             svc._resolve_safe("/etc/passwd")
 
+    def test_resolve_safe_rejects_proc_self_environ(self, service):
+        svc, _ = service
+        with pytest.raises(FileAuthorizationError):
+            svc._resolve_safe("/proc/self/environ")
+
+    def test_resolve_safe_rejects_traversal_etc_shadow(self, service):
+        svc, tmp_workspace = service
+        with pytest.raises(FileAuthorizationError):
+            svc._resolve_safe(str(tmp_workspace / "../../etc/shadow"))
+
+    def test_resolve_safe_rejects_symlink_outside_allowed(self, tmp_path: Path):
+        root = tmp_path / "workspace"
+        root.mkdir()
+        target = tmp_path / "outside" / "secret.txt"
+        target.parent.mkdir()
+        target.write_text("secret", encoding="utf-8")
+        link = root / "link_to_secret"
+        link.symlink_to(target)
+
+        svc = ReadFileService(
+            allowed_dirs=[root],
+            max_read_bytes=1024,
+            max_tree_depth=3,
+            max_search_results=50,
+        )
+        with pytest.raises(FileAuthorizationError):
+            svc._resolve_safe(str(link))
+
+    def test_resolve_safe_allows_symlink_inside_allowed(self, tmp_path: Path):
+        root = tmp_path / "workspace"
+        root.mkdir()
+        inside = root / "inside_link"
+        inside.write_text("inside", encoding="utf-8")
+
+        svc = ReadFileService(
+            allowed_dirs=[root],
+            max_read_bytes=1024,
+            max_tree_depth=3,
+            max_search_results=50,
+        )
+        result = svc._resolve_safe(str(inside))
+        assert result == inside.resolve()
+
     def test_require_file_raises_for_directory(self, service):
         svc, tmp_workspace = service
         with pytest.raises(FileValidationError):
