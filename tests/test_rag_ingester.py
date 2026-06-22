@@ -10,6 +10,8 @@ These tests prevent regression of BUG-1/BUG-2/BUG-3 where chunk metadata
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -109,6 +111,25 @@ class _FakeSQLiteHelper:
 
     def commit(self) -> None:
         self._conn.commit()
+
+    @contextmanager
+    def begin_immediate(self) -> Generator[None]:
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+            self._conn.execute("COMMIT")
+        except Exception:
+            try:
+                self._conn.execute("ROLLBACK")
+            except sqlite3.OperationalError:
+                pass
+            raise
+
+    def executemany(self, sql: str, params_seq: list) -> sqlite3.Cursor:
+        return self._conn.executemany(sql, params_seq)
+
+    def close(self) -> None:
+        pass
 
 
 def _make_db() -> tuple[sqlite3.Connection, _FakeSQLiteHelper]:

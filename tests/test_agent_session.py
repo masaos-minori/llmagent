@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Generator
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
@@ -63,6 +64,19 @@ class _FakeSQLiteHelper:
 
     def close(self) -> None:
         pass  # keep alive for the test lifetime
+
+    @contextmanager
+    def begin_immediate(self) -> Generator[None]:
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+            self._conn.execute("COMMIT")
+        except Exception:
+            try:
+                self._conn.execute("ROLLBACK")
+            except sqlite3.OperationalError:
+                pass
+            raise
 
     def __enter__(self) -> _FakeSQLiteHelper:
         return self

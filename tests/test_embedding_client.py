@@ -137,7 +137,7 @@ class TestSuccessfulEmbedding:
         client = EmbeddingClient(config)
         mock_resp = MagicMock()
         mock_resp.content = orjson.dumps({"embedding": [0.1, 0.2, 0.3]})
-        mock_resp.raise_for_status = MagicMock()
+        mock_resp.raise_for_status.return_value = None
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.post = AsyncMock(return_value=mock_resp)
@@ -157,7 +157,7 @@ class TestSuccessfulEmbedding:
         client = EmbeddingClient(config)
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"embedding": "not_a_list"}
-        mock_resp.raise_for_status = MagicMock()
+        mock_resp.raise_for_status.return_value = None
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.post = AsyncMock(return_value=mock_resp)
@@ -176,7 +176,7 @@ class TestSuccessfulEmbedding:
         client = EmbeddingClient(config)
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"embedding": []}
-        mock_resp.raise_for_status = MagicMock()
+        mock_resp.raise_for_status.return_value = None
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.post = AsyncMock(return_value=mock_resp)
@@ -249,7 +249,7 @@ class TestRetry:
                     "fail", request=MagicMock(), response=MagicMock(status_code=500)
                 )
             mock_resp.content = orjson.dumps({"embedding": [0.1]})
-            mock_resp.raise_for_status = MagicMock()
+            mock_resp.raise_for_status.return_value = None
             return mock_resp
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
@@ -319,7 +319,7 @@ class TestRetry:
             call_count += 1
             mock_resp = MagicMock()
             mock_resp.content = orjson.dumps({"embedding": [0.1]})
-            mock_resp.raise_for_status = MagicMock()
+            mock_resp.raise_for_status.return_value = None
             return mock_resp
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
@@ -373,7 +373,7 @@ class TestRetry:
                     "fail", request=MagicMock(), response=MagicMock(status_code=500)
                 )
             mock_resp.content = orjson.dumps({"embedding": [0.1]})
-            mock_resp.raise_for_status = MagicMock()
+            mock_resp.raise_for_status.return_value = None
             return mock_resp
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
@@ -481,7 +481,7 @@ class TestRecordFailureCount:
                     "fail", request=MagicMock(), response=MagicMock(status_code=500)
                 )
             mock_resp.content = orjson.dumps({"embedding": [0.1]})
-            mock_resp.raise_for_status = MagicMock()
+            mock_resp.raise_for_status.return_value = None
             return mock_resp
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
@@ -539,7 +539,7 @@ class TestTimeoutRetry:
                 return MagicMock()
             mock_resp = MagicMock()
             mock_resp.content = orjson.dumps({"embedding": [0.1]})
-            mock_resp.raise_for_status = MagicMock()
+            mock_resp.raise_for_status.return_value = None
             return mock_resp
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
@@ -629,7 +629,7 @@ class TestMixedFailure:
                 return MagicMock()
             mock_resp = MagicMock()
             mock_resp.content = orjson.dumps({"embedding": [0.1]})
-            mock_resp.raise_for_status = MagicMock()
+            mock_resp.raise_for_status.return_value = None
             return mock_resp
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
@@ -716,7 +716,7 @@ class TestCircuitDuringRetry:
                 return MagicMock()
             mock_resp = MagicMock()
             mock_resp.content = orjson.dumps({"embedding": [0.1]})
-            mock_resp.raise_for_status = MagicMock()
+            mock_resp.raise_for_status.return_value = None
             return mock_resp
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)

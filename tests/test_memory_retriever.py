@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -120,6 +121,22 @@ class _FakeSQLiteHelper:
 
     def commit(self) -> None:
         self._conn.commit()
+
+    @contextmanager
+    def begin_immediate(self) -> Generator[None]:
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+            self._conn.execute("COMMIT")
+        except Exception:
+            try:
+                self._conn.execute("ROLLBACK")
+            except sqlite3.OperationalError:
+                pass
+            raise
+
+    def close(self) -> None:
+        pass
 
 
 @pytest.fixture()
