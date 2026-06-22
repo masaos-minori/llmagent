@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EventEnvelope",
+  "type": "object",
+  "required": ["event_id", "topic", "payload", "producer", "published_at"],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "UUID v4 idempotency key"
+    },
+    "topic": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "payload": {
+      "type": "object"
+    },
+    "producer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "schema_version": {
+      "type": "string",
+      "default": "1.0"
+    }
+  }
+}

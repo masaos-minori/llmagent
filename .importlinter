@@ -5,6 +5,7 @@ root_packages =
     mcp
     rag
     shared
+    eventbus
 
 include_external_packages = True
 
@@ -52,3 +53,15 @@ source_modules =
     mcp
 forbidden_modules =
     agent
+
+[importlinter:contract:eventbus-is-isolated]
+name = eventbus must not import from agent, mcp, rag, db, or shared
+type = forbidden
+source_modules =
+    eventbus
+forbidden_modules =
+    agent
+    mcp
+    rag
+    db
+    shared
