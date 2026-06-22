@@ -80,6 +80,7 @@ class ContextStateView:
     git_branch: str | None
     git_commit: str | None
     breakdown: ContextBudget
+    fallback_truncate_count: int = 0
 
 
 @dataclass(frozen=True)

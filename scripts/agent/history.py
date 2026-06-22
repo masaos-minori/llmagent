@@ -36,6 +36,7 @@ class CompressResult:
     compressed_count: int
     protected_count: int
     summary_added: bool
+    is_fallback: bool = False
 
 
 class HistoryManager:
@@ -77,6 +78,8 @@ class HistoryManager:
         self._tokenize_url = tokenize_url
         # Cumulative compression count for this session
         self.stat_compress_count: int = 0
+        # Cumulative fallback truncation count for this session
+        self.stat_fallback_truncate_count: int = 0
         # Warn-once suppressor for /tokenize unavailability (one warning per session)
         self._warn_once = _WarnOnce()
         # Selection policy encapsulates importance scoring and candidate selection
@@ -276,12 +279,60 @@ class HistoryManager:
             return history, _no_op
         summary_text = await self._get_summary_text(split.to_compress)
         if summary_text is None:
+            if self._is_over_char_limit(history):
+                return self._fallback_truncate(history)
             return history, _no_op
         return self._build_compressed_result(split, summary_text)
 
     def _is_over_char_limit(self, history: list[LLMMessage]) -> bool:
         """Return True when history exceeds the character limit."""
         return self._char_limit > 0 and self.count_chars(history) > self._char_limit
+
+    def _fallback_truncate(
+        self, history: list[LLMMessage]
+    ) -> tuple[list[LLMMessage], CompressResult]:
+        """Drop low-value messages to bring context under char limit.
+
+        Drop order: lowest importance first (tool-role messages score 0.3).
+        Preserves system messages and the most-recent protect_turns turn pairs.
+        """
+        n_protect = self._protect_turns * 2
+        protected_ids: set[int] = {id(m) for m in history if m["role"] == "system"}
+        turn_msgs = [m for m in history if m["role"] != "system"]
+        for m in turn_msgs[-n_protect:] if n_protect > 0 else []:
+            protected_ids.add(id(m))
+
+        candidates = sorted(
+            (m for m in history if id(m) not in protected_ids),
+            key=HistorySelectionPolicy.classify_importance,
+        )
+        new_history = list(history)
+        for msg in candidates:
+            if not self._is_over_char_limit(new_history):
+                break
+            new_history = [m for m in new_history if m is not msg]
+
+        self.stat_fallback_truncate_count += 1
+        dropped = len(history) - len(new_history)
+        if self._is_over_char_limit(new_history):
+            logger.warning(
+                "Fallback truncation could not bring context under limit:"
+                " chars=%d limit=%d",
+                self.count_chars(new_history),
+                self._char_limit,
+            )
+        logger.info("Fallback truncation applied: dropped %d messages", dropped)
+        return new_history, CompressResult(
+            compressed_count=dropped,
+            protected_count=len(protected_ids),
+            summary_added=False,
+            is_fallback=True,
+        )
+
+    def _reset_for_testing(self) -> None:
+        """Reset cumulative counters; for use in tests only."""
+        self.stat_compress_count = 0
+        self.stat_fallback_truncate_count = 0
 
     async def _check_limits(
         self, history: list[LLMMessage], over_char: bool

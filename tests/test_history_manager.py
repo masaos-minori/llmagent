@@ -164,18 +164,22 @@ class TestCompressWithLLM:
         callback.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_returns_original_history_on_llm_failure(self) -> None:
+    async def test_returns_fallback_truncated_history_on_llm_failure(self) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.post.side_effect = httpx.RequestError("connection refused")
 
         mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
         h = self._over_limit_history()
-        result, _ = await mgr.compress(h)
-        # Fallback: original history returned unchanged
-        assert result == h
+        result, cr = await mgr.compress(h)
+        # LLM fails -> fallback truncation applied (still over limit since char_limit=1)
+        assert cr.is_fallback is True
+        assert mgr.stat_fallback_truncate_count == 1
+        assert len(result) <= len(h)
 
     @pytest.mark.asyncio
-    async def test_returns_original_history_on_empty_llm_response(self) -> None:
+    async def test_returns_fallback_truncated_history_on_empty_llm_response(
+        self,
+    ) -> None:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"choices": []}
@@ -184,8 +188,9 @@ class TestCompressWithLLM:
 
         mgr = _make_manager(char_limit=1, compress_turns=2, http=mock_http)
         h = self._over_limit_history()
-        result, _ = await mgr.compress(h)
-        assert result == h
+        result, cr = await mgr.compress(h)
+        assert cr.is_fallback is True
+        assert len(result) <= len(h)
 
     @pytest.mark.asyncio
     async def test_preserves_system_messages(self) -> None:
@@ -638,3 +643,82 @@ class TestCountTokensAsync:
             count, exact = await mgr.count_tokens_async(h)
         assert count == 10
         assert exact is True
+
+
+# ── _fallback_truncate() ──────────────────────────────────────────────────────
+
+
+class TestFallbackTruncate:
+    def _mgr(self, *, char_limit: int = 200, protect_turns: int = 1) -> HistoryManager:
+        return _make_manager(char_limit=char_limit, protect_turns=protect_turns)
+
+    def _msg(self, role: str, content: str = "") -> LLMMessage:
+        return {"role": role, "content": content}
+
+    def test_drops_tool_messages_first(self) -> None:
+        mgr = self._mgr(char_limit=40, protect_turns=0)
+        tool_msg = self._msg("tool", "x" * 20)
+        user_msg = self._msg("user", "x" * 20)
+        assistant_msg = self._msg("assistant", "x" * 20)
+        h = [user_msg, tool_msg, assistant_msg]
+        result, cr = mgr._fallback_truncate(h)
+        assert cr.is_fallback is True
+        assert tool_msg not in result
+
+    def test_preserves_system_messages(self) -> None:
+        mgr = self._mgr(char_limit=1, protect_turns=0)
+        sys_msg = self._msg("system", "sys")
+        user_msg = self._msg("user", "x" * 10)
+        h = [sys_msg, user_msg]
+        result, _ = mgr._fallback_truncate(h)
+        assert sys_msg in result
+
+    def test_preserves_protected_tail(self) -> None:
+        mgr = self._mgr(char_limit=1, protect_turns=1)
+        old_user = self._msg("user", "x" * 20)
+        old_asst = self._msg("assistant", "x" * 20)
+        new_user = self._msg("user", "recent")
+        new_asst = self._msg("assistant", "recent2")
+        h = [old_user, old_asst, new_user, new_asst]
+        result, _ = mgr._fallback_truncate(h)
+        assert new_user in result
+        assert new_asst in result
+
+    def test_increments_stat_fallback_truncate_count(self) -> None:
+        mgr = self._mgr(char_limit=1, protect_turns=0)
+        h = [self._msg("user", "x" * 10)]
+        mgr._fallback_truncate(h)
+        mgr._fallback_truncate(h)
+        assert mgr.stat_fallback_truncate_count == 2
+
+    def test_compress_result_is_fallback_true(self) -> None:
+        mgr = self._mgr(char_limit=1, protect_turns=0)
+        h = [self._msg("user", "x" * 5)]
+        _, cr = mgr._fallback_truncate(h)
+        assert cr.is_fallback is True
+
+    def test_reset_for_testing_clears_counters(self) -> None:
+        mgr = self._mgr(char_limit=1)
+        mgr.stat_compress_count = 3
+        mgr.stat_fallback_truncate_count = 5
+        mgr._reset_for_testing()
+        assert mgr.stat_compress_count == 0
+        assert mgr.stat_fallback_truncate_count == 0
+
+    @pytest.mark.asyncio
+    async def test_compress_calls_fallback_when_llm_fails_and_over_limit(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post.side_effect = httpx.RequestError("fail")
+        mgr = _make_manager(char_limit=50, compress_turns=2, http=mock_http)
+        h = [
+            {"role": "user", "content": "x" * 20},
+            {"role": "assistant", "content": "x" * 20},
+            {"role": "user", "content": "x" * 20},
+            {"role": "assistant", "content": "x" * 20},
+            {"role": "user", "content": "x" * 20},
+            {"role": "assistant", "content": "x" * 20},
+        ]
+        result, cr = await mgr.compress(h)
+        assert cr.is_fallback is True
+        assert mgr.stat_fallback_truncate_count == 1
+        assert len(result) < len(h)

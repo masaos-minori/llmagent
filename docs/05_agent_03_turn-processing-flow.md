@@ -78,6 +78,9 @@ User input (line)
   - `history` (user/assistant text) → normal priority
 - Most recent `history_protect_turns` (default 2) turn pairs are always protected
 - On success: `CLIView.write_compress_notice(n)` displays compression notice
+- On LLM failure while over char limit: `_fallback_truncate()` drops lowest-importance messages
+  (tool-role first, then sorted by `classify_importance` ascending) until under limit
+- Fallback count tracked in `stat_fallback_truncate_count`; visible via `/context` as "Fallback trunc"
 
 ---
 

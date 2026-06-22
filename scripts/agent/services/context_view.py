@@ -145,6 +145,7 @@ def collect_context_state(ctx: AgentContext) -> ContextStateView:
     history = ctx.conv.history
     total_chars = ctx.services.hist_mgr.count_chars(history)
     compress_count = ctx.services.hist_mgr.stat_compress_count
+    fallback_truncate_count = ctx.services.hist_mgr.stat_fallback_truncate_count
     token_is_exact = ctx.stats.stat_input_tokens is not None
     token_estimate = ctx.services.hist_mgr.count_tokens(
         history, ctx.stats.stat_input_tokens
@@ -156,6 +157,7 @@ def collect_context_state(ctx: AgentContext) -> ContextStateView:
         n_msgs=len(history),
         sys_preview=_extract_sys_preview(history),
         compress_count=compress_count,
+        fallback_truncate_count=fallback_truncate_count,
         token_is_exact=token_is_exact,
         token_estimate=token_estimate,
         token_limit=ctx.cfg.llm.context_token_limit,

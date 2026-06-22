@@ -86,6 +86,7 @@ class _ContextMixin(MixinBase):
                     f"{state.compress_limit - state.total_chars:,} chars until compression",
                 ),
                 ("Compress count  ", str(state.compress_count)),
+                ("Fallback trunc  ", str(state.fallback_truncate_count)),
                 ("System prompt   ", ctx.conv.system_prompt_name),
                 ("System preview  ", repr(state.sys_preview)),
             ]
