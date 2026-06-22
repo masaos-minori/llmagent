@@ -411,6 +411,241 @@ class TestTimeout:
         assert result.error_kind == "timeout"
 
 
+# ── timeout + retry ──────────────────────────────────────────────────────────
+
+
+class TestTimeoutRetry:
+    @pytest.mark.asyncio
+    async def test_all_timeout_retries_fail_returns_timeout(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 2
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _slow_post(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            await asyncio.sleep(10)
+            return MagicMock()
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _slow_post
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is False
+        assert result.error_kind == "circuit_open"
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_timeout_then_success_on_retry(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 2
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _slow_post(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 1:
+                await asyncio.sleep(10)
+                return MagicMock()
+            mock_resp = MagicMock()
+            mock_resp.content = orjson.dumps({"embedding": [0.1]})
+            mock_resp.raise_for_status = MagicMock()
+            return mock_resp
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _slow_post
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is True
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_max_retries_zero_timeout_single_attempt(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 0
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _slow_post(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            await asyncio.sleep(10)
+            return MagicMock()
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _slow_post
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is False
+        assert result.error_kind == "timeout"
+        assert call_count == 1
+
+
+# ── mixed failure pattern (timeout + http_error) ─────────────────────────────
+
+
+class TestMixedFailure:
+    @pytest.mark.asyncio
+    async def test_timeout_then_http_error_all_fail(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 2
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _side_effect(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                await asyncio.sleep(10)
+                return MagicMock()
+            mock_resp = MagicMock()
+            raise httpx.HTTPStatusError(
+                "fail", request=MagicMock(), response=mock_resp
+            )
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _side_effect
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is False
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_http_error_then_timeout_then_success(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 2
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _side_effect(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                mock_resp = MagicMock()
+                raise httpx.HTTPStatusError(
+                    "fail", request=MagicMock(), response=mock_resp
+                )
+            if call_count == 2:
+                await asyncio.sleep(10)
+                return MagicMock()
+            mock_resp = MagicMock()
+            mock_resp.content = orjson.dumps({"embedding": [0.1]})
+            mock_resp.raise_for_status = MagicMock()
+            return mock_resp
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _side_effect
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is True
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_mixed_failure_all_fail_returns_last_error(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 2
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _side_effect(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                await asyncio.sleep(10)
+                return MagicMock()
+            mock_resp = MagicMock()
+            raise httpx.HTTPStatusError(
+                "fail", request=MagicMock(), response=mock_resp
+            )
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _side_effect
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is False
+        assert call_count == 3
+
+
+# ── circuit breaker during retry loop ────────────────────────────────────────
+
+
+class TestCircuitDuringRetry:
+    @pytest.mark.asyncio
+    async def test_circuit_opens_during_retry(self, config: EmbeddingClientConfig) -> None:
+        config.max_retries = 2
+        config.circuit_open_after = 2
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _side_effect(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            mock_resp = MagicMock()
+            raise httpx.HTTPStatusError(
+                "fail", request=MagicMock(), response=mock_resp
+            )
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _side_effect
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is False
+        assert result.error_kind == "circuit_open"
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_circuit_opens_after_timeout_then_success_on_retry(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 2
+        config.circuit_open_after = 1
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _side_effect(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                await asyncio.sleep(10)
+                return MagicMock()
+            mock_resp = MagicMock()
+            mock_resp.content = orjson.dumps({"embedding": [0.1]})
+            mock_resp.raise_for_status = MagicMock()
+            return mock_resp
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _side_effect
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is False
+        assert result.error_kind == "circuit_open"
+        assert call_count == 1
+
+
 # ── timeout triggers circuit after max failures ──────────────────────────────
 
 
