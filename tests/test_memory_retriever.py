@@ -442,6 +442,31 @@ class TestRrfMerge:
         assert _rrf_merge([]) == []
         assert _rrf_merge([[]]) == []
 
+    def test_duplicate_memory_id_within_single_list(self) -> None:
+        """Duplicate memory_id in a single list is deduplicated with accumulated score."""
+        hits = [_make_hit("dup"), _make_hit("other"), _make_hit("dup")]
+        merged = _rrf_merge([hits])
+        ids = [h.entry.memory_id for h in merged]
+        assert ids.count("dup") == 1
+        assert "dup" in ids
+        assert "other" in ids
+        dup_score = next(h.score for h in merged if h.entry.memory_id == "dup")
+        other_score = next(h.score for h in merged if h.entry.memory_id == "other")
+        assert dup_score == pytest.approx(1.0 / 61 + 1.0 / 63)
+        assert other_score == pytest.approx(1.0 / 62)
+        assert dup_score > other_score
+
+    def test_same_rrf_score_both_entries_present(self) -> None:
+        """Symmetric placement yields identical RRF scores for both entries."""
+        list1 = [_make_hit("a"), _make_hit("b")]
+        list2 = [_make_hit("b"), _make_hit("a")]
+        merged = _rrf_merge([list1, list2])
+        ids = [h.entry.memory_id for h in merged]
+        assert "a" in ids and "b" in ids
+        score_a = next(h.score for h in merged if h.entry.memory_id == "a")
+        score_b = next(h.score for h in merged if h.entry.memory_id == "b")
+        assert score_a == score_b
+
 
 # ── knn_search (skipped when vec0 unavailable) ────────────────────────────────
 
