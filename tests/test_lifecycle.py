@@ -16,6 +16,8 @@ from agent.lifecycle import LifecycleState
 from agent.stdio_lifecycle import TransportHandle
 from shared.mcp_config import McpServerConfig
 
+_TEST_HTTP_URL = "http://127.0.0.1:9999"
+
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
     return McpServerConfig(transport="http", url=url, cmd=[], auth_token="")
@@ -281,7 +283,7 @@ class TestEnsureReadySubprocess:
 class TestStartHttpSubprocess:
     @pytest.mark.asyncio
     async def test_starts_process_and_polls_health(self) -> None:
-        cfg = _http_subprocess_cfg(url="http://127.0.0.1:9999", cmd=["python", "s.py"])
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, cmd=["python", "s.py"])
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
@@ -306,7 +308,7 @@ class TestStartHttpSubprocess:
 
     @pytest.mark.asyncio
     async def test_reuses_alive_proc(self) -> None:
-        cfg = _http_subprocess_cfg(url="http://127.0.0.1:9999", cmd=["python", "s.py"])
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, cmd=["python", "s.py"])
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
         existing = MagicMock()
@@ -319,7 +321,7 @@ class TestStartHttpSubprocess:
 
     @pytest.mark.asyncio
     async def test_raises_on_early_exit(self) -> None:
-        cfg = _http_subprocess_cfg(url="http://127.0.0.1:9999", cmd=["python", "s.py"])
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, cmd=["python", "s.py"])
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
@@ -343,7 +345,7 @@ class TestStartHttpSubprocess:
     @pytest.mark.asyncio
     async def test_raises_on_timeout(self) -> None:
         cfg = _http_subprocess_cfg(
-            url="http://127.0.0.1:9999", cmd=["python", "s.py"], timeout=0
+            url=_TEST_HTTP_URL, cmd=["python", "s.py"], timeout=0
         )
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
@@ -365,7 +367,7 @@ class TestStartHttpSubprocess:
 
     @pytest.mark.asyncio
     async def test_merges_env_vars(self) -> None:
-        cfg = _http_subprocess_cfg(url="http://127.0.0.1:9999", cmd=["python", "s.py"])
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, cmd=["python", "s.py"])
         # Override env to exercise the env-merge branch
         cfg.env = {"MY_VAR": "val"}
         ex = _mock_tool_executor()
@@ -397,7 +399,7 @@ class TestStartHttpSubprocess:
     @pytest.mark.asyncio
     async def test_health_poll_exception_is_logged_not_raised(self) -> None:
         cfg = _http_subprocess_cfg(
-            url="http://127.0.0.1:9999", cmd=["python", "s.py"], timeout=5
+            url=_TEST_HTTP_URL, cmd=["python", "s.py"], timeout=5
         )
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})

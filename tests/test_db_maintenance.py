@@ -23,6 +23,8 @@ from db.maintenance import (
     vacuum_db,
 )
 
+_TEST_EMBED_URL = "http://127.0.0.1:8003/embedding"
+
 # Minimal session schema for purge tests (no vec0 dependency).
 _SESSION_SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -50,7 +52,7 @@ def _make_db_cfg(
     cfg.rag_db_path = str(tmp_path / rag_name)
     cfg.session_db_path = str(tmp_path / session_name)
     cfg.sqlite_vec_so = "/fake/vec0.so"
-    cfg.embed_url = "http://127.0.0.1:8003/embedding"
+    cfg.embed_url = _TEST_EMBED_URL
     return cfg
 
 
