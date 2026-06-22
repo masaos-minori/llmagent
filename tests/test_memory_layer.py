@@ -374,6 +374,149 @@ class TestEmbeddingClientTimeout:
         assert result.error_kind == "circuit_open"
         assert client._circuit_opened_at is not None
 
+    @pytest.mark.asyncio
+    async def test_circuit_auto_resets_after_reset_sec(self) -> None:
+        """Circuit auto-resets after circuit_reset_sec seconds of inactivity."""
+        import httpx
+
+        cfg = EmbeddingClientConfig(
+            embed_url="http://fake/embed",
+            timeout=1.0,
+            max_retries=0,
+            circuit_open_after=2,
+            circuit_reset_sec=0.5,
+        )
+        client = EmbeddingClient(cfg, MagicMock(spec=httpx.AsyncClient), enabled=True)
+
+        failed_result = EmbeddingResult(success=False, error_kind="http_error")
+        with patch(
+            "agent.memory.embedding_client._fetch_embedding", return_value=failed_result
+        ):
+            await client.fetch("text 1")  # fail_count=1
+            await client.fetch("text 2")  # fail_count=2 → circuit opens
+
+        assert client._circuit_opened_at is not None
+        assert client._is_circuit_open() is True
+
+        import time
+
+        client._circuit_opened_at = time.monotonic() - (cfg.circuit_reset_sec + 1)
+        assert client._is_circuit_open() is False
+        assert client._circuit_opened_at is None
+        assert client._fail_count == 0
+
+    @pytest.mark.asyncio
+    async def test_half_open_fetch_succeeds_closes_circuit(self) -> None:
+        """After reset, a successful fetch closes the circuit fully."""
+        import httpx
+
+        cfg = EmbeddingClientConfig(
+            embed_url="http://fake/embed",
+            timeout=1.0,
+            max_retries=0,
+            circuit_open_after=2,
+            circuit_reset_sec=0.5,
+        )
+        client = EmbeddingClient(cfg, MagicMock(spec=httpx.AsyncClient), enabled=True)
+
+        failed_result = EmbeddingResult(success=False, error_kind="http_error")
+        with patch(
+            "agent.memory.embedding_client._fetch_embedding", return_value=failed_result
+        ):
+            await client.fetch("text 1")
+            await client.fetch("text 2")  # circuit opens
+
+        import time
+
+        client._circuit_opened_at = time.monotonic() - (cfg.circuit_reset_sec + 1)
+
+        success_result = EmbeddingResult(success=True, embedding=[0.1])
+        with patch(
+            "agent.memory.embedding_client._fetch_embedding", return_value=success_result
+        ):
+            result = await client.fetch("text 3")
+
+        assert result.success is True
+        assert client._circuit_opened_at is None
+        assert client._fail_count == 0
+
+    @pytest.mark.asyncio
+    async def test_half_open_fetch_fails_reopens_circuit(self) -> None:
+        """After reset, a failed fetch reopens the circuit."""
+        import httpx
+
+        cfg = EmbeddingClientConfig(
+            embed_url="http://fake/embed",
+            timeout=1.0,
+            max_retries=0,
+            circuit_open_after=1,
+            circuit_reset_sec=0.5,
+        )
+        client = EmbeddingClient(cfg, MagicMock(spec=httpx.AsyncClient), enabled=True)
+
+        failed_result = EmbeddingResult(success=False, error_kind="http_error")
+        with patch(
+            "agent.memory.embedding_client._fetch_embedding", return_value=failed_result
+        ):
+            await client.fetch("text 1")  # fail_count=1 → circuit opens
+
+        import time
+
+        client._circuit_opened_at = time.monotonic() - (cfg.circuit_reset_sec + 1)
+        assert client._is_circuit_open() is False
+
+        with patch(
+            "agent.memory.embedding_client._fetch_embedding", return_value=failed_result
+        ):
+            result = await client.fetch("text 2")
+
+        assert not result.success
+        assert result.error_kind == "circuit_open"
+        assert client._circuit_opened_at is not None
+
+    @pytest.mark.asyncio
+    async def test_success_resets_fail_count(self) -> None:
+        """A successful fetch resets fail_count to 0, preventing circuit open."""
+        import httpx
+
+        cfg = EmbeddingClientConfig(
+            embed_url="http://fake/embed",
+            timeout=1.0,
+            max_retries=0,
+            circuit_open_after=5,
+            circuit_reset_sec=0.5,
+        )
+        client = EmbeddingClient(cfg, MagicMock(spec=httpx.AsyncClient), enabled=True)
+
+        failed_result = EmbeddingResult(success=False, error_kind="http_error")
+        success_result = EmbeddingResult(success=True, embedding=[0.1])
+
+        with patch(
+            "agent.memory.embedding_client._fetch_embedding", return_value=failed_result
+        ):
+            await client.fetch("text 1")  # fail_count=1
+            await client.fetch("text 2")  # fail_count=2
+            await client.fetch("text 3")  # fail_count=3
+
+        with patch(
+            "agent.memory.embedding_client._fetch_embedding", return_value=success_result
+        ):
+            result = await client.fetch("text 4")  # success → fail_count=0
+
+        assert result.success is True
+        assert client._fail_count == 0
+
+        with patch(
+            "agent.memory.embedding_client._fetch_embedding", return_value=failed_result
+        ):
+            await client.fetch("text 5")  # fail_count=1
+            await client.fetch("text 6")  # fail_count=2
+            await client.fetch("text 7")  # fail_count=3
+            await client.fetch("text 8")  # fail_count=4
+            await client.fetch("text 9")  # fail_count=5 → circuit opens
+
+        assert client._circuit_opened_at is not None
+
 
 # ── MemoryIngestionService: dedup (SKIP_NEW) ──────────────────────────────────
 
@@ -626,7 +769,6 @@ class TestStatEmbedSkip:
         await svc.on_session_stop(session_id=1, history=history)
 
         # Check that the summary log was called with embed_skipped count
-        from unittest.mock import call as mock_call
 
         # on_session_stop logs the summary after persisting entries
         calls = svc._embed_client.fetch.call_args_list
