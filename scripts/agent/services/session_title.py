@@ -79,3 +79,5 @@ class SessionTitleService:
             raise SessionTitleGenerationError(str(e)) from e
         except (orjson.JSONDecodeError, KeyError) as e:
             raise SessionTitleGenerationError(f"Response parse error: {e}") from e
+        except Exception as e:
+            raise SessionTitleGenerationError(f"Unexpected error: {e}") from e

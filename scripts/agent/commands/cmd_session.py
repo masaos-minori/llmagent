@@ -100,7 +100,7 @@ class _SessionMixin(MixinBase):
             is_current = sr.session_id == current_id
             if is_current and self._ctx.session.is_title_pending():
                 title_display = "(generating...)"
-            elif sr.title is not None:
+            elif sr.title:
                 title_display = (
                     sr.title[:SESSION_TITLE_TRUNCATE_AT] + "..."
                     if len(sr.title) > SESSION_TITLE_MAX_CHARS
