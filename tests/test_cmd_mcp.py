@@ -17,21 +17,22 @@ class _Ctx:
 
     def __init__(
         self,
-        mcp_servers: dict[str, McpServerConfig],
+        mcp_servers: dict[str, McpServerConfig] | None = None,
         tool_defs: list | None = None,
         stdio_procs: dict | None = None,
         tool_safety_tiers: dict | None = None,
     ) -> None:
         self.cfg = MagicMock()
         self.cfg.tool.tool_definitions = tool_defs or []
-        self.cfg.mcp.mcp_servers = mcp_servers
-        # tier-based WRITE column requires a real dict; MagicMock's .get() returns MagicMock
-        self.cfg.approval.tool_safety_tiers = tool_safety_tiers or {}
         self.cfg.mcp.mcp_watchdog_interval = 0.0
         self.cfg.mcp.mcp_watchdog_max_restarts = 3
+        self.cfg.mcp.mcp_servers = mcp_servers or {}
+        self.cfg.approval.tool_safety_tiers = tool_safety_tiers if tool_safety_tiers is not None else {}
         self.services = MagicMock()
         self.services.stdio_procs = stdio_procs or {}
         self.services.health_registry = None
+        self.stats = MagicMock()
+        self.stats.stat_serialization_events = []
 
 
 class _Mcp(_McpMixin):

@@ -170,7 +170,7 @@ class MemoryIngestionService:
         session_id: int | None,
         importance: float,
     ) -> MemoryEntry:
-        now = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         return MemoryEntry(
             memory_id=str(uuid.uuid4()),
             memory_type=memory_type,

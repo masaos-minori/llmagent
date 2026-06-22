@@ -22,7 +22,7 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 from agent.memory.enums import MemoryType
 from agent.memory.models import HistoryMessage
@@ -256,7 +256,7 @@ def extract_memories(
         return []
 
     candidates: list[MemoryEntry] = []
-    now = datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     for msg in history:
         role = msg.role
         if role == "assistant":
