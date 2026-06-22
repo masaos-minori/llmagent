@@ -306,6 +306,7 @@ Class `MemoryStore(embed_dim=None)`:
 | `get_by_id(memory_id)` | `MemoryEntry \| None` | Lookup by primary key |
 | `count_entries()` | `int` | Total entries |
 | `count_prunable(days)` | `int` | Entries older than `days` days |
+| `rebuild_from_jsonl(jsonl_store, *, dry_run=False)` | `tuple[int, int]` | Rebuild memories/FTS/vec from JSONL; returns (jsonl_count, inserted_count) |
 
 **Failure modes:**
 - `sqlite3.OperationalError` — DB locked, missing vec table, etc.
@@ -388,6 +389,7 @@ Class `JsonlMemoryStore(path)`:
 |---|---|---|
 | `write(entry)` | `None` | Async append (asyncio.Lock serialised) |
 | `read_all()` | `list[MemoryEntry]` | Sync read of all entries |
+| `count_all()` | `int` | Count of valid records (delegates to `read_all()`) |
 
 **Failure modes:** `JsonlFormatError` on malformed lines.
 

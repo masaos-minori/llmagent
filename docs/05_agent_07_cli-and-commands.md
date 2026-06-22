@@ -174,6 +174,8 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | `/memory unpin <id>` | UPDATE pinned flag | Remove session-start injection |
 | `/memory delete <id>` | DELETE entry | Immediate |
 | `/memory prune [days]` | DELETE entries older than N days | Uses `memory_retention_days` default |
+| `/memory check-consistency` | None | Compare JSONL, SQLite, FTS5, and vec row counts |
+| `/memory rebuild [--dry-run]` | DELETE + INSERT all memories from JSONL | JSONL is canonical source; clears and re-inserts SQLite |
 
 ---
 
