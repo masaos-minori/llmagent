@@ -77,6 +77,26 @@ class TestAssertAllowedRepo:
             svc._assert_allowed_repo("owner/other")
         assert "repo_allowlist" in str(exc_info.value)
 
+    def test_empty_string_repo_is_denied(self) -> None:
+        svc = _make_service(repo_allowlist=["owner/repo"])
+        with pytest.raises(CicdAuthorizationError):
+            svc._assert_allowed_repo("")
+
+    def test_wildcard_in_allowlist_is_not_expanded(self) -> None:
+        svc = _make_service(repo_allowlist=["owner/*"])
+        with pytest.raises(CicdAuthorizationError):
+            svc._assert_allowed_repo("owner/repo")
+
+    def test_extra_slash_suffix_is_denied(self) -> None:
+        svc = _make_service(repo_allowlist=["owner/repo"])
+        with pytest.raises(CicdAuthorizationError):
+            svc._assert_allowed_repo("owner/repo/extra")
+
+    def test_double_slash_is_denied(self) -> None:
+        svc = _make_service(repo_allowlist=["owner/repo"])
+        with pytest.raises(CicdAuthorizationError):
+            svc._assert_allowed_repo("owner//repo")
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CiCdService — workflow_allowlist guard
