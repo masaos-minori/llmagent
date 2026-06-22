@@ -282,6 +282,109 @@ class TestRetry:
         assert result.success is False
         assert result.error_kind == "http_error"
 
+    @pytest.mark.asyncio
+    async def test_max_retries_zero_single_attempt_on_failure(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 0
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _fake_post(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            raise httpx.HTTPStatusError(
+                "fail", request=MagicMock(), response=MagicMock(status_code=500)
+            )
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _fake_post
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is False
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_max_retries_zero_single_attempt_on_success(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 0
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _fake_post(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            mock_resp = MagicMock()
+            mock_resp.content = orjson.dumps({"embedding": [0.1]})
+            mock_resp.raise_for_status = MagicMock()
+            return mock_resp
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _fake_post
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is True
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_max_retries_two_all_fail_three_attempts(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 2
+        client = EmbeddingClient(config)
+        mock_resp = MagicMock()
+        call_count = 0
+
+        async def _fake_post(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            raise httpx.HTTPStatusError(
+                "fail", request=MagicMock(), response=mock_resp
+            )
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _fake_post
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is False
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_max_retries_one_success_on_second_attempt(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 1
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _fake_post(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            mock_resp = MagicMock()
+            if call_count == 1:
+                raise httpx.HTTPStatusError(
+                    "fail", request=MagicMock(), response=MagicMock(status_code=500)
+                )
+            mock_resp.content = orjson.dumps({"embedding": [0.1]})
+            mock_resp.raise_for_status = MagicMock()
+            return mock_resp
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _fake_post
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is True
+        assert call_count == 2
+
 
 # ── timeout ──────────────────────────────────────────────────────────────────
 
