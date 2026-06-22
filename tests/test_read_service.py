@@ -388,6 +388,34 @@ class TestReadTextFile:
         assert result.path == str(tmp_workspace / "file_a.py")
         assert isinstance(result.size, int)
 
+    def test_read_text_permission_error_raises_file_authorization_error(self, service):
+        import os
+
+        from mcp.file.read_models import ReadTextFileRequest
+
+        svc, tmp_workspace = service
+        no_perm = tmp_workspace / "no_perm.txt"
+        no_perm.write_text("secret", encoding="utf-8")
+
+        if os.getuid() == 0:
+            pytest.skip("root can read files regardless of permissions")
+
+        no_perm.chmod(0o000)
+        try:
+            with pytest.raises(FileAuthorizationError):
+                svc.read_text_file(ReadTextFileRequest(path=str(no_perm)))
+        finally:
+            no_perm.chmod(0o644)
+
+    def test_read_text_file_not_found_in_allowed_dir_raises_file_not_found_error(self, service):
+        from mcp.file.read_models import ReadTextFileRequest
+
+        svc, tmp_workspace = service
+        with pytest.raises(FileNotFoundError):
+            svc.read_text_file(
+                ReadTextFileRequest(path=str(tmp_workspace / "ghost.txt"))
+            )
+
 
 # -- read_media_file tests ---------------------------------------------------
 
