@@ -20,7 +20,7 @@ RagPipeline.augment(query)
       [2] SearchStage — KNN + BM25 per variant
       [3] FusionStage — RRF merge (Σ 1/(rrf_k+rank); rrf_k configurable via config, default: 60)
       [4] RerankStage — cross-encoder scoring; filter by rag_min_score; post-rerank dedup by URL
-      [5] PluginHooks — registered post-rerank hooks (error-isolated; strict mode re-raises); runs between RerankStage and AugmentStage
+      [5] PluginHooks — registered post-rerank hooks (error-isolated; strict mode re-raises); runs between RerankStage and AugmentStage (not a PipelineStage)
       [6] AugmentStage — format [RAG_CONTEXT_START]...[RAG_CONTEXT_END]
   → use_refiner=True? → refine_context() (compress chunks; fallback to raw on error)
   → return context block string
@@ -143,6 +143,15 @@ ctx = PipelineContext(query="search query", history_context="conversation histor
 | `reranked` | `list[RagHit]` | `[]` | `RerankStage` |
 | `augment_result` | `str` | `""` | `AugmentStage` |
 | `stage_results` | `list[StageResult]` | `[]` | `RagPipeline.run()` |
+| `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()` | `SearchStage` (embed_ok, embed_failed, fts_errors) |
+
+### 4.2 SearchDiagnostics (`rag/models_result.py`)
+
+| Field | Type | Description |
+|---|---|---|
+| `embed_ok` | int | Successful embedding count |
+| `embed_failed` | int | Failed embedding count |
+| `fts_errors` | int | FTS5 query error count |
 
 ### 4.1 StageResult TypedDict (`rag/stage.py`)
 
@@ -187,11 +196,11 @@ SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: st
 ### 5.3 FusionStage
 
 ```python
-FusionStage(use_rrf: bool)
+FusionStage(rrf_k: int = 60, use_rrf: bool = True)
 ```
 
 - Merges `ctx.search_results` using Reciprocal Rank Fusion: score = Σ 1/(rrf_k + rank)
-- `rrf_k` default: 60; configurable via `cfg.get("rrf_k", 60)` (not hardcoded; `RagConfig` Protocol includes `rrf_k` field but pipeline currently uses the default 60)
+- `rrf_k` default: 60; configurable via `cfg.rrf_k` (RagConfig Protocol includes `rrf_k` field)
 - Assigns `rrf_score` to each `MergedHit`; stores in `ctx.merged`
 
 > `use_rrf=False` activates `_dedup_hits()` fallback (simple chunk_id dedup, all `rrf_score=0.0`). `pipeline.py:184` passes `use_rrf=self._cfg.use_rrf` to `FusionStage`.
@@ -284,8 +293,8 @@ Owns all SQL. Used internally by stages.
 
 | Method | Signature | Description |
 |---|---|---|
-| `vector_search` | `(embedding: list[float], top_k: int) -> list[RagHit]` | KNN via sqlite-vec; logs `top_k`/`hits`/`elapsed_ms` (not query) |
-| `fts_search` | `(query: str, top_k: int) -> list[RagHit]` | BM25 via FTS5; returns `[]` on `sqlite3.OperationalError`; logs query/fts_query/top_k/hits/elapsed_ms |
+| `vector_search` | `(embedding: list[float], top_k: int) -> list[RagHit]` | KNN via sqlite-vec; logs `top_k`/`hits`/`elapsed_ms` |
+| `fts_search` | `(query: str, top_k: int) -> list[RagHit]` | BM25 via FTS5; returns `[]` on `sqlite3.OperationalError`; logs `query`/`fts_query`/`top_k`/`hits`/`elapsed_ms` |
 
 **Module-level standalone wrappers:**
 - `vector_search(embedding, top_k, db)` → delegates to `RagRepository(db).vector_search()`

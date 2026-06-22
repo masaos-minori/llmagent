@@ -95,10 +95,13 @@ Created by `ChunkSplitter`. Same `.txt` extension; content is JSON.
 | `chunk_index` | INTEGER | | Position in document (0-based) |
 | `content` | TEXT | | Original chunk text (for LLM) |
 | `normalized_content` | TEXT | | Sudachi normalized text (JA FTS) |
+| `chunk_type` | TEXT | | `"text"` or `"code"` (added via migration) |
+| `source_file` | TEXT | | Filename of crawler output (added via migration) |
 
 ### 2.3 `chunks_fts` (FTS5 virtual table)
 
 - Full-text search index over `COALESCE(normalized_content, content)`
+- Tokenizer: `'unicode61'` (Unicode 6.1 normalization; Japanese queries use Sudachi POS-filtered tokens at query time)
 - Automatically synchronized by triggers:
   - `chunks_ai` (after INSERT): `INSERT INTO chunks_fts`
   - `chunks_au` (after UPDATE): `DELETE + INSERT`
@@ -109,7 +112,7 @@ Created by `ChunkSplitter`. Same `.txt` extension; content is JSON.
 ### 2.4 `chunks_vec` (sqlite-vec virtual table)
 
 - Stores embedding vectors as little-endian float32 BLOB
-- `embedding` column: `struct.pack("<{N}f", *values)` format
+- `embedding` column: `float[DIMS]` (DIMS replaced at runtime via `_build_rag_schema_sql()`); `struct.pack("<{N}f", *values)` format
 - Dataclass default: 384 (`models_config.py:53` `IngesterConfig.embed_dimension`); production value set via `config/common.toml::embedding_dims` (default 384 — **Confirmed** from `common.toml:43`)
 - No foreign key constraint (sqlite-vec virtual table); `chunks_vec` must be deleted
   **before** `chunks` when force-reinserting to avoid orphaned records
@@ -159,7 +162,7 @@ For full API signatures, see the linked chapters.
 
 ### 5.1 PipelineContext (`rag/stage.py`)
 
-See [03_rag_03 §4](03_rag_03_query_pipeline.md) for field details.
+See [03_rag_03 §4](03_rag_03_query_pipeline.md) for field details (includes `search_diagnostics` field).
 
 ### 5.2 LLMMessage (`shared/types.py`, re-exported from `rag/types.py`)
 
