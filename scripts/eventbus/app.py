@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 
 from eventbus.config import EventBusConfig, load_config
 from eventbus.db import open_db
+from eventbus.dlq import promote_to_dlq
 
 logger = logging.getLogger(__name__)
 
@@ -22,18 +23,39 @@ _ENVELOPE_SCHEMA_PATH = Path("/opt/llm/schemas/event_envelope.json")
 _cfg: EventBusConfig | None = None
 _db: sqlite3.Connection | None = None
 _envelope_schema: dict[str, Any] | None = None
+_dlq_task: asyncio.Task | None = None
+_DLQ_INTERVAL = 60.0
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> Any:
-    global _cfg, _db, _envelope_schema
+    global _cfg, _db, _envelope_schema, _dlq_task
     _cfg = load_config()
     _db = open_db(_cfg.db_path)
     _envelope_schema = orjson.loads(_ENVELOPE_SCHEMA_PATH.read_bytes())
     Path(_cfg.storage_dir).mkdir(parents=True, exist_ok=True)
+    _dlq_task = asyncio.create_task(_dlq_loop())
     yield
+    if _dlq_task:
+        _dlq_task.cancel()
+        try:
+            await _dlq_task
+        except asyncio.CancelledError:
+            pass
     if _db:
         _db.close()
+
+
+async def _dlq_loop() -> None:
+    while True:
+        try:
+            assert _cfg is not None
+            n = promote_to_dlq(_db, _cfg.deadletter_dir, _cfg.max_retry)  # type: ignore[arg-type]
+            if n:
+                logger.info("dlq_loop promoted=%d", n)
+        except Exception:
+            logger.exception("dlq_loop error")
+        await asyncio.sleep(_DLQ_INTERVAL)
 
 
 app = FastAPI(lifespan=lifespan)
@@ -154,6 +176,28 @@ async def subscribe(
                 write_offset(_cfg.offsets_dir, consumer_id, current_seq)
 
     return StreamingResponse(_sse_gen(), media_type="text/event-stream")
+
+
+@app.get("/dlq")
+async def dlq_list() -> list[dict[str, Any]]:
+    rows = _db.execute(  # type: ignore[union-attr]
+        "SELECT seq, event_id, topic, producer, published_at, retry_count, dlq_at"
+        " FROM events WHERE dlq_at IS NOT NULL ORDER BY seq"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.post("/dlq/{event_id}/requeue")
+async def dlq_requeue(event_id: str) -> dict[str, Any]:
+    cur = _db.execute(  # type: ignore[union-attr]
+        "UPDATE events SET retry_count = 0, dlq_at = NULL WHERE event_id = ?",
+        (event_id,),
+    )
+    _db.commit()  # type: ignore[union-attr]
+    if cur.rowcount == 0:
+        raise HTTPException(status_code=404, detail="event not found")
+    logger.info("dlq requeued event_id=%s", event_id)
+    return {"event_id": event_id, "requeued": True}
 
 
 def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
