@@ -199,6 +199,52 @@ class TestCheckApproval:
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         assert result is True
 
+    @pytest.mark.asyncio
+    async def test_medium_risk_empty_input_denied(self) -> None:
+        ctx = _make_ctx()
+        with patch("asyncio.to_thread", new=AsyncMock(return_value="")):
+            result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_medium_risk_input_with_whitespace_approved(self) -> None:
+        ctx = _make_ctx()
+        with patch("asyncio.to_thread", new=AsyncMock(return_value=" y ")):
+            result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_high_risk_empty_input_denied(self) -> None:
+        ctx = _make_ctx()
+        with patch("asyncio.to_thread", new=AsyncMock(return_value="")):
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_high_risk_input_with_whitespace_approved(self) -> None:
+        ctx = _make_ctx()
+        with patch("asyncio.to_thread", new=AsyncMock(return_value=" yes ")):
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_audit_log_skipped_when_no_logger_high_risk(self) -> None:
+        ctx = _make_ctx()
+        ctx.services.audit_logger = None
+        with patch("asyncio.to_thread", new=AsyncMock(return_value="yes")):
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_audit_logger_error_propagates(self) -> None:
+        ctx = _make_ctx()
+        audit = MagicMock()
+        ctx.services.audit_logger = audit
+        audit.info.side_effect = RuntimeError("audit error")
+        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
+            with pytest.raises(RuntimeError, match="audit error"):
+                await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+
 
 # ── _audit_approval() ─────────────────────────────────────────────────────────
 
