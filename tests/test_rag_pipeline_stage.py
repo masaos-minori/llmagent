@@ -4,7 +4,7 @@ Unit tests for RAG pipeline stages and observer functionality.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
+import dataclasses
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -14,6 +14,33 @@ from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage
 from rag.stages.rerank import RerankStage
 from rag.stages.search import SearchStage
+
+
+@dataclasses.dataclass
+class _RagCfg:
+    semantic_cache_max_size: int = 0
+    semantic_cache_threshold: float = 0.0
+    use_semantic_cache: bool = False
+    use_mqe: bool = False
+    top_k_search: int = 5
+    use_rerank: bool = False
+    rag_top_k: int = 3
+    max_chunks_per_doc: int = 5
+    top_k_rerank: int = 10
+    rag_min_score: float = 0.0
+    use_rrf: bool = True
+    rrf_k: int = 60
+    use_search: bool = True
+    rag_service_url: str = ""
+    rag_auth_token: str = ""
+    use_refiner: bool = False
+    refiner_max_tokens: int = 512
+    refiner_max_chars_per_chunk: int = 800
+    refiner_timeout: float = 30.0
+
+
+def _make_rag_cfg(**overrides) -> _RagCfg:
+    return dataclasses.replace(_RagCfg(), **overrides)
 
 
 class TestPipelineContextFields:
@@ -36,7 +63,7 @@ class TestMqeStage:
     @pytest.mark.asyncio
     async def test_mqe_disabled_returns_original_query(self) -> None:
         llm = MagicMock()
-        stage = MqeStage(SimpleNamespace(use_mqe=False), llm)
+        stage = MqeStage(_make_rag_cfg(use_mqe=False), llm)
         ctx = PipelineContext(query="hello")
         await stage.run(ctx)
         assert ctx.queries == ["hello"]
@@ -45,7 +72,7 @@ class TestMqeStage:
     async def test_mqe_enabled_calls_llm_expand(self) -> None:
         llm = MagicMock()
         llm.expand_queries = AsyncMock(return_value=["hello", "hi there"])
-        stage = MqeStage(SimpleNamespace(use_mqe=True), llm)
+        stage = MqeStage(_make_rag_cfg(use_mqe=True), llm)
         ctx = PipelineContext(query="hello")
         await stage.run(ctx)
         assert ctx.queries == ["hello", "hi there"]
@@ -56,7 +83,7 @@ class TestMqeStage:
         """MqeStage propagates RagExpansionError instead of falling back."""
         llm = MagicMock()
         llm.expand_queries = AsyncMock(side_effect=RuntimeError("LLM unavailable"))
-        stage = MqeStage(SimpleNamespace(use_mqe=True), llm)
+        stage = MqeStage(_make_rag_cfg(use_mqe=True), llm)
         ctx = PipelineContext(query="hello")
         with pytest.raises(RuntimeError, match="LLM unavailable"):
             await stage.run(ctx)
@@ -70,7 +97,7 @@ class TestMqeStage:
 class TestSearchStage:
     @pytest.mark.asyncio
     async def test_search_none_db_returns_empty(self) -> None:
-        stage = SearchStage(SimpleNamespace(top_k_search=5))
+        stage = SearchStage(_make_rag_cfg(top_k_search=5))
         ctx = PipelineContext(query="q")
         ctx.queries = ["q"]
         await stage.run(ctx, db=None)
@@ -78,7 +105,7 @@ class TestSearchStage:
 
     @pytest.mark.asyncio
     async def test_search_calls_repository(self) -> None:
-        stage = SearchStage(SimpleNamespace(top_k_search=5))
+        stage = SearchStage(_make_rag_cfg(top_k_search=5))
         ctx = PipelineContext(query="q")
         ctx.queries = ["q"]
         mock_db = MagicMock()
@@ -137,7 +164,7 @@ class TestRerankStage:
     @pytest.mark.asyncio
     async def test_rerank_disabled_returns_top_k(self) -> None:
         llm = MagicMock()
-        cfg = SimpleNamespace(
+        cfg = _make_rag_cfg(
             use_rerank=False,
             rag_top_k=2,
             max_chunks_per_doc=5,
@@ -163,7 +190,7 @@ class TestRerankStage:
             RankedHit(chunk_id=1, content="a", url="u", rerank_score=0.95)
         ]
         llm.cross_encoder_rerank = AsyncMock(return_value=expected_ranked)
-        cfg = SimpleNamespace(
+        cfg = _make_rag_cfg(
             use_rerank=True,
             rag_top_k=2,
             max_chunks_per_doc=5,
@@ -185,7 +212,7 @@ class TestRerankStage:
         llm.cross_encoder_rerank = AsyncMock(
             side_effect=RagRerankError("rerank failed")
         )
-        cfg = SimpleNamespace(
+        cfg = _make_rag_cfg(
             use_rerank=True,
             rag_top_k=2,
             max_chunks_per_doc=5,
@@ -234,29 +261,6 @@ class TestAugmentStage:
 # ---------------------------------------------------------------------------
 # RagPipeline.last_timings
 # ---------------------------------------------------------------------------
-
-
-def _make_rag_cfg() -> SimpleNamespace:
-    return SimpleNamespace(
-        use_mqe=False,
-        use_rerank=False,
-        use_rrf=True,
-        use_search=True,
-        use_refiner=False,
-        rag_service_url="",
-        rag_auth_token="",
-        rrf_k=60,
-        top_k_search=5,
-        top_k_rerank=10,
-        rag_top_k=3,
-        rag_min_score=0.0,
-        max_chunks_per_doc=5,
-        semantic_cache_max_size=0,
-        semantic_cache_threshold=0.0,
-        refiner_max_tokens=512,
-        refiner_max_chars_per_chunk=800,
-        refiner_timeout=30.0,
-    )
 
 
 class TestRagPipelineLastTimings:
