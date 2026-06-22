@@ -22,9 +22,9 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
 
 from agent.memory.enums import MemoryType
+from agent.memory.mapper import _now_iso
 from agent.memory.models import HistoryMessage
 from agent.memory.types import MemoryEntry, SourceType
 
@@ -256,7 +256,7 @@ def extract_memories(
         return []
 
     candidates: list[MemoryEntry] = []
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = _now_iso()
     for msg in history:
         role = msg.role
         if role == "assistant":

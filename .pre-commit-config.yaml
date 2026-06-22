@@ -5,6 +5,14 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+  - repo: local
+    hooks:
+      - id: no-datetime-utc
+        name: Check for datetime.datetime.UTC (Python 3.14 incompatible)
+        entry: bash -c 'grep -r "datetime\.datetime\.UTC" scripts/ && exit 1 || exit 0'
+        language: system
+        pass_filenames: false
+        types: [python]
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.16.0
     hooks:

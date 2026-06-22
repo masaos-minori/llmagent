@@ -10,7 +10,6 @@ the new entry is discarded instead of stored.
 
 from __future__ import annotations
 
-import datetime
 import logging
 import sqlite3
 import uuid
@@ -21,6 +20,7 @@ from agent.memory.embedding_client import EmbeddingClient, EmbeddingResult
 from agent.memory.enums import DedupAction, DedupPolicy, MemoryType
 from agent.memory.extract import extract_memories
 from agent.memory.jsonl_store import JsonlMemoryStore
+from agent.memory.mapper import _now_iso
 from agent.memory.models import HistoryMessage
 from agent.memory.retriever import HybridRetriever
 from agent.memory.store import MemoryStore
@@ -170,7 +170,7 @@ class MemoryIngestionService:
         session_id: int | None,
         importance: float,
     ) -> MemoryEntry:
-        now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        now = _now_iso()
         return MemoryEntry(
             memory_id=str(uuid.uuid4()),
             memory_type=memory_type,

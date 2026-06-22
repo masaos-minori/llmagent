@@ -19,10 +19,7 @@ import inspect
 import logging
 from typing import Any
 
-from db.helper import SQLiteHelper
-
 from agent.commands.mixin_base import MixinBase
-from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.commands.utils import parse_command_args
 from agent.services.db_maintenance_service import DbMaintenanceService
 from agent.services.rag_maintenance_service import RagMaintenanceService

@@ -55,7 +55,7 @@ def _recency_boost(created_at: str, recency_days: float = _RECENCY_DAYS) -> floa
     """Return 0.0–RECENCY_MAX_BOOST based on age in days (newer = higher)."""
     try:
         dt = datetime.datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         age_days = (now - dt).total_seconds() / _SECS_PER_DAY
         if age_days >= recency_days:
             return 0.0
