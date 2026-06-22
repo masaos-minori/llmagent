@@ -206,7 +206,7 @@ agent[chat]> /mcp status
 | `session.sqlite` | `/opt/llm/db/session.sqlite` | `session_db_path` | エージェントセッション・メッセージ |
 | `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | `workflow_db_path` | タスク追跡・イベント処理 |
 
-スキーマ詳細: `06_shared_04_db_architecture_and_schema.md`
+スキーマ詳細: `90_shared_04_db_architecture_and_schema.md`
 
 ### 3.1 スキーマ適用
 

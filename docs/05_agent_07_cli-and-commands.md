@@ -121,7 +121,7 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | `/db recover [backup-path]` | RAG | Integrity check; restore from backup if corrupt | Destructive if corrupt |
 | `/db consistency` | RAG | None | Chunks/FTS/vector index sync check |
 
-> **Note:** `/db urls` and `/db clean` call rag-pipeline-mcp MCP tools (`rag_list_documents`, `rag_delete_document`) via the agent's tool executor. Other `/db` commands use `DbMaintenanceService` for direct SQLite access. `session.sqlite` and `workflow.sqlite` are accessed via `SQLiteHelper(target=...)` in code, not through `/db` commands. Schema details: `06_shared_04`.
+> **Note:** `/db urls` and `/db clean` call rag-pipeline-mcp MCP tools (`rag_list_documents`, `rag_delete_document`) via the agent's tool executor. Other `/db` commands use `DbMaintenanceService` for direct SQLite access. `session.sqlite` and `workflow.sqlite` are accessed via `SQLiteHelper(target=...)` in code, not through `/db` commands. Schema details: `90_shared_04`.
 
 ### Tool / plan category
 

@@ -1,7 +1,7 @@
 # DB Architecture and Schema
 
-- Overview → [06_shared_01_overview.md](06_shared_01_overview.md)
-- DB API → [06_shared_05_db_api_and_operations.md](06_shared_05_db_api_and_operations.md)
+- Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
+- DB API → [90_shared_05_db_api_and_operations.md](90_shared_05_db_api_and_operations.md)
 
 ## 1. Purpose
 
@@ -56,7 +56,7 @@ class DbConfig:
 - `__post_init__` validates that parent directories exist
 - `embed_url` field does NOT exist in `DbConfig`
 - Constructed by `build_db_config()` in `db/config.py`
-- `common.toml` is loaded via `ConfigLoader().load_all()` (included at index 0 of `_BASE_CONFIG_FILES`) — see [06_shared_03](06_shared_03_runtime_and_execution.md) §2a Config Ownership for the full ownership table
+- `common.toml` is loaded via `ConfigLoader().load_all()` (included at index 0 of `_BASE_CONFIG_FILES`) — see [90_shared_03](90_shared_03_runtime_and_execution.md) §2a Config Ownership for the full ownership table
 
 ---
 
@@ -73,7 +73,7 @@ SQLiteHelper(target: DbTarget | str = "rag")
 ```
 
 > **Note:** `"workflow"` target exists in `07_ref-sqlite.md` but is absent from `07_spec_db.md`.
-> See [06_shared_90 DOCMISS-01](06_shared_90_inconsistencies_and_known_issues.md).
+> See [90_shared_90 DOCMISS-01](90_shared_90_inconsistencies_and_known_issues.md).
 
 **Connection setup (every `open()` call):**
 1. Load sqlite-vec extension from `_vec_so` (rag target only); then `enable_load_extension(False)`
@@ -271,7 +271,7 @@ Initialized by `init_schema(path)`. Used by `agent/workflow/state_store.py`.
 See `db/workflow_schema.py` for full DDL. All use `CREATE TABLE IF NOT EXISTS`.
 
 > **Note:** `workflow.sqlite` is documented only in `07_ref-sqlite.md`, not in `07_spec_db.md`.
-> See [06_shared_90 DOCMISS-01](06_shared_90_inconsistencies_and_known_issues.md).
+> See [90_shared_90 DOCMISS-01](90_shared_90_inconsistencies_and_known_issues.md).
 
 ---
 
@@ -305,7 +305,7 @@ init_schema("/opt/llm/db/workflow.sqlite")
 | Embedding dimension | 384 default (`common.toml::embedding_dims`) |
 | Float format | float32 little-endian BLOB |
 | Single-node only | No distributed/replica support |
-| `common.toml` loading | Included in `ConfigLoader().load_all()` at index 0 — see [06_shared_03](06_shared_03_runtime_and_execution.md) §2a Config Ownership for ownership table |
+| `common.toml` loading | Included in `ConfigLoader().load_all()` at index 0 — see [90_shared_03](90_shared_03_runtime_and_execution.md) §2a Config Ownership for ownership table |
 
 ---
 
@@ -318,7 +318,7 @@ init_schema("/opt/llm/db/workflow.sqlite")
 | Does `SQLiteHelper` support workflow.sqlite? | Yes — `target="workflow"` (undocumented in spec, see §4) |
 | How is embedding dimension set? | `common.toml::embedding_dims` (default 384) |
 | What initializes schemas? | `create_schema()` + `init_schema()` — idempotent |
-| Are DB triggers documented? | Partially — see [06_shared_90 UNDOC-03](06_shared_90_inconsistencies_and_known_issues.md) |
+| Are DB triggers documented? | Partially — see [90_shared_90 UNDOC-03](90_shared_90_inconsistencies_and_known_issues.md) |
 
 ---
 

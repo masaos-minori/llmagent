@@ -39,10 +39,10 @@
 | [05_agent_10_operations-and-observability.md](05_agent_10_operations-and-observability.md) | 起動・確認・トラブルシューティング・OTel |
 | [05_agent_11_extension-points.md](05_agent_11_extension-points.md) | 拡張ポイント（プラグイン） |
 | [05_agent_12_reference-api.md](05_agent_12_reference-api.md) | API リファレンス |
-| [06_shared_00_document-guide.md](06_shared_00_document-guide.md) | shared/DB ドキュメントセット ガイド |
-| [06_shared_01_overview.md](06_shared_01_overview.md) | shared/DB 層概要 |
-| [06_shared_02_types_and_protocols.md](06_shared_02_types_and_protocols.md) | 共通型・プロトコル定義 |
-| [06_shared_03_runtime_and_execution.md](06_shared_03_runtime_and_execution.md) | 実行インフラ（ConfigLoader・Logger・プラグイン） |
-| [06_shared_04_db_architecture_and_schema.md](06_shared_04_db_architecture_and_schema.md) | DB 構造・スキーマ |
-| [06_shared_05_db_api_and_operations.md](06_shared_05_db_api_and_operations.md) | DB API・保守運用 |
-| [06_shared_90_inconsistencies_and_known_issues.md](06_shared_90_inconsistencies_and_known_issues.md) | shared/DB 既知問題・不整合 |
+| [90_shared_00_document-guide.md](90_shared_00_document-guide.md) | shared/DB ドキュメントセット ガイド |
+| [90_shared_01_overview.md](90_shared_01_overview.md) | shared/DB 層概要 |
+| [90_shared_02_types_and_protocols.md](90_shared_02_types_and_protocols.md) | 共通型・プロトコル定義 |
+| [90_shared_03_runtime_and_execution.md](90_shared_03_runtime_and_execution.md) | 実行インフラ（ConfigLoader・Logger・プラグイン） |
+| [90_shared_04_db_architecture_and_schema.md](90_shared_04_db_architecture_and_schema.md) | DB 構造・スキーマ |
+| [90_shared_05_db_api_and_operations.md](90_shared_05_db_api_and_operations.md) | DB API・保守運用 |
+| [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) | shared/DB 既知問題・不整合 |

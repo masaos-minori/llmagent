@@ -1,6 +1,6 @@
 # Shared and DB Layer Overview
 
-- Document guide → [06_shared_00_document-guide.md](06_shared_00_document-guide.md)
+- Document guide → [90_shared_00_document-guide.md](90_shared_00_document-guide.md)
 
 ## 1. Purpose
 
@@ -131,7 +131,7 @@ All three DBs use WAL mode and `busy_timeout`. sqlite-vec is loaded only for `ra
 | Config format | TOML / JSON in `/opt/llm/config/`; `_`-prefixed keys are excluded |
 | Log messages | English only (no Japanese in code comments or logs) |
 | SQLite WAL | All connections use `PRAGMA journal_mode=WAL` |
-| `common.toml` | See [06_shared_03](06_shared_03_runtime_and_execution.md) §2a Config Ownership for full ownership table |
+| `common.toml` | See [90_shared_03](90_shared_03_runtime_and_execution.md) §2a Config Ownership for full ownership table |
 | Embedding dimension | `embedding_dims` in `common.toml` (default 384) |
 
 ---
@@ -153,8 +153,8 @@ All persistent data lives in three SQLite files: `rag.sqlite` (RAG index), `sess
 
 | Question | Look in |
 |---|---|
-| What types/DTOs are defined in shared/? | [06_shared_02_types_and_protocols.md](06_shared_02_types_and_protocols.md) |
-| How does ConfigLoader work? | [06_shared_03_runtime_and_execution.md](06_shared_03_runtime_and_execution.md) |
-| What SQLite schemas exist? | [06_shared_04_db_architecture_and_schema.md](06_shared_04_db_architecture_and_schema.md) |
-| What is the SQLiteHelper API? | [06_shared_05_db_api_and_operations.md](06_shared_05_db_api_and_operations.md) |
-| What bugs or inconsistencies exist? | [06_shared_90_inconsistencies_and_known_issues.md](06_shared_90_inconsistencies_and_known_issues.md) |
+| What types/DTOs are defined in shared/? | [90_shared_02_types_and_protocols.md](90_shared_02_types_and_protocols.md) |
+| How does ConfigLoader work? | [90_shared_03_runtime_and_execution.md](90_shared_03_runtime_and_execution.md) |
+| What SQLite schemas exist? | [90_shared_04_db_architecture_and_schema.md](90_shared_04_db_architecture_and_schema.md) |
+| What is the SQLiteHelper API? | [90_shared_05_db_api_and_operations.md](90_shared_05_db_api_and_operations.md) |
+| What bugs or inconsistencies exist? | [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) |

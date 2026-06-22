@@ -1,6 +1,6 @@
 # DB API and Operations
 
-- Schema → [06_shared_04_db_architecture_and_schema.md](06_shared_04_db_architecture_and_schema.md)
+- Schema → [90_shared_04_db_architecture_and_schema.md](90_shared_04_db_architecture_and_schema.md)
 
 ## 1. Purpose
 
@@ -169,7 +169,7 @@ result: MemoryDeleteResult = store.delete_memories_before(older_than_days=30)
 
 - Atomically deletes from `memories`, `memories_fts`, `memories_vec`
 - `maintenance.py::prune_old_memories()` delegates to this class
-- See [06_shared_90 DESIGN-01](06_shared_90_inconsistencies_and_known_issues.md) for responsibility boundary — resolved; extensibility rationale documented here
+- See [90_shared_90 DESIGN-01](90_shared_90_inconsistencies_and_known_issues.md) for responsibility boundary — resolved; extensibility rationale documented here
 - `MemoryDeleteStore` is a Protocol (structural type) that exists to preserve the option of a non-SQLite backend in the future. Today, `SQLiteMemoryDeleteStore` is the sole implementation.
 
 ---
@@ -204,7 +204,7 @@ LLM context holds only summary/truncated version; full text is retrievable via `
 **Implementation detail:** `list_recent` internally fetches `ORDER BY id DESC LIMIT n`,
 then reverses to return oldest-first.
 
-See [06_shared_90 DESIGN-02](06_shared_90_inconsistencies_and_known_issues.md) for
+See [90_shared_90 DESIGN-02](90_shared_90_inconsistencies_and_known_issues.md) for
 responsibility boundary between `ToolResultStore` and `messages` table.
 
 ---

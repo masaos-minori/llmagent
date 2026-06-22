@@ -1,6 +1,6 @@
 # Shared Runtime and Execution Infrastructure
 
-- Overview → [06_shared_01_overview.md](06_shared_01_overview.md)
+- Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
 
 ## 1. Purpose
 
@@ -134,7 +134,7 @@ plugin_registry.load_plugins(plugin_dir, known_tools=..., override_policy="rejec
 `@register_command` handlers are dispatched by `CommandRegistry` **after** built-in commands.
 
 > **Known issue:** `load_plugins()` returns an `int` count but does not provide a machine-readable
-> report of which plugins failed and why. See [06_shared_90 PLUGIN-01](06_shared_90_inconsistencies_and_known_issues.md).
+> report of which plugins failed and why. See [90_shared_90 PLUGIN-01](90_shared_90_inconsistencies_and_known_issues.md).
 
 ---
 
@@ -313,7 +313,7 @@ Both defined in `shared/mcp_config.py`. Full field reference in
 - `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE`
 - `McpServerHealthRegistry`: tracks consecutive failures; `UNAVAILABLE` blocks dispatch
 
-> **Note:** `McpServerConfig.transport` uses `TransportType` enum (not plain `str`). See [06_shared_90 TYPE-01](06_shared_90_inconsistencies_and_known_issues.md).
+> **Note:** `McpServerConfig.transport` uses `TransportType` enum (not plain `str`). See [90_shared_90 TYPE-01](90_shared_90_inconsistencies_and_known_issues.md).
 
 ---
 

@@ -134,7 +134,7 @@ When `use_semantic_cache=True`, query embedding cosine similarity ≥ `semantic_
 | Language detection | CJK ratio ≥ 0.10 → `ja`; else `en`; < 100 chars → fallback to hint | `crawler.py` |
 | Chunk size | min 40 chars, max 500 chars | `rag_pipeline.toml` |
 | Chunk overlap | 50 chars sliding window | `rag_pipeline.toml` |
-| Embedding dimension | 384 (production, `config/common.toml:43`); dataclass default 768 (`models_config.py:53`). float32 little-endian BLOB | `config/common.toml` — see `03_rag_90` DOC-03 |
+| Embedding dimension | 384 (production, `config/common.toml:43`); dataclass default 384 (`models_config.py:53`). float32 little-endian BLOB | `config/common.toml` — see `03_rag_90` DOC-03 |
 | Crawl depth | max 6 hops from start URL | `rag_pipeline.toml` |
 | Crawl page limit | max 500 pages per site | `rag_pipeline.toml` |
 | DB | SQLite single-node only | architecture |
