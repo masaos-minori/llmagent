@@ -66,7 +66,7 @@ async def _noop() -> str | None:
 
 class TestWorkflowEngineHappyPath:
     @pytest.mark.asyncio
-    async def test_run_completes(self, store) -> None:
+    async def test_run_sets_task_status_completed(self, store) -> None:
         wdef = _make_wdef()
         task = store.create_task("s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store)

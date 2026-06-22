@@ -65,7 +65,7 @@ def _cfg(**overrides: Any) -> AgentConfig:
 
 
 class TestEscalateForPath:
-    def test_base_high_returns_none(self) -> None:
+    def test_already_high_base_risk_no_escalation(self) -> None:
         cfg = _cfg()
         assert _escalate_for_path(cfg, "high", {}) is None
 
@@ -102,7 +102,7 @@ class TestEscalateForGithubBranch:
         cfg = _cfg()
         assert _escalate_for_github_branch(cfg, "write_file", "medium", {}) is None
 
-    def test_base_high_returns_none(self) -> None:
+    def test_already_high_base_risk_no_escalation(self) -> None:
         cfg = _cfg()
         assert _escalate_for_github_branch(cfg, "github_push_files", "high", {}) is None
 

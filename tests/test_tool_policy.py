@@ -88,7 +88,7 @@ class TestClassifyRisk:
         result = classify_risk(cfg, "delete_directory", {"recursive": False})
         assert result == "medium"
 
-    def test_safe_args_returns_base_tier(self) -> None:
+    def test_base_tier_tool_with_no_path_match_returns_medium(self) -> None:
         cfg = _cfg()
         result = classify_risk(cfg, "read_text_file", {"path": "/tmp/f"})
         assert result == "medium"
@@ -223,7 +223,7 @@ class TestPreflightDenyReason:
 
 
 class TestEscalateForPath:
-    def test_base_high_returns_none(self) -> None:
+    def test_already_high_base_risk_no_escalation(self) -> None:
         from agent.tool_policy import _escalate_for_path
 
         cfg = _cfg()
@@ -243,7 +243,7 @@ class TestEscalateForGithubBranch:
         cfg = _cfg()
         assert _escalate_for_github_branch(cfg, "write_file", "medium", {}) is None
 
-    def test_base_high_returns_none(self) -> None:
+    def test_already_high_base_risk_no_escalation(self) -> None:
         from agent.tool_policy import _escalate_for_github_branch
 
         cfg = _cfg()

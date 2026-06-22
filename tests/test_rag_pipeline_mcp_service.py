@@ -104,7 +104,7 @@ def _make_service_with_pipeline(pipeline_mock: Any) -> RagPipelineMCPService:
 
 class TestRunPipeline:
     @pytest.mark.asyncio
-    async def test_normal_with_hits(self) -> None:
+    async def test_query_with_hits_returns_augmented_response(self) -> None:
         hit = {
             "chunk_id": "c1",
             "score": 8.0,
