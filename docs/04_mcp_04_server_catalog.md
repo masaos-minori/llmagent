@@ -118,10 +118,10 @@ All providers failed → HTTP 502.
 
 | Tool | Input | dry_run behavior |
 |---|---|---|
-| `write_file` | `{path, content, dry_run?}` | Returns diff only; no write (`dry_run` in model but NOT in inputSchema) |
+| `write_file` | `{path, content, dry_run?}` | Returns diff only; no write |
 | `edit_file` | `{path, edits: [{old_text, new_text}], dry_run?}` | Returns diff; no write |
 | `create_directory` | `{path}` | Creates directory; **no** `dry_run` support |
-| `move_file` | `{source, destination, dry_run?}` | Returns move feasibility (`dry_run` in model but NOT in inputSchema) |
+| `move_file` | `{source, destination, dry_run?}` | Returns move feasibility |
 
 **Config:** `max_write_bytes` (default 1 MB; enforced as UTF-8 byte count via Pydantic)
 **Error codes:** 400, 403 (outside allowed_dirs), 404, 413/422 (size limit)
@@ -139,8 +139,8 @@ All providers failed → HTTP 502.
 
 | Tool | Input | dry_run behavior |
 |---|---|---|
-| `delete_file` | `{path, dry_run?}` | Returns file info; no delete (`dry_run` in model but NOT in inputSchema) |
-| `delete_directory` | `{path, recursive?, dry_run?}` | Scans contents (up to 1000 files); no delete (`dry_run` in model but NOT in inputSchema) |
+| `delete_file` | `{path, dry_run?}` | Returns file info; no delete |
+| `delete_directory` | `{path, recursive?, dry_run?}` | Scans contents (up to 1000 files); no delete |
 
 **Delete audit log:** `/opt/llm/logs/delete_audit.log` (ISO8601 UTC + op + path + user)
 **Log:** `/opt/llm/logs/file-delete-mcp.log`
@@ -261,7 +261,7 @@ All providers failed → HTTP 502.
 **Security:**
 - `repo_allowlist`: fail-closed (empty = deny all)
 - `workflow_allowlist`: fail-open (empty = allow all)
-- `trigger_workflow` supports `dry_run` argument (in Pydantic model but NOT in inputSchema)
+- `trigger_workflow` supports `dry_run` argument (exposed via tool schema)
 
 **Log limits:** max 5 jobs, 256 KB total (default)
 **Architecture:** `CiCdService → CiBackend (Protocol) → GitHubActionsBackend`
