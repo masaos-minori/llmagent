@@ -88,6 +88,67 @@ class TestSecurityWrappers:
         result = svc._resolve_safe(str(inside))
         assert result == inside.resolve()
 
+    def test_resolve_safe_rejects_chained_symlink_to_outside(self, tmp_path: Path):
+        root = tmp_path / "workspace"
+        root.mkdir()
+        outside = tmp_path / "secret.txt"
+        outside.write_text("secret", encoding="utf-8")
+
+        link_b = root / "link_b"
+        link_b.symlink_to(outside)
+
+        link_a = root / "link_a"
+        link_a.symlink_to(link_b)
+
+        svc = ReadFileService(
+            allowed_dirs=[root],
+            max_read_bytes=1024,
+            max_tree_depth=3,
+            max_search_results=50,
+        )
+        with pytest.raises(FileAuthorizationError):
+            svc._resolve_safe(str(link_a))
+
+    def test_resolve_safe_rejects_symlink_dir_pointing_outside(self, tmp_path: Path):
+        root = tmp_path / "workspace"
+        root.mkdir()
+        outside_dir = tmp_path / "outside_dir"
+        outside_dir.mkdir()
+        (outside_dir / "secret.txt").write_text("secret", encoding="utf-8")
+
+        link_dir = root / "link_to_outside_dir"
+        link_dir.symlink_to(outside_dir)
+
+        svc = ReadFileService(
+            allowed_dirs=[root],
+            max_read_bytes=1024,
+            max_tree_depth=3,
+            max_search_results=50,
+        )
+        with pytest.raises(FileAuthorizationError):
+            svc._resolve_safe(str(link_dir / "secret.txt"))
+
+    def test_resolve_safe_allows_chained_symlink_inside_allowed(self, tmp_path: Path):
+        root = tmp_path / "workspace"
+        root.mkdir()
+        real_file = root / "real.txt"
+        real_file.write_text("data", encoding="utf-8")
+
+        link_b = root / "link_b"
+        link_b.symlink_to(real_file)
+
+        link_a = root / "link_a"
+        link_a.symlink_to(link_b)
+
+        svc = ReadFileService(
+            allowed_dirs=[root],
+            max_read_bytes=1024,
+            max_tree_depth=3,
+            max_search_results=50,
+        )
+        result = svc._resolve_safe(str(link_a))
+        assert result == real_file.resolve()
+
     def test_require_file_raises_for_directory(self, service):
         svc, tmp_workspace = service
         with pytest.raises(FileValidationError):
