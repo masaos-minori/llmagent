@@ -308,7 +308,8 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
   each thread uses an independent `SQLiteHelper().open()`
 - **WAL mode:** `PRAGMA journal_mode=WAL` for concurrent read/write safety
 - **Upsert (`--force`):** delete in order `chunks_vec` → `chunks` → `documents`, then re-INSERT
-- **Idempotency:** skip URL if already in `documents`; still UPDATE `etag`/`last_modified`
+- **Idempotency:** skip URL if already in `documents`; still UPDATE `etag`/`last_modified` via skip-path guard (see below)
+- **Skip-path stale guard:** `_update_etag()` compares incoming `fetched_at` (chunk payload) against stored `documents.fetched_at`; if incoming < stored the update is skipped (newer crawl wins — prevents stale chunk files from overwriting fresher metadata). Missing `fetched_at` (legacy chunks) always updates (safe fallback).
 - **Embed failure tracking:** `_embed_and_store()` returns `(chunk_ok, embed_ok)` tuple;
   `n_embed_failed` counts embedding-specific failures separately from parse/DB errors
 

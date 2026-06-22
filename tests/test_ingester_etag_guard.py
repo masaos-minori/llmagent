@@ -1,0 +1,78 @@
+"""tests/test_ingester_etag_guard.py
+Unit tests for _update_etag() stale-guard logic in Ingester.
+"""
+
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+
+
+def _make_ingester() -> object:
+    from rag.ingestion.ingester import RagIngester
+
+    return object.__new__(RagIngester)
+
+
+def _make_db(stored_fetched_at: str | None) -> MagicMock:
+    db = MagicMock()
+    db.fetchall.return_value = (
+        [(stored_fetched_at,)] if stored_fetched_at is not None else []
+    )
+    return db
+
+
+class TestUpdateEtagGuard:
+    def test_newer_incoming_updates_etag(self) -> None:
+        ingester = _make_ingester()
+        db = _make_db("2026-06-01T10:00:00")
+
+        ingester._update_etag(
+            db, 42, "etag-new", "Mon, 02 Jun 2026", "2026-06-02T10:00:00"
+        )
+
+        db.execute.assert_called_once()
+        call_args = db.execute.call_args[0]
+        assert "UPDATE documents" in call_args[0]
+        assert call_args[1] == (
+            "etag-new",
+            "Mon, 02 Jun 2026",
+            "2026-06-02T10:00:00",
+            42,
+        )
+        db.commit.assert_called_once()
+
+    def test_stale_incoming_skips_update(self) -> None:
+        ingester = _make_ingester()
+        db = _make_db("2026-06-10T10:00:00")
+
+        with patch("rag.ingestion.ingester.logger") as mock_logger:  # noqa: SIM117
+            ingester._update_etag(
+                db, 42, "etag-old", "Mon, 01 Jun 2026", "2026-06-01T10:00:00"
+            )
+
+        db.execute.assert_not_called()
+        db.commit.assert_not_called()
+        mock_logger.info.assert_called_once()
+        logged_msg = mock_logger.info.call_args[0][0]
+        assert "stale" in logged_msg
+
+    def test_missing_fetched_at_always_updates(self) -> None:
+        ingester = _make_ingester()
+        db = _make_db("2026-06-10T10:00:00")
+
+        ingester._update_etag(db, 42, "etag-x", "Mon, 01 Jun 2026", None)
+
+        db.execute.assert_called_once()
+        db.commit.assert_called_once()
+        # fetched_at not queried when new_fetched_at is None
+        db.fetchall.assert_not_called()
+
+    def test_both_none_returns_early_no_db_query(self) -> None:
+        ingester = _make_ingester()
+        db = MagicMock()
+
+        ingester._update_etag(db, 42, None, None, "2026-06-01T10:00:00")
+
+        db.execute.assert_not_called()
+        db.fetchall.assert_not_called()
+        db.commit.assert_not_called()
