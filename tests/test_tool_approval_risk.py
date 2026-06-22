@@ -8,13 +8,11 @@ Covers _classify_risk(), _build_preview(), and _classify_operation_type().
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from agent.config import AgentConfig, build_agent_config
 from agent.tool_policy import classify_risk as _classify_risk
 from agent.tool_result_formatter import build_preview as _build_preview
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -108,6 +106,20 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.services.audit_logger = None
     ctx.services.tools = AsyncMock()
     return ctx
+
+
+class TestMakeCfgDefaults:
+    def test_default_risk_rules_write_file_is_medium(self) -> None:
+        cfg = _make_cfg()
+        assert cfg.approval.approval_risk_rules.get("write_file") == "medium"
+
+    def test_default_risk_rules_delete_file_is_high(self) -> None:
+        cfg = _make_cfg()
+        assert cfg.approval.approval_risk_rules.get("delete_file") == "high"
+
+    def test_tool_safety_tiers_shell_run_is_admin(self) -> None:
+        cfg = _make_cfg()
+        assert cfg.approval.tool_safety_tiers.get("shell_run") == "ADMIN"
 
 
 # ── _classify_risk() ──────────────────────────────────────────────────────────

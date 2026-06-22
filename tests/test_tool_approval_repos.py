@@ -14,7 +14,6 @@ import pytest
 from agent.config import AgentConfig, build_agent_config
 from agent.tool_approval import check_approval
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
@@ -107,6 +106,20 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.services.audit_logger = None
     ctx.services.tools = AsyncMock()
     return ctx
+
+
+class TestMakeCtxDefaults:
+    def test_ctx_turn_id_default(self) -> None:
+        ctx = _make_ctx()
+        assert ctx.turn.current_turn_id == "test-turn-id"
+
+    def test_ctx_workflow_id_default_none(self) -> None:
+        ctx = _make_ctx()
+        assert ctx.workflow.workflow_id is None
+
+    def test_ctx_audit_logger_default_none(self) -> None:
+        ctx = _make_ctx()
+        assert ctx.services.audit_logger is None
 
 
 # ── check_approval(): GitHub repo allowlist pre-flight ───────────────────────
