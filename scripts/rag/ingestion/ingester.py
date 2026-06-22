@@ -239,6 +239,18 @@ class RagIngester:
 
     # ── Document helpers ──────────────────────────────────────────────────────
 
+    @staticmethod
+    def _is_file_unchanged(
+        existing_etag: str | None,
+        existing_last_modified: str | None,
+        new_etag: str | None,
+        new_last_modified: str | None,
+    ) -> bool:
+        """Return True when the file SHA-256 hash is unchanged."""
+        if existing_etag is None or new_etag is None:
+            return False
+        return existing_etag == new_etag
+
     def _delete_existing_document(self, db: SQLiteHelper, doc_id: int) -> None:
         """Delete a document and its chunks; chunks_vec removed first because it has no FK constraint to chunks."""
         delete_document_chain(db, doc_id)
@@ -283,10 +295,23 @@ class RagIngester:
         if existing_row:
             existing_doc_id: int = existing_row[0]
             if not force:
-                # Refresh ETag/Last-Modified so the next crawl can use conditional GET
-                self._update_etag(db, existing_doc_id, etag, last_modified)
-                return None
-            # force=True: remove old document (and its chunks) before re-inserting
+                if url.startswith("file://"):
+                    stored = db.execute(
+                        "SELECT etag, last_modified FROM documents WHERE doc_id = ?",
+                        (existing_doc_id,),
+                    ).fetchone()
+                    if stored and self._is_file_unchanged(
+                        stored["etag"], stored["last_modified"], etag, last_modified
+                    ):
+                        logger.info("file:// unchanged (sha256 match): %s", url)
+                        return None
+                    logger.info("file:// changed — auto re-ingesting: %s", url)
+                    # fall through to re-ingest below
+                else:
+                    # Refresh ETag/Last-Modified so the next crawl can use conditional GET
+                    self._update_etag(db, existing_doc_id, etag, last_modified)
+                    return None
+            # force=True or file:// changed: remove old document before re-inserting
             self._delete_existing_document(db, existing_doc_id)
         cur = db.execute(
             "INSERT INTO documents"
