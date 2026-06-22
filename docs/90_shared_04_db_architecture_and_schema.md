@@ -247,9 +247,10 @@ Initialized by `init_schema(path)`. Used by `agent/workflow/state_store.py`.
 |---|---|---|
 | `task_id` | TEXT PK | UUID4 |
 | `session_id` | TEXT | |
+| `workflow_id` | TEXT | UUID4 for this workflow run |
 | `turn_number` | INTEGER | |
 | `workflow_version` | TEXT | NOT NULL |
-| `status` | TEXT | `pending`/`running`/`completed`/`failed`/`halted` |
+| `status` | TEXT | `pending`/`running`/`pending_approval`/`completed`/`failed`/`halted` |
 | `idempotency_key` | TEXT UNIQUE | `session_id:turn_number` |
 | `created_at` | TEXT | ISO-8601 UTC |
 | `updated_at` | TEXT | ISO-8601 UTC |

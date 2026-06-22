@@ -49,6 +49,7 @@ Durable task state lives in `workflow.sqlite` (via `StateStore`).
 |---|---|---|---|
 | `active` | `bool` | `False` | `True` while `WorkflowEngine.run()` is executing |
 | `current_task_id` | `str\|None` | `None` | Task ID of the running workflow task; `None` when idle |
+| `workflow_id` | `str\|None` | `None` | UUID4 for this workflow run; `None` when idle |
 | `current_workflow_version` | `str\|None` | `None` | Workflow version string from `WorkflowDef` |
 | `approval_pending` | `bool` | `False` | `True` when the turn was suspended at an approval gate |
 | `last_session_id` | `str\|None` | `None` | Session ID used on the most recent `create_task()` call |

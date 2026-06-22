@@ -34,7 +34,7 @@ plan mode, tool result summarization, caching, safety controls, and `allowed_too
 
 | Condition | Execution |
 |---|---|
-| `use_tool_dag=True` (default) and `serial_tool_calls=False` | DAG scheduling (`_execute_with_dag`) |
+| `use_tool_dag=True` and `serial_tool_calls=False` | DAG scheduling (`_execute_with_dag`) |
 | `serial_tool_calls=True` | Sequential (all tools) |
 | `use_tool_dag=False`, any tool in `_SIDE_EFFECT_TOOLS` | Sequential (serialized for safety) |
 | `use_tool_dag=False`, no side-effect tools | Parallel (`asyncio.gather()`) |

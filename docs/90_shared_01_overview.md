@@ -115,7 +115,7 @@ Key constraint: `orjson.dumps()` returns `bytes`, not `str`. Always call `.decod
 |---|---|---|
 | `rag.sqlite` | `documents`, `chunks`, `chunks_fts`, `chunks_vec` | RAG document index + vector + FTS search |
 | `session.sqlite` | `sessions`, `messages`, `notes`, `tool_results`, `memories`, `memories_fts`, `memories_vec`, `memory_links` | Agent conversation state + memory layer |
-| `workflow.sqlite` | `tasks`, `attempts`, `processed_events`, `artifacts` | Workflow engine task tracking |
+| `workflow.sqlite` | `tasks`, `attempts`, `processed_events`, `approvals`, `artifacts` | Workflow engine task tracking |
 
 All three DBs use WAL mode and `busy_timeout`. sqlite-vec is loaded only for `rag.sqlite` (target=`"rag"`).
 

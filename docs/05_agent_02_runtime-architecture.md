@@ -100,7 +100,7 @@ all services. Sub-structures:
 | `ctx.conv` | session | `history: list[LLMMessage]`, `plan_mode`, `debug_mode`, `system_prompt_content` |
 | `ctx.turn` | per-turn | `current_turn_id: str\|None` (UUID4, None between turns) |
 | `ctx.stats` | cumulative | `stat_turns`, `stat_tool_calls`, `stat_latency`, token counts |
-| `ctx.workflow` | session | `WorkflowState`: `active`, `current_task_id`, `approval_pending` (transient) |
+| `ctx.workflow` | session | `WorkflowState`: `active`, `current_task_id`, `workflow_id`, `approval_pending` (transient) |
 | `ctx.cfg` | hot-reload | `AgentConfig` (7 sub-configs) |
 | `ctx.session` | session | `AgentSession` (SQLite) |
 | `ctx.services` | injected | All service instances (LLMClient, ToolExecutor, etc.) |

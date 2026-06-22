@@ -16,7 +16,7 @@ and the responsibility boundary between the agent layer and the RAG layer.
 | `session.sqlite` | `/opt/llm/db/session.sqlite` | Agent layer | Sessions, messages, notes |
 | `rag.sqlite` | `/opt/llm/db/rag.sqlite` | RAG layer | Documents, chunks, vectors |
 | `mdq.sqlite` | `/opt/llm/db/mdq.sqlite` | MCP (mdq-mcp) | Markdown document query (experimental) |
-| `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | Workflow engine | Tasks, attempts, events |
+| `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | Workflow engine | Tasks, attempts, processed_events, approvals, artifacts |
 
 ---
 
@@ -140,8 +140,10 @@ Managed by `agent/workflow/state_store.py`.
 
 | Table | Contents |
 |---|---|
-| `tasks` | One row per turn attempt |
-| `attempts` | Retry attempts within a task |
-| `events` | Fine-grained events per attempt |
+| `tasks` | One row per turn attempt; status: `pending → running → [pending_approval →] completed | halted | failed` |
+| `attempts` | Retry attempts within a task; status: `running | completed | failed` |
+| `processed_events` | Idempotency enforcement; prevents duplicate stage execution |
+| `approvals` | Approval gates; status: `pending → approved | rejected` |
+| `artifacts` | URIs produced by stage callbacks |
 
 Used when `config/workflows/default.json` exists. Falls back to direct execution otherwise.

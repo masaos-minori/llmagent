@@ -159,9 +159,10 @@ Action:
 exists and workflow DB is available. Workflow state is the primary execution model;
 conversation history is maintained as a subordinate concern.
 
-Each turn creates a `task` / `attempt` / `event` record in `workflow.sqlite`:
+Each turn creates a `task` / `attempt` / `processed_event` record in `workflow.sqlite`:
 - `tasks` — one per turn; status: `pending → running → [pending_approval →] completed | halted | failed`
 - `attempts` — one per stage execution (plan/execute/verify), with retry tracking
+- `processed_events` — idempotency enforcement; prevents duplicate stage execution
 - `approvals` — one per approval gate; status: `pending → approved | rejected`
 - `artifacts` — URIs produced by stage callbacks
 
