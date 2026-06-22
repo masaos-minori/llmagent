@@ -88,6 +88,29 @@ class TestCmdStats:
         assert "Partial compl : 0" in out
         assert "Parse errors  : 0" in out
 
+    def test_partial_completion_hint_shown_when_count_positive(
+        self, capsys: Any
+    ) -> None:
+        ctx = _make_ctx()
+        llm = _make_llm_svc()
+        llm.stat_partial_completions = 2
+        ctx.services.llm = llm
+        cmd = _FakeCmd(ctx)
+        cmd._cmd_stats()
+        out = capsys.readouterr().out
+        assert "llm_partial_completion" in out
+
+    def test_partial_completion_no_hint_when_zero(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        llm = _make_llm_svc()
+        llm.stat_partial_completions = 0
+        ctx.services.llm = llm
+        cmd = _FakeCmd(ctx)
+        cmd._cmd_stats()
+        out = capsys.readouterr().out
+        assert "llm_partial_completion" not in out
+        assert "Partial compl : 0" in out
+
 
 # ── _print_config_values ──────────────────────────────────────────────────────
 

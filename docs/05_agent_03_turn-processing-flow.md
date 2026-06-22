@@ -126,6 +126,14 @@ Action:
 
 Incomplete outputs are isolated from normal conversation history so they do not pollute future LLM context. The partial content remains accessible through `/tool show` and DB queries on the `messages` table (role = `"diagnostic"`).
 
+After each turn, `AgentREPL._dispatch_line()` compares `stat_partial_completions` before and after `handle_turn()`. If it increased, a user-visible warning is printed:
+
+```
+[warn] Partial LLM completion stored. Use /stats to see count or query tool_results (tool_name='llm_partial_completion').
+```
+
+`/stats` also shows the artifact location hint when count > 0: `Partial compl : N  (stored as tool_result, tool_name='llm_partial_completion')`.
+
 ### Tool Continuation Failure (turn > 0)
 
 Condition: LLM transport error occurs during a tool continuation turn.

@@ -358,7 +358,15 @@ class AgentREPL:
                     f"Unknown command: {line}  (type /help for commands)"
                 )
         else:
+            llm = ctx.services.llm
+            _prev_partial = llm.stat_partial_completions if llm is not None else 0
             await self._orchestrator.handle_turn(line)
+            if llm is not None and llm.stat_partial_completions > _prev_partial:
+                self._view.write_warning(
+                    "Partial LLM completion stored."
+                    " Use /stats to see count or query tool_results"
+                    " (tool_name='llm_partial_completion')."
+                )
 
     def _get_workflow_status(self) -> str:
         """Return a human-readable workflow status string for the startup banner."""
