@@ -110,7 +110,7 @@ Created by `ChunkSplitter`. Same `.txt` extension; content is JSON.
 
 - Stores embedding vectors as little-endian float32 BLOB
 - `embedding` column: `struct.pack("<{N}f", *values)` format
-- Dataclass default: 768 (`models_config.py:53` `IngesterConfig.embed_dimension`); production value set via `config/common.toml::embedding_dims` (default 384 — **Confirmed** from `common.toml:43`)
+- Dataclass default: 384 (`models_config.py:53` `IngesterConfig.embed_dimension`); production value set via `config/common.toml::embedding_dims` (default 384 — **Confirmed** from `common.toml:43`)
 - No foreign key constraint (sqlite-vec virtual table); `chunks_vec` must be deleted
   **before** `chunks` when force-reinserting to avoid orphaned records
 
