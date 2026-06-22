@@ -224,6 +224,56 @@ class TestCompressTurnsProperty:
         assert isinstance(val, int)
 
 
+# ── compress_turns/char_limit boundary conditions ──────────────────────────────
+
+
+class TestCompressBoundary:
+    @pytest.mark.asyncio
+    async def test_char_limit_zero_never_compresses(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mgr = _make_manager(char_limit=0, compress_turns=2, http=mock_http)
+        h = _history(
+            ("user", "q1"), ("assistant", "a1"),
+            ("user", "q2"), ("assistant", "a2"),
+            ("user", "q3"), ("assistant", "a3"),
+            ("user", "q4"), ("assistant", "a4"),
+            ("user", "q5"), ("assistant", "a5"),
+        )
+        result, info = await mgr.compress(h)
+        assert result == h
+        mock_http.post.assert_not_called()
+        assert mgr.stat_compress_count == 0
+
+    @pytest.mark.asyncio
+    async def test_compress_turns_one_compresses_single_pair(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": "Summary."}}]
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_http.post.return_value = mock_resp
+
+        mgr = _make_manager(char_limit=1, compress_turns=1, http=mock_http)
+        h = _history(
+            ("user", "q1"), ("assistant", "a1"),
+            ("user", "q2"), ("assistant", "a2"),
+            ("user", "q3"), ("assistant", "a3"),
+        )
+        _, info = await mgr.compress(h)
+        mock_http.post.assert_called_once()
+        assert mgr.stat_compress_count == 1
+
+    @pytest.mark.asyncio
+    async def test_compress_turns_one_with_single_turn_skips(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mgr = _make_manager(char_limit=1, compress_turns=1, http=mock_http)
+        h = _history(("user", "only question"), ("assistant", "only answer"))
+        result, info = await mgr.compress(h)
+        assert result == h
+        assert mgr.stat_compress_count == 0
+
+
 # ── protect_turns — recent turns are excluded from compression ────────────────
 
 
