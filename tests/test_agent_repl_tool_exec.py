@@ -230,6 +230,19 @@ class TestCheckAllowedRoot:
         cfg = _make_cfg(allowed_root=str(tmp_path))
         assert _check_allowed_root(cfg, "write_file", {"path": ""})
 
+    def test_relative_path_denied_when_root_is_absolute(self, tmp_path: Path) -> None:
+        cfg = _make_cfg(allowed_root=str(tmp_path))
+        assert not _check_allowed_root(cfg, "write_file", {"path": "relative/file.txt"})
+
+    def test_relative_path_allowed_when_cwd_is_root(self) -> None:
+        cwd = Path.cwd()
+        cfg = _make_cfg(allowed_root=str(cwd))
+        assert _check_allowed_root(cfg, "write_file", {"path": "subdir/file.txt"})
+
+    def test_absolute_path_denied_when_root_is_relative_and_path_is_outside(self) -> None:
+        cfg = _make_cfg(allowed_root=".")
+        assert not _check_allowed_root(cfg, "write_file", {"path": "/etc/passwd"})
+
 
 # ── _check_allowed_repo ────────────────────────────────────────────────────────
 
