@@ -773,3 +773,15 @@ class TestLLMClientApplyConfig:
         client.apply_config()
         assert client._temperature == 0.2
         assert client._max_tokens == 1024
+
+    def test_apply_config_stream_retry_on_heartbeat_timeout_false(self) -> None:
+        client = self._make_client()
+        assert client._llm_stream_retry_on_heartbeat_timeout is True
+        client.apply_config(stream_retry_on_heartbeat_timeout=False)
+        assert client._llm_stream_retry_on_heartbeat_timeout is False
+
+    def test_apply_config_stream_retry_on_malformed_chunk_true(self) -> None:
+        client = self._make_client()
+        assert client._llm_stream_retry_on_malformed_chunk is False
+        client.apply_config(stream_retry_on_malformed_chunk=True)
+        assert client._llm_stream_retry_on_malformed_chunk is True
