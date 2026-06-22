@@ -167,6 +167,40 @@ class TestCheckAllowedRoot:
         # Exact root itself
         assert _check_allowed_root(cfg, "create_directory", {"path": str(tmp_path)})
 
+    def test_relative_path_within_root_is_allowed(self, tmp_path: Path) -> None:
+        cfg = _make_cfg(allowed_root=".")
+        assert _check_allowed_root(cfg, "write_file", {"path": "."})
+
+    def test_traversal_path_outside_root_is_denied(self, tmp_path: Path) -> None:
+        root = tmp_path / "allowed"
+        root.mkdir()
+        cfg = _make_cfg(allowed_root=str(root))
+        assert not _check_allowed_root(
+            cfg, "write_file", {"path": str(root / ".." / "outside.txt")}
+        )
+
+    def test_symlink_inside_root_is_allowed(self, tmp_path: Path) -> None:
+        root = tmp_path / "allowed"
+        root.mkdir()
+        target = root / "target.txt"
+        target.write_text("content", encoding="utf-8")
+        link = root / "link.txt"
+        link.symlink_to(target)
+        cfg = _make_cfg(allowed_root=str(root))
+        assert _check_allowed_root(cfg, "write_file", {"path": str(link)})
+
+    def test_symlink_outside_root_is_denied(self, tmp_path: Path) -> None:
+        root = tmp_path / "allowed"
+        root.mkdir()
+        outside = tmp_path / "other"
+        outside.mkdir()
+        target = outside / "target.txt"
+        target.write_text("content", encoding="utf-8")
+        link = root / "link.txt"
+        link.symlink_to(target)
+        cfg = _make_cfg(allowed_root=str(root))
+        assert not _check_allowed_root(cfg, "write_file", {"path": str(link)})
+
     def test_tool_without_path_args_is_allowed(self, tmp_path: Path) -> None:
         # No path_keys match → all clear
         cfg = _make_cfg(
