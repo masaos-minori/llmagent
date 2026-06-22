@@ -31,9 +31,9 @@ web_search_max_results = 5
 # Maximum number of tool-calling turns to prevent infinite loops in tool_query endpoint
 max_tool_turns = 5
 
-# When true, execute_all_tool_calls places WRITE_TOOLS before READ_TOOLS/others within the same turn.
-# Ignored when serial_tool_calls=true. Opt-in; default false.
-use_tool_dag = false
+# When true, execute_all_tool_calls uses DAG scheduling with intra-round concurrency for
+# non-conflicting groups. Ignored when serial_tool_calls=true. Default true.
+use_tool_dag = true
 
 # When total conversation history characters exceed this value, compress old turns via LLM summarization
 context_char_limit = 8000

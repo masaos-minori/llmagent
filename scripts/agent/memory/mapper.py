@@ -20,7 +20,7 @@ from agent.memory.types import MemoryEntry, SourceType
 
 
 def _now_iso() -> str:
-    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _stamp_entry(entry: MemoryEntry, now: str) -> MemoryEntry:

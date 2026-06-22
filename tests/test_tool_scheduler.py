@@ -229,3 +229,66 @@ class TestMixedScenarios:
         assert any(
             any(tc["function"]["name"] == "read_text_file" for tc in g) for g in groups
         )
+
+
+# ── concurrent_groups ────────────────────────────────────────────────────────
+
+
+class TestConcurrentGroups:
+    def test_scope_group_and_parallel_share_one_batch(self) -> None:
+        tc_write = _tc("write_file")
+        tc_read = _tc("read_text_file")
+        _groups, metadata = build_execution_groups(
+            [tc_write, tc_read],
+            {
+                "write_file": _meta(resource_scope="file", is_write=True),
+                "read_text_file": _meta(),
+            },
+        )
+        # Both the scope group and parallel group should be in one concurrent batch
+        concurrent_batch = metadata.concurrent_groups[-1]
+        assert len(concurrent_batch) == 2
+
+    def test_two_scope_groups_share_one_concurrent_batch(self) -> None:
+        tc_file = _tc("write_file")
+        tc_github = _tc("github_push_files")
+        _groups, metadata = build_execution_groups(
+            [tc_file, tc_github],
+            {
+                "write_file": _meta(resource_scope="file", is_write=True),
+                "github_push_files": _meta(resource_scope="github", is_write=True),
+            },
+        )
+        concurrent_batch = metadata.concurrent_groups[-1]
+        assert len(concurrent_batch) == 2
+
+    def test_serial_barrier_gets_own_batch(self) -> None:
+        tc_serial = _tc("shell_run")
+        tc_read = _tc("read_text_file")
+        _groups, metadata = build_execution_groups(
+            [tc_serial, tc_read],
+            {
+                "shell_run": _meta(requires_serial=True),
+                "read_text_file": _meta(),
+            },
+        )
+        # First batch must contain only the serial barrier
+        assert metadata.concurrent_groups[0] == [[tc_serial]]
+
+    def test_write_first_gets_own_sequential_batch(self) -> None:
+        tc_write = _tc("write_file")
+        tc_read = _tc("read_text_file")
+        _groups, metadata = build_execution_groups(
+            [tc_write, tc_read],
+            {
+                "write_file": _meta(resource_scope="", is_write=True),
+                "read_text_file": _meta(),
+            },
+        )
+        # write_first and parallel must be in separate batches
+        assert len(metadata.concurrent_groups) == 2
+        assert metadata.concurrent_groups[0] == [[tc_write]]
+
+    def test_empty_calls_empty_concurrent_groups(self) -> None:
+        _groups, metadata = build_execution_groups([], {})
+        assert metadata.concurrent_groups == []

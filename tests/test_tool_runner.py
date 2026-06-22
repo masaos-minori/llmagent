@@ -193,6 +193,86 @@ class TestExecuteWithDag:
         results = await _execute_with_dag(ctx, [], 0)
         assert results == []
 
+    @pytest.mark.asyncio
+    async def test_two_scope_groups_all_execute(self) -> None:
+        """Two tools with different resource scopes both execute within the same round."""
+        cfg = _cfg(
+            tool_definitions=[
+                {
+                    "function": {
+                        "name": "write_file",
+                        "resource_scope": "file",
+                        "requires_serial": False,
+                    }
+                },
+                {
+                    "function": {
+                        "name": "github_push_files",
+                        "resource_scope": "github",
+                        "requires_serial": False,
+                    }
+                },
+                {
+                    "function": {
+                        "name": "read_text_file",
+                        "resource_scope": "",
+                        "requires_serial": False,
+                    }
+                },
+            ]
+        )
+        ctx = _make_ctx(cfg)
+        executed: list[str] = []
+
+        async def _record(name: str, _args: dict) -> ToolCallResult:
+            executed.append(name)
+            return ToolCallResult(
+                output="ok", is_error=False, request_id="req", server_key=""
+            )
+
+        ctx.services.tools.execute = AsyncMock(side_effect=_record)
+        results = await _execute_with_dag(
+            ctx,
+            [_tc("write_file"), _tc("github_push_files"), _tc("read_text_file")],
+            0,
+        )
+        assert len(results) == 3
+        assert set(executed) == {"write_file", "github_push_files", "read_text_file"}
+
+    @pytest.mark.asyncio
+    async def test_results_sorted_to_original_call_order(self) -> None:
+        """Results are returned in the original approved_calls order."""
+        cfg = _cfg(
+            tool_definitions=[
+                {
+                    "function": {
+                        "name": "read_text_file",
+                        "resource_scope": "",
+                        "requires_serial": False,
+                    }
+                },
+                {
+                    "function": {
+                        "name": "write_file",
+                        "resource_scope": "",
+                        "requires_serial": False,
+                    }
+                },
+            ]
+        )
+        ctx = _make_ctx(cfg)
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="req", server_key=""
+            )
+        )
+        calls = [_tc("read_text_file"), _tc("write_file")]
+        results = await _execute_with_dag(ctx, calls, 0)
+        assert len(results) == 2
+        # tc_id at index 0 should be "call_read_text_file"
+        assert results[0][0] == "call_read_text_file"
+        assert results[1][0] == "call_write_file"
+
 
 class TestExecuteAllToolCalls:
     @pytest.mark.asyncio

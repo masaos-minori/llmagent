@@ -30,36 +30,65 @@ plan mode, tool result summarization, caching, safety controls, and `allowed_too
 
 ## Parallel vs Sequential Execution
 
-`execute_all_tool_calls()` decides based on tool contents:
+`execute_all_tool_calls()` dispatches based on config flags:
 
 | Condition | Execution |
 |---|---|
-| `serial_tool_calls=True` (config) | Sequential (all tools) |
-| Any tool in `_SIDE_EFFECT_TOOLS` present | Sequential (serialized for safety) |
-| Neither | Parallel (`asyncio.gather()`) |
+| `use_tool_dag=True` (default) and `serial_tool_calls=False` | DAG scheduling (`_execute_with_dag`) |
+| `serial_tool_calls=True` | Sequential (all tools) |
+| `use_tool_dag=False`, any tool in `_SIDE_EFFECT_TOOLS` | Sequential (serialized for safety) |
+| `use_tool_dag=False`, no side-effect tools | Parallel (`asyncio.gather()`) |
 
 `_SIDE_EFFECT_TOOLS = WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})`
 
-Side-effect detection: `is_side_effect(tool_name: str) -> bool`
+---
+
+## DAG Tool Scheduler (`agent/tool_scheduler.py`)
+
+`build_execution_groups(tool_calls, tool_meta)` groups tool calls into ordered batches.
+
+### Rules (applied in priority order)
+
+1. **`requires_serial=True`** — tool forms a single-element serial barrier; runs alone before all other tools
+2. **Same `resource_scope` + `is_write=True`** — tools sharing a scope are serialized within that scope's group
+3. **`is_write=True` without `resource_scope`** — goes into a `write_first` group (conservative; runs before reads)
+4. **All others** — parallel group at the end
+
+### `concurrent_groups` structure
+
+`metadata.concurrent_groups: list[list[list[dict]]]` — list of batches:
+- Each **batch** runs sequentially relative to other batches
+- Groups **within** a batch run concurrently via `asyncio.gather()`
+- `serial_barrier` tools: one batch each (solo)
+- `write_first` group: own sequential batch
+- All `resource_scope` groups + parallel group: shared concurrent batch
+
+Example: `[write_file(scope=file), github_push(scope=github), read_text_file]` →
+one concurrent batch with three groups, all running simultaneously.
+
+### `scheduling_mode` audit field
+
+`"dag_concurrent"` — at least one batch had multiple groups running concurrently.
+`"dag_sequential"` — all batches ran with a single group (no intra-batch concurrency).
 
 ---
 
 ### Serialization Event Schema
 
-Every round of tool calls executed by `_execute_standard()` emits a `round_exec`
-audit event with the following fields:
+Every round emits a `round_exec` audit event:
 
 | Field | Type | Description |
 |---|---|---|
 | `round_id` | string | UUIDv4 identifying this round |
 | `tool_count` | int | Number of tool calls in the round |
-| `mode` | string | `"parallel"`, `"serial"`, or `"dag"` |
-| `has_side_effect` | bool | True if at least one tool is a side-effect tool |
-| `trigger_tool` | string or null | Name of the first side-effect tool that triggered serial mode |
+| `mode` | string | `"parallel"` or `"serial"` |
+| `has_side_effect` | bool | True if any serialization event was triggered |
+| `trigger_tool` | string or null | First tool that triggered serialization |
 | `elapsed_ms` | float | Wall-clock time for the full round in milliseconds |
+| `scheduling_mode` | string or null | DAG mode: `"dag_concurrent"` or `"dag_sequential"`; null in standard mode |
 
 Use `elapsed_ms` to identify serialization overhead. A round with
-`mode="serial"` and a high `elapsed_ms` compared to equivalent parallel rounds
+`has_side_effect=true` and a high `elapsed_ms` compared to equivalent parallel rounds
 is a candidate for optimization.
 
 Query the audit log:

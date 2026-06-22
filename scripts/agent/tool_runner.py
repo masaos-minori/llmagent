@@ -204,7 +204,7 @@ async def _execute_with_dag(
 
     round_id = str(uuid4())
     t0 = time.perf_counter()
-    groups, metadata = build_execution_groups(approved_calls, tool_meta)
+    _groups, metadata = build_execution_groups(approved_calls, tool_meta)
     serialization_events = metadata.serialization_events
     if serialization_events:
         total_affected = sum(e.tools_count for e in serialization_events)
@@ -217,12 +217,24 @@ async def _execute_with_dag(
         )
     else:
         _serialization_stats["tools_affected_last_round"] = 0
+
+    call_order = {tc["id"]: i for i, tc in enumerate(approved_calls)}
     results: list[Any] = []
-    for group in groups:
-        group_results = await asyncio.gather(
-            *(execute_one_tool_call(ctx, tc, turn) for tc in group)
+    for concurrent_batch in metadata.concurrent_groups:
+        is_concurrent = len(concurrent_batch) > 1
+        logger.debug(
+            "ROUND_EXEC: running %d group(s) %s",
+            len(concurrent_batch),
+            "concurrently" if is_concurrent else "sequentially",
         )
-        results.extend(group_results)
+        batch_results = await asyncio.gather(
+            *(
+                asyncio.gather(*(execute_one_tool_call(ctx, tc, turn) for tc in group))
+                for group in concurrent_batch
+            )
+        )
+        results.extend(r for group_res in batch_results for r in group_res)
+    results.sort(key=lambda r: call_order.get(r[0], 0))
     elapsed_ms = (time.perf_counter() - t0) * 1000
     ts = datetime.now(UTC).isoformat()
     for se in serialization_events:
@@ -247,6 +259,8 @@ async def _execute_with_dag(
                 elapsed_ms=elapsed_ms,
                 reason=se.reason,
             )
+    is_concurrent_round = any(len(batch) > 1 for batch in metadata.concurrent_groups)
+    scheduling_mode = "dag_concurrent" if is_concurrent_round else "dag_sequential"
     write_round_exec(
         ctx,
         round_id=round_id,
@@ -259,6 +273,7 @@ async def _execute_with_dag(
         elapsed_ms=elapsed_ms,
         affected_tools=[tc["function"]["name"] for tc in approved_calls],
         serial_reason=serialization_events[0].reason if serialization_events else None,
+        scheduling_mode=scheduling_mode,
     )
     return results
 

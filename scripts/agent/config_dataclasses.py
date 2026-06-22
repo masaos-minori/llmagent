@@ -221,7 +221,7 @@ class ToolConfig:
     # Max total chars of all tool results within one turn
     tool_results_turn_max_chars: int = 50000
     # Place WRITE_TOOLS before READ_TOOLS/others within the same turn
-    use_tool_dag: bool = False
+    use_tool_dag: bool = True
     tool_definitions: list[dict] = field(default_factory=list)
     system_prompts: dict[str, str] = field(default_factory=dict)
     system_prompt_tool: str = ""
