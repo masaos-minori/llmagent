@@ -16,9 +16,9 @@
   │   ├─ chunk/                         # チャンク分割済みファイル ({stem}-{idx:04d}.txt)
   │   └─ registered/                    # DB 投入済みファイル (ingester.py が移動)
   ├─ db/
-  │   ├─ rag.sqlite                     # RAG ベクトル DB (documents/chunks/chunks_vec/chunks_fts) — see 06_shared_04 §3-§6
-  │   ├─ session.sqlite                 # エージェントセッション + メッセージ — see 06_shared_04 §2
-  │   ├─ workflow.sqlite                # タスク追跡 + イベント処理 — see 06_shared_04 §7
+  │   ├─ rag.sqlite                     # RAG ベクトル DB (documents/chunks/chunks_vec/chunks_fts) — see 90_shared_04 §3-§6
+  │   ├─ session.sqlite                 # エージェントセッション + メッセージ — see 90_shared_04 §2
+  │   ├─ workflow.sqlite                # タスク追跡 + イベント処理 — see 90_shared_04 §7
   │   └─ rrf.sql                        # SQL クエリ参照定義 (KNN・BM25・RRF の説明コメント付き)
   ├─ sqlite-vec/
   │   └─ vec0.so                        # SQLite ベクトル検索拡張 (ロード可能拡張モジュール)
@@ -45,92 +45,92 @@
   │   ├─ agent/                               # エージェント REPL パッケージ
   │   │   ├─ __main__.py                      # python -m agent エントリポイント
   │   │   ├─ repl.py                          # AgentREPL: 全コンポーネントを AgentContext に注入し REPL ループを駆動
-   │   │   ├─ startup.py                       # StartupOrchestrator: 起動シーケンス
-   │   │   ├─ config.py                        # AgentConfig データクラス・設定ローダー (hot-reload 対応)
-   │   │   ├─ config_builders.py               # 設定ビルダ群
-   │   │   ├─ config_dataclasses.py            # 設定データクラス
-   │   │   ├─ context.py                       # AgentContext: per-session mutable state / DI ハブ
-   │   │   ├─ session.py                       # AgentSession: セッション CRUD (SQLite 永続化)
-   │   │   ├─ session_message_repo.py          # セッションメッセージリポジトリ
-   │   │   ├─ history.py                       # 会話履歴バッファ・圧縮フック
-   │   │   ├─ history_selection_policy.py      # 履歴圧縮選択ポリシー
-   │   │   ├─ orchestrator.py                  # Orchestrator: ターンレベル制御 (RAG → 圧縮 → LLM → ツール)
-   │   │   ├─ llm_turn_runner.py               # LLMTurnRunner: SSE ストリーミング + ツールループ
-   │   │   ├─ tool_loop_guard.py               # ToolLoopGuard: dedup/cycle/retry/error ガード
-   │   │   ├─ tool_runner.py                   # ツール実行
-   │   │   ├─ tool_scheduler.py                # ツールスケジューラ (並列/直列)
-   │   │   ├─ tool_policy.py                   # ツールポリシー
-   │   │   ├─ tool_approval.py                 # ツール承認
-   │   │   ├─ tool_audit.py                    # ツール監査
-   │   │   ├─ tool_enums.py                    # ツール列挙型
-   │   │   ├─ tool_exceptions.py               # ツール例外定義
-   │   │   ├─ tool_models.py                   # ツールデータモデル
-   │   │   ├─ tool_output.py                   # ツール出力フォーマット
-   │   │   ├─ tool_result_formatter.py         # ツール結果整形
-   │   │   ├─ turn_result.py                   # ターン結果データクラス
-   │   │   ├─ diagnostic_store.py              # 部分完了診断情報保存
-   │   │   ├─ error_injection_service.py       # エラー注入サービス
-   │   │   ├─ note_repo.py                     # ノートリポジトリ
-   │   │   ├─ mdq_rag_classifier.py            # MDQ RAG 分類エンジン
-   │   │   ├─ lifecycle_protocol.py            # ライフサイクルプロトコル
-   │   │   ├─ lifecycle.py                     # restart_stdio(): 残存関数 (routing は factory.py の _ServerLifecycleRouter が担当)
-   │   │   ├─ http_lifecycle.py                # HTTP ライフサイクル管理
-   │   │   ├─ stdio_lifecycle.py               # Stdio ライフサイクル管理
-   │   │   ├─ repl_health.py                   # ヘルスチェックサテライト
-   │   │   ├─ cli_view.py                      # CLIView: readline 設定・RAG 進捗表示・マルチライン入力
-   │   │   ├─ factory.py                       # AgentFactory: エージェントコンポーネント構築
+  │   │   ├─ startup.py                       # StartupOrchestrator: 起動シーケンス
+  │   │   ├─ config.py                        # AgentConfig データクラス・設定ローダー (hot-reload 対応)
+  │   │   ├─ config_builders.py               # 設定ビルダ群
+  │   │   ├─ config_dataclasses.py            # 設定データクラス
+  │   │   ├─ context.py                       # AgentContext: per-session mutable state / DI ハブ
+  │   │   ├─ session.py                       # AgentSession: セッション CRUD (SQLite 永続化)
+  │   │   ├─ session_message_repo.py          # セッションメッセージリポジトリ
+  │   │   ├─ history.py                       # 会話履歴バッファ・圧縮フック
+  │   │   ├─ history_selection_policy.py      # 履歴圧縮選択ポリシー
+  │   │   ├─ orchestrator.py                  # Orchestrator: ターンレベル制御 (RAG → 圧縮 → LLM → ツール)
+  │   │   ├─ llm_turn_runner.py               # LLMTurnRunner: SSE ストリーミング + ツールループ
+  │   │   ├─ tool_loop_guard.py               # ToolLoopGuard: dedup/cycle/retry/error ガード
+  │   │   ├─ tool_runner.py                   # ツール実行
+  │   │   ├─ tool_scheduler.py                # ツールスケジューラ (並列/直列)
+  │   │   ├─ tool_policy.py                   # ツールポリシー
+  │   │   ├─ tool_approval.py                 # ツール承認
+  │   │   ├─ tool_audit.py                    # ツール監査
+  │   │   ├─ tool_enums.py                    # ツール列挙型
+  │   │   ├─ tool_exceptions.py               # ツール例外定義
+  │   │   ├─ tool_models.py                   # ツールデータモデル
+  │   │   ├─ tool_output.py                   # ツール出力フォーマット
+  │   │   ├─ tool_result_formatter.py         # ツール結果整形
+  │   │   ├─ turn_result.py                   # ターン結果データクラス
+  │   │   ├─ diagnostic_store.py              # 部分完了診断情報保存
+  │   │   ├─ error_injection_service.py       # エラー注入サービス
+  │   │   ├─ note_repo.py                     # ノートリポジトリ
+  │   │   ├─ mdq_rag_classifier.py            # MDQ RAG 分類エンジン
+  │   │   ├─ lifecycle_protocol.py            # ライフサイクルプロトコル
+  │   │   ├─ lifecycle.py                     # restart_stdio(): 残存関数 (routing は factory.py の _ServerLifecycleRouter が担当)
+  │   │   ├─ http_lifecycle.py                # HTTP ライフサイクル管理
+  │   │   ├─ stdio_lifecycle.py               # Stdio ライフサイクル管理
+  │   │   ├─ repl_health.py                   # ヘルスチェックサテライト
+  │   │   ├─ cli_view.py                      # CLIView: readline 設定・RAG 進捗表示・マルチライン入力
+  │   │   ├─ factory.py                       # AgentFactory: エージェントコンポーネント構築
   │   │   ├─ memory/
-   │   │   │   ├─ types.py                     # MemoryEntry / MemoryQuery / MemoryHit / EmbeddingResult データクラス
-   │   │   │   ├─ services.py                  # MemoryServices: memory サブサービスコンテナ (AppServices.memory の型)
-   │   │   │   ├─ store.py                     # MemoryStore: SQLite CRUD (`memories` / `memories_fts` / `memories_vec`)
-   │   │   │   ├─ retriever.py                 # FtsRetriever / VectorRetriever / HybridRetriever: FTS5 + KNN RRF 検索
-   │   │   │   ├─ extract.py                   # extract_memories(): ルールベース履歴抽出
-   │   │   │   ├─ jsonl_store.py               # JsonlMemoryStore: 追記専用 JSONL ソース (write() 1 本)
-   │   │   │   ├─ embedding_client.py          # 埋め込みクライアント
-   │   │   │   ├─ ingestion.py                 # メモリ取り込み
-   │   │   │   ├─ injection.py                 # メモリ注入
-   │   │   │   └─ mapper.py                    # メモリマッパー
-  │   │   └─ commands/
-   │   │       ├─ registry.py                  # CommandRegistry: スラッシュコマンドディスパッチャ (12 mixins)
-   │   │       ├─ cmd_session.py               # /session コマンド (_SessionMixin)
-   │   │       ├─ cmd_mcp.py                   # /mcp コマンド (_McpMixin)
-   │   │       ├─ cmd_config.py                # /config, /reload コマンド (_ConfigMixin)
-   │   │       ├─ cmd_config_display.py        # /config 表示 (_ConfigMixin)
-   │   │       ├─ cmd_config_set.py            # /set コマンド (_ConfigMixin)
-   │   │       ├─ cmd_config_stats.py          # /stats コマンド (_ConfigMixin)
-   │   │       ├─ cmd_context.py               # /context, /clear, /undo, /history, /system コマンド (_ContextMixin)
-   │   │       ├─ cmd_db.py                    # /db コマンド (_DbMixin)
-   │   │       ├─ cmd_tooling.py               # /tool, /plan コマンド (_ToolingMixin)
-   │   │       ├─ cmd_notes.py                 # /note コマンド (_NotesMixin)
-   │   │       ├─ cmd_debug.py                 # /debug コマンド (_DebugMixin)
-   │   │       ├─ cmd_audit.py                 # /audit コマンド (_AuditMixin)
-   │   │       ├─ cmd_ingest.py                # /ingest, /export, /compact, /rag コマンド (_IngestMixin)
-   │   │       ├─ cmd_memory.py               # /memory コマンド (_MemoryMixin)
-   │   │       └─ cmd_workflow.py             # /approve, /reject コマンド (_WorkflowMixin)
+  │   │   │   ├─ types.py                     # MemoryEntry / MemoryQuery / MemoryHit / EmbeddingResult データクラス
+  │   │   │   ├─ services.py                  # MemoryServices: memory サブサービスコンテナ (AppServices.memory の型)
+  │   │   │   ├─ store.py                     # MemoryStore: SQLite CRUD (`memories` / `memories_fts` / `memories_vec`)
+  │   │   │   ├─ retriever.py                 # FtsRetriever / VectorRetriever / HybridRetriever: FTS5 + KNN RRF 検索
+  │   │   │   ├─ extract.py                   # extract_memories(): ルールベース履歴抽出
+  │   │   │   ├─ jsonl_store.py               # JsonlMemoryStore: 追記専用 JSONL ソース (write() 1 本)
+  │   │   │   ├─ embedding_client.py          # 埋め込みクライアント
+  │   │   │   ├─ ingestion.py                 # メモリ取り込み
+  │   │   │   ├─ injection.py                 # メモリ注入
+  │   │   │   └─ mapper.py                    # メモリマッパー
+  │   │   ├─ commands/
+  │   │   │   ├─ registry.py                  # CommandRegistry: スラッシュコマンドディスパッチャ (12 mixins)
+  │   │   │   ├─ cmd_session.py               # /session コマンド (_SessionMixin)
+  │   │   │   ├─ cmd_mcp.py                   # /mcp コマンド (_McpMixin)
+  │   │   │   ├─ cmd_config.py                # /config, /reload コマンド (_ConfigMixin)
+  │   │   │   ├─ cmd_config_display.py        # /config 表示 (_ConfigMixin)
+  │   │   │   ├─ cmd_config_set.py            # /set コマンド (_ConfigMixin)
+  │   │   │   ├─ cmd_config_stats.py          # /stats コマンド (_ConfigMixin)
+  │   │   │   ├─ cmd_context.py               # /context, /clear, /undo, /history, /system コマンド (_ContextMixin)
+  │   │   │   ├─ cmd_db.py                    # /db コマンド (_DbMixin)
+  │   │   │   ├─ cmd_tooling.py               # /tool, /plan コマンド (_ToolingMixin)
+  │   │   │   ├─ cmd_notes.py                 # /note コマンド (_NotesMixin)
+  │   │   │   ├─ cmd_debug.py                 # /debug コマンド (_DebugMixin)
+  │   │   │   ├─ cmd_audit.py                 # /audit コマンド (_AuditMixin)
+  │   │   │   ├─ cmd_ingest.py                # /ingest, /export, /compact, /rag コマンド (_IngestMixin)
+  │   │   │   ├─ cmd_memory.py               # /memory コマンド (_MemoryMixin)
+  │   │   │   └─ cmd_workflow.py             # /approve, /reject コマンド (_WorkflowMixin)
   │   │   ├─ services/                      # サービスレイヤー
-   │   │   ├─ config_reload.py           # 設定リロード
-   │   │   ├─ context_view.py            # コンテキストビュー
-   │   │   ├─ conversation_service.py    # 会話サービス
-   │   │   ├─ db_maintenance_service.py  # DB 保守サービス
-   │   │   ├─ export_formatter.py        # エクスポートフォーマット
-   │   │   ├─ ingest_workflow.py         # 取り込みワークフロー
-   │   │   ├─ io_ports.py                # I/O ポート管理
-   │   │   ├─ mcp_install.py             # MCP サーバインストール
-   │   │   ├─ mcp_status.py              # MCP サーバステータス
-   │   │   ├─ rag_maintenance_service.py # RAG 保守サービス
-   │   │   ├─ session_restore.py         # セッション復元
-   │   │   ├─ session_title.py           # セッションタイトル生成
-   │   │   └─ undo_service.py            # アンドゥサービス
+  │   │   ├─ config_reload.py           # 設定リロード
+  │   │   ├─ context_view.py            # コンテキストビュー
+  │   │   ├─ conversation_service.py    # 会話サービス
+  │   │   ├─ db_maintenance_service.py  # DB 保守サービス
+  │   │   ├─ export_formatter.py        # エクスポートフォーマット
+  │   │   ├─ ingest_workflow.py         # 取り込みワークフロー
+  │   │   ├─ io_ports.py                # I/O ポート管理
+  │   │   ├─ mcp_install.py             # MCP サーバインストール
+  │   │   ├─ mcp_status.py              # MCP サーバステータス
+  │   │   ├─ rag_maintenance_service.py # RAG 保守サービス
+  │   │   ├─ session_restore.py         # セッション復元
+  │   │   ├─ session_title.py           # セッションタイトル生成
+  │   │   ├─ undo_service.py            # アンドゥサービス
   │   │   └─ workflow/                      # ワークフローエンジン
-│   │       ├─ models.py                  # ワークフローデータモデル
-│   │       ├─ state_store.py             # ワークフロー状態ストア
-│   │       ├─ workflow_engine.py         # WorkflowEngine: ターン実行エンジン
-│   │       └─ workflow_loader.py         # ワークフローローダー
-   │   └─ shared/                      # エージェント共有層
-   │       ├─ enums.py                   # エージェント列挙型
-   │       ├─ exceptions.py              # エージェント例外定義
-   │       ├─ health_models.py           # ヘルスチェックモデル
-   │       └─ models.py                  # エージェント共通データモデル
+  │   │       ├─ models.py                  # ワークフローデータモデル
+  │   │       ├─ state_store.py             # ワークフロー状態ストア
+  │   │       ├─ workflow_engine.py         # WorkflowEngine: ターン実行エンジン
+  │   │       └─ workflow_loader.py         # ワークフローローダー
+  │   ├─ shared/                      # エージェント共有層
+  │   │    ├─ enums.py                   # エージェント列挙型
+  │   │    ├─ exceptions.py              # エージェント例外定義
+  │   │    ├─ health_models.py           # ヘルスチェックモデル
+  │   │    └─ models.py                  # エージェント共通データモデル
   │   ├─ mcp/                                 # MCP サーバパッケージ
   │   │   ├─ models.py                        # /v1/call_tool 統合エンドポイント共通 Pydantic モデル
   │   │   ├─ server.py                        # MCP サーバ HTTP 起動共通基底クラス

@@ -75,7 +75,7 @@ sqlite3 /opt/llm/db/workflow.sqlite "SELECT COUNT(*) AS tasks FROM tasks;"
 sqlite3 /opt/llm/db/workflow.sqlite "SELECT status, COUNT(*) FROM tasks GROUP BY status;"
 ```
 
-Schema details for all three: `06_shared_04_db_architecture_and_schema.md`.
+Schema details for all three: `90_shared_04_db_architecture_and_schema.md`.
 
 ---
 

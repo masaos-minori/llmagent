@@ -209,11 +209,11 @@ The agent layer operates across three SQLite databases:
 
 | Database | Purpose | Schema reference |
 |---|---|---|
-| `session.sqlite` | Agent sessions, messages, notes | `06_shared_04` §2 |
-| `rag.sqlite` | RAG documents, chunks, embeddings | `06_shared_04` §3-§6 |
-| `workflow.sqlite` | Task tracking, event processing | `06_shared_04` §7 |
+| `session.sqlite` | Agent sessions, messages, notes | `90_shared_04` §2 |
+| `rag.sqlite` | RAG documents, chunks, embeddings | `90_shared_04` §3-§6 |
+| `workflow.sqlite` | Task tracking, event processing | `90_shared_04` §7 |
 
-DB paths are configured via `rag_db_path`, `session_db_path`, `workflow_db_path` in `common.toml`. Full schema details: `06_shared_04_db_architecture_and_schema.md`.
+DB paths are configured via `rag_db_path`, `session_db_path`, `workflow_db_path` in `common.toml`. Full schema details: `90_shared_04_db_architecture_and_schema.md`.
 
 > **Note:** The `/db session` scope covers session.sqlite maintenance. There is no separate workflow DB accessible via `/db` — workflow tables live in session.sqlite.
 

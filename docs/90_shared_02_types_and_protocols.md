@@ -1,6 +1,6 @@
 # Shared Types and Protocols
 
-- Overview → [06_shared_01_overview.md](06_shared_01_overview.md)
+- Overview → [90_shared_01_overview.md](90_shared_01_overview.md)
 
 ## 1. Purpose
 
@@ -157,7 +157,7 @@ class ArtifactEvent(TypedDict, total=False):
 ```
 
 > **Note:** `ArtifactEvent` is a data definition only. No event bus is implemented.
-> See [06_shared_90 UNIMPL-01](06_shared_90_inconsistencies_and_known_issues.md).
+> See [90_shared_90 UNIMPL-01](90_shared_90_inconsistencies_and_known_issues.md).
 
 ### Future event envelope (aspirational — not implemented)
 

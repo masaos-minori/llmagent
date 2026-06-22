@@ -33,7 +33,7 @@ the `AgentConfig` dataclass.
 | `config/tools_definitions.toml` | ToolConfig (tool_definitions) |
 
 For the canonical config ownership table (owning layer per file), see
-[06_shared_03 §2a Config Ownership](06_shared_03_runtime_and_execution.md#2a-config-ownership).
+[90_shared_03 §2a Config Ownership](90_shared_03_runtime_and_execution.md#2a-config-ownership).
 
 `ctx.cfg` holds the config. `/reload` calls `ConfigLoader().load_all()` to
 re-read all 12 base config files, then passes the merged dict to
