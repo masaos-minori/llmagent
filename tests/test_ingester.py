@@ -235,6 +235,60 @@ class TestEmbedAndStore:
         count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
         assert count == 0
 
+    def test_read_chunk_json_returns_none_fails_immediately(self, tmp_path: Path) -> None:
+        conn, fake_db = _make_db()
+        doc_id = self._insert_parent_doc(conn)
+        path = _write_chunk(tmp_path / "chunk", "c.txt")
+        ingester = _make_ingester(tmp_path)
+
+        with (
+            patch.object(ingester, "_read_chunk_json", return_value=None),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester._embed_and_store(doc_id, path)
+
+        assert result == (False, False)
+        count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        assert count == 0
+
+    def test_empty_content_causes_embedding_failure(self, tmp_path: Path) -> None:
+        conn, fake_db = _make_db()
+        doc_id = self._insert_parent_doc(conn)
+        path = _write_chunk(tmp_path / "chunk", "c.txt", content="")
+        ingester = _make_ingester(tmp_path)
+
+        with (
+            patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester._embed_and_store(doc_id, path)
+
+        assert result == (False, False)
+        count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        assert count == 0
+
+    def test_invalid_chunk_index_falls_back_to_zero(self, tmp_path: Path) -> None:
+        conn, fake_db = _make_db()
+        doc_id = self._insert_parent_doc(conn)
+        path = _write_chunk(tmp_path / "chunk", "c.txt", chunk_index=0)
+        # Overwrite with invalid chunk_index string
+        data = orjson.loads(path.read_bytes())
+        data["chunk_index"] = "invalid_str"
+        path.write_bytes(orjson.dumps(data))
+        ingester = _make_ingester(tmp_path)
+
+        with (
+            patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester._embed_and_store(doc_id, path)
+
+        assert result == (True, True)
+        row = conn.execute(
+            "SELECT chunk_index FROM chunks WHERE doc_id = ?", (doc_id,)
+        ).fetchone()
+        assert row is not None and row[0] == 0
+
 
 # ── ingest_url_group() ────────────────────────────────────────────────────────
 
