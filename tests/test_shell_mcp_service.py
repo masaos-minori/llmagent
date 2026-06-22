@@ -130,6 +130,21 @@ class TestFilterEnv:
         env = {"HOME": "/root", "TERM": "xterm"}
         assert svc._filter_env(env) == env
 
+    def test_both_empty_returns_env_unchanged(self, tmp_path: Path) -> None:
+        svc = _make_service(tmp_path, env_allowlist=[], env_denylist=[])
+        env = {"HOME": "/root", "TERM": "xterm"}
+        assert svc._filter_env(env) == env
+
+    def test_allowlist_with_no_matches_returns_empty_dict(self, tmp_path: Path) -> None:
+        svc = _make_service(tmp_path, env_allowlist=["NONEXISTENT_VAR"])
+        env = {"HOME": "/root", "TERM": "xterm", "PATH": "/usr/bin"}
+        assert svc._filter_env(env) == {}
+
+    def test_denylist_glob_matching_all_removes_all(self, tmp_path: Path) -> None:
+        svc = _make_service(tmp_path, env_denylist=["*"])
+        env = {"HOME": "/root", "TERM": "xterm", "PATH": "/usr/bin"}
+        assert svc._filter_env(env) == {}
+
 
 # ── _resolve_cwd ──────────────────────────────────────────────────────────────
 
