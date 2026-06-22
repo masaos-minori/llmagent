@@ -19,6 +19,25 @@ from shared.mcp_config import McpServerConfig
 _TEST_HTTP_URL = "http://127.0.0.1:9999"
 
 
+def _wire_http_client(MockClient, status_code: int = 200):
+    """Wire up AsyncClient mock to return a response with given status code."""
+    mock_resp = MagicMock()
+    mock_resp.status_code = status_code
+    client_instance = AsyncMock()
+    client_instance.get = AsyncMock(return_value=mock_resp)
+    MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+    MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+    return client_instance, mock_resp
+
+
+def _make_mock_proc(exit_code: int | None = None) -> MagicMock:
+    """Create a mock subprocess with configurable poll() return value."""
+    mock_proc = MagicMock()
+    mock_proc.poll.return_value = exit_code
+    mock_proc.stderr = None
+    return mock_proc
+
+
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
     return McpServerConfig(transport="http", url=url, cmd=[], auth_token="")
 
@@ -287,21 +306,13 @@ class TestStartHttpSubprocess:
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
-        mock_proc = MagicMock()
-        mock_proc.poll.return_value = None
-        mock_proc.stderr = None
-
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
+        mock_proc = _make_mock_proc()
 
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
         ):
-            client_instance = AsyncMock()
-            client_instance.get = AsyncMock(return_value=mock_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            _wire_http_client(MockClient, status_code=200)
             await mgr.start_http_subprocess("s", cfg)
 
         assert mgr._http_mgr._http_procs["s"] is mock_proc
@@ -325,21 +336,14 @@ class TestStartHttpSubprocess:
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
-        mock_proc = MagicMock()
-        mock_proc.poll.return_value = 1  # already exited
-        mock_proc.stderr = None
+        mock_proc = _make_mock_proc(exit_code=1)
 
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             pytest.raises(RuntimeError, match="exited early"),
         ):
-            client_instance = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.status_code = 503
-            client_instance.get = AsyncMock(return_value=mock_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            _wire_http_client(MockClient, status_code=503)
             await mgr.start_http_subprocess("s", cfg)
 
     @pytest.mark.asyncio
@@ -350,19 +354,15 @@ class TestStartHttpSubprocess:
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
-        mock_proc = MagicMock()
-        mock_proc.poll.return_value = None
-        mock_proc.stderr = None
+        mock_proc = _make_mock_proc()
 
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             pytest.raises(RuntimeError, match="did not become healthy"),
         ):
-            client_instance = AsyncMock()
+            client_instance, mock_resp = _wire_http_client(MockClient)
             client_instance.get = AsyncMock(side_effect=Exception("connect refused"))
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             await mgr.start_http_subprocess("s", cfg)
 
     @pytest.mark.asyncio
@@ -371,18 +371,15 @@ class TestStartHttpSubprocess:
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
-        mock_proc = MagicMock()
-        mock_proc.poll.return_value = None
-        mock_proc.stderr = None
+        mock_proc = _make_mock_proc()
 
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             pytest.raises(RuntimeError, match="did not become healthy"),
         ):
-            client_instance = AsyncMock()
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            client_instance, _ = _wire_http_client(MockClient)
+            client_instance.get.return_value = MagicMock()
             await mgr.start_http_subprocess("s", cfg)
 
         client_instance.get.assert_not_called()
@@ -393,9 +390,7 @@ class TestStartHttpSubprocess:
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
-        mock_proc = MagicMock()
-        mock_proc.poll.return_value = None
-        mock_proc.stderr = None
+        mock_proc = _make_mock_proc()
 
         fail_resp = MagicMock()
         fail_resp.status_code = 503
@@ -407,10 +402,8 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.asyncio.sleep", new=AsyncMock()),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
         ):
-            client_instance = AsyncMock()
+            client_instance, _ = _wire_http_client(MockClient)
             client_instance.get = AsyncMock(side_effect=[fail_resp, ok_resp])
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             await mgr.start_http_subprocess("s", cfg)
 
         assert client_instance.get.call_count == 2
@@ -421,9 +414,7 @@ class TestStartHttpSubprocess:
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
-        mock_proc = MagicMock()
-        mock_proc.poll.return_value = None
-        mock_proc.stderr = None
+        mock_proc = _make_mock_proc()
 
         T = 1000.0
         monotonic_values = [T, T + 0.1, T + 1.1]
@@ -439,10 +430,8 @@ class TestStartHttpSubprocess:
             patch.object(mgr._http_mgr, "_terminate_with_timeout"),
             pytest.raises(RuntimeError, match="did not become healthy"),
         ):
-            client_instance = AsyncMock()
+            client_instance, _ = _wire_http_client(MockClient)
             client_instance.get = AsyncMock(return_value=fail_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             await mgr.start_http_subprocess("s", cfg)
 
         assert client_instance.get.call_count == 1
@@ -455,11 +444,7 @@ class TestStartHttpSubprocess:
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
-        mock_proc = MagicMock()
-        mock_proc.poll.return_value = None
-        mock_proc.stderr = None
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
+        mock_proc = _make_mock_proc()
 
         with (
             patch(
@@ -467,10 +452,8 @@ class TestStartHttpSubprocess:
             ) as mock_popen,
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
         ):
-            client_instance = AsyncMock()
+            client_instance, mock_resp = _wire_http_client(MockClient, status_code=200)
             client_instance.get = AsyncMock(return_value=mock_resp)
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             await mgr.start_http_subprocess("s", cfg)
 
         # Verify Popen received an env dict (not None)
@@ -486,9 +469,7 @@ class TestStartHttpSubprocess:
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
 
-        mock_proc = MagicMock()
-        mock_proc.poll.return_value = None
-        mock_proc.stderr = None
+        mock_proc = _make_mock_proc()
         good_resp = MagicMock()
         good_resp.status_code = 200
 
@@ -506,10 +487,8 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch("agent.http_lifecycle.asyncio.sleep", AsyncMock()),
         ):
-            client_instance = AsyncMock()
+            client_instance, _ = _wire_http_client(MockClient)
             client_instance.get = get_side_effect
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             await mgr.start_http_subprocess("s", cfg)
 
         assert call_count == 2
