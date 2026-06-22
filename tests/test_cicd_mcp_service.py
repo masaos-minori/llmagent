@@ -97,6 +97,22 @@ class TestAssertAllowedRepo:
         with pytest.raises(CicdAuthorizationError):
             svc._assert_allowed_repo("owner//repo")
 
+    def test_global_wildcard_does_not_match_any_repo(self) -> None:
+        svc = _make_service(repo_allowlist=["*"])
+        with pytest.raises(CicdAuthorizationError):
+            svc._assert_allowed_repo("owner/repo")
+
+    def test_prefix_wildcard_does_not_match_partial_name(self) -> None:
+        svc = _make_service(repo_allowlist=["owner/rep*"])
+        with pytest.raises(CicdAuthorizationError):
+            svc._assert_allowed_repo("owner/repo")
+
+    def test_mixed_list_with_wildcard_allows_exact_match_only(self) -> None:
+        svc = _make_service(repo_allowlist=["owner/*", "org/repo"])
+        svc._assert_allowed_repo("org/repo")  # must not raise
+        with pytest.raises(CicdAuthorizationError):
+            svc._assert_allowed_repo("owner/repo")
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CiCdService — workflow_allowlist guard
