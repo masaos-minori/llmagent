@@ -366,6 +366,88 @@ class TestStartHttpSubprocess:
             await mgr.start_http_subprocess("s", cfg)
 
     @pytest.mark.asyncio
+    async def test_zero_timeout_skips_health_polls(self) -> None:
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, cmd=["python", "s.py"], timeout=0)
+        ex = _mock_tool_executor()
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
+
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.stderr = None
+
+        with (
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            pytest.raises(RuntimeError, match="did not become healthy"),
+        ):
+            client_instance = AsyncMock()
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            await mgr.start_http_subprocess("s", cfg)
+
+        client_instance.get.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_health_poll_retries_before_success(self) -> None:
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, cmd=["python", "s.py"], timeout=5)
+        ex = _mock_tool_executor()
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
+
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.stderr = None
+
+        fail_resp = MagicMock()
+        fail_resp.status_code = 503
+        ok_resp = MagicMock()
+        ok_resp.status_code = 200
+
+        with (
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.http_lifecycle.asyncio.sleep", new=AsyncMock()),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+        ):
+            client_instance = AsyncMock()
+            client_instance.get = AsyncMock(side_effect=[fail_resp, ok_resp])
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            await mgr.start_http_subprocess("s", cfg)
+
+        assert client_instance.get.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_timeout_boundary_fires_after_controlled_time(self) -> None:
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, cmd=["python", "s.py"], timeout=1)
+        ex = _mock_tool_executor()
+        mgr = _ServerLifecycleRouter({"s": cfg}, ex, {})
+
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.stderr = None
+
+        T = 1000.0
+        monotonic_values = [T, T + 0.1, T + 1.1]
+
+        fail_resp = MagicMock()
+        fail_resp.status_code = 503
+
+        with (
+            patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
+            patch("agent.http_lifecycle.asyncio.sleep", new=AsyncMock()),
+            patch("agent.http_lifecycle.time.monotonic", side_effect=monotonic_values),
+            patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
+            patch.object(mgr._http_mgr, "_terminate_with_timeout"),
+            pytest.raises(RuntimeError, match="did not become healthy"),
+        ):
+            client_instance = AsyncMock()
+            client_instance.get = AsyncMock(return_value=fail_resp)
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+            await mgr.start_http_subprocess("s", cfg)
+
+        assert client_instance.get.call_count == 1
+
+    @pytest.mark.asyncio
     async def test_merges_env_vars(self) -> None:
         cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, cmd=["python", "s.py"])
         # Override env to exercise the env-merge branch
