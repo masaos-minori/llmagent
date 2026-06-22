@@ -385,6 +385,84 @@ class TestRetry:
         assert result.success is True
         assert call_count == 2
 
+    @pytest.mark.asyncio
+    async def test_max_retries_two_fail_twice_then_succeed_on_third(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 2
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _fake_post(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                raise httpx.HTTPStatusError(
+                    "fail", request=MagicMock(), response=MagicMock(status_code=500)
+                )
+            mock_resp = MagicMock()
+            mock_resp.content = orjson.dumps({"embedding": [0.1]})
+            mock_resp.raise_for_status.return_value = None
+            return mock_resp
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _fake_post
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is True
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_max_retries_one_all_fail_exactly_two_attempts(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 1
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _fake_post(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            raise httpx.HTTPStatusError(
+                "fail", request=MagicMock(), response=MagicMock(status_code=503)
+            )
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _fake_post
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is False
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_max_retries_two_no_retry_on_first_success(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        config.max_retries = 2
+        client = EmbeddingClient(config)
+        call_count = 0
+
+        async def _fake_post(*a: object, **kw: object) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            mock_resp = MagicMock()
+            mock_resp.content = orjson.dumps({"embedding": [0.2, 0.3]})
+            mock_resp.raise_for_status.return_value = None
+            return mock_resp
+
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_http.post = _fake_post
+        client._http = mock_http
+        client._enabled = True
+
+        result = await client.fetch("hello")
+        assert result.success is True
+        assert call_count == 1
+
 
 # ── timeout ──────────────────────────────────────────────────────────────────
 
