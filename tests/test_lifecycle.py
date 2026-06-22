@@ -38,12 +38,12 @@ def _make_mock_proc(exit_code: int | None = None) -> MagicMock:
     return mock_proc
 
 
-def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
+def _http_cfg(url: str = _TEST_HTTP_URL) -> McpServerConfig:
     return McpServerConfig(transport="http", url=url, cmd=[], auth_token="")
 
 
 def _http_subprocess_cfg(
-    url: str = "http://127.0.0.1:8000",
+    url: str = _TEST_HTTP_URL,
     cmd: list[str] | None = None,
     timeout: int = 5,
 ) -> McpServerConfig:
@@ -787,7 +787,7 @@ class TestLifecycleState:
         assert mgr.get_transport_state("nonexistent") == LifecycleState.UNKNOWN
 
     def test_get_transport_state_http_server_returns_unknown(self) -> None:
-        cfg = McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], auth_token="svc")
+        cfg = McpServerConfig(transport="http", url=_TEST_HTTP_URL, cmd=[], auth_token="svc")
         mgr = _ServerLifecycleRouter({"svc": cfg}, _mock_tool_executor(), {})
         assert mgr.get_transport_state("svc") == LifecycleState.UNKNOWN
 
