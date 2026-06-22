@@ -146,7 +146,7 @@ class TestFetchStdioTools:
 
 class TestCheckToolDefinitions:
     @pytest.mark.asyncio
-    async def test_returns_empty_when_no_mismatch(self) -> None:
+    async def test_no_mismatch_returns_empty(self) -> None:
         ctx = MagicMock()
         ctx.cfg.tool.tool_definitions = [
             {"function": {"name": "read_file"}},

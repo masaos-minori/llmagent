@@ -18,10 +18,9 @@ from agent.tool_audit import audit_approval as _audit_approval
 from agent.tool_audit import audit_tool_exec as _audit_tool_exec
 from agent.tool_audit import log_approval_decision
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
-from agent.tool_runner import execute_one_tool_call
 from agent.tool_models import ApprovalOutcome
+from agent.tool_runner import execute_one_tool_call
 from shared.tool_executor import ToolCallResult
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -122,7 +121,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
 
 class TestCheckApproval:
     @pytest.mark.asyncio
-    async def test_none_risk_auto_approved_without_input(self) -> None:
+    async def test_none_risk_auto_approved(self) -> None:
         ctx = _make_ctx()
         with patch("builtins.input") as mock_input:
             result = await check_approval(ctx, "list_directory", {"path": "/tmp"})

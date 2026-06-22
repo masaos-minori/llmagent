@@ -83,7 +83,7 @@ class TestFilterEnv:
         result = svc._filter_env(env)
         assert result == {"HOME": "/root"}
 
-    def test_allowlist_empty_value_matches_no_keys(self, tmp_path: Path) -> None:
+    def test_empty_allowlist_value_denies_all_keys(self, tmp_path: Path) -> None:
         # Empty allowlist means denylist is used (or pass-through if also empty)
         svc = _make_service(tmp_path, env_allowlist=[], env_denylist=["LD_PRELOAD"])
         env = {"HOME": "/root", "LD_PRELOAD": "/evil.so"}
