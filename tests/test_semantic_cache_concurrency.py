@@ -9,7 +9,7 @@ import threading
 from rag.cache import SemanticCache
 
 _DIM = 4
-_THREADS = 50
+_THREADS = 5
 
 
 def _vec(v: float) -> list[float]:
