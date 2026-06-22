@@ -146,3 +146,36 @@ class TestCmdSet:
         cmd = _Config(ctx)
         cmd._cmd_set("max_tokens 2048")
         assert ctx.cfg.llm.llm_max_tokens == 2048
+
+
+class TestCmdReloadDeferred:
+    """_cmd_reload renders [DEFER] lines when deferred items are present."""
+
+    def test_deferred_items_rendered(self, capsys: Any) -> None:
+        from unittest.mock import MagicMock, patch
+
+        from agent.services.config_reload import ConfigReloadOutcome
+
+        ctx = _make_ctx()
+        cmd = _Config(ctx)
+        outcome = ConfigReloadOutcome(deferred=["mcp/svc.auth_token"])
+
+        with (
+            patch(
+                "shared.config_loader.ConfigLoader",
+                return_value=MagicMock(load_all=MagicMock(return_value={})),
+            ),
+            patch(
+                "agent.services.config_reload.ConfigReloadService",
+                return_value=MagicMock(
+                    apply_config_dict=MagicMock(return_value=outcome)
+                ),
+            ),
+            patch("shared.config_loader._BASE_CONFIG_FILES", []),
+        ):
+            cmd._cmd_reload()
+
+        out = capsys.readouterr().out
+        assert "[DEFER]" in out
+        assert "mcp/svc.auth_token" in out
+        assert "Deferred (next connection)" in out

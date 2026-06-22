@@ -82,3 +82,86 @@ class TestApplyConfig:
         assert "masked_fields" in d
         assert "mcp_servers" not in d
         assert "approval" not in d
+
+
+class TestDeferredReload:
+    """_apply_mcp_url_reload classifies auth_token / startup_mode changes as deferred."""
+
+    def _make_svc(self, old_auth: str = "", old_startup: str = "persistent") -> object:
+        from agent.services.config_reload import ConfigReloadService
+        from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+
+        old_srv = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://localhost:8080",
+            cmd=[],
+            auth_token=old_auth,
+            startup_mode=StartupMode(old_startup),
+        )
+        ctx = MagicMock()
+        ctx.cfg.mcp.mcp_servers = {"svc": old_srv}
+        ctx.services.llm = None
+        ctx.services.hist_mgr = None
+        ctx.services.tools = None
+        return ConfigReloadService(ctx), old_srv
+
+    def _run(self, svc: object, new_mcp_servers: dict) -> object:  # type: ignore[type-arg]
+        from unittest.mock import patch
+
+        with patch(
+            "agent.config._build_mcp_servers",
+            return_value=new_mcp_servers,
+        ):
+            return svc._apply_mcp_url_reload(svc._ctx, {})  # type: ignore[attr-defined]
+
+    def test_auth_token_change_populates_deferred(self) -> None:
+        from shared.mcp_config import McpServerConfig, TransportType
+
+        svc, _ = self._make_svc(old_auth="old_token")
+        new_srv = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://localhost:8080",
+            cmd=[],
+            auth_token="new_token",
+        )
+        result = self._run(svc, {"svc": new_srv})
+        assert any("auth_token" in item for item in result.deferred)
+
+    def test_startup_mode_change_populates_deferred(self) -> None:
+        from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+
+        svc, _ = self._make_svc(old_startup="persistent")
+        new_srv = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://localhost:8080",
+            cmd=[],
+            startup_mode=StartupMode.ONDEMAND,
+        )
+        result = self._run(svc, {"svc": new_srv})
+        assert any("startup_mode" in item for item in result.deferred)
+
+    def test_no_credential_change_no_deferred(self) -> None:
+        from shared.mcp_config import McpServerConfig, TransportType
+
+        svc, _ = self._make_svc(old_auth="same_token")
+        new_srv = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://localhost:8080",
+            cmd=[],
+            auth_token="same_token",
+        )
+        result = self._run(svc, {"svc": new_srv})
+        assert result.deferred == []
+
+    def test_deferred_values_stored_in_cfg(self) -> None:
+        from shared.mcp_config import McpServerConfig, TransportType
+
+        svc, old_srv = self._make_svc(old_auth="old")
+        new_srv = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://localhost:8080",
+            cmd=[],
+            auth_token="updated",
+        )
+        self._run(svc, {"svc": new_srv})
+        assert old_srv.auth_token == "updated"

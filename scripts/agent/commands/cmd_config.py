@@ -51,10 +51,14 @@ class _ConfigMixin(
             result = ConfigReloadService(self._ctx).apply_config_dict(new_cfg)
             result.source_files = list(_BASE_CONFIG_FILES)
 
-            if not result.applied and not result.needs_restart:
+            if not result.applied and not result.needs_restart and not result.deferred:
                 self._out.write("No changes detected.")
             elif result.needs_restart:
                 self._out.write("Config reloaded — some changes require restart")
+            elif result.deferred:
+                self._out.write(
+                    "Config reloaded — some changes deferred to next connection"
+                )
             else:
                 self._out.write("Config reloaded — all changes applied")
             if result.needs_restart:
@@ -70,15 +74,21 @@ class _ConfigMixin(
                 self._out.write(f"Applied (runtime): [{count} items]")
                 for item in result.applied:
                     self._out.write(f"  [OK] - {item}")
+            if result.deferred:
+                count = len(result.deferred)
+                self._out.write(f"Deferred (next connection): [{count} items]")
+                for item in result.deferred:
+                    self._out.write(f"  [DEFER] - {item}")
             if result.skipped:
                 count = len(result.skipped)
                 self._out.write(f"Skipped: [{count} items]")
                 for item in result.skipped:
                     self._out.write(f"  [SKIP] - {item}")
             logger.info(
-                "Config reloaded: applied=%s, needs_restart=%s",
+                "Config reloaded: applied=%s, needs_restart=%s, deferred=%s",
                 result.applied,
                 result.needs_restart,
+                result.deferred,
             )
         except OSError as e:
             logger.warning("Config reload I/O error: %s", e)
