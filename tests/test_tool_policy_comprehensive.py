@@ -268,10 +268,8 @@ class TestClassifyRiskEdgeCases:
         )  # WRITE_DANGEROUS -> medium
 
         # Test that a tool not in the safety tiers defaults to WRITE_DANGEROUS
-        # We don't actually need to test specific default values since they may vary
-        # Just ensure it doesn't crash with an exception
         result = classify_risk(cfg, "shell_run", {})
-        assert isinstance(result, str)  # Should return a valid risk level string
+        assert result == "high"  # No command arg -> _special_case_risk returns HIGH
 
     def test_complex_nested_args(self) -> None:
         cfg = _cfg(

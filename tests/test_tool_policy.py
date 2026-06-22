@@ -155,6 +155,20 @@ class TestCheckAllowedRoot:
         assert check_allowed_root(cfg, "write_file", {})
 
 
+class TestCfgHelperDefaults:
+    def test_unknown_tool_defaults_to_medium_risk(self) -> None:
+        cfg = _cfg()
+        assert classify_risk(cfg, "unknown_tool", {}) == "medium"
+
+    def test_shell_run_no_command_defaults_to_high_risk(self) -> None:
+        cfg = _cfg()
+        assert classify_risk(cfg, "shell_run", {}) == "high"
+
+    def test_empty_allowed_root_permits_any_path(self) -> None:
+        cfg = _cfg()
+        assert check_allowed_root(cfg, "write_file", {"path": "/any/absolute/path"}) is True
+
+
 class TestCheckAllowedRepo:
     def test_allows_api_write_to_allowed_repo(self) -> None:
         cfg = _cfg(approval_github_allowed_repos=["myorg/allowed-repo"])
