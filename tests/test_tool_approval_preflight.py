@@ -244,6 +244,27 @@ class TestCheckApproval:
             with pytest.raises(RuntimeError, match="audit error"):
                 await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
 
+    @pytest.mark.asyncio
+    async def test_medium_risk_uppercase_y_approved(self) -> None:
+        ctx = _make_ctx()
+        with patch("asyncio.to_thread", new=AsyncMock(return_value="Y")):
+            result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_high_risk_uppercase_yes_approved(self) -> None:
+        ctx = _make_ctx()
+        with patch("asyncio.to_thread", new=AsyncMock(return_value="YES")):
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_medium_risk_full_word_yes_is_insufficient(self) -> None:
+        ctx = _make_ctx()
+        with patch("asyncio.to_thread", new=AsyncMock(return_value="yes")):
+            result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+        assert result is False
+
 
 # ── _audit_approval() ─────────────────────────────────────────────────────────
 
