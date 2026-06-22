@@ -101,7 +101,7 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 
 | Command | Side effects | Related state |
 |---|---|---|
-| `/context` | None | Display history size, budget, system prompt |
+| `/context` | None | Display history size, budget, system prompt, workflow mode, approval-pending state |
 | `/compact` | LLM call (compression) | Compresses history immediately |
 | `/system [name]` | Updates `history[0]` | `ctx.conv.system_prompt_name` |
 

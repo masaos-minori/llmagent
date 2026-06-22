@@ -177,7 +177,7 @@ completes and before the verify stage runs:
 
 1. Engine calls `store.request_approval(task_id)` → `ApprovalRecord` with `status=pending`
 2. Task status → `pending_approval`
-3. `WorkflowPendingApprovalError` raised → orchestrator stores `approval_id` in `ctx.turn.pending_approval_id`
+3. `WorkflowPendingApprovalError` raised → orchestrator stores `approval_id` in `ctx.turn.pending_approval_id`; logs WARNING: `[workflow] Approval required. Use /approve [reason] or /reject [reason].`
 4. User runs `/approve [reason]` or `/reject [reason]`
 5. On next workflow run with the same task, engine checks approval status:
    - `approved` → continue to verify stage

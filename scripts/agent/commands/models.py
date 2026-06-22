@@ -26,6 +26,7 @@ class StatsViewModel:
     output_tokens: int | None
     debug_mode: bool
     latency: dict[str, Any] | None  # presentation-only; dict intentional
+    workflow_mode: str = ""
 
 
 @dataclass(frozen=True)
