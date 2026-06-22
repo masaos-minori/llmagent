@@ -15,6 +15,15 @@ Each entry format:
 
 ## Open Questions
 
+### OQ-01: AgentSession RAG-layer dependency
+
+- **Type:** Resolved
+- **Status:** Resolved as of boundary split
+- `AgentSession` has zero RAG-layer imports. All RAG maintenance routes through `RagMaintenanceService`.
+- Verified by `tests/test_mdq_rag_boundary.py::test_agent_layer_rag_sqlite_access_only_in_maintenance_service`.
+
+---
+
 ### OQ-03: Session title generation silently drops errors — no user feedback
 
 - **Type:** Open Question / Needs confirmation
@@ -23,6 +32,15 @@ Each entry format:
 - **Current safe interpretation:** Session title generation failure is non-fatal. The session continues normally. Titles may be empty after LLM or config errors.
 - **Recommended action:** Consider implementing a `first_input[:50]` fallback title on LLM failure (same as the older implementation described in source docs).
 - **Notes for AI reference:** Do not rely on session titles being set after the first turn. Title generation is asynchronous and may fail silently.
+
+---
+
+### Session SQLite corruption recovery gap
+
+- **Type:** Known Gap
+- `/db recover` (compatibility alias) and `/db rag recover` target `rag.sqlite` only (via `RagMaintenanceService`)
+- `/db session recover [backup-path]` now exists: calls `DbMaintenanceService.recover_session()` → `recover_corruption(backup_path, target="session")`
+- Operator path: `/db session recover /path/to/backup.sqlite`
 
 ---
 

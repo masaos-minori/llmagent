@@ -107,6 +107,7 @@ class _DbMixin(MixinBase):
             "checkpoint": lambda: self._db_checkpoint(rest.strip().upper() or None),
             "vacuum": self._db_vacuum,
             "purge": lambda: self._db_purge(rest),
+            "recover": lambda: self._db_recover_session(rest.strip() or None),
         }
         handler = dispatch.get(subcmd)
         if handler:
@@ -134,6 +135,12 @@ class _DbMixin(MixinBase):
                 "Session",
                 "--max-sessions N\n--max-age-days N",
                 "Purge old sessions",
+            ],
+            [
+                "session recover",
+                "Session",
+                "[backup-path]",
+                "Integrity check / restore",
             ],
         ]
         self._out.write_table(
@@ -171,6 +178,7 @@ class _DbMixin(MixinBase):
             ["checkpoint", "[MODE]", "WAL checkpoint"],
             ["vacuum", "", "Reclaim free pages"],
             ["purge", "--max-sessions N\n--max-age-days N", "Purge old sessions"],
+            ["recover", "[backup-path]", "Integrity check / restore"],
         ]
         self._out.write_table(
             ["Subcommand (/db session ...)", "Arguments", "Description"],
@@ -317,6 +325,14 @@ class _DbMixin(MixinBase):
             self._out.write_success(f"Recovery succeeded: {result.detail} [RAG]")
         else:
             self._out.write_no_data(f"Recovery failed: {result.detail} [RAG]")
+
+    def _db_recover_session(self, backup_path: str | None) -> None:
+        """Run integrity check on session.sqlite; restore from backup_path if corruption found."""
+        result = DbMaintenanceService().recover_session(backup_path)
+        if result.integrity_ok:
+            self._out.write_success(f"Recovery succeeded: {result.detail} [Session]")
+        else:
+            self._out.write_no_data(f"Recovery failed: {result.detail} [Session]")
 
     def _db_consistency(self) -> None:
         """Run RAG search index synchronization check."""

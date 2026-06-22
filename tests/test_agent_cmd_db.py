@@ -664,6 +664,34 @@ class TestCmdDbSessionScope:
 
 
 class TestCmdDbBackwardCompat:
+    def test_session_recover_success(self, capsys: pytest.CaptureFixture) -> None:
+        from db.maintenance import RecoveryResult
+
+        cmd = _make_cmd()
+        with patch(
+            "agent.services.db_maintenance_service.recover_corruption",
+            return_value=RecoveryResult(success=True, action="ok", detail="ok"),
+        ):
+            _run_db(cmd, "session recover")
+            out = capsys.readouterr().out
+            assert "Session" in out
+            assert "succeeded" in out.lower()
+
+    def test_session_recover_failure(self, capsys: pytest.CaptureFixture) -> None:
+        from db.maintenance import RecoveryResult
+
+        cmd = _make_cmd()
+        with patch(
+            "agent.services.db_maintenance_service.recover_corruption",
+            return_value=RecoveryResult(
+                success=False, action="failed", detail="corrupted"
+            ),
+        ):
+            _run_db(cmd, "session recover")
+            out = capsys.readouterr().out
+            assert "Session" in out
+            assert "failed" in out.lower()
+
     def test_flat_stats_still_works(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
         with (
