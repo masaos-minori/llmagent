@@ -771,3 +771,133 @@ class TestFtsTriggerConcurrency:
         results_after_old = repo.fts_search("old_content", top_k=10)
         old_ids = {r.chunk_id for r in results_after_old}
         assert old_ids.isdisjoint(updated_chunk_ids)
+
+    def test_concurrent_insert_and_delete_simultaneously(self) -> None:
+        """INSERT and DELETE threads run concurrently; FTS must stay consistent."""
+        conn, lock = _make_concurrent_db()
+
+        with lock:
+            conn.execute(
+                "INSERT INTO documents (url, title, lang) VALUES (?, ?, ?)",
+                ("http://example.com/conc4", "Simultaneous INS+DEL test", "en"),
+            )
+            doc_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            for i in range(10):
+                conn.execute(
+                    "INSERT INTO chunks (doc_id, chunk_index, content) VALUES (?, ?, ?)",
+                    (doc_id, i, f"pre_content_{i}"),
+                )
+            conn.commit()
+            pre_ids = [
+                r[0]
+                for r in conn.execute(
+                    "SELECT chunk_id FROM chunks WHERE doc_id = ? ORDER BY chunk_index",
+                    (doc_id,),
+                ).fetchall()
+            ]
+
+        delete_ids = set(pre_ids[:5])
+
+        def _insert(i: int) -> None:
+            with lock:
+                conn.execute(
+                    "INSERT INTO chunks (doc_id, chunk_index, content) VALUES (?, ?, ?)",
+                    (doc_id, 100 + i, f"new_content_{i}"),
+                )
+                conn.commit()
+
+        def _delete(chunk_id: int) -> None:
+            with lock:
+                conn.execute("DELETE FROM chunks WHERE chunk_id = ?", (chunk_id,))
+                conn.commit()
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            ins_futures = [executor.submit(_insert, i) for i in range(5)]
+            del_futures = [executor.submit(_delete, cid) for cid in delete_ids]
+            for f in concurrent.futures.as_completed(ins_futures + del_futures):
+                f.result()
+
+        class _TestHelper:
+            def fetchall(self, sql, params=()):
+                return list(conn.execute(sql, params).fetchall())
+
+        repo = RagRepository(_TestHelper())
+        new_results = repo.fts_search("new_content", top_k=10)
+        assert len(new_results) == 5
+
+        old_results = repo.fts_search("pre_content", top_k=10)
+        old_ids = {r.chunk_id for r in old_results}
+        assert old_ids.isdisjoint(delete_ids)
+
+    def test_concurrent_insert_update_delete_all_triggers(self) -> None:
+        """All three FTS triggers fire concurrently; FTS must remain consistent."""
+        conn, lock = _make_concurrent_db()
+
+        with lock:
+            conn.execute(
+                "INSERT INTO documents (url, title, lang) VALUES (?, ?, ?)",
+                ("http://example.com/conc5", "All-trigger test", "en"),
+            )
+            doc_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            for i in range(10):
+                conn.execute(
+                    "INSERT INTO chunks (doc_id, chunk_index, content) VALUES (?, ?, ?)",
+                    (doc_id, i, f"original_content_{i}"),
+                )
+            conn.commit()
+            pre_ids = [
+                r[0]
+                for r in conn.execute(
+                    "SELECT chunk_id FROM chunks WHERE doc_id = ? ORDER BY chunk_index",
+                    (doc_id,),
+                ).fetchall()
+            ]
+
+        update_ids = pre_ids[:3]
+        delete_ids = set(pre_ids[3:6])
+
+        def _insert(i: int) -> None:
+            with lock:
+                conn.execute(
+                    "INSERT INTO chunks (doc_id, chunk_index, content) VALUES (?, ?, ?)",
+                    (doc_id, 200 + i, f"brand_new_content_{i}"),
+                )
+                conn.commit()
+
+        def _update(chunk_id: int, idx: int) -> None:
+            with lock:
+                conn.execute(
+                    "UPDATE chunks SET content = ? WHERE chunk_id = ?",
+                    (f"updated_content_{idx}", chunk_id),
+                )
+                conn.commit()
+
+        def _delete(chunk_id: int) -> None:
+            with lock:
+                conn.execute("DELETE FROM chunks WHERE chunk_id = ?", (chunk_id,))
+                conn.commit()
+
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            futures = (
+                [executor.submit(_insert, i) for i in range(3)]
+                + [executor.submit(_update, cid, idx) for idx, cid in enumerate(update_ids)]
+                + [executor.submit(_delete, cid) for cid in delete_ids]
+            )
+            for f in concurrent.futures.as_completed(futures):
+                f.result()
+
+        class _TestHelper:
+            def fetchall(self, sql, params=()):
+                return list(conn.execute(sql, params).fetchall())
+
+        repo = RagRepository(_TestHelper())
+
+        new_results = repo.fts_search("brand_new_content", top_k=10)
+        assert len(new_results) == 3
+
+        upd_results = repo.fts_search("updated_content", top_k=10)
+        assert len(upd_results) == 3
+
+        after_del = repo.fts_search("original_content", top_k=10)
+        del_result_ids = {r.chunk_id for r in after_del}
+        assert del_result_ids.isdisjoint(delete_ids)
