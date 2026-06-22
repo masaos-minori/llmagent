@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import sqlite3
@@ -9,7 +10,8 @@ from typing import Any
 
 import jsonschema
 import orjson
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 
 from eventbus.config import EventBusConfig, load_config
 from eventbus.db import open_db
@@ -73,6 +75,96 @@ async def publish(request: Request) -> dict[str, Any]:
     _append_jsonl(body, seq)
     logger.info("publish event_id=%s topic=%s seq=%d", event_id, topic, seq)
     return {"event_id": event_id, "seq": seq}
+
+
+@app.get("/replay")
+async def replay(
+    since_seq: int = Query(default=0, ge=0),
+    fmt: str = Query(default="sse", alias="format"),
+) -> Any:
+    rows = _db.execute(  # type: ignore[union-attr]
+        "SELECT seq, event_id, topic, payload, producer, published_at"
+        " FROM events WHERE seq > ? ORDER BY seq",
+        (since_seq,),
+    ).fetchall()
+
+    if fmt == "json":
+        return [_row_to_dict(r) for r in rows]
+
+    async def _sse_gen() -> Any:
+        for row in rows:
+            data = orjson.dumps(_row_to_dict(row)).decode()
+            yield f"data: {data}\n\n"
+
+    return StreamingResponse(_sse_gen(), media_type="text/event-stream")
+
+
+@app.get("/subscribe")
+async def subscribe(
+    topic: list[str] = Query(default=[]),
+    since_seq: int = Query(default=0, ge=0),
+    consumer_id: str = Query(default=""),
+) -> Any:
+    from eventbus.offsets import (
+        read_offset,  # noqa: PLC0415 — deferred to avoid circular at module load
+    )
+
+    start_seq = since_seq
+    if consumer_id and start_seq == 0:
+        assert _cfg is not None
+        start_seq = read_offset(_cfg.offsets_dir, consumer_id)
+
+    assert _cfg is not None
+    interval = _cfg.poll_interval_ms / 1000.0
+
+    async def _sse_gen() -> Any:
+        current_seq = start_seq
+        try:
+            while True:
+                if topic:
+                    placeholders = ",".join("?" for _ in topic)
+                    rows = _db.execute(  # type: ignore[union-attr]
+                        f"SELECT seq, event_id, topic, payload, producer, published_at"  # noqa: UP032
+                        f" FROM events WHERE seq > ? AND topic IN ({placeholders})"
+                        f" ORDER BY seq",
+                        (current_seq, *topic),
+                    ).fetchall()
+                else:
+                    rows = _db.execute(  # type: ignore[union-attr]
+                        "SELECT seq, event_id, topic, payload, producer, published_at"
+                        " FROM events WHERE seq > ? ORDER BY seq",
+                        (current_seq,),
+                    ).fetchall()
+
+                for row in rows:
+                    data = orjson.dumps(_row_to_dict(row)).decode()
+                    yield f"data: {data}\n\n"
+                    current_seq = row["seq"]
+
+                await asyncio.sleep(interval)
+
+        except asyncio.CancelledError:
+            logger.info(
+                "subscribe disconnected consumer=%s seq=%d", consumer_id, current_seq
+            )
+            if consumer_id:
+                from eventbus.offsets import write_offset  # noqa: PLC0415
+
+                assert _cfg is not None
+                write_offset(_cfg.offsets_dir, consumer_id, current_seq)
+
+    return StreamingResponse(_sse_gen(), media_type="text/event-stream")
+
+
+def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "seq": row["seq"],
+        "event_id": row["event_id"],
+        "topic": row["topic"],
+        "payload": orjson.loads(row["payload"]),
+        "producer": row["producer"],
+        "published_at": row["published_at"],
+    }
 
 
 def _get_seq(event_id: str) -> int:
