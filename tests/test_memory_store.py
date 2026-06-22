@@ -8,6 +8,7 @@ SQLiteHelper is patched with _FakeSQLiteHelper backed by in-memory SQLite.
 from __future__ import annotations
 
 import dataclasses
+import os
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -355,3 +356,107 @@ class TestGetById:
 
     def test_returns_none_when_not_found(self, store: MemoryStore) -> None:
         assert store.get_by_id("nonexistent") is None
+
+
+# ── concurrent upsert() ──────────────────────────────────────────────────────
+
+
+def _make_concurrent_store() -> tuple[MemoryStore, str]:
+    import tempfile
+
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    conn = sqlite3.connect(path, timeout=5)
+    conn.executescript(_SCHEMA_SQL)
+    conn.commit()
+    conn.close()
+
+    class _ConcurrentHelper:
+        def __init__(self) -> None:
+            self._conn = sqlite3.connect(path, timeout=5)
+
+        def open(
+            self, *, write_mode: bool = False, row_factory: bool = False
+        ) -> _ConcurrentHelper:
+            self._conn.row_factory = sqlite3.Row if row_factory else None
+            return self
+
+        def __enter__(self) -> _ConcurrentHelper:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            pass
+
+        def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
+            return self._conn.execute(sql, params)
+
+        def fetchall(self, sql: str, params: tuple = ()) -> list:
+            return self._conn.execute(sql, params).fetchall()
+
+        def commit(self) -> None:
+            self._conn.commit()
+
+        @contextmanager
+        def begin_immediate(self) -> Generator[None]:
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                yield
+                self._conn.execute("COMMIT")
+            except BaseException:
+                try:
+                    self._conn.execute("ROLLBACK")
+                except Exception:
+                    pass
+                raise
+
+    patcher = patch(
+        "agent.memory.store.SQLiteHelper", side_effect=lambda mode: _ConcurrentHelper()
+    )
+    patcher.start()
+    store = MemoryStore()
+    return (store, path)
+
+
+class TestUpsertConcurrency:
+    def test_concurrent_upsert_different_ids_all_persisted(self) -> None:
+        store, path = _make_concurrent_store()
+        try:
+            entries = [_make_entry(memory_id=f"concurrent-{i}") for i in range(10)]
+
+            from concurrent.futures import ThreadPoolExecutor
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                list(executor.map(store.upsert, entries))
+
+            conn = sqlite3.connect(path)
+            try:
+                count = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
+                assert count == 10
+            finally:
+                conn.close()
+        finally:
+            os.unlink(path) if os.path.exists(path) else None
+
+    def test_concurrent_upsert_same_id_single_row(self) -> None:
+        store, path = _make_concurrent_store()
+        try:
+            entries = [
+                _make_entry(memory_id="same-id", content=f"content-{i}")
+                for i in range(5)
+            ]
+
+            from concurrent.futures import ThreadPoolExecutor
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                list(executor.map(store.upsert, entries))
+
+            conn = sqlite3.connect(path)
+            try:
+                count = conn.execute(
+                    "SELECT COUNT(*) FROM memories WHERE memory_id='same-id'"
+                ).fetchone()[0]
+                assert count == 1
+            finally:
+                conn.close()
+        finally:
+            os.unlink(path) if os.path.exists(path) else None
