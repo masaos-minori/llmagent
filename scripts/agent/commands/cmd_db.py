@@ -35,10 +35,18 @@ class _DbMixin(MixinBase):
     """Database management slash-command handlers."""
 
     async def _cmd_db(self, args: str) -> None:
-        """Handle /db stats|urls|clean|rebuild-fts|health|checkpoint|vacuum|purge|recover."""
+        """Handle /db [rag|session] <subcmd> | /db <subcmd>."""
         parts = args.strip().split(None, 1)
         subcmd = parts[0] if parts else ""
         rest = parts[1] if len(parts) == DB_PARTS_COUNT else ""
+
+        if subcmd == "rag":
+            await self._cmd_db_rag(rest)
+            return
+        if subcmd == "session":
+            await self._cmd_db_session(rest)
+            return
+
         dispatch: dict[str, Any] = {
             "help": self._db_help,
             "stats": self._db_stats,
@@ -59,34 +67,113 @@ class _DbMixin(MixinBase):
                 await result
         else:
             self._out.write_validation_error(
-                "/db help | /db stats | /db urls [--lang ja|en] [--limit N]"
+                "/db rag <subcmd> | /db session <subcmd>"
+                " | /db help | /db stats | /db urls [--lang ja|en] [--limit N]"
                 " | /db clean <url> | /db rebuild-fts"
                 " | /db health | /db checkpoint [MODE]"
                 " | /db vacuum | /db purge [--max-sessions N] [--max-age-days N]"
                 " | /db recover [<backup-path>] | /db consistency"
             )
 
+    async def _cmd_db_rag(self, args: str) -> None:
+        """Handle /db rag <subcmd>."""
+        parts = args.strip().split(None, 1)
+        subcmd = parts[0] if parts else ""
+        rest = parts[1] if len(parts) == DB_PARTS_COUNT else ""
+        dispatch: dict[str, Any] = {
+            "stats": self._db_rag_stats,
+            "urls": lambda: self._db_list_urls(rest),
+            "clean": lambda: self._db_clean(rest),
+            "rebuild-fts": self._db_rebuild_fts,
+            "recover": lambda: self._db_recover(rest.strip() or None),
+            "consistency": self._db_consistency,
+        }
+        handler = dispatch.get(subcmd)
+        if handler:
+            result = handler()
+            if inspect.isawaitable(result):
+                await result
+        else:
+            self._db_help_rag()
+
+    async def _cmd_db_session(self, args: str) -> None:
+        """Handle /db session <subcmd>."""
+        parts = args.strip().split(None, 1)
+        subcmd = parts[0] if parts else ""
+        rest = parts[1] if len(parts) == DB_PARTS_COUNT else ""
+        dispatch: dict[str, Any] = {
+            "stats": self._db_session_stats,
+            "health": self._db_health,
+            "checkpoint": lambda: self._db_checkpoint(rest.strip().upper() or None),
+            "vacuum": self._db_vacuum,
+            "purge": lambda: self._db_purge(rest),
+        }
+        handler = dispatch.get(subcmd)
+        if handler:
+            result = handler()
+            if inspect.isawaitable(result):
+                await result
+        else:
+            self._db_help_session()
+
     def _db_help(self) -> None:
         """Print a help table for /db subcommands."""
         rows = [
-            ["stats", "Session", "", "Record counts"],
-            ["urls", "RAG", "--lang --limit", "List document URLs"],
-            ["clean", "RAG", "<url>", "Delete a document"],
-            ["rebuild-fts", "RAG", "", "Rebuild FTS5 index"],
-            ["health", "Session", "", "Integrity check / size"],
-            ["checkpoint", "Session", "[MODE]", "WAL checkpoint"],
-            ["vacuum", "Session", "", "Reclaim free pages"],
+            ["rag stats", "RAG", "", "Document/chunk counts"],
+            ["rag urls", "RAG", "--lang --limit", "List document URLs"],
+            ["rag clean", "RAG", "<url>", "Delete a document"],
+            ["rag rebuild-fts", "RAG", "", "Rebuild FTS5 index"],
+            ["rag recover", "RAG", "[backup-path]", "Integrity check / restore"],
+            ["rag consistency", "RAG", "", "Chunks/FTS/vec sync check"],
+            ["session stats", "Session", "", "Session/message counts"],
+            ["session health", "Session", "", "Integrity check / size"],
+            ["session checkpoint", "Session", "[MODE]", "WAL checkpoint"],
+            ["session vacuum", "Session", "", "Reclaim free pages"],
             [
-                "purge",
+                "session purge",
                 "Session",
                 "--max-sessions N\n--max-age-days N",
                 "Purge old sessions",
             ],
-            ["recover", "RAG", "[backup-path]", "Integrity check / restore"],
-            ["consistency", "RAG", "", "Chunks/FTS/vec sync check"],
         ]
         self._out.write_table(
             ["Subcommand", "Target DB", "Arguments", "Description"],
+            rows,
+        )
+        self._out.write(
+            "Compatibility aliases: /db stats|urls|clean|rebuild-fts"
+            "|health|checkpoint|vacuum|purge|recover|consistency"
+        )
+        self._out.write(
+            "Note: workflow data lives in session.sqlite; no separate workflow DB."
+        )
+
+    def _db_help_rag(self) -> None:
+        """Print help for /db rag subcommands."""
+        rows = [
+            ["stats", "", "Document/chunk counts"],
+            ["urls", "--lang --limit", "List document URLs"],
+            ["clean", "<url>", "Delete a document"],
+            ["rebuild-fts", "", "Rebuild FTS5 index"],
+            ["recover", "[backup-path]", "Integrity check / restore"],
+            ["consistency", "", "Chunks/FTS/vec sync check"],
+        ]
+        self._out.write_table(
+            ["Subcommand (/db rag ...)", "Arguments", "Description"],
+            rows,
+        )
+
+    def _db_help_session(self) -> None:
+        """Print help for /db session subcommands."""
+        rows = [
+            ["stats", "", "Session/message counts"],
+            ["health", "", "Integrity check / size"],
+            ["checkpoint", "[MODE]", "WAL checkpoint"],
+            ["vacuum", "", "Reclaim free pages"],
+            ["purge", "--max-sessions N\n--max-age-days N", "Purge old sessions"],
+        ]
+        self._out.write_table(
+            ["Subcommand (/db session ...)", "Arguments", "Description"],
             rows,
         )
 
@@ -120,6 +207,28 @@ class _DbMixin(MixinBase):
             [
                 ("documents", f"{rag_docs:,}"),
                 ("chunks", f"{rag_chunks:,}"),
+                ("sessions", f"{result.sessions:,}"),
+                ("messages", f"{result.messages:,}"),
+                ("target", "Both"),
+            ]
+        )
+
+    def _db_rag_stats(self) -> None:
+        """Print document/chunk counts from the RAG database."""
+        rag_docs, rag_chunks = RagMaintenanceService().stats_rag()
+        self._out.write_kv(
+            [
+                ("documents", f"{rag_docs:,}"),
+                ("chunks", f"{rag_chunks:,}"),
+                ("target", "RAG"),
+            ]
+        )
+
+    def _db_session_stats(self) -> None:
+        """Print session/message counts from the Session database."""
+        result = DbMaintenanceService().stats()
+        self._out.write_kv(
+            [
                 ("sessions", f"{result.sessions:,}"),
                 ("messages", f"{result.messages:,}"),
                 ("target", "Session"),

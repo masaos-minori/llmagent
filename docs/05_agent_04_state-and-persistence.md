@@ -215,6 +215,8 @@ The agent layer operates across three SQLite databases:
 
 DB paths are configured via `rag_db_path`, `session_db_path`, `workflow_db_path` in `common.toml`. Full schema details: `06_shared_04_db_architecture_and_schema.md`.
 
+> **Note:** The `/db session` scope covers session.sqlite maintenance. There is no separate workflow DB accessible via `/db` — workflow tables live in session.sqlite.
+
 ---
 
 ## Session / RAG Responsibility Boundary
@@ -236,4 +238,4 @@ never through the session object.
 Verified boundaries:
 - `agent/session.py` imports only: `db.helper`, `shared.types`, `agent.note_repo`, `agent.session_message_repo`
 - `db/maintenance.py` contains RAG-file utility functions (`rotate_rag_db`, `vacuum_db`) but has zero `rag/` module imports
-- `/db` command routes RAG maintenance subcommands through `RagMaintenanceService` and session subcommands through `DbMaintenanceService`
+- `/db` command routes subcommands by scope: `/db rag <subcmd>` targets `RagMaintenanceService`; `/db session <subcmd>` targets `DbMaintenanceService`; flat forms (`/db stats` etc.) remain as compatibility aliases

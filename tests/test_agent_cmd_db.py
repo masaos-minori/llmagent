@@ -138,7 +138,9 @@ class TestParseFlagStr:
 class TestDbStats:
     def test_stats_prints_counts(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        with patch("agent.services.rag_maintenance_service.SQLiteHelper") as MockHelperRag:
+        with patch(
+            "agent.services.rag_maintenance_service.SQLiteHelper"
+        ) as MockHelperRag:
             mock_db_rag = MagicMock()
             mock_db_rag.fetchall.side_effect = [
                 [{"n": 100}],
@@ -150,14 +152,18 @@ class TestDbStats:
             helper_mock_rag = MagicMock()
             helper_mock_rag.open = open_mock_rag
             MockHelperRag.return_value = helper_mock_rag
-            with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelperSession:
+            with patch(
+                "agent.services.db_maintenance_service.SQLiteHelper"
+            ) as MockHelperSession:
                 mock_db_session = MagicMock()
                 mock_db_session.fetchall.side_effect = [
                     [{"n": 10}],
                     [{"n": 200}],
                 ]
                 open_mock_session = MagicMock()
-                open_mock_session.return_value.__enter__ = MagicMock(return_value=mock_db_session)
+                open_mock_session.return_value.__enter__ = MagicMock(
+                    return_value=mock_db_session
+                )
                 open_mock_session.return_value.__exit__ = MagicMock(return_value=False)
                 helper_mock_session = MagicMock()
                 helper_mock_session.open = open_mock_session
@@ -561,3 +567,122 @@ class TestDbHelp:
         out = capsys.readouterr().out
         assert "RAG" in out
         assert "Session" in out
+
+    def test_help_shows_scoped_forms(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "help")
+        out = capsys.readouterr().out
+        assert "rag stats" in out
+        assert "session stats" in out
+
+    def test_help_shows_workflow_note(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "help")
+        out = capsys.readouterr().out
+        assert "session.sqlite" in out
+
+
+# ── scoped /db rag ... ────────────────────────────────────────────────────────
+
+
+class TestCmdDbRagScope:
+    def test_rag_stats_calls_rag_stats(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        with patch("agent.services.rag_maintenance_service.SQLiteHelper") as MockHelper:
+            mock_db = MagicMock()
+            mock_db.fetchall.side_effect = [
+                [{"n": 50}],
+                [{"n": 200}],
+            ]
+            open_mock = MagicMock()
+            open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
+            open_mock.return_value.__exit__ = MagicMock(return_value=False)
+            helper_mock = MagicMock()
+            helper_mock.open = open_mock
+            MockHelper.return_value = helper_mock
+            _run_db(cmd, "rag stats")
+            out = capsys.readouterr().out
+            assert "documents" in out
+            assert "RAG" in out
+
+    def test_rag_unknown_shows_rag_help(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "rag unknown_subcmd")
+        out = capsys.readouterr().out
+        assert "/db rag" in out
+
+    def test_rag_no_subcmd_shows_rag_help(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "rag")
+        out = capsys.readouterr().out
+        assert "/db rag" in out
+
+
+# ── scoped /db session ... ────────────────────────────────────────────────────
+
+
+class TestCmdDbSessionScope:
+    def test_session_stats_calls_session_stats(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        cmd = _make_cmd()
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
+            mock_db = MagicMock()
+            mock_db.fetchall.side_effect = [
+                [{"n": 5}],
+                [{"n": 100}],
+            ]
+            open_mock = MagicMock()
+            open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
+            open_mock.return_value.__exit__ = MagicMock(return_value=False)
+            helper_mock = MagicMock()
+            helper_mock.open = open_mock
+            MockHelper.return_value = helper_mock
+            _run_db(cmd, "session stats")
+            out = capsys.readouterr().out
+            assert "sessions" in out
+            assert "Session" in out
+
+    def test_session_unknown_shows_session_help(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "session unknown_subcmd")
+        out = capsys.readouterr().out
+        assert "/db session" in out
+
+    def test_session_no_subcmd_shows_session_help(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "session")
+        out = capsys.readouterr().out
+        assert "/db session" in out
+
+
+# ── backward compatibility ────────────────────────────────────────────────────
+
+
+class TestCmdDbBackwardCompat:
+    def test_flat_stats_still_works(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        with (
+            patch(
+                "agent.services.rag_maintenance_service.SQLiteHelper"
+            ) as MockHelperRag,
+            patch(
+                "agent.services.db_maintenance_service.SQLiteHelper"
+            ) as MockHelperSession,
+        ):
+            for MockHelper in (MockHelperRag, MockHelperSession):
+                mock_db = MagicMock()
+                mock_db.fetchall.side_effect = [[{"n": 1}], [{"n": 2}]]
+                open_mock = MagicMock()
+                open_mock.return_value.__enter__ = MagicMock(return_value=mock_db)
+                open_mock.return_value.__exit__ = MagicMock(return_value=False)
+                helper_mock = MagicMock()
+                helper_mock.open = open_mock
+                MockHelper.return_value = helper_mock
+            _run_db(cmd, "stats")
+            out = capsys.readouterr().out
+            assert "documents" in out
