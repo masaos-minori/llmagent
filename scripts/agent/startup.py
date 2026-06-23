@@ -24,6 +24,7 @@ from agent.repl_health import (
     check_tool_definitions_runtime,
 )
 from agent.services.rag_maintenance_service import RagMaintenanceService
+from agent.workflow.state_store import StateStore
 
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
@@ -50,6 +51,7 @@ class StartupOrchestrator:
         self._initialize()
         await self._start_servers()
         await self._check_services()
+        await self._recover_pending_approvals()
         await self._setup_prompt()
         if self._cmds is None or self._orchestrator is None:
             raise RuntimeError(
@@ -179,6 +181,29 @@ class StartupOrchestrator:
                     self._view.write_warning(f"[RAG] Consistency issue: {issue}")
         except Exception as e:  # noqa: BLE001 — skip if rag.sqlite absent or unreadable
             logger.debug("RAG consistency check skipped: %s", e)
+
+    async def _recover_pending_approvals(self) -> None:
+        """Restore workflow approval-pending state from a previous session."""
+        ctx = self._ctx
+        if ctx.workflow is None:
+            return
+        session_id = str(ctx.session.session_id) if ctx.session.session_id else "none"
+        store = StateStore()
+        result = store.find_pending_approval_by_session(session_id)
+        if result is None:
+            return
+        task_id, approval = result
+        ctx.workflow.approval_pending = True
+        ctx.turn.pending_approval_id = approval.approval_id
+        logger.warning(
+            "Recovered pending approval: task=%s approval=%s reason=%s",
+            task_id,
+            approval.approval_id,
+            approval.reason or "none",
+        )
+        self._view.write_warning(
+            f"[workflow] Pending approval from previous session — use /approve [reason] or /reject [reason]."
+        )
 
     async def _setup_prompt(self) -> None:
         """Inject pinned notes and semantic memories into the initial system prompt."""

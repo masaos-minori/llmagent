@@ -13,6 +13,7 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 - DOC-01 (`SemanticCache` import path): fixed in doc (2026-06-16).
 - DOC-02 (`PipelineContext.observers` non-existent): fixed in doc (2026-06-16, updated 2026-06-18).
 - DOC-03 (embedding dimension dataclass default 768 vs production 384): fixed in doc (2026-06-16).
+- SemanticCache eviction policy audit: FIFO confirmed across code (`cache.py:32,90-94`), docs (`03_rag_01_system_overview.md:115`, `03_rag_03_query_pipeline.md:280`, `05_agent_08_configuration.md:196`), and tests (`test_semantic_cache_eviction.py`). LRU references in the codebase are for a separate ToolExecutor TTL cache.
 
 ---
 

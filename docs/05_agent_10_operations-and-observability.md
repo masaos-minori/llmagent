@@ -408,8 +408,8 @@ Example output:
 | `SearchStage` | Results returned | No matching chunks (empty result) | DB error or embedding failure |
 | `FusionStage` | RRF merge applied | `use_rrf=False`; raw results used | Merge error |
 | `RerankStage` | Cross-encoder rerank applied | `use_rerank=False`; RRF scores used | LLM call failed |
-| `HttpAugment` | External RAG service returned result | `"in-process fallback"` | HTTP error |
-| `Refiner` | Refiner compressed chunks | `"refiner returned None"` | LLM call failed |
+| `HttpAugment` | Remote RAG service returned result | `http_result_kind`: `"remote_nonempty"` (success) / `"remote_empty"` (valid empty) / `"in_process_fallback"` (failure) | HTTP error / no context |
+| `Refiner` | Refiner compressed chunks | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) | LLM call failed |
 
 ### StageResult fields
 
@@ -436,8 +436,8 @@ Two additional entries appear in `last_stage_results` when applicable:
 
 | stage_name | Appears when | fallback_reason on fallback |
 |---|---|---|
-| `HttpAugment` | `rag_service_url` is set | `"in-process fallback"` |
-| `Refiner` | `use_refiner=True` | `"refiner returned None"` |
+| `HttpAugment` | `rag_service_url` is set | `http_result_kind`: `"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"` |
+| `Refiner` | `use_refiner=True` | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) |
 
 ### Ingestion diagnostic output
 

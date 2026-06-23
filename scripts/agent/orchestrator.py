@@ -112,6 +112,17 @@ class Orchestrator:
     async def handle_turn(self, line: str) -> None:
         """Call LLM with the user message and persist to DB."""
         ctx = self._ctx
+        # Guard: block LLM processing while a workflow approval is pending
+        if ctx.workflow.approval_pending:
+            logger.warning(
+                "Turn blocked: workflow pending approval. Use /approve or /reject."
+            )
+            self._on_error(
+                RuntimeError(
+                    "[workflow] Approval is pending — use /approve [reason] or /reject [reason]."
+                )
+            )
+            return
         turn_started_at = time.perf_counter()
 
         await self._handle_turn_start(line)

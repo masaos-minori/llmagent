@@ -143,8 +143,23 @@ class _IngestMixin(MixinBase):
                 )
 
         context = await pipeline.augment(query, debug_fn=debug_fn)
+
+        # Check search degradation after augment() returns
+        diag = pipeline.last_search_diagnostics
+        search_degraded = diag.embed_failed > 0 or diag.fts_errors > 0
+
         if not context:
-            self._out.write("No results found.")
+            if search_degraded:
+                parts = []
+                if diag.embed_failed > 0:
+                    parts.append(f"embed_failed={diag.embed_failed}")
+                if diag.fts_errors > 0:
+                    parts.append(f"fts_errors={diag.fts_errors}")
+                self._out.write(
+                    f"No results found [warn: search degraded — {', '.join(parts)}]"
+                )
+            else:
+                self._out.write("No results found.")
         else:
             self._out.write(context)
 
@@ -160,6 +175,17 @@ class _IngestMixin(MixinBase):
             self._out.write(
                 f"[warn] refiner fallback: {refiner_fb['fallback_reason']}"
                 " — raw chunks used (run with --debug for stage details)"
+            )
+
+        if search_degraded:
+            parts = []
+            if diag.embed_failed > 0:
+                parts.append(f"embed_failed={diag.embed_failed}")
+            if diag.fts_errors > 0:
+                parts.append(f"fts_errors={diag.fts_errors}")
+            self._out.write(
+                f"[warn] search degraded: {', '.join(parts)}"
+                " — results may be incomplete (FTS-only fallback)"
             )
 
         if debug:

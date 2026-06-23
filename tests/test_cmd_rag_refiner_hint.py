@@ -44,6 +44,8 @@ class TestCmdRagRefinerHint:
             mock_pipeline.augment = AsyncMock(return_value="[RAG context block]")
             mock_pipeline.last_timings = {}
             mock_pipeline.get_diagnostics = MagicMock(return_value={})
+            mock_pipeline.last_search_diagnostics.embed_failed = 0
+            mock_pipeline.last_search_diagnostics.fts_errors = 0
             mock_pipeline.last_stage_results = [
                 {
                     "stage_name": "Refiner",
@@ -73,6 +75,8 @@ class TestCmdRagRefinerHint:
             mock_pipeline.augment = AsyncMock(return_value="[RAG context block]")
             mock_pipeline.last_timings = {}
             mock_pipeline.get_diagnostics = MagicMock(return_value={})
+            mock_pipeline.last_search_diagnostics.embed_failed = 0
+            mock_pipeline.last_search_diagnostics.fts_errors = 0
             mock_pipeline.last_stage_results = [
                 {
                     "stage_name": "Refiner",
@@ -101,6 +105,8 @@ class TestCmdRagRefinerHint:
             mock_pipeline.augment = AsyncMock(return_value="[RAG context block]")
             mock_pipeline.last_timings = {}
             mock_pipeline.get_diagnostics = MagicMock(return_value={})
+            mock_pipeline.last_search_diagnostics.embed_failed = 0
+            mock_pipeline.last_search_diagnostics.fts_errors = 0
             mock_pipeline.last_stage_results = [
                 {
                     "stage_name": "Search",
@@ -129,6 +135,8 @@ class TestCmdRagRefinerHint:
             mock_pipeline.augment = AsyncMock(return_value="[RAG context block]")
             mock_pipeline.last_timings = {}
             mock_pipeline.get_diagnostics = MagicMock(return_value={})
+            mock_pipeline.last_search_diagnostics.embed_failed = 0
+            mock_pipeline.last_search_diagnostics.fts_errors = 0
             reason = "refiner_exception: HTTPStatusError 429"
             mock_pipeline.last_stage_results = [
                 {

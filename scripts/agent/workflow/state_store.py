@@ -287,3 +287,33 @@ class StateStore:
             created_at=r["created_at"],
             resolved_at=r["resolved_at"],
         )
+
+    def find_pending_approval_by_session(
+        self, session_id: str
+    ) -> tuple[str, ApprovalRecord] | None:
+        """Return (task_id, approval) for the most recent pending-approval task in this session, or None."""
+        rows = self._db.fetchall(
+            """
+            SELECT t.task_id, a.approval_id, a.stage_id, a.reason, a.created_at, a.resolved_at
+            FROM tasks t
+            JOIN approvals a ON t.task_id = a.task_id
+            WHERE t.session_id = ?
+              AND t.status = 'pending_approval'
+              AND a.status = 'pending'
+            ORDER BY a.created_at DESC
+            LIMIT 1
+            """,
+            (session_id,),
+        )
+        if not rows:
+            return None
+        r = rows[0]
+        return r["task_id"], ApprovalRecord(
+            approval_id=r["approval_id"],
+            task_id=r["task_id"],
+            stage_id=r["stage_id"],
+            status="pending",
+            reason=r["reason"],
+            created_at=r["created_at"],
+            resolved_at=r["resolved_at"],
+        )

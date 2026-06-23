@@ -24,6 +24,8 @@ def _make_pipeline(rag_service_url: str = "http://rag.local") -> RagPipeline:
     pipeline.last_timings = {}
     pipeline.last_fetch_result = None
     pipeline.semantic_cache = MagicMock()
+    from rag.pipeline import SearchDiagnostics
+    pipeline.last_search_diagnostics = SearchDiagnostics()
     return pipeline
 
 

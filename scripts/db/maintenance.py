@@ -15,6 +15,7 @@ Typical maintenance schedule:
   On startup warning    : recover_corruption()
 """
 
+import dataclasses
 import logging
 import shutil
 import sqlite3
@@ -86,6 +87,8 @@ class RagConsistencyReport:
     orphan_vec_count: int
     fts_gap: int  # chunks - fts; positive = missing FTS entries
     fts_orphan_count: int  # fts - chunks; positive = extra FTS entries (data loss risk)
+    embed_failed: int = 0  # embedding failures during ingestion
+    issues: tuple[str, ...] = ()  # human-readable consistency issues
 
 
 @dataclass(frozen=True)
@@ -386,7 +389,9 @@ def recover_corruption(
     return _restore_from_backup(db_path, backup_path)
 
 
-def check_rag_consistency(db: SQLiteHelper) -> RagConsistencyReport:
+def check_rag_consistency(
+    db: SQLiteHelper, embed_failed: int = 0
+) -> RagConsistencyReport:
     """Return row counts from chunks, chunks_fts, and chunks_vec for consistency verification.
 
     All queries are read-only. Orphan vec rows are chunk_id values in chunks_vec
@@ -398,14 +403,16 @@ def check_rag_consistency(db: SQLiteHelper) -> RagConsistencyReport:
     orphan_vec_count = db.execute(
         "SELECT COUNT(*) FROM chunks_vec WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks)"
     ).fetchone()[0]
-    return RagConsistencyReport(
+    report = RagConsistencyReport(
         chunks=chunks,
         fts=fts,
         vec=vec,
         orphan_vec_count=orphan_vec_count,
         fts_gap=max(0, chunks - fts),
         fts_orphan_count=max(0, fts - chunks),
+        embed_failed=embed_failed,
     )
+    return dataclasses.replace(report, issues=tuple(summarize_issues(report)))
 
 
 def is_consistent(report: RagConsistencyReport) -> bool:

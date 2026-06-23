@@ -40,6 +40,16 @@ def _get_mem_fts_fallback(ctx) -> int:
     return getattr(mem.retriever, "fts_fallback_count", 0)
 
 
+def _get_rag_db_configured(ctx) -> bool:
+    """Return True when a RAG DB path is configured."""
+    try:
+        from db.config import build_db_config as _build_db_cfg  # noqa: PLC0415 — lazy
+        _build_db_cfg()
+        return True
+    except (ValueError, RuntimeError):
+        return False
+
+
 class _ConfigStatsMixin(MixinBase):
     """Stats collection and display for slash commands."""
 
@@ -84,6 +94,7 @@ class _ConfigStatsMixin(MixinBase):
             latency=ctx.stats.stat_latency,
             workflow_mode=getattr(ctx.cfg, "workflow_mode", ""),
             approval_pending=ctx.workflow.approval_pending if ctx.workflow is not None else False,
+            rag_db_configured=_get_rag_db_configured(ctx),
         )
 
     def _cmd_stats(self) -> None:
@@ -129,6 +140,8 @@ class _ConfigStatsMixin(MixinBase):
         self._out.write(f"  Workflow mode : {stats.workflow_mode or '(not set)'}")
         if stats.approval_pending:
             self._out.write("  Approval      : PENDING — use /approve or /reject")
+        if stats.rag_db_configured:
+            self._out.write("  Hint          : Run /db rag consistency for index integrity status")
         if stats.latency:
             self._out.write("Latency (mean / max, N samples):")
             for step in ["llm"]:

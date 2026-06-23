@@ -27,7 +27,6 @@ from db.maintenance import (
     RagConsistencyReport,
     check_rag_consistency,
     is_consistent,
-    summarize_issues,
 )
 from rag.ingestion.pipeline_utils import _read_chunk_json_raw
 from rag.utils import floats_to_blob, validate_url
@@ -128,10 +127,9 @@ class RagIngester:
             total_skipped,
         )
         try:
-            report = check_rag_consistency(db)
+            report = check_rag_consistency(db, embed_failed=total_embed_failed)
             if not is_consistent(report):
-                issues = summarize_issues(report)
-                for issue in issues:
+                for issue in report.issues:
                     logger.warning("Post-ingest consistency: %s", issue)
             return report
         except Exception:

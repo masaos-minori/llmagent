@@ -32,6 +32,7 @@ class StatsViewModel:
     latency: dict[str, Any] | None = None  # presentation-only; dict intentional
     workflow_mode: str = ""
     approval_pending: bool = False
+    rag_db_configured: bool = False
 
 
 @dataclass(frozen=True)

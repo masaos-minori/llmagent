@@ -32,6 +32,7 @@ from shared.types import RagConfig
 from rag.cache import SemanticCache
 from rag.llm import RagLLM, get_embedding
 from rag.models_data import TwoStageFetchResult
+from rag.models_result import SearchDiagnostics
 from rag.pipeline_refiner import refine_context
 from rag.pipeline_service import call_rag_service
 from rag.repository import (
@@ -109,6 +110,11 @@ class RagPipeline:
         self.last_timings: dict[str, float] = {}
         # Per-stage outcomes from the most recent run() call
         self.last_stage_results: list[StageResult] = []
+        # Search diagnostics from the most recent run() call
+        self.last_search_diagnostics: SearchDiagnostics = SearchDiagnostics()
+        # Cumulative search failure counters across all run() calls on this instance
+        self.stat_search_embed_failed: int = 0
+        self.stat_search_fts_errors: int = 0
         # In-memory nearest-neighbour cache; threshold/max_size read from cfg
         self.semantic_cache: SemanticCache = SemanticCache(
             max_size=cfg.semantic_cache_max_size,
@@ -276,6 +282,10 @@ class RagPipeline:
                 max_chunks_per_doc=self._cfg.max_chunks_per_doc,
             )
             self.last_stage_results = list(ctx.stage_results)
+            # Save search diagnostics and accumulate cumulative counters
+            self.last_search_diagnostics = ctx.search_diagnostics
+            self.stat_search_embed_failed += ctx.search_diagnostics.embed_failed
+            self.stat_search_fts_errors += ctx.search_diagnostics.fts_errors
             fallbacks = [r for r in ctx.stage_results if r["status"] == "fallback"]
             if fallbacks:
                 logger.info(
@@ -485,5 +495,14 @@ class RagPipeline:
             ],
             "hit_counts": {
                 "merged": len(fetch.hits) if fetch is not None else 0,
+            },
+            "search_diagnostics": {
+                "embed_ok": self.last_search_diagnostics.embed_ok,
+                "embed_failed": self.last_search_diagnostics.embed_failed,
+                "fts_errors": self.last_search_diagnostics.fts_errors,
+                "degraded": (
+                    self.last_search_diagnostics.embed_failed > 0
+                    or self.last_search_diagnostics.fts_errors > 0
+                ),
             },
         }

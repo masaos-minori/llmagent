@@ -229,6 +229,8 @@ class TestCmdRag:
             mock_pipeline = MagicMock()
             mock_pipeline.augment = AsyncMock(return_value="")
             mock_pipeline.last_timings = {}
+            mock_pipeline.last_search_diagnostics.embed_failed = 0
+            mock_pipeline.last_search_diagnostics.fts_errors = 0
             mock_pipeline_cls.return_value = mock_pipeline
             asyncio.run(cmd._cmd_rag("search hello"))
         assert "No results found" in capsys.readouterr().out
@@ -246,6 +248,8 @@ class TestCmdRag:
             mock_pipeline = MagicMock()
             mock_pipeline.augment = AsyncMock(return_value="[RAG context block]")
             mock_pipeline.last_timings = {}
+            mock_pipeline.last_search_diagnostics.embed_failed = 0
+            mock_pipeline.last_search_diagnostics.fts_errors = 0
             mock_pipeline_cls.return_value = mock_pipeline
             asyncio.run(cmd._cmd_rag("search hello"))
         assert "[RAG context block]" in capsys.readouterr().out
@@ -263,6 +267,8 @@ class TestCmdRag:
             mock_pipeline = MagicMock()
             mock_pipeline.augment = AsyncMock(return_value="ctx")
             mock_pipeline.last_timings = {"MqeStage": 0.05, "SearchStage": 0.12}
+            mock_pipeline.last_search_diagnostics.embed_failed = 0
+            mock_pipeline.last_search_diagnostics.fts_errors = 0
             mock_pipeline_cls.return_value = mock_pipeline
             asyncio.run(cmd._cmd_rag("search hello --debug"))
         out = capsys.readouterr().out

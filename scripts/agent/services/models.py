@@ -27,6 +27,7 @@ class IngestOutcome:
     stage: IngestStage
     n_chunks: int = 0
     messages: tuple[str, ...] = ()
+    embed_failed: int = 0
 
 
 @dataclass(frozen=True)
