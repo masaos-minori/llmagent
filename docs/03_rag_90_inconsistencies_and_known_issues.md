@@ -7,7 +7,7 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 **Resolved entries removed from this file:**
 - BUG-1/2/3 (chunk field drop via `dataclasses.asdict`): fixed — `_read_chunk_json()` now uses raw `orjson` parsing, preserving all fields including `chunking_strategy`, `normalized_content`, and `chunk_index`.
-- OQ-2 (MDQ vs RAG boundary): resolved — boundary defined in `docs/04_mcp-mdq.md`.
+- OQ-2 (MDQ vs RAG boundary): resolved — boundary defined in `docs/04_mcp_07_mdq_rag_boundary.md`.
 - OQ-3 (`test_ingester.py` missing): addressed — `tests/test_rag_ingester.py` exists with 9 tests.
 - OQ-7 (`_augment_http()` fallback trigger condition): documented in-file (2026-06-20 removed).
 - DOC-01 (`SemanticCache` import path): fixed in doc (2026-06-16).

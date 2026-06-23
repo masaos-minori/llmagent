@@ -32,7 +32,7 @@ Load only the docs relevant to the specific task. Do NOT load all `docs/*.md`.
 | Agent known issues / inconsistencies | `docs/05_agent_90_inconsistencies_and_known_issues.md` |
 | MCP server spec (overview, design, known issues) | `docs/04_mcp_00_document-guide.md` + `docs/04_mcp_01_system_overview.md` |
 | RAG pipeline spec (overview, design, known issues) | `docs/03_rag_00_document-guide.md` + `docs/03_rag_01_system_overview.md` |
-| MDQ vs RAG boundary | `docs/04_mcp-mdq.md` |
+| MDQ vs RAG boundary | `docs/04_mcp_07_mdq_rag_boundary.md` |
 | DB layer spec (schema, ops, known issues) | `docs/90_shared_04_db_architecture_and_schema.md` + `docs/90_shared_05_db_api_and_operations.md` |
 | Shared infra spec (config, logging, types, constants) | `docs/90_shared_00_document-guide.md` + `docs/90_shared_01_overview.md` |
 

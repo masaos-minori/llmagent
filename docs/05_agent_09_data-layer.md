@@ -88,9 +88,9 @@ The agent accesses document data through three paths:
 | `/db` commands (admin) | `/db urls`+`/db clean` → rag-pipeline-mcp; `/db stats`+maintenance → `DbMaintenanceService`/`RagMaintenanceService` | Admin tasks only |
 | Direct DB access | Not recommended | Never in application code |
 
-MCP tools are the preferred and supported path. Direct `sqlite3` imports against `rag.sqlite` or `mdq.sqlite` are not allowed in normal application code. The `/db` admin commands use `RagMaintenanceService` as an explicit maintenance exception (see [04_mcp-mdq.md](04_mcp-mdq.md) §Agent Access Patterns). See [04_mcp-mdq.md](04_mcp-mdq.md) for the boundary between RAG and MDQ systems.
+MCP tools are the preferred and supported path. Direct `sqlite3` imports against `rag.sqlite` or `mdq.sqlite` are not allowed in normal application code. The `/db` admin commands use `RagMaintenanceService` as an explicit maintenance exception (see [04_mcp_07_mdq_rag_boundary.md](04_mcp_07_mdq_rag_boundary.md) §Agent Access Patterns). See [04_mcp_07_mdq_rag_boundary.md](04_mcp_07_mdq_rag_boundary.md) for the boundary between RAG and MDQ systems.
 
-- **MDQ**: Experimental markdown query server. Access via `mdq-mcp` tools only. FTS5 search is functional but not production-validated. See [04_mcp-mdq.md](04_mcp-mdq.md) for the RAG/MDQ boundary.
+- **MDQ**: Experimental markdown query server. Access via `mdq-mcp` tools only. FTS5 search is functional but not production-validated. See [04_mcp_07_mdq_rag_boundary.md](04_mcp_07_mdq_rag_boundary.md) for the RAG/MDQ boundary.
 
 ## Memory Tables (optional)
 

@@ -235,8 +235,13 @@ When result exceeds 512 KB:
 | web-search-mcp | `dependencies.brave_api_key`, `dependencies.bing_api_key` (both `"set"`/`"not_set"`); `details.providers` (list) |
 | github-mcp | `dependencies.github_token` (`"set"`/`"not_set"`) |
 | mdq-mcp | root-level `"stub": true` (marks experimental status); `details.service: "mdq-mcp"` |
-| shell-mcp | `details.sandbox_backend` (`"firejail"` or `"none"`) |
-| Others | Base response only: `{"status":"ok","ready":bool,"dependencies":{},"details":{}}` |
+| shell-mcp | `dependencies.shell` (`"sh not found in PATH"`/`"check failed"`); `details.sandbox_backend` (`"firejail"` or `"none"`) |
+| file-read-mcp | `dependencies.filesystem` (`"/workspace not found"`/`"check failed"`) |
+| file-write-mcp | `dependencies.filesystem` (`"/workspace not found"`/`"check failed"`) |
+| file-delete-mcp | `dependencies.filesystem` (`"/workspace not found"`/`"check failed"`) |
+| rag-pipeline-mcp | `dependencies.embed_url` (`"not configured"`/`"check failed"`) |
+| sqlite-mcp | `dependencies.<db_name>` (`"file not found: <path>"`/`"check failed"`) per registered DB |
+| git-mcp | `dependencies.git` (`"git not found in PATH"`/`"check failed"`) |
 
 ---
 

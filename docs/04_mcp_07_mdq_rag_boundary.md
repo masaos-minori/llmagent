@@ -1,5 +1,8 @@
 # MCP: MDQ vs RAG — Boundary Definition
 
+- Security model → [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md)
+- Server catalog → [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md)
+
 ## Purpose
 
 Define clear ownership boundaries between MDQ (Markdown Context Compression Engine) and RAG (Retrieval Augmented Generation) so engineers can decide which system to use for a given task.

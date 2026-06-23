@@ -35,7 +35,7 @@ All providers failed → HTTP 502.
 | `default_max_results` | `5` | Default result count |
 | `max_results_limit` | `20` | Server-side cap |
 
-**Health:** `{"status":"ok","ready":true,"dependencies":{"brave_api_key":"set","bing_api_key":"not_set"},"details":{"providers":[...]}}`
+**Health:** `{"status":"ok","ready":bool,"dependencies":{"brave_api_key":"set"/"not_set","bing_api_key":"set"/"not_set"},"details":{"providers":[...]}}`
 **Log:** `/opt/llm/logs/web-search-mcp.log`
 **When to use:** Real-time information not in RAG index; latest releases; news.
 
@@ -70,6 +70,7 @@ All tools do not require config (`requires_config: false`).
 | `max_tree_depth` | `5` |
 | `max_search_results` | `100` |
 
+**Health:** `{"status":"ok","ready":bool,"dependencies":{"filesystem":"/workspace not found"/"check failed"},"details":{}}`
 **Error codes:** 400 (invalid path), 403 (outside allowed_dirs), 404 (not found), 413 (size limit), 415 (binary)
 **Log:** `/opt/llm/logs/file-read-mcp.log`
 **Additional endpoint:** `GET /list_allowed_directories` (not a MCP tool)
@@ -106,7 +107,7 @@ All tools require config (`requires_config: true`).
 **Domain exceptions** (in `mcp/github/models.py`): `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403),
 `GitHubConflictError` (409), `GitHubValidationError` (400), `GitHubUpstreamError` (502), `GitHubAuditError` (500)
 
-**Health:** `{"status":"ok","ready":true,"dependencies":{"github_token":"set"},"details":{}}`
+**Health:** `{"status":"ok","ready":bool,"dependencies":{"github_token":"set"/"not_set"},"details":{}}`
 **Log:** `/opt/llm/logs/github-mcp.log`
 **Audit log:** `config/github_mcp_server.toml::audit_log_path`
 
@@ -129,6 +130,7 @@ All tools do not require config (`requires_config: false`).
 | `create_directory` | `{path, dry_run?}` | Returns directory info (exists/would create); no create |
 | `move_file` | `{source, destination, dry_run?}` | Returns move feasibility |
 
+**Health:** `{"status":"ok","ready":bool,"dependencies":{"filesystem":"/workspace not found"/"check failed"},"details":{}}`
 **Config:** `max_write_bytes` (default 1 MB; enforced as UTF-8 byte count via Pydantic)
 **Error codes:** 400, 403 (outside allowed_dirs), 404, 413/422 (size limit)
 **Log:** `/opt/llm/logs/file-write-mcp.log`
@@ -150,6 +152,7 @@ All tools do not require config (`requires_config: false`).
 | `delete_file` | `{path, dry_run?}` | Returns file info; no delete |
 | `delete_directory` | `{path, recursive?, dry_run?}` | Scans contents (up to 1000 files); no delete |
 
+**Health:** `{"status":"ok","ready":bool,"dependencies":{"filesystem":"/workspace not found"/"check failed"},"details":{}}`
 **Delete audit log:** `/opt/llm/logs/delete_audit.log` (ISO8601 UTC + op + path + user)
 **Log:** `/opt/llm/logs/file-delete-mcp.log`
 
@@ -181,6 +184,7 @@ All tools do not require config (`requires_config: false`).
 | `shell_sandbox_backend` | `"none"` | `"firejail"` or `"none"` |
 | `audit_log_path` | `"/opt/llm/logs/shell_audit.log"` | Audit log |
 
+**Health:** `{"status":"ok","ready":bool,"dependencies":{"shell":"sh not found in PATH"/"check failed"},"details":{"sandbox_backend":"firejail"/"none"}}`
 **Log:** `/opt/llm/logs/shell-mcp.log`
 
 > **Security note — Sandbox is disabled by default:** `sandbox_backend` defaults to `"none"`.
@@ -200,18 +204,21 @@ All tools do not require config (`requires_config: false`).
 **Startup mode:** persistent (HTTP)
 **Config:** `config/rag_pipeline_mcp_server.toml`
 
-**Tools (2):**
+**Tools (4):**
 
 | Tool | Input | Output |
 |---|---|---|
 | `rag_run_pipeline` | `{query, history_context?, debug?}` | `augmented_text` + `selected_hits` |
 | `rag_debug_pipeline` | `{query, history_context?}` | All intermediate stage outputs |
+| `rag_list_documents` | `{lang?, limit?}` | List of indexed documents |
+| `rag_delete_document` | `{url}` | Deletion confirmation |
 
 **Additional endpoint:** `POST /v1/search` (backward compat for external RAG service delegation)
 
 **Key config:** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `use_mqe`, `use_rrf`,
 `use_rerank`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`
 
+**Health:** `{"status":"ok","ready":bool,"dependencies":{"embed_url":"not configured"/"check failed"},"details":{}}`
 **Design note:** `rag_service_url = ""` is hardcoded in `build_rag_cfg_adapter()` to prevent HTTP loops.
 **Log:** (uses structlog; check `agent.log` or configure separate log)
 **When to use:** All RAG retrieval; `/rag search` command goes through this server.
@@ -246,6 +253,7 @@ All tools do not require config (`requires_config: false`).
 | `max_rows` | `100` |
 | `auth_token` | `""` |
 
+**Health:** `{"status":"ok","ready":bool,"dependencies":{"<db_name>":"file not found: <path>"}/"check failed"},"details":{}}` per registered DB
 **Databases:** `rag` → `/opt/llm/db/rag.sqlite`; `session` → `/opt/llm/db/session.sqlite`
 
 ---
@@ -271,6 +279,7 @@ All tools do not require config (`requires_config: false`).
 - `workflow_allowlist`: fail-open (empty = allow all); in production mode (`security_profile = "production"`), empty list raises `RuntimeError` at agent startup
 - `trigger_workflow` supports `dry_run` argument (exposed via tool schema)
 
+**Health:** `{"status":"ok","ready":bool,"dependencies":{"github_token":"set"/"not_set"},"details":{}}`
 **Log limits:** max 5 jobs, 256 KB total (default)
 **Architecture:** `CiCdService → CiBackend (Protocol) → GitHubActionsBackend`
 **Note:** `CiBackend` Protocol allows future GitLab CI / Jenkins backends.
@@ -291,6 +300,7 @@ All tools do not require config (`requires_config: false`).
 > markers, not indicators of non-functional behavior. The server is not validated for
 > production load. Use `rag-pipeline-mcp` for production RAG search.
 
+**Health:** `{"status":"ok","ready":bool,"dependencies":{},"details":{"service":"mdq-mcp"}}` + root-level `"stub": true`
 **DB path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)
 **Log:** `/opt/llm/logs/mdq-mcp.log`
 **When to use:** Experimental only. Use `rag-pipeline-mcp` for production search.
@@ -321,6 +331,7 @@ All tools require config (`requires_config: true`).
 | `git_pull` | WRITE_DANGEROUS | blocked | yes | yes |
 | `git_push` | WRITE_DANGEROUS | blocked | yes | yes |
 
+**Health:** `{"status":"ok","ready":bool,"dependencies":{"git":"git not found in PATH"/"check failed"},"details":{}}`
 **Config:**
 
 | Key | Default | Note |
