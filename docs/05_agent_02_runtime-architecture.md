@@ -172,18 +172,7 @@ Accessed via `ctx.services.memory`.
 
 ---
 
-## Spec Conflict: `repl_tool_exec.py` Deletion
+## Architecture Notes (Resolved)
 
-**Spec Conflict:**
-- `05_agent-impl-class.md` note says `repl_tool_exec.py` is deleted; tool logic moved to
-  `shared/tool_executor.py`.
-- `05_ref-agent-repl.md` §4 confirms the same.
-- **Preferred source:** `05_ref-agent-repl.md` (canonical).
-- **Safe interpretation:** Do not reference `agent/repl_tool_exec.py`. Use `ToolExecutor.execute()`.
-
-## Spec Conflict: `ServerLifecycleManager` Deletion
-
-**Spec Conflict:**
-- `04_spec_mcp.md §10.5` notes `ServerLifecycleManager` was deleted from `agent/lifecycle.py`.
-- `_ServerLifecycleRouter` in `factory.py` took over routing. Only `restart_stdio()` remains in `agent/lifecycle.py`.
-- **Safe interpretation:** Use `_ServerLifecycleRouter` for lifecycle. Do not use `ServerLifecycleManager`.
+- `agent/repl_tool_exec.py` — deleted; tool execution moved to `shared/tool_executor.py`. Use `ToolExecutor.execute()`.
+- `ServerLifecycleManager` — deleted from `agent/lifecycle.py`; replaced by `HttpServerLifecycleManager` (`agent/http_lifecycle.py`) and `StdioServerLifecycleManager` (`agent/stdio_lifecycle.py`), composed via `_ServerLifecycleRouter` in `agent/factory.py`.

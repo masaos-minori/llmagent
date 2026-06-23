@@ -7,16 +7,8 @@ relative to the working directory (scripts/).
 """
 
 import asyncio
-import signal
 
 from agent.repl import AgentREPL
-
-
-def _request_shutdown(_signum: int, _frame: object) -> None:
-    raise SystemExit(0)
-
-
-signal.signal(signal.SIGTERM, _request_shutdown)
 
 if __name__ == "__main__":
     asyncio.run(AgentREPL().run())

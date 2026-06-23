@@ -80,7 +80,6 @@ retained unchanged.
 - `05_agent-impl-flow.md` was canonical for turn flow. Content now lives in chapter 03.
 - `05_agent-ops.md` was canonical for operations. Content now lives in chapter 10.
 - When old files and new files disagree, trust the new restructured files.
-- `05_ref-agent-repl.md` note on `repl_tool_exec.py` deletion is authoritative.
 
 ---
 
