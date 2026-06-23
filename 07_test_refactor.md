@@ -178,7 +178,7 @@ For each issue:
 - evidence from code / docs / current tests
 - whether it is confirmed or Needs confirmation
 
-# 5. 日本語の実装修正タスクリスト（High / Medium / Low）
+# 5. 日本語の実装修正タスクリスト（High/Medium/Low）
 For each task:
 - Task ID
 - Goal
