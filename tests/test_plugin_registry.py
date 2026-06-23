@@ -613,3 +613,137 @@ class TestCommandShadowLogging:
             assert any("command shadow" in r.message for r in info_records)
         finally:
             plugin_registry._builtin_command_names = frozenset()
+
+
+class TestStrictModeToolConflict:
+    def test_strict_mode_tool_conflict_raises(self, tmp_path: Path):
+        (tmp_path / "conflict_plugin.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("list_directory")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        mcp_tools = frozenset({"list_directory"})
+        with pytest.raises(plugin_registry.PluginLoadError, match="Tool MCP conflicts rejected"):
+            plugin_registry.load_plugins(
+                tmp_path,
+                known_tools=mcp_tools,
+                override_policy="reject",
+                strict_mode=True,
+            )
+
+    def test_strict_mode_tool_conflict_includes_tool_names(self, tmp_path: Path):
+        (tmp_path / "conflict1.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("list_directory")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        (tmp_path / "conflict2.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("read_file")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        mcp_tools = frozenset({"list_directory", "read_file"})
+        with pytest.raises(plugin_registry.PluginLoadError) as exc_info:
+            plugin_registry.load_plugins(
+                tmp_path,
+                known_tools=mcp_tools,
+                override_policy="reject",
+                strict_mode=True,
+            )
+        msg = str(exc_info.value)
+        assert "list_directory" in msg
+        assert "read_file" in msg
+
+    def test_strict_mode_no_conflict_does_not_raise(self, tmp_path: Path):
+        (tmp_path / "safe_plugin.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("my_safe_tool")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        mcp_tools = frozenset({"list_directory"})
+        result = plugin_registry.load_plugins(
+            tmp_path,
+            known_tools=mcp_tools,
+            override_policy="reject",
+            strict_mode=True,
+        )
+        assert result.loaded_count == 1
+        assert plugin_registry.get_tool("my_safe_tool") is not None
+
+    def test_strict_mode_allows_conflict_with_allow_override(self, tmp_path: Path):
+        (tmp_path / "conflict_plugin.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("list_directory")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        mcp_tools = frozenset({"list_directory"})
+        result = plugin_registry.load_plugins(
+            tmp_path,
+            known_tools=mcp_tools,
+            override_policy="allow",
+            strict_mode=True,
+        )
+        assert result.loaded_count == 1
+        assert plugin_registry.get_tool("list_directory") is not None
+
+    def test_strict_mode_combined_import_and_conflict_errors(self, tmp_path: Path):
+        (tmp_path / "bad.py").write_text("raise RuntimeError('import_fail')")
+        (tmp_path / "conflict_plugin.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("list_directory")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        mcp_tools = frozenset({"list_directory"})
+        with pytest.raises(plugin_registry.PluginLoadError) as exc_info:
+            plugin_registry.load_plugins(
+                tmp_path,
+                known_tools=mcp_tools,
+                override_policy="reject",
+                strict_mode=True,
+            )
+        msg = str(exc_info.value)
+        assert "import_fail" in msg
+        assert "Tool MCP conflicts rejected" in msg
+
+    def test_strict_mode_tool_conflict_does_not_raise_without_known_tools(self, tmp_path: Path):
+        (tmp_path / "conflict_plugin.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("list_directory")
+                async def t(args):
+                    return "", False
+            """)
+        )
+        result = plugin_registry.load_plugins(
+            tmp_path,
+            known_tools=frozenset(),
+            override_policy="reject",
+            strict_mode=True,
+        )
+        assert result.loaded_count == 1
+        assert plugin_registry.get_tool("list_directory") is not None

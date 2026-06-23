@@ -228,16 +228,18 @@ class PluginLoadError(RuntimeError):
 def _validate_tool_conflicts(
     known_tools: frozenset[str],
     override_policy: str,
-) -> tuple[int, int]:
+    strict_mode: bool = False,
+) -> tuple[int, int, list[str]]:
     """Validate plugin tools against known MCP tool names.
 
-    Returns (shadowed_count, allowed_count).
+    Returns (shadowed_count, allowed_count, strict_rejected_names).
     """
     if not known_tools:
-        return (0, 0)
+        return (0, 0, [])
 
     shadowed_count = 0
     allowed_count = 0
+    strict_rejected: list[str] = []
     for tool_name in list(_tools.keys()):
         if tool_name in known_tools:
             _fn, module_name = _tools[tool_name]
@@ -251,6 +253,8 @@ def _validate_tool_conflicts(
             else:
                 del _tools[tool_name]
                 shadowed_count += 1
+                if strict_mode:
+                    strict_rejected.append(tool_name)
                 logger.info(
                     "[plugin] conflict: tool '%s' in '%s' shadows MCP tool — rejected",
                     tool_name,
@@ -262,7 +266,7 @@ def _validate_tool_conflicts(
             shadowed_count,
             allowed_count,
         )
-    return (shadowed_count, allowed_count)
+    return (shadowed_count, allowed_count, strict_rejected)
 
 
 def _validate_command_conflicts(strict_mode: bool = False) -> int:
@@ -340,14 +344,21 @@ def load_plugins(
     logger.info("[plugin] loaded=%d, skipped=%d", loaded, len(failures))
 
     # Run conflict validation after all modules are loaded
-    shadowed, allowed = _validate_tool_conflicts(known_tools, override_policy)
+    shadowed, allowed, strict_rejected = _validate_tool_conflicts(
+        known_tools, override_policy, strict_mode
+    )
     cmd_shadows = _validate_command_conflicts(strict_mode)
 
-    if strict_mode and failures:
-        details = "; ".join(f.error for f in failures)
-        raise PluginLoadError(
-            f"Plugin load failed ({len(failures)} error(s)): {details}"
-        )
+    if strict_mode and (failures or strict_rejected):
+        parts: list[str] = []
+        if failures:
+            details = "; ".join(f.error for f in failures)
+            parts.append(f"Plugin load failed ({len(failures)} error(s)): {details}")
+        if strict_rejected:
+            parts.append(
+                f"Tool MCP conflicts rejected: {', '.join(strict_rejected)}"
+            )
+        raise PluginLoadError("; ".join(parts))
 
     result = PluginLoadResult(
         loaded_count=loaded,
