@@ -484,6 +484,54 @@ class TestRrfMerge:
         score_b = next(h.score for h in merged if h.entry.memory_id == "b")
         assert score_a == score_b
 
+    def test_three_way_duplicate_across_lists(self) -> None:
+        """Three-way duplicate chunk_id across 3 lists accumulates all scores."""
+        list1 = [_make_hit("dup"), _make_hit("only1")]
+        list2 = [_make_hit("dup"), _make_hit("only2")]
+        list3 = [_make_hit("dup"), _make_hit("only3")]
+        merged = _rrf_merge([list1, list2, list3])
+        ids = [h.entry.memory_id for h in merged]
+        assert ids.count("dup") == 1
+        dup_score = next(h.score for h in merged if h.entry.memory_id == "dup")
+        # Score: 1/(60+0+1) + 1/(60+0+1) + 1/(60+0+1) = 3/61
+        assert dup_score == pytest.approx(3.0 / 61)
+
+    def test_same_rrf_score_non_symmetric_placement(self) -> None:
+        """Non-symmetric placement yields identical RRF scores for both entries."""
+        # Entry A at rank 0 in list1 + rank 1 in list2 = 1/61 + 1/62
+        # Entry B at rank 1 in list1 + rank 0 in list2 = 1/62 + 1/61
+        list1 = [_make_hit("a"), _make_hit("b")]
+        list2 = [_make_hit("b"), _make_hit("a")]
+        merged = _rrf_merge([list1, list2])
+        ids = [h.entry.memory_id for h in merged]
+        assert "a" in ids and "b" in ids
+        score_a = next(h.score for h in merged if h.entry.memory_id == "a")
+        score_b = next(h.score for h in merged if h.entry.memory_id == "b")
+        # Both have same score (1/61 + 1/62) due to symmetric placement
+        assert score_a == pytest.approx(score_b)
+
+    def test_duplicate_chunk_id_identical_scores_across_lists(self) -> None:
+        """Duplicate chunk_id with identical scores across lists preserves accumulated score."""
+        # Entry "dup" appears at rank 0 in list1 and rank 0 in list2
+        # Entry "other" appears at rank 1 in list1 and rank 1 in list2 (same position)
+        list1 = [_make_hit("dup"), _make_hit("other")]
+        list2 = [_make_hit("dup"), _make_hit("other")]
+        merged = _rrf_merge([list1, list2])
+        ids = [h.entry.memory_id for h in merged]
+        assert ids.count("dup") == 1
+        assert ids.count("other") == 1
+        dup_score = next(h.score for h in merged if h.entry.memory_id == "dup")
+        other_score = next(h.score for h in merged if h.entry.memory_id == "other")
+        # Both entries have same accumulated score within their rank positions:
+        # dup: 1/(60+0+1) + 1/(60+0+1) = 2/61
+        # other: 1/(60+1+1) + 1/(60+1+1) = 2/62
+        assert dup_score == pytest.approx(2.0 / 61)
+        assert other_score == pytest.approx(2.0 / 62)
+        # dup should rank higher (smaller index) than other
+        dup_rank = next(i for i, h in enumerate(merged) if h.entry.memory_id == "dup")
+        other_rank = next(i for i, h in enumerate(merged) if h.entry.memory_id == "other")
+        assert dup_rank < other_rank
+
 
 # ── knn_search (skipped when vec0 unavailable) ────────────────────────────────
 
