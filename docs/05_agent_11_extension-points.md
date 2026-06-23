@@ -92,9 +92,13 @@ non-blocking — the tool is still registered regardless of the annotation.
 ### Plugin Tool Precedence and Conflict Policy
 
 Plugin tools are registered via the `@register_tool()` decorator in plugin files
-located in the `plugins/` directory. By default, plugin tools **shadow** MCP tools
-when they share the same name — this is because plugin tool lookup in
-`ToolExecutor.execute()` runs before MCP routing.
+located in the `plugins/` directory. When a plugin tool shares the same name as an
+MCP tool, the outcome depends on `plugin_tool_override`:
+
+- **`plugin_tool_override = false` (default):** The conflicting plugin tool is
+  rejected at startup and removed from the registry.
+- **`plugin_tool_override = true`:** The plugin tool takes precedence over the MCP
+  tool for the session (plugin tools are checked first in `ToolExecutor.execute()`).
 
 #### Conflict Detection
 
