@@ -4,6 +4,11 @@ tool_cache_ttl = 300
 # When true, executes tool_calls sequentially in a loop instead of asyncio.gather() parallel execution; use when ordering is required for write->read dependencies
 serial_tool_calls = false
 
+# use_tool_dag: enable dependency-aware scheduling (write-before-read, resource-scoped)
+# When true: independent read-only tools run concurrently even in rounds with writes.
+# When false: any side-effect tool in the round forces sequential execution (legacy behavior).
+use_tool_dag = true
+
 # When true, appends all notes from the notes table to the end of the system prompt at startup
 auto_inject_notes = true
 

@@ -233,7 +233,7 @@ Source: `config/tools.toml` + `config/system_prompts.toml` + `config/tools_defin
 | `max_tool_turns` | `5` | Max tool call turns per message |
 | `tool_result_max_llm_chars` | `8000` | Max tool result chars added to LLM context |
 | `tool_results_turn_max_chars` | `50000` | Max total tool result chars per turn |
-| `use_tool_dag` | `False` | Execute WRITE_TOOLS before READ_TOOLS |
+| `use_tool_dag` | `True` | Dependency-aware scheduling: independent reads run concurrently; writes serialized per resource scope. Disable for strict round-wide serialization legacy behavior. |
 | `plugin_strict` | `False` | Raise on first plugin import error (fail-fast for CI/CD) |
 | `plugin_tool_override` | `False` | Allow plugin tools to shadow MCP tools when names conflict |
 
