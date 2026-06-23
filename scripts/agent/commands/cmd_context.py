@@ -91,6 +91,12 @@ class _ContextMixin(MixinBase):
                 ("System preview  ", repr(state.sys_preview)),
             ]
         )
+        if state.partial_completions > 0:
+            self._out.write_kv(
+                [
+                    ("Partial compl   ", f"{state.partial_completions} stored as tool_result(tool_name='llm_partial_completion')"),
+                ]
+            )
         self._print_token_line(state)
         approval_str = (
             "Yes -> use /approve or /reject" if state.approval_pending else "No"

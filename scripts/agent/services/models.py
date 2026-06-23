@@ -81,6 +81,7 @@ class ContextStateView:
     git_commit: str | None
     breakdown: ContextBudget
     fallback_truncate_count: int = 0
+    partial_completions: int = 0
     workflow_mode: str = ""
     approval_pending: bool = False
 
