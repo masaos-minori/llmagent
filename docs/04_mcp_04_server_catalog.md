@@ -188,6 +188,9 @@ All tools do not require config (`requires_config: false`).
 > To enable sandboxing, install firejail and set `sandbox_backend = "firejail"` in
 > `config/shell_mcp_server.toml`. The active backend is visible in the `/health` response
 > (`"sandbox_backend": "none"` or `"sandbox_backend": "firejail"`).
+> **Production enforcement:** In production mode (`security_profile = "production"` in `agent.toml`),
+> `sandbox_backend = "none"` is not permitted. The agent raises `RuntimeError` at startup if this
+> combination is detected. Set `sandbox_backend = "firejail"` or disable shell-mcp in production.
 
 ---
 
