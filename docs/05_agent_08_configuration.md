@@ -64,7 +64,7 @@ provides project-wide defaults.
 | `config/http.toml` | HTTP client timeouts, retries | Hot-reloadable |
 | `config/rag.toml` | RAG search settings | Hot-reloadable |
 | `config/context.toml` | Context length, compression settings | Hot-reloadable |
-| `config/tools.toml` | Tool execution, system prompt name | Hot-reloadable |
+| `config/tools.toml` | Tool execution, system prompt name | Hot-reloadable (most); `plugin_strict`, `plugin_dir` are startup-only |
 | `config/memory.toml` | Memory layer settings | Hot-reloadable (most); `use_memory_layer` is startup-only |
 | `config/otel.toml` | Observability / tracing | Hot-reloadable |
 | `config/security.toml` | Approval and security defaults | Hot-reloadable (most); `auth_token`, `startup_mode` per server are deferred |
@@ -96,6 +96,14 @@ provides project-wide defaults.
 - `use_memory_layer` — enables/disables the memory subsystem at boot
 - `plugin_strict` — enables fail-fast on plugin import errors at boot
 
+### Role of `common.toml`
+
+`common.toml` owns project-wide infrastructure defaults: LLM endpoint URL (`llm_url`),
+RAG defaults (`top_k_search`, `embed_url`), observability endpoint (`otel_endpoint`),
+and SQLite paths (`rag_db_path`, `session_db_path`). SQLite path fields are
+startup-only (read once by `SQLiteHelper`); the URL fields are hot-reloadable.
+Other config files override `common.toml` values at load time.
+
 ### Reload execution pipeline
 
 `ConfigReloadService` (`agent/services/config_reload.py`) applies the reloaded
@@ -117,6 +125,7 @@ config to live service instances:
 | `deferred` | `list[str]` | Changes stored in cfg but effective only on next connection |
 | `skipped` | `list[str]` | Changes skipped (e.g. new MCP server added) |
 | `source_files` | `list[str]` | Config files that were reloaded |
+| `startup_only` | `list[str]` | Startup-only fields that differ from running config |
 
 See `agent/services/config_reload.py` for the full field-level mapping.
 

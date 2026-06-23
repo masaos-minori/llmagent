@@ -206,7 +206,7 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 
 ## Hot-Reload Scope (`/reload`)
 
-`/reload` loads `common.toml` and `agent.toml` and applies changes immediately.
+`/reload` loads all 12 base config files (see [Configuration doc](05_agent_08_configuration.md)) and applies changes where possible. Startup-only settings are detected but not applied.
 
 ### Output format
 
@@ -219,21 +219,24 @@ Applied (runtime): [3 items]
   [OK] - llm
   [OK] - hist_mgr
   [OK] - tools
+Deferred (next connection): [1 items]
+  [DEFER] - mcp/server2.auth_token
+Startup-only (ignored): [1 items]
+  [STARTUP-ONLY] - use_memory_layer
 ```
 
 If nothing changed: `No changes detected.`
 If all changes applied: `Config reloaded — all changes applied`
 If the file cannot be read: `Reload failed (I/O error): <message>`
 
-### What changes immediately vs. requires restart
+### Reload classification summary
 
-| Reloadable at runtime | Requires restart |
-|---|---|
-| `context_char_limit`, `context_compress_turns` | transport type (http/stdio) |
-| `llm_max_retries`, `retry_base_delay` | embed model dimension |
-| `tool_cache_ttl` | DB paths |
-| `temperature`, `max_tokens` (from config) | plugin directory |
-| SSE settings (heartbeat_timeout, etc.) | New MCP server entries |
-| Approval rules, protected paths | |
-| MCP server URLs (HTTP only) | |
-| System prompts | |
+| Category | `/reload` output tag | Description |
+|---|---|---|
+| Hot-reloadable | `[OK]` | Applied immediately to the running process |
+| Deferred | `[DEFER]` | Stored in cfg; effective on next connection/subprocess start |
+| Restart-required | `[RESTART]` | Requires full agent restart |
+| Startup-only | `[STARTUP-ONLY]` | Read once at boot; ignored by `/reload` even if changed |
+| Skipped | `[SKIP]` | New MCP server — restart required |
+
+See [Configuration: Config file reload eligibility](05_agent_08_configuration.md#config-file-ownership-and-hot-reload-eligibility) for the full per-field classification matrix.
