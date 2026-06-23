@@ -49,11 +49,11 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ### DESIGN-1: ETag/Last-Modified and Conditional GET relationship
 
-- **Type:** Needs confirmation
+- **Type:** Resolved
 - **Impact scope:** `crawler.py`, `ingester.py`, `documents` table (`etag`, `last_modified` columns)
 - **Description:** Two components share `documents.etag` and `documents.last_modified`. Crawler reads them and sends Conditional GET headers (`If-None-Match`/`If-Modified-Since`). On HTTP 304, crawler skips file save. Ingester writes/updates these fields even when skipping a URL (`force=False`, already registered) to keep values current for the next crawl cycle. This creates a data dependency: crawler benefits from Conditional GET only after at least one ingester run has stored ETag values.
 - **Current safe interpretation:** The design is: ingester stores ETag/Last-Modified → crawler uses them on subsequent crawls for 304 optimization. The UPDATE on skip is intentional, not a side effect.
-- **Recommended action:** Verify that ingester's ETag UPDATE on skip does not overwrite a valid ETag with a stale value from a chunk file written before a newer crawl.
+- **Recommended action:** Resolved — `_update_etag()` uses `COALESCE(etag, ?)` / `COALESCE(last_modified, ?)` when `new_fetched_at` is absent (legacy chunk files), so existing non-NULL values are never overwritten. When `new_fetched_at` is present, the `fetched_at` timestamp guard prevents stale writes. Source: `ingester.py:_update_etag()`.
 - **Notes for AI reference:** Do not remove the ETag/Last-Modified UPDATE in ingester's skip path — it is required for Conditional GET to function on the next crawl cycle. Sources: `03_rag-ref-crawler.md §2.3`, `03_rag-ref-ingester.md §4.2`.
 
 ---

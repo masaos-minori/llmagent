@@ -56,7 +56,7 @@ class TestUpdateEtagGuard:
         logged_msg = mock_logger.info.call_args[0][0]
         assert "stale" in logged_msg
 
-    def test_missing_fetched_at_always_updates(self) -> None:
+    def test_missing_fetched_at_uses_coalesce_fill_only(self) -> None:
         ingester = _make_ingester()
         db = _make_db("2026-06-10T10:00:00")
 
@@ -64,8 +64,29 @@ class TestUpdateEtagGuard:
 
         db.execute.assert_called_once()
         db.commit.assert_called_once()
-        # fetched_at not queried when new_fetched_at is None
         db.fetchall.assert_not_called()
+        sql = db.execute.call_args[0][0]
+        assert "COALESCE(etag, ?)" in sql
+        assert "COALESCE(last_modified, ?)" in sql
+
+    def test_missing_fetched_at_does_not_overwrite_existing_etag(self) -> None:
+        ingester = _make_ingester()
+        db = _make_db("2026-06-10T10:00:00")
+
+        ingester._update_etag(db, 42, "etag-stale", "Mon, 01 Jun 2026", None)
+
+        sql = db.execute.call_args[0][0]
+        assert "COALESCE(etag, ?)" in sql, "Must use fill-only SQL when new_fetched_at is None"
+
+    def test_missing_fetched_at_fills_null_etag(self) -> None:
+        ingester = _make_ingester()
+        db = _make_db(None)
+
+        ingester._update_etag(db, 42, "etag-first", "Mon, 01 Jun 2026", None)
+
+        db.execute.assert_called_once()
+        sql = db.execute.call_args[0][0]
+        assert "COALESCE(etag, ?)" in sql
 
     def test_both_none_returns_early_no_db_query(self) -> None:
         ingester = _make_ingester()

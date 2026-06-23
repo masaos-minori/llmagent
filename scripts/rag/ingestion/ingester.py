@@ -285,11 +285,20 @@ class RagIngester:
                     doc_id,
                 )
                 return
-        db.execute(
-            "UPDATE documents SET etag = ?, last_modified = ?,"
-            " fetched_at = COALESCE(?, fetched_at) WHERE doc_id = ?",
-            (etag, last_modified, new_fetched_at, doc_id),
-        )
+        if new_fetched_at is not None:
+            # Freshness proven by guard above: overwrite is safe.
+            db.execute(
+                "UPDATE documents SET etag = ?, last_modified = ?,"
+                " fetched_at = COALESCE(?, fetched_at) WHERE doc_id = ?",
+                (etag, last_modified, new_fetched_at, doc_id),
+            )
+        else:
+            # No freshness signal — fill NULL only; never overwrite existing values.
+            db.execute(
+                "UPDATE documents SET etag = COALESCE(etag, ?), last_modified = COALESCE(last_modified, ?)"
+                " WHERE doc_id = ?",
+                (etag, last_modified, doc_id),
+            )
         db.commit()
         logger.info("skip-path etag updated for doc_id=%d", doc_id)
 
