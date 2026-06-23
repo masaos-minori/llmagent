@@ -107,6 +107,8 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 
 ### DB category
 
+#### Flat forms (compatibility aliases)
+
 | Command | Target DB | Side effects | Related state |
 |---|---|---|---|
 | `/db help` | RAG + Session | None | Shows subcommand table |
@@ -121,7 +123,29 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | `/db recover [backup-path]` | RAG | Integrity check; restore from backup if corrupt | Destructive if corrupt |
 | `/db consistency` | RAG | None | Chunks/FTS/vector index sync check |
 
-> **Note:** `/db urls` and `/db clean` call rag-pipeline-mcp MCP tools (`rag_list_documents`, `rag_delete_document`) via the agent's tool executor. Other `/db` commands use `DbMaintenanceService` for direct SQLite access. `session.sqlite` and `workflow.sqlite` are accessed via `SQLiteHelper(target=...)` in code, not through `/db` commands. Schema details: `90_shared_04`.
+#### `/db rag` subcommands
+
+| Command | Side effects | Notes |
+|---|---|---|
+| `/db rag stats` | None | Document/chunk counts (RAG only) |
+| `/db rag urls [--lang] [--limit]` | None | List documents via rag-pipeline-mcp |
+| `/db rag clean <url>` | Delete document + chunks via rag-pipeline-mcp | Cascaded delete |
+| `/db rag rebuild-fts` | Rebuilds `chunks_fts` index | FTS5 rebuild |
+| `/db rag recover [backup-path]` | Integrity check; restore from backup if corrupt | RAG only |
+| `/db rag consistency` | None | Chunks/FTS/vector index sync check |
+
+#### `/db session` subcommands
+
+| Command | Side effects | Notes |
+|---|---|---|
+| `/db session stats` | None | Session/message counts |
+| `/db session health` | None | journal_mode / integrity / page stats |
+| `/db session checkpoint [MODE]` | WAL checkpoint | Flush WAL to main DB |
+| `/db session vacuum` | VACUUM | Recover free pages |
+| `/db session purge [--max-sessions N] [--max-age-days N]` | DELETE old sessions | Based on count or age |
+| `/db session recover [backup-path]` | Integrity check; restore from backup if corrupt | Session only |
+
+> **Note:** `/db rag urls` and `/db rag clean` call rag-pipeline-mcp MCP tools (`rag_list_documents`, `rag_delete_document`) via the agent's tool executor. RAG maintenance commands use `RagMaintenanceService`; session maintenance commands use `DbMaintenanceService`. Flat `/db <subcmd>` forms are compatibility aliases that route to both services. `session.sqlite` and `workflow.sqlite` are accessed via `SQLiteHelper(target=...)` in code, not through `/db` commands. Schema details: `90_shared_04`.
 
 ### Tool / plan category
 

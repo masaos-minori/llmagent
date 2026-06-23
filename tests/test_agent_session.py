@@ -499,3 +499,29 @@ class TestUndoLastTurn:
         session.start()
         deleted = session.undo_last_turn()
         assert deleted == 0
+
+# ── TestAgentSessionRagBoundary ────────────────────────────────────────────────
+
+
+class TestAgentSessionRagBoundary:
+    """Confirm AgentSession has zero RAG-layer imports."""
+
+    def test_session_has_no_rag_imports(self) -> None:
+        import ast
+        import pathlib
+
+        src = pathlib.Path(__file__).parent.parent / "scripts/agent/session.py"
+        tree = ast.parse(src.read_text())
+        rag_imports = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.Import, ast.ImportFrom))
+            and any(
+                (alias.name or "").startswith("rag")
+                or getattr(node, "module", "").startswith("rag")
+                for alias in getattr(node, "names", [])
+            )
+        ]
+        assert not rag_imports, (
+            f"AgentSession must not import from rag.*; found: {rag_imports}"
+        )
