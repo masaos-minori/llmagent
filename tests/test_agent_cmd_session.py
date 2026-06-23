@@ -34,13 +34,14 @@ def _make_cmd(
 ) -> _SessionMixin:
     session = _make_session(
         session_id=session_id, list_return=sessions, title_pending=title_pending
-    )
+  )
     ctx = SimpleNamespace(
         session=session,
         conv=SimpleNamespace(history=[], llm_url=""),
         cfg=SimpleNamespace(llm=SimpleNamespace(context_char_limit=8000)),
         services=SimpleNamespace(
-            hist_mgr=MagicMock(), llm=MagicMock(), http=MagicMock()
+            hist_mgr=MagicMock(), llm=MagicMock(), http=MagicMock(),
+            audit_logger=MagicMock(),
         ),
     )
     cmd = object.__new__(_SessionMixin)
@@ -261,5 +262,49 @@ class TestGenerateSessionTitle:
                 side_effect=SessionTitleGenerationError("fail")
             )
             await cmd._generate_session_title("test")
+
+        cmd._ctx.session.set_title_pending.assert_called_with(False)
+
+
+class TestGenerateSessionTitleVisibility:
+    """audit_logger.warning is called on fallback; fallback set_title DB error is handled."""
+
+    @pytest.mark.asyncio
+    async def test_audit_logger_warning_called_on_failure(self) -> None:
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from agent.services.exceptions import SessionTitleGenerationError
+
+        cmd = _make_cmd()
+        audit_logger = MagicMock()
+        cmd._ctx.services = SimpleNamespace(
+            hist_mgr=MagicMock(), llm=MagicMock(), http=MagicMock(),
+            audit_logger=audit_logger,
+        )
+
+        with patch("agent.services.session_title.SessionTitleService") as MockSvc:
+            MockSvc.return_value.generate = AsyncMock(
+                side_effect=SessionTitleGenerationError("LLM error")
+            )
+            await cmd._generate_session_title("first user message")
+
+        audit_logger.warning.assert_called_once()
+        call_args = audit_logger.warning.call_args[0]
+        assert "session_title_fallback" in call_args[0]
+
+    @pytest.mark.asyncio
+    async def test_fallback_set_title_db_error_does_not_propagate(self) -> None:
+        """If fallback set_title() raises, the exception is logged but not re-raised."""
+        import sqlite3
+        from unittest.mock import AsyncMock, patch
+        from agent.services.exceptions import SessionTitleGenerationError
+
+        cmd = _make_cmd()
+        cmd._ctx.session.set_title.side_effect = sqlite3.Error("disk full")
+
+        with patch("agent.services.session_title.SessionTitleService") as MockSvc:
+            MockSvc.return_value.generate = AsyncMock(
+                side_effect=SessionTitleGenerationError("fail")
+            )
+            await cmd._generate_session_title("hello")
 
         cmd._ctx.session.set_title_pending.assert_called_with(False)

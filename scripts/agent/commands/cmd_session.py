@@ -46,7 +46,22 @@ class _SessionMixin(MixinBase):
                 fallback_title = clean_input[:SESSION_TITLE_TRUNCATE_AT] + "..."
             else:
                 fallback_title = clean_input
-            self._ctx.session.set_title(fallback_title)
+            try:
+                self._ctx.session.set_title(fallback_title)
+            except Exception as db_err:  # noqa: BLE001
+                logger.error(
+                    "Session title fallback set_title failed: %s (session_id=%s)",
+                    db_err,
+                    self._ctx.session.session_id,
+                )
+            else:
+                if self._ctx.services.audit_logger is not None:
+                    self._ctx.services.audit_logger.warning(
+                        "session_title_fallback session_id=%s fallback=%r reason=%s",
+                        self._ctx.session.session_id,
+                        fallback_title,
+                        e,
+                    )
         finally:
             self._ctx.session.set_title_pending(False)
 
