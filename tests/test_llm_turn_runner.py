@@ -68,20 +68,23 @@ class TestStreamLlm:
 
 
 class TestFinalizeAnswer:
-    async def test_appends_to_history(self, runner: LLMTurnRunner) -> None:
+
+    @pytest.mark.asyncio(False)
+    def test_appends_to_history(self, runner: LLMTurnRunner) -> None:
         message: dict[str, Any] = {"role": "assistant", "content": "Hello"}
 
-        result = await runner._finalize_answer_text(message)
+        result = runner._finalize_answer_text(message)
 
         assert result == "Hello"
         assert runner._ctx.conv.history == [message]
 
-    async def test_returns_empty_string_for_no_content(
+    @pytest.mark.asyncio(False)
+    def test_returns_empty_string_for_no_content(
         self, runner: LLMTurnRunner
     ) -> None:
         message: dict[str, Any] = {"role": "assistant"}
 
-        result = await runner._finalize_answer_text(message)
+        result = runner._finalize_answer_text(message)
 
         assert result == ""
 

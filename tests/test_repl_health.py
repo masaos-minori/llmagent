@@ -223,6 +223,20 @@ class TestCheckToolDefinitions:
 
         assert not result.has_issues
 
+    @pytest.mark.asyncio
+    async def test_raises_in_strict_mode_when_all_unreachable(self) -> None:
+        ctx = MagicMock()
+        ctx.cfg.tool.tool_definitions = [
+            {"function": {"name": "read_file"}},
+        ]
+
+        with patch(
+            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+        ) as mock_collect:
+            mock_collect.return_value = (set(), ["srv-a"])  # empty names, non-empty unreachable
+            with pytest.raises(RuntimeError, match="Strict mode: all MCP servers unreachable"):
+                await _check_tool_definitions(ctx, strict=True)
+
 
 # ── check_service_health() ────────────────────────────────────────────────────
 
@@ -378,8 +392,10 @@ class TestAuditSecurityDefaults:
         )
         ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         cfg = ShellCfg(shell_sandbox_backend="firejail", command_allowlist=["ls"])
+        cicd_cfg = MagicMock(workflow_allowlist=["test"])
         with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
-            warnings = audit_security_defaults(ctx, production_mode=True)
+            with patch("mcp.cicd.models.CicdConfig.load", return_value=cicd_cfg):
+                warnings = audit_security_defaults(ctx, production_mode=True)
         auth_warnings = [w for w in warnings if "auth_token" in w]
         assert len(auth_warnings) == 0
 
@@ -399,8 +415,10 @@ class TestAuditSecurityDefaults:
         )
         ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
         cfg = ShellCfg(shell_sandbox_backend="firejail", command_allowlist=["ls"])
+        cicd_cfg = MagicMock(workflow_allowlist=["test"])
         with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
-            warnings = audit_security_defaults(ctx, production_mode=True)
+            with patch("mcp.cicd.models.CicdConfig.load", return_value=cicd_cfg):
+                warnings = audit_security_defaults(ctx, production_mode=True)
         stdio_auth_warnings = [w for w in warnings if "stdio_server" in w]
         assert len(stdio_auth_warnings) == 0
 
@@ -495,6 +513,67 @@ class TestAuditSecurityDefaults:
         summary_lines = [w for w in warnings if "Security posture summary" in w]
         assert len(summary_lines) == 1
         assert "fail-closed" in summary_lines[0]
+
+    def test_cicd_empty_workflow_allowlist_raises_in_production(self) -> None:
+        """cicd.workflow_allowlist empty + production_mode=True → RuntimeError."""
+        from mcp.cicd.models import CicdConfig as CiCd
+
+        ctx = self._make_ctx()
+        empty_cicd = CiCd(workflow_allowlist=[])
+        with (
+            patch("mcp.cicd.models.CicdConfig.load", return_value=empty_cicd),
+            patch("agent.repl_health.ShellConfig.load", side_effect=OSError),
+            patch("agent.repl_health.SqliteConfig.load", side_effect=OSError),
+            patch("agent.repl_health.GitConfig.load", side_effect=OSError),
+        ):
+            with pytest.raises(RuntimeError, match="Production mode requires explicit workflow_allowlist"):
+                audit_security_defaults(ctx, production_mode=True)
+
+    def test_cicd_empty_workflow_allowlist_warns_in_dev(self) -> None:
+        """cicd.workflow_allowlist empty + production_mode=False → warning only."""
+        from mcp.cicd.models import CicdConfig as CiCd
+
+        ctx = self._make_ctx()
+        empty_cicd = CiCd(workflow_allowlist=[])
+        with (
+            patch("mcp.cicd.models.CicdConfig.load", return_value=empty_cicd),
+            patch("agent.repl_health.ShellConfig.load", side_effect=OSError),
+            patch("agent.repl_health.SqliteConfig.load", side_effect=OSError),
+            patch("agent.repl_health.GitConfig.load", side_effect=OSError),
+        ):
+            warnings = audit_security_defaults(ctx, production_mode=False)
+        assert any("workflow_allowlist" in w for w in warnings)
+        assert any("fail-open" in w for w in warnings)
+
+    def test_github_allow_force_push_warns(self) -> None:
+        """github.allow_force_push=True surfaces a security warning."""
+        from mcp.github.models_config import GitHubConfig
+
+        ctx = self._make_ctx()
+        cfg = GitHubConfig(allow_force_push=True, require_pr_review=True)
+        with (
+            patch("mcp.github.models_config.GitHubConfig.load", return_value=cfg),
+            patch("agent.repl_health.ShellConfig.load", side_effect=OSError),
+            patch("agent.repl_health.SqliteConfig.load", side_effect=OSError),
+            patch("agent.repl_health.GitConfig.load", side_effect=OSError),
+        ):
+            warnings = audit_security_defaults(ctx, production_mode=False)
+        assert any("allow_force_push=true" in w for w in warnings)
+
+    def test_github_require_pr_review_false_warns(self) -> None:
+        """github.require_pr_review=False surfaces a security warning."""
+        from mcp.github.models_config import GitHubConfig
+
+        ctx = self._make_ctx()
+        cfg = GitHubConfig(allow_force_push=False, require_pr_review=False)
+        with (
+            patch("mcp.github.models_config.GitHubConfig.load", return_value=cfg),
+            patch("agent.repl_health.ShellConfig.load", side_effect=OSError),
+            patch("agent.repl_health.SqliteConfig.load", side_effect=OSError),
+            patch("agent.repl_health.GitConfig.load", side_effect=OSError),
+        ):
+            warnings = audit_security_defaults(ctx, production_mode=False)
+        assert any("require_pr_review=false" in w for w in warnings)
 
 
 # ── check_readiness() — production vs development mode ───────────────────────

@@ -162,7 +162,7 @@ When `use_tool_summarize=True` and result length > `tool_summarize_threshold` (d
 
 `ToolExecutor` maintains a TTL + LRU cache:
 
-- Cache key: `"{tool_name}:{orjson_dumps(args)}"` (plain string, no MD5)
+- Cache key: `f"{tool_name}:{_json_dumps(args)}"` (plain string, no MD5; `_json_dumps` = orjson with OPT_SORT_KEYS)
 - Only successful results (`is_error=False`) are cached
 - TTL: `tool_cache_ttl` seconds (default 300)
 - LRU eviction when `tool_cache_max_size > 0` (default 200)

@@ -92,14 +92,13 @@ async def health() -> dict[str, object]:
         if _shutil.which("sh") is None:
             deps["shell"] = "sh not found in PATH"
     except Exception:
-        deps["shell"] = "check failed"
+       deps["shell"] = "check failed"
     ready = len(deps) == 0
     return {
         "status": "ok",
         "ready": ready,
-        "sandbox_backend": _service.sandbox_backend,
         "dependencies": deps,
-        "details": {},
+        "details": {"sandbox_backend": _service.sandbox_backend},
     }
 
 

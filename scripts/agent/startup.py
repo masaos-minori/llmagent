@@ -19,6 +19,8 @@ from agent.orchestrator import Orchestrator
 from agent.repl_health import (
     audit_security_defaults,
     check_readiness,
+    check_routing_drift,
+    check_tool_definitions_startup,
     check_tool_definitions_runtime,
 )
 from agent.services.rag_maintenance_service import RagMaintenanceService
@@ -163,8 +165,10 @@ class StartupOrchestrator:
         result = await check_readiness(ctx, production_mode=production_mode)
         for msg in result.warning_messages():
             self._view.write_warning(msg)
-        tool_result = await check_tool_definitions_runtime(ctx)
+   tool_result = await check_tool_definitions_startup(ctx)
         for msg in tool_result.warning_messages():
+            self._view.write_warning(msg)
+        for msg in check_routing_drift(ctx):
             self._view.write_warning(msg)
         try:
             rag_check = RagMaintenanceService().consistency()

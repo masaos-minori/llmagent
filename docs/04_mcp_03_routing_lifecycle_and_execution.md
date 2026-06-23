@@ -83,9 +83,9 @@ Three comparison functions detect configuration drift:
 
 | Function | Compares | When called |
 |---|---|---|
-| `validate_routing_against_config()` | Config `tool_names` vs registry | Startup |
-| `validate_routing_against_live()` | Live `/v1/tools` vs registry | Startup |
-| `validate_all_routing()` | Both above combined | Startup |
+| `validate_routing_against_config()` | Config `tool_names` vs registry | Startup (`check_routing_drift()` in `repl_health.py`) |
+| `validate_routing_against_live()` | Live `/v1/tools` vs registry | Not yet wired (future) |
+| `validate_all_routing()` | Both above combined | Not yet wired (future) |
 
 Drift warnings appear at agent startup:
 
@@ -187,18 +187,34 @@ await transport.stop()
 
 Per-server failure tracker injected into `ToolExecutor`.
 
+**State transitions:**
+
+```
+HEALTHY ──(failure × threshold)──→ UNAVAILABLE
+   ↑                                    │
+   │                            (cooldown 30s elapsed)
+   │                                    ↓
+   └──(record_success)────────── HALF_OPEN (trial probe)
+                                        │
+                              (failure)─┘ → UNAVAILABLE (cooldown reset)
+```
+
 | State | Condition |
 |---|---|
 | `HEALTHY` | No failures or after successful call |
 | `DEGRADED` | Failure count < threshold (default 3) |
-| `UNAVAILABLE` | Failure count ≥ threshold; `_raw_execute()` blocks dispatch |
+| `UNAVAILABLE` | Failure count ≥ threshold; dispatch blocked |
+| `HALF_OPEN` | 30s cooldown elapsed; one trial dispatch allowed |
 
 | Method | Description |
 |---|---|
-| `record_failure(server_key)` | Increment failure; return new state |
-| `record_success(server_key)` | Reset failure count; returns `None` |
-| `get_state(server_key)` | Current state; returns HEALTHY for unknown key |
-| `is_unavailable(server_key)` | `True` if UNAVAILABLE |
+| `record_failure(server_key)` | Increment failure count; `HALF_OPEN → UNAVAILABLE` (cooldown reset); threshold reached → `UNAVAILABLE` |
+| `record_success(server_key)` | Reset failure count and `_unavailable_since`; `HALF_OPEN → HEALTHY` |
+| `get_state(server_key)` | Current state; returns `HEALTHY` for unknown key |
+| `is_unavailable(server_key)` | `True` if `UNAVAILABLE` and cooldown not yet elapsed; side effect: transitions to `HALF_OPEN` when cooldown elapses |
+
+**Constructor:** `McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=30.0)`
+- `half_open_cooldown_sec`: seconds after entering `UNAVAILABLE` before a trial dispatch is allowed (default 30s, fixed — not exponential backoff)
 
 > **Resolved (2026-06-18):** `ToolExecutor._raw_execute()` now calls `record_success()` on transport success and `record_failure()` on `TransportError`. DEGRADED/UNAVAILABLE transitions work correctly.
 

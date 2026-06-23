@@ -69,5 +69,47 @@ class TestTierLabels:
     def test_write_dangerous_label(self) -> None:
         assert TIER_LABELS[McpTier.WRITE_DANGEROUS] == "dangerous"
 
-    def test_admin_label(self) -> None:
+   def test_admin_label(self) -> None:
         assert TIER_LABELS[McpTier.ADMIN] == "admin"
+
+
+class TestGetHttpStatusSandboxBackend:
+    @pytest.mark.asyncio
+    async def test_reads_sandbox_backend_from_details(self) -> None:
+        """_get_http_status reads sandbox_backend from details dict."""
+        service = McpStatusService.__new__(McpStatusService)
+
+        class _FakeResponse:
+            status_code = 200
+            def json(self):
+                return {
+                    "status": "ok",
+                    "ready": True,
+                    "dependencies": {},
+                    "details": {"sandbox_backend": "firejail"},
+                }
+
+        class _FakeClient:
+            async def get(self, url: str):
+                return _FakeResponse()
+
+        avail, sandbox = await service._get_http_status(_FakeClient(), "http://localhost:8009")
+        assert avail == McpAvailability.OK
+        assert sandbox == "firejail"
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_when_sandbox_backend_missing_from_details(self) -> None:
+        service = McpStatusService.__new__(McpStatusService)
+
+        class _FakeResponse:
+            status_code = 200
+            def json(self):
+                return {"status": "ok", "ready": True, "dependencies": {}, "details": {}}
+
+        class _FakeClient:
+            async def get(self, url: str):
+                return _FakeResponse()
+
+        avail, sandbox = await service._get_http_status(_FakeClient(), "http://localhost:8009")
+        assert avail == McpAvailability.OK
+        assert sandbox == ""

@@ -19,7 +19,7 @@ MDQ is optimized for Markdown documents where structural understanding matters m
 
 **Tools:** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`
 **Database:** `mdq.sqlite` (separate from `rag.sqlite`)
-**Status:** Experimental (`stub: true` in server catalog)
+**Status:** Experimental — FTS5 search is functional but not production-validated. (`stub: true` in health endpoint is an experimental status marker, not an indicator of non-functional behavior.)
 
 ---
 
@@ -114,7 +114,7 @@ No automatic migration path exists. Migration would require:
 
 ## Current Status
 
-- **MDQ:** Experimental. FTS5 search is functional but not production-validated. Tool responses may be stub data in some configurations (see [server catalog](04_mcp_04_server_catalog.md)).
+- **MDQ:** Experimental. FTS5 search is functional but not production-validated. See [server catalog](04_mcp_04_server_catalog.md) for details.
 - **RAG:** Production-ready. Full ingestion pipeline, embedding support, and hybrid search (RRF) available.
 
 For production workloads involving general-purpose document retrieval, prefer `rag-pipeline-mcp`. Use `mdq-mcp` only for Markdown-specific structural queries where embedding quality is not critical.
@@ -157,4 +157,4 @@ in the PR.
 ## Known Issues
 
 - **DB path alignment (resolved):** All config files and the code default now use `mdq.sqlite`. If an existing deployment has a `mdq.db` file on disk, rename it to `mdq.sqlite` or update the JSON config path before restarting the service. No code-level compatibility bridge is provided.
-- FTS5 search is functional but not production-validated. Tool responses may be stub data in some configurations (see [server catalog](04_mcp_04_server_catalog.md)).
+- FTS5 search is functional but not production-validated. The `/health` endpoint and tool metadata include `"stub": true` as an experimental status marker; this does not indicate non-functional behavior.

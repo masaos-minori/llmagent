@@ -84,6 +84,7 @@ class Orchestrator:
         self._diagnostic_store = DiagnosticStore()
         ctx.diagnostics = self._diagnostic_store
         self._guard = ToolLoopGuard(ctx)
+        self._background_tasks: set[asyncio.Task[object]] = set()
         self._llm_runner = LLMTurnRunner(
             ctx,
             self._guard,
@@ -130,11 +131,9 @@ class Orchestrator:
             await self._handle_turn_end(line, answer, turn_started_at, error_kind)
             return
 
+        session_id = str(ctx.session.session_id) if ctx.session.session_id else "none"
         store = StateStore()
         try:
-            session_id = (
-                str(ctx.session.session_id) if ctx.session.session_id else "none"
-            )
             workflow_id = str(uuid.uuid4())
             task = store.create_task(
                 session_id=session_id,
@@ -372,8 +371,15 @@ class Orchestrator:
     # ── User message helpers ──────────────────────────────────────────────────
 
     def _sync_system_prompt(self) -> None:
-        """Sync history[0] from ctx.conv.system_prompt_content before each turn."""
+        """Sync history[0] from ctx.conv.system_prompt_content before each turn.
+
+        Also removes ephemeral system messages injected in the previous turn.
+        """
         ctx = self._ctx
+        # Remove ephemeral entries from the previous turn before rebuilding prompt
+        ctx.conv.history = [
+            m for m in ctx.conv.history if not m.get("_ephemeral")
+        ]
         if not ctx.conv.system_prompt_content:
             return
         if ctx.conv.history and ctx.conv.history[0]["role"] == "system":
@@ -399,9 +405,9 @@ class Orchestrator:
                 )
                 mode = MdqRagMode.RAG
         hint = _mode_hint(mode)
-        if hint and ctx.conv.system_prompt_content:
-            ctx.conv.system_prompt_content = (
-                ctx.conv.system_prompt_content + "\n" + hint
+        if hint:
+            ctx.conv.history.append(
+                {"role": "system", "content": hint, "_ephemeral": True}  # type: ignore[typeddict-unknown-key]
             )
 
     def _append_user_message(self, line: str) -> None:
@@ -410,35 +416,10 @@ class Orchestrator:
         ctx.conv.history.append({"role": "user", "content": line})
         ctx.stats.stat_turns += 1
         if ctx.stats.stat_turns == 1 and self._on_first_turn is not None:
-            asyncio.create_task(self._on_first_turn(line))
+            _task = asyncio.create_task(self._on_first_turn(line))
+            self._background_tasks.add(_task)
+            _task.add_done_callback(self._background_tasks.discard)
         ctx.session.save("user", line)
-
-    def _consolidate_mid_turn_errors(
-        self, session_id: int | None, errors: list[dict]
-    ) -> None:
-        """Store multiple mid-turn errors as a single chained diagnostic entry."""
-        if not errors:
-            return
-        self._diagnostic_store.save(
-            session_id,
-            "mid_turn_error",
-            orjson.dumps(
-                {
-                    "error_chain": errors,
-                    "count": len(errors),
-                    "timestamp": datetime.now(UTC).isoformat(),
-                }
-            ).decode(),
-        )
-
-    def _inject_recovery_context(self, error_summary: str) -> list[dict]:
-        """Return a temporary system message for LLM recovery (not persisted to history)."""
-        return [
-            {
-                "role": "system",
-                "content": f"Previous turn failed: {error_summary}. Please respond directly.",
-            }
-        ]
 
     def _handle_llm_transport_error(
         self,

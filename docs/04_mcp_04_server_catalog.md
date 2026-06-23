@@ -100,8 +100,8 @@ All tools require config (`requires_config: true`).
 - `protected_branches` (fnmatch patterns)
 - `path_denylist` (fnmatch patterns)
 - `max_file_size_kb` (0 = unlimited)
-- `allow_force_push` (default `false`)
-- `require_pr_review` (default `true`)
+- `allow_force_push` (default `false`; set `true` to permit force-push and rebase merge)
+- `require_pr_review` (default `true`; set `false` to allow merge without review)
 
 **Domain exceptions** (in `mcp/github/models.py`): `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403),
 `GitHubConflictError` (409), `GitHubValidationError` (400), `GitHubUpstreamError` (502), `GitHubAuditError` (500)
@@ -186,8 +186,8 @@ All tools do not require config (`requires_config: false`).
 > **Security note — Sandbox is disabled by default:** `sandbox_backend` defaults to `"none"`.
 > Shell commands run with the agent process's OS user and permissions — no container, no namespace isolation.
 > To enable sandboxing, install firejail and set `sandbox_backend = "firejail"` in
-> `config/shell_mcp_server.toml`. The active backend is visible in the `/health` response
-> (`"sandbox_backend": "none"` or `"sandbox_backend": "firejail"`).
+> `config/shell_mcp_server.toml`. The active backend is visible in the `/health` response under
+> `details.sandbox_backend` (`"none"` or `"firejail"`).
 > **Production enforcement:** In production mode (`security_profile = "production"` in `agent.toml`),
 > `sandbox_backend = "none"` is not permitted. The agent raises `RuntimeError` at startup if this
 > combination is detected. Set `sandbox_backend = "firejail"` or disable shell-mcp in production.
@@ -268,7 +268,7 @@ All tools do not require config (`requires_config: false`).
 
 **Security:**
 - `repo_allowlist`: fail-closed (empty = deny all)
-- `workflow_allowlist`: fail-open (empty = allow all)
+- `workflow_allowlist`: fail-open (empty = allow all); in production mode (`security_profile = "production"`), empty list raises `RuntimeError` at agent startup
 - `trigger_workflow` supports `dry_run` argument (exposed via tool schema)
 
 **Log limits:** max 5 jobs, 256 KB total (default)
@@ -287,7 +287,8 @@ All tools do not require config (`requires_config: false`).
 
 > **Experimental — Not Production-Ready:** FTS5 search and indexing are functionally implemented
 > (`MdqService` uses SQLite FTS5 virtual tables). All 7 tools carry `"status": "stub"` in their
-> tool metadata and the `/health` endpoint returns `"stub": true`. The server is not validated for
+> tool metadata and the `/health` endpoint returns `"stub": true` — both are experimental status
+> markers, not indicators of non-functional behavior. The server is not validated for
 > production load. Use `rag-pipeline-mcp` for production RAG search.
 
 **DB path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)

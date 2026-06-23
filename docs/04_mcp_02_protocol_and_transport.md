@@ -167,6 +167,42 @@ if __name__ == "__main__":
 
 ---
 
+### stdio Transport: Scalability Limits (Design Note)
+
+**Current behavior:**
+Each `StdioTransport` instance serializes concurrent calls using a single `asyncio.Lock`
+(see `shared/tool_executor.py`). This means only one request at a time can be in-flight
+per stdio server, regardless of how many concurrent tool calls arrive.
+
+**Why this is acceptable today:**
+All production servers use `transport = "http"` (see `config/mcp_servers.toml`).
+stdio mode is available but currently unused in production. With one or two stdio servers
+handling low-concurrency workloads, the lock contention is negligible.
+
+**When this becomes a bottleneck:**
+If stdio-based servers become common, or if a single stdio server receives high
+concurrent load (e.g., embedded local tools called across many parallel tool rounds),
+the serialized lock will create a queue of waiting coroutines. Threshold TBD — dependent
+on round concurrency and per-call latency.
+
+**Future scaling options (planning note — no current commitment):**
+
+1. **Worker pool per stdio server**: Spawn N subprocess workers and distribute calls
+   across them using a semaphore-guarded pool. Cost: N × memory overhead per worker.
+
+2. **Multiplexed stdio protocol**: Extend the JSON-RPC framing to support concurrent
+   in-flight requests with response matching by `id`. Requires server-side support and
+   a response demultiplexer in `StdioTransport`.
+
+3. **Migrate to HTTP transport**: Convert high-traffic stdio servers to persistent HTTP
+   servers. Aligns with the existing `HttpTransport` path which has no per-instance
+   serialization constraint. This is the lowest-risk migration path.
+
+See `04_mcp_01_system_overview.md` for the transport overview and
+`shared/tool_executor.py` (`StdioTransport` class) for the lock implementation.
+
+---
+
 ## Bearer Authentication
 
 When `McpServerConfig.auth_token` is non-empty:
@@ -199,6 +235,7 @@ When result exceeds 512 KB:
 | web-search-mcp | `dependencies.brave_api_key`, `dependencies.bing_api_key` (both `"set"`/`"not_set"`); `details.providers` (list) |
 | github-mcp | `dependencies.github_token` (`"set"`/`"not_set"`) |
 | mdq-mcp | root-level `"stub": true` (marks experimental status); `details.service: "mdq-mcp"` |
+| shell-mcp | `details.sandbox_backend` (`"firejail"` or `"none"`) |
 | Others | Base response only: `{"status":"ok","ready":bool,"dependencies":{},"details":{}}` |
 
 ---

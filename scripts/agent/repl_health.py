@@ -209,7 +209,14 @@ async def _check_tool_definitions(
     server_names, unreachable = await _collect_server_tool_names(ctx)
     if not server_names:
         if unreachable:
-            msg = f"All MCP servers unreachable during strict validation: {sorted(set(unreachable))}; skipping tool definition check"
+            if strict:
+                msg = (
+                    f"Strict mode: all MCP servers unreachable — cannot validate tool definitions. "
+                    f"Unreachable servers: {sorted(set(unreachable))}."
+                )
+                logger.error(msg)
+                raise RuntimeError(msg)
+            msg = f"All MCP servers unreachable; skipping tool definition check. Unreachable: {sorted(set(unreachable))}"
             logger.info(msg)
         else:
             msg = "No tool definitions in config and no servers reachable; skipping validation"
@@ -246,6 +253,31 @@ async def _check_tool_definitions(
 async def check_tool_definitions_runtime(ctx: AgentContext) -> HealthCheckResult:
     """Runtime validation: no raise, warnings only."""
     return await _check_tool_definitions(ctx, strict=False)
+
+
+async def check_tool_definitions_startup(ctx: AgentContext) -> HealthCheckResult:
+    """Startup validation: respects tool_definitions_strict config flag."""
+    strict = getattr(ctx.cfg.tool, "tool_definitions_strict", False)
+    return await _check_tool_definitions(ctx, strict=strict)
+
+
+def check_routing_drift(ctx: AgentContext) -> list[str]:
+    """Check config tool_names against ToolRegistry at startup. Returns warning messages."""
+    from shared.tool_registry import validate_routing_against_config  # noqa: PLC0415
+
+    try:
+        server_configs = ctx.cfg.mcp.mcp_servers
+        drift = validate_routing_against_config(server_configs=server_configs)
+        warnings: list[str] = []
+        for server_key, messages in drift.items():
+            for msg in messages:
+                full_msg = f"Routing drift [{server_key}]: {msg}"
+                logger.warning(full_msg)
+                warnings.append(full_msg)
+        return warnings
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Routing drift check failed: %s", exc)
+        return []
 
 
 async def _watchdog_check_http(
@@ -541,6 +573,41 @@ def audit_security_defaults(
             msg = "Security: tool.allowed_tools is empty (all tools allowed; use allowlist to restrict)"
             logger.warning(msg)
             warnings.append(msg)
+
+    # Check cicd workflow_allowlist (fail-open — empty = allow all workflows)
+    try:
+        from mcp.cicd.models import CicdConfig  # noqa: PLC0415 — lazy import; cicd-mcp optional
+        cicd_cfg = CicdConfig.load()
+        if not cicd_cfg.workflow_allowlist:
+            msg = "cicd.workflow_allowlist is empty (fail-open: all workflows allowed)"
+            if production_mode:
+                raise RuntimeError(
+                    f"Production mode requires explicit workflow_allowlist. {msg}"
+                )
+            fail_open_empty.append("cicd.workflow_allowlist")
+            logger.warning("Security: %s", msg)
+            warnings.append(f"Security: {msg}")
+    except RuntimeError:
+        raise
+    except Exception:
+        pass
+
+    # Surface GitHub write settings (warning only — not a production-mode hard error)
+    try:
+        from mcp.github.models_config import (
+            GitHubConfig as _GitHubConfig,  # noqa: PLC0415 — lazy import; github-mcp optional
+        )
+        gh_write_cfg = _GitHubConfig.load()
+        if gh_write_cfg.allow_force_push:
+            msg = "github.allow_force_push=true (force push and rebase merge permitted)"
+            logger.warning("Security: %s", msg)
+            warnings.append(f"Security: {msg}")
+        if not gh_write_cfg.require_pr_review:
+            msg = "github.require_pr_review=false (PR merge without review permitted)"
+            logger.warning("Security: %s", msg)
+            warnings.append(f"Security: {msg}")
+    except Exception:
+        pass
 
     # Security posture summary
     if fail_closed_empty or fail_open_empty:

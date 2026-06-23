@@ -187,6 +187,9 @@ class ToolRouteResolver:
             if tool_name in self._discovery_map or tool_name in self._config_map:
                 mapped.append(tool_name)
                 continue
+            if self._lookup_registry(tool_name) is not None:
+                mapped.append(tool_name)
+                continue
             try:
                 self._fallback_route(tool_name)
                 mapped.append(tool_name)

@@ -29,6 +29,7 @@ from shared.json_utils import dumps as _json_dumps
 from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
+    McpServerHealthState,
 )
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_cache import CacheEntry
@@ -545,9 +546,13 @@ class ToolExecutor:
 
     def _check_health(self, server_key: str) -> ToolCallResult | None:
         """Return an error result if the server is unavailable; None if healthy."""
-        if self._health_registry is not None and self._health_registry.is_unavailable(
-            server_key
-        ):
+        if self._health_registry is None:
+            return None
+        state = self._health_registry.get_state(server_key)
+        if state == McpServerHealthState.HALF_OPEN:
+            logger.info("Health: %r is HALF_OPEN — allowing trial dispatch", server_key)
+            return None
+        if self._health_registry.is_unavailable(server_key):
             msg = f"MCP server {server_key!r} is currently unavailable (health check failed)"
             logger.warning(msg)
             return self._error_result(server_key, msg, error_type="tool")

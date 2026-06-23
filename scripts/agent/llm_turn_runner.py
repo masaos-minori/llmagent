@@ -70,7 +70,7 @@ class LLMTurnRunner:
 
             has_tool_calls = bool(message.get("tool_calls"))
             if (finish_reason != "tool_calls") or not has_tool_calls:
-                answer = await self._finalize_answer_text(message)
+                answer = self._finalize_answer_text(message)
                 return TurnResult(action="continue", answer=answer)
 
             ctx.conv.history.append(message)
@@ -156,7 +156,7 @@ class LLMTurnRunner:
             return self._tracer.start_as_current_span(name, attributes=attrs or None)
         return nullcontext(_NoOpSpan())
 
-    async def _finalize_answer_text(self, message: LLMMessage) -> str:
+    def _finalize_answer_text(self, message: LLMMessage) -> str:
         """Append the done-turn message to history and return the answer text."""
         ctx = self._ctx
         ctx.conv.history.append(message)
@@ -169,6 +169,7 @@ class LLMTurnRunner:
     ) -> Any:
         """Stream one LLM response; raise on first-turn failure, inject on mid-turn."""
         ctx = self._ctx
+        logger.debug("_stream_llm: turn=%d url=%s", turn, llm_url)
         if ctx.services.llm is None:
             raise RuntimeError("llm service not initialized")
         response = await ctx.services.llm.stream(

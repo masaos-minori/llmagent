@@ -552,31 +552,6 @@ class TestToolLoopGuardHelpers:
         assert result is not None
         assert "repeated" in result.lower() or "duplicate" in result.lower()
 
-    def test_consolidate_mid_turn_errors_empty_list_noop(self) -> None:
-        ctx = _make_ctx()
-        orch = _make_orchestrator(ctx)
-        orch._consolidate_mid_turn_errors(1, [])
-        orch._diagnostic_store.save.assert_not_called()
-
-    def test_consolidate_mid_turn_errors_saves_chain(self) -> None:
-        ctx = _make_ctx()
-        orch = _make_orchestrator(ctx)
-        errors = [{"error_type": "Timeout", "turn": 0}]
-        orch._consolidate_mid_turn_errors(1, errors)
-        orch._diagnostic_store.save.assert_called_once()
-        call_args = orch._diagnostic_store.save.call_args[0]
-        assert call_args[1] == "mid_turn_error"
-        assert "error_chain" in call_args[2]
-
-    def test_inject_recovery_context_returns_system_message(self) -> None:
-        ctx = _make_ctx()
-        orch = _make_orchestrator(ctx)
-        result = orch._inject_recovery_context("llm_error")
-        assert len(result) == 1
-        assert result[0]["role"] == "system"
-        assert "llm_error" in result[0]["content"]
-
-
 # ── allowed_tools override ────────────────────────────────────────────────────
 
 

@@ -610,6 +610,26 @@ class TestDryRun:
             truncated=True,
             elapsed_sec=0.5,
         )
-        with patch.object(svc, "run_command", new=AsyncMock(return_value=mock_result)):
+       with patch.object(svc, "run_command", new=AsyncMock(return_value=mock_result)):
             result = await svc.fmt_run_command({"command": "ls -R"})
         assert "TRUNCATED" in result
+
+
+class TestHealthResponse:
+    def test_health_response_includes_sandbox_backend_in_details(self, monkeypatch) -> None:
+        from fastapi.testclient import TestClient
+        from mcp.shell import server as shell_server
+
+        class _FakeService:
+            sandbox_backend = "none"
+            ready = True
+            dependencies: dict = {}
+
+        monkeypatch.setattr(shell_server, "_service", _FakeService())
+        client = TestClient(shell_server.app)
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "sandbox_backend" not in body
+        assert "sandbox_backend" in body.get("details", {})
+        assert body["details"]["sandbox_backend"] in ("none", "firejail")

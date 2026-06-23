@@ -18,7 +18,7 @@ from uuid import uuid4
 import orjson
 from rag.llm import summarize_tool_result
 from shared.json_utils import dumps as _json_dumps
-from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
+from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
 from shared.tool_executor import is_side_effect, tool_hash_key
 from shared.tool_spec import ToolSpec
 
@@ -194,17 +194,32 @@ async def _execute_with_dag(
         fn = td.get("function", {})
         name = fn.get("name", "")
         if name:
+            _is_write = name in WRITE_TOOLS or name in DELETE_TOOLS
+            _default_scope = name if _is_write else ""
             tool_meta[name] = ToolSpec(
                 call_id="",
                 name=name,
-                resource_scope=fn.get("resource_scope", ""),
-                requires_serial=fn.get("requires_serial", False),
-                is_write=name in WRITE_TOOLS or name in DELETE_TOOLS,
+                resource_scope=fn.get("resource_scope", _default_scope),
+                requires_serial=fn.get("requires_serial", False) or name in SHELL_TOOLS,
+                is_write=_is_write,
             )
 
     round_id = str(uuid4())
     t0 = time.perf_counter()
     _groups, metadata = build_execution_groups(approved_calls, tool_meta)
+    if logger.isEnabledFor(logging.DEBUG):
+        for _tc in approved_calls:
+            _n = _tc["function"]["name"]
+            _m = tool_meta.get(_n)
+            if _m is not None and _m.requires_serial:
+                _bucket = "serial_barrier"
+            elif _m is not None and _m.is_write and _m.resource_scope:
+                _bucket = f"resource_scope:{_m.resource_scope}"
+            elif _m is not None and _m.is_write:
+                _bucket = "write_first"
+            else:
+                _bucket = "parallel"
+            logger.debug("DAG_BUCKET: %s → %s", _n, _bucket)
     serialization_events = metadata.serialization_events
     if serialization_events:
         total_affected = sum(e.tools_count for e in serialization_events)

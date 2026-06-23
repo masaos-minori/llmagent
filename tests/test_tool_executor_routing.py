@@ -641,6 +641,62 @@ class TestMcpServerHealthRegistry:
         r.record_success("srv")
         assert r.get_state("srv") == McpServerHealthState.HEALTHY
 
+    def test_half_open_cooldown_expiry_allows_trial_probe(self) -> None:
+        """After cooldown elapses, is_unavailable returns False and state becomes HALF_OPEN."""
+        import time as _time
+
+        r = McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=0.01)
+        r.record_failure("srv")
+        r.record_failure("srv")
+        r.record_failure("srv")
+        assert r.get_state("srv") == McpServerHealthState.UNAVAILABLE
+        assert r.is_unavailable("srv")
+        _time.sleep(0.02)
+        assert not r.is_unavailable("srv")
+        assert r.get_state("srv") == McpServerHealthState.HALF_OPEN
+
+    def test_half_open_probe_failure_resets_to_unavailable(self) -> None:
+        """HALF_OPEN probe failure resets to UNAVAILABLE with fresh cooldown."""
+        import time as _time
+
+        r = McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=0.01)
+        r.record_failure("srv")
+        r.record_failure("srv")
+        r.record_failure("srv")
+        assert r.get_state("srv") == McpServerHealthState.UNAVAILABLE
+        _time.sleep(0.02)
+        assert not r.is_unavailable("srv")
+        assert r.get_state("srv") == McpServerHealthState.HALF_OPEN
+        state = r.record_failure("srv")
+        assert state == McpServerHealthState.UNAVAILABLE
+        assert r.get_state("srv") == McpServerHealthState.UNAVAILABLE
+        assert r.is_unavailable("srv")
+
+    def test_half_open_probe_success_restores_healthy(self) -> None:
+        """HALF_OPEN probe success reverts to HEALTHY."""
+        import time as _time
+
+        r = McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=0.01)
+        r.record_failure("srv")
+        r.record_failure("srv")
+        r.record_failure("srv")
+        assert r.get_state("srv") == McpServerHealthState.UNAVAILABLE
+        _time.sleep(0.02)
+        assert not r.is_unavailable("srv")
+        assert r.get_state("srv") == McpServerHealthState.HALF_OPEN
+        r.record_success("srv")
+        assert r.get_state("srv") == McpServerHealthState.HEALTHY
+        assert not r.is_unavailable("srv")
+
+    def test_half_open_cooldown_not_expired_still_unavailable(self) -> None:
+        """Before cooldown elapses, is_unavailable still returns True."""
+        r = McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=10.0)
+        r.record_failure("srv")
+        r.record_failure("srv")
+        r.record_failure("srv")
+        assert r.get_state("srv") == McpServerHealthState.UNAVAILABLE
+        assert r.is_unavailable("srv")
+
 
 # ── ToolExecutor health gate ──────────────────────────────────────────────────
 
@@ -774,6 +830,32 @@ class TestToolExecutorHealthGate:
         ex._transports["file_read"] = mock_transport
         res = await ex._raw_execute("read_text_file", {})
         assert res.is_error
+        assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
+
+    @pytest.mark.asyncio
+    async def test_half_open_allows_trial_dispatch(self) -> None:
+        """HALF_OPEN server allows trial dispatch; success restores HEALTHY."""
+        import time as _time
+
+        registry = McpServerHealthRegistry(failure_threshold=1, half_open_cooldown_sec=0.01)
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key=""
+            )
+        )
+        ex._transports["file_read"] = mock_transport
+        registry.record_failure("file_read")
+        assert registry.is_unavailable("file_read")
+        _time.sleep(0.02)
+        assert not registry.is_unavailable("file_read")
+        assert registry.get_state("file_read") == McpServerHealthState.HALF_OPEN
+        res = await ex._raw_execute("read_text_file", {})
+        assert not res.is_error
+        assert res.output == "ok"
+        mock_transport.call.assert_called_once()
         assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
 
 

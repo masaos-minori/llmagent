@@ -213,7 +213,7 @@ Source: `config/tools.toml` + `config/system_prompts.toml` + `config/tools_defin
 | `auto_inject_notes` | `True` | Inject all notes into system prompt at startup |
 | `use_tool_summarize` | `False` | Summarize long tool results via LLM |
 | `tool_summarize_threshold` | `3000` | Min chars to trigger summarization |
-| `tool_definitions_strict` | `False` | Abort startup on tool definition mismatch |
+| `tool_definitions_strict` | `False` | Abort startup on tool definition mismatch **or** if all MCP servers are unreachable at startup |
 | `tool_dedup_max_repeats` | `3` | Same (name,args) repeat limit |
 | `tool_cycle_detect_window` | `2` | Cycle detection window (rounds; 0=disabled) |
 | `tool_error_max_consecutive` | `3` | Consecutive all-error rounds to break loop |
@@ -225,6 +225,19 @@ Source: `config/tools.toml` + `config/system_prompts.toml` + `config/tools_defin
 | `tool_result_max_llm_chars` | `8000` | Max tool result chars added to LLM context |
 | `tool_results_turn_max_chars` | `50000` | Max total tool result chars per turn |
 | `use_tool_dag` | `False` | Execute WRITE_TOOLS before READ_TOOLS |
+
+**`use_tool_dag` resource_scope 規約:**
+
+DAG モード (`use_tool_dag = true`) では、`_execute_with_dag()` がツールごとに `ToolSpec` を構築する際に以下のデフォルト値を適用する。
+
+| Tool type | `resource_scope` default | `requires_serial` default | Scheduling bucket |
+|---|---|---|---|
+| WRITE_TOOLS / DELETE_TOOLS (config に `resource_scope` なし) | `{tool_name}` | `False` | `resource_groups[tool_name]` → concurrent batch |
+| `shell_run` (SHELL_TOOLS) | `""` | `True` | serial_barrier (1呼び出しずつ) |
+| Read / その他 | `""` | `False` | `parallel` → concurrent batch |
+
+config (`tools_definitions.toml` または `agent.toml`) に `resource_scope` または `requires_serial` を明示した場合はそれが優先される。同一 `resource_scope` を持つ write ツールの複数呼び出しは同一グループ内で `asyncio.gather` により並行実行される。
+
 | `tool_definitions` | `[]` | Tool definitions from `tools_definitions.toml` |
 | `system_prompts` | `{}` | System prompt preset dict |
 | `allowed_tools` | `[]` | Session tool whitelist (empty = all allowed) |
