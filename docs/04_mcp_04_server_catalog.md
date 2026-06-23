@@ -100,8 +100,8 @@ All tools require config (`requires_config: true`).
 - `protected_branches` (fnmatch patterns)
 - `path_denylist` (fnmatch patterns)
 - `max_file_size_kb` (0 = unlimited)
-- `allow_force_push` (default `true`)
-- `require_pr_review` (default `false`)
+- `allow_force_push` (default `false`)
+- `require_pr_review` (default `true`)
 
 **Domain exceptions** (in `mcp/github/models.py`): `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403),
 `GitHubConflictError` (409), `GitHubValidationError` (400), `GitHubUpstreamError` (502), `GitHubAuditError` (500)

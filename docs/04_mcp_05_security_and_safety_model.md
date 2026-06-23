@@ -319,7 +319,7 @@ Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).
 - `shell-mcp`: `sandbox_backend = "none"` (default) means no OS-level sandboxing.
   Set to `"firejail"` for production; visible in `/health` response.
 - `cicd-mcp`: `workflow_allowlist = []` is fail-open; explicitly list permitted workflows.
-- `github-mcp`: `allow_force_push = true` (default); set to `false` in production.
+- `github-mcp`: `allow_force_push = false` (default); `require_pr_review = true` (default).
 
 ### Startup audit
 

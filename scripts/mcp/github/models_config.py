@@ -42,8 +42,8 @@ class GitHubConfig:
     protected_branches: list[str] = dataclasses.field(default_factory=list)
     max_file_size_kb: int = 0
     audit_log_path: str = ""
-    allow_force_push: bool = True
-    require_pr_review: bool = False
+    allow_force_push: bool = False
+    require_pr_review: bool = True
     default_per_page: int = DEFAULT_PER_PAGE
     max_per_page: int = 100
     llm_url: str = ""
@@ -58,8 +58,8 @@ class GitHubConfig:
             protected_branches=list(d.get("protected_branches", [])),
             max_file_size_kb=int(d.get("max_file_size_kb", 0)),
             audit_log_path=_get_str(d, "audit_log_path"),
-            allow_force_push=bool(d.get("allow_force_push", True)),
-            require_pr_review=bool(d.get("require_pr_review", False)),
+            allow_force_push=bool(d.get("allow_force_push", False)),
+            require_pr_review=bool(d.get("require_pr_review", True)),
             default_per_page=int(d.get("default_per_page", DEFAULT_PER_PAGE)),
             max_per_page=int(d.get("max_per_page", 100)),
             llm_url=_get_str(d, "llm_url"),
