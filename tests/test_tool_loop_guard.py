@@ -4,6 +4,7 @@ Unit tests for agent/tool_loop_guard.py — ToolLoopGuard.
 
 from __future__ import annotations
 
+import orjson
 from unittest.mock import MagicMock
 
 from agent.config import AgentConfig, build_agent_config
@@ -237,9 +238,9 @@ class TestUpdateErrors:
         result = ToolLoopGuard.update_errors(0, 3, 3)
         assert result == 1
 
-    def test_some_succeeded_resets(self) -> None:
+    def test_partial_failure_maintains_count(self) -> None:
         result = ToolLoopGuard.update_errors(5, 1, 3)
-        assert result == 0
+        assert result == 5
 
     def test_zero_tool_calls_no_increment(self) -> None:
         result = ToolLoopGuard.update_errors(0, 0, 0)
@@ -273,3 +274,58 @@ class TestCheckErrorLimit:
         ctx = _make_ctx()
         guard = ToolLoopGuard(ctx)
         assert guard.check_error_limit(5) is not None
+
+
+class TestCanonicalKeyConsistency:
+    def test_same_args_different_json_order_produce_same_key(self) -> None:
+        """check_dedup and check_retry agree even when JSON key order differs."""
+        key1 = ToolLoopGuard._canonical_key("write_file", '{"path": "a", "content": "b"}')
+        key2 = ToolLoopGuard._canonical_key("write_file", '{"content": "b", "path": "a"}')
+        assert key1 == key2
+
+    def test_different_args_produce_different_key(self) -> None:
+        key1 = ToolLoopGuard._canonical_key("write_file", '{"path": "a"}')
+        key2 = ToolLoopGuard._canonical_key("write_file", '{"path": "b"}')
+        assert key1 != key2
+
+    def test_invalid_json_falls_back_to_empty_dict(self) -> None:
+        from shared.tool_executor import tool_hash_key
+
+        key = ToolLoopGuard._canonical_key("write_file", "INVALID_JSON")
+        expected = tool_hash_key("write_file", {})
+        assert key == expected
+
+
+class TestUpdateErrorsPartialFailure:
+    def test_all_failed_increments(self) -> None:
+        assert ToolLoopGuard.update_errors(2, 3, 3) == 3
+
+    def test_all_succeeded_resets(self) -> None:
+        assert ToolLoopGuard.update_errors(2, 0, 3) == 0
+
+    def test_partial_failure_maintains_count(self) -> None:
+        assert ToolLoopGuard.update_errors(2, 1, 3) == 2
+
+
+class TestCheckRetryHint:
+    def test_check_retry_diagnostics_uses_retry_hint(self) -> None:
+        """check_retry stores RETRY_HINT (not DEDUP_HINT) in diagnostics."""
+        from agent.tool_loop_guard import RETRY_HINT, ToolLoopGuard
+
+        ctx = _make_ctx()
+        ctx.diagnostics = MagicMock()
+        saved = []
+        ctx.diagnostics.save = lambda *a: saved.append(orjson.loads(a[2]))
+
+        from shared.tool_executor import tool_hash_key
+
+        key = tool_hash_key("write_file", {"path": "a"})
+        failed_calls = {key}
+        message: dict = {
+            "role": "assistant",
+            "tool_calls": [{"function": {"name": "write_file", "arguments": '{"path":"a"}'}}],
+        }
+        guard = ToolLoopGuard(ctx)
+        result = guard.check_retry(failed_calls, message)
+        assert result is not None
+        assert any(d.get("hint") == RETRY_HINT for d in saved)

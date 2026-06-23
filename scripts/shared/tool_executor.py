@@ -101,11 +101,13 @@ class HttpTransport:
         base_url: str,
         server_key: str,
         cfg: McpServerConfig | None = None,
+        timeout_sec: float = 60.0,
     ) -> None:
         self._http = http
         self._base_url = base_url
         self._server_key = server_key
         self._auth_token: str = cfg.auth_token if cfg is not None else ""
+        self._timeout = timeout_sec
         self._session_id: str = ""
 
     def set_session_id(self, session_id: str) -> None:
@@ -136,6 +138,9 @@ class HttpTransport:
             output=result_val, is_error=is_error_val, request_id=x_request_id
         )
 
+    _RETRYABLE_STATUS: frozenset[int] = frozenset({429, 502, 503, 504})
+    _RETRY_MAX: int = 3
+
     async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
         """POST to /v1/call_tool and return ToolCallResult.
 
@@ -148,37 +153,62 @@ class HttpTransport:
             headers["Authorization"] = f"Bearer {self._auth_token}"
         if self._session_id:
             headers["X-Session-Id"] = self._session_id
-        try:
-            resp = await self._http.post(
-                f"{self._base_url}/v1/call_tool",
-                json={"name": name, "args": args},
-                headers=headers,
-            )
-            resp.raise_for_status()
-            result = self._parse_http_response(resp)
-            return ToolCallResult(
-                output=result.output,
-                is_error=result.is_error,
-                request_id=result.request_id,
-                server_key=self._server_key,
-                error_type=result.error_type,
-            )
-        except httpx.HTTPStatusError as e:
-            msg = (
-                f"[HTTPStatusError] tool={name} url={self._base_url}"
-                f" status={e.response.status_code}"
-                f" response={e.response.text[:300]!r}"
-                f" — check {self._base_url}/health"
-            )
-            logger.warning(msg)
-            raise TransportError(msg) from e
-        except (httpx.RequestError, ValueError) as e:
-            msg = (
-                f"[{type(e).__name__}] tool={name} url={self._base_url}: {e}"
-                f" — check {self._base_url}/health"
-            )
-            logger.warning(msg)
-            raise TransportError(msg) from e
+
+        timeout = httpx.Timeout(self._timeout) if self._timeout > 0 else None
+        last_exc: Exception | None = None
+        for attempt in range(self._RETRY_MAX):
+            try:
+                resp = await self._http.post(
+                    f"{self._base_url}/v1/call_tool",
+                    json={"name": name, "args": args},
+                    headers=headers,
+                    timeout=timeout,
+                )
+                if resp.status_code in self._RETRYABLE_STATUS:
+                    wait_sec = 2 ** (self._RETRY_MAX - attempt - 1)  # 4, 2, 1
+                    logger.warning(
+                        "HTTP %s from %s; retrying in %.0fs (attempt %d/%d)",
+                        resp.status_code, self._base_url, wait_sec, attempt + 1, self._RETRY_MAX,
+                    )
+                    await asyncio.sleep(wait_sec)
+                    continue
+                resp.raise_for_status()
+                result = self._parse_http_response(resp)
+                return ToolCallResult(
+                    output=result.output,
+                    is_error=result.is_error,
+                    request_id=result.request_id,
+                    server_key=self._server_key,
+                    error_type=result.error_type,
+                )
+            except httpx.TimeoutException as e:
+                msg = f"[TimeoutException] tool={name} url={self._base_url}: {e}"
+                logger.warning(msg)
+                last_exc = TransportError(msg)
+                break  # timeout = non-retryable
+            except httpx.HTTPStatusError as e:
+                msg = (
+                    f"[HTTPStatusError] tool={name} url={self._base_url}"
+                    f" status={e.response.status_code}"
+                    f" response={e.response.text[:300]!r}"
+                    f" — check {self._base_url}/health"
+                )
+                logger.warning(msg)
+                last_exc = TransportError(msg)
+                break
+            except (httpx.RequestError, ValueError) as e:
+                msg = (
+                    f"[{type(e).__name__}] tool={name} url={self._base_url}: {e}"
+                    f" — check {self._base_url}/health"
+                )
+                logger.warning(msg)
+                last_exc = TransportError(msg)
+                break
+        else:
+            msg = f"[Retry exhausted] tool={name} url={self._base_url} after {self._RETRY_MAX} attempts"
+            logger.error(msg)
+            raise TransportError(msg)
+        raise last_exc or TransportError(f"call failed: {name}")
 
 
 class StdioTransport:
@@ -239,12 +269,16 @@ class StdioTransport:
         return self._proc is not None and self._proc.returncode is None
 
     @staticmethod
-    def _parse_stdio_response(resp_bytes: bytes) -> ToolCallResult:
+    def _parse_stdio_response(resp_bytes: bytes, expected_id: int | None = None) -> ToolCallResult:
         """Parse a JSON-RPC response line and return ToolCallResult.
 
-        Raises (orjson.JSONDecodeError, KeyError) if the response is invalid.
+        Raises (orjson.JSONDecodeError, KeyError, ValueError) if the response is invalid.
         """
         resp = orjson.loads(resp_bytes)
+        if expected_id is not None and resp.get("id") != expected_id:
+            raise ValueError(
+                f"Response ID mismatch: expected {expected_id}, got {resp.get('id')}"
+            )
         is_error = bool(resp["is_error"])
         return ToolCallResult.from_transport(
             output=str(resp["result"]), is_error=is_error
@@ -291,7 +325,7 @@ class StdioTransport:
                 msg = f"stdio server closed connection (key={self._server_key!r})"
                 raise TransportError(msg)
             try:
-                result = self._parse_stdio_response(resp_bytes)
+                result = self._parse_stdio_response(resp_bytes, expected_id=req_id)
                 return ToolCallResult(
                     output=result.output,
                     is_error=result.is_error,
@@ -299,7 +333,7 @@ class StdioTransport:
                     server_key=self._server_key,
                     error_type=result.error_type,
                 )
-            except (orjson.JSONDecodeError, KeyError) as e:
+            except (orjson.JSONDecodeError, KeyError, ValueError) as e:
                 msg = (
                     f"stdio server invalid response (key={self._server_key!r}): {e}"
                     f" raw={resp_bytes[:200]!r}"
@@ -419,6 +453,7 @@ class ToolExecutor:
         self._tool_error_threshold = repeated_tool_error_threshold
         self._lifecycle: LifecycleProtocol | None = lifecycle
         self._health_registry: McpServerHealthRegistry | None = None
+        self._inflight: dict[str, asyncio.Future[ToolCallResult]] = {}
 
         # concurrency_limits: server_key -> max concurrent calls.
         # Semaphores are created lazily inside _raw_execute() to avoid event loop issues.
@@ -440,7 +475,8 @@ class ToolExecutor:
         self._transports: dict[str, HttpTransport | StdioTransport | None] = {}
         for key, cfg in server_configs.items():
             if cfg.transport == "http":
-                self._transports[key] = HttpTransport(http, cfg.url, key, cfg)
+                timeout_sec = cfg.call_timeout_sec if hasattr(cfg, "call_timeout_sec") and cfg.call_timeout_sec else 60.0
+                self._transports[key] = HttpTransport(http, cfg.url, key, cfg, timeout_sec=timeout_sec)
             else:
                 self._transports[key] = None  # filled by set_transport()
 
@@ -626,7 +662,27 @@ class ToolExecutor:
                     error_type="tool" if cached.is_error else "",
                 )
             del self._cache[cache_key]
-        result = await self._raw_execute(tool_name, args)
+        # Stampede protection: share inflight future among concurrent callers.
+        inflight = self._inflight.get(cache_key)
+        if inflight is not None and not inflight.done():
+            result = await inflight
+        else:
+            loop = asyncio.get_running_loop()
+            inflight = loop.create_future()
+            self._inflight[cache_key] = inflight
+            try:
+                result = await self._raw_execute(tool_name, args)
+                if not result.is_error:
+                    self._cache[cache_key] = CacheEntry(
+                        output=result.output, is_error=result.is_error, cached_at=time.time()
+                    )
+                    if self._cache_max_size > 0 and len(self._cache) > self._cache_max_size:
+                        evicted_key, _ = self._cache.popitem(last=False)
+                        logger.debug("Tool cache LRU evict: %r", evicted_key)
+            finally:
+                if not inflight.done():
+                    inflight.set_result(result)
+                self._inflight.pop(cache_key, None)
         if not result.is_error:
             self._cache[cache_key] = CacheEntry(
                 output=result.output, is_error=result.is_error, cached_at=time.time()

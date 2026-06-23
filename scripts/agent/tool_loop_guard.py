@@ -29,6 +29,11 @@ DEDUP_HINT = (
     " Stop retrying and provide your best answer with the information already available."
 )
 
+RETRY_HINT = (
+    "[System] A tool call that previously failed is being retried with the same arguments."
+    " Stop retrying and provide your best answer with the information already available."
+)
+
 CYCLE_HINT = (
     "[System] A cyclic planning pattern was detected: the same set of tool calls"
     " is being requested repeatedly across multiple rounds. Stop and provide your"
@@ -58,6 +63,20 @@ class ToolLoopGuard:
 
     # ── Guard checks ──────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _canonical_key(name: str, arguments_str: str) -> str:
+        """Return a stable MD5 hash for (name, args), normalizing arg key order.
+
+        Uses orjson.loads + tool_hash_key to match the hash used in failed_calls.
+        Falls back to {} on parse failure so check_dedup and check_retry share
+        a consistent key space.
+        """
+        try:
+            parsed = orjson.loads(arguments_str)
+        except (orjson.JSONDecodeError, TypeError):
+            parsed = {}
+        return tool_hash_key(name, parsed)
+
     def check_cycle(
         self,
         round_fingerprints: list[str],
@@ -77,11 +96,12 @@ class ToolLoopGuard:
             ).encode(),
             usedforsecurity=False,
         ).hexdigest()
-        if round_fingerprints.count(round_key) >= ctx.cfg.tool.tool_cycle_detect_window:
+        repeat_count = round_fingerprints.count(round_key)
+        if repeat_count >= ctx.cfg.tool.tool_cycle_detect_window:
             logger.warning(
                 "Cyclic planning detected: round fingerprint %r repeated %s times",
                 round_key,
-                round_fingerprints.count(round_key),
+                repeat_count,
             )
             if ctx.diagnostics is not None:
                 ctx.diagnostics.save(
@@ -91,7 +111,7 @@ class ToolLoopGuard:
                         {
                             "guard_type": "cycle",
                             "round_key": round_key,
-                            "repeat_count": round_fingerprints.count(round_key),
+                            "repeat_count": repeat_count,
                             "hint": CYCLE_HINT,
                             "timestamp": datetime.now(UTC).isoformat(),
                         }
@@ -110,10 +130,10 @@ class ToolLoopGuard:
         ctx = self._ctx
         for tc in message["tool_calls"]:
             func = tc.get("function", {})
-            key = hashlib.md5(
-                f"{func.get('name', '')}:{func.get('arguments', '{}')}".encode(),
-                usedforsecurity=False,
-            ).hexdigest()
+            key = self._canonical_key(
+                func.get("name", ""),
+                func.get("arguments", "{}"),
+            )
             seen_calls[key] = seen_calls.get(key, 0) + 1
             if seen_calls[key] >= ctx.cfg.tool.tool_dedup_max_repeats:
                 name = func.get("name", "<unknown>")
@@ -146,15 +166,11 @@ class ToolLoopGuard:
             return None
         for tc in message["tool_calls"]:
             func = tc.get("function", {})
-            args_str = func.get("arguments", "{}")
-            try:
-                tc_args = orjson.loads(args_str)
-            except (orjson.JSONDecodeError, TypeError):
-                logger.warning(
-                    "check_retry: invalid JSON in tool arguments; skipping retry check"
-                )
-                return None
-            if tool_hash_key(func.get("name", ""), tc_args) in failed_calls:
+            key = self._canonical_key(
+                func.get("name", ""),
+                func.get("arguments", "{}"),
+            )
+            if key in failed_calls:
                 name = func.get("name", "<unknown>")
                 logger.warning("Retry of failed tool call blocked: %r", name)
                 if ctx.diagnostics is not None:
@@ -165,7 +181,7 @@ class ToolLoopGuard:
                             {
                                 "guard_type": "retry",
                                 "tool_name": name,
-                                "hint": DEDUP_HINT,
+                                "hint": RETRY_HINT,
                                 "timestamp": datetime.now(UTC).isoformat(),
                             }
                         ).decode(),
@@ -195,8 +211,12 @@ class ToolLoopGuard:
         n_errors: int,
         n_tool_calls: int,
     ) -> int:
-        """Increment counter when all calls failed; reset to 0 when any succeeded."""
-        return consecutive_errors + 1 if n_errors == n_tool_calls else 0
+        """Increment counter when all calls failed; maintain when partial; reset when any succeeded."""
+        if n_errors == n_tool_calls:
+            return consecutive_errors + 1
+        if n_errors > 0:
+            return consecutive_errors  # partial failure: maintain count
+        return 0
 
     def check_error_limit(self, consecutive_errors: int) -> str | None:
         """Return exit message when consecutive all-error turns exceed configured max."""

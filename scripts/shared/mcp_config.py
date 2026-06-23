@@ -56,6 +56,7 @@ class McpServerConfig:
     healthcheck_mode: HealthcheckMode = (
         HealthcheckMode.HTTP
     )  # resolved in __post_init__
+    call_timeout_sec: float = 60.0  # per-call timeout for HttpTransport; 0 = no timeout
     idle_timeout_sec: int = 0  # ondemand auto-stop delay in seconds
     startup_timeout_sec: int = 30  # subprocess startup health-poll timeout in seconds
     working_dir: str = ""  # stdio subprocess working directory; "" = inherit
@@ -190,14 +191,13 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         url=v.get("url", ""),
         cmd=list(v.get("cmd", [])),
         startup_mode=StartupMode(v.get("startup_mode", "persistent")),
-        healthcheck_mode=HealthcheckMode(v.get("healthcheck_mode", ""))
-        if v.get("healthcheck_mode")
-        else HealthcheckMode.HTTP,
+        healthcheck_mode=v.get("healthcheck_mode", ""),
         idle_timeout_sec=int(v.get("idle_timeout_sec", 0)),
         startup_timeout_sec=int(v.get("startup_timeout_sec", 30)),
         working_dir=v.get("working_dir", ""),
         env=dict(v.get("env", {})),
         tool_names=list(v.get("tool_names", [])),
         auth_token=v.get("auth_token", ""),
+        call_timeout_sec=float(v.get("call_timeout_sec", 60.0)),
         role=v.get("role", ""),
     )

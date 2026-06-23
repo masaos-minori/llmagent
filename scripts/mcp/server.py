@@ -24,6 +24,11 @@ from mcp.dispatch import DispatchResult
 # Library module: use standard getLogger without a dedicated log file.
 logger = logging.getLogger(__name__)
 
+
+def _write_stdout(data: str) -> None:
+    sys.stdout.write(data)
+    sys.stdout.flush()
+
 # Type alias for MCP tool argument dictionaries.
 # Pydantic models in each server validate the actual structure at runtime.
 ToolArgs = dict[str, Any]
@@ -211,6 +216,7 @@ class MCPServer:
                 break  # stdin EOF — client closed the pipe
 
             req_id = 0
+            name = ""
             truncated = False
             total_bytes = 0
             actual_visible_bytes = 0
@@ -238,6 +244,21 @@ class MCPServer:
                     truncated = tr.truncated
                     total_bytes = tr.total_bytes
                     actual_visible_bytes = tr.actual_visible_bytes
+            except asyncio.CancelledError:
+                result = "Server cancelled"
+                is_error = True
+                resp = _json_dumps(
+                    {
+                        "id": req_id,
+                        "result": result,
+                        "is_error": is_error,
+                        "truncated": False,
+                        "total_bytes": 0,
+                        "actual_visible_bytes": 0,
+                    },
+                )
+                loop.run_in_executor(None, _write_stdout, resp + "\n")
+                raise
             except orjson.JSONDecodeError as e:
                 logger.error("run_stdio JSON decode error: %s", e)
                 result = f"JSON decode error: {e}"
@@ -275,5 +296,4 @@ class MCPServer:
                     "actual_visible_bytes": actual_visible_bytes,
                 },
             )
-            sys.stdout.write(resp + "\n")
-            sys.stdout.flush()
+            loop.run_in_executor(None, _write_stdout, resp + "\n")
