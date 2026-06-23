@@ -220,6 +220,7 @@ class TestPersistSessionDiagnostics:
         ctx.services.llm.stat_heartbeat_timeouts = 0
         ctx.services.llm.stat_reconnects = 2
         ctx.services.hist_mgr.stat_compress_count = 2
+        ctx.services.hist_mgr.stat_fallback_truncate_count = 0
         repl._ctx = ctx
         repl._diagnostic_store = MagicMock()
         return repl

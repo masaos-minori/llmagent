@@ -95,6 +95,8 @@ class RuntimeStats:
     stat_serialization_events: list[dict] = field(default_factory=list)
     stat_serialization_total_overhead_ms: float = 0.0
     stat_memory_consistency_failures: int = 0
+    stat_memory_circuit_open: bool = False
+    stat_memory_fts_fallback_count: int = 0
 
 
 @dataclass

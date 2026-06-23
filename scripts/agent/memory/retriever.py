@@ -259,6 +259,7 @@ class HybridRetriever:
         self._recency_days = recency_days
         self.embed_client: EmbeddingClient | None = embed_client
         self.last_retrieval_mode: str = "unknown"
+        self.fts_fallback_count: int = 0
 
     def search(
         self,
@@ -276,6 +277,7 @@ class HybridRetriever:
         if embedding is None:
             logger.info("retrieval: fts_only (reason=embedding_disabled_or_none)")
             self.last_retrieval_mode = "fts_only"
+            self.fts_fallback_count += 1
             return fts_hits
 
         vec_hits = self._vec.knn_search(
@@ -284,6 +286,7 @@ class HybridRetriever:
         if not vec_hits:
             logger.info("retrieval: fts_only (reason=vec_returned_empty)")
             self.last_retrieval_mode = "fts_only"
+            self.fts_fallback_count += 1
             return fts_hits
 
         self.last_retrieval_mode = "hybrid"

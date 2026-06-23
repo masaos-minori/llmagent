@@ -247,15 +247,22 @@ class _MemoryMixin(MixinBase):
         circuit_detail = ""
         if status.circuit_open and status.resets_in_sec is not None:
             circuit_detail = f" (resets in {status.resets_in_sec:.0f}s)"
+        retrieval_mode = mem.retriever.last_retrieval_mode
+        mode_display = retrieval_mode
+        if retrieval_mode == "fts_only":
+            mode_display = "fts_only  [DEGRADED — embedding unavailable]"
+
+        circuit_status = "closed"
+        if status.circuit_open:
+            circuit_status = f"OPEN  [circuit breaker active{circuit_detail}]"
+
         rows = [
             ["Memory layer", "enabled"],
             ["Embedding enabled", "Yes" if status.enabled else "No"],
-            [
-                "Circuit",
-                ("OPEN" + circuit_detail) if status.circuit_open else "closed",
-            ],
+            ["Circuit", circuit_status],
             ["Consecutive failures", str(status.fail_count)],
-            ["Last retrieval mode", mem.retriever.last_retrieval_mode],
+            ["FTS fallback count", str(mem.retriever.fts_fallback_count)],
+            ["Last retrieval mode", mode_display],
         ]
         self._out.write_table(["Field", "Value"], rows)
 

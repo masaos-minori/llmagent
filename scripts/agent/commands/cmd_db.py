@@ -124,23 +124,23 @@ class _DbMixin(MixinBase):
             ["rag urls", "RAG", "--lang --limit", "List document URLs"],
             ["rag clean", "RAG", "<url>", "Delete a document"],
             ["rag rebuild-fts", "RAG", "", "Rebuild FTS5 index"],
-            ["rag recover", "RAG", "[backup-path]", "Integrity check / restore"],
+            ["rag recover", "RAG", "[backup-path]", "(admin) Integrity check / restore"],
             ["rag consistency", "RAG", "", "Chunks/FTS/vec sync check"],
             ["session stats", "Session", "", "Session/message counts"],
-            ["session health", "Session", "", "Integrity check / size"],
-            ["session checkpoint", "Session", "[MODE]", "WAL checkpoint"],
-            ["session vacuum", "Session", "", "Reclaim free pages"],
+            ["session health", "Session", "", "(admin) Integrity check / size"],
+            ["session checkpoint", "Session", "[MODE]", "(admin) WAL checkpoint"],
+            ["session vacuum", "Session", "", "(admin) Reclaim free pages"],
             [
                 "session purge",
                 "Session",
                 "--max-sessions N\n--max-age-days N",
-                "Purge old sessions",
+                "(admin) Purge old sessions",
             ],
             [
                 "session recover",
                 "Session",
                 "[backup-path]",
-                "Integrity check / restore",
+                "(admin) Integrity check / restore",
             ],
         ]
         self._out.write_table(
@@ -148,7 +148,8 @@ class _DbMixin(MixinBase):
             rows,
         )
         self._out.write(
-            "Compatibility aliases: /db stats|urls|clean|rebuild-fts"
+            "Legacy aliases (prefer /db rag/session forms):"
+            " /db stats|urls|clean|rebuild-fts"
             "|health|checkpoint|vacuum|purge|recover|consistency"
         )
         self._out.write(
@@ -162,7 +163,7 @@ class _DbMixin(MixinBase):
             ["urls", "--lang --limit", "List document URLs"],
             ["clean", "<url>", "Delete a document"],
             ["rebuild-fts", "", "Rebuild FTS5 index"],
-            ["recover", "[backup-path]", "Integrity check / restore"],
+            ["recover", "[backup-path]", "(admin) Integrity check / restore"],
             ["consistency", "", "Chunks/FTS/vec sync check"],
         ]
         self._out.write_table(
@@ -174,11 +175,11 @@ class _DbMixin(MixinBase):
         """Print help for /db session subcommands."""
         rows = [
             ["stats", "", "Session/message counts"],
-            ["health", "", "Integrity check / size"],
-            ["checkpoint", "[MODE]", "WAL checkpoint"],
-            ["vacuum", "", "Reclaim free pages"],
-            ["purge", "--max-sessions N\n--max-age-days N", "Purge old sessions"],
-            ["recover", "[backup-path]", "Integrity check / restore"],
+            ["health", "", "(admin) Integrity check / size"],
+            ["checkpoint", "[MODE]", "(admin) WAL checkpoint"],
+            ["vacuum", "", "(admin) Reclaim free pages"],
+            ["purge", "--max-sessions N\n--max-age-days N", "(admin) Purge old sessions"],
+            ["recover", "[backup-path]", "(admin) Integrity check / restore"],
         ]
         self._out.write_table(
             ["Subcommand (/db session ...)", "Arguments", "Description"],

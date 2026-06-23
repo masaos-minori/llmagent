@@ -3,6 +3,11 @@
 Show progress while working.
 Follow these steps strictly.
 
+0. Read:
+   - `routing.md`
+   - `skills/python-issue-to-plan/SKILL.md`
+   - `skills/python-issue-to-plan/workflow.md`
+
 1. Search for files matching `requires/*_require.md`.
    Do not read files under the `done` directory.
    If there are no files in `requires/`, stop the task.
@@ -14,9 +19,6 @@ Follow these steps strictly.
      - `yyyymmdd-hhmmss` is the current date time.
    Create the plan only.
    Do not implement anything.
-   Read:
-   - `skills/python-issue-to-plan/SKILL.md`
-   - `skills/python-issue-to-plan/workflow.md`
    Use the following section structure in the work plan:
    - Goal
    - Scope

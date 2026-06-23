@@ -20,6 +20,26 @@ if TYPE_CHECKING:
     pass
 
 
+def _get_mem_circuit_open(ctx) -> bool:
+    """Return True if the memory embedding circuit breaker is open."""
+    mem = ctx.services.memory
+    if mem is None:
+        return False
+    embed_client = mem.retriever.embed_client
+    if embed_client is None:
+        return False
+    status = embed_client.get_status()
+    return bool(status.circuit_open)
+
+
+def _get_mem_fts_fallback(ctx) -> int:
+    """Return the FTS fallback count from the memory retriever."""
+    mem = ctx.services.memory
+    if mem is None:
+        return 0
+    return getattr(mem.retriever, "fts_fallback_count", 0)
+
+
 class _ConfigStatsMixin(MixinBase):
     """Stats collection and display for slash commands."""
 
@@ -55,6 +75,8 @@ class _ConfigStatsMixin(MixinBase):
             memory_consistency_failures=ctx.stats.stat_memory_consistency_failures
             if ctx.stats is not None
             else 0,
+            memory_circuit_open=_get_mem_circuit_open(ctx),
+            memory_fts_fallback_count=_get_mem_fts_fallback(ctx),
             semantic_cache_hits=ctx.stats.stat_semantic_cache_hits,
             input_tokens=ctx.stats.stat_input_tokens,
             output_tokens=ctx.stats.stat_output_tokens,
@@ -93,6 +115,12 @@ class _ConfigStatsMixin(MixinBase):
             self._out.write(
                 f"  Memory inconsist.: {stats.memory_consistency_failures}"
             )
+        if stats.memory_circuit_open:
+            self._out.write("  Memory embed: CIRCUIT OPEN [DEGRADED]")
+        elif stats.memory_fts_fallback_count > 0:
+            self._out.write(
+                f"  Memory embed: fts_only x{stats.memory_fts_fallback_count} [degraded]"
+            )
         self._out.write(f"  Sem. cache    : {stats.semantic_cache_hits} hits")
         self._out.write(f"  Input tokens  : {_fmt_tokens(stats.input_tokens)}")
         self._out.write(f"  Output tokens : {_fmt_tokens(stats.output_tokens)}")
@@ -109,3 +137,5 @@ class _ConfigStatsMixin(MixinBase):
                 self._out.write(
                     f"  {step:<12}: {mean:.2f}s / {mx:.2f}s ({len(samples)} samples)"
                 )
+
+

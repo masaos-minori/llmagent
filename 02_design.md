@@ -3,6 +3,11 @@
 Show progress while working.
 Follow these instructions exactly.
 
+0. Read:
+   - `routing.md`
+   - `skills/python-design/SKILL.md`
+   - `skills/python-design/workflow.md`
+
 1. Find files matching `plans/*_plan.md`.
    Do not read files under the `plans/done/` directory.
    If no matching files exist in `plans/` directory, stop.
@@ -10,7 +15,6 @@ Follow these instructions exactly.
    Select the first file as the target plan file.
 
 2. Read the target plan file.
-   Read `routing.md`.
    Use `routing.md` to identify the target feature and the related implementation files.
 
 3. For each item in `Implementation steps`, check whether it has already been implemented.
@@ -18,9 +22,6 @@ Follow these instructions exactly.
    `target_file_name` is the name of the file to implement and test.
    Create the document only.
    Do not implement anything.
-   Read:
-   - `skills/python-design/SKILL.md`
-   - `skills/python-design/workflow.md`
    Save it as `implementations/{yyyymmdd-hhmmss}_{target_file_name}.md`.
    - `yyyymmdd-hhmmss` is the current date time.
    Write it in clear and concise English for AI understanding.

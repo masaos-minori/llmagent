@@ -115,7 +115,7 @@ class McpStatusService:
         try:
             r = await probe.get(f"{url}/health")
             if r.status_code == HTTPStatus.OK:
-           try:
+                try:
                     body = r.json()
                     sandbox = (
                         body.get("details", {}).get("sandbox_backend", "")

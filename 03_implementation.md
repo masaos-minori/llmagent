@@ -3,6 +3,10 @@
 Show progress while working.
 Follow these instructions exactly.
 
+0. Read `routing.md`.
+   Read `rules/coding.md`.
+   Read `rules/toolchain.md`.
+
 1. Search for files matching `implementations/*.md`.
    Do not read files under the `implementations/done` directory.
    If there are no matching files in `implementations/`, stop the task.
@@ -11,10 +15,7 @@ Follow these instructions exactly.
    If there are no matching files in `implementations/`, stop immediately.
 
 2. Read the target plan file.
-   Read `routing.md`.
    Use `routing.md` to identify the target feature and the related implementation file.
-   Read `rules/coding.md`.
-   Read `rules/toolchain.md`.
 
 3. Implement the feature according to the implementation document.
    Follow:

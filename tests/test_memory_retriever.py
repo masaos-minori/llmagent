@@ -619,3 +619,97 @@ class TestRetrieverInit:
         assert r._fts._fts_limit == 10
         assert r._rrf_k == 30
         assert r._recency_days == 3.0
+
+
+# ── fts_fallback_count counter ────────────────────────────────────────────────
+
+
+class TestHybridRetrieverFallbackCount:
+    def test_counter_starts_at_zero(self) -> None:
+        r = MemoryRetriever()
+        assert r.fts_fallback_count == 0
+
+    def test_counter_increments_on_embedding_none(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(db_conn, memory_id="id-1", content="test keyword")
+        q = MemoryQuery(query="test keyword", limit=5)
+        hits = retriever.search(q, embedding=None)
+        assert len(hits) >= 1
+        assert retriever.fts_fallback_count == 1
+
+    def test_counter_increments_on_vec_empty(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(db_conn, memory_id="id-1", content="test keyword")
+        q = MemoryQuery(query="test keyword", limit=5)
+
+        with patch.object(retriever._vec, "knn_search", return_value=[]):
+            hits = retriever.search(q, embedding=[0.1] * 3)
+
+        assert len(hits) >= 1
+        assert retriever.fts_fallback_count == 1
+
+    def test_counter_increments_multiple_times(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(db_conn, memory_id="id-1", content="test keyword")
+        q = MemoryQuery(query="test keyword", limit=5)
+
+        with patch.object(retriever._vec, "knn_search", return_value=[]):
+            retriever.search(q, embedding=[0.1] * 3)
+        assert retriever.fts_fallback_count == 1
+
+        with patch.object(retriever._vec, "knn_search", return_value=[]):
+            retriever.search(q, embedding=[0.1] * 3)
+        assert retriever.fts_fallback_count == 2
+
+    def test_counter_not_incremented_when_hybrid_works(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(db_conn, memory_id="id-1", content="test keyword")
+        q = MemoryQuery(query="test keyword", limit=5)
+
+        vec_entry = MemoryEntry(
+            memory_id="vec-entry",
+            memory_type="semantic",
+            source_type="rule",
+            session_id=None,
+            turn_id=None,
+            project="",
+            repo="",
+            branch="main",
+            content="vector match",
+            summary="vector match",
+            tags=[],
+            importance=0.5,
+            pinned=False,
+            created_at="2025-01-01T00:00:00Z",
+            updated_at="2025-01-01T00:00:00Z",
+        )
+        vec_hit = MemoryHit(entry=vec_entry, score=0.9)
+
+        with patch.object(retriever._vec, "knn_search", return_value=[vec_hit]):
+            hits = retriever.search(q, embedding=[0.1] * 3)
+
+        assert len(hits) > 0
+        assert retriever.fts_fallback_count == 0
+
+    def test_last_retrieval_mode_set_to_fts_only_on_embedding_none(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(db_conn, memory_id="id-1", content="test keyword")
+        q = MemoryQuery(query="test keyword", limit=5)
+        retriever.search(q, embedding=None)
+        assert retriever.last_retrieval_mode == "fts_only"
+
+    def test_last_retrieval_mode_set_to_fts_only_on_vec_empty(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(db_conn, memory_id="id-1", content="test keyword")
+        q = MemoryQuery(query="test keyword", limit=5)
+
+        with patch.object(retriever._vec, "knn_search", return_value=[]):
+            retriever.search(q, embedding=[0.1] * 3)
+
+        assert retriever.last_retrieval_mode == "fts_only"

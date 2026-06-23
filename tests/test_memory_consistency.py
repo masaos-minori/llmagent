@@ -262,7 +262,7 @@ def _make_mem_services(
     return mem
 
 
-def _make_mixin() -> object:
+def _make_mixin(embed_enabled: bool = False) -> object:
     from agent.commands.cmd_memory import _MemoryMixin
     from agent.commands.output_port import CliOutputPort
 
@@ -270,12 +270,13 @@ def _make_mixin() -> object:
     mixin._out = MagicMock(spec=CliOutputPort)
     mixin._ctx = MagicMock()
     mixin._ctx.services.audit_logger = None
+    mixin._ctx.cfg.memory.memory_embed_enabled = embed_enabled
     return mixin
 
 
 class TestCmdMemoryCheckConsistency:
     def test_consistent_shows_yes(self) -> None:
-        mixin = _make_mixin()
+        mixin = _make_mixin(embed_enabled=False)
         mem = _make_mem_services(memories=3, fts=3, vec=0, jsonl_count=3)
 
         mixin._memory_check_consistency(mem)
@@ -286,7 +287,7 @@ class TestCmdMemoryCheckConsistency:
         assert consistent_row[1] == "Yes"
 
     def test_fts_mismatch_shows_no(self) -> None:
-        mixin = _make_mixin()
+        mixin = _make_mixin(embed_enabled=False)
         mem = _make_mem_services(memories=3, fts=2, vec=0, jsonl_count=3)
 
         mixin._memory_check_consistency(mem)
@@ -297,7 +298,7 @@ class TestCmdMemoryCheckConsistency:
         assert "NO" in consistent_row[1]
 
     def test_jsonl_mismatch_shows_no(self) -> None:
-        mixin = _make_mixin()
+        mixin = _make_mixin(embed_enabled=False)
         mem = _make_mem_services(memories=3, fts=3, vec=0, jsonl_count=4)
 
         mixin._memory_check_consistency(mem)
@@ -310,7 +311,7 @@ class TestCmdMemoryCheckConsistency:
     def test_consistency_error_writes_error(self) -> None:
         from agent.memory.exceptions import MemoryConsistencyError
 
-        mixin = _make_mixin()
+        mixin = _make_mixin(embed_enabled=False)
         mem = MagicMock()
         mem.store.check_consistency.side_effect = MemoryConsistencyError("fts broken")
 
