@@ -41,6 +41,7 @@ class _WorkflowMixin(MixinBase):
             self._out.write_validation_error(f"Failed to resolve approval: {exc}")
             return
         self._ctx.turn.pending_approval_id = None
+        self._ctx.workflow.approval_pending = False
         self._out.write(f"Approved: {approval_id}")
 
     def _cmd_reject(self, arg: str) -> None:
@@ -66,4 +67,5 @@ class _WorkflowMixin(MixinBase):
             self._out.write_validation_error(f"Failed to resolve approval: {exc}")
             return
         self._ctx.turn.pending_approval_id = None
+        self._ctx.workflow.approval_pending = False
         self._out.write(f"Rejected: {approval_id}")

@@ -197,6 +197,12 @@ class Orchestrator:
             )
             ctx.turn.pending_approval_id = exc.approval_id
             ctx.workflow.approval_pending = True
+            from agent.tool_output import emit_approval_pending_notice  # noqa: PLC0415
+
+            emit_approval_pending_notice(
+                approval_id=exc.approval_id,
+                task_id=exc.task_id or "unknown",
+            )
             logger.warning(
                 "[workflow] Approval required. Use /approve [reason] or /reject [reason]."
             )

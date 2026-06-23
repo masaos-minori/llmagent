@@ -83,6 +83,7 @@ class _ConfigStatsMixin(MixinBase):
             debug_mode=ctx.conv.debug_mode,
             latency=ctx.stats.stat_latency,
             workflow_mode=getattr(ctx.cfg, "workflow_mode", ""),
+            approval_pending=ctx.workflow.approval_pending if ctx.workflow is not None else False,
         )
 
     def _cmd_stats(self) -> None:
@@ -126,6 +127,8 @@ class _ConfigStatsMixin(MixinBase):
         self._out.write(f"  Output tokens : {_fmt_tokens(stats.output_tokens)}")
         self._out.write(f"  Debug mode    : {'ON' if stats.debug_mode else 'OFF'}")
         self._out.write(f"  Workflow mode : {stats.workflow_mode or '(not set)'}")
+        if stats.approval_pending:
+            self._out.write("  Approval      : PENDING — use /approve or /reject")
         if stats.latency:
             self._out.write("Latency (mean / max, N samples):")
             for step in ["llm"]:
