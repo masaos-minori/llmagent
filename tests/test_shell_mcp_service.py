@@ -198,9 +198,10 @@ class TestInitSandbox:
         ):
             assert _init_sandbox("firejail") == "firejail"
 
-    def test_firejail_not_found_falls_back_to_none(self) -> None:
+    def test_firejail_not_found_raises_runtime_error(self) -> None:
         with patch("mcp.shell.service_static_helpers.shutil.which", return_value=None):
-            assert _init_sandbox("firejail") == "none"
+            with pytest.raises(RuntimeError, match="firejail is not found in PATH"):
+                _init_sandbox("firejail")
 
 
 # ── _build_argv ───────────────────────────────────────────────────────────────

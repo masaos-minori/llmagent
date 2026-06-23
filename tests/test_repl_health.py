@@ -367,6 +367,7 @@ class TestAuditSecurityDefaults:
     def test_production_mode_all_authed_no_error(self) -> None:
         """Production mode with all HTTP servers having auth_token → no error."""
         from shared.mcp_config import SecurityProfile
+        from mcp.shell.models import ShellConfig as ShellCfg
 
         ctx = self._make_ctx(
             servers={
@@ -376,13 +377,16 @@ class TestAuditSecurityDefaults:
             security_profile="production",
         )
         ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
-        warnings = audit_security_defaults(ctx, production_mode=True)
+        cfg = ShellCfg(shell_sandbox_backend="firejail", command_allowlist=["ls"])
+        with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
+            warnings = audit_security_defaults(ctx, production_mode=True)
         auth_warnings = [w for w in warnings if "auth_token" in w]
         assert len(auth_warnings) == 0
 
     def test_stdio_servers_ignored_in_production(self) -> None:
         """Stdio servers are not checked for auth_token even in production mode."""
         from shared.mcp_config import SecurityProfile
+        from mcp.shell.models import ShellConfig as ShellCfg
 
         ctx = self._make_ctx(
             servers={
@@ -394,7 +398,9 @@ class TestAuditSecurityDefaults:
             security_profile="production",
         )
         ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
-        warnings = audit_security_defaults(ctx, production_mode=True)
+        cfg = ShellCfg(shell_sandbox_backend="firejail", command_allowlist=["ls"])
+        with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
+            warnings = audit_security_defaults(ctx, production_mode=True)
         stdio_auth_warnings = [w for w in warnings if "stdio_server" in w]
         assert len(stdio_auth_warnings) == 0
 
@@ -463,6 +469,18 @@ class TestAuditSecurityDefaults:
                 with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
                     warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("shell_sandbox_backend=none" in w for w in warnings)
+
+    def test_shell_sandbox_none_raises_in_production(self) -> None:
+        """shell_sandbox_backend=none raises RuntimeError in production mode."""
+        from mcp.shell.models import ShellConfig as ShellCfg
+
+        ctx = self._make_ctx()
+        cfg = ShellCfg(shell_sandbox_backend="none", command_allowlist=["ls"])
+        with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
+            with patch("agent.repl_health.SqliteConfig.load", side_effect=OSError):
+                with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
+                    with pytest.raises(RuntimeError, match="Production mode requires shell sandbox"):
+                        audit_security_defaults(ctx, production_mode=True)
 
     def test_security_posture_summary_included(self) -> None:
         """Summary line appended when any fail-closed or fail-open setting is empty."""

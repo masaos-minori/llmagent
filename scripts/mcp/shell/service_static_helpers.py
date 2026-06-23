@@ -18,12 +18,10 @@ logger = logging.getLogger(__name__)
 
 
 def init_sandbox(backend: str) -> str:
-    """Validate firejail availability at startup; fall back to 'none' if not found."""
     if backend == "firejail" and shutil.which("firejail") is None:
-        logger.warning(
-            "firejail not found in PATH; shell_sandbox_backend falling back to 'none'",
+        raise RuntimeError(
+            "shell_sandbox_backend=firejail is configured but firejail is not found in PATH"
         )
-        return "none"
     return backend
 
 

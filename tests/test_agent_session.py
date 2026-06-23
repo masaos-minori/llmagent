@@ -13,6 +13,8 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
+from pathlib import Path
+from threading import Lock
 from unittest.mock import patch
 
 import pytest
@@ -37,9 +39,13 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 """
 
+_write_lock = Lock()
+
 
 class _FakeSQLiteHelper:
     """Minimal SQLiteHelper drop-in backed by a real in-memory SQLite connection."""
+
+    _initialized_conns: set[int] = set()
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
@@ -51,7 +57,17 @@ class _FakeSQLiteHelper:
         return self
 
     def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
+        conn_id = id(self._conn)
+        if conn_id not in _FakeSQLiteHelper._initialized_conns:
+            with _write_lock:
+                if conn_id not in _FakeSQLiteHelper._initialized_conns:
+                    self._conn.executescript(_SCHEMA_SQL)
+                    _FakeSQLiteHelper._initialized_conns.add(conn_id)
         return self._conn.execute(sql, params)
+
+    @classmethod
+    def reset(cls) -> None:
+        cls._initialized_conns.clear()
 
     def executemany(self, sql: str, params_seq: list) -> sqlite3.Cursor:
         return self._conn.executemany(sql, params_seq)
@@ -59,8 +75,16 @@ class _FakeSQLiteHelper:
     def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
         return self._conn.execute(sql, params).fetchall()
 
+    @contextmanager
+    def write_transaction(self, sql: str, params: tuple = ()) -> Generator[sqlite3.Cursor]:
+        with _write_lock:
+            cur = self._conn.execute(sql, params)
+            yield cur
+            self._conn.commit()
+
     def commit(self) -> None:
-        self._conn.commit()
+        with _write_lock:
+            self._conn.commit()
 
     def close(self) -> None:
         pass  # keep alive for the test lifetime
@@ -83,6 +107,13 @@ class _FakeSQLiteHelper:
 
     def __exit__(self, *_: object) -> None:
         pass
+
+
+@pytest.fixture(autouse=True)
+def reset_fake_helper() -> Generator[None]:
+    """Reset class-level state before each test."""
+    _FakeSQLiteHelper.reset()
+    yield
 
 
 @pytest.fixture
@@ -380,54 +411,47 @@ class TestDeleteLastTurn:
 class TestSessionIdConcurrency:
     """Tests for concurrent session_id generation via AgentSession.start()."""
 
-    def test_concurrent_starts_produce_unique_ids(self) -> None:
-        conn = sqlite3.connect(":memory:", check_same_thread=False, timeout=5)
-        conn.executescript(_SCHEMA_SQL)
-        conn.commit()
-
-        def _make(target: str = "rag") -> _FakeSQLiteHelper:  # noqa: ARG001
-            return _FakeSQLiteHelper(conn)
+    def test_concurrent_starts_produce_unique_ids(self, tmp_path: Path) -> None:
+        db_path = tmp_path / "sessions.db"
 
         with (
-            patch("agent.session.SQLiteHelper", side_effect=_make),
-            patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
-            patch("agent.note_repo.SQLiteHelper", side_effect=_make),
+            patch("agent.session.SQLiteHelper", side_effect=lambda target: _FakeSQLiteHelper(sqlite3.connect(str(db_path), check_same_thread=False, timeout=5))),
+            patch("agent.session_message_repo.SQLiteHelper", side_effect=lambda target: _FakeSQLiteHelper(sqlite3.connect(str(db_path), check_same_thread=False, timeout=5))),
+            patch("agent.note_repo.SQLiteHelper", side_effect=lambda target: _FakeSQLiteHelper(sqlite3.connect(str(db_path), check_same_thread=False, timeout=5))),
         ):
             from concurrent.futures import ThreadPoolExecutor
 
-            sessions: list[AgentSession] = []
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                results = list(executor.map(lambda _: AgentSession(), range(8)))
-            for s in results:
+            def _make_and_start(_: int = 0) -> AgentSession:
+                s = AgentSession()
                 s.start()
-                sessions.append(s)
+                return s
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                sessions = list(executor.map(_make_and_start, range(8)))
 
         ids = [s.session_id for s in sessions]
         assert all(isinstance(sid, int) for sid in ids)
         assert len(set(ids)) == 8
 
-    def test_concurrent_starts_all_persisted(self) -> None:
-        conn = sqlite3.connect(":memory:", check_same_thread=False, timeout=5)
-        conn.executescript(_SCHEMA_SQL)
-        conn.commit()
-
-        def _make(target: str = "rag") -> _FakeSQLiteHelper:  # noqa: ARG001
-            return _FakeSQLiteHelper(conn)
+    def test_concurrent_starts_all_persisted(self, tmp_path: Path) -> None:
+        db_path = tmp_path / "sessions.db"
 
         with (
-            patch("agent.session.SQLiteHelper", side_effect=_make),
-            patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
-            patch("agent.note_repo.SQLiteHelper", side_effect=_make),
+            patch("agent.session.SQLiteHelper", side_effect=lambda target: _FakeSQLiteHelper(sqlite3.connect(str(db_path), check_same_thread=False, timeout=5))),
+            patch("agent.session_message_repo.SQLiteHelper", side_effect=lambda target: _FakeSQLiteHelper(sqlite3.connect(str(db_path), check_same_thread=False, timeout=5))),
+            patch("agent.note_repo.SQLiteHelper", side_effect=lambda target: _FakeSQLiteHelper(sqlite3.connect(str(db_path), check_same_thread=False, timeout=5))),
         ):
             from concurrent.futures import ThreadPoolExecutor
 
-            sessions: list[AgentSession] = []
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                results = list(executor.map(lambda _: AgentSession(), range(8)))
-            for s in results:
+            def _make_and_start(_: int = 0) -> AgentSession:
+                s = AgentSession()
                 s.start()
-                sessions.append(s)
+                return s
 
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                list(executor.map(_make_and_start, range(8)))
+
+        conn = sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
         count = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
         assert count == 8
 

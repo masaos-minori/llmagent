@@ -126,7 +126,7 @@ All tools do not require config (`requires_config: false`).
 |---|---|---|
 | `write_file` | `{path, content, dry_run?}` | Returns diff only; no write |
 | `edit_file` | `{path, edits: [{old_text, new_text}], dry_run?}` | Returns diff; no write |
-| `create_directory` | `{path}` | Creates directory; **no** `dry_run` support |
+| `create_directory` | `{path, dry_run?}` | Returns directory info (exists/would create); no create |
 | `move_file` | `{source, destination, dry_run?}` | Returns move feasibility |
 
 **Config:** `max_write_bytes` (default 1 MB; enforced as UTF-8 byte count via Pydantic)

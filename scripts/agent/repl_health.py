@@ -451,9 +451,11 @@ def audit_security_defaults(
     try:
         shell_cfg = ShellConfig.load()
         if shell_cfg.shell_sandbox_backend == "none":
-            msg = "Security: shell_sandbox_backend=none (no sandbox for shell commands)"
-            logger.warning(msg)
-            warnings.append(msg)
+            msg = "shell_sandbox_backend=none is not permitted in production mode"
+            if production_mode:
+                raise RuntimeError(f"Production mode requires shell sandbox. {msg}")
+            logger.warning("Security: %s", msg)
+            warnings.append(f"Security: {msg}")
         if not shell_cfg.command_allowlist and not lockdown:
             fail_closed_empty.append("shell.command_allowlist")
             msg = (
@@ -464,6 +466,11 @@ def audit_security_defaults(
             logger.warning(msg)
             warnings.append(msg)
     except Exception:
+        import sys as _sys
+
+        exc = _sys.exc_info()[1]
+        if isinstance(exc, RuntimeError):
+            raise
         pass
 
     # Check sqlite db_allowlist
