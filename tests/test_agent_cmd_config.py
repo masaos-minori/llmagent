@@ -111,6 +111,30 @@ class TestCmdStats:
         assert "llm_partial_completion" not in out
         assert "Partial compl : 0" in out
 
+    def test_cmd_stats_shows_fallback_truncation(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        llm = _make_llm_svc()
+        hist_mgr = MagicMock()
+        hist_mgr.stat_compress_count = 3
+        hist_mgr.stat_fallback_truncate_count = 2
+        ctx.services.llm = llm
+        ctx.services.hist_mgr = hist_mgr
+        cmd = _FakeCmd(ctx)
+        cmd._cmd_stats()
+        out = capsys.readouterr().out
+        assert "Compress      : 3" in out
+        assert "Fallback trunc: 2" in out
+
+    def test_cmd_stats_fallback_truncation_zero_when_no_hist_mgr(
+        self, capsys: Any
+    ) -> None:
+        ctx = _make_ctx()
+        # hist_mgr is None
+        cmd = _FakeCmd(ctx)
+        cmd._cmd_stats()
+        out = capsys.readouterr().out
+        assert "Fallback trunc: 0" in out
+
 
 # ── _print_config_values ──────────────────────────────────────────────────────
 

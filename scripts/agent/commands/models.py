@@ -21,6 +21,7 @@ class StatsViewModel:
     llm_parse_errors: int
     cache_hits: int
     compress_count: int
+    fallback_truncate_count: int
     semantic_cache_hits: int
     input_tokens: int | None
     output_tokens: int | None

@@ -265,6 +265,9 @@ class AgentREPL:
                 "compress_count": (
                     hist_mgr.stat_compress_count if hist_mgr is not None else 0
                 ),
+                "fallback_truncate_count": (
+                    hist_mgr.stat_fallback_truncate_count if hist_mgr is not None else 0
+                ),
                 "latency_summary": latency_summary,
                 "tool_result_summary": tool_result_summary,
                 "workflow_count": workflow_count,
