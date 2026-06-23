@@ -1,47 +1,249 @@
-[tasks]
+You are a senior software test architect, QA reviewer, and implementation planner.
 
-Show progress while working.
-Follow these instructions exactly.
+Your task is to:
+1. discover how this repository runs tests,
+2. execute all existing test cases,
+3. identify failing tests, flaky tests, missing tests, outdated tests, and inconsistencies,
+4. compare tests against source code and documentation,
+5. detect gaps in coverage and validation,
+6. produce a concrete implementation work plan for test improvement.
 
-1. Find files matching `~/llmagent/plans/*_plan.md`.
-   Do not read files under the `~/llmagent/plans/done/` directory.
-   If no matching files exist in `~/llmagent/plans/`, stop.
-   Sort the files by filename in ascending order.
-   Select the first file as the target plan file.
+Do NOT stop after the first failure.
+Do NOT assume test coverage from file names alone.
+Do NOT edit production code unless explicitly requested later.
 
-2. Read the target plan file.
-   Read `~/llmagent/rules/coding.md`.
-   Read `~/llmagent/rules/toolchain.md`.
-   Read `~/llmagent/routing.md`.
-   Use `routing.md` to identify the target feature and the related implementation files.
+## Primary Goal
+You must review the current quality of the repository’s test suite by actually running the tests and analyzing what is missing, inconsistent, outdated, or weak.
 
-3. For each item in `Implementation steps`, check whether it has already been implemented.
-   If an item is not implemented, create a file-level implementation and test procedure document.
-   `target_file_name` is the name of the file to implement and test.
-   Create the document only.
-   Do not implement anything.
-   Save it as `~/llmagent/implementations/yyyymmdd-hhmmss_{target_file_name}.md`.
-   - `yyyymmdd-hhmmss` is the current date time.
-   Write it in clear and concise English for AI understanding.
-   Use this section structure:
-   - Goal
-   - Scope
-   - Assumptions
-   - Implementation
-     - Target file
-     - Procedure
-     - Method
-     - Details
-   - Validation plan
+Your output must be practical enough to use directly as:
+- a QA review memo,
+- a test debt report,
+- a refactoring / stabilization work plan,
+- a source for GitHub Issue creation.
 
-4. Follow `~/llmagent/skills/python-implementation/SKILL.md`.
+## Required Workflow
 
-5. After the plan is complete, move the processed plan file to `~/llmagent/plans/done`.
+### Step 1: Discover the test execution model
+Inspect the repository and identify:
+- test framework(s)
+- test commands
+- package manager / build tool
+- CI workflows
+- test directories
+- coverage tooling
+- lint / typecheck / import-lint / schema-check commands
+- unit / integration / e2e / smoke test structure
 
-6. Create a Git commit.
+You must inspect files such as:
+- README / docs
+- pyproject.toml / package.json / Makefile / justfile / tox.ini / noxfile / setup.cfg
+- CI workflow files
+- test config files
+- scripts used in CI or validation
 
-7. Compress the current context immediately.
+If multiple test entrypoints exist, identify all of them.
 
-8. End the task.
+### Step 2: Execute all existing tests
+Run all test and validation commands that are part of normal repository validation.
 
-すべてのテストケースを実行し、テストが失敗するケースを洗い出し、「GitHub Issue Markdown テンプレート形式(1 issue = 1 task)」のファイルを /issues フォルダに 1 issue ごとに `yyyymmdd-hhmmss_issues.md` ファイルを出力
+This includes, if present:
+- unit tests
+- integration tests
+- e2e tests
+- smoke tests
+- schema / migration tests
+- CLI tests
+- API tests
+- lint
+- type checks
+- import boundary checks
+- formatting checks
+- config/schema consistency checks
+
+Important:
+- Do not run only one test command if the repository clearly has multiple validation layers.
+- If tests need to be run in a specific order, infer and follow that order.
+- If some tests cannot run because of missing environment/services, record that explicitly.
+
+### Step 3: Record real execution results
+For each executed command, record:
+- exact command
+- purpose
+- success / failure / partial / blocked
+- failing test names
+- failure type
+- stack trace summary
+- likely cause
+- whether failure appears deterministic or flaky
+- whether failure is environment-related
+- whether failure indicates:
+  - production code bug
+  - test code bug
+  - environment/setup issue
+  - unclear / needs confirmation
+
+### Step 4: Detect missing or weak tests
+After executing the tests, inspect source code and docs to find coverage gaps.
+
+Look for:
+- important modules with no tests
+- complex branches with weak coverage
+- fallback paths with no tests
+- failure/recovery logic with no tests
+- boundary conditions with no tests
+- config/reload behavior with no tests
+- persistence / schema / migration behavior with no tests
+- plugin or extension behavior with no tests
+- CLI command behavior with no tests
+- concurrency / retry / timeout / fail-open / fail-fast paths with no tests
+- doc/code mismatches that should be protected by tests
+- tests with weak assertions (e.g. only checking non-empty output)
+
+### Step 5: Detect inconsistent or outdated tests
+Find tests that are:
+- inconsistent with current implementation
+- inconsistent with current documentation
+- duplicative but asserting different behavior
+- over-mocked and not validating real behavior
+- dependent on execution order
+- silently skipping important cases
+- missing regression coverage for known bugs
+
+### Step 6: Produce a concrete work plan
+Create a Japanese Markdown report with:
+1. overall findings,
+2. executed test/validation commands and results,
+3. existing test failures,
+4. missing or weak test coverage,
+5. inconsistent or outdated tests,
+6. a prioritized implementation work plan,
+7. explicit instructions for new or updated test cases.
+
+## Required Classification
+Classify findings into:
+- Existing test failure
+- Flaky test risk
+- Environment dependency problem
+- Missing test coverage
+- Test/design inconsistency
+- Test/code inconsistency
+- Weak assertion quality
+- Missing negative-path test
+- Missing boundary-condition test
+- Missing recovery/fallback test
+- Missing integration test
+- Missing regression test
+
+## Required Output Format
+Output MUST be in Japanese.
+Use Markdown.
+Be concrete and implementation-oriented.
+
+Produce the following sections exactly:
+
+# 1. 全体所見
+- 3〜10 bullet points
+- Summarize the overall health of the current test suite
+- Mention the strongest and weakest areas
+
+# 2. 実行したテスト / 検証コマンド
+For each command:
+- command
+- purpose
+- result (pass / fail / partial / not runnable)
+- notes
+
+# 3. 既存テストの失敗一覧
+For each failure:
+- ID
+- test name / file
+- failure type
+- likely cause
+- severity
+- classification:
+  - code bug
+  - test bug
+  - env issue
+  - flaky
+  - unclear
+- evidence summary
+
+# 4. テストケースの不足・不整合
+For each issue:
+- ID
+- category
+- affected component
+- why current tests are insufficient or inconsistent
+- what risk is currently uncovered
+- evidence from code / docs / current tests
+- whether it is confirmed or Needs confirmation
+
+# 5. 日本語の実装修正タスクリスト（High / Medium / Low）
+For each task:
+- Task ID
+- Goal
+- Concrete actions
+- Acceptance criteria
+- Main affected files/components
+- Dependencies on other tasks if any
+
+# 6. 追加・更新すべきテストケース指示
+For each proposed test:
+- Test ID
+- target module / feature
+- test purpose
+- setup
+- input / condition
+- expected behavior
+- why this test is necessary
+- whether it should be:
+  - unit
+  - integration
+  - e2e
+  - regression
+
+# 7. 推奨実施順
+Order the tasks and explain why.
+
+# 8. 追加で必要な確認事項
+List anything that still requires human confirmation.
+
+## Important Rules
+Follow these rules strictly:
+
+1. You must actually run the tests, not just read test files.
+2. You must distinguish:
+   - production code bug
+   - test code bug
+   - environment/setup issue
+   - flaky behavior
+   - unclear / Needs confirmation
+3. Do not silently ignore skipped or blocked tests.
+4. If CI and local commands differ, report that explicitly.
+5. Prefer repository-defined commands over invented commands.
+6. If a service dependency is missing, explain exactly what blocked execution.
+7. For missing tests, tie each proposal to concrete code paths or documented behavior.
+8. Prefer regression tests for bug-like mismatches.
+9. Do not give vague advice such as “increase coverage”.
+10. Every proposed test addition or update must be actionable.
+
+## Optional Extra Output
+After the Japanese report, also generate:
+
+# 9. GitHub Issue Drafts (English, AI-oriented)
+- 1 issue = 1 task
+- High-priority items only by default
+
+Each issue must contain:
+- Title
+- Summary
+- Background
+- Problem
+- Required Changes
+- Acceptance Criteria
+- Out of Scope
+- AI Implementation Instruction
+
+## Final Quality Standard
+Do not stop at high-level commentary.
+Run the tests, analyze the real results, detect missing or inconsistent tests, and produce a concrete, execution-ready test improvement plan.
