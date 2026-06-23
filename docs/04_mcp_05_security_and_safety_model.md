@@ -271,7 +271,7 @@ Tool risk tiers (from `config/agent.toml::tool_safety_tiers`):
 |---|---|---|
 | `READ_ONLY` | `read_text_file`, `git_status`, `search_web`, `rag_run_pipeline` | Auto-approved |
 | `WRITE_SAFE` | `write_file`, `edit_file`, `git_add`, `git_commit` | `y/N` prompt |
-| `WRITE_DANGEROUS` | `delete_file`, `shell_run`, `github_push_files`, `git_push`, `trigger_workflow` | `yes` (full word) required |
+| `WRITE_DANGEROUS` | `delete_file`, `shell_run`, `github_push_files`, `git_checkout`, `git_pull`, `git_push`, `trigger_workflow` | `yes` (full word) required |
 | `ADMIN` | (custom; none by default) | `yes` required |
 
 Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).

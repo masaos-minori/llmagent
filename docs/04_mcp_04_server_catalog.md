@@ -50,6 +50,8 @@ All providers failed → HTTP 502.
 **Tools (9):** `read_text_file`, `list_directory`, `list_directory_with_sizes`, `directory_tree`,
 `read_media_file`, `read_multiple_files`, `search_files`, `grep_files`, `get_file_info`
 
+All tools do not require config (`requires_config: false`).
+
 **Key tool inputs:**
 
 | Tool | Input |
@@ -87,6 +89,8 @@ All providers failed → HTTP 502.
 `github_search_pull_requests`, `github_update_pull_request`, `github_merge_pull_request`, `github_list_commits`,
 `github_search_code`, `github_create_pull_request`, `github_create_branch`, `github_create_or_update_file`, `github_add_issue_comment`
 
+All tools require config (`requires_config: true`).
+
 **Write operations (9) are subject to repo allowlist:**
 `github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`,
 `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`, `github_update_pull_request`, `github_merge_pull_request`
@@ -116,6 +120,8 @@ All providers failed → HTTP 502.
 
 **Tools (4):** `write_file`, `edit_file`, `create_directory`, `move_file`
 
+All tools do not require config (`requires_config: false`).
+
 | Tool | Input | dry_run behavior |
 |---|---|---|
 | `write_file` | `{path, content, dry_run?}` | Returns diff only; no write |
@@ -137,6 +143,8 @@ All providers failed → HTTP 502.
 
 **Tools (2):** `delete_file`, `delete_directory`
 
+All tools do not require config (`requires_config: false`).
+
 | Tool | Input | dry_run behavior |
 |---|---|---|
 | `delete_file` | `{path, dry_run?}` | Returns file info; no delete |
@@ -155,14 +163,9 @@ All providers failed → HTTP 502.
 
 **Tools (1):** `shell_run`
 
-| Input field | Default | Description |
+| Tool | Input | `requires_config` |
 |---|---|---|
-| `command` | required | Shell command string |
-| `argv` | `null` | Direct argv (skips shlex; preferred for injection prevention) |
-| `cwd` | `null` | Working directory (must be in `shell_cwd_allowed_dirs`) |
-| `timeout_sec` | `30` | Timeout (capped at `max_timeout_sec`) |
-| `max_output_kb` | `512` | Output limit KB (capped at config `max_output_kb`; config server default: 4096) |
-| `env` | `{}` | Additional env vars (filtered by allowlist/denylist) |
+| `shell_run` | `{command?, argv?, cwd?, timeout_sec?, max_output_kb?, env?}` | yes |
 
 **Output:** `{stdout, stderr, exit_code, timed_out, truncated, elapsed_sec}`
 
@@ -220,7 +223,9 @@ All providers failed → HTTP 502.
 
 **Tools (1):** `query_sqlite`
 
-**Input:** `{db: str, sql: str}` — `db` must be in `db_allowlist`; `sql` must be a single SELECT
+| Tool | Input | `requires_config` |
+|---|---|---|
+| `query_sqlite` | `{db: str, sql: str}` — `db` must be in `db_allowlist`; `sql` must be a single SELECT | yes |
 
 **Security (4 layers):**
 1. `db_allowlist` — fail-closed; empty list → deny all
@@ -251,12 +256,12 @@ All providers failed → HTTP 502.
 
 **Tools (4):**
 
-| Tool | Tier | Input |
-|---|---|---|
-| `trigger_workflow` | WRITE_DANGEROUS | `{repo, workflow, ref?, inputs?}` |
-| `get_workflow_runs` | READ_ONLY | `{repo, workflow, limit?}` |
-| `get_workflow_status` | READ_ONLY | `{repo, run_id}` |
-| `get_workflow_logs` | READ_ONLY | `{repo, run_id}` |
+| Tool | Tier | Input | `requires_config` |
+|---|---|---|---|
+| `trigger_workflow` | WRITE_DANGEROUS | `{repo, workflow, ref?, inputs?}` | yes |
+| `get_workflow_runs` | READ_ONLY | `{repo, workflow, limit?}` | yes |
+| `get_workflow_status` | READ_ONLY | `{repo, run_id}` | yes |
+| `get_workflow_logs` | READ_ONLY | `{repo, run_id}` | yes |
 
 **Security:**
 - `repo_allowlist`: fail-closed (empty = deny all)
@@ -297,18 +302,20 @@ All providers failed → HTTP 502.
 
 **Tools (10):**
 
-| Tool | Tier | `read_only` guard | `dry_run` |
-|---|---|---|---|
-| `git_status` | READ_ONLY | — | — |
-| `git_log` | READ_ONLY | — | — |
-| `git_diff` | READ_ONLY | — | — |
-| `git_branch` | READ_ONLY | — | — |
-| `git_show` | READ_ONLY | — | — |
-| `git_add` | WRITE_SAFE | blocked if `read_only=true` | yes |
-| `git_commit` | WRITE_SAFE | blocked | yes |
-| `git_checkout` | WRITE_DANGEROUS | blocked | yes |
-| `git_pull` | WRITE_DANGEROUS | blocked | yes |
-| `git_push` | WRITE_DANGEROUS | blocked | yes |
+All tools require config (`requires_config: true`).
+
+| Tool | Tier | `read_only` guard | `dry_run` | `requires_config` |
+|---|---|---|---|---|
+| `git_status` | READ_ONLY | — | — | yes |
+| `git_log` | READ_ONLY | — | — | yes |
+| `git_diff` | READ_ONLY | — | — | yes |
+| `git_branch` | READ_ONLY | — | — | yes |
+| `git_show` | READ_ONLY | — | — | yes |
+| `git_add` | WRITE_SAFE | blocked if `read_only=true` | yes | yes |
+| `git_commit` | WRITE_SAFE | blocked | yes | yes |
+| `git_checkout` | WRITE_DANGEROUS | blocked | yes | yes |
+| `git_pull` | WRITE_DANGEROUS | blocked | yes | yes |
+| `git_push` | WRITE_DANGEROUS | blocked | yes | yes |
 
 **Config:**
 
