@@ -610,7 +610,7 @@ class TestDryRun:
             truncated=True,
             elapsed_sec=0.5,
         )
-       with patch.object(svc, "run_command", new=AsyncMock(return_value=mock_result)):
+        with patch.object(svc, "run_command", new=AsyncMock(return_value=mock_result)):
             result = await svc.fmt_run_command({"command": "ls -R"})
         assert "TRUNCATED" in result
 

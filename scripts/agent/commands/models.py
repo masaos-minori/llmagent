@@ -22,11 +22,12 @@ class StatsViewModel:
     cache_hits: int
     compress_count: int
     fallback_truncate_count: int
+    memory_consistency_failures: int
     semantic_cache_hits: int
-    input_tokens: int | None
-    output_tokens: int | None
-    debug_mode: bool
-    latency: dict[str, Any] | None  # presentation-only; dict intentional
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    debug_mode: bool = False
+    latency: dict[str, Any] | None = None  # presentation-only; dict intentional
     workflow_mode: str = ""
 
 

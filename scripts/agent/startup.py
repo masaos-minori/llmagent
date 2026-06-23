@@ -165,7 +165,7 @@ class StartupOrchestrator:
         result = await check_readiness(ctx, production_mode=production_mode)
         for msg in result.warning_messages():
             self._view.write_warning(msg)
-   tool_result = await check_tool_definitions_startup(ctx)
+        tool_result = await check_tool_definitions_startup(ctx)
         for msg in tool_result.warning_messages():
             self._view.write_warning(msg)
         for msg in check_routing_drift(ctx):

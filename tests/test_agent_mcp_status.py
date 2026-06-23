@@ -69,7 +69,7 @@ class TestTierLabels:
     def test_write_dangerous_label(self) -> None:
         assert TIER_LABELS[McpTier.WRITE_DANGEROUS] == "dangerous"
 
-   def test_admin_label(self) -> None:
+    def test_admin_label(self) -> None:
         assert TIER_LABELS[McpTier.ADMIN] == "admin"
 
 

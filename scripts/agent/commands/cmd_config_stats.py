@@ -52,6 +52,9 @@ class _ConfigStatsMixin(MixinBase):
             fallback_truncate_count=ctx.services.hist_mgr.stat_fallback_truncate_count
             if ctx.services.hist_mgr is not None
             else 0,
+            memory_consistency_failures=ctx.stats.stat_memory_consistency_failures
+            if ctx.stats is not None
+            else 0,
             semantic_cache_hits=ctx.stats.stat_semantic_cache_hits,
             input_tokens=ctx.stats.stat_input_tokens,
             output_tokens=ctx.stats.stat_output_tokens,
@@ -86,6 +89,10 @@ class _ConfigStatsMixin(MixinBase):
         self._out.write(f"  Cache hits    : {stats.cache_hits}")
         self._out.write(f"  Compress      : {stats.compress_count}")
         self._out.write(f"  Fallback trunc: {stats.fallback_truncate_count}")
+        if stats.memory_consistency_failures:
+            self._out.write(
+                f"  Memory inconsist.: {stats.memory_consistency_failures}"
+            )
         self._out.write(f"  Sem. cache    : {stats.semantic_cache_hits} hits")
         self._out.write(f"  Input tokens  : {_fmt_tokens(stats.input_tokens)}")
         self._out.write(f"  Output tokens : {_fmt_tokens(stats.output_tokens)}")

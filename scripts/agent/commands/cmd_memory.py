@@ -269,15 +269,24 @@ class _MemoryMixin(MixinBase):
             return
         jsonl_store = mem.ingestion._jsonl
         jsonl_count = jsonl_store.count_all()
-        ok = (jsonl_count == report.memories) and (report.memories == report.fts)
+        embed_enabled = self._ctx.cfg.memory.memory_embed_enabled
+        vec_expected = embed_enabled
+        ok = (
+            (jsonl_count == report.memories)
+            and (report.memories == report.fts)
+            and (not vec_expected or report.vec == report.memories)
+        )
         rows = [
             ["JSONL records", str(jsonl_count)],
             ["SQLite memories", str(report.memories)],
             ["FTS5 rows", str(report.fts)],
             ["Vec rows", str(report.vec)],
+            ["Vec check required", "Yes" if vec_expected else "No (embedding disabled)"],
             ["Consistent", "Yes" if ok else "NO - use /memory rebuild to repair"],
         ]
         self._out.write_table(["Metric", "Value"], rows)
+        if not ok:
+            self._ctx.stats.stat_memory_consistency_failures += 1
         self._emit_memory_audit(
             MemoryOpResult(ok=ok, memory_id="", action="check-consistency")
         )
@@ -296,6 +305,12 @@ class _MemoryMixin(MixinBase):
             self._out.write_success(
                 f"Rebuilt {inserted} entries from {jsonl_count} JSONL records"
             )
+            embed_enabled = self._ctx.cfg.memory.memory_embed_enabled
+            if embed_enabled:
+                self._out.write(
+                    "  Note: memories_vec cleared -- embeddings not re-indexed."
+                    " Run /memory rebuild again after re-embedding or disable use to silence."
+                )
         self._emit_memory_audit(
             MemoryOpResult(
                 ok=True,
