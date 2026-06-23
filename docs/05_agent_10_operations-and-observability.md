@@ -26,10 +26,13 @@ cd /opt/llm/scripts && python -m agent
 Expected startup banner:
 ```
 DB: 12,345 chunks | Tools: 14
+Memory: disabled
 Type /help for commands, /exit to quit.
 
 agent[:#1]>
 ```
+
+**Memory line:** Present only when `write_startup_banner()` receives `memory_enabled != None`. Since `repl.py` always passes `ctx.cfg.memory.use_memory_layer`, this line is always shown — `disabled` by default, `enabled` when `use_memory_layer=True`.
 
 ---
 

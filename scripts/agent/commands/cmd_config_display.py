@@ -148,6 +148,25 @@ class _ConfigDisplayMixin(MixinBase):
         else:
             self._out.write("  plan_blocked_tools  : (none)")
 
+    def _print_memory_settings(self, ctx: AgentContext) -> None:
+        self._out.write("Memory layer settings:")
+        self._out.write(f"  use_memory_layer    : {ctx.cfg.memory.use_memory_layer}")
+        self._out.write(
+            f"  memory_embed_enabled: {ctx.cfg.memory.memory_embed_enabled}"
+        )
+        self._out.write(
+            f"  memory_jsonl_dir    : {ctx.cfg.memory.memory_jsonl_dir or '(not set)'}"
+        )
+        self._out.write(
+            f"  max_inject_semantic : {ctx.cfg.memory.memory_max_inject_semantic}"
+        )
+        self._out.write(
+            f"  max_inject_episodic : {ctx.cfg.memory.memory_max_inject_episodic}"
+        )
+        self._out.write(
+            f"  min_importance      : {ctx.cfg.memory.memory_min_importance}"
+        )
+
     def _print_config_values(self) -> None:
         """Print static endpoint/LLM settings and execution settings."""
         ctx = self._ctx
@@ -163,6 +182,8 @@ class _ConfigDisplayMixin(MixinBase):
         self._print_approval_settings(ctx)
         self._out.write("")
         self._print_tool_safety_settings(ctx)
+        self._out.write("")
+        self._print_memory_settings(ctx)
 
     def _print_rag_config(self) -> None:
         """Print retrieval settings including DB path and search parameters."""

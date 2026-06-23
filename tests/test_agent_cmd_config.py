@@ -152,6 +152,12 @@ class TestPrintConfigValues:
         ctx.cfg.approval.approval_dry_run_tools = ["write_file"]
         ctx.cfg.tool.masked_fields = []
         ctx.cfg.tool.plan_blocked_tools = []
+        ctx.cfg.memory.use_memory_layer = False
+        ctx.cfg.memory.memory_embed_enabled = False
+        ctx.cfg.memory.memory_jsonl_dir = "/opt/llm/memory"
+        ctx.cfg.memory.memory_max_inject_semantic = 5
+        ctx.cfg.memory.memory_max_inject_episodic = 3
+        ctx.cfg.memory.memory_min_importance = 0.3
         return ctx
 
     def test_sse_settings_section_is_printed(self, capsys: Any) -> None:
@@ -453,3 +459,34 @@ class TestCmdReload:
             cmd._cmd_reload()
         out = capsys.readouterr().out
         assert "No changes detected." in out
+
+
+# ── _print_memory_settings ──────────────────────────────────────────────────────
+
+
+class TestPrintMemorySettings:
+    def test_memory_settings_shown_in_config(self, capsys: Any) -> None:
+        """_print_config_values() must include a memory layer section."""
+        ctx = TestPrintConfigValues()._make_cfg_ctx()
+        cmd = _FakeCmd(ctx)
+        cmd._print_config_values()
+        out = capsys.readouterr().out
+        assert "use_memory_layer" in out
+        assert "memory_embed_enabled" in out
+
+    def test_memory_disabled_shows_correct_value(self, capsys: Any) -> None:
+        """When use_memory_layer=False, output says False."""
+        ctx = TestPrintConfigValues()._make_cfg_ctx()
+        cmd = _FakeCmd(ctx)
+        cmd._print_config_values()
+        out = capsys.readouterr().out
+        assert "use_memory_layer    : False" in out
+
+    def test_memory_enabled_shows_correct_value(self, capsys: Any) -> None:
+        """When use_memory_layer=True, output says True."""
+        ctx = TestPrintConfigValues()._make_cfg_ctx()
+        ctx.cfg.memory.use_memory_layer = True
+        cmd = _FakeCmd(ctx)
+        cmd._print_config_values()
+        out = capsys.readouterr().out
+        assert "use_memory_layer    : True" in out
