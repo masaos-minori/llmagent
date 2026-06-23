@@ -266,20 +266,17 @@ and embeds it into the SQLite vector store.
 
 ### Re-ingesting after file changes
 
-**Current behavior (no incremental check):**
-If the file has changed, the ingester skips re-embedding because the URL
-already exists in `documents` (force=False). To pick up changes:
+The ingester compares the SHA-256 hash of the current file content against the
+stored `etag` in `documents`:
 
-```
-/ingest run --force
-```
+- **Unchanged** (hash match): skipped automatically, no re-ingestion.
+- **Changed** (hash differs): automatically re-ingested — delete old doc + chunks, re-chunk, re-embed.
+- **`--force`**: delete and re-ingest regardless of hash.
 
-`--force` deletes the existing document and re-embeds all chunks from scratch.
+Log messages during ingestion:
 
-**Future behavior (incremental — not yet implemented):**
-Once the mtime/hash strategy is implemented, running `/ingest run` without
-`--force` will detect changed files by comparing mtime and SHA-256 hash
-against stored values. Unchanged files are skipped automatically.
+- `"file:// unchanged (sha256 match): file:///path/to/file"` — skipped
+- `"file:// changed — auto re-ingesting: file:///path/to/file"` — re-ingested
 
 ### Batch re-ingestion of many local files
 
@@ -293,9 +290,8 @@ When multiple files change, use `--force` to re-embed all `file://` URLs in `tar
 
 | Aspect | Web URL | Local file (file://) |
 |---|---|---|
-| Skip unchanged | Yes (ETag/304) | No (`--force` required now) |
+| Skip unchanged | Yes (ETag/304) | Yes (SHA-256 hash) |
 | Force re-index | `--force` | `--force` |
-| Future skip | Already works | Planned (mtime + hash) |
 
 ---
 

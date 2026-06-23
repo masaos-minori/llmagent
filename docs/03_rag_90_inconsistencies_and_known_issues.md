@@ -85,10 +85,10 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ### DESIGN-4: Handling of `file://` local file ingestion
 
-- **Type:** Needs confirmation
+- **Type:** Resolved
 - **Impact scope:** `crawler.py crawl_file()`, `ingester.py ingest_url_group()`
 - **Description:** Both crawler and ingester support local file ingestion via the `file://` scheme. Crawler: `crawl_file(path, lang)` saves a JSON file to `rag-src/` with `url="file://{path}"`. Ingester: `ingest_url_group` accepts URL groups with `file://` URLs; these are processed identically to web URLs. Conditional GET does not apply to `file://` URLs (no ETag). When ingesting `.py` files, `crawl_file()` stores content as code blocks (not body text).
-- **Current safe interpretation:** `file://` ingestion is supported and functional. The `--force` flag and idempotency behavior apply to `file://` URLs the same as web URLs.
-- **Notes for AI reference:** Do not apply Conditional GET logic to `file://` URLs. The ETag/Last-Modified fields will be NULL for locally-ingested files. Source: `03_rag-ref-crawler.md §2.1`, `03_rag-ref-ingester.md §4.2`.
+- **Current safe interpretation:** `file://` ingestion is supported and functional. The `--force` flag and idempotency behavior apply to `file://` URLs the same as web URLs. SHA-256 hash comparison is used for freshness detection instead of ETag/304.
+- **Notes for AI reference:** `file://` URLs use SHA-256 hash as `etag` and file mtime as `last_modified`. The ingester auto-detects changed files by comparing stored vs. computed SHA-256. Conditional GET (304 Not Modified) is for HTTP only — `file://` uses hash comparison instead. Source: `ingester.py:_is_file_unchanged()`, `schema_sql.py:etag/last_modified`.
 
 ---
