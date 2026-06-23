@@ -19,7 +19,7 @@ servers, maintain multi-turn conversation history, and deliver answers to the te
 - SSE streaming LLM responses
 
 **Out of scope:**
-- RAG pipeline internals (`mcp/rag_pipeline/` handles this via MCP)
+- RAG pipeline internals (`scripts/mcp/rag_pipeline/` handles this via MCP)
 - MCP server implementations
 - Embedding server
 

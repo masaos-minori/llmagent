@@ -13,10 +13,10 @@ LLM turn.
 ## Scope
 
 **In scope:**
-- Ingestion pipeline: `scripts/rag/ingestion/crawler.py`, `chunk_splitter.py`, `ingester.py`
-- Query pipeline: `rag/pipeline.py`, `rag/repository.py`, `rag/llm.py`, `rag/stages/`
-- Utility: `rag/utils.py`
-- MCP wrapper: `mcp/rag_pipeline/server.py` (port 8010)
+- Ingestion pipeline: `scripts/rag/ingestion/crawler.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`
+- Query pipeline: `scripts/rag/pipeline.py`, `scripts/rag/repository.py`, `scripts/rag/llm.py`, `scripts/rag/stages/`
+- Utility: `scripts/rag/utils.py`
+- MCP wrapper: `scripts/mcp/rag_pipeline/server.py` (port 8010)
 
 **Out of scope:**
 - MDQ (Markdown-dedicated index) — separate service; see [04_mcp_07_mdq_rag_boundary.md](04_mcp_07_mdq_rag_boundary.md) for boundary definition
@@ -53,7 +53,7 @@ LLM turn.
       | augment(query)
       v
 +----------------------+    MCP :8010    +-------------------+
-| mcp/rag_pipeline/    | <-------------> | RagPipeline       |
+| scripts/mcp/rag_pipeline/ | <-------------> | RagPipeline       |
 | service.py           |                 | (6 logical stages)|
 +----------------------+                 +-------------------+
                                                    |
@@ -107,7 +107,7 @@ config/rag_pipeline.toml [target_urls]
 | 6. Augment | `AugmentStage` | Format chunks as `[RAG_CONTEXT_START]...[RAG_CONTEXT_END]` |
 
 **Entry point:** `RagPipeline.augment(query) -> str`  
-**Caller:** `mcp/rag_pipeline/service.py` via MCP HTTP (port 8010)
+**Caller:** `scripts/mcp/rag_pipeline/service.py` via MCP HTTP (port 8010)
 
 ### Semantic cache
 
@@ -134,7 +134,7 @@ When `use_semantic_cache=True`, query embedding cosine similarity ≥ `semantic_
 | Language detection | CJK ratio ≥ 0.10 → `ja`; else `en`; < 100 chars → fallback to hint | `crawler.py` |
 | Chunk size | min 40 chars, max 500 chars | `rag_pipeline.toml` |
 | Chunk overlap | 50 chars sliding window | `rag_pipeline.toml` |
-| Embedding dimension | 384 (production, `config/common.toml:43`); dataclass default 384 (`models_config.py:53`). float32 little-endian BLOB | `config/common.toml` — see `03_rag_90` DOC-03 |
+| Embedding dimension | 384 (production, `config/common.toml:43`); no dataclass default — defined only in config. float32 little-endian BLOB | `config/common.toml` — see `03_rag_90` DOC-03 |
 | Crawl depth | max 6 hops from start URL | `rag_pipeline.toml` |
 | Crawl page limit | max 500 pages per site | `rag_pipeline.toml` |
 | DB | SQLite single-node only | architecture |

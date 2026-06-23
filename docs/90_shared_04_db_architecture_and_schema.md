@@ -30,7 +30,7 @@ Three DB files:
 | DB | Default path | Tables |
 |---|---|---|
 | `rag.sqlite` | `common.toml::rag_db_path` | `documents`, `chunks`, `chunks_fts`, `chunks_vec` |
-| `session.sqlite` | `common.toml::session_db_path` | `sessions`, `messages`, `notes`, `tool_results`, `memories`, `memories_fts`, `memories_vec`, `memory_links` |
+| `session.sqlite` | `common.toml::session_db_path` | `sessions`, `messages`, `notes`, `tool_results`, `memories`, `memories_fts`, `memories_vec`, `memory_links`, `session_diagnostics` |
 | `workflow.sqlite` | `common.toml::workflow_db_path` | `tasks`, `attempts`, `processed_events`, `artifacts`, `approvals` |
 
 **Why separate DB files?** RAG indexing and conversation state have different access patterns.
@@ -166,7 +166,7 @@ Stores float32 little-endian BLOB. `DIMS` is substituted dynamically by `_build_
 | `role` | TEXT | NOT NULL |
 | `content` | TEXT | NOT NULL |
 | `tool_calls` | TEXT | (JSON string) |
-| `tool_call_id` | TEXT | |
+| `tool_call_id` | TEXT | UNUSED — column exists in schema but not referenced by any code |
 | `created_at` | TEXT | NOT NULL DEFAULT `datetime('now')` |
 
 ### `notes` table
@@ -215,8 +215,17 @@ Index: `idx_tool_results_session ON tool_results(session_id)`
 
 ### `memories_fts` (FTS5 virtual table)
 
-- `memory_id UNINDEXED`, `content`, `summary`, `tags`
-- Used by `FtsRetriever.search()` for BM25 full-text search
+```sql
+CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+    memory_id UNINDEXED,
+    content,
+    summary,
+    tags
+)
+```
+
+- `memory_id UNINDEXED` — column excluded from FTS index (used for filtering, not search)
+- Used by `FtsRetriever.search()` for BM25 full-text search on `content`, `summary`, `tags`
 
 ### `memories_vec` (sqlite-vec virtual table)
 
@@ -234,6 +243,20 @@ Index: `idx_tool_results_session ON tool_results(session_id)`
 
 No foreign keys (uses `INSERT OR IGNORE` for idempotency).
 Records near-duplicate memory pairs for deduplication.
+
+### `session_diagnostics` table
+
+| Column | Type | Constraint |
+|---|---|---|
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| `session_id` | INTEGER | FK → `sessions(session_id)` ON DELETE CASCADE |
+| `kind` | TEXT | NOT NULL |
+| `content` | TEXT | NOT NULL |
+| `workflow_id` | TEXT | (NULL allowed) |
+| `task_id` | TEXT | (NULL allowed) |
+| `created_at` | TEXT | NOT NULL DEFAULT `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` |
+
+Index: `idx_session_diagnostics_session ON session_diagnostics(session_id)`
 
 ---
 

@@ -75,7 +75,7 @@ target_urls → crawler.py (BFS クロール) → rag-src/*.txt
 
 | 機能 | 実装場所 |
 |---|---|
-| RAG 検索 (MQE + KNN + BM25 + RRF + Rerank + Refiner) | `rag/pipeline.py` |
+| RAG 検索 (MQE + KNN + BM25 + RRF + Rerank + Refiner) | `scripts/rag/pipeline.py` |
 | MCP ツールコーリング (HTTP/stdio, 11 サーバ) | `agent/tool_runner.py`, `shared/tool_executor.py` |
 | メモリレイヤー (semantic/episodic) | `agent/memory/` |
 | セッション永続化・復元 | `agent/session.py`, `db/` |

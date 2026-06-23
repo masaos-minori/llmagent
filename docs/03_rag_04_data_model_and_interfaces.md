@@ -113,7 +113,7 @@ Created by `ChunkSplitter`. Same `.txt` extension; content is JSON.
 
 - Stores embedding vectors as little-endian float32 BLOB
 - `embedding` column: `float[DIMS]` (DIMS replaced at runtime via `_build_rag_schema_sql()`); `struct.pack("<{N}f", *values)` format
-- Dataclass default: 384 (`models_config.py:53` `IngesterConfig.embed_dimension`); production value set via `config/common.toml::embedding_dims` (default 384 — **Confirmed** from `common.toml:43`)
+- Production value set via `config/common.toml::embedding_dims` (default 384 — **Confirmed** from `common.toml:43`); no dataclass default exists
 - No foreign key constraint (sqlite-vec virtual table); `chunks_vec` must be deleted
   **before** `chunks` when force-reinserting to avoid orphaned records
 
@@ -121,7 +121,7 @@ Created by `ChunkSplitter`. Same `.txt` extension; content is JSON.
 
 ## 3. Hit Type Hierarchy
 
-Defined in `rag/types.py`. Each stage produces a progressively richer hit type. All three are `@dataclasses.dataclass` (not TypedDict).
+Defined in `scripts/rag/types.py`. Each stage produces a progressively richer hit type. All three are `@dataclasses.dataclass` (not TypedDict).
 
 ```
 RawHit      — after SearchStage
@@ -150,21 +150,21 @@ For full API signatures, see the linked chapters.
 
 | Class | Module | Entry point | Details |
 |---|---|---|---|
-| `RagPipeline` | `rag/pipeline.py` | `augment(query) -> str` | [03_rag_03 §2](03_rag_03_query_pipeline.md) |
-| `WebCrawler` | `rag/ingestion/crawler.py` | `crawl(targets)` | [03_rag_02 §2](03_rag_02_ingestion_pipeline.md) |
-| `ChunkSplitter` | `rag/ingestion/chunk_splitter.py` | `process_all()` | [03_rag_02 §3](03_rag_02_ingestion_pipeline.md) |
-| `RagIngester` | `rag/ingestion/ingester.py` | `ingest_all()` | [03_rag_02 §4](03_rag_02_ingestion_pipeline.md) |
-| `PipelineStage` | `rag/stage.py` | Protocol | [03_rag_03 §3](03_rag_03_query_pipeline.md) |
+| `RagPipeline` | `scripts/rag/pipeline.py` | `augment(query) -> str` | [03_rag_03 §2](03_rag_03_query_pipeline.md) |
+| `WebCrawler` | `scripts/rag/ingestion/crawler.py` | `crawl(targets)` | [03_rag_02 §2](03_rag_02_ingestion_pipeline.md) |
+| `ChunkSplitter` | `scripts/rag/ingestion/chunk_splitter.py` | `process_all()` | [03_rag_02 §3](03_rag_02_ingestion_pipeline.md) |
+| `RagIngester` | `scripts/rag/ingestion/ingester.py` | `ingest_all()` | [03_rag_02 §4](03_rag_02_ingestion_pipeline.md) |
+| `PipelineStage` | `scripts/rag/stage.py` | Protocol | [03_rag_03 §3](03_rag_03_query_pipeline.md) |
 
 ---
 
 ## 5. Supporting Types
 
-### 5.1 PipelineContext (`rag/stage.py`)
+### 5.1 PipelineContext (`scripts/rag/stage.py`)
 
 See [03_rag_03 §4](03_rag_03_query_pipeline.md) for field details (includes `search_diagnostics` field).
 
-### 5.2 LLMMessage (`shared/types.py`, re-exported from `rag/types.py`)
+### 5.2 LLMMessage (`shared/types.py`, re-exported from `scripts/rag/types.py`)
 
 ```python
 from rag.types import LLMMessage
@@ -180,9 +180,9 @@ TypedDict with `total=False` (all keys optional per role).
 | `tool_call_id` | str | `"tool"` only |
 | `name` | str | `"tool"` only |
 
-### 5.3 PipelineStageResult (`rag/types.py`)
+### 5.3 PipelineStageResult (`scripts/rag/types.py`)
 
-Legacy type retained for backward compatibility. The current pipeline uses `StageResult` from `rag/stage.py` (see §5.3a).
+Legacy type retained for backward compatibility. The current pipeline uses `StageResult` from `scripts/rag/stage.py` (see §5.3a).
 
 | Field | Type | Description |
 |---|---|---|
@@ -191,7 +191,7 @@ Legacy type retained for backward compatibility. The current pipeline uses `Stag
 | `failure_reason` | str \| None | Reason on failure; None on success |
 | `elapsed_s` | float | Elapsed seconds |
 
-### 5.3a StageResult (`rag/stage.py`)
+### 5.3a StageResult (`scripts/rag/stage.py`)
 
 Used by `RagPipeline.last_stage_results` and `PipelineContext.stage_results`.
 
@@ -227,7 +227,7 @@ Structural type that `AgentConfig` implements. Injected as `cfg` into `RagPipeli
 | `refiner_max_chars_per_chunk` | int | Max chars per chunk for refiner |
 | `refiner_timeout` | float | Refiner LLM call timeout (seconds) |
 
-### 5.5 RagQuery (`rag/types.py`)
+### 5.5 RagQuery (`scripts/rag/types.py`)
 
 ```python
 from rag.types import RagQuery
@@ -240,7 +240,7 @@ query = RagQuery(query="search term", context="optional context")
 | `query` | str | The query string (required) |
 | `context` | str | Optional context for MQE expansion |
 
-### 5.6 CacheService Protocol (`rag/cache.py`)
+### 5.6 CacheService Protocol (`scripts/rag/cache.py`)
 
 ```python
 from rag.cache import CacheService, SemanticCache
@@ -253,7 +253,7 @@ Protocol defining the interface for semantic cache implementations. `SemanticCac
 | `lookup` | `(embedding: list[float], history_context: str = "") -> str \| None` | Return cached context if cosine similarity ≥ threshold among matching `history_context` entries; else `None` |
 | `put` | `(embedding: list[float], history_context: str, context_str: str) -> None` | Store entry; prunes if over capacity |
 
-### 5.7 RAG Enums (`rag/enums.py`)
+### 5.7 RAG Enums (`scripts/rag/enums.py`)
 
 All defined as `StrEnum` subclasses.
 

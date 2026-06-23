@@ -26,12 +26,12 @@ RagPipeline.augment(query)
   → return context block string
 ```
 
-**Caller:** `mcp/rag_pipeline/service.py` (`RagPipelineMCPService`). Agent REPL does not
+**Caller:** `scripts/mcp/rag_pipeline/service.py` (`RagPipelineMCPService`). Agent REPL does not
 call `RagPipeline` directly.
 
 ---
 
-## 2. RagPipeline Class (`rag/pipeline.py`)
+## 2. RagPipeline Class (`scripts/rag/pipeline.py`)
 
 ```python
 from rag.pipeline import RagPipeline, RagPipelineError, fetch_full_document, get_embedding, sanitize_document
@@ -76,7 +76,7 @@ RagPipeline(
 ### HTTP Mode (`rag_service_url`)
 
 When `rag_service_url` is non-empty, `augment()` delegates to the external RAG service via
-`call_rag_service()` in `rag/pipeline_service.py` instead of running the in-process pipeline.
+`call_rag_service()` in `scripts/rag/pipeline_service.py` instead of running the in-process pipeline.
 
 | Behavior | Detail |
 |---|---|
@@ -112,7 +112,7 @@ The classification is visible in:
 
 ---
 
-## 3. PipelineStage Protocol (`rag/stage.py`)
+## 3. PipelineStage Protocol (`scripts/rag/stage.py`)
 
 ```python
 from rag.stage import PipelineStage, PipelineContext
@@ -127,7 +127,7 @@ The stage mutates `ctx` in-place; it does not return a value.
 
 ---
 
-## 4. PipelineContext Dataclass (`rag/stage.py`)
+## 4. PipelineContext Dataclass (`scripts/rag/stage.py`)
 
 ```python
 ctx = PipelineContext(query="search query", history_context="conversation history")
@@ -145,7 +145,7 @@ ctx = PipelineContext(query="search query", history_context="conversation histor
 | `stage_results` | `list[StageResult]` | `[]` | `RagPipeline.run()` |
 | `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()` | `SearchStage` (embed_ok, embed_failed, fts_errors) |
 
-### 4.2 SearchDiagnostics (`rag/models_result.py`)
+### 4.2 SearchDiagnostics (`scripts/rag/models_result.py`)
 
 | Field | Type | Description |
 |---|---|---|
@@ -153,7 +153,7 @@ ctx = PipelineContext(query="search query", history_context="conversation histor
 | `embed_failed` | int | Failed embedding count |
 | `fts_errors` | int | FTS5 query error count |
 
-### 4.1 StageResult TypedDict (`rag/stage.py`)
+### 4.1 StageResult TypedDict (`scripts/rag/stage.py`)
 
 ```
 StageResult = TypedDict with keys:
@@ -265,7 +265,7 @@ Both reasons are:
 
 ---
 
-## 6. SemanticCache (`rag/cache.py`)
+## 6. SemanticCache (`scripts/rag/cache.py`)
 
 ```python
 from rag.cache import SemanticCache  # defined in rag/cache.py:30; imported by rag/pipeline.py:30
@@ -287,7 +287,7 @@ Cache is initialized in `RagPipeline.__init__` using `cfg.semantic_cache_max_siz
 
 ## 7. Helper Classes
 
-### 7.1 RagRepository (`rag/repository.py`)
+### 7.1 RagRepository (`scripts/rag/repository.py`)
 
 Owns all SQL. Used internally by stages.
 
@@ -303,18 +303,18 @@ Owns all SQL. Used internally by stages.
 - `deduplicate_chunks(hits, max_per_doc)` → cap same-URL hits; input must be descending-sorted
 - `cosine_sim(a, b) -> float` → cosine similarity; returns `0.0` for zero vectors
 
-### 7.2 RagScorer (`rag/repository.py`)
+### 7.2 RagScorer (`scripts/rag/repository.py`)
 
 | Method | Signature | Description |
 |---|---|---|
 | `rrf_merge` (static) | `(results_list: list[list[RagHit]], rrf_k: int = 60) -> list[RagHit]` | RRF score Σ 1/(rrf_k+rank); descending order; assigns `rrf_score` |
 
-### 7.3 RagLLM (`rag/llm.py` — re-export stub)
+### 7.3 RagLLM (`scripts/rag/llm.py` — re-export stub)
 
-`rag/llm.py` is a backward-compatibility re-export module. The actual implementations live in:
+`scripts/rag/llm.py` is a backward-compatibility re-export module. The actual implementations live in:
 
-- `rag/llm_client.py` — `RagLLM` class, `get_embedding()`, `summarize_tool_result()`
-- `rag/llm_prompts.py` — prompt templates, `RagExpansionError`, `RagRerankError`, `MqeParseError`
+- `scripts/rag/llm_client.py` — `RagLLM` class, `get_embedding()`, `summarize_tool_result()`
+- `scripts/rag/llm_prompts.py` — prompt templates, `RagExpansionError`, `RagRerankError`, `MqeParseError`
 
 ```python
 from rag.llm import RagLLM  # re-exported from rag.llm_client
@@ -326,7 +326,7 @@ llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8001/v1/chat/completi
 | `expand_queries` | `(query: str, context: str = "") -> list[str]` | MQE; raises `RagExpansionError` on failure |
 | `cross_encoder_rerank` | `(query, candidates, top_k, rag_min_score=0.0) -> list[RagHit]` | Cross-encoder; raises `RagRerankError` on failure; filters by `rag_min_score` |
 | `summarize_tool_result` | `(text, tool_name, args) -> str` | Summarize tool output; raises on HTTP/parse failure |
-| `refine_context` | `(chunks, query, max_tokens, per_chunk_chars, timeout) -> str` | Compress chunks to query-relevant points via `rag/pipeline_refiner.py`; caller handles fallback on error |
+| `refine_context` | `(chunks, query, max_tokens, per_chunk_chars, timeout) -> str` | Compress chunks to query-relevant points via `scripts/rag/pipeline_refiner.py`; caller handles fallback on error |
 
 **Module-level functions:**
 

@@ -341,7 +341,8 @@ class RagConsistencyReport:
     fts: int
     vec: int
     orphan_vec_count: int
-    fts_gap: int
+    fts_gap: int              # chunks - fts; positive = missing FTS entries
+    fts_orphan_count: int     # fts - chunks; positive = extra FTS entries (data loss risk)
 ```
 
 **Usage:**

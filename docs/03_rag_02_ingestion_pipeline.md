@@ -362,7 +362,7 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 
 ---
 
-## 5. Shared Utilities (`rag/utils.py`)
+## 5. Shared Utilities (`scripts/rag/utils.py`)
 
 ```python
 from rag.utils import (
@@ -394,11 +394,11 @@ from rag.utils import (
 
 | Script | Functions used |
 |---|---|
-| `rag/ingestion/chunk_splitter.py` | `normalize_unicode` |
-| `rag/ingestion/ingester.py` | `floats_to_blob`, `validate_url` |
-| `rag/ingestion/crawler.py` | `validate_url` |
-| `rag/pipeline.py` | `sanitize_document`, `floats_to_blob` |
-| `rag/cache.py` | `cosine_sim` |
+| `scripts/rag/ingestion/chunk_splitter.py` | `normalize_unicode` |
+| `scripts/rag/ingestion/ingester.py` | `floats_to_blob`, `validate_url` |
+| `scripts/rag/ingestion/crawler.py` | `validate_url` |
+| `scripts/rag/pipeline.py` | `sanitize_document`, `floats_to_blob` |
+| `scripts/rag/cache.py` | `cosine_sim` |
 
 ---
 
@@ -415,7 +415,7 @@ to `chunks_fts`. English and code chunks have `normalized_content = NULL`, so FT
 
 ### FTS5 query tokenization
 
-`rag/repository.py` `_build_fts_query()` processes Japanese queries via `_build_fts_tokens_ja()`:
+`scripts/rag/repository.py` `_build_fts_query()` processes Japanese queries via `_build_fts_tokens_ja()`:
 extracts `normalized_form()` for nouns, verbs, and adjectives only (excludes particles, auxiliaries).
 English queries use regex `[a-zA-Z0-9]+` tokenization. Sudachi tokenizer is lazily initialized in
 `_SudachiTokenizer` class (zero import-time side effects).

@@ -236,7 +236,7 @@ with SQLiteHelper("rag").open() as db:
 | Language detection threshold | CJK ratio ≥ 0.10 → `ja`; pages < 100 chars → use hint language |
 | Chunk size range | 40–500 chars (configurable) |
 | Chunk overlap | 50 chars sliding window |
-| Embedding dimension | 384 (production, `config/common.toml:43`); dataclass default 384. float32 little-endian BLOB |
+| Embedding dimension | 384 (production, `config/common.toml:43`). float32 little-endian BLOB |
 | Crawl depth | max 6 hops |
 | Crawl page limit | max 500 pages/site |
 | Replica | Single-node SQLite only |

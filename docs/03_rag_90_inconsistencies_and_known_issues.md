@@ -23,7 +23,7 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 - **Type:** RESOLVED
 - **Impact scope:** `RagPipeline.augment()` (refined via `refine_context()`)
 - **Description:** When the refiner returns an empty string, the caller returns raw
-  chunks. The condition that produces empty string output (vs exception) is documented in `rag/pipeline_refiner.py`.
+  chunks. The condition that produces empty string output (vs exception) is documented in `scripts/rag/pipeline_refiner.py`.
 - **Resolution:** Documented — `refiner_returned_empty` when LLM response content is `""` or whitespace-only; `refiner_exception: {e}` on HTTP/parse errors.
 
 ---
@@ -61,7 +61,7 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 ### DESIGN-2: FTS5 uses `normalized_content`; LLM receives `content`
 
 - **Type:** Needs confirmation
-- **Impact scope:** `chunks` table, `chunks_fts` virtual table, `rag/repository.py _build_fts_query()`, `rag/stages/augment.py`
+- **Impact scope:** `chunks` table, `chunks_fts` virtual table, `scripts/rag/repository.py _build_fts_query()`, `scripts/rag/stages/augment.py`
 - **Description:** Japanese chunks store two text representations. `chunks.content` (original text) is injected into the LLM context by `AugmentStage`. `chunks.normalized_content` (Sudachi `normalized_form()` space-joined) is indexed by the `chunks_ai` trigger via `COALESCE(normalized_content, content)` into `chunks_fts`. FTS5 query-side also normalizes Japanese terms in `_build_fts_tokens_ja()`. English and code chunks have `normalized_content=NULL`; FTS5 falls back to `content`. This separation ensures LLM receives readable original text while BM25 search uses morphologically normalized forms.
 - **Current safe interpretation:** `normalized_content` is now correctly read from chunk JSON (BUG-2 fixed). FTS5 indexing uses Sudachi-normalized forms for Japanese chunks when present.
 - **Notes for AI reference:** Never replace `content` with `normalized_content` in the Augment stage output. The separation is intentional. Source: `03_rag-ingestion-pipeline.md §FTS5/LLM content separation`.

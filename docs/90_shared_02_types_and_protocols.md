@@ -20,8 +20,8 @@ across `agent/`, `mcp/`, `rag/`, and `db/` layers.
 | Type | Kind | File | Layer usage |
 |---|---|---|---|
 | `LLMMessage` | TypedDict | `shared/types.py` | All layers |
-| `RagConfig` | Protocol | `shared/types.py` | `rag/`, `mcp/rag_pipeline/` |
-| `RagHit` | TypedDict | `rag/types.py` | `rag/`, `agent/` |
+| `RagConfig` | Protocol | `shared/types.py` | `rag/`, `scripts/mcp/rag_pipeline/` |
+| `RagHit` | TypedDict | `scripts/rag/types.py` | `rag/`, `agent/` |
 | `LLMUsage` | frozen dataclass | `shared/llm_types.py` | `agent/`, `shared/` |
 | `LLMResponse` | frozen dataclass | `shared/llm_types.py` | `agent/`, `shared/` |
 | `ActionResult` | frozen dataclass | `shared/action_result.py` | `agent/` |
@@ -77,13 +77,13 @@ class RagConfig(Protocol):
 ```
 
 - `@runtime_checkable` — `isinstance()` check works
-- Used by `RagPipeline` (`rag/pipeline.py`); consumed by `mcp/rag_pipeline/service.py`
+- Used by `RagPipeline` (`scripts/rag/pipeline.py`); consumed by `scripts/mcp/rag_pipeline/service.py`
 - `agent/` does NOT use `RagConfig` directly (no in-process RAG pipeline)
 - `SimpleNamespace` adapter can satisfy this protocol
 
 ---
 
-## 5. `RagHit` (`rag/types.py`)
+## 5. `RagHit` (`scripts/rag/types.py`)
 
 ```python
 class RagHit(TypedDict, total=False):
@@ -97,7 +97,7 @@ class RagHit(TypedDict, total=False):
     rerank_score: float   # Cross-Encoder score (after rerank; larger = higher relevance)
 ```
 
-- Defined in `rag/types.py`, not `shared/`
+- Defined in `scripts/rag/types.py`, not `shared/`
 - Fields are added incrementally by pipeline stages
 
 ---
