@@ -460,3 +460,90 @@ class TestUpsertConcurrency:
                 conn.close()
         finally:
             os.unlink(path) if os.path.exists(path) else None
+
+    def test_concurrent_upsert_same_id_last_write_wins(self) -> None:
+        store, path = _make_concurrent_store()
+        contents = [f"content-{i}" for i in range(5)]
+        try:
+            entries = [
+                _make_entry(memory_id="lww-id", content=c) for c in contents
+            ]
+
+            from concurrent.futures import ThreadPoolExecutor
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                list(executor.map(store.upsert, entries))
+
+            conn = sqlite3.connect(path)
+            try:
+                row = conn.execute(
+                    "SELECT content FROM memories WHERE memory_id='lww-id'"
+                ).fetchone()
+                assert row is not None, "expected exactly one row after concurrent upsert"
+                assert row[0] in contents, (
+                    f"surviving content {row[0]!r} is not one of the submitted values"
+                )
+            finally:
+                conn.close()
+        finally:
+            os.unlink(path) if os.path.exists(path) else None
+
+    def test_concurrent_upsert_with_embedding(self) -> None:
+        store, path = _make_concurrent_store()
+        try:
+            def _upsert_with_embedding(idx: int) -> None:
+                entry = _make_entry(memory_id="vec-id", content=f"vec-content-{idx}")
+                embedding = [float(idx), float(idx + 1), float(idx + 2)]
+                store.upsert(entry, embedding=embedding)
+
+            from concurrent.futures import ThreadPoolExecutor
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                list(executor.map(_upsert_with_embedding, range(5)))
+
+            conn = sqlite3.connect(path)
+            try:
+                mem_count = conn.execute(
+                    "SELECT COUNT(*) FROM memories WHERE memory_id='vec-id'"
+                ).fetchone()[0]
+                vec_count = conn.execute(
+                    "SELECT COUNT(*) FROM memories_vec WHERE memory_id='vec-id'"
+                ).fetchone()[0]
+                assert mem_count == 1, f"expected 1 memories row, got {mem_count}"
+                assert vec_count == 1, f"expected 1 memories_vec row, got {vec_count}"
+            finally:
+                conn.close()
+        finally:
+            os.unlink(path) if os.path.exists(path) else None
+
+    def test_concurrent_upsert_busy_error_handling(self) -> None:
+        store, path = _make_concurrent_store()
+        try:
+            blocker = sqlite3.connect(path, timeout=0.1)
+            blocker.execute("BEGIN IMMEDIATE")
+
+            results: list[Exception | None] = []
+
+            def _try_upsert(idx: int) -> Exception | None:
+                try:
+                    entry = _make_entry(memory_id=f"busy-{idx}", content=f"content-{idx}")
+                    store.upsert(entry)
+                    return None
+                except Exception as exc:  # noqa: BLE001
+                    return exc
+
+            from concurrent.futures import ThreadPoolExecutor
+
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                results = list(executor.map(_try_upsert, range(3)))
+
+            blocker.execute("ROLLBACK")
+            blocker.close()
+
+            for r in results:
+                if r is not None:
+                    assert isinstance(r, (sqlite3.OperationalError, Exception)), (
+                        f"unexpected exception type: {type(r)}"
+                    )
+        finally:
+            os.unlink(path) if os.path.exists(path) else None

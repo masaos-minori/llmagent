@@ -137,6 +137,20 @@ def _fake_embed_resp(embedding: list[float] = _FAKE_EMBEDDING) -> MagicMock:
     return resp
 
 
+def _make_ingester_with_retry(tmp_path: Path, embed_retry: int) -> RagIngester:
+    (tmp_path / "chunk").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "registered").mkdir(parents=True, exist_ok=True)
+    ingester = RagIngester(
+        config={
+            "rag_src_dir": str(tmp_path),
+            "embed_url": "http://localhost:8003/embedding",
+            "embed_retry": str(embed_retry),
+            "embed_workers": "1",
+        }
+    )
+    return ingester
+
+
 # ── _embed_and_store() ────────────────────────────────────────────────────────
 
 
@@ -284,6 +298,98 @@ class TestEmbedAndStore:
             "SELECT chunk_index FROM chunks WHERE doc_id = ?", (doc_id,)
         ).fetchone()
         assert row is not None and row[0] == 0
+
+    def test_retry_success(self, tmp_path: Path) -> None:
+        conn, fake_db = _make_db()
+        doc_id = self._insert_parent_doc(conn)
+        path = _write_chunk(tmp_path / "chunk", "c.txt")
+        ingester = _make_ingester_with_retry(tmp_path, embed_retry=2)
+
+        bad_resp = MagicMock()
+        bad_resp.raise_for_status.return_value = None
+        bad_resp.content = orjson.dumps({"embedding": []})  # empty → ValueError
+
+        with (
+            patch("rag.ingestion.ingester.time.sleep"),
+            patch.object(
+                ingester._client, "post",
+                side_effect=[bad_resp, _fake_embed_resp()],
+            ),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester._embed_and_store(doc_id, path)
+
+        assert result == (True, True)
+        count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        assert count == 1
+
+    def test_all_retries_exhausted(self, tmp_path: Path) -> None:
+        conn, fake_db = _make_db()
+        doc_id = self._insert_parent_doc(conn)
+        path = _write_chunk(tmp_path / "chunk", "c.txt")
+        ingester = _make_ingester_with_retry(tmp_path, embed_retry=3)
+
+        bad_resp = MagicMock()
+        bad_resp.raise_for_status.return_value = None
+        bad_resp.content = orjson.dumps({"embedding": []})
+
+        with (
+            patch("rag.ingestion.ingester.time.sleep"),
+            patch.object(ingester._client, "post", return_value=bad_resp),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester._embed_and_store(doc_id, path)
+
+        assert result == (False, False)
+        count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        assert count == 0
+
+    def test_network_error_during_retry(self, tmp_path: Path) -> None:
+        conn, fake_db = _make_db()
+        doc_id = self._insert_parent_doc(conn)
+        path = _write_chunk(tmp_path / "chunk", "c.txt")
+        ingester = _make_ingester_with_retry(tmp_path, embed_retry=2)
+
+        import httpx
+
+        with (
+            patch("rag.ingestion.ingester.time.sleep"),
+            patch.object(
+                ingester._client, "post",
+                side_effect=[
+                    httpx.RequestError("simulated network error"),
+                    _fake_embed_resp(),
+                ],
+            ),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester._embed_and_store(doc_id, path)
+
+        assert result == (True, True)
+        count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        assert count == 1
+
+    def test_dimension_mismatch_on_retry(self, tmp_path: Path) -> None:
+        conn, fake_db = _make_db()
+        doc_id = self._insert_parent_doc(conn)
+        path = _write_chunk(tmp_path / "chunk", "c.txt")
+        ingester = _make_ingester_with_retry(tmp_path, embed_retry=2)
+
+        wrong_dim_resp = _fake_embed_resp(embedding=[0.1] * 8)  # wrong dim (expect 384)
+
+        with (
+            patch("rag.ingestion.ingester.time.sleep"),
+            patch.object(
+                ingester._client, "post",
+                side_effect=[wrong_dim_resp, _fake_embed_resp()],
+            ),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester._embed_and_store(doc_id, path)
+
+        assert result == (True, True)
+        count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        assert count == 1
 
 
 # ── ingest_url_group() ────────────────────────────────────────────────────────
@@ -436,3 +542,25 @@ class TestIngestUrlGroup:
 
         row = conn.execute("SELECT chunking_strategy FROM documents").fetchone()
         assert row is not None and row[0] == "markdown"
+
+    def test_ingest_url_group_embed_failed_count(self, tmp_path: Path) -> None:
+        conn, fake_db = _make_db()
+        url = "https://example.com/doc"
+        chunk_dir = tmp_path / "chunk" / "example.com" / "doc"
+        _write_chunk(chunk_dir, "c1.txt", dataclasses.replace(_DEFAULT_CHUNK, url=url))
+        _write_chunk(chunk_dir, "c2.txt", dataclasses.replace(_DEFAULT_CHUNK, url=url, chunk_index=1))
+        ingester = _make_ingester(tmp_path)  # embed_retry=1
+
+        bad_resp = MagicMock()
+        bad_resp.raise_for_status.return_value = None
+        bad_resp.content = orjson.dumps({"embedding": []})  # all embeddings fail
+
+        with (
+            patch.object(ingester._client, "post", return_value=bad_resp),
+            patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
+        ):
+            result = ingester.ingest_url_group(fake_db, url, list(chunk_dir.iterdir()), force=False)
+
+        assert result.url == url
+        assert result.n_embed_failed == 2  # both chunks failed embedding
+        assert result.n_success == 0
