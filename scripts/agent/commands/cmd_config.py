@@ -52,7 +52,12 @@ class _ConfigMixin(
             result.source_files = list(_BASE_CONFIG_FILES)
 
             if not result.applied and not result.needs_restart and not result.deferred:
-                self._out.write("No changes detected.")
+                if result.startup_only:
+                    self._out.write(
+                        "Config reloaded — startup-only settings cannot apply without restart"
+                    )
+                else:
+                    self._out.write("No changes detected.")
             elif result.needs_restart:
                 self._out.write("Config reloaded — some changes require restart")
             elif result.deferred:
@@ -84,6 +89,11 @@ class _ConfigMixin(
                 self._out.write(f"Skipped: [{count} items]")
                 for item in result.skipped:
                     self._out.write(f"  [SKIP] - {item}")
+            if result.startup_only:
+                count = len(result.startup_only)
+                self._out.write(f"Startup-only (ignored): [{count} items]")
+                for item in result.startup_only:
+                    self._out.write(f"  [STARTUP-ONLY] - {item}")
             logger.info(
                 "Config reloaded: applied=%s, needs_restart=%s, deferred=%s",
                 result.applied,

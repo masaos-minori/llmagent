@@ -138,6 +138,7 @@ class ConfigReloadOutcome:
     skipped: list[str] = field(default_factory=list)
     source_files: list[str] = field(default_factory=list)
     deferred: list[str] = field(default_factory=list)
+    startup_only: list[str] = field(default_factory=list)
 
 
 class ConfigReloadService:
@@ -181,6 +182,7 @@ class ConfigReloadService:
         service_result = self._sync_services(new_cfg)
         result.applied.extend(service_result.applied)
         result.skipped.extend(service_result.skipped)
+        result.startup_only = self._detect_startup_only(new_cfg)
         return result
 
     @staticmethod
@@ -509,6 +511,21 @@ class ConfigReloadService:
             approval.allowed_root = v
         if (lst := _get_list(new_cfg, "approval_github_allowed_repos")) is not None:
             approval.approval_github_allowed_repos = list(lst)
+
+    def _detect_startup_only(
+        self,
+        new_cfg: dict[str, Any],
+    ) -> list[str]:
+        """Return names of startup-only fields that differ between new_cfg and running cfg."""
+        changed: list[str] = []
+        ctx = self._ctx
+        v = _get_bool(new_cfg, "use_memory_layer")
+        if v is not None and v != ctx.cfg.memory.use_memory_layer:
+            changed.append("use_memory_layer")
+        v = _get_bool(new_cfg, "plugin_strict")
+        if v is not None and v != ctx.cfg.tool.plugin_strict:
+            changed.append("plugin_strict")
+        return changed
 
     def _reload_approval_settings(
         self,
