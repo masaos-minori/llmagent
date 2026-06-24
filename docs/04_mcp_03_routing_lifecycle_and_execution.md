@@ -170,6 +170,8 @@ result = await transport.call("tool_name", {"arg": "val"})
 - Adds `Authorization: Bearer <token>` when `cfg.auth_token` is non-empty
 - Catches all HTTP and request errors; returns `is_error=True` with message
 - `set_session_id(session_id)` injects `X-Session-Id` header per request
+- **Retry:** retries on HTTP 429/502/503/504, up to 3 attempts with exponential backoff (4s, 2s, 1s)
+- Timeout: `_HTTP_TIMEOUT = 30.0` seconds; timeout errors are non-retryable
 
 ---
 
