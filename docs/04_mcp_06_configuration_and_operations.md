@@ -59,7 +59,7 @@ health probes, audit log reading, and the new-server addition checklist.
 | `startup_timeout_sec` | `int` | `30` | subprocess mode: health poll timeout |
 | `working_dir` | `str` | `""` | stdio subprocess working directory (empty = inherit) |
 | `env` | `dict[str, str]` | `{}` | Additional env vars for stdio subprocess |
-| `tool_names` | `list[str]` | `[]` | Explicit tool routing (empty = static fallback) |
+| `tool_names` | `list[str]` | `[]` | Validation hint (optional); registry routes regardless. Empty = no validation. |
 | `auth_token` | `str` | `""` | Bearer token for auth (empty = no auth) |
 | `role` | `str` | `""` | Human-readable role label for `/mcp` display |
 
@@ -471,7 +471,7 @@ When adding a new tool to an **existing** MCP server:
    - Add to the appropriate frozenset (`READ_TOOLS`, `WRITE_TOOLS`, etc.)
    - If no set fits, create a new `<SERVER>_TOOLS` frozenset and add it to `get_all_mcp_tool_names()`
 
-2. **Add the tool name to `tool_names` in the server config (`config/agent.toml`)**
+2. **Add the tool name to `tool_names` in the server config (`config/agent.toml`)** (optional — for validation only; routing does not require this)
    - Find the `[mcp_servers.<server_key>]` block
    - Append the tool name to `tool_names = [...]`
 

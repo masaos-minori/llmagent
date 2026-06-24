@@ -70,6 +70,13 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 
 Single source of truth for MCP tool definitions and ownership.
 
+| ソース | 種別 | 説明 |
+|---|---|---|
+| `shared/tool_registry.py` | **Canonical (必須)** | ルーティングの唯一の正規ソース |
+| `tool_names` (config) | Validation-only (任意) | レジストリとの整合性チェック用; ルーティング自体には不要 |
+| `tool_constants.py` frozensets | Compatibility fallback (互換性) | レジストリが空の場合のフォールバック |
+| Live `/v1/tools` discovery | Validation-only (任意) | 起動時バリデーション; ルーティング権威ではない |
+
 ### Ownership model
 
 - Each tool belongs to **exactly one server** (identified by `server_key`).
