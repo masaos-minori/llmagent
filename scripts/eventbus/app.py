@@ -32,6 +32,10 @@ async def lifespan(app: FastAPI) -> Any:
     global _cfg, _db, _envelope_schema, _dlq_task
     _cfg = load_config()
     _db = open_db(_cfg.db_path)
+    logger.info(
+        "eventbus: shared SQLite connection opened (WAL mode, check_same_thread=False) path=%s",
+        _cfg.db_path,
+    )
     _envelope_schema = orjson.loads(_ENVELOPE_SCHEMA_PATH.read_bytes())
     Path(_cfg.storage_dir).mkdir(parents=True, exist_ok=True)
     _dlq_task = asyncio.create_task(_dlq_loop())
