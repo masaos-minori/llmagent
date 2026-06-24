@@ -50,6 +50,15 @@ def _event(topic: str = "t") -> dict[str, Any]:
     }
 
 
+def test_offset_read_write(tmp_path: Path) -> None:
+    from eventbus.offsets import read_offset, write_offset
+
+    dir_ = str(tmp_path / "offsets")
+    assert read_offset(dir_, "consumer-1") == 0
+    write_offset(dir_, "consumer-1", 42)
+    assert read_offset(dir_, "consumer-1") == 42
+
+
 def test_config_has_offset_checkpoint_interval() -> None:
     from eventbus.config import EventBusConfig
 
