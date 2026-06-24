@@ -20,7 +20,7 @@ import logging
 from typing import Any
 
 from agent.commands.mixin_base import MixinBase
-from agent.commands.utils import parse_command_args
+from agent.commands.utils import parse_command_args, parse_flag_int
 from agent.services.db_maintenance_service import DbMaintenanceService
 from agent.services.rag_maintenance_service import RagMaintenanceService
 
@@ -124,7 +124,12 @@ class _DbMixin(MixinBase):
             ["rag urls", "RAG", "--lang --limit", "List document URLs"],
             ["rag clean", "RAG", "<url>", "Delete a document"],
             ["rag rebuild-fts", "RAG", "", "Rebuild FTS5 index"],
-            ["rag recover", "RAG", "[backup-path]", "(admin) Integrity check / restore"],
+            [
+                "rag recover",
+                "RAG",
+                "[backup-path]",
+                "(admin) Integrity check / restore",
+            ],
             ["rag consistency", "RAG", "", "Chunks/FTS/vec sync check"],
             ["session stats", "Session", "", "Session/message counts"],
             ["session health", "Session", "", "(admin) Integrity check / size"],
@@ -178,7 +183,11 @@ class _DbMixin(MixinBase):
             ["health", "", "(admin) Integrity check / size"],
             ["checkpoint", "[MODE]", "(admin) WAL checkpoint"],
             ["vacuum", "", "(admin) Reclaim free pages"],
-            ["purge", "--max-sessions N\n--max-age-days N", "(admin) Purge old sessions"],
+            [
+                "purge",
+                "--max-sessions N\n--max-age-days N",
+                "(admin) Purge old sessions",
+            ],
             ["recover", "[backup-path]", "(admin) Integrity check / restore"],
         ]
         self._out.write_table(
@@ -246,11 +255,11 @@ class _DbMixin(MixinBase):
 
     async def _db_list_urls(self, rest: str) -> None:
         """List indexed documents via rag-pipeline-mcp."""
-        parsed = parse_command_args(rest.split())
+        tokens = rest.split()
+        parsed = parse_command_args(tokens)
         lang_raw = parsed.flags.get("lang")
         lang: str | None = str(lang_raw) if lang_raw in ("ja", "en") else None
-        limit_raw = parsed.flags.get("limit")
-        limit = int(limit_raw) if limit_raw and str(limit_raw).isdigit() else 20
+        limit = parse_flag_int(tokens, "--limit") or 20
         args_dict: dict[str, Any] = {"limit": limit}
         if lang:
             args_dict["lang"] = lang
