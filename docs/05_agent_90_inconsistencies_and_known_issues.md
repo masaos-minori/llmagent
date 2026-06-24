@@ -15,26 +15,6 @@ Each entry format:
 
 ## Open Questions
 
-### OQ-01: AgentSession RAG-layer dependency
-
-- **Type:** Resolved
-- **Status:** Resolved as of boundary split
-- `AgentSession` has zero RAG-layer imports. All RAG maintenance routes through `RagMaintenanceService`.
-- Verified by `tests/test_mdq_rag_boundary.py::test_agent_layer_rag_sqlite_access_only_in_maintenance_service`.
-
----
-
-### OQ-03: Session title generation — fallback behavior (RESOLVED)
-
-- **Type:** Resolved
-- **Status:** Resolved — fallback title IS implemented (see `cmd_session.py _generate_session_title()`)
-- **Impact scope:** `agent/commands/cmd_session.py _generate_session_title()`, `agent/services/session_title.py SessionTitleService`
-- **Description:** On `SessionTitleGenerationError`, a fallback title is derived from `first_input[:32]` (or `"(New Session)"` for empty input). The session always ends with a non-empty title. Failures are logged at WARNING + audit level.
-- **Current safe interpretation:** Session title generation failure is non-fatal. The fallback title is always persisted. See `05_agent_04 §Session Title Generation Failure Behavior` for full failure table.
-- **Notes for AI reference:** Session titles are set non-blocking. After the first turn, the title will be the LLM-generated title or the truncated first user input — never empty.
-
----
-
 ### Session SQLite corruption recovery gap
 
 - **Type:** Known Gap
@@ -45,28 +25,6 @@ Each entry format:
 ---
 
 ## Undocumented Areas
-
-### UNDOC-01: Memory layer (`agent/memory/`) — standalone doc added
-
-- **Type:** Resolved
-- **Status:** Resolved — `05_agent_12_memory.md` now documents the full memory layer.
-- **Backend:** SQLite (`memories` table + `memories_fts` FTS5 + optional `memories_vec` vector index) + JSONL file. Backend: **Implemented**.
-- **Commands:** `/memory list`, `/memory save`, `/memory search`, `/memory delete`, `/memory prune`
-- **Search strategies:** FTS5 (keyword), KNN (vector similarity), Hybrid (RRF merge)
-- **Notes for AI reference:** `ctx.services.memory` is `None` when `use_memory_layer=False` (default). Always null-check before calling any memory method.
-
----
-
-### SPEC-PLUGIN-01: Plugin/MCP Tool Name Conflict Policy
-
-- **Type:** Implemented — documented in `05_agent_11_extension-points.md §Plugin Tool Name Conflicts`
-- **Status:** Resolved (no gap)
-- **Behavior (`plugin_tool_override = false`, default):** Conflicting plugin tool is removed from registry at startup; logged as `[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — rejected`; MCP tool is unaffected.
-- **Behavior (`plugin_tool_override = true`):** Plugin tool shadows the MCP tool; logged as `... — allowed`. MCP tool bypassed for that name.
-- **Fatal mode:** When `plugin_strict = true` AND any tool conflicts exist under `override_policy = "reject"`: `PluginLoadError` raised at startup.
-- **Notes for AI reference:** No `PluginConflictError` exists; the exception is `PluginLoadError` (subclass of `RuntimeError`).
-
----
 
 ### UNDOC-02: Plugin tool return value convention not enforced at registration time
 

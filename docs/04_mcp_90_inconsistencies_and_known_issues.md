@@ -13,10 +13,4 @@ Each entry format:
 
 ---
 
-### SPEC-01: tool_definitions_strict + /v1/tools mismatch behavior undocumented per-server
-
-- **Status:** Resolved
-- Normative behavior is documented in `04_mcp_06` §Startup Validation Behavior.
-
----
 

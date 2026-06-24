@@ -163,11 +163,6 @@ curl -s http://127.0.0.1:8001/health   # agent-llm
 
 MCP サーバはエージェント起動時に `startup_mode = "subprocess"` 設定に従い uvicorn サブプロセスとして自動起動する。エージェント起動後に `/mcp status` で各サーバの起動状態を確認できる。
 
-```bash
-# エージェント内で確認
-agent[chat]> /mcp status
-```
-
 ---
 
 ## 3. DB 初期化
@@ -193,18 +188,4 @@ bash deploy/init_db.sh
 # テーブル確認 (chunks  chunks_fts  chunks_vec  documents)
 ```
 
-### 3.2 スキーマ概要
-
-| テーブル | 種別 | 主な列 | 用途 |
-|---|---|---|---|
-| `documents` | 通常 | `doc_id` PK, `url` UNIQUE, `lang` | URL 単位のドキュメント管理 |
-| `chunks` | 通常 | `chunk_id` PK, `doc_id` FK, `content` | 分割チャンク本文 |
-| `chunks_fts` | FTS5 仮想 | `content`, `content_rowid='chunk_id'` | BM25 全文検索 |
-| `chunks_vec` | vec0 仮想 | `chunk_id` PK, `embedding float[384]` | KNN ベクトル検索 |
-| `sessions` | 通常 | `session_id` PK, `created_at`, `title` | REPL セッション管理 |
-| `messages` | 通常 | `message_id` PK, `session_id` FK, `role`, `content`, `tool_calls` | 会話メッセージの永続化 |
-
-FTS5 は `chunks` テーブルの INSERT/UPDATE/DELETE に対してトリガーで自動同期 (`chunks_ai` / `chunks_au` / `chunks_ad`)。
-
-`sessions` と `messages` は REPL エージェント (`agent.py`) が使用する会話履歴の永続化テーブル。`/session list` で一覧表示、`/session load <id>` で過去セッションの文脈を復元可能。
 
