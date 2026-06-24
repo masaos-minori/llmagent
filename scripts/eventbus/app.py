@@ -190,7 +190,7 @@ async def dlq_list() -> list[dict[str, Any]]:
 @app.post("/dlq/{event_id}/requeue")
 async def dlq_requeue(event_id: str) -> dict[str, Any]:
     cur = _db.execute(  # type: ignore[union-attr]
-        "UPDATE events SET retry_count = 0, dlq_at = NULL WHERE event_id = ?",
+        "UPDATE events SET retry_count = retry_count + 1, dlq_at = NULL WHERE event_id = ?",
         (event_id,),
     )
     _db.commit()  # type: ignore[union-attr]

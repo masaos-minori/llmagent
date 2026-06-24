@@ -193,12 +193,12 @@ class _IngestMixin(MixinBase):
 
         if ctx.diagnostics is not None:
             try:
-                diag = pipeline.get_diagnostics()
-                diag["query"] = query
+                diag_data: dict = pipeline.get_diagnostics()
+                diag_data["query"] = query
                 ctx.diagnostics.save(
                     ctx.session.session_id,
                     kind="rag_query",
-                    content=orjson.dumps(diag).decode(),
+                    content=orjson.dumps(diag_data).decode(),
                 )
             except Exception:  # noqa: BLE001 — diagnostics must not crash the command
                 logger.debug("Failed to persist RAG query diagnostics", exc_info=True)

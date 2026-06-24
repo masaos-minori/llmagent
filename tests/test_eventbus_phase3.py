@@ -100,3 +100,47 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     r2 = client.get("/dlq")
     ids = [e["event_id"] for e in r2.json()]
     assert ev["event_id"] not in ids
+
+
+def test_requeue_increments_retry_count(client: TestClient, tmp_path: Path) -> None:
+    from eventbus.db import open_db
+    from eventbus.dlq import promote_to_dlq
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+    db.execute(
+        "UPDATE events SET retry_count = 2 WHERE event_id = ?", (ev["event_id"],)
+    )
+    db.commit()
+    promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+
+    client.post(f"/dlq/{ev['event_id']}/requeue")
+
+    row = db.execute(
+        "SELECT retry_count FROM events WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()
+    assert row is not None
+    assert row[0] == 3  # incremented from 2, not reset to 0
+
+
+def test_retry_exhaustion_leads_to_dlq(client: TestClient, tmp_path: Path) -> None:
+    """After requeue increments retry_count past max_retry, promote_to_dlq re-promotes."""
+    from eventbus.db import open_db
+    from eventbus.dlq import promote_to_dlq
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+    # Set retry_count at max already
+    db.execute(
+        "UPDATE events SET retry_count = 2 WHERE event_id = ?", (ev["event_id"],)
+    )
+    db.commit()
+    # Promote to DLQ
+    promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+    # Requeue — this increments retry_count to 3 (> max_retry=2)
+    client.post(f"/dlq/{ev['event_id']}/requeue")
+    # promote_to_dlq should re-promote since retry_count (3) >= max_retry (2)
+    n = promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+    assert n == 1
