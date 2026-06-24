@@ -65,17 +65,20 @@ The agent layer accesses both systems through **MCP tool calls** only:
 
 ---
 
-## Agent Routing Policy
+## Routing Policy
+
+### 1. Routing Heuristic (Classifier)
 
 The agent uses a lightweight classifier (`agent/mdq_rag_classifier.py`) to guide
 tool selection between MDQ and RAG based on the user's query.
 
-### Classifier heuristics
-
 Queries containing Markdown-structural terms (e.g., "heading", "outline", "hierarchy",
 "section", ".md", "table of contents") are classified as MDQ; all others default to RAG.
 
-### Config override (`mdq_rag_mode`)
+The classifier injects a one-line system prompt hint (~20-40 tokens) before each
+LLM turn. The LLM may still deviate; use override mode for deterministic routing.
+
+### 2. Override Policy (`mdq_rag_mode`)
 
 Set `mdq_rag_mode` in `config/agent.toml` under `[mcp_servers]`:
 
@@ -85,7 +88,9 @@ Set `mdq_rag_mode` in `config/agent.toml` under `[mcp_servers]`:
 | `"mdq"` | Force MDQ for all retrieval queries |
 | `"rag"` | Force RAG for all retrieval queries |
 
-### Fallback behavior
+**Semantics:** Forced routing. Not a retrieval-quality decision.
+
+### 3. Availability Fallback
 
 | Condition | Behavior |
 |---|---|
@@ -93,8 +98,7 @@ Set `mdq_rag_mode` in `config/agent.toml` under `[mcp_servers]`:
 | RAG selected, rag-pipeline-mcp unavailable | Return error; no fallback |
 | Override mode, forced server unavailable | Return error |
 
-The classifier injects a one-line system prompt hint (~20-40 tokens) before each
-LLM turn. The LLM may still deviate; use override mode for deterministic routing.
+**Semantics:** Triggered by server unavailability, not retrieval quality. RAG is always the production-preferred fallback.
 
 ---
 
