@@ -134,19 +134,71 @@ env = {}
 ```bash
 # Individual server health checks (all return 4-field nested format)
 curl -s http://127.0.0.1:8004/health | jq   # web-search: base response only
-curl -s http://127.0.0.1:8005/health | jq   # file-read: base response only
+curl -s http://127.0.0.1:8005/health | jq   # file-read: dependencies.filesystem
 curl -s http://127.0.0.1:8006/health | jq   # github: dependencies.github_token
-curl -s http://127.0.0.1:8007/health | jq   # file-write: base response only
-curl -s http://127.0.0.1:8008/health | jq   # file-delete: base response only
-curl -s http://127.0.0.1:8009/health | jq   # shell: base response only
-curl -s http://127.0.0.1:8010/health | jq   # rag-pipeline: base response only
-curl -s http://127.0.0.1:8011/health | jq   # sqlite: base response only
+curl -s http://127.0.0.1:8007/health | jq   # file-write: dependencies.filesystem
+curl -s http://127.0.0.1:8008/health | jq   # file-delete: dependencies.filesystem
+curl -s http://127.0.0.1:8009/health | jq   # shell: dependencies.shell, details.sandbox_backend
+curl -s http://127.0.0.1:8010/health | jq   # rag-pipeline: dependencies.embed_url
+curl -s http://127.0.0.1:8011/health | jq   # sqlite: dependencies.<db_name> per registered DB
 curl -s http://127.0.0.1:8012/health | jq   # cicd: dependencies.github_token
-curl -s http://127.0.0.1:8013/health | jq   # mdq: details.service
-curl -s http://127.0.0.1:8014/health | jq   # git: base response only
+curl -s http://127.0.0.1:8013/health | jq   # mdq: stub:true, details.service
+curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 
 # Base response shape: {"status":"ok","ready":bool,"dependencies":{},"details":{}}
 ```
+
+### Health probe response examples
+
+**Base response (all servers):**
+```json
+{"status": "ok", "ready": true, "dependencies": {}, "details": {}}
+```
+
+**shell-mcp (port 8009):**
+```json
+{
+  "status": "ok",
+  "ready": true,
+  "dependencies": {"shell": "check failed"},
+  "details": {"sandbox_backend": "firejail"}
+}
+```
+`dependencies.shell` is `"check failed"` when `sh` is not found in PATH. `details.sandbox_backend` is `"firejail"` or `"none"` (reflects active config).
+
+**rag-pipeline-mcp (port 8010):**
+```json
+{
+  "status": "ok",
+  "ready": true,
+  "dependencies": {"embed_url": "not configured"},
+  "details": {}
+}
+```
+`dependencies.embed_url` is `"not configured"` when no embedding URL is set.
+
+**github-mcp / cicd-mcp (ports 8006, 8012):**
+```json
+{
+  "status": "ok",
+  "ready": true,
+  "dependencies": {"github_token": "set"},
+  "details": {}
+}
+```
+`dependencies.github_token` is `"set"` or `"not_set"`.
+
+**mdq-mcp (port 8013):**
+```json
+{
+  "status": "ok",
+  "ready": true,
+  "stub": true,
+  "dependencies": {},
+  "details": {"service": "mdq-mcp"}
+}
+```
+Root-level `stub: true` marks experimental status (not non-functional).
 
 ### /v1/tools verification
 
