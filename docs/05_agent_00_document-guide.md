@@ -7,7 +7,7 @@ Read this file first to choose which chapter to open.
 
 ## Purpose of This Document Set
 
-These 13 files document the LLM Agent REPL system: a CLI tool that uses LLM function
+These 14 files document the LLM Agent REPL system: a CLI tool that uses LLM function
 calling to interact with MCP tool servers, maintain conversation history, and deliver
 answers to the terminal.
 
@@ -42,7 +42,9 @@ retained unchanged.
     ↓
 11 Extension Points             — plugins, @register_*, new MCP servers
     ↓
-12 Reference API                — concise per-module API with cross-references
+12 Memory                       — memory layer, injection, pruning, embeddings
+    ↓
+13 Reference API                — concise per-module API with cross-references
 ```
 
 ---
@@ -70,13 +72,14 @@ retained unchanged.
 | How to read audit logs? | `05_agent_10` |
 | How to add a plugin command or tool? | `05_agent_11` |
 | How to add a new MCP server? | `05_agent_11` |
-| Where is class X defined and what are its callers? | `05_agent_12` |
+| How does the memory layer work (injection, pruning)? | `05_agent_12` |
+| Where is class X defined and what are its callers? | `05_agent_13` |
 
 ---
 
 ## Canonical Source Rules
 
-- `05_ref-*` files were canonical for API details. Content now lives in chapters 02–12.
+- `05_ref-*` files were canonical for API details. Content now lives in chapters 02–13.
 - `05_agent-impl-flow.md` was canonical for turn flow. Content now lives in chapter 03.
 - `05_agent-ops.md` was canonical for operations. Content now lives in chapter 10.
 - When old files and new files disagree, trust the new restructured files.
@@ -96,7 +99,7 @@ All known issues, spec conflicts, and open questions are consolidated in
 | stale `05_ref-agent-context.md` reference removed | DOC-04 ✓ |
 | `AgentSession` owning RAG table access (responsibility boundary) | OQ-01 ✓ |
 | Workflow engine fallback conditions — explicit workflow_mode added | OQ-02 ✓ |
-| Memory layer API undocumented in restructured docs | UNDOC-01 |
+| Memory layer API — now in `05_agent_12_memory.md` | UNDOC-01 ✓ |
 
 ---
 
@@ -115,7 +118,8 @@ All known issues, spec conflicts, and open questions are consolidated in
 | [05_agent_09_data-layer.md](05_agent_09_data-layer.md) | SQLite schemas (session/rag/workflow), ownership boundaries, FTS5 |
 | [05_agent_10_operations-and-observability.md](05_agent_10_operations-and-observability.md) | Startup, verification, audit log, OTel, /context, /stats, troubleshooting |
 | [05_agent_11_extension-points.md](05_agent_11_extension-points.md) | Plugin architecture, @register_command/tool/pipeline_stage, new MCP server |
-| [05_agent_12_reference-api.md](05_agent_12_reference-api.md) | Concise per-module API: role, callers, callees, config, failure |
+| [05_agent_12_memory.md](05_agent_12_memory.md) | Memory layer: injection, pruning, embeddings, MemoryService API |
+| [05_agent_13_reference-api.md](05_agent_13_reference-api.md) | Concise per-module API: role, callers, callees, config, failure |
 | [05_agent_90_inconsistencies_and_known_issues.md](05_agent_90_inconsistencies_and_known_issues.md) | Known bugs, spec conflicts, open questions, undocumented areas |
 
 ---
@@ -124,5 +128,4 @@ All known issues, spec conflicts, and open questions are consolidated in
 
 - Old source files (`05_agent.md`, `05_ref-agent-*.md`, etc.) have been deleted.
   This document set is the primary reference.
-- Memory layer (`agent/memory/`) is summarized in `05_agent_02` §Memory Services.
-  No standalone per-module API reference exists in the restructured set. See UNDOC-01.
+- Memory layer (`agent/memory/`) is documented in `05_agent_12_memory.md` and summarized in `05_agent_02` §Memory Services.
