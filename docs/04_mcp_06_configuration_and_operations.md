@@ -520,3 +520,17 @@ When adding a server:
 - [ ] Add startup step to `deploy/setup_services.sh`
 - [ ] Add `tool_safety_tiers` entries to `config/agent.toml` for all new tools
 - [ ] Update `routing.md` if new documentation is needed
+
+---
+
+## Pre-Production Fail-Open Checklist
+
+Before deploying to production, verify:
+
+- [ ] `tool_definitions_strict = true` (fatal on schema mismatch)
+- [ ] shell-mcp: `shell_sandbox_backend = "firejail"` (not `"none"`)
+- [ ] `cicd-mcp`: `workflow_allowlist` explicitly set (not empty — fail-open by default)
+- [ ] `security_profile = "production"` in `config/agent.toml` (enables startup enforcement)
+- [ ] `mcp_watchdog_interval = 30.0` (auto-restart enabled)
+- [ ] Health check thresholds reviewed (`startup_timeout_sec`, `mcp_watchdog_max_restarts`)
+- [ ] Audit log paths configured and writable

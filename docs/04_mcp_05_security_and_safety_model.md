@@ -390,3 +390,16 @@ when the deny-all state is confirmed intentional. When enabled:
 
 Add the allowed values back to the relevant TOML and set
 `security_lockdown_enabled = false`. Restart the agent to apply.
+
+---
+
+## Fail-Open / Fail-Closed Settings Review
+
+| Setting | Default | Fail-open behavior | Production recommendation |
+|---|---|---|---|
+| `tool_definitions_strict` | `true` | `false` = schema mismatch downgraded to WARNING | Keep `true` |
+| `shell_sandbox_backend` | `"none"` | `"none"` = no OS isolation | Set `"firejail"` in production |
+| `workflow_allowlist` (cicd-mcp) | `[]` | `[]` = all workflows reachable (fail-open) | Explicitly list permitted workflows |
+| `command_allowlist` (shell-mcp) | `[]` | `[]` = all commands denied (fail-closed) | List allowed commands |
+| `db_allowlist` (sqlite-mcp) | `[]` | `[]` = all queries denied (fail-closed) | List allowed DB paths |
+| `mcp_watchdog_interval` | `0` (local) / `30.0` (prod) | `0` = no auto-restart | Use `30.0` in production |
