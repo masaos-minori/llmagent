@@ -7,6 +7,9 @@
 Describe the major runtime components, their dependency relationships, and responsibility
 boundaries so that an engineer or AI can locate where any behavior is implemented.
 
+> **Scope of this chapter:** runtime behavior, module graph, data flow, and component lifecycles.
+> For function signatures, parameter types, and return values → [05_agent_13 §Reference API](05_agent_13_reference-api.md).
+
 ---
 
 ## Component Dependency Diagram

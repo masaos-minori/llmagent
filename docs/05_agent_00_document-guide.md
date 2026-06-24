@@ -54,7 +54,7 @@ retained unchanged.
 | Question | File |
 |---|---|
 | What is the agent and how does it work? | `05_agent_01` |
-| What are the major components and dependencies? | `05_agent_02` |
+| What are the major components and dependencies? | `05_agent_02` (runtime behavior, data flow) — for function signatures → `05_agent_13` |
 | What happens during a single user turn? | `05_agent_03` |
 | How does history compression work? | `05_agent_04` |
 | What state is persisted vs in-memory? | `05_agent_04` |
@@ -73,7 +73,7 @@ retained unchanged.
 | How to add a plugin command or tool? | `05_agent_11` |
 | How to add a new MCP server? | `05_agent_11` |
 | How does the memory layer work (injection, pruning)? | `05_agent_12` — **Implemented** (SQLite + JSONL + FTS5 + optional vector embedding) |
-| Where is class X defined and what are its callers? | `05_agent_13` |
+| Where is class X defined and what are its callers? | `05_agent_13` (function signatures, callers, callees) — for runtime context → `05_agent_02` |
 
 ---
 

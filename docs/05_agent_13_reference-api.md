@@ -7,6 +7,9 @@
 Concise per-module API reference with role, primary public APIs, callers, callees,
 related configuration, and failure behavior. For full method signatures see linked chapters.
 
+> **Scope of this chapter:** function signatures, parameter types, return values, and error conditions.
+> For component context, data flow, and runtime behavior → [05_agent_02 §Runtime Architecture](05_agent_02_runtime-architecture.md).
+
 ---
 
 ## AgentREPL (`agent/repl.py`)
