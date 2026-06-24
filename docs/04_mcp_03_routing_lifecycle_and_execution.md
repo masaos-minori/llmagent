@@ -262,6 +262,8 @@ class _ServerLifecycleRouter:
 
 ## Watchdog (`_watchdog_loop`)
 
+MCP 障害の診断手順については `04_mcp_06` §MCP Failure Diagnosis を参照。
+
 Runs as asyncio background task. Activated when `mcp_watchdog_interval > 0`.
 
 **Profile-aware defaults:**

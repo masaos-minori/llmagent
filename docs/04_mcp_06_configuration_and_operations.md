@@ -305,6 +305,35 @@ Serialization reduces parallelism but prevents race conditions on shared resourc
 
 ---
 
+## MCP Failure Diagnosis
+
+Use this flow to trace a failed or unexpected MCP tool call:
+
+```
+1. Was the request delivered to the server?
+   NO  → Transport failure (error_type="transport" in audit log). See §Error Type Distinction.
+   YES → continue
+
+2. Did the tool return an error response (is_error=true)?
+   YES → Tool-level error (error_type="tool" in audit log). See §Error Type Distinction.
+   NO (timeout or silent fail) → continue
+
+3. Has server health status changed?
+   YES → See §Watchdog Behavior. Check health transition timestamp.
+   NO  → continue
+
+4. Has the watchdog taken action (restart / circuit-break)?
+   YES → See §Watchdog Behavior.
+   NO  → Check serialization. See §Serialization in Tool Execution.
+```
+
+For correlation across agent, transport, and server logs, see §End-to-End Tool Call Tracing.
+
+**Restart-worthy:** health transition to `failed` + repeated transport errors within threshold.
+**Not restart-worthy:** single tool error, one-time timeout, or serialization delay.
+
+---
+
 ## Settings with High Operational Impact
 
 | Setting | Impact |
