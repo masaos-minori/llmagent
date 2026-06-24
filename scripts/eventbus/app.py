@@ -98,7 +98,10 @@ async def publish(request: Request) -> dict[str, Any]:
         else _get_seq(event_id)
     )
 
-    _append_jsonl(body, seq)
+    try:
+        _append_jsonl(body, seq)
+    except OSError as exc:
+        logger.warning("eventbus: JSONL append failed (event still committed): %s", exc)
     logger.info("publish event_id=%s topic=%s seq=%d", event_id, topic, seq)
     return {"event_id": event_id, "seq": seq}
 
