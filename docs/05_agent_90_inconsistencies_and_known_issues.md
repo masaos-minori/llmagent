@@ -46,12 +46,13 @@ Each entry format:
 
 ## Undocumented Areas
 
-### UNDOC-01: Memory layer (`agent/memory/`) has no standalone API reference in restructured docs
+### UNDOC-01: Memory layer (`agent/memory/`) — standalone doc added
 
-- **Type:** Addressed (partial)
-- **Impact scope:** `agent/memory/` package (store, retriever, extract, jsonl_store, injection, ingestion, embedding_client)
-- **Current state:** `05_agent_12_reference-api.md §MemoryServices` documents the top-level API: `on_session_start()`, `on_user_prompt(query, session_id)`, `on_session_stop()`, activation condition, and failure behavior. Per-module API for `MemoryStore`, `MemoryRetriever`, and `extract_memories()` is not in the restructured docs.
-- **Remaining gap:** Detailed internals of `agent/memory/` sub-modules. Read source files directly for those.
+- **Type:** Resolved
+- **Status:** Resolved — `05_agent_12_memory.md` now documents the full memory layer.
+- **Backend:** SQLite (`memories` table + `memories_fts` FTS5 + optional `memories_vec` vector index) + JSONL file. Backend: **Implemented**.
+- **Commands:** `/memory list`, `/memory save`, `/memory search`, `/memory delete`, `/memory prune`
+- **Search strategies:** FTS5 (keyword), KNN (vector similarity), Hybrid (RRF merge)
 - **Notes for AI reference:** `ctx.services.memory` is `None` when `use_memory_layer=False` (default). Always null-check before calling any memory method.
 
 ---

@@ -72,7 +72,7 @@ retained unchanged.
 | How to read audit logs? | `05_agent_10` |
 | How to add a plugin command or tool? | `05_agent_11` |
 | How to add a new MCP server? | `05_agent_11` |
-| How does the memory layer work (injection, pruning)? | `05_agent_12` |
+| How does the memory layer work (injection, pruning)? | `05_agent_12` — **Implemented** (SQLite + JSONL + FTS5 + optional vector embedding) |
 | Where is class X defined and what are its callers? | `05_agent_13` |
 
 ---
