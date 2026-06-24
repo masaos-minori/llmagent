@@ -313,16 +313,14 @@ class _DbMixin(MixinBase):
         parsed = parse_command_args(rest.split())
         max_sessions_raw = parsed.flags.get("max-sessions")
         max_age_days_raw = parsed.flags.get("max-age-days")
-        max_sessions = (
-            int(max_sessions_raw)
-            if max_sessions_raw and str(max_sessions_raw).isdigit()
-            else None
-        )
-        max_age_days = (
-            int(max_age_days_raw)
-            if max_age_days_raw and str(max_age_days_raw).isdigit()
-            else None
-        )
+        try:
+            max_sessions = int(max_sessions_raw) if max_sessions_raw else None
+        except (ValueError, TypeError):
+            max_sessions = None
+        try:
+            max_age_days = int(max_age_days_raw) if max_age_days_raw else None
+        except (ValueError, TypeError):
+            max_age_days = None
         result = DbMaintenanceService().purge(max_sessions, max_age_days)
         self._out.write_success(
             f"Purged: {result.sessions_removed} session(s) removed [Session]"

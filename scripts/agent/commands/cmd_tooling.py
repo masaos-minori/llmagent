@@ -74,10 +74,14 @@ class _ToolingMixin(MixinBase):
 
     def _tool_show(self, arg: str) -> None:
         """Print the full text of one stored tool result by its DB id."""
-        if not arg.isdigit() or int(arg) < 1:
+        try:
+            tool_id = int(arg)
+            if tool_id < 1:
+                raise ValueError
+        except (ValueError, TypeError):
             self._out.write("Usage: /tool show <id>  (use /tool list to see IDs)")
             return
-        raw = self._ctx.tool_result_store.get(int(arg))
+        raw = self._ctx.tool_result_store.get(tool_id)
         if raw is None:
             self._out.write(f"Result id={arg} not found.")
             return

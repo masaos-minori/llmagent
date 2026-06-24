@@ -116,9 +116,11 @@ class _AuditMixin(MixinBase):
         if not sub or sub == "tail":
             n = _AUDIT_TAIL_LINES
             if rest:
-                if rest.isdigit() and int(rest) > 0:
+                try:
                     n = int(rest)
-                else:
+                    if n <= 0:
+                        raise ValueError
+                except (ValueError, TypeError):
                     self._out.write_validation_error("Usage: /audit tail [N]")
                     return
             self._audit_tail(n)
