@@ -4,7 +4,7 @@
 
 | Field | Schema definition | Runtime behavior | Status |
 |---|---|---|---|
-| `acked_at` | TEXT | Never set by any code path | Reserved/unused — documented in schema.sql comment |
+| `acked_at` | TEXT | Never set by any code path | Reserved/unused — see inline DDL in deploy/init_db.sh |
 | `retry_count` | INTEGER DEFAULT 0 | Incremented only on DLQ requeue; not incremented during normal delivery | By design |
 | `/subscribe` | SSE endpoint | Polling-based internally (not push) | By design; documented |
 
