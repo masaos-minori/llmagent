@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from agent.commands.mixin_base import MixinBase
-from agent.commands.models import StatsViewModel
+from agent.commands.models import LatencySnapshot, StatsViewModel
 
 if TYPE_CHECKING:
     pass
@@ -44,6 +44,7 @@ def _get_rag_db_configured(ctx) -> bool:
     """Return True when a RAG DB path is configured."""
     try:
         from db.config import build_db_config as _build_db_cfg  # noqa: PLC0415 — lazy
+
         _build_db_cfg()
         return True
     except (ValueError, RuntimeError):
@@ -91,9 +92,13 @@ class _ConfigStatsMixin(MixinBase):
             input_tokens=ctx.stats.stat_input_tokens,
             output_tokens=ctx.stats.stat_output_tokens,
             debug_mode=ctx.conv.debug_mode,
-            latency=ctx.stats.stat_latency,
+            latency=LatencySnapshot(data=ctx.stats.stat_latency)
+            if ctx.stats is not None
+            else None,
             workflow_mode=getattr(ctx.cfg, "workflow_mode", ""),
-            approval_pending=ctx.workflow.approval_pending if ctx.workflow is not None else False,
+            approval_pending=ctx.workflow.approval_pending
+            if ctx.workflow is not None
+            else False,
             rag_db_configured=_get_rag_db_configured(ctx),
         )
 
@@ -124,9 +129,7 @@ class _ConfigStatsMixin(MixinBase):
         self._out.write(f"  Compress      : {stats.compress_count}")
         self._out.write(f"  Fallback trunc: {stats.fallback_truncate_count}")
         if stats.memory_consistency_failures:
-            self._out.write(
-                f"  Memory inconsist.: {stats.memory_consistency_failures}"
-            )
+            self._out.write(f"  Memory inconsist.: {stats.memory_consistency_failures}")
         if stats.memory_circuit_open:
             self._out.write("  Memory embed: CIRCUIT OPEN [DEGRADED]")
         elif stats.memory_fts_fallback_count > 0:
@@ -141,11 +144,13 @@ class _ConfigStatsMixin(MixinBase):
         if stats.approval_pending:
             self._out.write("  Approval      : PENDING — use /approve or /reject")
         if stats.rag_db_configured:
-            self._out.write("  Hint          : Run /db rag consistency for index integrity status")
+            self._out.write(
+                "  Hint          : Run /db rag consistency for index integrity status"
+            )
         if stats.latency:
             self._out.write("Latency (mean / max, N samples):")
             for step in ["llm"]:
-                samples = stats.latency.get(step)
+                samples = stats.latency.data.get(step)
                 if not samples:
                     continue
                 mean = sum(samples) / len(samples)
@@ -153,5 +158,3 @@ class _ConfigStatsMixin(MixinBase):
                 self._out.write(
                     f"  {step:<12}: {mean:.2f}s / {mx:.2f}s ({len(samples)} samples)"
                 )
-
-

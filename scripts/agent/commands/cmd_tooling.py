@@ -15,7 +15,7 @@ from db.models import ToolResultRow
 from shared.json_utils import dumps as _json_dumps
 
 from agent.commands.mixin_base import MixinBase
-from agent.commands.models import ToolResultView
+from agent.commands.models import MaskedArgs, ToolResultView
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def _to_tool_result_view(entry: ToolResultRow) -> ToolResultView:
         result_id=entry.id,
         tool_name=entry.tool_name,
         summary=entry.summary,
-        args_masked=_decode_args(entry.args_masked),
+        args_masked=MaskedArgs(data=_decode_args(entry.args_masked)),
         is_error=entry.is_error,
     )
 
@@ -73,7 +73,7 @@ class _ToolingMixin(MixinBase):
         view = _to_tool_result_view(raw)
         flag = " [summarized]" if view.summary else ""
         self._out.write(f"Tool: {view.tool_name}{flag}")
-        self._out.write(f"Args: {_json_dumps(view.args_masked)}")
+        self._out.write(f"Args: {_json_dumps(view.args_masked.data)}")
         full_text = raw.full_text
         self._out.write(f"Size: {len(full_text)} chars")
         if view.summary:
