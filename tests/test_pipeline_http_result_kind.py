@@ -4,10 +4,13 @@ Verifies HTTP RAG result classification in augment() and get_diagnostics().
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from rag.pipeline import RagPipeline
+from rag.pipeline import RagPipeline, SearchDiagnostics
+from rag.types import PipelineRunResult
 
 
 def _make_pipeline(rag_service_url: str = "http://rag.local") -> RagPipeline:
@@ -87,7 +90,10 @@ async def test_in_process_fallback(monkeypatch) -> None:
 
     with patch("rag.pipeline.call_rag_service", mock_call_rag_service):
         # Also mock the in-process pipeline steps to avoid real execution
-        monkeypatch.setattr(pipeline, "run", AsyncMock(return_value=("query", [], [], [])))
+        monkeypatch.setattr(pipeline, "run", AsyncMock(return_value=PipelineRunResult(
+            queries=["query"], search_results=[], merged=[], reranked=[],
+            stage_results=[], diagnostics=SearchDiagnostics(),
+        )))
         await pipeline.augment("query")
 
     diag = pipeline.get_diagnostics()
@@ -103,7 +109,10 @@ async def test_no_http_mode(monkeypatch) -> None:
     """No rag_service_url -> http_result_kind=None."""
     pipeline = _make_pipeline(rag_service_url="")
     # No HTTP call; mock in-process stages
-    monkeypatch.setattr(pipeline, "run", AsyncMock(return_value=("query", [], [], [])))
+    monkeypatch.setattr(pipeline, "run", AsyncMock(return_value=PipelineRunResult(
+        queries=["query"], search_results=[], merged=[], reranked=[],
+        stage_results=[], diagnostics=SearchDiagnostics(),
+    )))
     await pipeline.augment("query")
 
     diag = pipeline.get_diagnostics()
