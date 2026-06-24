@@ -1,10 +1,20 @@
 from __future__ import annotations
 
+import os
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-_DEFAULT_CONFIG_PATH = Path("/opt/llm/config/eventbus.toml")
+_DEFAULT_CONFIG_PATH = "/opt/llm/config/eventbus.toml"
+_DEFAULT_SCHEMA_PATH = "/opt/llm/schemas/event_envelope.json"
+
+
+def get_config_path() -> str:
+    return os.environ.get("EVENTBUS_CONFIG_PATH", _DEFAULT_CONFIG_PATH)
+
+
+def get_schema_path() -> str:
+    return os.environ.get("EVENTBUS_SCHEMA_PATH", _DEFAULT_SCHEMA_PATH)
 
 
 @dataclass(frozen=True)
@@ -19,8 +29,8 @@ class EventBusConfig:
     offset_checkpoint_interval: int = 10
 
 
-def load_config(path: Path | None = None) -> EventBusConfig:
-    p = path or _DEFAULT_CONFIG_PATH
+def load_config(path: Path | str | None = None) -> EventBusConfig:
+    p = Path(path) if path else Path(get_config_path())
     with p.open("rb") as f:
         data = tomllib.load(f)
     return EventBusConfig(

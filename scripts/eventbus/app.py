@@ -13,13 +13,13 @@ import orjson
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
-from eventbus.config import EventBusConfig, load_config
+from eventbus.config import EventBusConfig, get_schema_path, load_config
 from eventbus.db import open_db
 from eventbus.dlq import promote_to_dlq
 
 logger = logging.getLogger(__name__)
 
-_ENVELOPE_SCHEMA_PATH = Path("/opt/llm/schemas/event_envelope.json")
+_ENVELOPE_SCHEMA_PATH = Path(get_schema_path())
 _cfg: EventBusConfig | None = None
 _db: sqlite3.Connection | None = None
 _envelope_schema: dict[str, Any] | None = None
@@ -32,6 +32,7 @@ async def lifespan(app: FastAPI) -> Any:
     global _cfg, _db, _envelope_schema, _dlq_task
     _cfg = load_config()
     _db = open_db(_cfg.db_path)
+    logger.info("eventbus: config=%s schema=%s", _cfg.db_path, _ENVELOPE_SCHEMA_PATH)
     logger.info(
         "eventbus: shared SQLite connection opened (WAL mode, check_same_thread=False) path=%s",
         _cfg.db_path,
