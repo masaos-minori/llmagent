@@ -14,10 +14,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from agent.commands.mixin_base import MixinBase
-from agent.commands.models import StatsViewModel
+from agent.commands.models import LatencySnapshot, StatsViewModel
 
 if TYPE_CHECKING:
     pass
+
+
+def _safe[T](obj: object | None, attr: str, default: T) -> T:
+    """Return getattr(obj, attr) if obj is not None, else default."""
+    return getattr(obj, attr) if obj is not None else default
 
 
 def _get_mem_circuit_open(ctx) -> bool:
@@ -44,6 +49,7 @@ def _get_rag_db_configured(ctx) -> bool:
     """Return True when a RAG DB path is configured."""
     try:
         from db.config import build_db_config as _build_db_cfg  # noqa: PLC0415 — lazy
+
         _build_db_cfg()
         return True
     except (ValueError, RuntimeError):
@@ -64,36 +70,30 @@ class _ConfigStatsMixin(MixinBase):
             turns=ctx.stats.stat_turns,
             tool_calls=ctx.stats.stat_tool_calls,
             tool_errors=ctx.stats.stat_tool_errors,
-            llm_retries=llm.stat_retries if llm is not None else 0,
-            llm_reconnects=llm.stat_reconnects if llm is not None else 0,
-            llm_heartbeat_timeouts=llm.stat_heartbeat_timeouts
-            if llm is not None
-            else 0,
-            llm_partial_completions=llm.stat_partial_completions
-            if llm is not None
-            else 0,
-            llm_parse_errors=llm.stat_parse_errors if llm is not None else 0,
-            cache_hits=ctx.services.tools.stat_cache_hits
-            if ctx.services.tools is not None
-            else 0,
-            compress_count=ctx.services.hist_mgr.stat_compress_count
-            if ctx.services.hist_mgr is not None
-            else 0,
-            fallback_truncate_count=ctx.services.hist_mgr.stat_fallback_truncate_count
-            if ctx.services.hist_mgr is not None
-            else 0,
-            memory_consistency_failures=ctx.stats.stat_memory_consistency_failures
-            if ctx.stats is not None
-            else 0,
+            llm_retries=_safe(llm, "stat_retries", 0),
+            llm_reconnects=_safe(llm, "stat_reconnects", 0),
+            llm_heartbeat_timeouts=_safe(llm, "stat_heartbeat_timeouts", 0),
+            llm_partial_completions=_safe(llm, "stat_partial_completions", 0),
+            llm_parse_errors=_safe(llm, "stat_parse_errors", 0),
+            cache_hits=_safe(ctx.services.tools, "stat_cache_hits", 0),
+            compress_count=_safe(ctx.services.hist_mgr, "stat_compress_count", 0),
+            fallback_truncate_count=_safe(
+                ctx.services.hist_mgr, "stat_fallback_truncate_count", 0
+            ),
+            memory_consistency_failures=_safe(
+                ctx.stats, "stat_memory_consistency_failures", 0
+            ),
             memory_circuit_open=_get_mem_circuit_open(ctx),
             memory_fts_fallback_count=_get_mem_fts_fallback(ctx),
             semantic_cache_hits=ctx.stats.stat_semantic_cache_hits,
             input_tokens=ctx.stats.stat_input_tokens,
             output_tokens=ctx.stats.stat_output_tokens,
             debug_mode=ctx.conv.debug_mode,
-            latency=ctx.stats.stat_latency,
+            latency=LatencySnapshot(data=ctx.stats.stat_latency)
+            if ctx.stats is not None
+            else None,
             workflow_mode=getattr(ctx.cfg, "workflow_mode", ""),
-            approval_pending=ctx.workflow.approval_pending if ctx.workflow is not None else False,
+            approval_pending=_safe(ctx.workflow, "approval_pending", False),
             rag_db_configured=_get_rag_db_configured(ctx),
         )
 
@@ -124,9 +124,7 @@ class _ConfigStatsMixin(MixinBase):
         self._out.write(f"  Compress      : {stats.compress_count}")
         self._out.write(f"  Fallback trunc: {stats.fallback_truncate_count}")
         if stats.memory_consistency_failures:
-            self._out.write(
-                f"  Memory inconsist.: {stats.memory_consistency_failures}"
-            )
+            self._out.write(f"  Memory inconsist.: {stats.memory_consistency_failures}")
         if stats.memory_circuit_open:
             self._out.write("  Memory embed: CIRCUIT OPEN [DEGRADED]")
         elif stats.memory_fts_fallback_count > 0:
@@ -141,11 +139,13 @@ class _ConfigStatsMixin(MixinBase):
         if stats.approval_pending:
             self._out.write("  Approval      : PENDING — use /approve or /reject")
         if stats.rag_db_configured:
-            self._out.write("  Hint          : Run /db rag consistency for index integrity status")
+            self._out.write(
+                "  Hint          : Run /db rag consistency for index integrity status"
+            )
         if stats.latency:
             self._out.write("Latency (mean / max, N samples):")
             for step in ["llm"]:
-                samples = stats.latency.get(step)
+                samples = stats.latency.data.get(step)
                 if not samples:
                     continue
                 mean = sum(samples) / len(samples)
@@ -153,5 +153,3 @@ class _ConfigStatsMixin(MixinBase):
                 self._out.write(
                     f"  {step:<12}: {mean:.2f}s / {mx:.2f}s ({len(samples)} samples)"
                 )
-
-

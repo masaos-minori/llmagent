@@ -67,17 +67,28 @@ class _SessionMixin(MixinBase):
 
     def _session_load_safe(self, arg: str) -> None:
         """Parse arg as an integer session ID and load it; print error on invalid."""
-        if not arg.isdigit():
-            self._out.write_validation_error(f"Invalid session ID: {arg}")
+        try:
+            sid = int(arg)
+            if sid <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            self._out.write_validation_error(
+                "Invalid session ID: must be a positive integer"
+            )
             return
-        self._load_session(int(arg))
+        self._load_session(sid)
 
     def _session_delete(self, arg: str) -> None:
         """Parse arg as an integer session ID and delete it; guard current session."""
-        if not arg.isdigit():
-            self._out.write_validation_error(f"Invalid session ID: {arg}")
+        try:
+            sid = int(arg)
+            if sid <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            self._out.write_validation_error(
+                "Invalid session ID: must be a positive integer"
+            )
             return
-        sid = int(arg)
         if sid == self._ctx.session.session_id:
             self._out.write_validation_error("Cannot delete the current session.")
             return
@@ -89,7 +100,10 @@ class _SessionMixin(MixinBase):
 
     def _session_list(self, limit_arg: str) -> None:
         """List sessions table; limit_arg is the raw CLI positional (digit string or empty)."""
-        limit = int(limit_arg) if limit_arg.isdigit() else 20
+        try:
+            limit = int(limit_arg) if limit_arg else 20
+        except (ValueError, TypeError):
+            limit = 20
         raw_rows = self._ctx.session.list_sessions(limit)
         if not raw_rows:
             self._out.write_no_data("No sessions found")

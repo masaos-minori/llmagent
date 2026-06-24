@@ -86,7 +86,13 @@ Load only the docs relevant to the specific task. Do NOT load all `docs/*.md`.
 | RAG known bugs / inconsistencies | `docs/03_rag_90_inconsistencies_and_known_issues.md` |
 | RAG configuration parameters | `docs/03_rag_05_configuration_and_operations.md` |
 | Deployment / env setup | `docs/02_deployment.md` + `rules/env.md` |
-| Event Bus (eventbus/*.py) | `docs/06_eventbus_01_overview.md` (TODO: create) |
+| Event Bus (overview) | `docs/06_eventbus_01_system-overview.md` |
+| Event Bus (HTTP API) | `docs/06_eventbus_02_http_api_and_runtime.md` |
+| Event Bus (persistence) | `docs/06_eventbus_03_persistence_schema_and_replay.md` |
+| Event Bus (DLQ/offsets) | `docs/06_eventbus_04_dlq_offsets_and_delivery_semantics.md` |
+| Event Bus (config/ops) | `docs/06_eventbus_05_configuration_deploy_and_operations.md` |
+| Event Bus (API ref) | `docs/06_eventbus_06_reference_api.md` |
+| Event Bus (issues) | `docs/06_eventbus_90_inconsistencies_and_known_issues.md` |
 
 ## Always load alongside the skill
 

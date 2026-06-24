@@ -72,8 +72,6 @@ GGUF (GPT-Generated Unified Format) 形式のモデルを CPU で動作させる
 git clone https://github.com/ggerganov/llama.cpp.git /opt/llm/llama.cpp
 cd /opt/llm/llama.cpp
 
-# N100 は AVX2 非対応のため GGML_NATIVE=ON で利用可能な命令セットを自動検出する
-# -DGGML_AVX2=ON は N100 では使用不可
 cmake -B build \
     -DGGML_NATIVE=ON \
     -DLLAMA_SERVER=ON \
@@ -109,42 +107,21 @@ uv run --with huggingface-hub huggingface-cli download Qwen/Qwen2.5-Coder-7B-Ins
 ls -lh /opt/llm/models/
 ```
 
-#### 1.4.1 量子化方式の比較 (参考)
-
-| 方式 | ビット数 | RAM 削減 | 品質 | 用途 |
-|---|---|---|---|---|
-| Q2_K | 2bit | 最大 | 低 | RAM 極小環境 |
-| Q4_K_M | 4bit | 大 | 良好 | 推奨 (汎用) |
-| Q5_K_M | 5bit | 中 | 高 | 品質重視 |
-| Q8_0 | 8bit | 小 | 非常に高 | 評価・比較用 |
-
-### 1.5 sqlite-vec のビルド
-
-SQLite のベクトル近傍探索 (KNN: K-Nearest Neighbor) 拡張。`vec0` 仮想テーブルを通じてベクトル埋込の保存と類似度検索を提供。
-
-```bash
-git clone https://github.com/asg017/sqlite-vec.git /opt/llm/sqlite-vec
-cd /opt/llm/sqlite-vec
-
-make loadable
-
-ls -lh dist/vec0.so
-
-# agent.py / create_schema.py からの参照パスに合わせてシンボリックリンクを作成
-ln -sf dist/vec0.so /opt/llm/sqlite-vec/vec0.so
-
-# 動作確認
-sqlite3 :memory: "
-.load /opt/llm/sqlite-vec/vec0.so
-SELECT vec_version();
-"
-```
-
 ---
 
 ## 2. サービス設定
 
-### 2.1 スクリプトのデプロイ
+### 2.1 sqlite-vec のビルド (初回のみ)
+
+SQLite のベクトル近傍探索 (KNN: K-Nearest Neighbor) 拡張。`vec0` 仮想テーブルを通じてベクトル埋込の保存と類似度検索を提供。
+
+```bash
+bash deploy/build_sqlite_vec.sh
+```
+
+インストール先: `/opt/llm/sqlite-vec/vec0.so` (`common.toml` の `sqlite_vec_so` と一致)
+
+### 2.2 スクリプトのデプロイ
 
 `deploy/deploy.sh` がスクリプト・設定ファイル・SQL ファイルの一括コピーを実行。
 
@@ -157,11 +134,10 @@ deploy.sh が行う処理:
 - `/opt/llm/scripts/` に Python スクリプトをコピー (`eventbus/` パッケージを含む)
 - `/opt/llm/config/` に設定ファイルをコピー (`eventbus.toml` を含む)
 - `/opt/llm/schemas/` に JSON Schema をコピー (`event_envelope.json` を含む)
-- `/opt/llm/db/` に `rrf.sql` をコピー
 - `/opt/llm/logs/`, `/opt/llm/rag-src/chunk/`, `/opt/llm/rag-src/registered/` を作成
 - `/opt/llm/storage/`, `/opt/llm/offsets/`, `/opt/llm/deadletter/` を作成 (Event Bus 用)
 
-### 2.2 LLM サービス登録・起動
+### 2.3 LLM サービス登録・起動
 
 `deploy/setup_services.sh` が LLM サービスの初期化を実行。
 
@@ -183,14 +159,9 @@ curl -s http://127.0.0.1:8001/health   # agent-llm
 > - Web 検索: DuckDuckGo — API キー不要
 > - GitHub 操作: `GITHUB_TOKEN` を `/etc/conf.d/github-mcp` に設定
 
-### 2.3 MCP サーバの確認
+### 2.4 MCP サーバの確認
 
 MCP サーバはエージェント起動時に `startup_mode = "subprocess"` 設定に従い uvicorn サブプロセスとして自動起動する。エージェント起動後に `/mcp status` で各サーバの起動状態を確認できる。
-
-```bash
-# エージェント内で確認
-agent[chat]> /mcp status
-```
 
 ---
 
@@ -217,49 +188,4 @@ bash deploy/init_db.sh
 # テーブル確認 (chunks  chunks_fts  chunks_vec  documents)
 ```
 
-### 3.2 スキーマ概要
 
-| テーブル | 種別 | 主な列 | 用途 |
-|---|---|---|---|
-| `documents` | 通常 | `doc_id` PK, `url` UNIQUE, `lang` | URL 単位のドキュメント管理 |
-| `chunks` | 通常 | `chunk_id` PK, `doc_id` FK, `content` | 分割チャンク本文 |
-| `chunks_fts` | FTS5 仮想 | `content`, `content_rowid='chunk_id'` | BM25 全文検索 |
-| `chunks_vec` | vec0 仮想 | `chunk_id` PK, `embedding float[384]` | KNN ベクトル検索 |
-| `sessions` | 通常 | `session_id` PK, `created_at`, `title` | REPL セッション管理 |
-| `messages` | 通常 | `message_id` PK, `session_id` FK, `role`, `content`, `tool_calls` | 会話メッセージの永続化 |
-
-FTS5 は `chunks` テーブルの INSERT/UPDATE/DELETE に対してトリガーで自動同期 (`chunks_ai` / `chunks_au` / `chunks_ad`)。
-
-`sessions` と `messages` は REPL エージェント (`agent.py`) が使用する会話履歴の永続化テーブル。`/session list` で一覧表示、`/session load <id>` で過去セッションの文脈を復元可能。
-
----
-
-## 4. 動作確認
-
-### 4.1 DB 統計
-
-```bash
-# RAG ドキュメント・チャンク
-sqlite3 /opt/llm/db/rag.sqlite "SELECT lang, COUNT(*) FROM documents GROUP BY lang;"
-sqlite3 /opt/llm/db/rag.sqlite "SELECT COUNT(*) FROM chunks;"
-sqlite3 /opt/llm/db/rag.sqlite "SELECT chunk_id, LENGTH(embedding) FROM chunks_vec LIMIT 3;"
-# Expected: LENGTH(embedding) = 1536 (384 次元 × 4 bytes)
-
-# セッション履歴
-sqlite3 /opt/llm/db/rag.sqlite "SELECT session_id, created_at, title FROM sessions ORDER BY session_id DESC LIMIT 5;"
-sqlite3 /opt/llm/db/rag.sqlite "SELECT COUNT(*) FROM messages;"
-```
-
-### 4.2 サービス疎通確認
-
-```bash
-curl -s http://127.0.0.1:8003/health  # embed-llm
-curl -s http://127.0.0.1:8001/health  # agent-llm
-```
-
-MCP サーバのヘルスチェックはエージェント起動後に行う:
-
-```bash
-# エージェント内
-agent[chat]> /mcp status
-```

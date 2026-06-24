@@ -8,6 +8,7 @@ Provides _ToolingMixin with:
 """
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import orjson
@@ -15,28 +16,38 @@ from db.models import ToolResultRow
 from shared.json_utils import dumps as _json_dumps
 
 from agent.commands.mixin_base import MixinBase
-from agent.commands.models import ToolResultView
+from agent.commands.models import MaskedArgs, ToolResultView
 
 logger = logging.getLogger(__name__)
 
 
-def _decode_args(raw: str | None) -> dict[str, Any]:
-    if not raw:
-        return {}
+@dataclass(frozen=True)
+class DecodedArgs:
+    data: dict[str, Any]
+    parse_error: str | None = None
+
+
+def _decode_args(raw: str | None) -> DecodedArgs:
+    if raw is None:
+        return DecodedArgs(data={})
     try:
-        result = orjson.loads(raw)
-        return result if isinstance(result, dict) else {}
-    except orjson.JSONDecodeError:
-        logger.warning("Failed to decode args_masked JSON; displaying empty args")
-        return {}
+        parsed = orjson.loads(raw)
+        if not isinstance(parsed, dict):
+            return DecodedArgs(data={}, parse_error="non-dict JSON")
+        return DecodedArgs(data=parsed)
+    except orjson.JSONDecodeError as e:
+        return DecodedArgs(data={}, parse_error=str(e))
 
 
 def _to_tool_result_view(entry: ToolResultRow) -> ToolResultView:
+    decoded = _decode_args(entry.args_masked)
+    if decoded.parse_error:
+        logger.debug("cmd_tooling: args decode error: %s", decoded.parse_error)
     return ToolResultView(
         result_id=entry.id,
         tool_name=entry.tool_name,
         summary=entry.summary,
-        args_masked=_decode_args(entry.args_masked),
+        args_masked=MaskedArgs(data=decoded.data),
         is_error=entry.is_error,
     )
 
@@ -63,17 +74,21 @@ class _ToolingMixin(MixinBase):
 
     def _tool_show(self, arg: str) -> None:
         """Print the full text of one stored tool result by its DB id."""
-        if not arg.isdigit() or int(arg) < 1:
+        try:
+            tool_id = int(arg)
+            if tool_id < 1:
+                raise ValueError
+        except (ValueError, TypeError):
             self._out.write("Usage: /tool show <id>  (use /tool list to see IDs)")
             return
-        raw = self._ctx.tool_result_store.get(int(arg))
+        raw = self._ctx.tool_result_store.get(tool_id)
         if raw is None:
             self._out.write(f"Result id={arg} not found.")
             return
         view = _to_tool_result_view(raw)
         flag = " [summarized]" if view.summary else ""
         self._out.write(f"Tool: {view.tool_name}{flag}")
-        self._out.write(f"Args: {_json_dumps(view.args_masked)}")
+        self._out.write(f"Args: {_json_dumps(view.args_masked.data)}")
         full_text = raw.full_text
         self._out.write(f"Size: {len(full_text)} chars")
         if view.summary:

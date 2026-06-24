@@ -35,11 +35,11 @@ uv run python scripts/rag/ingestion/crawler.py \
 ### Step 2: Chunk split
 
 ```bash
-# All unprocessed .txt files in {rag_src_dir}/
+# All unprocessed .json files in {rag_src_dir}/
 uv run python scripts/rag/ingestion/chunk_splitter.py
 
 # Single file only (path relative to rag_src_dir)
-uv run python scripts/rag/ingestion/chunk_splitter.py --file /opt/llm/rag-src/20240101120000-ziglang.txt
+uv run python scripts/rag/ingestion/chunk_splitter.py --file /opt/llm/rag-src/20240101120000-ziglang.json
 
 # Regenerate existing chunks
 uv run python scripts/rag/ingestion/chunk_splitter.py --force
@@ -61,25 +61,15 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 | Path | Created by | Format |
 |---|---|---|---|
-| `{rag_src_dir}/yyyymmddhhmmss-{slug}.txt` | `crawler.py` | JSON (url, title, lang, fetched_at, content, code_blocks) |
-| `{rag_src_dir}/chunk/{stem}-{idx:04d}.txt` | `chunk_splitter.py` | JSON (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified) |
-| `{rag_src_dir}/registered/{stem}-{idx:04d}.txt` | `ingester.py` (moved) | Same as chunk file |
+| `{rag_src_dir}/yyyymmddhhmmss-{slug}.json` | `crawler.py` | JSON (url, title, lang, fetched_at, content, code_blocks) |
+| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | `chunk_splitter.py` | JSON (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified) |
+| `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | `ingester.py` (moved) | Same as chunk file |
 
-> **Artifact format note:** All `.txt` files listed above contain JSON payloads,
-> not plain text. The `.txt` extension is retained for historical/compatibility reasons.
-> Always parse with `orjson.loads()` or `json.loads()`. Plain-text tools (grep, wc,
-> editors that assume UTF-8 text) will work on the raw bytes but will not interpret
-> the structure. To inspect a file:
+> **Artifact format note:** All `.json` files listed above contain JSON payloads.
+> Always parse with `orjson.loads()` or `json.loads()`. To inspect a file:
 > ```
 > python -c "import orjson; print(orjson.loads(open('FILE', 'rb').read()))"
 > ```
-> Do NOT pass `.txt` artifacts to tools that assume plain-text format.
-
-> **Future compatibility note (Needs confirmation):** Renaming artifacts to `.json` is
-> feasible but requires updating all `glob("*.txt")` calls in `ingester.py` and
-> `chunk_splitter.py`, the sentinel filename check (`{stem}-0000.txt`), and a migration
-> script for existing files in `rag-src/registered/`. Not implemented; requires
-> explicit confirmation before proceeding.
 
 Production config: `rag_src_dir = "/opt/llm/rag-src"`. The default value `rag-src` is used only when no config is present.
 
@@ -150,7 +140,7 @@ Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto
 | Freshness signal | ETag / Last-Modified header | File mtime / SHA-256 |
 | Skip mechanism | 304 Not Modified | Stored mtime or hash compare |
 | Force re-index | `--force` flag | `--force` flag |
-| Current state | Implemented | Not yet implemented |
+| Current state | Implemented | Implemented (SHA-256 hash comparison) |
 
 ### 2.3 CLI arguments
 
@@ -159,7 +149,7 @@ Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto
 | `--url URL [URL ...]` | Target URLs (omit to use `target_urls` in config) | — |
 | `--lang {en,ja,auto}` | Hint language | `en` |
 
-### 2.4 Output JSON format (`rag-src/yyyymmddhhmmss-{slug}.txt`)
+### 2.4 Output JSON format (`rag-src/yyyymmddhhmmss-{slug}.json`)
 
 ```json
 {
@@ -201,15 +191,15 @@ See [03_rag_05_configuration_and_operations.md §1.1](03_rag_05_configuration_an
 
 ### 3.1 Class overview
 
-`ChunkSplitter` — splits `rag-src/*.txt` files into chunks by language and content type;
-saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.txt` exists (`--force` overrides).
+`ChunkSplitter` — splits `rag-src/*.json` files into chunks by language and content type;
+saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` exists (`--force` overrides).
 
 **Public methods**
 
 | Method | Signature | Description |
 |---|---|---|
 | `__init__` | `(config: dict \| None = None)` | Load `rag_pipeline.toml`; init Sudachi tokenizer (SplitMode.C, `core` dict) |
-| `process_all` | `(target: Path \| None = None, force: bool = False) -> int` | Process all `rag-src/*.txt`; returns total chunk count |
+| `process_all` | `(target: Path \| None = None, force: bool = False) -> int` | Process all `rag-src/*.json`; returns total chunk count |
 | `process_file` | `(src_path: Path, force: bool = False) -> int` | Process single file; returns chunk count |
 
 ### 3.2 Splitting strategies
@@ -231,10 +221,10 @@ saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.txt` exists (`--for
 
 | Argument | Description | Default |
 |---|---|---|
-| `--file PATH` | Process single file only | all unprocessed `.txt` |
+| `--file PATH` | Process single file only | all unprocessed `.json` |
 | `--force` | Regenerate existing chunks | false |
 
-### 3.4 Output JSON format (`rag-src/chunk/{stem}-{idx:04d}.txt`)
+### 3.4 Output JSON format (`rag-src/chunk/{stem}-{idx:04d}.json`)
 
 ```json
 {

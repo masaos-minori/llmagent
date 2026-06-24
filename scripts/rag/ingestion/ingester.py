@@ -105,7 +105,7 @@ class RagIngester:
         Returns the post-ingestion consistency report, or None if the check failed.
         Callers that do not inspect the return value are unaffected.
         """
-        chunk_files = sorted(self._chunk_dir.glob("*.txt"))
+        chunk_files = sorted(self._chunk_dir.glob("*.json"))
         if not chunk_files:
             logger.info("No chunk files to process")
             return None

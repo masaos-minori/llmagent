@@ -39,6 +39,12 @@ class CliOutputPort:
     def write_table(self, headers: list[str], rows: list[list[str]]) -> None:
         if not rows:
             return
+        expected = len(headers)
+        for idx, row in enumerate(rows):
+            if len(row) != expected:
+                raise ValueError(
+                    f"write_table: row {idx} has {len(row)} cells, expected {expected}"
+                )
         widths = [
             max(len(h), max(len(r[i]) for r in rows)) for i, h in enumerate(headers)
         ]

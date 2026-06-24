@@ -113,7 +113,7 @@ uv run python scripts/rag/ingestion/crawler.py \
 uv run python scripts/rag/ingestion/chunk_splitter.py
 
 # Single file (use absolute path from config)
-uv run python scripts/rag/ingestion/chunk_splitter.py --file /opt/llm/rag-src/20240101120000-ziglang.txt
+uv run python scripts/rag/ingestion/chunk_splitter.py --file /opt/llm/rag-src/20240101120000-ziglang.json
 
 # Regenerate existing chunks (--force)
 uv run python scripts/rag/ingestion/chunk_splitter.py --force
@@ -247,7 +247,7 @@ with SQLiteHelper("rag").open() as db:
 
 ### First-time ingestion
 
-Add the file path to `target_urls` in `rag_crawler.toml` with scheme `file://`:
+Add the file path to `target_urls` in `config/rag_pipeline.toml` with scheme `file://`:
 
 ```toml
 [[target_urls]]

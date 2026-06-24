@@ -220,7 +220,7 @@ class WebCrawler:
         """Generate an output path in yyyymmddhhmmss-{slug}.txt format."""
         ts = datetime.now().strftime("%Y%m%d%H%M%S")
         slug = url_to_slug(url)
-        return self._rag_src_dir / f"{ts}-{slug}.txt"
+        return self._rag_src_dir / f"{ts}-{slug}.json"
 
     async def _fetch_html_async(
         self,

@@ -9,6 +9,20 @@ from typing import Any
 
 
 @dataclass(frozen=True)
+class LatencySnapshot:
+    """Per-tool latency stats mapping tool_name to a list of elapsed-second samples."""
+
+    data: dict[str, list[float]]
+
+
+@dataclass(frozen=True)
+class MaskedArgs:
+    """Decoded and masked tool arguments for display (arg_name -> masked value)."""
+
+    data: dict[str, Any]
+
+
+@dataclass(frozen=True)
 class StatsViewModel:
     session_id: str
     turns: int
@@ -29,7 +43,7 @@ class StatsViewModel:
     input_tokens: int | None = None
     output_tokens: int | None = None
     debug_mode: bool = False
-    latency: dict[str, Any] | None = None  # presentation-only; dict intentional
+    latency: LatencySnapshot | None = None
     workflow_mode: str = ""
     approval_pending: bool = False
     rag_db_configured: bool = False
@@ -40,7 +54,7 @@ class ToolResultView:
     result_id: int
     tool_name: str
     summary: str | None
-    args_masked: dict[str, Any]  # presentation-only; dict intentional
+    args_masked: MaskedArgs
     is_error: bool
 
 

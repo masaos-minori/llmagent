@@ -65,7 +65,7 @@ class TestCrawlFilePayload:
         crawler.crawl_file(target, "en")
 
         rag_src = tmp_path / "rag-src"
-        files = list(rag_src.glob("*.txt"))
+        files = list(rag_src.glob("*.json"))
         assert len(files) == 1
 
         import orjson
@@ -98,7 +98,7 @@ class TestCrawlFilePayload:
         import orjson
 
         rag_src = tmp_path / "rag-src"
-        payload = orjson.loads(next(rag_src.glob("*.txt")).read_bytes())
+        payload = orjson.loads(next(rag_src.glob("*.json")).read_bytes())
         assert payload["etag"] == hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 

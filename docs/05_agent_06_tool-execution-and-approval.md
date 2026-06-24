@@ -30,7 +30,7 @@ plan mode, tool result summarization, caching, safety controls, and `allowed_too
 
 ## Parallel vs Sequential Execution
 
-`execute_all_tool_calls()` dispatches based on config flags:
+`execute_all_tool_calls()` dispatches based on config flags. Config reference → [05_agent_08 §ToolConfig `use_tool_dag`](05_agent_08_configuration.md).
 
 | Condition | Execution |
 |---|---|

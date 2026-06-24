@@ -298,6 +298,10 @@ class CommandRegistry(
         matching (line == name or line.startswith(name + " ")) to prevent
         substring false-positives.
         """
+        if not isinstance(line, str):
+            raise TypeError(f"dispatch() requires str, got {type(line).__name__}")
+        if not line:
+            return False
         for cmd in _COMMANDS:
             handler = self._get_handler(cmd)
             if cmd.prefix:

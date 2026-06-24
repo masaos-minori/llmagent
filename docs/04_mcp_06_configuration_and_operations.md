@@ -59,7 +59,7 @@ health probes, audit log reading, and the new-server addition checklist.
 | `startup_timeout_sec` | `int` | `30` | subprocess mode: health poll timeout |
 | `working_dir` | `str` | `""` | stdio subprocess working directory (empty = inherit) |
 | `env` | `dict[str, str]` | `{}` | Additional env vars for stdio subprocess |
-| `tool_names` | `list[str]` | `[]` | Explicit tool routing (empty = static fallback) |
+| `tool_names` | `list[str]` | `[]` | Validation hint (optional); registry routes regardless. Empty = no validation. |
 | `auth_token` | `str` | `""` | Bearer token for auth (empty = no auth) |
 | `role` | `str` | `""` | Human-readable role label for `/mcp` display |
 
@@ -85,6 +85,7 @@ health probes, audit log reading, and the new-server addition checklist.
 | github default_per_page | 10 | `config/github_mcp_server.toml` |
 | github max_per_page | 100 | `config/github_mcp_server.toml` |
 | shell max_timeout_sec | 300 sec | `config/shell_mcp_server.toml` |
+| shell sandbox_backend | `"none"` (local) / `"firejail"` (prod) | `config/shell_mcp_server.toml` |
 | sqlite max_rows | 100 | `config/sqlite_mcp_server.toml` |
 | git max_log_entries | 50 | `config/git_mcp_server.toml` |
 
@@ -133,19 +134,71 @@ env = {}
 ```bash
 # Individual server health checks (all return 4-field nested format)
 curl -s http://127.0.0.1:8004/health | jq   # web-search: base response only
-curl -s http://127.0.0.1:8005/health | jq   # file-read: base response only
+curl -s http://127.0.0.1:8005/health | jq   # file-read: dependencies.filesystem
 curl -s http://127.0.0.1:8006/health | jq   # github: dependencies.github_token
-curl -s http://127.0.0.1:8007/health | jq   # file-write: base response only
-curl -s http://127.0.0.1:8008/health | jq   # file-delete: base response only
-curl -s http://127.0.0.1:8009/health | jq   # shell: base response only
-curl -s http://127.0.0.1:8010/health | jq   # rag-pipeline: base response only
-curl -s http://127.0.0.1:8011/health | jq   # sqlite: base response only
+curl -s http://127.0.0.1:8007/health | jq   # file-write: dependencies.filesystem
+curl -s http://127.0.0.1:8008/health | jq   # file-delete: dependencies.filesystem
+curl -s http://127.0.0.1:8009/health | jq   # shell: dependencies.shell, details.sandbox_backend
+curl -s http://127.0.0.1:8010/health | jq   # rag-pipeline: dependencies.embed_url
+curl -s http://127.0.0.1:8011/health | jq   # sqlite: dependencies.<db_name> per registered DB
 curl -s http://127.0.0.1:8012/health | jq   # cicd: dependencies.github_token
-curl -s http://127.0.0.1:8013/health | jq   # mdq: details.service
-curl -s http://127.0.0.1:8014/health | jq   # git: base response only
+curl -s http://127.0.0.1:8013/health | jq   # mdq: stub:true, details.service
+curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 
 # Base response shape: {"status":"ok","ready":bool,"dependencies":{},"details":{}}
 ```
+
+### Health probe response examples
+
+**Base response (all servers):**
+```json
+{"status": "ok", "ready": true, "dependencies": {}, "details": {}}
+```
+
+**shell-mcp (port 8009):**
+```json
+{
+  "status": "ok",
+  "ready": true,
+  "dependencies": {"shell": "check failed"},
+  "details": {"sandbox_backend": "firejail"}
+}
+```
+`dependencies.shell` is `"check failed"` when `sh` is not found in PATH. `details.sandbox_backend` is `"firejail"` or `"none"` (reflects active config).
+
+**rag-pipeline-mcp (port 8010):**
+```json
+{
+  "status": "ok",
+  "ready": true,
+  "dependencies": {"embed_url": "not configured"},
+  "details": {}
+}
+```
+`dependencies.embed_url` is `"not configured"` when no embedding URL is set.
+
+**github-mcp / cicd-mcp (ports 8006, 8012):**
+```json
+{
+  "status": "ok",
+  "ready": true,
+  "dependencies": {"github_token": "set"},
+  "details": {}
+}
+```
+`dependencies.github_token` is `"set"` or `"not_set"`.
+
+**mdq-mcp (port 8013):**
+```json
+{
+  "status": "ok",
+  "ready": true,
+  "stub": true,
+  "dependencies": {},
+  "details": {"service": "mdq-mcp"}
+}
+```
+Root-level `stub: true` marks experimental status (not non-functional).
 
 ### /v1/tools verification
 
@@ -205,6 +258,27 @@ tail -100 /opt/llm/logs/git-mcp.log
 | shell-mcp | `/opt/llm/logs/shell-mcp.log` |
 | mdq-mcp | `/opt/llm/logs/mdq-mcp.log` |
 | git-mcp | `/opt/llm/logs/git-mcp.log` |
+
+---
+
+## End-to-End Tool Call Tracing
+
+To trace a failed tool call across agent, transport, and server logs:
+
+1. Find the `X-Request-Id` in the agent dispatch log:
+   ```bash
+   grep "tool_name=my_tool" /opt/llm/logs/agent.log | grep "X-Request-Id"
+   ```
+2. Search transport log for the same `X-Request-Id`:
+   ```bash
+   grep "X-Request-Id=<id>" /opt/llm/logs/audit.log
+   ```
+3. Search server audit log for the `X-Request-Id`:
+   ```bash
+   grep "<id>" /opt/llm/logs/github-audit.log  # or relevant server audit log
+   ```
+4. Check health state for `server_key` at that timestamp in `/opt/llm/logs/agent.log`.
+5. If health changed: check watchdog actions log for restart/failover.
 
 ---
 
@@ -280,6 +354,35 @@ Run `/mcp` to see serialization statistics at the bottom of the MCP status outpu
 
 **Why this matters:**
 Serialization reduces parallelism but prevents race conditions on shared resources. Before attempting to optimize parallelism, review serialization logs to understand which tools and scopes trigger grouping most frequently.
+
+---
+
+## MCP Failure Diagnosis
+
+Use this flow to trace a failed or unexpected MCP tool call:
+
+```
+1. Was the request delivered to the server?
+   NO  → Transport failure (error_type="transport" in audit log). See §Error Type Distinction.
+   YES → continue
+
+2. Did the tool return an error response (is_error=true)?
+   YES → Tool-level error (error_type="tool" in audit log). See §Error Type Distinction.
+   NO (timeout or silent fail) → continue
+
+3. Has server health status changed?
+   YES → See §Watchdog Behavior. Check health transition timestamp.
+   NO  → continue
+
+4. Has the watchdog taken action (restart / circuit-break)?
+   YES → See §Watchdog Behavior.
+   NO  → Check serialization. See §Serialization in Tool Execution.
+```
+
+For correlation across agent, transport, and server logs, see §End-to-End Tool Call Tracing.
+
+**Restart-worthy:** health transition to `failed` + repeated transport errors within threshold.
+**Not restart-worthy:** single tool error, one-time timeout, or serialization delay.
 
 ---
 
@@ -471,7 +574,7 @@ When adding a new tool to an **existing** MCP server:
    - Add to the appropriate frozenset (`READ_TOOLS`, `WRITE_TOOLS`, etc.)
    - If no set fits, create a new `<SERVER>_TOOLS` frozenset and add it to `get_all_mcp_tool_names()`
 
-2. **Add the tool name to `tool_names` in the server config (`config/agent.toml`)**
+2. **Add the tool name to `tool_names` in the server config (`config/agent.toml`)** (optional — for validation only; routing does not require this)
    - Find the `[mcp_servers.<server_key>]` block
    - Append the tool name to `tool_names = [...]`
 
@@ -482,6 +585,16 @@ When adding a new tool to an **existing** MCP server:
 
 > **Note:** If the tool name follows the `github_` prefix convention and the server key is `github`,
 > no entry in `tool_constants.py` is needed — prefix matching handles it automatically.
+
+### Verification
+
+After completing registration:
+
+```bash
+uv run pytest tests/test_route_resolver.py -v
+```
+
+Expected: all routing tests pass. If `tool_definitions_strict = true`, restart the agent and confirm startup logs show `"Routing: N/N tools mapped"` with no unmapped warnings.
 
 ---
 
@@ -498,3 +611,17 @@ When adding a server:
 - [ ] Add startup step to `deploy/setup_services.sh`
 - [ ] Add `tool_safety_tiers` entries to `config/agent.toml` for all new tools
 - [ ] Update `routing.md` if new documentation is needed
+
+---
+
+## Pre-Production Fail-Open Checklist
+
+Before deploying to production, verify:
+
+- [ ] `tool_definitions_strict = true` (fatal on schema mismatch)
+- [ ] shell-mcp: `shell_sandbox_backend = "firejail"` (not `"none"`)
+- [ ] `cicd-mcp`: `workflow_allowlist` explicitly set (not empty — fail-open by default)
+- [ ] `security_profile = "production"` in `config/agent.toml` (enables startup enforcement)
+- [ ] `mcp_watchdog_interval = 30.0` (auto-restart enabled)
+- [ ] Health check thresholds reviewed (`startup_timeout_sec`, `mcp_watchdog_max_restarts`)
+- [ ] Audit log paths configured and writable

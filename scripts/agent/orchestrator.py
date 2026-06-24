@@ -117,11 +117,12 @@ class Orchestrator:
             logger.warning(
                 "Turn blocked: workflow pending approval. Use /approve or /reject."
             )
-            self._on_error(
-                RuntimeError(
-                    "[workflow] Approval is pending — use /approve [reason] or /reject [reason]."
+            if self._on_error:
+                self._on_error(
+                    RuntimeError(
+                        "[workflow] Approval is pending — use /approve [reason] or /reject [reason]."
+                    )
                 )
-            )
             return
         turn_started_at = time.perf_counter()
 
@@ -394,9 +395,7 @@ class Orchestrator:
         """
         ctx = self._ctx
         # Remove ephemeral entries from the previous turn before rebuilding prompt
-        ctx.conv.history = [
-            m for m in ctx.conv.history if not m.get("_ephemeral")
-        ]
+        ctx.conv.history = [m for m in ctx.conv.history if not m.get("_ephemeral")]
         if not ctx.conv.system_prompt_content:
             return
         if ctx.conv.history and ctx.conv.history[0]["role"] == "system":

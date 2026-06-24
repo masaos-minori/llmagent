@@ -76,10 +76,6 @@ echo "--- schemas/ → /opt/llm/schemas/ ---"
 mkdir -p /opt/llm/schemas
 cp -r "${REPO_ROOT}/schemas/." /opt/llm/schemas/
 
-# ── SQL 参照定義 ──────────────────────────────────────────────────────────────
-echo "--- db/rrf.sql → ${DEPLOY_DB}/ ---"
-cp "${REPO_ROOT}/db/rrf.sql" "${DEPLOY_DB}/"
-
 # ── ワークフロー定義 ──────────────────────────────────────────────────────────
 echo "--- config/workflows/ → ${DEPLOY_CONFIG}/workflows/ ---"
 mkdir -p "${DEPLOY_CONFIG}/workflows"

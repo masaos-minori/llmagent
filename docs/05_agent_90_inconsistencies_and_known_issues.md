@@ -15,26 +15,6 @@ Each entry format:
 
 ## Open Questions
 
-### OQ-01: AgentSession RAG-layer dependency
-
-- **Type:** Resolved
-- **Status:** Resolved as of boundary split
-- `AgentSession` has zero RAG-layer imports. All RAG maintenance routes through `RagMaintenanceService`.
-- Verified by `tests/test_mdq_rag_boundary.py::test_agent_layer_rag_sqlite_access_only_in_maintenance_service`.
-
----
-
-### OQ-03: Session title generation silently drops errors — no user feedback
-
-- **Type:** Open Question / Needs confirmation
-- **Impact scope:** `agent/commands/cmd_session.py _generate_session_title()`, `agent/services/session_title.py SessionTitleService`
-- **Description:** `_generate_session_title()` is called via `asyncio.create_task()` (fire-and-forget) on the first turn of each session. On failure, the error is logged but no fallback title is generated and no user notification occurs. The session may remain with an empty or default title.
-- **Current safe interpretation:** Session title generation failure is non-fatal. The session continues normally. Titles may be empty after LLM or config errors.
-- **Recommended action:** Consider implementing a `first_input[:50]` fallback title on LLM failure (same as the older implementation described in source docs).
-- **Notes for AI reference:** Do not rely on session titles being set after the first turn. Title generation is asynchronous and may fail silently.
-
----
-
 ### Session SQLite corruption recovery gap
 
 - **Type:** Known Gap
@@ -45,16 +25,6 @@ Each entry format:
 ---
 
 ## Undocumented Areas
-
-### UNDOC-01: Memory layer (`agent/memory/`) has no standalone API reference in restructured docs
-
-- **Type:** Addressed (partial)
-- **Impact scope:** `agent/memory/` package (store, retriever, extract, jsonl_store, injection, ingestion, embedding_client)
-- **Current state:** `05_agent_12_reference-api.md §MemoryServices` documents the top-level API: `on_session_start()`, `on_user_prompt(query, session_id)`, `on_session_stop()`, activation condition, and failure behavior. Per-module API for `MemoryStore`, `MemoryRetriever`, and `extract_memories()` is not in the restructured docs.
-- **Remaining gap:** Detailed internals of `agent/memory/` sub-modules. Read source files directly for those.
-- **Notes for AI reference:** `ctx.services.memory` is `None` when `use_memory_layer=False` (default). Always null-check before calling any memory method.
-
----
 
 ### UNDOC-02: Plugin tool return value convention not enforced at registration time
 

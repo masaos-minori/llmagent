@@ -153,6 +153,29 @@ Action:
 
 ---
 
+## Partial-Completion Model
+
+A partial completion occurs when the LLM response stream is interrupted before all content is received.
+
+| Trigger | Stored where | Visible via | `stat_partial_completions` |
+|---|---|---|---|
+| `LLMTransportError` with non-empty `partial_text` | `tool_result_store` (`tool_name="llm_partial_completion"`) + `session_diagnostics` table | `/tool show llm_partial_completion`, `/stats` | +1 |
+| `LLMTransportError` with empty `partial_text` (pre-stream) | Not stored (user message popped from history) | User-visible error message | no change |
+
+**Key invariant:** partial content is NEVER added to `ctx.conv.history`. It is isolated in the diagnostic channel so it cannot pollute future LLM context.
+
+After each turn, `AgentREPL._dispatch_line()` checks if `stat_partial_completions` increased. If so:
+
+```
+[warn] Partial LLM completion stored. Use /stats to see count or query tool_results (tool_name='llm_partial_completion').
+```
+
+See §LLM Transport Error (partial completion) above for implementation details.
+For persistence behavior → [05_agent_04 §Message save rules](05_agent_04_state-and-persistence.md).
+For operator monitoring → [05_agent_10 §Interpreting /stats](05_agent_10_operations-and-observability.md).
+
+---
+
 ## WorkflowEngine Integration
 
 `Orchestrator.handle_turn()` runs via `WorkflowEngine` when `config/workflows/default.json`
@@ -196,3 +219,14 @@ completes and before the verify stage runs:
 | ④ Compression | `ctx.conv.history` oldest turns replaced with summary |
 | ⑤ LLM + tools | `ctx.conv.history` += assistant + tool messages; stats updated |
 | ⑥ TurnEnd | `ctx.turn.current_turn_id` = None |
+
+## Turn-State Mutation Reference
+
+| State field | Mutated When | Durable? | Notes |
+|---|---|---|---|
+| `ctx.conv.history` | Each LLM/tool round (append) | Yes — saved to SQLite per message | Also compressed by HistoryManager |
+| `ctx.turn.current_turn_id` | TurnStart (UUID4) / TurnEnd (None) | No — in-memory only | Used for per-turn correlation |
+| `ctx.turn.pending_approval_id` | Workflow approval gate suspension | No — in-memory; approval persisted in `workflow.sqlite` | Reset to None on next turn |
+| `ctx.stats.stat_turns` | After each user message appended | No — in-memory (reported via `/stats`) | Reset on session restart |
+| `ctx.stats.stat_partial_completions` | When LLM stream interrupted | No — in-memory; partial content in `tool_result_store` | Reset on session restart |
+| `session.title` | First turn (async background task) | Yes — SQLite `sessions.title` | Non-blocking; fallback to truncated first input on LLM failure |

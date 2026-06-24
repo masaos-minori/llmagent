@@ -51,8 +51,8 @@
 詳細 → [`03_rag_02_ingestion_pipeline.md`](03_rag_02_ingestion_pipeline.md)
 
 ```
-target_urls → crawler.py (BFS クロール) → rag-src/*.txt
-           → chunk_splitter.py (JA/EN/code 分割) → rag-src/chunk/*.txt
+target_urls → crawler.py (BFS クロール) → rag-src/*.json
+           → chunk_splitter.py (JA/EN/code 分割) → rag-src/chunk/*.json
            → ingester.py (embed → SQLite INSERT) → rag-src/registered/
 ```
 

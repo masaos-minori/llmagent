@@ -100,8 +100,11 @@ class _MemoryMixin(MixinBase):
 
     def _memory_list(self, mem: MemoryServices, args: list[str]) -> None:
         mem_type = next((a for a in args if a in ("semantic", "episodic")), "")
-        limit_args = [a for a in args if a.isdigit()]
-        limit = int(limit_args[0]) if limit_args else 10
+        limit_str = next((a for a in args if a not in ("semantic", "episodic")), None)
+        try:
+            limit = int(limit_str) if limit_str else 10
+        except (ValueError, TypeError):
+            limit = 10
 
         if mem_type:
             entries = mem.store.search_by_type(memory_type=mem_type, limit=limit)
@@ -212,8 +215,11 @@ class _MemoryMixin(MixinBase):
         from db.maintenance import prune_old_memories
 
         dry_run = "--dry-run" in args
-        day_args = [a for a in args if a.isdigit()]
-        days = int(day_args[0]) if day_args else ctx.cfg.memory.memory_retention_days
+        day_str = next((a for a in args if a != "--dry-run"), None)
+        try:
+            days = int(day_str) if day_str else ctx.cfg.memory.memory_retention_days
+        except (ValueError, TypeError):
+            days = ctx.cfg.memory.memory_retention_days
         if dry_run:
             count = mem.store.count_prunable(days)
             self._out.write(
@@ -288,7 +294,10 @@ class _MemoryMixin(MixinBase):
             ["SQLite memories", str(report.memories)],
             ["FTS5 rows", str(report.fts)],
             ["Vec rows", str(report.vec)],
-            ["Vec check required", "Yes" if vec_expected else "No (embedding disabled)"],
+            [
+                "Vec check required",
+                "Yes" if vec_expected else "No (embedding disabled)",
+            ],
             ["Consistent", "Yes" if ok else "NO - use /memory rebuild to repair"],
         ]
         self._out.write_table(["Metric", "Value"], rows)

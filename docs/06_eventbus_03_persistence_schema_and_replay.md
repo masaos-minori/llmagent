@@ -1,0 +1,49 @@
+# Event Bus: Persistence, Schema, and Replay
+
+## SQLite database
+
+The primary store for all events. Opened once at startup as a shared connection (`check_same_thread=False`). WAL mode is enabled to allow concurrent reads while a write is in progress.
+
+**Why `check_same_thread=False` is safe**: FastAPI runs on a single async event loop thread. All DB operations execute on that thread. WAL mode serializes concurrent writers at the SQLite level.
+
+## Schema
+
+```sql
+CREATE TABLE IF NOT EXISTS events (
+    seq          INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id     TEXT    NOT NULL UNIQUE,
+    topic        TEXT    NOT NULL,
+    payload      TEXT    NOT NULL,   -- JSON string
+    producer     TEXT    NOT NULL,
+    published_at TEXT    NOT NULL,
+    acked_at     TEXT,               -- reserved; not currently set by any code path
+    retry_count  INTEGER NOT NULL DEFAULT 0,
+    dlq_at       TEXT                -- set when event is promoted to DLQ
+);
+```
+
+### Field semantics
+
+| Field | Description |
+|---|---|
+| `seq` | Auto-increment integer; used as cursor for replay and subscribe |
+| `event_id` | Client-supplied UUID; UNIQUE prevents duplicates |
+| `payload` | Serialized JSON string of the event payload |
+| `acked_at` | Reserved — never written by current code |
+| `retry_count` | Incremented on each DLQ requeue; threshold `max_retry` triggers DLQ promotion |
+| `dlq_at` | ISO-8601 timestamp set when promoted to DLQ; NULL for live events |
+
+### Indexes
+
+- `idx_events_topic` on `topic` — accelerates topic-filtered subscribe queries
+- `idx_events_seq` on `seq` — accelerates cursor-based replay
+
+## JSONL archive
+
+Each published event is also appended to `{storage_dir}/events.jsonl` (one JSON object per line, with `seq` added). The JSONL file is supplementary; SQLite is the authoritative store. If JSONL append fails, the event remains in SQLite and 200 is returned.
+
+## Replay semantics
+
+`GET /replay?since_seq=N` returns all events where `seq > N` in ascending order. The SSE format streams one `data: {...}\n\n` frame per event. The JSON format returns a list directly.
+
+Replay reads from SQLite, not from JSONL.

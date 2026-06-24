@@ -84,7 +84,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         if not src_path.exists():
             logger.error("Source file does not exist: %s", src_path)
             return 0
-        sentinel = self._chunk_dir / f"{src_path.stem}-0000.txt"
+        sentinel = self._chunk_dir / f"{src_path.stem}-0000.json"
         if is_already_processed(sentinel, force):
             logger.info("skip (already chunked): %s", src_path.name)
             return 0
@@ -212,7 +212,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         last_modified: str | None = data.get("last_modified")
         written: int = 0
         for idx, (chunk_type, chunk_content, norm_content) in enumerate(chunks):
-            out_path = self._chunk_dir / f"{src_path.stem}-{idx:04d}.txt"
+            out_path = self._chunk_dir / f"{src_path.stem}-{idx:04d}.json"
             payload: dict[str, Any] = {
                 "url": url,
                 "title": title,

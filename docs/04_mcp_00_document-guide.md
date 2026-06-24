@@ -48,12 +48,15 @@ as the primary reference. Source files are retained unchanged.
 | What is the audit log format? | `04_mcp_02` |
 | How are tools routed to servers? | `04_mcp_03` |
 | How does ToolExecutor work? | `04_mcp_03` |
-| How does the watchdog work? | `04_mcp_03` |
+| How does the watchdog work? | `04_mcp_03` §Watchdog; config defaults in `04_mcp_06` §Major Default Values |
+| When to use stdio vs HTTP transport? | `04_mcp_02` §When to use stdio |
 | How do I add a new MCP server? | `04_mcp_03` |
+| How are startup tool-definition warnings triggered? | `04_mcp_06` §Startup Validation Behavior |
+| How do I diagnose an MCP failure? | `04_mcp_06` §MCP Failure Diagnosis |
 | What tools does web-search-mcp provide? | `04_mcp_04` |
 | What tools does github-mcp provide? | `04_mcp_04` |
 | What does shell-mcp's shell_run accept? | `04_mcp_04` |
-| Is mdq-mcp fully implemented? | `04_mcp_04` (no; stub only), `04_mcp_90` (MISSING-01) |
+| Is mdq-mcp production-ready? | `04_mcp_04` (experimental but functional; not production-validated) |
 | How does allowed_dirs work? | `04_mcp_05` |
 | How does github allowed_repos work? | `04_mcp_05` |
 | What is fail-closed vs fail-open? | `04_mcp_05` |
@@ -62,6 +65,8 @@ as the primary reference. Source files are retained unchanged.
 | What config files exist per server? | `04_mcp_06` |
 | How do I verify a server is healthy? | `04_mcp_06` |
 | What are the default config values? | `04_mcp_06` |
+| When to use MDQ vs RAG? | `04_mcp_07` |
+| What is the MDQ/RAG boundary rule? | `04_mcp_07` |
 | What is broken or not yet implemented? | `04_mcp_90` |
 
 ---
@@ -71,7 +76,7 @@ as the primary reference. Source files are retained unchanged.
 | Issue | Location |
 |---|---|
 | HealthRegistry record_success/failure not called (BUG) | RESOLVED 2026-06-18 — now properly called in `04_mcp_03` |
-| mdq-mcp service layer is placeholder (all 7 tools) | [04_mcp_90 §MISSING-01](04_mcp_90_inconsistencies_and_known_issues.md) |
+| mdq-mcp is experimental but functional (FTS5 implemented, not prod-validated) | [04_mcp_04 §mdq-mcp](04_mcp_04_server_catalog.md) |
 
 ---
 
@@ -95,6 +100,7 @@ as the primary reference. Source files are retained unchanged.
 | [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) | Per-server specs for all 11 servers: tools, config, security, logs, limitations |
 | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) | Allowlists, denylist, fail-open/closed, dry_run, risk tiers, AI safety notes |
 | [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) | Config file inventory, McpServerConfig fields, defaults, health probes, new-server checklist |
+| [04_mcp_07_mdq_rag_boundary.md](04_mcp_07_mdq_rag_boundary.md) | MDQ vs RAG boundary: when to use each, data ownership, routing policy, enforcement |
 | [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | MISSING-01/SPEC-01/02/03 with AI safety guidance (BUG-01 resolved 2026-06-18) |
 
 ---

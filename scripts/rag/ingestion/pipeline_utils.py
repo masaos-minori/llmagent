@@ -99,7 +99,7 @@ def collect_source_files(
         if not target.exists():
             return [], [SkipInfo(path=str(target), reason="file not found")]
         return [target], []
-    files = sorted(rag_src_dir.glob("*.txt"))
+    files = sorted(rag_src_dir.glob("*.json"))
     return files, []
 
 

@@ -98,15 +98,20 @@ AgentREPL.run()
 
 ### Session title generation
 
-On the first user turn, `_generate_session_title()` (in `cmd_session.py`) calls `SessionTitleService.generate()` to produce an LLM-based short title. This runs as a background task.
+On the first user turn, `_generate_session_title()` (in `cmd_session.py`) calls `SessionTitleService.generate()` to produce an LLM-based short title. This runs as an asyncio background task (fire-and-forget via `asyncio.create_task()`).
 
-If LLM generation fails (`SessionTitleGenerationError`), a fallback title is derived from `first_input`:
-- Truncated to `SESSION_TITLE_MAX_CHARS` (32 characters)
-- Appended with `...` if the original input exceeds the limit
-- Persisted via `ctx.session.set_title()`
+### Session Title Generation Failure Behavior
 
-This guarantees every session has a non-empty, meaningful title even when the LLM endpoint is unavailable.
-Failures are logged at `WARNING` level via `logger.warning(...)` in `cmd_session.py`.
+| Failure case | Fallback title | Log |
+|---|---|---|
+| LLM HTTP / request error | `first_input[:29] + "..."` if len > 32, else `first_input` | WARNING |
+| LLM returns empty or invalid response | Same as above | WARNING |
+| `first_input` is empty | `"(New Session)"` | WARNING |
+| `set_title()` DB write fails | No title persisted; error logged | ERROR |
+
+All failure cases are non-blocking — the session continues normally.
+On fallback, an audit log entry is emitted: `session_title_fallback session_id=<id> fallback=<title> reason=<error>`.
+`set_title_pending` is reset to `False` in the `finally` block regardless of outcome.
 
 ### Message save rules
 
@@ -116,7 +121,7 @@ Failures are logged at `WARNING` level via `logger.warning(...)` in `cmd_session
 - When `strict_mode=True`, both conditions raise `RuntimeError` instead of skipping
 - Counters accessible via `session.skipped_no_session_count` and `session.skipped_invalid_role_count`
 - `save_many()` batches multiple messages in one transaction; invalid roles are skipped with a single warning log
-- Diagnostic data (LLM transport errors, guard hints, session runtime summaries) is persisted via `DiagnosticStore` (`agent/diagnostic_store.py`) to the `session_diagnostics` table — separate from the `messages` table
+- Diagnostic data (LLM transport errors, guard hints, session runtime summaries) is persisted via `DiagnosticStore` (`agent/diagnostic_store.py`) to the `session_diagnostics` table — separate from the `messages` table. For the partial-completion persistence model → [05_agent_03 §Partial-Completion Model](05_agent_03_turn-processing-flow.md)
 - `DiagnosticStore` methods: `save(session_id, kind, content)`, `fetch(session_id)`, `fetch_all(limit=50)`
 - `AgentContext.diagnostics` is wired to `Orchestrator._diagnostic_store` on init; `None` before any `Orchestrator` is constructed
 - Kinds written: `"mid_turn_error"` (LLM transport errors from `ErrorInjectionService`, `LLMTurnRunner`, `Orchestrator`), `"guard_hint"` (cycle/dedup/retry events from `ToolLoopGuard`)
@@ -190,17 +195,17 @@ Priority: (1) LLM `usage.input_tokens` (exact); (2) `/tokenize` endpoint (exact)
 
 ## Data Classification
 
-| Data type | Scope | Storage | Cleared by |
-|---|---|---|---|
-| `ctx.conv.history` | session | in-memory | `/clear` or session end |
-| `ctx.conv.*` flags | session | in-memory | session restart |
-| `ctx.turn.current_turn_id` | turn | in-memory | end of each turn |
-| `ctx.stats.*` | session | in-memory | `/clear` |
-| `sessions` table | persistent | SQLite | `/session delete` |
-| `messages` table | persistent | SQLite | `/session delete` or `/undo` |
-| `notes` table | persistent | SQLite | `/note delete` |
-| `ctx.tool_result_store` | session | in-memory | session end |
-| Memory JSONL / `memories` table | persistent | JSONL + SQLite | `/memory delete` or `/memory prune` |
+| Data type | Scope | Storage | When persisted | Cleared by |
+|---|---|---|---|---|
+| `ctx.conv.history` | session | in-memory | Per message (async, before LLM call) | `/clear` or session end |
+| `ctx.conv.*` flags | session | in-memory | — (not persisted) | session restart |
+| `ctx.turn.current_turn_id` | turn | in-memory | — (not persisted) | end of each turn |
+| `ctx.stats.*` | session | in-memory | — (reported via `/stats`) | `/clear` |
+| `sessions` table | persistent | SQLite | On session create; title async on first turn | `/session delete` |
+| `messages` table | persistent | SQLite | Per `AgentSession.save()` call | `/session delete` or `/undo` |
+| `notes` table | persistent | SQLite | On `/note add` | `/note delete` |
+| `ctx.tool_result_store` | session | in-memory + SQLite | Each tool call result stored immediately | session end |
+| Memory JSONL / `memories` table | persistent | JSONL + SQLite | On memory extraction (async) | `/memory delete` or `/memory prune` |
 
 ---
 
@@ -216,7 +221,15 @@ The agent layer operates across three SQLite databases:
 
 DB paths are configured via `rag_db_path`, `session_db_path`, `workflow_db_path` in `common.toml`. Full schema details: `90_shared_04_db_architecture_and_schema.md`.
 
-> **Note:** The `/db session` scope covers session.sqlite maintenance. There is no separate workflow DB accessible via `/db` — workflow tables live in session.sqlite.
+**DB ownership:**
+
+| Database | Owner module | Key class |
+|---|---|---|
+| `session.sqlite` | `agent/session.py` | `AgentSession` |
+| `workflow.sqlite` | `agent/workflow/state_store.py` | `StateStore` |
+| `rag.sqlite` | `scripts/mcp/rag_pipeline/` | RAG MCP server |
+
+> **Note:** The `/db session` scope covers session.sqlite maintenance. `/db` does not expose workflow.sqlite for direct maintenance — workflow state is managed exclusively by `StateStore` via `WorkflowEngine`.
 
 ---
 

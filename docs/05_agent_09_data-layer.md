@@ -156,3 +156,14 @@ Managed by `agent/workflow/state_store.py`.
 | `artifacts` | URIs produced by stage callbacks |
 
 Used when `config/workflows/default.json` exists. Falls back to direct execution otherwise.
+
+---
+
+## messages vs ToolResultStore Responsibility Boundary
+
+| Store | Role | Visible to LLM | Contents |
+|---|---|---|---|
+| `messages` | Conversation flow history (authoritative) | yes | Message sequence passed to LLM; large outputs stored as summaries only |
+| `tool_results` | Full output archive | no | Raw tool execution output; retrievable via `/tool show <id>` |
+
+Using `messages` and `tool_results` for the same purpose is prohibited.

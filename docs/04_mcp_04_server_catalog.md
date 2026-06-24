@@ -9,6 +9,8 @@
 Per-server specification for all 11 MCP servers: purpose, port, tools, input/output,
 config, startup, security, logs, operational notes, and known limitations.
 
+> **Note:** This document is the authoritative server catalog. For the system-level server list with ports and transport types, see [04_mcp_01_system_overview.md §Server Catalog](04_mcp_01_system_overview.md).
+
 ---
 
 ## web-search-mcp (port 8004)
@@ -176,11 +178,16 @@ All tools do not require config (`requires_config: false`).
 | `max_timeout_sec` | `300` | Max timeout cap |
 | `max_output_kb` | `4096` | Output cap |
 | `max_memory_mb` | `512` | Memory limit (`RLIMIT_AS`) |
-| `shell_sandbox_backend` | `"none"` | `"firejail"` or `"none"` |
+| `shell_sandbox_backend` | `"none"` | `"firejail"` or `"none"` (see sandbox table below) |
 | `audit_log_path` | `"/opt/llm/logs/shell_audit.log"` | Audit log |
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{"shell":"sh not found in PATH"/"check failed"},"details":{"sandbox_backend":"firejail"/"none"}}`
 **Log:** `/opt/llm/logs/shell-mcp.log`
+
+| sandbox_backend | Meaning | Use case |
+|---|---|---|
+| `"none"` | No process isolation; only `RLIMIT_*` limits applied | Local development only |
+| `"firejail"` | firejail process isolation (`--private --net=none --noroot`) | Production recommended |
 
 > **Security note — Sandbox is disabled by default:** `sandbox_backend` defaults to `"none"`.
 > Shell commands run with the agent process's OS user and permissions — no container, no namespace isolation.
@@ -296,6 +303,8 @@ All tools do not require config (`requires_config: false`).
 > production load. Use `rag-pipeline-mcp` for production RAG search.
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{},"details":{"service":"mdq-mcp"}}` + root-level `"stub": true`
+
+> **Note:** `stub: true` は本番環境で自動起動しない設定を意味する (not auto-started in production)。実装がないという意味ではない。mdq-mcp の FTS5 検索・インデックス機能は実装済みだが、本番検証は未実施 (experimental but functional)。
 **DB path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)
 **Log:** `/opt/llm/logs/mdq-mcp.log`
 **When to use:** Experimental only. Use `rag-pipeline-mcp` for production search.

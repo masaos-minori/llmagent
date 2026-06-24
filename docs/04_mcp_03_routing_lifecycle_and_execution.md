@@ -11,6 +11,8 @@ watchdog behavior, idle timeout, and the procedure for adding a new server.
 
 ## Tool Call Dispatch Flow
 
+Agent sets `server_key` and `tool_name` in dispatch log context. `X-Request-Id` (from server response header) correlates the agent dispatch log with the transport and server audit log.
+
 ```
 LLM returns tool_call
   → ToolRouteResolver.resolve(tool_name) → server_key
@@ -69,6 +71,13 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 ## Tool Registry (`shared/tool_registry.py`)
 
 Single source of truth for MCP tool definitions and ownership.
+
+| ソース | 種別 | 説明 |
+|---|---|---|
+| `shared/tool_registry.py` | **Canonical (必須)** | ルーティングの唯一の正規ソース |
+| `tool_names` (config) | Validation-only (任意) | レジストリとの整合性チェック用; ルーティング自体には不要 |
+| `tool_constants.py` frozensets | Compatibility fallback (互換性) | レジストリが空の場合のフォールバック |
+| Live `/v1/tools` discovery | Validation-only (任意) | 起動時バリデーション; ルーティング権威ではない |
 
 ### Ownership model
 
@@ -241,6 +250,8 @@ class _ServerLifecycleRouter:
 
 ### startup_mode behavior
 
+> **Production note:** For production, prefer `transport = "http"` with `startup_mode = "external"`. HTTP transports support watchdog, health checks, and remote monitoring. stdio is for local/embedded use only.
+
 | startup_mode | When | Action |
 |---|---|---|
 | `persistent` (stdio) | Agent launch | `StdioTransport.start()` immediately |
@@ -250,6 +261,8 @@ class _ServerLifecycleRouter:
 ---
 
 ## Watchdog (`_watchdog_loop`)
+
+MCP 障害の診断手順については `04_mcp_06` §MCP Failure Diagnosis を参照。
 
 Runs as asyncio background task. Activated when `mcp_watchdog_interval > 0`.
 
@@ -285,6 +298,8 @@ At startup, the agent logs one of:
 
 ## Lifecycle Flow
 
+ツール定義の起動時バリデーション動作については `04_mcp_06` §Startup Validation Behavior を参照。
+
 ```
 AgentREPL.run()
   → _start_mcp_servers()
@@ -299,6 +314,17 @@ AgentREPL.run()
 ---
 
 ## Adding a New MCP Server
+
+### New Server/Tool Registration Checklist
+
+| Artifact | Required? | Notes |
+|---|---|---|
+| `shared/tool_registry.py` — add tool to frozenset | **Required** | Registry is the routing source of truth |
+| `config/<server>.toml` — server config file | **Required** | Server must be defined before first use |
+| `deploy/deploy.sh` — add install/copy step | **Required** (new server) | Deployment must include the new server |
+| Update `routing.md` | **Required** | Document guide must reference the new server |
+| `config/agent.toml` `tool_names` | Optional | Validation hint only; routing does not require it |
+| `config/tools_definitions.toml` | Optional | Used by strict-mode startup validation only |
 
 ### Option 1: Wizard (recommended)
 
