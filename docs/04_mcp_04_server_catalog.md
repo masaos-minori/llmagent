@@ -296,6 +296,8 @@ All tools do not require config (`requires_config: false`).
 > production load. Use `rag-pipeline-mcp` for production RAG search.
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{},"details":{"service":"mdq-mcp"}}` + root-level `"stub": true`
+
+> **Note:** `stub: true` は本番環境で自動起動しない設定を意味する (not auto-started in production)。実装がないという意味ではない。mdq-mcp の FTS5 検索・インデックス機能は実装済みだが、本番検証は未実施 (experimental but functional)。
 **DB path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)
 **Log:** `/opt/llm/logs/mdq-mcp.log`
 **When to use:** Experimental only. Use `rag-pipeline-mcp` for production search.
