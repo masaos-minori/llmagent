@@ -338,3 +338,71 @@ or `orphan_vec_count` is reported as inconsistent. Configurable thresholds (e.g.
 ### Fixing inconsistencies
 
 Run `/db fts-rebuild` to resynchronize `chunks_fts` from the `chunks` table.
+
+
+<!-- AUTO-GENERATED: gen_rag_reference.py config -->
+| Key | Default | Description |
+|---|---|---|
+| `rag_src_dir` | `/opt/llm/rag-src` | — |
+| `crawl_delay` | `1.5` | — |
+| `max_depth` | `6` | — |
+| `min_chunk` | `40` | — |
+| `max_chunk` | `500` | — |
+| `embed_retry` | `3` | — |
+| `embed_workers` | `4` | — |
+| `fetch_retry` | `3` | — |
+| `fetch_timeout` | `15` | — |
+| `crawl_concurrency` | `3` | — |
+| `max_pages` | `500` | — |
+| `chunk_overlap` | `50` | — |
+| `md_index_enable` | `False` | — |
+| `md_snippet_max_chars` | `600` | — |
+| `skip_nofollow` | `False` | — |
+| `skip_external` | `True` | — |
+| `target_urls` | `[['https://ziglang.org/documentation/master/', 'en'], ['https://zig.guide/', 'en'], ['https://www.ruby-lang.org/en/documentation/quickstart/', 'en'], ['https://www.ruby-lang.org/ja/documentation/quickstart/', 'ja'], ['https://docs.ruby-lang.org/en/3.4/doc/', 'en'], ['https://docs.ruby-lang.org/ja/3.4/doc/', 'ja'], ['https://www.gnu.org/software/emacs/manual/html_node/elisp/', 'en']]` | — |
+| `en_stopwords` | `['a', 'an', 'the', 'and', 'or', 'but', 'if', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'shall', 'can', 'this', 'that', 'these', 'those', 'it', 'its', 'i', 'you', 'he', 'she', 'we', 'they', 'them', 'their', 'our', 'your', 'my', 'his', 'her', 'not', 'no', 'nor', 'so', 'yet', 'both', 'either', 'each', 'other', 'such', 'into', 'through', 'about', 'than', 'then', 'when', 'where', 'who', 'which', 'what', 'how', 'all', 'any', 'more', 'most', 'also', 'up', 'out', 'as', 'just', 'over', 'after', 'before', 'while', 'since', 'because', 'although', 'however', 'therefore', 'thus', 'hence', 'whether', 'once', 'only', 'even', 'still', 'now', 'here', 'there', 'very', 'too', 'much', 'many', 'some', 'few', 'must', 'let', 'get', 'got', 'make', 'made', 'use', 'used', 'using', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'new', 'old', 'first', 'last', 'long', 'great', 'little', 'own', 'right', 'big', 'high', 'small', 'large', 'next', 'early', 'young', 'important', 'public', 'private', 'real', 'best', 'free', 'same', 'different']` | — |
+| `ja_stop_pos` | `['助詞', '助動詞', '補助記号', '空白', '感動詞', '接続詞']` | — |
+
+### crawler
+
+```
+usage: crawler.py [-h] [--url URL [URL ...]] [--lang {en,ja,auto}]
+
+BFS crawler: saves documents to rag-src/yyyymmddhhmmss-{slug}.txt
+
+options:
+  -h, --help           show this help message and exit
+  --url URL [URL ...]  URLs to crawl (multiple allowed; defaults to all
+                       target_urls from config)
+  --lang {en,ja,auto}  Hint language when --url is given (default: en). 'auto'
+                       detects per-page language by CJK character ratio.
+```
+
+### chunk_splitter
+
+```
+usage: chunk_splitter.py [-h] [--file FILE] [--force]
+
+Chunking: rag-src/*.txt → rag-src/chunk/{stem}-{idx:04d}.txt
+
+options:
+  -h, --help   show this help message and exit
+  --file FILE  Process a single file (default: process all files in rag-
+               src/*.txt)
+  --force      Re-process even if output chunks already exist
+```
+
+### ingester
+
+```
+usage: ingester.py [-h] [--force]
+
+Embedding generation and DB ingestion: rag-src/chunk/*.txt → SQLite → rag-
+src/registered/
+
+options:
+  -h, --help  show this help message and exit
+  --force     Force delete and re-ingest already registered URLs
+```
+
+<!-- END AUTO-GENERATED -->
