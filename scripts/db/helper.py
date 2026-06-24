@@ -122,13 +122,19 @@ class SQLiteHelper:
         write_mode: bool = False,
         row_factory: bool = False,
         load_vec: bool | None = None,
+        reuse_connection: bool = False,
     ) -> "SQLiteHelper":
         """Open a connection with optional vec extension and WAL pragmas.
 
         load_vec: None = use instance default (True for rag, False for session).
         write_mode: enforce FK constraints.
         row_factory: enable column-name access on result rows.
+        reuse_connection: skip reconnect if already connected; skip close in __exit__.
         """
+        if reuse_connection and self.conn is not None:
+            return self
+        if reuse_connection:
+            self._reuse_connection = True
         use_vec = self._default_load_vec if load_vec is None else load_vec
         conn = self._connect()
         if use_vec and self._vec_so:
@@ -146,7 +152,8 @@ class SQLiteHelper:
         return self
 
     def __exit__(self, *_: object) -> None:
-        self.close()
+        if not getattr(self, "_reuse_connection", False):
+            self.close()
 
     def close(self) -> None:
         """Close self.conn if open and reset it to None."""

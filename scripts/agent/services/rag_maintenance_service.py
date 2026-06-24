@@ -5,7 +5,6 @@ Operates exclusively on rag.sqlite.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from db.helper import SQLiteHelper
@@ -58,14 +57,4 @@ class RagMaintenanceService:
             detail=result.detail or "",
         )
 
-    def rotate_rag_db(self, archive_dir: str | Path | None = None) -> Path:
-        """Archive rag.sqlite with a timestamp suffix; returns the archive path."""
-        from db.config import (
-            build_db_config,  # noqa: PLC0415 — lazy to avoid circular dep
-        )
-        from db.maintenance import (
-            _archive_db_file,  # noqa: PLC0415 — lazy to avoid circular dep
-        )
-
-        db_cfg = build_db_config()
-        return _archive_db_file(Path(db_cfg.rag_db_path), archive_dir)
+ 

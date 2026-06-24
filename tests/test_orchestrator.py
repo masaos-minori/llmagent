@@ -45,6 +45,7 @@ def _make_ctx() -> MagicMock:
     ctx.turn.current_turn_id = None
     ctx.session.session_id = "test-session"
     ctx.workflow.workflow_id = None
+    ctx.workflow.approval_pending = False
     # services
     hist_mgr = AsyncMock()
     hist_mgr.stat_compress_count = 0
@@ -479,8 +480,12 @@ class TestToolLoopGuardHelpers:
         result = ToolLoopGuard.update_errors(0, 3, 3)
         assert result == 1
 
-    def test_update_consecutive_errors_resets_when_any_succeeds(self) -> None:
+    def test_update_consecutive_errors_maintains_on_partial_failure(self) -> None:
         result = ToolLoopGuard.update_errors(2, 1, 3)
+        assert result == 2
+
+    def test_update_consecutive_errors_resets_when_no_errors(self) -> None:
+        result = ToolLoopGuard.update_errors(2, 0, 3)
         assert result == 0
 
     def test_check_consecutive_error_limit_below_max_returns_none(self) -> None:
@@ -551,6 +556,47 @@ class TestToolLoopGuardHelpers:
         result = orch._guard.check_all(seen, [], set(), msg)
         assert result is not None
         assert "repeated" in result.lower() or "duplicate" in result.lower()
+
+# ── approval_pending guard ────────────────────────────────────────────────────
+
+
+class TestApprovalPendingGuard:
+    @pytest.mark.asyncio
+    async def test_handle_turn_blocked_when_approval_pending(self) -> None:
+        """handle_turn() must call on_error and return without LLM call when approval_pending=True."""
+        on_error = MagicMock()
+        ctx = _make_ctx()
+        ctx.workflow.approval_pending = True
+        orch = _make_orchestrator(ctx, on_error=on_error)
+
+        await orch.handle_turn("do something")
+
+        on_error.assert_called_once()
+        err = on_error.call_args[0][0]
+        assert isinstance(err, RuntimeError)
+        assert "/approve" in str(err) or "/reject" in str(err)
+        # LLM must not be called
+        ctx.services.llm.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handle_turn_not_blocked_when_approval_not_pending(self) -> None:
+        """handle_turn() must proceed normally when approval_pending=False."""
+        on_error = MagicMock()
+        ctx = _make_ctx()
+        ctx.workflow.approval_pending = False
+        orch = _make_orchestrator(ctx, on_error=on_error)
+
+       # Patch _process_turn to return a successful result without calling LLM
+        with patch.object(
+            orch, "_process_turn", new=AsyncMock(return_value=("ok", None))
+        ):
+            await orch.handle_turn("do something")
+
+        # on_error must NOT have been called due to the approval guard
+        # (it may be called for other reasons, but not the guard path)
+        for call in on_error.call_args_list:
+            err = call[0][0]
+            assert "Approval is pending" not in str(err)
 
 # ── allowed_tools override ────────────────────────────────────────────────────
 

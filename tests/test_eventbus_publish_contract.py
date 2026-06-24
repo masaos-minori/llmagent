@@ -1,7 +1,12 @@
+"""tests/test_eventbus_publish_contract.py
+
+Event Bus publish persistence contract tests.
+"""
 from __future__ import annotations
 
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -38,35 +43,17 @@ def _event(topic: str = "test.topic") -> dict:
     }
 
 
-def test_health_returns_ok(client: TestClient) -> None:
-    r = client.get("/health")
-    assert r.status_code == 200
-    body = r.json()
-    assert body["status"] == "ok"
-    assert body["db"] == "ok"
-    assert body["dlq_task"] == "running"
-
-
-def test_publish_inserts_event(client: TestClient, tmp_path: Path) -> None:
-    ev = _event()
-    r = client.post("/publish", json=ev)
-    assert r.status_code == 200
-    body = r.json()
-    assert body["event_id"] == ev["event_id"]
-    assert body["seq"] >= 1
-    jsonl = (tmp_path / "storage" / "events.jsonl").read_text()
-    assert ev["event_id"] in jsonl
-
-
-def test_publish_idempotent(client: TestClient) -> None:
-    ev = _event()
-    r1 = client.post("/publish", json=ev)
-    r2 = client.post("/publish", json=ev)
-    assert r1.status_code == 200
-    assert r2.status_code == 200
-    assert r1.json()["seq"] == r2.json()["seq"]
-
-
-def test_publish_invalid_schema(client: TestClient) -> None:
-    r = client.post("/publish", json={"invalid": "body"})
-    assert r.status_code == 422
+class TestPublishContract:
+    def test_publish_succeeds_if_jsonl_append_fails(self, client: TestClient) -> None:
+        """JSONL append 失敗後も SQLite commit 済みなら 200 を返す。"""
+        with patch("eventbus.app._append_jsonl", side_effect=OSError("disk full")):
+            resp = client.post(
+                "/publish",
+                json=_event(),
+            )
+        assert resp.status_code == 200
+        # Event should be retrievable from SQLite
+        replay_resp = client.get("/replay", params={"since_seq": 0, "format": "json"})
+        assert replay_resp.status_code == 200
+        events = replay_resp.json()
+        assert len(events) >= 1

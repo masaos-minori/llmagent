@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS events (
     payload      TEXT    NOT NULL,
     producer     TEXT    NOT NULL,
     published_at TEXT    NOT NULL,
-    acked_at     TEXT,
+    acked_at     TEXT, -- reserved; not currently set by any code path
     retry_count  INTEGER NOT NULL DEFAULT 0,
     dlq_at       TEXT
 );

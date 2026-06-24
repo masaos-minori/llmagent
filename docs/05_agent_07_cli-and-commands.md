@@ -153,6 +153,8 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 |---|---|---|
 | `/tool list` | None | Display saved tool result list |
 | `/tool show <id>` | None | Display full tool result |
+
+> **注意**: `/tool show <id>` は `ToolResultStore` から取得する。`messages` テーブルは参照しない。
 | `/plan` | None | Toggle `ctx.conv.plan_mode` |
 
 ### Workflow category

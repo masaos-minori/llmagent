@@ -24,7 +24,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = Path(__file__).parent.parent / "schemas" / "event_envelope.json"
-    monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
         yield c
@@ -100,3 +100,38 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     r2 = client.get("/dlq")
     ids = [e["event_id"] for e in r2.json()]
     assert ev["event_id"] not in ids
+
+
+def test_requeue_increments_retry_count(client: TestClient, tmp_path: Path) -> None:
+    from eventbus.db import open_db
+    from eventbus.dlq import promote_to_dlq
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+    db.execute(
+        "UPDATE events SET retry_count = 2 WHERE event_id = ?", (ev["event_id"],)
+    )
+    db.commit()
+    promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+
+    # Requeue once — retry_count should increment to 3
+    r = client.post(f"/dlq/{ev['event_id']}/requeue")
+    assert r.status_code == 200
+    assert r.json()["requeued"] is True
+
+    row = db.execute(
+        "SELECT retry_count, dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
+    ).fetchone()
+    assert row["retry_count"] == 3
+    assert row["dlq_at"] is None
+
+    # Exhaust retries again — should promote to DLQ
+    db.execute(
+        "UPDATE events SET retry_count = 2 WHERE event_id = ?", (ev["event_id"],)
+    )
+    db.commit()
+    n = promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+    assert n == 1
+    dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
+    assert dlq_file.exists()

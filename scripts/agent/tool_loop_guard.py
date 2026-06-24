@@ -211,7 +211,7 @@ class ToolLoopGuard:
         n_errors: int,
         n_tool_calls: int,
     ) -> int:
-        """Increment counter when all calls failed; maintain when partial; reset when any succeeded."""
+        """Increment counter when all calls failed; maintain when partial; reset when no errors."""
         if n_errors == n_tool_calls:
             return consecutive_errors + 1
         if n_errors > 0:

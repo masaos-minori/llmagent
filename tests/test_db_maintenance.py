@@ -22,6 +22,7 @@ from db.maintenance import (
     vacuum_db,
 )
 from agent.services.rag_maintenance_service import RagMaintenanceService
+from rag.maintenance import RagDbMaintenanceService
 
 _TEST_EMBED_URL = "http://127.0.0.1:8003/embedding"
 
@@ -51,7 +52,11 @@ def _make_db_cfg(
     cfg = MagicMock(spec=DbConfig)
     cfg.rag_db_path = str(tmp_path / rag_name)
     cfg.session_db_path = str(tmp_path / session_name)
-    cfg.sqlite_vec_so = "/fake/vec0.so"
+    cfg.workflow_db_path = "/opt/llm/db/workflow.sqlite"
+    cfg.sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
+    cfg.sqlite_timeout = 30
+    cfg.sqlite_busy_timeout_ms = 30000
+    cfg.embedding_dims = 384
     cfg.embed_url = _TEST_EMBED_URL
     return cfg
 
@@ -186,10 +191,10 @@ class TestPurgeOldSessions:
         assert count == 0
 
 
-# ── rotate_rag_db / rotate_session_db ─────────────────────────────────────────
+# ── RagDbMaintenanceService ───────────────────────────────────────────────────
 
 
-class TestRotateDb:
+class TestRagDbMaintenanceService:
     def _make_real_sqlite(self, path: Path) -> None:
         """Create a minimal valid SQLite database file."""
         import sqlite3
@@ -199,27 +204,59 @@ class TestRotateDb:
         conn.commit()
         conn.close()
 
-    def test_rotate_rag_db_creates_archive(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_rotate_wal_checkpoint(self, tmp_path: Path) -> None:
         db_file = tmp_path / "rag.sqlite"
         self._make_real_sqlite(db_file)
-        archive_dir = tmp_path / "archive"
+        from db.config import build_db_config as _bdc
+
+        monkeypatch = pytest.MonkeyPatch()
         monkeypatch.setattr(
-            "db.config.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.helper.build_db_config", lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite")
         )
+        try:
+            service = RagDbMaintenanceService()
+            service.rotate()
+        finally:
+            monkeypatch.undo()
 
-        dest = RagMaintenanceService().rotate_rag_db(archive_dir=archive_dir)
-
-        assert dest.exists()
-        assert dest.name.startswith("rag_")
-        assert dest.suffix == ".sqlite"
-        # Verify the backup is a valid SQLite DB
+    def test_rebuild_fts(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "rag.sqlite"
+        self._make_real_sqlite(db_file)
+        # Create chunks_fts table for rebuild test
         import sqlite3 as _s
 
-        conn = _s.connect(str(dest))
-        assert conn.execute("SELECT name FROM sqlite_master").fetchall() is not None
+        conn = _s.connect(str(db_file))
+        conn.execute(
+            "CREATE VIRTUAL TABLE chunks_fts USING fts5(chunk_id, content, content_rowid)"
+        )
+        conn.commit()
         conn.close()
+        from db.config import build_db_config as _bdc
+
+        monkeypatch = pytest.MonkeyPatch()
+        monkeypatch.setattr(
+            "db.helper.build_db_config", lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite")
+        )
+        try:
+            service = RagDbMaintenanceService()
+            service.rebuild_fts()
+        finally:
+            monkeypatch.undo()
+
+    def test_vacuum(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "rag.sqlite"
+        self._make_real_sqlite(db_file)
+        from db.config import build_db_config as _bdc
+
+        monkeypatch = pytest.MonkeyPatch()
+        monkeypatch.setattr(
+            "db.helper.build_db_config", lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite")
+        )
+        try:
+            service = RagDbMaintenanceService()
+            service.vacuum()
+        finally:
+            monkeypatch.undo()
 
     def test_rotate_session_db_creates_archive(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -235,35 +272,6 @@ class TestRotateDb:
 
         assert dest.exists()
         assert dest.name.startswith("session_")
-
-    def test_rotate_rag_db_backup_api_is_wal_safe(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        # The backup API integrates WAL data automatically; no separate WAL file copy needed.
-        db_file = tmp_path / "rag.sqlite"
-        self._make_real_sqlite(db_file)
-        archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(
-            "db.config.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
-
-        dest = RagMaintenanceService().rotate_rag_db(archive_dir=archive_dir)
-        # Backup destination must be a valid SQLite database (no "file is not a database").
-        import sqlite3 as _s
-
-        conn = _s.connect(str(dest))
-        conn.execute("PRAGMA integrity_check")
-        conn.close()
-
-    def test_rotate_rag_db_missing_file_raises(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(
-            "db.config.build_db_config",
-            lambda: _make_db_cfg(tmp_path, rag_name="missing.sqlite"),
-        )
-        with pytest.raises(FileNotFoundError):
-            RagMaintenanceService().rotate_rag_db(archive_dir=tmp_path / "archive")
 
 
 # ── checkpoint_wal / vacuum_db ─────────────────────────────────────────────────

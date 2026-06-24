@@ -57,6 +57,15 @@ incomplete LLM output without polluting conversation history. They are excluded 
 Notes are session-independent (persist across sessions).
 When `auto_inject_notes=True`, all notes are appended to the system prompt at startup.
 
+### messages vs ToolResultStore 責務境界
+
+| ストア | 役割 | LLM参照 | 保持内容 |
+|---|---|---|---|
+| `messages` | 会話フロー履歴 (authoritative) | yes | LLMが受け渡すメッセージ列; 長大出力はサマリのみ |
+| `tool_results` | フル出力アーカイブ | no | ツール実行の生出力; `/tool show <id>` で取得可能 |
+
+`messages` と `tool_results` を同一の目的で使用することは禁止。
+
 ---
 
 ## rag.sqlite Tables (Agent-facing)

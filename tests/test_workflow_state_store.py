@@ -186,3 +186,50 @@ class TestApprovals:
         assert task.session_id is None
         assert task.turn_number is None
         assert task.status == "pending"
+
+
+class TestFindPendingApprovalBySession:
+    def test_returns_none_when_no_pending_approval(self, store) -> None:
+        """Returns None when no tasks with pending_approval status exist for the session."""
+        result = store.find_pending_approval_by_session("session-99")
+        assert result is None
+
+    def test_returns_approval_for_matching_session(self, store) -> None:
+        """Returns (task_id, ApprovalRecord) when a pending approval exists for the session."""
+        session_id = "session-find-test"
+        task = store.create_task(session_id, 1, "1.0.0")
+        store.update_task_status(task.task_id, "pending_approval")
+        approval = store.request_approval(task.task_id, stage_id="stage-1")
+
+        result = store.find_pending_approval_by_session(session_id)
+
+        assert result is not None
+        returned_task_id, returned_approval = result
+        assert returned_task_id == task.task_id
+        assert returned_approval.approval_id == approval.approval_id
+        assert returned_approval.status == "pending"
+
+    def test_returns_none_for_different_session(self, store) -> None:
+        """Does not return an approval belonging to a different session."""
+        task = store.create_task("session-other", 1, "1.0.0")
+        store.update_task_status(task.task_id, "pending_approval")
+        store.request_approval(task_id=task.task_id, stage_id="s1")
+
+        result = store.find_pending_approval_by_session("session-mine")
+        assert result is None
+
+    def test_returns_most_recent_when_multiple(self, store) -> None:
+        """Returns the most recently created approval when multiple pending exist."""
+        session_id = "session-multi"
+        task1 = store.create_task(session_id, 1, "1.0.0")
+        store.update_task_status(task1.task_id, "pending_approval")
+        store.request_approval(task_id=task1.task_id, stage_id="s1")
+
+        task2 = store.create_task(session_id, 2, "1.0.0")
+        store.update_task_status(task2.task_id, "pending_approval")
+        latest = store.request_approval(task_id=task2.task_id, stage_id="s2")
+
+        result = store.find_pending_approval_by_session(session_id)
+        assert result is not None
+        _, returned_approval = result
+        assert returned_approval.approval_id == latest.approval_id

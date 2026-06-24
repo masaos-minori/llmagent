@@ -1,7 +1,7 @@
 """agent/stdio_lifecycle.py
 Stdio MCP server lifecycle: ondemand startup, idle shutdown.
 
-Extracted from lifecycle.py. ServerLifecycleManager delegates here for
+Extracted from lifecycle.py. _ServerLifecycleRouter in factory.py delegates here for
 all stdio server operations.
 """
 

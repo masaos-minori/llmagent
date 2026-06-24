@@ -13,7 +13,12 @@ import orjson
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
-from eventbus.config import EventBusConfig, load_config
+from eventbus.config import (
+    EventBusConfig,
+    get_config_path,
+    get_schema_path,
+    load_config,
+)
 from eventbus.db import open_db
 from eventbus.dlq import promote_to_dlq
 
@@ -30,11 +35,15 @@ _DLQ_INTERVAL = 60.0
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> Any:
     global _cfg, _db, _envelope_schema, _dlq_task
-    _cfg = load_config()
+    cfg_path = get_config_path()
+    schema_path = get_schema_path()
+    logger.info("eventbus: config=%s schema=%s", cfg_path, schema_path)
+    _cfg = load_config(cfg_path)
     _db = open_db(_cfg.db_path)
-    _envelope_schema = orjson.loads(_ENVELOPE_SCHEMA_PATH.read_bytes())
+    _envelope_schema = orjson.loads(schema_path.read_bytes())
     Path(_cfg.storage_dir).mkdir(parents=True, exist_ok=True)
     _dlq_task = asyncio.create_task(_dlq_loop())
+    logger.info("eventbus: subscribe polling interval: %dms", _cfg.poll_interval_ms)
     yield
     if _dlq_task:
         _dlq_task.cancel()
@@ -63,7 +72,15 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok"}
+    db_status = "ok"
+    try:
+        _db.execute("SELECT 1")
+    except Exception:
+        db_status = "unavailable"
+
+    dlq_task_status = "running" if (_dlq_task is not None and not _dlq_task.done()) else "stopped"
+    overall = "ok" if (db_status == "ok" and dlq_task_status == "running") else "degraded"
+    return {"status": overall, "db": db_status, "dlq_task": dlq_task_status}
 
 
 @app.post("/publish")
@@ -94,7 +111,10 @@ async def publish(request: Request) -> dict[str, Any]:
         else _get_seq(event_id)
     )
 
-    _append_jsonl(body, seq)
+    try:
+        _append_jsonl(body, seq)
+    except OSError as exc:
+        logger.warning("eventbus: JSONL append failed (event still committed): %s", exc)
     logger.info("publish event_id=%s topic=%s seq=%d", event_id, topic, seq)
     return {"event_id": event_id, "seq": seq}
 
@@ -141,8 +161,14 @@ async def subscribe(
 
     async def _sse_gen() -> Any:
         current_seq = start_seq
+        events_since_checkpoint = 0
         try:
             while True:
+                logger.debug(
+                    "eventbus: subscribe poll: consumer=%s seq=%d",
+                    consumer_id,
+                    current_seq,
+                )
                 if topic:
                     placeholders = ",".join("?" for _ in topic)
                     rows = _db.execute(  # type: ignore[union-attr]
@@ -162,6 +188,13 @@ async def subscribe(
                     data = orjson.dumps(_row_to_dict(row)).decode()
                     yield f"data: {data}\n\n"
                     current_seq = row["seq"]
+                    events_since_checkpoint += 1
+                    if events_since_checkpoint >= _cfg.offset_checkpoint_interval:
+                        from eventbus.offsets import write_offset  # noqa: PLC0415
+
+                        assert _cfg is not None
+                        write_offset(_cfg.offsets_dir, consumer_id, current_seq)
+                        events_since_checkpoint = 0
 
                 await asyncio.sleep(interval)
 
@@ -190,7 +223,7 @@ async def dlq_list() -> list[dict[str, Any]]:
 @app.post("/dlq/{event_id}/requeue")
 async def dlq_requeue(event_id: str) -> dict[str, Any]:
     cur = _db.execute(  # type: ignore[union-attr]
-        "UPDATE events SET retry_count = 0, dlq_at = NULL WHERE event_id = ?",
+        "UPDATE events SET retry_count = retry_count + 1, dlq_at = NULL WHERE event_id = ?",
         (event_id,),
     )
     _db.commit()  # type: ignore[union-attr]
