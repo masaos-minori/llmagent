@@ -195,17 +195,17 @@ Priority: (1) LLM `usage.input_tokens` (exact); (2) `/tokenize` endpoint (exact)
 
 ## Data Classification
 
-| Data type | Scope | Storage | Cleared by |
-|---|---|---|---|
-| `ctx.conv.history` | session | in-memory | `/clear` or session end |
-| `ctx.conv.*` flags | session | in-memory | session restart |
-| `ctx.turn.current_turn_id` | turn | in-memory | end of each turn |
-| `ctx.stats.*` | session | in-memory | `/clear` |
-| `sessions` table | persistent | SQLite | `/session delete` |
-| `messages` table | persistent | SQLite | `/session delete` or `/undo` |
-| `notes` table | persistent | SQLite | `/note delete` |
-| `ctx.tool_result_store` | session | in-memory | session end |
-| Memory JSONL / `memories` table | persistent | JSONL + SQLite | `/memory delete` or `/memory prune` |
+| Data type | Scope | Storage | When persisted | Cleared by |
+|---|---|---|---|---|
+| `ctx.conv.history` | session | in-memory | Per message (async, before LLM call) | `/clear` or session end |
+| `ctx.conv.*` flags | session | in-memory | — (not persisted) | session restart |
+| `ctx.turn.current_turn_id` | turn | in-memory | — (not persisted) | end of each turn |
+| `ctx.stats.*` | session | in-memory | — (reported via `/stats`) | `/clear` |
+| `sessions` table | persistent | SQLite | On session create; title async on first turn | `/session delete` |
+| `messages` table | persistent | SQLite | Per `AgentSession.save()` call | `/session delete` or `/undo` |
+| `notes` table | persistent | SQLite | On `/note add` | `/note delete` |
+| `ctx.tool_result_store` | session | in-memory + SQLite | Each tool call result stored immediately | session end |
+| Memory JSONL / `memories` table | persistent | JSONL + SQLite | On memory extraction (async) | `/memory delete` or `/memory prune` |
 
 ---
 
