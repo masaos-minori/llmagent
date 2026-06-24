@@ -242,3 +242,19 @@ If the file cannot be read: `Reload failed (I/O error): <message>`
 | Skipped | `[SKIP]` | New MCP server — restart required |
 
 See [Configuration: Config file reload eligibility](05_agent_08_configuration.md#config-file-ownership-and-hot-reload-eligibility) for the full per-field classification matrix.
+
+---
+
+## Maintaining the Command List
+
+When adding a new slash command:
+
+1. Register it in `agent/commands/registry.py` (exact name + prefix + handler method reference)
+2. Implement the handler in the relevant `cmd_*.py` module (or a new file)
+3. Write a unit test: `tests/test_cmd_{name}.py`
+4. Update the command summary table in §Slash Command Reference in this doc
+5. Update the routing table in `05_agent_00_document-guide.md` if the command is a major feature
+6. If the command is operator-facing (e.g., `/stats`, `/reload`, `/db`): update `05_agent_10` §Operational Verification
+
+> Command summary tables in docs are maintained manually. There is no auto-generation.
+> Omitting steps 4–6 causes docs to drift — treat them as part of the definition-of-done for any new command.

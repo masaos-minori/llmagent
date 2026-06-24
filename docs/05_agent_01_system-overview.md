@@ -90,6 +90,8 @@ The most recent `history_protect_turns` (default 2) turns are always protected.
 
 ## Slash Command Categories (Summary)
 
+> **Keeping this list current:** When a new command is added, update both this summary AND the full reference table in [05_agent_07 §Slash Command Reference](05_agent_07_cli-and-commands.md). See [05_agent_07 §Maintaining the Command List](05_agent_07_cli-and-commands.md) for the complete procedure.
+
 | Category | Commands |
 |---|---|
 | Session | `/session list\|load\|rename\|delete`, `/clear [new]`, `/undo`, `/history`, `/export` |
