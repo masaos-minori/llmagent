@@ -198,7 +198,7 @@ shell_sandbox_backend = "none"   # or "firejail"
 ```
 
 - `"firejail"`: prepends `["firejail", "--private", "--net=none", "--noroot", "--"]` to argv
-- `"none"`: no sandbox; only `RLIMIT_*` resource limits applied
+- `"none"`: no sandbox; only `RLIMIT_*` resource limits applied — **local/dev only; do not use in production**
 - Firejail not found in PATH at startup → warning log + fallback to `"none"`
 
 **Resource limits** (applied via `preexec_fn`): `RLIMIT_CPU`, `RLIMIT_AS`, `RLIMIT_NOFILE`,

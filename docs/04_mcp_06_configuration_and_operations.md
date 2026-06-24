@@ -85,6 +85,7 @@ health probes, audit log reading, and the new-server addition checklist.
 | github default_per_page | 10 | `config/github_mcp_server.toml` |
 | github max_per_page | 100 | `config/github_mcp_server.toml` |
 | shell max_timeout_sec | 300 sec | `config/shell_mcp_server.toml` |
+| shell sandbox_backend | `"none"` (local) / `"firejail"` (prod) | `config/shell_mcp_server.toml` |
 | sqlite max_rows | 100 | `config/sqlite_mcp_server.toml` |
 | git max_log_entries | 50 | `config/git_mcp_server.toml` |
 

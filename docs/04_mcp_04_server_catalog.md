@@ -176,11 +176,16 @@ All tools do not require config (`requires_config: false`).
 | `max_timeout_sec` | `300` | Max timeout cap |
 | `max_output_kb` | `4096` | Output cap |
 | `max_memory_mb` | `512` | Memory limit (`RLIMIT_AS`) |
-| `shell_sandbox_backend` | `"none"` | `"firejail"` or `"none"` |
+| `shell_sandbox_backend` | `"none"` | `"firejail"` or `"none"` (see sandbox table below) |
 | `audit_log_path` | `"/opt/llm/logs/shell_audit.log"` | Audit log |
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{"shell":"sh not found in PATH"/"check failed"},"details":{"sandbox_backend":"firejail"/"none"}}`
 **Log:** `/opt/llm/logs/shell-mcp.log`
+
+| sandbox_backend | Meaning | Use case |
+|---|---|---|
+| `"none"` | No process isolation; only `RLIMIT_*` limits applied | Local development only |
+| `"firejail"` | firejail process isolation (`--private --net=none --noroot`) | Production recommended |
 
 > **Security note — Sandbox is disabled by default:** `sandbox_backend` defaults to `"none"`.
 > Shell commands run with the agent process's OS user and permissions — no container, no namespace isolation.
