@@ -534,6 +534,16 @@ When adding a new tool to an **existing** MCP server:
 > **Note:** If the tool name follows the `github_` prefix convention and the server key is `github`,
 > no entry in `tool_constants.py` is needed — prefix matching handles it automatically.
 
+### Verification
+
+After completing registration:
+
+```bash
+uv run pytest tests/test_route_resolver.py -v
+```
+
+Expected: all routing tests pass. If `tool_definitions_strict = true`, restart the agent and confirm startup logs show `"Routing: N/N tools mapped"` with no unmapped warnings.
+
 ---
 
 ## New MCP Server Addition Checklist

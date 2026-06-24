@@ -315,6 +315,17 @@ AgentREPL.run()
 
 ## Adding a New MCP Server
 
+### New Server/Tool Registration Checklist
+
+| Artifact | Required? | Notes |
+|---|---|---|
+| `shared/tool_registry.py` — add tool to frozenset | **Required** | Registry is the routing source of truth |
+| `config/<server>.toml` — server config file | **Required** | Server must be defined before first use |
+| `deploy/deploy.sh` — add install/copy step | **Required** (new server) | Deployment must include the new server |
+| Update `routing.md` | **Required** | Document guide must reference the new server |
+| `config/agent.toml` `tool_names` | Optional | Validation hint only; routing does not require it |
+| `config/tools_definitions.toml` | Optional | Used by strict-mode startup validation only |
+
 ### Option 1: Wizard (recommended)
 
 ```
