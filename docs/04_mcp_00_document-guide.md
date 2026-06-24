@@ -48,8 +48,11 @@ as the primary reference. Source files are retained unchanged.
 | What is the audit log format? | `04_mcp_02` |
 | How are tools routed to servers? | `04_mcp_03` |
 | How does ToolExecutor work? | `04_mcp_03` |
-| How does the watchdog work? | `04_mcp_03` |
+| How does the watchdog work? | `04_mcp_03` §Watchdog; config defaults in `04_mcp_06` §Major Default Values |
+| When to use stdio vs HTTP transport? | `04_mcp_02` §When to use stdio |
 | How do I add a new MCP server? | `04_mcp_03` |
+| How are startup tool-definition warnings triggered? | `04_mcp_06` §Startup Validation Behavior |
+| How do I diagnose an MCP failure? | `04_mcp_06` §MCP Failure Diagnosis |
 | What tools does web-search-mcp provide? | `04_mcp_04` |
 | What tools does github-mcp provide? | `04_mcp_04` |
 | What does shell-mcp's shell_run accept? | `04_mcp_04` |
