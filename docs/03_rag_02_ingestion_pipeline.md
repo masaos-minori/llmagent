@@ -140,7 +140,7 @@ Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto
 | Freshness signal | ETag / Last-Modified header | File mtime / SHA-256 |
 | Skip mechanism | 304 Not Modified | Stored mtime or hash compare |
 | Force re-index | `--force` flag | `--force` flag |
-| Current state | Implemented | Not yet implemented |
+| Current state | Implemented | Implemented (SHA-256 hash comparison) |
 
 ### 2.3 CLI arguments
 

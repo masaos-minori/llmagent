@@ -247,7 +247,7 @@ with SQLiteHelper("rag").open() as db:
 
 ### First-time ingestion
 
-Add the file path to `target_urls` in `rag_crawler.toml` with scheme `file://`:
+Add the file path to `target_urls` in `config/rag_pipeline.toml` with scheme `file://`:
 
 ```toml
 [[target_urls]]
