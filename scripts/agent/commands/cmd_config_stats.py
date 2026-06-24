@@ -20,6 +20,11 @@ if TYPE_CHECKING:
     pass
 
 
+def _safe[T](obj: object | None, attr: str, default: T) -> T:
+    """Return getattr(obj, attr) if obj is not None, else default."""
+    return getattr(obj, attr) if obj is not None else default
+
+
 def _get_mem_circuit_open(ctx) -> bool:
     """Return True if the memory embedding circuit breaker is open."""
     mem = ctx.services.memory
@@ -65,27 +70,19 @@ class _ConfigStatsMixin(MixinBase):
             turns=ctx.stats.stat_turns,
             tool_calls=ctx.stats.stat_tool_calls,
             tool_errors=ctx.stats.stat_tool_errors,
-            llm_retries=llm.stat_retries if llm is not None else 0,
-            llm_reconnects=llm.stat_reconnects if llm is not None else 0,
-            llm_heartbeat_timeouts=llm.stat_heartbeat_timeouts
-            if llm is not None
-            else 0,
-            llm_partial_completions=llm.stat_partial_completions
-            if llm is not None
-            else 0,
-            llm_parse_errors=llm.stat_parse_errors if llm is not None else 0,
-            cache_hits=ctx.services.tools.stat_cache_hits
-            if ctx.services.tools is not None
-            else 0,
-            compress_count=ctx.services.hist_mgr.stat_compress_count
-            if ctx.services.hist_mgr is not None
-            else 0,
-            fallback_truncate_count=ctx.services.hist_mgr.stat_fallback_truncate_count
-            if ctx.services.hist_mgr is not None
-            else 0,
-            memory_consistency_failures=ctx.stats.stat_memory_consistency_failures
-            if ctx.stats is not None
-            else 0,
+            llm_retries=_safe(llm, "stat_retries", 0),
+            llm_reconnects=_safe(llm, "stat_reconnects", 0),
+            llm_heartbeat_timeouts=_safe(llm, "stat_heartbeat_timeouts", 0),
+            llm_partial_completions=_safe(llm, "stat_partial_completions", 0),
+            llm_parse_errors=_safe(llm, "stat_parse_errors", 0),
+            cache_hits=_safe(ctx.services.tools, "stat_cache_hits", 0),
+            compress_count=_safe(ctx.services.hist_mgr, "stat_compress_count", 0),
+            fallback_truncate_count=_safe(
+                ctx.services.hist_mgr, "stat_fallback_truncate_count", 0
+            ),
+            memory_consistency_failures=_safe(
+                ctx.stats, "stat_memory_consistency_failures", 0
+            ),
             memory_circuit_open=_get_mem_circuit_open(ctx),
             memory_fts_fallback_count=_get_mem_fts_fallback(ctx),
             semantic_cache_hits=ctx.stats.stat_semantic_cache_hits,
@@ -96,9 +93,7 @@ class _ConfigStatsMixin(MixinBase):
             if ctx.stats is not None
             else None,
             workflow_mode=getattr(ctx.cfg, "workflow_mode", ""),
-            approval_pending=ctx.workflow.approval_pending
-            if ctx.workflow is not None
-            else False,
+            approval_pending=_safe(ctx.workflow, "approval_pending", False),
             rag_db_configured=_get_rag_db_configured(ctx),
         )
 

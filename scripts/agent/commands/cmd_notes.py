@@ -51,10 +51,14 @@ class _NotesMixin(MixinBase):
 
     def _note_delete(self, arg: str) -> None:
         """Delete a note by id."""
-        if not arg.isdigit():
+        try:
+            note_id = int(arg)
+            if note_id <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
             self._out.write_validation_error("/note delete <id>")
             return
-        ok = self._ctx.session.delete_note(int(arg))
+        ok = self._ctx.session.delete_note(note_id)
         if ok:
             self._out.write_success(f"Note {arg} deleted.")
         else:
@@ -62,10 +66,14 @@ class _NotesMixin(MixinBase):
 
     def _note_pin(self, arg: str) -> None:
         """Pin a note by id."""
-        if not arg.isdigit():
+        try:
+            note_id = int(arg)
+            if note_id <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
             self._out.write_validation_error("/note pin <id>")
             return
-        ok = self._ctx.session.pin_note(int(arg))
+        ok = self._ctx.session.pin_note(note_id)
         if ok:
             self._out.write_success(f"Note {arg} pinned.")
         else:
@@ -73,10 +81,14 @@ class _NotesMixin(MixinBase):
 
     def _note_unpin(self, arg: str) -> None:
         """Unpin a note by id."""
-        if not arg.isdigit():
+        try:
+            note_id = int(arg)
+            if note_id <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
             self._out.write_validation_error("/note unpin <id>")
             return
-        ok = self._ctx.session.unpin_note(int(arg))
+        ok = self._ctx.session.unpin_note(note_id)
         if ok:
             self._out.write_success(f"Note {arg} unpinned.")
         else:
