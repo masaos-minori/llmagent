@@ -8,9 +8,9 @@
 
 ## 1. File Format Specifications
 
-### 1.1 Crawler output file (`rag-src/yyyymmddhhmmss-{slug}.txt`)
+### 1.1 Crawler output file (`rag-src/yyyymmddhhmmss-{slug}.json`)
 
-Created by `WebCrawler`. Extension is `.txt`; content is JSON.
+Created by `WebCrawler`. JSON format.
 
 ```json
 {
@@ -32,9 +32,9 @@ Created by `WebCrawler`. Extension is `.txt`; content is JSON.
 | `content` | string | Main body text (trafilatura extraction) |
 | `code_blocks` | list[string] | `<pre>` block contents |
 
-### 1.2 Chunk file (`rag-src/chunk/{stem}-{idx:04d}.txt`)
+### 1.2 Chunk file (`rag-src/chunk/{stem}-{idx:04d}.json`)
 
-Created by `ChunkSplitter`. Same `.txt` extension; content is JSON.
+Created by `ChunkSplitter`. JSON format.
 
 ```json
 {

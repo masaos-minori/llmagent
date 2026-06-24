@@ -32,7 +32,7 @@ LLM turn.
       |
       | /ingest <url>  OR  crawler.py CLI
       v
-+------------------+     rag-src/*.txt      +-------------------+     rag-src/chunk/*.txt
++------------------+     rag-src/*.json     +-------------------+     rag-src/chunk/*.json
 |  crawler.py      | -------------------->  | chunk_splitter.py | -------------------->
 |  (WebCrawler)    |                         | (ChunkSplitter)   |
 +------------------+                         +-------------------+
@@ -71,9 +71,9 @@ LLM turn.
 
 | Script | Phase | Input | Output |
 |---|---|---|---|
-| `crawler.py` | Crawl | URL or local path | `rag-src/yyyymmddhhmmss-{slug}.txt` (JSON) |
-| `chunk_splitter.py` | Chunk | `rag-src/*.txt` | `rag-src/chunk/{stem}-{idx:04d}.txt` (JSON) |
-| `ingester.py` | Embed | `rag-src/chunk/*.txt` | embed API call (port 8003) |
+| `crawler.py` | Crawl | URL or local path | `rag-src/yyyymmddhhmmss-{slug}.json` (JSON) |
+| `chunk_splitter.py` | Chunk | `rag-src/*.json` | `rag-src/chunk/{stem}-{idx:04d}.json` (JSON) |
+| `ingester.py` | Embed | `rag-src/chunk/*.json` | embed API call (port 8003) |
 | `ingester.py` | Store | embed vectors | SQLite tables + `rag-src/registered/` |
 
 > **Note:** Some older documents describe "3 stages" (3 scripts) and others describe

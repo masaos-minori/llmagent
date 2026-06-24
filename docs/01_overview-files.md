@@ -12,8 +12,8 @@
   ├─ models/
   │   ├─ Qwen3.6-Instruct-Q4_K_M.gguf           # チャット/コード生成用 LLM (MQE・再ランク兼用, :8001)
   │   └─ multilingual-E5-small.gguf             # 埋込用 LLM (384 次元, :8003)
-  ├─ rag-src/                           # クロール済みテキスト (yyyymmddhhmmss-{slug}.txt)
-  │   ├─ chunk/                         # チャンク分割済みファイル ({stem}-{idx:04d}.txt)
+  ├─ rag-src/                           # クロール済みテキスト (yyyymmddhhmmss-{slug}.json)
+  │   ├─ chunk/                         # チャンク分割済みファイル ({stem}-{idx:04d}.json)
   │   └─ registered/                    # DB 投入済みファイル (ingester.py が移動)
   ├─ db/
   │   ├─ rag.sqlite                     # RAG ベクトル DB (documents/chunks/chunks_vec/chunks_fts) — see 90_shared_04 §3-§6

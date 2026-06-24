@@ -113,7 +113,7 @@ uv run python scripts/rag/ingestion/crawler.py \
 uv run python scripts/rag/ingestion/chunk_splitter.py
 
 # Single file (use absolute path from config)
-uv run python scripts/rag/ingestion/chunk_splitter.py --file /opt/llm/rag-src/20240101120000-ziglang.txt
+uv run python scripts/rag/ingestion/chunk_splitter.py --file /opt/llm/rag-src/20240101120000-ziglang.json
 
 # Regenerate existing chunks (--force)
 uv run python scripts/rag/ingestion/chunk_splitter.py --force

@@ -48,8 +48,8 @@ def _make_chunk_json(
 
 
 def _write_chunk_file(chunk_dir: Path, name: str, data: dict) -> Path:
-    """Write a chunk JSON file with .txt extension (as ChunkSplitter does)."""
-    path = chunk_dir / f"{name}.txt"
+    """Write a chunk JSON file (as ChunkSplitter does)."""
+    path = chunk_dir / f"{name}.json"
     path.write_bytes(orjson.dumps(data))
     return path
 
@@ -184,14 +184,14 @@ class TestReadChunkJson:
     def test_returns_none_for_missing_file(self, tmp_path):
         """Returns None when chunk file does not exist."""
         ingester = _make_ingester(tmp_path)
-        path = tmp_path / "chunk" / "nonexistent.txt"
+        path = tmp_path / "chunk" / "nonexistent.json"
         result = ingester._read_chunk_json(path)
         assert result is None
 
     def test_returns_none_for_invalid_json(self, tmp_path):
         """Returns None when chunk file contains invalid JSON."""
         ingester = _make_ingester(tmp_path)
-        path = tmp_path / "chunk" / "invalid.txt"
+        path = tmp_path / "chunk" / "invalid.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("not json {{{")
         result = ingester._read_chunk_json(path)
@@ -200,7 +200,7 @@ class TestReadChunkJson:
     def test_returns_none_for_non_dict_json(self, tmp_path):
         """Returns None when chunk file contains non-object JSON (e.g. array)."""
         ingester = _make_ingester(tmp_path)
-        path = tmp_path / "chunk" / "array.txt"
+        path = tmp_path / "chunk" / "array.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("[1, 2, 3]")
         result = ingester._read_chunk_json(path)
@@ -254,7 +254,7 @@ class TestChunkMetadataStorage:
             ingester.ingest_url_group(
                 db=mock_db,
                 url="http://example.com/page",
-                chunk_files=sorted(chunk_dir.glob("*.txt")),
+                chunk_files=sorted(chunk_dir.glob("*.json")),
                 force=False,
             )
 
@@ -302,7 +302,7 @@ class TestChunkMetadataStorage:
             ingester.ingest_url_group(
                 db=mock_db,
                 url="http://example.com/page",
-                chunk_files=[chunk_dir / "chunk_0.txt"],
+                chunk_files=[chunk_dir / "chunk_0.json"],
                 force=False,
             )
 
@@ -335,7 +335,7 @@ class TestChunkMetadataStorage:
         ingester.ingest_url_group(
             db=mock_db,
             url="http://example.com/page",
-            chunk_files=[chunk_dir / "chunk_0.txt"],
+            chunk_files=[chunk_dir / "chunk_0.json"],
             force=False,
         )
 
@@ -372,7 +372,7 @@ class TestForceReinsert:
         ingester.ingest_url_group(
             db=mock_db,
             url="http://example.com/page",
-            chunk_files=[chunk_dir / "chunk_0.txt"],
+            chunk_files=[chunk_dir / "chunk_0.json"],
             force=True,
         )
 
@@ -399,7 +399,7 @@ class TestForceReinsert:
         ingester.ingest_url_group(
             db=mock_db,
             url="http://example.com/page",
-            chunk_files=[chunk_dir / "chunk_0.txt"],
+            chunk_files=[chunk_dir / "chunk_0.json"],
             force=False,
         )
 
@@ -435,7 +435,7 @@ class TestChunkOrder:
         mock_db.fetchone.return_value = None
 
         # Get files in arbitrary order (simulating glob output)
-        raw_files = list(chunk_dir.glob("*.txt"))
+        raw_files = list(chunk_dir.glob("*.json"))
 
         ingester.ingest_url_group(
             db=mock_db,
@@ -499,7 +499,7 @@ class TestChunkMetadataFields:
             ingester.ingest_url_group(
                 db=mock_db,
                 url="http://example.com/page",
-                chunk_files=[chunk_dir / "chunk_0.txt"],
+                chunk_files=[chunk_dir / "chunk_0.json"],
                 force=False,
             )
 
@@ -535,7 +535,7 @@ class TestChunkMetadataFields:
             ingester.ingest_url_group(
                 db=mock_db,
                 url="http://example.com/page",
-                chunk_files=[chunk_dir / "chunk_0.txt"],
+                chunk_files=[chunk_dir / "chunk_0.json"],
                 force=False,
             )
 
@@ -570,7 +570,7 @@ class TestChunkMetadataFields:
             ingester.ingest_url_group(
                 db=mock_db,
                 url="http://example.com/page",
-                chunk_files=[chunk_dir / "chunk_0.txt"],
+                chunk_files=[chunk_dir / "chunk_0.json"],
                 force=False,
             )
 
@@ -625,7 +625,7 @@ class TestSchemaMigration:
 
 class TestReadChunkJsonValidation:
     def test_returns_none_for_missing_url(self, tmp_path):
-        chunk_file = tmp_path / "chunk_0.txt"
+        chunk_file = tmp_path / "chunk_0.json"
         chunk_file.write_bytes(
             orjson.dumps({"url": "", "content": "test", "lang": "en"})
         )
@@ -633,7 +633,7 @@ class TestReadChunkJsonValidation:
         assert ingester._read_chunk_json(chunk_file) is None
 
     def test_returns_none_for_missing_content(self, tmp_path):
-        chunk_file = tmp_path / "chunk_0.txt"
+        chunk_file = tmp_path / "chunk_0.json"
         chunk_file.write_bytes(
             orjson.dumps({"url": "https://example.com", "content": "", "lang": "en"})
         )
@@ -663,7 +663,7 @@ class TestReadChunkJsonValidation:
             patch.object(ingester._client, "post", return_value=mock_resp),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            ingester._embed_and_store(doc_id, chunk_dir / "chunk_0.txt")
+            ingester._embed_and_store(doc_id, chunk_dir / "chunk_0.json")
 
         row = conn.execute(
             "SELECT chunk_index FROM chunks WHERE doc_id = ?", (doc_id,)
@@ -697,7 +697,7 @@ def _ingest_via_real_db(
         ingester.ingest_url_group(
             db=fake_db,
             url=chunk_data["url"],
-            chunk_files=[chunk_dir / "chunk_0.txt"],
+            chunk_files=[chunk_dir / "chunk_0.json"],
             force=force,
         )
 
@@ -784,12 +784,12 @@ class TestForceReinsertMetadata:
             ingester.ingest_url_group(
                 db=fake_db,
                 url=data_v1["url"],
-                chunk_files=[chunk_dir / "chunk_0.txt"],
+                chunk_files=[chunk_dir / "chunk_0.json"],
                 force=False,
             )
 
         # Restore chunk file (moved to registered)
-        (tmp_path / "registered" / "chunk_0.txt").rename(chunk_dir / "chunk_0.txt")
+        (tmp_path / "registered" / "chunk_0.json").rename(chunk_dir / "chunk_0.json")
 
         # Second ingest with force=True and new data
         data_v2 = _make_chunk_json(
@@ -798,7 +798,7 @@ class TestForceReinsertMetadata:
             chunk_index=1,
             normalized_content="updated normalized",
         )
-        (chunk_dir / "chunk_0.txt").write_bytes(orjson.dumps(data_v2))
+        (chunk_dir / "chunk_0.json").write_bytes(orjson.dumps(data_v2))
         with (
             patch.object(ingester._client, "post", return_value=mock_resp),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
@@ -806,7 +806,7 @@ class TestForceReinsertMetadata:
             ingester.ingest_url_group(
                 db=fake_db,
                 url=data_v2["url"],
-                chunk_files=[chunk_dir / "chunk_0.txt"],
+                chunk_files=[chunk_dir / "chunk_0.json"],
                 force=True,
             )
 
