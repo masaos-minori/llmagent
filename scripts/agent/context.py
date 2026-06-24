@@ -62,6 +62,7 @@ class ConversationState:
     # Avoids direct history[0] writes from command handlers.
     system_prompt_content: str = ""
     shutdown_requested: bool = False
+    is_processing: bool = False  # True while handle_turn() is executing
 
 
 @dataclass
