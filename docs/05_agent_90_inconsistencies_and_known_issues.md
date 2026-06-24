@@ -57,6 +57,17 @@ Each entry format:
 
 ---
 
+### SPEC-PLUGIN-01: Plugin/MCP Tool Name Conflict Policy
+
+- **Type:** Implemented — documented in `05_agent_11_extension-points.md §Plugin Tool Name Conflicts`
+- **Status:** Resolved (no gap)
+- **Behavior (`plugin_tool_override = false`, default):** Conflicting plugin tool is removed from registry at startup; logged as `[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — rejected`; MCP tool is unaffected.
+- **Behavior (`plugin_tool_override = true`):** Plugin tool shadows the MCP tool; logged as `... — allowed`. MCP tool bypassed for that name.
+- **Fatal mode:** When `plugin_strict = true` AND any tool conflicts exist under `override_policy = "reject"`: `PluginLoadError` raised at startup.
+- **Notes for AI reference:** No `PluginConflictError` exists; the exception is `PluginLoadError` (subclass of `RuntimeError`).
+
+---
+
 ### UNDOC-02: Plugin tool return value convention not enforced at registration time
 
 - **Type:** Addressed (runtime enforcement exists at call time)
