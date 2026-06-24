@@ -110,7 +110,10 @@ class WebCrawler:
         self._rag_src_dir.mkdir(parents=True, exist_ok=True)
         out = self._make_crawl_filepath(url)
         out.write_bytes(orjson.dumps(payload, option=orjson.OPT_INDENT_2))
-        logger.info("saved local file: %s", out.name)
+        logger.info(
+            "saved local file",
+            extra={"url": url, "source_type": "file"},
+        )
         return 1
 
     async def crawl(self, targets: list[tuple[str, str]] | None = None) -> None:
@@ -305,7 +308,10 @@ class WebCrawler:
         if last_modified:
             payload["last_modified"] = last_modified
         path.write_bytes(orjson.dumps(payload, option=orjson.OPT_INDENT_2))
-        logger.info("saved: %s", path.name)
+        logger.info(
+            "saved",
+            extra={"url": url, "source_type": "http"},
+        )
         return path
 
     async def _fetch_and_extract_async(

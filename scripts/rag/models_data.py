@@ -61,6 +61,7 @@ class CacheEntry:
     embedding: list[float]
     context_str: str
     history_context: str = ""
+    generation: int = 0
 
 
 @dataclass(frozen=True)

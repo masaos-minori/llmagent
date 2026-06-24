@@ -16,6 +16,7 @@ import shutil
 import sqlite3
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
@@ -99,7 +100,11 @@ class RagIngester:
 
     # ── Public interface ──────────────────────────────────────────────────────
 
-    def ingest_all(self, force: bool = False) -> RagConsistencyReport | None:
+    def ingest_all(
+        self,
+        force: bool = False,
+        on_ingest_complete: Callable[[], None] | None = None,
+    ) -> RagConsistencyReport | None:
         """Process all chunk files in chunk_dir grouped by URL; force=True deletes existing document records before re-inserting.
 
         Returns the post-ingestion consistency report, or None if the check failed.
@@ -125,12 +130,22 @@ class RagIngester:
             total_failed,
             total_embed_failed,
             total_skipped,
+            extra={"stage_name": "ingester"},
         )
         try:
             report = check_rag_consistency(db, embed_failed=total_embed_failed)
             if not is_consistent(report):
                 for issue in report.issues:
-                    logger.warning("Post-ingest consistency: %s", issue)
+                    logger.warning(
+                        "Post-ingest consistency: %s",
+                        issue,
+                        extra={"stage_name": "ingester"},
+                    )
+            if on_ingest_complete is not None:
+                try:
+                    on_ingest_complete()
+                except Exception:
+                    logger.exception("on_ingest_complete callback failed")
             return report
         except Exception:
             logger.exception("Post-ingest consistency check failed")
@@ -145,7 +160,12 @@ class RagIngester:
     ) -> IngestUrlResult:
         """Ingest all chunk files for one URL into SQLite in ascending chunk_index order; moves files to registered/ after processing including on skip."""
         if not chunk_files:
-            logger.warning("No chunk files provided for URL: %s", url)
+            src_type = "file" if url.startswith("file://") else "http"
+            logger.warning(
+                "No chunk files provided for URL: %s",
+                url,
+                extra={"source_type": src_type, "stage_name": "ingester"},
+            )
             return IngestUrlResult(url=url, n_success=0, n_failed=0, skipped=True)
         chunk_files = sorted(chunk_files, key=lambda p: p.stem)
         first_data = self._read_chunk_json(chunk_files[0])
@@ -156,7 +176,13 @@ class RagIngester:
         try:
             self._validate_artifact(first_data, "chunk")
         except ValueError as e:
-            logger.error("artifact validation failed for %s: %s", url, e)
+            src_type = "file" if url.startswith("file://") else "http"
+            logger.error(
+                "artifact validation failed for %s: %s",
+                url,
+                e,
+                extra={"source_type": src_type, "stage_name": "ingester"},
+            )
             return IngestUrlResult(
                 url=url, n_success=0, n_failed=len(chunk_files), skipped=False
             )
@@ -178,12 +204,16 @@ class RagIngester:
             fetched_at=fetched_at,
         )
         if doc_id is None:
-            logger.info("already registered, skipping: %s", url)
+            logger.info(
+                "already registered, skipping",
+                extra={"url": url},
+            )
             self._move_to_registered(chunk_files)
             return IngestUrlResult(url=url, n_success=0, n_failed=0, skipped=True)
         # Commit document record before parallel chunk inserts (FK dependency).
         db.commit()
         inserted, failed, embed_failed = self._ingest_chunk_files(doc_id, chunk_files)
+        src_type = "file" if url.startswith("file://") else "http"
         logger.info(
             "inserted %s/%s chunks (%s failed, %s embed-failed): %s",
             inserted,
@@ -191,6 +221,7 @@ class RagIngester:
             failed,
             embed_failed,
             url,
+            extra={"doc_id": doc_id, "source_type": src_type, "stage_name": "ingester"},
         )
         self._move_to_registered(chunk_files)
         return IngestUrlResult(
@@ -297,6 +328,7 @@ class RagIngester:
                     new_fetched_at,
                     stored_fetched_at,
                     doc_id,
+                    extra={"stage_name": "ingester"},
                 )
                 return
         if new_fetched_at is not None:
@@ -314,7 +346,11 @@ class RagIngester:
                 (etag, last_modified, doc_id),
             )
         db.commit()
-        logger.info("skip-path etag updated for doc_id=%d", doc_id)
+        logger.info(
+            "skip-path etag updated for doc_id=%d",
+            doc_id,
+            extra={"stage_name": "ingester"},
+        )
 
     def _get_or_create_document(
         self,
@@ -350,9 +386,17 @@ class RagIngester:
                     if stored and self._is_file_unchanged(
                         stored["etag"], stored["last_modified"], etag, last_modified
                     ):
-                        logger.info("file:// unchanged (sha256 match): %s", url)
+                        logger.info(
+                            "file:// unchanged (sha256 match): %s",
+                            url,
+                            extra={"stage_name": "ingester"},
+                        )
                         return None
-                    logger.info("file:// changed — auto re-ingesting: %s", url)
+                    logger.info(
+                        "file:// changed — auto re-ingesting: %s",
+                        url,
+                        extra={"stage_name": "ingester"},
+                    )
                     # fall through to re-ingest below
                 else:
                     # Refresh ETag/Last-Modified so the next crawl can use conditional GET
@@ -412,7 +456,11 @@ class RagIngester:
         try:
             self._validate_artifact(data, "chunk")
         except ValueError:
-            logger.warning("artifact validation failed for %s", path.name)
+            logger.warning(
+                "artifact validation failed for %s",
+                path.name,
+                extra={"source_type": "file", "stage_name": "ingester"},
+            )
             return False, False
         content: str = data.get("content", "")
         nc_raw = data.get("normalized_content")
@@ -423,7 +471,16 @@ class RagIngester:
         try:
             idx = int(idx_raw)
         except (ValueError, TypeError) as e:
-            logger.warning("Invalid chunk_index in %s: %s, using 0", path.name, e)
+            logger.warning(
+                "Invalid chunk_index in %s: %s, using 0",
+                path.name,
+                e,
+                extra={
+                    "doc_id": doc_id,
+                    "source_type": "file",
+                    "stage_name": "ingester",
+                },
+            )
             idx = 0
         chunk_type: str = data.get("chunk_type", "") or ""
         source_file: str = data.get("source_file", "") or ""
@@ -431,7 +488,18 @@ class RagIngester:
         # normalized_content is for FTS only and not used for embedding.
         embedding = self._get_embedding(content)
         if embedding is None:
-            logger.warning("embedding failed for %s: %r", path.name, content[:60])
+            chunk_url = data.get("url", "")
+            logger.warning(
+                "embedding failed for %s: %r",
+                path.name,
+                content[:60],
+                extra={
+                    "doc_id": doc_id,
+                    "url": chunk_url,
+                    "source_type": "file",
+                    "stage_name": "ingester",
+                },
+            )
             return False, False
         with SQLiteHelper().open(write_mode=True) as db:
             self._insert_chunk(
@@ -476,7 +544,19 @@ class RagIngester:
                     ValueError,
                     TypeError,
                 ) as e:
-                    logger.error("Failed to ingest %s: %s", path, e)
+                    chunk_data = self._read_chunk_json(path)
+                    chunk_url = chunk_data.get("url", "") if chunk_data else ""
+                    logger.error(
+                        "Failed to ingest %s: %s",
+                        path,
+                        e,
+                        extra={
+                            "doc_id": doc_id,
+                            "url": chunk_url,
+                            "source_type": "file",
+                            "stage_name": "ingester",
+                        },
+                    )
                     failed += 1
         return inserted, failed, embed_failed
 
@@ -489,11 +569,20 @@ class RagIngester:
                 continue
             url: str = data.get("url", "")
             if not url:
-                logger.warning("url field missing: %s", path.name)
+                logger.warning(
+                    "url field missing: %s",
+                    path.name,
+                    extra={"source_type": "file", "stage_name": "ingester"},
+                )
                 continue
             # Accept file:// URLs from local file ingestion in addition to http/https
             if not validate_url(url) and not url.startswith("file://"):
-                logger.warning("invalid url %r in %s, skipping", url, path.name)
+                logger.warning(
+                    "invalid url %r in %s, skipping",
+                    url,
+                    path.name,
+                    extra={"source_type": "file", "stage_name": "ingester"},
+                )
                 continue
             url_groups[url].append(path)
         return url_groups
@@ -524,7 +613,19 @@ class RagIngester:
             try:
                 shutil.move(str(path), str(dest))
             except OSError as e:
-                logger.error("move failed %s → %s: %s", path, dest, e)
+                chunk_data = self._read_chunk_json(path)
+                chunk_url = chunk_data.get("url", "") if chunk_data else ""
+                logger.error(
+                    "move failed %s → %s: %s",
+                    path,
+                    dest,
+                    e,
+                    extra={
+                        "url": chunk_url,
+                        "source_type": "file",
+                        "stage_name": "ingester",
+                    },
+                )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

@@ -72,10 +72,32 @@ class _IngestMixin(MixinBase):
         def on_status(msg: str) -> None:
             self._out.write(f"  {msg}")
 
+        # Build a temporary pipeline to get the semantic cache for invalidation
+        cache = None
+        if self._ctx.services is not None and self._ctx.services.http is not None:
+            from rag.pipeline import (  # noqa: PLC0415 — lazy: heavy RAG module deferred
+                RagPipeline,
+            )
+            from shared.config_loader import ConfigLoader  # noqa: PLC0415 — lazy
+
+            rag_cfg_dict = ConfigLoader().load_all()
+            if rag_cfg_dict.get("use_search", True):
+                rag_cfg = build_rag_cfg_adapter(
+                    RagPipelineConfig.from_dict(rag_cfg_dict)
+                )
+                temp_pipeline = RagPipeline(self._ctx.services.http, rag_cfg)
+                cache = temp_pipeline.semantic_cache
+
         svc = IngestWorkflowService()
         try:
             await svc.run(
-                target, lang=lang, snippets_only=snippets_only, on_status=on_status
+                target,
+                lang=lang,
+                snippets_only=snippets_only,
+                on_status=on_status,
+                on_ingest_complete=(
+                    lambda: cache.invalidate() if cache is not None else None
+                ),
             )
         except IngestStageError as e:
             logger.error("Ingest failed at stage=%s: %s", e.stage, e.detail)

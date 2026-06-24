@@ -37,6 +37,7 @@ class SemanticCache:
         self._threshold = threshold
         self._dim: int | None = None
         self._lock: threading.RLock = threading.RLock()
+        self._generation: int = 0
 
     def lookup(self, embedding: list[float], history_context: str = "") -> str | None:
         """Return cached context for the nearest embedding with matching history_context, or None on miss.
@@ -83,6 +84,7 @@ class SemanticCache:
                     embedding=embedding,
                     context_str=context_str,
                     history_context=history_context,
+                    generation=self._generation,
                 )
             )
             self.prune()
@@ -96,3 +98,13 @@ class SemanticCache:
     @property
     def size(self) -> int:
         return len(self._entries)
+
+    def invalidate(self) -> None:
+        """Bump generation; clear all cached entries atomically."""
+        with self._lock:
+            self._generation += 1
+            self._entries.clear()
+
+    @property
+    def generation(self) -> int:
+        return self._generation

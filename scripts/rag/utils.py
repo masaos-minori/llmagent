@@ -15,6 +15,13 @@ from rag.models_result import SanitizeResult
 
 MIN_TEXT_LENGTH_FOR_DETECTION = 100
 
+# Structured log field keys for RAG lifecycle tracing
+LOG_KEY_URL = "url"
+LOG_KEY_DOC_ID = "doc_id"
+LOG_KEY_CHUNK_ID = "chunk_id"
+LOG_KEY_SOURCE_TYPE = "source_type"
+LOG_KEY_STAGE_NAME = "stage_name"
+
 # Library module — no FileHandler; caller controls log routing
 logger = logging.getLogger(__name__)
 

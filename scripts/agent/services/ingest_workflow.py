@@ -36,19 +36,26 @@ class IngestWorkflowService:
         lang: str = "ja",
         snippets_only: bool = False,
         on_status: Callable[[str], None] | None = None,
+        on_ingest_complete: Callable[[], None] | None = None,
     ) -> IngestOutcome:
         """Run the full crawl → split → ingest pipeline for target.
 
         target: URL (http/https) or local file path.
         on_status: optional callback invoked with each status message as it
             is generated, enabling real-time progress display.
+        on_ingest_complete: optional callback invoked after ingestion completes
+            (e.g., to invalidate semantic cache).
         Returns IngestOutcome with stage=OK on success.
         Raises IngestStageError on any stage failure.
         """
         loop = asyncio.get_running_loop()
         messages = await self._crawl(target, lang, loop, on_status=on_status)
         n_chunks, messages, embed_failed = await self._split_and_ingest(
-            loop, snippets_only, messages, on_status=on_status
+            loop,
+            snippets_only,
+            messages,
+            on_status=on_status,
+            on_ingest_complete=on_ingest_complete,
         )
         return IngestOutcome(
             stage=IngestStage.OK,
@@ -133,6 +140,7 @@ class IngestWorkflowService:
         snippets_only: bool,
         messages: list[str],
         on_status: Callable[[str], None] | None = None,
+        on_ingest_complete: Callable[[], None] | None = None,
     ) -> tuple[int, list[str], int]:
         """Run ChunkSplitter and RagIngester; return (n_chunks, messages, embed_failed)."""
         n_chunks = 0
@@ -150,7 +158,9 @@ class IngestWorkflowService:
             raise IngestStageError(IngestStage.SPLIT, str(e)) from e
 
         try:
-            messages, embed_failed = await self._ingest_to_db(loop, on_status=on_status)
+            messages, embed_failed = await self._ingest_to_db(
+                loop, on_status=on_status, on_ingest_complete=on_ingest_complete
+            )
         except IngestStageError:
             raise
         except (OSError, RuntimeError, sqlite3.Error, ImportError) as e:
@@ -179,6 +189,7 @@ class IngestWorkflowService:
         self,
         loop: asyncio.AbstractEventLoop,
         on_status: Callable[[str], None] | None = None,
+        on_ingest_complete: Callable[[], None] | None = None,
     ) -> tuple[list[str], int]:
         """Run RagIngester and return (status messages, embed_failed count)."""
         from rag.ingestion.ingester import (  # noqa: PLC0415 — lazy: deferred
@@ -187,7 +198,10 @@ class IngestWorkflowService:
 
         messages = [self._emit("[ingest] ingesting to DB...", on_status)]
         ingester = _Ingester()
-        report = await loop.run_in_executor(None, ingester.ingest_all)
+        report = await loop.run_in_executor(
+            None,
+            lambda: ingester.ingest_all(on_ingest_complete=on_ingest_complete),
+        )
         embed_failed = report.embed_failed if report else 0
         messages.append(self._emit("[ingest] done — RAG DB updated", on_status))
         if embed_failed > 0:
