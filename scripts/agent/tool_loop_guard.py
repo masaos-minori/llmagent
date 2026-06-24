@@ -61,6 +61,26 @@ class ToolLoopGuard:
     def __init__(self, ctx: AgentContext) -> None:
         self._ctx = ctx
 
+    # ── Diagnostic save helper ────────────────────────────────────────────────
+
+    @staticmethod
+    def _save_guard_hint(
+        ctx: AgentContext,
+        guard_type: str,
+        **fields: object,
+    ) -> None:
+        """Persist guard event to the diagnostic channel."""
+        if ctx.diagnostics is None:
+            return
+        payload = {
+            **fields,
+            "guard_type": guard_type,
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+        ctx.diagnostics.save(
+            ctx.session.session_id, "guard_hint", orjson.dumps(payload).decode()
+        )
+
     # ── Guard checks ──────────────────────────────────────────────────────────
 
     @staticmethod
@@ -103,20 +123,13 @@ class ToolLoopGuard:
                 round_key,
                 repeat_count,
             )
-            if ctx.diagnostics is not None:
-                ctx.diagnostics.save(
-                    ctx.session.session_id,
-                    "guard_hint",
-                    orjson.dumps(
-                        {
-                            "guard_type": "cycle",
-                            "round_key": round_key,
-                            "repeat_count": repeat_count,
-                            "hint": CYCLE_HINT,
-                            "timestamp": datetime.now(UTC).isoformat(),
-                        }
-                    ).decode(),
-                )
+            self._save_guard_hint(
+                ctx,
+                "cycle",
+                round_key=round_key,
+                repeat_count=repeat_count,
+                hint=CYCLE_HINT,
+            )
             return "Cyclic tool call pattern detected."
         round_fingerprints.append(round_key)
         return None
@@ -138,20 +151,13 @@ class ToolLoopGuard:
             if seen_calls[key] >= ctx.cfg.tool.tool_dedup_max_repeats:
                 name = func.get("name", "<unknown>")
                 logger.warning("Duplicate tool call blocked: %r", name)
-                if ctx.diagnostics is not None:
-                    ctx.diagnostics.save(
-                        ctx.session.session_id,
-                        "guard_hint",
-                        orjson.dumps(
-                            {
-                                "guard_type": "dedup",
-                                "tool_name": name,
-                                "repeat_count": seen_calls[key],
-                                "hint": DEDUP_HINT,
-                                "timestamp": datetime.now(UTC).isoformat(),
-                            }
-                        ).decode(),
-                    )
+                self._save_guard_hint(
+                    ctx,
+                    "dedup",
+                    tool_name=name,
+                    repeat_count=seen_calls[key],
+                    hint=DEDUP_HINT,
+                )
                 return "Repeated tool call detected."
         return None
 
@@ -173,19 +179,12 @@ class ToolLoopGuard:
             if key in failed_calls:
                 name = func.get("name", "<unknown>")
                 logger.warning("Retry of failed tool call blocked: %r", name)
-                if ctx.diagnostics is not None:
-                    ctx.diagnostics.save(
-                        ctx.session.session_id,
-                        "guard_hint",
-                        orjson.dumps(
-                            {
-                                "guard_type": "retry",
-                                "tool_name": name,
-                                "hint": RETRY_HINT,
-                                "timestamp": datetime.now(UTC).isoformat(),
-                            }
-                        ).decode(),
-                    )
+                self._save_guard_hint(
+                    ctx,
+                    "retry",
+                    tool_name=name,
+                    hint=RETRY_HINT,
+                )
                 return "Repeated failed tool call detected."
         return None
 

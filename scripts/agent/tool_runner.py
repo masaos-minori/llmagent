@@ -134,21 +134,10 @@ def _collect_tool_result_msgs(
     tool_msgs: list[tuple[str, str, list[dict] | None, str | None]] = []
     turn_chars = 0
     for tc_id, name, args, text, is_error, llm_text in results:
-        ctx.stats.stat_tool_calls += 1
-        if is_error:
-            ctx.stats.stat_tool_errors += 1
-            if out_failed_keys is not None:
-                out_failed_keys.add(tool_hash_key(name, args))
+        _update_stats_for_result(ctx, name, args, is_error, out_failed_keys)
         masked = mask_args(args, ctx.cfg.tool.masked_fields)
-        logger.info("Tool call (turn %s): %s(%s)", turn + 1, name, masked)
-        emit_tool_call(name, _json_dumps(masked))
-        if len(text) > _TOOL_RESULT_MAX_CHARS:
-            n_lines = len(text.splitlines())
-            logger.info("Tool result %s (full): %s", name, text)
-            display = f"{n_lines} lines / {len(text)} chars (truncated)"
-            emit_tool_result(name, display)
-        else:
-            emit_tool_result(name, text)
+        _log_and_emit_tool_call(turn + 1, name, masked)
+        _emit_tool_result(text, name)
         summarized = is_summarized(ctx.cfg, text, llm_text, is_error)
         result_id = ctx.tool_result_store.store(
             session_id=ctx.session.session_id,
@@ -159,23 +148,69 @@ def _collect_tool_result_msgs(
             summary=llm_text if summarized else None,
             is_error=is_error,
         )
-        limit = ctx.cfg.tool.tool_results_turn_max_chars
+        llm_text = _apply_turn_char_limit(
+            llm_text,
+            turn_chars,
+            limit=ctx.cfg.tool.tool_results_turn_max_chars,
+            result_id=result_id,
+        )
         turn_chars += len(llm_text)
-        if limit > 0 and turn_chars > limit:
-            id_hint = f" (id={result_id})" if result_id is not None else ""
-            llm_text = TURN_LIMIT_HINT.replace("]", f"{id_hint}]")
-            logger.info(
-                "Per-turn tool result limit reached: %s chars > %s;"
-                " result replaced with hint (id=%s)",
-                turn_chars,
-                limit,
-                result_id,
-            )
         ctx.conv.history.append(
             {"role": "tool", "tool_call_id": tc_id, "content": llm_text}
         )
         tool_msgs.append(("tool", llm_text, None, tc_id))
     return tool_msgs
+
+
+def _update_stats_for_result(
+    ctx: AgentContext,
+    name: str,
+    args: dict,
+    is_error: bool,
+    out_failed_keys: set[str] | None,
+) -> None:
+    """Update stats and failed keys for a single tool result."""
+    ctx.stats.stat_tool_calls += 1
+    if is_error:
+        ctx.stats.stat_tool_errors += 1
+        if out_failed_keys is not None:
+            out_failed_keys.add(tool_hash_key(name, args))
+
+
+def _log_and_emit_tool_call(turn: int, name: str, masked: dict) -> None:
+    """Log and emit a tool call event."""
+    logger.info("Tool call (turn %s): %s(%s)", turn, name, masked)
+    emit_tool_call(name, _json_dumps(masked))
+
+
+def _emit_tool_result(text: str, name: str) -> None:
+    """Emit tool result with truncation display if needed."""
+    if len(text) > _TOOL_RESULT_MAX_CHARS:
+        n_lines = len(text.splitlines())
+        logger.info("Tool result %s (full): %s", name, text)
+        emit_tool_result(name, f"{n_lines} lines / {len(text)} chars (truncated)")
+    else:
+        emit_tool_result(name, text)
+
+
+def _apply_turn_char_limit(
+    llm_text: str,
+    turn_chars: int,
+    limit: int,
+    result_id: int | None,
+) -> str:
+    """Apply per-turn char limit; return hint if exceeded."""
+    if limit > 0 and (turn_chars + len(llm_text)) > limit:
+        id_hint = f" (id={result_id})" if result_id is not None else ""
+        logger.info(
+            "Per-turn tool result limit reached: %s chars > %s;"
+            " result replaced with hint (id=%s)",
+            turn_chars + len(llm_text),
+            limit,
+            result_id,
+        )
+        return TURN_LIMIT_HINT.replace("]", f"{id_hint}]")
+    return llm_text
 
 
 async def _execute_with_dag(

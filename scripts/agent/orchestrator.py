@@ -53,6 +53,30 @@ def _mode_hint(mode: MdqRagMode) -> str:
     return ""
 
 
+def _build_turn_end_metadata(
+    ctx: AgentContext,
+) -> dict[str, str]:
+    """Build turn_end metadata (task_id, workflow_id, session_id)."""
+    return {
+        "task_id": ctx.turn.current_turn_id or "",
+        "workflow_id": ctx.workflow.workflow_id or "",
+        "session_id": str(ctx.session.session_id) if ctx.session.session_id else "",
+    }
+
+
+def _build_turn_end_llm_stats(
+    llm: Any,
+) -> dict[str, int]:
+    """Build turn_end LLM stats fields."""
+    return {
+        "parse_error_count": llm.stat_parse_errors if llm is not None else 0,
+        "heartbeat_timeout_count": llm.stat_heartbeat_timeouts
+        if llm is not None
+        else 0,
+        "reconnect_count": llm.stat_reconnects if llm is not None else 0,
+    }
+
+
 class Orchestrator:
     """Turn-level coordinator: compression -> LLM loop -> tool dispatch.
 
@@ -128,23 +152,27 @@ class Orchestrator:
 
         await self._handle_turn_start(line)
 
-        answer: str = ""
-        error_kind: str | None = None
-
+        # Direct execution path (disabled mode or no workflow definition)
         if self._workflow_mode == "disabled":
             logger.info("Workflow mode=disabled — direct execution")
-            answer, error_kind = await self._process_turn(line, ctx, turn_started_at)
-            await self._handle_turn_end(line, answer, turn_started_at, error_kind)
-            return
-
-        if self._workflow_def is None:
+        elif self._workflow_def is None:
             self._log_fallback("workflow definition not loaded")
-            answer, error_kind = await self._process_turn(line, ctx, turn_started_at)
-            await self._handle_turn_end(line, answer, turn_started_at, error_kind)
+        else:
+            await self._handle_workflow_engine(line, ctx, turn_started_at)
             return
 
+        answer, error_kind = await self._process_turn(line, ctx, turn_started_at)
+        await self._handle_turn_end(line, answer, turn_started_at, error_kind)
+
+    async def _handle_workflow_engine(
+        self, line: str, ctx: AgentContext, turn_started_at: float
+    ) -> None:
+        """Execute a turn through the workflow engine."""
+        assert self._workflow_def is not None  # noqa: B101 only called when workflow_def exists
         session_id = str(ctx.session.session_id) if ctx.session.session_id else "none"
         store = StateStore()
+        answer: str = ""
+        error_kind: str | None = None
         try:
             workflow_id = str(uuid.uuid4())
             task = store.create_task(
@@ -171,11 +199,10 @@ class Orchestrator:
 
             async def execute_fn() -> str | None:
                 nonlocal answer, error_kind
-                _t0 = time.perf_counter()
                 answer, error_kind = await self._process_turn(
                     line, ctx, turn_started_at
                 )
-                elapsed_ms = round((time.perf_counter() - _t0) * 1000, 1)
+                elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
                 audit_stage_completed(
                     ctx,
                     task.task_id,
@@ -195,38 +222,50 @@ class Orchestrator:
             ctx.workflow.current_task_id = None
             ctx.workflow.workflow_id = None
         except WorkflowPendingApprovalError as exc:
-            logger.info(
-                "Turn suspended: awaiting approval %s for task %s",
-                exc.approval_id,
-                exc.task_id,
-            )
-            audit_approval_requested(
-                ctx,
-                exc.task_id,
-                exc.approval_id,
-                workflow_id=ctx.workflow.workflow_id or "",
-                session_id=session_id,
-            )
-            ctx.turn.pending_approval_id = exc.approval_id
-            ctx.workflow.approval_pending = True
-            from agent.tool_output import emit_approval_pending_notice  # noqa: PLC0415
-
-            emit_approval_pending_notice(
-                approval_id=exc.approval_id,
-                task_id=exc.task_id or "unknown",
-            )
-            logger.warning(
-                "[workflow] Approval required. Use /approve [reason] or /reject [reason]."
-            )
+            self._handle_workflow_approval_pending(exc, session_id)
         except WorkflowHaltError as exc:
-            logger.error("Turn halted by workflow engine: %s", exc)
-            ctx.workflow.active = False
-            ctx.workflow.current_task_id = None
-            ctx.workflow.workflow_id = None
-            if self._on_error:
-                self._on_error(exc)
+            self._handle_workflow_halt(exc)
         finally:
             store.close()
+
+    def _handle_workflow_approval_pending(
+        self, exc: WorkflowPendingApprovalError, session_id: str
+    ) -> None:
+        """Handle workflow approval pending event."""
+        ctx = self._ctx
+        logger.info(
+            "Turn suspended: awaiting approval %s for task %s",
+            exc.approval_id,
+            exc.task_id,
+        )
+        audit_approval_requested(
+            ctx,
+            exc.task_id,
+            exc.approval_id,
+            workflow_id=ctx.workflow.workflow_id or "",
+            session_id=session_id,
+        )
+        ctx.turn.pending_approval_id = exc.approval_id
+        ctx.workflow.approval_pending = True
+        from agent.tool_output import emit_approval_pending_notice  # noqa: PLC0415
+
+        emit_approval_pending_notice(
+            approval_id=exc.approval_id,
+            task_id=exc.task_id or "unknown",
+        )
+        logger.warning(
+            "[workflow] Approval required. Use /approve [reason] or /reject [reason]."
+        )
+
+    def _handle_workflow_halt(self, exc: WorkflowHaltError) -> None:
+        """Handle workflow halt event."""
+        ctx = self._ctx
+        logger.error("Turn halted by workflow engine: %s", exc)
+        ctx.workflow.active = False
+        ctx.workflow.current_task_id = None
+        ctx.workflow.workflow_id = None
+        if self._on_error:
+            self._on_error(exc)
 
     # ── Turn lifecycle ────────────────────────────────────────────────────────
 
@@ -368,20 +407,13 @@ class Orchestrator:
     ) -> dict[str, object]:
         """Build turn_end audit log event dict."""
         ctx = self._ctx
-        llm = ctx.services.llm
         return {
             "event": "turn_end",
-            "task_id": task_id,
-            "workflow_id": ctx.workflow.workflow_id or "",
-            "session_id": str(ctx.session.session_id) if ctx.session.session_id else "",
+            **_build_turn_end_metadata(ctx),
             "elapsed_ms": elapsed_ms,
             "input_tokens": ctx.stats.stat_input_tokens,
             "output_tokens": ctx.stats.stat_output_tokens,
-            "parse_error_count": llm.stat_parse_errors if llm is not None else 0,
-            "heartbeat_timeout_count": (
-                llm.stat_heartbeat_timeouts if llm is not None else 0
-            ),
-            "reconnect_count": llm.stat_reconnects if llm is not None else 0,
+            **_build_turn_end_llm_stats(ctx.services.llm),
             "partial_completion": False,
             "error_kind": error_kind,
         }
@@ -443,30 +475,46 @@ class Orchestrator:
         ctx: AgentContext,
     ) -> bool:
         if e.partial_text:
-            incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
-            # Store in diagnostic channel only — do NOT add to conversation history
-            self._diagnostic_store.save(
-                ctx.session.session_id, "llm_transport_error", incomplete_msg
-            )
-            try:
-                ctx.tool_result_store.store(
-                    session_id=ctx.session.session_id,
-                    turn=ctx.stats.stat_turns,
-                    tool_name="llm_partial_completion",
-                    args_masked="{}",
-                    full_text=e.detail or f"partial={len(e.partial_text)} chars",
-                    summary=f"[INCOMPLETE: {e.kind}]",
-                    is_error=True,
-                )
-            except (RuntimeError, OSError) as store_err:
-                logger.warning(
-                    "ToolResultStore.store failed for partial completion: %s",
-                    store_err,
-                )
-            if ctx.services.llm is not None:
-                ctx.services.llm.stat_partial_completions += 1
-            logger.warning("Partial LLM completion saved: %s", e.kind)
+            self._handle_partial_completion(e, ctx)
             return True
+        self._handle_non_partial_error(e, ctx)
+        return False
+
+    def _handle_partial_completion(
+        self,
+        e: LLMTransportError,
+        ctx: AgentContext,
+    ) -> None:
+        """Save partial text to diagnostic channel and tool_result_store."""
+        incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
+        self._diagnostic_store.save(
+            ctx.session.session_id, "llm_transport_error", incomplete_msg
+        )
+        try:
+            ctx.tool_result_store.store(
+                session_id=ctx.session.session_id,
+                turn=ctx.stats.stat_turns,
+                tool_name="llm_partial_completion",
+                args_masked="{}",
+                full_text=e.detail or f"partial={len(e.partial_text)} chars",
+                summary=f"[INCOMPLETE: {e.kind}]",
+                is_error=True,
+            )
+        except (RuntimeError, OSError) as store_err:
+            logger.warning(
+                "ToolResultStore.store failed for partial completion: %s",
+                store_err,
+            )
+        if ctx.services.llm is not None:
+            ctx.services.llm.stat_partial_completions += 1
+        logger.warning("Partial LLM completion saved: %s", e.kind)
+
+    def _handle_non_partial_error(
+        self,
+        e: LLMTransportError,
+        ctx: AgentContext,
+    ) -> None:
+        """Save non-partial error to diagnostic channel and log."""
         self._diagnostic_store.save(
             ctx.session.session_id,
             "mid_turn_error",
@@ -484,4 +532,3 @@ class Orchestrator:
             e.kind,
             e.status_code,
         )
-        return False
