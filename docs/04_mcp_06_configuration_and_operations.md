@@ -25,7 +25,7 @@ health probes, audit log reading, and the new-server addition checklist.
 
 | Server | Config file |
 |---|---|
-| web-search-mcp | `config/web_search_mcp_server.toml` |
+| web-search-mcp | `config/web_search_mcp_server.toml` (no API keys needed) |
 | file-read-mcp | `config/file_read_mcp_server.toml` |
 | file-write-mcp | `config/file_write_mcp_server.toml` |
 | file-delete-mcp | `config/file_delete_mcp_server.toml` |
@@ -41,7 +41,6 @@ health probes, audit log reading, and the new-server addition checklist.
 
 | File | Key |
 |---|---|
-| `/etc/conf.d/web-search-mcp` | `BRAVE_API_KEY`, `BING_API_KEY` |
 | `/etc/conf.d/github-mcp` | `GITHUB_TOKEN` |
 | `/etc/conf.d/cicd-mcp` | `GITHUB_TOKEN` |
 
@@ -133,7 +132,7 @@ env = {}
 
 ```bash
 # Individual server health checks (all return 4-field nested format)
-curl -s http://127.0.0.1:8004/health | jq   # web-search: dependencies.brave_api_key/bing_api_key, details.providers
+curl -s http://127.0.0.1:8004/health | jq   # web-search: base response only
 curl -s http://127.0.0.1:8005/health | jq   # file-read: base response only
 curl -s http://127.0.0.1:8006/health | jq   # github: dependencies.github_token
 curl -s http://127.0.0.1:8007/health | jq   # file-write: base response only

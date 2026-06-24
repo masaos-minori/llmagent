@@ -27,7 +27,7 @@ a set of independent server processes.
 
 | Server | Port | Transport | Startup mode | Tools | Role |
 |---|---|---|---|---|---|
-| web-search-mcp | 8004 | HTTP | persistent | 1 | Web search (Brave/Bing/DDG) |
+| web-search-mcp | 8004 | HTTP | persistent | 1 | Web search (DuckDuckGo) |
 | file-read-mcp | 8005 | HTTP | persistent | 9 | Local file reading |
 | github-mcp | 8006 | HTTP | persistent | 21 | GitHub API |
 | file-write-mcp | 8007 | HTTP | persistent | 4 | Local file writing |

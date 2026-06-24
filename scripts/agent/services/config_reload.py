@@ -538,3 +538,12 @@ class ConfigReloadService:
             ctx.cfg.tool.allowed_tools = list(lst)
         if (v := _get_int(new_cfg, "memory_retention_days")) is not None:
             ctx.cfg.memory.memory_retention_days = v
+        # security.toml fields — hot-reloadable
+        if (v := _get_str(new_cfg, "security_profile")) is not None:
+            try:
+                from shared.mcp_config import SecurityProfile
+                ctx.cfg.tool.security_profile = SecurityProfile(v)
+            except ValueError:
+                pass  # invalid enum value — leave current
+        if (vb := _get_bool(new_cfg, "security_lockdown_enabled")) is not None:
+            ctx.cfg.tool.security_lockdown_enabled = vb

@@ -23,7 +23,6 @@ from db.maintenance import (
     purge_old_sessions,
     recover_corruption,
     rotate_db,
-    rotate_rag_db,
     rotate_session_db,
     vacuum_db,
 )
@@ -84,7 +83,6 @@ __all__ = [
     "purge_old_sessions",
     "recover_corruption",
     "rotate_db",
-    "rotate_rag_db",
     "rotate_session_db",
     "validate_embedding_blob",
     "vacuum_db",

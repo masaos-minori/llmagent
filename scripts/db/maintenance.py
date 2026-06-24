@@ -259,12 +259,6 @@ def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
     return dest
 
 
-def rotate_rag_db(archive_dir: str | Path | None = None) -> Path:
-    """Archive rag.sqlite to archive_dir with a timestamp suffix; returns the archive path."""
-    db_cfg = build_db_config()
-    return _archive_db_file(Path(db_cfg.rag_db_path), archive_dir)
-
-
 def rotate_session_db(archive_dir: str | Path | None = None) -> Path:
     """Archive session.sqlite to archive_dir with a timestamp suffix; returns the archive path."""
     db_cfg = build_db_config()
@@ -273,7 +267,8 @@ def rotate_session_db(archive_dir: str | Path | None = None) -> Path:
 
 def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]:
     """Archive both rag.sqlite and session.sqlite; returns (rag_archive_path, session_archive_path)."""
-    rag_dest = rotate_rag_db(archive_dir)
+    db_cfg = build_db_config()
+    rag_dest = _archive_db_file(Path(db_cfg.rag_db_path), archive_dir)
     ses_dest = rotate_session_db(archive_dir)
     return rag_dest, ses_dest
 

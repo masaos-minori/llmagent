@@ -18,10 +18,10 @@ from db.maintenance import (
     prune_old_memories,
     purge_old_sessions,
     recover_corruption,
-    rotate_rag_db,
     rotate_session_db,
     vacuum_db,
 )
+from agent.services.rag_maintenance_service import RagMaintenanceService
 
 _TEST_EMBED_URL = "http://127.0.0.1:8003/embedding"
 
@@ -206,10 +206,10 @@ class TestRotateDb:
         self._make_real_sqlite(db_file)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
-            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.config.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
-        dest = rotate_rag_db(archive_dir=archive_dir)
+        dest = RagMaintenanceService().rotate_rag_db(archive_dir=archive_dir)
 
         assert dest.exists()
         assert dest.name.startswith("rag_")
@@ -244,10 +244,10 @@ class TestRotateDb:
         self._make_real_sqlite(db_file)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
-            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.config.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
-        dest = rotate_rag_db(archive_dir=archive_dir)
+        dest = RagMaintenanceService().rotate_rag_db(archive_dir=archive_dir)
         # Backup destination must be a valid SQLite database (no "file is not a database").
         import sqlite3 as _s
 
@@ -259,11 +259,11 @@ class TestRotateDb:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(
-            "db.maintenance.build_db_config",
+            "db.config.build_db_config",
             lambda: _make_db_cfg(tmp_path, rag_name="missing.sqlite"),
         )
         with pytest.raises(FileNotFoundError):
-            rotate_rag_db(archive_dir=tmp_path / "archive")
+            RagMaintenanceService().rotate_rag_db(archive_dir=tmp_path / "archive")
 
 
 # ── checkpoint_wal / vacuum_db ─────────────────────────────────────────────────

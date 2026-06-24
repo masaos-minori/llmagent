@@ -32,7 +32,7 @@ class _ConfigMixin(
     """Configuration and statistics slash-command handlers."""
 
     def _cmd_reload(self) -> None:
-        """Reload config/agent.toml and apply runtime-configurable parameters.
+        """Reload all config/*.toml files and apply runtime-configurable parameters.
 
         Updates ctx.cfg fields and syncs them to each component so changes
         take effect immediately without restarting the agent.

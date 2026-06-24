@@ -29,7 +29,7 @@
   │   ├─ agent.toml                           # エージェント設定 (URL・検索パラメータ・システムプロンプト・ツール定義)
   │   ├─ rag_pipeline.toml                    # クロール・チャンク設定 (対象 URL・チャンクサイズ・ストップワード)
   │   ├─ rag_pipeline_mcp_server.toml         # RAG パイプライン MCP サーバ設定 (:8010)
-  │   ├─ web_search_mcp_server.toml           # Web 検索サーバ設定 (プロバイダ優先順位・API URL)
+  │   ├─ web_search_mcp_server.toml           # Web 検索サーバ設定 (DuckDuckGoのみ)
   │   ├─ file_read_mcp_server.toml            # ファイル読込 MCP サーバ設定 (許可ディレクトリ)
   │   ├─ file_write_mcp_server.toml           # ファイル書込 MCP サーバ設定 (許可ディレクトリ・サイズ上限)
   │   ├─ file_delete_mcp_server.toml          # ファイル削除 MCP サーバ設定 (許可ディレクトリ)
@@ -131,10 +131,10 @@
   │   │    ├─ exceptions.py              # エージェント例外定義
   │   │    ├─ health_models.py           # ヘルスチェックモデル
   │   │    └─ models.py                  # エージェント共通データモデル
-  │   ├─ mcp/                                 # MCP サーバパッケージ
-  │   │   ├─ models.py                        # /v1/call_tool 統合エンドポイント共通 Pydantic モデル
-  │   │   ├─ server.py                        # MCP サーバ HTTP 起動共通基底クラス
-  │   │   ├─ web_search/server.py             # Web 検索 MCP サーバ (Brave/Bing/DuckDuckGo, :8004)
+ │   ├─ mcp/                                 # MCP サーバパッケージ
+   │   │   ├─ models.py                        # /v1/call_tool 統合エンドポイント共通 Pydantic モデル
+   │   │   ├─ server.py                        # MCP サーバ HTTP 起動共通基底クラス
+   │   │   ├─ web_search/server.py             # Web 検索 MCP サーバ (DuckDuckGo, :8004)
   │   │   ├─ file/                            # ファイル MCP サーバ群 (:8005/:8007/:8008)
   │   │   ├─ github/                          # GitHub MCP サーバ (:8006)
   │   │   ├─ shell/                           # シェル MCP サーバ (:8009)
@@ -165,7 +165,6 @@
   │       └─ route_resolver.py                # ToolRouteResolver: ツール名 → サーバキーマッピング
   └─ logs/                                    # 各サービスのログファイル出力先
 /etc/conf.d/
-   ├─ web-search-mcp                     # BRAVE_API_KEY / BING_API_KEY 環境変数設定
    └─ github-mcp                         # GITHUB_TOKEN (Personal Access Token) 設定
 ```
 

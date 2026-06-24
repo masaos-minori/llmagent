@@ -13,7 +13,7 @@ config, startup, security, logs, operational notes, and known limitations.
 
 ## web-search-mcp (port 8004)
 
-**Purpose:** Web search with multi-provider fallback (Brave → Bing → DuckDuckGo).
+**Purpose:** Web search via DuckDuckGo (no API key required).
 **Startup mode:** persistent (HTTP)
 **Config:** `config/web_search_mcp_server.toml`
 
@@ -23,19 +23,14 @@ config, startup, security, logs, operational notes, and known limitations.
 |---|---|---|
 | `search_web` | `{query: str, max_results?: int}` | Header + N result blocks (title/URL/snippet) |
 
-**Provider fallback:** Brave (requires `BRAVE_API_KEY`) → Bing (requires `BING_API_KEY`) → DuckDuckGo (no key).
-All providers that fail or return 0 results are skipped automatically.
-All providers failed → HTTP 502.
-
 **Config parameters:**
 
 | Key | Default | Description |
 |---|---|---|
-| `search_providers` | `["duckduckgo"]` | Provider priority list |
 | `default_max_results` | `5` | Default result count |
 | `max_results_limit` | `20` | Server-side cap |
 
-**Health:** `{"status":"ok","ready":bool,"dependencies":{"brave_api_key":"set"/"not_set","bing_api_key":"set"/"not_set"},"details":{"providers":[...]}}`
+**Health:** `{"status":"ok","ready":true}`
 **Log:** `/opt/llm/logs/web-search-mcp.log`
 **When to use:** Real-time information not in RAG index; latest releases; news.
 

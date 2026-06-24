@@ -16,9 +16,9 @@ import orjson
 logger = logging.getLogger(__name__)
 
 _BASE_CONFIG_FILES: tuple[str, ...] = (
-    "common.toml",
-    "llm.toml",
-    "http.toml",
+    "common.toml",   # base defaults; http settings here are lowest precedence
+    "llm.toml",      # LLM-specific; may override http keys from common
+    "http.toml",     # HTTP-specific; takes precedence over common and llm for http keys
     "rag.toml",
     "context.toml",
     "tools.toml",

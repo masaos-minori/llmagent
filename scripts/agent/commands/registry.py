@@ -100,7 +100,7 @@ _COMMANDS: list[CommandDef] = [
         False,
         False,
         "_cmd_reload",
-        "Reload config/agent.toml and apply runtime-configurable parameters",
+        "Reload all config/*.toml files and apply runtime-configurable parameters",
     ),
     # ── Exact-match async ────────────────────────────────────────────────────
     CommandDef(

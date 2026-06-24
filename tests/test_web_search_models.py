@@ -23,10 +23,6 @@ class TestWebSearchConfig:
         cfg = WebSearchConfig()
         assert cfg.default_max_results == DEFAULT_MAX_RESULTS
         assert cfg.max_results_limit == MAX_RESULTS_LIMIT
-        assert cfg.http_timeout == 30.0
-        assert cfg.search_providers == ["duckduckgo"]
-        assert cfg.brave_search_url == ""
-        assert cfg.bing_search_url == ""
 
     def test_from_dict_defaults(self) -> None:
         cfg = WebSearchConfig.from_dict({})
@@ -37,25 +33,16 @@ class TestWebSearchConfig:
             {
                 "default_max_results": 10,
                 "max_results_limit": 15,
-                "http_timeout": 60.0,
-                "search_providers": ["brave", "bing"],
-                "brave_search_url": "http://brave.local",
-                "bing_search_url": "http://bing.local",
             }
         )
         assert cfg.default_max_results == 10
         assert cfg.max_results_limit == 15
-        assert cfg.http_timeout == 60.0
-        assert cfg.search_providers == ["brave", "bing"]
-        assert cfg.brave_search_url == "http://brave.local"
-        assert cfg.bing_search_url == "http://bing.local"
 
     def test_from_dict_type_coercion(self) -> None:
         cfg = WebSearchConfig.from_dict(
-            {"default_max_results": "7", "http_timeout": "10"}
+            {"default_max_results": "7"}
         )
         assert cfg.default_max_results == 7
-        assert cfg.http_timeout == 10.0
 
 
 class TestWebSearchUpstreamError:

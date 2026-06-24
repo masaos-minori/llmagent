@@ -65,7 +65,7 @@ In production: `/opt/llm/scripts/../config/` → `/opt/llm/config/`
 | `rag_utils.py` | `floats_to_blob`, `validate_url`, `normalize_unicode`. |
 | `fileop_mcp_server.py` | `file-mcp` (port 8005). `FileService` enforces security boundaries. |
 | `github_mcp_server.py` | `github-mcp` (port 8006). `GitHubService` wraps PyGithub. |
-| `web_search_mcp_server.py` | `web-search-mcp` (port 8004). Brave → Bing → DuckDuckGo fallback. |
+| `web_search_mcp_server.py` | `web-search-mcp` (port 8004). DuckDuckGo only. |
 | `mcp_server.py` | Base class. `run()` = HTTP; `run_stdio()` = stdin/stdout JSON-RPC (`--stdio` flag). |
 | `mcp_models.py` | `CallToolRequest` / `CallToolResponse` Pydantic models. |
 | `config_loader.py` | TOML/JSON loader (stdlib `tomllib`) that strips `_` keys. |
@@ -127,7 +127,7 @@ API keys via environment or config files:
 
 | File | Variables |
 |---|---|
-| `conf.d/web-search-mcp` | `BRAVE_API_KEY`, `BING_API_KEY` |
+| `conf.d/web-search-mcp` | (no longer needed — DuckDuckGo requires no API key) |
 | `conf.d/github-mcp` | `GITHUB_TOKEN` |
 
 ### agent.toml key highlights

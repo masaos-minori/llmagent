@@ -38,12 +38,6 @@ class WebSearchConfig:
 
     default_max_results: int = DEFAULT_MAX_RESULTS
     max_results_limit: int = MAX_RESULTS_LIMIT
-    http_timeout: float = 30.0
-    search_providers: list[str] = dataclasses.field(
-        default_factory=lambda: ["duckduckgo"]
-    )
-    brave_search_url: str = ""
-    bing_search_url: str = ""
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> WebSearchConfig:
@@ -51,10 +45,6 @@ class WebSearchConfig:
         return cls(
             default_max_results=int(d.get("default_max_results", DEFAULT_MAX_RESULTS)),
             max_results_limit=int(d.get("max_results_limit", MAX_RESULTS_LIMIT)),
-            http_timeout=float(d.get("http_timeout", 30.0)),
-            search_providers=list(d.get("search_providers", ["duckduckgo"])),
-            brave_search_url=str(d.get("brave_search_url", "")),
-            bing_search_url=str(d.get("bing_search_url", "")),
         )
 
     @classmethod

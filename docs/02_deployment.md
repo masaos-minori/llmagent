@@ -180,7 +180,7 @@ curl -s http://127.0.0.1:8001/health   # agent-llm
 ```
 
 > API キーの設定:
-> - Web 検索: `BRAVE_API_KEY` / `BING_API_KEY` を `/etc/conf.d/web-search-mcp` に設定
+> - Web 検索: DuckDuckGo — API キー不要
 > - GitHub 操作: `GITHUB_TOKEN` を `/etc/conf.d/github-mcp` に設定
 
 ### 2.3 MCP サーバの確認

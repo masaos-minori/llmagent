@@ -3,23 +3,15 @@
 FastAPI server that exposes web search as an MCP (Model Context Protocol) tool.
 Listens on port 8004.
 
-Supported search providers (priority order in config/web_search_mcp_server.toml):
-  brave      : Brave Search API (requires BRAVE_API_KEY env var)
-  bing       : Bing Web Search API v7 (requires BING_API_KEY env var)
-  duckduckgo : DuckDuckGo (no API key required; uses synchronous library)
-
-Providers are tried in order; on failure or zero results the next provider is used.
+Search provider: DuckDuckGo (no API key required).
 """
 
 from __future__ import annotations
 
 import asyncio
-import os
 import time
-from typing import Any
+from typing import Any, cast
 
-import httpx
-import orjson
 from duckduckgo_search import DDGS
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -45,16 +37,6 @@ logger = Logger(__name__, "/opt/llm/logs/web-search-mcp.log")
 
 _cfg: WebSearchConfig = WebSearchConfig.load()
 
-# API keys read from environment variables (configured in /etc/conf.d/web-search-mcp)
-BRAVE_API_KEY = os.environ.get("BRAVE_API_KEY", "")
-BING_API_KEY = os.environ.get("BING_API_KEY", "")
-
-# Warn once at module load time to avoid log noise on every request
-if not BRAVE_API_KEY:
-    logger.warning("BRAVE_API_KEY is not set; brave provider will always be skipped")
-if not BING_API_KEY:
-    logger.warning("BING_API_KEY is not set; bing provider will always be skipped")
-
 app = FastAPI(title="web-search-mcp", version="3.0.0")
 
 
@@ -69,67 +51,8 @@ async def _handle_web_search_error(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Per-provider search implementations
+# Search implementation
 # ──────────────────────────────────────────────────────────────────────────────
-async def _search_brave(query: str, max_results: int) -> list[SearchResult]:
-    """Execute a text search using the Brave Search API.
-    Returns an empty list if the API key is not set.
-    """
-    if not BRAVE_API_KEY:
-        return []
-    headers = {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": BRAVE_API_KEY,
-    }
-    params: dict[str, str | int] = {"q": query, "count": max_results}
-    async with httpx.AsyncClient(timeout=float(_cfg.http_timeout)) as client:
-        resp = await client.get(
-            str(_cfg.brave_search_url),
-            headers=headers,
-            params=params,
-        )
-    resp.raise_for_status()
-    raw = orjson.loads(resp.content).get("web", {}).get("results", [])
-    return [
-        SearchResult(
-            title=r.get("title", ""),
-            url=r.get("url", ""),
-            body=r.get("description", ""),
-            provider="brave",
-        )
-        for r in raw
-    ]
-
-
-async def _search_bing(query: str, max_results: int) -> list[SearchResult]:
-    """Execute a text search using Bing Web Search API v7.
-    Returns an empty list if the API key is not set.
-    """
-    if not BING_API_KEY:
-        return []
-    headers = {"Ocp-Apim-Subscription-Key": BING_API_KEY}
-    # mkt is fixed for this Japanese-only deployment
-    params: dict[str, str | int] = {"q": query, "count": max_results, "mkt": "ja-JP"}
-    async with httpx.AsyncClient(timeout=float(_cfg.http_timeout)) as client:
-        resp = await client.get(
-            str(_cfg.bing_search_url),
-            headers=headers,
-            params=params,
-        )
-    resp.raise_for_status()
-    raw = orjson.loads(resp.content).get("webPages", {}).get("value", [])
-    return [
-        SearchResult(
-            title=r.get("name", ""),
-            url=r.get("url", ""),
-            body=r.get("snippet", ""),
-            provider="bing",
-        )
-        for r in raw
-    ]
-
-
 async def _search_duckduckgo(query: str, max_results: int) -> list[SearchResult]:
     """Execute a text search using DuckDuckGo. No API key required.
     DDGS is a synchronous library, so it is run in a thread pool via asyncio.to_thread.
@@ -154,92 +77,39 @@ async def _search_duckduckgo(query: str, max_results: int) -> list[SearchResult]
 # ──────────────────────────────────────────────────────────────────────────────
 # Endpoint definitions
 # ──────────────────────────────────────────────────────────────────────────────
-_PROVIDER_FUNCS = {
-    "brave": _search_brave,
-    "bing": _search_bing,
-    "duckduckgo": _search_duckduckgo,
-}
-
-
-async def _try_provider(
-    provider: str,
-    query: str,
-    max_results: int,
-) -> list[SearchResult] | None:
-    """Try one provider; returns results on success, None on failure or zero results."""
-    func = _PROVIDER_FUNCS.get(provider)
-    # Guard: skip unrecognised provider names in config
-    if func is None:
-        logger.warning(
-            fmt_kvlog("search_try", provider=provider, result="unknown_provider"),
-        )
-        return None
-    results = await func(query, max_results)
-    if results:
-        return results
-    logger.info(
-        fmt_kvlog(
-            "search_try",
-            provider=provider,
-            q=query[:80],
-            n=0,
-            result="zero_results_fallback",
-        ),
-    )
-    return None
-
-
 @app.post("/search", response_model=SearchResponse)
 async def search(req: SearchRequest) -> SearchResponse:
-    """Execute a web search by trying configured providers in order.
-    Falls back to the next provider when the current one fails or returns zero results.
-    Returns 502 if all providers fail.
-    """
+    """Execute a web search using DuckDuckGo."""
     t0 = time.perf_counter()
-    for provider in _cfg.search_providers:
-        try:
-            results = await _try_provider(provider, req.query, req.max_results)
-            if results is not None:
-                ms = (time.perf_counter() - t0) * 1000
-                logger.info(
-                    fmt_kvlog(
-                        "search",
-                        q=req.query[:80],
-                        provider=provider,
-                        n=len(results),
-                        ms=f"{ms:.0f}",
-                    ),
-                )
-                return SearchResponse(
-                    query=req.query,
-                    results=results,
-                    provider=provider,
-                )
-        except (httpx.HTTPStatusError, TimeoutError):
-            logger.warning(
-                fmt_kvlog(
-                    "search_provider_fail",
-                    provider=provider,
-                    error_class="network_error",
-                ),
-            )
-    raise WebSearchUpstreamError("All search providers failed")
+    try:
+        results = cast(list[SearchResult], await asyncio.to_thread(lambda: _search_duckduckgo(req.query, req.max_results)))
+    except Exception as e:
+        raise WebSearchUpstreamError(f"DuckDuckGo search failed: {e}") from e
+
+    if not results:
+        raise WebSearchUpstreamError("No results returned from DuckDuckGo")
+
+    ms = (time.perf_counter() - t0) * 1000
+    logger.info(
+        fmt_kvlog(
+            "search",
+            q=req.query[:80],
+            provider="duckduckgo",
+            n=len(results),
+            ms=f"{ms:.0f}",
+        ),
+    )
+    return SearchResponse(
+        query=req.query,
+        results=results,
+        provider="duckduckgo",
+    )
 
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
-    """Health check endpoint. Returns configured providers and API key availability."""
-    deps: dict[str, str] = {}
-    if not BRAVE_API_KEY:
-        deps["brave_api_key"] = "not_set"
-    if not BING_API_KEY:
-        deps["bing_api_key"] = "not_set"
-    return {
-        "status": "ok",
-        "ready": len(deps) == 0,
-        "dependencies": deps,
-        "details": {"providers": _cfg.search_providers},
-    }
+    """Health check endpoint."""
+    return {"status": "ok", "ready": True}
 
 
 # ──────────────────────────────────────────────────────────────────────────────

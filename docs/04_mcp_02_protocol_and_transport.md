@@ -136,7 +136,7 @@ All MCP servers inherit from `MCPServer`.
 | `async dispatch(name, args) -> DispatchResult` | Abstract; must be overridden. Returns `DispatchResult(output, is_error)` |
 | `list_tools() -> list[str]` | Tool names from `mcp_tools`. Returns `[]` if not defined |
 | `list_tools_with_server_key() -> list[dict[str, object]]` | Tool metadata including `server_key`; used by `/v1/tools` endpoint |
-| `health() -> dict[str, object]` | `{"status": "ok", "ready": bool, "dependencies": dict, "details": dict}` by default; overridden per server (e.g. github adds `github_token` to `dependencies`, web-search adds `brave_api_key`/`bing_api_key` to `dependencies` and `providers` to `details`, mdq adds `service` to `details`) |
+| `health() -> dict[str, object]` | `{"status": "ok", "ready": bool, "dependencies": dict, "details": dict}` by default; overridden per server (e.g. github adds `github_token` to `dependencies`, mdq adds `service` to `details`) |
 | `run_http() -> None` | Start uvicorn HTTP server |
 | `async run_stdio() -> None` | Handle newline-delimited JSON-RPC on stdin/stdout |
 
@@ -232,7 +232,7 @@ When result exceeds 512 KB:
 
 | Server | `/health` overrides |
 |---|---|---|
-| web-search-mcp | `dependencies.brave_api_key`, `dependencies.bing_api_key` (both `"set"`/`"not_set"`); `details.providers` (list) |
+| web-search-mcp | No overrides (returns `{"status":"ok","ready":true}`) |
 | github-mcp | `dependencies.github_token` (`"set"`/`"not_set"`) |
 | mdq-mcp | root-level `"stub": true` (marks experimental status); `details.service: "mdq-mcp"` |
 | shell-mcp | `dependencies.shell` (`"sh not found in PATH"`/`"check failed"`); `details.sandbox_backend` (`"firejail"` or `"none"`) |

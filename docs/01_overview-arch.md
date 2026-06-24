@@ -34,7 +34,7 @@
 |---|---|---|---|
 | `agent-llm` | 8001 | Qwen3.6-Instruct-Q4_K_M | チャット/コード生成 LLM (MQE・再ランク兼用) |
 | `embed-llm` | 8003 | multilingual-E5-small | テキスト → 384 次元ベクトル変換 |
-| `web-search-mcp` | 8004 | — | Web 検索 MCP サーバ (Brave/Bing/DuckDuckGo) |
+| `web-search-mcp` | 8004 | — | Web 検索 MCP サーバ (DuckDuckGo) |
 | `file-read-mcp` | 8005 | — | ファイル読み取り MCP サーバ |
 | `github-mcp` | 8006 | — | GitHub 操作 MCP サーバ |
 | `file-write-mcp` | 8007 | — | ファイル書き込み MCP サーバ |
