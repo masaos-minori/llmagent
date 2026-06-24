@@ -158,9 +158,11 @@ async def subscribe(
 
     assert _cfg is not None
     interval = _cfg.poll_interval_ms / 1000.0
+    checkpoint_interval = _cfg.offset_checkpoint_interval
 
     async def _sse_gen() -> Any:
         current_seq = start_seq
+        events_since_checkpoint = 0
         try:
             while True:
                 if topic:
@@ -182,6 +184,14 @@ async def subscribe(
                     data = orjson.dumps(_row_to_dict(row)).decode()
                     yield f"data: {data}\n\n"
                     current_seq = row["seq"]
+                    if consumer_id:
+                        events_since_checkpoint += 1
+                        if events_since_checkpoint >= checkpoint_interval:
+                            from eventbus.offsets import write_offset  # noqa: PLC0415
+
+                            assert _cfg is not None
+                            write_offset(_cfg.offsets_dir, consumer_id, current_seq)
+                            events_since_checkpoint = 0
 
                 logger.debug(
                     "eventbus: subscribe poll: consumer=%s seq=%d",
