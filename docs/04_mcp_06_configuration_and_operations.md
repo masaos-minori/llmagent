@@ -208,6 +208,27 @@ tail -100 /opt/llm/logs/git-mcp.log
 
 ---
 
+## End-to-End Tool Call Tracing
+
+To trace a failed tool call across agent, transport, and server logs:
+
+1. Find the `X-Request-Id` in the agent dispatch log:
+   ```bash
+   grep "tool_name=my_tool" /opt/llm/logs/agent.log | grep "X-Request-Id"
+   ```
+2. Search transport log for the same `X-Request-Id`:
+   ```bash
+   grep "X-Request-Id=<id>" /opt/llm/logs/audit.log
+   ```
+3. Search server audit log for the `X-Request-Id`:
+   ```bash
+   grep "<id>" /opt/llm/logs/github-audit.log  # or relevant server audit log
+   ```
+4. Check health state for `server_key` at that timestamp in `/opt/llm/logs/agent.log`.
+5. If health changed: check watchdog actions log for restart/failover.
+
+---
+
 ### Error Type Distinction in Audit Logs
 
 Tool execution audit events include an `error_type` field:

@@ -11,6 +11,8 @@ watchdog behavior, idle timeout, and the procedure for adding a new server.
 
 ## Tool Call Dispatch Flow
 
+Agent sets `server_key` and `tool_name` in dispatch log context. `X-Request-Id` (from server response header) correlates the agent dispatch log with the transport and server audit log.
+
 ```
 LLM returns tool_call
   → ToolRouteResolver.resolve(tool_name) → server_key
