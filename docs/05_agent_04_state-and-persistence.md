@@ -98,15 +98,20 @@ AgentREPL.run()
 
 ### Session title generation
 
-On the first user turn, `_generate_session_title()` (in `cmd_session.py`) calls `SessionTitleService.generate()` to produce an LLM-based short title. This runs as a background task.
+On the first user turn, `_generate_session_title()` (in `cmd_session.py`) calls `SessionTitleService.generate()` to produce an LLM-based short title. This runs as an asyncio background task (fire-and-forget via `asyncio.create_task()`).
 
-If LLM generation fails (`SessionTitleGenerationError`), a fallback title is derived from `first_input`:
-- Truncated to `SESSION_TITLE_MAX_CHARS` (32 characters)
-- Appended with `...` if the original input exceeds the limit
-- Persisted via `ctx.session.set_title()`
+### Session Title Generation Failure Behavior
 
-This guarantees every session has a non-empty, meaningful title even when the LLM endpoint is unavailable.
-Failures are logged at `WARNING` level via `logger.warning(...)` in `cmd_session.py`.
+| Failure case | Fallback title | Log |
+|---|---|---|
+| LLM HTTP / request error | `first_input[:29] + "..."` if len > 32, else `first_input` | WARNING |
+| LLM returns empty or invalid response | Same as above | WARNING |
+| `first_input` is empty | `"(New Session)"` | WARNING |
+| `set_title()` DB write fails | No title persisted; error logged | ERROR |
+
+All failure cases are non-blocking — the session continues normally.
+On fallback, an audit log entry is emitted: `session_title_fallback session_id=<id> fallback=<title> reason=<error>`.
+`set_title_pending` is reset to `False` in the `finally` block regardless of outcome.
 
 ### Message save rules
 

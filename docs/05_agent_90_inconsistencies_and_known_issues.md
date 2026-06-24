@@ -24,14 +24,14 @@ Each entry format:
 
 ---
 
-### OQ-03: Session title generation silently drops errors — no user feedback
+### OQ-03: Session title generation — fallback behavior (RESOLVED)
 
-- **Type:** Open Question / Needs confirmation
+- **Type:** Resolved
+- **Status:** Resolved — fallback title IS implemented (see `cmd_session.py _generate_session_title()`)
 - **Impact scope:** `agent/commands/cmd_session.py _generate_session_title()`, `agent/services/session_title.py SessionTitleService`
-- **Description:** `_generate_session_title()` is called via `asyncio.create_task()` (fire-and-forget) on the first turn of each session. On failure, the error is logged but no fallback title is generated and no user notification occurs. The session may remain with an empty or default title.
-- **Current safe interpretation:** Session title generation failure is non-fatal. The session continues normally. Titles may be empty after LLM or config errors.
-- **Recommended action:** Consider implementing a `first_input[:50]` fallback title on LLM failure (same as the older implementation described in source docs).
-- **Notes for AI reference:** Do not rely on session titles being set after the first turn. Title generation is asynchronous and may fail silently.
+- **Description:** On `SessionTitleGenerationError`, a fallback title is derived from `first_input[:32]` (or `"(New Session)"` for empty input). The session always ends with a non-empty title. Failures are logged at WARNING + audit level.
+- **Current safe interpretation:** Session title generation failure is non-fatal. The fallback title is always persisted. See `05_agent_04 §Session Title Generation Failure Behavior` for full failure table.
+- **Notes for AI reference:** Session titles are set non-blocking. After the first turn, the title will be the LLM-generated title or the truncated first user input — never empty.
 
 ---
 
