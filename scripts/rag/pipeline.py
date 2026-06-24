@@ -140,6 +140,11 @@ class RagPipeline:
             self._cfg.use_rrf,
             self._cfg.rrf_k,
         )
+        if not self._cfg.use_rrf:
+            logger.warning(
+                "use_rrf=False: RRF fusion disabled — retrieval quality degraded; "
+                "use only for diagnostics or single-query testing"
+            )
 
     def _get_stage_status(
         self, stage: object, ctx: PipelineContext
