@@ -36,6 +36,7 @@ async def lifespan(app: FastAPI) -> Any:
         "eventbus: shared SQLite connection opened (WAL mode, check_same_thread=False) path=%s",
         _cfg.db_path,
     )
+    logger.info("eventbus: subscribe polling interval: %dms", _cfg.poll_interval_ms)
     _envelope_schema = orjson.loads(_ENVELOPE_SCHEMA_PATH.read_bytes())
     Path(_cfg.storage_dir).mkdir(parents=True, exist_ok=True)
     _dlq_task = asyncio.create_task(_dlq_loop())
@@ -182,6 +183,11 @@ async def subscribe(
                     yield f"data: {data}\n\n"
                     current_seq = row["seq"]
 
+                logger.debug(
+                    "eventbus: subscribe poll: consumer=%s seq=%d",
+                    consumer_id,
+                    current_seq,
+                )
                 await asyncio.sleep(interval)
 
         except asyncio.CancelledError:

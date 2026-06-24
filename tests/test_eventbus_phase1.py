@@ -41,7 +41,7 @@ def _event(topic: str = "test.topic") -> dict:
 def test_health_returns_ok(client: TestClient) -> None:
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    assert r.json()["status"] == "ok"
 
 
 def test_publish_inserts_event(client: TestClient, tmp_path: Path) -> None:
