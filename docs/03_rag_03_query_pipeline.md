@@ -343,3 +343,20 @@ llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8001/v1/chat/completi
 |---|---|---|
 | `get_embedding` | `(text, client, embed_url) -> list[float]` | Convert text to embedding vector; uses `"query: "` prefix (E5 convention) |
 | `summarize_tool_result` | `(text, tool_name, args, client, llm_url=None) -> str` | Standalone summarization; loads `llm_url` from cached config when `None` |
+
+---
+
+## 8. Tests
+
+### 8.1 Deterministic regression tests (`tests/test_rag_quality_regression.py`)
+
+Fixtures: in-memory SQLite DB with 3 known documents, fixed-vector mock embedder.
+
+| Test | Mode | Assertion |
+|---|---|---|
+| `test_rrf_returns_result_for_known_query` | RRF (default) | `len(result.reranked) >= 0` — must not raise |
+| `test_no_rrf_returns_result` | No-RRF | `len(result.reranked) >= 0` — must not raise |
+| `test_semantic_cache_hit` | RRF + cache | Second identical query returns cached context or reranked results |
+| `test_fallback_no_embed_server` | RRF, embed failure | `result.reranked == []` — fallback yields empty result, not exception |
+
+Run: `uv run pytest tests/test_rag_quality_regression.py -v`
