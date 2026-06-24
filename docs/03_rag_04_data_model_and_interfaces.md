@@ -267,6 +267,21 @@ Protocol defining the interface for semantic cache implementations. `SemanticCac
 |---|---|---|
 | `lookup` | `(embedding: list[float], history_context: str = "") -> str \| None` | Return cached context if cosine similarity ≥ threshold among matching `history_context` entries; else `None` |
 | `put` | `(embedding: list[float], history_context: str, context_str: str) -> None` | Store entry; prunes if over capacity |
+| `invalidate` | `() -> None` | Bump generation counter and clear all cached entries atomically (used after ingestion to bust stale cache) |
+| `generation` | `property -> int` | Current generation number; incremented by `invalidate()` |
+
+#### CacheEntry dataclass
+
+```python
+from rag.models_data import CacheEntry
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `embedding` | `list[float]` | — | Embedding vector for cache lookup |
+| `context_str` | `str` | — | Cached context string |
+| `history_context` | `str` | `""` | History context for filtering cache hits |
+| `generation` | `int` | `0` | Cache generation; bumped on invalidation to invalidate stale entries |
 
 ### 5.7 RAG Enums (`scripts/rag/enums.py`)
 

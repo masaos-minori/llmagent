@@ -176,10 +176,10 @@ Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto
 - **File:** `/opt/llm/logs/crawl.log` + stderr
 - **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 
-| Level | Timing |
-|---|---|
-| `INFO` | Crawl start, URL saved, skipped URL count |
-| `WARNING` | HTTP error, retry event |
+| Level | Timing | Structured fields |
+|---|---|---|
+| `INFO` | Crawl start, URL saved, skipped URL count | `url`, `source_type` (on save) |
+| `WARNING` | HTTP error, retry event | — |
 
 ### 2.7 Configuration (`config/rag_pipeline.toml`)
 
@@ -286,7 +286,7 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 | Method | Signature | Description |
 |---|---|---|
 | `__init__` | `(config: dict \| None = None)` | Merge `common.toml` + `rag_pipeline.toml`; init `httpx.Client` |
-| `ingest_all` | `(force: bool = False) -> RagConsistencyReport \| None` | Group chunk files by URL; call `ingest_url_group` for each |
+| `ingest_all` | `(force: bool = False, on_ingest_complete: Callable[[], None] \| None = None) -> RagConsistencyReport \| None` | Group chunk files by URL; call `ingest_url_group` for each. `on_ingest_complete` is called after ingestion completes (e.g., to invalidate semantic cache). |
 | `ingest_url_group` | `(db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> IngestUrlResult` | Process one URL group; returns `{n_success, n_failed, n_embed_failed, skipped}` |
 | `close` | `() -> None` | Close the underlying `httpx.Client` |
 
@@ -340,11 +340,11 @@ Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config
 - **File:** `/opt/llm/logs/ingest.log` + stderr
 - **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
 
-| Level | Timing |
-|---|---|
-| `INFO` | Chunks processed, DB inserts, file moves |
-| `WARNING` | Embed API error, retry, embed skip |
-| `ERROR` | Chunk file read error, file move error, URL group failure (with traceback) |
+| Level | Timing | Structured fields |
+|---|---|---|
+| `INFO` | Chunks processed, DB inserts, file moves | `doc_id`, `source_type`, `stage_name` (on insert) |
+| `WARNING` | Embed API error, retry, embed skip | `source_type`, `stage_name` |
+| `ERROR` | Chunk file read error, file move error, URL group failure (with traceback) | — |
 
 ### 4.8 Configuration
 
@@ -379,6 +379,16 @@ from rag.utils import (
 | Constant | Value | Description |
 |---|---|---|
 | `MIN_TEXT_LENGTH_FOR_DETECTION` | `100` | Minimum text length for language detection; pages shorter than this use hint language |
+
+**Structured log keys (RAG lifecycle tracing):**
+
+| Key | Value | Used by |
+|---|---|---|
+| `url` | URL string | crawler, ingester |
+| `doc_id` | INTEGER document ID | ingester |
+| `chunk_id` | INTEGER chunk ID | chunk_splitter |
+| `source_type` | `"http"` / `"file"` | crawler, ingester |
+| `stage_name` | Stage name string | ingester |
 
 **Used by:**
 
