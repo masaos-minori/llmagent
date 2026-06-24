@@ -290,6 +290,7 @@ Budget breakdown:
 
 - **Remaining:** distance from `context_char_limit` → compression trigger
 - **Token estimate:** `chars / 4` unless `/tokenize` endpoint is configured
+- **Token limit:** `disabled` when `context_token_limit` is not set; shows `200,000 tokens` (or configured value) when `context_token_limit` is configured
 - **Memory layer:** `enabled (entries=N)` when `use_memory_layer=True`
 
 ---
@@ -307,6 +308,7 @@ Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 - **Partial completions:** LLM responses interrupted mid-stream; stored in `tool_result_store` (accessible via `/tool show llm_partial_completion`). For the canonical partial-completion model → [05_agent_03 §Partial-Completion Model](05_agent_03_turn-processing-flow.md)
 - **HB timeouts:** SSE heartbeat timeouts (possible LLM overload)
 - **Cache hits:** tool result cache hits (check `/tool list` for cached content)
+- **Approval pending:** `Approval: PENDING — use /approve or /reject` line appears only when `ctx.workflow.approval_pending=True`. Shown when a workflow task is waiting for `/approve` or `/reject`.
 
 ---
 
