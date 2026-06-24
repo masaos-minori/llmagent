@@ -88,7 +88,22 @@ tool names match live server tools. Mismatch → warning log; if `tool_definitio
 
 ## stdio Transport
 
-All servers support `--stdio` mode. The agent uses `StdioTransport` to communicate over
+All servers support `--stdio` mode.
+
+### When to use stdio
+
+- Running a single MCP server as an embedded subprocess (local testing, CI pipelines)
+- The MCP server has no external clients
+- Startup simplicity is more important than operational flexibility
+
+### When NOT to use stdio (use HTTP instead)
+
+- Production deployments — HTTP supports health checks, watchdog, and remote monitoring
+- Multiple agents sharing one MCP server
+- Server needs to be restarted independently of the agent
+- Any deployment where `transport = "http"` is feasible (HTTP is always preferred)
+
+> **Production default:** `transport = "http"`. Use `startup_mode = "external"` for daemon-style servers. The agent uses `StdioTransport` to communicate over
 the process's stdin/stdout with newline-delimited JSON.
 
 ### stdio Request (one line)

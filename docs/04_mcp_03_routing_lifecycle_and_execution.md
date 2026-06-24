@@ -250,6 +250,8 @@ class _ServerLifecycleRouter:
 
 ### startup_mode behavior
 
+> **Production note:** For production, prefer `transport = "http"` with `startup_mode = "external"`. HTTP transports support watchdog, health checks, and remote monitoring. stdio is for local/embedded use only.
+
 | startup_mode | When | Action |
 |---|---|---|
 | `persistent` (stdio) | Agent launch | `StdioTransport.start()` immediately |

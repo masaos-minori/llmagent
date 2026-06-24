@@ -64,6 +64,8 @@ Agent StdioTransport
 
 Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on any server.
 
+**Transport:** HTTP is the production default. stdio is supported for local/embedded use only. See `04_mcp_02` §Transport for the full decision guide.
+
 ---
 
 ## Startup Modes
