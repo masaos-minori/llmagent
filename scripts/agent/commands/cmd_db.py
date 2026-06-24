@@ -53,6 +53,8 @@ class _DbMixin(MixinBase):
             "urls": lambda: self._db_list_urls(rest),
             "clean": lambda: self._db_clean(rest),
             "rebuild-fts": self._db_rebuild_fts,
+            "vec-rebuild": self._db_vec_rebuild,
+            "reconcile-url": self._db_reconcile_url,
             "health": self._db_health,
             "checkpoint": lambda: self._db_checkpoint(rest.strip().upper() or None),
             "vacuum": self._db_vacuum,
@@ -85,6 +87,8 @@ class _DbMixin(MixinBase):
             "urls": lambda: self._db_list_urls(rest),
             "clean": lambda: self._db_clean(rest),
             "rebuild-fts": self._db_rebuild_fts,
+            "vec-rebuild": self._db_vec_rebuild,
+            "reconcile-url": self._db_reconcile_url,
             "recover": lambda: self._db_recover(rest.strip() or None),
             "consistency": self._db_consistency,
         }
@@ -124,6 +128,13 @@ class _DbMixin(MixinBase):
             ["rag urls", "RAG", "--lang --limit", "List document URLs"],
             ["rag clean", "RAG", "<url>", "Delete a document"],
             ["rag rebuild-fts", "RAG", "", "Rebuild FTS5 index"],
+            ["rag vec-rebuild", "RAG", "", "Rebuild vector index"],
+            [
+                "rag reconcile-url",
+                "RAG",
+                "<url>",
+                "Rebuild FTS/vec for a single URL",
+            ],
             [
                 "rag recover",
                 "RAG",
@@ -154,7 +165,7 @@ class _DbMixin(MixinBase):
         )
         self._out.write(
             "Legacy aliases (prefer /db rag/session forms):"
-            " /db stats|urls|clean|rebuild-fts"
+            " /db stats|urls|clean|rebuild-fts|vec-rebuild|reconcile-url"
             "|health|checkpoint|vacuum|purge|recover|consistency"
         )
         self._out.write(
@@ -168,6 +179,8 @@ class _DbMixin(MixinBase):
             ["urls", "--lang --limit", "List document URLs"],
             ["clean", "<url>", "Delete a document"],
             ["rebuild-fts", "", "Rebuild FTS5 index"],
+            ["vec-rebuild", "", "Rebuild vector index"],
+            ["reconcile-url", "<url>", "Rebuild FTS/vec for a single URL"],
             ["recover", "[backup-path]", "(admin) Integrity check / restore"],
             ["consistency", "", "Chunks/FTS/vec sync check"],
         ]
@@ -283,6 +296,23 @@ class _DbMixin(MixinBase):
         """Rebuild the RAG full-text search index."""
         RagMaintenanceService().rebuild_fts()
         self._out.write_success("FTS5 index rebuilt [RAG]")
+
+    def _db_vec_rebuild(self) -> None:
+        """Rebuild the vector index from chunks."""
+        count = RagMaintenanceService().rebuild_vec()
+        self._out.write_success(f"Vec index rebuilt: {count} rows [RAG]")
+
+    def _db_reconcile_url(self, rest: str) -> None:
+        """Rebuild FTS/vec for a single URL."""
+        url = rest.strip()
+        if not url:
+            self._out.write_validation_error("Usage: /db reconcile-url <url>")
+            return
+        result = RagMaintenanceService().reconcile_url(url)
+        if not result["found"]:
+            self._out.write_error(f"URL not found: {url}")
+        else:
+            self._out.write_success(f"Reconciled {result['chunks']} chunks for {url} [RAG]")
 
     def _db_health(self) -> None:
         """Print DB health metrics: integrity, size."""

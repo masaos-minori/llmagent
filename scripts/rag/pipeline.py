@@ -18,6 +18,7 @@ Module layout:
 """
 
 import asyncio
+import dataclasses
 import logging
 import sqlite3
 import time
@@ -26,13 +27,14 @@ from collections.abc import Callable
 import httpx
 from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
-from shared.plugin_registry import get_pipeline_post_stages, run_pipeline_stages
+from shared.config_validator import RagConfigValidator
+from shared.plugin_registry import PipelineHook, get_pipeline_post_stages, run_pipeline_stages
 from shared.types import RagConfig
 
 from rag.cache import SemanticCache
 from rag.llm import RagLLM, get_embedding
 from rag.models_data import TwoStageFetchResult
-from rag.models_result import SearchDiagnostics
+from rag.models_result import HttpResultKind, ResultSource, SearchDiagnostics
 from rag.pipeline_refiner import refine_context
 from rag.pipeline_service import call_rag_service
 from rag.repository import (
@@ -46,7 +48,7 @@ from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage
 from rag.stages.rerank import RerankStage
 from rag.stages.search import SearchStage
-from rag.types import MergedHit, RankedHit, RawHit
+from rag.types import MergedHit, PipelineRunResult, RankedHit, RawHit
 from rag.utils import sanitize_document
 
 RagHit = RawHit | MergedHit | RankedHit
@@ -120,8 +122,17 @@ class RagPipeline:
             max_size=cfg.semantic_cache_max_size,
             threshold=cfg.semantic_cache_threshold,
         )
-        # Initialize stages; load url/config from class-level cache
+        # Validate RAG config cross-file consistency
         _module_cfg = _ModuleConfig.get()
+        validator = RagConfigValidator()
+        result = validator.validate(_module_cfg)
+        for warning in result.warnings:
+            logger.warning("rag config warning: %s", warning)
+        for error in result.errors:
+            logger.error("rag config error: %s", error)
+        if not result.ok:
+            raise ValueError(f"RAG config validation failed: {result.errors}")
+        # Initialize stages; load url/config from class-level cache
         self._llm = RagLLM(self._http, _module_cfg.get("llm_url", ""), cfg=_module_cfg)
         self._embed_url: str = _module_cfg.get("embed_url", "")
         logger.info(
@@ -208,8 +219,8 @@ class RagPipeline:
         db: SQLiteHelper,
         history_context: str = "",
         hook_strict: bool = False,
-    ) -> tuple[list[str], list[list[RawHit]], list[RagHit], list[RagHit]]:
-        """Execute MQE→search→RRF→rerank on an open DB; returns (queries, all_results, merged, reranked); on_clear() called on exit."""
+    ) -> PipelineRunResult:
+        """Execute MQE→search→RRF→rerank on an open DB; returns PipelineRunResult; on_clear() called on exit."""
         try:
             ctx = PipelineContext(query=query, history_context=history_context)
             self.last_timings = {}
@@ -248,7 +259,7 @@ class RagPipeline:
             if get_pipeline_post_stages():
                 t0 = time.perf_counter()
                 ctx.reranked = await run_pipeline_stages(
-                    ctx.reranked, query, strict=hook_strict
+                    get_pipeline_post_stages(), ctx.reranked, query, strict=hook_strict
                 )
                 elapsed = time.perf_counter() - t0
                 self.last_timings["PluginHooks"] = elapsed
@@ -295,7 +306,14 @@ class RagPipeline:
                     ),
                 )
 
-            return ctx.queries, ctx.search_results, ctx.merged, ctx.reranked
+            return PipelineRunResult(
+                queries=ctx.queries,
+                search_results=ctx.search_results,
+                merged=ctx.merged,
+                reranked=ctx.reranked,
+                stage_results=list(ctx.stage_results),
+                diagnostics=ctx.search_diagnostics,
+            )
         finally:
             self._on_clear()
 
@@ -357,7 +375,7 @@ class RagPipeline:
         if rag_url := self._cfg.rag_service_url:
             t0 = time.perf_counter()
             http_fallback_reasons: list[str] = []
-            result = await call_rag_service(
+            result, remote_status_code, remote_latency_ms = await call_rag_service(
                 self._http,
                 rag_url,
                 query,
@@ -394,6 +412,24 @@ class RagPipeline:
                 if result == ""
                 else "in_process_fallback"
             )
+            # Assign SearchDiagnostics remote mode fields
+            if result is not None:
+                self.last_search_diagnostics = dataclasses.replace(
+                    self.last_search_diagnostics,
+                    result_source=ResultSource.REMOTE,
+                    http_result_kind=HttpResultKind.SUCCESS if result == "" else HttpResultKind.SUCCESS,
+                    remote_status_code=remote_status_code,
+                    remote_latency_ms=remote_latency_ms,
+                )
+            else:
+                self.last_search_diagnostics = dataclasses.replace(
+                    self.last_search_diagnostics,
+                    result_source=ResultSource.FALLBACK,
+                    http_result_kind=HttpResultKind.ERROR,
+                    remote_status_code=remote_status_code,
+                    remote_latency_ms=remote_latency_ms,
+                    fallback_reason=http_fallback_reason,
+                )
             if result is not None:
                 return result
         # Semantic cache lookup (in-process mode only)
@@ -412,7 +448,7 @@ class RagPipeline:
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             raise RagPipelineError(f"DB open failed (RAG unavailable): {e}") from e
         with db:
-            queries, all_results, merged, reranked = await self.run(
+            result = await self.run(
                 query,
                 db,
                 history_context=history_context,
@@ -420,16 +456,16 @@ class RagPipeline:
         # run() already calls on_clear() in its finally block
         if debug_fn is not None:
             debug_fn(
-                queries,
-                all_results,
-                merged,
-                reranked,
+                result.queries,
+                result.search_results,
+                result.merged,
+                result.reranked,
                 rrf_config={
                     "use_rrf": self._cfg.use_rrf,
                     "rrf_k": self._cfg.rrf_k,
                 },
             )
-        if not reranked:
+        if not result.reranked:
             return ""
         # Refiner: compress chunks to query-relevant key points before injection
         if self._cfg.use_refiner:

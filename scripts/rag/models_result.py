@@ -5,10 +5,25 @@ Result DTOs for the RAG and ingestion layers.
 
 from __future__ import annotations
 
+import enum
+
 from dataclasses import dataclass, field
 from typing import Any
 
 from rag.enums import MqeStatus
+
+
+class ResultSource(str, enum.Enum):
+    REMOTE = "remote"
+    LOCAL = "local"
+    FALLBACK = "fallback"
+
+
+class HttpResultKind(str, enum.Enum):
+    SUCCESS = "success"
+    EMPTY = "empty"
+    ERROR = "error"
+    NOT_USED = "not_used"
 
 
 @dataclass(frozen=True)
@@ -63,3 +78,9 @@ class SearchDiagnostics:
     embed_ok: int = 0
     embed_failed: int = 0
     fts_errors: int = 0
+    # Remote mode fields (new):
+    result_source: ResultSource = ResultSource.LOCAL
+    http_result_kind: HttpResultKind = HttpResultKind.NOT_USED
+    remote_status_code: int | None = None
+    remote_latency_ms: float | None = None
+    fallback_reason: str | None = None

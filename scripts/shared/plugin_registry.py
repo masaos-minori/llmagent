@@ -42,11 +42,25 @@ import typing
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, Protocol, TypeVar, runtime_checkable
+
+from rag.types import RagHit
 
 logger = logging.getLogger(__name__)
 
 _F = TypeVar("_F", bound=Callable[..., Any])
+
+
+@runtime_checkable
+class PipelineHook(Protocol):
+    """Post-rerank pipeline hook contract.
+
+    Input:  list[RagHit] + query str
+    Output: list[RagHit] (modified or filtered)
+    strict=True:  exception propagates; pipeline fails
+    strict=False: exception logged as WARNING; original hits returned
+    """
+    async def __call__(self, hits: list[RagHit], query: str) -> list[RagHit]: ...
 
 # Type alias for registered tool handlers: async function (args dict) → (output, is_error)
 ToolHandler = Callable[[dict[str, Any]], Awaitable[tuple[str, bool]]]
@@ -57,7 +71,7 @@ ToolHandler = Callable[[dict[str, Any]], Awaitable[tuple[str, bool]]]
 _commands: dict[str, tuple[Callable[..., Any], bool, str]] = {}
 # Stores (handler, module_name) per tool name.
 _tools: dict[str, tuple[Callable[..., Any], str]] = {}
-_pipeline_post: list[Callable[..., Any]] = []
+_pipeline_post: list[PipelineHook] = []
 
 # Set by load_plugins() around each exec_module() call so that decorators can
 # record the originating module name without an explicit parameter.
@@ -120,6 +134,11 @@ def register_pipeline_stage(*, when: str = "post") -> Callable[[_F], _F]:
     return decorator
 
 
+def get_pipeline_post_stages() -> list[PipelineHook]:
+    """Return a snapshot of all registered post-rerank pipeline stage hooks."""
+    return list(_pipeline_post)
+
+
 # ── Accessors ─────────────────────────────────────────────────────────────────
 
 
@@ -168,19 +187,20 @@ def register_builtin_commands(names: frozenset[str]) -> None:
 
 
 async def run_pipeline_stages(
-    hits: list[Any],
+    hooks: list[PipelineHook],
+    hits: list[RagHit],
     query: str,
     *,
     strict: bool = False,
-) -> list[Any]:
+) -> list[RagHit]:
     """Execute all registered post-rerank hooks with error isolation.
 
-    Iterates get_pipeline_post_stages(); calls each hook with (hits, query).
+    Iterates hooks; calls each hook with (hits, query).
     Supports both sync and async hooks (detected via asyncio.iscoroutinefunction).
     Failed hooks are logged and skipped; strict=True re-raises the first failure.
     Returns the (possibly modified) hits list.
     """
-    for hook in get_pipeline_post_stages():
+    for hook in hooks:
         try:
             if asyncio.iscoroutinefunction(hook):
                 result = await hook(hits, query)

@@ -37,7 +37,7 @@ async def test_remote_nonempty(monkeypatch) -> None:
     async def mock_call_rag_service(
         http, rag_url, query, history_context, *, auth_token="", set_fetch_result=None, set_fallback_reason=None
     ):
-        return "context text"
+        return "context text", 200, 50.0
 
     with patch("rag.pipeline.call_rag_service", mock_call_rag_service):
         await pipeline.augment("query")
@@ -59,7 +59,7 @@ async def test_remote_empty(monkeypatch) -> None:
     async def mock_call_rag_service(
         http, rag_url, query, history_context, *, auth_token="", set_fetch_result=None, set_fallback_reason=None
     ):
-        return ""
+        return "", 200, 30.0
 
     with patch("rag.pipeline.call_rag_service", mock_call_rag_service):
         await pipeline.augment("query")
@@ -83,7 +83,7 @@ async def test_in_process_fallback(monkeypatch) -> None:
     ):
         if set_fallback_reason:
             set_fallback_reason("connection error")
-        return None
+        return None, 503, 100.0
 
     with patch("rag.pipeline.call_rag_service", mock_call_rag_service):
         # Also mock the in-process pipeline steps to avoid real execution

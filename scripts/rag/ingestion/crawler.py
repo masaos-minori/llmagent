@@ -95,6 +95,9 @@ class WebCrawler:
         # Python files are stored as code blocks so the code chunker applies.
         is_python = path.suffix == ".py"
         payload: dict[str, Any] = {
+            "schema_version": "1",
+            "artifact_type": "crawl",
+            "created_by": "crawler",
             "url": url,
             "title": path.name,
             "lang": resolved_lang,
@@ -287,6 +290,9 @@ class WebCrawler:
         self._rag_src_dir.mkdir(parents=True, exist_ok=True)
         path = self._make_crawl_filepath(url)
         payload: dict[str, Any] = {
+            "schema_version": "1",
+            "artifact_type": "crawl",
+            "created_by": "crawler",
             "url": url,
             "title": title,
             "lang": lang,

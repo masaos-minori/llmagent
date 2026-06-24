@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import sqlite3
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from rag.pipeline import (
@@ -168,29 +168,19 @@ class TestRagPipelineErrorOnDbOpen:
     async def test_augment_returns_empty_string_on_zero_results(self) -> None:
         """Empty DB results (0 hits) returns '' — distinct from DB failure."""
         pipeline = self._make_pipeline()
-        mock_db_instance = MagicMock()
-        mock_db_instance.__enter__ = MagicMock(return_value=mock_db_instance)
-        mock_db_instance.__exit__ = MagicMock(return_value=False)
-        mock_db_instance.open = MagicMock(return_value=mock_db_instance)
 
-        with (
-            patch("rag.pipeline.SQLiteHelper", return_value=mock_db_instance),
-            patch("rag.pipeline.MqeStage") as mock_mqe,
-            patch("rag.pipeline.SearchStage") as mock_search,
-            patch("rag.pipeline.FusionStage") as mock_fusion,
-            patch("rag.pipeline.RerankStage") as mock_rerank,
-            patch("rag.pipeline.AugmentStage") as mock_augment,
-        ):
-
-            async def noop(ctx, **kwargs):
-                pass
-
-            for M in (mock_mqe, mock_search, mock_fusion, mock_rerank, mock_augment):
-                inst = MagicMock()
-                inst.run = noop
-                M.return_value = inst
-
+        from rag.types import PipelineRunResult
+        original_run = pipeline.run
+        async def mock_run(*args, **kwargs):
+            return PipelineRunResult(
+                queries=[], search_results=[], merged=[], reranked=[],
+                stage_results=[], diagnostics=pipeline.last_search_diagnostics,
+            )
+        pipeline.run = mock_run
+        try:
             result = await pipeline.augment("test query")
+        finally:
+            pipeline.run = original_run
 
         assert result == ""
 

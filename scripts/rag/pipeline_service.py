@@ -7,6 +7,7 @@ Imported by rag/pipeline.py during orchestrator construction.
 
 import asyncio
 import logging
+import time
 from collections.abc import Callable
 
 import httpx
@@ -38,7 +39,7 @@ async def call_rag_service(
     auth_token: str = "",
     set_fetch_result: Callable[[TwoStageFetchResult], None],
     set_fallback_reason: Callable[[str], None] | None = None,
-) -> str | None:
+) -> tuple[str | None, int | None, float]:
     """Delegate to external RAG service for context augmentation.
 
     Request details:
@@ -99,12 +100,15 @@ async def call_rag_service(
 
     for attempt in range(_MAX_ATTEMPTS):
         try:
+            t0 = time.perf_counter()
             resp = await http.post(
                 f"{rag_url}/v1/search",
                 json={"query": query, "history_context": history_context},
                 headers=headers,
                 timeout=10.0,
             )
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            status_code = resp.status_code
             resp.raise_for_status()
             body = orjson.loads(resp.content)
             hits = body.get("selected_hits", [])
@@ -120,13 +124,13 @@ async def call_rag_service(
                 )
             context_raw = body.get("context")
             if context_raw is None:
-                return ""
+                return "", status_code, elapsed_ms
             if not isinstance(context_raw, str):
                 raise ValueError(
                     f"RAG service 'context' field must be str,"
                     f" got {type(context_raw).__name__}"
                 )
-            return context_raw
+            return context_raw, status_code, elapsed_ms
         except httpx.HTTPStatusError as e:
             if e.response.status_code < 500:
                 logger.warning(
@@ -136,7 +140,7 @@ async def call_rag_service(
                 )
                 if set_fallback_reason is not None:
                     set_fallback_reason(f"http_client_error: {e.response.status_code}")
-                return None
+                return None, e.response.status_code, 0.0
             _log_retry(rag_url, attempt, e)
         except httpx.TransportError as e:
             _log_retry(rag_url, attempt, e)
@@ -148,7 +152,7 @@ async def call_rag_service(
             )
             if set_fallback_reason is not None:
                 set_fallback_reason(f"http_parse_error: {e}")
-            return None
+            return None, None, 0.0
         if attempt < _MAX_ATTEMPTS - 1:
             await asyncio.sleep(min(2**attempt, 5))
 
@@ -159,4 +163,4 @@ async def call_rag_service(
     )
     if set_fallback_reason is not None:
         set_fallback_reason(f"http_max_retries: {_MAX_ATTEMPTS} attempts failed")
-    return None
+    return None, None, 0.0

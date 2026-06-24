@@ -214,6 +214,9 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         for idx, (chunk_type, chunk_content, norm_content) in enumerate(chunks):
             out_path = self._chunk_dir / f"{src_path.stem}-{idx:04d}.json"
             payload: dict[str, Any] = {
+                "schema_version": "1",
+                "artifact_type": "chunk",
+                "created_by": "chunk_splitter",
                 "url": url,
                 "title": title,
                 "lang": lang,

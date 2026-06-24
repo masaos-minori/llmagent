@@ -34,6 +34,9 @@ def _make_chunk_json(
 ) -> dict:
     """Build a chunk JSON dict matching what ChunkSplitter produces."""
     return {
+        "schema_version": "1",
+        "artifact_type": "chunk",
+        "created_by": "chunk_splitter",
         "url": url,
         "title": title,
         "lang": lang,

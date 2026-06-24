@@ -57,4 +57,54 @@ class RagMaintenanceService:
             detail=result.detail or "",
         )
 
+    def rebuild_vec(self) -> int:
+        """Rebuild chunks_vec from chunks. Returns number of rows inserted."""
+        with SQLiteHelper("rag").open(write_mode=True) as db:
+            db.execute("DELETE FROM chunks_vec")
+            rows = db.execute(
+                "SELECT chunk_id, embedding FROM chunks WHERE embedding IS NOT NULL"
+            ).fetchall()
+            for row in rows:
+                db.execute(
+                    "INSERT INTO chunks_vec(chunk_id, embedding) VALUES(?, ?)",
+                    (row["chunk_id"], row["embedding"]),
+                )
+            return len(rows)
+
+    def reconcile_url(self, url: str) -> dict:
+        """Rebuild FTS/vec for a single URL."""
+        with SQLiteHelper("rag").open(write_mode=True) as db:
+            doc = db.execute(
+                "SELECT doc_id FROM documents WHERE url = ?", (url,)
+            ).fetchone()
+            if doc is None:
+                return {"found": False}
+            doc_id = doc["doc_id"]
+            chunk_ids = [
+                r["chunk_id"]
+                for r in db.execute(
+                    "SELECT chunk_id FROM chunks WHERE doc_id = ?", (doc_id,)
+                ).fetchall()
+            ]
+            for cid in chunk_ids:
+                db.execute("DELETE FROM chunks_vec WHERE chunk_id = ?", (cid,))
+            if chunk_ids:
+                placeholders = ",".join("?" * len(chunk_ids))
+                db.execute(f"DELETE FROM chunks_fts WHERE chunk_id IN ({placeholders})", chunk_ids)
+            for cid in chunk_ids:
+                row = db.execute(
+                    "SELECT content, embedding FROM chunks WHERE chunk_id = ?", (cid,)
+                ).fetchone()
+                if row:
+                    db.execute(
+                        "INSERT INTO chunks_fts(chunk_id, content) VALUES(?, ?)",
+                        (cid, row["content"]),
+                    )
+                    if row["embedding"]:
+                        db.execute(
+                            "INSERT INTO chunks_vec(chunk_id, embedding) VALUES(?, ?)",
+                            (cid, row["embedding"]),
+                        )
+            return {"found": True, "chunks": len(chunk_ids)}
+
  

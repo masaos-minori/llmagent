@@ -29,6 +29,15 @@ RagPipeline.augment(query)
 **Caller:** `scripts/mcp/rag_pipeline/service.py` (`RagPipelineMCPService`). Agent REPL does not
 call `RagPipeline` directly.
 
+### MCP サーバー呼び出しパス
+
+```
+MCP クライアント
+  → scripts/mcp/rag_pipeline/server.py (HTTP ルート)
+    → RagPipelineMCPService.run_pipeline() (service.py)
+      → RagPipeline.run() (scripts/rag/pipeline.py)
+```
+
 ---
 
 ## 2. RagPipeline Class (`scripts/rag/pipeline.py`)

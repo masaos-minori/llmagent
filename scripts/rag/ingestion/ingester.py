@@ -153,6 +153,13 @@ class RagIngester:
             return IngestUrlResult(
                 url=url, n_success=0, n_failed=len(chunk_files), skipped=False
             )
+        try:
+            self._validate_artifact(first_data, "chunk")
+        except ValueError as e:
+            logger.error("artifact validation failed for %s: %s", url, e)
+            return IngestUrlResult(
+                url=url, n_success=0, n_failed=len(chunk_files), skipped=False
+            )
         title: str = first_data.get("title", "")
         lang: str = first_data.get("lang", "en")
         etag: str | None = first_data.get("etag")
@@ -238,6 +245,15 @@ class RagIngester:
         return None
 
     # ── Document helpers ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def _validate_artifact(payload: dict[str, Any], expected_type: str) -> None:
+        """Validate artifact_type field; lenient for backward compatibility (missing artifact_type is accepted)."""
+        actual = payload.get("artifact_type")
+        if actual is not None and actual != expected_type:
+            raise ValueError(
+                f"Expected artifact_type={expected_type!r}, got {actual!r}"
+            )
 
     @staticmethod
     def _is_file_unchanged(
@@ -392,6 +408,11 @@ class RagIngester:
         """
         data = self._read_chunk_json(path)
         if data is None:
+            return False, False
+        try:
+            self._validate_artifact(data, "chunk")
+        except ValueError:
+            logger.warning("artifact validation failed for %s", path.name)
             return False, False
         content: str = data.get("content", "")
         nc_raw = data.get("normalized_content")
