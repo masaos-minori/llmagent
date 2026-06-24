@@ -86,7 +86,12 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             return 0
         sentinel = self._chunk_dir / f"{src_path.stem}-0000.json"
         if is_already_processed(sentinel, force):
-            logger.info("skip (already chunked): %s", src_path.name)
+            chunk_doc = self._read_source_data(src_path)
+            if chunk_doc is not None:
+                logger.info(
+                    "skip (already chunked)",
+                    extra={"url": chunk_doc.get("url", "")},
+                )
             return 0
         chunk_doc = self._read_source_data(src_path)
         if chunk_doc is None:
@@ -95,7 +100,12 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         chunks = self._build_chunk_list(data)
         chunking_strategy = "heading" if self._is_markdown_source(data) else "text"
         written = self._write_chunk_files(chunks, data, src_path, chunking_strategy)
-        logger.info("chunked %s chunks from %s", written, src_path.name)
+        logger.info(
+            "chunked %s chunks from %s",
+            written,
+            src_path.name,
+            extra={"url": data.get("url", "")},
+        )
         return written
 
     # ── English and Japanese chunking ─────────────────────────────────────────
