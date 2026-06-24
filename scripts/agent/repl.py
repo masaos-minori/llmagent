@@ -23,6 +23,7 @@ AgentREPL responsibilities:
 
 import asyncio
 import json
+import signal
 import sqlite3
 import time
 from pathlib import Path
@@ -87,6 +88,8 @@ class AgentREPL:
         self._cmds: CommandRegistry | None = None
         self._orchestrator: Orchestrator | None = None
         self._diagnostic_store = DiagnosticStore()
+        self._turn_active: bool = False
+        self._shutdown_event: asyncio.Event | None = None
 
     @property
     def _prompt(self) -> str:
@@ -300,6 +303,13 @@ class AgentREPL:
     async def _close_resources(self) -> None:
         """Close all session resources. Called in the run() finally block."""
         self._view.write_history()
+        # WAL checkpoint before closing connections
+        try:
+            with SQLiteHelper("session").open(write_mode=True) as db:
+                db.checkpoint("TRUNCATE")
+            logger.info("WAL checkpoint completed on shutdown")
+        except Exception as e:
+            logger.warning("WAL checkpoint failed on shutdown: %s", e)
         # ctx.services is None when build_agent_context() never completed (e.g. init failed).
         svc = self._ctx.services
         if svc is not None:
@@ -316,6 +326,7 @@ class AgentREPL:
         if self._orchestrator is None:
             raise RuntimeError("_repl_loop called before _init_components()")
         loop = asyncio.get_running_loop()
+        _GRACEFUL_TIMEOUT: float = 10.0
         while True:
             line = await self._read_input(loop)
             if line is None:
@@ -324,7 +335,22 @@ class AgentREPL:
                 continue
             if self._should_exit(line, ctx):
                 break
-            await self._dispatch_line(line, ctx)
+            self._turn_active = True
+            try:
+                await asyncio.wait_for(
+                    self._dispatch_line(line, ctx),
+                    timeout=_GRACEFUL_TIMEOUT if ctx.conv.shutdown_requested else None,
+                )
+            except TimeoutError:
+                logger.warning(
+                    "Graceful shutdown: turn did not complete within %.1fs; forcing exit",
+                    _GRACEFUL_TIMEOUT,
+                )
+                break
+            finally:
+                self._turn_active = False
+            if ctx.conv.shutdown_requested:
+                break
 
     async def _read_input(self, loop: asyncio.AbstractEventLoop) -> str | None:
         """Read a single input line, handling EOF/keyboard interrupt and multiline continuation."""
@@ -419,6 +445,21 @@ class AgentREPL:
         from agent.startup import (
             StartupOrchestrator,  # noqa: PLC0415 — lazy: avoids circular import at module level
         )
+
+        loop = asyncio.get_running_loop()
+        self._shutdown_event = asyncio.Event()
+
+        def _sigterm_handler() -> None:
+            self._ctx.conv.shutdown_requested = True
+            if self._shutdown_event is not None:
+                self._shutdown_event.set()
+            logger.info("SIGTERM received; graceful shutdown initiated")
+
+        try:
+            loop.add_signal_handler(signal.SIGTERM, _sigterm_handler)
+        except NotImplementedError:
+            import signal as _signal
+            _signal.signal(_signal.SIGTERM, lambda *_: _sigterm_handler())
 
         startup = StartupOrchestrator(self._ctx, self._view)
         self._cmds, self._orchestrator = await startup.run()
