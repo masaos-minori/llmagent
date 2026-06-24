@@ -8,6 +8,7 @@ Provides _ToolingMixin with:
 """
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import orjson
@@ -20,23 +21,33 @@ from agent.commands.models import MaskedArgs, ToolResultView
 logger = logging.getLogger(__name__)
 
 
-def _decode_args(raw: str | None) -> dict[str, Any]:
-    if not raw:
-        return {}
+@dataclass(frozen=True)
+class DecodedArgs:
+    data: dict[str, Any]
+    parse_error: str | None = None
+
+
+def _decode_args(raw: str | None) -> DecodedArgs:
+    if raw is None:
+        return DecodedArgs(data={})
     try:
-        result = orjson.loads(raw)
-        return result if isinstance(result, dict) else {}
-    except orjson.JSONDecodeError:
-        logger.warning("Failed to decode args_masked JSON; displaying empty args")
-        return {}
+        parsed = orjson.loads(raw)
+        if not isinstance(parsed, dict):
+            return DecodedArgs(data={}, parse_error="non-dict JSON")
+        return DecodedArgs(data=parsed)
+    except orjson.JSONDecodeError as e:
+        return DecodedArgs(data={}, parse_error=str(e))
 
 
 def _to_tool_result_view(entry: ToolResultRow) -> ToolResultView:
+    decoded = _decode_args(entry.args_masked)
+    if decoded.parse_error:
+        logger.debug("cmd_tooling: args decode error: %s", decoded.parse_error)
     return ToolResultView(
         result_id=entry.id,
         tool_name=entry.tool_name,
         summary=entry.summary,
-        args_masked=MaskedArgs(data=_decode_args(entry.args_masked)),
+        args_masked=MaskedArgs(data=decoded.data),
         is_error=entry.is_error,
     )
 
