@@ -221,7 +221,15 @@ The agent layer operates across three SQLite databases:
 
 DB paths are configured via `rag_db_path`, `session_db_path`, `workflow_db_path` in `common.toml`. Full schema details: `90_shared_04_db_architecture_and_schema.md`.
 
-> **Note:** The `/db session` scope covers session.sqlite maintenance. There is no separate workflow DB accessible via `/db` — workflow tables live in session.sqlite.
+**DB ownership:**
+
+| Database | Owner module | Key class |
+|---|---|---|
+| `session.sqlite` | `agent/session.py` | `AgentSession` |
+| `workflow.sqlite` | `agent/workflow/state_store.py` | `StateStore` |
+| `rag.sqlite` | `scripts/mcp/rag_pipeline/` | RAG MCP server |
+
+> **Note:** The `/db session` scope covers session.sqlite maintenance. `/db` does not expose workflow.sqlite for direct maintenance — workflow state is managed exclusively by `StateStore` via `WorkflowEngine`.
 
 ---
 
