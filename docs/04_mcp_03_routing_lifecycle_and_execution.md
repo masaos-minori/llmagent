@@ -285,6 +285,8 @@ At startup, the agent logs one of:
 
 ## Lifecycle Flow
 
+ツール定義の起動時バリデーション動作については `04_mcp_06` §Startup Validation Behavior を参照。
+
 ```
 AgentREPL.run()
   → _start_mcp_servers()
