@@ -310,6 +310,18 @@ Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 
 ---
 
+## Partial Completion and Truncation Monitoring
+
+| Condition | How to detect | Action |
+|---|---|---|
+| LLM stream interrupted (partial completion) | `/stats` shows `partials > 0`; agent log: `WARNING Partial LLM completion saved: {kind}` | `/tool show llm_partial_completion` to view content; check LLM endpoint stability |
+| Context compression (HistoryManager) | `/stats` shows `Compress: N > 0`; agent log: `INFO Compressed history` | Increase `compression_char_threshold` or reduce context size |
+| Max tool turns hit | Agent log: `WARNING max_tool_turns=N reached` | Increase `max_tool_turns` in `config/tools.toml` |
+
+For the canonical partial-completion model → [05_agent_03 §Partial-Completion Model](05_agent_03_turn-processing-flow.md).
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause | Action |
