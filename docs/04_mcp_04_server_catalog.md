@@ -9,6 +9,8 @@
 Per-server specification for all 11 MCP servers: purpose, port, tools, input/output,
 config, startup, security, logs, operational notes, and known limitations.
 
+> **Note:** This document is the authoritative server catalog. For the system-level server list with ports and transport types, see [04_mcp_01_system_overview.md §Server Catalog](04_mcp_01_system_overview.md).
+
 ---
 
 ## web-search-mcp (port 8004)

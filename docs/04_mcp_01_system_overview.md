@@ -25,6 +25,8 @@ a set of independent server processes.
 
 ## Server Catalog
 
+Per-server configuration, tools, security settings, and operational notes → [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) (authoritative catalog).
+
 | Server | Port | Transport | Startup mode | Tools | Role |
 |---|---|---|---|---|---|
 | web-search-mcp | 8004 | HTTP | persistent | 1 | Web search (DuckDuckGo) |
