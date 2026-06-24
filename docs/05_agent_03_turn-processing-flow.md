@@ -153,6 +153,29 @@ Action:
 
 ---
 
+## Partial-Completion Model
+
+A partial completion occurs when the LLM response stream is interrupted before all content is received.
+
+| Trigger | Stored where | Visible via | `stat_partial_completions` |
+|---|---|---|---|
+| `LLMTransportError` with non-empty `partial_text` | `tool_result_store` (`tool_name="llm_partial_completion"`) + `session_diagnostics` table | `/tool show llm_partial_completion`, `/stats` | +1 |
+| `LLMTransportError` with empty `partial_text` (pre-stream) | Not stored (user message popped from history) | User-visible error message | no change |
+
+**Key invariant:** partial content is NEVER added to `ctx.conv.history`. It is isolated in the diagnostic channel so it cannot pollute future LLM context.
+
+After each turn, `AgentREPL._dispatch_line()` checks if `stat_partial_completions` increased. If so:
+
+```
+[warn] Partial LLM completion stored. Use /stats to see count or query tool_results (tool_name='llm_partial_completion').
+```
+
+See §LLM Transport Error (partial completion) above for implementation details.
+For persistence behavior → [05_agent_04 §Message save rules](05_agent_04_state-and-persistence.md).
+For operator monitoring → [05_agent_10 §Interpreting /stats](05_agent_10_operations-and-observability.md).
+
+---
+
 ## WorkflowEngine Integration
 
 `Orchestrator.handle_turn()` runs via `WorkflowEngine` when `config/workflows/default.json`

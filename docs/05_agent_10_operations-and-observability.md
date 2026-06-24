@@ -304,7 +304,7 @@ Input tokens: 2,048 | Output tokens: 512
 Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 ```
 
-- **Partial completions:** LLM responses interrupted mid-stream (stored in `/tool show`)
+- **Partial completions:** LLM responses interrupted mid-stream; stored in `tool_result_store` (accessible via `/tool show llm_partial_completion`). For the canonical partial-completion model → [05_agent_03 §Partial-Completion Model](05_agent_03_turn-processing-flow.md)
 - **HB timeouts:** SSE heartbeat timeouts (possible LLM overload)
 - **Cache hits:** tool result cache hits (check `/tool list` for cached content)
 
