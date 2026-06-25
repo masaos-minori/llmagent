@@ -19,8 +19,15 @@ from eventbus.config import (
     get_schema_path,
     load_config,
 )
-from eventbus.db import open_db
-from eventbus.dlq import promote_to_dlq
+from eventbus.db import (
+    check_db,
+    fetch_dlq,
+    fetch_events_since,
+    insert_event,
+    open_db,
+    requeue_event,
+)
+from eventbus.dlq import promote_single, sweep_orphans
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +66,12 @@ async def _dlq_loop() -> None:
     while True:
         try:
             assert _cfg is not None
-            n = promote_to_dlq(_db, _cfg.deadletter_dir, _cfg.max_retry)  # type: ignore[arg-type]
+            assert _db is not None
+            n = await asyncio.to_thread(
+                sweep_orphans, _db, _cfg.deadletter_dir, _cfg.max_retry
+            )
             if n:
-                logger.info("dlq_loop promoted=%d", n)
+                logger.warning("dlq_loop: swept %d orphan(s) missed by inline promotion", n)
         except Exception:
             logger.exception("dlq_loop error")
         await asyncio.sleep(_DLQ_INTERVAL)
@@ -72,11 +82,12 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    db_status = "ok"
-    try:
-        _db.execute("SELECT 1")  # type: ignore[union-attr]
-    except Exception:
-        db_status = "unavailable"
+    def _check() -> bool:
+        assert _db is not None
+        return check_db(_db)
+
+    db_ok = await asyncio.to_thread(_check)
+    db_status = "ok" if db_ok else "unavailable"
 
     dlq_task_status = (
         "running" if (_dlq_task is not None and not _dlq_task.done()) else "stopped"
@@ -101,18 +112,15 @@ async def publish(request: Request) -> dict[str, Any]:
     producer: str = body["producer"]
     published_at: str = body["published_at"]
 
-    cur = _db.execute(  # type: ignore[union-attr]
-        "INSERT OR IGNORE INTO events"
-        " (event_id, topic, payload, producer, published_at)"
-        " VALUES (?, ?, ?, ?, ?)",
-        (event_id, topic, payload_str, producer, published_at),
-    )
-    _db.commit()  # type: ignore[union-attr]
-
-    seq: int = (
-        cur.lastrowid
-        if (cur.rowcount > 0 and cur.lastrowid is not None)
-        else _get_seq(event_id)
+    assert _db is not None
+    seq, _ = await asyncio.to_thread(
+        insert_event,
+        _db,
+        event_id,
+        topic,
+        payload_str,
+        producer,
+        published_at,
     )
 
     try:
@@ -128,11 +136,8 @@ async def replay(
     since_seq: int = Query(default=0, ge=0),
     fmt: str = Query(default="sse", alias="format"),
 ) -> Any:
-    rows = _db.execute(  # type: ignore[union-attr]
-        "SELECT seq, event_id, topic, payload, producer, published_at"
-        " FROM events WHERE seq > ? ORDER BY seq",
-        (since_seq,),
-    ).fetchall()
+    assert _db is not None
+    rows = await asyncio.to_thread(fetch_events_since, _db, since_seq)
 
     if fmt == "json":
         return [_row_to_dict(r) for r in rows]
@@ -160,12 +165,12 @@ async def subscribe(
         assert _cfg is not None
         start_seq = read_offset(_cfg.offsets_dir, consumer_id)
 
+    assert _db is not None
     assert _cfg is not None
     interval = _cfg.poll_interval_ms / 1000.0
 
     async def _sse_gen() -> Any:
         current_seq = start_seq
-        events_since_checkpoint = 0
         try:
             while True:
                 logger.debug(
@@ -174,31 +179,16 @@ async def subscribe(
                     current_seq,
                 )
                 if topic:
-                    placeholders = ",".join("?" for _ in topic)
-                    rows = _db.execute(  # type: ignore[union-attr]
-                        f"SELECT seq, event_id, topic, payload, producer, published_at"  # noqa: UP032
-                        f" FROM events WHERE seq > ? AND topic IN ({placeholders})"
-                        f" ORDER BY seq",
-                        (current_seq, *topic),
-                    ).fetchall()
+                    rows = await asyncio.to_thread(
+                        fetch_events_since, _db, current_seq, topic
+                    )
                 else:
-                    rows = _db.execute(  # type: ignore[union-attr]
-                        "SELECT seq, event_id, topic, payload, producer, published_at"
-                        " FROM events WHERE seq > ? ORDER BY seq",
-                        (current_seq,),
-                    ).fetchall()
+                    rows = await asyncio.to_thread(fetch_events_since, _db, current_seq)
 
                 for row in rows:
                     data = orjson.dumps(_row_to_dict(row)).decode()
                     yield f"data: {data}\n\n"
                     current_seq = row["seq"]
-                    events_since_checkpoint += 1
-                    if events_since_checkpoint >= _cfg.offset_checkpoint_interval:
-                        from eventbus.offsets import write_offset  # noqa: PLC0415
-
-                        assert _cfg is not None
-                        write_offset(_cfg.offsets_dir, consumer_id, current_seq)
-                        events_since_checkpoint = 0
 
                 await asyncio.sleep(interval)
 
@@ -206,35 +196,91 @@ async def subscribe(
             logger.info(
                 "subscribe disconnected consumer=%s seq=%d", consumer_id, current_seq
             )
-            if consumer_id:
-                from eventbus.offsets import write_offset  # noqa: PLC0415
-
-                assert _cfg is not None
-                write_offset(_cfg.offsets_dir, consumer_id, current_seq)
 
     return StreamingResponse(_sse_gen(), media_type="text/event-stream")
 
 
 @app.get("/dlq")
 async def dlq_list() -> list[dict[str, Any]]:
-    rows = _db.execute(  # type: ignore[union-attr]
-        "SELECT seq, event_id, topic, producer, published_at, retry_count, dlq_at"
-        " FROM events WHERE dlq_at IS NOT NULL ORDER BY seq"
-    ).fetchall()
+    rows = await asyncio.to_thread(fetch_dlq, _db)  # type: ignore[arg-type]
     return [dict(r) for r in rows]
 
 
 @app.post("/dlq/{event_id}/requeue")
 async def dlq_requeue(event_id: str) -> dict[str, Any]:
-    cur = _db.execute(  # type: ignore[union-attr]
-        "UPDATE events SET retry_count = retry_count + 1, dlq_at = NULL WHERE event_id = ?",
-        (event_id,),
-    )
-    _db.commit()  # type: ignore[union-attr]
-    if cur.rowcount == 0:
+    if await asyncio.to_thread(requeue_event, _db, event_id):  # type: ignore[arg-type]
+        logger.info("dlq requeued event_id=%s", event_id)
+        return {"event_id": event_id, "requeued": True}
+    raise HTTPException(status_code=404, detail="event not found")
+
+
+@app.post("/ack")
+async def ack(
+    event_id: str = Query(default=""),
+    consumer_id: str = Query(default=""),
+) -> dict[str, Any]:
+    if not event_id:
+        raise HTTPException(status_code=400, detail="event_id is required")
+
+    def _ack_and_offset() -> tuple[bool, int | None]:
+        from eventbus.db import ack_event as _ack_event
+        from eventbus.offsets import write_offset  # noqa: PLC0415
+
+        now = (
+            __import__("datetime")
+            .datetime.now(__import__("datetime").UTC)
+            .strftime("%Y-%m-%dT%H:%M:%SZ")
+        )
+        acked = _ack_event(_db, event_id, now)  # type: ignore[arg-type]
+        seq: int | None = None
+        if consumer_id and acked:
+            row = _db.execute(
+                "SELECT seq FROM events WHERE event_id = ?", (event_id,)
+            ).fetchone()
+            if row:
+                seq = int(row["seq"])
+                assert _cfg is not None
+                write_offset(_cfg.offsets_dir, consumer_id, seq)
+        return (acked, seq)
+
+    acked, seq = await asyncio.to_thread(_ack_and_offset)
+    if not acked:
+        raise HTTPException(status_code=404, detail="event not found or already acked")
+    logger.info("event acked event_id=%s", event_id)
+    return {"event_id": event_id, "acked": True, "seq": seq}
+
+
+@app.post("/nack")
+async def nack(event_id: str = Query(default="")) -> dict[str, Any]:
+    if not event_id:
+        raise HTTPException(status_code=400, detail="event_id is required")
+
+    def _nack_and_promote() -> tuple[int, bool]:
+        from eventbus.db import nack_event as _nack_event
+
+        assert _db is not None
+        assert _cfg is not None
+        failure_count = _nack_event(_db, event_id)
+        if failure_count == -1:
+            return (-1, False)
+        promoted = False
+        if failure_count >= _cfg.max_retry:
+            promoted = promote_single(_db, _cfg.deadletter_dir, event_id)
+        return (failure_count, promoted)
+
+    failure_count, promoted = await asyncio.to_thread(_nack_and_promote)
+    if failure_count == -1:
         raise HTTPException(status_code=404, detail="event not found")
-    logger.info("dlq requeued event_id=%s", event_id)
-    return {"event_id": event_id, "requeued": True}
+    logger.info(
+        "event nacked event_id=%s delivery_failure_count=%d", event_id, failure_count
+    )
+    result: dict[str, Any] = {
+        "event_id": event_id,
+        "delivery_failure_count": failure_count,
+    }
+    if promoted:
+        result["dlq_promoted"] = True
+    return result
 
 
 def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
@@ -246,13 +292,6 @@ def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
         "producer": row["producer"],
         "published_at": row["published_at"],
     }
-
-
-def _get_seq(event_id: str) -> int:
-    row = _db.execute(  # type: ignore[union-attr]
-        "SELECT seq FROM events WHERE event_id = ?", (event_id,)
-    ).fetchone()
-    return int(row["seq"]) if row else 0
 
 
 def _append_jsonl(body: dict[str, Any], seq: int) -> None:

@@ -48,7 +48,8 @@ def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) 
     ev = _event()
     client.post("/publish", json=ev)
     db.execute(
-        "UPDATE events SET retry_count = 2 WHERE event_id = ?", (ev["event_id"],)
+        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
+        (ev["event_id"],),
     )
     db.commit()
 
@@ -69,7 +70,8 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
     ev = _event()
     client.post("/publish", json=ev)
     db.execute(
-        "UPDATE events SET retry_count = 2 WHERE event_id = ?", (ev["event_id"],)
+        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
+        (ev["event_id"],),
     )
     db.commit()
     promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
@@ -88,7 +90,8 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     ev = _event()
     client.post("/publish", json=ev)
     db.execute(
-        "UPDATE events SET retry_count = 2 WHERE event_id = ?", (ev["event_id"],)
+        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
+        (ev["event_id"],),
     )
     db.commit()
     promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
@@ -102,7 +105,9 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     assert ev["event_id"] not in ids
 
 
-def test_requeue_increments_retry_count(client: TestClient, tmp_path: Path) -> None:
+def test_requeue_increments_dlq_requeue_count(
+    client: TestClient, tmp_path: Path
+) -> None:
     from eventbus.db import open_db
     from eventbus.dlq import promote_to_dlq
 
@@ -110,28 +115,117 @@ def test_requeue_increments_retry_count(client: TestClient, tmp_path: Path) -> N
     ev = _event()
     client.post("/publish", json=ev)
     db.execute(
-        "UPDATE events SET retry_count = 2 WHERE event_id = ?", (ev["event_id"],)
+        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
+        (ev["event_id"],),
     )
     db.commit()
     promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
 
-    # Requeue once — retry_count should increment to 3
+    # Requeue once — dlq_requeue_count should increment to 1
     r = client.post(f"/dlq/{ev['event_id']}/requeue")
     assert r.status_code == 200
     assert r.json()["requeued"] is True
 
     row = db.execute(
-        "SELECT retry_count, dlq_at FROM events WHERE event_id = ?", (ev["event_id"],)
+        "SELECT dlq_requeue_count, delivery_failure_count, dlq_at FROM events WHERE event_id = ?",
+        (ev["event_id"],),
     ).fetchone()
-    assert row["retry_count"] == 3
+    assert row["dlq_requeue_count"] == 1
+    assert row["delivery_failure_count"] == 2
     assert row["dlq_at"] is None
 
     # Exhaust retries again — should promote to DLQ
     db.execute(
-        "UPDATE events SET retry_count = 2 WHERE event_id = ?", (ev["event_id"],)
+        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
+        (ev["event_id"],),
     )
     db.commit()
     n = promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
     assert n == 1
     dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
     assert dlq_file.exists()
+
+
+def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> None:
+    from eventbus.db import open_db
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+
+    # First nack — delivery_failure_count becomes 1, below threshold of 2
+    r = client.post(f"/nack?event_id={ev['event_id']}")
+    assert r.status_code == 200
+    assert r.json()["delivery_failure_count"] == 1
+    assert "dlq_promoted" not in r.json()
+
+    # Second nack — delivery_failure_count becomes 2, hits threshold, inline promote
+    r = client.post(f"/nack?event_id={ev['event_id']}")
+    assert r.status_code == 200
+    assert r.json()["delivery_failure_count"] == 2
+    assert r.json().get("dlq_promoted") is True
+
+    dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
+    assert dlq_file.exists()
+    record = orjson.loads(dlq_file.read_bytes())
+    assert record["event_id"] == ev["event_id"]
+    assert record["dlq_at"] is not None
+
+    row = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?",
+        (ev["event_id"],),
+    ).fetchone()
+    assert row["dlq_at"] is not None
+
+
+def test_inline_dlq_promotion_skipped_below_threshold(client: TestClient, tmp_path: Path) -> None:
+    from eventbus.db import open_db
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+
+    # Nack once — below threshold of 2, no DLQ promotion
+    r = client.post(f"/nack?event_id={ev['event_id']}")
+    assert r.status_code == 200
+    assert r.json()["delivery_failure_count"] == 1
+    assert "dlq_promoted" not in r.json()
+
+    dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
+    assert not dlq_file.exists()
+
+    row = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?",
+        (ev["event_id"],),
+    ).fetchone()
+    assert row["dlq_at"] is None
+
+
+def test_inline_dlq_promotion_not_found(client: TestClient) -> None:
+    r = client.post("/nack?event_id=nonexistent")
+    assert r.status_code == 404
+    assert r.json()["detail"] == "event not found"
+
+
+def test_nack_on_already_dlq_event_does_not_repromote(client: TestClient, tmp_path: Path) -> None:
+    from eventbus.db import open_db
+    from eventbus.dlq import promote_to_dlq
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+    db.execute(
+        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
+        (ev["event_id"],),
+    )
+    db.commit()
+    promote_to_dlq(db, str(tmp_path / "deadletter"), max_retry=2)
+
+    # Nack an already-DLQ'd event — should not promote again
+    r = client.post(f"/nack?event_id={ev['event_id']}")
+    assert r.status_code == 200
+    assert r.json()["delivery_failure_count"] == 3
+    assert "dlq_promoted" not in r.json()
+
+    dlq_files = list((tmp_path / "deadletter").glob("*.json"))
+    assert len(dlq_files) == 1
