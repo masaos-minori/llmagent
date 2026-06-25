@@ -54,15 +54,17 @@ async def _handle_web_search_error(
 # Search implementation
 # ──────────────────────────────────────────────────────────────────────────────
 async def _search_duckduckgo(query: str, max_results: int) -> list[SearchResult]:
-    """Execute a text search using DuckDuckGo. No API key required.
-    DDGS is a synchronous library, so it is run in a thread pool via asyncio.to_thread.
-    """
+    """Execute a text search using DuckDuckGo. No API key required."""
 
     def _sync_search() -> list[dict]:
         with DDGS() as ddgs:
             return list(ddgs.text(query, max_results=max_results))
 
-    raw = await asyncio.to_thread(_sync_search)
+    try:
+        raw = await asyncio.to_thread(_sync_search)
+    except (RuntimeError, TimeoutError) as e:
+        raise WebSearchUpstreamError(f"DuckDuckGo search failed: {e}") from e
+
     return [
         SearchResult(
             title=r.get("title", ""),
@@ -81,15 +83,12 @@ async def _search_duckduckgo(query: str, max_results: int) -> list[SearchResult]
 async def search(req: SearchRequest) -> SearchResponse:
     """Execute a web search using DuckDuckGo."""
     t0 = time.perf_counter()
-    try:
-        results = cast(
-            list[SearchResult],
-            await asyncio.to_thread(
-                lambda: _search_duckduckgo(req.query, req.max_results)
-            ),
-        )
-    except Exception as e:
-        raise WebSearchUpstreamError(f"DuckDuckGo search failed: {e}") from e
+    results = cast(
+        list[SearchResult],
+        await asyncio.to_thread(
+            lambda: _search_duckduckgo(req.query, req.max_results)
+        ),
+    )
 
     if not results:
         raise WebSearchUpstreamError("No results returned from DuckDuckGo")
