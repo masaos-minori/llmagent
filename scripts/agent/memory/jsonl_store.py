@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Mapping
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
 
 import orjson
 from shared.json_utils import dumps as _json_dumps
@@ -29,7 +29,7 @@ from agent.memory.types import MemoryEntry
 logger = logging.getLogger(__name__)
 
 
-def _entry_from_dict(d: dict[str, Any]) -> MemoryEntry:
+def _entry_from_dict(d: Mapping[str, object]) -> MemoryEntry:
     """Deserialise one JSONL dict to MemoryEntry; raises JsonlFormatError on error."""
     if "memory_type" not in d:
         raise JsonlFormatError("Missing required field: 'memory_type'")

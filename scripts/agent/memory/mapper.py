@@ -9,8 +9,8 @@ from __future__ import annotations
 import datetime
 import sqlite3
 import struct
+from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any
 
 import orjson
 
@@ -48,7 +48,7 @@ def _floats_to_blob(values: list[float], expected_dim: int | None = None) -> byt
     return struct.pack(f"{len(values)}f", *values)
 
 
-def _opt_str(d: dict[str, Any], key: str) -> str:
+def _opt_str(d: Mapping[str, object], key: str) -> str:
     """Return string value for key, or "" if absent or None; raises MemorySchemaError on wrong type."""
     v = d.get(key)
     if v is None:
@@ -60,17 +60,17 @@ def _opt_str(d: dict[str, Any], key: str) -> str:
     return v
 
 
-def _require(d: dict[str, Any], key: str) -> Any:
+def _require(d: Mapping[str, object], key: str) -> object:
     try:
         return d[key]
     except KeyError:
         raise MemorySchemaError(f"Memory row missing required field: {key!r}")
 
 
-def _parse_tags(raw: Any) -> list[str]:
+def _parse_tags(raw: object) -> list[str]:
     """Parse tags from a JSON string or list value."""
     if isinstance(raw, str):
-        return orjson.loads(raw)  # type: ignore[no-any-return]
+        return orjson.loads(raw)
     if isinstance(raw, list):
         return list(raw)
     raise MemorySchemaError(
@@ -78,20 +78,20 @@ def _parse_tags(raw: Any) -> list[str]:
     )
 
 
-def _parse_importance(d: dict[str, Any]) -> float:
+def _parse_importance(d: Mapping[str, object]) -> float:
     """Parse importance with a default of 0.5 when None."""
     val = d.get("importance")
     if val is None:
         return 0.5
     try:
-        return float(val)
+        return float(val)  # type: ignore[arg-type]
     except (TypeError, ValueError) as e:
         raise MemorySchemaError(
             f"Invalid importance value: {d.get('importance')!r}"
         ) from e
 
 
-def _parse_memory_type(d: dict[str, Any]) -> MemoryType:
+def _parse_memory_type(d: Mapping[str, object]) -> MemoryType:
     """Parse and validate the memory_type field."""
     try:
         return MemoryType(str(_require(d, "memory_type")))
@@ -99,7 +99,7 @@ def _parse_memory_type(d: dict[str, Any]) -> MemoryType:
         raise MemorySchemaError(str(e)) from e
 
 
-def _parse_source_type(raw: Any | None) -> SourceType:
+def _parse_source_type(raw: object | None) -> SourceType:
     """Parse source_type with CONVERSATION as default."""
     if raw is None:
         return SourceType.CONVERSATION
@@ -109,7 +109,7 @@ def _parse_source_type(raw: Any | None) -> SourceType:
         raise MemorySchemaError(f"Invalid source_type: {e}") from e
 
 
-def row_to_entry(row: sqlite3.Row | dict[str, Any]) -> MemoryEntry:
+def row_to_entry(row: sqlite3.Row | Mapping[str, object]) -> MemoryEntry:
     """Convert a sqlite3.Row or dict to MemoryEntry.
 
     Required fields (NOT NULL in schema): memory_id, memory_type, content.

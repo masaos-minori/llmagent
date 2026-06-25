@@ -305,9 +305,12 @@ class MemoryStore:
         Returns (jsonl_count, inserted_count).
         When dry_run=True, returns (jsonl_count, 0) without modifying SQLite.
         """
-        from agent.memory.jsonl_store import JsonlMemoryStore
+        from agent.memory.jsonl_store import JsonlMemoryStore as _JsonlMemoryStore
 
-        assert isinstance(jsonl_store, JsonlMemoryStore)
+        if not isinstance(jsonl_store, _JsonlMemoryStore):
+            raise TypeError(
+                f"Expected JsonlMemoryStore, got {type(jsonl_store).__name__}"
+            )
         entries = jsonl_store.read_all()
         jsonl_count = len(entries)
         if dry_run:

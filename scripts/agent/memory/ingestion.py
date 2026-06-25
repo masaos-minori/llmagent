@@ -98,16 +98,39 @@ class MemoryIngestionService:
                 embed_result.error_kind,
                 entry.memory_id,
             )
-        embedding = embed_result.embedding if embed_result.success else None
         if self._should_skip_dedup(embed_result, entry.memory_id):
             return
+        await self._persist_entry_with_embedding(entry, embed_result)
+
+    async def _persist_entry(self, entry: MemoryEntry) -> None:
+        """Persist one entry directly without dedup or duplicate-link checks.
+
+        Used by write_semantic() and write_episodic() (manual writes).
+        Automatic session extraction uses on_session_stop() which applies dedup.
+        """
+        embed_result = await self._embed_client.fetch(entry.content)
+        if not embed_result.success:
+            self.stat_embed_skip += 1
+            logger.info(
+                "memory.embed_skip: stored without embedding (reason=%s) memory_id=%r",
+                embed_result.error_kind,
+                entry.memory_id,
+            )
+        await self._persist_entry_with_embedding(entry, embed_result)
+
+    async def _persist_entry_with_embedding(
+        self, entry: MemoryEntry, embed_result: EmbeddingResult
+    ) -> None:
+        """Persist an entry to SQLite and JSONL with the given embedding result."""
+        embedding = embed_result.embedding if embed_result.success else None
         self._store.upsert(entry, embedding=embedding)
         try:
             await self._jsonl.write(entry)
-        except Exception:
+        except OSError as e:
             logger.warning(
-                "memory.jsonl_write_failed memory_id=%r — entry saved in SQLite only",
+                "memory.jsonl_write_failed memory_id=%r — entry saved in SQLite only: %s",
                 entry.memory_id,
+                e,
             )
         if embed_result.success and embed_result.embedding is not None:
             self._link_duplicates(entry.memory_id, embed_result.embedding)
@@ -193,36 +216,6 @@ class MemoryIngestionService:
             pinned=False,
             created_at=now,
             updated_at=now,
-        )
-
-    async def _persist_entry(self, entry: MemoryEntry) -> None:
-        """Persist one entry directly without dedup or duplicate-link checks.
-
-        Used by write_semantic() and write_episodic() (manual writes).
-        Automatic session extraction uses on_session_stop() which applies dedup.
-        """
-        embed_result = await self._embed_client.fetch(entry.content)
-        if not embed_result.success:
-            self.stat_embed_skip += 1
-            logger.info(
-                "memory.embed_skip: stored without embedding (reason=%s) memory_id=%r",
-                embed_result.error_kind,
-                entry.memory_id,
-            )
-        embedding = embed_result.embedding if embed_result.success else None
-        self._store.upsert(entry, embedding=embedding)
-        try:
-            await self._jsonl.write(entry)
-        except Exception:
-            logger.warning(
-                "memory.jsonl_write_failed memory_id=%r — entry saved in SQLite only",
-                entry.memory_id,
-            )
-        logger.info(
-            "memory.write memory_id=%r type=%s importance=%.2f",
-            entry.memory_id,
-            entry.memory_type,
-            entry.importance,
         )
 
     async def write_semantic(self, session_id: int | None, content: str) -> None:
