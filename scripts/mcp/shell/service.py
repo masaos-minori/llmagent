@@ -268,6 +268,27 @@ class ShellService:
         half = max_output_bytes // 2
         return stdout_b[:half], stderr_b[:half], True
 
+    @staticmethod
+    def _build_run_response(
+        req: ShellRunRequest,
+        proc: asyncio.subprocess.Process,
+        stdout: str,
+        stderr: str,
+        timed_out: bool,
+        truncated: bool,
+        elapsed: float,
+    ) -> ShellRunResponse:
+        """Build a ShellRunResponse from execution results."""
+        exit_code = proc.returncode if proc.returncode is not None else -1
+        return ShellRunResponse(
+            stdout=stdout,
+            stderr=stderr,
+            exit_code=exit_code,
+            timed_out=timed_out,
+            truncated=truncated,
+            elapsed_sec=round(elapsed, 3),
+        )
+
     async def run_command(self, req: ShellRunRequest) -> ShellRunResponse:
         """Execute the command in a sandboxed subprocess with resource limits.
 
@@ -299,7 +320,6 @@ class ShellService:
             argv, cwd, env, timeout_sec
         )
         elapsed = time.monotonic() - start
-        exit_code = proc.returncode if proc.returncode is not None else -1
 
         # Slice bytes before decoding so multibyte characters do not inflate the count
         stdout_b, stderr_b, truncated = self._truncate_output(
@@ -314,18 +334,13 @@ class ShellService:
             req.command,
             user_argv,
             cwd,
-            exit_code,
+            proc.returncode if proc.returncode is not None else -1,
             elapsed,
             truncated,
         )
 
-        return ShellRunResponse(
-            stdout=stdout,
-            stderr=stderr,
-            exit_code=exit_code,
-            timed_out=timed_out,
-            truncated=truncated,
-            elapsed_sec=round(elapsed, 3),
+        return self._build_run_response(
+            req, proc, stdout, stderr, timed_out, truncated, elapsed
         )
 
     # ── Dispatch handlers: format service results as plain text for the LLM ──
@@ -338,6 +353,13 @@ class ShellService:
             preview = f"Would execute: {cmd_display} (cwd: {cwd})"
             return _json_dumps({"preview": preview, "dry_run": True})
         result = await self.run_command(req)
+        return self._format_run_result(result)
+
+    @staticmethod
+    def _format_run_result(
+        result: ShellRunResponse,
+    ) -> str:
+        """Format a ShellRunResponse as plain text for the LLM."""
         parts: list[str] = []
         if result.timed_out:
             parts.append("[TIMED OUT]")
