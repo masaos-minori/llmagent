@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -116,14 +117,22 @@ class MqeParseResult:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _mqe_prompt(query: str, context: str, cfg: dict[str, Any]) -> str:
+def _mqe_prompt(query: str, context: str, cfg: Mapping[str, object]) -> str:
     """Build the MQE rephrasing prompt, prepending conversation context when given.
 
     context holds recent user utterances; it is search-only and is never sent
     directly to the final LLM answer prompt.
     """
-    prompt = cfg.get("mqe_prompt_template", "").format(
-        n_queries=cfg.get("mqe_n_queries", 3),
+    template = cfg.get("mqe_prompt_template", "")
+    if not isinstance(template, str):
+        raise TypeError(
+            f"mqe_prompt_template must be str, got {type(template).__name__}"
+        )
+    n_queries = cfg.get("mqe_n_queries", 3)
+    if not isinstance(n_queries, int):
+        raise TypeError(f"mqe_n_queries must be int, got {type(n_queries).__name__}")
+    prompt = template.format(
+        n_queries=n_queries,
         query=query,
     )
     if context:
@@ -175,17 +184,20 @@ def _extract_chat_content(data: dict[str, Any]) -> str:
 
 
 def _build_rerank_prompt(
-    query: str, candidates: list[RagHit], cfg: dict[str, Any]
+    query: str, candidates: list[RagHit], cfg: Mapping[str, object]
 ) -> str:
     """Build the Cross-Encoder scoring prompt from the configured template."""
     items_text = ""
     for i, chunk in enumerate(candidates, start=1):
         preview = chunk.content[:300].replace("\n", " ")
         items_text += f"\n{i}. {preview}"
+    template = cfg.get("rerank_prompt_template", "")
+    if not isinstance(template, str):
+        raise TypeError(
+            f"rerank_prompt_template must be str, got {type(template).__name__}"
+        )
     return str(
-        cfg.get("rerank_prompt_template", "").format(
-            query=query, items_text=items_text
-        ),
+        template.format(query=query, items_text=items_text),
     )
 
 

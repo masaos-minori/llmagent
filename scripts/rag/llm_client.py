@@ -13,7 +13,7 @@ Import from here:  from rag.llm_client import RagLLM, get_embedding, summarize_t
 from __future__ import annotations
 
 import logging
-from typing import Any, cast
+from collections.abc import Mapping
 
 import httpx
 import orjson
@@ -75,11 +75,11 @@ class RagLLM:
         self,
         client: httpx.AsyncClient,
         llm_url: str,
-        cfg: dict[str, Any] | None = None,
+        cfg: Mapping[str, object] | None = None,
     ) -> None:
         self._client = client
         self._llm_url = llm_url
-        self._cfg: dict[str, Any] = cfg if cfg is not None else {}
+        self._cfg: Mapping[str, object] = cfg if cfg is not None else {}
 
     async def _call_llm(
         self,
@@ -153,7 +153,7 @@ class RagLLM:
             result = [
                 c
                 for c in result
-                if cast(float, getattr(c, "rerank_score", None) or 0.0) >= rag_min_score
+                if (getattr(c, "rerank_score", None) or 0.0) >= rag_min_score
             ]
             logger.info(
                 "Rerank score filter: %s chunks remain (min_score=%s)",
@@ -166,11 +166,11 @@ class RagLLM:
         self,
         text: str,
         tool_name: str,
-        args: dict[str, Any],
+        args: dict[str, object],
     ) -> str:
         """Summarize a long tool result via LLM (3-5 sentences).
 
-        Raises on any HTTP or parse failure \u2014 callers decide how to handle.
+        Raises on any HTTP or parse failure — callers decide how to handle.
         """
         text_preview = text[:_SUMMARIZE_INPUT_MAX_CHARS]
         args_str = _json_dumps(args)[:200]
@@ -240,7 +240,7 @@ async def get_embedding(
 async def summarize_tool_result(
     text: str,
     tool_name: str,
-    args: dict[str, Any],
+    args: dict[str, object],
     client: httpx.AsyncClient,
     llm_url: str | None = None,
 ) -> str:

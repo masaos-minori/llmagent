@@ -14,7 +14,6 @@ Extracted from rag/pipeline.py.  Contains:
 import logging
 import re
 import time
-from typing import cast
 
 from db.helper import SQLiteHelper
 
@@ -130,19 +129,16 @@ class RagRepository:
         t0 = time.perf_counter()
         rows = self._db.fetchall(self._SQL_VEC, (floats_to_blob(embedding), top_k))
         elapsed_ms = (time.perf_counter() - t0) * 1000
-        results: list[RagHit] = cast(
-            "list[RagHit]",
-            [
-                RawHit(
-                    chunk_id=r["chunk_id"],
-                    content=r["content"],
-                    url=r["url"] or "",
-                    title=r["title"] or "",
-                    distance=float(r["distance"] or 0.0),
-                )
-                for r in rows
-            ],
-        )
+        results: list[RagHit] = [
+            RawHit(
+                chunk_id=r["chunk_id"],
+                content=r["content"],
+                url=r["url"] or "",
+                title=r["title"] or "",
+                distance=float(r["distance"] or 0.0),
+            )
+            for r in rows
+        ]
         logger.info(
             "vector_search: top_k=%s hits=%s elapsed_ms=%.1f",
             top_k,
@@ -160,19 +156,16 @@ class RagRepository:
         t0 = time.perf_counter()
         rows = self._db.fetchall(self._SQL_FTS, (fts_query, top_k))
         elapsed_ms = (time.perf_counter() - t0) * 1000
-        results: list[RagHit] = cast(
-            "list[RagHit]",
-            [
-                RawHit(
-                    chunk_id=r["chunk_id"],
-                    content=r["content"],
-                    url=r["url"] or "",
-                    title=r["title"] or "",
-                    bm25_score=float(r["bm25_score"] or 0.0),
-                )
-                for r in rows
-            ],
-        )
+        results: list[RagHit] = [
+            RawHit(
+                chunk_id=r["chunk_id"],
+                content=r["content"],
+                url=r["url"] or "",
+                title=r["title"] or "",
+                bm25_score=float(r["bm25_score"] or 0.0),
+            )
+            for r in rows
+        ]
         logger.info(
             "fts_search: query=%r fts_query=%r top_k=%s hits=%s elapsed_ms=%.1f",
             query,
@@ -200,21 +193,18 @@ class RagScorer:
                 scores[cid] = scores.get(cid, 0.0) + 1.0 / (rrf_k + rank)
                 meta[cid] = item
         merged_list = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        return cast(
-            "list[RagHit]",
-            [
-                MergedHit(
-                    chunk_id=meta[cid].chunk_id,
-                    content=meta[cid].content,
-                    url=meta[cid].url,
-                    title=meta[cid].title,
-                    distance=meta[cid].distance,
-                    bm25_score=meta[cid].bm25_score,
-                    rrf_score=score,
-                )
-                for cid, score in merged_list
-            ],
-        )
+        return [
+            MergedHit(
+                chunk_id=meta[cid].chunk_id,
+                content=meta[cid].content,
+                url=meta[cid].url,
+                title=meta[cid].title,
+                distance=meta[cid].distance,
+                bm25_score=meta[cid].bm25_score,
+                rrf_score=score,
+            )
+            for cid, score in merged_list
+        ]
 
 
 def vector_search(embedding: list[float], top_k: int, db: SQLiteHelper) -> list[RagHit]:
@@ -262,18 +252,15 @@ def fetch_full_document(
             " ORDER BY c.chunk_index",
             (doc_id, max(0, chunk_index - window), chunk_index + window),
         )
-    return cast(
-        "list[RawHit]",
-        [
-            RawHit(
-                chunk_id=r["chunk_id"],
-                content=r["content"],
-                url=r["url"] or "",
-                title=r["title"] or "",
-            )
-            for r in rows
-        ],
-    )
+    return [
+        RawHit(
+            chunk_id=r["chunk_id"],
+            content=r["content"],
+            url=r["url"] or "",
+            title=r["title"] or "",
+        )
+        for r in rows
+    ]
 
 
 def deduplicate_chunks(hits: list[RagHit], max_per_doc: int) -> list[RagHit]:

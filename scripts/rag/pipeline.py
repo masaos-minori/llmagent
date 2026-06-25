@@ -73,7 +73,7 @@ _RAG_BLOCK_END = "[RAG_CONTEXT_END]"
 class _ModuleConfig:
     """Class-level cached config loader for RagPipeline."""
 
-    _cache: dict | None = None
+    _cache: dict[str, str] | None = None
 
     @classmethod
     def get(cls) -> dict:
@@ -191,7 +191,13 @@ class RagPipeline:
         exc_msg: str | None = None
         try:
             await stage.run(ctx, db=db)
-        except Exception as e:
+        except (
+            RuntimeError,
+            sqlite3.OperationalError,
+            httpx.HTTPStatusError,
+            httpx.RequestError,
+            TimeoutError,
+        ) as e:
             exc_msg = str(e)
             logger.warning("Stage %s failed: %s", stage.__class__.__name__, e)
         elapsed = time.perf_counter() - t0

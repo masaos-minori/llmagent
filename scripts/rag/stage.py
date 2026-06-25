@@ -5,7 +5,7 @@ PipelineStage Protocol and shared PipelineContext dataclass.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Protocol, TypedDict
+from typing import Any, Literal, Protocol, TypedDict
 
 from rag.models_result import SearchDiagnostics
 from rag.types import MergedHit, RankedHit, RawHit
@@ -17,7 +17,7 @@ class StageResult(TypedDict):
     """Per-stage outcome recorded by RagPipeline.run()."""
 
     stage_name: str
-    status: str  # "success" | "fallback" | "failure"
+    status: Literal["success", "fallback", "failure"]
     elapsed_seconds: float
     fallback_reason: str | None
 
