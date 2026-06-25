@@ -1,22 +1,5 @@
 # LLM Agent Improve Summary（改善一覧・優先度順・AI読込向け簡潔版）
 
-## マルチエージェント構成の中央オーケストレーター化
-- 改善案: マルチエージェント構成の中央オーケストレーター化
-- 難易度: 高
-- 実装方式: アーキテクチャ変更
-- 実装手順概要:
-  - Planner / Retriever / PatchWorker / Validator / Integrator / Publisher の役割を明確化する。
-  - Workflow Engine、Task Scheduler、Retry Controller、State Manager を設ける。
-  - Worker は MCP Server として単一責務実行に限定する。
-- 実装対象:
-  - agent/orchestrator/
-  - mcp/planner/
-  - mcp/retriever/
-  - mcp/patch-worker/
-  - mcp/validator/
-  - mcp/integrator/
-  - mcp/publisher/
-
 ## 分散実行基盤の host registry / heartbeat / lease 管理
 - 改善案: 分散実行基盤の host registry / heartbeat / lease 管理
 - 難易度: 高
