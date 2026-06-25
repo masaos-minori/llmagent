@@ -229,13 +229,34 @@ All tools do not require config (`requires_config: false`).
 
 **Additional endpoint:** `POST /v1/search` (backward compat for external RAG service delegation)
 
-**Key config:** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `use_mqe`, `use_rrf`,
-`use_rerank`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`
+**Config parameters (`RagPipelineConfig` dataclass):**
+
+| Key | Default | Description |
+|---|---|---|
+| `use_mqe` | `True` | Enable multi-query expansion |
+| `use_rrf` | `True` | Enable RRF fusion |
+| `rrf_k` | `60` | RRF constant |
+| `use_rerank` | `True` | Enable cross-encoder rerank |
+| `use_refiner` | `False` | Enable context refinement/compression |
+| `top_k_search` | `5` | KNN/BM25 top-k per query |
+| `top_k_rerank` | `10` | Cross-encoder top-k |
+| `rag_top_k` | `5` | Final result count |
+| `rag_min_score` | `0.0` | Minimum rerank score threshold |
+| `max_chunks_per_doc` | `3` | Max chunks per document in final result |
+| `semantic_cache_max_size` | `128` | Semantic cache entry limit |
+| `semantic_cache_threshold` | `0.92` | Semantic cache cosine similarity threshold |
+| `use_semantic_cache` | `False` | Enable semantic cache |
+| `refiner_max_tokens` | `512` | Context refinement max tokens |
+| `refiner_max_chars_per_chunk` | `800` | Context refinement chars per chunk |
+| `refiner_timeout` | `30.0` | Context refinement timeout (seconds) |
+| `rag_auth_token` | `""` | Authentication token for RAG service |
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{"embed_url":"not configured"/"check failed"},"details":{}}`
 **Design note:** `rag_service_url = ""` is hardcoded in `build_rag_cfg_adapter()` to prevent HTTP loops.
-**Log:** (uses structlog; check `agent.log` or configure separate log)
+**Log:** `/opt/llm/logs/rag-mcp.log`
 **When to use:** All RAG retrieval; `/rag search` command goes through this server.
+
+**Tool status:** All 4 tools are `"production"` (not stub/experimental).
 
 ---
 
