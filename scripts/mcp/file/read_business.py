@@ -94,6 +94,23 @@ class ReadFileService:
     def _check_size_limit(self, target: Path) -> int:
         return check_size_limit(target, self._max_read_bytes)
 
+    # ── Shared validation pipeline for file read operations ──
+
+    def _validate_file(
+        self,
+        raw_path: str,
+        *,
+        expected_type: str = "file",
+    ) -> tuple[Path, int]:
+        """Resolve path, require it's a file/directory, check size limit. Return (target, size)."""
+        target = self._resolve_safe(raw_path)
+        if expected_type == "file":
+            self._require_file(target, raw_path)
+        else:
+            self._require_dir(target, raw_path)
+        size = self._check_size_limit(target)
+        return target, size
+
     # ── Business operation methods ──
 
     def list_dir_entries(
@@ -136,9 +153,7 @@ class ReadFileService:
 
     def read_text_file(self, req: ReadTextFileRequest) -> ReadTextFileResponse:
         """Return the contents of the specified file as UTF-8 text."""
-        target = self._resolve_safe(req.path)
-        self._require_file(target, req.path)
-        size = self._check_size_limit(target)
+        target, size = self._validate_file(req.path, expected_type="file")
 
         try:
             raw_content = target.read_text(encoding="utf-8")
@@ -152,9 +167,7 @@ class ReadFileService:
 
     def read_media_file(self, req: ReadMediaFileRequest) -> ReadMediaFileResponse:
         """Read the specified file as binary and return it base64-encoded."""
-        target = self._resolve_safe(req.path)
-        self._require_file(target, req.path)
-        size = self._check_size_limit(target)
+        target, size = self._validate_file(req.path, expected_type="file")
 
         try:
             data = target.read_bytes()
