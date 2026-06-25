@@ -11,6 +11,8 @@ Import from here:  from mcp.github.service_dispatch import GitHubService
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from shared.formatters import fmt_md_link
 from shared.json_utils import dumps as _json_dumps
@@ -55,17 +57,34 @@ class GitHubService(_GitHubServiceCore):
         """Return a JSON dry-run preview response string."""
         return _json_dumps({"preview": preview, "dry_run": True})
 
+    async def _execute_with_dry_run(
+        self,
+        owner: str,
+        repo: str,
+        dry_run: bool,
+        preview_callback: callable,  # type: ignore[valid-type]
+        execute_callback: Callable[[], Awaitable[Any]],
+    ) -> str:
+        """Execute a GitHub operation with optional dry-run mode."""
+        self._assert_allowed_repo(owner, repo)
+        if dry_run:
+            return self._dry_run_preview(preview_callback())
+        result = await execute_callback()
+        return result
+
     async def fmt_create_branch(self, args: dict) -> str:
         req = CreateBranchRequest(**args)
-        self._assert_allowed_repo(req.owner, req.repo)
-        if req.dry_run:
-            from_b = req.from_branch or "(default branch)"
-            return self._dry_run_preview(
-                f"Would create branch '{req.branch_name}' from '{from_b}'"
-                f" in {req.owner}/{req.repo}"
-            )
-        result = await self.create_branch(req)
-        return f"Branch created: {result.branch_name} (SHA: {result.sha[:8]})"
+        from_b = req.from_branch or "(default branch)"
+
+        async def _execute() -> str:
+            result = await self.create_branch(req)
+            return f"Branch created: {result.branch_name} (SHA: {result.sha[:8]})"
+
+        return await self._execute_with_dry_run(
+            req.owner, req.repo, req.dry_run,
+            lambda: f"Would create branch '{req.branch_name}' from '{from_b}' in {req.owner}/{req.repo}",
+            _execute,
+        )
 
     async def fmt_list_commits(self, args: dict) -> str:
         result = await self.list_commits(args)  # type: ignore[arg-type]
@@ -92,44 +111,50 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_create_or_update_file(self, args: dict) -> str:
         req = CreateOrUpdateFileRequest(**args)
-        self._assert_allowed_repo(req.owner, req.repo)
-        if req.dry_run:
-            op = "update" if req.sha else "create"
-            branch = req.branch or "(default branch)"
-            return self._dry_run_preview(
-                f"Would {op} file '{req.path}' on branch '{branch}'"
-                f" in {req.owner}/{req.repo}"
-            )
-        result = await self.create_or_update_file(req)
-        return f"{result.operation}: {result.path} (commit: {result.commit_sha[:8]})"
+        op = "update" if req.sha else "create"
+        branch = req.branch or "(default branch)"
+
+        async def _execute() -> str:
+            result = await self.create_or_update_file(req)
+            return f"{result.operation}: {result.path} (commit: {result.commit_sha[:8]})"
+
+        return await self._execute_with_dry_run(
+            req.owner, req.repo, req.dry_run,
+            lambda: f"Would {op} file '{req.path}' on branch '{branch}' in {req.owner}/{req.repo}",
+            _execute,
+        )
 
     async def fmt_push_files(self, args: dict) -> str:
         req = PushFilesRequest(**args)
-        self._assert_allowed_repo(req.owner, req.repo)
-        if req.dry_run:
-            paths = [f.path for f in req.files]
-            return self._dry_run_preview(
-                f"Would push {len(paths)} file(s) to branch '{req.branch}'"
-                f" in {req.owner}/{req.repo}: {paths}"
+        paths = [f.path for f in req.files]
+
+        async def _execute() -> str:
+            result = await self.push_files(req)
+            sha_short = result.commit_sha[:8]
+            return (
+                f"Pushed: branch={result.branch}"
+                f" files={result.files_pushed} commit={sha_short}"
             )
-        result = await self.push_files(req)
-        sha_short = result.commit_sha[:8]
-        return (
-            f"Pushed: branch={result.branch}"
-            f" files={result.files_pushed} commit={sha_short}"
+
+        return await self._execute_with_dry_run(
+            req.owner, req.repo, req.dry_run,
+            lambda: f"Would push {len(paths)} file(s) to branch '{req.branch}' in {req.owner}/{req.repo}: {paths}",
+            _execute,
         )
 
     async def fmt_delete_file(self, args: dict) -> str:
         req = DeleteRepoFileRequest(**args)
-        self._assert_allowed_repo(req.owner, req.repo)
-        if req.dry_run:
-            branch = req.branch or "(default branch)"
-            return self._dry_run_preview(
-                f"Would delete '{req.path}' from branch '{branch}'"
-                f" in {req.owner}/{req.repo}"
-            )
-        result = await self.delete_repo_file(req)
-        return f"Deleted: {result.path} (commit: {result.commit_sha[:8]})"
+        branch = req.branch or "(default branch)"
+
+        async def _execute() -> str:
+            result = await self.delete_repo_file(req)
+            return f"Deleted: {result.path} (commit: {result.commit_sha[:8]})"
+
+        return await self._execute_with_dry_run(
+            req.owner, req.repo, req.dry_run,
+            lambda: f"Would delete '{req.path}' from branch '{branch}' in {req.owner}/{req.repo}",
+            _execute,
+        )
 
     async def fmt_list_issues(self, args: dict) -> str:
         result = await self.list_issues(args)  # type: ignore[arg-type]
@@ -143,15 +168,18 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_create_issue(self, args: dict) -> str:
         req = CreateIssueRequest(**args)
-        self._assert_allowed_repo(req.owner, req.repo)
-        if req.dry_run:
-            labels = f" labels={req.labels}" if req.labels else ""
-            return self._dry_run_preview(
-                f"Would create issue '{req.title}'{labels} in {req.owner}/{req.repo}"
-            )
-        result = await self.create_issue(req)
-        i = result.issue
-        return f"Created: #{i.number} {i.title}\n{i.url}"
+        labels = f" labels={req.labels}" if req.labels else ""
+
+        async def _execute() -> str:
+            result = await self.create_issue(req)
+            i = result.issue
+            return f"Created: #{i.number} {i.title}\n{i.url}"
+
+        return await self._execute_with_dry_run(
+            req.owner, req.repo, req.dry_run,
+            lambda: f"Would create issue '{req.title}'{labels} in {req.owner}/{req.repo}",
+            _execute,
+        )
 
     async def fmt_search_issues(self, args: dict) -> str:
         result = await self.search_issues(args)  # type: ignore[arg-type]
@@ -160,14 +188,16 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_add_issue_comment(self, args: dict) -> str:
         req = AddIssueCommentRequest(**args)
-        self._assert_allowed_repo(req.owner, req.repo)
-        if req.dry_run:
-            return self._dry_run_preview(
-                f"Would post comment on issue #{req.issue_number}"
-                f" in {req.owner}/{req.repo}"
-            )
-        result = await self.add_issue_comment(req)
-        return f"Comment posted: #{result.issue_number} {result.comment_url}"
+
+        async def _execute() -> str:
+            result = await self.add_issue_comment(req)
+            return f"Comment posted: #{result.issue_number} {result.comment_url}"
+
+        return await self._execute_with_dry_run(
+            req.owner, req.repo, req.dry_run,
+            lambda: f"Would post comment on issue #{req.issue_number} in {req.owner}/{req.repo}",
+            _execute,
+        )
 
     async def fmt_list_pull_requests(self, args: dict) -> str:
         result = await self.list_pull_requests(args)  # type: ignore[arg-type]
@@ -185,18 +215,20 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_create_pull_request(self, args: dict) -> str:
         req = CreatePullRequestRequest(**args)
-        self._assert_allowed_repo(req.owner, req.repo)
-        if req.dry_run:
-            return self._dry_run_preview(
-                f"Would create PR '{req.title}' ({req.head} → {req.base})"
-                f" in {req.owner}/{req.repo}"
+
+        async def _execute() -> str:
+            result = await self.create_pull_request(req)
+            pr = result.pull_request
+            return (
+                f"Created: #{pr.number} {pr.title}\n"
+                f"head: {pr.head_ref} → base: {pr.base_ref}\n"
+                f"URL: {pr.url}"
             )
-        result = await self.create_pull_request(req)
-        pr = result.pull_request
-        return (
-            f"Created: #{pr.number} {pr.title}\n"
-            f"head: {pr.head_ref} → base: {pr.base_ref}\n"
-            f"URL: {pr.url}"
+
+        return await self._execute_with_dry_run(
+            req.owner, req.repo, req.dry_run,
+            lambda: f"Would create PR '{req.title}' ({req.head} → {req.base}) in {req.owner}/{req.repo}",
+            _execute,
         )
 
     async def fmt_search_pull_requests(self, args: dict) -> str:
@@ -206,34 +238,39 @@ class GitHubService(_GitHubServiceCore):
 
     async def fmt_update_pull_request(self, args: dict) -> str:
         req = UpdatePullRequestRequest(**args)
-        self._assert_allowed_repo(req.owner, req.repo)
-        if req.dry_run:
-            fields: list[str] = []
-            if req.title is not None:
-                fields.append(f"title='{req.title}'")
-            if req.state is not None:
-                fields.append(f"state={req.state}")
-            changes = ", ".join(fields) or "(no changes)"
-            return self._dry_run_preview(
-                f"Would update PR #{req.pr_number} in {req.owner}/{req.repo}: {changes}"
-            )
-        result = await self.update_pull_request(req)
-        pr = result.pull_request
-        return f"Updated: #{pr.number} [{pr.state}] {pr.title}\n{pr.url}"
+        fields: list[str] = []
+        if req.title is not None:
+            fields.append(f"title='{req.title}'")
+        if req.state is not None:
+            fields.append(f"state={req.state}")
+        changes = ", ".join(fields) or "(no changes)"
+
+        async def _execute() -> str:
+            result = await self.update_pull_request(req)
+            pr = result.pull_request
+            return f"Updated: #{pr.number} [{pr.state}] {pr.title}\n{pr.url}"
+
+        return await self._execute_with_dry_run(
+            req.owner, req.repo, req.dry_run,
+            lambda: f"Would update PR #{req.pr_number} in {req.owner}/{req.repo}: {changes}",
+            _execute,
+        )
 
     async def fmt_merge_pull_request(self, args: dict) -> str:
         req = MergePullRequestRequest(**args)
-        self._assert_allowed_repo(req.owner, req.repo)
-        if req.dry_run:
-            return self._dry_run_preview(
-                f"Would merge PR #{req.pr_number} in {req.owner}/{req.repo}"
-                f" using method='{req.merge_method}'"
+
+        async def _execute() -> str:
+            result = await self.merge_pull_request(req)
+            sha_short = result.sha[:8] if result.sha else "N/A"
+            return (
+                f"Merged: #{result.pr_number} merged={result.merged}"
+                f" sha={sha_short}\n{result.message}"
             )
-        result = await self.merge_pull_request(req)
-        sha_short = result.sha[:8] if result.sha else "N/A"
-        return (
-            f"Merged: #{result.pr_number} merged={result.merged}"
-            f" sha={sha_short}\n{result.message}"
+
+        return await self._execute_with_dry_run(
+            req.owner, req.repo, req.dry_run,
+            lambda: f"Would merge PR #{req.pr_number} in {req.owner}/{req.repo} using method='{req.merge_method}'",
+            _execute,
         )
 
     def get_dispatch_table(
