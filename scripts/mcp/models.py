@@ -4,8 +4,6 @@ Shared Pydantic models for the /v1/call_tool unified endpoint.
 Used by FileopMCPServer.py, WebSearchMCPServer.py, and GithubMCPServer.py.
 """
 
-from typing import Any
-
 from pydantic import BaseModel, Field, field_validator
 
 from mcp.tool_validators import validate_tool_args
@@ -15,7 +13,7 @@ class CallToolRequest(BaseModel):
     """Request body for POST /v1/call_tool."""
 
     name: str = Field(..., description="Tool name")
-    args: dict[str, Any] = Field(default_factory=dict, description="Tool arguments")
+    args: dict[str, object] = Field(default_factory=dict, description="Tool arguments")
 
     @field_validator("name")
     @classmethod

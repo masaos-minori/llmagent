@@ -46,7 +46,7 @@ def main() -> None:
         req_id = req.get("id", 0)
         name = req.get("name", "")
         if name == "__list_tools__":
-            resp: dict = {
+            resp = {
                 "id": req_id,
                 "result": ["echo", "cwd_query"],
                 "is_error": False,

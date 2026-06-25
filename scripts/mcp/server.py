@@ -32,7 +32,7 @@ def _write_stdout(data: str) -> None:
 
 # Type alias for MCP tool argument dictionaries.
 # Pydantic models in each server validate the actual structure at runtime.
-ToolArgs = dict[str, Any]
+ToolArgs = dict[str, object]
 
 # Maximum response size returned to the agent; larger responses are truncated.
 MCP_MAX_RESPONSE_BYTES: int = 512 * 1024
@@ -206,10 +206,7 @@ class MCPServer:
         The loop exits cleanly on stdin EOF.
         """
         loop = asyncio.get_running_loop()
-        reader = asyncio.StreamReader()
-        protocol = asyncio.StreamReaderProtocol(reader)
-        # Connect the raw stdin buffer (not the text wrapper) to the StreamReader.
-        await loop.connect_read_pipe(lambda: protocol, sys.stdin.buffer)
+        reader, protocol = await self._setup_stdio_reader(loop)
 
         while True:
             line = await reader.readline()
@@ -222,43 +219,21 @@ class MCPServer:
             total_bytes = 0
             actual_visible_bytes = 0
             try:
-                req = orjson.loads(line)
-                req_id = int(req.get("id", 0))
-                name_raw = req.get("name", "")
-                if not isinstance(name_raw, str):
-                    raise ValueError(
-                        f"Request 'name' must be str, got {type(name_raw).__name__}"
-                    )
-                name = name_raw
-                if name == "__list_tools__":
-                    # Reserved introspection call — return tool list as JSON string
-                    result = _json_dumps({"tools": self.list_tools()})
+                is_error, result, req_id, is_introspection = await self._handle_stdio_request(
+                    line
+                )
+                if not is_error and not is_introspection:
+                    tr = _truncate_with_meta(result)
                     is_error = False
-                else:
-                    dispatch_result = await self.dispatch(
-                        name,
-                        dict(req.get("args", {})),
-                    )
-                    tr = _truncate_with_meta(dispatch_result.output)
-                    is_error = dispatch_result.is_error
-                    result = tr.text
                     truncated = tr.truncated
                     total_bytes = tr.total_bytes
                     actual_visible_bytes = tr.actual_visible_bytes
             except asyncio.CancelledError:
                 result = "Server cancelled"
                 is_error = True
-                resp = _json_dumps(
-                    {
-                        "id": req_id,
-                        "result": result,
-                        "is_error": is_error,
-                        "truncated": False,
-                        "total_bytes": 0,
-                        "actual_visible_bytes": 0,
-                    },
+                await self._write_stdio_response(
+                    loop, req_id, result, is_error, False, 0, 0
                 )
-                loop.run_in_executor(None, _write_stdout, resp + "\n")
                 raise
             except orjson.JSONDecodeError as e:
                 logger.error("run_stdio JSON decode error: %s", e)
@@ -287,14 +262,72 @@ class MCPServer:
             if is_error and name != "__list_tools__":
                 self._record_tool_error(name)
 
-            resp = _json_dumps(
-                {
-                    "id": req_id,
-                    "result": result,
-                    "is_error": is_error,
-                    "truncated": truncated,
-                    "total_bytes": total_bytes,
-                    "actual_visible_bytes": actual_visible_bytes,
-                },
+            await self._write_stdio_response(
+                loop, req_id, result, is_error, truncated, total_bytes, actual_visible_bytes
             )
-            loop.run_in_executor(None, _write_stdout, resp + "\n")
+
+    @staticmethod
+    async def _setup_stdio_reader(
+        loop: asyncio.AbstractEventLoop,
+    ) -> tuple[asyncio.StreamReader, asyncio.StreamReaderProtocol]:
+        """Create and connect a StreamReader for stdin."""
+        reader = asyncio.StreamReader()
+        protocol = asyncio.StreamReaderProtocol(reader)
+        await loop.connect_read_pipe(lambda: protocol, sys.stdin.buffer)
+        return reader, protocol
+
+    async def _write_stdio_response(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        req_id: int,
+        result: str,
+        is_error: bool,
+        truncated: bool,
+        total_bytes: int,
+        actual_visible_bytes: int,
+    ) -> None:
+        """Serialize and write a JSON-RPC response to stdout."""
+        resp = _json_dumps(
+            {
+                "id": req_id,
+                "result": result,
+                "is_error": is_error,
+                "truncated": truncated,
+                "total_bytes": total_bytes,
+                "actual_visible_bytes": actual_visible_bytes,
+            },
+        )
+        loop.run_in_executor(None, _write_stdout, resp + "\n")
+
+    async def _handle_stdio_request(
+        self, line: bytes
+    ) -> tuple[bool, str, int, bool]:
+        """Parse and handle a stdio request line.
+
+        Returns (is_error, result, req_id, is_introspection).
+        Raises on invalid input or dispatch errors.
+        """
+        req = orjson.loads(line)
+        req_id = int(req.get("id", 0))
+        name_raw = req.get("name", "")
+        if not isinstance(name_raw, str):
+            raise ValueError(
+                f"Request 'name' must be str, got {type(name_raw).__name__}"
+            )
+        name = name_raw
+
+        if name == "__list_tools__":
+            result = _json_dumps({"tools": self.list_tools()})
+            return False, result, req_id, True
+
+        dispatch_result = await self.dispatch(
+            name, dict(req.get("args", {}))
+        )
+        tr = _truncate_with_meta(dispatch_result.output)
+        result = tr.text
+        is_error = dispatch_result.is_error
+
+        if is_error:
+            self._record_tool_error(name)
+
+        return is_error, result, req_id, False

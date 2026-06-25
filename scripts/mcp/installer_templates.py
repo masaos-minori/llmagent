@@ -50,7 +50,7 @@ def generate_server_script(server_name: str, module: str, port: int) -> str:
         _SERVER_KEY = "{{server_key}}"  # fmt: skip
 
         # Dispatch table: tool name -> async handler coroutine.
-        _DISPATCH: dict[str, Any] = {{}}
+        _DISPATCH: dict[str, object] = {{}}
 
 
         async def _sample_tool(args: ToolArgs) -> str:
