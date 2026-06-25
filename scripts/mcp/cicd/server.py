@@ -129,7 +129,7 @@ async def health() -> dict[str, object]:
         token = os.environ.get("GITHUB_TOKEN", "")
         if not token:
             deps["github_token"] = "not_set"
-    except Exception:
+    except (RuntimeError, OSError):
         deps["config"] = "check failed"
     ready = len(deps) == 0
     return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
