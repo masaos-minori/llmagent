@@ -108,7 +108,10 @@ def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> WalCheckpointCo
     """Flush the WAL file and return checkpoint counters; mode defaults to sqlite_wal_checkpoint_mode (TRUNCATE); raises ValueError for unknown mode."""
     if mode is None:
         cfg = ConfigLoader().load("common.toml")
-        mode = cfg.get("sqlite_wal_checkpoint_mode", "TRUNCATE").upper()
+        raw_mode: str | None = cfg.get("sqlite_wal_checkpoint_mode")
+        if raw_mode is None or not isinstance(raw_mode, str):
+            raw_mode = "TRUNCATE"
+        mode = raw_mode.upper()
     return db.checkpoint(mode)
 
 
@@ -185,7 +188,7 @@ def purge_old_sessions(
             mode=mode,
             data={"age_deleted": age_deleted, "count_deleted": count_deleted},
         )
-    except Exception as e:
+    except sqlite3.Error as e:
         logger.error("purge_old_sessions failed: %s", e)
         if mode == MaintenanceMode.STRICT:
             raise
@@ -222,7 +225,7 @@ def prune_old_memories(
             mode=mode,
             data={"deleted": delete_result.deleted},
         )
-    except Exception as e:
+    except sqlite3.Error as e:
         logger.error("prune_old_memories failed: %s", e)
         if mode == MaintenanceMode.STRICT:
             raise
@@ -238,7 +241,10 @@ def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
 
     if archive_dir is None:
         cfg = ConfigLoader().load("common.toml")
-        archive_dir = cfg.get("sqlite_archive_dir", "/opt/llm/db/archive")
+        raw_archive_dir: str | None = cfg.get("sqlite_archive_dir")
+        if raw_archive_dir is None or not isinstance(raw_archive_dir, str):
+            raw_archive_dir = "/opt/llm/db/archive"
+        archive_dir = raw_archive_dir
 
     dest_dir = Path(archive_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)

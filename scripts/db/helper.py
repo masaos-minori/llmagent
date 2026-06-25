@@ -174,7 +174,7 @@ class SQLiteHelper:
         try:
             yield
             conn.execute("COMMIT")
-        except Exception:
+        except sqlite3.Error:
             try:
                 conn.execute("ROLLBACK")
             except sqlite3.OperationalError:
@@ -189,7 +189,7 @@ class SQLiteHelper:
         try:
             yield
             conn.execute("COMMIT")
-        except Exception:
+        except sqlite3.Error:
             try:
                 conn.execute("ROLLBACK")
             except sqlite3.OperationalError:

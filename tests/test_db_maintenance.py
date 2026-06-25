@@ -651,7 +651,7 @@ class TestMaintenanceMode:
     def test_prune_best_effort_returns_failure_on_error(self) -> None:
         mock_db = MagicMock(spec=SQLiteHelper)
         mock_db.fetchall.return_value = [("uuid-1",)]
-        mock_db.execute.side_effect = Exception("no vec table")
+        mock_db.execute.side_effect = sqlite3.OperationalError("no vec table")
         result = prune_old_memories(
             mock_db, older_than_days=30, mode=MaintenanceMode.BEST_EFFORT
         )
@@ -665,6 +665,6 @@ class TestMaintenanceMode:
     def test_prune_strict_raises_on_error(self) -> None:
         mock_db = MagicMock(spec=SQLiteHelper)
         mock_db.fetchall.return_value = [("uuid-1",)]
-        mock_db.execute.side_effect = Exception("no vec table")
+        mock_db.execute.side_effect = sqlite3.OperationalError("no vec table")
         with pytest.raises(Exception, match="no vec table"):
             prune_old_memories(mock_db, older_than_days=30, mode=MaintenanceMode.STRICT)

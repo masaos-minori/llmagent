@@ -81,7 +81,8 @@ def init_schema() -> None:
     from db.helper import SQLiteHelper
 
     with SQLiteHelper("workflow").open(write_mode=True) as db:
-        assert db.conn is not None
+        if db.conn is None:
+            raise RuntimeError("workflow schema: connection not available")
         db.executescript(_DDL)
         _migrate_workflow_schema(db.conn)
 
