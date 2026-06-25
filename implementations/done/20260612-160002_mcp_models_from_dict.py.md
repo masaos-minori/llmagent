@@ -9,7 +9,7 @@ unexpected types.
 - `scripts/mcp/cicd/models.py` — 2 occurrences (`auth_token`, `github_token`)
 - `scripts/mcp/git/models.py` — 2 occurrences (`auth_token`, `audit_log_path`)
 - `scripts/mcp/github/models.py` — 3 occurrences (`allowed_repos_mode`, `audit_log_path`, `llm_url`)
-- `scripts/mcp/sqlite/models.py` — 1 occurrence (`auth_token`)
+
 
 # Assumptions
 
@@ -28,7 +28,7 @@ unexpected types.
 ## Target files
 
 `scripts/mcp/cicd/models.py`, `scripts/mcp/git/models.py`,
-`scripts/mcp/github/models.py`, `scripts/mcp/sqlite/models.py`
+`scripts/mcp/github/models.py`
 
 ## Procedure
 
@@ -71,19 +71,13 @@ audit_log_path=_get_str(d, "audit_log_path"),
 llm_url=_get_str(d, "llm_url"),
 ```
 
-### sqlite/models.py changes
-
-```python
-auth_token=_get_str(d, "auth_token"),
-```
-
 ## Method
 
 Add one helper per file + replace str() calls. No logic change.
 
 # Validation plan
 
-- `grep -rn "str(d\.get" scripts/mcp/cicd/models.py scripts/mcp/git/models.py scripts/mcp/github/models.py scripts/mcp/sqlite/models.py` → 0 hits
-- `uv run ruff check scripts/mcp/cicd/models.py scripts/mcp/git/models.py scripts/mcp/github/models.py scripts/mcp/sqlite/models.py`
-- `uv run mypy scripts/mcp/cicd/models.py scripts/mcp/git/models.py scripts/mcp/github/models.py scripts/mcp/sqlite/models.py`
+- `grep -rn "str(d\.get" scripts/mcp/cicd/models.py scripts/mcp/git/models.py scripts/mcp/github/models.py` → 0 hits
+- `uv run ruff check scripts/mcp/cicd/models.py scripts/mcp/git/models.py scripts/mcp/github/models.py`
+- `uv run mypy scripts/mcp/cicd/models.py scripts/mcp/git/models.py scripts/mcp/github/models.py`
 - `uv run pytest tests/ -k "mcp" --ignore=tests/test_create_schema.py -v`

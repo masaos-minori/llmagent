@@ -60,7 +60,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 ### File lifecycle
 
 | Path | Created by | Format |
-|---|---|---|---|
+|---|---|---|
 | `{rag_src_dir}/yyyymmddhhmmss-{slug}.json` | `crawler.py` | JSON (url, title, lang, fetched_at, content, code_blocks) |
 | `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | `chunk_splitter.py` | JSON (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified) |
 | `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | `ingester.py` (moved) | Same as chunk file |
@@ -352,7 +352,138 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 
 ---
 
-## 5. Shared Utilities (`scripts/rag/utils.py`)
+## 4. Crawler Utils (`scripts/rag/ingestion/crawler_utils.py`)
+
+### 4.1 Module overview
+
+`crawler_utils.py` — Pure-function utilities for WebCrawler: URL helpers, content extraction, language detection, and target URL parsing. Extracted from `crawler.py` to keep it under 400 lines.
+
+**Module-level constants**
+
+| Constant | Value | Description |
+|---|---|---|
+| `_SUPPORTED_LANGS` | `{"en", "ja"}` | Resolved (output) language codes |
+| `_VALID_HINT_LANGS` | `{"en", "ja", "auto"}` | Valid hint language values |
+| `_CJK_RATIO_THRESHOLD` | `0.1` | CJK character ratio threshold for Japanese classification |
+| `_TARGET_URL_ENTRY_LENGTH` | `2` | Expected element count for target_urls entries |
+| `MIN_TEXT_LENGTH_FOR_DETECTION` | `100` (from `rag.utils`) | Minimum text length for language detection |
+
+**Unicode code point ranges for CJK detection**
+
+| Constant | Range | Description |
+|---|---|---|
+| `_HIRAGANA_KATAKANA_START/END` | "぀"–"ヿ" | Hiragana + Katakana |
+| `_CJK_UNIFIED_START/END` | "一"–"鿿" | CJK Unified Ideographs |
+| `_CJK_EXT_A_START/END` | "㐀"–"䶿" | CJK Extension A |
+
+**Public functions**
+
+| Function | Signature | Description |
+|---|---|---|
+| `url_to_slug` | `(url: str) -> str` | Convert URL to filesystem-safe ASCII slug (max 80 chars); strips scheme, replaces non-alphanumeric with hyphens |
+| `normalize_url` | `(url: str) -> str` | Strip fragment and trailing slash |
+| `same_origin` | `(url: str, base: str) -> bool` | True if scheme + hostname match |
+| `extract_text` | `(soup: BeautifulSoup) -> str` | Remove noise tags (nav, footer, aside, script, style, noscript); extract body text via Trafilatura; fall back to BS4 `get_text()` |
+| `detect_lang` | `(text: str) -> str \| None` | CJK ratio detection; returns 'ja' if ratio ≥ 0.1, 'en' otherwise; None for texts < 100 chars |
+| `parse_target_urls` | `(target_raw: list[Any]) -> list[tuple[str,str]]` | Validate and parse target_urls config into (url, lang) tuples; raises ValueError on invalid entries |
+
+---
+
+## 5. Chunk English Mixin (`scripts/rag/ingestion/chunk_english.py`)
+
+### 5.1 Module overview
+
+`chunk_english.py` — `ChunkEnglishMixin`: paragraph/sentence-level chunking for English text. Mixed into `ChunkSplitter` via multiple inheritance.
+
+**Class: `ChunkEnglishMixin`**
+
+| Method | Signature | Description |
+|---|---|---|
+| `_chunk_english` | `(text: str) -> list[str]` | Split at paragraph/sentence boundaries; merges short paragraphs, discards below min_chunk after stopword removal |
+| `_merge_paragraphs_en` | `(paragraphs: list[str]) -> list[str]` | Accumulate paragraphs into ≤max_chunk chunks; split oversized paragraphs at sentence boundaries |
+| `_split_sentences_en` | `(text: str) -> list[str]` | Split at sentence boundaries (. ! ?); oversized sentences kept as-is |
+| `_filter_stopwords_en` | `(text: str) -> str` | Remove EN stopwords (case-insensitive); return space-joined tokens |
+
+**Inherited attributes (declared for mypy; values set by `ChunkSplitter.__init__`)**
+
+| Attribute | Type | Description |
+|---|---|---|
+| `_max_chunk` | `int` | Maximum chunk size in characters |
+| `_min_chunk` | `int` | Minimum chunk size in characters |
+| `_en_stopwords` | `frozenset[str]` | English stopwords from config |
+| `_chunk_overlap` | `int` | Overlap between chunks in characters |
+
+---
+
+## 6. Chunk Japanese Mixin (`scripts/rag/ingestion/chunk_japanese.py`)
+
+### 6.1 Module overview
+
+`chunk_japanese.py` — `ChunkJapaneseMixin`: morphological-analysis-based chunking for Japanese text. Mixed into `ChunkSplitter` via multiple inheritance.
+
+**Class: `ChunkJapaneseMixin`**
+
+| Method | Signature | Description |
+|---|---|---|
+| `_chunk_japanese` | `(text: str) -> list[tuple[str,str]]` | Split into (original, normalized) chunk pairs via NFKC normalization, sentence splitting, and Sudachi morphological analysis |
+| `_split_into_ja_sentences` | `(text: str) -> list[tuple[str,str]]` | Split at clause boundaries (。！？ and newlines); returns (original, normalized) pairs; empty pairs discarded |
+| `_normalize_ja_sentence` | `(text: str) -> str` | Run Sudachi SplitMode.C analysis; return space-joined normalized content words; raises `TokenizationError` on failure |
+| `_merge_ja_sentence_pairs` | `(pairs: list[tuple[str,str]]) -> list[tuple[str,str]]` | Accumulate (original, normalized) pairs into chunk pairs by original text length; applies overlap from buffer tail |
+
+**Inherited attributes (declared for mypy; values set by `ChunkSplitter.__init__`)**
+
+| Attribute | Type | Description |
+|---|---|---|
+| `_max_chunk` | `int` | Maximum chunk size in characters |
+| `_min_chunk` | `int` | Minimum chunk size in characters |
+| `_chunk_overlap` | `int` | Overlap between chunks in characters |
+| `_ja_stop_pos` | `frozenset[str]` | Japanese stop POS tags from config (excluded from normalized output) |
+| `_sd_tkn` | Any | Sudachi tokenizer instance |
+| `_split_c` | Any | Sudachi SplitMode.C |
+
+---
+
+## 7. Pipeline Utils (`scripts/rag/ingestion/pipeline_utils.py`)
+
+### 7.1 Module overview
+
+`pipeline_utils.py` — Shared I/O utilities for the RAG ingestion pipeline: chunk JSON reading, source file collection, and processing sentinel checks.
+
+**Module-level constants**
+
+| Constant | Value | Description |
+|---|---|---|
+| `logger` | `Logger(__name__, "/opt/llm/logs/pipeline.log")` | Pipeline logging instance |
+
+**Public functions**
+
+| Function | Signature | Description |
+|---|---|---|
+| `_read_chunk_json_raw` | `(path: Path) -> dict[str, Any] \| None` | Read and parse chunk JSON as raw dict; returns None on any failure (OSError, JSONDecodeError, missing url/content) |
+| `read_json_file` | `(path: Path) -> ChunkDocument` | Read and parse JSON file into ChunkDocument; raises ChunkFormatError on failure |
+| `collect_source_files` | `(rag_src_dir: Path, target: Path \| None = None) -> tuple[list[Path], list[SkipInfo]]` | Return (files_to_process, skipped); if target is given and exists, returns [target]; otherwise glob *.json from rag_src_dir |
+| `is_already_processed` | `(sentinel_path: Path, force: bool) -> bool` | True when sentinel file exists and force=False (skip signal for chunk_splitter) |
+
+**read_json_file field mapping**
+
+| JSON field | ChunkDocument field | Fallback |
+|---|---|---|
+| `url` | `url` | (required, no fallback) |
+| `title` | `title` | `""` |
+| `lang` | `lang` | `"en"` |
+| `content` | `content` | (required, no fallback) |
+| `code_blocks` | `code_blocks` | `[]` |
+| `etag` | `etag` | `None` |
+| `last_modified` | `last_modified` | `None` |
+| `chunking_strategy` | `chunking_strategy` | `"text"` |
+| `normalized_content` | `normalized_content` | `None` |
+| `chunk_index` | `chunk_index` | `0` |
+| `source_file` | `source_file` | `""` |
+| `chunk_type` | `chunk_type` | `""` |
+
+---
+
+## 8. Shared Utilities (`scripts/rag/utils.py`)
 
 ```python
 from rag.utils import (
@@ -395,6 +526,7 @@ from rag.utils import (
 | Script | Functions used |
 |---|---|
 | `scripts/rag/ingestion/chunk_splitter.py` | `normalize_unicode` |
+| `scripts/rag/ingestion/chunk_japanese.py` | `normalize_unicode` |
 | `scripts/rag/ingestion/ingester.py` | `floats_to_blob`, `validate_url` |
 | `scripts/rag/ingestion/crawler.py` | `validate_url` |
 | `scripts/rag/pipeline.py` | `sanitize_document`, `floats_to_blob` |
