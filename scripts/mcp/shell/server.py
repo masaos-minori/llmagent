@@ -91,7 +91,7 @@ async def health() -> dict[str, object]:
 
         if _shutil.which("sh") is None:
             deps["shell"] = "sh not found in PATH"
-    except Exception:
+    except (ImportError, OSError):
         deps["shell"] = "check failed"
     ready = len(deps) == 0
     return {

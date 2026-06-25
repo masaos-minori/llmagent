@@ -50,22 +50,26 @@ class ShellConfig:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> ShellConfig:
-        """Construct from a raw config dict (e.g. loaded from TOML)."""
+        """Construct from a raw config dict (e.g. loaded from TOML).
+
+        Uses ``or`` for defaults to avoid str(None) producing "None" and
+        int(None) raising TypeError when a key is present with a null value.
+        """
         return cls(
-            command_allowlist=list(d.get("command_allowlist", [])),
-            shell_cwd_allowed_dirs=list(d.get("shell_cwd_allowed_dirs", [])),
-            default_cwd=str(d.get("default_cwd", "")),
-            max_timeout_sec=int(d.get("max_timeout_sec", 300)),
-            max_output_kb=int(d.get("max_output_kb", 4096)),
-            max_memory_mb=int(d.get("max_memory_mb", 512)),
-            kill_policy=str(d.get("kill_policy", "sigterm_then_sigkill")),
-            kill_grace_sec=float(d.get("kill_grace_sec", 2.0)),
-            execution_user=str(d.get("execution_user", "")),
-            shell_path=str(d.get("shell_path", "/usr/bin:/bin")),
-            audit_log_path=str(d.get("audit_log_path", "")),
-            shell_sandbox_backend=str(d.get("shell_sandbox_backend", "none")),
-            env_allowlist=list(d.get("env_allowlist", [])),
-            env_denylist=list(d.get("env_denylist", [])),
+            command_allowlist=list(d.get("command_allowlist") or []),
+            shell_cwd_allowed_dirs=list(d.get("shell_cwd_allowed_dirs") or []),
+            default_cwd=d.get("default_cwd") or "",
+            max_timeout_sec=int(d.get("max_timeout_sec") or 300),
+            max_output_kb=int(d.get("max_output_kb") or 4096),
+            max_memory_mb=int(d.get("max_memory_mb") or 512),
+            kill_policy=d.get("kill_policy") or "sigterm_then_sigkill",
+            kill_grace_sec=float(d.get("kill_grace_sec") or 2.0),
+            execution_user=d.get("execution_user") or "",
+            shell_path=d.get("shell_path") or "/usr/bin:/bin",
+            audit_log_path=d.get("audit_log_path") or "",
+            shell_sandbox_backend=d.get("shell_sandbox_backend") or "none",
+            env_allowlist=list(d.get("env_allowlist") or []),
+            env_denylist=list(d.get("env_denylist") or []),
         )
 
     @classmethod
@@ -85,16 +89,16 @@ def load_shell_policy() -> ShellPolicy:
     return ShellPolicy(
         allowed_commands=frozenset(cfg.command_allowlist),
         cwd_allowed_dirs=tuple(cfg.shell_cwd_allowed_dirs),
-        default_cwd=str(cfg.default_cwd),
-        timeout_sec=int(cfg.max_timeout_sec),
-        max_output_kb=int(cfg.max_output_kb),
-        max_memory_mb=int(cfg.max_memory_mb),
-        kill_policy=str(cfg.kill_policy),
-        kill_grace_sec=float(cfg.kill_grace_sec),
-        execution_user=str(cfg.execution_user),
-        shell_path=str(cfg.shell_path),
-        audit_log_path=str(cfg.audit_log_path),
-        sandbox_backend=str(cfg.shell_sandbox_backend),
+        default_cwd=cfg.default_cwd,
+        timeout_sec=cfg.max_timeout_sec,
+        max_output_kb=cfg.max_output_kb,
+        max_memory_mb=cfg.max_memory_mb,
+        kill_policy=cfg.kill_policy,
+        kill_grace_sec=cfg.kill_grace_sec,
+        execution_user=cfg.execution_user,
+        shell_path=cfg.shell_path,
+        audit_log_path=cfg.audit_log_path,
+        sandbox_backend=cfg.shell_sandbox_backend,
         env_allowlist=tuple(cfg.env_allowlist),
         env_denylist=tuple(cfg.env_denylist),
     )
