@@ -20,7 +20,7 @@ curl -s http://127.0.0.1:8003/health   # confirm embed-llm is running
 nohup uv run python scripts/rag/ingestion/crawler.py > logs/crawl.log 2>&1 &
 tail -f logs/crawl.log
 
-# Single URL
+# Single URL (with per-page language auto-detection)
 uv run python scripts/rag/ingestion/crawler.py --url "https://ziglang.org/documentation/master/" --lang en
 
 # Multiple URLs (same --lang applied to all)
@@ -28,6 +28,9 @@ uv run python scripts/rag/ingestion/crawler.py \
     --url "https://ziglang.org/documentation/master/" \
           "https://zig.guide/" \
     --lang en
+
+# Per-page CJK-ratio language detection
+uv run python scripts/rag/ingestion/crawler.py --url "https://example.com/page" --lang auto
 ```
 
 **Note:** All file paths (`rag_src_dir`) are resolved from `config/rag_pipeline.toml`. Production default: `/opt/llm/rag-src/`.
@@ -61,8 +64,8 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 | Path | Created by | Format |
 |---|---|---|
-| `{rag_src_dir}/yyyymmddhhmmss-{slug}.json` | `crawler.py` | JSON (url, title, lang, fetched_at, content, code_blocks) |
-| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | `chunk_splitter.py` | JSON (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified) |
+| `{rag_src_dir}/yyyymmddhhmmss-{slug}.json` | `crawler.py` | JSON (url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type, created_by) |
+| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | `chunk_splitter.py` | JSON (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified, schema_version, artifact_type, created_by, chunking_strategy) |
 | `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | `ingester.py` (moved) | Same as chunk file |
 
 > **Artifact format note:** All `.json` files listed above contain JSON payloads.
@@ -80,7 +83,15 @@ Production config: `rag_src_dir = "/opt/llm/rag-src"`. The default value `rag-sr
 ### 2.1 Class overview
 
 `WebCrawler` — BFS-crawls from a start URL within the same origin; saves each page as
-a JSON file in `rag-src/`. Supports conditional GET (ETag/Last-Modified) and local files.
+a JSON file in `rag-src/`. Supports conditional GET (ETag/Last-Modified), local files,
+and per-page CJK-ratio language auto-detection (`--lang auto`).
+
+**Class-level constants**
+
+| Constant | Description |
+|---|---|
+| `_USER_AGENT` | `"Mozilla/5.0 (compatible; RAG-bot/1.0; +local)"` |
+| `_HEADERS` | Shared headers dict: User-Agent, Accept-Language (ja,en;q=0.9), Accept-Encoding, Connection |
 
 **Public methods**
 
@@ -88,8 +99,23 @@ a JSON file in `rag-src/`. Supports conditional GET (ETag/Last-Modified) and loc
 |---|---|---|
 | `__init__` | `(config: dict \| None = None)` | Load `rag_pipeline.toml`; init httpx.AsyncClient |
 | `crawl` | `async (targets: list[tuple[str,str]] \| None = None) -> None` | Crawl all targets; uses config `target_urls` if None |
-| `crawl_site` | `async (start_url: str, hint_lang: str) -> None` | Single-origin BFS crawl |
-| `crawl_file` | `(path: Path, lang: str) -> int` | Save local file as crawler JSON; returns 1 on success |
+| `crawl_site` | `async (start_url: str, hint_lang: str) -> None` | Single-origin BFS crawl with asyncio.Semaphore concurrency |
+| `crawl_file` | `(path: Path, lang: str) -> int` | Save local file as crawler JSON; returns 1 on success, 0 on failure |
+
+**Private methods**
+
+| Method | Signature | Description |
+|---|---|---|
+| `_get_conditional_headers` | `(url: str) -> dict[str,str]` | Return If-None-Match/If-Modified-Since headers from SQLite |
+| `_make_crawl_filepath` | `(url: str) -> Path` | Generate output path in yyyymmddhhmmss-{slug}.json format |
+| `_fetch_html_async` | `async (url, client, extra_headers) -> tuple[str,str\|None,str\|None]\|None` | Fetch HTML with conditional request; returns None on 304 or retry exhaustion |
+| `_extract_code_blocks` | `(soup: BeautifulSoup) -> list[str]` | Extract <pre> blocks, remove from DOM |
+| `_extract_content` | `(html: str, url: str) -> tuple[str,str,list[str]]` | Return (title, body text, code blocks) |
+| `_save_crawl_file` | `(url, title, lang, content, code_blocks, etag\|None, last_modified\|None) -> Path` | Save crawl results as JSON to rag-src/ |
+| `_fetch_and_extract_async` | `async (url, client, extra_headers) -> tuple[str,str,str,list[str],str\|None,str\|None]\|None` | Fetch HTML and extract content; returns None when unavailable or 304 |
+| `_enqueue_links` | `(html, current_url, start_url, depth, queue) -> None` | Parse links from HTML and enqueue; nofollow/external filtering applies |
+| `_resolve_lang` | `(text: str, hint_lang: str) -> str` | Determine page language; 'auto' uses CJK-ratio detection with 'en' fallback for short texts |
+| `_drain_queue_to_tasks` | `async (queue, visited, start_url, hint_lang, client, sem) -> set[Task]` | Dequeue pending URLs and create fetch tasks |
 
 **Module-level utilities**
 
@@ -98,6 +124,25 @@ a JSON file in `rag-src/`. Supports conditional GET (ETag/Last-Modified) and loc
 | `url_to_slug(url)` | Convert URL to filesystem-safe ASCII slug (max 80 chars) |
 | `normalize_url(url)` | Remove fragment and trailing slash |
 | `same_origin(url, base)` | True if scheme + hostname match |
+
+### 2.1.1 Configuration parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `fetch_timeout` | 15 | HTTP request timeout in seconds |
+| `crawl_concurrency` | 3 | Max concurrent fetch tasks via asyncio.Semaphore |
+| `max_pages` | 500 | Maximum pages to crawl per start URL |
+| `skip_nofollow` | False | Skip links with rel="nofollow" |
+| `skip_external` | True | Skip cross-origin links (same-origin only by default) |
+
+### 2.1.2 crawl_file behavior
+
+`crawl_file(path, lang)` reads a local file and writes a crawl JSON to `rag-src/`.
+Unlike web URLs, no HTTP round-trip occurs. Python files (.py) are stored as code blocks
+so the code chunker applies. Local files include `schema_version`, `artifact_type`, `created_by`
+metadata fields in the payload.
+
+The method resolves "auto" lang by CJK-ratio detection on the file content when `lang == "auto"`.
 
 ### 2.2 Behavior details
 
@@ -153,14 +198,21 @@ Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto
 
 ```json
 {
+  "schema_version": "1",
+  "artifact_type": "crawl",
+  "created_by": "crawler",
   "url": "https://example.com/page",
   "title": "Page title",
   "lang": "ja",
   "fetched_at": "2024-01-01T12:00:00",
   "content": "body text",
-  "code_blocks": ["block1", "block2"]
+  "code_blocks": ["block1", "block2"],
+  "etag": "optional-http-etag",
+  "last_modified": "optional-http-date"
 }
 ```
+
+Local file payloads include `etag` (SHA-256 hex digest of file content) and `last_modified` (ISO mtime string).
 
 ### 2.5 Error handling
 
@@ -188,6 +240,35 @@ See [03_rag_05_configuration_and_operations.md §1.1](03_rag_05_configuration_an
 ---
 
 ## 3. ChunkSplitter (`scripts/rag/ingestion/chunk_splitter.py`)
+
+### 3.1.1 Markdown heading chunking configuration
+
+| Parameter | Default | Description |
+|---|---|---|
+| `md_index_enable` | False | Enable heuristic Markdown detection for non-.md files |
+| `md_snippet_max_chars` | 600 | Max characters per markdown heading section before falling back to sentence-level chunking |
+
+### 3.1 Class overview
+
+`ChunkSplitter` — splits `rag-src/*.json` files into chunks by language and content type;
+saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` exists (`--force` overrides).
+
+**Public methods**
+
+| Method | Signature | Description |
+|---|---|---|
+| `__init__` | `(config: dict \| None = None)` | Load `rag_pipeline.toml`; init Sudachi tokenizer (SplitMode.C, `core` dict) |
+| `process_all` | `(target: Path \| None = None, force: bool = False) -> int` | Process all `rag-src/*.json`; returns total chunk count |
+| `process_file` | `(src_path: Path, force: bool = False) -> int` | Process single file; returns chunk count |
+
+### 3.1.2 _is_markdown_source behavior
+
+`.md` / `.markdown` / `.mdx` files always use heading chunking regardless of `md_index_enable`.
+Non-`.md` files use heuristic detection (≥2 heading lines) only when `md_index_enable=true`.
+
+### 3.1.3 _chunk_markdown_by_heading behavior
+
+Sections exceeding `md_snippet_max_chars` are further split via `_chunk_english` sentence-level chunking.
 
 ### 3.1 Class overview
 
@@ -228,6 +309,9 @@ saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` exists (`--fo
 
 ```json
 {
+  "schema_version": "1",
+  "artifact_type": "chunk",
+  "created_by": "chunk_splitter",
   "url": "https://example.com/page",
   "title": "Page title",
   "lang": "ja",
@@ -241,6 +325,8 @@ saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` exists (`--fo
   "last_modified": "optional-http-date"
 }
 ```
+
+The `source_file` field retains the original `.txt` extension from the crawler output filename.
 
 ### 3.5 Error handling
 
@@ -286,9 +372,27 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 | Method | Signature | Description |
 |---|---|---|
 | `__init__` | `(config: dict \| None = None)` | Merge `common.toml` + `rag_pipeline.toml`; init `httpx.Client` |
-| `ingest_all` | `(force: bool = False, on_ingest_complete: Callable[[], None] \| None = None) -> RagConsistencyReport \| None` | Group chunk files by URL; call `ingest_url_group` for each. `on_ingest_complete` is called after ingestion completes (e.g., to invalidate semantic cache). |
+| `ingest_all` | `(force: bool = False, on_ingest_complete: Callable[[], None] \| None = None) -> RagConsistencyReport \| None` | Group chunk files by URL; call `ingest_url_group` for each. `on_ingest_complete` is called after ingestion completes (e.g., to invalidate semantic cache). Returns consistency report or None if check failed. |
 | `ingest_url_group` | `(db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> IngestUrlResult` | Process one URL group; returns `{n_success, n_failed, n_embed_failed, skipped}` |
 | `close` | `() -> None` | Close the underlying `httpx.Client` |
+
+**Private methods**
+
+| Method | Signature | Description |
+|---|---|---|
+| `_get_embedding` | `(text: str) -> list[float] \| None` | Return embedding vector; validates dimension against embedding_dims config. Returns None on empty input, network failure, or dimension mismatch. |
+| `_validate_artifact` | `(payload: dict, expected_type: str) -> None` | Validate artifact_type field; lenient for backward compatibility (missing artifact_type accepted) |
+| `_is_file_unchanged` | `(existing_etag, existing_last_modified, new_etag, new_last_modified) -> bool` | Return True when file SHA-256 hash is unchanged |
+| `_delete_existing_document` | `(db: SQLiteHelper, doc_id: int) -> None` | Delete document and chunks; chunks_vec removed first |
+| `_update_etag` | `(db: SQLiteHelper, doc_id: int, etag, last_modified, new_fetched_at\|None) -> None` | Refresh ETag/Last-Modified for existing document with stale guard |
+| `_get_or_create_document` | `(db, url, title, lang, force, etag\|None, last_modified\|None, chunking_strategy, fetched_at\|None) -> int \| None` | Register URL in documents; returns doc_id or None when already registered |
+| `_insert_chunk` | `(db, doc_id, idx, content, normalized_content, embedding, chunk_type, source_file) -> None` | Insert chunk and embedding vector |
+| `_read_chunk_json` | `(path: Path) -> dict \| None` | Read and parse chunk JSON as raw dict |
+| `_embed_and_store` | `(doc_id: int, path: Path) -> tuple[bool, bool]` | Embed one chunk and insert; returns (chunk_ok, embed_ok) |
+| `_ingest_chunk_files` | `(doc_id: int, chunk_files: list[Path]) -> tuple[int, int, int]` | Embed and insert in parallel; returns (n_inserted, n_failed, n_embed_failed) |
+| `_group_chunks_by_url` | `(chunk_files: list[Path]) -> dict[str, list[Path]]` | Group chunk files by URL field |
+| `_process_url_groups` | `(db, url_groups: dict, force: bool) -> list[IngestUrlResult]` | Iterate over URL groups and ingest each |
+| `_move_to_registered` | `(paths: list[Path]) -> None` | Move ingested chunk files to registered/ |
 
 ### 4.2 Behavior details
 
@@ -299,9 +403,11 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 - **WAL mode:** `PRAGMA journal_mode=WAL` for concurrent read/write safety
 - **Upsert (`--force`):** delete in order `chunks_vec` → `chunks` → `documents`, then re-INSERT
 - **Idempotency:** skip URL if already in `documents`; still UPDATE `etag`/`last_modified` via skip-path guard (see below)
+- **Embedding dimension validation:** `_get_embedding()` validates embedding dimension against `embedding_dims` config (default 384); returns None on mismatch
 - **Skip-path stale guard:** `_update_etag()` compares incoming `fetched_at` (chunk payload) against stored `documents.fetched_at`; if incoming < stored the update is skipped (newer crawl wins — prevents stale chunk files from overwriting fresher metadata). Missing `fetched_at` (legacy chunks without a freshness signal) uses fill-only semantics: `COALESCE(etag, ?)` — only populates the stored field if currently NULL; never overwrites a non-NULL value. This prevents stale chunk-file metadata from replacing fresher values stored by a more recent crawl.
 - **Embed failure tracking:** `_embed_and_store()` returns `(chunk_ok, embed_ok)` tuple;
   `n_embed_failed` counts embedding-specific failures separately from parse/DB errors
+- **Local file unchanged detection:** `_is_file_unchanged()` compares SHA-256 etags for `file://` URLs
 
 ### 4.3 CLI arguments
 
@@ -324,7 +430,7 @@ Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config
 | `documents` | SELECT to check; DELETE+INSERT (`force=True`) or skip+UPDATE etag (`force=False`) |
 | `chunks` | INSERT (FK → documents; ON DELETE CASCADE) |
 | `chunks_vec` | INSERT BLOB vector |
-| `chunks_fts` | Auto-synced by `chunks_ai` trigger (`COALESCE(normalized_content, content)`) |
+| `chunks_fts` | Auto-synced by `chunks_ai` trigger (`COALESCE(normalized_content, content)`)
 
 ### 4.6 Error handling
 
@@ -334,6 +440,7 @@ Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config
 | Retry exhausted (single chunk) | `WARNING` log; skip chunk; continue |
 | Invalid `lang` value | `ValueError`; skip URL group; `ERROR` log with traceback |
 | `chunks_vec` delete order | Must delete `chunks_vec` first (no FK constraint on sqlite-vec virtual table) |
+| Embedding dimension mismatch | `ValueError`; skip chunk; `WARNING` log |
 
 ### 4.7 Logging
 
@@ -352,9 +459,9 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 
 ---
 
-## 4. Crawler Utils (`scripts/rag/ingestion/crawler_utils.py`)
+## 5. Crawler Utils (`scripts/rag/ingestion/crawler_utils.py`)
 
-### 4.1 Module overview
+### 5.1 Module overview
 
 `crawler_utils.py` — Pure-function utilities for WebCrawler: URL helpers, content extraction, language detection, and target URL parsing. Extracted from `crawler.py` to keep it under 400 lines.
 
@@ -383,7 +490,7 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 | `url_to_slug` | `(url: str) -> str` | Convert URL to filesystem-safe ASCII slug (max 80 chars); strips scheme, replaces non-alphanumeric with hyphens |
 | `normalize_url` | `(url: str) -> str` | Strip fragment and trailing slash |
 | `same_origin` | `(url: str, base: str) -> bool` | True if scheme + hostname match |
-| `extract_text` | `(soup: BeautifulSoup) -> str` | Remove noise tags (nav, footer, aside, script, style, noscript); extract body text via Trafilatura; fall back to BS4 `get_text()` |
+| `extract_text` | `(soup: BeautifulSoup) -> str` | Remove noise tags (nav, footer, aside, script, style, noscript); extract body text via Trafilatura with `include_comments=False`, `include_tables=True`; fall back to BS4 `get_text(separator="\n", strip=True)` |
 | `detect_lang` | `(text: str) -> str \| None` | CJK ratio detection; returns 'ja' if ratio ≥ 0.1, 'en' otherwise; None for texts < 100 chars |
 | `parse_target_urls` | `(target_raw: list[Any]) -> list[tuple[str,str]]` | Validate and parse target_urls config into (url, lang) tuples; raises ValueError on invalid entries |
 
