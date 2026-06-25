@@ -239,7 +239,9 @@ class TestCheckAllowedRoot:
         cfg = _make_cfg(allowed_root=str(cwd))
         assert _check_allowed_root(cfg, "write_file", {"path": "subdir/file.txt"})
 
-    def test_absolute_path_denied_when_root_is_relative_and_path_is_outside(self) -> None:
+    def test_absolute_path_denied_when_root_is_relative_and_path_is_outside(
+        self,
+    ) -> None:
         cfg = _make_cfg(allowed_root=".")
         assert not _check_allowed_root(cfg, "write_file", {"path": "/etc/passwd"})
 
@@ -335,6 +337,7 @@ def _make_ctx_for_dag(
     ctx.cfg.tool.tool_summarize_threshold = 0
     ctx.conv.history = []
     ctx.services = MagicMock()
+    ctx.services.gateway = None
     ctx.session = MagicMock()
     ctx.session.save_many = MagicMock()
     ctx.tool_result_store = MagicMock()
@@ -344,7 +347,7 @@ def _make_ctx_for_dag(
 @pytest.mark.asyncio
 async def test_dag_write_executed_before_read() -> None:
     """use_tool_dag=True のとき WRITE_TOOLS が READ/other より先に実行されること。"""
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import patch
 
     from agent.tool_runner import execute_all_tool_calls
 
@@ -367,10 +370,6 @@ async def test_dag_write_executed_before_read() -> None:
 
     with (
         patch(
-            "agent.tool_runner.run_approval_checks",
-            new=AsyncMock(return_value=([write_call, read_call], [])),
-        ),
-        patch(
             "agent.tool_runner.execute_one_tool_call",
             side_effect=fake_execute_one,
         ),
@@ -384,7 +383,7 @@ async def test_dag_write_executed_before_read() -> None:
 @pytest.mark.asyncio
 async def test_dag_disabled_does_not_reorder() -> None:
     """use_tool_dag=False のとき side-effect があれば直列実行になること。"""
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import patch
 
     from agent.tool_runner import execute_all_tool_calls
 
@@ -407,10 +406,6 @@ async def test_dag_disabled_does_not_reorder() -> None:
 
     with (
         patch(
-            "agent.tool_runner.run_approval_checks",
-            new=AsyncMock(return_value=([write_call, read_call], [])),
-        ),
-        patch(
             "agent.tool_runner.execute_one_tool_call",
             side_effect=fake_execute_one,
         ),
@@ -425,7 +420,7 @@ async def test_dag_disabled_does_not_reorder() -> None:
 @pytest.mark.asyncio
 async def test_dag_serial_tool_calls_overrides_dag() -> None:
     """serial_tool_calls=True のとき use_tool_dag=True でも直列実行になること。"""
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import patch
 
     from agent.tool_runner import execute_all_tool_calls
 
@@ -448,10 +443,6 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
 
     with (
         patch(
-            "agent.tool_runner.run_approval_checks",
-            new=AsyncMock(return_value=([write_call, read_call], [])),
-        ),
-        patch(
             "agent.tool_runner.execute_one_tool_call",
             side_effect=fake_execute_one,
         ),
@@ -466,7 +457,7 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
 @pytest.mark.asyncio
 async def test_parallel_execution_without_dag_or_side_effects() -> None:
     """use_tool_dag=False かつ副作用なしのとき asyncio.gather() 並列実行になること。"""
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import patch
 
     from agent.tool_runner import execute_all_tool_calls
 
@@ -489,10 +480,6 @@ async def test_parallel_execution_without_dag_or_side_effects() -> None:
     ctx = _make_ctx_for_dag(use_tool_dag=False)
 
     with (
-        patch(
-            "agent.tool_runner.run_approval_checks",
-            new=AsyncMock(return_value=([read_call1, read_call2], [])),
-        ),
         patch(
             "agent.tool_runner.execute_one_tool_call",
             side_effect=fake_execute_one,

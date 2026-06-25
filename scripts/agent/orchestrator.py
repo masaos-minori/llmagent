@@ -118,7 +118,12 @@ class Orchestrator:
         if self._workflow_mode != "disabled":
             try:
                 self._workflow_def = WorkflowLoader().load()
-            except (WorkflowLoadError, Exception):
+            except (WorkflowLoadError, Exception) as exc:
+                if self._workflow_mode == "required":
+                    raise RuntimeError(
+                        f"[workflow] mode=required but WorkflowLoader failed: {exc}. "
+                        "Check workflow definition file or set workflow_mode=auto in config."
+                    ) from exc
                 logger.warning("WorkflowLoader failed — workflow tracking disabled")
 
     # ── Public entry point ────────────────────────────────────────────────────
@@ -132,6 +137,18 @@ class Orchestrator:
         logger.warning(
             "Workflow tracking disabled (%s), falling back to direct execution", reason
         )
+
+    def workflow_status(self) -> dict[str, str]:
+        """Return public workflow status for display purposes.
+
+        Keys:
+          mode: "auto" | "required" | "disabled"
+          tracking: "enabled" | "not_loaded"
+        """
+        return {
+            "mode": self._workflow_mode,
+            "tracking": "enabled" if self._workflow_def is not None else "not_loaded",
+        }
 
     async def handle_turn(self, line: str) -> None:
         """Call LLM with the user message and persist to DB."""
@@ -489,6 +506,12 @@ class Orchestrator:
         incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
         self._diagnostic_store.save(
             ctx.session.session_id, "llm_transport_error", incomplete_msg
+        )
+        self._diagnostic_store.save_partial_completion(
+            session_id=ctx.session.session_id,
+            turn=ctx.stats.stat_turns,
+            reason=e.kind,
+            content_length=len(e.partial_text),
         )
         try:
             ctx.tool_result_store.store(

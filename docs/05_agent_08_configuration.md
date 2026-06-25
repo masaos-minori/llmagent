@@ -155,6 +155,11 @@ workflow execution fails, `"required"` raises a hard error, `"disabled"` always 
 LLM path. `security_lockdown_enabled` suppresses DENY-ALL approval warnings for intentional
 lockdown deployments.
 
+**Production default:** `config/common.toml` sets `workflow_mode = "required"`. Any environment
+that copies `common.toml` (see `deploy.sh:58`) must have a valid workflow definition file
+deployed, or the agent will fail at startup. For local/dev environments without `common.toml`
+in the config search path, the dataclass default `"auto"` applies (warns and falls back).
+
 Cross-field validation in `_validate_cross_field()`:
 - `rag.use_semantic_cache=True` → `rag.embed_url` must be non-empty
 - `memory.use_memory_layer=True` → `memory.memory_jsonl_dir` must be non-empty

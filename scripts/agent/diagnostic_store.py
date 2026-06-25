@@ -73,6 +73,66 @@ class DiagnosticStore:
         ).decode()
         self.save(session_id=session_id, kind="serialization_event", content=content)
 
+    def save_partial_completion(
+        self,
+        session_id: int | None,
+        turn: int,
+        reason: str,
+        content_length: int,
+    ) -> None:
+        """Persist a partial LLM completion event to session_diagnostics."""
+        content = orjson.dumps(
+            {
+                "turn": turn,
+                "reason": reason,
+                "content_length": content_length,
+            }
+        ).decode()
+        self.save(session_id=session_id, kind="partial_completion", content=content)
+
+    def save_transport_failure(
+        self,
+        session_id: int | None,
+        tool_name: str,
+        server_key: str,
+        error_msg: str,
+    ) -> None:
+        """Persist a transport-level tool execution failure."""
+        content = orjson.dumps(
+            {
+                "tool_name": tool_name,
+                "server_key": server_key,
+                "error": error_msg,
+            }
+        ).decode()
+        self.save(session_id=session_id, kind="transport_failure", content=content)
+
+    def save_loop_guard_hint(
+        self,
+        session_id: int | None,
+        reason: str,
+        turn_count: int,
+    ) -> None:
+        """Persist a tool loop guard hint (cycle or dedup threshold exceeded)."""
+        content = orjson.dumps(
+            {
+                "reason": reason,
+                "turn_count": turn_count,
+            }
+        ).decode()
+        self.save(session_id=session_id, kind="loop_guard_hint", content=content)
+
+    def fetch_by_kind(self, session_id: int, kind: str) -> list[dict[str, Any]]:
+        """Return diagnostics for a specific kind, newest first."""
+        with SQLiteHelper("session").open(row_factory=True) as db:
+            rows = db.fetchall(
+                "SELECT id, session_id, kind, content, created_at"
+                " FROM session_diagnostics WHERE session_id = ? AND kind = ?"
+                " ORDER BY created_at DESC",
+                (session_id, kind),
+            )
+        return [dict(r) for r in rows]
+
     def fetch_all(self, limit: int = 50) -> list[dict[str, Any]]:
         """Return most recent diagnostics across all sessions."""
         with SQLiteHelper("session").open(row_factory=True) as db:

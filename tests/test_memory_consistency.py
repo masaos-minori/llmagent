@@ -1,7 +1,7 @@
 """tests/test_memory_consistency.py
 Tests for memory consistency check and rebuild:
   - JsonlMemoryStore.count_all()
-  - MemoryStore.rebuild_from_jsonl()
+  - MemoryStore.import_from_jsonl()
   - /memory check-consistency command
   - /memory rebuild command
 """
@@ -76,7 +76,7 @@ class TestCountAll:
         assert store.count_all() == 1
 
 
-# ── MemoryStore.rebuild_from_jsonl() ─────────────────────────────────────────
+# ── MemoryStore.import_from_jsonl() ─────────────────────────────────────────
 
 _SCHEMA_SQL = """
 CREATE TABLE memories (
@@ -174,7 +174,7 @@ class TestRebuildFromJsonl:
         asyncio.run(jsonl.write(_make_entry(memory_id="e1")))
         asyncio.run(jsonl.write(_make_entry(memory_id="e2")))
 
-        jsonl_count, inserted = mem_store.rebuild_from_jsonl(jsonl, dry_run=True)
+        jsonl_count, inserted = mem_store.import_from_jsonl(jsonl, dry_run=True)
 
         assert jsonl_count == 2
         assert inserted == 0
@@ -189,7 +189,7 @@ class TestRebuildFromJsonl:
         asyncio.run(jsonl.write(_make_entry(memory_id="e1")))
         asyncio.run(jsonl.write(_make_entry(memory_id="e2", memory_type="episodic")))
 
-        jsonl_count, inserted = mem_store.rebuild_from_jsonl(jsonl)
+        jsonl_count, inserted = mem_store.import_from_jsonl(jsonl)
 
         assert jsonl_count == 2
         assert inserted == 2
@@ -207,7 +207,7 @@ class TestRebuildFromJsonl:
         jsonl = JsonlMemoryStore(tmp_path / "mem.jsonl")
         asyncio.run(jsonl.write(_make_entry(memory_id="fresh")))
 
-        mem_store.rebuild_from_jsonl(jsonl)
+        mem_store.import_from_jsonl(jsonl)
 
         ids = [
             r[0] for r in db_conn.execute("SELECT memory_id FROM memories").fetchall()
@@ -221,7 +221,7 @@ class TestRebuildFromJsonl:
         jsonl = JsonlMemoryStore(tmp_path / "mem.jsonl")
         asyncio.run(jsonl.write(_make_entry(memory_id="e1", content="unique keyword")))
 
-        mem_store.rebuild_from_jsonl(jsonl)
+        mem_store.import_from_jsonl(jsonl)
 
         rows = db_conn.execute(
             "SELECT memory_id FROM memories_fts WHERE memories_fts MATCH 'unique'"
@@ -234,7 +234,7 @@ class TestRebuildFromJsonl:
         mem_store.add(_make_entry(memory_id="existing"))
         jsonl = JsonlMemoryStore(tmp_path / "empty.jsonl")
 
-        jsonl_count, inserted = mem_store.rebuild_from_jsonl(jsonl)
+        jsonl_count, inserted = mem_store.import_from_jsonl(jsonl)
 
         assert jsonl_count == 0
         assert inserted == 0
@@ -297,7 +297,7 @@ class TestCmdMemoryCheckConsistency:
         consistent_row = next(r for r in rows if r[0] == "Consistent")
         assert "NO" in consistent_row[1]
 
-    def test_jsonl_mismatch_shows_no(self) -> None:
+    def test_jsonl_mismatch_does_not_affect_consistency(self) -> None:
         mixin = _make_mixin(embed_enabled=False)
         mem = _make_mem_services(memories=3, fts=3, vec=0, jsonl_count=4)
 
@@ -306,7 +306,7 @@ class TestCmdMemoryCheckConsistency:
         args = mixin._out.write_table.call_args[0]
         rows = args[1]
         consistent_row = next(r for r in rows if r[0] == "Consistent")
-        assert "NO" in consistent_row[1]
+        assert consistent_row[1] == "Yes"
 
     def test_consistency_error_writes_error(self) -> None:
         from agent.memory.exceptions import MemoryConsistencyError
@@ -329,12 +329,12 @@ class TestCmdMemoryRebuild:
     def test_dry_run_writes_dry_run_message(self) -> None:
         mixin = _make_mixin()
         mem = MagicMock()
-        mem.store.rebuild_from_jsonl.return_value = (5, 0)
+        mem.store.import_from_jsonl.return_value = (5, 0)
         mem.ingestion._jsonl = MagicMock()
 
         mixin._memory_rebuild(mem, ["--dry-run"])
 
-        mem.store.rebuild_from_jsonl.assert_called_once_with(
+        mem.store.import_from_jsonl.assert_called_once_with(
             mem.ingestion._jsonl, dry_run=True
         )
         mixin._out.write.assert_called_once()
@@ -345,12 +345,12 @@ class TestCmdMemoryRebuild:
     def test_rebuild_writes_success(self) -> None:
         mixin = _make_mixin()
         mem = MagicMock()
-        mem.store.rebuild_from_jsonl.return_value = (4, 4)
+        mem.store.import_from_jsonl.return_value = (4, 4)
         mem.ingestion._jsonl = MagicMock()
 
         mixin._memory_rebuild(mem, [])
 
-        mem.store.rebuild_from_jsonl.assert_called_once_with(
+        mem.store.import_from_jsonl.assert_called_once_with(
             mem.ingestion._jsonl, dry_run=False
         )
         mixin._out.write_success.assert_called_once()

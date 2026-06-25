@@ -510,6 +510,8 @@ class AgentConfig:
     Composes 7 domain-specific sub-configs.
     Access fields via nested paths: cfg.llm.llm_url, cfg.rag.top_k_search, etc.
     workflow_mode: "auto" (fallback with warning), "required" (hard error), "disabled" (always direct).
+        Production default: config/common.toml sets workflow_mode = "required".
+        Dataclass default "auto" applies only when no config file is present (local/test).
     security_lockdown_enabled: suppress DENY-ALL warnings for intentional lockdowns.
     """
 

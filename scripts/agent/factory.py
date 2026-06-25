@@ -27,6 +27,7 @@ from agent.history import HistoryManager
 from agent.http_lifecycle import HttpServerLifecycleManager
 from agent.lifecycle import LifecycleState
 from agent.lifecycle_protocol import LifecycleManagerProtocol
+from agent.repository_gateway import RepositoryGateway
 from agent.stdio_lifecycle import StdioServerLifecycleManager
 
 if TYPE_CHECKING:
@@ -411,6 +412,7 @@ def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
     tools, lifecycle = _build_tool_executor(ctx, http, stdio_procs)
     hist_mgr = _build_history_manager(ctx, view, http)
     memory = _build_memory_services(ctx, http)
+    gateway = RepositoryGateway(executor=tools, cfg=ctx.cfg, audit_logger=audit_logger)
 
     ctx.services = AppServices(
         http=http,
@@ -421,6 +423,7 @@ def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
         audit_logger=audit_logger,
         memory=memory,
         stdio_procs=stdio_procs,
+        gateway=gateway,
     )
 
     _init_plugin_registry(ctx, audit_logger)

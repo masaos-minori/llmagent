@@ -22,7 +22,6 @@ from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
 from shared.tool_executor import is_side_effect, tool_hash_key
 from shared.tool_spec import ToolSpec
 
-from agent.tool_approval import run_approval_checks
 from agent.tool_audit import audit_tool_exec, write_round_exec
 from agent.tool_exceptions import ToolArgumentsDecodeError, ToolExecutorUnavailableError
 from agent.tool_output import emit_tool_call, emit_tool_result
@@ -93,9 +92,24 @@ async def execute_one_tool_call(
             f"Invalid JSON in tool arguments for {name!r}: {args_str!r}"
         ) from e
 
-    result = await ctx.services.tools.execute(name, args)
+    if ctx.services.gateway is not None:
+        result = await ctx.services.gateway.execute(ctx, name, args)
+    else:
+        result = await ctx.services.tools.execute(name, args)
     text, is_error, x_request_id = result.output, result.is_error, result.request_id
     audit_tool_exec(ctx, name, args, is_error, x_request_id, result.error_type)
+
+    if (
+        result.is_error
+        and result.error_type == "transport"
+        and ctx.diagnostics is not None
+    ):
+        ctx.diagnostics.save_transport_failure(
+            session_id=getattr(ctx.session, "session_id", None),
+            tool_name=name,
+            server_key=result.server_key or "",
+            error_msg=result.output[:500],
+        )
 
     if (
         ctx.cfg.tool.use_tool_summarize
@@ -422,15 +436,13 @@ async def execute_all_tool_calls(
     Parallel by default; downgrades to serial on side-effect detection.
     DAG mode (write-before-read) activated by ctx.cfg.tool.use_tool_dag.
     """
-    approved_calls, denied_ids = await run_approval_checks(ctx, tool_calls)
-
     if ctx.cfg.tool.use_tool_dag and not ctx.cfg.tool.serial_tool_calls:
-        results = await _execute_with_dag(ctx, approved_calls, turn)
+        results = await _execute_with_dag(ctx, tool_calls, turn)
     else:
-        results = await _execute_standard(ctx, approved_calls, turn)
+        results = await _execute_standard(ctx, tool_calls, turn)
 
     tool_msgs = _collect_tool_result_msgs(ctx, results, turn, out_failed_keys)
-    denied_history, denied_msgs = _build_denied_messages(denied_ids)
+    denied_history, denied_msgs = _build_denied_messages([])
     ctx.conv.history.extend(denied_history)  # type: ignore[arg-type]
     tool_msgs.extend(denied_msgs)
     ctx.session.save_many(tool_msgs)

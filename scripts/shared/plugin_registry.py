@@ -60,7 +60,9 @@ class PipelineHook(Protocol):
     strict=True:  exception propagates; pipeline fails
     strict=False: exception logged as WARNING; original hits returned
     """
+
     async def __call__(self, hits: list[RagHit], query: str) -> list[RagHit]: ...
+
 
 # Type alias for registered tool handlers: async function (args dict) → (output, is_error)
 ToolHandler = Callable[[dict[str, Any]], Awaitable[tuple[str, bool]]]
@@ -170,11 +172,6 @@ def iter_tools() -> dict[str, Callable[..., Any]]:
     return {name: fn for name, (fn, _mod) in _tools.items()}
 
 
-def get_pipeline_post_stages() -> list[Callable[..., Any]]:
-    """Return a snapshot of all registered post-rerank pipeline stage hooks."""
-    return list(_pipeline_post)
-
-
 def register_builtin_commands(names: frozenset[str]) -> None:
     """Register built-in command names for conflict detection during plugin loading.
 
@@ -205,12 +202,12 @@ async def run_pipeline_stages(
             if asyncio.iscoroutinefunction(hook):
                 result = await hook(hits, query)
             else:
-                result = hook(hits, query)
+                result = hook(hits, query)  # type: ignore[assignment]
             if result is not None:
                 hits = result
         except Exception as exc:  # noqa: BLE001 — plugin hook may raise any exception type
             msg = (
-                f'Plugin hook "{hook.__name__}" failed on query "{query[:60]}": '
+                f'Plugin hook "{getattr(hook, "__name__", repr(hook))}" failed on query "{query[:60]}": '
                 f"{type(exc).__name__}: {exc}"
             )
             if strict:
@@ -375,9 +372,7 @@ def load_plugins(
             details = "; ".join(f.error for f in failures)
             parts.append(f"Plugin load failed ({len(failures)} error(s)): {details}")
         if strict_rejected:
-            parts.append(
-                f"Tool MCP conflicts rejected: {', '.join(strict_rejected)}"
-            )
+            parts.append(f"Tool MCP conflicts rejected: {', '.join(strict_rejected)}")
         raise PluginLoadError("; ".join(parts))
 
     result = PluginLoadResult(

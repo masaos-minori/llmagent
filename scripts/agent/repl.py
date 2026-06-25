@@ -403,10 +403,11 @@ class AgentREPL:
         """Return a human-readable workflow status string for the startup banner."""
         if self._orchestrator is None:
             return "unknown"
-        mode = self._orchestrator._workflow_mode
+        status = self._orchestrator.workflow_status()
+        mode = status["mode"]
         if mode == "disabled":
             return "disabled"
-        if self._orchestrator._workflow_def is not None:
+        if status["tracking"] == "enabled":
             return f"{mode} (tracking enabled)"
         return f"{mode} (definition not loaded)"
 
@@ -465,6 +466,7 @@ class AgentREPL:
             loop.add_signal_handler(signal.SIGTERM, _sigterm_handler)
         except NotImplementedError:
             import signal as _signal
+
             _signal.signal(_signal.SIGTERM, lambda *_: _sigterm_handler())
 
         startup = StartupOrchestrator(self._ctx, self._view)

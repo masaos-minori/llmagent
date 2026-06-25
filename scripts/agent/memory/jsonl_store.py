@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """agent/memory/jsonl_store.py
-Append-only JSONL storage for MemoryEntry (source of truth).
+Append-only JSONL archive for MemoryEntry.
 
-Each line is one JSON object representing a MemoryEntry.
-Reads back all entries via read_all() for audit and reconstruction.
+Each line is one JSON object representing a MemoryEntry at the time of write.
+The JSONL file is an append-only archive; it does NOT record mutations (delete,
+pin, unpin). SQLite (via MemoryStore) is the authoritative source of truth.
+
+Use read_all() for audit, export, or one-time import. Do not use it to rebuild
+authoritative state — use MemoryStore directly or restore from a SQLite backup.
 """
 
 from __future__ import annotations

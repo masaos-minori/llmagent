@@ -253,7 +253,9 @@ class TestHandleTurnLLMTransportError:
         orch._diagnostic_store.save.assert_called()
 
     @pytest.mark.asyncio
-    async def test_malformed_sse_with_partial_saves_llm_transport_diagnostic(self) -> None:
+    async def test_malformed_sse_with_partial_saves_llm_transport_diagnostic(
+        self,
+    ) -> None:
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="MALFORMED_SSE_FRAME", partial_text="partial frame")
@@ -557,6 +559,7 @@ class TestToolLoopGuardHelpers:
         assert result is not None
         assert "repeated" in result.lower() or "duplicate" in result.lower()
 
+
 # ── approval_pending guard ────────────────────────────────────────────────────
 
 
@@ -586,7 +589,7 @@ class TestApprovalPendingGuard:
         ctx.workflow.approval_pending = False
         orch = _make_orchestrator(ctx, on_error=on_error)
 
-       # Patch _process_turn to return a successful result without calling LLM
+        # Patch _process_turn to return a successful result without calling LLM
         with patch.object(
             orch, "_process_turn", new=AsyncMock(return_value=("ok", None))
         ):
@@ -597,6 +600,7 @@ class TestApprovalPendingGuard:
         for call in on_error.call_args_list:
             err = call[0][0]
             assert "Approval is pending" not in str(err)
+
 
 # ── allowed_tools override ────────────────────────────────────────────────────
 
@@ -739,15 +743,25 @@ class TestWorkflowMode:
 
     # -- required mode -------------------------------------------------------
 
-    @pytest.mark.asyncio
-    async def test_required_mode_no_workflow_def_raises(self) -> None:
+    def test_required_mode_raises_at_construction_when_loader_fails(self) -> None:
         ctx = _make_ctx()
-        with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
+        with (
+            patch("agent.orchestrator.WorkflowLoader") as mock_loader,
+            pytest.raises(RuntimeError, match="mode=required"),
+        ):
             mock_loader.return_value.load.side_effect = Exception("not found")
-            orch = Orchestrator(ctx, workflow_mode="required")
-        assert orch._workflow_def is None
-        with pytest.raises(RuntimeError, match="workflow unavailable"):
-            await orch.handle_turn("hello")
+            Orchestrator(ctx, workflow_mode="required")
+
+    def test_required_mode_raises_on_workflow_load_error(self) -> None:
+        from agent.workflow.workflow_loader import WorkflowLoadError
+
+        ctx = _make_ctx()
+        with (
+            patch("agent.orchestrator.WorkflowLoader") as mock_loader,
+            pytest.raises(RuntimeError, match="mode=required"),
+        ):
+            mock_loader.return_value.load.side_effect = WorkflowLoadError("bad yaml")
+            Orchestrator(ctx, workflow_mode="required")
 
     @pytest.mark.asyncio
     async def test_required_mode_state_store_failure_raises(self) -> None:

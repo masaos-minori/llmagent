@@ -68,6 +68,24 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 
 ---
 
+## Routing Source of Truth
+
+The `ToolRouteResolver` resolves tool calls using exactly one authoritative source and two optional validation layers:
+
+| Input | Role | Requirement |
+|---|---|---|
+| `shared/tool_constants.py` frozensets | **Authoritative static source** | Required — all tool names must be in a frozenset |
+| `shared/tool_registry.py` | **Routing authority** — populated from frozensets at import time | Read-only at runtime; changes require code edit |
+| Config `tool_names` (in `mcp_servers.toml`) | **Validation-only** — checked for drift at startup | Optional; routing works without it |
+| Live `/v1/tools` discovery | **Validation-only** — startup drift check | Optional; skipped if servers unreachable |
+
+**Summary of ownership rules:**
+- To add a tool: only `tool_constants.py` is required. All other inputs are optional or automatic.
+- `tool_names` in config: optional drift-check input. Not consulted for routing decisions.
+- Static fallback: the frozensets in `tool_constants.py` ARE the static source. There is no runtime fallback — if a tool name is missing from the registry, routing raises a `KeyError`.
+
+---
+
 ## Tool Registry (`shared/tool_registry.py`)
 
 Single source of truth for MCP tool definitions and ownership.
@@ -76,7 +94,7 @@ Single source of truth for MCP tool definitions and ownership.
 |---|---|---|
 | `shared/tool_registry.py` | **Canonical (必須)** | ルーティングの唯一の正規ソース |
 | `tool_names` (config) | Validation-only (任意) | レジストリとの整合性チェック用; ルーティング自体には不要 |
-| `tool_constants.py` frozensets | Compatibility fallback (互換性) | レジストリが空の場合のフォールバック |
+| `tool_constants.py` frozensets | **Authoritative static source** | ルーティングレジストリへの唯一の入力; フォールバックではなく正規ソース |
 | Live `/v1/tools` discovery | Validation-only (任意) | 起動時バリデーション; ルーティング権威ではない |
 
 ### Ownership model
@@ -96,6 +114,13 @@ Three comparison functions detect configuration drift:
 | `validate_routing_against_live()` | Live `/v1/tools` vs registry | Not yet wired (future) |
 | `validate_all_routing()` | Both above combined | Not yet wired (future) |
 
+> **Startup validation semantics** — The `validate_routing_against_live()` and
+> `validate_all_routing()` functions above compare live `/v1/tools` against the
+> internal routing registry. These are distinct from `_check_tool_definitions` in
+> `repl_health.py`, which compares configured `tool_definitions` (from `agent.toml`)
+> against live `/v1/tools`. For `tool_definitions_strict` startup-failure behavior,
+> see [04_mcp_06 §Startup Validation Behavior](04_mcp_06_configuration_and_operations.md#startup-validation-behavior-tool_definitions_strict).
+
 Drift warnings appear at agent startup:
 
 ```
@@ -106,7 +131,7 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 
 1. Add the tool name to the appropriate frozenset in `shared/tool_constants.py`.
 2. The registry auto-populates from these frozensets at import time.
-3. Update `config/mcp_servers.toml` `tool_names` for the owning server (validation will warn if missing).
+3. Optionally update `config/mcp_servers.toml` `tool_names` for the owning server (adds drift detection at startup; routing does not require it — the registry is the authority).
 4. Add full OpenAI function-calling format to `config/tools_definitions.toml` for LLM exposure.
 
 ### Key API
@@ -252,13 +277,108 @@ class _ServerLifecycleRouter:
 
 ### startup_mode behavior
 
-> **Production note:** For production, prefer `transport = "http"` with `startup_mode = "external"`. HTTP transports support watchdog, health checks, and remote monitoring. stdio is for local/embedded use only.
+> **Production transport guidance:**
+> For production deployments, use `transport = "http"` with `startup_mode = "external"`.
+> HTTP transports support watchdog, health checks, and remote monitoring.
+> `stdio` transport serializes all requests through a single `asyncio.Lock` and provides
+> no health-check endpoint — use it only for local/embedded single-tool subprocesses.
+>
+> See [04_mcp_02 §When to use stdio](04_mcp_02_protocol_and_transport.md#when-to-use-stdio).
 
 | startup_mode | When | Action |
 |---|---|---|
 | `persistent` (stdio) | Agent launch | `StdioTransport.start()` immediately |
 | `ondemand` (stdio) | First tool call | `ensure_ready()` auto-starts |
 | `subprocess` (http) | Agent launch | `start_http_subprocess()` — spawn uvicorn, poll `/health` up to `startup_timeout_sec` |
+
+---
+
+## End-to-End Tool Call Tracing
+
+### Correlation Keys
+
+| Key | Created by | Where it appears |
+|---|---|---|
+| `X-Session-Id` | Agent (`ctx.session.session_id`) | HTTP request header; MCP server access log; agent audit log |
+| `X-Request-Id` | MCP server (per-request UUID) | HTTP response header; MCP server access log; agent audit log (`x_request_id`) |
+| `server_key` | `McpServerConfig.key` | Agent routing log; `ToolCallResult.server_key`; health registry; transport error counters |
+| `tool_name` | LLM tool call | Agent audit log; MCP server request log; tool error counters |
+
+To trace one tool call, join on `X-Request-Id` (unique per call) and `X-Session-Id` (spans the session).
+
+---
+
+### Success Path Example
+
+```
+1. Agent: LLM emits tool_use for "read_text_file"
+   → tool_runner.execute_one_tool_call(ctx, name="read_text_file", ...)
+   → ToolRouteResolver.resolve("read_text_file") → server_key="file_read"
+
+2. Agent → Server (HTTP):
+   POST /v1/call_tool
+   X-Session-Id: 42
+   body: {"name": "read_text_file", "args": {...}}
+
+3. MCP server (file-read-mcp):
+   Server log: INFO [42] read_text_file args=... → OK
+   Response: X-Request-Id: abc-123, is_error=false, result="..."
+
+4. Agent receives:
+   ToolCallResult(output="...", is_error=False, request_id="abc-123", server_key="file_read")
+
+5. Agent audit_tool_exec():
+   audit log entry: {tool_name: "read_text_file", is_error: false, x_request_id: "abc-123"}
+
+6. Health registry:
+   HealthRegistry.record_success("file_read") → state remains HEALTHY
+```
+
+---
+
+### Failure Path Example (Transport Error)
+
+```
+1-2. Same as above.
+
+3. MCP server unreachable (timeout / 5xx):
+   HttpTransport raises TransportError.
+
+4. Agent:
+   ToolExecutor._record_transport_error("file_read", error)
+   → stat_transport_errors["file_read"] += 1
+   → HealthRegistry.record_failure("file_read") → state: HEALTHY → DEGRADED
+
+5. ToolCallResult:
+   (output=str(error), is_error=True, server_key="file_read", error_type="transport")
+
+6. audit_tool_exec():
+   audit log: {tool_name: "read_text_file", is_error: true, error_type: "transport", x_request_id: ""}
+   Note: x_request_id="" because no response was received.
+
+7. Watchdog (next interval):
+   repl_health.watchdog_loop() polls file-read-mcp /health
+   → if alive: HealthRegistry.record_success("file_read") → HALF_OPEN → HEALTHY
+   → if dead: HealthRegistry.record_failure("file_read") → DEGRADED → UNAVAILABLE
+```
+
+---
+
+### Tool Error vs Transport Error in Tracing
+
+| Field | Tool error | Transport error |
+|---|---|---|
+| `is_error` | `True` | `True` |
+| `error_type` | `"tool"` | `"transport"` |
+| `x_request_id` | Set (server responded) | `""` (no response received) |
+| `HealthRegistry` | `record_success()` (server responded) | `record_failure()` (server unreachable) |
+| `stat_tool_errors` | Incremented | Not changed |
+| `stat_transport_errors` | Not changed | Incremented |
+
+A tool error means the server processed the request but returned an error.
+A transport error means the agent never received a response from the server.
+
+See [04_mcp_06 §End-to-End Tool Call Tracing](04_mcp_06_configuration_and_operations.md#end-to-end-tool-call-tracing) for the operational tracing procedure.
 
 ---
 

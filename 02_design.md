@@ -22,8 +22,8 @@ Follow these instructions exactly.
    `target_file_name` is the name of the file to implement and test.
    Create the document only.
    Do not implement anything.
-   Save it as `implementations/{yyyymmdd-hhmmss}_{target_file_name}.md`.
-   - `yyyymmdd-hhmmss` is the current date time.
+   Save it as `implementations/{%Y%m%d-%H%M%S}_{target_file_name}.md`.
+   - `%Y%m%d-%H%M%S` is the current date time.
    Write it in clear and concise English for AI understanding.
    Use this section structure:
    - Goal

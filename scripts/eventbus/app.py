@@ -74,12 +74,16 @@ app = FastAPI(lifespan=lifespan)
 async def health() -> dict[str, str]:
     db_status = "ok"
     try:
-        _db.execute("SELECT 1")
+        _db.execute("SELECT 1")  # type: ignore[union-attr]
     except Exception:
         db_status = "unavailable"
 
-    dlq_task_status = "running" if (_dlq_task is not None and not _dlq_task.done()) else "stopped"
-    overall = "ok" if (db_status == "ok" and dlq_task_status == "running") else "degraded"
+    dlq_task_status = (
+        "running" if (_dlq_task is not None and not _dlq_task.done()) else "stopped"
+    )
+    overall = (
+        "ok" if (db_status == "ok" and dlq_task_status == "running") else "degraded"
+    )
     return {"status": overall, "db": db_status, "dlq_task": dlq_task_status}
 
 

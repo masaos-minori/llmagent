@@ -285,4 +285,5 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
             audit_log_file=cfg.get("audit_log_file", "/opt/llm/logs/audit.log"),
             structured_log=bool(cfg.get("structured_log", False)),
         ),
+        workflow_mode=cfg.get("workflow_mode", "auto"),
     )

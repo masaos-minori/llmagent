@@ -66,7 +66,15 @@ Agent StdioTransport
 
 Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on any server.
 
-**Transport:** HTTP is the production default. stdio is supported for local/embedded use only. See `04_mcp_02` §Transport for the full decision guide.
+### Transport Selection Guide
+
+> **Production default: always use HTTP (`transport = "http"`, `startup_mode = "external"`).**
+> HTTP supports watchdog, health checks, concurrent requests, and remote monitoring.
+>
+> **Use stdio only for:** local testing, CI pipelines, embedded single-tool subprocesses
+> with low concurrency and no external clients.
+>
+> See [04_mcp_02 §When to use stdio](04_mcp_02_protocol_and_transport.md#when-to-use-stdio) for the full decision guide.
 
 ---
 

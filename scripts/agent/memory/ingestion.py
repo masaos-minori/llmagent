@@ -101,8 +101,14 @@ class MemoryIngestionService:
         embedding = embed_result.embedding if embed_result.success else None
         if self._should_skip_dedup(embed_result, entry.memory_id):
             return
-        await self._jsonl.write(entry)
         self._store.upsert(entry, embedding=embedding)
+        try:
+            await self._jsonl.write(entry)
+        except Exception:
+            logger.warning(
+                "memory.jsonl_write_failed memory_id=%r — entry saved in SQLite only",
+                entry.memory_id,
+            )
         if embed_result.success and embed_result.embedding is not None:
             self._link_duplicates(entry.memory_id, embed_result.embedding)
         logger.info(
@@ -204,8 +210,14 @@ class MemoryIngestionService:
                 entry.memory_id,
             )
         embedding = embed_result.embedding if embed_result.success else None
-        await self._jsonl.write(entry)
         self._store.upsert(entry, embedding=embedding)
+        try:
+            await self._jsonl.write(entry)
+        except Exception:
+            logger.warning(
+                "memory.jsonl_write_failed memory_id=%r — entry saved in SQLite only",
+                entry.memory_id,
+            )
         logger.info(
             "memory.write memory_id=%r type=%s importance=%.2f",
             entry.memory_id,

@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from agent.history import HistoryManager
     from agent.lifecycle_protocol import LifecycleManagerProtocol
     from agent.memory.services import MemoryServices
+    from agent.repository_gateway import RepositoryGateway
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +119,7 @@ class AppServices:
     All required services are non-None.  memory is None when
     use_memory_layer=False (intentionally absent, not uninitialised).
     stdio_procs is populated by AgentREPL._start_stdio_servers() after init.
+    gateway is None until factory.py constructs and injects RepositoryGateway.
     """
 
     def __init__(
@@ -131,6 +133,7 @@ class AppServices:
         memory: MemoryServices | None,
         stdio_procs: dict[str, StdioTransport] | None = None,
         health_registry: McpServerHealthRegistry | None = None,
+        gateway: RepositoryGateway | None = None,
     ) -> None:
         self.http = http
         self.llm = llm
@@ -143,6 +146,7 @@ class AppServices:
             stdio_procs if stdio_procs is not None else {}
         )
         self.health_registry = health_registry
+        self.gateway: RepositoryGateway | None = gateway
         self.serialization_events: int = 0
         self.serialization_tools_affected: int = 0
 

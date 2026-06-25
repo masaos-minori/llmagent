@@ -28,7 +28,10 @@ import httpx
 from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
 from shared.config_validator import RagConfigValidator
-from shared.plugin_registry import PipelineHook, get_pipeline_post_stages, run_pipeline_stages
+from shared.plugin_registry import (
+    get_pipeline_post_stages,
+    run_pipeline_stages,
+)
 from shared.types import RagConfig
 
 from rag.cache import SemanticCache
@@ -422,7 +425,9 @@ class RagPipeline:
                 self.last_search_diagnostics = dataclasses.replace(
                     self.last_search_diagnostics,
                     result_source=ResultSource.REMOTE,
-                    http_result_kind=HttpResultKind.SUCCESS if result == "" else HttpResultKind.SUCCESS,
+                    http_result_kind=HttpResultKind.SUCCESS
+                    if result == ""
+                    else HttpResultKind.SUCCESS,
                     remote_status_code=remote_status_code,
                     remote_latency_ms=remote_latency_ms,
                 )
@@ -453,7 +458,7 @@ class RagPipeline:
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             raise RagPipelineError(f"DB open failed (RAG unavailable): {e}") from e
         with db:
-            result = await self.run(
+            pipeline_result = await self.run(
                 query,
                 db,
                 history_context=history_context,
@@ -461,16 +466,16 @@ class RagPipeline:
         # run() already calls on_clear() in its finally block
         if debug_fn is not None:
             debug_fn(
-                result.queries,
-                result.search_results,
-                result.merged,
-                result.reranked,
+                pipeline_result.queries,
+                pipeline_result.search_results,
+                pipeline_result.merged,
+                pipeline_result.reranked,
                 rrf_config={
                     "use_rrf": self._cfg.use_rrf,
                     "rrf_k": self._cfg.rrf_k,
                 },
             )
-        if not result.reranked:
+        if not pipeline_result.reranked:
             return ""
         # Refiner: compress chunks to query-relevant key points before injection
         if self._cfg.use_refiner:
@@ -478,7 +483,7 @@ class RagPipeline:
             refined = await refine_context(
                 self._llm,
                 self._on_status,
-                reranked,
+                pipeline_result.reranked,
                 query,
                 max_tokens=self._cfg.refiner_max_tokens,
                 per_chunk_chars=self._cfg.refiner_max_chars_per_chunk,
@@ -501,7 +506,7 @@ class RagPipeline:
                 )
             if refined.text is not None:
                 return refined.text
-        context_block = self._format_chunks(reranked)
+        context_block = self._format_chunks(pipeline_result.reranked)
         if self._cfg.use_semantic_cache and emb is not None and context_block:
             self.semantic_cache.put(emb, history_context, context_block)
         return context_block

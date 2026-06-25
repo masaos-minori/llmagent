@@ -59,7 +59,7 @@ health probes, audit log reading, and the new-server addition checklist.
 | `startup_timeout_sec` | `int` | `30` | subprocess mode: health poll timeout |
 | `working_dir` | `str` | `""` | stdio subprocess working directory (empty = inherit) |
 | `env` | `dict[str, str]` | `{}` | Additional env vars for stdio subprocess |
-| `tool_names` | `list[str]` | `[]` | Validation hint (optional); registry routes regardless. Empty = no validation. |
+| `tool_names` | `list[str]` | `[]` | Validation hint (optional); registry routes regardless. Empty = no validation. See [Routing Source of Truth](04_mcp_03_routing_lifecycle_and_execution.md#routing-source-of-truth). |
 | `auth_token` | `str` | `""` | Bearer token for auth (empty = no auth) |
 | `role` | `str` | `""` | Human-readable role label for `/mcp` display |
 
@@ -403,6 +403,11 @@ For correlation across agent, transport, and server logs, see §End-to-End Tool 
 ---
 
 ## Startup Validation Behavior (`tool_definitions_strict`)
+
+> **Canonical specification.** This section describes `_check_tool_definitions` in `repl_health.py`.
+> For routing drift detection (`validate_routing_against_live` in `route_resolver.py`), see
+> [04_mcp_03 §Drift validation](04_mcp_03_routing_lifecycle_and_execution.md#drift-validation).
+> These are different functions — see also `04_mcp_90 §SPEC-01`.
 
 `_check_tool_definitions` runs at agent startup and compares `tool_definitions` from `config/agent.toml` against live `/v1/tools` responses. Behavior depends on server reachability and `tool_definitions_strict`:
 

@@ -284,21 +284,22 @@ class _MemoryMixin(MixinBase):
         jsonl_count = jsonl_store.count_all()
         embed_enabled = self._ctx.cfg.memory.memory_embed_enabled
         vec_expected = embed_enabled
-        ok = (
-            (jsonl_count == report.memories)
-            and (report.memories == report.fts)
-            and (not vec_expected or report.vec == report.memories)
+        ok = (report.memories == report.fts) and (
+            not vec_expected or report.vec == report.memories
         )
         rows = [
-            ["JSONL records", str(jsonl_count)],
-            ["SQLite memories", str(report.memories)],
+            ["SQLite memories (authoritative)", str(report.memories)],
+            ["JSONL archive records (info only)", str(jsonl_count)],
             ["FTS5 rows", str(report.fts)],
             ["Vec rows", str(report.vec)],
             [
                 "Vec check required",
                 "Yes" if vec_expected else "No (embedding disabled)",
             ],
-            ["Consistent", "Yes" if ok else "NO - use /memory rebuild to repair"],
+            [
+                "Consistent",
+                "Yes" if ok else "NO - use /memory rebuild to repair FTS/vec index",
+            ],
         ]
         self._out.write_table(["Metric", "Value"], rows)
         if not ok:
@@ -310,7 +311,7 @@ class _MemoryMixin(MixinBase):
     def _memory_rebuild(self, mem: MemoryServices, args: list[str]) -> None:
         dry_run = "--dry-run" in args
         jsonl_store = mem.ingestion._jsonl
-        jsonl_count, inserted = mem.store.rebuild_from_jsonl(
+        jsonl_count, inserted = mem.store.import_from_jsonl(
             jsonl_store, dry_run=dry_run
         )
         if dry_run:
@@ -319,7 +320,9 @@ class _MemoryMixin(MixinBase):
             )
         else:
             self._out.write_success(
-                f"Rebuilt {inserted} entries from {jsonl_count} JSONL records"
+                f"Imported {inserted} entries from {jsonl_count} JSONL archive records. "
+                "Note: deletions and pin state are NOT replayed. "
+                "Deleted entries may have been re-inserted."
             )
             embed_enabled = self._ctx.cfg.memory.memory_embed_enabled
             if embed_enabled:

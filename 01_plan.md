@@ -15,8 +15,8 @@ Follow these steps strictly.
    Select the first file as the target requirement file and read it.
 
 2. Create a work plan file.
-   - The filename must be `plans/{yyyymmdd-hhmmss}_plan.md`.
-     - `yyyymmdd-hhmmss` is the current date time.
+   - The filename must be `plans/{%Y%m%d-%H%M%S}_plan.md`.
+     - `%Y%m%d-%H%M%S` is the current date time.
    Create the plan only.
    Do not implement anything.
    Use the following section structure in the work plan:
@@ -39,15 +39,15 @@ Follow these steps strictly.
 5. If any `Unknowns` cannot be resolved through analysis, ask the user questions.
    Reflect the answers in the work plan.
    If any issues remain unresolved, output the result as a GitHub Issue Markdown template file.
-   The file name is `issues/{yyyyymmdd-hhmmss}_issues.md`.
-   - `yyyymmdd-hhmmss` is the current date time.
+   - The filename must be `issues/{%Y%m%d-%H%M%S}_issue.md`.
+     - `%Y%m%d-%H%M%S` is the current date time.
    - 1 issue = 1 section
 
 6. Analyze the `Risks` section in the work plan.
    Add any necessary mitigation steps to the work plan.
    If any issues remain unresolved, output the result as a GitHub Issue Markdown template file.
-   The file name is `issues/{yyyyymmdd-hhmmss}_issues.md`.
-   - `yyyymmdd-hhmmss` is the current date time.
+   - The filename must be `issues/{%Y%m%d-%H%M%S}_issue.md`.
+     - `%Y%m%d-%H%M%S` is the current date time.
    - 1 issue = 1 section
 
 7. After the work plan is complete, move the processed requirement file to `requires/done`.

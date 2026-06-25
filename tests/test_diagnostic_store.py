@@ -1,6 +1,8 @@
 """tests/test_diagnostic_store.py
 Unit tests for agent/diagnostic_store.py:
-DiagnosticStore.save(), fetch(), fetch_all(), save_serialization_event().
+DiagnosticStore.save(), fetch(), fetch_all(), save_serialization_event(),
+and convenience methods (save_partial_completion, save_transport_failure,
+save_loop_guard_hint, fetch_by_kind).
 """
 
 from __future__ import annotations
@@ -235,3 +237,82 @@ class TestSaveSerializationEvent:
             entries = store.fetch(1)
         data = json.loads(entries[0]["content"])
         assert data["elapsed_ms"] == 12.6
+
+
+class TestConvenienceMethods:
+    def test_save_partial_completion(self, fake_db: _FakeSQLiteHelper) -> None:
+        store = DiagnosticStore()
+        with patch(
+            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+        ):
+            store.save_partial_completion(
+                session_id=1,
+                turn=3,
+                reason="timeout",
+                content_length=1024,
+            )
+            rows = store.fetch_by_kind(1, "partial_completion")
+        assert len(rows) == 1
+        payload = json.loads(rows[0]["content"])
+        assert payload["turn"] == 3
+        assert payload["reason"] == "timeout"
+        assert payload["content_length"] == 1024
+
+    def test_save_transport_failure(self, fake_db: _FakeSQLiteHelper) -> None:
+        store = DiagnosticStore()
+        with patch(
+            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+        ):
+            store.save_transport_failure(
+                session_id=1,
+                tool_name="read_text_file",
+                server_key="file_read",
+                error_msg="Connection refused",
+            )
+            rows = store.fetch_by_kind(1, "transport_failure")
+        assert len(rows) == 1
+        payload = json.loads(rows[0]["content"])
+        assert payload["tool_name"] == "read_text_file"
+        assert payload["server_key"] == "file_read"
+
+    def test_save_loop_guard_hint(self, fake_db: _FakeSQLiteHelper) -> None:
+        store = DiagnosticStore()
+        with patch(
+            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+        ):
+            store.save_loop_guard_hint(
+                session_id=1,
+                reason="cycle_detected",
+                turn_count=7,
+            )
+            rows = store.fetch_by_kind(1, "loop_guard_hint")
+        assert len(rows) == 1
+        payload = json.loads(rows[0]["content"])
+        assert payload["reason"] == "cycle_detected"
+        assert payload["turn_count"] == 7
+
+    def test_fetch_by_kind_returns_empty_for_unknown_kind(
+        self, fake_db: _FakeSQLiteHelper
+    ) -> None:
+        store = DiagnosticStore()
+        with patch(
+            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+        ):
+            rows = store.fetch_by_kind(1, "nonexistent_kind")
+        assert rows == []
+
+    def test_fetch_by_kind_filters_by_kind(self, fake_db: _FakeSQLiteHelper) -> None:
+        store = DiagnosticStore()
+        with patch(
+            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+        ):
+            store.save_partial_completion(
+                session_id=1, turn=1, reason="t", content_length=10
+            )
+            store.save_transport_failure(
+                session_id=1, tool_name="t", server_key="s", error_msg="e"
+            )
+            partial_rows = store.fetch_by_kind(1, "partial_completion")
+            transport_rows = store.fetch_by_kind(1, "transport_failure")
+        assert len(partial_rows) == 1
+        assert len(transport_rows) == 1

@@ -90,7 +90,10 @@ class RagMaintenanceService:
                 db.execute("DELETE FROM chunks_vec WHERE chunk_id = ?", (cid,))
             if chunk_ids:
                 placeholders = ",".join("?" * len(chunk_ids))
-                db.execute(f"DELETE FROM chunks_fts WHERE chunk_id IN ({placeholders})", chunk_ids)
+                db.execute(
+                    f"DELETE FROM chunks_fts WHERE chunk_id IN ({placeholders})",
+                    tuple(chunk_ids),
+                )
             for cid in chunk_ids:
                 row = db.execute(
                     "SELECT content, embedding FROM chunks WHERE chunk_id = ?", (cid,)
@@ -106,5 +109,3 @@ class RagMaintenanceService:
                             (cid, row["embedding"]),
                         )
             return {"found": True, "chunks": len(chunk_ids)}
-
- 

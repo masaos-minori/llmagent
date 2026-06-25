@@ -6,7 +6,7 @@ Unit tests for tool_runner.py: DAG execution, standard execution, and entry poin
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from agent.config import AgentConfig, build_agent_config
@@ -72,6 +72,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.cfg = cfg or _cfg()
     ctx.turn.current_turn_id = "test-turn-id"
     ctx.services.audit_logger = None
+    ctx.services.gateway = None
     ctx.services.tools = MagicMock()
     ctx.services.tools.execute = AsyncMock(
         return_value=ToolCallResult(
@@ -287,12 +288,9 @@ class TestExecuteAllToolCalls:
         )
         ctx.tool_result_store.store = MagicMock(return_value=1)
 
-        with patch("agent.tool_runner.run_approval_checks") as mock_approval:
-            mock_approval.return_value = (
-                [_tc("read_text_file", '{"path": "/tmp/f"}')],
-                [],
-            )
-            await execute_all_tool_calls(ctx, [_tc("read_text_file")], 0)
+        await execute_all_tool_calls(
+            ctx, [_tc("read_text_file", '{"path": "/tmp/f"}')], 0
+        )
 
         ctx.services.tools.execute.assert_awaited_once_with(
             "read_text_file", {"path": "/tmp/f"}
@@ -301,7 +299,8 @@ class TestExecuteAllToolCalls:
         ctx.session.save_many.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_denied_calls_appended_to_history(self) -> None:
+    async def test_all_calls_execute_without_gateway(self) -> None:
+        """Without gateway, all tool calls execute directly (no batch approval denial)."""
         cfg = _cfg(use_tool_dag=True)
         ctx = _make_ctx(cfg)
         ctx.services.audit_logger = MagicMock()
@@ -311,35 +310,26 @@ class TestExecuteAllToolCalls:
             )
         )
 
-        denied_id = "call_denied_1"
-        approved = [_tc("read_text_file", '{"path": "/tmp/f"}')]
-        with patch("agent.tool_runner.run_approval_checks") as mock_approval:
-            mock_approval.return_value = (approved, [denied_id])
-            await execute_all_tool_calls(
-                ctx,
-                [
-                    {
-                        "id": denied_id,
-                        "function": {"name": "write_file", "arguments": "{}"},
-                    }
-                ],
-                0,
-            )
+        await execute_all_tool_calls(
+            ctx,
+            [
+                {
+                    "id": "call_1",
+                    "function": {"name": "write_file", "arguments": "{}"},
+                }
+            ],
+            0,
+        )
 
-        denied_msgs = [
-            entry for entry in ctx.conv.history if "denied" in entry.get("content", "")
-        ]
-        assert len(denied_msgs) == 1
+        ctx.services.tools.execute.assert_awaited_once_with("write_file", {})
 
     @pytest.mark.asyncio
-    async def test_no_approved_no_denied_does_nothing(self) -> None:
+    async def test_no_tool_calls_does_nothing(self) -> None:
         cfg = _cfg(use_tool_dag=True)
         ctx = _make_ctx(cfg)
         ctx.services.audit_logger = MagicMock()
 
-        with patch("agent.tool_runner.run_approval_checks") as mock_approval:
-            mock_approval.return_value = ([], [])
-            await execute_all_tool_calls(ctx, [], 0)
+        await execute_all_tool_calls(ctx, [], 0)
 
         ctx.services.tools.execute.assert_not_called()
         ctx.session.save_many.assert_called_once_with([])
@@ -374,12 +364,8 @@ class TestExecuteStandardSerialization:
         ctx.stats.stat_serialization_total_overhead_ms = 0.0
         ctx.diagnostics = None
 
-        with patch("agent.tool_runner.run_approval_checks") as mock_approval:
-            # write_file is in WRITE_TOOLS and triggers is_side_effect=True
-            mock_approval.return_value = ([_tc("write_file", '{"path": "/tmp/f"}')], [])
-            await execute_all_tool_calls(
-                ctx, [_tc("write_file", '{"path": "/tmp/f"}')], 0
-            )
+        # write_file is in WRITE_TOOLS and triggers is_side_effect=True
+        await execute_all_tool_calls(ctx, [_tc("write_file", '{"path": "/tmp/f"}')], 0)
 
         assert len(ctx.stats.stat_serialization_events) == 1
         event = ctx.stats.stat_serialization_events[0]
@@ -398,14 +384,9 @@ class TestExecuteStandardSerialization:
         ctx.services.audit_logger = None
         ctx.stats.stat_serialization_events = []
 
-        with patch("agent.tool_runner.run_approval_checks") as mock_approval:
-            mock_approval.return_value = (
-                [_tc("read_text_file", '{"path": "/tmp/f"}')],
-                [],
-            )
-            await execute_all_tool_calls(
-                ctx, [_tc("read_text_file", '{"path": "/tmp/f"}')], 0
-            )
+        await execute_all_tool_calls(
+            ctx, [_tc("read_text_file", '{"path": "/tmp/f"}')], 0
+        )
 
         assert ctx.stats.stat_serialization_events == []
 
@@ -419,11 +400,7 @@ class TestExecuteStandardSerialization:
         ctx.stats.stat_serialization_total_overhead_ms = 0.0
         ctx.diagnostics = MagicMock()
 
-        with patch("agent.tool_runner.run_approval_checks") as mock_approval:
-            mock_approval.return_value = ([_tc("write_file", '{"path": "/tmp/f"}')], [])
-            await execute_all_tool_calls(
-                ctx, [_tc("write_file", '{"path": "/tmp/f"}')], 0
-            )
+        await execute_all_tool_calls(ctx, [_tc("write_file", '{"path": "/tmp/f"}')], 0)
 
         ctx.diagnostics.save_serialization_event.assert_called_once()
         call_kwargs = ctx.diagnostics.save_serialization_event.call_args[1]

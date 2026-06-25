@@ -286,13 +286,21 @@ class MemoryStore:
             )
             return int(row[0][0]) if row else 0
 
-    def rebuild_from_jsonl(
+    def import_from_jsonl(
         self,
         jsonl_store: object,
         *,
         dry_run: bool = False,
     ) -> tuple[int, int]:
-        """Rebuild SQLite memories/FTS/vec tables from JSONL source of truth.
+        """Import entries from a JSONL archive into SQLite memories/FTS/vec tables.
+
+        WARNING: This does NOT replay deletions, pin state, or dedup history.
+        Entries deleted from SQLite will be re-inserted. This is intended for
+        initial import from an external archive only — NOT for disaster recovery
+        or routine consistency repair.
+
+        For consistency repair (memories vs FTS vs vec out of sync), use
+        repair_index() instead.
 
         Returns (jsonl_count, inserted_count).
         When dry_run=True, returns (jsonl_count, 0) without modifying SQLite.
@@ -312,5 +320,5 @@ class MemoryStore:
                 for entry in entries:
                     db.execute(self._INSERT_SQL, self._build_row_params(entry))
                     self._write_fts(db, entry)
-        logger.info("rebuild_from_jsonl: inserted %d entries from JSONL", jsonl_count)
+        logger.info("import_from_jsonl: inserted %d entries from JSONL", jsonl_count)
         return jsonl_count, jsonl_count
