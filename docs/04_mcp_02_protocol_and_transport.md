@@ -118,7 +118,7 @@ the process's stdin/stdout with newline-delimited JSON.
 ### stdio Response (one line)
 
 ```json
-{"id": 1, "result": "...", "is_error": false, "truncated": false, "total_bytes": 1234}
+{"id": 1, "result": "...", "is_error": false, "truncated": false, "total_bytes": 1234, "actual_visible_bytes": 1234}
 ```
 
 ### Reserved RPC: `__list_tools__`
@@ -143,7 +143,7 @@ All MCP servers inherit from `MCPServer`.
 
 | Class | Fields | Purpose |
 |---|---|---|
-| `TruncationResult` | `text: str`, `truncated: bool`, `total_bytes: int` | Return value of `_truncate_with_meta()` |
+| `TruncationResult` | `text: str`, `truncated: bool`, `total_bytes: int`, `actual_visible_bytes: int` | Return value of `_truncate_with_meta()` |
 
 ### Class attributes (declared by subclasses)
 
@@ -153,7 +153,7 @@ All MCP servers inherit from `MCPServer`.
 | `server_version` | `str` | `"3.0.0"` |
 | `http_host` | `str` | `"127.0.0.1"` |
 | `http_port` | `int` | `8004` |
-| `app_module` | `str` | `"mcp.web_search.server:app"` (most servers); `github-mcp` uses `"mcp.github.server:app"` (consistent with other servers) |
+| `app_module` | `str` | `"mcp.<name>.server:app"` (all servers use dotted path convention) |
 | `mcp_tools` | `list[dict]` | Tool definitions list |
 
 ### Methods
@@ -244,7 +244,7 @@ When `McpServerConfig.auth_token` is non-empty:
 
 When result exceeds 512 KB:
 ```
-[TRUNCATED: {total:,} bytes total, showing {max_bytes:,} bytes]
+[TRUNCATED: {total:,} bytes total, showing {actual_visible:,} bytes]
 ```
 
 - `total_bytes` = original byte count (before truncation)

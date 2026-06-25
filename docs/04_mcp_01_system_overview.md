@@ -61,7 +61,7 @@ Servers run as persistent HTTP processes on loopback.
 ```
 Agent StdioTransport
   → stdin: {"id": N, "name": "tool_name", "args": {...}}\n
-  ← stdout: {"id": N, "result": "...", "is_error": false, "truncated": false, "total_bytes": N}\n
+  ← stdout: {"id": N, "result": "...", "is_error": false, "truncated": false, "total_bytes": N, "actual_visible_bytes": N}\n
 ```
 
 Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on any server.
