@@ -12,10 +12,9 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 """
 
 import argparse
-import dataclasses
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 
 import orjson
 from rag.exceptions import ChunkFormatError
@@ -27,6 +26,7 @@ from rag.ingestion.pipeline_utils import (
     is_already_processed,
     read_json_file,
 )
+from rag.models_data import ChunkDocument
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 from sudachipy import dictionary as sudachi_dict
@@ -38,14 +38,62 @@ MARKDOWN_HEADING_RE = r"^#{1,6}"
 logger = Logger(__name__, "/opt/llm/logs/chunk.log")
 
 
+class CrawlFilePayload(TypedDict):
+    """Typed dict for crawl output JSON files."""
+
+    url: str
+    title: str
+    lang: str
+    content: str
+    code_blocks: list[str]
+    etag: NotRequired[str | None]
+    last_modified: NotRequired[str | None]
+
+
+class ChunkOutputPayload(TypedDict):
+    """Typed dict for chunk output JSON files."""
+
+    schema_version: str
+    artifact_type: str
+    created_by: str
+    url: str
+    title: str
+    lang: str
+    source_file: str
+    chunk_index: int
+    chunk_type: str
+    content: str
+    normalized_content: NotRequired[str | None]
+
+
+class ChunkMetadata(TypedDict, total=False):
+    """Typed dict for document-level metadata shared across chunk files.
+
+    All fields are optional because this dict is spread with ** into the output payload.
+    TypedDict spreading requires total=False and cannot be used in constructor calls.
+    """
+
+    url: str
+    title: str
+    lang: str
+    etag: str | None
+    last_modified: str | None
+    source_file: str
+    chunking_strategy: str
+
+
+# Metadata dict type for ** spreading (cannot use TypedDict in constructor calls)
+_ChunkMetadataDict = dict[str, Any]
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # ChunkSplitter class
 # ──────────────────────────────────────────────────────────────────────────────
 class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
     """Splits crawl output (rag-src/*.txt JSON) into text and code chunks and writes them to rag-src/chunk/ for ingestion."""
 
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
-        cfg: dict[str, Any] = config or ConfigLoader().load("rag_pipeline.toml")
+    def __init__(self, config: dict | None = None) -> None:
+        cfg: dict = config or ConfigLoader().load("rag_pipeline.toml")
         rag_src_dir = Path(cfg["rag_src_dir"])
         self._chunk_dir: Path = rag_src_dir / "chunk"
         self._min_chunk: int = int(cfg["min_chunk"])
@@ -90,21 +138,20 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             if chunk_doc is not None:
                 logger.info(
                     "skip (already chunked)",
-                    extra={"url": chunk_doc.get("url", "")},
+                    extra={"url": chunk_doc.url},
                 )
             return 0
         chunk_doc = self._read_source_data(src_path)
         if chunk_doc is None:
             return 0
-        data = chunk_doc
-        chunks = self._build_chunk_list(data)
-        chunking_strategy = "heading" if self._is_markdown_source(data) else "text"
-        written = self._write_chunk_files(chunks, data, src_path, chunking_strategy)
+        chunks = self._build_chunk_list(chunk_doc)
+        chunking_strategy = "heading" if self._is_markdown_source(chunk_doc) else "text"
+        written = self._write_chunk_files(chunks, chunk_doc, src_path, chunking_strategy)
         logger.info(
             "chunked %s chunks from %s",
             written,
             src_path.name,
-            extra={"url": data.get("url", "")},
+            extra={"url": chunk_doc.url},
         )
         return written
 
@@ -114,18 +161,18 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     # ── Markdown heading chunking ──────────────────────────────────────────────
 
-    def _is_markdown_source(self, data: dict[str, Any]) -> bool:
+    def _is_markdown_source(self, data: ChunkDocument) -> bool:
         """Return True when the source should use heading-based snippet chunking.
 
         .md / .markdown / .mdx files always use heading chunking regardless of md_index_enable.
         Non-.md files use heuristic detection only when md_index_enable is set.
         """
-        url = data.get("url", "")
+        url = data.url
         if url.endswith((".md", ".markdown", ".mdx")):
             return True
         if not self._md_index_enable:
             return False
-        content = data.get("content", "")
+        content = data.content
         # Treat as Markdown when at least two heading lines are found
         return (
             len(re.findall(rf"{MARKDOWN_HEADING_RE} .+", content, re.MULTILINE))
@@ -166,19 +213,19 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     # ── File I/O ──────────────────────────────────────────────────────────────
 
-    def _read_source_data(self, src_path: Path) -> "dict[str, Any] | None":
-        """Read and parse a JSON crawl file; wraps ChunkDocument as dict."""
+    def _read_source_data(self, src_path: Path) -> ChunkDocument | None:
+        """Read and parse a JSON crawl file; returns ChunkDocument or None on failure."""
         try:
-            return dataclasses.asdict(read_json_file(src_path))
+            return read_json_file(src_path)
         except (FileNotFoundError, ChunkFormatError) as e:
             logger.error("skip %s: %s", src_path.name, e)
             return None
 
-    def _build_chunk_list(self, data: dict[str, Any]) -> list[tuple[str, str, str]]:
+    def _build_chunk_list(self, data: ChunkDocument) -> list[tuple[str, str, str]]:
         """Extract content from a crawl record and split into (chunk_type, content, normalized_content) triples; normalized populated only for Japanese text."""
-        lang: str = data.get("lang", "en")
-        content: str = data.get("content", "")
-        code_blocks: list[str] = data.get("code_blocks", [])
+        lang = data.lang
+        content = data.content
+        code_blocks = data.code_blocks
 
         text_triples: list[tuple[str, str, str]] = self._build_text_triples(data, lang, content)
         code_triples: list[tuple[str, str, str]] = self._build_code_triples(code_blocks)
@@ -186,7 +233,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         return text_triples + code_triples
 
     def _build_text_triples(
-        self, data: dict[str, Any], lang: str, content: str
+        self, data: ChunkDocument, lang: str, content: str
     ) -> list[tuple[str, str, str]]:
         """Build text triples from content; delegates to markdown/English/Japanese chunkers."""
         if not content:
@@ -208,7 +255,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
     def _write_chunk_files(
         self,
         chunks: list[tuple[str, str, str]],
-        data: dict[str, Any],
+        data: ChunkDocument,
         src_path: Path,
         chunking_strategy: str = "text",
     ) -> int:
@@ -231,22 +278,22 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         return written
 
     def _extract_chunk_metadata(
-        self, data: dict[str, Any], src_path: Path, chunking_strategy: str
-    ) -> dict[str, Any]:
+        self, data: ChunkDocument, src_path: Path, chunking_strategy: str
+    ) -> _ChunkMetadataDict:
         """Extract document-level metadata shared across all chunk files."""
         return {
-            "url": data.get("url", ""),
-            "title": data.get("title", ""),
-            "lang": data.get("lang", "en"),
-            "etag": data.get("etag"),
-            "last_modified": data.get("last_modified"),
+            "url": data.url,
+            "title": data.title,
+            "lang": data.lang,
+            "etag": data.etag,
+            "last_modified": data.last_modified,
             "source_file": src_path.name,
             "chunking_strategy": chunking_strategy,
         }
 
     def _build_chunk_payload(
         self,
-        metadata: dict[str, Any],
+        metadata: _ChunkMetadataDict,
         idx: int,
         chunk_type: str,
         chunk_content: str,

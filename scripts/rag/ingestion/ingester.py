@@ -19,7 +19,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 
 import httpx
 import orjson
@@ -35,6 +35,28 @@ from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
+
+
+class ChunkData(TypedDict):
+    """Typed dict for chunk JSON payload fields."""
+
+    url: str
+    title: NotRequired[str]
+    lang: NotRequired[str]
+    content: str
+    code_blocks: NotRequired[list[str]]
+    etag: NotRequired[str | None]
+    last_modified: NotRequired[str | None]
+    chunking_strategy: NotRequired[str]
+    normalized_content: NotRequired[str | None]
+    chunk_index: NotRequired[int]
+    source_file: NotRequired[str]
+    chunk_type: NotRequired[str]
+    artifact_type: NotRequired[str]
+
+
+# ChunkData type for ** spreading (cannot use TypedDict in constructor calls)
+_ChunkDataDict = dict[str, Any]  # type: ignore[name-defined]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -74,8 +96,8 @@ def delete_document_chain(db: SQLiteHelper, doc_id: int) -> None:
 class RagIngester:
     """Embeds chunk files produced by ChunkSplitter and inserts them into SQLite; chunks are grouped by URL and moved to registered/ after ingestion."""
 
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
-        cfg: dict[str, Any] = config or {
+    def __init__(self, config: dict | None = None) -> None:
+        cfg: dict = config or {
             **ConfigLoader().load_all(),
             **ConfigLoader().load("rag_pipeline.toml"),
         }
@@ -144,10 +166,10 @@ class RagIngester:
             if on_ingest_complete is not None:
                 try:
                     on_ingest_complete()
-                except Exception:
+                except (TypeError, ValueError):
                     logger.exception("on_ingest_complete callback failed")
             return report
-        except Exception:
+        except (sqlite3.OperationalError, sqlite3.DatabaseError, ValueError):
             logger.exception("Post-ingest consistency check failed")
             return None
 
@@ -278,7 +300,7 @@ class RagIngester:
     # ── Document helpers ──────────────────────────────────────────────────────
 
     @staticmethod
-    def _validate_artifact(payload: dict[str, Any], expected_type: str) -> None:
+    def _validate_artifact(payload: _ChunkDataDict, expected_type: str) -> None:
         """Validate artifact_type field; lenient for backward compatibility (missing artifact_type is accepted)."""
         actual = payload.get("artifact_type")
         if actual is not None and actual != expected_type:
@@ -480,7 +502,7 @@ class RagIngester:
 
     # ── Bulk file processing ──────────────────────────────────────────────────
 
-    def _read_chunk_json(self, path: Path) -> "dict[str, Any] | None":
+    def _read_chunk_json(self, path: Path) -> _ChunkDataDict | None:
         """Read and parse a chunk JSON file as a raw dict; returns None on failure."""
         return _read_chunk_json_raw(path)
 

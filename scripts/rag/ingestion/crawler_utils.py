@@ -96,7 +96,7 @@ def detect_lang(text: str) -> str | None:
     return "ja" if cjk_count / len(text) >= _CJK_RATIO_THRESHOLD else "en"
 
 
-def parse_target_urls(target_raw: list[Any]) -> list[tuple[str, str]]:
+def parse_target_urls(target_raw: list[list[Any]]) -> list[tuple[str, str]]:
     """Validate and parse the target_urls config list into (url, lang) tuples."""
     result: list[tuple[str, str]] = []
     for entry in target_raw:

@@ -16,7 +16,7 @@ import sqlite3
 from datetime import datetime
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -37,6 +37,22 @@ from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/crawl.log")
+
+
+class CrawlPayload(TypedDict):
+    """Typed dict for crawl output JSON files."""
+
+    schema_version: str
+    artifact_type: str
+    created_by: str
+    url: str
+    title: str
+    lang: str
+    fetched_at: str
+    content: str
+    code_blocks: list[str]
+    etag: NotRequired[str | None]
+    last_modified: NotRequired[str | None]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -94,7 +110,7 @@ class WebCrawler:
         sha256 = hashlib.sha256(content.encode("utf-8", errors="ignore")).hexdigest()
         # Python files are stored as code blocks so the code chunker applies.
         is_python = path.suffix == ".py"
-        payload: dict[str, Any] = {
+        payload: CrawlPayload = {
             "schema_version": "1",
             "artifact_type": "crawl",
             "created_by": "crawler",
@@ -292,7 +308,7 @@ class WebCrawler:
         """Save crawl results as JSON to rag-src/yyyymmddhhmmss-{slug}.txt."""
         self._rag_src_dir.mkdir(parents=True, exist_ok=True)
         path = self._make_crawl_filepath(url)
-        payload: dict[str, Any] = {
+        payload: CrawlPayload = {
             "schema_version": "1",
             "artifact_type": "crawl",
             "created_by": "crawler",
@@ -303,9 +319,9 @@ class WebCrawler:
             "content": content,
             "code_blocks": code_blocks,
         }
-        if etag:
+        if etag is not None:
             payload["etag"] = etag
-        if last_modified:
+        if last_modified is not None:
             payload["last_modified"] = last_modified
         path.write_bytes(orjson.dumps(payload, option=orjson.OPT_INDENT_2))
         logger.info(
@@ -345,25 +361,23 @@ class WebCrawler:
         soup = BeautifulSoup(html, "lxml")
         for a in soup.find_all("a", href=True):
             if self._skip_nofollow:
-                rel = a.get("rel", [])
+                rel = a.get("rel")  # type: ignore[assignment]
                 if isinstance(rel, str):
                     rel = rel.split()
-                if "nofollow" in rel:
+                if rel and "nofollow" in rel:
                     continue
-            next_url = normalize_url(urljoin(current_url, a["href"]))
+            next_url = normalize_url(urljoin(current_url, a["href"]))  # type: ignore[arg-type]
             if self._skip_external and not same_origin(next_url, start_url):
                 continue
             queue.put_nowait((next_url, depth + 1))
 
     def _resolve_lang(self, text: str, hint_lang: str) -> str:
         """Determine page language; 'auto' uses CJK-ratio detection with 'en' fallback for short/inconclusive texts; returns a _SUPPORTED_LANGS value."""
-        if hint_lang == "auto":
-            if len(text) < MIN_TEXT_LENGTH_FOR_DETECTION:
-                return "en"
-            return detect_lang(text) or "en"
         if len(text) < MIN_TEXT_LENGTH_FOR_DETECTION:
-            return hint_lang
+            return "en" if hint_lang == "auto" else hint_lang
         detected = detect_lang(text)
+        if hint_lang == "auto":
+            return detected or "en"
         return detected if detected is not None else hint_lang
 
     async def _process_crawl_url_async(
