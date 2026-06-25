@@ -7,10 +7,8 @@ Endpoints: search_repositories, list_branches, create_branch, list_commits, get_
 """
 
 import time
-from typing import Any
 
 from fastapi import APIRouter, Depends
-from shared.formatters import fmt_kvlog
 
 from mcp.github.models import (
     CreateBranchRequest,
@@ -26,22 +24,10 @@ from mcp.github.models import (
     SearchRepositoriesRequest,
     SearchRepositoriesResponse,
 )
-from mcp.github.service import GitHubService
+from mcp.github.server_common import _get_service, _info
+from mcp.github.service import GitHubService  # noqa: F401
 
 router = APIRouter()
-
-
-def _info(msg: str, **kwargs: Any) -> None:
-    from mcp.github.server import logger as srv_logger  # noqa: PLC0415
-
-    srv_logger.info(fmt_kvlog(msg, **kwargs))
-
-
-def _get_service() -> GitHubService:
-    """Dependency that returns the singleton GitHubService instance."""
-    from mcp.github.server import _service  # noqa: PLC0415
-
-    return _service
 
 
 @router.post("/search_repositories", response_model=SearchRepositoriesResponse)

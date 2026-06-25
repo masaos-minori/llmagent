@@ -12,6 +12,7 @@ from typing import Any
 
 from github import Github
 
+from mcp.github.models_config import GitHubAuthorizationError
 from mcp.github.models_pull_requests import (
     CreatePullRequestRequest,
     CreatePullRequestResponse,
@@ -150,10 +151,6 @@ class PullRequestOps(GitHubSecurityGuards):
         self._assert_allowed_repo(req.owner, req.repo)
         # Block rebase merge when allow_force_push is false (rebase rewrites history)
         if not self._cfg.allow_force_push and req.merge_method == "rebase":
-            from mcp.github.models_config import (  # noqa: PLC0415
-                GitHubAuthorizationError,
-            )
-
             raise GitHubAuthorizationError(
                 "Rebase merge is disabled (allow_force_push=false)"
             )
@@ -167,10 +164,6 @@ class PullRequestOps(GitHubSecurityGuards):
             if self._cfg.require_pr_review:
                 reviews = pr.get_reviews()
                 if not any(r.state == "APPROVED" for r in reviews):
-                    from mcp.github.models_config import (  # noqa: PLC0415
-                        GitHubAuthorizationError,
-                    )
-
                     raise GitHubAuthorizationError(
                         f"PR #{req.pr_number} has no approved review"
                         " (require_pr_review=true)"

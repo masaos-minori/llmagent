@@ -326,7 +326,7 @@ class GitHubService(_GitHubServiceCore):
 
     def get_dispatch_table(
         self,
-    ) -> dict[str, callable]:  # type: ignore[valid-type]
+    ) -> dict[str, Callable[..., Awaitable[str]]]:
         """Build and return the MCP tool dispatch table keyed by tool name."""
         return {
             "github_search_repositories": self.fmt_search_repositories,

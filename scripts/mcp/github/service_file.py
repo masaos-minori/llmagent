@@ -11,6 +11,7 @@ from typing import Any
 
 from github import Github
 
+from mcp.github.models_config import GitHubValidationError
 from mcp.github.models_file import (
     CreateOrUpdateFileRequest,
     CreateOrUpdateFileResponse,
@@ -43,10 +44,6 @@ class FileOps(GitHubSecurityGuards):
             file_content = repo.get_contents(req.path, **kwargs)
             # Guard: path points to a directory, not a file
             if isinstance(file_content, list):
-                from mcp.github.models_config import (  # noqa: PLC0415
-                    GitHubValidationError,
-                )
-
                 raise GitHubValidationError(
                     f"Path is a directory, not a file: {req.path}"
                 )

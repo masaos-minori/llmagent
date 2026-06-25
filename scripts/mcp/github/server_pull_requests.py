@@ -7,10 +7,8 @@ Endpoints: list_pull_requests, get_pull_request, create_pull_request, search_pul
 """
 
 import time
-from typing import Any
 
 from fastapi import APIRouter, Depends
-from shared.formatters import fmt_kvlog
 
 from mcp.github.models import (
     CreatePullRequestRequest,
@@ -26,22 +24,10 @@ from mcp.github.models import (
     UpdatePullRequestRequest,
     UpdatePullRequestResponse,
 )
-from mcp.github.service import GitHubService
+from mcp.github.server_common import _get_service, _info
+from mcp.github.service import GitHubService  # noqa: F401
 
 router = APIRouter()
-
-
-def _info(msg: str, **kwargs: Any) -> None:
-    from mcp.github.server import logger as srv_logger  # noqa: PLC0415
-
-    srv_logger.info(fmt_kvlog(msg, **kwargs))
-
-
-def _get_service() -> GitHubService:
-    """Dependency that returns the singleton GitHubService instance."""
-    from mcp.github.server import _service  # noqa: PLC0415
-
-    return _service
 
 
 @router.post("/list_pull_requests", response_model=ListPullRequestsResponse)

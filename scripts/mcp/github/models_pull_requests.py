@@ -7,8 +7,6 @@ Dependency direction: mcp.github.models_pull_requests → (no local deps)
 
 from __future__ import annotations
 
-import dataclasses
-
 from pydantic import BaseModel, Field
 
 from .models_base import IssueInfo, PullRequestInfo
@@ -87,7 +85,6 @@ class MergePullRequestRequest(BaseModel):
     dry_run: bool = Field(default=False, description="Preview only; no PR is merged")
 
 
-@dataclasses.dataclass
 class MergePullRequestResponse(BaseModel):
     pr_number: int
     merged: bool
