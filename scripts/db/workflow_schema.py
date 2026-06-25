@@ -69,25 +69,26 @@ CREATE TABLE IF NOT EXISTS approvals (
 """
 
 
-def init_schema(db_path: str) -> None:
-    """Create workflow tables if they do not exist."""
-    conn = sqlite3.connect(db_path)
-    try:
-        conn.executescript(_DDL)
-        conn.commit()
-        # Migration: add workflow_id column to tasks if missing
-        cursor = conn.execute("PRAGMA table_info(tasks)")
-        columns = [row[1] for row in cursor.fetchall()]
-        if "workflow_id" not in columns:
-            conn.execute("ALTER TABLE tasks ADD COLUMN workflow_id TEXT")
-            conn.commit()
-    finally:
-        conn.close()
+def _migrate_workflow_schema(conn: sqlite3.Connection) -> None:
+    """Add missing workflow columns idempotently."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
+    if "workflow_id" not in columns:
+        conn.execute("ALTER TABLE tasks ADD COLUMN workflow_id TEXT")
+
+
+def init_schema() -> None:
+    """Create workflow tables using SQLiteHelper for connection-policy consistency."""
+    from db.helper import SQLiteHelper
+
+    with SQLiteHelper("workflow").open(write_mode=True) as db:
+        assert db.conn is not None
+        db.executescript(_DDL)
+        _migrate_workflow_schema(db.conn)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     cfg = build_db_config()
     Path(cfg.workflow_db_path).parent.mkdir(parents=True, exist_ok=True)
-    init_schema(cfg.workflow_db_path)
+    init_schema()
     logger.info("workflow schema initialised: %s", cfg.workflow_db_path)

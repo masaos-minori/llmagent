@@ -23,17 +23,24 @@ def _make_cfg(db_path: str) -> DbConfig:
 
 
 @pytest.fixture()
-def workflow_db(tmp_path: Path) -> str:
-    db_path = str(tmp_path / "workflow.sqlite")
-    init_schema(db_path)
+def workflow_db(tmp_path: Path) -> Path:
+    from unittest.mock import patch
+
+    from db.config import DbConfig
+
+    db_path = tmp_path / "workflow.sqlite"
+    rag_path = tmp_path / "rag.sqlite"
+    session_path = tmp_path / "session.sqlite"
+    with patch("db.helper.build_db_config", return_value=DbConfig(rag_db_path=str(rag_path), session_db_path=str(session_path), workflow_db_path=str(db_path))):
+        init_schema()
     return db_path
 
 
 @pytest.fixture()
-def store(workflow_db: str):
+def store(workflow_db: Path):
     from agent.workflow.state_store import StateStore
 
-    with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
+    with patch("db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))):
         s = StateStore()
     yield s
     s.close()
