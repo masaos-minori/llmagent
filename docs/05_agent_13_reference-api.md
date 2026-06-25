@@ -81,7 +81,7 @@ Full details: [05_agent_06_tool-execution-and-approval.md](05_agent_06_tool-exec
 
 - **Role:** Conversation history size management and LLM-based compression
 - **Primary API:** `await mgr.compress(history)`, `mgr.count_chars(history)`, `apply_config(...)`
-- **Callers:** `Orchestrator._handle_history_compression()`, `cmd_context.py`
+- **Callers:** `Orchestrator._handle_history_compression()`
 - **Callees:** `LLMClient`, `HistorySelectionPolicy`
 - **Config:** `cfg.llm.context_char_limit`, `context_compress_turns`, `history_protect_turns`
 - **Failure:** LLM summarization failure → returns unmodified history (no compression)
@@ -92,7 +92,7 @@ Full details: [05_agent_04_state-and-persistence.md §HistoryManager](05_agent_0
 
 ## CommandRegistry (`agent/commands/registry.py`)
 
-- **Role:** All slash command dispatch; 10 mixin-based command groups
+- **Role:** All slash command dispatch; 13 mixin-based command groups
 - **Primary API:** `await cmds.dispatch(line) -> bool`
 - **Callers:** `AgentREPL._run_repl_loop()`
 - **Callees:** 10 mixin handlers + plugin registry
@@ -107,7 +107,7 @@ Full details: [05_agent_07_cli-and-commands.md](05_agent_07_cli-and-commands.md)
 
 - **Role:** CLI presentation layer; readline, progress, multiline input
 - **Primary API:** `setup_readline()`, `write_token()`, `write_progress()`, `async read_multiline()`
-- **Callers:** `AgentREPL`, `Orchestrator` (callbacks), `HistoryManager` (callback), `LLMClient` (callback)
+- **Callers:** `AgentREPL`, `Orchestrator` (via Writer protocol callbacks)
 - **Callees:** `readline`, `sys.stdout`
 - **Config:** none directly; callbacks wired at construction
 - **Failure:** I/O errors propagate to caller
