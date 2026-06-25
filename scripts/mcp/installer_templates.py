@@ -310,7 +310,10 @@ def generate_confd_template(server_name: str) -> str:
 
 
 def tool_definition_snippet(module: str, server_name: str) -> str:
-    """Return a JSON block suitable for pasting into agent.toml tool_definitions."""
+    """Return a JSON block suitable for pasting into agent.toml tool_definitions.
+
+    The returned string is a single JSON object with type/function/parameters structure.
+    """
     return textwrap.dedent(f"""\
         {{
           "type": "function",

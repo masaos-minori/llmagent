@@ -63,8 +63,7 @@ def slice_lines(content: str, head: int | None, tail: int | None) -> str:
     all_lines = content.splitlines(keepends=True)
     if head is not None:
         return "".join(all_lines[:head])
-    if tail is None:
-        return content
+    assert tail is not None, "Both head and tail cannot be None here"
     return "".join(all_lines[-tail:])
 
 

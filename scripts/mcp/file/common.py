@@ -6,6 +6,7 @@ All functions raise domain exceptions on policy violations.
 
 from __future__ import annotations
 
+import os
 import stat as _stat
 from pathlib import Path
 
@@ -67,3 +68,18 @@ def check_size_limit(target: Path, max_bytes: int) -> int:
 def format_permissions(mode: int) -> str:
     """Return a 9-char rwx string from a stat mode int."""
     return _stat.filemode(mode)[1:]
+
+
+def _build_health_deps() -> dict[str, str]:
+    """Build health check dependency status dict.
+
+    Returns an empty dict when all dependencies are healthy,
+    or a dict with error messages for failed checks.
+    """
+    deps: dict[str, str] = {}
+    try:
+        if not _stat.S_ISDIR(os.stat("/workspace").st_mode):
+            deps["filesystem"] = "/workspace is not a directory"
+    except OSError as e:
+        deps["filesystem"] = f"check failed: {e}"
+    return deps

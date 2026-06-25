@@ -25,16 +25,21 @@ _stats: dict[str, int] = {
 }
 
 
+def _increment_stat(key: str) -> None:
+    """Increment a stats counter by one."""
+    _stats[key] = _stats.get(key, 0) + 1
+
+
 def main() -> None:
     for raw in sys.stdin:
         line = raw.strip()
         if not line:
-            _stats["empty_lines"] += 1
+            _increment_stat("empty_lines")
             continue
         try:
             req = orjson.loads(line)
         except orjson.JSONDecodeError as exc:
-            _stats["malformed"] += 1
+            _increment_stat("malformed")
             sys.stderr.write(
                 f"[echo_server] malformed JSON (#{_stats['malformed']}): "
                 f"{exc} — input: {raw[:80]!r}\n"
@@ -42,7 +47,7 @@ def main() -> None:
             sys.stderr.flush()
             continue
 
-        _stats["processed"] += 1
+        _increment_stat("processed")
         req_id = req.get("id", 0)
         name = req.get("name", "")
         if name == "__list_tools__":

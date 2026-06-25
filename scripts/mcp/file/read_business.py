@@ -211,14 +211,14 @@ class ReadFileService:
         try:
             content = target.read_text(encoding="utf-8")
             return FileResult(path=str(target), content=content, size=size)
-        except (FileAuthorizationError, FileValidationError) as e:
-            return FileResult(path=raw_path, content=None, error=str(e))
         except UnicodeDecodeError:
             return FileResult(
                 path=raw_path,
                 content=None,
                 error="File cannot be decoded as UTF-8",
             )
+        except PermissionError as e:
+            return FileResult(path=raw_path, content=None, error=str(e))
         except OSError as e:
             logger.warning(
                 "read_multiple_files: OS error reading '%s': %s", raw_path, e

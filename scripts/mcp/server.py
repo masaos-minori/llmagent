@@ -7,14 +7,17 @@ Tool dispatch helpers live in mcp/dispatch.py.
 Audit log helpers live in mcp/audit.py.
 """
 
+from __future__ import annotations
+
 import asyncio
 import dataclasses
 import logging
-import sqlite3
 import sys
 import time
 import uuid
-from typing import Any
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Protocol
 
 import orjson
 from shared.json_utils import dumps as _json_dumps
@@ -36,6 +39,35 @@ ToolArgs = dict[str, object]
 
 # Maximum response size returned to the agent; larger responses are truncated.
 MCP_MAX_RESPONSE_BYTES: int = 512 * 1024
+
+
+class _FastAPIApp(Protocol):
+    """Minimal FastAPI app interface for middleware attachment."""
+
+    def middleware(self, type_: str) -> Callable[[Callable], Callable]: ...
+
+
+@dataclass(frozen=True)
+class _StdioResponse:
+    """Serialized stdio response payload."""
+
+    req_id: int
+    result: str
+    is_error: bool
+    truncated: bool
+    total_bytes: int
+    actual_visible_bytes: int
+
+
+@dataclass(frozen=True)
+class _StdioRequestResult:
+    """Result from parsing a stdio request line."""
+
+    is_error: bool
+    result: str
+    req_id: int
+    is_introspection: bool
+    name: str
 
 
 @dataclasses.dataclass(frozen=True)
@@ -72,7 +104,7 @@ def _truncate_with_meta(
     )
 
 
-def attach_auth_middleware(app: Any, token: str) -> None:
+def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
     """Register Bearer-token auth + X-Request-Id middleware on a FastAPI app.
 
     When token is non-empty, requests without a matching Authorization header
@@ -113,9 +145,7 @@ class MCPServer:
     http_host: str = "127.0.0.1"
     http_port: int  # e.g. 8004
     app_module: str  # uvicorn target, e.g. "WebSearchMCPServer:app"
-    mcp_tools: list[
-        dict[str, Any]
-    ]  # tool definitions (retained for subclass reference)
+    mcp_tools: list[dict[str, object]]  # tool definitions (retained for subclass reference)
 
     async def dispatch(self, name: str, args: ToolArgs) -> DispatchResult:
         """Handle a tools/call request. Subclasses must override this."""
@@ -213,58 +243,45 @@ class MCPServer:
             if not line:
                 break  # stdin EOF — client closed the pipe
 
-            req_id = 0
-            name = ""
-            truncated = False
-            total_bytes = 0
-            actual_visible_bytes = 0
             try:
-                is_error, result, req_id, is_introspection = await self._handle_stdio_request(
-                    line
-                )
-                if not is_error and not is_introspection:
-                    tr = _truncate_with_meta(result)
-                    is_error = False
-                    truncated = tr.truncated
-                    total_bytes = tr.total_bytes
-                    actual_visible_bytes = tr.actual_visible_bytes
+                await self._process_stdio_line(loop, line)
             except asyncio.CancelledError:
-                result = "Server cancelled"
-                is_error = True
-                await self._write_stdio_response(
-                    loop, req_id, result, is_error, False, 0, 0
-                )
                 raise
-            except orjson.JSONDecodeError as e:
-                logger.error("run_stdio JSON decode error: %s", e)
-                result = f"JSON decode error: {e}"
-                is_error = True
-            except (ValueError, OSError) as e:
-                logger.error("run_stdio expected error: %s", e)
-                result = f"Error: {e}"
-                is_error = True
-            except RuntimeError as e:
-                logger.error("run_stdio runtime error: %s", e)
-                result = f"Runtime error: {e}"
-                is_error = True
-            except (
-                TypeError,
-                AttributeError,
-                KeyError,
-                sqlite3.OperationalError,
-                sqlite3.DatabaseError,
-            ) as e:
-                # Last-resort handler: stdio transport must always write a response.
+            except Exception as e:
                 logger.error("run_stdio unexpected error: %s", e)
-                result = f"Internal server error: {e}"
-                is_error = True
+                await self._write_stdio_response(
+                    loop, 0, f"Internal server error: {e}", True, False, 0, 0
+                )
 
-            if is_error and name != "__list_tools__":
-                self._record_tool_error(name)
+    async def _process_stdio_line(self, loop: asyncio.AbstractEventLoop, line: bytes) -> None:
+        """Parse a stdio request line and write the response.
 
-            await self._write_stdio_response(
-                loop, req_id, result, is_error, truncated, total_bytes, actual_visible_bytes
-            )
+        Raises on invalid input or dispatch errors.
+        """
+        req_result = await self._handle_stdio_request(line)
+        name = req_result.name
+        is_error = req_result.is_error
+        result = req_result.result
+        req_id = req_result.req_id
+        is_introspection = req_result.is_introspection
+
+        truncated = False
+        total_bytes = 0
+        actual_visible_bytes = 0
+
+        if not is_error and not is_introspection:
+            tr = _truncate_with_meta(result)
+            is_error = False
+            truncated = tr.truncated
+            total_bytes = tr.total_bytes
+            actual_visible_bytes = tr.actual_visible_bytes
+
+        if is_error and name != "__list_tools__":
+            self._record_tool_error(name)
+
+        await self._write_stdio_response(
+            loop, req_id, result, is_error, truncated, total_bytes, actual_visible_bytes
+        )
 
     @staticmethod
     async def _setup_stdio_reader(
@@ -287,24 +304,23 @@ class MCPServer:
         actual_visible_bytes: int,
     ) -> None:
         """Serialize and write a JSON-RPC response to stdout."""
-        resp = _json_dumps(
-            {
-                "id": req_id,
-                "result": result,
-                "is_error": is_error,
-                "truncated": truncated,
-                "total_bytes": total_bytes,
-                "actual_visible_bytes": actual_visible_bytes,
-            },
+        payload = _StdioResponse(
+            req_id=req_id,
+            result=result,
+            is_error=is_error,
+            truncated=truncated,
+            total_bytes=total_bytes,
+            actual_visible_bytes=actual_visible_bytes,
         )
+        resp = _json_dumps(dataclasses.asdict(payload))
         loop.run_in_executor(None, _write_stdout, resp + "\n")
 
     async def _handle_stdio_request(
         self, line: bytes
-    ) -> tuple[bool, str, int, bool]:
+    ) -> _StdioRequestResult:
         """Parse and handle a stdio request line.
 
-        Returns (is_error, result, req_id, is_introspection).
+        Returns the parsed request result including the tool name.
         Raises on invalid input or dispatch errors.
         """
         req = orjson.loads(line)
@@ -318,7 +334,9 @@ class MCPServer:
 
         if name == "__list_tools__":
             result = _json_dumps({"tools": self.list_tools()})
-            return False, result, req_id, True
+            return _StdioRequestResult(
+                is_error=False, result=result, req_id=req_id, is_introspection=True, name=name
+            )
 
         dispatch_result = await self.dispatch(
             name, dict(req.get("args", {}))
@@ -330,4 +348,6 @@ class MCPServer:
         if is_error:
             self._record_tool_error(name)
 
-        return is_error, result, req_id, False
+        return _StdioRequestResult(
+            is_error=is_error, result=result, req_id=req_id, is_introspection=False, name=name
+        )

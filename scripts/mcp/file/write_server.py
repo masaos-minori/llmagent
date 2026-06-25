@@ -14,7 +14,6 @@ Provided endpoints:
   GET  /health             Health check
 """
 
-import os
 import time
 from typing import Any
 
@@ -24,7 +23,11 @@ from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
 from mcp.dispatch import DispatchResult, dispatch_tool
-from mcp.file.common import FileAuthorizationError, FileValidationError
+from mcp.file.common import (
+    FileAuthorizationError,
+    FileValidationError,
+    _build_health_deps,
+)
 from mcp.file.write_models import (
     CreateDirectoryRequest,
     CreateDirectoryResponse,
@@ -132,12 +135,7 @@ async def move_file(req: MoveFileRequest) -> MoveFileResponse:
 
 @app.get("/health")
 async def health() -> dict[str, object]:
-    deps: dict[str, str] = {}
-    try:
-        if not os.path.isdir("/workspace"):
-            deps["filesystem"] = "/workspace not found"
-    except Exception:
-        deps["filesystem"] = "check failed"
+    deps = _build_health_deps()
     ready = len(deps) == 0
     return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
 
