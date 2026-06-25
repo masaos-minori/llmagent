@@ -65,12 +65,15 @@ RagPipeline(
 | `last_timings` | `dict[str, float]` | Wall-clock seconds per stage from last `run()` |
 | `last_stage_results` | `list[StageResult]` | Per-stage outcome records (status, fallback reason, elapsed) from last `run()` |
 | `semantic_cache` | `SemanticCache` | In-memory nearest-neighbor cache |
+| `last_search_diagnostics` | `SearchDiagnostics` | Search diagnostics from last `run()`; includes `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`, `fallback_reason` for HTTP mode |
+| `stat_search_embed_failed` | `int` | Cumulative embedding failure count across all `run()` calls on this instance |
+| `stat_search_fts_errors` | `int` | Cumulative FTS error count across all `run()` calls on this instance |
 
 ### Public methods
 
 | Method | Signature | Description |
 |---|---|---|
-| `run` | `async (query, db, history_context="", hook_strict=False) -> tuple[list[str], list[list[RawHit]], list[RagHit], list[RagHit]]` | Execute MQE→search→RRF→rerank+PluginHooks; return `(queries, search_results, merged, reranked)`; `hook_strict=True` re-raises first plugin hook failure (default: log warning and skip); always calls `on_clear()` in `finally` |
+| `run` | `async (query, db, history_context="", hook_strict=False) -> PipelineRunResult` | Execute MQE→search→RRF→rerank+PluginHooks; return `PipelineRunResult` (queries, search_results, merged, reranked, stage_results, diagnostics); `hook_strict=True` re-raises first plugin hook failure (default: log warning and skip); always calls `on_clear()` in `finally` |
 | `augment` | `async (query, debug_fn=None, history_context="") -> str` | Full pipeline + Augment stage; returns context block string or `""` |
 | `search_queries` | `(queries, db) -> list[list[RagHit]]` | Standalone helper: parallel embed + sequential DB search |
 | `rerank_candidates` | `(query, merged) -> list[RagHit]` | Standalone helper: cross-encoder or RRF fallback + dedup |
@@ -91,15 +94,41 @@ When `rag_service_url` is non-empty, `augment()` delegates to the external RAG s
 |---|---|
 | Auth | `X-RAG-Token: {rag_auth_token}` header added when `rag_auth_token != ""` (default: no header) |
 | Timeout | 10.0 seconds per HTTP attempt (connect + read) |
-| Retry | Up to 2 retries on 5xx or transport errors; exponential backoff (1s, 2s); no retry on 4xx |
+| Retry | Up to 2 retries on 5xx or transport errors; exponential backoff (1s, 2s); no retry on 4xx or JSON parse errors |
 | Fallback | `None` returned → in-process pipeline; `""` (empty context) → accepted as valid result |
 | Anti-loop | MCP adapter hardcodes `rag_service_url=""` so in-process `augment()` never re-delegates |
+| Return values | `call_rag_service()` returns `(context: str \| None, status_code: int \| None, elapsed_ms: float)` — `status_code` and `elapsed_ms` are available for diagnostics |
 
 Config fields in `RagConfig` Protocol (`shared/types.py`):
 - `rag_service_url: str` — remote endpoint URL; empty string disables HTTP mode
 - `rag_auth_token: str` — optional bearer token for `X-RAG-Token` header; `""` = no auth (default)
 
-#### HTTP RAG result classification
+#### call_rag_service() function (`scripts/rag/pipeline_service.py`)
+
+```python
+call_rag_service(
+    http: httpx.AsyncClient,
+    rag_url: str,
+    query: str,
+    history_context: str,
+    *,
+    auth_token: str = "",
+    set_fetch_result: Callable[[TwoStageFetchResult], None],
+    set_fallback_reason: Callable[[str], None] | None = None,
+) -> tuple[str | None, int | None, float]
+```
+
+Return contract:
+
+| Return value | Condition |
+|---|---|
+| `str` (non-empty) | HTTP 200 + response body has `"context"` key with non-empty string value |
+| `""` (empty string) | HTTP 200 but `"context"` key is absent, None, or empty — valid empty result |
+| `None` | HTTP 4xx (no retry), 5xx with retries exhausted, transport error, or JSON parse error — triggers in-process fallback |
+
+Side effects:
+- `set_fetch_result` called with `TwoStageFetchResult` holding fetch stage status and hits from response body
+- `set_fallback_reason` called with reason string on non-success path (4xx, transport error, etc.)
 
 When `rag_service_url` is set, `augment()` classifies the HTTP result and records it
 in `get_diagnostics()["http_result_kind"]` and in `StageResult.fallback_reason`.
@@ -118,6 +147,15 @@ run in this case.
 The classification is visible in:
 - `get_diagnostics()["http_result_kind"]`
 - `/rag search --debug` stage results: `✓ HttpAugment: success — http_remote_empty`
+
+#### HTTP RAG request details
+
+| Detail | Value |
+|---|---|
+| Endpoint | `{rag_url}/v1/search` |
+| Request body | `{"query": query, "history_context": history_context}` |
+| `_MAX_ATTEMPTS` | 3 total attempts (initial + 2 retries) |
+| Retry backoff | Exponential: `min(2**attempt, 5)` seconds |
 
 ---
 
@@ -152,7 +190,7 @@ ctx = PipelineContext(query="search query", history_context="conversation histor
 | `reranked` | `list[RagHit]` | `[]` | `RerankStage` |
 | `augment_result` | `str` | `""` | `AugmentStage` |
 | `stage_results` | `list[StageResult]` | `[]` | `RagPipeline.run()` |
-| `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()` | `SearchStage` (embed_ok, embed_failed, fts_errors) |
+| `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()` (default_factory) | `SearchStage` (embed_ok, embed_failed, fts_errors); also populated by HTTP mode with `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`, `fallback_reason` |
 
 ### 4.2 SearchDiagnostics (`scripts/rag/models_result.py`)
 
@@ -201,6 +239,7 @@ SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: st
 - Each query contributes one `list[RawHit]` to `ctx.search_results`
 - KNN: `vector_search(embedding, top_k)` via sqlite-vec
 - BM25: `fts_search(query, top_k)` via FTS5
+- Logs to `/opt/llm/logs/search.log`: embed failure warnings, search degradation warnings (embed_failed count, FTS error count)
 
 ### 5.3 FusionStage
 
@@ -254,6 +293,7 @@ AugmentStage()
 - Formats `ctx.reranked` as `[Source: title | url]\ncontent` blocks
 - Joined by `\n\n---\n\n`; wrapped in `[RAG_CONTEXT_START]` / `[RAG_CONTEXT_END]`
 - Stored in `ctx.augment_result`
+- Uses `sanitize_document(c.content)` from `rag.utils` to sanitize content before formatting
 
 #### Refiner fallback reasons
 
@@ -288,6 +328,8 @@ cache = SemanticCache(max_size=100, threshold=0.92)
 | `put` | `(embedding, history_context, context_str) -> None` | Store entry; `history_context` is part of cache key; raises `ValueError` on embedding dimension mismatch; calls `prune()` after |
 | `prune` | `() -> None` | Remove oldest entries (FIFO) until `len ≤ max_size` |
 | `size` | property `int` | Current entry count |
+| `invalidate` | `() -> None` | Bump generation counter and clear all cached entries atomically |
+| `generation` | property `int` | Current cache invalidation generation count |
 
 Cache is initialized in `RagPipeline.__init__` using `cfg.semantic_cache_max_size` and
 `cfg.semantic_cache_threshold`.
@@ -298,12 +340,43 @@ Cache is initialized in `RagPipeline.__init__` using `cfg.semantic_cache_max_siz
 
 ### 7.1 RagRepository (`scripts/rag/repository.py`)
 
-Owns all SQL. Used internally by stages.
+Owns all SQL. Used internally by stages. Logs query / fts_query / top_k / elapsed_ms on every call for observability.
+
+**SQL queries:**
+
+| Method | SQL |
+|---|---|
+| `vector_search` | `SELECT c.chunk_id, c.content, d.url, d.title, cv.distance FROM chunks_vec cv JOIN chunks c ON c.chunk_id = cv.chunk_id JOIN documents d ON d.doc_id = c.doc_id WHERE cv.embedding MATCH ? ORDER BY cv.distance LIMIT ?` |
+| `fts_search` | `SELECT c.chunk_id, c.content, d.url, d.title, bm25(chunks_fts) AS bm25_score FROM chunks_fts JOIN chunks c ON c.chunk_id = chunks_fts.rowid JOIN documents d ON d.doc_id = c.doc_id WHERE chunks_fts MATCH ? ORDER BY bm25(chunks_fts) LIMIT ?` |
+
+**Japanese FTS5 tokenization:**
+
+| Constant | Value | Description |
+|---|---|---|
+| `_MAX_FTS_TOKENS` | 20 | Maximum tokens in an FTS5 query |
+| `_FTS_KEEP_POS` | `{"名詞", "動詞", "形容詞"}` | Sudachi POS categories retained for Japanese tokens |
+
+**Private functions:**
+
+| Function | Description |
+|---|---|
+| `_build_fts_tokens_ja(text)` | Extract normalized_form() of nouns/verbs/adjectives from Japanese text via Sudachi; raises ImportError if not installed |
+| `_build_fts_query(text)` | Convert text to FTS5 query; Japanese uses Sudachi POS filter with quoted tokens, English uses alphanumeric regex |
+
+**Lazy Sudachi loading:**
+
+`_SudachiTokenizer` loads Sudachi on first use. Dictionary: `core`, SplitMode: `C`.
 
 | Method | Signature | Description |
 |---|---|---|
-| `vector_search` | `(embedding: list[float], top_k: int) -> list[RagHit]` | KNN via sqlite-vec; logs `top_k`/`hits`/`elapsed_ms` |
-| `fts_search` | `(query: str, top_k: int) -> list[RagHit]` | BM25 via FTS5; returns `[]` on `sqlite3.OperationalError`; logs `query`/`fts_query`/`top_k`/`hits`/`elapsed_ms` |
+| `tokenize_pos_filter` | `(text: str, keep_pos: frozenset[str]) -> list[str]` | Return normalized_form() for tokens whose part_of_speech()[0] is in keep_pos; raises RuntimeError on tokenization failure |
+
+**Public methods:**
+
+| Method | Signature | Description |
+|---|---|---|
+| `vector_search` | `(embedding: list[float], top_k: int) -> list[RagHit]` | KNN via sqlite-vec; returns RawHit with `distance` field; logs `top_k`/`hits`/`elapsed_ms` |
+| `fts_search` | `(query: str, top_k: int) -> list[RagHit]` | BM25 via FTS5; returns RawHit with `bm25_score` field; returns `[]` on `sqlite3.OperationalError`; logs `query`/`fts_query`/`top_k`/`hits`/`elapsed_ms` |
 
 **Module-level standalone wrappers:**
 - `vector_search(embedding, top_k, db)` → delegates to `RagRepository(db).vector_search()`
@@ -316,7 +389,7 @@ Owns all SQL. Used internally by stages.
 
 | Method | Signature | Description |
 |---|---|---|
-| `rrf_merge` (static) | `(results_list: list[list[RagHit]], rrf_k: int = 60) -> list[RagHit]` | RRF score Σ 1/(rrf_k+rank); descending order; assigns `rrf_score` |
+| `rrf_merge` (static) | `(results_list: list[list[RawHit]] \| list[list[RagHit]], rrf_k: int = 60) -> list[RagHit]` | RRF score Σ 1/(rrf_k+rank); descending order; assigns `rrf_score`; accepts RawHit or RagHit result lists |
 
 ### 7.3 RagLLM (`scripts/rag/llm.py` — re-export stub)
 
@@ -335,7 +408,7 @@ llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8001/v1/chat/completi
 | `expand_queries` | `(query: str, context: str = "") -> list[str]` | MQE; raises `RagExpansionError` on failure |
 | `cross_encoder_rerank` | `(query, candidates, top_k, rag_min_score=0.0) -> list[RagHit]` | Cross-encoder; raises `RagRerankError` on failure; filters by `rag_min_score` |
 | `summarize_tool_result` | `(text, tool_name, args) -> str` | Summarize tool output; raises on HTTP/parse failure |
-| `refine_context` | `(chunks, query, max_tokens, per_chunk_chars, timeout) -> str` | Compress chunks to query-relevant points via `scripts/rag/pipeline_refiner.py`; caller handles fallback on error |
+| `refine_context` | `(chunks, query, max_tokens, per_chunk_chars, timeout) -> str` | Compress chunks to query-relevant key points via `scripts/rag/pipeline_refiner.py`; caller handles fallback on error |
 
 **Module-level functions:**
 
@@ -343,6 +416,22 @@ llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8001/v1/chat/completi
 |---|---|---|
 | `get_embedding` | `(text, client, embed_url) -> list[float]` | Convert text to embedding vector; uses `"query: "` prefix (E5 convention) |
 | `summarize_tool_result` | `(text, tool_name, args, client, llm_url=None) -> str` | Standalone summarization; loads `llm_url` from cached config when `None` |
+
+### 7.4 PipelineRunResult (`scripts/rag/types.py`)
+
+```python
+@dataclass
+class PipelineRunResult:
+    queries: list[str]
+    search_results: list[list[RawHit]]
+    merged: list[RagHit]
+    reranked: list[RagHit]
+    stage_results: list[StageResult]
+    diagnostics: SearchDiagnostics
+    result_source: str | None = None
+```
+
+Returned by `RagPipeline.run()`. The `result_source` field indicates the source of the final result: `"remote"` for HTTP mode, `"local"` for in-process.
 
 ---
 
