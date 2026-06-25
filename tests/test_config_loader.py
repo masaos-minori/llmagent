@@ -7,7 +7,12 @@ from pathlib import Path
 import orjson
 import pytest
 from agent.config import MemoryConfig
-from shared.config_loader import ConfigLoader
+from shared.config_loader import (
+    ConfigLoader,
+    ConfigMissingError,
+    ConfigParseError,
+    ConfigReadError,
+)
 
 
 @pytest.fixture
@@ -134,3 +139,35 @@ class TestMemoryConfigValidation:
     def test_recency_days_negative_raises(self) -> None:
         with pytest.raises(ValueError, match="memory_recency_days must be > 0"):
             MemoryConfig(memory_recency_days=-1.0)
+
+
+class TestCustomExceptionTypes:
+    def test_invalid_toml_raises_config_parse_error(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        (tmp_path / "bad.toml").write_text("key = [unclosed", encoding="utf-8")
+        with pytest.raises(ConfigParseError, match="Invalid TOML"):
+            tmp_cfg.load("bad.toml")
+
+    def test_invalid_json_raises_config_parse_error(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        (tmp_path / "bad.json").write_bytes(b"{bad json}")
+        with pytest.raises(ConfigParseError, match="Invalid JSON"):
+            tmp_cfg.load("bad.json")
+
+    def test_missing_file_raises_config_missing_error(
+        self, tmp_cfg: ConfigLoader
+    ) -> None:
+        with pytest.raises(ConfigMissingError, match="Config file not found"):
+            tmp_cfg.load("nonexistent.toml")
+
+    def test_unreadable_file_raises_config_read_error(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        # Create a file and remove read permission to trigger OSError
+        p = tmp_path / "unreadable.toml"
+        p.write_text("x = 1\n", encoding="utf-8")
+        p.chmod(0o000)
+        with pytest.raises(ConfigReadError, match="Cannot read config file"):
+            tmp_cfg.load("unreadable.toml")

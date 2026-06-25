@@ -15,10 +15,23 @@ import orjson
 
 logger = logging.getLogger(__name__)
 
+
+class ConfigMissingError(ValueError):
+    """Config file does not exist."""
+
+
+class ConfigParseError(ValueError):
+    """Config file exists but cannot be parsed."""
+
+
+class ConfigReadError(ValueError):
+    """Config file exists but cannot be read (permission, I/O)."""
+
+
 _BASE_CONFIG_FILES: tuple[str, ...] = (
-    "common.toml",   # base defaults; http settings here are lowest precedence
-    "llm.toml",      # LLM-specific; may override http keys from common
-    "http.toml",     # HTTP-specific; takes precedence over common and llm for http keys
+    "common.toml",  # base defaults; http settings here are lowest precedence
+    "llm.toml",  # LLM-specific; may override http keys from common
+    "http.toml",  # HTTP-specific; takes precedence over common and llm for http keys
     "rag.toml",
     "context.toml",
     "tools.toml",
@@ -54,7 +67,7 @@ class ConfigLoader:
         for name in _BASE_CONFIG_FILES:
             try:
                 merged.update(self._filter_meta_keys(self._load_single(name)))
-            except ValueError:
+            except ConfigMissingError:
                 logger.debug("Config file not found: %s", name)
         return merged
 
@@ -83,13 +96,13 @@ class ConfigLoader:
                 )
             return dict(parsed)
         except FileNotFoundError as exc:
-            raise ValueError(f"Config file not found: {path}") from exc
+            raise ConfigMissingError(f"Config file not found: {path}") from exc
         except tomllib.TOMLDecodeError as exc:
-            raise ValueError(f"Invalid TOML in {path}: {exc}") from exc
+            raise ConfigParseError(f"Invalid TOML in {path}: {exc}") from exc
         except orjson.JSONDecodeError as exc:
-            raise ValueError(f"Invalid JSON in {path}: {exc}") from exc
+            raise ConfigParseError(f"Invalid JSON in {path}: {exc}") from exc
         except OSError as exc:
-            raise ValueError(f"Cannot read config file {path}: {exc}") from exc
+            raise ConfigReadError(f"Cannot read config file {path}: {exc}") from exc
 
     def _resolve_path(self, name: str) -> Path:
         p = Path(name) if name.endswith((".toml", ".json")) else Path(f"{name}.toml")

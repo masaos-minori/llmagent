@@ -44,13 +44,14 @@ CREATE TABLE IF NOT EXISTS sessions (
     title      TEXT
 );
 CREATE TABLE IF NOT EXISTS messages (
-    message_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id INTEGER NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
-    role       TEXT NOT NULL,
-    content    TEXT NOT NULL,
-    tool_calls TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+     message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+     session_id INTEGER NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
+     role       TEXT NOT NULL,
+     content    TEXT NOT NULL,
+     tool_calls TEXT,
+     tool_call_id TEXT,
+     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+ );
 """
 
 
@@ -201,6 +202,22 @@ class TestSQLiteSessionStore:
         store = SQLiteSessionStore(_make_session_db())  # type: ignore[arg-type]
         msgs = store.message_list(99999)
         assert msgs == []
+
+    def test_message_save_with_tool_call_id_round_trips(self) -> None:
+        store = SQLiteSessionStore(_make_session_db())  # type: ignore[arg-type]
+        sid = store.session_create()
+        store.message_save(sid, "tool", "", None, tool_call_id="call_abc123")
+        msgs = store.message_list(sid)
+        assert len(msgs) == 1
+        assert msgs[0].tool_call_id == "call_abc123"
+
+    def test_message_save_default_tool_call_id_is_none(self) -> None:
+        store = SQLiteSessionStore(_make_session_db())  # type: ignore[arg-type]
+        sid = store.session_create()
+        store.message_save(sid, "user", "hello", None)
+        msgs = store.message_list(sid)
+        assert len(msgs) == 1
+        assert msgs[0].tool_call_id is None
 
 
 # ── SQLiteVectorStore ─────────────────────────────────────────────────────────

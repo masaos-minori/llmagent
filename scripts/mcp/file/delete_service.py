@@ -189,17 +189,13 @@ class DeleteFileService:
         result = await asyncio.to_thread(
             lambda: self.delete_file(DeleteFileRequest(**args)),
         )
-        if not result.deleted:
-            return f"Dry-run: {result.path} ({result.file_info})"
-        return f"Deleted: {result.path}"
+        return DeleteFileFormatter.format_file_result(result)
 
     async def fmt_delete_directory(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
             lambda: self.delete_directory(DeleteDirectoryRequest(**args)),
         )
-        if not result.deleted:
-            return f"Dry-run: {result.path} ({result.dir_info})"
-        return f"Directory deleted: {result.path}"
+        return DeleteFileFormatter.format_directory_result(result)
 
     def get_dispatch_table(
         self,
@@ -209,6 +205,22 @@ class DeleteFileService:
             "delete_file": self.fmt_delete_file,
             "delete_directory": self.fmt_delete_directory,
         }
+
+
+class DeleteFileFormatter:
+    """Format DeleteFileService results as plain text for the LLM."""
+
+    @staticmethod
+    def format_file_result(result: DeleteFileResponse) -> str:
+        if not result.deleted:
+            return f"Dry-run: {result.path} ({result.file_info})"
+        return f"Deleted: {result.path}"
+
+    @staticmethod
+    def format_directory_result(result: DeleteDirectoryResponse) -> str:
+        if not result.deleted:
+            return f"Dry-run: {result.path} ({result.dir_info})"
+        return f"Directory deleted: {result.path}"
 
 
 def build_service(cfg: FileDeleteConfig) -> DeleteFileService:

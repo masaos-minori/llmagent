@@ -52,8 +52,8 @@ class DbConfig:
 
 
 def build_db_config() -> DbConfig:
-    """Construct DbConfig from common.toml via ConfigLoader.load_all()."""
-    cfg = ConfigLoader().load_all()
+    """Construct DbConfig from common.toml; raises ValueError if common.toml is missing or malformed."""
+    cfg = ConfigLoader().load("common.toml")
     return DbConfig(
         rag_db_path=cfg.get("rag_db_path", ""),
         session_db_path=cfg.get("session_db_path", ""),

@@ -74,6 +74,31 @@ class WriteFileService:
         return modified
 
     @staticmethod
+    def _generate_diff(
+        target: Path,
+        original: str,
+        modified: str,
+    ) -> str:
+        """Generate a unified diff between original and modified content."""
+        if original == modified:
+            return ""
+        diff_lines = difflib.unified_diff(
+            original.splitlines(keepends=True),
+            modified.splitlines(keepends=True),
+            fromfile=f"a/{target.name}",
+            tofile=f"b/{target.name}",
+        )
+        return "".join(diff_lines)
+
+    @staticmethod
+    def _write_content(target: Path, content: str) -> None:
+        """Write content to target file. Raises FileAuthorizationError on permission error."""
+        try:
+            target.write_text(content, encoding="utf-8")
+        except PermissionError as e:
+            raise FileAuthorizationError(str(e))
+
+    @staticmethod
     def _write_if_changed(
         target: Path,
         original: str,
@@ -83,20 +108,11 @@ class WriteFileService:
         """Generate a unified diff and write the file if changed and not a dry run.
         Returns (diff_text, applied).
         """
-        diff_lines = difflib.unified_diff(
-            original.splitlines(keepends=True),
-            modified.splitlines(keepends=True),
-            fromfile=f"a/{target.name}",
-            tofile=f"b/{target.name}",
-        )
-        diff = "".join(diff_lines)
+        diff = WriteFileService._generate_diff(target, original, modified)
         applied = False
         if not dry_run and modified != original:
-            try:
-                target.write_text(modified, encoding="utf-8")
-                applied = True
-            except PermissionError as e:
-                raise FileAuthorizationError(str(e))
+            WriteFileService._write_content(target, modified)
+            applied = True
         return diff, applied
 
     # ── Business operation methods ──
@@ -241,41 +257,25 @@ class WriteFileService:
         result = await asyncio.to_thread(
             lambda: self.write_file(WriteFileRequest(**args)),
         )
-        if not result.applied:
-            info = f"Dry-run: {result.path} ({result.size} bytes)"
-            if result.diff:
-                info += f"\n{result.diff}"
-            else:
-                info += " [new file]"
-            return info
-        return f"Written: {result.path} ({result.size} bytes)"
+        return WriteFileFormatter.format_write_result(result)
 
     async def fmt_edit_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
             lambda: self.edit_file(EditFileRequest(**args)),
         )
-        if not result.diff:
-            return "No changes."
-        if result.applied:
-            return f"Edited\n{result.diff}"
-        return f"Diff only (dry_run)\n{result.diff}"
+        return WriteFileFormatter.format_edit_result(result)
 
     async def fmt_create_directory(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
             lambda: self.create_directory(CreateDirectoryRequest(**args)),
         )
-        if result.dry_run_info:
-            return f"Dry-run: {result.path} [{result.dry_run_info}]"
-        status = "created" if result.created else "already exists"
-        return f"Directory {status}: {result.path}"
+        return WriteFileFormatter.format_directory_result(result)
 
     async def fmt_move_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
             lambda: self.move_file(MoveFileRequest(**args)),
         )
-        if result.dry_run_info:
-            return f"Dry-run: {result.source} → {result.destination} [{result.dry_run_info}]"
-        return f"Moved: {result.source} → {result.destination}"
+        return WriteFileFormatter.format_move_result(result)
 
     def get_dispatch_table(
         self,
@@ -287,6 +287,42 @@ class WriteFileService:
             "create_directory": self.fmt_create_directory,
             "move_file": self.fmt_move_file,
         }
+
+
+class WriteFileFormatter:
+    """Format WriteFileService results as plain text for the LLM."""
+
+    @staticmethod
+    def format_write_result(result: WriteFileResponse) -> str:
+        if not result.applied:
+            info = f"Dry-run: {result.path} ({result.size} bytes)"
+            if result.diff:
+                info += f"\n{result.diff}"
+            else:
+                info += " [new file]"
+            return info
+        return f"Written: {result.path} ({result.size} bytes)"
+
+    @staticmethod
+    def format_edit_result(result: EditFileResponse) -> str:
+        if not result.diff:
+            return "No changes."
+        if result.applied:
+            return f"Edited\n{result.diff}"
+        return f"Diff only (dry_run)\n{result.diff}"
+
+    @staticmethod
+    def format_directory_result(result: CreateDirectoryResponse) -> str:
+        if result.dry_run_info:
+            return f"Dry-run: {result.path} [{result.dry_run_info}]"
+        status = "created" if result.created else "already exists"
+        return f"Directory {status}: {result.path}"
+
+    @staticmethod
+    def format_move_result(result: MoveFileResponse) -> str:
+        if result.dry_run_info:
+            return f"Dry-run: {result.source} → {result.destination} [{result.dry_run_info}]"
+        return f"Moved: {result.source} → {result.destination}"
 
 
 def build_service(cfg: FileWriteConfig) -> WriteFileService:

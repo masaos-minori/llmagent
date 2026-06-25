@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 from db.config import DbConfig
-from db.helper import SQLiteHelper
+from db.helper import SQLiteHelper, DbTarget
 
 _MOCK_CFG = DbConfig(
     rag_db_path="/opt/llm/db/rag.sqlite",
@@ -85,3 +85,18 @@ class TestSQLiteHelperTarget:
         with _patch_config():
             db = SQLiteHelper("session")
         assert db._default_load_vec is False
+
+    def test_dbtarget_rag_enum_default_load_vec(self) -> None:
+        with _patch_config():
+            db = SQLiteHelper(DbTarget.RAG)
+        assert db._default_load_vec is True
+
+    def test_dbtarget_session_enum_default_load_vec(self) -> None:
+        with _patch_config():
+            db = SQLiteHelper(DbTarget.SESSION)
+        assert db._default_load_vec is False
+
+    def test_dbtarget_rag_enum_db_path(self) -> None:
+        with _patch_config():
+            db = SQLiteHelper(DbTarget.RAG)
+        assert db.DB_PATH == "/opt/llm/db/rag.sqlite"

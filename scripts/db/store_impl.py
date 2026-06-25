@@ -191,16 +191,17 @@ class SQLiteSessionStore:
         role: str,
         content: str,
         tool_calls: str | None,
+        tool_call_id: str | None = None,
     ) -> None:
         self._db.execute(
-            "INSERT INTO messages (session_id, role, content, tool_calls)"
-            " VALUES (?, ?, ?, ?)",
-            (session_id, role, content, tool_calls),
+            "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (session_id, role, content, tool_calls, tool_call_id),
         )
 
     def message_list(self, session_id: int) -> list[MessageRow]:
         rows = self._db.fetchall(
-            "SELECT role, content, tool_calls FROM messages"
+            "SELECT role, content, tool_calls, tool_call_id FROM messages"
             " WHERE session_id = ? ORDER BY message_id",
             (session_id,),
         )
@@ -209,6 +210,7 @@ class SQLiteSessionStore:
                 role=str(r[0]),
                 content=str(r[1]) if r[1] is not None else "",
                 tool_calls=r[2],
+                tool_call_id=r[3] if r[3] is not None else None,
             )
             for r in rows
         ]

@@ -86,3 +86,4 @@ class MessageRow:
     role: str
     content: str
     tool_calls: str | None
+    tool_call_id: str | None = None

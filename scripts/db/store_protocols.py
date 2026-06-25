@@ -138,6 +138,7 @@ class SessionStore(Protocol):
         role: str,
         content: str,
         tool_calls: str | None,
+        tool_call_id: str | None = None,
     ) -> None:
         """Append a message to the session."""
         ...

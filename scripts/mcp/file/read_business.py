@@ -169,17 +169,8 @@ class ReadFileService:
         """Read the specified file as binary and return it base64-encoded."""
         target, size = self._validate_file(req.path, expected_type="file")
 
-        try:
-            data = target.read_bytes()
-        except PermissionError as e:
-            raise FileAuthorizationError(str(e))
-        except OSError as e:
-            logger.error("read_media_file: OS error reading '%s': %s", target, e)
-            raise FileValidationError(str(e))
-
-        mime_type, _ = mimetypes.guess_type(str(target))
-        if mime_type is None:
-            mime_type = "application/octet-stream"
+        data = self._read_media_data(target)
+        mime_type = self._guess_mime_type(target)
 
         return ReadMediaFileResponse(
             path=str(target),
@@ -188,17 +179,36 @@ class ReadFileService:
             size=size,
         )
 
+    def _read_media_data(self, target: Path) -> bytes:
+        """Read binary file data. Raises FileAuthorizationError/FileValidationError on error."""
+        try:
+            return target.read_bytes()
+        except PermissionError as e:
+            raise FileAuthorizationError(str(e))
+        except OSError as e:
+            logger.error("read_media_file: OS error reading '%s': %s", target, e)
+            raise FileValidationError(str(e))
+
+    @staticmethod
+    def _guess_mime_type(target: Path) -> str:
+        """Guess MIME type for a file. Returns 'application/octet-stream' if unknown."""
+        mime_type, _ = mimetypes.guess_type(str(target))
+        return mime_type or "application/octet-stream"
+
     def read_single_file(self, raw_path: str) -> FileResult:
         """Read one file and return a FileResult. Errors are captured in FileResult.error."""
         try:
             target = self._resolve_safe(raw_path)
-            size = target.stat().st_size
-            if size > self._max_read_bytes:
-                return FileResult(
-                    path=raw_path,
-                    content=None,
-                    error=f"Size limit exceeded: {size} bytes",
-                )
+        except (FileAuthorizationError, FileValidationError) as e:
+            return FileResult(path=raw_path, content=None, error=str(e))
+        size = target.stat().st_size
+        if size > self._max_read_bytes:
+            return FileResult(
+                path=raw_path,
+                content=None,
+                error=f"Size limit exceeded: {size} bytes",
+            )
+        try:
             content = target.read_text(encoding="utf-8")
             return FileResult(path=str(target), content=content, size=size)
         except (FileAuthorizationError, FileValidationError) as e:
@@ -250,11 +260,12 @@ class ReadFileService:
         matches: list[GrepMatch] = []
         try:
             for p in sorted(base.rglob("*")):
+                if len(matches) >= max_matches:
+                    return matches, True
                 if not p.is_file() or not fnmatch.fnmatch(p.name, file_pattern):
                     continue
-                try:
-                    text = p.read_text(encoding="utf-8")
-                except (UnicodeDecodeError, PermissionError):
+                text = self._read_grep_text(p)
+                if text is None:
                     continue
                 for lineno, line in enumerate(text.splitlines(), start=1):
                     if compiled.search(line):
@@ -273,6 +284,14 @@ class ReadFileService:
                 e,
             )
         return matches, False
+
+    @staticmethod
+    def _read_grep_text(path: Path) -> str | None:
+        """Read text from a file for grep. Returns None on decode/permission error."""
+        try:
+            return path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, PermissionError):
+            return None
 
     def grep_files(self, req: GrepFilesRequest) -> GrepFilesResponse:
         """Search file contents under a directory using a regex pattern."""

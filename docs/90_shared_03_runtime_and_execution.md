@@ -23,7 +23,7 @@ class ConfigLoader:
 - Loads and merges one or more TOML/JSON files in order
 - Later files override earlier files
 - Keys prefixed with `_` are excluded (documentation metadata)
-- Raises `ValueError` on file-not-found or parse error
+- Raises `ConfigMissingError` (file not found), `ConfigParseError` (parse error), or `ConfigReadError` (I/O error) — all subclass `ValueError`
 
 **`load_all()`**
 - Merges a hardcoded list of 12 files: `common`, `llm`, `http`, `rag`, `context`, `tools`, `memory`, `otel`, `security`, `system_prompts`, `mcp_servers`, `tools_definitions`

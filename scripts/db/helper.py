@@ -49,7 +49,7 @@ class SQLiteHelper:
                 )
             resolved = target
         self._target = resolved
-        self._default_load_vec = target == "rag"
+        self._default_load_vec = resolved == "rag"
         self.conn: sqlite3.Connection | None = None
         try:
             db_cfg = build_db_config()
@@ -57,9 +57,9 @@ class SQLiteHelper:
             raise RuntimeError(
                 f"DbConfig load failed for target={target!r}: {e}"
             ) from e
-        if target == "rag":
+        if resolved == "rag":
             self._db_path = db_cfg.rag_db_path
-        elif target == "session":
+        elif resolved == "session":
             self._db_path = db_cfg.session_db_path
         else:
             self._db_path = db_cfg.workflow_db_path
