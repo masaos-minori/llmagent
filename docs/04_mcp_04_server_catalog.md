@@ -183,7 +183,7 @@ All tools do not require config (`requires_config: false`).
 
 | Tool | Input | `requires_config` |
 |---|---|---|
-| `shell_run` | `{command?, argv?, cwd?, timeout_sec?, max_output_kb?, env?}` | yes |
+| `shell_run` | `{command, argv?, cwd?, timeout_sec?, max_output_kb?, env?, dry_run?}` | yes |
 
 **Output:** `{stdout, stderr, exit_code, timed_out, truncated, elapsed_sec}`
 
@@ -197,7 +197,7 @@ All tools do not require config (`requires_config: false`).
 | `max_output_kb` | `4096` | Output cap |
 | `max_memory_mb` | `512` | Memory limit (`RLIMIT_AS`) |
 | `shell_sandbox_backend` | `"none"` | `"firejail"` or `"none"` (see sandbox table below) |
-| `audit_log_path` | `"/opt/llm/logs/shell_audit.log"` | Audit log |
+| `audit_log_path` | `""` | Audit log (set in config for production) |
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{"shell":"sh not found in PATH"/"check failed"},"details":{"sandbox_backend":"firejail"/"none"}}`
 **Log:** `/opt/llm/logs/shell-mcp.log`
