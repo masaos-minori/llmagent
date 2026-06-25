@@ -382,6 +382,6 @@ All tools require config (`requires_config: true`).
 | `allowed_repo_paths` | `[]` | fail-closed; empty = deny all; paths resolved via `Path.resolve()` |
 | `read_only` | `true` | All write tools return `[DENIED]` unless explicitly `false` |
 | `max_log_entries` | `50` | `git_log` entry cap |
-| `audit_log_path` | `"/opt/llm/logs/git-mcp.log"` | Operations log |
+| `audit_log_path` | `""` | Operations log (unused in current implementation) |
 
 **Note:** `git_show` truncates at 8000 chars. `git_log` inputSchema defaults to `max_entries=20`; config cap `max_log_entries` defaults to `50`.
