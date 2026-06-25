@@ -7,18 +7,24 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import TypedDict, cast
 
 import orjson
 
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 
 
+class _RetryPolicyJson(TypedDict):
+    max_attempts: int
+    backoff: str
+    backoff_sec: int
+
+
 class _WorkflowJson(TypedDict):
     name: str
     version: str
-    stages: list[dict[str, Any]]
-    retry_policy: dict[str, Any]
+    stages: list[_StageJson]
+    retry_policy: _RetryPolicyJson
 
 
 class _StageJson(TypedDict):
@@ -73,10 +79,12 @@ class WorkflowLoader:
         if not path.exists():
             raise WorkflowLoadError(f"workflow file not found: {path}")
         try:
-            raw: Any = orjson.loads(path.read_bytes())
+            raw = orjson.loads(path.read_bytes())
         except orjson.JSONDecodeError as e:
             raise WorkflowLoadError(f"JSON parse error in {path}: {e}") from e
-        data: _WorkflowJson = raw
+        if not isinstance(raw, dict):
+            raise WorkflowLoadError(f"expected JSON object in {path}")
+        data = cast(_WorkflowJson, raw)
         _validate(data)
         stages = [
             StageDefinition(

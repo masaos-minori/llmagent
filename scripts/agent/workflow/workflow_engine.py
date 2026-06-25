@@ -13,7 +13,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from contextlib import nullcontext
-from typing import Any
+from typing import Protocol
 
 from agent.workflow.models import TaskRecord, WorkflowDef
 from agent.workflow.state_store import StateStore
@@ -23,13 +23,36 @@ logger = logging.getLogger(__name__)
 StageCallback = Callable[[], Awaitable[str | None]]  # returns artifact URI or None
 
 
-class _NoOpSpan:
+class _Span(Protocol):
+    """Protocol for OTel span-like objects."""
+
+    def start_as_current_span(self, name: str) -> _Span: ...
+
+    def set_attribute(self, key: str, value: object) -> None: ...
+
+    def record_exception(self, exc: BaseException) -> None: ...
+
+    def __enter__(self) -> _Span: ...
+
+    def __exit__(self, *args: object) -> None: ...
+
+
+class _NoOpSpan(_Span):
     """No-op OTel span used when no tracer is configured."""
+
+    def start_as_current_span(self, name: str) -> _Span:
+        return self
 
     def set_attribute(self, key: str, value: object) -> None:
         pass
 
     def record_exception(self, exc: BaseException) -> None:
+        pass
+
+    def __enter__(self) -> _Span:
+        return self
+
+    def __exit__(self, *args: object) -> None:
         pass
 
 
@@ -58,14 +81,14 @@ class WorkflowEngine:
         workflow_def: WorkflowDef,
         store: StateStore,
         require_approval: bool = False,
-        tracer: Any = None,
+        tracer: _Span | None = None,
     ) -> None:
         self._wdef = workflow_def
         self._store = store
         self._require_approval = require_approval
         self._tracer = tracer
 
-    def _span_ctx(self, name: str) -> Any:
+    def _span_ctx(self, name: str) -> _Span | nullcontext[_NoOpSpan]:
         if self._tracer is not None:
             return self._tracer.start_as_current_span(name)
         return nullcontext(_NoOpSpan())
