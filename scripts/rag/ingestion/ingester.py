@@ -317,40 +317,108 @@ class RagIngester:
         """
         if etag is None and last_modified is None:
             return
-        if new_fetched_at is not None:
-            rows = db.fetchall(
-                "SELECT fetched_at FROM documents WHERE doc_id = ?", (doc_id,)
+        if self._is_stale_update(db, doc_id, new_fetched_at):
+            logger.info(
+                "skip-path etag update skipped: incoming stale (%s < %s) for doc_id=%d",
+                new_fetched_at,
+                doc_id,
+                extra={"stage_name": "ingester"},
             )
-            stored_fetched_at = rows[0][0] if rows else None
-            if stored_fetched_at and new_fetched_at < stored_fetched_at:
-                logger.info(
-                    "skip-path etag update skipped: incoming stale (%s < %s) for doc_id=%d",
-                    new_fetched_at,
-                    stored_fetched_at,
-                    doc_id,
-                    extra={"stage_name": "ingester"},
-                )
-                return
+            return
         if new_fetched_at is not None:
-            # Freshness proven by guard above: overwrite is safe.
-            db.execute(
-                "UPDATE documents SET etag = ?, last_modified = ?,"
-                " fetched_at = COALESCE(?, fetched_at) WHERE doc_id = ?",
-                (etag, last_modified, new_fetched_at, doc_id),
-            )
+            self._update_etag_with_freshness(db, doc_id, etag, last_modified, new_fetched_at)
         else:
-            # No freshness signal — fill NULL only; never overwrite existing values.
-            db.execute(
-                "UPDATE documents SET etag = COALESCE(etag, ?), last_modified = COALESCE(last_modified, ?)"
-                " WHERE doc_id = ?",
-                (etag, last_modified, doc_id),
-            )
+            self._update_etag_null_fill(db, doc_id, etag, last_modified)
+        self._log_etag_updated(doc_id)
+
+    def _is_stale_update(self, db: SQLiteHelper, doc_id: int, new_fetched_at: str | None) -> bool:
+        """Return True when the incoming data is older than stored fetched_at."""
+        if new_fetched_at is None:
+            return False
+        rows = db.fetchall(
+            "SELECT fetched_at FROM documents WHERE doc_id = ?", (doc_id,)
+        )
+        stored_fetched_at = rows[0][0] if rows else None
+        return bool(stored_fetched_at and new_fetched_at < stored_fetched_at)
+
+    def _update_etag_with_freshness(
+        self, db: SQLiteHelper, doc_id: int, etag: str | None, last_modified: str | None, fetched_at: str
+    ) -> None:
+        """Overwrite ETag/Last-Modified when freshness is proven."""
+        db.execute(
+            "UPDATE documents SET etag = ?, last_modified = ?,"
+            " fetched_at = COALESCE(?, fetched_at) WHERE doc_id = ?",
+            (etag, last_modified, fetched_at, doc_id),
+        )
         db.commit()
+
+    def _update_etag_null_fill(
+        self, db: SQLiteHelper, doc_id: int, etag: str | None, last_modified: str | None
+    ) -> None:
+        """Fill NULL only; never overwrite existing values."""
+        db.execute(
+            "UPDATE documents SET etag = COALESCE(etag, ?), last_modified = COALESCE(last_modified, ?)"
+            " WHERE doc_id = ?",
+            (etag, last_modified, doc_id),
+        )
+        db.commit()
+
+    def _log_etag_updated(self, doc_id: int) -> None:
+        """Log the etag update."""
         logger.info(
             "skip-path etag updated for doc_id=%d",
             doc_id,
             extra={"stage_name": "ingester"},
         )
+
+    def _validate_lang(self, lang: str) -> bool:
+        """Return True when lang is a valid value."""
+        return lang in _VALID_LANGS
+
+    def _handle_existing_document(
+        self,
+        db: SQLiteHelper,
+        url: str,
+        existing_doc_id: int,
+        force: bool,
+        etag: str | None,
+        last_modified: str | None,
+        fetched_at: str | None,
+    ) -> bool:
+        """Handle an existing document; return True when the caller should skip insertion."""
+        if not force and url.startswith("file://"):
+            return self._handle_existing_file(db, url, existing_doc_id, etag, last_modified)
+        if not force:
+            self._update_etag(db, existing_doc_id, etag, last_modified, fetched_at)
+            return True
+        return False
+
+    def _handle_existing_file(
+        self,
+        db: SQLiteHelper,
+        url: str,
+        existing_doc_id: int,
+        etag: str | None,
+        last_modified: str | None,
+    ) -> bool:
+        """Handle an existing file:// document; return True when unchanged."""
+        stored = db.execute(
+            "SELECT etag, last_modified FROM documents WHERE doc_id = ?",
+            (existing_doc_id,),
+        ).fetchone()
+        if stored and self._is_file_unchanged(stored["etag"], stored["last_modified"], etag, last_modified):
+            logger.info(
+                "file:// unchanged (sha256 match): %s",
+                url,
+                extra={"stage_name": "ingester"},
+            )
+            return True
+        logger.info(
+            "file:// changed — auto re-ingesting: %s",
+            url,
+            extra={"stage_name": "ingester"},
+        )
+        return False
 
     def _get_or_create_document(
         self,
@@ -365,8 +433,7 @@ class RagIngester:
         fetched_at: str | None = None,
     ) -> int | None:
         """Register a URL in documents and return its doc_id; returns None when already registered and force=False; force=True deletes existing record first."""
-        # Guard: reject lang values that violate the DB CHECK constraint early
-        if lang not in _VALID_LANGS:
+        if not self._validate_lang(lang):
             raise ValueError(
                 f"unsupported lang value: {lang!r}"
                 f" (must be one of {sorted(_VALID_LANGS)})",
@@ -377,34 +444,8 @@ class RagIngester:
         ).fetchone()
         if existing_row:
             existing_doc_id: int = existing_row[0]
-            if not force:
-                if url.startswith("file://"):
-                    stored = db.execute(
-                        "SELECT etag, last_modified FROM documents WHERE doc_id = ?",
-                        (existing_doc_id,),
-                    ).fetchone()
-                    if stored and self._is_file_unchanged(
-                        stored["etag"], stored["last_modified"], etag, last_modified
-                    ):
-                        logger.info(
-                            "file:// unchanged (sha256 match): %s",
-                            url,
-                            extra={"stage_name": "ingester"},
-                        )
-                        return None
-                    logger.info(
-                        "file:// changed — auto re-ingesting: %s",
-                        url,
-                        extra={"stage_name": "ingester"},
-                    )
-                    # fall through to re-ingest below
-                else:
-                    # Refresh ETag/Last-Modified so the next crawl can use conditional GET
-                    self._update_etag(
-                        db, existing_doc_id, etag, last_modified, fetched_at
-                    )
-                    return None
-            # force=True or file:// changed: remove old document before re-inserting
+            if self._handle_existing_document(db, url, existing_doc_id, force, etag, last_modified, fetched_at):
+                return None
             self._delete_existing_document(db, existing_doc_id)
         cur = db.execute(
             "INSERT INTO documents"

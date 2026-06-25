@@ -180,27 +180,30 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         content: str = data.get("content", "")
         code_blocks: list[str] = data.get("code_blocks", [])
 
-        # Build text triples; guard on empty content to skip chunking entirely
-        text_triples: list[tuple[str, str, str]] = []
-        if content:
-            use_markdown: bool = self._is_markdown_source(data)
-            if use_markdown:
-                text_triples = [
-                    ("text", c, "") for c in self._chunk_markdown_by_heading(content)
-                ]
-            elif lang == "ja":
-                text_triples = [
-                    ("text", orig, norm) for orig, norm in self._chunk_japanese(content)
-                ]
-            else:
-                text_triples = [("text", c, "") for c in self._chunk_english(content)]
-
-        # Build code triples from each code block independently
-        code_triples: list[tuple[str, str, str]] = []
-        for cb in code_blocks:
-            code_triples.extend([("code", c, "") for c in self._chunk_code(cb)])
+        text_triples: list[tuple[str, str, str]] = self._build_text_triples(data, lang, content)
+        code_triples: list[tuple[str, str, str]] = self._build_code_triples(code_blocks)
 
         return text_triples + code_triples
+
+    def _build_text_triples(
+        self, data: dict[str, Any], lang: str, content: str
+    ) -> list[tuple[str, str, str]]:
+        """Build text triples from content; delegates to markdown/English/Japanese chunkers."""
+        if not content:
+            return []
+        use_markdown: bool = self._is_markdown_source(data)
+        if use_markdown:
+            return [("text", c, "") for c in self._chunk_markdown_by_heading(content)]
+        if lang == "ja":
+            return [("text", orig, norm) for orig, norm in self._chunk_japanese(content)]
+        return [("text", c, "") for c in self._chunk_english(content)]
+
+    def _build_code_triples(self, code_blocks: list[str]) -> list[tuple[str, str, str]]:
+        """Build code triples from each code block independently."""
+        triples: list[tuple[str, str, str]] = []
+        for cb in code_blocks:
+            triples.extend([("code", c, "") for c in self._chunk_code(cb)])
+        return triples
 
     def _write_chunk_files(
         self,
@@ -210,35 +213,14 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         chunking_strategy: str = "text",
     ) -> int:
         """Write (chunk_type, content, normalized_content) triples to chunk_dir."""
-        # Guard: nothing to write
         if not chunks:
             return 0
         self._chunk_dir.mkdir(parents=True, exist_ok=True)
-        # Extract document-level metadata shared across all chunk files
-        url: str = data.get("url", "")
-        title: str = data.get("title", "")
-        lang: str = data.get("lang", "en")
-        etag: str | None = data.get("etag")
-        last_modified: str | None = data.get("last_modified")
+        metadata = self._extract_chunk_metadata(data, src_path, chunking_strategy)
         written: int = 0
         for idx, (chunk_type, chunk_content, norm_content) in enumerate(chunks):
             out_path = self._chunk_dir / f"{src_path.stem}-{idx:04d}.json"
-            payload: dict[str, Any] = {
-                "schema_version": "1",
-                "artifact_type": "chunk",
-                "created_by": "chunk_splitter",
-                "url": url,
-                "title": title,
-                "lang": lang,
-                "source_file": src_path.name,
-                "chunk_index": idx,
-                "chunk_type": chunk_type,
-                "content": chunk_content,
-                "normalized_content": norm_content or None,
-                "etag": etag,
-                "last_modified": last_modified,
-                "chunking_strategy": chunking_strategy,
-            }
+            payload = self._build_chunk_payload(metadata, idx, chunk_type, chunk_content, norm_content)
             try:
                 out_path.write_bytes(
                     orjson.dumps(payload, option=orjson.OPT_INDENT_2),
@@ -247,6 +229,40 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             except OSError as e:
                 logger.error("failed to write chunk %s: %s", out_path, e)
         return written
+
+    def _extract_chunk_metadata(
+        self, data: dict[str, Any], src_path: Path, chunking_strategy: str
+    ) -> dict[str, Any]:
+        """Extract document-level metadata shared across all chunk files."""
+        return {
+            "url": data.get("url", ""),
+            "title": data.get("title", ""),
+            "lang": data.get("lang", "en"),
+            "etag": data.get("etag"),
+            "last_modified": data.get("last_modified"),
+            "source_file": src_path.name,
+            "chunking_strategy": chunking_strategy,
+        }
+
+    def _build_chunk_payload(
+        self,
+        metadata: dict[str, Any],
+        idx: int,
+        chunk_type: str,
+        chunk_content: str,
+        norm_content: str | None,
+    ) -> dict[str, Any]:
+        """Build a single chunk JSON payload from shared metadata and chunk-specific fields."""
+        return {
+            "schema_version": "1",
+            "artifact_type": "chunk",
+            "created_by": "chunk_splitter",
+            **metadata,
+            "chunk_index": idx,
+            "chunk_type": chunk_type,
+            "content": chunk_content,
+            "normalized_content": norm_content or None,
+        }
 
     def _collect_targets(self, target: Path | None) -> list[Path]:
         """Return source files to process. Delegates to pipeline_utils."""

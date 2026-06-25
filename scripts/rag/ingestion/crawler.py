@@ -210,17 +210,17 @@ class WebCrawler:
                     "SELECT etag, last_modified FROM documents WHERE url = ?",
                     (url,),
                 )
-            if rows:
-                hdrs: dict[str, str] = {}
-                # sqlite3.Row supports subscript access; NULL columns return None
-                if rows[0]["etag"]:
-                    hdrs["If-None-Match"] = rows[0]["etag"]
-                if rows[0]["last_modified"]:
-                    hdrs["If-Modified-Since"] = rows[0]["last_modified"]
-                return hdrs
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.debug("DB lookup for conditional headers failed (%s): %s", url, e)
-        return {}
+            return {}
+        if not rows:
+            return {}
+        hdrs: dict[str, str] = {}
+        if rows[0]["etag"]:
+            hdrs["If-None-Match"] = rows[0]["etag"]
+        if rows[0]["last_modified"]:
+            hdrs["If-Modified-Since"] = rows[0]["last_modified"]
+        return hdrs
 
     def _make_crawl_filepath(self, url: str) -> Path:
         """Generate an output path in yyyymmddhhmmss-{slug}.txt format."""
