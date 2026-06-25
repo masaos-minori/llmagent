@@ -69,7 +69,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
             )
             logger.info("migrated: added column %s to events", col)
         except sqlite3.OperationalError as exc:
-            if "duplicate column" in str(exc):
+            if exc.args and "duplicate column name" in exc.args[0]:
                 pass  # column already exists
             else:
                 raise

@@ -17,7 +17,8 @@ def read_offset(offsets_dir: str, consumer_id: str) -> int:
 
 def write_offset(offsets_dir: str, consumer_id: str, seq: int) -> None:
     safe_id = consumer_id.replace("/", "_").replace("..", "_")
-    Path(offsets_dir).mkdir(parents=True, exist_ok=True)
-    path = Path(offsets_dir) / safe_id
+    dir_path = Path(offsets_dir)
+    dir_path.mkdir(parents=True, exist_ok=True)
+    path = dir_path / safe_id
     path.write_text(str(seq))
     logger.debug("offset written consumer=%s seq=%d", consumer_id, seq)

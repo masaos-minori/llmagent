@@ -4,12 +4,38 @@ import logging
 import os
 import sqlite3
 import tempfile
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 import orjson
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class DdqEventRecord:
+    seq: int
+    event_id: str
+    topic: str
+    payload: object
+    producer: str
+    published_at: str
+    delivery_failure_count: int
+    dlq_at: str
+
+
+def _build_dlq_record(row: sqlite3.Row, now: str) -> DdqEventRecord:
+    return DdqEventRecord(
+        seq=row["seq"],
+        event_id=row["event_id"],
+        topic=row["topic"],
+        payload=orjson.loads(row["payload"]),
+        producer=row["producer"],
+        published_at=row["published_at"],
+        delivery_failure_count=row["delivery_failure_count"],
+        dlq_at=now,
+    )
 
 
 def promote_to_dlq(
@@ -27,16 +53,7 @@ def promote_to_dlq(
     promoted = 0
     for row in rows:
         event_id = row["event_id"]
-        record = {
-            "seq": row["seq"],
-            "event_id": event_id,
-            "topic": row["topic"],
-            "payload": orjson.loads(row["payload"]),
-            "producer": row["producer"],
-            "published_at": row["published_at"],
-            "delivery_failure_count": row["delivery_failure_count"],
-            "dlq_at": now,
-        }
+        record = _build_dlq_record(row, now)
         _atomic_write(deadletter_dir, event_id, record)
         db.execute(
             "UPDATE events SET dlq_at = ? WHERE event_id = ?",
@@ -74,16 +91,7 @@ def sweep_orphans(
     promoted = 0
     for row in rows:
         event_id = row["event_id"]
-        record = {
-            "seq": row["seq"],
-            "event_id": event_id,
-            "topic": row["topic"],
-            "payload": orjson.loads(row["payload"]),
-            "producer": row["producer"],
-            "published_at": row["published_at"],
-            "delivery_failure_count": row["delivery_failure_count"],
-            "dlq_at": now,
-        }
+        record = _build_dlq_record(row, now)
         _atomic_write(deadletter_dir, event_id, record)
         cur = db.execute(
             "UPDATE events SET dlq_at = ? WHERE event_id = ? AND dlq_at IS NULL",
@@ -116,16 +124,7 @@ def promote_single(
     if not row:
         return False
 
-    record = {
-        "seq": row["seq"],
-        "event_id": row["event_id"],
-        "topic": row["topic"],
-        "payload": orjson.loads(row["payload"]),
-        "producer": row["producer"],
-        "published_at": row["published_at"],
-        "delivery_failure_count": row["delivery_failure_count"],
-        "dlq_at": now,
-    }
+    record = _build_dlq_record(row, now)
     _atomic_write(deadletter_dir, event_id, record)
     cur = db.execute(
         "UPDATE events SET dlq_at = ? WHERE event_id = ? AND dlq_at IS NULL",
@@ -141,7 +140,7 @@ def promote_single(
     return cur.rowcount > 0
 
 
-def _atomic_write(deadletter_dir: str, event_id: str, record: dict) -> None:
+def _atomic_write(deadletter_dir: str, event_id: str, record: DdqEventRecord) -> None:
     dir_path = Path(deadletter_dir)
     dir_path.mkdir(parents=True, exist_ok=True)
     dst = dir_path / f"{event_id}.json"
@@ -150,7 +149,7 @@ def _atomic_write(deadletter_dir: str, event_id: str, record: dict) -> None:
         with os.fdopen(fd, "wb") as f:
             f.write(orjson.dumps(record))
         os.replace(tmp_path, dst)
-    except Exception:
+    except (OSError, TypeError):
         try:
             os.unlink(tmp_path)
         except OSError:

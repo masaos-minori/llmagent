@@ -5,6 +5,7 @@ import logging
 import os
 import sqlite3
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -72,7 +73,7 @@ async def _dlq_loop() -> None:
             )
             if n:
                 logger.warning("dlq_loop: swept %d orphan(s) missed by inline promotion", n)
-        except Exception:
+        except (OSError, sqlite3.Error):
             logger.exception("dlq_loop error")
         await asyncio.sleep(_DLQ_INTERVAL)
 
@@ -226,11 +227,7 @@ async def ack(
         from eventbus.db import ack_event as _ack_event
         from eventbus.offsets import write_offset  # noqa: PLC0415
 
-        now = (
-            __import__("datetime")
-            .datetime.now(__import__("datetime").UTC)
-            .strftime("%Y-%m-%dT%H:%M:%SZ")
-        )
+        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         acked = _ack_event(_db, event_id, now)  # type: ignore[arg-type]
         seq: int | None = None
         if consumer_id and acked:
