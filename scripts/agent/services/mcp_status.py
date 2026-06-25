@@ -8,10 +8,10 @@ tested without a running REPL.
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import httpx
-from shared.mcp_config import McpServerHealthRegistry, McpServerHealthState
+from shared.mcp_config import McpServerHealthState
 
 from agent.services.enums import McpAvailability, McpTier
 from agent.services.exceptions import McpProbeError
@@ -42,8 +42,7 @@ def _resolve_health_state(ctx: AgentContext, key: str) -> McpServerHealthState:
     registry = ctx.services.health_registry
     if registry is None:
         return McpServerHealthState.HEALTHY
-    typed_registry = cast(McpServerHealthRegistry, registry)
-    return typed_registry.get_state(key)
+    return registry.get_state(key)
 
 
 class McpStatusService:
@@ -122,7 +121,7 @@ class McpStatusService:
                         if isinstance(body, dict)
                         else ""
                     )
-                except Exception:
+                except httpx.DecodingError:
                     sandbox = ""
                 return McpAvailability.OK, str(sandbox) if sandbox else ""
             return McpAvailability.HTTP_ERROR, ""

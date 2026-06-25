@@ -9,7 +9,6 @@ db.models and re-exported here for agent-layer callers.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 
 from db.models import PurgeCounts, ToolResultRow, WalCheckpointCounts
 
@@ -124,7 +123,7 @@ class DbRecoverResult:
 class RagConsistencyResult:
     is_consistent: bool
     issues: list[str]
-    report: Any  # db.maintenance.RagConsistencyReport
+    report: object  # db.maintenance.RagConsistencyReport
 
 
 @dataclass(frozen=True)

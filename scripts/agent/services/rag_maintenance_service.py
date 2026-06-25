@@ -71,7 +71,7 @@ class RagMaintenanceService:
                 )
             return len(rows)
 
-    def reconcile_url(self, url: str) -> dict:
+    def reconcile_url(self, url: str) -> dict[str, bool | int]:
         """Rebuild FTS/vec for a single URL."""
         with SQLiteHelper("rag").open(write_mode=True) as db:
             doc = db.execute(
