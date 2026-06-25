@@ -111,29 +111,7 @@ class WriteFileService:
                 f"content exceeds {self._max_write_bytes} bytes write limit"
             )
         if req.dry_run:
-            # Return diff against existing content without writing
-            diff = ""
-            if target.exists():
-                try:
-                    original = target.read_text(encoding="utf-8")
-                    diff, _ = WriteFileService._write_if_changed(
-                        target,
-                        original,
-                        req.content,
-                        True,
-                    )
-                except UnicodeDecodeError:
-                    raise FileValidationError(
-                        "Existing file cannot be decoded as UTF-8"
-                    )
-                except PermissionError as e:
-                    raise FileAuthorizationError(str(e))
-            return WriteFileResponse(
-                path=str(target),
-                size=size,
-                applied=False,
-                diff=diff,
-            )
+            return self._write_file_dry_run(target, req.content, size)
         tmp = target.parent / f".tmp_{target.name}"
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -149,6 +127,34 @@ class WriteFileService:
 
         size = target.stat().st_size
         return WriteFileResponse(path=str(target), size=size, applied=True, diff="")
+
+    def _write_file_dry_run(
+        self,
+        target: Path,
+        content: str,
+        size: int,
+    ) -> WriteFileResponse:
+        """Return a diff against existing file content without writing."""
+        diff = ""
+        if target.exists():
+            try:
+                original = target.read_text(encoding="utf-8")
+                diff, _ = WriteFileService._write_if_changed(
+                    target,
+                    original,
+                    content,
+                    True,
+                )
+            except UnicodeDecodeError:
+                raise FileValidationError("Existing file cannot be decoded as UTF-8")
+            except PermissionError as e:
+                raise FileAuthorizationError(str(e))
+        return WriteFileResponse(
+            path=str(target),
+            size=size,
+            applied=False,
+            diff=diff,
+        )
 
     def edit_file(self, req: EditFileRequest) -> EditFileResponse:
         """Apply string replacements to a file; dry_run returns only the diff."""
