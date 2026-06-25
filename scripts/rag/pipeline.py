@@ -154,22 +154,60 @@ class RagPipeline:
     ) -> tuple[str, str | None]:
         name = type(stage).__name__
         if name == "MqeStage":
-            if not self._cfg.use_mqe:
-                return "fallback", "use_mqe=False"
-            return "success", None
+            return self._mqe_status()
         if name == "SearchStage":
-            if not ctx.search_results:
-                return "fallback", "no search results"
-            return "success", None
+            return self._search_status(ctx)
         if name == "FusionStage":
-            if not self._cfg.use_rrf:
-                return "fallback", "use_rrf=False"
-            return "success", None
+            return self._fusion_status()
         if name == "RerankStage":
-            if not self._cfg.use_rerank:
-                return "fallback", "use_rerank=False"
-            return "success", None
+            return self._rerank_status()
         return "success", None
+
+    def _mqe_status(self) -> tuple[str, str | None]:
+        if not self._cfg.use_mqe:
+            return "fallback", "use_mqe=False"
+        return "success", None
+
+    def _search_status(self, ctx: PipelineContext) -> tuple[str, str | None]:
+        if not ctx.search_results:
+            return "fallback", "no search results"
+        return "success", None
+
+    def _fusion_status(self) -> tuple[str, str | None]:
+        if not self._cfg.use_rrf:
+            return "fallback", "use_rrf=False"
+        return "success", None
+
+    def _rerank_status(self) -> tuple[str, str | None]:
+        if not self._cfg.use_rerank:
+            return "fallback", "use_rerank=False"
+        return "success", None
+
+    async def _run_stage(
+        self, stage: object, ctx: PipelineContext, db: SQLiteHelper
+    ) -> None:
+        """Run a single pipeline stage and record its result."""
+        t0 = time.perf_counter()
+        exc_msg: str | None = None
+        try:
+            await stage.run(ctx, db=db)
+        except Exception as e:
+            exc_msg = str(e)
+            logger.warning("Stage %s failed: %s", stage.__class__.__name__, e)
+        elapsed = time.perf_counter() - t0
+        self.last_timings[stage.__class__.__name__] = elapsed
+        if exc_msg is not None:
+            stage_status, stage_reason = "failure", exc_msg
+        else:
+            stage_status, stage_reason = self._get_stage_status(stage, ctx)
+        ctx.stage_results.append(
+            StageResult(
+                stage_name=stage.__class__.__name__,
+                status=stage_status,
+                elapsed_seconds=elapsed,
+                fallback_reason=stage_reason,
+            )
+        )
 
     async def search_queries(
         self,
@@ -239,29 +277,7 @@ class RagPipeline:
                 RerankStage(self._cfg, self._llm),
             ]
             for stage in pre_augment_stages:
-                t0 = time.perf_counter()
-                exc_msg: str | None = None
-                try:
-                    await stage.run(ctx, db=db)
-                except Exception as e:
-                    exc_msg = str(e)
-                    logger.warning("Stage %s failed: %s", stage.__class__.__name__, e)
-                elapsed = time.perf_counter() - t0
-                self.last_timings[stage.__class__.__name__] = elapsed
-                stage_status: str
-                stage_reason: str | None
-                if exc_msg is not None:
-                    stage_status, stage_reason = "failure", exc_msg
-                else:
-                    stage_status, stage_reason = self._get_stage_status(stage, ctx)
-                ctx.stage_results.append(
-                    StageResult(
-                        stage_name=stage.__class__.__name__,
-                        status=stage_status,
-                        elapsed_seconds=elapsed,
-                        fallback_reason=stage_reason,
-                    )
-                )
+                await self._run_stage(stage, ctx, db)
 
             # Post-rerank plugin hooks (before AugmentStage)
             if get_pipeline_post_stages():
