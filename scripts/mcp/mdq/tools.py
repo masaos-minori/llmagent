@@ -5,9 +5,17 @@ MCP tool schema definitions for mdq-mcp server (inputSchema format).
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TypedDict
 
-_MCP_TOOLS: list[dict[str, Any]] = [
+
+class MCPToolSchema(TypedDict):
+    name: str
+    description: str
+    inputSchema: dict  # type: ignore[reportUnknownVariableType] - MCP schema format
+    status: str
+
+
+_MCP_TOOLS: list[MCPToolSchema] = [
     {
         "name": "search_docs",
         "description": "Search indexed Markdown documents using BM25/FTS5. Markdown-only, structure-aware retrieval. Experimental.",

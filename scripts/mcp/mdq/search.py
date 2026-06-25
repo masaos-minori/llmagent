@@ -6,9 +6,10 @@ Search functionality using FTS5.
 from __future__ import annotations
 
 import logging
+import sqlite3
 from typing import TYPE_CHECKING
 
-from mcp.mdq.models import SearchDocsRequest
+from mcp.mdq.models import SearchDocsRequest, SearchResultItem, SearchResultResult
 
 if TYPE_CHECKING:
     from mcp.mdq.service import MdqService
@@ -23,14 +24,14 @@ async def search_docs(service: MdqService, req: SearchDocsRequest) -> str:
         return f"No results found for: {req.query!r}"
     lines = [f"Search results for: {req.query!r} ({result['total']} found)"]
     for i, r in enumerate(result["results"], 1):
-        lines.append(f"{i}. {r}")
+        lines.append(f"{i}. [{r.file_path}] {r.heading}: {r.content[:150]}")
     return "\n".join(lines)
 
 
-def _search_docs_structured(service: MdqService, req: SearchDocsRequest) -> dict:
-    """Run FTS5 search; return structured result dict."""
+def _search_docs_structured(service: MdqService, req: SearchDocsRequest) -> SearchResultResult:
+    """Run FTS5 search; return structured result."""
     if not req.query or not req.query.strip():
-        return {"query": req.query, "results": [], "total": 0}
+        return SearchResultResult(query=req.query, results=[], total=0)
 
     logger.info("MDQ search query: %s", req.query)
 
@@ -60,15 +61,14 @@ def _search_docs_structured(service: MdqService, req: SearchDocsRequest) -> dict
                 (req.query, limit),
             ).fetchall()
 
-        results = []
-        for row in rows:
-            results.append(
-                f"[{row['file_path']}] {row['heading']}: {row['content'][:150]}"
-            )
-    except Exception as e:
+        results = [
+            SearchResultItem(file_path=row["file_path"], heading=row["heading"], content=row["content"])
+            for row in rows
+        ]
+    except sqlite3.Error as e:
         logger.warning("MDQ FTS5 search failed: %s", e)
         results = []
     finally:
         conn.close()
 
-    return {"query": req.query, "results": results, "total": len(results)}
+    return SearchResultResult(query=req.query, results=results, total=len(results))

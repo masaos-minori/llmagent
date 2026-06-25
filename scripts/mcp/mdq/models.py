@@ -5,9 +5,18 @@ Pydantic models, and domain exceptions for mdq-mcp.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TypedDict
 
 from pydantic import BaseModel
+
+
+class ParsedSection(TypedDict):
+    heading: str
+    content: str
+
+
+class ParsedSectionRequest(TypedDict):
+    path: str
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Domain exceptions
@@ -57,8 +66,14 @@ class GrepDocsRequest(BaseModel):
     paths: list[str] | None = None
 
 
+class SearchResultItem(BaseModel):
+    file_path: str
+    heading: str
+    content: str
+
+
 class SearchDocsResponse(BaseModel):
-    results: list[Any]
+    results: list[SearchResultItem]
 
 
 class GetChunkResponse(BaseModel):
@@ -78,11 +93,27 @@ class RefreshIndexResponse(BaseModel):
     message: str
 
 
+class IndexMetadata(BaseModel):
+    pass
+
+
 class StatsResponse(BaseModel):
     document_count: int
     chunk_count: int
-    index_metadata: dict[str, Any]
+    index_metadata: IndexMetadata
+
+
+class GrepDocMatch(BaseModel):
+    chunk_id: int
+    heading: str
+    content: str
 
 
 class GrepDocsResponse(BaseModel):
-    results: list[Any]
+    results: list[GrepDocMatch]
+
+
+class SearchResultResult(TypedDict):
+    query: str | None
+    results: list[SearchResultItem]
+    total: int

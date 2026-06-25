@@ -143,11 +143,15 @@ class MdqService:
 
     async def grep_docs(self, req: GrepDocsRequest) -> str:
         """Search Markdown chunks with a regex pattern."""
-        conn = self._get_db_connection()
         try:
             compiled = re.compile(req.pattern)
-            rows = conn.execute("SELECT id, heading, content FROM sections").fetchall()
+        except re.error as e:
+            return f"Invalid regex pattern: {e}"
+
+        conn = self._get_db_connection()
+        try:
             matches = []
+            rows = conn.execute("SELECT id, heading, content FROM sections").fetchall()
             for row in rows:
                 if compiled.search(row["content"]) or compiled.search(row["heading"]):
                     matches.append(

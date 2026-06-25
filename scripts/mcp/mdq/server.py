@@ -148,7 +148,7 @@ async def health() -> dict[str, object]:
         if isinstance(rag_db, str):
             if not _os.path.isfile(rag_db):
                 deps["rag_db"] = f"not found: {rag_db}"
-    except Exception:
+    except (FileNotFoundError, PermissionError, KeyError, TypeError):
         deps["config"] = "check failed"
     ready = len(deps) == 0
     return {

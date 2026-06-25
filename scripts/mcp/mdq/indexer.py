@@ -6,10 +6,11 @@ Indexing logic for Markdown files — writes to SQLite sections table.
 from __future__ import annotations
 
 import logging
+import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from mcp.mdq.models import IndexPathsRequest
+from mcp.mdq.models import IndexPathsRequest, ParseMarkdownRequest
 from mcp.mdq.parser import parse_markdown
 
 if TYPE_CHECKING:
@@ -23,8 +24,8 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
     logger.info("Indexing file: %s", path)
 
     try:
-        sections = await parse_markdown(service, type("P", (), {"path": str(path)})())
-    except Exception as e:
+        sections = await parse_markdown(service, ParseMarkdownRequest(path=str(path)))
+    except FileNotFoundError as e:
         logger.error("Failed to parse %s: %s", path, e)
         return
 
@@ -48,6 +49,8 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
             )
 
         conn.commit()
+    except sqlite3.Error as e:
+        logger.error("Failed to write sections for %s: %s", path, e)
     finally:
         conn.close()
 

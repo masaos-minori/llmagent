@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from mcp.mdq.models import ParseMarkdownRequest
+from mcp.mdq.models import ParsedSection, ParseMarkdownRequest
 
 if TYPE_CHECKING:
     from mcp.mdq.service import MdqService
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def parse_markdown(service: MdqService, req: ParseMarkdownRequest) -> list[dict]:
+async def parse_markdown(service: MdqService, req: ParseMarkdownRequest) -> list[ParsedSection]:
     """Parse a Markdown file and return its sections as a list of dicts.
 
     Each dict has keys: heading, content.
@@ -28,7 +28,7 @@ async def parse_markdown(service: MdqService, req: ParseMarkdownRequest) -> list
         raise FileNotFoundError(f"Markdown file not found: {req.path}")
 
     content = path.read_text(encoding="utf-8")
-    sections: list[dict] = []
+    sections: list[ParsedSection] = []
 
     current_heading = ""
     current_content: list[str] = []
@@ -40,10 +40,10 @@ async def parse_markdown(service: MdqService, req: ParseMarkdownRequest) -> list
             # Save previous section if any
             if in_section and current_heading:
                 sections.append(
-                    {
-                        "heading": current_heading,
-                        "content": "\n".join(current_content).strip(),
-                    }
+                    ParsedSection(
+                        heading=current_heading,
+                        content="\n".join(current_content).strip(),
+                    )
                 )
 
             # Start new section
@@ -67,10 +67,10 @@ async def parse_markdown(service: MdqService, req: ParseMarkdownRequest) -> list
     # Save last section
     if in_section and current_heading:
         sections.append(
-            {
-                "heading": current_heading,
-                "content": "\n".join(current_content).strip(),
-            }
+            ParsedSection(
+                heading=current_heading,
+                content="\n".join(current_content).strip(),
+            )
         )
 
     return sections
