@@ -76,7 +76,7 @@ async def _build_preview_with_dry_run(
         preview += f"\n  Dry-run: {dry_text[:300]}"
     except ApprovalPreviewError:
         raise
-    except Exception as e:
+    except (RuntimeError, OSError) as e:
         raise ApprovalPreviewError(
             f"Dry-run execution failed for {tool_name!r}: {e}"
         ) from e

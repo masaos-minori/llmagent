@@ -126,7 +126,7 @@ class CLIView:
         workflow_status: str = "",
         memory_enabled: bool | None = None,
     ) -> None:
-        """Print the agent startup line showing DB chunks, tool count, and workflow status."""
+        """Print the agent startup line for display purposes."""
         print(f"DB: {chunk_count} chunks | Tools: {n_tools}")
         if memory_enabled is not None:
             print(f"Memory: {'enabled' if memory_enabled else 'disabled'}")
@@ -138,7 +138,8 @@ class CLIView:
         """Render structured RAG pipeline debug data to stdout."""
         rrf_config: dict = data.get("rrf_config", {})
         print(
-            f"  [debug] RRF config: use_rrf={rrf_config.get('use_rrf', True)} "
+            f"  [debug] RRF config: "
+            f"use_rrf={rrf_config.get('use_rrf', True)} "
             f"rrf_k={rrf_config.get('rrf_k', 60)}"
         )
 
@@ -153,26 +154,29 @@ class CLIView:
 
         total = sum(len(r) for r in all_results)
         print(
-            f"  [debug] search: {len(all_results)} result lists,"
-            f" {total} total candidates",
+            f"  [debug] search: "
+            f"{len(all_results)} result lists, "
+            f"{total} total candidates",
         )
 
         print(f"  [debug] RRF merge: {len(merged)} unique candidates (top 5):")
         for c in merged[:5]:
-            print(
-                f"    chunk_id={c.get('chunk_id')}"
-                f" rrf={c.get('rrf_score', 0):.4f}"
-                f" url={str(c.get('url', ''))[:60]}",
-            )
+            self._print_rag_candidate(c, rrf=True)
 
         print(f"  [debug] reranked top-{len(reranked)}:")
         for c in reranked:
-            score = c.get("rerank_score", c.get("rrf_score", 0))
-            print(
-                f"    chunk_id={c.get('chunk_id')}"
-                f" score={score:.4f}"
-                f" url={str(c.get('url', ''))[:60]}",
-            )
+            self._print_rag_candidate(c, rrf=False)
+
+    def _print_rag_candidate(self, candidate: dict, *, rrf: bool) -> None:
+        """Print a single RAG candidate with its score and URL."""
+        score_key = "rrf_score" if rrf else "rerank_score"
+        score = candidate.get(score_key, candidate.get("rrf_score", 0))
+        url = str(candidate.get("url", ""))[:60]
+        print(
+            f"    chunk_id={candidate.get('chunk_id')} "
+            f"score={score:.4f} "
+            f"url={url}"
+        )
 
     async def read_multiline(
         self,

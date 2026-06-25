@@ -308,7 +308,7 @@ class AgentREPL:
             with SQLiteHelper("session").open(write_mode=True) as db:
                 db.checkpoint("TRUNCATE")
             logger.info("WAL checkpoint completed on shutdown")
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.warning("WAL checkpoint failed on shutdown: %s", e)
         # ctx.services is None when build_agent_context() never completed (e.g. init failed).
         svc = self._ctx.services

@@ -296,12 +296,7 @@ class HistoryManager:
         Drop order: lowest importance first (tool-role messages score 0.3).
         Preserves system messages and the most-recent protect_turns turn pairs.
         """
-        n_protect = self._protect_turns * 2
-        protected_ids: set[int] = {id(m) for m in history if m["role"] == "system"}
-        turn_msgs = [m for m in history if m["role"] != "system"]
-        for m in turn_msgs[-n_protect:] if n_protect > 0 else []:
-            protected_ids.add(id(m))
-
+        protected_ids = self._build_protected_ids(history)
         candidates = sorted(
             (m for m in history if id(m) not in protected_ids),
             key=HistorySelectionPolicy.classify_importance,
@@ -328,6 +323,15 @@ class HistoryManager:
             summary_added=False,
             is_fallback=True,
         )
+
+    def _build_protected_ids(self, history: list[LLMMessage]) -> set[int]:
+        """Return IDs of messages protected from truncation."""
+        n_protect = self._protect_turns * 2
+        protected_ids: set[int] = {id(m) for m in history if m["role"] == "system"}
+        turn_msgs = [m for m in history if m["role"] != "system"]
+        for m in turn_msgs[-n_protect:] if n_protect > 0 else []:
+            protected_ids.add(id(m))
+        return protected_ids
 
     def _reset_for_testing(self) -> None:
         """Reset cumulative counters; for use in tests only."""

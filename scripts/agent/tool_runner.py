@@ -51,6 +51,27 @@ def _estimate_parallel_time(tool_timings: dict[str, float]) -> float:
     return sum(tool_timings.values())
 
 
+def _build_tool_meta(
+    tool_definitions: list[dict],
+) -> dict[str, ToolSpec]:
+    """Build tool metadata map from tool_definitions for DAG execution."""
+    tool_meta: dict[str, ToolSpec] = {}
+    for td in tool_definitions:
+        fn = td.get("function", {})
+        name = fn.get("name", "")
+        if name:
+            _is_write = name in WRITE_TOOLS or name in DELETE_TOOLS
+            _default_scope = name if _is_write else ""
+            tool_meta[name] = ToolSpec(
+                call_id="",
+                name=name,
+                resource_scope=fn.get("resource_scope", _default_scope),
+                requires_serial=fn.get("requires_serial", False) or name in SHELL_TOOLS,
+                is_write=_is_write,
+            )
+    return tool_meta
+
+
 def _compute_serial_overhead(actual_ms: float, estimated_parallel_ms: float) -> float:
     """Compute ratio of actual serial time to estimated parallel time."""
     if estimated_parallel_ms <= 0:
@@ -238,20 +259,7 @@ async def _execute_with_dag(
     for tools without resource_scope metadata.
     """
     tool_definitions = ctx.cfg.tool.tool_definitions
-    tool_meta: dict[str, ToolSpec] = {}
-    for td in tool_definitions:
-        fn = td.get("function", {})
-        name = fn.get("name", "")
-        if name:
-            _is_write = name in WRITE_TOOLS or name in DELETE_TOOLS
-            _default_scope = name if _is_write else ""
-            tool_meta[name] = ToolSpec(
-                call_id="",
-                name=name,
-                resource_scope=fn.get("resource_scope", _default_scope),
-                requires_serial=fn.get("requires_serial", False) or name in SHELL_TOOLS,
-                is_write=_is_write,
-            )
+    tool_meta = _build_tool_meta(tool_definitions)
 
     round_id = str(uuid4())
     t0 = time.perf_counter()

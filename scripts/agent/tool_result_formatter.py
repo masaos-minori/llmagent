@@ -20,7 +20,7 @@ TURN_LIMIT_HINT = (
 )
 
 
-def mask_args(args: dict, masked_fields: list[str]) -> dict:
+def mask_args(args: dict[str, Any], masked_fields: list[str]) -> dict[str, Any]:
     """Return a copy of args with masked_fields values replaced by '***'.
 
     Used before logging to prevent sensitive data leakage.

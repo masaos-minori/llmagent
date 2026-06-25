@@ -53,6 +53,11 @@ def _mode_hint(mode: MdqRagMode) -> str:
     return ""
 
 
+def _format_session_id(session_id: int | None) -> str:
+    """Format session_id for audit logs, returning empty string when None."""
+    return str(session_id) if session_id is not None else ""
+
+
 def _build_turn_end_metadata(
     ctx: AgentContext,
 ) -> dict[str, str]:
@@ -60,7 +65,7 @@ def _build_turn_end_metadata(
     return {
         "task_id": ctx.turn.current_turn_id or "",
         "workflow_id": ctx.workflow.workflow_id or "",
-        "session_id": str(ctx.session.session_id) if ctx.session.session_id else "",
+        "session_id": _format_session_id(ctx.session.session_id),
     }
 
 
@@ -186,29 +191,16 @@ class Orchestrator:
     ) -> None:
         """Execute a turn through the workflow engine."""
         assert self._workflow_def is not None  # noqa: B101 only called when workflow_def exists
-        session_id = str(ctx.session.session_id) if ctx.session.session_id else "none"
+        session_id = _format_session_id(ctx.session.session_id) or "none"
         store = StateStore()
         answer: str = ""
         error_kind: str | None = None
         try:
-            workflow_id = str(uuid.uuid4())
-            task = store.create_task(
-                session_id=session_id,
-                turn_number=ctx.stats.stat_turns,
-                workflow_version=self._workflow_def.version,
-                workflow_id=workflow_id,
-            )
-            audit_workflow_start(
-                ctx,
-                task.task_id,
-                self._workflow_def.version,
-                workflow_id=workflow_id,
-                session_id=session_id,
-            )
-            ctx.workflow.current_task_id = task.task_id
-            ctx.workflow.workflow_id = workflow_id
-            ctx.workflow.current_workflow_version = self._workflow_def.version
-            ctx.workflow.active = True
+            (
+                workflow_id,
+                task,
+            ) = self._init_workflow_task(ctx, session_id)
+            self._activate_workflow(ctx, task)
             engine = WorkflowEngine(self._workflow_def, store, tracer=self._tracer)
 
             async def plan_fn() -> str | None:
@@ -222,7 +214,7 @@ class Orchestrator:
                 elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
                 audit_stage_completed(
                     ctx,
-                    task.task_id,
+                    task.task_id,  # type: ignore[attr-defined]
                     "execute",
                     elapsed_ms,
                     workflow_id=workflow_id,
@@ -234,16 +226,48 @@ class Orchestrator:
                 await self._handle_turn_end(line, answer, turn_started_at, error_kind)
                 return None
 
-            await engine.run(task, plan_fn, execute_fn, verify_fn)
-            ctx.workflow.active = False
-            ctx.workflow.current_task_id = None
-            ctx.workflow.workflow_id = None
+            await engine.run(task, plan_fn, execute_fn, verify_fn)  # type: ignore[arg-type]
         except WorkflowPendingApprovalError as exc:
             self._handle_workflow_approval_pending(exc, session_id)
         except WorkflowHaltError as exc:
             self._handle_workflow_halt(exc)
         finally:
+            self._deactivate_workflow(ctx)
             store.close()
+
+    def _init_workflow_task(
+        self, ctx: AgentContext, session_id: str
+    ) -> tuple[str, object]:
+        """Create a workflow task and audit its start."""
+        assert self._workflow_def is not None  # noqa: B101
+        workflow_id = str(uuid.uuid4())
+        task = StateStore().create_task(  # type: ignore[assignment]  # StateStore.create_task returns TaskRecord
+            session_id=session_id,
+            turn_number=ctx.stats.stat_turns,
+            workflow_version=self._workflow_def.version,
+            workflow_id=workflow_id,
+        )
+        audit_workflow_start(
+            ctx,
+            task.task_id,
+            self._workflow_def.version,
+            workflow_id=workflow_id,
+            session_id=session_id,
+        )
+        return workflow_id, task
+
+    def _activate_workflow(self, ctx: AgentContext, task: object) -> None:
+        """Set workflow state to active."""
+        ctx.workflow.current_task_id = task.task_id  # type: ignore[attr-defined]
+        ctx.workflow.workflow_id = task.workflow_id  # type: ignore[attr-defined]
+        ctx.workflow.current_workflow_version = self._workflow_def.version  # type: ignore[union-attr]
+        ctx.workflow.active = True
+
+    def _deactivate_workflow(self, ctx: AgentContext) -> None:
+        """Reset workflow state after engine completion."""
+        ctx.workflow.active = False
+        ctx.workflow.current_task_id = None
+        ctx.workflow.workflow_id = None
 
     def _handle_workflow_approval_pending(
         self, exc: WorkflowPendingApprovalError, session_id: str
@@ -291,7 +315,7 @@ class Orchestrator:
         if ctx.services.hist_mgr is None:
             raise RuntimeError("hist_mgr service not initialized")
         ctx.turn.current_turn_id = str(uuid.uuid4())
-        session_id = str(ctx.session.session_id) if ctx.session.session_id else "none"
+        session_id = _format_session_id(ctx.session.session_id) or "none"
         if ctx.services.audit_logger is not None:
             ctx.services.audit_logger.info(
                 orjson.dumps(
@@ -421,7 +445,7 @@ class Orchestrator:
         elapsed_ms: float,
         error_kind: str | None,
         task_id: str | None,
-    ) -> dict[str, object]:
+    ) -> dict[str, int | float | str | None]:
         """Build turn_end audit log event dict."""
         ctx = self._ctx
         return {
