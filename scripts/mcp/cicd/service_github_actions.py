@@ -63,25 +63,25 @@ class GitHubActionsBackend:
             headers["Authorization"] = f"Bearer {self._token}"
         return headers
 
+    @staticmethod
+    def _parse_error_message(resp: httpx.Response, default: str) -> str:
+        """Parse 'message' field from JSON response or return default."""
+        try:
+            body = orjson.loads(resp.content)
+        except (orjson.JSONDecodeError, UnicodeDecodeError):
+            return default
+        msg: str = body.get("message", default)
+        return msg
+
     def _check_response(self, resp: httpx.Response, context: str) -> None:
         """Raise domain exceptions for non-2xx responses with contextual messages."""
         if resp.status_code == HTTPStatus.NOT_FOUND:
             raise CicdNotFoundError(f"Not found: {context}")
         if resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY:
-            try:
-                msg_422 = orjson.loads(resp.content).get(
-                    "message",
-                    "Unprocessable Entity",
-                )
-            except (orjson.JSONDecodeError, UnicodeDecodeError):
-                msg_422 = "Unprocessable Entity"
+            msg_422 = self._parse_error_message(resp, "Unprocessable Entity")
             raise CicdValidationError(f"Validation failed: {msg_422}")
         if resp.status_code in (401, 403):
-            try:
-                body = orjson.loads(resp.content)
-                msg: str = body.get("message", "Access denied")
-            except (orjson.JSONDecodeError, UnicodeDecodeError):
-                msg = "Access denied"
+            msg = self._parse_error_message(resp, "Access denied")
             if "rate limit" in msg.lower():
                 reset_ts = resp.headers.get("X-RateLimit-Reset", "unknown")
                 raise CicdAuthorizationError(
