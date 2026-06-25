@@ -1,0 +1,149 @@
+# test_cmd_workflow.py — new file: approve/reject + cross-session tests
+
+**Plan:** `plans/20260625-092947_plan.md` (req #60)
+**Target:** `tests/test_cmd_workflow.py` (new file)
+
+## File to create
+
+`tests/test_cmd_workflow.py` — tests for `_WorkflowMixin._cmd_approve()` and `_cmd_reject()`.
+
+The key scenario is: after a REPL restart, `ctx.turn.pending_approval_id` is `None`, but
+`StateStore.find_latest_pending_approval()` finds the pending approval from the prior session.
+
+### Fixtures needed
+
+- A real `StateStore` backed by a temp `workflow.sqlite` (same pattern as `test_workflow_state_store.py`)
+- A minimal stub for `_WorkflowMixin` — the mixin needs `self._ctx` and `self._out`
+
+### File content
+
+```python
+"""tests/test_cmd_workflow.py
+Tests for _WorkflowMixin._cmd_approve() and _cmd_reject().
+Exercises the cross-session recovery scenario (ctx cache empty, DB has pending approval).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+import pytest
+from db.config import DbConfig
+from db.workflow_schema import init_schema
+
+
+def _make_cfg(db_path: str) -> DbConfig:
+    return DbConfig(
+        rag_db_path="/opt/llm/db/rag.sqlite",
+        session_db_path="/opt/llm/db/session.sqlite",
+        workflow_db_path=db_path,
+    )
+
+
+@pytest.fixture()
+def workflow_db(tmp_path: Path) -> str:
+    db_path = str(tmp_path / "workflow.sqlite")
+    init_schema(db_path)
+    return db_path
+
+
+@pytest.fixture()
+def store(workflow_db: str):
+    from agent.workflow.state_store import StateStore
+
+    with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
+        s = StateStore()
+    yield s
+    s.close()
+
+
+def _make_mixin(workflow_db: str):
+    """Return a _WorkflowMixin instance wired to the temp DB."""
+    from agent.commands.cmd_workflow import _WorkflowMixin
+
+    # Minimal ctx stubs
+    turn = SimpleNamespace(pending_approval_id=None)
+    workflow = SimpleNamespace(approval_pending=False)
+    ctx = SimpleNamespace(turn=turn, workflow=workflow)
+
+    # Capture output calls
+    messages: list[str] = []
+    errors: list[str] = []
+    out = SimpleNamespace(
+        write=lambda msg: messages.append(msg),
+        write_validation_error=lambda msg: errors.append(msg),
+    )
+
+    class _ConcreteWorkflowMixin(_WorkflowMixin):
+        pass
+
+    mixin = _ConcreteWorkflowMixin.__new__(_ConcreteWorkflowMixin)
+    mixin._ctx = ctx
+    mixin._out = out
+    return mixin, ctx, messages, errors, workflow_db
+
+
+class TestApprove:
+    def test_approve_resolves_via_db_when_ctx_cache_empty(self, store, workflow_db) -> None:
+        """Simulates restart: ctx.turn.pending_approval_id=None but DB has a pending approval."""
+        task = store.create_task("session-old", 1, "1.0.0")
+        store.update_task_status(task.task_id, "pending_approval")
+        approval = store.request_approval(task_id=task.task_id, stage_id="plan")
+        store.close()
+
+        mixin, ctx, messages, errors, _ = _make_mixin(workflow_db)
+        assert ctx.turn.pending_approval_id is None
+
+        with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
+            mixin._cmd_approve("")
+
+        assert not errors
+        assert any(approval.approval_id in m for m in messages)
+        assert ctx.turn.pending_approval_id is None  # cleared
+        assert ctx.workflow.approval_pending is False
+
+    def test_approve_writes_error_when_no_pending(self, workflow_db) -> None:
+        """No pending approval in DB — write_validation_error is called."""
+        mixin, _ctx, _messages, errors, _ = _make_mixin(workflow_db)
+
+        with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
+            mixin._cmd_approve("")
+
+        assert errors
+        assert "No pending approval" in errors[0]
+
+
+class TestReject:
+    def test_reject_resolves_via_db_when_ctx_cache_empty(self, store, workflow_db) -> None:
+        """Simulates restart: ctx.turn.pending_approval_id=None but DB has a pending approval."""
+        task = store.create_task("session-old", 2, "1.0.0")
+        store.update_task_status(task.task_id, "pending_approval")
+        approval = store.request_approval(task_id=task.task_id, stage_id="execute")
+        store.close()
+
+        mixin, ctx, messages, errors, _ = _make_mixin(workflow_db)
+
+        with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
+            mixin._cmd_reject("too risky")
+
+        assert not errors
+        assert any(approval.approval_id in m for m in messages)
+        assert ctx.workflow.approval_pending is False
+```
+
+## Notes on test isolation
+
+- Each test uses a fresh `tmp_path` fixture — no shared state between tests.
+- `patch("db.helper.build_db_config", ...)` redirects `StateStore()` to the temp DB
+  (same pattern as `test_workflow_state_store.py`).
+- `_WorkflowMixin` requires `self._ctx` and `self._out` but NOT the full `MixinBase` init;
+  `__new__` bypasses `__init__` and we set the attributes directly.
+
+## Validation
+
+```
+uv run pytest tests/test_cmd_workflow.py -v
+uv run pytest tests/ -k workflow -v
+```
