@@ -10,7 +10,7 @@ from __future__ import annotations
 import dataclasses
 import logging
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, TypedDict
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
@@ -109,6 +109,52 @@ def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> SimpleNamespace:
         refiner_max_chars_per_chunk=int(cfg.refiner_max_chars_per_chunk),
         refiner_timeout=float(cfg.refiner_timeout),
     )
+
+
+# ── Hit dict type for response models ─────────────────────────────────────────
+
+
+# TypedDict for hit data returned in response models.
+# Fields correspond to RagHit dataclass fields (RawHit / MergedHit / RankedHit)
+# plus optional rrf_score and rerank_score from derived classes.
+# All fields are optional because HTTP mode returns dicts with varied schemas.
+class HitDict(TypedDict, total=False):
+    chunk_id: int | str | None
+    content: str | None
+    url: str | None
+    title: str | None
+    distance: float | None
+    bm25_score: float | None
+    rrf_score: float | None
+    rerank_score: float | None
+
+# Note: Response models use dict[str, Any] for hit lists because TypedDict
+# field types conflict with Pydantic validation when data sources vary.
+
+
+# ── Document list item type ───────────────────────────────────────────────────
+
+
+class DocumentItem(TypedDict):
+    """Typed return value for list_documents."""
+
+    url: str
+    title: str
+    lang: str
+    fetched_at: str
+    chunking_strategy: str
+    chunk_count: int
+
+
+# ── Pipeline debug capture type ───────────────────────────────────────────────
+
+
+class PipelineCapture(TypedDict):
+    """Return value of RagPipelineMCPService._make_capture_fn()."""
+
+    queries: list[str]
+    merged: list[dict[str, Any]]
+    reranked: list[dict[str, Any]]
 
 
 # ── Request / Response models ─────────────────────────────────────────────────

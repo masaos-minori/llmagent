@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import orjson
@@ -17,6 +17,8 @@ from db.helper import SQLiteHelper
 from rag.types import MergedHit, RankedHit, RawHit
 
 from mcp.rag_pipeline.models import (
+    DocumentItem,
+    PipelineCapture,
     RagDebugResponse,
     RagPipelineConfig,
     RagRunRequest,
@@ -84,10 +86,14 @@ class RagPipelineMCPService:
     @staticmethod
     def _make_capture_fn() -> tuple[
         Callable[[list[str], list[list[RagHit]], list[RagHit], list[RagHit]], None],
-        dict[str, list[Any]],
+        PipelineCapture,
     ]:
         """Return a (debug_fn, captured) pair; debug_fn populates captured when called."""
-        captured: dict[str, list[Any]] = {}
+        captured: dict[str, list] = {
+            "queries": [],
+            "merged": [],
+            "reranked": [],
+        }
 
         def _fn(
             queries: list[str],
@@ -95,11 +101,11 @@ class RagPipelineMCPService:
             merged: list[RagHit],
             reranked: list[RagHit],
         ) -> None:
-            captured["queries"] = list(queries)
-            captured["merged"] = list(merged)
-            captured["reranked"] = list(reranked)
+            captured["queries"] = [q for q in queries]
+            captured["merged"] = [dict(h) for h in merged]  # type: ignore[arg-type]
+            captured["reranked"] = [dict(h) for h in reranked]  # type: ignore[arg-type]
 
-        return _fn, captured
+        return _fn, cast(PipelineCapture, captured)
 
     async def run_pipeline(self, req: RagRunRequest) -> RagRunResponse:
         """Execute MQE→Search→RRF→Rerank→Dedup→Augment and return formatted result."""
@@ -142,7 +148,9 @@ class RagPipelineMCPService:
             selected_hits=selected_hits,
             queries=captured.get("queries", []),
             merged_hits=[dict(h) for h in captured.get("merged", [])],
-            reranked_hits=[dict(h) for h in captured.get("reranked", [])],
+            reranked_hits=[
+                dict(h) for h in captured.get("reranked", [])
+            ],
             elapsed=dict(pipeline.last_timings),
         )
 
@@ -165,7 +173,9 @@ class RagPipelineMCPService:
 
     # ── Document management (sync; wrap SQLiteHelper directly) ───────────────
 
-    def list_documents(self, lang: str | None = None, limit: int = 20) -> list[dict]:
+    def list_documents(
+        self, lang: str | None = None, limit: int = 20
+    ) -> list[DocumentItem]:
         sql = (
             "SELECT d.url, d.title, d.lang, d.fetched_at, d.chunking_strategy,"
             " COUNT(c.chunk_id) AS n"
@@ -231,7 +241,10 @@ class RagPipelineMCPService:
         )
 
     async def fmt_delete_document(self, args: ToolArgs) -> str:
-        url = str(args.get("url", "")).strip()
+        raw_url = args.get("url")
+        if not isinstance(raw_url, str):
+            return "Error: url must be a string."
+        url = raw_url.strip()
         if not url:
             return "Error: url is required."
         ok = self.delete_document(url)

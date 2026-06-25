@@ -147,7 +147,7 @@ async def health() -> dict[str, object]:
         if not embed_url or not isinstance(embed_url, str):
             deps["embed_url"] = "not configured"
     except Exception:
-        deps["config"] = "check failed"
+        deps["config"] = "check failed"  # noqa: BLE001 — health check must not fail on config errors
     ready = len(deps) == 0
     return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
 
