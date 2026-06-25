@@ -314,7 +314,7 @@ All tools do not require config (`requires_config: false`).
 - `workflow_allowlist`: fail-open (empty = allow all); in production mode (`security_profile = "production"`), empty list raises `RuntimeError` at agent startup
 - `trigger_workflow` supports `dry_run` argument (exposed via tool schema)
 
-**Health:** `{"status":"ok","ready":bool,"dependencies":{"github_token":"set"/"not_set"},"details":{}}`
+**Health:** `{"status":"ok","ready":bool,"dependencies":{} / {"github_token":"not_set"},"details":{}}` — empty deps when token is set, `"github_token":"not_set"` when not set
 **Log limits:** max 5 jobs, 256 KB total (default)
 **Architecture:** `CiCdService → CiBackend (Protocol) → GitHubActionsBackend`
 **Note:** `CiBackend` Protocol allows future GitLab CI / Jenkins backends.
