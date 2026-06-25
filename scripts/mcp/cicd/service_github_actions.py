@@ -81,17 +81,21 @@ class GitHubActionsBackend:
             msg_422 = self._parse_error_message(resp, "Unprocessable Entity")
             raise CicdValidationError(f"Validation failed: {msg_422}")
         if resp.status_code in (401, 403):
-            msg = self._parse_error_message(resp, "Access denied")
-            if "rate limit" in msg.lower():
-                reset_ts = resp.headers.get("X-RateLimit-Reset", "unknown")
-                raise CicdAuthorizationError(
-                    f"GitHub API rate limit exceeded. Reset at epoch: {reset_ts}",
-                )
-            raise CicdAuthorizationError(f"Access denied: {msg}")
+            self._raise_auth_error(resp, context)
         if not resp.is_success:
             raise CicdUpstreamError(
                 f"GitHub API error (status={resp.status_code}): {context}",
             )
+
+    def _raise_auth_error(self, resp: httpx.Response, context: str) -> None:
+        """Raise CicdAuthorizationError for 401/403 responses."""
+        msg = self._parse_error_message(resp, "Access denied")
+        if "rate limit" in msg.lower():
+            reset_ts = resp.headers.get("X-RateLimit-Reset", "unknown")
+            raise CicdAuthorizationError(
+                f"GitHub API rate limit exceeded. Reset at epoch: {reset_ts}",
+            )
+        raise CicdAuthorizationError(f"Access denied: {msg}")
 
     @staticmethod
     def _split_repo(repo: str) -> tuple[str, str]:
@@ -274,14 +278,7 @@ class GitHubActionsBackend:
         Fetches job details (with step metadata) and plain-text log content for
         each job up to _MAX_JOBS_FOR_LOGS.  Total output is capped at max_log_size_kb.
         """
-
-        jobs_url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/actions/runs/{run_id}/jobs"
-        jobs_resp = await self._http.get(jobs_url, headers=self._auth_headers())
-        self._check_response(
-            jobs_resp,
-            f"get_workflow_logs jobs {owner}/{repo} run={run_id}",
-        )
-        jobs_data = orjson.loads(jobs_resp.content)
+        jobs_data = await self._fetch_jobs(owner, repo, run_id)
         jobs = jobs_data.get("jobs", [])
 
         if not jobs:
@@ -292,17 +289,41 @@ class GitHubActionsBackend:
         total_bytes = 0
 
         for job in jobs[:_MAX_JOBS_FOR_LOGS]:
-            job_id: int = job.get("id", 0)
-            header = self._format_job_header(job)
-            output_parts.append(header)
-            total_bytes += len(header.encode())
-
-            if job_id:
-                output_parts, total_bytes = await self._append_job_log(
-                    owner, repo, job_id, output_parts, total_bytes, max_bytes
-                )
-
-            if total_bytes >= max_bytes:
+            if await self._append_job_output(
+                owner, repo, job, output_parts, total_bytes, max_bytes
+            ):
                 break
 
         return "".join(output_parts)
+
+    async def _fetch_jobs(self, owner: str, repo: str, run_id: int) -> dict:
+        """Fetch and return the jobs data for a workflow run."""
+        jobs_url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/actions/runs/{run_id}/jobs"
+        jobs_resp = await self._http.get(jobs_url, headers=self._auth_headers())
+        self._check_response(
+            jobs_resp,
+            f"get_workflow_logs jobs {owner}/{repo} run={run_id}",
+        )
+        return orjson.loads(jobs_resp.content)
+
+    async def _append_job_output(
+        self,
+        owner: str,
+        repo: str,
+        job: dict,
+        output_parts: list[str],
+        total_bytes: int,
+        max_bytes: int,
+    ) -> bool:
+        """Append job header and log; return True when truncation occurred."""
+        job_id: int = job.get("id", 0)
+        header = self._format_job_header(job)
+        output_parts.append(header)
+        total_bytes += len(header.encode())
+
+        if job_id:
+            output_parts, total_bytes = await self._append_job_log(
+                owner, repo, job_id, output_parts, total_bytes, max_bytes
+            )
+
+        return total_bytes >= max_bytes
