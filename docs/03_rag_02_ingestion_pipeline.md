@@ -522,9 +522,32 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 
 ---
 
-## 6. Chunk Japanese Mixin (`scripts/rag/ingestion/chunk_japanese.py`)
+## 6. Chunk Utils (`scripts/rag/ingestion/chunk_utils.py`)
 
 ### 6.1 Module overview
+
+`chunk_utils.py` — Shared buffer helpers for `ChunkEnglishMixin` and `ChunkJapaneseMixin`. Imported by both mixin classes and `chunk_splitter.py`.
+
+**Public functions**
+
+| Function | Signature | Description |
+|---|---|---|
+| `start_next_buf` | `(prev: str, next_item: str, sep: str, chunk_overlap: int) -> str` | Start a new accumulation buffer with optional tail-overlap from prev. When `chunk_overlap=0`, returns next_item directly. Otherwise prepends the last N characters of prev (where N = chunk_overlap) to next_item |
+| `merge_text_items` | `(items: list[str], sep: str, min_chunk: int, max_chunk: int, chunk_overlap: int) -> list[str]` | Accumulate items into chunks satisfying min_chunk ≤ len ≤ max_chunk. A short tail item is merged into the last chunk instead of discarded |
+
+**Usage in mixins:**
+
+| Mixin | Function used | Purpose |
+|---|---|---|
+| `ChunkEnglishMixin` | `merge_text_items` | Paragraph/sentence accumulation with overlap |
+| `ChunkJapaneseMixin` | `start_next_buf`, `merge_text_items` | Sentence pair accumulation with overlap |
+| `ChunkSplitter` | `merge_text_items` | Code block accumulation (blank-line split) |
+
+---
+
+## 7. Chunk Japanese Mixin (`scripts/rag/ingestion/chunk_japanese.py`)
+
+### 7.1 Module overview
 
 `chunk_japanese.py` — `ChunkJapaneseMixin`: morphological-analysis-based chunking for Japanese text. Mixed into `ChunkSplitter` via multiple inheritance.
 
@@ -550,9 +573,9 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 
 ---
 
-## 7. Pipeline Utils (`scripts/rag/ingestion/pipeline_utils.py`)
+## 9. Pipeline Utils (`scripts/rag/ingestion/pipeline_utils.py`)
 
-### 7.1 Module overview
+### 9.1 Module overview
 
 `pipeline_utils.py` — Shared I/O utilities for the RAG ingestion pipeline: chunk JSON reading, source file collection, and processing sentinel checks.
 
@@ -590,7 +613,7 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 
 ---
 
-## 8. Shared Utilities (`scripts/rag/utils.py`)
+## 10. Shared Utilities (`scripts/rag/utils.py`)
 
 ```python
 from rag.utils import (
@@ -641,7 +664,7 @@ from rag.utils import (
 
 ---
 
-## 6. FTS5 Implementation Notes
+## 11. FTS5 Implementation Notes
 
 ### FTS5 / LLM content separation
 
