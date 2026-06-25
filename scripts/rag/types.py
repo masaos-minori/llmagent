@@ -13,8 +13,9 @@ from typing import TYPE_CHECKING
 from rag.enums import PipelineStageName
 
 if TYPE_CHECKING:
-    from rag.models_result import SearchDiagnostics
     from rag.stage import StageResult
+
+from rag.models_result import SearchDiagnostics
 
 __all__ = [
     "MergedHit",
@@ -24,6 +25,7 @@ __all__ = [
     "RagQuery",
     "RankedHit",
     "RawHit",
+    "SearchDiagnostics",
 ]
 
 
