@@ -161,18 +161,26 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     # ── Markdown heading chunking ──────────────────────────────────────────────
 
-    def _is_markdown_source(self, data: ChunkDocument) -> bool:
+    def _is_markdown_source(self, data: ChunkDocument | dict[str, object]) -> bool:
         """Return True when the source should use heading-based snippet chunking.
 
         .md / .markdown / .mdx files always use heading chunking regardless of md_index_enable.
         Non-.md files use heuristic detection only when md_index_enable is set.
         """
-        url = data.url
+        if isinstance(data, ChunkDocument):
+            url = data.url
+            content = data.content
+        else:
+            url = data.get("url", "")
+            content = data.get("content", "")
+        if not isinstance(url, str):
+            return False
         if url.endswith((".md", ".markdown", ".mdx")):
             return True
         if not self._md_index_enable:
             return False
-        content = data.content
+        if not isinstance(content, str):
+            return False
         # Treat as Markdown when at least two heading lines are found
         return (
             len(re.findall(rf"{MARKDOWN_HEADING_RE} .+", content, re.MULTILINE))
