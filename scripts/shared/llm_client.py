@@ -449,7 +449,7 @@ class LLMClient:
     # ── Streaming call with reconnect ─────────────────────────────────────────
 
     def _resolve_retryable(self, e: LLMTransportError) -> bool:
-        """Return effective retryable flag; increments stat_heartbeat_timeouts as a side-effect."""
+        """Return effective retryable flag; increments stat_heartbeat_timeouts when e.kind == 'HEARTBEAT_TIMEOUT'."""
         if e.kind == "HEARTBEAT_TIMEOUT":
             self.stat_heartbeat_timeouts += 1
             return self._llm_stream_retry_on_heartbeat_timeout

@@ -12,6 +12,7 @@ configured transport.
 """
 
 import asyncio
+import contextlib
 import hashlib
 import logging
 import os
@@ -601,11 +602,18 @@ class ToolExecutor:
         args: dict[str, Any],
         sem: asyncio.Semaphore | None,
     ) -> ToolCallResult:
-        """Execute via transport, optionally under a semaphore."""
+        """Execute via transport under a semaphore (if configured)."""
+        async with self._maybe_semaphore(sem):
+            return await transport.call(tool_name, args)
+
+    @staticmethod
+    def _maybe_semaphore(
+        sem: asyncio.Semaphore | None,
+    ) -> contextlib.AbstractAsyncContextManager[None]:
+        """Return an async context manager that acquires the semaphore if present."""
         if sem is not None:
-            async with sem:
-                return await transport.call(tool_name, args)
-        return await transport.call(tool_name, args)
+            return sem
+        return contextlib.nullcontext()
 
     async def _raw_execute(
         self,
@@ -666,6 +674,8 @@ class ToolExecutor:
         inflight = self._inflight.get(cache_key)
         if inflight is not None and not inflight.done():
             result = await inflight
+        elif inflight is not None and inflight.done():
+            result = inflight.result()
         else:
             loop = asyncio.get_running_loop()
             inflight = loop.create_future()
@@ -683,6 +693,7 @@ class ToolExecutor:
                 if not inflight.done():
                     inflight.set_result(result)
                 self._inflight.pop(cache_key, None)
+        assert result is not None  # result is always assigned above
         if not result.is_error:
             self._cache[cache_key] = CacheEntry(
                 output=result.output, is_error=result.is_error, cached_at=time.time()
