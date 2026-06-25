@@ -363,7 +363,9 @@ class TestCheckApprovalDryRun:
         ctx = _make_ctx(cfg=cfg)
         ctx.services.tools = MagicMock()
         ctx.services.tools.execute = AsyncMock(
-            return_value=("Dry-run: /tmp/f (5 bytes) [new file]", False, "")
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f (5 bytes) [new file]", is_error=False, request_id="", server_key=""
+            )
         )
 
         printed: list[str] = []
@@ -457,6 +459,12 @@ class TestExecuteOneToolCall:
                 output="result text", is_error=False, request_id="", server_key=""
             )
         )
+        ctx.services.gateway = MagicMock()
+        ctx.services.gateway.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="result text", is_error=False, request_id="", server_key=""
+            )
+        )
         ctx.services.audit_logger = None
         ctx.cfg.use_tool_summarize = False
         ctx.cfg.tool_result_max_llm_chars = 4000
@@ -474,8 +482,8 @@ class TestExecuteOneToolCall:
         assert name == "read_text_file"
         assert full_text == "result text"
         assert not is_error
-        ctx.services.tools.execute.assert_awaited_once_with(
-            "read_text_file", {"path": "/tmp/f"}
+        ctx.services.gateway.execute.assert_awaited_once_with(
+            ctx, "read_text_file", {"path": "/tmp/f"}
         )
 
     @pytest.mark.asyncio
@@ -483,6 +491,12 @@ class TestExecuteOneToolCall:
         ctx = _make_ctx()
         ctx.services.tools = MagicMock()
         ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok", is_error=False, request_id="req-999", server_key=""
+            )
+        )
+        ctx.services.gateway = MagicMock()
+        ctx.services.gateway.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="ok", is_error=False, request_id="req-999", server_key=""
             )

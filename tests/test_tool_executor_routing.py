@@ -316,7 +316,7 @@ class TestStdioTransportCall:
         mock_proc.stdin.drain = AsyncMock()
         mock_proc.stdout = MagicMock()
         mock_proc.stdout.readline = AsyncMock(
-            return_value=b'{"result": "ok", "is_error": false}\n'
+            return_value=b'{"id": 1, "result": "ok", "is_error": false}\n'
         )
         transport._proc = mock_proc
         res = await transport.call("my_tool", {})

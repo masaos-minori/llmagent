@@ -65,10 +65,13 @@ async def _build_preview_with_dry_run(
     ):
         return preview
     try:
-        dry_text, is_error, _x_req = await ctx.services.tools.execute(
+        result = await ctx.services.tools.execute(
             tool_name,
             {**args, "dry_run": True},
         )
+        dry_text = result.output
+        is_error = result.is_error
+        _x_req = result.request_id
         if is_error:
             raise ApprovalPreviewError(
                 f"Dry-run for {tool_name!r} returned an error: {dry_text[:200]}"
