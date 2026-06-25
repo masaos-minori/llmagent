@@ -9,6 +9,7 @@ _build_session_schema_sql in create_schema.py).
 Functions:
   build_rag_schema_sql(dims) — return DDL for rag.sqlite with given dimension
   build_session_schema_sql(dims) — return DDL for session.sqlite with given dimension
+  build_workflow_schema_sql() — return DDL for workflow.sqlite (metadata DB)
 """
 
 _RAG_SCHEMA_TEMPLATE: str = """
@@ -85,7 +86,7 @@ _SESSION_SCHEMA_TEMPLATE: str = """
     );
     CREATE TABLE IF NOT EXISTS tool_results (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER,
+        session_id INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,
         turn       INTEGER NOT NULL,
         tool_name  TEXT    NOT NULL,
         args_masked  TEXT,
@@ -150,3 +151,61 @@ def build_rag_schema_sql(dims: int) -> str:
 def build_session_schema_sql(dims: int) -> str:
     """Return DDL for session.sqlite with the given embedding dimension."""
     return _SESSION_SCHEMA_TEMPLATE.replace("DIMS", str(dims))
+
+
+_WORKFLOW_SCHEMA: str = """
+PRAGMA journal_mode=WAL;
+PRAGMA foreign_keys=ON;
+
+CREATE TABLE IF NOT EXISTS tasks (
+    task_id          TEXT PRIMARY KEY,
+    session_id       TEXT,
+    workflow_id      TEXT,
+    turn_number      INTEGER,
+    workflow_version TEXT NOT NULL,
+    status           TEXT NOT NULL DEFAULT 'pending',
+    idempotency_key  TEXT UNIQUE NOT NULL,
+    created_at       TEXT NOT NULL,
+    updated_at       TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS attempts (
+    attempt_id  TEXT PRIMARY KEY,
+    task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+    stage_id    TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'running',
+    started_at  TEXT NOT NULL,
+    ended_at    TEXT,
+    error_msg   TEXT
+);
+
+CREATE TABLE IF NOT EXISTS processed_events (
+    event_id    TEXT PRIMARY KEY,
+    task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+    stage_id    TEXT NOT NULL,
+    recorded_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS artifacts (
+    artifact_id TEXT PRIMARY KEY,
+    task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+    stage_id    TEXT NOT NULL,
+    uri         TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS approvals (
+    approval_id TEXT PRIMARY KEY,
+    task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+    stage_id    TEXT,
+    status      TEXT NOT NULL DEFAULT 'pending',
+    reason      TEXT,
+    created_at  TEXT NOT NULL,
+    resolved_at TEXT
+);
+"""
+
+
+def build_workflow_schema_sql() -> str:
+    """Return DDL for workflow.sqlite (metadata DB)."""
+    return _WORKFLOW_SCHEMA

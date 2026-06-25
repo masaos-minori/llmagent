@@ -262,3 +262,169 @@ class TestCreateSessionSchema:
         ):
             cs.create_session_schema()
             cs.create_session_schema()  # must not raise
+
+
+# Workflow schema without the vec0 virtual table (chunks_vec requires sqlite-vec).
+_WORKFLOW_SCHEMA_NO_VEC0 = """
+    PRAGMA journal_mode=WAL;
+    PRAGMA foreign_keys=ON;
+
+    CREATE TABLE IF NOT EXISTS tasks (
+        task_id          TEXT PRIMARY KEY,
+        session_id       TEXT,
+        workflow_id      TEXT,
+        turn_number      INTEGER,
+        workflow_version TEXT NOT NULL,
+        status           TEXT NOT NULL DEFAULT 'pending',
+        idempotency_key  TEXT UNIQUE NOT NULL,
+        created_at       TEXT NOT NULL,
+        updated_at       TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS attempts (
+        attempt_id  TEXT PRIMARY KEY,
+        task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+        stage_id    TEXT NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'running',
+        started_at  TEXT NOT NULL,
+        ended_at    TEXT,
+        error_msg   TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS processed_events (
+        event_id    TEXT PRIMARY KEY,
+        task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+        stage_id    TEXT NOT NULL,
+        recorded_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS artifacts (
+        artifact_id TEXT PRIMARY KEY,
+        task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+        stage_id    TEXT NOT NULL,
+        uri         TEXT NOT NULL,
+        created_at  TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS approvals (
+        approval_id TEXT PRIMARY KEY,
+        task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+        stage_id    TEXT,
+        status      TEXT NOT NULL DEFAULT 'pending',
+        reason      TEXT,
+        created_at  TEXT NOT NULL,
+        resolved_at TEXT
+    );
+"""
+
+
+class TestCreateWorkflowSchema:
+    def test_creates_all_tables(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "workflow.sqlite"
+        cfg = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path=str(db_file),
+        )
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch("db.store_protocols.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_workflow_schema_sql",
+                return_value=_WORKFLOW_SCHEMA_NO_VEC0,
+            ),
+        ):
+            cs.create_workflow_schema()
+        conn = sqlite3.connect(str(db_file))
+        tables = _table_names(conn)
+        conn.close()
+        assert {
+            "tasks",
+            "attempts",
+            "processed_events",
+            "artifacts",
+            "approvals",
+        } <= tables
+
+    def test_idempotent(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "workflow2.sqlite"
+        cfg = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path=str(db_file),
+        )
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch("db.store_protocols.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_workflow_schema_sql",
+                return_value=_WORKFLOW_SCHEMA_NO_VEC0,
+            ),
+        ):
+            cs.create_workflow_schema()
+            cs.create_workflow_schema()  # must not raise
+
+    def test_tasks_idempotency_key_unique(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "workflow3.sqlite"
+        cfg = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path=str(db_file),
+        )
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch("db.store_protocols.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_workflow_schema_sql",
+                return_value=_WORKFLOW_SCHEMA_NO_VEC0,
+            ),
+        ):
+            cs.create_workflow_schema()
+        conn = sqlite3.connect(str(db_file))
+        now = "2026-01-01T00:00:00+00:00"
+        conn.execute(
+            "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?)",
+            ("t1", "s1", None, 1, "1.0.0", "pending", "s1:1", now, now),
+        )
+        conn.commit()
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?)",
+                ("t2", "s1", None, 1, "1.0.0", "pending", "s1:1", now, now),
+            )
+            conn.commit()
+        conn.close()
+
+    def test_attempts_foreign_key_cascade(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "workflow4.sqlite"
+        cfg = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path=str(db_file),
+        )
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch("db.store_protocols.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_workflow_schema_sql",
+                return_value=_WORKFLOW_SCHEMA_NO_VEC0,
+            ),
+        ):
+            cs.create_workflow_schema()
+        conn = sqlite3.connect(str(db_file))
+        conn.execute("PRAGMA foreign_keys=ON")
+        now = "2026-01-01T00:00:00+00:00"
+        conn.execute(
+            "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?)",
+            ("t1", "s1", None, 1, "1.0.0", "pending", "s1:1", now, now),
+        )
+        conn.execute(
+            "INSERT INTO attempts VALUES (?,?,?,?,?,?,?)",
+            ("a1", "t1", "plan", "running", now, None, None),
+        )
+        conn.commit()
+        conn.execute("DELETE FROM tasks WHERE task_id='t1'")
+        conn.commit()
+        rows = conn.execute("SELECT * FROM attempts WHERE attempt_id='a1'").fetchall()
+        assert rows == []
+        conn.close()
