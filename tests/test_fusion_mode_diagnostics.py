@@ -16,6 +16,7 @@ def _make_pipeline(use_rrf: bool):
     from unittest.mock import MagicMock
 
     from rag.pipeline import RagPipeline
+    from rag.models_result import SearchDiagnostics
 
     pipeline = RagPipeline.__new__(RagPipeline)
     pipeline._cfg = MagicMock()
@@ -23,6 +24,7 @@ def _make_pipeline(use_rrf: bool):
     pipeline.last_stage_results = []
     pipeline.last_timings = {}
     pipeline.last_fetch_result = None
+    pipeline.last_search_diagnostics = SearchDiagnostics()
     return pipeline
 
 
