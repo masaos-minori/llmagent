@@ -73,7 +73,7 @@ sse_malformed_retry = 2
 sse_reconnect_max = 1
 
 # When True, HEARTBEAT_TIMEOUT triggers a reconnect attempt if no partial output
-llm_stream_retry_on_heartbeat_timeout = True
+llm_stream_retry_on_heartbeat_timeout = true
 
 # When True, MALFORMED_SSE_FRAME (after budget exhausted) triggers a reconnect
-llm_stream_retry_on_malformed_chunk = False
+llm_stream_retry_on_malformed_chunk = false

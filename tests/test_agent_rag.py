@@ -67,6 +67,7 @@ class TestAugmentHttpMode:
         resp_body = {"context": "RAG context", "selected_hits": hits}
 
         mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
         mock_resp.raise_for_status = MagicMock()
         mock_resp.content = orjson.dumps(resp_body)
 
@@ -87,6 +88,7 @@ class TestAugmentHttpMode:
         resp_body = {"context": "some context", "selected_hits": []}
 
         mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
         mock_resp.raise_for_status = MagicMock()
         mock_resp.content = orjson.dumps(resp_body)
 
@@ -118,6 +120,7 @@ class TestAugmentHttpMode:
         resp_body = {"context": "Expected context text", "selected_hits": []}
 
         mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
         mock_resp.raise_for_status = MagicMock()
         mock_resp.content = orjson.dumps(resp_body)
 
@@ -135,6 +138,7 @@ class TestAugmentHttpMode:
         resp_body = {"context": "ctx"}  # selected_hits key absent
 
         mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
         mock_resp.raise_for_status = MagicMock()
         mock_resp.content = orjson.dumps(resp_body)
 
@@ -162,7 +166,13 @@ class TestAugmentHttpMode:
             mock_db.__enter__ = MagicMock(return_value=mock_db)
             mock_db.__exit__ = MagicMock(return_value=False)
             mock_sqlite.return_value.open.return_value = mock_db
-            pipeline.run = AsyncMock(return_value=([], [], [], []))  # type: ignore[method-assign]
+            # Return PipelineRunResult with empty reranked list
+            from rag.types import PipelineRunResult, SearchDiagnostics
+            empty_result = PipelineRunResult(
+                queries=[], search_results=[], merged=[], reranked=[],
+                stage_results=[], diagnostics=SearchDiagnostics(),
+            )
+            pipeline.run = AsyncMock(return_value=empty_result)  # type: ignore[method-assign]
 
             result = await pipeline.augment("q")
 

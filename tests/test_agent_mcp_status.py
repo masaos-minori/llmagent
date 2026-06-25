@@ -6,9 +6,9 @@ Unit tests for McpStatusService and _tier_for_server.
 from __future__ import annotations
 
 import pytest
-from agent.services.enums import McpTier
+from agent.services.enums import McpAvailability, McpTier
 from agent.services.exceptions import McpProbeError
-from agent.services.mcp_status import TIER_LABELS, _tier_for_server
+from agent.services.mcp_status import McpStatusService, TIER_LABELS, _tier_for_server
 
 
 class TestTierForServer:
