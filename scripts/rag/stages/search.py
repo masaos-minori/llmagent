@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 from shared.logger import Logger
 
 from rag.models_result import SearchDiagnostics
+from rag.types import RawHit
 
 logger = Logger(__name__, "/opt/llm/logs/search.log")
 
@@ -28,7 +29,7 @@ async def _search_all_queries(
     cfg: RagConfig,
     http: httpx.AsyncClient | None,
     embed_url: str,
-) -> tuple[list[list], SearchDiagnostics]:
+) -> tuple[list[list[RawHit]], SearchDiagnostics]:
     """Run concurrent embedding fetches then sequential DB searches; sequential DB avoids shared-connection conflicts."""
     import httpx as _httpx  # noqa: PLC0415 — lazy: avoids circular import at module level
 
@@ -40,7 +41,7 @@ async def _search_all_queries(
         *(get_embedding(q, cast(_httpx.AsyncClient, http), embed_url) for q in queries),
         return_exceptions=True,
     )
-    all_results: list[list] = []
+    all_results: list[list[RawHit]] = []
     repo = RagRepository(db)
     embed_ok = 0
     embed_failed = 0
@@ -56,8 +57,8 @@ async def _search_all_queries(
             continue
         embed_ok += 1
         try:
-            vec_res = repo.vector_search(result, cfg.top_k_search)
-            fts_res = repo.fts_search(q, cfg.top_k_search)
+            vec_res = cast("list[RawHit]", repo.vector_search(result, cfg.top_k_search))
+            fts_res = cast("list[RawHit]", repo.fts_search(q, cfg.top_k_search))
             if vec_res:
                 all_results.append(vec_res)
             if fts_res:

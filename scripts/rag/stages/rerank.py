@@ -1,17 +1,15 @@
 """Rerank stage for RAG pipeline."""
 
-from typing import Any
-
 from shared.types import RagConfig
 
 from rag.llm import RagLLM, RagRerankError  # noqa: F401 — re-exported for callers
-from rag.repository import deduplicate_chunks
+from rag.repository import RagHit, deduplicate_chunks
 from rag.stage import PipelineContext, PipelineStage
 
 
 async def _rerank(
-    query: str, merged: list[Any], cfg: RagConfig, llm: RagLLM
-) -> list[Any]:
+    query: str, merged: list[RagHit], cfg: RagConfig, llm: RagLLM
+) -> list[RagHit]:
     """Apply Cross-Encoder rerank then dedup.
 
     Raises RagRerankError on LLM failure.
