@@ -70,7 +70,7 @@ class RetentionConfig:
     @classmethod
     def from_config(cls) -> "RetentionConfig":
         """Construct from common.toml values; raises on config load failure."""
-        cfg = ConfigLoader().load_all()
+        cfg = ConfigLoader().load("common.toml")
         return cls(
             max_sessions=int(cfg.get("sqlite_retention_max_sessions", 100)),
             max_age_days=int(cfg.get("sqlite_retention_max_age_days", 90)),
@@ -107,7 +107,7 @@ class RecoveryResult:
 def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> WalCheckpointCounts:
     """Flush the WAL file and return checkpoint counters; mode defaults to sqlite_wal_checkpoint_mode (TRUNCATE); raises ValueError for unknown mode."""
     if mode is None:
-        cfg = ConfigLoader().load_all()
+        cfg = ConfigLoader().load("common.toml")
         mode = cfg.get("sqlite_wal_checkpoint_mode", "TRUNCATE").upper()
     return db.checkpoint(mode)
 
@@ -237,7 +237,7 @@ def _archive_db_file(db_path: Path, archive_dir: str | Path | None) -> Path:
         raise FileNotFoundError(f"DB file not found: {db_path}")
 
     if archive_dir is None:
-        cfg = ConfigLoader().load_all()
+        cfg = ConfigLoader().load("common.toml")
         archive_dir = cfg.get("sqlite_archive_dir", "/opt/llm/db/archive")
 
     dest_dir = Path(archive_dir)

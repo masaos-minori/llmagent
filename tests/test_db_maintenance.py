@@ -305,8 +305,8 @@ class TestCheckpointAndVacuum:
 
         monkeypatch.setattr(
             db_maintenance.ConfigLoader,
-            "load_all",
-            lambda self: {"sqlite_wal_checkpoint_mode": "PASSIVE"},
+            "load",
+            lambda self, key: {"sqlite_wal_checkpoint_mode": "PASSIVE"},
         )
         mock_db = self._make_mock_db(
             {"busy": 0, "pages_in_wal": 0, "pages_checkpointed": 0}
@@ -361,7 +361,7 @@ class TestPruneOldMemories:
         calls = [str(c) for c in mock_db.execute.call_args_list]
         assert any("DELETE FROM memories WHERE" in c for c in calls)
         assert any("DELETE FROM memories_fts" in c for c in calls)
-        mock_db.commit.assert_called_once()
+        mock_db.begin_immediate.assert_called_once()
 
     def test_memories_vec_exception_raises(self) -> None:
         mid = "abc-uuid"

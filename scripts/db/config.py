@@ -16,7 +16,7 @@ from pathlib import Path
 from shared.config_loader import ConfigLoader
 
 
-@dataclass
+@dataclass(frozen=True)
 class DbConfig:
     """Immutable configuration for the SQLite database."""
 

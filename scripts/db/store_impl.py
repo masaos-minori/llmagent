@@ -71,14 +71,14 @@ class SQLiteDocumentStore:
             "  lang = excluded.lang,"
             "  etag = excluded.etag,"
             "  last_modified = excluded.last_modified,"
-            "  fetched_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
+            "  fetched_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')"
+            " RETURNING doc_id",
             (url, title, lang, etag, last_modified),
         )
-        if cur.lastrowid is None:
-            raise RuntimeError(
-                "doc_insert: INSERT ... ON CONFLICT did not produce a lastrowid"
-            )
-        return int(cur.lastrowid)
+        row = cur.fetchone()
+        if row is None:
+            raise RuntimeError("doc_upsert: RETURNING doc_id returned no row")
+        return int(row[0])
 
     def doc_get(self, url: str) -> DocumentRow | None:
         rows = self._db.fetchall(
@@ -232,15 +232,14 @@ class SQLiteMemoryDeleteStore:
 
         mids = [row[0] for row in rows]
         placeholders = ",".join("?" * len(mids))
-        cur = self._db.execute(
-            f"DELETE FROM memories WHERE memory_id IN ({placeholders})",  # nosec B608 — mids are UUIDs from DB; placeholders use ?
-            tuple(mids),
-        )
-        deleted = cur.rowcount
-        for mid in mids:
-            self._db.execute("DELETE FROM memories_fts WHERE memory_id=?", (mid,))
-        for mid in mids:
-            self._db.execute("DELETE FROM memories_vec WHERE memory_id=?", (mid,))
-
-        self._db.commit()
+        with self._db.begin_immediate():
+            cur = self._db.execute(
+                f"DELETE FROM memories WHERE memory_id IN ({placeholders})",  # nosec B608 — mids are UUIDs from DB; placeholders use ?
+                tuple(mids),
+            )
+            deleted = cur.rowcount
+            for mid in mids:
+                self._db.execute("DELETE FROM memories_fts WHERE memory_id=?", (mid,))
+            for mid in mids:
+                self._db.execute("DELETE FROM memories_vec WHERE memory_id=?", (mid,))
         return MemoryDeleteResult(deleted=deleted)

@@ -20,52 +20,54 @@ class _WorkflowMixin(MixinBase):
 
     def _cmd_approve(self, arg: str) -> None:
         """Approve the pending workflow task, optionally with a reason."""
-        approval_id = self._ctx.turn.pending_approval_id
-        if approval_id is None:
-            self._out.write_validation_error(
-                "No pending approval. Run a workflow task first."
-            )
-            return
-        reason = arg.strip() or None
-        try:
-            from agent.workflow import (
-                StateStore,  # noqa: PLC0415 — lazy: avoids startup cost
-            )
+        from agent.workflow import (
+            StateStore,  # noqa: PLC0415 — lazy: avoids startup cost
+        )
 
-            store = StateStore()
-            try:
-                store.resolve_approval(approval_id, "approved", reason)
-            finally:
-                store.close()
+        store = StateStore()
+        try:
+            result = store.find_latest_pending_approval()
+            if result is None:
+                self._out.write_validation_error(
+                    "No pending approval. Run a workflow task first."
+                )
+                return
+            _task_id, approval = result
+            approval_id = approval.approval_id
+            reason = arg.strip() or None
+            store.resolve_approval(approval_id, "approved", reason)
         except RuntimeError as exc:
             self._out.write_validation_error(f"Failed to resolve approval: {exc}")
             return
+        finally:
+            store.close()
         self._ctx.turn.pending_approval_id = None
         self._ctx.workflow.approval_pending = False
         self._out.write(f"Approved: {approval_id}")
 
     def _cmd_reject(self, arg: str) -> None:
         """Reject the pending workflow task, optionally with a reason."""
-        approval_id = self._ctx.turn.pending_approval_id
-        if approval_id is None:
-            self._out.write_validation_error(
-                "No pending approval. Run a workflow task first."
-            )
-            return
-        reason = arg.strip() or None
-        try:
-            from agent.workflow import (
-                StateStore,  # noqa: PLC0415 — lazy: avoids startup cost
-            )
+        from agent.workflow import (
+            StateStore,  # noqa: PLC0415 — lazy: avoids startup cost
+        )
 
-            store = StateStore()
-            try:
-                store.resolve_approval(approval_id, "rejected", reason)
-            finally:
-                store.close()
+        store = StateStore()
+        try:
+            result = store.find_latest_pending_approval()
+            if result is None:
+                self._out.write_validation_error(
+                    "No pending approval. Run a workflow task first."
+                )
+                return
+            _task_id, approval = result
+            approval_id = approval.approval_id
+            reason = arg.strip() or None
+            store.resolve_approval(approval_id, "rejected", reason)
         except RuntimeError as exc:
             self._out.write_validation_error(f"Failed to resolve approval: {exc}")
             return
+        finally:
+            store.close()
         self._ctx.turn.pending_approval_id = None
         self._ctx.workflow.approval_pending = False
         self._out.write(f"Rejected: {approval_id}")

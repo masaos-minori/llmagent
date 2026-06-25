@@ -293,10 +293,14 @@ class TestSQLiteMemoryDeleteStore:
         mock_cur.rowcount = 2
         mock_db.fetchall.return_value = [("uuid-1",), ("uuid-2",)]
         mock_db.execute.return_value = mock_cur
+        mock_cm = MagicMock()
+        mock_cm.__enter__ = MagicMock(return_value=mock_cm)
+        mock_cm.__exit__ = MagicMock(return_value=False)
+        mock_db.begin_immediate.return_value = mock_cm
         store = SQLiteMemoryDeleteStore(mock_db)
         result = store.delete_memories_before(30)
         assert result.deleted == 2
-        mock_db.commit.assert_called_once()
+        mock_db.begin_immediate.assert_called_once()
 
     def test_fts_and_vec_cleanup_called_per_deleted_entry(self) -> None:
         mock_db = MagicMock()

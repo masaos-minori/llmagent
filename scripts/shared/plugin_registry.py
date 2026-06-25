@@ -31,6 +31,23 @@ Example plugin (plugins/my_plugin.py):
     @register_tool("echo")
     async def tool_echo(args: dict) -> tuple[str, bool]:
         return str(args.get("text", "")), False
+
+Lifecycle contract:
+  Startup:
+    Call register_builtin_commands() before load_plugins() so conflict detection works.
+    Call load_plugins(plugin_dir) once at process startup; calling it multiple times is
+    allowed but each call replaces _last_load_result and ADDS to existing registries.
+    Existing registrations are NOT cleared between calls.
+  Repeated loads:
+    Calling load_plugins() more than once is safe but accumulates registrations.
+    Duplicate command/tool names registered by a later call silently overwrite earlier ones.
+    _last_load_result reflects only the most recent call.
+  Test isolation:
+    Call _reset_for_testing() at the start of each test that loads plugins.
+    This is the ONLY supported way to clear global registry state.
+    Do not call _reset_for_testing() in non-test code.
+  Reload:
+    No hot-reload is implemented. Restarting the process is the intended upgrade path.
 """
 
 from __future__ import annotations
@@ -69,10 +86,11 @@ ToolHandler = Callable[[dict[str, Any]], Awaitable[tuple[str, bool]]]
 
 # ── Internal registries ───────────────────────────────────────────────────────
 
-# Stores (handler, is_prefix, module_name) per command name.
+# Stores (handler, is_prefix, module_name) per command name. Cleared only by _reset_for_testing().
 _commands: dict[str, tuple[Callable[..., Any], bool, str]] = {}
-# Stores (handler, module_name) per tool name.
+# Stores (handler, module_name) per tool name. Cleared only by _reset_for_testing().
 _tools: dict[str, tuple[Callable[..., Any], str]] = {}
+# Pipeline hooks registered via @register_pipeline_stage(when="post"). Cleared only by _reset_for_testing().
 _pipeline_post: list[PipelineHook] = []
 
 # Set by load_plugins() around each exec_module() call so that decorators can
@@ -325,6 +343,10 @@ def load_plugins(
 ) -> PluginLoadResult:
     """Import all *.py files from plugin_dir; returns PluginLoadResult with success/failure details.
 
+    Intended to be called once per process at startup. Calling it multiple times
+    is safe but accumulates registrations — duplicate command/tool names silently
+    overwrite earlier ones. _last_load_result reflects only the most recent call.
+
     When *strict_mode* is True, all plugins are attempted first, then a single
     PluginLoadError is raised with aggregated failure details (rather than
     stopping on the first failure).
@@ -386,7 +408,8 @@ def load_plugins(
     return result
 
 
-# ── Test helper ───────────────────────────────────────────────────────────────
+# Last load_plugins() call result; None until first load.
+# Replaced (not accumulated) on each subsequent load_plugins() call.
 
 
 _last_load_result: PluginLoadResult | None = None
@@ -403,7 +426,7 @@ def _set_last_load_result(result: PluginLoadResult) -> None:
 
 
 def _reset_for_testing() -> None:
-    """Clear all registries.  Call from test setUp / pytest fixtures only."""
+    """Clear all registries. For test use only. Do not call from production code."""
     global _current_loading_module, _builtin_command_names, _last_load_result
     _commands.clear()
     _tools.clear()

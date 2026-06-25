@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """db/store_protocols.py
-Protocol definitions and embedding utilities for the RAG pipeline.
+Public storage-layer contracts for the RAG pipeline and session/memory layers.
 
-Four storage boundaries:
-  VectorStore        — embedding CRUD over chunks_vec (sqlite-vec)
-  DocumentStore      — document + chunk metadata CRUD over documents + chunks
-  SessionStore       — conversation session + message CRUD over sessions + messages
-  MemoryDeleteStore  — atomic cross-table deletion for memories tables
+Protocol → SQLite implementation mapping (all in db/store_impl.py):
+  VectorStore        → SQLiteVectorStore
+  DocumentStore      → SQLiteDocumentStore
+  SessionStore       → SQLiteSessionStore
+  MemoryDeleteStore  → SQLiteMemoryDeleteStore
 
-Embedding helpers:
-  get_embedding_dims()    — return configured dimension count (default 384)
-  get_embedding_bytes()   — return expected float32 BLOB byte size
+Embedding helpers (used by implementations and callers):
+  get_embedding_dims()     — return configured dimension count (default 384)
+  get_embedding_bytes()    — return expected float32 BLOB byte size
   validate_embedding_blob(blob) — raises TypeError/ValueError on wrong size
 
-SQLite-backed implementations are in db/store_impl.py.
+Stable import surface: use db/store.py for all imports.
 """
 
 from dataclasses import dataclass
@@ -51,7 +51,10 @@ def validate_embedding_blob(blob: bytes) -> None:
 
 @runtime_checkable
 class VectorStore(Protocol):
-    """CRUD interface for vector embeddings (chunks_vec table)."""
+    """CRUD interface for vector embeddings (chunks_vec table).
+
+    Implementation: SQLiteVectorStore (db/store_impl.py)
+    """
 
     def vec_insert(self, chunk_id: int, embedding: bytes) -> None:
         """Insert a float32 BLOB embedding for chunk_id."""
@@ -72,7 +75,10 @@ class VectorStore(Protocol):
 
 @runtime_checkable
 class DocumentStore(Protocol):
-    """CRUD interface for documents and chunks."""
+    """CRUD interface for documents and chunks.
+
+    Implementation: SQLiteDocumentStore (db/store_impl.py)
+    """
 
     def doc_upsert(
         self,
@@ -114,7 +120,10 @@ class DocumentStore(Protocol):
 
 @runtime_checkable
 class SessionStore(Protocol):
-    """CRUD interface for conversation sessions and messages."""
+    """CRUD interface for conversation sessions and messages.
+
+    Implementation: SQLiteSessionStore (db/store_impl.py)
+    """
 
     def session_create(self) -> int:
         """Create a new session row; return session_id."""
@@ -160,7 +169,10 @@ class MemoryDeleteResult:
 
 @runtime_checkable
 class MemoryDeleteStore(Protocol):
-    """Atomic cross-table deletion for memories / memories_fts / memories_vec."""
+    """Atomic cross-table deletion for memories / memories_fts / memories_vec.
+
+    Implementation: SQLiteMemoryDeleteStore (db/store_impl.py)
+    """
 
     def delete_memories_before(self, older_than_days: int) -> MemoryDeleteResult:
         """Delete memories older than older_than_days; return deletion summary."""

@@ -1,14 +1,29 @@
 #!/usr/bin/env python3
-"""db/store.py — Re-export stub for backward compatibility.
+"""db/store.py
+Stable public import surface for the DB store layer.
 
-Protocols and embedding helpers are in db/store_protocols.py.
-SQLite implementations are in db/store_impl.py.
+ALWAYS import from this module — do NOT import from store_protocols.py or
+store_impl.py directly.  Importing from sub-modules directly breaks the
+abstraction boundary and makes future refactoring harder.
 
-All existing imports through this module continue to work:
-    from db.store import VectorStore, SQLiteVectorStore, get_embedding_dims
+Module responsibilities:
+  store.py           — THIS FILE: re-exports everything; the public API surface.
+  store_protocols.py — Abstract Protocol contracts. Extend here when adding
+                        a new storage operation or changing an existing signature.
+  store_impl.py      — SQLite implementations. Extend here when adding or
+                        modifying the concrete SQLite behavior.
+
+How to extend the DB store:
+  1. Add the new method to the Protocol in store_protocols.py.
+  2. Implement it in the corresponding SQLite class in store_impl.py.
+  3. Export the new symbol from store.py (__all__ and the import line).
+
+Import examples:
+    from db.store import VectorStore, SQLiteVectorStore
     from db.store import DocumentStore, SQLiteDocumentStore
     from db.store import SessionStore, SQLiteSessionStore
     from db.store import MemoryDeleteStore, SQLiteMemoryDeleteStore
+    from db.store import get_embedding_dims, get_embedding_bytes, validate_embedding_blob
 """
 
 from db.store_impl import (

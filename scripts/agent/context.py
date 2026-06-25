@@ -76,7 +76,9 @@ class TurnState:
     background_tasks: set[asyncio.Task[Any]] = field(default_factory=set)
     # Error kind from the most recent turn failure; None when last turn succeeded
     last_error_kind: str | None = None
-    # Approval ID when the last workflow turn was suspended for human approval
+    # Display cache for the current pending approval ID.
+    # Populated from durable storage (StateStore) at startup by _recover_pending_approvals().
+    # Use StateStore.find_latest_pending_approval() as the authoritative source.
     pending_approval_id: str | None = None
 
 
@@ -103,7 +105,12 @@ class RuntimeStats:
 
 @dataclass
 class WorkflowState:
-    """Per-session workflow runtime state; transient, not persisted."""
+    """Per-session workflow runtime state; transient, not persisted.
+
+    Display cache only — not the authoritative source of truth.
+    The authoritative state is in workflow.sqlite (StateStore).
+    Populated at startup by _recover_pending_approvals(); cleared by /approve and /reject.
+    """
 
     active: bool = False
     current_task_id: str | None = None

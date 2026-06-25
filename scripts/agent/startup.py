@@ -21,7 +21,6 @@ from agent.repl_health import (
     check_readiness,
     check_routing_drift,
     check_tool_definitions_startup,
-    check_tool_definitions_runtime,
 )
 from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.workflow.state_store import StateStore
@@ -187,9 +186,9 @@ class StartupOrchestrator:
         ctx = self._ctx
         if ctx.workflow is None:
             return
-        session_id = str(ctx.session.session_id) if ctx.session.session_id else "none"
         store = StateStore()
-        result = store.find_pending_approval_by_session(session_id)
+        result = store.find_latest_pending_approval()
+        store.close()
         if result is None:
             return
         task_id, approval = result
@@ -202,7 +201,7 @@ class StartupOrchestrator:
             approval.reason or "none",
         )
         self._view.write_warning(
-            f"[workflow] Pending approval from previous session — use /approve [reason] or /reject [reason]."
+            "[workflow] Pending approval from previous session — use /approve [reason] or /reject [reason]."
         )
 
     async def _setup_prompt(self) -> None:
