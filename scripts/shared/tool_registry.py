@@ -40,7 +40,7 @@ class ToolDefinition:
     name: str
     server_key: str
     description: str = ""
-    input_schema: dict = field(default_factory=dict)
+    input_schema: dict[str, object] = field(default_factory=dict)
 
 
 class ToolRegistry:

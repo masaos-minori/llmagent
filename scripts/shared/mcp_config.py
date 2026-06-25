@@ -67,6 +67,11 @@ class McpServerConfig:
 
     def __post_init__(self) -> None:
         # Cast str inputs from config files to enum types; invalid values raise ValueError.
+        self._cast_enums()
+        self._validate_cross_fields()
+
+    def _cast_enums(self) -> None:
+        """Cast str inputs from config files to enum types."""
         if not isinstance(self.transport, TransportType):
             self.transport = TransportType(self.transport)
         if not isinstance(self.startup_mode, StartupMode):
@@ -80,7 +85,6 @@ class McpServerConfig:
                 )
             else:
                 self.healthcheck_mode = HealthcheckMode(self.healthcheck_mode)
-        self._validate_cross_fields()
 
     def _validate_cross_fields(self) -> None:
         if self.transport == TransportType.HTTP and not self.url:

@@ -81,13 +81,22 @@ def _import_sdk() -> Any | None:
 def _attach_exporter(provider: Any, otlp_endpoint: str, service_name: str) -> None:
     """Attach either OTLP or Console exporter to the given provider."""
     if not otlp_endpoint:
-        processor = _ConsoleProcessor()
-        provider.add_span_processor(processor)
-        logger.info(
-            "OTel tracer configured: ConsoleSpanExporter service=%s", service_name
-        )
+        _attach_console_exporter(provider, service_name)
         return
+    _attach_otlp_exporter(provider, otlp_endpoint, service_name)
 
+
+def _attach_console_exporter(provider: Any, service_name: str) -> None:
+    """Attach ConsoleSpanExporter to the given provider."""
+    processor = _ConsoleProcessor()
+    provider.add_span_processor(processor)
+    logger.info(
+        "OTel tracer configured: ConsoleSpanExporter service=%s", service_name
+    )
+
+
+def _attach_otlp_exporter(provider: Any, otlp_endpoint: str, service_name: str) -> None:
+    """Attach OTLP exporter to the given provider."""
     otlp = _import_otlp()
     if otlp is None:
         provider.add_span_processor(_ConsoleProcessor())

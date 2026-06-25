@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable
-from typing import Any, cast
+from typing import Any
 
 import httpx
 import orjson
@@ -22,7 +22,9 @@ import orjson
 from shared.llm_exceptions import LLMErrorKind, LLMTransportError
 from shared.llm_types import LLMResponse, LLMUsage
 from shared.sse_parser import RobustSSEParser, _anext_or_done
-from shared.types import LLMMessage
+from shared.types import AccumulatedToolCall, LLMMessage, ToolCallDelta
+
+# Re-exports for backward compatibility
 
 # Re-exports for backward compatibility
 __all__ = [
@@ -214,7 +216,7 @@ class LLMClient:
             finish_reason = None
         usage = self._parse_usage(raw)
         return LLMResponse(
-            message=cast("LLMMessage", message_raw),
+            message=message_raw,  # type: ignore[typeddict-item] — validated as dict above
             finish_reason=finish_reason,
             usage=usage,
         )
@@ -241,8 +243,8 @@ class LLMClient:
 
     @staticmethod
     def _merge_tool_call_delta(
-        tool_calls_map: dict[int, dict[str, Any]],
-        tc_delta: dict[str, Any],
+        tool_calls_map: dict[int, AccumulatedToolCall],
+        tc_delta: ToolCallDelta,
     ) -> None:
         """Accumulate one streaming tool_call delta into the index-keyed map."""
         idx = tc_delta.get("index", 0)
@@ -254,15 +256,16 @@ class LLMClient:
             }
         tc = tool_calls_map[idx]
         if tc_delta.get("id"):
-            tc["id"] = tc_delta["id"]
-        fn = tc_delta.get("function", {})
-        tc["function"]["name"] += fn.get("name", "")
-        tc["function"]["arguments"] += fn.get("arguments", "")
+            tc["id"] = tc_delta["id"]  # type: ignore[typeddict-item]
+        fn = tc_delta.get("function")
+        if fn is not None:
+            tc["function"]["name"] += fn.get("name", "")
+            tc["function"]["arguments"] += fn.get("arguments", "")
 
     @staticmethod
     def _build_stream_response(
         content_parts: list[str],
-        tool_calls_map: dict[int, dict[str, Any]],
+        tool_calls_map: dict[int, AccumulatedToolCall],
         finish_reason: str | None,
     ) -> dict[str, Any]:
         """Assemble the final response dict from streamed content and tool_call deltas."""
@@ -281,7 +284,7 @@ class LLMClient:
         self,
         chunk: dict[str, Any],
         content_parts: list[str],
-        tool_calls_map: dict[int, dict[str, Any]],
+        tool_calls_map: dict[int, AccumulatedToolCall],
     ) -> str | None:
         """Process one parsed SSE chunk delta; return finish_reason or None."""
         choices = chunk.get("choices")
@@ -339,7 +342,7 @@ class LLMClient:
         self,
         payloads: list[str],
         content_parts: list[str],
-        tool_calls_map: dict[int, dict[str, Any]],
+        tool_calls_map: dict[int, AccumulatedToolCall],
     ) -> str | None:
         """Parse and process a list of raw SSE payloads; return last finish_reason seen."""
         finish_reason: str | None = None
@@ -389,7 +392,7 @@ class LLMClient:
         history: list[LLMMessage],
         tool_defs: list[dict[str, Any]],
         content_parts: list[str],
-        tool_calls_map: dict[int, dict[str, Any]],
+        tool_calls_map: dict[int, AccumulatedToolCall],
     ) -> str | None:
         """Execute one SSE connection attempt; appends tokens/tool_calls in-place; returns finish_reason on success; raises LLMTransportError on any failure."""
         parser = RobustSSEParser(
@@ -465,7 +468,7 @@ class LLMClient:
     ) -> LLMResponse:
         """Stream a chat completion via SSE; returns LLMResponse; raises LLMTransportError with partial_text on failure."""
         content_parts: list[str] = []
-        tool_calls_map: dict[int, dict[str, Any]] = {}
+        tool_calls_map: dict[int, AccumulatedToolCall] = {}
         finish_reason: str | None = None
 
         for attempt in range(self._sse_reconnect_max + 1):

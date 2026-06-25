@@ -21,13 +21,13 @@ counts.
 """
 
 import logging
-from typing import Any
+from typing import cast
 
 import httpx
 import orjson
 
 from shared.json_utils import dumps as _json_dumps
-from shared.types import LLMMessage
+from shared.types import LLMMessage, ToolCallDict
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ def _estimate_tokens_for_text(
 
 def _estimate_tokens_for_assistant_with_tool_calls(
     text: str,
-    tool_calls: list[dict[str, Any]],
+    tool_calls: list[ToolCallDict],
     breakdown: dict[str, int],
 ) -> int:
     """Estimate tokens for an assistant message that contains tool calls. Returns added total."""
@@ -123,7 +123,10 @@ def _estimate_tokens(history: list[LLMMessage]) -> tuple[int, dict[str, int]]:
         role = msg.get("role", "")
         content_raw = msg.get("content")
         text = content_raw if isinstance(content_raw, str) else ""
-        tool_calls = msg.get("tool_calls") or []
+        tool_calls_raw = msg.get("tool_calls")
+        tool_calls: list[ToolCallDict] = cast(
+            "list[ToolCallDict]", tool_calls_raw if tool_calls_raw is not None else []
+        )
 
         if role == "system":
             if text:

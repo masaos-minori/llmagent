@@ -23,7 +23,7 @@ class ToolSpec:
 
     call_id: str
     name: str
-    args: dict = field(default_factory=dict)
+    args: dict[str, object] = field(default_factory=dict)
     resource_scope: str = ""
     requires_serial: bool = False
     is_write: bool = False

@@ -38,6 +38,29 @@ class ToolCallDict(TypedDict):
     function: ToolCallFunction
 
 
+class ToolCallFunctionDelta(TypedDict, total=False):
+    """Streaming delta for the function part of a tool call."""
+
+    name: str
+    arguments: str
+
+
+class ToolCallDelta(TypedDict, total=False):
+    """Streaming delta for a single tool call (may omit any field)."""
+
+    index: int
+    id: str
+    function: ToolCallFunctionDelta
+
+
+class AccumulatedToolCall(TypedDict):
+    """Complete accumulated tool call from streaming deltas."""
+
+    id: str
+    type: Literal["function"]
+    function: ToolCallFunction
+
+
 @runtime_checkable
 class RagConfig(Protocol):
     """Structural protocol for config objects consumed by RagPipeline; allows AgentConfig and SimpleNamespace adapter to satisfy it without importing agent/."""

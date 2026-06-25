@@ -667,8 +667,7 @@ class ToolExecutor:
     ) -> ToolCallResult:
         """Execute a tool: return cached result on hit; execute and store on miss."""
         cache_key = f"{tool_name}:{_json_dumps(args)}"
-        cached = self._cache.get(cache_key)
-        if cached is not None:
+        if (cached := self._cache.get(cache_key)) is not None:
             age = time.time() - cached.cached_at
             if age < self._cache_ttl:
                 self._cache.move_to_end(cache_key)  # LRU: mark as recently used
@@ -682,43 +681,42 @@ class ToolExecutor:
                     error_type="tool" if cached.is_error else "",
                 )
             del self._cache[cache_key]
-        # Stampede protection: share inflight future among concurrent callers.
+        result = await self._execute_with_stampede_protection(cache_key, tool_name, args)
+        if not result.is_error:
+            self._store_and_evict(cache_key, result)
+        return result
+
+    async def _execute_with_stampede_protection(
+        self,
+        cache_key: str,
+        tool_name: str,
+        args: dict[str, Any],
+    ) -> ToolCallResult:
+        """Share inflight future among concurrent callers to prevent stampede."""
         inflight = self._inflight.get(cache_key)
         if inflight is not None and not inflight.done():
-            result = await inflight
-        elif inflight is not None and inflight.done():
-            result = inflight.result()
-        else:
-            loop = asyncio.get_running_loop()
-            inflight = loop.create_future()
-            self._inflight[cache_key] = inflight
-            try:
-                result = await self._raw_execute(tool_name, args)
-                if not result.is_error:
-                    self._cache[cache_key] = CacheEntry(
-                        output=result.output,
-                        is_error=result.is_error,
-                        cached_at=time.time(),
-                    )
-                    if (
-                        self._cache_max_size > 0
-                        and len(self._cache) > self._cache_max_size
-                    ):
-                        evicted_key, _ = self._cache.popitem(last=False)
-                        logger.debug("Tool cache LRU evict: %r", evicted_key)
-            finally:
-                if not inflight.done():
-                    inflight.set_result(result)
-                self._inflight.pop(cache_key, None)
-        assert result is not None  # result is always assigned above
-        if not result.is_error:
-            self._cache[cache_key] = CacheEntry(
-                output=result.output, is_error=result.is_error, cached_at=time.time()
-            )
-            if self._cache_max_size > 0 and len(self._cache) > self._cache_max_size:
-                evicted_key, _ = self._cache.popitem(last=False)
-                logger.debug("Tool cache LRU evict: %r", evicted_key)
-        return result
+            return await inflight
+        if inflight is not None and inflight.done():
+            return inflight.result()
+        loop = asyncio.get_running_loop()
+        inflight = loop.create_future()
+        self._inflight[cache_key] = inflight
+        try:
+            result = await self._raw_execute(tool_name, args)
+            if not inflight.done():
+                inflight.set_result(result)
+            return result
+        finally:
+            self._inflight.pop(cache_key, None)
+
+    def _store_and_evict(self, cache_key: str, result: ToolCallResult) -> None:
+        """Store a non-error result in the cache and evict LRU entry if needed."""
+        self._cache[cache_key] = CacheEntry(
+            output=result.output, is_error=result.is_error, cached_at=time.time()
+        )
+        if self._cache_max_size > 0 and len(self._cache) > self._cache_max_size:
+            evicted_key, _ = self._cache.popitem(last=False)
+            logger.debug("Tool cache LRU evict: %r", evicted_key)
 
     async def execute(
         self,
