@@ -153,7 +153,7 @@ All MCP servers inherit from `MCPServer`.
 | `server_version` | `str` | `"3.0.0"` |
 | `http_host` | `str` | `"127.0.0.1"` |
 | `http_port` | `int` | `8004` |
-| `app_module` | `str` | `"mcp.web_search.server:app"` (most servers); `github-mcp` uses bare `"github_mcp_server:app"` (see `04_mcp_90`) |
+| `app_module` | `str` | `"mcp.web_search.server:app"` (most servers); `github-mcp` uses `"mcp.github.server:app"` (consistent with other servers) |
 | `mcp_tools` | `list[dict]` | Tool definitions list |
 
 ### Methods
