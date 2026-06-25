@@ -20,9 +20,7 @@ Mixin split:
 """
 
 import asyncio
-from collections.abc import Callable
-from dataclasses import dataclass, field
-from typing import Any
+from collections.abc import Awaitable, Callable
 
 from shared import plugin_registry
 
@@ -39,30 +37,11 @@ from agent.commands.cmd_plugins import _PluginsMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_tooling import _ToolingMixin
 from agent.commands.cmd_workflow import _WorkflowMixin
+from agent.commands.command_defs import CommandDef
 from agent.commands.output_port import CliOutputPort, OutputPort
 from agent.context import AgentContext
 
 __all__ = ["CommandRegistry"]
-
-
-@dataclass
-class SubcommandSpec:
-    """Declarative metadata for one subcommand."""
-
-    name: str
-    help: str
-
-
-@dataclass
-class CommandDef:
-    """Declarative metadata for one slash command."""
-
-    name: str  # e.g. "/help"
-    prefix: bool  # True = prefix match (args passed); False = exact match (no args)
-    is_async: bool
-    handler: str  # method name on CommandRegistry
-    help: str  # one-line description shown in /help output
-    subcommands: list[SubcommandSpec] = field(default_factory=list)
 
 
 # Single source of truth for all built-in slash commands.
@@ -264,14 +243,16 @@ class CommandRegistry(
                     f"CommandDef references unknown handler: {_cmd.handler!r}"
                 )
 
-    def _get_handler(self, cmd: CommandDef) -> Callable[..., Any]:
+    def _get_handler(
+        self, cmd: CommandDef, is_async: bool, /
+    ) -> Callable[[str], None] | Callable[[str], Awaitable[None]]:
         """Return the bound callable for cmd.handler; raises AttributeError if missing."""
         handler = getattr(self, cmd.handler, None)
         if handler is None:
             raise AttributeError(
                 f"CommandRegistry has no handler method {cmd.handler!r}"
             )
-        return handler  # type: ignore[no-any-return]  # getattr returns Any; safe — validated by hasattr check above
+        return handler  # type: ignore[no-any-return]
 
     def _cmd_help(self) -> None:
         """Print help and available tool count."""
@@ -303,21 +284,21 @@ class CommandRegistry(
         if not line:
             return False
         for cmd in _COMMANDS:
-            handler = self._get_handler(cmd)
+            handler = self._get_handler(cmd, cmd.is_async)
             if cmd.prefix:
                 if line == cmd.name or line.startswith(cmd.name + " "):
                     args = line[len(cmd.name) :]
                     if cmd.is_async:
-                        await handler(args)
+                        await handler(args)  # type: ignore[misc]
                     else:
                         handler(args)
                     return True
             else:
                 if line == cmd.name:
                     if cmd.is_async:
-                        await handler()
+                        await handler("")  # type: ignore[misc]
                     else:
-                        handler()
+                        handler("")
                     return True
 
         # Plugin commands: exact-match and prefix-match (checked after built-ins)
@@ -326,17 +307,16 @@ class CommandRegistry(
     async def _dispatch_plugin(self, line: str) -> bool:
         """Dispatch to the first matching registered plugin command; return True if matched."""
         for cmd_name, (handler, is_prefix) in plugin_registry.iter_commands().items():
+            args: str = ""
             if is_prefix and line.startswith(cmd_name):
                 args = line[len(cmd_name) :]
-                if asyncio.iscoroutinefunction(handler):
-                    await handler(self._ctx, args)
-                else:
-                    handler(self._ctx, args)
-                return True
-            if not is_prefix and line == cmd_name:
-                if asyncio.iscoroutinefunction(handler):
-                    await handler(self._ctx, "")
-                else:
-                    handler(self._ctx, "")
-                return True
+            elif not is_prefix and line == cmd_name:
+                pass  # args stays empty
+            else:
+                continue
+            if asyncio.iscoroutinefunction(handler):
+                await handler(self._ctx, args)
+            else:
+                handler(self._ctx, args)
+            return True
         return False
