@@ -7,7 +7,11 @@ from __future__ import annotations
 
 from typing import Any
 
-_MCP_TOOLS: list[dict[str, Any]] = [
+McpToolProperty = dict[str, Any]  # noqa: ANN401 - MCP schema property with optional fields
+McpInputSchema = dict[str, Any]  # noqa: ANN401 - MCP inputSchema with nested optional fields
+McpTool = dict[str, Any]  # noqa: ANN401 - MCP tool definition with optional fields
+
+_MCP_TOOLS: list[McpTool] = [
     {
         "name": "git_status",
         "description": "Show the working tree status of a local git repository.",

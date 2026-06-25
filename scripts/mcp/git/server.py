@@ -21,7 +21,6 @@ from __future__ import annotations
 import logging
 import shutil
 import time
-from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -68,7 +67,7 @@ async def _dispatch_git_tool(name: str, args: ToolArgs) -> DispatchResult:
 
 
 @app.get("/v1/tools")
-async def list_tools() -> dict[str, Any]:
+async def list_tools() -> dict[str, list[dict[str, object]]]:
     return {
         "tools": [{**t, "server_key": "git"} for t in _MCP_TOOLS],
     }
@@ -89,7 +88,7 @@ async def health() -> dict[str, object]:
     try:
         if shutil.which("git") is None:
             deps["git"] = "git not found in PATH"
-    except Exception:
+    except OSError:
         deps["git"] = "check failed"
     ready = len(deps) == 0
     return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
@@ -109,7 +108,7 @@ class GitMCPServer(MCPServer):
     app_module = "mcp.git.server:app"
     mcp_tools = _MCP_TOOLS
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+    async def dispatch(self, name: str, args: ToolArgs) -> DispatchResult:
         return await _dispatch_git_tool(name, args)
 
 

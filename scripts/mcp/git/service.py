@@ -11,6 +11,7 @@ Split layout:
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from collections.abc import Awaitable, Callable
 
@@ -33,6 +34,16 @@ from mcp.git.models import (
 from mcp.server import ToolArgs
 
 from .git_security import GitSecurityGuards
+
+
+@dataclasses.dataclass(frozen=True)
+class RepoValidationResult:
+    """Result of repo path and write guard validation.
+
+    error_message is empty string when validation passes.
+    """
+
+    error_message: str
 
 # All git tool handlers catch this union; git.exc.GitError is the base for all
 # GitPython exceptions; OSError covers filesystem errors; ValueError covers
@@ -64,16 +75,16 @@ class GitService(GitSecurityGuards):
         """Open a git.Repo at repo_path; raises git.InvalidGitRepositoryError on failure."""
         return git.Repo(repo_path, search_parent_directories=False)
 
-    async def _validate_repo(self, req_repo_path: str, tool_name: str) -> str | None:
-        """Check repo_path and write guard; return error message or None if valid."""
+    async def _validate_repo(self, req_repo_path: str, tool_name: str) -> RepoValidationResult:
+        """Check repo_path and write guard; return result with error_message (empty on success)."""
         ok, err = self._check_repo_path(req_repo_path)
         if not ok:
-            return err
+            return RepoValidationResult(error_message=err)
         if tool_name in _WRITE_TOOLS:
             ok, err = self._check_write()
             if not ok:
-                return err
-        return None
+                return RepoValidationResult(error_message=err)
+        return RepoValidationResult(error_message="")
 
     @staticmethod
     async def _handle_git_error(e: BaseException, tool_name: str) -> GitServiceError:
@@ -86,9 +97,9 @@ class GitService(GitSecurityGuards):
     async def git_status(self, args: ToolArgs) -> str:
 
         req = GitStatusRequest(**args)
-        err = await self._validate_repo(req.repo_path, "git_status")
-        if err is not None:
-            return err
+        result = await self._validate_repo(req.repo_path, "git_status")
+        if result.error_message:
+            return result.error_message
         try:
             repo = self._open_repo(req.repo_path)
             lines: list[str] = []
@@ -110,9 +121,9 @@ class GitService(GitSecurityGuards):
     async def git_log(self, args: ToolArgs) -> str:
 
         req = GitLogRequest(**args)
-        err = await self._validate_repo(req.repo_path, "git_log")
-        if err is not None:
-            return err
+        result = await self._validate_repo(req.repo_path, "git_log")
+        if result.error_message:
+            return result.error_message
         try:
             repo = self._open_repo(req.repo_path)
             limit = min(req.max_entries, self._max_log_entries)
@@ -136,9 +147,9 @@ class GitService(GitSecurityGuards):
     async def git_diff(self, args: ToolArgs) -> str:
 
         req = GitDiffRequest(**args)
-        err = await self._validate_repo(req.repo_path, "git_diff")
-        if err is not None:
-            return err
+        result = await self._validate_repo(req.repo_path, "git_diff")
+        if result.error_message:
+            return result.error_message
         try:
             repo = self._open_repo(req.repo_path)
             if req.commit:
@@ -154,9 +165,9 @@ class GitService(GitSecurityGuards):
     async def git_branch(self, args: ToolArgs) -> str:
 
         req = GitBranchRequest(**args)
-        err = await self._validate_repo(req.repo_path, "git_branch")
-        if err is not None:
-            return err
+        result = await self._validate_repo(req.repo_path, "git_branch")
+        if result.error_message:
+            return result.error_message
         try:
             repo = self._open_repo(req.repo_path)
             current = repo.active_branch.name
@@ -171,9 +182,9 @@ class GitService(GitSecurityGuards):
     async def git_show(self, args: ToolArgs) -> str:
 
         req = GitShowRequest(**args)
-        err = await self._validate_repo(req.repo_path, "git_show")
-        if err is not None:
-            return err
+        result = await self._validate_repo(req.repo_path, "git_show")
+        if result.error_message:
+            return result.error_message
         try:
             repo = self._open_repo(req.repo_path)
             output: str = repo.git.show(req.ref, "--stat", "--patch")
@@ -190,9 +201,9 @@ class GitService(GitSecurityGuards):
     async def git_add(self, args: ToolArgs) -> str:
 
         req = GitAddRequest(**args)
-        err = await self._validate_repo(req.repo_path, "git_add")
-        if err is not None:
-            return err
+        result = await self._validate_repo(req.repo_path, "git_add")
+        if result.error_message:
+            return result.error_message
         try:
             repo = self._open_repo(req.repo_path)
             if req.dry_run:
@@ -210,9 +221,9 @@ class GitService(GitSecurityGuards):
     async def git_commit(self, args: ToolArgs) -> str:
 
         req = GitCommitRequest(**args)
-        err = await self._validate_repo(req.repo_path, "git_commit")
-        if err is not None:
-            return err
+        result = await self._validate_repo(req.repo_path, "git_commit")
+        if result.error_message:
+            return result.error_message
         try:
             repo = self._open_repo(req.repo_path)
             staged = [i.a_path for i in repo.index.diff("HEAD")]
@@ -228,9 +239,9 @@ class GitService(GitSecurityGuards):
     async def git_checkout(self, args: ToolArgs) -> str:
 
         req = GitCheckoutRequest(**args)
-        err = await self._validate_repo(req.repo_path, "git_checkout")
-        if err is not None:
-            return err
+        result = await self._validate_repo(req.repo_path, "git_checkout")
+        if result.error_message:
+            return result.error_message
         try:
             repo = self._open_repo(req.repo_path)
             if req.dry_run:
@@ -252,9 +263,9 @@ class GitService(GitSecurityGuards):
     async def git_pull(self, args: ToolArgs) -> str:
 
         req = GitPullRequest(**args)
-        err = await self._validate_repo(req.repo_path, "git_pull")
-        if err is not None:
-            return err
+        result = await self._validate_repo(req.repo_path, "git_pull")
+        if result.error_message:
+            return result.error_message
         try:
             repo = self._open_repo(req.repo_path)
             if req.dry_run:
@@ -271,9 +282,9 @@ class GitService(GitSecurityGuards):
     async def git_push(self, args: ToolArgs) -> str:
 
         req = GitPushRequest(**args)
-        err = await self._validate_repo(req.repo_path, "git_push")
-        if err is not None:
-            return err
+        result = await self._validate_repo(req.repo_path, "git_push")
+        if result.error_message:
+            return result.error_message
         try:
             repo = self._open_repo(req.repo_path)
             branch = req.branch or repo.active_branch.name

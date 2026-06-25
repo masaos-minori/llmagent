@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from typing import Any
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def _get_str(d: dict[str, Any], key: str, default: str = "") -> str:
+def _get_str(d: dict[str, object], key: str, default: str = "") -> str:
     """Return d[key] as str, or default if absent/None; raises ValueError on wrong type."""
     v = d.get(key)
     if v is None:
@@ -40,13 +39,22 @@ class GitConfig:
     audit_log_path: str = ""
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> GitConfig:
+    def from_dict(cls, d: dict[str, object]) -> GitConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
+        allowed = d.get("allowed_repo_paths")
+        if not isinstance(allowed, list):
+            raise ValueError("'allowed_repo_paths' must be a list")
+        read_only = d.get("read_only")
+        if not isinstance(read_only, bool):
+            raise ValueError("'read_only' must be a boolean")
+        max_log = d.get("max_log_entries")
+        if not isinstance(max_log, int):
+            raise ValueError("'max_log_entries' must be an integer")
         return cls(
-            allowed_repo_paths=list(d.get("allowed_repo_paths", [])),
-            read_only=bool(d.get("read_only", True)),
+            allowed_repo_paths=list(allowed),
+            read_only=read_only,
             auth_token=_get_str(d, "auth_token"),
-            max_log_entries=int(d.get("max_log_entries", 50)),
+            max_log_entries=max_log,
             audit_log_path=_get_str(d, "audit_log_path"),
         )
 
