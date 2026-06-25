@@ -66,9 +66,14 @@ All tools do not require config (`requires_config: false`).
 | Tool | Input |
 |---|---|
 | `read_text_file` | `{path, head?, tail?}` |
-| `grep_files` | `{path, pattern, file_pattern?, max_matches?}` |
-| `directory_tree` | `{path, depth?}` |
+| `read_media_file` | `{path, mime_type?}` |
 | `read_multiple_files` | `{paths: list[str]}` |
+| `list_directory` | `{path}` |
+| `list_directory_with_sizes` | `{path}` |
+| `directory_tree` | `{path, depth?}` |
+| `search_files` | `{path, pattern}` |
+| `grep_files` | `{path, pattern, file_pattern?, max_matches?}` |
+| `get_file_info` | `{path}` |
 
 **Config:**
 
@@ -80,7 +85,7 @@ All tools do not require config (`requires_config: false`).
 | `max_search_results` | `100` |
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{"filesystem":"/workspace not found"/"check failed"},"details":{}}`
-**Error codes:** 400 (invalid path), 403 (outside allowed_dirs), 404 (not found), 413 (size limit), 415 (binary)
+**Error codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
 **Log:** `/opt/llm/logs/file-read-mcp.log`
 **Additional endpoint:** `GET /list_allowed_directories` (not a MCP tool)
 
@@ -141,7 +146,7 @@ All tools do not require config (`requires_config: false`).
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{"filesystem":"/workspace not found"/"check failed"},"details":{}}`
 **Config:** `max_write_bytes` (default 1 MB; enforced as UTF-8 byte count via Pydantic)
-**Error codes:** 400, 403 (outside allowed_dirs), 404, 413/422 (size limit)
+**Error codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
 **Log:** `/opt/llm/logs/file-write-mcp.log`
 
 ---
@@ -163,6 +168,7 @@ All tools do not require config (`requires_config: false`).
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{"filesystem":"/workspace not found"/"check failed"},"details":{}}`
 **Delete audit log:** `/opt/llm/logs/delete_audit.log` (ISO8601 UTC + op + path + user)
+**Error codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
 **Log:** `/opt/llm/logs/file-delete-mcp.log`
 
 ---
