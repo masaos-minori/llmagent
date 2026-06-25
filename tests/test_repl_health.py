@@ -456,19 +456,6 @@ class TestAuditSecurityDefaults:
         shell_warnings = [w for w in warnings if "shell" in w.lower()]
         assert shell_warnings == []
 
-    def test_sqlite_config_empty_db_allowlist_warns(self) -> None:
-        """sqlite.db_allowlist empty triggers a fail-closed warning."""
-        from mcp.sqlite.models import SqliteConfig
-
-        ctx = self._make_ctx()
-        empty_cfg = SqliteConfig(db_allowlist=[])
-        with patch("agent.repl_health.SqliteConfig.load", return_value=empty_cfg):
-            with patch("agent.repl_health.ShellConfig.load", side_effect=OSError):
-                with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
-                    warnings = audit_security_defaults(ctx, production_mode=False)
-        assert any("sqlite.db_allowlist" in w for w in warnings)
-        assert any("fail-closed" in w for w in warnings)
-
     def test_git_config_empty_allowed_repo_paths_warns(self) -> None:
         """git.allowed_repo_paths empty triggers a fail-closed warning."""
         from mcp.git.models import GitConfig
@@ -477,8 +464,7 @@ class TestAuditSecurityDefaults:
         empty_cfg = GitConfig(allowed_repo_paths=[])
         with patch("agent.repl_health.GitConfig.load", return_value=empty_cfg):
             with patch("agent.repl_health.ShellConfig.load", side_effect=OSError):
-                with patch("agent.repl_health.SqliteConfig.load", side_effect=OSError):
-                    warnings = audit_security_defaults(ctx, production_mode=False)
+                warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("git.allowed_repo_paths" in w for w in warnings)
 
     def test_shell_sandbox_none_warns(self) -> None:
@@ -488,7 +474,6 @@ class TestAuditSecurityDefaults:
         ctx = self._make_ctx()
         cfg = ShellCfg(shell_sandbox_backend="none", command_allowlist=["ls"])
         with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
-            with patch("agent.repl_health.SqliteConfig.load", side_effect=OSError):
                 with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
                     warnings = audit_security_defaults(ctx, production_mode=False)
         assert any("shell_sandbox_backend=none" in w for w in warnings)
@@ -500,7 +485,6 @@ class TestAuditSecurityDefaults:
         ctx = self._make_ctx()
         cfg = ShellCfg(shell_sandbox_backend="none", command_allowlist=["ls"])
         with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
-            with patch("agent.repl_health.SqliteConfig.load", side_effect=OSError):
                 with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
                     with pytest.raises(
                         RuntimeError, match="Production mode requires shell sandbox"
@@ -515,7 +499,6 @@ class TestAuditSecurityDefaults:
         empty_git = GitConfig(allowed_repo_paths=[])
         with patch("agent.repl_health.GitConfig.load", return_value=empty_git):
             with patch("agent.repl_health.ShellConfig.load", side_effect=OSError):
-                with patch("agent.repl_health.SqliteConfig.load", side_effect=OSError):
                     warnings = audit_security_defaults(ctx, production_mode=False)
         summary_lines = [w for w in warnings if "Security posture summary" in w]
         assert len(summary_lines) == 1
@@ -530,7 +513,6 @@ class TestAuditSecurityDefaults:
         with (
             patch("mcp.cicd.models.CicdConfig.load", return_value=empty_cicd),
             patch("agent.repl_health.ShellConfig.load", side_effect=OSError),
-            patch("agent.repl_health.SqliteConfig.load", side_effect=OSError),
             patch("agent.repl_health.GitConfig.load", side_effect=OSError),
         ):
             with pytest.raises(
@@ -548,7 +530,6 @@ class TestAuditSecurityDefaults:
         with (
             patch("mcp.cicd.models.CicdConfig.load", return_value=empty_cicd),
             patch("agent.repl_health.ShellConfig.load", side_effect=OSError),
-            patch("agent.repl_health.SqliteConfig.load", side_effect=OSError),
             patch("agent.repl_health.GitConfig.load", side_effect=OSError),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
@@ -564,7 +545,6 @@ class TestAuditSecurityDefaults:
         with (
             patch("mcp.github.models_config.GitHubConfig.load", return_value=cfg),
             patch("agent.repl_health.ShellConfig.load", side_effect=OSError),
-            patch("agent.repl_health.SqliteConfig.load", side_effect=OSError),
             patch("agent.repl_health.GitConfig.load", side_effect=OSError),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)
@@ -579,7 +559,6 @@ class TestAuditSecurityDefaults:
         with (
             patch("mcp.github.models_config.GitHubConfig.load", return_value=cfg),
             patch("agent.repl_health.ShellConfig.load", side_effect=OSError),
-            patch("agent.repl_health.SqliteConfig.load", side_effect=OSError),
             patch("agent.repl_health.GitConfig.load", side_effect=OSError),
         ):
             warnings = audit_security_defaults(ctx, production_mode=False)

@@ -16,7 +16,6 @@ import httpx
 import orjson
 from mcp.git.models import GitConfig
 from mcp.shell.models import ShellConfig
-from mcp.sqlite.models import SqliteConfig
 from shared.logger import Logger
 from shared.tool_executor import StdioTransport
 
@@ -503,21 +502,6 @@ def audit_security_defaults(
         exc = _sys.exc_info()[1]
         if isinstance(exc, RuntimeError):
             raise
-        pass
-
-    # Check sqlite db_allowlist
-    try:
-        sqlite_cfg = SqliteConfig.load()
-        if not sqlite_cfg.db_allowlist and not lockdown:
-            fail_closed_empty.append("sqlite.db_allowlist")
-            msg = (
-                "DENY-ALL detected: sqlite.db_allowlist is empty. "
-                "sqlite-mcp will reject ALL DB queries. "
-                "Verify this is intentional or add allowed DB paths to sqlite_mcp_server.toml."
-            )
-            logger.warning(msg)
-            warnings.append(msg)
-    except Exception:
         pass
 
     # Check git allowed_repo_paths
