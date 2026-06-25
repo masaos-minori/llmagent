@@ -432,7 +432,8 @@ class TestEmbeddingClientTimeout:
 
         success_result = EmbeddingResult(success=True, embedding=[0.1])
         with patch(
-            "agent.memory.embedding_client._fetch_embedding", return_value=success_result
+            "agent.memory.embedding_client._fetch_embedding",
+            return_value=success_result,
         ):
             result = await client.fetch("text 3")
 
@@ -499,7 +500,8 @@ class TestEmbeddingClientTimeout:
             await client.fetch("text 3")  # fail_count=3
 
         with patch(
-            "agent.memory.embedding_client._fetch_embedding", return_value=success_result
+            "agent.memory.embedding_client._fetch_embedding",
+            return_value=success_result,
         ):
             result = await client.fetch("text 4")  # success → fail_count=0
 
@@ -654,6 +656,7 @@ class TestLinkDuplicates:
 
 
 # ── stat_embed_skip counter ─────────────────────────────────────────────────
+
 
 class TestStatEmbedSkip:
     def test_counter_starts_at_zero(self) -> None:

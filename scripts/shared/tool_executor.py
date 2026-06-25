@@ -169,7 +169,11 @@ class HttpTransport:
                     wait_sec = 2 ** (self._RETRY_MAX - attempt - 1)  # 4, 2, 1
                     logger.warning(
                         "HTTP %s from %s; retrying in %.0fs (attempt %d/%d)",
-                        resp.status_code, self._base_url, wait_sec, attempt + 1, self._RETRY_MAX,
+                        resp.status_code,
+                        self._base_url,
+                        wait_sec,
+                        attempt + 1,
+                        self._RETRY_MAX,
                     )
                     await asyncio.sleep(wait_sec)
                     continue
@@ -270,7 +274,9 @@ class StdioTransport:
         return self._proc is not None and self._proc.returncode is None
 
     @staticmethod
-    def _parse_stdio_response(resp_bytes: bytes, expected_id: int | None = None) -> ToolCallResult:
+    def _parse_stdio_response(
+        resp_bytes: bytes, expected_id: int | None = None
+    ) -> ToolCallResult:
         """Parse a JSON-RPC response line and return ToolCallResult.
 
         Raises (orjson.JSONDecodeError, KeyError, ValueError) if the response is invalid.
@@ -476,8 +482,14 @@ class ToolExecutor:
         self._transports: dict[str, HttpTransport | StdioTransport | None] = {}
         for key, cfg in server_configs.items():
             if cfg.transport == "http":
-                timeout_sec = cfg.call_timeout_sec if hasattr(cfg, "call_timeout_sec") and cfg.call_timeout_sec else 60.0
-                self._transports[key] = HttpTransport(http, cfg.url, key, cfg, timeout_sec=timeout_sec)
+                timeout_sec = (
+                    cfg.call_timeout_sec
+                    if hasattr(cfg, "call_timeout_sec") and cfg.call_timeout_sec
+                    else 60.0
+                )
+                self._transports[key] = HttpTransport(
+                    http, cfg.url, key, cfg, timeout_sec=timeout_sec
+                )
             else:
                 self._transports[key] = None  # filled by set_transport()
 
@@ -684,9 +696,14 @@ class ToolExecutor:
                 result = await self._raw_execute(tool_name, args)
                 if not result.is_error:
                     self._cache[cache_key] = CacheEntry(
-                        output=result.output, is_error=result.is_error, cached_at=time.time()
+                        output=result.output,
+                        is_error=result.is_error,
+                        cached_at=time.time(),
                     )
-                    if self._cache_max_size > 0 and len(self._cache) > self._cache_max_size:
+                    if (
+                        self._cache_max_size > 0
+                        and len(self._cache) > self._cache_max_size
+                    ):
                         evicted_key, _ = self._cache.popitem(last=False)
                         logger.debug("Tool cache LRU evict: %r", evicted_key)
             finally:

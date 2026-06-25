@@ -576,7 +576,10 @@ def audit_security_defaults(
 
     # Check cicd workflow_allowlist (fail-open — empty = allow all workflows)
     try:
-        from mcp.cicd.models import CicdConfig  # noqa: PLC0415 — lazy import; cicd-mcp optional
+        from mcp.cicd.models import (
+            CicdConfig,  # noqa: PLC0415 — lazy import; cicd-mcp optional
+        )
+
         cicd_cfg = CicdConfig.load()
         if not cicd_cfg.workflow_allowlist:
             msg = "cicd.workflow_allowlist is empty (fail-open: all workflows allowed)"
@@ -597,6 +600,7 @@ def audit_security_defaults(
         from mcp.github.models_config import (
             GitHubConfig as _GitHubConfig,  # noqa: PLC0415 — lazy import; github-mcp optional
         )
+
         gh_write_cfg = _GitHubConfig.load()
         if gh_write_cfg.allow_force_push:
             msg = "github.allow_force_push=true (force push and rebase merge permitted)"

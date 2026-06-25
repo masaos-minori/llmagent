@@ -110,9 +110,7 @@ def _write_chunk(
 ) -> Path:
     dest_dir.mkdir(parents=True, exist_ok=True)
     path = dest_dir / filename
-    path.write_bytes(
-        orjson.dumps(dataclasses.asdict(spec))
-    )
+    path.write_bytes(orjson.dumps(dataclasses.asdict(spec)))
     return path
 
 
@@ -170,7 +168,11 @@ class TestEmbedAndStore:
     def test_writes_correct_chunk_index(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
-        path = _write_chunk(tmp_path / "chunk", "c.txt", dataclasses.replace(_DEFAULT_CHUNK, chunk_index=7))
+        path = _write_chunk(
+            tmp_path / "chunk",
+            "c.txt",
+            dataclasses.replace(_DEFAULT_CHUNK, chunk_index=7),
+        )
         ingester = _make_ingester(tmp_path)
 
         with (
@@ -188,7 +190,11 @@ class TestEmbedAndStore:
     def test_writes_normalized_content(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
-        path = _write_chunk(tmp_path / "chunk", "c.txt", dataclasses.replace(_DEFAULT_CHUNK, normalized_content="正規化"))
+        path = _write_chunk(
+            tmp_path / "chunk",
+            "c.txt",
+            dataclasses.replace(_DEFAULT_CHUNK, normalized_content="正規化"),
+        )
         ingester = _make_ingester(tmp_path)
 
         with (
@@ -211,7 +217,9 @@ class TestEmbedAndStore:
         conn.commit()
         doc_id: int = conn.execute("SELECT doc_id FROM documents").fetchone()[0]
         path = _write_chunk(
-            tmp_path / "chunk", "c.txt", dataclasses.replace(_DEFAULT_CHUNK, lang="en", normalized_content=None)
+            tmp_path / "chunk",
+            "c.txt",
+            dataclasses.replace(_DEFAULT_CHUNK, lang="en", normalized_content=None),
         )
         ingester = _make_ingester(tmp_path)
 
@@ -245,7 +253,9 @@ class TestEmbedAndStore:
         count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
         assert count == 0
 
-    def test_read_chunk_json_returns_none_fails_immediately(self, tmp_path: Path) -> None:
+    def test_read_chunk_json_returns_none_fails_immediately(
+        self, tmp_path: Path
+    ) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
         path = _write_chunk(tmp_path / "chunk", "c.txt")
@@ -264,7 +274,9 @@ class TestEmbedAndStore:
     def test_empty_content_causes_embedding_failure(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
-        path = _write_chunk(tmp_path / "chunk", "c.txt", dataclasses.replace(_DEFAULT_CHUNK, content=""))
+        path = _write_chunk(
+            tmp_path / "chunk", "c.txt", dataclasses.replace(_DEFAULT_CHUNK, content="")
+        )
         ingester = _make_ingester(tmp_path)
 
         with (
@@ -280,7 +292,11 @@ class TestEmbedAndStore:
     def test_invalid_chunk_index_falls_back_to_zero(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
-        path = _write_chunk(tmp_path / "chunk", "c.txt", dataclasses.replace(_DEFAULT_CHUNK, chunk_index=0))
+        path = _write_chunk(
+            tmp_path / "chunk",
+            "c.txt",
+            dataclasses.replace(_DEFAULT_CHUNK, chunk_index=0),
+        )
         # Overwrite with invalid chunk_index string
         data = orjson.loads(path.read_bytes())
         data["chunk_index"] = "invalid_str"
@@ -312,7 +328,8 @@ class TestEmbedAndStore:
         with (
             patch("rag.ingestion.ingester.time.sleep"),
             patch.object(
-                ingester._client, "post",
+                ingester._client,
+                "post",
                 side_effect=[bad_resp, _fake_embed_resp()],
             ),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
@@ -355,7 +372,8 @@ class TestEmbedAndStore:
         with (
             patch("rag.ingestion.ingester.time.sleep"),
             patch.object(
-                ingester._client, "post",
+                ingester._client,
+                "post",
                 side_effect=[
                     httpx.RequestError("simulated network error"),
                     _fake_embed_resp(),
@@ -380,7 +398,8 @@ class TestEmbedAndStore:
         with (
             patch("rag.ingestion.ingester.time.sleep"),
             patch.object(
-                ingester._client, "post",
+                ingester._client,
+                "post",
                 side_effect=[wrong_dim_resp, _fake_embed_resp()],
             ),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
@@ -409,7 +428,11 @@ class TestIngestUrlGroup:
         self, tmp_path: Path
     ) -> None:
         conn, fake_db, ingester = self._setup(tmp_path)
-        path = _write_chunk(tmp_path / "chunk", "c.txt", dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="heading"))
+        path = _write_chunk(
+            tmp_path / "chunk",
+            "c.txt",
+            dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="heading"),
+        )
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
@@ -425,8 +448,16 @@ class TestIngestUrlGroup:
         conn, fake_db, ingester = self._setup(tmp_path)
         chunk_dir = tmp_path / "chunk"
         paths = [
-            _write_chunk(chunk_dir, "c0.txt", dataclasses.replace(_DEFAULT_CHUNK, chunk_index=0, content="first")),
-            _write_chunk(chunk_dir, "c1.txt", dataclasses.replace(_DEFAULT_CHUNK, chunk_index=1, content="second")),
+            _write_chunk(
+                chunk_dir,
+                "c0.txt",
+                dataclasses.replace(_DEFAULT_CHUNK, chunk_index=0, content="first"),
+            ),
+            _write_chunk(
+                chunk_dir,
+                "c1.txt",
+                dataclasses.replace(_DEFAULT_CHUNK, chunk_index=1, content="second"),
+            ),
         ]
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
@@ -490,7 +521,13 @@ class TestIngestUrlGroup:
     def test_force_reinsertion_removes_old_chunks(self, tmp_path: Path) -> None:
         conn, fake_db, ingester = self._setup(tmp_path)
         chunk_dir = tmp_path / "chunk"
-        path = _write_chunk(chunk_dir, "c.txt", dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="text", content="old"))
+        path = _write_chunk(
+            chunk_dir,
+            "c.txt",
+            dataclasses.replace(
+                _DEFAULT_CHUNK, chunking_strategy="text", content="old"
+            ),
+        )
 
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
@@ -503,7 +540,11 @@ class TestIngestUrlGroup:
         assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 1
 
         path2 = _write_chunk(
-            chunk_dir, "c_new.txt", dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="heading", content="new")
+            chunk_dir,
+            "c_new.txt",
+            dataclasses.replace(
+                _DEFAULT_CHUNK, chunking_strategy="heading", content="new"
+            ),
         )
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
@@ -522,7 +563,11 @@ class TestIngestUrlGroup:
     def test_force_preserves_new_chunking_strategy(self, tmp_path: Path) -> None:
         conn, fake_db, ingester = self._setup(tmp_path)
         chunk_dir = tmp_path / "chunk"
-        _write_chunk(chunk_dir, "c.txt", dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="text"))
+        _write_chunk(
+            chunk_dir,
+            "c.txt",
+            dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="text"),
+        )
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
@@ -531,7 +576,11 @@ class TestIngestUrlGroup:
                 fake_db, "https://example.com/doc", [chunk_dir / "c.txt"], force=False
             )
 
-        _write_chunk(chunk_dir, "c2.txt", dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="markdown"))
+        _write_chunk(
+            chunk_dir,
+            "c2.txt",
+            dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="markdown"),
+        )
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
@@ -548,7 +597,11 @@ class TestIngestUrlGroup:
         url = "https://example.com/doc"
         chunk_dir = tmp_path / "chunk" / "example.com" / "doc"
         _write_chunk(chunk_dir, "c1.txt", dataclasses.replace(_DEFAULT_CHUNK, url=url))
-        _write_chunk(chunk_dir, "c2.txt", dataclasses.replace(_DEFAULT_CHUNK, url=url, chunk_index=1))
+        _write_chunk(
+            chunk_dir,
+            "c2.txt",
+            dataclasses.replace(_DEFAULT_CHUNK, url=url, chunk_index=1),
+        )
         ingester = _make_ingester(tmp_path)  # embed_retry=1
 
         bad_resp = MagicMock()
@@ -559,7 +612,9 @@ class TestIngestUrlGroup:
             patch.object(ingester._client, "post", return_value=bad_resp),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
-            result = ingester.ingest_url_group(fake_db, url, list(chunk_dir.iterdir()), force=False)
+            result = ingester.ingest_url_group(
+                fake_db, url, list(chunk_dir.iterdir()), force=False
+            )
 
         assert result.url == url
         assert result.n_embed_failed == 2  # both chunks failed embedding

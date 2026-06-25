@@ -34,13 +34,15 @@ def _make_cmd(
 ) -> _SessionMixin:
     session = _make_session(
         session_id=session_id, list_return=sessions, title_pending=title_pending
-  )
+    )
     ctx = SimpleNamespace(
         session=session,
         conv=SimpleNamespace(history=[], llm_url=""),
         cfg=SimpleNamespace(llm=SimpleNamespace(context_char_limit=8000)),
         services=SimpleNamespace(
-            hist_mgr=MagicMock(), llm=MagicMock(), http=MagicMock(),
+            hist_mgr=MagicMock(),
+            llm=MagicMock(),
+            http=MagicMock(),
             audit_logger=MagicMock(),
         ),
     )
@@ -272,12 +274,15 @@ class TestGenerateSessionTitleVisibility:
     @pytest.mark.asyncio
     async def test_audit_logger_warning_called_on_failure(self) -> None:
         from unittest.mock import AsyncMock, MagicMock, patch
+
         from agent.services.exceptions import SessionTitleGenerationError
 
         cmd = _make_cmd()
         audit_logger = MagicMock()
         cmd._ctx.services = SimpleNamespace(
-            hist_mgr=MagicMock(), llm=MagicMock(), http=MagicMock(),
+            hist_mgr=MagicMock(),
+            llm=MagicMock(),
+            http=MagicMock(),
             audit_logger=audit_logger,
         )
 
@@ -296,6 +301,7 @@ class TestGenerateSessionTitleVisibility:
         """If fallback set_title() raises, the exception is logged but not re-raised."""
         import sqlite3
         from unittest.mock import AsyncMock, patch
+
         from agent.services.exceptions import SessionTitleGenerationError
 
         cmd = _make_cmd()

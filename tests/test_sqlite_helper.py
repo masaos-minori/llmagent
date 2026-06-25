@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 from db.config import DbConfig
-from db.helper import SQLiteHelper, DbTarget
+from db.helper import DbTarget, SQLiteHelper
 
 _MOCK_CFG = DbConfig(
     rag_db_path="/opt/llm/db/rag.sqlite",

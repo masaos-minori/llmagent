@@ -5,7 +5,9 @@ Usage:
     python scripts/docs/gen_rag_reference.py          # writes to docs/
     python scripts/docs/gen_rag_reference.py --dry-run # print to stdout only
 """
+
 from __future__ import annotations
+
 import argparse
 import subprocess
 import sys
@@ -40,7 +42,8 @@ def generate_config_table() -> str:
 def generate_cli_help(script_path: str, name: str) -> str:
     result = subprocess.run(
         [sys.executable, script_path, "--help"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     return f"### {name}\n\n```\n{result.stdout.strip()}\n```\n"
 
@@ -51,9 +54,7 @@ def main() -> None:
     args = parser.parse_args()
 
     config_section = generate_config_table()
-    cli_section = "\n".join(
-        generate_cli_help(path, name) for path, name in CLI_TOOLS
-    )
+    cli_section = "\n".join(generate_cli_help(path, name) for path, name in CLI_TOOLS)
     generated = f"{GUARD_START}\n{config_section}\n\n{cli_section}\n{GUARD_END}"
 
     if args.dry_run:
@@ -64,7 +65,7 @@ def main() -> None:
     start = doc.find(GUARD_START)
     end = doc.find(GUARD_END)
     if start != -1 and end != -1:
-        updated = doc[:start] + generated + doc[end + len(GUARD_END):]
+        updated = doc[:start] + generated + doc[end + len(GUARD_END) :]
     else:
         updated = doc + "\n\n" + generated
     OPS_DOC.write_text(updated)

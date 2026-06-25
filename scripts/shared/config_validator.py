@@ -1,4 +1,5 @@
 """shared/config_validator.py — Startup validator for RAG config cross-file consistency."""
+
 from __future__ import annotations
 
 import dataclasses
@@ -37,8 +38,6 @@ class RagConfigValidator:
         # Semantic cache threshold sanity
         threshold = rag.get("semantic_cache_threshold", 0.92)
         if threshold < 0.5:
-            warnings.append(
-                f"semantic_cache_threshold={threshold} is unusually low"
-            )
+            warnings.append(f"semantic_cache_threshold={threshold} is unusually low")
 
         return ConfigValidationResult(errors=errors, warnings=warnings)

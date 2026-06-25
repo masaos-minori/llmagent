@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from db.maintenance import RagConsistencyReport
 
@@ -78,7 +78,9 @@ def test_consistent_shows_numeric_line():
         cmd._db_consistency()
 
     all_lines = cmd._out.lines + cmd._out.success_lines
-    numeric_lines = [line for line in all_lines if "chunks=" in line and "fts_gap=" in line]
+    numeric_lines = [
+        line for line in all_lines if "chunks=" in line and "fts_gap=" in line
+    ]
     assert len(numeric_lines) == 1
     assert "10" in numeric_lines[0]
     assert any("OK" in line for line in cmd._out.success_lines)

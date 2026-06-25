@@ -8,7 +8,7 @@ RawHit / MergedHit / RankedHit model the three search pipeline stages.
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from rag.enums import PipelineStageName
 
@@ -94,7 +94,7 @@ class PipelineRunResult:
     reranked: list[RagHit]
     stage_results: list[StageResult]
     diagnostics: SearchDiagnostics
-    result_source: Optional[str] = None
+    result_source: str | None = None
 
 
 # Union type alias for all search result hit types

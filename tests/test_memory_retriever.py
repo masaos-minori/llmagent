@@ -529,7 +529,9 @@ class TestRrfMerge:
         assert other_score == pytest.approx(2.0 / 62)
         # dup should rank higher (smaller index) than other
         dup_rank = next(i for i, h in enumerate(merged) if h.entry.memory_id == "dup")
-        other_rank = next(i for i, h in enumerate(merged) if h.entry.memory_id == "other")
+        other_rank = next(
+            i for i, h in enumerate(merged) if h.entry.memory_id == "other"
+        )
         assert dup_rank < other_rank
 
 

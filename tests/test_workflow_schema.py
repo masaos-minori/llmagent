@@ -20,7 +20,14 @@ def workflow_db(tmp_path: Path) -> Path:
     db_path = tmp_path / "workflow.sqlite"
     rag_path = tmp_path / "rag.sqlite"
     session_path = tmp_path / "session.sqlite"
-    with patch("db.helper.build_db_config", return_value=DbConfig(rag_db_path=str(rag_path), session_db_path=str(session_path), workflow_db_path=str(db_path))):
+    with patch(
+        "db.helper.build_db_config",
+        return_value=DbConfig(
+            rag_db_path=str(rag_path),
+            session_db_path=str(session_path),
+            workflow_db_path=str(db_path),
+        ),
+    ):
         init_schema()
     return db_path
 

@@ -171,9 +171,7 @@ class _ConfigDisplayMixin(MixinBase):
     def _print_plugin_settings(self, ctx: AgentContext) -> None:
         self._out.write("Plugin settings:")
         self._out.write(f"  plugin_strict        : {ctx.cfg.tool.plugin_strict}")
-        self._out.write(
-            f"  plugin_tool_override : {ctx.cfg.tool.plugin_tool_override}"
-        )
+        self._out.write(f"  plugin_tool_override : {ctx.cfg.tool.plugin_tool_override}")
 
     def _print_config_values(self) -> None:
         """Print static endpoint/LLM settings and execution settings."""

@@ -33,9 +33,7 @@ class TestMcpServerConfigValidation:
 
     def test_invalid_startup_mode_raises(self) -> None:
         with pytest.raises(ValueError, match="not a valid StartupMode"):
-            McpServerConfig(
-                "http", "http://127.0.0.1:8000", [], startup_mode="always"
-            )
+            McpServerConfig("http", "http://127.0.0.1:8000", [], startup_mode="always")
 
     def test_invalid_healthcheck_mode_raises(self) -> None:
         with pytest.raises(ValueError, match="not a valid HealthcheckMode"):
@@ -47,9 +45,7 @@ class TestMcpServerConfigValidation:
             )
 
     def test_explicit_startup_mode_ondemand(self) -> None:
-        cfg = McpServerConfig(
-            "stdio", "", ["python", "s.py"], startup_mode="ondemand"
-        )
+        cfg = McpServerConfig("stdio", "", ["python", "s.py"], startup_mode="ondemand")
         assert cfg.startup_mode == "ondemand"
 
     def test_explicit_healthcheck_ping_tool(self) -> None:

@@ -616,7 +616,9 @@ class TestDryRun:
 
 
 class TestHealthResponse:
-    def test_health_response_includes_sandbox_backend_in_details(self, monkeypatch) -> None:
+    def test_health_response_includes_sandbox_backend_in_details(
+        self, monkeypatch
+    ) -> None:
         from fastapi.testclient import TestClient
         from mcp.shell import server as shell_server
 

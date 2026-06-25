@@ -312,7 +312,9 @@ class _DbMixin(MixinBase):
         if not result["found"]:
             self._out.write_error(f"URL not found: {url}")
         else:
-            self._out.write_success(f"Reconciled {result['chunks']} chunks for {url} [RAG]")
+            self._out.write_success(
+                f"Reconciled {result['chunks']} chunks for {url} [RAG]"
+            )
 
     def _db_health(self) -> None:
         """Print DB health metrics: integrity, size."""

@@ -21,7 +21,6 @@ from db.maintenance import (
     rotate_session_db,
     vacuum_db,
 )
-from agent.services.rag_maintenance_service import RagMaintenanceService
 from rag.maintenance import RagDbMaintenanceService
 
 _TEST_EMBED_URL = "http://127.0.0.1:8003/embedding"
@@ -207,11 +206,11 @@ class TestRagDbMaintenanceService:
     def test_rotate_wal_checkpoint(self, tmp_path: Path) -> None:
         db_file = tmp_path / "rag.sqlite"
         self._make_real_sqlite(db_file)
-        from db.config import build_db_config as _bdc
 
         monkeypatch = pytest.MonkeyPatch()
         monkeypatch.setattr(
-            "db.helper.build_db_config", lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite")
+            "db.helper.build_db_config",
+            lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
         )
         try:
             service = RagDbMaintenanceService()
@@ -231,11 +230,11 @@ class TestRagDbMaintenanceService:
         )
         conn.commit()
         conn.close()
-        from db.config import build_db_config as _bdc
 
         monkeypatch = pytest.MonkeyPatch()
         monkeypatch.setattr(
-            "db.helper.build_db_config", lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite")
+            "db.helper.build_db_config",
+            lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
         )
         try:
             service = RagDbMaintenanceService()
@@ -246,11 +245,11 @@ class TestRagDbMaintenanceService:
     def test_vacuum(self, tmp_path: Path) -> None:
         db_file = tmp_path / "rag.sqlite"
         self._make_real_sqlite(db_file)
-        from db.config import build_db_config as _bdc
 
         monkeypatch = pytest.MonkeyPatch()
         monkeypatch.setattr(
-            "db.helper.build_db_config", lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite")
+            "db.helper.build_db_config",
+            lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
         )
         try:
             service = RagDbMaintenanceService()

@@ -6,12 +6,9 @@ HttpTransport retry behavior, cache stampede protection, and stop() cleanup.
 from __future__ import annotations
 
 import asyncio
-import time
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import inspect
 import types
+from typing import Any
+from unittest.mock import patch
 
 import httpx
 import orjson
@@ -49,11 +46,15 @@ class TestCacheStampede:
         """Three concurrent calls to _execute_with_cache use one _raw_execute."""
         call_count = 0
 
-        async def _fake_raw_execute(tool_name: str, args: dict[str, Any]) -> ToolCallResult:
+        async def _fake_raw_execute(
+            tool_name: str, args: dict[str, Any]
+        ) -> ToolCallResult:
             nonlocal call_count
             call_count += 1
             await asyncio.sleep(0.01)
-            return ToolCallResult(output="ok", is_error=False, request_id="", server_key="")
+            return ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key=""
+            )
 
         executor = ToolExecutor.__new__(ToolExecutor)
         executor._cache = {}
@@ -76,11 +77,15 @@ class TestCacheStampede:
         """_inflight dict entry is removed after the future resolves."""
         call_count = 0
 
-        async def _fake_raw_execute(tool_name: str, args: dict[str, Any]) -> ToolCallResult:
+        async def _fake_raw_execute(
+            tool_name: str, args: dict[str, Any]
+        ) -> ToolCallResult:
             nonlocal call_count
             call_count += 1
             await asyncio.sleep(0.01)
-            return ToolCallResult(output="ok", is_error=False, request_id="", server_key="")
+            return ToolCallResult(
+                output="ok", is_error=False, request_id="", server_key=""
+            )
 
         executor = ToolExecutor.__new__(ToolExecutor)
         executor._cache = {}
@@ -106,8 +111,12 @@ class TestHttpTransportRetry:
                 call_count += 1
                 req = httpx.Request("POST", url)
                 if call_count < 3:
-                    return httpx.Response(429, request=req, json={"result": "", "is_error": False})
-                return httpx.Response(200, request=req, json={"result": "ok", "is_error": False})
+                    return httpx.Response(
+                        429, request=req, json={"result": "", "is_error": False}
+                    )
+                return httpx.Response(
+                    200, request=req, json={"result": "ok", "is_error": False}
+                )
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
@@ -128,7 +137,9 @@ class TestHttpTransportRetry:
                 nonlocal call_count
                 call_count += 1
                 req = httpx.Request("POST", url)
-                return httpx.Response(429, request=req, json={"result": "", "is_error": False})
+                return httpx.Response(
+                    429, request=req, json={"result": "", "is_error": False}
+                )
 
         transport = HttpTransport(
             _FakeClient(),  # type: ignore[arg-type]
@@ -177,10 +188,12 @@ class TestStdioTransportStop:
             nonlocal first_call
             if first_call:
                 first_call = False
-                raise asyncio.TimeoutError("timeout")
+                raise TimeoutError("timeout")
             self.returncode = -15  # SIGTERM
 
-        monkeypatch.setattr(transport._proc, "wait", types.MethodType(_fake_wait, transport._proc))
+        monkeypatch.setattr(
+            transport._proc, "wait", types.MethodType(_fake_wait, transport._proc)
+        )
         with patch.object(transport._proc, "stdin", None):
             with patch("asyncio.sleep", return_value=None):
                 await transport.stop()

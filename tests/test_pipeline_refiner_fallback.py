@@ -1,6 +1,7 @@
 """tests/test_pipeline_refiner_fallback.py
 Verifies refine_context() fallback paths and augment() logger.info emission.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock

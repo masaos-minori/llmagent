@@ -170,7 +170,9 @@ class TestDeferredReload:
 class TestStartupOnlyDetection:
     """_detect_startup_only classifies use_memory_layer / plugin_strict changes."""
 
-    def _make_svc(self, use_memory_layer: bool = False, plugin_strict: bool = False) -> object:
+    def _make_svc(
+        self, use_memory_layer: bool = False, plugin_strict: bool = False
+    ) -> object:
         from agent.services.config_reload import ConfigReloadService
 
         ctx = MagicMock()
@@ -190,7 +192,9 @@ class TestStartupOnlyDetection:
 
     def test_no_change_returns_empty(self) -> None:
         svc = self._make_svc(use_memory_layer=True, plugin_strict=True)
-        result = svc._detect_startup_only({"use_memory_layer": True, "plugin_strict": True})
+        result = svc._detect_startup_only(
+            {"use_memory_layer": True, "plugin_strict": True}
+        )
         assert result == []
 
     def test_missing_key_returns_empty(self) -> None:
@@ -200,6 +204,8 @@ class TestStartupOnlyDetection:
 
     def test_both_changes_populates_both(self) -> None:
         svc = self._make_svc(use_memory_layer=False, plugin_strict=False)
-        result = svc._detect_startup_only({"use_memory_layer": True, "plugin_strict": True})
+        result = svc._detect_startup_only(
+            {"use_memory_layer": True, "plugin_strict": True}
+        )
         assert "use_memory_layer" in result
         assert "plugin_strict" in result

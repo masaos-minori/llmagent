@@ -343,9 +343,7 @@ class TestRetry:
         async def _fake_post(*a: object, **kw: object) -> MagicMock:
             nonlocal call_count
             call_count += 1
-            raise httpx.HTTPStatusError(
-                "fail", request=MagicMock(), response=mock_resp
-            )
+            raise httpx.HTTPStatusError("fail", request=MagicMock(), response=mock_resp)
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.post = _fake_post
@@ -505,9 +503,7 @@ class TestRecordFailureCount:
             nonlocal call_count
             call_count += 1
             mock_resp = MagicMock()
-            raise httpx.HTTPStatusError(
-                "fail", request=MagicMock(), response=mock_resp
-            )
+            raise httpx.HTTPStatusError("fail", request=MagicMock(), response=mock_resp)
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.post = _side_effect
@@ -673,9 +669,7 @@ class TestMixedFailure:
                 await asyncio.sleep(10)
                 return MagicMock()
             mock_resp = MagicMock()
-            raise httpx.HTTPStatusError(
-                "fail", request=MagicMock(), response=mock_resp
-            )
+            raise httpx.HTTPStatusError("fail", request=MagicMock(), response=mock_resp)
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.post = _side_effect
@@ -734,9 +728,7 @@ class TestMixedFailure:
                 await asyncio.sleep(10)
                 return MagicMock()
             mock_resp = MagicMock()
-            raise httpx.HTTPStatusError(
-                "fail", request=MagicMock(), response=mock_resp
-            )
+            raise httpx.HTTPStatusError("fail", request=MagicMock(), response=mock_resp)
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.post = _side_effect
@@ -753,7 +745,9 @@ class TestMixedFailure:
 
 class TestCircuitDuringRetry:
     @pytest.mark.asyncio
-    async def test_circuit_opens_during_retry(self, config: EmbeddingClientConfig) -> None:
+    async def test_circuit_opens_during_retry(
+        self, config: EmbeddingClientConfig
+    ) -> None:
         config.max_retries = 2
         config.circuit_open_after = 2
         client = EmbeddingClient(config)
@@ -763,9 +757,7 @@ class TestCircuitDuringRetry:
             nonlocal call_count
             call_count += 1
             mock_resp = MagicMock()
-            raise httpx.HTTPStatusError(
-                "fail", request=MagicMock(), response=mock_resp
-            )
+            raise httpx.HTTPStatusError("fail", request=MagicMock(), response=mock_resp)
 
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.post = _side_effect

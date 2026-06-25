@@ -340,7 +340,9 @@ class TestToolRunnerDefaultSpec:
     def test_write_and_read_in_same_concurrent_batch(self) -> None:
         """With resource_scope set, write_file and read_text_file share concurrent_batch."""
         tool_meta = {
-            "write_file": _meta(name="write_file", resource_scope="write_file", is_write=True),
+            "write_file": _meta(
+                name="write_file", resource_scope="write_file", is_write=True
+            ),
             "read_text_file": _meta(name="read_text_file"),
         }
         calls = [

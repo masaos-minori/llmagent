@@ -29,6 +29,7 @@ def _write_stdout(data: str) -> None:
     sys.stdout.write(data)
     sys.stdout.flush()
 
+
 # Type alias for MCP tool argument dictionaries.
 # Pydantic models in each server validate the actual structure at runtime.
 ToolArgs = dict[str, Any]

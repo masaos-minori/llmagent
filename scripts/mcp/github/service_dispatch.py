@@ -81,8 +81,12 @@ class GitHubService(_GitHubServiceCore):
             return f"Branch created: {result.branch_name} (SHA: {result.sha[:8]})"
 
         return await self._execute_with_dry_run(
-            req.owner, req.repo, req.dry_run,
-            lambda: f"Would create branch '{req.branch_name}' from '{from_b}' in {req.owner}/{req.repo}",
+            req.owner,
+            req.repo,
+            req.dry_run,
+            lambda: (
+                f"Would create branch '{req.branch_name}' from '{from_b}' in {req.owner}/{req.repo}"
+            ),
             _execute,
         )
 
@@ -116,11 +120,17 @@ class GitHubService(_GitHubServiceCore):
 
         async def _execute() -> str:
             result = await self.create_or_update_file(req)
-            return f"{result.operation}: {result.path} (commit: {result.commit_sha[:8]})"
+            return (
+                f"{result.operation}: {result.path} (commit: {result.commit_sha[:8]})"
+            )
 
         return await self._execute_with_dry_run(
-            req.owner, req.repo, req.dry_run,
-            lambda: f"Would {op} file '{req.path}' on branch '{branch}' in {req.owner}/{req.repo}",
+            req.owner,
+            req.repo,
+            req.dry_run,
+            lambda: (
+                f"Would {op} file '{req.path}' on branch '{branch}' in {req.owner}/{req.repo}"
+            ),
             _execute,
         )
 
@@ -137,8 +147,12 @@ class GitHubService(_GitHubServiceCore):
             )
 
         return await self._execute_with_dry_run(
-            req.owner, req.repo, req.dry_run,
-            lambda: f"Would push {len(paths)} file(s) to branch '{req.branch}' in {req.owner}/{req.repo}: {paths}",
+            req.owner,
+            req.repo,
+            req.dry_run,
+            lambda: (
+                f"Would push {len(paths)} file(s) to branch '{req.branch}' in {req.owner}/{req.repo}: {paths}"
+            ),
             _execute,
         )
 
@@ -151,8 +165,12 @@ class GitHubService(_GitHubServiceCore):
             return f"Deleted: {result.path} (commit: {result.commit_sha[:8]})"
 
         return await self._execute_with_dry_run(
-            req.owner, req.repo, req.dry_run,
-            lambda: f"Would delete '{req.path}' from branch '{branch}' in {req.owner}/{req.repo}",
+            req.owner,
+            req.repo,
+            req.dry_run,
+            lambda: (
+                f"Would delete '{req.path}' from branch '{branch}' in {req.owner}/{req.repo}"
+            ),
             _execute,
         )
 
@@ -176,8 +194,12 @@ class GitHubService(_GitHubServiceCore):
             return f"Created: #{i.number} {i.title}\n{i.url}"
 
         return await self._execute_with_dry_run(
-            req.owner, req.repo, req.dry_run,
-            lambda: f"Would create issue '{req.title}'{labels} in {req.owner}/{req.repo}",
+            req.owner,
+            req.repo,
+            req.dry_run,
+            lambda: (
+                f"Would create issue '{req.title}'{labels} in {req.owner}/{req.repo}"
+            ),
             _execute,
         )
 
@@ -194,8 +216,12 @@ class GitHubService(_GitHubServiceCore):
             return f"Comment posted: #{result.issue_number} {result.comment_url}"
 
         return await self._execute_with_dry_run(
-            req.owner, req.repo, req.dry_run,
-            lambda: f"Would post comment on issue #{req.issue_number} in {req.owner}/{req.repo}",
+            req.owner,
+            req.repo,
+            req.dry_run,
+            lambda: (
+                f"Would post comment on issue #{req.issue_number} in {req.owner}/{req.repo}"
+            ),
             _execute,
         )
 
@@ -226,8 +252,12 @@ class GitHubService(_GitHubServiceCore):
             )
 
         return await self._execute_with_dry_run(
-            req.owner, req.repo, req.dry_run,
-            lambda: f"Would create PR '{req.title}' ({req.head} → {req.base}) in {req.owner}/{req.repo}",
+            req.owner,
+            req.repo,
+            req.dry_run,
+            lambda: (
+                f"Would create PR '{req.title}' ({req.head} → {req.base}) in {req.owner}/{req.repo}"
+            ),
             _execute,
         )
 
@@ -251,8 +281,12 @@ class GitHubService(_GitHubServiceCore):
             return f"Updated: #{pr.number} [{pr.state}] {pr.title}\n{pr.url}"
 
         return await self._execute_with_dry_run(
-            req.owner, req.repo, req.dry_run,
-            lambda: f"Would update PR #{req.pr_number} in {req.owner}/{req.repo}: {changes}",
+            req.owner,
+            req.repo,
+            req.dry_run,
+            lambda: (
+                f"Would update PR #{req.pr_number} in {req.owner}/{req.repo}: {changes}"
+            ),
             _execute,
         )
 
@@ -268,8 +302,12 @@ class GitHubService(_GitHubServiceCore):
             )
 
         return await self._execute_with_dry_run(
-            req.owner, req.repo, req.dry_run,
-            lambda: f"Would merge PR #{req.pr_number} in {req.owner}/{req.repo} using method='{req.merge_method}'",
+            req.owner,
+            req.repo,
+            req.dry_run,
+            lambda: (
+                f"Would merge PR #{req.pr_number} in {req.owner}/{req.repo} using method='{req.merge_method}'"
+            ),
             _execute,
         )
 

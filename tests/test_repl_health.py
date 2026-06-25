@@ -233,8 +233,13 @@ class TestCheckToolDefinitions:
         with patch(
             "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
         ) as mock_collect:
-            mock_collect.return_value = (set(), ["srv-a"])  # empty names, non-empty unreachable
-            with pytest.raises(RuntimeError, match="Strict mode: all MCP servers unreachable"):
+            mock_collect.return_value = (
+                set(),
+                ["srv-a"],
+            )  # empty names, non-empty unreachable
+            with pytest.raises(
+                RuntimeError, match="Strict mode: all MCP servers unreachable"
+            ):
                 await _check_tool_definitions(ctx, strict=True)
 
 
@@ -380,8 +385,8 @@ class TestAuditSecurityDefaults:
 
     def test_production_mode_all_authed_no_error(self) -> None:
         """Production mode with all HTTP servers having auth_token → no error."""
-        from shared.mcp_config import SecurityProfile
         from mcp.shell.models import ShellConfig as ShellCfg
+        from shared.mcp_config import SecurityProfile
 
         ctx = self._make_ctx(
             servers={
@@ -401,8 +406,8 @@ class TestAuditSecurityDefaults:
 
     def test_stdio_servers_ignored_in_production(self) -> None:
         """Stdio servers are not checked for auth_token even in production mode."""
-        from shared.mcp_config import SecurityProfile
         from mcp.shell.models import ShellConfig as ShellCfg
+        from shared.mcp_config import SecurityProfile
 
         ctx = self._make_ctx(
             servers={
@@ -497,7 +502,9 @@ class TestAuditSecurityDefaults:
         with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
             with patch("agent.repl_health.SqliteConfig.load", side_effect=OSError):
                 with patch("agent.repl_health.GitConfig.load", side_effect=OSError):
-                    with pytest.raises(RuntimeError, match="Production mode requires shell sandbox"):
+                    with pytest.raises(
+                        RuntimeError, match="Production mode requires shell sandbox"
+                    ):
                         audit_security_defaults(ctx, production_mode=True)
 
     def test_security_posture_summary_included(self) -> None:
@@ -526,7 +533,10 @@ class TestAuditSecurityDefaults:
             patch("agent.repl_health.SqliteConfig.load", side_effect=OSError),
             patch("agent.repl_health.GitConfig.load", side_effect=OSError),
         ):
-            with pytest.raises(RuntimeError, match="Production mode requires explicit workflow_allowlist"):
+            with pytest.raises(
+                RuntimeError,
+                match="Production mode requires explicit workflow_allowlist",
+            ):
                 audit_security_defaults(ctx, production_mode=True)
 
     def test_cicd_empty_workflow_allowlist_warns_in_dev(self) -> None:

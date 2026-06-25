@@ -76,7 +76,9 @@ class _FakeSQLiteHelper:
         return self._conn.execute(sql, params).fetchall()
 
     @contextmanager
-    def write_transaction(self, sql: str, params: tuple = ()) -> Generator[sqlite3.Cursor]:
+    def write_transaction(
+        self, sql: str, params: tuple = ()
+    ) -> Generator[sqlite3.Cursor]:
         with _write_lock:
             cur = self._conn.execute(sql, params)
             yield cur
@@ -415,9 +417,24 @@ class TestSessionIdConcurrency:
         db_path = tmp_path / "sessions.db"
 
         with (
-            patch("agent.session.SQLiteHelper", side_effect=lambda target: _FakeSQLiteHelper(sqlite3.connect(str(db_path), check_same_thread=False, timeout=5))),
-            patch("agent.session_message_repo.SQLiteHelper", side_effect=lambda target: _FakeSQLiteHelper(sqlite3.connect(str(db_path), check_same_thread=False, timeout=5))),
-            patch("agent.note_repo.SQLiteHelper", side_effect=lambda target: _FakeSQLiteHelper(sqlite3.connect(str(db_path), check_same_thread=False, timeout=5))),
+            patch(
+                "agent.session.SQLiteHelper",
+                side_effect=lambda target: _FakeSQLiteHelper(
+                    sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
+                ),
+            ),
+            patch(
+                "agent.session_message_repo.SQLiteHelper",
+                side_effect=lambda target: _FakeSQLiteHelper(
+                    sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
+                ),
+            ),
+            patch(
+                "agent.note_repo.SQLiteHelper",
+                side_effect=lambda target: _FakeSQLiteHelper(
+                    sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
+                ),
+            ),
         ):
             from concurrent.futures import ThreadPoolExecutor
 
@@ -437,9 +454,24 @@ class TestSessionIdConcurrency:
         db_path = tmp_path / "sessions.db"
 
         with (
-            patch("agent.session.SQLiteHelper", side_effect=lambda target: _FakeSQLiteHelper(sqlite3.connect(str(db_path), check_same_thread=False, timeout=5))),
-            patch("agent.session_message_repo.SQLiteHelper", side_effect=lambda target: _FakeSQLiteHelper(sqlite3.connect(str(db_path), check_same_thread=False, timeout=5))),
-            patch("agent.note_repo.SQLiteHelper", side_effect=lambda target: _FakeSQLiteHelper(sqlite3.connect(str(db_path), check_same_thread=False, timeout=5))),
+            patch(
+                "agent.session.SQLiteHelper",
+                side_effect=lambda target: _FakeSQLiteHelper(
+                    sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
+                ),
+            ),
+            patch(
+                "agent.session_message_repo.SQLiteHelper",
+                side_effect=lambda target: _FakeSQLiteHelper(
+                    sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
+                ),
+            ),
+            patch(
+                "agent.note_repo.SQLiteHelper",
+                side_effect=lambda target: _FakeSQLiteHelper(
+                    sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
+                ),
+            ),
         ):
             from concurrent.futures import ThreadPoolExecutor
 
@@ -454,6 +486,7 @@ class TestSessionIdConcurrency:
         conn = sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
         count = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
         assert count == 8
+
 
 # ── undo_last_turn() ──────────────────────────────────────────────────────────
 
@@ -499,6 +532,7 @@ class TestUndoLastTurn:
         session.start()
         deleted = session.undo_last_turn()
         assert deleted == 0
+
 
 # ── TestAgentSessionRagBoundary ────────────────────────────────────────────────
 

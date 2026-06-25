@@ -703,9 +703,7 @@ class TestFtsTriggerConcurrency:
 
         def _delete(chunk_id: int) -> None:
             with lock:
-                conn.execute(
-                    "DELETE FROM chunks WHERE chunk_id = ?", (chunk_id,)
-                )
+                conn.execute("DELETE FROM chunks WHERE chunk_id = ?", (chunk_id,))
                 conn.commit()
 
         with ThreadPoolExecutor(max_workers=4) as executor:
@@ -761,7 +759,10 @@ class TestFtsTriggerConcurrency:
                 conn.commit()
 
         with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = [executor.submit(_update, cid, f"new_content_{cid}") for cid in updated_chunk_ids]
+            futures = [
+                executor.submit(_update, cid, f"new_content_{cid}")
+                for cid in updated_chunk_ids
+            ]
             for f in concurrent.futures.as_completed(futures):
                 f.result()
 
@@ -880,7 +881,10 @@ class TestFtsTriggerConcurrency:
         with ThreadPoolExecutor(max_workers=6) as executor:
             futures = (
                 [executor.submit(_insert, i) for i in range(3)]
-                + [executor.submit(_update, cid, idx) for idx, cid in enumerate(update_ids)]
+                + [
+                    executor.submit(_update, cid, idx)
+                    for idx, cid in enumerate(update_ids)
+                ]
                 + [executor.submit(_delete, cid) for cid in delete_ids]
             )
             for f in concurrent.futures.as_completed(futures):

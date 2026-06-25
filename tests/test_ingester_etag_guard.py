@@ -76,7 +76,9 @@ class TestUpdateEtagGuard:
         ingester._update_etag(db, 42, "etag-stale", "Mon, 01 Jun 2026", None)
 
         sql = db.execute.call_args[0][0]
-        assert "COALESCE(etag, ?)" in sql, "Must use fill-only SQL when new_fetched_at is None"
+        assert "COALESCE(etag, ?)" in sql, (
+            "Must use fill-only SQL when new_fetched_at is None"
+        )
 
     def test_missing_fetched_at_fills_null_etag(self) -> None:
         ingester = _make_ingester()

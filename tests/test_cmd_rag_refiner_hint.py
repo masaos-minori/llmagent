@@ -1,11 +1,11 @@
 """tests/test_cmd_rag_refiner_hint.py
 Verifies that _cmd_rag() emits the [warn] refiner fallback hint line when appropriate.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from agent.commands.cmd_ingest import _IngestMixin
 
 # ── Test harness ──────────────────────────────────────────────────────────────

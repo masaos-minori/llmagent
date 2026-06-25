@@ -4,9 +4,9 @@ Unit tests for agent/tool_loop_guard.py — ToolLoopGuard.
 
 from __future__ import annotations
 
-import orjson
 from unittest.mock import MagicMock
 
+import orjson
 from agent.config import AgentConfig, build_agent_config
 from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
 
@@ -279,8 +279,12 @@ class TestCheckErrorLimit:
 class TestCanonicalKeyConsistency:
     def test_same_args_different_json_order_produce_same_key(self) -> None:
         """check_dedup and check_retry agree even when JSON key order differs."""
-        key1 = ToolLoopGuard._canonical_key("write_file", '{"path": "a", "content": "b"}')
-        key2 = ToolLoopGuard._canonical_key("write_file", '{"content": "b", "path": "a"}')
+        key1 = ToolLoopGuard._canonical_key(
+            "write_file", '{"path": "a", "content": "b"}'
+        )
+        key2 = ToolLoopGuard._canonical_key(
+            "write_file", '{"content": "b", "path": "a"}'
+        )
         assert key1 == key2
 
     def test_different_args_produce_different_key(self) -> None:
@@ -323,7 +327,9 @@ class TestCheckRetryHint:
         failed_calls = {key}
         message: dict = {
             "role": "assistant",
-            "tool_calls": [{"function": {"name": "write_file", "arguments": '{"path":"a"}'}}],
+            "tool_calls": [
+                {"function": {"name": "write_file", "arguments": '{"path":"a"}'}}
+            ],
         }
         guard = ToolLoopGuard(ctx)
         result = guard.check_retry(failed_calls, message)

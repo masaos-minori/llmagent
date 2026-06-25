@@ -148,45 +148,89 @@ class TestStartupModeValidation:
     def test_startup_mode_empty_string_raises(self) -> None:
         """Empty string for startup_mode should raise ValueError."""
         with pytest.raises(ValueError):
-            McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode="")
+            McpServerConfig(
+                transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode=""
+            )
 
     def test_startup_mode_invalid_value_raises(self) -> None:
         """Invalid startup_mode value should raise ValueError."""
         with pytest.raises(ValueError):
-            McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode="invalid")
+            McpServerConfig(
+                transport="http",
+                url="http://127.0.0.1:8000",
+                cmd=[],
+                startup_mode="invalid",
+            )
 
     def test_startup_mode_persistent_is_valid(self) -> None:
         """StartupMode.PERSISTENT is valid for both transports."""
-        http_cfg = McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode=StartupMode.PERSISTENT)
+        http_cfg = McpServerConfig(
+            transport="http",
+            url="http://127.0.0.1:8000",
+            cmd=[],
+            startup_mode=StartupMode.PERSISTENT,
+        )
         assert http_cfg.startup_mode == StartupMode.PERSISTENT
 
-        stdio_cfg = McpServerConfig(transport="stdio", url="", cmd=["python", "s.py"], startup_mode=StartupMode.PERSISTENT)
+        stdio_cfg = McpServerConfig(
+            transport="stdio",
+            url="",
+            cmd=["python", "s.py"],
+            startup_mode=StartupMode.PERSISTENT,
+        )
         assert stdio_cfg.startup_mode == StartupMode.PERSISTENT
 
     def test_startup_mode_subprocess_only_valid_for_http(self) -> None:
         """StartupMode.SUBPROCESS is only valid for transport='http'."""
-        McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode=StartupMode.SUBPROCESS)
+        McpServerConfig(
+            transport="http",
+            url="http://127.0.0.1:8000",
+            cmd=[],
+            startup_mode=StartupMode.SUBPROCESS,
+        )
 
     def test_startup_mode_subprocess_invalid_for_stdio(self) -> None:
         """StartupMode.SUBPROCESS raises ValueError for transport='stdio'."""
-        with pytest.raises(ValueError, match="startup_mode='subprocess' is only valid for transport='http'"):
-            McpServerConfig(transport="stdio", url="", cmd=["python", "s.py"], startup_mode=StartupMode.SUBPROCESS)
+        with pytest.raises(
+            ValueError,
+            match="startup_mode='subprocess' is only valid for transport='http'",
+        ):
+            McpServerConfig(
+                transport="stdio",
+                url="",
+                cmd=["python", "s.py"],
+                startup_mode=StartupMode.SUBPROCESS,
+            )
 
     def test_startup_mode_string_persistent_coerced(self) -> None:
         """String 'persistent' is coerced to StartupMode.PERSISTENT."""
-        cfg = McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode="persistent")
+        cfg = McpServerConfig(
+            transport="http",
+            url="http://127.0.0.1:8000",
+            cmd=[],
+            startup_mode="persistent",
+        )
         assert cfg.startup_mode == StartupMode.PERSISTENT
 
     def test_startup_mode_string_subprocess_coerced(self) -> None:
         """String 'subprocess' is coerced to StartupMode.SUBPROCESS."""
-        cfg = McpServerConfig(transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode="subprocess")
+        cfg = McpServerConfig(
+            transport="http",
+            url="http://127.0.0.1:8000",
+            cmd=[],
+            startup_mode="subprocess",
+        )
         assert cfg.startup_mode == StartupMode.SUBPROCESS
 
 
 class TestValidateRoutingDrift:
     def test_no_drift_when_config_matches_registry(self) -> None:
         """validate_routing_against_config returns {} when config tool_names are in the registry."""
-        from shared.tool_registry import ToolDefinition, ToolRegistry, validate_routing_against_config
+        from shared.tool_registry import (
+            ToolDefinition,
+            ToolRegistry,
+            validate_routing_against_config,
+        )
 
         registry = ToolRegistry()
         registry.register(ToolDefinition(name="read_text_file", server_key="file_read"))
@@ -196,12 +240,18 @@ class TestValidateRoutingDrift:
         cfg.tool_names = ["read_text_file", "list_directory"]
         server_configs = {"file_read": cfg}
 
-        result = validate_routing_against_config(registry=registry, server_configs=server_configs)
+        result = validate_routing_against_config(
+            registry=registry, server_configs=server_configs
+        )
         assert result == {}
 
     def test_drift_detected_when_config_has_unregistered_tool(self) -> None:
         """validate_routing_against_config returns mismatch when config lists a tool not in registry."""
-        from shared.tool_registry import ToolDefinition, ToolRegistry, validate_routing_against_config
+        from shared.tool_registry import (
+            ToolDefinition,
+            ToolRegistry,
+            validate_routing_against_config,
+        )
 
         registry = ToolRegistry()
         registry.register(ToolDefinition(name="read_text_file", server_key="file_read"))
@@ -210,7 +260,9 @@ class TestValidateRoutingDrift:
         cfg.tool_names = ["read_text_file", "missing_tool"]
         server_configs = {"file_read": cfg}
 
-        result = validate_routing_against_config(registry=registry, server_configs=server_configs)
+        result = validate_routing_against_config(
+            registry=registry, server_configs=server_configs
+        )
         assert "file_read" in result
         assert any("missing_tool" in msg for msg in result["file_read"])
 

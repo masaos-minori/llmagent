@@ -158,7 +158,9 @@ def collect_context_state(ctx: AgentContext) -> ContextStateView:
         sys_preview=_extract_sys_preview(history),
         compress_count=compress_count,
         fallback_truncate_count=fallback_truncate_count,
-        partial_completions=ctx.services.llm.stat_partial_completions if ctx.services is not None and ctx.services.llm is not None else 0,
+        partial_completions=ctx.services.llm.stat_partial_completions
+        if ctx.services is not None and ctx.services.llm is not None
+        else 0,
         token_is_exact=token_is_exact,
         token_estimate=token_estimate,
         token_limit=ctx.cfg.llm.context_token_limit,

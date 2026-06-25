@@ -489,7 +489,10 @@ class TestRunPipelineStages:
 
         with pytest.raises(RuntimeError, match="strict mode error"):
             await plugin_registry.run_pipeline_stages(
-                plugin_registry.get_pipeline_post_stages(), [{"url": "u"}], "q", strict=True
+                plugin_registry.get_pipeline_post_stages(),
+                [{"url": "u"}],
+                "q",
+                strict=True,
             )
 
     @pytest.mark.asyncio
@@ -641,7 +644,9 @@ class TestStrictModeToolConflict:
             """)
         )
         mcp_tools = frozenset({"list_directory"})
-        with pytest.raises(plugin_registry.PluginLoadError, match="Tool MCP conflicts rejected"):
+        with pytest.raises(
+            plugin_registry.PluginLoadError, match="Tool MCP conflicts rejected"
+        ):
             plugin_registry.load_plugins(
                 tmp_path,
                 known_tools=mcp_tools,
@@ -743,7 +748,9 @@ class TestStrictModeToolConflict:
         assert "import_fail" in msg
         assert "Tool MCP conflicts rejected" in msg
 
-    def test_strict_mode_tool_conflict_does_not_raise_without_known_tools(self, tmp_path: Path):
+    def test_strict_mode_tool_conflict_does_not_raise_without_known_tools(
+        self, tmp_path: Path
+    ):
         (tmp_path / "conflict_plugin.py").write_text(
             textwrap.dedent("""\
                 from shared.plugin_registry import register_tool

@@ -82,7 +82,12 @@ async def search(req: SearchRequest) -> SearchResponse:
     """Execute a web search using DuckDuckGo."""
     t0 = time.perf_counter()
     try:
-        results = cast(list[SearchResult], await asyncio.to_thread(lambda: _search_duckduckgo(req.query, req.max_results)))
+        results = cast(
+            list[SearchResult],
+            await asyncio.to_thread(
+                lambda: _search_duckduckgo(req.query, req.max_results)
+            ),
+        )
     except Exception as e:
         raise WebSearchUpstreamError(f"DuckDuckGo search failed: {e}") from e
 

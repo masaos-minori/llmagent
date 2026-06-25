@@ -76,9 +76,7 @@ class GitService(GitSecurityGuards):
         return None
 
     @staticmethod
-    async def _handle_git_error(
-        e: BaseException, tool_name: str
-    ) -> GitServiceError:
+    async def _handle_git_error(e: BaseException, tool_name: str) -> GitServiceError:
         """Log and wrap a git error in GitServiceError."""
         logger.error("%s error: %s", tool_name, e)
         raise GitServiceError(f"{tool_name} failed: {e}") from e

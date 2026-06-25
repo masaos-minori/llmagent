@@ -2,6 +2,7 @@
 
 Event Bus publish persistence contract tests.
 """
+
 from __future__ import annotations
 
 import uuid

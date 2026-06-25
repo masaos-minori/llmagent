@@ -465,9 +465,7 @@ class TestUpsertConcurrency:
         store, path = _make_concurrent_store()
         contents = [f"content-{i}" for i in range(5)]
         try:
-            entries = [
-                _make_entry(memory_id="lww-id", content=c) for c in contents
-            ]
+            entries = [_make_entry(memory_id="lww-id", content=c) for c in contents]
 
             from concurrent.futures import ThreadPoolExecutor
 
@@ -479,7 +477,9 @@ class TestUpsertConcurrency:
                 row = conn.execute(
                     "SELECT content FROM memories WHERE memory_id='lww-id'"
                 ).fetchone()
-                assert row is not None, "expected exactly one row after concurrent upsert"
+                assert row is not None, (
+                    "expected exactly one row after concurrent upsert"
+                )
                 assert row[0] in contents, (
                     f"surviving content {row[0]!r} is not one of the submitted values"
                 )
@@ -491,6 +491,7 @@ class TestUpsertConcurrency:
     def test_concurrent_upsert_with_embedding(self) -> None:
         store, path = _make_concurrent_store()
         try:
+
             def _upsert_with_embedding(idx: int) -> None:
                 entry = _make_entry(memory_id="vec-id", content=f"vec-content-{idx}")
                 embedding = [float(idx), float(idx + 1), float(idx + 2)]
@@ -526,7 +527,9 @@ class TestUpsertConcurrency:
 
             def _try_upsert(idx: int) -> Exception | None:
                 try:
-                    entry = _make_entry(memory_id=f"busy-{idx}", content=f"content-{idx}")
+                    entry = _make_entry(
+                        memory_id=f"busy-{idx}", content=f"content-{idx}"
+                    )
                     store.upsert(entry)
                     return None
                 except Exception as exc:  # noqa: BLE001

@@ -166,7 +166,10 @@ class TestCfgHelperDefaults:
 
     def test_empty_allowed_root_permits_any_path(self) -> None:
         cfg = _cfg()
-        assert check_allowed_root(cfg, "write_file", {"path": "/any/absolute/path"}) is True
+        assert (
+            check_allowed_root(cfg, "write_file", {"path": "/any/absolute/path"})
+            is True
+        )
 
 
 class TestCheckAllowedRepo:

@@ -2,6 +2,7 @@
 
 Event Bus health endpoint tests.
 """
+
 from __future__ import annotations
 
 import sqlite3

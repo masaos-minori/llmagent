@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import sqlite3
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from rag.pipeline import (
@@ -170,12 +170,19 @@ class TestRagPipelineErrorOnDbOpen:
         pipeline = self._make_pipeline()
 
         from rag.types import PipelineRunResult
+
         original_run = pipeline.run
+
         async def mock_run(*args, **kwargs):
             return PipelineRunResult(
-                queries=[], search_results=[], merged=[], reranked=[],
-                stage_results=[], diagnostics=pipeline.last_search_diagnostics,
+                queries=[],
+                search_results=[],
+                merged=[],
+                reranked=[],
+                stage_results=[],
+                diagnostics=pipeline.last_search_diagnostics,
             )
+
         pipeline.run = mock_run
         try:
             result = await pipeline.augment("test query")

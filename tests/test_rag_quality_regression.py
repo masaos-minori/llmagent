@@ -3,6 +3,7 @@ Deterministic regression harness for major RAG pipeline execution modes.
 
 Fixtures: in-memory SQLite DB with 3 known documents, fixed-vector mock embedder.
 """
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -88,7 +89,6 @@ def rag_pipeline_no_rrf() -> RagPipeline:
 
 
 class TestRagQualityRegression:
-
     async def test_rrf_returns_result_for_known_query(
         self, rag_pipeline_rrf: RagPipeline
     ) -> None:

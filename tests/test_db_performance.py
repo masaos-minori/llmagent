@@ -2,6 +2,7 @@
 
 Tests for SQLiteHelper.open() reuse_connection behavior.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

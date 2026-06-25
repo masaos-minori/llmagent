@@ -1,6 +1,7 @@
 """tests/test_config_hot_reload.py
 Tests for ConfigLoader.load_all() — reload scope and shadowing precedence.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,7 +21,7 @@ class TestReloadScope:
             _write_toml(tmp_path / name, "")
         # Write actual content for security and tools files
         _write_toml(tmp_path / "security.toml", '[security]\nallow_list = ["tool_a"]\n')
-        _write_toml(tmp_path / "tools.toml", '[tools]\nmax_tool_turns = 5\n')
+        _write_toml(tmp_path / "tools.toml", "[tools]\nmax_tool_turns = 5\n")
 
         cfg = ConfigLoader(config_dir=tmp_path).load_all()
 
@@ -36,7 +37,7 @@ class TestReloadScope:
         first = _BASE_CONFIG_FILES[0]
         last = _BASE_CONFIG_FILES[-1]
         _write_toml(tmp_path / first, "[common]\nenv = 'base'\n")
-        _write_toml(tmp_path / last,  "[common]\nenv = 'override'\n")
+        _write_toml(tmp_path / last, "[common]\nenv = 'override'\n")
 
         cfg = ConfigLoader(config_dir=tmp_path).load_all()
 

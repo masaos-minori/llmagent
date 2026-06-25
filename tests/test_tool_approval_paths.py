@@ -14,7 +14,6 @@ import pytest
 from agent.config import AgentConfig, build_agent_config
 from agent.tool_approval import check_approval
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 

@@ -468,7 +468,9 @@ class TestReadTextFile:
         finally:
             no_perm.chmod(0o644)
 
-    def test_read_text_file_not_found_in_allowed_dir_raises_file_not_found_error(self, service):
+    def test_read_text_file_not_found_in_allowed_dir_raises_file_not_found_error(
+        self, service
+    ):
         from mcp.file.read_models import ReadTextFileRequest
 
         svc, tmp_workspace = service

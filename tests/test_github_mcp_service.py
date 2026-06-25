@@ -94,22 +94,30 @@ class TestAssertAllowedRepo:
             svc._assert_allowed_repo("myorg", "other")
 
     def test_empty_owner_is_denied(self) -> None:
-        svc = _make_service({"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"})
+        svc = _make_service(
+            {"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"}
+        )
         with pytest.raises(GitHubAuthorizationError):
             svc._assert_allowed_repo("", "myrepo")
 
     def test_empty_repo_is_denied(self) -> None:
-        svc = _make_service({"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"})
+        svc = _make_service(
+            {"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"}
+        )
         with pytest.raises(GitHubAuthorizationError):
             svc._assert_allowed_repo("myorg", "")
 
     def test_slash_only_slug_is_denied(self) -> None:
-        svc = _make_service({"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"})
+        svc = _make_service(
+            {"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"}
+        )
         with pytest.raises(GitHubAuthorizationError):
             svc._assert_allowed_repo("", "")
 
     def test_owner_with_slash_multiple_parts_is_denied(self) -> None:
-        svc = _make_service({"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"})
+        svc = _make_service(
+            {"allowed_repos": ["myorg/myrepo"], "allowed_repos_mode": "fail_open"}
+        )
         with pytest.raises(GitHubAuthorizationError):
             svc._assert_allowed_repo("org/sub", "repo")
 

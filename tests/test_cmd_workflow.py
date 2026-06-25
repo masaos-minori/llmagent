@@ -67,7 +67,9 @@ def _make_mixin(workflow_db: str):
 
 
 class TestApprove:
-    def test_approve_resolves_via_db_when_ctx_cache_empty(self, store, workflow_db) -> None:
+    def test_approve_resolves_via_db_when_ctx_cache_empty(
+        self, store, workflow_db
+    ) -> None:
         """Simulates restart: ctx.turn.pending_approval_id=None but DB has a pending approval."""
         task = store.create_task("session-old", 1, "1.0.0")
         store.update_task_status(task.task_id, "pending_approval")
@@ -97,7 +99,9 @@ class TestApprove:
 
 
 class TestReject:
-    def test_reject_resolves_via_db_when_ctx_cache_empty(self, store, workflow_db) -> None:
+    def test_reject_resolves_via_db_when_ctx_cache_empty(
+        self, store, workflow_db
+    ) -> None:
         """Simulates restart: ctx.turn.pending_approval_id=None but DB has a pending approval."""
         task = store.create_task("session-old", 2, "1.0.0")
         store.update_task_status(task.task_id, "pending_approval")

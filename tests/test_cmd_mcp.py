@@ -27,7 +27,9 @@ class _Ctx:
         self.cfg.mcp.mcp_watchdog_interval = 0.0
         self.cfg.mcp.mcp_watchdog_max_restarts = 3
         self.cfg.mcp.mcp_servers = mcp_servers or {}
-        self.cfg.approval.tool_safety_tiers = tool_safety_tiers if tool_safety_tiers is not None else {}
+        self.cfg.approval.tool_safety_tiers = (
+            tool_safety_tiers if tool_safety_tiers is not None else {}
+        )
         self.services = MagicMock()
         self.services.stdio_procs = stdio_procs or {}
         self.services.health_registry = None
@@ -48,7 +50,11 @@ def _stdio(
     cmd: list[str] | None = None, startup_mode: str = "persistent"
 ) -> McpServerConfig:
     return McpServerConfig(
-        transport="stdio", url="", cmd=cmd or ["python", "s.py"], auth_token="", startup_mode=startup_mode
+        transport="stdio",
+        url="",
+        cmd=cmd or ["python", "s.py"],
+        auth_token="",
+        startup_mode=startup_mode,
     )
 
 
@@ -189,7 +195,11 @@ class TestCmdMcpStatusNewColumns:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cfg = McpServerConfig(
-            transport="http", url="http://127.0.0.1:8000", cmd=[], auth_token="secret", role="query"
+            transport="http",
+            url="http://127.0.0.1:8000",
+            cmd=[],
+            auth_token="secret",
+            role="query",
         )
         ctx = _Ctx({"svc": cfg})
         mcp = _Mcp(ctx)

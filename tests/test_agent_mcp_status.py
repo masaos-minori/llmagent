@@ -81,6 +81,7 @@ class TestGetHttpStatusSandboxBackend:
 
         class _FakeResponse:
             status_code = 200
+
             def json(self):
                 return {
                     "status": "ok",
@@ -93,23 +94,35 @@ class TestGetHttpStatusSandboxBackend:
             async def get(self, url: str):
                 return _FakeResponse()
 
-        avail, sandbox = await service._get_http_status(_FakeClient(), "http://localhost:8009")
+        avail, sandbox = await service._get_http_status(
+            _FakeClient(), "http://localhost:8009"
+        )
         assert avail == McpAvailability.OK
         assert sandbox == "firejail"
 
     @pytest.mark.asyncio
-    async def test_returns_empty_when_sandbox_backend_missing_from_details(self) -> None:
+    async def test_returns_empty_when_sandbox_backend_missing_from_details(
+        self,
+    ) -> None:
         service = McpStatusService.__new__(McpStatusService)
 
         class _FakeResponse:
             status_code = 200
+
             def json(self):
-                return {"status": "ok", "ready": True, "dependencies": {}, "details": {}}
+                return {
+                    "status": "ok",
+                    "ready": True,
+                    "dependencies": {},
+                    "details": {},
+                }
 
         class _FakeClient:
             async def get(self, url: str):
                 return _FakeResponse()
 
-        avail, sandbox = await service._get_http_status(_FakeClient(), "http://localhost:8009")
+        avail, sandbox = await service._get_http_status(
+            _FakeClient(), "http://localhost:8009"
+        )
         assert avail == McpAvailability.OK
         assert sandbox == ""
