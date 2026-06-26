@@ -436,7 +436,6 @@ def audit_security_defaults(
     Checks for risky settings such as:
       - auth_token disabled (empty) on servers that support it
       - shell sandbox disabled (none backend)
-      - GitHub workflow allowlist empty (fail-open: only agent-level config)
       - cicd workflow_allowlist empty (fail-closed: deny-all)
       - Allowed tools empty (allow all)
     Returns a list of warning messages; empty list means no issues.
@@ -481,6 +480,8 @@ def audit_security_defaults(
 
     # Check shell sandbox and command_allowlist
     try:
+        import shutil as _shutil
+
         shell_cfg = ShellConfig.load()
         if shell_cfg.shell_sandbox_backend == "none":
             msg = "shell_sandbox_backend=none is not permitted in production mode"
@@ -488,6 +489,22 @@ def audit_security_defaults(
                 raise RuntimeError(f"Production mode requires shell sandbox. {msg}")
             logger.warning("Security: %s", msg)
             warnings.append(f"Security: {msg}")
+        elif shell_cfg.shell_sandbox_backend != "firejail":
+            msg = (
+                f"shell_sandbox_backend={shell_cfg.shell_sandbox_backend!r}; "
+                "production default is 'firejail'. "
+                "Update config/shell_mcp_server.toml."
+            )
+            logger.warning("Security: %s", msg)
+            warnings.append(f"Security: {msg}")
+        if shell_cfg.shell_sandbox_backend == "firejail" and not _shutil.which(
+            "firejail"
+        ):
+            msg = (
+                "shell_sandbox_backend=firejail but firejail binary not found in PATH. "
+                "Install firejail or change shell_sandbox_backend in shell_mcp_server.toml."
+            )
+            raise RuntimeError(msg)
         if not shell_cfg.command_allowlist and not lockdown:
             fail_closed_empty.append("shell.command_allowlist")
             msg = (
@@ -538,16 +555,6 @@ def audit_security_defaults(
             warnings.append(msg)
     except Exception:
         pass
-
-    # Check GitHub workflow allowlist (fail-open — no github config on AgentConfig)
-    github_cfg = getattr(ctx.cfg, "github", None)
-    if github_cfg is not None:
-        allowed_workflows = getattr(github_cfg, "allowed_workflows", None)
-        if isinstance(allowed_workflows, (list, tuple)) and len(allowed_workflows) == 0:
-            fail_open_empty.append("github.allowed_workflows")
-            msg = "Security: github.allowed_workflows is empty (fail-open: all workflows allowed)"
-            logger.warning(msg)
-            warnings.append(msg)
 
     # Check allowed_tools (fail-open: empty = allow all tools)
     tool_cfg = getattr(ctx.cfg, "tool", None)

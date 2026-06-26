@@ -185,7 +185,7 @@ Controls whether Bearer-token authentication is required for HTTP MCP servers:
 
 Stdio servers are always exempt from this check regardless of profile.
 
-**Enforcement point:** `audit_security_defaults()` in `agent/repl_health.py` raises during startup when `security_profile == "production"` and an HTTP server has an empty `auth_token`. It also warns on `shell_sandbox_backend == "none"`, empty `github.allowed_workflows`, and empty `tool.allowed_tools`.
+**Enforcement point:** `audit_security_defaults()` in `agent/repl_health.py` raises during startup when `security_profile == "production"` and an HTTP server has an empty `auth_token`. It also warns on `shell_sandbox_backend == "none"` and empty `tool.allowed_tools`.
 
 ---
 
@@ -481,7 +481,6 @@ in the allowed-paths table above. Changes to `ALLOWED` require a design review c
 | git-mcp | `allowed_repo_paths` | `[]` | **Fail-closed** — all repo access denied |
 | github-mcp | `allowed_repos` | `[]` | **Fail-closed** — all GitHub write ops denied |
 | cicd-mcp | `workflow_allowlist` | `[]` | **Fail-closed** — all workflow triggers denied |
-| github-mcp | `allowed_workflows` | `[]` | **Fail-open** — all workflows allowed |
 
 ### Dangerous defaults to review before production deployment
 
@@ -546,7 +545,7 @@ If `security_lockdown_enabled=False` (default), these warnings appear at every
 startup — a deliberate reminder to review the config. Set it to `true` only
 when the deny-all state is confirmed intentional. When enabled:
 - DENY-ALL warnings for fail-closed settings (`command_allowlist`, `db_allowlist`, `allowed_repo_paths`) are suppressed
-- Fail-open warnings (`github.allowed_workflows`, `tool.allowed_tools`) still appear
+- Fail-open warnings (`tool.allowed_tools`) still appear
 - The security posture summary line still appears with full detail
 
 ### Reverting a lockdown

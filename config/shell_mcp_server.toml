@@ -24,7 +24,10 @@ shell_path = "/opt/llm/venv/bin:/usr/bin:/bin"
 # audit_log_path: audit log file path
 audit_log_path = "/opt/llm/logs/shell_audit.log"
 
-# shell_sandbox_backend: "firejail" | "none"; falls back to "none" when firejail is not in PATH
+# shell_sandbox_backend: "firejail" | "none"
+# Production: set to "firejail" (requires firejail: apt-get install firejail).
+#   Startup raises RuntimeError when backend="firejail" but firejail binary is not in PATH.
+# Development: "none" — unsandboxed execution, WARNING at startup.
 shell_sandbox_backend = "none"
 
 # env_allowlist: permitted environment variable keys in req.env

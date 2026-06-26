@@ -613,8 +613,8 @@ When adding a server:
 Before deploying to production, verify:
 
 - [ ] `tool_definitions_strict = true` (fatal on schema mismatch)
-- [ ] shell-mcp: `shell_sandbox_backend = "firejail"` (not `"none"`)
-- [ ] `cicd-mcp`: `workflow_allowlist` explicitly set (not empty — fail-open by default)
+- [ ] shell-mcp: `shell_sandbox_backend = "firejail"` (not `"none"`) and firejail binary installed
+- [ ] `cicd-mcp`: `workflow_allowlist` explicitly set (empty = fail-closed: deny all)
 - [ ] `security_profile = "production"` in `config/agent.toml` (enables startup enforcement)
 - [ ] `mcp_watchdog_interval = 30.0` (auto-restart enabled)
 - [ ] Health check thresholds reviewed (`startup_timeout_sec`, `mcp_watchdog_max_restarts`)
