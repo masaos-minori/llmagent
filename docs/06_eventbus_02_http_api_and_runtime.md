@@ -43,14 +43,22 @@ Replay past events. Returns events with `seq > since_seq`.
 
 ### GET /subscribe
 
-Long-poll SSE subscription. Polls the DB every `poll_interval_ms` ms and streams new events.
+Streams events to the caller using a hybrid replay+push model:
+
+**Phase 1 — Replay**: On connect, queries SQLite for all events with `seq > start_seq` matching the topic filter. Each event is yielded as a `data:` SSE line immediately.
+
+**Phase 2 — Live push**: After replay completes, the connection subscribes to the in-process `EventBroker`. New events published via `POST /publish` are pushed to the SSE stream within one event loop tick — no polling delay.
+
+**Reconnect semantics**: Provide `consumer_id` to resume from the last acknowledged offset. The handler reads the stored offset as `start_seq`, ensuring missed events during a disconnect are replayed automatically.
+
+**Race-free transition**: The broker subscription is registered *before* the replay query. Any event published during the replay phase is queued and deduplicated against `replay_ceil` (last seq from replay) at the start of the live phase — no events are lost or duplicated.
 
 **Query parameters:**
 - `topic` (list[str], default all): filter by topic
 - `since_seq` (int, default 0): starting sequence; overridden by saved offset if `consumer_id` is set and `since_seq == 0`
 - `consumer_id` (str, optional): consumer identifier for offset persistence
 
-On disconnect, the current `seq` is written to the offset file via `write_offset()`. A mid-stream checkpoint is also written every `offset_checkpoint_interval` delivered events.
+On disconnect, the current `seq` is written to the offset file via `write_offset()`.
 
 ---
 
@@ -59,10 +67,10 @@ On disconnect, the current `seq` is written to the offset file via `write_offset
 Returns component health. Always HTTP 200.
 
 ```json
-{"status": "ok|degraded", "db": "ok|unavailable", "dlq_task": "running|stopped"}
+{"status": "ok|degraded", "db": "ok|unavailable", "dlq_task": "running|stopped", "active_subscribers": 0, "max_queue_depth": 0, "slow_consumers": 0, "degraded_reasons": []}
 ```
 
-`status` is `"ok"` only when both `db` and `dlq_task` are healthy.
+`status` is `"ok"` only when all components are healthy. Broker metrics `active_subscribers`, `max_queue_depth`, and `slow_consumers` reflect the in-process EventBroker state. `degraded_reasons` lists specific failure reasons (e.g., `db_unavailable`, `dlq_task_stopped`, `broker_queue_backlog_high`, `slow_consumers_detected`).
 
 ---
 
