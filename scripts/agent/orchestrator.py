@@ -42,6 +42,11 @@ from agent.workflow import (
     WorkflowPendingApprovalError,
 )
 
+
+class WorkflowCreationError(RuntimeError):
+    """Raised when the orchestrator cannot create a workflow and direct-execution fallback is disabled."""
+
+
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
@@ -134,13 +139,15 @@ class Orchestrator:
     # ── Public entry point ────────────────────────────────────────────────────
 
     def _log_fallback(self, reason: str) -> None:
-        """Log workflow fallback reason; raise in required mode."""
+        """Raise WorkflowCreationError; direct-execution fallback is removed (fail-closed)."""
         if self._workflow_mode == "required":
             raise RuntimeError(
                 f"Workflow mode=required but workflow unavailable: {reason}"
             )
-        logger.warning(
-            "Workflow tracking disabled (%s), falling back to direct execution", reason
+        raise WorkflowCreationError(
+            f"Workflow unavailable ({reason}). "
+            "Direct-execution fallback is disabled. "
+            "Fix the workflow definition or set workflow_mode=disabled."
         )
 
     def workflow_status(self) -> dict[str, str]:

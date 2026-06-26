@@ -120,19 +120,19 @@ def register_tool(name: str) -> Callable[[_F], _F]:
     """Register a local async function as a tool handler; bypasses MCP entirely."""
 
     def decorator(fn: _F) -> _F:
-        _tools[name] = (fn, _current_loading_module)
         hints = typing.get_type_hints(fn)
         return_hint = hints.get("return")
         if return_hint is None:
-            logger.warning(
-                "[plugin] warn: tool '%s' missing return type annotation", name
+            raise ValueError(
+                f"[plugin] tool contract violation: '{name}' missing return type annotation "
+                f"(expected tuple[str, bool])"
             )
-        elif return_hint != tuple[str, bool]:
-            logger.warning(
-                "[plugin] warn: tool '%s' expected return type 'tuple[str, bool]', got %s",
-                name,
-                return_hint,
+        if return_hint != tuple[str, bool]:
+            raise ValueError(
+                f"[plugin] tool contract violation: '{name}' expected return type "
+                f"'tuple[str, bool]', got {return_hint}"
             )
+        _tools[name] = (fn, _current_loading_module)
         logger.debug("[plugin] tool registered: %s", name)
         return fn
 

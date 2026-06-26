@@ -208,3 +208,37 @@ concurrent calls. Implemented as `asyncio.Semaphore` lazily created in `_raw_exe
 
 If a server key appears in the limit dict, calls are bounded. Missing keys: no limit.
 Unknown server key warning logged but does not error.
+
+---
+
+## Fail-Closed Execution Policy
+
+The orchestrator does NOT fall back to direct (unapproved) execution when a workflow
+cannot be created. If workflow creation fails, a `WorkflowCreationError` is raised and
+the task is rejected with a clear error message.
+
+**Before (removed):** the orchestrator would execute tool calls directly, bypassing
+workflow-level approval checks, when no workflow plan was available.
+
+**After:** `WorkflowCreationError` is raised. The user must fix the underlying cause
+(missing plan, invalid config) and retry.
+
+This is a fail-closed policy: safety is preferred over availability.
+See [Agent Startup and Recovery](05_agent_07_cli-and-commands.md#startup-recovery) for the startup recovery model.
+
+---
+
+## Partial Completion Persistence
+
+When a workflow fails after some steps have completed, the workflow engine records the
+final task status via `StateStore.update_task_status()`:
+
+- `"failed"` — workflow step raised an unhandled exception
+- `"halted"` — workflow was explicitly halted via `WorkflowHaltError`
+
+Completed steps are not separately persisted (the workflow engine does not track
+individual step progress in the DB). The user must inspect the audit log to determine
+which steps succeeded before the failure.
+
+Partial completions are **not** automatically resumed — the user must re-issue the
+request or use `/reject` to dismiss a pending approval gate.

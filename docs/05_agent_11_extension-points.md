@@ -82,10 +82,20 @@ async handler(args: dict) -> tuple[str, bool]   # (result_text, is_error)
 - Called by `ToolExecutor.execute()` **before** cache check and MCP dispatch
 - Return value: `(result_text: str, is_error: bool)`
 
-**Return-type validation:** At registration time, `@register_tool` inspects the
-function's return annotation. If the annotation is missing entirely, or if it is
-present but is not `tuple[str, bool]`, a warning is logged. This check is
-non-blocking — the tool is still registered regardless of the annotation.
+**Return-type validation (fail-fast):** At registration time, `@register_tool` inspects
+the function's return annotation. If the annotation is missing or is not `tuple[str, bool]`,
+a `ValueError` is raised immediately — the tool is **not** registered. Fix the annotation
+before deployment.
+
+```python
+# Contract: must annotate return type as tuple[str, bool]
+@register_tool("echo")
+async def tool_echo(args: dict) -> tuple[str, bool]:   # required
+    return str(args.get("text", "")), False
+```
+
+**Why fail-fast instead of warn?** Silent warnings were missed in production, causing
+unexpected behavior at call time. Failing at registration makes the error unmissable.
 
 - Access: `plugin_registry.get_tool(name)` → `Callable | None`
 

@@ -156,7 +156,7 @@ class TestLoadPluginsConflict:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("list_directory")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -165,7 +165,7 @@ class TestLoadPluginsConflict:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("my_tool")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -186,7 +186,7 @@ class TestLoadPluginsConflict:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("list_directory")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -205,7 +205,7 @@ class TestLoadPluginsConflict:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("my_safe_tool")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -225,7 +225,7 @@ class TestLoadPluginsConflict:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("list_directory")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -311,7 +311,7 @@ class TestLoadPlugins:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("good_tool")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -338,7 +338,7 @@ class TestLoadPlugins:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("ok_tool")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -381,7 +381,7 @@ class TestLoadPluginsStrictMode:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("strict_tool")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -401,7 +401,7 @@ class TestLoadPluginsStrictMode:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("survive_tool")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -587,27 +587,26 @@ class TestConflictLogging:
 
 
 class TestSignatureWarning:
-    def test_missing_return_annotation_warns(self, caplog):
-        with caplog.at_level(logging.WARNING, logger="shared.plugin_registry"):
+    def test_missing_return_annotation_raises(self):
+        with pytest.raises(ValueError, match="missing return type annotation"):
 
             @plugin_registry.register_tool("no_return_type")
             async def handler(args: dict):
                 return "ok", False
 
-        assert any(
-            "missing return type annotation" in r.message for r in caplog.records
-        )
+    def test_wrong_return_annotation_raises(self):
+        with pytest.raises(ValueError, match="expected return type"):
 
-    def test_correct_return_annotation_no_warning(self, caplog):
-        with caplog.at_level(logging.WARNING, logger="shared.plugin_registry"):
+            @plugin_registry.register_tool("wrong_return")
+            async def handler(args: dict) -> str:
+                return "ok"
 
-            @plugin_registry.register_tool("correct_return")
-            async def handler(args: dict) -> tuple[str, bool]:
-                return "ok", False
+    def test_correct_return_annotation_succeeds(self):
+        @plugin_registry.register_tool("correct_return")
+        async def handler(args: dict) -> tuple[str, bool]:
+            return "ok", False
 
-        assert not any(
-            "missing return type annotation" in r.message for r in caplog.records
-        )
+        assert plugin_registry.get_tool("correct_return") is handler
 
 
 class TestCommandShadowLogging:
@@ -639,7 +638,7 @@ class TestStrictModeToolConflict:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("list_directory")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -660,7 +659,7 @@ class TestStrictModeToolConflict:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("list_directory")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -669,7 +668,7 @@ class TestStrictModeToolConflict:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("read_file")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -691,7 +690,7 @@ class TestStrictModeToolConflict:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("my_safe_tool")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -711,7 +710,7 @@ class TestStrictModeToolConflict:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("list_directory")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -732,7 +731,7 @@ class TestStrictModeToolConflict:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("list_directory")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )
@@ -756,7 +755,7 @@ class TestStrictModeToolConflict:
                 from shared.plugin_registry import register_tool
 
                 @register_tool("list_directory")
-                async def t(args):
+                async def t(args) -> tuple[str, bool]:
                     return "", False
             """)
         )

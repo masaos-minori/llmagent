@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.history import CompressResult
-from agent.orchestrator import Orchestrator
+from agent.orchestrator import Orchestrator, WorkflowCreationError
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_result import TurnResult
 from shared.llm_client import LLMErrorKind, LLMTransportError
@@ -718,14 +718,16 @@ class TestWorkflowMode:
     # -- auto mode (no workflow def) -----------------------------------------
 
     @pytest.mark.asyncio
-    async def test_auto_mode_no_workflow_def_runs_direct(self) -> None:
+    async def test_auto_mode_no_workflow_def_raises(self) -> None:
         ctx = _make_ctx()
         with patch("agent.orchestrator.WorkflowLoader") as mock_loader:
             mock_loader.return_value.load.side_effect = Exception("not found")
             orch = Orchestrator(ctx, workflow_mode="auto")
         assert orch._workflow_def is None
-        with patch.object(orch._llm_runner, "run", self._ok_run()):
-            await orch.handle_turn("hello")  # must not raise
+        with pytest.raises(
+            WorkflowCreationError, match="Direct-execution fallback is disabled"
+        ):
+            await orch.handle_turn("hello")
 
     @pytest.mark.asyncio
     async def test_auto_mode_state_store_failure_raises(self) -> None:
