@@ -26,6 +26,7 @@ from eventbus.db import (
     count_dlq,
     fetch_dlq,
     fetch_events_since,
+    get_db_lock,
     insert_event,
     open_db,
     requeue_event,
@@ -93,9 +94,14 @@ async def _dlq_loop(app: FastAPI) -> None:
             db = app.state.db
             assert cfg is not None
             assert db is not None
-            n = await asyncio.to_thread(
-                sweep_orphans, db, cfg.deadletter_dir, cfg.max_retry
-            )
+
+            def _sweep() -> int:
+                from eventbus.db import get_db_lock  # noqa: PLC0415
+
+                with get_db_lock():
+                    return sweep_orphans(db, cfg.deadletter_dir, cfg.max_retry)
+
+            n = await asyncio.to_thread(_sweep)
             if n:
                 logger.warning(
                     "dlq_loop: swept %d orphan(s) missed by inline promotion", n
@@ -114,7 +120,8 @@ async def health(request: Request) -> JSONResponse:
     broker = _get_broker(request)
 
     def _check() -> bool:
-        return check_db(db)
+        with get_db_lock():
+            return check_db(db)
 
     db_ok = await asyncio.to_thread(_check)
     db_status = "ok" if db_ok else "unavailable"
@@ -179,15 +186,18 @@ async def publish(request: Request) -> dict[str, Any]:
 
     db = _get_db(request)
     broker = _get_broker(request)
-    seq, inserted = await asyncio.to_thread(
-        insert_event,
-        db,
-        event_id,
-        topic,
-        payload_str,
-        producer,
-        published_at,
-    )
+    def _insert() -> tuple[int, bool]:
+        with get_db_lock():
+            return insert_event(
+                db,
+                event_id,
+                topic,
+                payload_str,
+                producer,
+                published_at,
+            )
+
+    seq, inserted = await asyncio.to_thread(_insert)
 
     try:
         cfg = _get_config(request)
@@ -228,12 +238,20 @@ async def replay(
     offset: int = Query(default=0, ge=0),
 ) -> Any:
     db = _get_db(request)
-    rows = await asyncio.to_thread(
-        fetch_events_since, db, since_seq, limit=limit, offset=offset
-    )
+
+    def _fetch() -> list:
+        with get_db_lock():
+            return fetch_events_since(db, since_seq, limit=limit, offset=offset)
+
+    rows = await asyncio.to_thread(_fetch)
 
     if fmt == "json":
-        total = await asyncio.to_thread(_count_events_since, db, since_seq)
+
+        def _count() -> int:
+            with get_db_lock():
+                return _count_events_since(db, since_seq)
+
+        total = await asyncio.to_thread(_count)
         return {
             "total": total,
             "limit": limit,
@@ -272,18 +290,19 @@ async def subscribe(
         try:
             # Step 2: replay from SQLite
             def _fetch_replay() -> list:
-                if topic:
-                    placeholders = ",".join("?" for _ in topic)
+                with get_db_lock():
+                    if topic:
+                        placeholders = ",".join("?" for _ in topic)
+                        return db.execute(
+                            f"SELECT seq, event_id, topic, payload, producer, published_at"
+                            f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq",
+                            (start_seq, *topic),
+                        ).fetchall()
                     return db.execute(
-                        f"SELECT seq, event_id, topic, payload, producer, published_at"
-                        f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq",
-                        (start_seq, *topic),
+                        "SELECT seq, event_id, topic, payload, producer, published_at"
+                        " FROM events WHERE seq > ? ORDER BY seq",
+                        (start_seq,),
                     ).fetchall()
-                return db.execute(
-                    "SELECT seq, event_id, topic, payload, producer, published_at"
-                    " FROM events WHERE seq > ? ORDER BY seq",
-                    (start_seq,),
-                ).fetchall()
 
             rows = await asyncio.to_thread(_fetch_replay)
             replay_ceil = start_seq
@@ -321,8 +340,17 @@ async def dlq_list(
     offset: int = Query(default=0, ge=0),
 ) -> dict[str, Any]:
     db = _get_db(request)
-    total = await asyncio.to_thread(count_dlq, db)  # type: ignore[arg-type]
-    rows = await asyncio.to_thread(fetch_dlq, db, limit=limit, offset=offset)  # type: ignore[arg-type]
+
+    def _dlq_count() -> int:
+        with get_db_lock():
+            return count_dlq(db)
+
+    def _dlq_fetch() -> list:
+        with get_db_lock():
+            return fetch_dlq(db, limit=limit, offset=offset)
+
+    total = await asyncio.to_thread(_dlq_count)
+    rows = await asyncio.to_thread(_dlq_fetch)
     return {
         "total": total,
         "limit": limit,
@@ -334,7 +362,12 @@ async def dlq_list(
 @app.post("/dlq/{event_id}/requeue")
 async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
     db = _get_db(request)
-    if await asyncio.to_thread(requeue_event, db, event_id):  # type: ignore[arg-type]
+
+    def _requeue() -> bool:
+        with get_db_lock():
+            return requeue_event(db, event_id)
+
+    if await asyncio.to_thread(_requeue):
         logger.info("dlq requeued event_id=%s", event_id)
         return {"event_id": event_id, "requeued": True}
     raise HTTPException(status_code=404, detail="event not found")
@@ -356,17 +389,18 @@ async def ack(
         from eventbus.db import ack_event as _ack_event
         from eventbus.offsets import write_offset  # noqa: PLC0415
 
-        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        acked = _ack_event(db, event_id, now)  # type: ignore[arg-type]
-        seq: int | None = None
-        if consumer_id and acked:
-            row = db.execute(
-                "SELECT seq FROM events WHERE event_id = ?", (event_id,)
-            ).fetchone()
-            if row:
-                seq = int(row["seq"])
-                write_offset(cfg.offsets_dir, consumer_id, seq)
-        return (acked, seq)
+        with get_db_lock():
+            now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            acked = _ack_event(db, event_id, now)  # type: ignore[arg-type]
+            seq: int | None = None
+            if consumer_id and acked:
+                row = db.execute(
+                    "SELECT seq FROM events WHERE event_id = ?", (event_id,)
+                ).fetchone()
+                if row:
+                    seq = int(row["seq"])
+                    write_offset(cfg.offsets_dir, consumer_id, seq)
+            return (acked, seq)
 
     acked, seq = await asyncio.to_thread(_ack_and_offset)
     if not acked:
@@ -388,17 +422,18 @@ async def ack_event(
         from eventbus.db import ack_event as _ack_event
         from eventbus.offsets import write_offset  # noqa: PLC0415
 
-        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        acked = _ack_event(db, event_id, now)  # type: ignore[arg-type]
-        seq: int | None = None
-        if consumer_id and acked:
-            row = db.execute(
-                "SELECT seq FROM events WHERE event_id = ?", (event_id,)
-            ).fetchone()
-            if row:
-                seq = int(row["seq"])
-                write_offset(cfg.offsets_dir, consumer_id, seq)
-        return (acked, seq)
+        with get_db_lock():
+            now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            acked = _ack_event(db, event_id, now)  # type: ignore[arg-type]
+            seq: int | None = None
+            if consumer_id and acked:
+                row = db.execute(
+                    "SELECT seq FROM events WHERE event_id = ?", (event_id,)
+                ).fetchone()
+                if row:
+                    seq = int(row["seq"])
+                    write_offset(cfg.offsets_dir, consumer_id, seq)
+            return (acked, seq)
 
     acked, seq = await asyncio.to_thread(_ack_and_offset)
     if not acked:
@@ -421,13 +456,14 @@ async def nack(
     def _nack_and_promote() -> tuple[int, bool]:
         from eventbus.db import nack_event as _nack_event
 
-        failure_count = _nack_event(db, event_id)
-        if failure_count == -1:
-            return (-1, False)
-        promoted = False
-        if failure_count >= cfg.max_retry:
-            promoted = promote_single(db, cfg.deadletter_dir, event_id)
-        return (failure_count, promoted)
+        with get_db_lock():
+            failure_count = _nack_event(db, event_id)
+            if failure_count == -1:
+                return (-1, False)
+            promoted = False
+            if failure_count >= cfg.max_retry:
+                promoted = promote_single(db, cfg.deadletter_dir, event_id)
+            return (failure_count, promoted)
 
     failure_count, promoted = await asyncio.to_thread(_nack_and_promote)
     if failure_count == -1:
