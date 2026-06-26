@@ -86,7 +86,7 @@ app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
+async def health() -> dict[str, Any]:
     def _check() -> bool:
         assert _db is not None
         return check_db(_db)
@@ -97,10 +97,36 @@ async def health() -> dict[str, str]:
     dlq_task_status = (
         "running" if (_dlq_task is not None and not _dlq_task.done()) else "stopped"
     )
-    overall = (
-        "ok" if (db_status == "ok" and dlq_task_status == "running") else "degraded"
-    )
-    return {"status": overall, "db": db_status, "dlq_task": dlq_task_status}
+
+    # Broker health metrics
+    active_subscribers = 0
+    max_queue_depth = 0
+    slow_consumers = 0
+    if _broker is not None:
+        active_subscribers = _broker.subscriber_count()
+        max_queue_depth = _broker.max_queue_depth()
+        slow_consumers = _broker.slow_consumer_count()
+
+    degraded_reasons: list[str] = []
+    if db_status != "ok":
+        degraded_reasons.append("db_unavailable")
+    if dlq_task_status != "running":
+        degraded_reasons.append("dlq_task_stopped")
+    if max_queue_depth >= 500:
+        degraded_reasons.append("broker_queue_backlog_high")
+    if slow_consumers > 0:
+        degraded_reasons.append("slow_consumers_detected")
+
+    overall = "ok" if not degraded_reasons else "degraded"
+    return {
+        "status": overall,
+        "db": db_status,
+        "dlq_task": dlq_task_status,
+        "active_subscribers": active_subscribers,
+        "max_queue_depth": max_queue_depth,
+        "slow_consumers": slow_consumers,
+        "degraded_reasons": degraded_reasons,
+    }
 
 
 @app.post("/publish")
