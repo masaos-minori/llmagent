@@ -154,3 +154,46 @@ class TestCheckApprovalAllowedRoot:
             result = await check_approval(ctx, "write_file", {"path": outside})
 
         assert result is True
+
+
+# ── run_approval_checks(): skip_in_workflow_mode ───────────────────────────────
+
+
+class TestRunApprovalChecksSkipInWorkflowMode:
+    @pytest.mark.asyncio
+    async def test_run_approval_checks_skips_when_workflow_mode_active(self) -> None:
+        """run_approval_checks returns all calls as approved when skip_in_workflow_mode=True."""
+        from agent.tool_approval import run_approval_checks
+
+        cfg = _make_cfg(workflow_require_approval=True)
+        ctx = _make_ctx(cfg=cfg)
+        tool_calls = [
+            {"id": "tc1", "function": {"name": "write_file", "arguments": "{}"}},
+            {"id": "tc2", "function": {"name": "shell_run", "arguments": "{}"}},
+        ]
+
+        approved, denied = await run_approval_checks(
+            ctx, tool_calls, skip_in_workflow_mode=True
+        )
+
+        assert approved == tool_calls
+        assert denied == []
+
+    @pytest.mark.asyncio
+    async def test_run_approval_checks_not_skipped_by_default(self) -> None:
+        """run_approval_checks does not skip when skip_in_workflow_mode=False."""
+        from agent.tool_approval import run_approval_checks
+
+        cfg = _make_cfg(workflow_require_approval=True)
+        ctx = _make_ctx(cfg=cfg)
+        tool_calls = [
+            {"id": "tc1", "function": {"name": "write_file", "arguments": "{}"}},
+        ]
+
+        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
+            approved, denied = await run_approval_checks(
+                ctx, tool_calls, skip_in_workflow_mode=False
+            )
+
+        assert approved == tool_calls
+        assert denied == []

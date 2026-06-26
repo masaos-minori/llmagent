@@ -793,3 +793,51 @@ class TestWorkflowMode:
 
         with pytest.raises(ValueError, match="workflow_mode must be one of"):
             AgentConfig(workflow_mode="on")
+
+    @pytest.mark.asyncio
+    async def test_workflow_engine_receives_require_approval_from_config(self) -> None:
+        """WorkflowEngine receives require_approval=True when AgentConfig.workflow_require_approval=True."""
+        from agent.config_dataclasses import AgentConfig
+
+        ctx = _make_ctx()
+        ctx.cfg.workflow_mode = "auto"
+        ctx.cfg.workflow_require_approval = True
+        with (
+            patch("agent.orchestrator.WorkflowLoader") as mock_loader,
+            patch.object(
+                Orchestrator, "_process_turn", new=AsyncMock(return_value=("ok", None))
+            ),
+            patch("agent.orchestrator.StateStore") as mock_store,
+        ):
+            mock_loader.return_value.load.return_value = MagicMock()
+            orch = Orchestrator(ctx, workflow_mode="auto")
+
+            with patch("agent.orchestrator.WorkflowEngine") as mock_engine_cls:
+                mock_engine_cls.return_value.run = AsyncMock()
+                await orch.handle_turn("hello")
+                init_kwargs = mock_engine_cls.call_args.kwargs
+                assert init_kwargs["require_approval"] is True
+
+    @pytest.mark.asyncio
+    async def test_workflow_engine_require_approval_false_by_default(self) -> None:
+        """WorkflowEngine receives require_approval=False when AgentConfig.workflow_require_approval is not set."""
+        from agent.config_dataclasses import AgentConfig
+
+        ctx = _make_ctx()
+        ctx.cfg.workflow_mode = "auto"
+        ctx.cfg.workflow_require_approval = False
+        with (
+            patch("agent.orchestrator.WorkflowLoader") as mock_loader,
+            patch.object(
+                Orchestrator, "_process_turn", new=AsyncMock(return_value=("ok", None))
+            ),
+            patch("agent.orchestrator.StateStore") as mock_store,
+        ):
+            mock_loader.return_value.load.return_value = MagicMock()
+            orch = Orchestrator(ctx, workflow_mode="auto")
+
+            with patch("agent.orchestrator.WorkflowEngine") as mock_engine_cls:
+                mock_engine_cls.return_value.run = AsyncMock()
+                await orch.handle_turn("hello")
+                init_kwargs = mock_engine_cls.call_args.kwargs
+                assert init_kwargs["require_approval"] is False
