@@ -47,35 +47,13 @@ class _DbMixin(MixinBase):
             await self._cmd_db_session(rest)
             return
 
-        dispatch: dict[str, Any] = {
-            "help": self._db_help,
-            "stats": self._db_stats,
-            "urls": lambda: self._db_list_urls(rest),
-            "clean": lambda: self._db_clean(rest),
-            "rebuild-fts": self._db_rebuild_fts,
-            "vec-rebuild": self._db_vec_rebuild,
-            "reconcile-url": self._db_reconcile_url,
-            "health": self._db_health,
-            "checkpoint": lambda: self._db_checkpoint(rest.strip().upper() or None),
-            "vacuum": self._db_vacuum,
-            "purge": lambda: self._db_purge(rest),
-            "recover": lambda: self._db_recover(rest.strip() or None),
-            "consistency": self._db_consistency,
-        }
-        handler = dispatch.get(subcmd)
-        if handler:
-            result = handler()
-            if inspect.isawaitable(result):
-                await result
-        else:
-            self._out.write_validation_error(
-                "/db rag <subcmd> | /db session <subcmd>"
-                " | /db help | /db stats | /db urls [--lang ja|en] [--limit N]"
-                " | /db clean <url> | /db rebuild-fts"
-                " | /db health | /db checkpoint [MODE]"
-                " | /db vacuum | /db purge [--max-sessions N] [--max-age-days N]"
-                " | /db recover [<backup-path>] | /db consistency"
-            )
+        if subcmd == "help":
+            self._db_help()
+            return
+
+        self._out.write_validation_error(
+            "/db rag <subcmd> | /db session <subcmd>"
+        )
 
     async def _cmd_db_rag(self, args: str) -> None:
         """Handle /db rag <subcmd>."""
@@ -162,11 +140,6 @@ class _DbMixin(MixinBase):
         self._out.write_table(
             ["Subcommand", "Target DB", "Arguments", "Description"],
             rows,
-        )
-        self._out.write(
-            "Legacy aliases (prefer /db rag/session forms):"
-            " /db stats|urls|clean|rebuild-fts|vec-rebuild|reconcile-url"
-            "|health|checkpoint|vacuum|purge|recover|consistency"
         )
         self._out.write(
             "Note: workflow data lives in session.sqlite; no separate workflow DB."

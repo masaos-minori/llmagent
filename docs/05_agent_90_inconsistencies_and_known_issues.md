@@ -17,9 +17,9 @@ Each entry format:
 
 ### Session SQLite corruption recovery gap
 
-- **Type:** Known Gap
-- `/db recover` (compatibility alias) and `/db rag recover` target `rag.sqlite` only (via `RagMaintenanceService`)
-- `/db session recover [backup-path]` now exists: calls `DbMaintenanceService.recover_session()` → `recover_corruption(backup_path, target="session")`
+- **Type:** Resolved — `/db recover` alias removed (use `/db rag recover` instead)
+- `/db rag recover [backup-path]` targets `rag.sqlite` only (via `RagMaintenanceService`)
+- `/db session recover [backup-path]` exists: calls `DbMaintenanceService.recover_session()` → `recover_corruption(backup_path, target="session")`
 - Operator path: `/db session recover /path/to/backup.sqlite`
 
 ---

@@ -120,7 +120,6 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | `/db checkpoint [MODE]` | Session | WAL checkpoint | Flush WAL to main DB |
 | `/db vacuum` | Session | VACUUM | Recover free pages |
 | `/db purge [--max-sessions N] [--max-age-days N]` | Session | DELETE old sessions | Based on count or age |
-| `/db recover [backup-path]` | RAG | Integrity check; restore from backup if corrupt | Destructive if corrupt |
 | `/db consistency` | RAG | None | Chunks/FTS/vector index sync check |
 
 #### `/db rag` subcommands
@@ -258,3 +257,20 @@ If the file cannot be read: `Reload failed (I/O error): <message>`
 | Skipped | `[SKIP]` | New MCP server — restart required |
 
 See [Configuration: Config file reload eligibility](05_agent_08_configuration.md#config-file-ownership-and-hot-reload-eligibility) for the full per-field classification matrix.
+
+---
+
+## Migration Notes
+
+### /db alias commands (removed)
+
+The following flat alias commands have been removed. Use the canonical sub-command
+syntax instead:
+
+| Removed | Replacement |
+|---------|------------|
+| `/db-list` | `/db list` |
+| `/db-query <sql>` | `/db query <sql>` |
+| `/db recover` | See `/db help` for the canonical recovery command |
+
+These aliases were provided for backward compatibility and are no longer supported.
