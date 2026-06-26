@@ -1,46 +1,8 @@
-# Implementation: scripts/eventbus/broker.py — EventBroker new module (req #35)
-
-## Goal
-
-Create the in-memory pub/sub broker module that replaces SQLite polling as the live-delivery path. Each subscriber gets a dedicated `asyncio.Queue`; the broker fans out events to matching subscribers.
-
-## Scope
-
-- New file `scripts/eventbus/broker.py`
-- `EventBroker` class with `subscribe()`, `unsubscribe()`, `publish()`, `shutdown()`
-- `_Subscriber` internal dataclass
-- Topic-aware fan-out (topics=[] means all topics)
-
-## Assumptions
-
-- All broker operations run on the asyncio event loop — no threading.Lock needed
-- Queue maxsize=1000; full queues drop with WARNING log (non-blocking publish)
-- `None` sentinel sent via `shutdown()` signals all subscribers to exit gracefully
-- This module has no imports from `app.py` (one-way dependency)
-
-## Implementation
-
-### Target file
-
-`scripts/eventbus/broker.py` (new)
-
-### Procedure
-
-1. Create the file with `_Subscriber` dataclass and `EventBroker` class
-2. Implement all five public methods
-
-### Method
-
-Create new module from scratch.
-
-### Details
-
-```python
 from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -109,14 +71,3 @@ class EventBroker:
             1 for sub in list(self._subscribers)
             if sub.queue.qsize() >= _SLOW_CONSUMER_THRESHOLD
         )
-```
-
-## Validation plan
-
-| Check | Command | Target |
-|---|---|---|
-| Import works | `python3 -c "from eventbus.broker import EventBroker"` | no error |
-| Fan-out | publish → both subscribers receive | pass |
-| Topic filter | publish topic="a", subscriber topics=["b"] → no delivery | pass |
-| Lint | `ruff check scripts/eventbus/broker.py` | 0 errors |
-| Type check | `mypy scripts/eventbus/broker.py` | no errors |

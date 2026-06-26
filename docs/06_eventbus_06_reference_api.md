@@ -61,6 +61,27 @@ class EventBusConfig:
 
 ---
 
+## scripts/eventbus/broker.py
+
+| Class | Description |
+|---|---|
+| `_Subscriber` | Internal dataclass: `queue: asyncio.Queue[dict \| None]`, `topics: list[str]` (empty = all topics) |
+| `EventBroker` | In-memory pub/sub broker with topic-aware fan-out |
+
+### EventBroker methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `subscribe` | `(topics: list[str]) -> _Subscriber` | Register a new subscriber; topics=[] means all topics |
+| `unsubscribe` | `(sub: _Subscriber) -> None` | Remove subscriber from the registry; idempotent |
+| `publish` | `(event: dict[str, Any]) -> int` | Fan out event to matching subscribers; returns delivery count |
+| `shutdown` | `() -> None` | Send None sentinel to all subscribers to unblock their queue.get() calls |
+| `subscriber_count` | `() -> int` | Return number of active subscribers |
+| `max_queue_depth` | `() -> int` | Return max queue depth across all subscribers |
+| `slow_consumer_count` | `() -> int` | Return count of subscribers with queue depth >= 100 |
+
+---
+
 ## scripts/eventbus/offsets.py
 
 | Function | Signature | Description |
