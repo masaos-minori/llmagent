@@ -8,7 +8,7 @@ tested without a running REPL.
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 from shared.mcp_config import McpServerHealthState
@@ -42,7 +42,7 @@ def _resolve_health_state(ctx: AgentContext, key: str) -> McpServerHealthState:
     registry = ctx.services.health_registry
     if registry is None:
         return McpServerHealthState.HEALTHY
-    return registry.get_state(key)
+    return cast(McpServerHealthState, registry.get_state(key))
 
 
 class McpStatusService:

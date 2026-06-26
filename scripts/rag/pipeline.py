@@ -23,6 +23,7 @@ import logging
 import sqlite3
 import time
 from collections.abc import Callable
+from typing import Literal
 
 import httpx
 from db.helper import SQLiteHelper
@@ -45,7 +46,7 @@ from rag.repository import (
     deduplicate_chunks,
     fetch_full_document,
 )
-from rag.stage import PipelineContext, StageResult
+from rag.stage import PipelineContext, PipelineStage, StageResult
 from rag.stages.augment import AugmentStage
 from rag.stages.fusion import FusionStage
 from rag.stages.mqe import MqeStage
@@ -150,8 +151,8 @@ class RagPipeline:
             )
 
     def _get_stage_status(
-        self, stage: object, ctx: PipelineContext
-    ) -> tuple[str, str | None]:
+        self, stage: PipelineStage, ctx: PipelineContext
+    ) -> tuple[Literal["success", "fallback", "failure"], str | None]:
         name = type(stage).__name__
         if name == "MqeStage":
             return self._mqe_status()
@@ -163,28 +164,30 @@ class RagPipeline:
             return self._rerank_status()
         return "success", None
 
-    def _mqe_status(self) -> tuple[str, str | None]:
+    def _mqe_status(self) -> tuple[Literal["success", "fallback"], str | None]:
         if not self._cfg.use_mqe:
             return "fallback", "use_mqe=False"
         return "success", None
 
-    def _search_status(self, ctx: PipelineContext) -> tuple[str, str | None]:
+    def _search_status(
+        self, ctx: PipelineContext
+    ) -> tuple[Literal["success", "fallback"], str | None]:
         if not ctx.search_results:
             return "fallback", "no search results"
         return "success", None
 
-    def _fusion_status(self) -> tuple[str, str | None]:
+    def _fusion_status(self) -> tuple[Literal["success", "fallback"], str | None]:
         if not self._cfg.use_rrf:
             return "fallback", "use_rrf=False"
         return "success", None
 
-    def _rerank_status(self) -> tuple[str, str | None]:
+    def _rerank_status(self) -> tuple[Literal["success", "fallback"], str | None]:
         if not self._cfg.use_rerank:
             return "fallback", "use_rerank=False"
         return "success", None
 
     async def _run_stage(
-        self, stage: object, ctx: PipelineContext, db: SQLiteHelper
+        self, stage: PipelineStage, ctx: PipelineContext, db: SQLiteHelper
     ) -> None:
         """Run a single pipeline stage and record its result."""
         t0 = time.perf_counter()
@@ -202,6 +205,8 @@ class RagPipeline:
             logger.warning("Stage %s failed: %s", stage.__class__.__name__, e)
         elapsed = time.perf_counter() - t0
         self.last_timings[stage.__class__.__name__] = elapsed
+        stage_status: Literal["success", "fallback", "failure"]
+        stage_reason: str | None
         if exc_msg is not None:
             stage_status, stage_reason = "failure", exc_msg
         else:
@@ -415,7 +420,9 @@ class RagPipeline:
                 set_fallback_reason=http_fallback_reasons.append,
             )
             elapsed = time.perf_counter() - t0
-            http_status = "success" if result is not None else "fallback"
+            http_status: Literal["success", "fallback"] = (
+                "success" if result is not None else "fallback"
+            )
             http_fallback_reason = (
                 http_fallback_reasons[0]
                 if http_fallback_reasons
@@ -512,7 +519,9 @@ class RagPipeline:
                 timeout=self._cfg.refiner_timeout,
             )
             elapsed = time.perf_counter() - t0
-            refiner_status = "success" if refined.text is not None else "fallback"
+            refiner_status: Literal["success", "fallback"] = (
+                "success" if refined.text is not None else "fallback"
+            )
             self.last_stage_results.append(
                 StageResult(
                     stage_name="Refiner",

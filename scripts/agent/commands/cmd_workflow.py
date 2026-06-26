@@ -16,10 +16,24 @@ logger = logging.getLogger(__name__)
 
 
 class _WorkflowMixin(MixinBase):
-    """Workflow approval slash-command handlers."""
+    """Workflow approval slash-command handlers.
+
+    These commands resolve workflow-level approval gates only (DB-persisted,
+    per-task record in ``workflow_approvals``). Per-tool interactive approval
+    (``run_approval_checks``) is handled separately via stdin prompts and is
+    not affected by these commands.
+
+    Startup recovery: if the agent restarts while an approval is pending,
+    ``startup._recover_pending_approvals()`` restores ``ctx.workflow.approval_pending``
+    before the REPL starts. The user will see a startup notice and can then
+    use ``/approve`` or ``/reject`` to resolve it.
+    """
 
     def _cmd_approve(self, arg: str) -> None:
-        """Approve the pending workflow task, optionally with a reason."""
+        """Approve the pending workflow-level approval gate (workflow_approvals table only).
+
+        Does not affect per-tool interactive approval (tool_approval.run_approval_checks).
+        """
         from agent.workflow import (
             StateStore,  # noqa: PLC0415 — lazy: avoids startup cost
         )
@@ -46,7 +60,10 @@ class _WorkflowMixin(MixinBase):
         self._out.write(f"Approved: {approval_id}")
 
     def _cmd_reject(self, arg: str) -> None:
-        """Reject the pending workflow task, optionally with a reason."""
+        """Reject the pending workflow-level approval gate (workflow_approvals table only).
+
+        Does not affect per-tool interactive approval (tool_approval.run_approval_checks).
+        """
         from agent.workflow import (
             StateStore,  # noqa: PLC0415 — lazy: avoids startup cost
         )

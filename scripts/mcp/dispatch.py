@@ -9,10 +9,11 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-ToolArgs = dict[str, object]
+ToolArgs = dict[str, Any]
 
 
 @dataclass(frozen=True)

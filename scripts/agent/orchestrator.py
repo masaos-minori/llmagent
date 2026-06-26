@@ -241,7 +241,7 @@ class Orchestrator:
         """Create a workflow task and audit its start."""
         assert self._workflow_def is not None  # noqa: B101
         workflow_id = str(uuid.uuid4())
-        task = StateStore().create_task(  # type: ignore[assignment]  # StateStore.create_task returns TaskRecord
+        task = StateStore().create_task(
             session_id=session_id,
             turn_number=ctx.stats.stat_turns,
             workflow_version=self._workflow_def.version,

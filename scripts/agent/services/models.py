@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from db.maintenance import RagConsistencyReport
 from db.models import PurgeCounts, ToolResultRow, WalCheckpointCounts
 
 from agent.services.enums import (
@@ -123,7 +124,7 @@ class DbRecoverResult:
 class RagConsistencyResult:
     is_consistent: bool
     issues: list[str]
-    report: object  # db.maintenance.RagConsistencyReport
+    report: RagConsistencyReport
 
 
 @dataclass(frozen=True)

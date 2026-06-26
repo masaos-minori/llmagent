@@ -361,12 +361,12 @@ class WebCrawler:
         soup = BeautifulSoup(html, "lxml")
         for a in soup.find_all("a", href=True):
             if self._skip_nofollow:
-                rel = a.get("rel")  # type: ignore[assignment]
+                rel = a.get("rel")
                 if isinstance(rel, str):
                     rel = rel.split()
                 if rel and "nofollow" in rel:
                     continue
-            next_url = normalize_url(urljoin(current_url, a["href"]))  # type: ignore[arg-type]
+            next_url = normalize_url(urljoin(current_url, a["href"]))
             if self._skip_external and not same_origin(next_url, start_url):
                 continue
             queue.put_nowait((next_url, depth + 1))

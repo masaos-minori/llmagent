@@ -17,7 +17,7 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 import orjson
 from shared.json_utils import dumps as _json_dumps
@@ -35,7 +35,7 @@ def _write_stdout(data: str) -> None:
 
 # Type alias for MCP tool argument dictionaries.
 # Pydantic models in each server validate the actual structure at runtime.
-ToolArgs = dict[str, object]
+ToolArgs = dict[str, Any]
 
 # Maximum response size returned to the agent; larger responses are truncated.
 MCP_MAX_RESPONSE_BYTES: int = 512 * 1024
@@ -145,7 +145,9 @@ class MCPServer:
     http_host: str = "127.0.0.1"
     http_port: int  # e.g. 8004
     app_module: str  # uvicorn target, e.g. "WebSearchMCPServer:app"
-    mcp_tools: list[dict[str, object]]  # tool definitions (retained for subclass reference)
+    mcp_tools: list[
+        dict[str, Any]
+    ]  # tool definitions (retained for subclass reference)
 
     async def dispatch(self, name: str, args: ToolArgs) -> DispatchResult:
         """Handle a tools/call request. Subclasses must override this."""
@@ -159,7 +161,7 @@ class MCPServer:
         """
         return [t["name"] for t in getattr(self, "mcp_tools", [])]
 
-    def list_tools_with_server_key(self) -> list[dict[str, object]]:
+    def list_tools_with_server_key(self) -> list[dict[str, Any]]:
         """Return tool metadata including server_key for live discovery-based routing.
 
         Each tool dict includes: name, description, inputSchema, server_key.
@@ -253,7 +255,9 @@ class MCPServer:
                     loop, 0, f"Internal server error: {e}", True, False, 0, 0
                 )
 
-    async def _process_stdio_line(self, loop: asyncio.AbstractEventLoop, line: bytes) -> None:
+    async def _process_stdio_line(
+        self, loop: asyncio.AbstractEventLoop, line: bytes
+    ) -> None:
         """Parse a stdio request line and write the response.
 
         Raises on invalid input or dispatch errors.
@@ -315,9 +319,7 @@ class MCPServer:
         resp = _json_dumps(dataclasses.asdict(payload))
         loop.run_in_executor(None, _write_stdout, resp + "\n")
 
-    async def _handle_stdio_request(
-        self, line: bytes
-    ) -> _StdioRequestResult:
+    async def _handle_stdio_request(self, line: bytes) -> _StdioRequestResult:
         """Parse and handle a stdio request line.
 
         Returns the parsed request result including the tool name.
@@ -335,12 +337,14 @@ class MCPServer:
         if name == "__list_tools__":
             result = _json_dumps({"tools": self.list_tools()})
             return _StdioRequestResult(
-                is_error=False, result=result, req_id=req_id, is_introspection=True, name=name
+                is_error=False,
+                result=result,
+                req_id=req_id,
+                is_introspection=True,
+                name=name,
             )
 
-        dispatch_result = await self.dispatch(
-            name, dict(req.get("args", {}))
-        )
+        dispatch_result = await self.dispatch(name, dict(req.get("args", {})))
         tr = _truncate_with_meta(dispatch_result.output)
         result = tr.text
         is_error = dispatch_result.is_error
@@ -349,5 +353,9 @@ class MCPServer:
             self._record_tool_error(name)
 
         return _StdioRequestResult(
-            is_error=is_error, result=result, req_id=req_id, is_introspection=False, name=name
+            is_error=is_error,
+            result=result,
+            req_id=req_id,
+            is_introspection=False,
+            name=name,
         )

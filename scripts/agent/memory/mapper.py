@@ -11,6 +11,7 @@ import sqlite3
 import struct
 from collections.abc import Mapping
 from dataclasses import replace
+from typing import cast
 
 import orjson
 
@@ -70,9 +71,9 @@ def _require(d: Mapping[str, object], key: str) -> object:
 def _parse_tags(raw: object) -> list[str]:
     """Parse tags from a JSON string or list value."""
     if isinstance(raw, str):
-        return orjson.loads(raw)
+        return cast(list[str], orjson.loads(raw))
     if isinstance(raw, list):
-        return list(raw)
+        return [str(v) for v in raw]
     raise MemorySchemaError(
         f"tags must be a JSON string or list, got {type(raw).__name__}"
     )

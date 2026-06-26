@@ -146,7 +146,9 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             return 0
         chunks = self._build_chunk_list(chunk_doc)
         chunking_strategy = "heading" if self._is_markdown_source(chunk_doc) else "text"
-        written = self._write_chunk_files(chunks, chunk_doc, src_path, chunking_strategy)
+        written = self._write_chunk_files(
+            chunks, chunk_doc, src_path, chunking_strategy
+        )
         logger.info(
             "chunked %s chunks from %s",
             written,
@@ -161,7 +163,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     # ── Markdown heading chunking ──────────────────────────────────────────────
 
-    def _is_markdown_source(self, data: ChunkDocument | dict[str, object]) -> bool:
+    def _is_markdown_source(self, data: ChunkDocument | dict[str, Any]) -> bool:
         """Return True when the source should use heading-based snippet chunking.
 
         .md / .markdown / .mdx files always use heading chunking regardless of md_index_enable.
@@ -235,7 +237,9 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         content = data.content
         code_blocks = data.code_blocks
 
-        text_triples: list[tuple[str, str, str]] = self._build_text_triples(data, lang, content)
+        text_triples: list[tuple[str, str, str]] = self._build_text_triples(
+            data, lang, content
+        )
         code_triples: list[tuple[str, str, str]] = self._build_code_triples(code_blocks)
 
         return text_triples + code_triples
@@ -250,7 +254,9 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         if use_markdown:
             return [("text", c, "") for c in self._chunk_markdown_by_heading(content)]
         if lang == "ja":
-            return [("text", orig, norm) for orig, norm in self._chunk_japanese(content)]
+            return [
+                ("text", orig, norm) for orig, norm in self._chunk_japanese(content)
+            ]
         return [("text", c, "") for c in self._chunk_english(content)]
 
     def _build_code_triples(self, code_blocks: list[str]) -> list[tuple[str, str, str]]:
@@ -275,7 +281,9 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         written: int = 0
         for idx, (chunk_type, chunk_content, norm_content) in enumerate(chunks):
             out_path = self._chunk_dir / f"{src_path.stem}-{idx:04d}.json"
-            payload = self._build_chunk_payload(metadata, idx, chunk_type, chunk_content, norm_content)
+            payload = self._build_chunk_payload(
+                metadata, idx, chunk_type, chunk_content, norm_content
+            )
             try:
                 out_path.write_bytes(
                     orjson.dumps(payload, option=orjson.OPT_INDENT_2),

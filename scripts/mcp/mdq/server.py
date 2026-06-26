@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -172,7 +172,7 @@ class MdqMCPServer(MCPServer):
     server_version = "1.0.0"
     http_port = 8013
     app_module = "mcp.mdq.server:app"
-    mcp_tools = _MCP_TOOLS
+    mcp_tools = cast(list[dict[str, Any]], _MCP_TOOLS)
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_mdq_tool(name, args)

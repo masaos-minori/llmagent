@@ -56,7 +56,7 @@ class ChunkData(TypedDict):
 
 
 # ChunkData type for ** spreading (cannot use TypedDict in constructor calls)
-_ChunkDataDict = dict[str, Any]  # type: ignore[name-defined]
+_ChunkDataDict = dict[str, Any]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -348,12 +348,16 @@ class RagIngester:
             )
             return
         if new_fetched_at is not None:
-            self._update_etag_with_freshness(db, doc_id, etag, last_modified, new_fetched_at)
+            self._update_etag_with_freshness(
+                db, doc_id, etag, last_modified, new_fetched_at
+            )
         else:
             self._update_etag_null_fill(db, doc_id, etag, last_modified)
         self._log_etag_updated(doc_id)
 
-    def _is_stale_update(self, db: SQLiteHelper, doc_id: int, new_fetched_at: str | None) -> bool:
+    def _is_stale_update(
+        self, db: SQLiteHelper, doc_id: int, new_fetched_at: str | None
+    ) -> bool:
         """Return True when the incoming data is older than stored fetched_at."""
         if new_fetched_at is None:
             return False
@@ -364,7 +368,12 @@ class RagIngester:
         return bool(stored_fetched_at and new_fetched_at < stored_fetched_at)
 
     def _update_etag_with_freshness(
-        self, db: SQLiteHelper, doc_id: int, etag: str | None, last_modified: str | None, fetched_at: str
+        self,
+        db: SQLiteHelper,
+        doc_id: int,
+        etag: str | None,
+        last_modified: str | None,
+        fetched_at: str,
     ) -> None:
         """Overwrite ETag/Last-Modified when freshness is proven."""
         db.execute(
@@ -409,7 +418,9 @@ class RagIngester:
     ) -> bool:
         """Handle an existing document; return True when the caller should skip insertion."""
         if not force and url.startswith("file://"):
-            return self._handle_existing_file(db, url, existing_doc_id, etag, last_modified)
+            return self._handle_existing_file(
+                db, url, existing_doc_id, etag, last_modified
+            )
         if not force:
             self._update_etag(db, existing_doc_id, etag, last_modified, fetched_at)
             return True
@@ -428,7 +439,9 @@ class RagIngester:
             "SELECT etag, last_modified FROM documents WHERE doc_id = ?",
             (existing_doc_id,),
         ).fetchone()
-        if stored and self._is_file_unchanged(stored["etag"], stored["last_modified"], etag, last_modified):
+        if stored and self._is_file_unchanged(
+            stored["etag"], stored["last_modified"], etag, last_modified
+        ):
             logger.info(
                 "file:// unchanged (sha256 match): %s",
                 url,
@@ -466,7 +479,9 @@ class RagIngester:
         ).fetchone()
         if existing_row:
             existing_doc_id: int = existing_row[0]
-            if self._handle_existing_document(db, url, existing_doc_id, force, etag, last_modified, fetched_at):
+            if self._handle_existing_document(
+                db, url, existing_doc_id, force, etag, last_modified, fetched_at
+            ):
                 return None
             self._delete_existing_document(db, existing_doc_id)
         cur = db.execute(

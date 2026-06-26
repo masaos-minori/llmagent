@@ -216,7 +216,7 @@ class LLMClient:
             finish_reason = None
         usage = self._parse_usage(raw)
         return LLMResponse(
-            message=message_raw,  # type: ignore[typeddict-item] — validated as dict above
+            message=message_raw,  # type: ignore[arg-type]
             finish_reason=finish_reason,
             usage=usage,
         )
@@ -256,7 +256,7 @@ class LLMClient:
             }
         tc = tool_calls_map[idx]
         if tc_delta.get("id"):
-            tc["id"] = tc_delta["id"]  # type: ignore[typeddict-item]
+            tc["id"] = tc_delta["id"]
         fn = tc_delta.get("function")
         if fn is not None:
             tc["function"]["name"] += fn.get("name", "")

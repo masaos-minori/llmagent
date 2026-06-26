@@ -7,6 +7,7 @@ Dependency direction: rag.mcp.models → rag.mcp.service → rag.mcp.server
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any, cast
@@ -102,8 +103,14 @@ class RagPipelineMCPService:
             reranked: list[RagHit],
         ) -> None:
             captured["queries"] = [q for q in queries]
-            captured["merged"] = [dict(h) for h in merged]  # type: ignore[arg-type]
-            captured["reranked"] = [dict(h) for h in reranked]  # type: ignore[arg-type]
+            captured["merged"] = [
+                dataclasses.asdict(h) if dataclasses.is_dataclass(h) else dict(h)
+                for h in merged
+            ]
+            captured["reranked"] = [
+                dataclasses.asdict(h) if dataclasses.is_dataclass(h) else dict(h)
+                for h in reranked
+            ]
 
         return _fn, cast(PipelineCapture, captured)
 
@@ -148,9 +155,7 @@ class RagPipelineMCPService:
             selected_hits=selected_hits,
             queries=captured.get("queries", []),
             merged_hits=[dict(h) for h in captured.get("merged", [])],
-            reranked_hits=[
-                dict(h) for h in captured.get("reranked", [])
-            ],
+            reranked_hits=[dict(h) for h in captured.get("reranked", [])],
             elapsed=dict(pipeline.last_timings),
         )
 

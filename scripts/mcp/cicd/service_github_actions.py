@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from http import HTTPStatus
+from typing import Any, cast
 
 import httpx
 import orjson
@@ -304,7 +305,7 @@ class GitHubActionsBackend:
             jobs_resp,
             f"get_workflow_logs jobs {owner}/{repo} run={run_id}",
         )
-        return orjson.loads(jobs_resp.content)
+        return cast(dict[Any, Any], orjson.loads(jobs_resp.content))
 
     async def _append_job_output(
         self,

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 from shared.formatters import fmt_md_link
 from shared.json_utils import dumps as _json_dumps
@@ -63,25 +62,24 @@ class GitHubService(_GitHubServiceCore):
         repo: str,
         dry_run: bool,
         preview_callback: Callable[[], str],
-        execute_callback: Callable[[], Awaitable[Any]],
+        execute_callback: Callable[[], Awaitable[str]],
     ) -> str:
         """Execute a GitHub operation with optional dry-run mode."""
         self._assert_allowed_repo(owner, repo)
         if dry_run:
             return self._dry_run_preview(preview_callback())
-        result = await execute_callback()
-        return result
+        return await execute_callback()
 
-    def _execute_with_dry_run_preview(
+    async def _execute_with_dry_run_preview(
         self,
         owner: str,
         repo: str,
         dry_run: bool,
         preview_str: str,
-        execute_callback: Callable[[], Awaitable[Any]],
+        execute_callback: Callable[[], Awaitable[str]],
     ) -> str:
         """Execute a GitHub operation with optional dry-run mode (string preview)."""
-        return self._execute_with_dry_run(
+        return await self._execute_with_dry_run(
             owner, repo, dry_run, lambda: preview_str, execute_callback
         )
 

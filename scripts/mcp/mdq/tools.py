@@ -5,13 +5,13 @@ MCP tool schema definitions for mdq-mcp server (inputSchema format).
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Any, TypedDict
 
 
 class MCPToolSchema(TypedDict):
     name: str
     description: str
-    inputSchema: dict  # type: ignore[reportUnknownVariableType] - MCP schema format
+    inputSchema: dict[str, Any]
     status: str
 
 
