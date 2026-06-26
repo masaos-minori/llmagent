@@ -12,7 +12,13 @@ from pydantic import BaseModel
 
 class ParsedSection(TypedDict):
     heading: str
+    heading_level: int
+    heading_path: str
     content: str
+    start_line: int
+    end_line: int
+    ordinal: int
+    parent_heading: str | None
 
 
 class ParsedSectionRequest(TypedDict):
