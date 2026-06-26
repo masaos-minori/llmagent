@@ -4,6 +4,7 @@ Event Bus publish and health endpoint tests.
 
 from __future__ import annotations
 
+import sqlite3
 import uuid
 from pathlib import Path
 from typing import Any
@@ -41,7 +42,7 @@ def test_health_ok(client: TestClient) -> None:
 
 def test_health_degraded_when_db_unavailable(client: TestClient) -> None:
     mock_db = MagicMock()
-    mock_db.execute.side_effect = Exception("DB gone")
+    mock_db.execute.side_effect = sqlite3.OperationalError("DB gone")
     with patch("eventbus.app._db", mock_db):
         resp = client.get("/health")
     assert resp.status_code == 200
@@ -85,5 +86,6 @@ def test_publish_succeeds_if_jsonl_append_fails(client: TestClient) -> None:
 
     replay = client.get("/replay", params={"since_seq": 0, "format": "json"})
     assert replay.status_code == 200
-    event_ids = [e["event_id"] for e in replay.json()]
+    body = replay.json()
+    event_ids = [e["event_id"] for e in body["items"]]
     assert ev["event_id"] in event_ids

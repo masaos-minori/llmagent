@@ -78,7 +78,8 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
 
     r = client.get("/dlq")
     assert r.status_code == 200
-    ids = [e["event_id"] for e in r.json()]
+    body = r.json()
+    ids = [e["event_id"] for e in body["items"]]
     assert ev["event_id"] in ids
 
 
@@ -101,7 +102,8 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     assert r.json()["requeued"] is True
 
     r2 = client.get("/dlq")
-    ids = [e["event_id"] for e in r2.json()]
+    body2 = r2.json()
+    ids = [e["event_id"] for e in body2["items"]]
     assert ev["event_id"] not in ids
 
 

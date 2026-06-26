@@ -47,7 +47,8 @@ def test_replay_returns_events_since_seq(client: TestClient) -> None:
 
     r = client.get("/replay?since_seq=0&format=json")
     assert r.status_code == 200
-    ids = [e["event_id"] for e in r.json()]
+    body = r.json()
+    ids = [e["event_id"] for e in body["items"]]
     assert ev1["event_id"] in ids
     assert ev2["event_id"] in ids
 
@@ -60,7 +61,8 @@ def test_replay_since_seq_filters(client: TestClient) -> None:
 
     r = client.get(f"/replay?since_seq={s1}&format=json")
     assert r.status_code == 200
-    ids = [e["event_id"] for e in r.json()]
+    body = r.json()
+    ids = [e["event_id"] for e in body["items"]]
     assert ev1["event_id"] not in ids
     assert ev2["event_id"] in ids
 

@@ -19,7 +19,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         storage_dir=str(tmp_path / "storage"),
         offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
-        max_retry=3,
+        max_retry=2,
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = Path(__file__).parent.parent / "schemas" / "event_envelope.json"
@@ -61,12 +61,13 @@ def test_dlq_pagination(client: TestClient) -> None:
         resp = client.post("/publish", json=ev)
         events.append(ev["event_id"])
 
-    # Promote all to DLQ
+    # Promote all to DLQ (2 nacks per event)
     for event_id in events:
-        client.post(f"/nack?event_id={event_id}")
-    # Need to nack 3 times to reach max_retry
+        r = client.post(f"/nack?event_id={event_id}")
+        print(f"nack1: {r.status_code} {r.json()}")
     for event_id in events:
-        client.post(f"/nack?event_id={event_id}")
+        r = client.post(f"/nack?event_id={event_id}")
+        print(f"nack2: {r.status_code} {r.json()}")
 
     r = client.get("/dlq?limit=100&offset=0")
     assert r.status_code == 200

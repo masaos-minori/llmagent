@@ -44,7 +44,7 @@ _DLQ_INTERVAL = 60.0
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> Any:
-    global _cfg, _db, _envelope_schema, _dlq_task
+    global _cfg, _db, _envelope_schema, _dlq_task, _broker
     cfg_path = get_config_path()
     schema_path = get_schema_path()
     logger.info("eventbus: config=%s schema=%s", cfg_path, schema_path)
@@ -183,12 +183,21 @@ async def publish(request: Request) -> dict[str, Any]:
 async def replay(
     since_seq: int = Query(default=0, ge=0),
     fmt: str = Query(default="sse", alias="format"),
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
 ) -> Any:
     assert _db is not None
     rows = await asyncio.to_thread(fetch_events_since, _db, since_seq)
 
     if fmt == "json":
-        return [_row_to_dict(r) for r in rows]
+        total = len(rows)
+        paginated = rows[offset : offset + limit]
+        return {
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "items": [_row_to_dict(r) for r in paginated],
+        }
 
     async def _sse_gen() -> Any:
         for row in rows:
@@ -263,9 +272,19 @@ async def subscribe(
 
 
 @app.get("/dlq")
-async def dlq_list() -> list[dict[str, Any]]:
+async def dlq_list(
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, Any]:
     rows = await asyncio.to_thread(fetch_dlq, _db)  # type: ignore[arg-type]
-    return [dict(r) for r in rows]
+    total = len(rows)
+    paginated = rows[offset : offset + limit]
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "items": [dict(r) for r in paginated],
+    }
 
 
 @app.post("/dlq/{event_id}/requeue")
@@ -284,6 +303,36 @@ async def ack(
     if not event_id:
         raise HTTPException(status_code=400, detail="event_id is required")
 
+    def _ack_and_offset() -> tuple[bool, int | None]:
+        from eventbus.db import ack_event as _ack_event
+        from eventbus.offsets import write_offset  # noqa: PLC0415
+
+        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        acked = _ack_event(_db, event_id, now)  # type: ignore[arg-type]
+        seq: int | None = None
+        if consumer_id and acked:
+            assert _db is not None
+            row = _db.execute(
+                "SELECT seq FROM events WHERE event_id = ?", (event_id,)
+            ).fetchone()
+            if row:
+                seq = int(row["seq"])
+                assert _cfg is not None
+                write_offset(_cfg.offsets_dir, consumer_id, seq)
+        return (acked, seq)
+
+    acked, seq = await asyncio.to_thread(_ack_and_offset)
+    if not acked:
+        raise HTTPException(status_code=404, detail="event not found or already acked")
+    logger.info("event acked event_id=%s", event_id)
+    return {"event_id": event_id, "acked": True, "seq": seq}
+
+
+@app.post("/events/{event_id}/ack")
+async def ack_event(
+    event_id: str,
+    consumer_id: str = Query(default=""),
+) -> dict[str, Any]:
     def _ack_and_offset() -> tuple[bool, int | None]:
         from eventbus.db import ack_event as _ack_event
         from eventbus.offsets import write_offset  # noqa: PLC0415
