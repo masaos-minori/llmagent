@@ -206,7 +206,7 @@ class TestRerankStage:
     @pytest.mark.asyncio
     async def test_rerank_raises_on_error(self) -> None:
         """RerankStage propagates RagRerankError instead of falling back to RRF order."""
-        from rag.llm import RagRerankError
+        from rag.llm_prompts import RagRerankError
 
         llm = MagicMock()
         llm.cross_encoder_rerank = AsyncMock(

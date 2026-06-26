@@ -10,8 +10,6 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING
 
-from rag.enums import PipelineStageName
-
 if TYPE_CHECKING:
     from rag.stage import StageResult
 
@@ -20,7 +18,6 @@ from rag.models_result import SearchDiagnostics
 __all__ = [
     "MergedHit",
     "PipelineRunResult",
-    "PipelineStageResult",
     "RagHit",
     "RagQuery",
     "RankedHit",
@@ -74,16 +71,6 @@ class RagQuery:
 
     query: str
     context: str = ""
-
-
-@dataclasses.dataclass
-class PipelineStageResult:
-    """Records the outcome of a single pipeline stage execution."""
-
-    stage: PipelineStageName | str
-    success: bool
-    failure_reason: str | None = None
-    elapsed_s: float = 0.0
 
 
 @dataclasses.dataclass

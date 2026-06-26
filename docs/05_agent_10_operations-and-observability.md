@@ -478,6 +478,38 @@ inserted 0/5 chunks: https://example.com/docs/page3  <- skipped (already registe
 
 ---
 
+## Memory Status (`/memory status`)
+
+Example output:
+
+```
+Field                   Value
+----------------------  --------------------------------------------------
+Mode                    hybrid
+Memory layer            enabled
+Embedding enabled       Yes
+Local-only              enabled
+Circuit                 closed
+Consecutive failures    0
+FTS fallback count      2
+Last retrieval mode     hybrid
+Entries (total)         142
+  semantic              89
+  episodic              53
+Embed skip count        8
+  source:RULE           34
+  source:DECISION       22
+  source:FAILURE        15
+  source:CONVERSATION   71
+```
+
+- **Mode**: `hybrid` | `fts-only` | `degraded` | `disabled`
+- **Local-only**: `enabled` when `memory_local_only = true` in `memory.toml`
+- **FTS fallback count**: sessions where embedding was unavailable and FTS-only was used
+- **Embed skip count**: entries stored without embedding (circuit open or embed disabled)
+
+---
+
 ## Graceful Shutdown
 
 - `SIGTERM` → converted to `SystemExit(0)` by `agent.py`

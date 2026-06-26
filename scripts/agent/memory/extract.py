@@ -49,18 +49,25 @@ SEMANTIC_CONTENT_THRESHOLD = 200
 # Importance scoring divisor for length-based bonus
 IMPORTANCE_LENGTH_DIVISOR = 2000.0
 
+# Keywords indicating a design decision was made
+_DECISION_KEYWORDS = re.compile(
+    r"\b(rationale|trade.off|chose|opted|decided|decision|tradeoff)\b",
+    re.IGNORECASE,
+)
+
 # Keywords that strongly suggest semantic (rule/policy/decision) content
 _SEMANTIC_KEYWORDS = re.compile(
     r"\b(rule|policy|always|never|should|constraint|decided|decision"
     r"|guideline|standard|convention|principle|requirement|must not|must be"
-    r"|best practice|invariant)\b",
+    r"|best practice|invariant|mandatory|enforce|prohibit|forbidden|must)\b",
     re.IGNORECASE,
 )
 
 # Keywords suggesting episodic (failure/fix) content
 _EPISODIC_FAILURE_KEYWORDS = re.compile(
     r"\b(error|failed|exception|traceback|fixed|resolved|bug|workaround"
-    r"|issue|crash|timeout|retry)\b",
+    r"|issue|crash|timeout|retry|root.cause|mitigation|regression|deadlock"
+    r"|memory.leak)\b",
     re.IGNORECASE,
 )
 
@@ -87,10 +94,13 @@ def _classify_content(
     if semantic_hits >= SEMANTIC_HITS_REQUIRED_STRONG or (
         semantic_hits >= 1 and len(content) >= SEMANTIC_CONTENT_THRESHOLD
     ):
-        source = (
-            SourceType.DECISION if "decided" in content.lower() else SourceType.RULE
-        )
-        return MemoryType.SEMANTIC, source, ["auto-extracted", "semantic"]
+        if _DECISION_KEYWORDS.search(content) and _SEMANTIC_KEYWORDS.search(content):
+            return (
+                MemoryType.SEMANTIC,
+                SourceType.DECISION,
+                ["auto-extracted", "decision"],
+            )
+        return MemoryType.SEMANTIC, SourceType.RULE, ["auto-extracted", "semantic"]
     if failure_hits >= 1:
         return MemoryType.EPISODIC, SourceType.FAILURE, ["auto-extracted", "failure"]
     if len(content) >= MIN_CONTENT_CHARS * 2:
@@ -132,15 +142,24 @@ def _make_entry(
     )
 
 
-def _importance_from_content(content: str, is_semantic: bool) -> float:
-    """Heuristic importance score based on length and keyword density."""
-    base = 0.4
+def _importance_from_content(
+    content: str, is_semantic: bool, source_type: SourceType | None = None
+) -> float:
+    """Heuristic importance score based on length, keyword density, and source type."""
     length_bonus = min(len(content) / IMPORTANCE_LENGTH_DIVISOR, 0.3)
     if is_semantic:
         keyword_hits = len(_SEMANTIC_KEYWORDS.findall(content))
         keyword_bonus = min(keyword_hits * 0.05, 0.2)
+        if source_type == SourceType.DECISION:
+            base = 0.55
+        else:
+            base = 0.4
         return min(base + length_bonus + keyword_bonus + 0.1, 1.0)
-    # episodic: lower base importance
+    # episodic: base by source type
+    if source_type == SourceType.FAILURE:
+        base = 0.45
+    else:
+        base = 0.4
     return min(base + length_bonus, 0.8)
 
 
@@ -177,7 +196,7 @@ def _try_extract_from_assistant(
         return None
     mem_type, source_type, tags = classification
     importance = _importance_from_content(
-        content, is_semantic=(mem_type == MemoryType.SEMANTIC)
+        content, is_semantic=(mem_type == MemoryType.SEMANTIC), source_type=source_type
     )
     return _make_entry(
         memory_type=mem_type,

@@ -2,7 +2,8 @@
 
 from shared.types import RagConfig
 
-from rag.llm import RagExpansionError, RagLLM  # noqa: F401 — re-exported for callers
+from rag.llm_client import RagLLM  # noqa: F401 — re-exported for callers
+from rag.llm_prompts import RagExpansionError  # noqa: F401 — re-exported for callers
 from rag.stage import PipelineContext, PipelineStage
 
 

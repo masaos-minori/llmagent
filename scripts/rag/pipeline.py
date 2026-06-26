@@ -36,7 +36,7 @@ from shared.plugin_registry import (
 from shared.types import RagConfig
 
 from rag.cache import SemanticCache
-from rag.llm import RagLLM, get_embedding
+from rag.llm_client import RagLLM, get_embedding
 from rag.models_data import TwoStageFetchResult
 from rag.models_result import HttpResultKind, ResultSource, SearchDiagnostics
 from rag.pipeline_refiner import refine_context

@@ -43,8 +43,9 @@ class MemoryOpResult:
 
 
 _MEMORY_HELP = """\
-/memory list [semantic|episodic] [limit]  List entries (default: all, limit 10)
-/memory search <query>                    FTS5 search across all entries
+/memory list [semantic|episodic] [--source RULE|DECISION|FAILURE|CONVERSATION] [--branch <branch>] [limit]
+                                          List entries (default: all, limit 10)
+/memory search <query> [--branch <branch>]  FTS5 search across all entries
 /memory show <id>                         Show full content of one entry
 /memory pin <id>                          Pin an entry (always injected at session start)
 /memory unpin <id>                        Remove pin from an entry
@@ -99,14 +100,44 @@ class _MemoryMixin(MixinBase):
             raise UnknownSubcommandError(sub, tuple(dispatch.keys()))
 
     def _memory_list(self, mem: MemoryServices, args: list[str]) -> None:
-        mem_type = next((a for a in args if a in ("semantic", "episodic")), "")
-        limit_str = next((a for a in args if a not in ("semantic", "episodic")), None)
+        _VALID_SOURCES = {"RULE", "DECISION", "FAILURE", "CONVERSATION"}
+
+        source_type: str | None = None
+        branch: str | None = None
+        remaining: list[str] = []
+        i = 0
+        while i < len(args):
+            if args[i] == "--source" and i + 1 < len(args):
+                source_type = args[i + 1].upper()
+                if source_type not in _VALID_SOURCES:
+                    self._out.write_validation_error(
+                        f"--source must be one of: {', '.join(sorted(_VALID_SOURCES))}"
+                    )
+                    return
+                i += 2
+            elif args[i] == "--branch" and i + 1 < len(args):
+                branch = args[i + 1]
+                i += 2
+            else:
+                remaining.append(args[i])
+                i += 1
+
+        mem_type = next((a for a in remaining if a in ("semantic", "episodic")), "")
+        limit_str = next(
+            (a for a in remaining if a not in ("semantic", "episodic")), None
+        )
         try:
             limit = int(limit_str) if limit_str else 10
         except (ValueError, TypeError):
             limit = 10
 
-        if mem_type:
+        if source_type or branch is not None:
+            entries = mem.store.list_entries(
+                source_type=source_type, branch=branch, limit=limit
+            )
+            if mem_type:
+                entries = [e for e in entries if e.memory_type == mem_type]
+        elif mem_type:
             entries = mem.store.search_by_type(memory_type=mem_type, limit=limit)
         else:
             sem = mem.store.search_by_type("semantic", limit=limit)
@@ -129,11 +160,21 @@ class _MemoryMixin(MixinBase):
             )
 
     def _memory_search(self, mem: MemoryServices, args: list[str]) -> None:
-        if not args:
+        branch = ""
+        query_tokens: list[str] = []
+        i = 0
+        while i < len(args):
+            if args[i] == "--branch" and i + 1 < len(args):
+                branch = args[i + 1]
+                i += 2
+            else:
+                query_tokens.append(args[i])
+                i += 1
+        if not query_tokens:
             self._out.write_validation_error("/memory search <query>")
             return
-        query = " ".join(args)
-        hits = mem.retriever.search(MemoryQuery(query=query, limit=10))
+        query = " ".join(query_tokens)
+        hits = mem.retriever.search(MemoryQuery(query=query, limit=10), branch=branch)
         if not hits:
             self._out.write(f"  [memory] No results for {query!r}")
             return
@@ -262,14 +303,25 @@ class _MemoryMixin(MixinBase):
         if status.circuit_open:
             circuit_status = f"OPEN  [circuit breaker active{circuit_detail}]"
 
+        activation_mode = mem.get_activation_mode()
+        stats = mem.get_stats()
+
         rows = [
+            ["Mode", activation_mode],
             ["Memory layer", "enabled"],
             ["Embedding enabled", "Yes" if status.enabled else "No"],
+            ["Local-only", "enabled" if status.local_only else "disabled"],
             ["Circuit", circuit_status],
             ["Consecutive failures", str(status.fail_count)],
             ["FTS fallback count", str(mem.retriever.fts_fallback_count)],
             ["Last retrieval mode", mode_display],
+            ["Entries (total)", str(stats["total"])],
+            ["  semantic", str(stats["semantic"])],
+            ["  episodic", str(stats["episodic"])],
+            ["Embed skip count", str(stats["embed_skip"])],
         ]
+        for src, cnt in stats["by_source"].items():
+            rows.append([f"  source:{src}", str(cnt)])
         self._out.write_table(["Field", "Value"], rows)
 
     def _memory_check_consistency(self, mem: MemoryServices) -> None:

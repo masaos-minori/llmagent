@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class InjectionPolicy:
     max_semantic: int = 5
     max_episodic: int = 3
-    min_importance: float = 0.3
+    min_importance: float = 0.5
     format_prefix_semantic: str = "[Semantic memory]"
     format_prefix_episodic: str = "[Episodic memory]"
 
@@ -38,20 +38,24 @@ class MemoryInjectionService:
         embed_client: EmbeddingClient,
         project: str = "",
         repo: str = "",
+        branch: str = "",
     ) -> None:
         self._policy = policy
         self._retriever = retriever
         self._embed_client = embed_client
         self._project = project
         self._repo = repo
+        self._branch = branch
 
     def on_session_start(self) -> list[MemorySnippet]:
-        """Return top semantic snippets for injection at session start (sync)."""
+        # Injects pinned and high-importance semantic memories only (importance >= min_importance).
+        # Task-specific retrieval happens at on_user_prompt() — do not broaden this call.
         entries = self._retriever.top_semantic(
             limit=self._policy.max_semantic,
             min_importance=self._policy.min_importance,
             project=self._project,
             repo=self._repo,
+            branch=self._branch,
         )
         if not entries:
             return []
@@ -73,7 +77,7 @@ class MemoryInjectionService:
         query: str,
         session_id: int | None,
     ) -> list[MemorySnippet]:
-        """Return relevant snippets for the current user query (async)."""
+        # Primary task-specific restoration path. Performs query-based hybrid retrieval.
         if not query.strip():
             raise InjectionValidationError("on_user_prompt query must not be empty")
         embed_result = await self._embed_client.fetch(query)

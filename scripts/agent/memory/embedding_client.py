@@ -17,6 +17,15 @@ from agent.memory.types import EmbeddingErrorKind, EmbeddingResult
 logger = logging.getLogger(__name__)
 
 
+_LOCAL_PREFIXES = (
+    "http://localhost",
+    "http://127.0.0.1",
+    "http://[::1]",
+    "https://localhost",
+    "https://127.0.0.1",
+)
+
+
 @dataclass
 class EmbeddingClientConfig:
     embed_url: str = ""
@@ -28,6 +37,7 @@ class EmbeddingClientConfig:
         "query: "  # prepended to input text before sending to embedding API
     )
     embed_dim: int = 384  # expected output dimension; 0 disables validation
+    local_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -36,6 +46,7 @@ class EmbeddingClientStatus:
     circuit_open: bool
     fail_count: int
     resets_in_sec: float | None
+    local_only: bool = False
 
 
 async def _fetch_embedding(
@@ -111,6 +122,12 @@ class EmbeddingClient:
         *,
         enabled: bool = False,
     ) -> None:
+        if config.local_only and config.embed_url:
+            if not any(config.embed_url.startswith(p) for p in _LOCAL_PREFIXES):
+                raise ValueError(
+                    f"memory_local_only=True but embed_url is not a local address: "
+                    f"{config.embed_url!r}. Use http://localhost:PORT."
+                )
         self._config = config
         self._http = http
         self._enabled = enabled
@@ -149,6 +166,7 @@ class EmbeddingClient:
             circuit_open=circuit_open,
             fail_count=self._fail_count,
             resets_in_sec=resets_in,
+            local_only=self._config.local_only,
         )
 
     async def fetch(self, text: str) -> EmbeddingResult:

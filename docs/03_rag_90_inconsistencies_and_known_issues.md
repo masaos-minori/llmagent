@@ -34,3 +34,24 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
+## Resolved Issues
+
+### [Resolved] scripts/rag/llm.py backward-compat re-export (removed 2026-06-26)
+
+- **Was**: `scripts/rag/llm.py` re-exported symbols from `rag.llm_client` and `rag.llm_prompts`
+  for backward compatibility.
+- **Now**: `rag.llm` module deleted. Use canonical imports directly:
+  - `from rag.llm_client import RagLLM, get_embedding, summarize_tool_result`
+  - `from rag.llm_prompts import RagExpansionError, RagRerankError`
+- **See**: `docs/03_rag_00_document-guide.md` Archive Policy; `docs/03_rag_03_query_pipeline.md §7.3`
+
+---
+
+### [Resolved] PipelineStageResult legacy type (removed 2026-06-26)
+
+- **Was**: `PipelineStageResult` in `scripts/rag/types.py` was an unused legacy type retained for
+  backward compatibility.
+- **Now**: Deleted. Use `StageResult` from `scripts/rag/stage.py`.
+- **See**: `docs/03_rag_04_data_model_and_interfaces.md §5.3`
+
+---

@@ -277,9 +277,19 @@ Source: `config/memory.toml`
 | `memory_max_content_chars` | `500` | Max content chars saved per memory entry |
 | `memory_embed_timeout_sec` | `5.0` | Embedding HTTP call timeout |
 | `memory_retention_days` | `90` | Retention period (days) |
+| `memory_local_only` | `False` | Reject non-loopback `embed_url` at startup |
 | `memory_fts_limit` | `50` | FTS5 candidate limit before rescoring |
 | `memory_rrf_k` | `60` | RRF fusion constant |
 | `memory_recency_days` | `7.0` | Recency boost window (days) |
+
+**Activation mode**: set by the combination of `use_memory_layer`, `memory_embed_enabled`, and embedding circuit state:
+
+| `use_memory_layer` | `memory_embed_enabled` | Circuit | Mode |
+|---|---|---|---|
+| `false` | any | any | `disabled` |
+| `true` | `false` | any | `fts-only` |
+| `true` | `true` | open | `degraded` |
+| `true` | `true` | closed | `hybrid` |
 
 ---
 
