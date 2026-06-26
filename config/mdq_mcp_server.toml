@@ -32,3 +32,6 @@ enable_refresh = true
 
 # Audit log path for write operations
 audit_log_path = "/opt/llm/logs/mdq_audit.log"
+
+# Concurrency limit for mdq server (1 = serialize all operations)
+concurrency_limit = 1

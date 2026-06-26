@@ -139,7 +139,7 @@ tool_cache_max_size = 200
 tool_error_retry_max = 1
 
 # Per-tool-server concurrent execution limit; key is the server key from _route(); unknown keys log WARNING at startup; empty = unlimited (default: {})
-tool_concurrency_limits = {file_read = 4, file_write = 1, file_delete = 1, shell = 2, web_search = 2, github = 3, rag_pipeline = 4, sqlite = 4, cicd = 2}
+tool_concurrency_limits = {file_read = 4, file_write = 1, file_delete = 1, shell = 2, web_search = 2, github = 3, rag_pipeline = 4, sqlite = 4, cicd = 2, mdq = 1}
 
 # Token-based history compression monitoring threshold; 0 disables; logs logger.warning when chars/4 exceeds this value
 context_token_limit = 0
@@ -281,6 +281,7 @@ github_push_files          = "WRITE_DANGEROUS"
 github_create_or_update_file = "WRITE_DANGEROUS"
 github_merge_pull_request  = "WRITE_DANGEROUS"
 github_create_pull_request = "WRITE_DANGEROUS"
+mdq                        = "WRITE_DANGEROUS"
 github_update_pull_request = "WRITE_DANGEROUS"
 shell_run                  = "ADMIN"
 rag_run_pipeline           = "READ_ONLY"

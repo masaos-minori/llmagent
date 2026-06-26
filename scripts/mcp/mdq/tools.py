@@ -5,7 +5,7 @@ MCP tool schema definitions for mdq-mcp server (inputSchema format).
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 
 class MCPToolSchema(TypedDict):
@@ -13,6 +13,8 @@ class MCPToolSchema(TypedDict):
     description: str
     inputSchema: dict[str, Any]
     status: str
+    is_write: NotRequired[bool]
+    requires_serial: NotRequired[bool]
 
 
 _MCP_TOOLS: list[MCPToolSchema] = [
@@ -82,6 +84,8 @@ _MCP_TOOLS: list[MCPToolSchema] = [
             "required": ["paths"],
         },
         "status": "production",
+        "is_write": True,
+        "requires_serial": True,
     },
     {
         "name": "refresh_index",
@@ -94,6 +98,8 @@ _MCP_TOOLS: list[MCPToolSchema] = [
             "required": ["paths"],
         },
         "status": "production",
+        "is_write": True,
+        "requires_serial": True,
     },
     {
         "name": "stats",
@@ -115,3 +121,6 @@ _MCP_TOOLS: list[MCPToolSchema] = [
         "status": "production",
     },
 ]
+
+# Write/admin tools that require serialization and concurrency limits.
+_WRITE_TOOLS = frozenset(("index_paths", "refresh_index"))

@@ -5,6 +5,7 @@ Main service class for Mdq functionality — SQLite FTS5-backed.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import sqlite3
@@ -62,6 +63,10 @@ class MdqService:
         if not isinstance(self._allowed_dirs, list):
             logger.warning("mdq_mcp_server.allowed_dirs must be a list; using empty list")
             self._allowed_dirs = []
+
+        # Concurrency control for indexing operations
+        self._index_lock: asyncio.Lock | None = None
+        self._is_indexing: bool = False
 
         self._init_db()
 
@@ -310,7 +315,10 @@ class MdqService:
 
     async def search_docs(self, req: SearchDocsRequest) -> str:
         """Search indexed Markdown sections by query."""
-        return await search_docs(self, req)
+        result = await search_docs(self, req)
+        if self._is_indexing:
+            result += "\n\n[WARNING: Index is being updated — results may be incomplete]"
+        return result
 
     async def get_chunk(self, req: GetChunkRequest) -> str:
         """Retrieve a Markdown chunk by its ID."""
@@ -340,22 +348,36 @@ class MdqService:
 
     async def index_paths(self, req: IndexPathsRequest) -> str:
         """Index a set of paths into the in-process SQLite DB."""
-        return await _index_paths(self, req)
+        if self._index_lock is None:
+            self._index_lock = asyncio.Lock()
+        async with self._index_lock:
+            self._is_indexing = True
+            try:
+                return await _index_paths(self, req)
+            finally:
+                self._is_indexing = False
 
     async def refresh_index(self, req: RefreshIndexRequest) -> str:
         """Incrementally refresh the index for a set of paths."""
-        from mcp.mdq.models import IndexPathsRequest  # noqa: PLC0415
+        if self._index_lock is None:
+            self._index_lock = asyncio.Lock()
+        async with self._index_lock:
+            self._is_indexing = True
+            try:
+                from mcp.mdq.models import IndexPathsRequest  # noqa: PLC0415
 
-        for path_str in req.paths:
-            p = Path(path_str)
-            if not p.exists():
-                logger.warning("Path does not exist: %s", path_str)
-                continue
-            if not authorize_path(p, self.allowed_dirs):
-                logger.warning("Path denied: %s (outside allowed dirs)", path_str)
-                continue
+                for path_str in req.paths:
+                    p = Path(path_str)
+                    if not p.exists():
+                        logger.warning("Path does not exist: %s", path_str)
+                        continue
+                    if not authorize_path(p, self.allowed_dirs):
+                        logger.warning("Path denied: %s (outside allowed dirs)", path_str)
+                        continue
 
-        return await _index_paths(self, IndexPathsRequest(paths=req.paths))
+                return await _index_paths(self, IndexPathsRequest(paths=req.paths))
+            finally:
+                self._is_indexing = False
 
     async def stats(self, req: StatsRequest) -> str:
         """Return document/chunk count and index metadata."""
