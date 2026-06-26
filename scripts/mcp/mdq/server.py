@@ -12,13 +12,13 @@ Provided endpoints:
 
 from __future__ import annotations
 
-import logging
 import time
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
+from shared.logger import Logger
 
 from mcp.audit import _audit_log
 from mcp.dispatch import DispatchResult, dispatch_tool
@@ -37,7 +37,7 @@ from mcp.mdq.tools import _MCP_TOOLS
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__, "/opt/llm/logs/mdq-mcp.log")
 
 app = FastAPI(
     title="mdq-mcp",
