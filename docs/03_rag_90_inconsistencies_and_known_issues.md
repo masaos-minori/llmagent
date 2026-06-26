@@ -34,6 +34,46 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
+## Active Issues
+
+### DOC-01: `.txt` / `.json` mixed references in RAG ingestion docs and code comments
+
+- **Type:** Documentation inconsistency
+- **Impact scope:** RAG ingestion docs, code comments (26 stale references across 7 files)
+- **Description:** RAG ingestion documentation and code comments reference both `.txt` and `.json` artifact file extensions. Runtime code already uses `.json`; only docstrings/CLI help/docs need fixing.
+- **Safe interpretation:** Runtime code already uses `.json`; only docstrings/CLI help/docs need fixing
+- **Recommended action:** Update all stale `.txt` references to `.json` in docs and comments
+- **Source:** `03_rag_90_inconsistencies_and_known_issues.md DOC-01`, implementation plan 20260627-054224
+
+### SPEC-01: RAG data model includes Agent-owned `sessions` and `messages` tables
+
+- **Type:** Spec conflict
+- **Impact scope:** DB schema, layer boundaries
+- **Description:** RAG data model includes Agent-owned `sessions` and `messages` tables. RAG layer does not own Agent conversation history; sessions/messages belong to Agent REPL.
+- **Safe interpretation:** RAG layer does not own Agent conversation history; sessions/messages belong to Agent REPL
+- **Recommended action:** Clarify ownership boundary in RAG data model docs; add note that RAG reads but does not own these tables
+- **Source:** `03_rag_90_inconsistencies_and_known_issues.md SPEC-01`, implementation plan 20260627-054459
+
+### DOC-02: `/db fts-rebuild` vs `/db rebuild-fts` command name mismatch
+
+- **Type:** Documentation inconsistency
+- **Impact scope:** RAG ops docs (1 stale reference)
+- **Description:** `/db fts-rebuild` vs `/db rebuild-fts` — canonical is `/db rebuild-fts`. Only one stale reference in RAG ops docs.
+- **Safe interpretation:** Use `/db rebuild-fts`; only one stale reference in RAG ops docs
+- **Recommended action:** Update stale `/db fts-rebuild` reference to `/db rebuild-fts`
+- **Source:** `03_rag_90_inconsistencies_and_known_issues.md DOC-02`, implementation plan 20260627-055423
+
+### SPEC-02: `status=success` with `fallback_reason="http_remote_empty"` is semantically confusing
+
+- **Type:** Spec conflict
+- **Impact scope:** RAG fallback diagnostics, agent tool output
+- **Description:** `status=success` with `fallback_reason="http_remote_empty"` is semantically confusing — `remote_empty` (HTTP 200 with no context) is a success case, not a fallback.
+- **Safe interpretation:** `remote_empty` (HTTP 200 with no context) is a success case, not a fallback
+- **Recommended action:** Rename `fallback_reason` to `diagnostic_reason` or similar; document that `http_remote_empty` does not indicate failure
+- **Source:** `03_rag_90_inconsistencies_and_known_issues.md SPEC-02`, implementation plan 20260627-055541
+
+---
+
 ## Resolved Issues
 
 ### [Resolved] scripts/rag/llm.py backward-compat re-export (removed 2026-06-26)
