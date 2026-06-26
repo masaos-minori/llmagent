@@ -2,6 +2,9 @@
 
 status = "production"
 
+# Allowed directories for file access (fail-closed: empty = deny all)
+allowed_dirs = []
+
 # Database path
 db_path = "/opt/llm/db/mdq.sqlite"
 

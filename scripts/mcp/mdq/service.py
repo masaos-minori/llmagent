@@ -11,11 +11,13 @@ import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from mcp.mdq.auth import authorize_path
 from mcp.mdq.indexer import index_paths as _index_paths
 from mcp.mdq.models import (
     GetChunkRequest,
     GrepDocsRequest,
     IndexPathsRequest,
+    MdqServiceError,
     OutlineRequest,
     ParseMarkdownRequest,
     RefreshIndexRequest,
@@ -36,7 +38,21 @@ class MdqService:
 
     def __init__(self, db_path: str | None = None):
         self.db_path = db_path or "/opt/llm/db/mdq.sqlite"
+        self._allowed_dirs: list[str] = []
+        try:
+            from shared.config_loader import ConfigLoader
+
+            cfg = ConfigLoader().load_all()
+            mdq_cfg = cfg.get("mdq_mcp_server", {}) if isinstance(cfg.get("mdq_mcp_server"), dict) else {}
+            self._allowed_dirs = mdq_cfg.get("allowed_dirs") or []
+        except (FileNotFoundError, KeyError, TypeError):
+            self._allowed_dirs = []
         self._init_db()
+
+    @property
+    def allowed_dirs(self) -> list[str]:
+        """Return the configured allowed directories for file access."""
+        return self._allowed_dirs
 
     def _init_db(self) -> None:
         """Create sections table and FTS5 virtual table if they don't exist."""
@@ -113,6 +129,12 @@ class MdqService:
 
     async def outline(self, req: OutlineRequest) -> str:
         """Get the heading structure of a Markdown file."""
+        p = Path(req.path)
+        if not p.exists():
+            return f"File not found: {req.path}"
+        if not authorize_path(p, self.allowed_dirs):
+            logger.warning("Path denied: %s (outside allowed dirs)", req.path)
+            raise MdqServiceError(f"Access denied: {req.path} is outside allowed directories")
         sections = await parse_markdown(self, ParseMarkdownRequest(path=req.path))
         headings = [s["heading"] for s in sections]
         return "\n".join(headings) if headings else "(no headings)"
@@ -124,6 +146,15 @@ class MdqService:
     async def refresh_index(self, req: RefreshIndexRequest) -> str:
         """Incrementally refresh the index for a set of paths."""
         from mcp.mdq.models import IndexPathsRequest  # noqa: PLC0415
+
+        for path_str in req.paths:
+            p = Path(path_str)
+            if not p.exists():
+                logger.warning("Path does not exist: %s", path_str)
+                continue
+            if not authorize_path(p, self.allowed_dirs):
+                logger.warning("Path denied: %s (outside allowed dirs)", path_str)
+                continue
 
         return await _index_paths(self, IndexPathsRequest(paths=req.paths))
 

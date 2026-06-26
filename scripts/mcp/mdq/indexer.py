@@ -10,6 +10,7 @@ import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from mcp.mdq.auth import authorize_path
 from mcp.mdq.models import IndexPathsRequest, ParseMarkdownRequest
 from mcp.mdq.parser import parse_markdown
 
@@ -69,6 +70,9 @@ async def index_paths(service: MdqService, req: IndexPathsRequest) -> str:
         p = Path(path_str)
         if not p.exists():
             logger.warning("Path does not exist: %s", path_str)
+            continue
+        if not authorize_path(p, service.allowed_dirs):
+            logger.warning("Path denied: %s (outside allowed dirs)", path_str)
             continue
         if p.is_file() and p.suffix == ".md":
             await _index_single_file(service, p)
