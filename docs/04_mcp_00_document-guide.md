@@ -10,8 +10,8 @@ Read this file first to choose which chapter to open.
 These 8 files document the MCP (Model Context Protocol) layer: 11 tool servers that give
 the agent safe, controlled access to external resources.
 
-They replace the original 13 source files (`04_spec_mcp.md`, `04_mcp-*.md`, `06_ref-mcp.md`)
-as the primary reference. Source files are retained unchanged.
+They replace the original source files (`04_spec_mcp.md`, `04_mcp-*.md`, `06_ref-mcp.md`)
+as the primary reference. Legacy source files have been deleted (git history preserves all content).
 
 ---
 
@@ -105,7 +105,39 @@ as the primary reference. Source files are retained unchanged.
 
 ---
 
+## Migration Notes
+
+### POST /v1/search (removed — 2026-06-26)
+
+The `POST /v1/search` endpoint on `rag-pipeline-mcp` has been removed.
+
+**Before:**
+```http
+POST /v1/search
+{"query": "...", "history_context": "..."}
+```
+
+**After (canonical MCP tool call):**
+```http
+POST /v1/call_tool
+{"name": "rag_run_pipeline", "args": {"query": "...", "history_context": []}}
+```
+
+Update any `rag_service_url` callers to use the MCP tool call format.
+This change is not backward-compatible — no compatibility shim is provided.
+
+---
+
+## Legacy Source Document Policy
+
+**Policy: Delete.** Git history preserves all content. Archive is not required.
+
+Legacy MCP source files (`04_spec_mcp.md`, `04_mcp-*.md`, `06_ref-mcp.md`) were retained
+through the documentation restructuring phase (plans 71-76) and deleted as of 2026-06-26.
+If recovery is needed, use `git log --all -- docs/<filename>`.
+
+---
+
 ## Known Limitations
 
-- Original source files are retained unchanged. This document set supersedes them.
 - `04_spec_mcp.md` §13 known issues are fully transcribed into `04_mcp_90`.

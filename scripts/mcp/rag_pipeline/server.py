@@ -9,7 +9,6 @@ is configured in agent.toml.
 Provided endpoints:
   POST /rag_run_pipeline    Run full pipeline; return augmented_text + selected_hits
   POST /rag_debug_pipeline  Run pipeline returning all intermediate stage outputs
-  POST /v1/search           Backward-compat for agent_rag.augment() via rag_service_url
   GET  /v1/tools            MCP tool list (minimal format)
   POST /v1/call_tool        MCP standard tool dispatch
   GET  /health              Health check
@@ -34,8 +33,6 @@ from mcp.rag_pipeline.models import (
     RagPipelineServiceError,
     RagRunRequest,
     RagRunResponse,
-    RagSearchRequest,
-    RagSearchResponse,
 )
 from mcp.rag_pipeline.service import RagPipelineMCPService, _service
 from mcp.rag_pipeline.tools import _MCP_TOOLS
@@ -106,29 +103,6 @@ async def rag_debug_pipeline(req: RagRunRequest) -> RagDebugResponse:
             "rag_debug_pipeline",
             queries=len(result.queries),
             reranked=len(result.reranked_hits),
-            ms=f"{ms:.0f}",
-        ),
-    )
-    return result
-
-
-@app.post("/v1/search", response_model=RagSearchResponse)
-async def v1_search(req: RagSearchRequest) -> RagSearchResponse:
-    """Backward-compat endpoint for agent_rag.augment() via rag_service_url.
-
-    Response includes selected_hits so augment() can populate self.last_fetch_result
-    for two-stage fetch without REPL-side changes.
-    """
-    if _service._pipeline is None:  # noqa: SLF001 — readiness guard before dispatch
-        raise RagPipelineServiceError("Service not ready")
-    t0 = time.perf_counter()
-    result = await _service.run_search(req)
-    ms = (time.perf_counter() - t0) * 1000
-    logger.info(
-        fmt_kvlog(
-            "v1_search",
-            hits=len(result.selected_hits),
-            has_context=bool(result.context),
             ms=f"{ms:.0f}",
         ),
     )

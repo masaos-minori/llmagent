@@ -128,6 +128,7 @@ class HitDict(TypedDict, total=False):
     rrf_score: float | None
     rerank_score: float | None
 
+
 # Note: Response models use dict[str, Any] for hit lists because TypedDict
 # field types conflict with Pydantic validation when data sources vary.
 
@@ -200,21 +201,3 @@ class RagDebugResponse(RagRunResponse):
         default_factory=dict,
         description="Per-step wall-clock seconds.",
     )
-
-
-class RagSearchRequest(BaseModel):
-    """Backward-compat schema for POST /v1/search used by agent_rag.augment()."""
-
-    query: str
-    history_context: str = ""
-
-
-class RagSearchResponse(BaseModel):
-    """Backward-compat response for POST /v1/search.
-
-    Extends the original {context: str} response with selected_hits so that
-    agent_rag.augment() can populate self.last_fetch_result for two-stage fetch.
-    """
-
-    context: str
-    selected_hits: list[dict[str, Any]] = Field(default_factory=list)

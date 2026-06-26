@@ -13,8 +13,6 @@ from mcp.rag_pipeline.models import (
     RagPipelineConfig,
     RagRunRequest,
     RagRunResponse,
-    RagSearchRequest,
-    RagSearchResponse,
     build_rag_cfg_adapter,
 )
 from mcp.rag_pipeline.service import RagPipelineMCPService
@@ -251,46 +249,6 @@ class TestRunDebugPipeline:
         assert result.reranked_hits == [dict(hit_reranked)]
         assert result.elapsed == {"mqe": 0.1, "search": 0.2}
         assert result.augmented_text == "result"
-
-
-# ── run_search ────────────────────────────────────────────────────────────────
-
-
-class TestRunSearch:
-    @pytest.mark.asyncio
-    async def test_returns_context_and_hits(self) -> None:
-        hit = {
-            "chunk_id": "c1",
-            "score": 7.0,
-            "content": "txt",
-            "title": "T",
-            "url": "U",
-        }
-        pipeline = MagicMock()
-        pipeline.augment = AsyncMock(return_value="ctx_text")
-        pipeline.last_fetch_result = TwoStageFetchResult(
-            hits=[hit], min_score_applied=0.0, max_chunks_per_doc=0
-        )
-
-        svc = _make_service_with_pipeline(pipeline)
-        req = RagSearchRequest(query="q", history_context="prev utt")
-        result = await svc.run_search(req)
-
-        assert isinstance(result, RagSearchResponse)
-        assert result.context == "ctx_text"
-        assert result.selected_hits == [dict(hit)]
-
-    @pytest.mark.asyncio
-    async def test_empty_history_context(self) -> None:
-        pipeline = MagicMock()
-        pipeline.augment = AsyncMock(return_value="")
-        pipeline.last_fetch_result = None
-
-        svc = _make_service_with_pipeline(pipeline)
-        req = RagSearchRequest(query="q", history_context="")
-        result = await svc.run_search(req)
-
-        assert result.context == ""
 
 
 # ── pipeline_or_raise ─────────────────────────────────────────────────────────

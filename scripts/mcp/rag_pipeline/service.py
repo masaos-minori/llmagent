@@ -24,8 +24,6 @@ from mcp.rag_pipeline.models import (
     RagPipelineConfig,
     RagRunRequest,
     RagRunResponse,
-    RagSearchRequest,
-    RagSearchResponse,
     build_rag_cfg_adapter,
 )
 from mcp.server import ToolArgs
@@ -157,23 +155,6 @@ class RagPipelineMCPService:
             merged_hits=[dict(h) for h in captured.get("merged", [])],
             reranked_hits=[dict(h) for h in captured.get("reranked", [])],
             elapsed=dict(pipeline.last_timings),
-        )
-
-    async def run_search(self, req: RagSearchRequest) -> RagSearchResponse:
-        """/v1/search backward-compat handler for agent_rag.augment() integration.
-
-        Accepts {query, history_context: str} and returns {context, selected_hits}
-        so that augment() can store selected_hits in self.last_fetch_result for
-        two-stage fetch without requiring REPL-side changes.
-        """
-        run_req = RagRunRequest(
-            query=req.query,
-            history_context=[req.history_context] if req.history_context else [],
-        )
-        result = await self.run_pipeline(run_req)
-        return RagSearchResponse(
-            context=result.augmented_text,
-            selected_hits=result.selected_hits,
         )
 
     # ── Document management (sync; wrap SQLiteHelper directly) ───────────────

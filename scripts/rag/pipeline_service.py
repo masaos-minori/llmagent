@@ -43,8 +43,8 @@ async def call_rag_service(
     """Delegate to external RAG service for context augmentation.
 
     Request details:
-        - Endpoint: ``{rag_url}/v1/search``
-        - Body: ``{"query": query, "history_context": history_context}``
+        - Endpoint: ``{rag_url}/v1/call_tool``
+        - Body: ``{"name": "rag_run_pipeline", "args": {"query": query, "history_context": [...]}}``
         - Headers: ``{"X-RAG-Token": auth_token}`` if auth_token is non-empty
         - Timeout: _TIMEOUT seconds per attempt
 
@@ -53,13 +53,13 @@ async def call_rag_service(
         +----------------+---------------------------------------------------+
         | Return value   | Condition                                         |
         +================+===================================================+
-        | ``str``        | HTTP 200 + response body has a ``"context"``      |
-        | (non-empty)    | key with a non-empty string value.                |
-        |                | Example: ``{"context": "relevant passage..."}``   |
+        | ``str``        | HTTP 200 + response body has a non-empty          |
+        | (non-empty)    | ``"result"`` string value.                        |
+        |                | Example: ``{"result": "relevant passage..."}``    |
         +----------------+---------------------------------------------------+
-        | ``""``         | HTTP 200 but ``"context"`` key is absent, None,   |
+        | ``""``         | HTTP 200 but ``"result"`` key is absent, None,    |
         | (empty string) | or empty. Valid empty result — not a failure.     |
-        |                | Example: ``{"context": null}`` or ``{"hits": []}``|
+        |                | Example: ``{"result": null}``                     |
         +----------------+---------------------------------------------------+
         | ``None``       | One of:                                           |
         |                | - HTTP 4xx (client error, no retry)               |
@@ -76,8 +76,8 @@ async def call_rag_service(
         - JSON parse errors: no retry (malformed response)
 
     Side effects:
-        ``set_fetch_result`` is called with a ``TwoStageFetchResult`` holding
-        fetch stage status and any hits from the response body.
+        ``set_fetch_result`` is defined in the signature for forward compatibility
+        but is not called by this function (``/v1/call_tool`` returns text only).
         If ``set_fallback_reason`` is provided, it is called with a reason
         string on each non-success path (4xx, transport error, etc.).
 
@@ -102,8 +102,14 @@ async def call_rag_service(
         try:
             t0 = time.perf_counter()
             resp = await http.post(
-                f"{rag_url}/v1/search",
-                json={"query": query, "history_context": history_context},
+                f"{rag_url}/v1/call_tool",
+                json={
+                    "name": "rag_run_pipeline",
+                    "args": {
+                        "query": query,
+                        "history_context": [history_context] if history_context else [],
+                    },
+                },
                 headers=headers,
                 timeout=10.0,
             )
@@ -111,26 +117,15 @@ async def call_rag_service(
             status_code = resp.status_code
             resp.raise_for_status()
             body = orjson.loads(resp.content)
-            hits = body.get("selected_hits", [])
-            min_score = body.get("min_score_applied", 0.0)
-            max_chunks = body.get("max_chunks_per_doc", 0)
-            if hits:
-                set_fetch_result(
-                    TwoStageFetchResult(
-                        hits=hits,
-                        min_score_applied=float(min_score),
-                        max_chunks_per_doc=int(max_chunks),
-                    )
-                )
-            context_raw = body.get("context")
-            if context_raw is None:
+            result_raw = body.get("result")
+            if result_raw is None:
                 return "", status_code, elapsed_ms
-            if not isinstance(context_raw, str):
+            if not isinstance(result_raw, str):
                 raise ValueError(
-                    f"RAG service 'context' field must be str,"
-                    f" got {type(context_raw).__name__}"
+                    f"RAG service 'result' field must be str,"
+                    f" got {type(result_raw).__name__}"
                 )
-            return context_raw, status_code, elapsed_ms
+            return result_raw, status_code, elapsed_ms
         except httpx.HTTPStatusError as e:
             if e.response.status_code < 500:
                 logger.warning(

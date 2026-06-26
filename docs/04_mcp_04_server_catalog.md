@@ -221,8 +221,6 @@ All tools do not require config (`requires_config: false`).
 | `rag_list_documents` | `{lang?, limit?}` | List of indexed documents |
 | `rag_delete_document` | `{url}` | Deletion confirmation |
 
-**Additional endpoint:** `POST /v1/search` (backward compat for external RAG service delegation)
-
 **Config parameters (`RagPipelineConfig` dataclass):**
 
 | Key | Default | Description |
