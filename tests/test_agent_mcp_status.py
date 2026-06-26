@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 from agent.services.enums import McpAvailability, McpTier
 from agent.services.exceptions import McpProbeError
-from agent.services.mcp_status import McpStatusService, TIER_LABELS, _tier_for_server
+from agent.services.mcp_status import TIER_LABELS, McpStatusService, _tier_for_server
 
 
 class TestTierForServer:

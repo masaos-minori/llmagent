@@ -15,8 +15,8 @@ def _make_pipeline(use_rrf: bool):
     """Return a minimal RagPipeline with mocked config."""
     from unittest.mock import MagicMock
 
-    from rag.pipeline import RagPipeline
     from rag.models_result import SearchDiagnostics
+    from rag.pipeline import RagPipeline
 
     pipeline = RagPipeline.__new__(RagPipeline)
     pipeline._cfg = MagicMock()

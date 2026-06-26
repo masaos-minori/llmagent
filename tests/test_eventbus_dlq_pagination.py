@@ -58,7 +58,7 @@ def test_dlq_pagination(client: TestClient) -> None:
     events = []
     for i in range(5):
         ev = _event()
-        resp = client.post("/publish", json=ev)
+        client.post("/publish", json=ev)
         events.append(ev["event_id"])
 
     # Promote all to DLQ (2 nacks per event)
@@ -76,7 +76,7 @@ def test_dlq_pagination(client: TestClient) -> None:
     assert len(body["items"]) == min(5, body["total"])
 
     # Page 2
-    r2 = client.get(f"/dlq?limit=2&offset=2")
+    r2 = client.get("/dlq?limit=2&offset=2")
     assert r2.status_code == 200
     body2 = r2.json()
     assert body2["limit"] == 2
