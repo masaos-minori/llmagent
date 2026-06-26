@@ -14,6 +14,7 @@ import orjson
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
+from eventbus.broker import EventBroker
 from eventbus.config import (
     EventBusConfig,
     get_config_path,
@@ -35,6 +36,7 @@ logger = logging.getLogger(__name__)
 _ENVELOPE_SCHEMA_PATH = Path("/opt/llm/schemas/event_envelope.json")
 _cfg: EventBusConfig | None = None
 _db: sqlite3.Connection | None = None
+_broker: EventBroker | None = None
 _envelope_schema: dict[str, Any] | None = None
 _dlq_task: asyncio.Task | None = None
 _DLQ_INTERVAL = 60.0
@@ -50,8 +52,8 @@ async def lifespan(app: FastAPI) -> Any:
     _db = open_db(_cfg.db_path)
     _envelope_schema = orjson.loads(schema_path.read_bytes())
     Path(_cfg.storage_dir).mkdir(parents=True, exist_ok=True)
+    _broker = EventBroker()
     _dlq_task = asyncio.create_task(_dlq_loop())
-    logger.info("eventbus: subscribe polling interval: %dms", _cfg.poll_interval_ms)
     yield
     if _dlq_task:
         _dlq_task.cancel()
@@ -59,6 +61,8 @@ async def lifespan(app: FastAPI) -> Any:
             await _dlq_task
         except asyncio.CancelledError:
             pass
+    if _broker:
+        _broker.shutdown()
     if _db:
         _db.close()
 
@@ -157,46 +161,60 @@ async def subscribe(
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
 ) -> Any:
-    from eventbus.offsets import (
-        read_offset,  # noqa: PLC0415 — deferred to avoid circular at module load
-    )
+    from eventbus.offsets import read_offset  # noqa: PLC0415
+
+    assert _cfg is not None
+    assert _broker is not None
 
     start_seq = since_seq
     if consumer_id and start_seq == 0:
-        assert _cfg is not None
         start_seq = read_offset(_cfg.offsets_dir, consumer_id)
 
-    assert _db is not None
-    assert _cfg is not None
-    interval = _cfg.poll_interval_ms / 1000.0
-
     async def _sse_gen() -> Any:
-        current_seq = start_seq
+        # Step 1: register with broker BEFORE replay to capture events published during replay
+        sub = _broker.subscribe(list(topic))
         try:
-            while True:
-                logger.debug(
-                    "eventbus: subscribe poll: consumer=%s seq=%d",
-                    consumer_id,
-                    current_seq,
-                )
+            # Step 2: replay from SQLite
+            def _fetch_replay() -> list:
+                assert _db is not None
                 if topic:
-                    rows = await asyncio.to_thread(
-                        fetch_events_since, _db, current_seq, topic
-                    )
-                else:
-                    rows = await asyncio.to_thread(fetch_events_since, _db, current_seq)
+                    placeholders = ",".join("?" for _ in topic)
+                    return _db.execute(
+                        f"SELECT seq, event_id, topic, payload, producer, published_at"
+                        f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq",
+                        (start_seq, *topic),
+                    ).fetchall()
+                return _db.execute(
+                    "SELECT seq, event_id, topic, payload, producer, published_at"
+                    " FROM events WHERE seq > ? ORDER BY seq",
+                    (start_seq,),
+                ).fetchall()
 
-                for row in rows:
-                    data = orjson.dumps(_row_to_dict(row)).decode()
-                    yield f"data: {data}\n\n"
-                    current_seq = row["seq"]
+            rows = await asyncio.to_thread(_fetch_replay)
+            replay_ceil = start_seq
+            for row in rows:
+                data = orjson.dumps(_row_to_dict(row)).decode()
+                yield f"data: {data}\n\n"
+                replay_ceil = row["seq"]
 
-                await asyncio.sleep(interval)
+            # Step 3: live delivery from broker queue
+            while True:
+                event = await sub.queue.get()
+                if event is None:  # shutdown sentinel
+                    break
+                if event["seq"] <= replay_ceil:
+                    continue  # duplicate from replay; discard
+                data = orjson.dumps(event).decode()
+                yield f"data: {data}\n\n"
 
         except asyncio.CancelledError:
             logger.info(
-                "subscribe disconnected consumer=%s seq=%d", consumer_id, current_seq
+                "subscribe disconnected consumer=%s seq=%d",
+                consumer_id,
+                replay_ceil if "replay_ceil" in dir() else start_seq,
             )
+        finally:
+            _broker.unsubscribe(sub)
 
     return StreamingResponse(_sse_gen(), media_type="text/event-stream")
 
@@ -231,6 +249,7 @@ async def ack(
         acked = _ack_event(_db, event_id, now)  # type: ignore[arg-type]
         seq: int | None = None
         if consumer_id and acked:
+            assert _db is not None
             row = _db.execute(
                 "SELECT seq FROM events WHERE event_id = ?", (event_id,)
             ).fetchone()
