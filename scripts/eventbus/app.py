@@ -118,7 +118,8 @@ async def publish(request: Request) -> dict[str, Any]:
     published_at: str = body["published_at"]
 
     assert _db is not None
-    seq, _ = await asyncio.to_thread(
+    assert _broker is not None
+    seq, inserted = await asyncio.to_thread(
         insert_event,
         _db,
         event_id,
@@ -132,6 +133,22 @@ async def publish(request: Request) -> dict[str, Any]:
         _append_jsonl(body, seq)
     except OSError as exc:
         logger.warning("eventbus: JSONL append failed (event still committed): %s", exc)
+
+    if inserted:
+        event_dict = {
+            "seq": seq,
+            "event_id": event_id,
+            "topic": topic,
+            "payload": body["payload"],
+            "producer": producer,
+            "published_at": published_at,
+        }
+        try:
+            n = _broker.publish(event_dict)
+            logger.debug("publish notify broker delivered=%d seq=%d", n, seq)
+        except Exception:
+            logger.exception("publish broker notify error seq=%d", seq)
+
     logger.info("publish event_id=%s topic=%s seq=%d", event_id, topic, seq)
     return {"event_id": event_id, "seq": seq}
 
