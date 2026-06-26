@@ -55,53 +55,236 @@ class MdqService:
         return self._allowed_dirs
 
     def _init_db(self) -> None:
-        """Create sections table and FTS5 virtual table if they don't exist."""
+        """Create production tables and migrate from legacy schema if needed."""
         db_dir = Path(self.db_path).parent
         db_dir.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         try:
+            # Check for legacy schema
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = {row[0] for row in cursor.fetchall()}
+
+            if "sections" in tables:
+                logger.info("Migrating from legacy sections schema")
+                self._migrate_from_legacy(conn)
+                return
+
+            # Create production tables
             conn.execute("""
-                CREATE TABLE IF NOT EXISTS sections (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    file_path TEXT NOT NULL,
+                CREATE TABLE IF NOT EXISTS documents (
+                    doc_id TEXT PRIMARY KEY,
+                    source_path TEXT NOT NULL,
+                    mtime_ns INTEGER NOT NULL,
+                    size_bytes INTEGER NOT NULL,
+                    content_hash TEXT NOT NULL,
+                    indexed_at REAL NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS chunks (
+                    chunk_id TEXT PRIMARY KEY,
+                    doc_id TEXT NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+                    source_path TEXT NOT NULL,
                     heading TEXT NOT NULL,
+                    heading_path TEXT NOT NULL DEFAULT '',
+                    heading_level INTEGER NOT NULL DEFAULT 0,
+                    ordinal INTEGER NOT NULL DEFAULT 0,
                     content TEXT NOT NULL,
-                    file_mtime REAL NOT NULL
+                    normalized_content TEXT NOT NULL DEFAULT '',
+                    start_line INTEGER NOT NULL,
+                    end_line INTEGER NOT NULL,
+                    char_count INTEGER NOT NULL DEFAULT 0,
+                    token_count INTEGER,
+                    content_hash TEXT NOT NULL,
+                    tags_json TEXT,
+                    indexed_at REAL NOT NULL
                 )
             """)
             conn.execute("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS sections_fts USING fts5(
-                    content,
-                    file_path,
-                    heading
+                CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+                    normalized_content,
+                    source_path,
+                    heading,
+                    heading_path,
+                    content_hash,
+                    content
                 )
             """)
+            # Triggers for FTS sync
             conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS sections_ai AFTER INSERT ON sections
+                CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks
                 BEGIN
-                    INSERT INTO sections_fts(rowid, content, file_path, heading)
-                    VALUES (new.id, new.content, new.file_path, new.heading);
+                    INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
+                    VALUES (new.chunk_id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
                 END
             """)
             conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS sections_ad AFTER DELETE ON sections
+                CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks
                 BEGIN
-                    INSERT INTO sections_fts(sections_fts, rowid, content)
-                    VALUES ('delete', old.id, old.content);
+                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.chunk_id);
                 END
             """)
             conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS sections_au AFTER UPDATE ON sections
+                CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks
                 BEGIN
-                    INSERT INTO sections_fts(sections_fts, rowid, content)
-                    VALUES ('delete', old.id, old.content);
-                    INSERT INTO sections_fts(rowid, content, file_path, heading)
-                    VALUES (new.id, new.content, new.file_path, new.heading);
+                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.chunk_id);
+                    INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
+                    VALUES (new.chunk_id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
                 END
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS index_state (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
             """)
             conn.commit()
         finally:
             conn.close()
+
+    def _migrate_from_legacy(self, conn: sqlite3.Connection) -> None:
+        """Migrate data from legacy sections/sections_fts to new schema."""
+        try:
+            # Read legacy data
+            rows = conn.execute("SELECT id, file_path, heading, content, file_mtime FROM sections").fetchall()
+
+            # Create new tables (they may not exist yet)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS documents (
+                    doc_id TEXT PRIMARY KEY,
+                    source_path TEXT NOT NULL,
+                    mtime_ns INTEGER NOT NULL,
+                    size_bytes INTEGER NOT NULL,
+                    content_hash TEXT NOT NULL,
+                    indexed_at REAL NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS chunks (
+                    chunk_id TEXT PRIMARY KEY,
+                    doc_id TEXT NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+                    source_path TEXT NOT NULL,
+                    heading TEXT NOT NULL,
+                    heading_path TEXT NOT NULL DEFAULT '',
+                    heading_level INTEGER NOT NULL DEFAULT 0,
+                    ordinal INTEGER NOT NULL DEFAULT 0,
+                    content TEXT NOT NULL,
+                    normalized_content TEXT NOT NULL DEFAULT '',
+                    start_line INTEGER NOT NULL,
+                    end_line INTEGER NOT NULL,
+                    char_count INTEGER NOT NULL DEFAULT 0,
+                    token_count INTEGER,
+                    content_hash TEXT NOT NULL,
+                    tags_json TEXT,
+                    indexed_at REAL NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+                    normalized_content,
+                    source_path,
+                    heading,
+                    heading_path,
+                    content_hash,
+                    content
+                )
+            """)
+
+            # Track unique documents by file_path
+            doc_map: dict[str, dict] = {}
+
+            for row in rows:
+                legacy_id, file_path, heading, content, file_mtime = row
+                normalized_content = " ".join(content.split())
+
+                # Get or create document record
+                if file_path not in doc_map:
+                    import hashlib
+                    import time
+
+                    doc_hash = hashlib.sha256(file_path.encode()).hexdigest()[:16]
+                    doc_id = f"doc_{doc_hash}"
+                    doc_map[file_path] = {
+                        "doc_id": doc_id,
+                        "source_path": file_path,
+                        "mtime_ns": int(file_mtime * 1e9),
+                        "size_bytes": len(content.encode("utf-8")),
+                        "content_hash": hashlib.sha256((file_path + str(file_mtime)).encode()).hexdigest(),
+                        "indexed_at": time.time(),
+                    }
+
+                # Create chunk record
+                import hashlib
+                import time
+
+                chunk_id = f"chunk_{hashlib.sha256(f'{file_path}:{legacy_id}'.encode()).hexdigest()[:16]}"
+                content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                conn.execute(
+                    "INSERT OR REPLACE INTO chunks (chunk_id, doc_id, source_path, heading, heading_path, heading_level, ordinal, content, normalized_content, start_line, end_line, char_count, token_count, content_hash, tags_json, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        chunk_id,
+                        doc_map[file_path]["doc_id"],
+                        file_path,
+                        heading,
+                        "",
+                        0,
+                        0,
+                        content,
+                        normalized_content,
+                        1,
+                        len(content.splitlines()),
+                        len(content),
+                        None,
+                        content_hash,
+                        None,
+                        time.time(),
+                    ),
+                )
+
+            # Insert documents
+            for doc in doc_map.values():
+                conn.execute(
+                    "INSERT OR REPLACE INTO documents (doc_id, source_path, mtime_ns, size_bytes, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (doc["doc_id"], doc["source_path"], doc["mtime_ns"], doc["size_bytes"], doc["content_hash"], doc["indexed_at"]),
+                )
+
+            # Drop legacy tables
+            conn.execute("DROP TABLE IF EXISTS sections_fts")
+            conn.execute("DROP TABLE IF EXISTS sections")
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks
+                BEGIN
+                    INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
+                    VALUES (new.chunk_id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
+                END
+            """)
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks
+                BEGIN
+                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.chunk_id);
+                END
+            """)
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks
+                BEGIN
+                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.chunk_id);
+                    INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
+                    VALUES (new.chunk_id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
+                END
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS index_state (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+            conn.commit()
+            chunk_count = sum(1 for _ in conn.execute("SELECT 1 FROM chunks"))
+            logger.info("Migration from legacy schema complete: %d documents, %d chunks", len(doc_map), chunk_count)
+        except Exception as e:
+            conn.rollback()
+            logger.error("Migration failed: %s", e)
+            raise
 
     def _get_db_connection(self) -> sqlite3.Connection:
         """Return a connection to the mdq database."""

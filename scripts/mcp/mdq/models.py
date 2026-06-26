@@ -21,6 +21,25 @@ class ParsedSection(TypedDict):
     parent_heading: str | None
 
 
+class ChunkRecord(TypedDict):
+    chunk_id: str
+    doc_id: str
+    source_path: str
+    heading: str
+    heading_path: str
+    heading_level: int
+    ordinal: int
+    content: str
+    normalized_content: str
+    start_line: int
+    end_line: int
+    char_count: int
+    token_count: int | None
+    content_hash: str
+    tags_json: str | None
+    indexed_at: float | None
+
+
 class ParsedSectionRequest(TypedDict):
     path: str
 
