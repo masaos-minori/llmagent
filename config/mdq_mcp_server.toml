@@ -8,6 +8,10 @@ allowed_dirs = []
 # Database path
 db_path = "/opt/llm/db/mdq.sqlite"
 
+# File matching patterns
+include_globs = ["*.md"]
+exclude_globs = [".git/**", "__pycache__/**"]
+
 # Maximum number of results to return from search
 max_search_results = 100
 
@@ -23,62 +27,8 @@ max_file_chars = 100000
 # Maximum number of seconds to wait for a search operation
 search_timeout_sec = 30
 
-# Maximum number of seconds to wait for a file read operation
-file_read_timeout_sec = 10
+# Enable refresh_index tool (controls whether manual index refresh is allowed)
+enable_refresh = true
 
-# Maximum number of seconds to wait for a file write operation
-file_write_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file delete operation
-file_delete_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file list operation
-file_list_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file info operation
-file_info_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file search operation
-file_search_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file grep operation
-file_grep_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file tree operation
-file_tree_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file directory tree operation
-file_directory_tree_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file directory list operation
-file_directory_list_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file directory info operation
-file_directory_info_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file directory search operation
-file_directory_search_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file directory grep operation
-file_directory_grep_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file directory tree operation
-file_directory_tree_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file directory directory tree operation
-file_directory_directory_tree_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file directory directory list operation
-file_directory_directory_list_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file directory directory info operation
-file_directory_directory_info_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file directory directory search operation
-file_directory_directory_search_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file directory directory grep operation
-file_directory_directory_grep_timeout_sec = 10
-
-# Maximum number of seconds to wait for a file directory directory directory tree operation
-file_directory_directory_directory_tree_timeout_sec = 10
+# Audit log path for write operations
+audit_log_path = "/opt/llm/logs/mdq_audit.log"

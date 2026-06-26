@@ -37,16 +37,32 @@ class MdqService:
     """Main service class for Mdq functionality."""
 
     def __init__(self, db_path: str | None = None):
-        self.db_path = db_path or "/opt/llm/db/mdq.sqlite"
-        self._allowed_dirs: list[str] = []
+        # Load config from ConfigLoader (auto-loads mdq_mcp_server.toml)
         try:
             from shared.config_loader import ConfigLoader
 
             cfg = ConfigLoader().load_all()
             mdq_cfg = cfg.get("mdq_mcp_server", {}) if isinstance(cfg.get("mdq_mcp_server"), dict) else {}
-            self._allowed_dirs = mdq_cfg.get("allowed_dirs") or []
         except (FileNotFoundError, KeyError, TypeError):
+            mdq_cfg = {}
+
+        self.db_path = db_path or mdq_cfg.get("db_path", "/opt/llm/db/mdq.sqlite")
+        self._allowed_dirs: list[str] = mdq_cfg.get("allowed_dirs") or []
+        self.include_globs: list[str] = mdq_cfg.get("include_globs", ["*.md"])
+        self.exclude_globs: list[str] = mdq_cfg.get("exclude_globs", [".git/**", "__pycache__/**"])
+        self.max_search_results: int = mdq_cfg.get("max_search_results", 100)
+        self.max_snippet_chars: int = mdq_cfg.get("max_snippet_chars", 500)
+        self.max_chunk_chars: int = mdq_cfg.get("max_chunk_chars", 10000)
+        self.max_file_chars: int = mdq_cfg.get("max_file_chars", 100000)
+        self.search_timeout_sec: int = mdq_cfg.get("search_timeout_sec", 30)
+        self.enable_refresh: bool = mdq_cfg.get("enable_refresh", True)
+        self.audit_log_path: str | None = mdq_cfg.get("audit_log_path", "/opt/llm/logs/mdq_audit.log")
+
+        # Validate required fields
+        if not isinstance(self._allowed_dirs, list):
+            logger.warning("mdq_mcp_server.allowed_dirs must be a list; using empty list")
             self._allowed_dirs = []
+
         self._init_db()
 
     @property

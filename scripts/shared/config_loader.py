@@ -40,6 +40,7 @@ _BASE_CONFIG_FILES: tuple[str, ...] = (
     "security.toml",
     "system_prompts.toml",
     "mcp_servers.toml",
+    "mdq_mcp_server.toml",
     "tools_definitions.toml",
 )
 
