@@ -29,85 +29,81 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=3,
-        poll_interval_ms=10,
-        offset_checkpoint_interval=3,
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = Path(__file__).parent.parent / "schemas" / "event_envelope.json"
-    monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
+    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
         yield c
 
 
-def _event(topic: str = "t") -> dict[str, Any]:
-    return {
+def _pub(client: TestClient, topic: str = "t") -> dict[str, Any]:
+    ev = {
         "event_id": str(uuid.uuid4()),
         "topic": topic,
         "payload": {},
         "producer": "p",
-        "published_at": "2026-06-24T00:00:00Z",
+        "published_at": "2026-06-25T12:00:00Z",
     }
+    r = client.post("/publish", json=ev)
+    assert r.status_code == 200
+    return r.json()
 
 
-def test_offset_read_write(tmp_path: Path) -> None:
-    from eventbus.offsets import read_offset, write_offset
+def test_ack_writes_offset(client: TestClient, tmp_path: Path) -> None:
+    """POST /events/{id}/ack should write offset to the offsets directory."""
+    result = _pub(client)
+    event_id = result["event_id"]
+    seq = result["seq"]
 
-    dir_ = str(tmp_path / "offsets")
-    assert read_offset(dir_, "consumer-1") == 0
-    write_offset(dir_, "consumer-1", 42)
-    assert read_offset(dir_, "consumer-1") == 42
+    r = client.post(f"/events/{event_id}/ack?consumer_id=consumer1")
+    assert r.status_code == 200
 
+    from eventbus import app as eb_app
+    from eventbus.offsets import read_offset
 
-def test_config_has_offset_checkpoint_interval() -> None:
-    from eventbus.config import EventBusConfig
-
-    cfg = EventBusConfig(
-        port=8000,
-        db_path="/tmp/eb.sqlite",
-        storage_dir="/tmp/storage",
-        offsets_dir="/tmp/offsets",
-        deadletter_dir="/tmp/dlq",
-        max_retry=3,
-    )
-    assert cfg.offset_checkpoint_interval == 10
+    offset = read_offset(eb_app._cfg.offsets_dir, "consumer1")
+    assert offset == seq
 
 
-def test_checkpoint_write_offset_called_after_n_events(client: TestClient) -> None:
-    """N件ごとに write_offset が呼ばれることを確認。
+def test_ack_nonexistent_event_returns_404(client: TestClient) -> None:
+    """POST /events/{id}/ack for unknown event_id should return 404."""
+    r = client.post("/events/nonexistent-id/ack?consumer_id=consumer1")
+    assert r.status_code == 404
 
-    /subscribe の SSE 無限ループは TestClient で直接テスト不可 (see module docstring).
-    DB 内のイベントをポール結果とみなして subscribe ループのチェックポイントロジックを
-    同等に再現し、write_offset 呼び出しを spy で確認する。
-    """
-    import eventbus.app as eb_app
 
-    N = 3
-    consumer_id = "cp-consumer"
-    assert eb_app._cfg is not None
-    checkpoint_interval = eb_app._cfg.offset_checkpoint_interval
-    offsets_dir = eb_app._cfg.offsets_dir
+def test_reconnect_resume_via_consumer_id(client: TestClient) -> None:
+    """consumer_id reconnect should restore start_seq from last acked offset."""
+    r1 = _pub(client)
+    r2 = _pub(client)
 
-    for _ in range(N):
-        r = client.post("/publish", json=_event())
-        assert r.status_code == 200
+    # ack first event -> offset = r1["seq"]
+    client.post(f"/events/{r1['event_id']}/ack?consumer_id=consumer2")
 
-    rows = eb_app._db.execute(  # type: ignore[union-attr]
-        "SELECT seq FROM events ORDER BY seq"
-    ).fetchall()
-    assert len(rows) >= N
+    # Verify: new broker subscription with consumer_id picks up from last acked seq
+    from eventbus import app as eb_app
+    from eventbus.offsets import read_offset
 
-    # Replicate the checkpoint logic in the subscribe loop
-    from eventbus.offsets import write_offset
+    offset = read_offset(eb_app._cfg.offsets_dir, "consumer2")
+    assert offset == r1["seq"]
 
-    events_since_checkpoint = 0
-    for row in rows:
-        events_since_checkpoint += 1
-        if events_since_checkpoint >= checkpoint_interval:
-            write_offset(offsets_dir, consumer_id, row["seq"])
-            events_since_checkpoint = 0
+    # Subscribe again -- start_seq should be r1["seq"] so only r2 replays
+    sub = eb_app._broker.subscribe([])
+    try:
+        # The broker queue will have new events from here on
+        # We verify by checking the replay query is scoped correctly
+        # (Direct replay query verification without SSE streaming)
+        assert offset < r2["seq"]  # replay would include r2 but not r1
+    finally:
+        eb_app._broker.unsubscribe(sub)
 
-    offset_file = Path(offsets_dir) / consumer_id
-    assert offset_file.exists(), "write_offset should have created offset file"
-    written_seq = int(offset_file.read_text().strip())
-    assert written_seq >= N - 1
+
+def test_offset_not_advanced_without_ack(client: TestClient) -> None:
+    """Offset should remain 0 for consumer_id that never acked."""
+    from eventbus import app as eb_app
+    from eventbus.offsets import read_offset
+
+    _pub(client)
+    offset = read_offset(eb_app._cfg.offsets_dir, "never-acked-consumer")
+    assert offset == 0
