@@ -228,6 +228,60 @@ See [Agent Startup and Recovery](05_agent_07_cli-and-commands.md#startup-recover
 
 ---
 
+## Canonical Approval Model (ADR-001)
+
+**Date:** 2026-06-26
+**Status:** Accepted
+
+### Context
+
+Two approval layers exist in the agent: tool-level and workflow-level. They must coexist without conflict.
+
+### Decision
+
+Both layers are canonical; boundaries and responsibilities are explicit, not exclusive.
+
+### Boundary Table
+
+| Axis | Tool-level Approval | Workflow-level Approval |
+|------|---------------------|------------------------|
+| Implementation | `agent/tool_approval.py` | `agent/workflow/workflow_engine.py` |
+| Granularity | per tool call | per task (execute→verify gap) |
+| State | ephemeral (in-memory) | DB-persisted (`workflow_approvals`) |
+| Resolution | stdin interactive | `/approve` / `/reject` |
+| Currently active | always enabled | disabled (`require_approval=False`) |
+
+### Coexistence Rules
+
+When `require_approval=True`:
+
+1. During execute stage: `run_approval_checks` fires per tool call (MEDIUM/HIGH risk tools only).
+2. After execute stage: `_gate_approval()` suspends the workflow; user runs `/approve` or `/reject`.
+3. Both fire independently. This is intentional: they operate at different granularities.
+
+### Architecture Diagram
+
+```
+User prompt
+  └─► Orchestrator
+        └─► WorkflowEngine (plan → execute → [approval gate] → verify)
+              └─► repository_gateway.py (tool-call batch)
+                    └─► run_approval_checks (per-tool, MEDIUM/HIGH risk)
+                          └─► stdin prompt → approved/denied
+              └─► _gate_approval() [when require_approval=True]
+                    └─► WorkflowPendingApprovalError
+                          └─► /approve or /reject command
+```
+
+### ADR Rationale
+
+The requirement "one canonical approval object" means: define clear boundaries and responsibilities for each layer. It does not mean eliminate one layer. Both layers solve different problems:
+
+- Tool-level: real-time per-tool risk gate (before execution).
+- Workflow-level: human sign-off on the full execute stage result (after execution).
+
+---
+
 ## Partial Completion Persistence
 
 When a workflow fails after some steps have completed, the workflow engine records the

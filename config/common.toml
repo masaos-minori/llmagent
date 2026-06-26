@@ -46,3 +46,6 @@ embedding_dims = 384
 #                "auto"     = warn and fall back to direct execution (dev/local)
 #                "disabled" = always use direct execution (testing only)
 workflow_mode = "required"
+
+# workflow_require_approval: when True, WorkflowEngine requires /approve before verify stage runs
+# Disabled by default; enable in production after testing the approval flow.

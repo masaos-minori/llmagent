@@ -208,7 +208,12 @@ class Orchestrator:
                 task,
             ) = self._init_workflow_task(ctx, session_id)
             self._activate_workflow(ctx, task)
-            engine = WorkflowEngine(self._workflow_def, store, tracer=self._tracer)
+            engine = WorkflowEngine(
+               self._workflow_def,
+               store,
+               require_approval=self._ctx.cfg.workflow_require_approval,
+               tracer=self._tracer,
+           )
 
             async def plan_fn() -> str | None:
                 return None  # _handle_turn_start already completed

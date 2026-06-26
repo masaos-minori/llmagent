@@ -156,12 +156,17 @@ async def check_approval(
 async def run_approval_checks(
     ctx: AgentContext,
     tool_calls: list[dict],
+    skip_in_workflow_mode: bool = False,  # When True, skip per-tool approval (workflow-level approval is active)
 ) -> tuple[list[dict], list[str]]:
     """Run plan-mode block and interactive approval for each tool call.
 
     Returns (approved_calls, denied_ids). Runs serially — approval is interactive.
     Invalid JSON arguments are treated as empty dicts; approval continues normally.
     """
+    if skip_in_workflow_mode:
+        logger.debug("run_approval_checks: skipping — workflow approval mode active")
+        return tool_calls, []
+
     approved_calls: list[dict] = []
     denied_ids: list[str] = []
     for tc in tool_calls:

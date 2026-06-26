@@ -524,6 +524,7 @@ class AgentConfig:
     obs: ObservabilityConfig = field(default_factory=ObservabilityConfig)
     workflow_mode: str = "auto"
     security_lockdown_enabled: bool = False
+    workflow_require_approval: bool = False
 
     def __post_init__(self) -> None:
         self._validate_workflow_mode()

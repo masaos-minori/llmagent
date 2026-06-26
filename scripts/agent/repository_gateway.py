@@ -100,7 +100,7 @@ class RepositoryGateway:
                 },
             }
             approved_calls, denied_ids = await run_approval_checks(
-                ctx, [tool_call_dict]
+                ctx, [tool_call_dict], skip_in_workflow_mode=ctx.cfg.workflow_require_approval and not ctx.workflow.approval_pending
             )
             if tool_name in denied_ids or not approved_calls:
                 logger.info("gateway.approval_denied tool=%r", tool_name)
