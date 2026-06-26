@@ -38,7 +38,7 @@
 
 | Item | Safe interpretation | Recommended action |
 |---|---|---|
-| Consumer IDs are client-supplied; `_make_consumer_id()` is dead code | No auto-generation in app.py; consumer_ids must be stable across restarts for offset resume | Remove misleading docs about auto-generated consumer IDs; clarify stability requirement |
+| Consumer IDs are client-supplied; `_make_consumer_id()` is dead code | No auto-generation in app.py; consumer_ids must be stable across restarts for offset resume | Resolved — removed misleading docs about auto-generated consumer IDs; clarified stability requirement in all Event Bus docs; added deprecation notice to _make_consumer_id() |
 
 ### Host Config Ownership Mismatch
 
@@ -78,6 +78,7 @@
 | SQLite/JSONL dual read path | **Resolved** — SQLite-only reads; JSONL is write-only |
 | Consumer ID collision possibility | **Resolved** — hash-based stable IDs with collision detection |
 | `/subscribe` polling vs push documentation mismatch | **Resolved** — removed stale "polling-based internally (not push)" description; confirmed hybrid model (replay from SQLite + live EventBroker push) |
+| Consumer ID collision possibility | **Re-evaluated** — no collision detection exists; last write wins for offset file; consumer_ids must be stable across restarts for offset resume |
 
 ## Unconfirmed items (Needs Confirmation)
 

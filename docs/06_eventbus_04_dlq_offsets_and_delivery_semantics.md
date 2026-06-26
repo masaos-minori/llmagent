@@ -37,6 +37,8 @@ Example reconnect flow:
 3. Disconnects
 4. Reconnects: `GET /subscribe?consumer_id=svc-A` → replay starts from seq=11
 
+**Consumer ID stability requirement**: Consumer IDs must be stable across restarts for offset resume to work. Process-lifetime stable IDs (e.g., PID-based) will NOT survive restarts — offsets will not resume. Recommended: use application-level identifiers (e.g., service name + instance ID) as consumer_ids.
+
 **Deprecated**: `offset_checkpoint_interval` config field is no longer used.
 
 ## Delivery semantics

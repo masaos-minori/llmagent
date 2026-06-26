@@ -1,3 +1,5 @@
+**Status: IMPLEMENTED**
+
 ## Goal
 
 Enforce result size limits for MDQ tools to prevent unbounded MCP responses. Add configurable limits and truncation markers for all MDQ tools (search_docs, get_chunk, outline, grep_docs).
