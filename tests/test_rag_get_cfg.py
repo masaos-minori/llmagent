@@ -28,7 +28,8 @@ class TestRagLlmExceptions:
     async def test_expand_queries_raises_ragerexpansionerror_on_http_failure(
         self,
     ) -> None:
-        from rag.llm import RagExpansionError, RagLLM
+        from rag.llm_client import RagLLM
+        from rag.llm_prompts import RagExpansionError
 
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_response = MagicMock()
@@ -43,7 +44,8 @@ class TestRagLlmExceptions:
 
     @pytest.mark.asyncio
     async def test_expand_queries_raises_on_malformed_json(self) -> None:
-        from rag.llm import RagExpansionError, RagLLM
+        from rag.llm_client import RagLLM
+        from rag.llm_prompts import RagExpansionError
 
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_response = MagicMock()
@@ -67,7 +69,8 @@ class TestRagLlmExceptions:
     async def test_cross_encoder_rerank_raises_ragrerankerror_on_http_failure(
         self,
     ) -> None:
-        from rag.llm import RagLLM, RagRerankError
+        from rag.llm_client import RagLLM
+        from rag.llm_prompts import RagRerankError
         from rag.types import MergedHit
 
         mock_client = AsyncMock(spec=httpx.AsyncClient)
@@ -102,3 +105,21 @@ class TestDeleteModelsGetCfg:
         with patch.object(ConfigLoader, "load", side_effect=ValueError("not found")):
             with pytest.raises(ValueError, match="not found"):
                 FileDeleteConfig.load()
+
+
+# ── Removal guards ────────────────────────────────────────────────────────────
+
+
+def test_rag_llm_module_does_not_exist() -> None:
+    """rag.llm re-export stub must be deleted; imports must use llm_client/llm_prompts."""
+    import importlib
+
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("rag.llm")
+
+
+def test_pipeline_stage_result_not_in_rag_types() -> None:
+    """PipelineStageResult must be removed from rag.types (canonical: StageResult in rag.stage)."""
+    import rag.types
+
+    assert not hasattr(rag.types, "PipelineStageResult")

@@ -391,15 +391,15 @@ Owns all SQL. Used internally by stages. Logs query / fts_query / top_k / elapse
 |---|---|---|
 | `rrf_merge` (static) | `(results_list: list[list[RawHit]] \| list[list[RagHit]], rrf_k: int = 60) -> list[RagHit]` | RRF score Σ 1/(rrf_k+rank); descending order; assigns `rrf_score`; accepts RawHit or RagHit result lists |
 
-### 7.3 RagLLM (`scripts/rag/llm.py` — re-export stub)
+### 7.3 RagLLM (`scripts/rag/llm_client.py`)
 
-`scripts/rag/llm.py` is a backward-compatibility re-export module. The actual implementations live in:
+Implementations live in:
 
 - `scripts/rag/llm_client.py` — `RagLLM` class, `get_embedding()`, `summarize_tool_result()`
 - `scripts/rag/llm_prompts.py` — prompt templates, `RagExpansionError`, `RagRerankError`, `MqeParseError`
 
 ```python
-from rag.llm import RagLLM  # re-exported from rag.llm_client
+from rag.llm_client import RagLLM
 llm = RagLLM(client=http_client, llm_url="http://127.0.0.1:8001/v1/chat/completions")
 ```
 

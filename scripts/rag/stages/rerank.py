@@ -2,7 +2,8 @@
 
 from shared.types import RagConfig
 
-from rag.llm import RagLLM, RagRerankError  # noqa: F401 — re-exported for callers
+from rag.llm_client import RagLLM  # noqa: F401 — re-exported for callers
+from rag.llm_prompts import RagRerankError  # noqa: F401 — re-exported for callers
 from rag.repository import RagHit, deduplicate_chunks
 from rag.stage import PipelineContext, PipelineStage
 

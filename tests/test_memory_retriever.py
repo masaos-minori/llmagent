@@ -715,3 +715,49 @@ class TestHybridRetrieverFallbackCount:
             retriever.search(q, embedding=[0.1] * 3)
 
         assert retriever.last_retrieval_mode == "fts_only"
+
+
+class TestBranchBoundary:
+    """Branch boundary tests for top_semantic."""
+
+    def test_top_semantic_excludes_other_branch(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(
+            db_conn,
+            memory_id="feat-x-id",
+            memory_type="semantic",
+            branch="feat/x",
+            importance=0.9,
+            content="feat-x content",
+        )
+        entries = retriever.top_semantic(branch="feat/y", limit=10)
+        assert not any(e.memory_id == "feat-x-id" for e in entries)
+
+    def test_top_semantic_includes_global_memory(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(
+            db_conn,
+            memory_id="global-id",
+            memory_type="semantic",
+            branch="",
+            importance=0.9,
+            content="global rule content",
+        )
+        entries = retriever.top_semantic(branch="feat/x", limit=10)
+        assert any(e.memory_id == "global-id" for e in entries)
+
+    def test_top_semantic_includes_same_branch(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(
+            db_conn,
+            memory_id="feat-x-id2",
+            memory_type="semantic",
+            branch="feat/x",
+            importance=0.9,
+            content="feat-x content",
+        )
+        entries = retriever.top_semantic(branch="feat/x", limit=10)
+        assert any(e.memory_id == "feat-x-id2" for e in entries)

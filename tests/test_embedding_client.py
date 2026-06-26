@@ -938,3 +938,48 @@ class TestDimensionValidation:
 
         result = await client.fetch("test")
         assert result.success is True
+
+
+class TestLocalOnly:
+    """Tests for local_only enforcement in EmbeddingClientConfig."""
+
+    def test_local_only_true_with_non_local_url_raises(self) -> None:
+        cfg = EmbeddingClientConfig(
+            embed_url="http://external-api.com:8080/embed",
+            local_only=True,
+        )
+        with pytest.raises(ValueError, match="memory_local_only=True"):
+            EmbeddingClient(cfg, enabled=True)
+
+    def test_local_only_true_with_localhost_url_ok(self) -> None:
+        cfg = EmbeddingClientConfig(
+            embed_url="http://localhost:8080/embed",
+            local_only=True,
+        )
+        client = EmbeddingClient(cfg, enabled=True)
+        assert client.get_status().local_only is True
+
+    def test_local_only_true_with_127_url_ok(self) -> None:
+        cfg = EmbeddingClientConfig(
+            embed_url="http://127.0.0.1:8080/embed",
+            local_only=True,
+        )
+        client = EmbeddingClient(cfg, enabled=True)
+        assert client.get_status().local_only is True
+
+    def test_local_only_false_with_any_url_ok(self) -> None:
+        cfg = EmbeddingClientConfig(
+            embed_url="http://external-api.com:8080/embed",
+            local_only=False,
+        )
+        client = EmbeddingClient(cfg, enabled=True)
+        assert client.get_status().local_only is False
+
+    def test_local_only_reflected_in_status(self) -> None:
+        cfg = EmbeddingClientConfig(
+            embed_url="http://localhost:8080/embed",
+            local_only=True,
+        )
+        client = EmbeddingClient(cfg, enabled=True)
+        status = client.get_status()
+        assert status.local_only is True

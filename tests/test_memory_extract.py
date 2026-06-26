@@ -5,7 +5,11 @@ Unit tests for agent.memory.extract rule-based extraction logic.
 
 from __future__ import annotations
 
-from agent.memory.extract import MIN_USER_CONTENT_CHARS, extract_memories
+from agent.memory.extract import (
+    MIN_USER_CONTENT_CHARS,
+    _classify_content,
+    extract_memories,
+)
 from agent.memory.models import HistoryMessage
 
 
@@ -199,3 +203,45 @@ class TestExtractMemories:
             msgs.append(HistoryMessage(role="assistant", content=rule))
         result = extract_memories(msgs)
         assert len(result) <= MAX_ENTRIES
+
+
+class TestClassifyContent:
+    """Regression tests for _classify_content source-type classification."""
+
+    def test_rule_keywords_classify_as_rule(self) -> None:
+        from agent.memory.extract import _SEMANTIC_KEYWORDS
+
+        text = "You must always use uv run pytest"
+        semantic_hits = len(_SEMANTIC_KEYWORDS.findall(text))
+        failure_hits = 0
+        result = _classify_content(text * 5, semantic_hits, failure_hits)
+        assert result is not None
+        assert result[1] == "rule"
+
+    def test_decision_keywords_classify_as_decision(self) -> None:
+        from agent.memory.extract import _SEMANTIC_KEYWORDS
+
+        text = (
+            "We decided to use SQLite because the trade-off is clear: it must be "
+            "the default policy for this project always."
+        )
+        semantic_hits = len(_SEMANTIC_KEYWORDS.findall(text))
+        failure_hits = 0
+        result = _classify_content(text, semantic_hits, failure_hits)
+        assert result is not None
+        assert result[1] == "decision"
+
+    def test_failure_keywords_classify_as_failure(self) -> None:
+        from agent.memory.extract import _EPISODIC_FAILURE_KEYWORDS
+
+        text = "Fixed the regression by resetting the root cause of the deadlock"
+        failure_hits = len(_EPISODIC_FAILURE_KEYWORDS.findall(text))
+        result = _classify_content(text, 0, failure_hits)
+        assert result is not None
+        assert result[1] == "failure"
+
+    def test_plain_conversation_classifies_as_conversation(self) -> None:
+        text = "That is a good question about the config. " * 5  # long enough
+        result = _classify_content(text, 0, 0)
+        assert result is not None
+        assert result[1] == "conversation"

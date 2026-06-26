@@ -221,6 +221,42 @@ class MemoryStore:
             )
             return {row[0]: row[1] for row in rows}
 
+    def count_by_source_type(self) -> dict[str, int]:
+        """Return {source_type: count} for all rows in memories. Diagnostic use only."""
+        with SQLiteHelper("session").open() as db:
+            rows = db.fetchall(
+                "SELECT source_type, COUNT(*) FROM memories GROUP BY source_type",
+            )
+            return {row[0]: row[1] for row in rows}
+
+    def list_entries(
+        self,
+        source_type: str | None = None,
+        branch: str | None = None,
+        limit: int = 50,
+    ) -> list[MemoryEntry]:
+        """Return entries filtered by optional source_type and/or branch."""
+        where_clauses = []
+        params: list[object] = []
+        if source_type:
+            where_clauses.append("source_type = ?")
+            params.append(source_type)
+        if branch is not None:
+            where_clauses.append("(branch = '' OR branch = ?)")
+            params.append(branch)
+        where = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+        params.append(limit)
+        sql = f"""SELECT memory_id, memory_type, source_type, session_id, turn_id,
+                         project, repo, branch, content, summary, tags,
+                         importance, pinned, created_at, updated_at
+                  FROM memories
+                  {where}
+                  ORDER BY pinned DESC, importance DESC, created_at DESC
+                  LIMIT ?"""  # nosec B608 — where clause uses only literal strings; params via ?
+        with SQLiteHelper("session").open(row_factory=True) as db:
+            rows = db.fetchall(sql, tuple(params))
+        return [row_to_entry(dict(r)) for r in rows]
+
     def count_vec(self) -> int:
         """Return total entry count in memories_vec. Raises sqlite3.OperationalError if unavailable."""
         with SQLiteHelper("session").open() as db:

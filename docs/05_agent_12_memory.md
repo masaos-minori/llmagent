@@ -3,6 +3,33 @@
 - Operations and observability → [05_agent_10_operations-and-observability.md](05_agent_10_operations-and-observability.md)
 - Configuration → [05_agent_08_configuration.md](05_agent_08_configuration.md)
 
+## Persistent Semantic Memory — Overview
+
+Persistent Semantic Memory stores abstract rules, design decisions, failure patterns,
+and conversational Q&A across agent sessions.
+
+**Memory types**:
+- Semantic: long-lived rules and decisions (importance ≥ 0.5 for session startup injection)
+- Episodic: session-specific failures and Q&A (injected on first user prompt)
+
+**Source types**: RULE / DECISION / FAILURE / CONVERSATION
+
+**Local-only guarantee**: set `memory_local_only = true` to enforce that the embedding
+endpoint is a loopback address. Fails startup if `embed_url` is non-local.
+
+**Automatic context restoration**:
+- Session start: pinned + high-importance semantic injected
+- First user prompt: task-specific hybrid retrieval (semantic + episodic)
+
+## Production Checklist
+
+- [ ] `memory_local_only = true` if data must not leave the machine
+- [ ] `embed_url` points to local embedding service (e.g., `http://localhost:11434`)
+- [ ] `/memory status` shows `mode: hybrid` or `mode: fts-only` (not `disabled`)
+- [ ] `/memory rebuild` tested after restoring JSONL backup
+
+---
+
 ## Purpose
 
 API reference for all 14 modules under `scripts/agent/memory/`. A developer should

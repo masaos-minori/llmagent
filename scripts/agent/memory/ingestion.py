@@ -17,7 +17,7 @@ import uuid
 from db.helper import SQLiteHelper
 
 from agent.memory.embedding_client import EmbeddingClient, EmbeddingResult
-from agent.memory.enums import DedupAction, DedupPolicy, MemoryType
+from agent.memory.enums import DEDUP_THRESHOLDS, DedupAction, DedupPolicy, MemoryType
 from agent.memory.extract import extract_memories
 from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.mapper import _now_iso
@@ -98,7 +98,7 @@ class MemoryIngestionService:
                 embed_result.error_kind,
                 entry.memory_id,
             )
-        if self._should_skip_dedup(embed_result, entry.memory_id):
+        if self._should_skip_dedup(embed_result, entry.memory_id, entry):
             return
         await self._persist_entry_with_embedding(entry, embed_result)
 
@@ -141,13 +141,15 @@ class MemoryIngestionService:
             entry.importance,
         )
 
-    def _should_skip_dedup(self, embed_result: EmbeddingResult, memory_id: str) -> bool:
+    def _should_skip_dedup(
+        self, embed_result: EmbeddingResult, memory_id: str, entry: MemoryEntry
+    ) -> bool:
         """Return True when dedup skips this entry."""
         if (
             self._dedup_policy.action == DedupAction.SKIP_NEW
             and embed_result.success
             and embed_result.embedding is not None
-            and self._has_near_duplicate(memory_id, embed_result.embedding)
+            and self._has_near_duplicate(memory_id, embed_result.embedding, entry)
         ):
             logger.debug("memory.skip_dup memory_id=%r", memory_id)
             return True
@@ -155,12 +157,19 @@ class MemoryIngestionService:
 
     # ── Dedup helpers ─────────────────────────────────────────────────────────
 
-    def _has_near_duplicate(self, memory_id: str, embedding: list[float]) -> bool:
-        """Return True if a near-duplicate entry exists within dedup threshold."""
+    def _get_dedup_threshold(self, entry: MemoryEntry) -> float:
+        """Return the dedup similarity threshold for this entry's source type."""
+        source_key = str(entry.source_type).upper()
+        return DEDUP_THRESHOLDS.get(source_key, self._dedup_policy.threshold)
+
+    def _has_near_duplicate(
+        self, memory_id: str, embedding: list[float], entry: MemoryEntry
+    ) -> bool:
+        """Return True if a near-duplicate entry exists within source-type dedup threshold."""
+        threshold = self._get_dedup_threshold(entry)
         neighbors = self._retriever.knn_search(embedding, memory_type=None, limit=5)
         return any(
-            -h.score < self._dedup_policy.threshold and h.entry.memory_id != memory_id
-            for h in neighbors
+            -h.score < threshold and h.entry.memory_id != memory_id for h in neighbors
         )
 
     def _link_duplicates(self, memory_id: str, embedding: list[float]) -> None:

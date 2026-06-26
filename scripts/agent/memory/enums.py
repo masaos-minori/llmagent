@@ -34,3 +34,18 @@ class DedupAction(StrEnum):
 class DedupPolicy:
     action: DedupAction = DedupAction.SKIP_NEW
     threshold: float = 0.3
+
+
+DEDUP_THRESHOLDS: dict[str, float] = {
+    "RULE": 0.98,
+    "DECISION": 0.98,
+    "FAILURE": 0.90,
+    "CONVERSATION": 0.85,
+}
+
+RETENTION_DAYS: dict[str, int | None] = {
+    "RULE": None,
+    "DECISION": None,
+    "FAILURE": 180,
+    "CONVERSATION": 90,
+}

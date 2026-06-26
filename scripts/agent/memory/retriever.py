@@ -67,8 +67,12 @@ def _recency_boost(created_at: str, recency_days: float = _RECENCY_DAYS) -> floa
         ) from e
 
 
-def _context_boost(entry: MemoryEntry, project: str, repo: str) -> float:
-    """Return _CONTEXT_MATCH_BOOST when project or repo matches."""
+def _context_boost(
+    entry: MemoryEntry, project: str, repo: str, branch: str = ""
+) -> float:
+    """Return a context match boost based on branch, project, or repo match."""
+    if branch and entry.branch == branch:
+        return _CONTEXT_MATCH_BOOST + 0.05
     if (project and entry.project == project) or (repo and entry.repo == repo):
         return _CONTEXT_MATCH_BOOST
     return 0.0
@@ -80,6 +84,7 @@ def _score(
     project: str,
     repo: str,
     recency_days: float = _RECENCY_DAYS,
+    branch: str = "",
 ) -> float:
     """Combined score; higher is better."""
     importance_w = 1.0 if entry.memory_type == MemoryType.SEMANTIC else 0.5
@@ -90,7 +95,7 @@ def _score(
         + importance_w * entry.importance * _IMPORTANCE_BOOST_SCALE
         + (_PIN_BOOST if entry.pinned else 0.0)
         + recency_w * _recency_boost(entry.created_at, recency_days)
-        + _context_boost(entry, project, repo)
+        + _context_boost(entry, project, repo, branch)
     )
 
 
@@ -145,6 +150,7 @@ class FtsRetriever:
         query: MemoryQuery,
         project: str = "",
         repo: str = "",
+        branch: str = "",
     ) -> list[MemoryHit]:
         """FTS5 BM25 search; returns [] on error or empty query."""
         fts_query = _build_fts_query(query.query)
@@ -152,7 +158,7 @@ class FtsRetriever:
             return []
 
         sql, params = self._build_search_query(fts_query, query.memory_type)
-        hits = self._fetch_hits(sql, tuple(params), project, repo)
+        hits = self._fetch_hits(sql, tuple(params), project, repo, branch)
         hits.sort(key=lambda h: h.score, reverse=True)
         return hits[: query.limit]
 
@@ -181,7 +187,12 @@ class FtsRetriever:
         return sql, params
 
     def _fetch_hits(
-        self, sql: str, params: tuple[object, ...], project: str, repo: str
+        self,
+        sql: str,
+        params: tuple[object, ...],
+        project: str,
+        repo: str,
+        branch: str = "",
     ) -> list[MemoryHit]:
         """Execute query and build scored MemoryHit list."""
         with SQLiteHelper("session").open(row_factory=True) as db:
@@ -192,7 +203,7 @@ class FtsRetriever:
             d = dict(row)
             bm25_rank = float(d.pop("bm25_rank", 0.0))
             entry = row_to_entry(d)
-            s = _score(bm25_rank, entry, project, repo, self._recency_days)
+            s = _score(bm25_rank, entry, project, repo, self._recency_days, branch)
             hits.append(MemoryHit(entry=entry, score=s))
         return hits
 
@@ -267,13 +278,14 @@ class HybridRetriever:
         embedding: list[float] | None = None,
         project: str = "",
         repo: str = "",
+        branch: str = "",
     ) -> list[MemoryHit]:
         """Run FTS5 search (and optionally KNN) and return ranked MemoryHit list.
 
         Falls back to FTS-only when embedding is None or vec table is unavailable.
         When embedding is supplied, merges FTS5 and KNN results via RRF.
         """
-        fts_hits = self._fts.search(query, project, repo)
+        fts_hits = self._fts.search(query, project, repo, branch)
         if embedding is None:
             logger.info("retrieval: fts_only (reason=embedding_disabled_or_none)")
             self.last_retrieval_mode = "fts_only"
@@ -309,6 +321,7 @@ class HybridRetriever:
         min_importance: float = 0.0,
         project: str = "",
         repo: str = "",
+        branch: str = "",
     ) -> list[MemoryEntry]:
         """Return top semantic entries by importance + pin, no FTS needed."""
         with SQLiteHelper("session").open(row_factory=True) as db:
@@ -318,8 +331,9 @@ class HybridRetriever:
                           importance, pinned, created_at, updated_at
                    FROM memories
                    WHERE memory_type = 'semantic' AND importance >= ?
+                   AND (? = '' OR branch = '' OR branch = ?)
                    ORDER BY pinned DESC, importance DESC, created_at DESC
                    LIMIT ?""",
-                (min_importance, limit),
+                (min_importance, branch, branch, limit),
             )
             return [row_to_entry(dict(r)) for r in rows]

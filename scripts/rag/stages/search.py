@@ -33,7 +33,7 @@ async def _search_all_queries(
     """Run concurrent embedding fetches then sequential DB searches; sequential DB avoids shared-connection conflicts."""
     import httpx as _httpx  # noqa: PLC0415 — lazy: avoids circular import at module level
 
-    from rag.llm import (
+    from rag.llm_client import (
         get_embedding,  # noqa: PLC0415 — lazy: avoids circular import at module level
     )
 

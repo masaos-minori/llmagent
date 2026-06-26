@@ -75,7 +75,42 @@ The source files are retained as-is for historical reference.
 
 ---
 
-## Known Limitations
+## Legacy RAG Source Docs — Archive Policy (2026-06-26)
 
-- The original source files (`03_spec_rag.md`, `03_rag-ref-*.md`, etc.) are retained
-  unchanged. This document set supersedes them as the primary reference.
+Archived docs are not part of current spec discovery — use the canonical docs listed in the File Index above.
+
+Policy: **Delete**. Git history enables recovery.
+
+Deleted documents:
+- `docs/03_spec_rag.md`
+- `docs/03_rag-ref-*.md`
+- `docs/03_rag-ingestion-*.md`
+- `docs/05_ref-rag.md`
+
+If recovery is needed: `git show HEAD~N:docs/path/to/file.md`
+
+---
+
+## Migration Notes
+
+### rag.llm re-export (removed 2026-06-26)
+
+```python
+# Before:
+from rag.llm import RagLLM, get_embedding          # compat re-export (removed)
+from rag.llm import RagExpansionError               # compat re-export (removed)
+
+# After:
+from rag.llm_client import RagLLM, get_embedding   # canonical
+from rag.llm_prompts import RagExpansionError       # canonical
+```
+
+### PipelineStageResult (removed 2026-06-26)
+
+```python
+# Before:
+from rag.types import PipelineStageResult  # removed
+
+# After:
+from rag.stage import StageResult          # canonical
+```

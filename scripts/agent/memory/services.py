@@ -6,6 +6,7 @@ Replaces MemoryLayer as the AppServices.memory type.
 
 from __future__ import annotations
 
+from agent.memory.embedding_client import EmbeddingClient
 from agent.memory.ingestion import MemoryIngestionService
 from agent.memory.injection import MemoryInjectionService
 from agent.memory.models import HistoryMessage, MemorySnippet
@@ -22,11 +23,45 @@ class MemoryServices:
         ingestion: MemoryIngestionService,
         store: MemoryStore,
         retriever: HybridRetriever,
+        embedding_client: EmbeddingClient | None = None,
+        use_memory_layer: bool = True,
     ) -> None:
         self.injection = injection
         self.ingestion = ingestion
         self.store = store
         self.retriever = retriever
+        self.embedding_client = embedding_client or getattr(
+            retriever, "embed_client", None
+        )
+        self._use_memory_layer = use_memory_layer
+
+    def get_activation_mode(self) -> str:
+        """Return one of: 'disabled' / 'fts-only' / 'degraded' / 'hybrid'."""
+        if not self._use_memory_layer:
+            return "disabled"
+        embed_client = self.embedding_client
+        if embed_client is None:
+            return "fts-only"
+        embed_status = embed_client.get_status()
+        if not embed_status.enabled:
+            return "fts-only"
+        if embed_status.circuit_open:
+            return "degraded"
+        return "hybrid"
+
+    def get_stats(self) -> dict:
+        """Return entry counts, embed_skip, and last retrieval mode."""
+        counts = self.store.count_by_type()
+        source_counts = self.store.count_by_source_type()
+        return {
+            "total": sum(counts.values()),
+            "semantic": counts.get("semantic", 0),
+            "episodic": counts.get("episodic", 0),
+            "by_source": source_counts,
+            "embed_skip": self.ingestion.stat_embed_skip,
+            "last_retrieval_mode": self.retriever.last_retrieval_mode,
+            "fts_fallback_count": self.retriever.fts_fallback_count,
+        }
 
     def on_session_start(self, session_id: int | None) -> list[MemorySnippet]:
         """Return top semantic snippets for injection at session start."""

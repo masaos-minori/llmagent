@@ -195,18 +195,7 @@ TypedDict with `total=False` (all keys optional per role).
 | `tool_call_id` | str | `"tool"` only |
 | `name` | str | `"tool"` only |
 
-### 5.3 PipelineStageResult (`scripts/rag/types.py`)
-
-Legacy type retained for backward compatibility. The current pipeline uses `StageResult` from `scripts/rag/stage.py` (see §5.3a).
-
-| Field | Type | Description |
-|---|---|---|
-| `stage` | `PipelineStageName \| str` | Stage name |
-| `success` | bool | Execution success |
-| `failure_reason` | str \| None | Reason on failure; None on success |
-| `elapsed_s` | float | Elapsed seconds |
-
-### 5.3a StageResult (`scripts/rag/stage.py`)
+### 5.3 StageResult (`scripts/rag/stage.py`)
 
 Used by `RagPipeline.last_stage_results` and `PipelineContext.stage_results`.
 

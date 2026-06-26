@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import orjson
-from rag.llm import summarize_tool_result
+from rag.llm_client import summarize_tool_result
 from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
 from shared.tool_executor import is_side_effect, tool_hash_key

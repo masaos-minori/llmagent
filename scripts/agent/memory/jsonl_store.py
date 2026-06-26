@@ -13,6 +13,7 @@ authoritative state — use MemoryStore directly or restore from a SQLite backup
 from __future__ import annotations
 
 import asyncio
+import datetime
 import logging
 from collections.abc import Mapping
 from dataclasses import asdict
@@ -21,7 +22,7 @@ from pathlib import Path
 import orjson
 from shared.json_utils import dumps as _json_dumps
 
-from agent.memory.enums import MemoryType
+from agent.memory.enums import RETENTION_DAYS, MemoryType
 from agent.memory.exceptions import JsonlFormatError
 from agent.memory.mapper import row_to_entry
 from agent.memory.types import MemoryEntry
@@ -83,6 +84,28 @@ class JsonlMemoryStore:
                         f"Malformed JSONL at line {lineno}: {e}"
                     ) from e
         return entries
+
+    def read_active(self) -> list[MemoryEntry]:
+        """Return entries that have not expired based on per-source-type retention policy."""
+        entries = self.read_all()
+        now = datetime.datetime.now(datetime.UTC)
+        active: list[MemoryEntry] = []
+        for entry in entries:
+            source_key = str(entry.source_type).upper()
+            max_days = RETENTION_DAYS.get(source_key)
+            if max_days is None:
+                active.append(entry)
+                continue
+            try:
+                created = datetime.datetime.fromisoformat(
+                    entry.created_at.replace("Z", "+00:00")
+                )
+                age_days = (now - created).total_seconds() / 86_400.0
+                if age_days <= max_days:
+                    active.append(entry)
+            except (ValueError, OverflowError):
+                active.append(entry)
+        return active
 
     def count_all(self) -> int:
         """Return total number of valid records in the JSONL file."""
