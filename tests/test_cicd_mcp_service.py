@@ -47,7 +47,12 @@ def _make_service(
 ) -> CiCdService:
     cfg = CicdConfig(
         repo_allowlist=repo_allowlist if repo_allowlist is not None else [],
-        workflow_allowlist=workflow_allowlist if workflow_allowlist is not None else [],
+        # Default to ["ci.yml"] so tests that don't exercise workflow allowlist logic
+        # still pass through the fail-closed guard. Pass workflow_allowlist=[] explicitly
+        # to test the deny-all behavior.
+        workflow_allowlist=workflow_allowlist
+        if workflow_allowlist is not None
+        else ["ci.yml"],
         max_log_size_kb=256,
     )
     if backend is None:
@@ -120,9 +125,10 @@ class TestAssertAllowedRepo:
 
 
 class TestAssertAllowedWorkflow:
-    def test_empty_allowlist_allows_all(self) -> None:
+    def test_empty_allowlist_denies_all(self) -> None:
         svc = _make_service(repo_allowlist=["o/r"], workflow_allowlist=[])
-        svc._assert_allowed_workflow("any_workflow.yml")  # must not raise
+        with pytest.raises(CicdAuthorizationError, match="workflow_allowlist is empty"):
+            svc._assert_allowed_workflow("any_workflow.yml")
 
     def test_workflow_in_allowlist_passes(self) -> None:
         svc = _make_service(repo_allowlist=["o/r"], workflow_allowlist=["ci.yml"])
@@ -523,7 +529,9 @@ class TestTriggerWorkflowDryRun:
     async def test_dry_run_includes_inputs_in_preview(self) -> None:
         import orjson
 
-        svc = _make_service(repo_allowlist=["owner/repo"])
+        svc = _make_service(
+            repo_allowlist=["owner/repo"], workflow_allowlist=["deploy.yml"]
+        )
         result = await svc.handle_trigger_workflow(
             {
                 "repo": "owner/repo",
@@ -542,6 +550,22 @@ class TestTriggerWorkflowDryRun:
             await svc.handle_trigger_workflow(
                 {"repo": "owner/repo", "workflow": "ci.yml", "dry_run": True}
             )
+
+
+class TestCicdToolSchema:
+    def test_trigger_workflow_schema_declares_dry_run(self) -> None:
+        from mcp.cicd.tools import _MCP_TOOLS
+
+        trigger = next(t for t in _MCP_TOOLS if t["name"] == "trigger_workflow")
+        props = trigger["inputSchema"]["properties"]
+        assert "dry_run" in props
+        assert props["dry_run"]["type"] == "boolean"
+
+    def test_trigger_workflow_dry_run_not_required(self) -> None:
+        from mcp.cicd.tools import _MCP_TOOLS
+
+        trigger = next(t for t in _MCP_TOOLS if t["name"] == "trigger_workflow")
+        assert "dry_run" not in trigger["inputSchema"].get("required", [])
 
 
 class TestGitHubActionsBackendRepr:

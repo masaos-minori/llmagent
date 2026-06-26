@@ -19,7 +19,7 @@ fail-open vs fail-closed policies, sandbox, output limits, risk tiers, and AI sa
 | github-mcp | `allowed_repos` + `allowed_repos_mode` | fail-closed (empty = deny all writes) |
 | shell-mcp | `command_allowlist` + `shell_cwd_allowed_dirs` | deny all (both empty by default) |
 | sqlite-mcp | `db_allowlist` | fail-closed (empty = deny all) |
-| cicd-mcp | `repo_allowlist` + `workflow_allowlist` | repo: fail-closed; workflow: fail-open |
+| cicd-mcp | `repo_allowlist` + `workflow_allowlist` | both: fail-closed |
 | git-mcp | `allowed_repo_paths` + `read_only` | fail-closed (empty paths = deny all); read_only=true |
 
 ---
@@ -121,11 +121,27 @@ both empty               → use req.env as-is
 ## Workflow Allowlist (cicd-mcp)
 
 ```toml
-workflow_allowlist = []   # empty = allow all (fail-open)
+# config/cicd_mcp_server.toml
+workflow_allowlist = []   # empty = deny all (fail-closed)
 ```
 
-Compared to `repo_allowlist` which is fail-closed, `workflow_allowlist` is fail-open.
-AI systems should note this asymmetry.
+**Policy: fail-closed.** An empty `workflow_allowlist` denies all workflow trigger requests
+with `CicdAuthorizationError`. This matches `repo_allowlist` behavior.
+
+To allow specific workflows:
+
+```toml
+workflow_allowlist = [
+    "my-org/my-repo/.github/workflows/deploy.yml",
+    "my-org/my-repo/.github/workflows/ci.yml",
+]
+```
+
+A startup warning is emitted when `workflow_allowlist` is empty:
+`DENY-ALL detected: cicd.workflow_allowlist is empty. cicd-mcp will reject ALL workflow trigger requests.`
+
+**Before this change:** an empty list allowed all workflows (fail-open), which was a
+misconfiguration risk for newly deployed servers.
 
 ---
 
@@ -216,7 +232,7 @@ shell_sandbox_backend = "none"   # or "firejail"
 | `allowed_repo_paths` (git-mcp) | Fail-closed | All access denied |
 | `db_allowlist` (sqlite-mcp) | Fail-closed | All DB access denied |
 | `repo_allowlist` (cicd-mcp) | Fail-closed | All repos denied |
-| `workflow_allowlist` (cicd-mcp) | **Fail-open** | All workflows allowed |
+| `workflow_allowlist` (cicd-mcp) | **Fail-closed** | All workflows denied |
 | `command_allowlist` (shell-mcp) | Fail-closed | All commands denied |
 | `path_denylist` (github-mcp) | Fail-open (no block by default) | All paths allowed |
 | `protected_branches` (github-mcp) | Fail-open (no block by default) | All branches allowed |
@@ -290,8 +306,8 @@ Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).
 
 4. **`db_allowlist` empty = SQLite access denied.** Configure `rag` and `session` entries.
 
-5. **`workflow_allowlist` is fail-open** (unlike `repo_allowlist`). All workflows are reachable
-    unless explicitly restricted.
+5. **`workflow_allowlist` is fail-closed** (same as `repo_allowlist`). An empty list denies all
+    workflow triggers. Explicitly list permitted workflows in `cicd_mcp_server.toml`.
 
 6. **mdq-mcp is experimental.** FTS5 indexing and search are functionally implemented but not production-validated. Use `rag-pipeline-mcp` for production workloads. See [§MDQ vs RAG Boundary](#mdq-vs-rag-boundary) below for guidance.
 
@@ -464,14 +480,14 @@ in the allowed-paths table above. Changes to `ALLOWED` require a design review c
 | sqlite-mcp | `db_allowlist` | `[]` | **Fail-closed** — all DB queries denied |
 | git-mcp | `allowed_repo_paths` | `[]` | **Fail-closed** — all repo access denied |
 | github-mcp | `allowed_repos` | `[]` | **Fail-closed** — all GitHub write ops denied |
-| cicd-mcp | `workflow_allowlist` | `[]` | **Fail-open** — all workflows can be triggered |
+| cicd-mcp | `workflow_allowlist` | `[]` | **Fail-closed** — all workflow triggers denied |
 | github-mcp | `allowed_workflows` | `[]` | **Fail-open** — all workflows allowed |
 
 ### Dangerous defaults to review before production deployment
 
 - `shell-mcp`: `sandbox_backend = "none"` (default) means no OS-level sandboxing.
   Set to `"firejail"` for production; visible in `/health` response.
-- `cicd-mcp`: `workflow_allowlist = []` is fail-open; explicitly list permitted workflows.
+- `cicd-mcp`: `workflow_allowlist = []` is fail-closed (deny all); explicitly list permitted workflows.
 - `github-mcp`: `allow_force_push = false` (default); `require_pr_review = true` (default).
 
 ### Startup audit
@@ -546,7 +562,7 @@ Add the allowed values back to the relevant TOML and set
 |---|---|---|---|
 | `tool_definitions_strict` | `true` | `false` = schema mismatch downgraded to WARNING | Keep `true` |
 | `shell_sandbox_backend` | `"none"` | `"none"` = no OS isolation | Set `"firejail"` in production |
-| `workflow_allowlist` (cicd-mcp) | `[]` | `[]` = all workflows reachable (fail-open) | Explicitly list permitted workflows |
+| `workflow_allowlist` (cicd-mcp) | `[]` | `[]` = all triggers denied (fail-closed) | Explicitly list permitted workflows |
 | `command_allowlist` (shell-mcp) | `[]` | `[]` = all commands denied (fail-closed) | List allowed commands |
 | `db_allowlist` (sqlite-mcp) | `[]` | `[]` = all queries denied (fail-closed) | List allowed DB paths |
 | `mcp_watchdog_interval` | `0` (local) / `30.0` (prod) | `0` = no auto-restart | Use `30.0` in production |

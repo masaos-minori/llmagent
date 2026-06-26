@@ -35,6 +35,10 @@ class CiCdGuards:
             logger.warning(
                 "cicd-mcp: repo_allowlist is empty — all repository operations will be denied",
             )
+        if not self._workflow_allowlist:
+            logger.warning(
+                "cicd-mcp: workflow_allowlist is empty — all workflow triggers will be denied",
+            )
 
     def _assert_allowed_repo(self, repo: str) -> None:
         """Raise CicdAuthorizationError when repo is not in the allowlist.
@@ -54,12 +58,15 @@ class CiCdGuards:
             )
 
     def _assert_allowed_workflow(self, workflow: str) -> None:
-        """Raise CicdAuthorizationError when workflow_allowlist is set and workflow is absent.
+        """Raise CicdAuthorizationError when workflow is not in workflow_allowlist.
 
-        Empty allowlist = allow all workflows.
+        Empty allowlist = deny all (fail-closed).
         """
         if not self._workflow_allowlist:
-            return
+            raise CicdAuthorizationError(
+                "workflow_allowlist is empty — all workflow triggers denied (fail-closed). "
+                "Add allowed workflow patterns to config."
+            )
         if workflow not in self._workflow_allowlist:
             raise CicdAuthorizationError(
                 f"Workflow not in workflow_allowlist: {workflow}",

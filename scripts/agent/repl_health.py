@@ -436,7 +436,8 @@ def audit_security_defaults(
     Checks for risky settings such as:
       - auth_token disabled (empty) on servers that support it
       - shell sandbox disabled (none backend)
-      - GitHub workflow allowlist empty (fail-open)
+      - GitHub workflow allowlist empty (fail-open: only agent-level config)
+      - cicd workflow_allowlist empty (fail-closed: deny-all)
       - Allowed tools empty (allow all)
     Returns a list of warning messages; empty list means no issues.
     """
@@ -558,24 +559,22 @@ def audit_security_defaults(
             logger.warning(msg)
             warnings.append(msg)
 
-    # Check cicd workflow_allowlist (fail-open — empty = allow all workflows)
+    # Check cicd workflow_allowlist (fail-closed — empty = deny all workflow triggers)
     try:
         from mcp.cicd.models import (
             CicdConfig,  # noqa: PLC0415 — lazy import; cicd-mcp optional
         )
 
         cicd_cfg = CicdConfig.load()
-        if not cicd_cfg.workflow_allowlist:
-            msg = "cicd.workflow_allowlist is empty (fail-open: all workflows allowed)"
-            if production_mode:
-                raise RuntimeError(
-                    f"Production mode requires explicit workflow_allowlist. {msg}"
-                )
-            fail_open_empty.append("cicd.workflow_allowlist")
-            logger.warning("Security: %s", msg)
-            warnings.append(f"Security: {msg}")
-    except RuntimeError:
-        raise
+        if not cicd_cfg.workflow_allowlist and not lockdown:
+            fail_closed_empty.append("cicd.workflow_allowlist")
+            msg = (
+                "DENY-ALL detected: cicd.workflow_allowlist is empty. "
+                "cicd-mcp will reject ALL workflow trigger requests. "
+                "Verify this is intentional or add allowed workflows to cicd_mcp_server.toml."
+            )
+            logger.warning(msg)
+            warnings.append(msg)
     except Exception:
         pass
 
