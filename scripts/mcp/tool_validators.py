@@ -18,7 +18,11 @@ from collections.abc import Callable
 _VALIDATORS: dict[str, Callable[[dict[str, object]], None]] = {}
 
 
-def register_validator(tool_name: str) -> Callable[[Callable[[dict[str, object]], None]], Callable[[dict[str, object]], None]]:
+def register_validator(
+    tool_name: str,
+) -> Callable[
+    [Callable[[dict[str, object]], None]], Callable[[dict[str, object]], None]
+]:
     """Decorator that registers a validator function for tool_name."""
 
     def decorator(

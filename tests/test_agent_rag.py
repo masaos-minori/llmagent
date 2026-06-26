@@ -168,9 +168,14 @@ class TestAugmentHttpMode:
             mock_sqlite.return_value.open.return_value = mock_db
             # Return PipelineRunResult with empty reranked list
             from rag.types import PipelineRunResult, SearchDiagnostics
+
             empty_result = PipelineRunResult(
-                queries=[], search_results=[], merged=[], reranked=[],
-                stage_results=[], diagnostics=SearchDiagnostics(),
+                queries=[],
+                search_results=[],
+                merged=[],
+                reranked=[],
+                stage_results=[],
+                diagnostics=SearchDiagnostics(),
             )
             pipeline.run = AsyncMock(return_value=empty_result)  # type: ignore[method-assign]
 

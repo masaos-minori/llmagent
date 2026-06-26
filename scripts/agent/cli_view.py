@@ -172,11 +172,7 @@ class CLIView:
         score_key = "rrf_score" if rrf else "rerank_score"
         score = candidate.get(score_key, candidate.get("rrf_score", 0))
         url = str(candidate.get("url", ""))[:60]
-        print(
-            f"    chunk_id={candidate.get('chunk_id')} "
-            f"score={score:.4f} "
-            f"url={url}"
-        )
+        print(f"    chunk_id={candidate.get('chunk_id')} score={score:.4f} url={url}")
 
     async def read_multiline(
         self,

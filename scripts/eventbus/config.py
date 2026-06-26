@@ -25,8 +25,26 @@ class EventBusConfig:
     offsets_dir: str
     deadletter_dir: str
     max_retry: int
-    poll_interval_ms: int = 500  # deprecated: no longer used; push-mode delivery via EventBroker
-    offset_checkpoint_interval: int = 10  # deprecated: offset checkpointing removed; ack-only model
+    poll_interval_ms: int = (
+        500  # deprecated: no longer used; push-mode delivery via EventBroker
+    )
+    offset_checkpoint_interval: int = (
+        10  # deprecated: offset checkpointing removed; ack-only model
+    )
+
+    def __post_init__(self) -> None:
+        if not 1024 <= self.port <= 65535:
+            raise ValueError(f"port must be 1024-65535, got {self.port}")
+        if self.max_retry < 1:
+            raise ValueError(f"max_retry must be >= 1, got {self.max_retry}")
+        if self.poll_interval_ms < 1:
+            raise ValueError(
+                f"poll_interval_ms must be >= 1, got {self.poll_interval_ms}"
+            )
+        if self.offset_checkpoint_interval < 1:
+            raise ValueError(
+                f"offset_checkpoint_interval must be >= 1, got {self.offset_checkpoint_interval}"
+            )
 
 
 def load_config(path: Path | None = None) -> EventBusConfig:

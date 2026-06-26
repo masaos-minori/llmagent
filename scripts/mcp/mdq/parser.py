@@ -17,7 +17,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def parse_markdown(service: MdqService, req: ParseMarkdownRequest) -> list[ParsedSection]:
+async def parse_markdown(
+    service: MdqService, req: ParseMarkdownRequest
+) -> list[ParsedSection]:
     """Parse a Markdown file and return its sections as a list of dicts.
 
     Each dict has keys: heading, content.

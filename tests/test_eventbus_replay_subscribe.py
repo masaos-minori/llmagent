@@ -89,7 +89,7 @@ async def test_subscribe_yields_matching_event(client: TestClient) -> None:
     ev = _event("live.topic")
     client.post("/publish", json=ev)
 
-    rows = eb_app._db.execute(  # type: ignore[union-attr]
+    rows = eb_app.app.state.db.execute(  # type: ignore[union-attr]
         "SELECT seq, event_id, topic, payload, producer, published_at"
         " FROM events WHERE seq > ? AND topic IN (?)"
         " ORDER BY seq",

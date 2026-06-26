@@ -41,11 +41,13 @@ def test_health_ok(client: TestClient) -> None:
 
 
 def test_health_degraded_when_db_unavailable(client: TestClient) -> None:
+    import eventbus.app as eb_app
+
     mock_db = MagicMock()
     mock_db.execute.side_effect = sqlite3.OperationalError("DB gone")
-    with patch("eventbus.app._db", mock_db):
-        resp = client.get("/health")
-    assert resp.status_code == 200
+    eb_app.app.state.db = mock_db  # type: ignore[assignment]
+    resp = client.get("/health")
+    assert resp.status_code == 503
     body = resp.json()
     assert body["status"] == "degraded"
     assert body["db"] == "unavailable"
@@ -79,11 +81,21 @@ def test_publish_invalid_schema(client: TestClient) -> None:
 def test_publish_succeeds_if_jsonl_append_fails(client: TestClient) -> None:
     """JSONL append failure after SQLite commit must still return 200."""
     ev = _event()
-    with patch("eventbus.app._append_jsonl", side_effect=OSError("disk full")):
+
+    # Patch Path.open to raise OSError for JSONL writes
+    original_open = Path.open
+
+    def failing_open(self, *args, **kwargs):
+        if "events.jsonl" in str(self):
+            raise OSError("disk full")
+        return original_open(self, *args, **kwargs)
+
+    with patch.object(Path, "open", failing_open):
         resp = client.post("/publish", json=ev)
     assert resp.status_code == 200
     assert resp.json()["event_id"] == ev["event_id"]
 
+    # Event should be retrievable from SQLite
     replay = client.get("/replay", params={"since_seq": 0, "format": "json"})
     assert replay.status_code == 200
     body = replay.json()

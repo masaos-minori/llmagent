@@ -18,6 +18,7 @@ class ParsedSection(TypedDict):
 class ParsedSectionRequest(TypedDict):
     path: str
 
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Domain exceptions
 # ──────────────────────────────────────────────────────────────────────────────

@@ -681,7 +681,9 @@ class ToolExecutor:
                     error_type="tool" if cached.is_error else "",
                 )
             del self._cache[cache_key]
-        result = await self._execute_with_stampede_protection(cache_key, tool_name, args)
+        result = await self._execute_with_stampede_protection(
+            cache_key, tool_name, args
+        )
         if not result.is_error:
             self._store_and_evict(cache_key, result)
         return result

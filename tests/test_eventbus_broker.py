@@ -22,7 +22,7 @@ async def test_topic_filter_excludes_non_matching():
     sub_t = broker.subscribe(["target"])
     sub_all = broker.subscribe([])
     broker.publish({"seq": 1, "topic": "other", "event_id": "a"})
-    assert sub_t.queue.empty()      # filtered out
+    assert sub_t.queue.empty()  # filtered out
     assert sub_all.queue.qsize() == 1  # all-topics subscriber receives it
 
 

@@ -37,7 +37,9 @@ class EventBroker:
         """Fan out event to matching subscribers. Returns delivery count."""
         delivered = 0
         event_topic: str = event.get("topic", "")
-        for sub in list(self._subscribers):  # snapshot to avoid mutation during iteration
+        for sub in list(
+            self._subscribers
+        ):  # snapshot to avoid mutation during iteration
             if sub.topics and event_topic not in sub.topics:
                 continue
             try:
@@ -68,6 +70,7 @@ class EventBroker:
 
     def slow_consumer_count(self) -> int:
         return sum(
-            1 for sub in list(self._subscribers)
+            1
+            for sub in list(self._subscribers)
             if sub.queue.qsize() >= _SLOW_CONSUMER_THRESHOLD
         )

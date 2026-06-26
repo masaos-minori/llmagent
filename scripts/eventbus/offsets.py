@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+import hashlib
 import logging
+import os
+import socket
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def _make_consumer_id(consumer_name: str) -> str:
+    """Generate a collision-resistant consumer ID from name+host+pid."""
+    stable_key = f"{consumer_name}:{socket.gethostname()}:{os.getpid()}"
+    return hashlib.sha256(stable_key.encode()).hexdigest()[:16]
 
 
 def read_offset(offsets_dir: str, consumer_id: str) -> int:

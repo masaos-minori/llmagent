@@ -46,6 +46,24 @@ If remote access is required, use a reverse proxy with authentication.
 EVENTBUS_CONFIG_PATH=/opt/llm/config/eventbus.toml uvicorn eventbus.app:app --host 127.0.0.1 --port 8010
 ```
 
+## Health Endpoint Semantics
+
+| HTTP Status | Status Value | Meaning |
+|---|---|---|
+| 200 | `ok` | All systems nominal |
+| 503 | `degraded` | Connected but degraded (DB unavailable, DLQ task stopped, broker queue backlog high, slow consumers) |
+| 503 | `unhealthy` | DB disconnected or critical failure |
+
+**Monitoring tools MUST use HTTP status code, not JSON body, for alerting.**
+
+## Consumer ID Stability
+
+Consumer IDs are generated as `sha256(name:hostname:pid)[:16]`:
+
+- Same consumer process always gets the same ID (stable offsets across restarts within a process)
+- Different processes get different IDs (collision-resistant)
+- Collision detection: duplicate ID with different consumer name raises `ConsumerIdCollisionError`
+
 ## Delivery Operations
 
 ### Verifying delivery

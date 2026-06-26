@@ -85,9 +85,7 @@ async def search(req: SearchRequest) -> SearchResponse:
     t0 = time.perf_counter()
     results = cast(
         list[SearchResult],
-        await asyncio.to_thread(
-            lambda: _search_duckduckgo(req.query, req.max_results)
-        ),
+        await asyncio.to_thread(lambda: _search_duckduckgo(req.query, req.max_results)),
     )
 
     if not results:

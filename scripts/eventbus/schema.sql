@@ -16,3 +16,5 @@ CREATE TABLE IF NOT EXISTS events (
 
 CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);
 CREATE INDEX IF NOT EXISTS idx_events_seq   ON events(seq);
+CREATE INDEX IF NOT EXISTS idx_events_dlq_at ON events(dlq_at);
+CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);

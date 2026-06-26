@@ -42,6 +42,16 @@ CREATE TABLE IF NOT EXISTS events (
 
 Each published event is also appended to `{storage_dir}/events.jsonl` (one JSON object per line, with `seq` added). The JSONL file is supplementary; SQLite is the authoritative store. If JSONL append fails, the event remains in SQLite and 200 is returned.
 
+**Never read primary data from JSONL** — always use SQLite queries.
+
+## Consumer ID stability
+
+Consumer IDs are generated as `sha256(name:hostname:pid)[:16]` to ensure:
+
+- Same consumer process always gets the same ID (stable offsets across restarts within a process)
+- Different processes get different IDs (collision-resistant)
+- Collision detection: duplicate ID with different consumer name raises `ConsumerIdCollisionError`
+
 ## Replay semantics
 
 `GET /replay?since_seq=N` returns all events where `seq > N` in ascending order. The SSE format streams one `data: {...}\n\n` frame per event. The JSON format returns a list directly.

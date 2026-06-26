@@ -364,7 +364,10 @@ class TestCheckApprovalDryRun:
         ctx.services.tools = MagicMock()
         ctx.services.tools.execute = AsyncMock(
             return_value=ToolCallResult(
-                output="Dry-run: /tmp/f (5 bytes) [new file]", is_error=False, request_id="", server_key=""
+                output="Dry-run: /tmp/f (5 bytes) [new file]",
+                is_error=False,
+                request_id="",
+                server_key="",
             )
         )
 

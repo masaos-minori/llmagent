@@ -8,9 +8,16 @@
 | `retry_count` | INTEGER DEFAULT 0 | Incremented only on DLQ requeue; not incremented during normal delivery | By design |
 | `/subscribe` | SSE endpoint | Polling-based internally (not push) | By design; documented |
 
+## Resolved Items
+
+| Item | Resolution |
+|---|---|
+| `/health` HTTP status on degraded state (200 vs 503) | **Resolved** — now returns HTTP 503 for non-ok states (fail-closed) |
+| SQLite/JSONL dual read path | **Resolved** — SQLite-only reads; JSONL is write-only |
+| Consumer ID collision possibility | **Resolved** — hash-based stable IDs with collision detection |
+
 ## Unconfirmed items (Needs Confirmation)
 
 | Item | How to confirm |
 |---|---|
-| `/health` HTTP status on degraded state (200 vs 503) | Confirm with operational requirements |
 | FastAPI thread pool worker usage | Confirm from startup configuration |

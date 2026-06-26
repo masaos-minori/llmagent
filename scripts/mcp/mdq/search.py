@@ -28,7 +28,9 @@ async def search_docs(service: MdqService, req: SearchDocsRequest) -> str:
     return "\n".join(lines)
 
 
-def _search_docs_structured(service: MdqService, req: SearchDocsRequest) -> SearchResultResult:
+def _search_docs_structured(
+    service: MdqService, req: SearchDocsRequest
+) -> SearchResultResult:
     """Run FTS5 search; return structured result."""
     if not req.query or not req.query.strip():
         return SearchResultResult(query=req.query, results=[], total=0)
@@ -62,7 +64,11 @@ def _search_docs_structured(service: MdqService, req: SearchDocsRequest) -> Sear
             ).fetchall()
 
         results = [
-            SearchResultItem(file_path=row["file_path"], heading=row["heading"], content=row["content"])
+            SearchResultItem(
+                file_path=row["file_path"],
+                heading=row["heading"],
+                content=row["content"],
+            )
             for row in rows
         ]
     except sqlite3.Error as e:

@@ -34,7 +34,13 @@ class TestAckEvent:
         db.execute(
             "INSERT INTO events (event_id, topic, payload, producer, published_at)"
             " VALUES (?, ?, ?, ?, ?)",
-            (ev["event_id"], ev["topic"], json.dumps(ev["payload"]), ev["producer"], ev["published_at"]),
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
         )
         db.commit()
 
@@ -54,7 +60,13 @@ class TestAckEvent:
         db.execute(
             "INSERT INTO events (event_id, topic, payload, producer, published_at)"
             " VALUES (?, ?, ?, ?, ?)",
-            (ev["event_id"], ev["topic"], json.dumps(ev["payload"]), ev["producer"], ev["published_at"]),
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
         )
         db.commit()
 
@@ -84,7 +96,14 @@ class TestAckEvent:
         db.execute(
             "INSERT INTO events (event_id, topic, payload, producer, published_at, acked_at)"
             " VALUES (?, ?, ?, ?, ?, ?)",
-            (ev["event_id"], ev["topic"], json.dumps(ev["payload"]), ev["producer"], ev["published_at"], "2026-06-22T13:00:00Z"),
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+                "2026-06-22T13:00:00Z",
+            ),
         )
         db.commit()
 
@@ -106,7 +125,13 @@ class TestNackEvent:
         db.execute(
             "INSERT INTO events (event_id, topic, payload, producer, published_at)"
             " VALUES (?, ?, ?, ?, ?)",
-            (ev["event_id"], ev["topic"], json.dumps(ev["payload"]), ev["producer"], ev["published_at"]),
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
         )
         db.commit()
 
@@ -114,7 +139,8 @@ class TestNackEvent:
         assert result == 1
 
         row = db.execute(
-            "SELECT delivery_failure_count FROM events WHERE event_id = ?", (ev["event_id"],)
+            "SELECT delivery_failure_count FROM events WHERE event_id = ?",
+            (ev["event_id"],),
         ).fetchone()
         assert row["delivery_failure_count"] == 1
 
@@ -125,7 +151,13 @@ class TestNackEvent:
         db.execute(
             "INSERT INTO events (event_id, topic, payload, producer, published_at)"
             " VALUES (?, ?, ?, ?, ?)",
-            (ev["event_id"], ev["topic"], json.dumps(ev["payload"]), ev["producer"], ev["published_at"]),
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
         )
         db.commit()
 
@@ -136,7 +168,8 @@ class TestNackEvent:
         assert result2 == 2
 
         row = db.execute(
-            "SELECT delivery_failure_count FROM events WHERE event_id = ?", (ev["event_id"],)
+            "SELECT delivery_failure_count FROM events WHERE event_id = ?",
+            (ev["event_id"],),
         ).fetchone()
         assert row["delivery_failure_count"] == 2
 

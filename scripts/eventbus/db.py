@@ -150,29 +150,50 @@ def fetch_events_since(
     conn: sqlite3.Connection,
     since_seq: int,
     topics: list[str] | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> list[sqlite3.Row]:
     """Return events with seq > since_seq, optionally filtered by topics."""
     if topics:
         placeholders = ",".join("?" for _ in topics)
-        return conn.execute(
+        sql = (
             f"SELECT seq, event_id, topic, payload, producer, published_at"
-            f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq",
-            (since_seq, *topics),
-        ).fetchall()
-    return conn.execute(
-        "SELECT seq, event_id, topic, payload, producer, published_at"
-        " FROM events WHERE seq > ? ORDER BY seq",
-        (since_seq,),
-    ).fetchall()
+            f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq"
+        )
+        params = (since_seq,) + tuple(topics)
+    else:
+        sql = (
+            "SELECT seq, event_id, topic, payload, producer, published_at"
+            " FROM events WHERE seq > ? ORDER BY seq"
+        )
+        params = (since_seq,)
+    if limit is not None and offset is not None:
+        sql += f" LIMIT {limit} OFFSET {offset}"
+    return conn.execute(sql, params).fetchall()
 
 
-def fetch_dlq(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    """Return all events currently in the DLQ (dlq_at IS NOT NULL)."""
-    return conn.execute(
+def fetch_dlq(
+    conn: sqlite3.Connection,
+    limit: int | None = None,
+    offset: int | None = None,
+) -> list[sqlite3.Row]:
+    """Return events currently in the DLQ (dlq_at IS NOT NULL)."""
+    sql = (
         "SELECT seq, event_id, topic, producer, published_at,"
         " delivery_failure_count, dlq_requeue_count, dlq_at"
         " FROM events WHERE dlq_at IS NOT NULL ORDER BY seq"
-    ).fetchall()
+    )
+    if limit is not None and offset is not None:
+        sql += f" LIMIT {limit} OFFSET {offset}"
+    return conn.execute(sql).fetchall()
+
+
+def count_dlq(conn: sqlite3.Connection) -> int:
+    """Return the number of events currently in the DLQ."""
+    row = conn.execute(
+        "SELECT COUNT(*) FROM events WHERE dlq_at IS NOT NULL"
+    ).fetchone()
+    return int(row[0]) if row else 0
 
 
 def requeue_event(conn: sqlite3.Connection, event_id: str) -> bool:

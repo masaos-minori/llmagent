@@ -45,6 +45,7 @@ class RepoValidationResult:
 
     error_message: str
 
+
 # All git tool handlers catch this union; git.exc.GitError is the base for all
 # GitPython exceptions; OSError covers filesystem errors; ValueError covers
 # bad argument formats (e.g. invalid ref names).
@@ -75,7 +76,9 @@ class GitService(GitSecurityGuards):
         """Open a git.Repo at repo_path; raises git.InvalidGitRepositoryError on failure."""
         return git.Repo(repo_path, search_parent_directories=False)
 
-    async def _validate_repo(self, req_repo_path: str, tool_name: str) -> RepoValidationResult:
+    async def _validate_repo(
+        self, req_repo_path: str, tool_name: str
+    ) -> RepoValidationResult:
         """Check repo_path and write guard; return result with error_message (empty on success)."""
         ok, err = self._check_repo_path(req_repo_path)
         if not ok:

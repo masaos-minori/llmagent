@@ -12,7 +12,7 @@ from typing import Any
 import jsonschema
 import orjson
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from eventbus.broker import EventBroker
 from eventbus.config import (
@@ -23,6 +23,7 @@ from eventbus.config import (
 )
 from eventbus.db import (
     check_db,
+    count_dlq,
     fetch_dlq,
     fetch_events_since,
     insert_event,
@@ -33,50 +34,72 @@ from eventbus.dlq import promote_single, sweep_orphans
 
 logger = logging.getLogger(__name__)
 
+
+def _count_events_since(conn: sqlite3.Connection, since_seq: int) -> int:
+    """Return the total count of events with seq > since_seq."""
+    row = conn.execute(
+        "SELECT COUNT(*) FROM events WHERE seq > ?", (since_seq,)
+    ).fetchone()
+    return int(row[0]) if row else 0
+
+
 _ENVELOPE_SCHEMA_PATH = Path("/opt/llm/schemas/event_envelope.json")
-_cfg: EventBusConfig | None = None
-_db: sqlite3.Connection | None = None
-_broker: EventBroker | None = None
-_envelope_schema: dict[str, Any] | None = None
-_dlq_task: asyncio.Task | None = None
 _DLQ_INTERVAL = 60.0
+
+
+def _get_db(request: Request) -> sqlite3.Connection:
+    db = request.app.state.db
+    assert db is not None
+    return db  # type: ignore[no-any-return]
+
+
+def _get_broker(request: Request) -> EventBroker:
+    broker = request.app.state.broker
+    assert broker is not None
+    return broker  # type: ignore[no-any-return]
+
+
+def _get_config(request: Request) -> EventBusConfig:
+    cfg = request.app.state.config
+    assert cfg is not None
+    return cfg  # type: ignore[no-any-return]
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> Any:
-    global _cfg, _db, _envelope_schema, _dlq_task, _broker
-    cfg_path = get_config_path()
-    schema_path = get_schema_path()
-    logger.info("eventbus: config=%s schema=%s", cfg_path, schema_path)
-    _cfg = load_config(cfg_path)
-    _db = open_db(_cfg.db_path)
-    _envelope_schema = orjson.loads(schema_path.read_bytes())
-    Path(_cfg.storage_dir).mkdir(parents=True, exist_ok=True)
-    _broker = EventBroker()
-    _dlq_task = asyncio.create_task(_dlq_loop())
+    app.state.config = load_config(get_config_path())
+    app.state.db = open_db(app.state.config.db_path)
+    app.state.envelope_schema = orjson.loads(get_schema_path().read_bytes())
+    Path(app.state.config.storage_dir).mkdir(parents=True, exist_ok=True)
+    app.state.broker = EventBroker()
+    app.state.dlq_task = asyncio.create_task(_dlq_loop(app))
     yield
-    if _dlq_task:
-        _dlq_task.cancel()
+    if app.state.dlq_task:
+        app.state.dlq_task.cancel()
         try:
-            await _dlq_task
+            await app.state.dlq_task
         except asyncio.CancelledError:
             pass
-    if _broker:
-        _broker.shutdown()
-    if _db:
-        _db.close()
+    if app.state.broker:
+        app.state.broker.shutdown()
+    if app.state.db:
+        app.state.db.close()
 
 
-async def _dlq_loop() -> None:
+async def _dlq_loop(app: FastAPI) -> None:
     while True:
         try:
-            assert _cfg is not None
-            assert _db is not None
+            cfg = app.state.config
+            db = app.state.db
+            assert cfg is not None
+            assert db is not None
             n = await asyncio.to_thread(
-                sweep_orphans, _db, _cfg.deadletter_dir, _cfg.max_retry
+                sweep_orphans, db, cfg.deadletter_dir, cfg.max_retry
             )
             if n:
-                logger.warning("dlq_loop: swept %d orphan(s) missed by inline promotion", n)
+                logger.warning(
+                    "dlq_loop: swept %d orphan(s) missed by inline promotion", n
+                )
         except (OSError, sqlite3.Error):
             logger.exception("dlq_loop error")
         await asyncio.sleep(_DLQ_INTERVAL)
@@ -86,26 +109,33 @@ app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/health")
-async def health() -> dict[str, Any]:
+async def health(request: Request) -> JSONResponse:
+    db = _get_db(request)
+    broker = _get_broker(request)
+
     def _check() -> bool:
-        assert _db is not None
-        return check_db(_db)
+        return check_db(db)
 
     db_ok = await asyncio.to_thread(_check)
     db_status = "ok" if db_ok else "unavailable"
 
     dlq_task_status = (
-        "running" if (_dlq_task is not None and not _dlq_task.done()) else "stopped"
+        "running"
+        if (
+            request.app.state.dlq_task is not None
+            and not request.app.state.dlq_task.done()
+        )
+        else "stopped"
     )
 
     # Broker health metrics
     active_subscribers = 0
     max_queue_depth = 0
     slow_consumers = 0
-    if _broker is not None:
-        active_subscribers = _broker.subscriber_count()
-        max_queue_depth = _broker.max_queue_depth()
-        slow_consumers = _broker.slow_consumer_count()
+    if broker is not None:
+        active_subscribers = broker.subscriber_count()
+        max_queue_depth = broker.max_queue_depth()
+        slow_consumers = broker.slow_consumer_count()
 
     degraded_reasons: list[str] = []
     if db_status != "ok":
@@ -118,22 +148,26 @@ async def health() -> dict[str, Any]:
         degraded_reasons.append("slow_consumers_detected")
 
     overall = "ok" if not degraded_reasons else "degraded"
-    return {
-        "status": overall,
-        "db": db_status,
-        "dlq_task": dlq_task_status,
-        "active_subscribers": active_subscribers,
-        "max_queue_depth": max_queue_depth,
-        "slow_consumers": slow_consumers,
-        "degraded_reasons": degraded_reasons,
-    }
+    status_code = 200 if overall == "ok" else 503
+    return JSONResponse(
+        content={
+            "status": overall,
+            "db": db_status,
+            "dlq_task": dlq_task_status,
+            "active_subscribers": active_subscribers,
+            "max_queue_depth": max_queue_depth,
+            "slow_consumers": slow_consumers,
+            "degraded_reasons": degraded_reasons,
+        },
+        status_code=status_code,
+    )
 
 
 @app.post("/publish")
 async def publish(request: Request) -> dict[str, Any]:
     body: dict[str, Any] = await request.json()
     try:
-        jsonschema.validate(body, _envelope_schema)
+        jsonschema.validate(body, request.app.state.envelope_schema)
     except jsonschema.ValidationError as e:
         raise HTTPException(status_code=422, detail=e.message)
 
@@ -143,11 +177,11 @@ async def publish(request: Request) -> dict[str, Any]:
     producer: str = body["producer"]
     published_at: str = body["published_at"]
 
-    assert _db is not None
-    assert _broker is not None
+    db = _get_db(request)
+    broker = _get_broker(request)
     seq, inserted = await asyncio.to_thread(
         insert_event,
-        _db,
+        db,
         event_id,
         topic,
         payload_str,
@@ -156,7 +190,13 @@ async def publish(request: Request) -> dict[str, Any]:
     )
 
     try:
-        _append_jsonl(body, seq)
+        cfg = _get_config(request)
+        path = Path(cfg.storage_dir) / "events.jsonl"
+        line = orjson.dumps({**body, "seq": seq}).decode() + "\n"
+        with path.open("a", encoding="utf-8") as f:
+            f.write(line)
+            f.flush()
+            os.fsync(f.fileno())
     except OSError as exc:
         logger.warning("eventbus: JSONL append failed (event still committed): %s", exc)
 
@@ -170,7 +210,7 @@ async def publish(request: Request) -> dict[str, Any]:
             "published_at": published_at,
         }
         try:
-            n = _broker.publish(event_dict)
+            n = broker.publish(event_dict)
             logger.debug("publish notify broker delivered=%d seq=%d", n, seq)
         except Exception:
             logger.exception("publish broker notify error seq=%d", seq)
@@ -181,22 +221,24 @@ async def publish(request: Request) -> dict[str, Any]:
 
 @app.get("/replay")
 async def replay(
+    request: Request,
     since_seq: int = Query(default=0, ge=0),
     fmt: str = Query(default="sse", alias="format"),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> Any:
-    assert _db is not None
-    rows = await asyncio.to_thread(fetch_events_since, _db, since_seq)
+    db = _get_db(request)
+    rows = await asyncio.to_thread(
+        fetch_events_since, db, since_seq, limit=limit, offset=offset
+    )
 
     if fmt == "json":
-        total = len(rows)
-        paginated = rows[offset : offset + limit]
+        total = await asyncio.to_thread(_count_events_since, db, since_seq)
         return {
             "total": total,
             "limit": limit,
             "offset": offset,
-            "items": [_row_to_dict(r) for r in paginated],
+            "items": [_row_to_dict(r) for r in rows],
         }
 
     async def _sse_gen() -> Any:
@@ -209,34 +251,35 @@ async def replay(
 
 @app.get("/subscribe")
 async def subscribe(
+    request: Request,
     topic: list[str] = Query(default=[]),
     since_seq: int = Query(default=0, ge=0),
     consumer_id: str = Query(default=""),
 ) -> Any:
     from eventbus.offsets import read_offset  # noqa: PLC0415
 
-    assert _cfg is not None
-    assert _broker is not None
+    cfg = _get_config(request)
+    broker = _get_broker(request)
+    db = _get_db(request)
 
     start_seq = since_seq
     if consumer_id and start_seq == 0:
-        start_seq = read_offset(_cfg.offsets_dir, consumer_id)
+        start_seq = read_offset(cfg.offsets_dir, consumer_id)
 
     async def _sse_gen() -> Any:
         # Step 1: register with broker BEFORE replay to capture events published during replay
-        sub = _broker.subscribe(list(topic))
+        sub = broker.subscribe(list(topic))
         try:
             # Step 2: replay from SQLite
             def _fetch_replay() -> list:
-                assert _db is not None
                 if topic:
                     placeholders = ",".join("?" for _ in topic)
-                    return _db.execute(
+                    return db.execute(
                         f"SELECT seq, event_id, topic, payload, producer, published_at"
                         f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq",
                         (start_seq, *topic),
                     ).fetchall()
-                return _db.execute(
+                return db.execute(
                     "SELECT seq, event_id, topic, payload, producer, published_at"
                     " FROM events WHERE seq > ? ORDER BY seq",
                     (start_seq,),
@@ -266,30 +309,32 @@ async def subscribe(
                 replay_ceil if "replay_ceil" in dir() else start_seq,
             )
         finally:
-            _broker.unsubscribe(sub)
+            broker.unsubscribe(sub)
 
     return StreamingResponse(_sse_gen(), media_type="text/event-stream")
 
 
 @app.get("/dlq")
 async def dlq_list(
+    request: Request,
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> dict[str, Any]:
-    rows = await asyncio.to_thread(fetch_dlq, _db)  # type: ignore[arg-type]
-    total = len(rows)
-    paginated = rows[offset : offset + limit]
+    db = _get_db(request)
+    total = await asyncio.to_thread(count_dlq, db)  # type: ignore[arg-type]
+    rows = await asyncio.to_thread(fetch_dlq, db, limit=limit, offset=offset)  # type: ignore[arg-type]
     return {
         "total": total,
         "limit": limit,
         "offset": offset,
-        "items": [dict(r) for r in paginated],
+        "items": [dict(r) for r in rows],
     }
 
 
 @app.post("/dlq/{event_id}/requeue")
-async def dlq_requeue(event_id: str) -> dict[str, Any]:
-    if await asyncio.to_thread(requeue_event, _db, event_id):  # type: ignore[arg-type]
+async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
+    db = _get_db(request)
+    if await asyncio.to_thread(requeue_event, db, event_id):  # type: ignore[arg-type]
         logger.info("dlq requeued event_id=%s", event_id)
         return {"event_id": event_id, "requeued": True}
     raise HTTPException(status_code=404, detail="event not found")
@@ -297,28 +342,30 @@ async def dlq_requeue(event_id: str) -> dict[str, Any]:
 
 @app.post("/ack")
 async def ack(
+    request: Request,
     event_id: str = Query(default=""),
     consumer_id: str = Query(default=""),
 ) -> dict[str, Any]:
     if not event_id:
         raise HTTPException(status_code=400, detail="event_id is required")
 
+    db = _get_db(request)
+    cfg = _get_config(request)
+
     def _ack_and_offset() -> tuple[bool, int | None]:
         from eventbus.db import ack_event as _ack_event
         from eventbus.offsets import write_offset  # noqa: PLC0415
 
         now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        acked = _ack_event(_db, event_id, now)  # type: ignore[arg-type]
+        acked = _ack_event(db, event_id, now)  # type: ignore[arg-type]
         seq: int | None = None
         if consumer_id and acked:
-            assert _db is not None
-            row = _db.execute(
+            row = db.execute(
                 "SELECT seq FROM events WHERE event_id = ?", (event_id,)
             ).fetchone()
             if row:
                 seq = int(row["seq"])
-                assert _cfg is not None
-                write_offset(_cfg.offsets_dir, consumer_id, seq)
+                write_offset(cfg.offsets_dir, consumer_id, seq)
         return (acked, seq)
 
     acked, seq = await asyncio.to_thread(_ack_and_offset)
@@ -330,25 +377,27 @@ async def ack(
 
 @app.post("/events/{event_id}/ack")
 async def ack_event(
+    request: Request,
     event_id: str,
     consumer_id: str = Query(default=""),
 ) -> dict[str, Any]:
+    db = _get_db(request)
+    cfg = _get_config(request)
+
     def _ack_and_offset() -> tuple[bool, int | None]:
         from eventbus.db import ack_event as _ack_event
         from eventbus.offsets import write_offset  # noqa: PLC0415
 
         now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        acked = _ack_event(_db, event_id, now)  # type: ignore[arg-type]
+        acked = _ack_event(db, event_id, now)  # type: ignore[arg-type]
         seq: int | None = None
         if consumer_id and acked:
-            assert _db is not None
-            row = _db.execute(
+            row = db.execute(
                 "SELECT seq FROM events WHERE event_id = ?", (event_id,)
             ).fetchone()
             if row:
                 seq = int(row["seq"])
-                assert _cfg is not None
-                write_offset(_cfg.offsets_dir, consumer_id, seq)
+                write_offset(cfg.offsets_dir, consumer_id, seq)
         return (acked, seq)
 
     acked, seq = await asyncio.to_thread(_ack_and_offset)
@@ -359,21 +408,25 @@ async def ack_event(
 
 
 @app.post("/nack")
-async def nack(event_id: str = Query(default="")) -> dict[str, Any]:
+async def nack(
+    request: Request,
+    event_id: str = Query(default=""),
+) -> dict[str, Any]:
     if not event_id:
         raise HTTPException(status_code=400, detail="event_id is required")
+
+    db = _get_db(request)
+    cfg = _get_config(request)
 
     def _nack_and_promote() -> tuple[int, bool]:
         from eventbus.db import nack_event as _nack_event
 
-        assert _db is not None
-        assert _cfg is not None
-        failure_count = _nack_event(_db, event_id)
+        failure_count = _nack_event(db, event_id)
         if failure_count == -1:
             return (-1, False)
         promoted = False
-        if failure_count >= _cfg.max_retry:
-            promoted = promote_single(_db, _cfg.deadletter_dir, event_id)
+        if failure_count >= cfg.max_retry:
+            promoted = promote_single(db, cfg.deadletter_dir, event_id)
         return (failure_count, promoted)
 
     failure_count, promoted = await asyncio.to_thread(_nack_and_promote)
@@ -400,13 +453,3 @@ def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
         "producer": row["producer"],
         "published_at": row["published_at"],
     }
-
-
-def _append_jsonl(body: dict[str, Any], seq: int) -> None:
-    assert _cfg is not None
-    path = Path(_cfg.storage_dir) / "events.jsonl"
-    line = orjson.dumps({**body, "seq": seq}).decode() + "\n"
-    with path.open("a", encoding="utf-8") as f:
-        f.write(line)
-        f.flush()
-        os.fsync(f.fileno())

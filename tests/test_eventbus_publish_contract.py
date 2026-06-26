@@ -47,7 +47,16 @@ def _event(topic: str = "test.topic") -> dict:
 class TestPublishContract:
     def test_publish_succeeds_if_jsonl_append_fails(self, client: TestClient) -> None:
         """JSONL append 失敗後も SQLite commit 済みなら 200 を返す。"""
-        with patch("eventbus.app._append_jsonl", side_effect=OSError("disk full")):
+
+        # Patch Path.open to raise OSError for JSONL writes
+        original_open = Path.open
+
+        def failing_open(self, *args, **kwargs):
+            if "events.jsonl" in str(self):
+                raise OSError("disk full")
+            return original_open(self, *args, **kwargs)
+
+        with patch.object(Path, "open", failing_open):
             resp = client.post(
                 "/publish",
                 json=_event(),

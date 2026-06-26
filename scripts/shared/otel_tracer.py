@@ -90,9 +90,7 @@ def _attach_console_exporter(provider: Any, service_name: str) -> None:
     """Attach ConsoleSpanExporter to the given provider."""
     processor = _ConsoleProcessor()
     provider.add_span_processor(processor)
-    logger.info(
-        "OTel tracer configured: ConsoleSpanExporter service=%s", service_name
-    )
+    logger.info("OTel tracer configured: ConsoleSpanExporter service=%s", service_name)
 
 
 def _attach_otlp_exporter(provider: Any, otlp_endpoint: str, service_name: str) -> None:

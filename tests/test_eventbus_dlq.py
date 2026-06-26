@@ -180,7 +180,9 @@ def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> Non
     assert row["dlq_at"] is not None
 
 
-def test_inline_dlq_promotion_skipped_below_threshold(client: TestClient, tmp_path: Path) -> None:
+def test_inline_dlq_promotion_skipped_below_threshold(
+    client: TestClient, tmp_path: Path
+) -> None:
     from eventbus.db import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -209,7 +211,9 @@ def test_inline_dlq_promotion_not_found(client: TestClient) -> None:
     assert r.json()["detail"] == "event not found"
 
 
-def test_nack_on_already_dlq_event_does_not_repromote(client: TestClient, tmp_path: Path) -> None:
+def test_nack_on_already_dlq_event_does_not_repromote(
+    client: TestClient, tmp_path: Path
+) -> None:
     from eventbus.db import open_db
     from eventbus.dlq import promote_to_dlq
 
