@@ -59,6 +59,13 @@ class MdqService:
         self.enable_refresh: bool = mdq_cfg.get("enable_refresh", True)
         self.audit_log_path: str | None = mdq_cfg.get("audit_log_path", "/opt/llm/logs/mdq_audit.log")
 
+        # Result size limits
+        self.max_results_limit: int = mdq_cfg.get("max_results_limit", 100)
+        self.max_chars_per_chunk: int = mdq_cfg.get("max_chars_per_chunk", 10000)
+        self.max_total_result_chars: int = mdq_cfg.get("max_total_result_chars", 100000)
+        self.max_outline_items: int = mdq_cfg.get("max_outline_items", 500)
+        self.max_grep_matches: int = mdq_cfg.get("max_grep_matches", 200)
+
         # Validate required fields
         if not isinstance(self._allowed_dirs, list):
             logger.warning("mdq_mcp_server.allowed_dirs must be a list; using empty list")
@@ -322,20 +329,30 @@ class MdqService:
 
     async def get_chunk(self, req: GetChunkRequest) -> str:
         """Retrieve a Markdown chunk by its ID."""
+        max_chars = getattr(req, "max_chars_per_chunk", None) or self.max_chars_per_chunk
         conn = self._get_db_connection()
         try:
             row = conn.execute(
-                "SELECT heading, content FROM sections WHERE id = ?",
+                "SELECT heading, content FROM chunks WHERE chunk_id = ?",
                 (req.chunk_id,),
             ).fetchone()
             if row is None:
                 return f"Chunk {req.chunk_id} not found"
-            return f"## {row['heading']}\n\n{row['content']}"
+            content = row["content"]
+            truncated = False
+            if len(content) > max_chars:
+                content = content[:max_chars]
+                truncated = True
+            result = f"## {row['heading']}\n\n{content}"
+            if truncated:
+                result += f"\n\n[Truncated — {len(row['content'])}/{max_chars} chars]"
+            return result
         finally:
             conn.close()
 
     async def outline(self, req: OutlineRequest) -> str:
         """Get the heading structure of a Markdown file."""
+        max_items = getattr(req, "max_outline_items", None) or self.max_outline_items
         p = Path(req.path)
         if not p.exists():
             return f"File not found: {req.path}"
@@ -344,7 +361,14 @@ class MdqService:
             raise MdqServiceError(f"Access denied: {req.path} is outside allowed directories")
         sections = await parse_markdown(self, ParseMarkdownRequest(path=req.path))
         headings = [s["heading"] for s in sections]
-        return "\n".join(headings) if headings else "(no headings)"
+        truncated = False
+        if len(headings) > max_items:
+            headings = headings[:max_items]
+            truncated = True
+        result = "\n".join(headings) if headings else "(no headings)"
+        if truncated:
+            result += f"\n\n[Truncated — {len([s for s in sections])}/{max_items} headings]"
+        return result
 
     async def index_paths(self, req: IndexPathsRequest) -> str:
         """Index a set of paths into the in-process SQLite DB."""
@@ -384,10 +408,10 @@ class MdqService:
         conn = self._get_db_connection()
         try:
             chunk_count = conn.execute(
-                "SELECT COUNT(*) as cnt FROM sections"
+                "SELECT COUNT(*) as cnt FROM chunks"
             ).fetchone()["cnt"]
             doc_count = conn.execute(
-                "SELECT COUNT(DISTINCT file_path) as cnt FROM sections"
+                "SELECT COUNT(DISTINCT source_path) as cnt FROM chunks"
             ).fetchone()["cnt"]
             return f"Documents: {doc_count}, Chunks: {chunk_count}"
         finally:
@@ -400,17 +424,26 @@ class MdqService:
         except re.error as e:
             return f"Invalid regex pattern: {e}"
 
+        max_matches = getattr(req, "max_grep_matches", None) or self.max_grep_matches
         conn = self._get_db_connection()
         try:
             matches = []
-            rows = conn.execute("SELECT id, heading, content FROM sections").fetchall()
+            rows = conn.execute("SELECT chunk_id, heading, content FROM chunks").fetchall()
             for row in rows:
                 if compiled.search(row["content"]) or compiled.search(row["heading"]):
                     matches.append(
-                        f"Chunk {row['id']}: {row['heading']}\n{row['content'][:200]}"
+                        f"Chunk {row['chunk_id']}: {row['heading']}\n{row['content'][:200]}"
                     )
+            truncated = False
+            if len(matches) > max_matches:
+                matches = matches[:max_matches]
+                truncated = True
             if not matches:
                 return "No matches found."
-            return "\n---\n".join(matches)
+            result = "\n---\n".join(matches)
+            if truncated:
+                total = len(conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()["cnt"])
+                result += f"\n\n[Truncated — {max_matches}/{total} matches]"
+            return result
         finally:
             conn.close()

@@ -22,10 +22,32 @@ async def search_docs(service: MdqService, req: SearchDocsRequest) -> str:
     result = _search_docs_structured(service, req)
     if not result["results"]:
         return f"No results found for: {req.query!r}"
-    lines = [f"Search results for: {req.query!r} ({result['total']} found)"]
-    for i, r in enumerate(result["results"], 1):
-        lines.append(f"{i}. [{r.file_path}] {r.heading}: {r.content[:150]}")
-    return "\n".join(lines)
+
+    # Apply result size limits
+    total = result["total"]
+    max_results = getattr(req, "max_results_limit", None) or service.max_results_limit
+    max_chars = getattr(req, "max_total_result_chars", None) or service.max_total_result_chars
+
+    truncated = False
+    if total > max_results:
+        truncated = True
+        result["results"] = result["results"][:max_results]
+        total = max_results
+
+    # Enforce char limit
+    if len(result["results"]) > 0:
+        lines = [f"Search results for: {req.query!r} ({total} found)"]
+        for r in result["results"]:
+            line = f"{r.file_path}: {r.heading}: {r.content[:150]}"
+            if len("\n".join(lines)) + len(line) > max_chars:
+                truncated = True
+                break
+            lines.append(line)
+        if truncated:
+            return "\n".join(lines) + f"\n\n[Truncated — total chars exceeded {max_chars}]"
+        return "\n".join(lines)
+
+    return f"Search results for: {req.query!r} ({total} found)"
 
 
 def _search_docs_structured(
@@ -43,21 +65,21 @@ def _search_docs_structured(
     try:
         if req.path_prefix:
             rows = conn.execute(
-                """SELECT s.file_path, s.heading, s.content
-                   FROM sections_fts f
-                   JOIN sections s ON f.rowid = s.id
-                   WHERE sections_fts MATCH ?
-                   AND s.file_path LIKE ?
+                """SELECT c.source_path, c.heading, c.content
+                   FROM chunks_fts f
+                   JOIN chunks c ON f.rowid = c.chunk_id
+                   WHERE chunks_fts MATCH ?
+                   AND c.source_path LIKE ?
                    ORDER BY rank
                    LIMIT ?""",
                 (req.query, f"{req.path_prefix}%", limit),
             ).fetchall()
         else:
             rows = conn.execute(
-                """SELECT s.file_path, s.heading, s.content
-                   FROM sections_fts f
-                   JOIN sections s ON f.rowid = s.id
-                   WHERE sections_fts MATCH ?
+                """SELECT c.source_path, c.heading, c.content
+                   FROM chunks_fts f
+                   JOIN chunks c ON f.rowid = c.chunk_id
+                   WHERE chunks_fts MATCH ?
                    ORDER BY rank
                    LIMIT ?""",
                 (req.query, limit),
@@ -65,7 +87,7 @@ def _search_docs_structured(
 
         results = [
             SearchResultItem(
-                file_path=row["file_path"],
+                file_path=row["source_path"],
                 heading=row["heading"],
                 content=row["content"],
             )

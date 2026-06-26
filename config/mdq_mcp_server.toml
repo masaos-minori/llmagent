@@ -24,6 +24,13 @@ max_chunk_chars = 10000
 # Maximum number of characters to include in a file
 max_file_chars = 100000
 
+# Result size limits (enforced at server level before MCP truncation)
+max_results_limit = 100
+max_chars_per_chunk = 10000
+max_total_result_chars = 100000
+max_outline_items = 500
+max_grep_matches = 200
+
 # Maximum number of seconds to wait for a search operation
 search_timeout_sec = 30
 

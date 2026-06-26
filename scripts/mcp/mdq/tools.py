@@ -42,6 +42,14 @@ _MCP_TOOLS: list[MCPToolSchema] = [
                     "type": "string",
                     "description": "Filter by heading prefix",
                 },
+                "max_results_limit": {
+                    "type": "integer",
+                    "description": "Override max results from config (default: use config value)",
+                },
+                "max_total_result_chars": {
+                    "type": "integer",
+                    "description": "Max total characters in response (default: use config value)",
+                },
             },
             "required": ["query"],
         },
@@ -58,6 +66,10 @@ _MCP_TOOLS: list[MCPToolSchema] = [
                     "type": "boolean",
                     "description": "Include adjacent headings",
                 },
+                "max_chars_per_chunk": {
+                    "type": "integer",
+                    "description": "Max characters in chunk content (default: use config value)",
+                },
             },
             "required": ["chunk_id"],
         },
@@ -68,7 +80,13 @@ _MCP_TOOLS: list[MCPToolSchema] = [
         "description": "Get the heading hierarchy of a Markdown file. Structure-aware, Markdown-only.",
         "inputSchema": {
             "type": "object",
-            "properties": {"path": {"type": "string", "description": "File path"}},
+            "properties": {
+                "path": {"type": "string", "description": "File path"},
+                "max_outline_items": {
+                    "type": "integer",
+                    "description": "Max outline items (default: use config value)",
+                },
+            },
             "required": ["path"],
         },
         "status": "production",
@@ -115,6 +133,10 @@ _MCP_TOOLS: list[MCPToolSchema] = [
             "properties": {
                 "pattern": {"type": "string", "description": "Regex pattern"},
                 "paths": {"type": "array", "description": "Optional path filter"},
+                "max_grep_matches": {
+                    "type": "integer",
+                    "description": "Max grep matches (default: use config value)",
+                },
             },
             "required": ["pattern"],
         },

@@ -64,15 +64,19 @@ class SearchDocsRequest(BaseModel):
     path_prefix: str | None = None
     tag_filter: list[str] | None = None
     heading_prefix: str | None = None
+    max_results_limit: int | None = None
+    max_total_result_chars: int | None = None
 
 
 class GetChunkRequest(BaseModel):
     chunk_id: int
     with_neighbors: bool | None = False
+    max_chars_per_chunk: int | None = None
 
 
 class OutlineRequest(BaseModel):
     path: str
+    max_outline_items: int | None = None
 
 
 class IndexPathsRequest(BaseModel):
@@ -90,6 +94,7 @@ class StatsRequest(BaseModel):
 class GrepDocsRequest(BaseModel):
     pattern: str
     paths: list[str] | None = None
+    max_grep_matches: int | None = None
 
 
 class SearchResultItem(BaseModel):
