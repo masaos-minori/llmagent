@@ -137,26 +137,71 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 @app.get("/health")
 async def health() -> dict[str, object]:
     deps: dict[str, str] = {}
+    details: dict[str, object] = {"service": "mdq-mcp"}
+
     try:
         import os as _os
 
         from shared.config_loader import ConfigLoader
 
         cfg = ConfigLoader().load_all()
-        common = cfg.get("common", {}) if isinstance(cfg.get("common"), dict) else {}
-        rag_db = common.get("rag_db_path") or common.get("sqlite_rag_path")
-        if isinstance(rag_db, str):
-            if not _os.path.isfile(rag_db):
-                deps["rag_db"] = f"not found: {rag_db}"
-    except (FileNotFoundError, PermissionError, KeyError, TypeError):
-        deps["config"] = "check failed"
+        mdq_cfg = cfg.get("mdq_mcp_server", {}) if isinstance(cfg.get("mdq_mcp_server"), dict) else {}
+        db_path = mdq_cfg.get("db_path") or "/opt/llm/db/mdq.sqlite"
+        details["database"] = db_path
+
+        if not _os.path.isfile(db_path):
+            deps["db_file"] = f"not found: {db_path}"
+            return {"status": "ok", "ready": False, "dependencies": deps, "details": details}
+
+        import sqlite3
+
+        conn = sqlite3.connect(db_path)
+        try:
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = {row[0] for row in cursor.fetchall()}
+
+            if "sections" not in tables:
+                deps["db_schema"] = "missing sections table"
+                return {"status": "ok", "ready": False, "dependencies": deps, "details": details}
+
+            if "sections_fts" not in tables:
+                deps["db_schema"] = "missing sections_fts FTS5 table"
+                return {"status": "ok", "ready": False, "dependencies": deps, "details": details}
+
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'")
+            triggers = {row[0] for row in cursor.fetchall()}
+            expected_triggers = {"sections_ai", "sections_ad", "sections_au"}
+            missing_triggers = expected_triggers - triggers
+            if missing_triggers:
+                deps["db_schema"] = f"missing triggers: {', '.join(sorted(missing_triggers))}"
+                return {"status": "ok", "ready": False, "dependencies": deps, "details": details}
+
+            try:
+                cursor.execute("SELECT COUNT(*) FROM sections_fts WHERE sections_fts = 'delete' LIMIT 1")
+                cursor.fetchone()
+            except sqlite3.OperationalError as e:
+                deps["fts5"] = f"FTS5 query failed: {e}"
+                return {"status": "ok", "ready": False, "dependencies": deps, "details": details}
+
+            chunk_count = conn.execute("SELECT COUNT(*) as cnt FROM sections").fetchone()["cnt"]
+            doc_count = conn.execute("SELECT COUNT(DISTINCT file_path) as cnt FROM sections").fetchone()["cnt"]
+            fts_count = conn.execute("SELECT COUNT(*) as cnt FROM sections_fts WHERE sections_fts != 'delete'").fetchone()["cnt"]
+
+            row = conn.execute("SELECT MAX(file_mtime) as mt FROM sections").fetchone()
+            last_indexed = row["mt"] if row and row["mt"] is not None else None
+            details["document_count"] = doc_count
+            details["chunk_count"] = chunk_count
+            details["fts_row_count"] = fts_count
+            details["last_indexed"] = last_indexed
+
+        finally:
+            conn.close()
+
+    except (FileNotFoundError, PermissionError, KeyError, TypeError) as e:
+        deps["config"] = f"check failed: {e}"
+
     ready = len(deps) == 0
-    return {
-        "status": "ok",
-        "ready": ready,
-        "dependencies": deps,
-        "details": {"service": "mdq-mcp"},
-    }
+    return {"status": "ok", "ready": ready, "dependencies": deps, "details": details}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
