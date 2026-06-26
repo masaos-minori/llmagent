@@ -23,11 +23,21 @@ Offset files are stored in `{offsets_dir}/{consumer_id}` (plain text, one intege
 
 On `/subscribe`, if `consumer_id` is set and `since_seq == 0`, the saved offset is read and used as the start sequence.
 
-### Checkpoint writes
+### Ack-only offset model
 
-The offset is written:
-1. **On disconnect**: when the SSE generator receives `asyncio.CancelledError`
-2. **Mid-stream checkpoint**: every `offset_checkpoint_interval` (default 10) delivered events, for crash recovery before disconnect
+Consumer offsets advance only when the consumer explicitly acknowledges an event via `POST /events/{event_id}/ack?consumer_id={consumer_id}`. Offsets are never advanced automatically during streaming.
+
+**Reconnect resume**
+
+On reconnect, provide `consumer_id` (without `since_seq`) to resume from the last acknowledged offset. The subscribe handler calls `read_offset(offsets_dir, consumer_id)` at connect time and uses the stored seq as `start_seq` for the SQLite replay query.
+
+Example reconnect flow:
+1. Consumer connects: `GET /subscribe?consumer_id=svc-A`
+2. Receives events seq=1..10, acks seq=10: `POST /events/{id}/ack?consumer_id=svc-A`
+3. Disconnects
+4. Reconnects: `GET /subscribe?consumer_id=svc-A` → replay starts from seq=11
+
+**Deprecated**: `offset_checkpoint_interval` config field is no longer used.
 
 ## Delivery semantics
 
@@ -35,7 +45,7 @@ The offset is written:
 |---|---|
 | Delivery guarantee | At-least-once |
 | Duplicate suppression on publish | Yes — `event_id` UNIQUE constraint in SQLite; duplicate publishes are silently ignored |
-| Duplicate delivery on consumer | Possible — consumer may re-receive events after crash if checkpoint was not written before the crash |
+| Duplicate delivery on consumer | Possible — consumer may re-receive events after crash if ack was not written before the crash |
 | Ordering | Per-topic ordering is preserved (seq ascending); cross-topic ordering is not guaranteed |
 
 ## Reliability limits
