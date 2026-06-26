@@ -1,0 +1,59 @@
+## Goal
+
+Update the RAG document guide so canonical source rules reflect the current restructured documentation set and the known-issues workflow — defining where each type of truth lives and routing unresolved conflicts to `03_rag_90_inconsistencies_and_known_issues.md`.
+
+## Scope
+
+**In-Scope**:
+- Define canonical ownership for:
+  - file format: `03_rag_02_ingestion_pipeline.md` and `03_rag_04_data_model_and_interfaces.md`
+  - query pipeline behavior: `03_rag_03_query_pipeline.md`
+  - operations commands: `03_rag_05_configuration_and_operations.md`
+  - known conflicts: `03_rag_90_inconsistencies_and_known_issues.md`
+- Add a rule that unresolved conflicts should be recorded in `03_rag_90_inconsistencies_and_known_issues.md`
+- Remove or update references that imply deleted legacy docs are active sources
+
+**Out-of-Scope**:
+- Reintroducing legacy documentation
+- Creating a new source mapping document
+
+## Assumptions
+
+1. Legacy docs (`03_spec_rag.md`, `05_ref-rag.md`) are deleted and should not be referenced as canonical sources
+2. The Archive Policy section already states these are archived — Canonical Source Rules needs to reflect this
+3. The known-issues workflow should route unresolved conflicts to `03_rag_90_inconsistencies_and_known_issues.md`
+
+## Implementation
+
+### Target file: docs/03_rag_00_document-guide.md
+
+**Procedure**: Remove deleted legacy doc references, define canonical ownership, add conflict resolution rule.
+
+**Method**: Modify the RAG document guide to update canonical source rules.
+
+**Details**:
+1. Remove deleted legacy doc references from Canonical Source Rules (lines 58-59):
+   - Remove `03_spec_rag.md` canonical claim (file deleted per Archive Policy)
+   - Remove `05_ref-rag.md` canonical claim (file deleted per Archive Policy)
+2. Define canonical ownership for each domain:
+   - File formats: `03_rag_02_ingestion_pipeline.md` + `03_rag_04_data_model_and_interfaces.md`
+   - Query pipeline behavior: `03_rag_03_query_pipeline.md`
+   - Operations commands: `03_rag_05_configuration_and_operations.md`
+   - Known conflicts: `03_rag_90_inconsistencies_and_known_issues.md`
+3. Add conflict resolution rule:
+   - Unresolved conflicts → record in `03_rag_90_inconsistencies_and_known_issues.md`
+   - Document the workflow for resolving cross-doc inconsistencies
+4. Remove or update `03_rag_99_source_mapping.md` reference (line 61):
+   - If file still exists, add to File Index as archived; if deleted, remove reference
+
+## Validation plan
+
+| Target File/Module | Testing Strategy | Tool / Command to Run | Expected Outcome |
+|---|---|---|---|
+| 03_rag_00_document-guide.md | Verify no references to deleted legacy docs as canonical | Check Canonical Source Rules section | Only current restructured docs listed as canonical |
+| 03_rag_00_document-guide.md | Verify canonical ownership is explicit for each domain | Check section structure | File format, query pipeline, ops commands, known conflicts each have clear owner |
+| 03_rag_00_document-guide.md | Verify conflict resolution path is documented | Check for rule about unresolved conflicts | Rule routing to 03_rag_90 present |
+
+## Risks
+
+- **Risk**: Removing legacy doc canonical claims may break readers who still reference them | **Likelihood**: Low (Archive Policy already states these are archived) | **Mitigation**: Keep references in File Index as "archived" with note that they are not active spec sources | False
