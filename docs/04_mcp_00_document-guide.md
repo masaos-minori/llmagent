@@ -56,7 +56,7 @@ as the primary reference. Legacy source files have been deleted (git history pre
 | What tools does web-search-mcp provide? | `04_mcp_04` |
 | What tools does github-mcp provide? | `04_mcp_04` |
 | What does shell-mcp's shell_run accept? | `04_mcp_04` |
-| Is mdq-mcp production-ready? | `04_mcp_04` (experimental but functional; not production-validated) |
+| Is mdq-mcp production-ready? | `04_mcp_04` (production-ready; FTS5 search and indexing implemented) |
 | How does allowed_dirs work? | `04_mcp_05` |
 | How does github allowed_repos work? | `04_mcp_05` |
 | What is fail-closed vs fail-open? | `04_mcp_05` |
@@ -76,7 +76,7 @@ as the primary reference. Legacy source files have been deleted (git history pre
 | Issue | Location |
 |---|---|
 | HealthRegistry record_success/failure not called (BUG) | RESOLVED 2026-06-18 — now properly called in `04_mcp_03` |
-| mdq-mcp is experimental but functional (FTS5 implemented, not prod-validated) | [04_mcp_04 §mdq-mcp](04_mcp_04_server_catalog.md) |
+| mdq-mcp is production-ready (FTS5 search and indexing implemented) | [04_mcp_04 §mdq-mcp](04_mcp_04_server_catalog.md) |
 
 ---
 

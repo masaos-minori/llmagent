@@ -18,7 +18,7 @@ class MCPToolSchema(TypedDict):
 _MCP_TOOLS: list[MCPToolSchema] = [
     {
         "name": "search_docs",
-        "description": "Search indexed Markdown documents using BM25/FTS5. Markdown-only, structure-aware retrieval. Experimental.",
+        "description": "Search indexed Markdown documents using BM25/FTS5. Markdown-only, structure-aware retrieval.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -43,11 +43,11 @@ _MCP_TOOLS: list[MCPToolSchema] = [
             },
             "required": ["query"],
         },
-        "status": "stub",
+        "status": "production",
     },
     {
         "name": "get_chunk",
-        "description": "Retrieve a Markdown chunk by ID, with optional adjacent heading context. Markdown-only. Experimental.",
+        "description": "Retrieve a Markdown chunk by ID, with optional adjacent heading context. Markdown-only.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -59,21 +59,21 @@ _MCP_TOOLS: list[MCPToolSchema] = [
             },
             "required": ["chunk_id"],
         },
-        "status": "stub",
+        "status": "production",
     },
     {
         "name": "outline",
-        "description": "Get the heading hierarchy of a Markdown file. Structure-aware, Markdown-only. Experimental.",
+        "description": "Get the heading hierarchy of a Markdown file. Structure-aware, Markdown-only.",
         "inputSchema": {
             "type": "object",
             "properties": {"path": {"type": "string", "description": "File path"}},
             "required": ["path"],
         },
-        "status": "stub",
+        "status": "production",
     },
     {
         "name": "index_paths",
-        "description": "Index Markdown file paths into the MDQ store. Markdown-only ingestion. Experimental.",
+        "description": "Index Markdown file paths into the MDQ store. Markdown-only ingestion.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -81,11 +81,11 @@ _MCP_TOOLS: list[MCPToolSchema] = [
             },
             "required": ["paths"],
         },
-        "status": "stub",
+        "status": "production",
     },
     {
         "name": "refresh_index",
-        "description": "Incrementally refresh the index for changed Markdown files. Markdown-only. Experimental.",
+        "description": "Incrementally refresh the index for changed Markdown files. Markdown-only.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -93,17 +93,17 @@ _MCP_TOOLS: list[MCPToolSchema] = [
             },
             "required": ["paths"],
         },
-        "status": "stub",
+        "status": "production",
     },
     {
         "name": "stats",
-        "description": "Return document/chunk counts and FTS5 index metadata for the Markdown store. Experimental.",
+        "description": "Return document/chunk counts and FTS5 index metadata for the Markdown store.",
         "inputSchema": {"type": "object", "properties": {}, "required": []},
-        "status": "stub",
+        "status": "production",
     },
     {
         "name": "grep_docs",
-        "description": "Search Markdown chunks with a regex pattern. Structure-aware, Markdown-only. Experimental.",
+        "description": "Search Markdown chunks with a regex pattern. Structure-aware, Markdown-only.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -112,6 +112,6 @@ _MCP_TOOLS: list[MCPToolSchema] = [
             },
             "required": ["pattern"],
         },
-        "status": "stub",
+        "status": "production",
     },
 ]

@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="mdq-mcp",
     version="1.0.0",
-    description="Markdown Context Compression Engine MCP server (Markdown-only, structure-aware retrieval, experimental)",
+    description="Markdown Context Compression Engine MCP server (Markdown-only, structure-aware retrieval)",
 )
 
 _service: MdqService = MdqService()
@@ -154,7 +154,6 @@ async def health() -> dict[str, object]:
     return {
         "status": "ok",
         "ready": ready,
-        "stub": True,
         "dependencies": deps,
         "details": {"service": "mdq-mcp"},
     }

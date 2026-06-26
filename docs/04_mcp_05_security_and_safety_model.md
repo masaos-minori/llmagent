@@ -325,7 +325,7 @@ Tools absent from `tool_safety_tiers` default to `WRITE_DANGEROUS` (fail-safe).
 5. **`workflow_allowlist` is fail-closed** (same as `repo_allowlist`). An empty list denies all
     workflow triggers. Explicitly list permitted workflows in `cicd_mcp_server.toml`.
 
-6. **mdq-mcp is experimental.** FTS5 indexing and search are functionally implemented but not production-validated. Use `rag-pipeline-mcp` for production workloads. See [§MDQ vs RAG Boundary](#mdq-vs-rag-boundary) below for guidance.
+6. **mdq-mcp is production-ready.** FTS5 indexing and search are functionally implemented. Use `rag-pipeline-mcp` for production RAG workloads. See [§MDQ vs RAG Boundary](#mdq-vs-rag-boundary) below for guidance.
 
 7. **`dry_run=True` preview before destructive ops.** The approval flow in the agent
     auto-injects `dry_run=True` for registered tools before showing the user prompt.

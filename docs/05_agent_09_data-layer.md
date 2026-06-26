@@ -15,7 +15,7 @@ and the responsibility boundary between the agent layer and the RAG layer.
 |---|---|---|---|
 | `session.sqlite` | `/opt/llm/db/session.sqlite` | Agent layer | Sessions, messages, notes |
 | `rag.sqlite` | `/opt/llm/db/rag.sqlite` | RAG layer | Documents, chunks, vectors |
-| `mdq.sqlite` | `/opt/llm/db/mdq.sqlite` | MCP (mdq-mcp) | Markdown document query (experimental) |
+| `mdq.sqlite` | `/opt/llm/db/mdq.sqlite` | MCP (mdq-mcp) | Markdown document indexing and context compression |
 | `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | Workflow engine | Tasks, attempts, processed_events, approvals, artifacts |
 
 ---

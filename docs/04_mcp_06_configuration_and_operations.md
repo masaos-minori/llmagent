@@ -131,7 +131,7 @@ curl -s http://127.0.0.1:8009/health | jq   # shell: dependencies.shell, details
 curl -s http://127.0.0.1:8010/health | jq   # rag-pipeline: dependencies.embed_url
 curl -s http://127.0.0.1:8011/health | jq   # sqlite: dependencies.<db_name> per registered DB
 curl -s http://127.0.0.1:8012/health | jq   # cicd: dependencies.github_token
-curl -s http://127.0.0.1:8013/health | jq   # mdq: stub:true, details.service
+curl -s http://127.0.0.1:8013/health | jq   # mdq: details.service
 curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 
 # Base response shape: {"status":"ok","ready":bool,"dependencies":{},"details":{}}

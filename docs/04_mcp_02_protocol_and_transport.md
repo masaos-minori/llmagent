@@ -261,7 +261,7 @@ When result exceeds 512 KB:
 |---|---|---|
 | web-search-mcp | No overrides (returns `{"status":"ok","ready":true}`) |
 | github-mcp | `dependencies.github_token` (`"set"`/`"not_set"`) |
-| mdq-mcp | root-level `"stub": true` (marks experimental status); `details.service: "mdq-mcp"` |
+| mdq-mcp | `details.service: "mdq-mcp"` |
 | shell-mcp | `dependencies.shell` (`"sh not found in PATH"`/`"check failed"`); `details.sandbox_backend` (`"firejail"` or `"none"`) |
 | file-read-mcp | `dependencies.filesystem` (`"/workspace not found"`/`"check failed"`) |
 | file-write-mcp | `dependencies.filesystem` (`"/workspace not found"`/`"check failed"`) |

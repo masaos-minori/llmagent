@@ -321,18 +321,11 @@ All tools do not require config (`requires_config: false`).
 
 **Tools (7):** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`
 
-> **Experimental — Not Production-Ready:** FTS5 search and indexing are functionally implemented
-> (`MdqService` uses SQLite FTS5 virtual tables). All 7 tools carry `"status": "stub"` in their
-> tool metadata and the `/health` endpoint returns `"stub": true` — both are experimental status
-> markers, not indicators of non-functional behavior. The server is not validated for
-> production load. Use `rag-pipeline-mcp` for production RAG search.
+**Health:** `{"status":"ok","ready":bool,"dependencies":{},"details":{"service":"mdq-mcp"}}`
 
-**Health:** `{"status":"ok","ready":bool,"dependencies":{},"details":{"service":"mdq-mcp"}}` + root-level `"stub": true`
-
-> **Note:** `stub: true` は本番環境で自動起動しない設定を意味する (not auto-started in production)。実装がないという意味ではない。mdq-mcp の FTS5 検索・インデックス機能は実装済みだが、本番検証は未実施 (experimental but functional)。
 **DB path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)
 **Log:** `/opt/llm/logs/mdq-mcp.log`
-**When to use:** Experimental only. Use `rag-pipeline-mcp` for production search.
+**When to use:** Markdown document indexing and context compression. Use `rag-pipeline-mcp` for production RAG search.
 
 ---
 
