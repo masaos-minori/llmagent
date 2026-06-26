@@ -6,7 +6,13 @@
 repo_allowlist = []
 
 # workflow_allowlist: permitted workflow file names (e.g. "ci.yml")
-# Empty list = allow all workflows
+# Fail-closed: empty list = deny all workflow triggers (CicdAuthorizationError).
+# Add allowed workflow patterns to enable triggering.
+# Example:
+# workflow_allowlist = [
+#   "my-org/my-repo/.github/workflows/deploy.yml",
+#   "my-org/my-repo/.github/workflows/ci.yml",
+# ]
 workflow_allowlist = []
 
 # max_log_size_kb: maximum log output size in KB (prevents large data dumps)

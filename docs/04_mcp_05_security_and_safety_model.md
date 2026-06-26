@@ -210,12 +210,27 @@ Stdio servers are always exempt from this check regardless of profile.
 ## Sandbox Backend (shell-mcp)
 
 ```toml
-shell_sandbox_backend = "none"   # or "firejail"
+# Development:
+shell_sandbox_backend = "none"    # WARNING at startup; no isolation
+# Production:
+shell_sandbox_backend = "firejail"  # RuntimeError at startup if binary missing
 ```
 
+| Backend | Use Case | Production? | Startup behavior |
+|---|---|---|---|
+| `firejail` | Process isolation, restricted filesystem | **Required** | RuntimeError if binary missing |
+| `none` | Development only — no isolation | No | WARNING logged; RuntimeError in production mode |
+
 - `"firejail"`: prepends `["firejail", "--private", "--net=none", "--noroot", "--"]` to argv
-- `"none"`: no sandbox; only `RLIMIT_*` resource limits applied — **local/dev only; do not use in production**
-- Firejail not found in PATH at startup → warning log + fallback to `"none"`
+- `"none"`: no sandbox; only `RLIMIT_*` resource limits applied
+
+**Startup enforcement** (added in plan 20260626-091916):
+- `backend == "firejail"` and `shutil.which("firejail")` returns None → `RuntimeError` at startup
+- `backend != "firejail"` and `backend != "none"` → WARNING at startup
+- `backend == "none"` in production mode → `RuntimeError`
+
+Install firejail: `sudo apt-get install firejail` (Debian/Ubuntu) or `apk add firejail` (Alpine).
+Verify: `firejail --version`
 
 **Resource limits** (applied via `preexec_fn`): `RLIMIT_CPU`, `RLIMIT_AS`, `RLIMIT_NOFILE`,
 `RLIMIT_NPROC`, `RLIMIT_FSIZE`
@@ -244,10 +259,11 @@ security posture summary. It checks the following settings by loading each serve
 
 | Setting | Server config file | Checked |
 |---|---|---|
-| `shell_sandbox_backend` | `shell_mcp_server.toml` | warns when `"none"` |
+| `shell_sandbox_backend` | `shell_mcp_server.toml` | RuntimeError when `"firejail"` + binary missing; WARNING when not `"firejail"` or `"none"`; RuntimeError in production when `"none"` |
 | `command_allowlist` | `shell_mcp_server.toml` | DENY-ALL warning when empty (fail-closed) |
 | `db_allowlist` | `sqlite_mcp_server.toml` | DENY-ALL warning when empty (fail-closed) |
 | `allowed_repo_paths` | `git_mcp_server.toml` | DENY-ALL warning when empty (fail-closed) |
+| `workflow_allowlist` | `cicd_mcp_server.toml` | DENY-ALL warning when empty (fail-closed) |
 
 Empty allowlist warnings use the format: `DENY-ALL detected: {setting} is empty. {server} will reject ALL requests from this category. Verify this is intentional or add allowed values to config.`
 

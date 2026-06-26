@@ -619,3 +619,27 @@ Before deploying to production, verify:
 - [ ] `mcp_watchdog_interval = 30.0` (auto-restart enabled)
 - [ ] Health check thresholds reviewed (`startup_timeout_sec`, `mcp_watchdog_max_restarts`)
 - [ ] Audit log paths configured and writable
+- [ ] API keys (`github_token`, `auth_token`) set via environment variables, not hardcoded in config
+- [ ] `repo_allowlist` non-empty in `cicd_mcp_server.toml` (empty = deny all repos)
+- [ ] `allowed_repos` non-empty in `github_mcp_server.toml` (empty = deny all GitHub write ops)
+
+### Installing firejail
+
+```bash
+# Debian/Ubuntu
+sudo apt-get install firejail
+
+# Alpine
+apk add firejail
+
+# Verify installation
+firejail --version
+```
+
+After installation, update `config/shell_mcp_server.toml`:
+
+```toml
+shell_sandbox_backend = "firejail"
+```
+
+See `04_mcp_05_security_and_safety_model.md` for the full fail-open/closed policy table.
