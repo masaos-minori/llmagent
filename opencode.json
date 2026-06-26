@@ -14,7 +14,7 @@
                     "name": "Qwen3.6 (llama.cpp)",
                     "limit": {
                         "context": 131072,
-                        "output": 4096
+                        "output": 16384
                     }
                 }
             }
