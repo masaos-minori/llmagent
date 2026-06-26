@@ -25,8 +25,8 @@ class EventBusConfig:
     offsets_dir: str
     deadletter_dir: str
     max_retry: int
-    poll_interval_ms: int = 500
-    offset_checkpoint_interval: int = 10
+    poll_interval_ms: int = 500  # deprecated: no longer used; push-mode delivery via EventBroker
+    offset_checkpoint_interval: int = 10  # deprecated: offset checkpointing removed; ack-only model
 
 
 def load_config(path: Path | None = None) -> EventBusConfig:
