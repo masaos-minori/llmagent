@@ -29,7 +29,7 @@ async def test_write_warning_on_inconsistency():
         patch("agent.startup.RagMaintenanceService") as mock_svc_cls,
         patch("agent.startup.audit_security_defaults"),
         patch("agent.startup.check_readiness") as mock_readiness,
-        patch("agent.startup.check_tool_definitions_runtime") as mock_tools,
+        patch("agent.startup.check_tool_definitions_startup") as mock_tools,
     ):
         mock_svc = MagicMock()
         mock_svc.consistency.return_value = MagicMock(
@@ -56,7 +56,7 @@ async def test_no_warning_on_consistent():
         patch("agent.startup.RagMaintenanceService") as mock_svc_cls,
         patch("agent.startup.audit_security_defaults"),
         patch("agent.startup.check_readiness") as mock_readiness,
-        patch("agent.startup.check_tool_definitions_runtime") as mock_tools,
+        patch("agent.startup.check_tool_definitions_startup") as mock_tools,
     ):
         mock_svc = MagicMock()
         mock_svc.consistency.return_value = MagicMock(is_consistent=True, issues=[])
@@ -81,7 +81,7 @@ async def test_no_crash_on_exception():
         patch("agent.startup.RagMaintenanceService") as mock_svc_cls,
         patch("agent.startup.audit_security_defaults"),
         patch("agent.startup.check_readiness") as mock_readiness,
-        patch("agent.startup.check_tool_definitions_runtime") as mock_tools,
+        patch("agent.startup.check_tool_definitions_startup") as mock_tools,
     ):
         mock_svc = MagicMock()
         mock_svc.consistency.side_effect = FileNotFoundError("rag.sqlite not found")

@@ -84,6 +84,9 @@ class TestRunStdio:
 
         mock_loop = MagicMock()
         mock_loop.connect_read_pipe = AsyncMock(return_value=(MagicMock(), MagicMock()))
+        mock_loop.run_in_executor = MagicMock(
+            side_effect=lambda executor, fn, *args: fn(*args)
+        )
 
         with (
             patch("asyncio.get_running_loop", return_value=mock_loop),
@@ -97,7 +100,7 @@ class TestRunStdio:
 
         assert len(written) == 1
         resp = orjson.loads(written[0])
-        assert resp["id"] == 1
+        assert resp["req_id"] == 1
         assert not resp["is_error"]
         assert orjson.loads(resp["result"])["tools"] == ["tool_a", "tool_b"]
 
@@ -116,6 +119,9 @@ class TestRunStdio:
 
         mock_loop = MagicMock()
         mock_loop.connect_read_pipe = AsyncMock(return_value=(MagicMock(), MagicMock()))
+        mock_loop.run_in_executor = MagicMock(
+            side_effect=lambda executor, fn, *args: fn(*args)
+        )
 
         with (
             patch("asyncio.get_running_loop", return_value=mock_loop),
@@ -129,7 +135,7 @@ class TestRunStdio:
 
         assert len(written) == 1
         resp = orjson.loads(written[0])
-        assert resp["id"] == 2
+        assert resp["req_id"] == 2
         assert not resp["is_error"]
         assert resp["result"] == "result_a"
 
