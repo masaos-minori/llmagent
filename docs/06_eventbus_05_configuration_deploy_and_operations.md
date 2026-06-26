@@ -26,10 +26,24 @@ Event Bus configuration is loaded from a TOML file (default: `/opt/llm/config/ev
 
 ## Deployment
 
-Start with:
+### Bind Address
+
+The EventBus server should bind to `127.0.0.1` (loopback) in production, not
+`0.0.0.0`. Binding to `0.0.0.0` exposes the EventBus API to the local network,
+which is a security risk (no authentication layer on the EventBus HTTP endpoints).
+
+```toml
+# config/eventbus.toml
+host = "127.0.0.1"
+port = 8765
+```
+
+If remote access is required, use a reverse proxy with authentication.
+
+### Start command
 
 ```bash
-EVENTBUS_CONFIG_PATH=/opt/llm/config/eventbus.toml uvicorn eventbus.app:app --host 0.0.0.0 --port 8010
+EVENTBUS_CONFIG_PATH=/opt/llm/config/eventbus.toml uvicorn eventbus.app:app --host 127.0.0.1 --port 8010
 ```
 
 ## Validation status
