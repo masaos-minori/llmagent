@@ -93,17 +93,6 @@ health probes, audit log reading, and the new-server addition checklist.
 
 ## Long-Running HTTP Operation (startup_mode=subprocess)
 
-Used by `sqlite-mcp` by default:
-
-```toml
-[mcp_servers.sqlite]
-transport = "http"
-url = "http://127.0.0.1:8011"
-cmd = ["/opt/llm/venv/bin/uvicorn", "mcp.sqlite.server:app", "--host", "127.0.0.1", "--port", "8011", "--workers", "1"]
-startup_mode = "subprocess"
-startup_timeout_sec = 30
-```
-
 Agent spawns uvicorn at launch, polls `/health` every 1 second up to `startup_timeout_sec`.
 `RuntimeError` if health check never succeeds.
 

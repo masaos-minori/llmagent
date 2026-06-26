@@ -390,17 +390,6 @@ auth_token       = ""
 role             = "query"
 tool_names       = ["rag_run_pipeline", "rag_debug_pipeline"]
 
-[mcp_servers.sqlite]
-transport        = "http"
-url              = "http://127.0.0.1:8011"
-cmd              = ["/opt/llm/venv/bin/uvicorn", "mcp.sqlite.server:app", "--host", "127.0.0.1", "--port", "8011", "--workers", "1"]
-startup_mode     = "subprocess"
-startup_timeout_sec = 30
-healthcheck_mode = "http"
-auth_token       = ""
-role             = "query"
-tool_names       = ["query_sqlite"]
-
 [mcp_servers.cicd]
 transport        = "http"
 url              = "http://127.0.0.1:8012"

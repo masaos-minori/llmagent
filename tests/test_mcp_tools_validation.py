@@ -27,7 +27,6 @@ _PYTHON = sys.executable
 # (module_path, port, expected_tool_names)
 _MCP_SERVERS: list[tuple[str, int, list[str]]] = [
     ("mcp.shell.server", 18009, ["shell_run"]),
-    ("mcp.sqlite.server", 18011, ["query_sqlite"]),
     (
         "mcp.cicd.server",
         18012,
