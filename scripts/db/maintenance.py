@@ -89,6 +89,14 @@ class RagConsistencyReport:
     fts_orphan_count: int  # fts - chunks; positive = extra FTS entries (data loss risk)
     embed_failed: int = 0  # embedding failures during ingestion
     issues: tuple[str, ...] = ()  # human-readable consistency issues
+    # Affected identifiers (up to 10 each; None when not applicable)
+    affected_chunk_ids: tuple[int, ...] | None = None  # chunk_ids missing from FTS
+    affected_orphan_chunk_ids: tuple[int, ...] | None = (
+        None  # chunk_ids in vec but not chunks
+    )
+    affected_orphan_urls: tuple[str, ...] | None = (
+        None  # URLs of docs with orphan vec rows
+    )
 
 
 @dataclass(frozen=True)
@@ -404,14 +412,47 @@ def check_rag_consistency(
     orphan_vec_count = db.execute(
         "SELECT COUNT(*) FROM chunks_vec WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks)"
     ).fetchone()[0]
+    fts_gap = max(0, chunks - fts)
+    fts_orphan_count = max(0, fts - chunks)
+
+    # Collect affected identifiers (read-only; top 10 each)
+    affected_chunk_ids: tuple[int, ...] | None = None
+    affected_orphan_chunk_ids: tuple[int, ...] | None = None
+    affected_orphan_urls: tuple[str, ...] | None = None
+    if fts_gap > 0:
+        rows = db.execute(
+            "SELECT chunk_id FROM chunks"
+            " WHERE chunk_id NOT IN (SELECT id FROM chunks_fts_docsize)"
+            " ORDER BY chunk_id LIMIT 10"
+        ).fetchall()
+        affected_chunk_ids = tuple(r[0] for r in rows)
+    if orphan_vec_count > 0:
+        id_rows = db.execute(
+            "SELECT chunk_id FROM chunks_vec"
+            " WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks)"
+            " ORDER BY chunk_id LIMIT 10"
+        ).fetchall()
+        affected_orphan_chunk_ids = tuple(r[0] for r in id_rows)
+        url_rows = db.execute(
+            "SELECT DISTINCT d.url FROM chunks_vec cv"
+            " LEFT JOIN chunks c ON cv.chunk_id = c.chunk_id"
+            " LEFT JOIN documents d ON c.doc_id = d.doc_id"
+            " WHERE c.chunk_id IS NULL AND d.url IS NOT NULL"
+            " ORDER BY d.url LIMIT 10"
+        ).fetchall()
+        affected_orphan_urls = tuple(r[0] for r in url_rows) if url_rows else None
+
     report = RagConsistencyReport(
         chunks=chunks,
         fts=fts,
         vec=vec,
         orphan_vec_count=orphan_vec_count,
-        fts_gap=max(0, chunks - fts),
-        fts_orphan_count=max(0, fts - chunks),
+        fts_gap=fts_gap,
+        fts_orphan_count=fts_orphan_count,
         embed_failed=embed_failed,
+        affected_chunk_ids=affected_chunk_ids,
+        affected_orphan_chunk_ids=affected_orphan_chunk_ids,
+        affected_orphan_urls=affected_orphan_urls,
     )
     return dataclasses.replace(report, issues=tuple(summarize_issues(report)))
 
@@ -430,20 +471,33 @@ def summarize_issues(report: RagConsistencyReport) -> list[str]:
     """Return severity-prefixed descriptions of consistency issues with repair guidance."""
     issues: list[str] = []
     if report.fts_gap > 0:
+        detail = ""
+        if report.affected_chunk_ids:
+            ids = ", ".join(str(i) for i in report.affected_chunk_ids[:10])
+            truncated = " ..." if len(report.affected_chunk_ids) == 10 else ""
+            detail = f" Affected chunk_ids: [{ids}{truncated}]."
         issues.append(
             f"[WARNING] FTS gap detected (chunks={report.chunks}, fts={report.fts},"
-            f" gap={report.fts_gap}). Run '/db rebuild-fts' to repair."
+            f" gap={report.fts_gap}).{detail} Run '/db rebuild-fts' to repair."
         )
     if report.fts_orphan_count > 0:
         issues.append(
             f"[CRITICAL] FTS index has more entries than chunks"
             f" (fts={report.fts}, chunks={report.chunks})."
-            f" Run '/db rebuild-fts' to repair."
+            f" Run '/db rebuild-fts' immediately; orphan FTS entries indicate data loss risk."
         )
     if report.orphan_vec_count > 0:
+        detail = ""
+        if report.affected_orphan_urls:
+            urls = ", ".join(report.affected_orphan_urls[:5])
+            truncated = " ..." if len(report.affected_orphan_urls) == 10 else ""
+            detail = f" Affected URLs: [{urls}{truncated}]."
+        elif report.affected_orphan_chunk_ids:
+            ids = ", ".join(str(i) for i in report.affected_orphan_chunk_ids[:10])
+            detail = f" Affected chunk_ids: [{ids}]."
         issues.append(
-            f"[CRITICAL] Orphan vec rows detected (count={report.orphan_vec_count})."
-            f" Re-run ingestion with '--force' for affected URLs."
+            f"[CRITICAL] Orphan vec rows detected (count={report.orphan_vec_count}).{detail}"
+            f" Re-run ingestion with 'ingester.py --force' for affected URLs."
         )
     if report.vec != report.chunks:
         issues.append(

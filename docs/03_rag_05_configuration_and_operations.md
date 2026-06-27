@@ -337,6 +337,18 @@ or `orphan_vec_count` is reported as inconsistent. Configurable thresholds (e.g.
 
 ### Fixing inconsistencies
 
+Use `/db consistency` to detect issues. The report includes affected `chunk_id`/URL
+identifiers (up to 10 each) so operators can act without manual DB investigation.
+
+**Repair decision tree:**
+
+| Issue | Fix |
+|---|---|
+| `fts_gap > 0` | Run `/db rebuild-fts` — FTS entries are missing; rebuild from `chunks` |
+| `fts_orphan_count > 0` | Run `/db rebuild-fts` — FTS has extra entries (data loss risk; urgent) |
+| `orphan_vec_count > 0` | Run `ingester.py --force` for affected URLs — `chunks_vec` rows without `chunks` counterparts |
+| `vec != chunks` | Run `ingester.py --force` for the affected URL — embedding step likely failed |
+
 Run `/db rebuild-fts` to resynchronize `chunks_fts` from the `chunks` table.
 
 
