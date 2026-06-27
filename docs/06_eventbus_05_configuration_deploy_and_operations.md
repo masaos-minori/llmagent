@@ -21,9 +21,9 @@ Event Bus configuration is loaded from a TOML file (default: `/opt/llm/config/ev
 | `offsets_dir` | str | — | Consumer offset file directory |
 | `deadletter_dir` | str | — | Dead-letter queue JSONL directory |
 | `max_retry` | int | — | Retry threshold before DLQ promotion |
-| `poll_interval_ms` | int | 500 | [deprecated] Subscribe polling interval — no longer used; push-mode delivery via EventBroker |
-| `offset_checkpoint_interval` | int | 10 | [deprecated] Mid-stream offset checkpoint interval — removed; ack-only model in place |
+| `poll_interval_ms` | int | 500 | [deprecated] No-op compatibility field. Setting this emits a DeprecationWarning. Subscribe polling was replaced with push-mode delivery via EventBroker. |
 
+| `offset_checkpoint_interval` | int | 10 | [deprecated] No-op compatibility field. Setting this emits a DeprecationWarning. Offset checkpointing was replaced with ack-only model. |
 ## Deployment
 
 ### Bind Address

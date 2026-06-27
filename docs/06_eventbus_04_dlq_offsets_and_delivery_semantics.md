@@ -39,7 +39,7 @@ Example reconnect flow:
 
 **Consumer ID stability requirement**: Consumer IDs must be stable across restarts for offset resume to work. Process-lifetime stable IDs (e.g., PID-based) will NOT survive restarts — offsets will not resume. Recommended: use application-level identifiers (e.g., service name + instance ID) as consumer_ids.
 
-**Deprecated**: `offset_checkpoint_interval` config field is no longer used.
+**Deprecated**: `offset_checkpoint_interval` config field is no-op. Setting this in TOML emits a DeprecationWarning. Offset checkpointing was replaced with ack-only model.
 
 ## Delivery semantics
 

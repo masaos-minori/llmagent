@@ -3,6 +3,7 @@ from __future__ import annotations
 import ipaddress
 import os
 import tomllib
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -62,6 +63,18 @@ class EventBusConfig:
             raise ValueError(
                 f"Event Bus bound to public address {self.host} without allow_public_bind=true. "
                 "The API has no authentication — this is a security risk."
+            )
+        if self.poll_interval_ms != 500:
+            warnings.warn(
+                "poll_interval_ms is deprecated and has no effect; push-mode delivery via EventBroker",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if self.offset_checkpoint_interval != 10:
+            warnings.warn(
+                "offset_checkpoint_interval is deprecated and has no effect; ack-only model in place",
+                DeprecationWarning,
+                stacklevel=2,
             )
 
 

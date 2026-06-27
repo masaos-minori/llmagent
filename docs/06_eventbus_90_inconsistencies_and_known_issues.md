@@ -68,7 +68,7 @@
 
 | Item | Safe interpretation | Recommended action |
 |---|---|---|
-| `poll_interval_ms` and `offset_checkpoint_interval` are no-op | Subscribe uses EventBroker push; offset checkpointing replaced with ack-only model | Add deprecation warnings when these fields are set to non-default values |
+| `poll_interval_ms` and `offset_checkpoint_interval` are no-op | Subscribe uses EventBroker push; offset checkpointing replaced with ack-only model | Resolved — added deprecation warnings when these fields are set to non-default values; removed from active TOML config example; documented in reference API docs |
 
 ## Resolved Items
 

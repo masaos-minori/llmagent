@@ -4,6 +4,8 @@ EventBusConfig dataclass validation tests.
 
 from __future__ import annotations
 
+import warnings
+
 import pytest
 
 from scripts.eventbus.config import EventBusConfig
@@ -71,7 +73,7 @@ def test_invalid_offset_checkpoint_zero() -> None:
         )
 
 
-def test_valid_config_without_host_field() -> None:
+def test_valid_config_with_host_field() -> None:
     cfg = EventBusConfig(
         port=8015,
         db_path="/tmp/eventbus.sqlite",
@@ -81,8 +83,7 @@ def test_valid_config_without_host_field() -> None:
         max_retry=3,
     )
     assert cfg.port == 8015
-    # host is not a field — this test validates no host attribute exists
-    assert not hasattr(cfg, "host")
+    assert cfg.host == "127.0.0.1"
 
 
 def test_valid_config_with_deprecated_defaults() -> None:
@@ -96,3 +97,85 @@ def test_valid_config_with_deprecated_defaults() -> None:
     )
     assert cfg.poll_interval_ms == 500
     assert cfg.offset_checkpoint_interval == 10
+
+
+def test_no_warning_with_default_poll_interval() -> None:
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        EventBusConfig(
+            port=8015,
+            db_path="/tmp/eventbus.sqlite",
+            storage_dir="/tmp/storage",
+            offsets_dir="/tmp/offsets",
+            deadletter_dir="/tmp/deadletter",
+            max_retry=3,
+            poll_interval_ms=500,
+        )
+        assert len(w) == 0
+
+
+def test_no_warning_with_default_offset_checkpoint() -> None:
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        EventBusConfig(
+            port=8015,
+            db_path="/tmp/eventbus.sqlite",
+            storage_dir="/tmp/storage",
+            offsets_dir="/tmp/offsets",
+            deadletter_dir="/tmp/deadletter",
+            max_retry=3,
+            offset_checkpoint_interval=10,
+        )
+        assert len(w) == 0
+
+
+def test_warning_poll_interval_ms_non_default() -> None:
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        EventBusConfig(
+            port=8015,
+            db_path="/tmp/eventbus.sqlite",
+            storage_dir="/tmp/storage",
+            offsets_dir="/tmp/offsets",
+            deadletter_dir="/tmp/deadletter",
+            max_retry=3,
+            poll_interval_ms=1000,
+        )
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "poll_interval_ms" in str(w[0].message)
+
+
+def test_warning_offset_checkpoint_interval_non_default() -> None:
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        EventBusConfig(
+            port=8015,
+            db_path="/tmp/eventbus.sqlite",
+            storage_dir="/tmp/storage",
+            offsets_dir="/tmp/offsets",
+            deadletter_dir="/tmp/deadletter",
+            max_retry=3,
+            offset_checkpoint_interval=30,
+        )
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "offset_checkpoint_interval" in str(w[0].message)
+
+
+def test_both_warnings_when_both_non_default() -> None:
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        EventBusConfig(
+            port=8015,
+            db_path="/tmp/eventbus.sqlite",
+            storage_dir="/tmp/storage",
+            offsets_dir="/tmp/offsets",
+            deadletter_dir="/tmp/deadletter",
+            max_retry=3,
+            poll_interval_ms=1000,
+            offset_checkpoint_interval=30,
+        )
+        assert len(w) == 2
+        assert any("poll_interval_ms" in str(warn.message) for warn in w)
+        assert any("offset_checkpoint_interval" in str(warn.message) for warn in w)
