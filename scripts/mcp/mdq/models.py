@@ -69,7 +69,7 @@ class SearchDocsRequest(BaseModel):
 
 
 class GetChunkRequest(BaseModel):
-    chunk_id: int
+    chunk_id: str
     with_neighbors: bool | None = False
     max_chars_per_chunk: int | None = None
 
@@ -135,7 +135,7 @@ class StatsResponse(BaseModel):
 
 
 class GrepDocMatch(BaseModel):
-    chunk_id: int
+    chunk_id: str
     heading: str
     content: str
 

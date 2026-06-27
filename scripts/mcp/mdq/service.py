@@ -43,21 +43,29 @@ class MdqService:
             from shared.config_loader import ConfigLoader
 
             cfg = ConfigLoader().load_all()
-            mdq_cfg = cfg.get("mdq_mcp_server", {}) if isinstance(cfg.get("mdq_mcp_server"), dict) else {}
+            mdq_cfg = (
+                cfg.get("mdq_mcp_server", {})
+                if isinstance(cfg.get("mdq_mcp_server"), dict)
+                else {}
+            )
         except (FileNotFoundError, KeyError, TypeError):
             mdq_cfg = {}
 
         self.db_path = db_path or mdq_cfg.get("db_path", "/opt/llm/db/mdq.sqlite")
         self._allowed_dirs: list[str] = mdq_cfg.get("allowed_dirs") or []
         self.include_globs: list[str] = mdq_cfg.get("include_globs", ["*.md"])
-        self.exclude_globs: list[str] = mdq_cfg.get("exclude_globs", [".git/**", "__pycache__/**"])
+        self.exclude_globs: list[str] = mdq_cfg.get(
+            "exclude_globs", [".git/**", "__pycache__/**"]
+        )
         self.max_search_results: int = mdq_cfg.get("max_search_results", 100)
         self.max_snippet_chars: int = mdq_cfg.get("max_snippet_chars", 500)
         self.max_chunk_chars: int = mdq_cfg.get("max_chunk_chars", 10000)
         self.max_file_chars: int = mdq_cfg.get("max_file_chars", 100000)
         self.search_timeout_sec: int = mdq_cfg.get("search_timeout_sec", 30)
         self.enable_refresh: bool = mdq_cfg.get("enable_refresh", True)
-        self.audit_log_path: str | None = mdq_cfg.get("audit_log_path", "/opt/llm/logs/mdq_audit.log")
+        self.audit_log_path: str | None = mdq_cfg.get(
+            "audit_log_path", "/opt/llm/logs/mdq_audit.log"
+        )
 
         # Result size limits
         self.max_results_limit: int = mdq_cfg.get("max_results_limit", 100)
@@ -68,7 +76,9 @@ class MdqService:
 
         # Validate required fields
         if not isinstance(self._allowed_dirs, list):
-            logger.warning("mdq_mcp_server.allowed_dirs must be a list; using empty list")
+            logger.warning(
+                "mdq_mcp_server.allowed_dirs must be a list; using empty list"
+            )
             self._allowed_dirs = []
 
         # Concurrency control for indexing operations
@@ -174,7 +184,9 @@ class MdqService:
         """Migrate data from legacy sections/sections_fts to new schema."""
         try:
             # Read legacy data
-            rows = conn.execute("SELECT id, file_path, heading, content, file_mtime FROM sections").fetchall()
+            rows = conn.execute(
+                "SELECT id, file_path, heading, content, file_mtime FROM sections"
+            ).fetchall()
 
             # Create new tables (they may not exist yet)
             conn.execute("""
@@ -237,7 +249,9 @@ class MdqService:
                         "source_path": file_path,
                         "mtime_ns": int(file_mtime * 1e9),
                         "size_bytes": len(content.encode("utf-8")),
-                        "content_hash": hashlib.sha256((file_path + str(file_mtime)).encode()).hexdigest(),
+                        "content_hash": hashlib.sha256(
+                            (file_path + str(file_mtime)).encode()
+                        ).hexdigest(),
                         "indexed_at": time.time(),
                     }
 
@@ -273,7 +287,14 @@ class MdqService:
             for doc in doc_map.values():
                 conn.execute(
                     "INSERT OR REPLACE INTO documents (doc_id, source_path, mtime_ns, size_bytes, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?)",
-                    (doc["doc_id"], doc["source_path"], doc["mtime_ns"], doc["size_bytes"], doc["content_hash"], doc["indexed_at"]),
+                    (
+                        doc["doc_id"],
+                        doc["source_path"],
+                        doc["mtime_ns"],
+                        doc["size_bytes"],
+                        doc["content_hash"],
+                        doc["indexed_at"],
+                    ),
                 )
 
             # Drop legacy tables
@@ -308,7 +329,11 @@ class MdqService:
             """)
             conn.commit()
             chunk_count = sum(1 for _ in conn.execute("SELECT 1 FROM chunks"))
-            logger.info("Migration from legacy schema complete: %d documents, %d chunks", len(doc_map), chunk_count)
+            logger.info(
+                "Migration from legacy schema complete: %d documents, %d chunks",
+                len(doc_map),
+                chunk_count,
+            )
         except Exception as e:
             conn.rollback()
             logger.error("Migration failed: %s", e)
@@ -324,12 +349,16 @@ class MdqService:
         """Search indexed Markdown sections by query."""
         result = await search_docs(self, req)
         if self._is_indexing:
-            result += "\n\n[WARNING: Index is being updated — results may be incomplete]"
+            result += (
+                "\n\n[WARNING: Index is being updated — results may be incomplete]"
+            )
         return result
 
     async def get_chunk(self, req: GetChunkRequest) -> str:
         """Retrieve a Markdown chunk by its ID."""
-        max_chars = getattr(req, "max_chars_per_chunk", None) or self.max_chars_per_chunk
+        max_chars = (
+            getattr(req, "max_chars_per_chunk", None) or self.max_chars_per_chunk
+        )
         conn = self._get_db_connection()
         try:
             row = conn.execute(
@@ -358,7 +387,9 @@ class MdqService:
             return f"File not found: {req.path}"
         if not authorize_path(p, self.allowed_dirs):
             logger.warning("Path denied: %s (outside allowed dirs)", req.path)
-            raise MdqServiceError(f"Access denied: {req.path} is outside allowed directories")
+            raise MdqServiceError(
+                f"Access denied: {req.path} is outside allowed directories"
+            )
         sections = await parse_markdown(self, ParseMarkdownRequest(path=req.path))
         headings = [s["heading"] for s in sections]
         truncated = False
@@ -367,7 +398,9 @@ class MdqService:
             truncated = True
         result = "\n".join(headings) if headings else "(no headings)"
         if truncated:
-            result += f"\n\n[Truncated — {len([s for s in sections])}/{max_items} headings]"
+            result += (
+                f"\n\n[Truncated — {len([s for s in sections])}/{max_items} headings]"
+            )
         return result
 
     async def index_paths(self, req: IndexPathsRequest) -> str:
@@ -396,7 +429,9 @@ class MdqService:
                         logger.warning("Path does not exist: %s", path_str)
                         continue
                     if not authorize_path(p, self.allowed_dirs):
-                        logger.warning("Path denied: %s (outside allowed dirs)", path_str)
+                        logger.warning(
+                            "Path denied: %s (outside allowed dirs)", path_str
+                        )
                         continue
 
                 return await _index_paths(self, IndexPathsRequest(paths=req.paths))
@@ -407,13 +442,15 @@ class MdqService:
         """Return document/chunk count and index metadata."""
         conn = self._get_db_connection()
         try:
-            chunk_count = conn.execute(
-                "SELECT COUNT(*) as cnt FROM chunks"
-            ).fetchone()["cnt"]
+            chunk_count = conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()[
+                "cnt"
+            ]
             doc_count = conn.execute(
-                "SELECT COUNT(DISTINCT source_path) as cnt FROM chunks"
+                "SELECT COUNT(*) as cnt FROM documents"
             ).fetchone()["cnt"]
-            return f"Documents: {doc_count}, Chunks: {chunk_count}"
+            rows = conn.execute("SELECT key, value FROM index_state").fetchall()
+            index_metadata = dict((row["key"], row["value"]) for row in rows)
+            return f"Documents: {doc_count}, Chunks: {chunk_count}, Metadata: {index_metadata}"
         finally:
             conn.close()
 
@@ -428,12 +465,30 @@ class MdqService:
         conn = self._get_db_connection()
         try:
             matches = []
-            rows = conn.execute("SELECT chunk_id, heading, content FROM chunks").fetchall()
-            for row in rows:
-                if compiled.search(row["content"]) or compiled.search(row["heading"]):
-                    matches.append(
-                        f"Chunk {row['chunk_id']}: {row['heading']}\n{row['content'][:200]}"
-                    )
+
+            # Use FTS5 for initial search if possible
+            try:
+                fts_rows = conn.execute(
+                    "SELECT chunk_id, source_path, heading FROM chunks_fts WHERE chunks_fts MATCH ?",
+                    (req.pattern,),
+                ).fetchall()
+
+                if fts_rows:
+                    for row in fts_rows:
+                        matches.append(
+                            f"Chunk {row['chunk_id']}: {row['heading']}\n[FTS5 match — see get_chunk for content]"
+                        )
+            except sqlite3.OperationalError:
+                # Fallback to regex search on all chunks
+                rows = conn.execute(
+                    "SELECT chunk_id, heading, content FROM chunks"
+                ).fetchall()
+                for row in rows:
+                    if compiled.search(row["content"]) or compiled.search(row["heading"]):
+                        matches.append(
+                            f"Chunk {row['chunk_id']}: {row['heading']}\n{row['content'][:200]}"
+                        )
+
             truncated = False
             if len(matches) > max_matches:
                 matches = matches[:max_matches]
@@ -442,7 +497,9 @@ class MdqService:
                 return "No matches found."
             result = "\n---\n".join(matches)
             if truncated:
-                total = len(conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()["cnt"])
+                total = len(
+                    conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()["cnt"]
+                )
                 result += f"\n\n[Truncated — {max_matches}/{total} matches]"
             return result
         finally:

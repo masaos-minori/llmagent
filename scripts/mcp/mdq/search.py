@@ -26,7 +26,9 @@ async def search_docs(service: MdqService, req: SearchDocsRequest) -> str:
     # Apply result size limits
     total = result["total"]
     max_results = getattr(req, "max_results_limit", None) or service.max_results_limit
-    max_chars = getattr(req, "max_total_result_chars", None) or service.max_total_result_chars
+    max_chars = (
+        getattr(req, "max_total_result_chars", None) or service.max_total_result_chars
+    )
 
     truncated = False
     if total > max_results:
@@ -44,7 +46,9 @@ async def search_docs(service: MdqService, req: SearchDocsRequest) -> str:
                 break
             lines.append(line)
         if truncated:
-            return "\n".join(lines) + f"\n\n[Truncated — total chars exceeded {max_chars}]"
+            return (
+                "\n".join(lines) + f"\n\n[Truncated — total chars exceeded {max_chars}]"
+            )
         return "\n".join(lines)
 
     return f"Search results for: {req.query!r} ({total} found)"

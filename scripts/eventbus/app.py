@@ -187,6 +187,7 @@ async def publish(request: Request) -> dict[str, Any]:
 
     db = _get_db(request)
     broker = _get_broker(request)
+
     def _insert() -> tuple[int, bool]:
         with get_db_lock():
             return insert_event(

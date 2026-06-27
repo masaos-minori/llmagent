@@ -27,7 +27,9 @@ def authorize_path(path: Path, allowed_dirs: list[str]) -> bool:
     for root in allowed_dirs:
         try:
             resolved_root = Path(root).resolve()
-            if str(resolved).startswith(str(resolved_root) + os.sep) or str(resolved) == str(resolved_root):
+            if str(resolved).startswith(str(resolved_root) + os.sep) or str(
+                resolved
+            ) == str(resolved_root):
                 return True
         except (OSError, ValueError):
             continue

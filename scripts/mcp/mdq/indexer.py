@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """mcp/mdq/indexer.py
-Indexing logic for Markdown files — writes to SQLite sections table.
+Indexing logic for Markdown files — writes to SQLite documents/chunks tables.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import sqlite3
 from pathlib import Path
@@ -36,22 +37,58 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
 
     conn = service._get_db_connection()
     try:
-        conn.execute("DELETE FROM sections WHERE file_path = ?", (str(path),))
+        doc_id = hashlib.sha256(str(path).encode()).hexdigest()
+        now = path.stat().st_mtime_ns
+
+        # Delete old chunks for this document
+        conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
 
         for section in sections:
+            content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
+            normalized_content = " ".join(section["content"].split())
+            char_count = len(section["content"])
+
+            # Upsert document
             conn.execute(
-                "INSERT INTO sections (file_path, heading, content, file_mtime) VALUES (?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO documents (doc_id, source_path, mtime_ns, size_bytes, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?)",
                 (
+                    doc_id,
+                    str(path),
+                    now,
+                    path.stat().st_size,
+                    content_hash,
+                    path.stat().st_mtime,
+                ),
+            )
+
+            # Insert chunk with new schema
+            conn.execute(
+                "INSERT INTO chunks (chunk_id, doc_id, source_path, heading, heading_path, heading_level, ordinal, content, normalized_content, start_line, end_line, char_count, token_count, content_hash, tags_json, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    hashlib.sha256(
+                        f"{doc_id}:{section['heading']}:{section['start_line']}".encode()
+                    ).hexdigest(),
+                    doc_id,
                     str(path),
                     section["heading"],
+                    section.get("heading_path", ""),
+                    section.get("heading_level", 0),
+                    section.get("ordinal", 0),
                     section["content"],
+                    normalized_content,
+                    section["start_line"],
+                    section["end_line"],
+                    char_count,
+                    None,
+                    content_hash,
+                    "",
                     path.stat().st_mtime,
                 ),
             )
 
         conn.commit()
     except sqlite3.Error as e:
-        logger.error("Failed to write sections for %s: %s", path, e)
+        logger.error("Failed to write chunks for %s: %s", path, e)
     finally:
         conn.close()
 

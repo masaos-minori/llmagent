@@ -23,7 +23,11 @@ def _is_public_host(host: str) -> bool:
     """Return True if host is a public/wildcard address (0.0.0.0, ::)."""
     try:
         addr = ipaddress.ip_address(host)
-        return addr.is_unspecified or addr == ipaddress.IPv4Address("0.0.0.0") or addr == ipaddress.IPv6Address("::")
+        return (
+            addr.is_unspecified
+            or addr == ipaddress.IPv4Address("0.0.0.0")
+            or addr == ipaddress.IPv6Address("::")
+        )
     except ValueError:
         # If it's not a valid IP address, treat as public (e.g., hostname that resolves to 0.0.0.0)
         return True

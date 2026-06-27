@@ -51,9 +51,7 @@ class _DbMixin(MixinBase):
             self._db_help()
             return
 
-        self._out.write_validation_error(
-            "/db rag <subcmd> | /db session <subcmd>"
-        )
+        self._out.write_validation_error("/db rag <subcmd> | /db session <subcmd>")
 
     async def _cmd_db_rag(self, args: str) -> None:
         """Handle /db rag <subcmd>."""
