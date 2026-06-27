@@ -143,6 +143,9 @@ omit = [
 show_missing = true
 skip_covered = false
 
+[project.scripts]
+check-mcp-docs = "scripts.check_mcp_docs_consistency:main"
+
 [tool.pyright]
 pythonVersion = "3.13"
 include = ["scripts/"]
