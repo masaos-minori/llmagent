@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """shared/tool_registry.py
-Single source of truth for MCP tool definitions, routing, and drift validation.
+Primary source of truth for MCP tool definitions and drift validation.
 
 Ownership model:
-  - This module is the authoritative registry of all MCP tools.
+  - This module is the primary registry of all MCP tools.
   - Each tool belongs to exactly one server (server_key).
-  - tool_constants.py sets are derived from this registry at import time.
+  - tool_constants.py frozensets populate this registry at import time.
   - Config mcp_servers.toml tool_names lists are optional; they are validated
     against the registry but not required as a source of truth.
   - Server /v1/tools responses are validated against the registry at startup.
 
 Routing priority:
-  1. Registry (this module) — canonical tool_name → server_key mapping
-  2. Live discovery map (/v1/tools with server_key) — runtime override
+  1. Live discovery map (/v1/tools with server_key) — runtime override, highest priority
+  2. Registry (this module) — primary routing layer, populated from frozensets at import time
   3. Config-driven tool_names — fallback for stdio servers without /v1/tools
 
 Drift detection:

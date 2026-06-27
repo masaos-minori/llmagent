@@ -22,3 +22,11 @@ repos:
           - types-requests>=2.32
           - types-beautifulsoup4>=4.12
           - orjson>=3.9
+  - repo: local
+    hooks:
+      - id: docs-consistency
+        name: Check RAG documentation consistency
+        entry: python -m scripts.checks.check_docs_consistency
+        language: system
+        pass_filenames: false
+        types_or: [markdown]

@@ -47,6 +47,8 @@ RAG_TOOLS: frozenset[str] = frozenset(
     {
         "rag_run_pipeline",
         "rag_debug_pipeline",
+        "rag_list_documents",
+        "rag_delete_document",
     },
 )
 

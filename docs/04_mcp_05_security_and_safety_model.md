@@ -280,7 +280,7 @@ Tools that support `dry_run=True` (pre-execution preview without side effects):
 
 | Server | Tools with dry_run support |
 |---|---|
-| file-write-mcp | `write_file`, `edit_file`, `move_file` |
+| file-write-mcp | `write_file`, `edit_file`, `create_directory`, `move_file` |
 | file-delete-mcp | `delete_file`, `delete_directory` |
 | shell-mcp | `shell_run` (arg: `dry_run`) |
 | git-mcp | `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push` |
@@ -476,7 +476,7 @@ in the allowed-paths table above. Changes to `ALLOWED` require a design review c
 
 ### Known Issues
 
-- FTS5 search is functional but not production-validated. The `/health` endpoint and tool metadata include `"stub": true` as an experimental status marker; this does not indicate non-functional behavior.
+- MDQ-02: Hybrid search embedding integration (`mode=hybrid`) not yet implemented — only BM25 and vector modes are available.
 - **DB path alignment (resolved):** All config files now use `mdq.sqlite`. If an existing deployment has a `mdq.db` file on disk, rename it to `mdq.sqlite` before restarting the service.
 
 ---

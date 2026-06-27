@@ -15,32 +15,34 @@ Agent sets `server_key` and `tool_name` in dispatch log context. `X-Request-Id` 
 
 ```
 LLM returns tool_call
-  → ToolRouteResolver.resolve(tool_name) → server_key
-  → ToolExecutor.execute(tool_name, args)
-       1. Plugin tool check (@register_tool)   — bypasses cache and MCP
-       2. Cache check (TTL + LRU)             — returns cached result if hit
-       3. _raw_execute()
-            → McpServerHealthRegistry: is_unavailable? → return error immediately
-            → LifecycleProtocol.ensure_ready(server_key)
-            → concurrency semaphore acquire (if configured)
-            → HttpTransport.call() or StdioTransport.call()
-            → return ToolCallResult(output, is_error, request_id, server_key)
+   → ToolRouteResolver.resolve(tool_name) → server_key
+   → ToolExecutor.execute(tool_name, args)
+        1. Plugin tool check (@register_tool)   — bypasses cache and MCP
+        2. Cache check (TTL + LRU)             — returns cached result if hit; no HealthRegistry update
+        3. _raw_execute()
+             → McpServerHealthRegistry: is_unavailable? → return error immediately (no attempt made)
+             → LifecycleProtocol.ensure_ready(server_key)
+             → concurrency semaphore acquire (if configured)
+             → HttpTransport.call() or StdioTransport.call()
+             → HealthRegistry.record_success() on success / record_failure() on transport error
+             → return ToolCallResult(output, is_error, request_id, server_key)
 ```
 
 ---
 
 ## ToolRouteResolver (`shared/route_resolver.py`)
 
-Resolves `tool_name → server_key` in four steps (priority order):
+Resolves `tool_name → server_key` in four steps (priority order). At runtime, **discovery map (live `/v1/tools`) has the highest priority and overrides all lower layers**:
 
 1. **Discovery map (highest priority):** Live `/v1/tools` metadata with `server_key` field.
-   Built from `build_discovery_map()` at startup when servers respond to `/v1/tools`.
+    Built from `build_discovery_map()` at startup when servers respond to `/v1/tools`.
+    If a tool is found here, it routes to the server specified in the discovery map — even if the registry or config says something different.
 
-2. **Tool registry:** Canonical source of truth from `shared/tool_registry.py`.
-   The `ToolRegistry` singleton maps each tool name to exactly one server key.
+2. **Tool registry:** Primary routing layer from `shared/tool_registry.py`.
+    The `ToolRegistry` singleton maps each tool name to exactly one server key. Superseded by discovery map for any tool found in live `/v1/tools` responses.
 
 3. **Config-driven:** `McpServerConfig.tool_names` provides an explicit mapping.
-   Built at constructor time into an inverse dict `{tool_name: server_key}`.
+    Built at constructor time into an inverse dict `{tool_name: server_key}`. Only consulted when discovery map and registry have no match.
 
 4. **Static fallback (lowest priority):** `_fallback_route()` uses frozensets in `shared/tool_constants.py`:
 
@@ -70,19 +72,20 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 
 ## Routing Source of Truth
 
-The `ToolRouteResolver` resolves tool calls using exactly one authoritative source and two optional validation layers:
+The `ToolRouteResolver` resolves tool calls using a four-layer cascade. At runtime, **discovery map (live `/v1/tools`) has the highest priority and overrides all lower layers**.
 
 | Input | Role | Requirement |
 |---|---|---|
-| `shared/tool_constants.py` frozensets | **Authoritative static source** | Required — all tool names must be in a frozenset |
-| `shared/tool_registry.py` | **Routing authority** — populated from frozensets at import time | Read-only at runtime; changes require code edit |
-| Config `tool_names` (in `mcp_servers.toml`) | **Validation-only** — checked for drift at startup | Optional; routing works without it |
-| Live `/v1/tools` discovery | **Validation-only** — startup drift check | Optional; skipped if servers unreachable |
+| Live `/v1/tools` discovery | **Priority 1 — override source** | Optional; if present, supersedes registry for any tool found here |
+| `shared/tool_registry.py` | **Priority 2 — primary routing layer** | Read-only at runtime; changes require code edit |
+| Config `tool_names` (in `mcp_servers.toml`) | **Priority 3 — fallback validation** | Optional; only consulted if discovery map and registry have no match |
+| `shared/tool_constants.py` frozensets | **Priority 4 — static fallback** | Used when no higher layer matches a tool name |
 
 **Summary of ownership rules:**
-- To add a tool: only `tool_constants.py` is required. All other inputs are optional or automatic.
-- `tool_names` in config: optional drift-check input. Not consulted for routing decisions.
-- Static fallback: the frozensets in `tool_constants.py` ARE the static source. There is no runtime fallback — if a tool name is missing from the registry, routing raises a `KeyError`.
+- To add a tool: add to the appropriate frozenset in `tool_constants.py`. The registry auto-populates at import time.
+- Discovery map takes precedence over the registry — if `/v1/tools` returns a different `server_key` for a tool, the discovery map wins.
+- `tool_names` in config: optional drift-check input. Only consulted as priority 3 when no higher layer matches.
+- Static fallback (priority 4): frozensets in `tool_constants.py` are used only when no higher layer resolves the tool. If a tool is missing from all layers, routing raises a `KeyError`.
 
 ---
 
@@ -92,10 +95,10 @@ Single source of truth for MCP tool definitions and ownership.
 
 | ソース | 種別 | 説明 |
 |---|---|---|
-| `shared/tool_registry.py` | **Canonical (必須)** | ルーティングの唯一の正規ソース |
-| `tool_names` (config) | Validation-only (任意) | レジストリとの整合性チェック用; ルーティング自体には不要 |
-| `tool_constants.py` frozensets | **Authoritative static source** | ルーティングレジストリへの唯一の入力; フォールバックではなく正規ソース |
-| Live `/v1/tools` discovery | Validation-only (任意) | 起動時バリデーション; ルーティング権威ではない |
+| Live `/v1/tools` discovery | **Priority 1** | ルーティングの最上位優先度; レジストリを上書き |
+| `shared/tool_registry.py` | **Priority 2** | 主要なルーティング層; 起動時に自動構築 |
+| `tool_names` (config) | Priority 3 | ドリフト検出用; ルーティング自体には不要 |
+| `tool_constants.py` frozensets | **Priority 4** | 静的フォールバック; 上位レイヤーでマッチしない場合に使用 |
 
 ### Ownership model
 
@@ -103,6 +106,7 @@ Single source of truth for MCP tool definitions and ownership.
 - The registry is populated at import time from `tool_constants.py` frozensets.
 - Config `mcp_servers.toml` `tool_names` lists are validated against the registry but not required as a source of truth.
 - Server `/v1/tools` responses are validated against the registry at startup for drift detection.
+- **Important:** Live discovery map (priority 1) can override the registry. If `/v1/tools` returns a different `server_key` for a tool than the registry, the discovery map wins.
 
 ### Drift validation
 
@@ -131,8 +135,9 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 
 1. Add the tool name to the appropriate frozenset in `shared/tool_constants.py`.
 2. The registry auto-populates from these frozensets at import time.
-3. Optionally update `config/mcp_servers.toml` `tool_names` for the owning server (adds drift detection at startup; routing does not require it — the registry is the authority).
+3. Optionally update `config/mcp_servers.toml` `tool_names` for the owning server (adds drift detection at startup; routing does not require it — the registry is priority 2).
 4. Add full OpenAI function-calling format to `config/tools_definitions.toml` for LLM exposure.
+5. If `/v1/tools` discovery is active and you want to override routing, add a `server_key` field to the tool's `/v1/tools` response metadata.
 
 ### Key API
 
@@ -195,7 +200,7 @@ result = await transport.call("tool_name", {"arg": "val"})
 - Adds `Authorization: Bearer <token>` when `cfg.auth_token` is non-empty
 - Catches all HTTP and request errors; returns `is_error=True` with message
 - `set_session_id(session_id)` injects `X-Session-Id` header per request
-- **Retry:** retries on HTTP 429/502/503/504, up to 3 attempts with exponential backoff (4s, 2s, 1s)
+- **Retry:** retries on HTTP 429/502/503/504, up to 3 attempts with exponential backoff (4s, 2s, 1s). Only the final outcome (success or TransportError after all retries exhausted) is recorded in HealthRegistry.
 - Timeout: `call_timeout_sec` from `McpServerConfig` (default 60.0s); timeout errors are non-retryable
 
 ---
@@ -278,7 +283,7 @@ class _ServerLifecycleRouter:
 ### startup_mode behavior
 
 > **Production transport guidance:**
-> For production deployments, use `transport = "http"` with `startup_mode = "external"`.
+> For production deployments, use `transport = "http"` with `startup_mode = "subprocess"` (agent-managed) or `persistent` (externally managed).
 > HTTP transports support watchdog, health checks, and remote monitoring.
 > `stdio` transport serializes all requests through a single `asyncio.Lock` and provides
 > no health-check endpoint — use it only for local/embedded single-tool subprocesses.
@@ -290,6 +295,7 @@ class _ServerLifecycleRouter:
 | `persistent` (stdio) | Agent launch | `StdioTransport.start()` immediately |
 | `ondemand` (stdio) | First tool call | `ensure_ready()` auto-starts |
 | `subprocess` (http) | Agent launch | `start_http_subprocess()` — spawn uvicorn, poll `/health` up to `startup_timeout_sec` |
+| `persistent` (http) | Pre-existing | Agent connects to existing HTTP endpoint; no lifecycle action needed |
 
 ---
 
@@ -441,7 +447,7 @@ AgentREPL.run()
 
 | Artifact | Required? | Notes |
 |---|---|---|
-| `shared/tool_registry.py` — add tool to frozenset | **Required** | Registry is the routing source of truth |
+| `shared/tool_constants.py` — add tool to frozenset | **Required** | Registry auto-populates from frozensets at import time; routing priority 2 |
 | `config/<server>.toml` — server config file | **Required** | Server must be defined before first use |
 | `deploy/deploy.sh` — add install/copy step | **Required** (new server) | Deployment must include the new server |
 | Update `routing.md` | **Required** | Document guide must reference the new server |

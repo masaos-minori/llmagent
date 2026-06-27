@@ -28,7 +28,7 @@ class CiCdGuards:
         self._backend = backend
         # Empty allowlist = deny all (fail-closed, U-3)
         self._repo_allowlist: list[str] = list(repo_allowlist)
-        # Empty allowlist = allow all for workflow names
+        # Empty allowlist = deny all (fail-closed, same as repo_allowlist)
         self._workflow_allowlist: list[str] = list(workflow_allowlist)
 
         if not self._repo_allowlist:

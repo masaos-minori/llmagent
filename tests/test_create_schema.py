@@ -209,6 +209,15 @@ class TestCreateRagSchema:
             cs.create_rag_schema()
             cs.create_rag_schema()  # must not raise
 
+    def test_no_session_tables_in_rag_db(self, rag_tmp_db: sqlite3.Connection) -> None:
+        """RAG schema must not create Agent session tables — RAG and session schemas are independent."""
+        table_names = _table_names(rag_tmp_db)
+        assert "sessions" not in table_names
+        assert "messages" not in table_names
+        assert "tool_results" not in table_names
+        assert "notes" not in table_names
+        assert "workflow_tasks" not in table_names
+
 
 class TestCreateSessionSchema:
     def test_creates_sessions_table(self, session_tmp_db: sqlite3.Connection) -> None:

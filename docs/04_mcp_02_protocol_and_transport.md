@@ -106,8 +106,7 @@ All servers support `--stdio` mode.
 - Server needs to be restarted independently of the agent
 - Any deployment where `transport = "http"` is feasible (HTTP is always preferred)
 
-> **Production default:** `transport = "http"`. Use `startup_mode = "external"` for daemon-style servers. The agent uses `StdioTransport` to communicate over
-the process's stdin/stdout with newline-delimited JSON.
+> **Production default:** `transport = "http"`. Use `startup_mode = "subprocess"` for agent-managed HTTP servers, or `persistent` for externally managed servers. The agent uses `StdioTransport` to communicate over the process's stdin/stdout with newline-delimited JSON.
 
 ### stdio Request (one line)
 
@@ -302,8 +301,21 @@ Implemented via `mcp.audit._audit_log()` called from each server's dispatch hand
 | Server error | 500 | N/A (transport error) |
 | Response truncated | 200 | `false` (content provided) |
 
-HTTP transport errors (4xx/5xx) are caught by `HttpTransport.call()` and returned as
-`ToolCallResult(output=error_message, is_error=True)`.
+HTTP transport errors (4xx/5xx) are caught by `HttpTransport.call()`, which raises a
+`TransportError` exception. `ToolExecutor._record_transport_error()` converts this to
+`ToolCallResult(output=str(e), is_error=True, error_type="transport")`.
+
+### HealthRegistry updates
+
+- **Transport failures** (after all retries exhausted): `HealthRegistry.record_failure(server_key)` — increments failure count, may transition server to DEGRADED/UNAVAILABLE.
+- **Transport success** (even with tool-level errors from the server): `HealthRegistry.record_success(server_key)` — resets failure count to 0. Tool-level errors are tracked separately in `stat_tool_errors`.
+- **Cache hits**: No HealthRegistry update — no live call was made.
+- **Pre-flight health check rejection**: No `record_failure()` called — no attempt was made.
+- **Retry behavior**: Only the final outcome (success or TransportError after all retries exhausted) is recorded in HealthRegistry. Intermediate retry attempts are not counted.
+
+### StdioTransport error handling
+
+StdioTransport uses the same pattern: transport errors raise `TransportError`, which is caught and converted to `ToolCallResult(is_error=True, error_type="transport")` by `ToolExecutor._record_transport_error()`. The health registry update path is identical.
 
 ---
 

@@ -15,7 +15,7 @@ a set of independent server processes.
 **In scope:**
 - `mcp/` server implementations
 - `shared/tool_executor.py`, `shared/route_resolver.py`, `shared/mcp_config.py`
-- 11 MCP servers, totaling 62 tools
+- 11 MCP servers, totaling 43 tools
 
 **Out of scope:**
 - Agent REPL internal implementation
@@ -35,7 +35,8 @@ Per-server configuration, tools, security settings, and operational notes → [0
 | file-write-mcp | 8007 | HTTP | persistent | 4 | Local file writing |
 | file-delete-mcp | 8008 | HTTP | persistent | 2 | Local file deletion |
 | shell-mcp | 8009 | HTTP | persistent | 1 | Sandboxed shell execution |
-| rag-pipeline-mcp | 8010 | HTTP | persistent | 2 | RAG retrieval pipeline |
+| rag-pipeline-mcp | 8010 | HTTP | persistent | 4 | RAG retrieval pipeline |
+| sqlite-mcp | 8011 | HTTP | persistent | 1 | SQLite queries |
 | cicd-mcp | 8012 | HTTP | persistent | 4 | GitHub Actions CI/CD |
 | mdq-mcp | 8013 | HTTP | persistent | 9 | Markdown context compression |
 | git-mcp | 8014 | HTTP | persistent | 10 | Local git operations |
@@ -67,7 +68,7 @@ Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on
 
 ### Transport Selection Guide
 
-> **Production default: always use HTTP (`transport = "http"`, `startup_mode = "external"`).**
+> **Production default: always use HTTP (`transport = "http"`, `startup_mode = "subprocess"` for agent-managed servers, or `persistent` for externally managed servers).**
 > HTTP supports watchdog, health checks, concurrent requests, and remote monitoring.
 >
 > **Use stdio only for:** local testing, CI pipelines, embedded single-tool subprocesses
@@ -81,7 +82,7 @@ Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on
 
 | `startup_mode` | `transport` | Behavior |
 |---|---|---|
-| `persistent` (default) | `http` | Pre-started by agent at launch; agent just connects |
+| `persistent` (default) | `http` | Externally managed server; agent connects to existing HTTP endpoint |
 | `subprocess` | `http` | Agent starts uvicorn subprocess at launch; polls `/health` |
 | `persistent` | `stdio` | Agent starts subprocess at launch; runs for session lifetime |
 | `ondemand` | `stdio` | Agent starts subprocess on first tool call; stops after `idle_timeout_sec` |
