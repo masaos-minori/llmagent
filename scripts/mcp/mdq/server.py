@@ -145,13 +145,22 @@ async def health() -> dict[str, object]:
         from shared.config_loader import ConfigLoader
 
         cfg = ConfigLoader().load_all()
-        mdq_cfg = cfg.get("mdq_mcp_server", {}) if isinstance(cfg.get("mdq_mcp_server"), dict) else {}
+        mdq_cfg = (
+            cfg.get("mdq_mcp_server", {})
+            if isinstance(cfg.get("mdq_mcp_server"), dict)
+            else {}
+        )
         db_path = mdq_cfg.get("db_path") or "/opt/llm/db/mdq.sqlite"
         details["database"] = db_path
 
         if not _os.path.isfile(db_path):
             deps["db_file"] = f"not found: {db_path}"
-            return {"status": "ok", "ready": False, "dependencies": deps, "details": details}
+            return {
+                "status": "ok",
+                "ready": False,
+                "dependencies": deps,
+                "details": details,
+            }
 
         import sqlite3
 
@@ -162,30 +171,60 @@ async def health() -> dict[str, object]:
 
             if "sections" not in tables:
                 deps["db_schema"] = "missing sections table"
-                return {"status": "ok", "ready": False, "dependencies": deps, "details": details}
+                return {
+                    "status": "ok",
+                    "ready": False,
+                    "dependencies": deps,
+                    "details": details,
+                }
 
             if "sections_fts" not in tables:
                 deps["db_schema"] = "missing sections_fts FTS5 table"
-                return {"status": "ok", "ready": False, "dependencies": deps, "details": details}
+                return {
+                    "status": "ok",
+                    "ready": False,
+                    "dependencies": deps,
+                    "details": details,
+                }
 
             cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'")
             triggers = {row[0] for row in cursor.fetchall()}
             expected_triggers = {"sections_ai", "sections_ad", "sections_au"}
             missing_triggers = expected_triggers - triggers
             if missing_triggers:
-                deps["db_schema"] = f"missing triggers: {', '.join(sorted(missing_triggers))}"
-                return {"status": "ok", "ready": False, "dependencies": deps, "details": details}
+                deps["db_schema"] = (
+                    f"missing triggers: {', '.join(sorted(missing_triggers))}"
+                )
+                return {
+                    "status": "ok",
+                    "ready": False,
+                    "dependencies": deps,
+                    "details": details,
+                }
 
             try:
-                cursor.execute("SELECT COUNT(*) FROM sections_fts WHERE sections_fts = 'delete' LIMIT 1")
+                cursor.execute(
+                    "SELECT COUNT(*) FROM sections_fts WHERE sections_fts = 'delete' LIMIT 1"
+                )
                 cursor.fetchone()
             except sqlite3.OperationalError as e:
                 deps["fts5"] = f"FTS5 query failed: {e}"
-                return {"status": "ok", "ready": False, "dependencies": deps, "details": details}
+                return {
+                    "status": "ok",
+                    "ready": False,
+                    "dependencies": deps,
+                    "details": details,
+                }
 
-            chunk_count = conn.execute("SELECT COUNT(*) as cnt FROM sections").fetchone()["cnt"]
-            doc_count = conn.execute("SELECT COUNT(DISTINCT file_path) as cnt FROM sections").fetchone()["cnt"]
-            fts_count = conn.execute("SELECT COUNT(*) as cnt FROM sections_fts WHERE sections_fts != 'delete'").fetchone()["cnt"]
+            chunk_count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM sections"
+            ).fetchone()["cnt"]
+            doc_count = conn.execute(
+                "SELECT COUNT(DISTINCT file_path) as cnt FROM sections"
+            ).fetchone()["cnt"]
+            fts_count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM sections_fts WHERE sections_fts != 'delete'"
+            ).fetchone()["cnt"]
 
             row = conn.execute("SELECT MAX(file_mtime) as mt FROM sections").fetchone()
             last_indexed = row["mt"] if row and row["mt"] is not None else None
@@ -193,6 +232,32 @@ async def health() -> dict[str, object]:
             details["chunk_count"] = chunk_count
             details["fts_row_count"] = fts_count
             details["last_indexed"] = last_indexed
+
+            # Check for stale documents (file_mtime mismatch)
+            try:
+                from pathlib import Path as _Path
+
+                stale_count = 0
+                index_paths_cfg = mdq_cfg.get("index_paths", []) or []
+                if index_paths_cfg:
+                    first_path = _Path(index_paths_cfg[0])
+                    if first_path.is_dir():
+                        ref_mtime = first_path.stat().st_mtime
+                    elif first_path.is_file():
+                        ref_mtime = first_path.stat().st_mtime
+                    else:
+                        ref_mtime = None
+
+                    stale_count = 0
+                    if ref_mtime is not None:
+                        stale_count = conn.execute(
+                            "SELECT COUNT(DISTINCT file_path) as cnt FROM sections WHERE file_mtime < ?",
+                            (ref_mtime,),
+                        ).fetchone()["cnt"] or 0
+            except Exception:
+                # If stale count fails, don't break health check
+                stale_count = None
+            details["stale_document_count"] = stale_count
 
         finally:
             conn.close()
