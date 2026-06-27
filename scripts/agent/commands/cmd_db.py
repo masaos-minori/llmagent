@@ -350,17 +350,17 @@ class _DbMixin(MixinBase):
         try:
             result = RagMaintenanceService().consistency()
             numeric_line = (
-                f"chunks={result.report.chunks} fts={result.report.fts} vec={result.report.vec}"
-                f" fts_gap={result.report.fts_gap} orphan_vec={result.report.orphan_vec_count}"
-                f" fts_orphan={result.report.fts_orphan_count}"
+                f"  chunks: {result.report.chunks}  fts: {result.report.fts}  vec: {result.report.vec}"
+                f"  fts_gap: {result.report.fts_gap}  orphan_vec: {result.report.orphan_vec_count}"
+                f"  fts_orphan: {result.report.fts_orphan_count}"
             )
             if result.is_consistent:
                 self._out.write_success(
-                    f"{numeric_line} RAG consistency: OK (chunks/FTS/vec in sync) [RAG]"
+                    f"{numeric_line}\nRAG consistency: OK (chunks/FTS/vec in sync)"
                 )
             else:
-                self._out.write(f"{numeric_line} RAG consistency: FAIL [RAG]")
+                self._out.write(f"{numeric_line}\nRAG consistency: FAIL")
                 for issue in result.issues:
-                    self._out.write_error(f"Consistency issue: {issue} [RAG]")
+                    self._out.write_error(f"Consistency issue: {issue}")
         except Exception as e:  # noqa: BLE001 — skip if rag.sqlite absent or unreadable
             logger.debug("RAG consistency check skipped: %s", e)

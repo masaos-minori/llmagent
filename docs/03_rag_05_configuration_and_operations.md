@@ -164,6 +164,9 @@ with SQLiteHelper("rag").open() as db:
 | `vec` | Row count in `chunks_vec` table |
 | `orphan_vec_count` | `chunks_vec` rows whose `chunk_id` has no matching row in `chunks` |
 | `fts_gap` | `chunks - fts`; 0 = FTS index is in sync |
+| `fts_orphan_count` | `fts - chunks`; positive = extra FTS entries (data loss risk) |
+| `affected_chunk_ids` | chunk_ids missing from FTS (up to 10) |
+| `affected_doc_ids` | doc_ids for chunks missing from FTS (up to 10) |
 
 **CLI:** `/db consistency` runs the same check from the REPL and prints issues.
 
@@ -326,7 +329,8 @@ On inconsistency:
 
 ```
   chunks: 1042  fts: 1039  vec: 1042  fts_gap: 3  orphan_vec: 0  fts_orphan: 0
-Consistency issue: fts_gap=3 (3 chunks missing from FTS index)
+RAG consistency: FAIL
+Consistency issue: [WARNING] FTS gap detected (chunks=1042, fts=1039, gap=3). Affected doc_ids: [1, 2, 3]. Run '/db rebuild-fts' to repair.
 ```
 
 ### Threshold policy

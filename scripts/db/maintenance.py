@@ -91,6 +91,7 @@ class RagConsistencyReport:
     issues: tuple[str, ...] = ()  # human-readable consistency issues
     # Affected identifiers (up to 10 each; None when not applicable)
     affected_chunk_ids: tuple[int, ...] | None = None  # chunk_ids missing from FTS
+    affected_doc_ids: tuple[int, ...] | None = None  # doc_ids for chunks missing from FTS
     affected_orphan_chunk_ids: tuple[int, ...] | None = (
         None  # chunk_ids in vec but not chunks
     )
@@ -417,6 +418,7 @@ def check_rag_consistency(
 
     # Collect affected identifiers (read-only; top 10 each)
     affected_chunk_ids: tuple[int, ...] | None = None
+    affected_doc_ids: tuple[int, ...] | None = None
     affected_orphan_chunk_ids: tuple[int, ...] | None = None
     affected_orphan_urls: tuple[str, ...] | None = None
     if fts_gap > 0:
@@ -426,6 +428,12 @@ def check_rag_consistency(
             " ORDER BY chunk_id LIMIT 10"
         ).fetchall()
         affected_chunk_ids = tuple(r[0] for r in rows)
+        doc_rows = db.execute(
+            "SELECT c.doc_id FROM chunks c"
+            " WHERE c.chunk_id NOT IN (SELECT id FROM chunks_fts_docsize)"
+            " ORDER BY c.doc_id LIMIT 10"
+        ).fetchall()
+        affected_doc_ids = tuple(r[0] for r in doc_rows) if doc_rows else None
     if orphan_vec_count > 0:
         id_rows = db.execute(
             "SELECT chunk_id FROM chunks_vec"
@@ -451,6 +459,7 @@ def check_rag_consistency(
         fts_orphan_count=fts_orphan_count,
         embed_failed=embed_failed,
         affected_chunk_ids=affected_chunk_ids,
+        affected_doc_ids=affected_doc_ids,
         affected_orphan_chunk_ids=affected_orphan_chunk_ids,
         affected_orphan_urls=affected_orphan_urls,
     )
@@ -472,7 +481,11 @@ def summarize_issues(report: RagConsistencyReport) -> list[str]:
     issues: list[str] = []
     if report.fts_gap > 0:
         detail = ""
-        if report.affected_chunk_ids:
+        if report.affected_doc_ids:
+            ids = ", ".join(str(i) for i in report.affected_doc_ids[:10])
+            truncated = " ..." if len(report.affected_doc_ids) == 10 else ""
+            detail = f" Affected doc_ids: [{ids}{truncated}]."
+        elif report.affected_chunk_ids:
             ids = ", ".join(str(i) for i in report.affected_chunk_ids[:10])
             truncated = " ..." if len(report.affected_chunk_ids) == 10 else ""
             detail = f" Affected chunk_ids: [{ids}{truncated}]."
@@ -481,9 +494,14 @@ def summarize_issues(report: RagConsistencyReport) -> list[str]:
             f" gap={report.fts_gap}).{detail} Run '/db rebuild-fts' to repair."
         )
     if report.fts_orphan_count > 0:
+        detail = ""
+        if report.affected_doc_ids:
+            ids = ", ".join(str(i) for i in report.affected_doc_ids[:10])
+            truncated = " ..." if len(report.affected_doc_ids) == 10 else ""
+            detail = f" Affected doc_ids: [{ids}{truncated}]."
         issues.append(
             f"[CRITICAL] FTS index has more entries than chunks"
-            f" (fts={report.fts}, chunks={report.chunks})."
+            f" (fts={report.fts}, chunks={report.chunks}).{detail}"
             f" Run '/db rebuild-fts' immediately; orphan FTS entries indicate data loss risk."
         )
     if report.orphan_vec_count > 0:
@@ -500,8 +518,16 @@ def summarize_issues(report: RagConsistencyReport) -> list[str]:
             f" Re-run ingestion with 'ingester.py --force' for affected URLs."
         )
     if report.vec != report.chunks:
+        detail = ""
+        if report.affected_orphan_urls:
+            urls = ", ".join(report.affected_orphan_urls[:5])
+            truncated = " ..." if len(report.affected_orphan_urls) == 10 else ""
+            detail = f" Affected URLs: [{urls}{truncated}]."
+        elif report.affected_orphan_chunk_ids:
+            ids = ", ".join(str(i) for i in report.affected_orphan_chunk_ids[:10])
+            detail = f" Affected chunk_ids: [{ids}]."
         issues.append(
-            f"[WARNING] Vector count mismatch (chunks={report.chunks}, vec={report.vec})."
-            f" Check for failed ingestion steps."
+            f"[WARNING] Vector count mismatch (chunks={report.chunks}, vec={report.vec}).{detail}"
+            f" Re-run ingestion with 'ingester.py --force' for affected URLs."
         )
     return issues

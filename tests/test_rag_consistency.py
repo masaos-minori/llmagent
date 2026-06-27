@@ -269,3 +269,66 @@ class TestRagConsistencySeverity:
 
         issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
         assert any("--force" in i for i in issues)
+
+    def test_fts_gap_includes_doc_ids(self) -> None:
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "doc id test")
+        db.execute(
+            "INSERT INTO chunks_fts (chunks_fts, rowid, content) VALUES ('delete', ?, ?)",
+            (chunk_id, "doc id test"),
+        )
+        db.commit()
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert report.fts_gap == 1
+        assert report.affected_doc_ids is not None
+        assert doc_id in report.affected_doc_ids
+        assert report.affected_chunk_ids is not None
+        assert chunk_id in report.affected_chunk_ids
+
+    def test_fts_orphan_no_doc_ids_available(self) -> None:
+        # Simulate stale FTS entries (fts > chunks): insert chunk then delete only the
+        # chunks row without updating the FTS index.
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "stale fts content")
+        # Remove from chunks without triggering the ad trigger (bypass cascade)
+        db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
+        # FTS entry still exists but chunk is gone (ON DELETE CASCADE removed the row,
+        # but the ad trigger ran correctly). Re-insert FTS entry manually to simulate drift.
+        db.execute(
+            "INSERT INTO chunks_fts (rowid, content) VALUES (?, ?)",
+            (chunk_id + 1000, "ghost entry"),
+        )
+        db.commit()
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert report.fts_orphan_count > 0
+        # affected_doc_ids is None because chunks and documents rows are gone
+        assert report.affected_doc_ids is None
+
+    def test_vec_chunk_mismatch_detected(self) -> None:
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "vec mismatch")
+        # Insert into chunks but not chunks_vec
+        db.commit()
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert report.chunks == 1
+        assert report.vec == 0
+        assert report.vec != report.chunks
+        assert not is_consistent(report)
+        issues = summarize_issues(report)
+        assert any("Vector count mismatch" in i for i in issues)
+
+    def test_vec_chunk_mismatch_includes_repair_guidance(self) -> None:
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        _insert_chunk(db, doc_id, "vec mismatch repair")
+        db.commit()
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        issues = summarize_issues(report)
+        assert any("ingester.py --force" in i for i in issues)
