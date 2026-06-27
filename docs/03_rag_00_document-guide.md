@@ -54,11 +54,16 @@ The source files are retained as-is for historical reference.
 
 ## Canonical Source Rules
 
-- `ref-*` files are canonical for API details. Content now lives in `03_rag_02`–`03_rag_04`.
-- `03_spec_rag.md` is canonical for constraints, DB schema, and known issues.
-- `05_ref-rag.md` is canonical for query pipeline API. Content now lives in `03_rag_03`–`03_rag_04`.
-- When old files and new files disagree, trust the new restructured files.
-- `03_rag_99_source_mapping.md` was part of the original restructuring audit and has been removed. Source mapping is no longer maintained.
+Legacy source files (`03_spec_rag.md`, `03_rag-ref-*.md`, `03_rag-ingestion-*.md`, `05_ref-rag.md`) are deleted. The restructured docs in the File Index below are the only active spec sources.
+
+| Domain | Canonical source |
+|---|---|
+| File formats (JSON structure, field names) | `03_rag_02_ingestion_pipeline.md`, `03_rag_04_data_model_and_interfaces.md` |
+| Query pipeline behavior (stages, RRF, rerank, HTTP mode) | `03_rag_03_query_pipeline.md` |
+| Configuration parameters and operations commands | `03_rag_05_configuration_and_operations.md` |
+| Known bugs, spec conflicts, open questions | `03_rag_90_inconsistencies_and_known_issues.md` |
+
+**Conflict resolution**: If two docs disagree on a fact and the conflict cannot be resolved immediately, record it as an entry in `03_rag_90_inconsistencies_and_known_issues.md` with a DOC-N label, then fix the root cause in the owning document.
 
 ---
 
