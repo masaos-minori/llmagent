@@ -241,13 +241,6 @@ See [03_rag_05_configuration_and_operations.md §1.1](03_rag_05_configuration_an
 
 ## 3. ChunkSplitter (`scripts/rag/ingestion/chunk_splitter.py`)
 
-### 3.1.1 Markdown heading chunking configuration
-
-| Parameter | Default | Description |
-|---|---|---|
-| `md_index_enable` | False | Enable heuristic Markdown detection for non-.md files |
-| `md_snippet_max_chars` | 600 | Max characters per markdown heading section before falling back to sentence-level chunking |
-
 ### 3.1 Class overview
 
 `ChunkSplitter` — splits `rag-src/*.json` files into chunks by language and content type;
@@ -260,6 +253,13 @@ saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` exists (`--fo
 | `__init__` | `(config: dict \| None = None)` | Load `rag_pipeline.toml`; init Sudachi tokenizer (SplitMode.C, `core` dict) |
 | `process_all` | `(target: Path \| None = None, force: bool = False) -> int` | Process all `rag-src/*.json`; returns total chunk count |
 | `process_file` | `(src_path: Path, force: bool = False) -> int` | Process single file; returns chunk count |
+
+### 3.1.1 Markdown heading chunking configuration
+
+| Parameter | Default | Description |
+|---|---|---|
+| `md_index_enable` | False | Enable heuristic Markdown detection for non-.md files |
+| `md_snippet_max_chars` | 600 | Max characters per markdown heading section before falling back to sentence-level chunking |
 
 ### 3.1.2 _is_markdown_source behavior
 
@@ -269,19 +269,6 @@ Non-`.md` files use heuristic detection (≥2 heading lines) only when `md_index
 ### 3.1.3 _chunk_markdown_by_heading behavior
 
 Sections exceeding `md_snippet_max_chars` are further split via `_chunk_english` sentence-level chunking.
-
-### 3.1 Class overview
-
-`ChunkSplitter` — splits `rag-src/*.json` files into chunks by language and content type;
-saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` exists (`--force` overrides).
-
-**Public methods**
-
-| Method | Signature | Description |
-|---|---|---|
-| `__init__` | `(config: dict \| None = None)` | Load `rag_pipeline.toml`; init Sudachi tokenizer (SplitMode.C, `core` dict) |
-| `process_all` | `(target: Path \| None = None, force: bool = False) -> int` | Process all `rag-src/*.json`; returns total chunk count |
-| `process_file` | `(src_path: Path, force: bool = False) -> int` | Process single file; returns chunk count |
 
 ### 3.2 Splitting strategies
 
@@ -496,9 +483,9 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 
 ---
 
-## 5. Chunk English Mixin (`scripts/rag/ingestion/chunk_english.py`)
+## 6. Chunk English Mixin (`scripts/rag/ingestion/chunk_english.py`)
 
-### 5.1 Module overview
+### 6.1 Module overview
 
 `chunk_english.py` — `ChunkEnglishMixin`: paragraph/sentence-level chunking for English text. Mixed into `ChunkSplitter` via multiple inheritance.
 
@@ -522,9 +509,9 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 
 ---
 
-## 6. Chunk Utils (`scripts/rag/ingestion/chunk_utils.py`)
+## 7. Chunk Utils (`scripts/rag/ingestion/chunk_utils.py`)
 
-### 6.1 Module overview
+### 7.1 Module overview
 
 `chunk_utils.py` — Shared buffer helpers for `ChunkEnglishMixin` and `ChunkJapaneseMixin`. Imported by both mixin classes and `chunk_splitter.py`.
 
@@ -545,9 +532,9 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 
 ---
 
-## 7. Chunk Japanese Mixin (`scripts/rag/ingestion/chunk_japanese.py`)
+## 8. Chunk Japanese Mixin (`scripts/rag/ingestion/chunk_japanese.py`)
 
-### 7.1 Module overview
+### 8.1 Module overview
 
 `chunk_japanese.py` — `ChunkJapaneseMixin`: morphological-analysis-based chunking for Japanese text. Mixed into `ChunkSplitter` via multiple inheritance.
 
