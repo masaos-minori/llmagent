@@ -130,6 +130,7 @@ curl -s http://127.0.0.1:8010/health | jq   # rag-pipeline: dependencies.embed_u
 curl -s http://127.0.0.1:8012/health | jq   # cicd: dependencies.github_token
 curl -s http://127.0.0.1:8013/health | jq   # mdq: details.service
 curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
+# sqlite-mcp (port 8011) — no server module exists yet; health check not available
 
 # Base response shape: {"status":"ok","ready":bool,"dependencies":{},"details":{}}
 ```
@@ -263,6 +264,7 @@ grep "op=" /opt/llm/logs/mdq_audit.log
 | rag-pipeline-mcp | `/opt/llm/logs/rag-mcp.log` | Dedicated app log |
 | cicd-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
 | git-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
+| sqlite-mcp | No server module yet | Config exists but no implementation (planned) |
 
 ### Per-server audit log files
 
@@ -277,7 +279,8 @@ grep "op=" /opt/llm/logs/mdq_audit.log
 | mdq-mcp | `/opt/llm/logs/mdq_audit.log` | Structured (MDQ-specific) |
 | rag-pipeline-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
 | cicd-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
-| git-mcp | No dedicated audit log | Uses `logging.getLogger(__name__)` only |
+| git-mcp | Config field defined but not implemented | `audit_log_path` in config exists but no actual audit logging code |
+| sqlite-mcp | No server module yet | Config has `audit_log_path = "/opt/llm/logs/sqlite-mcp.log"` but no implementation (planned) |
 
 ### Agent-side audit log (structured events)
 
