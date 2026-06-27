@@ -76,9 +76,9 @@ LLM turn.
 | `ingester.py` | Embed | `rag-src/chunk/*.json` | embed API call (port 8003) |
 | `ingester.py` | Store | embed vectors | SQLite tables + `rag-src/registered/` |
 
-> **Note:** Some older documents describe "3 stages" (3 scripts) and others describe
-> "4 stages" (4 processing phases). Both are correct from different perspectives.
-> See [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) for details.
+> **Terminology:** "3 scripts" refers to the three executable files (`crawler.py`, `chunk_splitter.py`, `ingester.py`).
+> "4 processing phases" refers to the four logical steps (Crawl, Chunk, Embed, Store) — two of which run inside `ingester.py`.
+> "Stage" is reserved for query pipeline stages (MQE, Search, Fusion, Rerank, PluginHooks, Augment); it is not used for ingestion.
 
 ### Ingestion data flow (summary)
 
