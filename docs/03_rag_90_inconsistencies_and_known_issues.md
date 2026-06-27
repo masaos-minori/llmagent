@@ -36,18 +36,17 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ## Active Issues
 
-### SPEC-02: `status=success` with `fallback_reason="http_remote_empty"` is semantically confusing
-
-- **Type:** Spec conflict
-- **Impact scope:** RAG fallback diagnostics, agent tool output
-- **Description:** `status=success` with `fallback_reason="http_remote_empty"` is semantically confusing — `remote_empty` (HTTP 200 with no context) is a success case, not a fallback.
-- **Safe interpretation:** `remote_empty` (HTTP 200 with no context) is a success case, not a fallback
-- **Recommended action:** Rename `fallback_reason` to `diagnostic_reason` or similar; document that `http_remote_empty` does not indicate failure
-- **Source:** `03_rag_90_inconsistencies_and_known_issues.md SPEC-02`, implementation plan 20260627-055541
-
 ---
 
 ## Resolved Issues
+
+### [Resolved] `status=success` with `fallback_reason="http_remote_empty"` is semantically confusing (SPEC-02, resolved 2026-06-27)
+
+- **Was:** `status=success` with `fallback_reason="http_remote_empty"` is semantically confusing — `remote_empty` (HTTP 200 with no context) is a success case, not a fallback.
+- **Now:** `remote_empty` returns `fallback_reason=None` and `http_result_kind="remote_empty"`, correctly indicating a successful empty remote response without any fallback.
+- **See:** `scripts/rag/pipeline.py:436` (fallback_reason=None for empty result), `tests/test_pipeline_http_result_kind.py:test_remote_empty`
+
+---
 
 ### [Resolved] RAG data model includes Agent-owned `sessions` and `messages` tables (SPEC-01, resolved 2026-06-27)
 

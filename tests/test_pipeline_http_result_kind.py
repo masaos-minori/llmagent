@@ -62,7 +62,7 @@ async def test_remote_nonempty(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_remote_empty(monkeypatch) -> None:
-    """Empty remote result ('') -> http_result_kind='remote_empty', fallback_reason='http_remote_empty'."""
+    """Empty remote result ('') -> http_result_kind='remote_empty', fallback_reason=None."""
     pipeline = _make_pipeline()
 
     async def mock_call_rag_service(
