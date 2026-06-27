@@ -334,7 +334,7 @@ To trace one tool call, join on `X-Request-Id` (unique per call) and `X-Session-
    ToolCallResult(output="...", is_error=False, request_id="abc-123", server_key="file_read")
 
 5. Agent audit_tool_exec():
-   audit log entry: {tool_name: "read_text_file", is_error: false, x_request_id: "abc-123"}
+    audit log entry (JSON-lines): {"event":"tool_exec","task_id":"...","tool":"read_text_file","mcp_request_id":"abc-123","is_error":false,"error_type":"","ts":...}
 
 6. Health registry:
    HealthRegistry.record_success("file_read") → state remains HEALTHY
@@ -359,8 +359,8 @@ To trace one tool call, join on `X-Request-Id` (unique per call) and `X-Session-
    (output=str(error), is_error=True, server_key="file_read", error_type="transport")
 
 6. audit_tool_exec():
-   audit log: {tool_name: "read_text_file", is_error: true, error_type: "transport", x_request_id: ""}
-   Note: x_request_id="" because no response was received.
+    audit log (JSON-lines): {"event":"tool_exec","task_id":"...","tool":"read_text_file","mcp_request_id":"","is_error":true,"error_type":"transport","ts":...}
+    Note: mcp_request_id="" because no response was received.
 
 7. Watchdog (next interval):
    repl_health.watchdog_loop() polls file-read-mcp /health
@@ -376,7 +376,7 @@ To trace one tool call, join on `X-Request-Id` (unique per call) and `X-Session-
 |---|---|---|
 | `is_error` | `True` | `True` |
 | `error_type` | `"tool"` | `"transport"` |
-| `x_request_id` | Set (server responded) | `""` (no response received) |
+| `mcp_request_id` | Set (server responded) | `""` (no response received) |
 | `HealthRegistry` | `record_success()` (server responded) | `record_failure()` (server unreachable) |
 | `stat_tool_errors` | Incremented | Not changed |
 | `stat_transport_errors` | Not changed | Incremented |

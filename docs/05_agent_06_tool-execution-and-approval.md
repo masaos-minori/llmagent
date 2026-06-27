@@ -93,7 +93,7 @@ is a candidate for optimization.
 
 Query the audit log:
 ```
-grep round_exec /path/to/audit.log | jq '.'
+grep round_exec /path/to/audit.log
 ```
 
 ---

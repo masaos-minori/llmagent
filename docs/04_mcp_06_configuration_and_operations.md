@@ -211,11 +211,22 @@ Probes all HTTP servers. Expected: all show `OK` with tool list.
 
 ## Reading Audit Logs
 
+> **Note:** There are two different audit log formats in use:
+> - **MCP server audit log** (from `mcp/audit.py`): key=value format
+> - **Agent-side audit log** (from `scripts/agent/tool_audit.py`): JSON-lines format
+>
+> The sections below specify which format each grep example targets.
+
 ### MCP server audit log (per-call)
 
+Format: key=value lines, e.g.:
+```
+AUDIT session=abc request=xyz action=read_text_file target=/tmp/f.txt outcome=ok detail=
+```
+
 ```bash
-# View raw audit lines
-tail -f /opt/llm/logs/audit.log | grep '"action":'
+# View raw MCP server audit lines (key=value format)
+tail -f /opt/llm/logs/audit.log | grep 'AUDIT'
 
 # GitHub operations
 tail -100 /opt/llm/logs/github-audit.log
@@ -243,32 +254,53 @@ tail -100 /opt/llm/logs/git-mcp.log
 | mdq-mcp | `/opt/llm/logs/mdq-mcp.log` |
 | git-mcp | `/opt/llm/logs/git-mcp.log` |
 
+### Agent-side audit log (structured events)
+
+Format: JSON-lines, e.g.:
+```json
+{"event":"tool_exec","task_id":"turn-123","tool":"shell_run","operation_type":"MCP","mcp_request_id":"abc-456","is_error":true,"error_type":"transport","ts":1719500000.0,"workflow_id":"","session_id":""}
+```
+
+```bash
+# View raw agent-side audit events (JSON-lines format)
+tail -f /opt/llm/logs/audit.log | jq .
+
+# Filter by event type
+tail -f /opt/llm/logs/audit.log | jq 'select(.event == "tool_exec")'
+
+# Filter by error type (agent-side JSON-lines format)
+grep '"error_type":"transport"' /opt/llm/logs/audit.log
+
+# Filter by tool name
+grep '"tool":"shell_run"' /opt/llm/logs/audit.log
+```
+
 ---
 
 ## End-to-End Tool Call Tracing
 
 To trace a failed tool call across agent, transport, and server logs:
 
-1. Find the `X-Request-Id` in the agent dispatch log:
-   ```bash
-   grep "tool_name=my_tool" /opt/llm/logs/agent.log | grep "X-Request-Id"
-   ```
-2. Search transport log for the same `X-Request-Id`:
-   ```bash
-   grep "X-Request-Id=<id>" /opt/llm/logs/audit.log
-   ```
-3. Search server audit log for the `X-Request-Id`:
-   ```bash
-   grep "<id>" /opt/llm/logs/github-audit.log  # or relevant server audit log
-   ```
+1. Find the `x_request_id` in the agent-side audit log:
+    ```bash
+    grep "tool_name=my_tool" /opt/llm/logs/audit.log | grep "x_request_id"
+    ```
+2. Search MCP server audit log for the same `request` field (key=value format):
+    ```bash
+    grep "request=<id>" /opt/llm/logs/audit.log
+    ```
+3. Search per-server log for the `X-Request-Id` response header:
+    ```bash
+    grep "<id>" /opt/llm/logs/github-mcp.log  # or relevant server log
+    ```
 4. Check health state for `server_key` at that timestamp in `/opt/llm/logs/agent.log`.
 5. If health changed: check watchdog actions log for restart/failover.
 
 ---
 
-### Error Type Distinction in Audit Logs
+### Error Type Distinction in Audit Logs (Agent-Side)
 
-Tool execution audit events include an `error_type` field:
+Agent-side audit events include an `error_type` field:
 
 | error_type | Meaning | Example cause |
 |---|---|---|
@@ -347,11 +379,11 @@ Use this flow to trace a failed or unexpected MCP tool call:
 
 ```
 1. Was the request delivered to the server?
-   NO  → Transport failure (error_type="transport" in audit log). See §Error Type Distinction.
+   NO  → Transport failure (error_type="transport" in agent-side audit log). See §Error Type Distinction.
    YES → continue
 
 2. Did the tool return an error response (is_error=true)?
-   YES → Tool-level error (error_type="tool" in audit log). See §Error Type Distinction.
+   YES → Tool-level error (error_type="tool" in agent-side audit log). See §Error Type Distinction.
    NO (timeout or silent fail) → continue
 
 3. Has server health status changed?
