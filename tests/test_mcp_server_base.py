@@ -253,6 +253,84 @@ class TestTruncateWithMeta:
         # No UnicodeDecodeError; only complete characters appear
         assert "あ" in r.text
 
+    def test_under_limit_no_truncation(self) -> None:
+        from mcp.server import _truncate_with_meta
+
+        text = "hello world"
+        r = _truncate_with_meta(text, max_bytes=100)
+        assert not r.truncated
+        assert r.total_bytes == len(text.encode("utf-8"))
+        assert r.actual_visible_bytes == len(text.encode("utf-8"))
+        assert r.text == text
+
+    def test_over_limit_ascii_visible_equals_max_bytes(self) -> None:
+        from mcp.server import _truncate_with_meta
+
+        # ASCII text: each char = 1 byte, so actual_visible == max_bytes
+        text = "a" * 200
+        r = _truncate_with_meta(text, max_bytes=100)
+        assert r.truncated
+        assert r.total_bytes == 200
+        assert r.actual_visible_bytes == 100
+
+    def test_over_limit_utf8_visible_less_than_max_bytes(self) -> None:
+        from mcp.server import _truncate_with_meta
+
+        # "あ" is 3 bytes in UTF-8; 34 chars = 102 bytes total, truncation at 100 bytes
+        # drops the last partial character (bytes 97-100 = 4 bytes, but only 2 chars fit)
+        text = "あ" * 34  # 102 bytes total
+        r = _truncate_with_meta(text, max_bytes=100)
+        assert r.truncated
+        assert r.total_bytes == 102
+        # actual_visible should be less than 100 because the partial character
+        # at the truncation boundary is dropped by errors="ignore"
+        assert r.actual_visible_bytes < 100
+
+    def test_truncated_utf8_no_corrupted_characters(self) -> None:
+        from mcp.server import _truncate_with_meta
+
+        # Mix of ASCII and multi-byte UTF-8 at the truncation boundary
+        text = "Hello" + "あいうえお" * 20 + "World"  # 5 + 90 + 5 = 100 bytes
+        r = _truncate_with_meta(text, max_bytes=50)
+        assert r.truncated
+        # The shown portion must be valid UTF-8 (no corrupted characters)
+        try:
+            r.text.encode("utf-8")
+        except UnicodeEncodeError:
+            pytest.fail(f"Truncated text contains corrupted UTF-8: {r.text!r}")
+
+    def test_truncated_text_valid_utf8_after_boundary(self) -> None:
+        from mcp.server import _truncate_with_meta
+
+        # Ensure the shown portion is valid UTF-8 even when boundary falls
+        # in the middle of a multi-byte character
+        text = "A" * 90 + "🎉" * 5  # 90 + 20 = 110 bytes total
+        r = _truncate_with_meta(text, max_bytes=100)
+        assert r.truncated
+        # The shown portion must be valid UTF-8
+        shown_portion = r.text.split("[TRUNCATED:")[0]
+        shown_portion.encode("utf-8")  # raises if corrupted
+
+    def test_truncation_notice_contains_correct_byte_counts(self) -> None:
+        from mcp.server import _truncate_with_meta
+
+        text = "a" * 200
+        r = _truncate_with_meta(text, max_bytes=100)
+        assert r.truncated
+        assert "200 bytes total" in r.text
+        assert "100 bytes" in r.text
+
+    def test_truncation_notice_for_utf8_contains_actual_visible(self) -> None:
+        from mcp.server import _truncate_with_meta
+
+        # "あ" is 3 bytes; 34 chars = 102 bytes total, truncation at 100 bytes
+        text = "あ" * 34
+        r = _truncate_with_meta(text, max_bytes=100)
+        assert r.truncated
+        # The notice should contain the actual visible byte count, not the limit
+        assert f"{r.total_bytes} bytes total" in r.text
+        assert f"{r.actual_visible_bytes} bytes]" in r.text
+
 
 class TestAuditLog:
     def test_audit_log_emits_info(self, caplog: pytest.LogCaptureFixture) -> None:

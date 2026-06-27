@@ -247,10 +247,10 @@ When result exceeds 512 KB:
 ```
 
 - `total_bytes` = original byte count (before truncation)
-- `showing` = `MCP_MAX_RESPONSE_BYTES` (512 KB) — the display limit
+- `actual_visible_bytes` = actual visible byte count (may be less than 512 KB if multi-byte UTF-8 characters fall at the truncation boundary)
 - Implemented by `_truncate_with_meta()` in `mcp/server.py`
 
-**Note:** The suffix says "showing 524,288 bytes" (the limit), not the actual truncated bytes.
+**Note:** The suffix shows the actual visible byte count (`actual_visible_bytes`), not the configured limit. For ASCII text, this equals 512 KB (524,288 bytes). For UTF-8 text with multi-byte characters at the boundary, it may be slightly less.
 
 ---
 
