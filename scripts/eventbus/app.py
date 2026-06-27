@@ -321,8 +321,8 @@ async def dlq_list(
     offset: int = Query(default=0, ge=0),
 ) -> dict[str, Any]:
     db = _get_db(request)
-    total = await asyncio.to_thread(count_dlq, db)  # type: ignore[arg-type]
-    rows = await asyncio.to_thread(fetch_dlq, db, limit=limit, offset=offset)  # type: ignore[arg-type]
+    total = await asyncio.to_thread(count_dlq, db)
+    rows = await asyncio.to_thread(fetch_dlq, db, limit=limit, offset=offset)
     return {
         "total": total,
         "limit": limit,
@@ -334,7 +334,7 @@ async def dlq_list(
 @app.post("/dlq/{event_id}/requeue")
 async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
     db = _get_db(request)
-    if await asyncio.to_thread(requeue_event, db, event_id):  # type: ignore[arg-type]
+    if await asyncio.to_thread(requeue_event, db, event_id):
         logger.info("dlq requeued event_id=%s", event_id)
         return {"event_id": event_id, "requeued": True}
     raise HTTPException(status_code=404, detail="event not found")
@@ -357,7 +357,7 @@ async def ack(
         from eventbus.offsets import write_offset  # noqa: PLC0415
 
         now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        acked = _ack_event(db, event_id, now)  # type: ignore[arg-type]
+        acked = _ack_event(db, event_id, now)
         seq: int | None = None
         if consumer_id and acked:
             row = db.execute(
@@ -389,7 +389,7 @@ async def ack_event(
         from eventbus.offsets import write_offset  # noqa: PLC0415
 
         now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        acked = _ack_event(db, event_id, now)  # type: ignore[arg-type]
+        acked = _ack_event(db, event_id, now)
         seq: int | None = None
         if consumer_id and acked:
             row = db.execute(

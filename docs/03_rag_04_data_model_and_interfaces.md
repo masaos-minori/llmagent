@@ -41,7 +41,7 @@ Created by `ChunkSplitter`. JSON format.
   "url": "https://example.com/page",
   "title": "Page title",
   "lang": "ja",
-  "source_file": "20240101120000-example.txt",
+  "source_file": "20240101120000-example.json",
   "chunk_index": 0,
   "chunk_type": "text",
   "chunking_strategy": "text",

@@ -315,7 +315,7 @@ saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` exists (`--fo
   "url": "https://example.com/page",
   "title": "Page title",
   "lang": "ja",
-  "source_file": "20240101120000-example.txt",
+  "source_file": "20240101120000-example.json",
   "chunk_index": 0,
   "chunk_type": "text",
   "chunking_strategy": "text",
@@ -326,7 +326,7 @@ saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` exists (`--fo
 }
 ```
 
-The `source_file` field retains the original `.txt` extension from the crawler output filename.
+The `source_file` field retains the original `.json` extension from the crawler output filename.
 
 ### 3.5 Error handling
 
@@ -334,7 +334,7 @@ The `source_file` field retains the original `.txt` extension from the crawler o
 |---|---|
 | Sudachi tokenize error | Catch; return `""`; skip that chunk |
 | File-level failure | `ERROR` log (with traceback); continue to next file |
-| Existing chunk (`{stem}-0000.txt`) | Skip unless `--force` |
+| Existing chunk (`{stem}-0000.json`) | Skip unless `--force` |
 
 ### 3.6 Logging
 
