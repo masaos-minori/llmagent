@@ -56,7 +56,7 @@
 
 | Item | Safe interpretation | Recommended action |
 |---|---|---|
-| `delivery_failure_count` incremented on nack, not DLQ requeue; `dlq_requeue_count` incremented on requeue | Two separate counters: delivery failures vs requeue attempts | Update docs to clarify distinction |
+| `delivery_failure_count` incremented on nack, not DLQ requeue; `dlq_requeue_count` incremented on requeue | Two separate counters: delivery failures vs requeue attempts | Resolved — updated docs/06_eventbus_04_dlq_offsets_and_delivery_semantics.md, docs/06_eventbus_03_persistence_schema_and_replay.md, docs/06_eventbus_02_http_api_and_runtime.md to use `delivery_failure_count >= max_retry` for DLQ promotion criteria |
 
 ### Startup Safety Guard for Public Bind
 

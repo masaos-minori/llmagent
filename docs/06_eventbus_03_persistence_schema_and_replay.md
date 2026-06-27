@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS events (
 | `event_id` | Client-supplied UUID; UNIQUE prevents duplicates |
 | `payload` | Serialized JSON string of the event payload |
 | `acked_at` | Reserved — never written by current code |
-| `retry_count` | Incremented on each DLQ requeue; threshold `max_retry` triggers DLQ promotion |
+| `retry_count` | Deprecated — not used for DLQ promotion. DLQ promotion uses `delivery_failure_count >= max_retry`. This field is incremented on DLQ requeue only (see `dlq_requeue_count`). |
 | `dlq_at` | ISO-8601 timestamp set when promoted to DLQ; NULL for live events |
 
 ### Indexes

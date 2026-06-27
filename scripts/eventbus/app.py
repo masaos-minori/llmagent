@@ -364,14 +364,26 @@ async def dlq_list(
 @app.post("/dlq/{event_id}/requeue")
 async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
     db = _get_db(request)
+    cfg = _get_config(request)
 
-    def _requeue() -> bool:
+    def _requeue() -> tuple[bool, int | None]:
         with get_db_lock():
-            return requeue_event(db, event_id)
+            found = requeue_event(db, event_id)
+            if not found:
+                return False, None
+            row = db.execute(
+                "SELECT delivery_failure_count FROM events WHERE event_id = ?",
+                (event_id,),
+            ).fetchone()
+            return True, int(row[0]) if row else None
 
-    if await asyncio.to_thread(_requeue):
+    requeued, failure_count = await asyncio.to_thread(_requeue)
+    if requeued:
         logger.info("dlq requeued event_id=%s", event_id)
-        return {"event_id": event_id, "requeued": True}
+        resp: dict[str, Any] = {"event_id": event_id, "requeued": True}
+        if failure_count is not None and failure_count >= cfg.max_retry:
+            resp["dlq_imminent"] = True
+        return resp
     raise HTTPException(status_code=404, detail="event not found")
 
 

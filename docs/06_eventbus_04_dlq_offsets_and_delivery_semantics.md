@@ -4,7 +4,7 @@
 
 ### Promotion criteria
 
-An event is promoted to the DLQ when `retry_count >= max_retry AND dlq_at IS NULL`. The background loop (`_dlq_loop`) checks every 60 seconds.
+An event is promoted to the DLQ when `delivery_failure_count >= max_retry AND dlq_at IS NULL`. The background loop (`_dlq_loop`) checks every 60 seconds.
 
 ### Promotion actions
 
@@ -13,7 +13,7 @@ An event is promoted to the DLQ when `retry_count >= max_retry AND dlq_at IS NUL
 
 ### Requeue
 
-`POST /dlq/{event_id}/requeue` clears `dlq_at` and increments `retry_count` by 1. It does **not** reset `retry_count` to 0. If the event's `retry_count` is already at or above `max_retry`, the next DLQ loop tick will re-promote it.
+`POST /dlq/{event_id}/requeue` clears `dlq_at` and increments `dlq_requeue_count` by 1 (does **not** reset `delivery_failure_count`). If the event's `delivery_failure_count` is already at or above `max_retry`, the next DLQ loop tick will re-promote it.
 
 ## Consumer offsets
 
@@ -54,4 +54,4 @@ Example reconnect flow:
 
 - SQLite is the only durable store; if the DB file is lost, all events are lost
 - JSONL archive is supplementary and may diverge from SQLite if append fails
-- The DLQ loop runs every 60 seconds; there is a window where events with `retry_count >= max_retry` remain visible as live events
+- The DLQ loop runs every 60 seconds; there is a window where events with `delivery_failure_count >= max_retry` remain visible as live events

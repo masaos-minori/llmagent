@@ -78,13 +78,13 @@ Returns component health. Always HTTP 200.
 
 List events in the dead-letter queue (events with `dlq_at IS NOT NULL`).
 
-**Response:** `[{seq, event_id, topic, producer, published_at, retry_count, dlq_at}, ...]`
+**Response:** `[{seq, event_id, topic, producer, published_at, delivery_failure_count, dlq_at}, ...]`
 
 ---
 
 ### POST /dlq/{event_id}/requeue
 
-Move an event out of the DLQ back to normal delivery. Increments `retry_count` by 1 (does NOT reset it). If `retry_count >= max_retry` after re-promotion logic runs, the event re-enters the DLQ on the next DLQ loop tick.
+Move an event out of the DLQ back to normal delivery. Increments `dlq_requeue_count` by 1 (does NOT reset `delivery_failure_count`). If `delivery_failure_count >= max_retry` after re-promotion logic runs, the event re-enters the DLQ on the next DLQ loop tick.
 
 **Response 200:** `{"event_id": "...", "requeued": true}`  
 **Response 404:** event not found.
@@ -93,7 +93,7 @@ Move an event out of the DLQ back to normal delivery. Increments `retry_count` b
 
 ## DLQ background loop
 
-At startup, `_dlq_loop()` runs as an asyncio task, polling every 60 seconds. Events with `retry_count >= max_retry AND dlq_at IS NULL` are promoted to the DLQ (JSONL written atomically, `dlq_at` set in SQLite).
+At startup, `_dlq_loop()` runs as an asyncio task, polling every 60 seconds. Events with `delivery_failure_count >= max_retry AND dlq_at IS NULL` are promoted to the DLQ (JSONL written atomically, `dlq_at` set in SQLite).
 
 ## Failure behavior summary
 
