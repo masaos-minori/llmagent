@@ -234,17 +234,17 @@ tail -f /opt/llm/logs/audit.log | grep 'AUDIT'
 **Per-server audit logs:**
 
 ```bash
-# GitHub operations
-tail -100 /opt/llm/logs/github-audit.log
+# GitHub operations (ISO8601 + op + repo + user)
+grep "op=create_pull_request" /opt/llm/logs/github-audit.log
 
-# Shell executions
-tail -100 /opt/llm/logs/shell_audit.log
+# Shell executions (ISO8601 + cmd + uid + exit)
+grep "exit=1" /opt/llm/logs/shell_audit.log
 
-# File deletions
-tail -100 /opt/llm/logs/delete_audit.log
+# File deletions (ISO8601 + op + path + user)
+grep "op=delete_directory" /opt/llm/logs/delete_audit.log
 
-# MDQ operations
-tail -100 /opt/llm/logs/mdq_audit.log
+# MDQ operations (MDQ-specific format)
+grep "op=" /opt/llm/logs/mdq_audit.log
 ```
 
 > **Note:** cicd-mcp and git-mcp do not have dedicated audit log files. They use `logging.getLogger(__name__)` only.
