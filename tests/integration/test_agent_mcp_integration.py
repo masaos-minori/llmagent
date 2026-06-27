@@ -292,3 +292,108 @@ async def test_a12_concurrent_http_calls_all_complete():
 
     assert len(results) == 5
     assert all(not r.is_error for r in results)
+
+
+# ── TC-A13: HTTP 429 → retry → TransportError after 3 attempts ───────────────
+
+
+@pytest.mark.asyncio
+async def test_a13_http_429_retry_then_transport_error():
+    call_count = 0
+
+    def _side_effect(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        return httpx.Response(429)
+
+    with respx.mock(base_url=_TEST_URL, assert_all_called=False) as mock:
+        mock.post("/v1/call_tool").mock(side_effect=_side_effect)
+        async with httpx.AsyncClient() as http:
+            executor = _make_http_executor(http)
+            result = await executor.execute(_HTTP_TOOL, {})
+
+    assert result.is_error
+    assert result.error_type == "transport"
+    assert call_count == 3  # 3 attempts before TransportError
+
+
+# ── TC-A14: HTTP 502 → retry → TransportError after 3 attempts ───────────────
+
+
+@pytest.mark.asyncio
+async def test_a14_http_502_retry_then_transport_error():
+    call_count = 0
+
+    def _side_effect(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        return httpx.Response(502)
+
+    with respx.mock(base_url=_TEST_URL, assert_all_called=False) as mock:
+        mock.post("/v1/call_tool").mock(side_effect=_side_effect)
+        async with httpx.AsyncClient() as http:
+            executor = _make_http_executor(http)
+            result = await executor.execute(_HTTP_TOOL, {})
+
+    assert result.is_error
+    assert result.error_type == "transport"
+    assert call_count == 3
+
+
+# ── TC-A15: HTTP 400 → immediate TransportError (non-retryable) ──────────────
+
+
+@pytest.mark.asyncio
+async def test_a15_http_400_non_retryable():
+    with respx.mock(base_url=_TEST_URL, assert_all_called=False) as mock:
+        mock.post("/v1/call_tool").respond(400)
+        async with httpx.AsyncClient() as http:
+            executor = _make_http_executor(http)
+            result = await executor.execute(_HTTP_TOOL, {})
+
+    assert result.is_error
+    assert result.error_type == "transport"
+    # 400 is not in the retryable set — no retry occurs
+    assert executor.stat_transport_errors.get(_HTTP_KEY, 0) == 1
+
+
+# ── TC-A16: HTTP 500 → immediate TransportError (non-retryable) ──────────────
+
+
+@pytest.mark.asyncio
+async def test_a16_http_500_non_retryable():
+    with respx.mock(base_url=_TEST_URL, assert_all_called=False) as mock:
+        mock.post("/v1/call_tool").respond(500)
+        async with httpx.AsyncClient() as http:
+            executor = _make_http_executor(http)
+            result = await executor.execute(_HTTP_TOOL, {})
+
+    assert result.is_error
+    assert result.error_type == "transport"
+    # 500 is not in the retryable set — no retry occurs
+    assert executor.stat_transport_errors.get(_HTTP_KEY, 0) == 1
+
+
+# ── TC-A17: HTTP 503 → retry → success on 2nd attempt ────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_a17_http_503_retry_then_success():
+    call_count = 0
+
+    def _side_effect(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return httpx.Response(503)
+        return httpx.Response(200, json={"result": "recovered", "is_error": False})
+
+    with respx.mock(base_url=_TEST_URL, assert_all_called=False) as mock:
+        mock.post("/v1/call_tool").mock(side_effect=_side_effect)
+        async with httpx.AsyncClient() as http:
+            executor = _make_http_executor(http)
+            result = await executor.execute(_HTTP_TOOL, {})
+
+    assert not result.is_error
+    assert result.output == "recovered"
+    assert call_count == 2  # retry succeeded on 2nd attempt

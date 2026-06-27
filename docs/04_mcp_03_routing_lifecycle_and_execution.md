@@ -200,8 +200,8 @@ result = await transport.call("tool_name", {"arg": "val"})
 - Adds `Authorization: Bearer <token>` when `cfg.auth_token` is non-empty
 - Catches all HTTP and request errors; returns `is_error=True` with message
 - `set_session_id(session_id)` injects `X-Session-Id` header per request
-- **Retry:** retries on HTTP 429/502/503/504, up to 3 attempts with exponential backoff (4s, 2s, 1s). Only the final outcome (success or TransportError after all retries exhausted) is recorded in HealthRegistry.
-- Timeout: `call_timeout_sec` from `McpServerConfig` (default 60.0s); timeout errors are non-retryable
+- **Retry:** retries on HTTP 429/502/503/504, up to 3 attempts with decreasing delay (4s → 2s → 1s). Only the final outcome (success or TransportError after all retries exhausted) is recorded in HealthRegistry.
+- **Non-retryable errors:** HTTP timeout (`httpx.TimeoutException`) and HTTPStatusError for non-429/502/503/504 status codes are immediately propagated without retry.
 
 ---
 
