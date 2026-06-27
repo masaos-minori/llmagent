@@ -182,12 +182,10 @@ curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 {
   "status": "ok",
   "ready": true,
-  "stub": true,
   "dependencies": {},
   "details": {"service": "mdq-mcp"}
 }
 ```
-Root-level `stub: true` marks experimental status (not non-functional).
 
 ### /v1/tools verification
 

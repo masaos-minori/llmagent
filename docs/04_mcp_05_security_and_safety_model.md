@@ -355,7 +355,7 @@ MDQ is optimized for Markdown documents where structural understanding matters m
 
 **Tools:** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`
 **Database:** `mdq.sqlite` (separate from `rag.sqlite`)
-**Status:** Experimental — FTS5 search is functional but not production-validated.
+**Status:** Production-ready
 
 ---
 
@@ -438,7 +438,7 @@ No automatic migration path exists. Migration requires re-ingesting through the 
 
 ### Current Status
 
-- **MDQ:** Experimental. FTS5 search is functional but not production-validated.
+- **MDQ:** Production-ready. FTS5 search and indexing implemented.
 - **RAG:** Production-ready. Full ingestion pipeline, embedding support, and hybrid search (RRF) available.
 
 For production workloads involving general-purpose document retrieval, prefer `rag-pipeline-mcp`.
