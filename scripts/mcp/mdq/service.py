@@ -97,6 +97,12 @@ class MdqService:
         self.use_embedding: bool = mdq_cfg.get("use_embedding", False)
         self.vector_table: str = mdq_cfg.get("vector_table", "chunks_vec")
         self.embedding_model: str = mdq_cfg.get("embedding_model", "default")
+        # Embedding dimension from common.toml (required for vec0 table creation)
+        try:
+            common_cfg = ConfigLoader().load("common.toml")  # type: ignore[arg-type]
+            self.embedding_dims: int = common_cfg.get("embedding_dims", 384)
+        except (FileNotFoundError, KeyError):
+            self.embedding_dims = 384
 
         # Validate required fields
         if not isinstance(self._allowed_dirs, list):
@@ -212,9 +218,17 @@ class MdqService:
             """)
             # Create vector table conditionally based on use_embedding config
             if self.use_embedding:
+                try:
+                    conn.enable_load_extension(True)
+                    conn.load_extension("/opt/llm/sqlite-vec/vec0.so")
+                    conn.enable_load_extension(False)
+                except sqlite3.OperationalError as e:
+                    logger.error("Failed to load sqlite-vec extension: %s", e)
+                    raise
                 conn.execute(f"""
                     CREATE VIRTUAL TABLE IF NOT EXISTS {self.vector_table} USING vec0(
-                        embedding FLOAT[]
+                        chunk_id TEXT PRIMARY KEY,
+                        embedding float[{self.embedding_dims}]
                     )
                 """)
             conn.commit()
