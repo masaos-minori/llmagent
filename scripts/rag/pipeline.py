@@ -553,6 +553,11 @@ class RagPipeline:
             if r.get("stage_name") == "Refiner" and r.get("status") == "fallback"
         ]
         refiner_fallback_count = len(refiner_fallbacks)
+        refiner_returned_empty = sum(
+            1
+            for r in refiner_fallbacks
+            if str(r.get("fallback_reason", "")) == "refiner_returned_empty"
+        )
         refiner_exception_count = sum(
             1
             for r in refiner_fallbacks
@@ -576,6 +581,7 @@ class RagPipeline:
                 r["fallback_reason"] for r in stage_results if r.get("fallback_reason")
             ],
             "refiner_fallback_count": refiner_fallback_count,
+            "refiner_returned_empty": refiner_returned_empty,
             "refiner_exception_count": refiner_exception_count,
             "hit_counts": {
                 "merged": len(fetch.hits) if fetch is not None else 0,

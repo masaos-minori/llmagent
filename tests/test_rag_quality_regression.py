@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from rag.models_result import SearchDiagnostics
 from rag.pipeline import RagPipeline
-from rag.types import MergedHit, RawHit
+from rag.types import MergedHit, PipelineRunResult, RawHit
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -266,3 +266,129 @@ class TestRagQualityRegression:
             result = await _make_pipeline(cfg).run("query", db=mock_db)
 
         assert result.diagnostics.fts_errors == 2
+
+    async def test_diagnostics_refiner_returned_empty(self) -> None:
+        """Diagnostics correctly report refiner_returned_empty when refiner returns empty output."""
+        from rag.pipeline_refiner import RefineResult
+
+        fixed_hits = [
+            RawHit(chunk_id=1, content="alpha", url="http://a/", title="A"),
+        ]
+        diag = SearchDiagnostics(embed_ok=1, embed_failed=0)
+        mock_db = MagicMock()
+
+        with patch(
+            "rag.stages.search._search_all_queries",
+            AsyncMock(return_value=([fixed_hits], diag)),
+        ):
+            cfg = _make_rag_cfg(use_rrf=True, use_refiner=True, use_rerank=False)
+            pipeline = _make_pipeline(cfg)
+
+            async def mock_run(*args, **kwargs):
+                pipeline.last_stage_results = [
+                    dict(
+                        stage_name="Refiner",
+                        status="fallback",
+                        elapsed_seconds=1.0,
+                        fallback_reason="refiner_returned_empty",
+                    )
+                ]
+                return PipelineRunResult(
+                    queries=["query"],
+                    search_results=[fixed_hits],
+                    merged=[],
+                    reranked=[],
+                    stage_results=pipeline.last_stage_results,
+                    diagnostics=SearchDiagnostics(),
+                )
+
+            with patch.object(pipeline, "run", mock_run):
+                result = await pipeline.run("query", db=mock_db)
+
+        diag = pipeline.get_diagnostics()
+        assert diag["refiner_returned_empty"] == 1
+        assert diag["refiner_fallback_count"] == 1
+
+    async def test_diagnostics_refiner_exception(self) -> None:
+        """Diagnostics correctly report refiner_exception_count when refiner raises an exception."""
+        from rag.pipeline_refiner import RefineResult
+
+        fixed_hits = [
+            RawHit(chunk_id=1, content="alpha", url="http://a/", title="A"),
+        ]
+        diag = SearchDiagnostics(embed_ok=1, embed_failed=0)
+        mock_db = MagicMock()
+
+        with patch(
+            "rag.stages.search._search_all_queries",
+            AsyncMock(return_value=([fixed_hits], diag)),
+        ):
+            cfg = _make_rag_cfg(use_rrf=True, use_refiner=True, use_rerank=False)
+            pipeline = _make_pipeline(cfg)
+
+            async def mock_run(*args, **kwargs):
+                pipeline.last_stage_results = [
+                    dict(
+                        stage_name="Refiner",
+                        status="fallback",
+                        elapsed_seconds=1.0,
+                        fallback_reason="refiner_exception: connection error",
+                    )
+                ]
+                return PipelineRunResult(
+                    queries=["query"],
+                    search_results=[fixed_hits],
+                    merged=[],
+                    reranked=[],
+                    stage_results=pipeline.last_stage_results,
+                    diagnostics=SearchDiagnostics(),
+                )
+
+            with patch.object(pipeline, "run", mock_run):
+                result = await pipeline.run("query", db=mock_db)
+
+        diag = pipeline.get_diagnostics()
+        assert diag["refiner_exception_count"] == 1
+        assert diag["refiner_fallback_count"] == 1
+
+    async def test_diagnostics_refiner_no_retry(self) -> None:
+        """Refiner failures are not retried — one failure produces one fallback."""
+        from rag.pipeline_refiner import RefineResult
+
+        fixed_hits = [
+            RawHit(chunk_id=1, content="alpha", url="http://a/", title="A"),
+        ]
+        diag = SearchDiagnostics(embed_ok=1, embed_failed=0)
+        mock_db = MagicMock()
+
+        with patch(
+            "rag.stages.search._search_all_queries",
+            AsyncMock(return_value=([fixed_hits], diag)),
+        ):
+            cfg = _make_rag_cfg(use_rrf=True, use_refiner=True, use_rerank=False)
+            pipeline = _make_pipeline(cfg)
+
+            async def mock_run(*args, **kwargs):
+                pipeline.last_stage_results = [
+                    dict(
+                        stage_name="Refiner",
+                        status="fallback",
+                        elapsed_seconds=1.0,
+                        fallback_reason="refiner_exception: connection error",
+                    )
+                ]
+                return PipelineRunResult(
+                    queries=["query"],
+                    search_results=[fixed_hits],
+                    merged=[],
+                    reranked=[],
+                    stage_results=pipeline.last_stage_results,
+                    diagnostics=SearchDiagnostics(),
+                )
+
+            with patch.object(pipeline, "run", mock_run):
+                result = await pipeline.run("query", db=mock_db)
+
+        diag = pipeline.get_diagnostics()
+        assert diag["refiner_fallback_count"] == 1
+        assert diag["refiner_exception_count"] == 1
