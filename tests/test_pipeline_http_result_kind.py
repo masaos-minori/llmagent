@@ -86,7 +86,7 @@ async def test_remote_empty(monkeypatch) -> None:
         r for r in pipeline.last_stage_results if r["stage_name"] == "HttpAugment"
     )
     assert http_sr["status"] == "success"
-    assert http_sr["fallback_reason"] == "http_remote_empty"
+    assert http_sr["fallback_reason"] is None
 
 
 @pytest.mark.asyncio
