@@ -256,6 +256,10 @@ FusionStage(rrf_k: int = 60, use_rrf: bool = True)
 
 #### Retrieval-quality tradeoff: `use_rrf=False` vs `use_rrf=True`
 
+> **Warning:** `use_rrf=False` is a **significant quality degradation**, not a harmless fallback.
+> Rank signal is completely disabled: MQE multi-query expansion provides no additional ranking benefit.
+> Use only for diagnostics or when latency must be minimized and ranking quality can be sacrificed.
+
 | Mode | Mechanism | Quality impact |
 |---|---|---|
 | `use_rrf=True` (default) | RRF: each hit scored as `Σ 1/(rrf_k + rank)` across all result lists | Chunks seen by multiple queries get promoted; robust cross-list ranking |
@@ -270,9 +274,10 @@ FusionStage(rrf_k: int = 60, use_rrf: bool = True)
   minimized and ranking quality can be sacrificed
 
 **Observability:**
-- `--debug` shows `~ FusionStage: fallback — use_rrf=False`
+- `/rag search --debug` shows `[debug] fusion: use_rrf=False (rank signal disabled)`
 - `get_diagnostics()["fusion_mode"]` returns `"rrf"` or `"dedup_only"`
-- `logger.info("FusionStage: dedup-only mode (use_rrf=False)")` at INFO level
+- Log: `INFO FusionStage: dedup-only mode (use_rrf=False) — rank signal disabled, MQE provides no ranking benefit`
+- Startup: `WARNING rag config warning: use_rrf=false degrades retrieval quality; use only for diagnostics` (via `config_validator.py` during pipeline initialization)
 
 ### 5.4 RerankStage
 

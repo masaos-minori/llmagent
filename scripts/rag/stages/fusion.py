@@ -19,5 +19,8 @@ class FusionStage(PipelineStage):
         if self._use_rrf:
             ctx.merged = RagScorer.rrf_merge(ctx.search_results, rrf_k=self._rrf_k)
         else:
-            logger.info("FusionStage: dedup-only mode (use_rrf=False)")
+            logger.info(
+                "FusionStage: dedup-only mode (use_rrf=False)"
+                " — rank signal disabled, MQE provides no ranking benefit"
+            )
             ctx.merged = _dedup_hits(ctx.search_results)
