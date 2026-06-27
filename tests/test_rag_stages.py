@@ -89,7 +89,7 @@ class TestSearchStage:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
             patch("rag.stages.search.RagRepository") as mock_repo,
         ):
@@ -146,7 +146,7 @@ class TestSearchStage:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
         ):
             mock_get_embedding.side_effect = Exception("Embedding failed")
@@ -164,7 +164,7 @@ class TestSearchStage:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
             patch("rag.stages.search.RagRepository") as mock_repo,
         ):
@@ -194,7 +194,7 @@ class TestSearchStage:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
             patch("rag.stages.search.RagRepository") as mock_repo,
         ):
@@ -220,7 +220,7 @@ class TestSearchStage:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
             patch("rag.stages.search.RagRepository") as mock_repo,
         ):
@@ -246,7 +246,7 @@ class TestSearchStage:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
         ):
             mock_get_embedding.return_value = "not a list"
@@ -266,7 +266,7 @@ class TestSearchStage:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
             patch("rag.stages.search.RagRepository") as mock_repo,
         ):
@@ -306,7 +306,7 @@ class TestSearchDiagnostics:
         mock_context.queries = ["test query"]
 
         with patch(
-            "rag.llm.get_embedding", new_callable=AsyncMock
+            "rag.llm_client.get_embedding", new_callable=AsyncMock
         ) as mock_get_embedding:
             mock_get_embedding.side_effect = Exception("Embedding failed")
             cfg = SimpleNamespace(top_k_search=10)
@@ -323,7 +323,7 @@ class TestSearchDiagnostics:
         mock_context.queries = ["test query"]
 
         with patch(
-            "rag.llm.get_embedding", new_callable=AsyncMock
+            "rag.llm_client.get_embedding", new_callable=AsyncMock
         ) as mock_get_embedding:
             mock_get_embedding.return_value = "not a list"
             cfg = SimpleNamespace(top_k_search=10)
@@ -343,7 +343,7 @@ class TestSearchDiagnostics:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
             patch("rag.stages.search.RagRepository") as mock_repo,
         ):
@@ -369,7 +369,7 @@ class TestSearchDiagnostics:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
             patch("rag.stages.search.RagRepository") as mock_repo,
         ):
@@ -393,7 +393,7 @@ class TestSearchDiagnostics:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
             patch("rag.stages.search.logger") as mock_logger,
         ):
@@ -416,7 +416,7 @@ class TestSearchDiagnostics:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
             patch("rag.stages.search.RagRepository") as mock_repo,
             patch("rag.stages.search.logger") as mock_logger,
@@ -442,7 +442,7 @@ class TestSearchDiagnostics:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
             patch("rag.stages.search.RagRepository") as mock_repo,
             patch("rag.stages.search.logger") as mock_logger,
@@ -470,7 +470,7 @@ class TestSearchDiagnostics:
 
         with (
             patch(
-                "rag.llm.get_embedding", new_callable=AsyncMock
+                "rag.llm_client.get_embedding", new_callable=AsyncMock
             ) as mock_get_embedding,
             patch("rag.stages.search.RagRepository") as mock_repo,
         ):

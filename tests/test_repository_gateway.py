@@ -23,10 +23,12 @@ def _make_gateway(cfg=None, executor=None, audit_logger=None):
 
 
 def _make_ctx():
+    workflow = SimpleNamespace(approval_pending=False, workflow_id=None)
     return SimpleNamespace(
         cfg=MagicMock(),
         services=SimpleNamespace(gateway=None, tools=AsyncMock()),
         turn=SimpleNamespace(current_turn_id="turn-1"),
+        workflow=workflow,
     )
 
 
