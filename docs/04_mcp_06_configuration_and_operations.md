@@ -224,10 +224,16 @@ Format: key=value lines, e.g.:
 AUDIT session=abc request=xyz action=read_text_file target=/tmp/f.txt outcome=ok detail=
 ```
 
+**Shared audit log** (`/opt/llm/logs/audit.log`): Used by web-search-mcp, file-read-mcp, file-write-mcp, rag-pipeline-mcp, cicd-mcp.
+
 ```bash
 # View raw MCP server audit lines (key=value format)
 tail -f /opt/llm/logs/audit.log | grep 'AUDIT'
+```
 
+**Per-server audit logs:**
+
+```bash
 # GitHub operations
 tail -100 /opt/llm/logs/github-audit.log
 
@@ -237,22 +243,41 @@ tail -100 /opt/llm/logs/shell_audit.log
 # File deletions
 tail -100 /opt/llm/logs/delete_audit.log
 
-# Git operations
-tail -100 /opt/llm/logs/git-mcp.log
+# MDQ operations
+tail -100 /opt/llm/logs/mdq_audit.log
 ```
+
+> **Note:** cicd-mcp and git-mcp do not have dedicated audit log files. They use `logging.getLogger(__name__)` only.
 
 ### Per-server log files
 
-| Server | Log path |
-|---|---|
-| web-search-mcp | `/opt/llm/logs/web-search-mcp.log` |
-| file-read-mcp | `/opt/llm/logs/file-read-mcp.log` |
-| file-write-mcp | `/opt/llm/logs/file-write-mcp.log` |
-| file-delete-mcp | `/opt/llm/logs/file-delete-mcp.log` |
-| github-mcp | `/opt/llm/logs/github-mcp.log` |
-| shell-mcp | `/opt/llm/logs/shell-mcp.log` |
-| mdq-mcp | `/opt/llm/logs/mdq-mcp.log` |
-| git-mcp | `/opt/llm/logs/git-mcp.log` |
+| Server | Log path | Notes |
+|---|---|---|
+| web-search-mcp | `/opt/llm/logs/web-search-mcp.log` | Dedicated app log |
+| file-read-mcp | `/opt/llm/logs/file-read-mcp.log` | Dedicated app log |
+| file-write-mcp | `/opt/llm/logs/file-write-mcp.log` | Dedicated app log |
+| file-delete-mcp | `/opt/llm/logs/file-delete-mcp.log` | Dedicated app log |
+| github-mcp | `/opt/llm/logs/github-mcp.log` | Dedicated app log |
+| shell-mcp | `/opt/llm/logs/shell-mcp.log` | Dedicated app log |
+| mdq-mcp | `/opt/llm/logs/mdq-mcp.log` | Dedicated app log |
+| rag-pipeline-mcp | `/opt/llm/logs/rag-mcp.log` | Dedicated app log |
+| cicd-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
+| git-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
+
+### Per-server audit log files
+
+| Server | Audit log path | Format |
+|---|---|---|
+| web-search-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
+| file-read-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
+| file-write-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
+| file-delete-mcp | `/opt/llm/logs/delete_audit.log` | Structured (ISO8601 + op + path + user) |
+| github-mcp | `/opt/llm/logs/github-audit.log` | Structured (ISO8601 + op + repo + user) |
+| shell-mcp | `/opt/llm/logs/shell_audit.log` | Structured (ISO8601 + op + command + user) |
+| mdq-mcp | `/opt/llm/logs/mdq_audit.log` | Structured (MDQ-specific) |
+| rag-pipeline-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
+| cicd-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
+| git-mcp | No dedicated audit log | Uses `logging.getLogger(__name__)` only |
 
 ### Agent-side audit log (structured events)
 
