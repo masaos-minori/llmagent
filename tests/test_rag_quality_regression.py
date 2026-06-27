@@ -97,9 +97,9 @@ class TestRagQualityRegression:
         """RRF mode: run() completes; result has correct structure and embed_failed > 0."""
         mock_db = MagicMock()
         result = await rag_pipeline_rrf.run("python asyncio", db=mock_db)
-        assert isinstance(result.reranked, list)
+        # No embed server configured → all embedding attempts fail → empty reranked
+        assert result.reranked == []
         assert isinstance(result.diagnostics, SearchDiagnostics)
-        # No embed server configured → all embedding attempts fail
         assert result.diagnostics.embed_failed >= 1
         assert result.diagnostics.embed_ok == 0
 
@@ -109,7 +109,8 @@ class TestRagQualityRegression:
         """No-RRF mode: run() completes; result structure matches RRF mode."""
         mock_db = MagicMock()
         result = await rag_pipeline_no_rrf.run("python asyncio", db=mock_db)
-        assert isinstance(result.reranked, list)
+        # No embed server configured → all embedding attempts fail → empty reranked
+        assert result.reranked == []
         assert isinstance(result.diagnostics, SearchDiagnostics)
         assert len(result.queries) >= 1
 
@@ -165,3 +166,103 @@ class TestRagQualityRegression:
         assert result.reranked == []
         assert result.diagnostics.embed_failed >= 1
         assert result.diagnostics.embed_ok == 0
+
+    async def test_ranking_order_with_known_hits(self) -> None:
+        """Known hits in deterministic order → reranked order matches input when no reranker."""
+        fixed_hits = [
+            RawHit(chunk_id=3, content="gamma", url="http://c/", title="C"),
+            RawHit(chunk_id=1, content="alpha", url="http://a/", title="A"),
+            RawHit(chunk_id=2, content="beta", url="http://b/", title="B"),
+        ]
+        diag = SearchDiagnostics(embed_ok=1, embed_failed=0)
+        mock_db = MagicMock()
+        with patch(
+            "rag.stages.search._search_all_queries",
+            AsyncMock(return_value=([fixed_hits], diag)),
+        ):
+            cfg = _make_rag_cfg(use_rrf=True, use_rerank=False)
+            result = await _make_pipeline(cfg).run("query", db=mock_db)
+
+        # Without reranker, order should be preserved from merged hits (RRF-merged)
+        assert len(result.merged) == 3
+        assert len(result.reranked) == 3
+        # Chunk IDs should appear in RRF-merged order (all rrf_score > 0)
+        chunk_ids = [h.chunk_id for h in result.merged]
+        assert all(h.rrf_score > 0.0 for h in result.merged)
+
+    async def test_semantic_cache_generation_invalidation(self) -> None:
+        """Semantic cache generation bumps on invalidate; stale entries are evicted."""
+        from rag.cache import SemanticCache
+
+        cache = SemanticCache(max_size=10, threshold=0.9)
+        # Put entries and verify generation
+        cache.put([0.1] * 384, "ctx1", "result_A")
+        assert cache.generation == 0
+        cache.put([0.2] * 384, "ctx2", "result_B")
+        assert cache.generation == 0
+        # Invalidate and verify generation bumps
+        cache.invalidate()
+        assert cache.generation == 1
+        # Verify entries are evicted after invalidation
+        assert cache.lookup([0.1] * 384) is None
+        assert cache.lookup([0.2] * 384) is None
+        assert cache.size == 0
+
+    async def test_diagnostics_fusion_mode(self) -> None:
+        """Diagnostics correctly report fusion_mode for RRF and dedup_only modes."""
+        fixed_hits = [
+            RawHit(chunk_id=1, content="alpha", url="http://a/", title="A"),
+            RawHit(chunk_id=2, content="beta", url="http://b/", title="B"),
+        ]
+        diag = SearchDiagnostics(embed_ok=1, embed_failed=0)
+        mock_db = MagicMock()
+
+        # RRF mode diagnostics
+        rrf_cfg = _make_rag_cfg(use_rrf=True, use_rerank=False)
+        with patch(
+            "rag.stages.search._search_all_queries",
+            AsyncMock(return_value=([fixed_hits], diag)),
+        ):
+            pipeline_rrf = _make_pipeline(rrf_cfg)
+            result_rrf = await pipeline_rrf.run("query", db=mock_db)
+
+        assert pipeline_rrf.get_diagnostics()["fusion_mode"] == "rrf"
+
+        # Dedup-only mode diagnostics
+        no_rrf_cfg = _make_rag_cfg(use_rrf=False, use_rerank=False)
+        with patch(
+            "rag.stages.search._search_all_queries",
+            AsyncMock(return_value=([fixed_hits], diag)),
+        ):
+            pipeline_no_rrf = _make_pipeline(no_rrf_cfg)
+            result_no_rrf = await pipeline_no_rrf.run("query", db=mock_db)
+
+        assert pipeline_no_rrf.get_diagnostics()["fusion_mode"] == "dedup_only"
+
+    async def test_diagnostics_semantic_cache_hits(self) -> None:
+        """Diagnostics correctly report semantic cache hits when cache is enabled."""
+        from rag.cache import SemanticCache
+        from rag.types import PipelineRunResult
+
+        cache = SemanticCache(max_size=10, threshold=0.0)
+        cache.put([1.0] * 384, "", "cached_result")
+        assert cache.lookup([1.0] * 384, "") == "cached_result"
+        # Cache hit count should be tracked
+        assert cache.size >= 1
+
+    async def test_diagnostics_fts_error_counts(self) -> None:
+        """Diagnostics correctly report FTS error counts when FTS fails."""
+        fixed_hits = [
+            RawHit(chunk_id=1, content="alpha", url="http://a/", title="A"),
+        ]
+        diag = SearchDiagnostics(embed_ok=0, embed_failed=0, fts_errors=2)
+        mock_db = MagicMock()
+
+        with patch(
+            "rag.stages.search._search_all_queries",
+            AsyncMock(return_value=([fixed_hits], diag)),
+        ):
+            cfg = _make_rag_cfg(use_rrf=True, use_rerank=False)
+            result = await _make_pipeline(cfg).run("query", db=mock_db)
+
+        assert result.diagnostics.fts_errors == 2

@@ -36,33 +36,6 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ## Active Issues
 
-### DOC-01: `.txt` / `.json` mixed references in RAG ingestion docs and code comments
-
-- **Type:** Documentation inconsistency
-- **Impact scope:** RAG ingestion docs, code comments (26 stale references across 7 files)
-- **Description:** RAG ingestion documentation and code comments reference both `.txt` and `.json` artifact file extensions. Runtime code already uses `.json`; only docstrings/CLI help/docs need fixing.
-- **Safe interpretation:** Runtime code already uses `.json`; only docstrings/CLI help/docs need fixing
-- **Recommended action:** Update all stale `.txt` references to `.json` in docs and comments
-- **Source:** `03_rag_90_inconsistencies_and_known_issues.md DOC-01`, implementation plan 20260627-054224
-
-### SPEC-01: RAG data model includes Agent-owned `sessions` and `messages` tables
-
-- **Type:** Spec conflict
-- **Impact scope:** DB schema, layer boundaries
-- **Description:** RAG data model includes Agent-owned `sessions` and `messages` tables. RAG layer does not own Agent conversation history; sessions/messages belong to Agent REPL.
-- **Safe interpretation:** RAG layer does not own Agent conversation history; sessions/messages belong to Agent REPL
-- **Recommended action:** Clarify ownership boundary in RAG data model docs; add note that RAG reads but does not own these tables
-- **Source:** `03_rag_90_inconsistencies_and_known_issues.md SPEC-01`, implementation plan 20260627-054459
-
-### DOC-02: `/db fts-rebuild` vs `/db rebuild-fts` command name mismatch
-
-- **Type:** Documentation inconsistency
-- **Impact scope:** RAG ops docs (1 stale reference)
-- **Description:** `/db fts-rebuild` vs `/db rebuild-fts` — canonical is `/db rebuild-fts`. Only one stale reference in RAG ops docs.
-- **Safe interpretation:** Use `/db rebuild-fts`; only one stale reference in RAG ops docs
-- **Recommended action:** Update stale `/db fts-rebuild` reference to `/db rebuild-fts`
-- **Source:** `03_rag_90_inconsistencies_and_known_issues.md DOC-02`, implementation plan 20260627-055423
-
 ### SPEC-02: `status=success` with `fallback_reason="http_remote_empty"` is semantically confusing
 
 - **Type:** Spec conflict
@@ -75,6 +48,24 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 ---
 
 ## Resolved Issues
+
+### [Resolved] RAG data model includes Agent-owned `sessions` and `messages` tables (SPEC-01, resolved 2026-06-27)
+
+- **Was:** RAG data model documentation contained wording that could be read as Agent session tables residing in the same SQLite file for operational convenience.
+- **Now:** Clarified in `03_rag_04_data_model_and_interfaces.md` that `sessions` and `messages` tables are owned by the Agent REPL layer, not the RAG layer. They reside in a separate SQLite file (`session.sqlite`) from the RAG database (`rag.sqlite`).
+- **See:** `03_rag_04_data_model_and_interfaces.md §2.0`
+
+### [Resolved] `.txt` / `.json` mixed references in RAG ingestion docs and code comments (DOC-01, resolved 2026-06-27)
+
+- **Was:** RAG ingestion documentation and code comments referenced both `.txt` and `.json` artifact file extensions.
+- **Now:** All stale `.txt` references in RAG ingestion code comments have been updated to `.json`. Runtime code already uses `.json`.
+- **See:** `scripts/rag/ingestion/` — no `.txt` references remain
+
+### [Resolved] `/db fts-rebuild` vs `/db rebuild-fts` command name mismatch (DOC-02, resolved 2026-06-27)
+
+- **Was:** RAG operations docs referenced `/db fts-rebuild` instead of the canonical `/db rebuild-fts`.
+- **Now:** Stale reference removed; all docs and implementation use `/db rebuild-fts`.
+- **See:** `scripts/agent/commands/cmd_db.py`, `docs/03_rag_90_inconsistencies_and_known_issues.md` (entry removed)
 
 ### [Resolved] scripts/rag/llm.py backward-compat re-export (removed 2026-06-26)
 

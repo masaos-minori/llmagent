@@ -82,7 +82,8 @@ Created by `ChunkSplitter`. JSON format.
 FTS5 は `chunks` テーブルの INSERT/UPDATE/DELETE に対してトリガーで自動同期 (`chunks_ai` / `chunks_au` / `chunks_ad`)。
 
 > **Note:** `sessions` and `messages` tables are owned by the Agent REPL layer, not the RAG layer.
-> They reside in the same SQLite file for operational convenience but are managed exclusively by `agent/session.py`.
+> They reside in a separate SQLite file (`session.sqlite`) from the RAG database (`rag.sqlite`)
+> and are managed exclusively by `agent/session.py`.
 > See `docs/05_agent_09_data-layer.md` for the Agent session schema.
 
 ### 2.1 `documents` table
