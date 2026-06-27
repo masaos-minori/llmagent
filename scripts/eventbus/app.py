@@ -393,7 +393,7 @@ async def ack(
 
         with get_db_lock():
             now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-            acked = _ack_event(db, event_id, now)  # type: ignore[arg-type]
+            acked = _ack_event(db, event_id, now)
             seq: int | None = None
             if consumer_id and acked:
                 row = db.execute(
@@ -426,7 +426,7 @@ async def ack_event(
 
         with get_db_lock():
             now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-            acked = _ack_event(db, event_id, now)  # type: ignore[arg-type]
+            acked = _ack_event(db, event_id, now)
             seq: int | None = None
             if consumer_id and acked:
                 row = db.execute(

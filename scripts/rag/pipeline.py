@@ -433,13 +433,7 @@ class RagPipeline:
                     stage_name="HttpAugment",
                     status=http_status,
                     elapsed_seconds=elapsed,
-                    fallback_reason=(
-                        http_fallback_reason
-                        if result is None
-                        else "http_remote_empty"
-                        if result == ""
-                        else None
-                    ),
+                    fallback_reason=(http_fallback_reason if result is None else None),
                 )
             )
             self._http_result_kind = (
@@ -454,7 +448,7 @@ class RagPipeline:
                 self.last_search_diagnostics = dataclasses.replace(
                     self.last_search_diagnostics,
                     result_source=ResultSource.REMOTE,
-                    http_result_kind=HttpResultKind.SUCCESS
+                    http_result_kind=HttpResultKind.EMPTY
                     if result == ""
                     else HttpResultKind.SUCCESS,
                     remote_status_code=remote_status_code,

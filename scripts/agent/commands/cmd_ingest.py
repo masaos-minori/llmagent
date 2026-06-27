@@ -170,6 +170,17 @@ class _IngestMixin(MixinBase):
         diag = pipeline.last_search_diagnostics
         search_degraded = diag.embed_failed > 0 or diag.fts_errors > 0
 
+        if debug and diag.result_source.value == "remote":
+            kind = diag.http_result_kind.value
+            kind_label = (
+                "success (empty response — no in-process fallback)"
+                if kind == "empty"
+                else kind
+            )
+            self._out.write(
+                f"[debug] http mode: result_source=remote http_result_kind={kind_label}"
+            )
+
         if not context:
             if search_degraded:
                 parts = []

@@ -65,6 +65,7 @@ class CliOutputPort:
         reranked: list = data.get("reranked", [])
         use_rrf = data.get("use_rrf", True)
         rrf_k = data.get("rrf_k", 60)
+        http_result_kind = data.get("http_result_kind")
         print(f"  [debug] MQE queries ({len(queries)}):")
         for i, q in enumerate(queries, 1):
             print(f"    {i}: {q}")
@@ -72,7 +73,19 @@ class CliOutputPort:
         print(
             f"  [debug] search: {len(all_results)} result lists, {total} total candidates"
         )
-        print(f"  [debug] fusion: use_rrf={use_rrf} rrf_k={rrf_k}")
+        rrf_label = (
+            f"use_rrf={use_rrf} rrf_k={rrf_k}"
+            if use_rrf
+            else f"use_rrf={use_rrf} (rank signal disabled)"
+        )
+        print(f"  [debug] fusion: {rrf_label}")
+        if http_result_kind is not None:
+            kind_label = (
+                "success (empty response — no in-process fallback)"
+                if http_result_kind == "empty"
+                else http_result_kind
+            )
+            print(f"  [debug] http_result_kind: {kind_label}")
         print(f"  [debug] RRF merge: {len(merged)} unique candidates (top 5):")
         for c in merged[:5]:
             print(

@@ -136,17 +136,18 @@ in `get_diagnostics()["http_result_kind"]` and in `StageResult.fallback_reason`.
 | `http_result_kind` | `StageResult` status | `fallback_reason` | Condition |
 |---|---|---|---|
 | `"remote_nonempty"` | `"success"` | `None` | HTTP call succeeded; non-empty context returned |
-| `"remote_empty"` | `"success"` | `"http_remote_empty"` | HTTP 200 but context field is `""` — valid empty result |
+| `"remote_empty"` | `"success"` | `None` | HTTP 200 but context field is `""` — valid empty result, not a fallback |
 | `"in_process_fallback"` | `"fallback"` | error string | HTTP error; in-process RAG pipeline ran instead |
 | `None` | — | — | `rag_service_url` not set; HTTP mode not used |
 
-The `"remote_empty"` case is a normal condition (not a failure): the remote service
-responded successfully but found no relevant context. The in-process pipeline does NOT
-run in this case.
+The `"remote_empty"` case is a **success**, not a fallback: the remote service
+responded with HTTP 200 but found no relevant context. The in-process pipeline does NOT
+run in this case. `fallback_reason` is `None` for both `remote_nonempty` and `remote_empty`
+to prevent confusion with actual fallback events.
 
 The classification is visible in:
 - `get_diagnostics()["http_result_kind"]`
-- `/rag search --debug` stage results: `✓ HttpAugment: success — http_remote_empty`
+- `/rag search --debug`: `[debug] http mode: result_source=remote http_result_kind=success (empty response — no in-process fallback)`
 
 #### HTTP RAG request details
 
