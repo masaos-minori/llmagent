@@ -26,10 +26,10 @@ _PYTHON = sys.executable
 
 # (module_path, port, expected_tool_names)
 _MCP_SERVERS: list[tuple[str, int, list[str]]] = [
-    ("mcp.shell.server", 18009, ["shell_run"]),
+    ("mcp.shell.server", 8009, ["shell_run"]),
     (
         "mcp.cicd.server",
-        18012,
+        8012,
         [
             "trigger_workflow",
             "get_workflow_runs",
@@ -39,7 +39,7 @@ _MCP_SERVERS: list[tuple[str, int, list[str]]] = [
     ),
     (
         "mcp.mdq.server",
-        18013,
+        8013,
         [
             "search_docs",
             "get_chunk",
