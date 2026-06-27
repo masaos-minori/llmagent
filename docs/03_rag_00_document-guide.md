@@ -47,8 +47,6 @@ The source files are retained as-is for historical reference.
 | What are `RawHit`, `MergedHit`, `RankedHit`? | `03_rag_04` |
 | What are the configuration parameters? | `03_rag_05` |
 | Are there known bugs or behavior inconsistencies? | `03_rag_90` |
-| What is the `use_rrf` flag behavior? | `03_rag_90` (SPEC-1) |
-| Why does `chunk_index` appear to always be 0? | `03_rag_90` (BUG-3, resolved) |
 
 ---
 
@@ -76,7 +74,7 @@ Legacy source files (`03_spec_rag.md`, `03_rag-ref-*.md`, `03_rag-ingestion-*.md
 | [03_rag_03_query_pipeline.md](03_rag_03_query_pipeline.md) | RagPipeline API; 6-stage details; PipelineContext; SemanticCache; helper classes |
 | [03_rag_04_data_model_and_interfaces.md](03_rag_04_data_model_and_interfaces.md) | File formats; SQLite schema; hit type hierarchy; public interface summary |
 | [03_rag_05_configuration_and_operations.md](03_rag_05_configuration_and_operations.md) | Config parameter tables; run commands; logging; error handling reference |
-| [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) | BUG-1/2/3 (resolved); SPEC-1/2; DOC-1/2; open questions OQ-1–7 |
+| [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) | Active design notes and resolved issue summaries |
 
 ---
 
