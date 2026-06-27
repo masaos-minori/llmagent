@@ -337,7 +337,7 @@ or `orphan_vec_count` is reported as inconsistent. Configurable thresholds (e.g.
 
 ### Fixing inconsistencies
 
-Run `/db fts-rebuild` to resynchronize `chunks_fts` from the `chunks` table.
+Run `/db rebuild-fts` to resynchronize `chunks_fts` from the `chunks` table.
 
 
 <!-- AUTO-GENERATED: gen_rag_reference.py config -->
