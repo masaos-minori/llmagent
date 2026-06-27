@@ -307,11 +307,13 @@ formatting. The fallback reason is recorded in `last_stage_results` and
 | `refiner_returned_empty` | LLM response content is `""` or whitespace-only after `.strip()`. The `if refined:` guard is falsy. Common causes: content-policy refusal, empty LLM generation, prompt format producing no extractable key points. |
 | `refiner_exception: {e}` | `httpx.HTTPStatusError`, `httpx.RequestError`, or `ValueError` raised during the LLM call. The exception message is included in the reason string. Not retried. |
 
+**No retry policy**: Refiner failure is treated as a non-critical degradation — raw chunks are acceptable output. Retrying a failed LLM call adds latency with low expected benefit (transient errors are rare; content-policy refusals will not succeed on retry). Use `use_refiner=false` to disable the refiner entirely when degraded output is not acceptable.
+
 Both reasons are:
 - Visible at INFO level in application logs (`augment: refiner fallback (reason=...)`)
 - Visible in `/rag search` output as `[warn] refiner fallback: <reason>`
-- Visible in `/rag search --debug` stage results as `~ Refiner: fallback — <reason>`
-- Available via `pipeline.get_diagnostics()["fallback_reasons"]`
+- Visible in `/rag search --debug` stage results as `~ Refiner: fallback — <reason>` and summary line `[refiner] fallback: N time(s)`
+- Available via `pipeline.get_diagnostics()["fallback_reasons"]`, `["refiner_fallback_count"]`, `["refiner_exception_count"]`
 
 ---
 

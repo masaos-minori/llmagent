@@ -223,6 +223,22 @@ class _IngestMixin(MixinBase):
 
         if debug:
             self._print_rag_debug(pipeline.last_timings, pipeline.last_stage_results)
+            _debug_diag = pipeline.get_diagnostics()
+            rfc = _debug_diag.get("refiner_fallback_count", 0)
+            if rfc > 0:
+                rec = _debug_diag.get("refiner_exception_count", 0)
+                reasons = [
+                    r["fallback_reason"]
+                    for r in pipeline.last_stage_results
+                    if r.get("stage_name") == "Refiner"
+                    and r.get("status") == "fallback"
+                ]
+                reason_str = ", ".join(str(r) for r in reasons if r)
+                exc_note = f" ({rec} exception(s))" if rec > 0 else ""
+                self._out.write(
+                    f"[refiner] fallback: {rfc} time(s){exc_note}"
+                    + (f" — {reason_str}" if reason_str else "")
+                )
 
         if ctx.diagnostics is not None:
             try:

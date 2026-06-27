@@ -547,6 +547,17 @@ class RagPipeline:
         fetch = self.last_fetch_result
         fusion_mode = "rrf" if self._cfg.use_rrf else "dedup_only"
         http_result_kind = getattr(self, "_http_result_kind", None)
+        refiner_fallbacks = [
+            r
+            for r in stage_results
+            if r.get("stage_name") == "Refiner" and r.get("status") == "fallback"
+        ]
+        refiner_fallback_count = len(refiner_fallbacks)
+        refiner_exception_count = sum(
+            1
+            for r in refiner_fallbacks
+            if str(r.get("fallback_reason", "")).startswith("refiner_exception:")
+        )
         return {
             "stage_results": stage_results,
             "timings": dict(self.last_timings),
@@ -564,6 +575,8 @@ class RagPipeline:
             "fallback_reasons": [
                 r["fallback_reason"] for r in stage_results if r.get("fallback_reason")
             ],
+            "refiner_fallback_count": refiner_fallback_count,
+            "refiner_exception_count": refiner_exception_count,
             "hit_counts": {
                 "merged": len(fetch.hits) if fetch is not None else 0,
             },
