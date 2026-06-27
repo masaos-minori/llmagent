@@ -210,6 +210,14 @@ _COMMANDS: list[CommandDef] = [
         "_cmd_plugin",
         "status  Show plugin load results (loaded, failed, conflicts)",
     ),
+    # ── Prefix async ───────────────────────────────────────────────────────────
+    CommandDef(
+        "/mdq",
+        True,
+        True,
+        "_cmd_mdq",
+        "status | index <path> [--force] | refresh <path> [--force] | search <query> | outline <path> | get <chunk_id> | grep <pattern>",
+    ),
 ]
 
 __all__ = ["_COMMANDS", "CommandDef", "SubcommandSpec"]

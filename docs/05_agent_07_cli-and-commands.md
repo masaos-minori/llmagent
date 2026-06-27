@@ -219,6 +219,20 @@ The workflow resumes from the approval gate; no re-execution of prior steps is n
 | `/memory check-consistency` | None | Compare JSONL, SQLite, FTS5, and vec row counts |
 | `/memory rebuild [--dry-run]` | DELETE + INSERT all memories from JSONL | JSONL is canonical source; clears and re-inserts SQLite |
 
+### MDQ category
+
+| Command | Side effects | Related state |
+|---|---|---|
+| `/mdq status` | None | Display health and index statistics (calls `stats` MCP tool) |
+| `/mdq index <path> [--force]` | Index file/directory | mdq.sqlite updated |
+| `/mdq refresh <path> [--force]` | Incremental refresh for changed files | mdq.sqlite updated |
+| `/mdq search <query> [--limit N] [--path-prefix PATH] [--mode bm25\|grep]` | FTS5 search | None |
+| `/mdq outline <path> [--max-depth N]` | None | Display heading hierarchy |
+| `/mdq get <chunk_id> [--with-neighbors]` | None | Display chunk content |
+| `/mdq grep <pattern> [--path PATH] [--max-chars N] [--context-before N] [--context-after N]` | Regex search over chunks | None |
+
+> **Note:** All /mdq commands call mdq-mcp MCP tools (port 8013) via the agent's tool executor. MDQ uses `mdq.sqlite` (separate from `rag.sqlite`). See [MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) for guidance on when to use MDQ vs RAG.
+
 ---
 
 ## Hot-Reload Scope (`/reload`)

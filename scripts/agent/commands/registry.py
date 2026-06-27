@@ -17,6 +17,7 @@ Mixin split:
   cmd_debug.py    — _DebugMixin:    /debug
   cmd_ingest.py   — _IngestMixin:   /ingest, /export, /compact
   cmd_memory.py   — _MemoryMixin:   /memory
+  cmd_mdq.py      — _MdqMixin:      /mdq commands
 """
 
 import asyncio
@@ -37,6 +38,7 @@ from agent.commands.cmd_plugins import _PluginsMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_tooling import _ToolingMixin
 from agent.commands.cmd_workflow import _WorkflowMixin
+from agent.commands.cmd_mdq import _MdqMixin
 from agent.commands.command_defs import CommandDef
 from agent.commands.output_port import CliOutputPort, OutputPort
 from agent.context import AgentContext
@@ -202,12 +204,20 @@ _COMMANDS: list[CommandDef] = [
         "_cmd_approve",
         "[reason]  Approve the pending workflow task",
     ),
-    CommandDef(
-        "/reject",
+  CommandDef(
+        "/plugin",
         True,
         False,
-        "_cmd_reject",
-        "[reason]  Reject the pending workflow task",
+        "_cmd_plugin",
+        "status  Show plugin load results (loaded, failed, conflicts)",
+    ),
+    # ── Prefix async ───────────────────────────────────────────────────────────
+    CommandDef(
+        "/mdq",
+        True,
+        True,
+        "_cmd_mdq",
+        "status | index <path> [--force] | refresh <path> [--force] | search <query> | outline <path> | get <chunk_id> | grep <pattern>",
     ),
 ]
 
@@ -226,6 +236,7 @@ class CommandRegistry(
     _MemoryMixin,
     _WorkflowMixin,
     _PluginsMixin,
+    _MdqMixin,
 ):
     """Slash-command dispatcher for AgentREPL.
 
