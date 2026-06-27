@@ -62,7 +62,7 @@
 
 | Item | Safe interpretation | Recommended action |
 |---|---|---|
-| Event Bus has no authentication; binding to 0.0.0.0 exposes API publicly | Need startup guard to detect public bind and warn/fail-fast | Add `allow_public_bind` config field with fail-fast on public bind |
+| Event Bus has no authentication; binding to 0.0.0.0 exposes API publicly | Need startup guard to detect public bind and warn/fail-fast | Resolved — added `host` and `allow_public_bind` fields to EventBusConfig; validated in `__post_init__`; fail-fast on public bind unless explicit override; app starts uvicorn programmatically using config values |
 
 ### Deprecated Config Fields
 
@@ -75,6 +75,7 @@
 | Item | Resolution |
 |---|---|
 | `/health` HTTP status on degraded state (200 vs 503) | **Resolved** — now returns HTTP 503 for non-ok states (fail-closed) |
+| Startup safety guard for public bind | **Resolved** — added `host` and `allow_public_bind` fields to EventBusConfig; validated in `__post_init__`; fail-fast on public bind unless explicit override |
 | SQLite/JSONL dual read path | **Resolved** — SQLite-only reads; JSONL is write-only |
 | Consumer ID collision possibility | **Resolved** — hash-based stable IDs with collision detection |
 | `/subscribe` polling vs push documentation mismatch | **Resolved** — removed stale "polling-based internally (not push)" description; confirmed hybrid model (replay from SQLite + live EventBroker push) |

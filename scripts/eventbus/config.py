@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import os
 import tomllib
 from dataclasses import dataclass
@@ -17,6 +18,16 @@ def get_schema_path() -> Path:
     return Path(os.environ.get("EVENTBUS_SCHEMA_PATH", _DEFAULT_SCHEMA_PATH))
 
 
+def _is_public_host(host: str) -> bool:
+    """Return True if host is a public/wildcard address (0.0.0.0, ::)."""
+    try:
+        addr = ipaddress.ip_address(host)
+        return addr.is_unspecified or addr == ipaddress.IPv4Address("0.0.0.0") or addr == ipaddress.IPv6Address("::")
+    except ValueError:
+        # If it's not a valid IP address, treat as public (e.g., hostname that resolves to 0.0.0.0)
+        return True
+
+
 @dataclass(frozen=True)
 class EventBusConfig:
     port: int
@@ -25,6 +36,8 @@ class EventBusConfig:
     offsets_dir: str
     deadletter_dir: str
     max_retry: int
+    host: str = "127.0.0.1"
+    allow_public_bind: bool = False
     poll_interval_ms: int = (
         500  # deprecated: no longer used; push-mode delivery via EventBroker
     )
@@ -45,6 +58,11 @@ class EventBusConfig:
             raise ValueError(
                 f"offset_checkpoint_interval must be >= 1, got {self.offset_checkpoint_interval}"
             )
+        if _is_public_host(self.host) and not self.allow_public_bind:
+            raise ValueError(
+                f"Event Bus bound to public address {self.host} without allow_public_bind=true. "
+                "The API has no authentication — this is a security risk."
+            )
 
 
 def load_config(path: Path | None = None) -> EventBusConfig:
@@ -58,6 +76,8 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         offsets_dir=data["offsets_dir"],
         deadletter_dir=data["deadletter_dir"],
         max_retry=data["max_retry"],
+        host=data.get("host", "127.0.0.1"),
+        allow_public_bind=data.get("allow_public_bind", False),
         poll_interval_ms=data.get("poll_interval_ms", 500),
         offset_checkpoint_interval=data.get("offset_checkpoint_interval", 10),
     )

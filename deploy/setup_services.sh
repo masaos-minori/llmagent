@@ -31,12 +31,7 @@ done
 # ── Event Bus (port 8015) ──────────────────────────────────────────────────────
 echo "--- Event Bus 起動 ---"
 PYTHONPATH=/opt/llm/scripts \
-    uvicorn eventbus.app:app \
-    --host 127.0.0.1 \
-    --port 8015 \
-    --workers 1 \
-    --log-level info \
-    --access-log \
+    python -m eventbus.app \
     >> /opt/llm/logs/eventbus.log 2>&1 &
 echo "  Event Bus PID: $!"
 echo "  Health: $(sleep 2 && curl -s http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"

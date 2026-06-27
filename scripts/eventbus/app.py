@@ -490,3 +490,22 @@ def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
         "producer": row["producer"],
         "published_at": row["published_at"],
     }
+
+
+def _main() -> None:
+    """Start the Event Bus with config-based host binding."""
+    import uvicorn  # noqa: PLC0415
+
+    cfg = load_config(get_config_path())
+    logger.info("eventbus starting on port=%d host=%s", cfg.port, cfg.host)
+    uvicorn.run(
+        "eventbus.app:app",
+        host=cfg.host,
+        port=cfg.port,
+        log_level="info",
+        access_log=True,
+    )
+
+
+if __name__ == "__main__":
+    _main()

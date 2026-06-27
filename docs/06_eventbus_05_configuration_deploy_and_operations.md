@@ -32,19 +32,21 @@ The EventBus server should bind to `127.0.0.1` (loopback) in production, not
 `0.0.0.0`. Binding to `0.0.0.0` exposes the EventBus API to the local network,
 which is a security risk (no authentication layer on the EventBus HTTP endpoints).
 
-Host binding is controlled via uvicorn CLI arguments (`--host`), NOT via TOML config.
-The TOML config file does not include a `host` field — it is loaded by uvicorn directly.
+Host binding is controlled via the `host` field in TOML config. The startup guard
+in `__post_init__` validates the bind address at config load time — if the host
+is a public/wildcard address (`0.0.0.0`, `::`) and `allow_public_bind` is not set to
+`true`, startup fails with a `ValueError`.
 
 If remote access is required, use a reverse proxy with authentication.
 
 ### Start command
 
 ```bash
-EVENTBUS_CONFIG_PATH=/opt/llm/config/eventbus.toml uvicorn eventbus.app:app --host 127.0.0.1 --port 8010
+EVENTBUS_CONFIG_PATH=/opt/llm/config/eventbus.toml python -m eventbus.app
 ```
 
-The `--host` argument controls the bind address; `--port` sets the port.
-uvicorn logs the effective bind address at startup (e.g., "INFO: Uvicorn running on http://127.0.0.1:8010").
+The app starts uvicorn programmatically using the config's `host` and `port` values.
+Alternatively: `uvicorn eventbus.app:app --host 127.0.0.1 --port 8010` (CLI overrides).
 
 ## Health Endpoint Semantics
 
