@@ -267,7 +267,6 @@ When result exceeds 512 KB:
 | file-write-mcp | `dependencies.filesystem` (`"/workspace not found"`/`"check failed"`) |
 | file-delete-mcp | `dependencies.filesystem` (`"/workspace not found"`/`"check failed"`) |
 | rag-pipeline-mcp | `dependencies.embed_url` (`"not configured"`/`"check failed"`) |
-| sqlite-mcp | `dependencies.<db_name>` (`"file not found: <path>"`/`"check failed"`) per registered DB |
 | git-mcp | `dependencies.git` (`"git not found in PATH"`/`"check failed"`) |
 
 ---

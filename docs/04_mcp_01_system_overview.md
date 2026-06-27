@@ -36,7 +36,6 @@ Per-server configuration, tools, security settings, and operational notes → [0
 | file-delete-mcp | 8008 | HTTP | persistent | 2 | Local file deletion |
 | shell-mcp | 8009 | HTTP | persistent | 1 | Sandboxed shell execution |
 | rag-pipeline-mcp | 8010 | HTTP | persistent | 2 | RAG retrieval pipeline |
-| sqlite-mcp | 8011 | HTTP | persistent | 1 | Read-only SQLite queries |
 | cicd-mcp | 8012 | HTTP | persistent | 4 | GitHub Actions CI/CD |
 | mdq-mcp | 8013 | HTTP | persistent | 9 | Markdown context compression |
 | git-mcp | 8014 | HTTP | persistent | 10 | Local git operations |

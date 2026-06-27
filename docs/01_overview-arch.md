@@ -41,7 +41,6 @@
 | `file-delete-mcp` | 8008 | — | ファイル削除 MCP サーバ |
 | `shell-mcp` | 8009 | — | シェルコマンド実行 MCP サーバ |
 | `rag-pipeline-mcp` | 8010 | — | RAG パイプライン MCP サーバ |
-| `sqlite-mcp` | 8011 | — | SQLite 読み取り専用クエリ MCP サーバ |
 | `cicd-mcp` | 8012 | — | GitHub Actions CI/CD MCP サーバ |
 | `mdq-mcp` | 8013 | — | Markdown Context Compression Engine MCP サーバ |
 | `git-mcp` | 8014 | — | ローカル git 操作 MCP サーバ |

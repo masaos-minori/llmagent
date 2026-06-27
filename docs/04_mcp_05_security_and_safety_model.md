@@ -18,7 +18,6 @@ fail-open vs fail-closed policies, sandbox, output limits, risk tiers, and AI sa
 | file-delete-mcp | `allowed_dirs` | `["/opt/llm"]` — path jail |
 | github-mcp | `allowed_repos` + `allowed_repos_mode` | fail-closed (empty = deny all writes) |
 | shell-mcp | `command_allowlist` + `shell_cwd_allowed_dirs` | deny all (both empty by default) |
-| sqlite-mcp | `db_allowlist` | fail-closed (empty = deny all) |
 | cicd-mcp | `repo_allowlist` + `workflow_allowlist` | both: fail-closed |
 | git-mcp | `allowed_repo_paths` + `read_only` | fail-closed (empty paths = deny all); read_only=true |
 
@@ -200,7 +199,6 @@ Stdio servers are always exempt from this check regardless of profile.
 | shell max timeout | 300 sec (config) | shell-mcp |
 | git_show max chars | 8000 chars | git-mcp |
 | cicd log limit | 256 KB / 5 jobs | cicd-mcp |
-| SQLite max rows | 100 (config) | sqlite-mcp |
 | file max read | 1 MB (config) | file-read-mcp |
 | file max write | 1 MB (config) | file-write-mcp |
 | GitHub per_page | 100 (config) | github-mcp |
@@ -245,7 +243,6 @@ Verify: `firejail --version`
 | `allowed_repos` (github-mcp, fail_closed mode) | Fail-closed | All writes denied |
 | `allowed_repos` (github-mcp, fail_open mode) | Fail-open | All repos allowed |
 | `allowed_repo_paths` (git-mcp) | Fail-closed | All access denied |
-| `db_allowlist` (sqlite-mcp) | Fail-closed | All DB access denied |
 | `repo_allowlist` (cicd-mcp) | Fail-closed | All repos denied |
 | `workflow_allowlist` (cicd-mcp) | **Fail-closed** | All workflows denied |
 | `command_allowlist` (shell-mcp) | Fail-closed | All commands denied |
@@ -261,7 +258,6 @@ security posture summary. It checks the following settings by loading each serve
 |---|---|---|
 | `shell_sandbox_backend` | `shell_mcp_server.toml` | RuntimeError when `"firejail"` + binary missing; WARNING when not `"firejail"` or `"none"`; RuntimeError in production when `"none"` |
 | `command_allowlist` | `shell_mcp_server.toml` | DENY-ALL warning when empty (fail-closed) |
-| `db_allowlist` | `sqlite_mcp_server.toml` | DENY-ALL warning when empty (fail-closed) |
 | `allowed_repo_paths` | `git_mcp_server.toml` | DENY-ALL warning when empty (fail-closed) |
 | `workflow_allowlist` | `cicd_mcp_server.toml` | DENY-ALL warning when empty (fail-closed) |
 
@@ -493,7 +489,6 @@ in the allowed-paths table above. Changes to `ALLOWED` require a design review c
 | Server | Setting | Default | Behavior when empty |
 |---|---|---|---|
 | shell-mcp | `command_allowlist` | `[]` | **Fail-closed** — all shell commands denied |
-| sqlite-mcp | `db_allowlist` | `[]` | **Fail-closed** — all DB queries denied |
 | git-mcp | `allowed_repo_paths` | `[]` | **Fail-closed** — all repo access denied |
 | github-mcp | `allowed_repos` | `[]` | **Fail-closed** — all GitHub write ops denied |
 | cicd-mcp | `workflow_allowlist` | `[]` | **Fail-closed** — all workflow triggers denied |
@@ -525,7 +520,6 @@ certain tool categories entirely (e.g., no shell commands, no DB queries).
 | Setting | Server | Effect when empty |
 |---------|--------|-------------------|
 | `shell.command_allowlist` | shell-mcp | All shell commands denied |
-| `sqlite.db_allowlist` | sqlite-mcp | All DB queries denied |
 | `git.allowed_repo_paths` | git-mcp | All git operations denied |
 | `github.allowed_repos` | github-mcp | All repo access denied |
 
@@ -579,5 +573,4 @@ Add the allowed values back to the relevant TOML and set
 | `shell_sandbox_backend` | `"none"` | `"none"` = no OS isolation | Set `"firejail"` in production |
 | `workflow_allowlist` (cicd-mcp) | `[]` | `[]` = all triggers denied (fail-closed) | Explicitly list permitted workflows |
 | `command_allowlist` (shell-mcp) | `[]` | `[]` = all commands denied (fail-closed) | List allowed commands |
-| `db_allowlist` (sqlite-mcp) | `[]` | `[]` = all queries denied (fail-closed) | List allowed DB paths |
 | `mcp_watchdog_interval` | `0` (local) / `30.0` (prod) | `0` = no auto-restart | Use `30.0` in production |

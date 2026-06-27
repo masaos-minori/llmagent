@@ -34,7 +34,6 @@
   │   ├─ file_delete_mcp_server.toml          # ファイル削除 MCP サーバ設定 (許可ディレクトリ)
   │   ├─ github_mcp_server.toml               # GitHub MCP サーバ設定 (取得件数上限)
   │   ├─ shell_mcp_server.toml                # シェル MCP サーバ設定 (許可コマンド・タイムアウト)
-  │   ├─ sqlite_mcp_server.toml               # SQLite MCP サーバ設定 (db_allowlist / max_rows)
   │   ├─ cicd_mcp_server.toml                 # CI/CD MCP サーバ設定 (repo_allowlist / workflow_allowlist)
   │   ├─ mdq_mcp_server.toml                  # MDQ MCP サーバ設定 (:8013)
   │   ├─ mcp_servers.toml                     # MCP サーバ一覧設定 (transport / url / tool_names)

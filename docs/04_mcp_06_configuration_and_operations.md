@@ -32,7 +32,6 @@ health probes, audit log reading, and the new-server addition checklist.
 | github-mcp | `config/github_mcp_server.toml` |
 | shell-mcp | `config/shell_mcp_server.toml` |
 | rag-pipeline-mcp | `config/rag_pipeline_mcp_server.toml` |
-| sqlite-mcp | `config/sqlite_mcp_server.toml` |
 | cicd-mcp | `config/cicd_mcp_server.toml` |
 | mdq-mcp | `config/mdq_mcp_server.toml` |
 | git-mcp | `config/git_mcp_server.toml` |
@@ -86,7 +85,6 @@ health probes, audit log reading, and the new-server addition checklist.
 | github max_per_page | 100 | `config/github_mcp_server.toml` |
 | shell max_timeout_sec | 300 sec | `config/shell_mcp_server.toml` |
 | shell sandbox_backend | `"none"` (local) / `"firejail"` (prod) | `config/shell_mcp_server.toml` |
-| sqlite max_rows | 100 | `config/sqlite_mcp_server.toml` |
 | git max_log_entries | 50 | `config/git_mcp_server.toml` |
 
 ---
@@ -129,7 +127,6 @@ curl -s http://127.0.0.1:8007/health | jq   # file-write: dependencies.filesyste
 curl -s http://127.0.0.1:8008/health | jq   # file-delete: dependencies.filesystem
 curl -s http://127.0.0.1:8009/health | jq   # shell: dependencies.shell, details.sandbox_backend
 curl -s http://127.0.0.1:8010/health | jq   # rag-pipeline: dependencies.embed_url
-curl -s http://127.0.0.1:8011/health | jq   # sqlite: dependencies.<db_name> per registered DB
 curl -s http://127.0.0.1:8012/health | jq   # cicd: dependencies.github_token
 curl -s http://127.0.0.1:8013/health | jq   # mdq: details.service
 curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
@@ -382,7 +379,6 @@ For correlation across agent, transport, and server logs, see §End-to-End Tool 
 | `command_allowlist` = `[]` | All shell commands denied |
 | `repo_allowlist` = `[]` | All cicd-mcp access denied |
 | `allowed_repo_paths` = `[]` | All git-mcp access denied |
-| `db_allowlist` = `[]` | sqlite-mcp denies everything |
 | `read_only = true` (git-mcp) | git writes blocked even if `allowed_repo_paths` is set |
 | `tool_definitions_strict = true` | Agent startup aborts on tool name mismatch |
 | `mcp_watchdog_interval = 0` | No auto-restart of failed subprocess servers (LOCAL profile default; PRODUCTION default is 30.0) |
@@ -428,7 +424,7 @@ servers and attempts to restart them when they fail. It runs as a background asy
 When `mcp_watchdog_interval = 0`:
 - The watchdog loop still starts but logs a warning: `Watchdog: disabled (interval=0) — failed servers will not be auto-restarted`
 - Crashed HTTP servers will remain unreachable until the agent process is restarted manually
-- Crashed subprocess servers (shell-mcp, sqlite-mcp) will not be restarted automatically
+- Crashed subprocess servers (shell-mcp) will not be restarted automatically
 
 ### Verifying watchdog state
 

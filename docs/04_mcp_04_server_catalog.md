@@ -252,39 +252,6 @@ All tools do not require config (`requires_config: false`).
 
 ---
 
-## sqlite-mcp (port 8011)
-
-**Purpose:** Read-only SELECT queries against registered SQLite databases.
-**Startup mode:** persistent (HTTP)
-**Config:** `config/sqlite_mcp_server.toml`
-
-**Tools (1):** `query_sqlite`
-
-| Tool | Input | `requires_config` |
-|---|---|---|
-| `query_sqlite` | `{db: str, sql: str}` — `db` must be in `db_allowlist`; `sql` must be a single SELECT | yes |
-
-**Security (4 layers):**
-1. `db_allowlist` — fail-closed; empty list → deny all
-2. SQL comment stripping (`--`, `/* */`)
-3. Multi-statement rejection (`;` count check)
-4. First keyword must be `SELECT`
-5. `PRAGMA query_only=ON` on every connection
-
-**Config:**
-
-| Key | Default |
-|---|---|
-| `db_allowlist` | `[]` |
-| `[db_paths]` | `{}` |
-| `max_rows` | `100` |
-| `auth_token` | `""` |
-
-**Health:** `{"status":"ok","ready":bool,"dependencies":{"<db_name>":"file not found: <path>"}/"check failed"},"details":{}}` per registered DB
-**Databases:** `rag` → `/opt/llm/db/rag.sqlite`; `session` → `/opt/llm/db/session.sqlite`
-
----
-
 ## cicd-mcp (port 8012)
 
 **Purpose:** GitHub Actions workflow management.
