@@ -74,6 +74,7 @@ async def lifespan(app: FastAPI) -> Any:
     Path(app.state.config.storage_dir).mkdir(parents=True, exist_ok=True)
     app.state.broker = EventBroker()
     app.state.dlq_task = asyncio.create_task(_dlq_loop(app))
+    logger.info("eventbus starting on port=%d", app.state.config.port)
     yield
     if app.state.dlq_task:
         app.state.dlq_task.cancel()

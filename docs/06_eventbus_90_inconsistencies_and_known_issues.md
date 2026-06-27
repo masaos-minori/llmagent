@@ -44,7 +44,7 @@
 
 | Item | Safe interpretation | Recommended action |
 |---|---|---|
-| `host` field not loaded by EventBusConfig; controlled via uvicorn CLI --host | TOML config example with `host = "127.0.0.1"` is dead config | Remove from TOML example; document host binding as deployment configuration |
+| `host` field not loaded by EventBusConfig; controlled via uvicorn CLI --host | TOML config example with `host = "127.0.0.1"` is dead config | Resolved — removed from TOML example; documented host binding as deployment configuration; added startup log for effective bind address |
 
 ### SQLite Thread-Safety Confirmation
 
