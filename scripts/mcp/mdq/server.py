@@ -26,7 +26,13 @@ from mcp.mdq.models import (
     GetChunkRequest,
     GrepDocsRequest,
     IndexPathsRequest,
+    MdqAuthorizationError,
+    MdqConsistencyError,
+    MdqDatabaseError,
+    MdqNotFoundError,
     MdqServiceError,
+    MdqValidationError,
+    MdqIndexNotReadyError,
     OutlineRequest,
     RefreshIndexRequest,
     SearchDocsRequest,
@@ -48,8 +54,122 @@ app = FastAPI(
 _service: MdqService = MdqService()
 
 
+@app.exception_handler(MdqValidationError)
+async def _on_mdq_validation_error(request: Request, exc: MdqValidationError) -> JSONResponse:
+    logger.info("MDQ validation error: %s", exc)
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action="call_tool",
+        target="",
+        outcome="error",
+        detail=f"error_kind=validation_error",
+    )
+    return JSONResponse({"detail": str(exc)}, status_code=400)
+
+
+@app.exception_handler(MdqAuthorizationError)
+async def _on_mdq_authorization_error(request: Request, exc: MdqAuthorizationError) -> JSONResponse:
+    logger.info("MDQ authorization error: %s", exc)
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action="call_tool",
+        target="",
+        outcome="error",
+        detail=f"error_kind=authorization_error",
+    )
+    return JSONResponse({"detail": str(exc)}, status_code=403)
+
+
+@app.exception_handler(MdqNotFoundError)
+async def _on_mdq_not_found_error(request: Request, exc: MdqNotFoundError) -> JSONResponse:
+    logger.info("MDQ not found error: %s", exc)
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action="call_tool",
+        target="",
+        outcome="error",
+        detail=f"error_kind=not_found_error",
+    )
+    return JSONResponse({"detail": str(exc)}, status_code=404)
+
+
+@app.exception_handler(MdqIndexNotReadyError)
+async def _on_mdq_index_not_ready_error(request: Request, exc: MdqIndexNotReadyError) -> JSONResponse:
+    logger.info("MDQ index not ready error: %s", exc)
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action="call_tool",
+        target="",
+        outcome="error",
+        detail=f"error_kind=index_not_ready_error",
+    )
+    return JSONResponse({"detail": str(exc)}, status_code=503)
+
+
+@app.exception_handler(MdqDatabaseError)
+async def _on_mdq_database_error(request: Request, exc: MdqDatabaseError) -> JSONResponse:
+    logger.info("MDQ database error: %s", exc)
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action="call_tool",
+        target="",
+        outcome="error",
+        detail=f"error_kind=database_error",
+    )
+    return JSONResponse({"detail": str(exc)}, status_code=503)
+
+
+@app.exception_handler(MdqConsistencyError)
+async def _on_mdq_consistency_error(request: Request, exc: MdqConsistencyError) -> JSONResponse:
+    logger.info("MDQ consistency error: %s", exc)
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action="call_tool",
+        target="",
+        outcome="error",
+        detail=f"error_kind=consistency_error",
+    )
+    return JSONResponse({"detail": str(exc)}, status_code=500)
+
+
 @app.exception_handler(MdqServiceError)
-async def _on_mdq_service_error(_req: Any, exc: MdqServiceError) -> JSONResponse:
+async def _on_mdq_service_error(request: Request, exc: MdqServiceError) -> JSONResponse:
+    logger.info("MDQ service error (fallback): %s", exc)
+    session_id = request.headers.get("x-session-id", "")
+    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action="call_tool",
+        target="",
+        outcome="error",
+        detail=f"error_kind=service_error",
+    )
     return JSONResponse({"detail": str(exc)}, status_code=500)
 
 
@@ -113,6 +233,30 @@ async def list_tools() -> dict[str, Any]:
     }
 
 
+def _audit_target(tool_name: str, args: dict[str, Any]) -> str:
+    """Extract audit target based on tool name."""
+    if tool_name == "search_docs":
+        query = args.get("query", "")
+        path = args.get("path_prefix", "")
+        return f"{query}{' + ' + path if path else ''}"
+    elif tool_name == "get_chunk":
+        return args.get("chunk_id", "")[:80]
+    elif tool_name == "outline":
+        return args.get("path", "")[:80]
+    elif tool_name in ("index_paths", "refresh_index"):
+        paths = args.get("paths", [])
+        return paths[0][:80] if paths else ""
+    elif tool_name == "grep_docs":
+        return args.get("pattern", "")[:80]
+    elif tool_name == "stats":
+        return "mdq-mcp"
+    elif tool_name == "fts_consistency_check":
+        return "mdq-mcp"
+    elif tool_name == "fts_rebuild":
+        return "mdq-mcp"
+    return ""
+
+
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     t0 = time.perf_counter()
@@ -123,13 +267,30 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     r = await _dispatch_mdq_tool(req.name, req.args)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
+
+    # Tool-aware target extraction
+    target = _audit_target(req.name, req.args)
+    detail_parts: list[str] = []
+    if not r.is_error:
+        detail_parts.append(f"duration_ms={ms:.0f}")
+        if req.name == "search_docs":
+            detail_parts.append(f"result_count={len(r.output.split(chr(10))) if r.output else 0}")
+        elif req.name == "grep_docs":
+            detail_parts.append(f"match_count={r.output.count(chr(45)+chr(45)+chr(45)) if r.output else 0}")
+        elif req.name in ("index_paths", "refresh_index"):
+            detail_parts.append("indexed")
+    else:
+        detail_parts.append(f"duration_ms={ms:.0f}")
+        detail_parts.append("error_kind=dispatch_error")
+
     _audit_log(
         logger,
         session_id=session_id,
         request_id=request_id,
         action=req.name,
-        target=str(req.args.get("query", req.args.get("path", "")))[:80],
+        target=target[:80],
         outcome="error" if r.is_error else "ok",
+        detail=", ".join(detail_parts),
     )
     return CallToolResponse(result=r.output, is_error=r.is_error)
 

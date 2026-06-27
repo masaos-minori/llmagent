@@ -319,13 +319,33 @@ All tools do not require config (`requires_config: false`).
 **Startup mode:** persistent (HTTP)
 **Config:** `config/mdq_mcp_server.toml`
 
-**Tools (7):** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`
+**Tools (9):** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`, `fts_consistency_check`, `fts_rebuild`
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{},"details":{"service":"mdq-mcp"}}`
 
 **DB path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)
 **Log:** `/opt/llm/logs/mdq-mcp.log`
 **When to use:** Markdown document indexing and context compression. Use `rag-pipeline-mcp` for production RAG search.
+
+### Markdown Compatibility Scope
+
+**Supported features:**
+- ATX headings (## Heading) — all levels 1-6
+- Fenced code blocks (```, ~~~) — # inside fences are not headings
+- Content before first heading (as <root> section)
+- Repeated heading names (distinct chunk identities via ordinal)
+- Nested heading hierarchy (heading_path includes ancestors)
+- Optional YAML frontmatter (parsed and stripped)
+- Malformed headings (ignored)
+
+**Unsupported features:**
+- Setext-style headings (===, --- underlines)
+- Inline tags (<del>, <ins>, etc.) — not parsed
+- HTML blocks — not parsed, treated as plain text
+- MDX — not supported
+- GFM tables — not parsed (but not required for section extraction)
+
+**Fallback behavior:** Unsupported syntax may cause heading misclassification. For example, Setext-style headings are treated as plain text with no heading level, and their content is included in the preceding section rather than creating a new one.
 
 ---
 

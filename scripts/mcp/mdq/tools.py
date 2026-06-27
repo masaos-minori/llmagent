@@ -31,7 +31,7 @@ _MCP_TOOLS: list[MCPToolSchema] = [
                 },
                 "mode": {
                     "type": "string",
-                    "description": "Search mode: bm25/grep/hybrid",
+                    "description": "Search mode: bm25/grep (hybrid is not yet supported)",
                 },
                 "path_prefix": {
                     "type": "string",
@@ -61,7 +61,7 @@ _MCP_TOOLS: list[MCPToolSchema] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "chunk_id": {"type": "integer", "description": "Chunk ID"},
+                "chunk_id": {"type": "string", "description": "Chunk ID"},
                 "with_neighbors": {
                     "type": "boolean",
                     "description": "Include adjacent headings",
@@ -112,6 +112,10 @@ _MCP_TOOLS: list[MCPToolSchema] = [
             "type": "object",
             "properties": {
                 "paths": {"type": "array", "description": "Paths to refresh"},
+                "force": {
+                    "type": "boolean",
+                    "description": "Force full re-index regardless of changes (default: false)",
+                },
             },
             "required": ["paths"],
         },
@@ -135,12 +139,36 @@ _MCP_TOOLS: list[MCPToolSchema] = [
                 "paths": {"type": "array", "description": "Optional path filter"},
                 "max_grep_matches": {
                     "type": "integer",
-                    "description": "Max grep matches (default: use config value)",
+                    "description": "Max grep matches (default: 200)",
+                },
+                "max_chars_per_match": {
+                    "type": "integer",
+                    "description": "Max chars per match snippet (default: 500)",
+                },
+                "context_before": {
+                    "type": "integer",
+                    "description": "Context lines before match (default: 2)",
+                },
+                "context_after": {
+                    "type": "integer",
+                    "description": "Context lines after match (default: 2)",
                 },
             },
             "required": ["pattern"],
         },
         "status": "production",
+    },
+    {
+        "name": "fts_consistency_check",
+        "description": "Check FTS5 index consistency between chunks and chunks_fts tables. Admin operation.",
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
+        "status": "admin",
+    },
+    {
+        "name": "fts_rebuild",
+        "description": "Rebuild the FTS5 index. Admin operation — may take time on large datasets.",
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
+        "status": "admin",
     },
 ]
 

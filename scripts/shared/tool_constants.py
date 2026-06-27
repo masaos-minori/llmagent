@@ -69,6 +69,8 @@ MDQ_TOOLS: frozenset[str] = frozenset(
         "refresh_index",
         "stats",
         "grep_docs",
+        "fts_consistency_check",
+        "fts_rebuild",
     },
 )
 

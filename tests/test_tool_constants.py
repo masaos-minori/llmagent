@@ -76,9 +76,11 @@ class TestToolConstants:
             "refresh_index",
             "stats",
             "grep_docs",
+            "fts_consistency_check",
+            "fts_rebuild",
         }
         assert MDQ_TOOLS == expected
-        assert len(MDQ_TOOLS) == 7
+        assert len(MDQ_TOOLS) == 9
 
     def test_git_tools(self) -> None:
         expected = {
@@ -117,7 +119,7 @@ class TestToolConstants:
             all_tools.update(tools_set)
 
         # Total should be 38 tools (sum of individual sets)
-        assert len(all_tools) == 38
+        assert len(all_tools) == 40
 
     def test_all_tools_are_strings(self) -> None:
         """Ensure all items in tool sets are strings."""

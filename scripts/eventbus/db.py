@@ -197,7 +197,13 @@ def count_dlq(conn: sqlite3.Connection) -> int:
 
 
 def requeue_event(conn: sqlite3.Connection, event_id: str) -> bool:
-    """Increment dlq_requeue_count and clear dlq_at. Returns True if the event was found."""
+    """Increment dlq_requeue_count and clear dlq_at. Returns True if the event was found in DLQ."""
+    row = conn.execute(
+        "SELECT 1 FROM events WHERE event_id = ? AND dlq_at IS NOT NULL",
+        (event_id,),
+    ).fetchone()
+    if not row:
+        return False
     cur = conn.execute(
         "UPDATE events SET dlq_requeue_count = dlq_requeue_count + 1, dlq_at = NULL WHERE event_id = ?",
         (event_id,),

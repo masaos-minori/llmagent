@@ -42,3 +42,13 @@ audit_log_path = "/opt/llm/logs/mdq_audit.log"
 
 # Concurrency limit for mdq server (1 = serialize all operations)
 concurrency_limit = 1
+
+# Summary cache for large chunks (reduces token usage by returning summaries)
+summary_cache_enabled = false
+summary_threshold = 5000
+summary_model = "default"
+
+# Embedding/hybrid search mode (disabled by default — FTS5-only is production baseline)
+use_embedding = false
+vector_table = "chunks_vec"
+embedding_model = "default"

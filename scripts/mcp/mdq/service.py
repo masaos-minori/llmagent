@@ -14,18 +14,26 @@ from typing import TYPE_CHECKING
 
 from mcp.mdq.auth import authorize_path
 from mcp.mdq.indexer import index_paths as _index_paths
+from mcp.mdq.indexer import refresh_paths as _refresh_paths
 from mcp.mdq.models import (
+    FtsConsistencyCheckRequest,
+    FtsRebuildRequest,
     GetChunkRequest,
+    GrepDocMatch,
     GrepDocsRequest,
     IndexPathsRequest,
+    MdqAuthorizationError,
+    MdqConsistencyError,
+    MdqDatabaseError,
+    MdqNotFoundError,
     MdqServiceError,
+    MdqValidationError,
+    OutlineHeading,
     OutlineRequest,
-    ParseMarkdownRequest,
     RefreshIndexRequest,
     SearchDocsRequest,
     StatsRequest,
 )
-from mcp.mdq.parser import parse_markdown
 from mcp.mdq.search import search_docs
 
 if TYPE_CHECKING:
@@ -66,13 +74,29 @@ class MdqService:
         self.audit_log_path: str | None = mdq_cfg.get(
             "audit_log_path", "/opt/llm/logs/mdq_audit.log"
         )
+        self.max_grep_matches: int = mdq_cfg.get("max_grep_matches", 200)
+        self.max_chars_per_match: int = mdq_cfg.get("max_chars_per_match", 500)
+        self.context_before: int = mdq_cfg.get("context_before", 2)
+        self.context_after: int = mdq_cfg.get("context_after", 2)
 
         # Result size limits
         self.max_results_limit: int = mdq_cfg.get("max_results_limit", 100)
         self.max_chars_per_chunk: int = mdq_cfg.get("max_chars_per_chunk", 10000)
         self.max_total_result_chars: int = mdq_cfg.get("max_total_result_chars", 100000)
         self.max_outline_items: int = mdq_cfg.get("max_outline_items", 500)
+        self.max_outline_depth: int = mdq_cfg.get("max_outline_depth", 6)
+        self.sqlite_busy_timeout: int = mdq_cfg.get("sqlite_busy_timeout", 5000)
         self.max_grep_matches: int = mdq_cfg.get("max_grep_matches", 200)
+
+        # Summary cache for large chunks
+        self.summary_cache_enabled: bool = mdq_cfg.get("summary_cache_enabled", False)
+        self.summary_threshold: int = mdq_cfg.get("summary_threshold", 5000)
+        self.summary_model: str = mdq_cfg.get("summary_model", "default")
+
+        # Embedding/hybrid search mode
+        self.use_embedding: bool = mdq_cfg.get("use_embedding", False)
+        self.vector_table: str = mdq_cfg.get("vector_table", "chunks_vec")
+        self.embedding_model: str = mdq_cfg.get("embedding_model", "default")
 
         # Validate required fields
         if not isinstance(self._allowed_dirs, list):
@@ -120,7 +144,8 @@ class MdqService:
             """)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS chunks (
-                    chunk_id TEXT PRIMARY KEY,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    chunk_id TEXT UNIQUE NOT NULL,
                     doc_id TEXT NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
                     source_path TEXT NOT NULL,
                     heading TEXT NOT NULL,
@@ -153,21 +178,21 @@ class MdqService:
                 CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks
                 BEGIN
                     INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
-                    VALUES (new.chunk_id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
+                    VALUES (new.id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
                 END
             """)
             conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks
                 BEGIN
-                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.chunk_id);
+                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.id);
                 END
             """)
             conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks
                 BEGIN
-                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.chunk_id);
+                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.id);
                     INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
-                    VALUES (new.chunk_id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
+                    VALUES (new.id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
                 END
             """)
             conn.execute("""
@@ -176,6 +201,22 @@ class MdqService:
                     value TEXT NOT NULL
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS chunk_summaries (
+                    chunk_id TEXT PRIMARY KEY,
+                    summary TEXT NOT NULL,
+                    summary_model TEXT NOT NULL,
+                    content_hash TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            # Create vector table conditionally based on use_embedding config
+            if self.use_embedding:
+                conn.execute(f"""
+                    CREATE VIRTUAL TABLE IF NOT EXISTS {self.vector_table} USING vec0(
+                        embedding FLOAT[]
+                    )
+                """)
             conn.commit()
         finally:
             conn.close()
@@ -201,7 +242,8 @@ class MdqService:
             """)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS chunks (
-                    chunk_id TEXT PRIMARY KEY,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    chunk_id TEXT UNIQUE NOT NULL,
                     doc_id TEXT NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
                     source_path TEXT NOT NULL,
                     heading TEXT NOT NULL,
@@ -304,21 +346,21 @@ class MdqService:
                 CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks
                 BEGIN
                     INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
-                    VALUES (new.chunk_id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
+                    VALUES (new.id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
                 END
             """)
             conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks
                 BEGIN
-                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.chunk_id);
+                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.id);
                 END
             """)
             conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks
                 BEGIN
-                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.chunk_id);
+                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.id);
                     INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
-                    VALUES (new.chunk_id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
+                    VALUES (new.id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
                 END
             """)
             conn.execute("""
@@ -341,8 +383,17 @@ class MdqService:
 
     def _get_db_connection(self) -> sqlite3.Connection:
         """Return a connection to the mdq database."""
-        conn = sqlite3.connect(self.db_path)
+        try:
+            conn = sqlite3.connect(self.db_path)
+        except sqlite3.OperationalError as e:
+            from mcp.mdq.models import MdqDatabaseError
+
+            raise MdqDatabaseError(f"Failed to open database: {e}") from e
         conn.row_factory = sqlite3.Row
+        # Enable WAL mode for better concurrent read performance
+        conn.execute("PRAGMA journal_mode=WAL")
+        # Set busy timeout to avoid "database is locked" errors
+        conn.execute(f"PRAGMA busy_timeout = {self.sqlite_busy_timeout}")
         return conn
 
     async def search_docs(self, req: SearchDocsRequest) -> str:
@@ -362,12 +413,29 @@ class MdqService:
         conn = self._get_db_connection()
         try:
             row = conn.execute(
-                "SELECT heading, content FROM chunks WHERE chunk_id = ?",
+                "SELECT heading, content, content_hash FROM chunks WHERE chunk_id = ?",
                 (req.chunk_id,),
             ).fetchone()
             if row is None:
-                return f"Chunk {req.chunk_id} not found"
+                raise MdqNotFoundError(f"Chunk {req.chunk_id} not found")
             content = row["content"]
+
+            # Check summary cache if use_summary is enabled and chunk exceeds threshold
+            if (
+                req.use_summary
+                and self.summary_cache_enabled
+                and len(content) > self.summary_threshold
+            ):
+                cached = conn.execute(
+                    "SELECT summary, summary_model, content_hash FROM chunk_summaries WHERE chunk_id = ?",
+                    (req.chunk_id,),
+                ).fetchone()
+                if cached is not None and cached["content_hash"] == row["content_hash"]:
+                    try:
+                        return f"## {row['heading']}\n\n[Summary — {len(content)} chars]\n\n{cached['summary']}"
+                    except Exception:
+                        logger.warning("Failed to retrieve cached summary for chunk %s", req.chunk_id)
+
             truncated = False
             if len(content) > max_chars:
                 content = content[:max_chars]
@@ -380,28 +448,76 @@ class MdqService:
             conn.close()
 
     async def outline(self, req: OutlineRequest) -> str:
-        """Get the heading structure of a Markdown file."""
-        max_items = getattr(req, "max_outline_items", None) or self.max_outline_items
+        """Get the heading structure of a Markdown file from the index."""
+        max_depth = getattr(req, "max_depth", None) or self.max_outline_depth
+        max_items = getattr(req, "max_items", None) or self.max_outline_items
         p = Path(req.path)
         if not p.exists():
-            return f"File not found: {req.path}"
+            raise MdqNotFoundError(f"File not found: {req.path}")
         if not authorize_path(p, self.allowed_dirs):
             logger.warning("Path denied: %s (outside allowed dirs)", req.path)
-            raise MdqServiceError(
+            raise MdqAuthorizationError(
                 f"Access denied: {req.path} is outside allowed directories"
             )
-        sections = await parse_markdown(self, ParseMarkdownRequest(path=req.path))
-        headings = [s["heading"] for s in sections]
-        truncated = False
-        if len(headings) > max_items:
-            headings = headings[:max_items]
-            truncated = True
-        result = "\n".join(headings) if headings else "(no headings)"
-        if truncated:
-            result += (
-                f"\n\n[Truncated — {len([s for s in sections])}/{max_items} headings]"
-            )
-        return result
+
+        conn = self._get_db_connection()
+        try:
+            where_clauses = ["c.source_path = ?"]
+            params: list = [str(p)]
+
+            if max_depth is not None:
+                where_clauses.append("c.heading_level <= ?")
+                params.append(max_depth)
+
+            where_clause = " AND ".join(where_clauses)
+
+            rows = conn.execute(
+                f"SELECT c.chunk_id, c.heading, c.heading_level, c.heading_path, c.start_line, c.end_line FROM chunks c WHERE {where_clause} ORDER BY c.heading_level, c.ordinal",
+                params,
+            ).fetchall()
+
+            # Check for stale index
+            stale_warning = None
+            doc_row = conn.execute(
+                "SELECT mtime_ns, indexed_at FROM documents WHERE source_path = ?",
+                (str(p),),
+            ).fetchone()
+            if doc_row is not None and doc_row["mtime_ns"] is not None and doc_row["indexed_at"] is not None:
+                if doc_row["mtime_ns"] > doc_row["indexed_at"]:
+                    stale_warning = (
+                        f"Warning: file has been modified since last indexing "
+                        f"(mtime={doc_row['mtime_ns']}, indexed_at={doc_row['indexed_at']})"
+                    )
+
+            headings = [
+                OutlineHeading(
+                    heading=row["heading"],
+                    level=row["heading_level"],
+                    heading_path=row["heading_path"],
+                    chunk_id=row["chunk_id"],
+                    start_line=row["start_line"],
+                    end_line=row["end_line"],
+                )
+                for row in rows
+            ]
+
+            truncated = len(headings) >= max_items if max_items else False
+            if truncated and max_items:
+                headings = headings[:max_items]
+
+            parts = []
+            for h in headings:
+                indent = "  " * (h.level - 1)
+                parts.append(f"{indent}{h.heading}")
+
+            result = "\n".join(parts) if headings else "(no headings)"
+            if truncated:
+                result += f"\n\n[Truncated — {len(headings)}/{max_items} headings]"
+            if stale_warning:
+                result += f"\n\n{stale_warning}"
+            return result
+        finally:
+            conn.close()
 
     async def index_paths(self, req: IndexPathsRequest) -> str:
         """Index a set of paths into the in-process SQLite DB."""
@@ -421,8 +537,6 @@ class MdqService:
         async with self._index_lock:
             self._is_indexing = True
             try:
-                from mcp.mdq.models import IndexPathsRequest  # noqa: PLC0415
-
                 for path_str in req.paths:
                     p = Path(path_str)
                     if not p.exists():
@@ -434,7 +548,15 @@ class MdqService:
                         )
                         continue
 
-                return await _index_paths(self, IndexPathsRequest(paths=req.paths))
+                summary = await _refresh_paths(self, req)
+                parts = [
+                    f"Refresh complete in {summary['elapsed_seconds']}s",
+                    f"  Indexed: {summary['indexed_count']}",
+                    f"  Skipped (unchanged): {summary['skipped_count']}",
+                    f"  Deleted from index: {summary['deleted_count']}",
+                    f"  Failed: {summary['failed_count']}",
+                ]
+                return "\n".join(parts)
             finally:
                 self._is_indexing = False
 
@@ -459,48 +581,119 @@ class MdqService:
         try:
             compiled = re.compile(req.pattern)
         except re.error as e:
-            return f"Invalid regex pattern: {e}"
+            raise MdqValidationError(f"Invalid regex pattern: {e}")
 
         max_matches = getattr(req, "max_grep_matches", None) or self.max_grep_matches
+        max_chars = getattr(req, "max_chars_per_match", None) or self.max_chars_per_match
+        ctx_before = getattr(req, "context_before", None) or self.context_before
+        ctx_after = getattr(req, "context_after", None) or self.context_after
+
         conn = self._get_db_connection()
         try:
+            where_clauses = []
+            params: list = []
+
+            if req.paths:
+                placeholders = ",".join("?" for _ in req.paths)
+                where_clauses.append(f"source_path IN ({placeholders})")
+                params.extend(req.paths)
+
+            where_clause = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+            rows = conn.execute(
+                f"SELECT chunk_id, source_path, heading_path, heading, content, start_line FROM chunks {where_clause}",
+                params,
+            ).fetchall()
+
             matches = []
+            for row in rows:
+                # Use regex to find all matches in content and heading
+                full_text = f"{row['heading']}\n{row['content']}"
+                for m in compiled.finditer(full_text):
+                    match_start = m.start()
 
-            # Use FTS5 for initial search if possible
-            try:
-                fts_rows = conn.execute(
-                    "SELECT chunk_id, source_path, heading FROM chunks_fts WHERE chunks_fts MATCH ?",
-                    (req.pattern,),
-                ).fetchall()
+                    # Extract context lines
+                    lines = full_text.split("\n")
+                    match_line = 0
+                    line_offset = 0
+                    for i, line in enumerate(lines):
+                        if line_offset + len(line) >= match_start:
+                            match_line = i
+                            break
+                        line_offset += len(line) + 1
 
-                if fts_rows:
-                    for row in fts_rows:
-                        matches.append(
-                            f"Chunk {row['chunk_id']}: {row['heading']}\n[FTS5 match — see get_chunk for content]"
+                    # Get context lines before and after
+                    start_idx = max(0, match_line - ctx_before)
+                    end_idx = min(len(lines), match_line + ctx_after + 1)
+                    _context_lines = lines[start_idx:end_idx]
+
+                    # Extract the matched text with context
+                    match_text = m.group()[:max_chars]
+
+                    matches.append(
+                        GrepDocMatch(
+                            chunk_id=row["chunk_id"],
+                            source_path=row["source_path"],
+                            heading_path=row["heading_path"],
+                            match_text=match_text,
+                            line_number=start_idx + 1,
                         )
-            except sqlite3.OperationalError:
-                # Fallback to regex search on all chunks
-                rows = conn.execute(
-                    "SELECT chunk_id, heading, content FROM chunks"
-                ).fetchall()
-                for row in rows:
-                    if compiled.search(row["content"]) or compiled.search(row["heading"]):
-                        matches.append(
-                            f"Chunk {row['chunk_id']}: {row['heading']}\n{row['content'][:200]}"
-                        )
+                    )
 
-            truncated = False
-            if len(matches) > max_matches:
-                matches = matches[:max_matches]
-                truncated = True
+                    # Stop if we've reached the max matches
+                    if len(matches) >= max_matches:
+                        break
+
+                if len(matches) >= max_matches:
+                    break
+
+            truncated = len(matches) >= max_matches
+
             if not matches:
                 return "No matches found."
-            result = "\n---\n".join(matches)
+
+            parts = []
+            for m in matches:
+                parts.append(f"File: {m.source_path}")
+                parts.append(f"Chunk: {m.chunk_id}")
+                if m.heading_path:
+                    parts.append(f"Heading: {m.heading_path}")
+                parts.append(f"Line: {m.line_number}")
+                parts.append(f"Match: {m.match_text}")
+                parts.append("---")
+
+            result = "\n".join(parts)
             if truncated:
-                total = len(
-                    conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()["cnt"]
-                )
-                result += f"\n\n[Truncated — {max_matches}/{total} matches]"
+                result += f"\n\n[Truncated — {max_matches} matches shown]"
             return result
+        finally:
+            conn.close()
+
+    async def fts_consistency_check(self, req: FtsConsistencyCheckRequest) -> str:
+        """Check FTS5 consistency between chunks and chunks_fts tables."""
+        conn = self._get_db_connection()
+        try:
+            chunks_count = conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()["cnt"]
+            fts_count = conn.execute("SELECT COUNT(*) as cnt FROM chunks_fts").fetchone()["cnt"]
+            consistent = chunks_count == fts_count
+            return (
+                f"FTS5 consistency check: {'consistent' if consistent else 'INCONSISTENT'}\n"
+                f"  chunks rows: {chunks_count}\n"
+                f"  chunks_fts rows: {fts_count}"
+            )
+        except sqlite3.OperationalError as e:
+            raise MdqConsistencyError(f"FTS5 table missing or corrupted: {e}") from e
+        finally:
+            conn.close()
+
+    async def fts_rebuild(self, req: FtsRebuildRequest) -> str:
+        """Rebuild the FTS5 index."""
+        conn = self._get_db_connection()
+        try:
+            conn.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')")
+            conn.commit()
+            return "FTS5 index rebuilt successfully"
+        except sqlite3.Error as e:
+            return f"FTS5 rebuild failed: {e}"
         finally:
             conn.close()

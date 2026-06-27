@@ -58,13 +58,32 @@ Streams events to the caller using a hybrid replay+push model:
 - `since_seq` (int, default 0): starting sequence; overridden by saved offset if `consumer_id` is set and `since_seq == 0`
 - `consumer_id` (str, optional): consumer identifier for offset persistence
 
-On disconnect, the current `seq` is written to the offset file via `write_offset()`.
+Offsets advance only via ack (see `POST /events/{event_id}/ack`). On disconnect, no offset is written — if a consumer disconnects without acking an event, that event will be replayed on reconnect.
+
+---
+
+### POST /events/{event_id}/ack
+
+Acknowledge an event. Updates the consumer offset to the event's `seq` if `consumer_id` is provided. Returns 404 if the event does not exist or is already acked.
+
+**Path parameter:**
+- `event_id` (str, required): event ID to acknowledge
+
+**Query parameters:**
+- `consumer_id` (str, optional): consumer identifier; if present and event is newly acked, writes the event's `seq` as the consumer offset
+
+**Response 200:** `{"event_id": "...", "acked": true, "seq": <int>}` — `seq` is the event's sequence number (None if consumer_id was not provided)
+**Response 404:** event not found or already acked.
+
+**Offset behavior**: The offset is updated only when `consumer_id` is provided AND the event was newly acknowledged (not previously acked). If the event was already acked, the response returns 404 regardless of whether a consumer_id is provided.
+
+**Deprecated alias**: `POST /ack?event_id=...&consumer_id=...` — same behavior but uses query parameters instead of path parameter. The canonical path is `POST /events/{event_id}/ack`.
 
 ---
 
 ### GET /health
 
-Returns component health. Always HTTP 200.
+Returns component health. HTTP 200 for `ok`, HTTP 503 for `degraded`/`unhealthy`.
 
 ```json
 {"status": "ok|degraded", "db": "ok|unavailable", "dlq_task": "running|stopped", "active_subscribers": 0, "max_queue_depth": 0, "slow_consumers": 0, "degraded_reasons": []}
@@ -86,8 +105,16 @@ List events in the dead-letter queue (events with `dlq_at IS NOT NULL`).
 
 Move an event out of the DLQ back to normal delivery. Increments `dlq_requeue_count` by 1 (does NOT reset `delivery_failure_count`). If `delivery_failure_count >= max_retry` after re-promotion logic runs, the event re-enters the DLQ on the next DLQ loop tick.
 
-**Response 200:** `{"event_id": "...", "requeued": true}`  
-**Response 404:** event not found.
+**Path parameter:**
+- `event_id` (str, required): event ID to requeue
+
+**Response 200:** `{"event_id": "...", "requeued": true}` — may include `"dlq_imminent": true` if `delivery_failure_count >= max_retry` after requeue
+**Response 404:** event not found or not in DLQ.
+
+**Edge cases:**
+- Event not in DLQ (dlq_at IS NULL): returns 404
+- Repeated requeue of same event: dlq_requeue_count increments each time
+- Event at delivery_failure_count >= max_retry: requeue succeeds but next DLQ loop tick will re-promote
 
 ---
 

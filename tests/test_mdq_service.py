@@ -14,6 +14,7 @@ from mcp.mdq.models import (
     GetChunkRequest,
     GrepDocsRequest,
     IndexPathsRequest,
+    MdqNotFoundError,
     OutlineRequest,
     ParseMarkdownRequest,
     RefreshIndexRequest,
@@ -29,10 +30,12 @@ from mcp.mdq.service import MdqService
 
 @pytest.fixture
 def service(tmp_path: Path) -> MdqService:
-    """MdqService with a temp DB path."""
+    """MdqService with a temp DB path and tmp_path in allowed_dirs."""
     fd, db = mkstemp(suffix=".db", dir=str(tmp_path))
     try:
-        return MdqService(db_path=db)
+        svc = MdqService(db_path=db)
+        svc._allowed_dirs = [str(tmp_path)]
+        return svc
     finally:
         import os  # noqa: PLC0415
 
@@ -71,8 +74,8 @@ class TestModels:
         assert req.tag_filter is None
 
     def test_get_chunk_request_defaults(self) -> None:
-        req = GetChunkRequest(chunk_id=42)
-        assert req.chunk_id == 42
+        req = GetChunkRequest(chunk_id="chunk_abc123")
+        assert req.chunk_id == "chunk_abc123"
         assert req.with_neighbors is False
 
     def test_index_paths_request(self) -> None:
@@ -95,6 +98,14 @@ class TestModels:
     def test_refresh_index_request(self) -> None:
         req = RefreshIndexRequest(paths=["/x"])
         assert req.paths == ["/x"]
+
+    def test_refresh_index_request_force_default(self) -> None:
+        req = RefreshIndexRequest(paths=["/x"])
+        assert req.force is False
+
+    def test_refresh_index_request_force_true(self) -> None:
+        req = RefreshIndexRequest(paths=["/x"], force=True)
+        assert req.force is True
 
 
 # ── parser ────────────────────────────────────────────────────────────────────
@@ -143,7 +154,7 @@ class TestIndexer:
         conn = service._get_db_connection()
         try:
             row = conn.execute(
-                "SELECT heading, content FROM sections WHERE file_path = ?",
+                "SELECT heading, content FROM chunks WHERE source_path = ?",
                 (str(md_file),),
             ).fetchone()
             assert row is not None
@@ -157,7 +168,7 @@ class TestIndexer:
         asyncio.run(_index_directory(service, md_dir))
         conn = service._get_db_connection()
         try:
-            count = conn.execute("SELECT COUNT(*) as cnt FROM sections").fetchone()[
+            count = conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()[
                 "cnt"
             ]
             assert count == 2  # a.md and b.md
@@ -245,22 +256,33 @@ class TestMdqService:
         self, service: MdqService, md_file: Path
     ) -> None:
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
-        req = GetChunkRequest(chunk_id=1)
+        conn = service._get_db_connection()
+        try:
+            row = conn.execute("SELECT chunk_id FROM chunks LIMIT 1").fetchone()
+            assert row is not None
+            chunk_id = row["chunk_id"]
+        finally:
+            conn.close()
+        req = GetChunkRequest(chunk_id=chunk_id)
         result = asyncio.run(service.get_chunk(req))
         assert "Title" in result
         assert "Content here." in result
 
     def test_get_chunk_not_found(self, service: MdqService) -> None:
-        req = GetChunkRequest(chunk_id=999)
-        result = asyncio.run(service.get_chunk(req))
-        assert "not found" in result.lower()
+        req = GetChunkRequest(chunk_id="nonexistent_chunk_id")
+        with pytest.raises(MdqNotFoundError):
+            asyncio.run(service.get_chunk(req))
 
     def test_refresh_index_delegates_to_indexer(
         self, service: MdqService, md_file: Path
     ) -> None:
         req = RefreshIndexRequest(paths=[str(md_file)])
         result = asyncio.run(service.refresh_index(req))
-        assert result == "Indexing complete"
+        assert "Refresh complete" in result
+        assert "Indexed:" in result
+        assert "Skipped (unchanged):" in result
+        assert "Deleted from index:" in result
+        assert "Failed:" in result
 
     def test_stats_returns_counts_after_indexing(
         self, service: MdqService, md_dir: Path
@@ -290,6 +312,7 @@ class TestMdqService:
         assert result == "Indexing complete"
 
     def test_outline_returns_headings(self, service: MdqService, md_file: Path) -> None:
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
         req = OutlineRequest(path=str(md_file))
         result = asyncio.run(service.outline(req))
         assert "Title" in result

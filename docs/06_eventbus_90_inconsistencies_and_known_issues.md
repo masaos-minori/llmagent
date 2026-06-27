@@ -14,25 +14,25 @@
 
 | Item | Safe interpretation | Recommended action |
 |---|---|---|
-| DLQ promotion uses `delivery_failure_count >= max_retry`, not `retry_count` | Code and schema.sql both use `delivery_failure_count` for DLQ promotion | Update docs referencing `retry_count` to use `delivery_failure_count` |
+| DLQ promotion uses `delivery_failure_count >= max_retry`, not `retry_count` | Code and schema.sql both use `delivery_failure_count` for DLQ promotion | Resolved — all Event Bus docs now consistently use `delivery_failure_count >= max_retry` for DLQ promotion criteria |
 
 ### Ack-Only Offset Advancement
 
 | Item | Safe interpretation | Recommended action |
 |---|---|---|
-| Offsets advance only via ack endpoint, never on disconnect | Disconnect does not write offset; consumer resumes from last acked seq | Document this in consumer guide |
+| Offsets advance only via ack endpoint, never on disconnect | Disconnect does not write offset; consumer resumes from last acked seq | Resolved — updated HTTP API docs to clarify ack-only model; added reconnect semantics to DLQ/offsets doc |
 
 ### Missing Ack Endpoint Documentation
 
 | Item | Safe interpretation | Recommended action |
 |---|---|---|
-| No HTTP API doc for POST /events/{event_id}/ack | Only POST /ack is documented | Add POST /events/{event_id}/ack to reference API doc |
+| No HTTP API doc for POST /events/{event_id}/ack | Only POST /ack is documented | Resolved — added POST /events/{event_id}/ack to HTTP API docs with full contract (path params, query params, response, offset behavior); added to reference API endpoint table |
 
 ### DLQ Requeue Path Mismatch
 
 | Item | Safe interpretation | Recommended action |
 |---|---|---|
-| DLQ requeue endpoint path `POST /dlq/{event_id}/requeue` not documented | Code implements this endpoint but docs only reference POST /ack for requeue | Add to HTTP API doc with edge cases (404 for unknown event, 404 for non-DLQ event) |
+| DLQ requeue endpoint path `POST /dlq/{event_id}/requeue` not documented | Code implements this endpoint but docs only reference POST /ack for requeue | Resolved — added to HTTP API doc with edge cases (404 for unknown event, 404 for non-DLQ event); fixed requeue_event() to check dlq_at IS NOT NULL before allowing requeue |
 
 ### Consumer ID Stability Ambiguity
 

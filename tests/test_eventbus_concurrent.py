@@ -147,5 +147,7 @@ class TestConcurrentDlqRequeue:
         finally:
             loop.close()
 
-        # All requeues should succeed
-        assert all(r.get("requeued") is True for r in results)
+        # Only one requeue should succeed (event is no longer in DLQ after first requeue)
+        requeued = [r for r in results if r.get("requeued") is True]
+        assert len(requeued) == 1, f"Expected exactly 1 requeue success, got {len(requeued)}"
+

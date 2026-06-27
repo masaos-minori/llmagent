@@ -61,6 +61,22 @@ class EventBusConfig:
 
 ---
 
+## scripts/eventbus/app.py — HTTP Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/publish` | POST | Publish an event (idempotent by event_id) |
+| `/replay` | GET | Replay past events (SSE or JSON) |
+| `/subscribe` | GET | Stream events via hybrid replay+push model |
+| `/health` | GET | Component health check |
+| `/dlq` | GET | List DLQ events |
+| `/dlq/{event_id}/requeue` | POST | Requeue a DLQ event back to normal delivery |
+| `/events/{event_id}/ack` | POST | Acknowledge an event (canonical ack path) |
+| `/ack` | POST | Legacy alias for POST /events/{event_id}/ack (uses query params) |
+| `/nack` | POST | Negative acknowledge an event |
+
+---
+
 ## scripts/eventbus/broker.py
 
 | Class | Description |

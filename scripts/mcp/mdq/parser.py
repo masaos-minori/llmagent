@@ -5,16 +5,28 @@ Hierarchy-aware Markdown parsing — heading-based section extraction.
 Produces section records with:
 - heading, heading_level, heading_path, content, start_line, end_line, ordinal, parent_heading
 
-Handles:
+Supported Markdown features:
+- ATX headings (## Heading) — all levels 1-6
 - Fenced code blocks (```, ~~~) — # inside fences are not headings
 - Content before first heading (as <root> section)
 - Repeated heading names (distinct chunk identities via ordinal)
 - Nested heading hierarchy (heading_path includes ancestors)
-- Optional YAML frontmatter
+- Optional YAML frontmatter (parsed and stripped)
 - Malformed headings (ignored)
 
-Does NOT support:
+Unsupported Markdown features:
 - Setext-style headings (===, --- underlines)
+- Inline tags (<del>, <ins>, etc.) — not parsed
+- HTML blocks — not parsed, treated as plain text
+- MDX — not supported
+- GFM tables — not parsed (but not required for section extraction)
+
+Fallback behavior for unsupported syntax:
+- Unsupported syntax may cause heading misclassification. For example,
+  a Setext-style heading (text followed by === underline) will be treated
+  as plain text with no heading level, and its content will be included
+  in the preceding section rather than creating a new one.
+- HTML headings (<h1>, <h2>) are not recognized — content is treated as plain text.
 """
 
 from __future__ import annotations
