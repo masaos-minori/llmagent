@@ -342,11 +342,10 @@ See [03_rag_05_configuration_and_operations.md §1.1](03_rag_05_configuration_an
 
 ## 4. RagIngester (`scripts/rag/ingestion/ingester.py`)
 
-**BUG-1/2/3 resolved:** `_read_chunk_json()` now reads raw bytes and parses with `orjson` directly,
+**Resolved:** `_read_chunk_json()` now reads raw bytes and parses with `orjson` directly,
 returning a raw `dict` that preserves all fields including `chunking_strategy`, `normalized_content`,
 and `chunk_index`. The earlier `dataclasses.asdict(read_json_file(path))` approach (which dropped
-fields not in `ChunkDocument`) is no longer used. See [03_rag_90](03_rag_90_inconsistencies_and_known_issues.md)
-for resolution details.
+fields not in `ChunkDocument`) is no longer used.
 
 ### 4.1 Class overview
 

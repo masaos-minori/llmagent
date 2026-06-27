@@ -43,6 +43,7 @@ The source files are retained as-is for historical reference.
 | What does `WebCrawler` / `ChunkSplitter` / `RagIngester` do (API)? | `03_rag_02` |
 | How does the query pipeline work (stages, RRF, rerank)? | `03_rag_03` |
 | What is the `RagPipeline` API? | `03_rag_03` |
+| How does `use_rrf` affect fusion mode? | `03_rag_03` |
 | What is the SQLite schema for the RAG database? | `03_rag_04` |
 | What are `RawHit`, `MergedHit`, `RankedHit`? | `03_rag_04` |
 | What are the configuration parameters? | `03_rag_05` |
