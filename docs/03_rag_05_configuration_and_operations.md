@@ -13,7 +13,7 @@ Used by: crawler.py, chunk_splitter.py, ingester.py
 
 | Parameter | Default | Description |
 |---|---|---|---|
-| `rag_src_dir` | `/opt/llm/rag-src` | Base directory for all pipeline files. crawler output: `{rag_src_dir}/*.txt`; chunks: `{rag_src_dir}/chunk/`; registered: `{rag_src_dir}/registered/` |
+| `rag_src_dir` | `/opt/llm/rag-src` | Base directory for all pipeline files. crawler output: `{rag_src_dir}/*.json`; chunks: `{rag_src_dir}/chunk/`; registered: `{rag_src_dir}/registered/` |
 | `crawl_delay` | `1.5` | Seconds to wait between crawl requests (minimum 1.0 recommended) |
 | `max_depth` | `6` | BFS maximum hop depth from start URL |
 | `fetch_retry` | `3` | HTTP request retry limit (exponential backoff: `min(2**i, 10)` sec) |
@@ -109,7 +109,7 @@ uv run python scripts/rag/ingestion/crawler.py \
 ### 2.3 Step 2: Chunk split
 
 ```bash
-# All unprocessed .txt files in {rag_src_dir}/
+# All unprocessed .json files in {rag_src_dir}/
 uv run python scripts/rag/ingestion/chunk_splitter.py
 
 # Single file (use absolute path from config)
@@ -136,7 +136,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 | Script | `--force` effect |
 |---|---|
 | `crawler.py` | Not applicable (crawler always overwrites; idempotency via `visited` set per run) |
-| `chunk_splitter.py` | Delete existing `{stem}-*.txt` chunks and regenerate |
+| `chunk_splitter.py` | Delete existing `{stem}-*.json` chunks and regenerate |
 | `ingester.py` | Delete `chunks_vec` → `chunks` → `documents` records for the URL, then re-insert |
 
 ### 2.6 RAG Consistency Checks (`db/maintenance.py`)
@@ -337,7 +337,19 @@ or `orphan_vec_count` is reported as inconsistent. Configurable thresholds (e.g.
 
 ### Fixing inconsistencies
 
-Run `/db fts-rebuild` to resynchronize `chunks_fts` from the `chunks` table.
+Use `/db consistency` to detect issues. The report includes affected `chunk_id`/URL
+identifiers (up to 10 each) so operators can act without manual DB investigation.
+
+**Repair decision tree:**
+
+| Issue | Fix |
+|---|---|
+| `fts_gap > 0` | Run `/db rebuild-fts` — FTS entries are missing; rebuild from `chunks` |
+| `fts_orphan_count > 0` | Run `/db rebuild-fts` — FTS has extra entries (data loss risk; urgent) |
+| `orphan_vec_count > 0` | Run `ingester.py --force` for affected URLs — `chunks_vec` rows without `chunks` counterparts |
+| `vec != chunks` | Run `ingester.py --force` for the affected URL — embedding step likely failed |
+
+Run `/db rebuild-fts` to resynchronize `chunks_fts` from the `chunks` table.
 
 
 <!-- AUTO-GENERATED: gen_rag_reference.py config -->
@@ -368,7 +380,7 @@ Run `/db fts-rebuild` to resynchronize `chunks_fts` from the `chunks` table.
 ```
 usage: crawler.py [-h] [--url URL [URL ...]] [--lang {en,ja,auto}]
 
-BFS crawler: saves documents to rag-src/yyyymmddhhmmss-{slug}.txt
+BFS crawler: saves documents to rag-src/yyyymmddhhmmss-{slug}.json
 
 options:
   -h, --help           show this help message and exit
@@ -383,12 +395,12 @@ options:
 ```
 usage: chunk_splitter.py [-h] [--file FILE] [--force]
 
-Chunking: rag-src/*.txt → rag-src/chunk/{stem}-{idx:04d}.txt
+Chunking: rag-src/*.json → rag-src/chunk/{stem}-{idx:04d}.json
 
 options:
   -h, --help   show this help message and exit
   --file FILE  Process a single file (default: process all files in rag-
-               src/*.txt)
+               src/*.json)
   --force      Re-process even if output chunks already exist
 ```
 
@@ -397,7 +409,7 @@ options:
 ```
 usage: ingester.py [-h] [--force]
 
-Embedding generation and DB ingestion: rag-src/chunk/*.txt → SQLite → rag-
+Embedding generation and DB ingestion: rag-src/chunk/*.json → SQLite → rag-
 src/registered/
 
 options:

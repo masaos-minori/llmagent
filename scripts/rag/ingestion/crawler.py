@@ -3,7 +3,7 @@
 BFS web crawler that saves extracted text and code blocks to rag-src/.
 Entry point: python Crawler.py [--url URL ...] [--lang {en,ja}]
 
-Output: rag-src/{timestamp}-{slug}.txt — JSON payload (not plain text).
+Output: rag-src/{timestamp}-{slug}.json — JSON payload (not plain text).
 Fields: url, title, lang, fetched_at, content, code_blocks, etag, last_modified.
 
 Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
@@ -239,7 +239,7 @@ class WebCrawler:
         return hdrs
 
     def _make_crawl_filepath(self, url: str) -> Path:
-        """Generate an output path in yyyymmddhhmmss-{slug}.txt format."""
+        """Generate an output path in yyyymmddhhmmss-{slug}.json format."""
         ts = datetime.now().strftime("%Y%m%d%H%M%S")
         slug = url_to_slug(url)
         return self._rag_src_dir / f"{ts}-{slug}.json"
@@ -305,7 +305,7 @@ class WebCrawler:
         etag: str | None = None,
         last_modified: str | None = None,
     ) -> Path:
-        """Save crawl results as JSON to rag-src/yyyymmddhhmmss-{slug}.txt."""
+        """Save crawl results as JSON to rag-src/yyyymmddhhmmss-{slug}.json."""
         self._rag_src_dir.mkdir(parents=True, exist_ok=True)
         path = self._make_crawl_filepath(url)
         payload: CrawlPayload = {
@@ -426,7 +426,7 @@ class WebCrawler:
 # ──────────────────────────────────────────────────────────────────────────────
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="BFS crawler: saves documents to rag-src/yyyymmddhhmmss-{slug}.txt",
+        description="BFS crawler: saves documents to rag-src/yyyymmddhhmmss-{slug}.json",
     )
     parser.add_argument(
         "--url",
