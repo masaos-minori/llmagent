@@ -269,6 +269,7 @@ class TestCmdRag:
             mock_pipeline.last_timings = {"MqeStage": 0.05, "SearchStage": 0.12}
             mock_pipeline.last_search_diagnostics.embed_failed = 0
             mock_pipeline.last_search_diagnostics.fts_errors = 0
+            mock_pipeline.get_diagnostics = MagicMock(return_value={"refiner_fallback_count": 0})
             mock_pipeline_cls.return_value = mock_pipeline
             asyncio.run(cmd._cmd_rag("search hello --debug"))
         out = capsys.readouterr().out

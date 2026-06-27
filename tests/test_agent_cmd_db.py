@@ -44,7 +44,7 @@ class TestCmdDbClean:
         cmd._ctx.services.tools.execute = AsyncMock(
             return_value=self._make_tool_result("Deleted: http://example.com")
         )
-        _run_db(cmd, "clean http://example.com")
+        _run_db(cmd, "rag clean http://example.com")
         assert "deleted" in capsys.readouterr().out.lower()
 
     def test_clean_not_found(self, capsys: pytest.CaptureFixture) -> None:
@@ -54,12 +54,12 @@ class TestCmdDbClean:
                 "not found: http://example.com", is_error=True
             )
         )
-        _run_db(cmd, "clean http://example.com")
+        _run_db(cmd, "rag clean http://example.com")
         assert "not found" in capsys.readouterr().out.lower()
 
     def test_clean_empty_url_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        _run_db(cmd, "clean")
+        _run_db(cmd, "rag clean")
         assert "usage" in capsys.readouterr().out.lower()
         cmd._ctx.services.tools.execute.assert_not_awaited()
 
@@ -72,7 +72,7 @@ class TestCmdDbStats:
             side_effect=Exception("db error"),
         ):
             with pytest.raises(Exception, match="db error"):
-                _run_db(cmd, "stats")
+                _run_db(cmd, "rag stats")
 
 
 class TestCmdDbUnknownSubcommand:
@@ -168,7 +168,7 @@ class TestDbStats:
                 helper_mock_session = MagicMock()
                 helper_mock_session.open = open_mock_session
                 MockHelperSession.return_value = helper_mock_session
-                _run_db(cmd, "stats")
+                _run_db(cmd, "rag stats")
                 out = capsys.readouterr().out
                 assert "documents" in out
                 assert "chunks" in out
@@ -188,7 +188,7 @@ class TestDbStats:
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
             with pytest.raises(sqlite3.Error, match="db error"):
-                _run_db(cmd, "stats")
+                _run_db(cmd, "rag stats")
 
 
 # ── _db_list_urls ─────────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ class TestDbListUrls:
     ) -> None:
         cmd = _make_cmd()
         cmd._ctx.services.tools = None
-        _run_db(cmd, "urls")
+        _run_db(cmd, "rag urls")
         out = capsys.readouterr().out
         assert "unavailable" in out.lower()
 
@@ -215,14 +215,14 @@ class TestDbListUrls:
         cmd._ctx.services.tools.execute = AsyncMock(
             return_value=self._make_result("http://example.com/page1  [ja]")
         )
-        _run_db(cmd, "urls")
+        _run_db(cmd, "rag urls")
         out = capsys.readouterr().out
         assert "http://example.com/page1" in out
 
     def test_list_urls_with_lang_filter(self) -> None:
         cmd = _make_cmd()
         cmd._ctx.services.tools.execute = AsyncMock(return_value=self._make_result(""))
-        _run_db(cmd, "urls --lang ja")
+        _run_db(cmd, "rag urls --lang ja")
         cmd._ctx.services.tools.execute.assert_awaited_once_with(
             "rag_list_documents", {"limit": 20, "lang": "ja"}
         )
@@ -230,7 +230,7 @@ class TestDbListUrls:
     def test_list_urls_with_limit_filter(self) -> None:
         cmd = _make_cmd()
         cmd._ctx.services.tools.execute = AsyncMock(return_value=self._make_result(""))
-        _run_db(cmd, "urls --limit 50")
+        _run_db(cmd, "rag urls --limit 50")
         cmd._ctx.services.tools.execute.assert_awaited_once_with(
             "rag_list_documents", {"limit": 50}
         )
@@ -242,7 +242,7 @@ class TestDbListUrls:
         cmd._ctx.services.tools.execute = AsyncMock(
             return_value=self._make_result("service error", is_error=True)
         )
-        _run_db(cmd, "urls")
+        _run_db(cmd, "rag urls")
         out = capsys.readouterr().out
         assert "service error" in out
 
@@ -261,7 +261,7 @@ class TestDbRebuildFts:
             helper_mock = MagicMock()
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
-            _run_db(cmd, "rebuild-fts")
+            _run_db(cmd, "rag rebuild-fts")
             out = capsys.readouterr().out
             assert "rebuilt" in out.lower()
 
@@ -279,7 +279,7 @@ class TestDbRebuildFts:
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
             with pytest.raises(sqlite3.Error, match="fts error"):
-                _run_db(cmd, "rebuild-fts")
+                _run_db(cmd, "rag rebuild-fts")
 
 
 # ── _db_health ────────────────────────────────────────────────────────────────
@@ -306,7 +306,7 @@ class TestDbHealth:
             helper_mock = MagicMock()
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
-            _run_db(cmd, "health")
+            _run_db(cmd, "session health")
             out = capsys.readouterr().out
             assert "integrity_ok" in out
             assert "True" in out
@@ -325,7 +325,7 @@ class TestDbHealth:
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
             with pytest.raises(sqlite3.Error, match="health error"):
-                _run_db(cmd, "health")
+                _run_db(cmd, "session health")
 
 
 # ── _db_checkpoint ────────────────────────────────────────────────────────────
@@ -348,7 +348,7 @@ class TestDbCheckpoint:
                 mock_cp.return_value = WalCheckpointCounts(
                     busy=0, log_size=10, pages_checkpointed=10
                 )
-                _run_db(cmd, "checkpoint")
+                _run_db(cmd, "session checkpoint")
                 out = capsys.readouterr().out
                 assert "complete" in out.lower()
 
@@ -368,7 +368,7 @@ class TestDbCheckpoint:
                 mock_cp.return_value = WalCheckpointCounts(
                     busy=0, log_size=5, pages_checkpointed=5
                 )
-                _run_db(cmd, "checkpoint FULL")
+                _run_db(cmd, "session checkpoint FULL")
                 out = capsys.readouterr().out
                 assert "complete" in out.lower()
 
@@ -388,7 +388,7 @@ class TestDbVacuum:
             helper_mock.open = open_mock
             MockHelper.return_value = helper_mock
             with patch("agent.services.db_maintenance_service.vacuum_db"):
-                _run_db(cmd, "vacuum")
+                _run_db(cmd, "session vacuum")
                 out = capsys.readouterr().out
                 assert "complete" in out.lower()
 
@@ -409,7 +409,7 @@ class TestDbVacuum:
                 side_effect=sqlite3.Error("vac error"),
             ):
                 with pytest.raises(sqlite3.Error, match="vac error"):
-                    _run_db(cmd, "vacuum")
+                    _run_db(cmd, "session vacuum")
 
 
 # ── _db_purge ─────────────────────────────────────────────────────────────────
@@ -435,7 +435,7 @@ class TestDbPurge:
                     mode=MaintenanceMode.STRICT,
                     data={"age_deleted": 5, "count_deleted": 3},
                 )
-                _run_db(cmd, "purge")
+                _run_db(cmd, "session purge")
                 out = capsys.readouterr().out
                 assert "Purged" in out
 
@@ -458,7 +458,7 @@ class TestDbPurge:
                     mode=MaintenanceMode.STRICT,
                     data={"age_deleted": 0, "count_deleted": 0},
                 )
-                _run_db(cmd, "purge --max-sessions 10")
+                _run_db(cmd, "session purge --max-sessions 10")
                 mock_purge.assert_called_once()
                 call_args = mock_purge.call_args
                 assert call_args[0][1] is not None
@@ -482,7 +482,7 @@ class TestDbPurge:
                     mode=MaintenanceMode.STRICT,
                     data={"age_deleted": 0, "count_deleted": 0},
                 )
-                _run_db(cmd, "purge --max-age-days 30")
+                _run_db(cmd, "session purge --max-age-days 30")
                 mock_purge.assert_called_once()
 
     def test_purge_error_raises(self) -> None:
@@ -502,7 +502,7 @@ class TestDbPurge:
                 side_effect=sqlite3.Error("purge error"),
             ):
                 with pytest.raises(sqlite3.Error, match="purge error"):
-                    _run_db(cmd, "purge")
+                    _run_db(cmd, "session purge")
 
 
 # ── _db_recover ───────────────────────────────────────────────────────────────
@@ -522,7 +522,7 @@ class TestDbRecover:
             "agent.services.rag_maintenance_service.recover_corruption"
         ) as mock_rec:
             mock_rec.return_value = self._make_recovery_result(True)
-            _run_db(cmd, "recover")
+            _run_db(cmd, "rag recover")
             out = capsys.readouterr().out
             assert "succeeded" in out.lower()
 
@@ -532,7 +532,7 @@ class TestDbRecover:
             "agent.services.rag_maintenance_service.recover_corruption"
         ) as mock_rec:
             mock_rec.return_value = self._make_recovery_result(True, "restored")
-            _run_db(cmd, "recover /path/to/backup.db")
+            _run_db(cmd, "rag recover /path/to/backup.db")
             mock_rec.assert_called_once_with("/path/to/backup.db")
 
     def test_recover_failure(self, capsys: pytest.CaptureFixture) -> None:
@@ -541,7 +541,7 @@ class TestDbRecover:
             "agent.services.rag_maintenance_service.recover_corruption"
         ) as mock_rec:
             mock_rec.return_value = self._make_recovery_result(False, "no_backup")
-            _run_db(cmd, "recover")
+            _run_db(cmd, "rag recover")
             out = capsys.readouterr().out
             assert "failed" in out.lower()
 
@@ -552,7 +552,7 @@ class TestDbRecover:
             side_effect=Exception("fail"),
         ):
             with pytest.raises(Exception, match="fail"):
-                _run_db(cmd, "recover")
+                _run_db(cmd, "rag recover")
 
 
 # ── _db_help ──────────────────────────────────────────────────────────────────
@@ -711,6 +711,6 @@ class TestCmdDbBackwardCompat:
                 helper_mock = MagicMock()
                 helper_mock.open = open_mock
                 MockHelper.return_value = helper_mock
-            _run_db(cmd, "stats")
+            _run_db(cmd, "rag stats")
             out = capsys.readouterr().out
             assert "documents" in out

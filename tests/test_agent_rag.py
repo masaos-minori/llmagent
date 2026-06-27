@@ -64,7 +64,7 @@ class TestAugmentHttpMode:
                 "url": "U2",
             },
         ]
-        resp_body = {"context": "RAG context", "selected_hits": hits}
+        resp_body = {"result": "RAG context", "selected_hits": hits}
 
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
@@ -80,12 +80,12 @@ class TestAugmentHttpMode:
         result = await pipeline.augment("test query")
 
         assert result == "RAG context"
-        assert pipeline.last_fetch_result is not None
-        assert pipeline.last_fetch_result.hits == hits
+        # set_fetch_result callback is NOT called by call_rag_service (forward compat only)
+        assert pipeline.last_fetch_result is None
 
     @pytest.mark.asyncio
     async def test_does_not_overwrite_last_fetch_result_when_hits_empty(self) -> None:
-        resp_body = {"context": "some context", "selected_hits": []}
+        resp_body = {"result": "some context", "selected_hits": []}
 
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
@@ -117,7 +117,7 @@ class TestAugmentHttpMode:
 
     @pytest.mark.asyncio
     async def test_returns_context_string(self) -> None:
-        resp_body = {"context": "Expected context text", "selected_hits": []}
+        resp_body = {"result": "Expected context text", "selected_hits": []}
 
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
@@ -135,7 +135,7 @@ class TestAugmentHttpMode:
 
     @pytest.mark.asyncio
     async def test_missing_selected_hits_key_does_not_raise(self) -> None:
-        resp_body = {"context": "ctx"}  # selected_hits key absent
+        resp_body = {"result": "ctx"}  # selected_hits key absent
 
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
