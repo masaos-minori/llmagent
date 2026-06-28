@@ -538,6 +538,8 @@ class ConfigReloadService:
             ctx.cfg.tool.allowed_tools = list(lst)
         if (v := _get_int(new_cfg, "memory_retention_days")) is not None:
             ctx.cfg.memory.memory_retention_days = v
+        if (vb := _get_bool(new_cfg, "memory_local_only")) is not None:
+            ctx.cfg.memory.memory_local_only = vb
         # security.toml fields — hot-reloadable
         if (vs := _get_str(new_cfg, "security_profile")) is not None:
             try:

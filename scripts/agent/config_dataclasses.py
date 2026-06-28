@@ -318,6 +318,8 @@ class MemoryConfig:
     memory_rrf_k: int = 60
     # Recency window in days for boost calculation
     memory_recency_days: float = 7.0
+    # When true, reject non-local embed_url — local-only safety mode
+    memory_local_only: bool = False
 
     def __post_init__(self) -> None:
         self._validate_memory_fts_limit()

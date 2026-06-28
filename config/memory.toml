@@ -21,3 +21,6 @@ memory_embed_dim = 384
 
 # L2 distance threshold for deduplication; entries closer than this are linked in memory_links
 memory_dedup_threshold = 0.3
+
+# When true, reject non-local embed_url — local-only safety mode
+memory_local_only = false

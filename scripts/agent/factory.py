@@ -264,6 +264,7 @@ def _build_embedding_client(
         embed_url=ctx.cfg.rag.embed_url,
         timeout=ctx.cfg.memory.memory_embed_timeout_sec,
         embed_dim=ctx.cfg.memory.memory_embed_dim,
+        local_only=ctx.cfg.memory.memory_local_only,
     )
     return client_cls(cfg, http, enabled=ctx.cfg.memory.memory_embed_enabled)
 

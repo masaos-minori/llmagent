@@ -214,6 +214,7 @@ def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
         memory_fts_limit=int(cfg.get("memory_fts_limit", 50)),
         memory_rrf_k=int(cfg.get("memory_rrf_k", 60)),
         memory_recency_days=float(cfg.get("memory_recency_days", 7.0)),
+        memory_local_only=bool(cfg.get("memory_local_only", False)),
     )
 
 
