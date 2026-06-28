@@ -129,6 +129,10 @@ and per-page CJK-ratio language auto-detection (`--lang auto`).
 
 | Parameter | Default | Description |
 |---|---|---|
+| `crawl_delay` | 1.5 | Request interval during BFS crawl in seconds; minimum 1.0 recommended |
+| `max_depth` | 6 | Maximum BFS crawl depth (URL hops from seed URL) |
+| `min_chunk` | 40 | Minimum chunk character count; chunks below this are discarded as noise |
+| `fetch_retry` | 3 | Retry limit for HTTP fetch failures (exponential backoff) |
 | `fetch_timeout` | 15 | HTTP request timeout in seconds |
 | `crawl_concurrency` | 3 | Max concurrent fetch tasks via asyncio.Semaphore |
 | `max_pages` | 500 | Maximum pages to crawl per start URL |
@@ -261,12 +265,22 @@ saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` exists (`--fo
 | `md_index_enable` | False | Enable heuristic Markdown detection for non-.md files |
 | `md_snippet_max_chars` | 600 | Max characters per markdown heading section before falling back to sentence-level chunking |
 
-### 3.1.2 _is_markdown_source behavior
+### 3.1.2 Chunking parameters (shared with crawler)
+
+| Parameter | Default | Description |
+|---|---|---|
+| `min_chunk` | 40 | Minimum chunk character count; chunks below this are discarded as noise |
+| `max_chunk` | 500 | Maximum chunk character count; longer text is split |
+| `chunk_overlap` | 50 | Sliding window chunk overlap (chars); prepends this many chars from previous chunk tail; 0 = disabled |
+| `en_stopwords` | — | English stop words excluded from chunking (see config/rag_pipeline.toml) |
+| `ja_stop_pos` | — | Sudachi part-of-speech categories treated as stop words in Japanese (see config/rag_pipeline.toml) |
+
+### 3.1.3 _is_markdown_source behavior
 
 `.md` / `.markdown` / `.mdx` files always use heading chunking regardless of `md_index_enable`.
 Non-`.md` files use heuristic detection (≥2 heading lines) only when `md_index_enable=true`.
 
-### 3.1.3 _chunk_markdown_by_heading behavior
+### 3.1.4 _chunk_markdown_by_heading behavior
 
 Sections exceeding `md_snippet_max_chars` are further split via `_chunk_english` sentence-level chunking.
 
