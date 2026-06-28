@@ -24,7 +24,7 @@ fi
 mkdir -p "${DEPLOY_DB}"
 
 # ── スキーマ初期化 ────────────────────────────────────────────────────────────
-echo "--- スキーマ初期化: ${DEPLOY_DB}/rag.sqlite ---"
+echo "--- スキーマ初期化（rag + session + workflow）---"
 (cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" uv run python "${DEPLOY_SCRIPTS}/create_schema.py")
 
 # ── テーブル確認 ──────────────────────────────────────────────────────────────
@@ -32,12 +32,11 @@ echo "--- テーブル確認 ---"
 sqlite3 "${DEPLOY_DB}/rag.sqlite" ".tables"
 # 期待値: chunks  chunks_fts  chunks_vec  documents
 
-echo "--- schema init: ${DEPLOY_DB}/workflow.sqlite ---"
-(cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" uv run python -m db.workflow_schema)
+sqlite3 "${DEPLOY_DB}/session.sqlite" ".tables"
+# 期待値: memories  memory_links  messages  notes  sessions  session_diagnostics  tool_results
 
-echo "--- table check: workflow.sqlite ---"
 sqlite3 "${DEPLOY_DB}/workflow.sqlite" ".tables"
-# expected: artifacts  attempts  processed_events  tasks
+# expected: artifacts  attempts  approvals  processed_events  tasks
 
 echo "--- Event Bus DB 初期化 ---"
 EVENTBUS_DB="/opt/llm/db/eventbus.sqlite"
