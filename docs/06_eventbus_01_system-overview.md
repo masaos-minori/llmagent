@@ -4,6 +4,12 @@
 
 The Event Bus provides an internal publish/subscribe backbone for the LLM agent system. Producers publish JSON events; consumers subscribe to topics via SSE and replay past events.
 
+> **Note:** The Event Bus HTTP API is fully implemented and operational as a standalone service.
+> Agent runtime integration (publishing events from the Agent, subscribing to Agent topics via SSE)
+> is intentionally deferred and not yet implemented. This document describes the Event Bus as an
+> independent component; Agent-side event production/consumption will be documented in a future
+> release.
+
 ## Architecture
 
 The Event Bus uses an in-memory pub/sub broker (`EventBroker`) for live event delivery. Each subscriber gets a dedicated `asyncio.Queue`; the broker fans out events to matching subscribers based on topic filters.

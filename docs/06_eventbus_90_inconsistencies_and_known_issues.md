@@ -123,6 +123,16 @@
 | `/subscribe` polling vs push documentation mismatch | **Resolved** — removed stale "polling-based internally (not push)" description; confirmed hybrid model (replay from SQLite + live EventBroker push) |
 | Consumer ID collision possibility | **Re-evaluated** — no collision detection exists; last write wins for offset file; consumer_ids must be stable across restarts for offset resume |
 
+## Deferred — Agent Integration
+
+Agent runtime integration with Event Bus is intentionally not implemented at this time.
+
+| Item | Status | Notes |
+|---|---|---|
+| Agent event publishing | Deferred | No Agent-side event producer is implemented. The Event Bus HTTP API supports publishing from any HTTP client; Agent-specific producers will be added in a future release. |
+| Agent SSE subscription | Deferred | No Agent-side subscriber for consuming events via `/subscribe` SSE. Agent-side consumers will be added in a future release. |
+| Agent event topics | Deferred | No Agent-defined topics exist today. Topic conventions for Agent lifecycle events will be defined when Agent integration is implemented. |
+
 ## Unconfirmed items (Needs Confirmation)
 
 | Item | How to confirm |
