@@ -124,7 +124,7 @@ class PullRequestOps(GitHubSecurityGuards):
             repo = self._get_repo(req.owner, req.repo)
             pr = repo.get_pull(number=req.pr_number)
             # Build edit kwargs only for fields that were explicitly provided
-            kwargs: dict[str, Any] = {}
+            kwargs: dict[str, object] = {}
             if req.title is not None:
                 kwargs["title"] = req.title
             if req.body is not None:
@@ -169,7 +169,7 @@ class PullRequestOps(GitHubSecurityGuards):
                         " (require_pr_review=true)"
                     )
             # Build merge kwargs; title/message are optional overrides
-            kwargs: dict[str, Any] = {"merge_method": req.merge_method}
+            kwargs: dict[str, object] = {"merge_method": req.merge_method}
             if req.commit_title:
                 kwargs["commit_title"] = req.commit_title
             if req.commit_message:

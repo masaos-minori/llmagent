@@ -114,7 +114,7 @@ class RepositoryOps(GitHubSecurityGuards):
         def _sync() -> list[CommitInfo]:
             repo = self._get_repo(req.owner, req.repo)
             # sha kwarg selects a specific branch; omit to use the default branch
-            kwargs: dict[str, Any] = {"sha": req.branch} if req.branch else {}
+            kwargs: dict[str, object] = {"sha": req.branch} if req.branch else {}
             return [
                 CommitInfo(
                     sha=c.sha,

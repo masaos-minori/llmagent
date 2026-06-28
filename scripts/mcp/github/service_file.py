@@ -40,7 +40,7 @@ class FileOps(GitHubSecurityGuards):
         def _sync() -> GetFileContentsResponse:
             repo = self._get_repo(req.owner, req.repo)
             # ref kwarg selects branch/tag/SHA; omit to use the default branch
-            kwargs: dict[str, Any] = {"ref": req.ref} if req.ref else {}
+            kwargs: dict[str, object] = {"ref": req.ref} if req.ref else {}
             file_content = repo.get_contents(req.path, **kwargs)
             # Guard: path points to a directory, not a file
             if isinstance(file_content, list):
@@ -71,7 +71,7 @@ class FileOps(GitHubSecurityGuards):
         def _sync() -> CreateOrUpdateFileResponse:
             repo = self._get_repo(req.owner, req.repo)
             # Branch kwarg is optional; omit to use the default branch
-            kwargs: dict[str, Any] = {}
+            kwargs: dict[str, object] = {}
             if req.branch:
                 kwargs["branch"] = req.branch
             encoded = req.content.encode("utf-8")
@@ -161,7 +161,7 @@ class FileOps(GitHubSecurityGuards):
         def _sync() -> DeleteRepoFileResponse:
             repo = self._get_repo(req.owner, req.repo)
             # Branch kwarg is optional; omit to use the default branch
-            kwargs: dict[str, Any] = {}
+            kwargs: dict[str, object] = {}
             if req.branch:
                 kwargs["branch"] = req.branch
             raw = repo.delete_file(req.path, req.message, req.sha, **kwargs)
