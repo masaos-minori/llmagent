@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 from agent.commands.cmd_mcp import _McpMixin
+from agent.commands.exceptions import UnknownSubcommandError
 from shared.mcp_config import McpServerConfig
 
 
@@ -282,49 +283,32 @@ class TestCmdMcp:
         out = capsys.readouterr().out
         assert "SERVER" in out
 
-
-class TestCmdMcpInstall:
     @pytest.mark.asyncio
-    async def test_install_invalid_name_shows_error(
-        self, capsys: pytest.CaptureFixture
-    ) -> None:
+    async def test_unknown_subcommand_raises_error(self) -> None:
         ctx = _Ctx({})
         mcp = _Mcp(ctx)
+        with pytest.raises(UnknownSubcommandError, match="Unknown subcommand 'invalid'"):
+            await mcp._cmd_mcp("invalid")
+
+    @pytest.mark.asyncio
+    async def test_invalid_subcommand_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
+        ctx = _Ctx({})
+        mcp = _Mcp(ctx)
+        with pytest.raises(UnknownSubcommandError, match="Unknown subcommand 'install'"):
+            await mcp._cmd_mcp("install")
+
+    @pytest.mark.asyncio
+    async def test_status_subcommand_works(self, capsys: pytest.CaptureFixture) -> None:
+        ctx = _Ctx({})
+        mcp = _Mcp(ctx)
+
         with patch(
-            "mcp.installer_validation.validate_server_name",
-            side_effect=ValueError("invalid name"),
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
         ):
-            await mcp._cmd_mcp_install("bad name!")
-        out = capsys.readouterr().out
-        assert "invalid name" in out
-        assert "Usage" in out
+            await mcp._cmd_mcp("status")
 
-    @pytest.mark.asyncio
-    async def test_install_uses_validated_server_name(
-        self, capsys: pytest.CaptureFixture
-    ) -> None:
-        from agent.services.mcp_install import McpInstallParams
-
-        ctx = _Ctx({})
-        mcp = _Mcp(ctx)
-        mock_params = McpInstallParams(
-            server_name="my-server", port=8000, role="generic", with_confd=False
-        )
-        mock_result = MagicMock()
-        mock_result.created_files = []
-        mock_svc = MagicMock()
-        mock_svc.collect_params = AsyncMock(return_value=mock_params)
-        mock_svc.run = AsyncMock(return_value=mock_result)
-        mock_svc.format_next_steps.return_value = "Next steps..."
-        with (
-            patch("mcp.installer_validation.validate_server_name"),
-            patch("agent.commands.cmd_mcp.McpInstallService", return_value=mock_svc),
-            patch("agent.commands.cmd_mcp.CliInstallQA"),
-        ):
-            await mcp._cmd_mcp_install("my-server")
-        assert mock_svc.run.call_args.args[0].server_name == "my-server"
         out = capsys.readouterr().out
-        assert "my-server" in out
+        assert "SERVER" in out
 
 
 class TestCmdMcpStatusSerialization:

@@ -113,7 +113,6 @@
   │   │   ├─ export_formatter.py        # エクスポートフォーマット
   │   │   ├─ ingest_workflow.py         # 取り込みワークフロー
   │   │   ├─ io_ports.py                # I/O ポート管理
-  │   │   ├─ mcp_install.py             # MCP サーバインストール
   │   │   ├─ mcp_status.py              # MCP サーバステータス
   │   │   ├─ rag_maintenance_service.py # RAG 保守サービス
   │   │   ├─ session_restore.py         # セッション復元

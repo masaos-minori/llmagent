@@ -493,18 +493,7 @@ tool_names = ["my_tool_a", "my_tool_b"]
 | `config/agent.toml` `tool_names` | Optional | Validation hint only; routing does not require it |
 | `config/tools_definitions.toml` | Optional | Used by strict-mode startup validation only |
 
-### Option 1: Wizard (recommended)
-
-```
-agent[:#N]> /mcp install <server-name>
-```
-
-Generates:
-- `scripts/mcp/<name>/server.py` — FastAPI scaffold (`MCPServer` subclass)
-- `config/<module>_mcp_server.json` — config template
-- `conf.d/<server-name>` — API key env template (optional)
-
-### Option 2: Manual steps
+### Manual steps
 
 1. Subclass `MCPServer` in `mcp/<name>/server.py`; override `dispatch()`
 2. Add `GET /v1/tools` endpoint returning tool definitions with `server_key` field

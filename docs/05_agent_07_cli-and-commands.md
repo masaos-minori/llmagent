@@ -85,7 +85,7 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | Command | Side effects | Related state |
 |---|---|---|
 | `/mcp` | HTTP probe to all MCP servers | Displays health table |
-| `/mcp install <name>` | Creates scaffold files | New server files + config snippets |
+| `/mcp status` | HTTP probe to all MCP servers | Displays health table |
 
 ### Config / stats category
 

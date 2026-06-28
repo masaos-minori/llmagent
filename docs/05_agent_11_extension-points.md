@@ -215,22 +215,13 @@ Log format: `Plugin hook "<name>" failed on query "<query>": <ErrorType>: <messa
 
 ## Adding a New MCP Server
 
-Use the built-in wizard (recommended):
-
-```
-agent[:#1]> /mcp install <server-name>
-```
-
-This generates:
-- `scripts/mcp/<name>/server.py` — FastAPI scaffold (MCPServer subclass)
-- `config/<module>_mcp_server.json` — config template
-- `conf.d/<server-name>` — API key env template (optional)
-
-Manual steps after wizard:
-1. Add tool definitions to `config/agent.toml` → `tool_definitions`
-2. Add server entry to `config/mcp_servers.toml` → `[mcp_servers.<key>]`
-3. Add files to `deploy/deploy.sh` copy list
-4. Add subprocess startup to `deploy/setup_services.sh`
+1. Subclass `MCPServer` in `scripts/mcp/<name>/server.py`; override `dispatch()`
+2. Add `GET /v1/tools` endpoint returning tool definitions with `server_key` field
+3. Add tool names to `shared/tool_constants.py` frozenset (owned by this server)
+4. Add tool definitions to `config/agent.toml` → `tool_definitions`
+5. Add `[mcp_servers.<key>]` entry to `config/mcp_servers.toml` with `tool_names`
+6. Add new files to `deploy/deploy.sh` copy list
+7. Add startup step to `deploy/setup_services.sh`
 
 See [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md)
 for full MCP server addition procedure.
