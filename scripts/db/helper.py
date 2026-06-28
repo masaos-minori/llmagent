@@ -168,13 +168,18 @@ class SQLiteHelper:
 
     @contextmanager
     def begin_immediate(self) -> Generator[None]:
-        """Wrap a block in BEGIN IMMEDIATE...COMMIT; serializes concurrent writers."""
+        """Wrap a block in BEGIN IMMEDIATE...COMMIT; serializes concurrent writers.
+
+        Rolls back on any normal exception (not just sqlite3.Error), ensuring
+        no dangling transaction remains. Re-raises the original exception.
+        Does not catch BaseException (KeyboardInterrupt, SystemExit).
+        """
         conn = self._require_conn()
         conn.execute("BEGIN IMMEDIATE")
         try:
             yield
             conn.execute("COMMIT")
-        except sqlite3.Error:
+        except Exception:
             try:
                 conn.execute("ROLLBACK")
             except sqlite3.OperationalError:
@@ -183,13 +188,18 @@ class SQLiteHelper:
 
     @contextmanager
     def begin_exclusive(self) -> Generator[None]:
-        """Wrap a block in BEGIN EXCLUSIVE...COMMIT; use only for VACUUM or schema migrations."""
+        """Wrap a block in BEGIN EXCLUSIVE...COMMIT; use only for VACUUM or schema migrations.
+
+        Rolls back on any normal exception (not just sqlite3.Error), ensuring
+        no dangling transaction remains. Re-raises the original exception.
+        Does not catch BaseException (KeyboardInterrupt, SystemExit).
+        """
         conn = self._require_conn()
         conn.execute("BEGIN EXCLUSIVE")
         try:
             yield
             conn.execute("COMMIT")
-        except sqlite3.Error:
+        except Exception:
             try:
                 conn.execute("ROLLBACK")
             except sqlite3.OperationalError:
