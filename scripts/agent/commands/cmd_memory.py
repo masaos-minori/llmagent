@@ -53,7 +53,7 @@ _MEMORY_HELP = """\
 /memory prune [days]                      Delete entries older than N days (default: retention_days config)
 /memory status                            Embedding enabled, circuit state, retrieval mode
 /memory check-consistency                 Compare JSONL, SQLite, FTS5, and vec row counts
-/memory rebuild [--dry-run]               Rebuild SQLite from JSONL source of truth
+/memory rebuild [--dry-run]               Import records from JSONL archive (does not replay deletes or pin state)
 """
 
 
@@ -62,7 +62,6 @@ class _MemoryMixin(MixinBase):
 
     def _cmd_memory(self, args: str) -> None:
         ctx = self._ctx
-        mem = ctx.services.memory
         raw_tokens = args.strip().split()
         sub = raw_tokens[0] if raw_tokens else ""
         sub_tokens = raw_tokens[1:] if raw_tokens else []
@@ -70,6 +69,8 @@ class _MemoryMixin(MixinBase):
         if not sub or sub == "help":
             self._out.write(_MEMORY_HELP)
             return
+
+        mem = ctx.services.memory
 
         # status is allowed even when memory is disabled
         if sub == "status":
@@ -92,6 +93,7 @@ class _MemoryMixin(MixinBase):
             "prune": lambda: self._memory_prune(mem, ctx, sub_tokens),
             "check-consistency": lambda: self._memory_check_consistency(mem),
             "rebuild": lambda: self._memory_rebuild(mem, sub_tokens),
+            "import-jsonl": lambda: self._memory_rebuild(mem, sub_tokens),
         }
         handler = dispatch.get(sub)
         if handler:
@@ -368,7 +370,7 @@ class _MemoryMixin(MixinBase):
         )
         if dry_run:
             self._out.write(
-                f"  [memory] (dry-run) would rebuild from {jsonl_count} JSONL records"
+                f"  [memory] (dry-run) would import from {jsonl_count} JSONL archive records"
             )
         else:
             self._out.write_success(
