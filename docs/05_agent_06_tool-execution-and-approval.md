@@ -228,6 +228,25 @@ See [Agent Startup and Recovery](05_agent_07_cli-and-commands.md#startup-recover
 
 ---
 
+## Workflow Approval Recovery (Cross-Session)
+
+Workflow-level approval state is persisted in the `approvals` table of `workflow.sqlite`.
+When a workflow task is suspended for approval (user must run `/approve` or `/reject`),
+the approval record survives agent restart:
+
+- **Startup recovery:** On startup, `_recover_pending_approvals()` queries the `approvals` table
+  for any pending approval. If found, it sets `ctx.workflow.approval_pending = True` and
+  `ctx.turn.pending_approval_id`, then displays a warning with task ID and approval ID.
+
+- **Resolution after restart:** `/approve` and `/reject` resolve the latest pending approval
+  from the workflow database — in-memory `pending_approval_id` is NOT required for resolution.
+  This means even if the in-memory state is lost, the user can still approve/reject via the CLI.
+
+- **Warning message includes IDs:** The startup warning shows `task=<id> approval=<id> reason=<reason>`
+  so operators can correlate with logs and know which task to act on.
+
+---
+
 ## Canonical Approval Model (ADR-001)
 
 **Date:** 2026-06-26
