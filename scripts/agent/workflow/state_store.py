@@ -99,6 +99,13 @@ class StateStore:
             workflow_id=row.get("workflow_id"),
         )
 
+    def get_task_by_id(self, task_id: str) -> TaskRecord | None:
+        """Return the task record for the given task_id, or None if absent."""
+        rows = self._db.fetchall("SELECT * FROM tasks WHERE task_id=?", (task_id,))
+        if not rows:
+            return None
+        return self._row_to_task(rows[0])
+
     def get_task_by_idempotency_key(self, key: str) -> TaskRecord | None:
         rows = self._db.fetchall("SELECT * FROM tasks WHERE idempotency_key=?", (key,))
         if not rows:

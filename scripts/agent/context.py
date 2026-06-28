@@ -80,6 +80,8 @@ class TurnState:
     # Populated from durable storage (StateStore) at startup by _recover_pending_approvals().
     # Use StateStore.find_latest_pending_approval() as the authoritative source.
     pending_approval_id: str | None = None
+    # Task ID to resume after /approve; set by /approve command, cleared by Orchestrator.handle_turn.
+    pending_approval_task_id: str | None = None
 
 
 @dataclass

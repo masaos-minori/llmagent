@@ -206,7 +206,11 @@ class Orchestrator:
             (
                 workflow_id,
                 task,
-            ) = self._init_workflow_task(ctx, session_id)
+            ) = self._init_workflow_task(
+                ctx, session_id, ctx.turn.pending_approval_task_id
+            )
+            # Clear pending approval task ID after retrieval
+            ctx.turn.pending_approval_task_id = None
             self._activate_workflow(ctx, task)
             engine = WorkflowEngine(
                 self._workflow_def,
@@ -248,24 +252,35 @@ class Orchestrator:
             store.close()
 
     def _init_workflow_task(
-        self, ctx: AgentContext, session_id: str
+        self, ctx: AgentContext, session_id: str, existing_task_id: str | None = None
     ) -> tuple[str, object]:
-        """Create a workflow task and audit its start."""
+        """Create a workflow task and audit its start.
+
+        If existing_task_id is provided, use that task instead of creating a new one.
+        """
         assert self._workflow_def is not None  # noqa: B101
-        workflow_id = str(uuid.uuid4())
-        task = StateStore().create_task(
-            session_id=session_id,
-            turn_number=ctx.stats.stat_turns,
-            workflow_version=self._workflow_def.version,
-            workflow_id=workflow_id,
-        )
-        audit_workflow_start(
-            ctx,
-            task.task_id,
-            self._workflow_def.version,
-            workflow_id=workflow_id,
-            session_id=session_id,
-        )
+        if existing_task_id is None:
+            workflow_id = str(uuid.uuid4())
+            task = StateStore().create_task(
+                session_id=session_id,
+                turn_number=ctx.stats.stat_turns,
+                workflow_version=self._workflow_def.version,
+                workflow_id=workflow_id,
+            )
+            audit_workflow_start(
+                ctx,
+                task.task_id,
+                self._workflow_def.version,
+                workflow_id=workflow_id,
+                session_id=session_id,
+            )
+        else:
+            store = StateStore()
+            task = store.get_task_by_id(existing_task_id)
+            if task is None:
+                raise RuntimeError(f"Task {existing_task_id} not found")
+            workflow_id = task.workflow_id or str(uuid.uuid4())
+            store.close()
         return workflow_id, task
 
     def _activate_workflow(self, ctx: AgentContext, task: object) -> None:

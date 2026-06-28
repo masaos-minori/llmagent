@@ -242,3 +242,71 @@ class TestWorkflowEngineApprovalGate:
         store.resolve_approval(approval.approval_id, "rejected", "not safe")
         with pytest.raises(WorkflowHaltError, match="approval rejected"):
             await engine._gate_approval(task)
+
+    @pytest.mark.asyncio
+    async def test_resume_does_not_rerun_plan_or_execute(self, store) -> None:
+        """After /approve, resume must not rerun plan or execute stages."""
+        wdef = _make_wdef()
+        task = store.create_task("s", 1, wdef.version)
+        engine = WorkflowEngine(wdef, store, require_approval=True)
+
+        # First run — suspends at approval gate
+        with pytest.raises(WorkflowPendingApprovalError):
+            await engine.run(task, _noop, _noop, _noop)
+
+        # Approve the task
+        approval = store.get_pending_approval(task.task_id)
+        assert approval is not None
+        store.resolve_approval(approval.approval_id, "approved")
+
+        # Resume — plan and execute should be skipped via idempotency
+        call_counts = {"plan": 0, "execute": 0, "verify": 0}
+
+        async def counting_fn(stage: str) -> str | None:
+            call_counts[stage] += 1
+            return None
+
+        # We need to pass the stage name to the callback; use a different approach
+        plan_calls = []
+        execute_calls = []
+        verify_calls = []
+
+        async def plan_fn() -> str | None:
+            plan_calls.append(1)
+            return None
+
+        async def execute_fn() -> str | None:
+            execute_calls.append(1)
+            return None
+
+        async def verify_fn() -> str | None:
+            verify_calls.append(1)
+            return None
+
+        await engine.run(task, plan_fn, execute_fn, verify_fn)
+
+        # Plan and execute should NOT be called again (idempotency)
+        assert len(plan_calls) == 0, "Plan stage should not be rerun after resume"
+        assert len(execute_calls) == 0, "Execute stage should not be rerun after resume"
+        # Verify stage should be called once
+        assert len(verify_calls) == 1, "Verify stage should run after resume"
+
+    @pytest.mark.asyncio
+    async def test_startup_recovered_approval_can_resume(self, store) -> None:
+        """After startup recovery restores pending approval, the task can resume."""
+        wdef = _make_wdef()
+        task = store.create_task("s", 1, wdef.version)
+        engine = WorkflowEngine(wdef, store)
+
+        # Simulate startup recovery: task is still in pending_approval state
+        approval = store.request_approval(task.task_id)
+        store.update_task_status(task.task_id, "pending_approval")
+
+        # Approve the task (as if user ran /approve after startup)
+        store.resolve_approval(approval.approval_id, "approved")
+
+        # Resume — should complete without raising
+        await engine.run(task, _noop, _noop, _noop)
+        found = store.get_task_by_idempotency_key("s:1")
+        assert found is not None
+        assert found.status == "completed"

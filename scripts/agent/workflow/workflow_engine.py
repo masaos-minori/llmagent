@@ -148,6 +148,12 @@ class WorkflowEngine:
                 raise WorkflowPendingApprovalError(approval.approval_id, task.task_id)
             approval_span.set_attribute("workflow.approval_id", existing.approval_id)
             approval_span.set_attribute("workflow.approval_status", existing.status)
+            if existing.status == "approved":
+                logger.info(
+                    "Approval gate passed: task %s approved (resume)",
+                    task.task_id,
+                )
+                return  # pass through to next stage
             if existing.status == "pending":
                 raise WorkflowPendingApprovalError(existing.approval_id, task.task_id)
             if existing.status == "rejected":

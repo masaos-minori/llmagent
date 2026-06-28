@@ -33,6 +33,7 @@ class _WorkflowMixin(MixinBase):
         """Approve the pending workflow-level approval gate (workflow_approvals table only).
 
         Does not affect per-tool interactive approval (tool_approval.run_approval_checks).
+        After approval, the workflow engine will auto-resume on the next turn.
         """
         from agent.workflow import (
             StateStore,  # noqa: PLC0415 — lazy: avoids startup cost
@@ -46,7 +47,7 @@ class _WorkflowMixin(MixinBase):
                     "No pending approval. Run a workflow task first."
                 )
                 return
-            _task_id, approval = result
+            task_id, approval = result
             approval_id = approval.approval_id
             reason = arg.strip() or None
             store.resolve_approval(approval_id, "approved", reason)
@@ -57,12 +58,14 @@ class _WorkflowMixin(MixinBase):
             store.close()
         self._ctx.turn.pending_approval_id = None
         self._ctx.workflow.approval_pending = False
-        self._out.write(f"Approved: {approval_id}")
+        self._ctx.turn.pending_approval_task_id = task_id
+        self._out.write(f"Approved: {approval_id} — workflow will resume on next turn")
 
     def _cmd_reject(self, arg: str) -> None:
         """Reject the pending workflow-level approval gate (workflow_approvals table only).
 
         Does not affect per-tool interactive approval (tool_approval.run_approval_checks).
+        Immediately marks the task as halted.
         """
         from agent.workflow import (
             StateStore,  # noqa: PLC0415 — lazy: avoids startup cost
@@ -76,10 +79,11 @@ class _WorkflowMixin(MixinBase):
                     "No pending approval. Run a workflow task first."
                 )
                 return
-            _task_id, approval = result
+            task_id, approval = result
             approval_id = approval.approval_id
             reason = arg.strip() or None
             store.resolve_approval(approval_id, "rejected", reason)
+            store.update_task_status(task_id, "halted")
         except RuntimeError as exc:
             self._out.write_validation_error(f"Failed to resolve approval: {exc}")
             return
@@ -87,4 +91,4 @@ class _WorkflowMixin(MixinBase):
             store.close()
         self._ctx.turn.pending_approval_id = None
         self._ctx.workflow.approval_pending = False
-        self._out.write(f"Rejected: {approval_id}")
+        self._out.write(f"Rejected: {approval_id} — task halted")
