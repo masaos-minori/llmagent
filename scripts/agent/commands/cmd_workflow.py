@@ -19,7 +19,7 @@ class _WorkflowMixin(MixinBase):
     """Workflow approval slash-command handlers.
 
     These commands resolve workflow-level approval gates only (DB-persisted,
-    per-task record in ``workflow_approvals``). Per-tool interactive approval
+    per-task record in ``approvals``). Per-tool interactive approval
     (``run_approval_checks``) is handled separately via stdin prompts and is
     not affected by these commands.
 
@@ -30,7 +30,7 @@ class _WorkflowMixin(MixinBase):
     """
 
     def _cmd_approve(self, arg: str) -> None:
-        """Approve the pending workflow-level approval gate (workflow_approvals table only).
+        """Approve the pending workflow-level approval gate (approvals table only).
 
         Does not affect per-tool interactive approval (tool_approval.run_approval_checks).
         After approval, the workflow engine will auto-resume on the next turn.
@@ -62,7 +62,7 @@ class _WorkflowMixin(MixinBase):
         self._out.write(f"Approved: {approval_id} — workflow will resume on next turn")
 
     def _cmd_reject(self, arg: str) -> None:
-        """Reject the pending workflow-level approval gate (workflow_approvals table only).
+        """Reject the pending workflow-level approval gate (approvals table only).
 
         Does not affect per-tool interactive approval (tool_approval.run_approval_checks).
         Immediately marks the task as halted.

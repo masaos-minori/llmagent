@@ -163,14 +163,14 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | `/approve [reason]` | Resolves suspended workflow approval as approved | `ctx.turn.pending_approval_id` |
 | `/reject [reason]` | Resolves suspended workflow approval as rejected | `ctx.turn.pending_approval_id` |
 
-> **Scope:** `/approve` and `/reject` resolve **workflow-level approval gates only** (the `workflow_approvals` DB record).
+> **Scope:** `/approve` and `/reject` resolve **workflow-level approval gates only** (the `approvals` DB record).
 > They do not affect per-tool interactive approval prompts (`tool_approval.run_approval_checks`).
 > See [Tool Execution and Approval](05_agent_06_tool-execution-and-approval.md) for the canonical approval model.
 
 #### Startup Recovery
 
 If the agent restarts while a workflow-level approval is pending, the pending state is
-automatically detected at startup from the `workflow_approvals` database table.
+automatically detected at startup from the `approvals` database table.
 A startup notice is shown:
 
 ```

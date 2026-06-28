@@ -247,7 +247,7 @@ Both layers are canonical; boundaries and responsibilities are explicit, not exc
 |------|---------------------|------------------------|
 | Implementation | `agent/tool_approval.py` | `agent/workflow/workflow_engine.py` |
 | Granularity | per tool call | per task (execute→verify gap) |
-| State | ephemeral (in-memory) | DB-persisted (`workflow_approvals`) |
+| State | ephemeral (in-memory) | DB-persisted (`approvals`) |
 | Resolution | stdin interactive | `/approve` / `/reject` |
 | Currently active | always enabled | disabled (`require_approval=False`) |
 
