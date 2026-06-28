@@ -4,7 +4,7 @@ Shared I/O utilities for the RAG ingestion pipeline.
 """
 
 from pathlib import Path
-from typing import Any
+from typing import NotRequired, TypedDict, cast
 
 import orjson
 from rag.exceptions import ChunkFormatError
@@ -15,7 +15,26 @@ from shared.logger import Logger
 logger = Logger(__name__, "/opt/llm/logs/pipeline.log")
 
 
-def _read_chunk_json_raw(path: Path) -> dict[str, Any] | None:
+class ChunkJsonRaw(TypedDict):
+    """Typed dict for raw chunk/crawl JSON payload fields."""
+
+    url: str
+    content: str
+    title: NotRequired[str]
+    lang: NotRequired[str]
+    code_blocks: NotRequired[list[str]]
+    etag: NotRequired[str | None]
+    last_modified: NotRequired[str | None]
+    fetched_at: NotRequired[str | None]
+    chunking_strategy: NotRequired[str]
+    normalized_content: NotRequired[str | None]
+    chunk_index: NotRequired[int]
+    source_file: NotRequired[str]
+    chunk_type: NotRequired[str]
+    artifact_type: NotRequired[str]
+
+
+def _read_chunk_json_raw(path: Path) -> ChunkJsonRaw | None:
     """Read and parse a chunk JSON file as a raw dict; returns None on any failure."""
     try:
         raw = path.read_bytes()
@@ -42,7 +61,7 @@ def _read_chunk_json_raw(path: Path) -> dict[str, Any] | None:
     if not isinstance(content, str) or not content:
         logger.warning("skip chunk %s: missing or invalid 'content'", path.name)
         return None
-    return data
+    return cast(ChunkJsonRaw, data)
 
 
 def read_json_file(path: Path) -> ChunkDocument:

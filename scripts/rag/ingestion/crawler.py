@@ -16,7 +16,7 @@ import sqlite3
 from datetime import datetime
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any, NotRequired, TypedDict
+from typing import NotRequired, TypedDict
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -70,8 +70,8 @@ class WebCrawler:
         "Connection": "keep-alive",
     }
 
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
-        cfg: dict[str, Any] = config or ConfigLoader().load("rag_pipeline.toml")
+    def __init__(self, config: dict | None = None) -> None:
+        cfg: dict = config or ConfigLoader().load("rag_pipeline.toml")
         self._rag_src_dir: Path = Path(cfg["rag_src_dir"])
         self._crawl_delay: float = float(cfg["crawl_delay"])
         self._max_depth: int = int(cfg["max_depth"])
@@ -361,12 +361,15 @@ class WebCrawler:
         soup = BeautifulSoup(html, "lxml")
         for a in soup.find_all("a", href=True):
             if self._skip_nofollow:
-                rel = a.get("rel")
+                rel: list[str] | str | None = a.get("rel")
                 if isinstance(rel, str):
                     rel = rel.split()
                 if rel and "nofollow" in rel:
                     continue
-            next_url = normalize_url(urljoin(current_url, a["href"]))
+            href = a.get("href")
+            if not isinstance(href, str):
+                continue
+            next_url = normalize_url(urljoin(current_url, href))
             if self._skip_external and not same_origin(next_url, start_url):
                 continue
             queue.put_nowait((next_url, depth + 1))

@@ -14,7 +14,7 @@ Pipeline position: Crawler.py → ChunkSplitter.py → RagIngester.py
 import argparse
 import re
 from pathlib import Path
-from typing import Any, NotRequired, TypedDict
+from typing import NotRequired, TypedDict
 
 import orjson
 from rag.exceptions import ChunkFormatError
@@ -22,6 +22,7 @@ from rag.ingestion.chunk_english import ChunkEnglishMixin
 from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
 from rag.ingestion.chunk_utils import merge_text_items
 from rag.ingestion.pipeline_utils import (
+    ChunkJsonRaw,
     collect_source_files,
     is_already_processed,
     read_json_file,
@@ -83,7 +84,7 @@ class ChunkMetadata(TypedDict, total=False):
 
 
 # Metadata dict type for ** spreading (cannot use TypedDict in constructor calls)
-_ChunkMetadataDict = dict[str, Any]
+_ChunkMetadataDict = dict[str, object]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -163,7 +164,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     # ── Markdown heading chunking ──────────────────────────────────────────────
 
-    def _is_markdown_source(self, data: ChunkDocument | dict[str, Any]) -> bool:
+    def _is_markdown_source(self, data: ChunkDocument | ChunkJsonRaw) -> bool:
         """Return True when the source should use heading-based snippet chunking.
 
         .md / .markdown / .mdx files always use heading chunking regardless of md_index_enable.
@@ -314,7 +315,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         chunk_type: str,
         chunk_content: str,
         norm_content: str | None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, object]:
         """Build a single chunk JSON payload from shared metadata and chunk-specific fields."""
         return {
             "schema_version": "1",

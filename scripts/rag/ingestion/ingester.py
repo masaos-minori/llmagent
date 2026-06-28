@@ -19,7 +19,6 @@ from collections import defaultdict
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any, NotRequired, TypedDict
 
 import httpx
 import orjson
@@ -29,34 +28,12 @@ from db.maintenance import (
     check_rag_consistency,
     is_consistent,
 )
-from rag.ingestion.pipeline_utils import _read_chunk_json_raw
+from rag.ingestion.pipeline_utils import ChunkJsonRaw, _read_chunk_json_raw
 from rag.utils import floats_to_blob, validate_url
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
-
-
-class ChunkData(TypedDict):
-    """Typed dict for chunk JSON payload fields."""
-
-    url: str
-    title: NotRequired[str]
-    lang: NotRequired[str]
-    content: str
-    code_blocks: NotRequired[list[str]]
-    etag: NotRequired[str | None]
-    last_modified: NotRequired[str | None]
-    chunking_strategy: NotRequired[str]
-    normalized_content: NotRequired[str | None]
-    chunk_index: NotRequired[int]
-    source_file: NotRequired[str]
-    chunk_type: NotRequired[str]
-    artifact_type: NotRequired[str]
-
-
-# ChunkData type for ** spreading (cannot use TypedDict in constructor calls)
-_ChunkDataDict = dict[str, Any]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -300,7 +277,7 @@ class RagIngester:
     # ── Document helpers ──────────────────────────────────────────────────────
 
     @staticmethod
-    def _validate_artifact(payload: _ChunkDataDict, expected_type: str) -> None:
+    def _validate_artifact(payload: ChunkJsonRaw, expected_type: str) -> None:
         """Validate artifact_type field; lenient for backward compatibility (missing artifact_type is accepted)."""
         actual = payload.get("artifact_type")
         if actual is not None and actual != expected_type:
@@ -517,7 +494,7 @@ class RagIngester:
 
     # ── Bulk file processing ──────────────────────────────────────────────────
 
-    def _read_chunk_json(self, path: Path) -> _ChunkDataDict | None:
+    def _read_chunk_json(self, path: Path) -> ChunkJsonRaw | None:
         """Read and parse a chunk JSON file as a raw dict; returns None on failure."""
         return _read_chunk_json_raw(path)
 
