@@ -147,3 +147,97 @@ class TestStartupOrchestratorStartServers:
 
         startup._ctx.services.lifecycle.start_http_subprocess.assert_called_once()
         mock_transport.start.assert_called_once()
+
+
+# ── StartupOrchestrator._recover_pending_approvals ─────────────────────────────
+
+
+class TestStartupOrchestratorRecoverPendingApprovals:
+    """Tests for StartupOrchestrator._recover_pending_approvals()."""
+
+    @pytest.mark.asyncio
+    async def test_startup_recovery_restores_pending_approval(self) -> None:
+        """Startup recovery restores approval_pending state from the workflow database."""
+        ctx = MagicMock()
+        ctx.workflow = MagicMock()
+        ctx.workflow.approval_pending = False
+        ctx.turn = MagicMock()
+        ctx.turn.pending_approval_id = None
+        view = MagicMock()
+
+        startup = StartupOrchestrator(ctx, view)
+
+        approval = MagicMock()
+        approval.approval_id = "approval-123"
+        approval.reason = "waiting for deploy"
+
+        mock_store = MagicMock()
+        mock_store.find_latest_pending_approval.return_value = (
+            "task-456",
+            approval,
+        )
+
+        with patch(
+            "agent.startup.StateStore", return_value=mock_store
+        ):
+            await startup._recover_pending_approvals()
+
+        assert ctx.workflow.approval_pending is True
+        assert ctx.turn.pending_approval_id == "approval-123"
+
+    @pytest.mark.asyncio
+    async def test_startup_recovery_warning_contains_task_and_approval_id(self) -> None:
+        """Startup warning includes task_id and approval_id for debugging."""
+        ctx = MagicMock()
+        ctx.workflow = MagicMock()
+        ctx.workflow.approval_pending = False
+        ctx.turn = MagicMock()
+        ctx.turn.pending_approval_id = None
+        view = MagicMock()
+
+        startup = StartupOrchestrator(ctx, view)
+
+        approval = MagicMock()
+        approval.approval_id = "approval-123"
+        approval.reason = "waiting for deploy"
+
+        mock_store = MagicMock()
+        mock_store.find_latest_pending_approval.return_value = (
+            "task-456",
+            approval,
+        )
+
+        with patch(
+            "agent.startup.StateStore", return_value=mock_store
+        ):
+            await startup._recover_pending_approvals()
+
+        warning_calls = view.write_warning.call_args_list
+        assert len(warning_calls) == 1
+        warning_text = str(warning_calls[0][0][0])
+        assert "task-456" in warning_text, f"Expected task_id in warning, got: {warning_text}"
+        assert "approval-123" in warning_text, f"Expected approval_id in warning, got: {warning_text}"
+
+    @pytest.mark.asyncio
+    async def test_startup_recovery_no_pending_approval(self) -> None:
+        """No warning or state change when there is no pending approval."""
+        ctx = MagicMock()
+        ctx.workflow = MagicMock()
+        ctx.workflow.approval_pending = False
+        ctx.turn = MagicMock()
+        ctx.turn.pending_approval_id = None
+        view = MagicMock()
+
+        startup = StartupOrchestrator(ctx, view)
+
+        mock_store = MagicMock()
+        mock_store.find_latest_pending_approval.return_value = None
+
+        with patch(
+            "agent.startup.StateStore", return_value=mock_store
+        ):
+            await startup._recover_pending_approvals()
+
+        assert ctx.workflow.approval_pending is False
+        assert ctx.turn.pending_approval_id is None
+        view.write_warning.assert_not_called()

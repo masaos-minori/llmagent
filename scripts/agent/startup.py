@@ -201,7 +201,9 @@ class StartupOrchestrator:
             approval.reason or "none",
         )
         self._view.write_warning(
-            "[workflow] Pending approval from previous session — use /approve [reason] or /reject [reason]."
+            f"[workflow] Pending approval from previous session — "
+            f"task={task_id} approval={approval.approval_id} reason={approval.reason or 'none'}.\n"
+            f"Use /approve [reason] or /reject [reason]."
         )
 
     async def _setup_prompt(self) -> None:
