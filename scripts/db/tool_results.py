@@ -93,10 +93,12 @@ class ToolResultStore:
     def list_recent(self, session_id: int | None, n: int = 20) -> list[ToolResultRow]:
         """Return the n most recent tool results for session_id oldest first.
 
-        Returns [] when session_id is None. Raises on DB error.
+        Returns [] when session_id is None or n < 1. Raises on DB error.
         Rows contain id, tool_name, summary, is_error; other fields default to empty/0.
         """
         if session_id is None:
+            return []
+        if n < 1:
             return []
         with self._make_helper(row_factory=True) as db:
             rows = db.fetchall(

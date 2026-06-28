@@ -262,3 +262,34 @@ class TestToolResultStoreListRecent:
         assert len(results) == 1
         assert results[0].full_text == ""
         assert results[0].summary == "summary text"
+
+    def test_n_zero_returns_empty(self, store: ToolResultStore) -> None:
+        """list_recent(session_id, n=0) returns [] without querying the database."""
+        store.store(1, 1, "tool_a", "{}", "out_a", None, False)
+        results = store.list_recent(1, n=0)
+        assert results == []
+
+    def test_n_negative_returns_empty(self, store: ToolResultStore) -> None:
+        """list_recent(session_id, n=-1) returns [] without querying the database."""
+        store.store(1, 1, "tool_a", "{}", "out_a", None, False)
+        results = store.list_recent(1, n=-1)
+        assert results == []
+
+    def test_n_one_returns_single_result(self, store: ToolResultStore) -> None:
+        """list_recent(session_id, n=1) returns one result."""
+        store.store(1, 1, "tool_a", "{}", "out_a", None, False)
+        store.store(1, 2, "tool_b", "{}", "out_b", None, False)
+        results = store.list_recent(1, n=1)
+        assert len(results) == 1
+        assert results[0].tool_name == "tool_b"
+
+    def test_n_less_than_one_no_db_query(self, store: ToolResultStore) -> None:
+        """n < 1 returns [] without querying the database (no DB calls made)."""
+        with patch.object(store, "_make_helper") as mock_make_helper:
+            mock_make_helper.return_value.__enter__ = lambda self: self
+            mock_make_helper.return_value.__exit__ = lambda *a: None
+            mock_make_helper.return_value.fetchall = lambda sql, params: []  # noqa: ARG005
+
+            results = store.list_recent(1, n=-5)
+            assert results == []
+            mock_make_helper.assert_not_called()
