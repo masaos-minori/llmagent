@@ -355,6 +355,80 @@ class TestCreateWorkflowSchema:
             "approvals",
         } <= tables
 
+    def test_creates_all_tables_via_workflow_schema_init(
+        self, tmp_path: Path
+    ) -> None:
+        """workflow_schema.init_schema() creates the same tables as create_workflow_schema()."""
+        import db.workflow_schema as ws
+
+        db_file = tmp_path / "workflow2.sqlite"
+        cfg = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path=str(db_file),
+        )
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch("db.store_protocols.build_db_config", return_value=cfg),
+            patch(
+                "db.workflow_schema.build_workflow_schema_sql",
+                return_value=_WORKFLOW_SCHEMA_NO_VEC0,
+            ),
+        ):
+            ws.init_schema()
+        conn = sqlite3.connect(str(db_file))
+        tables = _table_names(conn)
+        conn.close()
+        assert {
+            "tasks",
+            "attempts",
+            "processed_events",
+            "artifacts",
+            "approvals",
+        } <= tables
+
+    def test_both_paths_create_same_tables(self, tmp_path: Path) -> None:
+        """Both workflow initialization paths produce the same set of tables."""
+        import db.workflow_schema as ws
+
+        db_file1 = tmp_path / "workflow_a.sqlite"
+        db_file2 = tmp_path / "workflow_b.sqlite"
+        cfg = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path=str(db_file1),
+        )
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch("db.store_protocols.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_workflow_schema_sql",
+                return_value=_WORKFLOW_SCHEMA_NO_VEC0,
+            ),
+        ):
+            cs.create_workflow_schema()
+        cfg2 = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path=str(db_file2),
+        )
+        with (
+            patch("db.helper.build_db_config", return_value=cfg2),
+            patch("db.store_protocols.build_db_config", return_value=cfg2),
+            patch(
+                "db.workflow_schema.build_workflow_schema_sql",
+                return_value=_WORKFLOW_SCHEMA_NO_VEC0,
+            ),
+        ):
+            ws.init_schema()
+        conn1 = sqlite3.connect(str(db_file1))
+        tables1 = _table_names(conn1)
+        conn1.close()
+        conn2 = sqlite3.connect(str(db_file2))
+        tables2 = _table_names(conn2)
+        conn2.close()
+        assert tables1 == tables2
+
     def test_idempotent(self, tmp_path: Path) -> None:
         db_file = tmp_path / "workflow2.sqlite"
         cfg = DbConfig(

@@ -4,6 +4,8 @@ DDL for the Metadata DB (workflow.sqlite).
 
 Tables: tasks, attempts, processed_events, artifacts, approvals.
 Run as: PYTHONPATH=scripts python -m db.workflow_schema
+
+Canonical DDL source: db/schema_sql.py::build_workflow_schema_sql()
 """
 
 from __future__ import annotations
@@ -13,60 +15,9 @@ import sqlite3
 from pathlib import Path
 
 from db.config import build_db_config
+from db.schema_sql import build_workflow_schema_sql
 
 logger = logging.getLogger(__name__)
-
-_DDL = """
-PRAGMA journal_mode=WAL;
-PRAGMA foreign_keys=ON;
-
-CREATE TABLE IF NOT EXISTS tasks (
-    task_id          TEXT PRIMARY KEY,
-    session_id       TEXT,
-    workflow_id      TEXT,
-    turn_number      INTEGER,
-    workflow_version TEXT NOT NULL,
-    status           TEXT NOT NULL DEFAULT 'pending',
-    idempotency_key  TEXT UNIQUE NOT NULL,
-    created_at       TEXT NOT NULL,
-    updated_at       TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS attempts (
-    attempt_id  TEXT PRIMARY KEY,
-    task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
-    stage_id    TEXT NOT NULL,
-    status      TEXT NOT NULL DEFAULT 'running',
-    started_at  TEXT NOT NULL,
-    ended_at    TEXT,
-    error_msg   TEXT
-);
-
-CREATE TABLE IF NOT EXISTS processed_events (
-    event_id    TEXT PRIMARY KEY,
-    task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
-    stage_id    TEXT NOT NULL,
-    recorded_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS artifacts (
-    artifact_id TEXT PRIMARY KEY,
-    task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
-    stage_id    TEXT NOT NULL,
-    uri         TEXT NOT NULL,
-    created_at  TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS approvals (
-    approval_id TEXT PRIMARY KEY,
-    task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
-    stage_id    TEXT,
-    status      TEXT NOT NULL DEFAULT 'pending',
-    reason      TEXT,
-    created_at  TEXT NOT NULL,
-    resolved_at TEXT
-);
-"""
 
 
 def _migrate_workflow_schema(conn: sqlite3.Connection) -> None:
@@ -77,13 +28,17 @@ def _migrate_workflow_schema(conn: sqlite3.Connection) -> None:
 
 
 def init_schema() -> None:
-    """Create workflow tables using SQLiteHelper for connection-policy consistency."""
+    """Create workflow tables using SQLiteHelper for connection-policy consistency.
+
+    Uses the canonical DDL source (build_workflow_schema_sql) instead of
+    duplicating DDL here.
+    """
     from db.helper import SQLiteHelper
 
     with SQLiteHelper("workflow").open(write_mode=True) as db:
         if db.conn is None:
             raise RuntimeError("workflow schema: connection not available")
-        db.executescript(_DDL)
+        db.executescript(build_workflow_schema_sql())
         _migrate_workflow_schema(db.conn)
 
 
