@@ -122,8 +122,8 @@ Return contract:
 
 | Return value | Condition |
 |---|---|
-| `str` (non-empty) | HTTP 200 + response body has `"context"` key with non-empty string value |
-| `""` (empty string) | HTTP 200 but `"context"` key is absent, None, or empty — valid empty result |
+| `str` (non-empty) | HTTP 200 + response body has `"result"` key with non-empty string value |
+| `""` (empty string) | HTTP 200 but `"result"` key is absent, None, or empty — valid empty result |
 | `None` | HTTP 4xx (no retry), 5xx with retries exhausted, transport error, or JSON parse error — triggers in-process fallback |
 
 Side effects:
@@ -153,8 +153,8 @@ The classification is visible in:
 
 | Detail | Value |
 |---|---|
-| Endpoint | `{rag_url}/v1/search` |
-| Request body | `{"query": query, "history_context": history_context}` |
+| Endpoint | `{rag_url}/v1/call_tool` |
+| Request body | `{"name": "rag_run_pipeline", "args": {"query": query, "history_context": [history_context]}}` (empty list when history_context is empty) |
 | `_MAX_ATTEMPTS` | 3 total attempts (initial + 2 retries) |
 | Retry backoff | Exponential: `min(2**attempt, 5)` seconds |
 
