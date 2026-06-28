@@ -10,6 +10,20 @@ recovery, error handling, and the operational verification plan.
 
 ---
 
+## 1a. DB Store Module Boundaries
+
+The DB store layer is split into three modules with clear import boundaries:
+
+| Module | Role | Import boundary |
+|---|---|---|
+| `db/store.py` | **Public API surface** — re-exports protocols, embedding helpers, and `ToolResultStore` | Callers should import from here. Stable contract. |
+| `db/store_protocols.py` | **Extension point** — Protocol definitions for storage contracts | Implementations import this; callers rarely need to. |
+| `db/store_impl.py` | **SQLite implementation layer** — concrete implementations of protocols | Never import directly unless intentionally bypassing the protocol abstraction. |
+
+**Rule:** Callers should always import from `db.store`. Direct imports from `store_protocols.py` or `store_impl.py` are discouraged and should only be used when intentionally working at the protocol/implementation level.
+
+---
+
 ## 2. `SQLiteHelper` (`db/helper.py`)
 
 ### Constructor
