@@ -294,3 +294,108 @@ class TestFetchMessages:
             mock.side_effect = sqlite3.OperationalError("DB Error")
             with pytest.raises(sqlite3.OperationalError):
                 repo.fetch_messages(1)
+
+
+class TestNoneContentNormalization:
+    """Tests for None content normalization at the repository boundary."""
+
+    def test_save_assistant_with_none_content(self, repo: SessionMessageRepository) -> None:
+        """assistant message with content=None is saved and restored as empty string."""
+        repo.save("assistant", None, tool_calls=[{"id": "call_1", "type": "function"}])
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 1
+        assert msgs[0]["content"] == ""
+        assert msgs[0]["tool_calls"] == [{"id": "call_1", "type": "function"}]
+
+    def test_save_assistant_with_none_content_no_tool_calls(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        """assistant message with content=None and no tool_calls is saved as empty string."""
+        repo.save("assistant", None)
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 1
+        assert msgs[0]["content"] == ""
+
+    def test_save_many_with_one_none_content(self, repo: SessionMessageRepository) -> None:
+        """save_many with one message having content=None normalizes it to empty string."""
+        messages = [
+            ("user", "Hello", None, None),
+            ("assistant", None, [{"id": "call_1"}], None),
+            ("tool", "result", None, "call_1"),
+        ]
+        repo.save_many(messages)
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 3
+        assert msgs[0]["content"] == "Hello"
+        assert msgs[1]["content"] == ""
+        assert msgs[2]["content"] == "result"
+
+    def test_save_many_all_none_contents(self, repo: SessionMessageRepository) -> None:
+        """save_many where all messages have content=None normalizes all to empty strings."""
+        messages = [
+            ("assistant", None, [{"id": "call_1"}], None),
+            ("assistant", None, [{"id": "call_2"}], None),
+        ]
+        repo.save_many(messages)
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 2
+        assert msgs[0]["content"] == ""
+        assert msgs[1]["content"] == ""
+
+    def test_save_with_empty_string_preserved(self, repo: SessionMessageRepository) -> None:
+        """Empty string content is preserved as-is (not changed to None)."""
+        repo.save("assistant", "")
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 1
+        assert msgs[0]["content"] == ""
+
+    def test_save_with_normal_string_preserved(self, repo: SessionMessageRepository) -> None:
+        """Normal string content is preserved unchanged."""
+        repo.save("assistant", "Hello world")
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 1
+        assert msgs[0]["content"] == "Hello world"
+
+    def test_save_many_mixed_none_and_string_contents(self, repo: SessionMessageRepository) -> None:
+        """save_many with mix of None and string contents preserves strings, normalizes None."""
+        messages = [
+            ("assistant", None, [{"id": "call_1"}], None),
+            ("assistant", "response", None, None),
+            ("user", "Follow-up", None, None),
+        ]
+        repo.save_many(messages)
+        msgs = repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 3
+        assert msgs[0]["content"] == ""
+        assert msgs[1]["content"] == "response"
+        assert msgs[2]["content"] == "Follow-up"
+
+    def test_strict_mode_save_with_none_content_does_not_raise(
+        self, strict_repo: SessionMessageRepository
+    ) -> None:
+        """None content does not raise in strict mode; it is normalized to empty string."""
+        strict_repo.save("assistant", None, tool_calls=[{"id": "call_1"}])
+        msgs = strict_repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 1
+        assert msgs[0]["content"] == ""
+
+    def test_strict_mode_save_many_with_none_content(self, strict_repo: SessionMessageRepository) -> None:
+        """None content in save_many does not raise in strict mode."""
+        messages = [
+            ("assistant", None, [{"id": "call_1"}], None),
+            ("user", "Hello", None, None),
+        ]
+        strict_repo.save_many(messages)
+        msgs = strict_repo.fetch_messages(1)
+        assert msgs is not None
+        assert len(msgs) == 2
+        assert msgs[0]["content"] == ""
+        assert msgs[1]["content"] == "Hello"

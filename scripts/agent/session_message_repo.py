@@ -29,11 +29,14 @@ class SessionMessageRepository:
     def save(
         self,
         role: str,
-        content: str,
+        content: str | None,
         tool_calls: list[dict] | None = None,
         tool_call_id: str | None = None,
     ) -> None:
-        """Persist a single message to DB under the current session."""
+        """Persist a single message to DB under the current session.
+
+        Normalizes ``content`` before insert: ``None`` is stored as ``""``.
+        """
         if self.session_id is None:
             self.stat_skipped_no_session += 1
             logger.warning("Persistence skipped: no session_id (role=%r)", role)
@@ -48,26 +51,28 @@ class SessionMessageRepository:
                     f"Cannot save message with invalid role {role!r} (strict mode)"
                 )
             return
+        norm_content = content if content is not None else ""
         tc_json = _json_dumps(tool_calls) if tool_calls else None
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute(
                 "INSERT INTO messages"
                 " (session_id, role, content, tool_calls, tool_call_id)"
                 " VALUES (?, ?, ?, ?, ?)",
-                (self.session_id, role, content, tc_json, tool_call_id),
+                (self.session_id, role, norm_content, tc_json, tool_call_id),
             )
             db.commit()
         # sqlite3.Error propagates to caller
 
     def save_many(
         self,
-        messages: list[tuple[str, str, list[dict] | None, str | None]],
+        messages: list[tuple[str, str | None, list[dict] | None, str | None]],
     ) -> None:
         """Persist multiple messages in a single DB transaction.
 
         Each tuple: (role, content, tool_calls, tool_call_id).
         Rows with invalid roles are skipped with a warning and counted.
         Opens exactly one DB connection regardless of the number of messages.
+        Normalizes ``content`` before insert: ``None`` is stored as ``""``.
         """
         if self.session_id is None or not messages:
             if self.session_id is None and messages:
@@ -86,7 +91,7 @@ class SessionMessageRepository:
             (
                 self.session_id,
                 role,
-                content,
+                content if content is not None else "",
                 _json_dumps(tc) if tc else None,
                 tc_id,
             )
