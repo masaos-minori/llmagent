@@ -67,14 +67,14 @@ class TestRequeueEdgeCases:
         assert resp.status_code == 404
 
     def test_requeue_non_dmq_event(self, client: TestClient) -> None:
-        """POST /dlq/{event_id}/requeue for non-DLQ event returns 404."""
+        """POST /dlq/{event_id}/requeue for non-DLQ event returns 409 Conflict."""
         body = _event()
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
         # Event is not in DLQ (dlq_at IS NULL)
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
-        assert resp.status_code == 404
+        assert resp.status_code == 409
 
     def test_requeue_valid_dmq_event(self, client: TestClient, tmp_path: Path) -> None:
         """POST /dlq/{event_id}/requeue for valid DLQ event succeeds."""

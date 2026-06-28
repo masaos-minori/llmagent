@@ -407,28 +407,34 @@ async def ack(
     db = _get_db(request)
     cfg = _get_config(request)
 
-    def _ack_and_offset() -> tuple[bool, int | None]:
+    def _ack_and_offset() -> tuple[bool, bool, int | None]:
         from eventbus.db import ack_event as _ack_event
         from eventbus.offsets import write_offset  # noqa: PLC0415
 
         with get_db_lock():
             now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-            acked = _ack_event(db, event_id, now)
+            found, newly_acked = _ack_event(db, event_id, now)
             seq: int | None = None
-            if consumer_id and acked:
+            if consumer_id and newly_acked:
                 row = db.execute(
                     "SELECT seq FROM events WHERE event_id = ?", (event_id,)
                 ).fetchone()
                 if row:
                     seq = int(row["seq"])
                     write_offset(cfg.offsets_dir, consumer_id, seq)
-            return (acked, seq)
+            return (found, newly_acked, seq)
 
-    acked, seq = await asyncio.to_thread(_ack_and_offset)
-    if not acked:
-        raise HTTPException(status_code=404, detail="event not found or already acked")
-    logger.info("event acked event_id=%s", event_id)
-    return {"event_id": event_id, "acked": True, "seq": seq}
+    found, newly_acked, seq = await asyncio.to_thread(_ack_and_offset)
+    resp: dict[str, Any] = {"event_id": event_id, "acked": True}
+    if newly_acked:
+        logger.info("event acked event_id=%s", event_id)
+        resp["seq"] = seq
+        return resp
+    if found:
+        logger.debug("event already acked event_id=%s", event_id)
+        resp["already_acked"] = True
+        return resp
+    raise HTTPException(status_code=404, detail="event not found")
 
 
 @app.post("/events/{event_id}/ack")
@@ -440,28 +446,34 @@ async def ack_event(
     db = _get_db(request)
     cfg = _get_config(request)
 
-    def _ack_and_offset() -> tuple[bool, int | None]:
+    def _ack_and_offset() -> tuple[bool, bool, int | None]:
         from eventbus.db import ack_event as _ack_event
         from eventbus.offsets import write_offset  # noqa: PLC0415
 
         with get_db_lock():
             now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-            acked = _ack_event(db, event_id, now)
+            found, newly_acked = _ack_event(db, event_id, now)
             seq: int | None = None
-            if consumer_id and acked:
+            if consumer_id and newly_acked:
                 row = db.execute(
                     "SELECT seq FROM events WHERE event_id = ?", (event_id,)
                 ).fetchone()
                 if row:
                     seq = int(row["seq"])
                     write_offset(cfg.offsets_dir, consumer_id, seq)
-            return (acked, seq)
+            return (found, newly_acked, seq)
 
-    acked, seq = await asyncio.to_thread(_ack_and_offset)
-    if not acked:
-        raise HTTPException(status_code=404, detail="event not found or already acked")
-    logger.info("event acked event_id=%s", event_id)
-    return {"event_id": event_id, "acked": True, "seq": seq}
+    found, newly_acked, seq = await asyncio.to_thread(_ack_and_offset)
+    resp: dict[str, Any] = {"event_id": event_id, "acked": True}
+    if newly_acked:
+        logger.info("event acked event_id=%s", event_id)
+        resp["seq"] = seq
+        return resp
+    if found:
+        logger.debug("event already acked event_id=%s", event_id)
+        resp["already_acked"] = True
+        return resp
+    raise HTTPException(status_code=404, detail="event not found")
 
 
 @app.post("/nack")

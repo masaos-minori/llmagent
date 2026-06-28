@@ -80,9 +80,13 @@ class TestConcurrentAck:
         finally:
             loop.close()
 
-        # First ack should succeed, subsequent ones should return 404 (already acked)
-        acked_count = sum(1 for r in results if r.get("acked") is True)
-        assert acked_count == 1, f"Expected exactly 1 successful ack, got {acked_count}"
+        # First ack should succeed with newly_acked=True, subsequent ones should return 200 with already_acked=True
+        all_success = sum(1 for r in results if r.get("acked") is True)
+        assert all_success == 10, f"Expected all 10 acks to return 200, got {all_success}"
+        newly_acked_count = sum(1 for r in results if r.get("already_acked") is not True)
+        already_acked_count = sum(1 for r in results if r.get("already_acked") is True)
+        assert newly_acked_count == 1, f"Expected exactly 1 newly acked, got {newly_acked_count}"
+        assert already_acked_count == 9, f"Expected exactly 9 already_acked, got {already_acked_count}"
 
 
 class TestConcurrentReplay:

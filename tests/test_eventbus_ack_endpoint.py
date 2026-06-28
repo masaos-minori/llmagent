@@ -88,14 +88,17 @@ class TestAckEndpoint:
         assert resp.status_code == 404
 
     def test_ack_event_already_acked(self, client: TestClient) -> None:
-        """POST /events/{event_id}/ack for already-acked event returns 404."""
+        """POST /events/{event_id}/ack for already-acked event returns 200 with already_acked=True."""
         body = _event()
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
         client.post(f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"})
         resp = client.post(f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"})
-        assert resp.status_code == 404
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["acked"] is True
+        assert data["already_acked"] is True
 
     def test_ack_event_with_empty_consumer_id(self, client: TestClient) -> None:
         """POST /events/{event_id}/ack with empty consumer_id returns seq=None."""

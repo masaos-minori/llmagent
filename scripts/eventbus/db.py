@@ -89,17 +89,29 @@ def _migrate(conn: sqlite3.Connection) -> None:
                 raise
 
 
-def ack_event(conn: sqlite3.Connection, event_id: str, now: str) -> bool:
+def ack_event(conn: sqlite3.Connection, event_id: str, now: str) -> tuple[bool, bool]:
     """Set acked_at on an event. Idempotent — will not overwrite existing ack.
 
-    Returns True if the event was found and acked; False if already acked or not found.
+    Returns (found, newly_acked):
+      - (True, True)  = event found and newly acked
+      - (True, False) = event found but already acked
+      - (False, False) = event not found
     """
     cur = conn.execute(
         "UPDATE events SET acked_at = ? WHERE event_id = ? AND acked_at IS NULL",
         (now, event_id),
     )
     conn.commit()
-    return cur.rowcount > 0
+    newly_acked = cur.rowcount > 0
+    if newly_acked:
+        return True, True
+    # Check if event exists but was already acked
+    exists = conn.execute(
+        "SELECT 1 FROM events WHERE event_id = ?", (event_id,)
+    ).fetchone()
+    if exists:
+        return True, False
+    return False, False
 
 
 def nack_event(conn: sqlite3.Connection, event_id: str) -> int:

@@ -35,9 +35,12 @@ Replay past events. Returns events with `seq > since_seq`.
 
 **Query parameters:**
 - `since_seq` (int, default 0): start sequence number (exclusive)
-- `format` (str, default `sse`): `sse` returns SSE stream; `json` returns a JSON array
+- `format` (str, default `sse`): `sse` returns SSE stream; `json` returns a paginated JSON object
 
-**Response (`format=json`):** `[{seq, event_id, topic, payload, producer, published_at}, ...]`
+**Response (`format=json`):** Paginated object with `total`, `limit`, `offset`, and `items` fields:
+```json
+{"total": 100, "limit": 50, "offset": 0, "items": [{seq, event_id, topic, payload, producer, published_at}, ...]}
+```
 
 ---
 
@@ -64,7 +67,7 @@ Offsets advance only via ack (see `POST /events/{event_id}/ack`). On disconnect,
 
 ### POST /events/{event_id}/ack
 
-Acknowledge an event. Updates the consumer offset to the event's `seq` if `consumer_id` is provided. Returns 404 if the event does not exist or is already acked.
+Acknowledge an event. Updates the consumer offset to the event's `seq` if `consumer_id` is provided. Idempotent — repeated acks return 200 with `already_acked: true`. Returns 404 only if the event does not exist.
 
 **Path parameter:**
 - `event_id` (str, required): event ID to acknowledge
@@ -72,10 +75,11 @@ Acknowledge an event. Updates the consumer offset to the event's `seq` if `consu
 **Query parameters:**
 - `consumer_id` (str, optional): consumer identifier; if present and event is newly acked, writes the event's `seq` as the consumer offset
 
-**Response 200:** `{"event_id": "...", "acked": true, "seq": <int>}` — `seq` is the event's sequence number (None if consumer_id was not provided)
-**Response 404:** event not found or already acked.
+**Response 200 (newly acked):** `{"event_id": "...", "acked": true, "seq": <int>}` — `seq` is the event's sequence number (None if consumer_id was not provided)
+**Response 200 (already acked):** `{"event_id": "...", "acked": true, "already_acked": true}` — no `seq` field
+**Response 404:** event not found.
 
-**Offset behavior**: The offset is updated only when `consumer_id` is provided AND the event was newly acknowledged (not previously acked). If the event was already acked, the response returns 404 regardless of whether a consumer_id is provided.
+**Offset behavior**: The offset is updated only when `consumer_id` is provided AND the event was newly acknowledged (not previously acked). If the event was already acked, the response returns 200 with `already_acked: true` regardless of whether a consumer_id is provided.
 
 **Deprecated alias**: `POST /ack?event_id=...&consumer_id=...` — same behavior but uses query parameters instead of path parameter. The canonical path is `POST /events/{event_id}/ack`.
 
@@ -109,10 +113,11 @@ Move an event out of the DLQ back to normal delivery. Increments `dlq_requeue_co
 - `event_id` (str, required): event ID to requeue
 
 **Response 200:** `{"event_id": "...", "requeued": true}` — may include `"dlq_imminent": true` if `delivery_failure_count >= max_retry` after requeue
-**Response 404:** event not found or not in DLQ.
+**Response 409 Conflict:** event exists but is not in the DLQ (dlq_at IS NULL).
+**Response 404:** event not found.
 
 **Edge cases:**
-- Event not in DLQ (dlq_at IS NULL): returns 404
+- Event not in DLQ (dlq_at IS NULL): returns 409 Conflict
 - Repeated requeue of same event: dlq_requeue_count increments each time
 - Event at delivery_failure_count >= max_retry: requeue succeeds but next DLQ loop tick will re-promote
 
@@ -131,3 +136,4 @@ At startup, `_dlq_loop()` runs as an asyncio task, polling every 60 seconds. Eve
 | DB unavailable on `/health` | `{"status": "degraded", "db": "unavailable", ...}` |
 | DLQ task stopped on `/health` | `{"status": "degraded", ..., "dlq_task": "stopped"}` |
 | Unknown `event_id` on requeue | 404 |
+| Event exists but not in DLQ on requeue | 409 Conflict |

@@ -45,8 +45,9 @@ class TestAckEvent:
         db.commit()
 
         now = "2026-06-22T13:00:00Z"
-        result = ack_event(db, ev["event_id"], now)
-        assert result is True
+        found, newly_acked = ack_event(db, ev["event_id"], now)
+        assert found is True
+        assert newly_acked is True
 
         row = db.execute(
             "SELECT acked_at FROM events WHERE event_id = ?", (ev["event_id"],)
@@ -71,12 +72,14 @@ class TestAckEvent:
         db.commit()
 
         now = "2026-06-22T13:00:00Z"
-        result1 = ack_event(db, ev["event_id"], now)
-        assert result1 is True
+        found1, newly_acked1 = ack_event(db, ev["event_id"], now)
+        assert found1 is True
+        assert newly_acked1 is True
 
         later = "2026-06-22T14:00:00Z"
-        result2 = ack_event(db, ev["event_id"], later)
-        assert result2 is False
+        found2, newly_acked2 = ack_event(db, ev["event_id"], later)
+        assert found2 is True
+        assert newly_acked2 is False
 
         row = db.execute(
             "SELECT acked_at FROM events WHERE event_id = ?", (ev["event_id"],)
@@ -86,8 +89,9 @@ class TestAckEvent:
     def test_ack_event_not_found(self, db: sqlite3.Connection) -> None:
         from eventbus.db import ack_event
 
-        result = ack_event(db, "nonexistent-event", "2026-06-22T13:00:00Z")
-        assert result is False
+        found, newly_acked = ack_event(db, "nonexistent-event", "2026-06-22T13:00:00Z")
+        assert found is False
+        assert newly_acked is False
 
     def test_ack_event_already_acked(self, db: sqlite3.Connection) -> None:
         from eventbus.db import ack_event
@@ -108,8 +112,9 @@ class TestAckEvent:
         db.commit()
 
         later = "2026-06-22T14:00:00Z"
-        result = ack_event(db, ev["event_id"], later)
-        assert result is False
+        found, newly_acked = ack_event(db, ev["event_id"], later)
+        assert found is True
+        assert newly_acked is False
 
         row = db.execute(
             "SELECT acked_at FROM events WHERE event_id = ?", (ev["event_id"],)

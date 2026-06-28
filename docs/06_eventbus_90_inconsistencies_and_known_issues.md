@@ -32,7 +32,7 @@
 
 | Item | Safe interpretation | Recommended action |
 |---|---|---|
-| DLQ requeue endpoint path `POST /dlq/{event_id}/requeue` not documented | Code implements this endpoint but docs only reference POST /ack for requeue | Resolved — added to HTTP API doc with edge cases (404 for unknown event, 404 for non-DLQ event); fixed requeue_event() to check dlq_at IS NOT NULL before allowing requeue |
+| DLQ requeue endpoint path `POST /dlq/{event_id}/requeue` not documented | Code implements this endpoint but docs only reference POST /ack for requeue | Resolved — added to HTTP API doc with edge cases (404 for unknown event, 409 Conflict for non-DLQ event); fixed requeue_event() to check dlq_at IS NOT NULL before allowing requeue; ack endpoint made idempotent with already_acked flag |
 
 ### Consumer ID Stability Ambiguity
 
