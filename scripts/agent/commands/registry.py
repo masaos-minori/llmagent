@@ -13,8 +13,7 @@ Mixin split:
   cmd_context.py  — _ContextMixin:  /context, /clear, /undo, /history, /system
   cmd_db.py       — _DbMixin:       /db
   cmd_tooling.py  — _ToolingMixin:  /tool, /plan
-  cmd_notes.py    — _NotesMixin:    /note
-  cmd_debug.py    — _DebugMixin:    /debug
+ cmd_debug.py    — _DebugMixin:    /debug
   cmd_ingest.py   — _IngestMixin:   /ingest, /export, /compact
   cmd_memory.py   — _MemoryMixin:   /memory
   cmd_mdq.py      — _MdqMixin:      /mdq commands
@@ -32,13 +31,12 @@ from agent.commands.cmd_db import _DbMixin
 from agent.commands.cmd_debug import _DebugMixin
 from agent.commands.cmd_ingest import _IngestMixin
 from agent.commands.cmd_mcp import _McpMixin
+from agent.commands.cmd_mdq import _MdqMixin
 from agent.commands.cmd_memory import _MemoryMixin
-from agent.commands.cmd_notes import _NotesMixin
 from agent.commands.cmd_plugins import _PluginsMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_tooling import _ToolingMixin
 from agent.commands.cmd_workflow import _WorkflowMixin
-from agent.commands.cmd_mdq import _MdqMixin
 from agent.commands.command_defs import CommandDef
 from agent.commands.output_port import CliOutputPort, OutputPort
 from agent.context import AgentContext
@@ -97,7 +95,7 @@ _COMMANDS: list[CommandDef] = [
         True,
         True,
         "_cmd_mcp",
-        "MCP server status, tool list, connectivity check; 'install <n>' scaffolds a new server",
+        "MCP server status, tool list, connectivity check",
     ),
     CommandDef(
         "/session",
@@ -156,13 +154,6 @@ _COMMANDS: list[CommandDef] = [
         "stats | urls [--lang ja|en] [--limit N] | clean <url> | rebuild-fts | health | checkpoint | vacuum | purge | recover",
     ),
     CommandDef(
-        "/note",
-        True,
-        False,
-        "_cmd_note",
-        "add <text> | list | delete <id>  Manage persistent notes",
-    ),
-    CommandDef(
         "/tool",
         True,
         False,
@@ -204,7 +195,7 @@ _COMMANDS: list[CommandDef] = [
         "_cmd_approve",
         "[reason]  Approve the pending workflow task",
     ),
-  CommandDef(
+    CommandDef(
         "/plugin",
         True,
         False,
@@ -229,7 +220,6 @@ class CommandRegistry(
     _ContextMixin,
     _DbMixin,
     _ToolingMixin,
-    _NotesMixin,
     _DebugMixin,
     _AuditMixin,
     _IngestMixin,

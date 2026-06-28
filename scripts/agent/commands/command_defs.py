@@ -162,13 +162,6 @@ _COMMANDS: list[CommandDef] = [
         ],
     ),
     CommandDef(
-        "/note",
-        True,
-        False,
-        "_cmd_note",
-        "add <text> | list | delete <id>  Manage persistent notes",
-    ),
-    CommandDef(
         "/tool",
         True,
         False,
