@@ -375,25 +375,6 @@ class Orchestrator:
                     }
                 )
 
-    async def _handle_note_injection(self, line: str) -> None:
-        """Search notes by current query and inject relevant ones into history."""
-        ctx = self._ctx
-        if not ctx.cfg.tool.auto_inject_notes:
-            return
-        notes = ctx.session.search_notes(line, limit=3)
-        if not notes:
-            return
-        note_block = "[Relevant Notes]\n" + "\n".join(
-            f"- {n['content']}" for n in notes
-        )
-        ctx.conv.history.append(
-            {
-                "role": "system",
-                "content": note_block,
-                "_memory_injected": True,  # type: ignore[typeddict-unknown-key]
-            }
-        )
-
     async def _handle_history_compression(self) -> None:
         ctx = self._ctx
         if ctx.services.hist_mgr is None:
@@ -447,7 +428,6 @@ class Orchestrator:
             ctx.cfg.tool.allowed_tools = self._allowed_tools
         try:
             await self._handle_memory_injection(line)
-            await self._handle_note_injection(line)
             self._classify_and_inject_mode(line)
             self._append_user_message(line)
             await self._handle_history_compression()

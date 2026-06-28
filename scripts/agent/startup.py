@@ -207,19 +207,12 @@ class StartupOrchestrator:
         )
 
     async def _setup_prompt(self) -> None:
-        """Inject pinned notes and semantic memories into the initial system prompt."""
+        """Inject semantic memories into the initial system prompt."""
         ctx = self._ctx
         initial_prompt = ctx.cfg.tool.system_prompts.get(
             ctx.conv.system_prompt_name,
             ctx.cfg.tool.system_prompt_tool,
         )
-        if ctx.cfg.tool.auto_inject_notes:
-            pinned_notes = ctx.session.get_pinned_notes()
-            if pinned_notes:
-                notes_block = "\n\n[Pinned Notes]\n" + "\n".join(
-                    f"- {n['content']}" for n in pinned_notes
-                )
-                initial_prompt = initial_prompt + notes_block
         if ctx.services.memory is not None:
             memory_snippets = ctx.services.memory.on_session_start(
                 ctx.session.session_id,
