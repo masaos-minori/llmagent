@@ -87,6 +87,20 @@ class TestToolResultStoreStore:
         assert isinstance(row_id, int)
         assert row_id > 0
 
+    def test_returns_non_optional_int(self, store: ToolResultStore) -> None:
+        """store() always returns int on success; callers no longer need to handle None."""
+        row_id = store.store(
+            session_id=1,
+            turn=1,
+            tool_name="read_file",
+            args_masked='{"path": "/tmp/x"}',
+            full_text="file content",
+            summary="content summary",
+            is_error=False,
+        )
+        assert row_id is not None  # type narrowing: int, not int | None
+        assert isinstance(row_id, int)
+
     def test_raises_on_db_error(self) -> None:
         def _raise(target: str = "session") -> None:  # noqa: ARG001
             raise RuntimeError("db unavailable")
@@ -113,10 +127,68 @@ class TestToolResultStoreStore:
             summary=None,
             is_error=True,
         )
-        assert row_id is not None
+        assert row_id is not None  # type narrowing: int, not int | None
         row = store.get(row_id)
         assert row is not None
         assert row.is_error is True
+
+    def test_stored_result_fetchable_by_returned_id(self, store: ToolResultStore) -> None:
+        """Successful store returns an ID that can fetch the stored result."""
+        row_id = store.store(
+            session_id=10,
+            turn=3,
+            tool_name="write_file",
+            args_masked='{"path": "/tmp/y"}',
+            full_text="written content",
+            summary="wrote /tmp/y",
+            is_error=False,
+        )
+        assert isinstance(row_id, int)
+        row = store.get(row_id)
+        assert row is not None
+        assert row.full_text == "written content"
+        assert row.summary == "wrote /tmp/y"
+
+    def test_lastrowid_none_raises_runtime_error(self) -> None:
+        """Simulated lastrowid is None raises RuntimeError."""
+        class _FakeCursor:
+            lastrowid = None
+
+        class _FakeHelper:
+            def __init__(self, target: str = "session") -> None:  # noqa: ARG001
+                pass
+
+            def open(
+                self, *, write_mode: bool = False, row_factory: bool = False  # noqa: ARG002
+            ) -> "_FakeHelper":
+                return self
+
+            def execute(self, sql: str, params: tuple) -> "_FakeCursor":  # noqa: ARG001
+                return _FakeCursor()
+
+            def commit(self) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+            def __enter__(self) -> "_FakeHelper":
+                return self
+
+            def __exit__(self, *_: object) -> None:
+                pass
+
+        with patch("db.tool_results.SQLiteHelper", _FakeHelper):
+            with pytest.raises(RuntimeError, match="lastrowid is None"):
+                ToolResultStore().store(
+                    session_id=1,
+                    turn=1,
+                    tool_name="tool",
+                    args_masked="{}",
+                    full_text="text",
+                    summary=None,
+                    is_error=False,
+                )
 
 
 class TestToolResultStoreGet:
@@ -130,7 +202,7 @@ class TestToolResultStoreGet:
             summary=None,
             is_error=False,
         )
-        assert row_id is not None
+        assert isinstance(row_id, int)
         row = store.get(row_id)
         assert row is not None
         assert row.tool_name == "list_dir"

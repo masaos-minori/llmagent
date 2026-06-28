@@ -39,7 +39,7 @@ class ToolResultStore:
         full_text: str,
         summary: str | None,
         is_error: bool,
-    ) -> int | None:
+    ) -> int:
         """Insert one tool result row; return the new row id. Raises on DB error."""
         with self._make_helper(write_mode=True) as db:
             cur = db.execute(
@@ -59,6 +59,11 @@ class ToolResultStore:
             )
             row_id = cur.lastrowid
             db.commit()
+        if row_id is None:
+            raise RuntimeError(
+                "tool_results insert succeeded but lastrowid is None — "
+                "unexpected DB state"
+            )
         return row_id
 
     def get(self, result_id: int) -> ToolResultRow | None:
