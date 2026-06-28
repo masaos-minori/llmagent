@@ -235,3 +235,29 @@ def test_nack_on_already_dlq_event_does_not_repromote(
 
     dlq_files = list((tmp_path / "deadletter").glob("*.json"))
     assert len(dlq_files) == 1
+
+
+def test_requeue_non_dlq_event_fails(client: TestClient, tmp_path: Path) -> None:
+    """Requeue should fail with 409 for events not currently in DLQ."""
+    from eventbus.db import open_db
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+
+    # Requeue an event that is NOT in DLQ — should return 409 Conflict
+    r = client.post(f"/dlq/{ev['event_id']}/requeue")
+    assert r.status_code == 409, f"Expected 409, got {r.status_code}: {r.text}"
+
+    # Verify dlq_requeue_count is NOT incremented
+    row = db.execute(
+        "SELECT dlq_requeue_count FROM events WHERE event_id = ?",
+        (ev["event_id"],),
+    ).fetchone()
+    assert row["dlq_requeue_count"] == 0
+
+
+def test_requeue_unknown_event_returns_404(client: TestClient) -> None:
+    """Requeue should return 404 for unknown events."""
+    r = client.post("/dlq/nonexistent-event-id/requeue")
+    assert r.status_code == 404, f"Expected 404, got {r.status_code}: {r.text}"

@@ -151,3 +151,7 @@ class TestConcurrentDlqRequeue:
         requeued = [r for r in results if r.get("requeued") is True]
         assert len(requeued) == 1, f"Expected exactly 1 requeue success, got {len(requeued)}"
 
+        # The other concurrent requests should fail with 409 Conflict (event no longer in DLQ)
+        conflicts = [r for r in results if r.get("detail") == "event is not in DLQ"]
+        assert len(conflicts) == 4, f"Expected 4 conflicts, got {len(conflicts)}"
+

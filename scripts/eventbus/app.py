@@ -384,6 +384,14 @@ async def dlq_requeue(request: Request, event_id: str) -> dict[str, Any]:
         if failure_count is not None and failure_count >= cfg.max_retry:
             resp["dlq_imminent"] = True
         return resp
+    # Event exists but is not currently in DLQ — dlq_at IS NULL means event was already requeued or acked
+    row = await asyncio.to_thread(
+        lambda: db.execute(
+            "SELECT dlq_at FROM events WHERE event_id = ?", (event_id,)
+        ).fetchone()
+    )
+    if row is not None:
+        raise HTTPException(status_code=409, detail="event is not in DLQ")
     raise HTTPException(status_code=404, detail="event not found")
 
 

@@ -219,7 +219,7 @@ def requeue_event(conn: sqlite3.Connection, event_id: str) -> bool:
     if not row:
         return False
     cur = conn.execute(
-        "UPDATE events SET dlq_requeue_count = dlq_requeue_count + 1, dlq_at = NULL WHERE event_id = ?",
+        "UPDATE events SET dlq_requeue_count = dlq_requeue_count + 1, dlq_at = NULL WHERE event_id = ? AND dlq_at IS NOT NULL",
         (event_id,),
     )
     conn.commit()
