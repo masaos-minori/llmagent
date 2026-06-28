@@ -171,3 +171,94 @@ class TestCustomExceptionTypes:
         p.chmod(0o000)
         with pytest.raises(ConfigReadError, match="Cannot read config file"):
             tmp_cfg.load("unreadable.toml")
+
+
+class TestLoadAllStrictMode:
+    def test_strict_false_skips_missing_files(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        """strict=False skips missing files without raising."""
+        # No config files exist — should not raise
+        result = tmp_cfg.load_all(strict=False)
+        assert isinstance(result, dict)
+
+    def test_strict_true_raises_on_missing_required_file(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        """strict=True raises ConfigMissingError for missing required files."""
+        with pytest.raises(ConfigMissingError, match="Config file not found"):
+            tmp_cfg.load_all(strict=True)
+
+    def test_strict_true_allows_missing_optional_file(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        """strict=True allows missing mdq_mcp_server.toml (optional)."""
+        # Create all required files except mdq_mcp_server.toml
+        for name in [
+            "common.toml",
+            "llm.toml",
+            "http.toml",
+            "rag.toml",
+            "context.toml",
+            "tools.toml",
+            "memory.toml",
+            "otel.toml",
+            "security.toml",
+            "system_prompts.toml",
+            "mcp_servers.toml",
+            "tools_definitions.toml",
+        ]:
+            (tmp_path / name).write_text(f"{name} = true\n", encoding="utf-8")
+        # mdq_mcp_server.toml is NOT created — should not raise
+        result = tmp_cfg.load_all(strict=True)
+        assert isinstance(result, dict)
+
+    def test_strict_true_raises_on_missing_any_required(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
+        """strict=True raises if any single required file is missing."""
+        # Create all required files except http.toml
+        for name in [
+            "common.toml",
+            "llm.toml",
+            "rag.toml",
+            "context.toml",
+            "tools.toml",
+            "memory.toml",
+            "otel.toml",
+            "security.toml",
+            "system_prompts.toml",
+            "mcp_servers.toml",
+            "tools_definitions.toml",
+        ]:
+            (tmp_path / name).write_text(f"{name} = true\n", encoding="utf-8")
+        # http.toml is missing — should raise
+        with pytest.raises(ConfigMissingError, match="Config file not found"):
+            tmp_cfg.load_all(strict=True)
+
+    def test_load_all_meta_keys_filtered(self, tmp_cfg: ConfigLoader, tmp_path: Path) -> None:
+        """Meta keys starting with _ are still filtered in load_all()."""
+        for name in [
+            "common.toml",
+            "llm.toml",
+            "http.toml",
+            "rag.toml",
+            "context.toml",
+            "tools.toml",
+            "memory.toml",
+            "otel.toml",
+            "security.toml",
+            "system_prompts.toml",
+            "mcp_servers.toml",
+            "mdq_mcp_server.toml",
+            "tools_definitions.toml",
+        ]:
+            (tmp_path / name).write_text(f'_doc = "desc"\n{name} = true\n', encoding="utf-8")
+        result = tmp_cfg.load_all(strict=True)
+        assert "_doc" not in result
+
+    def test_load_all_existing_behavior_unchanged(self, tmp_cfg: ConfigLoader, tmp_path: Path) -> None:
+        """Existing load() behavior is unchanged — strict=False skips missing files."""
+        # Default (strict=False) should skip missing files
+        result = tmp_cfg.load_all()
+        assert isinstance(result, dict)

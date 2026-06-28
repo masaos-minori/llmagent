@@ -40,9 +40,24 @@ _BASE_CONFIG_FILES: tuple[str, ...] = (
     "security.toml",
     "system_prompts.toml",
     "mcp_servers.toml",
-    "mdq_mcp_server.toml",
+    "mdq_mcp_server.toml",  # optional; MCP server config, may not exist in all deployments
     "tools_definitions.toml",
 )
+
+_REQUIRED_CONFIG_FILES: frozenset[str] = frozenset((
+    "common.toml",
+    "llm.toml",
+    "http.toml",
+    "rag.toml",
+    "context.toml",
+    "tools.toml",
+    "memory.toml",
+    "otel.toml",
+    "security.toml",
+    "system_prompts.toml",
+    "mcp_servers.toml",
+    "tools_definitions.toml",
+))
 
 
 class ConfigLoader:
@@ -62,13 +77,22 @@ class ConfigLoader:
             merged.update(self._filter_meta_keys(self._load_single(name)))
         return merged
 
-    def load_all(self) -> dict[str, Any]:
-        """Load all base config files from config/ in dependency order."""
+    def load_all(self, strict: bool = False) -> dict[str, Any]:
+        """Load all base config files from config/ in dependency order.
+
+        Args:
+            strict: If True, raise ConfigMissingError for any missing required
+                config file. Required files are all _BASE_CONFIG_FILES except
+                mdq_mcp_server.toml. If False (default), missing files are skipped
+                with a debug log.
+        """
         merged: dict[str, Any] = {}
         for name in _BASE_CONFIG_FILES:
             try:
                 merged.update(self._filter_meta_keys(self._load_single(name)))
             except ConfigMissingError:
+                if strict and name in _REQUIRED_CONFIG_FILES:
+                    raise
                 logger.debug("Config file not found: %s", name)
         return merged
 
