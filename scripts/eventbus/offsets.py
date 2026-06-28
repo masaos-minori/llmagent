@@ -21,7 +21,7 @@ def _make_consumer_id(consumer_name: str) -> str:
 
 
 def read_offset(offsets_dir: str, consumer_id: str) -> int:
-    safe_id = consumer_id.replace("/", "_").replace("..", "_")
+    safe_id = _sanitize_consumer_id(consumer_id)
     path = Path(offsets_dir) / safe_id
     try:
         return int(path.read_text().strip())
@@ -30,9 +30,20 @@ def read_offset(offsets_dir: str, consumer_id: str) -> int:
 
 
 def write_offset(offsets_dir: str, consumer_id: str, seq: int) -> None:
-    safe_id = consumer_id.replace("/", "_").replace("..", "_")
+    safe_id = _sanitize_consumer_id(consumer_id)
     dir_path = Path(offsets_dir)
     dir_path.mkdir(parents=True, exist_ok=True)
     path = dir_path / safe_id
     path.write_text(str(seq))
     logger.debug("offset written consumer=%s seq=%d", consumer_id, seq)
+
+
+def _sanitize_consumer_id(consumer_id: str) -> str:
+    """Sanitize consumer_id for use as an offset filename.
+
+    Replaces path traversal characters (., /, ..) with underscores to prevent
+    directory traversal attacks via the consumer_id parameter.
+    Returns 'default' if the sanitized result is empty.
+    """
+    safe_id = consumer_id.replace("..", "_").replace(".", "_").replace("/", "_")
+    return safe_id if safe_id else "default"

@@ -40,6 +40,12 @@
 |---|---|---|
 | Consumer IDs are client-supplied; `_make_consumer_id()` is dead code | No auto-generation in app.py; consumer_ids must be stable across restarts for offset resume | Resolved — removed misleading docs about auto-generated consumer IDs; clarified stability requirement in all Event Bus docs; added deprecation notice to _make_consumer_id() |
 
+### Consumer ID Sanitization Mismatch
+
+| Item | Safe interpretation | Recommended action |
+|---|---|---|
+| Documentation says `. → _` but code does `.. → _`; no `. → _` in code | Both are needed for complete path traversal prevention; docs and code must agree | Resolved — updated both implementation and documentation to replace all three: `.`, `/`, `..` with `_`; added empty consumer_id handling (→ "default"); added 8 sanitization tests covering /, .., ., empty, long IDs, and path traversal attempts |
+
 ### Host Config Ownership Mismatch
 
 | Item | Safe interpretation | Recommended action |

@@ -163,3 +163,72 @@ def test_consumer_id_stability() -> None:
     cid2 = _make_consumer_id("my-consumer")
     assert cid1 == cid2
     assert len(cid1) == 16
+
+
+class TestConsumerIdSanitization:
+    """Tests for consumer_id sanitization to prevent path traversal."""
+
+    def test_slash_replaced(self, tmp_path: Path) -> None:
+        """consumer_id with / should have / replaced with _."""
+        from eventbus.offsets import write_offset
+
+        write_offset(str(tmp_path), "foo/bar", 42)
+        assert (tmp_path / "foo_bar").exists()
+        assert not (tmp_path / "foo" / "bar").exists()
+
+    def test_double_dot_replaced(self, tmp_path: Path) -> None:
+        """consumer_id with .. should have .. replaced with _."""
+        from eventbus.offsets import write_offset
+
+        write_offset(str(tmp_path), "foo..bar", 42)
+        assert (tmp_path / "foo_bar").exists()
+        assert not (tmp_path / "foo" / "bar").exists()
+
+    def test_single_dot_replaced(self, tmp_path: Path) -> None:
+        """consumer_id with . should have . replaced with _."""
+        from eventbus.offsets import write_offset
+
+        write_offset(str(tmp_path), "foo.bar", 42)
+        assert (tmp_path / "foo_bar").exists()
+
+    def test_empty_consumer_id(self, tmp_path: Path) -> None:
+        """Empty consumer_id should produce a valid filename."""
+        from eventbus.offsets import read_offset, write_offset
+
+        write_offset(str(tmp_path), "", 42)
+        # Empty consumer_id is sanitized to 'default'
+        assert (tmp_path / "default").exists()
+        offset = read_offset(str(tmp_path), "")
+        assert offset == 42
+
+    def test_long_consumer_id(self, tmp_path: Path) -> None:
+        """Long consumer_id should produce a valid filename."""
+        from eventbus.offsets import write_offset
+
+        long_id = "a" * 250
+        write_offset(str(tmp_path), long_id, 42)
+        assert (tmp_path / long_id).exists()
+
+    def test_path_traversal_attempt(self, tmp_path: Path) -> None:
+        """Path traversal attempt should not escape offsets_dir."""
+        from eventbus.offsets import write_offset
+
+        write_offset(str(tmp_path), "foo/../../bar", 42)
+        # The file should be under tmp_path, not outside it
+        assert (tmp_path / "foo_____bar").exists()
+
+    def test_nested_traversal_attempt(self, tmp_path: Path) -> None:
+        """Nested path traversal attempt should not escape offsets_dir."""
+        from eventbus.offsets import write_offset
+
+        write_offset(str(tmp_path), "../../../etc/passwd", 42)
+        # The file should be under tmp_path, not outside it
+        assert (tmp_path / "______etc_passwd").exists()
+
+    def test_read_and_write_consistent(self, tmp_path: Path) -> None:
+        """read_offset and write_offset should use the same sanitization."""
+        from eventbus.offsets import read_offset, write_offset
+
+        write_offset(str(tmp_path), "foo/bar", 42)
+        offset = read_offset(str(tmp_path), "foo/bar")
+        assert offset == 42

@@ -17,7 +17,7 @@ An event is promoted to the DLQ when `delivery_failure_count >= max_retry AND dl
 
 ## Consumer offsets
 
-Offset files are stored in `{offsets_dir}/{consumer_id}` (plain text, one integer per file). The `consumer_id` is sanitized (`.` → `_`, `/` → `_`) before use as a filename.
+Offset files are stored in `{offsets_dir}/{sanitized_consumer_id}` (plain text, one integer per file). The `consumer_id` is sanitized by replacing `.`, `/`, and `..` with `_` to prevent path traversal attacks.
 
 ### Offset restoration
 
