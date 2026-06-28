@@ -47,23 +47,27 @@ if [ ! -f "${EVENTBUS_DB}" ]; then
 PRAGMA journal_mode=WAL;
 
 CREATE TABLE IF NOT EXISTS events (
-    seq          INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_id     TEXT    NOT NULL UNIQUE,
-    topic        TEXT    NOT NULL,
-    payload      TEXT    NOT NULL,
-    producer     TEXT    NOT NULL,
-    published_at TEXT    NOT NULL,
-    acked_at     TEXT,
-    retry_count  INTEGER NOT NULL DEFAULT 0,
-    dlq_at       TEXT
+    seq                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id               TEXT    NOT NULL UNIQUE,
+    topic                  TEXT    NOT NULL,
+    payload                TEXT    NOT NULL,
+    producer               TEXT    NOT NULL,
+    published_at           TEXT    NOT NULL,
+    acked_at               TEXT,
+    retry_count            INTEGER NOT NULL DEFAULT 0,
+    delivery_failure_count INTEGER NOT NULL DEFAULT 0,
+    dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
+    dlq_at                 TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);
 CREATE INDEX IF NOT EXISTS idx_events_seq   ON events(seq);
+CREATE INDEX IF NOT EXISTS idx_events_dlq_at ON events(dlq_at);
+CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
 SQL
     echo "  完了"
 else
-    echo "  eventbus.sqlite 既存のためスキップ"
+    echo "  eventbus.sqlite 既存のためスキップ（既存 DB は _migrate() でマイグレーション済み）"
 fi
 
 echo "=== init_db.sh: 完了 ==="

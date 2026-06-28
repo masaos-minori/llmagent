@@ -57,10 +57,11 @@ def _init_schema(conn: sqlite3.Connection) -> None:
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
-    """Add new columns if they don't already exist.
+    """Add new columns and indexes if they don't already exist.
 
     SQLite doesn't support ALTER TABLE ADD COLUMN IF NOT EXISTS, so we
-    catch the duplicate column error and ignore it.
+    catch the duplicate column error and ignore it. Indexes are created
+    with CREATE INDEX IF NOT EXISTS which is idempotent.
     """
     for col in ("delivery_failure_count", "dlq_requeue_count"):
         try:
@@ -71,6 +72,19 @@ def _migrate(conn: sqlite3.Connection) -> None:
         except sqlite3.OperationalError as exc:
             if exc.args and "duplicate column name" in exc.args[0]:
                 pass  # column already exists
+            else:
+                raise
+
+    for idx in (
+        "idx_events_dlq_at ON events(dlq_at)",
+        "idx_events_dlq_seq ON events(dlq_at, seq)",
+    ):
+        try:
+            conn.execute(f"CREATE INDEX IF NOT EXISTS {idx}")
+            logger.info("migrated: added index %s", idx)
+        except sqlite3.OperationalError as exc:
+            if exc.args and "duplicate" in exc.args[0].lower():
+                pass  # index already exists
             else:
                 raise
 
