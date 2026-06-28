@@ -163,7 +163,6 @@ class TestPrintConfigValues:
         ctx.cfg.tool.serial_tool_calls = False
         ctx.cfg.tool.use_tool_summarize = False
         ctx.cfg.tool.tool_summarize_threshold = 3000
-        ctx.cfg.tool.auto_inject_notes = True
         ctx.cfg.rag.use_semantic_cache = False
         ctx.cfg.rag.semantic_cache_threshold = 0.92
         ctx.cfg.rag.semantic_cache_max_size = 100

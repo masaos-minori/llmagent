@@ -77,7 +77,6 @@ class _ConfigDisplayMixin(MixinBase):
         self._out.write(
             f"  tool_summarize_thr  : {ctx.cfg.tool.tool_summarize_threshold}"
         )
-        self._out.write(f"  auto_inject_notes   : {ctx.cfg.tool.auto_inject_notes}")
 
     def _print_semantic_cache_settings(self, ctx: AgentContext) -> None:
         self._out.write("Semantic cache:")

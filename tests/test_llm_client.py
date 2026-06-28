@@ -600,7 +600,6 @@ class TestAgentConfigSseValidation:
             "two_stage_max_docs": 2,
             "use_two_stage_fetch": False,
             "serial_tool_calls": False,
-            "auto_inject_notes": True,
             "use_tool_summarize": False,
             "tool_summarize_threshold": 3000,
             "use_semantic_cache": False,

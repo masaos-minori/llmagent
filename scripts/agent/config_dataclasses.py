@@ -189,8 +189,6 @@ class ToolConfig:
     tool_cache_max_size: int = 200
     # When True, tool calls execute one by one instead of asyncio.gather()
     serial_tool_calls: bool = False
-    # Append all notes-table entries to system prompt at startup
-    auto_inject_notes: bool = True
     # Replace truncation with LLM summary above threshold
     use_tool_summarize: bool = False
     tool_summarize_threshold: int = 3000

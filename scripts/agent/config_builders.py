@@ -170,7 +170,6 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
         tool_cache_ttl=float(cfg.get("tool_cache_ttl", 300)),
         tool_cache_max_size=int(cfg.get("tool_cache_max_size", 200)),
         serial_tool_calls=bool(cfg.get("serial_tool_calls", False)),
-        auto_inject_notes=bool(cfg.get("auto_inject_notes", True)),
         use_tool_summarize=bool(cfg.get("use_tool_summarize", False)),
         tool_summarize_threshold=int(cfg.get("tool_summarize_threshold", 3000)),
         tool_definitions_strict=bool(cfg.get("tool_definitions_strict", False)),

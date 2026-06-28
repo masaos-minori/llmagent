@@ -283,11 +283,6 @@ class ConfigReloadService:
         )
         _apply_bool(
             new_cfg,
-            "auto_inject_notes",
-            lambda v: setattr(cfg.tool, "auto_inject_notes", v),
-        )
-        _apply_bool(
-            new_cfg,
             "use_tool_summarize",
             lambda v: setattr(cfg.tool, "use_tool_summarize", v),
         )
