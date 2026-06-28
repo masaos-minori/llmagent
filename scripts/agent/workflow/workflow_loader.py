@@ -45,6 +45,8 @@ _WORKFLOWS_DIR = (
 
 _REQUIRED_STAGE_KEYS = {"id", "description", "timeout_sec", "retryable"}
 _REQUIRED_POLICY_KEYS = {"max_attempts", "backoff", "backoff_sec"}
+_REQUIRED_STAGES = {"plan", "execute", "verify"}
+_SUPPORTED_BACKOFF = {"fixed", "exponential"}
 
 
 class WorkflowLoadError(Exception):
@@ -58,6 +60,19 @@ def _validate(data: _WorkflowJson) -> None:
             raise WorkflowLoadError(f"missing required key: {key!r}")
     if not isinstance(data["stages"], list) or not data["stages"]:
         raise WorkflowLoadError("'stages' must be a non-empty list")
+    stage_ids = [s.get("id") for s in data["stages"]]
+    for sid in stage_ids:
+        if sid is None:
+            continue
+        count = sum(1 for s in data["stages"] if s.get("id") == sid)
+        if count > 1:
+            raise WorkflowLoadError(f"duplicate stage id: {sid!r}")
+    found_stage_ids = set(stage_ids)
+    missing_stages = _REQUIRED_STAGES - found_stage_ids
+    if missing_stages:
+        raise WorkflowLoadError(
+            f"required stages missing: {', '.join(sorted(missing_stages))}"
+        )
     for i, stage in enumerate(data["stages"]):
         missing = _REQUIRED_STAGE_KEYS - stage.keys()
         if missing:
@@ -65,6 +80,18 @@ def _validate(data: _WorkflowJson) -> None:
     missing_p = _REQUIRED_POLICY_KEYS - data["retry_policy"].keys()
     if missing_p:
         raise WorkflowLoadError(f"retry_policy missing keys: {missing_p}")
+    policy = data["retry_policy"]
+    max_attempts = int(policy["max_attempts"])
+    if max_attempts < 1:
+        raise WorkflowLoadError("retry_policy.max_attempts must be >= 1")
+    backoff = str(policy["backoff"])
+    if backoff not in _SUPPORTED_BACKOFF:
+        raise WorkflowLoadError(
+            f"retry_policy.backoff must be one of: {', '.join(sorted(_SUPPORTED_BACKOFF))}"
+        )
+    backoff_sec = int(policy["backoff_sec"])
+    if backoff_sec < 0:
+        raise WorkflowLoadError("retry_policy.backoff_sec must be >= 0")
 
 
 class WorkflowLoader:
