@@ -443,17 +443,48 @@ async def execute_all_tool_calls(
 
     Parallel by default; downgrades to serial on side-effect detection.
     DAG mode (write-before-read) activated by ctx.cfg.tool.use_tool_dag.
+    Approval checks are enforced before execution — denied tool calls are
+    returned as tool messages with a denial reason.
     """
-    if ctx.cfg.tool.use_tool_dag and not ctx.cfg.tool.serial_tool_calls:
-        results = await _execute_with_dag(ctx, tool_calls, turn)
+    if not tool_calls:
+        ctx.session.save_many([])
+        return
+
+    # Enforce approval checks before any execution
+    approved_calls, denied_ids = await _run_approval_gate(ctx, tool_calls)
+
+    if approved_calls:
+        if ctx.cfg.tool.use_tool_dag and not ctx.cfg.tool.serial_tool_calls:
+            results = await _execute_with_dag(ctx, approved_calls, turn)
+        else:
+            results = await _execute_standard(ctx, approved_calls, turn)
     else:
-        results = await _execute_standard(ctx, tool_calls, turn)
+        results = []
 
     tool_msgs = _collect_tool_result_msgs(ctx, results, turn, out_failed_keys)
-    denied_history, denied_msgs = _build_denied_messages([])
+    denied_history, denied_msgs = _build_denied_messages(denied_ids)
     ctx.conv.history.extend(denied_history)  # type: ignore[arg-type]
     tool_msgs.extend(denied_msgs)
     ctx.session.save_many(tool_msgs)
+
+
+async def _run_approval_gate(
+    ctx: AgentContext,
+    tool_calls: list[dict],
+) -> tuple[list[dict], list[str]]:
+    """Run approval checks and return (approved_calls, denied_ids).
+
+    When workflow-level approval is active (ctx.cfg.workflow_require_approval=True
+    and no pending approval), per-tool approval is skipped to avoid double-prompting.
+    """
+    from agent.tool_approval import run_approval_checks  # noqa: PLC0415
+
+    return await run_approval_checks(
+        ctx,
+        tool_calls,
+        skip_in_workflow_mode=ctx.cfg.workflow_require_approval
+        and not getattr(ctx.workflow, "approval_pending", False),
+    )
 
 
 def _build_denied_messages(

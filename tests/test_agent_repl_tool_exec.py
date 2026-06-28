@@ -347,7 +347,7 @@ def _make_ctx_for_dag(
 @pytest.mark.asyncio
 async def test_dag_write_executed_before_read() -> None:
     """use_tool_dag=True のとき WRITE_TOOLS が READ/other より先に実行されること。"""
-    from unittest.mock import patch
+    from unittest.mock import AsyncMock, patch
 
     from agent.tool_runner import execute_all_tool_calls
 
@@ -374,6 +374,7 @@ async def test_dag_write_executed_before_read() -> None:
             side_effect=fake_execute_one,
         ),
         patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
+        patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([write_call, read_call], [])),
     ):
         await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
 
@@ -383,7 +384,7 @@ async def test_dag_write_executed_before_read() -> None:
 @pytest.mark.asyncio
 async def test_dag_disabled_does_not_reorder() -> None:
     """use_tool_dag=False のとき side-effect があれば直列実行になること。"""
-    from unittest.mock import patch
+    from unittest.mock import AsyncMock, patch
 
     from agent.tool_runner import execute_all_tool_calls
 
@@ -410,6 +411,7 @@ async def test_dag_disabled_does_not_reorder() -> None:
             side_effect=fake_execute_one,
         ),
         patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
+        patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([write_call, read_call], [])),
     ):
         await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
 
@@ -420,7 +422,7 @@ async def test_dag_disabled_does_not_reorder() -> None:
 @pytest.mark.asyncio
 async def test_dag_serial_tool_calls_overrides_dag() -> None:
     """serial_tool_calls=True のとき use_tool_dag=True でも直列実行になること。"""
-    from unittest.mock import patch
+    from unittest.mock import AsyncMock, patch
 
     from agent.tool_runner import execute_all_tool_calls
 
@@ -447,6 +449,7 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
             side_effect=fake_execute_one,
         ),
         patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
+        patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([write_call, read_call], [])),
     ):
         await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
 
@@ -457,7 +460,7 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
 @pytest.mark.asyncio
 async def test_parallel_execution_without_dag_or_side_effects() -> None:
     """use_tool_dag=False かつ副作用なしのとき asyncio.gather() 並列実行になること。"""
-    from unittest.mock import patch
+    from unittest.mock import AsyncMock, patch
 
     from agent.tool_runner import execute_all_tool_calls
 
@@ -486,6 +489,7 @@ async def test_parallel_execution_without_dag_or_side_effects() -> None:
         ),
         patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
         patch("agent.tool_runner.is_side_effect", return_value=False),
+        patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([read_call1, read_call2], [])),
     ):
         await execute_all_tool_calls(ctx, [read_call1, read_call2], turn=1)
 
