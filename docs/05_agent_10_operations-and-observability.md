@@ -331,7 +331,7 @@ For the canonical partial-completion model → [05_agent_03 §Partial-Completion
 | `embedding attempt 3/3` all fail | embed-llm not running or overloaded | `curl -s http://127.0.0.1:8003/health`; wait for model load |
 | `AttributeError: enable_load_extension` | Python built without sqlite extension support | `echo 'dev-lang/python sqlite' >> /etc/portage/package.use/python && emerge dev-lang/python` |
 | `no such table: chunks_vec` | sqlite-vec extension load failed | `ls /opt/llm/sqlite-vec/vec0.so` |
-| FTS search returns 0 results | `chunks_fts` out of sync | `/db rebuild-fts` |
+| FTS search returns 0 results | `chunks_fts` out of sync | `/db rag rebuild-fts` |
 | `blob_bytes` ≠ 1536 | Embedding dimension mismatch | Verify embed model outputs 384 dimensions |
 | `Sudachi tokenize error` frequent | sudachidict-core not installed | `pip install sudachidict-core` |
 | llama-server won't start | Model file path or permissions | `ls -lh /opt/llm/models/` |
@@ -453,9 +453,9 @@ Two additional entries appear in `last_stage_results` when applicable:
 | `HttpAugment` | `rag_service_url` is set | `http_result_kind`: `"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"` |
 | `Refiner` | `use_refiner=True` | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) |
 
-### Ingestion diagnostic output
+### RAG ingestion diagnostics
 
-Running `/ingest run` prints per-URL progress and a summary line:
+The standalone RAG ingestion pipeline (`scripts/rag/ingestion/crawler.py`) prints per-URL progress and a summary line:
 
 ```
 [ingest] crawling https://example.com/docs (lang=en)...

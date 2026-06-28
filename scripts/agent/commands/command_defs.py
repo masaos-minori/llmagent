@@ -86,7 +86,7 @@ _COMMANDS: list[CommandDef] = [
         True,
         True,
         "_cmd_mcp",
-        "MCP server status, tool list, connectivity check; 'install <n>' scaffolds a new server",
+        "MCP server status, tool list, connectivity check",
     ),
     CommandDef(
         "/session",
@@ -101,13 +101,6 @@ _COMMANDS: list[CommandDef] = [
         False,
         "_cmd_clear",
         "Reset conversation history; 'new' also starts a new session",
-    ),
-    CommandDef(
-        "/ingest",
-        True,
-        True,
-        "_cmd_ingest",
-        "<url|path> [--snippets-only]  Crawl/ingest a URL or local file into the RAG DB",
     ),
     CommandDef(
         "/rag",
@@ -142,7 +135,7 @@ _COMMANDS: list[CommandDef] = [
         True,
         False,
         "_cmd_db",
-        "help | stats | urls [--lang ja|en] [--limit N] | clean <url> | rebuild-fts | health | checkpoint | vacuum | purge | recover | consistency",
+        "rag stats|urls|clean|rebuild-fts|vec-rebuild|reconcile-url|recover|consistency; session stats|health|checkpoint|vacuum|purge|recover",
         subcommands=[
             SubcommandSpec("help", "[RAG + Session] Show this help table"),
             SubcommandSpec("stats", "[RAG + Session] Record counts for both databases"),
@@ -187,7 +180,7 @@ _COMMANDS: list[CommandDef] = [
         True,
         False,
         "_cmd_debug",
-        "[audit|verbose|normal]  Toggle debug; subcommands: audit=tail log, verbose/normal=log level",
+        "[verbose|normal]  Toggle debug mode; subcommands: verbose/normal=log level",
     ),
     CommandDef(
         "/audit",

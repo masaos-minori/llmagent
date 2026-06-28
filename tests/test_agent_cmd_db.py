@@ -714,3 +714,85 @@ class TestCmdDbBackwardCompat:
             _run_db(cmd, "rag stats")
             out = capsys.readouterr().out
             assert "documents" in out
+
+
+# ── flat DB aliases are invalid ────────────────────────────────────────────────
+
+
+class TestCmdDbFlatAliasesInvalid:
+    def test_flat_urls_is_invalid(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "urls")
+        out = capsys.readouterr().out
+        assert "usage" in out.lower()
+        assert "/db rag" in out or "/db session" in out
+
+    def test_flat_clean_is_invalid(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "clean http://example.com")
+        out = capsys.readouterr().out
+        assert "usage" in out.lower()
+        assert "/db rag" in out or "/db session" in out
+
+    def test_flat_rebuild_fts_is_invalid(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "rebuild-fts")
+        out = capsys.readouterr().out
+        assert "usage" in out.lower()
+        assert "/db rag" in out or "/db session" in out
+
+    def test_flat_recover_is_invalid(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "recover")
+        out = capsys.readouterr().out
+        assert "usage" in out.lower()
+        assert "/db rag" in out or "/db session" in out
+
+    def test_flat_recover_with_backup_is_invalid(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "recover /path/to/backup.db")
+        out = capsys.readouterr().out
+        assert "usage" in out.lower()
+        assert "/db rag" in out or "/db session" in out
+
+    def test_flat_stats_is_invalid(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "stats")
+        out = capsys.readouterr().out
+        assert "usage" in out.lower()
+        assert "/db rag" in out or "/db session" in out
+
+    def test_flat_health_is_invalid(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "health")
+        out = capsys.readouterr().out
+        assert "usage" in out.lower()
+        assert "/db rag" in out or "/db session" in out
+
+    def test_flat_checkpoint_is_invalid(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "checkpoint")
+        out = capsys.readouterr().out
+        assert "usage" in out.lower()
+        assert "/db rag" in out or "/db session" in out
+
+    def test_flat_vacuum_is_invalid(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "vacuum")
+        out = capsys.readouterr().out
+        assert "usage" in out.lower()
+        assert "/db rag" in out or "/db session" in out
+
+    def test_flat_purge_is_invalid(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "purge")
+        out = capsys.readouterr().out
+        assert "usage" in out.lower()
+        assert "/db rag" in out or "/db session" in out
+
+    def test_flat_consistency_is_invalid(self, capsys: pytest.CaptureFixture) -> None:
+        cmd = _make_cmd()
+        _run_db(cmd, "consistency")
+        out = capsys.readouterr().out
+        assert "usage" in out.lower()
+        assert "/db rag" in out or "/db session" in out

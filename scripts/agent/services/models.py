@@ -16,18 +16,9 @@ from db.models import PurgeCounts, ToolResultRow, WalCheckpointCounts
 from agent.services.enums import (
     ConversationActionType,
     ExportFormat,
-    IngestStage,
     McpAvailability,
     McpTier,
 )
-
-
-@dataclass(frozen=True)
-class IngestOutcome:
-    stage: IngestStage
-    n_chunks: int = 0
-    messages: tuple[str, ...] = ()
-    embed_failed: int = 0
 
 
 @dataclass(frozen=True)

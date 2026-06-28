@@ -114,12 +114,14 @@ def check_startup_modes(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
 # ---------------------------------------------------------------------------
 
 _FAIL_OPEN_ALLOWLIST_RE = re.compile(
-    r'workflow_allowlist.*fail.open|fail.open.*workflow_allowlist',
+    r"workflow_allowlist.*fail.open|fail.open.*workflow_allowlist",
     re.IGNORECASE,
 )
 
 
-def check_fail_open_workflow_allowlist(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
+def check_fail_open_workflow_allowlist(
+    docs_dir: Path, files: list[DocFile]
+) -> list[Issue]:
     """Detect if workflow_allowlist is incorrectly described as fail-open.
 
     The cicd-mcp workflow_allowlist is fail-closed (empty = deny all).
@@ -151,18 +153,22 @@ def check_fail_open_workflow_allowlist(docs_dir: Path, files: list[DocFile]) -> 
 # should NOT be described as the single source of truth or canonical authority
 # for routing.  Only flag when ToolRegistry is mentioned in a routing context.
 # Require "routing" to appear in the same sentence as the authority claim.
-_SENTENCE_BOUNDARY = re.compile(r'[.!?:]')
+_SENTENCE_BOUNDARY = re.compile(r"[.!?:]")
+
 
 def _check_routing_authority_in_sentence(sentence: str) -> bool:
     """Return True if *sentence* contains stale routing authority language."""
     # Check for "single source of truth" / "canonical authority" near ToolRegistry
     # within the same sentence, and require "routing" or "route" in that sentence.
     has_authority = bool(
-        re.search(r'single\s+source\s+of\s+truth|canonical\s+(routing\s+)?authority',
-                  sentence, re.IGNORECASE)
+        re.search(
+            r"single\s+source\s+of\s+truth|canonical\s+(routing\s+)?authority",
+            sentence,
+            re.IGNORECASE,
+        )
     )
-    has_tool_registry = bool(re.search(r'ToolRegistry', sentence, re.IGNORECASE))
-    has_routing = bool(re.search(r'routing|route', sentence, re.IGNORECASE))
+    has_tool_registry = bool(re.search(r"ToolRegistry", sentence, re.IGNORECASE))
+    has_routing = bool(re.search(r"routing|route", sentence, re.IGNORECASE))
     return has_authority and has_tool_registry and has_routing
 
 
@@ -171,9 +177,10 @@ def _find_sentences(line: str) -> list[str]:
     parts = _SENTENCE_BOUNDARY.split(line)
     return [p.strip() for p in parts if p.strip()]
 
+
 # Additional pattern: "primary routing layer" without the caveat about discovery map.
 _PRIMARY_ROUTING_RE = re.compile(
-    r'(primary\s+routing\s+l[a]?yer|main\s+routing\s+l[a]?yer)',
+    r"(primary\s+routing\s+l[a]?yer|main\s+routing\s+l[a]?yer)",
     re.IGNORECASE,
 )
 
@@ -213,7 +220,7 @@ def check_routing_authority(docs_dir: Path, files: list[DocFile]) -> list[Issue]
             if _PRIMARY_ROUTING_RE.search(line):
                 # Look for caveat in next 3 lines
                 has_caveat = False
-                context = doc.lines[i:i+3] if i < len(doc.lines) else []
+                context = doc.lines[i : i + 3] if i < len(doc.lines) else []
                 for ctx_line in context:
                     if "discovery map" in ctx_line.lower() or "/v1/tools" in ctx_line:
                         has_caveat = True
@@ -238,12 +245,12 @@ def check_routing_authority(docs_dir: Path, files: list[DocFile]) -> list[Issue]
 # ---------------------------------------------------------------------------
 
 _ACTIVE_ISSUE_RE = re.compile(
-    r'^###\s+(MCP-\d+:\s+.+)$',
+    r"^###\s+(MCP-\d+:\s+.+)$",
     re.MULTILINE,
 )
 
 _KNOWN_ISSUES_REFS_RE = re.compile(
-    r'\[?(\d{2}_mcp_\d{2})\]?\s*:',
+    r"\[?(\d{2}_mcp_\d{2})\]?\s*:",
 )
 
 
@@ -321,6 +328,7 @@ def check_active_inconsistencies(docs_dir: Path, files: list[DocFile]) -> list[I
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(

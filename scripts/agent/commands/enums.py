@@ -13,9 +13,7 @@ class CommandKind(StrEnum):
     CONTEXT = "context"
     DB = "db"
     DEBUG = "debug"
-    INGEST = "ingest"
     MCP = "mcp"
-    NOTES = "notes"
     TOOLING = "tooling"
     CONFIG = "config"
 

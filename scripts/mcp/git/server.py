@@ -83,7 +83,7 @@ async def call_tool(req: CallToolRequest) -> CallToolResponse:
 
 
 @app.get("/health")
-async def health() -> dict[str, object]:
+async def health() -> JSONResponse:
     deps: dict[str, str] = {}
     try:
         if shutil.which("git") is None:
@@ -91,7 +91,10 @@ async def health() -> dict[str, object]:
     except OSError:
         deps["git"] = "check failed"
     ready = len(deps) == 0
-    return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
+    return JSONResponse(
+        {"status": "ok" if ready else "degraded", "ready": ready, "dependencies": deps, "details": {}},
+        status_code=200 if ready else 503,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

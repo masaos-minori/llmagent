@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""agent/commands/cmd_ingest.py
-Export, ingest, and compact mixin for CommandRegistry.
+"""agent/commands/cmd_rag_export.py
+Export, compact, and RAG search mixin for CommandRegistry.
 
-Provides _IngestMixin with:
+Provides _RagExportMixin with:
   _cmd_export            — /export: dump conversation to Markdown or JSON
-  _cmd_ingest            — /ingest: crawl/ingest a URL or local file
   _cmd_compact           — /compact: force immediate context compression
   _cmd_rag               — /rag: search the RAG knowledge base
 """
@@ -23,8 +22,8 @@ logger = logging.getLogger(__name__)
 RAG_SEARCH_PARTS_COUNT = 2
 
 
-class _IngestMixin(MixinBase):
-    """Export, ingest, and compact slash-command handlers."""
+class _RagExportMixin(MixinBase):
+    """Export, compact, and RAG search slash-command handlers."""
 
     def _cmd_export(self, args: str) -> None:
         """Export the current conversation history to Markdown or JSON.
@@ -42,66 +41,6 @@ class _IngestMixin(MixinBase):
                 outfile = part
         content = render_export(ctx.conv.history, fmt)
         write_export(content, outfile, len(ctx.conv.history))
-
-    async def _cmd_ingest(self, args: str) -> None:
-        """Crawl/ingest a URL or local file into the RAG DB from within the REPL.
-
-        Usage: /ingest <url|path> [ja|en] [--snippets-only]
-        --snippets-only forces heading-based Markdown snippet chunking.
-        """
-        from agent.services.exceptions import (
-            IngestStageError,  # noqa: PLC0415 — lazy: deferred to avoid import cost
-        )
-        from agent.services.ingest_workflow import (
-            IngestWorkflowService,  # noqa: PLC0415 — lazy: heavy ingest pipeline deferred to /ingest call
-        )
-
-        parts = args.strip().split()
-        if not parts:
-            self._out.write("Usage: /ingest <url|path> [lang=ja|en] [--snippets-only]")
-            return
-        target = parts[0]
-        lang = "ja"
-        snippets_only = False
-        for p in parts[1:]:
-            if p in ("ja", "en"):
-                lang = p
-            elif p == "--snippets-only":
-                snippets_only = True
-
-        def on_status(msg: str) -> None:
-            self._out.write(f"  {msg}")
-
-        # Build a temporary pipeline to get the semantic cache for invalidation
-        cache = None
-        if self._ctx.services is not None and self._ctx.services.http is not None:
-            from rag.pipeline import (  # noqa: PLC0415 — lazy: heavy RAG module deferred
-                RagPipeline,
-            )
-            from shared.config_loader import ConfigLoader  # noqa: PLC0415 — lazy
-
-            rag_cfg_dict = ConfigLoader().load_all()
-            if rag_cfg_dict.get("use_search", True):
-                rag_cfg = build_rag_cfg_adapter(
-                    RagPipelineConfig.from_dict(rag_cfg_dict)
-                )
-                temp_pipeline = RagPipeline(self._ctx.services.http, rag_cfg)
-                cache = temp_pipeline.semantic_cache
-
-        svc = IngestWorkflowService()
-        try:
-            await svc.run(
-                target,
-                lang=lang,
-                snippets_only=snippets_only,
-                on_status=on_status,
-                on_ingest_complete=(
-                    lambda: cache.invalidate() if cache is not None else None
-                ),
-            )
-        except IngestStageError as e:
-            logger.error("Ingest failed at stage=%s: %s", e.stage, e.detail)
-            self._out.write(f"  [ingest] error ({e.stage}): {e.detail}")
 
     async def _cmd_rag(self, args: str) -> None:
         """Search the RAG knowledge base with a query.

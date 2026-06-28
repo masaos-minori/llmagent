@@ -162,7 +162,7 @@ All MCP servers inherit from `MCPServer`.
 | `async dispatch(name, args) -> DispatchResult` | Abstract; must be overridden. Returns `DispatchResult(output, is_error)` |
 | `list_tools() -> list[str]` | Tool names from `mcp_tools`. Returns `[]` if not defined |
 | `list_tools_with_server_key() -> list[dict[str, object]]` | Tool metadata including `server_key`; used by `/v1/tools` endpoint |
-| `health() -> dict[str, object]` | `{"status": "ok", "ready": bool, "dependencies": dict, "details": dict}` by default; overridden per server (e.g. github adds `github_token` to `dependencies`, mdq adds `service` to `details`) |
+| `health() -> tuple[dict[str, object], int]` | Returns `(health_dict, http_status_code)`. HTTP status: 200 when ready=True, 503 when ready=False. Health dict: `{"status": "ok"/"degraded", "ready": bool, "dependencies": dict, "details": dict}`. Overridden per server (e.g. github adds `github_token` to `dependencies`, mdq adds `service` to `details`) |
 | `run_http() -> None` | Start uvicorn HTTP server |
 | `async run_stdio() -> None` | Handle newline-delimited JSON-RPC on stdin/stdout |
 
@@ -190,6 +190,38 @@ if __name__ == "__main__":
 | Session ID header | `X-Session-Id` | not applicable |
 | Tool list check | `GET /v1/tools` | `__list_tools__` RPC |
 | Health check | `GET /health` | `healthcheck_mode="ping_tool"` or process alive |
+
+---
+
+### Canonical `/health` Response Semantics
+
+All MCP server `/health` endpoints follow consistent semantics for the response fields:
+
+**`status`**: `"ok"` when fully healthy, `"degraded"` when dependency failures are detected.
+
+**`ready`**: `true` when no dependency failures, `false` when any dependency failure.
+
+**`dependencies`**: Dict of dependency name → error message. Empty when healthy.
+
+**HTTP status code**:
+- `200` when `status="ok"` and `ready=true` (fully healthy)
+- `503` when `status="degraded"` or `ready=false` (dependency failure)
+
+**Watchdog behavior**: The watchdog (`agent/repl_health.py`) checks only the HTTP response status code (`resp.status_code == HTTPStatus.OK`). Body fields (`status`, `ready`) are NOT checked by the watchdog. This means:
+- HTTP 200 → watchdog considers server healthy regardless of body `status` field
+- HTTP 503 → watchdog considers server unhealthy and will restart
+
+**Example degraded response**:
+```json
+{
+  "status": "degraded",
+  "ready": false,
+  "dependencies": {
+    "github_token": "not_set"
+  },
+  "details": {}
+}
+```
 
 ---
 

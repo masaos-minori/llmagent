@@ -29,10 +29,10 @@ from mcp.mdq.models import (
     MdqAuthorizationError,
     MdqConsistencyError,
     MdqDatabaseError,
+    MdqIndexNotReadyError,
     MdqNotFoundError,
     MdqServiceError,
     MdqValidationError,
-    MdqIndexNotReadyError,
     OutlineRequest,
     RefreshIndexRequest,
     SearchDocsRequest,
@@ -55,10 +55,14 @@ _service: MdqService = MdqService()
 
 
 @app.exception_handler(MdqValidationError)
-async def _on_mdq_validation_error(request: Request, exc: MdqValidationError) -> JSONResponse:
+async def _on_mdq_validation_error(
+    request: Request, exc: MdqValidationError
+) -> JSONResponse:
     logger.info("MDQ validation error: %s", exc)
     session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
     _audit_log(
         logger,
         session_id=session_id,
@@ -66,16 +70,20 @@ async def _on_mdq_validation_error(request: Request, exc: MdqValidationError) ->
         action="call_tool",
         target="",
         outcome="error",
-        detail=f"error_kind=validation_error",
+        detail="error_kind=validation_error",
     )
     return JSONResponse({"detail": str(exc)}, status_code=400)
 
 
 @app.exception_handler(MdqAuthorizationError)
-async def _on_mdq_authorization_error(request: Request, exc: MdqAuthorizationError) -> JSONResponse:
+async def _on_mdq_authorization_error(
+    request: Request, exc: MdqAuthorizationError
+) -> JSONResponse:
     logger.info("MDQ authorization error: %s", exc)
     session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
     _audit_log(
         logger,
         session_id=session_id,
@@ -83,16 +91,20 @@ async def _on_mdq_authorization_error(request: Request, exc: MdqAuthorizationErr
         action="call_tool",
         target="",
         outcome="error",
-        detail=f"error_kind=authorization_error",
+        detail="error_kind=authorization_error",
     )
     return JSONResponse({"detail": str(exc)}, status_code=403)
 
 
 @app.exception_handler(MdqNotFoundError)
-async def _on_mdq_not_found_error(request: Request, exc: MdqNotFoundError) -> JSONResponse:
+async def _on_mdq_not_found_error(
+    request: Request, exc: MdqNotFoundError
+) -> JSONResponse:
     logger.info("MDQ not found error: %s", exc)
     session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
     _audit_log(
         logger,
         session_id=session_id,
@@ -100,16 +112,20 @@ async def _on_mdq_not_found_error(request: Request, exc: MdqNotFoundError) -> JS
         action="call_tool",
         target="",
         outcome="error",
-        detail=f"error_kind=not_found_error",
+        detail="error_kind=not_found_error",
     )
     return JSONResponse({"detail": str(exc)}, status_code=404)
 
 
 @app.exception_handler(MdqIndexNotReadyError)
-async def _on_mdq_index_not_ready_error(request: Request, exc: MdqIndexNotReadyError) -> JSONResponse:
+async def _on_mdq_index_not_ready_error(
+    request: Request, exc: MdqIndexNotReadyError
+) -> JSONResponse:
     logger.info("MDQ index not ready error: %s", exc)
     session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
     _audit_log(
         logger,
         session_id=session_id,
@@ -117,16 +133,20 @@ async def _on_mdq_index_not_ready_error(request: Request, exc: MdqIndexNotReadyE
         action="call_tool",
         target="",
         outcome="error",
-        detail=f"error_kind=index_not_ready_error",
+        detail="error_kind=index_not_ready_error",
     )
     return JSONResponse({"detail": str(exc)}, status_code=503)
 
 
 @app.exception_handler(MdqDatabaseError)
-async def _on_mdq_database_error(request: Request, exc: MdqDatabaseError) -> JSONResponse:
+async def _on_mdq_database_error(
+    request: Request, exc: MdqDatabaseError
+) -> JSONResponse:
     logger.info("MDQ database error: %s", exc)
     session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
     _audit_log(
         logger,
         session_id=session_id,
@@ -134,16 +154,20 @@ async def _on_mdq_database_error(request: Request, exc: MdqDatabaseError) -> JSO
         action="call_tool",
         target="",
         outcome="error",
-        detail=f"error_kind=database_error",
+        detail="error_kind=database_error",
     )
     return JSONResponse({"detail": str(exc)}, status_code=503)
 
 
 @app.exception_handler(MdqConsistencyError)
-async def _on_mdq_consistency_error(request: Request, exc: MdqConsistencyError) -> JSONResponse:
+async def _on_mdq_consistency_error(
+    request: Request, exc: MdqConsistencyError
+) -> JSONResponse:
     logger.info("MDQ consistency error: %s", exc)
     session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
     _audit_log(
         logger,
         session_id=session_id,
@@ -151,7 +175,7 @@ async def _on_mdq_consistency_error(request: Request, exc: MdqConsistencyError) 
         action="call_tool",
         target="",
         outcome="error",
-        detail=f"error_kind=consistency_error",
+        detail="error_kind=consistency_error",
     )
     return JSONResponse({"detail": str(exc)}, status_code=500)
 
@@ -160,7 +184,9 @@ async def _on_mdq_consistency_error(request: Request, exc: MdqConsistencyError) 
 async def _on_mdq_service_error(request: Request, exc: MdqServiceError) -> JSONResponse:
     logger.info("MDQ service error (fallback): %s", exc)
     session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(request.state, "request_id", request.headers.get("x-request-id", ""))
+    request_id = getattr(
+        request.state, "request_id", request.headers.get("x-request-id", "")
+    )
     _audit_log(
         logger,
         session_id=session_id,
@@ -168,7 +194,7 @@ async def _on_mdq_service_error(request: Request, exc: MdqServiceError) -> JSONR
         action="call_tool",
         target="",
         outcome="error",
-        detail=f"error_kind=service_error",
+        detail="error_kind=service_error",
     )
     return JSONResponse({"detail": str(exc)}, status_code=500)
 
@@ -274,9 +300,13 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     if not r.is_error:
         detail_parts.append(f"duration_ms={ms:.0f}")
         if req.name == "search_docs":
-            detail_parts.append(f"result_count={len(r.output.split(chr(10))) if r.output else 0}")
+            detail_parts.append(
+                f"result_count={len(r.output.split(chr(10))) if r.output else 0}"
+            )
         elif req.name == "grep_docs":
-            detail_parts.append(f"match_count={r.output.count(chr(45)+chr(45)+chr(45)) if r.output else 0}")
+            detail_parts.append(
+                f"match_count={r.output.count(chr(45) + chr(45) + chr(45)) if r.output else 0}"
+            )
         elif req.name in ("index_paths", "refresh_index"):
             detail_parts.append("indexed")
     else:
@@ -296,7 +326,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 
 
 @app.get("/health")
-async def health() -> dict[str, object]:
+async def health() -> JSONResponse:
     deps: dict[str, str] = {}
     details: dict[str, object] = {"service": "mdq-mcp"}
 
@@ -316,12 +346,12 @@ async def health() -> dict[str, object]:
 
         if not _os.path.isfile(db_path):
             deps["db_file"] = f"not found: {db_path}"
-            return {
-                "status": "ok",
+            return JSONResponse({
+                "status": "degraded",
                 "ready": False,
                 "dependencies": deps,
                 "details": details,
-            }
+            }, status_code=503)
 
         import sqlite3
 
@@ -332,21 +362,21 @@ async def health() -> dict[str, object]:
 
             if "sections" not in tables:
                 deps["db_schema"] = "missing sections table"
-                return {
-                    "status": "ok",
+                return JSONResponse({
+                    "status": "degraded",
                     "ready": False,
                     "dependencies": deps,
                     "details": details,
-                }
+                }, status_code=503)
 
             if "sections_fts" not in tables:
                 deps["db_schema"] = "missing sections_fts FTS5 table"
-                return {
-                    "status": "ok",
+                return JSONResponse({
+                    "status": "degraded",
                     "ready": False,
                     "dependencies": deps,
                     "details": details,
-                }
+                }, status_code=503)
 
             cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'")
             triggers = {row[0] for row in cursor.fetchall()}
@@ -356,12 +386,12 @@ async def health() -> dict[str, object]:
                 deps["db_schema"] = (
                     f"missing triggers: {', '.join(sorted(missing_triggers))}"
                 )
-                return {
-                    "status": "ok",
+                return JSONResponse({
+                    "status": "degraded",
                     "ready": False,
                     "dependencies": deps,
                     "details": details,
-                }
+                }, status_code=503)
 
             try:
                 cursor.execute(
@@ -370,12 +400,12 @@ async def health() -> dict[str, object]:
                 cursor.fetchone()
             except sqlite3.OperationalError as e:
                 deps["fts5"] = f"FTS5 query failed: {e}"
-                return {
-                    "status": "ok",
+                return JSONResponse({
+                    "status": "degraded",
                     "ready": False,
                     "dependencies": deps,
                     "details": details,
-                }
+                }, status_code=503)
 
             chunk_count = conn.execute(
                 "SELECT COUNT(*) as cnt FROM sections"
@@ -411,10 +441,13 @@ async def health() -> dict[str, object]:
 
                     stale_count = 0
                     if ref_mtime is not None:
-                        stale_count = conn.execute(
-                            "SELECT COUNT(DISTINCT file_path) as cnt FROM sections WHERE file_mtime < ?",
-                            (ref_mtime,),
-                        ).fetchone()["cnt"] or 0
+                        stale_count = (
+                            conn.execute(
+                                "SELECT COUNT(DISTINCT file_path) as cnt FROM sections WHERE file_mtime < ?",
+                                (ref_mtime,),
+                            ).fetchone()["cnt"]
+                            or 0
+                        )
             except Exception:
                 # If stale count fails, don't break health check
                 stale_count = None
@@ -427,7 +460,10 @@ async def health() -> dict[str, object]:
         deps["config"] = f"check failed: {e}"
 
     ready = len(deps) == 0
-    return {"status": "ok", "ready": ready, "dependencies": deps, "details": details}
+    return JSONResponse(
+        {"status": "ok" if ready else "degraded", "ready": ready, "dependencies": deps, "details": details},
+        status_code=200 if ready else 503,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

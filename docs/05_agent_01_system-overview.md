@@ -98,13 +98,12 @@ The most recent `history_protect_turns` (default 2) turns are always protected.
 | MCP | `/mcp [status\|install]` |
 | Config / stats | `/config`, `/stats`, `/set`, `/reload` |
 | Context | `/context`, `/compact`, `/system` |
-| DB | `/db stats\|urls\|clean\|rebuild-fts\|health\|checkpoint\|vacuum\|purge\|recover` |
+| DB | `/db rag stats\|urls\|clean\|rebuild-fts\|vec-rebuild\|reconcile-url\|recover\|consistency; session stats\|health\|checkpoint\|vacuum\|purge\|recover` |
 | Tool / plan | `/tool list\|show`, `/plan` |
 | Workflow | `/approve [reason]`, `/reject [reason]` |
-| Note | `/note add\|list\|delete` |
 | Debug / audit | `/debug`, `/audit` |
-| Ingest / RAG | `/ingest`, `/rag search`, `/compact` |
-| Memory | `/memory list\|search\|show\|pin\|unpin\|delete\|prune` |
+| RAG / Export | `/rag search`, `/export`, `/compact` |
+| Memory | `/memory list\|search\|show\|pin\|unpin\|delete\|prune\|status` |
 | Other | `/help`, `/exit` |
 
 ---

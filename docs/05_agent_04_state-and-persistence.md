@@ -203,7 +203,7 @@ Priority: (1) LLM `usage.input_tokens` (exact); (2) `/tokenize` endpoint (exact)
 | `ctx.stats.*` | session | in-memory | — (reported via `/stats`) | `/clear` |
 | `sessions` table | persistent | SQLite | On session create; title async on first turn | `/session delete` |
 | `messages` table | persistent | SQLite | Per `AgentSession.save()` call | `/session delete` or `/undo` |
-| `notes` table | persistent | SQLite | On `/note add` | `/note delete` |
+| `notes` table | legacy / unused | SQLite | — (table remains for backward compatibility) | — (no longer written to) |
 | `ctx.tool_result_store` | session | in-memory + SQLite | Each tool call result stored immediately | session end |
 | Memory JSONL / `memories` table | persistent | JSONL + SQLite | On memory extraction (async) | `/memory delete` or `/memory prune` |
 
@@ -252,4 +252,4 @@ never through the session object.
 Verified boundaries:
 - `agent/session.py` imports only: `db.helper`, `shared.types`, `agent.note_repo`, `agent.session_message_repo`
 - `db/maintenance.py` contains RAG-file utility functions (`rotate_rag_db`, `vacuum_db`) but has zero `rag/` module imports
-- `/db` command routes subcommands by scope: `/db rag <subcmd>` targets `RagMaintenanceService`; `/db session <subcmd>` targets `DbMaintenanceService`; flat forms (`/db stats` etc.) remain as compatibility aliases
+- `/db` command routes subcommands by scope: `/db rag <subcmd>` targets `RagMaintenanceService`; `/db session <subcmd>` targets `DbMaintenanceService`

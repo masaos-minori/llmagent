@@ -116,7 +116,9 @@ class _MdqMixin(MixinBase):
 
         parts = args.strip().split()
         if not parts:
-            self._out.write("Usage: /mdq search <query> [--limit N] [--path-prefix PATH] [--mode bm25|grep]")
+            self._out.write(
+                "Usage: /mdq search <query> [--limit N] [--path-prefix PATH] [--mode bm25|grep]"
+            )
             return
 
         query = parts[0]
@@ -125,13 +127,25 @@ class _MdqMixin(MixinBase):
         for part in parts[1:]:
             if part.startswith("--limit"):
                 try:
-                    tool_args["limit"] = int(part.split("=")[1]) if "=" in part else int(parts[parts.index(part) + 1])
+                    tool_args["limit"] = (
+                        int(part.split("=")[1])
+                        if "=" in part
+                        else int(parts[parts.index(part) + 1])
+                    )
                 except (ValueError, IndexError):
                     pass
             elif part.startswith("--path-prefix"):
-                tool_args["path_prefix"] = part.split("=", 1)[1] if "=" in part else parts[parts.index(part) + 1]
+                tool_args["path_prefix"] = (
+                    part.split("=", 1)[1]
+                    if "=" in part
+                    else parts[parts.index(part) + 1]
+                )
             elif part in ("--mode",):
-                tool_args["mode"] = parts[parts.index(part) + 1] if parts.index(part) + 1 < len(parts) else "bm25"
+                tool_args["mode"] = (
+                    parts[parts.index(part) + 1]
+                    if parts.index(part) + 1 < len(parts)
+                    else "bm25"
+                )
             elif part.startswith("--mode="):
                 tool_args["mode"] = part.split("=", 1)[1]
 
@@ -165,7 +179,11 @@ class _MdqMixin(MixinBase):
         for part in parts[1:]:
             if part.startswith("--max-depth"):
                 try:
-                    tool_args["max_outline_items"] = int(part.split("=")[1]) if "=" in part else int(parts[parts.index(part) + 1])
+                    tool_args["max_outline_items"] = (
+                        int(part.split("=")[1])
+                        if "=" in part
+                        else int(parts[parts.index(part) + 1])
+                    )
                 except (ValueError, IndexError):
                     pass
 
@@ -220,7 +238,9 @@ class _MdqMixin(MixinBase):
 
         parts = args.strip().split()
         if not parts:
-            self._out.write("Usage: /mdq grep <pattern> [--path PATH] [--max-chars N] [--context-before N] [--context-after N]")
+            self._out.write(
+                "Usage: /mdq grep <pattern> [--path PATH] [--max-chars N] [--context-before N] [--context-after N]"
+            )
             return
 
         pattern = parts[0]
@@ -228,23 +248,39 @@ class _MdqMixin(MixinBase):
 
         for part in parts[1:]:
             if part.startswith("--path"):
-                path_val = part.split("=", 1)[1] if "=" in part else parts[parts.index(part) + 1]
+                path_val = (
+                    part.split("=", 1)[1]
+                    if "=" in part
+                    else parts[parts.index(part) + 1]
+                )
                 if "paths" not in tool_args:
                     tool_args["paths"] = []
                 tool_args["paths"].append(path_val)
             elif part.startswith("--max-chars"):
                 try:
-                    tool_args["max_chars_per_match"] = int(part.split("=")[1]) if "=" in part else int(parts[parts.index(part) + 1])
+                    tool_args["max_chars_per_match"] = (
+                        int(part.split("=")[1])
+                        if "=" in part
+                        else int(parts[parts.index(part) + 1])
+                    )
                 except (ValueError, IndexError):
                     pass
             elif part.startswith("--context-before"):
                 try:
-                    tool_args["context_before"] = int(part.split("=")[1]) if "=" in part else int(parts[parts.index(part) + 1])
+                    tool_args["context_before"] = (
+                        int(part.split("=")[1])
+                        if "=" in part
+                        else int(parts[parts.index(part) + 1])
+                    )
                 except (ValueError, IndexError):
                     pass
             elif part.startswith("--context-after"):
                 try:
-                    tool_args["context_after"] = int(part.split("=")[1]) if "=" in part else int(parts[parts.index(part) + 1])
+                    tool_args["context_after"] = (
+                        int(part.split("=")[1])
+                        if "=" in part
+                        else int(parts[parts.index(part) + 1])
+                    )
                 except (ValueError, IndexError):
                     pass
 

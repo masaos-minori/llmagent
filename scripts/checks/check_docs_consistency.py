@@ -35,7 +35,14 @@ STALE_PATTERNS = {
 }
 
 # Patterns that are allowed in resolved/historical sections
-HISTORICAL_MARKERS = {"legacy", "historical", "archive only", "resolved", "was:", "removed"}
+HISTORICAL_MARKERS = {
+    "legacy",
+    "historical",
+    "archive only",
+    "resolved",
+    "was:",
+    "removed",
+}
 
 
 def check_broken_headings(content: str, filename: str) -> list[str]:
@@ -47,15 +54,21 @@ def check_broken_headings(content: str, filename: str) -> list[str]:
         if stripped.startswith("#") and not stripped.startswith("##"):
             # Level-1 heading should be at start of line or after whitespace
             if re.match(r"^#+[^# ]", stripped):
-                issues.append(f"{filename}:{i}: broken heading — '# without space': '{stripped}'")
+                issues.append(
+                    f"{filename}:{i}: broken heading — '# without space': '{stripped}'"
+                )
         elif stripped.startswith("##") and not stripped.startswith("###"):
             # Level-2 heading: should have space after '##'
             if re.match(r"^##[^# ]", stripped):
-                issues.append(f"{filename}:{i}: broken heading — '## without space': '{stripped}'")
+                issues.append(
+                    f"{filename}:{i}: broken heading — '## without space': '{stripped}'"
+                )
         elif stripped.startswith("###") and not stripped.startswith("####"):
             # Level-3 heading: should have space after '###'
             if re.match(r"^###[^# ]", stripped):
-                issues.append(f"{filename}:{i}: broken heading — '### without space': '{stripped}'")
+                issues.append(
+                    f"{filename}:{i}: broken heading — '### without space': '{stripped}'"
+                )
     return issues
 
 
@@ -86,7 +99,9 @@ def check_malformed_tables(content: str, filename: str) -> list[str]:
             in_table = False
             table_lines = []
             expected_cols = 0
-        elif in_table and not stripped.startswith("|") and not stripped.startswith("---"):
+        elif (
+            in_table and not stripped.startswith("|") and not stripped.startswith("---")
+        ):
             in_table = False
             table_lines = []
             expected_cols = 0
@@ -105,7 +120,7 @@ def check_unclosed_inline_code(content: str, filename: str) -> list[str]:
         # Find the unclosed one
         matches = list(re.finditer(r"`([^`]*)", cleaned))
         for m in matches:
-            if not re.search(r"`" + re.escape(m.group(1)), cleaned[m.end():]):
+            if not re.search(r"`" + re.escape(m.group(1)), cleaned[m.end() :]):
                 issues.append(f"{filename}: unclosed inline code — '{m.group(0)}'")
     return issues
 
@@ -133,14 +148,14 @@ def check_stale_patterns(content: str, filename: str) -> list[str]:
     for i, line in enumerate(lines, 1):
         stripped = line.strip()
         # Check if this line is in a resolved/historical section
-        is_historical = any(marker.lower() in stripped.lower() for marker in HISTORICAL_MARKERS)
+        is_historical = any(
+            marker.lower() in stripped.lower() for marker in HISTORICAL_MARKERS
+        )
 
         for pattern_name, pattern in STALE_PATTERNS.items():
             if re.search(pattern, stripped):
                 if not is_historical:
-                    issues.append(
-                        f"{filename}:{i}: stale reference — '{pattern_name}'"
-                    )
+                    issues.append(f"{filename}:{i}: stale reference — '{pattern_name}'")
 
     return issues
 
@@ -183,9 +198,7 @@ def check_stale_issue_routing(content: str, filename: str) -> list[str]:
             in_routing_table = False
             continue
         if in_routing_table and ("SPEC-1" in stripped or "BUG-3" in stripped):
-            issues.append(
-                f"{filename}:{i}: stale issue ID routing — '{stripped[:80]}'"
-            )
+            issues.append(f"{filename}:{i}: stale issue ID routing — '{stripped[:80]}'")
 
     return issues
 
@@ -205,8 +218,12 @@ def check_all(content: str, filename: str) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check RAG documentation consistency")
-    parser.add_argument("--fix", action="store_true", help="Auto-fix issues (where possible)")
-    parser.add_argument("files", nargs="*", help="Files to check (default: all docs/*.md)")
+    parser.add_argument(
+        "--fix", action="store_true", help="Auto-fix issues (where possible)"
+    )
+    parser.add_argument(
+        "files", nargs="*", help="Files to check (default: all docs/*.md)"
+    )
     args = parser.parse_args()
 
     if not args.files:

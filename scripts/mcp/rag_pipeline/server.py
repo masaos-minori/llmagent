@@ -110,7 +110,7 @@ async def rag_debug_pipeline(req: RagRunRequest) -> RagDebugResponse:
 
 
 @app.get("/health")
-async def health() -> dict[str, object]:
+async def health() -> JSONResponse:
     deps: dict[str, str] = {}
     try:
         from shared.config_loader import ConfigLoader
@@ -123,7 +123,10 @@ async def health() -> dict[str, object]:
     except Exception:
         deps["config"] = "check failed"  # noqa: BLE001 — health check must not fail on config errors
     ready = len(deps) == 0
-    return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
+    return JSONResponse(
+        {"status": "ok" if ready else "degraded", "ready": ready, "dependencies": deps, "details": {}},
+        status_code=200 if ready else 503,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

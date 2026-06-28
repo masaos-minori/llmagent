@@ -6,12 +6,12 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from agent.commands.cmd_ingest import _IngestMixin
+from agent.commands.cmd_rag_export import _RagExportMixin
 
 # ── Test harness ──────────────────────────────────────────────────────────────
 
 
-class _FakeCmd(_IngestMixin):
+class _FakeCmd(_RagExportMixin):
     def __init__(self, ctx: object) -> None:
         self._ctx = ctx
 

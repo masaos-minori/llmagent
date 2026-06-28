@@ -370,7 +370,7 @@ if not is_consistent(report):
         print(issue)
 ```
 
-- `fts_gap > 0` → FTS trigger missed some inserts; fix: `/db rebuild-fts`
+- `fts_gap > 0` → FTS trigger missed some inserts; fix: `/db rag rebuild-fts`
 - `orphan_vec_count > 0` → vec trigger failed; fix: re-ingest affected URLs
 - Read-only; does not repair inconsistencies.
 

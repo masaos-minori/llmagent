@@ -261,7 +261,7 @@ lang = "en"
 Then run:
 
 ```
-/ingest run
+uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml
 ```
 
 The crawler calls `crawl_file()`, writes a JSON to `rag-src/`, chunks it,
@@ -286,7 +286,7 @@ Log messages during ingestion:
 When multiple files change, use `--force` to re-embed all `file://` URLs in `target_urls`:
 
 ```
-/ingest run --force
+uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml --force
 ```
 
 ### Comparison: local files vs. web URLs
@@ -330,7 +330,7 @@ On inconsistency:
 ```
   chunks: 1042  fts: 1039  vec: 1042  fts_gap: 3  orphan_vec: 0  fts_orphan: 0
 RAG consistency: FAIL
-Consistency issue: [WARNING] FTS gap detected (chunks=1042, fts=1039, gap=3). Affected doc_ids: [1, 2, 3]. Run '/db rebuild-fts' to repair.
+Consistency issue: [WARNING] FTS gap detected (chunks=1042, fts=1039, gap=3). Affected doc_ids: [1, 2, 3]. Run '/db rag rebuild-fts' to repair.
 ```
 
 ### Threshold policy
@@ -348,12 +348,12 @@ identifiers (up to 10 each) so operators can act without manual DB investigation
 
 | Issue | Fix |
 |---|---|
-| `fts_gap > 0` | Run `/db rebuild-fts` — FTS entries are missing; rebuild from `chunks` |
-| `fts_orphan_count > 0` | Run `/db rebuild-fts` — FTS has extra entries (data loss risk; urgent) |
+| `fts_gap > 0` | Run `/db rag rebuild-fts` — FTS entries are missing; rebuild from `chunks` |
+| `fts_orphan_count > 0` | Run `/db rag rebuild-fts` — FTS has extra entries (data loss risk; urgent) |
 | `orphan_vec_count > 0` | Run `ingester.py --force` for affected URLs — `chunks_vec` rows without `chunks` counterparts |
 | `vec != chunks` | Run `ingester.py --force` for the affected URL — embedding step likely failed |
 
-Run `/db rebuild-fts` to resynchronize `chunks_fts` from the `chunks` table.
+Run `/db rag rebuild-fts` to resynchronize `chunks_fts` from the `chunks` table.
 
 
 <!-- AUTO-GENERATED: gen_rag_reference.py config -->

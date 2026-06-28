@@ -367,8 +367,8 @@ class _MemoryMixin(MixinBase):
             vec_gap = abs(report.memories - report.vec)
             self._out.write(
                 "  [memory] Inconsistency detected.\n"
-                "    FTS gap: {} rows (SQLite vs FTS5)\n"
-                "    Vec gap: {} rows (SQLite vs vector index)".format(fts_gap, vec_gap)
+                f"    FTS gap: {fts_gap} rows (SQLite vs FTS5)\n"
+                f"    Vec gap: {vec_gap} rows (SQLite vs vector index)"
             )
             if fts_gap > 0:
                 self._out.write("    Repair: /memory rebuild-fts")
@@ -415,9 +415,7 @@ class _MemoryMixin(MixinBase):
     def _memory_rebuild_fts(self, mem: MemoryServices) -> None:
         """Rebuild the memories_fts index from SQLite."""
         count = mem.store.rebuild_fts()
-        self._out.write_success(
-            f"memories_fts rebuilt: {count} rows [Memory]"
-        )
+        self._out.write_success(f"memories_fts rebuilt: {count} rows [Memory]")
         self._emit_memory_audit(
             MemoryOpResult(ok=True, memory_id="", action="rebuild-fts", count=count)
         )
@@ -426,14 +424,10 @@ class _MemoryMixin(MixinBase):
         """Rebuild the memories_vec index from SQLite."""
         embed_enabled = self._ctx.cfg.memory.memory_embed_enabled
         if not embed_enabled:
-            self._out.write(
-                "  [memory] embedding disabled — cannot rebuild vec index"
-            )
+            self._out.write("  [memory] embedding disabled — cannot rebuild vec index")
             return
         count = mem.store.rebuild_vec()
-        self._out.write_success(
-            f"memories_vec rebuilt: {count} rows [Memory]"
-        )
+        self._out.write_success(f"memories_vec rebuilt: {count} rows [Memory]")
         self._emit_memory_audit(
             MemoryOpResult(ok=True, memory_id="", action="rebuild-vec", count=count)
         )

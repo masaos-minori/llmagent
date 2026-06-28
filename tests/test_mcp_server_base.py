@@ -58,12 +58,28 @@ class TestListTools:
 class TestHealth:
     def test_default_health_returns_ok(self) -> None:
         srv = _SimpleServer()
-        assert srv.health() == {
+        health_dict, status_code = srv.health()
+        assert health_dict == {
             "status": "ok",
             "ready": True,
             "dependencies": {},
             "details": {},
         }
+        assert status_code == 200
+
+    def test_health_returns_tuple_with_status_code(self) -> None:
+        srv = _SimpleServer()
+        result = srv.health()
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        health_dict, status_code = result
+        assert isinstance(health_dict, dict)
+        assert isinstance(status_code, int)
+
+    def test_health_status_code_200_when_ready(self) -> None:
+        srv = _SimpleServer()
+        _, status_code = srv.health()
+        assert status_code == 200
 
 
 class TestRunStdio:

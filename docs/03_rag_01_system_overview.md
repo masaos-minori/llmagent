@@ -28,20 +28,20 @@ LLM turn.
 ## System Architecture
 
 ```
-[Admin / Agent]
+[Admin / Operator]
       |
-      | /ingest <url>  OR  crawler.py CLI
+      | crawler.py CLI
       v
 +------------------+     rag-src/*.json     +-------------------+     rag-src/chunk/*.json
 |  crawler.py      | -------------------->  | chunk_splitter.py | -------------------->
 |  (WebCrawler)    |                         | (ChunkSplitter)   |
 +------------------+                         +-------------------+
-                                                                        |
-                                                                        v
-                                                              +------------------+
-                                                              |  ingester.py     |
-                                                              |  (RagIngester)   |
-                                                              +------------------+
+                                                                         |
+                                                                         v
+                                                               +------------------+
+                                                               |  ingester.py     |
+                                                               |  (RagIngester)   |
+                                                               +------------------+
                                                                         |
                                                                         | embed (port 8003)
                                                                         | INSERT SQLite

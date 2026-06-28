@@ -22,8 +22,10 @@ from db.maintenance import (
     prune_old_memories,
     purge_old_sessions,
     recover_corruption,
+    rotate_all_dbs,
     rotate_db,
     rotate_session_db,
+    rotate_workflow_db,
     vacuum_db,
 )
 from db.models import (
@@ -82,8 +84,10 @@ __all__ = [
     "prune_old_memories",
     "purge_old_sessions",
     "recover_corruption",
+    "rotate_all_dbs",
     "rotate_db",
     "rotate_session_db",
+    "rotate_workflow_db",
     "validate_embedding_blob",
     "vacuum_db",
 ]

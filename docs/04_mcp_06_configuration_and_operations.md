@@ -135,55 +135,80 @@ curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 # Base response shape: {"status":"ok","ready":bool,"dependencies":{},"details":{}}
 ```
 
+### HTTP status code behavior
+
+- **HTTP 200**: Server is fully healthy (`status="ok"`, `ready=true`)
+- **HTTP 503**: Server has dependency failures (`status="degraded"`, `ready=false`)
+
+The watchdog checks only the HTTP status code, not body fields. HTTP 503 triggers server restart.
+
+```bash
+# Check HTTP status code (not just body)
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8006/health   # 200 if healthy, 503 if degraded
+```
+
 ### Health probe response examples
 
-**Base response (all servers):**
+**Base response (healthy, all servers):**
 ```json
 {"status": "ok", "ready": true, "dependencies": {}, "details": {}}
 ```
+HTTP 200 — fully healthy.
 
-**shell-mcp (port 8009):**
+**shell-mcp (port 8009) — degraded:**
 ```json
 {
-  "status": "ok",
-  "ready": true,
-  "dependencies": {"shell": "check failed"},
+  "status": "degraded",
+  "ready": false,
+  "dependencies": {"shell": "sh not found in PATH"},
   "details": {"sandbox_backend": "firejail"}
 }
 ```
-`dependencies.shell` is `"check failed"` when `sh` is not found in PATH. `details.sandbox_backend` is `"firejail"` or `"none"` (reflects active config).
+HTTP 503 — `sh` is not found in PATH. Watchdog will restart the server.
 
-**rag-pipeline-mcp (port 8010):**
+**rag-pipeline-mcp (port 8010) — degraded:**
 ```json
 {
-  "status": "ok",
-  "ready": true,
+  "status": "degraded",
+  "ready": false,
   "dependencies": {"embed_url": "not configured"},
   "details": {}
 }
 ```
-`dependencies.embed_url` is `"not configured"` when no embedding URL is set.
+HTTP 503 — no embedding URL is set. Watchdog will restart the server.
 
-**github-mcp / cicd-mcp (ports 8006, 8012):**
+**github-mcp (port 8006) — degraded:**
 ```json
 {
-  "status": "ok",
-  "ready": true,
-  "dependencies": {"github_token": "set"},
+  "status": "degraded",
+  "ready": false,
+  "dependencies": {"github_token": "not_set"},
   "details": {}
 }
 ```
-`dependencies.github_token` is `"set"` or `"not_set"`.
+HTTP 503 — GitHub token is not set. Watchdog will restart the server.
 
-**mdq-mcp (port 8013):**
+**mdq-mcp (port 8013) — degraded:**
 ```json
 {
-  "status": "ok",
-  "ready": true,
-  "dependencies": {},
-  "details": {"service": "mdq-mcp"}
+  "status": "degraded",
+  "ready": false,
+  "dependencies": {"db_file": "not found: /opt/llm/db/mdq.sqlite"},
+  "details": {"service": "mdq-mcp", "database": "/opt/llm/db/mdq.sqlite"}
 }
 ```
+HTTP 503 — database file not found. Watchdog will restart the server.
+
+**git-mcp (port 8014) — degraded:**
+```json
+{
+  "status": "degraded",
+  "ready": false,
+  "dependencies": {"git": "git not found in PATH"},
+  "details": {}
+}
+```
+HTTP 503 — git is not found in PATH. Watchdog will restart the server.
 
 ### /v1/tools verification
 

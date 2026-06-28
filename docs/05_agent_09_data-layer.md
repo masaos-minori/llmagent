@@ -57,6 +57,25 @@ incomplete LLM output without polluting conversation history. They are excluded 
 Notes are session-independent (persist across sessions).
 When `auto_inject_notes=True`, all notes are appended to the system prompt at startup.
 
+### SessionMessageRepository vs SQLiteSessionStore 責務境界
+
+| コンポーネント | 役割 | 検証 | 永続化 |
+|---|---|---|---|
+| `SessionMessageRepository` | 会話メッセージのビジネスロジック層 | role検証, strict_mode, skipカウンター, content=None正規化, tool_calls JSONエンコード/デコード | セッション依存の永続化 |
+| `SQLiteSessionStore` | DBアダプタ層 | スキーマアラインメントのみ | シンプルなDB操作 (INSERT/LIST) |
+
+`SessionMessageRepository` が所有:
+- role のバリデーション (`user` / `assistant` / `tool` / `system` / `diagnostic`)
+- strict_mode 動作 (スキップ時に `RuntimeError` を発生)
+- セッションなしの保存回避 (skip counter)
+- `content=None` の正規化
+- tool_calls の JSON エンコード/デコード
+
+`SQLiteSessionStore` が所有:
+- シンプルなDB INSERT/LIST操作
+- スキーマに準拠した永続化
+- 最小限の検証のみ
+
 ### messages vs ToolResultStore 責務境界
 
 | ストア | 役割 | LLM参照 | 保持内容 |
@@ -71,17 +90,17 @@ When `auto_inject_notes=True`, all notes are appended to the system prompt at st
 ## rag.sqlite Tables (Agent-facing)
 
 The agent layer does NOT own rag.sqlite. These tables are owned by the RAG layer.
-The agent accesses document-level data through `rag-pipeline-mcp` (for `/db urls` and `/db clean`),
-and counts through `DbMaintenanceService.stats()` (for `/db stats`).
+The agent accesses document-level data through `rag-pipeline-mcp` (for `/db rag urls` and `/db rag clean`),
+and counts through `DbMaintenanceService.stats()` or `RagMaintenanceService.stats_rag()` (for `/db rag stats`).
 
 | Table | Used by agent for |
 |---|---|
-| `documents` | `/db urls` (via `rag_list_documents` MCP), `/db clean` (via `rag_delete_document` MCP) |
-| `chunks` | `/db stats`, `/db rebuild-fts` |
-| `chunks_fts` | `/db rebuild-fts` (FTS5 virtual table) |
-| `chunks_vec` | `/db stats` |
+| `documents` | `/db rag urls` (via `rag_list_documents` MCP), `/db rag clean` (via `rag_delete_document` MCP) |
+| `chunks` | `/db rag stats`, `/db rag rebuild-fts` |
+| `chunks_fts` | `/db rag rebuild-fts` (FTS5 virtual table) |
+| `chunks_vec` | `/db rag stats` |
 
-**Responsibility boundary:** `/db urls` and `/db clean` call `rag_list_documents` and
+**Responsibility boundary:** `/db rag urls` and `/db rag clean` call `rag_list_documents` and
 `rag_delete_document` via rag-pipeline-mcp. `DbMaintenanceService` no longer owns RAG
 document access for listing or deletion.
 
@@ -94,7 +113,7 @@ The agent accesses document data through three paths:
 | Path | Mechanism | When to use |
 |---|---|---|
 | MCP tools (primary) | `ToolRouteResolver` → MCP server (rag-pipeline-mcp or mdq-mcp) | Normal operation; all agent turns |
-| `/db` commands (admin) | `/db urls`+`/db clean` → rag-pipeline-mcp; `/db stats`+maintenance → `DbMaintenanceService`/`RagMaintenanceService` | Admin tasks only |
+| `/db` commands (admin) | `/db rag urls`+`/db rag clean` → rag-pipeline-mcp; `/db rag stats`+maintenance → `DbMaintenanceService`/`RagMaintenanceService` | Admin tasks only |
 | Direct DB access | Not recommended | Never in application code |
 
 MCP tools are the preferred and supported path. Direct `sqlite3` imports against `rag.sqlite` or `mdq.sqlite` are not allowed in normal application code. The `/db` admin commands use `RagMaintenanceService` as an explicit maintenance exception (see [04_mcp_07_mdq_rag_boundary.md](04_mcp_07_mdq_rag_boundary.md) §Agent Access Patterns). See [04_mcp_07_mdq_rag_boundary.md](04_mcp_07_mdq_rag_boundary.md) for the boundary between RAG and MDQ systems.
@@ -138,7 +157,7 @@ The `chunks_fts` FTS5 virtual table in `rag.sqlite` is synchronized by triggers:
 - `chunks_au` (after UPDATE): delete + re-insert
 - `chunks_ad` (after DELETE): delete from `chunks_fts`
 
-`/db rebuild-fts` drops and recreates the FTS5 index from `chunks` data.
+`/db rag rebuild-fts` drops and recreates the FTS5 index from `chunks` data.
 Use when `SELECT COUNT(*) FROM chunks_fts` ≠ `SELECT COUNT(*) FROM chunks`.
 
 ---

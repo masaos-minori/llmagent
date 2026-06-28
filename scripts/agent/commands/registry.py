@@ -14,7 +14,7 @@ Mixin split:
   cmd_db.py       — _DbMixin:       /db
   cmd_tooling.py  — _ToolingMixin:  /tool, /plan
  cmd_debug.py    — _DebugMixin:    /debug
-  cmd_ingest.py   — _IngestMixin:   /ingest, /export, /compact
+  cmd_rag_export.py   — _RagExportMixin:   /export, /compact, /rag
   cmd_memory.py   — _MemoryMixin:   /memory
   cmd_mdq.py      — _MdqMixin:      /mdq commands
 """
@@ -29,7 +29,7 @@ from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.cmd_context import _ContextMixin
 from agent.commands.cmd_db import _DbMixin
 from agent.commands.cmd_debug import _DebugMixin
-from agent.commands.cmd_ingest import _IngestMixin
+from agent.commands.cmd_rag_export import _RagExportMixin
 from agent.commands.cmd_mcp import _McpMixin
 from agent.commands.cmd_mdq import _MdqMixin
 from agent.commands.cmd_memory import _MemoryMixin
@@ -112,13 +112,6 @@ _COMMANDS: list[CommandDef] = [
         "Reset conversation history; 'new' also starts a new session",
     ),
     CommandDef(
-        "/ingest",
-        True,
-        True,
-        "_cmd_ingest",
-        "<url|path> [--snippets-only]  Crawl/ingest a URL or local file into the RAG DB",
-    ),
-    CommandDef(
         "/rag",
         True,
         True,
@@ -151,7 +144,7 @@ _COMMANDS: list[CommandDef] = [
         True,
         True,
         "_cmd_db",
-        "stats | urls [--lang ja|en] [--limit N] | clean <url> | rebuild-fts | health | checkpoint | vacuum | purge | recover",
+        "rag stats|urls|clean|rebuild-fts|vec-rebuild|reconcile-url|recover|consistency; session stats|health|checkpoint|vacuum|purge|recover",
     ),
     CommandDef(
         "/tool",
@@ -179,7 +172,7 @@ _COMMANDS: list[CommandDef] = [
         True,
         False,
         "_cmd_debug",
-        "[audit|verbose|normal]  Toggle debug; subcommands: audit=tail log, verbose/normal=log level",
+        "[verbose|normal]  Toggle debug mode; subcommands: verbose/normal=log level",
     ),
     CommandDef(
         "/audit",
@@ -222,7 +215,7 @@ class CommandRegistry(
     _ToolingMixin,
     _DebugMixin,
     _AuditMixin,
-    _IngestMixin,
+    _RagExportMixin,
     _MemoryMixin,
     _WorkflowMixin,
     _PluginsMixin,

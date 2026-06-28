@@ -299,6 +299,24 @@ See `db/workflow_schema.py` for full DDL. All use `CREATE TABLE IF NOT EXISTS`.
 
 ---
 
+## 7a. Timestamp Format Policy
+
+SQLite schema definitions currently use two timestamp formats:
+
+| Format | Syntax | Timezone | Usage |
+|---|---|---|---|
+| ISO-8601 UTC | `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` | UTC (Z suffix) | `documents.fetched_at`, `sessions.created_at` |
+| SQLite raw | `datetime('now')` | Local time of the DB server | `documents.lang`, `chunks.chunk_id`, `messages.created_at`, `workflow` tables |
+
+**Policy:** New schema definitions should use `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` for consistency. Existing schemas using `datetime('now')` are left unchanged unless a migration is explicitly approved.
+
+Tables currently using each format:
+
+- **ISO-8601 UTC**: `documents.fetched_at`, `sessions.created_at`, `workflow.tasks.created_at`, `workflow.attempts.created_at`, `workflow.approvals.created_at`
+- **SQLite raw**: `documents.lang` (misattributed — actually uses `datetime('now')`), `chunks.chunk_id` (auto-increment, no timestamp), `messages.created_at`, `workflow.processed_events.created_at`, `workflow.artifacts.created_at`
+
+---
+
 ## 8. Schema Generation and Migration Approach
 
 ```python

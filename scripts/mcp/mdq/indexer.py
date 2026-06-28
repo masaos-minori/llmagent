@@ -86,10 +86,12 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
                 ),
             )
 
-          # Generate summaries for large chunks if enabled
+            # Generate summaries for large chunks if enabled
             if service.summary_cache_enabled:
                 for section in sections:
-                    content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
+                    content_hash = hashlib.sha256(
+                        section["content"].encode()
+                    ).hexdigest()
                     if len(section["content"]) > service.summary_threshold:
                         conn.execute(
                             "INSERT OR REPLACE INTO chunk_summaries (chunk_id, summary, summary_model, content_hash, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
@@ -97,7 +99,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
                                 hashlib.sha256(
                                     f"{doc_id}:{section['heading']}:{section['start_line']}".encode()
                                 ).hexdigest(),
-                                section["content"][:service.summary_threshold],
+                                section["content"][: service.summary_threshold],
                                 service.summary_model,
                                 content_hash,
                             ),
@@ -154,9 +156,7 @@ async def refresh_paths(service: MdqService, req: RefreshIndexRequest) -> dict:
     conn = service._get_db_connection()
     try:
         # Load current index_state records for tracking
-        state_rows = conn.execute(
-            "SELECT key, value FROM index_state"
-        ).fetchall()
+        state_rows = conn.execute("SELECT key, value FROM index_state").fetchall()
         current_state: dict[str, str] = {}
         for row in state_rows:
             current_state[row["key"]] = row["value"]
@@ -253,12 +253,17 @@ async def refresh_paths(service: MdqService, req: RefreshIndexRequest) -> dict:
         # Detect deleted files within scanned directories
         for dir_path in dirs_to_scan:
             try:
-                current_md_files = set(str(f) for f in dir_path.rglob("*.md") if f.is_file())
+                current_md_files = set(
+                    str(f) for f in dir_path.rglob("*.md") if f.is_file()
+                )
                 for path_str_key, mtime_val in list(current_state.items()):
                     if not path_str_key.startswith("mtime:"):
                         continue
                     file_path = path_str_key[6:]
-                    if file_path not in current_md_files and dir_path in Path(file_path).parents:
+                    if (
+                        file_path not in current_md_files
+                        and dir_path in Path(file_path).parents
+                    ):
                         # File was deleted — remove from index
                         _delete_file_from_index(service, conn, Path(file_path))
                         deleted_count += 1
@@ -277,7 +282,9 @@ async def refresh_paths(service: MdqService, req: RefreshIndexRequest) -> dict:
         conn.close()
 
 
-def _delete_file_from_index(service: MdqService, conn: sqlite3.Connection, path: Path) -> None:
+def _delete_file_from_index(
+    service: MdqService, conn: sqlite3.Connection, path: Path
+) -> None:
     """Remove a file's chunks and index_state records from the database."""
     import hashlib  # noqa: PLC0415
 

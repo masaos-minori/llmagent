@@ -171,20 +171,22 @@ class MCPServer:
         tools = getattr(self, "mcp_tools", [])
         return [{**t, "server_key": server_key} for t in tools]
 
-    def health(self) -> dict[str, object]:
-        """Return a health status dict for HTTP server diagnostics.
+    def health(self) -> tuple[dict[str, object], int]:
+        """Return a health status dict and HTTP status code for HTTP server diagnostics.
 
         HTTP subclasses may override; stdio subclasses use process liveness instead.
         Returns a standardized shape: {status, ready, dependencies, details}.
+        HTTP status code: 200 when ready=True, 503 when ready=False.
         """
         deps: dict[str, str] = {}
         ready = len(deps) == 0
+        status_code = 200 if ready else 503
         return {
-            "status": "ok",
+            "status": "ok" if ready else "degraded",
             "ready": ready,
             "dependencies": deps,
             "details": {},
-        }
+        }, status_code
 
     def _ensure_error_tracking(self) -> None:
         """Ensure per-instance error tracking lists are initialized (lazy init)."""

@@ -44,20 +44,22 @@ _BASE_CONFIG_FILES: tuple[str, ...] = (
     "tools_definitions.toml",
 )
 
-_REQUIRED_CONFIG_FILES: frozenset[str] = frozenset((
-    "common.toml",
-    "llm.toml",
-    "http.toml",
-    "rag.toml",
-    "context.toml",
-    "tools.toml",
-    "memory.toml",
-    "otel.toml",
-    "security.toml",
-    "system_prompts.toml",
-    "mcp_servers.toml",
-    "tools_definitions.toml",
-))
+_REQUIRED_CONFIG_FILES: frozenset[str] = frozenset(
+    (
+        "common.toml",
+        "llm.toml",
+        "http.toml",
+        "rag.toml",
+        "context.toml",
+        "tools.toml",
+        "memory.toml",
+        "otel.toml",
+        "security.toml",
+        "system_prompts.toml",
+        "mcp_servers.toml",
+        "tools_definitions.toml",
+    )
+)
 
 
 class ConfigLoader:

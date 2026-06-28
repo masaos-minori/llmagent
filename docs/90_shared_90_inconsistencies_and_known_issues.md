@@ -9,15 +9,12 @@ Each entry uses the required format:
 
 ---
 
-### PLUGIN-01: `plugin_registry.load_plugins()` has no machine-readable failure report
+### PLUGIN-01: ~~`plugin_registry.load_plugins()` has no machine-readable failure report~~ (resolved — 2026-06-28)
 
-- **Type:** Unimplemented
+- **Type:** Resolved
 - **Impact scope:** `shared/plugin_registry.py::load_plugins()`
-- **Statement A:** `load_plugins()` returns `int` (count of loaded plugins).
-- **Statement B:** Failed plugins are logged as WARNING and skipped. There is no structured return value indicating which plugins failed and why.
-- **Current safe interpretation:** Check agent startup logs for plugin load failures. Do not rely on return value for error detection.
-- **Recommended action:** Return a structured result `{loaded: int, failed: list[{path, error}]}` instead of bare `int`.
-- **Notes for AI reference:** `load_plugins()` is fail-open; a return value of `5` does not mean all 5 succeeded without errors.
+- **Resolution:** `load_plugins()` now returns `PluginLoadResult` with `loaded_count`, `failed` (list of `PluginFailure`), `tool_conflicts_shadowed`, `tool_conflicts_allowed`, and `command_shadows`. In `strict_mode=True`, raises `PluginLoadError` with aggregated failure details.
+- **Notes for AI reference:** `load_plugins()` returns structured results; do not parse logs for plugin failures.
 
 ---
 

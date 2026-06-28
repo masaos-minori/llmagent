@@ -273,6 +273,34 @@ class TestSQLiteVectorStore:
         with pytest.raises(TypeError):
             store.vec_search("not bytes", k=5)  # type: ignore[arg-type]
 
+    def test_vec_search_k_zero_returns_empty(self) -> None:
+        mock_db = MagicMock()
+        store = SQLiteVectorStore(mock_db)
+        blob = b"\x00" * (384 * 4)
+        with patch("db.store_impl.validate_embedding_blob"):
+            results = store.vec_search(blob, k=0)
+        assert results == []
+        mock_db.fetchall.assert_not_called()
+
+    def test_vec_search_k_negative_returns_empty(self) -> None:
+        mock_db = MagicMock()
+        store = SQLiteVectorStore(mock_db)
+        blob = b"\x00" * (384 * 4)
+        with patch("db.store_impl.validate_embedding_blob"):
+            results = store.vec_search(blob, k=-1)
+        assert results == []
+        mock_db.fetchall.assert_not_called()
+
+    def test_vec_search_valid_k_delegates_to_db(self) -> None:
+        mock_db = MagicMock()
+        mock_db.fetchall.return_value = [(3, 0.3)]
+        store = SQLiteVectorStore(mock_db)
+        blob = b"\x00" * (384 * 4)
+        with patch("db.store_impl.validate_embedding_blob"):
+            results = store.vec_search(blob, k=1)
+        assert results == [(3, 0.3)]
+        mock_db.fetchall.assert_called_once()
+
 
 # ── SQLiteMemoryDeleteStore ───────────────────────────────────────────────────
 

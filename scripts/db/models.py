@@ -66,7 +66,7 @@ class DocumentRow:
     doc_id: int
     url: str
     title: str | None
-    lang: str | None
+    lang: str
     fetched_at: str
 
 

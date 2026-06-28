@@ -133,8 +133,7 @@ plugin_registry.load_plugins(plugin_dir, known_tools=..., override_policy="rejec
 **Priority:** `@register_tool` handlers are checked by `ToolExecutor.execute()` **before** cache and MCP routing.
 `@register_command` handlers are dispatched by `CommandRegistry` **after** built-in commands.
 
-> **Known issue:** `load_plugins()` returns an `int` count but does not provide a machine-readable
-> report of which plugins failed and why. See [90_shared_90 PLUGIN-01](90_shared_90_inconsistencies_and_known_issues.md).
+
 
 ---
 

@@ -142,10 +142,9 @@ all services. Sub-structures:
 | `_ContextMixin` | `/context`, `/clear`, `/undo`, `/history`, `/system` |
 | `_DbMixin` | `/db` |
 | `_ToolingMixin` | `/tool`, `/plan` |
-| `_NotesMixin` | `/note` |
 | `_DebugMixin` | `/debug` |
 | `_AuditMixin` | `/audit` |
-| `_IngestMixin` | `/ingest`, `/export`, `/compact`, `/rag` |
+| `_RagExportMixin` | `/rag`, `/export`, `/compact` |
 | `_MemoryMixin` | `/memory` |
 | `_WorkflowMixin` | `/approve`, `/reject` |
 

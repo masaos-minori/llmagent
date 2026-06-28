@@ -107,21 +107,6 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 
 ### DB category
 
-#### Flat forms (compatibility aliases)
-
-| Command | Target DB | Side effects | Related state |
-|---|---|---|---|
-| `/db help` | RAG + Session | None | Shows subcommand table |
-| `/db stats` | RAG + Session | None | Document/chunk/session/message counts |
-| `/db urls [--lang] [--limit]` | RAG | None | List registered documents via rag-pipeline-mcp |
-| `/db clean <url>` | RAG | Delete document + chunks via rag-pipeline-mcp | Cascaded delete |
-| `/db rebuild-fts` | RAG | Rebuilds `chunks_fts` index | FTS5 rebuild |
-| `/db health` | Session | None | journal_mode / integrity / page stats |
-| `/db checkpoint [MODE]` | Session | WAL checkpoint | Flush WAL to main DB |
-| `/db vacuum` | Session | VACUUM | Recover free pages |
-| `/db purge [--max-sessions N] [--max-age-days N]` | Session | DELETE old sessions | Based on count or age |
-| `/db consistency` | RAG | None | Chunks/FTS/vector index sync check |
-
 #### `/db rag` subcommands
 
 | Command | Side effects | Notes |
@@ -144,7 +129,7 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | `/db session purge [--max-sessions N] [--max-age-days N]` | DELETE old sessions | Based on count or age |
 | `/db session recover [backup-path]` | Integrity check; restore from backup if corrupt | Session only |
 
-> **Note:** `/db rag urls` and `/db rag clean` call rag-pipeline-mcp MCP tools (`rag_list_documents`, `rag_delete_document`) via the agent's tool executor. RAG maintenance commands use `RagMaintenanceService`; session maintenance commands use `DbMaintenanceService`. Flat `/db <subcmd>` forms are compatibility aliases that route to both services. `session.sqlite` and `workflow.sqlite` are accessed via `SQLiteHelper(target=...)` in code, not through `/db` commands. Schema details: `90_shared_04`.
+> **Note:** `/db rag urls` and `/db rag clean` call rag-pipeline-mcp MCP tools (`rag_list_documents`, `rag_delete_document`) via the agent's tool executor. RAG maintenance commands use `RagMaintenanceService`; session maintenance commands use `DbMaintenanceService`. `session.sqlite` and `workflow.sqlite` are accessed via `SQLiteHelper(target=...)` in code, not through `/db` commands. Schema details: `90_shared_04`.
 
 ### Tool / plan category
 
@@ -179,30 +164,34 @@ A startup notice is shown:
 
 The workflow resumes from the approval gate; no re-execution of prior steps is needed.
 
-### Note category
+### Memory category
 
 | Command | Side effects | Related state |
 |---|---|---|
-| `/note add <text>` | INSERT into `notes` | Affects system prompt if `auto_inject_notes=True` |
-| `/note list` | None | Display all notes |
-| `/note delete <id>` | DELETE from `notes` | None |
+| `/memory list [N]` | None | Display memory entries (default: last 10) |
+| `/memory search <query>` | None | Search memory by text |
+| `/memory show <id>` | None | Show a single memory entry |
+| `/memory pin <id>` | UPDATE `pinned=1` | Pin a memory entry |
+| `/memory unpin <id>` | UPDATE `pinned=0` | Unpin a memory entry |
+| `/memory delete <id>` | DELETE from memory | Remove a memory entry |
+| `/memory prune` | DELETE expired entries | Prune expired memory entries |
+| `/memory status` | None | Display memory statistics |
 
 ### Debug / audit category
 
 | Command | Side effects | Related state |
 |---|---|---|
 | `/debug` | None | Toggle `ctx.conv.debug_mode` |
-| `/debug audit` | None | Display audit.log tail |
 | `/debug verbose\|normal` | Change log level | `structlog` level change |
 | `/audit [tail N\|turn <id>\|tool <name>]` | None | Read audit.log |
 
-### Ingest / RAG category
+### RAG / Export category
 
 | Command | Side effects | Related state |
 |---|---|---|
-| `/ingest <url\|path> [lang] [--snippets-only]` | Web crawl + DB insert | rag.sqlite updated |
 | `/rag search <query> [--debug]` | MCP call to rag-pipeline-mcp | None |
 | `/compact` | LLM call (compression) | Compresses history immediately |
+| `/export [md|json] [file]` | Write conversation to file or stdout | Markdown or JSON export |
 
 ### Memory category
 
@@ -278,13 +267,20 @@ See [Configuration: Config file reload eligibility](05_agent_08_configuration.md
 
 ### /db alias commands (removed)
 
-The following flat alias commands have been removed. Use the canonical sub-command
+The following flat alias commands have been removed. Use the canonical scoped sub-command
 syntax instead:
 
 | Removed | Replacement |
 |---------|------------|
-| `/db-list` | `/db list` |
-| `/db-query <sql>` | `/db query <sql>` |
-| `/db recover` | See `/db help` for the canonical recovery command |
+| `/db urls` | `/db rag urls [--lang] [--limit]` |
+| `/db clean <url>` | `/db rag clean <url>` |
+| `/db rebuild-fts` | `/db rag rebuild-fts` |
+| `/db recover [backup-path]` | `/db rag recover [backup-path]` or `/db session recover [backup-path]` |
+| `/db stats` | `/db rag stats` or `/db session stats` |
+| `/db health` | `/db session health` |
+| `/db checkpoint [MODE]` | `/db session checkpoint [MODE]` |
+| `/db vacuum` | `/db session vacuum` |
+| `/db purge [--max-sessions N] [--max-age-days N]` | `/db session purge [--max-sessions N] [--max-age-days N]` |
+| `/db consistency` | `/db rag consistency` |
 
-These aliases were provided for backward compatibility and are no longer supported.
+These aliases were provided for backward compatibility and are no longer supported. No backward-compatible flat aliases are kept.

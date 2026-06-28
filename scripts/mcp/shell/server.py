@@ -84,7 +84,7 @@ async def shell_run(req: ShellRunRequest) -> ShellRunResponse:
 
 
 @app.get("/health")
-async def health() -> dict[str, object]:
+async def health() -> JSONResponse:
     deps: dict[str, str] = {}
     try:
         import shutil as _shutil
@@ -94,12 +94,12 @@ async def health() -> dict[str, object]:
     except (ImportError, OSError):
         deps["shell"] = "check failed"
     ready = len(deps) == 0
-    return {
-        "status": "ok",
+    return JSONResponse({
+        "status": "ok" if ready else "degraded",
         "ready": ready,
         "dependencies": deps,
         "details": {"sandbox_backend": _service.sandbox_backend},
-    }
+    }, status_code=200 if ready else 503)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

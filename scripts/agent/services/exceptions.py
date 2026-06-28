@@ -4,17 +4,6 @@ Domain exceptions for the agent/services subsystem.
 
 from __future__ import annotations
 
-from agent.services.enums import IngestStage
-
-
-class IngestStageError(RuntimeError):
-    """Raised when an ingest pipeline stage fails."""
-
-    def __init__(self, stage: IngestStage, detail: str) -> None:
-        super().__init__(f"[{stage.value}] {detail}")
-        self.stage = stage
-        self.detail = detail
-
 
 class McpProbeError(RuntimeError):
     """Raised when an MCP server probe encounters an unrecoverable error."""

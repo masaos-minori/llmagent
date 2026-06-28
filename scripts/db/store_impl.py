@@ -34,6 +34,8 @@ class SQLiteVectorStore:
 
     def vec_search(self, embedding: bytes, k: int) -> list[tuple[int, float]]:
         validate_embedding_blob(embedding)
+        if k < 1:
+            return []
         rows = self._db.fetchall(
             "SELECT chunk_id, distance FROM chunks_vec"
             " WHERE embedding MATCH ? ORDER BY distance LIMIT ?",

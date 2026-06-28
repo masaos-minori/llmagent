@@ -91,7 +91,9 @@ class RagConsistencyReport:
     issues: tuple[str, ...] = ()  # human-readable consistency issues
     # Affected identifiers (up to 10 each; None when not applicable)
     affected_chunk_ids: tuple[int, ...] | None = None  # chunk_ids missing from FTS
-    affected_doc_ids: tuple[int, ...] | None = None  # doc_ids for chunks missing from FTS
+    affected_doc_ids: tuple[int, ...] | None = (
+        None  # doc_ids for chunks missing from FTS
+    )
     affected_orphan_chunk_ids: tuple[int, ...] | None = (
         None  # chunk_ids in vec but not chunks
     )
@@ -278,6 +280,21 @@ def rotate_session_db(archive_dir: str | Path | None = None) -> Path:
     """Archive session.sqlite to archive_dir with a timestamp suffix; returns the archive path."""
     db_cfg = build_db_config()
     return _archive_db_file(Path(db_cfg.session_db_path), archive_dir)
+
+
+def rotate_workflow_db(archive_dir: str | Path | None = None) -> Path:
+    """Archive workflow.sqlite to archive_dir with a timestamp suffix; returns the archive path."""
+    db_cfg = build_db_config()
+    return _archive_db_file(Path(db_cfg.workflow_db_path), archive_dir)
+
+
+def rotate_all_dbs(archive_dir: str | Path | None = None) -> tuple[Path, Path, Path]:
+    """Archive all three databases (rag, session, workflow); returns (rag_archive_path, session_archive_path, workflow_archive_path)."""
+    db_cfg = build_db_config()
+    rag_dest = _archive_db_file(Path(db_cfg.rag_db_path), archive_dir)
+    ses_dest = rotate_session_db(archive_dir)
+    wf_dest = rotate_workflow_db(archive_dir)
+    return rag_dest, ses_dest, wf_dest
 
 
 def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]:
@@ -491,7 +508,7 @@ def summarize_issues(report: RagConsistencyReport) -> list[str]:
             detail = f" Affected chunk_ids: [{ids}{truncated}]."
         issues.append(
             f"[WARNING] FTS gap detected (chunks={report.chunks}, fts={report.fts},"
-            f" gap={report.fts_gap}).{detail} Run '/db rebuild-fts' to repair."
+            f" gap={report.fts_gap}).{detail} Run '/db rag rebuild-fts' to repair."
         )
     if report.fts_orphan_count > 0:
         detail = ""
@@ -502,7 +519,7 @@ def summarize_issues(report: RagConsistencyReport) -> list[str]:
         issues.append(
             f"[CRITICAL] FTS index has more entries than chunks"
             f" (fts={report.fts}, chunks={report.chunks}).{detail}"
-            f" Run '/db rebuild-fts' immediately; orphan FTS entries indicate data loss risk."
+            f" Run '/db rag rebuild-fts' immediately; orphan FTS entries indicate data loss risk."
         )
     if report.orphan_vec_count > 0:
         detail = ""

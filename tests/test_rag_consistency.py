@@ -260,7 +260,7 @@ class TestRagConsistencySeverity:
         db.commit()
 
         issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
-        assert any("/db rebuild-fts" in i for i in issues)
+        assert any("/db rag rebuild-fts" in i for i in issues)
 
     def test_summarize_issues_orphan_vec_includes_force_guidance(self) -> None:
         db = _make_rag_db()

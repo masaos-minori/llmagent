@@ -123,7 +123,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 
 
 @app.get("/health")
-async def health() -> dict[str, object]:
+async def health() -> JSONResponse:
     deps: dict[str, str] = {}
     try:
         token = os.environ.get("GITHUB_TOKEN", "")
@@ -132,7 +132,10 @@ async def health() -> dict[str, object]:
     except (RuntimeError, OSError):
         deps["config"] = "check failed"
     ready = len(deps) == 0
-    return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
+    return JSONResponse(
+        {"status": "ok" if ready else "degraded", "ready": ready, "dependencies": deps, "details": {}},
+        status_code=200 if ready else 503,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

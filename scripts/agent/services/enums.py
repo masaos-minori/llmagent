@@ -7,13 +7,6 @@ from __future__ import annotations
 from enum import StrEnum
 
 
-class IngestStage(StrEnum):
-    OK = "ok"
-    CRAWL = "crawl"
-    SPLIT = "split"
-    INGEST = "ingest"
-
-
 class McpTier(StrEnum):
     READ_ONLY = "READ_ONLY"
     WRITE_SAFE = "WRITE_SAFE"

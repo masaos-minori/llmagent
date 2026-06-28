@@ -79,11 +79,6 @@ _SESSION_SCHEMA_TEMPLATE: str = """
         tool_call_id TEXT,
         created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
     );
-    CREATE TABLE IF NOT EXISTS notes (
-        note_id    INTEGER PRIMARY KEY AUTOINCREMENT,
-        content    TEXT    NOT NULL,
-        created_at TEXT    NOT NULL DEFAULT (datetime('now'))
-    );
     CREATE TABLE IF NOT EXISTS tool_results (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         session_id INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,

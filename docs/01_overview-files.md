@@ -102,7 +102,7 @@
   │   │   │   ├─ cmd_notes.py                 # /note コマンド (_NotesMixin)
   │   │   │   ├─ cmd_debug.py                 # /debug コマンド (_DebugMixin)
   │   │   │   ├─ cmd_audit.py                 # /audit コマンド (_AuditMixin)
-  │   │   │   ├─ cmd_ingest.py                # /ingest, /export, /compact, /rag コマンド (_IngestMixin)
+  │   │   │   ├─ cmd_rag_export.py            # /rag, /export, /compact コマンド (_RagExportMixin)
   │   │   │   ├─ cmd_memory.py               # /memory コマンド (_MemoryMixin)
   │   │   │   └─ cmd_workflow.py             # /approve, /reject コマンド (_WorkflowMixin)
   │   │   ├─ services/                      # サービスレイヤー
@@ -110,9 +110,8 @@
   │   │   ├─ context_view.py            # コンテキストビュー
   │   │   ├─ conversation_service.py    # 会話サービス
   │   │   ├─ db_maintenance_service.py  # DB 保守サービス
-  │   │   ├─ export_formatter.py        # エクスポートフォーマット
-  │   │   ├─ ingest_workflow.py         # 取り込みワークフロー
-  │   │   ├─ io_ports.py                # I/O ポート管理
+│   │   ├─ export_formatter.py        # エクスポートフォーマット
+   │   │   ├─ io_ports.py                # I/O ポート管理
   │   │   ├─ mcp_status.py              # MCP サーバステータス
   │   │   ├─ rag_maintenance_service.py # RAG 保守サービス
   │   │   ├─ session_restore.py         # セッション復元
@@ -128,7 +127,7 @@
   │   │    ├─ exceptions.py              # エージェント例外定義
   │   │    ├─ health_models.py           # ヘルスチェックモデル
   │   │    └─ models.py                  # エージェント共通データモデル
- │   ├─ mcp/                                 # MCP サーバパッケージ
+  │   ├─ mcp/                                 # MCP サーバパッケージ
    │   │   ├─ models.py                        # /v1/call_tool 統合エンドポイント共通 Pydantic モデル
    │   │   ├─ server.py                        # MCP サーバ HTTP 起動共通基底クラス
    │   │   ├─ web_search/server.py             # Web 検索 MCP サーバ (DuckDuckGo, :8004)
@@ -164,5 +163,3 @@
 /etc/conf.d/
    └─ github-mcp                         # GITHUB_TOKEN (Personal Access Token) 設定
 ```
-
----

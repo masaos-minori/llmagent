@@ -18,7 +18,10 @@ from db.maintenance import (
     prune_old_memories,
     purge_old_sessions,
     recover_corruption,
+    rotate_all_dbs,
+    rotate_db,
     rotate_session_db,
+    rotate_workflow_db,
     vacuum_db,
 )
 from rag.maintenance import RagDbMaintenanceService
@@ -43,7 +46,7 @@ CREATE TABLE IF NOT EXISTS messages (
 
 
 def _make_db_cfg(
-    tmp_path, rag_name="rag.sqlite", session_name="session.sqlite", **kwargs
+    tmp_path, rag_name="rag.sqlite", session_name="session.sqlite", workflow_name="workflow.sqlite", **kwargs
 ):
     """Return a mock DbConfig pointing to tmp_path files (bypasses path validation)."""
     from unittest.mock import MagicMock
@@ -51,7 +54,7 @@ def _make_db_cfg(
     cfg = MagicMock(spec=DbConfig)
     cfg.rag_db_path = str(tmp_path / rag_name)
     cfg.session_db_path = str(tmp_path / session_name)
-    cfg.workflow_db_path = "/opt/llm/db/workflow.sqlite"
+    cfg.workflow_db_path = str(tmp_path / workflow_name)
     cfg.sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
     cfg.sqlite_timeout = 30
     cfg.sqlite_busy_timeout_ms = 30000
@@ -668,3 +671,80 @@ class TestMaintenanceMode:
         mock_db.execute.side_effect = sqlite3.OperationalError("no vec table")
         with pytest.raises(Exception, match="no vec table"):
             prune_old_memories(mock_db, older_than_days=30, mode=MaintenanceMode.STRICT)
+
+
+# ── rotate_workflow_db / rotate_all_dbs ────────────────────────────────────────
+
+
+class TestRotateWorkflowAndAll:
+    def _make_real_sqlite(self, path: Path) -> None:
+        """Create a minimal valid SQLite database file."""
+        import sqlite3
+
+        conn = sqlite3.connect(str(path))
+        conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+        conn.commit()
+        conn.close()
+
+    def test_rotate_workflow_db_creates_archive(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        db_file = tmp_path / "workflow.sqlite"
+        self._make_real_sqlite(db_file)
+        archive_dir = tmp_path / "archive"
+        monkeypatch.setattr(
+            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+
+        dest = rotate_workflow_db(archive_dir=archive_dir)
+
+        assert dest.exists()
+        assert dest.name.startswith("workflow_")
+
+    def test_rotate_all_dbs_archives_all_three(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        rag_file = tmp_path / "rag.sqlite"
+        ses_file = tmp_path / "session.sqlite"
+        wf_file = tmp_path / "workflow.sqlite"
+        for f in (rag_file, ses_file, wf_file):
+            self._make_real_sqlite(f)
+        archive_dir = tmp_path / "archive"
+        monkeypatch.setattr(
+            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+
+        rag_dest, ses_dest, wf_dest = rotate_all_dbs(archive_dir=archive_dir)
+
+        assert rag_dest.exists()
+        assert rag_dest.name.startswith("rag_")
+        assert ses_dest.exists()
+        assert ses_dest.name.startswith("session_")
+        assert wf_dest.exists()
+        assert wf_dest.name.startswith("workflow_")
+
+    def test_rotate_workflow_db_missing_file_raises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        archive_dir = tmp_path / "archive"
+        monkeypatch.setattr(
+            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+
+        with pytest.raises(FileNotFoundError, match="workflow.sqlite"):
+            rotate_workflow_db(archive_dir=archive_dir)
+
+    def test_rotate_all_dbs_missing_workflow_raises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        rag_file = tmp_path / "rag.sqlite"
+        ses_file = tmp_path / "session.sqlite"
+        for f in (rag_file, ses_file):
+            self._make_real_sqlite(f)
+        archive_dir = tmp_path / "archive"
+        monkeypatch.setattr(
+            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+
+        with pytest.raises(FileNotFoundError, match="workflow.sqlite"):
+            rotate_all_dbs(archive_dir=archive_dir)

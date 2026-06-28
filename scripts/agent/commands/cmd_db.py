@@ -35,7 +35,7 @@ class _DbMixin(MixinBase):
     """Database management slash-command handlers."""
 
     async def _cmd_db(self, args: str) -> None:
-        """Handle /db [rag|session] <subcmd> | /db <subcmd>."""
+        """Handle /db rag <subcmd>, /db session <subcmd>, or /db help."""
         parts = args.strip().split(None, 1)
         subcmd = parts[0] if parts else ""
         rest = parts[1] if len(parts) == DB_PARTS_COUNT else ""

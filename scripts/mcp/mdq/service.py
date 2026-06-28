@@ -24,9 +24,7 @@ from mcp.mdq.models import (
     IndexPathsRequest,
     MdqAuthorizationError,
     MdqConsistencyError,
-    MdqDatabaseError,
     MdqNotFoundError,
-    MdqServiceError,
     MdqValidationError,
     OutlineHeading,
     OutlineRequest,
@@ -448,7 +446,10 @@ class MdqService:
                     try:
                         return f"## {row['heading']}\n\n[Summary — {len(content)} chars]\n\n{cached['summary']}"
                     except Exception:
-                        logger.warning("Failed to retrieve cached summary for chunk %s", req.chunk_id)
+                        logger.warning(
+                            "Failed to retrieve cached summary for chunk %s",
+                            req.chunk_id,
+                        )
 
             truncated = False
             if len(content) > max_chars:
@@ -496,7 +497,11 @@ class MdqService:
                 "SELECT mtime_ns, indexed_at FROM documents WHERE source_path = ?",
                 (str(p),),
             ).fetchone()
-            if doc_row is not None and doc_row["mtime_ns"] is not None and doc_row["indexed_at"] is not None:
+            if (
+                doc_row is not None
+                and doc_row["mtime_ns"] is not None
+                and doc_row["indexed_at"] is not None
+            ):
                 if doc_row["mtime_ns"] > doc_row["indexed_at"]:
                     stale_warning = (
                         f"Warning: file has been modified since last indexing "
@@ -598,7 +603,9 @@ class MdqService:
             raise MdqValidationError(f"Invalid regex pattern: {e}")
 
         max_matches = getattr(req, "max_grep_matches", None) or self.max_grep_matches
-        max_chars = getattr(req, "max_chars_per_match", None) or self.max_chars_per_match
+        max_chars = (
+            getattr(req, "max_chars_per_match", None) or self.max_chars_per_match
+        )
         ctx_before = getattr(req, "context_before", None) or self.context_before
         ctx_after = getattr(req, "context_after", None) or self.context_after
 
@@ -612,7 +619,9 @@ class MdqService:
                 where_clauses.append(f"source_path IN ({placeholders})")
                 params.extend(req.paths)
 
-            where_clause = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+            where_clause = (
+                f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+            )
 
             rows = conn.execute(
                 f"SELECT chunk_id, source_path, heading_path, heading, content, start_line FROM chunks {where_clause}",
@@ -687,8 +696,12 @@ class MdqService:
         """Check FTS5 consistency between chunks and chunks_fts tables."""
         conn = self._get_db_connection()
         try:
-            chunks_count = conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()["cnt"]
-            fts_count = conn.execute("SELECT COUNT(*) as cnt FROM chunks_fts").fetchone()["cnt"]
+            chunks_count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM chunks"
+            ).fetchone()["cnt"]
+            fts_count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM chunks_fts"
+            ).fetchone()["cnt"]
             consistent = chunks_count == fts_count
             return (
                 f"FTS5 consistency check: {'consistent' if consistent else 'INCONSISTENT'}\n"

@@ -4,7 +4,10 @@ Unit tests for create_schema: create_rag_schema, create_session_schema, idempote
 vec0 virtual tables (chunks_vec, memories_vec) require the sqlite-vec extension.
 Those DDL statements are excluded by patching build_*_schema_sql so the tests
 run without the extension installed.
-Migration code has been removed from create_schema.py; no migration tests here.
+
+create_schema.py contains _migrate_rag_schema() and _migrate_session_schema() for
+backward-compatible schema additions; these migration helpers are tested indirectly
+via idempotency tests (running create_*_schema twice must not raise).
 """
 
 import sqlite3
@@ -59,11 +62,6 @@ _SESSION_SCHEMA_NO_VEC0 = """
         tool_calls  TEXT,
         tool_call_id TEXT,
         created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS notes (
-        note_id    INTEGER PRIMARY KEY AUTOINCREMENT,
-        content    TEXT    NOT NULL,
-        created_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );
     CREATE TABLE IF NOT EXISTS tool_results (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -215,7 +213,6 @@ class TestCreateRagSchema:
         assert "sessions" not in table_names
         assert "messages" not in table_names
         assert "tool_results" not in table_names
-        assert "notes" not in table_names
         assert "workflow_tasks" not in table_names
 
 
@@ -225,9 +222,6 @@ class TestCreateSessionSchema:
 
     def test_creates_messages_table(self, session_tmp_db: sqlite3.Connection) -> None:
         assert "messages" in _table_names(session_tmp_db)
-
-    def test_creates_notes_table(self, session_tmp_db: sqlite3.Connection) -> None:
-        assert "notes" in _table_names(session_tmp_db)
 
     def test_creates_tool_results_table(
         self, session_tmp_db: sqlite3.Connection

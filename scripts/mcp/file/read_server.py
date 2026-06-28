@@ -224,10 +224,13 @@ async def list_allowed_directories() -> dict[str, list[str]]:
 
 
 @app.get("/health")
-async def health() -> dict[str, object]:
+async def health() -> JSONResponse:
     deps = _build_health_deps()
     ready = len(deps) == 0
-    return {"status": "ok", "ready": ready, "dependencies": deps, "details": {}}
+    return JSONResponse(
+        {"status": "ok" if ready else "degraded", "ready": ready, "dependencies": deps, "details": {}},
+        status_code=200 if ready else 503,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
