@@ -132,7 +132,6 @@ def session() -> Generator[AgentSession]:
     with (
         patch("agent.session.SQLiteHelper", side_effect=_make),
         patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
-        patch("agent.note_repo.SQLiteHelper", side_effect=_make),
     ):
         yield AgentSession()
 
@@ -429,12 +428,6 @@ class TestSessionIdConcurrency:
                     sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
                 ),
             ),
-            patch(
-                "agent.note_repo.SQLiteHelper",
-                side_effect=lambda target: _FakeSQLiteHelper(
-                    sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
-                ),
-            ),
         ):
             from concurrent.futures import ThreadPoolExecutor
 
@@ -462,12 +455,6 @@ class TestSessionIdConcurrency:
             ),
             patch(
                 "agent.session_message_repo.SQLiteHelper",
-                side_effect=lambda target: _FakeSQLiteHelper(
-                    sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
-                ),
-            ),
-            patch(
-                "agent.note_repo.SQLiteHelper",
                 side_effect=lambda target: _FakeSQLiteHelper(
                     sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
                 ),

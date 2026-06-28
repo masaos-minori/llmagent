@@ -9,7 +9,6 @@ from db.helper import SQLiteHelper
 from shared.types import LLMMessage
 
 from agent.diagnostic_store import DiagnosticStore
-from agent.note_repo import NoteRepository
 from agent.session_message_repo import SessionMessageRepository
 
 logger = logging.getLogger(__name__)
@@ -29,7 +28,6 @@ class AgentSession:
         self._message_repo = SessionMessageRepository(
             self.session_id, strict_mode=strict_mode
         )
-        self._note_repo = NoteRepository()
         self._diagnostic_store = DiagnosticStore(self.session_id)
 
     # ── SessionMessageRepository delegation ──────────────────────────────────
@@ -70,40 +68,6 @@ class AgentSession:
     def fetch_messages(self, session_id: int) -> list[LLMMessage]:
         """Fetch messages for a session from DB. Returns [] when session has no messages."""
         return self._message_repo.fetch_messages(session_id)
-
-    # ── NoteRepository delegation ─────────────────────────────────────────────
-
-    def add_note(self, content: str) -> int:
-        """Insert a new note and return its note_id. Raises sqlite3.Error on failure."""
-        return self._note_repo.add_note(content)
-
-    def list_notes(self) -> list[dict]:
-        """Return all notes ordered by note_id ascending."""
-        return self._note_repo.list_notes()
-
-    def delete_note(self, note_id: int) -> bool:
-        """Delete a note by ID. Returns True when found and deleted."""
-        return self._note_repo.delete_note(note_id)
-
-    def get_all_note_contents(self) -> list[str]:
-        """Return all note content strings in creation order for prompt injection."""
-        return self._note_repo.get_all_note_contents()
-
-    def pin_note(self, note_id: int) -> bool:
-        """Pin a note by ID."""
-        return self._note_repo.pin_note(note_id)
-
-    def unpin_note(self, note_id: int) -> bool:
-        """Unpin a note by ID."""
-        return self._note_repo.unpin_note(note_id)
-
-    def get_pinned_notes(self) -> list[dict]:
-        """Return all pinned notes."""
-        return self._note_repo.get_pinned_notes()
-
-    def search_notes(self, query: str, limit: int = 5) -> list[dict]:
-        """Search notes by content LIKE query."""
-        return self._note_repo.search_notes(query, limit)
 
     # ── Session lifecycle ────────────────────────────────────────────────────
 
