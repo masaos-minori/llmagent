@@ -134,7 +134,11 @@ class LLMTurnRunner:
             e.kind,
         )
         return TurnResult(
-            action="fail", answer=summary, reason="llm_transport_error", exception=e
+            action="fail",
+            answer=summary,
+            reason="llm_transport_error",
+            exception=e,
+            persist_as_assistant=False,
         )
 
     def _span_ctx(

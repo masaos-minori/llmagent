@@ -395,7 +395,8 @@ class Orchestrator:
                 llm_span.set_attribute("model_url", llm_url)
                 result = await self._llm_runner.run(llm_url)
                 logger.info("LLM response: %s", result.answer)
-                ctx.session.save("assistant", result.answer)
+                if result.persist_as_assistant:
+                    ctx.session.save("assistant", result.answer)
                 if result.exception is not None:
                     # run() caught LLMTransportError internally; propagate callbacks
                     self._handle_llm_transport_error(result.exception, ctx)
@@ -410,7 +411,13 @@ class Orchestrator:
             self._handle_llm_transport_error(e, ctx)
             if self._on_error:
                 self._on_error(e)
-            return TurnResult(action="fail", answer="", error_kind=str(e), exception=e)
+            return TurnResult(
+                action="fail",
+                answer="",
+                error_kind=str(e),
+                exception=e,
+                persist_as_assistant=False,
+            )
 
     async def _process_turn(
         self, line: str, ctx: AgentContext, turn_started_at: float

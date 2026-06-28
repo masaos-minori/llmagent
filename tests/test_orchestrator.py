@@ -267,6 +267,55 @@ class TestHandleTurnLLMTransportError:
         saved_content = orch._diagnostic_store.save.call_args[0][2]
         assert "[INCOMPLETE: MALFORMED_SSE_FRAME]" in saved_content
 
+    @pytest.mark.asyncio
+    async def test_prestream_error_not_saved_as_assistant_message(self) -> None:
+        """Pre-stream LLM transport errors must not be saved as assistant messages."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="CONNECT_ERROR", partial_text="")
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
+
+        # session.save should NOT be called with "assistant" role for transport errors
+        assistant_saves = [
+            call for call in ctx.session.save.call_args_list
+            if call[0][0] == "assistant"
+        ]
+        assert len(assistant_saves) == 0, (
+            "Transport error summary must not be saved as assistant message"
+        )
+
+    @pytest.mark.asyncio
+    async def test_partial_completion_not_saved_as_assistant_message(self) -> None:
+        """Partial completion LLM errors must not be saved as assistant messages."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="PREMATURE_EOF", partial_text="partial answer")
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
+
+        # session.save should NOT be called with "assistant" role for partial completions
+        assistant_saves = [
+            call for call in ctx.session.save.call_args_list
+            if call[0][0] == "assistant"
+        ]
+        assert len(assistant_saves) == 0, (
+            "Partial completion must not be saved as assistant message"
+        )
+
+    @pytest.mark.asyncio
+    async def test_success_still_saved_as_assistant_message(self) -> None:
+        """Successful LLM responses should still be saved as assistant messages."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(return_value=TurnResult(action="continue", answer="hello"))):
+            await orch.handle_turn("hello")
+
+        ctx.session.save.assert_called_with("assistant", "hello")
+
 
 # ── _run_turn: tool-continuation LLMTransportError ───────────────────────────
 

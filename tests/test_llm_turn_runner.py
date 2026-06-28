@@ -151,6 +151,7 @@ class TestRun:
         assert "CONNECT_ERROR" in result.answer
         assert result.action == "fail"
         runner._ctx.diagnostics.save.assert_called_once()
+        assert result.persist_as_assistant is False
 
     async def test_reaches_max_tool_turns(self, runner: LLMTurnRunner) -> None:
         tool_calls = [{"id": "c1"}]
@@ -208,3 +209,21 @@ class TestRun:
             result = await runner.run("http://llm")
 
         assert "Error limit reached" in result.answer
+
+    async def test_mid_turn_transport_error_not_persisted_as_assistant(self, runner: LLMTurnRunner) -> None:
+        """Mid-turn LLM transport error must not be persisted as assistant message."""
+        tool_calls = [{"id": "c1", "function": {"name": "read_file"}}]
+        tool_response = LLMResponse(
+            message={"role": "assistant", "content": "", "tool_calls": tool_calls},
+            finish_reason="tool_calls",
+        )
+
+        with (
+            patch.object(runner, "_stream_llm", AsyncMock(side_effect=[tool_response, LLMTransportError("CONNECT_ERROR", "in_stream", "http://llm")])),
+            patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()),
+        ):
+            result = await runner.run("http://llm")
+
+        assert result.action == "fail"
+        assert result.persist_as_assistant is False
+        runner._ctx.diagnostics.save.assert_called_once()
