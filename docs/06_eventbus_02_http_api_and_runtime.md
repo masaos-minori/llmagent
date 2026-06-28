@@ -42,16 +42,36 @@ Publish an event. Idempotent: duplicate `event_id` is silently ignored.
 
 ### GET /replay
 
-Replay past events. Returns events with `seq > since_seq`.
+Replay past events. Returns events with `seq > since_seq`. Supports pagination for `format=json`.
 
 **Query parameters:**
-- `since_seq` (int, default 0): start sequence number (exclusive)
-- `format` (str, default `sse`): `sse` returns SSE stream; `json` returns a paginated JSON object
+
+| Parameter | Type | Default | Constraints | Description |
+|---|---|---|---|---|
+| `since_seq` | int | 0 | >= 0 | Start sequence number (exclusive) — no upper bound validation |
+| `limit` | int | 100 | >= 1, <= 1000 | Maximum number of events to return per page |
+| `offset` | int | 0 | >= 0 | Number of events to skip for pagination |
+| `format` | str | `sse` | `sse` or `json` | Response format: SSE stream or JSON paginated object |
 
 **Response (`format=json`):** Paginated object with `total`, `limit`, `offset`, and `items` fields:
 ```json
 {"total": 100, "limit": 50, "offset": 0, "items": [{seq, event_id, topic, payload, producer, published_at}, ...]}
 ```
+
+- `total`: Total number of matching events (ignores limit/offset) — used to compute remaining pages
+- `limit`: The requested limit value
+- `offset`: The requested offset value
+- `items`: Array of event objects (up to `limit` items); empty array if `offset >= total`
+
+**Response (`format=sse`):** Each event is emitted as a SSE data line:
+```
+data: {"seq": 42, "event_id": "...", "topic": "...", "payload": {}, "producer": "...", "published_at": "..."}
+```
+
+**SSE pagination behavior**: SSE format applies SQL-level `LIMIT/OFFSET` but does **not** support paginatable incremental consumption. The stream terminates after emitting `limit` events and closes — there is no mechanism to continue the same stream with updated offset. For paginated consumption, use `format=json`.
+
+**Error responses:**
+- **422**: Invalid parameter values (limit < 1 or limit > 1000, offset < 0)
 
 ---
 

@@ -66,7 +66,7 @@ class EventBusConfig:
 | Endpoint | Method | Description |
 |---|---|---|
 | `/publish` | POST | Publish an event (idempotent by event_id) |
-| `/replay` | GET | Replay past events (SSE or JSON) |
+| `/replay` | GET | Replay past events (SSE stream or JSON paginated response; supports limit/offset pagination for JSON) |
 | `/subscribe` | GET | Stream events via hybrid replay+push model |
 | `/health` | GET | Component health check |
 | `/dlq` | GET | List DLQ events |
