@@ -96,7 +96,7 @@ Offsets advance only via ack (see `POST /events/{event_id}/ack`). On disconnect,
 
 ---
 
-### POST /events/{event_id}/ack
+### POST /events/{event_id}/ack [canonical]
 
 Acknowledge an event. Updates the consumer offset to the event's `seq` if `consumer_id` is provided. Idempotent — repeated acks return 200 with `already_acked: true`. Returns 404 only if the event does not exist.
 
@@ -112,7 +112,21 @@ Acknowledge an event. Updates the consumer offset to the event's `seq` if `consu
 
 **Offset behavior**: The offset is updated only when `consumer_id` is provided AND the event was newly acknowledged (not previously acked). If the event was already acked, the response returns 200 with `already_acked: true` regardless of whether a consumer_id is provided.
 
-**Deprecated alias**: `POST /ack?event_id=...&consumer_id=...` — same behavior but uses query parameters instead of path parameter. The canonical path is `POST /events/{event_id}/ack`.
+---
+
+### POST /ack [deprecated]
+
+> **Deprecated**: This endpoint is a compatibility alias for `POST /events/{event_id}/ack`. Use the canonical path instead. This endpoint may be removed in a future version.
+
+Same behavior as `POST /events/{event_id}/ack` but uses query parameters instead of a path parameter.
+
+**Query parameters:**
+- `event_id` (str, required): event ID to acknowledge
+- `consumer_id` (str, optional): consumer identifier; if present and event is newly acked, writes the event's `seq` as the consumer offset
+
+**Response 200 (newly acked):** `{"event_id": "...", "acked": true, "seq": <int>}` — `seq` is the event's sequence number (None if consumer_id was not provided)
+**Response 200 (already acked):** `{"event_id": "...", "acked": true, "already_acked": true}` — no `seq` field
+**Response 404:** event not found.
 
 ---
 

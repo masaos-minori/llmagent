@@ -34,9 +34,14 @@ class EventBusConfig:
     max_retry: int
     host: str = "127.0.0.1"  # HTTP listen address; validated at startup
     allow_public_bind: bool = False  # Override: allow binding to public/wildcard addresses
-    poll_interval_ms: int = 500  # [deprecated] no-op; push-mode delivery via EventBroker
-    offset_checkpoint_interval: int = 10  # [deprecated] no-op; ack-only model in place
 ```
+
+#### Deprecated fields (no-op, will be removed)
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `poll_interval_ms` | int | 500 | No-op; push-mode delivery via EventBroker |
+| `offset_checkpoint_interval` | int | 10 | No-op; ack-only model in place |
 
 | Function | Signature | Description |
 |---|---|---|
@@ -65,6 +70,8 @@ class EventBusConfig:
 
 ## scripts/eventbus/app.py — HTTP Endpoints
 
+### Active endpoints
+
 | Endpoint | Method | Description |
 |---|---|---|
 | `/publish` | POST | Publish an event (idempotent by event_id) |
@@ -74,8 +81,15 @@ class EventBusConfig:
 | `/dlq` | GET | List DLQ events |
 | `/dlq/{event_id}/requeue` | POST | Requeue a DLQ event back to normal delivery |
 | `/events/{event_id}/ack` | POST | Acknowledge an event (canonical ack path) |
-| `/ack` | POST | Legacy alias for POST /events/{event_id}/ack (uses query params) |
 | `/nack` | POST | Negative acknowledge an event |
+
+### Deprecated endpoints
+
+> **Deprecated**: The following endpoint is a compatibility alias and may be removed in a future version. Use the canonical endpoint instead.
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/ack` | POST | Legacy alias for `POST /events/{event_id}/ack` (uses query params instead of path param) |
 
 ---
 

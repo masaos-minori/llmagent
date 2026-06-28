@@ -13,6 +13,8 @@ Event Bus configuration is loaded from a TOML file (default: `/opt/llm/config/ev
 
 ### Config fields
 
+#### Active config fields
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `port` | int | — | HTTP listen port |
@@ -23,8 +25,15 @@ Event Bus configuration is loaded from a TOML file (default: `/opt/llm/config/ev
 | `max_retry` | int | — | Retry threshold before DLQ promotion |
 | `host` | str | `127.0.0.1` | HTTP listen address (see Bind Address section below) |
 | `allow_public_bind` | bool | `false` | Override: allow binding to public/wildcard addresses (security risk, no authentication) |
-| `poll_interval_ms` | int | 500 | [deprecated] No-op compatibility field. Setting this emits a DeprecationWarning. Subscribe polling was replaced with push-mode delivery via EventBroker. |
-| `offset_checkpoint_interval` | int | 10 | [deprecated] No-op compatibility field. Setting this emits a DeprecationWarning. Offset checkpointing was replaced with ack-only model. |
+
+#### Deprecated config fields
+
+> **Deprecated**: The following fields are no-op compatibility fields. Setting them to non-default values emits a `DeprecationWarning`. These fields will be removed in a future version.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `poll_interval_ms` | int | 500 | No-op. Subscribe polling was replaced with push-mode delivery via EventBroker. |
+| `offset_checkpoint_interval` | int | 10 | No-op. Offset checkpointing was replaced with ack-only model. |
 
 ### Bind Address
 
