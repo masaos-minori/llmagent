@@ -13,28 +13,7 @@ Each entry format:
 
 ---
 
-## Resolved
 
-### SPEC-01: tool_definitions_strict validation behavior
-
-**Type:** Document inconsistency — **resolved**
-**Impact scope:** `04_mcp_03`, `04_mcp_06`
-
-**Statement A (`04_mcp_03:96`):** `validate_routing_against_live()` is "Not yet wired (future)"
-
-**Statement B (`04_mcp_06:407`):** `_check_tool_definitions` runs at agent startup and compares `tool_definitions` against live `/v1/tools`
-
-**Resolution:** These are DIFFERENT functions with different purposes:
-- `validate_routing_against_live()` (route_resolver.py): compares live `/v1/tools` against the **internal routing registry** — not yet wired at startup
-- `_check_tool_definitions` (repl_health.py): compares **configured `tool_definitions`** (from `agent.toml`) against live `/v1/tools` — IS wired at startup
-
-There is no actual contradiction. Both statements are accurate — they describe different code paths.
-
-**Current safe interpretation:** Use `04_mcp_06 §Startup Validation Behavior` as the authoritative behavior spec for `tool_definitions_strict`. The `validate_routing_against_live()` function in `04_mcp_03` is a separate, future feature.
-
-**Notes for AI reference:** When asked about startup validation or `tool_definitions_strict` behavior, cite `04_mcp_06 §Startup Validation Behavior`. When asked about routing drift detection, cite `04_mcp_03 §Drift validation`.
-
----
 
 ## Active Issues
 

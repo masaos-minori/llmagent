@@ -9,14 +9,7 @@ Each entry uses the required format:
 
 ---
 
-### PLUGIN-01: ~~`plugin_registry.load_plugins()` has no machine-readable failure report~~ (resolved — 2026-06-28)
 
-- **Type:** Resolved
-- **Impact scope:** `shared/plugin_registry.py::load_plugins()`
-- **Resolution:** `load_plugins()` now returns `PluginLoadResult` with `loaded_count`, `failed` (list of `PluginFailure`), `tool_conflicts_shadowed`, `tool_conflicts_allowed`, and `command_shadows`. In `strict_mode=True`, raises `PluginLoadError` with aggregated failure details.
-- **Notes for AI reference:** `load_plugins()` returns structured results; do not parse logs for plugin failures.
-
----
 
 ### IMPORT-01: `shared/` must not import from `agent/`, `mcp/`, `rag/`, or `db/`
 

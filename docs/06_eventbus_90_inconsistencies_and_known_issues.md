@@ -54,14 +54,6 @@ These items are documentation improvements that do not require implementation ch
 |---|---|
 | Primary DLQ promotion is inline on `/nack` when `delivery_failure_count >= max_retry`; background loop is a safety sweep for orphans | The background DLQ loop catches events that reached the threshold but were not promoted inline; non-zero sweep results may indicate an inline promotion issue |
 
-## Resolved Items
-
-| Item | Resolution |
-|---|---|
-| Public bind guard exists | **Resolved** — added `host` and `allow_public_bind` fields to EventBusConfig; validated in `__post_init__`; fail-fast on public bind unless explicit override |
-| `delivery_failure_count` exists in schema | **Resolved** — added `delivery_failure_count` and `dlq_requeue_count` columns to CREATE TABLE and field semantics table in docs/06_eventbus_03_persistence_schema_and_replay.md |
-| JSONL is supplementary, SQLite is authoritative | **Resolved** — SQLite-only reads; JSONL is write-only |
-| Push-based subscribe via EventBroker exists | **Resolved** — removed stale "polling-based internally (not push)" description; confirmed hybrid model (replay from SQLite + live EventBroker push) |
 
 ## Deferred Items
 
