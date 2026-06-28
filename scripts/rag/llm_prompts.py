@@ -29,7 +29,7 @@ import logging
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import NotRequired, TypedDict, cast
 
 import orjson
 
@@ -38,6 +38,18 @@ from rag.types import MergedHit, RankedHit, RawHit
 RagHit = RawHit | MergedHit | RankedHit
 
 logger = logging.getLogger(__name__)
+
+
+class _ChatCompletionChoice(TypedDict):
+    """Typed dict for a single choice in a chat completion response."""
+
+    message: NotRequired[dict[str, object]]
+
+
+class _ChatCompletionResponse(TypedDict):
+    """Typed dict for an OpenAI-compatible chat completion response."""
+
+    choices: list[_ChatCompletionChoice]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -161,7 +173,7 @@ def _parse_mqe_response(raw: str, original_query: str) -> MqeParseResult:
     return MqeParseResult(queries=[original_query] + valid)
 
 
-def _extract_chat_content(data: dict[str, Any]) -> str:
+def _extract_chat_content(data: _ChatCompletionResponse) -> str:
     """Extract content text from an OpenAI-compatible chat completion response.
 
     Raises ValueError if the response is malformed or missing expected fields.
@@ -214,7 +226,7 @@ def _apply_rerank_scores(
     if not m:
         return None
     try:
-        score_map: dict[str, Any] = orjson.loads(m.group())
+        score_map: dict[str, int | float] = orjson.loads(m.group())
     except orjson.JSONDecodeError:
         logger.warning("Rerank score JSON is malformed")
         return None
