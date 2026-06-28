@@ -64,6 +64,12 @@
 |---|---|---|
 | `delivery_failure_count` incremented on nack, not DLQ requeue; `dlq_requeue_count` incremented on requeue | Two separate counters: delivery failures vs requeue attempts | Resolved — updated docs/06_eventbus_04_dlq_offsets_and_delivery_semantics.md, docs/06_eventbus_03_persistence_schema_and_replay.md, docs/06_eventbus_02_http_api_and_runtime.md to use `delivery_failure_count >= max_retry` for DLQ promotion criteria |
 
+### DLQ Promotion Primary vs Safety Path
+
+| Item | Safe interpretation | Recommended action |
+|---|---|---|
+| Background DLQ loop documented as primary promotion path; inline nack promotion undocumented | Inline on /nack is the primary path; background loop is a safety sweep for orphans | Resolved — updated docs/06_eventbus_04_dlq_offsets_and_delivery_semantics.md to document inline nack as primary promotion path, background loop as safety sweep with optimistic lock; added health endpoint fix (no "unhealthy" status, only "degraded") |
+
 ### Startup Safety Guard for Public Bind
 
 | Item | Safe interpretation | Recommended action |
@@ -99,6 +105,12 @@
 | Item | Safe interpretation | Recommended action |
 |---|---|---|
 | POST /nack endpoint only listed in reference API table, no HTTP API contract documented (request params, response shape) | Increments delivery_failure_count; promotes to DLQ if >= max_retry; returns 404 for unknown events | Resolved — added POST /nack section to HTTP API docs with query param, response 200/404, and dlq_promoted flag |
+
+### DLQ List Response Missing dlq_requeue_count Field
+
+| Item | Safe interpretation | Recommended action |
+|---|---|---|
+| GET /dlq response docs missing `dlq_requeue_count` field | Response includes seq, event_id, topic, producer, published_at, delivery_failure_count, dlq_requeue_count, dlq_at | Resolved — added dlq_requeue_count to DLQ list response documentation with description of both failure counters |
 
 ## Resolved Items
 

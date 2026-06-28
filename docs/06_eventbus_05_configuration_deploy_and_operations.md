@@ -54,7 +54,8 @@ Alternatively: `uvicorn eventbus.app:app --host 127.0.0.1 --port 8010` (CLI over
 |---|---|---|
 | 200 | `ok` | All systems nominal |
 | 503 | `degraded` | Connected but degraded (DB unavailable, DLQ task stopped, broker queue backlog high, slow consumers) |
-| 503 | `unhealthy` | DB disconnected or critical failure |
+
+There is no `unhealthy` status value — the health endpoint returns HTTP 503 for all non-ok states. The JSON body includes `status: "degraded"` and component-level details (e.g., `"db": "unavailable"`).
 
 **Monitoring tools MUST use HTTP status code, not JSON body, for alerting.**
 

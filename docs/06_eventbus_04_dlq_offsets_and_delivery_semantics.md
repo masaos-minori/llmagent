@@ -2,18 +2,28 @@
 
 ## Dead Letter Queue (DLQ)
 
-### Promotion criteria
+### Primary promotion path: inline on nack
 
-An event is promoted to the DLQ when `delivery_failure_count >= max_retry AND dlq_at IS NULL`. The background loop (`_dlq_loop`) checks every 60 seconds.
+When a consumer calls `POST /nack?event_id=...`, the server increments `delivery_failure_count`. If the new value reaches `max_retry`, the event is promoted to the DLQ **immediately** as part of the nack response. The response includes `"dlq_promoted": true` when this occurs.
 
-### Promotion actions
+### Safety sweep: background DLQ loop
+
+The background DLQ loop (`_dlq_loop`) runs every 60 seconds and queries for events with `delivery_failure_count >= max_retry AND dlq_at IS NULL`. This catches events that reached the retry threshold but were not promoted inline (e.g., due to a race condition between nack and the loop).
+
+The loop uses an optimistic lock: it only counts events where `dlq_at` is still NULL, preventing double-promotion when both paths race. If the sweep finds orphans, it logs `"dlq_loop: swept %d orphan(s) missed by inline promotion"`. Non-zero sweep results may indicate an inline promotion issue.
+
+### Promotion actions (both paths)
 
 1. Write a JSON file to `{deadletter_dir}/{event_id}.json` atomically (tempfile + `os.replace`)
 2. Set `dlq_at` on the events row in SQLite
 
+Both inline and background promotion use the same atomic write mechanism for consistency.
+
 ### Requeue
 
-`POST /dlq/{event_id}/requeue` clears `dlq_at` and increments `dlq_requeue_count` by 1 (does **not** reset `delivery_failure_count`). If the event's `delivery_failure_count` is already at or above `max_retry`, the next DLQ loop tick will re-promote it.
+`POST /dlq/{event_id}/requeue` clears `dlq_at` and increments `dlq_requeue_count` by 1 (does **not** reset `delivery_failure_count`). 
+
+**Important**: If the event's `delivery_failure_count` is already at or above `max_retry`, requeueing it will result in immediate re-promotion on the next DLQ loop tick (within 60 seconds). Requeue is not a "second chance" for events at the threshold — it only works for events with `delivery_failure_count < max_retry`.
 
 ## Consumer offsets
 
