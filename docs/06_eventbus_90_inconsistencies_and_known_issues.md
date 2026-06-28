@@ -70,6 +70,30 @@
 |---|---|---|
 | `poll_interval_ms` and `offset_checkpoint_interval` are no-op | Subscribe uses EventBroker push; offset checkpointing replaced with ack-only model | Resolved — added deprecation warnings when these fields are set to non-default values; removed from active TOML config example; documented in reference API docs |
 
+### Missing Schema Columns in Documentation
+
+| Item | Safe interpretation | Recommended action |
+|---|---|---|
+| `delivery_failure_count` and `dlq_requeue_count` columns not listed in schema section of persistence doc | Both columns exist in schema.sql with NOT NULL DEFAULT 0; delivery_failure_count triggers DLQ promotion, dlq_requeue_count tracks requeue attempts | Resolved — added both columns to CREATE TABLE and field semantics table in docs/06_eventbus_03_persistence_schema_and_replay.md |
+
+### Missing Indexes in Documentation
+
+| Item | Safe interpretation | Recommended action |
+|---|---|---|
+| `idx_events_dlq_at` and `idx_events_dlq_seq` not documented | Both indexes exist in schema.sql; idx_events_dlq_at for DLQ queries, idx_events_dlq_seq for DLQ ordering by seq | Resolved — added both indexes to Indexes section in docs/06_eventbus_03_persistence_schema_and_replay.md |
+
+### Publish Envelope Constraints Not Documented
+
+| Item | Safe interpretation | Recommended action |
+|---|---|---|
+| event_id UUID v4 pattern, topic/producer length constraints (1–255), payload must be object not string not documented in POST /publish docs | JSON Schema validation enforces these at runtime but API docs only show example without constraints | Resolved — added constraints table to POST /publish docs with UUID v4 pattern, minLength/maxLength for topic and producer, payload type constraint, published_at date-time format, schema_version optional with default |
+
+### Missing /nack Endpoint Documentation
+
+| Item | Safe interpretation | Recommended action |
+|---|---|---|
+| POST /nack endpoint only listed in reference API table, no HTTP API contract documented (request params, response shape) | Increments delivery_failure_count; promotes to DLQ if >= max_retry; returns 404 for unknown events | Resolved — added POST /nack section to HTTP API docs with query param, response 200/404, and dlq_promoted flag |
+
 ## Resolved Items
 
 | Item | Resolution |

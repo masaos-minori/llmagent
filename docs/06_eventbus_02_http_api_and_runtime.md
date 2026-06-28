@@ -10,13 +10,24 @@ Publish an event. Idempotent: duplicate `event_id` is silently ignored.
 
 ```json
 {
-  "event_id": "uuid-string",
+  "event_id": "550e8400-e29b-41d4-a716-446655440000",
   "topic": "topic.name",
   "payload": {},
   "producer": "producer-name",
   "published_at": "2026-06-24T00:00:00Z"
 }
 ```
+
+**Request body constraints:**
+
+| Field | Type | Required | Constraints |
+|---|---|---|---|
+| `event_id` | string (UUID v4) | Yes | Must match `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$` |
+| `topic` | string | Yes | minLength 1, maxLength 255 |
+| `payload` | object | Yes | Must be an object (not string) |
+| `producer` | string | Yes | minLength 1, maxLength 255 |
+| `published_at` | string (date-time) | Yes | ISO-8601 date-time format |
+| `schema_version` | string | No | Default "1.0" |
 
 **Response 200:**
 ```json
@@ -82,6 +93,18 @@ Acknowledge an event. Updates the consumer offset to the event's `seq` if `consu
 **Offset behavior**: The offset is updated only when `consumer_id` is provided AND the event was newly acknowledged (not previously acked). If the event was already acked, the response returns 200 with `already_acked: true` regardless of whether a consumer_id is provided.
 
 **Deprecated alias**: `POST /ack?event_id=...&consumer_id=...` — same behavior but uses query parameters instead of path parameter. The canonical path is `POST /events/{event_id}/ack`.
+
+---
+
+### POST /nack
+
+Negative acknowledge an event. Increments `delivery_failure_count`. If `delivery_failure_count >= max_retry`, the event is promoted to the DLQ.
+
+**Query parameters:**
+- `event_id` (str, required): event ID to nack
+
+**Response 200:** `{"event_id": "...", "delivery_failure_count": <int>}` — may include `"dlq_promoted": true` if the event was promoted to DLQ on this nack
+**Response 404:** event not found.
 
 ---
 

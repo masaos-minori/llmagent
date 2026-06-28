@@ -10,15 +10,17 @@ The primary store for all events. Opened once at startup as a shared connection 
 
 ```sql
 CREATE TABLE IF NOT EXISTS events (
-    seq          INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_id     TEXT    NOT NULL UNIQUE,
-    topic        TEXT    NOT NULL,
-    payload      TEXT    NOT NULL,   -- JSON string
-    producer     TEXT    NOT NULL,
-    published_at TEXT    NOT NULL,
-    acked_at     TEXT,               -- reserved; not currently set by any code path
-    retry_count  INTEGER NOT NULL DEFAULT 0,
-    dlq_at       TEXT                -- set when event is promoted to DLQ
+    seq                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id               TEXT    NOT NULL UNIQUE,
+    topic                  TEXT    NOT NULL,
+    payload                TEXT    NOT NULL,   -- JSON string
+    producer               TEXT    NOT NULL,
+    published_at           TEXT    NOT NULL,
+    acked_at               TEXT,               -- reserved; not currently set by any code path
+    retry_count            INTEGER NOT NULL DEFAULT 0,   -- deprecated; use delivery_failure_count
+    delivery_failure_count INTEGER NOT NULL DEFAULT 0,
+    dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
+    dlq_at                 TEXT                -- set when event is promoted to DLQ
 );
 ```
 
@@ -28,15 +30,22 @@ CREATE TABLE IF NOT EXISTS events (
 |---|---|
 | `seq` | Auto-increment integer; used as cursor for replay and subscribe |
 | `event_id` | Client-supplied UUID; UNIQUE prevents duplicates |
+| `topic` | Event topic string (1–255 characters) |
 | `payload` | Serialized JSON string of the event payload |
+| `producer` | Producer identifier string (1–255 characters) |
+| `published_at` | ISO-8601 timestamp when event was published |
 | `acked_at` | Reserved — never written by current code |
 | `retry_count` | Deprecated — not used for DLQ promotion. DLQ promotion uses `delivery_failure_count >= max_retry`. This field is incremented on DLQ requeue only (see `dlq_requeue_count`). |
+| `delivery_failure_count` | Incremented on nack; triggers DLQ promotion at `>= max_retry` |
+| `dlq_requeue_count` | Incremented on DLQ requeue; does not reset `delivery_failure_count` |
 | `dlq_at` | ISO-8601 timestamp set when promoted to DLQ; NULL for live events |
 
 ### Indexes
 
 - `idx_events_topic` on `topic` — accelerates topic-filtered subscribe queries
 - `idx_events_seq` on `seq` — accelerates cursor-based replay
+- `idx_events_dlq_at` on `dlq_at` — accelerates DLQ queries (WHERE dlq_at IS NOT NULL)
+- `idx_events_dlq_seq` on `(dlq_at, seq)` — composite index for ordering DLQ events by seq
 
 ## JSONL archive
 
