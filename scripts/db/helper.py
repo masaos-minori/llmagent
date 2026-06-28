@@ -51,6 +51,7 @@ class SQLiteHelper:
         self._target = resolved
         self._default_load_vec = resolved == "rag"
         self.conn: sqlite3.Connection | None = None
+        self._reuse_connection: bool = False
         try:
             db_cfg = build_db_config()
         except ValueError as e:
@@ -131,10 +132,9 @@ class SQLiteHelper:
         row_factory: enable column-name access on result rows.
         reuse_connection: skip reconnect if already connected; skip close in __exit__.
         """
+        self._reuse_connection = reuse_connection
         if reuse_connection and self.conn is not None:
             return self
-        if reuse_connection:
-            self._reuse_connection = True
         use_vec = self._default_load_vec if load_vec is None else load_vec
         conn = self._connect()
         if use_vec and self._vec_so:
