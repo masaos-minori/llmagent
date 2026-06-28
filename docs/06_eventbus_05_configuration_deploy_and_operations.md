@@ -21,10 +21,10 @@ Event Bus configuration is loaded from a TOML file (default: `/opt/llm/config/ev
 | `offsets_dir` | str | — | Consumer offset file directory |
 | `deadletter_dir` | str | — | Dead-letter queue JSONL directory |
 | `max_retry` | int | — | Retry threshold before DLQ promotion |
+| `host` | str | `127.0.0.1` | HTTP listen address (see Bind Address section below) |
+| `allow_public_bind` | bool | `false` | Override: allow binding to public/wildcard addresses (security risk, no authentication) |
 | `poll_interval_ms` | int | 500 | [deprecated] No-op compatibility field. Setting this emits a DeprecationWarning. Subscribe polling was replaced with push-mode delivery via EventBroker. |
-
 | `offset_checkpoint_interval` | int | 10 | [deprecated] No-op compatibility field. Setting this emits a DeprecationWarning. Offset checkpointing was replaced with ack-only model. |
-## Deployment
 
 ### Bind Address
 
@@ -32,10 +32,26 @@ The EventBus server should bind to `127.0.0.1` (loopback) in production, not
 `0.0.0.0`. Binding to `0.0.0.0` exposes the EventBus API to the local network,
 which is a security risk (no authentication layer on the EventBus HTTP endpoints).
 
-Host binding is controlled via the `host` field in TOML config. The startup guard
-in `__post_init__` validates the bind address at config load time — if the host
-is a public/wildcard address (`0.0.0.0`, `::`) and `allow_public_bind` is not set to
-`true`, startup fails with a `ValueError`.
+#### Address classification
+
+The startup guard validates the bind address at config load time:
+
+| Category | Addresses | Allowed without override? |
+|---|---|---|
+| Loopback | `127.0.0.1`, `::1` | Yes |
+| Private IP | `192.168.x.x`, `10.x.x.x`, `172.16.x.x–172.31.x.x` | Yes |
+| Wildcard IPv4 | `0.0.0.0` | No — raises `ValueError` |
+| Wildcard IPv6 | `::` | No — raises `ValueError` |
+| Hostname (non-IP) | Any hostname (e.g., `example.com`) | No — treated as public |
+
+#### Public bind override
+
+Setting `allow_public_bind: true` in the TOML config bypasses the validation. This is **not recommended** unless you have authentication via a reverse proxy or other mechanism. The error message when rejected is:
+
+```
+Event Bus bound to public address {host} without allow_public_bind=true.
+The API has no authentication — this is a security risk.
+```
 
 If remote access is required, use a reverse proxy with authentication.
 
@@ -47,6 +63,19 @@ EVENTBUS_CONFIG_PATH=/opt/llm/config/eventbus.toml python -m eventbus.app
 
 The app starts uvicorn programmatically using the config's `host` and `port` values.
 Alternatively: `uvicorn eventbus.app:app --host 127.0.0.1 --port 8010` (CLI overrides).
+
+### TOML example
+
+```toml
+port = 8010
+db_path = "/opt/llm/data/eventbus.sqlite"
+storage_dir = "/opt/llm/data/eventbus-storage"
+offsets_dir = "/opt/llm/data/eventbus-offsets"
+deadletter_dir = "/opt/llm/data/eventbus-deadletter"
+max_retry = 3
+host = "127.0.0.1"
+allow_public_bind = false
+```
 
 ## Health Endpoint Semantics
 

@@ -32,6 +32,8 @@ class EventBusConfig:
     offsets_dir: str
     deadletter_dir: str
     max_retry: int
+    host: str = "127.0.0.1"  # HTTP listen address; validated at startup
+    allow_public_bind: bool = False  # Override: allow binding to public/wildcard addresses
     poll_interval_ms: int = 500  # [deprecated] no-op; push-mode delivery via EventBroker
     offset_checkpoint_interval: int = 10  # [deprecated] no-op; ack-only model in place
 ```
