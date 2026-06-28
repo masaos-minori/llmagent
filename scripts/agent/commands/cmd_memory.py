@@ -53,7 +53,9 @@ _MEMORY_HELP = """\
 /memory prune [days]                      Delete entries older than N days (default: retention_days config)
 /memory status                            Embedding enabled, circuit state, retrieval mode
 /memory check-consistency                 Compare JSONL, SQLite, FTS5, and vec row counts
-/memory rebuild [--dry-run]               Import records from JSONL archive (does not replay deletes or pin state)
+ /memory rebuild [--dry-run]               Import records from JSONL archive (does not replay deletes or pin state)
+ /memory rebuild-fts                       Rebuild memories_fts index from SQLite
+ /memory rebuild-vec                       Rebuild memories_vec index from SQLite
 """
 
 
@@ -94,6 +96,8 @@ class _MemoryMixin(MixinBase):
             "check-consistency": lambda: self._memory_check_consistency(mem),
             "rebuild": lambda: self._memory_rebuild(mem, sub_tokens),
             "import-jsonl": lambda: self._memory_rebuild(mem, sub_tokens),
+            "rebuild-fts": lambda: self._memory_rebuild_fts(mem),
+            "rebuild-vec": lambda: self._memory_rebuild_vec(mem),
         }
         handler = dispatch.get(sub)
         if handler:
@@ -352,12 +356,26 @@ class _MemoryMixin(MixinBase):
             ],
             [
                 "Consistent",
-                "Yes" if ok else "NO - use /memory rebuild to repair FTS/vec index",
+                "Yes" if ok else "NO — see repair commands below",
             ],
         ]
         self._out.write_table(["Metric", "Value"], rows)
         if not ok:
             self._ctx.stats.stat_memory_consistency_failures += 1
+            embed_enabled = self._ctx.cfg.memory.memory_embed_enabled
+            fts_gap = abs(report.memories - report.fts)
+            vec_gap = abs(report.memories - report.vec)
+            self._out.write(
+                "  [memory] Inconsistency detected.\n"
+                "    FTS gap: {} rows (SQLite vs FTS5)\n"
+                "    Vec gap: {} rows (SQLite vs vector index)".format(fts_gap, vec_gap)
+            )
+            if fts_gap > 0:
+                self._out.write("    Repair: /memory rebuild-fts")
+            if embed_enabled and vec_gap > 0:
+                self._out.write(
+                    "    Repair: /memory rebuild-vec (requires embedding regeneration)"
+                )
         self._emit_memory_audit(
             MemoryOpResult(ok=ok, memory_id="", action="check-consistency")
         )
@@ -392,6 +410,32 @@ class _MemoryMixin(MixinBase):
                 dry_run=dry_run,
                 count=jsonl_count,
             )
+        )
+
+    def _memory_rebuild_fts(self, mem: MemoryServices) -> None:
+        """Rebuild the memories_fts index from SQLite."""
+        count = mem.store.rebuild_fts()
+        self._out.write_success(
+            f"memories_fts rebuilt: {count} rows [Memory]"
+        )
+        self._emit_memory_audit(
+            MemoryOpResult(ok=True, memory_id="", action="rebuild-fts", count=count)
+        )
+
+    def _memory_rebuild_vec(self, mem: MemoryServices) -> None:
+        """Rebuild the memories_vec index from SQLite."""
+        embed_enabled = self._ctx.cfg.memory.memory_embed_enabled
+        if not embed_enabled:
+            self._out.write(
+                "  [memory] embedding disabled — cannot rebuild vec index"
+            )
+            return
+        count = mem.store.rebuild_vec()
+        self._out.write_success(
+            f"memories_vec rebuilt: {count} rows [Memory]"
+        )
+        self._emit_memory_audit(
+            MemoryOpResult(ok=True, memory_id="", action="rebuild-vec", count=count)
         )
 
     def _emit_memory_audit(self, result: MemoryOpResult) -> None:

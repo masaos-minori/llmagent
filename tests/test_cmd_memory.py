@@ -17,12 +17,16 @@ def _make_mixin():
     ctx = SimpleNamespace(
         cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True)),
         services=SimpleNamespace(audit_logger=None),
+        stats=SimpleNamespace(stat_memory_consistency_failures=0),
     )
     messages: list[str] = []
     out = SimpleNamespace(
         write=lambda msg: messages.append(msg),
         write_success=lambda msg: messages.append(msg),
         write_validation_error=lambda msg: messages.append(msg),
+        write_table=lambda header, rows: messages.append(
+            "TABLE:" + " | ".join(str(r) for r in rows)
+        ),
     )
 
     class _ConcreteMemoryMixin(_MemoryMixin):
@@ -131,4 +135,45 @@ class TestMemoryImportJsonlAlias:
         # Should produce the same output as /memory rebuild
         assert any("Imported" in msg for msg in messages), (
             f"import-jsonl should produce import confirmation, got: {messages}"
+        )
+
+
+class TestMemoryCheckConsistency:
+    def test_memory_check_consistency_does_not_recommend_jsonl_import_for_index_repair(self):
+        """Consistency output must not recommend JSONL import for FTS/vector repair."""
+        from agent.memory.models import ConsistencyReport
+
+        mixin, messages = _make_mixin()
+        mem = SimpleNamespace(
+            store=SimpleNamespace(
+                check_consistency=lambda: ConsistencyReport(memories=10, fts=8, vec=9),
+            ),
+            ingestion=SimpleNamespace(_jsonl=SimpleNamespace(count_all=lambda: 12)),
+        )
+        mixin._ctx.services.memory = mem
+
+        mixin._cmd_memory("check-consistency")
+
+        full_output = " ".join(messages)
+        assert "rebuild" not in full_output.lower() or "rebuild-fts" in full_output.lower(), (
+            f"Should not recommend /memory rebuild for index repair, got: {full_output}"
+        )
+
+    def test_memory_check_consistency_reports_jsonl_count_as_info_only(self):
+        """JSONL count should be reported as info only, not as a repair target."""
+        from agent.memory.models import ConsistencyReport
+
+        mixin, messages = _make_mixin()
+        mem = SimpleNamespace(
+            store=SimpleNamespace(
+                check_consistency=lambda: ConsistencyReport(memories=10, fts=8, vec=9),
+            ),
+            ingestion=SimpleNamespace(_jsonl=SimpleNamespace(count_all=lambda: 12)),
+        )
+        mixin._ctx.services.memory = mem
+
+        mixin._cmd_memory("check-consistency")
+
+        assert any("info" in msg.lower() for msg in messages), (
+            f"JSONL count should be labeled as info only, got: {messages}"
         )
