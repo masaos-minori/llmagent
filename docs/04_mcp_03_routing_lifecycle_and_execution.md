@@ -44,7 +44,7 @@ Resolves `tool_name → server_key` in four steps (priority order). At runtime, 
 3. **Config-driven:** `McpServerConfig.tool_names` provides an explicit mapping.
     Built at constructor time into an inverse dict `{tool_name: server_key}`. Only consulted when discovery map and registry have no match.
 
-4. **Static fallback (lowest priority):** `_fallback_route()` uses frozensets in `shared/tool_constants.py`:
+4. **Static fallback (lowest priority — compatibility / emergency only):** `_fallback_route()` uses frozensets in `shared/tool_constants.py`:
 
 | Tool set | Server key |
 |---|---|
@@ -62,6 +62,8 @@ Resolves `tool_name → server_key` in four steps (priority order). At runtime, 
 | No match | `ValueError` |
 
 **Note:** `query_sqlite` IS in `tool_constants.py` static table (routed to `sqlite` server key). No explicit `tool_names` config is required.
+
+**Important:** Static fallback exists for backward compatibility and emergency routing when higher layers are unavailable. Do not rely on it as the primary routing mechanism — new tools should always be registered via `ToolRegistry` or live discovery.
 
 ```python
 resolver = ToolRouteResolver(server_configs)
@@ -442,6 +444,43 @@ AgentREPL.run()
 ---
 
 ## Adding a New MCP Server
+
+### How to Add a New Tool Safely
+
+When adding a new tool, follow these steps to ensure correct routing:
+
+1. **Add the tool name to `shared/tool_constants.py` frozenset** (required).
+   The registry auto-populates from frozensets at import time — this is priority 2 routing.
+   If no existing frozenset fits, create a new one and add it to the registry builder.
+
+2. **Add `GET /v1/tools` endpoint to the MCP server** (recommended).
+   Return tool definitions with the `server_key` field so live discovery (priority 1) can route the tool.
+   Without this, the tool will still route via the registry but won't have the highest-priority discovery mapping.
+
+3. **Optionally add `tool_names` to server config** (`config/mcp_servers.toml`).
+   This is a validation hint only — routing does not require it (registry is priority 2).
+   However, omitting it will cause startup drift warnings from `check_routing_drift()`.
+
+```toml
+[mcp_servers.my_server]
+transport = "http"
+url = "http://127.0.0.1:8015"
+tool_names = ["my_tool_a", "my_tool_b"]
+```
+
+### Routing Priority Summary
+
+| Layer | Priority | Role | Override? |
+|---|---|---|---|
+| Live `/v1/tools` discovery | 1 (highest) | Runtime override from MCP server tool list | Yes — supersedes all lower layers |
+| `ToolRegistry` (`tool_constants.py` frozensets) | 2 | Canonical registry metadata; primary routing source | No — only overridden by layer 1 |
+| Config `tool_names` (`mcp_servers.toml`) | 3 | Fallback validation hint for drift detection | No — only used if layers 1+2 miss |
+| Static fallback (`tool_constants.py` frozensets) | 4 (lowest) | Compatibility / emergency fallback only | No — last resort, raises if no match |
+
+**Key rules:**
+- **New tools must always be registered via `ToolRegistry`** (layer 2). Never rely on static fallback alone.
+- **Live discovery (layer 1) can override routing** — if `/v1/tools` returns a different `server_key`, the discovery map wins.
+- **Config `tool_names` are not routing inputs** — they are validation hints for drift detection only.
 
 ### New Server/Tool Registration Checklist
 
