@@ -130,7 +130,7 @@ curl -s http://127.0.0.1:8010/health | jq   # rag-pipeline: dependencies.embed_u
 curl -s http://127.0.0.1:8012/health | jq   # cicd: dependencies.github_token
 curl -s http://127.0.0.1:8013/health | jq   # mdq: details.service
 curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
-# sqlite-mcp (port 8011) — no server module exists yet; health check not available
+# sqlite-mcp (port 8011) — SELECT-only; health check via curl http://127.0.0.1:8011/health
 
 # Base response shape: {"status":"ok","ready":bool,"dependencies":{},"details":{}}
 ```
@@ -261,7 +261,7 @@ tail -f /opt/llm/logs/audit.log | grep 'AUDIT'
 
 ```bash
 # GitHub operations (ISO8601 + op + repo + user)
-grep "op=create_pull_request" /opt/llm/logs/github-audit.log
+grep "op=create_pull_request" /opt/llm/logs/github_audit.log
 
 # Shell executions (ISO8601 + cmd + uid + exit)
 grep "exit=1" /opt/llm/logs/shell_audit.log
@@ -273,7 +273,7 @@ grep "op=delete_directory" /opt/llm/logs/delete_audit.log
 grep "op=" /opt/llm/logs/mdq_audit.log
 ```
 
-> **Note:** cicd-mcp and git-mcp do not have dedicated audit log files. They use `logging.getLogger(__name__)` only.
+> **Note:** cicd-mcp, git-mcp, and sqlite-mcp do not have dedicated audit log files. They use `logging.getLogger(__name__)` only.
 
 ### Per-server log files
 
@@ -289,7 +289,7 @@ grep "op=" /opt/llm/logs/mdq_audit.log
 | rag-pipeline-mcp | `/opt/llm/logs/rag-mcp.log` | Dedicated app log |
 | cicd-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
 | git-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
-| sqlite-mcp | No server module yet | Config exists but no implementation (planned) |
+| sqlite-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` (SELECT-only, port 8011) |
 
 ### Per-server audit log files
 
@@ -299,13 +299,13 @@ grep "op=" /opt/llm/logs/mdq_audit.log
 | file-read-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
 | file-write-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
 | file-delete-mcp | `/opt/llm/logs/delete_audit.log` | Structured (ISO8601 + op + path + user) |
-| github-mcp | `/opt/llm/logs/github-audit.log` | Structured (ISO8601 + op + repo + user) |
+| github-mcp | `/opt/llm/logs/github_audit.log` | Structured (ISO8601 + op + repo + user) |
 | shell-mcp | `/opt/llm/logs/shell_audit.log` | Structured (ISO8601 + op + command + user) |
 | mdq-mcp | `/opt/llm/logs/mdq_audit.log` | Structured (MDQ-specific) |
 | rag-pipeline-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
 | cicd-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
-| git-mcp | Config field defined but not implemented | `audit_log_path` in config exists but no actual audit logging code |
-| sqlite-mcp | No server module yet | Config has `audit_log_path = "/opt/llm/logs/sqlite-mcp.log"` but no implementation (planned) |
+| git-mcp | Config key exists but no write code | `audit_log_path = "/opt/llm/logs/git-mcp.log"` in TOML — no audit write code in service.py; reserved for future implementation |
+| sqlite-mcp | Config key not parsed | `audit_log_path = "/opt/llm/logs/sqlite-mcp.log"` in TOML — key is present for future use but not read by `SqliteConfig.from_dict`; no audit log written |
 
 ### Agent-side audit log (structured events)
 
