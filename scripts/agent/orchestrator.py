@@ -190,8 +190,8 @@ class Orchestrator:
             await self._handle_workflow_engine(line, ctx, turn_started_at)
             return
 
-        answer, error_kind = await self._process_turn(line, ctx, turn_started_at)
-        await self._handle_turn_end(line, answer, turn_started_at, error_kind)
+        answer, error_kind, is_partial = await self._process_turn(line, ctx, turn_started_at)
+        await self._handle_turn_end(line, answer, turn_started_at, error_kind, is_partial)
 
     async def _handle_workflow_engine(
         self, line: str, ctx: AgentContext, turn_started_at: float
@@ -202,6 +202,7 @@ class Orchestrator:
         store = StateStore()
         answer: str = ""
         error_kind: str | None = None
+        is_partial: bool = False
         try:
             (
                 workflow_id,
@@ -223,8 +224,8 @@ class Orchestrator:
                 return None  # _handle_turn_start already completed
 
             async def execute_fn() -> str | None:
-                nonlocal answer, error_kind
-                answer, error_kind = await self._process_turn(
+                nonlocal answer, error_kind, is_partial
+                answer, error_kind, is_partial = await self._process_turn(
                     line, ctx, turn_started_at
                 )
                 elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
@@ -239,7 +240,7 @@ class Orchestrator:
                 return None
 
             async def verify_fn() -> str | None:
-                await self._handle_turn_end(line, answer, turn_started_at, error_kind)
+                await self._handle_turn_end(line, answer, turn_started_at, error_kind, is_partial)
                 return None
 
             await engine.run(task, plan_fn, execute_fn, verify_fn)  # type: ignore[arg-type]
@@ -418,10 +419,11 @@ class Orchestrator:
 
     async def _process_turn(
         self, line: str, ctx: AgentContext, turn_started_at: float
-    ) -> tuple[str, str | None]:
-        """Process a turn and return (answer, error_kind)."""
+    ) -> tuple[str, str | None, bool]:
+        """Process a turn and return (answer, error_kind, is_partial)."""
         answer = ""
         error_kind = None
+        is_partial = False
 
         # Snapshot original and apply override for this turn
         original_allowed = ctx.cfg.tool.allowed_tools
@@ -437,20 +439,22 @@ class Orchestrator:
             answer = result.answer
             if not result.success:
                 error_kind = result.error_kind
+                if isinstance(result.exception, LLMTransportError) and result.exception.partial_text:
+                    is_partial = True
 
         finally:
             ctx.cfg.tool.allowed_tools = original_allowed  # always restore
 
-        return answer, error_kind
+        return answer, error_kind, is_partial
 
     async def _handle_turn_end(
-        self, line: str, answer: str, turn_started_at: float, error_kind: str | None
+        self, line: str, answer: str, turn_started_at: float, error_kind: str | None, is_partial: bool = False
     ) -> None:
         ctx = self._ctx
         elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
         if ctx.services.audit_logger is not None:
             event = self._build_turn_end_event(
-                elapsed_ms, error_kind, ctx.turn.current_turn_id
+                elapsed_ms, error_kind, ctx.turn.current_turn_id, is_partial
             )
             ctx.services.audit_logger.info(_json_dumps(event))
         ctx.turn.current_turn_id = None
@@ -460,6 +464,7 @@ class Orchestrator:
         elapsed_ms: float,
         error_kind: str | None,
         task_id: str | None,
+        is_partial: bool = False,
     ) -> dict[str, int | float | str | None]:
         """Build turn_end audit log event dict."""
         ctx = self._ctx
@@ -470,7 +475,7 @@ class Orchestrator:
             "input_tokens": ctx.stats.stat_input_tokens,
             "output_tokens": ctx.stats.stat_output_tokens,
             **_build_turn_end_llm_stats(ctx.services.llm),
-            "partial_completion": False,
+            "partial_completion": is_partial,
             "error_kind": error_kind,
         }
 

@@ -209,6 +209,40 @@ class TestHandleTurnLLMTransportError:
         assert ctx.services.audit_logger.info.called
 
     @pytest.mark.asyncio
+    async def test_turn_end_event_has_partial_completion_true_on_partial_error(self) -> None:
+        """turn_end audit event must have partial_completion=True when LLM transport error has partial_text."""
+        ctx = _make_ctx()
+        ctx.services.audit_logger = MagicMock()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="PREMATURE_EOF", partial_text="partial")
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
+
+        assert ctx.services.audit_logger.info.called
+        event = ctx.services.audit_logger.info.call_args[0][0]
+        import json
+        event_dict = json.loads(event)
+        assert event_dict["partial_completion"] is True
+
+    @pytest.mark.asyncio
+    async def test_turn_end_event_has_partial_completion_false_on_non_partial_error(self) -> None:
+        """turn_end audit event must have partial_completion=False when LLM transport error has no partial_text."""
+        ctx = _make_ctx()
+        ctx.services.audit_logger = MagicMock()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="HTTP_500", partial_text="")
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("hello")
+
+        assert ctx.services.audit_logger.info.called
+        event = ctx.services.audit_logger.info.call_args[0][0]
+        import json
+        event_dict = json.loads(event)
+        assert event_dict["partial_completion"] is False
+
+    @pytest.mark.asyncio
     async def test_read_timeout_with_partial_increments_stat(self) -> None:
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
@@ -640,7 +674,7 @@ class TestApprovalPendingGuard:
 
         # Patch _process_turn to return a successful result without calling LLM
         with patch.object(
-            orch, "_process_turn", new=AsyncMock(return_value=("ok", None))
+            orch, "_process_turn", new=AsyncMock(return_value=("ok", None, False))
         ):
             await orch.handle_turn("do something")
 
@@ -854,7 +888,7 @@ class TestWorkflowMode:
         with (
             patch("agent.orchestrator.WorkflowLoader") as mock_loader,
             patch.object(
-                Orchestrator, "_process_turn", new=AsyncMock(return_value=("ok", None))
+                Orchestrator, "_process_turn", new=AsyncMock(return_value=("ok", None, False))
             ),
             patch("agent.orchestrator.StateStore") as mock_store,
         ):
@@ -878,7 +912,7 @@ class TestWorkflowMode:
         with (
             patch("agent.orchestrator.WorkflowLoader") as mock_loader,
             patch.object(
-                Orchestrator, "_process_turn", new=AsyncMock(return_value=("ok", None))
+                Orchestrator, "_process_turn", new=AsyncMock(return_value=("ok", None, False))
             ),
             patch("agent.orchestrator.StateStore") as mock_store,
         ):
