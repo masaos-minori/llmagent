@@ -497,6 +497,8 @@ For correlation across agent, transport, and server logs, see §End-to-End Tool 
 The watchdog loop (`watchdog_loop()` in `agent/repl_health.py`) periodically probes all MCP
 servers and attempts to restart them when they fail. It runs as a background asyncio task.
 
+**Note:** The watchdog's periodic `record_success()`/`record_failure()` calls supplement (but do not replace) the per-call HealthRegistry updates from `ToolExecutor._raw_execute()`. Each tool call increments its own failure count independently of the watchdog.
+
 ### Configuration
 
 | Setting | LOCAL default | PRODUCTION default | Effect |

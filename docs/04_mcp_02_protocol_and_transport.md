@@ -345,6 +345,19 @@ HTTP transport errors (4xx/5xx) are caught by `HttpTransport.call()`, which rais
 - **Pre-flight health check rejection**: No `record_failure()` called — no attempt was made.
 - **Retry behavior**: Only the final outcome (success or TransportError after all retries exhausted) is recorded in HealthRegistry. Intermediate retry attempts are not counted.
 
+### Error Classification Table
+
+| Error Type | HTTP Status | HealthRegistry Action | request_id | is_retryable |
+|---|---|---|---|---|
+| HTTP 4xx (non-retryable: 401/403/404) | 4xx | `record_failure()` | `""` | No |
+| HTTP 5xx (server error) | 5xx | `record_failure()` | `""` | Yes (with backoff) |
+| Timeout | N/A | `record_failure()` | `""` | Yes (with backoff) |
+| Connection refused | N/A | `record_failure()` | `""` | No |
+| DNS/network error | N/A | `record_failure()` | `""` | No |
+| Malformed response (non-dict, missing 'result') | 200 | `record_failure()` | `""` | No |
+
+All transport failures set `request_id=""` because the request never completed successfully. Tool-level errors (HTTP 200 with `is_error=True`) use the actual request_id from the server response and call `record_success()`.
+
 ### StdioTransport error handling
 
 StdioTransport uses the same pattern: transport errors raise `TransportError`, which is caught and converted to `ToolCallResult(is_error=True, error_type="transport")` by `ToolExecutor._record_transport_error()`. The health registry update path is identical.

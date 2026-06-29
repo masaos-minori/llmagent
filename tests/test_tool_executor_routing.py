@@ -873,6 +873,116 @@ class TestToolExecutorHealthGate:
         assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
 
 
+class TestToolExecutorHealthTransitions:
+    """End-to-end health-state transitions through ToolExecutor for specific error classes."""
+
+    @pytest.mark.asyncio
+    async def test_http_4xx_triggers_record_failure(self) -> None:
+        """HTTP 4xx transport error triggers record_failure() at ToolExecutor level."""
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            side_effect=TransportError("HTTPStatusError: 401 Unauthorized")
+        )
+        ex._transports["file_read"] = mock_transport
+        res = await ex._raw_execute("read_text_file", {})
+
+        assert res.is_error
+        assert registry.get_state("file_read") == McpServerHealthState.DEGRADED
+        assert "401" in res.output
+
+    @pytest.mark.asyncio
+    async def test_http_5xx_triggers_record_failure(self) -> None:
+        """HTTP 5xx transport error triggers record_failure() at ToolExecutor level."""
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            side_effect=TransportError("HTTPStatusError: 500 Internal Server Error")
+        )
+        ex._transports["file_read"] = mock_transport
+        res = await ex._raw_execute("read_text_file", {})
+
+        assert res.is_error
+        assert registry.get_state("file_read") == McpServerHealthState.DEGRADED
+        assert "500" in res.output
+
+    @pytest.mark.asyncio
+    async def test_timeout_triggers_record_failure(self) -> None:
+        """Timeout transport error triggers record_failure() at ToolExecutor level."""
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            side_effect=TransportError("timeout: request exceeded time limit")
+        )
+        ex._transports["file_read"] = mock_transport
+        res = await ex._raw_execute("read_text_file", {})
+
+        assert res.is_error
+        assert registry.get_state("file_read") == McpServerHealthState.DEGRADED
+        assert "timeout" in res.output.lower()
+
+    @pytest.mark.asyncio
+    async def test_connection_refused_triggers_record_failure(self) -> None:
+        """Connection refused transport error triggers record_failure() at ToolExecutor level."""
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            side_effect=TransportError("ConnectError: connection refused")
+        )
+        ex._transports["file_read"] = mock_transport
+        res = await ex._raw_execute("read_text_file", {})
+
+        assert res.is_error
+        assert registry.get_state("file_read") == McpServerHealthState.DEGRADED
+        assert "refused" in res.output.lower()
+
+    @pytest.mark.asyncio
+    async def test_malformed_response_triggers_record_failure(self) -> None:
+        """Malformed response transport error triggers record_failure() at ToolExecutor level."""
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            side_effect=TransportError("malformed response: expected dict, got str")
+        )
+        ex._transports["file_read"] = mock_transport
+        res = await ex._raw_execute("read_text_file", {})
+
+        assert res.is_error
+        assert registry.get_state("file_read") == McpServerHealthState.DEGRADED
+
+    @pytest.mark.asyncio
+    async def test_tool_error_does_not_trigger_record_failure(self) -> None:
+        """Tool-level error (HTTP 200 with is_error=True) calls record_success(), not record_failure()."""
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor(configs={"file_read": _http_cfg()})
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="tool error",
+                is_error=True,
+                request_id="req-1",
+                server_key="file_read",
+            )
+        )
+        ex._transports["file_read"] = mock_transport
+        res = await ex._raw_execute("read_text_file", {})
+
+        assert res.is_error
+        # Tool-level error should NOT increment failure count — record_success() is called
+        assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
+
+
 class TestCacheKeyFormat:
     def test_cache_key_is_plain_string_not_md5(self) -> None:
         """Cache key must use plain string format, not MD5 hex digest."""
