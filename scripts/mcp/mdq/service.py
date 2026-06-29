@@ -10,7 +10,7 @@ import logging
 import re
 import sqlite3
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from mcp.mdq.auth import authorize_path
 from mcp.mdq.indexer import index_paths as _index_paths
@@ -555,28 +555,31 @@ class MdqService:
         async with self._index_lock:
             self._is_indexing = True
             try:
-                for path_str in req.paths:
-                    p = Path(path_str)
-                    if not p.exists():
-                        logger.warning("Path does not exist: %s", path_str)
-                        continue
-                    if not authorize_path(p, self.allowed_dirs):
-                        logger.warning(
-                            "Path denied: %s (outside allowed dirs)", path_str
-                        )
-                        continue
-
+                self._validate_paths(req.paths)
                 summary = await _refresh_paths(self, req)
-                parts = [
-                    f"Refresh complete in {summary['elapsed_seconds']}s",
-                    f"  Indexed: {summary['indexed_count']}",
-                    f"  Skipped (unchanged): {summary['skipped_count']}",
-                    f"  Deleted from index: {summary['deleted_count']}",
-                    f"  Failed: {summary['failed_count']}",
-                ]
-                return "\n".join(parts)
+                return "\n".join(self._format_refresh_summary(summary))
             finally:
                 self._is_indexing = False
+
+    def _validate_paths(self, paths: list[str]) -> None:
+        for path_str in paths:
+            p = Path(path_str)
+            if not p.exists():
+                logger.warning("Path does not exist: %s", path_str)
+                continue
+            if not authorize_path(p, self.allowed_dirs):
+                logger.warning(
+                    "Path denied: %s (outside allowed dirs)", path_str
+                )
+
+    def _format_refresh_summary(self, summary: Any) -> list[str]:
+        return [
+            f"Refresh complete in {summary['elapsed_seconds']}s",
+            f"  Indexed: {summary['indexed_count']}",
+            f"  Skipped (unchanged): {summary['skipped_count']}",
+            f"  Deleted from index: {summary['deleted_count']}",
+            f"  Failed: {summary['failed_count']}",
+        ]
 
     async def stats(self, req: StatsRequest) -> str:
         """Return document/chunk count and index metadata."""
@@ -629,43 +632,10 @@ class MdqService:
 
             matches: list[GrepDocMatch] = []
             for row in rows:
-                # Use regex to find all matches in content and heading
-                full_text = f"{row['heading']}\n{row['content']}"
-                for re_match in compiled.finditer(full_text):
-                    match_start = re_match.start()
-
-                    # Extract context lines
-                    lines = full_text.split("\n")
-                    match_line = 0
-                    line_offset = 0
-                    for i, line in enumerate(lines):
-                        if line_offset + len(line) >= match_start:
-                            match_line = i
-                            break
-                        line_offset += len(line) + 1
-
-                    # Get context lines before and after
-                    start_idx = max(0, match_line - ctx_before)
-                    end_idx = min(len(lines), match_line + ctx_after + 1)
-                    _context_lines = lines[start_idx:end_idx]
-
-                    # Extract the matched text with context
-                    match_text = re_match.group()[:max_chars]
-
-                    matches.append(
-                        GrepDocMatch(
-                            chunk_id=row["chunk_id"],
-                            source_path=row["source_path"],
-                            heading_path=row["heading_path"],
-                            match_text=match_text,
-                            line_number=start_idx + 1,
-                        )
-                    )
-
-                    # Stop if we've reached the max matches
-                    if len(matches) >= max_matches:
-                        break
-
+                match = self._find_grep_match(row, compiled, max_chars, ctx_before, ctx_after)
+                if match is None:
+                    continue
+                matches.append(match)
                 if len(matches) >= max_matches:
                     break
 
@@ -690,6 +660,38 @@ class MdqService:
             return result
         finally:
             conn.close()
+
+    def _find_grep_match(
+        self,
+        row: sqlite3.Row,
+        compiled: re.Pattern[str],
+        max_chars: int,
+        ctx_before: int,
+        ctx_after: int,
+    ) -> GrepDocMatch | None:
+        full_text = f"{row['heading']}\n{row['content']}"
+        for re_match in compiled.finditer(full_text):
+            match_start = re_match.start()
+            lines = full_text.split("\n")
+            match_line = 0
+            line_offset = 0
+            for i, line in enumerate(lines):
+                if line_offset + len(line) >= match_start:
+                    match_line = i
+                    break
+                line_offset += len(line) + 1
+            start_idx = max(0, match_line - ctx_before)
+            end_idx = min(len(lines), match_line + ctx_after + 1)
+            _context_lines = lines[start_idx:end_idx]
+            match_text = re_match.group()[:max_chars]
+            return GrepDocMatch(
+                chunk_id=row["chunk_id"],
+                source_path=row["source_path"],
+                heading_path=row["heading_path"],
+                match_text=match_text,
+                line_number=start_idx + 1,
+            )
+        return None
 
     async def fts_consistency_check(self, req: FtsConsistencyCheckRequest) -> str:
         """Check FTS5 consistency between chunks and chunks_fts tables."""
