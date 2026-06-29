@@ -77,6 +77,7 @@ as the primary reference. Legacy source files have been deleted (git history pre
 |---|---|
 | HealthRegistry record_success/failure not called (BUG) | RESOLVED 2026-06-18 — now properly called in `04_mcp_03` |
 | mdq-mcp is production-ready (FTS5 search and indexing implemented) | [04_mcp_04 §mdq-mcp](04_mcp_04_server_catalog.md) |
+| cicd workflow_allowlist RuntimeError claim mismatch | [MCP-09](04_mcp_90_inconsistencies_and_known_issues.md#mcp-09-cicd-workflow_allowlist-policy-mismatch--runtimeerror-vs-warning) |
 
 ---
 
@@ -101,7 +102,7 @@ as the primary reference. Legacy source files have been deleted (git history pre
 | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) | Allowlists, denylist, fail-open/closed, dry_run, risk tiers, AI safety notes; MDQ vs RAG boundary |
 | [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) | Config file inventory, McpServerConfig fields, defaults, health probes, new-server checklist |
 | ~~04_mcp_07_mdq_rag_boundary.md~~ | **Removed.** Content now in [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) |
-| [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | MISSING-01/SPEC-01/02/03 with AI safety guidance (BUG-01 resolved 2026-06-18) |
+| [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | MCP-01 through MCP-09 active issues with AI safety guidance; MCP-05 resolved 2026-06-18 |
 
 ---
 
