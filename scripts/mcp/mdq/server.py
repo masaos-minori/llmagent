@@ -89,7 +89,7 @@ def _degraded_response(
     )
 
 
-def _check_stale_documents(conn: Any, mdq_cfg: dict[str, Any]) -> int | None:
+def _check_stale_documents(conn: Any) -> int | None:
     try:
         from pathlib import Path as _Path
 
@@ -314,6 +314,7 @@ async def health() -> JSONResponse:
         import sqlite3
 
         conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
         try:
             cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = {row[0] for row in cursor.fetchall()}
@@ -325,7 +326,6 @@ async def health() -> JSONResponse:
             if "chunks" not in tables:
                 deps["db_schema"] = "missing chunks table"
                 return _degraded_response(deps, details)
-
             if "chunks_fts" not in tables:
                 deps["db_schema"] = "missing chunks_fts FTS5 table"
                 return _degraded_response(deps, details)
@@ -364,7 +364,7 @@ async def health() -> JSONResponse:
             details["fts_row_count"] = fts_count
             details["last_indexed"] = last_indexed
 
-            stale_count = _check_stale_documents(conn, mdq_cfg)
+            stale_count = _check_stale_documents(conn)
             details["stale_document_count"] = stale_count
 
         finally:

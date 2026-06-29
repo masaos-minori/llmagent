@@ -181,6 +181,19 @@ Triggered in `_handle_history_compression()` each turn if either:
 - `CompressResult.protected_count` = number of messages skipped (protected)
 - `stat_compress_count` incremented
 
+### Compression Persistence Model
+
+After each history compression (automatic or `/compact`), the compressed snapshot is persisted back to `session.sqlite` via `AgentSession.replace_messages()`. This ensures that `/session load` restores a semantically consistent state — the restored history matches what was actually in context before the next LLM call.
+
+Key behaviors:
+- Compressed `[Conversation summary]` system messages are persisted as `role=system` rows; they round-trip correctly through `fetch_messages()` → `LLMMessage`.
+- Fallback truncation (drop-without-summary) also triggers persistence to keep DB consistent.
+- The in-memory `ctx.conv.history` remains the source of truth for the current session; DB persistence is a backup for reload scenarios.
+- `/history` and `/export` continue to operate on `ctx.conv.history`; no change needed.
+- The `stat_turns` counter and other in-memory stats reset on reload (existing behavior).
+
+**Note**: After a reload of a compressed session, `/undo` operates on the compressed DB rows — the user may undo fewer turns than expected since the original messages were replaced by the summary message.
+
 ### Token counting
 
 Priority: (1) LLM `usage.input_tokens` (exact); (2) `/tokenize` endpoint (exact);

@@ -465,3 +465,44 @@ class TestReplaceMessages:
             with patch("agent.session.SQLiteHelper", side_effect=_make):
                 agent_session = AgentSession()
                 agent_session.replace_messages([{"role": "user", "content": "test"}])
+
+    def test_replace_messages_with_tool_calls(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        """replace_messages() correctly serializes tool_calls."""
+        msgs = [
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [{"id": "call_1", "type": "function"}],
+            }
+        ]
+        repo.replace_messages(1, msgs)
+        rows = repo.fetch_messages(1)
+        assert len(rows) == 1
+        assert rows[0]["tool_calls"] == [{"id": "call_1", "type": "function"}]
+
+    def test_replace_messages_empty_list_skips(self, repo: SessionMessageRepository) -> None:
+        """replace_messages() with empty list does nothing."""
+        repo.save("user", "existing")
+        assert len(repo.fetch_messages(1)) == 1
+        repo.replace_messages(1, [])
+        assert len(repo.fetch_messages(1)) == 1
+
+    def test_replace_messages_deletes_all_then_inserts(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        """replace_messages() fully replaces all messages — old rows are gone."""
+        repo.save("user", "old1")
+        repo.save("assistant", "old2")
+        repo.save("tool", "old3", tool_call_id="call_1")
+        assert len(repo.fetch_messages(1)) == 3
+        new_msgs = [
+            {"role": "system", "content": "[Conversation summary]"},
+            {"role": "user", "content": "new user"},
+        ]
+        repo.replace_messages(1, new_msgs)
+        rows = repo.fetch_messages(1)
+        assert len(rows) == 2
+        assert rows[0]["content"] == "[Conversation summary]"
+        assert rows[1]["content"] == "new user"

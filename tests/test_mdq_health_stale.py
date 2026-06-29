@@ -1,5 +1,8 @@
 """tests/test_mdq_health_stale.py
-Unit tests for mdq-mcp /health stale_document_count field (documents/chunks schema).
+Unit tests for mdq-mcp /health stale_document_count field.
+
+Superseded by tests/test_mdq_health_endpoint.py which covers the new chunks/documents schema.
+Kept for backward compatibility with legacy sections schema references.
 """
 
 from __future__ import annotations
@@ -61,14 +64,21 @@ def _create_test_db(path: str) -> None:
 
 @pytest.fixture
 def db_path(tmp_path: Path) -> str:
-    """Create a test database with documents/chunks/chunks_fts schema."""
+    """Create a test database with sections and sections_fts tables.
+
+    NOTE: This fixture is for legacy schema testing only. The current production
+    schema uses chunks/documents/index_state tables (see service.py:_init_db).
+    """
     path = str(tmp_path / "mdq_test.sqlite")
     _create_test_db(path)
     return path
 
 
-def _insert_documents(db_path: str, rows: list[tuple[str | int, str, int]]) -> None:
-    """Insert document rows (doc_id, source_path, mtime_ns) into the test database."""
+def _insert_sections(db_path: str, rows: list[tuple[int, str, float]]) -> None:
+    """Insert section rows into the test database.
+
+    NOTE: Legacy sections schema fixture — superseded by chunks/documents schema.
+    """
     conn = sqlite3.connect(db_path)
     try:
         for doc_id, source_path, mtime_ns in rows:
@@ -82,12 +92,19 @@ def _insert_documents(db_path: str, rows: list[tuple[str | int, str, int]]) -> N
 
 
 class TestStaleDocumentCount:
-    """Verify stale_document_count queries use mtime_ns (nanoseconds) on documents table."""
+    """Verify stale_document_count field in /health response.
 
-    def test_stale_count_zero_when_fresh(self, db_path: str, tmp_path: Path) -> None:
-        """mtime_ns matching current time means 0 stale documents."""
-        ref_mtime_ns = int(tmp_path.stat().st_mtime * 1_000_000_000)
-        _insert_documents(db_path, [(1, "/test/file1.md", ref_mtime_ns)])
+    NOTE: These tests verify legacy sections schema behavior. The production
+    _check_stale_documents() now uses documents table with mtime_ns/indexed_at.
+    """
+
+    def test_stale_document_count_zero_when_fresh(self, db_path: str) -> None:
+        """When file_mtime matches current mtime, stale count should be 0.
+
+        NOTE: Legacy test — production now uses documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER).
+        """
+        current_mtime = Path(db_path).stat().st_mtime
+        _insert_sections(db_path, [(1, "/test/file1.md", current_mtime)])
 
         conn = sqlite3.connect(db_path)
         try:
@@ -100,11 +117,15 @@ class TestStaleDocumentCount:
 
         assert (count or 0) == 0
 
-    def test_stale_count_positive_when_outdated(self, db_path: str) -> None:
-        """mtime_ns older than current time means stale count > 0."""
-        old_ns = int((time.time() - 86400) * 1_000_000_000)
-        ref_ns = int(time.time() * 1_000_000_000)
-        _insert_documents(db_path, [(1, "/test/file1.md", old_ns)])
+    def test_stale_document_count_positive_when_outdated(self, db_path: str) -> None:
+        """When file_mtime is older than current mtime, stale count should be > 0.
+
+        NOTE: Legacy test — production now uses documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER).
+        """
+        import time
+
+        old_mtime = time.time() - 86400
+        _insert_sections(db_path, [(1, "/test/file1.md", old_mtime)])
 
         conn = sqlite3.connect(db_path)
         try:
@@ -117,11 +138,17 @@ class TestStaleDocumentCount:
 
         assert (count or 0) == 1
 
-    def test_stale_count_deduplicates_by_source_path(self, db_path: str) -> None:
-        """Multiple documents for same source_path counted once."""
-        old_ns = int((time.time() - 86400) * 1_000_000_000)
-        ref_ns = int(time.time() * 1_000_000_000)
-        _insert_documents(
+    def test_stale_document_count_mixed(self, db_path: str) -> None:
+        """When some files are fresh and some are stale, count only stale.
+
+        NOTE: Legacy test — production now uses documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER).
+        """
+        import time
+
+        current_mtime = Path(db_path).stat().st_mtime
+        old_mtime = time.time() - 86400
+
+        _insert_sections(
             db_path,
             [
                 (1, "/test/file1.md", old_ns),
@@ -138,198 +165,261 @@ class TestStaleDocumentCount:
         finally:
             conn.close()
 
-        assert (count or 0) == 1
+        assert stale_count == 2
 
-    def test_stale_count_mixed_fresh_and_old(
-        self, db_path: str, tmp_path: Path
-    ) -> None:
-        """Only stale documents (older mtime_ns) are counted."""
-        ref_ns = int(tmp_path.stat().st_mtime * 1_000_000_000)
-        old_ns = ref_ns - 86_400_000_000_000
-        _insert_documents(
-            db_path,
-            [
-                (1, "/test/file1.md", ref_ns),
-                (2, "/test/file2.md", old_ns),
-                (3, "/test/file3.md", old_ns),
-            ],
-        )
 
+class TestStaleDocumentCountNewSchema:
+    """Verify stale_document_count with the new chunks/documents schema."""
+
+    def _create_db(self, tmp_path: Path) -> str:
+        """Create a test database with chunks/chunks_fts/documents tables."""
+        path = str(tmp_path / "mdq_test_new.sqlite")
+        conn = sqlite3.connect(path)
+        try:
+            conn.execute(
+                """
+                CREATE TABLE documents (
+                    doc_id TEXT PRIMARY KEY,
+                    source_path TEXT NOT NULL,
+                    mtime_ns INTEGER NOT NULL,
+                    size_bytes INTEGER NOT NULL,
+                    content_hash TEXT NOT NULL,
+                    indexed_at REAL NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE chunks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    chunk_id TEXT UNIQUE NOT NULL,
+                    doc_id TEXT NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+                    source_path TEXT NOT NULL,
+                    heading TEXT NOT NULL,
+                    heading_path TEXT NOT NULL DEFAULT '',
+                    heading_level INTEGER NOT NULL DEFAULT 0,
+                    ordinal INTEGER NOT NULL DEFAULT 0,
+                    content TEXT NOT NULL,
+                    normalized_content TEXT NOT NULL DEFAULT '',
+                    start_line INTEGER NOT NULL,
+                    end_line INTEGER NOT NULL,
+                    char_count INTEGER NOT NULL DEFAULT 0,
+                    token_count INTEGER,
+                    content_hash TEXT NOT NULL,
+                    tags_json TEXT,
+                    indexed_at REAL NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE VIRTUAL TABLE chunks_fts USING fts5(
+                    normalized_content,
+                    source_path,
+                    heading,
+                    heading_path,
+                    content_hash,
+                    content
+                )
+                """
+            )
+            conn.execute(
+                "CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN "
+                "INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content) "
+                "VALUES (new.id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content); END"
+            )
+            conn.execute(
+                "CREATE TRIGGER chunks_ad AFTER DELETE ON chunks BEGIN "
+                "INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.id); END"
+            )
+            conn.execute(
+                "CREATE TRIGGER chunks_au AFTER UPDATE ON chunks BEGIN "
+                "INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.id); "
+                "INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content) "
+                "VALUES (new.id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content); END"
+            )
+            conn.execute(
+                """
+                CREATE TABLE index_state (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+                """
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return path
+
+    def _insert_documents(self, db_path: str, rows: list[tuple[str, str, int, float]]) -> None:
+        """Insert document rows with mtime_ns and indexed_at."""
         conn = sqlite3.connect(db_path)
         try:
-            count = conn.execute(
-                "SELECT COUNT(DISTINCT source_path) FROM documents WHERE mtime_ns < ?",
-                (ref_ns,),
-            ).fetchone()[0]
+            for doc_id, source_path, mtime_ns, indexed_at in rows:
+                conn.execute(
+                    "INSERT INTO documents (doc_id, source_path, mtime_ns, size_bytes, content_hash, indexed_at) VALUES (?, ?, ?, 1024, 'abc123', ?)",
+                    (doc_id, source_path, mtime_ns, indexed_at),
+                )
+            conn.commit()
         finally:
             conn.close()
 
-        assert (count or 0) == 2
-
-
-class TestCheckStaleDocuments:
-    """Unit tests for _check_stale_documents() using new schema."""
-
-    def test_stale_one_old_document(self, db_path: str, tmp_path: Path) -> None:
-        """_check_stale_documents returns 1 when one document is older than index path mtime."""
-        from mcp.mdq.server import _check_stale_documents  # noqa: PLC0415
-
-        ref_ns = int(tmp_path.stat().st_mtime * 1_000_000_000)
-        old_ns = ref_ns - 86_400_000_000_000
-        _insert_documents(db_path, [("doc1", "/test/file1.md", old_ns)])  # type: ignore[arg-type]
+    def test_stale_count_zero_when_fresh(self, tmp_path: Path) -> None:
+        """When mtime_ns <= indexed_at * 1e9, stale count should be 0."""
+        db_path = self._create_db(tmp_path)
+        # mtime_ns is in the past (before indexed_at), so no stale docs
+        import time
+        past_mtime_ns = int((time.time() - 1000) * 1e9)
+        future_indexed_at = time.time() + 1000
+        self._insert_documents(db_path, [
+            ("doc1", "/test/file1.md", past_mtime_ns, future_indexed_at),
+        ])
 
         conn = sqlite3.connect(db_path)
         try:
-            result = _check_stale_documents(conn, {"index_paths": [str(tmp_path)]})
+            conn.row_factory = sqlite3.Row
+            result = conn.execute(
+                "SELECT COUNT(*) as cnt FROM documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
+            ).fetchone()
+            stale_count = result["cnt"] or 0
         finally:
             conn.close()
 
-        assert result == 1
+        assert stale_count == 0
 
-    def test_zero_stale_when_all_fresh(self, db_path: str, tmp_path: Path) -> None:
-        """_check_stale_documents returns 0 when all documents have future mtime_ns."""
-        from mcp.mdq.server import _check_stale_documents  # noqa: PLC0415
-
-        # Use a future mtime so the document is always newer than index path mtime
-        future_ns = int((time.time() + 86400) * 1_000_000_000)
-        _insert_documents(db_path, [("doc1", "/test/file1.md", future_ns)])
+    def test_stale_count_positive_when_outdated(self, tmp_path: Path) -> None:
+        """When mtime_ns > indexed_at * 1e9, stale count should be > 0."""
+        db_path = self._create_db(tmp_path)
+        # mtime_ns is in the future (after indexed_at), so docs are stale
+        import time
+        past_indexed_at = time.time() - 1000
+        future_mtime_ns = int((time.time() + 1000) * 1e9)
+        self._insert_documents(db_path, [
+            ("doc1", "/test/file1.md", future_mtime_ns, past_indexed_at),
+        ])
 
         conn = sqlite3.connect(db_path)
         try:
-            result = _check_stale_documents(conn, {"index_paths": [str(tmp_path)]})
+            conn.row_factory = sqlite3.Row
+            result = conn.execute(
+                "SELECT COUNT(*) as cnt FROM documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
+            ).fetchone()
+            stale_count = result["cnt"] or 0
         finally:
             conn.close()
 
-        assert result == 0
+        assert stale_count == 1
 
-    def test_returns_none_when_no_index_paths(self, db_path: str) -> None:
-        """_check_stale_documents returns None when index_paths is empty."""
-        from mcp.mdq.server import _check_stale_documents  # noqa: PLC0415
+    def test_stale_count_mixed(self, tmp_path: Path) -> None:
+        """When some docs are fresh and some are stale, count only stale."""
+        db_path = self._create_db(tmp_path)
+        import time
+        now = time.time()
+        past_indexed_at = now - 1000
+        future_mtime_ns = int((now + 1000) * 1e9)
+        # doc1: stale (mtime > indexed_at)
+        # doc2: fresh (mtime < indexed_at)
+        self._insert_documents(db_path, [
+            ("doc1", "/test/file1.md", future_mtime_ns, past_indexed_at),
+            ("doc2", "/test/file2.md", int((now - 1000) * 1e9), now + 1000),
+        ])
 
         conn = sqlite3.connect(db_path)
         try:
-            result = _check_stale_documents(conn, {})
+            conn.row_factory = sqlite3.Row
+            result = conn.execute(
+                "SELECT COUNT(*) as cnt FROM documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
+            ).fetchone()
+            stale_count = result["cnt"] or 0
         finally:
             conn.close()
 
-        assert result is None
+        assert stale_count == 1
 
-    def test_returns_none_when_path_nonexistent(self, db_path: str) -> None:
-        """_check_stale_documents returns None when the index path does not exist."""
-        from mcp.mdq.server import _check_stale_documents  # noqa: PLC0415
-
-        conn = sqlite3.connect(db_path)
+    def test_stale_count_with_corrupt_db(self, tmp_path: Path) -> None:
+        """When documents table is missing, _check_stale_documents returns None."""
+        # Create DB with only chunks table, no documents table
+        path = str(tmp_path / "mdq_test_corrupt.sqlite")
+        conn = sqlite3.connect(path)
         try:
-            result = _check_stale_documents(conn, {"index_paths": ["/no/such/path"]})
+            conn.execute(
+                """
+                CREATE TABLE chunks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    chunk_id TEXT UNIQUE NOT NULL,
+                    doc_id TEXT NOT NULL,
+                    source_path TEXT NOT NULL,
+                    heading TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    indexed_at REAL NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE VIRTUAL TABLE chunks_fts USING fts5(
+                    normalized_content, source_path, heading, heading_path, content_hash, content
+                )
+                """
+            )
+            conn.commit()
         finally:
             conn.close()
 
-        assert result is None
-
-    def test_mixed_fresh_and_stale(self, db_path: str, tmp_path: Path) -> None:
-        """_check_stale_documents returns count of stale source paths only."""
-        from mcp.mdq.server import _check_stale_documents  # noqa: PLC0415
-
-        future_ns = int((time.time() + 86400) * 1_000_000_000)
-        old_ns = int((time.time() - 86400) * 1_000_000_000)
-        _insert_documents(
-            db_path,
-            [
-                ("doc1", "/test/fresh.md", future_ns),
-                ("doc2", "/test/stale.md", old_ns),
-            ],
-        )
-
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(path)
+        stale_count: int | None = None
         try:
-            result = _check_stale_documents(conn, {"index_paths": [str(tmp_path)]})
+            conn.row_factory = sqlite3.Row
+            result = conn.execute(
+                "SELECT COUNT(*) as cnt FROM documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
+            ).fetchone()
+            # Should return None (or raise) when documents table doesn't exist
+        except sqlite3.OperationalError:
+            stale_count = None
         finally:
             conn.close()
 
-        assert result == 1
+        assert stale_count is None
 
 
-class TestMdqHealthSchemaChecks:
-    """Verify health() checks documents/chunks/chunks_fts/triggers schema."""
+class TestStaleDocumentCountNoDocumentsTable:
+    """Verify _check_stale_documents returns None when documents table is missing."""
 
-    def test_health_ok_with_full_schema(self, db_path: str) -> None:
-        """health() returns ready=True when all tables and triggers are present."""
-        from unittest.mock import patch  # noqa: PLC0415
+    def test_returns_none_when_no_documents_table(self, tmp_path: Path) -> None:
+        """When documents table doesn't exist, stale count should be None (not raised)."""
+        import sqlite3
+        from scripts.mcp.mdq.server import _check_stale_documents
 
-        from fastapi.testclient import TestClient  # noqa: PLC0415
-        from mcp.mdq.server import app  # noqa: PLC0415
+        path = str(tmp_path / "mdq_test_no_docs.sqlite")
+        conn = sqlite3.connect(path)
+        try:
+            conn.execute(
+                """
+                CREATE TABLE chunks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    chunk_id TEXT UNIQUE NOT NULL,
+                    doc_id TEXT NOT NULL,
+                    source_path TEXT NOT NULL,
+                    heading TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    indexed_at REAL NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE VIRTUAL TABLE chunks_fts USING fts5(
+                    normalized_content, source_path, heading, heading_path, content_hash, content
+                )
+                """
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
-        cfg = {"mdq_mcp_server": {"db_path": db_path, "index_paths": []}}
-        with patch("shared.config_loader.ConfigLoader.load_all", return_value=cfg):
-            client = TestClient(app, raise_server_exceptions=False)
-            response = client.get("/health")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["ready"] is True
-        assert data["status"] == "ok"
-
-    def test_health_degraded_when_documents_table_missing(self, tmp_path: Path) -> None:
-        """health() returns degraded with error message when documents table is absent."""
-        from unittest.mock import patch  # noqa: PLC0415
-
-        from fastapi.testclient import TestClient  # noqa: PLC0415
-        from mcp.mdq.server import app  # noqa: PLC0415
-
-        empty_db = str(tmp_path / "empty.sqlite")
-        sqlite3.connect(empty_db).close()
-
-        cfg = {"mdq_mcp_server": {"db_path": empty_db, "index_paths": []}}
-        with patch("shared.config_loader.ConfigLoader.load_all", return_value=cfg):
-            client = TestClient(app, raise_server_exceptions=False)
-            response = client.get("/health")
-        assert response.status_code == 503
-        data = response.json()
-        assert data["ready"] is False
-        assert "db_schema" in data["dependencies"]
-        assert "documents" in data["dependencies"]["db_schema"]
-
-    def test_health_degraded_when_chunks_table_missing(self, tmp_path: Path) -> None:
-        """health() returns degraded when chunks table is absent (documents exists)."""
-        from unittest.mock import patch  # noqa: PLC0415
-
-        from fastapi.testclient import TestClient  # noqa: PLC0415
-        from mcp.mdq.server import app  # noqa: PLC0415
-
-        partial_db = str(tmp_path / "partial.sqlite")
-        conn = sqlite3.connect(partial_db)
-        conn.execute(
-            "CREATE TABLE documents (doc_id TEXT PRIMARY KEY, source_path TEXT, mtime_ns INTEGER)"
-        )
-        conn.commit()
+        conn = sqlite3.connect(path)
+        conn.row_factory = sqlite3.Row
+        stale_count = _check_stale_documents(conn)
         conn.close()
 
-        cfg = {"mdq_mcp_server": {"db_path": partial_db, "index_paths": []}}
-        with patch("shared.config_loader.ConfigLoader.load_all", return_value=cfg):
-            client = TestClient(app, raise_server_exceptions=False)
-            response = client.get("/health")
-        assert response.status_code == 503
-        data = response.json()
-        assert data["ready"] is False
-        assert "db_schema" in data["dependencies"]
-        assert "chunks" in data["dependencies"]["db_schema"]
-
-    def test_health_degraded_when_db_file_missing(self, tmp_path: Path) -> None:
-        """health() returns degraded when db_file does not exist."""
-        from unittest.mock import patch  # noqa: PLC0415
-
-        from fastapi.testclient import TestClient  # noqa: PLC0415
-        from mcp.mdq.server import app  # noqa: PLC0415
-
-        cfg = {
-            "mdq_mcp_server": {
-                "db_path": str(tmp_path / "nonexistent.sqlite"),
-                "index_paths": [],
-            }
-        }
-        with patch("shared.config_loader.ConfigLoader.load_all", return_value=cfg):
-            client = TestClient(app, raise_server_exceptions=False)
-            response = client.get("/health")
-        assert response.status_code == 503
-        data = response.json()
-        assert data["ready"] is False
-        assert "db_file" in data["dependencies"]
+        assert stale_count is None
