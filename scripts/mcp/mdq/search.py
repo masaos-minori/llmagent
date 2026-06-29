@@ -73,22 +73,7 @@ def _search_docs_structured(
 
     conn = service._get_db_connection()
     try:
-        where_clauses = ["chunks_fts MATCH ?"]
-        params: list = [req.query]
-
-        if req.path_prefix:
-            where_clauses.append("c.source_path LIKE ?")
-            params.append(f"{req.path_prefix}%")
-
-        if req.heading_prefix:
-            where_clauses.append("c.heading_path LIKE ?")
-            params.append(f"{req.heading_prefix}%")
-
-        if req.tag_filter:
-            for tag in req.tag_filter:
-                where_clauses.append("c.tags_json LIKE ?")
-                params.append(f"%{tag}%")
-
+        where_clauses, params = _build_search_where(req)
         where_clause = " AND ".join(where_clauses)
 
         # Get FTS5 results
@@ -189,3 +174,24 @@ def _merge_hybrid(
             results.append(item)
 
     return results
+
+
+def _build_search_where(req: SearchDocsRequest) -> tuple[list[str], list]:
+    """Build WHERE clause and params for search."""
+    where_clauses = ["chunks_fts MATCH ?"]
+    params: list = [req.query]
+
+    if req.path_prefix:
+        where_clauses.append("c.source_path LIKE ?")
+        params.append(f"{req.path_prefix}%")
+
+    if req.heading_prefix:
+        where_clauses.append("c.heading_path LIKE ?")
+        params.append(f"{req.heading_prefix}%")
+
+    if req.tag_filter:
+        for tag in req.tag_filter:
+            where_clauses.append("c.tags_json LIKE ?")
+            params.append(f"%{tag}%")
+
+    return where_clauses, params
