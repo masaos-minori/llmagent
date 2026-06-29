@@ -86,46 +86,47 @@ def detect_lang(text: str) -> str | None:
     if len(text) < MIN_TEXT_LENGTH_FOR_DETECTION:
         return None
     # Count Hiragana, Katakana, and CJK Unified Ideographs (incl. Extension A)
-    cjk_count = sum(
-        1 for c in text if _is_cjk_char(c)
-    )
+    cjk_count = sum(1 for c in text if _is_cjk_char(c))
     return "ja" if cjk_count / len(text) >= _CJK_RATIO_THRESHOLD else "en"
+
 
 def _is_cjk_char(c: str) -> bool:
     """Check if a character is CJK (Hiragana, Katakana, or CJK Unified Ideograph)."""
-    return (_HIRAGANA_KATAKANA_START <= c <= _HIRAGANA_KATAKANA_END) or \
-        (_CJK_UNIFIED_START <= c <= _CJK_UNIFIED_END) or \
-        (_CJK_EXT_A_START <= c <= _CJK_EXT_A_END)
+    return (
+        (_HIRAGANA_KATAKANA_START <= c <= _HIRAGANA_KATAKANA_END)
+        or (_CJK_UNIFIED_START <= c <= _CJK_UNIFIED_END)
+        or (_CJK_EXT_A_START <= c <= _CJK_EXT_A_END)
+    )
 
 
 def parse_target_urls(target_raw: list[list[Any]]) -> list[tuple[str, str]]:
-        """Validate and parse the target_urls config list into (url, lang) tuples."""
-        result: list[tuple[str, str]] = []
-        for entry in target_raw:
-            if not isinstance(entry, list | tuple):
-                raise ValueError(
-                    "Each entry in target_urls must be a 2-element list of [url, lang]",
-                )
-            if len(entry) != _TARGET_URL_ENTRY_LENGTH:
-                raise ValueError(
-                    "Each entry in target_urls must be a 2-element list of [url, lang]",
-                )
-            url_raw, lang_raw = entry[0], entry[1]
-            if not isinstance(url_raw, str):
-                raise ValueError(
-                    f"target_urls entry must be [str, str], got [{type(url_raw).__name__}, {type(lang_raw).__name__}]"
-                )
-            if not isinstance(lang_raw, str):
-                raise ValueError(
-                    f"target_urls entry must be [str, str], got [{type(url_raw).__name__}, {type(lang_raw).__name__}]"
-                )
-            url, lang = url_raw, lang_raw
-            if not validate_url(url):
-                raise ValueError(f"Invalid URL in target_urls: {url!r}")
-            if lang not in _VALID_HINT_LANGS:
-                raise ValueError(
-                    f"Unsupported lang {lang!r} in target_urls"
-                    f" (must be one of {sorted(_VALID_HINT_LANGS)})",
-                )
-            result.append((url, lang))
-        return result
+    """Validate and parse the target_urls config list into (url, lang) tuples."""
+    result: list[tuple[str, str]] = []
+    for entry in target_raw:
+        if not isinstance(entry, list | tuple):
+            raise ValueError(
+                "Each entry in target_urls must be a 2-element list of [url, lang]",
+            )
+        if len(entry) != _TARGET_URL_ENTRY_LENGTH:
+            raise ValueError(
+                "Each entry in target_urls must be a 2-element list of [url, lang]",
+            )
+        url_raw, lang_raw = entry[0], entry[1]
+        if not isinstance(url_raw, str):
+            raise ValueError(
+                f"target_urls entry must be [str, str], got [{type(url_raw).__name__}, {type(lang_raw).__name__}]"
+            )
+        if not isinstance(lang_raw, str):
+            raise ValueError(
+                f"target_urls entry must be [str, str], got [{type(url_raw).__name__}, {type(lang_raw).__name__}]"
+            )
+        url, lang = url_raw, lang_raw
+        if not validate_url(url):
+            raise ValueError(f"Invalid URL in target_urls: {url!r}")
+        if lang not in _VALID_HINT_LANGS:
+            raise ValueError(
+                f"Unsupported lang {lang!r} in target_urls"
+                f" (must be one of {sorted(_VALID_HINT_LANGS)})",
+            )
+        result.append((url, lang))
+    return result

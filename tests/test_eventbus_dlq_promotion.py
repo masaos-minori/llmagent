@@ -12,7 +12,6 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-import orjson
 import pytest
 from fastapi.testclient import TestClient
 
@@ -65,7 +64,6 @@ class TestDLQPROMotionSemantics:
 
     def test_nack_increments_delivery_failure_count(self, client: TestClient) -> None:
         """nack increments delivery_failure_count (not retry_count)."""
-        import eventbus.app as eb_app
 
         body = _event("dlq_promo")
         resp = client.post("/publish", json=body)
@@ -84,7 +82,6 @@ class TestDLQPROMotionSemantics:
         self, client: TestClient, tmp_path: Path
     ) -> None:
         """Event is promoted to DLQ when delivery_failure_count >= max_retry."""
-        import eventbus.app as eb_app
         from eventbus.db import open_db
         from eventbus.dlq import promote_to_dlq
 
@@ -111,7 +108,6 @@ class TestDLQPROMotionSemantics:
         self, client: TestClient, tmp_path: Path
     ) -> None:
         """Requeue of event at delivery_failure_count >= max_retry returns dlq_imminent warning."""
-        import eventbus.app as eb_app
         from eventbus.db import open_db
         from eventbus.dlq import promote_to_dlq
 
@@ -132,13 +128,14 @@ class TestDLQPROMotionSemantics:
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["dlq_imminent"] is True, "dlq_imminent should be true when delivery_failure_count >= max_retry"
+        assert data["dlq_imminent"] is True, (
+            "dlq_imminent should be true when delivery_failure_count >= max_retry"
+        )
 
     def test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count(
         self, client: TestClient, tmp_path: Path
     ) -> None:
         """DLQ requeue increments dlq_requeue_count but does NOT modify delivery_failure_count."""
-        import eventbus.app as eb_app
         from eventbus.db import open_db
         from eventbus.dlq import promote_to_dlq
 
@@ -162,16 +159,19 @@ class TestDLQPROMotionSemantics:
         assert resp.status_code == 200
 
         dfc_after = _get_field(client, body["event_id"], "delivery_failure_count")
-        assert dfc_after == dfc_before, "delivery_failure_count should not change on requeue"
+        assert dfc_after == dfc_before, (
+            "delivery_failure_count should not change on requeue"
+        )
 
         dlq_requeue_count = _get_field(client, body["event_id"], "dlq_requeue_count")
-        assert dlq_requeue_count == 1, "dlq_requeue_count should be incremented on requeue"
+        assert dlq_requeue_count == 1, (
+            "dlq_requeue_count should be incremented on requeue"
+        )
 
     def test_dlq_loop_promotes_after_requeue_if_delivery_failure_count_still_gte_max_retry(
         self, client: TestClient, tmp_path: Path
     ) -> None:
         """After requeue, next DLQ loop tick will re-promote if delivery_failure_count >= max_retry."""
-        import eventbus.app as eb_app
         from eventbus.db import open_db
         from eventbus.dlq import promote_to_dlq
 

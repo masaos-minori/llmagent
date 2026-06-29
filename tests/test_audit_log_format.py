@@ -14,10 +14,7 @@ import json
 from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
-
 from mcp.audit import _audit_log as _mcp_audit_log
-
 
 # ---------------------------------------------------------------------------
 # MCP server audit log — key=value format
@@ -129,7 +126,14 @@ class TestMcpAuditLogFormat:
         )
         call_args = logger.info.call_args[0][0]
         # Required fields: session, request, action, target, outcome, detail
-        for field in ("session=%s", "request=%s", "action=%s", "target=%s", "outcome=%s", "detail=%s"):
+        for field in (
+            "session=%s",
+            "request=%s",
+            "action=%s",
+            "target=%s",
+            "outcome=%s",
+            "detail=%s",
+        ):
             assert field in call_args
 
     def test_no_json_keys_in_mcp_log(self) -> None:
@@ -230,7 +234,9 @@ class TestAgentAuditLogFormat:
         ctx.workflow.workflow_id = ""
         ctx.session.session_id = ""
 
-        audit_tool_exec(ctx, "shell_run", {"cmd": "ls"}, True, "req-10", error_type="transport")
+        audit_tool_exec(
+            ctx, "shell_run", {"cmd": "ls"}, True, "req-10", error_type="transport"
+        )
 
         call_args = ctx.services.audit_logger.info.call_args[0][0]
         parsed = json.loads(call_args)
@@ -254,7 +260,7 @@ class TestAgentAuditLogFormat:
         # Must not start with AUDIT (key=value format)
         assert not call_args.startswith("AUDIT")
         # Must not contain key=value pairs like "session="
-        assert 'session=' not in call_args
+        assert "session=" not in call_args
 
     def test_required_agent_fields_present(self) -> None:
         """Required fields must be present in agent-side audit log."""
@@ -287,7 +293,9 @@ class TestAgentAuditLogFormat:
         ctx.workflow.workflow_id = ""
         ctx.session.session_id = ""
 
-        audit_tool_exec(ctx, "read_text_file", {"path": "/tmp/l.txt"}, False, correlation_id)
+        audit_tool_exec(
+            ctx, "read_text_file", {"path": "/tmp/l.txt"}, False, correlation_id
+        )
 
         call_args = ctx.services.audit_logger.info.call_args[0][0]
         parsed = json.loads(call_args)

@@ -5,9 +5,7 @@ Unit tests for mdq-mcp /health stale_document_count field.
 from __future__ import annotations
 
 import sqlite3
-import tempfile
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -39,17 +37,23 @@ def db_path(tmp_path: Path) -> str:
             )
             """
         )
-        conn.execute("CREATE TRIGGER sections_ai AFTER INSERT ON sections BEGIN "
-                     "INSERT INTO sections_fts(rowid, file_path, heading_path, ordinal, content) "
-                     "VALUES (new.seq, new.file_path, new.heading_path, new.ordinal, new.content); END")
-        conn.execute("CREATE TRIGGER sections_ad AFTER DELETE ON sections BEGIN "
-                     "INSERT INTO sections_fts(sections_fts, rowid, file_path, heading_path, ordinal, content) "
-                     "VALUES ('delete', old.seq, old.file_path, old.heading_path, old.ordinal, old.content); END")
-        conn.execute("CREATE TRIGGER sections_au AFTER UPDATE ON sections BEGIN "
-                     "INSERT INTO sections_fts(sections_fts, rowid, file_path, heading_path, ordinal, content) "
-                     "VALUES ('delete', old.seq, old.file_path, old.heading_path, old.ordinal, old.content); "
-                     "INSERT INTO sections_fts(rowid, file_path, heading_path, ordinal, content) "
-                     "VALUES (new.seq, new.file_path, new.heading_path, new.ordinal, new.content); END")
+        conn.execute(
+            "CREATE TRIGGER sections_ai AFTER INSERT ON sections BEGIN "
+            "INSERT INTO sections_fts(rowid, file_path, heading_path, ordinal, content) "
+            "VALUES (new.seq, new.file_path, new.heading_path, new.ordinal, new.content); END"
+        )
+        conn.execute(
+            "CREATE TRIGGER sections_ad AFTER DELETE ON sections BEGIN "
+            "INSERT INTO sections_fts(sections_fts, rowid, file_path, heading_path, ordinal, content) "
+            "VALUES ('delete', old.seq, old.file_path, old.heading_path, old.ordinal, old.content); END"
+        )
+        conn.execute(
+            "CREATE TRIGGER sections_au AFTER UPDATE ON sections BEGIN "
+            "INSERT INTO sections_fts(sections_fts, rowid, file_path, heading_path, ordinal, content) "
+            "VALUES ('delete', old.seq, old.file_path, old.heading_path, old.ordinal, old.content); "
+            "INSERT INTO sections_fts(rowid, file_path, heading_path, ordinal, content) "
+            "VALUES (new.seq, new.file_path, new.heading_path, new.ordinal, new.content); END"
+        )
         conn.commit()
     finally:
         conn.close()
@@ -76,7 +80,6 @@ class TestStaleDocumentCount:
     def test_stale_document_count_zero_when_fresh(self, db_path: str) -> None:
         """When file_mtime matches current mtime, stale count should be 0."""
         # Insert sections with current mtime
-        import os
         current_mtime = Path(db_path).stat().st_mtime
         _insert_sections(db_path, [(1, "/test/file1.md", current_mtime)])
 
@@ -98,6 +101,7 @@ class TestStaleDocumentCount:
         """When file_mtime is older than current mtime, stale count should be > 0."""
         # Insert sections with old mtime (1 day ago)
         import time
+
         old_mtime = time.time() - 86400
         _insert_sections(db_path, [(1, "/test/file1.md", old_mtime)])
 
@@ -118,14 +122,18 @@ class TestStaleDocumentCount:
     def test_stale_document_count_mixed(self, db_path: str) -> None:
         """When some files are fresh and some are stale, count only stale."""
         import time
+
         current_mtime = Path(db_path).stat().st_mtime
         old_mtime = time.time() - 86400
 
-        _insert_sections(db_path, [
-            (1, "/test/file1.md", current_mtime),
-            (2, "/test/file2.md", old_mtime),
-            (3, "/test/file2.md", old_mtime),
-        ])
+        _insert_sections(
+            db_path,
+            [
+                (1, "/test/file1.md", current_mtime),
+                (2, "/test/file2.md", old_mtime),
+                (3, "/test/file2.md", old_mtime),
+            ],
+        )
 
         # Query for stale documents
         conn = sqlite3.connect(db_path)

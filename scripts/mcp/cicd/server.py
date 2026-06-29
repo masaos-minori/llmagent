@@ -133,7 +133,12 @@ async def health() -> JSONResponse:
         deps["config"] = "check failed"
     ready = len(deps) == 0
     return JSONResponse(
-        {"status": "ok" if ready else "degraded", "ready": ready, "dependencies": deps, "details": {}},
+        {
+            "status": "ok" if ready else "degraded",
+            "ready": ready,
+            "dependencies": deps,
+            "details": {},
+        },
         status_code=200 if ready else 503,
     )
 

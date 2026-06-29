@@ -12,7 +12,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mcp.mdq.auth import authorize_path
-from mcp.mdq.models import IndexPathsRequest, ParsedSection, ParseMarkdownRequest, RefreshIndexRequest
+from mcp.mdq.models import (
+    IndexPathsRequest,
+    ParsedSection,
+    ParseMarkdownRequest,
+    RefreshIndexRequest,
+)
 from mcp.mdq.parser import parse_markdown
 
 if TYPE_CHECKING:
@@ -291,7 +296,10 @@ def _delete_file_from_index(
 
 
 def _generate_summaries(
-    service: MdqService, conn: sqlite3.Connection, doc_id: str, sections: list[ParsedSection]
+    service: MdqService,
+    conn: sqlite3.Connection,
+    doc_id: str,
+    sections: list[ParsedSection],
 ) -> None:
     """Generate summaries for large chunks if enabled."""
     for section in sections:

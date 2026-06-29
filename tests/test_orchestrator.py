@@ -279,7 +279,8 @@ class TestHandleTurnLLMTransportError:
 
         # session.save should NOT be called with "assistant" role for transport errors
         assistant_saves = [
-            call for call in ctx.session.save.call_args_list
+            call
+            for call in ctx.session.save.call_args_list
             if call[0][0] == "assistant"
         ]
         assert len(assistant_saves) == 0, (
@@ -298,7 +299,8 @@ class TestHandleTurnLLMTransportError:
 
         # session.save should NOT be called with "assistant" role for partial completions
         assistant_saves = [
-            call for call in ctx.session.save.call_args_list
+            call
+            for call in ctx.session.save.call_args_list
             if call[0][0] == "assistant"
         ]
         assert len(assistant_saves) == 0, (
@@ -311,7 +313,11 @@ class TestHandleTurnLLMTransportError:
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
 
-        with patch.object(orch._llm_runner, "run", AsyncMock(return_value=TurnResult(action="continue", answer="hello"))):
+        with patch.object(
+            orch._llm_runner,
+            "run",
+            AsyncMock(return_value=TurnResult(action="continue", answer="hello")),
+        ):
             await orch.handle_turn("hello")
 
         ctx.session.save.assert_called_with("assistant", "hello")
@@ -846,7 +852,6 @@ class TestWorkflowMode:
     @pytest.mark.asyncio
     async def test_workflow_engine_receives_require_approval_from_config(self) -> None:
         """WorkflowEngine receives require_approval=True when AgentConfig.workflow_require_approval=True."""
-        from agent.config_dataclasses import AgentConfig
 
         ctx = _make_ctx()
         ctx.cfg.workflow_mode = "auto"
@@ -856,7 +861,7 @@ class TestWorkflowMode:
             patch.object(
                 Orchestrator, "_process_turn", new=AsyncMock(return_value=("ok", None))
             ),
-            patch("agent.orchestrator.StateStore") as mock_store,
+            patch("agent.orchestrator.StateStore"),
         ):
             mock_loader.return_value.load.return_value = MagicMock()
             orch = Orchestrator(ctx, workflow_mode="auto")
@@ -870,7 +875,6 @@ class TestWorkflowMode:
     @pytest.mark.asyncio
     async def test_workflow_engine_require_approval_false_by_default(self) -> None:
         """WorkflowEngine receives require_approval=False when AgentConfig.workflow_require_approval is not set."""
-        from agent.config_dataclasses import AgentConfig
 
         ctx = _make_ctx()
         ctx.cfg.workflow_mode = "auto"
@@ -880,7 +884,7 @@ class TestWorkflowMode:
             patch.object(
                 Orchestrator, "_process_turn", new=AsyncMock(return_value=("ok", None))
             ),
-            patch("agent.orchestrator.StateStore") as mock_store,
+            patch("agent.orchestrator.StateStore"),
         ):
             mock_loader.return_value.load.return_value = MagicMock()
             orch = Orchestrator(ctx, workflow_mode="auto")

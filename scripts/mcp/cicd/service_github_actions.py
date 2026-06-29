@@ -277,7 +277,8 @@ class GitHubActionsBackend:
                 "utf-8", errors="replace"
             )
             output_parts.append(
-                truncated + f"\n[TRUNCATED: exceeded {self._max_log_size_kb} KB limit]\n",
+                truncated
+                + f"\n[TRUNCATED: exceeded {self._max_log_size_kb} KB limit]\n",
             )
             return output_parts, max_bytes
         output_parts.append(log_text + "\n")

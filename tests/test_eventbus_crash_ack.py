@@ -7,7 +7,6 @@ that offsets advance only via explicit ack, never automatically.
 
 from __future__ import annotations
 
-import asyncio
 import uuid
 from pathlib import Path
 from typing import Any
@@ -44,8 +43,6 @@ class TestCrashBeforeAck:
         body = _event("crash")
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
-        seq = resp.json()["seq"]
-
         # Simulate disconnect without ack — verify offset not written
         offset = read_offset(eb_app.app.state.config.offsets_dir, "consumer-A")
         assert offset == 0, "Offset should not be written for unacked events"
@@ -80,9 +77,7 @@ class TestCrashBeforeAck:
         assert offset == resp1.json()["seq"]
 
         # Reconnect — only unacked event should be replayed
-        resp2 = client.get(
-            f"/replay?since_seq={offset}&format=json"
-        )
+        resp2 = client.get(f"/replay?since_seq={offset}&format=json")
         assert resp2.status_code == 200
         data2 = resp2.json()
         items2 = data2["items"]

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Awaitable, Callable
 
 import git
 
@@ -89,12 +89,16 @@ class GitService(GitSecurityGuards):
                 return RepoValidationResult(error_message=err)
         return RepoValidationResult(error_message="")
 
-    async def _handle_git_error(self, e: BaseException, tool_name: str) -> GitServiceError:
+    async def _handle_git_error(
+        self, e: BaseException, tool_name: str
+    ) -> GitServiceError:
         """Log and wrap a git error in GitServiceError."""
         logger.error("%s error: %s", tool_name, e)
         raise GitServiceError(f"{tool_name} failed: {e}") from e
 
-    async def _validate_and_open(self, req_repo_path: str, tool_name: str) -> RepoValidationResult:
+    async def _validate_and_open(
+        self, req_repo_path: str, tool_name: str
+    ) -> RepoValidationResult:
         """Validate repo and write guard; return early error or empty result."""
         result = await self._validate_repo(req_repo_path, tool_name)
         if result.error_message:
@@ -191,8 +195,7 @@ class GitService(GitSecurityGuards):
     def _format_branch(self, repo: git.Repo) -> str:
         current = repo.active_branch.name
         branches = [
-            f"* {b.name}" if b.name == current else f"  {b.name}"
-            for b in repo.branches
+            f"* {b.name}" if b.name == current else f"  {b.name}" for b in repo.branches
         ]
         return "\n".join(branches) if branches else "(no branches)"
 
@@ -258,7 +261,9 @@ class GitService(GitSecurityGuards):
         if result.error_message:
             return result.error_message
         repo = self._open_repo(req.repo_path)
-        return self._wrap_git_op("git_checkout", lambda: self._format_checkout(repo, req))
+        return self._wrap_git_op(
+            "git_checkout", lambda: self._format_checkout(repo, req)
+        )
 
     def _format_checkout(self, repo: git.Repo, req: GitCheckoutRequest) -> str:
         if req.dry_run:

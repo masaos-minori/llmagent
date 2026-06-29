@@ -349,9 +349,7 @@ class TestCreateWorkflowSchema:
             "approvals",
         } <= tables
 
-    def test_creates_all_tables_via_workflow_schema_init(
-        self, tmp_path: Path
-    ) -> None:
+    def test_creates_all_tables_via_workflow_schema_init(self, tmp_path: Path) -> None:
         """workflow_schema.init_schema() creates the same tables as create_workflow_schema()."""
         import db.workflow_schema as ws
 

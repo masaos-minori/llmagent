@@ -136,12 +136,15 @@ async def health() -> JSONResponse:
     if not _GITHUB_TOKEN:
         deps["github_token"] = "not_set"
     ready = len(deps) == 0
-    return JSONResponse({
-        "status": "ok" if ready else "degraded",
-        "ready": ready,
-        "dependencies": deps,
-        "details": {},
-    }, status_code=200 if ready else 503)
+    return JSONResponse(
+        {
+            "status": "ok" if ready else "degraded",
+            "ready": ready,
+            "dependencies": deps,
+            "details": {},
+        },
+        status_code=200 if ready else 503,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

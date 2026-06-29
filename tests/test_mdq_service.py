@@ -168,9 +168,7 @@ class TestIndexer:
         asyncio.run(_index_directory(service, md_dir))
         conn = service._get_db_connection()
         try:
-            count = conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()[
-                "cnt"
-            ]
+            count = conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()["cnt"]
             assert count == 2  # a.md and b.md
         finally:
             conn.close()

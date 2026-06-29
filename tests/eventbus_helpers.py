@@ -53,9 +53,9 @@ def make_eventbus_client(
 
 
 async def _init_state(cfg: Any) -> None:
-    from eventbus import app as eb_app
-
     import pathlib
+
+    from eventbus import app as eb_app
 
     eb_app.app.state.config = cfg
     eb_app.app.state.db = eb_app.open_db(cfg.db_path)

@@ -5,7 +5,6 @@ Event Bus app state isolation tests.
 from __future__ import annotations
 
 import asyncio
-import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -73,7 +72,9 @@ def _make_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
 
 
 class TestAppStateIsolation:
-    def test_two_clients_different_db(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_two_clients_different_db(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Two TestClient instances should use different databases."""
         import eventbus.app as eb_app
 
@@ -93,33 +94,45 @@ class TestAppStateIsolation:
 
         assert db_path1 != db_path2
 
-    def test_two_clients_different_broker(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_two_clients_different_broker(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Two TestClient instances should have different broker instances."""
         import eventbus.app as eb_app
 
         client1 = _make_client(tmp_path / "client1", monkeypatch)
         with client1:
-            broker1_id = id(eb_app.app.state.broker) if eb_app.app.state.broker else None
+            broker1_id = (
+                id(eb_app.app.state.broker) if eb_app.app.state.broker else None
+            )
 
         client2 = _make_client(tmp_path / "client2", monkeypatch)
         with client2:
-            broker2_id = id(eb_app.app.state.broker) if eb_app.app.state.broker else None
+            broker2_id = (
+                id(eb_app.app.state.broker) if eb_app.app.state.broker else None
+            )
 
         assert broker1_id is not None
         assert broker2_id is not None
         assert broker1_id != broker2_id
 
-    def test_two_clients_different_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_two_clients_different_config(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Two TestClient instances should have different config instances."""
         import eventbus.app as eb_app
 
         client1 = _make_client(tmp_path / "client1", monkeypatch)
         with client1:
-            config1_id = id(eb_app.app.state.config) if eb_app.app.state.config else None
+            config1_id = (
+                id(eb_app.app.state.config) if eb_app.app.state.config else None
+            )
 
         client2 = _make_client(tmp_path / "client2", monkeypatch)
         with client2:
-            config2_id = id(eb_app.app.state.config) if eb_app.app.state.config else None
+            config2_id = (
+                id(eb_app.app.state.config) if eb_app.app.state.config else None
+            )
 
         assert config1_id is not None
         assert config2_id is not None

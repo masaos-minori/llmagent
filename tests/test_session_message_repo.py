@@ -299,7 +299,9 @@ class TestFetchMessages:
 class TestNoneContentNormalization:
     """Tests for None content normalization at the repository boundary."""
 
-    def test_save_assistant_with_none_content(self, repo: SessionMessageRepository) -> None:
+    def test_save_assistant_with_none_content(
+        self, repo: SessionMessageRepository
+    ) -> None:
         """assistant message with content=None is saved and restored as empty string."""
         repo.save("assistant", None, tool_calls=[{"id": "call_1", "type": "function"}])
         msgs = repo.fetch_messages(1)
@@ -318,7 +320,9 @@ class TestNoneContentNormalization:
         assert len(msgs) == 1
         assert msgs[0]["content"] == ""
 
-    def test_save_many_with_one_none_content(self, repo: SessionMessageRepository) -> None:
+    def test_save_many_with_one_none_content(
+        self, repo: SessionMessageRepository
+    ) -> None:
         """save_many with one message having content=None normalizes it to empty string."""
         messages = [
             ("user", "Hello", None, None),
@@ -346,7 +350,9 @@ class TestNoneContentNormalization:
         assert msgs[0]["content"] == ""
         assert msgs[1]["content"] == ""
 
-    def test_save_with_empty_string_preserved(self, repo: SessionMessageRepository) -> None:
+    def test_save_with_empty_string_preserved(
+        self, repo: SessionMessageRepository
+    ) -> None:
         """Empty string content is preserved as-is (not changed to None)."""
         repo.save("assistant", "")
         msgs = repo.fetch_messages(1)
@@ -354,7 +360,9 @@ class TestNoneContentNormalization:
         assert len(msgs) == 1
         assert msgs[0]["content"] == ""
 
-    def test_save_with_normal_string_preserved(self, repo: SessionMessageRepository) -> None:
+    def test_save_with_normal_string_preserved(
+        self, repo: SessionMessageRepository
+    ) -> None:
         """Normal string content is preserved unchanged."""
         repo.save("assistant", "Hello world")
         msgs = repo.fetch_messages(1)
@@ -362,7 +370,9 @@ class TestNoneContentNormalization:
         assert len(msgs) == 1
         assert msgs[0]["content"] == "Hello world"
 
-    def test_save_many_mixed_none_and_string_contents(self, repo: SessionMessageRepository) -> None:
+    def test_save_many_mixed_none_and_string_contents(
+        self, repo: SessionMessageRepository
+    ) -> None:
         """save_many with mix of None and string contents preserves strings, normalizes None."""
         messages = [
             ("assistant", None, [{"id": "call_1"}], None),
@@ -387,7 +397,9 @@ class TestNoneContentNormalization:
         assert len(msgs) == 1
         assert msgs[0]["content"] == ""
 
-    def test_strict_mode_save_many_with_none_content(self, strict_repo: SessionMessageRepository) -> None:
+    def test_strict_mode_save_many_with_none_content(
+        self, strict_repo: SessionMessageRepository
+    ) -> None:
         """None content in save_many does not raise in strict mode."""
         messages = [
             ("assistant", None, [{"id": "call_1"}], None),

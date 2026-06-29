@@ -113,12 +113,15 @@ async def health() -> JSONResponse:
     """Health check endpoint."""
     deps: dict[str, str] = {}
     ready = len(deps) == 0
-    return JSONResponse({
-        "status": "ok" if ready else "degraded",
-        "ready": ready,
-        "dependencies": deps,
-        "details": {},
-    }, status_code=200 if ready else 503)
+    return JSONResponse(
+        {
+            "status": "ok" if ready else "degraded",
+            "ready": ready,
+            "dependencies": deps,
+            "details": {},
+        },
+        status_code=200 if ready else 503,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

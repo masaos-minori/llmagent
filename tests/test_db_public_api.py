@@ -36,13 +36,17 @@ def test_db_all_exists(_reload_db):
 def test_store_all_symbols_exist(_reload_db):
     store, _ = _reload_db
     for name in store.__all__:
-        assert hasattr(store, name), f"{name!r} is listed in db.store.__all__ but not found on the module"
+        assert hasattr(store, name), (
+            f"{name!r} is listed in db.store.__all__ but not found on the module"
+        )
 
 
 def test_db_all_symbols_exist(_reload_db):
     _, db_mod = _reload_db
     for name in db_mod.__all__:
-        assert hasattr(db_mod, name), f"{name!r} is listed in db.__all__ but not found on the module"
+        assert hasattr(db_mod, name), (
+            f"{name!r} is listed in db.__all__ but not found on the module"
+        )
 
 
 def test_store_wildcard_import_works():

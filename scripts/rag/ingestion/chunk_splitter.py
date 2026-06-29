@@ -177,10 +177,15 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             return True
         if not self._md_index_enable:
             return False
-        content = data.content if isinstance(data, ChunkDocument) else data.get("content", "")
+        content = (
+            data.content if isinstance(data, ChunkDocument) else data.get("content", "")
+        )
         if not isinstance(content, str):
             return False
-        return len(re.findall(rf"{MARKDOWN_HEADING_RE} .+", content, re.MULTILINE)) >= MIN_HEADING_LINES_FOR_MARKDOWN
+        return (
+            len(re.findall(rf"{MARKDOWN_HEADING_RE} .+", content, re.MULTILINE))
+            >= MIN_HEADING_LINES_FOR_MARKDOWN
+        )
 
     def _chunk_markdown_by_heading(self, text: str) -> list[str]:
         """Split Markdown text at heading boundaries into snippet chunks; sections exceeding md_snippet_max_chars are further split via _chunk_english."""

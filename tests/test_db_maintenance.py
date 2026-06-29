@@ -19,7 +19,6 @@ from db.maintenance import (
     purge_old_sessions,
     recover_corruption,
     rotate_all_dbs,
-    rotate_db,
     rotate_session_db,
     rotate_workflow_db,
     vacuum_db,
@@ -46,7 +45,11 @@ CREATE TABLE IF NOT EXISTS messages (
 
 
 def _make_db_cfg(
-    tmp_path, rag_name="rag.sqlite", session_name="session.sqlite", workflow_name="workflow.sqlite", **kwargs
+    tmp_path,
+    rag_name="rag.sqlite",
+    session_name="session.sqlite",
+    workflow_name="workflow.sqlite",
+    **kwargs,
 ):
     """Return a mock DbConfig pointing to tmp_path files (bypasses path validation)."""
     from unittest.mock import MagicMock
@@ -206,7 +209,9 @@ class TestRagDbMaintenanceService:
         conn.commit()
         conn.close()
 
-    def test_rotate_wal_checkpoint(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_rotate_wal_checkpoint(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         db_file = tmp_path / "rag.sqlite"
         self._make_real_sqlite(db_file)
 

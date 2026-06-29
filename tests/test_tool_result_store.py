@@ -132,7 +132,9 @@ class TestToolResultStoreStore:
         assert row is not None
         assert row.is_error is True
 
-    def test_stored_result_fetchable_by_returned_id(self, store: ToolResultStore) -> None:
+    def test_stored_result_fetchable_by_returned_id(
+        self, store: ToolResultStore
+    ) -> None:
         """Successful store returns an ID that can fetch the stored result."""
         row_id = store.store(
             session_id=10,
@@ -151,6 +153,7 @@ class TestToolResultStoreStore:
 
     def test_lastrowid_none_raises_runtime_error(self) -> None:
         """Simulated lastrowid is None raises RuntimeError."""
+
         class _FakeCursor:
             lastrowid = None
 
@@ -159,7 +162,10 @@ class TestToolResultStoreStore:
                 pass
 
             def open(
-                self, *, write_mode: bool = False, row_factory: bool = False  # noqa: ARG002
+                self,
+                *,
+                write_mode: bool = False,
+                row_factory: bool = False,  # noqa: ARG002
             ) -> "_FakeHelper":
                 return self
 

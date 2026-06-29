@@ -6,7 +6,7 @@ Unit tests for tool_runner.py: DAG execution, standard execution, and entry poin
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.config import AgentConfig, build_agent_config
@@ -16,7 +16,6 @@ from agent.tool_runner import (
     _execute_with_dag,
     execute_all_tool_calls,
 )
-from unittest.mock import patch
 from shared.tool_executor import ToolCallResult
 
 
@@ -288,7 +287,11 @@ class TestExecuteAllToolCalls:
         )
         ctx.tool_result_store.store = MagicMock(return_value=1)
 
-        with patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([_tc("read_text_file", '{"path": "/tmp/f"}')], [])):
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([_tc("read_text_file", '{"path": "/tmp/f"}')], []),
+        ):
             await execute_all_tool_calls(
                 ctx, [_tc("read_text_file", '{"path": "/tmp/f"}')], 0
             )
@@ -315,9 +318,15 @@ class TestExecuteAllToolCalls:
             "id": "call_1",
             "function": {"name": "write_file", "arguments": "{}"},
         }
-        with patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([write_call], [])):
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([write_call], []),
+        ):
             await execute_all_tool_calls(
-                ctx, [write_call], 0,
+                ctx,
+                [write_call],
+                0,
             )
 
         ctx.services.tools.execute.assert_awaited_once_with("write_file", {})
@@ -350,10 +359,12 @@ class TestExecuteAllToolCalls:
             "function": {"name": "write_file", "arguments": "{}"},
         }
         # Approval denies the write tool
-        with patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([], ["call_write"])):
-            await execute_all_tool_calls(
-                ctx, [write_call], 0
-            )
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([], ["call_write"]),
+        ):
+            await execute_all_tool_calls(ctx, [write_call], 0)
 
         ctx.services.tools.execute.assert_not_called()
         # Denied call should appear as tool message in history
@@ -379,10 +390,12 @@ class TestExecuteAllToolCalls:
         }
         read_call = _tc("read_text_file")
         # Approval denies write but allows read
-        with patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([read_call], ["call_write"])):
-            await execute_all_tool_calls(
-                ctx, [write_call, read_call], 0
-            )
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([read_call], ["call_write"]),
+        ):
+            await execute_all_tool_calls(ctx, [write_call, read_call], 0)
 
         ctx.services.tools.execute.assert_awaited_once_with("read_text_file", {})
         # Should have both the tool result and the denied message
@@ -405,10 +418,12 @@ class TestExecuteAllToolCalls:
 
         write_call = _tc("write_file")
         # Approval denies due to plan mode blocking
-        with patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([], [write_call["id"]])):
-            await execute_all_tool_calls(
-                ctx, [write_call], 0
-            )
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([], [write_call["id"]]),
+        ):
+            await execute_all_tool_calls(ctx, [write_call], 0)
 
         ctx.services.tools.execute.assert_not_called()
         assert len(ctx.conv.history) == 1
@@ -432,10 +447,12 @@ class TestExecuteAllToolCalls:
             "function": {"name": "write_file", "arguments": "{}"},
         }
         # Without gateway, approval still runs and denies
-        with patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([], ["call_write"])):
-            await execute_all_tool_calls(
-                ctx, [write_call], 0
-            )
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([], ["call_write"]),
+        ):
+            await execute_all_tool_calls(ctx, [write_call], 0)
 
         ctx.services.tools.execute.assert_not_called()
 
@@ -471,7 +488,11 @@ class TestExecuteStandardSerialization:
 
         write_call = _tc("write_file", '{"path": "/tmp/f"}')
         # write_file is in WRITE_TOOLS and triggers is_side_effect=True
-        with patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([write_call], [])):
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([write_call], []),
+        ):
             await execute_all_tool_calls(ctx, [write_call], 0)
 
         assert len(ctx.stats.stat_serialization_events) == 1
@@ -492,10 +513,12 @@ class TestExecuteStandardSerialization:
         ctx.stats.stat_serialization_events = []
 
         read_call = _tc("read_text_file", '{"path": "/tmp/f"}')
-        with patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([read_call], [])):
-            await execute_all_tool_calls(
-                ctx, [read_call], 0
-            )
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([read_call], []),
+        ):
+            await execute_all_tool_calls(ctx, [read_call], 0)
 
         assert ctx.stats.stat_serialization_events == []
 
@@ -510,7 +533,11 @@ class TestExecuteStandardSerialization:
         ctx.diagnostics = MagicMock()
 
         write_call = _tc("write_file", '{"path": "/tmp/f"}')
-        with patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([write_call], [])):
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([write_call], []),
+        ):
             await execute_all_tool_calls(ctx, [write_call], 0)
 
         ctx.diagnostics.save_serialization_event.assert_called_once()

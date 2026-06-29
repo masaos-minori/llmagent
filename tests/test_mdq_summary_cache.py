@@ -7,7 +7,6 @@ import asyncio
 from pathlib import Path
 
 import pytest
-
 from mcp.mdq.models import GetChunkRequest
 from mcp.mdq.service import MdqService
 
@@ -55,7 +54,6 @@ class TestSummaryCacheEnabled:
 
     def test_summary_cache_not_used_when_disabled(self, service: MdqService) -> None:
         """When use_summary=True but cache is disabled, raw content is returned."""
-        from mcp.mdq.models import GetChunkRequest
 
         # Create a chunk first via indexing
         db_path = Path(service.db_path)
@@ -104,7 +102,6 @@ class TestSummaryCacheWithLargeChunk:
     """Verify summary cache returns cached summary for large chunks."""
 
     def test_cached_summary_returned_when_available(self, tmp_path: Path) -> None:
-        from mcp.mdq.models import GetChunkRequest
 
         svc = MdqService(db_path=str(tmp_path / "mdq.db"))
         svc._allowed_dirs = [str(tmp_path)]
@@ -160,7 +157,6 @@ class TestSummaryCacheWithLargeChunk:
 
     def test_raw_content_returned_when_no_cached_summary(self, tmp_path: Path) -> None:
         """When use_summary=True but no cached summary exists, raw content is returned."""
-        from mcp.mdq.models import GetChunkRequest
 
         svc = MdqService(db_path=str(tmp_path / "mdq.db"))
         svc._allowed_dirs = [str(tmp_path)]
@@ -205,9 +201,10 @@ class TestSummaryCacheWithLargeChunk:
         # Raw content should be returned (truncated to max_chars_per_chunk)
         assert "x" * 10000 not in result
 
-    def test_content_hash_invalidation_invalidates_summary(self, tmp_path: Path) -> None:
+    def test_content_hash_invalidation_invalidates_summary(
+        self, tmp_path: Path
+    ) -> None:
         """When content hash changes, cached summary is not used."""
-        from mcp.mdq.models import GetChunkRequest
 
         svc = MdqService(db_path=str(tmp_path / "mdq.db"))
         svc._allowed_dirs = [str(tmp_path)]

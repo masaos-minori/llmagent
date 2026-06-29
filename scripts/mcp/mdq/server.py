@@ -74,7 +74,9 @@ def _mdq_error_handler(
     return JSONResponse({"detail": str(exc)}, status_code=status_code)
 
 
-def _degraded_response(deps: dict[str, str], details: dict[str, object]) -> JSONResponse:
+def _degraded_response(
+    deps: dict[str, str], details: dict[str, object]
+) -> JSONResponse:
     return JSONResponse(
         {
             "status": "degraded",

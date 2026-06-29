@@ -8,9 +8,8 @@ import time
 from pathlib import Path
 
 import pytest
-
 from mcp.mdq.indexer import refresh_paths as _refresh_paths
-from mcp.mdq.models import RefreshIndexRequest, StatsRequest
+from mcp.mdq.models import RefreshIndexRequest
 from mcp.mdq.service import MdqService
 
 
@@ -40,7 +39,9 @@ class TestIncrementalRefresh:
     def test_skips_unchanged_file(self, service: MdqService, md_file: Path) -> None:
         """First refresh indexes the file; second refresh skips it."""
         asyncio.run(self._index_and_wait(service, md_file))
-        result = asyncio.run(_refresh_paths(service, RefreshIndexRequest(paths=[str(md_file)])))
+        result = asyncio.run(
+            _refresh_paths(service, RefreshIndexRequest(paths=[str(md_file)]))
+        )
         assert result["indexed_count"] == 0
         assert result["skipped_count"] == 1
         assert result["deleted_count"] == 0
@@ -51,7 +52,9 @@ class TestIncrementalRefresh:
         # Wait for mtime to change
         time.sleep(0.05)
         md_file.write_text("# Hello\n\nWorld Changed")
-        result = asyncio.run(_refresh_paths(service, RefreshIndexRequest(paths=[str(md_file)])))
+        result = asyncio.run(
+            _refresh_paths(service, RefreshIndexRequest(paths=[str(md_file)]))
+        )
         assert result["indexed_count"] == 1
         assert result["skipped_count"] == 0
 
@@ -59,7 +62,9 @@ class TestIncrementalRefresh:
         """Force=True re-indexes unchanged files."""
         asyncio.run(self._index_and_wait(service, md_file))
         result = asyncio.run(
-            _refresh_paths(service, RefreshIndexRequest(paths=[str(md_file)], force=True))
+            _refresh_paths(
+                service, RefreshIndexRequest(paths=[str(md_file)], force=True)
+            )
         )
         assert result["indexed_count"] == 1
         assert result["skipped_count"] == 0
@@ -80,7 +85,9 @@ class TestIncrementalRefresh:
         )
         assert result["deleted_count"] == 1
 
-    def test_force_deletes_removed_files(self, service: MdqService, tmp_path: Path) -> None:
+    def test_force_deletes_removed_files(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
         """Force=True also removes deleted files."""
         sub = tmp_path / "sub"
         sub.mkdir()
@@ -97,7 +104,9 @@ class TestIncrementalRefresh:
         assert result["deleted_count"] == 1
         assert result["indexed_count"] == 0  # No new files to index
 
-    def test_directory_refresh_skips_unchanged(self, service: MdqService, tmp_path: Path) -> None:
+    def test_directory_refresh_skips_unchanged(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
         """Directory refresh skips unchanged files."""
         f1 = tmp_path / "a.md"
         f2 = tmp_path / "b.md"
@@ -106,11 +115,15 @@ class TestIncrementalRefresh:
         asyncio.run(_refresh_paths(service, RefreshIndexRequest(paths=[str(tmp_path)])))
         time.sleep(0.05)
 
-        result = asyncio.run(_refresh_paths(service, RefreshIndexRequest(paths=[str(tmp_path)])))
+        result = asyncio.run(
+            _refresh_paths(service, RefreshIndexRequest(paths=[str(tmp_path)]))
+        )
         assert result["indexed_count"] == 0
         assert result["skipped_count"] == 2
 
-    def test_directory_refresh_reindexes_changed(self, service: MdqService, tmp_path: Path) -> None:
+    def test_directory_refresh_reindexes_changed(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
         """Directory refresh re-indexes changed files only."""
         f1 = tmp_path / "a.md"
         f2 = tmp_path / "b.md"
@@ -121,13 +134,17 @@ class TestIncrementalRefresh:
 
         # Change only f1
         f1.write_text("# A\n\nChanged Content")
-        result = asyncio.run(_refresh_paths(service, RefreshIndexRequest(paths=[str(tmp_path)])))
+        result = asyncio.run(
+            _refresh_paths(service, RefreshIndexRequest(paths=[str(tmp_path)]))
+        )
         assert result["indexed_count"] == 1
         assert result["skipped_count"] == 1
 
     def test_elapsed_seconds_included(self, service: MdqService, md_file: Path) -> None:
         """Elapsed seconds is included in the summary."""
-        result = asyncio.run(_refresh_paths(service, RefreshIndexRequest(paths=[str(md_file)])))
+        result = asyncio.run(
+            _refresh_paths(service, RefreshIndexRequest(paths=[str(md_file)]))
+        )
         assert "elapsed_seconds" in result
         assert result["elapsed_seconds"] >= 0
 

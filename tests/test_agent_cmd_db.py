@@ -748,7 +748,9 @@ class TestCmdDbFlatAliasesInvalid:
         assert "usage" in out.lower()
         assert "/db rag" in out or "/db session" in out
 
-    def test_flat_recover_with_backup_is_invalid(self, capsys: pytest.CaptureFixture) -> None:
+    def test_flat_recover_with_backup_is_invalid(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
         cmd = _make_cmd()
         _run_db(cmd, "recover /path/to/backup.db")
         out = capsys.readouterr().out

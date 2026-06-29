@@ -121,7 +121,7 @@ class TestReject:
         """Reject immediately marks the task as halted."""
         task = store.create_task("session-old", 3, "1.0.0")
         store.update_task_status(task.task_id, "pending_approval")
-        approval = store.request_approval(task_id=task.task_id, stage_id="execute")
+        store.request_approval(task_id=task.task_id, stage_id="execute")
         store.close()
 
         mixin, ctx, messages, errors, _ = _make_mixin(workflow_db)
@@ -133,6 +133,7 @@ class TestReject:
         # Verify task is halted in DB
         with patch("db.helper.build_db_config", return_value=_make_cfg(workflow_db)):
             from agent.workflow.state_store import StateStore
+
             s = StateStore()
             task_record = s.get_task_by_id(task.task_id)
             assert task_record.status == "halted"
@@ -142,7 +143,7 @@ class TestReject:
         """Approve sets pending_approval_task_id for auto-resume."""
         task = store.create_task("session-old", 4, "1.0.0")
         store.update_task_status(task.task_id, "pending_approval")
-        approval = store.request_approval(task_id=task.task_id, stage_id="execute")
+        store.request_approval(task_id=task.task_id, stage_id="execute")
         store.close()
 
         mixin, ctx, messages, errors, _ = _make_mixin(workflow_db)

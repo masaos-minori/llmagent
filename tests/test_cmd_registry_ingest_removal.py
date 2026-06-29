@@ -13,7 +13,9 @@ class TestIngestCommandRemoved:
     def test_ingest_not_in_built_in_commands(self) -> None:
         """Verify /ingest is NOT in the built-in command registry."""
         ingest_cmds = [c for c in _COMMANDS if c.name == "/ingest"]
-        assert len(ingest_cmds) == 0, "/ingest should not be registered as a built-in command"
+        assert len(ingest_cmds) == 0, (
+            "/ingest should not be registered as a built-in command"
+        )
 
     def test_rag_still_registered(self) -> None:
         """Verify /rag is still in the built-in command registry."""

@@ -568,9 +568,7 @@ class MdqService:
                 logger.warning("Path does not exist: %s", path_str)
                 continue
             if not authorize_path(p, self.allowed_dirs):
-                logger.warning(
-                    "Path denied: %s (outside allowed dirs)", path_str
-                )
+                logger.warning("Path denied: %s (outside allowed dirs)", path_str)
 
     def _format_refresh_summary(self, summary: Any) -> list[str]:
         return [
@@ -632,7 +630,9 @@ class MdqService:
 
             matches: list[GrepDocMatch] = []
             for row in rows:
-                match = self._find_grep_match(row, compiled, max_chars, ctx_before, ctx_after)
+                match = self._find_grep_match(
+                    row, compiled, max_chars, ctx_before, ctx_after
+                )
                 if match is None:
                     continue
                 matches.append(match)

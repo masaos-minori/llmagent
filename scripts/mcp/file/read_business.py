@@ -131,7 +131,9 @@ class ReadFileService:
                     try:
                         size = child.stat().st_size
                     except OSError as e:
-                        logger.warning("list_dir_entries: stat error for '%s': %s", child, e)
+                        logger.warning(
+                            "list_dir_entries: stat error for '%s': %s", child, e
+                        )
                         continue
                 entries.append(
                     FileEntry(

@@ -98,7 +98,12 @@ class TestWorkflowLoaderLoad:
         data = dict(_VALID)
         data["stages"] = [
             {"id": "plan", "description": "d"},
-            {"id": "execute", "description": "d", "timeout_sec": 120, "retryable": True},
+            {
+                "id": "execute",
+                "description": "d",
+                "timeout_sec": 120,
+                "retryable": True,
+            },
             {"id": "verify", "description": "d", "timeout_sec": 10, "retryable": False},
         ]  # plan stage missing timeout_sec, retryable
         _write_json(tmp_path, "default", data)
@@ -128,7 +133,12 @@ class TestWorkflowLoaderLoad:
     def test_missing_plan_stage_rejected(self, tmp_path: Path) -> None:
         data = dict(_VALID)
         data["stages"] = [
-            {"id": "execute", "description": "d", "timeout_sec": 120, "retryable": True},
+            {
+                "id": "execute",
+                "description": "d",
+                "timeout_sec": 120,
+                "retryable": True,
+            },
             {"id": "verify", "description": "d", "timeout_sec": 10, "retryable": False},
         ]
         _write_json(tmp_path, "default", data)
@@ -151,7 +161,12 @@ class TestWorkflowLoaderLoad:
         data = dict(_VALID)
         data["stages"] = [
             {"id": "plan", "description": "d", "timeout_sec": 30, "retryable": False},
-            {"id": "execute", "description": "d", "timeout_sec": 120, "retryable": True},
+            {
+                "id": "execute",
+                "description": "d",
+                "timeout_sec": 120,
+                "retryable": True,
+            },
         ]
         _write_json(tmp_path, "default", data)
         loader = WorkflowLoader(workflows_dir=tmp_path)
@@ -168,7 +183,11 @@ class TestWorkflowLoaderLoad:
 
     def test_invalid_backoff_value_rejected(self, tmp_path: Path) -> None:
         data = dict(_VALID)
-        data["retry_policy"] = {"max_attempts": 3, "backoff": "random", "backoff_sec": 1}
+        data["retry_policy"] = {
+            "max_attempts": 3,
+            "backoff": "random",
+            "backoff_sec": 1,
+        }
         _write_json(tmp_path, "default", data)
         loader = WorkflowLoader(workflows_dir=tmp_path)
         with pytest.raises(WorkflowLoadError, match="backoff must be one of"):
@@ -176,7 +195,11 @@ class TestWorkflowLoaderLoad:
 
     def test_negative_backoff_sec_rejected(self, tmp_path: Path) -> None:
         data = dict(_VALID)
-        data["retry_policy"] = {"max_attempts": 3, "backoff": "fixed", "backoff_sec": -1}
+        data["retry_policy"] = {
+            "max_attempts": 3,
+            "backoff": "fixed",
+            "backoff_sec": -1,
+        }
         _write_json(tmp_path, "default", data)
         loader = WorkflowLoader(workflows_dir=tmp_path)
         with pytest.raises(WorkflowLoadError, match="backoff_sec must be >= 0"):

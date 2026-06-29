@@ -7,7 +7,6 @@ Tests that events published during the replay phase are delivered via live push
 
 from __future__ import annotations
 
-import asyncio
 import uuid
 from pathlib import Path
 from typing import Any
@@ -59,9 +58,7 @@ class TestReplayToLiveTransition:
         assert body1["event_id"] in event_ids, "Replay event must be delivered"
         assert body2["event_id"] in event_ids, "Live push event must be delivered"
 
-    def test_no_duplicate_events_in_replay_range(
-        self, client: TestClient
-    ) -> None:
+    def test_no_duplicate_events_in_replay_range(self, client: TestClient) -> None:
         """Events within replay range should not be duplicated."""
         # Publish events
         bodies = [_event("transition") for _ in range(3)]
@@ -81,7 +78,9 @@ class TestReplayToLiveTransition:
 
         # Both consumers should receive the same events
         assert items1 == items2, "Both consumers should receive identical events"
-        assert len(items1) == len(bodies), f"Expected {len(bodies)} events, got {len(items1)}"
+        assert len(items1) == len(bodies), (
+            f"Expected {len(bodies)} events, got {len(items1)}"
+        )
 
     def test_replay_ceil_deduplication(self, client: TestClient) -> None:
         """Events with seq <= replay_ceil should not be delivered twice."""
@@ -89,8 +88,6 @@ class TestReplayToLiveTransition:
         body = _event("transition")
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
-        seq = resp.json()["seq"]
-
         # /replay from seq=0 — this event is in replay range
         resp = client.get("/replay?since_seq=0&format=json")
         assert resp.status_code == 200

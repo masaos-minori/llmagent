@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -54,9 +53,7 @@ def test_dlq_query_uses_index(client: TestClient) -> None:
     ).fetchall()
     index_names = [i[0] for i in indexes]
     if "idx_events_dlq_at" not in index_names:
-        eb_app.app.state.db.execute(
-            "CREATE INDEX idx_events_dlq_at ON events(dlq_at)"
-        )
+        eb_app.app.state.db.execute("CREATE INDEX idx_events_dlq_at ON events(dlq_at)")
 
     def _explain() -> list[str]:
         assert eb_app.app.state.db is not None
@@ -69,4 +66,6 @@ def test_dlq_query_uses_index(client: TestClient) -> None:
     plan = _explain()
     print("PLAN:", plan)
     # Check if any row contains the index name
-    assert any("idx_events_dlq_at" in p or "idx_events_dlq_seq" in p for p in plan), f"Expected DLQ index in plan: {plan}"
+    assert any("idx_events_dlq_at" in p or "idx_events_dlq_seq" in p for p in plan), (
+        f"Expected DLQ index in plan: {plan}"
+    )
