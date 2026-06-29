@@ -164,6 +164,8 @@ reports the expected path (`config/workflows/default.json`). For local/dev envir
 `common.toml` in the config search path, the dataclass default `"auto"` applies (warns and falls
 back). **Note:** `workflow_mode` is startup-only — it cannot be changed via `/reload`.
 
+> **Current behavior:** `workflow_mode = "required"` raises `RuntimeError` at `Orchestrator.__init__()` when `WorkflowLoader` fails to load a workflow definition. This is NOT caught by `StartupOrchestrator.run()` — it propagates to the REPL and aborts startup. The failure occurs during agent boot, not at the first turn.
+
 Cross-field validation in `_validate_cross_field()`:
 - `rag.use_semantic_cache=True` → `rag.embed_url` must be non-empty
 - `memory.use_memory_layer=True` → `memory.memory_jsonl_dir` must be non-empty
@@ -271,7 +273,7 @@ Source: `config/memory.toml`
 | Field | Default | Description |
 |---|---|---|
 | `use_memory_layer` | `False` | Enable persistent semantic memory |
-| `memory_jsonl_dir` | `"/opt/llm/memory"` | JSONL source directory |
+| `memory_jsonl_dir` | `"/opt/llm/memory"` | JSONL source directory (canonical key; NOT `memory_jsonl_path`) |
 | `memory_max_inject_semantic` | `5` | Semantic entries injected at session start |
 | `memory_max_inject_episodic` | `3` | Episodic entries injected per user prompt |
 | `memory_min_importance` | `0.3` | Minimum importance score for injection |

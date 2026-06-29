@@ -69,3 +69,48 @@ Each entry format:
 - **Notes for AI reference:** Plugin tools bypass MCP routing and TTL cache. A plugin with the same name as an MCP tool shadows the MCP tool.
 
 ---
+
+## Document Inconsistencies
+
+### DISC-01: diagnostics.jsonl vs session_diagnostics table dual persistence
+
+- **Type:** Document inconsistency
+- **Impact scope:** `05_agent_04_state-and-persistence.md`, `05_agent_10_operations-and-observability.md`
+- **Statement A:** `diagnostics.jsonl` is the primary diagnostic persistence mechanism (documented as "may be deprecated in future" with no timeline)
+- **Statement B:** `session_diagnostics` table via `DiagnosticStore.save()` is the structured query path for diagnostics
+- **Current safe interpretation:** Both stores are active and serve different purposes. `session_diagnostics` for structured SQL queries; `diagnostics.jsonl` for append-only post-mortem analysis. Neither is deprecated.
+- **Recommended action:** Clarify in docs that both are active; remove or update "may be deprecated" note with concrete timeline
+
+### DISC-02: memory_jsonl_path vs memory_jsonl_dir
+
+- **Type:** Document inconsistency
+- **Impact scope:** `05_agent_12_memory.md` (line 222 — stale reference)
+- **Statement A:** Config key is `memory_jsonl_path` (documented in `05_agent_12_memory.md`)
+- **Statement B:** Canonical config key is `memory_jsonl_dir` (verified in `config_dataclasses.py:297`, `config_builders.py:203`; `memory_jsonl_path` does not exist in code)
+- **Current safe interpretation:** `memory_jsonl_dir` is the canonical key; filename `memories.jsonl` is appended by `factory.py`
+
+### DISC-03: branch field in memory retrieval
+
+- **Type:** Undocumented behavior
+- **Impact scope:** `05_agent_12_memory.md` (line 190 — branch described only as "for context filtering")
+- **Statement A:** `branch` field is stored metadata for context filtering (implied by doc)
+- **Statement B:** `branch` is actively used in `FtsRetriever._context_boost()` as a relevance rescoring signal; records without matching branch are still returned but ranked lower
+- **Current safe interpretation:** Branch affects ranking, not filtering — it is an active retrieval parameter
+
+### DISC-04: workflow_mode=required startup blocking scope
+
+- **Type:** Needs confirmation
+- **Impact scope:** `05_agent_08_configuration.md` (workflow_mode description)
+- **Statement A:** `workflow_mode = "required"` raises `RuntimeError` when `WorkflowLoader` fails during `Orchestrator.__init__()`
+- **Statement B:** Unclear whether failure is at agent startup or at first turn — depends on whether `StartupOrchestrator.run()` catches this
+- **Current safe interpretation:** Failure occurs during agent boot (Orchestrator construction phase), not at the first turn
+
+### DISC-05: memory SQLite DB location
+
+- **Type:** Document inconsistency
+- **Impact scope:** `05_agent_09_data-layer.md` (line 130 — "session.sqlite or separate")
+- **Statement A:** Memory tables (`memories`, `memories_fts`, `memories_vec`) are in "session.sqlite or separate" (ambiguous)
+- **Statement B:** All memory tables live in `session.sqlite` — verified by `SQLiteHelper("session")` usage throughout `scripts/agent/memory/store.py` and `retriever.py`
+- **Current safe interpretation:** Memory tables are in `session.sqlite`, same DB as sessions/messages
+
+---

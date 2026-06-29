@@ -366,6 +366,12 @@ For the canonical partial-completion model → [05_agent_03 §Partial-Completion
 
 At session end, a lightweight diagnostic summary is persisted to `<session_db_dir>/diagnostics.jsonl` as one JSON-lines record per session. This survives beyond the REPL session for post-mortem analysis.
 
+> **Current behavior:** `diagnostics.jsonl` path is hardcoded as `Path(session_db_path).parent / "diagnostics.jsonl"` (i.e., `/opt/llm/db/diagnostics.jsonl`). It is NOT configurable — there is no config key for this path. The session DB is `session.sqlite`, so the parent directory is always `/opt/llm/db/`.
+
+> **Known discrepancy:** Dual persistence exists: `diagnostics.jsonl` (append-only file) AND `session_diagnostics` table (via `DiagnosticStore.save(kind="session_summary")`). Both are active. The file is queryable via JSONL tools; the table is queryable via SQL. They may diverge in schema or content over time if one is updated without the other.
+
+> **Needs confirmation:** Deprecation timeline for `diagnostics.jsonl` not decided. The note "may be deprecated in future" (in `05_agent_04_state-and-persistence.md`) has no associated issue or deadline.
+
 **Fields in each record:**
 
 | Field | Description |

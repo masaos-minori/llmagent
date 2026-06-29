@@ -188,6 +188,8 @@ The memory layer has a 3-layer activation gate that controls when memory operati
 | `project` | `str` | Project name for context filtering |
 | `repo` | `str` | Repository name for context filtering |
 | `branch` | `str` | Git branch for context filtering |
+
+> **Current behavior:** The `branch` field is actively used in `FtsRetriever._context_boost()` as a relevance rescoring signal. It is NOT merely stored metadata. Branch, project, and repo are passed to `HybridRetriever.search()` and affect result ranking — records without matching branch are still returned but ranked lower.
 | `content` | `str` | Full message content |
 | `summary` | `str` | Short summary of the content |
 | `tags` | `list[str]` | Keyword tags for classification |
@@ -219,7 +221,7 @@ Each line in the JSONL store is a single JSON object serializing all `MemoryEntr
 **Properties:**
 - Append-only: entries are never modified or deleted in the file
 - One entry per line; UTF-8 encoded; valid JSON per line
-- File path controlled by `memory_jsonl_path` config
+- File path controlled by `memory_jsonl_dir` config (filename: `memories.jsonl`)
 - Source of truth: SQLite index is rebuilt from JSONL if needed
 
 ---

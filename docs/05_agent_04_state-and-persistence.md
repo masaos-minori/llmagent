@@ -129,6 +129,12 @@ On fallback, an audit log entry is emitted: `session_title_fallback session_id=<
 - A lightweight session summary is also written to `<session_db_dir>/diagnostics.jsonl` by `repl.py` (may be deprecated in future)
 - Diagnostic data is stored in the `session_diagnostics` table via `DiagnosticStore`; it is never present in `messages` and therefore never returned by `fetch_messages()`
 
+> **Current behavior:** DiagnosticStore writes to the `session_diagnostics` table only. `diagnostics.jsonl` is written to `Path(session_db_path).parent / "diagnostics.jsonl"` (i.e., `/opt/llm/db/diagnostics.jsonl`). Both stores are active and serve different purposes: `session_diagnostics` for structured query access, `diagnostics.jsonl` for append-only post-mortem analysis.
+
+> **Known discrepancy:** The `diagnostic` role in the `messages` table column list (in `05_agent_09_data-layer.md`) describes a historical or secondary path; primary diagnostic persistence goes to `session_diagnostics` table via `DiagnosticStore.save()`.
+
+> **Needs confirmation:** Deprecation timeline for `diagnostics.jsonl` not decided. The "may be deprecated in future" note has no associated issue or deadline.
+
 ---
 
 ## Relationship Between Conversation History and Database

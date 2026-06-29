@@ -36,13 +36,19 @@ and the responsibility boundary between the agent layer and the RAG layer.
 |---|---|---|
 | `message_id` | INTEGER PK | Auto-increment |
 | `session_id` | INTEGER FK | → `sessions(session_id)` ON DELETE CASCADE |
-| `role` | TEXT | `user` / `assistant` / `tool` / `system` |
+<<<<<<< HEAD
+| `role` | TEXT | `user` / `assistant` / `tool` / `system` — **not** `diagnostic` |
+=======
+| `role` | TEXT | `user` / `assistant` / `tool` / `system` — **not** `diagnostic` |
+>>>>>>> b84b008 (implement: add Current behavior / Known discrepancy sections to 6 agent docs + DISC-01 through DISC-05 entries)
 | `content` | TEXT | Message text content |
 | `tool_calls` | TEXT | JSON-serialized tool_calls (assistant role only) |
 | `tool_call_id` | TEXT | Tool call response correlation ID (tool role only) |
 | `created_at` | TEXT | Row creation timestamp |
 
-Diagnostic data is written by `AgentSession.save_diagnostic()` to the `session_diagnostics` table via `DiagnosticStore`, NOT to the `messages` table. The `messages` table never holds diagnostic rows.
+> **Known discrepancy:** The `diagnostic` role in the column list above is stale. `AgentSession.save_diagnostic()` does NOT write to the `messages` table; it writes exclusively to the `session_diagnostics` table via `DiagnosticStore.save()`. Diagnostic data is excluded from `fetch_messages()` results and never restored to `ctx.conv.history`.
+
+> **Current behavior:** All diagnostic persistence goes through `DiagnosticStore` → `session_diagnostics` table. The `messages` table has no `diagnostic` role rows.
 
 ### `notes` table
 
@@ -139,11 +145,13 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 | Storage | Path | Contents |
 |---|---|---|
 | JSONL | `{memory_jsonl_dir}/memories.jsonl` | Canonical memory entries |
-| SQLite: `memories` | session.sqlite or separate | Indexed memory entries |
+| SQLite: `memories` | `session.sqlite` (same DB as sessions/messages) | Indexed memory entries |
 | SQLite: `memories_fts` | same DB | FTS5 index over memory content |
 | SQLite: `memories_vec` | same DB | Optional KNN embeddings |
 
 Data ownership: memory layer owns these tables. Agent accesses via `ctx.services.memory`.
+
+> **Current behavior:** All memory tables (`memories`, `memories_fts`, `memories_vec`) live in `session.sqlite` — the same database as the session and messages tables. They are NOT in a separate DB file.
 
 ---
 
