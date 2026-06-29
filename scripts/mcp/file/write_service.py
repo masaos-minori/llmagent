@@ -99,6 +99,14 @@ class WriteFileService:
             raise FileAuthorizationError(str(e))
 
     @staticmethod
+    def _cleanup_tmp(tmp: Path) -> None:
+        """Remove tmp file if it exists."""
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    @staticmethod
     def _write_if_changed(
         target: Path,
         original: str,
@@ -134,10 +142,10 @@ class WriteFileService:
             tmp.write_text(req.content, encoding="utf-8")
             os.replace(str(tmp), str(target))
         except PermissionError as e:
-            tmp.unlink(missing_ok=True)
+            WriteFileService._cleanup_tmp(tmp)
             raise FileAuthorizationError(str(e))
         except OSError as e:
-            tmp.unlink(missing_ok=True)
+            WriteFileService._cleanup_tmp(tmp)
             logger.error("write_file: OS error writing '%s': %s", target, e)
             raise FileValidationError(str(e))
 

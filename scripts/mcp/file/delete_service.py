@@ -118,21 +118,17 @@ class DeleteFileService:
         """
         file_count = 0
         total_size = 0
-        truncated = False
         for dirpath, _, filenames in os.walk(str(target)):
             for fname in filenames:
                 if file_count >= _DRY_RUN_MAX_FILES:
-                    truncated = True
-                    break
+                    return file_count, total_size, True
                 try:
                     fpath = Path(dirpath) / fname
                     total_size += fpath.stat().st_size
                     file_count += 1
                 except OSError:
                     continue
-            if truncated:
-                break
-        return file_count, total_size, truncated
+        return file_count, total_size, False
 
     def delete_directory(self, req: DeleteDirectoryRequest) -> DeleteDirectoryResponse:
         """Delete a directory and record the operation in the audit log.

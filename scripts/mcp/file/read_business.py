@@ -125,11 +125,14 @@ class ReadFileService:
         entries: list[FileEntry] = []
         try:
             for child in sorted(target.iterdir()):
-                size = (
-                    child.stat().st_size
-                    if (child.is_file() or include_dir_sizes)
-                    else 0
-                )
+                if not (child.is_file() or include_dir_sizes):
+                    size = 0
+                else:
+                    try:
+                        size = child.stat().st_size
+                    except OSError as e:
+                        logger.warning("list_dir_entries: stat error for '%s': %s", child, e)
+                        continue
                 entries.append(
                     FileEntry(
                         name=child.name,
