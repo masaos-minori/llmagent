@@ -100,20 +100,13 @@ async def parse_markdown(
                 continue
 
         # Check for ATX heading inside fenced code blocks are already skipped above
-        heading_match = False
-        heading_level_val = 0
-        heading_text_val = ""
-        if stripped.startswith("#"):
+        heading_info = _parse_atx_heading(stripped)
+        if heading_info is not None:
+            heading_level_val, heading_text_val = heading_info
+            heading_match = True
+        else:
             heading_level_val = 0
-            for ch in stripped:
-                if ch == "#":
-                    heading_level_val += 1
-                else:
-                    break
-
-            if heading_level_val <= 6 and stripped[heading_level_val] == " ":
-                heading_text_val = stripped[heading_level_val + 1 :].strip()
-                heading_match = True
+            heading_text_val = ""
 
         # If not a valid heading, treat as section content
         if not heading_match:
@@ -183,3 +176,19 @@ def _finalize_section(section: dict) -> ParsedSection:
         "ordinal": section.get("ordinal", 0),
         "parent_heading": section["parent_heading"],
     }
+
+
+def _parse_atx_heading(line: str) -> tuple[int, str] | None:
+    """Parse an ATX-style heading. Returns (level, text) or None."""
+    if not line.startswith("#"):
+        return None
+    level = 0
+    for ch in line:
+        if ch == "#":
+            level += 1
+        else:
+            break
+    if level <= 6 and len(line) > level and line[level] == " ":
+        text = line[level + 1:].strip()
+        return (level, text)
+    return None
