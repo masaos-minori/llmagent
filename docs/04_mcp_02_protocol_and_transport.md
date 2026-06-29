@@ -106,7 +106,7 @@ All servers support `--stdio` mode.
 - Server needs to be restarted independently of the agent
 - Any deployment where `transport = "http"` is feasible (HTTP is always preferred)
 
-> **Production default:** `transport = "http"`. Use `startup_mode = "subprocess"` for agent-managed HTTP servers, or `persistent` for externally managed servers. The agent uses `StdioTransport` to communicate over the process's stdin/stdout with newline-delimited JSON.
+> **Production default:** `transport = "http"`. Use `startup_mode = "subprocess"` for agent-managed HTTP servers (agent spawns uvicorn), or `startup_mode = "persistent"` for pre-existing HTTP servers (agent connects only). The agent uses `StdioTransport` to communicate over the process's stdin/stdout with newline-delimited JSON.
 
 ### stdio Request (one line)
 

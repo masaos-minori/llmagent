@@ -68,7 +68,7 @@ Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on
 
 ### Transport Selection Guide
 
-> **Production default: always use HTTP (`transport = "http"`, `startup_mode = "subprocess"` for agent-managed servers, or `persistent` for externally managed servers).**
+> **Production default: always use HTTP (`transport = "http"`, `startup_mode = "subprocess"` for agent-managed HTTP servers (agent spawns uvicorn), or `startup_mode = "persistent"` for pre-existing HTTP servers (agent connects only)).**
 > HTTP supports watchdog, health checks, concurrent requests, and remote monitoring.
 >
 > **Use stdio only for:** local testing, CI pipelines, embedded single-tool subprocesses

@@ -69,6 +69,29 @@ class TestMcpServerConfigValidation:
         cfg = McpServerConfig("stdio", "", ["python", "s.py"])
         assert cfg.idle_timeout_sec == 0
 
+    def test_ondemand_http_raises(self) -> None:
+        """ondemand startup_mode with HTTP transport should raise ValueError."""
+        with pytest.raises(
+            ValueError, match="ondemand.*is only valid for transport='stdio'"
+        ):
+            McpServerConfig(
+                "http", "http://127.0.0.1:8000", [], startup_mode="ondemand"
+            )
+
+    def test_subprocess_stdio_raises(self) -> None:
+        """subprocess startup_mode with stdio transport should raise ValueError."""
+        with pytest.raises(
+            ValueError, match="subprocess.*is only valid for transport='http'"
+        ):
+            McpServerConfig("stdio", "", ["python", "s.py"], startup_mode="subprocess")
+
+    def test_persistent_http_valid(self) -> None:
+        """persistent startup_mode with HTTP transport should be valid (regression guard)."""
+        cfg = McpServerConfig(
+            "http", "http://127.0.0.1:8000", [], startup_mode="persistent"
+        )
+        assert cfg.startup_mode == "persistent"
+
 
 class TestBuildMcpServers:
     def test_empty_mcp_servers_raises_value_error(self) -> None:

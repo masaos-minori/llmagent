@@ -103,6 +103,14 @@ class McpServerConfig:
                 "startup_mode='subprocess' is only valid for transport='http'; "
                 "stdio servers use 'persistent' or 'ondemand'"
             )
+        if (
+            self.startup_mode == StartupMode.ONDEMAND
+            and self.transport == TransportType.HTTP
+        ):
+            raise ValueError(
+                "startup_mode='ondemand' is only valid for transport='stdio'; "
+                "HTTP servers use 'persistent' or 'subprocess'"
+            )
 
 
 class McpServerHealthState(Enum):

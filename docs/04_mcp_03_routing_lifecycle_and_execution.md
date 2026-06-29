@@ -285,7 +285,7 @@ class _ServerLifecycleRouter:
 ### startup_mode behavior
 
 > **Production transport guidance:**
-> For production deployments, use `transport = "http"` with `startup_mode = "subprocess"` (agent-managed) or `persistent` (externally managed).
+> For production deployments, use `transport = "http"` with `startup_mode = "subprocess"` for agent-managed HTTP servers (agent spawns uvicorn), or `startup_mode = "persistent"` for pre-existing HTTP servers (agent connects only).
 > HTTP transports support watchdog, health checks, and remote monitoring.
 > `stdio` transport serializes all requests through a single `asyncio.Lock` and provides
 > no health-check endpoint — use it only for local/embedded single-tool subprocesses.
