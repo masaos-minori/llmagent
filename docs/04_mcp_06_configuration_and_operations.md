@@ -334,9 +334,9 @@ grep '"tool":"shell_run"' /opt/llm/logs/audit.log
 
 To trace a failed tool call across agent, transport, and server logs:
 
-1. Find the `x_request_id` in the agent-side audit log:
+1. Find the `mcp_request_id` in the agent-side audit log:
     ```bash
-    grep "tool_name=my_tool" /opt/llm/logs/audit.log | grep "x_request_id"
+    grep "mcp_request_id=<id>" /opt/llm/logs/audit.log
     ```
 2. Search MCP server audit log for the same `request` field (key=value format):
     ```bash

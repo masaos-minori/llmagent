@@ -36,15 +36,15 @@ class TestMcpAuditLogFormat:
             outcome="ok",
             detail="",
         )
-        # MCP audit log uses Python logging format string with %s placeholders
+        # MCP audit log uses f-string rendering with actual values
         call_args = logger.info.call_args[0][0]
         assert "AUDIT" in call_args
-        assert "session=%s" in call_args
-        assert "request=%s" in call_args
-        assert "action=%s" in call_args
-        assert "target=%s" in call_args
-        assert "outcome=%s" in call_args
-        assert "detail=%s" in call_args
+        assert "session=sess-1" in call_args
+        assert "request=req-1" in call_args
+        assert "action=read_text_file" in call_args
+        assert "target=/tmp/f.txt" in call_args
+        assert "outcome=ok" in call_args
+        assert "detail=" in call_args
 
     def test_outcome_error_format(self, caplog: Any) -> None:
         logger = MagicMock()
@@ -59,8 +59,8 @@ class TestMcpAuditLogFormat:
             detail="permission denied",
         )
         call_args = logger.info.call_args[0][0]
-        assert "outcome=%s" in call_args
-        assert "detail=%s" in call_args
+        assert "outcome=error" in call_args
+        assert "detail=permission denied" in call_args
 
     def test_empty_session_id_becomes_dash(self) -> None:
         logger = MagicMock()
@@ -75,7 +75,7 @@ class TestMcpAuditLogFormat:
             detail="",
         )
         call_args = logger.info.call_args[0][0]
-        assert "session=%s" in call_args
+        assert "session=-" in call_args
 
     def test_empty_request_id_becomes_dash(self) -> None:
         logger = MagicMock()
@@ -90,7 +90,7 @@ class TestMcpAuditLogFormat:
             detail="",
         )
         call_args = logger.info.call_args[0][0]
-        assert "request=%s" in call_args
+        assert "request=-" in call_args
 
     def test_no_json_format(self) -> None:
         """MCP server audit log must NOT use JSON-lines format."""
@@ -127,12 +127,12 @@ class TestMcpAuditLogFormat:
         call_args = logger.info.call_args[0][0]
         # Required fields: session, request, action, target, outcome, detail
         for field in (
-            "session=%s",
-            "request=%s",
-            "action=%s",
-            "target=%s",
-            "outcome=%s",
-            "detail=%s",
+            "session=sess-6",
+            "request=req-6",
+            "action=write_file",
+            "target=/tmp/i.txt",
+            "outcome=ok",
+            "detail=created",
         ):
             assert field in call_args
 
@@ -174,7 +174,7 @@ class TestMcpAuditLogFormat:
         assert '"error"' not in call_args
 
     def test_format_string_not_json(self) -> None:
-        """MCP audit log format string must use %s placeholders, not JSON."""
+        """MCP audit log must use rendered key=value format, not JSON."""
         logger = MagicMock()
         logger.info.return_value = None
         _mcp_audit_log(
@@ -187,10 +187,58 @@ class TestMcpAuditLogFormat:
             detail="",
         )
         call_args = logger.info.call_args[0][0]
-        # Must use %s placeholders (key=value format)
-        assert "%s" in call_args
+        # Must contain rendered key=value pairs
+        assert "session=sess-9" in call_args
         # Must not be a JSON string
         assert not call_args.strip().startswith("{")
+
+    def test_server_key_field_present(self) -> None:
+        """Rendered MCP audit log line contains server_key field."""
+        logger = MagicMock()
+        logger.info.return_value = None
+        _mcp_audit_log(
+            logger,
+            session_id="sess-1",
+            request_id="req-1",
+            action="call_tool",
+            target="repo/owner",
+            outcome="ok",
+            server_key="mdq",
+        )
+        call_args = logger.info.call_args[0][0]
+        assert "server_key=mdq" in call_args
+
+    def test_error_type_field_present(self) -> None:
+        """Rendered MCP audit log line contains error_type field when outcome is error."""
+        logger = MagicMock()
+        logger.info.return_value = None
+        _mcp_audit_log(
+            logger,
+            session_id="sess-1",
+            request_id="req-1",
+            action="call_tool",
+            target="",
+            outcome="error",
+            detail="connection_refused",
+            error_type="ConnectionRefusedError",
+        )
+        call_args = logger.info.call_args[0][0]
+        assert "error_type=ConnectionRefusedError" in call_args
+
+    def test_error_type_empty_when_ok(self) -> None:
+        """Rendered MCP audit log line has error_type= when outcome is ok and no error_type given."""
+        logger = MagicMock()
+        logger.info.return_value = None
+        _mcp_audit_log(
+            logger,
+            session_id="sess-1",
+            request_id="req-1",
+            action="call_tool",
+            target="repo/owner",
+            outcome="ok",
+        )
+        call_args = logger.info.call_args[0][0]
+        assert "error_type=" in call_args
 
 
 # ---------------------------------------------------------------------------

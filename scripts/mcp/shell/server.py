@@ -135,6 +135,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         action=req.name,
         target=req.args.get("command", "")[:80],
         outcome="error" if r.is_error else "ok",
+        server_key="shell",
     )
     return CallToolResponse(result=r.output, is_error=r.is_error)
 

@@ -70,6 +70,7 @@ def _mdq_error_handler(
         target="",
         outcome="error",
         detail=f"error_kind={error_kind}",
+        server_key="mdq",
     )
     return JSONResponse({"detail": str(exc)}, status_code=status_code)
 
@@ -282,6 +283,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         target=target[:80],
         outcome="error" if r.is_error else "ok",
         detail=", ".join(detail_parts),
+        server_key="mdq",
     )
     return CallToolResponse(result=r.output, is_error=r.is_error)
 

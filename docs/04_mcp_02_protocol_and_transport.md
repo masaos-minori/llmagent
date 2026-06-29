@@ -307,7 +307,7 @@ When result exceeds 512 KB:
 Every `POST /v1/call_tool` emits one audit log line:
 
 ```
-AUDIT session=<session_id> request=<x_request_id> action=<tool_name> target=<primary_arg> outcome=<ok|error> detail=<supplementary>
+AUDIT session=<session_id> request=<request_id> action=<tool_name> target=<primary_arg> outcome=<ok|error> detail=<supplementary> server_key=<server_key> error_type=<error_type>
 ```
 
 | Field | Source | Missing value |
@@ -318,6 +318,10 @@ AUDIT session=<session_id> request=<x_request_id> action=<tool_name> target=<pri
 | `target` | Server-specific: repo slug / command first 80 chars / query 80 chars | — |
 | `outcome` | `"ok"` or `"error"` | — |
 | `detail` | Optional supplementary info | `""` |
+| `server_key` | Server identifier (e.g. `"cicd"`, `"mdq"`, `"shell"`, `"github"`) | `""` |
+| `error_type` | Error classification for transport failures | `""` |
+
+**Note:** Per-server audit logs (shell-mcp, file-delete-mcp, github-mcp) use a different format — ISO8601 timestamp + `op=<operation>` + path/repo/command. These do NOT carry X-Session-Id or X-Request-Id correlation fields; cross-log correlation must use the agent-side audit log as the reference point.
 
 Implemented via `mcp.audit._audit_log()` called from each server's dispatch handler.
 

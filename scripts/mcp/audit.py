@@ -17,14 +17,12 @@ def _audit_log(
     target: str,
     outcome: str,
     detail: str = "",
+    server_key: str = "",
+    error_type: str = "",
 ) -> None:
     """Emit one structured AUDIT log line with who/what/where context."""
     server_logger.info(
-        "AUDIT session=%s request=%s action=%s target=%s outcome=%s detail=%s",
-        session_id or "-",
-        request_id or "-",
-        action,
-        target,
-        outcome,
-        detail,
+        f"AUDIT session={session_id or '-'} request={request_id or '-'} "
+        f"action={action} target={target} outcome={outcome} detail={detail} "
+        f"server_key={server_key} error_type={error_type}"
     )

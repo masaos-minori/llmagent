@@ -190,6 +190,7 @@ async def call_tool(req: CallToolRequest, request: "Request") -> CallToolRespons
         action=req.name,
         target=f"repo={req.args.get('owner', '')}/{req.args.get('repo', '')}",
         outcome="error" if r.is_error else "ok",
+        server_key="github",
     )
     return CallToolResponse(result=r.output, is_error=r.is_error)
 
