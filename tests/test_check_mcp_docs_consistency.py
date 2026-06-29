@@ -1,0 +1,273 @@
+"""tests/test_check_mcp_docs_consistency.py
+
+Unit tests for scripts/check_mcp_docs_consistency.py — synthetic doc content,
+not references to real doc files.
+"""
+
+from __future__ import annotations
+
+import pytest
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+from check_mcp_docs_consistency import (
+    DocFile,
+    Issue,
+    check_startup_modes,
+    check_fail_open_workflow_allowlist,
+    check_routing_authority,
+    check_active_inconsistencies,
+    check_tool_counts,
+    _ACTIVE_ISSUE_ALLOWLIST,
+)
+
+
+# ── Fixtures ──────────────────────────────────────────────────────────────────
+
+
+def _mk_file(rel: str, lines: list[str]) -> DocFile:
+    return DocFile(path=Path(f"/fake/{rel}"), rel_path=rel, lines=lines)
+
+
+def _mk_issues_file() -> DocFile:
+    lines = [
+        "# MCP Known Issues\n",
+        "## Active Issues\n",
+        "### MCP-01: Issue one\n",
+        "\n",
+        "### MCP-02: Issue two\n",
+        "## Resolved\n",
+    ]
+    return _mk_file("04_mcp_90_inconsistencies_and_known_issues.md", lines)
+
+
+# ── check_startup_modes ──────────────────────────────────────────────────────
+
+
+class TestCheckStartupModes:
+    def test_valid_mode_passes(self) -> None:
+        """Valid startup mode should not produce issues."""
+        doc = _mk_file("04_mcp_02_protocol_and_transport.md", [
+            'startup_mode = "persistent"',
+        ])
+        issues = check_startup_modes(Path("/fake"), [doc])
+        assert not issues
+
+    def test_invalid_mode_raises_error(self) -> None:
+        """Invalid startup mode should produce ERROR."""
+        doc = _mk_file("04_mcp_02_protocol_and_transport.md", [
+            'startup_mode = "external"',
+        ])
+        issues = check_startup_modes(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert "external" in issues[0].message
+
+    def test_no_startup_mode_no_issue(self) -> None:
+        """No startup_mode declaration should not produce issues."""
+        doc = _mk_file("04_mcp_02_protocol_and_transport.md", [
+            "# No startup mode here",
+        ])
+        issues = check_startup_modes(Path("/fake"), [doc])
+        assert not issues
+
+    def test_multiple_modes_each_validated(self) -> None:
+        """Multiple startup_mode declarations each validated."""
+        docs = [
+            _mk_file("04_mcp_02.md", ['startup_mode = "persistent"']),
+            _mk_file("04_mcp_03.md", ['startup_mode = "ondemand"']),
+        ]
+        issues = check_startup_modes(Path("/fake"), docs)
+        assert not issues
+
+    def test_multiple_modes_one_invalid(self) -> None:
+        """One invalid mode among multiple should produce one ERROR."""
+        docs = [
+            _mk_file("04_mcp_02.md", ['startup_mode = "persistent"']),
+            _mk_file("04_mcp_03.md", ['startup_mode = "external"']),
+        ]
+        issues = check_startup_modes(Path("/fake"), docs)
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+
+# ── check_fail_open_workflow_allowlist ────────────────────────────────────────
+
+
+class TestCheckFailOpenWorkflowAllowlist:
+    def test_no_fail_open_wording_no_issue(self) -> None:
+        """No fail-open wording should not produce issues."""
+        doc = _mk_file("04_mcp_03_routing_lifecycle_and_execution.md", [
+            "# No fail-open here",
+        ])
+        issues = check_fail_open_workflow_allowlist(Path("/fake"), [doc])
+        assert not issues
+
+    def test_fail_open_wording_triggers_error(self) -> None:
+        """Fail-open wording should produce ERROR."""
+        doc = _mk_file("04_mcp_03_routing_lifecycle_and_execution.md", [
+            "# Fail-open workflow_allowlist bypasses routing authority",
+        ])
+        issues = check_fail_open_workflow_allowlist(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+
+# ── check_routing_authority ──────────────────────────────────────────────────
+
+
+class TestCheckRoutingAuthority:
+    def test_no_stale_language_no_issue(self) -> None:
+        """No stale routing language should not produce issues."""
+        doc = _mk_file("04_mcp_03_routing_lifecycle_and_execution.md", [
+            "# Routing is handled by MCP servers",
+        ])
+        issues = check_routing_authority(Path("/fake"), [doc])
+        assert not issues
+
+    def test_stale_language_triggers_error(self) -> None:
+        """Stale routing language should produce ERROR."""
+        doc = _mk_file("04_mcp_03_routing_lifecycle_and_execution.md", [
+            "# ToolRegistry is the single source of truth for routing",
+        ])
+        issues = check_routing_authority(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+
+# ── check_active_inconsistencies ─────────────────────────────────────────────
+
+
+class TestCheckActiveInconsistencies:
+    def test_all_issued_cited_no_issue(self) -> None:
+        """All active issues cited in other docs should not produce issues."""
+        issues_doc = _mk_issues_file()
+        other_doc = _mk_file("04_mcp_02_protocol_and_transport.md", [
+            "See MCP-01 for details.",
+            "Refer to MCP-02 for more.",
+        ])
+        issues = check_active_inconsistencies(Path("/fake"), [issues_doc, other_doc])
+        assert not issues
+
+    def test_uncited_issue_not_in_allowlist_triggers_warning(self) -> None:
+        """Uncited issue not in allowlist should produce WARNING."""
+        issues_doc = _mk_issues_file()
+        # MCP-01 is in the allowlist, so only MCP-02 would be uncited here
+        # But we need to test with an issue NOT in the allowlist
+        issues_doc_with_new = _mk_file("04_mcp_90_inconsistencies_and_known_issues.md", [
+            "# MCP Known Issues\n",
+            "## Active Issues\n",
+            "### MCP-01: Issue one\n",
+            "\n",
+            "### MCP-99: Uncited issue\n",
+            "## Resolved\n",
+        ])
+        other_doc = _mk_file("04_mcp_02_protocol_and_transport.md", [
+            "See MCP-01 for details.",
+        ])
+        issues = check_active_inconsistencies(Path("/fake"), [issues_doc_with_new, other_doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+        assert "MCP-99" in issues[0].message
+
+    def test_uncited_issue_in_allowlist_no_warning(self) -> None:
+        """Uncited issue in allowlist should not produce WARNING."""
+        issues_doc = _mk_issues_file()
+        # MCP-01 and MCP-02 are both uncited but MCP-01 is in the allowlist
+        # MCP-02 is also in the allowlist, so no warnings expected
+        other_doc = _mk_file("04_mcp_02_protocol_and_transport.md", [
+            "# No cross-references here",
+        ])
+        issues = check_active_inconsistencies(Path("/fake"), [issues_doc, other_doc])
+        assert not issues
+
+    def test_missing_known_issues_file_returns_warning(self) -> None:
+        """Missing known-issues file should produce WARNING."""
+        doc = _mk_file("04_mcp_02_protocol_and_transport.md", [])
+        issues = check_active_inconsistencies(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+
+
+# ── check_tool_counts ────────────────────────────────────────────────────────
+
+
+class TestCheckToolCounts:
+    def test_correct_count_no_issue(self) -> None:
+        """Documented count matching expected should not produce issues."""
+        doc = _mk_file("04_mcp_04_server_catalog.md", [
+            "## web-search-mcp (port 8015)",
+            "**Tools(1):** search_web",
+        ])
+        issues = check_tool_counts(Path("/fake"), [doc])
+        assert not issues
+
+    def test_incorrect_count_triggers_warning(self) -> None:
+        """Documented count not matching expected should produce WARNING."""
+        doc = _mk_file("04_mcp_04_server_catalog.md", [
+            "## web-search-mcp (port 8015)",
+            "**Tools(2):** search_web",
+        ])
+        issues = check_tool_counts(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+        assert "web-search-mcp" in issues[0].message
+
+    def test_missing_catalog_file_returns_warning(self) -> None:
+        """Missing catalog file should produce WARNING."""
+        doc = _mk_file("04_mcp_02_protocol_and_transport.md", [])
+        issues = check_tool_counts(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+
+    def test_unknown_server_no_issue(self) -> None:
+        """Unknown server section should not produce issues (no comparison)."""
+        doc = _mk_file("04_mcp_04_server_catalog.md", [
+            "## unknown-mcp (port 9999)",
+            "**Tools(5):** fake_tool",
+        ])
+        issues = check_tool_counts(Path("/fake"), [doc])
+        assert not issues
+
+    def test_multiple_servers_checked(self) -> None:
+        """Multiple server sections each validated."""
+        doc = _mk_file("04_mcp_04_server_catalog.md", [
+            "## web-search-mcp (port 8015)",
+            "**Tools(1):** search_web",
+            "## mdq-mcp (port 8013)",
+            "**Tools(9):** search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs, fts_consistency_check, fts_rebuild",
+        ])
+        issues = check_tool_counts(Path("/fake"), [doc])
+        assert not issues
+
+    def test_one_server_incorrect_count(self) -> None:
+        """One incorrect count among multiple should produce one WARNING."""
+        doc = _mk_file("04_mcp_04_server_catalog.md", [
+            "## web-search-mcp (port 8015)",
+            "**Tools(2):** search_web",
+            "## mdq-mcp (port 8013)",
+            "**Tools(9):** search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs, fts_consistency_check, fts_rebuild",
+        ])
+        issues = check_tool_counts(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert "web-search-mcp" in issues[0].message
+
+
+# ── _ACTIVE_ISSUE_ALLOWLIST ──────────────────────────────────────────────────
+
+
+class TestActiveIssueAllowlist:
+    def test_allowlist_contains_expected_issues(self) -> None:
+        """Allowlist should contain the expected MCP issue IDs."""
+        assert "MCP-01" in _ACTIVE_ISSUE_ALLOWLIST
+        assert "MCP-02" in _ACTIVE_ISSUE_ALLOWLIST
+        assert "MCP-04" in _ACTIVE_ISSUE_ALLOWLIST
+        assert "MCP-06" in _ACTIVE_ISSUE_ALLOWLIST
+        assert "MCP-07" in _ACTIVE_ISSUE_ALLOWLIST
+        assert "MCP-08" in _ACTIVE_ISSUE_ALLOWLIST
+
+    def test_allowlist_does_not_contain_resolved_issues(self) -> None:
+        """Resolved issues should not be in the allowlist."""
+        # MCP-03 and MCP-05 are resolved — they should NOT be in the allowlist
+        assert "MCP-03" not in _ACTIVE_ISSUE_ALLOWLIST
+        assert "MCP-05" not in _ACTIVE_ISSUE_ALLOWLIST

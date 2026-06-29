@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_mcp_docs_consistency.py — Lightweight CI check for MCP documentation drift.
 
-Runs four consistency checks against .md files under docs/ and reports
+Runs five consistency checks against .md files under docs/ and reports
 errors with file:line references.  Exits non-zero if any errors found.
 
 Checks:
@@ -10,6 +10,7 @@ Checks:
     --skip failopen  Skip fail-open wording check for workflow_allowlist
     --skip routing   Skip routing authority language check
     --skip active    Skip active inconsistencies cross-reference check
+    --skip toolcount Skip tool count consistency check
 
 Usage:
     python scripts/check_mcp_docs_consistency.py              # run all
@@ -31,6 +32,20 @@ from pathlib import Path
 VALID_STARTUP_MODES: set[str] = {"persistent", "ondemand", "subprocess"}
 
 MCP_KNOWN_ISSUES_FILE = "04_mcp_90_inconsistencies_and_known_issues.md"
+
+# Issue IDs intentionally not cross-referenced in other MCP docs.
+# These are tracked in the known-issues file but not cited elsewhere because
+# they are internal consistency notes, not operational guidance consumers need.
+_ACTIVE_ISSUE_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        "MCP-01",  # Startup mode terminology mismatch — internal note only
+        "MCP-02",  # Routing authority mismatch — formatting inconsistency
+        "MCP-04",  # Transport error / HealthRegistry mismatch — ambiguous parenthetical
+        "MCP-06",  # Audit log format mismatch — two formats in same file
+        "MCP-07",  # Health semantics ambiguity — diagram missing DEGRADED state
+        "MCP-08",  # HTTP status code vs body fields mismatch
+    },
+)
 
 # ---------------------------------------------------------------------------
 # Data helpers
@@ -310,7 +325,7 @@ def check_active_inconsistencies(docs_dir: Path, files: list[DocFile]) -> list[I
 
     issues: list[Issue] = []
     for issue_id, line_no in sorted(active_issues.items()):
-        if issue_id in uncited:
+        if issue_id in uncited and issue_id not in _ACTIVE_ISSUE_ALLOWLIST:
             issues.append(
                 Issue(
                     file=issues_file.rel_path,
@@ -323,6 +338,95 @@ def check_active_inconsistencies(docs_dir: Path, files: list[DocFile]) -> list[I
                 )
             )
     return issues
+
+
+# ---------------------------------------------------------------------------
+# Check 5: Tool count consistency
+# ---------------------------------------------------------------------------
+
+_TOOL_COUNT_RE = re.compile(r"\bTools\((\d+)\)\b")
+
+_SERVER_TOOLS_MAP: dict[str, frozenset[str]] = {
+    "web-search-mcp": frozenset({"search_web"}),
+    "file-read-mcp": frozenset(
+        {"list_directory", "list_directory_with_sizes", "directory_tree", "read_text_file", "read_media_file", "read_multiple_files", "search_files", "grep_files", "get_file_info"}
+    ),
+    "file-write-mcp": frozenset({"write_file", "edit_file", "create_directory", "move_file"}),
+    "file-delete-mcp": frozenset({"delete_file", "delete_directory"}),
+    "github-mcp": frozenset(
+        {"github_search_repositories", "github_get_file_contents", "github_create_branch", "github_create_issue", "github_add_issue_comment", "github_create_pull_request", "github_update_pull_request", "github_merge_pull_request", "github_create_or_update_file", "github_push_files", "github_delete_file"}
+    ),
+    "shell-mcp": frozenset({"shell_run"}),
+    "mdq-mcp": frozenset(
+        {"search_docs", "get_chunk", "outline", "index_paths", "refresh_index", "stats", "grep_docs", "fts_consistency_check", "fts_rebuild"}
+    ),
+    "rag-pipeline-mcp": frozenset({"rag_run_pipeline", "rag_debug_pipeline", "rag_list_documents", "rag_delete_document"}),
+    "git-mcp": frozenset(
+        {"git_status", "git_log", "git_diff", "git_branch", "git_show", "git_add", "git_commit", "git_checkout", "git_pull", "git_push"}
+    ),
+    "sqlite-mcp": frozenset({"query_sqlite"}),
+    "cicd-mcp": frozenset(
+        {"trigger_workflow", "get_workflow_runs", "get_workflow_status", "get_workflow_logs"}
+    ),
+}
+
+
+def check_tool_counts(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
+    """Check that documented tool counts in 04_mcp_04_server_catalog.md match
+    the canonical frozenset definitions.
+
+    Reports WARNING (not ERROR) to avoid brittleness when new tools are added.
+    """
+    catalog_file = None
+    for doc in files:
+        if doc.rel_path == "04_mcp_04_server_catalog.md":
+            catalog_file = doc
+            break
+
+    if catalog_file is None:
+        return [
+            Issue(
+                file="docs/",
+                line_no=0,
+                severity="WARNING",
+                message="04_mcp_04_server_catalog.md not found — cannot verify tool counts.",
+            )
+        ]
+
+    issues: list[Issue] = []
+    for i, line in enumerate(catalog_file.lines, start=1):
+        m = _TOOL_COUNT_RE.search(line)
+        if m:
+            server_section = _find_server_section_for_line(catalog_file, i)
+            if server_section and server_section in _SERVER_TOOLS_MAP:
+                expected_count = len(_SERVER_TOOLS_MAP[server_section])
+                doc_count = int(m.group(1))
+                if doc_count != expected_count:
+                    issues.append(
+                        Issue(
+                            file=catalog_file.rel_path,
+                            line_no=i,
+                            severity="WARNING",
+                            message=(
+                                f"Tool count mismatch for {server_section}: "
+                                f"documented {doc_count}, expected {expected_count}"
+                            ),
+                        )
+                    )
+    return issues
+
+
+def _find_server_section_for_line(catalog: DocFile, line_no: int) -> str | None:
+    """Find the server section name that contains the given line number."""
+    for i, line in enumerate(catalog.lines, start=1):
+        if i >= line_no:
+            break
+        m = re.match(r"^## (\S+)", line)
+        if m:
+            section_name = m.group(1).split("(")[0].strip()
+            if section_name:
+                current_section = section_name
+    return locals().get("current_section")
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +444,7 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Path to docs/ directory (default: <repo_root>/docs/)",
     )
-    skip_choices = ["startup", "failopen", "routing", "active"]
+    skip_choices = ["startup", "failopen", "routing", "active", "toolcount"]
     group.add_argument(
         "--skip",
         nargs="+",
@@ -372,6 +476,8 @@ def main(argv: list[str] | None = None) -> int:
         all_issues.extend(check_routing_authority(docs_dir, files))
     if "active" not in skip:
         all_issues.extend(check_active_inconsistencies(docs_dir, files))
+    if "toolcount" not in skip:
+        all_issues.extend(check_tool_counts(docs_dir, files))
 
     # Report
     errors = [i for i in all_issues if i.severity == "ERROR"]

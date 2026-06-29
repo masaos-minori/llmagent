@@ -30,4 +30,4 @@ jobs:
       - name: Run MCP docs consistency checks
         run: |
           set -euo pipefail
-          python scripts/check_mcp_docs_consistency.py --skip active
+          python scripts/check_mcp_docs_consistency.py

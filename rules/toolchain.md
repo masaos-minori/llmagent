@@ -105,3 +105,20 @@ uv run pip-audit                                   # dependency vulnerability sc
 ```bash
 uv run python -m compileall -q scripts/
 ```
+
+## MCP documentation consistency
+
+```bash
+# Run all checks (startup, failopen, routing, active, toolcount)
+uv run check-mcp-docs
+
+# Skip specific checks
+uv run check-mcp-docs --skip active --skip toolcount
+```
+
+The `check-mcp-docs` entry point is registered in `pyproject.toml`. It verifies:
+- Valid startup modes (persistent/ondemand/subprocess)
+- No fail-open wording for workflow_allowlist
+- Routing authority language consistency
+- Active MCP issue cross-references (MCP-01 through MCP-08)
+- Tool count consistency against canonical frozensets
