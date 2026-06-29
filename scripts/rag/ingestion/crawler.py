@@ -21,7 +21,7 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 import orjson
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from db.helper import SQLiteHelper
 from rag.ingestion.crawler_utils import (
     _SUPPORTED_LANGS,
@@ -231,11 +231,12 @@ class WebCrawler:
             return {}
         if not rows:
             return {}
+        row = rows[0]
         hdrs: dict[str, str] = {}
-        if rows[0]["etag"]:
-            hdrs["If-None-Match"] = rows[0]["etag"]
-        if rows[0]["last_modified"]:
-            hdrs["If-Modified-Since"] = rows[0]["last_modified"]
+        if row["etag"]:
+            hdrs["If-None-Match"] = row["etag"]
+        if row["last_modified"]:
+            hdrs["If-Modified-Since"] = row["last_modified"]
         return hdrs
 
     def _make_crawl_filepath(self, url: str) -> Path:
@@ -360,19 +361,45 @@ class WebCrawler:
             return
         soup = BeautifulSoup(html, "lxml")
         for a in soup.find_all("a", href=True):
-            if self._skip_nofollow:
-                rel: list[str] | str | None = a.get("rel")
-                if isinstance(rel, str):
-                    rel = rel.split()
-                if rel and "nofollow" in rel:
-                    continue
-            href = a.get("href")
-            if not isinstance(href, str):
+            if not self._should_enqueue_link(a, current_url, start_url):
                 continue
-            next_url = normalize_url(urljoin(current_url, href))
-            if self._skip_external and not same_origin(next_url, start_url):
-                continue
+            href = a["href"]
+            next_url = normalize_url(urljoin(current_url, href))  # type: ignore[type-var, arg-type]
             queue.put_nowait((next_url, depth + 1))
+
+    def _should_enqueue_link(
+        self, a_tag: Tag, current_url: str, start_url: str
+    ) -> bool:
+        """Check if a link should be enqueued based on nofollow and cross-origin rules."""
+        href = a_tag.get("href")
+        if not isinstance(href, str):
+            return False
+        if self._skip_nofollow:
+            rel = a_tag.get("rel")
+            if isinstance(rel, str):
+                rel = rel.split()  # type: ignore[assignment]
+            if rel and "nofollow" in rel:
+                return False
+        if self._skip_external:
+            next_url = normalize_url(urljoin(current_url, href))  # pyright: ignore[reportArgumentType]
+            if not same_origin(next_url, start_url):
+                return False
+        return True
+        """Check if a link should be enqueued based on nofollow and cross-origin rules."""
+        href = a_tag.get("href")
+        if not isinstance(href, str):
+            return False
+        if self._skip_nofollow:
+            rel = a_tag.get("rel")
+            if isinstance(rel, str):
+                rel = rel.split()
+            if rel and "nofollow" in rel:
+                return False
+        if self._skip_external:
+            next_url = normalize_url(urljoin(current_url, href))
+            if not same_origin(next_url, start_url):
+                return False
+        return True
 
     def _resolve_lang(self, text: str, hint_lang: str) -> str:
         """Determine page language; 'auto' uses CJK-ratio detection with 'en' fallback for short/inconclusive texts; returns a _SUPPORTED_LANGS value."""
