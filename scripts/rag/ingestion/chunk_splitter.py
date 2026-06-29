@@ -170,25 +170,17 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         .md / .markdown / .mdx files always use heading chunking regardless of md_index_enable.
         Non-.md files use heuristic detection only when md_index_enable is set.
         """
-        if isinstance(data, ChunkDocument):
-            url = data.url
-            content = data.content
-        else:
-            url = data.get("url", "")
-            content = data.get("content", "")
+        url = data.url if isinstance(data, ChunkDocument) else data.get("url", "")
         if not isinstance(url, str):
             return False
         if url.endswith((".md", ".markdown", ".mdx")):
             return True
         if not self._md_index_enable:
             return False
+        content = data.content if isinstance(data, ChunkDocument) else data.get("content", "")
         if not isinstance(content, str):
             return False
-        # Treat as Markdown when at least two heading lines are found
-        return (
-            len(re.findall(rf"{MARKDOWN_HEADING_RE} .+", content, re.MULTILINE))
-            >= MIN_HEADING_LINES_FOR_MARKDOWN
-        )
+        return len(re.findall(rf"{MARKDOWN_HEADING_RE} .+", content, re.MULTILINE)) >= MIN_HEADING_LINES_FOR_MARKDOWN
 
     def _chunk_markdown_by_heading(self, text: str) -> list[str]:
         """Split Markdown text at heading boundaries into snippet chunks; sections exceeding md_snippet_max_chars are further split via _chunk_english."""
@@ -251,8 +243,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         """Build text triples from content; delegates to markdown/English/Japanese chunkers."""
         if not content:
             return []
-        use_markdown: bool = self._is_markdown_source(data)
-        if use_markdown:
+        if self._is_markdown_source(data):
             return [("text", c, "") for c in self._chunk_markdown_by_heading(content)]
         if lang == "ja":
             return [
@@ -262,10 +253,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     def _build_code_triples(self, code_blocks: list[str]) -> list[tuple[str, str, str]]:
         """Build code triples from each code block independently."""
-        triples: list[tuple[str, str, str]] = []
-        for cb in code_blocks:
-            triples.extend([("code", c, "") for c in self._chunk_code(cb)])
-        return triples
+        return [("code", c, "") for cb in code_blocks for c in self._chunk_code(cb)]
 
     def _write_chunk_files(
         self,
