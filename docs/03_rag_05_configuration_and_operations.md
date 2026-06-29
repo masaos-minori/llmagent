@@ -12,7 +12,7 @@
 Used by: crawler.py, chunk_splitter.py, ingester.py
 
 | Parameter | Default | Description |
-|---|---|---|---|
+|---|---|---|
 | `rag_src_dir` | `/opt/llm/rag-src` | Base directory for all pipeline files. crawler output: `{rag_src_dir}/*.json`; chunks: `{rag_src_dir}/chunk/`; registered: `{rag_src_dir}/registered/` |
 | `crawl_delay` | `1.5` | Seconds to wait between crawl requests (minimum 1.0 recommended) |
 | `max_depth` | `6` | BFS maximum hop depth from start URL |
@@ -36,7 +36,7 @@ Used by: crawler.py, chunk_splitter.py, ingester.py
 ### 1.2 `config/common.toml`
 
 | Parameter | Default | Description |
-|---|---|---|---|
+|---|---|---|
 | `embed_url` | `http://127.0.0.1:8003/embedding` | Embedding API endpoint (llama.cpp legacy format) |
 | `embedding_dims` | `384` | Dimensionality of float32 embedding vectors (must match model: all-MiniLM-L6-v2 = 384) |
 | `rag_db_path` | `/opt/llm/db/rag.sqlite` | SQLite database path |

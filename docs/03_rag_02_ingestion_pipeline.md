@@ -430,7 +430,7 @@ Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config
 | `documents` | SELECT to check; DELETE+INSERT (`force=True`) or skip+UPDATE etag (`force=False`) |
 | `chunks` | INSERT (FK → documents; ON DELETE CASCADE) |
 | `chunks_vec` | INSERT BLOB vector |
-| `chunks_fts` | Auto-synced by `chunks_ai` trigger (`COALESCE(normalized_content, content)`)
+| `chunks_fts` | Auto-synced by `chunks_ai` trigger (`COALESCE(normalized_content, content)`) |
 
 ### 4.6 Error handling
 

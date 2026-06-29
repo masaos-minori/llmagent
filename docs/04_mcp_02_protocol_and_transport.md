@@ -158,7 +158,7 @@ All MCP servers inherit from `MCPServer`.
 ### Methods
 
 | Method | Description |
-|---|---|---|
+|---|---|
 | `async dispatch(name, args) -> DispatchResult` | Abstract; must be overridden. Returns `DispatchResult(output, is_error)` |
 | `list_tools() -> list[str]` | Tool names from `mcp_tools`. Returns `[]` if not defined |
 | `list_tools_with_server_key() -> list[dict[str, object]]` | Tool metadata including `server_key`; used by `/v1/tools` endpoint |
@@ -289,7 +289,7 @@ When result exceeds 512 KB:
 ## Server-Specific Health Response Fields
 
 | Server | `/health` overrides |
-|---|---|---|
+|---|---|
 | web-search-mcp | No overrides (returns `{"status":"ok","ready":true}`) |
 | github-mcp | `dependencies.github_token` (`"set"`/`"not_set"`) |
 | mdq-mcp | `details.service: "mdq-mcp"` |

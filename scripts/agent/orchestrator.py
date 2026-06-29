@@ -276,9 +276,10 @@ class Orchestrator:
             )
         else:
             store = StateStore()
-            task = store.get_task_by_id(existing_task_id)
-            if task is None:
+            _fetched = store.get_task_by_id(existing_task_id)
+            if _fetched is None:
                 raise RuntimeError(f"Task {existing_task_id} not found")
+            task = _fetched
             workflow_id = task.workflow_id or str(uuid.uuid4())
             store.close()
         return workflow_id, task

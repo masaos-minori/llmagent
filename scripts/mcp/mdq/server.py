@@ -266,14 +266,14 @@ def _audit_target(tool_name: str, args: dict[str, Any]) -> str:
         path = args.get("path_prefix", "")
         return f"{query}{' + ' + path if path else ''}"
     elif tool_name == "get_chunk":
-        return args.get("chunk_id", "")[:80]
+        return str(args.get("chunk_id", ""))[:80]
     elif tool_name == "outline":
-        return args.get("path", "")[:80]
+        return str(args.get("path", ""))[:80]
     elif tool_name in ("index_paths", "refresh_index"):
         paths = args.get("paths", [])
-        return paths[0][:80] if paths else ""
+        return str(paths[0])[:80] if paths else ""
     elif tool_name == "grep_docs":
-        return args.get("pattern", "")[:80]
+        return str(args.get("pattern", ""))[:80]
     elif tool_name == "stats":
         return "mdq-mcp"
     elif tool_name == "fts_consistency_check":
@@ -346,12 +346,15 @@ async def health() -> JSONResponse:
 
         if not _os.path.isfile(db_path):
             deps["db_file"] = f"not found: {db_path}"
-            return JSONResponse({
-                "status": "degraded",
-                "ready": False,
-                "dependencies": deps,
-                "details": details,
-            }, status_code=503)
+            return JSONResponse(
+                {
+                    "status": "degraded",
+                    "ready": False,
+                    "dependencies": deps,
+                    "details": details,
+                },
+                status_code=503,
+            )
 
         import sqlite3
 
@@ -362,21 +365,27 @@ async def health() -> JSONResponse:
 
             if "sections" not in tables:
                 deps["db_schema"] = "missing sections table"
-                return JSONResponse({
-                    "status": "degraded",
-                    "ready": False,
-                    "dependencies": deps,
-                    "details": details,
-                }, status_code=503)
+                return JSONResponse(
+                    {
+                        "status": "degraded",
+                        "ready": False,
+                        "dependencies": deps,
+                        "details": details,
+                    },
+                    status_code=503,
+                )
 
             if "sections_fts" not in tables:
                 deps["db_schema"] = "missing sections_fts FTS5 table"
-                return JSONResponse({
-                    "status": "degraded",
-                    "ready": False,
-                    "dependencies": deps,
-                    "details": details,
-                }, status_code=503)
+                return JSONResponse(
+                    {
+                        "status": "degraded",
+                        "ready": False,
+                        "dependencies": deps,
+                        "details": details,
+                    },
+                    status_code=503,
+                )
 
             cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'")
             triggers = {row[0] for row in cursor.fetchall()}
@@ -386,12 +395,15 @@ async def health() -> JSONResponse:
                 deps["db_schema"] = (
                     f"missing triggers: {', '.join(sorted(missing_triggers))}"
                 )
-                return JSONResponse({
-                    "status": "degraded",
-                    "ready": False,
-                    "dependencies": deps,
-                    "details": details,
-                }, status_code=503)
+                return JSONResponse(
+                    {
+                        "status": "degraded",
+                        "ready": False,
+                        "dependencies": deps,
+                        "details": details,
+                    },
+                    status_code=503,
+                )
 
             try:
                 cursor.execute(
@@ -400,12 +412,15 @@ async def health() -> JSONResponse:
                 cursor.fetchone()
             except sqlite3.OperationalError as e:
                 deps["fts5"] = f"FTS5 query failed: {e}"
-                return JSONResponse({
-                    "status": "degraded",
-                    "ready": False,
-                    "dependencies": deps,
-                    "details": details,
-                }, status_code=503)
+                return JSONResponse(
+                    {
+                        "status": "degraded",
+                        "ready": False,
+                        "dependencies": deps,
+                        "details": details,
+                    },
+                    status_code=503,
+                )
 
             chunk_count = conn.execute(
                 "SELECT COUNT(*) as cnt FROM sections"
@@ -461,7 +476,12 @@ async def health() -> JSONResponse:
 
     ready = len(deps) == 0
     return JSONResponse(
-        {"status": "ok" if ready else "degraded", "ready": ready, "dependencies": deps, "details": details},
+        {
+            "status": "ok" if ready else "degraded",
+            "ready": ready,
+            "dependencies": deps,
+            "details": details,
+        },
         status_code=200 if ready else 503,
     )
 

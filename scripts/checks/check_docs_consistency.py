@@ -72,56 +72,102 @@ def check_broken_headings(content: str, filename: str) -> list[str]:
     return issues
 
 
+def _count_table_cols(row: str) -> int:
+    """Count columns in a markdown table row, ignoring escaped pipes (\\|)."""
+    # Replace escaped pipes with a placeholder before splitting
+    normalized = row.replace(r"\|", "\x00")
+    return len(normalized.split("|")) - 2
+
+
+def _is_separator_row(row: str) -> bool:
+    """Return True if row is a markdown table separator (|---|---|)."""
+    return bool(re.match(r"^\|[-| :]+\|$", row))
+
+
 def check_malformed_tables(content: str, filename: str) -> list[str]:
-    """Check for markdown tables with mismatched column counts."""
+    """Check for markdown tables with mismatched column counts.
+
+    Only checks rows that follow a proper markdown separator row (|---|---|) to
+    avoid false positives from ASCII box-art diagrams.
+    """
     issues = []
     lines = content.split("\n")
+    in_fenced_block = False
     in_table = False
-    table_lines: list[str] = []
+    header_pending = False  # True after a header row, waiting for separator
     expected_cols = 0
+    pending_header_line: str = ""
 
     for i, line in enumerate(lines, 1):
         stripped = line.strip()
-        if stripped.startswith("|") and not stripped.startswith("----"):
-            if not in_table:
-                in_table = True
-                table_lines = [stripped]
-                expected_cols = len(stripped.split("|")) - 2
+        # Track fenced code blocks
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_fenced_block = not in_fenced_block
+            in_table = False
+            header_pending = False
+            continue
+        if in_fenced_block:
+            continue
+
+        if stripped.startswith("|"):
+            if _is_separator_row(stripped):
+                if header_pending:
+                    # Separator confirms this is a real markdown table
+                    sep_cols = _count_table_cols(stripped)
+                    header_cols = _count_table_cols(pending_header_line)
+                    if sep_cols != header_cols:
+                        issues.append(
+                            f"{filename}:{i}: malformed table — expected {header_cols} columns, got {sep_cols}"
+                        )
+                    in_table = True
+                    expected_cols = header_cols
+                header_pending = False
                 continue
-            table_lines.append(stripped)
-            cols = len(stripped.split("|")) - 2
-            if cols != expected_cols:
-                issues.append(
-                    f"{filename}:{i}: malformed table — expected {expected_cols} columns, got {cols}"
-                )
-        elif in_table and stripped == "":
-            # Empty line may end a table; check if it looks like a paragraph break
+            # Non-separator pipe row
+            if in_table:
+                cols = _count_table_cols(stripped)
+                if cols != expected_cols:
+                    issues.append(
+                        f"{filename}:{i}: malformed table — expected {expected_cols} columns, got {cols}"
+                    )
+            else:
+                # Could be a table header — wait for separator to confirm
+                header_pending = True
+                pending_header_line = stripped
+        else:
+            # Non-pipe line ends any table tracking
             in_table = False
-            table_lines = []
-            expected_cols = 0
-        elif (
-            in_table and not stripped.startswith("|") and not stripped.startswith("---")
-        ):
-            in_table = False
-            table_lines = []
+            header_pending = False
             expected_cols = 0
 
     return issues
 
 
 def check_unclosed_inline_code(content: str, filename: str) -> list[str]:
-    """Check for unclosed inline code blocks (odd number of backticks)."""
+    """Check for unclosed inline code blocks (odd number of backticks per line)."""
     issues = []
-    # Remove fenced code blocks first
-    cleaned = re.sub(r"```[^`]*```", "", content)
-    # Count inline backticks
-    backtick_count = cleaned.count("`")
-    if backtick_count % 2 != 0:
-        # Find the unclosed one
-        matches = list(re.finditer(r"`([^`]*)", cleaned))
-        for m in matches:
-            if not re.search(r"`" + re.escape(m.group(1)), cleaned[m.end() :]):
-                issues.append(f"{filename}: unclosed inline code — '{m.group(0)}'")
+    lines = content.split("\n")
+    in_fenced_block = False
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+        # Strip blockquote markers (> prefix) for analysis
+        inner = re.sub(r"^(>\s*)+", "", stripped)
+        # Track fenced code block boundaries (``` or ~~~ markers, with or without blockquote)
+        if inner.startswith("```") or inner.startswith("~~~"):
+            in_fenced_block = not in_fenced_block
+            continue
+        if in_fenced_block:
+            continue
+        # Skip table separator rows (|---|---|)
+        if re.match(r"^\|[-| ]+\|$", stripped):
+            continue
+        # Skip lines that contain triple-backtick mentions (e.g. documentation of syntax)
+        if "```" in stripped:
+            continue
+        # Count backticks on this line; odd count means an unclosed inline code span
+        backtick_count = inner.count("`")
+        if backtick_count % 2 != 0:
+            issues.append(f"{filename}:{i}: unclosed inline code — '{stripped[:80]}'")
     return issues
 
 
@@ -129,10 +175,19 @@ def check_json_not_wrapped(content: str, filename: str) -> list[str]:
     """Check for JSON examples not wrapped in fenced code blocks."""
     issues = []
     lines = content.split("\n")
+    in_fenced_block = False
     for i, line in enumerate(lines, 1):
         stripped = line.strip()
-        # Look for JSON-like patterns that should be in fenced code blocks
-        if stripped.startswith("{") or stripped.startswith("["):
+        # Track fenced code block boundaries
+        if stripped.startswith("```"):
+            in_fenced_block = not in_fenced_block
+            continue
+        if in_fenced_block:
+            continue
+        # Look for JSON object examples ({...}) that should be in fenced code blocks.
+        # Only flag lines starting with '{' — lines starting with '[' are ambiguous
+        # (could be markdown links, numbered lists like "[1] Stage", or diagram labels).
+        if stripped.startswith("{"):
             if "```" not in stripped:
                 issues.append(
                     f"{filename}:{i}: JSON example not wrapped in fenced code block — '{stripped[:80]}'"

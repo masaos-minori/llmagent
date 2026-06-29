@@ -185,7 +185,7 @@ def _merge_hybrid(
                 item = r
                 break
         if item:
-            item.score = rrf_score  # type: ignore[assignment]
+            item.score = rrf_score
             results.append(item)
 
     return results

@@ -44,7 +44,7 @@ class AgentSession:
 
     def save_many(
         self,
-        messages: list[tuple[str, str, list[dict] | None, str | None]],
+        messages: list[tuple[str, str | None, list[dict] | None, str | None]],
     ) -> None:
         """Persist multiple messages in a single DB transaction."""
         self._message_repo.save_many(messages)

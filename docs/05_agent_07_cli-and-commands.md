@@ -191,7 +191,7 @@ The workflow resumes from the approval gate; no re-execution of prior steps is n
 |---|---|---|
 | `/rag search <query> [--debug]` | MCP call to rag-pipeline-mcp | None |
 | `/compact` | LLM call (compression) | Compresses history immediately |
-| `/export [md|json] [file]` | Write conversation to file or stdout | Markdown or JSON export |
+| `/export [md\|json] [file]` | Write conversation to file or stdout | Markdown or JSON export |
 
 ### Memory category
 

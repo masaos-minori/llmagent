@@ -84,7 +84,6 @@ class MdqService:
         self.max_outline_items: int = mdq_cfg.get("max_outline_items", 500)
         self.max_outline_depth: int = mdq_cfg.get("max_outline_depth", 6)
         self.sqlite_busy_timeout: int = mdq_cfg.get("sqlite_busy_timeout", 5000)
-        self.max_grep_matches: int = mdq_cfg.get("max_grep_matches", 200)
 
         # Summary cache for large chunks
         self.summary_cache_enabled: bool = mdq_cfg.get("summary_cache_enabled", False)
@@ -97,7 +96,7 @@ class MdqService:
         self.embedding_model: str = mdq_cfg.get("embedding_model", "default")
         # Embedding dimension from common.toml (required for vec0 table creation)
         try:
-            common_cfg = ConfigLoader().load("common.toml")  # type: ignore[arg-type]
+            common_cfg = ConfigLoader().load("common.toml")
             self.embedding_dims: int = common_cfg.get("embedding_dims", 384)
         except (FileNotFoundError, KeyError):
             self.embedding_dims = 384
@@ -628,12 +627,12 @@ class MdqService:
                 params,
             ).fetchall()
 
-            matches = []
+            matches: list[GrepDocMatch] = []
             for row in rows:
                 # Use regex to find all matches in content and heading
                 full_text = f"{row['heading']}\n{row['content']}"
-                for m in compiled.finditer(full_text):
-                    match_start = m.start()
+                for re_match in compiled.finditer(full_text):
+                    match_start = re_match.start()
 
                     # Extract context lines
                     lines = full_text.split("\n")
@@ -651,7 +650,7 @@ class MdqService:
                     _context_lines = lines[start_idx:end_idx]
 
                     # Extract the matched text with context
-                    match_text = m.group()[:max_chars]
+                    match_text = re_match.group()[:max_chars]
 
                     matches.append(
                         GrepDocMatch(

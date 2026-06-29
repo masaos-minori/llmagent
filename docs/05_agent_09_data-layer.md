@@ -168,10 +168,10 @@ Managed by `agent/workflow/state_store.py`.
 
 | Table | Contents |
 |---|---|
-| `tasks` | One row per turn attempt; status: `pending → running → [pending_approval →] completed | halted | failed` |
-| `attempts` | Retry attempts within a task; status: `running | completed | failed` |
+| `tasks` | One row per turn attempt; status: `pending → running → [pending_approval →] completed \| halted \| failed` |
+| `attempts` | Retry attempts within a task; status: `running \| completed \| failed` |
 | `processed_events` | Idempotency enforcement; prevents duplicate stage execution |
-| `approvals` | Approval gates; status: `pending → approved | rejected` |
+| `approvals` | Approval gates; status: `pending → approved \| rejected` |
 | `artifacts` | URIs produced by stage callbacks |
 
 Used when `config/workflows/default.json` exists. Falls back to direct execution otherwise.

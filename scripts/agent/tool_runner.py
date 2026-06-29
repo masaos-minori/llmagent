@@ -160,13 +160,13 @@ def _collect_tool_result_msgs(
     results: list[tuple[str, str, dict, str, bool, str]],
     turn: int,
     out_failed_keys: set[str] | None,
-) -> list[tuple[str, str, list[dict] | None, str | None]]:
+) -> list[tuple[str, str | None, list[dict] | None, str | None]]:
     """Log, display, persist, and append tool results to history.
 
     Returns tool_msgs for session.save_many(). Applies per-turn char limit.
     Raises sqlite3.Error when tool result persistence fails.
     """
-    tool_msgs: list[tuple[str, str, list[dict] | None, str | None]] = []
+    tool_msgs: list[tuple[str, str | None, list[dict] | None, str | None]] = []
     turn_chars = 0
     for tc_id, name, args, text, is_error, llm_text in results:
         _update_stats_for_result(ctx, name, args, is_error, out_failed_keys)
