@@ -39,7 +39,7 @@ from rag.cache import SemanticCache
 from rag.llm_client import RagLLM, get_embedding
 from rag.models_data import TwoStageFetchResult
 from rag.models_result import HttpResultKind, ResultSource, SearchDiagnostics
-from rag.pipeline_refiner import refine_context
+from rag.pipeline_refiner import RefineResult, refine_context
 from rag.pipeline_service import call_rag_service
 from rag.repository import (
     RagRepository,
@@ -408,61 +408,9 @@ class RagPipeline:
             return ""
         # HTTP mode: delegate to external RAG service when rag_service_url is configured
         if rag_url := self._cfg.rag_service_url:
-            t0 = time.perf_counter()
-            http_fallback_reasons: list[str] = []
-            result, remote_status_code, remote_latency_ms = await call_rag_service(
-                self._http,
-                rag_url,
-                query,
-                history_context,
-                auth_token=self._cfg.rag_auth_token,
-                set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
-                set_fallback_reason=http_fallback_reasons.append,
+            result = await self._run_http_augment(
+                query, history_context, rag_url
             )
-            elapsed = time.perf_counter() - t0
-            http_status: Literal["success", "fallback"] = (
-                "success" if result is not None else "fallback"
-            )
-            http_fallback_reason = (
-                http_fallback_reasons[0]
-                if http_fallback_reasons
-                else "in-process fallback"
-            )
-            self.last_stage_results.append(
-                StageResult(
-                    stage_name="HttpAugment",
-                    status=http_status,
-                    elapsed_seconds=elapsed,
-                    fallback_reason=(http_fallback_reason if result is None else None),
-                )
-            )
-            self._http_result_kind = (
-                "remote_nonempty"
-                if result and len(result) > 0
-                else "remote_empty"
-                if result == ""
-                else "in_process_fallback"
-            )
-            # Assign SearchDiagnostics remote mode fields
-            if result is not None:
-                self.last_search_diagnostics = dataclasses.replace(
-                    self.last_search_diagnostics,
-                    result_source=ResultSource.REMOTE,
-                    http_result_kind=HttpResultKind.EMPTY
-                    if result == ""
-                    else HttpResultKind.SUCCESS,
-                    remote_status_code=remote_status_code,
-                    remote_latency_ms=remote_latency_ms,
-                )
-            else:
-                self.last_search_diagnostics = dataclasses.replace(
-                    self.last_search_diagnostics,
-                    result_source=ResultSource.FALLBACK,
-                    http_result_kind=HttpResultKind.ERROR,
-                    remote_status_code=remote_status_code,
-                    remote_latency_ms=remote_latency_ms,
-                    fallback_reason=http_fallback_reason,
-                )
             if result is not None:
                 return result
         # Semantic cache lookup (in-process mode only)
@@ -502,39 +450,114 @@ class RagPipeline:
             return ""
         # Refiner: compress chunks to query-relevant key points before injection
         if self._cfg.use_refiner:
-            t0 = time.perf_counter()
-            refined = await refine_context(
-                self._llm,
-                self._on_status,
-                pipeline_result.reranked,
-                query,
-                max_tokens=self._cfg.refiner_max_tokens,
-                per_chunk_chars=self._cfg.refiner_max_chars_per_chunk,
-                timeout=self._cfg.refiner_timeout,
+            refined = await self._run_refiner(
+                pipeline_result.reranked, query
             )
-            elapsed = time.perf_counter() - t0
-            refiner_status: Literal["success", "fallback"] = (
-                "success" if refined.text is not None else "fallback"
-            )
-            self.last_stage_results.append(
-                StageResult(
-                    stage_name="Refiner",
-                    status=refiner_status,
-                    elapsed_seconds=elapsed,
-                    fallback_reason=refined.reason,
-                )
-            )
-            if refined.text is None:
-                logger.info(
-                    "augment: refiner fallback (reason=%s); using raw chunks",
-                    refined.reason,
-                )
             if refined.text is not None:
                 return refined.text
         context_block = self._format_chunks(pipeline_result.reranked)
         if self._cfg.use_semantic_cache and emb is not None and context_block:
             self.semantic_cache.put(emb, history_context, context_block)
         return context_block
+
+    async def _run_http_augment(
+        self,
+        query: str,
+        history_context: str,
+        rag_url: str,
+    ) -> str | None:
+        """Run HTTP augment and return result or None for fallback."""
+        t0 = time.perf_counter()
+        http_fallback_reasons: list[str] = []
+        result, remote_status_code, remote_latency_ms = await call_rag_service(
+            self._http,
+            rag_url,
+            query,
+            history_context,
+            auth_token=self._cfg.rag_auth_token,
+            set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
+            set_fallback_reason=http_fallback_reasons.append,
+        )
+        elapsed = time.perf_counter() - t0
+        http_status: Literal["success", "fallback"] = (
+            "success" if result is not None else "fallback"
+        )
+        http_fallback_reason = (
+            http_fallback_reasons[0]
+            if http_fallback_reasons
+            else "in-process fallback"
+        )
+        self.last_stage_results.append(
+            StageResult(
+                stage_name="HttpAugment",
+                status=http_status,
+                elapsed_seconds=elapsed,
+                fallback_reason=(http_fallback_reason if result is None else None),
+            )
+        )
+        self._http_result_kind = (
+            "remote_nonempty"
+            if result and len(result) > 0
+            else "remote_empty"
+            if result == ""
+            else "in_process_fallback"
+        )
+        # Assign SearchDiagnostics remote mode fields
+        if result is not None:
+            self.last_search_diagnostics = dataclasses.replace(
+                self.last_search_diagnostics,
+                result_source=ResultSource.REMOTE,
+                http_result_kind=HttpResultKind.EMPTY
+                if result == ""
+                else HttpResultKind.SUCCESS,
+                remote_status_code=remote_status_code,
+                remote_latency_ms=remote_latency_ms,
+            )
+        else:
+            self.last_search_diagnostics = dataclasses.replace(
+                self.last_search_diagnostics,
+                result_source=ResultSource.FALLBACK,
+                http_result_kind=HttpResultKind.ERROR,
+                remote_status_code=remote_status_code,
+                remote_latency_ms=remote_latency_ms,
+                fallback_reason=http_fallback_reason,
+            )
+        return result if result is not None else None
+
+    async def _run_refiner(
+        self,
+        reranked: list[RagHit],
+        query: str,
+    ) -> RefineResult:
+        """Run refiner and return result."""
+        t0 = time.perf_counter()
+        refined = await refine_context(
+            self._llm,
+            self._on_status,
+            reranked,
+            query,
+            max_tokens=self._cfg.refiner_max_tokens,
+            per_chunk_chars=self._cfg.refiner_max_chars_per_chunk,
+            timeout=self._cfg.refiner_timeout,
+        )
+        elapsed = time.perf_counter() - t0
+        refiner_status: Literal["success", "fallback"] = (
+            "success" if refined.text is not None else "fallback"
+        )
+        self.last_stage_results.append(
+            StageResult(
+                stage_name="Refiner",
+                status=refiner_status,
+                elapsed_seconds=elapsed,
+                fallback_reason=refined.reason,
+            )
+        )
+        if refined.text is None:
+            logger.info(
+                "augment: refiner fallback (reason=%s); using raw chunks",
+                refined.reason,
+            )
+        return refined
 
     def get_diagnostics(self) -> dict:
         """Return structured diagnostics for the last pipeline execution.
