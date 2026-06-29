@@ -21,8 +21,8 @@ def _stdio(key: str, tool_names: list[str] | None = None) -> McpServerConfig:
     return cfg
 
 
-class TestStaticFallbackRouting:
-    """All existing tool names resolve correctly via static fallback (tool_names=[])."""
+class TestRegistryRouting:
+    """All existing tool names resolve correctly via registry (tool_names=[])."""
 
     def setup_method(self) -> None:
         configs = {
@@ -276,3 +276,47 @@ class TestValidateRoutingDrift:
 
         result = validate_routing_against_config(server_configs=server_configs)
         assert result == {}
+
+
+class TestRegistryWithoutConfig:
+    """Prove routing works via registry (priority 2) without config tool_names."""
+
+    def _make_configs(self) -> dict[str, McpServerConfig]:
+        return {
+            "file_read": _http("file_read"),
+            "file_write": _http("file_write"),
+            "file_delete": _http("file_delete"),
+            "shell": _http("shell"),
+            "web_search": _http("web_search"),
+            "github": _http("github"),
+            "rag_pipeline": _http("rag_pipeline"),
+            "cicd": _http("cicd"),
+            "sqlite": _http("sqlite"),
+            "mdq": _http("mdq"),
+            "git": _http("git"),
+        }
+
+    def test_registry_routes_without_config_tool_names(self) -> None:
+        """Known tools resolve correctly when all server configs have empty tool_names."""
+        configs = self._make_configs()
+        resolver = ToolRouteResolver(configs)
+        assert resolver.resolve("read_text_file") == "file_read"
+        assert resolver.resolve("write_file") == "file_write"
+        assert resolver.resolve("shell_run") == "shell"
+
+    def test_registry_routes_all_tool_constants_tools(self) -> None:
+        """Every tool from get_all_mcp_tool_names() resolves without config tool_names."""
+        from shared.tool_constants import get_all_mcp_tool_names
+
+        configs = self._make_configs()
+        resolver = ToolRouteResolver(configs)
+        for tool_name in get_all_mcp_tool_names():
+            server_key = resolver.resolve(tool_name)
+            assert server_key, f"tool {tool_name!r} resolved to empty string"
+
+    def test_strict_mode_error_message_points_to_tool_constants(self) -> None:
+        """strict_mode ValueError for unknown tool mentions tool_constants.py, not mcp_servers config."""
+        configs = self._make_configs()
+        resolver = ToolRouteResolver(configs, strict_mode=True)
+        with pytest.raises(ValueError, match="tool_constants.py"):
+            resolver.resolve("no_such_tool_xyz")

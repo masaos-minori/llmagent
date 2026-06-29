@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """shared/route_resolver.py
-Config-driven tool-name to server-key resolution for ToolExecutor.
+Tool-name to server-key resolution for ToolExecutor.
 
 Routing priority:
-  1. Live-discovered tool metadata from /v1/tools (server_key field)
-  2. Tool registry (canonical source of truth from tool_registry.py)
-  3. Config-driven tool_names from mcp_servers config
-  4. Static fallback constants (compatibility/emergency use only)
+  1. Live-discovered tool metadata from /v1/tools (server_key field) — optional, only when discovery map is built at startup
+  2. Tool registry (canonical source of truth from tool_registry.py; populated from tool_constants.py frozensets)
+  3. Config tool_names from mcp_servers config — validation hint only, not a routing input for priority 2 tools
+  4. Static fallback constants (compatibility/emergency use only; same frozensets as registry but accessed differently)
 """
 
 from __future__ import annotations
@@ -96,10 +96,10 @@ class ToolRouteResolver:
     """Map tool_name → server_key.
 
     Routing priority:
-      1. Discovery map (live /v1/tools metadata with server_key)
+      1. Discovery map (live /v1/tools metadata with server_key) — only when built at startup
       2. Tool registry (canonical source of truth from tool_registry.py)
-      3. Config-driven (tool_names list from mcp_servers config)
-      4. Static fallback (SET_ROUTES, github prefix matching)
+      3. Config tool_names (last-resort fallback; not needed if tool is in ToolRegistry)
+      4. Static fallback (SET_ROUTES, github prefix matching; same frozensets as registry)
     Raises ValueError when none of the above match.
     """
 
@@ -152,7 +152,7 @@ class ToolRouteResolver:
         if self._warn_on_fallback:
             logger.warning(
                 "ToolRouteResolver: tool %r not in config map; using static fallback. "
-                "Add tool_names to mcp_servers config to suppress this warning.",
+                "Add the tool to the appropriate frozenset in shared/tool_constants.py to suppress this warning.",
                 tool_name,
             )
         return self._fallback_route(tool_name)
@@ -167,7 +167,7 @@ class ToolRouteResolver:
         """Raise ValueError when strict_mode is enabled and no mapping found."""
         raise ValueError(
             f"ToolRouteResolver: tool {tool_name!r} not in config map "
-            f"and strict_mode=True; add it to tool_names in mcp_servers config"
+            f"and strict_mode=True; add it to the appropriate frozenset in shared/tool_constants.py"
         )
 
     def _fallback_route(self, tool_name: str) -> str:

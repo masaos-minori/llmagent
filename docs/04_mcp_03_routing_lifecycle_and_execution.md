@@ -41,8 +41,8 @@ Resolves `tool_name → server_key` in four steps (priority order). At runtime, 
 2. **Tool registry:** Primary routing layer from `shared/tool_registry.py`.
     The `ToolRegistry` singleton maps each tool name to exactly one server key. Superseded by discovery map for any tool found in live `/v1/tools` responses.
 
-3. **Config-driven:** `McpServerConfig.tool_names` provides an explicit mapping.
-    Built at constructor time into an inverse dict `{tool_name: server_key}`. Only consulted when discovery map and registry have no match.
+3. **Config tool_names (last-resort fallback):** `McpServerConfig.tool_names` is a validation hint only.
+    Not a routing input for tools already in ToolRegistry (priority 2). Only consulted when discovery map and registry have no match.
 
 4. **Static fallback (lowest priority — compatibility / emergency only):** `_fallback_route()` uses frozensets in `shared/tool_constants.py`:
 
@@ -80,7 +80,7 @@ The `ToolRouteResolver` resolves tool calls using a four-layer cascade. At runti
 |---|---|---|
 | Live `/v1/tools` discovery | **Priority 1 — override source** | Optional; if present, supersedes registry for any tool found here |
 | `shared/tool_registry.py` | **Priority 2 — primary routing layer** | Read-only at runtime; changes require code edit |
-| Config `tool_names` (in `mcp_servers.toml`) | **Priority 3 — fallback validation** | Optional; only consulted if discovery map and registry have no match |
+| Config `tool_names` (in `mcp_servers.toml`) | **Priority 3 — last-resort fallback** | Optional; not needed if tool is in ToolRegistry; only consulted if discovery map and registry have no match |
 | `shared/tool_constants.py` frozensets | **Priority 4 — static fallback** | Used when no higher layer matches a tool name |
 
 **Summary of ownership rules:**
@@ -503,10 +503,10 @@ tool_names = ["my_tool_a", "my_tool_b"]
 6. Add new files to `deploy/deploy.sh` copy list
 7. Add startup step to `deploy/setup_services.sh`
 
-### Config-driven routing for new server
+### Tool_names config (drift detection only)
 
 The tool registry auto-populates from `tool_constants.py` frozensets at import time.
-Add `tool_names` to the server config in `mcp_servers.toml` to match the registry:
+Optionally add `tool_names` to the server config in `mcp_servers.toml` for drift detection:
 
 ```toml
 [mcp_servers.my_server]
