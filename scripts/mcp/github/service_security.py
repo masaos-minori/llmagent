@@ -169,18 +169,25 @@ class GitHubSecurityGuards:
             GitHubValidationError,
         )
 
-        if e.status == HTTPStatus.NOT_FOUND:
-            raise GitHubNotFoundError("Resource not found")
-        if e.status == HTTPStatus.FORBIDDEN:
-            raise GitHubAuthorizationError(
-                "GitHub API rate limit exceeded or access denied"
-            )
-        if e.status == HTTPStatus.CONFLICT:
-            raise GitHubConflictError(f"GitHub API conflict (status={e.status})")
-        if e.status in (HTTPStatus.BAD_REQUEST, HTTPStatus.UNPROCESSABLE_ENTITY):
-            raise GitHubValidationError(
-                f"GitHub API validation error (status={e.status})"
-            )
+        status_map: dict[int, type[BaseException]] = {
+            HTTPStatus.NOT_FOUND: GitHubNotFoundError,
+            HTTPStatus.FORBIDDEN: GitHubAuthorizationError,
+            HTTPStatus.CONFLICT: GitHubConflictError,
+            HTTPStatus.BAD_REQUEST: GitHubValidationError,
+            HTTPStatus.UNPROCESSABLE_ENTITY: GitHubValidationError,
+        }
+        error_cls = status_map.get(e.status)
+        if error_cls is not None:
+            msg = "GitHub API error"
+            if e.status == HTTPStatus.NOT_FOUND:
+                msg = "Resource not found"
+            elif e.status == HTTPStatus.FORBIDDEN:
+                msg = "GitHub API rate limit exceeded or access denied"
+            elif e.status in (HTTPStatus.BAD_REQUEST, HTTPStatus.UNPROCESSABLE_ENTITY):
+                msg = f"GitHub API validation error (status={e.status})"
+            elif e.status == HTTPStatus.CONFLICT:
+                msg = f"GitHub API conflict (status={e.status})"
+            raise error_cls(msg)
         raise GitHubUpstreamError(f"GitHub API error (status={e.status})")
 
     async def _run_github(self, func: Callable[[], T]) -> T:
