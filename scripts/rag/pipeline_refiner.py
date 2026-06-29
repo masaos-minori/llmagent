@@ -91,7 +91,6 @@ async def refine_context(
 
     See Also:
         augment: Complete fallback chain including raw-chunk formatting.
-        augment: Complete fallback chain including raw-chunk formatting.
     """
     effective_timeout: float = timeout if timeout is not None else 30.0
     try:
