@@ -77,19 +77,19 @@ def extract_text(soup: BeautifulSoup) -> str:
 
 
 def detect_lang(text: str) -> str | None:
-        """Detect language by CJK character ratio.
+    """Detect language by CJK character ratio.
 
-        Returns 'ja' when CJK ratio >= _CJK_RATIO_THRESHOLD, 'en' otherwise.
-        Returns None for texts shorter than 100 characters (too short for reliable
-        detection).
-        """
-        if len(text) < MIN_TEXT_LENGTH_FOR_DETECTION:
-            return None
-        # Count Hiragana, Katakana, and CJK Unified Ideographs (incl. Extension A)
-        cjk_count = sum(
-            1 for c in text if _is_cjk_char(c)
-        )
-        return "ja" if cjk_count / len(text) >= _CJK_RATIO_THRESHOLD else "en"
+    Returns 'ja' when CJK ratio >= _CJK_RATIO_THRESHOLD, 'en' otherwise.
+    Returns None for texts shorter than 100 characters (too short for reliable
+    detection).
+    """
+    if len(text) < MIN_TEXT_LENGTH_FOR_DETECTION:
+        return None
+    # Count Hiragana, Katakana, and CJK Unified Ideographs (incl. Extension A)
+    cjk_count = sum(
+        1 for c in text if _is_cjk_char(c)
+    )
+    return "ja" if cjk_count / len(text) >= _CJK_RATIO_THRESHOLD else "en"
 
 def _is_cjk_char(c: str) -> bool:
     """Check if a character is CJK (Hiragana, Katakana, or CJK Unified Ideograph)."""

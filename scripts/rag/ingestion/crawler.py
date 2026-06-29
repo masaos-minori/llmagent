@@ -385,21 +385,6 @@ class WebCrawler:
             if not same_origin(next_url, start_url):
                 return False
         return True
-        """Check if a link should be enqueued based on nofollow and cross-origin rules."""
-        href = a_tag.get("href")
-        if not isinstance(href, str):
-            return False
-        if self._skip_nofollow:
-            rel = a_tag.get("rel")
-            if isinstance(rel, str):
-                rel = rel.split()
-            if rel and "nofollow" in rel:
-                return False
-        if self._skip_external:
-            next_url = normalize_url(urljoin(current_url, href))
-            if not same_origin(next_url, start_url):
-                return False
-        return True
 
     def _resolve_lang(self, text: str, hint_lang: str) -> str:
         """Determine page language; 'auto' uses CJK-ratio detection with 'en' fallback for short/inconclusive texts; returns a _SUPPORTED_LANGS value."""
