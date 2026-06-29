@@ -645,28 +645,24 @@ to make safe decisions.
 
 When adding a new tool to an **existing** MCP server:
 
-1. **Add the tool name to `shared/tool_constants.py`**
-   - Add to the appropriate frozenset (`READ_TOOLS`, `WRITE_TOOLS`, etc.)
-   - If no set fits, create a new `<SERVER>_TOOLS` frozenset and add it to `get_all_mcp_tool_names()`
+| Step | Action | Required? |
+|---|---|---|
+| 1 | Add the tool name to the appropriate frozenset in `shared/tool_constants.py` (e.g., `READ_TOOLS`, `WRITE_TOOLS`, or create a new `<SERVER>_TOOLS` frozenset and add it to `get_all_mcp_tool_names()`) | **[Required]** |
+| 2 | Registry auto-populates from these frozensets at import time — no manual registry edit needed | (automatic) |
+| 3 | Implement `dispatch()` handler in the owning MCP server (`mcp/<name>/server.py`) | **[Required]** |
+| 4 | Expose tool in `/v1/tools` endpoint (return tool definition with `server_key` field) | **[Recommended]** — enables priority-1 discovery routing |
+| 5 | Add LLM schema to `config/tools_definitions.toml` (OpenAI function-calling format) | **[Required]** — if tool should be visible to LLM |
+| 6 | Add `tool_safety_tiers` entry in `config/agent.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
+| 7 | Add tool name to `tool_names` in server config (`config/mcp_servers.toml`) | **[Optional]** — enables startup drift validation only; routing does not require it |
 
-2. **Add the tool name to `tool_names` in the server config (`config/agent.toml`)** (optional — for validation only; routing does not require this)
-   - Find the `[mcp_servers.<server_key>]` block
-   - Append the tool name to `tool_names = [...]`
-
-3. **Verify routing coverage at startup**
-   - Start the agent or run `uv run pytest tests/test_route_resolver.py -v`
-   - Startup logs confirm: `"Routing: N/N tools mapped"`
-   - If a warning appears (`"N-1/N tools mapped; 1 unmapped: [tool_name]"`), the tool is missing from step 1 or 2
-
-> **Note:** If the tool name follows the `github_` prefix convention and the server key is `github`,
-> no entry in `tool_constants.py` is needed — prefix matching handles it automatically.
+**GitHub prefix exception**: If the tool name follows the `github_` prefix convention and the server key is `github`, no entry in `tool_constants.py` is needed — prefix matching in `_fallback_route()` handles it automatically. This exception applies only to the `github` server key; do not use prefix matching for any other server.
 
 ### Verification
 
 After completing registration:
 
 ```bash
-uv run pytest tests/test_route_resolver.py -v
+uv run pytest tests/test_tool_constants.py tests/test_route_resolver.py -v
 ```
 
 Expected: all routing tests pass. If `tool_definitions_strict = true`, restart the agent and confirm startup logs show `"Routing: N/N tools mapped"` with no unmapped warnings.
@@ -681,7 +677,8 @@ When adding a server:
 - [ ] Create `config/<name>_mcp_server.toml`
 - [ ] Add `[mcp_servers.<key>]` entry to `config/mcp_servers.toml` (transport, url, cmd, etc.)
 - [ ] Add tool definitions to `config/tools_definitions.toml`
-- [ ] If tools not in `shared/tool_constants.py` frozensets: set `tool_names` in server config
+- [ ] Tools are registered in `shared/tool_constants.py` frozensets (auto-routed at startup); config `tool_names` is optional drift validation only
+- [ ] If tools follow `github_` prefix convention and the server key is `github`, no entry in `tool_constants.py` is needed (prefix matching in `_fallback_route()` handles routing)
 - [ ] Add new files to `deploy/deploy.sh` copy list
 - [ ] Add startup step to `deploy/setup_services.sh`
 - [ ] Add `tool_safety_tiers` entries to `config/agent.toml` for all new tools

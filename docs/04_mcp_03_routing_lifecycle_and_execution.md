@@ -98,7 +98,7 @@ Single source of truth for MCP tool definitions and ownership.
 | ソース | 種別 | 説明 |
 |---|---|---|
 | Live `/v1/tools` discovery | **Priority 1** | ルーティングの最上位優先度; レジストリを上書き |
-| `shared/tool_registry.py` | **Priority 2** | 主要なルーティング層; 起動時に自動構築 |
+| `shared/tool_registry.py` | **Priority 2** | ツール→サーバー逆引き; `tool_constants.py` frozensetからimport時に自動構築 |
 | `tool_names` (config) | Priority 3 | ドリフト検出用; ルーティング自体には不要 |
 | `tool_constants.py` frozensets | **Priority 4** | 静的フォールバック; 上位レイヤーでマッチしない場合に使用 |
 
@@ -135,11 +135,27 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 
 ### Adding a new tool
 
-1. Add the tool name to the appropriate frozenset in `shared/tool_constants.py`.
-2. The registry auto-populates from these frozensets at import time.
-3. Optionally update `config/mcp_servers.toml` `tool_names` for the owning server (adds drift detection at startup; routing does not require it — the registry is priority 2).
-4. Add full OpenAI function-calling format to `config/tools_definitions.toml` for LLM exposure.
-5. If `/v1/tools` discovery is active and you want to override routing, add a `server_key` field to the tool's `/v1/tools` response metadata.
+| Step | Action | Required? |
+|---|---|---|
+| 1 | Add the tool name to the appropriate frozenset in `shared/tool_constants.py` | **[Required]** |
+| 2 | Registry auto-populates from these frozensets at import time — no manual registry edit needed | (automatic) |
+| 3 | Implement `dispatch()` handler in the owning MCP server (`mcp/<name>/server.py`) | **[Required]** |
+| 4 | Expose tool in `/v1/tools` endpoint (return tool definition with `server_key` field) | **[Recommended]** — enables priority-1 discovery routing |
+| 5 | Add LLM schema to `config/tools_definitions.toml` (OpenAI function-calling format) | **[Required]** — if tool should be visible to LLM |
+| 6 | Add `tool_safety_tiers` entry in `config/agent.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
+| 7 | Add tool name to `tool_names` in `config/mcp_servers.toml` for the owning server | **[Optional]** — enables startup drift validation only; routing does not require it |
+
+**GitHub prefix exception**: Tools whose names start with `github_` route to the `github` server key via prefix matching in `_fallback_route()`. No entry in `tool_constants.py` is needed for these tools unless they should also appear in `get_all_mcp_tool_names()`.
+
+### Verification
+
+After completing registration:
+
+```bash
+uv run pytest tests/test_tool_constants.py tests/test_route_resolver.py -v
+```
+
+Expected: all routing tests pass. If `tool_definitions_strict = true`, restart the agent and confirm startup logs show `"Routing: N/N tools mapped"` with no unmapped warnings.
 
 ### Key API
 
