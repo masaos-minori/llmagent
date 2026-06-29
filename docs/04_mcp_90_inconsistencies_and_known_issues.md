@@ -60,7 +60,7 @@ Both tables show the same inconsistency: Priority 3 (`Config tool_names (in mcp_
 
 **Statement A (`04_mcp_04:251`):** rag-pipeline-mcp has explicit "All 4 tools are production" statement.
 
-**Statement B (mdq-mcp section):** mdq-mcp lacks an equivalent tool status declaration despite having 9 tools with mixed statuses.
+**Statement B (mdq-mcp section):** mdq-mcp lacks an equivalent tool status declaration in `04_mcp_04_server_catalog.md`.
 
 **Current safe interpretation:** mdq-mcp tools have mixed statuses (production and admin). Cross-reference `scripts/mcp/mdq/tools.py` to verify individual tool status.
 
@@ -109,6 +109,7 @@ Both tables show the same inconsistency: Priority 3 (`Config tool_names (in mcp_
 **Notes for AI reference:** mdq-mcp is production-ready for FTS5 search. Hybrid search mode (`mode=hybrid`) is planned but not yet implemented — falls back to FTS5-only results.
 
 ---
+
 
 ### MCP-06: Audit log format mismatch
 
@@ -173,3 +174,20 @@ HEALTHY ──(failure × 1)──→ DEGRADED ──(failure × 2)──→ UNA
 - `status="unhealthy"` → HTTP 503 (critical failure)
 
 **Notes for AI reference:** When implementing or modifying MCP server health endpoints, ensure HTTP status code matches the body `status` field. Watchdog uses HTTP status code only.
+
+---
+
+## Resolved Issues
+
+### MCP-05: MDQ production-ready vs stub marker mismatch
+
+**Type:** Document inconsistency
+**Impact scope:** `04_mcp_00`, `04_mcp_04`, `04_mcp_05`
+
+**Statement A (`04_mcp_00:59,79`):** Document guide asserts mdq-mcp is production-ready (FTS5 search and indexing implemented).
+
+**Statement B (`04_mcp_05:324`):** Same assertion: "mdq-mcp is production-ready."
+
+**Historical context:** mdq-mcp was previously marked as `"status": "stub"` with `"stub": True` in the `/health` endpoint. Current code (`scripts/mcp/mdq/tools.py`) has all 7 non-admin tools with `"status": "production"` and no `stub` indicator in health response.
+
+**Resolution (2026-06-18):** The `stub` marker has been verified absent from both `scripts/mcp/mdq/tools.py` (no `stub` key in any tool entry) and `scripts/mcp/mdq/server.py` (no `stub` field in `/health` endpoint). All 7 non-admin mdq-mcp tools have `"status": "production"`. Explicit tool status declaration added to `04_mcp_04_server_catalog.md`. This issue is closed.
