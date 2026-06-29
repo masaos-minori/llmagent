@@ -75,7 +75,7 @@ startup_mode     = "persistent"
 healthcheck_mode = "http"
 auth_token       = ""
 role             = "query"
-tool_names       = ["rag_run_pipeline", "rag_debug_pipeline"]
+tool_names       = ["rag_run_pipeline", "rag_debug_pipeline", "rag_list_documents", "rag_delete_document"]
 
 [mcp_servers.sqlite]
 transport        = "http"

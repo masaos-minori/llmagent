@@ -332,6 +332,40 @@ type = "string"
 type = "function"
 
 [tool_definitions.function]
+name        = "rag_list_documents"
+description = "List all documents in the RAG index with pagination support."
+
+[tool_definitions.function.parameters]
+type     = "object"
+required = ["page_size"]
+
+[tool_definitions.function.parameters.properties.page_size]
+type        = "integer"
+description = "Number of documents per page (default: 10)"
+
+[tool_definitions.function.parameters.properties.page]
+type        = "integer"
+description = "Page number (default: 1)"
+
+[[tool_definitions]]
+type = "function"
+
+[tool_definitions.function]
+name        = "rag_delete_document"
+description = "Delete a document from the RAG index by URL."
+
+[tool_definitions.function.parameters]
+type     = "object"
+required = ["url"]
+
+[tool_definitions.function.parameters.properties.url]
+type        = "string"
+description = "URL of the document to delete"
+
+[[tool_definitions]]
+type = "function"
+
+[tool_definitions.function]
 name        = "shell_run"
 description = "サンドボックス内でシェルコマンドを実行する。argv[0] は許可リストに含まれるコマンドのみ。cwd は許可ディレクトリ配下のみ指定可能。テスト実行・lint・git 操作等に使用する。"
 

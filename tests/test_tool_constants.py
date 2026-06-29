@@ -11,6 +11,9 @@ from shared.tool_constants import (
     MDQ_TOOLS,
     RAG_TOOLS,
     READ_TOOLS,
+    SHELL_TOOLS,
+    SQLITE_TOOLS,
+    WEB_SEARCH_TOOLS,
     WRITE_TOOLS,
 )
 
@@ -102,7 +105,7 @@ class TestToolConstants:
 
     def test_no_overlapping_tools(self) -> None:
         """Ensure no tool appears in multiple categories."""
-        all_tools = set()
+        all_tools: set[str] = set()
 
         for tools_set in [
             READ_TOOLS,
@@ -112,6 +115,9 @@ class TestToolConstants:
             CICD_TOOLS,
             MDQ_TOOLS,
             GIT_TOOLS,
+            SHELL_TOOLS,
+            SQLITE_TOOLS,
+            WEB_SEARCH_TOOLS,
         ]:
             # Check for overlaps within each set (should be empty)
             overlaps = all_tools & tools_set
@@ -120,8 +126,8 @@ class TestToolConstants:
             # Add to overall set
             all_tools.update(tools_set)
 
-        # Total should be 42 tools (sum of individual sets)
-        assert len(all_tools) == 42
+        # Total should be 45 tools (all frozensets; github-mcp uses prefix routing separately)
+        assert len(all_tools) == 45
 
     def test_all_tools_are_strings(self) -> None:
         """Ensure all items in tool sets are strings."""
