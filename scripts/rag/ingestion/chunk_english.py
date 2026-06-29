@@ -34,27 +34,34 @@ class ChunkEnglishMixin:
         if not paragraphs:
             return []
         raw_chunks: list[str] = []
-        buf = ""
+        self._buf = ""
         for para in paragraphs:
             para = para.strip()
             if not para:
                 continue
             if len(para) > self._max_chunk:
-                # Flush buffer and split this paragraph at sentence boundaries
-                if buf:
-                    raw_chunks.append(buf)
-                    buf = ""
-                raw_chunks.extend(self._split_sentences_en(para))
-            elif len(buf) + len(para) + 1 <= self._max_chunk:
-                buf = (buf + "\n" + para).strip()
-            elif buf:
-                raw_chunks.append(buf)
-                buf = start_next_buf(buf, para, "\n", self._chunk_overlap)
+                self._flush_and_split(para, raw_chunks)
+            elif len(self._buf) + len(para) + 1 <= self._max_chunk:
+                self._buf = (self._buf + "\n" + para).strip()
+            elif self._buf:
+                self._flush_and_merge(self._buf, para, raw_chunks)
             else:
-                buf = para
-        if buf:
-            raw_chunks.append(buf)
+                self._buf = para
+        if self._buf:
+            raw_chunks.append(self._buf)
         return raw_chunks
+
+    def _flush_and_split(self, para: str, chunks: list[str]) -> None:
+        """Flush buffer and split oversized paragraph."""
+        if buf := self._buf:
+            chunks.append(buf)
+            self._buf = ""
+        chunks.extend(self._split_sentences_en(para))
+
+    def _flush_and_merge(self, buf: str, para: str, chunks: list[str]) -> None:
+        """Flush buffer and start new buffer with overlap."""
+        chunks.append(buf)
+        self._buf = start_next_buf(buf, para, "\n", self._chunk_overlap)
 
     def _split_sentences_en(self, text: str) -> list[str]:
         """Split at sentence boundaries (. ! ?). Oversized sentences are kept as-is."""
