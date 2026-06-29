@@ -203,16 +203,27 @@ class TestCheckRetry:
         assert result is None
 
     def test_failed_call_tracking_no_collision_across_tools(self) -> None:
+        """Verify that failed-call tracking does not collide across different tools."""
         from shared.tool_executor import tool_hash_key
 
         ctx = _make_ctx()
         guard = ToolLoopGuard(ctx)
-        failed: set[str] = {tool_hash_key("tool_a", {})}
-        result_b = guard.check_retry(failed, _msg("tool_b"))
-        assert result_b is None
-        result_a = guard.check_retry(failed, _msg("tool_a"))
-        assert result_a is not None
-        assert "Repeated failed" in result_a
+
+        # Track failure for write_file only (empty args matching _msg pattern)
+        failed_calls: set[str] = {
+            tool_hash_key("write_file", {})
+        }
+
+        # read_file with identical empty args should NOT be blocked
+        msg_read = _msg("read_file")
+        result_read = guard.check_retry(failed_calls, msg_read)
+        assert result_read is None
+
+        # write_file with identical empty args SHOULD be blocked
+        msg_write = _msg("write_file")
+        result_write = guard.check_retry(failed_calls, msg_write)
+        assert result_write is not None
+        assert "Repeated failed" in result_write
 
 
 class TestCheckAll:

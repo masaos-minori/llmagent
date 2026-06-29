@@ -102,12 +102,24 @@ def test_tool_hash_key_empty_args() -> None:
 
 
 def test_tool_hash_key_differs_for_different_tool_names() -> None:
+    """Test that tool_hash_key generates different keys for different tool names with same args."""
     key_a = tool_hash_key("tool_a", {"x": 1})
     key_b = tool_hash_key("tool_b", {"x": 1})
-    assert key_a != key_b
+    assert key_a != key_b, "Different tool names must produce different hash keys"
+
+    # Also verify with empty args
+    key_c = tool_hash_key("tool_c", {})
+    key_d = tool_hash_key("tool_d", {})
+    assert key_c != key_d
 
 
 def test_tool_hash_key_same_for_same_tool_and_args() -> None:
+    """Test that tool_hash_key generates identical keys for same tool and args."""
     key1 = tool_hash_key("my_tool", {"a": 1})
     key2 = tool_hash_key("my_tool", {"a": 1})
-    assert key1 == key2
+    assert key1 == key2, "Same tool and args must produce identical hash keys"
+
+    # Verify with complex args
+    key3 = tool_hash_key("complex_tool", {"nested": {"key": "value"}})
+    key4 = tool_hash_key("complex_tool", {"nested": {"key": "value"}})
+    assert key3 == key4
