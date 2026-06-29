@@ -68,7 +68,6 @@ class AgentREPL:
         "/compact",
         "/clear",
         "/session",
-        "/ingest",
         "/debug",
         "/export",
         "/undo",
