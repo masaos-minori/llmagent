@@ -40,6 +40,11 @@ class CiCdService(CiCdGuards):
 
             raise CicdValidationError(str(e)) from e
 
+    def _validate_and_parse_repo(self, repo: str) -> tuple[str, str]:
+        """Validate repo is allowed and parse into (owner, repo)."""
+        self._assert_allowed_repo(repo)
+        return self._parse_repo(repo)
+
     # ── Dispatch handlers ──────────────────────────────────────────────────────
 
     async def handle_trigger_workflow(self, args: ToolArgs) -> str:
@@ -69,8 +74,7 @@ class CiCdService(CiCdGuards):
         from mcp.cicd.models import GetWorkflowRunsRequest  # noqa: PLC0415
 
         req = GetWorkflowRunsRequest(**args)
-        self._assert_allowed_repo(req.repo)
-        owner, repo = self._parse_repo(req.repo)
+        owner, repo = self._validate_and_parse_repo(req.repo)
         return await self._backend.get_workflow_runs(
             owner,
             repo,
@@ -82,16 +86,14 @@ class CiCdService(CiCdGuards):
         from mcp.cicd.models import GetWorkflowStatusRequest  # noqa: PLC0415
 
         req = GetWorkflowStatusRequest(**args)
-        self._assert_allowed_repo(req.repo)
-        owner, repo = self._parse_repo(req.repo)
+        owner, repo = self._validate_and_parse_repo(req.repo)
         return await self._backend.get_workflow_status(owner, repo, req.run_id)
 
     async def handle_get_workflow_logs(self, args: ToolArgs) -> str:
         from mcp.cicd.models import GetWorkflowLogsRequest  # noqa: PLC0415
 
         req = GetWorkflowLogsRequest(**args)
-        self._assert_allowed_repo(req.repo)
-        owner, repo = self._parse_repo(req.repo)
+        owner, repo = self._validate_and_parse_repo(req.repo)
         return await self._backend.get_workflow_logs(owner, repo, req.run_id)
 
     def get_dispatch_table(

@@ -241,24 +241,10 @@ class GitHubActionsBackend:
                 follow_redirects=True,
             )
             if log_resp.is_success:
-                log_text = log_resp.text
-                log_bytes = len(log_text.encode())
-                remaining = max_bytes - total_bytes
-                if log_bytes > remaining:
-                    truncated = log_text.encode()[: max(0, remaining - 60)].decode(
-                        "utf-8", errors="replace"
-                    )
-                    output_parts.append(
-                        truncated
-                        + f"\n[TRUNCATED: exceeded {self._max_log_size_kb} KB limit]\n",
-                    )
-                    return output_parts, max_bytes
-                output_parts.append(log_text + "\n")
-                total_bytes += log_bytes
-            else:
-                output_parts.append(
-                    f"(log fetch failed: HTTP {log_resp.status_code})\n",
+                return self._truncate_if_needed(
+                    output_parts, total_bytes, log_resp.text, max_bytes
                 )
+            output_parts.append(f"(log fetch failed: HTTP {log_resp.status_code})\n")
         except (
             httpx.HTTPStatusError,
             httpx.RequestError,
@@ -271,6 +257,31 @@ class GitHubActionsBackend:
             )
             output_parts.append(f"(log fetch error: {e})\n")
 
+        return output_parts, total_bytes
+
+    def _truncate_if_needed(
+        self,
+        output_parts: list[str],
+        total_bytes: int,
+        log_text: str,
+        max_bytes: int,
+    ) -> tuple[list[str], int]:
+        """Truncate log text if it exceeds the byte limit.
+
+        Returns (output_parts, total_bytes) which may be updated if truncation occurred.
+        """
+        log_bytes = len(log_text.encode())
+        remaining = max_bytes - total_bytes
+        if log_bytes > remaining:
+            truncated = log_text.encode()[: max(0, remaining - 60)].decode(
+                "utf-8", errors="replace"
+            )
+            output_parts.append(
+                truncated + f"\n[TRUNCATED: exceeded {self._max_log_size_kb} KB limit]\n",
+            )
+            return output_parts, max_bytes
+        output_parts.append(log_text + "\n")
+        total_bytes += log_bytes
         return output_parts, total_bytes
 
     async def get_workflow_logs(self, owner: str, repo: str, run_id: int) -> str:
