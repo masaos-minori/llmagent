@@ -65,49 +65,64 @@ def _read_chunk_json_raw(path: Path) -> ChunkJsonRaw | None:
 
 
 def read_json_file(path: Path) -> ChunkDocument:
-    """Read and parse a JSON file; return ChunkDocument. Raises on failure."""
-    data = _read_chunk_json_raw(path)
-    if data is None:
-        raise ChunkFormatError(f"Failed to read chunk file: {path}")
-    title_raw = data.get("title")
-    title = title_raw if isinstance(title_raw, str) else ""
-    lang_raw = data.get("lang")
-    lang = lang_raw if isinstance(lang_raw, str) else "en"
-    code_blocks_raw = data.get("code_blocks")
-    code_blocks = list(code_blocks_raw) if isinstance(code_blocks_raw, list) else []
-    etag = data.get("etag") if isinstance(data.get("etag"), str) else None
-    last_modified = (
-        data.get("last_modified")
-        if isinstance(data.get("last_modified"), str)
-        else None
-    )
-    chunking_strategy = (
-        data.get("chunking_strategy", "text")
-        if isinstance(data.get("chunking_strategy"), str)
-        else "text"
-    )
-    nc_raw = data.get("normalized_content")
-    normalized_content = nc_raw if isinstance(nc_raw, str) else None
+        """Read and parse a JSON file; return ChunkDocument. Raises on failure."""
+        data = _read_chunk_json_raw(path)
+        if data is None:
+            raise ChunkFormatError(f"Failed to read chunk file: {path}")
+        title = _get_str(data, "title") or ""
+        lang = _get_str(data, "lang") or "en"
+        code_blocks = _get_list(data, "code_blocks") or []
+        etag = _get_str_or_none(data, "etag")
+        last_modified = _get_str_or_none(data, "last_modified")
+        chunking_strategy = _get_str_with_default(data, "chunking_strategy", "text")
+        normalized_content = _get_str_or_none(data, "normalized_content")
+        chunk_index = _get_int_with_default(data, "chunk_index", 0)
+        source_file = _get_str(data, "source_file") or ""
+        chunk_type = _get_str(data, "chunk_type") or ""
+        return ChunkDocument(
+            url=data["url"],
+            title=title,
+            lang=lang,
+            content=data["content"],
+            code_blocks=code_blocks,
+            etag=etag,
+            last_modified=last_modified,
+            chunking_strategy=chunking_strategy,
+            normalized_content=normalized_content,
+            chunk_index=chunk_index,
+            source_file=source_file,
+            chunk_type=chunk_type,
+        )
+
+def _get_str(data: ChunkJsonRaw, key: str) -> str | None:
+    """Get a string value from data."""
+    val = data.get(key)
+    return val if isinstance(val, str) else None
+
+def _get_list(data: ChunkJsonRaw, key: str) -> list[str] | None:
+    """Get a list value from data."""
+    val = data.get(key)
+    return list(val) if isinstance(val, list) else None
+
+def _get_str_or_none(data: ChunkJsonRaw, key: str) -> str | None:
+    """Get a string value or None from data."""
+    val = data.get(key)
+    return val if isinstance(val, str) else None
+
+def _get_str_with_default(data: ChunkJsonRaw, key: str, default: str) -> str:
+    """Get a string value with default fallback."""
+    val = data.get(key)
+    return val if isinstance(val, str) else default
+
+def _get_int_with_default(data: ChunkJsonRaw, key: str, default: int) -> int:
+    """Get an integer value with default fallback."""
+    val = data.get(key)
+    if val is None:
+        return default
     try:
-        chunk_index = int(data.get("chunk_index", 0))
+        return int(val)  # type: ignore[call-overload, no-any-return]
     except (ValueError, TypeError):
-        chunk_index = 0
-    source_file = data.get("source_file", "") or ""
-    chunk_type = data.get("chunk_type", "") or ""
-    return ChunkDocument(
-        url=data["url"],
-        title=title,
-        lang=lang,
-        content=data["content"],
-        code_blocks=code_blocks,
-        etag=etag,
-        last_modified=last_modified,
-        chunking_strategy=chunking_strategy,
-        normalized_content=normalized_content,
-        chunk_index=chunk_index,
-        source_file=source_file,
-        chunk_type=chunk_type,
-    )
+        return default
 
 
 def collect_source_files(
