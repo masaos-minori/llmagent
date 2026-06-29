@@ -53,9 +53,11 @@ class TestToolConstants:
         expected = {
             "rag_run_pipeline",
             "rag_debug_pipeline",
+            "rag_list_documents",
+            "rag_delete_document",
         }
         assert RAG_TOOLS == expected
-        assert len(RAG_TOOLS) == 2
+        assert len(RAG_TOOLS) == 4
 
     def test_cicd_tools(self) -> None:
         expected = {
@@ -118,8 +120,8 @@ class TestToolConstants:
             # Add to overall set
             all_tools.update(tools_set)
 
-        # Total should be 38 tools (sum of individual sets)
-        assert len(all_tools) == 40
+        # Total should be 42 tools (sum of individual sets)
+        assert len(all_tools) == 42
 
     def test_all_tools_are_strings(self) -> None:
         """Ensure all items in tool sets are strings."""

@@ -77,7 +77,7 @@ class TestCommandsList:
 
     def test_prefix_commands_have_prefix_flag(self) -> None:
         prefix_names = {cmd.name for cmd in _COMMANDS if cmd.prefix}
-        for name in ("/mcp", "/session", "/db", "/note"):
+        for name in ("/mcp", "/session", "/db"):
             assert name in prefix_names, f"{name} should be prefix command"
 
     def test_exact_commands_no_prefix_flag(self) -> None:

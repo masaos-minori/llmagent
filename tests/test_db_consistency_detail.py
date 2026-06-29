@@ -79,7 +79,7 @@ def test_consistent_shows_numeric_line():
 
     all_lines = cmd._out.lines + cmd._out.success_lines
     numeric_lines = [
-        line for line in all_lines if "chunks=" in line and "fts_gap=" in line
+        line for line in all_lines if "chunks:" in line and "fts_gap:" in line
     ]
     assert len(numeric_lines) == 1
     assert "10" in numeric_lines[0]
@@ -95,7 +95,7 @@ def test_inconsistent_shows_numeric_line_and_errors():
         cmd._db_consistency()
 
     all_lines = cmd._out.lines
-    numeric_lines = [line for line in all_lines if "fts_gap=" in line]
+    numeric_lines = [line for line in all_lines if "fts_gap:" in line]
     assert len(numeric_lines) == 1
     assert "3" in numeric_lines[0]
     assert len(cmd._out.error_lines) >= 1

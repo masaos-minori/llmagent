@@ -206,22 +206,18 @@ class TestRagDbMaintenanceService:
         conn.commit()
         conn.close()
 
-    def test_rotate_wal_checkpoint(self, tmp_path: Path) -> None:
+    def test_rotate_wal_checkpoint(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         db_file = tmp_path / "rag.sqlite"
         self._make_real_sqlite(db_file)
 
-        monkeypatch = pytest.MonkeyPatch()
         monkeypatch.setattr(
             "db.helper.build_db_config",
             lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
         )
-        try:
-            service = RagDbMaintenanceService()
-            service.rotate()
-        finally:
-            monkeypatch.undo()
+        service = RagDbMaintenanceService()
+        service.rotate()
 
-    def test_rebuild_fts(self, tmp_path: Path) -> None:
+    def test_rebuild_fts(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         db_file = tmp_path / "rag.sqlite"
         self._make_real_sqlite(db_file)
         # Create chunks_fts table for rebuild test
@@ -234,31 +230,23 @@ class TestRagDbMaintenanceService:
         conn.commit()
         conn.close()
 
-        monkeypatch = pytest.MonkeyPatch()
         monkeypatch.setattr(
             "db.helper.build_db_config",
             lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
         )
-        try:
-            service = RagDbMaintenanceService()
-            service.rebuild_fts()
-        finally:
-            monkeypatch.undo()
+        service = RagDbMaintenanceService()
+        service.rebuild_fts()
 
-    def test_vacuum(self, tmp_path: Path) -> None:
+    def test_vacuum(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         db_file = tmp_path / "rag.sqlite"
         self._make_real_sqlite(db_file)
 
-        monkeypatch = pytest.MonkeyPatch()
         monkeypatch.setattr(
             "db.helper.build_db_config",
             lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
         )
-        try:
-            service = RagDbMaintenanceService()
-            service.vacuum()
-        finally:
-            monkeypatch.undo()
+        service = RagDbMaintenanceService()
+        service.vacuum()
 
     def test_rotate_session_db_creates_archive(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
