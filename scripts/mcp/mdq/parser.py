@@ -107,6 +107,7 @@ async def parse_markdown(
         else:
             heading_level_val = 0
             heading_text_val = ""
+            heading_match = False
 
         # If not a valid heading, treat as section content
         if not heading_match:
