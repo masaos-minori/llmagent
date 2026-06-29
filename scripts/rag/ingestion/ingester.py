@@ -159,69 +159,36 @@ class RagIngester:
     ) -> IngestUrlResult:
         """Ingest all chunk files for one URL into SQLite in ascending chunk_index order; moves files to registered/ after processing including on skip."""
         if not chunk_files:
-            src_type = "file" if url.startswith("file://") else "http"
-            logger.warning(
-                "No chunk files provided for URL: %s",
-                url,
-                extra={"source_type": src_type, "stage_name": "ingester"},
-            )
-            return IngestUrlResult(url=url, n_success=0, n_failed=0, skipped=True)
+            return self._skip_result(url)
+
         chunk_files = sorted(chunk_files, key=lambda p: p.stem)
         first_data = self._read_chunk_json(chunk_files[0])
         if first_data is None:
             return IngestUrlResult(
                 url=url, n_success=0, n_failed=len(chunk_files), skipped=False
             )
-        try:
-            self._validate_artifact(first_data, "chunk")
-        except ValueError as e:
-            src_type = "file" if url.startswith("file://") else "http"
-            logger.error(
-                "artifact validation failed for %s: %s",
-                url,
-                e,
-                extra={"source_type": src_type, "stage_name": "ingester"},
-            )
-            return IngestUrlResult(
-                url=url, n_success=0, n_failed=len(chunk_files), skipped=False
-            )
-        title: str = first_data.get("title", "")
-        lang: str = first_data.get("lang", "en")
-        etag: str | None = first_data.get("etag")
-        last_modified: str | None = first_data.get("last_modified")
-        fetched_at: str | None = first_data.get("fetched_at")
-        chunking_strategy: str = first_data.get("chunking_strategy", "text")
+
+        if not self._validate_artifact(first_data, "chunk"):
+            return self._validation_failure_result(url, chunk_files)
+
+        title = first_data.get("title", "")
+        lang = first_data.get("lang", "en")
+        etag = first_data.get("etag")
+        last_modified = first_data.get("last_modified")
+        fetched_at = first_data.get("fetched_at")
+        chunking_strategy = first_data.get("chunking_strategy", "text")
+
         doc_id = self._get_or_create_document(
-            db,
-            url,
-            title,
-            lang,
-            force,
-            etag,
-            last_modified,
-            chunking_strategy,
-            fetched_at=fetched_at,
+            db, url, title, lang, force, etag, last_modified, chunking_strategy, fetched_at
         )
         if doc_id is None:
-            logger.info(
-                "already registered, skipping",
-                extra={"url": url},
-            )
+            logger.info("already registered, skipping", extra={"url": url})
             self._move_to_registered(chunk_files)
-            return IngestUrlResult(url=url, n_success=0, n_failed=0, skipped=True)
-        # Commit document record before parallel chunk inserts (FK dependency).
+            return self._skip_result(url)
+
         db.commit()
         inserted, failed, embed_failed = self._ingest_chunk_files(doc_id, chunk_files)
-        src_type = "file" if url.startswith("file://") else "http"
-        logger.info(
-            "inserted %s/%s chunks (%s failed, %s embed-failed): %s",
-            inserted,
-            len(chunk_files),
-            failed,
-            embed_failed,
-            url,
-            extra={"doc_id": doc_id, "source_type": src_type, "stage_name": "ingester"},
-        )
+        self._log_ingestion_result(doc_id, url, inserted, len(chunk_files), failed, embed_failed)
         self._move_to_registered(chunk_files)
         return IngestUrlResult(
             url=url,
@@ -274,16 +241,53 @@ class RagIngester:
                     time.sleep(min(2**attempt, 10))
         return None
 
+    # ── Result helpers ────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _skip_result(url: str) -> IngestUrlResult:
+        """Return a skipped result for a URL."""
+        return IngestUrlResult(url=url, n_success=0, n_failed=0, skipped=True)
+
+    @staticmethod
+    def _validation_failure_result(url: str, chunk_files: list[Path]) -> IngestUrlResult:
+        """Return a failure result when artifact validation fails."""
+        return IngestUrlResult(
+            url=url, n_success=0, n_failed=len(chunk_files), skipped=False
+        )
+
+    @staticmethod
+    def _log_ingestion_result(
+        doc_id: int,
+        url: str,
+        inserted: int,
+        total: int,
+        failed: int,
+        embed_failed: int,
+    ) -> None:
+        """Log the chunk ingestion result."""
+        src_type = "file" if url.startswith("file://") else "http"
+        logger.info(
+            "inserted %s/%s chunks (%s failed, %s embed-failed): %s",
+            inserted,
+            total,
+            failed,
+            embed_failed,
+            url,
+            extra={"doc_id": doc_id, "source_type": src_type, "stage_name": "ingester"},
+        )
+
     # ── Document helpers ──────────────────────────────────────────────────────
 
     @staticmethod
-    def _validate_artifact(payload: ChunkJsonRaw, expected_type: str) -> None:
-        """Validate artifact_type field; lenient for backward compatibility (missing artifact_type is accepted)."""
+    def _validate_artifact(payload: ChunkJsonRaw, expected_type: str) -> bool:
+        """Validate artifact_type field; lenient for backward compatibility (missing artifact_type is accepted).
+
+        Returns True when validation passes, False when it fails.
+        """
         actual = payload.get("artifact_type")
         if actual is not None and actual != expected_type:
-            raise ValueError(
-                f"Expected artifact_type={expected_type!r}, got {actual!r}"
-            )
+            return False
+        return True
 
     @staticmethod
     def _is_file_unchanged(
@@ -325,9 +329,7 @@ class RagIngester:
             )
             return
         if new_fetched_at is not None:
-            self._update_etag_with_freshness(
-                db, doc_id, etag, last_modified, new_fetched_at
-            )
+            self._update_etag_with_freshness(db, doc_id, etag, last_modified, new_fetched_at)
         else:
             self._update_etag_null_fill(db, doc_id, etag, last_modified)
         self._log_etag_updated(doc_id)
@@ -379,6 +381,22 @@ class RagIngester:
             extra={"stage_name": "ingester"},
         )
 
+    @staticmethod
+    def _log_ingest_failure(doc_id: int, path: Path, e: Exception) -> None:
+        """Log a chunk ingestion failure."""
+        chunk_data = _read_chunk_json_raw(path)
+        chunk_url = chunk_data.get("url", "") if chunk_data else ""
+        logger.error(
+            "Failed to ingest %s: %s",
+            path,
+            e,
+            extra={
+                "doc_id": doc_id,
+                "url": chunk_url,
+                "source_type": "file",
+                "stage_name": "ingester"},
+        )
+
     def _validate_lang(self, lang: str) -> bool:
         """Return True when lang is a valid value."""
         return lang in _VALID_LANGS
@@ -394,14 +412,14 @@ class RagIngester:
         fetched_at: str | None,
     ) -> bool:
         """Handle an existing document; return True when the caller should skip insertion."""
-        if not force and url.startswith("file://"):
+        if force:
+            return False
+        if url.startswith("file://"):
             return self._handle_existing_file(
                 db, url, existing_doc_id, etag, last_modified
             )
-        if not force:
-            self._update_etag(db, existing_doc_id, etag, last_modified, fetched_at)
-            return True
-        return False
+        self._update_etag(db, existing_doc_id, etag, last_modified, fetched_at)
+        return True
 
     def _handle_existing_file(
         self,
@@ -416,9 +434,9 @@ class RagIngester:
             "SELECT etag, last_modified FROM documents WHERE doc_id = ?",
             (existing_doc_id,),
         ).fetchone()
-        if stored and self._is_file_unchanged(
-            stored["etag"], stored["last_modified"], etag, last_modified
-        ):
+        if stored is None:
+            return False
+        if self._is_file_unchanged(stored["etag"], stored["last_modified"], etag, last_modified):
             logger.info(
                 "file:// unchanged (sha256 match): %s",
                 url,
@@ -508,9 +526,7 @@ class RagIngester:
         data = self._read_chunk_json(path)
         if data is None:
             return False, False
-        try:
-            self._validate_artifact(data, "chunk")
-        except ValueError:
+        if not self._validate_artifact(data, "chunk"):
             logger.warning(
                 "artifact validation failed for %s",
                 path.name,
@@ -599,19 +615,7 @@ class RagIngester:
                     ValueError,
                     TypeError,
                 ) as e:
-                    chunk_data = self._read_chunk_json(path)
-                    chunk_url = chunk_data.get("url", "") if chunk_data else ""
-                    logger.error(
-                        "Failed to ingest %s: %s",
-                        path,
-                        e,
-                        extra={
-                            "doc_id": doc_id,
-                            "url": chunk_url,
-                            "source_type": "file",
-                            "stage_name": "ingester",
-                        },
-                    )
+                    self._log_ingest_failure(doc_id, path, e)
                     failed += 1
         return inserted, failed, embed_failed
 
