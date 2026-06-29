@@ -54,11 +54,10 @@ app = FastAPI(
 _service: MdqService = MdqService()
 
 
-@app.exception_handler(MdqValidationError)
-async def _on_mdq_validation_error(
-    request: Request, exc: MdqValidationError
+def _mdq_error_handler(
+    request: Request, exc: Exception, status_code: int, error_kind: str
 ) -> JSONResponse:
-    logger.info("MDQ validation error: %s", exc)
+    logger.info("MDQ %s error: %s", error_kind, exc)
     session_id = request.headers.get("x-session-id", "")
     request_id = getattr(
         request.state, "request_id", request.headers.get("x-request-id", "")
@@ -70,133 +69,97 @@ async def _on_mdq_validation_error(
         action="call_tool",
         target="",
         outcome="error",
-        detail="error_kind=validation_error",
+        detail=f"error_kind={error_kind}",
     )
-    return JSONResponse({"detail": str(exc)}, status_code=400)
+    return JSONResponse({"detail": str(exc)}, status_code=status_code)
+
+
+def _degraded_response(deps: dict[str, str], details: dict[str, object]) -> JSONResponse:
+    return JSONResponse(
+        {
+            "status": "degraded",
+            "ready": False,
+            "dependencies": deps,
+            "details": details,
+        },
+        status_code=503,
+    )
+
+
+def _check_stale_documents(conn: Any, mdq_cfg: dict[str, Any]) -> int | None:
+    try:
+        from pathlib import Path as _Path
+
+        stale_count = 0
+        index_paths_cfg = mdq_cfg.get("index_paths", []) or []
+        if index_paths_cfg:
+            first_path = _Path(index_paths_cfg[0])
+            if first_path.is_dir():
+                ref_mtime = first_path.stat().st_mtime
+            elif first_path.is_file():
+                ref_mtime = first_path.stat().st_mtime
+            else:
+                ref_mtime = None
+
+            stale_count = 0
+            if ref_mtime is not None:
+                stale_count = (
+                    conn.execute(
+                        "SELECT COUNT(DISTINCT file_path) as cnt FROM sections WHERE file_mtime < ?",
+                        (ref_mtime,),
+                    ).fetchone()["cnt"]
+                    or 0
+                )
+    except Exception:
+        stale_count = None
+    return stale_count
+
+
+@app.exception_handler(MdqValidationError)
+async def _on_mdq_validation_error(
+    request: Request, exc: MdqValidationError
+) -> JSONResponse:
+    return _mdq_error_handler(request, exc, 400, "validation_error")
 
 
 @app.exception_handler(MdqAuthorizationError)
 async def _on_mdq_authorization_error(
     request: Request, exc: MdqAuthorizationError
 ) -> JSONResponse:
-    logger.info("MDQ authorization error: %s", exc)
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
-    _audit_log(
-        logger,
-        session_id=session_id,
-        request_id=request_id,
-        action="call_tool",
-        target="",
-        outcome="error",
-        detail="error_kind=authorization_error",
-    )
-    return JSONResponse({"detail": str(exc)}, status_code=403)
+    return _mdq_error_handler(request, exc, 403, "authorization_error")
 
 
 @app.exception_handler(MdqNotFoundError)
 async def _on_mdq_not_found_error(
     request: Request, exc: MdqNotFoundError
 ) -> JSONResponse:
-    logger.info("MDQ not found error: %s", exc)
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
-    _audit_log(
-        logger,
-        session_id=session_id,
-        request_id=request_id,
-        action="call_tool",
-        target="",
-        outcome="error",
-        detail="error_kind=not_found_error",
-    )
-    return JSONResponse({"detail": str(exc)}, status_code=404)
+    return _mdq_error_handler(request, exc, 404, "not_found_error")
 
 
 @app.exception_handler(MdqIndexNotReadyError)
 async def _on_mdq_index_not_ready_error(
     request: Request, exc: MdqIndexNotReadyError
 ) -> JSONResponse:
-    logger.info("MDQ index not ready error: %s", exc)
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
-    _audit_log(
-        logger,
-        session_id=session_id,
-        request_id=request_id,
-        action="call_tool",
-        target="",
-        outcome="error",
-        detail="error_kind=index_not_ready_error",
-    )
-    return JSONResponse({"detail": str(exc)}, status_code=503)
+    return _mdq_error_handler(request, exc, 503, "index_not_ready_error")
 
 
 @app.exception_handler(MdqDatabaseError)
 async def _on_mdq_database_error(
     request: Request, exc: MdqDatabaseError
 ) -> JSONResponse:
-    logger.info("MDQ database error: %s", exc)
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
-    _audit_log(
-        logger,
-        session_id=session_id,
-        request_id=request_id,
-        action="call_tool",
-        target="",
-        outcome="error",
-        detail="error_kind=database_error",
-    )
-    return JSONResponse({"detail": str(exc)}, status_code=503)
+    return _mdq_error_handler(request, exc, 503, "database_error")
 
 
 @app.exception_handler(MdqConsistencyError)
 async def _on_mdq_consistency_error(
     request: Request, exc: MdqConsistencyError
 ) -> JSONResponse:
-    logger.info("MDQ consistency error: %s", exc)
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
-    _audit_log(
-        logger,
-        session_id=session_id,
-        request_id=request_id,
-        action="call_tool",
-        target="",
-        outcome="error",
-        detail="error_kind=consistency_error",
-    )
-    return JSONResponse({"detail": str(exc)}, status_code=500)
+    return _mdq_error_handler(request, exc, 500, "consistency_error")
 
 
 @app.exception_handler(MdqServiceError)
 async def _on_mdq_service_error(request: Request, exc: MdqServiceError) -> JSONResponse:
-    logger.info("MDQ service error (fallback): %s", exc)
-    session_id = request.headers.get("x-session-id", "")
-    request_id = getattr(
-        request.state, "request_id", request.headers.get("x-request-id", "")
-    )
-    _audit_log(
-        logger,
-        session_id=session_id,
-        request_id=request_id,
-        action="call_tool",
-        target="",
-        outcome="error",
-        detail="error_kind=service_error",
-    )
-    return JSONResponse({"detail": str(exc)}, status_code=500)
+    return _mdq_error_handler(request, exc, 500, "service_error")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -265,20 +228,16 @@ def _audit_target(tool_name: str, args: dict[str, Any]) -> str:
         query = args.get("query", "")
         path = args.get("path_prefix", "")
         return f"{query}{' + ' + path if path else ''}"
-    elif tool_name == "get_chunk":
+    if tool_name == "get_chunk":
         return str(args.get("chunk_id", ""))[:80]
-    elif tool_name == "outline":
+    if tool_name == "outline":
         return str(args.get("path", ""))[:80]
-    elif tool_name in ("index_paths", "refresh_index"):
+    if tool_name in ("index_paths", "refresh_index"):
         paths = args.get("paths", [])
         return str(paths[0])[:80] if paths else ""
-    elif tool_name == "grep_docs":
+    if tool_name == "grep_docs":
         return str(args.get("pattern", ""))[:80]
-    elif tool_name == "stats":
-        return "mdq-mcp"
-    elif tool_name == "fts_consistency_check":
-        return "mdq-mcp"
-    elif tool_name == "fts_rebuild":
+    if tool_name in ("stats", "fts_consistency_check", "fts_rebuild"):
         return "mdq-mcp"
     return ""
 
@@ -297,7 +256,10 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     # Tool-aware target extraction
     target = _audit_target(req.name, req.args)
     detail_parts: list[str] = []
-    if not r.is_error:
+    if r.is_error:
+        detail_parts.append(f"duration_ms={ms:.0f}")
+        detail_parts.append("error_kind=dispatch_error")
+    else:
         detail_parts.append(f"duration_ms={ms:.0f}")
         if req.name == "search_docs":
             detail_parts.append(
@@ -309,9 +271,6 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
             )
         elif req.name in ("index_paths", "refresh_index"):
             detail_parts.append("indexed")
-    else:
-        detail_parts.append(f"duration_ms={ms:.0f}")
-        detail_parts.append("error_kind=dispatch_error")
 
     _audit_log(
         logger,
@@ -346,15 +305,7 @@ async def health() -> JSONResponse:
 
         if not _os.path.isfile(db_path):
             deps["db_file"] = f"not found: {db_path}"
-            return JSONResponse(
-                {
-                    "status": "degraded",
-                    "ready": False,
-                    "dependencies": deps,
-                    "details": details,
-                },
-                status_code=503,
-            )
+            return _degraded_response(deps, details)
 
         import sqlite3
 
@@ -365,27 +316,11 @@ async def health() -> JSONResponse:
 
             if "sections" not in tables:
                 deps["db_schema"] = "missing sections table"
-                return JSONResponse(
-                    {
-                        "status": "degraded",
-                        "ready": False,
-                        "dependencies": deps,
-                        "details": details,
-                    },
-                    status_code=503,
-                )
+                return _degraded_response(deps, details)
 
             if "sections_fts" not in tables:
                 deps["db_schema"] = "missing sections_fts FTS5 table"
-                return JSONResponse(
-                    {
-                        "status": "degraded",
-                        "ready": False,
-                        "dependencies": deps,
-                        "details": details,
-                    },
-                    status_code=503,
-                )
+                return _degraded_response(deps, details)
 
             cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'")
             triggers = {row[0] for row in cursor.fetchall()}
@@ -395,15 +330,7 @@ async def health() -> JSONResponse:
                 deps["db_schema"] = (
                     f"missing triggers: {', '.join(sorted(missing_triggers))}"
                 )
-                return JSONResponse(
-                    {
-                        "status": "degraded",
-                        "ready": False,
-                        "dependencies": deps,
-                        "details": details,
-                    },
-                    status_code=503,
-                )
+                return _degraded_response(deps, details)
 
             try:
                 cursor.execute(
@@ -412,15 +339,7 @@ async def health() -> JSONResponse:
                 cursor.fetchone()
             except sqlite3.OperationalError as e:
                 deps["fts5"] = f"FTS5 query failed: {e}"
-                return JSONResponse(
-                    {
-                        "status": "degraded",
-                        "ready": False,
-                        "dependencies": deps,
-                        "details": details,
-                    },
-                    status_code=503,
-                )
+                return _degraded_response(deps, details)
 
             chunk_count = conn.execute(
                 "SELECT COUNT(*) as cnt FROM sections"
@@ -439,33 +358,7 @@ async def health() -> JSONResponse:
             details["fts_row_count"] = fts_count
             details["last_indexed"] = last_indexed
 
-            # Check for stale documents (file_mtime mismatch)
-            try:
-                from pathlib import Path as _Path
-
-                stale_count = 0
-                index_paths_cfg = mdq_cfg.get("index_paths", []) or []
-                if index_paths_cfg:
-                    first_path = _Path(index_paths_cfg[0])
-                    if first_path.is_dir():
-                        ref_mtime = first_path.stat().st_mtime
-                    elif first_path.is_file():
-                        ref_mtime = first_path.stat().st_mtime
-                    else:
-                        ref_mtime = None
-
-                    stale_count = 0
-                    if ref_mtime is not None:
-                        stale_count = (
-                            conn.execute(
-                                "SELECT COUNT(DISTINCT file_path) as cnt FROM sections WHERE file_mtime < ?",
-                                (ref_mtime,),
-                            ).fetchone()["cnt"]
-                            or 0
-                        )
-            except Exception:
-                # If stale count fails, don't break health check
-                stale_count = None
+            stale_count = _check_stale_documents(conn, mdq_cfg)
             details["stale_document_count"] = stale_count
 
         finally:
