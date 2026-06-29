@@ -62,11 +62,13 @@ Both tables show the same inconsistency: Priority 3 (`Config tool_names (in mcp_
 
 **Statement B (mdq-mcp section):** mdq-mcp lacks an equivalent tool status declaration despite having 9 tools with mixed statuses.
 
-**Current safe interpretation:** mdq-mcp tools have mixed statuses (production and stub). Cross-reference `scripts/mcp/mdq/tools.py` to verify individual tool status.
+**Current safe interpretation:** mdq-mcp tools have mixed statuses (production and admin). Cross-reference `scripts/mcp/mdq/tools.py` to verify individual tool status.
 
-**Recommended action:** Add explicit tool status declaration for mdq-mcp similar to rag-pipeline-mcp's declaration.
+**Status: RESOLVED (2026-06-29).** Added explicit tool status declaration to mdq-mcp section in `04_mcp_04_server_catalog.md`. Updated MCP-05 to mark stub marker as resolved.
 
-**Notes for AI reference:** Do not assume all mdq-mcp tools are production-ready; check `scripts/mcp/mdq/tools.py` for individual tool status.
+**Recommended action:** None — resolved by adding tool status declaration and resolving MCP-05.
+
+**Notes for AI reference:** mdq-mcp has 7 production tools (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`) and 2 admin tools (`fts_consistency_check`, `fts_rebuild`). No stub markers exist in the codebase.
 
 ---
 
@@ -98,9 +100,11 @@ Both tables show the same inconsistency: Priority 3 (`Config tool_names (in mcp_
 
 **Historical context:** mdq-mcp was previously marked as `"status": "stub"` with `"stub": True` in the `/health` endpoint. Current code (`scripts/mcp/mdq/tools.py`) has all 7 non-admin tools with `"status": "production"` and no `stub` indicator in health response.
 
+**Status: RESOLVED (2026-06-29).** All stub markers have been removed from mdq-mcp codebase. Added explicit tool status declaration to mdq-mcp section in `04_mcp_04_server_catalog.md`.
+
 **Current safe interpretation:** mdq-mcp is production-ready for its FTS5 capabilities. The lack of hybrid search (MDQ-02) does not make it a stub — FTS5 is the primary search mechanism.
 
-**Recommended action:** Add explicit tool status declaration to mdq-mcp section in `04_mcp_04_server_catalog.md` similar to rag-pipeline-mcp's declaration. Clarify that hybrid search (MDQ-02) is planned, not missing.
+**Recommended action:** None — resolved by removing all stub markers and adding tool status declaration.
 
 **Notes for AI reference:** mdq-mcp is production-ready for FTS5 search. Hybrid search mode (`mode=hybrid`) is planned but not yet implemented — falls back to FTS5-only results.
 
