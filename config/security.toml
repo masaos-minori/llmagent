@@ -84,6 +84,7 @@ branch_keys = [
 approval_dry_run_tools = [
   "write_file",
   "edit_file",
+  "create_directory",
   "delete_file",
   "delete_directory",
   "move_file",

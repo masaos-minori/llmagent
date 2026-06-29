@@ -415,6 +415,38 @@ class TestCheckApprovalDryRun:
 
         assert result is True  # approval still proceeds
 
+    @pytest.mark.asyncio
+    async def test_dry_run_for_create_directory(self) -> None:
+        """create_directory in approval_dry_run_tools must trigger dry_run before prompt."""
+        cfg = _make_cfg()
+        ctx = _make_ctx(cfg=cfg)
+        ctx.services.tools = MagicMock()
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/newdir [would create]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+
+        printed: list[str] = []
+        with (
+            patch("builtins.print", side_effect=lambda *a: printed.append(str(a))),
+            patch("asyncio.to_thread", new=AsyncMock(return_value="y")),
+        ):
+            result = await check_approval(
+                ctx, "create_directory", {"path": "/tmp/newdir"}
+            )
+
+        assert result is True
+        combined = " ".join(printed)
+        assert "Dry-run" in combined
+        ctx.services.tools.execute.assert_awaited_once()
+        call_args = ctx.services.tools.execute.await_args[0]
+        assert call_args[0] == "create_directory"
+        assert call_args[1]["dry_run"] is True
+
 
 # ── _audit_tool_exec() ────────────────────────────────────────────────────────
 

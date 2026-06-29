@@ -436,6 +436,7 @@ class ApprovalConfig:
         default_factory=lambda: [
             "write_file",
             "edit_file",
+            "create_directory",
             "delete_file",
             "delete_directory",
             "move_file",

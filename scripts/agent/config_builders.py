@@ -107,6 +107,7 @@ _DEFAULT_RESOURCE_KEYS: dict[str, list[str]] = {
 _DEFAULT_DRY_RUN_TOOLS: list[str] = [
     "write_file",
     "edit_file",
+    "create_directory",
     "delete_file",
     "delete_directory",
     "move_file",

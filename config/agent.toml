@@ -212,6 +212,8 @@ plan_blocked_tools = [
 # List of tool names that receive dry_run=True automatically before the user sees the approval prompt
 approval_dry_run_tools = [
   "write_file",
+  "edit_file",
+  "create_directory",
   "delete_file",
   "delete_directory",
   "git_checkout",
