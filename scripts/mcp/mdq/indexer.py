@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mcp.mdq.auth import authorize_path
-from mcp.mdq.models import IndexPathsRequest, ParseMarkdownRequest, RefreshIndexRequest
+from mcp.mdq.models import IndexPathsRequest, ParsedSection, ParseMarkdownRequest, RefreshIndexRequest
 from mcp.mdq.parser import parse_markdown
 
 if TYPE_CHECKING:
@@ -88,22 +88,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
 
             # Generate summaries for large chunks if enabled
             if service.summary_cache_enabled:
-                for section in sections:
-                    content_hash = hashlib.sha256(
-                        section["content"].encode()
-                    ).hexdigest()
-                    if len(section["content"]) > service.summary_threshold:
-                        conn.execute(
-                            "INSERT OR REPLACE INTO chunk_summaries (chunk_id, summary, summary_model, content_hash, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
-                            (
-                                hashlib.sha256(
-                                    f"{doc_id}:{section['heading']}:{section['start_line']}".encode()
-                                ).hexdigest(),
-                                section["content"][: service.summary_threshold],
-                                service.summary_model,
-                                content_hash,
-                            ),
-                        )
+                _generate_summaries(service, conn, doc_id, sections)
 
             conn.commit()
     except sqlite3.Error as e:
@@ -303,3 +288,23 @@ def _delete_file_from_index(
         "BEGIN DELETE FROM chunks_fts WHERE rowid = old.rowid; END"
     )
     conn.commit()
+
+
+def _generate_summaries(
+    service: MdqService, conn: sqlite3.Connection, doc_id: str, sections: list[ParsedSection]
+) -> None:
+    """Generate summaries for large chunks if enabled."""
+    for section in sections:
+        content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
+        if len(section["content"]) > service.summary_threshold:
+            conn.execute(
+                "INSERT OR REPLACE INTO chunk_summaries (chunk_id, summary, summary_model, content_hash, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
+                (
+                    hashlib.sha256(
+                        f"{doc_id}:{section['heading']}:{section['start_line']}".encode()
+                    ).hexdigest(),
+                    section["content"][: service.summary_threshold],
+                    service.summary_model,
+                    content_hash,
+                ),
+            )
