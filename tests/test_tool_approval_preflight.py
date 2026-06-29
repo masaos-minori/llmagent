@@ -385,6 +385,34 @@ class TestCheckApprovalDryRun:
         ctx.services.tools.execute.assert_awaited_once()
 
     @pytest.mark.asyncio
+    async def test_create_directory_dry_run_result_appended_to_preview(self) -> None:
+        """create_directory dry_run execution output should be included in preview before prompt."""
+        cfg = _make_cfg()
+        ctx = _make_ctx(cfg=cfg)
+        ctx.services.tools = MagicMock()
+        ctx.services.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/newdir (0 bytes) [new directory]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+
+        printed: list[str] = []
+        with (
+            patch("builtins.print", side_effect=lambda *a: printed.append(str(a))),
+            patch("asyncio.to_thread", new=AsyncMock(return_value="y")),
+        ):
+            result = await check_approval(
+                ctx, "create_directory", {"path": "/tmp/newdir"}
+            )
+
+        assert result is True
+        combined = " ".join(printed)
+        assert "Dry-run" in combined
+
+    @pytest.mark.asyncio
     async def test_dry_run_skipped_for_non_dry_run_tool(self) -> None:
         """shell_run is not in approval_dry_run_tools; dry_run must not be called."""
         cfg = _make_cfg(approval_dry_run_tools=[])
