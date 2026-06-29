@@ -10,6 +10,8 @@ _RAG_BLOCK_END = "[RAG_CONTEXT_END]"
 
 def _format_chunks(reranked: list[RagHit]) -> str:
     """Format reranked hits with sanitization and boundary markers."""
+    if not reranked:
+        return f"{_RAG_BLOCK_START}\n\n{_RAG_BLOCK_END}"
     blocks = [
         f"[Source: {c.title if c.title else c.url} | {c.url}]\n{sanitize_document(c.content)}"
         for c in reranked

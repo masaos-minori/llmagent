@@ -17,14 +17,19 @@ async def _rerank(
     Falls back to RRF order when use_rerank=False.
     """
     if not cfg.use_rerank:
-        result = merged[: cfg.rag_top_k]
-        return deduplicate_chunks(result, cfg.max_chunks_per_doc)
+        return _rerank_fallback(merged, cfg)
     result = await llm.cross_encoder_rerank(
         query,
         merged[: cfg.top_k_rerank],
         cfg.rag_top_k,
         rag_min_score=cfg.rag_min_score,
     )
+    return deduplicate_chunks(result, cfg.max_chunks_per_doc)
+
+
+def _rerank_fallback(merged: list[RagHit], cfg: RagConfig) -> list[RagHit]:
+    """Fallback reranking when use_rerank=False: slice + dedup."""
+    result = merged[: cfg.rag_top_k]
     return deduplicate_chunks(result, cfg.max_chunks_per_doc)
 
 

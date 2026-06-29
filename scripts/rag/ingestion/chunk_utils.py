@@ -27,6 +27,8 @@ def merge_text_items(
 
     A short tail item is merged into the last chunk instead of discarded.
     """
+    if not items:
+        return []
     overhead = len(sep)
     result: list[str] = []
     buf = ""
@@ -43,6 +45,5 @@ def merge_text_items(
     if len(buf) >= min_chunk:
         result.append(buf)
     elif result:
-        # Merge short tail into last chunk to avoid discarding content
         result[-1] = (result[-1] + sep + buf).strip()
     return result
