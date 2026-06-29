@@ -68,6 +68,9 @@ class _StdioRequestResult:
     req_id: int
     is_introspection: bool
     name: str
+    truncated: bool = False
+    total_bytes: int = 0
+    actual_visible_bytes: int = 0
 
 
 @dataclasses.dataclass(frozen=True)
@@ -271,16 +274,12 @@ class MCPServer:
         req_id = req_result.req_id
         is_introspection = req_result.is_introspection
 
-        truncated = False
-        total_bytes = 0
-        actual_visible_bytes = 0
+        truncated = req_result.truncated
+        total_bytes = req_result.total_bytes
+        actual_visible_bytes = req_result.actual_visible_bytes
 
         if not is_error and not is_introspection:
-            tr = _truncate_with_meta(result)
             is_error = False
-            truncated = tr.truncated
-            total_bytes = tr.total_bytes
-            actual_visible_bytes = tr.actual_visible_bytes
 
         if is_error and name != "__list_tools__":
             self._record_tool_error(name)
@@ -360,4 +359,7 @@ class MCPServer:
             req_id=req_id,
             is_introspection=False,
             name=name,
+            truncated=tr.truncated,
+            total_bytes=tr.total_bytes,
+            actual_visible_bytes=tr.actual_visible_bytes,
         )
