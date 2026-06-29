@@ -41,7 +41,7 @@ from mcp.mdq.models import (
 from mcp.mdq.service import MdqService
 from mcp.mdq.tools import _MCP_TOOLS
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, ToolArgs
+from mcp.server import MCPServer, _FastAPIApp, ToolArgs, attach_auth_middleware
 
 logger = Logger(__name__, "/opt/llm/logs/mdq-mcp.log")
 
@@ -391,16 +391,28 @@ async def health() -> JSONResponse:
 
 
 class MdqMCPServer(MCPServer):
-    """MCPServer subclass for mdq-mcp."""
+    """MCPServer subclass for mdq-mcp.
+
+    Conforms to MCPServer base class contract:
+    - server_key: "mdq" (used by list_tools_with_server_key() and routing)
+    - http_host: explicit "127.0.0.1" (matches other HTTP servers)
+    - auth_token: empty string (no auth required — mdq has its own authorization via allowed_dirs)
+    """
 
     server_name = "mdq-mcp"
     server_version = "1.0.0"
+    http_host = "127.0.0.1"
     http_port = 8013
     app_module = "mcp.mdq.server:app"
     mcp_tools = cast(list[dict[str, Any]], _MCP_TOOLS)
+    server_key = "mdq"
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_mdq_tool(name, args)
+
+
+# Attach auth middleware — no-op when token is empty (mdq has its own authorization)
+attach_auth_middleware(cast(_FastAPIApp, app), "")
 
 
 if __name__ == "__main__":
