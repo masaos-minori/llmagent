@@ -207,6 +207,8 @@ All MCP server `/health` endpoints follow consistent semantics for the response 
 - `200` when `status="ok"` and `ready=true` (fully healthy)
 - `503` when `status="degraded"` or `ready=false` (dependency failure)
 
+**Dependency values**: Any non-empty dependency value (`"not configured"`, `"not_set"`, `"check failed"`, etc.) constitutes a degraded state — the server is not healthy until all dependencies are satisfied. These values are never informational; they always indicate a real missing or failed dependency.
+
 **Watchdog behavior**: The watchdog (`agent/repl_health.py`) checks only the HTTP response status code (`resp.status_code == HTTPStatus.OK`). Body fields (`status`, `ready`) are NOT checked by the watchdog. This means:
 - HTTP 200 → watchdog considers server healthy regardless of body `status` field
 - HTTP 503 → watchdog considers server unhealthy and will restart
@@ -292,7 +294,7 @@ When result exceeds 512 KB:
 |---|---|
 | web-search-mcp | No overrides (returns `{"status":"ok","ready":true}`) |
 | github-mcp | `dependencies.github_token` (`"set"`/`"not_set"`) |
-| mdq-mcp | `details.service: "mdq-mcp"` |
+| mdq-mcp | `details.service: "mdq-mcp"`, `details.document_count`, `details.chunk_count`, `details.fts_row_count`, `details.last_indexed`, `details.stale_document_count`; checks `documents`, `chunks`, `chunks_fts` tables and triggers `chunks_ai/ad/au`; stale detection via `documents.mtime_ns` (nanoseconds) |
 | shell-mcp | `dependencies.shell` (`"sh not found in PATH"`/`"check failed"`); `details.sandbox_backend` (`"firejail"` or `"none"`) |
 | file-read-mcp | `dependencies.filesystem` (`"/workspace not found"`/`"check failed"`) |
 | file-write-mcp | `dependencies.filesystem` (`"/workspace not found"`/`"check failed"`) |

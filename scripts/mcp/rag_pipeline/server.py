@@ -111,6 +111,7 @@ async def rag_debug_pipeline(req: RagRunRequest) -> RagDebugResponse:
 
 @app.get("/health")
 async def health() -> JSONResponse:
+    """Health check endpoint. Returns degraded when embed_url is not configured."""
     deps: dict[str, str] = {}
     try:
         from shared.config_loader import ConfigLoader

@@ -93,29 +93,29 @@ def _check_stale_documents(conn: Any, mdq_cfg: dict[str, Any]) -> int | None:
     try:
         from pathlib import Path as _Path
 
-        stale_count = 0
         index_paths_cfg = mdq_cfg.get("index_paths", []) or []
-        if index_paths_cfg:
-            first_path = _Path(index_paths_cfg[0])
-            if first_path.is_dir():
-                ref_mtime = first_path.stat().st_mtime
-            elif first_path.is_file():
-                ref_mtime = first_path.stat().st_mtime
-            else:
-                ref_mtime = None
+        if not index_paths_cfg:
+            return None
 
-            stale_count = 0
-            if ref_mtime is not None:
-                stale_count = (
-                    conn.execute(
-                        "SELECT COUNT(DISTINCT file_path) as cnt FROM sections WHERE file_mtime < ?",
-                        (ref_mtime,),
-                    ).fetchone()["cnt"]
-                    or 0
-                )
+        first_path = _Path(index_paths_cfg[0])
+        if first_path.is_dir():
+            ref_mtime = first_path.stat().st_mtime
+        elif first_path.is_file():
+            ref_mtime = first_path.stat().st_mtime
+        else:
+            return None
+
+        ref_mtime_ns = int(ref_mtime * 1_000_000_000)
+        stale_count = (
+            conn.execute(
+                "SELECT COUNT(DISTINCT source_path) FROM documents WHERE mtime_ns < ?",
+                (ref_mtime_ns,),
+            ).fetchone()[0]
+            or 0
+        )
+        return stale_count
     except Exception:
-        stale_count = None
-    return stale_count
+        return None
 
 
 @app.exception_handler(MdqValidationError)
@@ -318,17 +318,21 @@ async def health() -> JSONResponse:
             cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = {row[0] for row in cursor.fetchall()}
 
-            if "sections" not in tables:
-                deps["db_schema"] = "missing sections table"
+            if "documents" not in tables:
+                deps["db_schema"] = "missing documents table"
                 return _degraded_response(deps, details)
 
-            if "sections_fts" not in tables:
-                deps["db_schema"] = "missing sections_fts FTS5 table"
+            if "chunks" not in tables:
+                deps["db_schema"] = "missing chunks table"
+                return _degraded_response(deps, details)
+
+            if "chunks_fts" not in tables:
+                deps["db_schema"] = "missing chunks_fts FTS5 table"
                 return _degraded_response(deps, details)
 
             cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'")
             triggers = {row[0] for row in cursor.fetchall()}
-            expected_triggers = {"sections_ai", "sections_ad", "sections_au"}
+            expected_triggers = {"chunks_ai", "chunks_ad", "chunks_au"}
             missing_triggers = expected_triggers - triggers
             if missing_triggers:
                 deps["db_schema"] = (
@@ -338,25 +342,23 @@ async def health() -> JSONResponse:
 
             try:
                 cursor.execute(
-                    "SELECT COUNT(*) FROM sections_fts WHERE sections_fts = 'delete' LIMIT 1"
+                    "SELECT COUNT(*) FROM chunks_fts WHERE chunks_fts = 'delete' LIMIT 1"
                 )
                 cursor.fetchone()
             except sqlite3.OperationalError as e:
                 deps["fts5"] = f"FTS5 query failed: {e}"
                 return _degraded_response(deps, details)
 
-            chunk_count = conn.execute(
-                "SELECT COUNT(*) as cnt FROM sections"
-            ).fetchone()["cnt"]
+            chunk_count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
             doc_count = conn.execute(
-                "SELECT COUNT(DISTINCT file_path) as cnt FROM sections"
-            ).fetchone()["cnt"]
+                "SELECT COUNT(DISTINCT source_path) FROM documents"
+            ).fetchone()[0]
             fts_count = conn.execute(
-                "SELECT COUNT(*) as cnt FROM sections_fts WHERE sections_fts != 'delete'"
-            ).fetchone()["cnt"]
+                "SELECT COUNT(*) FROM chunks_fts WHERE chunks_fts != 'delete'"
+            ).fetchone()[0]
 
-            row = conn.execute("SELECT MAX(file_mtime) as mt FROM sections").fetchone()
-            last_indexed = row["mt"] if row and row["mt"] is not None else None
+            row = conn.execute("SELECT MAX(mtime_ns) FROM documents").fetchone()
+            last_indexed = row[0] if row and row[0] is not None else None
             details["document_count"] = doc_count
             details["chunk_count"] = chunk_count
             details["fts_row_count"] = fts_count

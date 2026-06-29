@@ -29,7 +29,10 @@ logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
 async def probe_mcp_health(http: httpx.AsyncClient, base_url: str) -> bool:
-    """Return True if the MCP server at base_url responds to /health with 200."""
+    """Return True if the MCP server at base_url responds to /health with 200.
+
+    Checks HTTP status code only; body fields (status, ready) are not inspected.
+    """
     try:
         resp = await http.get(f"{base_url}/health", timeout=5.0)
         ok: bool = (

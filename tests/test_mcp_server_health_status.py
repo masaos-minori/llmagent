@@ -7,6 +7,8 @@ When ready=true (fully healthy), the endpoint returns HTTP 200.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
 
@@ -97,3 +99,115 @@ class TestHealthHTTPStatusCodes:
         finally:
             if original_token is not None:
                 os.environ["GITHUB_TOKEN"] = original_token
+
+
+class TestFileServerHealth:
+    """Test /health endpoints for file-read, file-write, file-delete servers."""
+
+    def test_file_read_health_ok_when_workspace_exists(self) -> None:
+        """file-read-mcp returns 200 when workspace dependency is healthy."""
+        from mcp.file.read_server import app as read_app  # noqa: PLC0415
+
+        with patch("mcp.file.read_server._build_health_deps", return_value={}):
+            client = TestClient(read_app, raise_server_exceptions=False)
+            response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ready"] is True
+        assert data["status"] == "ok"
+
+    def test_file_read_health_degraded_when_workspace_missing(self) -> None:
+        """file-read-mcp returns 503 when workspace directory is absent."""
+        from mcp.file.read_server import app as read_app  # noqa: PLC0415
+
+        with patch(
+            "mcp.file.read_server._build_health_deps",
+            return_value={"filesystem": "/workspace not found"},
+        ):
+            client = TestClient(read_app, raise_server_exceptions=False)
+            response = client.get("/health")
+        assert response.status_code == 503
+        data = response.json()
+        assert data["ready"] is False
+        assert "filesystem" in data["dependencies"]
+
+    def test_file_write_health_ok_when_workspace_exists(self) -> None:
+        """file-write-mcp returns 200 when workspace dependency is healthy."""
+        from mcp.file.write_server import app as write_app  # noqa: PLC0415
+
+        with patch("mcp.file.write_server._build_health_deps", return_value={}):
+            client = TestClient(write_app, raise_server_exceptions=False)
+            response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ready"] is True
+
+    def test_file_write_health_degraded_when_workspace_missing(self) -> None:
+        """file-write-mcp returns 503 when workspace directory is absent."""
+        from mcp.file.write_server import app as write_app  # noqa: PLC0415
+
+        with patch(
+            "mcp.file.write_server._build_health_deps",
+            return_value={"filesystem": "/workspace not found"},
+        ):
+            client = TestClient(write_app, raise_server_exceptions=False)
+            response = client.get("/health")
+        assert response.status_code == 503
+        data = response.json()
+        assert data["ready"] is False
+
+    def test_file_delete_health_ok_when_workspace_exists(self) -> None:
+        """file-delete-mcp returns 200 when workspace dependency is healthy."""
+        from mcp.file.delete_server import app as delete_app  # noqa: PLC0415
+
+        with patch("mcp.file.delete_server._build_health_deps", return_value={}):
+            client = TestClient(delete_app, raise_server_exceptions=False)
+            response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ready"] is True
+
+    def test_file_delete_health_degraded_when_workspace_missing(self) -> None:
+        """file-delete-mcp returns 503 when workspace directory is absent."""
+        from mcp.file.delete_server import app as delete_app  # noqa: PLC0415
+
+        with patch(
+            "mcp.file.delete_server._build_health_deps",
+            return_value={"filesystem": "/workspace not found"},
+        ):
+            client = TestClient(delete_app, raise_server_exceptions=False)
+            response = client.get("/health")
+        assert response.status_code == 503
+        data = response.json()
+        assert data["ready"] is False
+
+
+class TestRagPipelineServerHealth:
+    """Test /health endpoint for rag-pipeline-mcp."""
+
+    def test_degraded_when_embed_url_not_configured(self) -> None:
+        """rag-pipeline-mcp returns 503 when embed_url is absent from config."""
+        from mcp.rag_pipeline.server import app as rag_app  # noqa: PLC0415
+
+        cfg: dict = {}
+        with patch("shared.config_loader.ConfigLoader.load_all", return_value=cfg):
+            client = TestClient(rag_app, raise_server_exceptions=False)
+            response = client.get("/health")
+        assert response.status_code == 503
+        data = response.json()
+        assert data["ready"] is False
+        assert data["status"] == "degraded"
+        assert "embed_url" in data["dependencies"]
+
+    def test_ok_when_embed_url_configured(self) -> None:
+        """rag-pipeline-mcp returns 200 when embed_url is present in config."""
+        from mcp.rag_pipeline.server import app as rag_app  # noqa: PLC0415
+
+        cfg = {"common": {"embed_url": "http://localhost:11434/api/embeddings"}}
+        with patch("shared.config_loader.ConfigLoader.load_all", return_value=cfg):
+            client = TestClient(rag_app, raise_server_exceptions=False)
+            response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ready"] is True
+        assert data["status"] == "ok"

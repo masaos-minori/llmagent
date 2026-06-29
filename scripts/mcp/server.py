@@ -178,8 +178,17 @@ class MCPServer:
         """Return a health status dict and HTTP status code for HTTP server diagnostics.
 
         HTTP subclasses may override; stdio subclasses use process liveness instead.
-        Returns a standardized shape: {status, ready, dependencies, details}.
+
+        Canonical response shape:
+          status:       "ok" (all deps healthy) or "degraded" (any dep failed)
+          ready:        True when status="ok", False when status="degraded"
+          dependencies: dict of dep_name -> error_message; empty when healthy
+          details:      server-specific supplementary info (may be empty)
+
         HTTP status code: 200 when ready=True, 503 when ready=False.
+
+        Watchdog semantics: the watchdog checks only the HTTP status code.
+        Body fields (status, ready) are not inspected by the watchdog.
         """
         deps: dict[str, str] = {}
         ready = len(deps) == 0
