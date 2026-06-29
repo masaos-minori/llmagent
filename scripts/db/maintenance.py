@@ -512,10 +512,16 @@ def summarize_issues(report: RagConsistencyReport) -> list[str]:
         )
     if report.fts_orphan_count > 0:
         detail = ""
-        if report.affected_doc_ids:
-            ids = ", ".join(str(i) for i in report.affected_doc_ids[:10])
-            truncated = " ..." if len(report.affected_doc_ids) == 10 else ""
-            detail = f" Affected doc_ids: [{ids}{truncated}]."
+        if report.affected_orphan_chunk_ids:
+            ids = ", ".join(str(i) for i in report.affected_orphan_chunk_ids[:10])
+            truncated = " ..." if len(report.affected_orphan_chunk_ids) == 10 else ""
+            detail = f" Affected chunk_ids: [{ids}{truncated}]."
+        elif report.affected_orphan_urls:
+            urls = ", ".join(report.affected_orphan_urls[:5])
+            truncated = " ..." if len(report.affected_orphan_urls) == 10 else ""
+            detail = f" Affected URLs: [{urls}{truncated}]."
+        elif not report.affected_chunk_ids:
+            detail = " Chunk-level identifiers unavailable (FTS orphans have no parent chunk rows)."
         issues.append(
             f"[CRITICAL] FTS index has more entries than chunks"
             f" (fts={report.fts}, chunks={report.chunks}).{detail}"

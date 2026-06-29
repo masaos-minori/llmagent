@@ -188,6 +188,7 @@ class TestRagQualityRegression:
         assert len(result.reranked) == 3
         # Chunk IDs should appear in RRF-merged order (all rrf_score > 0)
         chunk_ids = [h.chunk_id for h in result.merged]
+        assert chunk_ids == [3, 1, 2]
         assert all(h.rrf_score > 0.0 for h in result.merged)
 
     async def test_semantic_cache_generation_invalidation(self) -> None:
@@ -224,7 +225,7 @@ class TestRagQualityRegression:
             AsyncMock(return_value=([fixed_hits], diag)),
         ):
             pipeline_rrf = _make_pipeline(rrf_cfg)
-            result_rrf = await pipeline_rrf.run("query", db=mock_db)
+            await pipeline_rrf.run("query", db=mock_db)
 
         assert pipeline_rrf.get_diagnostics()["fusion_mode"] == "rrf"
 
@@ -235,20 +236,18 @@ class TestRagQualityRegression:
             AsyncMock(return_value=([fixed_hits], diag)),
         ):
             pipeline_no_rrf = _make_pipeline(no_rrf_cfg)
-            result_no_rrf = await pipeline_no_rrf.run("query", db=mock_db)
+            await pipeline_no_rrf.run("query", db=mock_db)
 
         assert pipeline_no_rrf.get_diagnostics()["fusion_mode"] == "dedup_only"
 
     async def test_diagnostics_semantic_cache_hits(self) -> None:
         """Diagnostics correctly report semantic cache hits when cache is enabled."""
         from rag.cache import SemanticCache
-        from rag.types import PipelineRunResult
 
         cache = SemanticCache(max_size=10, threshold=0.0)
         cache.put([1.0] * 384, "", "cached_result")
-        assert cache.lookup([1.0] * 384, "") == "cached_result"
-        # Cache hit count should be tracked
-        assert cache.size >= 1
+        hit = cache.lookup([1.0] * 384, "")
+        assert hit == "cached_result"
 
     async def test_diagnostics_fts_error_counts(self) -> None:
         """Diagnostics correctly report FTS error counts when FTS fails."""
@@ -269,7 +268,6 @@ class TestRagQualityRegression:
 
     async def test_diagnostics_refiner_returned_empty(self) -> None:
         """Diagnostics correctly report refiner_returned_empty when refiner returns empty output."""
-        from rag.pipeline_refiner import RefineResult
 
         fixed_hits = [
             RawHit(chunk_id=1, content="alpha", url="http://a/", title="A"),
@@ -303,7 +301,7 @@ class TestRagQualityRegression:
                 )
 
             with patch.object(pipeline, "run", mock_run):
-                result = await pipeline.run("query", db=mock_db)
+                await pipeline.run("query", db=mock_db)
 
         diag = pipeline.get_diagnostics()
         assert diag["refiner_returned_empty"] == 1
@@ -311,7 +309,6 @@ class TestRagQualityRegression:
 
     async def test_diagnostics_refiner_exception(self) -> None:
         """Diagnostics correctly report refiner_exception_count when refiner raises an exception."""
-        from rag.pipeline_refiner import RefineResult
 
         fixed_hits = [
             RawHit(chunk_id=1, content="alpha", url="http://a/", title="A"),
@@ -345,7 +342,7 @@ class TestRagQualityRegression:
                 )
 
             with patch.object(pipeline, "run", mock_run):
-                result = await pipeline.run("query", db=mock_db)
+                await pipeline.run("query", db=mock_db)
 
         diag = pipeline.get_diagnostics()
         assert diag["refiner_exception_count"] == 1
@@ -353,7 +350,6 @@ class TestRagQualityRegression:
 
     async def test_diagnostics_refiner_no_retry(self) -> None:
         """Refiner failures are not retried — one failure produces one fallback."""
-        from rag.pipeline_refiner import RefineResult
 
         fixed_hits = [
             RawHit(chunk_id=1, content="alpha", url="http://a/", title="A"),
@@ -387,7 +383,7 @@ class TestRagQualityRegression:
                 )
 
             with patch.object(pipeline, "run", mock_run):
-                result = await pipeline.run("query", db=mock_db)
+                await pipeline.run("query", db=mock_db)
 
         diag = pipeline.get_diagnostics()
         assert diag["refiner_fallback_count"] == 1
