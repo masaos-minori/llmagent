@@ -283,7 +283,7 @@ def _build_retriever(
 
 def _build_jsonl_store(ctx: AgentContext, jsonl_cls: type) -> object:
     """Build and return the JSONL memory store instance."""
-    return jsonl_cls(f"{ctx.cfg.memory.memory_jsonl_dir}/memories.jsonl")
+    return jsonl_cls(Path(ctx.cfg.memory.memory_jsonl_dir) / "memories.jsonl")
 
 
 def _build_injection_service(

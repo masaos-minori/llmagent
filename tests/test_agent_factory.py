@@ -205,6 +205,57 @@ class TestBuildAgentContext:
         assert ctx.stats.stat_output_tokens == 130
 
 
+# ── _build_jsonl_store ────────────────────────────────────────────────────────
+
+
+class TestBuildJsonlStore:
+    def test_uses_path_based_construction(self, monkeypatch: Any) -> None:
+        from pathlib import Path
+
+        from agent.factory import _build_jsonl_store
+
+        jsonl_cls_mock = MagicMock()
+        ctx = _make_ctx()
+        ctx.cfg.memory.memory_jsonl_dir = "/opt/llm/memory"
+
+        result = _build_jsonl_store(ctx, jsonl_cls_mock)
+
+        expected_path = Path("/opt/llm/memory") / "memories.jsonl"
+        jsonl_cls_mock.assert_called_once_with(expected_path)
+        assert result is not None
+
+    def test_does_not_use_hardcoded_fstring(self, monkeypatch: Any) -> None:
+        from pathlib import Path
+
+        from agent.factory import _build_jsonl_store
+
+        jsonl_cls_mock = MagicMock()
+        ctx = _make_ctx()
+        ctx.cfg.memory.memory_jsonl_dir = "/tmp/test_memories"
+
+        result = _build_jsonl_store(ctx, jsonl_cls_mock)
+
+        # Verify the path does not start with "/memories.jsonl" (no hardcoded root)
+        call_arg = jsonl_cls_mock.call_args[0][0]
+        assert not str(call_arg).startswith("/memories.jsonl")
+        assert call_arg == Path("/tmp/test_memories") / "memories.jsonl"
+
+    def test_path_join_with_trailing_slash(self, monkeypatch: Any) -> None:
+        from pathlib import Path
+
+        from agent.factory import _build_jsonl_store
+
+        jsonl_cls_mock = MagicMock()
+        ctx = _make_ctx()
+        ctx.cfg.memory.memory_jsonl_dir = "/opt/llm/memory/"
+
+        result = _build_jsonl_store(ctx, jsonl_cls_mock)
+
+        # Path / handles trailing slashes correctly
+        expected_path = Path("/opt/llm/memory") / "memories.jsonl"
+        jsonl_cls_mock.assert_called_once_with(expected_path)
+
+
 # ── init_tracer ───────────────────────────────────────────────────────────────
 
 
