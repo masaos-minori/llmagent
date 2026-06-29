@@ -551,6 +551,26 @@ class TestTriggerWorkflowDryRun:
                 {"repo": "owner/repo", "workflow": "ci.yml", "dry_run": True}
             )
 
+    @pytest.mark.asyncio
+    async def test_dry_run_denied_by_empty_workflow_allowlist(self) -> None:
+        """Empty workflow_allowlist denies dry_run (fail-closed)."""
+        svc = _make_service(repo_allowlist=["owner/repo"], workflow_allowlist=[])
+        with pytest.raises(CicdAuthorizationError):
+            await svc.handle_trigger_workflow(
+                {"repo": "owner/repo", "workflow": "ci.yml", "dry_run": True}
+            )
+
+    @pytest.mark.asyncio
+    async def test_dry_run_denied_by_disallowed_workflow(self) -> None:
+        """Disallowed workflow in allowlist denies dry_run."""
+        svc = _make_service(
+            repo_allowlist=["owner/repo"], workflow_allowlist=["ci.yml"]
+        )
+        with pytest.raises(CicdAuthorizationError):
+            await svc.handle_trigger_workflow(
+                {"repo": "owner/repo", "workflow": "deploy.yml", "dry_run": True}
+            )
+
 
 class TestCicdToolSchema:
     def test_trigger_workflow_schema_declares_dry_run(self) -> None:

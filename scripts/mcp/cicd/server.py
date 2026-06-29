@@ -6,7 +6,7 @@ Provides HTTP endpoints for triggering and inspecting GitHub Actions workflows.
 
 Security:
   - repo_allowlist: only listed 'owner/repo' slugs are accessible (fail-closed)
-  - workflow_allowlist: restrict triggerable workflows (empty = allow all)
+  - workflow_allowlist: restrict triggerable workflows (empty = deny all (fail-closed))
   - max_log_size_kb: log output is capped to prevent large data dumps
   - Optional Bearer-token auth via auth_token in cicd_mcp_server.toml
 

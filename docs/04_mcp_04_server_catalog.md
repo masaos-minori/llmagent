@@ -270,7 +270,7 @@ All tools do not require config (`requires_config: false`).
 
 **Security:**
 - `repo_allowlist`: fail-closed (empty = deny all)
-- `workflow_allowlist`: fail-closed (empty = deny all); in production mode (`security_profile = "production"`), empty list raises `RuntimeError` at agent startup
+- `workflow_allowlist`: fail-closed (empty = deny all); in production mode (`security_profile = "production"`), empty list emits a startup warning (not RuntimeError)
 - `trigger_workflow` supports `dry_run` argument (exposed via tool schema)
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{} / {"github_token":"not_set"},"details":{}}` — empty deps when token is set, `"github_token":"not_set"` when not set
