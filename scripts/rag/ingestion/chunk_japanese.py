@@ -28,6 +28,9 @@ class ChunkJapaneseMixin:
     _ja_stop_pos: frozenset[str]
     _sd_tkn: Any  # sudachipy Tokenizer instance
     _split_c: Any  # sudachipy Tokenizer.SplitMode.C
+    _orig_buf: str
+    _norm_buf: str
+    _result: list[tuple[str, str]]
 
     def _chunk_japanese(self, text: str) -> list[tuple[str, str]]:
         """Split Japanese text into (original, normalized) chunk pairs via NFKC normalization, sentence splitting, and Sudachi morphological analysis."""
@@ -75,38 +78,48 @@ class ChunkJapaneseMixin:
         """Accumulate (original, normalized) sentence pairs into chunk pairs by original text length; applies overlap from buffer tail when configured."""
         if not pairs:
             return []
-        sep = " "
-        overhead = len(sep)
         result: list[tuple[str, str]] = []
-        orig_buf = ""
-        norm_buf = ""
+        self._orig_buf = ""
+        self._norm_buf = ""
         for orig, norm in pairs:
-            if len(orig_buf) + len(orig) + overhead <= self._max_chunk:
-                # Current sentence still fits; append to the running buffer
-                orig_buf = (orig_buf + sep + orig).strip()
-                norm_buf = (norm_buf + sep + norm).strip()
-            elif len(orig_buf) >= self._min_chunk:
-                # Buffer is large enough to emit as a chunk
-                result.append((orig_buf, norm_buf))
-                if self._chunk_overlap:
-                    orig_buf = (orig_buf[-self._chunk_overlap :] + sep + orig).strip()
-                    norm_buf = (norm_buf[-self._chunk_overlap :] + sep + norm).strip()
-                else:
-                    orig_buf = orig
-                    norm_buf = norm
+            if len(self._orig_buf) + len(orig) + 1 <= self._max_chunk:
+                self._append_to_buffer(orig, norm)
+            elif len(self._orig_buf) >= self._min_chunk:
+                self._emit_and_start_new(orig, norm)
             else:
-                # Buffer too short to emit; discard and start fresh from this sentence
-                orig_buf = orig
-                norm_buf = norm
-        if not orig_buf:
+                self._reset_buffer(orig, norm)
+        if not self._orig_buf:
             return result
-        if len(orig_buf) >= self._min_chunk:
-            result.append((orig_buf, norm_buf))
+        if len(self._orig_buf) >= self._min_chunk:
+            result.append((self._orig_buf, self._norm_buf))
         elif result:
-            # Merge short tail into the last chunk to avoid losing content
-            last_o, last_n = result[-1]
-            result[-1] = (
-                (last_o + sep + orig_buf).strip(),
-                (last_n + sep + norm_buf).strip(),
-            )
+            self._merge_tail_into_last()
         return result
+
+    def _append_to_buffer(self, orig: str, norm: str) -> None:
+        """Append sentence to the running buffer."""
+        self._orig_buf = (self._orig_buf + " " + orig).strip()
+        self._norm_buf = (self._norm_buf + " " + norm).strip()
+
+    def _emit_and_start_new(self, orig: str, norm: str) -> None:
+        """Emit buffer as chunk and start new buffer with overlap."""
+        self._result.append((self._orig_buf, self._norm_buf))
+        if self._chunk_overlap:
+            self._orig_buf = (self._orig_buf[-self._chunk_overlap :] + " " + orig).strip()
+            self._norm_buf = (self._norm_buf[-self._chunk_overlap :] + " " + norm).strip()
+        else:
+            self._orig_buf = orig
+            self._norm_buf = norm
+
+    def _reset_buffer(self, orig: str, norm: str) -> None:
+        """Discard buffer and start fresh from this sentence."""
+        self._orig_buf = orig
+        self._norm_buf = norm
+
+    def _merge_tail_into_last(self) -> None:
+        """Merge short tail into the last chunk to avoid losing content."""
+        last_o, last_n = self._result[-1]
+        self._result[-1] = (
+            (last_o + " " + self._orig_buf).strip(),
+            (last_n + " " + self._norm_buf).strip(),
+        )
