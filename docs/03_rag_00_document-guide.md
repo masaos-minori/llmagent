@@ -64,6 +64,22 @@ Legacy source files (`03_spec_rag.md`, `03_rag-ref-*.md`, `03_rag-ingestion-*.md
 
 **Conflict resolution**: If two docs disagree on a fact and the conflict cannot be resolved immediately, record it as an entry in `03_rag_90_inconsistencies_and_known_issues.md` with a DOC-N label, then fix the root cause in the owning document.
 
+### Running checks locally
+
+Run the RAG documentation consistency checker from the project root:
+
+```bash
+python scripts/checks/check_docs_consistency.py
+```
+
+To check specific files:
+
+```bash
+python scripts/checks/check_docs_consistency.py docs/03_rag_01_system_overview.md
+```
+
+The checker runs 8 checks: broken headings, malformed tables, unclosed inline code, JSON not wrapped in fenced code blocks, stale artifact references (`.txt` -> `.json`), non-canonical command names, resolved issues under active sections, and stale issue ID routing. Historical markers (`legacy`, `historical`, `archive only`, `resolved`, `was:`, `removed`) exempt lines from stale-pattern failures.
+
 ---
 
 ## File Index
