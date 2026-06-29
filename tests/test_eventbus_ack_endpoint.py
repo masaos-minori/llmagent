@@ -55,7 +55,9 @@ class TestAckEndpoint:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        resp = client.post(f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"})
+        resp = client.post(
+            f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["acked"] is True
@@ -63,6 +65,7 @@ class TestAckEndpoint:
 
         # Verify offset was written (check via DB state)
         import eventbus.app as eb_app
+
         db = eb_app.app.state.db
         row = db.execute(
             "SELECT acked_at FROM events WHERE event_id = ?",
@@ -93,8 +96,12 @@ class TestAckEndpoint:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        client.post(f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"})
-        resp = client.post(f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"})
+        client.post(
+            f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
+        )
+        resp = client.post(
+            f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["acked"] is True
@@ -106,7 +113,9 @@ class TestAckEndpoint:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        resp = client.post(f"/events/{body['event_id']}/ack", params={"consumer_id": ""})
+        resp = client.post(
+            f"/events/{body['event_id']}/ack", params={"consumer_id": ""}
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["acked"] is True
@@ -122,7 +131,9 @@ class TestLegacyAckEndpoint:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        resp = client.post("/ack", params={"event_id": body["event_id"], "consumer_id": "consumer-B"})
+        resp = client.post(
+            "/ack", params={"event_id": body["event_id"], "consumer_id": "consumer-B"}
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["acked"] is True

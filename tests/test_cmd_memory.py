@@ -5,9 +5,6 @@ Tests for _MemoryMixin._cmd_memory() CLI help and rebuild/import-jsonl behavior.
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import patch
-
-import pytest
 
 
 def _make_mixin():
@@ -118,9 +115,9 @@ class TestMemoryRebuild:
 
         mixin._cmd_memory("rebuild")
 
-        assert any("NOT replayed" in msg or "not replayed" in msg for msg in messages), (
-            f"Rebuild output should mention what is NOT replayed, got: {messages}"
-        )
+        assert any(
+            "NOT replayed" in msg or "not replayed" in msg for msg in messages
+        ), f"Rebuild output should mention what is NOT replayed, got: {messages}"
 
 
 class TestMemoryImportJsonlAlias:
@@ -139,7 +136,9 @@ class TestMemoryImportJsonlAlias:
 
 
 class TestMemoryCheckConsistency:
-    def test_memory_check_consistency_does_not_recommend_jsonl_import_for_index_repair(self):
+    def test_memory_check_consistency_does_not_recommend_jsonl_import_for_index_repair(
+        self,
+    ):
         """Consistency output must not recommend JSONL import for FTS/vector repair."""
         from agent.memory.models import ConsistencyReport
 
@@ -155,9 +154,9 @@ class TestMemoryCheckConsistency:
         mixin._cmd_memory("check-consistency")
 
         full_output = " ".join(messages)
-        assert "rebuild" not in full_output.lower() or "rebuild-fts" in full_output.lower(), (
-            f"Should not recommend /memory rebuild for index repair, got: {full_output}"
-        )
+        assert (
+            "rebuild" not in full_output.lower() or "rebuild-fts" in full_output.lower()
+        ), f"Should not recommend /memory rebuild for index repair, got: {full_output}"
 
     def test_memory_check_consistency_reports_jsonl_count_as_info_only(self):
         """JSONL count should be reported as info only, not as a repair target."""

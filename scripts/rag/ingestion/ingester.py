@@ -179,7 +179,15 @@ class RagIngester:
         chunking_strategy = first_data.get("chunking_strategy", "text")
 
         doc_id = self._get_or_create_document(
-            db, url, title, lang, force, etag, last_modified, chunking_strategy, fetched_at
+            db,
+            url,
+            title,
+            lang,
+            force,
+            etag,
+            last_modified,
+            chunking_strategy,
+            fetched_at,
         )
         if doc_id is None:
             logger.info("already registered, skipping", extra={"url": url})
@@ -188,7 +196,9 @@ class RagIngester:
 
         db.commit()
         inserted, failed, embed_failed = self._ingest_chunk_files(doc_id, chunk_files)
-        self._log_ingestion_result(doc_id, url, inserted, len(chunk_files), failed, embed_failed)
+        self._log_ingestion_result(
+            doc_id, url, inserted, len(chunk_files), failed, embed_failed
+        )
         self._move_to_registered(chunk_files)
         return IngestUrlResult(
             url=url,
@@ -249,7 +259,9 @@ class RagIngester:
         return IngestUrlResult(url=url, n_success=0, n_failed=0, skipped=True)
 
     @staticmethod
-    def _validation_failure_result(url: str, chunk_files: list[Path]) -> IngestUrlResult:
+    def _validation_failure_result(
+        url: str, chunk_files: list[Path]
+    ) -> IngestUrlResult:
         """Return a failure result when artifact validation fails."""
         return IngestUrlResult(
             url=url, n_success=0, n_failed=len(chunk_files), skipped=False
@@ -329,7 +341,9 @@ class RagIngester:
             )
             return
         if new_fetched_at is not None:
-            self._update_etag_with_freshness(db, doc_id, etag, last_modified, new_fetched_at)
+            self._update_etag_with_freshness(
+                db, doc_id, etag, last_modified, new_fetched_at
+            )
         else:
             self._update_etag_null_fill(db, doc_id, etag, last_modified)
         self._log_etag_updated(doc_id)
@@ -394,7 +408,8 @@ class RagIngester:
                 "doc_id": doc_id,
                 "url": chunk_url,
                 "source_type": "file",
-                "stage_name": "ingester"},
+                "stage_name": "ingester",
+            },
         )
 
     def _validate_lang(self, lang: str) -> bool:
@@ -436,7 +451,9 @@ class RagIngester:
         ).fetchone()
         if stored is None:
             return False
-        if self._is_file_unchanged(stored["etag"], stored["last_modified"], etag, last_modified):
+        if self._is_file_unchanged(
+            stored["etag"], stored["last_modified"], etag, last_modified
+        ):
             logger.info(
                 "file:// unchanged (sha256 match): %s",
                 url,

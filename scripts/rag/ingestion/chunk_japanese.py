@@ -105,8 +105,12 @@ class ChunkJapaneseMixin:
         """Emit buffer as chunk and start new buffer with overlap."""
         self._result.append((self._orig_buf, self._norm_buf))
         if self._chunk_overlap:
-            self._orig_buf = (self._orig_buf[-self._chunk_overlap :] + " " + orig).strip()
-            self._norm_buf = (self._norm_buf[-self._chunk_overlap :] + " " + norm).strip()
+            self._orig_buf = (
+                self._orig_buf[-self._chunk_overlap :] + " " + orig
+            ).strip()
+            self._norm_buf = (
+                self._norm_buf[-self._chunk_overlap :] + " " + norm
+            ).strip()
         else:
             self._orig_buf = orig
             self._norm_buf = norm

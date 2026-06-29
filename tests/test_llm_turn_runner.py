@@ -210,7 +210,9 @@ class TestRun:
 
         assert "Error limit reached" in result.answer
 
-    async def test_mid_turn_transport_error_not_persisted_as_assistant(self, runner: LLMTurnRunner) -> None:
+    async def test_mid_turn_transport_error_not_persisted_as_assistant(
+        self, runner: LLMTurnRunner
+    ) -> None:
         """Mid-turn LLM transport error must not be persisted as assistant message."""
         tool_calls = [{"id": "c1", "function": {"name": "read_file"}}]
         tool_response = LLMResponse(
@@ -219,7 +221,16 @@ class TestRun:
         )
 
         with (
-            patch.object(runner, "_stream_llm", AsyncMock(side_effect=[tool_response, LLMTransportError("CONNECT_ERROR", "in_stream", "http://llm")])),
+            patch.object(
+                runner,
+                "_stream_llm",
+                AsyncMock(
+                    side_effect=[
+                        tool_response,
+                        LLMTransportError("CONNECT_ERROR", "in_stream", "http://llm"),
+                    ]
+                ),
+            ),
             patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()),
         ):
             result = await runner.run("http://llm")

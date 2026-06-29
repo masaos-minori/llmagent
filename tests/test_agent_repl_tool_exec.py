@@ -374,7 +374,11 @@ async def test_dag_write_executed_before_read() -> None:
             side_effect=fake_execute_one,
         ),
         patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
-        patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([write_call, read_call], [])),
+        patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([write_call, read_call], []),
+        ),
     ):
         await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
 
@@ -411,7 +415,11 @@ async def test_dag_disabled_does_not_reorder() -> None:
             side_effect=fake_execute_one,
         ),
         patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
-        patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([write_call, read_call], [])),
+        patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([write_call, read_call], []),
+        ),
     ):
         await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
 
@@ -449,7 +457,11 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
             side_effect=fake_execute_one,
         ),
         patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
-        patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([write_call, read_call], [])),
+        patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([write_call, read_call], []),
+        ),
     ):
         await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
 
@@ -489,7 +501,11 @@ async def test_parallel_execution_without_dag_or_side_effects() -> None:
         ),
         patch("agent.tool_runner._collect_tool_result_msgs", return_value=[]),
         patch("agent.tool_runner.is_side_effect", return_value=False),
-        patch("agent.tool_approval.run_approval_checks", new_callable=AsyncMock, return_value=([read_call1, read_call2], [])),
+        patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            return_value=([read_call1, read_call2], []),
+        ),
     ):
         await execute_all_tool_calls(ctx, [read_call1, read_call2], turn=1)
 

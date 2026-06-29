@@ -7,7 +7,6 @@ while `/memory` remains functional.
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
 from agent.commands.cmd_mcp import _McpMixin
@@ -53,18 +52,21 @@ class TestNoteCommandRemoved:
         """Verify unknown subcommand behavior pattern (reference for /note)."""
         ctx = _Ctx()
         mcp = _Mcp(ctx)
-        with pytest.raises(UnknownSubcommandError, match="Unknown subcommand 'invalid'"):
+        with pytest.raises(
+            UnknownSubcommandError, match="Unknown subcommand 'invalid'"
+        ):
             await mcp._cmd_mcp("invalid")
 
     @pytest.mark.asyncio
     async def test_note_add_not_dispatched(self) -> None:
         """Verify /note is not handled by the dispatch loop (returns False)."""
-        ctx = _Ctx()
-        from agent.commands.registry import CommandRegistry, _COMMANDS
+        from agent.commands.registry import _COMMANDS
 
         # Verify /note is NOT in _COMMANDS
         note_cmds = [c for c in _COMMANDS if c.name == "/note"]
-        assert len(note_cmds) == 0, "/note should not be registered as a built-in command"
+        assert len(note_cmds) == 0, (
+            "/note should not be registered as a built-in command"
+        )
 
     @pytest.mark.asyncio
     async def test_memory_still_registered(self) -> None:

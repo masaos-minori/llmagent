@@ -4,7 +4,6 @@ Event Bus startup safety guard tests for public bind detection.
 
 from __future__ import annotations
 
-import ipaddress
 import pytest
 
 from scripts.eventbus.config import (

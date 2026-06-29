@@ -5,8 +5,6 @@ Unit tests for db/helper.py: SQLiteHelper connection management and transactions
 from __future__ import annotations
 
 import sqlite3
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 from db.helper import SQLiteHelper
@@ -23,7 +21,7 @@ class _InMemoryHelper:
 
     def open(
         self, *, write_mode: bool = False, row_factory: bool = False
-    ) -> "_InMemoryHelper":
+    ) -> _InMemoryHelper:
         self._conn.row_factory = sqlite3.Row if row_factory else None
         return self
 
@@ -42,7 +40,7 @@ class _InMemoryHelper:
     def close(self) -> None:
         pass
 
-    def __enter__(self) -> "_InMemoryHelper":
+    def __enter__(self) -> _InMemoryHelper:
         return self
 
     def __exit__(self, *_: object) -> None:
@@ -130,9 +128,7 @@ class TestBeginImmediateRollback:
         """Existing sqlite3 error behavior remains unchanged — rollback on sqlite3.Error."""
         with pytest.raises(sqlite3.IntegrityError):
             with helper.begin_immediate():
-                helper.execute(
-                    "INSERT INTO test_table (id, value) VALUES (1, 'first')"
-                )
+                helper.execute("INSERT INTO test_table (id, value) VALUES (1, 'first')")
                 # Insert duplicate to trigger IntegrityError
                 helper.execute(
                     "INSERT INTO test_table (id, value) VALUES (1, 'duplicate')"
@@ -204,9 +200,7 @@ class TestBeginExclusiveRollback:
         """Existing sqlite3 error behavior remains unchanged — rollback on sqlite3.Error."""
         with pytest.raises(sqlite3.IntegrityError):
             with helper.begin_exclusive():
-                helper.execute(
-                    "INSERT INTO test_table (id, value) VALUES (1, 'first')"
-                )
+                helper.execute("INSERT INTO test_table (id, value) VALUES (1, 'first')")
                 # Insert duplicate to trigger IntegrityError
                 helper.execute(
                     "INSERT INTO test_table (id, value) VALUES (1, 'duplicate')"

@@ -94,6 +94,7 @@ def read_json_file(path: Path) -> ChunkDocument:
         chunk_type=chunk_type,
     )
 
+
 def _get_str(data: ChunkJsonRaw, key: str) -> str | None:
     """Get a string value from data."""
     val = data.get(key)

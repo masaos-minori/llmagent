@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from unittest.mock import patch
 
-from db.maintenance import RagConsistencyReport
+from db.maintenance import RagConsistencyReport, summarize_issues
 
 
 def _make_report(
@@ -99,3 +99,35 @@ def test_inconsistent_shows_numeric_line_and_errors():
     assert len(numeric_lines) == 1
     assert "3" in numeric_lines[0]
     assert len(cmd._out.error_lines) >= 1
+
+
+def test_inconsistent_shows_affected_identifiers_in_issue():
+    """Inconsistent DB -> issue lines contain affected identifiers from summarize_issues()."""
+    report_with_ids = RagConsistencyReport(
+        chunks=10,
+        fts=7,
+        vec=10,
+        fts_gap=3,
+        orphan_vec_count=0,
+        fts_orphan_count=0,
+        affected_chunk_ids=(101, 102),
+        affected_doc_ids=(5, 6),
+    )
+    cmd = _make_db_command()
+
+    with patch("agent.commands.cmd_db.RagMaintenanceService") as mock_svc:
+        result = RagConsistencyResult(
+            is_consistent=False,
+            issues=summarize_issues(report_with_ids),
+            report=report_with_ids,
+        )
+        mock_svc.return_value.consistency.return_value = result
+        cmd._db_consistency()
+
+    error_lines = cmd._out.error_lines
+    assert len(error_lines) >= 1
+    combined_errors = "".join(error_lines)
+    assert (
+        "Affected doc_ids" in combined_errors
+        or "/db rag rebuild-fts" in combined_errors
+    )

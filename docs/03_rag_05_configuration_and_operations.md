@@ -167,6 +167,8 @@ with SQLiteHelper("rag").open() as db:
 | `fts_orphan_count` | `fts - chunks`; positive = extra FTS entries (data loss risk) |
 | `affected_chunk_ids` | chunk_ids missing from FTS (up to 10) |
 | `affected_doc_ids` | doc_ids for chunks missing from FTS (up to 10) |
+| `affected_orphan_chunk_ids` | chunk_ids in `chunks_vec` with no matching `chunks` row (up to 10) |
+| `affected_orphan_urls` | URLs of documents with orphan vec rows (up to 10; `None` when no parent document can be resolved) |
 
 **CLI:** `/db consistency` runs the same check from the REPL and prints issues.
 

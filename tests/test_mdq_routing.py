@@ -6,7 +6,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from shared.tool_constants import MDQ_TOOLS
 
 
@@ -54,7 +53,9 @@ class TestMdqNoUnmappedTools:
         registry = get_registry()
         for tool_name in MDQ_TOOLS:
             server_key = registry.get_server_for_tool(tool_name)
-            assert server_key == "mdq", f"Tool '{tool_name}' not mapped to 'mdq' in registry, got '{server_key}'"
+            assert server_key == "mdq", (
+                f"Tool '{tool_name}' not mapped to 'mdq' in registry, got '{server_key}'"
+            )
 
     def test_mdq_tools_match_server_definition(self) -> None:
         from mcp.mdq.tools import _MCP_TOOLS

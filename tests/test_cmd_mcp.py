@@ -287,14 +287,20 @@ class TestCmdMcp:
     async def test_unknown_subcommand_raises_error(self) -> None:
         ctx = _Ctx({})
         mcp = _Mcp(ctx)
-        with pytest.raises(UnknownSubcommandError, match="Unknown subcommand 'invalid'"):
+        with pytest.raises(
+            UnknownSubcommandError, match="Unknown subcommand 'invalid'"
+        ):
             await mcp._cmd_mcp("invalid")
 
     @pytest.mark.asyncio
-    async def test_invalid_subcommand_shows_usage(self, capsys: pytest.CaptureFixture) -> None:
+    async def test_invalid_subcommand_shows_usage(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
         ctx = _Ctx({})
         mcp = _Mcp(ctx)
-        with pytest.raises(UnknownSubcommandError, match="Unknown subcommand 'install'"):
+        with pytest.raises(
+            UnknownSubcommandError, match="Unknown subcommand 'install'"
+        ):
             await mcp._cmd_mcp("install")
 
     @pytest.mark.asyncio

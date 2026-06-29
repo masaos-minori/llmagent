@@ -53,7 +53,9 @@ class TestConcurrentPublish:
 
         assert len(results) == n_events
         seqs = {r["seq"] for r in results}
-        assert len(seqs) == n_events, f"Expected {n_events} unique seq values, got {len(seqs)}"
+        assert len(seqs) == n_events, (
+            f"Expected {n_events} unique seq values, got {len(seqs)}"
+        )
 
 
 class TestConcurrentAck:
@@ -68,25 +70,33 @@ class TestConcurrentAck:
         results: list[dict[str, Any]] = []
 
         async def _ack_one() -> None:
-            resp = client.post("/ack", params={"event_id": event_id, "consumer_id": "consumer-1"})
+            resp = client.post(
+                "/ack", params={"event_id": event_id, "consumer_id": "consumer-1"}
+            )
             results.append(resp.json())
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            loop.run_until_complete(
-                asyncio.gather(*(_ack_one() for _ in range(10)))
-            )
+            loop.run_until_complete(asyncio.gather(*(_ack_one() for _ in range(10))))
         finally:
             loop.close()
 
         # First ack should succeed with newly_acked=True, subsequent ones should return 200 with already_acked=True
         all_success = sum(1 for r in results if r.get("acked") is True)
-        assert all_success == 10, f"Expected all 10 acks to return 200, got {all_success}"
-        newly_acked_count = sum(1 for r in results if r.get("already_acked") is not True)
+        assert all_success == 10, (
+            f"Expected all 10 acks to return 200, got {all_success}"
+        )
+        newly_acked_count = sum(
+            1 for r in results if r.get("already_acked") is not True
+        )
         already_acked_count = sum(1 for r in results if r.get("already_acked") is True)
-        assert newly_acked_count == 1, f"Expected exactly 1 newly acked, got {newly_acked_count}"
-        assert already_acked_count == 9, f"Expected exactly 9 already_acked, got {already_acked_count}"
+        assert newly_acked_count == 1, (
+            f"Expected exactly 1 newly acked, got {newly_acked_count}"
+        )
+        assert already_acked_count == 9, (
+            f"Expected exactly 9 already_acked, got {already_acked_count}"
+        )
 
 
 class TestConcurrentReplay:
@@ -108,18 +118,20 @@ class TestConcurrentReplay:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            loop.run_until_complete(
-                asyncio.gather(*(_replay() for _ in range(5)))
-            )
+            loop.run_until_complete(asyncio.gather(*(_replay() for _ in range(5))))
         finally:
             loop.close()
 
         # All replay requests should return the same events
         first_items = results[0]
         for items in results[1:]:
-            assert len(items) == len(first_items), "Replay returned different number of events"
+            assert len(items) == len(first_items), (
+                "Replay returned different number of events"
+            )
             event_ids = {r["event_id"] for r in first_items}
-            assert all(r["event_id"] in event_ids for r in items), "Replay returned different events"
+            assert all(r["event_id"] in event_ids for r in items), (
+                "Replay returned different events"
+            )
 
 
 class TestConcurrentDlqRequeue:
@@ -145,17 +157,16 @@ class TestConcurrentDlqRequeue:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            loop.run_until_complete(
-                asyncio.gather(*(_requeue() for _ in range(5)))
-            )
+            loop.run_until_complete(asyncio.gather(*(_requeue() for _ in range(5))))
         finally:
             loop.close()
 
         # Only one requeue should succeed (event is no longer in DLQ after first requeue)
         requeued = [r for r in results if r.get("requeued") is True]
-        assert len(requeued) == 1, f"Expected exactly 1 requeue success, got {len(requeued)}"
+        assert len(requeued) == 1, (
+            f"Expected exactly 1 requeue success, got {len(requeued)}"
+        )
 
         # The other concurrent requests should fail with 409 Conflict (event no longer in DLQ)
         conflicts = [r for r in results if r.get("detail") == "event is not in DLQ"]
         assert len(conflicts) == 4, f"Expected 4 conflicts, got {len(conflicts)}"
-

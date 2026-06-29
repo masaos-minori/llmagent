@@ -137,10 +137,6 @@ async def parse_markdown(
         # Build heading path from ancestors
         heading_path = " > ".join(h[1] for h in heading_stack) if heading_stack else ""
 
-        # Compute ordinal among same-level headings
-        same_level_headings = [h for h in heading_stack if h[0] == heading_level_val]
-        ordinal = len(same_level_headings) + 1
-
         parent_heading = heading_stack[-1][1] if heading_stack else None
 
         current_section = {
@@ -190,6 +186,6 @@ def _parse_atx_heading(line: str) -> tuple[int, str] | None:
         else:
             break
     if level <= 6 and len(line) > level and line[level] == " ":
-        text = line[level + 1:].strip()
+        text = line[level + 1 :].strip()
         return (level, text)
     return None

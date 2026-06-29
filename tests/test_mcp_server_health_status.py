@@ -7,7 +7,6 @@ When ready=true (fully healthy), the endpoint returns HTTP 200.
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 

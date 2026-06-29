@@ -6,9 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
-import tempfile
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -93,7 +91,9 @@ def db_path(tmp_path: Path) -> str:
     return path
 
 
-def _insert_document_and_chunk(db_path: str, source_path: str, content: str) -> tuple[str, str]:
+def _insert_document_and_chunk(
+    db_path: str, source_path: str, content: str
+) -> tuple[str, str]:
     """Insert a document and chunk into the test database."""
     conn = sqlite3.connect(db_path)
     try:
@@ -111,7 +111,24 @@ def _insert_document_and_chunk(db_path: str, source_path: str, content: str) -> 
         chunk_id = hashlib.sha256(f"{doc_id}:heading:1".encode()).hexdigest()
         conn.execute(
             "INSERT INTO chunks (chunk_id, doc_id, source_path, heading, heading_path, heading_level, ordinal, content, normalized_content, start_line, end_line, char_count, token_count, content_hash, tags_json, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (chunk_id, doc_id, source_path, "heading", "", 1, 0, content, normalized_content, 1, 10, char_count, None, content_hash, "", 1000.0),
+            (
+                chunk_id,
+                doc_id,
+                source_path,
+                "heading",
+                "",
+                1,
+                0,
+                content,
+                normalized_content,
+                1,
+                10,
+                char_count,
+                None,
+                content_hash,
+                "",
+                1000.0,
+            ),
         )
 
         conn.commit()
@@ -154,7 +171,7 @@ class TestDocumentIndexing:
     def test_content_hash_is_computed(self, db_path: str) -> None:
         """content_hash is SHA-256 of the content text."""
         doc_id, _ = _insert_document_and_chunk(db_path, "/test/file.md", "hello world")
-        expected_hash = hashlib.sha256("hello world".encode()).hexdigest()
+        expected_hash = hashlib.sha256(b"hello world").hexdigest()
         conn = sqlite3.connect(db_path)
         try:
             conn.row_factory = sqlite3.Row
@@ -168,7 +185,9 @@ class TestDocumentIndexing:
 
     def test_normalized_content_stored(self, db_path: str) -> None:
         """normalized_content has extra whitespace collapsed."""
-        _, chunk_id = _insert_document_and_chunk(db_path, "/test/file.md", "hello   world")
+        _, chunk_id = _insert_document_and_chunk(
+            db_path, "/test/file.md", "hello   world"
+        )
         conn = sqlite3.connect(db_path)
         try:
             conn.row_factory = sqlite3.Row
@@ -209,8 +228,13 @@ class TestDocumentIndexing:
         conn = sqlite3.connect(db_path)
         try:
             conn.row_factory = sqlite3.Row
-            conn.execute("INSERT INTO index_state (key, value) VALUES (?, ?)", ("version", "1.0"))
-            conn.execute("INSERT INTO index_state (key, value) VALUES (?, ?)", ("indexed_at", "2026-01-01"))
+            conn.execute(
+                "INSERT INTO index_state (key, value) VALUES (?, ?)", ("version", "1.0")
+            )
+            conn.execute(
+                "INSERT INTO index_state (key, value) VALUES (?, ?)",
+                ("indexed_at", "2026-01-01"),
+            )
             rows = conn.execute("SELECT key, value FROM index_state").fetchall()
             metadata = dict((row["key"], row["value"]) for row in rows)
             assert metadata["version"] == "1.0"
@@ -220,7 +244,9 @@ class TestDocumentIndexing:
 
     def test_get_chunk_by_id(self, db_path: str) -> None:
         """get_chunk() returns chunk by ID."""
-        _, chunk_id = _insert_document_and_chunk(db_path, "/test/file.md", "hello world")
+        _, chunk_id = _insert_document_and_chunk(
+            db_path, "/test/file.md", "hello world"
+        )
         conn = sqlite3.connect(db_path)
         try:
             conn.row_factory = sqlite3.Row
@@ -236,7 +262,9 @@ class TestDocumentIndexing:
 
     def test_fts_search_queries_chunks_fts(self, db_path: str) -> None:
         """FTS search queries chunks_fts table."""
-        _, chunk_id = _insert_document_and_chunk(db_path, "/test/file.md", "hello world")
+        _, chunk_id = _insert_document_and_chunk(
+            db_path, "/test/file.md", "hello world"
+        )
         conn = sqlite3.connect(db_path)
         try:
             conn.row_factory = sqlite3.Row
@@ -261,7 +289,9 @@ class TestDocumentIndexing:
             conn.execute("DROP TRIGGER IF EXISTS chunks_ad")
             conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
             conn.commit()
-            result = conn.execute("SELECT COUNT(*) as cnt FROM chunks WHERE doc_id = ?", (doc_id,)).fetchone()
+            result = conn.execute(
+                "SELECT COUNT(*) as cnt FROM chunks WHERE doc_id = ?", (doc_id,)
+            ).fetchone()
             assert result["cnt"] == 0
         finally:
             conn.close()
@@ -275,9 +305,18 @@ class TestDocumentIndexing:
             conn.row_factory = sqlite3.Row
             conn.execute(
                 "INSERT OR REPLACE INTO documents (doc_id, source_path, mtime_ns, size_bytes, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (doc_id, "/test/file.md", 2000, len("new content"), hashlib.sha256("new content".encode()).hexdigest(), 2000.0),
+                (
+                    doc_id,
+                    "/test/file.md",
+                    2000,
+                    len("new content"),
+                    hashlib.sha256(b"new content").hexdigest(),
+                    2000.0,
+                ),
             )
-            result = conn.execute("SELECT * FROM documents WHERE doc_id = ?", (doc_id,)).fetchone()
+            result = conn.execute(
+                "SELECT * FROM documents WHERE doc_id = ?", (doc_id,)
+            ).fetchone()
             assert result["mtime_ns"] == 2000
         finally:
             conn.close()

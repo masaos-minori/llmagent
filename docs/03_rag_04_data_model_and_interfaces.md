@@ -14,23 +14,33 @@ Created by `WebCrawler`. JSON format.
 
 ```json
 {
+  "schema_version": "1",
+  "artifact_type": "crawl",
+  "created_by": "crawler",
   "url": "https://example.com/page",
   "title": "Page title",
   "lang": "ja",
   "fetched_at": "2024-01-01T12:00:00",
   "content": "body text",
-  "code_blocks": ["code block 1", "code block 2"]
+  "code_blocks": ["code block 1", "code block 2"],
+  "etag": "optional-http-etag",
+  "last_modified": "optional-http-date"
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
+| `schema_version` | string | Schema version (e.g. `"1"`) |
+| `artifact_type` | string | Artifact type (`"crawl"`) |
+| `created_by` | string | Creator identifier (`"crawler"`) |
 | `url` | string | Normalized URL (fragment removed) |
 | `title` | string | Page `<title>` tag content |
 | `lang` | string | `"ja"` or `"en"` |
 | `fetched_at` | string | ISO-8601 timestamp |
 | `content` | string | Main body text (trafilatura extraction) |
 | `code_blocks` | list[string] | `<pre>` block contents |
+| `etag` | string \| null | HTTP ETag from original crawl |
+| `last_modified` | string \| null | HTTP Last-Modified from original crawl |
 
 ### 1.2 Chunk file (`rag-src/chunk/{stem}-{idx:04d}.json`)
 
@@ -38,6 +48,9 @@ Created by `ChunkSplitter`. JSON format.
 
 ```json
 {
+  "schema_version": "1",
+  "artifact_type": "chunk",
+  "created_by": "chunk_splitter",
   "url": "https://example.com/page",
   "title": "Page title",
   "lang": "ja",
@@ -54,6 +67,9 @@ Created by `ChunkSplitter`. JSON format.
 
 | Field | Type | Description |
 |---|---|---|
+| `schema_version` | string | Schema version (e.g. `"1"`) |
+| `artifact_type` | string | Artifact type (`"chunk"`) |
+| `created_by` | string | Creator identifier (`"chunk_splitter"`) |
 | `url` | string | Source document URL |
 | `title` | string | Source document title |
 | `lang` | string | `"ja"` or `"en"` |
@@ -70,7 +86,11 @@ Created by `ChunkSplitter`. JSON format.
 
 ## 2. SQLite Schema (`rag.sqlite`)
 
-### 2.0 テーブル一覧
+### 2.0 テーブル一覧 (RAG-owned tables only)
+
+**RAG-owned tables:** `documents`, `chunks`, `chunks_fts`, `chunks_vec` — all in `rag.sqlite`.
+
+Agent session tables (`sessions`, `messages`, `tool_results`, `memories`, etc.) reside in a separate SQLite file (`session.sqlite`) and are owned exclusively by the Agent layer. See [05_agent_09_data-layer.md](05_agent_09_data-layer.md) for the Agent session schema.
 
 | テーブル | 種別 | 主な列 | 用途 |
 |---|---|---|---|
@@ -80,11 +100,6 @@ Created by `ChunkSplitter`. JSON format.
 | `chunks_vec` | vec0 仮想 | `chunk_id` PK, `embedding float[384]` | KNN ベクトル検索 |
 
 FTS5 は `chunks` テーブルの INSERT/UPDATE/DELETE に対してトリガーで自動同期 (`chunks_ai` / `chunks_au` / `chunks_ad`)。
-
-> **Note:** `sessions` and `messages` tables are owned by the Agent REPL layer, not the RAG layer.
-> They reside in a separate SQLite file (`session.sqlite`) from the RAG database (`rag.sqlite`)
-> and are managed exclusively by `agent/session.py`.
-> See `docs/05_agent_09_data-layer.md` for the Agent session schema.
 
 ### 2.1 `documents` table
 

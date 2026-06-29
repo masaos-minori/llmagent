@@ -8,8 +8,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import pytest
-
 
 def _make_mixin():
     """Return a _DebugMixin instance with minimal stubs."""

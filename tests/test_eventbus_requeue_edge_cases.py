@@ -105,7 +105,9 @@ class TestRequeueEdgeCases:
         dlq_at = _get_field(client, body["event_id"], "dlq_at")
         assert dlq_at is None
 
-    def test_repeated_requeue_increments_dlq_requeue_count(self, client: TestClient, tmp_path: Path) -> None:
+    def test_repeated_requeue_increments_dlq_requeue_count(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
         """Repeated requeue of same event increments dlq_requeue_count each time."""
         from eventbus.db import open_db
         from eventbus.dlq import promote_to_dlq
@@ -148,7 +150,9 @@ class TestRequeueEdgeCases:
         assert resp.status_code == 200
         assert _get_field(client, body["event_id"], "dlq_requeue_count") == 3
 
-    def test_requeue_event_at_max_retry_then_re_promoted(self, client: TestClient, tmp_path: Path) -> None:
+    def test_requeue_event_at_max_retry_then_re_promoted(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
         """Requeue of event at delivery_failure_count >= max_retry succeeds but re-promoted on next DLQ tick."""
         from eventbus.db import open_db
         from eventbus.dlq import promote_to_dlq

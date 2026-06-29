@@ -408,9 +408,7 @@ class RagPipeline:
             return ""
         # HTTP mode: delegate to external RAG service when rag_service_url is configured
         if rag_url := self._cfg.rag_service_url:
-            result = await self._run_http_augment(
-                query, history_context, rag_url
-            )
+            result = await self._run_http_augment(query, history_context, rag_url)
             if result is not None:
                 return result
         # Semantic cache lookup (in-process mode only)
@@ -450,9 +448,7 @@ class RagPipeline:
             return ""
         # Refiner: compress chunks to query-relevant key points before injection
         if self._cfg.use_refiner:
-            refined = await self._run_refiner(
-                pipeline_result.reranked, query
-            )
+            refined = await self._run_refiner(pipeline_result.reranked, query)
             if refined.text is not None:
                 return refined.text
         context_block = self._format_chunks(pipeline_result.reranked)
@@ -483,9 +479,7 @@ class RagPipeline:
             "success" if result is not None else "fallback"
         )
         http_fallback_reason = (
-            http_fallback_reasons[0]
-            if http_fallback_reasons
-            else "in-process fallback"
+            http_fallback_reasons[0] if http_fallback_reasons else "in-process fallback"
         )
         self.last_stage_results.append(
             StageResult(
@@ -606,6 +600,7 @@ class RagPipeline:
             "refiner_fallback_count": refiner_fallback_count,
             "refiner_returned_empty": refiner_returned_empty,
             "refiner_exception_count": refiner_exception_count,
+            "refiner_exception": refiner_exception_count > 0,
             "hit_counts": {
                 "merged": len(fetch.hits) if fetch is not None else 0,
             },

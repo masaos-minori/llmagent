@@ -138,9 +138,11 @@ class TestPublishEnvelopeSchemaContract:
         )
         assert resp.status_code == 422
 
-    def test_published_at_format_not_validated_by_jsonschema(self, client: TestClient) -> None:
+    def test_published_at_format_not_validated_by_jsonschema(
+        self, client: TestClient
+    ) -> None:
         """jsonschema does NOT validate the date-time format by default.
-        
+
         The jsonschema library ignores the 'format' keyword unless a format
         checker is explicitly attached. This test documents that behavior
         so it is not mistaken for a bug.
@@ -175,7 +177,9 @@ class TestPublishEnvelopeSchemaContract:
         )
         assert resp.status_code == 200
 
-    def test_schema_version_defaults_when_not_provided(self, client: TestClient) -> None:
+    def test_schema_version_defaults_when_not_provided(
+        self, client: TestClient
+    ) -> None:
         """When schema_version is not provided, the publish succeeds (default '1.0' is applied server-side)."""
         resp = client.post(
             "/publish",
@@ -220,7 +224,9 @@ class TestPublishEnvelopeSchemaContract:
         )
         assert resp.status_code == 200
 
-    def test_valid_event_without_schema_version_succeeds(self, client: TestClient) -> None:
+    def test_valid_event_without_schema_version_succeeds(
+        self, client: TestClient
+    ) -> None:
         """Valid event without optional schema_version must succeed."""
         resp = client.post(
             "/publish",

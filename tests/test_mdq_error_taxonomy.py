@@ -7,7 +7,6 @@ import asyncio
 from pathlib import Path
 
 import pytest
-
 from mcp.mdq.indexer import index_paths
 from mcp.mdq.models import (
     GrepDocsRequest,

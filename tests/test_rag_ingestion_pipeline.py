@@ -12,12 +12,10 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from rag.ingestion.chunk_splitter import ChunkSplitter
 from rag.ingestion.ingester import RagIngester
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -110,7 +108,8 @@ class TestJsonLifecycle:
             url="http://example.com/page",
             title="Test Page",
             lang="en",
-            content="Hello world from the test page. " * 50,  # Ensure text length > MIN_TEXT_LENGTH_FOR_DETECTION
+            content="Hello world from the test page. "
+            * 50,  # Ensure text length > MIN_TEXT_LENGTH_FOR_DETECTION
         )
         chunk_file = tmp_dir / "2024-01-01-test-page.json"
         with open(chunk_file, "w", encoding="utf-8") as f:
@@ -119,7 +118,7 @@ class TestJsonLifecycle:
 
     def test_chunk_json_has_required_fields(self, chunk_json: Path) -> None:
         """Chunk JSON must have all required fields from the crawler."""
-        with open(chunk_json, "r", encoding="utf-8") as f:
+        with open(chunk_json, encoding="utf-8") as f:
             data = json.load(f)
 
         assert "url" in data
@@ -137,7 +136,7 @@ class TestJsonLifecycle:
         # The key invariant is that the full pipeline (crawler → chunk splitter → ingester)
         # preserves all metadata from the crawler output through to the RAG database.
         assert chunk_json.exists()
-        with open(chunk_json, "r", encoding="utf-8") as f:
+        with open(chunk_json, encoding="utf-8") as f:
             data = json.load(f)
         assert "content" in data
         assert "url" in data
@@ -172,8 +171,13 @@ class TestJsonLifecycle:
         mock_report.issues = []
 
         with (
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=_make_fake_sqlite_helper(conn)),
-            patch("rag.ingestion.ingester.check_rag_consistency", return_value=mock_report),
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+            ),
         ):
             result = ingester.ingest_all()
             assert result is not None
@@ -208,13 +212,21 @@ class TestJsonLifecycle:
         mock_report.issues = []
 
         with (
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=_make_fake_sqlite_helper(conn)),
-            patch("rag.ingestion.ingester.check_rag_consistency", return_value=mock_report),
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+            ),
         ):
             ingester.ingest_all()
 
         # Verify metadata was stored correctly
-        doc = conn.execute("SELECT url, title, lang FROM documents WHERE url = ?", ("http://example.com/page",)).fetchone()
+        doc = conn.execute(
+            "SELECT url, title, lang FROM documents WHERE url = ?",
+            ("http://example.com/page",),
+        ).fetchone()
         assert doc is not None
         assert doc[0] == "http://example.com/page"
         assert doc[1] == "Test Page"
@@ -240,19 +252,24 @@ class TestReingest:
         content = "Local file content for re-ingest test. " * 50
         file_path = tmp_dir / "2024-01-01-local-file.json"
         with open(file_path, "w", encoding="utf-8") as f:
-            json.dump({
-                "url": file_path.as_uri(),
-                "title": "Local File",
-                "lang": "en",
-                "fetched_at": "2024-01-01T00:00:00",
-                "content": content,
-                "code_blocks": [],
-                "etag": hashlib.sha256(content.encode("utf-8")).hexdigest(),
-                "last_modified": "2024-01-01T00:00:00",
-            }, f)
+            json.dump(
+                {
+                    "url": file_path.as_uri(),
+                    "title": "Local File",
+                    "lang": "en",
+                    "fetched_at": "2024-01-01T00:00:00",
+                    "content": content,
+                    "code_blocks": [],
+                    "etag": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                    "last_modified": "2024-01-01T00:00:00",
+                },
+                f,
+            )
         return file_path
 
-    def test_sha256_same_content_no_reingest(self, local_file: Path, tmp_path: Path) -> None:
+    def test_sha256_same_content_no_reingest(
+        self, local_file: Path, tmp_path: Path
+    ) -> None:
         """Re-ingesting a file with the same SHA-256 must not re-insert."""
         conn = _make_rag_db(tmp_path)
         chunk_dir = tmp_path / "chunk"
@@ -281,8 +298,13 @@ class TestReingest:
 
         # First ingest
         with (
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=_make_fake_sqlite_helper(conn)),
-            patch("rag.ingestion.ingester.check_rag_consistency", return_value=mock_report),
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+            ),
         ):
             ingester.ingest_all()
 
@@ -290,15 +312,24 @@ class TestReingest:
 
         # Second ingest with same content (same SHA-256)
         with (
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=_make_fake_sqlite_helper(conn)),
-            patch("rag.ingestion.ingester.check_rag_consistency", return_value=mock_report),
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+            ),
         ):
             ingester.ingest_all()
 
         doc_count_after = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
-        assert doc_count_before == doc_count_after, "Same SHA-256 should not create duplicate document"
+        assert doc_count_before == doc_count_after, (
+            "Same SHA-256 should not create duplicate document"
+        )
 
-    def test_sha256_different_content_triggers_reingest(self, local_file: Path, tmp_path: Path) -> None:
+    def test_sha256_different_content_triggers_reingest(
+        self, local_file: Path, tmp_path: Path
+    ) -> None:
         """Re-ingesting a file with different content (different SHA-256) must re-insert."""
         conn = _make_rag_db(tmp_path)
         chunk_dir = tmp_path / "chunk"
@@ -327,8 +358,13 @@ class TestReingest:
         mock_report.issues = []
 
         with (
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=_make_fake_sqlite_helper(conn)),
-            patch("rag.ingestion.ingester.check_rag_consistency", return_value=mock_report),
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+            ),
         ):
             ingester.ingest_all()
 
@@ -345,8 +381,13 @@ class TestReingest:
             json.dump(chunk_data2, f)
 
         with (
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=_make_fake_sqlite_helper(conn)),
-            patch("rag.ingestion.ingester.check_rag_consistency", return_value=mock_report),
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+            ),
         ):
             ingester.ingest_all()
 
@@ -354,7 +395,9 @@ class TestReingest:
         doc_count = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
         assert doc_count == 1, "Different SHA-256 should replace the document"
 
-    def test_sha256_etag_changes_triggers_reingest(self, local_file: Path, tmp_path: Path) -> None:
+    def test_sha256_etag_changes_triggers_reingest(
+        self, local_file: Path, tmp_path: Path
+    ) -> None:
         """A change in etag (SHA-256) must trigger re-ingestion."""
         conn = _make_rag_db(tmp_path)
         chunk_dir = tmp_path / "chunk"
@@ -383,8 +426,13 @@ class TestReingest:
         mock_report.issues = []
 
         with (
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=_make_fake_sqlite_helper(conn)),
-            patch("rag.ingestion.ingester.check_rag_consistency", return_value=mock_report),
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+            ),
         ):
             ingester.ingest_all()
 
@@ -401,11 +449,88 @@ class TestReingest:
             json.dump(chunk_data2, f)
 
         with (
-            patch("rag.ingestion.ingester.SQLiteHelper", return_value=_make_fake_sqlite_helper(conn)),
-            patch("rag.ingestion.ingester.check_rag_consistency", return_value=mock_report),
+            patch(
+                "rag.ingestion.ingester.SQLiteHelper",
+                return_value=_make_fake_sqlite_helper(conn),
+            ),
+            patch(
+                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+            ),
         ):
             ingester.ingest_all()
 
         # The document should be replaced due to etag change
         doc_count = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
         assert doc_count == 1, "Changed etag should replace the document"
+
+
+# ── .json artifact lifecycle assertions ──────────────────────────────────────
+
+
+def test_collect_source_files_returns_json_only(tmp_path: Path) -> None:
+    """collect_source_files() finds .json files and ignores other extensions."""
+    from rag.ingestion.pipeline_utils import collect_source_files
+
+    src_dir = tmp_path / "rag-src"
+    src_dir.mkdir()
+    (src_dir / "20240101-page.json").write_text('{"url": "http://a/"}')
+    files, _skipped = collect_source_files(src_dir)
+    assert len(files) == 1
+    assert files[0].suffix == ".json"
+
+
+def test_collect_source_files_ignores_txt(tmp_path: Path) -> None:
+    """collect_source_files() ignores .txt files; only .json files are processed."""
+    from rag.ingestion.pipeline_utils import collect_source_files
+
+    src_dir = tmp_path / "rag-src"
+    src_dir.mkdir()
+    (src_dir / "20240101-page.json").write_text('{"url": "http://a/"}')
+    (src_dir / "20240101-page.txt").write_text("plaintext content")
+    files, _ = collect_source_files(src_dir)
+    assert len(files) == 1
+    assert all(f.suffix == ".json" for f in files)
+
+
+def test_chunk_file_has_json_suffix(tmp_path: Path) -> None:
+    """Chunk output files written to chunk/ have .json suffix."""
+    from rag.ingestion.pipeline_utils import collect_source_files
+
+    chunk_dir = tmp_path / "chunk"
+    chunk_dir.mkdir()
+    chunk_data = _make_chunk_json(url="http://a/", title="A", lang="en", content="test")
+    with open(chunk_dir / "20240101-page-0000.json", "w") as f:
+        json.dump(chunk_data, f)
+
+    files, _ = collect_source_files(chunk_dir)
+    assert len(files) == 1
+    assert files[0].suffix == ".json"
+
+
+def test_source_file_field_has_json_extension(tmp_path: Path) -> None:
+    """source_file field in chunk JSON must reference a .json source filename."""
+    chunk_data = _make_chunk_json(url="http://a/", title="A", lang="en", content="test")
+    chunk_data["source_file"] = "20240101-page.json"
+    chunk_file = tmp_path / "chunk-0000.json"
+    with open(chunk_file, "w") as f:
+        json.dump(chunk_data, f)
+
+    with open(chunk_file) as f:
+        loaded = json.load(f)
+    assert loaded["source_file"].endswith(".json")
+
+
+def test_ingester_chunk_dir_collects_json_files(tmp_path: Path) -> None:
+    """collect_source_files() applied to chunk/ finds .json chunks and ignores .txt files."""
+    from rag.ingestion.pipeline_utils import collect_source_files
+
+    chunk_dir = tmp_path / "chunk"
+    chunk_dir.mkdir()
+    chunk_data = _make_chunk_json(url="http://a/", title="A", lang="en", content="test")
+    chunk_data["source_file"] = "20240101-page.json"
+    (chunk_dir / "20240101-page-0000.json").write_text(json.dumps(chunk_data))
+    (chunk_dir / "notes.txt").write_text("ignored file")
+
+    files, _ = collect_source_files(chunk_dir)
+    assert len(files) == 1
+    assert files[0].suffix == ".json"

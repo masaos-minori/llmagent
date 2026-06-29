@@ -29,11 +29,11 @@ from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.cmd_context import _ContextMixin
 from agent.commands.cmd_db import _DbMixin
 from agent.commands.cmd_debug import _DebugMixin
-from agent.commands.cmd_rag_export import _RagExportMixin
 from agent.commands.cmd_mcp import _McpMixin
 from agent.commands.cmd_mdq import _MdqMixin
 from agent.commands.cmd_memory import _MemoryMixin
 from agent.commands.cmd_plugins import _PluginsMixin
+from agent.commands.cmd_rag_export import _RagExportMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_tooling import _ToolingMixin
 from agent.commands.cmd_workflow import _WorkflowMixin

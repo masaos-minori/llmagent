@@ -70,14 +70,12 @@ class TestConnectionReuse:
         cfg = _make_cfg(db_path)
         helper = SQLiteHelper("rag")
         with patch("db.helper.build_db_config", return_value=cfg):
-            with helper.open() as h1:
-                conn1 = h1.conn
+            with helper.open() as _h1:
+                pass
             # After context exit, connection should be closed
             assert helper.conn is None
 
-    def test_reuse_then_non_reuse_resets_lifecycle(
-        self, tmp_path: Path
-    ) -> None:
+    def test_reuse_then_non_reuse_resets_lifecycle(self, tmp_path: Path) -> None:
         """Calling open(reuse_connection=True) followed by open(reuse_connection=False) resets lifecycle behavior."""
         db_path = str(tmp_path / "test.sqlite")
         cfg = _make_cfg(db_path)
@@ -89,8 +87,8 @@ class TestConnectionReuse:
             assert helper.conn is conn1
 
             # Second: non-reuse mode — creates new connection, closes on exit
-            with helper.open() as h2:
-                conn2 = h2.conn
+            with helper.open() as _h2:
+                pass
             # After context exit, connection should be closed (non-reuse mode)
             assert helper.conn is None
 
@@ -106,9 +104,7 @@ class TestConnectionReuse:
             helper.close()
             assert helper.conn is None
 
-    def test_close_after_reuse_mode_sets_conn_to_none(
-        self, tmp_path: Path
-    ) -> None:
+    def test_close_after_reuse_mode_sets_conn_to_none(self, tmp_path: Path) -> None:
         """close() sets conn to None even after reuse mode."""
         db_path = str(tmp_path / "test.sqlite")
         cfg = _make_cfg(db_path)
@@ -129,11 +125,11 @@ class TestConnectionReuse:
         helper = SQLiteHelper("rag")
         with patch("db.helper.build_db_config", return_value=cfg):
             # Open in non-reuse mode — connection closed on exit
-            with helper.open() as h1:
-                conn1 = h1.conn
+            with helper.open() as _h1:
+                pass
             assert helper.conn is None
 
             # Open again in non-reuse mode — creates new connection, closes on exit
-            with helper.open() as h2:
-                conn2 = h2.conn
+            with helper.open() as _h2:
+                pass
             assert helper.conn is None

@@ -311,7 +311,7 @@ class TestRagConsistencySeverity:
     def test_vec_chunk_mismatch_detected(self) -> None:
         db = _make_rag_db()
         doc_id = _insert_doc(db)
-        chunk_id = _insert_chunk(db, doc_id, "vec mismatch")
+        _insert_chunk(db, doc_id, "vec mismatch")
         # Insert into chunks but not chunks_vec
         db.commit()
 
@@ -332,3 +332,31 @@ class TestRagConsistencySeverity:
         report = check_rag_consistency(db)  # type: ignore[arg-type]
         issues = summarize_issues(report)
         assert any("ingester.py --force" in i for i in issues)
+
+    def test_fts_orphan_does_not_report_fts_gap_doc_ids(self) -> None:
+        """FTS orphan_count > 0 with fts_gap == 0 should not include 'Affected doc_ids' in issue string."""
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        chunk_id = _insert_chunk(db, doc_id, "stale fts content")
+        db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
+        db.execute(
+            "INSERT INTO chunks_fts (rowid, content) VALUES (?, ?)",
+            (chunk_id + 1000, "ghost entry"),
+        )
+        db.commit()
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+        assert report.fts_orphan_count > 0
+        assert report.fts_gap == 0
+        assert report.affected_doc_ids is None
+        issues = summarize_issues(report)
+        fts_orphan_issue = next(
+            (
+                i
+                for i in issues
+                if "[CRITICAL]" in i and "FTS index has more entries" in i
+            ),
+            None,
+        )
+        assert fts_orphan_issue is not None
+        assert "Affected doc_ids" not in fts_orphan_issue

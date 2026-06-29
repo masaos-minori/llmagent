@@ -236,7 +236,9 @@ class TestLoadAllStrictMode:
         with pytest.raises(ConfigMissingError, match="Config file not found"):
             tmp_cfg.load_all(strict=True)
 
-    def test_load_all_meta_keys_filtered(self, tmp_cfg: ConfigLoader, tmp_path: Path) -> None:
+    def test_load_all_meta_keys_filtered(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
         """Meta keys starting with _ are still filtered in load_all()."""
         for name in [
             "common.toml",
@@ -253,11 +255,15 @@ class TestLoadAllStrictMode:
             "mdq_mcp_server.toml",
             "tools_definitions.toml",
         ]:
-            (tmp_path / name).write_text(f'_doc = "desc"\n{name} = true\n', encoding="utf-8")
+            (tmp_path / name).write_text(
+                f'_doc = "desc"\n{name} = true\n', encoding="utf-8"
+            )
         result = tmp_cfg.load_all(strict=True)
         assert "_doc" not in result
 
-    def test_load_all_existing_behavior_unchanged(self, tmp_cfg: ConfigLoader, tmp_path: Path) -> None:
+    def test_load_all_existing_behavior_unchanged(
+        self, tmp_cfg: ConfigLoader, tmp_path: Path
+    ) -> None:
         """Existing load() behavior is unchanged — strict=False skips missing files."""
         # Default (strict=False) should skip missing files
         result = tmp_cfg.load_all()

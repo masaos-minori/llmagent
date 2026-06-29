@@ -94,7 +94,9 @@ def _pub(client: TestClient, topic: str = "t") -> dict[str, Any]:
     return r.json()
 
 
-def test_same_consumer_id_resumes_from_last_acked_offset(client: TestClient, tmp_path: Path) -> None:
+def test_same_consumer_id_resumes_from_last_acked_offset(
+    client: TestClient, tmp_path: Path
+) -> None:
     """Consumer with same consumer_id reconnects → resumes from last acked offset."""
     from eventbus import app as eb_app
     from eventbus.offsets import read_offset
@@ -119,7 +121,9 @@ def test_same_consumer_id_resumes_from_last_acked_offset(client: TestClient, tmp
         eb_app.app.state.broker.unsubscribe(sub)
 
 
-def test_different_consumer_id_starts_from_zero(client: TestClient, tmp_path: Path) -> None:
+def test_different_consumer_id_starts_from_zero(
+    client: TestClient, tmp_path: Path
+) -> None:
     """Consumer with different consumer_id reconnects → starts from seq=0 (offset not found)."""
     from eventbus import app as eb_app
     from eventbus.offsets import read_offset
@@ -139,7 +143,9 @@ def test_different_consumer_id_starts_from_zero(client: TestClient, tmp_path: Pa
     # Consumer-B would start from seq=0 on reconnect
     sub = eb_app.app.state.broker.subscribe([])
     try:
-        assert offset_b < offset_a  # svc-B starts from 0, svc-A resumes from acked offset
+        assert (
+            offset_b < offset_a
+        )  # svc-B starts from 0, svc-A resumes from acked offset
     finally:
         eb_app.app.state.broker.unsubscribe(sub)
 

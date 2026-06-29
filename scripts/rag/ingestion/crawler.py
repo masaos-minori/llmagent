@@ -364,7 +364,7 @@ class WebCrawler:
             if not self._should_enqueue_link(a, current_url, start_url):
                 continue
             href = a["href"]
-            next_url = normalize_url(urljoin(current_url, href))  # type: ignore[type-var, arg-type]
+            next_url = normalize_url(urljoin(current_url, href))
             queue.put_nowait((next_url, depth + 1))
 
     def _should_enqueue_link(
@@ -377,7 +377,7 @@ class WebCrawler:
         if self._skip_nofollow:
             rel = a_tag.get("rel")
             if isinstance(rel, str):
-                rel = rel.split()  # type: ignore[assignment]
+                rel = rel.split()
             if rel and "nofollow" in rel:
                 return False
         if self._skip_external:

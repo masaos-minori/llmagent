@@ -177,9 +177,7 @@ class TestStartupOrchestratorRecoverPendingApprovals:
             approval,
         )
 
-        with patch(
-            "agent.startup.StateStore", return_value=mock_store
-        ):
+        with patch("agent.startup.StateStore", return_value=mock_store):
             await startup._recover_pending_approvals()
 
         assert ctx.workflow.approval_pending is True
@@ -207,16 +205,18 @@ class TestStartupOrchestratorRecoverPendingApprovals:
             approval,
         )
 
-        with patch(
-            "agent.startup.StateStore", return_value=mock_store
-        ):
+        with patch("agent.startup.StateStore", return_value=mock_store):
             await startup._recover_pending_approvals()
 
         warning_calls = view.write_warning.call_args_list
         assert len(warning_calls) == 1
         warning_text = str(warning_calls[0][0][0])
-        assert "task-456" in warning_text, f"Expected task_id in warning, got: {warning_text}"
-        assert "approval-123" in warning_text, f"Expected approval_id in warning, got: {warning_text}"
+        assert "task-456" in warning_text, (
+            f"Expected task_id in warning, got: {warning_text}"
+        )
+        assert "approval-123" in warning_text, (
+            f"Expected approval_id in warning, got: {warning_text}"
+        )
 
     @pytest.mark.asyncio
     async def test_startup_recovery_no_pending_approval(self) -> None:
@@ -233,9 +233,7 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         mock_store = MagicMock()
         mock_store.find_latest_pending_approval.return_value = None
 
-        with patch(
-            "agent.startup.StateStore", return_value=mock_store
-        ):
+        with patch("agent.startup.StateStore", return_value=mock_store):
             await startup._recover_pending_approvals()
 
         assert ctx.workflow.approval_pending is False

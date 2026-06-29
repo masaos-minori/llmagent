@@ -7,9 +7,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-
-from mcp.mdq.models import SearchDocsRequest
-from mcp.mdq.search import _merge_hybrid, _RRF_K
+from mcp.mdq.search import _RRF_K, _merge_hybrid
 from mcp.mdq.service import MdqService
 
 
@@ -73,7 +71,6 @@ class TestHybridSearchMerge:
     """Verify RRF merge of FTS5 and vector results."""
 
     def test_empty_results(self) -> None:
-        from mcp.mdq.models import SearchResultItem
 
         fts = []
         vec = []
@@ -85,14 +82,26 @@ class TestHybridSearchMerge:
 
         fts = [
             SearchResultItem(
-                chunk_id="a", source_path="/a.md", heading="A",
-                heading_path="", score=0.5, start_line=1, end_line=10,
-                token_count=None, snippet="content A",
+                chunk_id="a",
+                source_path="/a.md",
+                heading="A",
+                heading_path="",
+                score=0.5,
+                start_line=1,
+                end_line=10,
+                token_count=None,
+                snippet="content A",
             ),
             SearchResultItem(
-                chunk_id="b", source_path="/b.md", heading="B",
-                heading_path="", score=0.3, start_line=1, end_line=10,
-                token_count=None, snippet="content B",
+                chunk_id="b",
+                source_path="/b.md",
+                heading="B",
+                heading_path="",
+                score=0.3,
+                start_line=1,
+                end_line=10,
+                token_count=None,
+                snippet="content B",
             ),
         ]
         vec = []
@@ -106,21 +115,39 @@ class TestHybridSearchMerge:
 
         fts = [
             SearchResultItem(
-                chunk_id="x", source_path="/x.md", heading="X",
-                heading_path="", score=0.9, start_line=1, end_line=10,
-                token_count=None, snippet="content X",
+                chunk_id="x",
+                source_path="/x.md",
+                heading="X",
+                heading_path="",
+                score=0.9,
+                start_line=1,
+                end_line=10,
+                token_count=None,
+                snippet="content X",
             ),
         ]
         vec = [
             SearchResultItem(
-                chunk_id="x", source_path="/x.md", heading="X",
-                heading_path="", score=0.8, start_line=1, end_line=10,
-                token_count=None, snippet="content X",
+                chunk_id="x",
+                source_path="/x.md",
+                heading="X",
+                heading_path="",
+                score=0.8,
+                start_line=1,
+                end_line=10,
+                token_count=None,
+                snippet="content X",
             ),
             SearchResultItem(
-                chunk_id="y", source_path="/y.md", heading="Y",
-                heading_path="", score=0.7, start_line=1, end_line=10,
-                token_count=None, snippet="content Y",
+                chunk_id="y",
+                source_path="/y.md",
+                heading="Y",
+                heading_path="",
+                score=0.7,
+                start_line=1,
+                end_line=10,
+                token_count=None,
+                snippet="content Y",
             ),
         ]
         result = _merge_hybrid(fts, vec)
@@ -143,21 +170,39 @@ class TestHybridSearchMerge:
         # a should be ranked higher because it appears in both lists
         fts = [
             SearchResultItem(
-                chunk_id="a", source_path="/a.md", heading="A",
-                heading_path="", score=0.9, start_line=1, end_line=10,
-                token_count=None, snippet="content A",
+                chunk_id="a",
+                source_path="/a.md",
+                heading="A",
+                heading_path="",
+                score=0.9,
+                start_line=1,
+                end_line=10,
+                token_count=None,
+                snippet="content A",
             ),
         ]
         vec = [
             SearchResultItem(
-                chunk_id="b", source_path="/b.md", heading="B",
-                heading_path="", score=0.8, start_line=1, end_line=10,
-                token_count=None, snippet="content B",
+                chunk_id="b",
+                source_path="/b.md",
+                heading="B",
+                heading_path="",
+                score=0.8,
+                start_line=1,
+                end_line=10,
+                token_count=None,
+                snippet="content B",
             ),
             SearchResultItem(
-                chunk_id="a", source_path="/a.md", heading="A",
-                heading_path="", score=0.7, start_line=1, end_line=10,
-                token_count=None, snippet="content A",
+                chunk_id="a",
+                source_path="/a.md",
+                heading="A",
+                heading_path="",
+                score=0.7,
+                start_line=1,
+                end_line=10,
+                token_count=None,
+                snippet="content A",
             ),
         ]
         result = _merge_hybrid(fts, vec)
