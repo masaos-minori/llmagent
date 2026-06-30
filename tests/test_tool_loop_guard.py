@@ -202,6 +202,18 @@ class TestCheckRetry:
         result = guard.check_retry(set(), msg)
         assert result is None
 
+    def test_failed_call_tracking_no_collision_across_tools(self) -> None:
+        from shared.tool_executor import tool_hash_key
+
+        ctx = _make_ctx()
+        guard = ToolLoopGuard(ctx)
+        failed: set[str] = {tool_hash_key("tool_a", {})}
+        result_b = guard.check_retry(failed, _msg("tool_b"))
+        assert result_b is None
+        result_a = guard.check_retry(failed, _msg("tool_a"))
+        assert result_a is not None
+        assert "Repeated failed" in result_a
+
 
 class TestCheckAll:
     def test_runs_in_order_and_stops_on_first_hit(self) -> None:

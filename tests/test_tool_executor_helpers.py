@@ -99,3 +99,15 @@ def test_tool_hash_key_empty_args() -> None:
     key1 = tool_hash_key("read_file", {})
     key2 = tool_hash_key("read_file", {})
     assert key1 == key2
+
+
+def test_tool_hash_key_differs_for_different_tool_names() -> None:
+    key_a = tool_hash_key("tool_a", {"x": 1})
+    key_b = tool_hash_key("tool_b", {"x": 1})
+    assert key_a != key_b
+
+
+def test_tool_hash_key_same_for_same_tool_and_args() -> None:
+    key1 = tool_hash_key("my_tool", {"a": 1})
+    key2 = tool_hash_key("my_tool", {"a": 1})
+    assert key1 == key2
