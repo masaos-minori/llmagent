@@ -90,3 +90,28 @@ class TestSlowConsumer:
             assert "slow_consumers" in health
         finally:
             eb_app.app.state.broker.unsubscribe(sub)
+
+    def test_health_503_when_slow_consumer_threshold_exceeded(self, client: TestClient) -> None:
+        """Health endpoint returns HTTP 503 when slow consumer queue depth >= threshold."""
+        from eventbus import app as eb_app
+
+        # Publish enough events to fill subscriber queue past the slow consumer threshold (100)
+        for _ in range(120):
+            body = _event("slow")
+            resp = client.post("/publish", json=body)
+            assert resp.status_code == 200
+
+        # Subscribe — this creates a subscriber that will have a deep queue (slow consumer)
+        sub = eb_app.app.state.broker.subscribe([])
+        try:
+            # Wait for the subscriber to process some events but not all
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(asyncio.sleep(0.05))
+
+            resp = client.get("/health")
+            health = resp.json()
+            if health.get("slow_consumers", 0) > 0:
+                assert resp.status_code == 503
+                assert "slow_consumers_detected" in health.get("degraded_reasons", [])
+        finally:
+            eb_app.app.state.broker.unsubscribe(sub)

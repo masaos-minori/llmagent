@@ -104,3 +104,20 @@ class TestHealth:
         body = resp.json()
         assert body["status"] == "degraded"
         assert body["db"] == "unavailable"
+
+    def test_health_503_when_dlq_task_stopped(self, client: TestClient) -> None:
+        """Health endpoint returns HTTP 503 when DLQ task is not running."""
+        from eventbus import app as eb_app
+
+        assert eb_app.app.state.dlq_task is not None
+        eb_app.app.state.dlq_task.cancel()
+        try:
+            eb_app.app.state.dlq_task = None
+        except asyncio.CancelledError:
+            pass
+
+        resp = client.get("/health")
+        assert resp.status_code == 503
+        body = resp.json()
+        assert body["status"] == "degraded"
+        assert "dlq_task_stopped" in body["degraded_reasons"]
