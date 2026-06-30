@@ -37,6 +37,8 @@ Three DB files:
 `rag.sqlite` is write-heavy during ingestion, read-heavy during queries.
 `session.sqlite` is append-heavy during conversations. Separation avoids WAL contention.
 
+**Import boundary:** See [90_shared_05 §1a](90_shared_05_db_api_and_operations.md#1a-db-store-module-boundaries) for the full import rules — callers should always import from `db.store`, never from internal modules directly.
+
 ---
 
 ## 3. `DbConfig` (`db/config.py`)

@@ -22,6 +22,22 @@ The DB store layer is split into three modules with clear import boundaries:
 
 **Rule:** Callers should always import from `db.store`. Direct imports from `store_protocols.py` or `store_impl.py` are discouraged and should only be used when intentionally working at the protocol/implementation level.
 
+### How to extend the DB store
+
+1. Add a new Protocol class to `db/store_protocols.py` (e.g., `class NewStorageProtocol(Protocol): ...`)
+2. Implement the protocol in `db/store_impl.py` (e.g., `class NewStorageImpl(NewStorageProtocol): ...`)
+3. Export from `db/store.py` — callers import from `db.store`, not from internal modules
+
+**Anti-pattern:** Never import directly from `store_protocols.py` or `store_impl.py` in caller code:
+
+```python
+# BAD — direct import of internal module
+from db.store_impl import NewStorageImpl  # breaks abstraction
+
+# GOOD — import from public API
+from db.store import NewStorageProtocol, NewStorageImpl  # stable contract
+```
+
 ---
 
 ## 2. `SQLiteHelper` (`db/helper.py`)

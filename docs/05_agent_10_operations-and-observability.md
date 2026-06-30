@@ -36,6 +36,18 @@ agent[:#1]>
 
 ---
 
+### Workflow Pending Approval Recovery
+
+When the agent starts and a previous session had an approval gate that was not resolved (i.e., `/approve` or `/reject` was never issued), `startup.py` recovers the pending approval state:
+
+- **When:** During startup, if `ctx.workflow is not None`
+- **What is recovered:** The latest global pending approval from `workflow.sqlite` via `StateStore.find_latest_pending_approval()`
+- **Multi-session behavior:** Only one pending approval is tracked at a time; the latest record across all sessions is restored (not session-specific)
+- **Startup warning format:** `[workflow] Pending approval from previous session — task=<task_id> approval=<approval_id> reason=<reason>. Use /approve [reason] or /reject [reason].`
+- **How to inspect:** `sqlite3 /opt/llm/db/workflow.sqlite "SELECT * FROM approvals WHERE status='pending' ORDER BY created_at DESC LIMIT 1;"`
+
+---
+
 ## Operational Verification
 
 ### LLM service check

@@ -51,6 +51,7 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 | Does `SQLiteHelper` support `workflow.sqlite`? | `90_shared_04` §4 (yes; undocumented in spec) |
 | How to open a DB connection? | `90_shared_05` §2 |
 | What are the store protocols? | `90_shared_05` §3 |
+| Where are DB store module boundaries and import rules? | `90_shared_05` §1a |
 | How to delete old memories? | `90_shared_05` §7 (`prune_old_memories`) |
 | How to recover from DB corruption? | `90_shared_05` §8 |
 | What is broken or undocumented? | `90_shared_90` |

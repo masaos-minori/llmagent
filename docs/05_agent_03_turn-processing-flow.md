@@ -189,6 +189,12 @@ Each turn creates a `task` / `attempt` / `processed_event` record in `workflow.s
 - `approvals` — one per approval gate; status: `pending → approved | rejected`
 - `artifacts` — URIs produced by stage callbacks
 
+Workflow stages (defined in `default.json`):
+- `plan` — LLM generates initial plan; required
+- `execute` — LLM executes the plan; required
+- `verify` — LLM verifies execution results; required
+- `retry` — optional transport error retry gate after `execute`; `retryable: false`; presence not required for `WorkflowEngine` operation
+
 Fallback: if `config/workflows/default.json` is missing or workflow DB is unavailable,
 the traditional direct-execution flow is used.
 

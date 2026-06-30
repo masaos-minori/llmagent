@@ -77,6 +77,19 @@ Full details: [05_agent_06_tool-execution-and-approval.md](05_agent_06_tool-exec
 
 ---
 
+## ToolRouteResolver (`shared/route_resolver.py`) — internal component of ToolExecutor
+
+- **Role:** Four-layer tool-to-server routing cascade (live discovery > ToolRegistry > config `tool_names` > static constants)
+- **Primary API:** `resolve(tool_name) -> server_key`
+- **Callers:** `ToolExecutor._raw_execute()`
+- **Callees:** `McpServerHealthRegistry`, `LifecycleProtocol` (via server startup)
+- **Config:** None directly; reads from ToolRegistry, live discovery map, config `tool_names`, and `tool_constants.py` frozensets in priority order
+- **Failure:** raises `KeyError` if no layer resolves the tool name
+
+Full details: [04_mcp_03 §Routing Source of Truth](04_mcp_03_routing_lifecycle_and_execution.md#routing-source-of-truth)
+
+---
+
 ## HistoryManager (`agent/history.py`)
 
 - **Role:** Conversation history size management and LLM-based compression

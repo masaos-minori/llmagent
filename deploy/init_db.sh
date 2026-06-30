@@ -10,12 +10,20 @@ set -euo pipefail
 
 DEPLOY_SCRIPTS="/opt/llm/scripts"
 DEPLOY_DB="/opt/llm/db"
+EVENTBUS_SCHEMA="${DEPLOY_SCRIPTS}/eventbus/schema.sql"
 
 echo "=== init_db.sh: DB 初期化開始 ==="
 
 # ── create_schema.py 確認 ─────────────────────────────────────────────────────
 if [ ! -f "${DEPLOY_SCRIPTS}/db/create_schema.py" ]; then
     echo "エラー: create_schema.py が見つかりません: ${DEPLOY_SCRIPTS}/db/create_schema.py"
+    echo "先に deploy/deploy.sh を実行してください"
+    exit 1
+fi
+
+# ── Event Bus schema.sql 確認 ─────────────────────────────────────────────────
+if [ ! -f "${EVENTBUS_SCHEMA}" ]; then
+    echo "エラー: eventbus/schema.sql が見つかりません: ${EVENTBUS_SCHEMA}"
     echo "先に deploy/deploy.sh を実行してください"
     exit 1
 fi
@@ -43,28 +51,7 @@ EVENTBUS_DB="/opt/llm/db/eventbus.sqlite"
 
 if [ ! -f "${EVENTBUS_DB}" ]; then
     echo "  eventbus.sqlite 作成: ${EVENTBUS_DB}"
-    sqlite3 "${EVENTBUS_DB}" <<'SQL'
-PRAGMA journal_mode=WAL;
-
-CREATE TABLE IF NOT EXISTS events (
-    seq                    INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_id               TEXT    NOT NULL UNIQUE,
-    topic                  TEXT    NOT NULL,
-    payload                TEXT    NOT NULL,
-    producer               TEXT    NOT NULL,
-    published_at           TEXT    NOT NULL,
-    acked_at               TEXT,
-    retry_count            INTEGER NOT NULL DEFAULT 0,
-    delivery_failure_count INTEGER NOT NULL DEFAULT 0,
-    dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
-    dlq_at                 TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);
-CREATE INDEX IF NOT EXISTS idx_events_seq   ON events(seq);
-CREATE INDEX IF NOT EXISTS idx_events_dlq_at ON events(dlq_at);
-CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
-SQL
+    sqlite3 "${EVENTBUS_DB}" ".read ${EVENTBUS_SCHEMA}"
     echo "  完了"
 else
     echo "  eventbus.sqlite 既存のためスキップ（既存 DB は _migrate() でマイグレーション済み）"

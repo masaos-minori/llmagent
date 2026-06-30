@@ -18,7 +18,7 @@ plan mode, tool result summarization, caching, safety controls, and `allowed_too
 1. Plugin tool (@register_tool)        — local Python function, bypasses MCP
 2. TTL cache                           — returns cached result if not expired
 3. _raw_execute()                      — MCP server dispatch
-     → ToolRouteResolver.resolve()     — tool_name → server_key
+     → ToolRouteResolver.resolve()     — tool_name → server_key (routing authority; see 04_mcp_03 §Routing Source of Truth)
      → McpServerHealthRegistry check  — skip UNAVAILABLE servers
      → LifecycleProtocol.ensure_ready() — start ondemand servers if needed
      → HttpTransport or StdioTransport — send to MCP server

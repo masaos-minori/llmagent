@@ -145,6 +145,8 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 | 6 | Add `tool_safety_tiers` entry in `config/agent.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
 | 7 | Add tool name to `tool_names` in `config/mcp_servers.toml` for the owning server | **[Optional]** — enables startup drift validation only; routing does not require it |
 
+**Recommended procedure**: Add to ToolRegistry frozenset (step 1) + expose in `/v1/tools` endpoint (step 4). Config `tool_names` (step 7) is optional for routing. Static fallback (priority 4) is NOT recommended as a primary routing mechanism — use only when discovery and registry are unavailable.
+
 **GitHub prefix exception**: Tools whose names start with `github_` route to the `github` server key via prefix matching in `_fallback_route()`. No entry in `tool_constants.py` is needed for these tools unless they should also appear in `get_all_mcp_tool_names()`.
 
 ### Verification
