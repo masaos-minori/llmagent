@@ -83,7 +83,7 @@ def _search_docs_structured(
                        c.start_line, c.end_line, c.token_count, c.content,
                        rank
                 FROM chunks_fts f
-                JOIN chunks c ON f.rowid = c.id
+                JOIN chunks c ON f.rowid = c.rowid
                 WHERE {where_clause}
                 ORDER BY rank
                 LIMIT ?""",

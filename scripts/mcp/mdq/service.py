@@ -134,6 +134,18 @@ class MdqService:
                 self._migrate_from_legacy(conn)
                 return
 
+            # Detect and rebuild old schema (id INTEGER PK + chunk_id TEXT UNIQUE)
+            old_col = conn.execute("PRAGMA table_info(chunks)").fetchone()
+            if old_col is not None and old_col["name"] == "id":
+                logger.info(
+                    "Detected old chunks schema (id column); rebuilding to chunk_id PRIMARY KEY"
+                )
+                conn.execute("DROP TABLE IF EXISTS chunks_fts")
+                conn.execute("DROP TABLE IF EXISTS chunks")
+                conn.execute("DROP TRIGGER IF EXISTS chunks_ai")
+                conn.execute("DROP TRIGGER IF EXISTS chunks_ad")
+                conn.execute("DROP TRIGGER IF EXISTS chunks_au")
+
             # Create production tables
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS documents (
@@ -147,8 +159,7 @@ class MdqService:
             """)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS chunks (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    chunk_id TEXT UNIQUE NOT NULL,
+                    chunk_id TEXT PRIMARY KEY,
                     doc_id TEXT NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
                     source_path TEXT NOT NULL,
                     heading TEXT NOT NULL,
@@ -176,26 +187,26 @@ class MdqService:
                     content
                 )
             """)
-            # Triggers for FTS sync
+            # Triggers for FTS sync — use rowid (chunks.rowid = implicit rowid of TEXT PK table)
             conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks
                 BEGIN
                     INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
-                    VALUES (new.id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
+                    VALUES (new.rowid, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
                 END
             """)
             conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks
                 BEGIN
-                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.id);
+                    DELETE FROM chunks_fts WHERE rowid = old.rowid;
                 END
             """)
             conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks
                 BEGIN
-                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.id);
+                    DELETE FROM chunks_fts WHERE rowid = old.rowid;
                     INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
-                    VALUES (new.id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
+                    VALUES (new.rowid, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
                 END
             """)
             conn.execute("""
@@ -253,8 +264,7 @@ class MdqService:
             """)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS chunks (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    chunk_id TEXT UNIQUE NOT NULL,
+                    chunk_id TEXT PRIMARY KEY,
                     doc_id TEXT NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
                     source_path TEXT NOT NULL,
                     heading TEXT NOT NULL,
@@ -357,21 +367,21 @@ class MdqService:
                 CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks
                 BEGIN
                     INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
-                    VALUES (new.id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
+                    VALUES (new.rowid, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
                 END
             """)
             conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks
                 BEGIN
-                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.id);
+                    DELETE FROM chunks_fts WHERE rowid = old.rowid;
                 END
             """)
             conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks
                 BEGIN
-                    INSERT INTO chunks_fts(chunks_fts, rowid) VALUES ('delete', old.id);
+                    DELETE FROM chunks_fts WHERE rowid = old.rowid;
                     INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
-                    VALUES (new.id, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
+                    VALUES (new.rowid, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
                 END
             """)
             conn.execute("""
@@ -591,9 +601,20 @@ class MdqService:
             doc_count = conn.execute(
                 "SELECT COUNT(*) as cnt FROM documents"
             ).fetchone()["cnt"]
+            fts_count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM chunks_fts"
+            ).fetchone()["cnt"]
+            stale_count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM documents"
+                " WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
+            ).fetchone()["cnt"]
             rows = conn.execute("SELECT key, value FROM index_state").fetchall()
             index_metadata = dict((row["key"], row["value"]) for row in rows)
-            return f"Documents: {doc_count}, Chunks: {chunk_count}, Metadata: {index_metadata}"
+            return (
+                f"Documents: {doc_count}, Chunks: {chunk_count},"
+                f" FTS rows: {fts_count}, Stale: {stale_count},"
+                f" Metadata: {index_metadata}"
+            )
         finally:
             conn.close()
 

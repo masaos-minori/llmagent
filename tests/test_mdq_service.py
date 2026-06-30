@@ -387,6 +387,21 @@ class TestMdqService:
         assert "Documents:" in result
         assert "Chunks:" in result
 
+    def test_stats_includes_fts_count(self, service: MdqService, md_dir: Path) -> None:
+        """stats() includes FTS row count after indexing."""
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_dir)])))
+        result = asyncio.run(service.stats(StatsRequest()))
+        assert "FTS rows:" in result
+
+    def test_stats_includes_stale_count(
+        self, service: MdqService, md_dir: Path
+    ) -> None:
+        """stats() includes stale document count (0 immediately after indexing)."""
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_dir)])))
+        result = asyncio.run(service.stats(StatsRequest()))
+        assert "Stale:" in result
+        assert "Stale: 0," in result
+
     def test_grep_docs_returns_matches_after_indexing(
         self, service: MdqService, md_file: Path
     ) -> None:

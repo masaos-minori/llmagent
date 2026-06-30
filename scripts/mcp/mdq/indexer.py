@@ -282,18 +282,12 @@ def _delete_file_from_index(
     import hashlib  # noqa: PLC0415
 
     doc_id = hashlib.sha256(str(path).encode()).hexdigest()
-    # Drop FTS5 triggers before deleting chunks to avoid SQL logic error
-    conn.execute("DROP TRIGGER IF EXISTS chunks_ad")
+    # chunks_ad trigger fires automatically on DELETE — no manual FTS cleanup needed
     conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
     conn.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
     conn.execute(
         "DELETE FROM index_state WHERE key LIKE ?",
         (f"mtime:{str(path)}%",),
-    )
-    # Recreate FTS5 triggers
-    conn.execute(
-        "CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks "
-        "BEGIN DELETE FROM chunks_fts WHERE rowid = old.rowid; END"
     )
     conn.commit()
 
