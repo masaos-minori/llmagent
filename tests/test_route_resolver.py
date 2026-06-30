@@ -66,7 +66,7 @@ class TestRegistryRouting:
     def test_search_web(self) -> None:
         assert self.resolver.resolve("search_web") == "web_search"
 
-    def test_github_prefix(self) -> None:
+    def test_github_tools(self) -> None:
         for name in ["github_search_repositories", "github_get_file_contents"]:
             assert self.resolver.resolve(name) == "github", name
 
@@ -296,9 +296,9 @@ class TestRegistryWithoutConfig:
             server_key = resolver.resolve(tool_name)
             assert server_key, f"tool {tool_name!r} resolved to empty string"
 
-    def test_strict_mode_error_message_points_to_tool_constants(self) -> None:
-        """strict_mode ValueError for unknown tool mentions tool_constants.py, not mcp_servers config."""
+    def test_strict_mode_error_message_points_to_tool_registry(self) -> None:
+        """strict_mode ValueError for unknown tool mentions ToolRegistry, not mcp_servers config."""
         configs = self._make_configs()
         resolver = ToolRouteResolver(configs, strict_mode=True)
-        with pytest.raises(ValueError, match="tool_constants.py"):
+        with pytest.raises(ValueError, match="ToolRegistry"):
             resolver.resolve("no_such_tool_xyz")
