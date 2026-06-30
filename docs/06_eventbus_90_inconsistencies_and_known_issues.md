@@ -26,6 +26,24 @@
 |---|---|---|
 | `deploy/init_db.sh` Event Bus DDL missing `delivery_failure_count`, `dlq_requeue_count` columns and DLQ indexes | DDL must match schema.sql for reproducible initialization | Resolved — consolidated to single create_schema.py call; removed redundant workflow_schema.py call; added session.sqlite table verification |
 
+### SQLite Thread Model Doc Mismatch
+
+| Item | Safe interpretation | Recommended action |
+|---|---|---|
+| `06_eventbus_03:L7` says "FastAPI runs on a single async event loop thread. All DB operations execute on that thread." — incorrect | DB operations execute in `asyncio.to_thread()` thread pool, serialized by `db._db_lock` (module-level `threading.Lock`) | Resolved — corrected description to reflect actual asyncio.to_thread() + threading.Lock model |
+
+### Ack Offset Not Monotonically Enforced
+
+| Item | Safe interpretation | Recommended action |
+|---|---|---|
+| `write_offset()` in `offsets.py` does not enforce monotonic offset advancement (no max(current, new) check) | Acknowledging an older event seq moves the consumer offset backward — consumers may receive duplicate events on reconnect | Docs updated: both canonical and deprecated ack sections note that offset advancement is NOT guaranteed to be monotonic |
+
+### Consumer ID PID Stability
+
+| Item | Safe interpretation | Recommended action |
+|---|---|---|
+| `_make_consumer_id()` in `offsets.py` generates PID-based IDs that change on restart — deprecated utility only | Consumer IDs must be client-supplied via `consumer_id` query parameter; server never auto-generates consumer IDs | Resolved — docs already clearly document that consumer IDs are always client-supplied and PID-based IDs are explicitly warned against |
+
 ## Resolved
 
 ### /health Degraded State Returns HTTP 503
@@ -72,4 +90,4 @@ Agent runtime integration with Event Bus is intentionally not implemented at thi
 | Field | Schema definition | Runtime behavior | Status |
 |---|---|---|---|
 | `acked_at` | TEXT | Never set by any code path | Reserved/unused — see inline DDL in deploy/init_db.sh |
-| `retry_count` | INTEGER NOT NULL DEFAULT 0 | Deprecated; use delivery_failure_count | Deprecated — not used for DLQ promotion. DLQ promotion uses `delivery_failure_count >= max_retry`. This field is incremented on DLQ requeue only (see `dlq_requeue_count`). |
+| `retry_count` | INTEGER NOT NULL DEFAULT 0 | Deprecated; use delivery_failure_count | Deprecated — not used for DLQ promotion. DLQ promotion uses `delivery_failure_count >= max_retry`. This field is never updated by any code path. It is a schema artifact only. |
