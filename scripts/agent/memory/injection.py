@@ -91,6 +91,7 @@ class MemoryInjectionService:
             embedding=embedding,
             project=self._project,
             repo=self._repo,
+            branch=self._branch,
         )
         hits_e = self._retriever.search(
             MemoryQuery(
@@ -101,6 +102,7 @@ class MemoryInjectionService:
             embedding=embedding,
             project=self._project,
             repo=self._repo,
+            branch=self._branch,
         )
         snippets_s = self._build_snippets_from_hits(
             hits_s, self._policy.format_prefix_semantic, "semantic"

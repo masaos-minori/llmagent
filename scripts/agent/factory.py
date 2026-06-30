@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 from shared import plugin_registry
+from shared.git_helper import get_repo_info
 from shared.llm_client import LLMClient
 from shared.logger import Logger
 from shared.mcp_config import McpServerConfig
@@ -237,11 +238,31 @@ def _build_memory_services(
     retriever = _build_retriever(ctx, HybridRetriever, embed_client=embed_client)
     store = MemoryStore(embed_dim=ctx.cfg.memory.memory_embed_dim)
     jsonl = _build_jsonl_store(ctx, JsonlMemoryStore)
+
+    # Resolve branch context at build time; default to "" (global) on any failure.
+    _git = get_repo_info()
+    _branch = ""
+    if _git.success and _git.data:
+        _raw = _git.data.get("branch", "")
+        _branch = "" if _raw == "HEAD (detached)" else _raw
+
     injection = _build_injection_service(
-        embed_client, retriever, ctx, InjectionPolicy, MemoryInjectionService
+        embed_client,
+        retriever,
+        ctx,
+        InjectionPolicy,
+        MemoryInjectionService,
+        branch=_branch,
     )
     ingestion = _build_ingestion_service(
-        store, jsonl, retriever, embed_client, ctx, DedupPolicy, MemoryIngestionService
+        store,
+        jsonl,
+        retriever,
+        embed_client,
+        ctx,
+        DedupPolicy,
+        MemoryIngestionService,
+        branch=_branch,
     )
 
     _build_audit_logger(ctx).info("MemoryServices initialised (use_memory_layer=True)")
@@ -292,6 +313,7 @@ def _build_injection_service(
     ctx: AgentContext,
     policy_cls: type,
     service_cls: type,
+    branch: str = "",
 ) -> object:
     """Build and return the memory injection service."""
     policy = policy_cls(
@@ -303,6 +325,7 @@ def _build_injection_service(
         policy=policy,
         retriever=retriever,
         embed_client=embed_client,
+        branch=branch,
     )
 
 
@@ -314,6 +337,7 @@ def _build_ingestion_service(
     ctx: AgentContext,
     dedup_cls: type,
     service_cls: type,
+    branch: str = "",
 ) -> object:
     """Build and return the memory ingestion service."""
     dedup_policy = dedup_cls(threshold=ctx.cfg.memory.memory_dedup_threshold)

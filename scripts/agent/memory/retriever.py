@@ -157,13 +157,13 @@ class FtsRetriever:
         if not fts_query or fts_query == '""':
             return []
 
-        sql, params = self._build_search_query(fts_query, query.memory_type)
+        sql, params = self._build_search_query(fts_query, query.memory_type, branch)
         hits = self._fetch_hits(sql, tuple(params), project, repo, branch)
         hits.sort(key=lambda h: h.score, reverse=True)
         return hits[: query.limit]
 
     def _build_search_query(
-        self, fts_query: str, memory_type: str | None
+        self, fts_query: str, memory_type: str | None, branch: str = ""
     ) -> tuple[str, list[object]]:
         """Build FTS5 search SQL and parameter tuple."""
         type_filter = ""
@@ -171,6 +171,15 @@ class FtsRetriever:
         if memory_type:
             type_filter = "AND m.memory_type = ?"
             params.insert(1, memory_type)
+
+        branch_filter = ""
+        if branch:
+            branch_filter = "AND (? = '' OR m.branch = '' OR m.branch = ?)"
+            # Insert branch params before the trailing LIMIT param.
+            # params layout after type_filter: [fts_query, (type?), ..., fts_limit]
+            # We insert two branch params at position len(params)-1 to keep LIMIT last.
+            params.insert(len(params) - 1, branch)
+            params.insert(len(params) - 1, branch)
 
         sql = f"""
             SELECT m.memory_id, m.memory_type, m.source_type, m.session_id, m.turn_id,
@@ -181,9 +190,10 @@ class FtsRetriever:
             JOIN memories m ON m.memory_id = f.memory_id
             WHERE memories_fts MATCH ?
             {type_filter}
+            {branch_filter}
             ORDER BY f.rank
             LIMIT ?
-        """  # nosec B608 — type_filter is a literal string; all values use ? placeholders
+        """  # nosec B608 — type_filter and branch_filter are literal strings; all values use ? placeholders
         return sql, params
 
     def _fetch_hits(
@@ -216,6 +226,7 @@ class VectorRetriever:
         embedding: list[float],
         memory_type: str | None,
         limit: int,
+        branch: str = "",
     ) -> list[MemoryHit]:
         """KNN search on memories_vec; raises OperationalError when table missing."""
         type_filter = ""
@@ -223,6 +234,12 @@ class VectorRetriever:
         if memory_type:
             type_filter = "AND m.memory_type = ?"
             params.insert(1, memory_type)
+
+        branch_filter = ""
+        if branch:
+            branch_filter = "AND (? = '' OR m.branch = '' OR m.branch = ?)"
+            params.insert(len(params) - 1, branch)
+            params.insert(len(params) - 1, branch)
 
         sql = f"""
             SELECT m.memory_id, m.memory_type, m.source_type, m.session_id, m.turn_id,
@@ -233,9 +250,10 @@ class VectorRetriever:
             JOIN memories m ON m.memory_id = mv.memory_id
             WHERE mv.embedding MATCH ?
             {type_filter}
+            {branch_filter}
             ORDER BY mv.distance
             LIMIT ?
-        """  # nosec B608 — type_filter is a literal string; all values use ? placeholders
+        """  # nosec B608 — type_filter and branch_filter are literal strings; all values use ? placeholders
 
         with SQLiteHelper("session").open(row_factory=True) as db:
             rows = db.fetchall(sql, tuple(params))
@@ -293,7 +311,7 @@ class HybridRetriever:
             return fts_hits
 
         vec_hits = self._vec.knn_search(
-            embedding, query.memory_type, self._fts._fts_limit
+            embedding, query.memory_type, self._fts._fts_limit, branch
         )
         if not vec_hits:
             logger.info("retrieval: fts_only (reason=vec_returned_empty)")
@@ -311,9 +329,10 @@ class HybridRetriever:
         embedding: list[float],
         memory_type: str | None,
         limit: int,
+        branch: str = "",
     ) -> list[MemoryHit]:
         """Delegate KNN search to VectorRetriever (used by ingestion dedup)."""
-        return self._vec.knn_search(embedding, memory_type, limit)
+        return self._vec.knn_search(embedding, memory_type, limit, branch)
 
     def top_semantic(
         self,

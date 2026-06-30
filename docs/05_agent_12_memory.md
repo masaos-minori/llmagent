@@ -351,9 +351,9 @@ Class `MemoryStore(embed_dim=None)`:
 
 | Method / Attribute | Returns | Description |
 |---|---|---|
-| `search(query, embedding=None, project="", repo="")` | `list[MemoryHit]` | FTS-only when no embedding; RRF merge when embedding present |
-| `knn_search(embedding, memory_type, limit)` | `list[MemoryHit]` | Delegate to VectorRetriever (used by ingestion dedup) |
-| `top_semantic(limit=5, min_importance=0.0, project="", repo="")` | `list[MemoryEntry]` | Direct SQL — no FTS needed |
+| `search(query, embedding=None, project="", repo="", branch="")` | `list[MemoryHit]` | FTS-only when no embedding; RRF merge when embedding present |
+| `knn_search(embedding, memory_type, limit, branch="")` | `list[MemoryHit]` | Delegate to VectorRetriever (used by ingestion dedup) |
+| `top_semantic(limit=5, min_importance=0.0, project="", repo="", branch="")` | `list[MemoryEntry]` | Direct SQL — no FTS needed |
 | `embed_client` | `EmbeddingClient \| None` | Injected at construction; used by `/memory status` |
 | `last_retrieval_mode` | `str` | `"hybrid"` / `"fts_only"` / `"unknown"` — set on each `search()` call |
 
@@ -368,9 +368,23 @@ score = -bm25_rank + importance_boost + pin_boost + recency_decay + context_matc
 - `sqlite3.OperationalError` — vec table missing → KNN returns []
 - `MemorySchemaError` — invalid created_at timestamp
 
+**Branch Awareness:**
+
+All retrieval paths apply a hard SQL branch filter when a non-empty branch is provided:
+
+```sql
+AND (? = '' OR m.branch = '' OR m.branch = ?)
+```
+
+- Branch is resolved once at startup via `shared.git_helper.get_repo_info()` in `factory.py`.
+- Entries with `branch=""` (global memories) are always included regardless of current branch.
+- When `get_repo_info()` fails or HEAD is detached, branch defaults to `""` — no filter is applied (safe degraded behavior).
+- The injection service passes `branch=self._branch` to all `retriever.search()` calls.
+- Dedup KNN in ingestion uses `branch=""` (global scope) to ensure cross-branch duplicate detection.
+
 ### 8. `injection.py` — Lifecycle injection service
 
-Class `MemoryInjectionService(policy, retriever, embed_client, project="", repo="")`:
+Class `MemoryInjectionService(policy, retriever, embed_client, project="", repo="", branch="")`:
 
 | Method | Returns | Description |
 |---|---|---|
