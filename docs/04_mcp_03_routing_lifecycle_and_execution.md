@@ -218,7 +218,7 @@ result = await transport.call("tool_name", {"arg": "val"})
 - Adds `Authorization: Bearer <token>` when `cfg.auth_token` is non-empty
 - Catches all HTTP and request errors; returns `is_error=True` with message
 - `set_session_id(session_id)` injects `X-Session-Id` header per request
-- **Retry:** retries on HTTP 429/502/503/504, up to 3 attempts with decreasing delay (4s → 2s → 1s). Only the final outcome (success or TransportError after all retries exhausted) is recorded in HealthRegistry.
+- **Retry:** retries on HTTP 429/502/503/504, up to 3 attempts with decreasing delay: attempt 0 waits 4s, attempt 1 waits 2s, attempt 2 waits 1s before the final exhaustion error. Formula: 2^(RETRY_MAX - attempt - 1). This is NOT exponential backoff (delays decrease with each attempt). Only the final outcome (success or TransportError after all retries exhausted) is recorded in HealthRegistry.
 - **Non-retryable errors:** HTTP timeout (`httpx.TimeoutException`) and HTTPStatusError for non-429/502/503/504 status codes are immediately propagated without retry.
 
 ---

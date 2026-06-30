@@ -18,6 +18,7 @@ from shared.tool_executor import (
     StdioTransport,
     ToolCallResult,
     ToolExecutor,
+    TransportError,
 )
 
 
@@ -151,6 +152,161 @@ class TestHttpTransportRetry:
                 await transport.call("write_file", {"path": "a"})
         assert call_count == 3
         assert "Retry exhausted" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_retries_on_502_and_succeeds(self) -> None:
+        call_count = 0
+
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                nonlocal call_count
+                call_count += 1
+                req = httpx.Request("POST", url)
+                if call_count < 3:
+                    return httpx.Response(
+                        502, request=req, json={"result": "", "is_error": False}
+                    )
+                return httpx.Response(
+                    200, request=req, json={"result": "ok", "is_error": False}
+                )
+
+        transport = HttpTransport(
+            _FakeClient(),  # type: ignore[arg-type]
+            base_url="http://localhost:8001",
+            server_key="test",
+        )
+        with patch("asyncio.sleep", return_value=None):
+            result = await transport.call("write_file", {"path": "a"})
+        assert result.output == "ok"
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_retries_on_503_and_succeeds(self) -> None:
+        call_count = 0
+
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                nonlocal call_count
+                call_count += 1
+                req = httpx.Request("POST", url)
+                if call_count < 3:
+                    return httpx.Response(
+                        503, request=req, json={"result": "", "is_error": False}
+                    )
+                return httpx.Response(
+                    200, request=req, json={"result": "ok", "is_error": False}
+                )
+
+        transport = HttpTransport(
+            _FakeClient(),  # type: ignore[arg-type]
+            base_url="http://localhost:8001",
+            server_key="test",
+        )
+        with patch("asyncio.sleep", return_value=None):
+            result = await transport.call("write_file", {"path": "a"})
+        assert result.output == "ok"
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_retries_on_504_and_succeeds(self) -> None:
+        call_count = 0
+
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                nonlocal call_count
+                call_count += 1
+                req = httpx.Request("POST", url)
+                if call_count < 3:
+                    return httpx.Response(
+                        504, request=req, json={"result": "", "is_error": False}
+                    )
+                return httpx.Response(
+                    200, request=req, json={"result": "ok", "is_error": False}
+                )
+
+        transport = HttpTransport(
+            _FakeClient(),  # type: ignore[arg-type]
+            base_url="http://localhost:8001",
+            server_key="test",
+        )
+        with patch("asyncio.sleep", return_value=None):
+            result = await transport.call("write_file", {"path": "a"})
+        assert result.output == "ok"
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_timeout_is_non_retryable(self) -> None:
+        call_count = 0
+
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                nonlocal call_count
+                call_count += 1
+                raise httpx.TimeoutException("timed out")
+
+        transport = HttpTransport(
+            _FakeClient(),  # type: ignore[arg-type]
+            base_url="http://localhost:8001",
+            server_key="test",
+        )
+        with pytest.raises(TransportError) as exc_info:
+            await transport.call("write_file", {"path": "a"})
+        assert call_count == 1
+        assert "timeout" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_non_retryable_http_status_not_retried(self) -> None:
+        call_count = 0
+
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                nonlocal call_count
+                call_count += 1
+                req = httpx.Request("POST", url)
+                return httpx.Response(
+                    500, request=req, json={"result": "", "is_error": True}
+                )
+
+        transport = HttpTransport(
+            _FakeClient(),  # type: ignore[arg-type]
+            base_url="http://localhost:8001",
+            server_key="test",
+        )
+        with pytest.raises(TransportError):
+            await transport.call("write_file", {"path": "a"})
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_retry_delay_values_via_sleep_mock(self) -> None:
+        sleep_calls: list[float] = []
+
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                req = httpx.Request("POST", url)
+                return httpx.Response(
+                    429, request=req, json={"result": "", "is_error": False}
+                )
+
+        transport = HttpTransport(
+            _FakeClient(),  # type: ignore[arg-type]
+            base_url="http://localhost:8001",
+            server_key="test",
+        )
+
+        async def capture_sleep(*args: Any, **kwargs: Any) -> None:
+            sleep_calls.extend(args)
+
+        with patch("asyncio.sleep", side_effect=capture_sleep):
+            try:
+                await transport.call("write_file", {"path": "a"})
+            except TransportError:
+                pass  # Expected — all retries exhausted
+
+        # attempt 0→sleep(4), attempt 1→sleep(2), attempt 2→sleep(1), then exhausted
+        assert len(sleep_calls) == 3
+        assert sleep_calls[0] == 4
+        assert sleep_calls[1] == 2
+        assert sleep_calls[2] == 1
 
 
 class TestStdioTransportStop:
