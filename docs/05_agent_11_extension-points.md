@@ -114,7 +114,7 @@ MCP tool, the outcome depends on `plugin_tool_override`:
 
 When `plugin_tool_override = false` (default):
 
-- At startup, all known MCP tool names are collected from `tool_constants.py`.
+- At startup, all known MCP tool names are collected from `ToolRegistry`.
 - If a plugin tool name matches any known MCP tool, the tool is **rejected** (removed from the registry).
 - Log: `[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — rejected`
 - Only the conflicting tool is removed; the plugin module and other tools continue loading.

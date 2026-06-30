@@ -353,7 +353,7 @@ def _build_ingestion_service(
 
 def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
     """Load and register plugins from the plugins/ directory."""
-    from shared.tool_constants import get_all_mcp_tool_names
+    from shared.tool_registry import get_registry
 
     plugin_dir = Path(__file__).parent.parent.parent / "plugins"
     override_policy = "allow" if ctx.cfg.tool.plugin_tool_override else "reject"
@@ -364,7 +364,7 @@ def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
         )
 
     known_tools = (
-        get_all_mcp_tool_names() if override_policy == "reject" else frozenset()
+        get_registry().get_all_tool_names() if override_policy == "reject" else frozenset()
     )
     mode_str = "strict" if ctx.cfg.tool.plugin_strict else "fail-open"
     audit_logger.info("Plugin loading mode: %s", mode_str)
