@@ -286,6 +286,8 @@ When result exceeds 512 KB:
 
 **Note:** The suffix shows the actual visible byte count (`actual_visible_bytes`), not the configured limit. For ASCII text, this equals 512 KB (524,288 bytes). For UTF-8 text with multi-byte characters at the boundary, it may be slightly less.
 
+**Important:** The `total_bytes` and `actual_visible_bytes` fields in the stdio response metadata represent the original dispatch output size, not the truncated text size. This ensures the client can distinguish between a short response (no truncation needed) and a long response that was truncated.
+
 ---
 
 ## Server-Specific Health Response Fields

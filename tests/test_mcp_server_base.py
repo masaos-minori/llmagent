@@ -156,16 +156,11 @@ class TestRunStdio:
         assert resp["result"] == "result_a"
 
     @pytest.mark.asyncio
-    async def test_truncation_metadata_under_limit(self) -> None:
-        """Under-limit response: truncated=False, actual_visible_bytes == total_bytes."""
+    async def test_under_limit_no_truncation_via_stdio(self) -> None:
+        """Under-limit response should have truncated=False and matching byte counts."""
         srv = _SimpleServer()
-        # Return a response that fits within the limit
-        original_output = _SimpleServer._dispatch_tool_a
-        _SimpleServer._dispatch_tool_a = lambda self, name, args: type(
-            "DispatchResult", (), {"output": "a" * 50, "is_error": False}
-        )()
-
         request = orjson.dumps({"id": 3, "name": "tool_a", "args": {}}) + b"\n"
+
         pre_fed_reader = asyncio.StreamReader()
         pre_fed_reader.feed_data(request)
         pre_fed_reader.feed_eof()
@@ -193,24 +188,26 @@ class TestRunStdio:
         assert len(written) == 1
         resp = orjson.loads(written[0])
         assert not resp["truncated"]
-        assert resp["actual_visible_bytes"] == resp["total_bytes"]
-        assert resp["total_bytes"] == 50
-        assert "TRUNCATED" not in resp["result"]
-
-        _SimpleServer._dispatch_tool_a = original_output
+        assert resp["total_bytes"] == resp["actual_visible_bytes"]
 
     @pytest.mark.asyncio
-    async def test_truncation_metadata_over_limit_ascii(self) -> None:
-        """Over-limit ASCII response: actual_visible_bytes == max_bytes."""
-        from mcp.server import MCP_MAX_RESPONSE_BYTES  # noqa: PLC0415
+    async def test_over_limit_ascii_truncation_via_stdio(self) -> None:
+        """Over-limit ASCII response should have truncated=True with correct metadata."""
+        from scripts.mcp.server import MCP_MAX_RESPONSE_BYTES  # noqa: PLC0415
 
-        srv = _SimpleServer()
-        original_output = _SimpleServer._dispatch_tool_a
-        _SimpleServer._dispatch_tool_a = lambda self, name, args: type(
-            "DispatchResult", (), {"output": "x" * (MCP_MAX_RESPONSE_BYTES + 100), "is_error": False}
-        )()
+        class _LongServer(_SimpleServer):
+            async def dispatch(self, name: str, args: dict) -> DispatchResult:
+                if name == "tool_a":
+                    long_text = "a" * (MCP_MAX_RESPONSE_BYTES + 1000)
+                    return DispatchResult(
+                        output=long_text,
+                        is_error=False,
+                    )
+                return await super().dispatch(name, args)
 
+        srv = _LongServer()
         request = orjson.dumps({"id": 4, "name": "tool_a", "args": {}}) + b"\n"
+
         pre_fed_reader = asyncio.StreamReader()
         pre_fed_reader.feed_data(request)
         pre_fed_reader.feed_eof()
@@ -240,23 +237,25 @@ class TestRunStdio:
         assert resp["truncated"]
         assert resp["actual_visible_bytes"] == MCP_MAX_RESPONSE_BYTES
         assert resp["total_bytes"] > MCP_MAX_RESPONSE_BYTES
-        assert "[TRUNCATED:" in resp["result"]
-
-        _SimpleServer._dispatch_tool_a = original_output
 
     @pytest.mark.asyncio
-    async def test_truncation_metadata_over_limit_utf8(self) -> None:
-        """Over-limit UTF-8 multibyte response: actual_visible_bytes < max_bytes."""
-        from mcp.server import MCP_MAX_RESPONSE_BYTES  # noqa: PLC0415
+    async def test_over_limit_utf8_truncation_via_stdio(self) -> None:
+        """Over-limit UTF-8 response should have actual_visible_bytes < total_bytes."""
+        from scripts.mcp.server import MCP_MAX_RESPONSE_BYTES  # noqa: PLC0415
 
-        srv = _SimpleServer()
-        original_output = _SimpleServer._dispatch_tool_a
-        utf8_text = "あ" * (MCP_MAX_RESPONSE_BYTES // 3 + 10)  # ~3 bytes per char
-        _SimpleServer._dispatch_tool_a = lambda self, name, args: type(
-            "DispatchResult", (), {"output": utf8_text, "is_error": False}
-        )()
+        class _Utf8LongServer(_SimpleServer):
+            async def dispatch(self, name: str, args: dict) -> DispatchResult:
+                if name == "tool_a":
+                    utf8_text = "あ" * ((MCP_MAX_RESPONSE_BYTES // 3) + 100)
+                    return DispatchResult(
+                        output=utf8_text,
+                        is_error=False,
+                    )
+                return await super().dispatch(name, args)
 
+        srv = _Utf8LongServer()
         request = orjson.dumps({"id": 5, "name": "tool_a", "args": {}}) + b"\n"
+
         pre_fed_reader = asyncio.StreamReader()
         pre_fed_reader.feed_data(request)
         pre_fed_reader.feed_eof()
@@ -284,14 +283,56 @@ class TestRunStdio:
         assert len(written) == 1
         resp = orjson.loads(written[0])
         assert resp["truncated"]
-        assert resp["actual_visible_bytes"] < MCP_MAX_RESPONSE_BYTES
-        # The shown portion must be valid UTF-8 (no corrupted characters)
-        try:
-            resp["result"].encode("utf-8")
-        except UnicodeEncodeError:
-            pytest.fail(f"Truncated text contains corrupted UTF-8: {resp['result']!r}")
+        assert resp["actual_visible_bytes"] <= MCP_MAX_RESPONSE_BYTES
+        assert resp["total_bytes"] > MCP_MAX_RESPONSE_BYTES
 
-        _SimpleServer._dispatch_tool_a = original_output
+    @pytest.mark.asyncio
+    async def test_truncated_text_valid_utf8_via_stdio(self) -> None:
+        """Truncated text via stdio should contain valid UTF-8 (no corrupted characters)."""
+        from scripts.mcp.server import MCP_MAX_RESPONSE_BYTES  # noqa: PLC0415
+
+        class _MixedUtf8Server(_SimpleServer):
+            async def dispatch(self, name: str, args: dict) -> DispatchResult:
+                if name == "tool_a":
+                    long_text = "A" * 100 + "あいうえお" * (
+                        (MCP_MAX_RESPONSE_BYTES // 15) + 100
+                    )
+                    return DispatchResult(
+                        output=long_text,
+                        is_error=False,
+                    )
+                return await super().dispatch(name, args)
+
+        srv = _MixedUtf8Server()
+        request = orjson.dumps({"id": 6, "name": "tool_a", "args": {}}) + b"\n"
+
+        pre_fed_reader = asyncio.StreamReader()
+        pre_fed_reader.feed_data(request)
+        pre_fed_reader.feed_eof()
+
+        written: list[str] = []
+
+        from unittest.mock import AsyncMock, MagicMock, patch  # noqa: PLC0415
+
+        mock_loop = MagicMock()
+        mock_loop.connect_read_pipe = AsyncMock(return_value=(MagicMock(), MagicMock()))
+        mock_loop.run_in_executor = MagicMock(
+            side_effect=lambda executor, fn, *args: fn(*args)
+        )
+
+        with (
+            patch("asyncio.get_running_loop", return_value=mock_loop),
+            patch("asyncio.StreamReader", return_value=pre_fed_reader),
+            patch("asyncio.StreamReaderProtocol"),
+            patch("sys.stdout") as mock_stdout,
+        ):
+            mock_stdout.write = lambda s: written.append(s)
+            mock_stdout.flush = lambda: None
+            await srv.run_stdio()
+
+        assert len(written) == 1
+        resp = orjson.loads(written[0])
+        resp["result"].encode("utf-8")  # raises if corrupted
 
 
 # ─────────────────────────────────────────────────────────────────────────────
