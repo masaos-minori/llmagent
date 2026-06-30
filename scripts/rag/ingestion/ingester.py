@@ -93,7 +93,9 @@ class RagIngester:
 
     def __del__(self) -> None:
         try:
-            self._client.close()
+            client = getattr(self, "_client", None)
+            if client is not None:
+                client.close()
         except OSError:
             pass
 
