@@ -38,6 +38,13 @@ COMPAT_PATTERNS = {
     "rag.pipeline._cfg": r"rag\.pipeline\._cfg",
     "/mcp install": r"/mcp[ _]install",
     "POST /v1/search": r"POST\s+/v1/search",
+    "/note command": r"/note\s+(add|list|delete|pin|unpin|search)",
+    "/db urls alias": r"/db\s+urls\b(?!.*rag|session)",
+    "/db clean alias": r"/db\s+clean\b(?!.*rag|session)",
+    "/db rebuild-fts alias": r"/db\s+rebuild-fts\b(?!.*rag|session)",
+    "/db recover alias": r"/db\s+recover\b(?!.*rag|session)",
+    "auto_inject_notes": r"auto_inject_notes",
+    "notes table": r"notes[ _]table",
 }
 
 # Allowlist: files that are permitted to contain these patterns (archive/migration notes only)
@@ -53,11 +60,18 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "tests" / "test_route_resolver.py",
     ROOT_DIR / "tests" / "test_mcp_rag_pipeline.py",
     ROOT_DIR / "tests" / "test_rag_pipeline_mcp_service.py",
-    # Test file with description mentioning static fallback as a concept
+   # Test file with description mentioning static fallback as a concept
     ROOT_DIR / "tests" / "test_rag_tools_consistency.py",
-    # Docs documenting removed features (POST /v1/search, /mcp install)
+  # Tests intentionally referencing removed commands
+    ROOT_DIR / "tests" / "test_cmd_registry_note_removal.py",
+    ROOT_DIR / "tests" / "test_removed_commands.py",
+    ROOT_DIR / "tests" / "test_create_schema.py",
+  # Script documenting historical command name changes
+    ROOT_DIR / "scripts" / "checks" / "check_docs_consistency.py",
+    # Docs documenting removed features (POST /v1/search, /mcp install, /note, /db aliases)
     ROOT_DIR / "docs" / "04_mcp_00_document-guide.md",
     ROOT_DIR / "docs" / "05_agent_07_cli-and-commands.md",
+    ROOT_DIR / "docs" / "05_agent_90_inconsistencies_and_known_issues.md",
     # Doc describing removed static fallback routing
     ROOT_DIR / "docs" / "90_shared_02_types_and_protocols.md",
     # Doc still mentioning static fallback in architecture description
