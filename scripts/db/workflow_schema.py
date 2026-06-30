@@ -15,16 +15,10 @@ import sqlite3
 from pathlib import Path
 
 from db.config import build_db_config
+from db.create_schema import _migrate_workflow_schema
 from db.schema_sql import build_workflow_schema_sql
 
 logger = logging.getLogger(__name__)
-
-
-def _migrate_workflow_schema(conn: sqlite3.Connection) -> None:
-    """Add missing workflow columns idempotently."""
-    columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
-    if "workflow_id" not in columns:
-        conn.execute("ALTER TABLE tasks ADD COLUMN workflow_id TEXT")
 
 
 def init_schema() -> None:

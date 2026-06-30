@@ -439,6 +439,54 @@ class TestCreateWorkflowSchema:
             cs.create_workflow_schema()
             cs.create_workflow_schema()  # must not raise
 
+    def test_migration_workflow_id_column_exists(self, tmp_path: Path) -> None:
+        """create_workflow_schema() applies migration: workflow_id column present in tasks."""
+        db_file = tmp_path / "workflow_id_col.sqlite"
+        cfg = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path=str(db_file),
+        )
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch("db.store_protocols.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_workflow_schema_sql",
+                return_value=_WORKFLOW_SCHEMA_NO_VEC0,
+            ),
+        ):
+            cs.create_workflow_schema()
+        conn = sqlite3.connect(str(db_file))
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
+        conn.close()
+        assert "workflow_id" in columns
+
+    def test_migration_workflow_id_column_idempotent(self, tmp_path: Path) -> None:
+        """_migrate_workflow_schema is idempotent: running twice does not duplicate column."""
+        db_file = tmp_path / "workflow_idempotent.sqlite"
+        cfg = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path=str(db_file),
+        )
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch("db.store_protocols.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_workflow_schema_sql",
+                return_value=_WORKFLOW_SCHEMA_NO_VEC0,
+            ),
+        ):
+            cs.create_workflow_schema()
+            cs.create_workflow_schema()  # run twice to test idempotency
+        conn = sqlite3.connect(str(db_file))
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
+        assert "workflow_id" in columns
+        # Verify column exists only once (no duplicate)
+        workflow_id_count = sum(1 for row in conn.execute("PRAGMA table_info(tasks)").fetchall() if row[1] == "workflow_id")
+        assert workflow_id_count == 1
+        conn.close()
+
     def test_tasks_idempotency_key_unique(self, tmp_path: Path) -> None:
         db_file = tmp_path / "workflow3.sqlite"
         cfg = DbConfig(

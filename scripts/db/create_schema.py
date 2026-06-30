@@ -107,6 +107,13 @@ def create_session_schema() -> None:
     logger.info("Session schema created successfully.")
 
 
+def _migrate_workflow_schema(conn: sqlite3.Connection) -> None:
+    """Add missing workflow columns idempotently."""
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
+    if "workflow_id" not in existing:
+        conn.execute("ALTER TABLE tasks ADD COLUMN workflow_id TEXT")
+
+
 def create_workflow_schema() -> None:
     """Create workflow.sqlite tables (tasks, attempts, processed_events, artifacts, approvals)."""
     with SQLiteHelper("workflow").open(write_mode=True) as db:
@@ -115,6 +122,7 @@ def create_workflow_schema() -> None:
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.error("Failed to execute workflow schema DDL: %s", e)
             raise
+        _migrate_workflow_schema(db.conn)  # type: ignore[arg-type]  # conn is set by open()
     logger.info("Workflow schema created successfully.")
 
 
