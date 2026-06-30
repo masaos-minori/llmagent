@@ -34,6 +34,13 @@
 |---|---|
 | `/health` returns HTTP 503 for `degraded`/`unhealthy` states, HTTP 200 for `ok` | Monitoring tools MUST use HTTP status code, not JSON body, for alerting |
 
+### Offset Advancement Is Ack-Only
+
+| Item | Safe interpretation |
+|---|---|
+| Offsets advance only via ack endpoint, never on disconnect or during streaming | Consumer must call `POST /events/{event_id}/ack` to advance offset; reconnect resumes from last acked seq |
+
+## Docs-Only Items
 
 These items are documentation improvements that do not require implementation changes.
 
@@ -42,12 +49,6 @@ These items are documentation improvements that do not require implementation ch
 | Item | Safe interpretation |
 |---|---|
 | `GET /replay?format=json` returns `{total, limit, offset, items}` not a raw array | Clients can paginate through replay results using limit/offset parameters |
-
-### Offset Advancement Is Ack-Only
-
-| Item | Safe interpretation |
-|---|---|
-| Offsets advance only via ack endpoint, never on disconnect or during streaming | Consumer must call `POST /events/{event_id}/ack` to advance offset; reconnect resumes from last acked seq |
 
 ### DLQ Promotion Is Inline-on-nack Plus Safety Sweep
 
