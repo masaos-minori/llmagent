@@ -313,23 +313,18 @@ Configure `allowed_dirs` in `config/mdq_mcp_server.toml` before using indexing t
 
 ### Markdown Compatibility Scope
 
-**Supported features:**
-- ATX headings (## Heading) — all levels 1-6
-- Fenced code blocks (```, ~~~) — # inside fences are not headings
-- Content before first heading (as <root> section)
-- Repeated heading names (distinct chunk identities via ordinal)
-- Nested heading hierarchy (heading_path includes ancestors)
-- Optional YAML frontmatter (parsed and stripped)
-- Malformed headings (ignored)
-
-**Unsupported features:**
-- Setext-style headings (===, --- underlines)
-- Inline tags (<del>, <ins>, etc.) — not parsed
-- HTML blocks — not parsed, treated as plain text
-- MDX — not supported
-- GFM tables — not parsed (but not required for section extraction)
-
-**Fallback behavior:** Unsupported syntax may cause heading misclassification. For example, Setext-style headings are treated as plain text with no heading level, and their content is included in the preceding section rather than creating a new one.
+| Markdown Feature          | Support | Fallback Behavior                          |
+|---------------------------|---------|---------------------------------------------|
+| ATX headings (H1–H6)      | Yes     | —                                           |
+| Fenced code blocks        | Yes     | `#` inside fences not treated as headings   |
+| YAML frontmatter          | Yes     | Parsed and stripped at file start           |
+| Content before H1         | Yes     | Stored as `<root>` section                  |
+| Duplicate headings        | Yes     | Distinct chunk IDs via ordinal              |
+| Setext headings (===,---) | No      | Treated as plain text                       |
+| HTML blocks               | No      | Treated as plain text                       |
+| MDX                       | No      | Not indexed (.mdx excluded by glob)         |
+| GFM tables                | No      | Stored as plain text in parent section      |
+| Inline HTML tags          | No      | Treated as plain text                       |
 
 ### Search Modes
 
