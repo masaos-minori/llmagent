@@ -109,7 +109,7 @@ class TestSlowConsumer:
             # Wait for the subscriber to process some events but not all
             import asyncio
 
-            asyncio.get_event_loop().run_until_complete(asyncio.sleep(0.05))
+            asyncio.run(asyncio.sleep(0.05))
 
             resp = client.get("/health")
             health = resp.json()
