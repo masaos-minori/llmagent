@@ -78,7 +78,11 @@ async def test_remote_empty(monkeypatch) -> None:
         return "", 200, 30.0
 
     with patch("rag.pipeline.call_rag_service", mock_call_rag_service):
-        await pipeline.augment("query")
+        with patch("rag.pipeline.SQLiteHelper.open") as mock_open:
+            await pipeline.augment("query")
+
+    # remote_empty must NOT trigger in-process pipeline
+    mock_open.assert_not_called()
 
     diag = pipeline.get_diagnostics()
     assert diag["http_result_kind"] == "remote_empty"
@@ -109,7 +113,38 @@ async def test_in_process_fallback(monkeypatch) -> None:
         return None, 503, 100.0
 
     with patch("rag.pipeline.call_rag_service", mock_call_rag_service):
-        # Also mock the in-process pipeline steps to avoid real execution
+        with patch("rag.pipeline.SQLiteHelper.open"):
+            # Also mock the in-process pipeline steps to avoid real execution
+            monkeypatch.setattr(
+                pipeline,
+                "run",
+                AsyncMock(
+                    return_value=PipelineRunResult(
+                        queries=["query"],
+                        search_results=[],
+                        merged=[],
+                        reranked=[],
+                        stage_results=[],
+                        diagnostics=SearchDiagnostics(),
+                    )
+                ),
+            )
+            await pipeline.augment("query")
+
+    diag = pipeline.get_diagnostics()
+    assert diag["http_result_kind"] == "in_process_fallback"
+    http_sr = next(
+        r for r in pipeline.last_stage_results if r["stage_name"] == "HttpAugment"
+    )
+    assert http_sr["status"] == "fallback"
+
+
+@pytest.mark.asyncio
+async def test_no_http_mode(monkeypatch) -> None:
+    """No rag_service_url -> http_result_kind=None."""
+    pipeline = _make_pipeline(rag_service_url="")
+    # No HTTP call; mock in-process stages
+    with patch("rag.pipeline.SQLiteHelper.open"):
         monkeypatch.setattr(
             pipeline,
             "run",
@@ -125,35 +160,6 @@ async def test_in_process_fallback(monkeypatch) -> None:
             ),
         )
         await pipeline.augment("query")
-
-    diag = pipeline.get_diagnostics()
-    assert diag["http_result_kind"] == "in_process_fallback"
-    http_sr = next(
-        r for r in pipeline.last_stage_results if r["stage_name"] == "HttpAugment"
-    )
-    assert http_sr["status"] == "fallback"
-
-
-@pytest.mark.asyncio
-async def test_no_http_mode(monkeypatch) -> None:
-    """No rag_service_url -> http_result_kind=None."""
-    pipeline = _make_pipeline(rag_service_url="")
-    # No HTTP call; mock in-process stages
-    monkeypatch.setattr(
-        pipeline,
-        "run",
-        AsyncMock(
-            return_value=PipelineRunResult(
-                queries=["query"],
-                search_results=[],
-                merged=[],
-                reranked=[],
-                stage_results=[],
-                diagnostics=SearchDiagnostics(),
-            )
-        ),
-    )
-    await pipeline.augment("query")
 
     diag = pipeline.get_diagnostics()
     assert diag["http_result_kind"] is None
