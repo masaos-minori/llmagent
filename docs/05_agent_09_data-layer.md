@@ -13,7 +13,7 @@ and the responsibility boundary between the agent layer and the RAG layer.
 
 | Database | Path | Owner | Purpose |
 |---|---|---|---|
-| `session.sqlite` | `/opt/llm/db/session.sqlite` | Agent layer | Sessions, messages, notes |
+| `session.sqlite` | `/opt/llm/db/session.sqlite` | Agent layer | Sessions, messages |
 | `rag.sqlite` | `/opt/llm/db/rag.sqlite` | RAG layer | Documents, chunks, vectors |
 | `mdq.sqlite` | `/opt/llm/db/mdq.sqlite` | MCP (mdq-mcp) | Markdown document indexing and context compression |
 | `workflow.sqlite` | `/opt/llm/db/workflow.sqlite` | Workflow engine | Tasks, attempts, processed_events, approvals, artifacts |
@@ -45,16 +45,6 @@ and the responsibility boundary between the agent layer and the RAG layer.
 > **Known discrepancy:** The `diagnostic` role in the column list above is stale. `AgentSession.save_diagnostic()` does NOT write to the `messages` table; it writes exclusively to the `session_diagnostics` table via `DiagnosticStore.save()`. Diagnostic data is excluded from `fetch_messages()` results and never restored to `ctx.conv.history`.
 
 > **Current behavior:** All diagnostic persistence goes through `DiagnosticStore` → `session_diagnostics` table. The `messages` table has no `diagnostic` role rows.
-
-### `notes` table
-
-| Column | Type | Description |
-|---|---|---|
-| `note_id` | INTEGER PK | Auto-increment |
-| `content` | TEXT | Note text |
-| `created_at` | TEXT | Creation timestamp |
-
-Notes are session-independent (persist across sessions).
 
 ### `session_diagnostics` table
 

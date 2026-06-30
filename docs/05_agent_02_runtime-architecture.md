@@ -20,7 +20,7 @@ agent/__main__.py
        ├─ StartupOrchestrator (agent/startup.py) — startup sequence; created once in run()
        ├─ AgentContext (agent/context.py) — per-session DI hub; shared mutable state
        │    ├─ AgentConfig               — hot-reloadable runtime configuration
-       │    ├─ AgentSession              — SQLite session/message/note persistence
+       │    ├─ AgentSession              — SQLite session/message persistence
        │    ├─ ConversationState         — history list, LLM URL, flags
        │    ├─ TurnState                 — current turn UUID (reset per turn)
        │    ├─ RuntimeStats              — cumulative session metrics
@@ -156,7 +156,7 @@ all services. Sub-structures:
 
 ### AgentSession (`agent/session.py`)
 
-- CRUD for `sessions`, `messages`, `notes` tables
+- CRUD for `sessions`, `messages` tables
 - RAG document delete/list (delegated from `/db` commands)
 - `fetch_messages(session_id)` returns `list[LLMMessage]` for session restore
 

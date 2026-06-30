@@ -84,7 +84,6 @@ Session-cumulative counters and latency samples.
 |---|---|---|
 | Session start | `sessions` | session_id, created_at, title |
 | Each message | `messages` | role, content, tool_calls, tool_call_id, session_id |
-| Note operations | `notes` | note_id, content, created_at |
 
 ### Session lifecycle
 
@@ -247,7 +246,7 @@ The agent layer operates across three SQLite databases:
 
 | Database | Purpose | Schema reference |
 |---|---|---|
-| `session.sqlite` | Agent sessions, messages, notes | `90_shared_04` §2 |
+| `session.sqlite` | Agent sessions, messages | `90_shared_04` §2 |
 | `rag.sqlite` | RAG documents, chunks, embeddings | `90_shared_04` §3-§6 |
 | `workflow.sqlite` | Task tracking, event processing | `90_shared_04` §7 |
 

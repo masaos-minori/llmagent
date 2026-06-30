@@ -170,19 +170,6 @@ from the `approvals` DB table even when in-memory `ctx.turn.pending_approval_id`
 (e.g., after a crash). After `/approve` succeeds, `ctx.turn.pending_approval_task_id` is
 set for auto-resume — no re-execution of prior steps is needed.
 
-### Memory category
-
-| Command | Side effects | Related state |
-|---|---|---|
-| `/memory list [N]` | None | Display memory entries (default: last 10) |
-| `/memory search <query>` | None | Search memory by text |
-| `/memory show <id>` | None | Show a single memory entry |
-| `/memory pin <id>` | UPDATE `pinned=1` | Pin a memory entry |
-| `/memory unpin <id>` | UPDATE `pinned=0` | Unpin a memory entry |
-| `/memory delete <id>` | DELETE from memory | Remove a memory entry |
-| `/memory prune` | DELETE expired entries | Prune expired memory entries |
-| `/memory status` | None | Display memory statistics |
-
 ### Debug / audit category
 
 | Command | Side effects | Related state |
