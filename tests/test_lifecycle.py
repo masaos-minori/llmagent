@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -602,7 +603,11 @@ class TestRestart:
         new_proc.poll.return_value = None
         new_proc.stderr = None
 
-        async def fake_wait_for(coro: object, timeout: float) -> None:
+        async def fake_wait_for(coro: Any, timeout: float) -> None:
+            try:
+                await coro
+            except Exception:
+                pass
             raise TimeoutError
 
         with (
@@ -622,8 +627,12 @@ class TestRestart:
 class TestShutdownAll:
     @pytest.mark.asyncio
     async def test_stops_all_running_transports(self) -> None:
-        t1 = AsyncMock()
-        t2 = AsyncMock()
+        t1 = MagicMock()
+        t1.is_alive.return_value = True
+        t1.stop = AsyncMock()
+        t2 = MagicMock()
+        t2.is_alive.return_value = True
+        t2.stop = AsyncMock()
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex, {"a": t1, "b": t2})
@@ -656,8 +665,9 @@ class TestShutdownAll:
 
     @pytest.mark.asyncio
     async def test_shutdown_tolerates_stop_errors(self) -> None:
-        t1 = AsyncMock()
-        t1.stop.side_effect = OSError("crash")
+        t1 = MagicMock()
+        t1.is_alive.return_value = True
+        t1.stop = AsyncMock(side_effect=OSError("crash"))
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex, {"a": t1})

@@ -68,7 +68,6 @@ class TestStreamLlm:
 
 
 class TestFinalizeAnswer:
-    @pytest.mark.asyncio(False)
     def test_appends_to_history(self, runner: LLMTurnRunner) -> None:
         message: dict[str, Any] = {"role": "assistant", "content": "Hello"}
 
@@ -77,7 +76,6 @@ class TestFinalizeAnswer:
         assert result == "Hello"
         assert runner._ctx.conv.history == [message]
 
-    @pytest.mark.asyncio(False)
     def test_returns_empty_string_for_no_content(self, runner: LLMTurnRunner) -> None:
         message: dict[str, Any] = {"role": "assistant"}
 
