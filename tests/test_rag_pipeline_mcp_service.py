@@ -322,6 +322,30 @@ class TestFmtDebugPipeline:
 
 class TestServiceStart:
     @pytest.mark.asyncio
+    async def test_no_module_level_cfg_override(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """start() must not write to rag.pipeline._cfg."""
+
+        import mcp.rag_pipeline.models as models_module
+        import rag.pipeline as agent_rag
+
+        fake_cfg = models_module.RagPipelineConfig(
+            use_mqe=True,
+            use_rrf=True,
+            use_rerank=True,
+            top_k_search=5,
+            top_k_rerank=10,
+        )
+        monkeypatch.setattr(models_module.RagPipelineConfig, "load", lambda: fake_cfg)
+
+        svc = RagPipelineMCPService()
+        await svc.start()
+        assert not hasattr(agent_rag, "_cfg"), (
+            "rag.pipeline._cfg must not be set by RagPipelineMCPService.start()"
+        )
+
+    @pytest.mark.asyncio
     async def test_start_creates_pipeline_and_http_client(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

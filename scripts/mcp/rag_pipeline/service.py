@@ -37,9 +37,6 @@ class RagPipelineMCPService:
     """HTTP-accessible wrapper around RagPipeline.
 
     Lifecycle: call start() in FastAPI lifespan before serving requests.
-    Overrides module-level _cfg caches in rag.pipeline, rag.llm, and db.helper
-    so that all sub-modules read from rag_pipeline_mcp_server.toml instead of
-    agent.toml / common.toml.  Safe because each MCP server runs as a separate process.
     """
 
     def __init__(self) -> None:
@@ -56,14 +53,6 @@ class RagPipelineMCPService:
         )
 
         cfg = RagPipelineConfig.load()
-
-        # Override module-level config caches so RagLLM and RagPipeline read from
-        # rag_pipeline_mcp_server.toml.  Process-scoped; no cross-process contamination.
-        import dataclasses as _dc
-
-        agent_rag._cfg = _dc.asdict(cfg)  # type: ignore[attr-defined]  # noqa: SLF001 -- dynamic module attr; rag.pipeline exposes _cfg for process-scoped MCP config override
-        # db.helper resolves config per-instance in __init__; no class-level cache to reset.
-        # rag.llm no longer has a module-level _cfg cache; RagLLM receives cfg via constructor.
 
         rag_cfg = build_rag_cfg_adapter(cfg)
         http_timeout = 120.0  # process-level HTTP client timeout
