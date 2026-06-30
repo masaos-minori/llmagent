@@ -143,3 +143,41 @@ class TestLegacyAckEndpoint:
         """POST /ack without event_id returns 400."""
         resp = client.post("/ack")
         assert resp.status_code == 400
+
+
+class TestAckMonotonicOffset:
+    """Verify non-monotonic offset behavior: acking an older-seq event rolls offset back."""
+
+    def test_older_seq_ack_moves_offset_backward(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        from eventbus.offsets import read_offset
+
+        event1 = _event()
+        event2 = _event()
+        consumer_id = "consumer-mono"
+
+        resp = client.post("/publish", json=event1)
+        assert resp.status_code == 200
+        resp = client.post("/publish", json=event2)
+        assert resp.status_code == 200
+
+        # ack event2 first (seq=2) → offset advances to 2
+        resp = client.post(
+            f"/events/{event2['event_id']}/ack",
+            params={"consumer_id": consumer_id},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["seq"] == 2
+        assert read_offset(str(tmp_path / "offsets"), consumer_id) == 2
+
+        # ack event1 (seq=1, older) → offset rolls back to 1
+        resp = client.post(
+            f"/events/{event1['event_id']}/ack",
+            params={"consumer_id": consumer_id},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["seq"] == 1
+        assert read_offset(str(tmp_path / "offsets"), consumer_id) == 1, (
+            "Non-monotonic: offset rolled back after acking older-seq event"
+        )
