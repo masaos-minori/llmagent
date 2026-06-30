@@ -266,6 +266,10 @@ class TestCreateSessionSchema:
             cs.create_session_schema()
             cs.create_session_schema()  # must not raise
 
+    def test_session_schema_no_notes_table(self, session_tmp_db: sqlite3.Connection) -> None:
+        """notes table must not be created in new session schema."""
+        assert "notes" not in _table_names(session_tmp_db)
+
 
 # Workflow schema without the vec0 virtual table (chunks_vec requires sqlite-vec).
 _WORKFLOW_SCHEMA_NO_VEC0 = """
