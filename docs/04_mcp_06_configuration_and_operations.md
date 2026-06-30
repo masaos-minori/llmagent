@@ -655,7 +655,7 @@ When adding a new tool to an **existing** MCP server:
 | 6 | Add `tool_safety_tiers` entry in `config/agent.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
 | 7 | Add tool name to `tool_names` in server config (`config/mcp_servers.toml`) | **[Optional]** — enables startup drift validation only; routing does not require it |
 
-**Note**: All tools must be explicitly registered via `tool_constants.py` frozensets. No prefix-based routing exists.
+**Note**: All tools must be explicitly registered in ToolRegistry. No prefix-based routing exists.
 
 ### Verification
 
