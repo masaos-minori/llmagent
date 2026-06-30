@@ -213,7 +213,7 @@ TypedDict with `total=False` (all keys optional per role).
 
 ### 5.3 StageResult (`scripts/rag/stage.py`)
 
-Used by `RagPipeline.last_stage_results` and `PipelineContext.stage_results`.
+TypedDict (not a dataclass). Used by `RagPipeline.last_stage_results` and `PipelineContext.stage_results`.
 
 | Field | Type | Description |
 |---|---|---|

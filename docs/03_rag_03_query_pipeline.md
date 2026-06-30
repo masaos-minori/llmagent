@@ -208,7 +208,7 @@ StageResult = TypedDict with keys:
   stage_name: str         — class name of the stage
   status: str             — "success" | "fallback" | "failure"
   elapsed_seconds: float  — wall-clock seconds for the stage
-  fallback_reason: str | None — reason when status is "fallback"
+  fallback_reason: str | None — reason when status is "failure" or "fallback"; None on success
 ```
 
 `RagPipeline.run()` records a `StageResult` per stage and also exposes the full list as
@@ -226,7 +226,7 @@ MqeStage(cfg: RagConfig, llm: RagLLM)
 ```
 
 - `use_mqe=False`: sets `ctx.queries = [ctx.query]` (single query, no expansion)
-- `use_mqe=True`: calls `RagLLM.expand_queries(query, context)` → `ctx.queries`
+- `use_mqe=True`: calls `RagLLM.expand_queries(query)` → `ctx.queries` (context is applied via prompt template from cfg, not as a direct parameter)
 - `mqe_n_queries` config controls number of variants
 
 ### 5.2 SearchStage
@@ -296,7 +296,7 @@ RerankStage(cfg: RagConfig, llm: RagLLM)
 AugmentStage()
 ```
 
-- Formats `ctx.reranked` as `[Source: title | url]\ncontent` blocks
+- Formats `ctx.reranked` as `[Source: {title if title else url} | {url}]\n{sanitize_document(content)}` blocks; when title is empty, uses URL as fallback
 - Joined by `\n\n---\n\n`; wrapped in `[RAG_CONTEXT_START]` / `[RAG_CONTEXT_END]`
 - Stored in `ctx.augment_result`
 - Uses `sanitize_document(c.content)` from `rag.utils` to sanitize content before formatting
