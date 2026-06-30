@@ -57,6 +57,26 @@ class EventBusConfig:
 |---|---|---|
 | `open_db` | `(db_path: str) -> sqlite3.Connection` | Open SQLite with WAL, foreign keys, and schema init; logs and re-raises on error |
 
+### DB Schema
+
+DDL is defined in `scripts/eventbus/schema.sql`. The `events` table has the following columns:
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `seq` | INTEGER | PRIMARY KEY AUTOINCREMENT | Auto-increment sequence number |
+| `event_id` | TEXT | NOT NULL UNIQUE | Client-supplied UUID; prevents duplicates |
+| `topic` | TEXT | NOT NULL | Event topic string (1–255 characters) |
+| `payload` | TEXT | NOT NULL | Serialized JSON string of the event payload |
+| `producer` | TEXT | NOT NULL | Producer identifier string (1–255 characters) |
+| `published_at` | TEXT | NOT NULL | ISO-8601 timestamp when event was published |
+| `acked_at` | TEXT | — | Set during ack (idempotent) |
+| `retry_count` | INTEGER | NOT NULL DEFAULT 0 | Deprecated; use delivery_failure_count |
+| `delivery_failure_count` | INTEGER | NOT NULL DEFAULT 0 | Incremented on nack; triggers DLQ promotion at `>= max_retry` |
+| `dlq_requeue_count` | INTEGER | NOT NULL DEFAULT 0 | Incremented on DLQ requeue |
+| `dlq_at` | TEXT | — | Set when event is promoted to DLQ |
+
+Indexes: `idx_events_topic` (topic), `idx_events_seq` (seq), `idx_events_dlq_at` (dlq_at), `idx_events_dlq_seq` (dlq_at, seq)
+
 ---
 
 ## scripts/eventbus/dlq.py

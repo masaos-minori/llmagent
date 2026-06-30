@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS events (
     payload                TEXT    NOT NULL,   -- JSON string
     producer               TEXT    NOT NULL,
     published_at           TEXT    NOT NULL,
-    acked_at               TEXT,               -- reserved; not currently set by any code path
+    acked_at               TEXT,               -- set during ack (idempotent)
     retry_count            INTEGER NOT NULL DEFAULT 0,   -- deprecated; use delivery_failure_count
     delivery_failure_count INTEGER NOT NULL DEFAULT 0,
     dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS events (
 | `payload` | Serialized JSON string of the event payload |
 | `producer` | Producer identifier string (1–255 characters) |
 | `published_at` | ISO-8601 timestamp when event was published |
-| `acked_at` | Reserved — never written by current code |
+| `acked_at` | Set during ack (idempotent — will not overwrite existing value) |
 | `retry_count` | Deprecated — not used for DLQ promotion. DLQ promotion uses `delivery_failure_count >= max_retry`. This field is incremented on DLQ requeue only (see `dlq_requeue_count`). |
 | `delivery_failure_count` | Incremented on nack; triggers DLQ promotion at `>= max_retry` |
 | `dlq_requeue_count` | Incremented on DLQ requeue; does not reset `delivery_failure_count` |

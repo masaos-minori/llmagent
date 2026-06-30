@@ -89,5 +89,8 @@ Agent runtime integration with Event Bus is intentionally not implemented at thi
 
 | Field | Schema definition | Runtime behavior | Status |
 |---|---|---|---|
-| `acked_at` | TEXT | Never set by any code path | Reserved/unused — see inline DDL in deploy/init_db.sh |
+| `acked_at` | TEXT | Set during ack (idempotent — will not overwrite existing value) | Used — see `db.py::ack_event()` |
 | `retry_count` | INTEGER NOT NULL DEFAULT 0 | Deprecated; use delivery_failure_count | Deprecated — not used for DLQ promotion. DLQ promotion uses `delivery_failure_count >= max_retry`. This field is never updated by any code path. It is a schema artifact only. |
+| `delivery_failure_count` | INTEGER NOT NULL DEFAULT 0 | Incremented on nack; triggers DLQ promotion at `>= max_retry` | Used — see `db.py::nack_event()` |
+| `dlq_requeue_count` | INTEGER NOT NULL DEFAULT 0 | Incremented on DLQ requeue; does not reset `delivery_failure_count` | Used — see `db.py::requeue_event()` |
+| `dlq_at` | TEXT | Set when event is promoted to DLQ (inline or background sweep) | Used — set during DLQ promotion |

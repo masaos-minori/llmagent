@@ -29,6 +29,8 @@ Publish an event. Idempotent: duplicate `event_id` is silently ignored.
 | `published_at` | string (date-time) | Yes | ISO-8601 date-time format |
 | `schema_version` | string | No | Default "1.0" |
 
+**Additional constraint**: No additional properties allowed (`additionalProperties: false`). Extra fields cause 422 validation failure.
+
 **Response 200:**
 ```json
 {"event_id": "uuid-string", "seq": 42}
