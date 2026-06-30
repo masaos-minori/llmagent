@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""rag_mcp_server.py
+"""mcp.rag_pipeline.server
 RAG Pipeline MCP server (port 8010).
 
 Wraps the six-step RagPipeline (MQE→Search→RRF→Rerank→Dedup→Augment) as an
@@ -7,7 +7,9 @@ HTTP MCP server.  Replaces the in-process augment() call when rag_service_url
 is configured in agent.toml.
 
 Provided endpoints:
-  POST /rag_run_pipeline    Run full pipeline; return augmented_text + selected_hits
+  POST /v1/call_tool        MCP tool dispatch
+  GET  /v1/tools            List RAG tools with server_key="rag_pipeline"
+  GET  /health              Health check endpoint
   POST /rag_debug_pipeline  Run pipeline returning all intermediate stage outputs
   GET  /v1/tools            MCP tool list (minimal format)
   POST /v1/call_tool        MCP standard tool dispatch
