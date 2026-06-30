@@ -29,6 +29,15 @@ COMPAT_PATTERNS = {
     "rag.llm module": r"import\s+rag\.llm\b",
     "module-level _cfg": r"module[ _]level[ _]_cfg",
     "_cfg cache": r"_cfg[ _]cache",
+    "compatibility/emergency": r"compatibility/emergency",
+    "Static fallback": r"[Ss]tatic\s+fallback",
+    "_SET_ROUTES": r"_SET_ROUTES",
+    "_fallback_route": r"_fallback_route",
+    "_GITHUB_PREFIX": r"_GITHUB_PREFIX",
+    "github_ prefix exception": r"github_[ _]prefix\s+exception",
+    "rag.pipeline._cfg": r"rag\.pipeline\._cfg",
+    "/mcp install": r"/mcp[ _]install",
+    "POST /v1/search": r"POST\s+/v1/search",
 }
 
 # Allowlist: files that are permitted to contain these patterns (archive/migration notes only)
@@ -40,12 +49,42 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "scripts" / "checks" / "check_no_compat.py",
     # Test file intentionally referencing the removed re-export stub
     ROOT_DIR / "tests" / "test_rag_get_cfg.py",
+    # Test files with assertions about absence of removed compatibility patterns
+    ROOT_DIR / "tests" / "test_route_resolver.py",
+    ROOT_DIR / "tests" / "test_mcp_rag_pipeline.py",
+    ROOT_DIR / "tests" / "test_rag_pipeline_mcp_service.py",
+    # Test file with description mentioning static fallback as a concept
+    ROOT_DIR / "tests" / "test_rag_tools_consistency.py",
+    # Docs documenting removed features (POST /v1/search, /mcp install)
+    ROOT_DIR / "docs" / "04_mcp_00_document-guide.md",
+    ROOT_DIR / "docs" / "05_agent_07_cli-and-commands.md",
+    # Doc describing removed static fallback routing
+    ROOT_DIR / "docs" / "90_shared_02_types_and_protocols.md",
+    # Doc still mentioning static fallback in architecture description
+    ROOT_DIR / "docs" / "05_agent_02_runtime-architecture.md",
 }
+
+# Patterns that are allowed in active code (retained stdio transport symbols)
+ALLOWED_STDIO_PATTERNS = [
+    r"StdioTransport",
+    r"TransportType\.STDIO",
+    r"StartupMode\.ONDEMAND",
+    r"HealthcheckMode\.PING_TOOL",
+    r"__list_tools__",
+]
 
 
 def is_allowlisted(filepath: Path, allowlist: set[Path]) -> bool:
     """Check if the file is in the allowlist."""
     return filepath in allowlist
+
+
+def is_allowed_stdio_pattern(line: str) -> bool:
+    """Check if the line contains only allowed stdio transport patterns."""
+    for pattern in ALLOWED_STDIO_PATTERNS:
+        if re.search(pattern, line):
+            return True
+    return False
 
 
 def check_compat_patterns(content: str, filepath: Path, allowlist: set[Path]) -> list[str]:
@@ -57,6 +96,9 @@ def check_compat_patterns(content: str, filepath: Path, allowlist: set[Path]) ->
     lines = content.split("\n")
     for i, line in enumerate(lines, 1):
         stripped = line.strip()
+        # Skip lines that contain only allowed stdio transport patterns
+        if is_allowed_stdio_pattern(stripped):
+            continue
         for pattern_name, pattern in COMPAT_PATTERNS.items():
             if re.search(pattern, stripped):
                 issues.append(
