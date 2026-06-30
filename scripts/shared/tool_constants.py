@@ -2,11 +2,12 @@
 """shared/tool_constants.py
 Canonical frozenset definitions for MCP tool classification.
 
-These sets are used in three places:
-  shared/route_resolver.py  — static routing (tool_name → server_key)
+These sets serve two purposes:
+  shared/tool_registry.py   — registry seed data (auto-populates ToolRegistry at import time)
   shared/tool_executor.py   — side-effect detection (is_side_effect())
   agent/tool_policy.py      — risk classification and approval logic
 
+Not a routing fallback source. Routing is driven by live `/v1/tools` discovery and ToolRegistry only.
 Centralised here to avoid silent drift when tool lists change.
 All sets are frozensets; treat them as read-only.
 """
