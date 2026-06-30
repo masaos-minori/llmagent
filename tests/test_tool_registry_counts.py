@@ -43,13 +43,23 @@ class TestRegistryRagPipelineCounts:
 
 class TestRegistryTotalCounts:
     def test_registry_total_tool_count(self) -> None:
-        """Registry has exactly 45 tools (excluding github-mcp prefix-routed tools)."""
+        """Registry has exactly 66 tools (all GitHub MCP tools registered explicitly)."""
         from shared.tool_registry import get_registry
 
         registry = get_registry()
         all_tools = registry.get_all_tool_names()
-        assert len(all_tools) == 45, (
-            f"Expected 45 total registry tools, got {len(all_tools)}"
+        assert len(all_tools) == 66, (
+            f"Expected 66 total registry tools, got {len(all_tools)}"
+        )
+
+    def test_github_tools_count(self) -> None:
+        """Registry has exactly 21 GitHub MCP tools."""
+        from shared.tool_registry import get_registry
+
+        registry = get_registry()
+        github_tools = registry.get_tool_names("github")
+        assert len(github_tools) == 21, (
+            f"Expected 21 GitHub tools, got {len(github_tools)}"
         )
 
     def test_mcp_tools_module_count(self) -> None:
