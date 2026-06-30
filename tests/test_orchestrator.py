@@ -5,6 +5,7 @@ Unit tests for Orchestrator: LLMTransportError handling in handle_turn() and _ru
 
 from __future__ import annotations
 
+import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -209,7 +210,9 @@ class TestHandleTurnLLMTransportError:
         assert ctx.services.audit_logger.info.called
 
     @pytest.mark.asyncio
-    async def test_turn_end_event_has_partial_completion_true_on_partial_error(self) -> None:
+    async def test_turn_end_event_has_partial_completion_true_on_partial_error(
+        self,
+    ) -> None:
         """turn_end audit event must have partial_completion=True when LLM transport error has partial_text."""
         ctx = _make_ctx()
         ctx.services.audit_logger = MagicMock()
@@ -222,11 +225,14 @@ class TestHandleTurnLLMTransportError:
         assert ctx.services.audit_logger.info.called
         event = ctx.services.audit_logger.info.call_args[0][0]
         import json
+
         event_dict = json.loads(event)
         assert event_dict["partial_completion"] is True
 
     @pytest.mark.asyncio
-    async def test_turn_end_event_has_partial_completion_false_on_non_partial_error(self) -> None:
+    async def test_turn_end_event_has_partial_completion_false_on_non_partial_error(
+        self,
+    ) -> None:
         """turn_end audit event must have partial_completion=False when LLM transport error has no partial_text."""
         ctx = _make_ctx()
         ctx.services.audit_logger = MagicMock()
@@ -239,6 +245,7 @@ class TestHandleTurnLLMTransportError:
         assert ctx.services.audit_logger.info.called
         event = ctx.services.audit_logger.info.call_args[0][0]
         import json
+
         event_dict = json.loads(event)
         assert event_dict["partial_completion"] is False
 
@@ -355,6 +362,61 @@ class TestHandleTurnLLMTransportError:
             await orch.handle_turn("hello")
 
         ctx.session.save.assert_called_with("assistant", "hello")
+
+    @pytest.mark.asyncio
+    async def test_turn_end_partial_completion_true_on_partial_error(self) -> None:
+        """partial_completion=True when LLM transport error has partial text."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="PREMATURE_EOF", partial_text="partial text here")
+
+        captured: list[str] = []
+        ctx.services.audit_logger = MagicMock()
+        ctx.services.audit_logger.info = lambda s: captured.append(s)
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("test message")
+
+        turn_end_events = [json.loads(s) for s in captured if "turn_end" in s]
+        assert turn_end_events, "No turn_end event captured"
+        assert turn_end_events[0]["partial_completion"] is True
+
+    @pytest.mark.asyncio
+    async def test_turn_end_partial_completion_false_on_full_error(self) -> None:
+        """partial_completion=False when LLM transport error has no partial text."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="CONNECT_ERROR", partial_text="")
+
+        captured: list[str] = []
+        ctx.services.audit_logger = MagicMock()
+        ctx.services.audit_logger.info = lambda s: captured.append(s)
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("test message")
+
+        turn_end_events = [json.loads(s) for s in captured if "turn_end" in s]
+        assert turn_end_events, "No turn_end event captured"
+        assert turn_end_events[0]["partial_completion"] is False
+
+    @pytest.mark.asyncio
+    async def test_fetch_messages_excludes_transport_diagnostics(self) -> None:
+        """Transport errors must not be saved to the messages table."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="CONNECT_ERROR", partial_text="")
+
+        with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
+            await orch.handle_turn("test message")
+
+        assistant_saves = [
+            call
+            for call in ctx.session.save.call_args_list
+            if call[0][0] == "assistant"
+        ]
+        assert len(assistant_saves) == 0, (
+            "Transport error must not write to messages table"
+        )
 
 
 # ── _run_turn: tool-continuation LLMTransportError ───────────────────────────
@@ -893,7 +955,9 @@ class TestWorkflowMode:
         with (
             patch("agent.orchestrator.WorkflowLoader") as mock_loader,
             patch.object(
-                Orchestrator, "_process_turn", new=AsyncMock(return_value=("ok", None, False))
+                Orchestrator,
+                "_process_turn",
+                new=AsyncMock(return_value=("ok", None, False)),
             ),
             patch("agent.orchestrator.StateStore"),
         ):
@@ -916,7 +980,9 @@ class TestWorkflowMode:
         with (
             patch("agent.orchestrator.WorkflowLoader") as mock_loader,
             patch.object(
-                Orchestrator, "_process_turn", new=AsyncMock(return_value=("ok", None, False))
+                Orchestrator,
+                "_process_turn",
+                new=AsyncMock(return_value=("ok", None, False)),
             ),
             patch("agent.orchestrator.StateStore"),
         ):
