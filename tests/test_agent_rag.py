@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import orjson
 import pytest
-from rag.models import TwoStageFetchResult
+from rag.models_data import TwoStageFetchResult
 from rag.pipeline import RagPipeline
 
 

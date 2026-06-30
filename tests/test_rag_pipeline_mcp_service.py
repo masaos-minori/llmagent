@@ -16,7 +16,7 @@ from mcp.rag_pipeline.models import (
     build_rag_cfg_adapter,
 )
 from mcp.rag_pipeline.service import RagPipelineMCPService, _hit_to_dict
-from rag.models import TwoStageFetchResult
+from rag.models_data import TwoStageFetchResult
 from rag.types import MergedHit, RankedHit, RawHit
 
 # ── build_rag_cfg_adapter ─────────────────────────────────────────────────────
