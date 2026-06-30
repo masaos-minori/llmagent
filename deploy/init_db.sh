@@ -8,14 +8,14 @@
 
 set -euo pipefail
 
-DEPLOY_SCRIPTS="/opt/llm/scripts/db"
+DEPLOY_SCRIPTS="/opt/llm/scripts"
 DEPLOY_DB="/opt/llm/db"
 
 echo "=== init_db.sh: DB 初期化開始 ==="
 
 # ── create_schema.py 確認 ─────────────────────────────────────────────────────
-if [ ! -f "${DEPLOY_SCRIPTS}/create_schema.py" ]; then
-    echo "エラー: create_schema.py が見つかりません: ${DEPLOY_SCRIPTS}/create_schema.py"
+if [ ! -f "${DEPLOY_SCRIPTS}/db/create_schema.py" ]; then
+    echo "エラー: create_schema.py が見つかりません: ${DEPLOY_SCRIPTS}/db/create_schema.py"
     echo "先に deploy/deploy.sh を実行してください"
     exit 1
 fi
@@ -25,7 +25,7 @@ mkdir -p "${DEPLOY_DB}"
 
 # ── スキーマ初期化 ────────────────────────────────────────────────────────────
 echo "--- スキーマ初期化（rag + session + workflow）---"
-(cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" uv run python "${DEPLOY_SCRIPTS}/create_schema.py")
+(cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" uv run python "${DEPLOY_SCRIPTS}/db/create_schema.py")
 
 # ── テーブル確認 ──────────────────────────────────────────────────────────────
 echo "--- テーブル確認 ---"
@@ -33,7 +33,7 @@ sqlite3 "${DEPLOY_DB}/rag.sqlite" ".tables"
 # 期待値: chunks  chunks_fts  chunks_vec  documents
 
 sqlite3 "${DEPLOY_DB}/session.sqlite" ".tables"
-# 期待値: memories  memory_links  messages  notes  sessions  session_diagnostics  tool_results
+# 期待値: memories  memories_fts  memories_vec  memory_links  messages  session_diagnostics  sessions  tool_results
 
 sqlite3 "${DEPLOY_DB}/workflow.sqlite" ".tables"
 # expected: artifacts  attempts  approvals  processed_events  tasks
