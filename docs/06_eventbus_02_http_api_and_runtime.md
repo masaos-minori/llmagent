@@ -121,6 +121,8 @@ Acknowledge an event. Updates the consumer offset to the event's `seq` if `consu
 ### POST /ack [deprecated]
 
 > **Deprecated**: This endpoint is a compatibility alias for `POST /events/{event_id}/ack`. Use the canonical path instead. This endpoint may be removed in a future version.
+>
+> **Migration**: New clients must use `POST /events/{event_id}/ack`. This endpoint may be removed in a future version — do not rely on its availability.
 
 Same behavior as `POST /events/{event_id}/ack` but uses query parameters instead of a path parameter.
 

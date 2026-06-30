@@ -29,6 +29,8 @@ Event Bus configuration is loaded from a TOML file (default: `/opt/llm/config/ev
 #### Deprecated config fields
 
 > **Deprecated**: The following fields are no-op compatibility fields. Setting them to non-default values emits a `DeprecationWarning`. These fields will be removed in a future version.
+>
+> **Do not include these fields in TOML configuration.** They have no effect and will be removed. If you need to suppress the warning, set them to their default values (500, 10) or remove them entirely.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
