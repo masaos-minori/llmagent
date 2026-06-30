@@ -392,11 +392,9 @@ class Orchestrator:
         if ctx.services.hist_mgr is None:
             raise RuntimeError("hist_mgr service not initialized")
         with self._llm_runner._span_ctx("compress"):
-            ctx.conv.history, result = await ctx.services.hist_mgr.compress(
-                ctx.conv.history
-            )
-        if result.compressed_count > 0 or result.summary_added or result.is_fallback:
-            ctx.session.replace_messages(ctx.conv.history)
+            ctx.conv.history, result = await ctx.services.hist_mgr.compress(ctx.conv.history)
+            if result.compressed_count > 0 or result.summary_added or result.is_fallback:
+                ctx.session.replace_messages(ctx.conv.history)
 
     async def _handle_llm_turn(self, llm_url: str) -> TurnResult:
         ctx = self._ctx
