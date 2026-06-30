@@ -230,8 +230,7 @@ Source: `config/tools.toml` + `config/system_prompts.toml` + `config/tools_defin
 | `tool_cache_ttl` | `300.0` | Tool result cache TTL (seconds) |
 | `tool_cache_max_size` | `200` | LRU cache size (0 = unlimited) |
 | `serial_tool_calls` | `False` | Force sequential tool execution |
-| `auto_inject_notes` | `True` | Inject all notes into system prompt at startup |
-| `use_tool_summarize` | `False` | Summarize long tool results via LLM |
+ | `use_tool_summarize` | `False` | Summarize long tool results via LLM |
 | `tool_summarize_threshold` | `3000` | Min chars to trigger summarization |
 | `tool_definitions_strict` | `False` | `true`: schema mismatch in reachable servers → `RuntimeError` at startup. `false`: mismatch → WARNING only. When ALL servers are unreachable, strict mode skips validation (no abort). See [04_mcp_06 §Startup Validation Behavior](04_mcp_06_configuration_and_operations.md) for full behavior table. |
 | `tool_dedup_max_repeats` | `3` | Same (name,args) repeat limit |

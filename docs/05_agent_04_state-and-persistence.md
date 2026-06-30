@@ -282,6 +282,6 @@ never through the session object.
 `AgentSession` accesses only session.sqlite via `SQLiteHelper("session")`.
 
 Verified boundaries:
-- `agent/session.py` imports only: `db.helper`, `shared.types`, `agent.note_repo`, `agent.session_message_repo`
+- `agent/session.py` imports only: `db.helper`, `shared.types`, `agent.session_message_repo`
 - `db/maintenance.py` contains RAG-file utility functions (`rotate_rag_db`, `vacuum_db`) but has zero `rag/` module imports
 - `/db` command routes subcommands by scope: `/db rag <subcmd>` targets `RagMaintenanceService`; `/db session <subcmd>` targets `DbMaintenanceService`

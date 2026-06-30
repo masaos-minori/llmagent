@@ -67,9 +67,8 @@
   │   │   ├─ tool_result_formatter.py         # ツール結果整形
   │   │   ├─ turn_result.py                   # ターン結果データクラス
   │   │   ├─ diagnostic_store.py              # 部分完了診断情報保存
-  │   │   ├─ error_injection_service.py       # エラー注入サービス
-  │   │   ├─ note_repo.py                     # ノートリポジトリ
-  │   │   ├─ mdq_rag_classifier.py            # MDQ RAG 分類エンジン
+ │   │   ├─ error_injection_service.py       # エラー注入サービス
+   │   │   ├─ mdq_rag_classifier.py            # MDQ RAG 分類エンジン
   │   │   ├─ lifecycle_protocol.py            # ライフサイクルプロトコル
   │   │   ├─ lifecycle.py                     # restart_stdio(): 残存関数 (routing は factory.py の _ServerLifecycleRouter が担当)
   │   │   ├─ http_lifecycle.py                # HTTP ライフサイクル管理

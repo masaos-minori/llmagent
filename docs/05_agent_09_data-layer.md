@@ -55,7 +55,6 @@ and the responsibility boundary between the agent layer and the RAG layer.
 | `created_at` | TEXT | Creation timestamp |
 
 Notes are session-independent (persist across sessions).
-When `auto_inject_notes=True`, all notes are appended to the system prompt at startup.
 
 ### `session_diagnostics` table
 

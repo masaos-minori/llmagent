@@ -30,7 +30,7 @@ Three DB files:
 | DB | Default path | Tables |
 |---|---|---|
 | `rag.sqlite` | `common.toml::rag_db_path` | `documents`, `chunks`, `chunks_fts`, `chunks_vec` |
-| `session.sqlite` | `common.toml::session_db_path` | `sessions`, `messages`, `notes`, `tool_results`, `memories`, `memories_fts`, `memories_vec`, `memory_links`, `session_diagnostics` |
+| `session.sqlite` | `common.toml::session_db_path` | `sessions`, `messages`, `tool_results`, `memories`, `memories_fts`, `memories_vec`, `memory_links`, `session_diagnostics` |
 | `workflow.sqlite` | `common.toml::workflow_db_path` | `tasks`, `attempts`, `processed_events`, `artifacts`, `approvals` |
 
 **Why separate DB files?** RAG indexing and conversation state have different access patterns.
@@ -169,14 +169,6 @@ Stores float32 little-endian BLOB. `DIMS` is substituted dynamically by `_build_
 | `content` | TEXT | NOT NULL |
 | `tool_calls` | TEXT | (JSON string) |
 | `tool_call_id` | TEXT | UNUSED — column exists in schema but not referenced by any code |
-| `created_at` | TEXT | NOT NULL DEFAULT `datetime('now')` |
-
-### `notes` table
-
-| Column | Type | Constraint |
-|---|---|---|
-| `note_id` | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `content` | TEXT | NOT NULL |
 | `created_at` | TEXT | NOT NULL DEFAULT `datetime('now')` |
 
 ### `tool_results` table
