@@ -208,7 +208,7 @@ class DbConfig:
 
 ## 10. Tool Constants (`shared/tool_constants.py`)
 
-All constants are `frozenset[str]`. Used by `ToolRouteResolver` for static fallback routing.
+All constants are `frozenset[str]`. Used by `ToolRegistry` for seed data and by `ToolExecutor` for side-effect classification.
 
 | Constant | Tool names |
 |---|---|

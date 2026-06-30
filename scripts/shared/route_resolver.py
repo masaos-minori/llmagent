@@ -74,7 +74,7 @@ class ToolRouteResolver:
         server_configs: dict[str, McpServerConfig],
         *,
         discovery_map: dict[str, str] | None = None,
-        warn_on_fallback: bool = False,
+        warn_on_missing: bool = False,
         strict_mode: bool = False,
         known_tools: frozenset[str] | None = None,
     ) -> None:
@@ -92,7 +92,7 @@ class ToolRouteResolver:
             logger.warning("Failed to initialize ToolRegistry: %s", exc)
             self._registry = None
         # Config tool_names is NOT used for routing — only for drift validation.
-        self._warn_on_fallback = warn_on_fallback
+        self._warn_on_missing = warn_on_missing
         self._strict_mode = strict_mode
         if known_tools:
             self._log_routing_coverage(known_tools)
@@ -108,7 +108,7 @@ class ToolRouteResolver:
         # No mapping found — raise ValueError immediately.
         if self._strict_mode:
             self._raise_strict_error(tool_name)
-        if self._warn_on_fallback:
+        if self._warn_on_missing:
             logger.warning(
                 "ToolRouteResolver: tool %r not in discovery map or ToolRegistry; "
                 "add it to the appropriate frozenset in shared/tool_constants.py or register it in ToolRegistry.",
