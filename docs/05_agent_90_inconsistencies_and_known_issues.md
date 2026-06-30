@@ -81,13 +81,11 @@ Each entry format:
 - **Current safe interpretation:** Both stores are active and serve different purposes. `session_diagnostics` for structured SQL queries; `diagnostics.jsonl` for append-only post-mortem analysis. Neither is deprecated.
 - **Recommended action:** Clarify in docs that both are active; remove or update "may be deprecated" note with concrete timeline
 
-### DISC-02: memory_jsonl_path vs memory_jsonl_dir
+### DISC-02: memory_jsonl_path vs memory_jsonl_dir — RESOLVED
 
-- **Type:** Document inconsistency
-- **Impact scope:** `05_agent_12_memory.md` (line 222 — stale reference)
-- **Statement A:** Config key is `memory_jsonl_path` (documented in `05_agent_12_memory.md`)
-- **Statement B:** Canonical config key is `memory_jsonl_dir` (verified in `config_dataclasses.py:297`, `config_builders.py:203`; `memory_jsonl_path` does not exist in code)
-- **Current safe interpretation:** `memory_jsonl_dir` is the canonical key; filename `memories.jsonl` is appended by `factory.py`
+- **Type:** Document inconsistency (resolved)
+- **Resolution:** `05_agent_12_memory.md` updated to use `memory_jsonl_dir`; path is `{memory_jsonl_dir}/memories.jsonl`
+- **Canonical key:** `memory_jsonl_dir` (verified in `config_dataclasses.py:297`, `config_builders.py:203`)
 
 ### DISC-03: branch field in memory retrieval
 
