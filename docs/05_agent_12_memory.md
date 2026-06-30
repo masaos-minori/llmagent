@@ -52,7 +52,7 @@ without reading source code.
 | `injection.py` | MemoryInjectionService — lifecycle hooks for snippet injection |
 | `ingestion.py` | MemoryIngestionService — extract, dedup, persist |
 | `extract.py` | Rule-based extraction from conversation history |
-| `jsonl_store.py` | Append-only JSONL source of truth |
+| `jsonl_store.py` | Append-only JSONL archive |
 | `embedding_client.py` | HTTP embedding client with retry and circuit breaker |
 | `services.py` | MemoryServices facade over injection, ingestion, store, retriever |
 | `mapper.py` | SQLite row conversion, embedding blob serialisation |
@@ -121,7 +121,7 @@ session_stop
          |                                       | 4. MemoryStore.upsert()     |
          v                                       +-----------------------------+
 +-----------------+
-| jsonl_store.py  |  Append-only source of truth
+| jsonl_store.py  |  Append-only archive
 | JsonlMemoryStore|
 +--------+--------+
          |
@@ -333,7 +333,7 @@ Class `MemoryStore(embed_dim=None)`:
 | `get_by_id(memory_id)` | `MemoryEntry \| None` | Lookup by primary key |
 | `count_entries()` | `int` | Total entries |
 | `count_prunable(days)` | `int` | Entries older than `days` days |
-| `rebuild_from_jsonl(jsonl_store, *, dry_run=False)` | `tuple[int, int]` | Rebuild memories/FTS/vec from JSONL; returns (jsonl_count, inserted_count) |
+| `import_from_jsonl(jsonl_store, *, dry_run=False)` | `tuple[int, int]` | Import entries from JSONL archive into SQLite; returns (jsonl_count, inserted_count). Does NOT replay deletes or pin/unpin state changes. |
 
 **Failure modes:**
 - `sqlite3.OperationalError` — DB locked, missing vec table, etc.
@@ -410,7 +410,7 @@ Classification logic:
 
 Importance heuristic: 0.4 base + length_bonus + keyword_bonus.
 
-### 11. `jsonl_store.py` — JSONL source of truth
+### 11. `jsonl_store.py` — Append-only JSONL archive
 
 Class `JsonlMemoryStore(path)`:
 
@@ -421,6 +421,8 @@ Class `JsonlMemoryStore(path)`:
 | `count_all()` | `int` | Count of valid records (delegates to `read_all()`) |
 
 **Failure modes:** `JsonlFormatError` on malformed lines.
+
+**Note:** SQLite (`memories` table) is the authoritative state for memory data. The JSONL archive is an append-only backup used for import/export and disaster recovery only. Deletions and pin/unpin state changes are not replayed from the JSONL archive — they must be applied directly to SQLite.
 
 ### 12. `embedding_client.py` — HTTP embedding client
 
