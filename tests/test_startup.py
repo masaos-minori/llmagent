@@ -239,3 +239,75 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         assert ctx.workflow.approval_pending is False
         assert ctx.turn.pending_approval_id is None
         view.write_warning.assert_not_called()
+
+
+# ── _setup_prompt() regression tests ────────────────────────────────────────────
+
+
+class TestStartupOrchestratorSetupPrompt:
+    """Regression tests for _setup_prompt() — pinned notes must NOT be injected."""
+
+    @pytest.mark.asyncio
+    async def test_no_pinned_notes_block_injected(self) -> None:
+        """[Pinned Notes] block must NOT appear in system prompt."""
+        ctx = MagicMock()
+        ctx.services.memory = None  # memory disabled
+        ctx.conv.system_prompt_name = "default"
+        ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
+        view = MagicMock()
+        startup = StartupOrchestrator(ctx, view)
+
+        await startup._setup_prompt()
+
+        assert "[Pinned Notes]" not in ctx.conv.system_prompt_content
+        assert ctx.conv.history == [{"role": "system", "content": "Initial prompt"}]
+
+    @pytest.mark.asyncio
+    async def test_memory_snippets_are_injected_when_enabled(self) -> None:
+        """Memory snippets ARE injected when memory is enabled."""
+        snippet = MagicMock()
+        snippet.text = "test memory"
+        ctx = MagicMock()
+        mock_mem = MagicMock()
+        mock_mem.on_session_start.return_value = [snippet]
+        ctx.services.memory = mock_mem
+        ctx.session.session_id = 1
+        ctx.conv.system_prompt_name = "default"
+        ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
+        view = MagicMock()
+        startup = StartupOrchestrator(ctx, view)
+
+        await startup._setup_prompt()
+
+        assert "[Relevant memories]" in ctx.conv.system_prompt_content
+        assert "test memory" in ctx.conv.system_prompt_content
+
+    @pytest.mark.asyncio
+    async def test_no_memory_injection_when_disabled(self) -> None:
+        """System prompt is unchanged when memory is disabled."""
+        ctx = MagicMock()
+        ctx.services.memory = None
+        ctx.conv.system_prompt_name = "default"
+        ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
+        view = MagicMock()
+        startup = StartupOrchestrator(ctx, view)
+
+        await startup._setup_prompt()
+
+        assert "[Relevant memories]" not in ctx.conv.system_prompt_content
+        assert ctx.conv.system_prompt_content == "Initial prompt"
+
+    @pytest.mark.asyncio
+    async def test_history_set_to_system_message(self) -> None:
+        """conv.history is set to [system message] after _setup_prompt."""
+        ctx = MagicMock()
+        ctx.services.memory = None
+        ctx.conv.system_prompt_name = "default"
+        ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
+        view = MagicMock()
+        startup = StartupOrchestrator(ctx, view)
+
+        await startup._setup_prompt()
+
+        assert len(ctx.conv.history) == 1
+        assert ctx.conv.history[0] == {"role": "system", "content": "Initial prompt"}
