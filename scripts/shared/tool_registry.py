@@ -13,7 +13,8 @@ Ownership model:
 Routing priority:
   1. Live discovery map (/v1/tools with server_key) — runtime override, highest priority
   2. Registry (this module) — primary routing layer, populated from frozensets at import time
-  3. Config tool_names — validation hint only; not a routing input for tools already in ToolRegistry
+
+Config `tool_names` is NOT a routing input; it is drift validation metadata only.
 
 Drift detection:
   - compare_registry_vs_config(): validates config tool_names against registry

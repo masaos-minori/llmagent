@@ -41,7 +41,7 @@ Resolves `tool_name → server_key` in four steps (priority order). At runtime, 
 2. **Tool registry:** Primary routing layer from `shared/tool_registry.py`.
     The `ToolRegistry` singleton maps each tool name to exactly one server key. Superseded by discovery map for any tool found in live `/v1/tools` responses.
 
-3. **Config tool_names (last-resort fallback):** `McpServerConfig.tool_names` is a validation hint only.
+3. **Unknown tools fail immediately:** When a tool name is not found in any routing layer, `ValueError` is raised with the message `"Unknown tool: <tool_name>"`. No fallback exists — every tool must be explicitly registered.
     Not a routing input for tools already in ToolRegistry (priority 2). Only consulted when discovery map and registry have no match.
 
 4. **Unknown tools fail immediately:** When a tool name is not found in any routing layer, `ValueError` is raised with the message `"Unknown tool: <tool_name>"`. No fallback exists — every tool must be explicitly registered.
@@ -80,12 +80,11 @@ The `ToolRouteResolver` resolves tool calls using a four-layer cascade. At runti
 |---|---|---|
 | Live `/v1/tools` discovery | **Priority 1 — override source** | Optional; if present, supersedes registry for any tool found here |
 | `shared/tool_registry.py` | **Priority 2 — primary routing layer** | Read-only at runtime; changes require code edit |
-| Config `tool_names` (in `mcp_servers.toml`) | **Priority 3 — last-resort fallback** | Optional; not needed if tool is in ToolRegistry; only consulted if discovery map and registry have no match |
 
 **Summary of ownership rules:**
 - To add a tool: add to the appropriate frozenset in `tool_constants.py`. The registry auto-populates at import time.
 - Discovery map takes precedence over the registry — if `/v1/tools` returns a different `server_key` for a tool, the discovery map wins.
-- `tool_names` in config: optional drift-check input. Only consulted as priority 3 when no higher layer matches.
+- `tool_names` in config is NOT a routing input; it is drift validation metadata only.
 - Unknown tools fail immediately with `ValueError` — no fallback exists.
 
 ---
@@ -98,7 +97,6 @@ Single source of truth for MCP tool definitions and ownership.
 |---|---|---|
 | Live `/v1/tools` discovery | **Priority 1** | ルーティングの最上位優先度; レジストリを上書き |
 | `shared/tool_registry.py` | **Priority 2** | ツール→サーバー逆引き; `tool_constants.py` frozensetからimport時に自動構築 |
-| `tool_names` (config) | Priority 3 | ドリフト検出用; ルーティング自体には不要 |
 
 ### Ownership model
 
@@ -143,7 +141,7 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 | 6 | Add `tool_safety_tiers` entry in `config/agent.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
 | 7 | Add tool name to `tool_names` in `config/mcp_servers.toml` for the owning server | **[Optional]** — enables startup drift validation only; routing does not require it |
 
-**Recommended procedure**: Add to ToolRegistry frozenset (step 1) + expose in `/v1/tools` endpoint (step 4). Config `tool_names` (step 7) is optional for routing. Unknown tools fail immediately — no fallback exists.
+**Recommended procedure**: Add to ToolRegistry frozenset (step 1) + expose in `/v1/tools` endpoint (step 4). Config `tool_names` (step 7) is NOT a routing input; it is drift validation metadata only. Unknown tools fail immediately — no fallback exists.
 
 ### Verification
 

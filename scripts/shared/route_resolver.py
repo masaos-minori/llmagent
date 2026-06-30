@@ -5,7 +5,8 @@ Tool-name to server-key resolution for ToolExecutor.
 Routing priority:
   1. Live-discovered tool metadata from /v1/tools (server_key field) — optional, only when discovery map is built at startup
   2. Tool registry (canonical source of truth from tool_registry.py; populated from tool_constants.py frozensets)
-  3. Config tool_names from mcp_servers config — validation hint only, not a routing input for priority 2 tools
+
+Config `tool_names` is NOT a routing input; it is drift validation metadata only.
 """
 
 from __future__ import annotations
@@ -63,8 +64,9 @@ class ToolRouteResolver:
     Routing priority:
       1. Discovery map (live /v1/tools metadata with server_key) — only when built at startup
       2. Tool registry (canonical source of truth from tool_registry.py)
-      3. Config tool_names (last-resort fallback; not needed if tool is in ToolRegistry)
     Raises ValueError when none of the above match.
+
+    Config `tool_names` is NOT a routing input; it is validation metadata only.
     """
 
     def __init__(
@@ -89,11 +91,7 @@ class ToolRouteResolver:
         except (ImportError, RuntimeError) as exc:
             logger.warning("Failed to initialize ToolRegistry: %s", exc)
             self._registry = None
-        # Build reverse map: tool_name -> server_key from explicitly configured tool_names.
-        self._config_map: dict[str, str] = {}
-        for key, cfg in server_configs.items():
-            for tool_name in cfg.tool_names:
-                self._config_map[tool_name] = key
+        # Config tool_names is NOT used for routing — only for drift validation.
         self._warn_on_fallback = warn_on_fallback
         self._strict_mode = strict_mode
         if known_tools:
@@ -107,16 +105,13 @@ class ToolRouteResolver:
         # Priority 2: tool registry (canonical source of truth).
         if (key := self._lookup_registry(tool_name)) is not None:
             return key
-        # Priority 3: config map.
-        if (key := self._config_map.get(tool_name)) is not None:
-            return key
         # No mapping found — raise ValueError immediately.
         if self._strict_mode:
             self._raise_strict_error(tool_name)
         if self._warn_on_fallback:
             logger.warning(
-                "ToolRouteResolver: tool %r not in config map; add it to the appropriate "
-                "frozenset in shared/tool_constants.py or register it in ToolRegistry.",
+                "ToolRouteResolver: tool %r not in discovery map or ToolRegistry; "
+                "add it to the appropriate frozenset in shared/tool_constants.py or register it in ToolRegistry.",
                 tool_name,
             )
         raise ValueError(f"Unknown tool: {tool_name!r}")
@@ -130,7 +125,7 @@ class ToolRouteResolver:
     def _raise_strict_error(self, tool_name: str) -> None:
         """Raise ValueError when strict_mode is enabled and no mapping found."""
         raise ValueError(
-            f"ToolRouteResolver: tool {tool_name!r} not in config map "
+            f"ToolRouteResolver: tool {tool_name!r} not in discovery map or ToolRegistry "
             f"and strict_mode=True; add it to the appropriate frozenset in shared/tool_constants.py"
         )
 
@@ -139,7 +134,7 @@ class ToolRouteResolver:
         mapped: list[str] = []
         unmapped: list[str] = []
         for tool_name in sorted(known_tools):
-            if tool_name in self._discovery_map or tool_name in self._config_map:
+            if tool_name in self._discovery_map:
                 mapped.append(tool_name)
                 continue
             if self._lookup_registry(tool_name) is not None:

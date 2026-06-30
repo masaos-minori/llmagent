@@ -284,7 +284,7 @@ is_side_effect(tool_name: str) -> bool
 When `execute_all_tool_calls()` detects any side-effect tool, all calls in that round
 are serialized regardless of `serial_tool_calls` setting.
 
-**Routing:** Four-layer cascade — (1) live `/v1/tools` discovery, (2) `ToolRegistry` from `tool_constants.py`, (3) config `tool_names` fallback, (4) static frozenset emergency fallback. See [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) for full routing details.
+**Routing:** Two-layer cascade — (1) live `/v1/tools` discovery, (2) `ToolRegistry` from `tool_constants.py`. Unknown tools fail immediately with `ValueError`. See [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) for full routing details.
 
 ---
 

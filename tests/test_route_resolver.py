@@ -93,7 +93,7 @@ class TestRegistryRouting:
 
 
 class TestConfigDrivenRouting:
-    """tool_names in config is lower priority than registry (source of truth)."""
+    """Config tool_names is NOT a routing input — only drift validation metadata."""
 
     def test_config_does_not_override_registry(self) -> None:
         configs = {
@@ -104,13 +104,15 @@ class TestConfigDrivenRouting:
         # registry has search_web → web_search; config-driven is lower priority
         assert resolver.resolve("search_web") == "web_search"
 
-    def test_config_map_partial_coverage_falls_back(self) -> None:
+    def test_config_only_tools_do_not_route(self) -> None:
+        """Tools listed only in config tool_names do not route — they must be in ToolRegistry."""
         configs = {
             "custom": _stdio("custom", tool_names=["custom_tool"]),
             "file_read": _http("file_read"),
         }
         resolver = ToolRouteResolver(configs)
-        assert resolver.resolve("custom_tool") == "custom"
+        with pytest.raises(ValueError, match="Unknown tool"):
+            resolver.resolve("custom_tool")
         assert resolver.resolve("read_text_file") == "file_read"
 
     def test_empty_server_configs(self) -> None:
