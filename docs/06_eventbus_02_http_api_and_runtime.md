@@ -162,7 +162,15 @@ Returns component health. HTTP 200 for `ok`, HTTP 503 for `degraded`/`unhealthy`
 
 List events in the dead-letter queue (events with `dlq_at IS NOT NULL`).
 
-**Response:** `[{seq, event_id, topic, producer, published_at, delivery_failure_count, dlq_requeue_count, dlq_at}, ...]`
+**Query parameters:**
+- `limit` (int, default: 100, min: 1, max: 1000): Maximum number of items to return
+- `offset` (int, default: 0, min: 0): Number of items to skip for pagination
+
+**Response:** paginated object with fields:
+- `total` (int): Total number of DLQ events
+- `limit` (int): The requested limit
+- `offset` (int): The requested offset
+- `items` ([{seq, event_id, topic, producer, published_at, delivery_failure_count, dlq_requeue_count, dlq_at}]): List of DLQ events for this page
 
 - `delivery_failure_count`: Number of nacks since last successful ack
 - `dlq_requeue_count`: Number of times this event was requeued (does not reset on requeue)
