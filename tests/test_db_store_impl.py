@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS documents (
     doc_id       INTEGER PRIMARY KEY AUTOINCREMENT,
     url          TEXT NOT NULL UNIQUE,
     title        TEXT,
-    lang         TEXT,
+    lang         TEXT NOT NULL,
     etag         TEXT,
     last_modified TEXT,
     fetched_at   TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -106,6 +106,13 @@ class TestSQLiteDocumentStore:
         assert result.url == "http://example.com"
         assert result.title == "My Title"
         assert result.lang == "ja"
+        assert isinstance(result.lang, str)
+
+    def test_doc_get_returns_lang_as_str(self) -> None:
+        store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
+        store.doc_upsert("http://example.com", "My Title", "en", "etag1", None)
+        result = store.doc_get("http://example.com")
+        assert isinstance(result.lang, str)
 
     def test_chunk_count_starts_at_zero(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
@@ -148,6 +155,13 @@ class TestSQLiteDocumentStore:
         rows = store.doc_list(lang="ja", limit=10)
         assert len(rows) == 1
         assert rows[0].url == "http://b.com"
+
+    def test_doc_list_returns_lang_as_str(self) -> None:
+        store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
+        store.doc_upsert("http://a.com", "A", "en", None, None)
+        store.doc_upsert("http://b.com", "B", "ja", None, None)
+        rows = store.doc_list(lang=None, limit=10)
+        assert all(isinstance(r.lang, str) for r in rows)
 
 
 # ── SQLiteSessionStore ────────────────────────────────────────────────────────

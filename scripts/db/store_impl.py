@@ -116,7 +116,7 @@ class SQLiteDocumentStore:
                 doc_id=int(r[0]),
                 url=str(r[1]),
                 title=r[2],
-                lang=r[3],
+          lang=str(r[3]),
                 fetched_at=str(r[4]) if r[4] is not None else "",
             )
             for r in rows
