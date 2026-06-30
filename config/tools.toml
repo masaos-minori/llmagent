@@ -9,9 +9,6 @@ serial_tool_calls = false
 # When false: any side-effect tool in the round forces sequential execution (legacy behavior).
 use_tool_dag = true
 
-# When true, appends all notes from the notes table to the end of the system prompt at startup
-auto_inject_notes = true
-
 # When true, LLM-summarizes tool results exceeding tool_summarize_threshold characters before adding to LLM context
 use_tool_summarize = false
 

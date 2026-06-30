@@ -103,7 +103,7 @@ DB が 2 ファイルに分割されている。`SQLiteHelper(target)` で切り
 |---|---|---|
 | `sessions` | `session_id` (PK), `created_at`, `title` | `title` = first 50 chars of first user input. |
 | `messages` | `message_id` (PK), `session_id` (FK CASCADE), `role`, `content`, `tool_calls`, `tool_call_id`, `created_at` | `tool_calls` is JSON string. |
-| `notes` | `note_id` (PK), `content`, `created_at` | Injected into system prompt when `auto_inject_notes=true`. |
+| `notes` | `note_id` (PK), `content`, `created_at` | Session-independent notes. |
 | `tool_results` | `id` (PK), `session_id`, `turn`, `tool_name`, `args_json`, `full_text`, `summary`, `is_error`, `created_at` | `/tool show <id>` で取得可能。 |
 | `memory_entries` | `entry_id` (PK), `session_id`, `mem_type`, `content`, `created_at` | `mem_type`: `long_term` \| `task` |
 | `memory_vec` | `entry_id` (PK), `embedding` (`float[384]`) | `vec0` virtual table for semantic memory search. |
