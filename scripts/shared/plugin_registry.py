@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import inspect
 import logging
 import typing
 from collections.abc import Awaitable, Callable
@@ -217,7 +218,7 @@ async def run_pipeline_stages(
     """
     for hook in hooks:
         try:
-            if asyncio.iscoroutinefunction(hook):
+            if inspect.iscoroutinefunction(hook):
                 result = await hook(hits, query)
             else:
                 result = hook(hits, query)  # type: ignore[assignment]
