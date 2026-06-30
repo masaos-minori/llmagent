@@ -51,7 +51,8 @@ class TestHybridSearchVectorTable:
         try:
             svc._init_db()
         except sqlite3.OperationalError as e:
-            if "no such module: vec0" in str(e):
+            msg = str(e)
+            if "no such module: vec0" in msg or "No such file or directory" in msg:
                 pytest.skip("vec0 module not available in this environment")
             raise
         conn = svc._get_db_connection()

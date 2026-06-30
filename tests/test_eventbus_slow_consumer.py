@@ -91,7 +91,9 @@ class TestSlowConsumer:
         finally:
             eb_app.app.state.broker.unsubscribe(sub)
 
-    def test_health_503_when_slow_consumer_threshold_exceeded(self, client: TestClient) -> None:
+    def test_health_503_when_slow_consumer_threshold_exceeded(
+        self, client: TestClient
+    ) -> None:
         """Health endpoint returns HTTP 503 when slow consumer queue depth >= threshold."""
         from eventbus import app as eb_app
 
@@ -106,6 +108,7 @@ class TestSlowConsumer:
         try:
             # Wait for the subscriber to process some events but not all
             import asyncio
+
             asyncio.get_event_loop().run_until_complete(asyncio.sleep(0.05))
 
             resp = client.get("/health")

@@ -55,6 +55,9 @@ search_timeout_sec = 30
 # Enable refresh_index tool (controls whether manual index refresh is allowed)
 enable_refresh = true
 
+# Enable grep_docs tool (when false, grep_docs returns MdqValidationError)
+enable_grep = true
+
 # Audit log path for write operations
 audit_log_path = "/opt/llm/logs/mdq_audit.log"
 

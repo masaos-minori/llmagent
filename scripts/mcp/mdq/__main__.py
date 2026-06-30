@@ -1,4 +1,5 @@
 """Entry point: python -m mcp.mdq.server"""
+
 import sys
 
 from mcp.mdq.server import MdqMCPServer

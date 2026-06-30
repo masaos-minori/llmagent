@@ -313,23 +313,42 @@ Configure `allowed_dirs` in `config/mdq_mcp_server.toml` before using indexing t
 
 ### Markdown Compatibility Scope
 
-**Supported features:**
-- ATX headings (## Heading) — all levels 1-6
-- Fenced code blocks (```, ~~~) — # inside fences are not headings
-- Content before first heading (as <root> section)
-- Repeated heading names (distinct chunk identities via ordinal)
-- Nested heading hierarchy (heading_path includes ancestors)
-- Optional YAML frontmatter (parsed and stripped)
-- Malformed headings (ignored)
+| Markdown Feature          | Support | Fallback Behavior                          |
+|---------------------------|---------|---------------------------------------------|
+| ATX headings (H1–H6)      | Yes     | —                                           |
+| Fenced code blocks        | Yes     | `#` inside fences not treated as headings   |
+| YAML frontmatter          | Yes     | Parsed and stripped at file start           |
+| Content before H1         | Yes     | Stored as `<root>` section                  |
+| Duplicate headings        | Yes     | Distinct chunk IDs via ordinal              |
+| Setext headings (===,---) | No      | Treated as plain text                       |
+| HTML blocks               | No      | Treated as plain text                       |
+| MDX                       | No      | Not indexed (.mdx excluded by glob)         |
+| GFM tables                | No      | Stored as plain text in parent section      |
+| Inline HTML tags          | No      | Treated as plain text                       |
 
-**Unsupported features:**
-- Setext-style headings (===, --- underlines)
-- Inline tags (<del>, <ins>, etc.) — not parsed
-- HTML blocks — not parsed, treated as plain text
-- MDX — not supported
-- GFM tables — not parsed (but not required for section extraction)
+### Search Modes
 
-**Fallback behavior:** Unsupported syntax may cause heading misclassification. For example, Setext-style headings are treated as plain text with no heading level, and their content is included in the preceding section rather than creating a new one.
+| Mode | Description | Config |
+|---|---|---|
+| FTS5-only (Phase 1) | Full-text search via FTS5; production baseline | `use_embedding = false` (default) |
+| Hybrid (Phase 2) | FTS5 + semantic vector search merged via RRF | `use_embedding = true` |
+
+**Hybrid Search (Phase 2):**
+
+When `use_embedding = true`, MDQ performs hybrid search:
+1. FTS5 keyword search on `chunks_fts`
+2. Semantic vector search via `_search_vector()` (stub — returns empty list in Phase 1)
+3. Results merged via Reciprocal Rank Fusion (RRF)
+
+**MDQ Hybrid vs RAG Decision Criteria:**
+
+| Use Case | Recommended | Rationale |
+|---|---|---|
+| Markdown structural queries (headings, sections, outlines) | MDQ hybrid | MDQ understands Markdown document structure; FTS5 is precise for keyword matching within documents |
+| General semantic search across all indexed content | RAG pipeline | RAG has broader corpus coverage and mature embedding model integration |
+| Cross-document structural comparison | MDQ hybrid | MDQ chunk_id includes heading hierarchy (level, parent_path, ordinal) |
+
+> **Note:** For detailed MDQ vs RAG boundary definition, see [04_mcp_07_mdq_rag_boundary.md](04_mcp_07_mdq_rag_boundary.md).
 
 ---
 

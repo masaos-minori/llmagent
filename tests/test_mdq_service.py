@@ -626,3 +626,19 @@ class TestTruncation:
             service.outline(OutlineRequest(path=str(f), max_outline_items=100))
         )
         assert "Truncated" in result
+
+
+class TestEnableGrepConfig:
+    """Verify enable_grep flag controls grep_docs access."""
+
+    def test_grep_docs_disabled_by_config(self, service: MdqService) -> None:
+        """When enable_grep=False, grep_docs raises MdqValidationError."""
+        from mcp.mdq.models import MdqValidationError
+
+        service.enable_grep = False
+        with pytest.raises(MdqValidationError, match="disabled by configuration"):
+            asyncio.run(service.grep_docs(GrepDocsRequest(pattern="test")))
+
+    def test_grep_docs_enabled_by_default(self, service: MdqService) -> None:
+        """enable_grep defaults to True — grep_docs should not raise on valid input."""
+        assert service.enable_grep is True

@@ -98,74 +98,29 @@ class TestStaleDocumentCount:
     _check_stale_documents() now uses documents table with mtime_ns/indexed_at.
     """
 
+    @pytest.mark.skip(
+        reason="Legacy test with broken variable refs (ref_mtime_ns undefined). "
+        "Production uses mtime_ns > CAST(indexed_at * 1e9 AS INTEGER) — see TestStaleDocumentCountNewSchema."
+    )
     def test_stale_document_count_zero_when_fresh(self, db_path: str) -> None:
-        """When file_mtime matches current mtime, stale count should be 0.
+        """When file_mtime matches current mtime, stale count should be 0."""
+        pass
 
-        NOTE: Legacy test — production now uses documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER).
-        """
-        current_mtime = Path(db_path).stat().st_mtime
-        _insert_sections(db_path, [(1, "/test/file1.md", current_mtime)])
-
-        conn = sqlite3.connect(db_path)
-        try:
-            count = conn.execute(
-                "SELECT COUNT(DISTINCT source_path) FROM documents WHERE mtime_ns < ?",
-                (ref_mtime_ns,),
-            ).fetchone()[0]
-        finally:
-            conn.close()
-
-        assert (count or 0) == 0
-
+    @pytest.mark.skip(
+        reason="Legacy test with broken variable refs (ref_ns undefined). "
+        "Production uses mtime_ns > CAST(indexed_at * 1e9 AS INTEGER) — see TestStaleDocumentCountNewSchema."
+    )
     def test_stale_document_count_positive_when_outdated(self, db_path: str) -> None:
-        """When file_mtime is older than current mtime, stale count should be > 0.
+        """When file_mtime is older than current mtime, stale count should be > 0."""
+        pass
 
-        NOTE: Legacy test — production now uses documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER).
-        """
-        import time
-
-        old_mtime = time.time() - 86400
-        _insert_sections(db_path, [(1, "/test/file1.md", old_mtime)])
-
-        conn = sqlite3.connect(db_path)
-        try:
-            count = conn.execute(
-                "SELECT COUNT(DISTINCT source_path) FROM documents WHERE mtime_ns < ?",
-                (ref_ns,),
-            ).fetchone()[0]
-        finally:
-            conn.close()
-
-        assert (count or 0) == 1
-
+    @pytest.mark.skip(
+        reason="Legacy test with broken variable refs (old_ns, ref_ns, stale_count undefined). "
+        "Production uses mtime_ns > CAST(indexed_at * 1e9 AS INTEGER) — see TestStaleDocumentCountNewSchema."
+    )
     def test_stale_document_count_mixed(self, db_path: str) -> None:
-        """When some files are fresh and some are stale, count only stale.
-
-        NOTE: Legacy test — production now uses documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER).
-        """
-        import time
-
-        current_mtime = Path(db_path).stat().st_mtime
-        old_mtime = time.time() - 86400
-
-        _insert_sections(
-            db_path,
-            [
-                (1, "/test/file1.md", old_ns),
-                (2, "/test/file1.md", old_ns),
-            ],
-        )
-
-        conn = sqlite3.connect(db_path)
-        try:
-            count = conn.execute(
-                "SELECT COUNT(DISTINCT source_path) FROM documents WHERE mtime_ns < ?",
-                (ref_ns,),
-            ).fetchone()[0]
-        finally:
-            conn.close()
-
-        assert stale_count == 2
+        """When some files are fresh and some are stale, count only stale."""
+        pass
 
 
 class TestStaleDocumentCountNewSchema:
@@ -251,7 +206,9 @@ class TestStaleDocumentCountNewSchema:
             conn.close()
         return path
 
-    def _insert_documents(self, db_path: str, rows: list[tuple[str, str, int, float]]) -> None:
+    def _insert_documents(
+        self, db_path: str, rows: list[tuple[str, str, int, float]]
+    ) -> None:
         """Insert document rows with mtime_ns and indexed_at."""
         conn = sqlite3.connect(db_path)
         try:
@@ -268,12 +225,14 @@ class TestStaleDocumentCountNewSchema:
         """When mtime_ns <= indexed_at * 1e9, stale count should be 0."""
         db_path = self._create_db(tmp_path)
         # mtime_ns is in the past (before indexed_at), so no stale docs
-        import time
         past_mtime_ns = int((time.time() - 1000) * 1e9)
         future_indexed_at = time.time() + 1000
-        self._insert_documents(db_path, [
-            ("doc1", "/test/file1.md", past_mtime_ns, future_indexed_at),
-        ])
+        self._insert_documents(
+            db_path,
+            [
+                ("doc1", "/test/file1.md", past_mtime_ns, future_indexed_at),
+            ],
+        )
 
         conn = sqlite3.connect(db_path)
         try:
@@ -291,12 +250,14 @@ class TestStaleDocumentCountNewSchema:
         """When mtime_ns > indexed_at * 1e9, stale count should be > 0."""
         db_path = self._create_db(tmp_path)
         # mtime_ns is in the future (after indexed_at), so docs are stale
-        import time
         past_indexed_at = time.time() - 1000
         future_mtime_ns = int((time.time() + 1000) * 1e9)
-        self._insert_documents(db_path, [
-            ("doc1", "/test/file1.md", future_mtime_ns, past_indexed_at),
-        ])
+        self._insert_documents(
+            db_path,
+            [
+                ("doc1", "/test/file1.md", future_mtime_ns, past_indexed_at),
+            ],
+        )
 
         conn = sqlite3.connect(db_path)
         try:
@@ -313,16 +274,18 @@ class TestStaleDocumentCountNewSchema:
     def test_stale_count_mixed(self, tmp_path: Path) -> None:
         """When some docs are fresh and some are stale, count only stale."""
         db_path = self._create_db(tmp_path)
-        import time
         now = time.time()
         past_indexed_at = now - 1000
         future_mtime_ns = int((now + 1000) * 1e9)
         # doc1: stale (mtime > indexed_at)
         # doc2: fresh (mtime < indexed_at)
-        self._insert_documents(db_path, [
-            ("doc1", "/test/file1.md", future_mtime_ns, past_indexed_at),
-            ("doc2", "/test/file2.md", int((now - 1000) * 1e9), now + 1000),
-        ])
+        self._insert_documents(
+            db_path,
+            [
+                ("doc1", "/test/file1.md", future_mtime_ns, past_indexed_at),
+                ("doc2", "/test/file2.md", int((now - 1000) * 1e9), now + 1000),
+            ],
+        )
 
         conn = sqlite3.connect(db_path)
         try:
@@ -370,7 +333,7 @@ class TestStaleDocumentCountNewSchema:
         stale_count: int | None = None
         try:
             conn.row_factory = sqlite3.Row
-            result = conn.execute(
+            conn.execute(
                 "SELECT COUNT(*) as cnt FROM documents WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
             ).fetchone()
             # Should return None (or raise) when documents table doesn't exist
@@ -388,6 +351,7 @@ class TestStaleDocumentCountNoDocumentsTable:
     def test_returns_none_when_no_documents_table(self, tmp_path: Path) -> None:
         """When documents table doesn't exist, stale count should be None (not raised)."""
         import sqlite3
+
         from scripts.mcp.mdq.server import _check_stale_documents
 
         path = str(tmp_path / "mdq_test_no_docs.sqlite")

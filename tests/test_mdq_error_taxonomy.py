@@ -113,12 +113,12 @@ class TestConsistencyError:
     """Test MdqConsistencyError is raised for consistency errors."""
 
     def test_fts_search_raises_consistency_error_on_corrupt_index(
-        self, service: MdqService
+        self, service: MdqService, tmp_path: Path
     ) -> None:
         from mcp.mdq.models import SearchDocsRequest
 
         # Create a valid index first
-        md_file = Path("/tmp/test_consistency.md")
+        md_file = tmp_path / "test_consistency.md"
         md_file.write_text("# Test\n\nContent")
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
         md_file.unlink()
@@ -134,3 +134,53 @@ class TestConsistencyError:
         req = SearchDocsRequest(query="test")
         with pytest.raises(MdqConsistencyError):
             asyncio.run(service.search_docs(req))
+
+
+class TestCallToolDomainExceptionHandling:
+    """Verify call_tool endpoint maps domain exceptions to is_error=True (MCP spec)."""
+
+    def test_call_tool_returns_is_error_for_validation_exception(
+        self, tmp_path: Path
+    ) -> None:
+        """MdqValidationError from dispatch → is_error=True with HTTP 200."""
+        from unittest.mock import AsyncMock, patch
+
+        from fastapi.testclient import TestClient
+        from mcp.mdq.server import app
+
+        client = TestClient(app)
+        with patch(
+            "mcp.mdq.server._dispatch_mdq_tool",
+            new=AsyncMock(side_effect=MdqValidationError("bad input")),
+        ):
+            response = client.post(
+                "/v1/call_tool",
+                json={"name": "search_docs", "args": {"query": "test"}},
+            )
+        assert response.status_code == 200
+        body = response.json()
+        assert body.get("is_error") is True
+        assert "bad input" in (body.get("result") or "")
+
+    def test_call_tool_returns_is_error_for_not_found_exception(
+        self, tmp_path: Path
+    ) -> None:
+        """MdqNotFoundError from dispatch → is_error=True with HTTP 200."""
+        from unittest.mock import AsyncMock, patch
+
+        from fastapi.testclient import TestClient
+        from mcp.mdq.models import MdqNotFoundError
+        from mcp.mdq.server import app
+
+        client = TestClient(app)
+        with patch(
+            "mcp.mdq.server._dispatch_mdq_tool",
+            new=AsyncMock(side_effect=MdqNotFoundError("chunk not found")),
+        ):
+            response = client.post(
+                "/v1/call_tool",
+                json={"name": "get_chunk", "args": {"chunk_id": "missing"}},
+            )
+        assert response.status_code == 200
+        body = response.json()
+        assert body.get("is_error") is True

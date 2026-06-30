@@ -82,7 +82,9 @@ async def lifespan(app: FastAPI) -> Any:
             app.state.config.port,
         )
     else:
-        logger.info("eventbus starting on %s:%d", app.state.config.host, app.state.config.port)
+        logger.info(
+            "eventbus starting on %s:%d", app.state.config.host, app.state.config.port
+        )
     yield
     if app.state.dlq_task:
         app.state.dlq_task.cancel()
