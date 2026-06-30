@@ -363,7 +363,7 @@ class WebCrawler:
         for a in soup.find_all("a", href=True):
             if not self._should_enqueue_link(a, current_url, start_url):
                 continue
-            href = a["href"]
+            href = str(a["href"])
             next_url = normalize_url(urljoin(current_url, href))
             queue.put_nowait((next_url, depth + 1))
 
@@ -381,7 +381,7 @@ class WebCrawler:
             if rel and "nofollow" in rel:
                 return False
         if self._skip_external:
-            next_url = normalize_url(urljoin(current_url, href))  # pyright: ignore[reportArgumentType]
+            next_url = normalize_url(urljoin(current_url, str(href)))
             if not same_origin(next_url, start_url):
                 return False
         return True
