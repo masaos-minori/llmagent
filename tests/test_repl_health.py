@@ -17,6 +17,7 @@ from agent.repl_health import (
     _fetch_stdio_tools,
     audit_security_defaults,
     check_readiness,
+    check_workflow_definition,
     probe_mcp_health,
 )
 from shared.tool_executor import StdioTransport, ToolCallResult
@@ -653,3 +654,49 @@ class TestCheckReadiness:
         with pytest.raises(RuntimeError) as exc_info:
             await check_readiness(ctx, production_mode=True)
         assert "llm" in str(exc_info.value)
+
+
+class TestCheckWorkflowDefinition:
+    """Tests for check_workflow_definition() preflight helper."""
+
+    def test_disabled_mode_returns_empty(self, tmp_path) -> None:
+        """workflow_mode=disabled returns no warnings regardless of file existence."""
+        warnings = check_workflow_definition("disabled", workflows_dir=tmp_path)
+        assert warnings == []
+
+    def test_auto_mode_missing_file_returns_warning(self, tmp_path) -> None:
+        """workflow_mode=auto with missing file returns warning (does not raise)."""
+        warnings = check_workflow_definition("auto", workflows_dir=tmp_path)
+        assert len(warnings) == 1
+        assert "not found" in warnings[0]
+
+    def test_required_mode_missing_file_raises(self, tmp_path) -> None:
+        """workflow_mode=required with missing file raises RuntimeError."""
+        with pytest.raises(RuntimeError) as exc_info:
+            check_workflow_definition("required", workflows_dir=tmp_path)
+        assert "not found" in str(exc_info.value)
+
+    def test_required_mode_file_present_returns_empty(self, tmp_path) -> None:
+        """workflow_mode=required with present file returns no warnings."""
+        (tmp_path / "default.json").write_text("{}")
+        warnings = check_workflow_definition("required", workflows_dir=tmp_path)
+        assert warnings == []
+
+    def test_auto_mode_file_present_returns_empty(self, tmp_path) -> None:
+        """workflow_mode=auto with present file returns no warnings."""
+        (tmp_path / "default.json").write_text("{}")
+        warnings = check_workflow_definition("auto", workflows_dir=tmp_path)
+        assert warnings == []
+
+    def test_error_message_includes_mode_and_path(self, tmp_path) -> None:
+        """RuntimeError message includes current mode and expected path."""
+        with pytest.raises(RuntimeError) as exc_info:
+            check_workflow_definition("required", workflows_dir=tmp_path)
+        msg = str(exc_info.value)
+        assert "required" in msg
+        assert "default.json" in msg
+
+    def test_auto_mode_warning_includes_remediation(self, tmp_path) -> None:
+        """Warning includes remediation hint for operator action."""
+        warnings = check_workflow_definition("auto", workflows_dir=tmp_path)
+        assert "workflow_mode=disabled" in warnings[0]

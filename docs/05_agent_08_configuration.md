@@ -95,6 +95,7 @@ provides project-wide defaults.
 **Startup-only settings** (not touched by `apply_config_dict()`):
 - `use_memory_layer` — enables/disables the memory subsystem at boot
 - `plugin_strict` — enables fail-fast on plugin import errors at boot
+- `workflow_mode` — read once at agent start; never touched by `/reload`. Changes require a full restart.
 
 ### Role of `common.toml`
 
@@ -157,8 +158,11 @@ lockdown deployments.
 
 **Production default:** `config/common.toml` sets `workflow_mode = "required"`. Any environment
 that copies `common.toml` (see `deploy.sh:58`) must have a valid workflow definition file
-deployed, or the agent will fail at startup. For local/dev environments without `common.toml`
-in the config search path, the dataclass default `"auto"` applies (warns and falls back).
+deployed, or the agent will fail at startup with an actionable error message. The preflight
+check (`_check_workflow_definition()` in `startup.py`) runs before `Orchestrator.__init__()` and
+reports the expected path (`config/workflows/default.json`). For local/dev environments without
+`common.toml` in the config search path, the dataclass default `"auto"` applies (warns and falls
+back). **Note:** `workflow_mode` is startup-only — it cannot be changed via `/reload`.
 
 Cross-field validation in `_validate_cross_field()`:
 - `rag.use_semantic_cache=True` → `rag.embed_url` must be non-empty

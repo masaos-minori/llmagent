@@ -21,6 +21,7 @@ from agent.repl_health import (
     check_readiness,
     check_routing_drift,
     check_tool_definitions_startup,
+    check_workflow_definition,
 )
 from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.workflow.state_store import StateStore
@@ -65,6 +66,7 @@ class StartupOrchestrator:
         build_agent_context(ctx, self._view)
         ctx.conv.llm_url = ctx.cfg.llm.llm_url
         self._init_command_registry()
+        self._check_workflow_definition()
         self._init_orchestrator()
 
     def _init_command_registry(self) -> None:
@@ -137,6 +139,17 @@ class StartupOrchestrator:
                 self._view.write_warning(
                     f"stdio MCP server {key!r} failed to start: {e}"
                 )
+
+    def _check_workflow_definition(self) -> None:
+        """Preflight check for workflow definition file before Orchestrator.__init__()."""
+        ctx = self._ctx
+        try:
+            warnings = check_workflow_definition(ctx.cfg.workflow_mode)
+            for msg in warnings:
+                self._view.write_warning(msg)
+        except RuntimeError as e:
+            logger.error("Workflow preflight check failed: %s", e)
+            raise
 
     def _check_embedding_dimensions(self) -> None:
         """Verify embedding dimension consistency between memory config and db config."""

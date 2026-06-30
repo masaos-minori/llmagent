@@ -268,6 +268,28 @@ These counts are derived from `workflow.sqlite` at session end.
 
 ---
 
+## Workflow Startup Validation
+
+When `workflow_mode = "required"` (production default), the agent validates the workflow
+definition file exists before initializing the orchestrator. If the file is missing, a
+`RuntimeError` is raised with actionable guidance.
+
+**Expected path:** `config/workflows/default.json`
+
+**Remediation options:**
+- Deploy the workflow definition to the expected path
+- Set `workflow_mode = "disabled"` in config (not recommended for production)
+- Set `workflow_mode = "auto"` for degraded operation (warns and falls back to direct LLM)
+
+The preflight check (`_check_workflow_definition()` in `startup.py`) runs before
+`Orchestrator.__init__()` and produces a clear error message rather than a cryptic
+`WorkflowLoadError` that may not include the expected file path.
+
+**Note:** `workflow_mode` is a startup-only setting — it cannot be changed via `/reload`.
+Any change requires a full agent restart.
+
+---
+
 ## Interpreting `/context`
 
 ```

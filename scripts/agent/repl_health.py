@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from http import HTTPStatus
+from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -261,6 +262,49 @@ async def check_tool_definitions_startup(ctx: AgentContext) -> HealthCheckResult
     """Startup validation: respects tool_definitions_strict config flag."""
     strict = getattr(ctx.cfg.tool, "tool_definitions_strict", False)
     return await _check_tool_definitions(ctx, strict=strict)
+
+
+def check_workflow_definition(
+    workflow_mode: str,
+    workflows_dir: Path | None = None,
+) -> list[str]:
+    """Check whether the workflow definition file exists for the given mode.
+
+    Returns a warning list when the file is missing and mode != disabled.
+    Raises RuntimeError when workflow_mode='required' and the file is missing.
+
+    Args:
+        workflow_mode: "auto", "required", or "disabled".
+        workflows_dir: Override for the default WORKFLOWS_DIR (used in tests).
+
+    Returns:
+        A list of warning strings (empty if no issues).
+
+    Raises:
+        RuntimeError: When workflow_mode='required' and the definition file is missing.
+    """
+    from agent.workflow.workflow_loader import (  # noqa: PLC0415 — lazy to avoid circular import
+        WORKFLOWS_DIR,
+    )
+
+    if workflow_mode == "disabled":
+        return []
+
+    target_dir = workflows_dir if workflows_dir is not None else WORKFLOWS_DIR
+    workflow_file = target_dir / "default.json"
+
+    if not workflow_file.exists():
+        msg = (
+            f"Workflow definition file not found: {workflow_file}. "
+            f"Current mode={workflow_mode!r}. "
+            "Deploy config/workflows/default.json or set workflow_mode=disabled in config."
+        )
+        if workflow_mode == "required":
+            logger.error(msg)
+            raise RuntimeError(msg)
+        return [msg]
+
+    return []
 
 
 def check_routing_drift(ctx: AgentContext) -> list[str]:

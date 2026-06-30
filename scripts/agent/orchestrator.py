@@ -41,6 +41,7 @@ from agent.workflow import (
     WorkflowLoadError,
     WorkflowPendingApprovalError,
 )
+from agent.workflow.workflow_loader import WORKFLOWS_DIR
 
 
 class WorkflowCreationError(RuntimeError):
@@ -131,8 +132,9 @@ class Orchestrator:
             except (WorkflowLoadError, Exception) as exc:
                 if self._workflow_mode == "required":
                     raise RuntimeError(
-                        f"[workflow] mode=required but WorkflowLoader failed: {exc}. "
-                        "Check workflow definition file or set workflow_mode=auto in config."
+                        f"[workflow] mode={self._workflow_mode!r} but WorkflowLoader failed: {exc}. "
+                        f"Expected workflow definition at: {WORKFLOWS_DIR / 'default.json'}. "
+                        "Fix the workflow definition file or set workflow_mode=disabled in config."
                     ) from exc
                 logger.warning("WorkflowLoader failed — workflow tracking disabled")
 
@@ -142,12 +144,14 @@ class Orchestrator:
         """Raise WorkflowCreationError; direct-execution fallback is removed (fail-closed)."""
         if self._workflow_mode == "required":
             raise RuntimeError(
-                f"Workflow mode=required but workflow unavailable: {reason}"
+                f"[workflow] mode={self._workflow_mode!r} but workflow unavailable: {reason}. "
+                f"Expected workflow definition at: {WORKFLOWS_DIR / 'default.json'}. "
+                "Fix the workflow definition or set workflow_mode=disabled in config."
             )
         raise WorkflowCreationError(
-            f"Workflow unavailable ({reason}). "
+            f"[workflow] mode={self._workflow_mode!r} — workflow unavailable ({reason}). "
             "Direct-execution fallback is disabled. "
-            "Fix the workflow definition or set workflow_mode=disabled."
+            "Fix the workflow definition or set workflow_mode=disabled in config."
         )
 
     def workflow_status(self) -> dict[str, str]:

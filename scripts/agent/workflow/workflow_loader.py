@@ -39,9 +39,10 @@ logger = logging.getLogger(__name__)
 # config/workflows/ is four parent levels up from this file:
 # scripts/agent/workflow/workflow_loader.py -> scripts/agent/workflow/
 # -> scripts/agent/ -> scripts/ -> repo root -> config/workflows/
-_WORKFLOWS_DIR = (
+WORKFLOWS_DIR = (
     Path(__file__).resolve().parent.parent.parent.parent / "config" / "workflows"
 )
+_WORKFLOWS_DIR = WORKFLOWS_DIR  # internal alias kept for backward compat
 
 _REQUIRED_STAGE_KEYS = {"id", "description", "timeout_sec", "retryable"}
 _REQUIRED_POLICY_KEYS = {"max_attempts", "backoff", "backoff_sec"}

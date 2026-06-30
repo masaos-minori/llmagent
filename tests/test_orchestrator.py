@@ -900,7 +900,7 @@ class TestWorkflowMode:
         ctx = _make_ctx()
         with (
             patch("agent.orchestrator.WorkflowLoader") as mock_loader,
-            pytest.raises(RuntimeError, match="mode=required"),
+            pytest.raises(RuntimeError, match="required"),
         ):
             mock_loader.return_value.load.side_effect = Exception("not found")
             Orchestrator(ctx, workflow_mode="required")
@@ -911,7 +911,7 @@ class TestWorkflowMode:
         ctx = _make_ctx()
         with (
             patch("agent.orchestrator.WorkflowLoader") as mock_loader,
-            pytest.raises(RuntimeError, match="mode=required"),
+            pytest.raises(RuntimeError, match="required"),
         ):
             mock_loader.return_value.load.side_effect = WorkflowLoadError("bad yaml")
             Orchestrator(ctx, workflow_mode="required")
@@ -929,6 +929,32 @@ class TestWorkflowMode:
             pytest.raises(RuntimeError, match="db gone"),
         ):
             await orch.handle_turn("hello")
+
+    # -- enriched error messages ---------------------------------------------
+
+    def test_required_mode_error_includes_file_path(self) -> None:
+        """Orchestrator.__init__ required-mode error includes expected file path."""
+        ctx = _make_ctx()
+        with (
+            patch("agent.orchestrator.WorkflowLoader") as mock_loader,
+            pytest.raises(RuntimeError) as exc_info,
+        ):
+            mock_loader.return_value.load.side_effect = Exception("not found")
+            Orchestrator(ctx, workflow_mode="required")
+        msg = str(exc_info.value)
+        assert "default.json" in msg
+
+    def test_required_mode_error_includes_mode_string(self) -> None:
+        """Orchestrator.__init__ required-mode error message includes mode value."""
+        ctx = _make_ctx()
+        with (
+            patch("agent.orchestrator.WorkflowLoader") as mock_loader,
+            pytest.raises(RuntimeError) as exc_info,
+        ):
+            mock_loader.return_value.load.side_effect = Exception("not found")
+            Orchestrator(ctx, workflow_mode="required")
+        msg = str(exc_info.value)
+        assert "required" in msg
 
     # -- AgentConfig validation ----------------------------------------------
 
