@@ -121,6 +121,8 @@ class SessionMessageRepository:
         Used after history compression to persist the compressed snapshot.
         Runs in a single transaction: DELETE + executemany INSERT.
         """
+        if not messages:
+            return
         rows = []
         for msg in messages:
             role = msg.get("role", "user")
