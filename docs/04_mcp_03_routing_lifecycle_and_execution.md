@@ -32,17 +32,16 @@ LLM returns tool_call
 
 ## ToolRouteResolver (`shared/route_resolver.py`)
 
-Resolves `tool_name → server_key` in four steps (priority order). At runtime, **discovery map (live `/v1/tools`) has the highest priority and overrides all lower layers**:
+Resolves `tool_name → server_key` in two steps (priority order). At runtime, **discovery map (live `/v1/tools`) has the highest priority and overrides all lower layers**:
 
 1. **Discovery map (highest priority):** Live `/v1/tools` metadata with `server_key` field.
     Built from `build_discovery_map()` at startup when servers respond to `/v1/tools`.
-    If a tool is found here, it routes to the server specified in the discovery map — even if the registry or config says something different.
+    If a tool is found here, it routes to the server specified in the discovery map — even if the registry says something different.
 
 2. **Tool registry:** Primary routing layer from `shared/tool_registry.py`.
     The `ToolRegistry` singleton maps each tool name to exactly one server key. Superseded by discovery map for any tool found in live `/v1/tools` responses.
 
 3. **Unknown tools fail immediately:** When a tool name is not found in any routing layer, `ValueError` is raised with the message `"Unknown tool: <tool_name>"`. No fallback exists — every tool must be explicitly registered.
-    Not a routing input for tools already in ToolRegistry (priority 2). Only consulted when discovery map and registry have no match.
 
 4. **Unknown tools fail immediately:** When a tool name is not found in any routing layer, `ValueError` is raised with the message `"Unknown tool: <tool_name>"`. No fallback exists — every tool must be explicitly registered.
 
@@ -74,7 +73,7 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 
 ## Routing Source of Truth
 
-The `ToolRouteResolver` resolves tool calls using a four-layer cascade. At runtime, **discovery map (live `/v1/tools`) has the highest priority and overrides all lower layers**.
+The `ToolRouteResolver` resolves tool calls using a two-layer cascade. At runtime, **discovery map (live `/v1/tools`) has the highest priority and overrides all lower layers**.
 
 | Input | Role | Requirement |
 |---|---|---|
