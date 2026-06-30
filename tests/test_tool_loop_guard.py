@@ -210,9 +210,7 @@ class TestCheckRetry:
         guard = ToolLoopGuard(ctx)
 
         # Track failure for write_file only (empty args matching _msg pattern)
-        failed_calls: set[str] = {
-            tool_hash_key("write_file", {})
-        }
+        failed_calls: set[str] = {tool_hash_key("write_file", {})}
 
         # read_file with identical empty args should NOT be blocked
         msg_read = _msg("read_file")

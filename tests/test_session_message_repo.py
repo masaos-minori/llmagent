@@ -482,7 +482,9 @@ class TestReplaceMessages:
         assert len(rows) == 1
         assert rows[0]["tool_calls"] == [{"id": "call_1", "type": "function"}]
 
-    def test_replace_messages_empty_list_skips(self, repo: SessionMessageRepository) -> None:
+    def test_replace_messages_empty_list_skips(
+        self, repo: SessionMessageRepository
+    ) -> None:
         """replace_messages() with empty list does nothing."""
         repo.save("user", "existing")
         assert len(repo.fetch_messages(1)) == 1

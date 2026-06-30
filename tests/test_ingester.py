@@ -275,7 +275,9 @@ class TestEmbedAndStore:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
         path = _write_chunk(
-            tmp_path / "chunk", "c.json", dataclasses.replace(_DEFAULT_CHUNK, content="")
+            tmp_path / "chunk",
+            "c.json",
+            dataclasses.replace(_DEFAULT_CHUNK, content=""),
         )
         ingester = _make_ingester(tmp_path)
 
