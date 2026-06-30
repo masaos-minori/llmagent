@@ -170,7 +170,7 @@ class TestEmbedAndStore:
         doc_id = self._insert_parent_doc(conn)
         path = _write_chunk(
             tmp_path / "chunk",
-            "c.txt",
+            "c.json",
             dataclasses.replace(_DEFAULT_CHUNK, chunk_index=7),
         )
         ingester = _make_ingester(tmp_path)
@@ -192,7 +192,7 @@ class TestEmbedAndStore:
         doc_id = self._insert_parent_doc(conn)
         path = _write_chunk(
             tmp_path / "chunk",
-            "c.txt",
+            "c.json",
             dataclasses.replace(_DEFAULT_CHUNK, normalized_content="正規化"),
         )
         ingester = _make_ingester(tmp_path)
@@ -218,7 +218,7 @@ class TestEmbedAndStore:
         doc_id: int = conn.execute("SELECT doc_id FROM documents").fetchone()[0]
         path = _write_chunk(
             tmp_path / "chunk",
-            "c.txt",
+            "c.json",
             dataclasses.replace(_DEFAULT_CHUNK, lang="en", normalized_content=None),
         )
         ingester = _make_ingester(tmp_path)
@@ -237,7 +237,7 @@ class TestEmbedAndStore:
     def test_embedding_failure_returns_false(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
-        path = _write_chunk(tmp_path / "chunk", "c.txt")
+        path = _write_chunk(tmp_path / "chunk", "c.json")
         ingester = _make_ingester(tmp_path)
         bad_resp = MagicMock()
         bad_resp.raise_for_status.return_value = None
@@ -258,7 +258,7 @@ class TestEmbedAndStore:
     ) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
-        path = _write_chunk(tmp_path / "chunk", "c.txt")
+        path = _write_chunk(tmp_path / "chunk", "c.json")
         ingester = _make_ingester(tmp_path)
 
         with (
@@ -275,7 +275,7 @@ class TestEmbedAndStore:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
         path = _write_chunk(
-            tmp_path / "chunk", "c.txt", dataclasses.replace(_DEFAULT_CHUNK, content="")
+            tmp_path / "chunk", "c.json", dataclasses.replace(_DEFAULT_CHUNK, content="")
         )
         ingester = _make_ingester(tmp_path)
 
@@ -294,7 +294,7 @@ class TestEmbedAndStore:
         doc_id = self._insert_parent_doc(conn)
         path = _write_chunk(
             tmp_path / "chunk",
-            "c.txt",
+            "c.json",
             dataclasses.replace(_DEFAULT_CHUNK, chunk_index=0),
         )
         # Overwrite with invalid chunk_index string
@@ -318,7 +318,7 @@ class TestEmbedAndStore:
     def test_retry_success(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
-        path = _write_chunk(tmp_path / "chunk", "c.txt")
+        path = _write_chunk(tmp_path / "chunk", "c.json")
         ingester = _make_ingester_with_retry(tmp_path, embed_retry=2)
 
         bad_resp = MagicMock()
@@ -343,7 +343,7 @@ class TestEmbedAndStore:
     def test_all_retries_exhausted(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
-        path = _write_chunk(tmp_path / "chunk", "c.txt")
+        path = _write_chunk(tmp_path / "chunk", "c.json")
         ingester = _make_ingester_with_retry(tmp_path, embed_retry=3)
 
         bad_resp = MagicMock()
@@ -364,7 +364,7 @@ class TestEmbedAndStore:
     def test_network_error_during_retry(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
-        path = _write_chunk(tmp_path / "chunk", "c.txt")
+        path = _write_chunk(tmp_path / "chunk", "c.json")
         ingester = _make_ingester_with_retry(tmp_path, embed_retry=2)
 
         import httpx
@@ -390,7 +390,7 @@ class TestEmbedAndStore:
     def test_dimension_mismatch_on_retry(self, tmp_path: Path) -> None:
         conn, fake_db = _make_db()
         doc_id = self._insert_parent_doc(conn)
-        path = _write_chunk(tmp_path / "chunk", "c.txt")
+        path = _write_chunk(tmp_path / "chunk", "c.json")
         ingester = _make_ingester_with_retry(tmp_path, embed_retry=2)
 
         wrong_dim_resp = _fake_embed_resp(embedding=[0.1] * 8)  # wrong dim (expect 384)
@@ -430,7 +430,7 @@ class TestIngestUrlGroup:
         conn, fake_db, ingester = self._setup(tmp_path)
         path = _write_chunk(
             tmp_path / "chunk",
-            "c.txt",
+            "c.json",
             dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="heading"),
         )
         with (
@@ -450,12 +450,12 @@ class TestIngestUrlGroup:
         paths = [
             _write_chunk(
                 chunk_dir,
-                "c0.txt",
+                "c0.json",
                 dataclasses.replace(_DEFAULT_CHUNK, chunk_index=0, content="first"),
             ),
             _write_chunk(
                 chunk_dir,
-                "c1.txt",
+                "c1.json",
                 dataclasses.replace(_DEFAULT_CHUNK, chunk_index=1, content="second"),
             ),
         ]
@@ -478,7 +478,7 @@ class TestIngestUrlGroup:
         conn, fake_db, ingester = self._setup(tmp_path)
         chunk_dir = tmp_path / "chunk"
         registered_dir = tmp_path / "registered"
-        path = _write_chunk(chunk_dir, "c.txt")
+        path = _write_chunk(chunk_dir, "c.json")
 
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
@@ -489,12 +489,12 @@ class TestIngestUrlGroup:
             )
 
         assert not path.exists()
-        assert (registered_dir / "c.txt").exists()
+        assert (registered_dir / "c.json").exists()
 
     def test_skips_already_registered_url(self, tmp_path: Path) -> None:
         conn, fake_db, ingester = self._setup(tmp_path)
         chunk_dir = tmp_path / "chunk"
-        path = _write_chunk(chunk_dir, "c.txt")
+        path = _write_chunk(chunk_dir, "c.json")
 
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
@@ -504,7 +504,7 @@ class TestIngestUrlGroup:
                 fake_db, "https://example.com/doc", [path], force=False
             )
 
-        path2 = _write_chunk(chunk_dir, "c2.txt")
+        path2 = _write_chunk(chunk_dir, "c2.json")
         with (
             patch.object(ingester._client, "post", return_value=_fake_embed_resp()),
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
@@ -523,7 +523,7 @@ class TestIngestUrlGroup:
         chunk_dir = tmp_path / "chunk"
         path = _write_chunk(
             chunk_dir,
-            "c.txt",
+            "c.json",
             dataclasses.replace(
                 _DEFAULT_CHUNK, chunking_strategy="text", content="old"
             ),
@@ -541,7 +541,7 @@ class TestIngestUrlGroup:
 
         path2 = _write_chunk(
             chunk_dir,
-            "c_new.txt",
+            "c_new.json",
             dataclasses.replace(
                 _DEFAULT_CHUNK, chunking_strategy="heading", content="new"
             ),
@@ -565,7 +565,7 @@ class TestIngestUrlGroup:
         chunk_dir = tmp_path / "chunk"
         _write_chunk(
             chunk_dir,
-            "c.txt",
+            "c.json",
             dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="text"),
         )
         with (
@@ -573,12 +573,12 @@ class TestIngestUrlGroup:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
-                fake_db, "https://example.com/doc", [chunk_dir / "c.txt"], force=False
+                fake_db, "https://example.com/doc", [chunk_dir / "c.json"], force=False
             )
 
         _write_chunk(
             chunk_dir,
-            "c2.txt",
+            "c2.json",
             dataclasses.replace(_DEFAULT_CHUNK, chunking_strategy="markdown"),
         )
         with (
@@ -586,7 +586,7 @@ class TestIngestUrlGroup:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
-                fake_db, "https://example.com/doc", [chunk_dir / "c2.txt"], force=True
+                fake_db, "https://example.com/doc", [chunk_dir / "c2.json"], force=True
             )
 
         row = conn.execute("SELECT chunking_strategy FROM documents").fetchone()
@@ -596,10 +596,10 @@ class TestIngestUrlGroup:
         conn, fake_db = _make_db()
         url = "https://example.com/doc"
         chunk_dir = tmp_path / "chunk" / "example.com" / "doc"
-        _write_chunk(chunk_dir, "c1.txt", dataclasses.replace(_DEFAULT_CHUNK, url=url))
+        _write_chunk(chunk_dir, "c1.json", dataclasses.replace(_DEFAULT_CHUNK, url=url))
         _write_chunk(
             chunk_dir,
-            "c2.txt",
+            "c2.json",
             dataclasses.replace(_DEFAULT_CHUNK, url=url, chunk_index=1),
         )
         ingester = _make_ingester(tmp_path)  # embed_retry=1
