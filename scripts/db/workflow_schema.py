@@ -11,7 +11,6 @@ Canonical DDL source: db/schema_sql.py::build_workflow_schema_sql()
 from __future__ import annotations
 
 import logging
-import sqlite3
 from pathlib import Path
 
 from db.config import build_db_config
