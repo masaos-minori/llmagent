@@ -57,6 +57,7 @@ Legacy source files (`03_spec_rag.md`, `03_rag-ref-*.md`, `03_rag-ingestion-*.md
 
 | Domain | Canonical source |
 |---|---|
+| System purpose, ingestion and query pipeline overviews | `03_rag_01_system_overview.md` |
 | File formats (JSON structure, field names) | `03_rag_02_ingestion_pipeline.md`, `03_rag_04_data_model_and_interfaces.md` |
 | Query pipeline behavior (stages, RRF, rerank, HTTP mode) | `03_rag_03_query_pipeline.md` |
 | Configuration parameters and operations commands | `03_rag_05_configuration_and_operations.md` |
