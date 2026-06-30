@@ -112,6 +112,8 @@ Acknowledge an event. Updates the consumer offset to the event's `seq` if `consu
 
 **Offset behavior**: The offset is updated only when `consumer_id` is provided AND the event was newly acknowledged (not previously acked). If the event was already acked, the response returns 200 with `already_acked: true` regardless of whether a consumer_id is provided.
 
+**Monotonic offset note**: Offset advancement is NOT monotonically enforced. Acknowledging an older event (with a smaller `seq`) will move the consumer offset backward to that `seq`. Consumers should ensure they only ack events in order, or handle offset rollback on reconnect.
+
 ---
 
 ### POST /ack [deprecated]
@@ -127,6 +129,8 @@ Same behavior as `POST /events/{event_id}/ack` but uses query parameters instead
 **Response 200 (newly acked):** `{"event_id": "...", "acked": true, "seq": <int>}` — `seq` is the event's sequence number (None if consumer_id was not provided)
 **Response 200 (already acked):** `{"event_id": "...", "acked": true, "already_acked": true}` — no `seq` field
 **Response 404:** event not found.
+
+**Monotonic offset note**: Offset advancement is NOT monotonically enforced. Acknowledging an older event (with a smaller `seq`) will move the consumer offset backward to that `seq`.
 
 ---
 
