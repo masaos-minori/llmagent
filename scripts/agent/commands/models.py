@@ -58,14 +58,3 @@ class ToolResultView:
     is_error: bool
 
 
-@dataclass(frozen=True)
-class McpInstallRequest:
-    server_name: str
-
-
-@dataclass(frozen=True)
-class McpInstallRenderModel:
-    server_name: str
-    config_path: str
-    handler_path: str
-    next_steps: list[str]
