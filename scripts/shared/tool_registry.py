@@ -14,7 +14,6 @@ Routing priority:
   1. Live discovery map (/v1/tools with server_key) — runtime override, highest priority
   2. Registry (this module) — primary routing layer, populated from frozensets at import time
   3. Config tool_names — validation hint only; not a routing input for tools already in ToolRegistry
-  4. Static fallback (same frozensets as registry, accessed differently)
 
 Drift detection:
   - compare_registry_vs_config(): validates config tool_names against registry
@@ -156,6 +155,7 @@ def _populate_default_registry(registry: ToolRegistry) -> None:
     from shared.tool_constants import (
         CICD_TOOLS,
         DELETE_TOOLS,
+        GITHUB_TOOLS,
         GIT_TOOLS,
         MDQ_TOOLS,
         RAG_TOOLS,
@@ -176,6 +176,7 @@ def _populate_default_registry(registry: ToolRegistry) -> None:
     _register_set(registry, GIT_TOOLS, "git")
     _register_set(registry, SQLITE_TOOLS, "sqlite")
     _register_set(registry, SHELL_TOOLS, "shell")
+    _register_set(registry, GITHUB_TOOLS, "github")
     _register_set(registry, WEB_SEARCH_TOOLS, "web_search")
 
 

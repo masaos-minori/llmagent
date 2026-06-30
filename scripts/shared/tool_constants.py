@@ -105,6 +105,14 @@ SHELL_TOOLS: frozenset[str] = frozenset({"shell_run"})
 # Web search tools (web-search-mcp)
 WEB_SEARCH_TOOLS: frozenset[str] = frozenset({"search_web"})
 
+# GitHub tools (github-mcp, port 8012)
+GITHUB_TOOLS: frozenset[str] = frozenset(
+    {
+        "github_search_repositories",
+        "github_get_file_contents",
+    },
+)
+
 
 def get_all_mcp_tool_names() -> frozenset[str]:
     """Return all known MCP tool names for conflict checking.
@@ -122,5 +130,6 @@ def get_all_mcp_tool_names() -> frozenset[str]:
         | GIT_TOOLS
         | SQLITE_TOOLS
         | SHELL_TOOLS
-        | WEB_SEARCH_TOOLS,
+        | WEB_SEARCH_TOOLS
+        | GITHUB_TOOLS,
     )

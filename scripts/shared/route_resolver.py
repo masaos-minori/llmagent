@@ -6,52 +6,17 @@ Routing priority:
   1. Live-discovered tool metadata from /v1/tools (server_key field) — optional, only when discovery map is built at startup
   2. Tool registry (canonical source of truth from tool_registry.py; populated from tool_constants.py frozensets)
   3. Config tool_names from mcp_servers config — validation hint only, not a routing input for priority 2 tools
-  4. Static fallback constants (compatibility/emergency use only; same frozensets as registry but accessed differently)
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, NamedTuple
-
-from shared.tool_constants import (
-    CICD_TOOLS,
-    DELETE_TOOLS,
-    GIT_TOOLS,
-    MDQ_TOOLS,
-    RAG_TOOLS,
-    READ_TOOLS,
-    SHELL_TOOLS,
-    SQLITE_TOOLS,
-    WEB_SEARCH_TOOLS,
-    WRITE_TOOLS,
-)
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from shared.mcp_config import McpServerConfig
 
 logger = logging.getLogger(__name__)
-
-
-class _SetRoute(NamedTuple):
-    tool_set: frozenset[str]
-    server_key: str
-
-
-_SET_ROUTES: tuple[_SetRoute, ...] = (
-    _SetRoute(READ_TOOLS, "file_read"),
-    _SetRoute(WRITE_TOOLS, "file_write"),
-    _SetRoute(DELETE_TOOLS, "file_delete"),
-    _SetRoute(RAG_TOOLS, "rag_pipeline"),
-    _SetRoute(CICD_TOOLS, "cicd"),
-    _SetRoute(MDQ_TOOLS, "mdq"),
-    _SetRoute(GIT_TOOLS, "git"),
-    _SetRoute(SQLITE_TOOLS, "sqlite"),
-    _SetRoute(SHELL_TOOLS, "shell"),
-    _SetRoute(WEB_SEARCH_TOOLS, "web_search"),
-)
-
-_GITHUB_PREFIX = "github_"
 
 
 def build_discovery_map(
@@ -99,7 +64,6 @@ class ToolRouteResolver:
       1. Discovery map (live /v1/tools metadata with server_key) — only when built at startup
       2. Tool registry (canonical source of truth from tool_registry.py)
       3. Config tool_names (last-resort fallback; not needed if tool is in ToolRegistry)
-      4. Static fallback (SET_ROUTES, github prefix matching; same frozensets as registry)
     Raises ValueError when none of the above match.
     """
 
@@ -146,16 +110,16 @@ class ToolRouteResolver:
         # Priority 3: config map.
         if (key := self._config_map.get(tool_name)) is not None:
             return key
-        # No explicit mapping — use static fallback.
+        # No mapping found — raise ValueError immediately.
         if self._strict_mode:
             self._raise_strict_error(tool_name)
         if self._warn_on_fallback:
             logger.warning(
-                "ToolRouteResolver: tool %r not in config map; using static fallback. "
-                "Add the tool to the appropriate frozenset in shared/tool_constants.py to suppress this warning.",
+                "ToolRouteResolver: tool %r not in config map; add it to the appropriate "
+                "frozenset in shared/tool_constants.py or register it in ToolRegistry.",
                 tool_name,
             )
-        return self._fallback_route(tool_name)
+        raise ValueError(f"Unknown tool: {tool_name!r}")
 
     def _lookup_registry(self, tool_name: str) -> str | None:
         """Look up a tool in the registry; returns server key or None."""
@@ -170,15 +134,6 @@ class ToolRouteResolver:
             f"and strict_mode=True; add it to the appropriate frozenset in shared/tool_constants.py"
         )
 
-    def _fallback_route(self, tool_name: str) -> str:
-        """Static routing preserved from the original ToolExecutor._route()."""
-        if tool_name.startswith(_GITHUB_PREFIX):
-            return "github"
-        for entry in _SET_ROUTES:
-            if tool_name in entry.tool_set:
-                return entry.server_key
-        raise ValueError(f"Unknown tool: {tool_name!r}")
-
     def _log_routing_coverage(self, known_tools: frozenset[str]) -> None:
         """Log routing coverage for all known tools at startup."""
         mapped: list[str] = []
@@ -190,11 +145,8 @@ class ToolRouteResolver:
             if self._lookup_registry(tool_name) is not None:
                 mapped.append(tool_name)
                 continue
-            try:
-                self._fallback_route(tool_name)
-                mapped.append(tool_name)
-            except ValueError:
-                unmapped.append(tool_name)
+            # No mapping found — this tool is unmapped
+            unmapped.append(tool_name)
         total = len(known_tools)
         if unmapped:
             logger.warning(

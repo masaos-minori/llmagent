@@ -655,7 +655,7 @@ When adding a new tool to an **existing** MCP server:
 | 6 | Add `tool_safety_tiers` entry in `config/agent.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
 | 7 | Add tool name to `tool_names` in server config (`config/mcp_servers.toml`) | **[Optional]** — enables startup drift validation only; routing does not require it |
 
-**GitHub prefix exception**: If the tool name follows the `github_` prefix convention and the server key is `github`, no entry in `tool_constants.py` is needed — prefix matching in `_fallback_route()` handles it automatically. This exception applies only to the `github` server key; do not use prefix matching for any other server.
+**Note**: All tools must be explicitly registered via `tool_constants.py` frozensets. No prefix-based routing exists.
 
 ### Verification
 
@@ -678,7 +678,6 @@ When adding a server:
 - [ ] Add `[mcp_servers.<key>]` entry to `config/mcp_servers.toml` (transport, url, cmd, etc.)
 - [ ] Add tool definitions to `config/tools_definitions.toml`
 - [ ] Tools are registered in `shared/tool_constants.py` frozensets (auto-routed at startup); config `tool_names` is optional drift validation only
-- [ ] If tools follow `github_` prefix convention and the server key is `github`, no entry in `tool_constants.py` is needed (prefix matching in `_fallback_route()` handles routing)
 - [ ] Add new files to `deploy/deploy.sh` copy list
 - [ ] Add startup step to `deploy/setup_services.sh`
 - [ ] Add `tool_safety_tiers` entries to `config/agent.toml` for all new tools

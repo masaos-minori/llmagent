@@ -44,18 +44,14 @@ class TestMdqNoUnmappedTools:
     """Verify no MDQ tool is accidentally unmapped across config, registry, and live sources."""
 
     def test_mdq_tools_mapped_to_server_key(self) -> None:
-        from shared.route_resolver import _SET_ROUTES
+        from shared.tool_registry import get_registry
 
+        registry = get_registry()
         for tool_name in MDQ_TOOLS:
-            found = False
-            for entry in _SET_ROUTES:
-                if tool_name in entry.tool_set:
-                    assert entry.server_key == "mdq", (
-                        f"Tool '{tool_name}' is not mapped to 'mdq' server key, got '{entry.server_key}'"
-                    )
-                    found = True
-                    break
-            assert found, f"Tool '{tool_name}' not found in any _SET_ROUTES entry"
+            server_key = registry.get_server_for_tool(tool_name)
+            assert server_key == "mdq", (
+                f"Tool '{tool_name}' is not mapped to 'mdq' server key, got '{server_key}'"
+            )
 
     def test_mdq_tools_in_registry(self) -> None:
         from shared.tool_registry import get_registry

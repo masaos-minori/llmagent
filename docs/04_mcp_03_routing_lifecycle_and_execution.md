@@ -44,7 +44,7 @@ Resolves `tool_name → server_key` in four steps (priority order). At runtime, 
 3. **Config tool_names (last-resort fallback):** `McpServerConfig.tool_names` is a validation hint only.
     Not a routing input for tools already in ToolRegistry (priority 2). Only consulted when discovery map and registry have no match.
 
-4. **Static fallback (lowest priority — compatibility / emergency only):** `_fallback_route()` uses frozensets in `shared/tool_constants.py`:
+4. **Unknown tools fail immediately:** When a tool name is not found in any routing layer, `ValueError` is raised with the message `"Unknown tool: <tool_name>"`. No fallback exists — every tool must be explicitly registered.
 
 | Tool set | Server key |
 |---|---|
@@ -63,7 +63,7 @@ Resolves `tool_name → server_key` in four steps (priority order). At runtime, 
 
 **Note:** `query_sqlite` IS in `tool_constants.py` static table (routed to `sqlite` server key). No explicit `tool_names` config is required.
 
-**Important:** Static fallback exists for backward compatibility and emergency routing when higher layers are unavailable. Do not rely on it as the primary routing mechanism — new tools should always be registered via `ToolRegistry` or live discovery.
+**Important:** Unknown tools fail immediately with a `ValueError`. New tools must always be registered via `ToolRegistry` (via `tool_constants.py` frozensets) or live discovery.
 
 ```python
 resolver = ToolRouteResolver(server_configs)
@@ -81,13 +81,12 @@ The `ToolRouteResolver` resolves tool calls using a four-layer cascade. At runti
 | Live `/v1/tools` discovery | **Priority 1 — override source** | Optional; if present, supersedes registry for any tool found here |
 | `shared/tool_registry.py` | **Priority 2 — primary routing layer** | Read-only at runtime; changes require code edit |
 | Config `tool_names` (in `mcp_servers.toml`) | **Priority 3 — last-resort fallback** | Optional; not needed if tool is in ToolRegistry; only consulted if discovery map and registry have no match |
-| `shared/tool_constants.py` frozensets | **Priority 4 — static fallback** | Used when no higher layer matches a tool name |
 
 **Summary of ownership rules:**
 - To add a tool: add to the appropriate frozenset in `tool_constants.py`. The registry auto-populates at import time.
 - Discovery map takes precedence over the registry — if `/v1/tools` returns a different `server_key` for a tool, the discovery map wins.
 - `tool_names` in config: optional drift-check input. Only consulted as priority 3 when no higher layer matches.
-- Static fallback (priority 4): frozensets in `tool_constants.py` are used only when no higher layer resolves the tool. If a tool is missing from all layers, routing raises a `KeyError`.
+- Unknown tools fail immediately with `ValueError` — no fallback exists.
 
 ---
 
@@ -100,7 +99,6 @@ Single source of truth for MCP tool definitions and ownership.
 | Live `/v1/tools` discovery | **Priority 1** | ルーティングの最上位優先度; レジストリを上書き |
 | `shared/tool_registry.py` | **Priority 2** | ツール→サーバー逆引き; `tool_constants.py` frozensetからimport時に自動構築 |
 | `tool_names` (config) | Priority 3 | ドリフト検出用; ルーティング自体には不要 |
-| `tool_constants.py` frozensets | **Priority 4** | 静的フォールバック; 上位レイヤーでマッチしない場合に使用 |
 
 ### Ownership model
 
@@ -145,9 +143,7 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 | 6 | Add `tool_safety_tiers` entry in `config/agent.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
 | 7 | Add tool name to `tool_names` in `config/mcp_servers.toml` for the owning server | **[Optional]** — enables startup drift validation only; routing does not require it |
 
-**Recommended procedure**: Add to ToolRegistry frozenset (step 1) + expose in `/v1/tools` endpoint (step 4). Config `tool_names` (step 7) is optional for routing. Static fallback (priority 4) is NOT recommended as a primary routing mechanism — use only when discovery and registry are unavailable.
-
-**GitHub prefix exception**: Tools whose names start with `github_` route to the `github` server key via prefix matching in `_fallback_route()`. No entry in `tool_constants.py` is needed for these tools unless they should also appear in `get_all_mcp_tool_names()`.
+**Recommended procedure**: Add to ToolRegistry frozenset (step 1) + expose in `/v1/tools` endpoint (step 4). Config `tool_names` (step 7) is optional for routing. Unknown tools fail immediately — no fallback exists.
 
 ### Verification
 
@@ -488,10 +484,9 @@ tool_names = ["my_tool_a", "my_tool_b"]
 | Live `/v1/tools` discovery | 1 (highest) | Runtime override from MCP server tool list | Yes — supersedes all lower layers |
 | `ToolRegistry` (auto-populated from `tool_constants.py` frozensets at import time) | 2 | Primary routing source; populated by `_populate_default_registry()` | No — only overridden by layer 1 |
 | Config `tool_names` (`mcp_servers.toml`) | 3 | Fallback validation hint for drift detection | No — only used if layers 1+2 miss |
-| Static fallback (`tool_constants.py` frozensets queried directly) | 4 (lowest) | Compatibility / emergency fallback only | No — last resort, raises if no match |
 
 **Key rules:**
-- **New tools must always be registered via `ToolRegistry`** (layer 2). Never rely on static fallback alone.
+- **New tools must always be registered via `ToolRegistry`** (layer 2). Unknown tools fail immediately with `ValueError`.
 - **Live discovery (layer 1) can override routing** — if `/v1/tools` returns a different `server_key`, the discovery map wins.
 - **Config `tool_names` are not routing inputs** — they are validation hints for drift detection only.
 
@@ -499,7 +494,7 @@ tool_names = ["my_tool_a", "my_tool_b"]
 
 | Artifact | Required? | Notes |
 |---|---|---|
-| `shared/tool_constants.py` — add tool to frozenset | **Required** | `_populate_default_registry()` reads frozensets at import; also used as priority-4 static fallback |
+| `shared/tool_constants.py` — add tool to frozenset | **Required** | `_populate_default_registry()` reads frozensets at import |
 | `config/tools_definitions.toml` — add LLM schema | **Required** (if tool visible to LLM) | OpenAI function-calling format; required for the LLM to call the tool |
 | `config/agent.toml` — add `tool_safety_tiers` entry | **Required** | All tools must have a declared safety tier |
 | `config/<server>.toml` — server config file | **Required** | Server must be defined before first use |

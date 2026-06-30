@@ -223,7 +223,7 @@ All constants are `frozenset[str]`. Used by `ToolRouteResolver` for static fallb
 | `SHELL_TOOLS` | `shell_run` |
 | `WEB_SEARCH_TOOLS` | `search_web` |
 
-Used by `ToolRouteResolver._fallback_route()` in `shared/route_resolver.py`.
+Used by `ToolRegistry._populate_default_registry()` in `shared/tool_registry.py`.
 Referenced also by `shared/tool_executor.py` and `agent/tool_runner.py`.
 
 ---
