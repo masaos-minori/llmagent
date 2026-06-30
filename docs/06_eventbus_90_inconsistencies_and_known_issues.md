@@ -26,15 +26,16 @@
 |---|---|---|
 | `deploy/init_db.sh` Event Bus DDL missing `delivery_failure_count`, `dlq_requeue_count` columns and DLQ indexes | DDL must match schema.sql for reproducible initialization | Resolved — consolidated to single create_schema.py call; removed redundant workflow_schema.py call; added session.sqlite table verification |
 
-## Docs-Only Items
-
-These items are documentation improvements that do not require implementation changes.
+## Resolved
 
 ### /health Degraded State Returns HTTP 503
 
 | Item | Safe interpretation |
 |---|---|
 | `/health` returns HTTP 503 for `degraded`/`unhealthy` states, HTTP 200 for `ok` | Monitoring tools MUST use HTTP status code, not JSON body, for alerting |
+
+
+These items are documentation improvements that do not require implementation changes.
 
 ### /replay?format=json Returns Paginated Object
 
