@@ -247,7 +247,7 @@ class MCPServer:
                         "truncated": <bool>, "total_bytes": <int>}
 
         The reserved name "__list_tools__" returns the server's tool list without
-        going through dispatch(), enabling transport-independent tool introspection.
+        going through dispatch(), enabling stdio-only control-plane tool introspection.
 
         The loop exits cleanly on stdin EOF.
         """

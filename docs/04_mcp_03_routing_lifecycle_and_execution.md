@@ -428,7 +428,7 @@ At startup, the agent logs one of:
   2. `start_http_subprocess()` — respawn + poll `/health`
 - Externally-managed servers: logs warning only (no restart capability)
 - Max restarts: `mcp_watchdog_max_restarts` (default 3)
-- `healthcheck_mode="ping_tool"` (stdio): sends `__list_tools__` RPC to verify response
+- `healthcheck_mode="ping_tool"` (stdio): sends `__list_tools__` RPC to verify response (stdio control-plane only, not part of routing)
 
 ### idle_timeout for ondemand servers
 

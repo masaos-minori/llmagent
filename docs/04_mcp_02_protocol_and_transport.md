@@ -120,7 +120,7 @@ All servers support `--stdio` mode.
 {"id": 1, "result": "...", "is_error": false, "truncated": false, "total_bytes": 1234, "actual_visible_bytes": 1234}
 ```
 
-### Reserved RPC: `__list_tools__`
+### Reserved RPC: `__list_tools__` (stdio control-plane only)
 
 ```json
 // Request
@@ -130,6 +130,7 @@ All servers support `--stdio` mode.
 ```
 
 Used by `healthcheck_mode="ping_tool"` to verify the server is alive.
+This RPC is stdio transport only — HTTP tool listing uses `/v1/tools`.
 `__` prefix is reserved — user-defined tools must not use this prefix.
 
 ---
