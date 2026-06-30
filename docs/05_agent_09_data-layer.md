@@ -36,11 +36,7 @@ and the responsibility boundary between the agent layer and the RAG layer.
 |---|---|---|
 | `message_id` | INTEGER PK | Auto-increment |
 | `session_id` | INTEGER FK | → `sessions(session_id)` ON DELETE CASCADE |
-<<<<<<< HEAD
 | `role` | TEXT | `user` / `assistant` / `tool` / `system` — **not** `diagnostic` |
-=======
-| `role` | TEXT | `user` / `assistant` / `tool` / `system` — **not** `diagnostic` |
->>>>>>> b84b008 (implement: add Current behavior / Known discrepancy sections to 6 agent docs + DISC-01 through DISC-05 entries)
 | `content` | TEXT | Message text content |
 | `tool_calls` | TEXT | JSON-serialized tool_calls (assistant role only) |
 | `tool_call_id` | TEXT | Tool call response correlation ID (tool role only) |
