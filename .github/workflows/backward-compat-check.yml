@@ -1,0 +1,37 @@
+name: Backward Compatibility Check
+
+on:
+  push:
+    paths:
+      - "scripts/**/*.py"
+      - "docs/**/*.md"
+      - "tests/**/*.py"
+      - "scripts/checks/check_no_compat.py"
+  pull_request:
+    paths:
+      - "scripts/**/*.py"
+      - "docs/**/*.md"
+      - "tests/**/*.py"
+      - "scripts/checks/check_no_compat.py"
+
+# Cancel in-progress runs for the same workflow + branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Backward Compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Run backward compatibility check
+        run: |
+          set -euo pipefail
+          python scripts/checks/check_no_compat.py
