@@ -67,7 +67,7 @@ Import direction is enforced by `.importlinter`. Violations fail `lint-imports`.
 | `action_result.py` | `ActionResult` frozen dataclass — machine decision schema |
 | `events.py` | `ArtifactEvent` TypedDict — repository artifact notifications |
 | `protocols/shell.py` | `ShellPolicy` dataclass — shell execution policy |
-| `tool_constants.py` | frozenset routing tables: `READ_TOOLS`, `WRITE_TOOLS`, etc. |
+| `tool_constants.py` | frozenset classification tables: `READ_TOOLS`, `WRITE_TOOLS`, etc. (registry seed only, not a routing input) |
 | `route_resolver.py` | `ToolRouteResolver` — tool name → server key |
 | `mcp_config.py` | `McpServerConfig`, `McpServerHealthRegistry` |
 | `tool_executor.py` | `ToolExecutor`, `HttpTransport`, `StdioTransport` |

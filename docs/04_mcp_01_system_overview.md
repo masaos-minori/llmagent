@@ -15,7 +15,7 @@ a set of independent server processes.
 **In scope:**
 - `mcp/` server implementations
 - `shared/tool_executor.py`, `shared/route_resolver.py`, `shared/mcp_config.py`
-- 11 MCP servers, totaling 66 tools (45 tracked in tool_constants.py + 21 github-mcp via prefix routing)
+- 11 MCP servers, totaling 66 tools (all tracked in `tool_constants.py` frozensets; registered via `ToolRegistry`)
 
 **Out of scope:**
 - Agent REPL internal implementation

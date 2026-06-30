@@ -481,7 +481,6 @@ tool_names = ["my_tool_a", "my_tool_b"]
 |---|---|---|---|
 | Live `/v1/tools` discovery | 1 (highest) | Runtime override from MCP server tool list | Yes — supersedes all lower layers |
 | `ToolRegistry` (auto-populated from `tool_constants.py` frozensets at import time) | 2 | Primary routing source; populated by `_populate_default_registry()` | No — only overridden by layer 1 |
-| Config `tool_names` (`mcp_servers.toml`) | 3 | Fallback validation hint for drift detection | No — only used if layers 1+2 miss |
 
 **Key rules:**
 - **New tools must always be registered via `ToolRegistry`** (layer 2). Unknown tools fail immediately with `ValueError`.
