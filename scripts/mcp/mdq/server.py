@@ -41,7 +41,7 @@ from mcp.mdq.models import (
 from mcp.mdq.service import MdqService
 from mcp.mdq.tools import _MCP_TOOLS
 from mcp.models import CallToolRequest, CallToolResponse
-from mcp.server import MCPServer, _FastAPIApp, ToolArgs, attach_auth_middleware
+from mcp.server import MCPServer, ToolArgs, _FastAPIApp, attach_auth_middleware
 
 logger = Logger(__name__, "/opt/llm/logs/mdq-mcp.log")
 
@@ -89,7 +89,7 @@ def _degraded_response(
     )
 
 
-def _check_stale_documents(conn: Any) -> int | None:
+def _check_stale_documents(conn: Any, mdq_cfg: dict[str, Any]) -> int | None:
     try:
         from pathlib import Path as _Path
 
@@ -364,7 +364,7 @@ async def health() -> JSONResponse:
             details["fts_row_count"] = fts_count
             details["last_indexed"] = last_indexed
 
-            stale_count = _check_stale_documents(conn)
+            stale_count = _check_stale_documents(conn, mdq_cfg)
             details["stale_document_count"] = stale_count
 
         finally:

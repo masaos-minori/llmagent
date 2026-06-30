@@ -2,7 +2,9 @@
 
 status = "production"
 
-# Allowed directories for file access (fail-closed: empty = deny all)
+# Directories that mdq-mcp is allowed to read from.
+# Default: [] (deny-all — no paths are allowed until explicitly configured).
+# Production example: allowed_dirs = ["/opt/llm/docs"]
 allowed_dirs = []
 
 # Database path

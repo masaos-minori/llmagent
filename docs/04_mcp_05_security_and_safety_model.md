@@ -20,6 +20,7 @@ fail-open vs fail-closed policies, sandbox, output limits, risk tiers, and AI sa
 | shell-mcp | `command_allowlist` + `shell_cwd_allowed_dirs` | deny all (both empty by default) |
 | cicd-mcp | `repo_allowlist` + `workflow_allowlist` | both: fail-closed |
 | git-mcp | `allowed_repo_paths` + `read_only` | fail-closed (empty paths = deny all); read_only=true |
+| mdq-mcp | `allowed_dirs` | fail-closed (`[]` default = deny all); raises `MdqAuthorizationError` |
 
 ---
 
@@ -239,7 +240,8 @@ Verify: `firejail --version`
 
 | Control | Policy | Behavior when empty/unconfigured |
 |---|---|---|
-| `allowed_dirs` | Fail-closed | All access denied |
+| `allowed_dirs` (file-read/write/delete-mcp) | Fail-closed | All access denied |
+| `allowed_dirs` (mdq-mcp) | Fail-closed | All path-accepting tools denied (`MdqAuthorizationError`) |
 | `allowed_repos` (github-mcp, fail_closed mode) | Fail-closed | All writes denied |
 | `allowed_repos` (github-mcp, fail_open mode) | Fail-open | All repos allowed |
 | `allowed_repo_paths` (git-mcp) | Fail-closed | All access denied |

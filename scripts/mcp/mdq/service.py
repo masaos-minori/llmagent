@@ -568,7 +568,9 @@ class MdqService:
                 logger.warning("Path does not exist: %s", path_str)
                 continue
             if not authorize_path(p, self.allowed_dirs):
-                logger.warning("Path denied: %s (outside allowed dirs)", path_str)
+                raise MdqAuthorizationError(
+                    f"Access denied: {path_str} is outside allowed directories"
+                )
 
     def _format_refresh_summary(self, summary: Any) -> list[str]:
         return [

@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from mcp.mdq.auth import authorize_path
 from mcp.mdq.models import (
     IndexPathsRequest,
+    MdqAuthorizationError,
     ParsedSection,
     ParseMarkdownRequest,
     RefreshIndexRequest,
@@ -118,8 +119,9 @@ async def index_paths(service: MdqService, req: IndexPathsRequest) -> str:
             logger.warning("Path does not exist: %s", path_str)
             continue
         if not authorize_path(p, service.allowed_dirs):
-            logger.warning("Path denied: %s (outside allowed dirs)", path_str)
-            continue
+            raise MdqAuthorizationError(
+                f"Access denied: {path_str} is outside allowed directories"
+            )
         if p.is_file() and p.suffix == ".md":
             await _index_single_file(service, p)
         elif p.is_dir():
@@ -170,8 +172,9 @@ async def refresh_paths(service: MdqService, req: RefreshIndexRequest) -> dict:
                 logger.warning("Path does not exist: %s", path_str)
                 continue
             if not authorize_path(p, service.allowed_dirs):
-                logger.warning("Path denied: %s (outside allowed dirs)", path_str)
-                continue
+                raise MdqAuthorizationError(
+                    f"Access denied: {path_str} is outside allowed directories"
+                )
 
             # Force mode: always re-index
             if req.force:
