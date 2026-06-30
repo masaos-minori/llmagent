@@ -51,7 +51,7 @@ The startup guard validates the bind address at config load time:
 | Private IP | `192.168.x.x`, `10.x.x.x`, `172.16.x.x–172.31.x.x` | Yes |
 | Wildcard IPv4 | `0.0.0.0` | No — raises `ValueError` |
 | Wildcard IPv6 | `::` | No — raises `ValueError` |
-| Hostname (non-IP) | Any hostname (e.g., `example.com`) | No — treated as public |
+| Hostname (non-IP) | Any hostname (e.g., `example.com`) | No — treated as public; `ipaddress.ip_address()` raises ValueError for non-IP strings, which is caught and treated as public |
 
 #### Public bind override
 

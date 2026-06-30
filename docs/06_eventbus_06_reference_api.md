@@ -49,6 +49,12 @@ class EventBusConfig:
 | `get_schema_path` | `() -> str` | Returns `EVENTBUS_SCHEMA_PATH` env var or default |
 | `load_config` | `(path: Path \| str \| None) -> EventBusConfig` | Load TOML config; uses `get_config_path()` if path is None |
 
+#### Internal function
+
+| Function | Signature | Description |
+|---|---|---|
+| `_is_public_host` | `(host: str) -> bool` | Returns True if host is a wildcard (`0.0.0.0`, `::`) or cannot be parsed as an IP address (hostname); raises no exception |
+
 ---
 
 ## scripts/eventbus/db.py
