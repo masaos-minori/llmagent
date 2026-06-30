@@ -142,6 +142,102 @@ class TestParseMarkdown:
                 )
             )
 
+    def test_code_fence_hash_not_treated_as_heading(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """# inside a code fence must not create a new section."""
+        f = tmp_path / "fence.md"
+        f.write_text(
+            "# Title\n\n```text\n# Not a heading\n```\n\nBody.", encoding="utf-8"
+        )
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        headings = [s["heading"] for s in sections]
+        assert "Title" in headings
+        assert "Not a heading" not in headings
+        assert len([s for s in sections if s["heading"] == "Title"]) == 1
+
+    def test_frontmatter_stripped(self, service: MdqService, tmp_path: Path) -> None:
+        """YAML frontmatter is skipped; first ATX heading becomes first section."""
+        f = tmp_path / "frontmatter.md"
+        f.write_text("---\ntitle: Test\n---\n\n# Title\n\nBody.", encoding="utf-8")
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        headings = [s["heading"] for s in sections]
+        assert "---" not in headings
+        assert "Title" in headings
+
+    def test_repeated_headings_have_distinct_ordinals(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Two ## API headings produce ordinal=1 and ordinal=2."""
+        f = tmp_path / "repeated.md"
+        f.write_text(
+            "# Title\n\n## API\n\nFirst body.\n\n## API\n\nSecond body.",
+            encoding="utf-8",
+        )
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        api_sections = [s for s in sections if s["heading"] == "API"]
+        assert len(api_sections) == 2
+        ordinals = sorted(s["ordinal"] for s in api_sections)
+        assert ordinals == [1, 2], f"Expected [1, 2], got {ordinals}"
+
+    def test_nested_heading_path(self, service: MdqService, tmp_path: Path) -> None:
+        """### C under # A / ## B produces heading_path='A > B'."""
+        f = tmp_path / "nested.md"
+        f.write_text("# A\n\n## B\n\n### C\n\nBody.", encoding="utf-8")
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        c_section = next(s for s in sections if s["heading"] == "C")
+        assert c_section["heading_path"] == "A > B"
+        assert c_section["parent_heading"] == "B"
+
+    def test_malformed_heading_treated_as_content(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """#NoSpace (no space after #) is treated as plain content."""
+        f = tmp_path / "malformed.md"
+        f.write_text("# Title\n\n#NoSpace\n\nBody.", encoding="utf-8")
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        headings = [s["heading"] for s in sections]
+        assert "NoSpace" not in headings
+        assert "Title" in headings
+
+    def test_heading_level_returned_correctly(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Verify heading_level field equals the ATX # count."""
+        f = tmp_path / "levels.md"
+        f.write_text("# A\n\n## B\n\n### C\n\nBody.", encoding="utf-8")
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        levels = {s["heading"]: s["heading_level"] for s in sections}
+        assert levels["A"] == 1
+        assert levels["B"] == 2
+        assert levels["C"] == 3
+
+    def test_heading_with_no_content_body_omitted(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Heading immediately followed by next heading (no content) is omitted."""
+        f = tmp_path / "empty.md"
+        # No blank line between ## Empty and ## Has Content — no content lines
+        f.write_text("# Title\n\n## Empty\n## Has Content\n\nBody.", encoding="utf-8")
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        headings = [s["heading"] for s in sections]
+        assert "Empty" not in headings
+        assert "Has Content" in headings
+
 
 # ── indexer ───────────────────────────────────────────────────────────────────
 

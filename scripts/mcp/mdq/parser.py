@@ -64,6 +64,7 @@ async def parse_markdown(
     fence_char = ""
     current_section: dict | None = None
     heading_stack: list[tuple[int, str]] = []  # (level, heading_text)
+    ordinal_counter: dict[tuple[int, str], int] = {}  # (level, parent_path) -> count
 
     i = 0
     while i < len(lines):
@@ -139,6 +140,10 @@ async def parse_markdown(
 
         parent_heading = heading_stack[-1][1] if heading_stack else None
 
+        # Ordinal: rank among same-level headings under the same parent path
+        ordinal_key = (heading_level_val, heading_path if heading_path else "<root>")
+        ordinal_counter[ordinal_key] = ordinal_counter.get(ordinal_key, 0) + 1
+
         current_section = {
             "heading": heading_text_val,
             "heading_level": heading_level_val,
@@ -146,6 +151,7 @@ async def parse_markdown(
             "content_lines": [],
             "start_line": i + 1,
             "parent_heading": parent_heading,
+            "ordinal": ordinal_counter[ordinal_key],
         }
 
         # Update heading stack with this heading
