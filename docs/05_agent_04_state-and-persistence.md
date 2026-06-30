@@ -127,7 +127,7 @@ On fallback, an audit log entry is emitted: `session_title_fallback session_id=<
 - Kinds written: `"mid_turn_error"` (LLM transport errors from `ErrorInjectionService`, `LLMTurnRunner`, `Orchestrator`), `"guard_hint"` (cycle/dedup/retry events from `ToolLoopGuard`)
 - Guard hints and mid-turn errors are stored only in diagnostics — they do NOT appear in `ctx.conv.history`
 - A lightweight session summary is also written to `<session_db_dir>/diagnostics.jsonl` by `repl.py` (may be deprecated in future)
-- `fetch_messages()` no longer filters out `diagnostic` role — diagnostic data is in its own table
+- Diagnostic data is stored in the `session_diagnostics` table via `DiagnosticStore`; it is never present in `messages` and therefore never returned by `fetch_messages()`
 
 ---
 

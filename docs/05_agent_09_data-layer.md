@@ -36,15 +36,13 @@ and the responsibility boundary between the agent layer and the RAG layer.
 |---|---|---|
 | `message_id` | INTEGER PK | Auto-increment |
 | `session_id` | INTEGER FK | → `sessions(session_id)` ON DELETE CASCADE |
-| `role` | TEXT | `user` / `assistant` / `tool` / `system` / `diagnostic` |
+| `role` | TEXT | `user` / `assistant` / `tool` / `system` |
 | `content` | TEXT | Message text content |
 | `tool_calls` | TEXT | JSON-serialized tool_calls (assistant role only) |
 | `tool_call_id` | TEXT | Tool call response correlation ID (tool role only) |
 | `created_at` | TEXT | Row creation timestamp |
 
-`diagnostic` role messages are written by `AgentSession.save_diagnostic()` to persist
-incomplete LLM output without polluting conversation history. They are excluded from
-`fetch_messages()` results and therefore never restored to `ctx.conv.history`.
+Diagnostic data is written by `AgentSession.save_diagnostic()` to the `session_diagnostics` table via `DiagnosticStore`, NOT to the `messages` table. The `messages` table never holds diagnostic rows.
 
 ### `notes` table
 
@@ -57,6 +55,20 @@ incomplete LLM output without polluting conversation history. They are excluded 
 Notes are session-independent (persist across sessions).
 When `auto_inject_notes=True`, all notes are appended to the system prompt at startup.
 
+### `session_diagnostics` table
+
+Stores diagnostic events (LLM transport errors, guard hints, partial completions). Separate from the `messages` table — never queried by `fetch_messages()`.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | INTEGER PK | Auto-increment |
+| `session_id` | INTEGER | Associated session (may be NULL for pre-session events) |
+| `kind` | TEXT | Event type (`llm_transport_error`, `guard_hint`, etc.) |
+| `content` | TEXT | Diagnostic payload |
+| `workflow_id` | TEXT | Optional workflow ID |
+| `task_id` | TEXT | Optional task ID |
+| `created_at` | TEXT | Row creation timestamp |
+
 ### SessionMessageRepository vs SQLiteSessionStore 責務境界
 
 | コンポーネント | 役割 | 検証 | 永続化 |
@@ -65,7 +77,7 @@ When `auto_inject_notes=True`, all notes are appended to the system prompt at st
 | `SQLiteSessionStore` | DBアダプタ層 | スキーマアラインメントのみ | シンプルなDB操作 (INSERT/LIST) |
 
 `SessionMessageRepository` が所有:
-- role のバリデーション (`user` / `assistant` / `tool` / `system` / `diagnostic`)
+- role のバリデーション (`user` / `assistant` / `tool` / `system`)
 - strict_mode 動作 (スキップ時に `RuntimeError` を発生)
 - セッションなしの保存回避 (skip counter)
 - `content=None` の正規化

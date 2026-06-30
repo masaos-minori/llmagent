@@ -120,11 +120,11 @@ Action:
 Condition: `LLMTransportError` with non-empty `partial_text`.
 
 Action:
-- **Diagnostic channel only**: persist `[INCOMPLETE: {kind}]` prefixed message via `ctx.session.save_diagnostic()` — role `"diagnostic"`, NOT added to `ctx.conv.history`
+- **Diagnostic channel only**: persist `[INCOMPLETE: {kind}]` prefixed message via `ctx.session.save_diagnostic()` — NOT added to `ctx.conv.history` (stored in `session_diagnostics` table via `DiagnosticStore`)
 - Save failure detail to `ctx.tool_result_store` (accessible via `/tool show llm_partial_completion`)
 - `stat_partial_completions += 1`
 
-Incomplete outputs are isolated from normal conversation history so they do not pollute future LLM context. The partial content remains accessible through `/tool show` and DB queries on the `messages` table (role = `"diagnostic"`).
+Incomplete outputs are isolated from normal conversation history so they do not pollute future LLM context. The partial content remains accessible through `/tool show` and DB queries on the `session_diagnostics` table.
 
 After each turn, `AgentREPL._dispatch_line()` compares `stat_partial_completions` before and after `handle_turn()`. If it increased, a user-visible warning is printed:
 

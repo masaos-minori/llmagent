@@ -62,7 +62,7 @@ class AgentSession:
         self._message_repo.replace_messages(self.session_id, messages)
 
     def save_diagnostic(self, content: str) -> None:
-        """Persist a diagnostic-only message; not included in normal history retrieval."""
+        """Persist a diagnostic event to the session_diagnostics table via DiagnosticStore; never written to messages."""
         self._diagnostic_store.save(
             self.session_id, kind="llm_transport_error", content=content
         )

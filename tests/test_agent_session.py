@@ -546,3 +546,38 @@ class TestAgentSessionRagBoundary:
         assert not rag_imports, (
             f"AgentSession must not import from rag.*; found: {rag_imports}"
         )
+
+
+class TestSaveDiagnosticIsolation:
+    """Tests verifying that save_diagnostic() writes to DiagnosticStore, not messages."""
+
+    def test_save_diagnostic_does_not_write_to_messages(
+        self, session: AgentSession
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        session.start()
+        diag_mock = MagicMock()
+        session._diagnostic_store = diag_mock
+        session.save_diagnostic("test diagnostic content")
+        diag_mock.save.assert_called_once()
+        # Verify messages table is not touched
+        msgs = session.fetch_messages(session.session_id)
+        assert msgs == []
+
+    def test_save_diagnostic_calls_diagnostic_store_with_kind(
+        self, session: AgentSession
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        session.start()
+        diag_mock = MagicMock()
+        session._diagnostic_store = diag_mock
+        session.save_diagnostic("error detail")
+        call_kwargs = diag_mock.save.call_args
+        assert call_kwargs is not None
+        # kind should be "llm_transport_error"
+        args, kwargs = call_kwargs
+        assert (
+            "llm_transport_error" in args or kwargs.get("kind") == "llm_transport_error"
+        )
