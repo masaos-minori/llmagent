@@ -38,6 +38,18 @@ def _migrate_rag_schema(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE chunks ADD COLUMN source_file TEXT")
 
 
+def _migrate_add_undone_column(conn: sqlite3.Connection) -> None:
+    """Add undone column to tool_results if not already present."""
+    existing = {
+        row[1] for row in conn.execute("PRAGMA table_info(tool_results)").fetchall()
+    }
+    if "undone" not in existing:
+        conn.execute(
+            "ALTER TABLE tool_results ADD COLUMN undone INTEGER NOT NULL DEFAULT 0"
+        )
+        conn.commit()
+
+
 def _migrate_session_schema(conn: sqlite3.Connection) -> None:
     """Add FK constraint to tool_results.session_id if not already present."""
     fk_info = conn.execute("PRAGMA foreign_key_list(tool_results)").fetchall()
@@ -91,6 +103,7 @@ def create_session_schema() -> None:
             logger.error("Failed to execute session schema DDL: %s", e)
             raise
         _migrate_session_schema(db.conn)  # type: ignore[arg-type]  # conn is set by open()
+        _migrate_add_undone_column(db.conn)  # type: ignore[arg-type]
     logger.info("Session schema created successfully.")
 
 

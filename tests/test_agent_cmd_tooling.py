@@ -27,6 +27,7 @@ def _make_entry(
     full_text: str = "output",
     summary: str | None = None,
     is_error: bool = False,
+    undone: bool = False,
 ) -> ToolResultRow:
     return ToolResultRow(
         id=id,
@@ -35,6 +36,7 @@ def _make_entry(
         full_text=full_text,
         summary=summary,
         is_error=is_error,
+        undone=undone,
     )
 
 
@@ -139,3 +141,43 @@ class TestCmdToolDispatch:
         cmd = _make_cmd()
         cmd._cmd_tool("badcmd")
         assert "Usage" in capsys.readouterr().out
+
+
+# ── undone display ────────────────────────────────────────────────────────────
+
+
+class TestUndoneDisplay:
+    def test_tool_list_shows_undone_annotation(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        entry = _make_entry(id=3, tool_name="bash", undone=True)
+        cmd = _make_cmd(entries=[entry])
+        cmd._tool_list()
+        assert "[undone]" in capsys.readouterr().out
+
+    def test_tool_list_no_annotation_for_active(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        entry = _make_entry(id=4, tool_name="bash", undone=False)
+        cmd = _make_cmd(entries=[entry])
+        cmd._tool_list()
+        assert "[undone]" not in capsys.readouterr().out
+
+    def test_tool_show_shows_undone_warning(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        entry = _make_entry(id=1, tool_name="bash", full_text="result", undone=True)
+        cmd = _make_cmd(get_return=entry)
+        cmd._tool_show("1")
+        out = capsys.readouterr().out
+        assert "undone" in out.lower()
+        assert "artifact retained" in out
+
+    def test_tool_show_no_warning_for_active(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        entry = _make_entry(id=1, tool_name="bash", full_text="result", undone=False)
+        cmd = _make_cmd(get_return=entry)
+        cmd._tool_show("1")
+        out = capsys.readouterr().out
+        assert "undone turn" not in out

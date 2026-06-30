@@ -9,7 +9,12 @@ from pathlib import Path
 from tempfile import mkstemp
 
 import pytest
-from mcp.mdq.indexer import _index_directory, _index_single_file, index_paths
+from mcp.mdq.indexer import (
+    _index_directory,
+    _index_single_file,
+    generate_chunk_id,
+    index_paths,
+)
 from mcp.mdq.models import (
     GetChunkRequest,
     GrepDocsRequest,
@@ -141,6 +146,102 @@ class TestParseMarkdown:
                     service, ParseMarkdownRequest(path=str(tmp_path / "not_exist.md"))
                 )
             )
+
+    def test_code_fence_hash_not_treated_as_heading(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """# inside a code fence must not create a new section."""
+        f = tmp_path / "fence.md"
+        f.write_text(
+            "# Title\n\n```text\n# Not a heading\n```\n\nBody.", encoding="utf-8"
+        )
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        headings = [s["heading"] for s in sections]
+        assert "Title" in headings
+        assert "Not a heading" not in headings
+        assert len([s for s in sections if s["heading"] == "Title"]) == 1
+
+    def test_frontmatter_stripped(self, service: MdqService, tmp_path: Path) -> None:
+        """YAML frontmatter is skipped; first ATX heading becomes first section."""
+        f = tmp_path / "frontmatter.md"
+        f.write_text("---\ntitle: Test\n---\n\n# Title\n\nBody.", encoding="utf-8")
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        headings = [s["heading"] for s in sections]
+        assert "---" not in headings
+        assert "Title" in headings
+
+    def test_repeated_headings_have_distinct_ordinals(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Two ## API headings produce ordinal=1 and ordinal=2."""
+        f = tmp_path / "repeated.md"
+        f.write_text(
+            "# Title\n\n## API\n\nFirst body.\n\n## API\n\nSecond body.",
+            encoding="utf-8",
+        )
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        api_sections = [s for s in sections if s["heading"] == "API"]
+        assert len(api_sections) == 2
+        ordinals = sorted(s["ordinal"] for s in api_sections)
+        assert ordinals == [1, 2], f"Expected [1, 2], got {ordinals}"
+
+    def test_nested_heading_path(self, service: MdqService, tmp_path: Path) -> None:
+        """### C under # A / ## B produces heading_path='A > B'."""
+        f = tmp_path / "nested.md"
+        f.write_text("# A\n\n## B\n\n### C\n\nBody.", encoding="utf-8")
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        c_section = next(s for s in sections if s["heading"] == "C")
+        assert c_section["heading_path"] == "A > B"
+        assert c_section["parent_heading"] == "B"
+
+    def test_malformed_heading_treated_as_content(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """#NoSpace (no space after #) is treated as plain content."""
+        f = tmp_path / "malformed.md"
+        f.write_text("# Title\n\n#NoSpace\n\nBody.", encoding="utf-8")
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        headings = [s["heading"] for s in sections]
+        assert "NoSpace" not in headings
+        assert "Title" in headings
+
+    def test_heading_level_returned_correctly(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Verify heading_level field equals the ATX # count."""
+        f = tmp_path / "levels.md"
+        f.write_text("# A\n\n## B\n\n### C\n\nBody.", encoding="utf-8")
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        levels = {s["heading"]: s["heading_level"] for s in sections}
+        assert levels["A"] == 1
+        assert levels["B"] == 2
+        assert levels["C"] == 3
+
+    def test_heading_with_no_content_body_omitted(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Heading immediately followed by next heading (no content) is omitted."""
+        f = tmp_path / "empty.md"
+        # No blank line between ## Empty and ## Has Content — no content lines
+        f.write_text("# Title\n\n## Empty\n## Has Content\n\nBody.", encoding="utf-8")
+        sections = asyncio.run(
+            parse_markdown(service, ParseMarkdownRequest(path=str(f)))
+        )
+        headings = [s["heading"] for s in sections]
+        assert "Empty" not in headings
+        assert "Has Content" in headings
 
 
 # ── indexer ───────────────────────────────────────────────────────────────────
@@ -291,6 +392,21 @@ class TestMdqService:
         assert "Documents:" in result
         assert "Chunks:" in result
 
+    def test_stats_includes_fts_count(self, service: MdqService, md_dir: Path) -> None:
+        """stats() includes FTS row count after indexing."""
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_dir)])))
+        result = asyncio.run(service.stats(StatsRequest()))
+        assert "FTS rows:" in result
+
+    def test_stats_includes_stale_count(
+        self, service: MdqService, md_dir: Path
+    ) -> None:
+        """stats() includes stale document count (0 immediately after indexing)."""
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_dir)])))
+        result = asyncio.run(service.stats(StatsRequest()))
+        assert "Stale:" in result
+        assert "Stale: 0," in result
+
     def test_grep_docs_returns_matches_after_indexing(
         self, service: MdqService, md_file: Path
     ) -> None:
@@ -326,3 +442,187 @@ class TestMdqService:
             import os  # noqa: PLC0415
 
             os.close(fd)
+
+
+# ── chunk ID stability ────────────────────────────────────────────────────────
+
+
+class TestChunkIdStability:
+    def test_generate_chunk_id_deterministic(self) -> None:
+        """Same inputs always produce same ID."""
+        a = generate_chunk_id("/docs/file.md", "A > B", 1, "abc123")
+        b = generate_chunk_id("/docs/file.md", "A > B", 1, "abc123")
+        assert a == b
+
+    def test_generate_chunk_id_differs_on_content(self) -> None:
+        """Different content_hash produces different ID."""
+        a = generate_chunk_id("/docs/file.md", "A", 1, "hash1")
+        b = generate_chunk_id("/docs/file.md", "A", 1, "hash2")
+        assert a != b
+
+    def test_generate_chunk_id_differs_on_path(self) -> None:
+        """Different path produces different ID even with same heading/content."""
+        a = generate_chunk_id("/docs/a.md", "A", 1, "hash1")
+        b = generate_chunk_id("/docs/b.md", "A", 1, "hash1")
+        assert a != b
+
+    def test_chunk_id_stable_across_reindex(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        """Index same file twice; chunk IDs are identical."""
+        import sqlite3  # noqa: PLC0415
+
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        ids_first = {r["chunk_id"] for r in conn.execute("SELECT chunk_id FROM chunks")}
+        conn.close()
+
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        ids_second = {
+            r["chunk_id"] for r in conn.execute("SELECT chunk_id FROM chunks")
+        }
+        conn.close()
+
+        assert ids_first == ids_second
+
+    def test_chunk_id_changes_on_content_edit(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Editing content and re-indexing changes the chunk ID."""
+        import sqlite3  # noqa: PLC0415
+
+        f = tmp_path / "edit.md"
+        f.write_text("# Title\n\nOriginal content.", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        ids_before = {
+            r["chunk_id"] for r in conn.execute("SELECT chunk_id FROM chunks")
+        }
+        conn.close()
+
+        f.write_text("# Title\n\nEdited content.", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        ids_after = {r["chunk_id"] for r in conn.execute("SELECT chunk_id FROM chunks")}
+        conn.close()
+
+        assert ids_before != ids_after
+
+    def test_search_chunk_id_passthrough(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        """chunk_id from search result can be passed to get_chunk without error."""
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
+        search_result = asyncio.run(
+            search_docs(service, SearchDocsRequest(query="Content"))
+        )
+        assert "Title" in search_result
+
+        import sqlite3  # noqa: PLC0415
+
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT chunk_id FROM chunks LIMIT 1").fetchone()
+        conn.close()
+        assert row is not None
+
+        result = asyncio.run(
+            service.get_chunk(GetChunkRequest(chunk_id=row["chunk_id"]))
+        )
+        assert "Title" in result or "Content" in result
+
+
+# ── truncation ────────────────────────────────────────────────────────────────
+
+
+class TestTruncation:
+    def test_search_docs_truncates_by_results_limit(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """search_docs respects max_results_limit and includes truncation marker."""
+        for i in range(5):
+            f = tmp_path / f"doc{i}.md"
+            f.write_text(f"# Section {i}\n\nKeyword content here.", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
+        service.max_results_limit = 2
+        result = asyncio.run(search_docs(service, SearchDocsRequest(query="Keyword")))
+        assert "Truncated" in result
+        assert "results found" in result
+
+    def test_search_docs_truncates_by_char_limit(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """search_docs respects max_total_result_chars and includes truncation marker."""
+        for i in range(3):
+            f = tmp_path / f"doc{i}.md"
+            f.write_text(f"# Section {i}\n\nKeyword content here.", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
+        service.max_total_result_chars = 50
+        result = asyncio.run(search_docs(service, SearchDocsRequest(query="Keyword")))
+        assert "Truncated" in result
+        assert "chars" in result
+
+    def test_get_chunk_truncates_large_content(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """get_chunk truncates content exceeding max_chars_per_chunk."""
+        import sqlite3  # noqa: PLC0415
+
+        f = tmp_path / "big.md"
+        f.write_text("# Big\n\n" + "X" * 2000, encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+        service.max_chars_per_chunk = 100
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT chunk_id FROM chunks LIMIT 1").fetchone()
+        conn.close()
+        result = asyncio.run(
+            service.get_chunk(GetChunkRequest(chunk_id=row["chunk_id"]))
+        )
+        assert "Truncated" in result
+        assert "chars" in result
+
+    def test_outline_truncates_large_heading_list(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """outline truncates when heading count exceeds max_outline_items."""
+        headings = "\n\n".join(f"## H{i}\n\nBody." for i in range(10))
+        f = tmp_path / "many.md"
+        f.write_text(f"# Root\n\n{headings}", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+        service.max_outline_items = 3
+        result = asyncio.run(service.outline(OutlineRequest(path=str(f))))
+        assert "Truncated" in result
+        assert "headings found" in result
+
+    def test_grep_docs_truncates_at_match_cap(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """grep_docs truncates when match cap is reached."""
+        for i in range(5):
+            f = tmp_path / f"g{i}.md"
+            f.write_text(f"# G{i}\n\nfind_me content.", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
+        service.max_grep_matches = 2
+        result = asyncio.run(service.grep_docs(GrepDocsRequest(pattern="find_me")))
+        assert "Truncated" in result
+        assert "cap of 2 matches reached" in result
+
+    def test_request_override_bounded_by_config_cap(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Per-request max_outline_items cannot exceed config max_outline_items."""
+        headings = "\n\n".join(f"## H{i}\n\nBody." for i in range(10))
+        f = tmp_path / "bound.md"
+        f.write_text(f"# Root\n\n{headings}", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+        service.max_outline_items = 3
+        result = asyncio.run(
+            service.outline(OutlineRequest(path=str(f), max_outline_items=100))
+        )
+        assert "Truncated" in result

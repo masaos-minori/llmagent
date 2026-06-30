@@ -45,8 +45,8 @@ class ToolResultStore:
             cur = db.execute(
                 "INSERT INTO tool_results"
                 " (session_id, turn, tool_name, args_masked,"
-                "  full_text, summary, is_error)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "  full_text, summary, is_error, undone)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     session_id,
                     turn,
@@ -55,6 +55,7 @@ class ToolResultStore:
                     full_text,
                     summary,
                     int(is_error),
+                    0,
                 ),
             )
             row_id = cur.lastrowid
@@ -71,7 +72,7 @@ class ToolResultStore:
         with self._make_helper(row_factory=True) as db:
             rows = db.fetchall(
                 "SELECT id, session_id, turn, tool_name, args_masked,"
-                " full_text, summary, is_error, created_at"
+                " full_text, summary, is_error, undone, created_at"
                 " FROM tool_results WHERE id = ?",
                 (result_id,),
             )
@@ -87,8 +88,24 @@ class ToolResultStore:
             full_text=r["full_text"] or "",
             summary=r["summary"],
             is_error=bool(r["is_error"]),
+            undone=bool(r["undone"]),
             created_at=r["created_at"] or "",
         )
+
+    def mark_turn_undone(self, session_id: int | None, turn: int) -> int:
+        """Mark all tool_results for a given session+turn as undone.
+
+        Returns the count of rows marked. No-op when session_id is None or turn <= 0.
+        """
+        if session_id is None or turn <= 0:
+            return 0
+        with self._make_helper(write_mode=True) as db:
+            cur = db.execute(
+                "UPDATE tool_results SET undone = 1 WHERE session_id = ? AND turn = ?",
+                (session_id, turn),
+            )
+            db.commit()
+            return cur.rowcount or 0
 
     def list_recent(self, session_id: int | None, n: int = 20) -> list[ToolResultRow]:
         """Return the n most recent tool results for session_id oldest first.
@@ -102,7 +119,7 @@ class ToolResultStore:
             return []
         with self._make_helper(row_factory=True) as db:
             rows = db.fetchall(
-                "SELECT id, tool_name, summary, is_error"
+                "SELECT id, tool_name, summary, is_error, undone"
                 " FROM tool_results"
                 " WHERE session_id = ?"
                 " ORDER BY id DESC LIMIT ?",
@@ -114,6 +131,7 @@ class ToolResultStore:
                 tool_name=r["tool_name"],
                 summary=r["summary"],
                 is_error=bool(r["is_error"]),
+                undone=bool(r["undone"]),
             )
             for r in reversed(rows)
         ]

@@ -110,7 +110,7 @@ class GetChunkRequest(BaseModel):
 class OutlineRequest(BaseModel):
     path: str
     max_depth: int | None = 6
-    max_items: int | None = 500
+    max_outline_items: int | None = 500
 
 
 class IndexPathsRequest(BaseModel):

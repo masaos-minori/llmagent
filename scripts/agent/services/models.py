@@ -49,6 +49,7 @@ class SessionRestoreResult:
 @dataclass(frozen=True)
 class UndoResult:
     n_removed: int
+    n_artifacts_marked: int = 0
 
 
 @dataclass(frozen=True)

@@ -68,8 +68,9 @@ class _ToolingMixin(MixinBase):
             view = _to_tool_result_view(entry)
             flag = "yes" if view.summary else "no"
             summary_len = len(view.summary or "")
+            undone_marker = " [undone]" if entry.undone else ""
             self._out.write(
-                f"{view.result_id:>6}  {view.tool_name:<22}  {summary_len:>7}  {flag}"
+                f"{view.result_id:>6}  {view.tool_name:<22}  {summary_len:>7}  {flag}{undone_marker}"
             )
 
     def _tool_show(self, arg: str) -> None:
@@ -85,6 +86,8 @@ class _ToolingMixin(MixinBase):
         if raw is None:
             self._out.write(f"Result id={arg} not found.")
             return
+        if raw.undone:
+            self._out.write("[undone turn — artifact retained for audit]")
         view = _to_tool_result_view(raw)
         flag = " [summarized]" if view.summary else ""
         self._out.write(f"Tool: {view.tool_name}{flag}")

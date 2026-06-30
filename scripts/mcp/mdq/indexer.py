@@ -8,12 +8,14 @@ from __future__ import annotations
 import hashlib
 import logging
 import sqlite3
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mcp.mdq.auth import authorize_path
 from mcp.mdq.models import (
     IndexPathsRequest,
+    MdqAuthorizationError,
     ParsedSection,
     ParseMarkdownRequest,
     RefreshIndexRequest,
@@ -24,6 +26,20 @@ if TYPE_CHECKING:
     from mcp.mdq.service import MdqService
 
 logger = logging.getLogger(__name__)
+
+
+def generate_chunk_id(
+    normalized_path: str, heading_path: str, ordinal: int, content_hash: str
+) -> str:
+    """Generate a stable chunk ID from normalized path, heading path, ordinal, and content hash.
+
+    Stable across re-indexing of unchanged content. Uses | as delimiter to reduce
+    collision risk with paths containing colons.
+    normalized_path should be Path(path).resolve().as_posix().
+    """
+    return hashlib.sha256(
+        f"{normalized_path}|{heading_path}|{ordinal}|{content_hash}".encode()
+    ).hexdigest()
 
 
 async def _index_single_file(service: MdqService, path: Path) -> None:
@@ -44,6 +60,8 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
     try:
         doc_id = hashlib.sha256(str(path).encode()).hexdigest()
         now = path.stat().st_mtime_ns
+        indexed_at = time.time()
+        normalized_path = path.resolve().as_posix()
 
         # Delete old chunks for this document
         conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
@@ -52,6 +70,12 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
             content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
             normalized_content = " ".join(section["content"].split())
             char_count = len(section["content"])
+            chunk_id = generate_chunk_id(
+                normalized_path,
+                section.get("heading_path", ""),
+                section.get("ordinal", 0),
+                content_hash,
+            )
 
             # Upsert document
             conn.execute(
@@ -62,7 +86,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
                     now,
                     path.stat().st_size,
                     content_hash,
-                    path.stat().st_mtime,
+                    indexed_at,
                 ),
             )
 
@@ -70,9 +94,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
             conn.execute(
                 "INSERT INTO chunks (chunk_id, doc_id, source_path, heading, heading_path, heading_level, ordinal, content, normalized_content, start_line, end_line, char_count, token_count, content_hash, tags_json, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
-                    hashlib.sha256(
-                        f"{doc_id}:{section['heading']}:{section['start_line']}".encode()
-                    ).hexdigest(),
+                    chunk_id,
                     doc_id,
                     str(path),
                     section["heading"],
@@ -87,13 +109,13 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
                     None,
                     content_hash,
                     "",
-                    path.stat().st_mtime,
+                    indexed_at,
                 ),
             )
 
             # Generate summaries for large chunks if enabled
             if service.summary_cache_enabled:
-                _generate_summaries(service, conn, doc_id, sections)
+                _generate_summaries(service, conn, doc_id, sections, path)
 
             conn.commit()
     except sqlite3.Error as e:
@@ -118,8 +140,9 @@ async def index_paths(service: MdqService, req: IndexPathsRequest) -> str:
             logger.warning("Path does not exist: %s", path_str)
             continue
         if not authorize_path(p, service.allowed_dirs):
-            logger.warning("Path denied: %s (outside allowed dirs)", path_str)
-            continue
+            raise MdqAuthorizationError(
+                f"Access denied: {path_str} is outside allowed directories"
+            )
         if p.is_file() and p.suffix == ".md":
             await _index_single_file(service, p)
         elif p.is_dir():
@@ -170,8 +193,9 @@ async def refresh_paths(service: MdqService, req: RefreshIndexRequest) -> dict:
                 logger.warning("Path does not exist: %s", path_str)
                 continue
             if not authorize_path(p, service.allowed_dirs):
-                logger.warning("Path denied: %s (outside allowed dirs)", path_str)
-                continue
+                raise MdqAuthorizationError(
+                    f"Access denied: {path_str} is outside allowed directories"
+                )
 
             # Force mode: always re-index
             if req.force:
@@ -279,18 +303,12 @@ def _delete_file_from_index(
     import hashlib  # noqa: PLC0415
 
     doc_id = hashlib.sha256(str(path).encode()).hexdigest()
-    # Drop FTS5 triggers before deleting chunks to avoid SQL logic error
-    conn.execute("DROP TRIGGER IF EXISTS chunks_ad")
+    # chunks_ad trigger fires automatically on DELETE — no manual FTS cleanup needed
     conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
     conn.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
     conn.execute(
         "DELETE FROM index_state WHERE key LIKE ?",
         (f"mtime:{str(path)}%",),
-    )
-    # Recreate FTS5 triggers
-    conn.execute(
-        "CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks "
-        "BEGIN DELETE FROM chunks_fts WHERE rowid = old.rowid; END"
     )
     conn.commit()
 
@@ -300,17 +318,23 @@ def _generate_summaries(
     conn: sqlite3.Connection,
     doc_id: str,
     sections: list[ParsedSection],
+    path: Path,
 ) -> None:
     """Generate summaries for large chunks if enabled."""
+    normalized_path = path.resolve().as_posix()
     for section in sections:
         content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
         if len(section["content"]) > service.summary_threshold:
+            chunk_id = generate_chunk_id(
+                normalized_path,
+                section.get("heading_path", ""),
+                section.get("ordinal", 0),
+                content_hash,
+            )
             conn.execute(
                 "INSERT OR REPLACE INTO chunk_summaries (chunk_id, summary, summary_model, content_hash, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
                 (
-                    hashlib.sha256(
-                        f"{doc_id}:{section['heading']}:{section['start_line']}".encode()
-                    ).hexdigest(),
+                    chunk_id,
                     section["content"][: service.summary_threshold],
                     service.summary_model,
                     content_hash,

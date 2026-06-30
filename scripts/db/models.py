@@ -45,6 +45,7 @@ class ToolResultRow:
     args_masked: str = ""
     full_text: str = ""
     created_at: str = ""
+    undone: bool = False
 
 
 @dataclass(frozen=True)

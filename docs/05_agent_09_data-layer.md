@@ -36,11 +36,7 @@ and the responsibility boundary between the agent layer and the RAG layer.
 |---|---|---|
 | `message_id` | INTEGER PK | Auto-increment |
 | `session_id` | INTEGER FK | → `sessions(session_id)` ON DELETE CASCADE |
-<<<<<<< HEAD
 | `role` | TEXT | `user` / `assistant` / `tool` / `system` — **not** `diagnostic` |
-=======
-| `role` | TEXT | `user` / `assistant` / `tool` / `system` — **not** `diagnostic` |
->>>>>>> b84b008 (implement: add Current behavior / Known discrepancy sections to 6 agent docs + DISC-01 through DISC-05 entries)
 | `content` | TEXT | Message text content |
 | `tool_calls` | TEXT | JSON-serialized tool_calls (assistant role only) |
 | `tool_call_id` | TEXT | Tool call response correlation ID (tool role only) |
@@ -99,9 +95,14 @@ Stores diagnostic events (LLM transport errors, guard hints, partial completions
 | ストア | 役割 | LLM参照 | 保持内容 |
 |---|---|---|---|
 | `messages` | 会話フロー履歴 (authoritative) | yes | LLMが受け渡すメッセージ列; 長大出力はサマリのみ |
-| `tool_results` | フル出力アーカイブ | no | ツール実行の生出力; `/tool show <id>` で取得可能 |
+| `tool_results` | フル出力アーカイブ | no | ツール実行の生出力; `/tool show <id>` で取得可能。`undone=1` の行はundo済みでも保持される |
 
 `messages` と `tool_results` を同一の目的で使用することは禁止。
+
+#### tool_results.undone カラム
+
+`undone INTEGER NOT NULL DEFAULT 0` — `/undo` 実行時に `mark_turn_undone(session_id, turn)` が `1` にセットする。
+アーティファクトは**削除されない**。`/tool list` では `[undone]` アノテーションが付き、`/tool show <id>` では `[undone turn — artifact retained for audit]` が表示される。
 
 ---
 
@@ -203,6 +204,11 @@ Used when `config/workflows/default.json` exists. Falls back to direct execution
 | Store | Role | Visible to LLM | Contents |
 |---|---|---|---|
 | `messages` | Conversation flow history (authoritative) | yes | Message sequence passed to LLM; large outputs stored as summaries only |
-| `tool_results` | Full output archive | no | Raw tool execution output; retrievable via `/tool show <id>` |
+| `tool_results` | Full output archive | no | Raw tool execution output; retrievable via `/tool show <id>`. Rows with `undone=1` are retained after undo |
 
 Using `messages` and `tool_results` for the same purpose is prohibited.
+
+#### tool_results.undone column
+
+`undone INTEGER NOT NULL DEFAULT 0` — set to `1` by `mark_turn_undone(session_id, turn)` when `/undo` is called.
+Artifacts are **never deleted**. `/tool list` shows a `[undone]` annotation; `/tool show <id>` displays `[undone turn — artifact retained for audit]`.

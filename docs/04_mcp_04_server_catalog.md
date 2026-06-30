@@ -295,6 +295,22 @@ All tools do not require config (`requires_config: false`).
 **Log:** `/opt/llm/logs/mdq-mcp.log`
 **When to use:** Markdown document indexing and context compression. Use `rag-pipeline-mcp` for production RAG search.
 
+### Path Control
+
+All path-accepting tools enforce fail-closed authorization via `allowed_dirs`:
+
+| Tool | Path Input | Authorization |
+|------|------------|---------------|
+| `index_paths` | Directories/files to index | `authorize_path()` — raises `MdqAuthorizationError` if outside `allowed_dirs` |
+| `refresh_index` | Paths to refresh | `_validate_paths()` — raises `MdqAuthorizationError` if any path is denied |
+| `outline` | File to outline | `authorize_path()` — raises `MdqAuthorizationError` if outside `allowed_dirs` |
+
+- `..` traversal: blocked by `Path.resolve()` inside `authorize_path()`
+- Symlink escapes: blocked by `Path.resolve()` inside `authorize_path()`
+- Empty `allowed_dirs = []` (default): denies all paths (fail-closed)
+
+Configure `allowed_dirs` in `config/mdq_mcp_server.toml` before using indexing tools.
+
 ### Markdown Compatibility Scope
 
 **Supported features:**

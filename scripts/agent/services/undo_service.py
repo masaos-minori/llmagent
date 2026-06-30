@@ -42,7 +42,14 @@ def undo_last_turn(ctx: AgentContext) -> UndoResult:
         cut_idx -= 1
     removed = len(ctx.conv.history) - cut_idx
     ctx.conv.history = ctx.conv.history[:cut_idx]
+    # Capture turn BEFORE decrementing stat_turns — equals the last stored turn
+    turn_to_mark = ctx.stats.stat_turns
     ctx.stats.stat_turns = max(0, ctx.stats.stat_turns - 1)
     ctx.session.undo_last_turn()
+    n_marked = 0
+    if turn_to_mark > 0 and ctx.tool_result_store is not None:
+        n_marked = ctx.tool_result_store.mark_turn_undone(
+            ctx.session.session_id, turn_to_mark
+        )
     logger.info("Undo: removed %s messages from history", removed)
-    return UndoResult(n_removed=removed)
+    return UndoResult(n_removed=removed, n_artifacts_marked=n_marked)
