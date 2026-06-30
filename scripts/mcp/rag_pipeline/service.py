@@ -33,6 +33,15 @@ RagHit = RawHit | MergedHit | RankedHit
 logger = logging.getLogger(__name__)
 
 
+def _hit_to_dict(hit: RagHit | dict[str, Any]) -> dict[str, Any]:
+    """Safely convert a hit to a dict; supports dataclass and dict inputs."""
+    if isinstance(hit, dict):
+        return hit
+    if dataclasses.is_dataclass(hit) and not isinstance(hit, type):
+        return dataclasses.asdict(hit)
+    raise TypeError(f"Unsupported hit type: {type(hit)}")
+
+
 class RagPipelineMCPService:
     """HTTP-accessible wrapper around RagPipeline.
 
@@ -91,12 +100,10 @@ class RagPipelineMCPService:
         ) -> None:
             captured["queries"] = [q for q in queries]
             captured["merged"] = [
-                dataclasses.asdict(h) if dataclasses.is_dataclass(h) else dict(h)
-                for h in merged
+                _hit_to_dict(h) for h in merged
             ]
             captured["reranked"] = [
-                dataclasses.asdict(h) if dataclasses.is_dataclass(h) else dict(h)
-                for h in reranked
+                _hit_to_dict(h) for h in reranked
             ]
 
         return _fn, cast(PipelineCapture, captured)
@@ -113,7 +120,7 @@ class RagPipelineMCPService:
         )
         _fetch = pipeline.last_fetch_result
         selected_hits: list[dict[str, Any]] = (
-            [dict(h) for h in _fetch.hits] if _fetch is not None else []
+            [_hit_to_dict(h) for h in _fetch.hits] if _fetch is not None else []
         )
         return RagRunResponse(
             query=req.query,
@@ -130,10 +137,10 @@ class RagPipelineMCPService:
             req.query,
             debug_fn=capture_fn,
             history_context=history_str,
-        )
+      )
         _fetch = pipeline.last_fetch_result
         selected_hits: list[dict[str, Any]] = (
-            [dict(h) for h in _fetch.hits] if _fetch is not None else []
+            [_hit_to_dict(h) for h in _fetch.hits] if _fetch is not None else []
         )
 
         return RagDebugResponse(
@@ -141,8 +148,8 @@ class RagPipelineMCPService:
             augmented_text=augmented_text,
             selected_hits=selected_hits,
             queries=captured.get("queries", []),
-            merged_hits=[dict(h) for h in captured.get("merged", [])],
-            reranked_hits=[dict(h) for h in captured.get("reranked", [])],
+            merged_hits=[_hit_to_dict(h) for h in captured.get("merged", [])],
+            reranked_hits=[_hit_to_dict(h) for h in captured.get("reranked", [])],
             elapsed=dict(pipeline.last_timings),
         )
 

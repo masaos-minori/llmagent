@@ -15,8 +15,9 @@ from mcp.rag_pipeline.models import (
     RagRunResponse,
     build_rag_cfg_adapter,
 )
-from mcp.rag_pipeline.service import RagPipelineMCPService
+from mcp.rag_pipeline.service import RagPipelineMCPService, _hit_to_dict
 from rag.models import TwoStageFetchResult
+from rag.types import MergedHit, RankedHit, RawHit
 
 # ── build_rag_cfg_adapter ─────────────────────────────────────────────────────
 
@@ -85,6 +86,43 @@ class TestBuildRagCfgAdapter:
         cfg = RagPipelineConfig()
         ns = build_rag_cfg_adapter(cfg)
         assert ns.use_search is True
+
+
+# ── _hit_to_dict helper ───────────────────────────────────────────────────────
+
+
+class TestHitToDict:
+    def test_dataclass_raw_hit(self) -> None:
+        hit = RawHit(chunk_id=1, content="text", url="http://u", title="T")
+        result = _hit_to_dict(hit)
+        assert isinstance(result, dict)
+        assert result["chunk_id"] == 1
+        assert result["content"] == "text"
+        assert result["url"] == "http://u"
+
+    def test_dataclass_merged_hit(self) -> None:
+        hit = MergedHit(chunk_id=2, content="m", rrf_score=5.0)
+        result = _hit_to_dict(hit)
+        assert result["chunk_id"] == 2
+        assert result["rrf_score"] == 5.0
+
+    def test_dataclass_ranked_hit(self) -> None:
+        hit = RankedHit(chunk_id=3, content="r", rerank_score=9.0)
+        result = _hit_to_dict(hit)
+        assert result["chunk_id"] == 3
+        assert result["rerank_score"] == 9.0
+
+    def test_dict_hit_returns_same_dict(self) -> None:
+        hit = {"chunk_id": 4, "content": "d"}
+        result = _hit_to_dict(hit)
+        assert result is hit
+
+    def test_unsupported_type_raises(self) -> None:
+        class NotADataclass:
+            pass
+
+        with pytest.raises(TypeError, match="Unsupported hit type"):
+            _hit_to_dict(NotADataclass())
 
 
 # ── RagPipelineMCPService helpers ────────────────────────────────────────────
@@ -200,6 +238,24 @@ class TestRunPipeline:
         _call_kwargs = pipeline.augment.call_args.kwargs
         assert _call_kwargs.get("debug_fn") is None
 
+    @pytest.mark.asyncio
+    async def test_dataclass_hits_serialized_correctly(self) -> None:
+        """run_pipeline must serialize dataclass hits without TypeError."""
+        hit_raw = RawHit(chunk_id=1, content="raw", url="http://r", title="R")
+        pipeline = MagicMock()
+        pipeline.augment = AsyncMock(return_value="augmented")
+        pipeline.last_fetch_result = TwoStageFetchResult(
+            hits=[hit_raw], min_score_applied=0.0, max_chunks_per_doc=0
+        )
+
+        svc = _make_service_with_pipeline(pipeline)
+        req = RagRunRequest(query="q")
+        result = await svc.run_pipeline(req)
+
+        assert isinstance(result.selected_hits[0], dict)
+        assert result.selected_hits[0]["chunk_id"] == 1
+        assert result.selected_hits[0]["content"] == "raw"
+
 
 # ── run_debug_pipeline ────────────────────────────────────────────────────────
 
@@ -236,7 +292,7 @@ class TestRunDebugPipeline:
         pipeline.augment = fake_augment
         pipeline.last_fetch_result = TwoStageFetchResult(
             hits=[hit_reranked], min_score_applied=0.0, max_chunks_per_doc=0
-        )
+    )
         pipeline.last_timings = {"mqe": 0.1, "search": 0.2}
 
         svc = _make_service_with_pipeline(pipeline)
@@ -250,6 +306,39 @@ class TestRunDebugPipeline:
         assert result.elapsed == {"mqe": 0.1, "search": 0.2}
         assert result.augmented_text == "result"
 
+    @pytest.mark.asyncio
+    async def test_dataclass_hits_serialized_in_debug_response(self) -> None:
+        """run_debug_pipeline must serialize dataclass hits without TypeError."""
+        hit_merged = MergedHit(chunk_id=10, content="merged", rrf_score=5.5)
+        hit_reranked = RankedHit(chunk_id=11, content="reranked", rerank_score=9.2)
+
+        async def fake_augment(
+            query: str,
+            *,
+            debug_fn: Any = None,
+            history_context: str = "",
+        ) -> str:
+            if debug_fn is not None:
+                debug_fn(["q"], [], [hit_merged], [hit_reranked])
+            return "result"
+
+        pipeline = MagicMock()
+        pipeline.augment = fake_augment
+        pipeline.last_fetch_result = TwoStageFetchResult(
+            hits=[hit_reranked], min_score_applied=0.0, max_chunks_per_doc=0
+        )
+        pipeline.last_timings = {"mqe": 0.1}
+
+        svc = _make_service_with_pipeline(pipeline)
+        req = RagRunRequest(query="debug query")
+        result = await svc.run_debug_pipeline(req)
+
+        assert isinstance(result.merged_hits[0], dict)
+        assert result.merged_hits[0]["chunk_id"] == 10
+        assert result.merged_hits[0]["rrf_score"] == 5.5
+        assert isinstance(result.reranked_hits[0], dict)
+        assert result.reranked_hits[0]["chunk_id"] == 11
+        assert result.reranked_hits[0]["rerank_score"] == 9.2
 
 # ── pipeline_or_raise ─────────────────────────────────────────────────────────
 
