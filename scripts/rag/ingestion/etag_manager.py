@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from shared.logger import Logger
 from db.helper import SQLiteHelper
+from shared.logger import Logger
 
 logger = Logger(__name__, "/opt/llm/logs/ingest.log")
 
