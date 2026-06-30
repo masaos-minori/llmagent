@@ -120,7 +120,7 @@ all services. Sub-structures:
 
 - Plugin tool lookup → TTL cache check → `_raw_execute()` (MCP routing)
 - Side-effect detection: serializes parallel tool calls when write/delete/shell_run present
-- `ToolRouteResolver`: resolves tool name → server key (config-driven → static fallback)
+- `ToolRouteResolver`: resolves tool name → server key (live `/v1/tools` discovery → ToolRegistry)
 - `McpServerHealthRegistry`: tracks per-server health state (HEALTHY/DEGRADED/UNAVAILABLE)
 
 ### HistoryManager (`agent/history.py`)
