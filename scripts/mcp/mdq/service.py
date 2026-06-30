@@ -70,6 +70,7 @@ class MdqService:
         self.max_file_chars: int = mdq_cfg.get("max_file_chars", 100000)
         self.search_timeout_sec: int = mdq_cfg.get("search_timeout_sec", 30)
         self.enable_refresh: bool = mdq_cfg.get("enable_refresh", True)
+        self.enable_grep: bool = mdq_cfg.get("enable_grep", True)
         self.audit_log_path: str | None = mdq_cfg.get(
             "audit_log_path", "/opt/llm/logs/mdq_audit.log"
         )
@@ -126,6 +127,8 @@ class MdqService:
         db_dir.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute(f"PRAGMA busy_timeout = {self.sqlite_busy_timeout}")
             # Check for legacy schema
             cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = {row[0] for row in cursor.fetchall()}
@@ -137,7 +140,7 @@ class MdqService:
 
             # Detect and rebuild old schema (id INTEGER PK + chunk_id TEXT UNIQUE)
             old_col = conn.execute("PRAGMA table_info(chunks)").fetchone()
-            if old_col is not None and old_col["name"] == "id":
+            if old_col is not None and old_col[1] == "id":  # index 1 = name column
                 logger.info(
                     "Detected old chunks schema (id column); rebuilding to chunk_id PRIMARY KEY"
                 )
@@ -227,11 +230,20 @@ class MdqService:
             """)
             # Create vector table conditionally based on use_embedding config
             if self.use_embedding:
+                vec0_path: str = "/opt/llm/sqlite-vec/vec0.so"
                 try:
                     conn.enable_load_extension(True)
-                    conn.load_extension("/opt/llm/sqlite-vec/vec0.so")
+                    try:
+                        conn.load_extension(vec0_path)
+                    except sqlite3.OperationalError as inner:
+                        # Some SQLite builds auto-append .so, causing .so.so
+                        if ".so.so" in str(inner) and vec0_path.endswith(".so"):
+                            conn.load_extension(vec0_path[:-3])
+                        else:
+                            raise
                     conn.enable_load_extension(False)
                 except sqlite3.OperationalError as e:
+                    conn.enable_load_extension(False)
                     logger.error("Failed to load sqlite-vec extension: %s", e)
                     raise
                 conn.execute(f"""
@@ -429,6 +441,29 @@ class MdqService:
             )
         return result
 
+    async def _generate_and_cache_summary(
+        self, chunk_id: str, content: str, content_hash: str
+    ) -> str | None:
+        """Generate a summary for chunk_id and cache it in chunk_summaries.
+
+        Returns the generated summary on success, or None on failure/stub.
+        When summary_model == "default", no LLM integration is available — returns None.
+        """
+        try:
+            if self.summary_model == "default":
+                return None
+            # Future: replace with actual LLM call
+            # summary = await self._call_llm_for_summary(content)
+            # conn = self._get_db_connection()
+            # try:
+            #     conn.execute("INSERT OR REPLACE INTO chunk_summaries ...", ...)
+            #     conn.commit()
+            # finally:
+            #     conn.close()
+            return None
+        except Exception:
+            return None
+
     async def get_chunk(self, req: GetChunkRequest) -> str:
         """Retrieve a Markdown chunk by its ID."""
         request_limit = req.max_chars_per_chunk
@@ -464,6 +499,15 @@ class MdqService:
                             "Failed to retrieve cached summary for chunk %s",
                             req.chunk_id,
                         )
+                elif cached is None:
+                    # Cache miss: fire background summary generation (non-blocking)
+                    import asyncio as _asyncio
+
+                    _asyncio.create_task(
+                        self._generate_and_cache_summary(
+                            req.chunk_id, content, row["content_hash"]
+                        )
+                    )
 
             truncated = False
             if len(content) > max_chars:
@@ -637,6 +681,8 @@ class MdqService:
 
     async def grep_docs(self, req: GrepDocsRequest) -> str:
         """Search Markdown chunks with a regex pattern."""
+        if not self.enable_grep:
+            raise MdqValidationError("grep_docs is disabled by configuration")
         try:
             compiled = re.compile(req.pattern)
         except re.error as e:
@@ -752,11 +798,17 @@ class MdqService:
             fts_count = conn.execute(
                 "SELECT COUNT(*) as cnt FROM chunks_fts"
             ).fetchone()["cnt"]
+            integrity_rows = conn.execute("PRAGMA integrity_check").fetchall()
+            integrity_ok = all(row[0] == "ok" for row in integrity_rows)
             consistent = chunks_count == fts_count
+            status = "consistent" if consistent else "INCONSISTENT"
+            if not integrity_ok:
+                status = "INTEGRITY_ERROR"
             return (
-                f"FTS5 consistency check: {'consistent' if consistent else 'INCONSISTENT'}\n"
+                f"FTS5 consistency check: {status}\n"
                 f"  chunks rows: {chunks_count}\n"
-                f"  chunks_fts rows: {fts_count}"
+                f"  chunks_fts rows: {fts_count}\n"
+                f"  integrity_check: {'ok' if integrity_ok else 'FAILED'}"
             )
         except sqlite3.OperationalError as e:
             raise MdqConsistencyError(f"FTS5 table missing or corrupted: {e}") from e
@@ -767,10 +819,18 @@ class MdqService:
         """Rebuild the FTS5 index."""
         conn = self._get_db_connection()
         try:
+            conn.execute("BEGIN IMMEDIATE")
             conn.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')")
-            conn.commit()
-            return "FTS5 index rebuilt successfully"
+            chunks_count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM chunks"
+            ).fetchone()["cnt"]
+            conn.execute("COMMIT")
+            return f"FTS5 index rebuilt successfully (chunks: {chunks_count})"
         except sqlite3.Error as e:
+            try:
+                conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
             return f"FTS5 rebuild failed: {e}"
         finally:
             conn.close()

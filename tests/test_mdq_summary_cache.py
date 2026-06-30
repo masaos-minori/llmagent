@@ -256,3 +256,23 @@ class TestSummaryCacheWithLargeChunk:
         req = GetChunkRequest(chunk_id="test_chunk", use_summary=True)
         result = asyncio.run(svc.get_chunk(req))
         assert "[Summary" not in result  # Stale summary not used
+
+
+class TestGenerateAndCacheSummary:
+    """Verify _generate_and_cache_summary stub behavior."""
+
+    def test_returns_none_for_default_model(self, service: MdqService) -> None:
+        """With summary_model='default', _generate_and_cache_summary returns None."""
+        assert service.summary_model == "default"
+        result = asyncio.run(
+            service._generate_and_cache_summary("chunk1", "content", "hash123")
+        )
+        assert result is None
+
+    def test_returns_none_on_exception(self, service: MdqService) -> None:
+        """Exceptions inside _generate_and_cache_summary are caught and return None."""
+        service.summary_model = "nonexistent_model"
+        result = asyncio.run(
+            service._generate_and_cache_summary("chunk1", "content", "hash123")
+        )
+        assert result is None

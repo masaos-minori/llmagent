@@ -105,10 +105,22 @@ def _create_test_db(tmp_path: Path) -> str:
 
 
 def _create_test_db_no_chunks(tmp_path: Path) -> str:
-    """Create a test database missing the chunks table."""
+    """Create a test database with documents table but missing chunks table."""
     path = str(tmp_path / "mdq_no_chunks.sqlite")
     conn = sqlite3.connect(path)
     try:
+        conn.execute(
+            """
+            CREATE TABLE documents (
+                doc_id TEXT PRIMARY KEY,
+                source_path TEXT NOT NULL,
+                mtime_ns INTEGER NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                content_hash TEXT NOT NULL,
+                indexed_at REAL NOT NULL
+            )
+            """
+        )
         conn.execute(
             """
             CREATE TABLE chunks_fts (
@@ -225,12 +237,16 @@ def _mock_config(db_path: str) -> dict:
 class TestHealthEndpointReady:
     """Verify /health returns ready=true when DB is valid."""
 
-    async def test_health_returns_ready_true_with_valid_schema(self, tmp_path: Path) -> None:
+    async def test_health_returns_ready_true_with_valid_schema(
+        self, tmp_path: Path
+    ) -> None:
         """GET /health returns ready:true when all tables and triggers exist."""
         db_path = _create_test_db(tmp_path)
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 200
         body = resp.json()
@@ -243,7 +259,9 @@ class TestHealthEndpointReady:
         db_path = _create_test_db(tmp_path)
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         body = resp.json()
         assert "stub" not in body
@@ -253,7 +271,9 @@ class TestHealthEndpointReady:
         db_path = _create_test_db(tmp_path)
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         body = resp.json()
         details = body["details"]
@@ -269,7 +289,9 @@ class TestHealthEndpointReady:
         db_path = _create_test_db(tmp_path)
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         body = resp.json()
         assert body["details"]["service"] == "mdq-mcp"
@@ -278,12 +300,16 @@ class TestHealthEndpointReady:
 class TestHealthEndpointMissingSchema:
     """Verify /health returns ready=false when required schema elements are missing."""
 
-    async def test_missing_chunks_table_returns_ready_false(self, tmp_path: Path) -> None:
+    async def test_missing_chunks_table_returns_ready_false(
+        self, tmp_path: Path
+    ) -> None:
         """Missing chunks table → ready:false."""
         db_path = _create_test_db_no_chunks(tmp_path)
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
         body = resp.json()
@@ -292,12 +318,16 @@ class TestHealthEndpointMissingSchema:
         assert "db_schema" in body["dependencies"]
         assert "chunks" in body["dependencies"]["db_schema"]
 
-    async def test_missing_chunks_fts_table_returns_ready_false(self, tmp_path: Path) -> None:
+    async def test_missing_chunks_fts_table_returns_ready_false(
+        self, tmp_path: Path
+    ) -> None:
         """Missing chunks_fts table → ready:false."""
         db_path = _create_test_db_no_chunks_fts(tmp_path)
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
         body = resp.json()
@@ -357,7 +387,9 @@ class TestHealthEndpointMissingSchema:
 
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
         body = resp.json()
@@ -421,7 +453,9 @@ class TestHealthEndpointMissingSchema:
 
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
         body = resp.json()
@@ -434,7 +468,9 @@ class TestHealthEndpointMissingSchema:
         db_path = _create_test_db_corrupt_fts(tmp_path)
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
         body = resp.json()
@@ -446,7 +482,9 @@ class TestHealthEndpointMissingSchema:
         db_path = str(tmp_path / "nonexistent.mdq.sqlite")
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
         body = resp.json()
@@ -471,7 +509,14 @@ class TestHealthEndpointStats:
             for i in range(3):
                 conn.execute(
                     "INSERT INTO chunks (chunk_id, doc_id, source_path, heading, content, normalized_content, start_line, end_line, char_count, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?, 1, 2, 100, 'abc', 1000.0)",
-                    (f"chunk{i}", f"doc{i}", f"/test/file{i}.md", f"Heading {i}", "content", "content"),
+                    (
+                        f"chunk{i}",
+                        f"doc{i}",
+                        f"/test/file{i}.md",
+                        f"Heading {i}",
+                        "content",
+                        "content",
+                    ),
                 )
             conn.commit()
         finally:
@@ -479,7 +524,9 @@ class TestHealthEndpointStats:
 
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         body = resp.json()
         assert body["details"]["document_count"] == 3
@@ -492,7 +539,14 @@ class TestHealthEndpointStats:
             for i in range(5):
                 conn.execute(
                     "INSERT INTO chunks (chunk_id, doc_id, source_path, heading, content, normalized_content, start_line, end_line, char_count, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?, 1, 2, 100, 'abc', 1000.0)",
-                    (f"chunk{i}", "doc1", "/test/file.md", f"Heading {i}", "content", "content"),
+                    (
+                        f"chunk{i}",
+                        "doc1",
+                        "/test/file.md",
+                        f"Heading {i}",
+                        "content",
+                        "content",
+                    ),
                 )
             conn.commit()
         finally:
@@ -500,7 +554,9 @@ class TestHealthEndpointStats:
 
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         body = resp.json()
         assert body["details"]["chunk_count"] == 5
@@ -529,7 +585,9 @@ class TestHealthEndpointStats:
 
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         body = resp.json()
         assert body["details"]["last_indexed"] == 2000.0
@@ -539,7 +597,9 @@ class TestHealthEndpointStats:
         db_path = _create_test_db(tmp_path)
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         body = resp.json()
         assert body["details"]["last_indexed"] is None
@@ -549,7 +609,9 @@ class TestHealthEndpointStats:
         db_path = _create_test_db(tmp_path)
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 200
 
@@ -558,16 +620,22 @@ class TestHealthEndpointStats:
         db_path = _create_test_db_no_chunks(tmp_path)
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
 
-    async def test_health_response_has_correct_top_level_keys(self, tmp_path: Path) -> None:
+    async def test_health_response_has_correct_top_level_keys(
+        self, tmp_path: Path
+    ) -> None:
         """Response has exactly the expected top-level keys."""
         db_path = _create_test_db(tmp_path)
         with patch("shared.config_loader.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/health")
         body = resp.json()
         assert set(body.keys()) == {"status", "ready", "dependencies", "details"}

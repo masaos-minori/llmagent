@@ -331,6 +331,30 @@ Configure `allowed_dirs` in `config/mdq_mcp_server.toml` before using indexing t
 
 **Fallback behavior:** Unsupported syntax may cause heading misclassification. For example, Setext-style headings are treated as plain text with no heading level, and their content is included in the preceding section rather than creating a new one.
 
+### Search Modes
+
+| Mode | Description | Config |
+|---|---|---|
+| FTS5-only (Phase 1) | Full-text search via FTS5; production baseline | `use_embedding = false` (default) |
+| Hybrid (Phase 2) | FTS5 + semantic vector search merged via RRF | `use_embedding = true` |
+
+**Hybrid Search (Phase 2):**
+
+When `use_embedding = true`, MDQ performs hybrid search:
+1. FTS5 keyword search on `chunks_fts`
+2. Semantic vector search via `_search_vector()` (stub — returns empty list in Phase 1)
+3. Results merged via Reciprocal Rank Fusion (RRF)
+
+**MDQ Hybrid vs RAG Decision Criteria:**
+
+| Use Case | Recommended | Rationale |
+|---|---|---|
+| Markdown structural queries (headings, sections, outlines) | MDQ hybrid | MDQ understands Markdown document structure; FTS5 is precise for keyword matching within documents |
+| General semantic search across all indexed content | RAG pipeline | RAG has broader corpus coverage and mature embedding model integration |
+| Cross-document structural comparison | MDQ hybrid | MDQ chunk_id includes heading hierarchy (level, parent_path, ordinal) |
+
+> **Note:** For detailed MDQ vs RAG boundary definition, see [04_mcp_07_mdq_rag_boundary.md](04_mcp_07_mdq_rag_boundary.md).
+
 ---
 
 ## git-mcp (port 8014)

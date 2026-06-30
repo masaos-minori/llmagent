@@ -62,9 +62,22 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
         now = path.stat().st_mtime_ns
         indexed_at = time.time()
         normalized_path = path.resolve().as_posix()
+        file_content_hash = hashlib.sha256((str(path) + str(now)).encode()).hexdigest()
 
-        # Delete old chunks for this document
+        conn.execute("BEGIN IMMEDIATE")
+        # Delete old chunks and upsert document atomically
         conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
+        conn.execute(
+            "INSERT OR REPLACE INTO documents (doc_id, source_path, mtime_ns, size_bytes, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                doc_id,
+                str(path),
+                now,
+                path.stat().st_size,
+                file_content_hash,
+                indexed_at,
+            ),
+        )
 
         for section in sections:
             content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
@@ -75,19 +88,6 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
                 section.get("heading_path", ""),
                 section.get("ordinal", 0),
                 content_hash,
-            )
-
-            # Upsert document
-            conn.execute(
-                "INSERT OR REPLACE INTO documents (doc_id, source_path, mtime_ns, size_bytes, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (
-                    doc_id,
-                    str(path),
-                    now,
-                    path.stat().st_size,
-                    content_hash,
-                    indexed_at,
-                ),
             )
 
             # Insert chunk with new schema
@@ -113,12 +113,16 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
                 ),
             )
 
-            # Generate summaries for large chunks if enabled
-            if service.summary_cache_enabled:
-                _generate_summaries(service, conn, doc_id, sections, path)
+        # Generate summaries for large chunks if enabled
+        if service.summary_cache_enabled:
+            _generate_summaries(service, conn, doc_id, sections, path)
 
-            conn.commit()
+        conn.execute("COMMIT")
     except sqlite3.Error as e:
+        try:
+            conn.execute("ROLLBACK")
+        except sqlite3.Error:
+            pass
         logger.error("Failed to write chunks for %s: %s", path, e)
     finally:
         conn.close()

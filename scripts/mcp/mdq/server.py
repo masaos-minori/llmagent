@@ -89,31 +89,13 @@ def _degraded_response(
     )
 
 
-def _check_stale_documents(conn: Any, mdq_cfg: dict[str, Any]) -> int | None:
+def _check_stale_documents(conn: Any) -> int | None:
     try:
-        from pathlib import Path as _Path
-
-        index_paths_cfg = mdq_cfg.get("index_paths", []) or []
-        if not index_paths_cfg:
-            return None
-
-        first_path = _Path(index_paths_cfg[0])
-        if first_path.is_dir():
-            ref_mtime = first_path.stat().st_mtime
-        elif first_path.is_file():
-            ref_mtime = first_path.stat().st_mtime
-        else:
-            return None
-
-        ref_mtime_ns = int(ref_mtime * 1_000_000_000)
-        stale_count = (
-            conn.execute(
-                "SELECT COUNT(DISTINCT source_path) FROM documents WHERE mtime_ns < ?",
-                (ref_mtime_ns,),
-            ).fetchone()[0]
-            or 0
-        )
-        return stale_count
+        result = conn.execute(
+            "SELECT COUNT(*) as cnt FROM documents"
+            " WHERE mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
+        ).fetchone()
+        return result["cnt"] if result is not None else 0
     except Exception:
         return None
 
@@ -247,33 +229,70 @@ def _audit_target(tool_name: str, args: dict[str, Any]) -> str:
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
+    import re as _re
+
     t0 = time.perf_counter()
     session_id = request.headers.get("x-session-id", "")
     request_id = getattr(
         request.state, "request_id", request.headers.get("x-request-id", "")
     )
-    r = await _dispatch_mdq_tool(req.name, req.args)
+    target = _audit_target(req.name, req.args)
+
+    try:
+        r = await _dispatch_mdq_tool(req.name, req.args)
+    except (
+        MdqValidationError,
+        MdqAuthorizationError,
+        MdqNotFoundError,
+        MdqIndexNotReadyError,
+    ) as exc:
+        # Tool-level error → is_error=True, HTTP 200 (MCP spec)
+        ms = (time.perf_counter() - t0) * 1000
+        error_kind = type(exc).__name__
+        _audit_log(
+            logger,
+            session_id=session_id,
+            request_id=request_id,
+            action=req.name,
+            target=target[:80],
+            outcome="error",
+            detail=f"duration_ms={ms:.0f}, error_kind={error_kind}",
+            server_key="mdq",
+        )
+        return CallToolResponse(result=str(exc), is_error=True)
+
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
 
-    # Tool-aware target extraction
-    target = _audit_target(req.name, req.args)
-    detail_parts: list[str] = []
+    # Per-tool audit detail enrichment
+    detail_parts: list[str] = [f"duration_ms={ms:.0f}"]
     if r.is_error:
-        detail_parts.append(f"duration_ms={ms:.0f}")
-        detail_parts.append("error_kind=dispatch_error")
-    else:
-        detail_parts.append(f"duration_ms={ms:.0f}")
-        if req.name == "search_docs":
-            detail_parts.append(
-                f"result_count={len(r.output.split(chr(10))) if r.output else 0}"
-            )
-        elif req.name == "grep_docs":
-            detail_parts.append(
-                f"match_count={r.output.count(chr(45) + chr(45) + chr(45)) if r.output else 0}"
-            )
-        elif req.name in ("index_paths", "refresh_index"):
-            detail_parts.append("indexed")
+        detail_parts.append("error_kind=tool_error")
+    elif req.name == "search_docs":
+        result_count = r.output.count("---") if r.output else 0
+        detail_parts.append(f"result_count={result_count}")
+    elif req.name == "get_chunk":
+        if r.output and "[Truncated" in r.output:
+            detail_parts.append("truncated=true")
+    elif req.name == "grep_docs":
+        match_count = r.output.count("---") if r.output else 0
+        detail_parts.append(f"match_count={match_count}")
+    elif req.name == "index_paths":
+        if r.output:
+            m = _re.search(r"Indexed:\s*(\d+)", r.output)
+            if m:
+                detail_parts.append(f"indexed_count={m.group(1)}")
+    elif req.name == "refresh_index":
+        if r.output:
+            m_idx = _re.search(r"Indexed:\s*(\d+)", r.output)
+            m_skip = _re.search(r"Skipped.*?:\s*(\d+)", r.output)
+            m_del = _re.search(r"Deleted from index:\s*(\d+)", r.output)
+            if m_idx:
+                detail_parts.append(f"indexed_count={m_idx.group(1)}")
+            if m_skip:
+                detail_parts.append(f"skipped_count={m_skip.group(1)}")
+            if m_del:
+                detail_parts.append(f"deleted_count={m_del.group(1)}")
 
     _audit_log(
         logger,
@@ -357,14 +376,14 @@ async def health() -> JSONResponse:
                 "SELECT COUNT(*) FROM chunks_fts WHERE chunks_fts != 'delete'"
             ).fetchone()[0]
 
-            row = conn.execute("SELECT MAX(mtime_ns) FROM documents").fetchone()
+            row = conn.execute("SELECT MAX(indexed_at) FROM documents").fetchone()
             last_indexed = row[0] if row and row[0] is not None else None
             details["document_count"] = doc_count
             details["chunk_count"] = chunk_count
             details["fts_row_count"] = fts_count
             details["last_indexed"] = last_indexed
 
-            stale_count = _check_stale_documents(conn, mdq_cfg)
+            stale_count = _check_stale_documents(conn)
             details["stale_document_count"] = stale_count
 
         finally:
