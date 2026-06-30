@@ -307,15 +307,18 @@ SQLite schema definitions currently use two timestamp formats:
 
 | Format | Syntax | Timezone | Usage |
 |---|---|---|---|
-| ISO-8601 UTC | `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` | UTC (Z suffix) | `documents.fetched_at`, `sessions.created_at` |
-| SQLite raw | `datetime('now')` | Local time of the DB server | `documents.lang`, `chunks.chunk_id`, `messages.created_at`, `workflow` tables |
+| ISO-8601 UTC (Z suffix) | `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` | UTC (Z suffix) | `tool_results.created_at`, `session_diagnostics.created_at` |
+| SQLite raw | `datetime('now')` | UTC (SQLite returns UTC for `'now'`) | `documents.fetched_at`, `sessions.created_at`, `messages.created_at`, `memories.created_at`, `memories.updated_at` |
 
 **Policy:** New schema definitions should use `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` for consistency. Existing schemas using `datetime('now')` are left unchanged unless a migration is explicitly approved.
 
+Python-side timestamp generation (for workflow tables without DEFAULT): `datetime.now(UTC).isoformat()` — produces ISO-8601 with `+00:00` suffix (e.g., `2024-01-01T00:00:00+00:00`).
+
 Tables currently using each format:
 
-- **ISO-8601 UTC**: `documents.fetched_at`, `sessions.created_at`, `workflow.tasks.created_at`, `workflow.attempts.created_at`, `workflow.approvals.created_at`
-- **SQLite raw**: `documents.lang` (misattributed — actually uses `datetime('now')`), `chunks.chunk_id` (auto-increment, no timestamp), `messages.created_at`, `workflow.processed_events.created_at`, `workflow.artifacts.created_at`
+- **ISO-8601 UTC (Z suffix)**: `tool_results.created_at`, `session_diagnostics.created_at`
+- **SQLite raw**: `documents.fetched_at`, `sessions.created_at`, `messages.created_at`, `memories.created_at`, `memories.updated_at`
+- **Python ISO-8601 (+00:00)**: workflow tables (`tasks.created_at/updated_at`, `attempts.created_at/updated_at`, `processed_events.created_at/updated_at`, `artifacts.created_at`, `approvals.created_at`) — set by application code, no DEFAULT clause
 
 ---
 
