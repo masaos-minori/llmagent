@@ -32,6 +32,22 @@ RagHit = RawHit | MergedHit | RankedHit
 
 logger = logging.getLogger(__name__)
 
+from typing import Protocol
+
+
+class RagPipelineLike(Protocol):
+    """Structural protocol for the pipeline object; avoids circular imports."""
+
+    async def augment(
+        self,
+        query: str,
+        debug_fn: Callable[..., None] | None = ...,
+        history_context: str = ...,
+    ) -> str: ...
+
+    last_fetch_result: Any  # TwoStageFetchResult
+    last_timings: dict[str, float]
+
 
 def _hit_to_dict(hit: RagHit | dict[str, Any]) -> dict[str, Any]:
     """Safely convert a hit to a dict; supports dataclass and dict inputs."""
@@ -45,14 +61,12 @@ def _hit_to_dict(hit: RagHit | dict[str, Any]) -> dict[str, Any]:
 class RagPipelineMCPService:
     """HTTP-accessible wrapper around RagPipeline.
 
-    Lifecycle: call start() in FastAPI lifespan before serving requests.
+ Lifecycle: call start() in FastAPI lifespan before serving requests.
     """
 
     def __init__(self) -> None:
         self._http: httpx.AsyncClient | None = None
-        self._pipeline: Any | None = (
-            None  # RagPipeline; typed as Any to avoid circular import
-        )
+        self._pipeline: RagPipelineLike | None = None
 
     async def start(self) -> None:
         """Initialize shared resources; must be called once before first request."""
@@ -75,7 +89,7 @@ class RagPipelineMCPService:
             await self._http.aclose()
         logger.info("RagPipelineMCPService stopped")
 
-    def _pipeline_or_raise(self) -> Any:
+    def _pipeline_or_raise(self) -> RagPipelineLike:
         if self._pipeline is None:
             raise RuntimeError("RagPipelineMCPService not started — call start() first")
         return self._pipeline
