@@ -26,11 +26,27 @@ max_chunk_chars = 10000
 # Maximum number of characters to include in a file
 max_file_chars = 100000
 
-# Result size limits (enforced at server level before MCP truncation)
+# Result size limits (enforced at server level before MCP truncation).
+# Per-request overrides are bounded above by these config values.
+
+# Maximum number of search results returned per query (default: 100).
+# Production recommendation: 20-50 depending on typical query specificity.
 max_results_limit = 100
+
+# Maximum characters per chunk returned by get_chunk (default: 10000).
+# Production recommendation: 8192 for full section content, 2048 for snippets.
 max_chars_per_chunk = 10000
+
+# Maximum total characters across all search results (default: 100000).
+# Production recommendation: 65536 for broad queries, 16384 for targeted queries.
 max_total_result_chars = 100000
+
+# Maximum outline items returned by the outline tool (default: 500).
+# Production recommendation: 200-300 for reasonable response sizes.
 max_outline_items = 500
+
+# Maximum grep match results returned by grep_docs (default: 200).
+# Production recommendation: 100-200 to prevent large response payloads.
 max_grep_matches = 200
 
 # Maximum number of seconds to wait for a search operation

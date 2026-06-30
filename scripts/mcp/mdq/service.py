@@ -431,8 +431,10 @@ class MdqService:
 
     async def get_chunk(self, req: GetChunkRequest) -> str:
         """Retrieve a Markdown chunk by its ID."""
+        request_limit = req.max_chars_per_chunk
+        config_cap = self.max_chars_per_chunk
         max_chars = (
-            getattr(req, "max_chars_per_chunk", None) or self.max_chars_per_chunk
+            min(request_limit, config_cap) if request_limit is not None else config_cap
         )
         conn = self._get_db_connection()
         try:
@@ -469,15 +471,22 @@ class MdqService:
                 truncated = True
             result = f"## {row['heading']}\n\n{content}"
             if truncated:
-                result += f"\n\n[Truncated — {len(row['content'])}/{max_chars} chars]"
+                result += (
+                    f"\n\n[Truncated — {len(row['content'])}/{max_chars} chars. "
+                    f"Use a narrower chunk_id or reduce max_chars_per_chunk.]"
+                )
             return result
         finally:
             conn.close()
 
     async def outline(self, req: OutlineRequest) -> str:
         """Get the heading structure of a Markdown file from the index."""
-        max_depth = getattr(req, "max_depth", None) or self.max_outline_depth
-        max_items = getattr(req, "max_items", None) or self.max_outline_items
+        max_depth = req.max_depth or self.max_outline_depth
+        request_items = req.max_outline_items
+        config_cap = self.max_outline_items
+        max_items = (
+            min(request_items, config_cap) if request_items is not None else config_cap
+        )
         p = Path(req.path)
         if not p.exists():
             raise MdqNotFoundError(f"File not found: {req.path}")
@@ -532,7 +541,8 @@ class MdqService:
                 for row in rows
             ]
 
-            truncated = len(headings) >= max_items if max_items else False
+            total_headings = len(headings)
+            truncated = total_headings > max_items if max_items else False
             if truncated and max_items:
                 headings = headings[:max_items]
 
@@ -543,7 +553,11 @@ class MdqService:
 
             result = "\n".join(parts) if headings else "(no headings)"
             if truncated:
-                result += f"\n\n[Truncated — {len(headings)}/{max_items} headings]"
+                result += (
+                    f"\n\n[Truncated — {total_headings} headings found, "
+                    f"{max_items} shown. "
+                    f"Use a deeper path_prefix filter or reduce max_outline_items.]"
+                )
             if stale_warning:
                 result += f"\n\n{stale_warning}"
             return result
@@ -628,7 +642,13 @@ class MdqService:
         except re.error as e:
             raise MdqValidationError(f"Invalid regex pattern: {e}")
 
-        max_matches = getattr(req, "max_grep_matches", None) or self.max_grep_matches
+        request_matches = req.max_grep_matches
+        config_cap_matches = self.max_grep_matches
+        max_matches = (
+            min(request_matches, config_cap_matches)
+            if request_matches is not None
+            else config_cap_matches
+        )
         max_chars = (
             getattr(req, "max_chars_per_match", None) or self.max_chars_per_match
         )
@@ -682,7 +702,10 @@ class MdqService:
 
             result = "\n".join(parts)
             if truncated:
-                result += f"\n\n[Truncated — {max_matches} matches shown]"
+                result += (
+                    f"\n\n[Truncated — cap of {max_matches} matches reached. "
+                    f"Use a more specific pattern or path filter to narrow results.]"
+                )
             return result
         finally:
             conn.close()

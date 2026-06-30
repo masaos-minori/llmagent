@@ -26,35 +26,47 @@ async def search_docs(service: MdqService, req: SearchDocsRequest) -> str:
     if not result["results"]:
         return f"No results found for: {req.query!r}"
 
-    # Apply result size limits
-    total = result["total"]
-    max_results = getattr(req, "max_results_limit", None) or service.max_results_limit
+    # Apply result size limits (request overrides bounded by config cap)
+    original_total = result["total"]
+    request_results = getattr(req, "max_results_limit", None)
+    config_results = service.max_results_limit
+    max_results = (
+        min(request_results, config_results)
+        if request_results is not None
+        else config_results
+    )
+
+    request_chars = getattr(req, "max_total_result_chars", None)
+    config_chars = service.max_total_result_chars
     max_chars = (
-        getattr(req, "max_total_result_chars", None) or service.max_total_result_chars
+        min(request_chars, config_chars) if request_chars is not None else config_chars
     )
 
     truncated = False
-    if total > max_results:
+    if original_total > max_results:
         truncated = True
         result["results"] = result["results"][:max_results]
-        total = max_results
 
     # Enforce char limit
     if len(result["results"]) > 0:
-        lines = [f"Search results for: {req.query!r} ({total} found)"]
+        lines = [f"Search results for: {req.query!r} ({original_total} found)"]
         for r in result["results"]:
             line = f"{r.source_path}: {r.heading}: {r.snippet}"
             if len("\n".join(lines)) + len(line) > max_chars:
                 truncated = True
                 break
             lines.append(line)
+        shown = len(lines) - 1  # subtract header line
+        chars_used = len("\n".join(lines))
         if truncated:
-            return (
-                "\n".join(lines) + f"\n\n[Truncated — total chars exceeded {max_chars}]"
+            return "\n".join(lines) + (
+                f"\n\n[Truncated — {original_total} results found, "
+                f"{shown} shown ({chars_used}/{max_chars} chars). "
+                f"Use a narrower query or get_chunk for specific sections.]"
             )
         return "\n".join(lines)
 
-    return f"Search results for: {req.query!r} ({total} found)"
+    return f"Search results for: {req.query!r} ({original_total} found)"
 
 
 def _search_docs_structured(

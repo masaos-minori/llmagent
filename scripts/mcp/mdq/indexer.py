@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import sqlite3
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -59,6 +60,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
     try:
         doc_id = hashlib.sha256(str(path).encode()).hexdigest()
         now = path.stat().st_mtime_ns
+        indexed_at = time.time()
         normalized_path = path.resolve().as_posix()
 
         # Delete old chunks for this document
@@ -84,7 +86,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
                     now,
                     path.stat().st_size,
                     content_hash,
-                    path.stat().st_mtime,
+                    indexed_at,
                 ),
             )
 
@@ -107,7 +109,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
                     None,
                     content_hash,
                     "",
-                    path.stat().st_mtime,
+                    indexed_at,
                 ),
             )
 

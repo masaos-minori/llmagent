@@ -535,3 +535,94 @@ class TestChunkIdStability:
             service.get_chunk(GetChunkRequest(chunk_id=row["chunk_id"]))
         )
         assert "Title" in result or "Content" in result
+
+
+# ── truncation ────────────────────────────────────────────────────────────────
+
+
+class TestTruncation:
+    def test_search_docs_truncates_by_results_limit(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """search_docs respects max_results_limit and includes truncation marker."""
+        for i in range(5):
+            f = tmp_path / f"doc{i}.md"
+            f.write_text(f"# Section {i}\n\nKeyword content here.", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
+        service.max_results_limit = 2
+        result = asyncio.run(search_docs(service, SearchDocsRequest(query="Keyword")))
+        assert "Truncated" in result
+        assert "results found" in result
+
+    def test_search_docs_truncates_by_char_limit(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """search_docs respects max_total_result_chars and includes truncation marker."""
+        for i in range(3):
+            f = tmp_path / f"doc{i}.md"
+            f.write_text(f"# Section {i}\n\nKeyword content here.", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
+        service.max_total_result_chars = 50
+        result = asyncio.run(search_docs(service, SearchDocsRequest(query="Keyword")))
+        assert "Truncated" in result
+        assert "chars" in result
+
+    def test_get_chunk_truncates_large_content(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """get_chunk truncates content exceeding max_chars_per_chunk."""
+        import sqlite3  # noqa: PLC0415
+
+        f = tmp_path / "big.md"
+        f.write_text("# Big\n\n" + "X" * 2000, encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+        service.max_chars_per_chunk = 100
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT chunk_id FROM chunks LIMIT 1").fetchone()
+        conn.close()
+        result = asyncio.run(
+            service.get_chunk(GetChunkRequest(chunk_id=row["chunk_id"]))
+        )
+        assert "Truncated" in result
+        assert "chars" in result
+
+    def test_outline_truncates_large_heading_list(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """outline truncates when heading count exceeds max_outline_items."""
+        headings = "\n\n".join(f"## H{i}\n\nBody." for i in range(10))
+        f = tmp_path / "many.md"
+        f.write_text(f"# Root\n\n{headings}", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+        service.max_outline_items = 3
+        result = asyncio.run(service.outline(OutlineRequest(path=str(f))))
+        assert "Truncated" in result
+        assert "headings found" in result
+
+    def test_grep_docs_truncates_at_match_cap(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """grep_docs truncates when match cap is reached."""
+        for i in range(5):
+            f = tmp_path / f"g{i}.md"
+            f.write_text(f"# G{i}\n\nfind_me content.", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
+        service.max_grep_matches = 2
+        result = asyncio.run(service.grep_docs(GrepDocsRequest(pattern="find_me")))
+        assert "Truncated" in result
+        assert "cap of 2 matches reached" in result
+
+    def test_request_override_bounded_by_config_cap(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Per-request max_outline_items cannot exceed config max_outline_items."""
+        headings = "\n\n".join(f"## H{i}\n\nBody." for i in range(10))
+        f = tmp_path / "bound.md"
+        f.write_text(f"# Root\n\n{headings}", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+        service.max_outline_items = 3
+        result = asyncio.run(
+            service.outline(OutlineRequest(path=str(f), max_outline_items=100))
+        )
+        assert "Truncated" in result
