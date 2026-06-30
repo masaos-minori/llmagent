@@ -135,7 +135,7 @@ Full details: [05_agent_07_cli-and-commands.md §CLIView](05_agent_07_cli-and-co
 - **Primary API:** `start()`, `save(role, content)`, `save_diagnostic(content)`, `fetch_messages(session_id)`, `add_note(content)`
 - **Skip counters:** `skipped_no_session_count`, `skipped_invalid_role_count` (per-session, read-only properties)
 - **Strict mode:** `AgentSession(strict_mode=True)` raises `RuntimeError` on first skipped save instead of warning
-- **Callers:** `Orchestrator`, `CommandRegistry` (`/session`, `/note` commands; `/db` commands delegate to rag-pipeline-mcp)
+- **Callers:** `Orchestrator`, `CommandRegistry` (`/session` commands; `/db` commands delegate to rag-pipeline-mcp)
 - **Callees:** `SQLiteHelper`
 - **Config:** DB path from `config/common.toml`
 - **Failure:** `sqlite3.Error` on critical failures; logs warning and increments counter on `session_id=None`
