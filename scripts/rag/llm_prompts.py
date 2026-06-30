@@ -33,9 +33,14 @@ from typing import NotRequired, TypedDict, cast
 
 import orjson
 
-from rag.types import MergedHit, RankedHit, RawHit
+from rag.types import (
+    RagHit,  # noqa: F401 — imported for use in this module
+    MergedHit,
+    RankedHit,
+    RawHit,
+)
 
-RagHit = RawHit | MergedHit | RankedHit
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 

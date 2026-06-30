@@ -27,12 +27,11 @@ from mcp.rag_pipeline.models import (
     build_rag_cfg_adapter,
 )
 from mcp.server import ToolArgs
+from rag.types import RagHit
 
-RagHit = RawHit | MergedHit | RankedHit
+from typing import Callable, Protocol
 
 logger = logging.getLogger(__name__)
-
-from typing import Protocol
 
 
 class RagPipelineLike(Protocol):

@@ -41,9 +41,14 @@ from rag.llm_prompts import (
     _mqe_prompt,
     _parse_mqe_response,
 )
-from rag.types import MergedHit, RankedHit, RawHit
+from rag.types import (
+    RagHit,  # noqa: F401 — imported for use in this module
+    MergedHit,
+    RankedHit,
+    RawHit,
+)
 
-RagHit = RawHit | MergedHit | RankedHit
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 

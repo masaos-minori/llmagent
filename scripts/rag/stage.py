@@ -8,9 +8,19 @@ import dataclasses
 from typing import Any, Literal, Protocol, TypedDict
 
 from rag.models_result import SearchDiagnostics
-from rag.types import MergedHit, RankedHit, RawHit
+from rag.types import (
+    RagHit,  # noqa: F401 — imported for use in this module
+    MergedHit,
+    RankedHit,
+    RawHit,
+)
 
-RagHit = RawHit | MergedHit | RankedHit
+__all__ = [
+    "PipelineContext",
+    "PipelineStage",
+    "RagHit",
+    "StageResult",
+]
 
 
 class StageResult(TypedDict):

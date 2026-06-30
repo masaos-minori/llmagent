@@ -17,10 +17,14 @@ import time
 
 from db.helper import SQLiteHelper
 
-from rag.types import MergedHit, RankedHit, RawHit
-from rag.utils import floats_to_blob
+from rag.types import (
+    RagHit,  # noqa: F401 — imported for use in this module
+    MergedHit,
+    RankedHit,
+    RawHit,
+)
 
-RagHit = RawHit | MergedHit | RankedHit
+from rag.utils import floats_to_blob
 
 logger = logging.getLogger(__name__)
 
