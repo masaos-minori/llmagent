@@ -157,3 +157,32 @@ class TestIncrementalRefresh:
         assert result["skipped_count"] == 0
         assert result["deleted_count"] == 0
         assert result["failed_count"] == 0
+
+    def test_chunk_id_stable_after_refresh(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Force-index, record IDs, force-index again (unchanged); IDs are identical."""
+        import sqlite3  # noqa: PLC0415
+
+        f = tmp_path / "stable.md"
+        f.write_text("# Stable\n\nContent.")
+
+        asyncio.run(
+            _refresh_paths(service, RefreshIndexRequest(paths=[str(f)], force=True))
+        )
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        ids_before = {
+            r["chunk_id"] for r in conn.execute("SELECT chunk_id FROM chunks")
+        }
+        conn.close()
+
+        asyncio.run(
+            _refresh_paths(service, RefreshIndexRequest(paths=[str(f)], force=True))
+        )
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        ids_after = {r["chunk_id"] for r in conn.execute("SELECT chunk_id FROM chunks")}
+        conn.close()
+
+        assert ids_before == ids_after

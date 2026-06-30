@@ -27,6 +27,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def generate_chunk_id(
+    normalized_path: str, heading_path: str, ordinal: int, content_hash: str
+) -> str:
+    """Generate a stable chunk ID from normalized path, heading path, ordinal, and content hash.
+
+    Stable across re-indexing of unchanged content. Uses | as delimiter to reduce
+    collision risk with paths containing colons.
+    normalized_path should be Path(path).resolve().as_posix().
+    """
+    return hashlib.sha256(
+        f"{normalized_path}|{heading_path}|{ordinal}|{content_hash}".encode()
+    ).hexdigest()
+
+
 async def _index_single_file(service: MdqService, path: Path) -> None:
     """Index a single Markdown file into the service DB."""
     logger.info("Indexing file: %s", path)
@@ -45,6 +59,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
     try:
         doc_id = hashlib.sha256(str(path).encode()).hexdigest()
         now = path.stat().st_mtime_ns
+        normalized_path = path.resolve().as_posix()
 
         # Delete old chunks for this document
         conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
@@ -53,6 +68,12 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
             content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
             normalized_content = " ".join(section["content"].split())
             char_count = len(section["content"])
+            chunk_id = generate_chunk_id(
+                normalized_path,
+                section.get("heading_path", ""),
+                section.get("ordinal", 0),
+                content_hash,
+            )
 
             # Upsert document
             conn.execute(
@@ -71,9 +92,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
             conn.execute(
                 "INSERT INTO chunks (chunk_id, doc_id, source_path, heading, heading_path, heading_level, ordinal, content, normalized_content, start_line, end_line, char_count, token_count, content_hash, tags_json, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
-                    hashlib.sha256(
-                        f"{doc_id}:{section['heading']}:{section['start_line']}".encode()
-                    ).hexdigest(),
+                    chunk_id,
                     doc_id,
                     str(path),
                     section["heading"],
@@ -94,7 +113,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
 
             # Generate summaries for large chunks if enabled
             if service.summary_cache_enabled:
-                _generate_summaries(service, conn, doc_id, sections)
+                _generate_summaries(service, conn, doc_id, sections, path)
 
             conn.commit()
     except sqlite3.Error as e:
@@ -297,17 +316,23 @@ def _generate_summaries(
     conn: sqlite3.Connection,
     doc_id: str,
     sections: list[ParsedSection],
+    path: Path,
 ) -> None:
     """Generate summaries for large chunks if enabled."""
+    normalized_path = path.resolve().as_posix()
     for section in sections:
         content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
         if len(section["content"]) > service.summary_threshold:
+            chunk_id = generate_chunk_id(
+                normalized_path,
+                section.get("heading_path", ""),
+                section.get("ordinal", 0),
+                content_hash,
+            )
             conn.execute(
                 "INSERT OR REPLACE INTO chunk_summaries (chunk_id, summary, summary_model, content_hash, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
                 (
-                    hashlib.sha256(
-                        f"{doc_id}:{section['heading']}:{section['start_line']}".encode()
-                    ).hexdigest(),
+                    chunk_id,
                     section["content"][: service.summary_threshold],
                     service.summary_model,
                     content_hash,

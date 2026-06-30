@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from mcp.mdq.auth import authorize_path
+from mcp.mdq.indexer import generate_chunk_id
 from mcp.mdq.indexer import index_paths as _index_paths
 from mcp.mdq.indexer import refresh_paths as _refresh_paths
 from mcp.mdq.models import (
@@ -322,8 +323,10 @@ class MdqService:
                 import hashlib
                 import time
 
-                chunk_id = f"chunk_{hashlib.sha256(f'{file_path}:{legacy_id}'.encode()).hexdigest()[:16]}"
                 content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                chunk_id = generate_chunk_id(
+                    Path(file_path).resolve().as_posix(), "", 0, content_hash
+                )
                 conn.execute(
                     "INSERT OR REPLACE INTO chunks (chunk_id, doc_id, source_path, heading, heading_path, heading_level, ordinal, content, normalized_content, start_line, end_line, char_count, token_count, content_hash, tags_json, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (

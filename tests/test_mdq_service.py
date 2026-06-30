@@ -9,7 +9,12 @@ from pathlib import Path
 from tempfile import mkstemp
 
 import pytest
-from mcp.mdq.indexer import _index_directory, _index_single_file, index_paths
+from mcp.mdq.indexer import (
+    _index_directory,
+    _index_single_file,
+    generate_chunk_id,
+    index_paths,
+)
 from mcp.mdq.models import (
     GetChunkRequest,
     GrepDocsRequest,
@@ -437,3 +442,96 @@ class TestMdqService:
             import os  # noqa: PLC0415
 
             os.close(fd)
+
+
+# ── chunk ID stability ────────────────────────────────────────────────────────
+
+
+class TestChunkIdStability:
+    def test_generate_chunk_id_deterministic(self) -> None:
+        """Same inputs always produce same ID."""
+        a = generate_chunk_id("/docs/file.md", "A > B", 1, "abc123")
+        b = generate_chunk_id("/docs/file.md", "A > B", 1, "abc123")
+        assert a == b
+
+    def test_generate_chunk_id_differs_on_content(self) -> None:
+        """Different content_hash produces different ID."""
+        a = generate_chunk_id("/docs/file.md", "A", 1, "hash1")
+        b = generate_chunk_id("/docs/file.md", "A", 1, "hash2")
+        assert a != b
+
+    def test_generate_chunk_id_differs_on_path(self) -> None:
+        """Different path produces different ID even with same heading/content."""
+        a = generate_chunk_id("/docs/a.md", "A", 1, "hash1")
+        b = generate_chunk_id("/docs/b.md", "A", 1, "hash1")
+        assert a != b
+
+    def test_chunk_id_stable_across_reindex(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        """Index same file twice; chunk IDs are identical."""
+        import sqlite3  # noqa: PLC0415
+
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        ids_first = {r["chunk_id"] for r in conn.execute("SELECT chunk_id FROM chunks")}
+        conn.close()
+
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        ids_second = {
+            r["chunk_id"] for r in conn.execute("SELECT chunk_id FROM chunks")
+        }
+        conn.close()
+
+        assert ids_first == ids_second
+
+    def test_chunk_id_changes_on_content_edit(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Editing content and re-indexing changes the chunk ID."""
+        import sqlite3  # noqa: PLC0415
+
+        f = tmp_path / "edit.md"
+        f.write_text("# Title\n\nOriginal content.", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        ids_before = {
+            r["chunk_id"] for r in conn.execute("SELECT chunk_id FROM chunks")
+        }
+        conn.close()
+
+        f.write_text("# Title\n\nEdited content.", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        ids_after = {r["chunk_id"] for r in conn.execute("SELECT chunk_id FROM chunks")}
+        conn.close()
+
+        assert ids_before != ids_after
+
+    def test_search_chunk_id_passthrough(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        """chunk_id from search result can be passed to get_chunk without error."""
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
+        search_result = asyncio.run(
+            search_docs(service, SearchDocsRequest(query="Content"))
+        )
+        assert "Title" in search_result
+
+        import sqlite3  # noqa: PLC0415
+
+        conn = sqlite3.connect(service.db_path)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT chunk_id FROM chunks LIMIT 1").fetchone()
+        conn.close()
+        assert row is not None
+
+        result = asyncio.run(
+            service.get_chunk(GetChunkRequest(chunk_id=row["chunk_id"]))
+        )
+        assert "Title" in result or "Content" in result
