@@ -41,7 +41,6 @@ class DbAction(StrEnum):
 
 class McpAction(StrEnum):
     STATUS = "status"
-    INSTALL = "install"
     PROBE = "probe"
 
 

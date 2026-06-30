@@ -404,3 +404,25 @@ class TestAppServicesMemoryOptional:
         )
         assert svc.memory is None
         assert svc.lifecycle is not None
+
+
+# ── /mcp command definition verification ────────────────────────────────────────
+
+
+class TestMcpCommandDefinition:
+    """Verify /mcp CommandDef in registry.py does not reference install."""
+
+    def test_mcp_help_does_not_include_install(self):
+        from agent.commands.registry import _COMMANDS
+        mcp_def = next(cd for cd in _COMMANDS if cd.name == "/mcp")
+        assert "install" not in mcp_def.help.lower()
+
+    def test_mcp_is_prefix_async_command(self):
+        from agent.commands.registry import _COMMANDS
+        mcp_def = next(cd for cd in _COMMANDS if cd.name == "/mcp")
+        assert mcp_def.prefix is True
+        assert mcp_def.is_async is True
+
+    def test_mcp_action_no_install(self):
+        from agent.commands.enums import McpAction
+        assert not hasattr(McpAction, "INSTALL")
