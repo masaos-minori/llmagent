@@ -135,10 +135,11 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 
 | Command | Side effects | Related state |
 |---|---|---|
-| `/tool list` | None | Display saved tool result list |
-| `/tool show <id>` | None | Display full tool result |
+| `/tool list` | None | Display saved tool result list (undone turns annotated `[undone]`) |
+| `/tool show <id>` | None | Display full tool result (undone artifacts show a retention notice) |
 
 > **注意**: `/tool show <id>` は `ToolResultStore` から取得する。`messages` テーブルは参照しない。
+> undone ターンのアーティファクトは削除されず `undone = 1` フラグが立てられる (`[undone turn — artifact retained for audit]`)。
 | `/plan` | None | Toggle `ctx.conv.plan_mode` |
 
 ### Workflow category

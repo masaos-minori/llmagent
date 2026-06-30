@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS tool_results (
     full_text  TEXT    NOT NULL,
     summary    TEXT,
     is_error   INTEGER NOT NULL DEFAULT 0,
+    undone     INTEGER NOT NULL DEFAULT 0,
     created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_tool_results_session ON tool_results(session_id);
@@ -299,3 +300,45 @@ class TestToolResultStoreListRecent:
             results = store.list_recent(1, n=-5)
             assert results == []
             mock_make_helper.assert_not_called()
+
+
+class TestMarkTurnUndone:
+    def test_marks_rows_for_session_and_turn(self, store: ToolResultStore) -> None:
+        row_id = store.store(1, 5, "test_tool", "{}", "result", "summary", False)
+        marked = store.mark_turn_undone(1, 5)
+        assert marked == 1
+        row = store.get(row_id)
+        assert row is not None
+        assert row.undone is True
+
+    def test_noop_when_session_id_none(self, store: ToolResultStore) -> None:
+        marked = store.mark_turn_undone(None, 5)
+        assert marked == 0
+
+    def test_noop_when_turn_zero(self, store: ToolResultStore) -> None:
+        marked = store.mark_turn_undone(1, 0)
+        assert marked == 0
+
+    def test_noop_when_turn_negative(self, store: ToolResultStore) -> None:
+        marked = store.mark_turn_undone(1, -1)
+        assert marked == 0
+
+    def test_no_match_returns_zero(self, store: ToolResultStore) -> None:
+        store.store(1, 5, "test_tool", "{}", "result", "summary", False)
+        marked = store.mark_turn_undone(1, 99)
+        assert marked == 0
+
+    def test_marks_multiple_rows_same_turn(self, store: ToolResultStore) -> None:
+        id1 = store.store(1, 3, "tool_a", "{}", "out_a", None, False)
+        id2 = store.store(1, 3, "tool_b", "{}", "out_b", None, False)
+        marked = store.mark_turn_undone(1, 3)
+        assert marked == 2
+        assert store.get(id1) is not None and store.get(id1).undone is True  # type: ignore[union-attr]
+        assert store.get(id2) is not None and store.get(id2).undone is True  # type: ignore[union-attr]
+
+    def test_does_not_mark_other_sessions(self, store: ToolResultStore) -> None:
+        id1 = store.store(1, 5, "tool_a", "{}", "out_a", None, False)
+        id2 = store.store(2, 5, "tool_b", "{}", "out_b", None, False)
+        store.mark_turn_undone(1, 5)
+        assert store.get(id1) is not None and store.get(id1).undone is True  # type: ignore[union-attr]
+        assert store.get(id2) is not None and store.get(id2).undone is False  # type: ignore[union-attr]
