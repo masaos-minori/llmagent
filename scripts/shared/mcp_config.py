@@ -71,7 +71,11 @@ class McpServerConfig:
         self._validate_cross_fields()
 
     def _cast_enums(self) -> None:
-        """Cast str inputs from config files to enum types."""
+        """Cast str inputs from config files to enum types.
+
+        Note: this is a compatibility shim for direct runtime callers.
+        The canonical path is the config loader which performs all enum conversion.
+        """
         if not isinstance(self.transport, TransportType):
             self.transport = TransportType(self.transport)
         if not isinstance(self.startup_mode, StartupMode):
@@ -190,7 +194,11 @@ def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
 
 
 def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
-    """Construct McpServerConfig from a raw dict, applying defaults."""
+    """Construct McpServerConfig from a raw dict, applying defaults.
+
+    All TOML string values are converted to enum types here so that
+    McpServerConfig runtime instances use normalized enum values.
+    """
     if not isinstance(v, dict):
         raise ValueError(f"mcp_servers[{key!r}] must be a dict, got {type(v).__name__}")
     transport = v.get("transport", "http")
@@ -198,12 +206,24 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         raise ValueError(
             f"mcp_servers[{key!r}].transport must be str, got {type(transport).__name__}"
         )
+    # Resolve healthcheck_mode with auto-inference from transport.
+    raw_hc = v.get("healthcheck_mode", "")
+    if not isinstance(raw_hc, str):
+        raise ValueError(
+            f"mcp_servers[{key!r}].healthcheck_mode must be str, got {type(raw_hc).__name__}"
+        )
+    if not raw_hc:
+        healthcheck_mode = (
+            HealthcheckMode.HTTP if transport == "http" else HealthcheckMode.PROCESS
+        )
+    else:
+        healthcheck_mode = HealthcheckMode(raw_hc)
     return McpServerConfig(
         transport=TransportType(transport),
         url=v.get("url", ""),
         cmd=list(v.get("cmd", [])),
         startup_mode=StartupMode(v.get("startup_mode", "persistent")),
-        healthcheck_mode=v.get("healthcheck_mode", ""),
+        healthcheck_mode=healthcheck_mode,
         idle_timeout_sec=int(v.get("idle_timeout_sec", 0)),
         startup_timeout_sec=int(v.get("startup_timeout_sec", 30)),
         working_dir=v.get("working_dir", ""),

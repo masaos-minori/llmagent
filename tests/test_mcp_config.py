@@ -3,21 +3,30 @@ Unit tests for shared.mcp_config.McpServerConfig validation and _build_mcp_serve
 """
 
 import pytest
-from shared.mcp_config import McpServerConfig, SecurityProfile, _build_mcp_servers
+from shared.mcp_config import (
+    HealthcheckMode,
+    McpServerConfig,
+    SecurityProfile,
+    StartupMode,
+    TransportType,
+    _build_mcp_servers,
+)
 
 
 class TestMcpServerConfigValidation:
     def test_valid_http_config(self) -> None:
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [])
-        assert cfg.transport == "http"
-        assert cfg.startup_mode == "persistent"
-        assert cfg.healthcheck_mode == "http"  # auto-inferred
+        cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000", [])
+        assert cfg.transport == TransportType.HTTP
+        assert cfg.startup_mode == StartupMode.PERSISTENT
+        assert cfg.healthcheck_mode == HealthcheckMode.HTTP
 
     def test_valid_stdio_config(self) -> None:
-        cfg = McpServerConfig("stdio", "", ["python", "server.py"])
-        assert cfg.transport == "stdio"
-        assert cfg.startup_mode == "persistent"
-        assert cfg.healthcheck_mode == "http"  # dataclass default
+        cfg = McpServerConfig(
+            TransportType.STDIO, "", ["python", "server.py"], healthcheck_mode=HealthcheckMode.PROCESS
+        )
+        assert cfg.transport == TransportType.STDIO
+        assert cfg.startup_mode == StartupMode.PERSISTENT
+        assert cfg.healthcheck_mode == HealthcheckMode.PROCESS
 
     def test_invalid_transport_raises(self) -> None:
         with pytest.raises(ValueError, match="not a valid TransportType"):
@@ -25,48 +34,52 @@ class TestMcpServerConfigValidation:
 
     def test_http_empty_url_raises(self) -> None:
         with pytest.raises(ValueError, match="url must not be empty"):
-            McpServerConfig("http", "", [])
+            McpServerConfig(TransportType.HTTP, "", [])
 
     def test_stdio_empty_cmd_raises(self) -> None:
         with pytest.raises(ValueError, match="cmd must not be empty"):
-            McpServerConfig("stdio", "", [])
+            McpServerConfig(TransportType.STDIO, "", [])
 
     def test_invalid_startup_mode_raises(self) -> None:
         with pytest.raises(ValueError, match="not a valid StartupMode"):
-            McpServerConfig("http", "http://127.0.0.1:8000", [], startup_mode="always")
+            McpServerConfig(
+                TransportType.HTTP, "http://127.0.0.1:8000", [], startup_mode="always"
+            )
 
     def test_invalid_healthcheck_mode_raises(self) -> None:
         with pytest.raises(ValueError, match="not a valid HealthcheckMode"):
             McpServerConfig(
-                "http",
+                TransportType.HTTP,
                 "http://127.0.0.1:8000",
                 [],
                 healthcheck_mode="unknown",
             )
 
     def test_explicit_startup_mode_ondemand(self) -> None:
-        cfg = McpServerConfig("stdio", "", ["python", "s.py"], startup_mode="ondemand")
-        assert cfg.startup_mode == "ondemand"
+        cfg = McpServerConfig(
+            TransportType.STDIO, "", ["python", "s.py"], startup_mode=StartupMode.ONDEMAND
+        )
+        assert cfg.startup_mode == StartupMode.ONDEMAND
 
     def test_explicit_healthcheck_ping_tool(self) -> None:
         cfg = McpServerConfig(
-            "stdio",
+            TransportType.STDIO,
             "",
             ["python", "s.py"],
-            healthcheck_mode="ping_tool",
+            healthcheck_mode=HealthcheckMode.PING_TOOL,
         )
-        assert cfg.healthcheck_mode == "ping_tool"
+        assert cfg.healthcheck_mode == HealthcheckMode.PING_TOOL
 
     def test_tool_names_default_empty(self) -> None:
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [])
+        cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000", [])
         assert cfg.tool_names == []
 
     def test_env_default_empty_dict(self) -> None:
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [])
+        cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000", [])
         assert cfg.env == {}
 
     def test_idle_timeout_default_zero(self) -> None:
-        cfg = McpServerConfig("stdio", "", ["python", "s.py"])
+        cfg = McpServerConfig(TransportType.STDIO, "", ["python", "s.py"])
         assert cfg.idle_timeout_sec == 0
 
     def test_ondemand_http_raises(self) -> None:
@@ -75,7 +88,7 @@ class TestMcpServerConfigValidation:
             ValueError, match="ondemand.*is only valid for transport='stdio'"
         ):
             McpServerConfig(
-                "http", "http://127.0.0.1:8000", [], startup_mode="ondemand"
+                TransportType.HTTP, "http://127.0.0.1:8000", [], startup_mode=StartupMode.ONDEMAND
             )
 
     def test_subprocess_stdio_raises(self) -> None:
@@ -83,14 +96,29 @@ class TestMcpServerConfigValidation:
         with pytest.raises(
             ValueError, match="subprocess.*is only valid for transport='http'"
         ):
-            McpServerConfig("stdio", "", ["python", "s.py"], startup_mode="subprocess")
+            McpServerConfig(TransportType.STDIO, "", ["python", "s.py"], startup_mode=StartupMode.SUBPROCESS)
 
     def test_persistent_http_valid(self) -> None:
         """persistent startup_mode with HTTP transport should be valid (regression guard)."""
         cfg = McpServerConfig(
-            "http", "http://127.0.0.1:8000", [], startup_mode="persistent"
+            TransportType.HTTP, "http://127.0.0.1:8000", [], startup_mode=StartupMode.PERSISTENT
         )
-        assert cfg.startup_mode == "persistent"
+        assert cfg.startup_mode == StartupMode.PERSISTENT
+
+    def test_direct_runtime_invalid_string_raises(self) -> None:
+        """Direct runtime construction with invalid strings must fail."""
+        with pytest.raises(ValueError, match="not a valid TransportType"):
+            McpServerConfig("invalid", "http://127.0.0.1:8000", [])
+
+    def test_direct_runtime_invalid_startup_mode_raises(self) -> None:
+        """Direct runtime construction with invalid startup_mode must fail."""
+        with pytest.raises(ValueError, match="not a valid StartupMode"):
+            McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000", [], startup_mode="always")
+
+    def test_direct_runtime_invalid_healthcheck_mode_raises(self) -> None:
+        """Direct runtime construction with invalid healthcheck_mode must fail."""
+        with pytest.raises(ValueError, match="not a valid HealthcheckMode"):
+            McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000", [], healthcheck_mode="unknown")
 
 
 class TestBuildMcpServers:
@@ -118,7 +146,8 @@ class TestBuildMcpServers:
         assert "my_server" in result
         assert result["my_server"].url == "http://127.0.0.1:9999"
 
-    def test_new_fields_parsed_from_config(self) -> None:
+    def test_toml_string_values_parsed_from_config(self) -> None:
+        """_build_mcp_servers must accept TOML string values and convert to enums."""
         cfg = {
             "mcp_servers": {
                 "my_stdio": {
@@ -136,14 +165,16 @@ class TestBuildMcpServers:
         }
         result = _build_mcp_servers(cfg)
         s = result["my_stdio"]
-        assert s.startup_mode == "ondemand"
-        assert s.healthcheck_mode == "ping_tool"
+        assert s.transport == TransportType.STDIO
+        assert s.startup_mode == StartupMode.ONDEMAND
+        assert s.healthcheck_mode == HealthcheckMode.PING_TOOL
         assert s.idle_timeout_sec == 300
         assert s.working_dir == "/tmp"
         assert s.env == {"FOO": "bar"}
         assert s.tool_names == ["my_tool"]
 
-    def test_new_fields_default_when_absent(self) -> None:
+    def test_toml_string_values_default_when_absent(self) -> None:
+        """_build_mcp_servers must apply defaults for missing TOML string values."""
         cfg = {
             "mcp_servers": {
                 "minimal": {
@@ -155,8 +186,9 @@ class TestBuildMcpServers:
         }
         result = _build_mcp_servers(cfg)
         s = result["minimal"]
-        assert s.startup_mode == "persistent"
-        assert s.healthcheck_mode == "http"
+        assert s.transport == TransportType.HTTP
+        assert s.startup_mode == StartupMode.PERSISTENT
+        assert s.healthcheck_mode == HealthcheckMode.HTTP
         assert s.idle_timeout_sec == 0
         assert s.working_dir == ""
         assert s.env == {}
@@ -182,11 +214,11 @@ class TestBuildMcpServers:
         assert s.role == "file_write"
 
     def test_auth_token_default_empty(self) -> None:
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [])
+        cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000", [])
         assert cfg.auth_token == ""
 
     def test_role_default_empty(self) -> None:
-        cfg = McpServerConfig("http", "http://127.0.0.1:8000", [])
+        cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000", [])
         assert cfg.role == ""
 
 

@@ -11,11 +11,11 @@ from shared.route_resolver import ToolRouteResolver
 
 
 def _http(key: str, url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig("http", url, [], StartupMode.PERSISTENT)
+    return McpServerConfig("http", url, [], startup_mode=StartupMode.PERSISTENT)
 
 
 def _stdio(key: str, tool_names: list[str] | None = None) -> McpServerConfig:
-    cfg = McpServerConfig("stdio", "", ["python", "s.py"], StartupMode.PERSISTENT)
+    cfg = McpServerConfig("stdio", "", ["python", "s.py"], startup_mode=StartupMode.PERSISTENT)
     if tool_names:
         cfg.tool_names = tool_names
     return cfg
@@ -203,26 +203,6 @@ class TestStartupModeValidation:
                 cmd=["python", "s.py"],
                 startup_mode=StartupMode.SUBPROCESS,
             )
-
-    def test_startup_mode_string_persistent_coerced(self) -> None:
-        """String 'persistent' is coerced to StartupMode.PERSISTENT."""
-        cfg = McpServerConfig(
-            transport="http",
-            url="http://127.0.0.1:8000",
-            cmd=[],
-            startup_mode="persistent",
-        )
-        assert cfg.startup_mode == StartupMode.PERSISTENT
-
-    def test_startup_mode_string_subprocess_coerced(self) -> None:
-        """String 'subprocess' is coerced to StartupMode.SUBPROCESS."""
-        cfg = McpServerConfig(
-            transport="http",
-            url="http://127.0.0.1:8000",
-            cmd=[],
-            startup_mode="subprocess",
-        )
-        assert cfg.startup_mode == StartupMode.SUBPROCESS
 
 
 class TestValidateRoutingDrift:

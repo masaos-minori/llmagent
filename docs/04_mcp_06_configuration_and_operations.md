@@ -49,7 +49,7 @@ health probes, audit log reading, and the new-server addition checklist.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `transport` | `TransportType` | required | `TransportType.HTTP` (`"http"`) or `TransportType.STDIO` (`"stdio"`); string literals accepted at runtime via `__post_init__` conversion |
+| `transport` | `TransportType` | required | `TransportType.HTTP` (`"http"`) or `TransportType.STDIO` (`"stdio"`); TOML string values are converted by the config loader, not at runtime |
 | `url` | `str` | required | HTTP server base URL (http only) |
 | `cmd` | `list[str]` | required | Subprocess command (stdio or subprocess mode) |
 | `startup_mode` | `str` | `"persistent"` | `"persistent"` / `"ondemand"` / `"subprocess"` |
