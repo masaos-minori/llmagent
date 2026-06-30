@@ -107,7 +107,7 @@ def load_plugins(
     known_tools: frozenset[str] = frozenset(),
     override_policy: str = "reject",
     strict_mode: bool = False,
-) -> int
+) -> PluginLoadResult
 def register_tool(name: str) -> Callable          # decorator
 def get_tool(name: str) -> Callable | None
 def register_command(name: str, prefix: bool = False) -> Callable
@@ -132,6 +132,32 @@ plugin_registry.load_plugins(plugin_dir, known_tools=..., override_policy="rejec
 
 **Priority:** `@register_tool` handlers are checked by `ToolExecutor.execute()` **before** cache and MCP routing.
 `@register_command` handlers are dispatched by `CommandRegistry` **after** built-in commands.
+
+**Return types:**
+
+```python
+@dataclass(frozen=True)
+class PluginFailure:
+    path: str          # plugin .py filename
+    error: str         # exception message
+
+@dataclass(frozen=True)
+class PluginLoadResult:
+    loaded_count: int
+    failed: tuple[PluginFailure, ...]
+    tool_conflicts_shadowed: int
+    tool_conflicts_allowed: int
+    command_shadows: int
+
+class PluginLoadError(RuntimeError):
+    pass
+
+def get_last_load_result() -> PluginLoadResult | None
+```
+
+- `get_last_load_result()` returns the most recent `PluginLoadResult`, or `None` before first load.
+- `PluginLoadError` is raised only when `strict_mode=True` and there are failures or MCP conflicts.
+- `PluginFailure.error` contains the full exception message from the failed plugin.
 
 
 

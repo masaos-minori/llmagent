@@ -767,3 +767,85 @@ class TestStrictModeToolConflict:
         )
         assert result.loaded_count == 1
         assert plugin_registry.get_tool("list_directory") is not None
+
+
+# ── Structured load result regression tests ────────────────────────────────────
+
+
+class TestStructuredLoadResultRegression:
+    """Regression tests for PluginLoadResult structured return value."""
+
+    def test_missing_dir_returns_empty_result(self, tmp_path: Path):
+        result = plugin_registry.load_plugins(tmp_path / "nonexistent")
+        assert result.loaded_count == 0
+        assert result.failed == ()
+        assert result.tool_conflicts_shadowed == 0
+        assert result.tool_conflicts_allowed == 0
+        assert result.command_shadows == 0
+
+    def test_syntax_error_plugin_in_failed(self, tmp_path: Path):
+        (tmp_path / "bad.py").write_text("def f(\n")
+        result = plugin_registry.load_plugins(tmp_path)
+        assert result.loaded_count == 0
+        assert len(result.failed) == 1
+        assert result.failed[0].path == "bad.py"
+        assert "SyntaxError" in result.failed[0].error
+
+    def test_reject_policy_increments_conflict_counters(self, tmp_path: Path):
+        (tmp_path / "conflict_plugin.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("list_directory")
+                async def t(args) -> tuple[str, bool]:
+                    return "", False
+            """)
+        )
+        result = plugin_registry.load_plugins(
+            tmp_path,
+            known_tools=frozenset(["list_directory"]),
+            override_policy="reject",
+        )
+        assert result.loaded_count == 1
+        assert result.tool_conflicts_shadowed > 0
+        assert result.tool_conflicts_allowed == 0
+
+    def test_command_shadow_count_reported(self, tmp_path: Path):
+        plugin_registry.register_builtin_commands(frozenset(["/help"]))
+        (tmp_path / "shadow_plugin.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_command
+
+                @register_command("/help")
+                def cmd():
+                    pass
+            """)
+        )
+        result = plugin_registry.load_plugins(tmp_path)
+        assert result.command_shadows > 0
+
+    def test_get_last_load_result_returns_most_recent(self, tmp_path: Path):
+        (tmp_path / "plugin_a.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("get_weather")
+                async def t(args) -> tuple[str, bool]:
+                    return "", False
+            """)
+        )
+        result1 = plugin_registry.load_plugins(tmp_path)
+        assert plugin_registry.get_last_load_result() is result1
+
+        (tmp_path / "plugin_b.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("get_weather")
+                async def t(args) -> tuple[str, bool]:
+                    return "", False
+            """)
+        )
+        result2 = plugin_registry.load_plugins(tmp_path)
+        assert plugin_registry.get_last_load_result() is result2
+        assert result1 is not result2
