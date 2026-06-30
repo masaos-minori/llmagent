@@ -232,9 +232,11 @@ class _RagExportMixin(MixinBase):
             self._out.write("Nothing to compact: history too short.")
             return
         try:
-            ctx.conv.history = await ctx.services.hist_mgr.force_compress(
+            ctx.conv.history, result = await ctx.services.hist_mgr.force_compress(
                 ctx.conv.history
             )
         except HistoryCompressionError as e:
             self._out.write_error(f"Compression failed: {e}")
             return
+        if result.compressed_count > 0 or result.summary_added or result.is_fallback:
+            ctx.session.replace_messages(ctx.conv.history)

@@ -49,6 +49,18 @@ class AgentSession:
         """Persist multiple messages in a single DB transaction."""
         self._message_repo.save_many(messages)
 
+    def replace_messages(self, messages: list[LLMMessage]) -> None:
+        """Persist compressed history snapshot back to DB.
+
+        Skips silently if session_id is None (before session.start()).
+        """
+        if self.session_id is None:
+            logger.warning(
+                "replace_messages called before session.start(); skipping persist"
+            )
+            return
+        self._message_repo.replace_messages(self.session_id, messages)
+
     def save_diagnostic(self, content: str) -> None:
         """Persist a diagnostic-only message; not included in normal history retrieval."""
         self._diagnostic_store.save(

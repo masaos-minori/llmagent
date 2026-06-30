@@ -190,8 +190,12 @@ class Orchestrator:
             await self._handle_workflow_engine(line, ctx, turn_started_at)
             return
 
-        answer, error_kind, is_partial = await self._process_turn(line, ctx, turn_started_at)
-        await self._handle_turn_end(line, answer, turn_started_at, error_kind, is_partial)
+        answer, error_kind, is_partial = await self._process_turn(
+            line, ctx, turn_started_at
+        )
+        await self._handle_turn_end(
+            line, answer, turn_started_at, error_kind, is_partial
+        )
 
     async def _handle_workflow_engine(
         self, line: str, ctx: AgentContext, turn_started_at: float
@@ -240,7 +244,9 @@ class Orchestrator:
                 return None
 
             async def verify_fn() -> str | None:
-                await self._handle_turn_end(line, answer, turn_started_at, error_kind, is_partial)
+                await self._handle_turn_end(
+                    line, answer, turn_started_at, error_kind, is_partial
+                )
                 return None
 
             await engine.run(task, plan_fn, execute_fn, verify_fn)  # type: ignore[arg-type]
@@ -382,7 +388,11 @@ class Orchestrator:
         if ctx.services.hist_mgr is None:
             raise RuntimeError("hist_mgr service not initialized")
         with self._llm_runner._span_ctx("compress"):
-            ctx.conv.history, _ = await ctx.services.hist_mgr.compress(ctx.conv.history)
+            ctx.conv.history, result = await ctx.services.hist_mgr.compress(
+                ctx.conv.history
+            )
+        if result.compressed_count > 0 or result.summary_added or result.is_fallback:
+            ctx.session.replace_messages(ctx.conv.history)
 
     async def _handle_llm_turn(self, llm_url: str) -> TurnResult:
         ctx = self._ctx
@@ -439,7 +449,10 @@ class Orchestrator:
             answer = result.answer
             if not result.success:
                 error_kind = result.error_kind
-                if isinstance(result.exception, LLMTransportError) and result.exception.partial_text:
+                if (
+                    isinstance(result.exception, LLMTransportError)
+                    and result.exception.partial_text
+                ):
                     is_partial = True
 
         finally:
@@ -448,7 +461,12 @@ class Orchestrator:
         return answer, error_kind, is_partial
 
     async def _handle_turn_end(
-        self, line: str, answer: str, turn_started_at: float, error_kind: str | None, is_partial: bool = False
+        self,
+        line: str,
+        answer: str,
+        turn_started_at: float,
+        error_kind: str | None,
+        is_partial: bool = False,
     ) -> None:
         ctx = self._ctx
         elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)

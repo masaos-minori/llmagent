@@ -411,3 +411,57 @@ class TestNoneContentNormalization:
         assert len(msgs) == 2
         assert msgs[0]["content"] == ""
         assert msgs[1]["content"] == "Hello"
+
+
+class TestReplaceMessages:
+    """Tests for SessionMessageRepository.replace_messages()."""
+
+    def test_replace_messages_clears_existing_rows(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        repo.save("user", "old")
+        assert len(repo.fetch_messages(1)) == 1
+        repo.replace_messages(1, [{"role": "assistant", "content": "new"}])
+        msgs = repo.fetch_messages(1)
+        assert len(msgs) == 1
+        assert msgs[0]["content"] == "new"
+
+    def test_replace_messages_inserts_compressed_set(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        msgs_in = [
+            {"role": "system", "content": "summary"},
+            {"role": "user", "content": "user msg"},
+            {"role": "assistant", "content": "assistant msg"},
+        ]
+        repo.replace_messages(1, msgs_in)
+        assert len(repo.fetch_messages(1)) == 3
+
+    def test_replace_messages_with_summary_message(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        repo.replace_messages(
+            1, [{"role": "system", "content": "[Conversation summary]"}]
+        )
+        msgs = repo.fetch_messages(1)
+        assert len(msgs) == 1
+        assert msgs[0]["role"] == "system"
+        assert "[Conversation summary]" in msgs[0]["content"]
+
+    def test_replace_messages_no_session_id_skips(self) -> None:
+        import sqlite3
+        from unittest.mock import patch
+
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_SCHEMA_SQL)
+        conn.commit()
+
+        def _make(target: str = "session") -> _FakeSQLiteHelper:
+            return _FakeSQLiteHelper(conn)
+
+        from agent.session import AgentSession
+
+        with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
+            with patch("agent.session.SQLiteHelper", side_effect=_make):
+                agent_session = AgentSession()
+                agent_session.replace_messages([{"role": "user", "content": "test"}])

@@ -115,6 +115,34 @@ class SessionMessageRepository:
             db.commit()
         # sqlite3.Error propagates to caller
 
+    def replace_messages(self, session_id: int, messages: list[LLMMessage]) -> None:
+        """Atomically clear and re-insert all messages for a session.
+
+        Used after history compression to persist the compressed snapshot.
+        Runs in a single transaction: DELETE + executemany INSERT.
+        """
+        rows = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            if role not in _VALID_ROLES:
+                logger.warning("replace_messages: skipping invalid role %r", role)
+                continue
+            content = msg.get("content") or ""
+            tool_calls = msg.get("tool_calls")
+            tc_json = _json_dumps(tool_calls) if tool_calls else None
+            tool_call_id = msg.get("tool_call_id")
+            rows.append((session_id, role, content, tc_json, tool_call_id))
+        with SQLiteHelper("session").open(write_mode=True) as db:
+            db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+            if rows:
+                db.executemany(
+                    "INSERT INTO messages"
+                    " (session_id, role, content, tool_calls, tool_call_id)"
+                    " VALUES (?, ?, ?, ?, ?)",
+                    rows,
+                )
+            db.commit()
+
     def fetch_messages(self, session_id: int) -> list[LLMMessage]:
         """Fetch and parse messages for a session from DB.
 

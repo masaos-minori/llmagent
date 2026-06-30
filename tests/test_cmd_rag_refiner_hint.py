@@ -6,7 +6,9 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from agent.commands.cmd_rag_export import _RagExportMixin
+from agent.history import CompressResult
 
 # ── Test harness ──────────────────────────────────────────────────────────────
 
@@ -153,3 +155,49 @@ class TestCmdRagRefinerHint:
         out = capsys.readouterr().out
         assert "[warn] refiner fallback" in out
         assert reason in out
+
+
+# ── _cmd_compact persist after force_compression ─────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_compact_persists_after_force_compression() -> None:
+    """replace_messages called after /compact force compression."""
+    ctx = _make_ctx()
+    # Add enough messages to trigger compression (turn_msgs > n_compress)
+    ctx.conv.history = [{"role": "system", "content": "sys"}] + [
+        {"role": "user", "content": f"u{i}"} for i in range(20)
+    ]
+    hist_mgr = MagicMock()
+    hist_mgr.compress_turns = 4
+    hist_mgr.force_compress = AsyncMock(
+        return_value=(
+            [
+                {"role": "system", "content": "[Conversation summary]"},
+                {"role": "user", "content": "latest"},
+            ],
+            CompressResult(compressed_count=8, protected_count=0, summary_added=True),
+        )
+    )
+    ctx.services.hist_mgr = hist_mgr
+    cmd = _FakeCmd(ctx)
+    await cmd._cmd_compact()
+    ctx.session.replace_messages.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_compact_no_persist_when_too_short() -> None:
+    """replace_messages not called when history too short to compress."""
+    ctx = _make_ctx()
+    # Only 2 turn messages (< compress_turns * 2 = 8)
+    ctx.conv.history = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "hello"},
+        {"role": "assistant", "content": "world"},
+    ]
+    hist_mgr = MagicMock()
+    hist_mgr.compress_turns = 4
+    ctx.services.hist_mgr = hist_mgr
+    cmd = _FakeCmd(ctx)
+    await cmd._cmd_compact()
+    ctx.session.replace_messages.assert_not_called()

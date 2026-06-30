@@ -994,3 +994,58 @@ class TestWorkflowMode:
                 await orch.handle_turn("hello")
                 init_kwargs = mock_engine_cls.call_args.kwargs
                 assert init_kwargs["require_approval"] is False
+
+
+class TestHandleHistoryCompressionPersist:
+    """Tests for _handle_history_compression persist behavior."""
+
+    @pytest.mark.asyncio
+    async def test_compress_persists_when_compressed(self) -> None:
+        ctx = _make_ctx()
+        ctx.services.hist_mgr.compress = AsyncMock(
+            return_value=(
+                [
+                    {"role": "system", "content": "[Conversation summary]"},
+                    {"role": "user", "content": "new"},
+                ],
+                CompressResult(
+                    compressed_count=2, protected_count=0, summary_added=True
+                ),
+            )
+        )
+        orch = Orchestrator(ctx)
+        await orch._handle_history_compression()
+        ctx.session.replace_messages.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_compress_no_persist_when_noop(self) -> None:
+        ctx = _make_ctx()
+        ctx.services.hist_mgr.compress = AsyncMock(
+            return_value=(
+                [{"role": "user", "content": "unchanged"}],
+                CompressResult(
+                    compressed_count=0, protected_count=0, summary_added=False
+                ),
+            )
+        )
+        orch = Orchestrator(ctx)
+        await orch._handle_history_compression()
+        ctx.session.replace_messages.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_compress_persists_on_fallback_truncation(self) -> None:
+        ctx = _make_ctx()
+        ctx.services.hist_mgr.compress = AsyncMock(
+            return_value=(
+                [{"role": "user", "content": "remaining"}],
+                CompressResult(
+                    compressed_count=3,
+                    protected_count=0,
+                    summary_added=False,
+                    is_fallback=True,
+                ),
+            )
+        )
+        orch = Orchestrator(ctx)
+        await orch._handle_history_compression()
+        ctx.session.replace_messages.assert_called_once()
