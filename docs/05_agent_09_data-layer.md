@@ -71,24 +71,30 @@ Stores diagnostic events (LLM transport errors, guard hints, partial completions
 | `task_id` | TEXT | Optional task ID |
 | `created_at` | TEXT | Row creation timestamp |
 
-### SessionMessageRepository vs SQLiteSessionStore 責務境界
+### SessionMessageRepository vs SQLiteSessionStore
 
-| コンポーネント | 役割 | 検証 | 永続化 |
+| Component | Role | Validation | Persistence |
 |---|---|---|---|
-| `SessionMessageRepository` | 会話メッセージのビジネスロジック層 | role検証, strict_mode, skipカウンター, content=None正規化, tool_calls JSONエンコード/デコード | セッション依存の永続化 |
-| `SQLiteSessionStore` | DBアダプタ層 | スキーマアラインメントのみ | シンプルなDB操作 (INSERT/LIST) |
+| `SessionMessageRepository` | Business-logic layer for conversation messages | role validation, strict_mode, skip counter, content=None normalization, tool_calls JSON encode/decode | Session-dependent persistence |
+| `SQLiteSessionStore` | DB adapter layer | Schema alignment only | Simple DB operations (INSERT/LIST) |
 
-`SessionMessageRepository` が所有:
-- role のバリデーション (`user` / `assistant` / `tool` / `system`)
-- strict_mode 動作 (スキップ時に `RuntimeError` を発生)
-- セッションなしの保存回避 (skip counter)
-- `content=None` の正規化
-- tool_calls の JSON エンコード/デコード
+`SessionMessageRepository` owns:
+- Role validation (`user` / `assistant` / `tool` / `system`)
+- strict_mode behavior (raises `RuntimeError` on skip)
+- Session-less save avoidance (skip counter)
+- `content=None` normalization
+- tool_calls JSON encode/decode
 
-`SQLiteSessionStore` が所有:
-- シンプルなDB INSERT/LIST操作
-- スキーマに準拠した永続化
-- 最小限の検証のみ
+`SQLiteSessionStore` owns:
+- Simple DB INSERT/LIST operations
+- Schema-compliant persistence
+- Minimal validation only
+
+**Rule:** Validation and encoding logic must NOT be duplicated in `SQLiteSessionStore`. It is a thin DB adapter — no role validation, no content normalization, no JSON encoding. All such concerns belong to `SessionMessageRepository`.
+
+See [90_shared_05_db_api_and_operations.md](90_shared_05_db_api_and_operations.md) for the shared-layer responsibility boundary view.
+
+Note: The `diagnostic` role is excluded from `_VALID_ROLES` in `session_message_repo.py`. Diagnostic messages are saved via `AgentSession.save_diagnostic()` which bypasses `SessionMessageRepository`.
 
 ### messages vs ToolResultStore 責務境界
 

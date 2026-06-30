@@ -187,6 +187,17 @@ class SessionStore(Protocol):
 | `SQLiteSessionStore(db)` | `SessionStore` | `db: SQLiteHelper` | Session list returned `created_at DESC` |
 | `SQLiteMemoryDeleteStore(db)` | `MemoryDeleteStore` | `db: SQLiteHelper` | Atomic cross-table delete for `memories`/`memories_fts`/`memories_vec` |
 
+### `SessionMessageRepository` vs `SQLiteSessionStore`
+
+| Layer | Owned responsibilities |
+|---|---|
+| `SessionMessageRepository` (agent layer) | role validation (`user`/`assistant`/`tool`/`system`), strict_mode skip behavior, content=None normalization, tool_calls JSON encode/decode, session-dependent persistence |
+| `SQLiteSessionStore` (db adapter layer) | schema-aligned INSERT/LIST operations, minimal validation only |
+
+**Rule:** Validation and encoding logic must NOT be duplicated in `SQLiteSessionStore`. It is a thin DB adapter — no role validation, no content normalization, no JSON encoding. All such concerns belong to `SessionMessageRepository`.
+
+See [05_agent_09_data-layer.md](05_agent_09_data-layer.md) for the agent-side responsibility boundary view.
+
 ### `MemoryDeleteStore` / `SQLiteMemoryDeleteStore`
 
 ```python
