@@ -27,7 +27,7 @@ Both inline and background promotion use the same atomic write mechanism for con
 
 ## Consumer offsets
 
-Offset files are stored in `{offsets_dir}/{sanitized_consumer_id}` (plain text, one integer per file). The `consumer_id` is sanitized by replacing `.`, `/`, and `..` with `_` to prevent path traversal attacks.
+Offset files are stored in `{offsets_dir}/{sanitized_consumer_id}` (plain text, one integer per file). The `consumer_id` is sanitized by replacing `..`, `.`, and `/` with `_` (in that order) to prevent path traversal attacks. Replacement is applied to all occurrences across the full string. If the result is empty, `"default"` is used. Note: backslash characters are NOT sanitized — they pass through as-is.
 
 ### Offset restoration
 

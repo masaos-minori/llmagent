@@ -225,6 +225,22 @@ class TestConsumerIdSanitization:
         # The file should be under tmp_path, not outside it
         assert (tmp_path / "______etc_passwd").exists()
 
+    def test_only_dots(self, tmp_path: Path) -> None:
+        """consumer_id with only dots should be replaced with underscores."""
+        from eventbus.offsets import write_offset
+
+        write_offset(str(tmp_path), "...", 42)
+        # ".." replaced first → "_.", then "." replaced → "__"
+        assert (tmp_path / "__").exists()
+
+    def test_backslash_passthrough(self, tmp_path: Path) -> None:
+        """Backslash is NOT sanitized — it passes through as-is."""
+        from eventbus.offsets import write_offset
+
+        write_offset(str(tmp_path), "foo\\bar", 42)
+        # Backslash is not in the replacement set; file is created with backslash
+        assert (tmp_path / "foo\\bar").exists()
+
     def test_read_and_write_consistent(self, tmp_path: Path) -> None:
         """read_offset and write_offset should use the same sanitization."""
         from eventbus.offsets import read_offset, write_offset

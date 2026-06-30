@@ -41,8 +41,10 @@ def write_offset(offsets_dir: str, consumer_id: str, seq: int) -> None:
 def _sanitize_consumer_id(consumer_id: str) -> str:
     """Sanitize consumer_id for use as an offset filename.
 
-    Replaces path traversal characters (., /, ..) with underscores to prevent
-    directory traversal attacks via the consumer_id parameter.
+    Replacement order matters: '..' first, then '.', then '/'.
+    This avoids double-replacement of '..' (e.g., '..' becomes '_' not '__').
+    Single '.' is also replaced (not only '..'), '/' is replaced, all occurrences
+    are replaced across the full string.
     Returns 'default' if the sanitized result is empty.
     """
     safe_id = consumer_id.replace("..", "_").replace(".", "_").replace("/", "_")
