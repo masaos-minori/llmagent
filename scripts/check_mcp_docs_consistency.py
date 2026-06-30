@@ -313,19 +313,22 @@ def check_active_inconsistencies(docs_dir: Path, files: list[DocFile]) -> list[I
                 issue_id = m.group(1).strip()
                 active_issues[issue_id] = i
 
-    # For each MCP doc file, check which active issues are referenced
+    # For each MCP doc file, check which active issues are referenced.
+    # Match on the short ID prefix (e.g. "MCP-01"), not the full title.
     uncited: set[str] = set(active_issues.keys())
     for doc in files:
         if doc.rel_path == MCP_KNOWN_ISSUES_FILE:
             continue
         for line in doc.lines:
-            for issue_id in list(uncited):
-                if issue_id in line:
-                    uncited.discard(issue_id)
+            for issue_full_title in list(uncited):
+                short_id = issue_full_title.split(":")[0].strip()
+                if short_id in line:
+                    uncited.discard(issue_full_title)
 
     issues: list[Issue] = []
     for issue_id, line_no in sorted(active_issues.items()):
-        if issue_id in uncited and issue_id not in _ACTIVE_ISSUE_ALLOWLIST:
+        short_id = issue_id.split(":")[0].strip()
+        if issue_id in uncited and short_id not in _ACTIVE_ISSUE_ALLOWLIST:
             issues.append(
                 Issue(
                     file=issues_file.rel_path,
@@ -344,29 +347,86 @@ def check_active_inconsistencies(docs_dir: Path, files: list[DocFile]) -> list[I
 # Check 5: Tool count consistency
 # ---------------------------------------------------------------------------
 
-_TOOL_COUNT_RE = re.compile(r"\bTools\((\d+)\)\b")
+_TOOL_COUNT_RE = re.compile(r"\bTools\((\d+)\)")
 
 _SERVER_TOOLS_MAP: dict[str, frozenset[str]] = {
     "web-search-mcp": frozenset({"search_web"}),
     "file-read-mcp": frozenset(
-        {"list_directory", "list_directory_with_sizes", "directory_tree", "read_text_file", "read_media_file", "read_multiple_files", "search_files", "grep_files", "get_file_info"}
+        {
+            "list_directory",
+            "list_directory_with_sizes",
+            "directory_tree",
+            "read_text_file",
+            "read_media_file",
+            "read_multiple_files",
+            "search_files",
+            "grep_files",
+            "get_file_info",
+        }
     ),
-    "file-write-mcp": frozenset({"write_file", "edit_file", "create_directory", "move_file"}),
+    "file-write-mcp": frozenset(
+        {"write_file", "edit_file", "create_directory", "move_file"}
+    ),
     "file-delete-mcp": frozenset({"delete_file", "delete_directory"}),
     "github-mcp": frozenset(
-        {"github_search_repositories", "github_get_file_contents", "github_create_branch", "github_create_issue", "github_add_issue_comment", "github_create_pull_request", "github_update_pull_request", "github_merge_pull_request", "github_create_or_update_file", "github_push_files", "github_delete_file"}
+        {
+            "github_search_repositories",
+            "github_get_file_contents",
+            "github_create_branch",
+            "github_create_issue",
+            "github_add_issue_comment",
+            "github_create_pull_request",
+            "github_update_pull_request",
+            "github_merge_pull_request",
+            "github_create_or_update_file",
+            "github_push_files",
+            "github_delete_file",
+        }
     ),
     "shell-mcp": frozenset({"shell_run"}),
     "mdq-mcp": frozenset(
-        {"search_docs", "get_chunk", "outline", "index_paths", "refresh_index", "stats", "grep_docs", "fts_consistency_check", "fts_rebuild"}
+        {
+            "search_docs",
+            "get_chunk",
+            "outline",
+            "index_paths",
+            "refresh_index",
+            "stats",
+            "grep_docs",
+            "fts_consistency_check",
+            "fts_rebuild",
+        }
     ),
-    "rag-pipeline-mcp": frozenset({"rag_run_pipeline", "rag_debug_pipeline", "rag_list_documents", "rag_delete_document"}),
+    "rag-pipeline-mcp": frozenset(
+        {
+            "rag_run_pipeline",
+            "rag_debug_pipeline",
+            "rag_list_documents",
+            "rag_delete_document",
+        }
+    ),
     "git-mcp": frozenset(
-        {"git_status", "git_log", "git_diff", "git_branch", "git_show", "git_add", "git_commit", "git_checkout", "git_pull", "git_push"}
+        {
+            "git_status",
+            "git_log",
+            "git_diff",
+            "git_branch",
+            "git_show",
+            "git_add",
+            "git_commit",
+            "git_checkout",
+            "git_pull",
+            "git_push",
+        }
     ),
     "sqlite-mcp": frozenset({"query_sqlite"}),
     "cicd-mcp": frozenset(
-        {"trigger_workflow", "get_workflow_runs", "get_workflow_status", "get_workflow_logs"}
+        {
+            "trigger_workflow",
+            "get_workflow_runs",
+            "get_workflow_status",
+            "get_workflow_logs",
+        }
     ),
 }
 
