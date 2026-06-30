@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from eventbus.broker import EventBroker
 from eventbus.config import (
     EventBusConfig,
+    _is_public_host,
     get_config_path,
     get_schema_path,
     load_config,
@@ -74,7 +75,14 @@ async def lifespan(app: FastAPI) -> Any:
     Path(app.state.config.storage_dir).mkdir(parents=True, exist_ok=True)
     app.state.broker = EventBroker()
     app.state.dlq_task = asyncio.create_task(_dlq_loop(app))
-    logger.info("eventbus starting on %s:%d", app.state.config.host, app.state.config.port)
+    if _is_public_host(app.state.config.host):
+        logger.warning(
+            "eventbus bound to public address %s:%d without authentication",
+            app.state.config.host,
+            app.state.config.port,
+        )
+    else:
+        logger.info("eventbus starting on %s:%d", app.state.config.host, app.state.config.port)
     yield
     if app.state.dlq_task:
         app.state.dlq_task.cancel()

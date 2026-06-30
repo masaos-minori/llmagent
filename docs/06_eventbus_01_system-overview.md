@@ -32,6 +32,7 @@ The Event Bus API has **no authentication or ACL**.
 - **Design assumption**: single-node deployment on an internal network / trusted hosts
 - **Access control**: enforced at the network boundary (firewall, Docker network)
 - **Do not expose publicly**: the Event Bus must not be directly reachable from the internet
+- **Startup guard**: config validation rejects binding to public/wildcard addresses (0.0.0.0, ::) unless `allow_public_bind=true` is set in TOML config. A WARNING log message is emitted when a public address is bound without authentication.
 
 ### Future authentication options
 
