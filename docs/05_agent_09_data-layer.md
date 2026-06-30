@@ -120,6 +120,44 @@ document access for listing or deletion.
 
 ---
 
+## RAG MCP Internal Path
+
+`RagPipelineMCPService` directly accesses `rag.sqlite` through `SQLiteHelper("rag")` for
+`list_documents()` and `delete_document()`. This is an internal operation of the RAG MCP
+service owner, not Agent-layer direct DB access.
+
+**Allowed:** `RagPipelineMCPService` (scripts/mcp/rag_pipeline/service.py) — RAG MCP service owns
+these operations as part of its responsibility boundary.
+
+**Not allowed:** Agent application code, other MCP services, or shared-layer code accessing
+`rag.sqlite` directly. These must use MCP tool calls or approved maintenance services.
+
+### Deletion order safety
+
+`delete_document()` enforces a strict deletion order to prevent orphan records:
+
+1. Delete `chunks_vec` rows first (embedding vectors)
+2. Delete `documents` row (parent document)
+
+This order is necessary because `chunks_vec` has no foreign key constraint pointing to
+`documents`. Deleting the document first would leave orphaned embedding vector rows.
+
+```python
+# delete_document() — order matters
+db.execute(
+    "DELETE FROM chunks_vec"
+    " WHERE chunk_id IN"
+    " (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
+    (doc_id,),
+)
+db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
+```
+
+Other derived records (e.g., `chunks` table rows) rely on cascade deletes or triggers
+where applicable.
+
+---
+
 ## Agent-Side Document Access Patterns
 
 The agent accesses document data through three paths:
