@@ -25,8 +25,8 @@ class TestConnectionReuse:
         """reuse_connection=True returns same connection object on second open()."""
         db_path = str(tmp_path / "test.sqlite")
         cfg = _make_cfg(db_path)
-        helper = SQLiteHelper("rag")
         with patch("db.helper.build_db_config", return_value=cfg):
+            helper = SQLiteHelper("rag")
             with helper.open(reuse_connection=True) as h1:
                 conn1 = h1.conn
             with helper.open(reuse_connection=True) as h2:
@@ -37,8 +37,8 @@ class TestConnectionReuse:
         """Default reuse_connection=False opens and closes connection each time."""
         db_path = str(tmp_path / "test.sqlite")
         cfg = _make_cfg(db_path)
-        helper = SQLiteHelper("rag")
         with patch("db.helper.build_db_config", return_value=cfg):
+            helper = SQLiteHelper("rag")
             with helper.open() as h1:
                 conn1 = h1.conn
             # After context exit, connection should be closed
@@ -55,8 +55,8 @@ class TestConnectionReuse:
         """reuse_connection=True keeps the connection open after context exit."""
         db_path = str(tmp_path / "test.sqlite")
         cfg = _make_cfg(db_path)
-        helper = SQLiteHelper("rag")
         with patch("db.helper.build_db_config", return_value=cfg):
+            helper = SQLiteHelper("rag")
             with helper.open(reuse_connection=True) as h1:
                 conn1 = h1.conn
             # After context exit, connection should still be open
@@ -68,8 +68,8 @@ class TestConnectionReuse:
         """reuse_connection=False closes the connection after context exit."""
         db_path = str(tmp_path / "test.sqlite")
         cfg = _make_cfg(db_path)
-        helper = SQLiteHelper("rag")
         with patch("db.helper.build_db_config", return_value=cfg):
+            helper = SQLiteHelper("rag")
             with helper.open() as _h1:
                 pass
             # After context exit, connection should be closed
@@ -79,8 +79,8 @@ class TestConnectionReuse:
         """Calling open(reuse_connection=True) followed by open(reuse_connection=False) resets lifecycle behavior."""
         db_path = str(tmp_path / "test.sqlite")
         cfg = _make_cfg(db_path)
-        helper = SQLiteHelper("rag")
         with patch("db.helper.build_db_config", return_value=cfg):
+            helper = SQLiteHelper("rag")
             # First: reuse mode — connection stays open after exit
             with helper.open(reuse_connection=True) as h1:
                 conn1 = h1.conn
@@ -96,8 +96,8 @@ class TestConnectionReuse:
         """close() sets conn back to None."""
         db_path = str(tmp_path / "test.sqlite")
         cfg = _make_cfg(db_path)
-        helper = SQLiteHelper("rag")
         with patch("db.helper.build_db_config", return_value=cfg):
+            helper = SQLiteHelper("rag")
             with helper.open(reuse_connection=True) as h1:
                 conn1 = h1.conn
             assert helper.conn is conn1
@@ -108,8 +108,8 @@ class TestConnectionReuse:
         """close() sets conn to None even after reuse mode."""
         db_path = str(tmp_path / "test.sqlite")
         cfg = _make_cfg(db_path)
-        helper = SQLiteHelper("rag")
         with patch("db.helper.build_db_config", return_value=cfg):
+            helper = SQLiteHelper("rag")
             with helper.open(reuse_connection=True) as h1:
                 conn1 = h1.conn
             assert helper.conn is conn1
@@ -122,8 +122,8 @@ class TestConnectionReuse:
         """No hidden persistent connection remains when reuse mode is disabled."""
         db_path = str(tmp_path / "test.sqlite")
         cfg = _make_cfg(db_path)
-        helper = SQLiteHelper("rag")
         with patch("db.helper.build_db_config", return_value=cfg):
+            helper = SQLiteHelper("rag")
             # Open in non-reuse mode — connection closed on exit
             with helper.open() as _h1:
                 pass

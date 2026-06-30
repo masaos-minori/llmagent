@@ -152,7 +152,7 @@ class SQLiteHelper:
         return self
 
     def __exit__(self, *_: object) -> None:
-        if not getattr(self, "_reuse_connection", False):
+        if not self._reuse_connection:
             self.close()
 
     def close(self) -> None:
