@@ -2,7 +2,7 @@
 """mcp/rag_pipeline/service.py
 RagPipelineMCPService: wraps RagPipeline for use in rag-pipeline-mcp server.
 
-Dependency direction: rag.mcp.models → rag.mcp.service → rag.mcp.server
+Dependency direction: mcp.rag_pipeline.models → mcp.rag_pipeline.service → mcp.rag_pipeline.server
 """
 
 from __future__ import annotations
