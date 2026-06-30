@@ -463,19 +463,14 @@ AgentREPL.run()
 
 ### How to Add a New Tool Safely
 
-When adding a new tool, follow these steps to ensure correct routing:
+When adding a new tool, follow the canonical 7-step procedure from the [Adding a new tool](#adding-a-new-tool) section above.
 
-1. **Add the tool name to `shared/tool_constants.py` frozenset** (required).
-   The registry auto-populates from frozensets at import time — this is priority 2 routing.
-   If no existing frozenset fits, create a new one and add it to the registry builder.
-
-2. **Add `GET /v1/tools` endpoint to the MCP server** (recommended).
-   Return tool definitions with the `server_key` field so live discovery (priority 1) can route the tool.
-   Without this, the tool will still route via the registry but won't have the highest-priority discovery mapping.
-
-3. **Optionally add `tool_names` to server config** (`config/mcp_servers.toml`).
-   This is a validation hint only — routing does not require it (registry is priority 2).
-   However, omitting it will cause startup drift warnings from `check_routing_drift()`.
+Key points:
+1. **Add the tool name to `shared/tool_constants.py` frozenset** [Required] — `_populate_default_registry()` reads these frozensets at import time and builds the priority-2 routing registry automatically. No manual registry edit is needed.
+2. **Add `GET /v1/tools` endpoint** [Recommended] — enables priority-1 live discovery routing, which overrides all lower layers.
+3. **Add `tool_names` to server config** [Optional] — drift validation hint only; routing does not require it.
+4. **Add LLM schema to `config/tools_definitions.toml`** [Required if tool visible to LLM]
+5. **Add `tool_safety_tiers` entry in `config/agent.toml`** [Required — all tools must have a declared safety tier]
 
 ```toml
 [mcp_servers.my_server]
@@ -489,9 +484,9 @@ tool_names = ["my_tool_a", "my_tool_b"]
 | Layer | Priority | Role | Override? |
 |---|---|---|---|
 | Live `/v1/tools` discovery | 1 (highest) | Runtime override from MCP server tool list | Yes — supersedes all lower layers |
-| `ToolRegistry` (`tool_constants.py` frozensets) | 2 | Canonical registry metadata; primary routing source | No — only overridden by layer 1 |
+| `ToolRegistry` (auto-populated from `tool_constants.py` frozensets at import time) | 2 | Primary routing source; populated by `_populate_default_registry()` | No — only overridden by layer 1 |
 | Config `tool_names` (`mcp_servers.toml`) | 3 | Fallback validation hint for drift detection | No — only used if layers 1+2 miss |
-| Static fallback (`tool_constants.py` frozensets) | 4 (lowest) | Compatibility / emergency fallback only | No — last resort, raises if no match |
+| Static fallback (`tool_constants.py` frozensets queried directly) | 4 (lowest) | Compatibility / emergency fallback only | No — last resort, raises if no match |
 
 **Key rules:**
 - **New tools must always be registered via `ToolRegistry`** (layer 2). Never rely on static fallback alone.
@@ -502,21 +497,23 @@ tool_names = ["my_tool_a", "my_tool_b"]
 
 | Artifact | Required? | Notes |
 |---|---|---|
-| `shared/tool_constants.py` — add tool to frozenset | **Required** | Registry auto-populates from frozensets at import time; routing priority 2 |
+| `shared/tool_constants.py` — add tool to frozenset | **Required** | `_populate_default_registry()` reads frozensets at import; also used as priority-4 static fallback |
+| `config/tools_definitions.toml` — add LLM schema | **Required** (if tool visible to LLM) | OpenAI function-calling format; required for the LLM to call the tool |
+| `config/agent.toml` — add `tool_safety_tiers` entry | **Required** | All tools must have a declared safety tier |
 | `config/<server>.toml` — server config file | **Required** | Server must be defined before first use |
 | `deploy/deploy.sh` — add install/copy step | **Required** (new server) | Deployment must include the new server |
 | Update `routing.md` | **Required** | Document guide must reference the new server |
-| `config/agent.toml` `tool_names` | Optional | Validation hint only; routing does not require it |
-| `config/tools_definitions.toml` | Optional | Used by strict-mode startup validation only |
+| `config/mcp_servers.toml` `tool_names` | **[Optional]** | Drift validation hint only; routing does not require it |
 
 ### Manual steps
 
 1. Subclass `MCPServer` in `mcp/<name>/server.py`; override `dispatch()`
 2. Add `GET /v1/tools` endpoint returning tool definitions with `server_key` field
 3. Add tool names to `shared/tool_constants.py` frozenset (owned by this server)
-4. Add tool definitions to `config/agent.toml` → `tool_definitions`
-5. Add `[mcp_servers.<key>]` entry to `config/mcp_servers.toml` with `tool_names`
-6. Add new files to `deploy/deploy.sh` copy list
+4. Add LLM schemas to `config/tools_definitions.toml` (OpenAI function-calling format)
+5. Add `tool_safety_tiers` entries to `config/agent.toml` for each tool
+6. Add `[mcp_servers.<key>]` entry to `config/mcp_servers.toml` with `tool_names` (optional drift hint)
+7. Add new files to `deploy/deploy.sh` copy list
 7. Add startup step to `deploy/setup_services.sh`
 
 ### Tool_names config (drift detection only)
