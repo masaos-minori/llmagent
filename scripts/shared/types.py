@@ -63,7 +63,17 @@ class AccumulatedToolCall(TypedDict):
 
 @runtime_checkable
 class RagConfig(Protocol):
-    """Structural protocol for config objects consumed by RagPipeline; allows AgentConfig and SimpleNamespace adapter to satisfy it without importing agent/."""
+    """Canonical runtime config contract for RagPipeline.
+
+    Any object satisfying these fields (AgentConfig, SimpleNamespace adapter, etc.)
+    can be passed to RagPipeline without importing agent-layer classes into the RAG layer.
+
+    This is NOT a file-format DTO.  Config file DTOs live in:
+      - mcp.rag_pipeline.models.RagPipelineConfig (MCP TOML)
+      - rag.models_config.* (ingestion TOML)
+
+    See also: build_rag_cfg_adapter() in mcp.rag_pipeline.models for the MCP adapter.
+    """
 
     semantic_cache_max_size: int
     semantic_cache_threshold: float

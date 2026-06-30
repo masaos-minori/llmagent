@@ -83,10 +83,12 @@ class RagPipelineConfig:
 
 
 def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> SimpleNamespace:
-    """Build a SimpleNamespace that satisfies RagPipeline's cfg.* access pattern.
+    """Build a SimpleNamespace that satisfies the RagConfig Protocol.
 
-    RagPipeline accesses AgentConfig fields via cfg.* attributes.  This adapter
-    populates only the fields RagPipeline reads, sourced from RagPipelineConfig.
+    RagPipeline consumes config via cfg.* attribute access (RagConfig Protocol).
+    This adapter populates all fields required by the Protocol, sourced from
+    RagPipelineConfig (the MCP TOML DTO).  The adapter is the only bridge
+ between the MCP config file format and the RAG runtime contract.
     """
     return SimpleNamespace(
         use_mqe=bool(cfg.use_mqe),
@@ -96,7 +98,7 @@ def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> SimpleNamespace:
         use_refiner=bool(cfg.use_refiner),
         use_search=True,  # always True in MCP mode; checked in augment()
         rag_service_url="",  # prevent HTTP loop when augment() is called in-process
-        rag_auth_token="",
+        rag_auth_token=cfg.rag_auth_token if cfg.rag_auth_token else "",
         top_k_search=int(cfg.top_k_search),
         top_k_rerank=int(cfg.top_k_rerank),
         rag_top_k=int(cfg.rag_top_k),

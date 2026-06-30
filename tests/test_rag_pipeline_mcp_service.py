@@ -87,6 +87,82 @@ class TestBuildRagCfgAdapter:
         ns = build_rag_cfg_adapter(cfg)
         assert ns.use_search is True
 
+    def test_adapter_satisfies_rag_config_protocol(self) -> None:
+        """build_rag_cfg_adapter output must satisfy every field in RagConfig Protocol."""
+        from shared.types import RagConfig
+
+        cfg = RagPipelineConfig(
+            use_mqe=False,
+            use_rrf=False,
+            rrf_k=30,
+            use_rerank=False,
+            use_refiner=True,
+            top_k_search=10,
+            top_k_rerank=20,
+            rag_top_k=5,
+            rag_min_score=1.5,
+            max_chunks_per_doc=2,
+            semantic_cache_max_size=64,
+            semantic_cache_threshold=0.85,
+            use_semantic_cache=True,
+            refiner_max_tokens=256,
+            refiner_max_chars_per_chunk=400,
+            refiner_timeout=15.0,
+            rag_auth_token="test-token",
+        )
+        adapter = build_rag_cfg_adapter(cfg)
+
+        required_fields: list[str] = [
+            "semantic_cache_max_size",
+            "semantic_cache_threshold",
+            "use_mqe",
+            "top_k_search",
+            "use_rerank",
+            "rag_top_k",
+            "max_chunks_per_doc",
+            "top_k_rerank",
+            "rag_min_score",
+            "use_rrf",
+            "rrf_k",
+            "use_search",
+            "rag_service_url",
+            "rag_auth_token",
+            "use_refiner",
+            "refiner_max_tokens",
+            "refiner_max_chars_per_chunk",
+            "refiner_timeout",
+            "use_semantic_cache",
+        ]
+
+        for field in required_fields:
+            assert hasattr(adapter, field), f"Missing RagConfig field: {field}"
+
+        # Verify the adapter structurally satisfies the Protocol at runtime
+        assert isinstance(adapter, RagConfig)
+
+        # Verify specific values from the config above
+        assert adapter.use_mqe is False
+        assert adapter.use_rrf is False
+        assert adapter.rrf_k == 30
+        assert adapter.use_rerank is False
+        assert adapter.use_refiner is True
+        assert adapter.top_k_search == 10
+        assert adapter.top_k_rerank == 20
+        assert adapter.rag_top_k == 5
+        assert adapter.rag_min_score == 1.5
+        assert adapter.max_chunks_per_doc == 2
+        assert adapter.semantic_cache_max_size == 64
+        assert adapter.semantic_cache_threshold == 0.85
+        assert adapter.use_semantic_cache is True
+        assert adapter.refiner_max_tokens == 256
+        assert adapter.refiner_max_chars_per_chunk == 400
+        assert adapter.refiner_timeout == 15.0
+        assert adapter.rag_auth_token == "test-token"
+
+        # MCP mode invariants
+        assert adapter.use_search is True
+        assert adapter.rag_service_url == ""
+
 
 # ── _hit_to_dict helper ───────────────────────────────────────────────────────
 
