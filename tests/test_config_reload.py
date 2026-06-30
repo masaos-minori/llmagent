@@ -135,7 +135,7 @@ class TestDeferredReload:
             transport=TransportType.HTTP,
             url="http://localhost:8080",
             cmd=[],
-            startup_mode=StartupMode.ONDEMAND,
+            startup_mode=StartupMode.SUBPROCESS,
         )
         result = self._run(svc, {"svc": new_srv})
         assert any("startup_mode" in item for item in result.deferred)

@@ -244,5 +244,3 @@ class _RagExportMixin(MixinBase):
         except HistoryCompressionError as e:
             self._out.write_error(f"Compression failed: {e}")
             return
-        if result.compressed_count > 0 or result.summary_added or result.is_fallback:
-            ctx.session.replace_messages(ctx.conv.history)
