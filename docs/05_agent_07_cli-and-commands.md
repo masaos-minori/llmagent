@@ -290,3 +290,13 @@ syntax instead:
 | `/db consistency` | `/db rag consistency` |
 
 These aliases were provided for backward compatibility and are no longer supported. No backward-compatible flat aliases are kept.
+
+### /mcp install (removed)
+
+The `/mcp install` subcommand has been removed. MCP server scaffolding is a developer workflow, not an Agent REPL feature.
+
+| Removed | Replacement |
+|---------|------------|
+| `/mcp install <server-name>` | Add manually via new-server checklist, then verify with `/mcp` or `/mcp status` |
+
+No backward-compatible alias is provided. See [04_mcp_06](04_mcp_06_configuration_and_operations.md) for the MCP server addition checklist.
