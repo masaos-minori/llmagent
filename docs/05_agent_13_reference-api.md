@@ -127,7 +127,7 @@ Full details: [05_agent_07_cli-and-commands.md §CLIView](05_agent_07_cli-and-co
 - **Config:** DB path from `config/common.toml`
 - **Failure:** `sqlite3.Error` on critical failures; logs warning and increments counter on `session_id=None`
 
-**Resolved:** `/db clean` and `/db urls` now call rag-pipeline-mcp MCP tools (`rag_delete_document`, `rag_list_documents`) instead of accessing RAG-layer tables directly. See [05_agent_09_data-layer.md](05_agent_09_data-layer.md) for the updated boundary.
+**Resolved:** `/db rag clean` and `/db rag urls` call rag-pipeline-mcp MCP tools (`rag_delete_document`, `rag_list_documents`) instead of accessing RAG-layer tables directly. See [05_agent_09_data-layer.md](05_agent_09_data-layer.md) for the updated boundary.
 
 Full details: [05_agent_09_data-layer.md](05_agent_09_data-layer.md)
 

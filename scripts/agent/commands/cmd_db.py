@@ -183,7 +183,7 @@ class _DbMixin(MixinBase):
         """Delete a document by URL from the vector store via rag-pipeline-mcp."""
         url = rest.strip()
         if not url:
-            self._out.write_validation_error("/db clean <url>")
+            self._out.write_validation_error("/db rag clean <url>")
             return
         if self._ctx.services.tools is None:
             self._out.write_error(
@@ -277,7 +277,7 @@ class _DbMixin(MixinBase):
         """Rebuild FTS/vec for a single URL."""
         url = rest.strip()
         if not url:
-            self._out.write_validation_error("Usage: /db reconcile-url <url>")
+            self._out.write_validation_error("Usage: /db rag reconcile-url <url>")
             return
         result = RagMaintenanceService().reconcile_url(url)
         if not result["found"]:
