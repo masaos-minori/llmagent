@@ -53,7 +53,7 @@ Resolves `tool_name → server_key` in four steps (priority order). At runtime, 
 | `DELETE_TOOLS` (delete_file, delete_directory) | `file_delete` |
 | `shell_run` | `shell` |
 | `search_web` | `web_search` |
-| `github_*` (prefix match) | `github` |
+| `GITHUB_TOOLS` (github_search_repositories, github_get_file_contents) | `github` |
 | `RAG_TOOLS` (rag_run_pipeline, rag_debug_pipeline) | `rag_pipeline` |
 | `CICD_TOOLS` (trigger_workflow, get_workflow_runs, get_workflow_status, get_workflow_logs) | `cicd` |
 | `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs) | `mdq` |
