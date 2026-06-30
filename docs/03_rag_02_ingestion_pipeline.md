@@ -649,7 +649,7 @@ from rag.utils import (
 | `doc_id` | INTEGER document ID | ingester |
 | `chunk_id` | INTEGER chunk ID | chunk_splitter |
 | `source_type` | `"http"` / `"file"` | crawler, ingester |
-| `stage_name` | Stage name string | ingester |
+| `stage_name` | Script name (always "ingester") | ingester |
 
 **Used by:**
 
