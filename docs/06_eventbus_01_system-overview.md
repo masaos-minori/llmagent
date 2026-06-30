@@ -41,3 +41,13 @@ If requirements arise:
 - mTLS for service-to-service authentication
 
 Not implemented at this time. Evaluate based on the actual threat model before adding.
+
+## Future Integration
+
+The following Agent-side integrations are intentionally not implemented at this time:
+
+- **Agent event publishing**: No Agent-side event producer is implemented. The Event Bus HTTP API supports publishing from any HTTP client; Agent-specific producers will be added in a future release.
+- **Agent SSE subscription**: No Agent-side subscriber for consuming events via `/subscribe` SSE. Agent-side consumers will be added in a future release.
+- **Agent event topics**: No Agent-defined topics exist today. Topic conventions for Agent lifecycle events will be defined when Agent integration is implemented.
+
+These items are also documented as Deferred Items in `docs/06_eventbus_90_inconsistencies_and_known_issues.md`.
