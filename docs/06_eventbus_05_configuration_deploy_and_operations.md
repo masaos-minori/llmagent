@@ -32,8 +32,8 @@ Event Bus configuration is loaded from a TOML file (default: `/opt/llm/config/ev
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `poll_interval_ms` | int | 500 | No-op. Subscribe polling was replaced with push-mode delivery via EventBroker. |
-| `offset_checkpoint_interval` | int | 10 | No-op. Offset checkpointing was replaced with ack-only model. |
+| `poll_interval_ms` | int | 500 | No-op. Subscribe polling was replaced with push-mode delivery via EventBroker. Non-default values emit DeprecationWarning; values <1 raise ValueError. |
+| `offset_checkpoint_interval` | int | 10 | No-op. Offset checkpointing was replaced with ack-only model. Non-default values emit DeprecationWarning; values <1 raise ValueError. |
 
 ### Bind Address
 
