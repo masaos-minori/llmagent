@@ -26,7 +26,6 @@ import json
 import signal
 import sqlite3
 import time
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from db.helper import SQLiteHelper
