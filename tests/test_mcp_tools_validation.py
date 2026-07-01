@@ -3,7 +3,7 @@ Integration tests: verify that each MCP server's /v1/tools endpoint returns
 the expected tool names.
 
 Tests start each server as a subprocess (same as production), send GET /v1/tools,
-and assert the declared tool names match the server's _MCP_TOOLS list.
+and assert the declared tool names match the server's TOOL_LIST list.
 
 Marked with @pytest.mark.integration so they can be skipped in fast unit-test runs:
   pytest -m "not integration"   # skip these
@@ -114,9 +114,9 @@ def mcp_server(request: pytest.FixtureRequest) -> Any:
 
 def test_read_tools_schema_matches_hand_written() -> None:
     """Generated schema must have the expected tool names and valid inputSchema structure."""
-    from mcp.file.read_tools import _MCP_TOOLS
+    from mcp.file.read_tools import TOOL_LIST
 
-    names = [t["name"] for t in _MCP_TOOLS]
+    names = [t["name"] for t in TOOL_LIST]
     assert names == [
         "list_directory",
         "list_directory_with_sizes",
@@ -128,7 +128,7 @@ def test_read_tools_schema_matches_hand_written() -> None:
         "grep_files",
         "get_file_info",
     ]
-    for tool in _MCP_TOOLS:
+    for tool in TOOL_LIST:
         assert "inputSchema" in tool
         assert tool["inputSchema"]["type"] == "object"
         assert "properties" in tool["inputSchema"]

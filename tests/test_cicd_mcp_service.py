@@ -574,17 +574,17 @@ class TestTriggerWorkflowDryRun:
 
 class TestCicdToolSchema:
     def test_trigger_workflow_schema_declares_dry_run(self) -> None:
-        from mcp.cicd.tools import _MCP_TOOLS
+        from mcp.cicd.tools import TOOL_LIST
 
-        trigger = next(t for t in _MCP_TOOLS if t["name"] == "trigger_workflow")
+        trigger = next(t for t in TOOL_LIST if t["name"] == "trigger_workflow")
         props = trigger["inputSchema"]["properties"]
         assert "dry_run" in props
         assert props["dry_run"]["type"] == "boolean"
 
     def test_trigger_workflow_dry_run_not_required(self) -> None:
-        from mcp.cicd.tools import _MCP_TOOLS
+        from mcp.cicd.tools import TOOL_LIST
 
-        trigger = next(t for t in _MCP_TOOLS if t["name"] == "trigger_workflow")
+        trigger = next(t for t in TOOL_LIST if t["name"] == "trigger_workflow")
         assert "dry_run" not in trigger["inputSchema"].get("required", [])
 
 

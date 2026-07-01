@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-_MCP_TOOLS: list[dict[str, Any]] = [
+TOOL_LIST: list[dict[str, Any]] = [
     {
         "name": "delete_file",
         "description": "Delete the specified file. When dry_run=true, return file info without deleting",

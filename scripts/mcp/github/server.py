@@ -214,12 +214,5 @@ class GithubMCPServer(MCPServer):
 
 
 if __name__ == "__main__":
-    import sys
-
     server = GithubMCPServer()
-    if "--stdio" in sys.argv:
-        import asyncio
-
-        asyncio.run(server.run_stdio())
-    else:
-        server.run_http()
+    server.run_http()

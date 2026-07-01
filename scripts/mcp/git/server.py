@@ -29,7 +29,7 @@ from shared.formatters import fmt_kvlog
 from mcp.dispatch import DispatchResult, dispatch_tool
 from mcp.git.models import GitConfig, GitServiceError
 from mcp.git.service import build_service
-from mcp.git.tools import _MCP_TOOLS
+from mcp.git.tools import TOOL_LIST
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs, attach_auth_middleware
 
@@ -69,7 +69,7 @@ async def _dispatch_git_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, list[dict[str, object]]]:
     return {
-        "tools": [{**t, "server_key": "git"} for t in _MCP_TOOLS],
+        "tools": [{**t, "server_key": "git"} for t in TOOL_LIST],
     }
 
 
@@ -114,19 +114,12 @@ class GitMCPServer(MCPServer):
     server_version = "1.0.0"
     http_port = 8014
     app_module = "mcp.git.server:app"
-    mcp_tools = _MCP_TOOLS
+    mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: ToolArgs) -> DispatchResult:
         return await _dispatch_git_tool(name, args)
 
 
 if __name__ == "__main__":
-    import sys
-
     server = GitMCPServer()
-    if "--stdio" in sys.argv:
-        import asyncio
-
-        asyncio.run(server.run_stdio())
-    else:
-        server.run_http()
+    server.run_http()

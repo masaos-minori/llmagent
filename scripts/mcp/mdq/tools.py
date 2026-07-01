@@ -17,7 +17,7 @@ class MCPToolSchema(TypedDict):
     requires_serial: NotRequired[bool]
 
 
-_MCP_TOOLS: list[MCPToolSchema] = [
+TOOL_LIST: list[MCPToolSchema] = [
     {
         "name": "search_docs",
         "description": "Search indexed Markdown documents using BM25/FTS5. Markdown-only, structure-aware retrieval.",

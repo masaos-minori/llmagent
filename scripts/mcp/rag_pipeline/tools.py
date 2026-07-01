@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-_MCP_TOOLS: list[dict[str, Any]] = [
+TOOL_LIST: list[dict[str, Any]] = [
     {
         "name": "rag_run_pipeline",
         "description": "Run the full RAG pipeline (MQE→Search→RRF→Rerank→Dedup→Augment) for multi-format, semantic retrieval. Production-ready.",

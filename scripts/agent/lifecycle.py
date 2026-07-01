@@ -12,7 +12,7 @@ from enum import Enum
 
 
 class LifecycleState(Enum):
-    """Unified transport state for all server types (HTTP and stdio).
+    """Transport state for HTTP MCP servers.
 
     Valid transitions:
       STOPPED  -> STARTING, FAILED

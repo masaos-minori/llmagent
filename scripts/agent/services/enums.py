@@ -22,6 +22,7 @@ class McpAvailability(StrEnum):
     NO_URL = "no-url"
     HTTP_ERROR = "http_error"
     FAIL = "fail"
+    UNKNOWN = "unknown"
 
 
 class ConversationActionType(StrEnum):

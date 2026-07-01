@@ -28,7 +28,7 @@ from mcp.web_search.models import (
     WebSearchConfig,
     WebSearchUpstreamError,
 )
-from mcp.web_search.tools import _MCP_TOOLS
+from mcp.web_search.tools import TOOL_LIST
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Typed config object (module-level singleton)
@@ -162,7 +162,7 @@ async def _dispatch_web_tool(name: str, args: dict[str, Any]) -> DispatchResult:
 async def list_tools() -> dict[str, Any]:
     """Return tool names and descriptions for agent.json definition validation."""
     return {
-        "tools": [{**t, "server_key": "web_search"} for t in _MCP_TOOLS],
+        "tools": [{**t, "server_key": "web_search"} for t in TOOL_LIST],
     }
 
 
@@ -186,19 +186,12 @@ class WebSearchMCPServer(MCPServer):
     server_version = "3.0.0"
     http_port = 8004
     app_module = "mcp.web_search.server:app"
-    mcp_tools = _MCP_TOOLS
+    mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_web_tool(name, args)
 
 
 if __name__ == "__main__":
-    import sys
-
     server = WebSearchMCPServer()
-    if "--stdio" in sys.argv:
-        import asyncio
-
-        asyncio.run(server.run_stdio())
-    else:
-        server.run_http()
+    server.run_http()

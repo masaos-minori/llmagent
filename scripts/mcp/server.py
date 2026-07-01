@@ -9,28 +9,18 @@ Audit log helpers live in mcp/audit.py.
 
 from __future__ import annotations
 
-import asyncio
 import dataclasses
 import logging
-import sys
 import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-import orjson
-from shared.json_utils import dumps as _json_dumps
-
 from mcp.dispatch import DispatchResult
 
 # Library module: use standard getLogger without a dedicated log file.
 logger = logging.getLogger(__name__)
-
-
-def _write_stdout(data: str) -> None:
-    sys.stdout.write(data)
-    sys.stdout.flush()
 
 
 # Type alias for MCP tool argument dictionaries.
@@ -45,32 +35,6 @@ class _FastAPIApp(Protocol):
     """Minimal FastAPI app interface for middleware attachment."""
 
     def middleware(self, type_: str) -> Callable[[Callable], Callable]: ...
-
-
-@dataclass(frozen=True)
-class _StdioResponse:
-    """Serialized stdio response payload."""
-
-    req_id: int
-    result: str
-    is_error: bool
-    truncated: bool
-    total_bytes: int
-    actual_visible_bytes: int
-
-
-@dataclass(frozen=True)
-class _StdioRequestResult:
-    """Result from parsing a stdio request line."""
-
-    is_error: bool
-    result: str
-    req_id: int
-    is_introspection: bool
-    name: str
-    truncated: bool = False
-    total_bytes: int = 0
-    actual_visible_bytes: int = 0
 
 
 @dataclasses.dataclass(frozen=True)
@@ -114,12 +78,8 @@ def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
     receive a 401 response.  When token is empty, auth is skipped and the
     middleware only injects the X-Request-Id response header.
     """
-    from fastapi import (
-        Request,  # noqa: PLC0415 — lazy: fastapi not needed for stdio-only servers
-    )
-    from fastapi.responses import (
-        JSONResponse,  # noqa: PLC0415 — lazy: fastapi not needed for stdio-only servers
-    )
+    from fastapi import Request
+    from fastapi.responses import JSONResponse
 
     @app.middleware("http")
     async def _auth_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — FastAPI middleware protocol
@@ -159,8 +119,7 @@ class MCPServer:
     def list_tools(self) -> list[str]:
         """Return the tool names served by this instance.
 
-        Used by the __list_tools__ introspection RPC (stdio mode) and by
-        check_tool_definitions() in repl_health.py.
+        Used by check_tool_definitions() in repl_health.py.
         """
         return [t["name"] for t in getattr(self, "mcp_tools", [])]
 
@@ -176,8 +135,6 @@ class MCPServer:
 
     def health(self) -> tuple[dict[str, object], int]:
         """Return a health status dict and HTTP status code for HTTP server diagnostics.
-
-        HTTP subclasses may override; stdio subclasses use process liveness instead.
 
         Canonical response shape:
           status:       "ok" (all deps healthy) or "degraded" (any dep failed)
@@ -235,140 +192,4 @@ class MCPServer:
             log_level="info",
         )
 
-    async def run_stdio(self) -> None:
-        """Serve tool calls over stdin/stdout using line-delimited JSON-RPC.
-
-        Reads one JSON object per line from stdin, dispatches via self.dispatch(),
-        and writes one JSON object per line to stdout.  All log output goes to
-        stderr so that stdout remains a clean communication channel.
-
-        Request  line: {"id": <int>, "name": <str>, "args": {}}
-        Response line: {"id": <int>, "result": <str>, "is_error": <bool>,
-                        "truncated": <bool>, "total_bytes": <int>}
-
-        The reserved name "__list_tools__" returns the server's tool list without
-        going through dispatch(), enabling stdio-only control-plane tool introspection.
-
-        The loop exits cleanly on stdin EOF.
-        """
-        loop = asyncio.get_running_loop()
-        reader, protocol = await self._setup_stdio_reader(loop)
-
-        while True:
-            line = await reader.readline()
-            if not line:
-                break  # stdin EOF — client closed the pipe
-
-            try:
-                await self._process_stdio_line(loop, line)
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                logger.error("run_stdio unexpected error: %s", e)
-                await self._write_stdio_response(
-                    loop, 0, f"Internal server error: {e}", True, False, 0, 0
-                )
-
-    async def _process_stdio_line(
-        self, loop: asyncio.AbstractEventLoop, line: bytes
-    ) -> None:
-        """Parse a stdio request line and write the response.
-
-        Raises on invalid input or dispatch errors.
-        """
-        req_result = await self._handle_stdio_request(line)
-        name = req_result.name
-        is_error = req_result.is_error
-        result = req_result.result
-        req_id = req_result.req_id
-        is_introspection = req_result.is_introspection
-
-        truncated = req_result.truncated
-        total_bytes = req_result.total_bytes
-        actual_visible_bytes = req_result.actual_visible_bytes
-
-        if not is_error and not is_introspection:
-            is_error = False
-
-        if is_error and name != "__list_tools__":
-            self._record_tool_error(name)
-
-        await self._write_stdio_response(
-            loop, req_id, result, is_error, truncated, total_bytes, actual_visible_bytes
-        )
-
-    @staticmethod
-    async def _setup_stdio_reader(
-        loop: asyncio.AbstractEventLoop,
-    ) -> tuple[asyncio.StreamReader, asyncio.StreamReaderProtocol]:
-        """Create and connect a StreamReader for stdin."""
-        reader = asyncio.StreamReader()
-        protocol = asyncio.StreamReaderProtocol(reader)
-        await loop.connect_read_pipe(lambda: protocol, sys.stdin.buffer)
-        return reader, protocol
-
-    async def _write_stdio_response(
-        self,
-        loop: asyncio.AbstractEventLoop,
-        req_id: int,
-        result: str,
-        is_error: bool,
-        truncated: bool,
-        total_bytes: int,
-        actual_visible_bytes: int,
-    ) -> None:
-        """Serialize and write a JSON-RPC response to stdout."""
-        payload = _StdioResponse(
-            req_id=req_id,
-            result=result,
-            is_error=is_error,
-            truncated=truncated,
-            total_bytes=total_bytes,
-            actual_visible_bytes=actual_visible_bytes,
-        )
-        resp = _json_dumps(dataclasses.asdict(payload))
-        loop.run_in_executor(None, _write_stdout, resp + "\n")
-
-    async def _handle_stdio_request(self, line: bytes) -> _StdioRequestResult:
-        """Parse and handle a stdio request line.
-
-        Returns the parsed request result including the tool name.
-        Raises on invalid input or dispatch errors.
-        """
-        req = orjson.loads(line)
-        req_id = int(req.get("id", 0))
-        name_raw = req.get("name", "")
-        if not isinstance(name_raw, str):
-            raise ValueError(
-                f"Request 'name' must be str, got {type(name_raw).__name__}"
-            )
-        name = name_raw
-
-        if name == "__list_tools__":
-            result = _json_dumps({"tools": self.list_tools()})
-            return _StdioRequestResult(
-                is_error=False,
-                result=result,
-                req_id=req_id,
-                is_introspection=True,
-                name=name,
-            )
-
-        dispatch_result = await self.dispatch(name, dict(req.get("args", {})))
-        tr = _truncate_with_meta(dispatch_result.output)
-        result = tr.text
-        is_error = dispatch_result.is_error
-
-        if is_error:
-            self._record_tool_error(name)
-
-        return _StdioRequestResult(
-            is_error=is_error,
-            result=result,
-            req_id=req_id,
-            is_introspection=False,
-            name=name,
-            truncated=tr.truncated,
-            total_bytes=tr.total_bytes,
-            actual_visible_bytes=tr.actual_visible_bytes,
-        )
+ 

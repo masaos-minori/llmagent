@@ -305,7 +305,7 @@ git_push                   = "WRITE_DANGEROUS"
 
 # ---- mcp_servers ----
 # MCP server transport configuration.
-# transport='http' uses url; transport='stdio' launches cmd as a subprocess.
+# transport='http' uses url.
 # MDQ/RAG routing mode: "auto" (classifier), "mdq" (force MDQ), "rag" (force RAG)
 # mdq_rag_mode = "auto"
 
@@ -1068,15 +1068,3 @@ description = "検索パターン"
 [tool_definitions.function.parameters.properties.paths]
 type        = "array"
 description = "検索対象パス (省略時: すべてのパス)"
-
-# ---------------------------------------------------------------------------
-# stdio ondemand server example (commented out — activate by removing # prefix)
-# [mcp_servers.file_stdio]
-# transport = "stdio"
-# startup_mode = "ondemand"
-# url = ""
-# cmd = ["/opt/llm/venv/bin/python", "/opt/llm/scripts/fileop_mcp_server.py", "--stdio"]
-# healthcheck_mode = "process"
-# idle_timeout_sec = 300
-# working_dir = "/opt/llm"
-# env = {}

@@ -2,9 +2,7 @@
 """tool_executor.py
 MCP tool execution layer.
 
-Provides two transport implementations:
-  HttpTransport  — POST /v1/call_tool over httpx (default)
-  StdioTransport — line-delimited JSON-RPC over subprocess stdin/stdout
+Provides HttpTransport implementation for POST /v1/call_tool over httpx.
 
 ToolExecutor routes tool calls to the appropriate server via ToolRouteResolver,
 applies TTL caching on successful results, and delegates execution to the
@@ -15,11 +13,9 @@ import asyncio
 import contextlib
 import hashlib
 import logging
-import os
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Protocol
 
 import httpx
@@ -41,8 +37,7 @@ logger = logging.getLogger(__name__)
 # Plugin tool return value: (output: str, is_error: bool)
 _PLUGIN_RESULT_TUPLE_LENGTH = 2
 
-# Seconds to wait for a stdio server response before treating it as a timeout.
-_STDIO_CALL_TIMEOUT: float = 60.0
+
 
 
 # ── Typed result DTOs ─────────────────────────────────────────────────────────
@@ -54,7 +49,7 @@ class ToolCallResult:
 
     output: str
     is_error: bool
-    request_id: str  # x-request-id from HTTP transport; "" for stdio/plugin/cache
+    request_id: str  # x-request-id from HTTP transport; "" for plugin/cache
     server_key: str  # server key that handled the call; "" for plugin tools
     error_type: str = ""  # "transport" | "tool" | "" (empty on success)
 
@@ -216,162 +211,6 @@ class HttpTransport:
         raise last_exc or TransportError(f"call failed: {name}")
 
 
-class StdioTransport:
-    """Calls an MCP server subprocess via stdin/stdout JSON-RPC; per-instance Lock serializes concurrent calls to prevent request/response interleaving."""
-
-    def __init__(
-        self,
-        cmd: list[str],
-        server_key: str,
-        working_dir: str = "",
-        env: dict[str, str] | None = None,
-    ) -> None:
-        self._cmd = cmd
-        self._server_key = server_key
-        self._working_dir = working_dir
-        self._env_overrides: dict[str, str] = env or {}
-        self._proc: asyncio.subprocess.Process | None = None
-        self._lock: asyncio.Lock | None = None  # created after the event loop starts
-        self._req_id: int = 0
-
-    def _get_lock(self) -> asyncio.Lock:
-        # Lazily create the Lock after the event loop is running.
-        if self._lock is None:
-            self._lock = asyncio.Lock()
-        return self._lock
-
-    async def start(self) -> None:
-        """Spawn the subprocess. No-op if it is already alive."""
-        if self.is_alive():
-            return
-        cwd: str | None = None
-        if self._working_dir:
-            if not Path(self._working_dir).is_dir():
-                raise ValueError(
-                    f"StdioTransport: working_dir {self._working_dir!r} does not exist",
-                )
-            cwd = self._working_dir
-        merged_env: dict[str, str] | None = None
-        if self._env_overrides:
-            merged_env = {**os.environ, **self._env_overrides}
-        self._proc = await asyncio.create_subprocess_exec(
-            *self._cmd,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=None,  # inherit parent stderr so server logs reach the terminal
-            cwd=cwd,
-            env=merged_env,
-        )
-        logger.info(
-            "stdio MCP server started: key=%r pid=%s cmd=%s",
-            self._server_key,
-            self._proc.pid,
-            self._cmd,
-        )
-
-    def is_alive(self) -> bool:
-        """Return True when the subprocess is running (returncode is None)."""
-        return self._proc is not None and self._proc.returncode is None
-
-    @staticmethod
-    def _parse_stdio_response(
-        resp_bytes: bytes, expected_id: int | None = None
-    ) -> ToolCallResult:
-        """Parse a JSON-RPC response line and return ToolCallResult.
-
-        Raises (orjson.JSONDecodeError, KeyError, ValueError) if the response is invalid.
-        """
-        resp = orjson.loads(resp_bytes)
-        if expected_id is not None and resp.get("id") != expected_id:
-            raise ValueError(
-                f"Response ID mismatch: expected {expected_id}, got {resp.get('id')}"
-            )
-        is_error = bool(resp["is_error"])
-        return ToolCallResult.from_transport(
-            output=str(resp["result"]), is_error=is_error
-        )
-
-    async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
-        """Send one JSON-RPC request and return ToolCallResult; acquires per-instance lock so concurrent callers are serialized.
-
-        Raises TransportError on transport-level failures (process crash,
-        timeout, broken pipe, invalid response).  Tool-level errors from the
-        MCP server are returned as-is with is_error=True in the result.
-        """
-        if not self.is_alive():
-            msg = f"stdio server not running (key={self._server_key!r})"
-            raise TransportError(msg)
-
-        lock = self._get_lock()
-        async with lock:
-            self._req_id += 1
-            req_id = self._req_id
-            payload = _json_dumps({"id": req_id, "name": name, "args": args}) + "\n"
-
-            if not (self._proc and self._proc.stdin and self._proc.stdout):
-                # Unreachable after is_alive() guard above; defensive check for type narrowing
-                msg = f"stdio server process invalid (key={self._server_key!r})"
-                raise TransportError(msg)
-            try:
-                self._proc.stdin.write(payload.encode())
-                await self._proc.stdin.drain()
-                resp_bytes = await asyncio.wait_for(
-                    self._proc.stdout.readline(),
-                    timeout=_STDIO_CALL_TIMEOUT,
-                )
-            except TimeoutError:
-                msg = f"stdio server timeout (key={self._server_key!r} tool={name})"
-                logger.warning(msg)
-                raise TransportError(msg) from None
-            except (OSError, BrokenPipeError) as e:
-                msg = f"stdio transport error (key={self._server_key!r}): {e}"
-                logger.error(msg)
-                raise TransportError(msg) from e
-
-            if not resp_bytes:
-                msg = f"stdio server closed connection (key={self._server_key!r})"
-                raise TransportError(msg)
-            try:
-                result = self._parse_stdio_response(resp_bytes, expected_id=req_id)
-                return ToolCallResult(
-                    output=result.output,
-                    is_error=result.is_error,
-                    request_id=result.request_id,
-                    server_key=self._server_key,
-                    error_type=result.error_type,
-                )
-            except (orjson.JSONDecodeError, KeyError, ValueError) as e:
-                msg = (
-                    f"stdio server invalid response (key={self._server_key!r}): {e}"
-                    f" raw={resp_bytes[:200]!r}"
-                )
-                logger.error(msg)
-                raise TransportError(msg) from e
-
-    async def stop(self) -> None:
-        """Gracefully shut down the subprocess (close stdin → wait → kill)."""
-        if self._proc is None or not self.is_alive():
-            return
-        try:
-            if self._proc.stdin:
-                self._proc.stdin.close()
-            await asyncio.wait_for(self._proc.wait(), timeout=5.0)
-        except TimeoutError:
-            logger.warning(
-                "stdio server %r did not exit gracefully; terminating",
-                self._server_key,
-            )
-            self._proc.terminate()
-            try:
-                await asyncio.wait_for(self._proc.wait(), timeout=3.0)
-            except TimeoutError:
-                self._proc.kill()
-        except (OSError, BrokenPipeError) as e:
-            logger.warning("stdio server %r stop error: %s", self._server_key, e)
-            self._proc.kill()
-        logger.info("stdio MCP server stopped: key=%r", self._server_key)
-
-
 # Tools with side effects: writes, deletes, or shell execution.
 # Used to auto-downgrade parallel execution to serial in execute_all_tool_calls().
 _SIDE_EFFECT_TOOLS: frozenset[str] = (
@@ -437,7 +276,7 @@ def tool_hash_key(name: str, args: dict[str, Any]) -> str:
 
 
 class ToolExecutor:
-    """Routes tool calls to the appropriate MCP server transport with TTL caching; only successful results are cached; StdioTransport must be injected via set_transport()."""
+    """Routes tool calls to the appropriate MCP server transport with TTL caching; only successful results are cached."""
 
     def __init__(
         self,
@@ -477,28 +316,19 @@ class ToolExecutor:
                 sorted(unknown_keys),
             )
 
-        # Initialise transports: HTTP servers get their transport immediately;
-        # stdio servers get None until set_transport() is called after process spawn.
-        self._transports: dict[str, HttpTransport | StdioTransport | None] = {}
+        # Initialise transports: HTTP servers get their transport immediately.
+        self._transports: dict[str, HttpTransport] = {}
         for key, cfg in server_configs.items():
-            if cfg.transport == "http":
-                timeout_sec = (
-                    cfg.call_timeout_sec
-                    if hasattr(cfg, "call_timeout_sec") and cfg.call_timeout_sec
-                    else 60.0
-                )
-                self._transports[key] = HttpTransport(
-                    http, cfg.url, key, cfg, timeout_sec=timeout_sec
-                )
-            else:
-                self._transports[key] = None  # filled by set_transport()
+            timeout_sec = (
+                cfg.call_timeout_sec
+                if hasattr(cfg, "call_timeout_sec") and cfg.call_timeout_sec
+                else 60.0
+            )
+            self._transports[key] = HttpTransport(
+                http, cfg.url, key, cfg, timeout_sec=timeout_sec
+            )
 
         self._resolver = ToolRouteResolver(server_configs)
-
-    def set_transport(self, server_key: str, transport: StdioTransport) -> None:
-        """Register a started StdioTransport for the given server key."""
-        self._transports[server_key] = transport
-        logger.info("StdioTransport registered for server key %r", server_key)
 
     def apply_config(self, *, cache_ttl: float | None = None) -> None:
         """Update hot-reloadable configuration fields without recreating the instance."""
@@ -534,12 +364,6 @@ class ToolExecutor:
 
     def _transport_missing_msg(self, server_key: str) -> str:
         """Return the appropriate error message when a transport is not registered."""
-        cfg = self._server_configs.get(server_key)
-        if cfg and cfg.transport == "stdio":
-            return (
-                f"stdio server {server_key!r} not started"
-                " (call _start_stdio_servers first)"
-            )
         return f"No transport configured for server {server_key!r}"
 
     def _error_result(
@@ -609,7 +433,7 @@ class ToolExecutor:
 
     async def _execute_with_semaphore(
         self,
-        transport: HttpTransport | StdioTransport,
+        transport: HttpTransport,
         tool_name: str,
         args: dict[str, Any],
         sem: asyncio.Semaphore | None,

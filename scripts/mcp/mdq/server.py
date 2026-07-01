@@ -39,7 +39,7 @@ from mcp.mdq.models import (
     StatsRequest,
 )
 from mcp.mdq.service import MdqService
-from mcp.mdq.tools import _MCP_TOOLS
+from mcp.mdq.tools import TOOL_LIST
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs, _FastAPIApp, attach_auth_middleware
 
@@ -203,7 +203,7 @@ async def _dispatch_mdq_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     return {
-        "tools": [{**t, "server_key": "mdq"} for t in _MCP_TOOLS],
+        "tools": [{**t, "server_key": "mdq"} for t in TOOL_LIST],
     }
 
 
@@ -423,7 +423,7 @@ class MdqMCPServer(MCPServer):
     http_host = "127.0.0.1"
     http_port = 8013
     app_module = "mcp.mdq.server:app"
-    mcp_tools = cast(list[dict[str, Any]], _MCP_TOOLS)
+    mcp_tools = cast(list[dict[str, Any]], TOOL_LIST)
     server_key = "mdq"
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
@@ -435,12 +435,5 @@ attach_auth_middleware(cast(_FastAPIApp, app), "")
 
 
 if __name__ == "__main__":
-    import sys
-
     server = MdqMCPServer()
-    if "--stdio" in sys.argv:
-        import asyncio
-
-        asyncio.run(server.run_stdio())
-    else:
-        server.run_http()
+    server.run_http()

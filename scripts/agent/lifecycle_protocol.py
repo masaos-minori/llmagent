@@ -1,10 +1,9 @@
 """agent/lifecycle_protocol.py
 LifecycleManager protocol types for structural subtyping.
 
-Three narrow protocols:
-  LifecycleManagerProtocol — shared methods implemented by both HTTP and stdio managers
+Two protocols:
+  LifecycleManagerProtocol — shared methods implemented by HTTP lifecycle manager
   HttpLifecycleProtocol    — HTTP-only: start_http_subprocess
-  StdioLifecycleProtocol   — stdio-only: restart_stdio
 """
 
 from __future__ import annotations
@@ -20,8 +19,7 @@ from agent.lifecycle import LifecycleState
 class LifecycleManagerProtocol(Protocol):
     """Protocol for MCP server lifecycle managers.
 
-    Both HttpServerLifecycleManager and StdioServerLifecycleManager
-    satisfy this protocol structurally.
+    HttpServerLifecycleManager satisfies this protocol structurally.
     """
 
     async def ensure_ready(self, server_key: str) -> None: ...
@@ -38,10 +36,3 @@ class HttpLifecycleProtocol(Protocol):
     async def start_http_subprocess(
         self, server_key: str, cfg: McpServerConfig
     ) -> None: ...
-
-
-@runtime_checkable
-class StdioLifecycleProtocol(Protocol):
-    """Protocol for stdio server lifecycle management."""
-
-    async def restart_stdio(self, server_key: str) -> None: ...

@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     import httpx
     from shared.llm_client import LLMClient
     from shared.logger import Logger
-    from shared.tool_executor import StdioTransport, ToolExecutor
+    from shared.tool_executor import ToolExecutor
 
     from agent.diagnostic_store import DiagnosticStore
     from agent.history import HistoryManager
@@ -127,7 +127,6 @@ class AppServices:
 
     All required services are non-None.  memory is None when
     use_memory_layer=False (intentionally absent, not uninitialised).
-    stdio_procs is populated by AgentREPL._start_stdio_servers() after init.
     gateway is None until factory.py constructs and injects RepositoryGateway.
     """
 
@@ -140,7 +139,6 @@ class AppServices:
         hist_mgr: HistoryManager,
         audit_logger: Logger,
         memory: MemoryServices | None,
-        stdio_procs: dict[str, StdioTransport] | None = None,
         health_registry: McpServerHealthRegistry | None = None,
         gateway: RepositoryGateway | None = None,
     ) -> None:
@@ -151,9 +149,6 @@ class AppServices:
         self.hist_mgr = hist_mgr
         self.audit_logger = audit_logger
         self.memory = memory
-        self.stdio_procs: dict[str, StdioTransport] = (
-            stdio_procs if stdio_procs is not None else {}
-        )
         self.health_registry = health_registry
         self.gateway: RepositoryGateway | None = gateway
         self.serialization_events: int = 0

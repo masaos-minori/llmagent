@@ -18,7 +18,7 @@ import orjson
 from mcp.git.models import GitConfig
 from mcp.shell.models import ShellConfig
 from shared.logger import Logger
-from shared.tool_executor import StdioTransport
+
 
 from agent.context import AgentContext
 from agent.shared.health_models import HealthCheckResult, ServiceWarning
@@ -98,32 +98,10 @@ async def check_readiness(
     return result
 
 
-async def _fetch_stdio_tools(transport: object) -> set[str]:
-    """Query a running stdio server for its tool list via the __list_tools__ RPC.
-
-    Returns an empty set when the server is unreachable or returns an error.
-    """
-    if not isinstance(transport, StdioTransport) or not transport.is_alive():
-        return set()
-    try:
-        result = await asyncio.wait_for(
-            transport.call("__list_tools__", {}),
-            timeout=5.0,
-        )
-        if result.is_error:
-            return set()
-        data = orjson.loads(result.output)
-        return {str(n) for n in data.get("tools", [])}
-    except (TimeoutError, orjson.JSONDecodeError, OSError) as e:
-        logger.warning("__list_tools__ RPC failed: %s", e)
-        return set()
-
-
 async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[str]]:
     """Probe all configured MCP servers and return (tool_names, unreachable_keys).
 
     HTTP servers: probed via GET /v1/tools.
-    Stdio servers: probed via the __list_tools__ reserved RPC (only when running).
     Returns a tuple of (union of tool names, list of server keys that were unreachable).
 
     Scenarios and expected log output:
@@ -133,9 +111,6 @@ async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[
       - All HTTP servers unreachable:
           WARNING per server (as above)
           returns (set(), [key1, key2, ...])
-      - Stdio server not running (persistent mode):
-          WARNING "{key} stdio process not running (ondemand or failed)"
-          returns (set(), [key])
       - All servers reachable:
           returns (union_of_all_tool_names, [])
     """
@@ -162,19 +137,6 @@ async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[
                 msg = f"{key} unreachable at {srv_cfg.url}/v1/tools: {e}"
                 logger.warning(msg)
                 unreachable.append(key)
-        elif srv_cfg.transport == "stdio":
-            transport = ctx.services.stdio_procs.get(key)
-            if transport is None:
-                msg = f"{key} stdio process not running (ondemand or failed)"
-                logger.warning(msg)
-                unreachable.append(key)
-                continue
-            names = await _fetch_stdio_tools(transport)
-            if not names:
-                msg = f"{key} __list_tools__ returned empty tool list"
-                logger.warning(msg)
-                unreachable.append(key)
-            server_names.update(names)
     return server_names, unreachable
 
 
@@ -380,54 +342,6 @@ async def _watchdog_check_http(
         ctx.services.health_registry.record_failure(key)
 
 
-async def _watchdog_check_stdio(
-    ctx: AgentContext,
-    key: str,
-    srv_cfg: McpServerConfig,
-    restart_counts: dict[str, int],
-    max_restarts: int,
-) -> None:
-    """Check liveness of one stdio server and restart it when dead."""
-    # Ondemand servers are lifecycle-managed; skip watchdog coverage.
-    if srv_cfg.startup_mode == "ondemand":
-        return
-    transport = ctx.services.stdio_procs.get(key)
-    if transport is None:
-        return
-    alive = transport.is_alive()
-    if alive and srv_cfg.healthcheck_mode == "ping_tool":
-        # Confirm responsiveness beyond process liveness with a ping.
-        names = await _fetch_stdio_tools(transport)
-        alive = bool(names)
-    if alive:
-        restart_counts[key] = 0
-        if ctx.services.health_registry:
-            ctx.services.health_registry.record_success(key)
-        return
-    count = restart_counts.get(key, 0)
-    if count >= max_restarts:
-        logger.warning(
-            "Watchdog: stdio server %r dead; restart limit reached (%s)",
-            key,
-            max_restarts,
-        )
-        return
-    logger.warning(
-        "Watchdog: stdio server %r died, restarting (attempt %s/%s)",
-        key,
-        count + 1,
-        max_restarts,
-    )
-    if ctx.services.lifecycle is not None:
-        try:
-            await ctx.services.lifecycle.restart_stdio(key)
-            restart_counts[key] = count + 1
-        except (OSError, RuntimeError) as e:
-            logger.error("Watchdog: failed to restart stdio server %r: %s", key, e)
-    if ctx.services.health_registry:
-        ctx.services.health_registry.record_failure(key)
-
-
 async def watchdog_loop(ctx: AgentContext) -> None:
     """Periodically probe MCP server health and restart via lifecycle manager on failure.
 
@@ -454,14 +368,6 @@ async def watchdog_loop(ctx: AgentContext) -> None:
         for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
             if srv_cfg.transport == "http":
                 await _watchdog_check_http(
-                    ctx,
-                    key,
-                    srv_cfg,
-                    restart_counts,
-                    max_restarts,
-                )
-            elif srv_cfg.transport == "stdio":
-                await _watchdog_check_stdio(
                     ctx,
                     key,
                     srv_cfg,

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-_MCP_TOOLS: list[dict[str, Any]] = [
+TOOL_LIST: list[dict[str, Any]] = [
     {
         "name": "write_file",
         "description": "Create or overwrite a file. When dry_run=true, return only the diff without writing",

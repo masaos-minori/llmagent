@@ -1,6 +1,6 @@
 # ---- mcp_servers ----
 # MCP server transport configuration.
-# transport='http' uses url; transport='stdio' launches cmd as a subprocess.
+# transport='http' uses url.
 [mcp_servers.web_search]
 transport        = "http"
 url              = "http://127.0.0.1:8004"

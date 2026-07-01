@@ -42,9 +42,10 @@ COMPAT_PATTERNS = {
     "/db urls alias": r"/db\s+urls\b(?!.*rag|session)",
     "/db clean alias": r"/db\s+clean\b(?!.*rag|session)",
     "/db rebuild-fts alias": r"/db\s+rebuild-fts\b(?!.*rag|session)",
-    "/db recover alias": r"/db\s+recover\b(?!.*rag|session)",
+"/db recover alias": r"/db\s+recover\b(?!.*rag|session)",
     "auto_inject_notes": r"auto_inject_notes",
     "notes table": r"notes[ _]table",
+    "_MCP_TOOLS": r"_MCP_TOOLS",
 }
 
 # Allowlist: files that are permitted to contain these patterns (archive/migration notes only)
@@ -78,27 +79,9 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "docs" / "05_agent_02_runtime-architecture.md",
 }
 
-# Patterns that are allowed in active code (retained stdio transport symbols)
-ALLOWED_STDIO_PATTERNS = [
-    r"StdioTransport",
-    r"TransportType\.STDIO",
-    r"StartupMode\.ONDEMAND",
-    r"HealthcheckMode\.PING_TOOL",
-    r"__list_tools__",
-]
-
-
 def is_allowlisted(filepath: Path, allowlist: set[Path]) -> bool:
     """Check if the file is in the allowlist."""
     return filepath in allowlist
-
-
-def is_allowed_stdio_pattern(line: str) -> bool:
-    """Check if the line contains only allowed stdio transport patterns."""
-    for pattern in ALLOWED_STDIO_PATTERNS:
-        if re.search(pattern, line):
-            return True
-    return False
 
 
 def check_compat_patterns(
@@ -112,9 +95,6 @@ def check_compat_patterns(
     lines = content.split("\n")
     for i, line in enumerate(lines, 1):
         stripped = line.strip()
-        # Skip lines that contain only allowed stdio transport patterns
-        if is_allowed_stdio_pattern(stripped):
-            continue
         for pattern_name, pattern in COMPAT_PATTERNS.items():
             if re.search(pattern, stripped):
                 issues.append(

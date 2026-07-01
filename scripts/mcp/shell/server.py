@@ -35,7 +35,7 @@ from mcp.shell.models import (
     load_shell_policy,
 )
 from mcp.shell.service import ShellService, build_service
-from mcp.shell.tools import _MCP_TOOLS
+from mcp.shell.tools import TOOL_LIST
 
 logger = Logger(__name__, "/opt/llm/logs/shell-mcp.log")
 
@@ -117,7 +117,7 @@ async def _dispatch_shell_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     return {
-        "tools": [{**t, "server_key": "shell"} for t in _MCP_TOOLS],
+        "tools": [{**t, "server_key": "shell"} for t in TOOL_LIST],
     }
 
 
@@ -152,19 +152,12 @@ class ShellMCPServer(MCPServer):
     server_version = "1.0.0"
     http_port = 8009
     app_module = "mcp.shell.server:app"
-    mcp_tools = _MCP_TOOLS
+    mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_shell_tool(name, args)
 
 
 if __name__ == "__main__":
-    import sys
-
     server = ShellMCPServer()
-    if "--stdio" in sys.argv:
-        import asyncio
-
-        asyncio.run(server.run_stdio())
-    else:
-        server.run_http()
+    server.run_http()

@@ -36,7 +36,7 @@ from mcp.cicd.models import (
     CicdValidationError,
 )
 from mcp.cicd.service import CiCdService, build_service
-from mcp.cicd.tools import _MCP_TOOLS
+from mcp.cicd.tools import TOOL_LIST
 from mcp.dispatch import DispatchResult, ToolArgs, dispatch_tool
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import (
@@ -97,7 +97,7 @@ async def _dispatch_cicd_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     return {
-        "tools": [{**t, "server_key": "cicd"} for t in _MCP_TOOLS],
+        "tools": [{**t, "server_key": "cicd"} for t in TOOL_LIST],
     }
 
 
@@ -156,19 +156,12 @@ class CiCdMCPServer(MCPServer):
     server_version = "1.0.0"
     http_port = 8012
     app_module = "mcp.cicd.server:app"
-    mcp_tools = _MCP_TOOLS
+    mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_cicd_tool(name, args)
 
 
 if __name__ == "__main__":
-    import sys
-
     server = CiCdMCPServer()
-    if "--stdio" in sys.argv:
-        import asyncio
-
-        asyncio.run(server.run_stdio())
-    else:
-        server.run_http()
+    server.run_http()

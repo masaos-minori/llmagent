@@ -44,7 +44,7 @@ def _input_schema(model: type[BaseModel]) -> dict[str, Any]:
     return schema
 
 
-_MCP_TOOLS = [
+TOOL_LIST = [
     {
         "name": "list_directory",
         "description": "Return immediate entries of the specified directory",

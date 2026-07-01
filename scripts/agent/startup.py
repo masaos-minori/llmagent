@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from shared.logger import Logger
 from shared.mcp_config import SecurityProfile
-from shared.tool_executor import StdioTransport
+
 
 from agent.context import AgentContext
 from agent.factory import build_agent_context, init_tracer
@@ -91,10 +91,9 @@ class StartupOrchestrator:
         )
 
     async def _start_servers(self) -> None:
-        """Spawn subprocesses for persistent stdio and HTTP subprocess MCP servers.
+        """Spawn subprocesses for HTTP subprocess MCP servers.
 
         Handles:
-        - stdio + startup_mode='persistent': start StdioTransport subprocess
         - http  + startup_mode='subprocess': start HTTP server subprocess, poll /health
         Ondemand servers are excluded; they start on first tool call via ensure_ready().
         """
@@ -116,29 +115,6 @@ class StartupOrchestrator:
                     self._view.write_warning(
                         f"HTTP subprocess MCP server {key!r} failed to start: {e}"
                     )
-                continue
-            # ondemand and non-stdio servers are excluded: they start on first tool call
-            if (
-                cfg.transport != "stdio"
-                or not cfg.cmd
-                or cfg.startup_mode != "persistent"
-            ):
-                continue
-            transport = StdioTransport(
-                cfg.cmd,
-                server_key=key,
-                working_dir=cfg.working_dir,
-                env=cfg.env or None,
-            )
-            try:
-                await transport.start()
-                ctx.services.tools.set_transport(key, transport)
-                ctx.services.stdio_procs[key] = transport
-            except (OSError, RuntimeError) as e:
-                logger.error("Failed to start stdio MCP server %r: %s", key, e)
-                self._view.write_warning(
-                    f"stdio MCP server {key!r} failed to start: {e}"
-                )
 
     def _check_workflow_definition(self) -> None:
         """Preflight check for workflow definition file before Orchestrator.__init__()."""

@@ -20,7 +20,7 @@ from shared.llm_client import LLMClient
 from shared.logger import Logger
 from shared.mcp_config import McpServerConfig
 from shared.otel_tracer import build_tracer
-from shared.tool_executor import StdioTransport, ToolExecutor
+from shared.tool_executor import ToolExecutor
 
 from agent.cli_view import CLIView
 from agent.context import AgentContext, AppServices
@@ -29,7 +29,7 @@ from agent.http_lifecycle import HttpServerLifecycleManager
 from agent.lifecycle import LifecycleState
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.repository_gateway import RepositoryGateway
-from agent.stdio_lifecycle import StdioServerLifecycleManager
+
 
 if TYPE_CHECKING:
     from agent.memory.services import MemoryServices
@@ -42,45 +42,27 @@ _logger = logging.getLogger(__name__)
 
 
 class _ServerLifecycleRouter:
-    """Routes lifecycle calls to the appropriate concrete manager.
+    """Routes lifecycle calls to the HTTP lifecycle manager.
 
-    Implements LifecycleManagerProtocol by dispatching to
-    HttpServerLifecycleManager and StdioServerLifecycleManager
-    based on McpServerConfig transport type.
+    Implements LifecycleManagerProtocol for HTTP-only MCP servers.
     """
 
     def __init__(
         self,
         server_configs: dict[str, McpServerConfig],
         tool_executor: ToolExecutor,
-        stdio_procs: dict[str, StdioTransport],
     ) -> None:
         self._server_configs = server_configs
-        self._last_called: dict[str, float] = {
-            key: time.monotonic() for key in server_configs
-        }
         self._http_mgr = HttpServerLifecycleManager()
-        self._stdio_mgr = StdioServerLifecycleManager(
-            server_configs,
-            tool_executor,
-            stdio_procs,
-            self._last_called,
-        )
 
     async def ensure_ready(self, server_key: str) -> None:
-        self._last_called[server_key] = time.monotonic()
         cfg = self._server_configs.get(server_key)
         if cfg is None:
             return
         if cfg.transport == "http" and cfg.startup_mode == "subprocess":
             self._http_mgr.verify_running(server_key)
-            return
-        if cfg.transport != "stdio" or cfg.startup_mode == "persistent":
-            return
-        await self._stdio_mgr.ensure_ready(server_key)
 
     async def shutdown_all(self) -> None:
-        await self._stdio_mgr.shutdown_all()
         await self._http_mgr.shutdown_all()
 
     async def start_http_subprocess(
@@ -102,27 +84,10 @@ class _ServerLifecycleRouter:
         await self._http_mgr.restart(server_key, cfg)
 
     async def shutdown_idle(self) -> None:
-        await self._stdio_mgr.shutdown_idle()
+        pass
 
     def get_transport_state(self, server_key: str) -> LifecycleState:
-        cfg = self._server_configs.get(server_key)
-        if cfg is None:
-            return LifecycleState.UNKNOWN
-        if cfg.transport == "http":
-            return LifecycleState.UNKNOWN
-        if cfg.transport == "stdio":
-            return self._stdio_mgr.get_transport_state(server_key)
         return LifecycleState.UNKNOWN
-
-    async def restart_stdio(self, server_key: str) -> None:
-        cfg = self._server_configs.get(server_key)
-        if cfg is None or cfg.transport != "stdio":
-            _logger.warning(
-                "Lifecycle: restart_stdio %r: not a stdio server",
-                server_key,
-            )
-            return
-        await self._stdio_mgr.restart(server_key)
 
 
 def _build_audit_logger(ctx: AgentContext) -> Logger:
@@ -167,7 +132,6 @@ def _build_llm_client(
 def _build_tool_executor(
     ctx: AgentContext,
     http: httpx.AsyncClient,
-    stdio_procs: dict,
 ) -> tuple[ToolExecutor, LifecycleManagerProtocol]:
     """Build ToolExecutor and lifecycle manager; return both."""
     tools = ToolExecutor(
@@ -180,7 +144,6 @@ def _build_tool_executor(
     lifecycle: LifecycleManagerProtocol = _ServerLifecycleRouter(
         ctx.cfg.mcp.mcp_servers,
         tools,
-        stdio_procs,
     )
     tools.set_lifecycle(lifecycle)
     return tools, lifecycle
@@ -428,13 +391,9 @@ def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
     and assigns it to ctx.services.  CommandRegistry and Orchestrator are wired
     by AgentREPL._init_components() after this returns.
     """
-    # Shared stdio_procs dict — same object passed to _ServerLifecycleRouter
-    # and AppServices so that _start_stdio_servers() mutations are reflected in both.
-    stdio_procs: dict = {}
-
     audit_logger = _build_audit_logger(ctx)
     http, llm = _build_llm_client(ctx, view)
-    tools, lifecycle = _build_tool_executor(ctx, http, stdio_procs)
+    tools, lifecycle = _build_tool_executor(ctx, http)
     hist_mgr = _build_history_manager(ctx, view, http)
     memory = _build_memory_services(ctx, http)
     gateway = RepositoryGateway(executor=tools, cfg=ctx.cfg, audit_logger=audit_logger)
@@ -447,7 +406,6 @@ def build_agent_context(ctx: AgentContext, view: CLIView) -> None:
         hist_mgr=hist_mgr,
         audit_logger=audit_logger,
         memory=memory,
-        stdio_procs=stdio_procs,
         gateway=gateway,
     )
 

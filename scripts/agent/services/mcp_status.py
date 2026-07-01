@@ -100,11 +100,7 @@ class McpStatusService:
         if cfg.transport == "http":
             availability, sandbox_backend = await self._get_http_status(probe, cfg.url)
             return availability, cfg.url, sandbox_backend
-        return (
-            self._get_stdio_status(ctx, key, cfg.startup_mode),
-            " ".join(cfg.cmd) if cfg.cmd else "",
-            "",
-        )
+        return McpAvailability.UNKNOWN, "", ""
 
     async def _get_http_status(
         self, probe: httpx.AsyncClient, url: str
@@ -127,18 +123,6 @@ class McpStatusService:
             return McpAvailability.HTTP_ERROR, ""
         except (httpx.RequestError, httpx.HTTPStatusError):
             return McpAvailability.FAIL, ""
-
-    def _get_stdio_status(
-        self, ctx: AgentContext, key: str, startup_mode: str
-    ) -> McpAvailability:
-        transport = ctx.services.stdio_procs.get(key)
-        if transport is None:
-            return (
-                McpAvailability.STOPPED
-                if startup_mode == "ondemand"
-                else McpAvailability.NOT_STARTED
-            )
-        return McpAvailability.OK if transport.is_alive() else McpAvailability.DEAD
 
 
 def _tier_for_server(tool_names: list[str], tiers: dict[str, str]) -> McpTier:

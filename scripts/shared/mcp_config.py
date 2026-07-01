@@ -19,14 +19,12 @@ class TransportType(StrEnum):
     """MCP server transport protocol."""
 
     HTTP = "http"
-    STDIO = "stdio"
 
 
 class StartupMode(StrEnum):
     """MCP server startup lifecycle mode."""
 
     PERSISTENT = "persistent"
-    ONDEMAND = "ondemand"
     SUBPROCESS = "subprocess"
 
 
@@ -34,8 +32,6 @@ class HealthcheckMode(StrEnum):
     """MCP server health-check strategy."""
 
     HTTP = "http"
-    PROCESS = "process"
-    PING_TOOL = "ping_tool"
 
 
 class SecurityProfile(StrEnum):
@@ -51,16 +47,12 @@ class McpServerConfig:
 
     transport: TransportType
     url: str  # base URL (transport=HTTP)
-    cmd: list[str]  # command argv (transport=STDIO)
     startup_mode: StartupMode = StartupMode.PERSISTENT
     healthcheck_mode: HealthcheckMode = (
         HealthcheckMode.HTTP
     )  # resolved in __post_init__
     call_timeout_sec: float = 60.0  # per-call timeout for HttpTransport; 0 = no timeout
-    idle_timeout_sec: int = 0  # ondemand auto-stop delay in seconds
     startup_timeout_sec: int = 30  # subprocess startup health-poll timeout in seconds
-    working_dir: str = ""  # stdio subprocess working directory; "" = inherit
-    env: dict[str, str] = field(default_factory=dict)
     tool_names: list[str] = field(default_factory=list)
     auth_token: str = ""  # Bearer token sent by ToolExecutor
     role: str = ""  # human-readable role label
@@ -82,11 +74,7 @@ class McpServerConfig:
             self.startup_mode = StartupMode(self.startup_mode)
         if not isinstance(self.healthcheck_mode, HealthcheckMode):
             if not self.healthcheck_mode:
-                self.healthcheck_mode = (
-                    HealthcheckMode.HTTP
-                    if self.transport == TransportType.HTTP
-                    else HealthcheckMode.PROCESS
-                )
+                self.healthcheck_mode = HealthcheckMode.HTTP
             else:
                 self.healthcheck_mode = HealthcheckMode(self.healthcheck_mode)
 
@@ -94,26 +82,6 @@ class McpServerConfig:
         if self.transport == TransportType.HTTP and not self.url:
             raise ValueError(
                 "McpServerConfig: url must not be empty when transport='http'"
-            )
-        if self.transport == TransportType.STDIO and not self.cmd:
-            raise ValueError(
-                "McpServerConfig: cmd must not be empty when transport='stdio'"
-            )
-        if (
-            self.startup_mode == StartupMode.SUBPROCESS
-            and self.transport == TransportType.STDIO
-        ):
-            raise ValueError(
-                "startup_mode='subprocess' is only valid for transport='http'; "
-                "stdio servers use 'persistent' or 'ondemand'"
-            )
-        if (
-            self.startup_mode == StartupMode.ONDEMAND
-            and self.transport == TransportType.HTTP
-        ):
-            raise ValueError(
-                "startup_mode='ondemand' is only valid for transport='stdio'; "
-                "HTTP servers use 'persistent' or 'subprocess'"
             )
 
 
@@ -213,21 +181,15 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
             f"mcp_servers[{key!r}].healthcheck_mode must be str, got {type(raw_hc).__name__}"
         )
     if not raw_hc:
-        healthcheck_mode = (
-            HealthcheckMode.HTTP if transport == "http" else HealthcheckMode.PROCESS
-        )
+        healthcheck_mode = HealthcheckMode.HTTP
     else:
         healthcheck_mode = HealthcheckMode(raw_hc)
     return McpServerConfig(
         transport=TransportType(transport),
         url=v.get("url", ""),
-        cmd=list(v.get("cmd", [])),
         startup_mode=StartupMode(v.get("startup_mode", "persistent")),
         healthcheck_mode=healthcheck_mode,
-        idle_timeout_sec=int(v.get("idle_timeout_sec", 0)),
         startup_timeout_sec=int(v.get("startup_timeout_sec", 30)),
-        working_dir=v.get("working_dir", ""),
-        env=dict(v.get("env", {})),
         tool_names=list(v.get("tool_names", [])),
         auth_token=v.get("auth_token", ""),
         call_timeout_sec=float(v.get("call_timeout_sec", 60.0)),

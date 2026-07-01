@@ -37,7 +37,7 @@ from mcp.rag_pipeline.models import (
     RagRunResponse,
 )
 from mcp.rag_pipeline.service import RagPipelineMCPService, _service
-from mcp.rag_pipeline.tools import _MCP_TOOLS
+from mcp.rag_pipeline.tools import TOOL_LIST
 from mcp.server import MCPServer, ToolArgs
 
 logger = Logger(__name__, "/opt/llm/logs/rag-mcp.log")
@@ -145,7 +145,7 @@ async def health() -> JSONResponse:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     return {
-        "tools": [{**t, "server_key": "rag_pipeline"} for t in _MCP_TOOLS],
+        "tools": [{**t, "server_key": "rag_pipeline"} for t in TOOL_LIST],
     }
 
 
@@ -171,19 +171,12 @@ class RagPipelineMCPServer(MCPServer):
     server_version = "1.0.0"
     http_port = 8010
     app_module = "mcp.rag_pipeline.server:app"
-    mcp_tools = _MCP_TOOLS
+    mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_rag_tool(name, args)
 
 
 if __name__ == "__main__":
-    import sys
-
     server = RagPipelineMCPServer()
-    if "--stdio" in sys.argv:
-        import asyncio
-
-        asyncio.run(server.run_stdio())
-    else:
-        server.run_http()
+    server.run_http()

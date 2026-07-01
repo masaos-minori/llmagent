@@ -34,7 +34,7 @@ from mcp.file.delete_models import (
     FileDeleteConfig,
 )
 from mcp.file.delete_service import DeleteFileService, build_service
-from mcp.file.delete_tools import _MCP_TOOLS
+from mcp.file.delete_tools import TOOL_LIST
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs
 
@@ -122,7 +122,7 @@ async def _dispatch_delete_tool(name: str, args: ToolArgs) -> DispatchResult:
 @app.get("/v1/tools")
 async def list_tools() -> dict[str, Any]:
     return {
-        "tools": [{**t, "server_key": "file_delete"} for t in _MCP_TOOLS],
+        "tools": [{**t, "server_key": "file_delete"} for t in TOOL_LIST],
     }
 
 
@@ -144,19 +144,12 @@ class FileDeleteMCPServer(MCPServer):
     server_version = "1.0.0"
     http_port = 8008
     app_module = "mcp.file.delete_server:app"
-    mcp_tools = _MCP_TOOLS
+    mcp_tools = TOOL_LIST
 
     async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
         return await _dispatch_delete_tool(name, args)
 
 
 if __name__ == "__main__":
-    import sys
-
     server = FileDeleteMCPServer()
-    if "--stdio" in sys.argv:
-        import asyncio
-
-        asyncio.run(server.run_stdio())
-    else:
-        server.run_http()
+    server.run_http()

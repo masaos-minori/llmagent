@@ -16,10 +16,10 @@ class TestMdqToolsCount:
         assert len(MDQ_TOOLS) == 9
 
     def test_mdq_production_tools_count(self) -> None:
-        """_MCP_TOOLS should have exactly 7 production-status tools."""
-        from mcp.mdq.tools import _MCP_TOOLS
+        """TOOL_LIST should have exactly 7 production-status tools."""
+        from mcp.mdq.tools import TOOL_LIST
 
-        production_tools = [t for t in _MCP_TOOLS if t.get("status") == "production"]
+        production_tools = [t for t in TOOL_LIST if t.get("status") == "production"]
         assert len(production_tools) == 7, (
             f"Expected 7 production tools, got {len(production_tools)}: "
             f"{[t['name'] for t in production_tools]}"
@@ -64,13 +64,14 @@ class TestMdqNoUnmappedTools:
             )
 
     def test_mdq_tools_match_server_definition(self) -> None:
-        from mcp.mdq.tools import _MCP_TOOLS
+        from mcp.mdq.tools import TOOL_LIST
 
-        server_tool_names = {t["name"] for t in _MCP_TOOLS}
+        server_tool_names = {t["name"] for t in TOOL_LIST}
+
         assert MDQ_TOOLS == server_tool_names, (
-            f"MDQ_TOOLS mismatch with _MCP_TOOLS:\n"
-            f"  Missing from _MCP_TOOLS: {MDQ_TOOLS - server_tool_names}\n"
-            f"  Extra in _MCP_TOOLS: {server_tool_names - MDQ_TOOLS}"
+            f"MDQ_TOOLS mismatch with TOOL_LIST:\n"
+            f"  Missing from TOOL_LIST: {MDQ_TOOLS - server_tool_names}\n"
+            f"  Extra in TOOL_LIST: {server_tool_names - MDQ_TOOLS}"
         )
 
 
