@@ -10,8 +10,7 @@ Read this file first to choose which chapter to open.
 These 7 files describe the RAG (Retrieval-Augmented Generation) system that indexes web
 pages and local files, and injects relevant context into each LLM agent turn.
 
-They replace the original 7 source files (`03_spec_rag.md`, `03_rag-ref-*.md`,
-`03_rag-ingestion-*.md`, `05_ref-rag.md`) as the primary reference.
+They replace the original 7 source files as the primary reference.
 
 ---
 
@@ -78,7 +77,7 @@ To check specific files:
 python scripts/checks/check_docs_consistency.py docs/03_rag_01_system_overview.md
 ```
 
-The checker runs 8 checks: broken headings, malformed tables, unclosed inline code, JSON not wrapped in fenced code blocks, stale artifact references (`.txt` -> `.json`), non-canonical command names, resolved issues under active sections, and stale issue ID routing. Historical markers (`legacy`, `historical`, `archive only`, `resolved`, `was:`, `removed`) exempt lines from stale-pattern failures.
+The checker runs 10 checks: broken headings, malformed tables, unclosed inline code, JSON not wrapped in fenced code blocks, stale artifact references (`.txt` -> `.json`), non-canonical command names, resolved issues under active sections, stale issue ID routing, deleted RAG source file references, and Migration Notes in active sections. Historical markers (`legacy`, `historical`, `archive only`, `resolved`, `was:`, `removed`) exempt lines from stale-pattern failures.
 
 ---
 

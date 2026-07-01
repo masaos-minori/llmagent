@@ -10,6 +10,8 @@ Lightweight CI check for RAG documentation quality:
 - Non-canonical command names (/db fts-rebuild → /db rebuild-fts)
 - Resolved issues under active issues section
 - Stale issue ID routing in document guide
+- References to deleted RAG source files (03_spec_rag.md, 03_rag-ref-*, etc.)
+- Migration Notes sections in active docs
 
 Usage:
     python -m scripts.checks.check_docs_consistency [--fix]
@@ -32,6 +34,11 @@ STALE_PATTERNS = {
     "rag-src/registered/*.txt": r"(?:^|[^`])rag-src/registered/[^`]*\.txt(?:[^`]|$)",
     "stem-0000.txt": r"(?:^|[^`])\{?stem\}?.*0000\.txt(?:[^`]|$)",
     "/db fts-rebuild": r"/db\s+fts-rebuild",
+    # Deleted RAG source files — should not be referenced as active guidance
+    "03_spec_rag.md": r"(?:^|[^a-zA-Z])03_spec_rag\.md(?:[^a-zA-Z]|$)",
+    "03_rag-ref-*": r"03_rag-ref-[^`]*\.md",
+    "03_rag-ingestion-*": r"03_rag-ingestion-[^`]*\.md",
+    "05_ref-rag.md": r"(?:^|[^a-zA-Z])05_ref-rag\.md(?:[^a-zA-Z]|$)",
 }
 
 # Patterns that are allowed in resolved/historical sections
@@ -215,6 +222,95 @@ def check_stale_patterns(content: str, filename: str) -> list[str]:
     return issues
 
 
+def check_deleted_rag_refs(content: str, filename: str) -> list[str]:
+    """Check for references to deleted RAG source files in active sections."""
+    issues = []
+    lines = content.split("\n")
+    in_active = False
+
+    # Only check RAG docs (03_rag_*.md files)
+    if not filename.startswith("03_rag_"):
+        return issues
+
+    # Track which sections are historical/archival (not active)
+    HISTORICAL_SECTIONS = {
+        "legacy",
+        "archive",
+        "historical",
+        "deleted",
+        "removed",
+        "migration",
+    }
+
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+        # Track section boundaries
+        if stripped.startswith("##"):
+            section_name = stripped.replace("#", "").strip().lower()
+            is_historical_section = any(
+                h in section_name for h in HISTORICAL_SECTIONS
+            )
+            in_active = not is_historical_section
+            continue
+
+        if not in_active:
+            continue
+
+        # Check for deleted RAG source file references
+        if re.search(r"03_spec_rag\.md", stripped):
+            issues.append(
+                f"{filename}:{i}: reference to deleted RAG source — '03_spec_rag.md'"
+            )
+        elif re.search(r"03_rag-ref-", stripped):
+            issues.append(
+                f"{filename}:{i}: reference to deleted RAG source — '03_rag-ref-*'"
+            )
+        elif re.search(r"03_rag-ingestion-", stripped):
+            issues.append(
+                f"{filename}:{i}: reference to deleted RAG source — '03_rag-ingestion-*'"
+            )
+        elif re.search(r"05_ref-rag\.md", stripped):
+            issues.append(
+                f"{filename}:{i}: reference to deleted RAG source — '05_ref-rag.md'"
+            )
+
+    return issues
+
+
+def check_migration_notes_in_active(content: str, filename: str) -> list[str]:
+    """Check for Migration Notes sections in active RAG docs."""
+    issues = []
+    lines = content.split("\n")
+    in_active = False
+
+    # Only check RAG docs (03_rag_*.md files)
+    if not filename.startswith("03_rag_"):
+        return issues
+
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+        # Only check section headers (## or ###) for "Migration Notes"
+        if stripped.startswith("##"):
+            section_name = stripped.replace("#", "").strip().lower()
+            # Check if this is a historical section (not active)
+            is_historical_section = any(
+                h in section_name for h in ["legacy", "archive", "historical"]
+            )
+            in_active = not is_historical_section
+            # Check if this section is named "Migration Notes"
+            if "migration notes" in section_name:
+                if not is_historical_section:
+                    issues.append(
+                        f"{filename}:{i}: Migration Notes in active section — '{stripped}'"
+                    )
+            continue
+
+        if not in_active:
+            continue
+
+    return issues
+
+
 def check_resolved_in_active(content: str, filename: str) -> list[str]:
     """Check that no resolved issue remains under active issues section."""
     issues = []
@@ -268,6 +364,8 @@ def check_all(content: str, filename: str) -> list[str]:
     issues.extend(check_stale_patterns(content, filename))
     issues.extend(check_resolved_in_active(content, filename))
     issues.extend(check_stale_issue_routing(content, filename))
+    issues.extend(check_deleted_rag_refs(content, filename))
+    issues.extend(check_migration_notes_in_active(content, filename))
     return issues
 
 
