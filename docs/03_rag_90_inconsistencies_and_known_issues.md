@@ -7,7 +7,7 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
-## Design Notes (Required Explicit Items)
+## Confirmed Design Decisions
 
 ### DESIGN-2: FTS5 uses `normalized_content`; LLM receives `content`
 
