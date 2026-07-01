@@ -437,6 +437,15 @@ sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostic
 **Reading diagnostics:**
 
 ```bash
+# View all diagnostic events (most recent first)
+sqlite3 /opt/llm/db/session.sqlite "SELECT id, session_id, kind, created_at FROM session_diagnostics ORDER BY created_at DESC LIMIT 50;"
+
+# Count diagnostics by kind
+sqlite3 /opt/llm/db/session.sqlite "SELECT kind, COUNT(*) AS n FROM session_diagnostics GROUP BY kind ORDER BY n DESC;"
+
+# View diagnostics for one session
+sqlite3 /opt/llm/db/session.sqlite "SELECT id, kind, content, created_at FROM session_diagnostics WHERE session_id = ? ORDER BY created_at DESC;"
+
 # View all session summaries
 sqlite3 /opt/llm/db/session.sqlite "SELECT kind, json(content) FROM session_diagnostics WHERE kind = 'session_summary' ORDER BY created_at DESC;" | jq .
 

@@ -189,6 +189,13 @@ _COMMANDS: list[CommandDef] = [
         "[reason]  Approve the pending workflow task",
     ),
     CommandDef(
+        "/reject",
+        True,
+        False,
+        "_cmd_reject",
+        "[reason]  Reject the pending workflow task",
+    ),
+    CommandDef(
         "/plugin",
         True,
         False,

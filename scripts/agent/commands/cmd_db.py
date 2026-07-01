@@ -140,7 +140,7 @@ class _DbMixin(MixinBase):
             rows,
         )
         self._out.write(
-            "Note: workflow data lives in session.sqlite; no separate workflow DB."
+            "Note: /db does not expose direct workflow maintenance commands; workflow state is managed by the WorkflowEngine."
         )
 
     def _db_help_rag(self) -> None:
