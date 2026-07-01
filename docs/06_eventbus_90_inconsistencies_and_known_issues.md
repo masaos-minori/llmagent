@@ -10,58 +10,6 @@ These items represent unresolved issues that require implementation changes or h
 |---|---|---|
 | `write_offset()` in `offsets.py` does not enforce monotonic offset advancement (no max(current, new) check) | Acknowledging an older event seq moves the consumer offset backward — consumers may receive duplicate events on reconnect | Consumers must handle potential offset rollback; no server-side fix planned |
 
-## Resolved Items
-
-These items were previously inconsistent but have been corrected in both implementation and documentation.
-
-### Non-DLQ Events Can Be Requeued
-
-| Item | Safe interpretation | Resolution |
-|---|---|---|
-| `POST /dlq/{event_id}/requeue` returns 409 for non-DLQ events, not 404 | Event exists but is not in DLQ — idempotent requeue behavior | DLQ list response includes dlq_requeue_count; GET /dlq documents the field |
-
-### Ack Idempotency Behavior
-
-| Item | Safe interpretation | Resolution |
-|---|---|---|
-| Repeated ack returns 200 with `already_acked: true`, not 404 | First ack returns 200 with `acked: true`; repeated ack returns 200 with `already_acked: true` for idempotency | Both `/events/{event_id}/ack` and legacy `/ack` endpoints updated; concurrent ack test validates behavior |
-
-### Consumer ID Sanitization Docs Mismatch
-
-| Item | Safe interpretation | Resolution |
-|---|---|---|
-| Documentation says `. → _` but code does `.. → _`; no `. → _` in code | Both are needed for complete path traversal prevention; docs and code must agree | Updated both implementation and documentation to replace all three: `.`, `/`, `..` with `_`; added empty consumer_id handling (→ "default"); added 8 sanitization tests covering /, .., ., empty, long IDs, and path traversal attempts |
-
-### Deploy/init_db.sh Schema Mismatch
-
-| Item | Safe interpretation | Resolution |
-|---|---|---|
-| `deploy/init_db.sh` Event Bus DDL missing `delivery_failure_count`, `dlq_requeue_count` columns and DLQ indexes | DDL must match schema.sql for reproducible initialization | Consolidated to single create_schema.py call; removed redundant workflow_schema.py call; added session.sqlite table verification |
-
-### SQLite Thread Model Doc Mismatch
-
-| Item | Safe interpretation | Resolution |
-|---|---|---|
-| `06_eventbus_03:L7` says "FastAPI runs on a single async event loop thread. All DB operations execute on that thread." — incorrect | DB operations execute in `asyncio.to_thread()` thread pool, serialized by `db._db_lock` (module-level `threading.Lock`) | Corrected description to reflect actual asyncio.to_thread() + threading.Lock model |
-
-### Consumer ID PID Stability
-
-| Item | Safe interpretation | Resolution |
-|---|---|---|
-| `_make_consumer_id()` in `offsets.py` generates PID-based IDs that change on restart — deprecated utility only | Consumer IDs must be client-supplied via `consumer_id` query parameter; server never auto-generates consumer IDs | Docs already clearly document that consumer IDs are always client-supplied and PID-based IDs are explicitly warned against |
-
-### /health Degraded State Returns HTTP 503
-
-| Item | Safe interpretation |
-|---|---|
-| `/health` returns HTTP 503 for `degraded`/`unhealthy` states, HTTP 200 for `ok` | Monitoring tools MUST use HTTP status code, not JSON body, for alerting |
-
-### Offset Advancement Is Ack-Only
-
-| Item | Safe interpretation |
-|---|---|
-| Offsets advance only via ack endpoint, never on disconnect or during streaming | Consumer must call `POST /events/{event_id}/ack` to advance offset; reconnect resumes from last acked seq |
-
 ## Docs-Only Items
 
 These items are documentation improvements that do not require implementation changes.

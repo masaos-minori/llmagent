@@ -270,8 +270,6 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 **Constructor:** `McpServerHealthRegistry(failure_threshold=3, half_open_cooldown_sec=30.0)`
 - `half_open_cooldown_sec`: seconds after entering `UNAVAILABLE` before a trial dispatch is allowed (default 30s, fixed — not exponential backoff)
 
-> **Resolved (2026-06-18):** `ToolExecutor._raw_execute()` now calls `record_success()` on transport success and `record_failure()` on `TransportError`. DEGRADED/UNAVAILABLE transitions work correctly.
-
 ---
 
 ## _ServerLifecycleRouter (`factory.py`)

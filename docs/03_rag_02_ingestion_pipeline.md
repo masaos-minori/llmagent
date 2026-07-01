@@ -359,11 +359,6 @@ See [03_rag_05_configuration_and_operations.md §1.1](03_rag_05_configuration_an
 
 ## 4. RagIngester (`scripts/rag/ingestion/ingester.py`)
 
-**Resolved:** `_read_chunk_json()` now reads raw bytes and parses with `orjson` directly,
-returning a raw `dict` that preserves all fields including `chunking_strategy`, `normalized_content`,
-and `chunk_index`. The earlier `dataclasses.asdict(read_json_file(path))` approach (which dropped
-fields not in `ChunkDocument`) is no longer used.
-
 ### 4.1 Class overview
 
 `RagIngester` — reads chunk files, generates embeddings via `embed-llm` (port 8003),
@@ -478,7 +473,7 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 
 | Constant | Value | Description |
 |---|---|---|
-| `_SUPPORTED_LANGS` | `{"en", "ja"}` | Resolved (output) language codes |
+| `_SUPPORTED_LANGS` | `{"en", "ja"}` | Output language codes |
 | `_VALID_HINT_LANGS` | `{"en", "ja", "auto"}` | Valid hint language values |
 | `_CJK_RATIO_THRESHOLD` | `0.1` | CJK character ratio threshold for Japanese classification |
 | `_TARGET_URL_ENTRY_LENGTH` | `2` | Expected element count for target_urls entries |

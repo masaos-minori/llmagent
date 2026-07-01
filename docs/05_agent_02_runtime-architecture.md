@@ -178,3 +178,4 @@ Accessed via `ctx.services.memory`.
 
 - `agent/repl_tool_exec.py` — deleted; tool execution moved to `shared/tool_executor.py`. Use `ToolExecutor.execute()`.
 - `ServerLifecycleManager` — deleted from `agent/lifecycle.py`; replaced by `HttpServerLifecycleManager` (`agent/http_lifecycle.py`) and `StdioServerLifecycleManager` (`agent/stdio_lifecycle.py`), composed via `_ServerLifecycleRouter` in `agent/factory.py`.
+

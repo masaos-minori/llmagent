@@ -17,7 +17,6 @@ Each entry format:
 
 ### Session SQLite corruption recovery gap
 
-- **Type:** Resolved — flat `/db` aliases removed (use `/db rag ...` or `/db session ...` instead)
 - `/db rag recover [backup-path]` targets `rag.sqlite` only (via `RagMaintenanceService`)
 - `/db session recover [backup-path]` exists: calls `DbMaintenanceService.recover_session()` → `recover_corruption(backup_path, target="session")`
 - Operator path: `/db session recover /path/to/backup.sqlite`
@@ -80,12 +79,6 @@ Each entry format:
 - **Statement B:** `session_diagnostics` table via `DiagnosticStore.save()` is the structured query path for diagnostics
 - **Current safe interpretation:** Both stores are active and serve different purposes. `session_diagnostics` for structured SQL queries; `diagnostics.jsonl` for append-only post-mortem analysis. Neither is deprecated.
 - **Recommended action:** Clarify in docs that both are active; remove or update "may be deprecated" note with concrete timeline
-
-### DISC-02: memory_jsonl_path vs memory_jsonl_dir — RESOLVED
-
-- **Type:** Document inconsistency (resolved)
-- **Resolution:** `05_agent_12_memory.md` updated to use `memory_jsonl_dir`; path is `{memory_jsonl_dir}/memories.jsonl`
-- **Canonical key:** `memory_jsonl_dir` (verified in `config_dataclasses.py:297`, `config_builders.py:203`)
 
 ### DISC-03: branch field in memory retrieval
 

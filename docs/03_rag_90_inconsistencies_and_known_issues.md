@@ -38,11 +38,5 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
-## Resolved Issues
-
-### ARTIFACT-01: `.txt`/`.json` artifact drift
-
-- **Resolved in:** commit `cab269d`
-- **Resolution:** All RAG ingestion artifacts now use `.json` extension. No active `.txt` artifact references remain in the codebase.
 
 

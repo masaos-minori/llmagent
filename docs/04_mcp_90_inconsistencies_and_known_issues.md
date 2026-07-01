@@ -157,30 +157,4 @@ HEALTHY ──(failure × 1)──→ DEGRADED ──(failure × 2)──→ UNA
 
 ---
 
-## Resolved Issues
 
-### MCP-03: rag-pipeline tool count mismatch (mdq-mcp missing declaration)
-
-**Type:** Document inconsistency
-**Impact scope:** `04_mcp_04`
-
-**Statement A (`04_mcp_04:251`):** rag-pipeline-mcp has explicit "All 4 tools are production" statement.
-
-**Statement B (mdq-mcp section):** mdq-mcp lacked an equivalent tool status declaration in `04_mcp_04_server_catalog.md`.
-
-**Resolution (2026-06-29):** Added explicit tool status declaration to mdq-mcp section in `04_mcp_04_server_catalog.md`. mdq-mcp has 7 production tools (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`) and 2 admin tools (`fts_consistency_check`, `fts_rebuild`). No stub markers exist in the codebase. This issue is closed.
-
----
-
-### MCP-05: MDQ production-ready vs stub marker mismatch
-
-**Type:** Document inconsistency
-**Impact scope:** `04_mcp_00`, `04_mcp_04`, `04_mcp_05`
-
-**Statement A (`04_mcp_00:59,79`):** Document guide asserts mdq-mcp is production-ready (FTS5 search and indexing implemented).
-
-**Statement B (`04_mcp_05:324`):** Same assertion: "mdq-mcp is production-ready."
-
-**Historical context:** mdq-mcp was previously marked as `"status": "stub"` with `"stub": True` in the `/health` endpoint. Current code (`scripts/mcp/mdq/tools.py`) has all 7 non-admin tools with `"status": "production"` and no `stub` indicator in health response.
-
-**Resolution (2026-06-18):** The `stub` marker has been verified absent from both `scripts/mcp/mdq/tools.py` (no `stub` key in any tool entry) and `scripts/mcp/mdq/server.py` (no `stub` field in `/health` endpoint). All 7 non-admin mdq-mcp tools have `"status": "production"`. Explicit tool status declaration added to `04_mcp_04_server_catalog.md`. This issue is closed.
