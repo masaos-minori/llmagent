@@ -222,16 +222,76 @@ class TestRagDbMaintenanceService:
         service = RagDbMaintenanceService()
         service.rotate()
 
-    def test_rebuild_fts(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        db_file = tmp_path / "rag.sqlite"
-        self._make_real_sqlite(db_file)
-        # Create chunks_fts table for rebuild test
+    def _make_rag_schema(self, db_file: Path) -> None:
+        """Create minimal RAG schema: documents, chunks, chunks_fts (with trigger)."""
         import sqlite3 as _s
 
         conn = _s.connect(str(db_file))
-        conn.execute(
-            "CREATE VIRTUAL TABLE chunks_fts USING fts5(chunk_id, content, content_rowid)"
+        conn.executescript("""
+            CREATE TABLE documents (
+                doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT NOT NULL UNIQUE,
+                title TEXT,
+                lang TEXT NOT NULL DEFAULT 'ja',
+                fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
+                chunking_strategy TEXT NOT NULL DEFAULT 'text'
+            );
+            CREATE TABLE chunks (
+                chunk_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_id INTEGER NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+                chunk_index INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                normalized_content TEXT
+            );
+            CREATE VIRTUAL TABLE chunks_fts USING fts5(
+                content,
+                content = 'chunks',
+                content_rowid = 'chunk_id',
+                tokenize = 'unicode61'
+            );
+            CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN
+                INSERT INTO chunks_fts (rowid, content)
+                VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
+            END;
+        """)
+        conn.commit()
+        conn.close()
+
+    def test_rebuild_fts(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        db_file = tmp_path / "rag.sqlite"
+        self._make_rag_schema(db_file)
+
+        monkeypatch.setattr(
+            "db.helper.build_db_config",
+            lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
         )
+        service = RagDbMaintenanceService()
+        service.rebuild_fts()
+
+    def test_rebuild_fts_uses_normalized_content_for_japanese(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """rebuild_fts() must index COALESCE(normalized_content, content), not content alone."""
+        import sqlite3 as _s
+
+        db_file = tmp_path / "rag.sqlite"
+        self._make_rag_schema(db_file)
+
+        conn = _s.connect(str(db_file))
+        conn.execute("INSERT INTO documents(url, lang) VALUES('http://test', 'ja')")
+        # Japanese chunk: normalized_content differs from content
+        conn.execute(
+            "INSERT INTO chunks(doc_id, chunk_index, content, normalized_content)"
+            " VALUES(1, 0, '東京', 'とうきょう')"
+        )
+        # English chunk: normalized_content is NULL
+        conn.execute(
+            "INSERT INTO chunks(doc_id, chunk_index, content, normalized_content)"
+            " VALUES(1, 1, 'hello world', NULL)"
+        )
+        conn.commit()
+        # Manually corrupt FTS to force rebuild to matter
+        conn.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('delete-all')")
         conn.commit()
         conn.close()
 
@@ -241,6 +301,20 @@ class TestRagDbMaintenanceService:
         )
         service = RagDbMaintenanceService()
         service.rebuild_fts()
+
+        conn = _s.connect(str(db_file))
+        conn.row_factory = _s.Row
+        # Japanese chunk: FTS should contain normalized form, not original
+        hits = conn.execute(
+            "SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH 'とうきょう'"
+        ).fetchall()
+        assert len(hits) == 1, "normalized_content not indexed by rebuild_fts"
+        # English chunk: FTS should contain original content
+        hits = conn.execute(
+            "SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH 'hello'"
+        ).fetchall()
+        assert len(hits) == 1, "English content not indexed by rebuild_fts"
+        conn.close()
 
     def test_vacuum(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         db_file = tmp_path / "rag.sqlite"
