@@ -225,48 +225,7 @@ class TestPersistSessionDiagnostics:
         repl._diagnostic_store = MagicMock()
         return repl
 
-    def test_writes_jsonl_file(self, tmp_path):
-        import json as json_mod
-
-        repl = self._make_repl()
-        diag_file = tmp_path / "diagnostics.jsonl"
-        parent_dir = diag_file.parent
-
-        mock_row = {"cnt": 8, "errs": 3}
-        mock_helper = MagicMock()
-        mock_ctx_mgr = MagicMock()
-        mock_ctx_mgr.__enter__ = MagicMock(return_value=mock_helper)
-        mock_ctx_mgr.__exit__ = MagicMock(return_value=False)
-        mock_helper.open = MagicMock(return_value=mock_ctx_mgr)
-        mock_helper.fetchall = MagicMock(return_value=[mock_row])
-
-        with (
-            patch("agent.repl.build_db_config") as mock_cfg,
-            patch("agent.repl.SQLiteHelper", return_value=mock_helper),
-        ):
-            mock_cfg.return_value.session_db_path = str(parent_dir / "session.sqlite")
-            repl._persist_session_diagnostics(repl._ctx)
-
-        assert diag_file.exists()
-        lines = diag_file.read_text().strip().split("\n")
-        assert len(lines) == 1
-        data = json_mod.loads(lines[0])
-        assert data["session_id"] == 42
-        assert data["turns"] == 5
-        assert data["tool_calls"] == 12
-        assert data["tool_errors"] == 2
-        assert data["partial_completions"] == 1
-        assert data["reconnects"] == 2
-        assert data["semantic_cache_hits"] == 3
-        assert data["input_tokens"] == 1000
-        assert data["output_tokens"] == 500
-        assert data["compress_count"] == 2
-        assert "llm" in data["latency_summary"]
-        assert data["latency_summary"]["llm"]["count"] == 2
-        assert data["tool_result_summary"]["total"] == 8
-        assert data["tool_result_summary"]["errors"] == 3
-
-    def test_handles_none_session_id(self, tmp_path):
+    def test_handles_none_session_id(self):
         repl = self._make_repl()
         repl._ctx.session.session_id = None
 
@@ -274,15 +233,12 @@ class TestPersistSessionDiagnostics:
         mock_ctx_mgr = MagicMock()
         mock_ctx_mgr.__enter__ = MagicMock(return_value=mock_helper)
         mock_ctx_mgr.__exit__ = MagicMock(return_value=False)
+        mock_helper.fetchall = MagicMock(return_value=[])
 
-        with (
-            patch("agent.repl.build_db_config") as mock_cfg,
-            patch("agent.repl.SQLiteHelper", return_value=mock_helper),
-        ):
-            mock_cfg.return_value.session_db_path = str(tmp_path / "session.sqlite")
+        with patch("agent.repl.SQLiteHelper", return_value=mock_helper):
             repl._persist_session_diagnostics(repl._ctx)
 
-    def test_handles_none_services(self, tmp_path):
+    def test_handles_none_services(self):
         repl = self._make_repl()
         repl._ctx.services = None
 
@@ -294,9 +250,5 @@ class TestPersistSessionDiagnostics:
         mock_helper = MagicMock()
         mock_helper.open = MagicMock(return_value=mock_ctx_mgr)
 
-        with (
-            patch("agent.repl.build_db_config") as mock_cfg,
-            patch("agent.repl.SQLiteHelper", return_value=mock_helper),
-        ):
-            mock_cfg.return_value.session_db_path = str(tmp_path / "session.sqlite")
+        with patch("agent.repl.SQLiteHelper", return_value=mock_helper):
             repl._persist_session_diagnostics(repl._ctx)

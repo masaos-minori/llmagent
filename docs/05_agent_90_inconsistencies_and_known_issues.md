@@ -71,15 +71,6 @@ Each entry format:
 
 ## Document Inconsistencies
 
-### DISC-01: diagnostics.jsonl vs session_diagnostics table dual persistence
-
-- **Type:** Document inconsistency
-- **Impact scope:** `05_agent_04_state-and-persistence.md`, `05_agent_10_operations-and-observability.md`
-- **Statement A:** `diagnostics.jsonl` is the primary diagnostic persistence mechanism (documented as "may be deprecated in future" with no timeline)
-- **Statement B:** `session_diagnostics` table via `DiagnosticStore.save()` is the structured query path for diagnostics
-- **Current safe interpretation:** Both stores are active and serve different purposes. `session_diagnostics` for structured SQL queries; `diagnostics.jsonl` for append-only post-mortem analysis. Neither is deprecated.
-- **Recommended action:** Clarify in docs that both are active; remove or update "may be deprecated" note with concrete timeline
-
 ### DISC-03: branch field in memory retrieval
 
 - **Type:** Undocumented behavior

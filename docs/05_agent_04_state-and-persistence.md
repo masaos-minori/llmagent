@@ -125,14 +125,9 @@ On fallback, an audit log entry is emitted: `session_title_fallback session_id=<
 - `AgentContext.diagnostics` is wired to `Orchestrator._diagnostic_store` on init; `None` before any `Orchestrator` is constructed
 - Kinds written: `"mid_turn_error"` (LLM transport errors from `ErrorInjectionService`, `LLMTurnRunner`, `Orchestrator`), `"guard_hint"` (cycle/dedup/retry events from `ToolLoopGuard`)
 - Guard hints and mid-turn errors are stored only in diagnostics — they do NOT appear in `ctx.conv.history`
-- A lightweight session summary is also written to `<session_db_dir>/diagnostics.jsonl` by `repl.py` (may be deprecated in future)
 - Diagnostic data is stored in the `session_diagnostics` table via `DiagnosticStore`; it is never present in `messages` and therefore never returned by `fetch_messages()`
 
-> **Current behavior:** DiagnosticStore writes to the `session_diagnostics` table only. `diagnostics.jsonl` is written to `Path(session_db_path).parent / "diagnostics.jsonl"` (i.e., `/opt/llm/db/diagnostics.jsonl`). Both stores are active and serve different purposes: `session_diagnostics` for structured query access, `diagnostics.jsonl` for append-only post-mortem analysis.
-
-> **Known discrepancy:** The `diagnostic` role in the `messages` table column list (in `05_agent_09_data-layer.md`) describes a historical or secondary path; primary diagnostic persistence goes to `session_diagnostics` table via `DiagnosticStore.save()`.
-
-> **Needs confirmation:** Deprecation timeline for `diagnostics.jsonl` not decided. The "may be deprecated in future" note has no associated issue or deadline.
+> **Current behavior:** DiagnosticStore writes to the `session_diagnostics` table only. Diagnostics are persisted exclusively through `session_diagnostics` — there is no dual persistence to `diagnostics.jsonl`.
 
 ---
 

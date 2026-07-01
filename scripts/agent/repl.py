@@ -29,7 +29,6 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from db.config import build_db_config
 from db.helper import SQLiteHelper
 from shared.logger import Logger
 
@@ -281,12 +280,7 @@ class AgentREPL:
                 "rag_stage_outcomes": rag_stage_outcomes,
             }
 
-            db_cfg = build_db_config()
-            diag_path = Path(db_cfg.session_db_path).parent / "diagnostics.jsonl"
-            with open(diag_path, "a") as f:
-                f.write(json.dumps(summary) + "\n")
-
-            # Also persist to queryable DiagnosticStore
+            # Persist to queryable DiagnosticStore
             try:
                 self._diagnostic_store.save(
                     session_id,

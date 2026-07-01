@@ -261,7 +261,7 @@ grep '"workflow_id":"<id>"' /opt/llm/logs/audit.log | jq .
 
 ### Session Diagnostics
 
-`diagnostics.jsonl` now includes workflow summary fields per session:
+Diagnostics are persisted in the `session_diagnostics` table via `DiagnosticStore.save()`. The session summary is written at session end:
 
 ```json
 {
@@ -277,6 +277,24 @@ grep '"workflow_id":"<id>"' /opt/llm/logs/audit.log | jq .
 ```
 
 These counts are derived from `workflow.sqlite` at session end.
+
+Querying session diagnostics:
+
+```bash
+sqlite3 /opt/llm/db/session.sqlite "SELECT kind, json(content) FROM session_diagnostics WHERE session_id = ? ORDER BY created_at DESC LIMIT 10;"
+```
+
+Retrieving a specific diagnostic entry:
+
+```bash
+sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostics WHERE session_id = ? AND kind = 'session_summary' ORDER BY created_at DESC LIMIT 1;" | jq .content
+```
+
+Listing all diagnostic kinds for a session:
+
+```bash
+sqlite3 /opt/llm/db/session.sqlite "SELECT DISTINCT kind FROM session_diagnostics WHERE session_id = ? ORDER BY kind;"
+```
 
 ---
 
@@ -376,13 +394,25 @@ For the canonical partial-completion model → [05_agent_03 §Partial-Completion
 
 ## Runtime Diagnostics (session-end summary)
 
-At session end, a lightweight diagnostic summary is persisted to `<session_db_dir>/diagnostics.jsonl` as one JSON-lines record per session. This survives beyond the REPL session for post-mortem analysis.
+At session end, a lightweight diagnostic summary is persisted to the `session_diagnostics` table via `DiagnosticStore.save(kind="session_summary")`. This survives beyond the REPL session for post-mortem analysis.
 
-> **Current behavior:** `diagnostics.jsonl` path is hardcoded as `Path(session_db_path).parent / "diagnostics.jsonl"` (i.e., `/opt/llm/db/diagnostics.jsonl`). It is NOT configurable — there is no config key for this path. The session DB is `session.sqlite`, so the parent directory is always `/opt/llm/db/`.
+Querying session diagnostics:
 
-> **Known discrepancy:** Dual persistence exists: `diagnostics.jsonl` (append-only file) AND `session_diagnostics` table (via `DiagnosticStore.save(kind="session_summary")`). Both are active. The file is queryable via JSONL tools; the table is queryable via SQL. They may diverge in schema or content over time if one is updated without the other.
+```bash
+sqlite3 /opt/llm/db/session.sqlite "SELECT kind, json(content) FROM session_diagnostics WHERE session_id = ? ORDER BY created_at DESC LIMIT 10;"
+```
 
-> **Needs confirmation:** Deprecation timeline for `diagnostics.jsonl` not decided. The note "may be deprecated in future" (in `05_agent_04_state-and-persistence.md`) has no associated issue or deadline.
+Retrieving a specific diagnostic entry:
+
+```bash
+sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostics WHERE session_id = ? AND kind = 'session_summary' ORDER BY created_at DESC LIMIT 1;" | jq .content
+```
+
+Filtering by diagnostic kind:
+
+```bash
+sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostics WHERE kind = 'mid_turn_error' ORDER BY created_at DESC;" | jq -r '.content'
+```
 
 **Fields in each record:**
 
@@ -408,18 +438,16 @@ At session end, a lightweight diagnostic summary is persisted to `<session_db_di
 
 ```bash
 # View all session summaries
-cat /opt/llm/db/diagnostics.jsonl | jq .
+sqlite3 /opt/llm/db/session.sqlite "SELECT kind, json(content) FROM session_diagnostics WHERE kind = 'session_summary' ORDER BY created_at DESC;" | jq .
 
 # Filter sessions with high error rates
-cat /opt/llm/db/diagnostics.jsonl \
-  | jq 'select(.tool_errors > 0) | {session_id, turns, tool_errors, timestamp}'
+sqlite3 /opt/llm/db/session.sqlite "SELECT kind, content FROM session_diagnostics WHERE kind = 'session_summary' AND json_extract(content, '$.tool_errors') > 0 ORDER BY created_at DESC LIMIT 10;" | jq -r '.content'
 
 # Aggregate stats across sessions
-cat /opt/llm/db/diagnostics.jsonl \
-  | jq -s '{total_sessions: length, avg_turns: (map(.turns) | add / length), total_tool_errors: (map(.tool_errors) | add)}'
+sqlite3 /opt/llm/db/session.sqlite "SELECT COUNT(*) as total_sessions, AVG(json_extract(content, '$.turns')) as avg_turns, SUM(json_extract(content, '$.tool_errors')) as total_tool_errors FROM session_diagnostics WHERE kind = 'session_summary';"
 ```
 
-The file is appended to on each session end. Diagnostics persistence failures are logged at DEBUG level and do not affect REPL shutdown.
+Diagnostics persistence failures are logged at DEBUG level and do not affect REPL shutdown.
 
 ---
 
@@ -555,7 +583,7 @@ Embed skip count        8
 - `SIGTERM` → converted to `SystemExit(0)` by `agent.py`
 - `_shutdown_requested` flag set → REPL loop exits after current input wait
 - `finally` block in `_run_repl_loop()`:
-  - `_persist_session_diagnostics()` → write runtime summary to `diagnostics.jsonl`
+  - `_persist_session_diagnostics()` → write runtime summary to `session_diagnostics` table via `DiagnosticStore.save(kind="session_summary")`
   - `memory.on_session_stop()` → extract + persist memories
   - `watchdog_task.cancel()`
   - `_close_resources()` → readline history save, `lifecycle.shutdown_all()`, HTTP client close
