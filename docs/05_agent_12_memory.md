@@ -438,7 +438,7 @@ Class `JsonlMemoryStore(path)`:
 
 **Failure modes:** `JsonlFormatError` on malformed lines.
 
-**Note:** SQLite (`memories` table) is the authoritative state for memory data. The JSONL archive is an append-only backup used for import/export and disaster recovery only. Deletions and pin/unpin state changes are not replayed from the JSONL archive — they must be applied directly to SQLite.
+**Note:** SQLite memory tables are authoritative for current memory state. JSONL is retained as an append-only archive for import/export and disaster recovery. Deletes and pin/unpin state changes are not replayed from JSONL.
 
 ### 12. `embedding_client.py` — HTTP embedding client
 
