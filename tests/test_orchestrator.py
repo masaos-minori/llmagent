@@ -1113,3 +1113,27 @@ class TestHandleHistoryCompressionPersist:
         orch = Orchestrator(ctx)
         await orch._handle_history_compression()
         ctx.session.replace_messages.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_compress_filters_ephemeral_and_memory_injected_from_db(
+        self,
+    ) -> None:
+        """replace_messages() must not receive _memory_injected or _ephemeral messages."""
+        ctx = _make_ctx()
+        kept = {"role": "user", "content": "hello"}
+        ctx.services.hist_mgr.compress = AsyncMock(
+            return_value=(
+                [
+                    kept,
+                    {"role": "system", "content": "hint", "_ephemeral": True},
+                    {"role": "system", "content": "mem", "_memory_injected": True},
+                ],
+                CompressResult(
+                    compressed_count=1, protected_count=0, summary_added=False
+                ),
+            )
+        )
+        orch = Orchestrator(ctx)
+        await orch._handle_history_compression()
+        saved = ctx.session.replace_messages.call_args[0][0]
+        assert saved == [kept]

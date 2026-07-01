@@ -404,7 +404,13 @@ class Orchestrator:
                 or result.summary_added
                 or result.is_fallback
             ):
-                ctx.session.replace_messages(ctx.conv.history)
+                ctx.session.replace_messages(
+                    [
+                        m
+                        for m in ctx.conv.history
+                        if not m.get("_memory_injected") and not m.get("_ephemeral")
+                    ]
+                )
 
     async def _handle_llm_turn(self, llm_url: str) -> TurnResult:
         ctx = self._ctx
@@ -518,7 +524,11 @@ class Orchestrator:
         """
         ctx = self._ctx
         # Remove ephemeral entries from the previous turn before rebuilding prompt
-        ctx.conv.history = [m for m in ctx.conv.history if not m.get("_ephemeral")]
+        ctx.conv.history = [
+            m
+            for m in ctx.conv.history
+            if not m.get("_ephemeral") and not m.get("_memory_injected")
+        ]
         if not ctx.conv.system_prompt_content:
             return
         if ctx.conv.history and ctx.conv.history[0]["role"] == "system":
