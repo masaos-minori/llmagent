@@ -11,11 +11,16 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ### DESIGN-2: FTS5 uses `normalized_content`; LLM receives `content`
 
-- **Type:** Needs confirmation
+- **Type:** Confirmed design decision
 - **Impact scope:** `chunks` table, `chunks_fts` virtual table, `scripts/rag/repository.py _build_fts_query()`, `scripts/rag/stages/augment.py`
-- **Description:** Japanese chunks store two text representations. `chunks.content` (original text) is injected into the LLM context by `AugmentStage`. `chunks.normalized_content` (Sudachi `normalized_form()` space-joined) is indexed by the `chunks_ai` trigger via `COALESCE(normalized_content, content)` into `chunks_fts`. FTS5 query-side also normalizes Japanese terms in `_build_fts_tokens_ja()`. English and code chunks have `normalized_content=NULL`; FTS5 falls back to `content`. This separation ensures LLM receives readable original text while BM25 search uses morphologically normalized forms.
-- **Current safe interpretation:** `normalized_content` is correctly read from chunk JSON. FTS5 indexing uses Sudachi-normalized forms for Japanese chunks when present.
-- **Notes for AI reference:** Never replace `content` with `normalized_content` in the Augment stage output. The separation is intentional. Source: `03_rag_02_ingestion_pipeline.md §FTS5/LLM content separation`.
+- **Invariants (non-negotiable):**
+  - `chunks.content` is the original chunk text and the **only** text used for LLM context.
+  - `chunks.normalized_content` is Sudachi-normalized Japanese text used **exclusively** for FTS5 search indexing; it must never appear in LLM context.
+  - FTS5 indexes `COALESCE(normalized_content, content)` via the `chunks_ai` trigger.
+  - Japanese chunks store Sudachi `normalized_form()` space-joined text in `normalized_content`. English/code chunks keep `normalized_content = NULL`; FTS5 falls back to `content`.
+  - `AugmentStage` must always output `content`, never `normalized_content`.
+- **Description:** Japanese chunks store two text representations. `chunks.content` (original text) is injected into the LLM context by `AugmentStage`. `chunks.normalized_content` (Sudachi-normalized) is indexed by the `chunks_ai` trigger into `chunks_fts`. FTS5 query-side also normalizes Japanese terms in `_build_fts_tokens_ja()`. This separation ensures LLM receives readable original text while BM25 search uses morphologically normalized forms.
+- **Notes for AI reference:** Never replace `content` with `normalized_content` in the Augment stage output. The separation is intentional and confirmed. Source: `03_rag_02_ingestion_pipeline.md §FTS5/LLM content separation`.
 
 ---
 
