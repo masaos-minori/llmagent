@@ -42,9 +42,7 @@ and the responsibility boundary between the agent layer and the RAG layer.
 | `tool_call_id` | TEXT | Tool call response correlation ID (tool role only) |
 | `created_at` | TEXT | Row creation timestamp |
 
-> **Known discrepancy:** The `diagnostic` role in the column list above is stale. `AgentSession.save_diagnostic()` does NOT write to the `messages` table; it writes exclusively to the `session_diagnostics` table via `DiagnosticStore.save()`. Diagnostic data is excluded from `fetch_messages()` results and never restored to `ctx.conv.history`.
-
-> **Current behavior:** All diagnostic persistence goes through `DiagnosticStore` → `session_diagnostics` table. The `messages` table has no `diagnostic` role rows.
+**Valid roles:** `user`, `assistant`, `tool`, `system`. Diagnostic events are NOT stored in the `messages` table; they are persisted exclusively in the `session_diagnostics` table via `DiagnosticStore.save()`.
 
 ### `session_diagnostics` table
 
@@ -82,8 +80,6 @@ Stores diagnostic events (LLM transport errors, guard hints, partial completions
 **Rule:** Validation and encoding logic must NOT be duplicated in `SQLiteSessionStore`. It is a thin DB adapter — no role validation, no content normalization, no JSON encoding. All such concerns belong to `SessionMessageRepository`.
 
 See [90_shared_05_db_api_and_operations.md](90_shared_05_db_api_and_operations.md) for the shared-layer responsibility boundary view.
-
-Note: The `diagnostic` role is excluded from `_VALID_ROLES` in `session_message_repo.py`. Diagnostic messages are saved via `AgentSession.save_diagnostic()` which bypasses `SessionMessageRepository`.
 
 ### messages vs ToolResultStore 責務境界
 
