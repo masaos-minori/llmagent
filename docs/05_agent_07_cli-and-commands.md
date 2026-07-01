@@ -287,3 +287,20 @@ The `/mcp install` subcommand has been removed. MCP server scaffolding is a deve
 | `/mcp install <server-name>` | Add manually via new-server checklist, then verify with `/mcp` or `/mcp status` |
 
 No backward-compatible alias is provided. See [04_mcp_06](04_mcp_06_configuration_and_operations.md) for the MCP server addition checklist.
+
+### /note commands (removed)
+
+The `/note` command group has been removed. Persistent notes removed from the Agent command layer; long-term searchable context should use the memory layer.
+
+| Removed | Replacement |
+|---------|------------|
+| `/note add` | `/memory list` / `/memory show` |
+| `/note list` | `/memory list` |
+| `/note delete` | `/memory delete` |
+| `/note pin` | `/memory pin` |
+| `/note unpin` | `/memory unpin` |
+| `/note search` | `/memory search` |
+
+The replacement mapping is not 1-to-1 because some `/note` commands map to multiple `/memory` commands depending on the user's intent (e.g., `/note add` could map to viewing existing memories or showing a specific memory).
+
+No backward-compatible alias is provided.
