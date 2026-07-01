@@ -122,6 +122,7 @@ and per-page CJK-ratio language auto-detection (`--lang auto`). Uses asyncio.Sem
 | `_enqueue_links` | `(html: str, current_url: str, start_url: str, depth: int, queue: asyncio.Queue) -> None` | Parse links from HTML and put URLs into the BFS queue; nofollow/external filtering applies; dedup happens at dequeue time |
 | `_resolve_lang` | `(text: str, hint_lang: str) -> str` | Determine page language; 'auto' uses CJK-ratio detection with 'en' fallback for short/inconclusive texts; returns a _SUPPORTED_LANGS value |
 | `_drain_queue_to_tasks` | `(queue: asyncio.Queue, visited: set[str], start_url: str, hint_lang: str, client: httpx.AsyncClient, sem: asyncio.Semaphore) -> set[asyncio.Task]` | Dequeue all pending URLs and create fetch tasks for unvisited ones; visited check is safe because no await occurs between check and add |
+| `_should_enqueue_link` | `(a_tag: Tag, current_url: str, start_url: str) -> bool` | Check if a link should be enqueued based on nofollow and cross-origin rules; skips rel="nofollow" links when skip_nofollow=True; skips cross-origin links when skip_external=True |
 
 **Module-level utilities**
 
@@ -287,6 +288,19 @@ The `_chunk_english` method is called first in MRO for English text; Sudachi-bas
 | `process_all` | `(target: Path \| None = None, force: bool = False) -> int` | Process all *.json files in rag-src/ (or a single target); returns total chunks written |
 | `process_file` | `(src_path: Path, force: bool = False) -> int` | Read a crawler JSON file, split into chunks, and write to chunk_dir; returns chunk count; skips already-chunked files when force=False |
 
+**Private methods**
+
+| Method | Signature | Description |
+|---|---|---|
+| `_chunk_code` | `(code: str) -> list[str]` | Split a code block at blank lines (function/class boundaries); not subject to stopword removal or morphological analysis |
+| `_read_source_data` | `(src_path: Path) -> ChunkDocument \| None` | Read and parse a JSON crawl file; returns ChunkDocument or None on failure |
+| `_build_chunk_list` | `(data: ChunkDocument) -> list[tuple[str, str, str]]` | Extract content from a crawl record and split into (chunk_type, content, normalized_content) triples |
+| `_build_text_triples` | `(data: ChunkDocument, lang: str, content: str) -> list[tuple[str, str, str]]` | Build text triples from content; delegates to markdown/English/Japanese chunkers |
+| `_build_code_triples` | `(code_blocks: list[str]) -> list[tuple[str, str, str]]` | Build code triples from each code block independently |
+| `_write_chunk_files` | `(chunks: list[tuple[str, str, str]], data: ChunkDocument, src_path: Path, chunking_strategy: str = "text") -> int` | Write (chunk_type, content, normalized_content) triples to chunk_dir; returns written count |
+| `_extract_chunk_metadata` | `(data: ChunkDocument, src_path: Path, chunking_strategy: str) -> dict[str, object]` | Extract document-level metadata shared across all chunk files |
+| `_collect_targets` | `(target: Path \| None) -> list[Path]` | Return source files to process; delegates to pipeline_utils |
+
 ### 3.1.1 Markdown heading chunking configuration
 
 | Parameter | Default | Description |
@@ -392,6 +406,12 @@ See [03_rag_05_configuration_and_operations.md §1.1](03_rag_05_configuration_an
 and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed chunks to
 `rag-src/registered/`.
 
+**Dataclass**
+
+| Class | Purpose |
+|---|---|
+| `IngestUrlResult` | Per-URL ingestion outcome returned by `ingest_url_group()`; fields: `url`, `n_success`, `n_failed`, `skipped`, `n_embed_failed` (default 0) |
+
 **Public methods**
 
 | Method | Signature | Description |
@@ -418,6 +438,10 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 | `_group_chunks_by_url` | `(chunk_files: list[Path]) -> dict[str, list[Path]]` | Group chunk files by URL read from their JSON 'url' field |
 | `_process_url_groups` | `(db: SQLiteHelper, url_groups: dict, force: bool) -> list[IngestUrlResult]` | Iterate over URL groups and ingest each; log exceptions without stopping |
 | `_move_to_registered` | `(paths: list[Path]) -> None` | Move ingested chunk files to registered/ |
+| `_log_ingest_failure` | `(doc_id: int, path: Path, e: Exception) -> None` | Log a chunk ingestion failure with doc_id, url, source_type, stage_name structured fields |
+| `_validate_lang` | `(lang: str) -> bool` | Return True when lang is a valid value (en or ja); enforced by documents.lang CHECK constraint |
+| `_handle_existing_document` | `(db: SQLiteHelper, url: str, existing_doc_id: int, force: bool, etag\|None, last_modified\|None, fetched_at\|None) -> bool` | Handle an existing document; return True when the caller should skip insertion. force=False → update etag via ETagManager; file:// URLs with unchanged SHA-256 → skip |
+| `_handle_existing_file` | `(db: SQLiteHelper, url: str, existing_doc_id: int, etag\|None, last_modified\|None) -> bool` | Handle an existing file:// document; return True when unchanged (SHA-256 match). Logs "file:// unchanged (sha256 match)" or "file:// changed — auto re-ingesting" |
 
 ### 4.2 Behavior details
 
