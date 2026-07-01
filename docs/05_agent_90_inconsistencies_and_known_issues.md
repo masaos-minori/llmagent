@@ -55,10 +55,8 @@ Each entry format:
 
 ### DISC-05: memory SQLite DB location
 
-- **Type:** Document inconsistency
-- **Impact scope:** `05_agent_09_data-layer.md` (line 130 — "session.sqlite or separate")
-- **Statement A:** Memory tables (`memories`, `memories_fts`, `memories_vec`) are in "session.sqlite or separate" (ambiguous)
-- **Statement B:** All memory tables live in `session.sqlite` — verified by `SQLiteHelper("session")` usage throughout `scripts/agent/memory/store.py` and `retriever.py`
-- **Current safe interpretation:** Memory tables are in `session.sqlite`, same DB as sessions/messages
+- **Type:** Resolved — all memory tables definitively live in `session.sqlite`
+- **Impact scope:** `05_agent_09_data-layer.md`, `05_agent_12_memory.md`
+- **Resolution:** All memory tables (`memories`, `memories_fts`, `memory_links`, `memories_vec`) are in `session.sqlite`. No separate memory SQLite database is used.
 
 ---

@@ -177,11 +177,12 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 | JSONL | `{memory_jsonl_dir}/memories.jsonl` | Canonical memory entries |
 | SQLite: `memories` | `session.sqlite` (same DB as sessions/messages) | Indexed memory entries |
 | SQLite: `memories_fts` | same DB | FTS5 index over memory content |
+| SQLite: `memory_links` | same DB | Many-to-many links between memories |
 | SQLite: `memories_vec` | same DB | Optional KNN embeddings |
 
 Data ownership: memory layer owns these tables. Agent accesses via `ctx.services.memory`.
 
-> **Current behavior:** All memory tables (`memories`, `memories_fts`, `memories_vec`) live in `session.sqlite` — the same database as the session and messages tables. They are NOT in a separate DB file.
+All memory SQLite tables (`memories`, `memories_fts`, `memory_links`, `memories_vec`) live in `session.sqlite`. No separate memory SQLite database is used.
 
 ---
 
