@@ -124,6 +124,28 @@ All known issues, spec conflicts, and open questions are consolidated in
 
 ---
 
+## Documentation Consistency Checklist
+
+When making changes that affect schema or command references, verify the following:
+
+### Command reference checks
+- [ ] Update `05_agent_01_system-overview.md` (§Slash Commands)
+- [ ] Update `05_agent_07_cli-and-commands.md` (tables, descriptions, scope notes)
+- [ ] Compare against `scripts/agent/commands/registry.py` — every CommandDef should have a doc entry
+- [ ] Verify no references to deleted commands (/mcp install, /note, /ingest, /debug audit, /db aliases) remain
+
+### Schema checks
+- [ ] Update `05_agent_09_data-layer.md` (table list, column descriptions)
+- [ ] Compare against `scripts/db/schema_sql.py` — every table in schema should be documented
+- [ ] Compare against `init_db.sh` — verify init logic matches schema docs
+
+### Diagnostics checks
+- [ ] Verify `session_diagnostics` only (no references to deleted diagnostics.jsonl)
+- [ ] Verify SQL query examples match actual table columns
+- [ ] Confirm operations doc (§Reading diagnostics) has all query patterns
+
+---
+
 ## Known Limitations
 
 - Old source files (`05_agent.md`, `05_ref-agent-*.md`, etc.) have been deleted.
