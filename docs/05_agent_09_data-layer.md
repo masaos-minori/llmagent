@@ -22,6 +22,17 @@ and the responsibility boundary between the agent layer and the RAG layer.
 
 ## session.sqlite Tables
 
+| Table | Purpose |
+|---|---|
+| `sessions` | Session metadata |
+| `messages` | Conversation history (LLM-visible) |
+| `tool_results` | Full tool output archive |
+| `memories` | Indexed memory entries |
+| `memories_fts` | FTS5 index over memory content |
+| `memory_links` | Many-to-many links between memories |
+| `memories_vec` | Optional KNN embeddings |
+| `session_diagnostics` | Diagnostic events (LLM transport errors, guard hints) |
+
 ### `sessions` table
 
 | Column | Type | Description |
