@@ -12,7 +12,6 @@ pages and local files, and injects relevant context into each LLM agent turn.
 
 They replace the original 7 source files (`03_spec_rag.md`, `03_rag-ref-*.md`,
 `03_rag-ingestion-*.md`, `05_ref-rag.md`) as the primary reference.
-The source files are retained as-is for historical reference.
 
 ---
 
@@ -53,7 +52,7 @@ The source files are retained as-is for historical reference.
 
 ## Canonical Source Rules
 
-Legacy source files (`03_spec_rag.md`, `03_rag-ref-*.md`, `03_rag-ingestion-*.md`, `05_ref-rag.md`) are deleted. The restructured docs in the File Index below are the only active spec sources.
+The restructured docs in the File Index below are the only active spec sources.
 
 | Domain | Canonical source |
 |---|---|
@@ -95,43 +94,3 @@ The checker runs 8 checks: broken headings, malformed tables, unclosed inline co
 | [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) | Design notes (DESIGN-2, DESIGN-3) and active issues tracking |
 
 ---
-
-## Legacy RAG Source Docs — Archive Policy (2026-06-26)
-
-Archived docs are not part of current spec discovery — use the canonical docs listed in the File Index above.
-
-Policy: **Delete**. Git history enables recovery.
-
-Deleted documents:
-- `docs/03_spec_rag.md`
-- `docs/03_rag-ref-*.md`
-- `docs/03_rag-ingestion-*.md`
-- `docs/05_ref-rag.md`
-
-If recovery is needed: `git show HEAD~N:docs/path/to/file.md`
-
----
-
-## Migration Notes
-
-### rag.llm re-export (removed 2026-06-26)
-
-```python
-# Before:
-from rag.llm import RagLLM, get_embedding          # compat re-export (removed)
-from rag.llm import RagExpansionError               # compat re-export (removed)
-
-# After:
-from rag.llm_client import RagLLM, get_embedding   # canonical
-from rag.llm_prompts import RagExpansionError       # canonical
-```
-
-### PipelineStageResult (removed 2026-06-26)
-
-```python
-# Before:
-from rag.types import PipelineStageResult  # removed
-
-# After:
-from rag.stage import StageResult          # canonical
-```
