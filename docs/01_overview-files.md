@@ -67,8 +67,8 @@
   │   │   ├─ tool_result_formatter.py         # ツール結果整形
   │   │   ├─ turn_result.py                   # ターン結果データクラス
   │   │   ├─ diagnostic_store.py              # 部分完了診断情報保存
- │   │   ├─ error_injection_service.py       # エラー注入サービス
-   │   │   ├─ mdq_rag_classifier.py            # MDQ RAG 分類エンジン
+  │   │   ├─ error_injection_service.py       # エラー注入サービス
+  │   │   ├─ mdq_rag_classifier.py            # MDQ RAG 分類エンジン
   │   │   ├─ lifecycle_protocol.py            # ライフサイクルプロトコル
   │   │   ├─ lifecycle.py                     # restart_stdio(): 残存関数 (routing は factory.py の _ServerLifecycleRouter が担当)
   │   │   ├─ http_lifecycle.py                # HTTP ライフサイクル管理
@@ -98,7 +98,7 @@
   │   │   │   ├─ cmd_context.py               # /context, /clear, /undo, /history, /system コマンド (_ContextMixin)
   │   │   │   ├─ cmd_db.py                    # /db コマンド (_DbMixin)
   │   │   │   ├─ cmd_tooling.py               # /tool, /plan コマンド (_ToolingMixin)
-   │   │   │   ├─ cmd_debug.py                 # /debug コマンド (_DebugMixin)
+  │   │   │   ├─ cmd_debug.py                 # /debug コマンド (_DebugMixin)
   │   │   │   ├─ cmd_audit.py                 # /audit コマンド (_AuditMixin)
   │   │   │   ├─ cmd_rag_export.py            # /rag, /export, /compact コマンド (_RagExportMixin)
   │   │   │   ├─ cmd_memory.py               # /memory コマンド (_MemoryMixin)
@@ -108,8 +108,8 @@
   │   │   ├─ context_view.py            # コンテキストビュー
   │   │   ├─ conversation_service.py    # 会話サービス
   │   │   ├─ db_maintenance_service.py  # DB 保守サービス
-│   │   ├─ export_formatter.py        # エクスポートフォーマット
-   │   │   ├─ io_ports.py                # I/O ポート管理
+  │   │   ├─ export_formatter.py        # エクスポートフォーマット
+  │   │   ├─ io_ports.py                # I/O ポート管理
   │   │   ├─ mcp_status.py              # MCP サーバステータス
   │   │   ├─ rag_maintenance_service.py # RAG 保守サービス
   │   │   ├─ session_restore.py         # セッション復元
@@ -126,9 +126,9 @@
   │   │    ├─ health_models.py           # ヘルスチェックモデル
   │   │    └─ models.py                  # エージェント共通データモデル
   │   ├─ mcp/                                 # MCP サーバパッケージ
-   │   │   ├─ models.py                        # /v1/call_tool 統合エンドポイント共通 Pydantic モデル
-   │   │   ├─ server.py                        # MCP サーバ HTTP 起動共通基底クラス
-   │   │   ├─ web_search/server.py             # Web 検索 MCP サーバ (DuckDuckGo, :8004)
+  │   │   ├─ models.py                        # /v1/call_tool 統合エンドポイント共通 Pydantic モデル
+  │   │   ├─ server.py                        # MCP サーバ HTTP 起動共通基底クラス
+  │   │   ├─ web_search/server.py             # Web 検索 MCP サーバ (DuckDuckGo, :8004)
   │   │   ├─ file/                            # ファイル MCP サーバ群 (:8005/:8007/:8008)
   │   │   ├─ github/                          # GitHub MCP サーバ (:8006)
   │   │   ├─ shell/                           # シェル MCP サーバ (:8009)
