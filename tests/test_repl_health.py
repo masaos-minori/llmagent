@@ -2,7 +2,7 @@
 tests/test_repl_health.py
 Unit tests for repl_health module-level functions.
 
-httpx.AsyncClient, StdioTransport, and AgentContext are mocked.
+httpx.AsyncClient and AgentContext are mocked.
 """
 
 from __future__ import annotations
@@ -14,13 +14,12 @@ import httpx
 import pytest
 from agent.repl_health import (
     _check_tool_definitions,
-    _fetch_stdio_tools,
     audit_security_defaults,
     check_readiness,
     check_workflow_definition,
     probe_mcp_health,
 )
-from shared.tool_executor import StdioTransport, ToolCallResult
+from shared.tool_executor import ToolCallResult
 
 
 def _async_result(value: object) -> AsyncMock:
@@ -70,76 +69,31 @@ class TestProbeMcpHealth:
 class TestFetchStdioTools:
     @pytest.mark.asyncio
     async def test_returns_empty_when_not_stdio_transport(self) -> None:
-        result = await _fetch_stdio_tools("not a transport")
-        assert result == set()
+        pytest.skip("_fetch_stdio_tools removed")
 
     @pytest.mark.asyncio
     async def test_returns_empty_when_transport_not_alive(self) -> None:
-        transport = MagicMock(spec=StdioTransport)
-        transport.is_alive.return_value = False
-        result = await _fetch_stdio_tools(transport)
-        assert result == set()
+        pytest.skip("_fetch_stdio_tools removed")
 
     @pytest.mark.asyncio
     async def test_returns_empty_when_isinstance_fails(self) -> None:
-        transport = MagicMock()
-        transport.is_alive.return_value = True
-        result = await _fetch_stdio_tools(transport)
-        assert result == set()
+        pytest.skip("_fetch_stdio_tools removed")
 
     @pytest.mark.asyncio
     async def test_returns_tool_names(self) -> None:
-        transport = MagicMock(spec=StdioTransport)
-        transport.is_alive.return_value = True
-        transport.call = _async_result(
-            ToolCallResult(
-                output='{"tools": ["read_file", "write_file"]}',
-                is_error=False,
-                request_id="req-123",
-                server_key="test",
-            )
-        )
-
-        result = await _fetch_stdio_tools(transport)
-        assert result == {"read_file", "write_file"}
+        pytest.skip("_fetch_stdio_tools removed")
 
     @pytest.mark.asyncio
     async def test_returns_empty_on_rpc_error(self) -> None:
-        transport = MagicMock(spec=StdioTransport)
-        transport.is_alive.return_value = True
-        transport.call = _async_result(
-            ToolCallResult(
-                output="error", is_error=True, request_id="req-123", server_key="test"
-            )
-        )
-
-        result = await _fetch_stdio_tools(transport)
-        assert result == set()
+        pytest.skip("_fetch_stdio_tools removed")
 
     @pytest.mark.asyncio
     async def test_returns_empty_on_exception(self) -> None:
-        transport = MagicMock(spec=StdioTransport)
-        transport.is_alive.return_value = True
-        transport.call = AsyncMock(side_effect=TimeoutError("timeout"))
-
-        result = await _fetch_stdio_tools(transport)
-        assert result == set()
+        pytest.skip("_fetch_stdio_tools removed")
 
     @pytest.mark.asyncio
     async def test_converts_tool_names_to_strings(self) -> None:
-        transport = MagicMock(spec=StdioTransport)
-        transport.is_alive.return_value = True
-        transport.call = _async_result(
-            ToolCallResult(
-                output='{"tools": ["read_file", 123]}',
-                is_error=False,
-                request_id="req-123",
-                server_key="test",
-            )
-        )
-
-        result = await _fetch_stdio_tools(transport)
-        assert result == {"read_file", "123"}
+        pytest.skip("_fetch_stdio_tools removed")
 
 
 # ── _check_tool_definitions() ──────────────────────────────────────────────────
@@ -337,15 +291,9 @@ class TestAuditSecurityDefaults:
                     if transport == "http"
                     else ""
                 )
-                cmd = (
-                    vals.get("cmd", ["python", "server.py"])
-                    if transport == "stdio"
-                    else []
-                )
                 mcp_servers[key] = McpServerConfig(
                     transport=transport,
                     url=url,
-                    cmd=cmd,
                     auth_token=vals.get("auth_token", ""),
                 )
 

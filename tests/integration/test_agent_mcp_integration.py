@@ -1,8 +1,7 @@
 """Integration tests: Agent Loop <-> MCP Servers (TC-A01 through TC-A12).
 
-Tests exercise ToolExecutor, HttpTransport, and StdioTransport at the
-integration boundary.  HTTP calls use respx for transport-level mocking;
-stdio calls use a real subprocess.
+Tests exercise ToolExecutor and HttpTransport at the integration boundary.
+HTTP calls use respx for transport-level mocking.
 
 Custom tool names (prefixed with _int_) are used so that ToolRouteResolver
 config_map takes priority over the tool registry (which knows only the
@@ -12,52 +11,31 @@ production tool names in tool_constants.py).
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import patch
+
 
 import httpx
 import pytest
 import respx
 from shared.mcp_config import McpServerConfig, McpServerHealthRegistry
-from shared.tool_executor import StdioTransport, ToolExecutor
+from shared.tool_executor import ToolExecutor
 
 _TEST_URL = "http://127.0.0.1:19001"
 _HTTP_KEY = "int_http"
-_STDIO_KEY = "int_stdio"
 _HTTP_TOOL = "_int_http_tool"
-_STDIO_TOOL = "_int_stdio_tool"
 
 
 def _make_http_executor(http: httpx.AsyncClient) -> ToolExecutor:
     cfg = McpServerConfig(
         transport="http",
         url=_TEST_URL,
-        cmd=[],
         tool_names=[_HTTP_TOOL],
     )
     return ToolExecutor(
         http=http,
         cache_ttl=0,
         server_configs={_HTTP_KEY: cfg},
+        discovery_map={_HTTP_TOOL: _HTTP_KEY},
     )
-
-
-def _make_stdio_executor(
-    http: httpx.AsyncClient,
-    cmd: list[str],
-) -> tuple[ToolExecutor, StdioTransport]:
-    cfg = McpServerConfig(
-        transport="stdio",
-        url="",
-        cmd=cmd,
-        tool_names=[_STDIO_TOOL],
-    )
-    executor = ToolExecutor(
-        http=http,
-        cache_ttl=0,
-        server_configs={_STDIO_KEY: cfg},
-    )
-    transport = StdioTransport(cmd=cmd, server_key=_STDIO_KEY)
-    return executor, transport
 
 
 # ── TC-A01: HTTP tool call succeeds ──────────────────────────────────────────
@@ -151,84 +129,6 @@ async def test_a05_http_tool_error_increments_stat():
     assert result.error_type == "tool"
     assert executor.stat_tool_errors.get(_HTTP_KEY, 0) == 1
     assert executor.stat_transport_errors.get(_HTTP_KEY, 0) == 0
-
-
-# ── TC-A06: stdio pipe closes during call → TransportError ──────────────────
-
-
-@pytest.mark.asyncio
-async def test_a06_stdio_pipe_close_raises_transport_error():
-    script = "import sys, json\nsys.stdin.readline()\nsys.stdout.close()\n"
-    async with httpx.AsyncClient() as http:
-        executor, transport = _make_stdio_executor(http, ["python", "-c", script])
-        await transport.start()
-        executor.set_transport(_STDIO_KEY, transport)
-        result = await executor.execute(_STDIO_TOOL, {"command": "ls"})
-
-    assert result.is_error
-    assert result.error_type == "transport"
-
-
-# ── TC-A07: stdio response timeout → TransportError ─────────────────────────
-
-
-@pytest.mark.asyncio
-async def test_a07_stdio_response_timeout():
-    script = "import sys, time\nsys.stdin.readline()\ntime.sleep(9999)\n"
-    async with httpx.AsyncClient() as http:
-        executor, transport = _make_stdio_executor(http, ["python", "-c", script])
-        await transport.start()
-        executor.set_transport(_STDIO_KEY, transport)
-
-        with patch("shared.tool_executor._STDIO_CALL_TIMEOUT", 0.1):
-            result = await executor.execute(_STDIO_TOOL, {"command": "ls"})
-
-    assert result.is_error
-    assert result.error_type == "transport"
-    await transport.stop()
-
-
-# ── TC-A08: stdio malformed JSON response → TransportError ──────────────────
-
-
-@pytest.mark.asyncio
-async def test_a08_stdio_malformed_json():
-    script = (
-        "import sys\n"
-        "sys.stdin.readline()\n"
-        "sys.stdout.write('not valid json\\n')\n"
-        "sys.stdout.flush()\n"
-    )
-    async with httpx.AsyncClient() as http:
-        executor, transport = _make_stdio_executor(http, ["python", "-c", script])
-        await transport.start()
-        executor.set_transport(_STDIO_KEY, transport)
-        result = await executor.execute(_STDIO_TOOL, {"command": "ls"})
-
-    assert result.is_error
-    assert result.error_type == "transport"
-
-
-# ── TC-A09: stdio response ID mismatch → TransportError ─────────────────────
-
-
-@pytest.mark.asyncio
-async def test_a09_stdio_response_id_mismatch():
-    script = (
-        "import sys, json\n"
-        "sys.stdin.readline()\n"
-        "resp = {'id': 9999, 'result': 'x', 'is_error': False, 'truncated': False, 'total_bytes': 0}\n"
-        "sys.stdout.write(json.dumps(resp) + '\\n')\n"
-        "sys.stdout.flush()\n"
-    )
-    async with httpx.AsyncClient() as http:
-        executor, transport = _make_stdio_executor(http, ["python", "-c", script])
-        await transport.start()
-        executor.set_transport(_STDIO_KEY, transport)
-        result = await executor.execute(_STDIO_TOOL, {"command": "ls"})
-
-    assert result.is_error
-    assert result.error_type == "transport"
 
 
 # ── TC-A10: Health check fails → call rejected without transport call ─────────

@@ -287,6 +287,7 @@ class ToolExecutor:
         concurrency_limits: dict[str, int] | None = None,
         lifecycle: LifecycleProtocol | None = None,
         repeated_tool_error_threshold: int = 3,
+        discovery_map: dict[str, str] | None = None,
     ) -> None:
         self._http = http
         self._cache_ttl = cache_ttl
@@ -328,7 +329,9 @@ class ToolExecutor:
                 http, cfg.url, key, cfg, timeout_sec=timeout_sec
             )
 
-        self._resolver = ToolRouteResolver(server_configs)
+        self._resolver = ToolRouteResolver(
+            server_configs, discovery_map=discovery_map or {}
+        )
 
     def apply_config(self, *, cache_ttl: float | None = None) -> None:
         """Update hot-reloadable configuration fields without recreating the instance."""
