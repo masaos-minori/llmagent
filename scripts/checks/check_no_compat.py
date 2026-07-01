@@ -60,13 +60,13 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "tests" / "test_route_resolver.py",
     ROOT_DIR / "tests" / "test_mcp_rag_pipeline.py",
     ROOT_DIR / "tests" / "test_rag_pipeline_mcp_service.py",
-   # Test file with description mentioning static fallback as a concept
+    # Test file with description mentioning static fallback as a concept
     ROOT_DIR / "tests" / "test_rag_tools_consistency.py",
-  # Tests intentionally referencing removed commands
+    # Tests intentionally referencing removed commands
     ROOT_DIR / "tests" / "test_cmd_registry_note_removal.py",
     ROOT_DIR / "tests" / "test_removed_commands.py",
     ROOT_DIR / "tests" / "test_create_schema.py",
-  # Script documenting historical command name changes
+    # Script documenting historical command name changes
     ROOT_DIR / "scripts" / "checks" / "check_docs_consistency.py",
     # Docs documenting removed features (POST /v1/search, /mcp install, /note, /db aliases)
     ROOT_DIR / "docs" / "04_mcp_00_document-guide.md",
@@ -101,9 +101,11 @@ def is_allowed_stdio_pattern(line: str) -> bool:
     return False
 
 
-def check_compat_patterns(content: str, filepath: Path, allowlist: set[Path]) -> list[str]:
+def check_compat_patterns(
+    content: str, filepath: Path, allowlist: set[Path]
+) -> list[str]:
     """Check for backward compatibility leftovers in content."""
-    issues = []
+    issues: list[str] = []
     if is_allowlisted(filepath, allowlist):
         return issues
 
@@ -146,14 +148,18 @@ def main() -> int:
 
     # Load allowlist
     if args.allowlist and args.allowlist.exists():
-        allowlist = {Path(p.strip()) for p in args.allowlist.read_text().splitlines() if p.strip()}
+        allowlist = {
+            Path(p.strip())
+            for p in args.allowlist.read_text().splitlines()
+            if p.strip()
+        }
     else:
         allowlist = DEFAULT_ALLOWLIST.copy()
 
     # Determine files to check
     if not args.files:
         dirs_to_scan = [ROOT_DIR / "scripts", ROOT_DIR / "docs", ROOT_DIR / "tests"]
-        files = []
+        files: list[Path] = []
         for d in dirs_to_scan:
             if d.exists():
                 files.extend(d.glob("**/*.py"))

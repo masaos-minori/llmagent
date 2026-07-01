@@ -272,12 +272,16 @@ class Orchestrator:
         assert self._workflow_def is not None  # noqa: B101
         if existing_task_id is None:
             workflow_id = str(uuid.uuid4())
-            task = StateStore().create_task(
-                session_id=session_id,
-                turn_number=ctx.stats.stat_turns,
-                workflow_version=self._workflow_def.version,
-                workflow_id=workflow_id,
-            )
+            store = StateStore()
+            try:
+                task = store.create_task(
+                    session_id=session_id,
+                    turn_number=ctx.stats.stat_turns,
+                    workflow_version=self._workflow_def.version,
+                    workflow_id=workflow_id,
+                )
+            finally:
+                store.close()
             audit_workflow_start(
                 ctx,
                 task.task_id,
