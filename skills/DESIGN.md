@@ -51,3 +51,19 @@ When a document or skill file grows too large, split it according to these rules
 2. After splitting, convert the original file to an index (link list) or remove its content
 3. Apply ripple-effect changes in the same pass: `routing.md`, `rules/env.md`, skill references, `docs/00_llm-implementation-guide.md`, `docs/06_common.md`
 4. For code files, confirm `ruff` / `mypy` / `pytest` pass before closing the task
+
+## Skill catalog
+
+| Skill | Directory | Purpose |
+|---|---|---|
+| `python-implementation` | `skills/python-implementation/` | Feature development, bug fixes, new Python modules |
+| `python-debug-root-cause` | `skills/python-debug-root-cause/` | Systematic root cause analysis for Python failures |
+| `python-lint-typecheck` | `skills/python-lint-typecheck/` | Ruff / mypy / pyright lint and type error resolution |
+| `python-test-and-fix` | `skills/python-test-and-fix/` | pytest test writing, flaky test detection, fix validation |
+| `python-refactoring` | `skills/python-refactoring/` | Structural refactoring without behavior change |
+| `python-issue-to-plan` | `skills/python-issue-to-plan/` | Convert tickets or requests into implementation plans |
+| `python-design` | `skills/python-design/` | Architecture and module interface design |
+| `python-documentation` | `skills/python-documentation/` | Writing and updating Python documentation |
+| `mcp-server-add` | `skills/mcp-server-add/` | Add a new MCP server to the project |
+| `deploy` | `skills/deploy/` | Deploy changes to the production environment |
+| `git-commit-and-sync` | `skills/git-commit-and-sync/` | Safe Git commit, pull, conflict resolution, and push |

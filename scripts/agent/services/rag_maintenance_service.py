@@ -33,9 +33,18 @@ class RagMaintenanceService:
         return int(db.fetchall(f"SELECT COUNT(*) AS n FROM {table}")[0]["n"])  # nosec B608 — table is always a hardcoded name, never user input
 
     def rebuild_fts(self) -> None:
-        """Rebuild the FTS5 chunks_fts index in rag.sqlite."""
+        """Rebuild the FTS5 chunks_fts index using COALESCE(normalized_content, content).
+
+        The FTS5 built-in 'rebuild' reads chunks.content directly, missing
+        normalized_content for Japanese chunks.  This explicit delete-all +
+        re-insert preserves the same rule as the chunks_ai trigger.
+        """
         with SQLiteHelper("rag").open(write_mode=True) as db:
-            db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')")
+            db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('delete-all')")
+            db.execute(
+                "INSERT INTO chunks_fts(rowid, content)"
+                " SELECT chunk_id, COALESCE(normalized_content, content) FROM chunks"
+            )
             db.commit()
 
     def consistency(self) -> RagConsistencyResult:
@@ -96,12 +105,15 @@ class RagMaintenanceService:
                 )
             for cid in chunk_ids:
                 row = db.execute(
-                    "SELECT content, embedding FROM chunks WHERE chunk_id = ?", (cid,)
+                    "SELECT content, normalized_content, embedding"
+                    " FROM chunks WHERE chunk_id = ?",
+                    (cid,),
                 ).fetchone()
                 if row:
+                    fts_text = row["normalized_content"] or row["content"]
                     db.execute(
-                        "INSERT INTO chunks_fts(chunk_id, content) VALUES(?, ?)",
-                        (cid, row["content"]),
+                        "INSERT INTO chunks_fts(rowid, content) VALUES(?, ?)",
+                        (cid, fts_text),
                     )
                     if row["embedding"]:
                         db.execute(
