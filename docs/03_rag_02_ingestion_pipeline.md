@@ -400,6 +400,25 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
   each thread uses an independent `SQLiteHelper().open()`
 - **WAL mode:** `PRAGMA journal_mode=WAL` for concurrent read/write safety
 - **Upsert (`--force`):** delete in order `chunks_vec` → `chunks` → `documents`, then re-INSERT; `chunking_strategy` is preserved from the source file
+
+### 4.2.1 Deletion order invariant
+
+The following deletion order is a design invariant — it must be maintained by all code paths that delete document records:
+
+```
+chunks_vec (first) → chunks → documents
+```
+
+**Reason:** `chunks_vec` is a sqlite-vec virtual table with no foreign key constraint pointing to `chunks`. Deleting `chunks` first would leave orphaned vector records. The order must be strictly enforced in every code path:
+
+1. Delete `chunks_vec` rows for the document's chunk_ids
+2. Delete `chunks` rows (triggers auto-sync `chunks_fts`)
+3. Delete `documents` row
+
+**Affected code paths:**
+- `RagIngester._delete_existing_document()` — `delete_document_chain()`
+- `RagMaintenanceService.delete_document()` — MCP tool path
+- Both must follow the same order to prevent orphaned vector records
 - **Idempotency:** skip URL if already in `documents`; still UPDATE `etag`/`last_modified` via skip-path guard (see below); `chunking_strategy` is not updated during skip
 - **Embedding dimension validation:** `_get_embedding()` validates embedding dimension against `embedding_dims` config (default 384); returns None on mismatch
 - **Skip-path stale guard:** `_update_etag()` compares incoming `fetched_at` (chunk payload) against stored `documents.fetched_at`; if incoming < stored the update is skipped (newer crawl wins — prevents stale chunk files from overwriting fresher metadata). Missing `fetched_at` (legacy chunks without a freshness signal) uses fill-only semantics: `COALESCE(etag, ?)` — only populates the stored field if currently NULL; never overwrites a non-NULL value. This prevents stale chunk-file metadata from replacing fresher values stored by a more recent crawl.

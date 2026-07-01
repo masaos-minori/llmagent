@@ -92,12 +92,17 @@ Created by `ChunkSplitter`. JSON format.
 
 Agent session tables (`sessions`, `messages`, `tool_results`, `memories`, etc.) reside in a separate SQLite file (`session.sqlite`) and are owned exclusively by the Agent layer. See [05_agent_09_data-layer.md](05_agent_09_data-layer.md) for the Agent session schema.
 
-| テーブル | 種別 | 主な列 | 用途 |
-|---|---|---|---|
-| `documents` | 通常 | `doc_id` PK, `url` UNIQUE, `lang` | URL 単位のドキュメント管理 |
-| `chunks` | 通常 | `chunk_id` PK, `doc_id` FK, `content` | 分割チャンク本文 |
-| `chunks_fts` | FTS5 仮想 | `content`, `content_rowid='chunk_id'` | BM25 全文検索 |
-| `chunks_vec` | vec0 仮想 | `chunk_id` PK, `embedding float[384]` | KNN ベクトル検索 |
+**Classification: canonical vs derived indexes**
+
+| テーブル | 種別 | 分類 | 主な列 | 用途 |
+|---|---|---|---|---|
+| `documents` | 通常 | **Canonical** | `doc_id` PK, `url` UNIQUE, `lang` | URL 単位のドキュメント管理 |
+| `chunks` | 通常 | **Canonical** | `chunk_id` PK, `doc_id` FK, `content` | 分割チャンク本文 |
+| `chunks_fts` | FTS5 仮想 | **Derived index** | `content`, `content_rowid='chunk_id'` | BM25 全文検索 |
+| `chunks_vec` | vec0 仮想 | **Derived index** | `chunk_id` PK, `embedding float[384]` | KNN ベクトル検索 |
+
+- **Canonical tables:** `documents`, `chunks` — application code mutates these directly
+- **Derived indexes:** `chunks_fts`, `chunks_vec` — maintained by triggers or ingestion logic; never mutated directly by application code
 
 FTS5 は `chunks` テーブルの INSERT/UPDATE/DELETE に対してトリガーで自動同期 (`chunks_ai` / `chunks_au` / `chunks_ad`)。
 
