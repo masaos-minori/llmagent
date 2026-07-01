@@ -86,6 +86,12 @@ Production config: `rag_src_dir = "/opt/llm/rag-src"`. The default value `rag-sr
 a JSON file in `rag-src/`. Supports conditional GET (ETag/Last-Modified), local files,
 and per-page CJK-ratio language auto-detection (`--lang auto`). Uses asyncio.Semaphore for concurrency control.
 
+**Typed dict**
+
+| TypedDict | Purpose |
+|---|---|
+| `CrawlPayload` | Typed dict for crawl output JSON files (url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type, created_by) |
+
 **Class-level constants**
 
 | Constant | Description |
@@ -251,6 +257,27 @@ See [03_rag_05_configuration_and_operations.md §1.1](03_rag_05_configuration_an
 
 `ChunkSplitter` — splits `rag-src/*.json` files into chunks by language and content type;
 saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` sentinel exists (`--force` overrides).
+
+**Module-level constants**
+
+| Constant | Value | Description |
+|---|---|---|
+| `MIN_HEADING_LINES_FOR_MARKDOWN` | 2 | Minimum heading lines to trigger heuristic Markdown detection for non-.md files |
+| `MARKDOWN_HEADING_RE` | `r"^#{1,6}"` | Regex pattern for matching Markdown headings (1-6 levels) |
+
+**Typed dicts**
+
+| TypedDict | Purpose |
+|---|---|
+| `CrawlFilePayload` | Typed dict for crawl output JSON files (url, title, lang, content, code_blocks, etag, last_modified) |
+| `ChunkOutputPayload` | Typed dict for chunk output JSON files (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified, schema_version, artifact_type, created_by, chunking_strategy) |
+| `ChunkMetadata` | Optional metadata dict for ** spreading into output payload (total=False) |
+
+**Inheritance**
+
+`ChunkSplitter` inherits from both `ChunkEnglishMixin` and `ChunkJapaneseMixin` via multiple inheritance.
+Method resolution order: `ChunkSplitter → ChunkEnglishMixin → ChunkJapaneseMixin → object`.
+The `_chunk_english` method is called first in MRO for English text; Sudachi-based `_chunk_japanese` is called for Japanese text.
 
 **Public methods**
 
@@ -476,6 +503,18 @@ Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config
 - `_update_with_freshness`: Overwrite ETag/Last-Modified when freshness is proven (uses COALESCE for fetched_at)
 - `_update_null_fill`: Fill NULL only; never overwrite existing values (uses COALESCE for both etag and last_modified)
 
+**Public methods**
+
+| Method | Signature | Description |
+|---|---|---|
+| `update` | `(etag: str \| None, last_modified: str \| None, new_fetched_at: str \| None = None)` | Refresh ETag/Last-Modified for an existing document; returns early if both etag and last_modified are None |
+
+**Private methods**
+
+| Method | Signature | Description |
+|---|---|---|
+| `_is_stale_update` | `(new_fetched_at: str \| None) -> bool` | Return True when the incoming data is older than stored fetched_at; returns False when new_fetched_at is None (no freshness signal means no stale check) |
+
 ### 4.9 Configuration
 
 See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_and_operations.md).
@@ -513,7 +552,7 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 | `url_to_slug` | `(url: str) -> str` | Convert URL to filesystem-safe ASCII slug (max 80 chars); strips scheme, replaces non-alphanumeric with hyphens |
 | `normalize_url` | `(url: str) -> str` | Strip fragment and trailing slash |
 | `same_origin` | `(url: str, base: str) -> bool` | True if scheme + hostname match |
-| `extract_text` | `(soup: BeautifulSoup) -> str` | Remove noise tags (nav, footer, aside, script, style, noscript); extract body text via Trafilatura with `include_comments=False`, `include_tables=True`, `no_fallback=False`, `target_language=None`; fall back to BS4 `get_text(separator="\n", strip=True)` |
+| `extract_text` | `(soup: BeautifulSoup) -> str` | Remove noise tags (nav, footer, aside, script, style, noscript) from soup; extract body text via Trafilatura with `include_comments=False`, `include_tables=True`, `no_fallback=False`, `target_language=None`; fall back to BS4 `get_text(separator="\n", strip=True)` |
 | `detect_lang` | `(text: str) -> str \| None` | CJK ratio detection; returns 'ja' if ratio ≥ 0.1, 'en' otherwise; None for texts < 100 chars |
 | `parse_target_urls` | `(target_raw: list[Any]) -> list[tuple[str,str]]` | Validate and parse target_urls config into (url, lang) tuples; raises ValueError on invalid entries |
 
@@ -681,6 +720,21 @@ from rag.utils import (
 | Constant | Value | Description |
 |---|---|---|
 | `MIN_TEXT_LENGTH_FOR_DETECTION` | `100` | Minimum text length for language detection; pages shorter than this use hint language |
+| `LOG_KEY_URL` | `"url"` | Structured log field key for URL |
+| `LOG_KEY_DOC_ID` | `"doc_id"` | Structured log field key for document ID |
+| `LOG_KEY_CHUNK_ID` | `"chunk_id"` | Structured log field key for chunk ID |
+| `LOG_KEY_SOURCE_TYPE` | `"source_type"` | Structured log field key for source type (http/file) |
+| `LOG_KEY_STAGE_NAME` | `"stage_name"` | Structured log field key for stage name |
+
+**Prompt injection patterns (`_INJECTION_PATTERNS`):**
+
+| Pattern | Regex | Description |
+|---|---|---|
+| Ignore instructions | `(?i)(ignore\s+(?:(?:all|previous)\s+)*instructions?)` | Catch "ignore all instructions", "ignore previous instructions" etc. |
+| System prefix | `(?i)(system\s*:\s*)` | Catch "system:" prefix |
+| SYSTEM OVERRIDE | `(?i)\[SYSTEM\s*OVERRIDE\]` | Catch "[SYSTEM OVERRIDE]" |
+| Disregard instructions | `(?i)(disregard\s+(?:(?:all|prior|previous)\s+)*instructions?)` | Catch "disregard all instructions" etc. |
+| New instructions | `(?i)(new\s+instructions?:)` | Catch "new instructions:" etc. |
 
 **Structured log keys (RAG lifecycle tracing):**
 
