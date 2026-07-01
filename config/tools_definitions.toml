@@ -182,7 +182,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_list_branches"
-description = "GitHub リポジトリのブランチ一覧を取得する。
+description = """GitHub リポジトリのブランチ一覧を取得する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -201,7 +202,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_create_branch"
-description = "GitHub リポジトリにブランチを作成する。
+description = """GitHub リポジトリにブランチを作成する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -228,7 +230,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_list_commits"
-description = "GitHub リポジトリのコミット一覧を取得する。
+description = """GitHub リポジトリのコミット一覧を取得する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -251,7 +254,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_get_commit"
-description = "GitHub リポジトリの特定コミットの詳細を取得する。
+description = """GitHub リポジトリの特定コミットの詳細を取得する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -274,7 +278,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_create_or_update_file"
-description = "GitHub リポジトリ内のファイルを作成または更新する。
+description = """GitHub リポジトリ内のファイルを作成または更新する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -313,7 +318,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_push_files"
-description = "GitHub リポジトリに複数のファイルをコミットする。
+description = """GitHub リポジトリに複数のファイルをコミットする。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -344,7 +350,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_delete_file"
-description = "GitHub リポジトリからファイルを削除する。
+description = """GitHub リポジトリからファイルを削除する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -379,7 +386,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_get_issue"
-description = "GitHub リポジトリの特定イシューの詳細を取得する。
+description = """GitHub リポジトリの特定イシューの詳細を取得する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -402,7 +410,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_create_issue"
-description = "GitHub リポジトリにイシューを新規作成する。
+description = """GitHub リポジトリにイシューを新規作成する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -437,7 +446,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_search_issues"
-description = "GitHub 上のイシューを全文検索する。
+description = """GitHub 上のイシューを全文検索する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -456,7 +466,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_add_issue_comment"
-description = "GitHub リポジトリのイシューにコメントを追加する。
+description = """GitHub リポジトリのイシューにコメントを追加する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -483,7 +494,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_list_pull_requests"
-description = "GitHub リポジトリのプルリクエスト一覧を取得する。
+description = """GitHub リポジトリのプルリクエスト一覧を取得する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -506,7 +518,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_get_pull_request"
-description = "GitHub リポジトリの特定プルリクエストの詳細を取得する。
+description = """GitHub リポジトリの特定プルリクエストの詳細を取得する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -529,7 +542,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_create_pull_request"
-description = "GitHub リポジトリにプルリクエストを新規作成する。
+description = """GitHub リポジトリにプルリクエストを新規作成する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -564,7 +578,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_search_pull_requests"
-description = "GitHub 上のプルリクエストを全文検索する。
+description = """GitHub 上のプルリクエストを全文検索する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -583,7 +598,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_update_pull_request"
-description = "GitHub リポジトリのプルリクエストを更新する。
+description = """GitHub リポジトリのプルリクエストを更新する。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
@@ -618,7 +634,8 @@ type = "function"
 
 [tool_definitions.function]
 name        = "github_merge_pull_request"
-description = "GitHub リポジトリのプルリクエストをマージする。
+description = """GitHub リポジトリのプルリクエストをマージする。
+"""
 
 [tool_definitions.function.parameters]
 type     = "object"
