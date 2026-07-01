@@ -63,14 +63,7 @@ All tools do not require config (`requires_config: false`).
 | `grep_files` | `{path, pattern, file_pattern?, max_matches?}` |
 | `get_file_info` | `{path}` |
 
-**Config:**
-
-| Key | Default |
-|---|---|
-| `allowed_dirs` | `["/opt/llm"]` |
-| `max_read_bytes` | `1,000,000` (1 MB) |
-| `max_tree_depth` | `5` |
-| `max_search_results` | `100` |
+**Config fields:** `allowed_dirs`, `max_read_bytes` (default: 1,000,000), `max_tree_depth` (default: 5), `max_search_results` (default: 100)
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{"filesystem":"/workspace not found"/"check failed"},"details":{}}`
 **Error codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
@@ -124,6 +117,8 @@ All tools require config (`requires_config: true`).
 **Tools (4):** `write_file`, `edit_file`, `create_directory`, `move_file`
 
 All tools do not require config (`requires_config: false`).
+
+**Config fields:** `allowed_dirs`, `max_write_bytes` (default: 1,000,000)
 
 | Tool | Input | dry_run behavior |
 |---|---|---|
