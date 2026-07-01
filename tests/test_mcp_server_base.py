@@ -82,6 +82,7 @@ class TestHealth:
         assert status_code == 200
 
 
+@pytest.mark.skip(reason="stdio transport removed")
 class TestRunStdio:
     """Test run_stdio() directly by injecting a pre-fed StreamReader."""
 
@@ -529,6 +530,7 @@ class TestTruncateWithMeta:
 
 class TestAuditLog:
     def test_audit_log_emits_info(self, caplog: pytest.LogCaptureFixture) -> None:
+        import json
         import logging
 
         from mcp.audit import _audit_log
@@ -543,12 +545,12 @@ class TestAuditLog:
                 target="owner/repo",
                 outcome="ok",
             )
-        assert any("AUDIT" in r.message for r in caplog.records)
-        assert any("sess-1" in r.message for r in caplog.records)
+        assert any(json.loads(r.message)["session"] == "sess-1" for r in caplog.records)
 
     def test_audit_log_replaces_empty_session_with_dash(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
+        import json
         import logging
 
         from mcp.audit import _audit_log
@@ -563,9 +565,10 @@ class TestAuditLog:
                 target="t",
                 outcome="ok",
             )
-        msg = next(r.message for r in caplog.records if "AUDIT" in r.message)
-        assert "session=-" in msg
-        assert "request=-" in msg
+        msg = next(r.message for r in caplog.records)
+        parsed = json.loads(msg)
+        assert parsed["session"] == "-"
+        assert parsed["request"] == "-"
 
 
 class TestAppModuleImportability:

@@ -1,10 +1,14 @@
 """mcp/audit.py
 Structured audit logging helper extracted from mcp/server.py.
+
+Emits one JSON-lines record per MCP tool execution event.
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import time
 
 from shared.logger import Logger as _SharedLogger
 
@@ -20,9 +24,21 @@ def _audit_log(
     server_key: str = "",
     error_type: str = "",
 ) -> None:
-    """Emit one structured AUDIT log line with who/what/where context."""
-    server_logger.info(
-        f"AUDIT session={session_id or '-'} request={request_id or '-'} "
-        f"action={action} target={target} outcome={outcome} detail={detail} "
-        f"server_key={server_key} error_type={error_type}"
-    )
+    """Emit one JSON-lines audit record for an MCP tool execution."""
+    record: dict[str, object] = {
+        "event": "mcp_tool_exec",
+        "source": "mcp_server",
+        "ts": time.time(),
+        "session": session_id or "-",
+        "request": request_id or "-",
+        "tool": action,
+        "target": target,
+        "outcome": outcome,
+    }
+    if detail:
+        record["detail"] = detail
+    if server_key:
+        record["server_key"] = server_key
+    if error_type:
+        record["error_type"] = error_type
+    server_logger.info(json.dumps(record, ensure_ascii=False))

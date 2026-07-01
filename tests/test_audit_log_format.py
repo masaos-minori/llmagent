@@ -2,7 +2,7 @@
 Validation tests for MCP and agent-side audit log formats.
 
 Ensures:
-- MCP server audit log uses key=value format (not JSON-lines).
+- MCP server audit log uses JSON-lines format.
 - Agent-side audit log uses JSON-lines format.
 - Required fields are present in each format.
 - Correlation keys (session, request) match across log types.
@@ -17,40 +17,39 @@ from unittest.mock import MagicMock
 from mcp.audit import _audit_log as _mcp_audit_log
 
 # ---------------------------------------------------------------------------
-# MCP server audit log — key=value format
+# MCP server audit log — JSON-lines format
 # ---------------------------------------------------------------------------
 
 
 class TestMcpAuditLogFormat:
-    """Tests for MCP server audit log (key=value format)."""
+    """Tests for MCP server audit log (JSON-lines format)."""
 
-    def test_emits_key_value_line(self, caplog: Any) -> None:
+    def _get_parsed(self, **kwargs) -> dict[str, object]:
+        """Helper to call _mcp_audit_log and return parsed JSON."""
         logger = MagicMock()
         logger.info.return_value = None
-        _mcp_audit_log(
-            logger,
+        _mcp_audit_log(logger, **kwargs)
+        call_args = logger.info.call_args[0][0]
+        return json.loads(call_args)
+
+    def test_emits_json_lines(self) -> None:
+        """MCP server audit log must use JSON-lines format."""
+        parsed = self._get_parsed(
             session_id="sess-1",
             request_id="req-1",
             action="read_text_file",
             target="/tmp/f.txt",
             outcome="ok",
-            detail="",
         )
-        # MCP audit log uses f-string rendering with actual values
-        call_args = logger.info.call_args[0][0]
-        assert "AUDIT" in call_args
-        assert "session=sess-1" in call_args
-        assert "request=req-1" in call_args
-        assert "action=read_text_file" in call_args
-        assert "target=/tmp/f.txt" in call_args
-        assert "outcome=ok" in call_args
-        assert "detail=" in call_args
+        assert isinstance(parsed, dict)
+        assert "event" in parsed
+        assert parsed["event"] == "mcp_tool_exec"
+        assert "source" in parsed
+        assert parsed["source"] == "mcp_server"
 
-    def test_outcome_error_format(self, caplog: Any) -> None:
-        logger = MagicMock()
-        logger.info.return_value = None
-        _mcp_audit_log(
-            logger,
+    def test_outcome_error_format(self) -> None:
+        """Error outcome must be reflected in JSON-lines record."""
+        parsed = self._get_parsed(
             session_id="sess-2",
             request_id="req-2",
             action="write_text_file",
@@ -58,65 +57,46 @@ class TestMcpAuditLogFormat:
             outcome="error",
             detail="permission denied",
         )
-        call_args = logger.info.call_args[0][0]
-        assert "outcome=error" in call_args
-        assert "detail=permission denied" in call_args
+        assert parsed["outcome"] == "error"
+        assert parsed["detail"] == "permission denied"
 
     def test_empty_session_id_becomes_dash(self) -> None:
-        logger = MagicMock()
-        logger.info.return_value = None
-        _mcp_audit_log(
-            logger,
+        """Empty session_id must become dash in JSON-lines record."""
+        parsed = self._get_parsed(
             session_id="",
             request_id="req-3",
             action="shell_run",
             target="ls",
             outcome="ok",
-            detail="",
         )
-        call_args = logger.info.call_args[0][0]
-        assert "session=-" in call_args
+        assert parsed["session"] == "-"
 
     def test_empty_request_id_becomes_dash(self) -> None:
-        logger = MagicMock()
-        logger.info.return_value = None
-        _mcp_audit_log(
-            logger,
+        """Empty request_id must become dash in JSON-lines record."""
+        parsed = self._get_parsed(
             session_id="sess-4",
             request_id="",
             action="shell_run",
             target="ls",
             outcome="ok",
-            detail="",
         )
-        call_args = logger.info.call_args[0][0]
-        assert "request=-" in call_args
+        assert parsed["request"] == "-"
 
-    def test_no_json_format(self) -> None:
-        """MCP server audit log must NOT use JSON-lines format."""
-        logger = MagicMock()
-        logger.info.return_value = None
-        _mcp_audit_log(
-            logger,
+    def test_emits_json_not_key_value(self) -> None:
+        """MCP server audit log must use JSON-lines format, not key=value."""
+        parsed = self._get_parsed(
             session_id="sess-5",
             request_id="req-5",
             action="read_text_file",
             target="/tmp/h.txt",
             outcome="ok",
-            detail="",
         )
-        call_args = logger.info.call_args[0][0]
-        # Must not start with { (JSON-lines)
-        assert not call_args.startswith("{")
-        # Must contain the AUDIT prefix (key=value format)
-        assert "AUDIT" in call_args
+        assert isinstance(parsed, dict)
+        assert "event" in parsed
 
     def test_required_fields_present(self) -> None:
         """All required fields must be present in MCP audit log."""
-        logger = MagicMock()
-        logger.info.return_value = None
-        _mcp_audit_log(
-            logger,
+        parsed = self._get_parsed(
             session_id="sess-6",
             request_id="req-6",
             action="write_file",
@@ -124,20 +104,11 @@ class TestMcpAuditLogFormat:
             outcome="ok",
             detail="created",
         )
-        call_args = logger.info.call_args[0][0]
-        # Required fields: session, request, action, target, outcome, detail
-        for field in (
-            "session=sess-6",
-            "request=req-6",
-            "action=write_file",
-            "target=/tmp/i.txt",
-            "outcome=ok",
-            "detail=created",
-        ):
-            assert field in call_args
+        for field in ("event", "source", "ts", "session", "request", "tool", "target", "outcome"):
+            assert field in parsed
 
-    def test_no_json_keys_in_mcp_log(self) -> None:
-        """MCP server audit log must NOT contain JSON-style keys."""
+    def test_no_key_value_format_in_mcp_log(self) -> None:
+        """MCP server audit log must NOT use key=value format."""
         logger = MagicMock()
         logger.info.return_value = None
         _mcp_audit_log(
@@ -150,13 +121,12 @@ class TestMcpAuditLogFormat:
             detail="",
         )
         call_args = logger.info.call_args[0][0]
-        # Must not contain JSON-style keys like "action":, "event":, etc.
-        assert '"action":' not in call_args
-        assert '"event":' not in call_args
-        assert '"tool":' not in call_args
+        # Must not contain key=value pairs like "session=", "action="
+        assert "session=sess-7" not in call_args
+        assert "action=read_text_file" not in call_args
 
-    def test_no_json_quoted_values_in_mcp_log(self) -> None:
-        """MCP server audit log must NOT contain JSON-style quoted values."""
+    def test_no_key_value_quoted_values_in_mcp_log(self) -> None:
+        """MCP server audit log must NOT use key=value format with quoted values."""
         logger = MagicMock()
         logger.info.return_value = None
         _mcp_audit_log(
@@ -169,35 +139,24 @@ class TestMcpAuditLogFormat:
             detail="",
         )
         call_args = logger.info.call_args[0][0]
-        # Must not contain JSON-style quoted values like "ok", "error"
-        assert '"ok"' not in call_args
-        assert '"error"' not in call_args
+        # Must not contain key=value pairs like "outcome=ok"
+        assert "outcome=ok" not in call_args
 
-    def test_format_string_not_json(self) -> None:
-        """MCP audit log must use rendered key=value format, not JSON."""
-        logger = MagicMock()
-        logger.info.return_value = None
-        _mcp_audit_log(
-            logger,
+    def test_json_lines_format_not_key_value(self) -> None:
+        """MCP audit log must use JSON-lines, not key=value."""
+        parsed = self._get_parsed(
             session_id="sess-9",
             request_id="req-9",
             action="read_text_file",
             target="/tmp/k.txt",
             outcome="ok",
-            detail="",
         )
-        call_args = logger.info.call_args[0][0]
-        # Must contain rendered key=value pairs
-        assert "session=sess-9" in call_args
-        # Must not be a JSON string
-        assert not call_args.strip().startswith("{")
+        assert isinstance(parsed, dict)
+        assert "event" in parsed
 
     def test_server_key_field_present(self) -> None:
         """Rendered MCP audit log line contains server_key field."""
-        logger = MagicMock()
-        logger.info.return_value = None
-        _mcp_audit_log(
-            logger,
+        parsed = self._get_parsed(
             session_id="sess-1",
             request_id="req-1",
             action="call_tool",
@@ -205,15 +164,12 @@ class TestMcpAuditLogFormat:
             outcome="ok",
             server_key="mdq",
         )
-        call_args = logger.info.call_args[0][0]
-        assert "server_key=mdq" in call_args
+        assert "server_key" in parsed
+        assert parsed["server_key"] == "mdq"
 
     def test_error_type_field_present(self) -> None:
         """Rendered MCP audit log line contains error_type field when outcome is error."""
-        logger = MagicMock()
-        logger.info.return_value = None
-        _mcp_audit_log(
-            logger,
+        parsed = self._get_parsed(
             session_id="sess-1",
             request_id="req-1",
             action="call_tool",
@@ -222,23 +178,19 @@ class TestMcpAuditLogFormat:
             detail="connection_refused",
             error_type="ConnectionRefusedError",
         )
-        call_args = logger.info.call_args[0][0]
-        assert "error_type=ConnectionRefusedError" in call_args
+        assert "error_type" in parsed
+        assert parsed["error_type"] == "ConnectionRefusedError"
 
-    def test_error_type_empty_when_ok(self) -> None:
-        """Rendered MCP audit log line has error_type= when outcome is ok and no error_type given."""
-        logger = MagicMock()
-        logger.info.return_value = None
-        _mcp_audit_log(
-            logger,
+    def test_error_type_absent_when_ok(self) -> None:
+        """Rendered MCP audit log line omits error_type when outcome is ok and no error_type given."""
+        parsed = self._get_parsed(
             session_id="sess-1",
             request_id="req-1",
             action="call_tool",
             target="repo/owner",
             outcome="ok",
         )
-        call_args = logger.info.call_args[0][0]
-        assert "error_type=" in call_args
+        assert "error_type" not in parsed
 
 
 # ---------------------------------------------------------------------------
