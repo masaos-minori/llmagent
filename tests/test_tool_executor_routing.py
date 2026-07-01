@@ -16,11 +16,11 @@ from shared.mcp_config import (
     McpServerConfig,
     McpServerHealthRegistry,
     McpServerHealthState,
+    TransportType,
 )
 from shared.tool_executor import (
     HttpTransport,
     LifecycleProtocol,
-    StdioTransport,
     ToolCallResult,
     ToolExecutor,
     TransportError,
@@ -28,13 +28,7 @@ from shared.tool_executor import (
 
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig(transport="http", url=url, cmd=[], auth_token="")
-
-
-def _stdio_cfg() -> McpServerConfig:
-    return McpServerConfig(
-        transport="stdio", url="", cmd=["python", "s.py"], auth_token=""
-    )
+    return McpServerConfig(transport=TransportType.HTTP, url=url)
 
 
 def _make_executor(
@@ -165,23 +159,14 @@ class TestRawExecuteWithLifecycle:
         _result, is_err = res.output, res.is_error
         assert not is_err
 
-    @pytest.mark.asyncio
-    async def test_no_transport_returns_error(self) -> None:
-        http = MagicMock(spec=httpx.AsyncClient)
-        configs = {"shell": _stdio_cfg()}
-        ex = ToolExecutor(http, cache_ttl=60.0, server_configs=configs)
-        # stdio transport starts as None (not yet started)
-        res = await ex._raw_execute("shell_run", {})
-        result, is_err = res.output, res.is_error
-        assert is_err
-        assert "not started" in result or "No transport" in result
+
 
 
 class TestHttpTransportAuthHeader:
     @pytest.mark.asyncio
     async def test_auth_token_set_sends_bearer_header(self) -> None:
         cfg = McpServerConfig(
-            transport="http", url="http://127.0.0.1:8000", cmd=[], auth_token="my-token"
+            transport=TransportType.HTTP, url="http://127.0.0.1:8000", auth_token="my-token"
         )
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
@@ -199,7 +184,7 @@ class TestHttpTransportAuthHeader:
     @pytest.mark.asyncio
     async def test_no_auth_token_sends_empty_headers(self) -> None:
         cfg = McpServerConfig(
-            transport="http", url="http://127.0.0.1:8000", cmd=[], auth_token=""
+            transport=TransportType.HTTP, url="http://127.0.0.1:8000"
         )
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
@@ -299,70 +284,7 @@ class TestHttpTransportErrors:
             await transport.call("my_tool", {})
 
 
-class TestStdioTransportCall:
-    @pytest.mark.asyncio
-    async def test_not_alive_raises_transport_error(self) -> None:
-        transport = StdioTransport(["python", "s.py"], "key")
-        with pytest.raises(TransportError) as exc_info:
-            await transport.call("my_tool", {})
-        assert "not running" in str(exc_info.value)
 
-    @pytest.mark.asyncio
-    async def test_success_response_returns_result(self) -> None:
-        transport = StdioTransport(["python", "s.py"], "key")
-        mock_proc = MagicMock()
-        mock_proc.returncode = None
-        mock_proc.stdin = MagicMock()
-        mock_proc.stdin.drain = AsyncMock()
-        mock_proc.stdout = MagicMock()
-        mock_proc.stdout.readline = AsyncMock(
-            return_value=b'{"id": 1, "result": "ok", "is_error": false}\n'
-        )
-        transport._proc = mock_proc
-        res = await transport.call("my_tool", {})
-        result, is_err, x_req_id = res.output, res.is_error, res.request_id
-        assert not is_err
-        assert result == "ok"
-        assert x_req_id == ""
-
-    @pytest.mark.asyncio
-    async def test_invalid_json_raises_transport_error(self) -> None:
-        transport = StdioTransport(["python", "s.py"], "key")
-        mock_proc = MagicMock()
-        mock_proc.returncode = None
-        mock_proc.stdin = MagicMock()
-        mock_proc.stdin.drain = AsyncMock()
-        mock_proc.stdout = MagicMock()
-        mock_proc.stdout.readline = AsyncMock(return_value=b"not-json\n")
-        transport._proc = mock_proc
-        with pytest.raises(TransportError):
-            await transport.call("my_tool", {})
-
-    @pytest.mark.asyncio
-    async def test_timeout_raises_transport_error(self) -> None:
-        transport = StdioTransport(["python", "s.py"], "key")
-        mock_proc = MagicMock()
-        mock_proc.returncode = None
-        mock_proc.stdin = MagicMock()
-        mock_proc.stdin.drain = AsyncMock()
-        mock_proc.stdout = MagicMock()
-        transport._proc = mock_proc
-        with patch("asyncio.wait_for", new=AsyncMock(side_effect=TimeoutError())):
-            with pytest.raises(TransportError) as exc_info:
-                await transport.call("my_tool", {})
-        assert "timeout" in str(exc_info.value)
-
-    @pytest.mark.asyncio
-    async def test_transport_exception_raises_transport_error(self) -> None:
-        transport = StdioTransport(["python", "s.py"], "key")
-        mock_proc = MagicMock()
-        mock_proc.returncode = None
-        mock_proc.stdin = MagicMock()
-        mock_proc.stdin.drain = AsyncMock(side_effect=OSError("pipe broken"))
-        mock_proc.stdout = MagicMock()
-        transport._proc = mock_proc
-        with pytest.raises(TransportError):
-            await transport.call("my_tool", {})
 
 
 class TestToolExecutorExecute:
@@ -458,64 +380,7 @@ class TestToolExecutorExecute:
         assert x_req == "req-xyz"
 
 
-class TestStdioTransportStart:
-    @pytest.mark.asyncio
-    async def test_start_passes_working_dir_to_subprocess(self, tmp_path: Any) -> None:
-        transport = StdioTransport(["python", "s.py"], "key", working_dir=str(tmp_path))
-        mock_proc = MagicMock()
-        mock_proc.pid = 1
-        mock_proc.returncode = None
-        with patch(
-            "asyncio.create_subprocess_exec", new=AsyncMock(return_value=mock_proc)
-        ) as mock_exec:
-            await transport.start()
-        _, kwargs = mock_exec.call_args
-        assert kwargs["cwd"] == str(tmp_path)
 
-    @pytest.mark.asyncio
-    async def test_start_passes_env_merged_to_subprocess(
-        self, tmp_path: Any, monkeypatch: Any
-    ) -> None:
-        monkeypatch.setenv("EXISTING_VAR", "existing_value")
-        transport = StdioTransport(
-            ["python", "s.py"],
-            "key",
-            working_dir=str(tmp_path),
-            env={"EXTRA_VAR": "extra_value"},
-        )
-        mock_proc = MagicMock()
-        mock_proc.pid = 1
-        mock_proc.returncode = None
-        with patch(
-            "asyncio.create_subprocess_exec", new=AsyncMock(return_value=mock_proc)
-        ) as mock_exec:
-            await transport.start()
-        _, kwargs = mock_exec.call_args
-        merged = kwargs["env"]
-        assert merged is not None
-        assert merged["EXISTING_VAR"] == "existing_value"
-        assert merged["EXTRA_VAR"] == "extra_value"
-
-    @pytest.mark.asyncio
-    async def test_start_empty_working_dir_passes_none_cwd(self) -> None:
-        transport = StdioTransport(["python", "s.py"], "key", working_dir="")
-        mock_proc = MagicMock()
-        mock_proc.pid = 1
-        mock_proc.returncode = None
-        with patch(
-            "asyncio.create_subprocess_exec", new=AsyncMock(return_value=mock_proc)
-        ) as mock_exec:
-            await transport.start()
-        _, kwargs = mock_exec.call_args
-        assert kwargs["cwd"] is None
-
-    @pytest.mark.asyncio
-    async def test_start_nonexistent_working_dir_raises(self) -> None:
-        transport = StdioTransport(
-            ["python", "s.py"], "key", working_dir="/nonexistent/path/xyz"
-        )
-        with pytest.raises(ValueError, match="does not exist"):
-            await transport.start()
 
 
 class TestSetSessionId:
@@ -523,7 +388,7 @@ class TestSetSessionId:
     async def test_session_id_injected_into_http_transport_header(self) -> None:
         """set_session_id() propagates X-Session-Id to all HttpTransport instances."""
         cfg = McpServerConfig(
-            transport="http", url="http://127.0.0.1:8000", cmd=[], auth_token=""
+            transport=TransportType.HTTP, url="http://127.0.0.1:8000"
         )
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
@@ -546,7 +411,7 @@ class TestSetSessionId:
     def test_set_session_id_empty_string_does_not_inject_header(self) -> None:
         """Empty session_id must not add X-Session-Id header."""
         cfg = McpServerConfig(
-            transport="http", url="http://127.0.0.1:8000", cmd=[], auth_token=""
+            transport=TransportType.HTTP, url="http://127.0.0.1:8000"
         )
         mock_http = MagicMock(spec=httpx.AsyncClient)
         ex = ToolExecutor(mock_http, cache_ttl=60.0, server_configs={"srv": cfg})
@@ -556,15 +421,7 @@ class TestSetSessionId:
         assert isinstance(transport, HttpTransport)
         assert transport._session_id == ""
 
-    def test_set_session_id_skips_stdio_transports(self) -> None:
-        """set_session_id() must not raise for servers with no HttpTransport."""
-        cfg = McpServerConfig(
-            transport="stdio", url="", cmd=["python", "s.py"], auth_token=""
-        )
-        mock_http = MagicMock(spec=httpx.AsyncClient)
-        ex = ToolExecutor(mock_http, cache_ttl=60.0, server_configs={"stdio_srv": cfg})
-        # Must not raise even though the transport is not an HttpTransport
-        ex.set_session_id("sess-xyz")
+
 
 
 # ── apply_config ──────────────────────────────────────────────────────────────
@@ -575,11 +432,11 @@ class TestToolExecutorApplyConfig:
         from unittest.mock import AsyncMock
 
         import httpx
-        from shared.mcp_config import McpServerConfig
+        from shared.mcp_config import McpServerConfig, TransportType
         from shared.tool_executor import ToolExecutor
 
         cfg = McpServerConfig(
-            transport="http", url="http://localhost:8005", cmd=[], auth_token="svc"
+            transport=TransportType.HTTP, url="http://localhost:8005"
         )
         return ToolExecutor(
             http=AsyncMock(spec=httpx.AsyncClient),
