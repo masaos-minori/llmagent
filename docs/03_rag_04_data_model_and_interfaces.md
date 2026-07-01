@@ -338,3 +338,170 @@ All defined as `StrEnum` subclasses.
 | `"expanded"` | Query was expanded |
 | `"disabled"` | MQE disabled in config |
 | `"failed"` | MQE LLM call failed |
+
+---
+
+## 3. Data Transfer Objects (DTOs)
+
+### 3.1 models_data.py (`scripts/rag/models_data.py`)
+
+**EmbeddingResponse** — Response from embedding API.
+
+| Field | Type | Description |
+|---|---|---|
+| `embedding` | `list[float]` | Embedding vector |
+| `model` | `str \| None` | Model name (optional) |
+
+**CrawlTarget** — Target for WebCrawler crawl operation.
+
+| Field | Type | Description |
+|---|---|---|
+| `url` | `str` | URL to crawl |
+| `lang` | `LanguageCode` | Language hint (`"en"` / `"ja"`) |
+
+**ChunkDocument** — Chunk data passed between pipeline stages.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `url` | `str` | (required) | Source document URL |
+| `title` | `str` | (required) | Source document title |
+| `lang` | `str` | (required) | Language code (`"ja"` / `"en"`) |
+| `content` | `str` | (required) | Chunk text |
+| `code_blocks` | `list[str]` | `[]` | Code block contents |
+| `etag` | `str \| None` | `None` | ETag for freshness detection |
+| `last_modified` | `str \| None` | `None` | Last-Modified timestamp |
+| `chunking_strategy` | `str` | `"text"` | Chunk split strategy |
+| `normalized_content` | `str \| None` | `None` | Sudachi normalized text (JA only) |
+| `chunk_index` | `int` | `0` | Position in document |
+| `source_file` | `str` | `""` | Original crawler output filename |
+| `chunk_type` | `str` | `""` | `"text"` or `"code"` |
+
+**ChunkRecord** — Chunk data with embedding vector (used by query pipeline).
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `chunk_id` | `str` | (required) | Chunk identifier |
+| `url` | `str` | (required) | Source document URL |
+| `title` | `str` | (required) | Source document title |
+| `lang` | `str` | (required) | Language code |
+| `content` | `str` | (required) | Chunk text |
+| `embedding` | `list[float]` | `[]` | Embedding vector |
+
+**RegisteredDocument** — Document registration record.
+
+| Field | Type | Description |
+|---|---|---|
+| `url` | `str` | Source URL |
+| `lang` | `str` | Language code |
+| `chunk_count` | `int` | Number of chunks |
+
+**CacheEntry** — Semantic cache entry.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `embedding` | `list[float]` | (required) | Cached embedding vector |
+| `context_str` | `str` | (required) | Cached context string |
+| `history_context` | `str` | `""` | Associated conversation history |
+| `generation` | `int` | `0` | Generation counter for cache invalidation |
+
+**TwoStageFetchResult** — Result from HTTP RAG service call.
+
+| Field | Type | Description |
+|---|---|---|
+| `hits` | `list[Any]` | Hits (RagHit in-process, dict in HTTP mode) |
+| `min_score_applied` | `float` | rag_min_score used for filtering |
+| `max_chunks_per_doc` | `int` | Per-doc dedup limit applied |
+
+### 3.2 models_result.py (`scripts/rag/models_result.py`)
+
+**ResultSource** — Source of the RAG result.
+
+| Value | Description |
+|---|---|
+| `"remote"` | HTTP RAG service |
+| `"local"` | In-process pipeline |
+| `"fallback"` | In-process fallback from HTTP failure |
+
+**HttpResultKind** — Classification of HTTP RAG result.
+
+| Value | Description |
+|---|---|
+| `"success"` | Non-empty context returned |
+| `"empty"` | Empty context (valid empty result) |
+| `"error"` | HTTP error path |
+| `"not_used"` | HTTP mode not active |
+
+**ExpandedQuerySet** — MQE expansion result.
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | `MqeStatus` | Expansion status |
+| `queries` | `list[str]` | Expanded queries |
+
+**SkipInfo** — Chunk processing skip record.
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | `str` | File path that was skipped |
+| `reason` | `str` | Reason for skipping |
+
+**RagSearchRequest** — Search request DTO.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `query` | `str` | (required) | Search query |
+| `top_k` | `int` | `5` | Number of results to return |
+
+**RagSearchResult** — Search result DTO.
+
+| Field | Type | Description |
+|---|---|---|
+| `query` | `str` | Original query |
+| `hits` | `list[RankedHit]` | Ranked hits |
+| `context_str` | `str` | Context string |
+
+**PipelineExecutionResult** — Pipeline execution outcome.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `success` | `bool` | (required) | Whether execution succeeded |
+| `processed` | `int` | (required) | Number of chunks processed |
+| `failed` | `int` | (required) | Number of failures |
+| `errors` | `list[str]` | `[]` | Error messages |
+
+**SearchDocsResult** — Search documents result.
+
+| Field | Type | Description |
+|---|---|---|
+| `query` | `str` | Original query |
+| `results` | `list[str]` | Result strings |
+| `total` | `int` | Total result count |
+
+**SanitizeResult** — Prompt injection sanitization result.
+
+| Field | Type | Description |
+|---|---|---|
+| `text` | `str` | Sanitized text |
+| `was_sanitized` | `bool` | Whether text was modified |
+| `patterns_detected` | `list[str]` | Detected injection patterns |
+
+### 3.3 types.py (`scripts/rag/types.py`)
+
+**RagQuery** — Query with optional context.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `query` | `str` | (required) | Query string |
+| `context` | `str` | `""` | Optional context |
+
+**PipelineRunResult** — Pipeline run outcome.
+
+| Field | Type | Description |
+|---|---|---|
+| `queries` | `list[str]` | MQE-expanded queries |
+| `search_results` | `list[list[RawHit]]` | Per-query search results |
+| `merged` | `list[RagHit]` | RRF-merged hits |
+| `reranked` | `list[RagHit]` | Post-rerank hits |
+| `stage_results` | `list[StageResult]` | Per-stage outcomes |
+| `diagnostics` | `SearchDiagnostics` | Search diagnostics |
+| `result_source` | `str \| None` | Result source (remote/local/fallback) |
