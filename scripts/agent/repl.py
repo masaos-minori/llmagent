@@ -447,10 +447,6 @@ class AgentREPL:
 
         def _sigterm_handler() -> None:
             self._ctx.conv.shutdown_requested = True
-            if self._ctx.conv.is_processing:
-                deadline = time.monotonic() + 10.0
-                while self._ctx.conv.is_processing and time.monotonic() < deadline:
-                    time.sleep(0.1)
             if self._shutdown_event is not None:
                 self._shutdown_event.set()
             logger.info("SIGTERM received; graceful shutdown initiated")
