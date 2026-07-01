@@ -318,6 +318,28 @@ read-only, fast). If any inconsistency is detected, a warning is emitted to the 
 
 No warning is shown on a healthy index (only `logger.info("RAG consistency: OK")` is written).
 
+### `/db rag rebuild-fts` command
+
+The `/db rag rebuild-fts` command rebuilds `chunks_fts` from the canonical `chunks` table.
+
+**Rebuild rule:** The rebuild indexes `COALESCE(normalized_content, content)`, identical to the FTS5 trigger (`chunks_ai`).
+
+- Japanese chunks: when `normalized_content` is present (Sudachi-normalized), it is indexed
+- English/code chunks: `normalized_content` is NULL → FTS5 falls back to `content` directly
+- `chunks_fts` must not be manually edited — it is a derived index maintained by triggers or rebuild operations
+
+**When to use:**
+- `fts_gap > 0` (missing FTS entries) detected by `/db consistency`
+- `fts_orphan_count > 0` (extra FTS entries, data loss risk)
+- After large-scale ingestion to verify FTS index integrity
+
+**Repair decision tree:**
+
+| Issue | Fix |
+|---|---|
+| `fts_gap > 0` | Run `/db rag rebuild-fts` — FTS entries are missing; rebuild from `chunks` |
+| `fts_orphan_count > 0` | Run `/db rag rebuild-fts` — FTS has extra entries (data loss risk; urgent) |
+
 ### `/db consistency` command
 
 The `/db consistency` command shows numeric counts followed by an OK or error summary:

@@ -31,13 +31,13 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 - **Invariants (non-negotiable):**
   - `documents` and `chunks` are **canonical data stores**; all mutations go through them.
   - `chunks_fts` and `chunks_vec` are **derived indexes**; application code must treat them as read-only.
-  - `chunks_fts` sync: trigger-based (`chunks_ai`/`chunks_au`/`chunks_ad`); never INSERT/UPDATE directly.
+  - `chunks_fts` sync: trigger-based (`chunks_ai`/`chunks_au`/`chunks_ad`); never INSERT/UPDATE directly. Manual edits to `chunks_fts` are prohibited — use `/db rag rebuild-fts` instead.
   - `chunks_vec` sync: ingestion-time INSERT and explicit DELETE; no FK constraint (sqlite-vec limitation).
   - Deletion order for force-reinsertion: `chunks_vec` first → `chunks` → `documents` (mandatory to avoid orphaned vector records).
 - **Description:**
   - `documents`: canonical URL/document metadata (url, title, lang, fetched_at, etag, last_modified, chunking_strategy); one row per URL.
   - `chunks`: canonical chunk text and position data (content, normalized_content, chunk_index, chunk_type); FK to `documents` via `doc_id` (ON DELETE CASCADE).
-  - `chunks_fts`: derived FTS5/BM25 full-text index; auto-synced by triggers using `COALESCE(normalized_content, content)`; BM25 search only.
+  - `chunks_fts`: derived FTS5/BM25 full-text index; auto-synced by triggers using `COALESCE(normalized_content, content)`; BM25 search only. Must not be manually edited — use `/db rag rebuild-fts` to repair.
   - `chunks_vec`: derived sqlite-vec KNN vector index; float32 embedding BLOB; KNN search only.
 - **Notes for AI reference:** sqlite-vec virtual tables do not support standard FK constraints. Source: `03_rag_04_data_model_and_interfaces.md §DB Schema`.
 
