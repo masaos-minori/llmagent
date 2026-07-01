@@ -61,7 +61,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, TypeVar, runtime_checkable
 
-from rag.types import RagHit
+from shared.types import RagHit
 
 logger = logging.getLogger(__name__)
 

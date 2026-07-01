@@ -3,6 +3,8 @@
 Shared type definitions for the RAG pipeline.
 
 RawHit / MergedHit / RankedHit model the three search pipeline stages.
+The hit dataclasses and RagHit alias are defined in shared/types.py and
+re-exported here for backward compatibility.
 """
 
 from __future__ import annotations
@@ -12,6 +14,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rag.stage import StageResult
+
+from shared.types import MergedHit, RagHit, RankedHit, RawHit
 
 from rag.models_result import SearchDiagnostics
 
@@ -24,45 +28,6 @@ __all__ = [
     "RawHit",
     "SearchDiagnostics",
 ]
-
-
-@dataclasses.dataclass
-class RawHit:
-    """Search result from vector_search or fts_search."""
-
-    chunk_id: int
-    content: str
-    url: str = ""
-    title: str = ""
-    distance: float = 0.0  # vector search: L2 distance (lower = closer)
-    bm25_score: float = 0.0  # fts search: BM25 score (negative; more negative = better)
-
-
-@dataclasses.dataclass
-class MergedHit:
-    """RawHit after RRF merge; carries aggregated rrf_score."""
-
-    chunk_id: int
-    content: str
-    url: str = ""
-    title: str = ""
-    distance: float = 0.0
-    bm25_score: float = 0.0
-    rrf_score: float = 0.0
-
-
-@dataclasses.dataclass
-class RankedHit:
-    """MergedHit after cross-encoder rerank; carries rerank_score."""
-
-    chunk_id: int
-    content: str
-    url: str = ""
-    title: str = ""
-    distance: float = 0.0
-    bm25_score: float = 0.0
-    rrf_score: float = 0.0
-    rerank_score: float | None = None
 
 
 @dataclasses.dataclass
@@ -84,7 +49,3 @@ class PipelineRunResult:
     stage_results: list[StageResult]
     diagnostics: SearchDiagnostics
     result_source: str | None = None
-
-
-# Union type alias for all search result hit types
-RagHit = RawHit | MergedHit | RankedHit

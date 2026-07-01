@@ -3,6 +3,7 @@
 Cross-layer type definitions shared by shared, rag, and agent packages.
 """
 
+import dataclasses
 from typing import Any, Literal, Protocol, TypedDict, runtime_checkable
 
 
@@ -94,3 +95,50 @@ class RagConfig(Protocol):
     refiner_max_chars_per_chunk: int
     refiner_timeout: float
     use_semantic_cache: bool
+
+
+# ── RAG hit types ─────────────────────────────────────────────────────────────
+# Defined here so shared/ can reference them without importing from rag/.
+# rag/types.py re-exports these for backward compatibility.
+
+
+@dataclasses.dataclass
+class RawHit:
+    """Search result from vector_search or fts_search."""
+
+    chunk_id: int
+    content: str
+    url: str = ""
+    title: str = ""
+    distance: float = 0.0
+    bm25_score: float = 0.0
+
+
+@dataclasses.dataclass
+class MergedHit:
+    """RawHit after RRF merge; carries aggregated rrf_score."""
+
+    chunk_id: int
+    content: str
+    url: str = ""
+    title: str = ""
+    distance: float = 0.0
+    bm25_score: float = 0.0
+    rrf_score: float = 0.0
+
+
+@dataclasses.dataclass
+class RankedHit:
+    """MergedHit after cross-encoder rerank; carries rerank_score."""
+
+    chunk_id: int
+    content: str
+    url: str = ""
+    title: str = ""
+    distance: float = 0.0
+    bm25_score: float = 0.0
+    rrf_score: float = 0.0
+    rerank_score: float | None = None
+
+
+RagHit = RawHit | MergedHit | RankedHit
