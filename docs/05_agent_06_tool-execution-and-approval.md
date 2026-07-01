@@ -270,6 +270,11 @@ Both layers are canonical; boundaries and responsibilities are explicit, not exc
 | Resolution | stdin interactive | `/approve` / `/reject` |
 | Currently active | always enabled | disabled (`require_approval=False`) |
 
+The workflow-level approval gate is controlled by `AgentConfig.workflow_require_approval`
+(default `False`). Set `workflow_require_approval = true` in the agent config to enable it.
+See [AgentConfig Structure](05_agent_08_configuration.md#agentconfig-structure) for the field
+reference and startup-only classification.
+
 ### Coexistence Rules
 
 When `require_approval=True`:

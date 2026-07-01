@@ -148,6 +148,7 @@ class AgentConfig:
     approval: ApprovalConfig
     obs:      ObservabilityConfig
     workflow_mode:              str  = "auto"   # "auto" | "required" | "disabled"
+    workflow_require_approval:  bool = False
     security_lockdown_enabled:  bool = False
 ```
 
@@ -155,6 +156,11 @@ class AgentConfig:
 workflow execution fails, `"required"` raises a hard error, `"disabled"` always uses the direct
 LLM path. `security_lockdown_enabled` suppresses DENY-ALL approval warnings for intentional
 lockdown deployments.
+
+`workflow_require_approval` enables the execute→verify approval gate in `WorkflowEngine`: when
+`True`, the agent pauses after each execute stage and waits for user approval before running the
+verify stage. Default is `False` (no approval gate). **Startup-only** — not handled by
+`config_reload.py`; changes require a full agent restart.
 
 **Production default:** `config/common.toml` sets `workflow_mode = "required"`. Any environment
 that copies `common.toml` (see `deploy.sh:58`) must have a valid workflow definition file
