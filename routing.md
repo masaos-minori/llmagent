@@ -19,7 +19,7 @@ Skills can be invoked as slash commands (e.g. `/python-implementation`) or via `
 | Deploy / production | deploy, /opt/llm, service restart, init.d | `skills/deploy/SKILL.md` + `rules/env.md` + `docs/05_agent_10_operations-and-observability.md` |
 | Event Bus implementation / debug | eventbus, event bus, dlq, sse subscribe, replay | `skills/python-implementation/SKILL.md` + `rules/env.md` |
 | Documentation / docs | document, doc, write docs, readme, changelog | `skills/python-documentation/SKILL.md` |
-| Git commit / sync | commit, stage, push, pull, git sync, conflict, git workflow | `skills/git-commit-sync/SKILL.md` |
+| Git commit / sync | commit, stage, push, pull, git sync, conflict, git workflow | `skills/git-commit-and-sync/SKILL.md` |
 
 ## Docs → task mapping
 

@@ -66,4 +66,4 @@ When a document or skill file grows too large, split it according to these rules
 | `python-documentation` | `skills/python-documentation/` | Writing and updating Python documentation |
 | `mcp-server-add` | `skills/mcp-server-add/` | Add a new MCP server to the project |
 | `deploy` | `skills/deploy/` | Deploy changes to the production environment |
-| `git-commit-and-sync` | `skills/git-commit-sync/` | Safe Git commit, pull, conflict resolution, and push |
+| `git-commit-and-sync` | `skills/git-commit-and-sync/` | Safe Git commit, pull, conflict resolution, and push |
