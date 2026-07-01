@@ -23,50 +23,6 @@ Each entry format:
 
 ---
 
-## Migration Notes
-
-### NOTE-04: Flat `/db` aliases removed (2026-06-28)
-
-- **Type:** Breaking change — removed without backward-compatible aliases
-- **Removed commands:** `/db urls`, `/db clean <url>`, `/db rebuild-fts`, `/db recover [backup-path]`, `/db stats`, `/db health`, `/db checkpoint [MODE]`, `/db vacuum`, `/db purge [--max-sessions N] [--max-age-days N]`, `/db consistency`
-- **Replacement:** Use scoped forms: `/db rag urls|clean|rebuild-fts|recover|stats|consistency` or `/db session stats|health|checkpoint|vacuum|purge|recover`
-
----
-
-### NOTE-01: `/note` command group removed (2026-06-28)
-
-- **Type:** Breaking change — removed without backward-compatible aliases
-- **Removed commands:** `/note add`, `/note list`, `/note delete`, `/note pin`, `/note unpin`, `/note search`
-- **Reason:** Persistent notes removed from the Agent command layer. Long-term searchable context should use the memory layer instead.
-- **Replacement:** Use `/memory list`, `/memory search`, `/memory show`, `/memory pin`, `/memory unpin`, `/memory delete`, `/memory prune`, `/memory status`
-- **Schema impact:** `notes` table removed from new database schema creation. Existing databases that have the `notes` table should remove it manually:
-
-```sql
-DROP TABLE IF EXISTS notes;
-```
-
-If old deployments may have created FTS-related note tables, inspect the DB explicitly before dropping additional objects:
-
-```bash
-sqlite3 /opt/llm/db/session.sqlite ".tables" | grep -i note
-```
-
-### NOTE-02: `/ingest` command removed (2026-06-28)
-
-- **Type:** Breaking change — removed without backward-compatible aliases
-- **Removed command:** `/ingest <url|path> [lang] [--snippets-only]`
-- **Reason:** RAG ingestion is an operational pipeline concern, not an Agent REPL command. The Agent REPL should provide RAG search/debugging, not mutate the RAG DB through `/ingest`.
-- **Replacement:** Run the RAG ingestion pipeline outside the Agent REPL using `scripts/rag/ingestion/crawler.py` directly; use `/rag search <query> [--debug]` for retrieval and debugging from the Agent.
-
-### NOTE-03: `/debug audit` removed (2026-06-28)
-
-- **Type:** Breaking change — removed without backward-compatible aliases
-- **Removed command:** `/debug audit`
-- **Reason:** Audit log browsing is handled by the dedicated `/audit` command. `/debug` should only control debug mode and log verbosity.
-- **Replacement:** Use `/audit`, `/audit tail N`, `/audit turn <task_id>`, or `/audit tool <name>`
-
----
-
 ## Undocumented Areas
 
 ### UNDOC-02: Plugin tool return value convention not enforced at registration time

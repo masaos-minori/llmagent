@@ -127,20 +127,6 @@ POST /v1/call_tool
 Update any `rag_service_url` callers to use the MCP tool call format.
 This change is not backward-compatible — no compatibility shim is provided.
 
-### `/mcp install <server-name>` (removed — 2026-06-28)
-
-The `/mcp install` command has been removed from the Agent REPL.
-
-**Before:**
-```
-agent[:#N]> /mcp install <server-name>
-```
-
-**After:**
-Add MCP servers manually using the new-server checklist, then verify with `/mcp`.
-
-MCP server scaffold generation is a developer workflow. The runtime Agent REPL should only inspect MCP server status and health. No backward-compatible alias is provided.
-
 ---
 
 ## Legacy Source Document Policy

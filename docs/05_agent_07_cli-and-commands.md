@@ -258,49 +258,4 @@ See [Configuration: Config file reload eligibility](05_agent_08_configuration.md
 
 ## Migration Notes
 
-### /db alias commands (removed)
 
-The following flat alias commands have been removed. Use the canonical scoped sub-command
-syntax instead:
-
-| Removed | Replacement |
-|---------|------------|
-| `/db urls` | `/db rag urls [--lang] [--limit]` |
-| `/db clean <url>` | `/db rag clean <url>` |
-| `/db rebuild-fts` | `/db rag rebuild-fts` |
-| `/db recover [backup-path]` | `/db rag recover [backup-path]` or `/db session recover [backup-path]` |
-| `/db stats` | `/db rag stats` or `/db session stats` |
-| `/db health` | `/db session health` |
-| `/db checkpoint [MODE]` | `/db session checkpoint [MODE]` |
-| `/db vacuum` | `/db session vacuum` |
-| `/db purge [--max-sessions N] [--max-age-days N]` | `/db session purge [--max-sessions N] [--max-age-days N]` |
-| `/db consistency` | `/db rag consistency` |
-
-These aliases were provided for backward compatibility and are no longer supported. No backward-compatible flat aliases are kept.
-
-### /mcp install (removed)
-
-The `/mcp install` subcommand has been removed. MCP server scaffolding is a developer workflow, not an Agent REPL feature.
-
-| Removed | Replacement |
-|---------|------------|
-| `/mcp install <server-name>` | Add manually via new-server checklist, then verify with `/mcp` or `/mcp status` |
-
-No backward-compatible alias is provided. See [04_mcp_06](04_mcp_06_configuration_and_operations.md) for the MCP server addition checklist.
-
-### /note commands (removed)
-
-The `/note` command group has been removed. Persistent notes removed from the Agent command layer; long-term searchable context should use the memory layer.
-
-| Removed | Replacement |
-|---------|------------|
-| `/note add` | `/memory list` / `/memory show` |
-| `/note list` | `/memory list` |
-| `/note delete` | `/memory delete` |
-| `/note pin` | `/memory pin` |
-| `/note unpin` | `/memory unpin` |
-| `/note search` | `/memory search` |
-
-The replacement mapping is not 1-to-1 because some `/note` commands map to multiple `/memory` commands depending on the user's intent (e.g., `/note add` could map to viewing existing memories or showing a specific memory).
-
-No backward-compatible alias is provided.
