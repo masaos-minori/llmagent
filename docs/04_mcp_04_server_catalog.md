@@ -222,23 +222,25 @@ All tools do not require config (`requires_config: false`).
 
 | Key | Default | Description |
 |---|---|---|
-| `use_mqe` | `True` | Enable multi-query expansion |
-| `use_rrf` | `True` | Enable RRF fusion |
+| `use_mqe` | `true` | Enable multi-query expansion |
+| `use_rrf` | `true` | Enable RRF fusion |
 | `rrf_k` | `60` | RRF constant |
-| `use_rerank` | `True` | Enable cross-encoder rerank |
-| `use_refiner` | `False` | Enable context refinement/compression |
-| `top_k_search` | `5` | KNN/BM25 top-k per query |
-| `top_k_rerank` | `10` | Cross-encoder top-k |
+| `use_rerank` | `true` | Enable cross-encoder rerank |
+| `use_refiner` | `false` | Enable context refinement/compression |
+| `top_k_search` | `20` | KNN/BM25 top-k per query |
+| `top_k_rerank` | `15` | Cross-encoder top-k |
 | `rag_top_k` | `5` | Final result count |
 | `rag_min_score` | `0.0` | Minimum rerank score threshold |
-| `max_chunks_per_doc` | `3` | Max chunks per document in final result |
-| `semantic_cache_max_size` | `128` | Semantic cache entry limit |
+| `max_chunks_per_doc` | `2` | Max chunks per document in final result |
+| `semantic_cache_max_size` | `100` | Semantic cache entry limit |
 | `semantic_cache_threshold` | `0.92` | Semantic cache cosine similarity threshold |
-| `use_semantic_cache` | `False` | Enable semantic cache |
+| `use_semantic_cache` | `false` | Enable semantic cache |
 | `refiner_max_tokens` | `512` | Context refinement max tokens |
-| `refiner_max_chars_per_chunk` | `800` | Context refinement chars per chunk |
+| `refiner_max_chars_per_chunk` | `300` | Context refinement chars per chunk |
 | `refiner_timeout` | `30.0` | Context refinement timeout (seconds) |
 | `rag_auth_token` | `""` | Authentication token for RAG service |
+
+**Config fields (standalone):** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `host`, `port`, `http_timeout`, `mqe_prompt_template`, `rerank_prompt_template`
 
 **Health:** `{"status":"ok","ready":bool,"dependencies":{"embed_url":"not configured"/"check failed"},"details":{}}`
 **Design note:** `rag_service_url = ""` is hardcoded in `build_rag_cfg_adapter()` to prevent HTTP loops.
