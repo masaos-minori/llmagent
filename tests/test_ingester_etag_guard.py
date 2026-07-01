@@ -45,7 +45,7 @@ class TestUpdateEtagGuard:
         ingester = _make_ingester()
         db = _make_db("2026-06-10T10:00:00")
 
-        with patch("rag.ingestion.ingester.logger") as mock_logger:  # noqa: SIM117
+        with patch("rag.ingestion.etag_manager.logger") as mock_logger:  # noqa: SIM117
             ingester._update_etag(
                 db, 42, "etag-old", "Mon, 01 Jun 2026", "2026-06-01T10:00:00"
             )
