@@ -269,12 +269,14 @@ All tools do not require config (`requires_config: false`).
 | `get_workflow_logs` | READ_ONLY | `{repo, run_id}` | yes |
 
 **Security:**
-- `repo_allowlist`: fail-closed (empty = deny all)
-- `workflow_allowlist`: fail-closed (empty = deny all); in production mode (`security_profile = "production"`), empty list emits a startup warning (not RuntimeError)
+- `repo_allowlist`: fail-closed (empty = deny all); raises `CicdAuthorizationError` when empty
+- `workflow_allowlist`: fail-closed (empty = deny all); raises `CicdAuthorizationError` when empty
 - `trigger_workflow` supports `dry_run` argument (exposed via tool schema)
 
+**Config fields:** `repo_allowlist`, `workflow_allowlist`, `max_log_size_kb` (default: 256 KB), `auth_token`, `github_token`
+
 **Health:** `{"status":"ok","ready":bool,"dependencies":{} / {"github_token":"not_set"},"details":{}}` — empty deps when token is set, `"github_token":"not_set"` when not set
-**Log limits:** max 5 jobs, 256 KB total (default)
+**Log limits:** max 5 jobs, configurable via `max_log_size_kb` (default: 256 KB total)
 **Architecture:** `CiCdService → CiBackend (Protocol) → GitHubActionsBackend`
 **Note:** `CiBackend` Protocol allows future GitLab CI / Jenkins backends.
 
