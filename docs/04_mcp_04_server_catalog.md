@@ -288,6 +288,8 @@ All tools do not require config (`requires_config: false`).
 **Tools (9):** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`, `fts_consistency_check`, `fts_rebuild`
 **Tool status:** 7 tools are `production` (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`), 2 tools (`fts_consistency_check`, `fts_rebuild`) are `admin`.
 
+**Config fields:** `status`, `allowed_dirs`, `db_path`, `include_globs`, `exclude_globs`, `max_search_results`, `max_snippet_chars`, `max_chunk_chars`, `max_file_chars`, `max_results_limit`, `max_chars_per_chunk`, `max_total_result_chars`, `max_outline_items`, `max_grep_matches`, `search_timeout_sec`, `enable_refresh`, `enable_grep`, `audit_log_path`, `concurrency_limit`, `summary_cache_enabled`, `summary_threshold`, `summary_model`, `use_embedding`, `vector_table`, `embedding_model`
+
 **Health:** `{"status":"ok","ready":bool,"dependencies":{},"details":{"service":"mdq-mcp"}}`
 
 **DB path:** `/opt/llm/db/mdq.sqlite` (`config/mdq_mcp_server.toml`: `db_path`)
