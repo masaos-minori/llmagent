@@ -91,8 +91,10 @@ All tools require config (`requires_config: true`).
 `github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`,
 `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`, `github_update_pull_request`, `github_merge_pull_request`
 
+**Config fields:** `default_per_page` (20), `max_per_page` (100), `allowed_repos`, `allowed_repos_mode`, `protected_branches`, `path_denylist`, `max_file_size_kb` (1024 KB), `allow_force_push` (false), `require_pr_review` (true), `audit_log_path`
+
 **Security controls:**
-- `allowed_repos` / `allowed_repos_mode` (fail-closed by default)
+- `allowed_repos` / `allowed_repos_mode` (fail-closed by default; empty list = deny all when mode is "fail_closed")
 - `protected_branches` (fnmatch patterns)
 - `path_denylist` (fnmatch patterns)
 - `max_file_size_kb` (0 = unlimited)
