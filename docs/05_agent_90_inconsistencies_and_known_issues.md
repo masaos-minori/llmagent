@@ -39,7 +39,17 @@ Each entry format:
 - **Removed commands:** `/note add`, `/note list`, `/note delete`, `/note pin`, `/note unpin`, `/note search`
 - **Reason:** Persistent notes removed from the Agent command layer. Long-term searchable context should use the memory layer instead.
 - **Replacement:** Use `/memory list`, `/memory search`, `/memory show`, `/memory pin`, `/memory unpin`, `/memory delete`, `/memory prune`, `/memory status`
-- **Schema impact:** `notes` table removed from new database schema creation; existing databases retain the table for backward compatibility
+- **Schema impact:** `notes` table removed from new database schema creation. Existing databases that have the `notes` table should remove it manually:
+
+```sql
+DROP TABLE IF EXISTS notes;
+```
+
+If old deployments may have created FTS-related note tables, inspect the DB explicitly before dropping additional objects:
+
+```bash
+sqlite3 /opt/llm/db/session.sqlite ".tables" | grep -i note
+```
 
 ### NOTE-02: `/ingest` command removed (2026-06-28)
 
