@@ -53,10 +53,4 @@ Each entry format:
 - **Statement B:** Unclear whether failure is at agent startup or at first turn — depends on whether `StartupOrchestrator.run()` catches this
 - **Current safe interpretation:** Failure occurs during agent boot (Orchestrator construction phase), not at the first turn
 
-### DISC-05: memory SQLite DB location
-
-- **Type:** Resolved — all memory tables definitively live in `session.sqlite`
-- **Impact scope:** `05_agent_09_data-layer.md`, `05_agent_12_memory.md`
-- **Resolution:** All memory tables (`memories`, `memories_fts`, `memory_links`, `memories_vec`) are in `session.sqlite`. No separate memory SQLite database is used.
-
 ---
