@@ -301,6 +301,13 @@ AugmentStage()
 - Stored in `ctx.augment_result`
 - Uses `sanitize_document(c.content)` from `rag.utils` to sanitize content before formatting
 
+**Content-only invariant (DESIGN-2):** AugmentStage formats `content` only — never `normalized_content`.
+
+- `chunks.content` is the original chunk text and the **only** text used for LLM context
+- `chunks.normalized_content` is Sudachi-normalized Japanese text used **exclusively** for FTS5 search indexing; it must never appear in LLM context
+- Replacing `content` with `normalized_content` would degrade LLM context quality (Sudachi-normalized text loses original readability)
+- RAG context blocks must always contain original readable chunk text
+
 #### Refiner fallback reasons
 
 When `use_refiner=true` and refinement fails, `augment()` falls back to raw-chunk
