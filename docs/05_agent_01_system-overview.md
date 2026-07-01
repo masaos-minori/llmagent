@@ -95,7 +95,7 @@ The most recent `history_protect_turns` (default 2) turns are always protected.
 | Category | Commands |
 |---|---|
 | Session | `/session list\|load\|rename\|delete`, `/clear [new]`, `/undo`, `/history`, `/export` |
-| MCP | `/mcp [status\|install]` |
+| MCP | `/mcp status` |
 | Config / stats | `/config`, `/stats`, `/set`, `/reload` |
 | Context | `/context`, `/compact`, `/system` |
 | DB | `/db rag stats\|urls\|clean\|rebuild-fts\|vec-rebuild\|reconcile-url\|recover\|consistency; session stats\|health\|checkpoint\|vacuum\|purge\|recover` |
@@ -104,7 +104,7 @@ The most recent `history_protect_turns` (default 2) turns are always protected.
 | Debug / audit | `/debug`, `/audit` |
 | RAG / Export | `/rag search`, `/export`, `/compact` |
 | Memory | `/memory list\|search\|show\|pin\|unpin\|delete\|prune\|status` |
-| Other | `/help`, `/exit` |
+| Other | `/help` |
 
 ---
 

@@ -27,7 +27,7 @@ Expected startup banner:
 ```
 DB: 12,345 chunks | Tools: 14
 Memory: disabled
-Type /help for commands, /exit to quit.
+Type /help for commands, Ctrl-C or Ctrl-D to exit.
 
 agent[:#1]>
 ```

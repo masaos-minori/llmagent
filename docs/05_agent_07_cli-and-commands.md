@@ -115,6 +115,8 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 | `/db rag urls [--lang] [--limit]` | None | List documents via rag-pipeline-mcp |
 | `/db rag clean <url>` | Delete document + chunks via rag-pipeline-mcp | Cascaded delete |
 | `/db rag rebuild-fts` | Rebuilds `chunks_fts` index | FTS5 rebuild |
+| `/db rag vec-rebuild` | None | Rebuild vector index |
+| `/db rag reconcile-url <url>` | None | Rebuild FTS/vec for a single URL |
 | `/db rag recover [backup-path]` | Integrity check; restore from backup if corrupt | RAG only |
 | `/db rag consistency` | None | Chunks/FTS/vector index sync check |
 
@@ -214,6 +216,18 @@ set for auto-resume — no re-execution of prior steps is needed.
 | `/mdq grep <pattern> [--path PATH] [--max-chars N] [--context-before N] [--context-after N]` | Regex search over chunks | None |
 
 > **Note:** All /mdq commands call mdq-mcp MCP tools (port 8013) via the agent's tool executor. MDQ uses `mdq.sqlite` (separate from `rag.sqlite`). See [MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) for guidance on when to use MDQ vs RAG.
+
+### Plugin category
+
+| Command | Side effects | Related state |
+|---|---|---|
+| `/plugin status` | None | Display plugin load results (loaded, failed, conflicts) |
+
+### Other category
+
+| Command | Side effects | Related state |
+|---|---|---|
+| `/help` | None | Show this help output |
 
 ---
 
