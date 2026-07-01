@@ -191,7 +191,7 @@ ctx = PipelineContext(query="search query", history_context="conversation histor
 | `reranked` | `list[RagHit]` | `[]` | `RerankStage` |
 | `augment_result` | `str` | `""` | `AugmentStage` |
 | `stage_results` | `list[StageResult]` | `[]` | `RagPipeline.run()` |
-| `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()` (default_factory) | `SearchStage` (embed_ok, embed_failed, fts_errors); also populated by HTTP mode with `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`, `fallback_reason` |
+| `search_diagnostics` | `SearchDiagnostics` | `SearchDiagnostics()` (default_factory) | `SearchStage` — created empty, populated with embed_ok/embed_failed/fts_errors during search; also populated by HTTP mode with `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`, `fallback_reason` |
 
 ### 4.2 SearchDiagnostics (`scripts/rag/models_result.py`)
 
