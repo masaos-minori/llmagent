@@ -277,8 +277,10 @@ Protocol defining the interface for semantic cache implementations. `SemanticCac
 |---|---|---|
 | `lookup` | `(embedding: list[float], history_context: str = "") -> str \| None` | Return cached context if cosine similarity ≥ threshold among matching `history_context` entries; else `None` |
 | `put` | `(embedding: list[float], history_context: str, context_str: str) -> None` | Store entry; prunes if over capacity |
-| `invalidate` | `() -> None` | Bump generation counter and clear all cached entries atomically (used after ingestion to bust stale cache) |
-| `generation` | `property -> int` | Current generation number; incremented by `invalidate()` |
+
+#### CacheService Protocol methods not in Protocol
+
+`invalidate()` and `generation` are defined in `SemanticCache` but NOT part of the `CacheService` Protocol. Callers should use `SemanticCache` directly when needing cache invalidation.
 
 #### CacheEntry dataclass
 
@@ -457,7 +459,7 @@ All defined as `StrEnum` subclasses.
 | Field | Type | Description |
 |---|---|---|
 | `query` | `str` | Original query |
-| `hits` | `list[RankedHit]` | Ranked hits |
+| `hits` | `list[Any]` | Ranked hits (typed as `list[RankedHit]` after Phase 3-1) |
 | `context_str` | `str` | Context string |
 
 **PipelineExecutionResult** — Pipeline execution outcome.
