@@ -754,10 +754,10 @@ from rag.utils import (
 
 | Pattern | Regex | Description |
 |---|---|---|
-| Ignore instructions | `(?i)(ignore\s+(?:(?:all|previous)\s+)*instructions?)` | Catch "ignore all instructions", "ignore previous instructions" etc. |
+| Ignore instructions | `(?i)(ignore\s+(?:(?:all\|previous)\s+)*instructions?)` | Catch "ignore all instructions", "ignore previous instructions" etc. |
 | System prefix | `(?i)(system\s*:\s*)` | Catch "system:" prefix |
 | SYSTEM OVERRIDE | `(?i)\[SYSTEM\s*OVERRIDE\]` | Catch "[SYSTEM OVERRIDE]" |
-| Disregard instructions | `(?i)(disregard\s+(?:(?:all|prior|previous)\s+)*instructions?)` | Catch "disregard all instructions" etc. |
+| Disregard instructions | `(?i)(disregard\s+(?:(?:all\|prior\|previous)\s+)*instructions?)` | Catch "disregard all instructions" etc. |
 | New instructions | `(?i)(new\s+instructions?:)` | Catch "new instructions:" etc. |
 
 **Structured log keys (RAG lifecycle tracing):**
