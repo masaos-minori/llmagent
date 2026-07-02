@@ -14,14 +14,17 @@ import pytest
 from agent.factory import _ServerLifecycleRouter
 from agent.http_lifecycle import HttpStartupError, StartupFailure
 from agent.lifecycle import LifecycleState
+
 try:
     from agent.stdio_lifecycle import TransportHandle
 except ImportError:
+
     class _TransportHandleStub:
         def __init__(self, transport=None, state=None, last_error=None):
             self.transport = transport
             self.state = state
             self.last_error = last_error
+
     TransportHandle = _TransportHandleStub
 from shared.mcp_config import McpServerConfig
 
@@ -65,9 +68,7 @@ def _http_subprocess_cfg(
 
 
 def _stdio_persistent() -> McpServerConfig:
-    return McpServerConfig(
-        transport="stdio", url="", auth_token=""
-    )
+    return McpServerConfig(transport="stdio", url="", auth_token="")
 
 
 def _stdio_ondemand(cmd: list[str] | None = None) -> McpServerConfig:
@@ -135,7 +136,6 @@ class TestEnsureReady:
         await mgr.ensure_ready("nonexistent")
         ex.set_transport.assert_not_called()
 
-
     @pytest.mark.asyncio
     async def test_concurrent_ondemand_starts_only_once(self) -> None:
         pytest.skip("stdio_lifecycle module removed")
@@ -165,6 +165,7 @@ class TestShutdownIdle:
     @pytest.mark.asyncio
     async def test_tolerates_stop_error(self) -> None:
         pytest.skip("stdio_lifecycle module removed")
+
 
 class _TestShutdownIdleOld:
     @pytest.mark.asyncio
@@ -309,9 +310,7 @@ class TestStartHttpSubprocess:
 
     @pytest.mark.asyncio
     async def test_raises_on_timeout(self) -> None:
-        cfg = _http_subprocess_cfg(
-            url=_TEST_HTTP_URL, timeout=0
-        )
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, timeout=0)
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex)
 
@@ -328,9 +327,7 @@ class TestStartHttpSubprocess:
 
     @pytest.mark.asyncio
     async def test_zero_timeout_skips_health_polls(self) -> None:
-        cfg = _http_subprocess_cfg(
-            url=_TEST_HTTP_URL, timeout=0
-        )
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, timeout=0)
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex)
 
@@ -349,9 +346,7 @@ class TestStartHttpSubprocess:
 
     @pytest.mark.asyncio
     async def test_health_poll_retries_before_success(self) -> None:
-        cfg = _http_subprocess_cfg(
-            url=_TEST_HTTP_URL, timeout=5
-        )
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, timeout=5)
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex)
 
@@ -375,9 +370,7 @@ class TestStartHttpSubprocess:
 
     @pytest.mark.asyncio
     async def test_timeout_boundary_fires_after_controlled_time(self) -> None:
-        cfg = _http_subprocess_cfg(
-            url=_TEST_HTTP_URL, timeout=1
-        )
+        cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL, timeout=1)
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex)
 
@@ -428,7 +421,6 @@ class TestStartHttpSubprocess:
         assert call_kwargs["env"] is not None
         assert call_kwargs["env"].get("MY_VAR") == "val"
 
-
     @pytest.mark.asyncio
     async def test_starts_process_and_polls_health(self) -> None:
         pytest.skip("source code cfg.cmd removed; skip until source fix")
@@ -456,7 +448,6 @@ class TestStartHttpSubprocess:
     @pytest.mark.asyncio
     async def test_merges_env_vars(self) -> None:
         pytest.skip("source code cfg.cmd removed; skip until source fix")
-
 
     @pytest.mark.asyncio
     async def test_health_poll_exception_is_logged_not_raised(self) -> None:
@@ -600,9 +591,7 @@ class TestLifecycleState:
         assert mgr.get_transport_state("nonexistent") == LifecycleState.UNKNOWN
 
     def test_get_transport_state_http_server_returns_unknown(self) -> None:
-        cfg = McpServerConfig(
-            transport="http", url=_TEST_HTTP_URL, auth_token="svc"
-        )
+        cfg = McpServerConfig(transport="http", url=_TEST_HTTP_URL, auth_token="svc")
         mgr = _ServerLifecycleRouter({"svc": cfg}, _mock_tool_executor())
         assert mgr.get_transport_state("svc") == LifecycleState.UNKNOWN
 

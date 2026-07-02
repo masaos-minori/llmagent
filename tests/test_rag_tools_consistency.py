@@ -59,6 +59,12 @@ class TestRagToolsInRegistry:
         from shared.tool_constants import READ_TOOLS, WRITE_TOOLS, DELETE_TOOLS
 
         for tool_name in RAG_TOOLS:
-            assert tool_name not in READ_TOOLS, f"{tool_name!r} should not be in READ_TOOLS"
-            assert tool_name not in WRITE_TOOLS, f"{tool_name!r} should not be in WRITE_TOOLS"
-            assert tool_name not in DELETE_TOOLS, f"{tool_name!r} should not be in DELETE_TOOLS"
+            assert tool_name not in READ_TOOLS, (
+                f"{tool_name!r} should not be in READ_TOOLS"
+            )
+            assert tool_name not in WRITE_TOOLS, (
+                f"{tool_name!r} should not be in WRITE_TOOLS"
+            )
+            assert tool_name not in DELETE_TOOLS, (
+                f"{tool_name!r} should not be in DELETE_TOOLS"
+            )

@@ -66,9 +66,7 @@ class ETagManager:
         )
         self._db.commit()
 
-    def _update_null_fill(
-        self, etag: str | None, last_modified: str | None
-    ) -> None:
+    def _update_null_fill(self, etag: str | None, last_modified: str | None) -> None:
         """Fill NULL only; never overwrite existing values."""
         self._db.execute(
             "UPDATE documents SET etag = COALESCE(etag, ?), last_modified = COALESCE(last_modified, ?)"

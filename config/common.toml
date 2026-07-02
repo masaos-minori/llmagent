@@ -49,3 +49,6 @@ workflow_mode = "required"
 
 # workflow_require_approval: when True, WorkflowEngine requires /approve before verify stage runs
 # Disabled by default; enable in production after testing the approval flow.
+
+# eventbus_db_path: absolute path of the event bus SQLite database file
+eventbus_db_path = "/opt/llm/db/eventbus.sqlite"

@@ -38,9 +38,7 @@ class TestGitHubToolListConsistency:
         for tool in TOOL_LIST:
             tool_name = tool["name"]
             key = registry.get_server_for_tool(tool_name)
-            assert key == "github", (
-                f"Expected {tool_name!r} -> 'github', got {key!r}"
-            )
+            assert key == "github", f"Expected {tool_name!r} -> 'github', got {key!r}"
 
     def test_github_tools_match_tool_list_names(self) -> None:
         """ToolRegistry GitHub tools match TOOL_LIST names exactly."""
@@ -62,9 +60,7 @@ class TestGitHubToolListConsistency:
         from mcp.github.tools import TOOL_LIST
 
         for tool in TOOL_LIST:
-            assert "name" in tool, (
-                f"TOOL_LIST entry missing 'name': {tool}"
-            )
+            assert "name" in tool, f"TOOL_LIST entry missing 'name': {tool}"
 
     def test_tool_list_no_duplicated_names(self) -> None:
         """TOOL_LIST has no duplicate tool names."""

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """db/helper.py
-SQLite connection manager for RAG and session databases.
+SQLite connection manager for RAG, session, workflow, and eventbus databases.
 
 Provides open/close lifecycle with optional sqlite-vec extension and WAL setup.
 target="rag" (default) loads vec extension by default.
-target="session" skips vec extension by default.
+target="session", "workflow", "eventbus" skip vec extension by default.
 Config is resolved at construction time; failure raises RuntimeError immediately.
 """
 
@@ -29,6 +29,7 @@ class DbTarget(StrEnum):
     RAG = "rag"
     SESSION = "session"
     WORKFLOW = "workflow"
+    EVENTBUS = "eventbus"
 
 
 class SQLiteHelper:
@@ -39,13 +40,13 @@ class SQLiteHelper:
     )
 
     def __init__(self, target: DbTarget | str = "rag") -> None:
-        """Accepts DbTarget enum members or string literals ('rag', 'session', 'workflow')."""
+        """Accepts DbTarget enum members or string literals ('rag', 'session', 'workflow', 'eventbus')."""
         if isinstance(target, DbTarget):
             resolved = target.value
         else:
-            if target not in ("rag", "session", "workflow"):
+            if target not in ("rag", "session", "workflow", "eventbus"):
                 raise ValueError(
-                    f"target must be 'rag', 'session', or 'workflow', got: {target!r}"
+                    f"target must be 'rag', 'session', 'workflow', or 'eventbus', got: {target!r}"
                 )
             resolved = target
         self._target = resolved
@@ -62,8 +63,10 @@ class SQLiteHelper:
             self._db_path = db_cfg.rag_db_path
         elif resolved == "session":
             self._db_path = db_cfg.session_db_path
-        else:
+        elif resolved == "workflow":
             self._db_path = db_cfg.workflow_db_path
+        else:
+            self._db_path = db_cfg.eventbus_db_path
         self._vec_so = db_cfg.sqlite_vec_so
         self._sqlite_timeout = db_cfg.sqlite_timeout
         self._busy_timeout_ms = db_cfg.sqlite_busy_timeout_ms

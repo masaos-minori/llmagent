@@ -368,7 +368,7 @@ class TestRunDebugPipeline:
         pipeline.augment = fake_augment
         pipeline.last_fetch_result = TwoStageFetchResult(
             hits=[hit_reranked], min_score_applied=0.0, max_chunks_per_doc=0
-    )
+        )
         pipeline.last_timings = {"mqe": 0.1, "search": 0.2}
 
         svc = _make_service_with_pipeline(pipeline)
@@ -415,6 +415,7 @@ class TestRunDebugPipeline:
         assert isinstance(result.reranked_hits[0], dict)
         assert result.reranked_hits[0]["chunk_id"] == 11
         assert result.reranked_hits[0]["rerank_score"] == 9.2
+
 
 # ── pipeline_or_raise ─────────────────────────────────────────────────────────
 

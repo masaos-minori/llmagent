@@ -19,16 +19,28 @@ def _parse_mcp_server_tool_names(content: str, server_name: str) -> set[str]:
         elif in_section and "tool_names" in line:
             in_tool_names = True
             # Extract tools from this line (may be single-line or multi-line)
-            tools_in_line = [t.strip().strip('"').strip("'") for t in line.split('"') if t.strip() and not t.strip().startswith('"')]
+            tools_in_line = [
+                t.strip().strip('"').strip("'")
+                for t in line.split('"')
+                if t.strip() and not t.strip().startswith('"')
+            ]
             config_tools.extend(tools_in_line)
         elif in_tool_names:
             if "]" in line:
                 # Extract remaining tools from this closing bracket line
-                tools_in_line = [t.strip().strip('"').strip("'") for t in line.split('"') if t.strip() and not t.strip().startswith('"')]
+                tools_in_line = [
+                    t.strip().strip('"').strip("'")
+                    for t in line.split('"')
+                    if t.strip() and not t.strip().startswith('"')
+                ]
                 config_tools.extend(tools_in_line)
                 break
             else:
-                tools_in_line = [t.strip().strip('"').strip("'") for t in line.split('"') if t.strip() and not t.strip().startswith('"')]
+                tools_in_line = [
+                    t.strip().strip('"').strip("'")
+                    for t in line.split('"')
+                    if t.strip() and not t.strip().startswith('"')
+                ]
                 config_tools.extend(tools_in_line)
 
     # Filter out false positives (e.g., 'tool_names' itself parsed as a tool name)
@@ -45,7 +57,9 @@ class TestGitHubConfigConsistency:
 
         registry = get_registry()
         github_tools = registry.get_tool_names("github")
-        assert len(github_tools) == 21, f"Expected 21 GitHub tools in registry, got {len(github_tools)}"
+        assert len(github_tools) == 21, (
+            f"Expected 21 GitHub tools in registry, got {len(github_tools)}"
+        )
 
         with open("config/tools_definitions.toml", encoding="utf-8") as f:
             content = f.read()
@@ -53,11 +67,13 @@ class TestGitHubConfigConsistency:
         defined_names = [
             line.split('"')[1]
             for line in content.splitlines()
-            if '"github_' in line and 'name' in line
+            if '"github_' in line and "name" in line
         ]
 
         missing = set(github_tools) - set(defined_names)
-        assert not missing, f"GitHub tools missing from tools_definitions.toml: {sorted(missing)}"
+        assert not missing, (
+            f"GitHub tools missing from tools_definitions.toml: {sorted(missing)}"
+        )
 
     def test_github_mcp_server_exists(self) -> None:
         """[mcp_servers.github] exists in config/mcp_servers.toml."""

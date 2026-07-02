@@ -285,6 +285,3 @@ class TestHttpTransportRetry:
         assert sleep_calls[0] == 4
         assert sleep_calls[1] == 2
         assert sleep_calls[2] == 1
-
-
-

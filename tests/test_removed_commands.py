@@ -15,7 +15,9 @@ class TestRemovedDbAliases:
         from agent.commands.cmd_db import _DbMixin
 
         mixin = _DbMixin()
-        mixin._ctx = type("Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()})()
+        mixin._ctx = type(
+            "Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()}
+        )()
         mixin._out = type("Out", (), {"write_validation_error": lambda msg: None})()
 
         # Should write a validation error, not execute any subcommand
@@ -29,7 +31,9 @@ class TestRemovedDbAliases:
         from agent.commands.cmd_db import _DbMixin
 
         mixin = _DbMixin()
-        mixin._ctx = type("Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()})()
+        mixin._ctx = type(
+            "Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()}
+        )()
         mixin._out = type("Out", (), {"write_validation_error": lambda msg: None})()
 
         try:
@@ -42,7 +46,9 @@ class TestRemovedDbAliases:
         from agent.commands.cmd_db import _DbMixin
 
         mixin = _DbMixin()
-        mixin._ctx = type("Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()})()
+        mixin._ctx = type(
+            "Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()}
+        )()
         mixin._out = type("Out", (), {"write_validation_error": lambda msg: None})()
 
         try:
@@ -55,7 +61,9 @@ class TestRemovedDbAliases:
         from agent.commands.cmd_db import _DbMixin
 
         mixin = _DbMixin()
-        mixin._ctx = type("Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()})()
+        mixin._ctx = type(
+            "Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()}
+        )()
         mixin._out = type("Out", (), {"write_validation_error": lambda msg: None})()
 
         try:

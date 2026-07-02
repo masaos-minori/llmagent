@@ -104,7 +104,16 @@ class TestMcpAuditLogFormat:
             outcome="ok",
             detail="created",
         )
-        for field in ("event", "source", "ts", "session", "request", "tool", "target", "outcome"):
+        for field in (
+            "event",
+            "source",
+            "ts",
+            "session",
+            "request",
+            "tool",
+            "target",
+            "outcome",
+        ):
             assert field in parsed
 
     def test_no_key_value_format_in_mcp_log(self) -> None:

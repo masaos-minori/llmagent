@@ -42,10 +42,21 @@ COMPAT_PATTERNS = {
     "/db urls alias": r"/db\s+urls\b(?!.*rag|session)",
     "/db clean alias": r"/db\s+clean\b(?!.*rag|session)",
     "/db rebuild-fts alias": r"/db\s+rebuild-fts\b(?!.*rag|session)",
-"/db recover alias": r"/db\s+recover\b(?!.*rag|session)",
+    "/db recover alias": r"/db\s+recover\b(?!.*rag|session)",
     "auto_inject_notes": r"auto_inject_notes",
     "notes table": r"notes[ _]table",
     "_MCP_TOOLS": r"_MCP_TOOLS",
+    # Shared/DB schema cleanup — stale references after plan 54 (workflow_schema.py removal)
+    "db.workflow_schema import": r"from\s+db\.workflow_schema\s+import",
+    "import db.workflow_schema": r"import\s+db\.workflow_schema\b",
+    "python -m db.workflow_schema": r"python\s+-m\s+db\.workflow_schema",
+    "workflow_schema.py reference": r"db/workflow_schema\.py",
+    "07_ref-sqlite.md reference": r"07_ref-sqlite\.md",
+    "07_spec_db.md reference": r"07_spec_db\.md",
+    # Shared/DB schema cleanup — stale issue IDs after plan 58 (DOCMISS-01, UNDOC-03, TYPE-01 removed)
+    "stale issue ID": r"(?:DOCMISS-01|UNDOC-03|TYPE-01|UNIMPL-01)",
+    # Shared/DB schema cleanup — stale eventbus direct SQL load after plan 55 (init_db unified)
+    "eventbus schema.sql direct load": r"\.read\s+eventbus/schema\.sql",
 }
 
 # Allowlist: files that are permitted to contain these patterns (archive/migration notes only)
@@ -73,11 +84,18 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "docs" / "04_mcp_00_document-guide.md",
     ROOT_DIR / "docs" / "05_agent_07_cli-and-commands.md",
     ROOT_DIR / "docs" / "05_agent_90_inconsistencies_and_known_issues.md",
+    # Doc documenting verification task for deleted commands
+    ROOT_DIR / "docs" / "05_agent_00_document-guide.md",
     # Doc describing removed static fallback routing
     ROOT_DIR / "docs" / "90_shared_02_types_and_protocols.md",
     # Doc still mentioning static fallback in architecture description
     ROOT_DIR / "docs" / "05_agent_02_runtime-architecture.md",
+    # Docs documenting deleted source files (07_ref-sqlite.md, 07_spec_db.md) and stale issue IDs (DESIGN-01/02)
+    ROOT_DIR / "docs" / "90_shared_00_document-guide.md",
+    # Doc documenting deleted workflow_schema.py entry point
+    ROOT_DIR / "docs" / "90_shared_04_db_architecture_and_schema.md",
 }
+
 
 def is_allowlisted(filepath: Path, allowlist: set[Path]) -> bool:
     """Check if the file is in the allowlist."""

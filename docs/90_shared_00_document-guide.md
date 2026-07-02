@@ -64,9 +64,9 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 | Issue | Location |
 |---|---|
 | `90_shared.md` references non-existent `06_ref-sqlite.md` | [90_shared_90 DOCREF-01](90_shared_90_inconsistencies_and_known_issues.md) |
-| `McpServerConfig.transport` not typed as `Literal` | [90_shared_90 TYPE-01](90_shared_90_inconsistencies_and_known_issues.md) |
-| `ArtifactEvent` has no event bus | [90_shared_90 UNIMPL-01](90_shared_90_inconsistencies_and_known_issues.md) |
-| `workflow.sqlite` absent from `07_spec_db.md` | [90_shared_90 DOCMISS-01](90_shared_90_inconsistencies_and_known_issues.md) |
+| `McpServerConfig.transport` not typed as `Literal` | Resolved — documented in [90_shared_03](90_shared_03_runtime_and_execution.md) |
+| `ArtifactEvent` has no event bus | Out of scope — data definition only, no runtime integration planned |
+| `workflow.sqlite` absent from `07_spec_db.md` | Resolved — documented in [90_shared_04](90_shared_04_db_architecture_and_schema.md) |
 | `LLMMessage` field count discrepancy (5 vs 7) | [90_shared_90 DOCFIELD-01](90_shared_90_inconsistencies_and_known_issues.md) |
 
 ---
@@ -74,8 +74,7 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 ## Canonical Source Rules
 
 - `06_spec_shared.md` is canonical for `shared/` layer behavior; content now in `90_shared_02` / `90_shared_03`
-- `07_ref-sqlite.md` is canonical for `SQLiteHelper` and `db/store.py` API details; content now in `90_shared_05`
-- `07_spec_db.md` is canonical for DB schemas and `DbConfig`; content now in `90_shared_04`
+- `07_ref-sqlite.md` and `07_spec_db.md` are deleted — their content is in `90_shared_04` and `90_shared_05`
 - `90_shared.md` was an index; its type definitions are superseded by `06_spec_shared.md`
 - When source files disagree, trust the new restructured files (see `90_shared_90` for all discrepancies)
 
@@ -90,7 +89,7 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 | [90_shared_03_runtime_and_execution.md](90_shared_03_runtime_and_execution.md) | ConfigLoader, Logger, plugin_registry, token_counter, OTel, git_helper, formatters, ToolExecutor flow, McpServerConfig |
 | [90_shared_04_db_architecture_and_schema.md](90_shared_04_db_architecture_and_schema.md) | DB file structure, DbConfig, all table schemas (rag/session/workflow), FTS5/vec, schema init |
 | [90_shared_05_db_api_and_operations.md](90_shared_05_db_api_and_operations.md) | SQLiteHelper full API, store protocols, SQLite implementations, ToolResultStore, memory ops, maintenance, corruption recovery |
-| [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) | 16 cataloged issues: DOCREF-01, CONFIG-01/02/03, TYPE-01, GLOBAL-01, PLUGIN-01, EXCEPT-01, UNDOC-04, UNIMPL-01, IMPORT-01, API-01, DESIGN-01/02, DOCFIELD-01, DOCMISS-01 |
+| [90_shared_90_inconsistencies_and_known_issues.md](90_shared_90_inconsistencies_and_known_issues.md) | 13 cataloged issues: DOCREF-01, CONFIG-01/02/03, GLOBAL-01, PLUGIN-01, EXCEPT-01, UNDOC-04, IMPORT-01, API-01, DESIGN-01/02, DOCFIELD-01 |
 
 ---
 
@@ -101,5 +100,5 @@ protocols, and maintenance). They replace the 4 source files as the primary refe
 3. **`ArtifactEvent` is data only.** No event bus exists.
 4. **`LLMMessage` has 7 fields** including `importance` and `pinned` (not 5 as in the old `90_shared.md`).
 5. **DB triggers auto-sync `chunks_fts`.** Do not manually INSERT into `chunks_fts`.
-6. **`SQLiteHelper("workflow")` is valid** despite being absent from `07_spec_db.md`.
+6. **`SQLiteHelper("workflow")` is valid** — workflow.sqlite is documented in [90_shared_04](90_shared_04_db_architecture_and_schema.md).
 7. **For `LLMClient` details**, see `05_agent_05_llm-and-streaming.md` — not covered here.

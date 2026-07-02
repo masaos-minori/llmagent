@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """db/schema_sql.py
-SQL DDL templates for rag.sqlite and session.sqlite schema creation.
+SQL DDL templates for rag.sqlite, session.sqlite, workflow.sqlite, and eventbus.sqlite schema creation.
 
 Templates use DIMS placeholder that must be replaced with the actual embedding
 dimension count before execution (done by _build_rag_schema_sql /
@@ -10,6 +10,7 @@ Functions:
   build_rag_schema_sql(dims) — return DDL for rag.sqlite with given dimension
   build_session_schema_sql(dims) — return DDL for session.sqlite with given dimension
   build_workflow_schema_sql() — return DDL for workflow.sqlite (metadata DB)
+  build_eventbus_schema_sql() — return DDL for eventbus.sqlite (event bus message queue)
 """
 
 _RAG_SCHEMA_TEMPLATE: str = """
@@ -18,7 +19,7 @@ _RAG_SCHEMA_TEMPLATE: str = """
         url                TEXT    NOT NULL UNIQUE,
         title              TEXT,
         lang               TEXT    NOT NULL CHECK (lang IN ('ja', 'en')),
-        fetched_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+        fetched_at         TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         etag               TEXT,
         last_modified      TEXT,
         chunking_strategy  TEXT    NOT NULL DEFAULT 'text'
@@ -67,7 +68,7 @@ _RAG_SCHEMA_TEMPLATE: str = """
 _SESSION_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS sessions (
         session_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         title      TEXT
     );
     CREATE TABLE IF NOT EXISTS messages (
@@ -77,7 +78,7 @@ _SESSION_SCHEMA_TEMPLATE: str = """
         content     TEXT    NOT NULL,
         tool_calls  TEXT,
         tool_call_id TEXT,
-        created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+        created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
     );
     CREATE TABLE IF NOT EXISTS tool_results (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,8 +108,8 @@ _SESSION_SCHEMA_TEMPLATE: str = """
         tags        TEXT NOT NULL DEFAULT '[]',
         importance  REAL NOT NULL DEFAULT 0.5,
         pinned      INTEGER NOT NULL DEFAULT 0,
-        created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+        created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
     );
     CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
         memory_id UNINDEXED,
@@ -200,6 +201,37 @@ CREATE TABLE IF NOT EXISTS approvals (
     resolved_at TEXT
 );
 """
+
+_EVENTBUS_SCHEMA: str = """
+PRAGMA journal_mode=WAL;
+
+-- Timestamps use ISO-8601 UTC Z suffix format: 2026-07-02T10:00:00Z
+-- acked_at and dlq_at are nullable (unset until acknowledged/dead-lettered)
+
+CREATE TABLE IF NOT EXISTS events (
+    seq                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id               TEXT    NOT NULL UNIQUE,
+    topic                  TEXT    NOT NULL,
+    payload                TEXT    NOT NULL,
+    producer               TEXT    NOT NULL,
+    published_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    acked_at               TEXT,
+    retry_count            INTEGER NOT NULL DEFAULT 0, -- deprecated; use delivery_failure_count
+    delivery_failure_count INTEGER NOT NULL DEFAULT 0,
+    dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
+    dlq_at                 TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);
+CREATE INDEX IF NOT EXISTS idx_events_seq   ON events(seq);
+CREATE INDEX IF NOT EXISTS idx_events_dlq_at ON events(dlq_at);
+CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
+"""
+
+
+def build_eventbus_schema_sql() -> str:
+    """Return DDL for eventbus.sqlite (event bus message queue)."""
+    return _EVENTBUS_SCHEMA
 
 
 def build_workflow_schema_sql() -> str:

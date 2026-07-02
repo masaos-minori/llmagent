@@ -18,7 +18,7 @@ from agent.workflow.workflow_engine import (
     WorkflowTimeoutError,
 )
 from db.config import DbConfig
-from db.workflow_schema import init_schema
+from db.create_schema import create_workflow_schema
 
 
 def _make_cfg(db_path: str) -> DbConfig:
@@ -60,7 +60,7 @@ def workflow_db(tmp_path: Path) -> Path:
             workflow_db_path=str(db_path),
         ),
     ):
-        init_schema()
+        create_workflow_schema()
     return db_path
 
 

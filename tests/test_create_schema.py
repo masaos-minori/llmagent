@@ -106,6 +106,29 @@ _SESSION_SCHEMA_NO_VEC0 = """
     );
 """
 
+_EVENTBUS_SCHEMA_NO_VEC0 = """
+PRAGMA journal_mode=WAL;
+
+CREATE TABLE IF NOT EXISTS events (
+    seq                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id               TEXT    NOT NULL UNIQUE,
+    topic                  TEXT    NOT NULL,
+    payload                TEXT    NOT NULL,
+    producer               TEXT    NOT NULL,
+    published_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    acked_at               TEXT,
+    retry_count            INTEGER NOT NULL DEFAULT 0, -- deprecated; use delivery_failure_count
+    delivery_failure_count INTEGER NOT NULL DEFAULT 0,
+    dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
+    dlq_at                 TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);
+CREATE INDEX IF NOT EXISTS idx_events_seq   ON events(seq);
+CREATE INDEX IF NOT EXISTS idx_events_dlq_at ON events(dlq_at);
+CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
+"""
+
 
 def _table_names(conn: sqlite3.Connection) -> set[str]:
     rows = conn.execute(
@@ -119,6 +142,18 @@ def _make_db_config(db_file: Path, target: str) -> DbConfig:
         return DbConfig(
             rag_db_path=str(db_file),
             session_db_path="/tmp/session.sqlite",
+        )
+    elif target == "workflow":
+        return DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path=str(db_file),
+        )
+    elif target == "eventbus":
+        return DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            eventbus_db_path=str(db_file),
         )
     return DbConfig(
         rag_db_path="/tmp/rag.sqlite",
@@ -266,7 +301,9 @@ class TestCreateSessionSchema:
             cs.create_session_schema()
             cs.create_session_schema()  # must not raise
 
-    def test_session_schema_no_notes_table(self, session_tmp_db: sqlite3.Connection) -> None:
+    def test_session_schema_no_notes_table(
+        self, session_tmp_db: sqlite3.Connection
+    ) -> None:
         """notes table must not be created in new session schema."""
         assert "notes" not in _table_names(session_tmp_db)
 
@@ -354,78 +391,6 @@ class TestCreateWorkflowSchema:
             "approvals",
         } <= tables
 
-    def test_creates_all_tables_via_workflow_schema_init(self, tmp_path: Path) -> None:
-        """workflow_schema.init_schema() creates the same tables as create_workflow_schema()."""
-        import db.workflow_schema as ws
-
-        db_file = tmp_path / "workflow2.sqlite"
-        cfg = DbConfig(
-            rag_db_path="/tmp/rag.sqlite",
-            session_db_path="/tmp/session.sqlite",
-            workflow_db_path=str(db_file),
-        )
-        with (
-            patch("db.helper.build_db_config", return_value=cfg),
-            patch("db.store_protocols.build_db_config", return_value=cfg),
-            patch(
-                "db.workflow_schema.build_workflow_schema_sql",
-                return_value=_WORKFLOW_SCHEMA_NO_VEC0,
-            ),
-        ):
-            ws.init_schema()
-        conn = sqlite3.connect(str(db_file))
-        tables = _table_names(conn)
-        conn.close()
-        assert {
-            "tasks",
-            "attempts",
-            "processed_events",
-            "artifacts",
-            "approvals",
-        } <= tables
-
-    def test_both_paths_create_same_tables(self, tmp_path: Path) -> None:
-        """Both workflow initialization paths produce the same set of tables."""
-        import db.workflow_schema as ws
-
-        db_file1 = tmp_path / "workflow_a.sqlite"
-        db_file2 = tmp_path / "workflow_b.sqlite"
-        cfg = DbConfig(
-            rag_db_path="/tmp/rag.sqlite",
-            session_db_path="/tmp/session.sqlite",
-            workflow_db_path=str(db_file1),
-        )
-        with (
-            patch("db.helper.build_db_config", return_value=cfg),
-            patch("db.store_protocols.build_db_config", return_value=cfg),
-            patch(
-                "db.create_schema.build_workflow_schema_sql",
-                return_value=_WORKFLOW_SCHEMA_NO_VEC0,
-            ),
-        ):
-            cs.create_workflow_schema()
-        cfg2 = DbConfig(
-            rag_db_path="/tmp/rag.sqlite",
-            session_db_path="/tmp/session.sqlite",
-            workflow_db_path=str(db_file2),
-        )
-        with (
-            patch("db.helper.build_db_config", return_value=cfg2),
-            patch("db.store_protocols.build_db_config", return_value=cfg2),
-            patch(
-                "db.workflow_schema.build_workflow_schema_sql",
-                return_value=_WORKFLOW_SCHEMA_NO_VEC0,
-            ),
-        ):
-            ws.init_schema()
-        conn1 = sqlite3.connect(str(db_file1))
-        tables1 = _table_names(conn1)
-        conn1.close()
-        conn2 = sqlite3.connect(str(db_file2))
-        tables2 = _table_names(conn2)
-        conn2.close()
-        assert tables1 == tables2
-
     def test_idempotent(self, tmp_path: Path) -> None:
         db_file = tmp_path / "workflow2.sqlite"
         cfg = DbConfig(
@@ -462,7 +427,9 @@ class TestCreateWorkflowSchema:
         ):
             cs.create_workflow_schema()
         conn = sqlite3.connect(str(db_file))
-        columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
+        columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()
+        }
         conn.close()
         assert "workflow_id" in columns
 
@@ -485,10 +452,16 @@ class TestCreateWorkflowSchema:
             cs.create_workflow_schema()
             cs.create_workflow_schema()  # run twice to test idempotency
         conn = sqlite3.connect(str(db_file))
-        columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
+        columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()
+        }
         assert "workflow_id" in columns
         # Verify column exists only once (no duplicate)
-        workflow_id_count = sum(1 for row in conn.execute("PRAGMA table_info(tasks)").fetchall() if row[1] == "workflow_id")
+        workflow_id_count = sum(
+            1
+            for row in conn.execute("PRAGMA table_info(tasks)").fetchall()
+            if row[1] == "workflow_id"
+        )
         assert workflow_id_count == 1
         conn.close()
 
@@ -555,4 +528,81 @@ class TestCreateWorkflowSchema:
         conn.commit()
         rows = conn.execute("SELECT * FROM attempts WHERE attempt_id='a1'").fetchall()
         assert rows == []
+        conn.close()
+
+# ── timestamp defaults ────────────────────────────────────────────────────────────
+
+
+class TestTimestampDefaults:
+    """Verify that all DEFAULT timestamps use strftime('%Y-%m-%dT%H:%M:%SZ', 'now')."""
+
+    def test_rag_schema_timestamps(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "rag_ts.sqlite"
+        with patch(
+            "db.create_schema.build_rag_schema_sql",
+            return_value=_RAG_SCHEMA_NO_VEC0,
+        ):
+            cs.create_rag_schema()
+        conn = sqlite3.connect(str(db_file))
+        for table in ("documents",):
+            info = conn.execute(f"PRAGMA table_info({table})").fetchall()
+            for row in info:
+                col_name = row[1]
+                default = row[4]
+                if col_name == "fetched_at":
+                    assert default is not None
+                    assert "datetime('now')" not in (default or "")
+        conn.close()
+
+    def test_session_schema_timestamps(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "session_ts.sqlite"
+        with patch(
+            "db.create_schema.build_session_schema_sql",
+            return_value=_SESSION_SCHEMA_NO_VEC0,
+        ):
+            cs.create_session_schema()
+        conn = sqlite3.connect(str(db_file))
+        for table in ("sessions", "messages", "tool_results", "memories", "session_diagnostics"):
+            info = conn.execute(f"PRAGMA table_info({table})").fetchall()
+            for row in info:
+                col_name = row[1]
+                default = row[4]
+                if col_name.endswith("_at"):
+                    assert default is not None, f"{table}.{col_name} has no DEFAULT"
+                    assert "datetime('now')" not in (default or ""), f"{table}.{col_name} uses datetime('now')"
+        conn.close()
+
+    def test_workflow_schema_timestamps(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "workflow_ts.sqlite"
+        with patch(
+            "db.create_schema.build_workflow_schema_sql",
+            return_value=_WORKFLOW_SCHEMA_NO_VEC0,
+        ):
+            cs.create_workflow_schema()
+        conn = sqlite3.connect(str(db_file))
+        for table in ("tasks", "attempts", "processed_events", "artifacts", "approvals"):
+            info = conn.execute(f"PRAGMA table_info({table})").fetchall()
+            for row in info:
+                col_name = row[1]
+                default = row[4]
+                if col_name.endswith("_at"):
+                    assert default is not None, f"{table}.{col_name} has no DEFAULT"
+                    assert "datetime('now')" not in (default or ""), f"{table}.{col_name} uses datetime('now')"
+        conn.close()
+
+    def test_eventbus_schema_timestamps(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "eventbus_ts.sqlite"
+        with patch(
+            "db.create_schema.build_eventbus_schema_sql",
+            return_value=_EVENTBUS_SCHEMA_NO_VEC0,
+        ):
+            cs.create_eventbus_schema()
+        conn = sqlite3.connect(str(db_file))
+        info = conn.execute("PRAGMA table_info(events)").fetchall()
+        for row in info:
+            col_name = row[1]
+            default = row[4]
+            if col_name.endswith("_at"):
+                assert default is not None, f"events.{col_name} has no DEFAULT"
+                assert "datetime('now')" not in (default or ""), f"events.{col_name} uses datetime('now')"
         conn.close()

@@ -26,7 +26,9 @@ class ChunkJapaneseMixin:
     _min_chunk: int
     _chunk_overlap: int
     _ja_stop_pos: frozenset[str]
-    _sd_tkn: Any  # sudachipy Tokenizer instance — third-party type not available at runtime
+    _sd_tkn: (
+        Any  # sudachipy Tokenizer instance — third-party type not available at runtime
+    )
     _split_c: Any  # sudachipy Tokenizer.SplitMode.C — enum value, not a class
     _orig_buf: str
     _norm_buf: str

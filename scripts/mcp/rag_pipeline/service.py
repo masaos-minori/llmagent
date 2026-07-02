@@ -60,7 +60,7 @@ def _hit_to_dict(hit: RagHit | dict[str, Any]) -> dict[str, Any]:
 class RagPipelineMCPService:
     """HTTP-accessible wrapper around RagPipeline.
 
- Lifecycle: call start() in FastAPI lifespan before serving requests.
+    Lifecycle: call start() in FastAPI lifespan before serving requests.
     """
 
     def __init__(self) -> None:
@@ -112,12 +112,8 @@ class RagPipelineMCPService:
             reranked: list[RagHit],
         ) -> None:
             captured["queries"] = [q for q in queries]
-            captured["merged"] = [
-                _hit_to_dict(h) for h in merged
-            ]
-            captured["reranked"] = [
-                _hit_to_dict(h) for h in reranked
-            ]
+            captured["merged"] = [_hit_to_dict(h) for h in merged]
+            captured["reranked"] = [_hit_to_dict(h) for h in reranked]
 
         return _fn, cast(PipelineCapture, captured)
 
@@ -150,7 +146,7 @@ class RagPipelineMCPService:
             req.query,
             debug_fn=capture_fn,
             history_context=history_str,
-      )
+        )
         _fetch = pipeline.last_fetch_result
         selected_hits: list[dict[str, Any]] = (
             [_hit_to_dict(h) for h in _fetch.hits] if _fetch is not None else []

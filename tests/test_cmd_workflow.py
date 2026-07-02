@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 from db.config import DbConfig
-from db.workflow_schema import init_schema
+from db.create_schema import create_workflow_schema
 
 
 def _make_cfg(db_path: str) -> DbConfig:
@@ -26,7 +26,7 @@ def _make_cfg(db_path: str) -> DbConfig:
 def workflow_db(tmp_path: Path) -> str:
     db_path = str(tmp_path / "workflow.sqlite")
     with patch("db.helper.build_db_config", return_value=_make_cfg(db_path)):
-        init_schema()
+        create_workflow_schema()
     return db_path
 
 

@@ -247,9 +247,7 @@ def check_deleted_rag_refs(content: str, filename: str) -> list[str]:
         # Track section boundaries
         if stripped.startswith("##"):
             section_name = stripped.replace("#", "").strip().lower()
-            is_historical_section = any(
-                h in section_name for h in HISTORICAL_SECTIONS
-            )
+            is_historical_section = any(h in section_name for h in HISTORICAL_SECTIONS)
             in_active = not is_historical_section
             continue
 

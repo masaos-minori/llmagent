@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import sqlite3
 import threading
 import time
@@ -39,10 +40,17 @@ async def stdio_echo_server():
 @pytest.fixture
 def tmp_sqlite_db(tmp_path: Path) -> str:
     """Temp SQLite DB with workflow schema initialized."""
-    from db.workflow_schema import init_schema
+    from scripts.db.create_schema import create_workflow_schema
 
-    db_path = str(tmp_path / "test.sqlite")
-    init_schema(db_path)
+    # Create workflow schema in temp directory
+    old_cwd = os.getcwd()
+    os.chdir(str(tmp_path))
+    try:
+        create_workflow_schema()
+    finally:
+        os.chdir(old_cwd)
+
+    db_path = str(tmp_path / "workflow.sqlite")
     return db_path
 
 

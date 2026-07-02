@@ -56,5 +56,3 @@ class ToolResultView:
     summary: str | None
     args_masked: MaskedArgs
     is_error: bool
-
-

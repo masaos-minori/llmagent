@@ -327,7 +327,9 @@ def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
         )
 
     known_tools = (
-        get_registry().get_all_tool_names() if override_policy == "reject" else frozenset()
+        get_registry().get_all_tool_names()
+        if override_policy == "reject"
+        else frozenset()
     )
     mode_str = "strict" if ctx.cfg.tool.plugin_strict else "fail-open"
     audit_logger.info("Plugin loading mode: %s", mode_str)

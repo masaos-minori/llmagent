@@ -38,8 +38,6 @@ logger = logging.getLogger(__name__)
 _PLUGIN_RESULT_TUPLE_LENGTH = 2
 
 
-
-
 # ── Typed result DTOs ─────────────────────────────────────────────────────────
 
 

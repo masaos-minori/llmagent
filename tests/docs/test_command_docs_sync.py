@@ -33,7 +33,9 @@ class TestCommandDocsSync:
             if "removed" in line.lower() and ("### /" in line or "## /" in line):
                 continue
             # Match command references like /mcp, /db, /debug, etc.
-            matches = re.findall(r"/(?:mcp|db|debug|audit|memory|mdq|rag|plugin)\b", line)
+            matches = re.findall(
+                r"/(?:mcp|db|debug|audit|memory|mdq|rag|plugin)\b", line
+            )
             for m in matches:
                 found.append(m)
 

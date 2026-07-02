@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """create_schema.py
-Initialize SQLite schemas for rag.sqlite (RAG pipeline) and session.sqlite (sessions/memory).
+現行スキーマを作成し、限定的な互換性修復（_migrate_*）を適用する。破壊的マイグレーションは行わない。
 
-Creates the latest schema only. No migration logic.
-Existing tables are protected by IF NOT EXISTS for idempotent re-runs.
+既存テーブルはIF NOT EXISTSで保護され、冪等再実行が可能。
 
-SQL templates are in db/schema_sql.py.
+SQLテンプレートはdb/schema_sql.pyに定義。
 
 Functions:
   create_rag_schema()        — rag.sqlite: documents, chunks, chunks_vec, chunks_fts, triggers
   create_session_schema()    — session.sqlite: sessions, messages, tool_results, memory
   create_workflow_schema()   — workflow.sqlite: tasks, attempts, processed_events, artifacts, approvals
-  create_schema()            — convenience wrapper calling all three
+  create_eventbus_schema()   — eventbus.sqlite: events
+  create_schema()            — convenience wrapper calling all four
 """
 
 import logging
@@ -20,6 +20,7 @@ import sys
 
 from db.helper import SQLiteHelper
 from db.schema_sql import (
+    build_eventbus_schema_sql,
     build_rag_schema_sql,
     build_session_schema_sql,
     build_workflow_schema_sql,
@@ -30,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 def _migrate_rag_schema(conn: sqlite3.Connection) -> None:
-    """Add missing chunk columns idempotently."""
+    """chunk_type/source_fileカラムを冪等追加するスキーマ互換修復。既存テーブルに再構築不要な変更のみ行う。"""
     existing = {row[1] for row in conn.execute("PRAGMA table_info(chunks)").fetchall()}
     if "chunk_type" not in existing:
         conn.execute("ALTER TABLE chunks ADD COLUMN chunk_type TEXT")
@@ -39,7 +40,7 @@ def _migrate_rag_schema(conn: sqlite3.Connection) -> None:
 
 
 def _migrate_add_undone_column(conn: sqlite3.Connection) -> None:
-    """Add undone column to tool_results if not already present."""
+    """tool_results.undoneカラムを冪等追加する互換修復。"""
     existing = {
         row[1] for row in conn.execute("PRAGMA table_info(tool_results)").fetchall()
     }
@@ -51,7 +52,7 @@ def _migrate_add_undone_column(conn: sqlite3.Connection) -> None:
 
 
 def _migrate_session_schema(conn: sqlite3.Connection) -> None:
-    """Add FK constraint to tool_results.session_id if not already present."""
+    """tool_results.session_idにFK制約を追加する互換修復。既存テーブルを再構築するADD COLUMN不可能な変更のみ行う。コミット済み。"""
     fk_info = conn.execute("PRAGMA foreign_key_list(tool_results)").fetchall()
     if fk_info:
         return
@@ -108,7 +109,7 @@ def create_session_schema() -> None:
 
 
 def _migrate_workflow_schema(conn: sqlite3.Connection) -> None:
-    """Add missing workflow columns idempotently."""
+    """tasks.workflow_idカラムを冪等追加する互換修復。"""
     existing = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
     if "workflow_id" not in existing:
         conn.execute("ALTER TABLE tasks ADD COLUMN workflow_id TEXT")
@@ -126,11 +127,23 @@ def create_workflow_schema() -> None:
     logger.info("Workflow schema created successfully.")
 
 
+def create_eventbus_schema() -> None:
+    """Create eventbus.sqlite tables (events)."""
+    with SQLiteHelper("eventbus").open(write_mode=True) as db:
+        try:
+            db.executescript(build_eventbus_schema_sql())
+        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
+            logger.error("Failed to execute Event Bus schema DDL: %s", e)
+            raise
+    logger.info("Event Bus schema created successfully.")
+
+
 def create_schema() -> None:
-    """Create schemas for rag.sqlite, session.sqlite, and workflow.sqlite."""
+    """Create schemas for rag.sqlite, session.sqlite, workflow.sqlite, and eventbus.sqlite."""
     create_rag_schema()
     create_session_schema()
     create_workflow_schema()
+    create_eventbus_schema()
     logger.info("All schemas created successfully.")
 
 

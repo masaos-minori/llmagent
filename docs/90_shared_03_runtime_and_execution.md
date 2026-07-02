@@ -338,7 +338,7 @@ Both defined in `shared/mcp_config.py`. Full field reference in
 - `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE`
 - `McpServerHealthRegistry`: tracks consecutive failures; `UNAVAILABLE` blocks dispatch
 
-> **Note:** `McpServerConfig.transport` uses `TransportType` enum (not plain `str`). See [90_shared_90 TYPE-01](90_shared_90_inconsistencies_and_known_issues.md).
+> **Note:** `McpServerConfig.transport` uses `TransportType` enum (not plain `str`).
 
 ---
 

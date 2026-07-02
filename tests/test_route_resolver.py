@@ -15,7 +15,9 @@ def _http(key: str, url: str = "http://127.0.0.1:8000") -> McpServerConfig:
 
 
 def _stdio(key: str, tool_names: list[str] | None = None) -> McpServerConfig:
-    cfg = McpServerConfig("stdio", "", ["python", "s.py"], startup_mode=StartupMode.PERSISTENT)
+    cfg = McpServerConfig(
+        "stdio", "", ["python", "s.py"], startup_mode=StartupMode.PERSISTENT
+    )
     if tool_names:
         cfg.tool_names = tool_names
     return cfg

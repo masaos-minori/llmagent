@@ -229,23 +229,23 @@ def _emit_tool_result(text: str, name: str) -> None:
 
 
 def _apply_turn_char_limit(
-     llm_text: str,
-     turn_chars: int,
-     limit: int,
-     result_id: int,
- ) -> str:
-     """Apply per-turn char limit; return hint if exceeded."""
-     if limit > 0 and (turn_chars + len(llm_text)) > limit:
-         id_hint = f" (id={result_id})"
-         logger.info(
-             "Per-turn tool result limit reached: %s chars > %s;"
-             " result replaced with hint (id=%s)",
-             turn_chars + len(llm_text),
-             limit,
-             result_id,
-         )
-         return TURN_LIMIT_HINT.replace("]", f"{id_hint}]")
-     return llm_text
+    llm_text: str,
+    turn_chars: int,
+    limit: int,
+    result_id: int,
+) -> str:
+    """Apply per-turn char limit; return hint if exceeded."""
+    if limit > 0 and (turn_chars + len(llm_text)) > limit:
+        id_hint = f" (id={result_id})"
+        logger.info(
+            "Per-turn tool result limit reached: %s chars > %s;"
+            " result replaced with hint (id=%s)",
+            turn_chars + len(llm_text),
+            limit,
+            result_id,
+        )
+        return TURN_LIMIT_HINT.replace("]", f"{id_hint}]")
+    return llm_text
 
 
 async def _execute_with_dag(

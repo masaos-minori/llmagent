@@ -52,8 +52,6 @@ class TestMcpServerConfigValidation:
                 healthcheck_mode="unknown",
             )
 
-   
-
     def test_tool_names_default_empty(self) -> None:
         cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
         assert cfg.tool_names == []
@@ -62,21 +60,21 @@ class TestMcpServerConfigValidation:
         cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
         assert cfg.startup_timeout_sec == 30
 
-    
-
     def test_subprocess_http_simple(self) -> None:
         """subprocess startup_mode with HTTP transport should be valid."""
         cfg = McpServerConfig(
-            TransportType.HTTP, "http://127.0.0.1:8000", startup_mode=StartupMode.SUBPROCESS
+            TransportType.HTTP,
+            "http://127.0.0.1:8000",
+            startup_mode=StartupMode.SUBPROCESS,
         )
         assert cfg.startup_mode == StartupMode.SUBPROCESS
-
-    
 
     def test_persistent_http_valid(self) -> None:
         """persistent startup_mode with HTTP transport should be valid (regression guard)."""
         cfg = McpServerConfig(
-            TransportType.HTTP, "http://127.0.0.1:8000", startup_mode=StartupMode.PERSISTENT
+            TransportType.HTTP,
+            "http://127.0.0.1:8000",
+            startup_mode=StartupMode.PERSISTENT,
         )
         assert cfg.startup_mode == StartupMode.PERSISTENT
 
@@ -88,12 +86,16 @@ class TestMcpServerConfigValidation:
     def test_direct_runtime_invalid_startup_mode_raises(self) -> None:
         """Direct runtime construction with invalid startup_mode must fail."""
         with pytest.raises(ValueError, match="not a valid StartupMode"):
-            McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000", startup_mode="always")
+            McpServerConfig(
+                TransportType.HTTP, "http://127.0.0.1:8000", startup_mode="always"
+            )
 
     def test_direct_runtime_invalid_healthcheck_mode_raises(self) -> None:
         """Direct runtime construction with invalid healthcheck_mode must fail."""
         with pytest.raises(ValueError, match="not a valid HealthcheckMode"):
-            McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000", healthcheck_mode="unknown")
+            McpServerConfig(
+                TransportType.HTTP, "http://127.0.0.1:8000", healthcheck_mode="unknown"
+            )
 
 
 class TestBuildMcpServers:
@@ -120,8 +122,6 @@ class TestBuildMcpServers:
         result = _build_mcp_servers(cfg)
         assert "my_server" in result
         assert result["my_server"].url == "http://127.0.0.1:9999"
-
-    
 
     def test_toml_string_values_default_when_absent(self) -> None:
         """_build_mcp_servers must apply defaults for missing TOML string values."""

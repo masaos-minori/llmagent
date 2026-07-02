@@ -10,7 +10,6 @@ set -euo pipefail
 
 DEPLOY_SCRIPTS="/opt/llm/scripts"
 DEPLOY_DB="/opt/llm/db"
-EVENTBUS_SCHEMA="${DEPLOY_SCRIPTS}/eventbus/schema.sql"
 
 echo "=== init_db.sh: DB 初期化開始 ==="
 
@@ -21,18 +20,11 @@ if [ ! -f "${DEPLOY_SCRIPTS}/db/create_schema.py" ]; then
     exit 1
 fi
 
-# ── Event Bus schema.sql 確認 ─────────────────────────────────────────────────
-if [ ! -f "${EVENTBUS_SCHEMA}" ]; then
-    echo "エラー: eventbus/schema.sql が見つかりません: ${EVENTBUS_SCHEMA}"
-    echo "先に deploy/deploy.sh を実行してください"
-    exit 1
-fi
-
 # ── ディレクトリ作成 ──────────────────────────────────────────────────────────
 mkdir -p "${DEPLOY_DB}"
 
-# ── スキーマ初期化 ────────────────────────────────────────────────────────────
-echo "--- スキーマ初期化（rag + session + workflow）---"
+# ── スキーマ初期化（rag + session + workflow + eventbus）──────────────────────
+echo "--- スキーマ初期化（rag + session + workflow + eventbus）---"
 (cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" uv run python "${DEPLOY_SCRIPTS}/db/create_schema.py")
 
 # ── テーブル確認 ──────────────────────────────────────────────────────────────
@@ -46,16 +38,8 @@ sqlite3 "${DEPLOY_DB}/session.sqlite" ".tables"
 sqlite3 "${DEPLOY_DB}/workflow.sqlite" ".tables"
 # expected: artifacts  attempts  approvals  processed_events  tasks
 
-echo "--- Event Bus DB 初期化 ---"
-EVENTBUS_DB="/opt/llm/db/eventbus.sqlite"
-
-if [ ! -f "${EVENTBUS_DB}" ]; then
-    echo "  eventbus.sqlite 作成: ${EVENTBUS_DB}"
-    sqlite3 "${EVENTBUS_DB}" ".read ${EVENTBUS_SCHEMA}"
-    echo "  完了"
-else
-    echo "  eventbus.sqlite 既存のためスキップ（既存 DB は _migrate() でマイグレーション済み）"
-fi
+sqlite3 "${DEPLOY_DB}/eventbus.sqlite" ".tables"
+# expected: events
 
 echo "=== init_db.sh: 完了 ==="
 echo ""

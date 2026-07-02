@@ -157,7 +157,6 @@ class ArtifactEvent(TypedDict, total=False):
 ```
 
 > **Note:** `ArtifactEvent` is a data definition only. No event bus is implemented.
-> See [90_shared_90 UNIMPL-01](90_shared_90_inconsistencies_and_known_issues.md).
 
 ### Future event envelope (aspirational — not implemented)
 

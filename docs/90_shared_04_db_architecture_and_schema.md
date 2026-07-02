@@ -22,16 +22,17 @@ db/
 ├── store.py           Re-export stub — public API surface for db.store imports
 ├── maintenance.py     WAL checkpoint, VACUUM, purge, rotate, recover
 ├── tool_results.py    ToolResultStore — full tool result storage
-└── workflow_schema.py workflow.sqlite DDL initialization
+└── create_schema.py DDL creation (rag + session + workflow + eventbus schemas; idempotent)
 ```
 
-Three DB files:
+Four DB files:
 
 | DB | Default path | Tables |
 |---|---|---|
 | `rag.sqlite` | `common.toml::rag_db_path` | `documents`, `chunks`, `chunks_fts`, `chunks_vec` |
 | `session.sqlite` | `common.toml::session_db_path` | `sessions`, `messages`, `tool_results`, `memories`, `memories_fts`, `memories_vec`, `memory_links`, `session_diagnostics` |
 | `workflow.sqlite` | `common.toml::workflow_db_path` | `tasks`, `attempts`, `processed_events`, `artifacts`, `approvals` |
+| `eventbus.sqlite` | `common.toml::eventbus_db_path` | `events` |
 
 **Why separate DB files?** RAG indexing and conversation state have different access patterns.
 `rag.sqlite` is write-heavy during ingestion, read-heavy during queries.
@@ -49,6 +50,7 @@ class DbConfig:
     rag_db_path: str           # path to rag.sqlite
     session_db_path: str       # path to session.sqlite
     workflow_db_path: str = "/opt/llm/db/workflow.sqlite"  # path to workflow.sqlite
+    eventbus_db_path: str = "/opt/llm/db/eventbus.sqlite"  # path to eventbus.sqlite
     sqlite_vec_so: str = ""    # path to vec0.so (empty = vec extension not needed)
     sqlite_timeout: int = 30   # sqlite3.connect() timeout (seconds, >= 1)
     sqlite_busy_timeout_ms: int = 30000   # PRAGMA busy_timeout (ms)
@@ -71,11 +73,11 @@ SQLiteHelper(target: DbTarget | str = "rag")
 # DbTarget.RAG, DbTarget.SESSION, DbTarget.WORKFLOW, or string literal
 # "rag"      → rag.sqlite
 # "session"  → session.sqlite
-# "workflow" → workflow.sqlite  (documented in 07_ref-sqlite.md; not in 07_spec_db.md)
+# "workflow" → workflow.sqlite
+# "eventbus" → eventbus.sqlite (Event Bus DDL only; no runtime integration yet)
 ```
 
-> **Note:** `"workflow"` target exists in `07_ref-sqlite.md` but is absent from `07_spec_db.md`.
-> See [90_shared_90 DOCMISS-01](90_shared_90_inconsistencies_and_known_issues.md).
+**Note:** Event Bus runtime (publisher/subscriber/dispatcher/DLQ worker) is out of scope for this cleanup. Future Event Bus writers must use ISO-8601 UTC Z suffix timestamps.
 
 **Connection setup (every `open()` call):**
 1. Load sqlite-vec extension from `_vec_so` (rag target only); then `enable_load_extension(False)`
@@ -168,7 +170,7 @@ Stores float32 little-endian BLOB. `DIMS` is substituted dynamically by `_build_
 | `role` | TEXT | NOT NULL |
 | `content` | TEXT | NOT NULL |
 | `tool_calls` | TEXT | (JSON string) |
-| `tool_call_id` | TEXT | UNUSED — column exists in schema but not referenced by any code |
+| `tool_call_id` | TEXT | Tool call correlation ID (for tool role messages). Persisted/restored by `SessionMessageRepository`. NULL for non-tool messages. |
 | `created_at` | TEXT | NOT NULL DEFAULT `datetime('now')` |
 
 ### `tool_results` table
@@ -254,9 +256,9 @@ Index: `idx_session_diagnostics_session ON session_diagnostics(session_id)`
 
 ---
 
-## 7. `workflow.sqlite` Schema (`db/workflow_schema.py`)
+## 7. `workflow.sqlite` Schema
 
-Initialized by `init_schema(path)`. Used by `agent/workflow/state_store.py`.
+Initialized by `create_workflow_schema()`. Used by `agent/workflow/state_store.py`.
 
 ### `tasks` table
 
@@ -286,44 +288,30 @@ Initialized by `init_schema(path)`. Used by `agent/workflow/state_store.py`.
 
 ### `attempts`, `processed_events`, `artifacts` tables
 
-See `db/workflow_schema.py` for full DDL. All use `CREATE TABLE IF NOT EXISTS`.
-
-> **Note:** `workflow.sqlite` is documented only in `07_ref-sqlite.md`, not in `07_spec_db.md`.
-> See [90_shared_90 DOCMISS-01](90_shared_90_inconsistencies_and_known_issues.md).
+See `scripts/db/schema_sql.py` for full DDL. All use `CREATE TABLE IF NOT EXISTS`.
 
 ---
 
 ## 7a. Timestamp Format Policy
 
-SQLite schema definitions currently use two timestamp formats:
+All SQLite schema DEFAULT timestamps use `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` for consistency.
 
-| Format | Syntax | Timezone | Usage |
-|---|---|---|---|
-| ISO-8601 UTC (Z suffix) | `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` | UTC (Z suffix) | `tool_results.created_at`, `session_diagnostics.created_at` |
-| SQLite raw | `datetime('now')` | UTC (SQLite returns UTC for `'now'`) | `documents.fetched_at`, `sessions.created_at`, `messages.created_at`, `memories.created_at`, `memories.updated_at` |
+Tables using this format:
 
-**Policy:** New schema definitions should use `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` for consistency. Existing schemas using `datetime('now')` are left unchanged unless a migration is explicitly approved.
+- `tool_results.created_at`, `session_diagnostics.created_at` (Z suffix)
+- `documents.fetched_at`, `sessions.created_at`, `messages.created_at`, `memories.created_at`, `memories.updated_at` (Z suffix)
+- Event Bus: `events.published_at` (Z suffix)
 
 Python-side timestamp generation (for workflow tables without DEFAULT): `datetime.now(UTC).isoformat()` — produces ISO-8601 with `+00:00` suffix (e.g., `2024-01-01T00:00:00+00:00`).
-
-Tables currently using each format:
-
-- **ISO-8601 UTC (Z suffix)**: `tool_results.created_at`, `session_diagnostics.created_at`
-- **SQLite raw**: `documents.fetched_at`, `sessions.created_at`, `messages.created_at`, `memories.created_at`, `memories.updated_at`
-- **Python ISO-8601 (+00:00)**: workflow tables (`tasks.created_at/updated_at`, `attempts.created_at/updated_at`, `processed_events.created_at/updated_at`, `artifacts.created_at`, `approvals.created_at`) — set by application code, no DEFAULT clause
 
 ---
 
 ## 8. Schema Generation and Migration Approach
 
 ```python
-# Initialize all schemas
+# Initialize all schemas (rag + session + workflow + eventbus)
 from db.create_schema import create_schema
-create_schema()   # calls create_rag_schema() + create_session_schema()
-
-# workflow schema
-from db.workflow_schema import init_schema
-init_schema("/opt/llm/db/workflow.sqlite")
+create_schema()
 ```
 
 - All DDL uses `IF NOT EXISTS` — idempotent; safe to run multiple times
@@ -357,9 +345,23 @@ init_schema("/opt/llm/db/workflow.sqlite")
 | Does `SQLiteHelper` support workflow.sqlite? | Yes — `target="workflow"` (undocumented in spec, see §4) |
 | How is embedding dimension set? | `common.toml::embedding_dims` (default 384) |
 | What initializes schemas? | `create_schema()` + `init_schema()` — idempotent |
-| Are DB triggers documented? | Partially — see [90_shared_90 UNDOC-03](90_shared_90_inconsistencies_and_known_issues.md) |
+| Are DB triggers documented? | Yes — chunks_fts auto-sync triggers (§5), memories_fts auto-sync triggers (§6) |
 
 ---
+
+## 10. Source of Truth
+
+| Category | Source |
+|---|---|
+| DDL source | `db/schema_sql.py` |
+| Schema initialization entry point | `db/create_schema.py::create_schema()` |
+| Deploy initialization entry point | `deploy/init_db.sh` |
+| DB connection helper | `db/helper.py::SQLiteHelper` |
+| DB files | `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite` |
+| Event Bus schema (DDL only) | `scripts/eventbus/schema.sql` |
+| Deleted entry point | `db/workflow_schema.py` — removed in plan 54 |
+
+**Note:** Event Bus runtime (publisher/subscriber/dispatcher/DLQ worker) is out of scope for this cleanup. Future Event Bus writers must use ISO-8601 UTC Z suffix timestamps.
 
 ## 11. Scaling Limits and Migration Signals
 

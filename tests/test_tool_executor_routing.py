@@ -160,13 +160,13 @@ class TestRawExecuteWithLifecycle:
         assert not is_err
 
 
-
-
 class TestHttpTransportAuthHeader:
     @pytest.mark.asyncio
     async def test_auth_token_set_sends_bearer_header(self) -> None:
         cfg = McpServerConfig(
-            transport=TransportType.HTTP, url="http://127.0.0.1:8000", auth_token="my-token"
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:8000",
+            auth_token="my-token",
         )
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
@@ -183,9 +183,7 @@ class TestHttpTransportAuthHeader:
 
     @pytest.mark.asyncio
     async def test_no_auth_token_sends_empty_headers(self) -> None:
-        cfg = McpServerConfig(
-            transport=TransportType.HTTP, url="http://127.0.0.1:8000"
-        )
+        cfg = McpServerConfig(transport=TransportType.HTTP, url="http://127.0.0.1:8000")
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
         mock_resp.content = b'{"result":"ok","is_error":false}'
@@ -284,9 +282,6 @@ class TestHttpTransportErrors:
             await transport.call("my_tool", {})
 
 
-
-
-
 class TestToolExecutorExecute:
     @pytest.mark.asyncio
     async def test_plugin_tool_success_returns_empty_x_request_id(self) -> None:
@@ -380,16 +375,11 @@ class TestToolExecutorExecute:
         assert x_req == "req-xyz"
 
 
-
-
-
 class TestSetSessionId:
     @pytest.mark.asyncio
     async def test_session_id_injected_into_http_transport_header(self) -> None:
         """set_session_id() propagates X-Session-Id to all HttpTransport instances."""
-        cfg = McpServerConfig(
-            transport=TransportType.HTTP, url="http://127.0.0.1:8000"
-        )
+        cfg = McpServerConfig(transport=TransportType.HTTP, url="http://127.0.0.1:8000")
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_resp = MagicMock()
         mock_resp.content = b'{"result":"ok","is_error":false}'
@@ -410,9 +400,7 @@ class TestSetSessionId:
 
     def test_set_session_id_empty_string_does_not_inject_header(self) -> None:
         """Empty session_id must not add X-Session-Id header."""
-        cfg = McpServerConfig(
-            transport=TransportType.HTTP, url="http://127.0.0.1:8000"
-        )
+        cfg = McpServerConfig(transport=TransportType.HTTP, url="http://127.0.0.1:8000")
         mock_http = MagicMock(spec=httpx.AsyncClient)
         ex = ToolExecutor(mock_http, cache_ttl=60.0, server_configs={"srv": cfg})
         ex.set_session_id("")
@@ -420,8 +408,6 @@ class TestSetSessionId:
         transport = ex._transports["srv"]
         assert isinstance(transport, HttpTransport)
         assert transport._session_id == ""
-
-
 
 
 # ── apply_config ──────────────────────────────────────────────────────────────
@@ -435,9 +421,7 @@ class TestToolExecutorApplyConfig:
         from shared.mcp_config import McpServerConfig, TransportType
         from shared.tool_executor import ToolExecutor
 
-        cfg = McpServerConfig(
-            transport=TransportType.HTTP, url="http://localhost:8005"
-        )
+        cfg = McpServerConfig(transport=TransportType.HTTP, url="http://localhost:8005")
         return ToolExecutor(
             http=AsyncMock(spec=httpx.AsyncClient),
             cache_ttl=300.0,
