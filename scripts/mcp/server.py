@@ -14,7 +14,6 @@ import logging
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Any, Protocol
 
 from mcp.dispatch import DispatchResult

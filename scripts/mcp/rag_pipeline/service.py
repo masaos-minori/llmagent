@@ -10,12 +10,12 @@ from __future__ import annotations
 import dataclasses
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Any, cast
+from typing import Any, Protocol, cast
 
 import httpx
 import orjson
 from db.helper import SQLiteHelper
-from rag.types import MergedHit, RankedHit, RawHit
+from rag.types import RagHit
 
 from mcp.rag_pipeline.models import (
     DocumentItem,
@@ -27,9 +27,6 @@ from mcp.rag_pipeline.models import (
     build_rag_cfg_adapter,
 )
 from mcp.server import ToolArgs
-from rag.types import RagHit
-
-from typing import Callable, Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +66,6 @@ class RagPipelineMCPService:
 
     async def start(self) -> None:
         """Initialize shared resources; must be called once before first request."""
-        import rag.pipeline as agent_rag  # noqa: PLC0415 — lazy import avoids module-load side effects
         from rag.pipeline import (
             RagPipeline,  # noqa: PLC0415 — lazy: avoids circular import (_pipeline typed as Any)
         )

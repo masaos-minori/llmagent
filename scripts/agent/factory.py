@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import sys
-import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -29,7 +28,6 @@ from agent.http_lifecycle import HttpServerLifecycleManager
 from agent.lifecycle import LifecycleState
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.repository_gateway import RepositoryGateway
-
 
 if TYPE_CHECKING:
     from agent.memory.services import MemoryServices

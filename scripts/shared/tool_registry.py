@@ -156,8 +156,8 @@ def _populate_default_registry(registry: ToolRegistry) -> None:
     from shared.tool_constants import (
         CICD_TOOLS,
         DELETE_TOOLS,
-        GITHUB_TOOLS,
         GIT_TOOLS,
+        GITHUB_TOOLS,
         MDQ_TOOLS,
         RAG_TOOLS,
         READ_TOOLS,

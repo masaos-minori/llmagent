@@ -10,8 +10,6 @@ from typing import Any, Literal, Protocol, TypedDict
 from rag.models_result import SearchDiagnostics
 from rag.types import (
     RagHit,  # noqa: F401 — imported for use in this module
-    MergedHit,
-    RankedHit,
     RawHit,
 )
 
