@@ -36,11 +36,11 @@ from shared.plugin_registry import (
 from shared.types import RagConfig
 
 from rag.cache import SemanticCache
+from rag.http_augment import HttpAugment
 from rag.llm_client import RagLLM, get_embedding
 from rag.models_data import TwoStageFetchResult
-from rag.models_result import HttpResultKind, ResultSource, SearchDiagnostics
+from rag.models_result import SearchDiagnostics
 from rag.pipeline_refiner import RefineResult, refine_context
-from rag.pipeline_service import call_rag_service
 from rag.repository import (
     RagRepository,
     deduplicate_chunks,
@@ -464,60 +464,46 @@ class RagPipeline:
         rag_url: str,
     ) -> str | None:
         """Run HTTP augment and return result or None for fallback."""
-        t0 = time.perf_counter()
-        http_fallback_reasons: list[str] = []
-        result, remote_status_code, remote_latency_ms = await call_rag_service(
+        http_aug = HttpAugment(
             self._http,
             rag_url,
-            query,
-            history_context,
-            auth_token=self._cfg.rag_auth_token,
+            auth_token=self._cfg.rag_auth_token or "",
             set_fetch_result=lambda fr: setattr(self, "last_fetch_result", fr),
-            set_fallback_reason=http_fallback_reasons.append,
+            set_fallback_reason=lambda _: None,
         )
-        elapsed = time.perf_counter() - t0
-        http_status: Literal["success", "fallback"] = (
-            "success" if result is not None else "fallback"
-        )
-        http_fallback_reason = (
-            http_fallback_reasons[0] if http_fallback_reasons else "in-process fallback"
-        )
-        self.last_stage_results.append(
-            StageResult(
-                stage_name="HttpAugment",
-                status=http_status,
-                elapsed_seconds=elapsed,
-                fallback_reason=(http_fallback_reason if result is None else None),
-            )
-        )
-        self._http_result_kind = (
-            "remote_nonempty"
-            if result and len(result) > 0
-            else "remote_empty"
-            if result == ""
-            else "in_process_fallback"
-        )
-        # Assign SearchDiagnostics remote mode fields
-        if result is not None:
+        result = await http_aug.run(query, history_context)
+        # Apply diagnostics from HttpAugment result
+        if result.http_result_kind is not None:
+            self._http_result_kind = result.http_result_kind
+        # Update diagnostics based on result
+        if result.result is not None:
+            from rag.models_result import ResultSource, HttpResultKind
+
             self.last_search_diagnostics = dataclasses.replace(
                 self.last_search_diagnostics,
                 result_source=ResultSource.REMOTE,
-                http_result_kind=HttpResultKind.EMPTY
-                if result == ""
-                else HttpResultKind.SUCCESS,
-                remote_status_code=remote_status_code,
-                remote_latency_ms=remote_latency_ms,
+                http_result_kind=(
+                    HttpResultKind.EMPTY
+                    if result.result == ""
+                    else HttpResultKind.SUCCESS
+                ),
+                remote_status_code=result.status_code,
+                remote_latency_ms=result.latency_ms,
             )
         else:
+            from rag.models_result import ResultSource
+
             self.last_search_diagnostics = dataclasses.replace(
                 self.last_search_diagnostics,
                 result_source=ResultSource.FALLBACK,
                 http_result_kind=HttpResultKind.ERROR,
-                remote_status_code=remote_status_code,
-                remote_latency_ms=remote_latency_ms,
-                fallback_reason=http_fallback_reason,
+                remote_status_code=result.status_code,
+                remote_latency_ms=result.latency_ms,
             )
-        return result if result is not None else None
+        # Apply stage result from HttpAugment
+        if http_aug.stage_result is not None:
+            self.last_stage_results.append(http_aug.stage_result)
+        return result.result
 
     async def _run_refiner(
         self,
