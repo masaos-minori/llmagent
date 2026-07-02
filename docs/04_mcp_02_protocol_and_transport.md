@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Document the shared MCP protocol: HTTP and stdio formats, common types, authentication,
+Document the shared MCP protocol: HTTP format, common types, authentication,
 response truncation, audit logging, and error shapes.
 
 ---
@@ -89,52 +89,6 @@ tool names match live server tools. Mismatch → warning log; if `tool_definitio
 
 ---
 
-## stdio Transport
-
-All servers support `--stdio` mode.
-
-### When to use stdio
-
-- Running a single MCP server as an embedded subprocess (local testing, CI pipelines)
-- The MCP server has no external clients
-- Startup simplicity is more important than operational flexibility
-
-### When NOT to use stdio (use HTTP instead)
-
-- Production deployments — HTTP supports health checks, watchdog, and remote monitoring
-- Multiple agents sharing one MCP server
-- Server needs to be restarted independently of the agent
-- Any deployment where `transport = "http"` is feasible (HTTP is always preferred)
-
-> **Production default:** `transport = "http"`. Use `startup_mode = "subprocess"` for agent-managed HTTP servers (agent spawns uvicorn), or `startup_mode = "persistent"` for pre-existing HTTP servers (agent connects only). For stdio transport, the agent uses `StdioTransport` to communicate over the process's stdin/stdout with newline-delimited JSON.
-
-### stdio Request (one line)
-
-```json
-{"id": 1, "name": "search_docs", "args": {"query": "watchdog", "limit": 10}}
-```
-
-### stdio Response (one line)
-
-```json
-{"id": 1, "result": "...", "is_error": false, "truncated": false, "total_bytes": 1234, "actual_visible_bytes": 1234}
-```
-
-### Reserved RPC: `__list_tools__` (stdio control-plane only)
-
-```json
-// Request
-{"id": 1, "name": "__list_tools__", "args": {}}
-// Response
-{"id": 1, "result": "{\"tools\": [\"search_docs\", ...]}", "is_error": false}
-```
-
-Used by `healthcheck_mode="ping_tool"` to verify the server is alive.
-This RPC is stdio transport only — HTTP tool listing uses `/v1/tools`.
-`__` prefix is reserved — user-defined tools must not use this prefix.
-
----
-
 ## MCPServer Base Class (`mcp/server.py`)
 
 All MCP servers inherit from `MCPServer`.
@@ -165,32 +119,26 @@ All MCP servers inherit from `MCPServer`.
 | `list_tools_with_server_key() -> list[dict[str, object]]` | Tool metadata including `server_key`; used by `/v1/tools` endpoint |
 | `health() -> tuple[dict[str, object], int]` | Returns `(health_dict, http_status_code)`. HTTP status: 200 when ready=True, 503 when ready=False. Health dict: `{"status": "ok"/"degraded", "ready": bool, "dependencies": dict, "details": dict}`. Overridden per server (e.g. github adds `github_token` to `dependencies`, mdq adds `service` to `details`) |
 | `run_http() -> None` | Start uvicorn HTTP server |
-| `async run_stdio() -> None` | Handle newline-delimited JSON-RPC on stdin/stdout |
-
 ### Entry point pattern (all servers)
 
 ```python
 if __name__ == "__main__":
-    import sys
     server = MyMCPServer()
-    if "--stdio" in sys.argv:
-        asyncio.run(server.run_stdio())
-    else:
-        server.run_http()
+    server.run_http()
 ```
 
 ---
 
-## HTTP vs stdio Mode
+## HTTP Startup Modes
 
-| Aspect | HTTP mode | stdio mode |
+| Aspect | `persistent` mode | `subprocess` mode |
 |---|---|---|
-| Process management | subprocess only | Agent manages via StdioTransport |
-| Request format | POST to `/v1/call_tool` | newline-delimited JSON |
-| Concurrency | uvicorn async | per-instance asyncio.Lock (serialized) |
-| Session ID header | `X-Session-Id` | not applicable |
-| Tool list check | `GET /v1/tools` | `__list_tools__` RPC |
-| Health check | `GET /health` | `healthcheck_mode="ping_tool"` or process alive |
+| Process management | Externally managed (pre-existing) | Agent starts uvicorn at launch |
+| Request format | POST to `/v1/call_tool` | POST to `/v1/call_tool` |
+| Concurrency | uvicorn async | uvicorn async |
+| Session ID header | `X-Session-Id` | `X-Session-Id` |
+| Tool list check | `GET /v1/tools` | `GET /v1/tools` |
+| Health check | `GET /health` | Poll `/health` at startup |
 
 ---
 
@@ -228,40 +176,6 @@ All MCP server `/health` endpoints follow consistent semantics for the response 
 
 ---
 
-### stdio Transport: Scalability Limits (Design Note)
-
-**Current behavior:**
-Each `StdioTransport` instance serializes concurrent calls using a single `asyncio.Lock`
-(see `shared/tool_executor.py`). This means only one request at a time can be in-flight
-per stdio server, regardless of how many concurrent tool calls arrive.
-
-**Why this is acceptable today:**
-All production servers use `transport = "http"` (see `config/mcp_servers.toml`).
-stdio mode is available but currently unused in production. With one or two stdio servers
-handling low-concurrency workloads, the lock contention is negligible.
-
-**When this becomes a bottleneck:**
-If stdio-based servers become common, or if a single stdio server receives high
-concurrent load (e.g., embedded local tools called across many parallel tool rounds),
-the serialized lock will create a queue of waiting coroutines. Threshold TBD — dependent
-on round concurrency and per-call latency.
-
-**Future scaling options (planning note — no current commitment):**
-
-1. **Worker pool per stdio server**: Spawn N subprocess workers and distribute calls
-   across them using a semaphore-guarded pool. Cost: N × memory overhead per worker.
-
-2. **Multiplexed stdio protocol**: Extend the JSON-RPC framing to support concurrent
-   in-flight requests with response matching by `id`. Requires server-side support and
-   a response demultiplexer in `StdioTransport`.
-
-3. **Migrate to HTTP transport**: Convert high-traffic stdio servers to persistent HTTP
-   servers. Aligns with the existing `HttpTransport` path which has no per-instance
-   serialization constraint. This is the lowest-risk migration path.
-
-See `04_mcp_01_system_overview.md` for the transport overview and
-`shared/tool_executor.py` (`StdioTransport` class) for the lock implementation.
-
 ---
 
 ## Bearer Authentication
@@ -287,7 +201,7 @@ When result exceeds 512 KB:
 
 **Note:** The suffix shows the actual visible byte count (`actual_visible_bytes`), not the configured limit. For ASCII text, this equals 512 KB (524,288 bytes). For UTF-8 text with multi-byte characters at the boundary, it may be slightly less.
 
-**Important:** The `total_bytes` and `actual_visible_bytes` fields in the stdio response metadata represent the original dispatch output size, not the truncated text size. This ensures the client can distinguish between a short response (no truncation needed) and a long response that was truncated.
+**Important:** The `total_bytes` and `actual_visible_bytes` fields in the HTTP response metadata represent the original dispatch output size, not the truncated text size. This ensures the client can distinguish between a short response (no truncation needed) and a long response that was truncated.
 
 ---
 
@@ -367,10 +281,6 @@ HTTP transport errors (4xx/5xx) are caught by `HttpTransport.call()`, which rais
 
 All transport failures set `request_id=""` because the request never completed successfully. Tool-level errors (HTTP 200 with `is_error=True`) use the actual request_id from the server response and call `record_success()`.
 
-### StdioTransport error handling
-
-StdioTransport uses the same pattern: transport errors raise `TransportError`, which is caught and converted to `ToolCallResult(is_error=True, error_type="transport")` by `ToolExecutor._record_transport_error()`. The health registry update path is identical.
-
 ---
 
 ## dispatch_tool Helper (`mcp/dispatch.py`)
@@ -386,5 +296,3 @@ result = await dispatch_tool(dispatch_table, name, args)
 - Unknown `name` → `("Unknown tool: <name>", True)`
 - `ValueError` from handler → `("Validation error: <e>", True)`
 - Other exceptions propagate to caller
-
-**Note:** For HTTP transport, `CallToolRequest.name_must_not_be_blank()` validator in `mcp/models.py` catches empty names before `dispatch_tool()` is reached. The `dispatch_tool()` empty-name check is redundant for HTTP but relevant for stdio mode.

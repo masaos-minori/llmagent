@@ -4,7 +4,6 @@
 [mcp_servers.web_search]
 transport        = "http"
 url              = "http://127.0.0.1:8004"
-cmd              = []
 startup_mode     = "persistent"
 healthcheck_mode = "http"
 auth_token       = ""
@@ -14,7 +13,6 @@ tool_names       = ["search_web"]
 [mcp_servers.file_read]
 transport        = "http"
 url              = "http://127.0.0.1:8005"
-cmd              = []
 startup_mode     = "persistent"
 healthcheck_mode = "http"
 auth_token       = ""
@@ -24,7 +22,6 @@ tool_names       = ["read_text_file", "list_directory", "directory_tree", "searc
 [mcp_servers.github]
 transport        = "http"
 url              = "http://127.0.0.1:8006"
-cmd              = []
 startup_mode     = "persistent"
 healthcheck_mode = "http"
 auth_token       = ""
@@ -42,7 +39,6 @@ tool_names       = [
 [mcp_servers.file_write]
 transport        = "http"
 url              = "http://127.0.0.1:8007"
-cmd              = []
 startup_mode     = "persistent"
 healthcheck_mode = "http"
 auth_token       = ""
@@ -52,7 +48,6 @@ tool_names       = ["write_file", "edit_file", "create_directory", "move_file"]
 [mcp_servers.file_delete]
 transport        = "http"
 url              = "http://127.0.0.1:8008"
-cmd              = []
 startup_mode     = "persistent"
 healthcheck_mode = "http"
 auth_token       = ""
@@ -62,7 +57,6 @@ tool_names       = ["delete_file", "delete_directory"]
 [mcp_servers.shell]
 transport        = "http"
 url              = "http://127.0.0.1:8009"
-cmd              = []
 startup_mode     = "persistent"
 healthcheck_mode = "http"
 auth_token       = ""
@@ -72,7 +66,6 @@ tool_names       = ["shell_run"]
 [mcp_servers.rag_pipeline]
 transport        = "http"
 url              = "http://127.0.0.1:8010"
-cmd              = []
 startup_mode     = "persistent"
 healthcheck_mode = "http"
 auth_token       = ""
@@ -82,7 +75,6 @@ tool_names       = ["rag_run_pipeline", "rag_debug_pipeline", "rag_list_document
 [mcp_servers.sqlite]
 transport        = "http"
 url              = "http://127.0.0.1:8011"
-cmd              = []
 startup_mode     = "persistent"
 healthcheck_mode = "http"
 auth_token       = ""
@@ -92,7 +84,6 @@ tool_names       = ["query_sqlite"]
 [mcp_servers.cicd]
 transport        = "http"
 url              = "http://127.0.0.1:8012"
-cmd              = []
 startup_mode     = "persistent"
 healthcheck_mode = "http"
 auth_token       = ""

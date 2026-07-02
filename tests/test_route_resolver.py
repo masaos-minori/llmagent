@@ -7,20 +7,11 @@ from unittest.mock import MagicMock
 
 import pytest
 from shared.mcp_config import McpServerConfig, StartupMode
-from shared.route_resolver import ToolRouteResolver
+from shared.route_resolver import ToolRouteResolver, build_discovery_map
 
 
 def _http(key: str, url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig("http", url, [], startup_mode=StartupMode.PERSISTENT)
-
-
-def _stdio(key: str, tool_names: list[str] | None = None) -> McpServerConfig:
-    cfg = McpServerConfig(
-        "stdio", "", ["python", "s.py"], startup_mode=StartupMode.PERSISTENT
-    )
-    if tool_names:
-        cfg.tool_names = tool_names
-    return cfg
+    return McpServerConfig("http", url, startup_mode=StartupMode.PERSISTENT)
 
 
 class TestRegistryRouting:
@@ -98,8 +89,10 @@ class TestConfigDrivenRouting:
     """Config tool_names is NOT a routing input — only drift validation metadata."""
 
     def test_config_does_not_override_registry(self) -> None:
+        my_server = _http("my_server")
+        my_server.tool_names = ["search_web"]
         configs = {
-            "my_server": _stdio("my_server", tool_names=["search_web"]),
+            "my_server": my_server,
             "web_search": _http("web_search"),
         }
         resolver = ToolRouteResolver(configs)
@@ -108,8 +101,10 @@ class TestConfigDrivenRouting:
 
     def test_config_only_tools_do_not_route(self) -> None:
         """Tools listed only in config tool_names do not route — they must be in ToolRegistry."""
+        custom = _http("custom")
+        custom.tool_names = ["custom_tool"]
         configs = {
-            "custom": _stdio("custom", tool_names=["custom_tool"]),
+            "custom": custom,
             "file_read": _http("file_read"),
         }
         resolver = ToolRouteResolver(configs)
@@ -122,71 +117,14 @@ class TestConfigDrivenRouting:
         assert resolver.resolve("read_text_file") == "file_read"
 
     def test_unknown_tool_with_partial_config_raises(self) -> None:
+        my_server = _http("my_server")
+        my_server.tool_names = ["my_tool"]
         configs = {
-            "my_server": _stdio("my_server", tool_names=["my_tool"]),
+            "my_server": my_server,
         }
         resolver = ToolRouteResolver(configs)
         with pytest.raises(ValueError, match="Unknown tool"):
             resolver.resolve("totally_unknown")
-
-
-class TestStartupModeValidation:
-    def test_startup_mode_empty_string_raises(self) -> None:
-        """Empty string for startup_mode should raise ValueError."""
-        with pytest.raises(ValueError):
-            McpServerConfig(
-                transport="http", url="http://127.0.0.1:8000", cmd=[], startup_mode=""
-            )
-
-    def test_startup_mode_invalid_value_raises(self) -> None:
-        """Invalid startup_mode value should raise ValueError."""
-        with pytest.raises(ValueError):
-            McpServerConfig(
-                transport="http",
-                url="http://127.0.0.1:8000",
-                cmd=[],
-                startup_mode="invalid",
-            )
-
-    def test_startup_mode_persistent_is_valid(self) -> None:
-        """StartupMode.PERSISTENT is valid for both transports."""
-        http_cfg = McpServerConfig(
-            transport="http",
-            url="http://127.0.0.1:8000",
-            cmd=[],
-            startup_mode=StartupMode.PERSISTENT,
-        )
-        assert http_cfg.startup_mode == StartupMode.PERSISTENT
-
-        stdio_cfg = McpServerConfig(
-            transport="stdio",
-            url="",
-            cmd=["python", "s.py"],
-            startup_mode=StartupMode.PERSISTENT,
-        )
-        assert stdio_cfg.startup_mode == StartupMode.PERSISTENT
-
-    def test_startup_mode_subprocess_only_valid_for_http(self) -> None:
-        """StartupMode.SUBPROCESS is only valid for transport='http'."""
-        McpServerConfig(
-            transport="http",
-            url="http://127.0.0.1:8000",
-            cmd=[],
-            startup_mode=StartupMode.SUBPROCESS,
-        )
-
-    def test_startup_mode_subprocess_invalid_for_stdio(self) -> None:
-        """StartupMode.SUBPROCESS raises ValueError for transport='stdio'."""
-        with pytest.raises(
-            ValueError,
-            match="startup_mode='subprocess' is only valid for transport='http'",
-        ):
-            McpServerConfig(
-                transport="stdio",
-                url="",
-                cmd=["python", "s.py"],
-                startup_mode=StartupMode.SUBPROCESS,
-            )
 
 
 class TestValidateRoutingDrift:
@@ -286,3 +224,101 @@ class TestRegistryWithoutConfig:
         resolver = ToolRouteResolver(configs, strict_mode=True)
         with pytest.raises(ValueError, match="ToolRegistry"):
             resolver.resolve("no_such_tool_xyz")
+
+
+class TestBuildDiscoveryMap:
+    """Tests for build_discovery_map() function."""
+
+    def test_normal_path(self) -> None:
+        """Two servers, each with valid tool dicts including server_key."""
+        result = build_discovery_map({
+            "file_read": [{"name": "read_file", "server_key": "file_read"}],
+            "shell": [{"name": "shell_run", "server_key": "shell"}],
+        })
+        assert result == {"read_file": "file_read", "shell_run": "shell"}
+
+    def test_missing_server_key_falls_back_to_outer_key(self) -> None:
+        """Tool dict has no server_key field; mapping uses outer loop's server key."""
+        result = build_discovery_map({
+            "file_read": [{"name": "read_file"}],
+        })
+        assert result == {"read_file": "file_read"}
+
+    def test_empty_tool_name_skipped(self) -> None:
+        """Tool dict with empty or None name is skipped."""
+        result = build_discovery_map({
+            "file_read": [{"name": "", "server_key": "file_read"}, {"name": None, "server_key": "file_read"}],
+        })
+        assert result == {}
+
+    def test_duplicate_tool_first_wins(self) -> None:
+        """Same tool name in two servers with different server keys; first occurrence wins."""
+        result = build_discovery_map({
+            "server_a": [{"name": "read_file", "server_key": "server_a"}],
+            "server_b": [{"name": "read_file", "server_key": "server_b"}],
+        })
+        assert result == {"read_file": "server_a"}
+
+    def test_duplicate_tool_same_key_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Same tool name in two servers with identical server keys; no warning logged."""
+        with caplog.at_level(logging.WARNING):
+            result = build_discovery_map({
+                "server_a": [{"name": "read_file", "server_key": "server_a"}],
+                "server_b": [{"name": "read_file", "server_key": "server_a"}],
+            })
+        assert result == {"read_file": "server_a"}
+        assert not caplog.records
+
+    def test_duplicate_tool_different_key_logs_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Same tool name, different server keys; warning is logged."""
+        with caplog.at_level(logging.WARNING):
+            result = build_discovery_map({
+                "server_a": [{"name": "read_file", "server_key": "server_a"}],
+                "server_b": [{"name": "read_file", "server_key": "server_b"}],
+            })
+        assert result == {"read_file": "server_a"}
+        assert any("read_file" in r.message for r in caplog.records if r.levelno >= logging.WARNING)
+
+
+class TestLiveDiscoveryRouting:
+    """Tests for live-discovery-wins-over-registry routing priority."""
+
+    def _make_configs(self) -> dict[str, McpServerConfig]:
+        return {
+            "file_read": _http("file_read"),
+            "web_search": _http("web_search"),
+        }
+
+    def test_discovery_wins_over_registry(self) -> None:
+        """Discovery map overrides registry routing for the same tool."""
+        configs = self._make_configs()
+        discovery_map = {"read_text_file": "custom_server"}
+        resolver = ToolRouteResolver(configs, discovery_map=discovery_map)
+        assert resolver.resolve("read_text_file") == "custom_server"
+
+    def test_registry_fallback_when_tool_not_in_discovery_map(self) -> None:
+        """Registry is used when tool is not in discovery map."""
+        configs = self._make_configs()
+        discovery_map = {"custom_tool": "custom_server"}
+        resolver = ToolRouteResolver(configs, discovery_map=discovery_map)
+        assert resolver.resolve("read_text_file") == "file_read"
+
+    def test_empty_discovery_map_falls_through_to_registry(self) -> None:
+        """Empty discovery map falls through to registry routing."""
+        configs = self._make_configs()
+        resolver = ToolRouteResolver(configs, discovery_map={})
+        assert resolver.resolve("read_text_file") == "file_read"
+
+    def test_unknown_tool_raises_regardless_of_discovery_map(self) -> None:
+        """Unknown tool raises ValueError even with a non-empty discovery map."""
+        configs = self._make_configs()
+        discovery_map = {"custom_tool": "custom_server"}
+        resolver = ToolRouteResolver(configs, discovery_map=discovery_map)
+        with pytest.raises(ValueError, match="Unknown tool"):
+            resolver.resolve("no_such_tool_xyz")
+
+    def test_discovery_map_none_falls_through_to_registry(self) -> None:
+        """None discovery map (default) falls through to registry routing."""
+        configs = self._make_configs()
+        resolver = ToolRouteResolver(configs, discovery_map=None)
+        assert resolver.resolve("read_text_file") == "file_read"

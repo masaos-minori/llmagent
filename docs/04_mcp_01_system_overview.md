@@ -56,25 +56,10 @@ Agent ToolExecutor
 
 Servers run as persistent HTTP processes on loopback.
 
-### stdio transport (optional)
-
-```
-Agent StdioTransport
-  → stdin: {"id": N, "name": "tool_name", "args": {...}}\n
-  ← stdout: {"id": N, "result": "...", "is_error": false, "truncated": false, "total_bytes": N, "actual_visible_bytes": N}\n
-```
-
-Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on any server.
-
 ### Transport Selection Guide
 
 > **Production default: always use HTTP (`transport = "http"`, `startup_mode = "subprocess"` for agent-managed HTTP servers (agent spawns uvicorn), or `startup_mode = "persistent"` for pre-existing HTTP servers (agent connects only)).**
 > HTTP supports watchdog, health checks, concurrent requests, and remote monitoring.
->
-> **Use stdio only for:** local testing, CI pipelines, embedded single-tool subprocesses
-> with low concurrency and no external clients.
->
-> See [04_mcp_02 §When to use stdio](04_mcp_02_protocol_and_transport.md#when-to-use-stdio) for the full decision guide.
 
 ---
 
@@ -84,10 +69,6 @@ Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on
 |---|---|---|
 | `persistent` (default) | `http` | Externally managed server; agent connects to existing HTTP endpoint |
 | `subprocess` | `http` | Agent starts uvicorn subprocess at launch; polls `/health` |
-| `persistent` | `stdio` | Agent starts subprocess at launch; runs for session lifetime |
-| `ondemand` | `stdio` | Agent starts subprocess on first tool call; stops after `idle_timeout_sec` |
-
-`subprocess` + `stdio` is invalid (`ValueError` on config validation).
 
 ---
 
@@ -95,7 +76,7 @@ Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on
 
 | Component | File | Responsibility |
 |---|---|---|
-| `MCPServer` | `mcp/server.py` | Base class: HTTP/stdio startup, `/v1/call_tool`, `/v1/tools`, `/health` |
+| `MCPServer` | `mcp/server.py` | Base class: HTTP startup, `/v1/call_tool`, `/v1/tools`, `/health` |
 | `CallToolRequest` / `CallToolResponse` | `mcp/models.py` | Shared Pydantic models for all servers |
 | `ToolExecutor` | `shared/tool_executor.py` | Routing, TTL cache, concurrency, health registry |
 | `ToolRouteResolver` | `shared/route_resolver.py` | tool_name → server_key resolution |
@@ -103,8 +84,7 @@ Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on
 | `McpServerConfig` | `shared/mcp_config.py` | Per-server transport configuration |
 | `McpServerHealthRegistry` | `shared/mcp_config.py` | Per-server HEALTHY/DEGRADED/UNAVAILABLE state |
 | `HttpTransport` | `shared/tool_executor.py` | HTTP POST to MCP server |
-| `StdioTransport` | `shared/tool_executor.py` | JSON-RPC over subprocess stdin/stdout |
-| `_ServerLifecycleRouter` | `factory.py` | HTTP subprocess + stdio lifecycle management |
+| `_ServerLifecycleRouter` | `factory.py` | HTTP subprocess lifecycle management |
 
 ---
 
@@ -114,7 +94,7 @@ Currently all 11 servers use HTTP. stdio mode is available via `--stdio` flag on
 agent/factory.py
   → builds ToolExecutor (shared/tool_executor.py)
        → uses ToolRouteResolver (shared/route_resolver.py)
-       → uses HttpTransport / StdioTransport (shared/tool_executor.py)
+       → uses HttpTransport (shared/tool_executor.py)
        → uses McpServerConfig (shared/mcp_config.py)
        → uses McpServerHealthRegistry (shared/mcp_config.py)
 
@@ -131,7 +111,7 @@ MCP server processes (mcp/<name>/server.py)
 | Constraint | Value | Source |
 |---|---|---|
 | Max response size | 512 KB (`MCP_MAX_RESPONSE_BYTES = 524288`) | `mcp/server.py` |
-| stdio call timeout | 60.0 sec (`_STDIO_CALL_TIMEOUT`) | `shared/tool_executor.py` |
+
 | Auth header | `Authorization: Bearer <token>` (when `auth_token` set) | `mcp/server.py` |
 | Health state threshold | 3 consecutive failures → UNAVAILABLE | `shared/mcp_config.py` |
 
@@ -141,7 +121,7 @@ MCP server processes (mcp/<name>/server.py)
 
 | Topic | File |
 |---|---|
-| Protocol details, HTTP/stdio format, audit log | [04_mcp_02_protocol_and_transport.md](04_mcp_02_protocol_and_transport.md) |
+| Protocol details, HTTP format, audit log | [04_mcp_02_protocol_and_transport.md](04_mcp_02_protocol_and_transport.md) |
 | Routing, lifecycle, ToolExecutor | [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) |
 | Per-server specifications | [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) |
 | Security and safety model | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) |

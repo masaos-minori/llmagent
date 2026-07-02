@@ -49,24 +49,19 @@ health probes, audit log reading, and the new-server addition checklist.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `transport` | `TransportType` | required | `TransportType.HTTP` (`"http"`) or `TransportType.STDIO` (`"stdio"`); TOML string values are converted by the config loader, not at runtime |
-| `url` | `str` | required | HTTP server base URL (http only) |
-| `cmd` | `list[str]` | required | Subprocess command (stdio or subprocess mode) |
-| `startup_mode` | `str` | `"persistent"` | `"persistent"` / `"ondemand"` / `"subprocess"` |
-| `healthcheck_mode` | `str` | `""` | `"http"` / `"process"` / `"ping_tool"` (auto-inferred if empty) |
-| `idle_timeout_sec` | `int` | `0` | ondemand auto-stop delay (0 = disabled) |
+| `transport` | `TransportType` | required | `TransportType.HTTP` (`"http"`); TOML string values are converted by the config loader, not at runtime |
+| `url` | `str` | required | HTTP server base URL |
+| `startup_mode` | `str` | `"persistent"` | `"persistent"` / `"subprocess"` |
+| `healthcheck_mode` | `str` | `""` | `"http"` (auto-inferred if empty) |
+| `idle_timeout_sec` | `int` | `0` | subprocess auto-stop delay (0 = disabled) |
 | `startup_timeout_sec` | `int` | `30` | subprocess mode: health poll timeout |
-| `working_dir` | `str` | `""` | stdio subprocess working directory (empty = inherit) |
-| `env` | `dict[str, str]` | `{}` | Additional env vars for stdio subprocess |
+| `call_timeout_sec` | `float` | `60.0` | per-call timeout for HttpTransport; 0 = no timeout |
 | `tool_names` | `list[str]` | `[]` | Validation hint (optional); registry routes regardless. Empty = no validation. See [Routing Source of Truth](04_mcp_03_routing_lifecycle_and_execution.md#routing-source-of-truth). |
 | `auth_token` | `str` | `""` | Bearer token for auth (empty = no auth) |
 | `role` | `str` | `""` | Human-readable role label for `/mcp` display |
 
 **Validation rules:**
 - `transport="http"` → `url` must be non-empty
-- `transport="stdio"` → `cmd` must be non-empty
-- `startup_mode="subprocess"` only valid with `transport="http"` (ValueError otherwise)
-- `healthcheck_mode` auto-inferred: `http` → `"http"`; `stdio` → `"process"`
 
 ---
 
@@ -75,7 +70,7 @@ health probes, audit log reading, and the new-server addition checklist.
 | Parameter | Default | Config file |
 |---|---|---|
 | Max response bytes | 512 KB | hardcoded in `mcp/server.py` |
-| stdio timeout | 60.0 sec | hardcoded in `shared/tool_executor.py` |
+| call_timeout_sec | 60.0 sec | `McpServerConfig.call_timeout_sec` |
 | Tool cache TTL | 300 sec | `config/tools.toml::tool_cache_ttl` |
 | Tool cache max size | 200 entries | `config/tools.toml::tool_cache_max_size` |
 | Watchdog interval | 0 (disabled) | `config/agent.toml::mcp_watchdog_interval` |
@@ -93,24 +88,6 @@ health probes, audit log reading, and the new-server addition checklist.
 
 Agent spawns uvicorn at launch, polls `/health` every 1 second up to `startup_timeout_sec`.
 `RuntimeError` if health check never succeeds.
-
----
-
-## stdio Subprocess Operation (ondemand)
-
-Example config:
-
-```toml
-[mcp_servers.shell]
-transport = "stdio"
-cmd = ["/opt/llm/venv/bin/python", "-m", "mcp.shell.server", "--stdio"]
-startup_mode = "ondemand"
-healthcheck_mode = "ping_tool"
-idle_timeout_sec = 300
-tool_names = ["shell_run"]
-working_dir = "/opt/llm"
-env = {}
-```
 
 ---
 
@@ -231,7 +208,7 @@ Probes all HTTP servers. Expected: all show `OK` with tool list.
 | Server not started | Subprocess failed to start | Check stderr; verify port not in use |
 | subprocess timeout | uvicorn fails to start | Check stderr; verify port not in use |
 | Tool definition mismatch | Config out of sync | `/mcp` → tool count; compare with config |
-| `ValueError` on startup | Invalid `startup_mode`+`transport` combo | Check `mcp_servers.toml` |
+
 
 ---
 
@@ -675,7 +652,7 @@ When adding a server:
 
 - [ ] Create `scripts/mcp/<name>/server.py` (inherit `MCPServer`, override `dispatch()`)
 - [ ] Create `config/<name>_mcp_server.toml`
-- [ ] Add `[mcp_servers.<key>]` entry to `config/mcp_servers.toml` (transport, url, cmd, etc.)
+- [ ] Add `[mcp_servers.<key>]` entry to `config/mcp_servers.toml` (transport, url, etc.)
 - [ ] Add tool definitions to `config/tools_definitions.toml`
 - [ ] Tools are registered in `shared/tool_constants.py` frozensets (auto-routed at startup); config `tool_names` is optional drift validation only
 - [ ] Add new files to `deploy/deploy.sh` copy list

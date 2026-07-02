@@ -17,39 +17,12 @@ Each entry format:
 
 ## Active Issues
 
-### MCP-01: Startup mode terminology mismatch
-
-**Type:** Document inconsistency
-**Impact scope:** `04_mcp_02`, `04_mcp_03`
-
-**Statement A (`04_mcp_02:187`):** HTTP comparison table says "subprocess only" for process management — misleading because HTTP supports both `subprocess` and `persistent` startup modes.
-
-**Statement B (`04_mcp_02:109`):** Production default paragraph mentions StdioTransport in an HTTP section, conflating two different transport mechanisms.
-
-**Current safe interpretation:** HTTP mode supports both `subprocess` (agent-managed) and `persistent` (externally managed) startup modes. StdioTransport is only used for stdio transport.
-
-**Recommended action:** Fix the HTTP comparison table to say "subprocess or persistent" and move StdioTransport reference out of the HTTP section.
-
-**Notes for AI reference:** When determining HTTP server lifecycle, assume both `subprocess` and `persistent` modes are valid for HTTP transport.
-
 ---
 
 ### MCP-02: Routing authority mismatch (Priority 3 formatting)
+**Status: Resolved**
 
-**Type:** Document inconsistency
-**Impact scope:** `04_mcp_03`
-
-**Statement A (Japanese table):** Priority 3 is not bolded while Priority 1, 2, and 4 are.
-
-**Statement B (English table):** Same issue — Priority 3 is not bolded while Priority 1, 2, and 4 are.
-
-Both tables show the same inconsistency: Priority 3 (`Config tool_names (in mcp_servers.toml)`) lacks bold formatting despite being listed as an authority source.
-
-**Current safe interpretation:** Priority 3 is a valid routing fallback layer but is not emphasized in the table formatting. The priority order is correct regardless of formatting.
-
-**Recommended action:** Add bold formatting to Priority 3 in both tables for consistency with Priority 1, 2, and 4.
-
-**Notes for AI reference:** The routing priority order is correct (1→2→3→4). Formatting inconsistency does not affect behavior.
+Routing is now 2-layer only. Priority 3 (`Config tool_names`) and Priority 4 (prefix routing) were removed. `tool_names` is drift validation metadata only, not a routing input. See `04_mcp_03` §Routing Source of Truth.
 
 ---
 

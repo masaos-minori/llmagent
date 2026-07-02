@@ -44,6 +44,13 @@ class TestMcpServerConfigValidation:
                 TransportType.HTTP, "http://127.0.0.1:8000", startup_mode="always"
             )
 
+    def test_startup_mode_empty_string_raises(self) -> None:
+        """Empty string for startup_mode should raise ValueError."""
+        with pytest.raises(ValueError):
+            McpServerConfig(
+                TransportType.HTTP, "http://127.0.0.1:8000", startup_mode=""
+            )
+
     def test_invalid_healthcheck_mode_raises(self) -> None:
         with pytest.raises(ValueError, match="not a valid HealthcheckMode"):
             McpServerConfig(
@@ -97,6 +104,27 @@ class TestMcpServerConfigValidation:
                 TransportType.HTTP, "http://127.0.0.1:8000", healthcheck_mode="unknown"
             )
 
+    def test_stdio_transport_rejected(self) -> None:
+        """transport='stdio' must be rejected as a removed enum value."""
+        with pytest.raises(ValueError, match="not a valid TransportType"):
+            McpServerConfig("stdio", "http://127.0.0.1:8000")
+
+    def test_ondemand_startup_mode_rejected(self) -> None:
+        """startup_mode='ondemand' must be rejected as a removed enum value."""
+        with pytest.raises(ValueError, match="not a valid StartupMode"):
+            McpServerConfig(
+                TransportType.HTTP, "http://127.0.0.1:8000", startup_mode="ondemand"
+            )
+
+    def test_ping_tool_healthcheck_rejected(self) -> None:
+        """healthcheck_mode='ping_tool' must be rejected as a removed enum value."""
+        with pytest.raises(ValueError, match="not a valid HealthcheckMode"):
+            McpServerConfig(
+                TransportType.HTTP,
+                "http://127.0.0.1:8000",
+                healthcheck_mode="ping_tool",
+            )
+
 
 class TestBuildMcpServers:
     def test_empty_mcp_servers_raises_value_error(self) -> None:
@@ -115,7 +143,6 @@ class TestBuildMcpServers:
                 "my_server": {
                     "transport": "http",
                     "url": "http://127.0.0.1:9999",
-                    "cmd": [],
                 }
             }
         }
@@ -130,7 +157,6 @@ class TestBuildMcpServers:
                 "minimal": {
                     "transport": "http",
                     "url": "http://127.0.0.1:8000",
-                    "cmd": [],
                 }
             }
         }
@@ -151,7 +177,6 @@ class TestBuildMcpServers:
                 "secure": {
                     "transport": "http",
                     "url": "http://127.0.0.1:8000",
-                    "cmd": [],
                     "auth_token": "my-secret",
                     "role": "file_write",
                 }

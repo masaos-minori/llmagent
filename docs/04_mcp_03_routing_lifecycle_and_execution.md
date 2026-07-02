@@ -23,7 +23,7 @@ LLM returns tool_call
              → McpServerHealthRegistry: is_unavailable? → return error immediately (no attempt made)
              → LifecycleProtocol.ensure_ready(server_key)
              → concurrency semaphore acquire (if configured)
-             → HttpTransport.call() or StdioTransport.call()
+             → HttpTransport.call()
              → HealthRegistry.record_success() on success / record_failure() on transport error
              → return ToolCallResult(output, is_error, request_id, server_key)
 ```
@@ -218,25 +218,6 @@ result = await transport.call("tool_name", {"arg": "val"})
 
 ---
 
-## StdioTransport (`shared/tool_executor.py`)
-
-```python
-transport = StdioTransport(cmd=["python", "-m", "mcp.shell.server", "--stdio"],
-                            server_key="shell", working_dir="", env=None)
-await transport.start()
-result = await transport.call("shell_run", {"command": "ls"})
-await transport.stop()
-```
-
-- per-instance `asyncio.Lock` serializes concurrent calls
-- `is_alive() -> bool`: `returncode is None`
-- Timeout: `_STDIO_CALL_TIMEOUT = 60.0` seconds
-- `stop()`: close stdin → wait 5s → SIGTERM → wait 3s → SIGKILL
-- `working_dir` non-empty: `Path(working_dir).is_dir()` checked at `start()` (raises `ValueError` if missing)
-- `env` non-empty: `{**os.environ, **env}` merged for subprocess
-
----
-
 ## McpServerHealthRegistry (`shared/mcp_config.py`)
 
 Per-server failure tracker injected into `ToolExecutor`.
@@ -274,7 +255,7 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 
 ## _ServerLifecycleRouter (`factory.py`)
 
-Manages HTTP subprocess and stdio server lifecycle. Implements `LifecycleProtocol`.
+Manages HTTP subprocess server lifecycle. Implements `LifecycleProtocol`.
 
 ```python
 class _ServerLifecycleRouter:
@@ -284,27 +265,14 @@ class _ServerLifecycleRouter:
     def restart(server_key: str) -> None  # for watchdog
 ```
 
-### ensure_ready (ondemand stdio)
-
-1. Fast path: `transport.is_alive()` (no lock)
-2. Acquire per-server `asyncio.Lock`
-3. Double-check: `transport.is_alive()` again
-4. If not alive: `StdioTransport.start()` + `tool_executor.set_transport()`
-
 ### startup_mode behavior
 
 > **Production transport guidance:**
 > For production deployments, use `transport = "http"` with `startup_mode = "subprocess"` for agent-managed HTTP servers (agent spawns uvicorn), or `startup_mode = "persistent"` for pre-existing HTTP servers (agent connects only).
 > HTTP transports support watchdog, health checks, and remote monitoring.
-> `stdio` transport serializes all requests through a single `asyncio.Lock` and provides
-> no health-check endpoint — use it only for local/embedded single-tool subprocesses.
->
-> See [04_mcp_02 §When to use stdio](04_mcp_02_protocol_and_transport.md#when-to-use-stdio).
 
 | startup_mode | When | Action |
 |---|---|---|
-| `persistent` (stdio) | Agent launch | `StdioTransport.start()` immediately |
-| `ondemand` (stdio) | First tool call | `ensure_ready()` auto-starts |
 | `subprocess` (http) | Agent launch | `start_http_subprocess()` — spawn uvicorn, poll `/health` up to `startup_timeout_sec` |
 | `persistent` (http) | Pre-existing | Agent connects to existing HTTP endpoint; no lifecycle action needed |
 
@@ -425,13 +393,6 @@ At startup, the agent logs one of:
   2. `start_http_subprocess()` — respawn + poll `/health`
 - Externally-managed servers: logs warning only (no restart capability)
 - Max restarts: `mcp_watchdog_max_restarts` (default 3)
-- `healthcheck_mode="ping_tool"` (stdio): sends `__list_tools__` RPC to verify response (stdio control-plane only, not part of routing)
-
-### idle_timeout for ondemand servers
-
-- `0` (default): server stays alive until agent exits
-- Positive value: `shutdown_idle()` in each watchdog cycle stops servers idle > `idle_timeout_sec`
-- Actual stop may be delayed up to `idle_timeout_sec + mcp_watchdog_interval`
 
 ---
 
@@ -442,12 +403,11 @@ At startup, the agent logs one of:
 ```
 AgentREPL.run()
   → _start_mcp_servers()
-       → startup_mode="persistent" (stdio): StdioTransport.start()
        → startup_mode="subprocess" (http): start_http_subprocess() + health poll
-  → [REPL loop]
-       → first tool call on ondemand server: ensure_ready() auto-starts
-       → watchdog task: health check + restart on failure
-  → finally: lifecycle.shutdown_all() + AsyncClient.close()
+       → startup_mode="persistent" (http): no lifecycle action needed
+   → [REPL loop]
+        → watchdog task: health check + restart on failure
+   → finally: lifecycle.shutdown_all() + AsyncClient.close()
 ```
 
 ---
