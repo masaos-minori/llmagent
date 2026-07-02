@@ -45,6 +45,29 @@ async def test_remote_empty_sets_result_source_remote() -> None:
         await pipeline.augment("query")
 
     assert pipeline.last_search_diagnostics.http_result_kind == HttpResultKind.EMPTY
+    sd = pipeline.last_search_diagnostics
+    assert sd.result_source == ResultSource.REMOTE
+    assert sd.remote_status_code == 200
+    assert sd.remote_latency_ms == 30.0
+    assert sd.fallback_reason is None
+
+
+@pytest.mark.asyncio
+async def test_remote_empty_does_not_trigger_in_process(monkeypatch) -> None:
+    """remote_empty (status 200, empty result) must NOT fall back to in-process pipeline."""
+    pipeline = _make_pipeline()
+
+    async def mock_call_rag_service(*args, **kwargs):
+        return "", 200, 5.0
+
+    run_mock = AsyncMock()
+    monkeypatch.setattr(pipeline, "run", run_mock)
+
+    with patch("rag.pipeline.call_rag_service", mock_call_rag_service):
+        result = await pipeline.augment("test query")
+
+    assert result == ""
+    run_mock.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -82,6 +105,11 @@ async def test_in_process_fallback_sets_result_source_fallback(monkeypatch) -> N
         await pipeline.augment("query")
 
     assert pipeline.last_search_diagnostics.result_source == ResultSource.FALLBACK
+    sd = pipeline.last_search_diagnostics
+    assert sd.http_result_kind == HttpResultKind.ERROR
+    assert sd.remote_status_code == 503
+    assert sd.remote_latency_ms == 100.0
+    assert sd.fallback_reason is not None
 
 
 @pytest.mark.asyncio

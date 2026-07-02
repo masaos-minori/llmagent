@@ -8,6 +8,8 @@ Extracted from web_crawler.py to keep WebCrawler under 400 lines.
 
 from __future__ import annotations
 
+import tomllib
+from pathlib import Path
 import re
 from urllib.parse import urldefrag, urlparse
 
@@ -24,6 +26,53 @@ _CJK_RATIO_THRESHOLD: float = 0.1
 
 # Expected element count for target_urls entries: [url, lang]
 _TARGET_URL_ENTRY_LENGTH = 2
+
+
+def _validate_target_url(url: str) -> bool:
+    """Return True when url has an accepted scheme (http, https, or file).
+
+    Unlike validate_url() in rag.utils, this function also accepts file://
+    URIs used by the --targets-file crawl path.
+    """
+    from urllib.parse import urlparse
+
+    scheme = urlparse(url).scheme
+    return scheme in {"http", "https", "file"}
+
+
+def parse_targets_file(path: Path) -> list[tuple[str, str]]:
+    """Read a TOML targets file and return validated (url, lang) pairs.
+
+    The file must contain a ``target_urls`` key with a list of [url, lang]
+    2-element lists, matching the format used in config/rag_pipeline.toml.
+
+    Raises:
+        FileNotFoundError: when the file does not exist.
+        ValueError: when an entry has an unsupported URL scheme or an invalid
+            lang value.
+    """
+    raw_text = path.read_text(encoding="utf-8")
+    data = tomllib.loads(raw_text)
+    target_raw: list[list[str]] = data.get("target_urls", [])
+    result: list[tuple[str, str]] = []
+    for i, entry in enumerate(target_raw):
+        if not isinstance(entry, list | tuple) or len(entry) != _TARGET_URL_ENTRY_LENGTH:
+            raise ValueError(
+                f"targets-file entry [{i}] must be a 2-element list [url, lang]"
+            )
+        url, lang = str(entry[0]), str(entry[1])
+        if not _validate_target_url(url):
+            raise ValueError(
+                f"targets-file entry [{i}]: unsupported URL scheme in {url!r}"
+                " (must be http, https, or file)"
+            )
+        if lang not in _VALID_HINT_LANGS:
+            raise ValueError(
+                f"targets-file entry [{i}]: unsupported lang {lang!r}"
+                f" (must be one of {sorted(_VALID_HINT_LANGS)})"
+            )
+        result.append((url, lang))
+    return result
 
 # Unicode code point ranges for CJK character detection in detect_lang()
 _HIRAGANA_KATAKANA_START = "぀"

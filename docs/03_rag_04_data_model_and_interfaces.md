@@ -343,9 +343,9 @@ All defined as `StrEnum` subclasses.
 
 ---
 
-## 3. Data Transfer Objects (DTOs)
+## 6. Data Transfer Objects (DTOs)
 
-### 3.1 models_data.py (`scripts/rag/models_data.py`)
+### 6.1 models_data.py (`scripts/rag/models_data.py`)
 
 **EmbeddingResponse** — Response from embedding API.
 
@@ -414,7 +414,7 @@ All defined as `StrEnum` subclasses.
 | `min_score_applied` | `float` | rag_min_score used for filtering |
 | `max_chunks_per_doc` | `int` | Per-doc dedup limit applied |
 
-### 3.2 models_result.py (`scripts/rag/models_result.py`)
+### 6.2 models_result.py (`scripts/rag/models_result.py`)
 
 **ResultSource** — Source of the RAG result.
 
@@ -487,7 +487,7 @@ All defined as `StrEnum` subclasses.
 | `was_sanitized` | `bool` | Whether text was modified |
 | `patterns_detected` | `list[str]` | Detected injection patterns |
 
-### 3.3 types.py (`scripts/rag/types.py`)
+### 6.3 types.py (`scripts/rag/types.py`)
 
 **RagQuery** — Query with optional context.
 

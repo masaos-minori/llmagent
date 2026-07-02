@@ -336,7 +336,7 @@ create_schema()
 
 ---
 
-## 10. AI Reference Guide
+## 9a. AI Reference Guide
 
 | Question | Answer |
 |---|---|

@@ -257,6 +257,55 @@ class TestAugmentStage:
         assert "text body" in ctx.augment_result
         assert "http://x.com" in ctx.augment_result
 
+    @pytest.mark.asyncio
+    async def test_augment_stage_content_only_invariant(self) -> None:
+        """TEST-DESIGN2-01: AugmentStage must output content only, not
+        normalized_content.
+
+        Simulates a Japanese chunk where content='日本語テキスト' and
+        normalized_content would be 'にほんご テキスト'. Because RagHit carries
+        only content, the forbidden string must never appear in augment_result.
+        """
+        from rag.types import RankedHit
+
+        stage = AugmentStage()
+        ctx = PipelineContext(query="q")
+        ctx.reranked = [  # type: ignore[assignment]
+            RankedHit(
+                chunk_id=1,
+                content="日本語テキスト",
+                url="http://example.com",
+                title="",
+            )
+        ]
+        await stage.run(ctx)
+        assert "日本語テキスト" in ctx.augment_result
+        assert "にほんご テキスト" not in ctx.augment_result
+
+    @pytest.mark.asyncio
+    async def test_augment_stage_normalized_does_not_leak(self) -> None:
+        """TEST-DESIGN2-03: LLM context must not contain normalized_content
+        when it differs from content.
+
+        content='検索結果', simulated normalized_content='けんさく けっか'.
+        """
+        from rag.types import RankedHit
+
+        stage = AugmentStage()
+        ctx = PipelineContext(query="q")
+        forbidden = "けんさく けっか"
+        ctx.reranked = [  # type: ignore[assignment]
+            RankedHit(
+                chunk_id=2,
+                content="検索結果",
+                url="http://example.com",
+                title="",
+            )
+        ]
+        await stage.run(ctx)
+        assert "検索結果" in ctx.augment_result
+        assert forbidden not in ctx.augment_result
+
 
 # ---------------------------------------------------------------------------
 # RagPipeline.last_timings
@@ -355,3 +404,38 @@ class TestSemanticCacheDimensionGuard:
 
         cache = SemanticCache()
         assert cache.lookup([1.0, 2.0, 3.0]) is None
+
+
+# ---------------------------------------------------------------------------
+# RagPipeline._run_stage — pipeline-level failure absorption
+# ---------------------------------------------------------------------------
+
+
+class TestRagPipelineRunStage:
+    @pytest.mark.asyncio
+    async def test_run_stage_records_failure_on_rerank_error(self) -> None:
+        """_run_stage() must absorb RagRerankError, record status='failure', not re-raise."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        import httpx
+        from rag.llm_prompts import RagRerankError
+        from rag.pipeline import RagPipeline
+        from rag.stage import PipelineContext
+        from rag.stages.rerank import RerankStage
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        pipeline = RagPipeline(http, _make_rag_cfg(use_rerank=True))
+
+        # Construct a RerankStage whose run() raises RagRerankError
+        llm = MagicMock()
+        llm.cross_encoder_rerank = AsyncMock(side_effect=RagRerankError("rerank failed"))
+        stage = RerankStage(_make_rag_cfg(use_rerank=True), llm)
+
+        ctx = PipelineContext(query="q")
+
+        # Must not raise; _run_stage() absorbs the error
+        await pipeline._run_stage(stage, ctx, db=MagicMock())
+
+        assert len(ctx.stage_results) == 1
+        assert ctx.stage_results[0]["status"] == "failure"
+        assert "rerank failed" in (ctx.stage_results[0]["fallback_reason"] or "")

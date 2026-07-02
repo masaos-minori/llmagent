@@ -184,3 +184,92 @@ class TestResponseParsing:
         assert result is None
         assert status == 400
         assert route.call_count == 1
+
+
+# ── Fallback reason callback and status code ───────────────────────────────────
+
+
+class TestFallbackReasonCallback:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_4xx_calls_set_fallback_reason(self) -> None:
+        reasons: list[str] = []
+        respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(400, content=b'{"error": "bad request"}')
+        )
+        async with httpx.AsyncClient() as client:
+            result, status, _ = await call_rag_service(
+                client,
+                RAG_URL,
+                "q",
+                "",
+                set_fetch_result=_noop_fetch,
+                set_fallback_reason=reasons.append,
+            )
+        assert result is None
+        assert status == 400
+        assert len(reasons) == 1
+        assert reasons[0].startswith("http_client_error:")
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_5xx_exhausted_calls_set_fallback_reason(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from unittest.mock import AsyncMock
+
+        reasons: list[str] = []
+        respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(503, content=b'{"error": "unavailable"}')
+        )
+        monkeypatch.setattr("asyncio.sleep", AsyncMock())
+        async with httpx.AsyncClient() as client:
+            result, status, _ = await call_rag_service(
+                client,
+                RAG_URL,
+                "q",
+                "",
+                set_fetch_result=_noop_fetch,
+                set_fallback_reason=reasons.append,
+            )
+        assert result is None
+        assert len(reasons) == 1
+        assert reasons[0].startswith("http_max_retries:")
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_json_parse_error_calls_set_fallback_reason(self) -> None:
+        reasons: list[str] = []
+        respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(200, content=b"not-json")
+        )
+        async with httpx.AsyncClient() as client:
+            result, status, _ = await call_rag_service(
+                client,
+                RAG_URL,
+                "q",
+                "",
+                set_fetch_result=_noop_fetch,
+                set_fallback_reason=reasons.append,
+            )
+        assert result is None
+        assert len(reasons) == 1
+        assert reasons[0].startswith("http_parse_error:")
+
+
+class TestReturnedStatusCode:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_4xx_returns_status_code(self) -> None:
+        respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(400, content=b'{"error": "bad request"}')
+        )
+        async with httpx.AsyncClient() as client:
+            _, status, _ = await call_rag_service(
+                client,
+                RAG_URL,
+                "q",
+                "",
+                set_fetch_result=_noop_fetch,
+            )
+        assert status == 400

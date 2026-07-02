@@ -28,6 +28,7 @@ They replace the original 7 source files as the primary reference.
 05 Configuration          — config files, run commands, logging, error handling
     ↓
 90 Inconsistencies        — known bugs, spec conflicts, open questions
+    → 91 Design Notes       — confirmed design invariants (optional)
 ```
 
 ---
@@ -46,6 +47,7 @@ They replace the original 7 source files as the primary reference.
 | What are `RawHit`, `MergedHit`, `RankedHit`? | `03_rag_04` |
 | What are the configuration parameters? | `03_rag_05` |
 | Are there known bugs or behavior inconsistencies? | `03_rag_90` |
+| What are the confirmed design invariants for FTS5/LLM content separation or table responsibilities? | `03_rag_91` |
 
 ---
 
@@ -60,6 +62,7 @@ The restructured docs in the File Index below are the only active spec sources.
 | Query pipeline behavior (stages, RRF, rerank, HTTP mode) | `03_rag_03_query_pipeline.md` |
 | Configuration parameters and operations commands | `03_rag_05_configuration_and_operations.md` |
 | Known bugs, spec conflicts, open questions | `03_rag_90_inconsistencies_and_known_issues.md` |
+| Confirmed design invariants and regression test gaps | `03_rag_91_design_notes.md` |
 
 **Conflict resolution**: If two docs disagree on a fact and the conflict cannot be resolved immediately, record it as an entry in `03_rag_90_inconsistencies_and_known_issues.md` with a DOC-N label, then fix the root cause in the owning document.
 
@@ -90,6 +93,7 @@ The checker runs 10 checks: broken headings, malformed tables, unclosed inline c
 | [03_rag_03_query_pipeline.md](03_rag_03_query_pipeline.md) | RagPipeline API; 6-stage details; PipelineContext; SemanticCache; helper classes |
 | [03_rag_04_data_model_and_interfaces.md](03_rag_04_data_model_and_interfaces.md) | File formats; SQLite schema; hit type hierarchy; public interface summary |
 | [03_rag_05_configuration_and_operations.md](03_rag_05_configuration_and_operations.md) | Config parameter tables; run commands; logging; error handling reference |
-| [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) | Design notes (DESIGN-2, DESIGN-3) and active issues tracking |
+| [03_rag_90_inconsistencies_and_known_issues.md](03_rag_90_inconsistencies_and_known_issues.md) | Known bugs, spec conflicts, open questions |
+| [03_rag_91_design_notes.md](03_rag_91_design_notes.md) | Confirmed design decisions (DESIGN-2, DESIGN-3) and regression test gap tables |
 
 ---

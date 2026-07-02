@@ -123,6 +123,43 @@ class TestFormatChunks:
         assert "---" in result
 
 
+# ── DESIGN-2: content-only regression tests ───────────────────────────────────
+
+
+class TestFormatChunksDesign2:
+    """Regression tests for DESIGN-2: LLM context must contain content only,
+    never normalized_content.
+
+    TEST-DESIGN2-01: AugmentStage outputs content only, not normalized_content.
+    TEST-DESIGN2-03: LLM context does not contain normalized_content unless
+                     identical to content.
+    """
+
+    def _hit(
+        self, content: str, url: str = "http://example.com", title: str = ""
+    ) -> RankedHit:
+        return RankedHit(chunk_id=1, content=content, url=url, title=title)
+
+    def test_content_appears_in_output(self) -> None:
+        """TEST-DESIGN2-01: content text must appear in _format_chunks output."""
+        result = RagPipeline._format_chunks([self._hit("日本語テキスト")])
+        assert "日本語テキスト" in result
+
+    def test_normalized_content_does_not_appear(self) -> None:
+        """TEST-DESIGN2-01: normalized text must NOT appear in _format_chunks output."""
+        normalized = "にほんご テキスト"
+        result = RagPipeline._format_chunks([self._hit("日本語テキスト")])
+        assert normalized not in result
+
+    def test_normalized_differs_from_content_not_in_output(self) -> None:
+        """TEST-DESIGN2-03: when normalized != content, normalized must not appear."""
+        content = "検索結果"
+        normalized = "けんさく けっか"
+        result = RagPipeline._format_chunks([self._hit(content)])
+        assert content in result
+        assert normalized not in result
+
+
 # ── RagPipelineError ──────────────────────────────────────────────────────────
 
 

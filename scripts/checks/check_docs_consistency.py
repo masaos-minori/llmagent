@@ -11,6 +11,7 @@ Lightweight CI check for RAG documentation quality:
 - Resolved issues under active issues section
 - Stale issue ID routing in document guide
 - References to deleted RAG source files (03_spec_rag.md, 03_rag-ref-*, etc.)
+- Duplicate heading numbers at the same level
 - Migration Notes sections in active docs
 
 Usage:
@@ -352,6 +353,42 @@ def check_stale_issue_routing(content: str, filename: str) -> list[str]:
     return issues
 
 
+def check_duplicate_heading_numbers(content: str, filename: str) -> list[str]:
+    """Check for duplicate heading numbers at the same heading level.
+
+    Detects headings like '## 3. Foo' and '## 3. Bar' in the same file.
+    Only headings with a numeric prefix (e.g. '## 3.', '### 2.1') are checked.
+    Headings inside fenced code blocks are skipped.
+    """
+    issues: list[str] = []
+    lines = content.split("\n")
+    in_fenced_block = False
+    # seen: maps (heading_level, number_prefix) -> first line number seen
+    seen: dict[tuple[int, str], int] = {}
+
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_fenced_block = not in_fenced_block
+            continue
+        if in_fenced_block:
+            continue
+        # Match headings: one or more '#' followed by space and optional number prefix
+        m = re.match(r"^(#{1,6})\s+(\d[\d.]*\.)\s+", stripped)
+        if m:
+            level = len(m.group(1))
+            number = m.group(2)
+            key = (level, number)
+            if key in seen:
+                issues.append(
+                    f"{filename}:{i}: duplicate heading number — "
+                    f"'{'#' * level} {number}' also at line {seen[key]}: '{stripped}'"
+                )
+            else:
+                seen[key] = i
+    return issues
+
+
 def check_all(content: str, filename: str) -> list[str]:
     """Run all checks and return combined issues."""
     issues = []
@@ -362,6 +399,7 @@ def check_all(content: str, filename: str) -> list[str]:
     issues.extend(check_stale_patterns(content, filename))
     issues.extend(check_resolved_in_active(content, filename))
     issues.extend(check_stale_issue_routing(content, filename))
+    issues.extend(check_duplicate_heading_numbers(content, filename))
     issues.extend(check_deleted_rag_refs(content, filename))
     issues.extend(check_migration_notes_in_active(content, filename))
     return issues

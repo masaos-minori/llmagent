@@ -388,3 +388,74 @@ class TestRagQualityRegression:
         diag = pipeline.get_diagnostics()
         assert diag["refiner_fallback_count"] == 1
         assert diag["refiner_exception_count"] == 1
+
+    async def test_rrf_score_values_with_known_hits(self) -> None:
+        """Hit in both lists has strictly higher RRF score than hit in one list."""
+        list_a = [RawHit(chunk_id=1, content="a", url="http://a/", title="A")]
+        list_b = [
+            RawHit(chunk_id=2, content="b", url="http://b/", title="B"),
+            RawHit(chunk_id=1, content="a", url="http://a/", title="A"),
+        ]
+        diag = SearchDiagnostics(embed_ok=1, embed_failed=0)
+        mock_db = MagicMock()
+        with patch(
+            "rag.stages.search._search_all_queries",
+            AsyncMock(return_value=([list_a, list_b], diag)),
+        ):
+            cfg = _make_rag_cfg(use_rrf=True, use_rerank=False)
+            result = await _make_pipeline(cfg).run("query", db=mock_db)
+        assert result.merged[0].chunk_id == 1
+        assert result.merged[0].rrf_score > result.merged[1].rrf_score
+        assert all(h.rrf_score > 0.0 for h in result.merged)
+
+    async def test_top_n_retrieval_count(self) -> None:
+        """reranked is sliced to rag_top_k; merged retains all hits."""
+        five_hits = [
+            RawHit(chunk_id=i, content=str(i), url=f"http://{i}/", title=str(i))
+            for i in range(1, 6)
+        ]
+        diag = SearchDiagnostics(embed_ok=1, embed_failed=0)
+        mock_db = MagicMock()
+        with patch(
+            "rag.stages.search._search_all_queries",
+            AsyncMock(return_value=([five_hits], diag)),
+        ):
+            cfg = _make_rag_cfg(use_rrf=True, use_rerank=False)
+            result = await _make_pipeline(cfg).run("query", db=mock_db)
+        assert len(result.reranked) == 3
+        assert len(result.merged) == 5
+
+    async def test_semantic_cache_hit_returns_cached_result(self) -> None:
+        """SemanticCache lookup returns stored context on hit."""
+        from rag.cache import SemanticCache
+
+        cache = SemanticCache(max_size=10, threshold=0.9)
+        vec = [1.0] * 384
+        cache.put(vec, "", "expected_context")
+        assert cache.lookup(vec, "") == "expected_context"
+        assert cache.size == 1
+
+    async def test_semantic_cache_miss_below_threshold(self) -> None:
+        """SemanticCache lookup returns None when cosine similarity < threshold."""
+        from rag.cache import SemanticCache
+
+        cache = SemanticCache(max_size=10, threshold=0.99)
+        cache.put([1.0] * 384, "", "ctx")
+        assert cache.lookup([-1.0] * 384, "") is None
+
+    async def test_rrf_merged_order_is_descending(self) -> None:
+        """RRF merged hits are sorted in descending rrf_score order."""
+        three_hits = [
+            RawHit(chunk_id=i, content=str(i), url=f"http://{i}/", title=str(i))
+            for i in range(1, 4)
+        ]
+        diag = SearchDiagnostics(embed_ok=1, embed_failed=0)
+        mock_db = MagicMock()
+        with patch(
+            "rag.stages.search._search_all_queries",
+            AsyncMock(return_value=([three_hits], diag)),
+        ):
+            cfg = _make_rag_cfg(use_rrf=True, use_rerank=False)
+            result = await _make_pipeline(cfg).run("query", db=mock_db)
+        scores = [h.rrf_score for h in result.merged]
+        assert scores == sorted(scores, reverse=True)

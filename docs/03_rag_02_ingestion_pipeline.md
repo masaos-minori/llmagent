@@ -33,6 +33,17 @@ uv run python scripts/rag/ingestion/crawler.py \
 uv run python scripts/rag/ingestion/crawler.py --url "https://example.com/page" --lang auto
 ```
 
+# Load targets (http:// and file://) from a TOML file
+uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml
+
+The targets TOML file format:
+```toml
+target_urls = [
+    ["https://ziglang.org/documentation/master/", "en"],
+    ["file:///opt/llm/scripts/rag/ingestion/crawler.py", "en"],
+]
+```
+
 **Note:** All file paths (`rag_src_dir`) are resolved from `config/rag_pipeline.toml`. Production default: `/opt/llm/rag-src/`.
 
 ### Step 2: Chunk split
@@ -205,6 +216,7 @@ Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto
 |---|---|---|
 | `--url URL [URL ...]` | Target URLs (multiple allowed; omit to use `target_urls` from config) | — |
 | `--lang {en,ja,auto}` | Hint language for per-page CJK-ratio detection | `en` |
+| `--targets-file PATH` | Path to a TOML file with `target_urls = [[url, lang], ...]`; supports `http://`, `https://`, and `file://`; mutually exclusive with `--url` | — |
 
 ### 2.4 Output JSON format (`rag-src/yyyymmddhhmmss-{slug}.json`)
 

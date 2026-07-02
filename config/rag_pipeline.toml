@@ -82,3 +82,6 @@ en_stopwords = [
 
 # ja_stop_pos: Sudachi part-of-speech categories treated as stop words in Japanese
 ja_stop_pos = ["助詞", "助動詞", "補助記号", "空白", "感動詞", "接続詞"]
+
+# strict_artifact_validation: when true, reject chunk files missing schema_version, artifact_type, or created_by fields.
+strict_artifact_validation = false

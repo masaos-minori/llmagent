@@ -1,15 +1,13 @@
-# RAG Inconsistencies and Known Issues
+# RAG Design Notes
 
-This file catalogs known bugs, spec conflicts, document inconsistencies, and open questions
-discovered during the restructuring of RAG documentation.
+Confirmed design decisions and regression test gap tables.
+These are non-negotiable invariants; changes require explicit design review.
 
-Each entry uses: Type / Impact / Description / Safe interpretation / Recommended action / Source.
+See `03_rag_90_inconsistencies_and_known_issues.md` for active, unresolved issues.
 
 ---
 
-## Confirmed Design Decisions
-
-### DESIGN-2: FTS5 uses `normalized_content`; LLM receives `content`
+## DESIGN-2: FTS5 uses `normalized_content`; LLM receives `content`
 
 - **Type:** Confirmed design decision
 - **Impact scope:** `chunks` table, `chunks_fts` virtual table, `scripts/rag/repository.py _build_fts_query()`, `scripts/rag/stages/augment.py`
@@ -24,7 +22,7 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
-### DESIGN-3: Separation of responsibilities among `documents`, `chunks`, `chunks_fts`, `chunks_vec`
+## DESIGN-3: Separation of responsibilities among `documents`, `chunks`, `chunks_fts`, `chunks_vec`
 
 - **Type:** Confirmed design decision
 - **Impact scope:** DB schema, all ingestion and query code
@@ -48,7 +46,7 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
-### DESIGN-2 Regression Test Expectations
+## DESIGN-2 Regression Test Expectations
 
 **Existing tests:**
 
@@ -70,7 +68,7 @@ Each entry uses: Type / Impact / Description / Safe interpretation / Recommended
 
 ---
 
-### DESIGN-3 Regression Test Expectations
+## DESIGN-3 Regression Test Expectations
 
 **Existing tests:**
 
@@ -179,49 +177,3 @@ def test_consistency_checks_detect_fts_gap(db):
     """check_rag_consistency() must detect FTS index desync."""
     # Insert chunk without triggering FTS (simulate trigger failure)
     insert_chunk(doc_id=1, content="test", normalized_content=None, chunk_index=0)
-    # Manually remove FTS entry to simulate trigger failure
-    db.execute("DELETE FROM chunks_fts WHERE rowid = ?", (chunk_id,))
-    report = check_rag_consistency(db)
-    assert report.fts_gap == 1
-    assert report.affected_chunk_ids is not None
-```
-
----
-
-## Cache Invalidation
-
-### OPEN-01: CLI ingestion does not invalidate the semantic cache
-
-**Status:** Open design question
-**Affected code:** `scripts/rag/ingestion/ingester.py` — `main()` at line 661
-**Impact:** After a CLI `rag-ingest` run, any running `RagPipeline` instance (e.g. inside
-the MCP server) retains stale semantic cache entries. Subsequent queries may return cached
-results that no longer reflect the updated document corpus.
-**Root cause:** `main()` calls `ingester.ingest_all(args.force)` without passing an
-`on_ingest_complete` callback. The callback is the only mechanism for post-ingestion cache
-invalidation.
-**Recommended action:** Pass `pipeline.semantic_cache.invalidate` as `on_ingest_complete`
-in callers that require fresh results immediately after ingestion.
-
----
-
-### OPEN-02: `delete_document()` does not invalidate the semantic cache
-
-**Status:** Open design question
-**Affected code:** `scripts/mcp/rag_pipeline/service.py` — `delete_document()`
-**Impact:** After a document is deleted via `rag_delete_document` MCP tool, cached semantic
-search results that referenced the deleted document remain in `SemanticCache` until the
-next `invalidate()` call or process restart.
-**Root cause:** `delete_document()` removes DB rows but does not call
-`pipeline.semantic_cache.invalidate()`. No other invalidation path exists in the MCP service.
-**Recommended action:** Call `self.pipeline.semantic_cache.invalidate()` at the end of
-`delete_document()`, or document that callers must trigger cache invalidation separately.
-
----
-
-## Active Issues
-
----
-
-
-

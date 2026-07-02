@@ -230,7 +230,7 @@ with SQLiteHelper("rag").open() as db:
 | DB open error | Raise `RagPipelineError` (not return `""`) |
 | `use_search=False` | Return `""` immediately |
 | `rag_service_url` set + failure | Fall back to in-process pipeline |
-| Cross-encoder failure | Fall back to RRF order |
+| Cross-encoder failure | `RagRerankError` propagates from `RerankStage.run()` to `_run_stage()`, which catches it as `RuntimeError`, records `StageResult.status="failure"`, and logs a warning. The pipeline continues with `ctx.reranked=[]` (no RRF fallback). `use_rerank=False` uses RRF order + dedup instead. |
 
 ---
 
@@ -285,10 +285,13 @@ Log messages during ingestion:
 
 ### Batch re-ingestion of many local files
 
-When multiple files change, use `--force` to re-embed all `file://` URLs in `target_urls`:
+When multiple files change, run the crawler with `--targets-file` to re-crawl all listed `file://` URLs.
+The crawler does not support `--force`; unchanged files are skipped automatically via SHA-256 hash comparison.
+To force re-embedding of already-ingested URLs, run `ingester.py --force` after crawling:
 
 ```
-uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml --force
+uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.toml
+uv run python scripts/rag/ingestion/ingester.py --force
 ```
 
 ### Comparison: local files vs. web URLs

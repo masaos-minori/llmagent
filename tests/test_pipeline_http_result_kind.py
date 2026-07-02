@@ -7,6 +7,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from rag.models_result import HttpResultKind, ResultSource
 from rag.pipeline import RagPipeline, SearchDiagnostics
 from rag.types import PipelineRunResult
 
@@ -53,6 +54,11 @@ async def test_remote_nonempty(monkeypatch) -> None:
 
     diag = pipeline.get_diagnostics()
     assert diag["http_result_kind"] == "remote_nonempty"
+    sd = pipeline.last_search_diagnostics
+    assert sd.result_source == ResultSource.REMOTE
+    assert sd.remote_status_code == 200
+    assert sd.remote_latency_ms == 50.0
+    assert sd.fallback_reason is None
     http_sr = next(
         r for r in pipeline.last_stage_results if r["stage_name"] == "HttpAugment"
     )
@@ -86,6 +92,12 @@ async def test_remote_empty(monkeypatch) -> None:
 
     diag = pipeline.get_diagnostics()
     assert diag["http_result_kind"] == "remote_empty"
+    sd = pipeline.last_search_diagnostics
+    assert sd.result_source == ResultSource.REMOTE
+    assert sd.http_result_kind == HttpResultKind.EMPTY
+    assert sd.remote_status_code == 200
+    assert sd.remote_latency_ms == 30.0
+    assert sd.fallback_reason is None
     http_sr = next(
         r for r in pipeline.last_stage_results if r["stage_name"] == "HttpAugment"
     )
@@ -133,6 +145,12 @@ async def test_in_process_fallback(monkeypatch) -> None:
 
     diag = pipeline.get_diagnostics()
     assert diag["http_result_kind"] == "in_process_fallback"
+    sd = pipeline.last_search_diagnostics
+    assert sd.result_source == ResultSource.FALLBACK
+    assert sd.http_result_kind == HttpResultKind.ERROR
+    assert sd.remote_status_code == 503
+    assert sd.remote_latency_ms == 100.0
+    assert sd.fallback_reason is not None
     http_sr = next(
         r for r in pipeline.last_stage_results if r["stage_name"] == "HttpAugment"
     )

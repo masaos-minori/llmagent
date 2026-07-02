@@ -185,7 +185,7 @@ and populated by the emitter before delivery to subscribers.
 
 ---
 
-## 9. `DbConfig` (`db/config.py`)
+## 9a. `DbConfig` (`db/config.py`)
 
 ```python
 @dataclass

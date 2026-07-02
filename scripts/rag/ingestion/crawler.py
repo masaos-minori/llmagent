@@ -29,6 +29,7 @@ from rag.ingestion.crawler_utils import (
     extract_text,
     normalize_url,
     parse_target_urls,
+    parse_targets_file,
     same_origin,
     url_to_slug,
 )
@@ -137,9 +138,12 @@ class WebCrawler:
         for url, lang in targets or self._target_urls:
             logger.info("=== start: %s (lang=%s) ===", url, lang)
             try:
-                await self.crawl_site(url, lang)
+                if url.startswith("file://"):
+                    self.crawl_file(Path(url[len("file://"):]), lang)
+                else:
+                    await self.crawl_site(url, lang)
             except (httpx.RequestError, httpx.HTTPStatusError, OSError) as _crawl_err:
-                logger.exception("crawl_site failed: %s: %s", url, _crawl_err)
+                logger.exception("crawl failed: %s: %s", url, _crawl_err)
             logger.info("=== done:  %s ===", url)
 
     def _drain_queue_to_tasks(
@@ -460,15 +464,36 @@ def main() -> None:
             "'auto' detects per-page language by CJK character ratio."
         ),
     )
+    parser.add_argument(
+        "--targets-file",
+        metavar="PATH",
+        help=(
+            "Path to a TOML file containing target_urls = [[url, lang], ...] pairs. "
+            "Mutually exclusive with --url."
+        ),
+    )
     args = parser.parse_args()
 
-    if args.url:
+    if args.url and getattr(args, "targets_file", None):
+        parser.error("--url and --targets-file are mutually exclusive")
+
+    crawler = WebCrawler()
+
+    if getattr(args, "targets_file", None):
+        try:
+            targets = parse_targets_file(Path(args.targets_file))
+        except FileNotFoundError as e:
+            parser.error(f"--targets-file not found: {e}")
+        except ValueError as e:
+            parser.error(f"--targets-file parse error: {e}")
+    elif args.url:
         invalid = [u for u in args.url if not validate_url(u)]
         if invalid:
             parser.error(f"Invalid URLs (must be http/https): {invalid}")
+        targets = [(u, args.lang) for u in args.url]
+    else:
+        targets = None
 
-    crawler = WebCrawler()
-    targets = [(u, args.lang) for u in args.url] if args.url else None
     asyncio.run(crawler.crawl(targets))
 
 

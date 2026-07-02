@@ -98,11 +98,17 @@ class RagMaintenanceService:
             for cid in chunk_ids:
                 db.execute("DELETE FROM chunks_vec WHERE chunk_id = ?", (cid,))
             if chunk_ids:
-                placeholders = ",".join("?" * len(chunk_ids))
-                db.execute(
-                    f"DELETE FROM chunks_fts WHERE chunk_id IN ({placeholders})",
-                    tuple(chunk_ids),
-                )
+                for cid in chunk_ids:
+                    row_fts = db.execute(
+                        "SELECT content, normalized_content FROM chunks WHERE chunk_id = ?",
+                        (cid,),
+                    ).fetchone()
+                    if row_fts:
+                        fts_text = row_fts["normalized_content"] or row_fts["content"]
+                        db.execute(
+                            "INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', ?, ?)",
+                            (cid, fts_text),
+                        )
             for cid in chunk_ids:
                 row = db.execute(
                     "SELECT content, normalized_content, embedding"

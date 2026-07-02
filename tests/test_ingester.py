@@ -620,4 +620,46 @@ class TestIngestUrlGroup:
 
         assert result.url == url
         assert result.n_embed_failed == 2  # both chunks failed embedding
-        assert result.n_success == 0
+
+
+# ── Artifact validation (strict vs lenient) ───────────────────────────────────
+
+
+class TestValidateArtifact:
+    BASE_PAYLOAD = {
+        "artifact_type": "chunk",
+        "schema_version": "1",
+        "created_by": "chunk_splitter",
+    }
+
+    def test_lenient_missing_schema_version_passes(self) -> None:
+        payload = {k: v for k, v in self.BASE_PAYLOAD.items() if k != "schema_version"}
+        assert RagIngester._validate_artifact(payload, "chunk", strict=False) is True
+
+    def test_lenient_missing_created_by_passes(self) -> None:
+        payload = {k: v for k, v in self.BASE_PAYLOAD.items() if k != "created_by"}
+        assert RagIngester._validate_artifact(payload, "chunk", strict=False) is True
+
+    def test_lenient_wrong_artifact_type_rejects(self) -> None:
+        assert (
+            RagIngester._validate_artifact(self.BASE_PAYLOAD, "image", strict=False)
+            is False
+        )
+
+    def test_strict_missing_schema_version_rejects(self) -> None:
+        payload = {k: v for k, v in self.BASE_PAYLOAD.items() if k != "schema_version"}
+        assert RagIngester._validate_artifact(payload, "chunk", strict=True) is False
+
+    def test_strict_missing_artifact_type_rejects(self) -> None:
+        payload = {k: v for k, v in self.BASE_PAYLOAD.items() if k != "artifact_type"}
+        assert RagIngester._validate_artifact(payload, "chunk", strict=True) is False
+
+    def test_strict_missing_created_by_rejects(self) -> None:
+        payload = {k: v for k, v in self.BASE_PAYLOAD.items() if k != "created_by"}
+        assert RagIngester._validate_artifact(payload, "chunk", strict=True) is False
+
+    def test_strict_all_fields_correct_type_passes(self) -> None:
+        assert (
+            RagIngester._validate_artifact(self.BASE_PAYLOAD, "chunk", strict=True)
+            is True
+        )

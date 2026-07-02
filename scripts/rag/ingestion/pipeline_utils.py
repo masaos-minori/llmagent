@@ -32,6 +32,8 @@ class ChunkJsonRaw(TypedDict):
     source_file: NotRequired[str]
     chunk_type: NotRequired[str]
     artifact_type: NotRequired[str]
+    schema_version: NotRequired[str]
+    created_by: NotRequired[str]
 
 
 def _read_chunk_json_raw(path: Path) -> ChunkJsonRaw | None:

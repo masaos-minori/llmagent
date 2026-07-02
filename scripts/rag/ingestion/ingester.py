@@ -86,6 +86,9 @@ class RagIngester:
         self._embed_retry: int = int(cfg["embed_retry"])
         self._embed_workers: int = int(cfg.get("embed_workers", 4))
         self._expected_dims: int = int(cfg.get("embedding_dims", 384))
+        self._strict_artifact_validation: bool = bool(
+            cfg.get("strict_artifact_validation", False)
+        )
         self._client = httpx.Client(timeout=60)
 
     def close(self) -> None:
@@ -171,7 +174,9 @@ class RagIngester:
                 url=url, n_success=0, n_failed=len(chunk_files), skipped=False
             )
 
-        if not self._validate_artifact(first_data, "chunk"):
+        if not self._validate_artifact(
+            first_data, "chunk", strict=self._strict_artifact_validation
+        ):
             return self._validation_failure_result(url, chunk_files)
 
         title = first_data.get("title", "")
@@ -294,11 +299,20 @@ class RagIngester:
     # ── Document helpers ──────────────────────────────────────────────────────
 
     @staticmethod
-    def _validate_artifact(payload: ChunkJsonRaw, expected_type: str) -> bool:
+    def _validate_artifact(
+        payload: ChunkJsonRaw,
+        expected_type: str,
+        *,
+        strict: bool = False,
+    ) -> bool:
         """Validate artifact_type field; lenient for backward compatibility (missing artifact_type is accepted).
 
         Returns True when validation passes, False when it fails.
         """
+        if strict:
+            for required in ("schema_version", "artifact_type", "created_by"):
+                if required not in payload:
+                    return False
         actual = payload.get("artifact_type")
         if actual is not None and actual != expected_type:
             return False
@@ -479,7 +493,9 @@ class RagIngester:
         data = self._read_chunk_json(path)
         if data is None:
             return False, False
-        if not self._validate_artifact(data, "chunk"):
+        if not self._validate_artifact(
+            data, "chunk", strict=self._strict_artifact_validation
+        ):
             logger.warning(
                 "artifact validation failed for %s",
                 path.name,
