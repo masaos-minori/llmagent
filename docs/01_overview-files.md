@@ -65,6 +65,7 @@
   │   │   ├─ tool_models.py                   # ツールデータモデル
   │   │   ├─ tool_output.py                   # ツール出力フォーマット
   │   │   ├─ tool_result_formatter.py         # ツール結果整形
+  │   │   ├─ repository_gateway.py            # RepositoryGateway: 書込/削除/API-write の単一強制境界 (policy → approval → exec → audit)
   │   │   ├─ turn_result.py                   # ターン結果データクラス
   │   │   ├─ diagnostic_store.py              # 部分完了診断情報保存
   │   │   ├─ error_injection_service.py       # エラー注入サービス
@@ -86,9 +87,18 @@
   │   │   │   ├─ embedding_client.py          # 埋め込みクライアント
   │   │   │   ├─ ingestion.py                 # メモリ取り込み
   │   │   │   ├─ injection.py                 # メモリ注入
-  │   │   │   └─ mapper.py                    # メモリマッパー
+  │   │   │   ├─ mapper.py                    # メモリマッパー
+  │   │   │   ├─ enums.py                     # メモリ列挙型
+  │   │   │   └─ exceptions.py                # メモリ例外定義
   │   │   ├─ commands/
-  │   │   │   ├─ registry.py                  # CommandRegistry: スラッシュコマンドディスパッチャ (12 mixins)
+  │   │   │   ├─ registry.py                  # CommandRegistry: スラッシュコマンドディスパッチャ (13 mixins)
+  │   │   │   ├─ command_defs.py              # CommandDef / SubcommandSpec データクラス (コマンド定義の単一ソース)
+  │   │   │   ├─ mixin_base.py                # MixinBase: 全 mixin の共通基底クラス
+  │   │   │   ├─ output_port.py               # OutputPort / CliOutputPort: コマンド出力インタフェース
+  │   │   │   ├─ enums.py                     # コマンド列挙型
+  │   │   │   ├─ exceptions.py                # コマンド例外定義
+  │   │   │   ├─ models.py                    # コマンドデータモデル
+  │   │   │   ├─ utils.py                     # コマンドユーティリティ
   │   │   │   ├─ cmd_session.py               # /session コマンド (_SessionMixin)
   │   │   │   ├─ cmd_mcp.py                   # /mcp コマンド (_McpMixin)
   │   │   │   ├─ cmd_config.py                # /config, /reload コマンド (_ConfigMixin)
@@ -101,33 +111,41 @@
   │   │   │   ├─ cmd_debug.py                 # /debug コマンド (_DebugMixin)
   │   │   │   ├─ cmd_audit.py                 # /audit コマンド (_AuditMixin)
   │   │   │   ├─ cmd_rag_export.py            # /rag, /export, /compact コマンド (_RagExportMixin)
-  │   │   │   ├─ cmd_memory.py               # /memory コマンド (_MemoryMixin)
-  │   │   │   └─ cmd_workflow.py             # /approve, /reject コマンド (_WorkflowMixin)
-  │   │   ├─ services/                      # サービスレイヤー
-  │   │   ├─ config_reload.py           # 設定リロード
-  │   │   ├─ context_view.py            # コンテキストビュー
-  │   │   ├─ conversation_service.py    # 会話サービス
-  │   │   ├─ db_maintenance_service.py  # DB 保守サービス
-  │   │   ├─ export_formatter.py        # エクスポートフォーマット
-  │   │   ├─ io_ports.py                # I/O ポート管理
-  │   │   ├─ mcp_status.py              # MCP サーバステータス
-  │   │   ├─ rag_maintenance_service.py # RAG 保守サービス
-  │   │   ├─ session_restore.py         # セッション復元
-  │   │   ├─ session_title.py           # セッションタイトル生成
-  │   │   ├─ undo_service.py            # アンドゥサービス
-  │   │   └─ workflow/                      # ワークフローエンジン
-  │   │       ├─ models.py                  # ワークフローデータモデル
-  │   │       ├─ state_store.py             # ワークフロー状態ストア
-  │   │       ├─ workflow_engine.py         # WorkflowEngine: ターン実行エンジン
-  │   │       └─ workflow_loader.py         # ワークフローローダー
-  │   ├─ shared/                      # エージェント共有層
-  │   │    ├─ enums.py                   # エージェント列挙型
-  │   │    ├─ exceptions.py              # エージェント例外定義
-  │   │    ├─ health_models.py           # ヘルスチェックモデル
-  │   │    └─ models.py                  # エージェント共通データモデル
+  │   │   │   ├─ cmd_memory.py                # /memory コマンド (_MemoryMixin)
+  │   │   │   ├─ cmd_mdq.py                   # /mdq コマンド (_MdqMixin): status/index/refresh/search/outline/get/grep
+  │   │   │   ├─ cmd_plugins.py               # /plugin コマンド (_PluginsMixin): プラグインロード状態表示
+  │   │   │   └─ cmd_workflow.py              # /approve, /reject コマンド (_WorkflowMixin)
+  │   │   ├─ services/                        # サービスレイヤー (agent/services/ ディレクトリ内)
+  │   │   │   ├─ enums.py                     # McpTier / McpAvailability / ConversationActionType / ExportFormat
+  │   │   │   ├─ exceptions.py                # McpProbeError / SessionTitleGenerationError / ConfigReloadValidationError 等
+  │   │   │   ├─ models.py                    # SessionTitleResult / McpProbeResult / SessionRestoreResult / DbStats 等
+  │   │   │   ├─ config_reload.py             # 設定リロード
+  │   │   │   ├─ context_view.py              # コンテキストビュー
+  │   │   │   ├─ conversation_service.py      # 会話サービス
+  │   │   │   ├─ db_maintenance_service.py    # DB 保守サービス
+  │   │   │   ├─ export_formatter.py          # エクスポートフォーマット
+  │   │   │   ├─ io_ports.py                  # I/O ポート管理
+  │   │   │   ├─ mcp_status.py                # MCP サーバステータス
+  │   │   │   ├─ rag_maintenance_service.py   # RAG 保守サービス
+  │   │   │   ├─ session_restore.py           # セッション復元
+  │   │   │   ├─ session_title.py             # セッションタイトル生成
+  │   │   │   └─ undo_service.py              # アンドゥサービス
+  │   │   ├─ shared/                          # agent パッケージ内共有型 (agent 層専用)
+  │   │   │    ├─ enums.py                    # エージェント列挙型
+  │   │   │    ├─ exceptions.py               # エージェント例外定義
+  │   │   │    ├─ health_models.py            # ヘルスチェックモデル
+  │   │   │    └─ models.py                   # エージェント共通データモデル
+  │   │   └─ workflow/                        # ワークフローエンジン
+  │   │       ├─ models.py                    # ワークフローデータモデル
+  │   │       ├─ state_store.py               # ワークフロー状態ストア
+  │   │       ├─ workflow_engine.py           # WorkflowEngine: ターン実行エンジン
+  │   │       └─ workflow_loader.py           # ワークフローローダー
   │   ├─ mcp/                                 # MCP サーバパッケージ
   │   │   ├─ models.py                        # /v1/call_tool 統合エンドポイント共通 Pydantic モデル
   │   │   ├─ server.py                        # MCP サーバ HTTP 起動共通基底クラス
+  │   │   ├─ audit.py                         # MCP ツール実行監査ログ (JSON-lines 1 行/実行)
+  │   │   ├─ dispatch.py                      # dispatch_tool(): DispatchResult を返すツールルーティングヘルパー
+  │   │   ├─ tool_validators.py               # @register_validator: git_commit / git_push / trigger_workflow / shell_run 等の入力バリデータ
   │   │   ├─ web_search/server.py             # Web 検索 MCP サーバ (DuckDuckGo, :8004)
   │   │   ├─ file/                            # ファイル MCP サーバ群 (:8005/:8007/:8008)
   │   │   ├─ github/                          # GitHub MCP サーバ (:8006)
@@ -139,24 +157,68 @@
   │   │   └─ git/                             # ローカル git 操作 MCP サーバ (:8014)
   │   ├─ rag/                                 # RAG パイプラインパッケージ
   │   │   ├─ pipeline.py                      # RagPipeline: MQE → ベクトル/FTS5 → RRF → 再ランク
+  │   │   ├─ pipeline_refiner.py              # refine_context(): reranked hits → LLM によるキーポイント圧縮
+  │   │   ├─ pipeline_service.py              # call_rag_service(): RAG サービス HTTP 呼び出し (指数バックオフリトライ)
   │   │   ├─ repository.py                    # chunks_vec / chunks_fts アクセス層
-  │   │   ├─ ingestion/                       # crawler.py / chunk_splitter.py / ingester.py
+  │   │   ├─ cache.py                         # SemanticCache: 埋め込みベース LRU セマンティックキャッシュ
+  │   │   ├─ stage.py                         # PipelineStage Protocol / PipelineContext データクラス
+  │   │   ├─ maintenance.py                   # RagDbMaintenanceService: FTS5 再構築・WAL チェックポイント・VACUUM
+  │   │   ├─ llm_client.py                    # RagLLM: RAG 専用 LLM クライアント (MQE・再ランク用)
+  │   │   ├─ llm_prompts.py                   # RAG パイプライン LLM プロンプトテンプレート
+  │   │   ├─ enums.py                         # RAG 列挙型
+  │   │   ├─ exceptions.py                    # RAG 例外定義
+  │   │   ├─ types.py                         # RawHit / MergedHit / RankedHit 等の型定義
+  │   │   ├─ utils.py                         # RAG ユーティリティ
+  │   │   ├─ models_audit.py                  # RAG 監査データモデル
+  │   │   ├─ models_config.py                 # RAG 設定データモデル
+  │   │   ├─ models_data.py                   # RAG データモデル
+  │   │   ├─ models_result.py                 # RAG 結果データモデル
+  │   │   ├─ ingestion/                       # クロール・チャンク分割・DB 投入
+  │   │   │   ├─ crawler.py                   # クローラー
+  │   │   │   ├─ crawler_utils.py             # クローラーユーティリティ
+  │   │   │   ├─ etag_manager.py              # ETag キャッシュ管理 (クロール差分検出)
+  │   │   │   ├─ chunk_splitter.py            # チャンク分割エントリポイント
+  │   │   │   ├─ chunk_japanese.py            # 日本語チャンク分割
+  │   │   │   ├─ chunk_english.py             # 英語チャンク分割
+  │   │   │   ├─ chunk_utils.py               # チャンク分割ユーティリティ
+  │   │   │   ├─ pipeline_utils.py            # パイプラインユーティリティ
+  │   │   │   └─ ingester.py                  # DB 投入 (registered/ へ移動)
   │   │   └─ stages/                          # search / fusion / mqe / augment / rerank
   │   ├─ db/                                  # DB 層パッケージ
   │   │   ├─ create_schema.py                 # SQLite スキーマ初期化
+  │   │   ├─ schema_sql.py                    # build_rag_schema_sql / build_session_schema_sql / build_workflow_schema_sql
   │   │   ├─ helper.py                        # 接続管理 (WAL / busy_timeout)
   │   │   ├─ maintenance.py                   # 運用ポリシー
+  │   │   ├─ config.py                        # DbConfig データクラス・SQLite パスビルダ
+  │   │   ├─ models.py                        # WalCheckpointCounts / PurgeCounts / ToolResultRow / DbHealthMetrics / DocumentRow / SessionRow / MessageRow
   │   │   ├─ store.py                         # Protocol 抽象レイヤー
+  │   │   ├─ store_protocols.py               # VectorStore / DocumentStore / SessionStore Protocol 定義
+  │   │   ├─ store_impl.py                    # SQLiteVectorStore / SQLiteDocumentStore / SQLiteSessionStore 実装
   │   │   └─ tool_results.py                  # ツール結果永続化
-  │   └─ shared/                              # 共有ユーティリティパッケージ
+  │   └─ shared/                              # 共有ユーティリティパッケージ (全層から利用可)
   │       ├─ llm_client.py                    # LLMClient: SSE ストリーミング・指数バックオフリトライ
+  │       ├─ llm_types.py                     # LLMUsage / LLMResponse データクラス (llm_client と分離してインポート軽量化)
+  │       ├─ llm_exceptions.py                # LLMTransportError: LLM HTTP/SSE 失敗の構造化例外 (LLMErrorKind / phase / retryable)
+  │       ├─ sse_parser.py                    # RobustSSEParser: 増分 UTF-8 デコード + ハートビート監視 + 不正フレーム予算
   │       ├─ tool_executor.py                 # ToolExecutor: MCP サーバルーティング・TTL キャッシュ
+  │       ├─ tool_registry.py                 # ToolRegistry: ツール定義の単一ソース (frozenset から登録、ドリフト検出)
+  │       ├─ tool_spec.py                     # ToolSpec: ツール呼び出し実行メタデータ (resource_scope / requires_serial 等)
+  │       ├─ tool_cache.py                    # CacheEntry: ToolExecutor の LRU キャッシュエントリ
   │       ├─ types.py                         # 共通型定義 (LLMMessage 等)
   │       ├─ mcp_config.py                    # McpServerConfig データクラス
   │       ├─ config_loader.py                 # TOML/JSON 共通設定ローダー
+  │       ├─ config_validator.py              # RagConfigValidator: 起動時 RAG 設定クロスファイル整合性チェック
   │       ├─ plugin_registry.py               # プラグイン登録デコレータ (@register_command 等)
   │       ├─ tool_constants.py                # ツール分類 frozenset (READ/WRITE/DELETE/RAG/CICD/MDQ/GIT)
-  │       └─ route_resolver.py                # ToolRouteResolver: ツール名 → サーバキーマッピング
+  │       ├─ route_resolver.py                # ToolRouteResolver: ツール名 → サーバキーマッピング
+  │       ├─ action_result.py                 # ActionResult: 機械判定パス向け汎用アクション/結果スキーマ (ActionType literal)
+  │       ├─ events.py                        # ArtifactEvent / RetryEvent: ライフサイクル/成果物通知の型定義 (配送機構なし)
+  │       ├─ formatters.py                    # MCP 全サーバ共通出力フォーマッタ (truncate / fmt_size / fmt_kvlog 等)
+  │       ├─ git_helper.py                    # get_repo_info(): GitPython でブランチ・コミット情報取得 (/context 表示用)
+  │       ├─ json_utils.py                    # orjson ラッパー: dumps() が bytes でなく str を返す
+  │       ├─ logger.py                        # Logger: エントリポイント用ファイルロガー (構造化ログ JSON-lines 対応)
+  │       ├─ otel_tracer.py                   # OpenTelemetry トレーサ設定
+  │       └─ protocols/                       # 共有プロトコル定義 (shell.py)
   └─ logs/                                    # 各サービスのログファイル出力先
 /etc/conf.d/
    └─ github-mcp                         # GITHUB_TOKEN (Personal Access Token) 設定
