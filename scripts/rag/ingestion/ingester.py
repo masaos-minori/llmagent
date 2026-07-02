@@ -23,12 +23,8 @@ from pathlib import Path
 import httpx
 import orjson
 from db.helper import SQLiteHelper
-from db.maintenance import (
-    RagConsistencyReport,
-    check_rag_consistency,
-    is_consistent,
-)
-from rag.ingestion.etag_manager import ETagManager
+from db.maintenance import RagConsistencyReport
+from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.pipeline_utils import ChunkJsonRaw, _read_chunk_json_raw
 from rag.utils import floats_to_blob, validate_url
 from shared.config_loader import ConfigLoader
@@ -50,22 +46,6 @@ class IngestUrlResult:
 
 # Accepted lang values enforced by the documents.lang CHECK constraint
 _VALID_LANGS: frozenset[str] = frozenset({"en", "ja"})
-
-
-def delete_document_chain(db: SQLiteHelper, doc_id: int) -> None:
-    """Delete chunks_vec → chunks → documents for doc_id.
-
-    chunks_vec has no FK to chunks, so it must be deleted first.
-    chunks deletion fires FTS5 triggers automatically (via ON DELETE trigger on chunks).
-    documents deletion cascades to any remaining chunks rows.
-    """
-    db.execute(
-        "DELETE FROM chunks_vec"
-        " WHERE chunk_id IN (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
-        (doc_id,),
-    )
-    db.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
-    db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -121,7 +101,8 @@ class RagIngester:
             return None
         url_groups = self._group_chunks_by_url(chunk_files)
         with SQLiteHelper().open(write_mode=True) as db:
-            results = self._process_url_groups(db, url_groups, force)
+            doc_mgr = DocumentManager(db)
+            results = self._process_url_groups(doc_mgr, db, url_groups, force)
         total_success = sum(r.n_success for r in results)
         total_failed = sum(r.n_failed for r in results if r.n_failed > 0)
         total_embed_failed = sum(
@@ -137,27 +118,14 @@ class RagIngester:
             total_skipped,
             extra={"stage_name": "ingester"},
         )
-        try:
-            report = check_rag_consistency(db, embed_failed=total_embed_failed)
-            if not is_consistent(report):
-                for issue in report.issues:
-                    logger.warning(
-                        "Post-ingest consistency: %s",
-                        issue,
-                        extra={"stage_name": "ingester"},
-                    )
-            if on_ingest_complete is not None:
-                try:
-                    on_ingest_complete()
-                except (TypeError, ValueError):
-                    logger.exception("on_ingest_complete callback failed")
-            return report
-        except (sqlite3.OperationalError, sqlite3.DatabaseError, ValueError):
-            logger.exception("Post-ingest consistency check failed")
-            return None
+        return doc_mgr.check_consistency(
+            embed_failed=total_embed_failed,
+            on_ingest_complete=on_ingest_complete,
+        )
 
     def ingest_url_group(
         self,
+        doc_mgr: DocumentManager,
         db: SQLiteHelper,
         url: str,
         chunk_files: list[Path],
@@ -187,6 +155,7 @@ class RagIngester:
         chunking_strategy = first_data.get("chunking_strategy", "text")
 
         doc_id = self._get_or_create_document(
+            doc_mgr,
             db,
             url,
             title,
@@ -319,33 +288,6 @@ class RagIngester:
         return True
 
     @staticmethod
-    def _is_file_unchanged(
-        existing_etag: str | None,
-        existing_last_modified: str | None,
-        new_etag: str | None,
-        new_last_modified: str | None,
-    ) -> bool:
-        """Return True when the file SHA-256 hash is unchanged."""
-        if existing_etag is None or new_etag is None:
-            return False
-        return existing_etag == new_etag
-
-    def _delete_existing_document(self, db: SQLiteHelper, doc_id: int) -> None:
-        """Delete a document and its chunks; chunks_vec removed first because it has no FK constraint to chunks."""
-        delete_document_chain(db, doc_id)
-
-    def _update_etag(
-        self,
-        db: SQLiteHelper,
-        doc_id: int,
-        etag: str | None,
-        last_modified: str | None,
-        new_fetched_at: str | None = None,
-    ) -> None:
-        """Refresh ETag/Last-Modified for an existing document (skip-case)."""
-        ETagManager(db, doc_id).update(etag, last_modified, new_fetched_at)
-
-    @staticmethod
     def _log_ingest_failure(doc_id: int, path: Path, e: Exception) -> None:
         """Log a chunk ingestion failure."""
         chunk_data = _read_chunk_json_raw(path)
@@ -366,59 +308,9 @@ class RagIngester:
         """Return True when lang is a valid value."""
         return lang in _VALID_LANGS
 
-    def _handle_existing_document(
-        self,
-        db: SQLiteHelper,
-        url: str,
-        existing_doc_id: int,
-        force: bool,
-        etag: str | None,
-        last_modified: str | None,
-        fetched_at: str | None,
-    ) -> bool:
-        """Handle an existing document; return True when the caller should skip insertion."""
-        if force:
-            return False
-        if url.startswith("file://"):
-            return self._handle_existing_file(
-                db, url, existing_doc_id, etag, last_modified
-            )
-        self._update_etag(db, existing_doc_id, etag, last_modified, fetched_at)
-        return True
-
-    def _handle_existing_file(
-        self,
-        db: SQLiteHelper,
-        url: str,
-        existing_doc_id: int,
-        etag: str | None,
-        last_modified: str | None,
-    ) -> bool:
-        """Handle an existing file:// document; return True when unchanged."""
-        stored = db.execute(
-            "SELECT etag, last_modified FROM documents WHERE doc_id = ?",
-            (existing_doc_id,),
-        ).fetchone()
-        if stored is None:
-            return False
-        if self._is_file_unchanged(
-            stored["etag"], stored["last_modified"], etag, last_modified
-        ):
-            logger.info(
-                "file:// unchanged (sha256 match): %s",
-                url,
-                extra={"stage_name": "ingester"},
-            )
-            return True
-        logger.info(
-            "file:// changed — auto re-ingesting: %s",
-            url,
-            extra={"stage_name": "ingester"},
-        )
-        return False
-
     def _get_or_create_document(
         self,
+        doc_mgr: DocumentManager,
         db: SQLiteHelper,
         url: str,
         title: str,
@@ -441,11 +333,12 @@ class RagIngester:
         ).fetchone()
         if existing_row:
             existing_doc_id: int = existing_row[0]
-            if self._handle_existing_document(
-                db, url, existing_doc_id, force, etag, last_modified, fetched_at
+            if doc_mgr.handle_existing_document(
+                url, existing_doc_id, force, etag, last_modified, fetched_at,
+                lambda u: u.startswith("file://"),
             ):
                 return None
-            self._delete_existing_document(db, existing_doc_id)
+            doc_mgr.delete_existing_document(existing_doc_id)
         cur = db.execute(
             "INSERT INTO documents"
             " (url, title, lang, etag, last_modified, chunking_strategy)"
@@ -617,6 +510,7 @@ class RagIngester:
 
     def _process_url_groups(
         self,
+        doc_mgr: DocumentManager,
         db: SQLiteHelper,
         url_groups: dict[str, list[Path]],
         force: bool,
@@ -625,7 +519,7 @@ class RagIngester:
         results: list[IngestUrlResult] = []
         for url, paths in url_groups.items():
             try:
-                results.append(self.ingest_url_group(db, url, paths, force))
+                results.append(self.ingest_url_group(doc_mgr, db, url, paths, force))
             except (OSError, RuntimeError, ValueError, sqlite3.OperationalError):
                 logger.exception("ingest_url_group failed: %s", url)
                 results.append(

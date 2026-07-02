@@ -8,9 +8,9 @@ Extracted from web_crawler.py to keep WebCrawler under 400 lines.
 
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
-import re
 from urllib.parse import urldefrag, urlparse
 
 import trafilatura
