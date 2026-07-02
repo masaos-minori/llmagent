@@ -5,7 +5,8 @@ Unit tests for agent/commands/command_defs.py.
 
 from __future__ import annotations
 
-from agent.commands.command_defs import _COMMANDS, CommandDef, SubcommandSpec
+from agent.commands.command_defs import CommandDef, SubcommandSpec
+from agent.commands.command_defs_list import _COMMANDS
 
 
 class TestCommandDef:
