@@ -9,7 +9,6 @@ Extracted from web_crawler.py to keep WebCrawler under 400 lines.
 from __future__ import annotations
 
 import re
-from typing import Any
 from urllib.parse import urldefrag, urlparse
 
 import trafilatura
@@ -99,7 +98,7 @@ def _is_cjk_char(c: str) -> bool:
     )
 
 
-def parse_target_urls(target_raw: list[list[Any]]) -> list[tuple[str, str]]:
+def parse_target_urls(target_raw: list[list[str]]) -> list[tuple[str, str]]:
     """Validate and parse the target_urls config list into (url, lang) tuples."""
     result: list[tuple[str, str]] = []
     for entry in target_raw:
@@ -111,7 +110,7 @@ def parse_target_urls(target_raw: list[list[Any]]) -> list[tuple[str, str]]:
             raise ValueError(
                 "Each entry in target_urls must be a 2-element list of [url, lang]",
             )
-        url_raw, lang_raw = entry[0], entry[1]
+        url_raw, lang_raw = str(entry[0]), str(entry[1])
         if not isinstance(url_raw, str):
             raise ValueError(
                 f"target_urls entry must be [str, str], got [{type(url_raw).__name__}, {type(lang_raw).__name__}]"

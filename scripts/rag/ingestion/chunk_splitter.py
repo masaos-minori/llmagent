@@ -84,7 +84,16 @@ class ChunkMetadata(TypedDict, total=False):
 
 
 # Metadata dict type for ** spreading (cannot use TypedDict in constructor calls)
-_ChunkMetadataDict = dict[str, object]
+class _ChunkMetadataDict(TypedDict, total=False):
+    """Metadata fields spread into chunk output payloads."""
+
+    url: str
+    title: str
+    lang: str
+    etag: str | None
+    last_modified: str | None
+    source_file: str
+    chunking_strategy: str
 
 
 # ──────────────────────────────────────────────────────────────────────────────
