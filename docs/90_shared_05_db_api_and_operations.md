@@ -474,7 +474,7 @@ uv run python -c "from db.create_schema import create_schema; create_schema()"
 
 ---
 
-## 10. Verification Plan
+## 11. Verification Plan
 
 ```bash
 # Schema initialization
@@ -497,7 +497,7 @@ sqlite3 /opt/llm/db/session.sqlite ".tables"
 
 ---
 
-## 11. AI Reference Guide
+## 12. AI Reference Guide
 
 | Question | Answer |
 |---|---|

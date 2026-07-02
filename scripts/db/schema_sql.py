@@ -164,8 +164,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     workflow_version TEXT NOT NULL,
     status           TEXT NOT NULL DEFAULT 'pending',
     idempotency_key  TEXT UNIQUE NOT NULL,
-    created_at       TEXT NOT NULL,
-    updated_at       TEXT NOT NULL
+    created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS attempts (
@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS attempts (
     task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
     stage_id    TEXT NOT NULL,
     status      TEXT NOT NULL DEFAULT 'running',
-    started_at  TEXT NOT NULL,
+    started_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     ended_at    TEXT,
     error_msg   TEXT
 );
@@ -182,7 +182,7 @@ CREATE TABLE IF NOT EXISTS processed_events (
     event_id    TEXT PRIMARY KEY,
     task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
     stage_id    TEXT NOT NULL,
-    recorded_at TEXT NOT NULL
+    recorded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS artifacts (
@@ -190,7 +190,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
     task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
     stage_id    TEXT NOT NULL,
     uri         TEXT NOT NULL,
-    created_at  TEXT NOT NULL
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS approvals (
@@ -199,7 +199,7 @@ CREATE TABLE IF NOT EXISTS approvals (
     stage_id    TEXT,
     status      TEXT NOT NULL DEFAULT 'pending',
     reason      TEXT,
-    created_at  TEXT NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     resolved_at TEXT
 );
 """

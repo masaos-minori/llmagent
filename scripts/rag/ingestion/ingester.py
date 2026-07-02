@@ -339,12 +339,20 @@ class RagIngester:
             ):
                 return None
             doc_mgr.delete_existing_document(existing_doc_id)
-        cur = db.execute(
-            "INSERT INTO documents"
-            " (url, title, lang, etag, last_modified, chunking_strategy)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (url, title, lang, etag, last_modified, chunking_strategy),
-        )
+        if fetched_at is not None:
+            cur = db.execute(
+                "INSERT INTO documents"
+                " (url, title, lang, etag, last_modified, chunking_strategy, fetched_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (url, title, lang, etag, last_modified, chunking_strategy, fetched_at),
+            )
+        else:
+            cur = db.execute(
+                "INSERT INTO documents"
+                " (url, title, lang, etag, last_modified, chunking_strategy)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (url, title, lang, etag, last_modified, chunking_strategy),
+            )
         return cur.lastrowid
 
     def _insert_chunk(

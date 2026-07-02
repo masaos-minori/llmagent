@@ -103,7 +103,7 @@ sqlite-vec is loaded only for `target="rag"`. Session and workflow targets do no
 | `fetched_at` | TEXT | NOT NULL DEFAULT `datetime('now')` |
 | `etag` | TEXT | |
 | `last_modified` | TEXT | |
-| `chunking_strategy` | TEXT | NOT NULL DEFAULT `'text'` (added via `migrate_schema()`) |
+| `chunking_strategy` | TEXT | NOT NULL DEFAULT `'text'` |
 
 ### `chunks` table
 
@@ -114,6 +114,8 @@ sqlite-vec is loaded only for `target="rag"`. Session and workflow targets do no
 | `chunk_index` | INTEGER | NOT NULL |
 | `content` | TEXT | NOT NULL |
 | `normalized_content` | TEXT | (NULL for English/code) |
+| `chunk_type`        | TEXT | NOT NULL DEFAULT `'text'` |
+| `source_file`       | TEXT | NOT NULL DEFAULT `''` |
 
 ### `chunks_fts` (FTS5 virtual table)
 
@@ -346,7 +348,7 @@ create_schema()
 | Where is session.sqlite schema? | This document §6 |
 | Does `SQLiteHelper` support workflow.sqlite? | Yes — `target="workflow"` (undocumented in spec, see §4) |
 | How is embedding dimension set? | `common.toml::embedding_dims` (default 384) |
-| What initializes schemas? | `create_schema()` + `init_schema()` — idempotent |
+| What initializes schemas? | `create_schema()` — idempotent DDL-only initialization; no migration |
 | Are DB triggers documented? | Yes — chunks_fts auto-sync triggers (§5), memories_fts auto-sync triggers (§6) |
 
 ---

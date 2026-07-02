@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def _now() -> str:
-    return datetime.now(UTC).isoformat()
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class StateStore:
@@ -307,7 +307,7 @@ class StateStore:
             WHERE t.session_id = ?
               AND t.status = 'pending_approval'
               AND a.status = 'pending'
-            ORDER BY a.created_at DESC
+            ORDER BY a.created_at DESC, a.rowid DESC
             LIMIT 1
             """,
             (session_id,),
@@ -334,7 +334,7 @@ class StateStore:
             JOIN approvals a ON t.task_id = a.task_id
             WHERE t.status = 'pending_approval'
               AND a.status = 'pending'
-            ORDER BY a.created_at DESC
+            ORDER BY a.created_at DESC, a.rowid DESC
             LIMIT 1
             """,
             (),

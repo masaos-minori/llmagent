@@ -301,6 +301,13 @@ class TestCreateSessionSchema:
         cols = {row[1] for row in session_tmp_db.execute("PRAGMA table_info(messages)")}
         assert "tool_call_id" in cols
 
+    def test_tool_results_has_undone(self, session_tmp_db: sqlite3.Connection) -> None:
+        """tool_results table has the undone column."""
+        cols = {
+            row[1] for row in session_tmp_db.execute("PRAGMA table_info(tool_results)")
+        }
+        assert "undone" in cols
+
     def test_idempotent(self, tmp_path: Path) -> None:
         db_file = tmp_path / "session2.sqlite"
         cfg = _make_db_config(db_file, "session")
@@ -545,6 +552,7 @@ class TestCreateWorkflowSchema:
         assert rows == []
         conn.close()
 
+
 # ── timestamp defaults ────────────────────────────────────────────────────────────
 
 
@@ -577,14 +585,22 @@ class TestTimestampDefaults:
         ):
             cs.create_session_schema()
         conn = sqlite3.connect(str(db_file))
-        for table in ("sessions", "messages", "tool_results", "memories", "session_diagnostics"):
+        for table in (
+            "sessions",
+            "messages",
+            "tool_results",
+            "memories",
+            "session_diagnostics",
+        ):
             info = conn.execute(f"PRAGMA table_info({table})").fetchall()
             for row in info:
                 col_name = row[1]
                 default = row[4]
                 if col_name.endswith("_at"):
                     assert default is not None, f"{table}.{col_name} has no DEFAULT"
-                    assert "datetime('now')" not in (default or ""), f"{table}.{col_name} uses datetime('now')"
+                    assert "datetime('now')" not in (default or ""), (
+                        f"{table}.{col_name} uses datetime('now')"
+                    )
         conn.close()
 
     def test_workflow_schema_timestamps(self, tmp_path: Path) -> None:
@@ -595,14 +611,22 @@ class TestTimestampDefaults:
         ):
             cs.create_workflow_schema()
         conn = sqlite3.connect(str(db_file))
-        for table in ("tasks", "attempts", "processed_events", "artifacts", "approvals"):
+        for table in (
+            "tasks",
+            "attempts",
+            "processed_events",
+            "artifacts",
+            "approvals",
+        ):
             info = conn.execute(f"PRAGMA table_info({table})").fetchall()
             for row in info:
                 col_name = row[1]
                 default = row[4]
                 if col_name.endswith("_at"):
                     assert default is not None, f"{table}.{col_name} has no DEFAULT"
-                    assert "datetime('now')" not in (default or ""), f"{table}.{col_name} uses datetime('now')"
+                    assert "datetime('now')" not in (default or ""), (
+                        f"{table}.{col_name} uses datetime('now')"
+                    )
         conn.close()
 
     def test_eventbus_schema_timestamps(self, tmp_path: Path) -> None:
@@ -619,5 +643,7 @@ class TestTimestampDefaults:
             default = row[4]
             if col_name.endswith("_at"):
                 assert default is not None, f"events.{col_name} has no DEFAULT"
-                assert "datetime('now')" not in (default or ""), f"events.{col_name} uses datetime('now')"
+                assert "datetime('now')" not in (default or ""), (
+                    f"events.{col_name} uses datetime('now')"
+                )
         conn.close()
