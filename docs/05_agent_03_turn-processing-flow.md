@@ -97,10 +97,23 @@ User input (line)
 5. If `finish_reason == "stop"` or `max_tool_turns` exceeded: return final answer
 
 `ToolLoopGuard` guards during each tool loop iteration:
-- **Dedup:** same `(name, args)` seen > `tool_dedup_max_repeats` times → inject hint
-- **Cycle detection:** same tool sequence in last `tool_cycle_detect_window` rounds → warn
-- **Retry:** errored `(name, args)` called again > `tool_error_retry_max` → block
-- **Consecutive error:** all tools in a round errored `tool_error_max_consecutive` times → break loop
+- **Dedup:** same `(name, args)` seen ≥ `tool_dedup_max_repeats` times → terminate loop;
+  user sees `"Repeated tool call detected."`; hint stored in `session_diagnostics`
+  (`kind='guard_hint'`, `guard_type='dedup'`).
+- **Cycle detection:** same tool-call fingerprint repeated in the last
+  `tool_cycle_detect_window` rounds → terminate loop;
+  user sees `"Cyclic tool call pattern detected."`;
+  hint stored in `session_diagnostics` (`kind='guard_hint'`, `guard_type='cycle'`).
+- **Retry:** errored `(name, args)` called again → terminate loop;
+  user sees `"Repeated failed tool call detected."`;
+  hint stored in `session_diagnostics` (`kind='guard_hint'`, `guard_type='retry'`).
+- **Consecutive error:** all tools in a round errored `tool_error_max_consecutive` times
+  → terminate loop; user sees `"Too many consecutive tool errors."`.
+
+> **Note:** Guard hints (`DEDUP_HINT`, `CYCLE_HINT`, `RETRY_HINT`) are stored in
+> `session_diagnostics` under `kind='guard_hint'` for offline diagnostics only.
+> They are **not** injected into `ctx.conv.history` and the LLM does not see them.
+> The loop terminates immediately on any guard hit.
 
 ---
 

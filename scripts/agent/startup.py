@@ -176,8 +176,10 @@ class StartupOrchestrator:
         if ctx.workflow is None:
             return
         store = StateStore()
-        result = store.find_latest_pending_approval()
-        store.close()
+        try:
+            result = store.find_latest_pending_approval()
+        finally:
+            store.close()
         if result is None:
             return
         task_id, approval = result

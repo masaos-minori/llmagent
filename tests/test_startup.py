@@ -173,6 +173,24 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         assert ctx.turn.pending_approval_id is None
         view.write_warning.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_recover_pending_approvals_store_closed_on_exception(self) -> None:
+        """store.close() is called even when find_latest_pending_approval raises."""
+        ctx = MagicMock()
+        ctx.workflow = MagicMock()
+        view = MagicMock()
+
+        startup = StartupOrchestrator(ctx, view)
+
+        mock_store = MagicMock()
+        mock_store.find_latest_pending_approval.side_effect = RuntimeError("db error")
+
+        with patch("agent.startup.StateStore", return_value=mock_store):
+            with pytest.raises(RuntimeError, match="db error"):
+                await startup._recover_pending_approvals()
+
+        mock_store.close.assert_called_once()
+
 
 # ── _setup_prompt() regression tests ────────────────────────────────────────────
 

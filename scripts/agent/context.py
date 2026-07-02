@@ -182,8 +182,7 @@ class AgentContext:
         # None until an Orchestrator is constructed with this context.
         self.diagnostics: DiagnosticStore | None = None
         # Set to AppServices by factory.build_agent_context() before first use.
-        # Typed as Any to avoid cascading union-attr errors until call sites are migrated.
-        self.services: Any = None
+        self.services: AppServices | None = None
 
     @property
     def services_required(self) -> AppServices:

@@ -355,12 +355,10 @@ class Orchestrator:
 
     async def _handle_turn_start(self, line: str) -> None:
         ctx = self._ctx
-        if ctx.services.hist_mgr is None:
-            raise RuntimeError("hist_mgr service not initialized")
         ctx.turn.current_turn_id = str(uuid.uuid4())
         session_id = _format_session_id(ctx.session.session_id) or "none"
-        if ctx.services.audit_logger is not None:
-            ctx.services.audit_logger.info(
+        if ctx.services_required.audit_logger is not None:
+            ctx.services_required.audit_logger.info(
                 orjson.dumps(
                     {
                         "event": "turn_start",
@@ -374,8 +372,8 @@ class Orchestrator:
 
     async def _handle_memory_injection(self, line: str) -> None:
         ctx = self._ctx
-        if ctx.services.memory is not None:
-            memory_snippets = await ctx.services.memory.on_user_prompt(
+        if ctx.services_required.memory is not None:
+            memory_snippets = await ctx.services_required.memory.on_user_prompt(
                 query=line,
                 session_id=ctx.session.session_id,
             )
@@ -393,10 +391,8 @@ class Orchestrator:
 
     async def _handle_history_compression(self) -> None:
         ctx = self._ctx
-        if ctx.services.hist_mgr is None:
-            raise RuntimeError("hist_mgr service not initialized")
         with self._llm_runner._span_ctx("compress"):
-            ctx.conv.history, result = await ctx.services.hist_mgr.compress(
+            ctx.conv.history, result = await ctx.services_required.hist_mgr.compress(
                 ctx.conv.history
             )
             if (
@@ -488,11 +484,11 @@ class Orchestrator:
     ) -> None:
         ctx = self._ctx
         elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
-        if ctx.services.audit_logger is not None:
+        if ctx.services_required.audit_logger is not None:
             event = self._build_turn_end_event(
                 elapsed_ms, error_kind, ctx.turn.current_turn_id, is_partial
             )
-            ctx.services.audit_logger.info(_json_dumps(event))
+            ctx.services_required.audit_logger.info(_json_dumps(event))
         ctx.turn.current_turn_id = None
 
     def _build_turn_end_event(
@@ -510,7 +506,7 @@ class Orchestrator:
             "elapsed_ms": elapsed_ms,
             "input_tokens": ctx.stats.stat_input_tokens,
             "output_tokens": ctx.stats.stat_output_tokens,
-            **_build_turn_end_llm_stats(ctx.services.llm),
+            **_build_turn_end_llm_stats(ctx.services_required.llm),
             "partial_completion": is_partial,
             "error_kind": error_kind,
         }
@@ -612,8 +608,7 @@ class Orchestrator:
                 "ToolResultStore.store failed for partial completion: %s",
                 store_err,
             )
-        if ctx.services.llm is not None:
-            ctx.services.llm.stat_partial_completions += 1
+        ctx.services_required.llm.stat_partial_completions += 1
         logger.warning("Partial LLM completion saved: %s", e.kind)
 
     def _handle_non_partial_error(

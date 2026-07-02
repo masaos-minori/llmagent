@@ -71,6 +71,11 @@ Session-cumulative counters and latency samples.
 | `stat_semantic_cache_hits` | `int` | Semantic cache hits |
 | `stat_input_tokens` | `int\|None` | LLM input tokens (`None` if endpoint omits `usage`) |
 | `stat_output_tokens` | `int\|None` | LLM output tokens (`None` if endpoint omits `usage`) |
+| `stat_serialization_events` | `list[dict]` | Per-round serialization events recorded by the DAG tool scheduler (`_execute_with_dag`) and standard runner (`_execute_standard`). Accumulated across all turns. Initial: `[]`. Surfaced by the `/mcp` command. |
+| `stat_serialization_total_overhead_ms` | `float` | Total serialization overhead in milliseconds, accumulated across all turns. Initial: `0.0`. |
+| `stat_memory_consistency_failures` | `int` | Count of `/memory check-consistency` failures this session. Incremented by `cmd_memory.py`. Initial: `0`. |
+| `stat_memory_circuit_open` | `bool` | `True` when the memory embedding circuit breaker is open. Read at display time from `MemoryServices` via `cmd_config_stats._get_mem_circuit_open()` — **not written to `ctx.stats`** during normal operation. Initial: `False`. |
+| `stat_memory_fts_fallback_count` | `int` | Count of FTS fallbacks this session (triggered when embedding is unavailable). Mirrors `MemoryServices.retriever.fts_fallback_count` — read at display time via `cmd_config_stats._get_mem_fts_fallback()`, not independently tracked in `ctx.stats`. Initial: `0`. |
 
 ---
 

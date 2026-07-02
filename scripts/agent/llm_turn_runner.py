@@ -174,9 +174,7 @@ class LLMTurnRunner:
         """Stream one LLM response; raise on first-turn failure, inject on mid-turn."""
         ctx = self._ctx
         logger.debug("_stream_llm: turn=%d url=%s", turn, llm_url)
-        if ctx.services.llm is None:
-            raise RuntimeError("llm service not initialized")
-        response = await ctx.services.llm.stream(
+        response = await ctx.services_required.llm.stream(
             llm_url,
             ctx.conv.history,
             ctx.cfg.tool.tool_definitions,

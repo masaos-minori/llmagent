@@ -194,10 +194,12 @@ Controls the inner tool loop in `LLMTurnRunner`:
 
 | Guard | Config field | Behavior |
 |---|---|---|
-| Dedup | `tool_dedup_max_repeats` (default 3) | Same (name, args) repeated N times → inject hint to LLM |
-| Cycle detection | `tool_cycle_detect_window` (default 2) | Same tool sequence in N rounds → warn |
-| Retry cap | `tool_error_retry_max` (default 1) | Errored (name, args) called again > N → block |
-| Consecutive error | `tool_error_max_consecutive` (default 3) | All tools in round error N times → break loop |
+| Dedup | `tool_dedup_max_repeats` (default 3) | Same (name, args) repeated ≥ N times → terminate loop; hint stored in `session_diagnostics` |
+| Cycle detection | `tool_cycle_detect_window` (default 2) | Same tool-call fingerprint repeated in last N rounds → terminate loop; hint stored in `session_diagnostics` |
+| Retry cap | `tool_error_retry_max` (default 1) | Errored (name, args) called again → terminate loop; hint stored in `session_diagnostics` |
+| Consecutive error | `tool_error_max_consecutive` (default 3) | All tools in round error N times → terminate loop |
+
+> **Note:** Guard hints are stored for offline diagnostics only. They are **not** injected into `ctx.conv.history`.
 
 ---
 
