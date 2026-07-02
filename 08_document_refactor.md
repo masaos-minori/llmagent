@@ -60,7 +60,8 @@ Do not add:
 - ungrounded speculation,
 - future roadmap ideas unless already implied in code or docs,
 - implementation details with no design relevance,
-- broad refactoring proposals inside the document body.
+- broad refactoring proposals inside the document body,
+- private methods or private attributes (e.g. `_method`, `__method`) — document only the public API surface; internal implementation details are not part of the design contract.
 
 ### Evidence Standard
 For every meaningful addition:

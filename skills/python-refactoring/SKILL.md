@@ -29,7 +29,7 @@ Do not use for: adding features, changing expected behavior, introducing busines
 | Phase | Name | Gate |
 |---|---|---|
 | 1 | Dependency Mapping | Blast radius documented; all affected modules, internal/external imports, and public API impact identified |
-| 2 | Behavior Lock | Test coverage ≥ 80%; 0 surviving mutants on refactored paths (via `mutmut` or equivalent); characterization/snapshot tests recorded |
+| 2 | Behavior Lock | Test coverage ≥ 80%; 0 surviving mutants on refactored paths (via `mutmut` if installed, else skip mutation check and note it); characterization/snapshot tests recorded |
 | 3 | Semantic Transformation | Ruff clean; all transformed files parse correctly; no old symbol names remain; AST-safe transformations applied |
 | 4 | Semantic Validation | Mypy error count unchanged or decreased; Pyright clean; all characterization and regression tests pass |
 | 5 | Incremental Migration | Every commit passes pytest + ruff + mypy; no broken intermediate state; backward compatibility layers functional |
@@ -69,6 +69,7 @@ These apply regardless of the refactor type. Do not violate.
 
 ### Run after this skill
 - `deploy` — if scripts/ files were added, removed, or renamed
+- `python-documentation` — if public interfaces or module names changed, update corresponding docs
 
 ### Use separately if needed
 - `python-implementation` — only if the refactor reveals a feature gap requiring new code

@@ -1,40 +1,59 @@
-[tasks]
+You are a senior software engineer and implementation specialist.
 
-Show progress while working.
-Follow these instructions exactly.
+Read the target plan file, then implement the feature according to the rules and skills below.
 
-0. Read `routing.md`.
-   Read `rules/coding.md`.
-   Read `rules/toolchain.md`.
+Do not modify files outside the scope specified in the plan.
+Do not edit documentation unless step 6 is reached.
 
-1. Search for files matching `implementations/*.md`.
-   Do not read files under the `implementations/done` directory.
-   If there are no matching files in `implementations/`, stop the task.
-   Sort the matching files by filename in ascending order.
-   Use the first file as the target implementation file.
-   If there are no matching files in `implementations/`, stop immediately.
+### Output Language
 
-2. Read the target plan file.
-   Use `routing.md` to identify the target feature and the related implementation file.
+Progress reports MUST be in Japanese.
+Use Markdown. Be concrete and implementation-oriented.
 
-3. Implement the feature according to the implementation document.
-   Follow:
-   - `skills/python-implementation/SKILL.md`
-   - `skills/python-lint-typecheck/SKILL.md`
+### Tasks
 
-4. Test the feature according to the implementation procedure document.
-   If test coverage is insufficient, add the required test cases and test programs.
-   Repeat until all tests pass.
-   Follow:
-   - `skills/python-test-and-fix/SKILL.md`
-   - `skills/python-debug-root-cause/SKILL.md`
+Show progress as you work.
 
-5. After implementation and testing are complete, move the completed implementation procedure document to `implementations/done/` directory.
+#### Step 0: Load required files
 
-6. Update `docs/*.md` for every changed file.
+Read the following before starting:
+- `routing.md`
+- `rules/coding.md`
+- `rules/toolchain.md`
 
-7. Create a Git commit.
+#### Step 1: Identify the target plan file
 
-8. Compress the current context immediately.
+- Search for files matching `implementations/*.md`.
+- Do not read files under `implementations/done/`.
+- If no matching files exist, stop immediately.
+- Sort matching files by filename in ascending order.
+- Use the first file as the target plan file.
 
-9. End the task.
+#### Step 2: Read the target plan file
+
+- Read the target plan file.
+- Identify the target feature and the related source files to modify.
+
+#### Step 3: Implement the feature
+
+Implement the feature according to the plan file. Follow:
+- `skills/python-implementation/SKILL.md`
+- `skills/python-lint-typecheck/SKILL.md`
+
+#### Step 4: Test the feature
+
+Test the feature according to the plan file. Follow:
+- `skills/python-test-and-fix/SKILL.md`
+- `skills/python-debug-root-cause/SKILL.md`
+
+If test coverage is insufficient (refer to `rules/toolchain.md` for the coverage threshold), add the required test cases.
+Repeat until all tests pass.
+
+#### Step 5: Move the completed plan file
+
+Move the completed plan file to `implementations/done/`.
+
+#### Step 6: Update documentation
+
+Update `docs/*.md` for every changed file. Follow:
+- `skills/python-documentation/SKILL.md`

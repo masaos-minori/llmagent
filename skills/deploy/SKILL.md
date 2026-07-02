@@ -49,6 +49,11 @@ See `workflow.md` for detailed phase content including failure recovery procedur
 - `python-implementation` — run after Phase 11 (Production Readiness) if scripts changed
 - `python-refactoring` — run after Phase 6 (CI Gate) if scripts/ files changed or removed
 
+## Scope notes
+
+- **Config-only change** (no `scripts/` change): Phase 3 (Restart) may be skipped if the service reads config at request time. Verify by checking whether the service caches config at startup.
+- **Rollback**: `deploy/deploy.sh` only copies files; rollback by re-running the skill with the previous commit checked out (`git checkout <prev-sha>` then Phase 2 onward). Service state is not rolled back automatically.
+
 ## Prohibited behavior
 
 - Do not restart all services when only one is affected

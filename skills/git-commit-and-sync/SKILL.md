@@ -69,7 +69,7 @@ Stop immediately if any command fails.
 - `git add -A` only when the user explicitly says "all changes".
 - Never run dangerous commands: `reset --hard`, `clean -fd`, `checkout -- .`, `restore .`.
 - Never force push, rebase, merge, or amend.
-- Run `git pull --ff-only` before every push; stop if fast-forward is not possible.
+- Run `git pull --ff-only` before every push; if fast-forward is not possible, stop and report the divergence to the user — do not rebase or merge without explicit instruction.
 - Resolve only simple text conflicts; stop at any ambiguity.
 - Push only after explicit user approval.
 

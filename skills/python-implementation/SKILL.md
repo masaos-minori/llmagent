@@ -39,7 +39,7 @@ Use this skill by default for production Python work.
 | 8 | Security Validation | Check for: `eval`/`exec`, `pickle`, `subprocess(shell=True)`, SQL injection, unvalidated serialization |
 | 9 | Validation Orchestration | Run validation tools: `pytest`, `ruff check`, `mypy`/`pyright`; separate task-caused from pre-existing failures |
 | 10 | Scope Control | diff proportional to task; diff-cover ≥ 90%; benchmark only on hot paths |
-| 11 | Production Readiness | No placeholders (`pass`, `TODO`); strict typing; docstrings (PEP 257) updated; no debug leftovers (`print`) |
+| 11 | Production Readiness | No placeholders (`pass`, `TODO`); strict typing; docstrings updated for non-obvious or public-facing APIs only (PEP 257); no debug leftovers (`print`) |
 | 12 | Knowledge Compression | routing.md, docs/, deploy.sh updated |
 
 See `workflow.md` for detailed phase content including commands and tools.
@@ -91,6 +91,7 @@ Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benc
 - `python-lint-typecheck` — Phase 9 reveals lint/type errors not caused by the task
 - `python-test-and-fix` — Phase 9 reveals test failures not caused by the task
 - `deploy` — after Phase 11 if `scripts/` or `config/` changed
+- `python-issue-to-plan` — if implementation starts from an approved plan in `plans/`, verify scope against the plan before Phase 5
 
 ---
 

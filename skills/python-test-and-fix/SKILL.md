@@ -68,7 +68,7 @@ Analyze your task in **Step 1** and strictly follow the assigned execution path.
 | 10 | Impact-based execution | Leverage `pytest-testmon` if available for rapid, incremental test execution during local feedback loops. |
 | 11 | Regression quality analysis | Verify `diff-cover >= 90%` and check that the specific bug-fix or new path achieves complete logical coverage. |
 | 12 | Fix strategy | **Audit step**: Formulate the smallest possible fix. If implementation behavior is correct, fix the test; otherwise, fix the implementation. |
-| 13 | Repository test policy compression | Update shared test utilities in `conftest.py` or record new testing patterns in `CLAUDE.md`. |
+| 13 | Repository test policy compression | Update shared test utilities in `conftest.py`; record new patterns in `routing.md` or the skill's `workflow.md`. |
 
 ---
 
@@ -86,6 +86,7 @@ Before committing any fix for a broken or failing test, the AI must explicitly d
 
 ## See Also
 See `workflow.md` for detailed phase content, plugin flags, and CLI commands.
+Run tests with `uv run pytest` (do not activate venv manually; do not use `~/.local/bin/pytest`).
 
 ## Composes with
 - `python-implementation` — if Step 12 determines that the fix requires modifying application logic beyond the test suite.

@@ -1,5 +1,5 @@
 ---
-name: python-program-design
+name: python-design
 description: |
   Design Python programs before implementation. Define architecture, modules,
   interfaces, data models, error handling, configuration, tests, and phased implementation plans.
@@ -152,3 +152,10 @@ Use this order unless the user requests another format:
 10. Test Strategy
 11. Implementation Plan
 12. Risks / Open Questions
+
+## Improvement feedback
+
+After running this skill:
+- if a required section was unnecessary for the task type, note the condition and update the phase overview
+- if a design rule conflicted with project-specific constraints, add a project exception to the Rules section
+- if the Do Not Use conditions were too broad or too narrow, refine them here

@@ -23,12 +23,12 @@ Before proceeding to any analysis step, execute **Step 0: Classification**. Asse
 
 ### [Path A] Small Task
 **Criteria (Must satisfy ALL):**
-- [ ] Affects $\le$ 3 files
+- [ ] Affects ≤ 3 files
 - [ ] No public or runtime-facing interface changes
 - [ ] No database schema changes
 
 **Execution Path:**
-Run Step 1 $\rightarrow$ Skip Steps 2–5 $\rightarrow$ Run Step 6 (validation baseline) $\rightarrow$ Steps 7–10.
+Run Step 1 → Skip Steps 2–5 → Run Step 6 (validation baseline) → Steps 7–10.
 
 ### [Path B] Large Task
 **Criteria (Satisfies ANY):**
@@ -57,7 +57,7 @@ Run all steps (1 through 10) sequentially. Do not skip any analysis.
 | 9 | Planning rules | Enforce evidence-based increments. **Always include a deployment/verification step**. |
 | 10 | Completion checklist | Verify all required sections are complete and blocking unknowns are resolved. |
 
-> ⚠️ **Tool Availability Guard (For AI):** If any specific tool mentioned above (e.g., `pydeps`, `radon`, `semgrep`) is not installed in the current environment, do not hallucinate its output. Skip the tool execution, document "Tool [name] not available" in the findings, and rely on manual static analysis of the codebase instead.
+> **IMPORTANT — Tool Availability Guard (For AI):** If any specific tool mentioned above (e.g., `pydeps`, `radon`, `semgrep`) is not installed in the current environment, do not hallucinate its output. Skip the tool execution, document "Tool [name] not available" in the findings, and rely on manual static analysis of the codebase instead.
 
 ---
 
@@ -109,17 +109,22 @@ Generate your final response using the exact Markdown structure below. Do not om
 | | | | |
 
 ## 8. Risks & Mitigations
-- **Risk**: [Description] $\rightarrow$ **Mitigation**: [Description]
+- **Risk**: [Description] → **Mitigation**: [Description]
 ```
 
-See Also
-See workflow.md for detailed phase content and commands.
-See rules/env.md for service ports, DB schema, and module decomposition.
+## See Also
+See `workflow.md` for detailed phase content and commands.
+See `rules/env.md` for service ports, DB schema, and module decomposition.
+
+## Plan output
+
+Save the generated plan to `plans/YYYYMMDD-HHMMSS_plan.md` (e.g. `plans/20260702-120000_plan.md`).
+The plan file is the working document: update it as scope changes, and reference it when starting implementation with `python-implementation`.
 
 ## Composes with
-- python-implementation — execute after the plan is approved by the user
-- python-refactoring — if the plan involves structural module changes
-- mcp-server-add — if the plan includes adding a new MCP server
+- `python-implementation` — execute after the plan is approved by the user
+- `python-refactoring` — if the plan involves structural module changes
+- `mcp-server-add` — if the plan includes adding a new MCP server
 
 ## Improvement feedback
 

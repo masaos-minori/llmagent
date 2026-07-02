@@ -31,8 +31,8 @@ Investigate Python failures systematically; reproduce with evidence; separate ob
 | Phase | Name | Goal / AI Action |
 |---|---|---|
 | 1 | Problem Framing | State the exact symptom, expected behavior, environment info, and whether it is deterministic or intermittent. |
-| 2 | Initial Observability | Filter and analyze logs using tools like `jq`, `lnav`, `multitail`, or Sentry. |
-| 3 | Failure Classification | Classify the bug into the matrix: (Deterministic/Intermittent) $\times$ (Sync/Async) $\times$ (Logic/IO/Network/Perf). |
+| 2 | Initial Observability | Filter and analyze logs using `jq`, `lnav`, or `multitail`. Project logs are in `logs/`; see `rules/env.md` for log paths and format. |
+| 3 | Failure Classification | Classify the bug into the matrix: (Deterministic/Intermittent) × (Sync/Async) × (Logic/IO/Network/Perf). |
 | 4 | Focused Reproduction | Create a minimal isolation environment using `tox`, `httpie`, `/mcp`, `sqlite3`, etc. |
 | 5 | Runtime / Trace Inspection | Run profiling/tracing tools (`viztracer`, `py-spy`, `strace`, `tracemalloc`, `aiomonitor`, `ipdb`) to capture state. |
 | 6 | Hypothesis Validation | Create a Hypothesis Table. Validate or invalidate each using `respx`, `freezegun`, or reruns. |
@@ -46,15 +46,15 @@ Investigate Python failures systematically; reproduce with evidence; separate ob
 
 AI Must dynamically adjust its execution path based on Phase 3 classification:
 
-- **Deterministic $\times$ Logic**: 1 $\rightarrow$ 2 $\rightarrow$ 3 $\rightarrow$ 4 $\rightarrow$ 6 (hypothesis/ipdb) $\rightarrow$ 8 $\rightarrow$ 9
+- **Deterministic × Logic**: 1 → 2 → 3 → 4 → 6 (hypothesis/ipdb) → 8 → 9
   - *Skip*: 5 (viztracer/strace), 7 (bisect)
-- **Deterministic $\times$ I/O**: 1 $\rightarrow$ 2 $\rightarrow$ 3 $\rightarrow$ 4 (sqlite3/httpie) $\rightarrow$ 5 (strace) $\rightarrow$ 8 $\rightarrow$ 9
+- **Deterministic × I/O**: 1 → 2 → 3 → 4 (sqlite3/httpie) → 5 (strace) → 8 → 9
   - *Skip*: 7 (bisect)
-- **Deterministic $\times$ Network**: 1 $\rightarrow$ 2 $\rightarrow$ 3 $\rightarrow$ 4 (mitmproxy/httpie//mcp) $\rightarrow$ 6 $\rightarrow$ 8 $\rightarrow$ 9
+- **Deterministic × Network**: 1 → 2 → 3 → 4 (mitmproxy/httpie//mcp) → 6 → 8 → 9
   - *Skip*: 5 (strace), 7 (bisect)
-- **Intermittent**: 1 $\rightarrow$ 2 $\rightarrow$ 3 $\rightarrow$ 4 $\rightarrow$ 6 (reruns/freezegun) $\rightarrow$ 7 (bisect) $\rightarrow$ 8 $\rightarrow$ 9
+- **Intermittent**: 1 → 2 → 3 → 4 → 6 (reruns/freezegun) → 7 (bisect) → 8 → 9
   - *Skip*: 5 (strace/tracemalloc)
-- **Performance**: 1 $\rightarrow$ 2 $\rightarrow$ 3 $\rightarrow$ 5 (py-spy/viztracer) $\rightarrow$ 8 $\rightarrow$ 9
+- **Performance**: 1 → 2 → 3 → 5 (py-spy/viztracer) → 8 → 9
   - *Skip*: 6 (hypothesis/freezegun)
 
 ---

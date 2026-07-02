@@ -29,10 +29,10 @@ Resolve Python code quality issues; fix root causes rather than suppressing warn
 
 Before running the full sequence, look at the error log and check if the failure source is already known. If known, you may fast-track the execution:
 
-- [ ] **Ruff Error / Formatting Issue** $\rightarrow$ Start directly at **Step 2**
-- [ ] **Import / Layering Violation (`lint-imports`)** $\rightarrow$ Start directly at **Step 3**
-- [ ] **Type Error (`mypy` / `pyright`)** $\rightarrow$ Start directly at **Step 6**
-- [ ] **Security Finding (`bandit`)** $\rightarrow$ Start directly at **Step 7**
+- [ ] **Ruff Error / Formatting Issue** → Start directly at **Step 2**
+- [ ] **Import / Layering Violation (`lint-imports`)** → Start directly at **Step 3**
+- [ ] **Type Error (`mypy` / `pyright`)** → Start directly at **Step 6**
+- [ ] **Security Finding (`bandit`)** → Start directly at **Step 7**
 
 *If multiple tools are failing or the source is ambiguous, you must run the full sequence from Step 1.*
 
@@ -43,8 +43,8 @@ Before running the full sequence, look at the error log and check if the failure
 | Step | Name | Goal / AI Action |
 |---|---|---|
 | 1 | Identify failure source | Run validation tools or inspect logs to pinpoint which check is failing. |
-| 2 | Repository convention enforcement | Run `ruff format` and `ruff check`. Use `ast-grep` for structural pattern checks if available. |
-| 3 | Architecture integrity | Validate layering using `lint-imports`. Ensure cross-file symbol references don't break module isolation. |
+| 2 | Repository convention enforcement | Run `ruff format` first (formatting), then `ruff check` (lint). Use `ast-grep` for structural pattern checks if available. |
+| 3 | Architecture integrity | Validate layering with `uv run lint-imports` (config: `.importlinter`). Layer contract: `shared → db → rag/mcp → agent`; violations must be fixed structurally, not suppressed. |
 | 4 | Suppression governance | **Audit step**: If any `# noqa`, `# type: ignore`, or `# nosec` is absolutely necessary, you must provide a rigorous, comments-based justification directly above the line. |
 | 5 | Semantic refactor safety | Use `LibCST` or structural modifiers when performing comment/formatting-preserving transformations. |
 | 6 | Type flow analysis | Run `mypy` and `pyright` to ensure zero type errors. Ensure strict type flow in public interfaces. |

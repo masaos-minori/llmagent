@@ -12,8 +12,8 @@ Do NOT stop after the first failure.
 Do NOT assume test coverage from file names alone.
 Do NOT edit production code unless explicitly requested later.
 
-## Primary Goal
-You must review the current quality of the repository’s test suite by actually running the tests and analyzing what is missing, inconsistent, outdated, or weak.
+### Primary Goal
+You must review the current quality of the repository's test suite by actually running the tests and analyzing what is missing, inconsistent, outdated, or weak.
 
 Your output must be practical enough to use directly as:
 - a QA review memo,
@@ -21,9 +21,9 @@ Your output must be practical enough to use directly as:
 - a refactoring / stabilization work plan,
 - a source for GitHub Issue creation.
 
-## Required Workflow
+### Required Workflow
 
-### Step 1: Discover the test execution model
+#### Step 1: Discover the test execution model
 Inspect the repository and identify:
 - test framework(s)
 - test commands
@@ -34,7 +34,9 @@ Inspect the repository and identify:
 - lint / typecheck / import-lint / schema-check commands
 - unit / integration / e2e / smoke test structure
 
-You must inspect files such as:
+Read `rules/toolchain.md` for the canonical validation sequence before inspecting other files.
+
+You must also inspect files such as:
 - README / docs
 - pyproject.toml / package.json / Makefile / justfile / tox.ini / noxfile / setup.cfg
 - CI workflow files
@@ -43,7 +45,7 @@ You must inspect files such as:
 
 If multiple test entrypoints exist, identify all of them.
 
-### Step 2: Execute all existing tests
+#### Step 2: Execute all existing tests
 Run all test and validation commands that are part of normal repository validation.
 
 This includes, if present:
@@ -65,7 +67,7 @@ Important:
 - If tests need to be run in a specific order, infer and follow that order.
 - If some tests cannot run because of missing environment/services, record that explicitly.
 
-### Step 3: Record real execution results
+#### Step 3: Record real execution results
 For each executed command, record:
 - exact command
 - purpose
@@ -81,8 +83,9 @@ For each executed command, record:
   - test code bug
   - environment/setup issue
   - unclear / needs confirmation
+- if blocked by environment: list the required env vars or services (see `rules/env.md` for this repository's environment spec)
 
-### Step 4: Detect missing or weak tests
+#### Step 4: Detect missing or weak tests
 After executing the tests, inspect source code and docs to find coverage gaps.
 
 Look for:
@@ -99,7 +102,7 @@ Look for:
 - doc/code mismatches that should be protected by tests
 - tests with weak assertions (e.g. only checking non-empty output)
 
-### Step 5: Detect inconsistent or outdated tests
+#### Step 5: Detect inconsistent or outdated tests
 Find tests that are:
 - inconsistent with current implementation
 - inconsistent with current documentation
@@ -109,7 +112,7 @@ Find tests that are:
 - silently skipping important cases
 - missing regression coverage for known bugs
 
-### Step 6: Produce a concrete work plan
+#### Step 6: Produce a concrete work plan
 Create a Japanese Markdown report with:
 1. overall findings,
 2. executed test/validation commands and results,
@@ -119,7 +122,7 @@ Create a Japanese Markdown report with:
 6. a prioritized implementation work plan,
 7. explicit instructions for new or updated test cases.
 
-## Required Classification
+### Required Classification
 Classify findings into:
 - Existing test failure
 - Flaky test risk
@@ -134,7 +137,7 @@ Classify findings into:
 - Missing integration test
 - Missing regression test
 
-## Required Output Format
+### Required Output Format
 Output MUST be in Japanese.
 Use Markdown.
 Be concrete and implementation-oriented.
@@ -147,11 +150,11 @@ Produce the following sections exactly:
 - Mention the strongest and weakest areas
 
 # 2. 実行したテスト / 検証コマンド
-For each command:
-- command
-- purpose
-- result (pass / fail / partial / not runnable)
-- notes
+For each command, record as bullet points:
+- **command**: exact command
+- **purpose**: what it validates
+- **result**: pass / fail / partial / not runnable
+- **notes**: relevant details
 
 # 3. 既存テストの失敗一覧
 For each failure:
@@ -179,6 +182,11 @@ For each issue:
 - whether it is confirmed or Needs confirmation
 
 # 5. 日本語の実装修正タスクリスト（High/Medium/Low）
+Priority criteria:
+- High: existing test failures, or production code paths with no test coverage at all
+- Medium: missing coverage for complex branches, config/reload behavior, persistence, or CLI commands
+- Low: weak assertions, test/doc inconsistencies, optional coverage improvements
+
 For each task:
 - Task ID
 - Goal
@@ -208,26 +216,29 @@ Order the tasks and explain why.
 # 8. 追加で必要な確認事項
 List anything that still requires human confirmation.
 
-## Important Rules
+### Important Rules
 Follow these rules strictly:
 
-1. You must actually run the tests, not just read test files.
-2. You must distinguish:
+1. You must distinguish:
    - production code bug
    - test code bug
    - environment/setup issue
    - flaky behavior
    - unclear / Needs confirmation
-3. Do not silently ignore skipped or blocked tests.
-4. If CI and local commands differ, report that explicitly.
-5. Prefer repository-defined commands over invented commands.
-6. If a service dependency is missing, explain exactly what blocked execution.
-7. For missing tests, tie each proposal to concrete code paths or documented behavior.
-8. Prefer regression tests for bug-like mismatches.
-9. Do not give vague advice such as “increase coverage”.
-10. Every proposed test addition or update must be actionable.
+2. Do not silently ignore skipped or blocked tests.
+3. If CI and local commands differ, report that explicitly.
+4. Prefer repository-defined commands over invented commands.
+5. If a service dependency is missing, explain exactly what blocked execution.
+6. For missing tests, tie each proposal to concrete code paths or documented behavior.
+7. Prefer regression tests for bug-like mismatches.
+8. Do not give vague advice such as "increase coverage".
+9. Every proposed test addition or update must be actionable.
 
-## Optional Extra Output
+### Final Quality Standard
+Do not stop at high-level commentary.
+Run the tests, analyze the real results, detect missing or inconsistent tests, and produce a concrete, execution-ready test improvement plan.
+
+### Optional Extra Output
 After the Japanese report, also generate:
 
 # 9. GitHub Issue Drafts (English, AI-oriented)
@@ -243,7 +254,3 @@ Each issue must contain:
 - Acceptance Criteria
 - Out of Scope
 - AI Implementation Instruction
-
-## Final Quality Standard
-Do not stop at high-level commentary.
-Run the tests, analyze the real results, detect missing or inconsistent tests, and produce a concrete, execution-ready test improvement plan.
