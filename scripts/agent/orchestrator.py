@@ -43,6 +43,9 @@ from agent.workflow import (
 )
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
 
+from agent.llm_transport_errors import handle_llm_transport_error
+from agent.mode_classification import classify_and_inject_mode
+
 
 class WorkflowCreationError(RuntimeError):
     """Raised when the orchestrator cannot create a workflow and direct-execution fallback is disabled."""
@@ -421,7 +424,7 @@ class Orchestrator:
                     ctx.session.save("assistant", result.answer)
                 if result.exception is not None:
                     # run() caught LLMTransportError internally; propagate callbacks
-                    self._handle_llm_transport_error(result.exception, ctx)
+                    handle_llm_transport_error(result.exception, ctx, self._diagnostic_store)
                     if self._on_error:
                         self._on_error(result.exception)
                 else:
@@ -430,7 +433,7 @@ class Orchestrator:
                 return result
         except LLMTransportError as e:
             # Reached when run() is mocked with side_effect=e (tests) or re-raises
-            self._handle_llm_transport_error(e, ctx)
+            handle_llm_transport_error(e, ctx, self._diagnostic_store)
             if self._on_error:
                 self._on_error(e)
             return TurnResult(
@@ -455,7 +458,7 @@ class Orchestrator:
             ctx.cfg.tool.allowed_tools = self._allowed_tools
         try:
             await self._handle_memory_injection(line)
-            self._classify_and_inject_mode(line)
+            classify_and_inject_mode(line, ctx)
             self._append_user_message(line)
             await self._handle_history_compression()
 
@@ -534,27 +537,6 @@ class Orchestrator:
                 0, {"role": "system", "content": ctx.conv.system_prompt_content}
             )
 
-    def _classify_and_inject_mode(self, query: str) -> None:
-        """Inject MDQ/RAG routing hint into system prompt based on query classification."""
-        ctx = self._ctx
-        config_mode = getattr(ctx.cfg, "mdq_rag_mode", None)
-        mode = resolve_mode(query, config_mode)
-        if mode == MdqRagMode.MDQ:
-            mdq_available = any(
-                "search_docs" in (srv.tool_names or [])
-                for srv in ctx.cfg.mcp.mcp_servers.values()
-            )
-            if not mdq_available:
-                logger.warning(
-                    "MDQ mode selected but mdq-mcp tools unavailable; falling back to RAG"
-                )
-                mode = MdqRagMode.RAG
-        hint = _mode_hint(mode)
-        if hint:
-            ctx.conv.history.append(
-                {"role": "system", "content": hint, "_ephemeral": True}  # type: ignore[typeddict-unknown-key]
-            )
-
     def _append_user_message(self, line: str) -> None:
         ctx = self._ctx
         self._sync_system_prompt()
@@ -566,71 +548,4 @@ class Orchestrator:
             _task.add_done_callback(self._background_tasks.discard)
         ctx.session.save("user", line)
 
-    def _handle_llm_transport_error(
-        self,
-        e: LLMTransportError,
-        ctx: AgentContext,
-    ) -> bool:
-        if e.partial_text:
-            self._handle_partial_completion(e, ctx)
-            return True
-        self._handle_non_partial_error(e, ctx)
-        return False
-
-    def _handle_partial_completion(
-        self,
-        e: LLMTransportError,
-        ctx: AgentContext,
-    ) -> None:
-        """Save partial text to diagnostic channel and tool_result_store."""
-        incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
-        self._diagnostic_store.save(
-            ctx.session.session_id, "llm_transport_error", incomplete_msg
-        )
-        self._diagnostic_store.save_partial_completion(
-            session_id=ctx.session.session_id,
-            turn=ctx.stats.stat_turns,
-            reason=e.kind,
-            content_length=len(e.partial_text),
-        )
-        try:
-            ctx.tool_result_store.store(
-                session_id=ctx.session.session_id,
-                turn=ctx.stats.stat_turns,
-                tool_name="llm_partial_completion",
-                args_masked="{}",
-                full_text=e.detail or f"partial={len(e.partial_text)} chars",
-                summary=f"[INCOMPLETE: {e.kind}]",
-                is_error=True,
-            )
-        except (RuntimeError, OSError) as store_err:
-            logger.warning(
-                "ToolResultStore.store failed for partial completion: %s",
-                store_err,
-            )
-        ctx.services_required.llm.stat_partial_completions += 1
-        logger.warning("Partial LLM completion saved: %s", e.kind)
-
-    def _handle_non_partial_error(
-        self,
-        e: LLMTransportError,
-        ctx: AgentContext,
-    ) -> None:
-        """Save non-partial error to diagnostic channel and log."""
-        self._diagnostic_store.save(
-            ctx.session.session_id,
-            "mid_turn_error",
-            orjson.dumps(
-                {
-                    "action": "pre_stream_error",
-                    "reason": "llm_transport_error_non_partial",
-                    "error_kind": e.kind,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                }
-            ).decode(),
-        )
-        logger.error(
-            "LLM transport error (pre-stream): %s status=%s",
-            e.kind,
-            e.status_code,
-        )
+ 
