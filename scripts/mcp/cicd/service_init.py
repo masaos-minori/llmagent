@@ -15,7 +15,7 @@ import httpx
 
 from mcp.cicd.models import CicdConfig
 
-from .service_business import CiCdService, GitHubActionsBackend
+from .service_business import CiCdService
 from .service_defs import CiBackend
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,11 @@ def build_service(cfg: CicdConfig) -> CiCdService:
             "cicd-mcp: GITHUB_TOKEN is not set; API rate limit will be 60 req/hr",
         )
     http = httpx.AsyncClient(timeout=30.0)
-    backend: CiBackend = GitHubActionsBackend(
+    from .service_github_actions_composite import (  # noqa: PLC0415
+        GitHubActionsCompositeBackend,
+    )
+
+    backend: CiBackend = GitHubActionsCompositeBackend(
         github_token=github_token,
         max_log_size_kb=cfg.max_log_size_kb,
         http=http,

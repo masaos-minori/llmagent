@@ -18,7 +18,6 @@ from mcp.cicd.models import CicdConfig
 from mcp.cicd.service_defs import CiBackend
 from mcp.server import ToolArgs
 
-from .service_github_actions import GitHubActionsBackend
 from .service_guards import CiCdGuards
 
 logger = logging.getLogger(__name__)
@@ -34,7 +33,12 @@ class CiCdService(CiCdGuards):
     def _parse_repo(repo: str) -> tuple[str, str]:
         """Split 'owner/repo' slug; raise CicdValidationError on bad format."""
         try:
-            return GitHubActionsBackend._split_repo(repo)
+            # Import here to avoid circular dependency
+            from .service_github_actions_composite import (  # noqa: PLC0415
+                GitHubActionsCompositeBackend,
+            )
+
+            return GitHubActionsCompositeBackend._split_repo(repo)
         except ValueError as e:
             from mcp.cicd.models import CicdValidationError  # noqa: PLC0415
 

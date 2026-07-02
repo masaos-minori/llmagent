@@ -19,11 +19,7 @@ from pathlib import Path
 from mcp.file.common import (
     FileAuthorizationError,
     FileValidationError,
-    check_size_limit,
     format_permissions,
-    require_dir,
-    require_file,
-    resolve_safe,
 )
 from mcp.file.read_models import (
     DirectoryTreeRequest,
@@ -47,6 +43,7 @@ from mcp.file.read_models import (
     SearchFilesRequest,
     SearchFilesResponse,
 )
+from mcp.file.read_security import ReadSecurityGuards
 from mcp.file.read_static_helpers import (
     build_tree,
     count_tree_nodes,
@@ -59,7 +56,7 @@ from mcp.file.read_static_helpers import (
 logger = logging.getLogger(__name__)
 
 
-class ReadFileService:
+class ReadFileService(ReadSecurityGuards):
     """Encapsulates read-only filesystem operations with consistent security boundaries."""
 
     def __init__(
@@ -69,8 +66,7 @@ class ReadFileService:
         max_tree_depth: int,
         max_search_results: int,
     ) -> None:
-        self._allowed_dirs = allowed_dirs
-        self._max_read_bytes = max_read_bytes
+        ReadSecurityGuards.__init__(self, allowed_dirs, max_read_bytes)
         self._max_tree_depth = max_tree_depth
         self._max_search_results = max_search_results
 
@@ -78,38 +74,6 @@ class ReadFileService:
     def max_tree_depth(self) -> int:
         """Maximum tree recursion depth configured for this service."""
         return self._max_tree_depth
-
-    # ── Security wrappers (delegate to file_mcp_common) ──
-
-    def _resolve_safe(self, raw_path: str) -> Path:
-        """Resolve and validate path against allowed_dirs."""
-        return resolve_safe(raw_path, self._allowed_dirs)
-
-    def _require_file(self, target: Path, raw_path: str) -> None:
-        require_file(target, raw_path)
-
-    def _require_dir(self, target: Path, raw_path: str) -> None:
-        require_dir(target, raw_path)
-
-    def _check_size_limit(self, target: Path) -> int:
-        return check_size_limit(target, self._max_read_bytes)
-
-    # ── Shared validation pipeline for file read operations ──
-
-    def _validate_file(
-        self,
-        raw_path: str,
-        *,
-        expected_type: str = "file",
-    ) -> tuple[Path, int]:
-        """Resolve path, require it's a file/directory, check size limit. Return (target, size)."""
-        target = self._resolve_safe(raw_path)
-        if expected_type == "file":
-            self._require_file(target, raw_path)
-        else:
-            self._require_dir(target, raw_path)
-        size = self._check_size_limit(target)
-        return target, size
 
     # ── Business operation methods ──
 

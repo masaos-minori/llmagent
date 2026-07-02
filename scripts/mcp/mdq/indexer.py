@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mcp.mdq.auth import authorize_path
+from mcp.mdq.index_delete import delete_file_from_index
 from mcp.mdq.models import (
     IndexPathsRequest,
     MdqAuthorizationError,
@@ -283,7 +284,7 @@ async def refresh_paths(service: MdqService, req: RefreshIndexRequest) -> dict:
                         and dir_path in Path(file_path).parents
                     ):
                         # File was deleted — remove from index
-                        _delete_file_from_index(service, conn, Path(file_path))
+                        delete_file_from_index(service, conn, Path(file_path))
                         deleted_count += 1
             except Exception as e:
                 logger.error("Failed to scan for deleted files in %s: %s", dir_path, e)
@@ -298,23 +299,6 @@ async def refresh_paths(service: MdqService, req: RefreshIndexRequest) -> dict:
         }
     finally:
         conn.close()
-
-
-def _delete_file_from_index(
-    service: MdqService, conn: sqlite3.Connection, path: Path
-) -> None:
-    """Remove a file's chunks and index_state records from the database."""
-    import hashlib  # noqa: PLC0415
-
-    doc_id = hashlib.sha256(str(path).encode()).hexdigest()
-    # chunks_ad trigger fires automatically on DELETE — no manual FTS cleanup needed
-    conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
-    conn.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
-    conn.execute(
-        "DELETE FROM index_state WHERE key LIKE ?",
-        (f"mtime:{str(path)}%",),
-    )
-    conn.commit()
 
 
 def _generate_summaries(

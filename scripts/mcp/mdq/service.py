@@ -13,6 +13,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from mcp.mdq.auth import authorize_path
+from mcp.mdq.db_fts import fts_consistency_check, fts_rebuild
+from mcp.mdq.db_grep import find_grep_match, grep_docs
+from mcp.mdq.db_schema import create_production_tables
+from mcp.mdq.models import GrepDocMatch, MdqConsistencyError
 from mcp.mdq.indexer import generate_chunk_id
 from mcp.mdq.indexer import index_paths as _index_paths
 from mcp.mdq.indexer import refresh_paths as _refresh_paths
@@ -20,11 +24,9 @@ from mcp.mdq.models import (
     FtsConsistencyCheckRequest,
     FtsRebuildRequest,
     GetChunkRequest,
-    GrepDocMatch,
     GrepDocsRequest,
     IndexPathsRequest,
     MdqAuthorizationError,
-    MdqConsistencyError,
     MdqNotFoundError,
     MdqValidationError,
     OutlineHeading,
@@ -127,295 +129,16 @@ class MdqService:
         db_dir.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         try:
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute(f"PRAGMA busy_timeout = {self.sqlite_busy_timeout}")
-            # Check for legacy schema
-            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            tables = {row[0] for row in cursor.fetchall()}
-
-            if "sections" in tables:
-                logger.info("Migrating from legacy sections schema")
-                self._migrate_from_legacy(conn)
-                return
-
-            # Detect and rebuild old schema (id INTEGER PK + chunk_id TEXT UNIQUE)
-            old_col = conn.execute("PRAGMA table_info(chunks)").fetchone()
-            if old_col is not None and old_col[1] == "id":  # index 1 = name column
-                logger.info(
-                    "Detected old chunks schema (id column); rebuilding to chunk_id PRIMARY KEY"
-                )
-                conn.execute("DROP TABLE IF EXISTS chunks_fts")
-                conn.execute("DROP TABLE IF EXISTS chunks")
-                conn.execute("DROP TRIGGER IF EXISTS chunks_ai")
-                conn.execute("DROP TRIGGER IF EXISTS chunks_ad")
-                conn.execute("DROP TRIGGER IF EXISTS chunks_au")
-
-            # Create production tables
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS documents (
-                    doc_id TEXT PRIMARY KEY,
-                    source_path TEXT NOT NULL,
-                    mtime_ns INTEGER NOT NULL,
-                    size_bytes INTEGER NOT NULL,
-                    content_hash TEXT NOT NULL,
-                    indexed_at REAL NOT NULL
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS chunks (
-                    chunk_id TEXT PRIMARY KEY,
-                    doc_id TEXT NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
-                    source_path TEXT NOT NULL,
-                    heading TEXT NOT NULL,
-                    heading_path TEXT NOT NULL DEFAULT '',
-                    heading_level INTEGER NOT NULL DEFAULT 0,
-                    ordinal INTEGER NOT NULL DEFAULT 0,
-                    content TEXT NOT NULL,
-                    normalized_content TEXT NOT NULL DEFAULT '',
-                    start_line INTEGER NOT NULL,
-                    end_line INTEGER NOT NULL,
-                    char_count INTEGER NOT NULL DEFAULT 0,
-                    token_count INTEGER,
-                    content_hash TEXT NOT NULL,
-                    tags_json TEXT,
-                    indexed_at REAL NOT NULL
-                )
-            """)
-            conn.execute("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
-                    normalized_content,
-                    source_path,
-                    heading,
-                    heading_path,
-                    content_hash,
-                    content
-                )
-            """)
-            # Triggers for FTS sync — use rowid (chunks.rowid = implicit rowid of TEXT PK table)
-            conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks
-                BEGIN
-                    INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
-                    VALUES (new.rowid, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
-                END
-            """)
-            conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks
-                BEGIN
-                    DELETE FROM chunks_fts WHERE rowid = old.rowid;
-                END
-            """)
-            conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks
-                BEGIN
-                    DELETE FROM chunks_fts WHERE rowid = old.rowid;
-                    INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
-                    VALUES (new.rowid, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
-                END
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS index_state (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS chunk_summaries (
-                    chunk_id TEXT PRIMARY KEY,
-                    summary TEXT NOT NULL,
-                    summary_model TEXT NOT NULL,
-                    content_hash TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            # Create vector table conditionally based on use_embedding config
-            if self.use_embedding:
-                vec0_path: str = "/opt/llm/sqlite-vec/vec0.so"
-                try:
-                    conn.enable_load_extension(True)
-                    try:
-                        conn.load_extension(vec0_path)
-                    except sqlite3.OperationalError as inner:
-                        # Some SQLite builds auto-append .so, causing .so.so
-                        if ".so.so" in str(inner) and vec0_path.endswith(".so"):
-                            conn.load_extension(vec0_path[:-3])
-                        else:
-                            raise
-                    conn.enable_load_extension(False)
-                except sqlite3.OperationalError as e:
-                    conn.enable_load_extension(False)
-                    logger.error("Failed to load sqlite-vec extension: %s", e)
-                    raise
-                conn.execute(f"""
-                    CREATE VIRTUAL TABLE IF NOT EXISTS {self.vector_table} USING vec0(
-                        chunk_id TEXT PRIMARY KEY,
-                        embedding float[{self.embedding_dims}]
-                    )
-                """)
-            conn.commit()
+            create_production_tables(
+                conn,
+                self.db_path,
+                self.use_embedding,
+                self.vector_table,
+                self.embedding_dims,
+                self.sqlite_busy_timeout,
+            )
         finally:
             conn.close()
-
-    def _migrate_from_legacy(self, conn: sqlite3.Connection) -> None:
-        """Migrate data from legacy sections/sections_fts to new schema."""
-        try:
-            # Read legacy data
-            rows = conn.execute(
-                "SELECT id, file_path, heading, content, file_mtime FROM sections"
-            ).fetchall()
-
-            # Create new tables (they may not exist yet)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS documents (
-                    doc_id TEXT PRIMARY KEY,
-                    source_path TEXT NOT NULL,
-                    mtime_ns INTEGER NOT NULL,
-                    size_bytes INTEGER NOT NULL,
-                    content_hash TEXT NOT NULL,
-                    indexed_at REAL NOT NULL
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS chunks (
-                    chunk_id TEXT PRIMARY KEY,
-                    doc_id TEXT NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
-                    source_path TEXT NOT NULL,
-                    heading TEXT NOT NULL,
-                    heading_path TEXT NOT NULL DEFAULT '',
-                    heading_level INTEGER NOT NULL DEFAULT 0,
-                    ordinal INTEGER NOT NULL DEFAULT 0,
-                    content TEXT NOT NULL,
-                    normalized_content TEXT NOT NULL DEFAULT '',
-                    start_line INTEGER NOT NULL,
-                    end_line INTEGER NOT NULL,
-                    char_count INTEGER NOT NULL DEFAULT 0,
-                    token_count INTEGER,
-                    content_hash TEXT NOT NULL,
-                    tags_json TEXT,
-                    indexed_at REAL NOT NULL
-                )
-            """)
-            conn.execute("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
-                    normalized_content,
-                    source_path,
-                    heading,
-                    heading_path,
-                    content_hash,
-                    content
-                )
-            """)
-
-            # Track unique documents by file_path
-            doc_map: dict[str, dict] = {}
-
-            for row in rows:
-                legacy_id, file_path, heading, content, file_mtime = row
-                normalized_content = " ".join(content.split())
-
-                # Get or create document record
-                if file_path not in doc_map:
-                    import hashlib
-                    import time
-
-                    doc_hash = hashlib.sha256(file_path.encode()).hexdigest()[:16]
-                    doc_id = f"doc_{doc_hash}"
-                    doc_map[file_path] = {
-                        "doc_id": doc_id,
-                        "source_path": file_path,
-                        "mtime_ns": int(file_mtime * 1e9),
-                        "size_bytes": len(content.encode("utf-8")),
-                        "content_hash": hashlib.sha256(
-                            (file_path + str(file_mtime)).encode()
-                        ).hexdigest(),
-                        "indexed_at": time.time(),
-                    }
-
-                # Create chunk record
-                import hashlib
-                import time
-
-                content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
-                chunk_id = generate_chunk_id(
-                    Path(file_path).resolve().as_posix(), "", 0, content_hash
-                )
-                conn.execute(
-                    "INSERT OR REPLACE INTO chunks (chunk_id, doc_id, source_path, heading, heading_path, heading_level, ordinal, content, normalized_content, start_line, end_line, char_count, token_count, content_hash, tags_json, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        chunk_id,
-                        doc_map[file_path]["doc_id"],
-                        file_path,
-                        heading,
-                        "",
-                        0,
-                        0,
-                        content,
-                        normalized_content,
-                        1,
-                        len(content.splitlines()),
-                        len(content),
-                        None,
-                        content_hash,
-                        None,
-                        time.time(),
-                    ),
-                )
-
-            # Insert documents
-            for doc in doc_map.values():
-                conn.execute(
-                    "INSERT OR REPLACE INTO documents (doc_id, source_path, mtime_ns, size_bytes, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?)",
-                    (
-                        doc["doc_id"],
-                        doc["source_path"],
-                        doc["mtime_ns"],
-                        doc["size_bytes"],
-                        doc["content_hash"],
-                        doc["indexed_at"],
-                    ),
-                )
-
-            # Drop legacy tables
-            conn.execute("DROP TABLE IF EXISTS sections_fts")
-            conn.execute("DROP TABLE IF EXISTS sections")
-            conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks
-                BEGIN
-                    INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
-                    VALUES (new.rowid, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
-                END
-            """)
-            conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks
-                BEGIN
-                    DELETE FROM chunks_fts WHERE rowid = old.rowid;
-                END
-            """)
-            conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks
-                BEGIN
-                    DELETE FROM chunks_fts WHERE rowid = old.rowid;
-                    INSERT INTO chunks_fts(rowid, normalized_content, source_path, heading, heading_path, content_hash, content)
-                    VALUES (new.rowid, new.normalized_content, new.source_path, new.heading, new.heading_path, new.content_hash, new.content);
-                END
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS index_state (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                )
-            """)
-            conn.commit()
-            chunk_count = sum(1 for _ in conn.execute("SELECT 1 FROM chunks"))
-            logger.info(
-                "Migration from legacy schema complete: %d documents, %d chunks",
-                len(doc_map),
-                chunk_count,
-            )
-        except Exception as e:
-            conn.rollback()
-            logger.error("Migration failed: %s", e)
-            raise
 
     def _get_db_connection(self) -> sqlite3.Connection:
         """Return a connection to the mdq database."""
@@ -703,115 +426,17 @@ class MdqService:
 
         conn = self._get_db_connection()
         try:
-            where_clauses = []
-            params: list = []
-
-            if req.paths:
-                placeholders = ",".join("?" for _ in req.paths)
-                where_clauses.append(f"source_path IN ({placeholders})")
-                params.extend(req.paths)
-
-            where_clause = (
-                f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+            return grep_docs(
+                conn, compiled, req.paths or [], max_matches, max_chars, ctx_before, ctx_after
             )
-
-            rows = conn.execute(
-                f"SELECT chunk_id, source_path, heading_path, heading, content, start_line FROM chunks {where_clause}",
-                params,
-            ).fetchall()
-
-            matches: list[GrepDocMatch] = []
-            for row in rows:
-                match = self._find_grep_match(
-                    row, compiled, max_chars, ctx_before, ctx_after
-                )
-                if match is None:
-                    continue
-                matches.append(match)
-                if len(matches) >= max_matches:
-                    break
-
-            truncated = len(matches) >= max_matches
-
-            if not matches:
-                return "No matches found."
-
-            parts = []
-            for m in matches:
-                parts.append(f"File: {m.source_path}")
-                parts.append(f"Chunk: {m.chunk_id}")
-                if m.heading_path:
-                    parts.append(f"Heading: {m.heading_path}")
-                parts.append(f"Line: {m.line_number}")
-                parts.append(f"Match: {m.match_text}")
-                parts.append("---")
-
-            result = "\n".join(parts)
-            if truncated:
-                result += (
-                    f"\n\n[Truncated — cap of {max_matches} matches reached. "
-                    f"Use a more specific pattern or path filter to narrow results.]"
-                )
-            return result
         finally:
             conn.close()
-
-    def _find_grep_match(
-        self,
-        row: sqlite3.Row,
-        compiled: re.Pattern[str],
-        max_chars: int,
-        ctx_before: int,
-        ctx_after: int,
-    ) -> GrepDocMatch | None:
-        full_text = f"{row['heading']}\n{row['content']}"
-        for re_match in compiled.finditer(full_text):
-            match_start = re_match.start()
-            lines = full_text.split("\n")
-            match_line = 0
-            line_offset = 0
-            for i, line in enumerate(lines):
-                if line_offset + len(line) >= match_start:
-                    match_line = i
-                    break
-                line_offset += len(line) + 1
-            start_idx = max(0, match_line - ctx_before)
-            end_idx = min(len(lines), match_line + ctx_after + 1)
-            _context_lines = lines[start_idx:end_idx]
-            match_text = re_match.group()[:max_chars]
-            return GrepDocMatch(
-                chunk_id=row["chunk_id"],
-                source_path=row["source_path"],
-                heading_path=row["heading_path"],
-                match_text=match_text,
-                line_number=start_idx + 1,
-            )
-        return None
 
     async def fts_consistency_check(self, req: FtsConsistencyCheckRequest) -> str:
         """Check FTS5 consistency between chunks and chunks_fts tables."""
         conn = self._get_db_connection()
         try:
-            chunks_count = conn.execute(
-                "SELECT COUNT(*) as cnt FROM chunks"
-            ).fetchone()["cnt"]
-            fts_count = conn.execute(
-                "SELECT COUNT(*) as cnt FROM chunks_fts"
-            ).fetchone()["cnt"]
-            integrity_rows = conn.execute("PRAGMA integrity_check").fetchall()
-            integrity_ok = all(row[0] == "ok" for row in integrity_rows)
-            consistent = chunks_count == fts_count
-            status = "consistent" if consistent else "INCONSISTENT"
-            if not integrity_ok:
-                status = "INTEGRITY_ERROR"
-            return (
-                f"FTS5 consistency check: {status}\n"
-                f"  chunks rows: {chunks_count}\n"
-                f"  chunks_fts rows: {fts_count}\n"
-                f"  integrity_check: {'ok' if integrity_ok else 'FAILED'}"
-            )
-        except sqlite3.OperationalError as e:
-            raise MdqConsistencyError(f"FTS5 table missing or corrupted: {e}") from e
+            return fts_consistency_check(conn)
         finally:
             conn.close()
 
@@ -819,18 +444,9 @@ class MdqService:
         """Rebuild the FTS5 index."""
         conn = self._get_db_connection()
         try:
-            conn.execute("BEGIN IMMEDIATE")
-            conn.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')")
             chunks_count = conn.execute(
                 "SELECT COUNT(*) as cnt FROM chunks"
             ).fetchone()["cnt"]
-            conn.execute("COMMIT")
-            return f"FTS5 index rebuilt successfully (chunks: {chunks_count})"
-        except sqlite3.Error as e:
-            try:
-                conn.execute("ROLLBACK")
-            except sqlite3.Error:
-                pass
-            return f"FTS5 rebuild failed: {e}"
+            return fts_rebuild(conn, chunks_count)
         finally:
             conn.close()
