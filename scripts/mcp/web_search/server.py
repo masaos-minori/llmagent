@@ -8,19 +8,18 @@ Search provider: DuckDuckGo (no API key required).
 
 from __future__ import annotations
 
-import asyncio
 import time
-from typing import Any, cast
+from typing import Any
 
-from duckduckgo_search import DDGS
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from shared.formatters import MAX_SNIPPET_CHARS, fmt_kvlog, truncate
+from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
-from mcp.dispatch import DispatchResult, dispatch_tool
+from mcp.dispatch import DispatchResult
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer
+from mcp.web_search.formatters import dispatch_web_tool, fmt_search_result, search_web
 from mcp.web_search.models import (
     SearchRequest,
     SearchResponse,
@@ -51,61 +50,12 @@ async def _handle_web_search_error(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Search implementation
-# ──────────────────────────────────────────────────────────────────────────────
-async def _search_duckduckgo(query: str, max_results: int) -> list[SearchResult]:
-    """Execute a text search using DuckDuckGo. No API key required."""
-
-    def _sync_search() -> list[dict]:
-        with DDGS() as ddgs:
-            return list(ddgs.text(query, max_results=max_results))
-
-    try:
-        raw = await asyncio.to_thread(_sync_search)
-    except (RuntimeError, TimeoutError) as e:
-        raise WebSearchUpstreamError(f"DuckDuckGo search failed: {e}") from e
-
-    return [
-        SearchResult(
-            title=r.get("title", ""),
-            url=r.get("href", ""),
-            body=r.get("body", ""),
-            provider="duckduckgo",
-        )
-        for r in raw
-    ]
-
-
-# ──────────────────────────────────────────────────────────────────────────────
 # Endpoint definitions
 # ──────────────────────────────────────────────────────────────────────────────
 @app.post("/search", response_model=SearchResponse)
 async def search(req: SearchRequest) -> SearchResponse:
     """Execute a web search using DuckDuckGo."""
-    t0 = time.perf_counter()
-    results = cast(
-        list[SearchResult],
-        await asyncio.to_thread(lambda: _search_duckduckgo(req.query, req.max_results)),
-    )
-
-    if not results:
-        raise WebSearchUpstreamError("No results returned from DuckDuckGo")
-
-    ms = (time.perf_counter() - t0) * 1000
-    logger.info(
-        fmt_kvlog(
-            "search",
-            q=req.query[:80],
-            provider="duckduckgo",
-            n=len(results),
-            ms=f"{ms:.0f}",
-        ),
-    )
-    return SearchResponse(
-        query=req.query,
-        results=results,
-        provider="duckduckgo",
-    )
+    return await search_web({"query": req.query, "max_results": req.max_results})
 
 
 @app.get("/health")
@@ -129,30 +79,9 @@ async def health() -> JSONResponse:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def _fmt_search_result(i: int, r: SearchResult) -> str:
-    """Format one search result with title, URL, provider, and truncated snippet."""
-    title = r.title or "(no title)"
-    snippet = truncate(r.body or "", MAX_SNIPPET_CHARS)
-    return f"[{i}] {title}\nURL: {r.url}\nProvider: {r.provider}\n{snippet}"
-
-
-async def _fdisp_search_web(args: dict[str, Any]) -> str:
-    result = await search(SearchRequest(**args))
-    if not result.results:
-        return "No search results found."
-    header = f"[Search: {len(result.results)} results via {result.provider}]\n\n"
-    lines = [_fmt_search_result(i, r) for i, r in enumerate(result.results, 1)]
-    return header + "\n\n".join(lines)
-
-
-_WEB_DISPATCH = {
-    "search_web": _fdisp_search_web,
-}
-
-
 async def _dispatch_web_tool(name: str, args: dict[str, Any]) -> DispatchResult:
     """Route a tool call through the web-search dispatch table."""
-    return await dispatch_tool(_WEB_DISPATCH, name, args)
+    return await dispatch_web_tool(name, args)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

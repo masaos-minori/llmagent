@@ -17,7 +17,6 @@ import logging
 import os
 import pwd
 import shlex
-import signal
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -36,9 +35,9 @@ from mcp.shell.models import (
 
 from .service_static_helpers import (
     init_sandbox,
-    make_preexec,
     set_resource_limits,
 )
+from .subprocess_runner import SubprocessRunner
 
 # Standard library logger; log path is owned by shell_mcp_server.py
 logger = logging.getLogger(__name__)
@@ -46,7 +45,6 @@ logger = logging.getLogger(__name__)
 
 # Re-export for backward compatibility with tests that import these directly.
 _init_sandbox = init_sandbox
-_make_preexec = make_preexec
 _set_resource_limits = set_resource_limits
 
 
@@ -90,6 +88,13 @@ class ShellService:
                         "execution_user=%r not found in /etc/passwd; user switch is disabled",
                         policy.execution_user,
                     )
+        self._subprocess_runner = SubprocessRunner(
+            sandbox_backend=self._sandbox_backend,
+            max_memory_mb=self._max_memory_mb,
+            timeout_sec=self._max_timeout_sec,
+            exec_uid=self._exec_uid,
+            exec_gid=self._exec_gid,
+        )
 
     @property
     def sandbox_backend(self) -> str:
@@ -121,12 +126,6 @@ class ShellService:
                 f"Command not in allowlist: {base!r}",
             )
         return argv
-
-    def _build_argv(self, argv: list[str]) -> list[str]:
-        """Prepend firejail sandbox wrapper when sandbox_backend is 'firejail'."""
-        if self._sandbox_backend != "firejail":
-            return argv
-        return ["firejail", "--private", "--net=none", "--noroot", "--"] + argv
 
     def _filter_env(self, req_env: dict[str, str]) -> dict[str, str]:
         """Filter caller-supplied environment variables.
@@ -195,35 +194,8 @@ class ShellService:
             logger.error("_write_audit_log: failed to write audit log: %s", e)
 
     async def _kill_timed_out_process(self, proc: asyncio.subprocess.Process) -> None:
-        """Send SIGTERM/SIGKILL to the process group after a timeout.
-
-        Uses the configured kill_policy:
-          sigkill_only       — send SIGKILL immediately
-          sigterm_then_sigkill — SIGTERM, wait grace period, then SIGKILL
-        """
-        kill_policy = self._policy.kill_policy
-        kill_grace_sec = self._policy.kill_grace_sec
-        if kill_policy == "sigkill_only":
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except OSError:
-                pass
-        else:
-            try:
-                os.killpg(proc.pid, signal.SIGTERM)
-            except OSError:
-                pass
-            try:
-                await asyncio.wait_for(proc.wait(), timeout=kill_grace_sec)
-            except TimeoutError:
-                try:
-                    os.killpg(proc.pid, signal.SIGKILL)
-                except OSError:
-                    pass
-        try:
-            await asyncio.wait_for(proc.wait(), timeout=5.0)
-        except TimeoutError:
-            pass
+        """Send SIGTERM/SIGKILL to the process group after a timeout."""
+        await self._subprocess_runner.kill_timed_out_process(proc)
 
     async def _run_subprocess(
         self,
@@ -236,37 +208,11 @@ class ShellService:
 
         Returns (process, stdout, stderr, timed_out).
         """
-        proc = await asyncio.create_subprocess_exec(
-            *argv,
-            stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=cwd,
-            env=env,
-            start_new_session=True,
-            preexec_fn=make_preexec(
-                self._max_memory_mb, timeout_sec, self._exec_uid, self._exec_gid
-            ),
+        return await self._subprocess_runner.run_subprocess(
+            argv, cwd, env, timeout_sec,
+            self._policy.kill_policy,
+            self._policy.kill_grace_sec,
         )
-        try:
-            stdout_b, stderr_b = await asyncio.wait_for(
-                proc.communicate(),
-                timeout=timeout_sec,
-            )
-        except TimeoutError:
-            await self._kill_timed_out_process(proc)
-            return proc, b"", b"", True
-        return proc, stdout_b, stderr_b, False
-
-    @staticmethod
-    def _truncate_output(
-        stdout_b: bytes, stderr_b: bytes, max_output_bytes: int
-    ) -> tuple[bytes, bytes, bool]:
-        """Split max_output_bytes evenly between stdout and stderr; return (stdout, stderr, truncated)."""
-        if len(stdout_b) + len(stderr_b) <= max_output_bytes:
-            return stdout_b, stderr_b, False
-        half = max_output_bytes // 2
-        return stdout_b[:half], stderr_b[:half], True
 
     @staticmethod
     def _build_run_response(
@@ -304,7 +250,7 @@ class ShellService:
         argv = self._check_command(req)
         # Preserve user-facing argv for audit log before prepending sandbox wrapper
         user_argv = argv[:]
-        argv = self._build_argv(argv)
+        argv = self._subprocess_runner.build_argv(argv)
         cwd = self._resolve_cwd(req.cwd)
 
         # Clamp caller-supplied limits to server-configured maxima
@@ -322,7 +268,7 @@ class ShellService:
         elapsed = time.monotonic() - start
 
         # Slice bytes before decoding so multibyte characters do not inflate the count
-        stdout_b, stderr_b, truncated = self._truncate_output(
+        stdout_b, stderr_b, truncated = self._subprocess_runner.truncate_output(
             stdout_b, stderr_b, max_output_bytes
         )
 
