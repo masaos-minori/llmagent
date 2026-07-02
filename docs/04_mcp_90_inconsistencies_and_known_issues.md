@@ -19,13 +19,6 @@ Each entry format:
 
 ---
 
-### MCP-02: Routing authority mismatch (Priority 3 formatting)
-**Status: Resolved**
-
-Routing is now 2-layer only. Priority 3 (`Config tool_names`) and Priority 4 (prefix routing) were removed. `tool_names` is drift validation metadata only, not a routing input. See `04_mcp_03` §Routing Source of Truth.
-
----
-
 ### MCP-04: Transport error / HealthRegistry mismatch (ambiguous parenthetical)
 
 **Type:** Document inconsistency
@@ -130,4 +123,11 @@ HEALTHY ──(failure × 1)──→ DEGRADED ──(failure × 2)──→ UNA
 
 ---
 
+## Resolved Issues
 
+### MCP-02: Routing authority mismatch (Priority 3 formatting)
+**Status: Resolved**
+
+Routing is now 2-layer only. Priority 3 (`Config tool_names`) and Priority 4 (prefix routing) were removed. `tool_names` is drift validation metadata only, not a routing input. See `04_mcp_03` §Routing Source of Truth.
+
+---
