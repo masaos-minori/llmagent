@@ -96,12 +96,12 @@ async def execute_one_tool_call(
     """Parse, execute, and optionally summarize one tool_call dict.
 
     Returns (tc_id, name, args, full_text, is_error, llm_text).
-    Raises ToolExecutorUnavailableError when ctx.services.tools is None.
+    Raises ToolExecutorUnavailableError when ctx.services_required.tools is None.
     Raises ToolArgumentsDecodeError when arguments JSON is malformed.
     """
-    if ctx.services.tools is None:
+    if ctx.services_required.tools is None:
         raise ToolExecutorUnavailableError(
-            "Tool executor is not available (ctx.services.tools is None)"
+            "Tool executor is not available (ctx.services_required.tools is None)"
         )
     func = tc["function"]
     name = func["name"]
@@ -113,10 +113,10 @@ async def execute_one_tool_call(
             f"Invalid JSON in tool arguments for {name!r}: {args_str!r}"
         ) from e
 
-    if ctx.services.gateway is not None:
-        result = await ctx.services.gateway.execute(ctx, name, args)
+    if ctx.services_required.gateway is not None:
+        result = await ctx.services_required.gateway.execute(ctx, name, args)
     else:
-        result = await ctx.services.tools.execute(name, args)
+        result = await ctx.services_required.tools.execute(name, args)
     text, is_error, x_request_id = result.output, result.is_error, result.request_id
     audit_tool_exec(ctx, name, args, is_error, x_request_id, result.error_type)
 
@@ -136,9 +136,11 @@ async def execute_one_tool_call(
         ctx.cfg.tool.use_tool_summarize
         and not is_error
         and len(text) > ctx.cfg.tool.tool_summarize_threshold
-        and ctx.services.http is not None
+        and ctx.services_required.http is not None
     ):
-        llm_text = await summarize_tool_result(text, name, args, ctx.services.http)
+        llm_text = await summarize_tool_result(
+            text, name, args, ctx.services_required.http
+        )
         logger.info(
             "Tool result %s summarized: %s → %s chars",
             name,
@@ -375,8 +377,8 @@ async def _execute_standard(
                 [tc["function"]["name"] for tc in approved_calls],
             )
         if use_serial and has_side_effect:
-            ctx.services.serialization_events += 1
-            ctx.services.serialization_tools_affected += len(approved_calls)
+            ctx.services_required.serialization_events += 1
+            ctx.services_required.serialization_tools_affected += len(approved_calls)
         results: list[Any] = []
         for tc in approved_calls:
             t_tool = time.perf_counter()

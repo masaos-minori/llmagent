@@ -36,11 +36,11 @@ class SessionTitleService:
         Raises SessionTitleGenerationError on any failure.
         Uses cfg.llm.title_llm_temperature and cfg.llm.title_llm_max_tokens.
         """
-        if ctx.services.http is None:
+        if ctx.services_required.http is None:
             raise SessionTitleGenerationError("HTTP client not configured")
         prompt = _TITLE_PROMPT.format(text=first_input[:200])
         try:
-            resp = await ctx.services.http.post(
+            resp = await ctx.services_required.http.post(
                 ctx.cfg.llm.llm_url,
                 json={
                     "messages": [{"role": "user", "content": prompt}],

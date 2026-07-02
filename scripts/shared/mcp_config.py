@@ -56,6 +56,10 @@ class McpServerConfig:
     tool_names: list[str] = field(default_factory=list)
     auth_token: str = ""  # Bearer token sent by ToolExecutor
     role: str = ""  # human-readable role label
+    cmd: list[str] = field(
+        default_factory=list
+    )  # launch command for startup_mode=subprocess
+    env: dict[str, str] = field(default_factory=dict)  # extra env vars for subprocess
 
     def __post_init__(self) -> None:
         # Cast str inputs from config files to enum types; invalid values raise ValueError.
@@ -82,6 +86,10 @@ class McpServerConfig:
         if self.transport == TransportType.HTTP and not self.url:
             raise ValueError(
                 "McpServerConfig: url must not be empty when transport='http'"
+            )
+        if self.startup_mode == StartupMode.SUBPROCESS and not self.cmd:
+            raise ValueError(
+                "McpServerConfig: cmd must not be empty when startup_mode='subprocess'"
             )
 
 

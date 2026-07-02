@@ -72,7 +72,7 @@ class _MemoryMixin(MixinBase):
             self._out.write(_MEMORY_HELP)
             return
 
-        mem = ctx.services.memory
+        mem = ctx.services_required.memory
 
         # status is allowed even when memory is disabled
         if sub == "status":
@@ -434,7 +434,7 @@ class _MemoryMixin(MixinBase):
 
     def _emit_memory_audit(self, result: MemoryOpResult) -> None:
         """Write memory operation event to audit_logger."""
-        audit = self._ctx.services.audit_logger
+        audit = self._ctx.services_required.audit_logger
         if audit is None:
             return
         audit.info(

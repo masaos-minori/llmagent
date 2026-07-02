@@ -5,20 +5,20 @@ Result DTOs for the RAG and ingestion layers.
 
 from __future__ import annotations
 
-import enum
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any
 
 from rag.enums import MqeStatus
 
 
-class ResultSource(str, enum.Enum):
+class ResultSource(StrEnum):
     REMOTE = "remote"
     LOCAL = "local"
     FALLBACK = "fallback"
 
 
-class HttpResultKind(str, enum.Enum):
+class HttpResultKind(StrEnum):
     SUCCESS = "success"
     EMPTY = "empty"
     ERROR = "error"

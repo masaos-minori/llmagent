@@ -25,8 +25,8 @@ def reset_session_stats(ctx: AgentContext) -> None:
     ctx.stats.stat_tool_errors = 0
     ctx.stats.stat_latency = {}
     ctx.stats.stat_semantic_cache_hits = 0
-    if ctx.services.llm is not None:
-        ctx.services.llm.stat_retries = 0
+    if ctx.services_required.llm is not None:
+        ctx.services_required.llm.stat_retries = 0
 
 
 class MixinBase:

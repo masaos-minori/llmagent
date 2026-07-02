@@ -70,7 +70,7 @@ class _RagExportMixin(MixinBase):
             self._out.write("Usage: /rag search <query> [--debug]")
             return
 
-        if ctx.services is None or ctx.services.http is None:
+        if ctx.services is None or ctx.services_required.http is None:
             self._out.write("HTTP client not available.")
             return
 
@@ -81,7 +81,7 @@ class _RagExportMixin(MixinBase):
             return
 
         rag_cfg = build_rag_cfg_adapter(RagPipelineConfig.from_dict(rag_cfg_dict))
-        pipeline = RagPipeline(ctx.services.http, rag_cfg)
+        pipeline = RagPipeline(ctx.services_required.http, rag_cfg)
 
         debug_fn = None
         if debug:
@@ -222,19 +222,20 @@ class _RagExportMixin(MixinBase):
         context_compress_turns pairs unconditionally.
         """
         ctx = self._ctx
-        if ctx.services.hist_mgr is None:
+        if ctx.services_required.hist_mgr is None:
             self._out.write("History manager not available.")
             return
         turn_msgs = [m for m in ctx.conv.history if m["role"] != "system"]
         # compress_turns * 2: each "turn" = 1 user + 1 assistant message
-        n_compress = ctx.services.hist_mgr.compress_turns * 2
+        n_compress = ctx.services_required.hist_mgr.compress_turns * 2
         if len(turn_msgs) <= n_compress:
             self._out.write("Nothing to compact: history too short.")
             return
         try:
-            ctx.conv.history, result = await ctx.services.hist_mgr.force_compress(
-                ctx.conv.history
-            )
+            (
+                ctx.conv.history,
+                result,
+            ) = await ctx.services_required.hist_mgr.force_compress(ctx.conv.history)
             if (
                 result.compressed_count > 0
                 or result.summary_added

@@ -61,11 +61,11 @@ async def _build_preview_with_dry_run(
     preview = build_preview(tool_name, args)
     if (
         tool_name not in ctx.cfg.approval.approval_dry_run_tools
-        or ctx.services.tools is None
+        or ctx.services_required.tools is None
     ):
         return preview
     try:
-        result = await ctx.services.tools.execute(
+        result = await ctx.services_required.tools.execute(
             tool_name,
             {**args, "dry_run": True},
         )

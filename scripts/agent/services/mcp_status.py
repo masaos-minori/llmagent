@@ -39,7 +39,7 @@ TIER_LABELS: dict[McpTier, str] = {
 
 def _resolve_health_state(ctx: AgentContext, key: str) -> McpServerHealthState:
     """Get the health state for a server, falling back to HEALTHY."""
-    registry = ctx.services.health_registry
+    registry = ctx.services_required.health_registry
     if registry is None:
         return McpServerHealthState.HEALTHY
     return cast(McpServerHealthState, registry.get_state(key))

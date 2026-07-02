@@ -37,7 +37,7 @@ def audit_approval(
     decision: ApprovalDecisionType | str,
 ) -> None:
     """Write a structured tool_approval event to the audit log."""
-    if ctx.services.audit_logger is None:
+    if ctx.services_required.audit_logger is None:
         return
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
     resource_scope = _extract_resource_scope(ctx, masked)
@@ -54,12 +54,12 @@ def audit_approval(
         workflow_id=ctx.workflow.workflow_id or "",
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
     )
-    ctx.services.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
+    ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 
 
 def log_approval_decision(ctx: AgentContext, outcome: ApprovalOutcome) -> None:
     """Write a structured approval_decision event to the audit log."""
-    if ctx.services.audit_logger is None:
+    if ctx.services_required.audit_logger is None:
         return
     evt = ApprovalDecisionEvent(
         event="approval_decision",
@@ -72,7 +72,7 @@ def log_approval_decision(ctx: AgentContext, outcome: ApprovalOutcome) -> None:
         workflow_id=ctx.workflow.workflow_id or "",
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
     )
-    ctx.services.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
+    ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 
 
 def audit_workflow_start(
@@ -83,9 +83,9 @@ def audit_workflow_start(
     session_id: str = "",
 ) -> None:
     """Write workflow_start event to audit log."""
-    if ctx.services.audit_logger is None:
+    if ctx.services_required.audit_logger is None:
         return
-    ctx.services.audit_logger.info(
+    ctx.services_required.audit_logger.info(
         _json_dumps(
             {
                 "event": "workflow_start",
@@ -108,9 +108,9 @@ def audit_stage_completed(
     session_id: str = "",
 ) -> None:
     """Write stage_completed event to audit log."""
-    if ctx.services.audit_logger is None:
+    if ctx.services_required.audit_logger is None:
         return
-    ctx.services.audit_logger.info(
+    ctx.services_required.audit_logger.info(
         _json_dumps(
             {
                 "event": "stage_completed",
@@ -133,9 +133,9 @@ def audit_approval_requested(
     session_id: str = "",
 ) -> None:
     """Write approval_requested event to audit log."""
-    if ctx.services.audit_logger is None:
+    if ctx.services_required.audit_logger is None:
         return
-    ctx.services.audit_logger.info(
+    ctx.services_required.audit_logger.info(
         _json_dumps(
             {
                 "event": "approval_requested",
@@ -159,7 +159,7 @@ def audit_tool_exec(
     artifact_uri: str | None = None,
 ) -> None:
     """Write a tool_exec event with mcp_request_id to the audit log."""
-    if ctx.services.audit_logger is None or not mcp_request_id:
+    if ctx.services_required.audit_logger is None or not mcp_request_id:
         return
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
     resource_scope = _extract_resource_scope(ctx, masked)
@@ -178,7 +178,7 @@ def audit_tool_exec(
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
         artifact_uri=artifact_uri,
     )
-    ctx.services.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
+    ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 
 
 def write_round_exec(
@@ -196,9 +196,9 @@ def write_round_exec(
     scheduling_mode: str | None = None,
 ) -> None:
     """Log a round-wide execution event, capturing serialization impact."""
-    if ctx.services.audit_logger is None:
+    if ctx.services_required.audit_logger is None:
         return
-    ctx.services.audit_logger.info(
+    ctx.services_required.audit_logger.info(
         "round_exec",
         extra={
             "round_id": round_id,

@@ -14,11 +14,9 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import httpx
-import orjson
 from mcp.git.models import GitConfig
 from mcp.shell.models import ShellConfig
 from shared.logger import Logger
-
 
 from agent.context import AgentContext
 from agent.shared.health_models import HealthCheckResult, ServiceWarning
@@ -50,7 +48,7 @@ async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
     Failure is non-fatal: the REPL continues regardless.
     Derives the /health URL by stripping the path from each endpoint URL.
     """
-    if ctx.services.http is None:
+    if ctx.services_required.http is None:
         raise RuntimeError("http service not initialized")
     checks = [
         ("llm", ctx.cfg.llm.llm_url),
@@ -63,7 +61,7 @@ async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
         parsed = urlparse(url)
         health_url = f"{parsed.scheme}://{parsed.netloc}/health"
         try:
-            resp = await ctx.services.http.get(health_url, timeout=2.0)
+            resp = await ctx.services_required.http.get(health_url, timeout=2.0)
             if resp.status_code != HTTPStatus.OK:
                 msg = f"{label} health check returned HTTP {resp.status_code}"
                 logger.warning(msg)
@@ -114,7 +112,7 @@ async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[
       - All servers reachable:
           returns (union_of_all_tool_names, [])
     """
-    if ctx.services.http is None:
+    if ctx.services_required.http is None:
         raise RuntimeError("http service not initialized")
     server_names: set[str] = set()
     unreachable: list[str] = []
@@ -123,7 +121,7 @@ async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[
             if not srv_cfg.url:
                 continue
             try:
-                resp = await ctx.services.http.get(
+                resp = await ctx.services_required.http.get(
                     f"{srv_cfg.url}/v1/tools",
                     timeout=5.0,
                 )
@@ -298,18 +296,18 @@ async def _watchdog_check_http(
     """Probe one HTTP server and restart via lifecycle manager when health check fails.
 
     For startup_mode="subprocess" servers, restart is delegated to
-    ctx.services.lifecycle.restart().  Other modes (externally-managed) only
+    ctx.services_required.lifecycle.restart().  Other modes (externally-managed) only
     log a warning because the agent does not own those processes.
     """
-    if ctx.services.http is None:
+    if ctx.services_required.http is None:
         raise RuntimeError("http service not initialized")
     if not srv_cfg.url:
         return
-    ok = await probe_mcp_health(ctx.services.http, srv_cfg.url)
+    ok = await probe_mcp_health(ctx.services_required.http, srv_cfg.url)
     if ok:
         restart_counts[key] = 0
-        if ctx.services.health_registry:
-            ctx.services.health_registry.record_success(key)
+        if ctx.services_required.health_registry:
+            ctx.services_required.health_registry.record_success(key)
         return
     count = restart_counts.get(key, 0)
     if count >= max_restarts:
@@ -326,9 +324,12 @@ async def _watchdog_check_http(
         max_restarts,
     )
     # Delegate restart to lifecycle manager
-    if srv_cfg.startup_mode == "subprocess" and ctx.services.lifecycle is not None:
+    if (
+        srv_cfg.startup_mode == "subprocess"
+        and ctx.services_required.lifecycle is not None
+    ):
         try:
-            await ctx.services.lifecycle.restart(key)
+            await ctx.services_required.lifecycle.restart(key)
             restart_counts[key] = count + 1
         except (OSError, RuntimeError) as e:
             logger.error("Watchdog: failed to restart %r: %s", key, e)
@@ -338,8 +339,8 @@ async def _watchdog_check_http(
             " manual intervention required",
             key,
         )
-    if ctx.services.health_registry:
-        ctx.services.health_registry.record_failure(key)
+    if ctx.services_required.health_registry:
+        ctx.services_required.health_registry.record_failure(key)
 
 
 async def watchdog_loop(ctx: AgentContext) -> None:
@@ -374,8 +375,8 @@ async def watchdog_loop(ctx: AgentContext) -> None:
                     restart_counts,
                     max_restarts,
                 )
-        if ctx.services.lifecycle is not None:
-            await ctx.services.lifecycle.shutdown_idle()
+        if ctx.services_required.lifecycle is not None:
+            await ctx.services_required.lifecycle.shutdown_idle()
 
 
 def audit_security_defaults(

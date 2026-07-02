@@ -185,13 +185,13 @@ class _DbMixin(MixinBase):
         if not url:
             self._out.write_validation_error("/db rag clean <url>")
             return
-        if self._ctx.services.tools is None:
+        if self._ctx.services_required.tools is None:
             self._out.write_error(
                 "rag-pipeline-mcp unavailable: tool executor not initialized"
             )
             return
         try:
-            result = await self._ctx.services.tools.execute(
+            result = await self._ctx.services_required.tools.execute(
                 "rag_delete_document", {"url": url}
             )
             if result.is_error:
@@ -247,13 +247,13 @@ class _DbMixin(MixinBase):
         args_dict: dict[str, Any] = {"limit": limit}
         if lang:
             args_dict["lang"] = lang
-        if self._ctx.services.tools is None:
+        if self._ctx.services_required.tools is None:
             self._out.write_error(
                 "rag-pipeline-mcp unavailable: tool executor not initialized"
             )
             return
         try:
-            result = await self._ctx.services.tools.execute(
+            result = await self._ctx.services_required.tools.execute(
                 "rag_list_documents", args_dict
             )
             if result.is_error:

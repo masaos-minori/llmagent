@@ -39,8 +39,8 @@ class _ConfigSetMixin(MixinBase):
             self._out.write(f"temperature must be a float in [0.0, {MAX_TEMPERATURE}]")
             return
         ctx.cfg.llm.llm_temperature = val
-        if ctx.services.llm is not None:
-            ctx.services.llm.apply_config(temperature=val)
+        if ctx.services_required.llm is not None:
+            ctx.services_required.llm.apply_config(temperature=val)
         logger.info("llm_temperature set to %s", val)
         self._out.write(f"temperature set to {val}")
 
@@ -54,8 +54,8 @@ class _ConfigSetMixin(MixinBase):
             self._out.write("max_tokens must be a positive integer")
             return
         ctx.cfg.llm.llm_max_tokens = val
-        if ctx.services.llm is not None:
-            ctx.services.llm.apply_config(max_tokens=val)
+        if ctx.services_required.llm is not None:
+            ctx.services_required.llm.apply_config(max_tokens=val)
         logger.info("llm_max_tokens set to %s", val)
         self._out.write(f"max_tokens set to {val}")
 

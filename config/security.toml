@@ -10,28 +10,6 @@ plan_blocked_tools = [
   "shell_run",
 ]
 
-# Risk-based approval: tool_name → "none" | "medium" | "high"
-# Tools absent from this dict are auto-approved (treated as "none").
-# approval_risk_rules always takes priority over tier-derived defaults.
-
-[approval_risk_rules]
-write_file = "medium"
-edit_file = "medium"
-create_directory = "medium"
-move_file = "medium"
-delete_file = "high"
-delete_directory = "high"
-shell_run = "high"
-github_push_files = "high"
-github_create_or_update_file = "high"
-github_delete_file = "high"
-github_merge_pull_request = "high"
-github_create_branch = "medium"
-github_create_pull_request = "medium"
-github_update_pull_request = "medium"
-github_create_issue = "medium"
-github_add_issue_comment = "medium"
-
 # File path prefixes that escalate any operation to "high" risk
 approval_protected_paths = [
   "/opt/",
@@ -62,6 +40,28 @@ approval_shell_safe_prefixes = [
   "find",
   "grep",
 ]
+
+# Risk-based approval: tool_name → "none" | "medium" | "high"
+# Tools absent from this dict are auto-approved (treated as "none").
+# approval_risk_rules always takes priority over tier-derived defaults.
+
+[approval_risk_rules]
+write_file = "medium"
+edit_file = "medium"
+create_directory = "medium"
+move_file = "medium"
+delete_file = "high"
+delete_directory = "high"
+shell_run = "high"
+github_push_files = "high"
+github_create_or_update_file = "high"
+github_delete_file = "high"
+github_merge_pull_request = "high"
+github_create_branch = "medium"
+github_create_pull_request = "medium"
+github_update_pull_request = "medium"
+github_create_issue = "medium"
+github_add_issue_comment = "medium"
 
 # Arg keys treated as resource identifiers for path/branch escalation and audit scope
 # Keys: "path_keys" (file paths), "branch_keys" (git branch names)

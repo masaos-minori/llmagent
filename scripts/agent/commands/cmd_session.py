@@ -55,8 +55,8 @@ class _SessionMixin(MixinBase):
                     self._ctx.session.session_id,
                 )
             else:
-                if self._ctx.services.audit_logger is not None:
-                    self._ctx.services.audit_logger.warning(
+                if self._ctx.services_required.audit_logger is not None:
+                    self._ctx.services_required.audit_logger.warning(
                         "session_title_fallback session_id=%s fallback=%r reason=%s",
                         self._ctx.session.session_id,
                         fallback_title,

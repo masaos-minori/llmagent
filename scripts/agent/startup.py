@@ -97,14 +97,16 @@ class StartupOrchestrator:
         Ondemand servers are excluded; they start on first tool call via ensure_ready().
         """
         ctx = self._ctx
-        if ctx.services.tools is None:
+        if ctx.services_required.tools is None:
             raise RuntimeError("tools service not initialized")
-        if ctx.services.lifecycle is None:
+        if ctx.services_required.lifecycle is None:
             raise RuntimeError("lifecycle service not initialized")
         for key, cfg in ctx.cfg.mcp.mcp_servers.items():
             if cfg.startup_mode == "subprocess" and cfg.transport == "http":
                 try:
-                    await ctx.services.lifecycle.start_http_subprocess(key, cfg)
+                    await ctx.services_required.lifecycle.start_http_subprocess(
+                        key, cfg
+                    )
                 except (OSError, RuntimeError) as e:
                     logger.error(
                         "Failed to start HTTP subprocess MCP server %r: %s",
@@ -203,8 +205,8 @@ class StartupOrchestrator:
             ctx.conv.system_prompt_name,
             ctx.cfg.tool.system_prompt_tool,
         )
-        if ctx.services.memory is not None:
-            memory_snippets = ctx.services.memory.on_session_start(
+        if ctx.services_required.memory is not None:
+            memory_snippets = ctx.services_required.memory.on_session_start(
                 ctx.session.session_id,
             )
             if memory_snippets:

@@ -225,7 +225,7 @@ def check_stale_patterns(content: str, filename: str) -> list[str]:
 
 def check_deleted_rag_refs(content: str, filename: str) -> list[str]:
     """Check for references to deleted RAG source files in active sections."""
-    issues = []
+    issues: list[str] = []
     lines = content.split("\n")
     in_active = False
 
@@ -278,7 +278,7 @@ def check_deleted_rag_refs(content: str, filename: str) -> list[str]:
 
 def check_migration_notes_in_active(content: str, filename: str) -> list[str]:
     """Check for Migration Notes sections in active RAG docs."""
-    issues = []
+    issues: list[str] = []
     lines = content.split("\n")
     in_active = False
 

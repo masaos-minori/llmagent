@@ -114,9 +114,9 @@ def _token_breakdown(
 
 def _format_memory_status(ctx: AgentContext) -> str:
     """Return a one-line summary of the memory layer state."""
-    if ctx.services.memory is None:
+    if ctx.services_required.memory is None:
         return "disabled"
-    store = ctx.services.memory.store
+    store = ctx.services_required.memory.store
     by_type = store.count_by_type()
     return (
         f"enabled (entries={store.count_entries()},"
@@ -140,14 +140,16 @@ def collect_context_state(ctx: AgentContext) -> ContextStateView:
 
     Raises ContextStateBuildError when hist_mgr is not configured.
     """
-    if ctx.services.hist_mgr is None:
+    if ctx.services_required.hist_mgr is None:
         raise ContextStateBuildError("hist_mgr is not configured")
     history = ctx.conv.history
-    total_chars = ctx.services.hist_mgr.count_chars(history)
-    compress_count = ctx.services.hist_mgr.stat_compress_count
-    fallback_truncate_count = ctx.services.hist_mgr.stat_fallback_truncate_count
+    total_chars = ctx.services_required.hist_mgr.count_chars(history)
+    compress_count = ctx.services_required.hist_mgr.stat_compress_count
+    fallback_truncate_count = (
+        ctx.services_required.hist_mgr.stat_fallback_truncate_count
+    )
     token_is_exact = ctx.stats.stat_input_tokens is not None
-    token_estimate = ctx.services.hist_mgr.count_tokens(
+    token_estimate = ctx.services_required.hist_mgr.count_tokens(
         history, ctx.stats.stat_input_tokens
     )
     repo_result = get_repo_info()
@@ -158,8 +160,8 @@ def collect_context_state(ctx: AgentContext) -> ContextStateView:
         sys_preview=_extract_sys_preview(history),
         compress_count=compress_count,
         fallback_truncate_count=fallback_truncate_count,
-        partial_completions=ctx.services.llm.stat_partial_completions
-        if ctx.services is not None and ctx.services.llm is not None
+        partial_completions=ctx.services_required.llm.stat_partial_completions
+        if ctx.services is not None and ctx.services_required.llm is not None
         else 0,
         token_is_exact=token_is_exact,
         token_estimate=token_estimate,

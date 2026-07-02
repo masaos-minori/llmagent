@@ -35,6 +35,7 @@ from agent.cli_view import CLIView
 from agent.commands.registry import CommandRegistry
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
+from agent.memory.models import HistoryMessage
 from agent.repl_health import watchdog_loop
 from agent.services.rag_maintenance_service import RagMaintenanceService
 
@@ -135,11 +136,15 @@ class AgentREPL:
 
     async def _persist_session_memories(self, ctx: AgentContext) -> None:
         """Extract and persist session memories before compression or resource close."""
-        if ctx.services.memory is not None:
+        if ctx.services is not None and ctx.services.memory is not None:
             try:
+                history = [
+                    HistoryMessage(role=m["role"], content=m.get("content") or "")
+                    for m in ctx.conv.history
+                ]
                 await ctx.services.memory.on_session_stop(
                     session_id=ctx.session.session_id,
-                    history=ctx.conv.history,
+                    history=history,
                     turn_id=ctx.turn.current_turn_id,
                 )
             except (RuntimeError, sqlite3.Error, OSError):
@@ -381,7 +386,7 @@ class AgentREPL:
                     f"Unknown command: {line}  (type /help for commands)"
                 )
         else:
-            llm = ctx.services.llm
+            llm = ctx.services_required.llm
             _prev_partial = llm.stat_partial_completions if llm is not None else 0
             await self._orchestrator.handle_turn(line)
             if llm is not None and llm.stat_partial_completions > _prev_partial:
@@ -421,8 +426,11 @@ class AgentREPL:
         try:
             self._print_startup_banner()
             ctx.session.start()
-            if ctx.services.tools is not None and ctx.session.session_id is not None:
-                ctx.services.tools.set_session_id(str(ctx.session.session_id))
+            if (
+                ctx.services_required.tools is not None
+                and ctx.session.session_id is not None
+            ):
+                ctx.services_required.tools.set_session_id(str(ctx.session.session_id))
             await self._repl_loop()
         finally:
             self._persist_session_diagnostics(ctx)

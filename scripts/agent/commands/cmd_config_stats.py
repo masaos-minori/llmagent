@@ -27,7 +27,7 @@ def _safe[T](obj: object | None, attr: str, default: T) -> T:
 
 def _get_mem_circuit_open(ctx) -> bool:
     """Return True if the memory embedding circuit breaker is open."""
-    mem = ctx.services.memory
+    mem = ctx.services_required.memory
     if mem is None:
         return False
     embed_client = mem.retriever.embed_client
@@ -39,7 +39,7 @@ def _get_mem_circuit_open(ctx) -> bool:
 
 def _get_mem_fts_fallback(ctx) -> int:
     """Return the FTS fallback count from the memory retriever."""
-    mem = ctx.services.memory
+    mem = ctx.services_required.memory
     if mem is None:
         return 0
     return getattr(mem.retriever, "fts_fallback_count", 0)
@@ -62,7 +62,7 @@ class _ConfigStatsMixin(MixinBase):
     def _collect_stats(self) -> StatsViewModel:
         """Collect session statistics from ctx and services into a typed ViewModel."""
         ctx = self._ctx
-        llm = ctx.services.llm
+        llm = ctx.services_required.llm
         return StatsViewModel(
             session_id=str(ctx.session.session_id)
             if ctx.session.session_id
@@ -75,10 +75,12 @@ class _ConfigStatsMixin(MixinBase):
             llm_heartbeat_timeouts=_safe(llm, "stat_heartbeat_timeouts", 0),
             llm_partial_completions=_safe(llm, "stat_partial_completions", 0),
             llm_parse_errors=_safe(llm, "stat_parse_errors", 0),
-            cache_hits=_safe(ctx.services.tools, "stat_cache_hits", 0),
-            compress_count=_safe(ctx.services.hist_mgr, "stat_compress_count", 0),
+            cache_hits=_safe(ctx.services_required.tools, "stat_cache_hits", 0),
+            compress_count=_safe(
+                ctx.services_required.hist_mgr, "stat_compress_count", 0
+            ),
             fallback_truncate_count=_safe(
-                ctx.services.hist_mgr, "stat_fallback_truncate_count", 0
+                ctx.services_required.hist_mgr, "stat_fallback_truncate_count", 0
             ),
             memory_consistency_failures=_safe(
                 ctx.stats, "stat_memory_consistency_failures", 0

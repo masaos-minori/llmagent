@@ -53,13 +53,9 @@ from rag.stages.mqe import MqeStage
 from rag.stages.rerank import RerankStage
 from rag.stages.search import SearchStage
 from rag.types import (
-    RagHit,  # noqa: F401 — re-exported via __all__
-    MergedHit,
     PipelineRunResult,
-    RankedHit,
-    RawHit,
+    RagHit,  # noqa: F401 — re-exported via __all__
 )
-
 from rag.utils import sanitize_document
 
 # Re-export symbols that external callers import from this module

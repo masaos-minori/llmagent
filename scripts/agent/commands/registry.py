@@ -13,7 +13,7 @@ Mixin split:
   cmd_context.py  — _ContextMixin:  /context, /clear, /undo, /history, /system
   cmd_db.py       — _DbMixin:       /db
   cmd_tooling.py  — _ToolingMixin:  /tool, /plan
- cmd_debug.py    — _DebugMixin:    /debug
+  cmd_debug.py    — _DebugMixin:    /debug
   cmd_rag_export.py   — _RagExportMixin:   /export, /compact, /rag
   cmd_memory.py   — _MemoryMixin:   /memory
   cmd_mdq.py      — _MdqMixin:      /mdq commands

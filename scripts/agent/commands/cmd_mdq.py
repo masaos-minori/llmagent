@@ -23,6 +23,45 @@ logger = logging.getLogger(__name__)
 class _MdqMixin(MixinBase):
     """MDQ slash-command handlers."""
 
+    async def _cmd_mdq(self, args: str) -> None:
+        """Dispatch /mdq subcommands.
+
+        Usage:
+          /mdq status
+          /mdq index <path> [--force]
+          /mdq refresh <path> [--force]
+          /mdq search <query> [--limit N] [--path-prefix PATH] [--mode bm25|grep]
+          /mdq outline <path> [--max-depth N]
+          /mdq get <chunk_id> [--with-neighbors]
+          /mdq grep <pattern> [--path PATH] [--max-chars N] [--context-before N] [--context-after N]
+        """
+        parts = args.strip().split(maxsplit=1)
+        subcmd = parts[0] if parts else "status"
+        rest = parts[1] if len(parts) > 1 else ""
+
+        if subcmd == "status":
+            await self._cmd_mdq_status()
+            return
+        if subcmd == "index":
+            await self._cmd_mdq_index(rest)
+            return
+        if subcmd == "refresh":
+            await self._cmd_mdq_refresh(rest)
+            return
+        if subcmd == "search":
+            await self._cmd_mdq_search(rest)
+            return
+        if subcmd == "outline":
+            await self._cmd_mdq_outline(rest)
+            return
+        if subcmd == "get":
+            await self._cmd_mdq_get(rest)
+            return
+        if subcmd == "grep":
+            await self._cmd_mdq_grep(rest)
+            return
+        self._out.write("Usage: /mdq status|index|refresh|search|outline|get|grep")
+
     async def _cmd_mdq_status(self) -> None:
         """Report health and index statistics.
 

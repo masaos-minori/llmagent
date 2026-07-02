@@ -43,9 +43,6 @@ from rag.llm_prompts import (
 )
 from rag.types import (
     RagHit,  # noqa: F401 — imported for use in this module
-    MergedHit,
-    RankedHit,
-    RawHit,
 )
 
 logger = logging.getLogger(__name__)

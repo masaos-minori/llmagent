@@ -210,8 +210,8 @@ class ConfigReloadService:
         result = ConfigReloadOutcome()
         ctx = self._ctx
 
-        if ctx.services.llm is not None:
-            ctx.services.llm.apply_config(
+        if ctx.services_required.llm is not None:
+            ctx.services_required.llm.apply_config(
                 temperature=ctx.cfg.llm.llm_temperature,
                 max_tokens=ctx.cfg.llm.llm_max_tokens,
                 max_retries=ctx.cfg.llm.llm_max_retries,
@@ -224,8 +224,8 @@ class ConfigReloadService:
             )
             result.applied.append("llm")
 
-        if ctx.services.hist_mgr is not None:
-            ctx.services.hist_mgr.apply_config(
+        if ctx.services_required.hist_mgr is not None:
+            ctx.services_required.hist_mgr.apply_config(
                 char_limit=ctx.cfg.llm.context_char_limit,
                 compress_turns=ctx.cfg.llm.context_compress_turns,
                 token_limit=ctx.cfg.llm.context_token_limit,
@@ -233,8 +233,10 @@ class ConfigReloadService:
             )
             result.applied.append("hist_mgr")
 
-        if ctx.services.tools is not None:
-            ctx.services.tools.apply_config(cache_ttl=ctx.cfg.tool.tool_cache_ttl)
+        if ctx.services_required.tools is not None:
+            ctx.services_required.tools.apply_config(
+                cache_ttl=ctx.cfg.tool.tool_cache_ttl
+            )
             result.applied.append("tools")
 
         # system_prompt update: write to the canonical field; Orchestrator syncs history[0].
