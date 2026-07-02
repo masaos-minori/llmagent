@@ -23,6 +23,7 @@ from mcp.file.common import (
     require_file,
     resolve_safe,
 )
+from mcp.file.delete_formatter import DeleteFileFormatter
 from mcp.file.delete_models import (
     DeleteDirectoryRequest,
     DeleteDirectoryResponse,
@@ -179,7 +180,7 @@ class DeleteFileService:
         self._write_audit_log("delete_directory", str(target))
         return DeleteDirectoryResponse(path=str(target), deleted=True, dir_info="")
 
-    # ── Dispatch handlers: format service results as plain text for the LLM ──
+   # ── Dispatch handlers: format service results as plain text for the LLM ──
 
     async def fmt_delete_file(self, args: ToolArgs) -> str:
         result = await asyncio.to_thread(
@@ -201,22 +202,6 @@ class DeleteFileService:
             "delete_file": self.fmt_delete_file,
             "delete_directory": self.fmt_delete_directory,
         }
-
-
-class DeleteFileFormatter:
-    """Format DeleteFileService results as plain text for the LLM."""
-
-    @staticmethod
-    def format_file_result(result: DeleteFileResponse) -> str:
-        if not result.deleted:
-            return f"Dry-run: {result.path} ({result.file_info})"
-        return f"Deleted: {result.path}"
-
-    @staticmethod
-    def format_directory_result(result: DeleteDirectoryResponse) -> str:
-        if not result.deleted:
-            return f"Dry-run: {result.path} ({result.dir_info})"
-        return f"Directory deleted: {result.path}"
 
 
 def build_service(cfg: FileDeleteConfig) -> DeleteFileService:

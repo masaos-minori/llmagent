@@ -28,12 +28,9 @@ from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 
 from mcp.audit import _audit_log
+from mcp.cicd.exception_handlers import setup_exception_handlers
 from mcp.cicd.models import (
-    CicdAuthorizationError,
     CicdConfig,
-    CicdNotFoundError,
-    CicdUpstreamError,
-    CicdValidationError,
 )
 from mcp.cicd.service import CiCdService, build_service
 from mcp.cicd.tools import TOOL_LIST
@@ -56,28 +53,7 @@ app = FastAPI(
 )
 
 attach_auth_middleware(app, _cfg.auth_token or "")
-
-
-@app.exception_handler(CicdAuthorizationError)
-async def _on_cicd_auth_error(_req: Any, exc: CicdAuthorizationError) -> JSONResponse:
-    return JSONResponse({"detail": str(exc)}, status_code=403)
-
-
-@app.exception_handler(CicdNotFoundError)
-async def _on_cicd_not_found(_req: Any, exc: CicdNotFoundError) -> JSONResponse:
-    return JSONResponse({"detail": str(exc)}, status_code=404)
-
-
-@app.exception_handler(CicdValidationError)
-async def _on_cicd_validation_error(
-    _req: Any, exc: CicdValidationError
-) -> JSONResponse:
-    return JSONResponse({"detail": str(exc)}, status_code=422)
-
-
-@app.exception_handler(CicdUpstreamError)
-async def _on_cicd_upstream_error(_req: Any, exc: CicdUpstreamError) -> JSONResponse:
-    return JSONResponse({"detail": str(exc)}, status_code=502)
+setup_exception_handlers(app)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
