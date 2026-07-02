@@ -25,41 +25,15 @@ from agent.services.conversation_service import clear_conversation, switch_syste
 from agent.services.exceptions import ContextStateBuildError, ConversationStateError
 from agent.services.models import ContextStateView
 
+from agent.commands.token_display import TokenDisplay
+
 logger = logging.getLogger(__name__)
 
 CONTEXT_PREVIEW_LENGTH = 120
 
 
-def _token_source_label(token_is_exact: bool, tokenize_configured: bool) -> str:
-    """Return a human-readable label for the token count source."""
-    if token_is_exact:
-        return "LLM usage"
-    if tokenize_configured:
-        return "/tokenize (next turn)"
-    return "category-aware estimate"
-
-
-class _ContextMixin(MixinBase):
+class _ContextMixin(MixinBase, TokenDisplay):
     """Context, history, and database slash-command handlers."""
-
-    def _print_token_line(self, state: ContextStateView) -> None:
-        """Print token count / estimate with source label and optional limit info."""
-        token_estimate = state.token_estimate or 0
-        token_limit = state.token_limit
-        token_limit_str = f"{token_limit:,}" if token_limit > 0 else "disabled"
-        token_label = "Token count  " if state.token_is_exact else "Token estimate"
-        src = _token_source_label(state.token_is_exact, state.tokenize_configured)
-        if token_limit > 0:
-            token_pct = int(token_estimate * 100 / token_limit)
-            token_value = f"{token_estimate:,} ({src}, limit={token_limit:,} [active] {token_pct}%)"
-        else:
-            token_value = f"{token_estimate:,} ({src})"
-        self._out.write_kv(
-            [
-                (token_label, token_value),
-                ("Token limit     ", token_limit_str),
-            ]
-        )
 
     def _cmd_context(self) -> None:
         """Print runtime conversation context state."""
@@ -136,11 +110,7 @@ class _ContextMixin(MixinBase):
                     self._out.write(f"  {cat:<14}: {n:>8,} tokens ({pct:>3}%)")
 
     def _cmd_clear(self, args: str = "") -> None:
-        """Reset conversation history to system prompt only and clear session stats.
-
-        /clear     — reset history in the current session
-        /clear new — reset history and start a new DB session
-        """
+        """Reset conversation history to system prompt only and clear session stats."""
         parsed = parse_command_args(args.split())
         new_session = parsed.subcommand == "new"
         result = clear_conversation(self._ctx, new_session=new_session)
@@ -148,11 +118,11 @@ class _ContextMixin(MixinBase):
 
     def _cmd_undo(self) -> None:
         """Roll back the last user+assistant turn from in-memory history and DB."""
-        from agent.services.exceptions import (
-            NothingToUndoError,  # noqa: PLC0415 — lazy: avoids import at module load
+        from agent.services.exceptions import (  # noqa: PLC0415 — lazy import
+            NothingToUndoError,
         )
-        from agent.services.undo_service import (
-            undo_last_turn,  # noqa: PLC0415 — lazy: avoids import at module load
+        from agent.services.undo_service import (  # noqa: PLC0415 — lazy import
+            undo_last_turn,
         )
 
         try:

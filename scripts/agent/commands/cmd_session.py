@@ -3,10 +3,10 @@
 Session management mixin for CommandRegistry.
 
 Provides _SessionMixin with:
+  _cmd_session             — /session dispatcher
   _generate_session_title  — background task: LLM-generated short title (delegates to SessionTitleService)
   _session_load_safe       — safe session restore by ID
   _session_delete          — session deletion with self-guard
-  _cmd_session             — /session dispatcher
   _load_session            — restore messages into ctx.conv.history (delegates to restore_session)
 """
 
@@ -16,54 +16,21 @@ from agent.commands.mixin_base import MixinBase
 from agent.commands.utils import parse_command_args
 from agent.services.models import SessionRow
 
-logger = logging.getLogger(__name__)
+from agent.commands.session_title import SessionTitleGen
 
-SESSION_TITLE_MAX_CHARS = 32
-SESSION_TITLE_TRUNCATE_AT = SESSION_TITLE_MAX_CHARS - 3
+logger = logging.getLogger(__name__)
 
 
 class _SessionMixin(MixinBase):
     """Session management slash-command handlers."""
 
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._title_gen = SessionTitleGen(self._ctx, self._out)
+
     async def _generate_session_title(self, first_input: str) -> None:
         """Generate and persist a session title via LLM (background task)."""
-        from agent.services.exceptions import (
-            SessionTitleGenerationError,  # noqa: PLC0415 — lazy: deferred to avoid import cost
-        )
-        from agent.services.session_title import (
-            SessionTitleService,  # noqa: PLC0415 — lazy: deferred to avoid import cost
-        )
-
-        self._ctx.session.set_title_pending(True)
-        try:
-            await SessionTitleService().generate(self._ctx, first_input)
-        except SessionTitleGenerationError as e:
-            logger.warning("Session title generation failed, using fallback: %s", e)
-            clean_input = first_input.strip() if first_input else ""
-            if not clean_input:
-                fallback_title = "(New Session)"
-            elif len(clean_input) > SESSION_TITLE_MAX_CHARS:
-                fallback_title = clean_input[:SESSION_TITLE_TRUNCATE_AT] + "..."
-            else:
-                fallback_title = clean_input
-            try:
-                self._ctx.session.set_title(fallback_title)
-            except Exception as db_err:  # noqa: BLE001
-                logger.error(
-                    "Session title fallback set_title failed: %s (session_id=%s)",
-                    db_err,
-                    self._ctx.session.session_id,
-                )
-            else:
-                if self._ctx.services_required.audit_logger is not None:
-                    self._ctx.services_required.audit_logger.warning(
-                        "session_title_fallback session_id=%s fallback=%r reason=%s",
-                        self._ctx.session.session_id,
-                        fallback_title,
-                        e,
-                    )
-        finally:
-            self._ctx.session.set_title_pending(False)
+        await self._title_gen.generate(first_input)
 
     def _session_load_safe(self, arg: str) -> None:
         """Parse arg as an integer session ID and load it; print error on invalid."""
@@ -100,6 +67,11 @@ class _SessionMixin(MixinBase):
 
     def _session_list(self, limit_arg: str) -> None:
         """List sessions table; limit_arg is the raw CLI positional (digit string or empty)."""
+        from agent.commands.session_title import (  # noqa: PLC0415 — lazy import
+            SESSION_TITLE_MAX_CHARS,
+            SESSION_TITLE_TRUNCATE_AT,
+        )
+
         try:
             limit = int(limit_arg) if limit_arg else 20
         except (ValueError, TypeError):
@@ -181,11 +153,11 @@ class _SessionMixin(MixinBase):
 
     def _load_session(self, session_id: int) -> None:
         """Restore a previous session via session_restore service."""
-        from agent.services.exceptions import (
-            SessionNotFoundError,  # noqa: PLC0415 — lazy: deferred to avoid import cost
+        from agent.services.exceptions import (  # noqa: PLC0415 — lazy import
+            SessionNotFoundError,
         )
-        from agent.services.session_restore import (
-            restore_session,  # noqa: PLC0415 — lazy: deferred to avoid import cost
+        from agent.services.session_restore import (  # noqa: PLC0415 — lazy import
+            restore_session,
         )
 
         try:

@@ -8,22 +8,12 @@ Classes:
   VectorRetriever  — KNN search on memories_vec; knn_search() is the public API
   HybridRetriever  — composes both; primary external interface
 
-Scoring formula (FtsRetriever):
-  score = -bm25_rank                  # BM25 from FTS5 (negative = higher is better)
-        + importance_boost             # 0.0–0.5 based on entry.importance
-        + pin_boost                    # 0.3 when pinned
-        + recency_decay                # 0.0–0.2 based on age (newer = higher)
-        + context_match                # 0.1 when project/repo match
-
-  semantic  : importance_weight = 1.0, recency_weight = 0.5
-  episodic  : importance_weight = 0.5, recency_weight = 1.0
+See scoring.py for scoring formula details.
 """
 
 from __future__ import annotations
 
-import datetime
 import logging
-import re
 
 from db.helper import SQLiteHelper
 
@@ -31,6 +21,7 @@ from agent.memory.embedding_client import EmbeddingClient
 from agent.memory.enums import MemoryType
 from agent.memory.exceptions import MemorySchemaError
 from agent.memory.mapper import _floats_to_blob, row_to_entry
+from agent.memory.scoring import context_boost, recency_boost, score
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 
 logger = logging.getLogger(__name__)
@@ -38,65 +29,8 @@ logger = logging.getLogger(__name__)
 # Maximum number of raw FTS5 candidates before rescoring
 _FTS_CANDIDATE_LIMIT = 50
 
-# Boost amounts
-_PIN_BOOST = 0.3
-_IMPORTANCE_BOOST_SCALE = 0.5  # importance (0–1) x scale
-_RECENCY_MAX_BOOST = 0.2  # applied to entries within 7 days
-_CONTEXT_MATCH_BOOST = 0.1
-
-# Seconds per day
-_SECS_PER_DAY = 86_400.0
-_RECENCY_DAYS = 7.0
-
 # RRF constant
 _RRF_K = 60
-
-
-def _recency_boost(created_at: str, recency_days: float = _RECENCY_DAYS) -> float:
-    """Return 0.0–RECENCY_MAX_BOOST based on age in days (newer = higher)."""
-    try:
-        dt = datetime.datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-        now = datetime.datetime.now(datetime.UTC)
-        age_days = (now - dt).total_seconds() / _SECS_PER_DAY
-        if age_days >= recency_days:
-            return 0.0
-        return _RECENCY_MAX_BOOST * (1.0 - age_days / recency_days)
-    except (ValueError, OverflowError) as e:
-        raise MemorySchemaError(
-            f"_recency_boost: invalid created_at {created_at!r}: {e}"
-        ) from e
-
-
-def _context_boost(
-    entry: MemoryEntry, project: str, repo: str, branch: str = ""
-) -> float:
-    """Return a context match boost based on branch, project, or repo match."""
-    if branch and entry.branch == branch:
-        return _CONTEXT_MATCH_BOOST + 0.05
-    if (project and entry.project == project) or (repo and entry.repo == repo):
-        return _CONTEXT_MATCH_BOOST
-    return 0.0
-
-
-def _score(
-    bm25_rank: float,
-    entry: MemoryEntry,
-    project: str,
-    repo: str,
-    recency_days: float = _RECENCY_DAYS,
-    branch: str = "",
-) -> float:
-    """Combined score; higher is better."""
-    importance_w = 1.0 if entry.memory_type == MemoryType.SEMANTIC else 0.5
-    recency_w = 0.5 if entry.memory_type == MemoryType.SEMANTIC else 1.0
-
-    return (
-        -bm25_rank  # FTS5 rank is negative (lower magnitude = better match)
-        + importance_w * entry.importance * _IMPORTANCE_BOOST_SCALE
-        + (_PIN_BOOST if entry.pinned else 0.0)
-        + recency_w * _recency_boost(entry.created_at, recency_days)
-        + _context_boost(entry, project, repo, branch)
-    )
 
 
 def _build_fts_query(text: str) -> str:
@@ -105,6 +39,8 @@ def _build_fts_query(text: str) -> str:
     All tokens are double-quoted to escape AND/OR/NOT/NEAR as literals.
     No column filter: memories_fts searches content, summary, and tags.
     """
+    import re  # noqa: PLC0415 — lazy import, only needed for regex
+
     tokens = re.findall(r"\w+", text)
     if not tokens:
         return '""'
@@ -140,7 +76,7 @@ class FtsRetriever:
         self,
         *,
         fts_limit: int = _FTS_CANDIDATE_LIMIT,
-        recency_days: float = _RECENCY_DAYS,
+        recency_days: float = 7.0,
     ) -> None:
         self._fts_limit = fts_limit
         self._recency_days = recency_days
@@ -213,7 +149,7 @@ class FtsRetriever:
             d = dict(row)
             bm25_rank = float(d.pop("bm25_rank", 0.0))
             entry = row_to_entry(d)
-            s = _score(bm25_rank, entry, project, repo, self._recency_days, branch)
+            s = score(bm25_rank, entry, project, repo, self._recency_days, branch)
             hits.append(MemoryHit(entry=entry, score=s))
         return hits
 
@@ -279,7 +215,7 @@ class HybridRetriever:
         *,
         fts_limit: int = _FTS_CANDIDATE_LIMIT,
         rrf_k: int = _RRF_K,
-        recency_days: float = _RECENCY_DAYS,
+        recency_days: float = 7.0,
         embed_client: EmbeddingClient | None = None,
     ) -> None:
         self._fts = FtsRetriever(fts_limit=fts_limit, recency_days=recency_days)
