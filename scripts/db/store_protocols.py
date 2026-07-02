@@ -108,7 +108,9 @@ class DocumentStore(Protocol):
         doc_id: int,
         index: int,
         content: str,
-        normalized: str | None,
+        normalized: str | None = None,
+        chunk_type: str = "",
+        source_file: str = "",
     ) -> int:
         """Insert a chunk row; return chunk_id."""
         ...

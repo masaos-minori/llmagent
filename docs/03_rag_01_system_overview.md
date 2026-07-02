@@ -19,7 +19,7 @@ LLM turn.
 - MCP wrapper: `scripts/mcp/rag_pipeline/server.py` (port 8010)
 
 **Out of scope:**
-- MDQ (Markdown-dedicated index) — separate service; see [04_mcp_07_mdq_rag_boundary.md](04_mcp_07_mdq_rag_boundary.md) for boundary definition
+- MDQ (Markdown-dedicated index) — separate service; see [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) for boundary definition
 - Agent REPL — calls the pipeline via MCP; does not own RAG logic
 - LLM and embedding servers — external services at ports 8001 and 8003
 

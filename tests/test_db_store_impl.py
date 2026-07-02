@@ -29,12 +29,14 @@ CREATE TABLE IF NOT EXISTS documents (
     fetched_at   TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 CREATE TABLE IF NOT EXISTS chunks (
-    chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    doc_id             INTEGER NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
-    chunk_index        INTEGER,
-    content            TEXT NOT NULL,
-    normalized_content TEXT
-);
+     chunk_id           INTEGER PRIMARY KEY AUTOINCREMENT,
+     doc_id             INTEGER NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+     chunk_index        INTEGER,
+     content            TEXT NOT NULL,
+     normalized_content TEXT,
+     chunk_type         TEXT NOT NULL DEFAULT 'text',
+     source_file        TEXT NOT NULL DEFAULT ''
+ );
 """
 
 _SESSION_SCHEMA = """
@@ -125,6 +127,24 @@ class TestSQLiteDocumentStore:
         assert store.chunk_count() == 1
         store.chunk_insert(doc_id, 1, "second chunk content", "normalized")
         assert store.chunk_count() == 2
+
+    def test_chunk_insert_stores_chunk_type_and_source_file(self) -> None:
+        store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
+        doc_id = store.doc_upsert("http://example.com", None, "en", None, None)
+        chunk_id = store.chunk_insert(doc_id, 0, "content", None, chunk_type="code", source_file="foo.py")
+        row = store._db.execute("SELECT chunk_type, source_file FROM chunks WHERE chunk_id = ?", (chunk_id,)).fetchone()
+        assert row is not None
+        assert row[0] == "code"
+        assert row[1] == "foo.py"
+
+    def test_chunk_insert_defaults_to_empty_strings(self) -> None:
+        store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]
+        doc_id = store.doc_upsert("http://example.com", None, "en", None, None)
+        chunk_id = store.chunk_insert(doc_id, 0, "content")
+        row = store._db.execute("SELECT chunk_type, source_file FROM chunks WHERE chunk_id = ?", (chunk_id,)).fetchone()
+        assert row is not None
+        assert row[0] == ""
+        assert row[1] == ""
 
     def test_doc_delete_removes_document_and_returns_true(self) -> None:
         store = SQLiteDocumentStore(_make_doc_db())  # type: ignore[arg-type]

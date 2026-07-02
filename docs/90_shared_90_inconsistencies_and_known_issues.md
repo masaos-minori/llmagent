@@ -18,6 +18,7 @@ Each entry uses the required format:
 - **Statement A:** `06_spec_shared.md §5` states this constraint explicitly.
 - **Statement B:** The constraint is enforced via `.importlinter` config. Violations fail `PYTHONPATH=scripts uv run lint-imports`.
 - **Resolution:** `shared/plugin_registry.py` was importing `RagHit` from `rag.types` (violation). Fixed by moving `RawHit`, `MergedHit`, `RankedHit`, and `RagHit` to `shared/types.py`; `rag/types.py` now re-exports them from `shared.types`. `shared/plugin_registry.py` imports from `shared.types`. All 5 contracts now pass (`lint-imports`: 5 kept, 0 broken).
+- **Documentation update:** `90_shared_02_types_and_protocols.md` section 2 and section 5 updated to reflect `shared/types.py` as the canonical source. No conflicting definition-location statements remain.
 - **Notes for AI reference:** If a `shared/` module needs agent/mcp/rag behavior, use dependency injection via function arguments instead. Hit types that cross layers belong in `shared/types.py`.
 
 ---

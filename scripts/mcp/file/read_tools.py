@@ -44,7 +44,7 @@ def _input_schema(model: type[BaseModel]) -> dict[str, Any]:
     return schema
 
 
-TOOL_LIST = [
+TOOL_LIST: list[dict[str, Any]] = [
     {
         "name": "list_directory",
         "description": "Return immediate entries of the specified directory",

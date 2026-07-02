@@ -4,11 +4,11 @@ on:
   push:
     paths:
       - "docs/**/*.md"
-      - "scripts/check_mcp_docs_consistency.py"
+      - "scripts/checks/check_mcp_docs_consistency.py"
   pull_request:
     paths:
       - "docs/**/*.md"
-      - "scripts/check_mcp_docs_consistency.py"
+      - "scripts/checks/check_mcp_docs_consistency.py"
 
 # Cancel in-progress runs for the same workflow + branch
 concurrency:
@@ -30,4 +30,4 @@ jobs:
       - name: Run MCP docs consistency checks
         run: |
           set -euo pipefail
-          python scripts/check_mcp_docs_consistency.py
+          python scripts/checks/check_mcp_docs_consistency.py

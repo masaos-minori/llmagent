@@ -351,7 +351,7 @@ When `use_embedding = true`, MDQ performs hybrid search:
 | General semantic search across all indexed content | RAG pipeline | RAG has broader corpus coverage and mature embedding model integration |
 | Cross-document structural comparison | MDQ hybrid | MDQ chunk_id includes heading hierarchy (level, parent_path, ordinal) |
 
-> **Note:** For detailed MDQ vs RAG boundary definition, see [04_mcp_07_mdq_rag_boundary.md](04_mcp_07_mdq_rag_boundary.md).
+> **Note:** For detailed MDQ vs RAG boundary definition, see [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary).
 
 ---
 

@@ -135,12 +135,14 @@ class SQLiteDocumentStore:
         doc_id: int,
         index: int,
         content: str,
-        normalized: str | None,
+        normalized: str | None = None,
+        chunk_type: str = "",
+        source_file: str = "",
     ) -> int:
         cur = self._db.execute(
-            "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content)"
-            " VALUES (?, ?, ?, ?)",
-            (doc_id, index, content, normalized),
+            "INSERT INTO chunks (doc_id, chunk_index, content, normalized_content, chunk_type, source_file)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (doc_id, index, content, normalized, chunk_type, source_file),
         )
         if cur.lastrowid is None:
             raise RuntimeError("chunk_insert: INSERT did not produce a lastrowid")

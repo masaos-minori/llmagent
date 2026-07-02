@@ -31,7 +31,7 @@ Created by `WebCrawler`. JSON format.
 | Field | Type | Description |
 |---|---|---|
 | `schema_version` | string | Schema version (e.g. `"1"`) |
-| `artifact_type` | string | Artifact type (`"crawl"`) |
+| `artifact_type` | string | Artifact type (`"crawl"`); ingestion-only, not persisted to DB |
 | `created_by` | string | Creator identifier (`"crawler"`) |
 | `url` | string | Normalized URL (fragment removed) |
 | `title` | string | Page `<title>` tag content |
@@ -68,7 +68,7 @@ Created by `ChunkSplitter`. JSON format.
 | Field | Type | Description |
 |---|---|---|
 | `schema_version` | string | Schema version (e.g. `"1"`) |
-| `artifact_type` | string | Artifact type (`"chunk"`) |
+| `artifact_type` | string | Artifact type (`"chunk"`); ingestion-only, not persisted to DB |
 | `created_by` | string | Creator identifier (`"chunk_splitter"`) |
 | `url` | string | Source document URL |
 | `title` | string | Source document title |

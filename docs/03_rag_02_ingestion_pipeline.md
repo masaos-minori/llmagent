@@ -75,8 +75,8 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 | Path | Created by | Format |
 |---|---|---|
-| `{rag_src_dir}/yyyymmddhhmmss-{slug}.json` | `crawler.py` | JSON (url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type, created_by) |
-| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | `chunk_splitter.py` | JSON (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified, schema_version, artifact_type, created_by, chunking_strategy) |
+| `{rag_src_dir}/yyyymmddhhmmss-{slug}.json` | `crawler.py` | JSON (url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by) |
+| `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | `chunk_splitter.py` | JSON (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by, chunking_strategy) |
 | `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | `ingester.py` (moved from chunk/) | Same as chunk file |
 
 > **Artifact format note:** All `.json` files listed above contain JSON payloads.
@@ -101,7 +101,7 @@ and per-page CJK-ratio language auto-detection (`--lang auto`). Uses asyncio.Sem
 
 | TypedDict | Purpose |
 |---|---|
-| `CrawlPayload` | Typed dict for crawl output JSON files (url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type, created_by) |
+| `CrawlPayload` | Typed dict for crawl output JSON files (url, title, lang, fetched_at, content, code_blocks, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by) |
 
 **Class-level constants**
 
@@ -162,7 +162,7 @@ and per-page CJK-ratio language auto-detection (`--lang auto`). Uses asyncio.Sem
 `crawl_file(path, lang)` reads a local file and writes a crawl JSON to `rag-src/`.
 Unlike web URLs, no HTTP round-trip occurs. Python files (.py) are stored as code blocks
 so the code chunker applies. Non-Python files store their content directly in the `content` field.
-Local files include `schema_version`, `artifact_type`, `created_by` metadata fields in the payload.
+Local files include `schema_version`, `artifact_type` [ingestion-only], `created_by` metadata fields in the payload.
 
 The method resolves "auto" lang by CJK-ratio detection on the file content when `lang == "auto"`.
 
@@ -283,7 +283,7 @@ saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` sentinel exis
 | TypedDict | Purpose |
 |---|---|
 | `CrawlFilePayload` | Typed dict for crawl output JSON files (url, title, lang, content, code_blocks, etag, last_modified) |
-| `ChunkOutputPayload` | Typed dict for chunk output JSON files (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified, schema_version, artifact_type, created_by, chunking_strategy) |
+| `ChunkOutputPayload` | Typed dict for chunk output JSON files (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by, chunking_strategy) |
 | `ChunkMetadata` | Optional metadata dict for ** spreading into output payload (total=False) |
 
 **Inheritance**
@@ -438,7 +438,7 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 | Method | Signature | Description |
 |---|---|---|
 | `_get_embedding` | `(text: str) -> list[float] \| None` | Return embedding vector; validates dimension against embedding_dims config. Returns None on empty input, network failure, or dimension mismatch. Embedding is also validated as a non-empty list. |
-| `_validate_artifact` | `(payload: dict, expected_type: str) -> bool` | Validate artifact_type field; lenient for backward compatibility (missing artifact_type accepted). Returns True when validation passes, False when it fails. |
+| `_validate_artifact` | `(payload: dict, expected_type: str) -> bool` | Validate artifact_type field (ingestion-only metadata); lenient for backward compatibility (missing artifact_type accepted). Returns True when validation passes, False when it fails. |
 | `_is_file_unchanged` | `(existing_etag, existing_last_modified, new_etag, new_last_modified) -> bool` | Return True when file SHA-256 hash is unchanged |
 | `_delete_existing_document` | `(db: SQLiteHelper, doc_id: int) -> None` | Delete document and chunks; chunks_vec removed first |
 | `_update_etag` | `(db: SQLiteHelper, doc_id: int, etag, last_modified, new_fetched_at\|None) -> None` | Refresh ETag/Last-Modified for existing document with stale guard |

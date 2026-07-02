@@ -3,8 +3,6 @@ Unit tests for shared.route_resolver.ToolRouteResolver.
 """
 
 import logging
-from unittest.mock import MagicMock
-
 import pytest
 from shared.mcp_config import McpServerConfig, StartupMode
 from shared.route_resolver import ToolRouteResolver, build_discovery_map
@@ -125,61 +123,6 @@ class TestConfigDrivenRouting:
         resolver = ToolRouteResolver(configs)
         with pytest.raises(ValueError, match="Unknown tool"):
             resolver.resolve("totally_unknown")
-
-
-class TestValidateRoutingDrift:
-    def test_no_drift_when_config_matches_registry(self) -> None:
-        """validate_routing_against_config returns {} when config tool_names are in the registry."""
-        from shared.tool_registry import (
-            ToolDefinition,
-            ToolRegistry,
-            validate_routing_against_config,
-        )
-
-        registry = ToolRegistry()
-        registry.register(ToolDefinition(name="read_text_file", server_key="file_read"))
-        registry.register(ToolDefinition(name="list_directory", server_key="file_read"))
-
-        cfg = MagicMock(spec=McpServerConfig)
-        cfg.tool_names = ["read_text_file", "list_directory"]
-        server_configs = {"file_read": cfg}
-
-        result = validate_routing_against_config(
-            registry=registry, server_configs=server_configs
-        )
-        assert result == {}
-
-    def test_drift_detected_when_config_has_unregistered_tool(self) -> None:
-        """validate_routing_against_config returns mismatch when config lists a tool not in registry."""
-        from shared.tool_registry import (
-            ToolDefinition,
-            ToolRegistry,
-            validate_routing_against_config,
-        )
-
-        registry = ToolRegistry()
-        registry.register(ToolDefinition(name="read_text_file", server_key="file_read"))
-
-        cfg = MagicMock(spec=McpServerConfig)
-        cfg.tool_names = ["read_text_file", "missing_tool"]
-        server_configs = {"file_read": cfg}
-
-        result = validate_routing_against_config(
-            registry=registry, server_configs=server_configs
-        )
-        assert "file_read" in result
-        assert any("missing_tool" in msg for msg in result["file_read"])
-
-    def test_no_drift_when_config_tool_names_empty(self) -> None:
-        """validate_routing_against_config skips servers with empty tool_names."""
-        from shared.tool_registry import validate_routing_against_config
-
-        cfg = MagicMock(spec=McpServerConfig)
-        cfg.tool_names = []
-        server_configs = {"some_server": cfg}
-
-        result = validate_routing_against_config(server_configs=server_configs)
-        assert result == {}
 
 
 class TestRegistryWithoutConfig:

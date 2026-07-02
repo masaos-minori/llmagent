@@ -21,7 +21,7 @@ across `agent/`, `mcp/`, `rag/`, and `db/` layers.
 |---|---|---|---|
 | `LLMMessage` | TypedDict | `shared/types.py` | All layers |
 | `RagConfig` | Protocol | `shared/types.py` | `rag/`, `scripts/mcp/rag_pipeline/` |
-| `RagHit` | TypedDict | `scripts/rag/types.py` | `rag/`, `agent/` |
+| `RagHit` / `RawHit` / `MergedHit` / `RankedHit` | dataclass / Union alias | `shared/types.py` | `rag/`, `agent/`, `shared/` |
 | `LLMUsage` | frozen dataclass | `shared/llm_types.py` | `agent/`, `shared/` |
 | `LLMResponse` | frozen dataclass | `shared/llm_types.py` | `agent/`, `shared/` |
 | `ActionResult` | frozen dataclass | `shared/action_result.py` | `agent/` |
@@ -83,22 +83,45 @@ class RagConfig(Protocol):
 
 ---
 
-## 5. `RagHit` (`scripts/rag/types.py`)
+## 5. `RawHit`, `MergedHit`, `RankedHit`, `RagHit` (`shared/types.py`)
 
 ```python
-class RagHit(TypedDict, total=False):
-    chunk_id: int         # added at vector/fts search stage
-    content: str          # chunk body (original text)
-    url: str              # source document URL
-    title: str            # source document title
-    distance: float       # L2 distance (vector_search only; smaller = closer)
-    bm25_score: float     # BM25 score (fts_search only; negative; larger abs = higher relevance)
-    rrf_score: float      # RRF score (after rrf_merge; larger = higher relevance)
-    rerank_score: float   # Cross-Encoder score (after rerank; larger = higher relevance)
+@dataclasses.dataclass
+class RawHit:
+    """Raw search result from vector or FTS search."""
+    chunk_id: int
+    content: str
+    url: str
+    title: str
+    distance: float | None = None
+    bm25_score: float | None = None
+
+@dataclasses.dataclass
+class MergedHit:
+    """RawHit after RRF merge; carries aggregated rrf_score."""
+    chunk_id: int
+    content: str
+    url: str
+    title: str
+    rrf_score: float
+
+@dataclasses.dataclass
+class RankedHit:
+    """MergedHit after cross-encoder rerank; carries rerank_score."""
+    chunk_id: int
+    content: str
+    url: str
+    title: str
+    rrf_score: float
+    rerank_score: float
+
+RagHit = RawHit | MergedHit | RankedHit
 ```
 
-- Defined in `scripts/rag/types.py`, not `shared/`
-- Fields are added incrementally by pipeline stages
+- Canonically defined in `shared/types.py`; fields are added incrementally by pipeline stages
+- **Canonical import:** `from shared.types import RagHit, RawHit, MergedHit, RankedHit`
+- **Compatibility import (backward-compat only):** `from rag.types import RagHit` — re-exported by `scripts/rag/types.py`; prefer `shared.types` for new code
+- Used by `rag/`, `agent/`, and `shared/plugin_registry.py`
 
 ---
 
@@ -250,7 +273,7 @@ import from `mcp/`. Do not confuse with `ToolCallResult` dataclass in `shared/to
 
 | Kind | Examples | Mutability | `isinstance()` | Usage |
 |---|---|---|---|---|
-| `TypedDict` | `LLMMessage`, `ArtifactEvent`, `RagHit` | Mutable dict | No (unless `@runtime_checkable`) | Data transport; duck-typed |
+| `TypedDict` | `LLMMessage`, `ArtifactEvent` | Mutable dict | No (unless `@runtime_checkable`) | Data transport; duck-typed |
 | `Protocol` | `RagConfig` | Depends on impl | Yes (if `@runtime_checkable`) | Structural contract; any object satisfying fields works |
 | frozen `dataclass` | `LLMUsage`, `LLMResponse`, `ActionResult` | Immutable | Yes | Value objects; hashable |
 | `dataclass` | `ShellPolicy`, `DbConfig` | Mutable | Yes | Configuration objects |

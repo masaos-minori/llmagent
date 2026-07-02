@@ -149,7 +149,7 @@ class DocumentStore(Protocol):
     def doc_get(self, url) -> dict | None: ...
     def doc_list(self, lang, limit) -> list[dict]: ...
     def doc_delete(self, url) -> bool: ...
-    def chunk_insert(self, doc_id, index, content, normalized) -> int: ...
+    def chunk_insert(self, doc_id, index, content, normalized=None, chunk_type="", source_file="") -> int: ...
     def chunk_count(self) -> int: ...
 ```
 
@@ -157,7 +157,7 @@ class DocumentStore(Protocol):
 - `doc_get` returns `{doc_id, url, title, lang, fetched_at, etag, last_modified}` or `None`
 - `doc_list` returns `{doc_id, url, title, lang, fetched_at}` sorted `fetched_at DESC`
 - `doc_delete`: deletes document + cascades to chunks; returns `True` if found
-- `chunk_insert` uses `chunk_index` column in `chunks` table
+- `chunk_insert` uses `chunk_index`, `chunk_type`, and `source_file` columns in `chunks` table
 
 ### `SessionStore` Protocol
 
@@ -167,14 +167,15 @@ class SessionStore(Protocol):
     def session_list(self, limit) -> list[dict]: ...
     def session_rename(self, session_id, title) -> None: ...
     def session_delete(self, session_id) -> None: ...
-    def message_save(self, session_id, role, content, tool_calls) -> None: ...
+    def message_save(self, session_id, role, content, tool_calls, tool_call_id=None) -> None: ...
     def message_list(self, session_id) -> list[dict]: ...
 ```
 
 - `session_list` returns `{session_id, created_at, title}` sorted `created_at DESC`
 - `session_delete` cascades to messages (ON DELETE CASCADE)
-- `message_list` returns `{role, content, tool_calls}` in `message_id ASC` order
+- `message_list` returns `{role, content, tool_calls, tool_call_id}` in `message_id ASC` order
 - `tool_calls` is `str | None` (JSON string)
+- `tool_call_id` is `str | None`; always set for `tool` role messages, NULL for all other roles
 
 ---
 
@@ -236,13 +237,26 @@ class ToolResultStore:
         session_id: int | None,
         n: int = 20,
     ) -> list[ToolResultRow]   # oldest-first; empty if session_id is None
+
+    def mark_turn_undone(self, session_id: int | None, turn: int) -> int
+    # Mark all rows for session+turn as undone=1. Returns count of rows marked.
+    # No-op when session_id is None or turn <= 0.
 ```
 
 **Purpose:** Stores full tool result text separately from LLM message history.
 LLM context holds only summary/truncated version; full text is retrievable via `/tool show <id>`.
 
+**`undone` field semantics:** `undone = 0` (default) indicates an active result.
+`undone = 1` is a logical flag meaning the result belongs to a turn that has been undone;
+the row is never physically deleted — full text is retained for audit. Callers may inspect
+`ToolResultRow.undone` to filter or label results.
+
 **Implementation detail:** `list_recent` internally fetches `ORDER BY id DESC LIMIT n`,
 then reverses to return oldest-first.
+
+**REPL display of undone results:**
+- `/tool list`: appends `[undone]` suffix to the entry line when `undone=True`.
+- `/tool show <id>`: prints `[undone turn — artifact retained for audit]` before the full text when `undone=True`.
 
 See [90_shared_90 DESIGN-02](90_shared_90_inconsistencies_and_known_issues.md) for
 responsibility boundary between `ToolResultStore` and `messages` table.
@@ -282,7 +296,9 @@ All functions accept a `SQLiteHelper` instance and delegate low-level operations
 | `prune_old_memories(db, older_than_days, mode=STRICT)` | `-> MaintenanceResult` | Delete old memories via `SQLiteMemoryDeleteStore` |
 | `rotate_rag_db(archive_dir=None)` | `-> Path` | Archive `rag.sqlite` with timestamp suffix via SQLite online backup API |
 | `rotate_session_db(archive_dir=None)` | `-> Path` | Archive `session.sqlite` |
-| `rotate_db(archive_dir=None)` | `-> tuple[Path, Path]` | Archive both DBs; returns `(rag_dest, session_dest)` |
+| `rotate_workflow_db(archive_dir=None)` | `-> Path` | Archive `workflow.sqlite` |
+| `rotate_all_dbs(archive_dir=None)` | `-> tuple[Path, Path, Path]` | Archive all three DBs; returns `(rag_dest, session_dest, workflow_dest)` |
+| `rotate_db(archive_dir=None)` | `-> tuple[Path, Path]` | Archive both rag and session DBs; returns `(rag_dest, session_dest)` |
 | `recover_corruption(backup_path=None, *, target="rag", dry_run=False)` | `-> RecoveryResult` | Integrity check + VACUUM or restore from backup |
 | `check_rag_consistency(db)` | `-> RagConsistencyReport` | Read-only: chunks/FTS/vec row counts + orphan detection |
 
@@ -424,6 +440,37 @@ Uses SQLite online backup API to preserve WAL integrity.
 | `prune_old_memories` failure | STRICT: exception propagates; BEST_EFFORT: returns `MaintenanceResult(success=False)` |
 | `commit()` error | Logs WARNING + re-raises `sqlite3.OperationalError` |
 | `close()` error | Logs WARNING; does NOT raise |
+
+---
+
+## 10. DB Recreation Procedure
+
+Schema changes require DB recreation — no migration support exists.
+
+**Step 1: Archive** — run `rotate_all_dbs()` to archive all three production DBs:
+
+```bash
+uv run python -c "from db.maintenance import rotate_all_dbs; rotate_all_dbs()"
+```
+
+**Step 2: Delete** — manually remove the DB files:
+
+```bash
+rm /opt/llm/db/rag.sqlite /opt/llm/db/session.sqlite /opt/llm/db/workflow.sqlite
+```
+
+DB paths are resolved from `common.toml` keys `rag_db_path`, `session_db_path`, `workflow_db_path`.
+
+**Step 3: Recreate** — run `create_schema()` to initialize empty DBs:
+
+```bash
+uv run python -c "from db.create_schema import create_schema; create_schema()"
+```
+
+**Important notes:**
+- Recreated DBs are empty — existing records are NOT migrated automatically.
+- `create_schema()` also initializes `eventbus.sqlite` if not yet present.
+- If only one DB needs recreation, use individual functions: `create_rag_schema()`, `create_session_schema()`, `create_workflow_schema()`.
 
 ---
 

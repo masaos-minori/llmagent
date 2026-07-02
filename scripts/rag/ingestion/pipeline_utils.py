@@ -31,7 +31,7 @@ class ChunkJsonRaw(TypedDict):
     chunk_index: NotRequired[int]
     source_file: NotRequired[str]
     chunk_type: NotRequired[str]
-    artifact_type: NotRequired[str]
+    artifact_type: NotRequired[str]  # ingestion-pipeline metadata only; not persisted to DB
     schema_version: NotRequired[str]
     created_by: NotRequired[str]
 

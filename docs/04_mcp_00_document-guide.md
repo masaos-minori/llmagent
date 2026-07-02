@@ -62,6 +62,9 @@ as the primary reference. Legacy source files have been deleted (git history pre
 | What is fail-closed vs fail-open? | `04_mcp_05` |
 | Which tools support dry_run? | `04_mcp_05` |
 | What are the risk tiers? | `04_mcp_05` |
+| How are tool schema modules named? | `04_mcp_07` |
+| What is the canonical TOOL_LIST export? | `04_mcp_07` |
+| How do I clean up _MCP_TOOLS references? | `04_mcp_07` |
 | What config files exist per server? | `04_mcp_06` |
 | How do I verify a server is healthy? | `04_mcp_06` |
 | What are the default config values? | `04_mcp_06` |
@@ -101,6 +104,7 @@ as the primary reference. Legacy source files have been deleted (git history pre
 | [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) | Per-server specs for all 11 servers: tools, config, security, logs, limitations |
 | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) | Allowlists, denylist, fail-open/closed, dry_run, risk tiers, AI safety notes; MDQ vs RAG boundary |
 | [04_mcp_06_configuration_and_operations.md](04_mcp_06_configuration_and_operations.md) | Config file inventory, McpServerConfig fields, defaults, health probes, new-server checklist |
+| [04_mcp_07_tool_schema_export_policy.md](04_mcp_07_tool_schema_export_policy.md) | Canonical TOOL_LIST export naming policy for all MCP server tools.py modules; migration history |
 | ~~04_mcp_07_mdq_rag_boundary.md~~ | **Removed.** Content now in [04_mcp_05 §MDQ vs RAG Boundary](04_mcp_05_security_and_safety_model.md#mdq-vs-rag-boundary) |
 | [04_mcp_90_inconsistencies_and_known_issues.md](04_mcp_90_inconsistencies_and_known_issues.md) | MCP-01 through MCP-09 active issues with AI safety guidance; MCP-05 resolved 2026-06-18 |
 

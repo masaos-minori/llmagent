@@ -5,9 +5,8 @@ vec0 virtual tables (chunks_vec, memories_vec) require the sqlite-vec extension.
 Those DDL statements are excluded by patching build_*_schema_sql so the tests
 run without the extension installed.
 
-create_schema.py contains _migrate_rag_schema() and _migrate_session_schema() for
-backward-compatible schema additions; these migration helpers are tested indirectly
-via idempotency tests (running create_*_schema twice must not raise).
+Schema creation is DDL-only. Idempotency is guaranteed by CREATE ... IF NOT EXISTS.
+No migration helpers exist.
 """
 
 import sqlite3
@@ -37,7 +36,9 @@ _RAG_SCHEMA_NO_VEC0 = """
                                REFERENCES documents(doc_id) ON DELETE CASCADE,
         chunk_index        INTEGER NOT NULL,
         content            TEXT    NOT NULL,
-        normalized_content TEXT
+        normalized_content TEXT,
+        chunk_type         TEXT    NOT NULL DEFAULT 'text',
+        source_file        TEXT    NOT NULL DEFAULT ''
     );
     CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
         content,
@@ -50,20 +51,20 @@ _RAG_SCHEMA_NO_VEC0 = """
 # Session schema without the vec0 virtual tables (memories_vec requires sqlite-vec).
 _SESSION_SCHEMA_NO_VEC0 = """
     CREATE TABLE IF NOT EXISTS sessions (
-        session_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         title      TEXT
-    );
-    CREATE TABLE IF NOT EXISTS messages (
+     );
+     CREATE TABLE IF NOT EXISTS messages (
         message_id  INTEGER PRIMARY KEY AUTOINCREMENT,
         session_id  INTEGER NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
         role        TEXT    NOT NULL,
         content     TEXT    NOT NULL,
         tool_calls  TEXT,
-        tool_call_id TEXT,
-        created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS tool_results (
+  tool_call_id TEXT,
+        created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+     );
+     CREATE TABLE IF NOT EXISTS tool_results (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         session_id INTEGER,
         turn       INTEGER NOT NULL,
@@ -71,10 +72,11 @@ _SESSION_SCHEMA_NO_VEC0 = """
         args_masked  TEXT,
         full_text  TEXT    NOT NULL,
         summary    TEXT,
-        is_error   INTEGER NOT NULL DEFAULT 0,
+     is_error   INTEGER NOT NULL DEFAULT 0,
+        undone     INTEGER NOT NULL DEFAULT 0,
         created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_tool_results_session
+     );
+     CREATE INDEX IF NOT EXISTS idx_tool_results_session
         ON tool_results(session_id);
     CREATE TABLE IF NOT EXISTS memories (
         memory_id   TEXT PRIMARY KEY,
@@ -89,10 +91,21 @@ _SESSION_SCHEMA_NO_VEC0 = """
         summary     TEXT NOT NULL DEFAULT '',
         tags        TEXT NOT NULL DEFAULT '[]',
         importance  REAL NOT NULL DEFAULT 0.5,
-        pinned      INTEGER NOT NULL DEFAULT 0,
-        created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+       pinned      INTEGER NOT NULL DEFAULT 0,
+        created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+     );
+    CREATE TABLE IF NOT EXISTS session_diagnostics (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id  INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,
+        kind        TEXT    NOT NULL,
+        content     TEXT    NOT NULL,
+        workflow_id TEXT,
+        task_id     TEXT,
+        created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
     );
+    CREATE INDEX IF NOT EXISTS idx_session_diagnostics_session
+        ON session_diagnostics(session_id);
     CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
         memory_id UNINDEXED,
         content,
@@ -225,6 +238,8 @@ class TestCreateRagSchema:
             "chunk_index",
             "content",
             "normalized_content",
+            "chunk_type",
+            "source_file",
         } <= cols
 
     def test_idempotent(self, tmp_path: Path) -> None:

@@ -30,7 +30,9 @@ _RAG_SCHEMA_TEMPLATE: str = """
                                REFERENCES documents(doc_id) ON DELETE CASCADE,
         chunk_index        INTEGER NOT NULL,
         content            TEXT    NOT NULL,
-        normalized_content TEXT
+        normalized_content TEXT,
+        chunk_type         TEXT    NOT NULL DEFAULT 'text',
+        source_file        TEXT    NOT NULL DEFAULT ''
     );
     CREATE VIRTUAL TABLE IF NOT EXISTS chunks_vec USING vec0(
         chunk_id  INTEGER PRIMARY KEY,

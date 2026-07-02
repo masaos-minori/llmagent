@@ -58,28 +58,6 @@ AUDIT session=<session_id> request=<x_request_id> action=<tool_name> target=<pri
 
 ---
 
-### MCP-07: Health semantics ambiguity (DEGRADED state missing from diagram)
-
-**Type:** Document inconsistency
-**Impact scope:** `04_mcp_03`
-
-**Statement A (`04_mcp_03:233-241`):** State transition diagram shows HEALTHY going directly to UNAVAILABLE on failure threshold — omits DEGRADED state.
-
-**Statement B (`04_mcp_03:243-248`):** State table includes DEGRADED state: "Failure count < threshold (default 3)".
-
-The diagram should show:
-```
-HEALTHY ──(failure × 1)──→ DEGRADED ──(failure × 2)──→ UNAVAILABLE
-```
-
-**Current safe interpretation:** There are 3 failures before blocking (not immediate). DEGRADED is an intermediate state that the diagram omits.
-
-**Recommended action:** Update the state transition diagram to include the DEGRADED state between HEALTHY and UNAVAILABLE.
-
-**Notes for AI reference:** Server dispatch is NOT blocked until 3 consecutive failures. The DEGRADED state is a warning level before UNAVAILABLE.
-
----
-
 ### MCP-08: Health semantics — HTTP status code vs body fields mismatch
 
 **Type:** Document inconsistency
@@ -126,8 +104,17 @@ HEALTHY ──(failure × 1)──→ DEGRADED ──(failure × 2)──→ UNA
 ## Resolved Issues
 
 ### MCP-02: Routing authority mismatch (Priority 3 formatting)
-**Status: Resolved**
 
-Routing is now 2-layer only. Priority 3 (`Config tool_names`) and Priority 4 (prefix routing) were removed. `tool_names` is drift validation metadata only, not a routing input. See `04_mcp_03` §Routing Source of Truth.
+**Type:** Document inconsistency (resolved)
+**Impact scope:** `04_mcp_03`, `04_mcp_90`
+
+**Resolved:** Routing is now 2-layer only. Priority 3 (`Config tool_names`) and Priority 4 (prefix routing) were removed. `tool_names` is drift validation metadata only, not a routing input. See `04_mcp_03` §Routing Source of Truth.
+
+### MCP-07: Health semantics ambiguity (DEGRADED state missing from diagram)
+
+**Type:** Document inconsistency (resolved)
+**Impact scope:** `04_mcp_03`
+
+**Resolved:** Diagram in `04_mcp_03` updated to include DEGRADED state between HEALTHY and UNAVAILABLE.
 
 ---

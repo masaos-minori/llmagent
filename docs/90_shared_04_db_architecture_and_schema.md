@@ -185,7 +185,10 @@ Stores float32 little-endian BLOB. `DIMS` is substituted dynamically by `_build_
 | `full_text` | TEXT | NOT NULL |
 | `summary` | TEXT | |
 | `is_error` | INTEGER | NOT NULL DEFAULT 0 |
+| `undone` | INTEGER | NOT NULL DEFAULT 0 |
 | `created_at` | TEXT | NOT NULL DEFAULT `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` |
+
+`undone = 0`: active result. `undone = 1`: result belongs to a turn that has been undone; full text is physically retained for audit.
 
 Index: `idx_tool_results_session ON tool_results(session_id)`
 
@@ -315,8 +318,7 @@ create_schema()
 ```
 
 - All DDL uses `IF NOT EXISTS` — idempotent; safe to run multiple times
-- `migrate_schema(db_name)` applies incremental `ALTER TABLE ... ADD COLUMN` changes
-  (suppresses `duplicate column name` errors; safe on existing DBs)
+- **Compatible migration is unsupported.** Schema changes require DB recreation: archive → delete → recreate via `create_schema()`. See [90_shared_05 §10](90_shared_05_db_api_and_operations.md#10-db-recreation-procedure) for the full procedure.
 - `embedding_dims` is substituted dynamically in `_build_rag_schema_sql(dims)` and `_build_session_schema_sql(dims)`
 
 ---
