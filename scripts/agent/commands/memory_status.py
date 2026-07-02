@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from dataclasses import dataclass, field
-
 if TYPE_CHECKING:
-    from agent.memory.services import MemoryServices
+    pass
 
 
 @dataclass
@@ -42,7 +41,9 @@ def build_status_table(status: MemoryStatus) -> list[list[str]]:
 
     rows: list[list[str]] = []
     rows.append(["Mode", status.mode])
-    rows.append(["Memory layer", "enabled" if status.memory_layer_enabled else "disabled"])
+    rows.append(
+        ["Memory layer", "enabled" if status.memory_layer_enabled else "disabled"]
+    )
     rows.append(["Embedding enabled", "Yes" if status.embedding_enabled else "No"])
     rows.append(["Local-only", "enabled" if status.local_only else "disabled"])
     rows.append(["Circuit", circuit_display])

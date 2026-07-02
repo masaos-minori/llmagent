@@ -8,7 +8,7 @@ import os
 from typing import Any
 from unittest.mock import patch
 
-from agent.config import build_agent_config
+from agent.config_builders import build_agent_config
 
 
 def _cfg(**overrides: Any) -> dict[str, Any]:

@@ -12,15 +12,11 @@ import inspect
 import logging
 from typing import Any
 
-from agent.commands.mixin_base import MixinBase
-from agent.commands.utils import parse_command_args, parse_flag_int
-from agent.services.db_maintenance_service import DbMaintenanceService
-from agent.services.rag_maintenance_service import RagMaintenanceService
-
 from agent.commands.db_help_display import DbHelpDisplay
-from agent.commands.db_stats_display import DbStatsDisplay
 from agent.commands.db_rag_ops import DbRagOps
 from agent.commands.db_session_ops import DbSessionOps
+from agent.commands.db_stats_display import DbStatsDisplay
+from agent.commands.mixin_base import MixinBase
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +81,9 @@ class _DbMixin(MixinBase, DbHelpDisplay, DbStatsDisplay):
         dispatch: dict[str, Any] = {
             "stats": self._db_session_stats,
             "health": self._session_ops.health,
-            "checkpoint": lambda: self._session_ops.checkpoint(rest.strip().upper() or None),
+            "checkpoint": lambda: self._session_ops.checkpoint(
+                rest.strip().upper() or None
+            ),
             "vacuum": self._session_ops.vacuum,
             "purge": lambda: self._session_ops.purge(rest),
             "recover": lambda: self._session_ops.recover(rest.strip() or None),

@@ -19,7 +19,6 @@ from agent.repl_health import (
     check_workflow_definition,
     probe_mcp_health,
 )
-from shared.tool_executor import ToolCallResult
 
 
 def _async_result(value: object) -> AsyncMock:
@@ -280,15 +279,16 @@ class TestAuditSecurityDefaults:
         security_profile: str = "local",
     ) -> MagicMock:
         """Build a minimal mocked AgentContext for testing."""
-        from shared.mcp_config import McpServerConfig, SecurityProfile
+        from shared.mcp_config import McpServerConfig, SecurityProfile, TransportType
 
         mcp_servers: dict[str, Any] = {}
         if servers:
             for key, vals in servers.items():
-                transport = vals.get("transport", "http")
+                transport_str = vals.get("transport", "http")
+                transport = TransportType(transport_str)
                 url = (
                     vals.get("url", "http://127.0.0.1:8000")
-                    if transport == "http"
+                    if transport == TransportType.HTTP
                     else ""
                 )
                 mcp_servers[key] = McpServerConfig(

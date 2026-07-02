@@ -432,6 +432,9 @@ class AgentREPL:
             ):
                 ctx.services_required.tools.set_session_id(str(ctx.session.session_id))
             await self._repl_loop()
+        except RuntimeError as e:
+            self._view.write_fatal(str(e))
+            raise
         finally:
             self._persist_session_diagnostics(ctx)
             await self._persist_session_memories(ctx)

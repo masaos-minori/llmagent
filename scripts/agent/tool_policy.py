@@ -16,7 +16,7 @@ from agent.tool_enums import OperationType, RiskLevel
 from agent.tool_exceptions import PolicyViolationError
 
 if TYPE_CHECKING:
-    from agent.config import AgentConfig
+    from agent.config_dataclasses import AgentConfig
 
 
 _EXEC_TOOLS: frozenset[str] = frozenset({"shell_run"})

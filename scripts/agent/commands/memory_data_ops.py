@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING, Any
 
-import orjson
-
-from agent.commands.enums import MemoryAction
 from agent.context import AgentContext
 from agent.memory.types import MemoryQuery
 
@@ -149,7 +145,9 @@ class MemoryDataOps:
         action = "pinned" if pin else "unpinned"
         if ok:
             self._out.write(f"  [memory] {action}: {mid}")
-            _emit_memory_audit(self._ctx, MemoryOpResult(ok=True, memory_id=mid, action=action))
+            _emit_memory_audit(
+                self._ctx, MemoryOpResult(ok=True, memory_id=mid, action=action)
+            )
         else:
             self._out.write(f"  [memory] Entry not found: {mid!r}")
 
@@ -168,7 +166,10 @@ class MemoryDataOps:
             else:
                 self._out.write(f"  [memory] (dry-run) Entry not found: {mid!r}")
             _emit_memory_audit(
-                self._ctx, MemoryOpResult(ok=exists, memory_id=mid, action="deleted", dry_run=True)
+                self._ctx,
+                MemoryOpResult(
+                    ok=exists, memory_id=mid, action="deleted", dry_run=True
+                ),
             )
             return
         ok = mem.store.delete(mid)
@@ -176,7 +177,9 @@ class MemoryDataOps:
             self._out.write(f"  [memory] Deleted: {mid}")
         else:
             self._out.write(f"  [memory] Entry not found: {mid!r}")
-        _emit_memory_audit(self._ctx, MemoryOpResult(ok=ok, memory_id=mid, action="deleted"))
+        _emit_memory_audit(
+            self._ctx, MemoryOpResult(ok=ok, memory_id=mid, action="deleted")
+        )
 
     def memory_prune(
         self, mem: MemoryServices, ctx: AgentContext, args: list[str]
@@ -197,7 +200,10 @@ class MemoryDataOps:
                 f"  [memory] (dry-run) would prune {count} entries older than {days} days"
             )
             _emit_memory_audit(
-                ctx, MemoryOpResult(ok=True, memory_id="", action="pruned", dry_run=True, count=count)
+                ctx,
+                MemoryOpResult(
+                    ok=True, memory_id="", action="pruned", dry_run=True, count=count
+                ),
             )
             return
         with SQLiteHelper("session").open(write_mode=True) as db:

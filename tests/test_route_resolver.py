@@ -3,13 +3,14 @@ Unit tests for shared.route_resolver.ToolRouteResolver.
 """
 
 import logging
+
 import pytest
-from shared.mcp_config import McpServerConfig, StartupMode
+from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.route_resolver import ToolRouteResolver, build_discovery_map
 
 
 def _http(key: str, url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig("http", url, startup_mode=StartupMode.PERSISTENT)
+    return McpServerConfig(TransportType.HTTP, url, startup_mode=StartupMode.PERSISTENT)
 
 
 class TestRegistryRouting:
@@ -174,53 +175,76 @@ class TestBuildDiscoveryMap:
 
     def test_normal_path(self) -> None:
         """Two servers, each with valid tool dicts including server_key."""
-        result = build_discovery_map({
-            "file_read": [{"name": "read_file", "server_key": "file_read"}],
-            "shell": [{"name": "shell_run", "server_key": "shell"}],
-        })
+        result = build_discovery_map(
+            {
+                "file_read": [{"name": "read_file", "server_key": "file_read"}],
+                "shell": [{"name": "shell_run", "server_key": "shell"}],
+            }
+        )
         assert result == {"read_file": "file_read", "shell_run": "shell"}
 
     def test_missing_server_key_falls_back_to_outer_key(self) -> None:
         """Tool dict has no server_key field; mapping uses outer loop's server key."""
-        result = build_discovery_map({
-            "file_read": [{"name": "read_file"}],
-        })
+        result = build_discovery_map(
+            {
+                "file_read": [{"name": "read_file"}],
+            }
+        )
         assert result == {"read_file": "file_read"}
 
     def test_empty_tool_name_skipped(self) -> None:
         """Tool dict with empty or None name is skipped."""
-        result = build_discovery_map({
-            "file_read": [{"name": "", "server_key": "file_read"}, {"name": None, "server_key": "file_read"}],
-        })
+        result = build_discovery_map(
+            {
+                "file_read": [
+                    {"name": "", "server_key": "file_read"},
+                    {"name": None, "server_key": "file_read"},
+                ],
+            }
+        )
         assert result == {}
 
     def test_duplicate_tool_first_wins(self) -> None:
         """Same tool name in two servers with different server keys; first occurrence wins."""
-        result = build_discovery_map({
-            "server_a": [{"name": "read_file", "server_key": "server_a"}],
-            "server_b": [{"name": "read_file", "server_key": "server_b"}],
-        })
+        result = build_discovery_map(
+            {
+                "server_a": [{"name": "read_file", "server_key": "server_a"}],
+                "server_b": [{"name": "read_file", "server_key": "server_b"}],
+            }
+        )
         assert result == {"read_file": "server_a"}
 
-    def test_duplicate_tool_same_key_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_duplicate_tool_same_key_no_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Same tool name in two servers with identical server keys; no warning logged."""
         with caplog.at_level(logging.WARNING):
-            result = build_discovery_map({
-                "server_a": [{"name": "read_file", "server_key": "server_a"}],
-                "server_b": [{"name": "read_file", "server_key": "server_a"}],
-            })
+            result = build_discovery_map(
+                {
+                    "server_a": [{"name": "read_file", "server_key": "server_a"}],
+                    "server_b": [{"name": "read_file", "server_key": "server_a"}],
+                }
+            )
         assert result == {"read_file": "server_a"}
         assert not caplog.records
 
-    def test_duplicate_tool_different_key_logs_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_duplicate_tool_different_key_logs_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Same tool name, different server keys; warning is logged."""
         with caplog.at_level(logging.WARNING):
-            result = build_discovery_map({
-                "server_a": [{"name": "read_file", "server_key": "server_a"}],
-                "server_b": [{"name": "read_file", "server_key": "server_b"}],
-            })
+            result = build_discovery_map(
+                {
+                    "server_a": [{"name": "read_file", "server_key": "server_a"}],
+                    "server_b": [{"name": "read_file", "server_key": "server_b"}],
+                }
+            )
         assert result == {"read_file": "server_a"}
-        assert any("read_file" in r.message for r in caplog.records if r.levelno >= logging.WARNING)
+        assert any(
+            "read_file" in r.message
+            for r in caplog.records
+            if r.levelno >= logging.WARNING
+        )
 
 
 class TestLiveDiscoveryRouting:

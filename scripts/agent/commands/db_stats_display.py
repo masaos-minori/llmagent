@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from agent.commands.mixin_base import MixinBase
+    from agent.commands.output_port import OutputPort
 
 from agent.services.db_maintenance_service import DbMaintenanceService
 from agent.services.rag_maintenance_service import RagMaintenanceService
@@ -13,6 +13,8 @@ from agent.services.rag_maintenance_service import RagMaintenanceService
 
 class DbStatsDisplay:
     """Provides stats display methods for /db subcommands."""
+
+    _out: OutputPort  # provided by MixinBase via MRO
 
     def _db_stats(self) -> None:
         """Print document/chunk/session/message counts from both DBs."""

@@ -29,7 +29,7 @@ from db.tool_results import ToolResultStore
 from shared.mcp_config import McpServerHealthRegistry
 from shared.types import LLMMessage
 
-from agent.config import build_agent_config
+from agent.config_builders import build_agent_config
 from agent.session import AgentSession
 
 if TYPE_CHECKING:

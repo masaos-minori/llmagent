@@ -86,7 +86,14 @@ class AgentSession:
     def start(self) -> None:
         """Create a new session record in DB and store its ID. Raises sqlite3.Error on failure."""
         with SQLiteHelper("session").open(write_mode=True) as db:
-            cur = db.execute("INSERT INTO sessions (title) VALUES (NULL)")
+            try:
+                cur = db.execute("INSERT INTO sessions (title) VALUES (NULL)")
+            except Exception as e:
+                if "no such table" in str(e):
+                    raise RuntimeError(
+                        "Session schema missing. Run: bash deploy/init_db.sh to initialize the database."
+                    ) from e
+                raise
             self.session_id = cur.lastrowid
             db.commit()
         logger.info("Session started: id=%s", self.session_id)

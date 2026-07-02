@@ -477,7 +477,7 @@ class RagPipeline:
             self._http_result_kind = result.http_result_kind
         # Update diagnostics based on result
         if result.result is not None:
-            from rag.models_result import ResultSource, HttpResultKind
+            from rag.models_result import HttpResultKind, ResultSource
 
             self.last_search_diagnostics = dataclasses.replace(
                 self.last_search_diagnostics,
@@ -491,7 +491,7 @@ class RagPipeline:
                 remote_latency_ms=result.latency_ms,
             )
         else:
-            from rag.models_result import ResultSource
+            from rag.models_result import HttpResultKind, ResultSource
 
             self.last_search_diagnostics = dataclasses.replace(
                 self.last_search_diagnostics,

@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from agent.commands.mixin_base import MixinBase
+    pass
 
 from agent.commands.utils import parse_command_args, parse_flag_int
 from agent.services.rag_maintenance_service import RagMaintenanceService

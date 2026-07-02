@@ -13,14 +13,15 @@ Mixins:
   cmd_context.py  — _ContextMixin:  /context, /clear, /undo, /history, /system
   cmd_db.py       — _DbMixin:       /db
   cmd_tooling.py  — _ToolingMixin:  /tool, /plan
-  cmd_debug.py    — _DebugMixin:    /debug
-  cmd_rag_export.py   — _RagExportMixin:   /export, /compact, /rag
+  cmd_debug.py      — _DebugMixin:      /debug
+  cmd_rag_export.py — _RagExportMixin:  /export, /compact, /rag
   cmd_memory.py   — _MemoryMixin:   /memory
   cmd_mdq.py      — _MdqMixin:      /mdq commands
 """
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
+from typing import Any
 
 from shared import plugin_registry
 
@@ -37,11 +38,10 @@ from agent.commands.cmd_rag_export import _RagExportMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_tooling import _ToolingMixin
 from agent.commands.cmd_workflow import _WorkflowMixin
-from agent.commands.output_port import CliOutputPort, OutputPort
-from agent.context import AgentContext
-
 from agent.commands.command_defs import CommandDef
 from agent.commands.command_defs_list import _COMMANDS
+from agent.commands.output_port import CliOutputPort, OutputPort
+from agent.context import AgentContext
 
 __all__ = ["CommandRegistry"]
 
@@ -77,9 +77,7 @@ class CommandRegistry(
                     f"CommandDef references unknown handler: {_cmd.handler!r}"
                 )
 
-    def _get_handler(
-        self, cmd: CommandDef, is_async: bool, /
-    ) -> Callable[[str], None] | Callable[[str], Awaitable[None]]:
+    def _get_handler(self, cmd: CommandDef, is_async: bool, /) -> Callable[..., Any]:
         """Return the bound callable for cmd.handler; raises AttributeError if missing."""
         handler = getattr(self, cmd.handler, None)
         if handler is None:
@@ -90,7 +88,6 @@ class CommandRegistry(
 
     def _cmd_help(self) -> None:
         """Print help and available tool count."""
-        from agent.commands.command_defs import CommandDef  # noqa: PLC0415 — lazy import
 
         ctx = self._ctx
         n_tools = len(ctx.cfg.tool.tool_definitions)
@@ -125,16 +122,16 @@ class CommandRegistry(
                 if line == cmd.name or line.startswith(cmd.name + " "):
                     args = line[len(cmd.name) :]
                     if cmd.is_async:
-                        await handler(args)  # type: ignore[misc]
+                        await handler(args)
                     else:
                         handler(args)
                     return True
             else:
                 if line == cmd.name:
                     if cmd.is_async:
-                        await handler("")  # type: ignore[misc]
+                        await handler()
                     else:
-                        handler("")
+                        handler()
                     return True
 
         # Plugin commands: exact-match and prefix-match (checked after built-ins)

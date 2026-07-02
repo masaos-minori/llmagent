@@ -23,15 +23,12 @@ import orjson
 
 from agent.commands.enums import MemoryAction
 from agent.commands.exceptions import UnknownSubcommandError
-from agent.commands.mixin_base import MixinBase
-from agent.context import AgentContext
-from agent.memory.services import MemoryServices
-from agent.memory.types import MemoryQuery
-
 from agent.commands.memory_status import build_memory_status, build_status_table
-from agent.commands.memory_data_ops import MemoryDataOps
+from agent.commands.mixin_base import MixinBase
+from agent.memory.services import MemoryServices
 
-from agent.commands.memory_rebuild_ops import MemoryRebuildOps
+if TYPE_CHECKING:
+    from agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +43,26 @@ class MemoryOpResult:
     dry_run: bool = False
     count: int = 0  # number of entries affected by prune
     messages: list[str] = field(default_factory=list)
+
+
+def _emit_memory_audit(ctx: AgentContext, result: MemoryOpResult) -> None:
+    """Write memory operation event to audit_logger."""
+    audit = ctx.services_required.audit_logger
+    if audit is None:
+        return
+    audit.info(
+        orjson.dumps(
+            {
+                "event": "memory_op",
+                "action": result.action,
+                "memory_id": result.memory_id,
+                "dry_run": result.dry_run,
+                "count": result.count,
+                "ok": result.ok,
+                "ts": time.time(),
+            },
+        ).decode(),
+    )
 
 
 _MEMORY_HELP = """\
@@ -70,6 +87,9 @@ class _MemoryMixin(MixinBase):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        from agent.commands.memory_data_ops import MemoryDataOps  # noqa: PLC0415
+        from agent.commands.memory_rebuild_ops import MemoryRebuildOps  # noqa: PLC0415
+
         self._data_ops = MemoryDataOps(self._ctx, self._out)
         self._rebuild_ops = MemoryRebuildOps(self._ctx, self._out)
 

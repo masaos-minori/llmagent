@@ -25,7 +25,7 @@ from mcp.github.models import (
     PushFile,
     PushFilesRequest,
 )
-from mcp.github.service import GitHubService
+from mcp.github.service_dispatch import GitHubService
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

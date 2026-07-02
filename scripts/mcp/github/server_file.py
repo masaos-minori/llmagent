@@ -21,7 +21,7 @@ from mcp.github.models import (
     PushFilesResponse,
 )
 from mcp.github.server_common import _get_service, _info
-from mcp.github.service import GitHubService  # noqa: F401
+from mcp.github.service_dispatch import GitHubService
 
 router = APIRouter()
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from agent.commands.mixin_base import MixinBase
+    from agent.commands.output_port import OutputPort
 
 # TokenDisplay is a mixin that provides token count display methods.
 
@@ -21,6 +21,8 @@ def _token_source_label(token_is_exact: bool, tokenize_configured: bool) -> str:
 
 class TokenDisplay:
     """Provides token count display methods."""
+
+    _out: OutputPort  # provided by MixinBase via MRO
 
     def _print_token_line(self, state: Any) -> None:  # ContextStateView
         """Print token count / estimate with source label and optional limit info."""

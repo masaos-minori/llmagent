@@ -114,7 +114,7 @@ class StartupOrchestrator:
                         e,
                     )
                     self._view.write_warning(
-                        f"HTTP subprocess MCP server {key!r} failed to start: {e}"
+                        f"[non-fatal] HTTP subprocess MCP server {key!r} failed to start: {e}"
                     )
 
     def _check_workflow_definition(self) -> None:
@@ -158,16 +158,18 @@ class StartupOrchestrator:
             self._view.write_warning(msg)
         tool_result = await check_tool_definitions_startup(ctx)
         for msg in tool_result.warning_messages():
-            self._view.write_warning(msg)
+            self._view.write_warning(f"[non-fatal] {msg}")  # non-fatal in local profile
         for msg in check_routing_drift(ctx):
-            self._view.write_warning(msg)
+            self._view.write_warning(f"[non-fatal] {msg}")  # non-fatal in local profile
         try:
             rag_check = RagMaintenanceService().consistency()
             if rag_check.is_consistent:
                 logger.info("RAG consistency: OK")
             else:
                 for issue in rag_check.issues:
-                    self._view.write_warning(f"[RAG] Consistency issue: {issue}")
+                    self._view.write_warning(
+                        f"[non-fatal] [RAG] Consistency issue: {issue}"
+                    )  # non-fatal in local profile
         except Exception as e:  # noqa: BLE001 — skip if rag.sqlite absent or unreadable
             logger.debug("RAG consistency check skipped: %s", e)
 

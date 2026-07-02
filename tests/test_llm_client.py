@@ -584,7 +584,7 @@ class TestLLMClientStream:
 
 class TestAgentConfigSseValidation:
     def _build(self, **overrides: object) -> None:
-        from agent.config import build_agent_config
+        from agent.config_builders import build_agent_config
 
         base: dict = {
             "context_char_limit": 8000,

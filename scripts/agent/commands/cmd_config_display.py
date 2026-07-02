@@ -213,8 +213,8 @@ class _ConfigDisplayMixin(MixinBase):
 
     def _cmd_config(self) -> None:
         """Print current configuration and source file paths."""
-        from agent.config import (
-            _CONFIG_DIR,
+        from agent.config_builders import (
+            _CONFIG_DIR,  # noqa: PLC0415 — lazy: avoids circular import at module level
         )
 
         self._out.write("Config files:")

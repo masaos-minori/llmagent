@@ -9,8 +9,6 @@ Import from here:  from mcp.github.exception_handlers import setup_exception_han
 
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -34,7 +32,9 @@ def setup_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(status_code=403, content={"detail": str(exc)})
 
     @app.exception_handler(GitHubNotFoundError)
-    async def _handle_not_found(request: Request, exc: GitHubNotFoundError) -> JSONResponse:
+    async def _handle_not_found(
+        request: Request, exc: GitHubNotFoundError
+    ) -> JSONResponse:
         return JSONResponse(status_code=404, content={"detail": str(exc)})
 
     @app.exception_handler(GitHubValidationError)
@@ -44,11 +44,15 @@ def setup_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     @app.exception_handler(GitHubConflictError)
-    async def _handle_conflict(request: Request, exc: GitHubConflictError) -> JSONResponse:
+    async def _handle_conflict(
+        request: Request, exc: GitHubConflictError
+    ) -> JSONResponse:
         return JSONResponse(status_code=409, content={"detail": str(exc)})
 
     @app.exception_handler(GitHubUpstreamError)
-    async def _handle_upstream(request: Request, exc: GitHubUpstreamError) -> JSONResponse:
+    async def _handle_upstream(
+        request: Request, exc: GitHubUpstreamError
+    ) -> JSONResponse:
         return JSONResponse(status_code=502, content={"detail": str(exc)})
 
     @app.exception_handler(GitHubAuditError)

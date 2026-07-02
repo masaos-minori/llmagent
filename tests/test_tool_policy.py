@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from agent.config import AgentConfig, build_agent_config
+from agent.config_builders import build_agent_config
+from agent.config_dataclasses import AgentConfig
 from agent.tool_policy import (
     check_allowed_repo,
     check_allowed_root,

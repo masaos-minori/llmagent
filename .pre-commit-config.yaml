@@ -30,3 +30,9 @@ repos:
         language: system
         pass_filenames: false
         types_or: [markdown]
+      - id: no-compat-stubs
+        name: Check for compatibility stubs and shims
+        entry: python -m scripts.checks.check_no_compat
+        language: system
+        pass_filenames: false
+        types_or: [python, markdown]

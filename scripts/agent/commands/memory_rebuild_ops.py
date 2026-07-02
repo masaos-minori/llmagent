@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING, Any
 
-import orjson
-
-from agent.commands.enums import MemoryAction
 from agent.context import AgentContext
 
 if TYPE_CHECKING:
@@ -28,7 +24,9 @@ class MemoryRebuildOps:
         """Rebuild memories from JSONL archive."""
         dry_run = "--dry-run" in args
         jsonl_store = mem.ingestion._jsonl
-        jsonl_count, inserted = mem.store.import_from_jsonl(jsonl_store, dry_run=dry_run)
+        jsonl_count, inserted = mem.store.import_from_jsonl(
+            jsonl_store, dry_run=dry_run
+        )
         if dry_run:
             self._out.write(
                 f"  [memory] (dry-run) would import from {jsonl_count} JSONL archive records"
@@ -45,13 +43,25 @@ class MemoryRebuildOps:
                     "  Note: memories_vec cleared -- embeddings not re-indexed."
                     " Run /memory rebuild again after re-embedding or disable use to silence."
                 )
-        _emit_memory_audit(self._ctx, MemoryOpResult(ok=True, memory_id="", action="rebuild", dry_run=dry_run, count=jsonl_count))
+        _emit_memory_audit(
+            self._ctx,
+            MemoryOpResult(
+                ok=True,
+                memory_id="",
+                action="rebuild",
+                dry_run=dry_run,
+                count=jsonl_count,
+            ),
+        )
 
     def rebuild_fts(self, mem: MemoryServices) -> None:
         """Rebuild the memories_fts index from SQLite."""
         count = mem.store.rebuild_fts()
         self._out.write_success(f"memories_fts rebuilt: {count} rows [Memory]")
-        _emit_memory_audit(self._ctx, MemoryOpResult(ok=True, memory_id="", action="rebuild-fts", count=count))
+        _emit_memory_audit(
+            self._ctx,
+            MemoryOpResult(ok=True, memory_id="", action="rebuild-fts", count=count),
+        )
 
     def rebuild_vec(self, mem: MemoryServices) -> None:
         """Rebuild the memories_vec index from SQLite."""
@@ -61,7 +71,10 @@ class MemoryRebuildOps:
             return
         count = mem.store.rebuild_vec()
         self._out.write_success(f"memories_vec rebuilt: {count} rows [Memory]")
-        _emit_memory_audit(self._ctx, MemoryOpResult(ok=True, memory_id="", action="rebuild-vec", count=count))
+        _emit_memory_audit(
+            self._ctx,
+            MemoryOpResult(ok=True, memory_id="", action="rebuild-vec", count=count),
+        )
 
     def check_consistency(self, mem: MemoryServices) -> None:
         """Check consistency between SQLite, JSONL, FTS5, and vec row counts."""
@@ -110,4 +123,6 @@ class MemoryRebuildOps:
                 self._out.write(
                     "    Repair: /memory rebuild-vec (requires embedding regeneration)"
                 )
-        _emit_memory_audit(self._ctx, MemoryOpResult(ok=ok, memory_id="", action="check-consistency"))
+        _emit_memory_audit(
+            self._ctx, MemoryOpResult(ok=ok, memory_id="", action="check-consistency")
+        )

@@ -7,7 +7,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import orjson
-from agent.config import AgentConfig, build_agent_config
+from agent.config_builders import build_agent_config
+from agent.config_dataclasses import AgentConfig
 from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
 
 

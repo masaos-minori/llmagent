@@ -70,6 +70,59 @@ agent[:#1]> /mcp
 
 Expected: all servers listed with `OK` status.
 
+### Minimal Agent DB Initialization
+
+#### When to use
+
+- First-time local development: session.sqlite and workflow.sqlite do not exist yet.
+- After wiping either database file: the agent raises `OperationalError: no such table: sessions` on startup if the schema is absent.
+
+#### Initialize session.sqlite
+
+```bash
+PYTHONPATH=scripts uv run python - <<PY
+from db.create_schema import create_session_schema
+create_session_schema()
+print("session schema OK")
+PY
+```
+
+Creates tables: `sessions`, `messages`, `tool_results`, `memories`, `memories_fts`, `memories_vec`, `session_diagnostics`.
+
+#### Initialize workflow.sqlite
+
+Only required when `workflow_db_path` is configured in the agent config.
+
+```bash
+PYTHONPATH=scripts uv run python - <<PY
+from db.create_schema import create_workflow_schema
+create_workflow_schema()
+print("workflow schema OK")
+PY
+```
+
+Creates tables: `tasks`, `attempts`, `processed_events`, `artifacts`, `approvals`.
+
+#### Verify tables
+
+```bash
+sqlite3 /opt/llm/db/session.sqlite  ".tables"
+# Expected: memories  memories_fts  memories_vec  messages  session_diagnostics  sessions  tool_results
+
+sqlite3 /opt/llm/db/workflow.sqlite ".tables"
+# Expected: approvals  artifacts  attempts  processed_events  tasks
+```
+
+#### Re-run safety
+
+Both functions use `CREATE TABLE IF NOT EXISTS` — re-running against an existing DB is safe and applies only additive migration patches.
+
+#### Error context
+
+`sqlite3.OperationalError: no such table: sessions` on agent startup means session.sqlite schema has not been initialized. Run the `create_session_schema()` command above.
+
+---
+
 ### DB verification
 
 Three platform databases to verify:

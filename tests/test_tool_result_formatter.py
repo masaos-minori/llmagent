@@ -4,7 +4,8 @@ Unit tests for agent/tool_result_formatter.py — mask_args, is_summarized, buil
 
 from __future__ import annotations
 
-from agent.config import AgentConfig, build_agent_config
+from agent.config_builders import build_agent_config
+from agent.config_dataclasses import AgentConfig
 from agent.tool_result_formatter import (
     build_github_preview,
     build_preview,

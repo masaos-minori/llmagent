@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from agent.commands.mixin_base import MixinBase
+    from agent.commands.output_port import OutputPort
 
 # DbHelpDisplay is a mixin that provides help display methods for /db commands.
 
 
 class DbHelpDisplay:
     """Provides help table display methods for /db subcommands."""
+
+    _out: OutputPort  # provided by MixinBase via MRO
 
     def _db_help(self) -> None:
         """Print a help table for /db subcommands."""

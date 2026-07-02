@@ -28,6 +28,7 @@ class Writer(Protocol):
     def write_progress(self, msg: str) -> None: ...
     def clear_progress(self) -> None: ...
     def write_warning(self, msg: str) -> None: ...
+    def write_fatal(self, msg: str) -> None: ...
     def write_startup_banner(
         self,
         chunk_count: str,
@@ -118,6 +119,10 @@ class CLIView:
     def write_warning(self, msg: str) -> None:
         """Print a startup or runtime warning prefixed with [warn]."""
         print(f"[warn] {msg}")
+
+    def write_fatal(self, msg: str) -> None:
+        """Print a fatal error prefixed with [fatal]."""
+        print(f"[fatal] {msg}")
 
     def write_startup_banner(
         self,

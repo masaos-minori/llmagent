@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """create_schema.py
-現行スキーマを作成し、限定的な互換性修復（_migrate_*）を適用する。破壊的マイグレーションは行わない。
+現行スキーマをDDLのみで作成する。スキーマ変更が必要な場合はDBを再作成すること。
 
 既存テーブルはIF NOT EXISTSで保護され、冪等再実行が可能。
 
-SQLテンプレートはdb/schema_sql.pyに定義。
+SQLテンプレートはdb/schema_sql.pyに定義（正規DDLソース）。
 
 Functions:
   create_rag_schema()        — rag.sqlite: documents, chunks, chunks_vec, chunks_fts, triggers
@@ -30,57 +30,6 @@ from db.store_protocols import get_embedding_dims
 logger = logging.getLogger(__name__)
 
 
-def _migrate_rag_schema(conn: sqlite3.Connection) -> None:
-    """chunk_type/source_fileカラムを冪等追加するスキーマ互換修復。既存テーブルに再構築不要な変更のみ行う。"""
-    existing = {row[1] for row in conn.execute("PRAGMA table_info(chunks)").fetchall()}
-    if "chunk_type" not in existing:
-        conn.execute("ALTER TABLE chunks ADD COLUMN chunk_type TEXT")
-    if "source_file" not in existing:
-        conn.execute("ALTER TABLE chunks ADD COLUMN source_file TEXT")
-
-
-def _migrate_add_undone_column(conn: sqlite3.Connection) -> None:
-    """tool_results.undoneカラムを冪等追加する互換修復。"""
-    existing = {
-        row[1] for row in conn.execute("PRAGMA table_info(tool_results)").fetchall()
-    }
-    if "undone" not in existing:
-        conn.execute(
-            "ALTER TABLE tool_results ADD COLUMN undone INTEGER NOT NULL DEFAULT 0"
-        )
-        conn.commit()
-
-
-def _migrate_session_schema(conn: sqlite3.Connection) -> None:
-    """tool_results.session_idにFK制約を追加する互換修復。既存テーブルを再構築するADD COLUMN不可能な変更のみ行う。コミット済み。"""
-    fk_info = conn.execute("PRAGMA foreign_key_list(tool_results)").fetchall()
-    if fk_info:
-        return
-
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.executescript("""
-        BEGIN;
-        CREATE TABLE tool_results_new (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,
-            turn       INTEGER NOT NULL,
-            tool_name  TEXT    NOT NULL,
-            args_masked  TEXT,
-            full_text  TEXT    NOT NULL,
-            summary    TEXT,
-            is_error   INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-        );
-        INSERT INTO tool_results_new
-            SELECT id, session_id, turn, tool_name, args_masked, full_text, summary, is_error, created_at
-            FROM tool_results;
-        DROP TABLE tool_results;
-        ALTER TABLE tool_results_new RENAME TO tool_results;
-        CREATE INDEX IF NOT EXISTS idx_tool_results_session ON tool_results(session_id);
-        COMMIT;
-    """)
-
-
 def create_rag_schema() -> None:
     """Create rag.sqlite tables, virtual tables, and triggers."""
     dims = get_embedding_dims()
@@ -90,7 +39,6 @@ def create_rag_schema() -> None:
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.error("Failed to execute RAG schema DDL: %s", e)
             raise
-        _migrate_rag_schema(db.conn)  # type: ignore[arg-type]  # conn is set by open()
     logger.info("RAG schema created successfully.")
 
 
@@ -103,16 +51,7 @@ def create_session_schema() -> None:
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.error("Failed to execute session schema DDL: %s", e)
             raise
-        _migrate_session_schema(db.conn)  # type: ignore[arg-type]  # conn is set by open()
-        _migrate_add_undone_column(db.conn)  # type: ignore[arg-type]
     logger.info("Session schema created successfully.")
-
-
-def _migrate_workflow_schema(conn: sqlite3.Connection) -> None:
-    """tasks.workflow_idカラムを冪等追加する互換修復。"""
-    existing = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
-    if "workflow_id" not in existing:
-        conn.execute("ALTER TABLE tasks ADD COLUMN workflow_id TEXT")
 
 
 def create_workflow_schema() -> None:
@@ -123,7 +62,6 @@ def create_workflow_schema() -> None:
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.error("Failed to execute workflow schema DDL: %s", e)
             raise
-        _migrate_workflow_schema(db.conn)  # type: ignore[arg-type]  # conn is set by open()
     logger.info("Workflow schema created successfully.")
 
 

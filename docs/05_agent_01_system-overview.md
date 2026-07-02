@@ -69,7 +69,7 @@ MCP servers are called via HTTP POST `/v1/call_tool` or stdio JSON-RPC.
 | Slash commands | `CommandRegistry` | `agent/commands/registry.py` | All `/cmd` dispatch |
 | CLI presentation | `CLIView` | `agent/cli_view.py` | readline, progress, multiline |
 | Session persistence | `AgentSession` | `agent/session.py` | sessions/messages SQLite |
-| Configuration | `AgentConfig` | `agent/config.py` | 7 sub-configs, hot-reload |
+| Configuration | `AgentConfig` | `agent/config_dataclasses.py` | 7 sub-configs, hot-reload |
 | Memory services | `MemoryServices` | `agent/memory/` | Optional semantic memory layer |
 
 ---

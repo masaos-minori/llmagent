@@ -6,7 +6,7 @@ from pathlib import Path
 
 import orjson
 import pytest
-from agent.config import MemoryConfig
+from agent.config_dataclasses import MemoryConfig
 from shared.config_loader import (
     ConfigLoader,
     ConfigMissingError,

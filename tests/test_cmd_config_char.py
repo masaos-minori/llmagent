@@ -9,7 +9,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from agent.commands.cmd_config import _ConfigMixin
-from agent.config import (
+from agent.config_dataclasses import (
     ApprovalConfig,
     LLMConfig,
     MCPConfig,

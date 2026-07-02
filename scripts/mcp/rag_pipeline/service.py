@@ -14,10 +14,9 @@ from typing import Any, Protocol, cast
 
 import httpx
 import orjson
-from db.helper import SQLiteHelper
 from rag.types import RagHit
 
-from mcp.rag_pipeline.document_manager import DocumentManager, _hit_to_dict
+from mcp.rag_pipeline.document_manager import DocumentManager
 from mcp.rag_pipeline.models import (
     PipelineCapture,
     RagDebugResponse,
@@ -172,7 +171,9 @@ class RagPipelineMCPService:
     async def fmt_list_documents(self, args: ToolArgs) -> str:
         lang = args.get("lang")
         limit = int(args.get("limit", 20))
-        rows = self._doc_mgr.list_documents(lang if isinstance(lang, str) else None, limit)
+        rows = self._doc_mgr.list_documents(
+            lang if isinstance(lang, str) else None, limit
+        )
         if not rows:
             return "No documents found."
         return "\n".join(

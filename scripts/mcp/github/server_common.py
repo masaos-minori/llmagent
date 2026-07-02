@@ -10,7 +10,7 @@ This module provides:
 from typing import Any
 
 from mcp.github.server import _service, logger  # noqa: PLC0415
-from mcp.github.service import GitHubService  # noqa: F401
+from mcp.github.service_dispatch import GitHubService
 
 
 def _get_service() -> GitHubService:

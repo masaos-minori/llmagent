@@ -13,10 +13,9 @@ Provides _SessionMixin with:
 import logging
 
 from agent.commands.mixin_base import MixinBase
+from agent.commands.session_title import SessionTitleGen
 from agent.commands.utils import parse_command_args
 from agent.services.models import SessionRow
-
-from agent.commands.session_title import SessionTitleGen
 
 logger = logging.getLogger(__name__)
 

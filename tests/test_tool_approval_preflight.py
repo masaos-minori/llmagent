@@ -12,7 +12,8 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from agent.config import AgentConfig, build_agent_config
+from agent.config_builders import build_agent_config
+from agent.config_dataclasses import AgentConfig
 from agent.tool_approval import check_approval, run_approval_checks
 from agent.tool_audit import audit_approval as _audit_approval
 from agent.tool_audit import audit_tool_exec as _audit_tool_exec

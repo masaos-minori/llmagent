@@ -19,13 +19,11 @@ from __future__ import annotations
 import logging
 
 from agent.commands.mixin_base import MixinBase
+from agent.commands.token_display import TokenDisplay
 from agent.commands.utils import parse_command_args
 from agent.services.context_view import collect_context_state
 from agent.services.conversation_service import clear_conversation, switch_system_prompt
 from agent.services.exceptions import ContextStateBuildError, ConversationStateError
-from agent.services.models import ContextStateView
-
-from agent.commands.token_display import TokenDisplay
 
 logger = logging.getLogger(__name__)
 

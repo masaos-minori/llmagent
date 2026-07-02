@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 from shared.json_utils import dumps as _json_dumps
 
 if TYPE_CHECKING:
-    from agent.config import AgentConfig
+    from agent.config_dataclasses import AgentConfig
 
 # Hint appended to history when a tool result is dropped due to the per-turn limit
 TURN_LIMIT_HINT = (

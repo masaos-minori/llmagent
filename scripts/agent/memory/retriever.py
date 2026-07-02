@@ -18,10 +18,8 @@ import logging
 from db.helper import SQLiteHelper
 
 from agent.memory.embedding_client import EmbeddingClient
-from agent.memory.enums import MemoryType
-from agent.memory.exceptions import MemorySchemaError
 from agent.memory.mapper import _floats_to_blob, row_to_entry
-from agent.memory.scoring import context_boost, recency_boost, score
+from agent.memory.scoring import score
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 
 logger = logging.getLogger(__name__)

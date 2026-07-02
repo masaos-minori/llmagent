@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import logging
-import time
 from datetime import UTC, datetime
 
 import orjson
-
-from shared.json_utils import dumps as _json_dumps
 from shared.llm_client import LLMTransportError
 from shared.logger import Logger
 
@@ -38,9 +34,7 @@ def handle_partial_completion(
 ) -> None:
     """Save partial text to diagnostic channel and tool_result_store."""
     incomplete_msg = f"{e.partial_text}\n[INCOMPLETE: {e.kind}]"
-    diagnostic_store.save(
-        ctx.session.session_id, "llm_transport_error", incomplete_msg
-    )
+    diagnostic_store.save(ctx.session.session_id, "llm_transport_error", incomplete_msg)
     diagnostic_store.save_partial_completion(
         session_id=ctx.session.session_id,
         turn=ctx.stats.stat_turns,

@@ -11,7 +11,7 @@ configuration file layout, validation rules, `/reload` scope, and cross-field co
 
 ## Configuration Loading
 
-`build_agent_config()` (`agent/config.py:627`) calls `ConfigLoader.load_all()`
+`build_agent_config()` (`agent/config_builders.py`) calls `ConfigLoader.load_all()`
 (`shared/config_loader.py`) which merges all config files into a dict, then constructs
 the `AgentConfig` dataclass.
 

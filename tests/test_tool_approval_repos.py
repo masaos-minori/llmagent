@@ -11,7 +11,8 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from agent.config import AgentConfig, build_agent_config
+from agent.config_builders import build_agent_config
+from agent.config_dataclasses import AgentConfig
 from agent.tool_approval import check_approval
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

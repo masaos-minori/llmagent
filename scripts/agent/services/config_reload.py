@@ -287,7 +287,7 @@ class ConfigReloadService:
         new_cfg: dict[str, Any],
     ) -> ConfigReloadOutcome:
         """Update MCP server config; classify transport changes as needs_restart, auth/startup as deferred."""
-        from agent.config import (
+        from agent.config_builders import (
             _build_mcp_servers,  # noqa: PLC0415 — lazy: avoids circular import at module level
         )
 

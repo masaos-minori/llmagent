@@ -7,7 +7,7 @@ Split layout:
   service_business.py    — GitHubActionsBackend, CiCdService classes
 """
 
-from .service_business import CiCdService, GitHubActionsBackend
+from .service_business import CiCdService
 from .service_defs import (
     _GH_API_VERSION,
     _GITHUB_API_BASE,
@@ -15,6 +15,7 @@ from .service_defs import (
     GITHUB_REPO_PARTS_COUNT,
     CiBackend,
 )
+from .service_github_actions import GitHubActionsBackend
 from .service_init import build_service
 
 __all__ = [

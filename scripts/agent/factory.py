@@ -344,7 +344,7 @@ def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
         plugin_logger.addHandler(_stdout_handler)
 
     # Register builtin command names for conflict detection.
-    from agent.commands.command_defs import _COMMANDS
+    from agent.commands.command_defs_list import _COMMANDS
 
     builtin_names = frozenset(cmd.name for cmd in _COMMANDS)
     plugin_registry.register_builtin_commands(builtin_names)
@@ -359,7 +359,7 @@ def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
     if result.failed:
         for failure in result.failed:
             audit_logger.warning(
-                "Plugin load failure: %s — %s", failure.path, failure.error
+                "[non-fatal] Plugin load failure: %s — %s", failure.path, failure.error
             )
 
     total_discovered = result.loaded_count + len(result.failed)

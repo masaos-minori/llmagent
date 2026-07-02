@@ -51,7 +51,8 @@ from mcp.github.server_file import router as file_router
 from mcp.github.server_issues import router as issues_router
 from mcp.github.server_pull_requests import router as pr_router
 from mcp.github.server_repository import router as repo_router
-from mcp.github.service import _GITHUB_TOKEN, GitHubService, build_service
+from mcp.github.service_dispatch import GitHubService
+from mcp.github.service_init import _GITHUB_TOKEN, build_service
 from mcp.github.tools import TOOL_LIST
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer, ToolArgs

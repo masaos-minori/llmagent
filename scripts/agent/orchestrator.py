@@ -13,7 +13,6 @@ import asyncio
 import time
 import uuid
 from collections.abc import Callable
-from datetime import UTC, datetime
 from typing import Any
 
 import orjson
@@ -23,8 +22,10 @@ from shared.logger import Logger
 
 from agent.context import AgentContext
 from agent.diagnostic_store import DiagnosticStore
+from agent.llm_transport_errors import handle_llm_transport_error
 from agent.llm_turn_runner import LLMTurnRunner
-from agent.mdq_rag_classifier import MdqRagMode, resolve_mode
+from agent.mdq_rag_classifier import MdqRagMode
+from agent.mode_classification import classify_and_inject_mode
 from agent.tool_audit import (
     audit_approval_requested,
     audit_stage_completed,
@@ -42,9 +43,6 @@ from agent.workflow import (
     WorkflowPendingApprovalError,
 )
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
-
-from agent.llm_transport_errors import handle_llm_transport_error
-from agent.mode_classification import classify_and_inject_mode
 
 
 class WorkflowCreationError(RuntimeError):
@@ -424,7 +422,9 @@ class Orchestrator:
                     ctx.session.save("assistant", result.answer)
                 if result.exception is not None:
                     # run() caught LLMTransportError internally; propagate callbacks
-                    handle_llm_transport_error(result.exception, ctx, self._diagnostic_store)
+                    handle_llm_transport_error(
+                        result.exception, ctx, self._diagnostic_store
+                    )
                     if self._on_error:
                         self._on_error(result.exception)
                 else:
@@ -547,5 +547,3 @@ class Orchestrator:
             self._background_tasks.add(_task)
             _task.add_done_callback(self._background_tasks.discard)
         ctx.session.save("user", line)
-
- 

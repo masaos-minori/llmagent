@@ -10,7 +10,8 @@ from rag.pipeline_service import call_rag_service
 
 if TYPE_CHECKING:
     import httpx
-    from rag.models_data import TwoStageFetchResult
+
+    from rag.models_data import TwoStageFetchResult  # noqa: TCH004
 from rag.stage import StageResult
 
 _HTTP_BLOCK_START = "[RAG_CONTEXT_START]"
@@ -25,7 +26,9 @@ class HttpAugmentResult:
         result: str | None,
         status_code: int | None,
         latency_ms: float,
-        http_result_kind: Literal["remote_nonempty", "remote_empty", "in_process_fallback"],
+        http_result_kind: Literal[
+            "remote_nonempty", "remote_empty", "in_process_fallback"
+        ],
     ) -> None:
         self.result = result
         self.status_code = status_code
@@ -45,7 +48,7 @@ class HttpAugment:
         http: httpx.AsyncClient,
         rag_url: str,
         auth_token: str = "",
-        set_fetch_result: Callable["TwoStageFetchResult", None] | None = None,  # noqa: UP037
+        set_fetch_result: Callable[[TwoStageFetchResult], None] | None = None,
         set_fallback_reason: Callable[[str], None] | None = None,
     ) -> None:
         self._http = http
@@ -80,7 +83,9 @@ class HttpAugment:
             elapsed_seconds=elapsed,
             fallback_reason=(http_fallback_reason if result is None else None),
         )
-        http_result_kind: Literal["remote_nonempty", "remote_empty", "in_process_fallback"] = (
+        http_result_kind: Literal[
+            "remote_nonempty", "remote_empty", "in_process_fallback"
+        ] = (
             "remote_nonempty"
             if result and len(result) > 0
             else "remote_empty"
@@ -100,6 +105,8 @@ class HttpAugment:
         return getattr(self, "_stage_result", None)
 
     @property
-    def http_result_kind(self) -> Literal["remote_nonempty", "remote_empty", "in_process_fallback"] | None:
+    def http_result_kind(
+        self,
+    ) -> Literal["remote_nonempty", "remote_empty", "in_process_fallback"] | None:
         """Return the HTTP result kind."""
         return getattr(self, "_http_result_kind", None)

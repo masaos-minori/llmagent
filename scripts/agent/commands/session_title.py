@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from agent.commands.mixin_base import MixinBase
+    pass
 
 from agent.services.exceptions import SessionTitleGenerationError
 from agent.services.session_title import SessionTitleService

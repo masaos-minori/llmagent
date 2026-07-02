@@ -8,7 +8,11 @@ To activate: place the file in plugins/ and restart the agent.
 To deactivate: remove or rename the file (e.g. example.py.disabled).
 """
 
-from plugin_registry import register_command, register_pipeline_stage, register_tool
+from shared.plugin_registry import (
+    register_command,
+    register_pipeline_stage,
+    register_tool,
+)
 
 # ── Slash command: /ping ──────────────────────────────────────────────────────
 

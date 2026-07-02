@@ -144,7 +144,7 @@ Full details: [05_agent_09_data-layer.md](05_agent_09_data-layer.md)
 
 ---
 
-## AgentConfig (`agent/config.py`)
+## AgentConfig (`agent/config_dataclasses.py`)
 
 - **Role:** Configuration container; 7 sub-configs; hot-reloadable via `/reload`
 - **Primary API:** `build_agent_config(cfg_override=None) -> AgentConfig`

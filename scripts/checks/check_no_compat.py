@@ -57,6 +57,16 @@ COMPAT_PATTERNS = {
     "stale issue ID": r"(?:DOCMISS-01|UNDOC-03|TYPE-01|UNIMPL-01)",
     # Shared/DB schema cleanup — stale eventbus direct SQL load after plan 55 (init_db unified)
     "eventbus schema.sql direct load": r"\.read\s+eventbus/schema\.sql",
+    # plan 56 patterns — backward-compat stub phrases
+    "re-export stub phrase": r"re-export\s+stub",
+    "compatibility shim phrase": r"compatibility\s+shim",
+    "existing imports continue to work": r"existing imports continue to work",
+    "backward-compatible keyword": r"backward-compatible",
+    "_cast_enums method": r"_cast_enums",
+    # plan 56 deprecated import paths
+    "from agent.config import": r"from\s+agent\.config\s+import",
+    "from mcp.github.service import": r"from\s+mcp\.github\.service\s+import",
+    "from mcp.github import GitHubService": r"from\s+mcp\.github\s+import\s+GitHubService",
 }
 
 # Allowlist: files that are permitted to contain these patterns (archive/migration notes only)
@@ -94,6 +104,14 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "docs" / "90_shared_00_document-guide.md",
     # Doc documenting deleted workflow_schema.py entry point
     ROOT_DIR / "docs" / "90_shared_04_db_architecture_and_schema.md",
+    # plan 56 patterns — test file intentionally referencing re-export stub concept
+    ROOT_DIR / "tests" / "test_rag_get_cfg.py",
+    # plan 56 patterns — test file that checks the checker itself (contains patterns as test data)
+    ROOT_DIR / "tests" / "test_check_no_compat.py",
+    # Test file that verifies _MCP_TOOLS is absent (contains the pattern as a check target)
+    ROOT_DIR / "tests" / "test_mcp_tool_schema_exports.py",
+    # Doc that documents the _MCP_TOOLS → TOOL_LIST migration policy
+    ROOT_DIR / "docs" / "04_mcp_07_tool_schema_export_policy.md",
 }
 
 

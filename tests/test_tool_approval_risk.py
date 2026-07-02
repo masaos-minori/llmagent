@@ -10,7 +10,8 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-from agent.config import AgentConfig, build_agent_config
+from agent.config_builders import build_agent_config
+from agent.config_dataclasses import AgentConfig
 from agent.tool_policy import classify_risk as _classify_risk
 from agent.tool_result_formatter import build_preview as _build_preview
 

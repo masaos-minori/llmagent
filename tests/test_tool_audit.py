@@ -7,7 +7,8 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock
 
-from agent.config import AgentConfig, build_agent_config
+from agent.config_builders import build_agent_config
+from agent.config_dataclasses import AgentConfig
 from agent.tool_audit import audit_tool_exec, log_approval_decision, write_round_exec
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_models import ApprovalOutcome

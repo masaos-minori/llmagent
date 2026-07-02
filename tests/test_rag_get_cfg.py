@@ -90,7 +90,7 @@ class TestAgentConfigGetCfg:
     def test_load_config_error_path(self) -> None:
         """load_config() raises ConfigLoadError when ConfigLoader raises."""
         import pytest
-        from agent.config import ConfigLoadError, load_config
+        from agent.config_builders import ConfigLoadError, load_config
 
         with patch.object(ConfigLoader, "load_all", side_effect=OSError("no file")):
             with pytest.raises(ConfigLoadError, match="Config load failed"):

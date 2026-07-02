@@ -10,7 +10,7 @@ import httpx
 import pytest
 from agent.commands.cmd_mcp import _McpMixin
 from agent.commands.exceptions import UnknownSubcommandError
-from shared.mcp_config import McpServerConfig
+from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
 
 class _Ctx:
@@ -44,14 +44,14 @@ class _Mcp(_McpMixin):
 
 
 def _http(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
-    return McpServerConfig(transport="http", url=url, cmd=[], auth_token="")
+    return McpServerConfig(transport=TransportType.HTTP, url=url, cmd=[], auth_token="")
 
 
 def _stdio(
-    cmd: list[str] | None = None, startup_mode: str = "persistent"
+    cmd: list[str] | None = None, startup_mode: StartupMode = StartupMode.PERSISTENT
 ) -> McpServerConfig:
     return McpServerConfig(
-        transport="stdio",
+        transport=TransportType.STDIO,
         url="",
         cmd=cmd or ["python", "s.py"],
         auth_token="",
@@ -150,7 +150,9 @@ class TestCmdMcpStatus:
     async def test_stdio_not_started_persistent(
         self, capsys: pytest.CaptureFixture
     ) -> None:
-        ctx = _Ctx({"worker": _stdio(startup_mode="persistent")}, stdio_procs={})
+        ctx = _Ctx(
+            {"worker": _stdio(startup_mode=StartupMode.PERSISTENT)}, stdio_procs={}
+        )
         mcp = _Mcp(ctx)
 
         with patch(
@@ -163,7 +165,9 @@ class TestCmdMcpStatus:
 
     @pytest.mark.asyncio
     async def test_stdio_ondemand_stopped(self, capsys: pytest.CaptureFixture) -> None:
-        ctx = _Ctx({"worker": _stdio(startup_mode="ondemand")}, stdio_procs={})
+        ctx = _Ctx(
+            {"worker": _stdio(startup_mode=StartupMode.ONDEMAND)}, stdio_procs={}
+        )
         mcp = _Mcp(ctx)
 
         with patch(
@@ -196,7 +200,7 @@ class TestCmdMcpStatusNewColumns:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cfg = McpServerConfig(
-            transport="http",
+            transport=TransportType.HTTP,
             url="http://127.0.0.1:8000",
             cmd=[],
             auth_token="secret",
@@ -222,7 +226,7 @@ class TestCmdMcpStatusNewColumns:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cfg = McpServerConfig(
-            transport="http",
+            transport=TransportType.HTTP,
             url="http://127.0.0.1:8000",
             cmd=[],
             auth_token="",
@@ -247,7 +251,7 @@ class TestCmdMcpStatusNewColumns:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cfg = McpServerConfig(
-            transport="http",
+            transport=TransportType.HTTP,
             url="http://127.0.0.1:8000",
             cmd=[],
             auth_token="",

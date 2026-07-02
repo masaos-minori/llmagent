@@ -19,6 +19,7 @@ class TransportType(StrEnum):
     """MCP server transport protocol."""
 
     HTTP = "http"
+    STDIO = "stdio"
 
 
 class StartupMode(StrEnum):
@@ -26,6 +27,7 @@ class StartupMode(StrEnum):
 
     PERSISTENT = "persistent"
     SUBPROCESS = "subprocess"
+    ONDEMAND = "ondemand"
 
 
 class HealthcheckMode(StrEnum):
@@ -62,25 +64,22 @@ class McpServerConfig:
     env: dict[str, str] = field(default_factory=dict)  # extra env vars for subprocess
 
     def __post_init__(self) -> None:
-        # Cast str inputs from config files to enum types; invalid values raise ValueError.
-        self._cast_enums()
+        self._validate_enum_types()
         self._validate_cross_fields()
 
-    def _cast_enums(self) -> None:
-        """Cast str inputs from config files to enum types.
-
-        Note: this is a compatibility shim for direct runtime callers.
-        The canonical path is the config loader which performs all enum conversion.
-        """
+    def _validate_enum_types(self) -> None:
         if not isinstance(self.transport, TransportType):
-            self.transport = TransportType(self.transport)
-        if not isinstance(self.startup_mode, StartupMode):
-            self.startup_mode = StartupMode(self.startup_mode)
-        if not isinstance(self.healthcheck_mode, HealthcheckMode):
-            if not self.healthcheck_mode:
-                self.healthcheck_mode = HealthcheckMode.HTTP
-            else:
-                self.healthcheck_mode = HealthcheckMode(self.healthcheck_mode)
+            raise ValueError(f"{self.transport!r} is not a valid TransportType")
+        if self.startup_mode is not None and not isinstance(
+            self.startup_mode, StartupMode
+        ):
+            raise ValueError(f"{self.startup_mode!r} is not a valid StartupMode")
+        if self.healthcheck_mode is not None and not isinstance(
+            self.healthcheck_mode, HealthcheckMode
+        ):
+            raise ValueError(
+                f"{self.healthcheck_mode!r} is not a valid HealthcheckMode"
+            )
 
     def _validate_cross_fields(self) -> None:
         if self.transport == TransportType.HTTP and not self.url:

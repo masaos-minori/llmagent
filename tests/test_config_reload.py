@@ -109,7 +109,7 @@ class TestDeferredReload:
         from unittest.mock import patch
 
         with patch(
-            "agent.config._build_mcp_servers",
+            "agent.config_builders._build_mcp_servers",
             return_value=new_mcp_servers,
         ):
             return svc._apply_mcp_url_reload(svc._ctx, {})  # type: ignore[attr-defined]

@@ -6,7 +6,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from agent.config import AgentConfig, build_agent_config
+from agent.config_builders import build_agent_config
+from agent.config_dataclasses import AgentConfig
 from agent.tool_policy import (
     _escalate_for_github_branch,
     _escalate_for_path,

@@ -69,7 +69,7 @@ async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
                     ServiceWarning(label=label, url=health_url, message=msg)
                 )
         except (httpx.HTTPError, OSError) as e:
-            msg = f"{label} unreachable at {health_url}: {e}"
+            msg = f"[non-fatal] {label} unreachable at {health_url}: {e}"
             logger.warning(msg)
             warnings.append(ServiceWarning(label=label, url=health_url, message=msg))
     return HealthCheckResult(warnings=warnings)

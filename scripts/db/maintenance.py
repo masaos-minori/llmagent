@@ -11,7 +11,7 @@ Typical maintenance schedule:
   After large ingestion : checkpoint_wal(db, "TRUNCATE")
   Weekly                : vacuum_db(db)
   Weekly                : purge_old_sessions(db, cfg)
-  Before schema change  : rotate_db()
+  Before schema change  : rotate_all_dbs()  # archives rag, session, and workflow
   On startup warning    : recover_corruption()
 """
 
