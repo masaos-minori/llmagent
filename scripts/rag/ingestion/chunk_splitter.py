@@ -83,19 +83,6 @@ class ChunkMetadata(TypedDict, total=False):
     chunking_strategy: str
 
 
-# Metadata dict type for ** spreading (cannot use TypedDict in constructor calls)
-class _ChunkMetadataDict(TypedDict, total=False):
-    """Metadata fields spread into chunk output payloads."""
-
-    url: str
-    title: str
-    lang: str
-    etag: str | None
-    last_modified: str | None
-    source_file: str
-    chunking_strategy: str
-
-
 # ──────────────────────────────────────────────────────────────────────────────
 # ChunkSplitter class
 # ──────────────────────────────────────────────────────────────────────────────
@@ -298,7 +285,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     def _extract_chunk_metadata(
         self, data: ChunkDocument, src_path: Path, chunking_strategy: str
-    ) -> _ChunkMetadataDict:
+    ) -> ChunkMetadata:
         """Extract document-level metadata shared across all chunk files."""
         return {
             "url": data.url,
@@ -312,7 +299,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     def _build_chunk_payload(
         self,
-        metadata: _ChunkMetadataDict,
+        metadata: ChunkMetadata,
         idx: int,
         chunk_type: str,
         chunk_content: str,
