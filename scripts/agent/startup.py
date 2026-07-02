@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 from shared.logger import Logger
 from shared.mcp_config import SecurityProfile
 
-
 from agent.context import AgentContext
 from agent.factory import build_agent_context, init_tracer
 from agent.orchestrator import Orchestrator
