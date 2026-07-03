@@ -9,7 +9,8 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from agent.commands.cmd_context import _ContextMixin, _token_source_label
+from agent.commands.cmd_context import _ContextMixin
+from agent.commands.token_display import _token_source_label
 from agent.services.context_view import _format_memory_status
 from agent.services.context_view import budget_breakdown as _budget_breakdown
 
@@ -35,9 +36,9 @@ def _make_ctx() -> MagicMock:
     ctx.conv.system_prompt_content = "You are helpful."
     ctx.conv.history = []
     ctx.session.session_id = 1
-    ctx.services.hist_mgr = None
-    ctx.services.memory = None
-    ctx.services.llm = None
+    ctx.services_required.hist_mgr = None
+    ctx.services_required.memory = None
+    ctx.services_required.llm = None
     ctx.cfg.llm.context_char_limit = 8000
     ctx.cfg.llm.context_token_limit = 0
     ctx.cfg.llm.tokenize_url = ""
@@ -246,7 +247,7 @@ class TestBudgetBreakdown:
 class TestFormatMemoryStatus:
     def test_format_memory_status_disabled(self) -> None:
         ctx = _make_ctx()
-        ctx.services.memory = None
+        ctx.services_required.memory = None
         result = _format_memory_status(ctx)
         assert result == "disabled"
 
@@ -254,9 +255,9 @@ class TestFormatMemoryStatus:
         ctx = _make_ctx()
         mem = MagicMock()
         mem.store.count_vec.return_value = 5
-        ctx.services.memory = mem
-        with patch("agent.services.context_view.count_by_type", return_value={"semantic": 3, "episodic": 7}):
-            with patch("agent.services.context_view.count_entries", return_value=10):
+        ctx.services_required.memory = mem
+        with patch("agent.memory.count_ops.count_by_type", return_value={"semantic": 3, "episodic": 7}), \
+            patch("agent.memory.count_ops.count_entries", return_value=10):
                 result = _format_memory_status(ctx)
                 assert "enabled" in result
                 assert "entries=10" in result
@@ -353,7 +354,7 @@ class TestCollectContextState:
         hist_mgr.count_chars.return_value = 3
         hist_mgr.stat_compress_count = 0
         hist_mgr.count_tokens.return_value = None
-        ctx.services.hist_mgr = hist_mgr
+        ctx.services_required.hist_mgr = hist_mgr
         result = collect_context_state(ctx)
         assert isinstance(result, ContextStateView)
         assert result.total_chars == 3
@@ -368,7 +369,7 @@ class TestCollectContextState:
         hist_mgr.count_chars.return_value = 100
         hist_mgr.stat_compress_count = 5
         hist_mgr.count_tokens.return_value = 25
-        ctx.services.hist_mgr = hist_mgr
+        ctx.services_required.hist_mgr = hist_mgr
         result = collect_context_state(ctx)
         assert result.total_chars == 100
 
@@ -377,7 +378,7 @@ class TestCollectContextState:
         from agent.services.exceptions import ContextStateBuildError
 
         ctx = _make_ctx()
-        ctx.services.hist_mgr = None
+        ctx.services_required.hist_mgr = None
         with pytest.raises(ContextStateBuildError, match="hist_mgr"):
             collect_context_state(ctx)
 
@@ -389,12 +390,12 @@ class TestCollectContextState:
         hist_mgr.count_chars.return_value = 0
         hist_mgr.stat_compress_count = 0
         hist_mgr.count_tokens.return_value = None
-        ctx.services.hist_mgr = hist_mgr
+        ctx.services_required.hist_mgr = hist_mgr
         mem = MagicMock()
         mem.store.count_vec.return_value = 5
-        ctx.services.memory = mem
-        with patch("agent.services.context_view.count_by_type", return_value={"semantic": 3}):
-            with patch("agent.services.context_view.count_entries", return_value=10):
+        ctx.services_required.memory = mem
+        with patch("agent.memory.count_ops.count_by_type", return_value={"semantic": 3}), \
+            patch("agent.memory.count_ops.count_entries", return_value=10):
                 result = collect_context_state(ctx)
                 assert "enabled" in result.mem_status
 
@@ -408,7 +409,7 @@ class TestCmdContext:
         hist_mgr.count_chars.return_value = n_chars
         hist_mgr.stat_compress_count = 0
         hist_mgr.count_tokens.return_value = None
-        ctx.services.hist_mgr = hist_mgr
+        ctx.services_required.hist_mgr = hist_mgr
 
     def test_cmd_context_prints_state(self, capsys: Any) -> None:
         ctx = _make_ctx()
@@ -442,7 +443,7 @@ class TestCmdContext:
         hist_mgr.count_chars.return_value = 100
         hist_mgr.stat_compress_count = 0
         hist_mgr.count_tokens.return_value = 25
-        ctx.services.hist_mgr = hist_mgr
+        ctx.services_required.hist_mgr = hist_mgr
         cmd = _FakeCmd(ctx)
         cmd._cmd_context()
         out = capsys.readouterr().out
@@ -485,7 +486,7 @@ class TestCollectContextStateWorkflow:
         hist_mgr.stat_compress_count = 0
         hist_mgr.stat_fallback_truncate_count = 0
         hist_mgr.count_tokens.return_value = None
-        ctx.services.hist_mgr = hist_mgr
+        ctx.services_required.hist_mgr = hist_mgr
         result = collect_context_state(ctx)
         assert result.workflow_mode == "disabled"
         assert result.approval_pending is False
@@ -501,6 +502,6 @@ class TestCollectContextStateWorkflow:
         hist_mgr.stat_compress_count = 0
         hist_mgr.stat_fallback_truncate_count = 0
         hist_mgr.count_tokens.return_value = None
-        ctx.services.hist_mgr = hist_mgr
+        ctx.services_required.hist_mgr = hist_mgr
         result = collect_context_state(ctx)
         assert result.approval_pending is True

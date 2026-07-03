@@ -23,7 +23,7 @@ from pathlib import Path
 import httpx
 import orjson
 from db.helper import SQLiteHelper
-from db.maintenance import RagConsistencyReport
+from db.models import RagConsistencyReport
 from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.pipeline_utils import ChunkJsonRaw, _read_chunk_json_raw
 from rag.utils import floats_to_blob, validate_url

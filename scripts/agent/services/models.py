@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from db.maintenance import RagConsistencyReport
+from db.models import RagConsistencyReport
 from db.models import PurgeCounts, ToolResultRow, WalCheckpointCounts
 
 from agent.services.enums import (

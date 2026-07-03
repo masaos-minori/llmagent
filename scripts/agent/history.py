@@ -11,7 +11,8 @@ from dataclasses import dataclass
 
 import httpx
 import orjson
-from shared.token_counter import _estimate_tokens, _WarnOnce, get_token_count
+from shared.token_estimation import estimate_tokens
+from shared.token_counter import _WarnOnce, get_token_count
 from shared.types import LLMMessage
 
 from agent.history_selection_policy import (
@@ -168,7 +169,7 @@ class HistoryManager:
         """
         if last_input_tokens is not None:
             return last_input_tokens
-        return _estimate_tokens(history)[0]
+        return estimate_tokens(history)[0]
 
     async def count_tokens_async(
         self,

@@ -14,9 +14,9 @@ from db.maintenance import (
     RetentionConfig,
     checkpoint_wal,
     purge_old_sessions,
-    recover_corruption,
     vacuum_db,
 )
+from db.recovery import recover_corruption
 
 from agent.services.models import (
     DbCheckpointResult,

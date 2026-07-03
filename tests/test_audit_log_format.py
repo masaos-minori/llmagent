@@ -215,7 +215,7 @@ class TestAgentAuditLogFormat:
         from agent.tool_audit import audit_tool_exec
 
         ctx = MagicMock()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         ctx.cfg.masked_fields = []
         ctx.turn.current_turn_id = "turn-xyz"
         ctx.workflow.workflow_id = "wf-1"
@@ -223,7 +223,7 @@ class TestAgentAuditLogFormat:
 
         audit_tool_exec(ctx, "shell_run", {"cmd": "ls"}, False, "req-9")
 
-        call_args = ctx.services.audit_logger.info.call_args[0][0]
+        call_args = ctx.services_required.audit_logger.info.call_args[0][0]
         # Must be valid JSON
         parsed = json.loads(call_args)
         assert isinstance(parsed, dict)
@@ -237,7 +237,7 @@ class TestAgentAuditLogFormat:
         from agent.tool_audit import audit_tool_exec
 
         ctx = MagicMock()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         ctx.cfg.masked_fields = []
         ctx.turn.current_turn_id = "turn-abc"
         ctx.workflow.workflow_id = ""
@@ -247,7 +247,7 @@ class TestAgentAuditLogFormat:
             ctx, "shell_run", {"cmd": "ls"}, True, "req-10", error_type="transport"
         )
 
-        call_args = ctx.services.audit_logger.info.call_args[0][0]
+        call_args = ctx.services_required.audit_logger.info.call_args[0][0]
         parsed = json.loads(call_args)
         assert "error_type" in parsed
         assert parsed["error_type"] == "transport"
@@ -257,7 +257,7 @@ class TestAgentAuditLogFormat:
         from agent.tool_audit import audit_tool_exec
 
         ctx = MagicMock()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         ctx.cfg.masked_fields = []
         ctx.turn.current_turn_id = "turn-def"
         ctx.workflow.workflow_id = ""
@@ -265,7 +265,7 @@ class TestAgentAuditLogFormat:
 
         audit_tool_exec(ctx, "shell_run", {"cmd": "ls"}, False, "req-11")
 
-        call_args = ctx.services.audit_logger.info.call_args[0][0]
+        call_args = ctx.services_required.audit_logger.info.call_args[0][0]
         # Must not start with AUDIT (key=value format)
         assert not call_args.startswith("AUDIT")
         # Must not contain key=value pairs like "session="
@@ -276,7 +276,7 @@ class TestAgentAuditLogFormat:
         from agent.tool_audit import audit_tool_exec
 
         ctx = MagicMock()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         ctx.cfg.masked_fields = []
         ctx.turn.current_turn_id = "turn-ghi"
         ctx.workflow.workflow_id = "wf-2"
@@ -284,7 +284,7 @@ class TestAgentAuditLogFormat:
 
         audit_tool_exec(ctx, "write_file", {"path": "/tmp/k.txt"}, False, "req-12")
 
-        call_args = ctx.services.audit_logger.info.call_args[0][0]
+        call_args = ctx.services_required.audit_logger.info.call_args[0][0]
         parsed = json.loads(call_args)
         # Required fields: event, task_id, tool, mcp_request_id, is_error, ts
         for field in ("event", "task_id", "tool", "mcp_request_id", "is_error", "ts"):
@@ -296,7 +296,7 @@ class TestAgentAuditLogFormat:
 
         correlation_id = "corr-123"
         ctx = MagicMock()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         ctx.cfg.masked_fields = []
         ctx.turn.current_turn_id = "turn-jkl"
         ctx.workflow.workflow_id = ""
@@ -306,7 +306,7 @@ class TestAgentAuditLogFormat:
             ctx, "read_text_file", {"path": "/tmp/l.txt"}, False, correlation_id
         )
 
-        call_args = ctx.services.audit_logger.info.call_args[0][0]
+        call_args = ctx.services_required.audit_logger.info.call_args[0][0]
         parsed = json.loads(call_args)
         assert parsed["mcp_request_id"] == correlation_id
 
@@ -315,7 +315,7 @@ class TestAgentAuditLogFormat:
         from agent.tool_audit import audit_tool_exec
 
         ctx = MagicMock()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         ctx.cfg.masked_fields = []
         ctx.turn.current_turn_id = "turn-mno"
         ctx.workflow.workflow_id = ""
@@ -323,7 +323,7 @@ class TestAgentAuditLogFormat:
 
         audit_tool_exec(ctx, "shell_run", {"cmd": "ls"}, False, "req-13")
 
-        call_args = ctx.services.audit_logger.info.call_args[0][0]
+        call_args = ctx.services_required.audit_logger.info.call_args[0][0]
         # Must start with { (JSON-lines)
         assert call_args.startswith("{")
         # Must be valid JSON

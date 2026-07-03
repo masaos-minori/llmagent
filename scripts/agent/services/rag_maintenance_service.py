@@ -8,12 +8,12 @@ from __future__ import annotations
 from typing import Any
 
 from db.helper import SQLiteHelper
-from db.maintenance import (
+from db.rag_consistency import (
     check_rag_consistency,
     is_consistent,
-    recover_corruption,
     summarize_issues,
 )
+from db.recovery import recover_corruption
 
 from agent.services.models import DbRecoverResult, RagConsistencyResult
 

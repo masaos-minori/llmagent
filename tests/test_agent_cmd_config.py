@@ -29,14 +29,21 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_latency = {}
     ctx.stats.stat_input_tokens = 1000
     ctx.stats.stat_output_tokens = 500
+    ctx.stats.stat_memory_consistency_failures = 0
     ctx.conv.debug_mode = False
     ctx.conv.plan_mode = False
     ctx.conv.history = []
     ctx.session.session_id = "test-session"
+    ctx.cfg.workflow_mode = ""
     ctx.services.tools = None
     ctx.services.rag = None
     ctx.services.hist_mgr = None
     ctx.services.llm = None
+    # Also set services_required for _collect_stats compatibility
+    ctx.services_required.tools = None
+    ctx.services_required.rag = None
+    ctx.services_required.hist_mgr = None
+    ctx.services_required.llm = None
     return ctx
 
 
@@ -56,7 +63,7 @@ def _make_llm_svc() -> MagicMock:
 class TestCmdStats:
     def test_cmd_stats_with_llm_service_prints_sse_stats(self, capsys: Any) -> None:
         ctx = _make_ctx()
-        ctx.services.llm = _make_llm_svc()
+        ctx.services_required.llm = _make_llm_svc()
         cmd = _FakeCmd(ctx)
         cmd._cmd_stats()
         out = capsys.readouterr().out
@@ -67,7 +74,7 @@ class TestCmdStats:
 
     def test_cmd_stats_with_llm_service_shows_correct_values(self, capsys: Any) -> None:
         ctx = _make_ctx()
-        ctx.services.llm = _make_llm_svc()
+        ctx.services_required.llm = _make_llm_svc()
         cmd = _FakeCmd(ctx)
         cmd._cmd_stats()
         out = capsys.readouterr().out
@@ -78,7 +85,7 @@ class TestCmdStats:
 
     def test_cmd_stats_without_llm_service_shows_zeros(self, capsys: Any) -> None:
         ctx = _make_ctx()
-        # services.llm is None
+        # services_required.llm is None
         cmd = _FakeCmd(ctx)
         cmd._cmd_stats()
         out = capsys.readouterr().out
@@ -94,7 +101,7 @@ class TestCmdStats:
         ctx = _make_ctx()
         llm = _make_llm_svc()
         llm.stat_partial_completions = 2
-        ctx.services.llm = llm
+        ctx.services_required.llm = llm
         cmd = _FakeCmd(ctx)
         cmd._cmd_stats()
         out = capsys.readouterr().out
@@ -104,7 +111,7 @@ class TestCmdStats:
         ctx = _make_ctx()
         llm = _make_llm_svc()
         llm.stat_partial_completions = 0
-        ctx.services.llm = llm
+        ctx.services_required.llm = llm
         cmd = _FakeCmd(ctx)
         cmd._cmd_stats()
         out = capsys.readouterr().out
@@ -117,8 +124,8 @@ class TestCmdStats:
         hist_mgr = MagicMock()
         hist_mgr.stat_compress_count = 3
         hist_mgr.stat_fallback_truncate_count = 2
-        ctx.services.llm = llm
-        ctx.services.hist_mgr = hist_mgr
+        ctx.services_required.llm = llm
+        ctx.services_required.hist_mgr = hist_mgr
         cmd = _FakeCmd(ctx)
         cmd._cmd_stats()
         out = capsys.readouterr().out
@@ -269,7 +276,7 @@ class TestApplyConfigDict:
         ctx = _make_ctx()
         ctx.conv.history = []
         llm = MagicMock()
-        ctx.services.llm = llm
+        ctx.services_required.llm = llm
         ctx.cfg.llm.sse_heartbeat_timeout = 45.0
         ctx.cfg.llm.sse_malformed_retry = 3
         ctx.cfg.llm.sse_reconnect_max = 2
@@ -314,7 +321,7 @@ class TestApplyConfigDict:
         ctx = _make_ctx()
         ctx.conv.history = []
         hist_mgr = MagicMock()
-        ctx.services.hist_mgr = hist_mgr
+        ctx.services_required.hist_mgr = hist_mgr
         # Pre-set cfg values; _apply_config_params reads them to sync to hist_mgr
         ctx.cfg.llm.context_token_limit = 4000
         ctx.cfg.llm.tokenize_url = "http://llm/tok"

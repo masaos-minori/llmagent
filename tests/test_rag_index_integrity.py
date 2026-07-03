@@ -21,7 +21,8 @@ from unittest.mock import patch
 
 import pytest
 from agent.services.rag_maintenance_service import RagMaintenanceService
-from db.maintenance import RagConsistencyReport, check_rag_consistency
+from db.models import RagConsistencyReport
+from db.rag_consistency import check_rag_consistency
 from rag.repository import fts_search
 
 _SCHEMA_SQL = """

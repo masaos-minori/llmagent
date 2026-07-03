@@ -8,7 +8,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from unittest.mock import patch
 
-from db.maintenance import RagConsistencyReport, summarize_issues
+from db.models import RagConsistencyReport
+from db.rag_consistency import summarize_issues
 
 
 def _make_report(

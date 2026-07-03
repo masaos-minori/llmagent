@@ -5,7 +5,7 @@ Behavior-lock tests for _SessionMixin slash-command handlers.
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from agent.commands.cmd_session import _SessionMixin
@@ -48,6 +48,9 @@ def _make_cmd(
     )
     cmd = object.__new__(_SessionMixin)
     cmd._ctx = ctx  # type: ignore[attr-defined]
+    title_gen = MagicMock()
+    title_gen.generate = AsyncMock(return_value="test-title")  # type: ignore[attr-defined]
+    cmd._title_gen = title_gen  # type: ignore[attr-defined]
     return cmd
 
 

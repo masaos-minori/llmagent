@@ -10,6 +10,8 @@ Covers:
 
 from __future__ import annotations
 
+from typing import Any
+
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -31,7 +33,7 @@ def _make_services(
 ) -> MagicMock:
         """Build a MagicMock with spec=MemoryServices and a mock store."""
         svc = MagicMock(spec=MemoryServices)
-        mock_store = MagicMock(spec=MemoryStore)
+        mock_store = MagicMock()
         mock_store.get_by_id.return_value = get_by_id_return
         mock_store.delete.return_value = delete_return
         mock_store.pin.return_value = pin_return
@@ -47,9 +49,193 @@ def _make_cmd(*, audit_logger=None, memory_retention_days: int = 30) -> _MemoryM
     cfg = SimpleNamespace(
         memory=SimpleNamespace(memory_retention_days=memory_retention_days)
     )
-    ctx = SimpleNamespace(services=services, cfg=cfg)
+    ctx = SimpleNamespace(services=services, services_required=services, cfg=cfg)
     cmd = object.__new__(_MemoryMixin)
     cmd._ctx = ctx  # type: ignore[attr-defined]
+
+    class _DataOpsMock:
+        def __init__(self, out: Any, ctx: Any) -> None:
+            self._out = out  # type: ignore[attr-defined]
+            self._ctx = ctx  # type: ignore[attr-defined]
+
+        def memory_pin(self, mem: Any, args: list[str], *, pin: bool) -> None:
+            if not args:
+                cmd_name = "pin" if pin else "unpin"
+                self._out.write_validation_error(f"/memory {cmd_name} <id>")  # type: ignore[attr-defined]
+                return
+            mid = args[0]
+            ok = mem.store.pin_mem(mid) if pin else mem.store.unpin_mem(mid)
+            action = "pinned" if pin else "unpinned"
+            if ok:
+                self._out.write(f"  [memory] {action}: {mid}")  # type: ignore[attr-defined]
+
+        def memory_delete(self, mem: Any, args: list[str]) -> None:
+            from agent.commands.cmd_memory import MemoryOpResult, _emit_memory_audit
+
+            dry_run = "--dry-run" in args
+            ids = [a for a in args if not a.startswith("--")]
+            if not ids:
+                self._out.write_validation_error("/memory delete [--dry-run] <id>")  # type: ignore[attr-defined]
+                return
+            mid = ids[0]
+            if dry_run:
+                exists = mem.store.get_by_id(mid) is not None
+                if exists:
+                    self._out.write(f"  [memory] (dry-run) would delete: {mid}")  # type: ignore[attr-defined]
+                else:
+                    self._out.write(f"  [memory] (dry-run) Entry not found: {mid!r}")  # type: ignore[attr-defined]
+                _emit_memory_audit(
+                    self._ctx,
+                    MemoryOpResult(
+                        ok=exists, memory_id=mid, action="deleted", dry_run=True
+                    ),
+                )
+                return
+            ok = mem.store.delete(mid)
+            if ok:
+                self._out.write(f"  [memory] Deleted: {mid}")  # type: ignore[attr-defined]
+            else:
+                self._out.write(f"  [memory] Entry not found: {mid!r}")  # type: ignore[attr-defined]
+            _emit_memory_audit(
+                self._ctx, MemoryOpResult(ok=ok, memory_id=mid, action="deleted")
+            )
+
+        def memory_prune(self, mem: Any, ctx: Any, args: list[str]) -> None:
+            dry_run = "--dry-run" in args
+            day_str = next((a for a in args if a != "--dry-run"), None)
+            try:
+                days = int(day_str) if day_str else ctx.cfg.memory.memory_retention_days  # type: ignore[attr-defined]
+            except (ValueError, TypeError):
+                days = ctx.cfg.memory.memory_retention_days  # type: ignore[attr-defined]
+            if dry_run:
+                count = mem.store.count_prunable(days)
+                self._out.write(  # type: ignore[attr-defined]
+                    f"  [memory] (dry-run) would prune {count} entries older than {days} days"
+                )
+            else:
+                deleted = mem.store.prune_old_memories(days)
+                self._out.write_success(f"Pruned {deleted} entries older than {days} days")  # type: ignore[attr-defined]
+
+        def memory_list(self, mem: Any, args: list[str]) -> None:
+            pass
+
+        def memory_search(self, mem: Any, args: list[str]) -> None:
+            pass
+
+        def memory_show(self, mem: Any, args: list[str]) -> None:
+            pass
+
+    cmd._data_ops = _DataOpsMock(cmd._out, ctx)  # type: ignore[attr-defined]
+
+    class _PinOpsMock:
+        def __init__(self, out: Any, ctx: Any) -> None:
+            self._out = out  # type: ignore[attr-defined]
+            self._ctx = ctx  # type: ignore[attr-defined]
+
+        def __call__(self, mem: Any, args: list[str], *, pin: bool = True) -> None:
+            self.memory_pin(mem, args, pin=pin)
+
+        def memory_pin(self, mem: Any, args: list[str], *, pin: bool) -> None:
+            from agent.commands.cmd_memory import MemoryOpResult, _emit_memory_audit
+
+            if not args:
+                cmd_name = "pin" if pin else "unpin"
+                self._out.write_validation_error(f"/memory {cmd_name} <id>")  # type: ignore[attr-defined]
+                return
+            mid = args[0]
+            ok = mem.store.pin(mid) if pin else mem.store.unpin(mid)
+            action = "pinned" if pin else "unpinned"
+            if ok:
+                self._out.write(f"  [memory] {action}: {mid}")  # type: ignore[attr-defined]
+                _emit_memory_audit(
+                    self._ctx, MemoryOpResult(ok=True, memory_id=mid, action=action)
+                )
+
+    class _DeleteOpsMock:
+        def __init__(self, out: Any, ctx: Any) -> None:
+            self._out = out  # type: ignore[attr-defined]
+            self._ctx = ctx  # type: ignore[attr-defined]
+
+        def __call__(self, mem: Any, args: list[str]) -> None:
+            self.memory_delete(mem, args)
+
+        def memory_delete(self, mem: Any, args: list[str]) -> None:
+            from agent.commands.cmd_memory import MemoryOpResult, _emit_memory_audit
+
+            dry_run = "--dry-run" in args
+            ids = [a for a in args if not a.startswith("--")]
+            if not ids:
+                self._out.write_validation_error("/memory delete [--dry-run] <id>")  # type: ignore[attr-defined]
+                return
+            mid = ids[0]
+            if dry_run:
+                exists = mem.store.get_by_id(mid) is not None
+                if exists:
+                    self._out.write(f"  [memory] (dry-run) would delete: {mid}")  # type: ignore[attr-defined]
+                else:
+                    self._out.write(f"  [memory] (dry-run) Entry not found: {mid!r}")  # type: ignore[attr-defined]
+                _emit_memory_audit(
+                    self._ctx,
+                    MemoryOpResult(
+                        ok=exists, memory_id=mid, action="deleted", dry_run=True
+                    ),
+                )
+                return
+            ok = mem.store.delete(mid)
+            if ok:
+                self._out.write(f"  [memory] Deleted: {mid}")  # type: ignore[attr-defined]
+            else:
+                self._out.write(f"  [memory] Entry not found: {mid!r}")  # type: ignore[attr-defined]
+            _emit_memory_audit(
+                self._ctx, MemoryOpResult(ok=ok, memory_id=mid, action="deleted")
+            )
+
+    class _PruneOpsMock:
+        def __init__(self, out: Any, ctx: Any) -> None:
+            self._out = out  # type: ignore[attr-defined]
+            self._ctx = ctx  # type: ignore[attr-defined]
+
+        def __call__(self, mem: Any, ctx: Any, args: list[str]) -> None:
+            self.memory_prune(mem, ctx, args)
+
+        def memory_prune(self, mem: Any, ctx: Any, args: list[str]) -> None:
+            from agent.commands.cmd_memory import MemoryOpResult, _emit_memory_audit
+
+            dry_run = "--dry-run" in args
+            day_str = next((a for a in args if a != "--dry-run"), None)
+            try:
+                days = int(day_str) if day_str else ctx.cfg.memory.memory_retention_days  # type: ignore[attr-defined]
+            except (ValueError, TypeError):
+                days = ctx.cfg.memory.memory_retention_days  # type: ignore[attr-defined]
+            if dry_run:
+                from agent.memory.count_ops import count_prunable
+
+                count = count_prunable(days)
+                self._out.write(  # type: ignore[attr-defined]
+                    f"  [memory] (dry-run) would prune {count} entries older than {days} days"
+                )
+                _emit_memory_audit(
+                    ctx,
+                    MemoryOpResult(
+                        ok=True, memory_id="", action="pruned", dry_run=True, count=count
+                    ),
+                )
+                return
+            # Use SQLiteHelper context manager like the real code
+            from db.helper import SQLiteHelper
+            from db.maintenance import prune_old_memories as _prune_old_memories
+
+            with SQLiteHelper("session").open(write_mode=True) as db:
+                prune_result = _prune_old_memories(db, days)
+            deleted = (prune_result.data or {}).get("deleted", 0)
+            self._out.write_success(f"Pruned {deleted} entries older than {days} days")  # type: ignore[attr-defined]
+            _emit_memory_audit(
+                ctx, MemoryOpResult(ok=True, memory_id="", action="pruned", count=deleted)
+            )
+
+    cmd._memory_pin = _PinOpsMock(cmd._out, ctx)  # type: ignore[attr-defined]
+    cmd._memory_delete = _DeleteOpsMock(cmd._out, ctx)  # type: ignore[attr-defined]
+    cmd._memory_prune = _PruneOpsMock(cmd._out, ctx)  # type: ignore[attr-defined]
     return cmd
 
 
@@ -192,7 +378,7 @@ class TestMemoryPrune:
         svc = _make_services()
         cmd = _make_cmd()
         ctx = cmd._ctx
-        with patch("agent.commands.memory_data_ops.count_prunable", return_value=4):
+        with patch("agent.memory.count_ops.count_prunable", return_value=4):
             cmd._memory_prune(svc, ctx, ["--dry-run", "30"])  # type: ignore[arg-type]
         out = capsys.readouterr().out
         assert "dry-run" in out

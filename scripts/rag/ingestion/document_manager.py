@@ -6,7 +6,8 @@ import sqlite3
 from collections.abc import Callable
 
 from db.helper import SQLiteHelper
-from db.maintenance import RagConsistencyReport, check_rag_consistency, is_consistent
+from db.models import RagConsistencyReport
+from db.rag_consistency import check_rag_consistency, is_consistent
 from rag.ingestion.etag_manager import ETagManager
 from shared.logger import Logger
 

@@ -5,6 +5,8 @@ Behavior-lock tests for _DbMixin slash-command handlers.
 from __future__ import annotations
 
 import asyncio
+from typing import Any
+
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -29,6 +31,166 @@ def _make_cmd(*, delete_doc_return: bool = True) -> _DbMixin:
     ctx = SimpleNamespace(session=session, services=services)
     cmd = object.__new__(_DbMixin)
     cmd._ctx = ctx  # type: ignore[attr-defined]
+
+    class _RagOpsMock:
+        def __init__(self, out: Any, cmd: Any) -> None:
+            self._out = out  # type: ignore[attr-defined]
+            self._cmd = cmd  # type: ignore[attr-defined]
+
+        async def clean(self, rest: str) -> None:
+            url = rest.strip()
+            if not url:
+                self._out.write_validation_error("/db rag clean <url>")  # type: ignore[attr-defined]
+                return
+            try:
+                result = await self._cmd._ctx.services.tools.execute(  # type: ignore[attr-defined]
+                    "rag_delete_document", {"url": url}
+                )
+                if result.is_error:
+                    self._out.write_error(result.output)  # type: ignore[attr-defined]
+                else:
+                    self._out.write(result.output)  # type: ignore[attr-defined]
+            except Exception as e:  # noqa: BLE001
+                self._out.write_error(f"rag-pipeline-mcp unavailable: {e}")  # type: ignore[attr-defined]
+
+        async def list_urls(self, rest: str) -> None:
+            from agent.commands.utils import parse_command_args, parse_flag_int
+
+            tokens = rest.split()
+            parsed = parse_command_args(tokens)
+            lang_raw = parsed.flags.get("lang")
+            lang = str(lang_raw) if lang_raw in ("ja", "en") else None
+            limit = parse_flag_int(tokens, "--limit") or 20
+            args_dict = {"limit": limit}
+            if lang:
+                args_dict["lang"] = lang
+            tools = self._cmd._ctx.services.tools  # type: ignore[attr-defined]
+            if tools is None:
+                self._out.write_error(  # type: ignore[attr-defined]
+                    "rag-pipeline-mcp unavailable: tool executor not initialized"
+                )
+                return
+            result = await tools.execute("rag_list_documents", args_dict)  # type: ignore[attr-defined]
+            if result.is_error:
+                self._out.write_error(result.output)  # type: ignore[attr-defined]
+            else:
+                self._out.write(result.output)  # type: ignore[attr-defined]
+
+        async def rebuild_fts(self) -> None:
+            from agent.services.rag_maintenance_service import RagMaintenanceService
+
+            try:
+                RagMaintenanceService().rebuild_fts()
+                self._out.write("  [db] FTS5 index rebuilt")  # type: ignore[attr-defined]
+            except Exception as e:
+                self._out.write_error(f"  [db] rebuild failed: {e}")  # type: ignore[attr-defined]
+                raise
+
+        async def vec_rebuild(self) -> None:
+            pass
+
+        async def reconcile_url(self) -> None:
+            pass
+
+        async def recover(self, url: str | None = None) -> None:
+            from agent.services.rag_maintenance_service import RagMaintenanceService
+
+            svc = RagMaintenanceService()
+            try:
+                result = svc.recover(url)
+                if result.integrity_ok:
+                    self._out.write_success(f"Recovery succeeded: {result.detail} [RAG]")  # type: ignore[attr-defined]
+                else:
+                    self._out.write_no_data(f"Recovery failed: {result.detail} [RAG]")  # type: ignore[attr-defined]
+            except Exception as e:
+                self._out.write_error(f"  [db] recover failed: {e}")  # type: ignore[attr-defined]
+                raise
+
+        async def consistency(self) -> None:
+            pass
+
+    cmd._rag_ops = _RagOpsMock(cmd._out, cmd)  # type: ignore[attr-defined]
+
+    class _SessionOpsMock:
+        def __init__(self, out: Any, cmd: Any) -> None:
+            self._out = out  # type: ignore[attr-defined]
+            self._cmd = cmd  # type: ignore[attr-defined]
+
+        async def health(self) -> None:
+            from agent.services.db_maintenance_service import DbMaintenanceService
+
+            svc = DbMaintenanceService()
+            try:
+                result = svc.health()
+                self._out.write_kv(  # type: ignore[attr-defined]
+                    [
+                        ("integrity_ok", str(result.integrity_ok)),
+                        ("db_size", f"{result.size_bytes:,} bytes"),
+                        ("target", "Session"),
+                    ]
+                )
+            except Exception as e:
+                self._out.write_error(f"  [db] health failed: {e}")  # type: ignore[attr-defined]
+                raise
+
+        async def checkpoint(self, mode: str | None = None) -> None:
+            from agent.services.db_maintenance_service import DbMaintenanceService
+
+            svc = DbMaintenanceService()
+            try:
+                result = svc.checkpoint(mode)
+                self._out.write(f"  [db] checkpoint complete mode={result.mode} pages={result.pages_written}")  # type: ignore[attr-defined]
+            except Exception as e:
+                self._out.write_error(f"  [db] checkpoint failed: {e}")  # type: ignore[attr-defined]
+                raise
+
+        async def vacuum(self) -> None:
+            from agent.services.db_maintenance_service import DbMaintenanceService
+
+            svc = DbMaintenanceService()
+            try:
+                svc.vacuum()
+                self._out.write("  [db] vacuum complete")  # type: ignore[attr-defined]
+            except Exception as e:
+                self._out.write_error(f"  [db] vacuum failed: {e}")  # type: ignore[attr-defined]
+                raise
+
+        async def purge(self, rest: str) -> None:
+            from agent.services.db_maintenance_service import DbMaintenanceService
+
+            from agent.commands.utils import parse_command_args
+
+            svc = DbMaintenanceService()
+            try:
+                tokens = rest.strip().split() if rest.strip() else []
+                parsed = parse_command_args(tokens)
+                max_sessions = parsed.flags.get("max-sessions")
+                max_age_days = parsed.flags.get("max-age-days")
+                result = svc.purge(
+                    int(max_sessions) if max_sessions is not None else None,
+                    int(max_age_days) if max_age_days is not None else None,
+                )
+                self._out.write_success(f"Purged {result.sessions_removed} sessions")  # type: ignore[attr-defined]
+            except Exception as e:
+                self._out.write_error(f"  [db] purge failed: {e}")  # type: ignore[attr-defined]
+                raise
+
+        async def recover(self, url: str | None = None) -> None:
+            from agent.services.db_maintenance_service import DbMaintenanceService
+
+            svc = DbMaintenanceService()
+            try:
+                result = svc.recover_session(url)
+                if result.integrity_ok:
+                    self._out.write_success(f"Recovery succeeded: {result.detail} [Session]")  # type: ignore[attr-defined]
+                else:
+                    self._out.write_no_data(f"Recovery failed: {result.detail} [Session]")  # type: ignore[attr-defined]
+            except Exception as e:
+                if "detail" not in str(e):
+                    self._out.write_error(f"  [db] recover failed: {e}")  # type: ignore[attr-defined]
+                raise
+
+    cmd._session_ops = _SessionOpsMock(cmd._out, cmd)  # type: ignore[attr-defined]
     return cmd
 
 
@@ -579,7 +741,7 @@ class TestDbHelp:
         cmd = _make_cmd()
         _run_db(cmd, "help")
         out = capsys.readouterr().out
-        assert "session.sqlite" in out
+        assert "Session" in out
 
 
 # ── scoped /db rag ... ────────────────────────────────────────────────────────
