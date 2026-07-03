@@ -29,16 +29,14 @@ def _audit_log(
         "event": "mcp_tool_exec",
         "source": "mcp_server",
         "ts": time.time(),
-        "session": session_id or "-",
-        "request": request_id or "-",
+        "session_id": session_id or "-",
+        "request_id": request_id or "-",
         "tool": action,
         "target": target,
         "outcome": outcome,
+        "server_key": server_key,
+        "error_type": error_type,
     }
     if detail:
         record["detail"] = detail
-    if server_key:
-        record["server_key"] = server_key
-    if error_type:
-        record["error_type"] = error_type
     server_logger.info(json.dumps(record, ensure_ascii=False))

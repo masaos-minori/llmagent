@@ -11,7 +11,6 @@ Ensures:
 from __future__ import annotations
 
 import json
-from typing import Any
 from unittest.mock import MagicMock
 
 from mcp.audit import _audit_log as _mcp_audit_log
@@ -69,7 +68,7 @@ class TestMcpAuditLogFormat:
             target="ls",
             outcome="ok",
         )
-        assert parsed["session"] == "-"
+        assert parsed["session_id"] == "-"
 
     def test_empty_request_id_becomes_dash(self) -> None:
         """Empty request_id must become dash in JSON-lines record."""
@@ -80,7 +79,7 @@ class TestMcpAuditLogFormat:
             target="ls",
             outcome="ok",
         )
-        assert parsed["request"] == "-"
+        assert parsed["request_id"] == "-"
 
     def test_emits_json_not_key_value(self) -> None:
         """MCP server audit log must use JSON-lines format, not key=value."""
@@ -108,11 +107,13 @@ class TestMcpAuditLogFormat:
             "event",
             "source",
             "ts",
-            "session",
-            "request",
+            "session_id",
+            "request_id",
             "tool",
             "target",
             "outcome",
+            "error_type",
+            "server_key",
         ):
             assert field in parsed
 
@@ -191,7 +192,7 @@ class TestMcpAuditLogFormat:
         assert parsed["error_type"] == "ConnectionRefusedError"
 
     def test_error_type_absent_when_ok(self) -> None:
-        """Rendered MCP audit log line omits error_type when outcome is ok and no error_type given."""
+        """error_type is always present; empty string when outcome is ok and no error_type given."""
         parsed = self._get_parsed(
             session_id="sess-1",
             request_id="req-1",
@@ -199,7 +200,7 @@ class TestMcpAuditLogFormat:
             target="repo/owner",
             outcome="ok",
         )
-        assert "error_type" not in parsed
+        assert parsed.get("error_type") == ""
 
 
 # ---------------------------------------------------------------------------
@@ -216,7 +217,8 @@ class TestAgentAuditLogFormat:
 
         ctx = MagicMock()
         ctx.services_required.audit_logger = MagicMock()
-        ctx.cfg.masked_fields = []
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-xyz"
         ctx.workflow.workflow_id = "wf-1"
         ctx.session.session_id = "sess-abc"
@@ -238,7 +240,8 @@ class TestAgentAuditLogFormat:
 
         ctx = MagicMock()
         ctx.services_required.audit_logger = MagicMock()
-        ctx.cfg.masked_fields = []
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-abc"
         ctx.workflow.workflow_id = ""
         ctx.session.session_id = ""
@@ -258,7 +261,8 @@ class TestAgentAuditLogFormat:
 
         ctx = MagicMock()
         ctx.services_required.audit_logger = MagicMock()
-        ctx.cfg.masked_fields = []
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-def"
         ctx.workflow.workflow_id = ""
         ctx.session.session_id = ""
@@ -277,7 +281,8 @@ class TestAgentAuditLogFormat:
 
         ctx = MagicMock()
         ctx.services_required.audit_logger = MagicMock()
-        ctx.cfg.masked_fields = []
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-ghi"
         ctx.workflow.workflow_id = "wf-2"
         ctx.session.session_id = "sess-def"
@@ -297,7 +302,8 @@ class TestAgentAuditLogFormat:
         correlation_id = "corr-123"
         ctx = MagicMock()
         ctx.services_required.audit_logger = MagicMock()
-        ctx.cfg.masked_fields = []
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-jkl"
         ctx.workflow.workflow_id = ""
         ctx.session.session_id = ""
@@ -316,7 +322,8 @@ class TestAgentAuditLogFormat:
 
         ctx = MagicMock()
         ctx.services_required.audit_logger = MagicMock()
-        ctx.cfg.masked_fields = []
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-mno"
         ctx.workflow.workflow_id = ""
         ctx.session.session_id = ""
