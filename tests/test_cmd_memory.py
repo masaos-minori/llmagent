@@ -5,7 +5,88 @@ Tests for _MemoryMixin._cmd_memory() CLI help and rebuild/import-jsonl behavior.
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+
+class _MockRebuildOps:
+    """Minimal mock of MemoryRebuildOps that delegates to the real implementation."""
+
+    def __init__(self, out):
+        self._out = out
+
+    def rebuild(self, mem, sub_tokens=None):
+        from agent.commands.memory_rebuild_ops import MemoryRebuildOps
+
+        # Create a minimal context for the real implementation
+        ctx = SimpleNamespace(
+            cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True, memory_embed_dim=1536)),
+            services=SimpleNamespace(audit_logger=None),
+            services_required=SimpleNamespace(memory=mem, audit_logger=None),
+            stats=SimpleNamespace(stat_memory_consistency_failures=0),
+        )
+        ops = MemoryRebuildOps(ctx, self._out)
+        ops.rebuild(mem, sub_tokens)
+
+    def rebuild_fts(self, mem):
+        from agent.commands.memory_rebuild_ops import MemoryRebuildOps
+
+        ctx = SimpleNamespace(
+            cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True)),
+            services=SimpleNamespace(audit_logger=None),
+            services_required=SimpleNamespace(memory=mem),
+            stats=SimpleNamespace(stat_memory_consistency_failures=0),
+        )
+        ops = MemoryRebuildOps(ctx, self._out)
+        ops.rebuild_fts(mem)
+
+    def rebuild_vec(self, mem):
+        from agent.commands.memory_rebuild_ops import MemoryRebuildOps
+
+        ctx = SimpleNamespace(
+            cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True)),
+            services=SimpleNamespace(audit_logger=None),
+            services_required=SimpleNamespace(memory=mem),
+            stats=SimpleNamespace(stat_memory_consistency_failures=0),
+        )
+        ops = MemoryRebuildOps(ctx, self._out)
+        ops.rebuild_vec(mem)
+
+    def check_consistency(self, mem):
+        from agent.commands.memory_rebuild_ops import MemoryRebuildOps
+
+        ctx = SimpleNamespace(
+            cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True)),
+            services=SimpleNamespace(audit_logger=None),
+            services_required=SimpleNamespace(memory=mem, audit_logger=None),
+            stats=SimpleNamespace(stat_memory_consistency_failures=0),
+        )
+        ops = MemoryRebuildOps(ctx, self._out)
+        ops.check_consistency(mem)
+
+
+class _MockDataOps:
+    """Minimal mock of MemoryDataOps."""
+
+    def __init__(self, out):
+        self._out = out
+
+    def memory_list(self, mem, sub_tokens=None):
+        pass
+
+    def memory_search(self, mem, sub_tokens=None):
+        pass
+
+    def memory_show(self, mem, sub_tokens=None):
+        pass
+
+    def memory_pin(self, mem, sub_tokens=None, pin=None):
+        pass
+
+    def memory_delete(self, mem, sub_tokens=None):
+        pass
+
+    def memory_prune(self, mem, ctx, sub_tokens=None):
+        pass
 
 
 def _make_mixin():
@@ -15,6 +96,7 @@ def _make_mixin():
     ctx = SimpleNamespace(
         cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True)),
         services=SimpleNamespace(audit_logger=None),
+        services_required=SimpleNamespace(memory=_make_memory_store()),
         stats=SimpleNamespace(stat_memory_consistency_failures=0),
     )
     messages: list[str] = []
@@ -33,6 +115,8 @@ def _make_mixin():
     mixin = _ConcreteMemoryMixin.__new__(_ConcreteMemoryMixin)
     mixin._ctx = ctx
     mixin._out = out
+    mixin._rebuild_ops = _MockRebuildOps(out)
+    mixin._data_ops = _MockDataOps(out)
     return mixin, messages
 
 
@@ -88,7 +172,7 @@ class TestMemoryRebuild:
         """Dry-run rebuild output should reference JSONL archive."""
         mixin, messages = _make_mixin()
         mem = _make_memory_store()
-        mixin._ctx.services.memory = mem
+        mixin._ctx.services_required.memory = mem
 
         with patch("agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)):
             mixin._cmd_memory("rebuild --dry-run")
@@ -101,7 +185,7 @@ class TestMemoryRebuild:
         """Actual rebuild output should reference JSONL archive."""
         mixin, messages = _make_mixin()
         mem = _make_memory_store()
-        mixin._ctx.services.memory = mem
+        mixin._ctx.services_required.memory = mem
 
         with patch("agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)):
             mixin._cmd_memory("rebuild")
@@ -114,7 +198,7 @@ class TestMemoryRebuild:
         """Actual rebuild output should clarify what is NOT replayed."""
         mixin, messages = _make_mixin()
         mem = _make_memory_store()
-        mixin._ctx.services.memory = mem
+        mixin._ctx.services_required.memory = mem
 
         with patch("agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)):
             mixin._cmd_memory("rebuild")
@@ -154,7 +238,7 @@ class TestMemoryCheckConsistency:
             ),
             ingestion=SimpleNamespace(_jsonl=SimpleNamespace(count_all=lambda: 12)),
         )
-        mixin._ctx.services.memory = mem
+        mixin._ctx.services_required.memory = mem
 
         mixin._cmd_memory("check-consistency")
 
@@ -174,7 +258,7 @@ class TestMemoryCheckConsistency:
             ),
             ingestion=SimpleNamespace(_jsonl=SimpleNamespace(count_all=lambda: 12)),
         )
-        mixin._ctx.services.memory = mem
+        mixin._ctx.services_required.memory = mem
 
         mixin._cmd_memory("check-consistency")
 
