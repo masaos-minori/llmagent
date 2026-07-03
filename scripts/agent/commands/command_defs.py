@@ -2,9 +2,14 @@
 """agent/commands/command_defs.py
 Declarative slash-command definition classes for CommandRegistry.
 
-Provides:
+Owns:
   SubcommandSpec — metadata for one subcommand
-  CommandDef     — metadata for one slash command
+  CommandDef     — metadata for one slash command (name, prefix, is_async, handler, help)
+
+Does NOT own:
+  _COMMANDS — the list of all built-in slash commands is defined in
+              agent.commands.command_defs_list.  To add or remove a built-in
+              command, edit that module, not this one.
 
 Import from here:  from agent.commands.command_defs import CommandDef, SubcommandSpec
 """

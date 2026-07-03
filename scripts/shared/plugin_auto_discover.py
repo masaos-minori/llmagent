@@ -72,15 +72,19 @@ def load_plugins(
     shadowed, allowed, strict_rejected = validate_tool_conflicts(
         known_tools, override_policy, strict_mode
     )
-    cmd_shadows = validate_command_conflicts(strict_mode)
+    cmd_shadows, cmd_strict_rejected = validate_command_conflicts(strict_mode)
 
-    if strict_mode and (failures or strict_rejected):
+    if strict_mode and (failures or strict_rejected or cmd_strict_rejected):
         parts: list[str] = []
         if failures:
             details = "; ".join(f.error for f in failures)
             parts.append(f"Plugin load failed ({len(failures)} error(s)): {details}")
         if strict_rejected:
             parts.append(f"Tool MCP conflicts rejected: {', '.join(strict_rejected)}")
+        if cmd_strict_rejected:
+            parts.append(
+                f"Command builtin conflicts rejected: {', '.join(cmd_strict_rejected)}"
+            )
         raise PluginLoadError("; ".join(parts))
 
     result = PluginLoadResult(
@@ -88,7 +92,7 @@ def load_plugins(
         failed=tuple(failures),
         tool_conflicts_shadowed=shadowed,
         tool_conflicts_allowed=allowed,
-        command_shadows=cmd_shadows,
+        command_shadows_rejected=cmd_shadows,
     )
     _set_last_load_result(result)
     return result

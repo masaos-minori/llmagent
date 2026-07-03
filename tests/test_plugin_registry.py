@@ -370,6 +370,71 @@ class TestReset:
         assert plugin_registry.get_pipeline_post_stages() == []
 
 
+class TestRegistryIsolation:
+    def test_repeated_load_accumulates_registrations(self, tmp_path: Path) -> None:
+        """Sequential load_plugins() calls add to existing registries without clearing."""
+        dir_a = tmp_path / "plugins_a"
+        dir_a.mkdir()
+        (dir_a / "tool_a.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("isolation_tool_a")
+                async def t(args: dict) -> tuple[str, bool]:
+                    return "", False
+            """)
+        )
+        dir_b = tmp_path / "plugins_b"
+        dir_b.mkdir()
+        (dir_b / "tool_b.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("isolation_tool_b")
+                async def t(args: dict) -> tuple[str, bool]:
+                    return "", False
+            """)
+        )
+
+        plugin_registry.load_plugins(dir_a)
+        plugin_registry.load_plugins(dir_b)
+
+        assert plugin_registry.get_tool("isolation_tool_a") is not None
+        assert plugin_registry.get_tool("isolation_tool_b") is not None
+
+    def test_reset_between_loads_yields_clean_state(self, tmp_path: Path) -> None:
+        """_reset_for_testing() between load_plugins() calls clears earlier registrations."""
+        dir_a = tmp_path / "plugins_a"
+        dir_a.mkdir()
+        (dir_a / "tool_a.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("isolation_reset_tool_a")
+                async def t(args: dict) -> tuple[str, bool]:
+                    return "", False
+            """)
+        )
+        dir_b = tmp_path / "plugins_b"
+        dir_b.mkdir()
+        (dir_b / "tool_b.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_tool
+
+                @register_tool("isolation_reset_tool_b")
+                async def t(args: dict) -> tuple[str, bool]:
+                    return "", False
+            """)
+        )
+
+        plugin_registry.load_plugins(dir_a)
+        plugin_registry._reset_for_testing()
+        plugin_registry.load_plugins(dir_b)
+
+        assert plugin_registry.get_tool("isolation_reset_tool_a") is None
+        assert plugin_registry.get_tool("isolation_reset_tool_b") is not None
+
+
 # ── Strict plugin loading mode ────────────────────────────────────────────────
 
 
@@ -626,9 +691,73 @@ class TestCommandShadowLogging:
                 plugin_registry.load_plugins(tmp_path, strict_mode=False)
 
             info_records = [r for r in caplog.records if r.levelno == logging.INFO]
-            assert any("command shadow" in r.message for r in info_records)
+            assert any("command shadow rejected" in r.message for r in info_records)
+            assert plugin_registry.get_command("/debug") is None
         finally:
             plugin_registry._builtin_command_names[0] = frozenset()
+
+
+class TestCommandShadowRejection:
+    def test_shadow_command_removed_from_registry(self, tmp_path: Path) -> None:
+        plugin_registry.register_builtin_commands(frozenset({"/help"}))
+        (tmp_path / "shadow_help.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_command
+
+                @register_command("/help")
+                async def cmd(ctx, args):
+                    pass
+            """)
+        )
+        plugin_registry.load_plugins(tmp_path, strict_mode=False)
+        assert plugin_registry.get_command("/help") is None
+
+    def test_non_shadow_command_not_removed(self, tmp_path: Path) -> None:
+        plugin_registry.register_builtin_commands(frozenset({"/help"}))
+        (tmp_path / "custom_cmd.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_command
+
+                @register_command("/my_custom")
+                async def cmd(ctx, args):
+                    pass
+            """)
+        )
+        plugin_registry.load_plugins(tmp_path, strict_mode=False)
+        assert plugin_registry.get_command("/my_custom") is not None
+
+    def test_shadow_strict_mode_raises_plugin_load_error(self, tmp_path: Path) -> None:
+        plugin_registry.register_builtin_commands(frozenset({"/help"}))
+        (tmp_path / "shadow_help.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_command
+
+                @register_command("/help")
+                async def cmd(ctx, args):
+                    pass
+            """)
+        )
+        with pytest.raises(
+            plugin_registry.PluginLoadError, match="Command builtin conflicts rejected"
+        ):
+            plugin_registry.load_plugins(tmp_path, strict_mode=True)
+
+    def test_shadow_strict_mode_message_contains_command_name(
+        self, tmp_path: Path
+    ) -> None:
+        plugin_registry.register_builtin_commands(frozenset({"/help"}))
+        (tmp_path / "shadow_help.py").write_text(
+            textwrap.dedent("""\
+                from shared.plugin_registry import register_command
+
+                @register_command("/help")
+                async def cmd(ctx, args):
+                    pass
+            """)
+        )
+        with pytest.raises(plugin_registry.PluginLoadError) as exc_info:
+            plugin_registry.load_plugins(tmp_path, strict_mode=True)
+        assert "/help" in str(exc_info.value)
 
 
 class TestStrictModeToolConflict:
@@ -781,7 +910,7 @@ class TestStructuredLoadResultRegression:
         assert result.failed == ()
         assert result.tool_conflicts_shadowed == 0
         assert result.tool_conflicts_allowed == 0
-        assert result.command_shadows == 0
+        assert result.command_shadows_rejected == 0
 
     def test_syntax_error_plugin_in_failed(self, tmp_path: Path):
         (tmp_path / "bad.py").write_text("def f(\n")
@@ -822,7 +951,7 @@ class TestStructuredLoadResultRegression:
             """)
         )
         result = plugin_registry.load_plugins(tmp_path)
-        assert result.command_shadows > 0
+        assert result.command_shadows_rejected > 0
 
     def test_get_last_load_result_returns_most_recent(self, tmp_path: Path):
         (tmp_path / "plugin_a.py").write_text(

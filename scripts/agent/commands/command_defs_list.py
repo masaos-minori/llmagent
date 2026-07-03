@@ -1,7 +1,20 @@
 """command_defs_list.py — Built-in slash command definitions for AgentREPL.
 
-This module contains the _COMMANDS list that defines all built-in slash commands.
-For the CommandDef class definition, see agent.commands.command_defs.
+This module is the SINGLE SOURCE OF TRUTH for the _COMMANDS list.
+All built-in slash commands are defined here and only here.
+
+Owns:
+  _COMMANDS: list[CommandDef] — ordered list of all built-in slash commands.
+                                Exact-match commands are listed first;
+                                prefix commands follow.
+
+Does NOT own:
+  CommandDef / SubcommandSpec dataclasses — defined in agent.commands.command_defs.
+
+To add a built-in command:
+  1. Append (or insert) a CommandDef(...) entry in _COMMANDS below.
+  2. Implement the corresponding _cmd_<name> handler in the appropriate mixin.
+  3. Do NOT add CommandDef entries anywhere else.
 """
 
 from __future__ import annotations

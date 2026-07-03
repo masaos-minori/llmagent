@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import asyncio
 
-
 import httpx
 import pytest
 import respx
+import shared.plugin_registry as plugin_registry
 from shared.mcp_config import McpServerConfig, McpServerHealthRegistry
 from shared.tool_executor import ToolExecutor
 
@@ -158,21 +158,21 @@ async def test_a10_health_check_unavailable_rejects_call():
 
 @pytest.mark.asyncio
 async def test_a11_plugin_tool_error_does_not_propagate():
-    from shared import plugin_registry
+    plugin_registry._reset_for_testing()
+    try:
 
-    plugin_registry._tools["_test_failing_plugin"] = (
-        lambda args: (_ for _ in ()).throw(RuntimeError("exploded")),
-        "test",
-    )
+        @plugin_registry.register_tool("_test_failing_plugin")
+        async def _failing_handler(args: dict) -> tuple[str, bool]:
+            raise RuntimeError("exploded")
 
-    async with httpx.AsyncClient() as http:
-        executor = _make_http_executor(http)
-        result = await executor.execute("_test_failing_plugin", {})
+        async with httpx.AsyncClient() as http:
+            executor = _make_http_executor(http)
+            result = await executor.execute("_test_failing_plugin", {})
 
-    plugin_registry._tools.pop("_test_failing_plugin", None)
-
-    assert result.is_error
-    assert "plugin error" in result.output
+        assert result.is_error
+        assert "plugin error" in result.output
+    finally:
+        plugin_registry._reset_for_testing()
 
 
 # ── TC-A12: Concurrent HTTP calls — all 5 complete ───────────────────────────

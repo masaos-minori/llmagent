@@ -92,7 +92,8 @@
   │   │   │   └─ exceptions.py                # メモリ例外定義
   │   │   ├─ commands/
   │   │   │   ├─ registry.py                  # CommandRegistry: スラッシュコマンドディスパッチャ (13 mixins)
-  │   │   │   ├─ command_defs.py              # CommandDef / SubcommandSpec データクラス (コマンド定義の単一ソース)
+  │   │   │   ├─ command_defs.py              # CommandDef / SubcommandSpec データクラス (データクラス定義のみ; _COMMANDS は持たない)
+  │   │   │   ├─ command_defs_list.py         # _COMMANDS: 全組み込みスラッシュコマンドの単一ソース (コマンド追加はここへ)
   │   │   │   ├─ mixin_base.py                # MixinBase: 全 mixin の共通基底クラス
   │   │   │   ├─ output_port.py               # OutputPort / CliOutputPort: コマンド出力インタフェース
   │   │   │   ├─ enums.py                     # コマンド列挙型

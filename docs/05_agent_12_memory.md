@@ -189,7 +189,16 @@ The memory layer has a 3-layer activation gate that controls when memory operati
 | `repo` | `str` | Repository name for context filtering |
 | `branch` | `str` | Git branch for context filtering |
 
-> **Current behavior:** The `branch` field is actively used in `FtsRetriever._context_boost()` as a relevance rescoring signal. It is NOT merely stored metadata. Branch, project, and repo are passed to `HybridRetriever.search()` and affect result ranking — records without matching branch are still returned but ranked lower.
+> **Current behavior:** When a non-empty branch is provided, retrieval applies a hard SQL
+> filter that includes only:
+> - memories with `branch = ''` (global memories — always included)
+> - memories with `branch = <current branch>`
+>
+> Memories from other branches are excluded entirely (not merely ranked lower).
+> In addition, `scoring.context_boost()` in `scoring.py` applies a stronger boost
+> (`_CONTEXT_MATCH_BOOST + 0.05`) for branch matches than for project or repo matches
+> (`_CONTEXT_MATCH_BOOST`). When branch is empty, no filter is applied and all memories
+> are eligible.
 | `content` | `str` | Full message content |
 | `summary` | `str` | Short summary of the content |
 | `tags` | `list[str]` | Keyword tags for classification |

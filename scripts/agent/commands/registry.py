@@ -6,17 +6,27 @@ CommandRegistry inherits command groups from mixin classes.
 All _cmd_* methods operate solely on AgentContext injected in __init__,
 with no dependency on AgentREPL itself.
 
-Mixins:
-  cmd_session.py  — _SessionMixin:  /session commands
-  cmd_mcp.py      — _McpMixin:      /mcp commands
-  cmd_config.py   — _ConfigMixin:   /config, /stats, /set, /reload
-  cmd_context.py  — _ContextMixin:  /context, /clear, /undo, /history, /system
-  cmd_db.py       — _DbMixin:       /db
-  cmd_tooling.py  — _ToolingMixin:  /tool, /plan
+Mixins (keep in sync with CommandRegistry base class list):
+  cmd_session.py    — _SessionMixin:    /session commands
+  cmd_mcp.py        — _McpMixin:        /mcp commands
+  cmd_config.py     — _ConfigMixin:     /config, /stats, /set, /reload
+  cmd_context.py    — _ContextMixin:    /context, /clear, /undo, /history, /system
+  cmd_db.py         — _DbMixin:         /db
+  cmd_tooling.py    — _ToolingMixin:    /tool, /plan
   cmd_debug.py      — _DebugMixin:      /debug
+  cmd_audit.py      — _AuditMixin:      /audit
   cmd_rag_export.py — _RagExportMixin:  /export, /compact, /rag
-  cmd_memory.py   — _MemoryMixin:   /memory
-  cmd_mdq.py      — _MdqMixin:      /mdq commands
+  cmd_memory.py     — _MemoryMixin:     /memory
+  cmd_workflow.py   — _WorkflowMixin:   /approve, /reject
+  cmd_plugins.py    — _PluginsMixin:    /plugin
+  cmd_mdq.py        — _MdqMixin:        /mdq commands
+
+_COMMANDS ownership:
+  _COMMANDS is IMPORTED from agent.commands.command_defs_list.
+  It is NOT defined in this module.
+  This module owns: dispatch behavior (dispatch(), _get_handler(),
+                    _dispatch_plugin()) and the fail-fast handler
+                    validation in __init__.
 """
 
 import asyncio
@@ -77,7 +87,7 @@ class CommandRegistry(
                     f"CommandDef references unknown handler: {_cmd.handler!r}"
                 )
 
-    def _get_handler(self, cmd: CommandDef, is_async: bool, /) -> Callable[..., Any]:
+    def _get_handler(self, cmd: CommandDef) -> Callable[..., Any]:
         """Return the bound callable for cmd.handler; raises AttributeError if missing."""
         handler = getattr(self, cmd.handler, None)
         if handler is None:
@@ -117,10 +127,10 @@ class CommandRegistry(
         if not line:
             return False
         for cmd in _COMMANDS:
-            handler = self._get_handler(cmd, cmd.is_async)
+            handler = self._get_handler(cmd)
             if cmd.prefix:
                 if line == cmd.name or line.startswith(cmd.name + " "):
-                    args = line[len(cmd.name) :]
+                    args = line[len(cmd.name) :].strip()
                     if cmd.is_async:
                         await handler(args)
                     else:
@@ -141,8 +151,8 @@ class CommandRegistry(
         """Dispatch to the first matching registered plugin command; return True if matched."""
         for cmd_name, (handler, is_prefix) in plugin_registry.iter_commands().items():
             args: str = ""
-            if is_prefix and line.startswith(cmd_name):
-                args = line[len(cmd_name) :]
+            if is_prefix and (line == cmd_name or line.startswith(cmd_name + " ")):
+                args = line[len(cmd_name) :].strip()
             elif not is_prefix and line == cmd_name:
                 pass  # args stays empty
             else:

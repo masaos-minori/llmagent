@@ -229,6 +229,7 @@ async def run_pipeline_stages(
 
 # ── Plugin auto-discovery (re-exported from plugin_auto_discover) ──────────────
 
+
 # Use lazy access so patches on shared.plugin_auto_discover propagate correctly.
 def get_last_load_result() -> PluginLoadResult | None:  # noqa: F811 — replaces re-export
     """Return the most recent PluginLoadResult, or None before first load."""
@@ -249,11 +250,22 @@ def load_plugins(  # noqa: F811 — replaces re-export
     """Import all *.py files from plugin_dir; returns PluginLoadResult with success/failure details."""
     from shared.plugin_auto_discover import load_plugins as _load  # noqa: PLC0415
 
-    return _load(plugin_dir, known_tools=known_tools, override_policy=override_policy, strict_mode=strict_mode)
+    return _load(
+        plugin_dir,
+        known_tools=known_tools,
+        override_policy=override_policy,
+        strict_mode=strict_mode,
+    )
 
 
 def _reset_for_testing() -> None:  # noqa: F811 — replaces re-export
-    """Clear all registries. For test use only. Do not call from production code."""
+    """Clear all registries and reset module-level state.
+
+    For test use only. Do not call from production code.
+    Call at the start (and optionally end) of each test that loads plugins
+    or registers commands/tools directly. This is the only supported way
+    to clear global registry state between tests.
+    """
     from shared.plugin_auto_discover import (
         _reset_for_testing as _reset,  # noqa: PLC0415
     )
@@ -262,6 +274,7 @@ def _reset_for_testing() -> None:  # noqa: F811 — replaces re-export
 
 
 # ── Conflict validation (re-exported from plugin_conflicts for backward compat) ─
+
 
 def _validate_tool_conflicts(  # noqa: F811 — re-export with underscore prefix
     known_tools: frozenset[str],
@@ -278,8 +291,8 @@ def _validate_tool_conflicts(  # noqa: F811 — re-export with underscore prefix
 
 def _validate_command_conflicts(  # noqa: F811 — re-export with underscore prefix
     strict_mode: bool = False,
-) -> int:
-    """Warn when a plugin command shadows a built-in command name. Backward compat alias."""
+) -> tuple[int, list[str]]:
+    """Reject plugin commands shadowing built-in names. Backward compat alias."""
     from shared.plugin_conflicts import (
         validate_command_conflicts as _validate,  # noqa: PLC0415
     )

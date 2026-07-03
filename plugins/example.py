@@ -14,6 +14,10 @@ from shared.plugin_registry import (
     register_tool,
 )
 
+# ── Feature flags ─────────────────────────────────────────────────────────────
+# Set to True to activate post-rerank score filtering.
+ENABLE_SCORE_FILTER = False
+
 # ── Slash command: /ping ──────────────────────────────────────────────────────
 
 
@@ -40,8 +44,9 @@ async def tool_echo(args: dict) -> tuple[str, bool]:
 async def stage_score_filter(hits: list, query: str) -> list:
     """Drop hits with score below 0.05.
 
-    Disabled by default — remove the early return to activate.
+    Disabled by default (ENABLE_SCORE_FILTER = False).
+    Set ENABLE_SCORE_FILTER = True to activate.
     """
-    # Remove the next line to enable filtering
-    return hits
-    return [h for h in hits if h.get("score", 1.0) >= 0.05]  # noqa: F821
+    if not ENABLE_SCORE_FILTER:
+        return hits
+    return [h for h in hits if h.get("score", 1.0) >= 0.05]

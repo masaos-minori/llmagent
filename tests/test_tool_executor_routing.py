@@ -283,10 +283,14 @@ class TestHttpTransportErrors:
 
 
 class TestToolExecutorExecute:
-    @pytest.mark.asyncio
-    async def test_plugin_tool_success_returns_empty_x_request_id(self) -> None:
+    @pytest.fixture(autouse=True)
+    def _reset_plugin_registry(self):
+        plugin_registry._reset_for_testing()
+        yield
         plugin_registry._reset_for_testing()
 
+    @pytest.mark.asyncio
+    async def test_plugin_tool_success_returns_empty_x_request_id(self) -> None:
         @plugin_registry.register_tool("plugin_ok_tool")
         async def _handler(args: dict) -> tuple[str, bool]:
             return "plugin result", False
@@ -297,12 +301,9 @@ class TestToolExecutorExecute:
         assert result == "plugin result"
         assert not is_err
         assert x_req == ""
-        plugin_registry._reset_for_testing()
 
     @pytest.mark.asyncio
     async def test_plugin_tool_error_returns_empty_x_request_id(self) -> None:
-        plugin_registry._reset_for_testing()
-
         @plugin_registry.register_tool("plugin_bad_tool")
         async def _bad_handler(args: dict) -> tuple[str, bool]:
             raise RuntimeError("boom")
@@ -313,7 +314,6 @@ class TestToolExecutorExecute:
         assert is_err
         assert "[plugin error]" in result
         assert x_req == ""
-        plugin_registry._reset_for_testing()
 
     @pytest.mark.asyncio
     async def test_cache_hit_returns_empty_x_request_id(self) -> None:

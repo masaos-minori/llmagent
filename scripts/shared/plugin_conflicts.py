@@ -62,11 +62,11 @@ def validate_tool_conflicts(
     return (shadowed_count, allowed_count, strict_rejected)
 
 
-def validate_command_conflicts(strict_mode: bool = False) -> int:
-    """Warn when a plugin command shadows a built-in command name.
+def validate_command_conflicts(strict_mode: bool = False) -> tuple[int, list[str]]:
+    """Reject plugin commands that shadow a built-in command name.
 
-    Uses names registered via register_builtin_commands(). Returns the number
-    of shadowed commands.
+    Uses names registered via register_builtin_commands(). Removes shadowed
+    commands from _commands and returns (shadowed_count, strict_rejected_names).
     """
     from shared.plugin_registries import (  # noqa: PLC0415 — break circular import
         _builtin_command_names,
@@ -74,24 +74,22 @@ def validate_command_conflicts(strict_mode: bool = False) -> int:
     )
 
     if not _builtin_command_names[0]:
-        return 0
+        return (0, [])
 
     shadowed_count = 0
+    strict_rejected: list[str] = []
     for name in list(_commands.keys()):
         if name in _builtin_command_names[0]:
             _fn, _prefix, module_name = _commands[name]
+            del _commands[name]
             shadowed_count += 1
+            if strict_mode:
+                strict_rejected.append(name)
             logger.info(
-                "[plugin] command shadow: '%s' in '%s' shadows built-in",
+                "[plugin] command shadow rejected: '%s' in '%s' shadows built-in",
                 name,
                 module_name,
             )
-            if strict_mode:
-                logger.error(
-                    "[plugin] command shadow: '%s' in '%s' shadows built-in (strict mode)",
-                    name,
-                    module_name,
-                )
     if shadowed_count:
-        logger.info("[plugin] command shadows: %d", shadowed_count)
-    return shadowed_count
+        logger.info("[plugin] command shadows rejected: %d", shadowed_count)
+    return (shadowed_count, strict_rejected)

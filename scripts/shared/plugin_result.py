@@ -16,7 +16,7 @@ class PluginLoadResult:
     failed: tuple[PluginFailure, ...]
     tool_conflicts_shadowed: int = 0
     tool_conflicts_allowed: int = 0
-    command_shadows: int = 0
+    command_shadows_rejected: int = 0
 
 
 class PluginLoadError(RuntimeError):
