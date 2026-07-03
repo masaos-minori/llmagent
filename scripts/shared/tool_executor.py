@@ -11,17 +11,15 @@ configured transport.
 
 import asyncio
 import contextlib
-import hashlib
 import logging
 import time
 from collections import OrderedDict
-from dataclasses import dataclass
 from typing import Any, Protocol
 
 import httpx
-import orjson
 
 from shared import plugin_registry
+from shared.http_transport import HttpTransport, TransportError
 from shared.json_utils import dumps as _json_dumps
 from shared.mcp_config import (
     McpServerConfig,
@@ -30,190 +28,21 @@ from shared.mcp_config import (
 )
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_cache import CacheEntry
-from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
+from shared.tool_executor_helpers import (  # noqa: F401 — re-export for backward compat
+    format_transport_error,
+    is_side_effect,
+    tool_hash_key,
+)
+from shared.transport_dto import (
+    ToolCallResult,  # noqa: F401 — re-export for backward compat
+    TransportErrorInfo,  # noqa: F401 — re-export for backward compat
+)
 
 logger = logging.getLogger(__name__)
 
 # Plugin tool return value: (output: str, is_error: bool)
 _PLUGIN_RESULT_TUPLE_LENGTH = 2
 
-
-# ── Typed result DTOs ─────────────────────────────────────────────────────────
-
-
-@dataclass(frozen=True)
-class ToolCallResult:
-    """Typed result from a single tool call execution."""
-
-    output: str
-    is_error: bool
-    request_id: str  # x-request-id from HTTP transport; "" for plugin/cache
-    server_key: str  # server key that handled the call; "" for plugin tools
-    error_type: str = ""  # "transport" | "tool" | "" (empty on success)
-
-    @classmethod
-    def from_transport(
-        cls, output: str, is_error: bool, request_id: str = ""
-    ) -> "ToolCallResult":
-        """Construct a ToolCallResult with default server_key and error_type."""
-        return cls(
-            output=output,
-            is_error=is_error,
-            request_id=request_id,
-            server_key="",
-            error_type="tool" if is_error else "",
-        )
-
-
-@dataclass(frozen=True)
-class TransportErrorInfo:
-    """Structured error info for LLM/tool transport failures (audit logs)."""
-
-    summary: str
-    detail: str  # JSON-encoded dict for audit log
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Transport implementations
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-class TransportError(Exception):
-    """Raised by transport layers when a transport-level failure occurs.
-
-    Distinguishes transport failures (network down, timeout, process crash)
-    from tool-level errors (MCP server responds with is_error=true).
-    """
-
-
-class HttpTransport:
-    """Calls /v1/call_tool on a running HTTP MCP server via httpx."""
-
-    def __init__(
-        self,
-        http: httpx.AsyncClient,
-        base_url: str,
-        server_key: str,
-        cfg: McpServerConfig | None = None,
-        timeout_sec: float = 60.0,
-    ) -> None:
-        self._http = http
-        self._base_url = base_url
-        self._server_key = server_key
-        self._auth_token: str = cfg.auth_token if cfg is not None else ""
-        self._timeout = timeout_sec
-        self._session_id: str = ""
-
-    def set_session_id(self, session_id: str) -> None:
-        """Inject session ID to be forwarded as X-Session-Id header on every call."""
-        self._session_id = session_id
-
-    @staticmethod
-    def _parse_http_response(resp: httpx.Response) -> ToolCallResult:
-        """Parse HTTP response body and return a ToolCallResult.
-
-        Raises ValueError if the response structure is invalid.
-        """
-        data = orjson.loads(resp.content)
-        if not isinstance(data, dict):
-            raise ValueError(
-                f"MCP /v1/call_tool returned non-dict: {type(data).__name__}"
-            )
-        result_val = data.get("result")
-        if not isinstance(result_val, str):
-            raise ValueError("MCP /v1/call_tool missing 'result' str field")
-        is_error_val = data.get("is_error", False)
-        if not isinstance(is_error_val, bool):
-            raise ValueError(
-                f"MCP 'is_error' must be bool, got {type(is_error_val).__name__}"
-            )
-        x_request_id = resp.headers.get("x-request-id", "")
-        return ToolCallResult.from_transport(
-            output=result_val, is_error=is_error_val, request_id=x_request_id
-        )
-
-    _RETRYABLE_STATUS: frozenset[int] = frozenset({429, 502, 503, 504})
-    _RETRY_MAX: int = 3
-
-    async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
-        """POST to /v1/call_tool and return ToolCallResult.
-
-        Raises TransportError on transport-level failures (network errors,
-        timeouts, invalid responses).  Tool-level errors from the MCP server
-        are returned as-is with is_error=True in the result.
-        """
-        headers: dict[str, str] = {}
-        if self._auth_token:
-            headers["Authorization"] = f"Bearer {self._auth_token}"
-        if self._session_id:
-            headers["X-Session-Id"] = self._session_id
-
-        timeout = httpx.Timeout(self._timeout) if self._timeout > 0 else None
-        last_exc: Exception | None = None
-        for attempt in range(self._RETRY_MAX):
-            try:
-                resp = await self._http.post(
-                    f"{self._base_url}/v1/call_tool",
-                    json={"name": name, "args": args},
-                    headers=headers,
-                    timeout=timeout,
-                )
-                if resp.status_code in self._RETRYABLE_STATUS:
-                    wait_sec = 2 ** (self._RETRY_MAX - attempt - 1)  # 4, 2, 1
-                    logger.warning(
-                        "HTTP %s from %s; retrying in %.0fs (attempt %d/%d)",
-                        resp.status_code,
-                        self._base_url,
-                        wait_sec,
-                        attempt + 1,
-                        self._RETRY_MAX,
-                    )
-                    await asyncio.sleep(wait_sec)
-                    continue
-                resp.raise_for_status()
-                result = self._parse_http_response(resp)
-                return ToolCallResult(
-                    output=result.output,
-                    is_error=result.is_error,
-                    request_id=result.request_id,
-                    server_key=self._server_key,
-                    error_type=result.error_type,
-                )
-            except httpx.TimeoutException as e:
-                msg = f"[TimeoutException] tool={name} url={self._base_url}: {e}"
-                logger.warning(msg)
-                last_exc = TransportError(msg)
-                break  # timeout = non-retryable
-            except httpx.HTTPStatusError as e:
-                msg = (
-                    f"[HTTPStatusError] tool={name} url={self._base_url}"
-                    f" status={e.response.status_code}"
-                    f" response={e.response.text[:300]!r}"
-                    f" — check {self._base_url}/health"
-                )
-                logger.warning(msg)
-                last_exc = TransportError(msg)
-                break
-            except (httpx.RequestError, ValueError) as e:
-                msg = (
-                    f"[{type(e).__name__}] tool={name} url={self._base_url}: {e}"
-                    f" — check {self._base_url}/health"
-                )
-                logger.warning(msg)
-                last_exc = TransportError(msg)
-                break
-        else:
-            msg = f"[Retry exhausted] tool={name} url={self._base_url} after {self._RETRY_MAX} attempts"
-            logger.error(msg)
-            raise TransportError(msg)
-        raise last_exc or TransportError(f"call failed: {name}")
-
-
-# Tools with side effects: writes, deletes, or shell execution.
-# Used to auto-downgrade parallel execution to serial in execute_all_tool_calls().
-_SIDE_EFFECT_TOOLS: frozenset[str] = (
-    WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
-)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Lifecycle protocol — implemented by agent/lifecycle.py; defined here so that
@@ -227,45 +56,6 @@ class LifecycleProtocol(Protocol):
     async def ensure_ready(self, server_key: str) -> None:
         """Ensure the MCP server identified by server_key is ready to accept calls."""
         ...
-
-
-def is_side_effect(tool_name: str) -> bool:
-    """Return True when the tool modifies state (write, delete, shell)."""
-    return tool_name in _SIDE_EFFECT_TOOLS
-
-
-def format_transport_error(
-    *,
-    source: str,
-    phase: str,
-    kind: str,
-    url: str,
-    status_code: int | None,
-    retryable: bool,
-    partial: bool,
-) -> TransportErrorInfo:
-    """Return TransportErrorInfo for LLM/tool transport failures; summary is one-line user-facing; detail is JSON for audit logs."""
-    detail = _json_dumps(
-        {
-            "source": source,
-            "phase": phase,
-            "kind": kind,
-            "status_code": status_code,
-            "url": url,
-            "retryable": retryable,
-            "partial": partial,
-        },
-    )
-    summary = f"[{source.upper()} {kind}] {phase} failure (retryable={retryable})"
-    return TransportErrorInfo(summary=summary, detail=detail)
-
-
-def tool_hash_key(name: str, args: dict[str, Any]) -> str:
-    """Return a stable MD5 hash for a (tool name, args) pair; used for failed-call tracking (NOT for cache keys). Cache keys use plain string concatenation: f'{name}:{json_dumps(args)}'."""
-    return hashlib.md5(  # nosec B324 — non-security hash for dedup key identity
-        f"{name}:{_json_dumps(args)}".encode(),
-        usedforsecurity=False,
-    ).hexdigest()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

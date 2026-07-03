@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from agent.context import AgentContext
+from agent.memory.import_ops import import_from_jsonl
+from agent.memory.rebuild_ops import rebuild_fts, rebuild_vec
 
 if TYPE_CHECKING:
     from agent.memory.services import MemoryServices
@@ -24,9 +26,8 @@ class MemoryRebuildOps:
         """Rebuild memories from JSONL archive."""
         dry_run = "--dry-run" in args
         jsonl_store = mem.ingestion._jsonl
-        jsonl_count, inserted = mem.store.import_from_jsonl(
-            jsonl_store, dry_run=dry_run
-        )
+        embed_dim = self._ctx.cfg.memory.memory_embed_dim
+        jsonl_count, inserted = import_from_jsonl(jsonl_store, dry_run=dry_run, embed_dim=embed_dim)
         if dry_run:
             self._out.write(
                 f"  [memory] (dry-run) would import from {jsonl_count} JSONL archive records"
@@ -56,7 +57,7 @@ class MemoryRebuildOps:
 
     def rebuild_fts(self, mem: MemoryServices) -> None:
         """Rebuild the memories_fts index from SQLite."""
-        count = mem.store.rebuild_fts()
+        count = rebuild_fts()
         self._out.write_success(f"memories_fts rebuilt: {count} rows [Memory]")
         _emit_memory_audit(
             self._ctx,
@@ -69,7 +70,7 @@ class MemoryRebuildOps:
         if not embed_enabled:
             self._out.write("  [memory] embedding disabled — cannot rebuild vec index")
             return
-        count = mem.store.rebuild_vec()
+        count = rebuild_vec()
         self._out.write_success(f"memories_vec rebuilt: {count} rows [Memory]")
         _emit_memory_audit(
             self._ctx,

@@ -16,16 +16,10 @@ Public API (import from db.* submodules directly for clarity):
 from db.config import DbConfig, build_db_config
 from db.helper import SQLiteHelper
 from db.maintenance import (
-    RecoveryResult,
     RetentionConfig,
     checkpoint_wal,
     prune_old_memories,
     purge_old_sessions,
-    recover_corruption,
-    rotate_all_dbs,
-    rotate_db,
-    rotate_session_db,
-    rotate_workflow_db,
     vacuum_db,
 )
 from db.models import (
@@ -33,10 +27,18 @@ from db.models import (
     DocumentRow,
     MessageRow,
     PurgeCounts,
+    RagConsistencyReport,
+    RecoveryResult,
     SessionRow,
     ToolResultRow,
     WalCheckpointCounts,
 )
+from db.rag_consistency import (
+    check_rag_consistency,
+    is_consistent,
+    summarize_issues,
+)
+from db.recovery import recover_corruption
 from db.store_impl import (
     SQLiteDocumentStore,
     SQLiteMemoryDeleteStore,
@@ -64,6 +66,7 @@ __all__ = [
     "MemoryDeleteResult",
     "MemoryDeleteStore",
     "PurgeCounts",
+    "RagConsistencyReport",
     "RecoveryResult",
     "RetentionConfig",
     "SessionRow",
@@ -78,9 +81,11 @@ __all__ = [
     "VectorStore",
     "WalCheckpointCounts",
     "build_db_config",
+    "check_rag_consistency",
     "checkpoint_wal",
     "get_embedding_bytes",
     "get_embedding_dims",
+    "is_consistent",
     "prune_old_memories",
     "purge_old_sessions",
     "recover_corruption",
@@ -88,6 +93,7 @@ __all__ = [
     "rotate_db",
     "rotate_session_db",
     "rotate_workflow_db",
+    "summarize_issues",
     "validate_embedding_blob",
     "vacuum_db",
 ]

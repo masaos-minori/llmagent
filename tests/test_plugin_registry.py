@@ -107,7 +107,7 @@ class TestRegisterToolConflict:
         assert plugin_registry.get_tool("list_directory") is not None
 
         mcp_tools = frozenset({"list_directory"})
-        with caplog.at_level(logging.INFO, logger="shared.plugin_registry"):
+        with caplog.at_level(logging.INFO, logger="shared.plugin_conflicts"):
             plugin_registry._validate_tool_conflicts(mcp_tools, "reject")
 
         assert plugin_registry.get_tool("list_directory") is None
@@ -121,7 +121,7 @@ class TestRegisterToolConflict:
         assert plugin_registry.get_tool("list_directory") is not None
 
         mcp_tools = frozenset({"list_directory"})
-        with caplog.at_level(logging.INFO, logger="shared.plugin_registry"):
+        with caplog.at_level(logging.INFO, logger="shared.plugin_conflicts"):
             plugin_registry._validate_tool_conflicts(mcp_tools, "allow")
 
         assert plugin_registry.get_tool("list_directory") is not None
@@ -560,7 +560,7 @@ class TestConflictLogging:
         async def handler(args: dict) -> tuple[str, bool]:
             return "ok", False
 
-        with caplog.at_level(logging.INFO, logger="shared.plugin_registry"):
+        with caplog.at_level(logging.INFO, logger="shared.plugin_conflicts"):
             plugin_registry._validate_tool_conflicts(
                 frozenset({"search_web"}), "reject"
             )
@@ -577,7 +577,7 @@ class TestConflictLogging:
                     return "", False
             """)
         )
-        with caplog.at_level(logging.INFO, logger="shared.plugin_registry"):
+        with caplog.at_level(logging.INFO, logger="shared.plugin_auto_discover"):
             plugin_registry.load_plugins(
                 tmp_path,
                 known_tools=frozenset({"conflict_tool"}),
@@ -622,13 +622,13 @@ class TestCommandShadowLogging:
                         pass
                 """)
             )
-            with caplog.at_level(logging.INFO, logger="shared.plugin_registry"):
+            with caplog.at_level(logging.INFO):
                 plugin_registry.load_plugins(tmp_path, strict_mode=False)
 
             info_records = [r for r in caplog.records if r.levelno == logging.INFO]
             assert any("command shadow" in r.message for r in info_records)
         finally:
-            plugin_registry._builtin_command_names = frozenset()
+            plugin_registry._builtin_command_names[0] = frozenset()
 
 
 class TestStrictModeToolConflict:

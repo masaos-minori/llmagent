@@ -1,7 +1,7 @@
 """tests/test_memory_consistency.py
 Tests for memory consistency check and rebuild:
   - JsonlMemoryStore.count_all()
-  - MemoryStore.import_from_jsonl()
+  - import_ops.import_from_jsonl()
   - /memory check-consistency command
   - /memory rebuild command
 """
@@ -16,9 +16,11 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from agent.memory.import_ops import import_from_jsonl
 from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry
+from agent.memory.write_ops import add as write_add
 
 
 def _make_entry(
@@ -162,19 +164,34 @@ def db_conn() -> Generator[sqlite3.Connection]:
 @pytest.fixture()
 def mem_store(db_conn: sqlite3.Connection) -> Generator[MemoryStore]:
     fake = _FakeSQLiteHelper(db_conn)
-    with patch("agent.memory.store.SQLiteHelper", return_value=fake):
+    with patch("db.helper.SQLiteHelper", return_value=fake):
         yield MemoryStore()
+
+
+@pytest.fixture()
+def import_ops_fake_helper(db_conn: sqlite3.Connection) -> Generator[_FakeSQLiteHelper]:
+    """Return a fake SQLiteHelper patched into both import_ops and write_ops modules."""
+    fake = _FakeSQLiteHelper(db_conn)
+    with patch("db.helper.SQLiteHelper", return_value=fake):
+        # Also patch the already-imported references in import_ops and write_ops
+        import agent.memory.import_ops as _import_ops
+        import agent.memory.write_ops as _write_ops
+        _import_ops.SQLiteHelper = lambda *a, **kw: fake
+        _write_ops.SQLiteHelper = lambda *a, **kw: fake
+        yield fake
+        delattr(_import_ops, "SQLiteHelper")
+        delattr(_write_ops, "SQLiteHelper")
 
 
 class TestRebuildFromJsonl:
     def test_dry_run_returns_jsonl_count_and_zero(
-        self, tmp_path: Path, mem_store: MemoryStore, db_conn: sqlite3.Connection
+        self, tmp_path: Path, import_ops_fake_helper: _FakeSQLiteHelper, db_conn: sqlite3.Connection
     ) -> None:
         jsonl = JsonlMemoryStore(tmp_path / "mem.jsonl")
         asyncio.run(jsonl.write(_make_entry(memory_id="e1")))
         asyncio.run(jsonl.write(_make_entry(memory_id="e2")))
 
-        jsonl_count, inserted = mem_store.import_from_jsonl(jsonl, dry_run=True)
+        jsonl_count, inserted = import_from_jsonl(jsonl, dry_run=True)
 
         assert jsonl_count == 2
         assert inserted == 0
@@ -183,13 +200,13 @@ class TestRebuildFromJsonl:
         assert rows[0] == 0
 
     def test_rebuild_inserts_all_jsonl_entries(
-        self, tmp_path: Path, mem_store: MemoryStore, db_conn: sqlite3.Connection
+        self, tmp_path: Path, import_ops_fake_helper: _FakeSQLiteHelper, db_conn: sqlite3.Connection
     ) -> None:
         jsonl = JsonlMemoryStore(tmp_path / "mem.jsonl")
         asyncio.run(jsonl.write(_make_entry(memory_id="e1")))
         asyncio.run(jsonl.write(_make_entry(memory_id="e2", memory_type="episodic")))
 
-        jsonl_count, inserted = mem_store.import_from_jsonl(jsonl)
+        jsonl_count, inserted = import_from_jsonl(jsonl)
 
         assert jsonl_count == 2
         assert inserted == 2
@@ -199,15 +216,15 @@ class TestRebuildFromJsonl:
         assert [r[0] for r in rows] == ["e1", "e2"]
 
     def test_rebuild_clears_existing_rows(
-        self, tmp_path: Path, mem_store: MemoryStore, db_conn: sqlite3.Connection
+        self, tmp_path: Path, import_ops_fake_helper: _FakeSQLiteHelper, db_conn: sqlite3.Connection
     ) -> None:
         # Pre-populate SQLite with a stale row
-        mem_store.add(_make_entry(memory_id="stale"))
+        write_add(_make_entry(memory_id="stale"))
 
         jsonl = JsonlMemoryStore(tmp_path / "mem.jsonl")
         asyncio.run(jsonl.write(_make_entry(memory_id="fresh")))
 
-        mem_store.import_from_jsonl(jsonl)
+        import_from_jsonl(jsonl)
 
         ids = [
             r[0] for r in db_conn.execute("SELECT memory_id FROM memories").fetchall()
@@ -216,12 +233,12 @@ class TestRebuildFromJsonl:
         assert "fresh" in ids
 
     def test_rebuild_syncs_fts(
-        self, tmp_path: Path, mem_store: MemoryStore, db_conn: sqlite3.Connection
+        self, tmp_path: Path, import_ops_fake_helper: _FakeSQLiteHelper, db_conn: sqlite3.Connection
     ) -> None:
         jsonl = JsonlMemoryStore(tmp_path / "mem.jsonl")
         asyncio.run(jsonl.write(_make_entry(memory_id="e1", content="unique keyword")))
 
-        mem_store.import_from_jsonl(jsonl)
+        import_from_jsonl(jsonl)
 
         rows = db_conn.execute(
             "SELECT memory_id FROM memories_fts WHERE memories_fts MATCH 'unique'"
@@ -229,12 +246,12 @@ class TestRebuildFromJsonl:
         assert len(rows) == 1
 
     def test_empty_jsonl_clears_sqlite(
-        self, tmp_path: Path, mem_store: MemoryStore, db_conn: sqlite3.Connection
+        self, tmp_path: Path, import_ops_fake_helper: _FakeSQLiteHelper, db_conn: sqlite3.Connection
     ) -> None:
-        mem_store.add(_make_entry(memory_id="existing"))
+        write_add(_make_entry(memory_id="existing"))
         jsonl = JsonlMemoryStore(tmp_path / "empty.jsonl")
 
-        jsonl_count, inserted = mem_store.import_from_jsonl(jsonl)
+        jsonl_count, inserted = import_from_jsonl(jsonl)
 
         assert jsonl_count == 0
         assert inserted == 0

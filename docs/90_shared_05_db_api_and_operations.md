@@ -368,7 +368,8 @@ class RetentionConfig:
 ## 8. Corruption Recovery
 
 ```python
-from db.maintenance import recover_corruption, RecoveryResult
+from db.recovery import recover_corruption
+from db.models import RecoveryResult
 
 result = recover_corruption(
     backup_path="/opt/llm/db/backup/rag.sqlite",

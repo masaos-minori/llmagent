@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from agent.context import AgentContext
+from agent.memory.pin_ops import pin as pin_mem
+from agent.memory.pin_ops import unpin as unpin_mem
 from agent.memory.types import MemoryQuery
+from agent.memory.write_ops import delete as write_delete
 
 if TYPE_CHECKING:
     from agent.memory.services import MemoryServices
@@ -141,7 +144,7 @@ class MemoryDataOps:
             self._out.write_validation_error(f"/memory {cmd} <id>")
             return
         mid = args[0]
-        ok = mem.store.pin(mid) if pin else mem.store.unpin(mid)
+        ok = pin_mem(mid) if pin else unpin_mem(mid)
         action = "pinned" if pin else "unpinned"
         if ok:
             self._out.write(f"  [memory] {action}: {mid}")
@@ -172,7 +175,7 @@ class MemoryDataOps:
                 ),
             )
             return
-        ok = mem.store.delete(mid)
+        ok = write_delete(mid)
         if ok:
             self._out.write(f"  [memory] Deleted: {mid}")
         else:
@@ -188,6 +191,8 @@ class MemoryDataOps:
         from db.helper import SQLiteHelper
         from db.maintenance import prune_old_memories
 
+        from agent.memory.count_ops import count_prunable
+
         dry_run = "--dry-run" in args
         day_str = next((a for a in args if a != "--dry-run"), None)
         try:
@@ -195,7 +200,7 @@ class MemoryDataOps:
         except (ValueError, TypeError):
             days = ctx.cfg.memory.memory_retention_days
         if dry_run:
-            count = mem.store.count_prunable(days)
+            count = count_prunable(days)
             self._out.write(
                 f"  [memory] (dry-run) would prune {count} entries older than {days} days"
             )

@@ -5,6 +5,7 @@ Tests for _MemoryMixin._cmd_memory() CLI help and rebuild/import-jsonl behavior.
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import patch
 
 
 def _make_mixin():
@@ -89,7 +90,8 @@ class TestMemoryRebuild:
         mem = _make_memory_store()
         mixin._ctx.services.memory = mem
 
-        mixin._cmd_memory("rebuild --dry-run")
+        with patch("agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)):
+            mixin._cmd_memory("rebuild --dry-run")
 
         assert any("archive" in msg.lower() for msg in messages), (
             f"Dry-run output should mention 'archive', got: {messages}"
@@ -101,7 +103,8 @@ class TestMemoryRebuild:
         mem = _make_memory_store()
         mixin._ctx.services.memory = mem
 
-        mixin._cmd_memory("rebuild")
+        with patch("agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)):
+            mixin._cmd_memory("rebuild")
 
         assert any("archive" in msg.lower() for msg in messages), (
             f"Rebuild output should mention 'archive', got: {messages}"
@@ -113,7 +116,8 @@ class TestMemoryRebuild:
         mem = _make_memory_store()
         mixin._ctx.services.memory = mem
 
-        mixin._cmd_memory("rebuild")
+        with patch("agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)):
+            mixin._cmd_memory("rebuild")
 
         assert any(
             "NOT replayed" in msg or "not replayed" in msg for msg in messages
@@ -127,7 +131,8 @@ class TestMemoryImportJsonlAlias:
         mem = _make_memory_store()
         mixin._ctx.services.memory = mem
 
-        mixin._cmd_memory("import-jsonl")
+        with patch("agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)):
+            mixin._cmd_memory("import-jsonl")
 
         # Should produce the same output as /memory rebuild
         assert any("Imported" in msg for msg in messages), (

@@ -978,6 +978,7 @@ class TestWorkflowMode:
         ctx = _make_ctx()
         ctx.cfg.workflow_mode = "auto"
         ctx.cfg.workflow_require_approval = True
+        mock_task = MagicMock(task_id="t1", workflow_id="w1")
         with (
             patch("agent.orchestrator.WorkflowLoader") as mock_loader,
             patch.object(
@@ -986,6 +987,9 @@ class TestWorkflowMode:
                 new=AsyncMock(return_value=("ok", None, False)),
             ),
             patch("agent.orchestrator.StateStore"),
+            patch("agent.orchestrator.create_task", return_value=mock_task),
+            patch("agent.orchestrator.get_task_by_id", return_value=mock_task),
+            patch("agent.orchestrator.audit_workflow_start"),
         ):
             mock_loader.return_value.load.return_value = MagicMock()
             orch = Orchestrator(ctx, workflow_mode="auto")
@@ -1003,6 +1007,7 @@ class TestWorkflowMode:
         ctx = _make_ctx()
         ctx.cfg.workflow_mode = "auto"
         ctx.cfg.workflow_require_approval = False
+        mock_task = MagicMock(task_id="t1", workflow_id="w1")
         with (
             patch("agent.orchestrator.WorkflowLoader") as mock_loader,
             patch.object(
@@ -1011,6 +1016,9 @@ class TestWorkflowMode:
                 new=AsyncMock(return_value=("ok", None, False)),
             ),
             patch("agent.orchestrator.StateStore"),
+            patch("agent.orchestrator.create_task", return_value=mock_task),
+            patch("agent.orchestrator.get_task_by_id", return_value=mock_task),
+            patch("agent.orchestrator.audit_workflow_start"),
         ):
             mock_loader.return_value.load.return_value = MagicMock()
             orch = Orchestrator(ctx, workflow_mode="auto")
@@ -1030,11 +1038,10 @@ class TestWorkflowMode:
             orch = Orchestrator(ctx, workflow_mode="auto")
 
         mock_store_instance = MagicMock()
-        mock_store_instance.create_task.return_value = MagicMock(
-            task_id="t1", workflow_id="w1"
-        )
+        mock_task = MagicMock(task_id="t1", workflow_id="w1")
         with (
             patch("agent.orchestrator.StateStore", return_value=mock_store_instance),
+            patch("agent.orchestrator.create_task", return_value=mock_task),
             patch("agent.orchestrator.audit_workflow_start"),
         ):
             orch._init_workflow_task(ctx, "session-1", existing_task_id=None)
@@ -1050,9 +1057,9 @@ class TestWorkflowMode:
             orch = Orchestrator(ctx, workflow_mode="auto")
 
         mock_store_instance = MagicMock()
-        mock_store_instance.create_task.side_effect = RuntimeError("db error")
         with (
             patch("agent.orchestrator.StateStore", return_value=mock_store_instance),
+            patch("agent.orchestrator.create_task", side_effect=RuntimeError("db error")),
             pytest.raises(RuntimeError, match="db error"),
         ):
             orch._init_workflow_task(ctx, "session-1", existing_task_id=None)

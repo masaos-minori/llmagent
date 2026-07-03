@@ -15,8 +15,11 @@ from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
+from agent.memory.count_ops import count_by_type
+from agent.memory.pin_ops import pin, unpin
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry
+from agent.memory.write_ops import add, clear_by_session, delete, upsert
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -132,7 +135,7 @@ def db_conn() -> Generator[sqlite3.Connection]:
 @pytest.fixture()
 def store(db_conn: sqlite3.Connection) -> Generator[MemoryStore]:
     fake = _FakeSQLiteHelper(db_conn)
-    with patch("agent.memory.store.SQLiteHelper", return_value=fake):
+    with patch("agent.memory.write_ops.SQLiteHelper", return_value=fake):
         yield MemoryStore()
 
 
@@ -144,7 +147,7 @@ class TestAdd:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry()
-        store.add(entry)
+        add(entry)
         rows = db_conn.execute("SELECT memory_id FROM memories").fetchall()
         assert len(rows) == 1
         assert rows[0][0] == entry.memory_id
@@ -153,7 +156,7 @@ class TestAdd:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry(content="unique content here")
-        store.add(entry)
+        add(entry)
         rows = db_conn.execute(
             "SELECT memory_id FROM memories_fts WHERE memories_fts MATCH 'unique'"
         ).fetchall()
@@ -163,7 +166,7 @@ class TestAdd:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = dataclasses.replace(_make_entry(), created_at="", updated_at="")
-        store.add(entry)
+        add(entry)
         row = db_conn.execute(
             "SELECT created_at, updated_at FROM memories WHERE memory_id=?",
             (entry.memory_id,),
@@ -175,8 +178,8 @@ class TestAdd:
     def test_add_multiple_unique_ids(
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
-        store.add(_make_entry())
-        store.add(_make_entry(memory_type="episodic"))
+        add(_make_entry())
+        add(_make_entry(memory_type="episodic"))
         rows = db_conn.execute("SELECT COUNT(*) FROM memories").fetchall()
         assert rows[0][0] == 2
 
@@ -189,7 +192,7 @@ class TestUpsert:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry()
-        store.upsert(entry)
+        upsert(entry)
         rows = db_conn.execute("SELECT memory_id FROM memories").fetchall()
         assert len(rows) == 1
 
@@ -197,9 +200,9 @@ class TestUpsert:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry(content="original", memory_id="fixed-id")
-        store.upsert(entry)
+        upsert(entry)
         entry2 = dataclasses.replace(entry, content="updated")
-        store.upsert(entry2)
+        upsert(entry2)
         rows = db_conn.execute(
             "SELECT content FROM memories WHERE memory_id='fixed-id'"
         ).fetchall()
@@ -210,9 +213,9 @@ class TestUpsert:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry(content="old word", memory_id="fixed-id")
-        store.upsert(entry)
+        upsert(entry)
         entry2 = dataclasses.replace(entry, content="new keyword")
-        store.upsert(entry2)
+        upsert(entry2)
         rows = db_conn.execute(
             "SELECT memory_id FROM memories_fts WHERE memories_fts MATCH 'new'"
         ).fetchall()
@@ -225,18 +228,18 @@ class TestUpsert:
 class TestDelete:
     def test_delete_existing_returns_true(self, store: MemoryStore) -> None:
         entry = _make_entry()
-        store.add(entry)
-        assert store.delete(entry.memory_id) is True
+        add(entry)
+        assert delete(entry.memory_id) is True
 
     def test_delete_nonexistent_returns_false(self, store: MemoryStore) -> None:
-        assert store.delete("no-such-id") is False
+        assert delete("no-such-id") is False
 
     def test_delete_removes_from_memories(
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry()
-        store.add(entry)
-        store.delete(entry.memory_id)
+        add(entry)
+        delete(entry.memory_id)
         rows = db_conn.execute(
             "SELECT memory_id FROM memories WHERE memory_id=?", (entry.memory_id,)
         ).fetchall()
@@ -250,16 +253,16 @@ class TestClearBySession:
     def test_clear_removes_only_matching_session(
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
-        store.add(_make_entry(session_id=1))
-        store.add(_make_entry(session_id=2, memory_type="episodic"))
-        count = store.clear_by_session(1)
+        add(_make_entry(session_id=1))
+        add(_make_entry(session_id=2, memory_type="episodic"))
+        count = clear_by_session(1)
         assert count == 1
         remaining = db_conn.execute("SELECT session_id FROM memories").fetchall()
         assert len(remaining) == 1
         assert remaining[0][0] == 2
 
     def test_clear_empty_returns_zero(self, store: MemoryStore) -> None:
-        assert store.clear_by_session(99) == 0
+        assert clear_by_session(99) == 0
 
 
 # ── search_by_type() ─────────────────────────────────────────────────────────
@@ -267,8 +270,8 @@ class TestClearBySession:
 
 class TestSearchByType:
     def test_returns_matching_type(self, store: MemoryStore) -> None:
-        store.add(_make_entry(memory_type="semantic", content="semantic fact"))
-        store.add(_make_entry(memory_type="episodic", content="episodic note"))
+        add(_make_entry(memory_type="semantic", content="semantic fact"))
+        add(_make_entry(memory_type="episodic", content="episodic note"))
         results = store.search_by_type("semantic")
         assert len(results) == 1
         assert results[0].memory_type == "semantic"
@@ -276,13 +279,13 @@ class TestSearchByType:
 
     def test_respects_limit(self, store: MemoryStore) -> None:
         for _ in range(5):
-            store.add(_make_entry(memory_type="semantic"))
+            add(_make_entry(memory_type="semantic"))
         results = store.search_by_type("semantic", limit=3)
         assert len(results) == 3
 
     def test_respects_min_importance(self, store: MemoryStore) -> None:
-        store.add(_make_entry(memory_type="semantic", importance=0.2))
-        store.add(_make_entry(memory_type="semantic", importance=0.8))
+        add(_make_entry(memory_type="semantic", importance=0.2))
+        add(_make_entry(memory_type="semantic", importance=0.8))
         results = store.search_by_type("semantic", min_importance=0.5)
         assert len(results) == 1
         assert results[0].importance == 0.8
@@ -296,15 +299,15 @@ class TestSearchByType:
 
 class TestCountByType:
     def test_count_by_type(self, store: MemoryStore) -> None:
-        store.add(_make_entry(memory_type="semantic"))
-        store.add(_make_entry(memory_type="semantic"))
-        store.add(_make_entry(memory_type="episodic"))
-        counts = store.count_by_type()
+        add(_make_entry(memory_type="semantic"))
+        add(_make_entry(memory_type="semantic"))
+        add(_make_entry(memory_type="episodic"))
+        counts = count_by_type()
         assert counts.get("semantic") == 2
         assert counts.get("episodic") == 1
 
     def test_empty_returns_empty_dict(self, store: MemoryStore) -> None:
-        assert store.count_by_type() == {}
+        assert count_by_type() == {}
 
 
 # ── pin() / unpin() ──────────────────────────────────────────────────────────
@@ -315,8 +318,8 @@ class TestPinUnpin:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry(memory_id="pin-test")
-        store.add(entry)
-        ok = store.pin("pin-test")
+        add(entry)
+        ok = pin("pin-test", conn=db_conn)
         assert ok is True
         row = db_conn.execute(
             "SELECT pinned FROM memories WHERE memory_id='pin-test'"
@@ -327,8 +330,8 @@ class TestPinUnpin:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = dataclasses.replace(_make_entry(memory_id="unpin-test"), pinned=True)
-        store.add(entry)
-        ok = store.unpin("unpin-test")
+        add(entry)
+        ok = unpin("unpin-test", conn=db_conn)
         assert ok is True
         row = db_conn.execute(
             "SELECT pinned FROM memories WHERE memory_id='unpin-test'"
@@ -336,10 +339,10 @@ class TestPinUnpin:
         assert row[0] == 0
 
     def test_pin_nonexistent_returns_false(self, store: MemoryStore) -> None:
-        assert store.pin("no-such-id") is False
+        assert pin("no-such-id") is False
 
     def test_unpin_nonexistent_returns_false(self, store: MemoryStore) -> None:
-        assert store.unpin("no-such-id") is False
+        assert unpin("no-such-id") is False
 
 
 # ── get_by_id() ───────────────────────────────────────────────────────────────
@@ -348,7 +351,7 @@ class TestPinUnpin:
 class TestGetById:
     def test_returns_entry_when_found(self, store: MemoryStore) -> None:
         entry = _make_entry(content="unique content", memory_id="gbi-test")
-        store.add(entry)
+        add(entry)
         result = store.get_by_id("gbi-test")
         assert result is not None
         assert result.memory_id == "gbi-test"
@@ -410,7 +413,7 @@ def _make_concurrent_store() -> tuple[MemoryStore, str]:
                 raise
 
     patcher = patch(
-        "agent.memory.store.SQLiteHelper", side_effect=lambda mode: _ConcurrentHelper()
+        "db.helper.SQLiteHelper", side_effect=lambda mode: _ConcurrentHelper()
     )
     patcher.start()
     store = MemoryStore()
@@ -426,7 +429,7 @@ class TestUpsertConcurrency:
             from concurrent.futures import ThreadPoolExecutor
 
             with ThreadPoolExecutor(max_workers=4) as executor:
-                list(executor.map(store.upsert, entries))
+                list(executor.map(lambda e: upsert(e), entries))
 
             conn = sqlite3.connect(path)
             try:
@@ -448,7 +451,7 @@ class TestUpsertConcurrency:
             from concurrent.futures import ThreadPoolExecutor
 
             with ThreadPoolExecutor(max_workers=4) as executor:
-                list(executor.map(store.upsert, entries))
+                list(executor.map(lambda e: upsert(e), entries))
 
             conn = sqlite3.connect(path)
             try:
@@ -470,7 +473,7 @@ class TestUpsertConcurrency:
             from concurrent.futures import ThreadPoolExecutor
 
             with ThreadPoolExecutor(max_workers=4) as executor:
-                list(executor.map(store.upsert, entries))
+                list(executor.map(lambda e: upsert(e), entries))
 
             conn = sqlite3.connect(path)
             try:
@@ -495,7 +498,7 @@ class TestUpsertConcurrency:
             def _upsert_with_embedding(idx: int) -> None:
                 entry = _make_entry(memory_id="vec-id", content=f"vec-content-{idx}")
                 embedding = [float(idx), float(idx + 1), float(idx + 2)]
-                store.upsert(entry, embedding=embedding)
+                upsert(entry, embedding=embedding)
 
             from concurrent.futures import ThreadPoolExecutor
 
@@ -530,7 +533,7 @@ class TestUpsertConcurrency:
                     entry = _make_entry(
                         memory_id=f"busy-{idx}", content=f"content-{idx}"
                     )
-                    store.upsert(entry)
+                    upsert(entry)
                     return None
                 except Exception as exc:  # noqa: BLE001
                     return exc

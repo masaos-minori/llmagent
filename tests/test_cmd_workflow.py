@@ -10,6 +10,8 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from agent.workflow.approval_ops import request_approval
+from agent.workflow.task_ops import create_task, get_task_by_id, update_task_status
 from db.config import DbConfig
 from db.create_schema import create_workflow_schema
 
@@ -71,9 +73,9 @@ class TestApprove:
         self, store, workflow_db
     ) -> None:
         """Simulates restart: ctx.turn.pending_approval_id=None but DB has a pending approval."""
-        task = store.create_task("session-old", 1, "1.0.0")
-        store.update_task_status(task.task_id, "pending_approval")
-        approval = store.request_approval(task_id=task.task_id, stage_id="plan")
+        task = create_task(store._db, "session-old", 1, "1.0.0")
+        update_task_status(store._db, task.task_id, "pending_approval")
+        approval = request_approval(store._db, task_id=task.task_id, stage_id="plan")
         store.close()
 
         mixin, ctx, messages, errors, _ = _make_mixin(workflow_db)
@@ -103,9 +105,9 @@ class TestReject:
         self, store, workflow_db
     ) -> None:
         """Simulates restart: ctx.turn.pending_approval_id=None but DB has a pending approval."""
-        task = store.create_task("session-old", 2, "1.0.0")
-        store.update_task_status(task.task_id, "pending_approval")
-        approval = store.request_approval(task_id=task.task_id, stage_id="execute")
+        task = create_task(store._db, "session-old", 2, "1.0.0")
+        update_task_status(store._db, task.task_id, "pending_approval")
+        approval = request_approval(store._db, task_id=task.task_id, stage_id="execute")
         store.close()
 
         mixin, ctx, messages, errors, _ = _make_mixin(workflow_db)
@@ -119,9 +121,9 @@ class TestReject:
 
     def test_reject_marks_task_as_halted(self, store, workflow_db) -> None:
         """Reject immediately marks the task as halted."""
-        task = store.create_task("session-old", 3, "1.0.0")
-        store.update_task_status(task.task_id, "pending_approval")
-        store.request_approval(task_id=task.task_id, stage_id="execute")
+        task = create_task(store._db, "session-old", 3, "1.0.0")
+        update_task_status(store._db, task.task_id, "pending_approval")
+        request_approval(store._db, task_id=task.task_id, stage_id="execute")
         store.close()
 
         mixin, ctx, messages, errors, _ = _make_mixin(workflow_db)
@@ -135,15 +137,15 @@ class TestReject:
             from agent.workflow.state_store import StateStore
 
             s = StateStore()
-            task_record = s.get_task_by_id(task.task_id)
+            task_record = get_task_by_id(s._db, task.task_id)
             assert task_record.status == "halted"
             s.close()
 
     def test_approve_sets_pending_approval_task_id(self, store, workflow_db) -> None:
         """Approve sets pending_approval_task_id for auto-resume."""
-        task = store.create_task("session-old", 4, "1.0.0")
-        store.update_task_status(task.task_id, "pending_approval")
-        store.request_approval(task_id=task.task_id, stage_id="execute")
+        task = create_task(store._db, "session-old", 4, "1.0.0")
+        update_task_status(store._db, task.task_id, "pending_approval")
+        request_approval(store._db, task_id=task.task_id, stage_id="execute")
         store.close()
 
         mixin, ctx, messages, errors, _ = _make_mixin(workflow_db)

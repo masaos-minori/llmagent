@@ -17,6 +17,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Protocol, cast
 
+from shared.otel_noop import NoOpTracer
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,12 +43,12 @@ def build_tracer(
 ) -> TracerProtocol:
     """Build and return a private OTel Tracer (or NoOp) without modifying the global provider."""
     if not enabled:
-        return _NoOpTracer()
+        return NoOpTracer()
 
     sdk = _import_sdk()
     if sdk is None:
         logger.warning("opentelemetry-sdk not installed; falling back to NoOp tracer")
-        return _NoOpTracer()
+        return NoOpTracer()
 
     resource = sdk.Resource.create({"service.name": service_name})
     provider = sdk.TracerProvider(resource=resource)
@@ -157,24 +159,4 @@ class _ConsoleProcessor:
         return bool(result)
 
 
-class _NoOpTracer:
-    """Minimal tracer stub for otel_enabled=False."""
 
-    def start_as_current_span(self, name: str, **kwargs: Any) -> _NoOpSpan:
-        return _NoOpSpan()
-
-    def __repr__(self) -> str:
-        return "_NoOpTracer()"
-
-
-class _NoOpSpan:
-    """No-op span that supports context manager protocol and set_attribute()."""
-
-    def __enter__(self) -> _NoOpSpan:
-        return self
-
-    def __exit__(self, *args: object) -> None:
-        pass
-
-    def set_attribute(self, _key: str, _value: Any) -> None:
-        pass

@@ -11,6 +11,8 @@ from __future__ import annotations
 import logging
 
 from agent.commands.mixin_base import MixinBase
+from agent.workflow.approval_ops import find_latest_pending_approval, resolve_approval
+from agent.workflow.task_ops import update_task_status
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +43,7 @@ class _WorkflowMixin(MixinBase):
 
         store = StateStore()
         try:
-            result = store.find_latest_pending_approval()
+            result = find_latest_pending_approval(store._db)
             if result is None:
                 self._out.write_validation_error(
                     "No pending approval. Run a workflow task first."
@@ -50,7 +52,7 @@ class _WorkflowMixin(MixinBase):
             task_id, approval = result
             approval_id = approval.approval_id
             reason = arg.strip() or None
-            store.resolve_approval(approval_id, "approved", reason)
+            resolve_approval(store._db, approval_id, "approved", reason)
         except RuntimeError as exc:
             self._out.write_validation_error(f"Failed to resolve approval: {exc}")
             return
@@ -73,7 +75,7 @@ class _WorkflowMixin(MixinBase):
 
         store = StateStore()
         try:
-            result = store.find_latest_pending_approval()
+            result = find_latest_pending_approval(store._db)
             if result is None:
                 self._out.write_validation_error(
                     "No pending approval. Run a workflow task first."
@@ -82,8 +84,8 @@ class _WorkflowMixin(MixinBase):
             task_id, approval = result
             approval_id = approval.approval_id
             reason = arg.strip() or None
-            store.resolve_approval(approval_id, "rejected", reason)
-            store.update_task_status(task_id, "halted")
+            resolve_approval(store._db, approval_id, "rejected", reason)
+            update_task_status(store._db, task_id, "halted")
         except RuntimeError as exc:
             self._out.write_validation_error(f"Failed to resolve approval: {exc}")
             return

@@ -42,6 +42,7 @@ from agent.workflow import (
     WorkflowLoadError,
     WorkflowPendingApprovalError,
 )
+from agent.workflow.task_ops import create_task, get_task_by_id
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
 
 
@@ -275,7 +276,8 @@ class Orchestrator:
             workflow_id = str(uuid.uuid4())
             store = StateStore()
             try:
-                task = store.create_task(
+                task = create_task(
+                    store._db,
                     session_id=session_id,
                     turn_number=ctx.stats.stat_turns,
                     workflow_version=self._workflow_def.version,
@@ -292,7 +294,7 @@ class Orchestrator:
             )
         else:
             store = StateStore()
-            _fetched = store.get_task_by_id(existing_task_id)
+            _fetched = get_task_by_id(store._db, existing_task_id)
             if _fetched is None:
                 raise RuntimeError(f"Task {existing_task_id} not found")
             task = _fetched

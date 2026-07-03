@@ -665,7 +665,7 @@ class TestCmdDbSessionScope:
 
 class TestCmdDbBackwardCompat:
     def test_session_recover_success(self, capsys: pytest.CaptureFixture) -> None:
-        from db.maintenance import RecoveryResult
+        from db.models import RecoveryResult
 
         cmd = _make_cmd()
         with patch(
@@ -678,7 +678,7 @@ class TestCmdDbBackwardCompat:
             assert "succeeded" in out.lower()
 
     def test_session_recover_failure(self, capsys: pytest.CaptureFixture) -> None:
-        from db.maintenance import RecoveryResult
+        from db.models import RecoveryResult
 
         cmd = _make_cmd()
         with patch(

@@ -19,7 +19,7 @@ def _make_mixin() -> _PluginsMixin:
 class TestCmdPlugin:
     def test_no_result_writes_no_data(self) -> None:
         mixin = _make_mixin()
-        with patch("shared.plugin_registry.get_last_load_result", return_value=None):
+        with patch("shared.plugin_auto_discover.get_last_load_result", return_value=None):
             mixin._cmd_plugin("status")
         mixin._out.write_no_data.assert_called_once()
 
@@ -33,7 +33,7 @@ class TestCmdPlugin:
             tool_conflicts_allowed=0,
         )
         mixin = _make_mixin()
-        with patch("shared.plugin_registry.get_last_load_result", return_value=result):
+        with patch("shared.plugin_auto_discover.get_last_load_result", return_value=result):
             mixin._cmd_plugin("status")
         mixin._out.write_table.assert_called_once()
         args = mixin._out.write_table.call_args[0]
@@ -50,7 +50,7 @@ class TestCmdPlugin:
             failed=(PluginFailure(path="plugins/bad.py", error="SyntaxError"),),
         )
         mixin = _make_mixin()
-        with patch("shared.plugin_registry.get_last_load_result", return_value=result):
+        with patch("shared.plugin_auto_discover.get_last_load_result", return_value=result):
             mixin._cmd_plugin("status")
         writes = [call[0][0] for call in mixin._out.write.call_args_list]
         assert any("bad.py" in w for w in writes)
@@ -60,6 +60,6 @@ class TestCmdPlugin:
 
         result = PluginLoadResult(loaded_count=2, failed=())
         mixin = _make_mixin()
-        with patch("shared.plugin_registry.get_last_load_result", return_value=result):
+        with patch("shared.plugin_auto_discover.get_last_load_result", return_value=result):
             mixin._cmd_plugin("status")
         mixin._out.write.assert_not_called()

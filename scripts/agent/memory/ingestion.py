@@ -25,6 +25,7 @@ from agent.memory.models import HistoryMessage
 from agent.memory.retriever import HybridRetriever
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry, SourceType
+from agent.memory.write_ops import upsert as write_upsert
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,7 @@ class MemoryIngestionService:
     ) -> None:
         """Persist an entry to SQLite and JSONL with the given embedding result."""
         embedding = embed_result.embedding if embed_result.success else None
-        self._store.upsert(entry, embedding=embedding)
+        write_upsert(entry, embedding=embedding, embed_dim=self._store._embed_dim)
         try:
             await self._jsonl.write(entry)
         except OSError as e:

@@ -23,6 +23,7 @@ from agent.repl_health import (
     check_workflow_definition,
 )
 from agent.services.rag_maintenance_service import RagMaintenanceService
+from agent.workflow.approval_ops import find_latest_pending_approval
 from agent.workflow.state_store import StateStore
 
 if TYPE_CHECKING:
@@ -180,7 +181,7 @@ class StartupOrchestrator:
             return
         store = StateStore()
         try:
-            result = store.find_latest_pending_approval()
+            result = find_latest_pending_approval(store._db)
         finally:
             store.close()
         if result is None:

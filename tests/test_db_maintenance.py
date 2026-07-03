@@ -334,7 +334,7 @@ class TestRagDbMaintenanceService:
         self._make_real_sqlite(db_file)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
-            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
         dest = rotate_session_db(archive_dir=archive_dir)
@@ -458,7 +458,7 @@ class TestRecoverCorruption:
     ) -> None:
         """Patch build_db_config so recover_corruption does not need real config."""
         monkeypatch.setattr(
-            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
     def test_db_conn_none_raises_runtime_error(
@@ -467,7 +467,7 @@ class TestRecoverCorruption:
         """open() が RuntimeError を上げるとき RecoveryResult(success=False) が返ること。"""
         from unittest.mock import patch
 
-        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+        with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.side_effect = RuntimeError(
                 "conn not open"
             )
@@ -492,7 +492,7 @@ class TestRecoverCorruption:
             def __exit__(self, *args: object) -> None:
                 pass
 
-        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+        with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
             result = recover_corruption(dry_run=True)
 
@@ -515,7 +515,7 @@ class TestRecoverCorruption:
             def __exit__(self, *args: object) -> None:
                 pass
 
-        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+        with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
             result = recover_corruption(dry_run=True)
 
@@ -537,7 +537,7 @@ class TestRecoverCorruption:
             def __exit__(self, *args: object) -> None:
                 pass
 
-        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+        with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
             result = recover_corruption()
 
@@ -561,7 +561,7 @@ class TestRecoverCorruption:
             def __exit__(self, *args: object) -> None:
                 pass
 
-        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+        with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
             result = recover_corruption(backup_path=None)
         assert result.success is False
@@ -583,7 +583,7 @@ class TestRecoverCorruption:
             def __exit__(self, *args: object) -> None:
                 pass
 
-        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+        with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
             result = recover_corruption(backup_path="/nonexistent/backup.sqlite")
         assert result.success is False
@@ -611,7 +611,7 @@ class TestRecoverCorruption:
             def __exit__(self, *args: object) -> None:
                 pass
 
-        with patch("db.maintenance.SQLiteHelper") as mock_helper_cls:
+        with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
             result = recover_corruption(backup_path=str(backup_file))
 
@@ -641,8 +641,8 @@ class TestRecoverCorruption:
                 pass
 
         with (
-            patch("db.maintenance.SQLiteHelper") as mock_helper_cls,
-            patch("db.maintenance.shutil.copy2", side_effect=OSError("disk full")),
+            patch("db.recovery.SQLiteHelper") as mock_helper_cls,
+            patch("db.recovery.shutil.copy2", side_effect=OSError("disk full")),
         ):
             mock_helper_cls.return_value.open.return_value = FakeContext()
             result = recover_corruption(backup_path=str(backup_file))
@@ -657,7 +657,7 @@ class TestRecoverCorruption:
         mock_helper = MagicMock()
         mock_helper.open.side_effect = _sqlite3.OperationalError("cannot open")
 
-        with patch("db.maintenance.SQLiteHelper", return_value=mock_helper):
+        with patch("db.recovery.SQLiteHelper", return_value=mock_helper):
             result = recover_corruption()
         assert result.success is False
         assert result.action == "error"
@@ -760,7 +760,7 @@ class TestRotateWorkflowAndAll:
         self._make_real_sqlite(db_file)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
-            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
         dest = rotate_workflow_db(archive_dir=archive_dir)
@@ -778,7 +778,7 @@ class TestRotateWorkflowAndAll:
             self._make_real_sqlite(f)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
-            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
         rag_dest, ses_dest, wf_dest = rotate_all_dbs(archive_dir=archive_dir)
@@ -795,7 +795,7 @@ class TestRotateWorkflowAndAll:
     ) -> None:
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
-            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
         with pytest.raises(FileNotFoundError, match="workflow.sqlite"):
@@ -810,7 +810,7 @@ class TestRotateWorkflowAndAll:
             self._make_real_sqlite(f)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
-            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
         with pytest.raises(FileNotFoundError, match="workflow.sqlite"):

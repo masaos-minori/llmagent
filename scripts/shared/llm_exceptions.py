@@ -44,3 +44,4 @@ class LLMTransportError(Exception):
         self.retryable = retryable
         self.partial_text = partial_text
         self.detail = detail
+        self.stat_heartbeat_timeouts: int = 0

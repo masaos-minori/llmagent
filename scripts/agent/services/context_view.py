@@ -114,12 +114,14 @@ def _token_breakdown(
 
 def _format_memory_status(ctx: AgentContext) -> str:
     """Return a one-line summary of the memory layer state."""
+    from agent.memory.count_ops import count_by_type, count_entries
+
     if ctx.services_required.memory is None:
         return "disabled"
     store = ctx.services_required.memory.store
-    by_type = store.count_by_type()
+    by_type = count_by_type()
     return (
-        f"enabled (entries={store.count_entries()},"
+        f"enabled (entries={count_entries()},"
         f" semantic={by_type.get('semantic', 0)},"
         f" episodic={by_type.get('episodic', 0)},"
         f" vec_entries={store.count_vec()})"

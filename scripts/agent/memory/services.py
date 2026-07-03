@@ -51,8 +51,10 @@ class MemoryServices:
 
     def get_stats(self) -> dict:
         """Return entry counts, embed_skip, and last retrieval mode."""
-        counts = self.store.count_by_type()
-        source_counts = self.store.count_by_source_type()
+        from agent.memory.count_ops import count_by_source_type, count_by_type
+
+        counts = count_by_type()
+        source_counts = count_by_source_type()
         return {
             "total": sum(counts.values()),
             "semantic": counts.get("semantic", 0),

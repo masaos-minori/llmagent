@@ -26,20 +26,18 @@ def _make_services(
     *,
     get_by_id_return=None,
     delete_return: bool = True,
-    count_prunable_return: int = 2,
     pin_return: bool = True,
     unpin_return: bool = True,
 ) -> MagicMock:
-    """Build a MagicMock with spec=MemoryServices and a mock store."""
-    svc = MagicMock(spec=MemoryServices)
-    mock_store = MagicMock(spec=MemoryStore)
-    mock_store.get_by_id.return_value = get_by_id_return
-    mock_store.delete.return_value = delete_return
-    mock_store.count_prunable.return_value = count_prunable_return
-    mock_store.pin.return_value = pin_return
-    mock_store.unpin.return_value = unpin_return
-    svc.store = mock_store
-    return svc
+        """Build a MagicMock with spec=MemoryServices and a mock store."""
+        svc = MagicMock(spec=MemoryServices)
+        mock_store = MagicMock(spec=MemoryStore)
+        mock_store.get_by_id.return_value = get_by_id_return
+        mock_store.delete.return_value = delete_return
+        mock_store.pin.return_value = pin_return
+        mock_store.unpin.return_value = unpin_return
+        svc.store = mock_store
+        return svc
 
 
 def _make_cmd(*, audit_logger=None, memory_retention_days: int = 30) -> _MemoryMixin:
@@ -191,14 +189,14 @@ class TestMemoryPrune:
         assert "60 days" in out
 
     def test_prune_dry_run(self, capsys: pytest.CaptureFixture) -> None:
-        svc = _make_services(count_prunable_return=4)
+        svc = _make_services()
         cmd = _make_cmd()
         ctx = cmd._ctx
-        cmd._memory_prune(svc, ctx, ["--dry-run", "30"])  # type: ignore[arg-type]
+        with patch("agent.commands.memory_data_ops.count_prunable", return_value=4):
+            cmd._memory_prune(svc, ctx, ["--dry-run", "30"])  # type: ignore[arg-type]
         out = capsys.readouterr().out
         assert "dry-run" in out
         assert "would prune 4" in out
-        svc.store.count_prunable.assert_called_once_with(30)
 
     def test_prune_calls_audit_logger(self) -> None:
         audit = MagicMock()

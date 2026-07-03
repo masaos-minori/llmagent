@@ -88,3 +88,38 @@ class MessageRow:
     content: str
     tool_calls: str | None
     tool_call_id: str | None = None
+
+
+@dataclass(frozen=True)
+class RagConsistencyReport:
+    """Counts from chunks, chunks_fts, and chunks_vec for consistency verification."""
+
+    chunks: int
+    fts: int
+    vec: int
+    orphan_vec_count: int
+    fts_gap: int  # chunks - fts; positive = missing FTS entries
+    fts_orphan_count: int  # fts - chunks; positive = extra FTS entries (data loss risk)
+    embed_failed: int = 0  # embedding failures during ingestion
+    issues: tuple[str, ...] = ()  # human-readable consistency issues
+    # Affected identifiers (up to 10 each; None when not applicable)
+    affected_chunk_ids: tuple[int, ...] | None = None  # chunk_ids missing from FTS
+    affected_doc_ids: tuple[int, ...] | None = (
+        None  # doc_ids for chunks missing from FTS
+    )
+    affected_orphan_chunk_ids: tuple[int, ...] | None = (
+        None  # chunk_ids in vec but not chunks
+    )
+    affected_orphan_urls: tuple[str, ...] | None = (
+        None  # URLs of docs with orphan vec rows
+    )
+
+
+@dataclass(frozen=True)
+class RecoveryResult:
+    """Structured result of a corruption recovery attempt."""
+
+    success: bool
+    action: str
+    detail: str | None = None
+    dry_run: bool = False

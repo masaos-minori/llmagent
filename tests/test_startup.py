@@ -104,13 +104,10 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         approval.approval_id = "approval-123"
         approval.reason = "waiting for deploy"
 
-        mock_store = MagicMock()
-        mock_store.find_latest_pending_approval.return_value = (
-            "task-456",
-            approval,
-        )
-
-        with patch("agent.startup.StateStore", return_value=mock_store):
+        with patch(
+            "agent.startup.find_latest_pending_approval",
+            return_value=("task-456", approval),
+        ):
             await startup._recover_pending_approvals()
 
         assert ctx.workflow.approval_pending is True
@@ -132,13 +129,10 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         approval.approval_id = "approval-123"
         approval.reason = "waiting for deploy"
 
-        mock_store = MagicMock()
-        mock_store.find_latest_pending_approval.return_value = (
-            "task-456",
-            approval,
-        )
-
-        with patch("agent.startup.StateStore", return_value=mock_store):
+        with patch(
+            "agent.startup.find_latest_pending_approval",
+            return_value=("task-456", approval),
+        ):
             await startup._recover_pending_approvals()
 
         warning_calls = view.write_warning.call_args_list
@@ -163,10 +157,7 @@ class TestStartupOrchestratorRecoverPendingApprovals:
 
         startup = StartupOrchestrator(ctx, view)
 
-        mock_store = MagicMock()
-        mock_store.find_latest_pending_approval.return_value = None
-
-        with patch("agent.startup.StateStore", return_value=mock_store):
+        with patch("agent.startup.find_latest_pending_approval", return_value=None):
             await startup._recover_pending_approvals()
 
         assert ctx.workflow.approval_pending is False
@@ -183,11 +174,14 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         startup = StartupOrchestrator(ctx, view)
 
         mock_store = MagicMock()
-        mock_store.find_latest_pending_approval.side_effect = RuntimeError("db error")
 
         with patch("agent.startup.StateStore", return_value=mock_store):
-            with pytest.raises(RuntimeError, match="db error"):
-                await startup._recover_pending_approvals()
+            with patch(
+                "agent.startup.find_latest_pending_approval",
+                side_effect=RuntimeError("db error"),
+            ):
+                with pytest.raises(RuntimeError, match="db error"):
+                    await startup._recover_pending_approvals()
 
         mock_store.close.assert_called_once()
 

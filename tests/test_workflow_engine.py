@@ -10,7 +10,19 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from agent.workflow.approval_ops import (
+    get_pending_approval,
+    request_approval,
+    resolve_approval,
+)
+from agent.workflow.attempt_ops import count_attempts
+from agent.workflow.idempotency_ops import is_event_processed
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
+from agent.workflow.task_ops import (
+    create_task,
+    get_task_by_idempotency_key,
+    update_task_status,
+)
 from agent.workflow.workflow_engine import (
     WorkflowEngine,
     WorkflowHaltError,
@@ -82,29 +94,29 @@ class TestWorkflowEngineHappyPath:
     @pytest.mark.asyncio
     async def test_run_sets_task_status_completed(self, store) -> None:
         wdef = _make_wdef()
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store)
         await engine.run(task, _noop, _noop, _noop)
-        found = store.get_task_by_idempotency_key("s:1")
+        found = get_task_by_idempotency_key(store._db, "s:1")
         assert found is not None
         assert found.status == "completed"
 
     @pytest.mark.asyncio
     async def test_all_stages_recorded(self, store) -> None:
         wdef = _make_wdef()
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store)
         await engine.run(task, _noop, _noop, _noop)
         for stage in ("plan", "execute", "verify"):
             event_id = f"{task.task_id}:{stage}:1"
-            assert store.is_event_processed(event_id)
+            assert is_event_processed(store._db, event_id)
 
 
 class TestWorkflowEngineRetry:
     @pytest.mark.asyncio
     async def test_retry_succeeds_on_second_attempt(self, store) -> None:
         wdef = _make_wdef(max_attempts=3, backoff_sec=0)
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store)
 
         calls = {"n": 0}
@@ -116,7 +128,7 @@ class TestWorkflowEngineRetry:
             return None
 
         await engine.run(task, _noop, flaky_execute, _noop)
-        found = store.get_task_by_idempotency_key("s:1")
+        found = get_task_by_idempotency_key(store._db, "s:1")
         assert found is not None
         assert found.status == "completed"
         assert calls["n"] == 2
@@ -124,7 +136,7 @@ class TestWorkflowEngineRetry:
     @pytest.mark.asyncio
     async def test_halt_after_max_attempts(self, store) -> None:
         wdef = _make_wdef(max_attempts=3, backoff_sec=0)
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store)
 
         async def always_fail() -> str | None:
@@ -133,14 +145,14 @@ class TestWorkflowEngineRetry:
         with pytest.raises(WorkflowHaltError):
             await engine.run(task, _noop, always_fail, _noop)
 
-        found = store.get_task_by_idempotency_key("s:1")
+        found = get_task_by_idempotency_key(store._db, "s:1")
         assert found is not None
         assert found.status == "halted"
 
     @pytest.mark.asyncio
     async def test_attempt_count_matches_max_attempts(self, store) -> None:
         wdef = _make_wdef(max_attempts=3, backoff_sec=0)
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store)
 
         async def always_fail() -> str | None:
@@ -149,7 +161,7 @@ class TestWorkflowEngineRetry:
         with pytest.raises(WorkflowHaltError):
             await engine.run(task, _noop, always_fail, _noop)
 
-        assert store.count_attempts(task.task_id, "execute") == 3
+        assert count_attempts(store._db, task.task_id, "execute") == 3
 
 
 class TestWorkflowEngineTimeout:
@@ -168,7 +180,7 @@ class TestWorkflowEngineTimeout:
         wdef = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store)
 
         async def slow_execute() -> str | None:
@@ -183,7 +195,7 @@ class TestWorkflowEngineIdempotency:
     @pytest.mark.asyncio
     async def test_skip_already_processed_stage(self, store) -> None:
         wdef = _make_wdef()
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store)
 
         call_count = {"n": 0}
@@ -205,7 +217,7 @@ class TestWorkflowEngineApprovalGate:
     @pytest.mark.asyncio
     async def test_require_approval_raises_pending(self, store) -> None:
         wdef = _make_wdef()
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store, require_approval=True)
         with pytest.raises(WorkflowPendingApprovalError) as exc_info:
             await engine.run(task, _noop, _noop, _noop)
@@ -214,32 +226,32 @@ class TestWorkflowEngineApprovalGate:
     @pytest.mark.asyncio
     async def test_no_approval_required_completes(self, store) -> None:
         wdef = _make_wdef()
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store, require_approval=False)
         await engine.run(task, _noop, _noop, _noop)
-        found = store.get_task_by_idempotency_key("s:1")
+        found = get_task_by_idempotency_key(store._db, "s:1")
         assert found is not None
         assert found.status == "completed"
 
     @pytest.mark.asyncio
     async def test_approved_task_gate_passes(self, store) -> None:
         wdef = _make_wdef()
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store, require_approval=True)
-        approval = store.request_approval(task.task_id)
-        store.resolve_approval(approval.approval_id, "approved")
+        approval = request_approval(store._db, task.task_id)
+        resolve_approval(store._db, approval.approval_id, "approved")
         await engine._gate_approval(task)  # must not raise
 
     @pytest.mark.asyncio
     async def test_rejected_task_halts(self, store) -> None:
         wdef = _make_wdef()
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store, require_approval=True)
         with pytest.raises(WorkflowPendingApprovalError):
             await engine.run(task, _noop, _noop, _noop)
-        approval = store.get_pending_approval(task.task_id)
+        approval = get_pending_approval(store._db, task.task_id)
         assert approval is not None
-        store.resolve_approval(approval.approval_id, "rejected", "not safe")
+        resolve_approval(store._db, approval.approval_id, "rejected", "not safe")
         with pytest.raises(WorkflowHaltError, match="approval rejected"):
             await engine._gate_approval(task)
 
@@ -247,7 +259,7 @@ class TestWorkflowEngineApprovalGate:
     async def test_resume_does_not_rerun_plan_or_execute(self, store) -> None:
         """After /approve, resume must not rerun plan or execute stages."""
         wdef = _make_wdef()
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store, require_approval=True)
 
         # First run — suspends at approval gate
@@ -255,9 +267,9 @@ class TestWorkflowEngineApprovalGate:
             await engine.run(task, _noop, _noop, _noop)
 
         # Approve the task
-        approval = store.get_pending_approval(task.task_id)
+        approval = get_pending_approval(store._db, task.task_id)
         assert approval is not None
-        store.resolve_approval(approval.approval_id, "approved")
+        resolve_approval(store._db, approval.approval_id, "approved")
 
         # Resume — plan and execute should be skipped via idempotency
         call_counts = {"plan": 0, "execute": 0, "verify": 0}
@@ -295,18 +307,18 @@ class TestWorkflowEngineApprovalGate:
     async def test_startup_recovered_approval_can_resume(self, store) -> None:
         """After startup recovery restores pending approval, the task can resume."""
         wdef = _make_wdef()
-        task = store.create_task("s", 1, wdef.version)
+        task = create_task(store._db, "s", 1, wdef.version)
         engine = WorkflowEngine(wdef, store)
 
         # Simulate startup recovery: task is still in pending_approval state
-        approval = store.request_approval(task.task_id)
-        store.update_task_status(task.task_id, "pending_approval")
+        approval = request_approval(store._db, task.task_id)
+        update_task_status(store._db, task.task_id, "pending_approval")
 
         # Approve the task (as if user ran /approve after startup)
-        store.resolve_approval(approval.approval_id, "approved")
+        resolve_approval(store._db, approval.approval_id, "approved")
 
         # Resume — should complete without raising
         await engine.run(task, _noop, _noop, _noop)
-        found = store.get_task_by_idempotency_key("s:1")
+        found = get_task_by_idempotency_key(store._db, "s:1")
         assert found is not None
         assert found.status == "completed"

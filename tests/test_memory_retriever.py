@@ -14,11 +14,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from agent.memory.retriever import (
-    HybridRetriever,
-    _build_fts_query,
-    _rrf_merge,
-)
+from agent.memory.fts_query import build_fts_query
+from agent.memory.retriever import HybridRetriever
+from agent.memory.rrf import rrf_merge
 from agent.memory.scoring import recency_boost as _recency_boost, score as _score
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 
@@ -159,19 +157,19 @@ def retriever(db_conn: sqlite3.Connection) -> Generator[MemoryRetriever]:
 
 class TestBuildFtsQuery:
     def test_single_word(self) -> None:
-        assert _build_fts_query("policy") == '"policy"'
+        assert build_fts_query("policy") == '"policy"'
 
     def test_multi_word_joins_with_or(self) -> None:
-        result = _build_fts_query("rule policy")
+        result = build_fts_query("rule policy")
         assert '"rule"' in result
         assert "OR" in result
         assert '"policy"' in result
 
     def test_empty_string_returns_fallback(self) -> None:
-        assert _build_fts_query("") == '""'
+        assert build_fts_query("") == '""'
 
     def test_non_word_chars_stripped(self) -> None:
-        result = _build_fts_query("!!! ???")
+        result = build_fts_query("!!! ???")
         assert result == '""'
 
 
@@ -401,7 +399,7 @@ class TestTopSemantic:
         assert entries[0].memory_id == "pinned"
 
 
-# ── _rrf_merge() ──────────────────────────────────────────────────────────────
+# ── rrf_merge() ──────────────────────────────────────────────────────────────
 
 
 def _make_hit(memory_id: str, score: float = 0.5) -> MemoryHit:
@@ -428,7 +426,7 @@ def _make_hit(memory_id: str, score: float = 0.5) -> MemoryHit:
 class TestRrfMerge:
     def test_single_list_passthrough(self) -> None:
         hits = [_make_hit("a"), _make_hit("b")]
-        merged = _rrf_merge([hits])
+        merged = rrf_merge([hits])
         ids = [h.entry.memory_id for h in merged]
         assert "a" in ids and "b" in ids
 
@@ -436,7 +434,7 @@ class TestRrfMerge:
         """Same memory_id appearing in both lists is deduplicated."""
         list1 = [_make_hit("x"), _make_hit("y")]
         list2 = [_make_hit("x"), _make_hit("z")]
-        merged = _rrf_merge([list1, list2])
+        merged = rrf_merge([list1, list2])
         ids = [h.entry.memory_id for h in merged]
         assert ids.count("x") == 1
 
@@ -444,7 +442,7 @@ class TestRrfMerge:
         """An entry appearing in both lists accumulates higher RRF score."""
         list1 = [_make_hit("shared"), _make_hit("only1")]
         list2 = [_make_hit("shared"), _make_hit("only2")]
-        merged = _rrf_merge([list1, list2])
+        merged = rrf_merge([list1, list2])
         shared_rank = next(
             i for i, h in enumerate(merged) if h.entry.memory_id == "shared"
         )
@@ -455,13 +453,13 @@ class TestRrfMerge:
         assert shared_rank < only1_rank
 
     def test_empty_lists_returns_empty(self) -> None:
-        assert _rrf_merge([]) == []
-        assert _rrf_merge([[]]) == []
+        assert rrf_merge([]) == []
+        assert rrf_merge([[]]) == []
 
     def test_duplicate_memory_id_within_single_list(self) -> None:
         """Duplicate memory_id in a single list is deduplicated with accumulated score."""
         hits = [_make_hit("dup"), _make_hit("other"), _make_hit("dup")]
-        merged = _rrf_merge([hits])
+        merged = rrf_merge([hits])
         ids = [h.entry.memory_id for h in merged]
         assert ids.count("dup") == 1
         assert "dup" in ids
@@ -476,7 +474,7 @@ class TestRrfMerge:
         """Symmetric placement yields identical RRF scores for both entries."""
         list1 = [_make_hit("a"), _make_hit("b")]
         list2 = [_make_hit("b"), _make_hit("a")]
-        merged = _rrf_merge([list1, list2])
+        merged = rrf_merge([list1, list2])
         ids = [h.entry.memory_id for h in merged]
         assert "a" in ids and "b" in ids
         score_a = next(h.score for h in merged if h.entry.memory_id == "a")
@@ -488,7 +486,7 @@ class TestRrfMerge:
         list1 = [_make_hit("dup"), _make_hit("only1")]
         list2 = [_make_hit("dup"), _make_hit("only2")]
         list3 = [_make_hit("dup"), _make_hit("only3")]
-        merged = _rrf_merge([list1, list2, list3])
+        merged = rrf_merge([list1, list2, list3])
         ids = [h.entry.memory_id for h in merged]
         assert ids.count("dup") == 1
         dup_score = next(h.score for h in merged if h.entry.memory_id == "dup")
@@ -501,7 +499,7 @@ class TestRrfMerge:
         # Entry B at rank 1 in list1 + rank 0 in list2 = 1/62 + 1/61
         list1 = [_make_hit("a"), _make_hit("b")]
         list2 = [_make_hit("b"), _make_hit("a")]
-        merged = _rrf_merge([list1, list2])
+        merged = rrf_merge([list1, list2])
         ids = [h.entry.memory_id for h in merged]
         assert "a" in ids and "b" in ids
         score_a = next(h.score for h in merged if h.entry.memory_id == "a")
@@ -515,7 +513,7 @@ class TestRrfMerge:
         # Entry "other" appears at rank 1 in list1 and rank 1 in list2 (same position)
         list1 = [_make_hit("dup"), _make_hit("other")]
         list2 = [_make_hit("dup"), _make_hit("other")]
-        merged = _rrf_merge([list1, list2])
+        merged = rrf_merge([list1, list2])
         ids = [h.entry.memory_id for h in merged]
         assert ids.count("dup") == 1
         assert ids.count("other") == 1
@@ -573,7 +571,7 @@ class TestHybridSearch:
         ids = [h.entry.memory_id for h in hits]
         assert "fts-fallback" in ids
 
-    def test_search_with_both_fts_and_vec_results_uses_rrf_merge(
+    def test_search_with_both_fts_and_vec_results_usesrrf_merge(
         self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
     ) -> None:
         """When knn_search returns hits, RRF merge is applied and results are returned."""

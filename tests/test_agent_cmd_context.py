@@ -6,7 +6,7 @@ Behavior-lock tests for _ContextMixin: _cmd_undo, _cmd_clear, _cmd_system.
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.commands.cmd_context import _ContextMixin, _token_source_label
@@ -253,13 +253,13 @@ class TestFormatMemoryStatus:
     def test_format_memory_status_enabled(self) -> None:
         ctx = _make_ctx()
         mem = MagicMock()
-        mem.store.count_entries.return_value = 10
         mem.store.count_vec.return_value = 5
-        mem.store.count_by_type.return_value = {"semantic": 3, "episodic": 7}
         ctx.services.memory = mem
-        result = _format_memory_status(ctx)
-        assert "enabled" in result
-        assert "entries=10" in result
+        with patch("agent.services.context_view.count_by_type", return_value={"semantic": 3, "episodic": 7}):
+            with patch("agent.services.context_view.count_entries", return_value=10):
+                result = _format_memory_status(ctx)
+                assert "enabled" in result
+                assert "entries=10" in result
 
 
 # ── _token_source_label ───────────────────────────────────────────────────────
@@ -391,12 +391,12 @@ class TestCollectContextState:
         hist_mgr.count_tokens.return_value = None
         ctx.services.hist_mgr = hist_mgr
         mem = MagicMock()
-        mem.store.count_entries.return_value = 10
         mem.store.count_vec.return_value = 5
-        mem.store.count_by_type.return_value = {"semantic": 3}
         ctx.services.memory = mem
-        result = collect_context_state(ctx)
-        assert "enabled" in result.mem_status
+        with patch("agent.services.context_view.count_by_type", return_value={"semantic": 3}):
+            with patch("agent.services.context_view.count_entries", return_value=10):
+                result = collect_context_state(ctx)
+                assert "enabled" in result.mem_status
 
 
 # ── _cmd_context ──────────────────────────────────────────────────────────────

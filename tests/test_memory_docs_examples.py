@@ -12,7 +12,7 @@ import dataclasses
 import pytest
 from agent.memory.embedding_client import EmbeddingClient, EmbeddingClientConfig
 from agent.memory.models import MemorySnippet
-from agent.memory.retriever import _rrf_merge
+from agent.memory.rrf import rrf_merge
 from agent.memory.types import (
     EmbeddingErrorKind,
     EmbeddingResult,
@@ -123,14 +123,14 @@ class TestRrfFormula:
     def test_single_hit_score_matches_formula(self):
         # rank=0 in a single-item list → score = 1/(60 + 0 + 1) = 1/61
         hits = [_make_hit("a")]
-        merged = _rrf_merge([hits])
+        merged = rrf_merge([hits])
         expected = 1.0 / (60 + 0 + 1)
         assert abs(merged[0].score - expected) < 1e-9
 
     def test_second_rank_score_matches_formula(self):
         # rank=1 → score = 1/(60 + 1 + 1) = 1/62
         hits = [_make_hit("first"), _make_hit("second")]
-        merged = _rrf_merge([hits])
+        merged = rrf_merge([hits])
         second = next(h for h in merged if h.entry.memory_id == "second")
         expected = 1.0 / (60 + 1 + 1)
         assert abs(second.score - expected) < 1e-9
@@ -139,13 +139,13 @@ class TestRrfFormula:
         # "shared" appears at rank 0 in both lists → score = 2 * 1/(60+0+1) = 2/61
         list1 = [_make_hit("shared")]
         list2 = [_make_hit("shared")]
-        merged = _rrf_merge([list1, list2])
+        merged = rrf_merge([list1, list2])
         expected = 2.0 / (60 + 0 + 1)
         assert abs(merged[0].score - expected) < 1e-9
 
     def test_top_ranked_entry_has_highest_score(self):
         hits = [_make_hit("best"), _make_hit("mid"), _make_hit("last")]
-        merged = _rrf_merge([hits])
+        merged = rrf_merge([hits])
         scores = [h.score for h in merged]
         assert scores == sorted(scores, reverse=True)
 

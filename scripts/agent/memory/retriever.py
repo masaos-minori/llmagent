@@ -18,7 +18,9 @@ import logging
 from db.helper import SQLiteHelper
 
 from agent.memory.embedding_client import EmbeddingClient
+from agent.memory.fts_query import build_fts_query
 from agent.memory.mapper import _floats_to_blob, row_to_entry
+from agent.memory.rrf import RRF_K, rrf_merge
 from agent.memory.scoring import score
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 
@@ -26,45 +28,6 @@ logger = logging.getLogger(__name__)
 
 # Maximum number of raw FTS5 candidates before rescoring
 _FTS_CANDIDATE_LIMIT = 50
-
-# RRF constant
-_RRF_K = 60
-
-
-def _build_fts_query(text: str) -> str:
-    """Build FTS5 MATCH query with token quoting to escape reserved terms.
-
-    All tokens are double-quoted to escape AND/OR/NOT/NEAR as literals.
-    No column filter: memories_fts searches content, summary, and tags.
-    """
-    import re  # noqa: PLC0415 — lazy import, only needed for regex
-
-    tokens = re.findall(r"\w+", text)
-    if not tokens:
-        return '""'
-    return " OR ".join(f'"{t}"' for t in tokens)
-
-
-def _rrf_merge(
-    hit_lists: list[list[MemoryHit]],
-    k: int = _RRF_K,
-) -> list[MemoryHit]:
-    """Reciprocal Rank Fusion: merge multiple ranked hit lists by rank position.
-
-    Each list contributes 1/(k + rank) to the memory_id's final RRF score.
-    Sets hit.score to the RRF score before returning.
-    Returns a deduplicated list sorted by descending RRF score.
-    """
-    rrf_scores: dict[str, float] = {}
-    by_id: dict[str, MemoryHit] = {}
-    for lst in hit_lists:
-        for rank, hit in enumerate(lst):
-            mid = hit.entry.memory_id
-            rrf_scores[mid] = rrf_scores.get(mid, 0.0) + 1.0 / (k + rank + 1)
-            by_id[mid] = hit
-    for mid, hit in by_id.items():
-        hit.score = rrf_scores[mid]
-    return sorted(by_id.values(), key=lambda h: h.score, reverse=True)
 
 
 class FtsRetriever:
@@ -87,7 +50,7 @@ class FtsRetriever:
         branch: str = "",
     ) -> list[MemoryHit]:
         """FTS5 BM25 search; returns [] on error or empty query."""
-        fts_query = _build_fts_query(query.query)
+        fts_query = build_fts_query(query.query)
         if not fts_query or fts_query == '""':
             return []
 
@@ -212,7 +175,7 @@ class HybridRetriever:
         self,
         *,
         fts_limit: int = _FTS_CANDIDATE_LIMIT,
-        rrf_k: int = _RRF_K,
+        rrf_k: int = RRF_K,
         recency_days: float = 7.0,
         embed_client: EmbeddingClient | None = None,
     ) -> None:
@@ -254,8 +217,8 @@ class HybridRetriever:
             return fts_hits
 
         self.last_retrieval_mode = "hybrid"
-        merged = _rrf_merge([fts_hits, vec_hits], k=self._rrf_k)
-        # hit.score is set to the RRF score by _rrf_merge; already sorted by _rrf_merge.
+        merged = rrf_merge([fts_hits, vec_hits], k=self._rrf_k)
+        # hit.score is set to the RRF score by rrf_merge; already sorted by rrf_merge.
         return merged[: query.limit]
 
     def knn_search(
