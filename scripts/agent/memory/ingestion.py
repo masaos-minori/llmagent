@@ -16,7 +16,11 @@ import uuid
 
 from db.helper import SQLiteHelper
 
-from agent.memory.embedding_client import EmbeddingClient, EmbeddingResult
+from agent.memory.embedding_client import (
+    EmbeddingClient,
+    EmbeddingErrorKind,
+    EmbeddingResult,
+)
 from agent.memory.enums import DEDUP_THRESHOLDS, DedupAction, DedupPolicy, MemoryType
 from agent.memory.extract import extract_memories
 from agent.memory.jsonl_store import JsonlMemoryStore
@@ -91,7 +95,7 @@ class MemoryIngestionService:
 
     async def _persist_entry_with_dedup(self, entry: MemoryEntry) -> None:
         """Embed, dedup-check, and persist a single memory entry."""
-        embed_result = await self._embed_client.fetch(entry.content)
+        embed_result = await self._fetch_embed_result(entry.content)
         if not embed_result.success:
             self.stat_embed_skip += 1
             logger.info(
@@ -109,7 +113,7 @@ class MemoryIngestionService:
         Used by write_semantic() and write_episodic() (manual writes).
         Automatic session extraction uses on_session_stop() which applies dedup.
         """
-        embed_result = await self._embed_client.fetch(entry.content)
+        embed_result = await self._fetch_embed_result(entry.content)
         if not embed_result.success:
             self.stat_embed_skip += 1
             logger.info(
@@ -118,6 +122,17 @@ class MemoryIngestionService:
                 entry.memory_id,
             )
         await self._persist_entry_with_embedding(entry, embed_result)
+
+    async def _fetch_embed_result(self, content: str) -> EmbeddingResult:
+        """Fetch embedding and return result (with fallback on failure)."""
+        try:
+            return await self._embed_client.fetch(content)
+        except Exception:
+            return EmbeddingResult(
+                success=False,
+                error_kind=EmbeddingErrorKind.UNKNOWN_ERROR,
+                embedding=None,
+            )
 
     async def _persist_entry_with_embedding(
         self, entry: MemoryEntry, embed_result: EmbeddingResult

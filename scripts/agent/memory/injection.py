@@ -7,6 +7,7 @@ Reads from the memory store and injects relevant snippets into the LLM context.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from agent.memory.embedding_client import EmbeddingClient
@@ -14,7 +15,7 @@ from agent.memory.enums import MemoryType
 from agent.memory.exceptions import InjectionValidationError
 from agent.memory.models import MemorySnippet
 from agent.memory.retriever import HybridRetriever
-from agent.memory.types import MemoryHit, MemoryQuery
+from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 
 logger = logging.getLogger(__name__)
 
@@ -59,17 +60,50 @@ class MemoryInjectionService:
         )
         if not entries:
             return []
-        snippets = [
-            MemorySnippet(
-                text=f"{self._policy.format_prefix_semantic} {e.summary if e.summary else e.content[:100]}",
-                source="semantic",
-            )
-            for e in entries
-        ]
+        snippets = self._build_snippets_from_entries(
+            entries, self._policy.format_prefix_semantic, "semantic"
+        )
         logger.info(
             "MemoryInjectionService.on_session_start: injecting %d entries",
             len(snippets),
         )
+        return snippets
+
+    def _build_snippets_from_entries(
+        self,
+        entries: Sequence[MemoryEntry],
+        prefix: str,
+        source: str,
+    ) -> list[MemorySnippet]:
+        """Build MemorySnippet list from ranked entries."""
+        snippets: list[MemorySnippet] = []
+        for entry in entries:
+            snippet_text = (
+                entry.summary if entry.summary else entry.content[:100]
+            )
+            snippets.append(
+                MemorySnippet(
+                    text=f"{prefix} {snippet_text}",
+                    source=source,
+                )
+            )
+        return snippets
+
+    def _build_snippets_from_hits(
+        self, hits: Sequence[MemoryHit], prefix: str, source: str
+    ) -> list[MemorySnippet]:
+        """Build MemorySnippet list from ranked hits."""
+        snippets: list[MemorySnippet] = []
+        for hit in hits:
+            snippet_text = (
+                hit.entry.summary if hit.entry.summary else hit.entry.content[:100]
+            )
+            snippets.append(
+                MemorySnippet(
+                    text=f"{prefix} {snippet_text}",
+                    source=source,
+                )
+            )
         return snippets
 
     async def on_user_prompt(
@@ -115,22 +149,5 @@ class MemoryInjectionService:
             logger.debug(
                 "MemoryInjectionService.on_user_prompt: returning %d snippets",
                 len(snippets),
-            )
-        return snippets
-
-    def _build_snippets_from_hits(
-        self, hits: list[MemoryHit], prefix: str, source: str
-    ) -> list[MemorySnippet]:
-        """Build MemorySnippet list from ranked hits."""
-        snippets: list[MemorySnippet] = []
-        for hit in hits:
-            snippet_text = (
-                hit.entry.summary if hit.entry.summary else hit.entry.content[:100]
-            )
-            snippets.append(
-                MemorySnippet(
-                    text=f"{prefix} {snippet_text}",
-                    source=source,
-                )
             )
         return snippets

@@ -6,7 +6,7 @@ Enforced by ruff, mypy, and ast-grep. Do not violate.
 
 | Rule | Detail |
 |---|---|
-| Line length | max 88 chars — enforced by `ruff format` |
+| Line length | max 120 chars — enforced by `ruff format` |
 | Comments and log output | English only |
 | String formatting | f-strings preferred; plain literals when no variables |
 | Import order | enforced by ruff `I` rules (isort-compatible) |

@@ -8,8 +8,37 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import TypeVar, cast
 
 from agent.memory.enums import MemoryType
+
+T = TypeVar("T", bound=StrEnum)
+
+
+def _coerce_str_enum(value: object, enum_cls: type[StrEnum]) -> StrEnum:
+    """Coerce a value to an enum if it is a string; raise ValueError otherwise."""
+    if isinstance(value, enum_cls):
+        return value
+    if not isinstance(value, str):
+        raise ValueError(
+            f"Expected {enum_cls.__name__} or None, got {type(value).__name__}"
+        )
+    try:
+        return enum_cls(value)
+    except ValueError:
+        raise ValueError(
+            f"{enum_cls.__name__} must be one of {[m.value for m in enum_cls]}; "
+            f"got {value!r}"
+        )
+
+
+def _coerce_str_enum_or_none(
+    value: object | None, enum_cls: type[StrEnum]
+) -> StrEnum | None:
+    """Coerce a value to an enum if it is a string; return None if value is None."""
+    if value is None:
+        return None
+    return _coerce_str_enum(value, enum_cls)
 
 _ISO8601_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
@@ -71,24 +100,10 @@ class MemoryEntry:
     updated_at: str = ""
 
     def __post_init__(self) -> None:
-        # Coerce str → MemoryType
-        if not isinstance(self.memory_type, MemoryType):
-            try:
-                object.__setattr__(self, "memory_type", MemoryType(self.memory_type))
-            except ValueError:
-                raise ValueError(
-                    f"Invalid memory_type={self.memory_type!r};"
-                    f" must be one of {[m.value for m in MemoryType]}",
-                )
-        # Coerce str → SourceType
-        if not isinstance(self.source_type, SourceType):
-            try:
-                object.__setattr__(self, "source_type", SourceType(self.source_type))
-            except ValueError:
-                raise ValueError(
-                    f"Invalid source_type={self.source_type!r};"
-                    f" must be one of {[v.value for v in SourceType]}",
-                )
+        coerced_memory_type = cast(MemoryType, _coerce_str_enum(self.memory_type, MemoryType))
+        object.__setattr__(self, "memory_type", coerced_memory_type)
+        coerced_source_type = cast(SourceType, _coerce_str_enum(self.source_type, SourceType))
+        object.__setattr__(self, "source_type", coerced_source_type)
         if not (0.0 <= self.importance <= 1.0):
             raise ValueError(f"importance must be in [0.0, 1.0], got {self.importance}")
         _validate_iso8601(self.created_at, "created_at")
@@ -107,16 +122,8 @@ class MemoryQuery:
     def __post_init__(self) -> None:
         if not self.query.strip():
             raise ValueError("MemoryQuery.query must not be empty")
-        if self.memory_type is not None and not isinstance(
-            self.memory_type, MemoryType
-        ):
-            try:
-                object.__setattr__(self, "memory_type", MemoryType(self.memory_type))
-            except ValueError:
-                raise ValueError(
-                    f"MemoryQuery.memory_type must be MemoryType or None;"
-                    f" got {self.memory_type!r}"
-                )
+        coerced = _coerce_str_enum_or_none(self.memory_type, MemoryType)
+        object.__setattr__(self, "memory_type", cast(MemoryType | None, coerced))
         if self.limit < 1:
             raise ValueError(f"MemoryQuery.limit must be >= 1, got {self.limit}")
 

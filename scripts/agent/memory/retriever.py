@@ -30,6 +30,38 @@ logger = logging.getLogger(__name__)
 _FTS_CANDIDATE_LIMIT = 50
 
 
+def _build_filters(
+    memory_type: str | None, branch: str = ""
+) -> tuple[str, str]:
+    """Build type and branch filter clauses for SQL queries."""
+    type_filter = ""
+    if memory_type:
+        type_filter = "AND m.memory_type = ?"
+
+    branch_filter = ""
+    if branch:
+        branch_filter = "AND (? = '' OR m.branch = '' OR m.branch = ?)"
+
+    return type_filter, branch_filter
+
+
+def _build_query_params(
+    primary_param: object, limit: int, memory_type: str | None, branch: str = ""
+) -> tuple[list[object], str, str]:
+    """Build SQL query params, type filter, and branch filter.
+
+    Returns (params, type_filter_sql, branch_filter_sql).
+    The primary_param is the main search param (FTS query or vec blob).
+    Branch params are inserted before LIMIT to maintain correct ordering.
+    """
+    params: list[object] = [primary_param, limit]
+    type_filter, branch_filter = _build_filters(memory_type, branch)
+    if branch:
+        params.insert(len(params) - 1, branch)
+        params.insert(len(params) - 1, branch)
+    return params, type_filter, branch_filter
+
+
 class FtsRetriever:
     """FTS5 BM25 search with importance / pin / recency rescoring."""
 
@@ -41,6 +73,11 @@ class FtsRetriever:
     ) -> None:
         self._fts_limit = fts_limit
         self._recency_days = recency_days
+
+    @property
+    def candidate_limit(self) -> int:
+        """Return the candidate limit for hybrid search."""
+        return self._fts_limit
 
     def search(
         self,
@@ -63,20 +100,9 @@ class FtsRetriever:
         self, fts_query: str, memory_type: str | None, branch: str = ""
     ) -> tuple[str, list[object]]:
         """Build FTS5 search SQL and parameter tuple."""
-        type_filter = ""
-        params: list[object] = [fts_query, self._fts_limit]
-        if memory_type:
-            type_filter = "AND m.memory_type = ?"
-            params.insert(1, memory_type)
-
-        branch_filter = ""
-        if branch:
-            branch_filter = "AND (? = '' OR m.branch = '' OR m.branch = ?)"
-            # Insert branch params before the trailing LIMIT param.
-            # params layout after type_filter: [fts_query, (type?), ..., fts_limit]
-            # We insert two branch params at position len(params)-1 to keep LIMIT last.
-            params.insert(len(params) - 1, branch)
-            params.insert(len(params) - 1, branch)
+        params, type_filter, branch_filter = _build_query_params(
+            fts_query, self._fts_limit, memory_type, branch
+        )
 
         sql = f"""
             SELECT m.memory_id, m.memory_type, m.source_type, m.session_id, m.turn_id,
@@ -126,17 +152,9 @@ class VectorRetriever:
         branch: str = "",
     ) -> list[MemoryHit]:
         """KNN search on memories_vec; raises OperationalError when table missing."""
-        type_filter = ""
-        params: list[object] = [_floats_to_blob(embedding), limit]
-        if memory_type:
-            type_filter = "AND m.memory_type = ?"
-            params.insert(1, memory_type)
-
-        branch_filter = ""
-        if branch:
-            branch_filter = "AND (? = '' OR m.branch = '' OR m.branch = ?)"
-            params.insert(len(params) - 1, branch)
-            params.insert(len(params) - 1, branch)
+        params, type_filter, branch_filter = _build_query_params(
+            _floats_to_blob(embedding), limit, memory_type, branch
+        )
 
         sql = f"""
             SELECT m.memory_id, m.memory_type, m.source_type, m.session_id, m.turn_id,
@@ -208,7 +226,7 @@ class HybridRetriever:
             return fts_hits
 
         vec_hits = self._vec.knn_search(
-            embedding, query.memory_type, self._fts._fts_limit, branch
+            embedding, query.memory_type, self._fts.candidate_limit, branch
         )
         if not vec_hits:
             logger.info("retrieval: fts_only (reason=vec_returned_empty)")

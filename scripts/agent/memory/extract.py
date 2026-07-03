@@ -142,6 +142,40 @@ def _make_entry(
     )
 
 
+def _make_entry_with_importance(
+    *,
+    memory_type: MemoryType,
+    source_type: SourceType,
+    tags: list[str],
+    content: str,
+    importance: float,
+    session_id: int | None,
+    turn_id: str | None,
+    project: str,
+    repo: str,
+    branch: str,
+    now: str,
+) -> MemoryEntry:
+    """Build a MemoryEntry with pre-computed importance score."""
+    return MemoryEntry(
+        memory_id=str(uuid.uuid4()),
+        memory_type=memory_type,
+        source_type=source_type,
+        session_id=session_id,
+        turn_id=turn_id,
+        project=project,
+        repo=repo,
+        branch=branch,
+        content=content,
+        summary=_make_summary(content),
+        tags=tags,
+        importance=importance,
+        pinned=False,
+        created_at=now,
+        updated_at=now,
+    )
+
+
 def _importance_from_content(
     content: str, is_semantic: bool, source_type: SourceType | None = None
 ) -> float:
@@ -150,17 +184,25 @@ def _importance_from_content(
     if is_semantic:
         keyword_hits = len(_SEMANTIC_KEYWORDS.findall(content))
         keyword_bonus = min(keyword_hits * 0.05, 0.2)
-        if source_type == SourceType.DECISION:
-            base = 0.55
-        else:
-            base = 0.4
+        base = _semantic_base(source_type)
         return min(base + length_bonus + keyword_bonus + 0.1, 1.0)
     # episodic: base by source type
-    if source_type == SourceType.FAILURE:
-        base = 0.45
-    else:
-        base = 0.4
+    base = _episodic_base(source_type)
     return min(base + length_bonus, 0.8)
+
+
+def _semantic_base(source_type: SourceType | None) -> float:
+    """Return base importance for semantic memory type."""
+    if source_type == SourceType.DECISION:
+        return 0.55
+    return 0.4
+
+
+def _episodic_base(source_type: SourceType | None) -> float:
+    """Return base importance for episodic memory type."""
+    if source_type == SourceType.FAILURE:
+        return 0.45
+    return 0.4
 
 
 def _make_summary(content: str, max_chars: int = 120) -> str:
@@ -198,17 +240,17 @@ def _try_extract_from_assistant(
     importance = _importance_from_content(
         content, is_semantic=(mem_type == MemoryType.SEMANTIC), source_type=source_type
     )
-    return _make_entry(
+    return _make_entry_with_importance(
         memory_type=mem_type,
         source_type=source_type,
         tags=tags,
         content=content,
+        importance=importance,
         session_id=session_id,
         turn_id=turn_id,
         project=project,
         repo=repo,
         branch=branch,
-        importance=importance,
         now=now,
     )
 
@@ -234,17 +276,17 @@ def _try_extract_from_user(
     if not _SEMANTIC_KEYWORDS.search(content):
         return None
     importance = _importance_from_content(content, is_semantic=True)
-    return _make_entry(
+    return _make_entry_with_importance(
         memory_type=MemoryType.SEMANTIC,
         source_type=SourceType.RULE,
         tags=["auto-extracted", "user-rule"],
         content=content,
+        importance=importance,
         session_id=session_id,
         turn_id=turn_id,
         project=project,
         repo=repo,
         branch=branch,
-        importance=importance,
         now=now,
     )
 
