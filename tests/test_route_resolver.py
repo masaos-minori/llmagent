@@ -256,12 +256,12 @@ class TestLiveDiscoveryRouting:
             "web_search": _http("web_search"),
         }
 
-    def test_discovery_wins_over_registry(self) -> None:
-        """Discovery map overrides registry routing for the same tool."""
+    def test_discovery_does_not_override_registry(self) -> None:
+        """Discovery map does not affect routing; registry is the sole authority."""
         configs = self._make_configs()
         discovery_map = {"read_text_file": "custom_server"}
         resolver = ToolRouteResolver(configs, discovery_map=discovery_map)
-        assert resolver.resolve("read_text_file") == "custom_server"
+        assert resolver.resolve("read_text_file") == "file_read"
 
     def test_registry_fallback_when_tool_not_in_discovery_map(self) -> None:
         """Registry is used when tool is not in discovery map."""

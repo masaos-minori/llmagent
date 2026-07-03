@@ -4,6 +4,7 @@ Unit tests for agent/tool_audit.py: audit logging functions.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -79,7 +80,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
 class TestLogApprovalDecision:
     def test_logs_structured_event(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         ctx.turn.current_turn_id = "turn-xyz"
         outcome = ApprovalOutcome(
             tool_name="write_file",
@@ -88,8 +89,8 @@ class TestLogApprovalDecision:
             escalation_reason="",
         )
         log_approval_decision(ctx, outcome)
-        ctx.services.audit_logger.info.assert_called_once()
-        logged = ctx.services.audit_logger.info.call_args[0][0]
+        ctx.services_required.audit_logger.info.assert_called_once()
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
         assert "approval_decision" in logged
         assert "write_file" in logged
         assert "task_id" in logged
@@ -110,14 +111,15 @@ class TestLogApprovalDecision:
 class TestAuditToolExec:
     def test_writes_to_audit_logger_when_conditions_met(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = MagicMock()
-        ctx.cfg.masked_fields = []
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-abc"
 
         audit_tool_exec(ctx, "read_text_file", {"path": "/tmp/f"}, False, "req-123")
 
-        ctx.services.audit_logger.info.assert_called_once()
-        logged = ctx.services.audit_logger.info.call_args[0][0]
+        ctx.services_required.audit_logger.info.assert_called_once()
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
         assert "tool_exec" in logged
         assert "req-123" in logged
         assert "operation_type" in logged
@@ -129,17 +131,22 @@ class TestAuditToolExec:
         # No error raised even though logger is None
         audit_tool_exec(ctx, "read_text_file", {}, False, "req-123")
 
-    def test_skips_when_mcp_request_id_is_empty(self) -> None:
+    def test_writes_event_when_mcp_request_id_is_empty(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
         audit_tool_exec(ctx, "read_text_file", {}, False, "")
-        ctx.services.audit_logger.info.assert_not_called()
+        ctx.services_required.audit_logger.info.assert_called_once()
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
+        rec = json.loads(logged)
+        assert rec["mcp_request_id"] == ""
 
 
 class TestWriteRoundExec:
     def test_logs_new_fields_when_provided(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         write_round_exec(
             ctx,
             round_id="r-1",
@@ -152,15 +159,16 @@ class TestWriteRoundExec:
             serial_reason="side_effect",
             estimated_parallel_ms=20.0,
         )
-        ctx.services.audit_logger.info.assert_called_once()
-        extra = ctx.services.audit_logger.info.call_args[1]["extra"]
+        ctx.services_required.audit_logger.info.assert_called_once()
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
+        extra = json.loads(logged)
         assert extra["affected_tools"] == ["write_file", "read_text_file"]
         assert extra["serial_reason"] == "side_effect"
         assert extra["estimated_parallel_ms"] == 20.0
 
     def test_defaults_to_empty_when_omitted(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         write_round_exec(
             ctx,
             round_id="r-2",
@@ -170,7 +178,8 @@ class TestWriteRoundExec:
             trigger_tool=None,
             elapsed_ms=10.0,
         )
-        extra = ctx.services.audit_logger.info.call_args[1]["extra"]
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
+        extra = json.loads(logged)
         assert extra["affected_tools"] == []
         assert extra["serial_reason"] is None
         assert extra["estimated_parallel_ms"] is None

@@ -194,7 +194,6 @@ Stdio servers are always exempt from this check regardless of profile.
 | Limit | Default | Server |
 |---|---|---|
 | Max response bytes | 512 KB (`MCP_MAX_RESPONSE_BYTES = 524288`) | All servers (truncation) |
-| stdio call timeout | 60.0 sec (`_STDIO_CALL_TIMEOUT`) | StdioTransport |
 | shell max output | 4096 KB (config) | shell-mcp |
 | shell max memory | 512 MB (`RLIMIT_AS`) | shell-mcp |
 | shell max timeout | 300 sec (config) | shell-mcp |

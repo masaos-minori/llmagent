@@ -26,7 +26,10 @@ class TestMcpServerConfigValidation:
 
     def test_subprocess_http_valid(self) -> None:
         cfg = McpServerConfig(
-            TransportType.HTTP, "http://localhost", startup_mode=StartupMode.SUBPROCESS
+            TransportType.HTTP,
+            "http://localhost",
+            startup_mode=StartupMode.SUBPROCESS,
+            cmd=["server.py"],
         )
         assert cfg.startup_mode == StartupMode.SUBPROCESS
 
@@ -73,6 +76,7 @@ class TestMcpServerConfigValidation:
             TransportType.HTTP,
             "http://127.0.0.1:8000",
             startup_mode=StartupMode.SUBPROCESS,
+            cmd=["server.py"],
         )
         assert cfg.startup_mode == StartupMode.SUBPROCESS
 
@@ -194,6 +198,66 @@ class TestBuildMcpServers:
     def test_role_default_empty(self) -> None:
         cfg = McpServerConfig(TransportType.HTTP, "http://127.0.0.1:8000")
         assert cfg.role == ""
+
+    def test_subprocess_http_with_cmd_env_parsed(self) -> None:
+        """subprocess startup_mode with cmd and env must be parsed from TOML dict."""
+        cfg = {
+            "mcp_servers": {
+                "srv": {
+                    "transport": "http",
+                    "url": "http://127.0.0.1:8000",
+                    "startup_mode": "subprocess",
+                    "cmd": ["python3", "server.py"],
+                    "env": {"PORT": "9000"},
+                }
+            }
+        }
+        result = _build_mcp_servers(cfg)
+        s = result["srv"]
+        assert s.startup_mode == StartupMode.SUBPROCESS
+        assert s.cmd == ["python3", "server.py"]
+        assert s.env == {"PORT": "9000"}
+
+    def test_subprocess_without_cmd_raises(self) -> None:
+        """subprocess startup_mode without cmd key must raise ValueError."""
+        cfg = {
+            "mcp_servers": {
+                "srv": {
+                    "transport": "http",
+                    "url": "http://127.0.0.1:8000",
+                    "startup_mode": "subprocess",
+                }
+            }
+        }
+        with pytest.raises(ValueError, match="cmd must not be empty"):
+            _build_mcp_servers(cfg)
+
+    def test_unsupported_transport_raises_from_toml(self) -> None:
+        """transport='stdio' in TOML dict must raise ValueError after enum removal."""
+        cfg = {
+            "mcp_servers": {
+                "srv": {
+                    "transport": "stdio",
+                    "url": "http://127.0.0.1:8000",
+                }
+            }
+        }
+        with pytest.raises(ValueError):
+            _build_mcp_servers(cfg)
+
+    def test_unsupported_startup_mode_raises_from_toml(self) -> None:
+        """startup_mode='ondemand' in TOML dict must raise ValueError after enum removal."""
+        cfg = {
+            "mcp_servers": {
+                "srv": {
+                    "transport": "http",
+                    "url": "http://127.0.0.1:8000",
+                    "startup_mode": "ondemand",
+                }
+            }
+        }
+        with pytest.raises(ValueError):
+            _build_mcp_servers(cfg)
 
 
 class TestSecurityProfile:

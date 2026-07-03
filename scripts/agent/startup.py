@@ -19,6 +19,7 @@ from agent.repl_health import (
     audit_security_defaults,
     check_readiness,
     check_routing_drift,
+    check_routing_drift_vs_live,
     check_tool_definitions_startup,
     check_workflow_definition,
 )
@@ -162,6 +163,10 @@ class StartupOrchestrator:
             self._view.write_warning(f"[non-fatal] {msg}")  # non-fatal in local profile
         for msg in check_routing_drift(ctx):
             self._view.write_warning(f"[non-fatal] {msg}")  # non-fatal in local profile
+        strict = getattr(ctx.cfg.tool, "tool_definitions_strict", False)
+        drift_result = await check_routing_drift_vs_live(ctx, strict=strict)
+        for msg in drift_result.warning_messages():
+            self._view.write_warning(f"[non-fatal] {msg}")
         try:
             rag_check = RagMaintenanceService().consistency()
             if rag_check.is_consistent:

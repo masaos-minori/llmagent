@@ -3,10 +3,10 @@
 Tool-name to server-key resolution for ToolExecutor.
 
 Routing priority:
-  1. Live-discovered tool metadata from /v1/tools (server_key field) — optional, only when discovery map is built at startup
-  2. Tool registry (canonical source of truth from tool_registry.py; populated from tool_constants.py frozensets)
+  1. Tool registry (canonical source of truth from tool_registry.py; populated from tool_constants.py frozensets)
 
 Config `tool_names` is NOT a routing input; it is drift validation metadata only.
+Live /v1/tools discovery is used for startup validation only, not routing.
 """
 
 from __future__ import annotations
@@ -59,13 +59,11 @@ def build_discovery_map(
 
 
 class ToolRouteResolver:
-    """Map tool_name → server_key.
+    """Map tool_name → server_key using ToolRegistry as the sole routing authority.
+    Raises ValueError when the tool is not in the registry.
 
-    Routing priority:
-      1. Discovery map (live /v1/tools metadata with server_key) — only when built at startup
-      2. Tool registry (canonical source of truth from tool_registry.py)
-    Raises ValueError when none of the above match.
-
+    Live /v1/tools discovery (discovery_map parameter) is retained for backward
+    compatibility with integration tests but does NOT affect routing results.
     Config `tool_names` is NOT a routing input; it is validation metadata only.
     """
 
@@ -78,7 +76,7 @@ class ToolRouteResolver:
         strict_mode: bool = False,
         known_tools: frozenset[str] | None = None,
     ) -> None:
-        # Discovery map from live /v1/tools metadata (highest priority).
+        # Validation data from live /v1/tools (not used for routing).
         self._discovery_map: dict[str, str] = discovery_map or {}
         # Tool registry (canonical source of truth).
         from shared.tool_registry import ToolRegistry
@@ -99,10 +97,7 @@ class ToolRouteResolver:
 
     def resolve(self, tool_name: str) -> str:
         """Return the server key for tool_name; raises ValueError when no match."""
-        # Priority 1: discovery map (live server metadata).
-        if (key := self._discovery_map.get(tool_name)) is not None:
-            return key
-        # Priority 2: tool registry (canonical source of truth).
+        # Priority 1: tool registry (canonical source of truth).
         if (key := self._lookup_registry(tool_name)) is not None:
             return key
         # No mapping found — raise ValueError immediately.
@@ -110,8 +105,8 @@ class ToolRouteResolver:
             self._raise_strict_error(tool_name)
         if self._warn_on_missing:
             logger.warning(
-                "ToolRouteResolver: tool %r not in discovery map or ToolRegistry; "
-                "add it to the appropriate frozenset in shared/tool_constants.py or register it in ToolRegistry.",
+                "ToolRouteResolver: tool %r not in ToolRegistry; "
+                "add it to the appropriate frozenset in shared/tool_constants.py.",
                 tool_name,
             )
         raise ValueError(f"Unknown tool: {tool_name!r}")
@@ -125,7 +120,7 @@ class ToolRouteResolver:
     def _raise_strict_error(self, tool_name: str) -> None:
         """Raise ValueError when strict_mode is enabled and no mapping found."""
         raise ValueError(
-            f"ToolRouteResolver: tool {tool_name!r} not in discovery map or ToolRegistry "
+            f"ToolRouteResolver: tool {tool_name!r} not in ToolRegistry "
             f"and strict_mode=True; add it to the appropriate frozenset in shared/tool_constants.py"
         )
 

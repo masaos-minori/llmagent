@@ -53,6 +53,7 @@ class ToolExecEvent:
     is_error: bool
     args_preview: dict[str, object]
     ts: float
+    source: str = "agent"
     error_type: str = ""  # "transport" | "tool" | "" (empty on success)
     workflow_id: str = ""
     session_id: str = ""

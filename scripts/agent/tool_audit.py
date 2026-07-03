@@ -159,7 +159,7 @@ def audit_tool_exec(
     artifact_uri: str | None = None,
 ) -> None:
     """Write a tool_exec event with mcp_request_id to the audit log."""
-    if ctx.services_required.audit_logger is None or not mcp_request_id:
+    if ctx.services_required.audit_logger is None:
         return
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
     resource_scope = _extract_resource_scope(ctx, masked)
@@ -199,21 +199,25 @@ def write_round_exec(
     if ctx.services_required.audit_logger is None:
         return
     ctx.services_required.audit_logger.info(
-        "round_exec",
-        extra={
-            "round_id": round_id,
-            "tool_count": tool_count,
-            "mode": mode,
-            "has_side_effect": has_side_effect,
-            "trigger_tool": trigger_tool,
-            "elapsed_ms": round(elapsed_ms, 1),
-            "affected_tools": affected_tools or [],
-            "serial_reason": serial_reason,
-            "estimated_parallel_ms": (
-                round(estimated_parallel_ms, 1)
-                if estimated_parallel_ms is not None
-                else None
-            ),
-            "scheduling_mode": scheduling_mode,
-        },
+        _json_dumps(
+            {
+                "event": "round_exec",
+                "source": "agent",
+                "ts": time.time(),
+                "round_id": round_id,
+                "tool_count": tool_count,
+                "mode": mode,
+                "has_side_effect": has_side_effect,
+                "trigger_tool": trigger_tool,
+                "elapsed_ms": round(elapsed_ms, 1),
+                "affected_tools": affected_tools or [],
+                "serial_reason": serial_reason,
+                "estimated_parallel_ms": (
+                    round(estimated_parallel_ms, 1)
+                    if estimated_parallel_ms is not None
+                    else None
+                ),
+                "scheduling_mode": scheduling_mode,
+            }
+        )
     )

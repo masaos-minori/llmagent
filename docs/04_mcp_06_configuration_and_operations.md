@@ -52,6 +52,8 @@ health probes, audit log reading, and the new-server addition checklist.
 | `transport` | `TransportType` | required | `TransportType.HTTP` (`"http"`); TOML string values are converted by the config loader, not at runtime |
 | `url` | `str` | required | HTTP server base URL |
 | `startup_mode` | `str` | `"persistent"` | `"persistent"` / `"subprocess"` |
+| `cmd` | `list[str]` | `[]` | Launch command for `startup_mode=subprocess`; must be non-empty when subprocess mode is used |
+| `env` | `dict[str, str]` | `{}` | Extra environment variables passed to the subprocess |
 | `healthcheck_mode` | `str` | `""` | `"http"` (auto-inferred if empty) |
 | `idle_timeout_sec` | `int` | `0` | subprocess auto-stop delay (0 = disabled) |
 | `startup_timeout_sec` | `int` | `30` | subprocess mode: health poll timeout |
@@ -62,6 +64,7 @@ health probes, audit log reading, and the new-server addition checklist.
 
 **Validation rules:**
 - `transport="http"` → `url` must be non-empty
+- `startup_mode="subprocess"` → `cmd` must be non-empty
 
 ---
 

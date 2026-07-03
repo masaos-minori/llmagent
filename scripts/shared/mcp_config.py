@@ -23,7 +23,6 @@ class TransportType(StrEnum):
     """MCP server transport protocol."""
 
     HTTP = "http"
-    STDIO = "stdio"
 
 
 class StartupMode(StrEnum):
@@ -31,7 +30,6 @@ class StartupMode(StrEnum):
 
     PERSISTENT = "persistent"
     SUBPROCESS = "subprocess"
-    ONDEMAND = "ondemand"
 
 
 class HealthcheckMode(StrEnum):
@@ -96,7 +94,6 @@ class McpServerConfig:
             )
 
 
-
 def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
     """Build per-server transport config from mcp_servers.toml [mcp_servers] section."""
     raw = cfg.get("mcp_servers")
@@ -131,6 +128,8 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         healthcheck_mode = HealthcheckMode.HTTP
     else:
         healthcheck_mode = HealthcheckMode(raw_hc)
+    cmd = list(v.get("cmd", []))
+    env = dict(v.get("env", {}))
     return McpServerConfig(
         transport=TransportType(transport),
         url=v.get("url", ""),
@@ -141,4 +140,6 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         auth_token=v.get("auth_token", ""),
         call_timeout_sec=float(v.get("call_timeout_sec", 60.0)),
         role=v.get("role", ""),
+        cmd=cmd,
+        env=env,
     )

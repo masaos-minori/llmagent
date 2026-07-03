@@ -138,6 +138,41 @@ async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[
     return server_names, unreachable
 
 
+async def _collect_server_tool_names_per_server(
+    ctx: AgentContext,
+) -> tuple[dict[str, list[str]], list[str]]:
+    """Probe all configured HTTP MCP servers; return (per_server_names, unreachable_keys).
+
+    Returns:
+        per_server_names: {server_key: [tool_name, ...]} for reachable servers.
+        unreachable_keys: list of server keys that were unreachable or returned non-200.
+    """
+    if ctx.services_required.http is None:
+        raise RuntimeError("http service not initialized")
+    per_server: dict[str, list[str]] = {}
+    unreachable: list[str] = []
+    for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():
+        if srv_cfg.transport == "http":
+            if not srv_cfg.url:
+                continue
+            try:
+                resp = await ctx.services_required.http.get(
+                    f"{srv_cfg.url}/v1/tools",
+                    timeout=5.0,
+                )
+                if resp.status_code == HTTPStatus.OK:
+                    per_server[key] = [t["name"] for t in resp.json().get("tools", [])]
+                else:
+                    msg = f"{key} /v1/tools returned HTTP {resp.status_code}"
+                    logger.warning(msg)
+                    unreachable.append(key)
+            except (httpx.HTTPError, OSError) as e:
+                msg = f"{key} unreachable at {srv_cfg.url}/v1/tools: {e}"
+                logger.warning(msg)
+                unreachable.append(key)
+    return per_server, unreachable
+
+
 async def _check_tool_definitions(
     ctx: AgentContext, strict: bool = False
 ) -> HealthCheckResult:
@@ -224,6 +259,71 @@ async def check_tool_definitions_startup(ctx: AgentContext) -> HealthCheckResult
     return await _check_tool_definitions(ctx, strict=strict)
 
 
+async def check_routing_drift_vs_live(
+    ctx: AgentContext,
+    *,
+    strict: bool = False,
+) -> HealthCheckResult:
+    """Validate live /v1/tools responses against ToolRegistry at startup.
+
+    Detects four drift conditions:
+      1. Tool in live response but not in registry.
+      2. Tool in registry but not in live response for that server.
+      3. Tool returned by a server that does not own it in the registry.
+      4. Duplicate live tool ownership (same tool from two servers) — logged as warning.
+
+    In strict mode: any drift raises RuntimeError.
+    In non-strict mode: drift is logged and returned as HealthCheckResult warnings.
+    All servers unreachable: skip validation with INFO log (same as _check_tool_definitions).
+    """
+    from shared.route_resolver import build_discovery_map  # noqa: PLC0415
+    from shared.tool_routing import validate_routing_against_live  # noqa: PLC0415
+
+    per_server, unreachable = await _collect_server_tool_names_per_server(ctx)
+    if not per_server:
+        if unreachable:
+            if strict:
+                msg = (
+                    f"Strict mode: all MCP servers unreachable — cannot validate "
+                    f"live routing drift. Unreachable servers: {sorted(set(unreachable))}."
+                )
+                logger.error(msg)
+                raise RuntimeError(msg)
+            msg = (
+                f"All MCP servers unreachable; skipping live routing drift check. "
+                f"Unreachable: {sorted(set(unreachable))}"
+            )
+            logger.info(msg)
+        return HealthCheckResult()
+
+    # Detect duplicate live tool ownership (logs warnings internally).
+    build_discovery_map(
+        {k: [{"name": n} for n in names] for k, names in per_server.items()}
+    )
+
+    drift = validate_routing_against_live(live_tool_lists=per_server)
+
+    warnings: list[ServiceWarning] = []
+    for server_key, messages in drift.items():
+        for msg in messages:
+            full_msg = f"Live routing drift [{server_key}]: {msg}"
+            logger.warning(full_msg)
+            warnings.append(ServiceWarning(label=server_key, url="", message=full_msg))
+
+    if drift and strict:
+        drift_str = "; ".join(f"{sk}: {msgs}" for sk, msgs in drift.items())
+        unreachable_str = sorted(set(unreachable)) if unreachable else []
+        msg = (
+            f"Strict mode: live routing drift detected. "
+            f"Drift: {drift_str}. "
+            f"Unreachable servers: {unreachable_str}."
+        )
+        logger.error(msg)
+        raise RuntimeError(msg)
+
+    return HealthCheckResult(warnings=warnings)
+
+
 def check_workflow_definition(
     workflow_mode: str,
     workflows_dir: Path | None = None,
@@ -269,7 +369,7 @@ def check_workflow_definition(
 
 def check_routing_drift(ctx: AgentContext) -> list[str]:
     """Check config tool_names against ToolRegistry at startup. Returns warning messages."""
-    from shared.tool_registry import validate_routing_against_config  # noqa: PLC0415
+    from shared.tool_routing import validate_routing_against_config  # noqa: PLC0415
 
     try:
         server_configs = ctx.cfg.mcp.mcp_servers
