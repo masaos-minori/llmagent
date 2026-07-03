@@ -217,24 +217,22 @@ Probes all HTTP servers. Expected: all show `OK` with tool list.
 
 ## Reading Audit Logs
 
-> **Note:** There are two different audit log formats in use:
-> - **MCP server audit log** (from `mcp/audit.py`): key=value format
-> - **Agent-side audit log** (from `scripts/agent/tool_audit.py`): JSON-lines format
->
-> The sections below specify which format each grep example targets.
+The shared audit log at `/opt/llm/logs/audit.log` contains JSON-lines records from both MCP server and agent-side audit events. Each line is a parseable JSON object.
 
 ### MCP server audit log (per-call)
 
-Format: key=value lines, e.g.:
-```
-AUDIT session=abc request=xyz action=read_text_file target=/tmp/f.txt outcome=ok detail=
+Format: JSON-lines, one JSON object per line. Example:
+```json
+{"event":"mcp_tool_exec","source":"mcp_server","ts":1719500000.0,"session_id":"sess-abc","request_id":"req-uuid","tool":"read_text_file","target":"/tmp/f.txt","outcome":"ok","server_key":"file_read","error_type":""}
 ```
 
 **Shared audit log** (`/opt/llm/logs/audit.log`): Used by web-search-mcp, file-read-mcp, file-write-mcp, rag-pipeline-mcp, cicd-mcp.
 
 ```bash
-# View raw MCP server audit lines (key=value format)
-tail -f /opt/llm/logs/audit.log | grep 'AUDIT'
+# View MCP server audit events (JSON-lines format)
+tail -f /opt/llm/logs/audit.log | jq 'select(.source == "mcp_server")'
+# View all audit events (MCP server + agent-side)
+tail -f /opt/llm/logs/audit.log | jq .
 ```
 
 **Per-server audit logs:**
@@ -275,15 +273,15 @@ grep "op=" /opt/llm/logs/mdq_audit.log
 
 | Server | Audit log path | Format |
 |---|---|---|
-| web-search-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
-| file-read-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
-| file-write-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
+| web-search-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
+| file-read-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
+| file-write-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
 | file-delete-mcp | `/opt/llm/logs/delete_audit.log` | Structured (ISO8601 + op + path + user) |
 | github-mcp | `/opt/llm/logs/github_audit.log` | Structured (ISO8601 + op + repo + user) |
 | shell-mcp | `/opt/llm/logs/shell_audit.log` | Structured (ISO8601 + op + command + user) |
 | mdq-mcp | `/opt/llm/logs/mdq_audit.log` | Structured (MDQ-specific) |
-| rag-pipeline-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
-| cicd-mcp | `/opt/llm/logs/audit.log` (shared) | Key=value (MCP server audit) |
+| rag-pipeline-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
+| cicd-mcp | `/opt/llm/logs/audit.log` (shared) | JSON-lines (MCP server audit) |
 | git-mcp | Config key exists but no write code | `audit_log_path = "/opt/llm/logs/git-mcp.log"` in TOML — no audit write code in service.py; reserved for future implementation |
 | sqlite-mcp | Config key not parsed | `audit_log_path = "/opt/llm/logs/sqlite-mcp.log"` in TOML — key is present for future use but not read by `SqliteConfig.from_dict`; no audit log written |
 
@@ -316,11 +314,11 @@ To trace a failed tool call across agent, transport, and server logs:
 
 1. Find the `mcp_request_id` in the agent-side audit log:
     ```bash
-    grep "mcp_request_id=<id>" /opt/llm/logs/audit.log
+    jq 'select(.mcp_request_id == "<id>")' /opt/llm/logs/audit.log
     ```
-2. Search MCP server audit log for the same `request` field (key=value format):
+2. Search MCP server audit log for the same `request_id` field (JSON-lines format):
     ```bash
-    grep "request=<id>" /opt/llm/logs/audit.log
+    jq 'select(.request_id == "<id>")' /opt/llm/logs/audit.log
     ```
 3. Search per-server log for the `X-Request-Id` response header:
     ```bash
@@ -530,6 +528,10 @@ Transport errors affect the MCP server health state and may trigger watchdog res
 Tool errors do not — the server is functioning, but the specific tool call failed
 (e.g., invalid arguments, upstream API error).
 
+Transport errors are raised by `HttpTransport` as `TransportError` and caught by
+`ToolExecutor._record_transport_error()`, which increments `stat_transport_errors`
+and calls `HealthRegistry.record_failure()`.
+
 #### Per-server tool error counters
 
 `ToolExecutor.stat_tool_errors` is a `dict[str, int]` (server_key → count) available
@@ -630,7 +632,7 @@ When adding a new tool to an **existing** MCP server:
 | 1 | Add the tool name to the appropriate frozenset in `shared/tool_constants.py` (e.g., `READ_TOOLS`, `WRITE_TOOLS`, or create a new `<SERVER>_TOOLS` frozenset and add it to `get_all_mcp_tool_names()`) | **[Required]** |
 | 2 | Registry auto-populates from these frozensets at import time — no manual registry edit needed | (automatic) |
 | 3 | Implement `dispatch()` handler in the owning MCP server (`mcp/<name>/server.py`) | **[Required]** |
-| 4 | Expose tool in `/v1/tools` endpoint (return tool definition with `server_key` field) | **[Recommended]** — enables priority-1 discovery routing |
+| 4 | Expose tool in `/v1/tools` endpoint (return tool definition with `server_key` field) | **[Recommended]** — enables startup drift validation; no effect on routing |
 | 5 | Add LLM schema to `config/tools_definitions.toml` (OpenAI function-calling format) | **[Required]** — if tool should be visible to LLM |
 | 6 | Add `tool_safety_tiers` entry in `config/agent.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
 | 7 | Add tool name to `tool_names` in server config (`config/mcp_servers.toml`) | **[Optional]** — enables startup drift validation only; routing does not require it |

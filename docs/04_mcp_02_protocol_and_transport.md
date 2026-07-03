@@ -260,6 +260,10 @@ HTTP transport errors (4xx/5xx) are caught by `HttpTransport.call()`, which rais
 `TransportError` exception. `ToolExecutor._record_transport_error()` converts this to
 `ToolCallResult(output=str(e), is_error=True, error_type="transport")`.
 
+> **Note:** `HttpTransport.call()` never returns `is_error=True` for transport failures.
+> It raises `TransportError`. `ToolExecutor._record_transport_error()` catches this and
+> returns `ToolCallResult(error_type="transport")`. See [04_mcp_03 §HttpTransport](04_mcp_03_routing_lifecycle_and_execution.md#httptransport).
+
 ### HealthRegistry updates
 
 - **Transport failures** (after all retries exhausted): `HealthRegistry.record_failure(server_key)` — increments failure count, may transition server to DEGRADED/UNAVAILABLE.

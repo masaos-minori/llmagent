@@ -10,9 +10,9 @@ Ownership model:
     against the registry but not required as a source of truth.
   - Server /v1/tools responses are validated against the registry at startup.
 
-Routing priority:
-  1. Live discovery map (/v1/tools with server_key) — runtime override, highest priority
-  2. Registry (this module) — primary routing layer, populated from frozensets at import time
+Routing authority:
+  ToolRegistry is the sole routing authority. Live /v1/tools is used only for startup
+  validation (drift detection), not for routing decisions.
 
 Config `tool_names` is NOT a routing input; it is drift validation metadata only.
 
@@ -187,6 +187,3 @@ def _register_set(
     """Register a set of tools with a server key."""
     for name in sorted(tool_names):
         registry.register(ToolDefinition(name=name, server_key=server_key))
-
-
-

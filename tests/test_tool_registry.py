@@ -5,15 +5,19 @@ Unit tests for shared.tool_registry — registry drift validation.
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import MagicMock
 
 import pytest
 from shared.mcp_config import McpServerConfig
+from shared.route_resolver import build_discovery_map
 from shared.tool_registry import (
     ToolDefinition,
     ToolRegistry,
     get_registry,
     reset_registry,
+)
+from shared.tool_routing import (
     validate_all_routing,
     validate_routing_against_config,
     validate_routing_against_live,
@@ -96,9 +100,14 @@ class TestValidateRoutingAgainstLive:
         """Tool in live response but not in registry → mismatch."""
         reset_registry()
         registry = get_registry()
-        drift = validate_routing_against_live(registry, {"rag_pipeline": ["nonexistent_tool"]})
+        drift = validate_routing_against_live(
+            registry, {"rag_pipeline": ["nonexistent_tool"]}
+        )
         assert "rag_pipeline" in drift
-        assert "'nonexistent_tool' in live response but not in registry" in drift["rag_pipeline"][0]
+        assert (
+            "'nonexistent_tool' in live response but not in registry"
+            in drift["rag_pipeline"][0]
+        )
 
     def test_tool_in_registry_not_in_live(self) -> None:
         """Tool in registry but not in live → mismatch for all rag_pipeline tools."""
@@ -125,7 +134,9 @@ class TestValidateAllRouting:
         cfg = MagicMock(spec=McpServerConfig)
         cfg.tool_names = ["existing_tool"]  # drift: not in registry
         server_configs = {"rag_pipeline": cfg}
-        live_tool_lists = {"rag_pipeline": ["nonexistent_tool"]}  # drift: in live but not registry
+        live_tool_lists = {
+            "rag_pipeline": ["nonexistent_tool"]
+        }  # drift: in live but not registry
 
         result = validate_all_routing(server_configs, live_tool_lists)
         assert "rag_pipeline" in result
@@ -136,3 +147,84 @@ class TestValidateAllRouting:
         """No inputs → empty dict."""
         result = validate_all_routing()
         assert result == {}
+
+
+class TestStartupValidationStrictMode:
+    """Tests for the four strict-mode drift conditions checked at startup.
+
+    These tests verify the behavior of validate_routing_against_live() and
+    build_discovery_map() for each condition that check_routing_drift_vs_live()
+    must detect.
+    """
+
+    def test_live_returns_tool_not_in_registry(self) -> None:
+        """Condition 1: live response includes a tool not in the registry.
+
+        validate_routing_against_live() must return a non-empty drift dict.
+        """
+        registry = ToolRegistry()
+        registry.register(ToolDefinition(name="tool_a", server_key="server_x"))
+        # live response includes extra_tool not registered anywhere
+        drift = validate_routing_against_live(
+            registry, {"server_x": ["tool_a", "extra_tool"]}
+        )
+        assert "server_x" in drift
+        assert any("extra_tool" in msg for msg in drift["server_x"])
+
+    def test_live_omits_registry_tool_for_server(self) -> None:
+        """Condition 2: registry owns a tool for a server, but live response omits it.
+
+        validate_routing_against_live() must detect the missing tool.
+        """
+        registry = ToolRegistry()
+        registry.register(ToolDefinition(name="tool_a", server_key="server_x"))
+        registry.register(ToolDefinition(name="tool_b", server_key="server_x"))
+        # live response for server_x is missing tool_b
+        drift = validate_routing_against_live(registry, {"server_x": ["tool_a"]})
+        assert "server_x" in drift
+        assert any("tool_b" in msg for msg in drift["server_x"])
+
+    def test_live_returns_tool_under_wrong_server(self) -> None:
+        """Condition 3: registry maps tool_x to server_a, but live returns it under server_b.
+
+        validate_routing_against_live() must report a mismatch for server_b
+        (tool present in live but not registered to server_b) and for server_a
+        (tool registered to server_a but absent from its live response).
+        """
+        registry = ToolRegistry()
+        registry.register(ToolDefinition(name="tool_x", server_key="server_a"))
+        # server_a live response is empty (omits tool_x)
+        # server_b live response includes tool_x (wrong server)
+        drift = validate_routing_against_live(
+            registry,
+            {"server_a": [], "server_b": ["tool_x"]},
+        )
+        # server_b: tool_x in live but not in registry for server_b
+        assert "server_b" in drift
+        assert any("tool_x" in msg for msg in drift["server_b"])
+        # server_a: tool_x in registry but not in live
+        assert "server_a" in drift
+        assert any("tool_x" in msg for msg in drift["server_a"])
+
+    def test_duplicate_live_ownership_detected(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Condition 4: same tool returned by two different servers.
+
+        build_discovery_map() must log a WARNING about the duplicate.
+        """
+        with caplog.at_level(logging.WARNING):
+            result = build_discovery_map(
+                {
+                    "server_a": [{"name": "shared_tool", "server_key": "server_a"}],
+                    "server_b": [{"name": "shared_tool", "server_key": "server_b"}],
+                }
+            )
+        # First occurrence wins
+        assert result == {"shared_tool": "server_a"}
+        # Warning must have been logged
+        assert any(
+            "shared_tool" in r.message
+            for r in caplog.records
+            if r.levelno >= logging.WARNING
+        )

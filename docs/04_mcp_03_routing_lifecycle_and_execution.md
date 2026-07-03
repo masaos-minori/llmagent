@@ -32,18 +32,13 @@ LLM returns tool_call
 
 ## ToolRouteResolver (`shared/route_resolver.py`)
 
-Resolves `tool_name → server_key` in two steps (priority order). At runtime, **discovery map (live `/v1/tools`) has the highest priority and overrides all lower layers**:
+Resolves `tool_name → server_key` using `ToolRegistry` as the **sole routing authority**.
+Live `/v1/tools` discovery is used only for startup drift validation, not for routing.
 
-1. **Discovery map (highest priority):** Live `/v1/tools` metadata with `server_key` field.
-    Built from `build_discovery_map()` at startup when servers respond to `/v1/tools`.
-    If a tool is found here, it routes to the server specified in the discovery map — even if the registry says something different.
+1. **Tool registry (sole routing authority):** `ToolRegistry` singleton from `shared/tool_registry.py`.
+    Maps each tool name to exactly one server key. Populated at import time from `tool_constants.py` frozensets via `_populate_default_registry()`.
 
-2. **Tool registry:** Primary routing layer from `shared/tool_registry.py`.
-    The `ToolRegistry` singleton maps each tool name to exactly one server key. Superseded by discovery map for any tool found in live `/v1/tools` responses.
-
-3. **Unknown tools fail immediately:** When a tool name is not found in any routing layer, `ValueError` is raised with the message `"Unknown tool: <tool_name>"`. No fallback exists — every tool must be explicitly registered.
-
-4. **Unknown tools fail immediately:** When a tool name is not found in any routing layer, `ValueError` is raised with the message `"Unknown tool: <tool_name>"`. No fallback exists — every tool must be explicitly registered.
+2. **Unknown tools fail immediately:** When a tool name is not found in the registry, `ValueError` is raised with the message `"Unknown tool: <tool_name>"`. No fallback exists — every tool must be explicitly registered in `tool_constants.py`.
 
 | Tool set | Server key |
 |---|---|
@@ -62,7 +57,7 @@ Resolves `tool_name → server_key` in two steps (priority order). At runtime, *
 
 **Note:** `query_sqlite` IS in `tool_constants.py` static table (routed to `sqlite` server key). No explicit `tool_names` config is required.
 
-**Important:** Unknown tools fail immediately with a `ValueError`. New tools must always be registered via `ToolRegistry` (via `tool_constants.py` frozensets) or live discovery.
+**Important:** Unknown tools fail immediately with a `ValueError`. New tools must always be registered via `ToolRegistry` (via `tool_constants.py` frozensets).
 
 ```python
 resolver = ToolRouteResolver(server_configs)
@@ -73,16 +68,16 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 
 ## Routing Source of Truth
 
-The `ToolRouteResolver` resolves tool calls using a two-layer cascade. At runtime, **discovery map (live `/v1/tools`) has the highest priority and overrides all lower layers**.
+`ToolRegistry` is the **sole routing authority**. Live `/v1/tools` discovery is validation-only and does not affect routing decisions.
 
 | Input | Role | Requirement |
 |---|---|---|
-| Live `/v1/tools` discovery | **Priority 1 — override source** | Optional; if present, supersedes registry for any tool found here |
-| `shared/tool_registry.py` | **Priority 2 — primary routing layer** | Read-only at runtime; changes require code edit |
+| `shared/tool_registry.py` | **Sole routing authority** | Populated at import time from `tool_constants.py` frozensets |
+| Live `/v1/tools` discovery | **Validation source only** | Optional; used by `check_routing_drift_vs_live()` at startup to detect drift — does not affect routing |
 
 **Summary of ownership rules:**
 - To add a tool: add to the appropriate frozenset in `tool_constants.py`. The registry auto-populates at import time.
-- Discovery map takes precedence over the registry — if `/v1/tools` returns a different `server_key` for a tool, the discovery map wins.
+- Live `/v1/tools` is used for startup drift validation only — it does NOT override registry routing.
 - `tool_names` in config is NOT a routing input; it is drift validation metadata only.
 - Unknown tools fail immediately with `ValueError` — no fallback exists.
 
@@ -94,8 +89,8 @@ Single source of truth for MCP tool definitions and ownership.
 
 | ソース | 種別 | 説明 |
 |---|---|---|
-| Live `/v1/tools` discovery | **Priority 1** | ルーティングの最上位優先度; レジストリを上書き |
-| `shared/tool_registry.py` | **Priority 2** | ツール→サーバー逆引き; `tool_constants.py` frozensetからimport時に自動構築 |
+| `shared/tool_registry.py` | **唯一のルーティング権威** | ツール→サーバー逆引き; `tool_constants.py` frozensetからimport時に自動構築 |
+| Live `/v1/tools` discovery | **起動時バリデーションのみ** | ルーティングには使用しない; `check_routing_drift_vs_live()` でドリフト検出に使用 |
 
 ### Ownership model
 
@@ -103,7 +98,7 @@ Single source of truth for MCP tool definitions and ownership.
 - The registry is populated at import time from `tool_constants.py` frozensets.
 - Config `mcp_servers.toml` `tool_names` lists are validated against the registry but not required as a source of truth.
 - Server `/v1/tools` responses are validated against the registry at startup for drift detection.
-- **Important:** Live discovery map (priority 1) can override the registry. If `/v1/tools` returns a different `server_key` for a tool than the registry, the discovery map wins.
+- **Important:** Live discovery does NOT override the registry. If `/v1/tools` returns a different `server_key` for a tool than the registry, this is flagged as drift by `check_routing_drift_vs_live()` at startup.
 
 ### Drift validation
 
@@ -112,7 +107,7 @@ Three comparison functions detect configuration drift:
 | Function | Compares | When called |
 |---|---|---|
 | `validate_routing_against_config()` | Config `tool_names` vs registry | Startup (`check_routing_drift()` in `repl_health.py`) |
-| `validate_routing_against_live()` | Live `/v1/tools` vs registry | Not yet wired (future) |
+| `validate_routing_against_live()` | Live `/v1/tools` vs registry | Startup (`check_routing_drift_vs_live()` in `repl_health.py`) |
 | `validate_all_routing()` | Both above combined | Not yet wired (future) |
 
 > **Startup validation semantics** — The `validate_routing_against_live()` and
@@ -135,12 +130,12 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 | 1 | Add the tool name to the appropriate frozenset in `shared/tool_constants.py` | **[Required]** |
 | 2 | Registry auto-populates from these frozensets at import time — no manual registry edit needed | (automatic) |
 | 3 | Implement `dispatch()` handler in the owning MCP server (`mcp/<name>/server.py`) | **[Required]** |
-| 4 | Expose tool in `/v1/tools` endpoint (return tool definition with `server_key` field) | **[Recommended]** — enables priority-1 discovery routing |
+| 4 | Expose tool in `/v1/tools` endpoint (return tool definition with `server_key` field) | **[Recommended]** — enables startup drift detection via `check_routing_drift_vs_live()` |
 | 5 | Add LLM schema to `config/tools_definitions.toml` (OpenAI function-calling format) | **[Required]** — if tool should be visible to LLM |
 | 6 | Add `tool_safety_tiers` entry in `config/agent.toml` for the new tool | **[Required]** — all tools must have a declared safety tier |
 | 7 | Add tool name to `tool_names` in `config/mcp_servers.toml` for the owning server | **[Optional]** — enables startup drift validation only; routing does not require it |
 
-**Recommended procedure**: Add to ToolRegistry frozenset (step 1) + expose in `/v1/tools` endpoint (step 4). Config `tool_names` (step 7) is NOT a routing input; it is drift validation metadata only. Unknown tools fail immediately — no fallback exists.
+**Recommended procedure**: Add to ToolRegistry frozenset (step 1) + expose in `/v1/tools` endpoint (step 4). Config `tool_names` (step 7) is NOT a routing input; it is drift validation metadata only. Unknown tools fail immediately — no fallback exists. Exposing the tool in `/v1/tools` enables startup drift detection via `check_routing_drift_vs_live()`; it does not affect routing.
 
 ### Verification
 
@@ -211,7 +206,8 @@ result = await transport.call("tool_name", {"arg": "val"})
 ```
 
 - Adds `Authorization: Bearer <token>` when `cfg.auth_token` is non-empty
-- Catches all HTTP and request errors; returns `is_error=True` with message
+- Raises `TransportError` on all transport-level failures (timeout, HTTP non-2xx, malformed response, retry exhausted); does NOT return `is_error=True` directly
+- `ToolExecutor._record_transport_error()` catches `TransportError` and converts it to `ToolCallResult(error_type="transport")`
 - `set_session_id(session_id)` injects `X-Session-Id` header per request
 - **Retry:** retries on HTTP 429/502/503/504, up to 3 attempts with decreasing delay: attempt 0 waits 4s, attempt 1 waits 2s, attempt 2 waits 1s before the final exhaustion error. Formula: 2^(RETRY_MAX - attempt - 1). This is NOT exponential backoff (delays decrease with each attempt). Only the final outcome (success or TransportError after all retries exhausted) is recorded in HealthRegistry.
 - **Non-retryable errors:** HTTP timeout (`httpx.TimeoutException`) and HTTPStatusError for non-429/502/503/504 status codes are immediately propagated without retry.
@@ -419,8 +415,8 @@ AgentREPL.run()
 When adding a new tool, follow the canonical 7-step procedure from the [Adding a new tool](#adding-a-new-tool) section above.
 
 Key points:
-1. **Add the tool name to `shared/tool_constants.py` frozenset** [Required] — `_populate_default_registry()` reads these frozensets at import time and builds the priority-2 routing registry automatically. No manual registry edit is needed.
-2. **Add `GET /v1/tools` endpoint** [Recommended] — enables priority-1 live discovery routing, which overrides all lower layers.
+1. **Add the tool name to `shared/tool_constants.py` frozenset** [Required] — `_populate_default_registry()` reads these frozensets at import time and builds the routing registry automatically. No manual registry edit is needed.
+2. **Add `GET /v1/tools` endpoint** [Recommended] — enables startup drift validation via `check_routing_drift_vs_live()`; does not affect routing.
 3. **Add `tool_names` to server config** [Optional] — drift validation hint only; routing does not require it.
 4. **Add LLM schema to `config/tools_definitions.toml`** [Required if tool visible to LLM]
 5. **Add `tool_safety_tiers` entry in `config/agent.toml`** [Required — all tools must have a declared safety tier]
@@ -434,14 +430,14 @@ tool_names = ["my_tool_a", "my_tool_b"]
 
 ### Routing Priority Summary
 
-| Layer | Priority | Role | Override? |
-|---|---|---|---|
-| Live `/v1/tools` discovery | 1 (highest) | Runtime override from MCP server tool list | Yes — supersedes all lower layers |
-| `ToolRegistry` (auto-populated from `tool_constants.py` frozensets at import time) | 2 | Primary routing source; populated by `_populate_default_registry()` | No — only overridden by layer 1 |
+| Layer | Role | Routing? |
+|---|---|---|
+| `ToolRegistry` (auto-populated from `tool_constants.py` frozensets at import time) | **Sole routing authority**; populated by `_populate_default_registry()` | Yes |
+| Live `/v1/tools` discovery | **Validation source only**; used by `check_routing_drift_vs_live()` at startup to detect drift | No |
 
 **Key rules:**
-- **New tools must always be registered via `ToolRegistry`** (layer 2). Unknown tools fail immediately with `ValueError`.
-- **Live discovery (layer 1) can override routing** — if `/v1/tools` returns a different `server_key`, the discovery map wins.
+- **New tools must always be registered via `ToolRegistry`**. Unknown tools fail immediately with `ValueError`.
+- **Live discovery does NOT affect routing** — if `/v1/tools` returns a different `server_key`, it is flagged as drift, not applied as a routing override.
 - **Config `tool_names` are not routing inputs** — they are validation hints for drift detection only.
 
 ### New Server/Tool Registration Checklist

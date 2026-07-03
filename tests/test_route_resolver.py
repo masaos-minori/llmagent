@@ -247,8 +247,13 @@ class TestBuildDiscoveryMap:
         )
 
 
-class TestLiveDiscoveryRouting:
-    """Tests for live-discovery-wins-over-registry routing priority."""
+class TestDiscoveryMapValidationOnly:
+    """Tests proving discovery_map does NOT override registry routing.
+
+    The discovery_map parameter is retained for backward compatibility with
+    integration tests that route synthetic tool names, but it has no effect
+    on routing results — ToolRegistry is the sole routing authority.
+    """
 
     def _make_configs(self) -> dict[str, McpServerConfig]:
         return {
@@ -256,11 +261,12 @@ class TestLiveDiscoveryRouting:
             "web_search": _http("web_search"),
         }
 
-    def test_discovery_does_not_override_registry(self) -> None:
-        """Discovery map does not affect routing; registry is the sole authority."""
+    def test_discovery_map_does_not_override_registry(self) -> None:
+        """Registry routing wins even when discovery_map maps the tool to a different server."""
         configs = self._make_configs()
         discovery_map = {"read_text_file": "custom_server"}
         resolver = ToolRouteResolver(configs, discovery_map=discovery_map)
+        # Registry maps read_text_file → file_read; discovery_map must not override it.
         assert resolver.resolve("read_text_file") == "file_read"
 
     def test_registry_fallback_when_tool_not_in_discovery_map(self) -> None:
