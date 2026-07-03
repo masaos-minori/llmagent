@@ -25,7 +25,7 @@ def _make_ctx() -> MagicMock:
         {"role": "user", "content": "hello"},
         {"role": "assistant", "content": "world"},
     ]
-    ctx.services.hist_mgr = None
+    ctx.services_required.hist_mgr = None
     return ctx
 
 
@@ -179,7 +179,7 @@ async def test_compact_persists_after_force_compression() -> None:
             CompressResult(compressed_count=8, protected_count=0, summary_added=True),
         )
     )
-    ctx.services.hist_mgr = hist_mgr
+    ctx.services_required.hist_mgr = hist_mgr
     cmd = _FakeCmd(ctx)
     await cmd._cmd_compact()
     ctx.session.replace_messages.assert_called_once()
@@ -197,7 +197,7 @@ async def test_compact_no_persist_when_too_short() -> None:
     ]
     hist_mgr = MagicMock()
     hist_mgr.compress_turns = 4
-    ctx.services.hist_mgr = hist_mgr
+    ctx.services_required.hist_mgr = hist_mgr
     cmd = _FakeCmd(ctx)
     await cmd._cmd_compact()
     ctx.session.replace_messages.assert_not_called()

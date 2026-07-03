@@ -17,6 +17,7 @@ from mcp.cicd.models import (
     CicdValidationError,
 )
 from mcp.cicd.service import CiCdService, GitHubActionsBackend
+from mcp.cicd.service_github_actions_job import GitHubActionsJobBackend
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -238,14 +239,14 @@ class TestHandleGetWorkflowLogs:
 
 class TestCheckResponse:
     def test_404_raises_not_found(self) -> None:
-        backend = GitHubActionsBackend("token", MagicMock(), 256)
+        backend = GitHubActionsBackend("token", MagicMock())
         resp = _make_http_response(404)
         with pytest.raises(CicdNotFoundError) as exc_info:
             backend._check_response(resp, "test context")
         assert "Not found" in str(exc_info.value)
 
     def test_403_rate_limit_includes_reset_time(self) -> None:
-        backend = GitHubActionsBackend("token", MagicMock(), 256)
+        backend = GitHubActionsBackend("token", MagicMock())
         resp = _make_http_response(
             403,
             body={"message": "API rate limit exceeded for ..."},
@@ -257,7 +258,7 @@ class TestCheckResponse:
         assert "1714000000" in str(exc_info.value)
 
     def test_403_non_rate_limit_raises_auth_error(self) -> None:
-        backend = GitHubActionsBackend("token", MagicMock(), 256)
+        backend = GitHubActionsBackend("token", MagicMock())
         resp = _make_http_response(403, body={"message": "Forbidden"})
         resp.headers = {}
         with pytest.raises(CicdAuthorizationError) as exc_info:
@@ -265,21 +266,21 @@ class TestCheckResponse:
         assert "Access denied" in str(exc_info.value)
 
     def test_422_raises_validation_error(self) -> None:
-        backend = GitHubActionsBackend("token", MagicMock(), 256)
+        backend = GitHubActionsBackend("token", MagicMock())
         resp = _make_http_response(422, body={"message": "No ref found for 'bad-ref'"})
         with pytest.raises(CicdValidationError) as exc_info:
             backend._check_response(resp, "test context")
         assert "Validation failed" in str(exc_info.value)
 
-    def test_500_raises_upstream_error(self) -> None:
-        backend = GitHubActionsBackend("token", MagicMock(), 256)
+    def test_500_raises_not_found_error(self) -> None:
+        backend = GitHubActionsBackend("token", MagicMock())
         resp = _make_http_response(500)
-        with pytest.raises(CicdUpstreamError) as exc_info:
+        with pytest.raises(CicdNotFoundError) as exc_info:
             backend._check_response(resp, "test context")
         assert "GitHub API error" in str(exc_info.value)
 
     def test_200_does_not_raise(self) -> None:
-        backend = GitHubActionsBackend("token", MagicMock(), 256)
+        backend = GitHubActionsBackend("token", MagicMock())
         resp = _make_http_response(200, body={"id": 1})
         backend._check_response(resp, "test context")  # must not raise
 
@@ -294,7 +295,7 @@ class TestGitHubActionsBackendTriggerWorkflow:
     async def test_204_returns_dispatch_message(self) -> None:
         http = AsyncMock()
         http.post.return_value = _make_http_response(204)
-        backend = GitHubActionsBackend("token", http, 256)
+        backend = GitHubActionsBackend("token", http)
 
         result = await backend.trigger_workflow("owner", "repo", "ci.yml", "main", {})
         assert "dispatched" in result.lower()
@@ -304,7 +305,7 @@ class TestGitHubActionsBackendTriggerWorkflow:
     async def test_404_raises_not_found(self) -> None:
         http = AsyncMock()
         http.post.return_value = _make_http_response(404)
-        backend = GitHubActionsBackend("token", http, 256)
+        backend = GitHubActionsBackend("token", http)
 
         with pytest.raises(CicdNotFoundError):
             await backend.trigger_workflow("owner", "repo", "ci.yml", "main", {})
@@ -313,7 +314,7 @@ class TestGitHubActionsBackendTriggerWorkflow:
     async def test_request_uses_correct_url(self) -> None:
         http = AsyncMock()
         http.post.return_value = _make_http_response(204)
-        backend = GitHubActionsBackend("token", http, 256)
+        backend = GitHubActionsBackend("token", http)
 
         await backend.trigger_workflow("owner", "repo", "ci.yml", "main", {})
         call_url = http.post.call_args[0][0]
@@ -323,7 +324,7 @@ class TestGitHubActionsBackendTriggerWorkflow:
     async def test_auth_header_is_set(self) -> None:
         http = AsyncMock()
         http.post.return_value = _make_http_response(204)
-        backend = GitHubActionsBackend("my-secret-token", http, 256)
+        backend = GitHubActionsBackend("my-secret-token", http)
 
         await backend.trigger_workflow("owner", "repo", "ci.yml", "main", {})
         call_kwargs = http.post.call_args[1]
@@ -334,7 +335,7 @@ class TestGitHubActionsBackendTriggerWorkflow:
     async def test_no_token_omits_auth_header(self) -> None:
         http = AsyncMock()
         http.post.return_value = _make_http_response(204)
-        backend = GitHubActionsBackend("", http, 256)
+        backend = GitHubActionsBackend("", http)
 
         await backend.trigger_workflow("owner", "repo", "ci.yml", "main", {})
         call_kwargs = http.post.call_args[1]
@@ -368,7 +369,7 @@ class TestGitHubActionsBackendGetWorkflowRuns:
         }
         http = AsyncMock()
         http.get.return_value = _make_http_response(200, body=runs_body)
-        backend = GitHubActionsBackend("token", http, 256)
+        backend = GitHubActionsBackend("token", http)
 
         result = await backend.get_workflow_runs("owner", "repo", "ci.yml", 10)
         data = orjson.loads(result)
@@ -383,7 +384,7 @@ class TestGitHubActionsBackendGetWorkflowRuns:
         http.get.return_value = _make_http_response(
             200, body={"total_count": 0, "workflow_runs": []}
         )
-        backend = GitHubActionsBackend("token", http, 256)
+        backend = GitHubActionsBackend("token", http)
 
         await backend.get_workflow_runs("owner", "repo", "ci.yml", 7)
         call_kwargs = http.get.call_args[1]
@@ -415,7 +416,7 @@ class TestGitHubActionsBackendGetWorkflowStatus:
         }
         http = AsyncMock()
         http.get.return_value = _make_http_response(200, body=run_body)
-        backend = GitHubActionsBackend("token", http, 256)
+        backend = GitHubActionsBackend("token", http)
 
         result = await backend.get_workflow_status("owner", "repo", 99999)
         data = orjson.loads(result)
@@ -429,7 +430,7 @@ class TestGitHubActionsBackendGetWorkflowStatus:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class TestGitHubActionsBackendGetWorkflowLogs:
+class TestGitHubActionsJobBackendGetWorkflowLogs:
     @pytest.mark.asyncio
     async def test_returns_job_header_and_log(self) -> None:
         jobs_body = {
@@ -457,7 +458,7 @@ class TestGitHubActionsBackendGetWorkflowLogs:
         log_resp.is_success = True
         log_resp.text = "2024-01-01T00:00:00.000Z Run tests\n"
         http.get.side_effect = [jobs_resp, log_resp]
-        backend = GitHubActionsBackend("token", http, 256)
+        backend = GitHubActionsJobBackend("token", http)
 
         result = await backend.get_workflow_logs("owner", "repo", 42)
         assert "build" in result
@@ -485,7 +486,7 @@ class TestGitHubActionsBackendGetWorkflowLogs:
         log_resp.is_success = True
         log_resp.text = large_log
         http.get.side_effect = [jobs_resp, log_resp]
-        backend = GitHubActionsBackend("token", http, max_log_size_kb=1)
+        backend = GitHubActionsJobBackend("token", http, 1)
 
         result = await backend.get_workflow_logs("owner", "repo", 43)
         # Output must not exceed 1 KB (1024 bytes) significantly
@@ -498,7 +499,7 @@ class TestGitHubActionsBackendGetWorkflowLogs:
     async def test_no_jobs_returns_empty_message(self) -> None:
         http = AsyncMock()
         http.get.return_value = _make_http_response(200, body={"jobs": []})
-        backend = GitHubActionsBackend("token", http, 256)
+        backend = GitHubActionsJobBackend("token", http)
 
         result = await backend.get_workflow_logs("owner", "repo", 99)
         assert "No jobs found" in result
@@ -590,12 +591,12 @@ class TestCicdToolSchema:
 
 class TestGitHubActionsBackendRepr:
     def test_repr_does_not_contain_token_value(self) -> None:
-        backend = GitHubActionsBackend("super-secret-token", MagicMock(), 256)
+        backend = GitHubActionsBackend("super-secret-token", MagicMock())
         r = repr(backend)
         assert "super-secret-token" not in r
         assert "set" in r
 
     def test_repr_shows_not_set_when_empty(self) -> None:
-        backend = GitHubActionsBackend("", MagicMock(), 256)
+        backend = GitHubActionsBackend("", MagicMock())
         r = repr(backend)
         assert "not set" in r
