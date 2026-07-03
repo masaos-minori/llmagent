@@ -40,7 +40,7 @@ from shared.transport_dto import (
 
 logger = logging.getLogger(__name__)
 
-# Plugin tool return value: (output: str, is_error: bool)
+# Plugin tool return value: exactly (output: str, is_error: bool) — length must equal 2
 _PLUGIN_RESULT_TUPLE_LENGTH = 2
 
 
@@ -357,11 +357,12 @@ class ToolExecutor:
                 )
             if (
                 not isinstance(result_raw, tuple)
-                or len(result_raw) < _PLUGIN_RESULT_TUPLE_LENGTH
+                or len(result_raw) != _PLUGIN_RESULT_TUPLE_LENGTH
             ):
                 raise ValueError(
-                    f"Plugin tool {tool_name!r} must return tuple[str, bool],"
-                    f" got {type(result_raw).__name__}"
+                    f"Plugin tool {tool_name!r} must return exactly tuple[str, bool]"
+                    f" (2 elements), got {type(result_raw).__name__}"
+                    f" with len={len(result_raw) if isinstance(result_raw, tuple) else 'N/A'}"
                 )
             output, is_error = result_raw[0], result_raw[1]
             if not isinstance(output, str):

@@ -30,7 +30,7 @@ Startup log format (conflict):
 `[plugin] conflict: tool '<name>' in '<module>' shadows MCP tool — rejected|allowed`
 
 Startup log format (command shadow):
-`[plugin] command shadow: '<name>' in '<module>' shadows built-in`
+`[plugin] command shadow rejected: '<name>' in '<module>' shadows built-in`
 
 ```python
 # plugins/my_plugin.py
@@ -66,7 +66,20 @@ handler(ctx: AgentContext, args: str) -> None  # sync or async
 
 **Built-in vs plugin priority:**
 Built-in commands in `_COMMANDS` list are matched first. If no built-in matches,
-`_dispatch_plugin()` is called. A plugin cannot override a built-in command name.
+`_dispatch_plugin()` is called. Plugin commands that share a name with a built-in
+command are **rejected at load time** (removed from the plugin command registry).
+They will not appear in `iter_commands()` and cannot be dispatched. This is a
+startup-time enforcement, not a dispatch-time priority.
+
+#### Command Shadow Policy
+
+Plugin commands that share a name with a built-in command are subject to **Option A (reject)** policy:
+
+- At load time, the shadowing command is **removed** from `_commands` and will not appear in `iter_commands()` or be dispatched.
+- Log: `[plugin] command shadow rejected: '<name>' in '<module>' shadows built-in`
+- When `plugin_strict = true`, a `PluginLoadError` is raised after all plugins are loaded, with a message containing `"Command builtin conflicts rejected: /help, /debug"` (comma-separated list of rejected command names).
+- In non-strict mode (default), the rejection is silent beyond the log line — startup continues normally.
+- `/plugin status` reports the count under `"Command shadows (rejected)"`.
 
 ---
 
@@ -96,6 +109,8 @@ async def tool_echo(args: dict) -> tuple[str, bool]:   # required
 
 **Why fail-fast instead of warn?** Silent warnings were missed in production, causing
 unexpected behavior at call time. Failing at registration makes the error unmissable.
+
+**Runtime return value validation:** `ToolExecutor.execute()` validates the actual return value at call time. It checks that the return is a `tuple` with **exactly 2 elements** (`len == 2`), that `result[0]` is `str`, and that `result[1]` is `bool`. A tuple with more or fewer than 2 elements raises `ValueError`. A non-`str` first element raises `TypeError`. A non-`bool` second element raises `TypeError`.
 
 - Access: `plugin_registry.get_tool(name)` → `Callable | None`
 
@@ -143,7 +158,7 @@ Default is `false` (fail-open): failures are logged as `[plugin] skipped: <filen
 
 Per-failure entry in `PluginLoadResult.failed`: `PluginFailure(path="<filename>", error="Plugin load failed (<filename>): <ErrorType>: <message>")`
 
-`PluginLoadResult` fields: `loaded_count`, `failed`, `tool_conflicts_shadowed`, `tool_conflicts_allowed`, `command_shadows`
+`PluginLoadResult` fields: `loaded_count`, `failed`, `tool_conflicts_shadowed`, `tool_conflicts_allowed`, `command_shadows_rejected`
 
 The most recent `PluginLoadResult` is accessible via `plugin_registry.get_last_load_result()` and displayed by `/plugin status`.
 
@@ -189,12 +204,37 @@ and pre-rerank hooks are not yet implemented.
 | `load_plugins(plugin_dir, *, known_tools, override_policy, strict_mode)` | Import all `*.py` in dir; returns `PluginLoadResult` with loaded/failed/conflict counts; raises `PluginLoadError` in strict mode |
 | `_reset_for_testing()` | Clear all registries (test-only) |
 
+### Test Isolation
+
+`_reset_for_testing()` is the **only** supported way to clear global registry state.
+
+Rules:
+- Tests that call `load_plugins()` or any `@register_*` decorator **must** call
+  `_reset_for_testing()` in a `pytest.fixture(autouse=True)` before (and optionally after)
+  each test function.
+- Production code (non-test modules) must **never** call `_reset_for_testing()`.
+- Direct mutation of `_commands`, `_tools`, or `_pipeline_post` is also forbidden in tests;
+  use `_reset_for_testing()` + public decorators instead.
+
+Example:
+```python
+import pytest
+import shared.plugin_registry as plugin_registry
+
+@pytest.fixture(autouse=True)
+def reset_registry():
+    plugin_registry._reset_for_testing()
+    yield
+    plugin_registry._reset_for_testing()
+```
+
 ---
 
 ## Extension Rules
 
 1. Plugin tools cannot be cached by `ToolExecutor` (only MCP tool results are cached)
-2. Plugin commands cannot use the same name as any built-in command
+2. Plugin commands that share a name with a built-in command are **rejected** at
+   load time and removed from the registry. A `PluginLoadError` is raised in strict mode.
 3. Plugin files that raise exceptions during import are skipped silently — always test plugins before deployment
 4. `@register_pipeline_stage` hooks run inside the RAG pipeline context; exceptions are caught and logged by `run_pipeline_stages()` — the pipeline continues with the hits unchanged
 5. Plugin tool handlers must be `async` functions; command handlers can be sync or async

@@ -159,7 +159,9 @@ def get_last_load_result() -> PluginLoadResult | None
 - `PluginLoadError` is raised only when `strict_mode=True` and there are failures or MCP conflicts.
 - `PluginFailure.error` contains the full exception message from the failed plugin.
 
-
+**Test isolation:** `_reset_for_testing()` clears all registries and must be called
+in a `pytest.fixture(autouse=True)` in any test file that registers commands, tools,
+or pipeline stages. Non-test code must never call this function.
 
 ---
 

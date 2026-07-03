@@ -37,13 +37,18 @@ Each entry format:
 
 ## Document Inconsistencies
 
-### DISC-03: branch field in memory retrieval
+### DISC-03: branch field in memory retrieval -- RESOLVED
 
-- **Type:** Undocumented behavior
-- **Impact scope:** `05_agent_12_memory.md` (line 190 — branch described only as "for context filtering")
-- **Statement A:** `branch` field is stored metadata for context filtering (implied by doc)
-- **Statement B:** `branch` is actively used in `FtsRetriever._context_boost()` as a relevance rescoring signal; records without matching branch are still returned but ranked lower
-- **Current safe interpretation:** Branch affects ranking, not filtering — it is an active retrieval parameter
+- **Type:** Document inconsistency (resolved)
+- **Impact scope:** `05_agent_12_memory.md`
+- **Resolution:** Branch filtering is implemented as a hard SQL predicate
+  `AND (? = '' OR m.branch = '' OR m.branch = ?)` in both `FtsRetriever` and
+  `VectorRetriever`. Memories from non-matching branches are **excluded**, not merely
+  ranked lower. Global memories (`branch = ''`) are always included. An additional scoring
+  boost is applied by `scoring.context_boost()` when branch matches.
+  `05_agent_12_memory.md` has been updated to reflect this behavior.
+- **Notes for AI reference:** `FtsRetriever._context_boost()` does not exist. Scoring is
+  in `scoring.context_boost()` in `scripts/agent/memory/scoring.py`.
 
 ### DISC-04: workflow_mode=required startup blocking scope
 

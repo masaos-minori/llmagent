@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import httpx
 import pytest
+from shared import plugin_registry
 from shared.tool_executor import (
     HttpTransport,
     ToolCallResult,
@@ -285,3 +286,87 @@ class TestHttpTransportRetry:
         assert sleep_calls[0] == 4
         assert sleep_calls[1] == 2
         assert sleep_calls[2] == 1
+
+
+class TestPluginReturnValidation:
+    @pytest.fixture(autouse=True)
+    def _reset_registry(self):
+        plugin_registry._reset_for_testing()
+        yield
+        plugin_registry._reset_for_testing()
+
+    def _make_executor(self) -> ToolExecutor:
+        executor = ToolExecutor.__new__(ToolExecutor)
+        executor._cache = {}
+        executor._cache_ttl = 60.0
+        executor._cache_max_size = 100
+        executor._inflight = {}
+        executor.stat_cache_hits = 0
+        return executor
+
+    @pytest.mark.asyncio
+    async def test_non_tuple_return_raises(self) -> None:
+        """Plugin returns str -> ValueError."""
+
+        async def _fn(args: dict) -> Any:
+            return "not_a_tuple"
+
+        plugin_registry._tools["test_tool"] = (_fn, "test")
+        with pytest.raises(ValueError, match="must return exactly"):
+            await self._make_executor().execute("test_tool", {})
+
+    @pytest.mark.asyncio
+    async def test_one_element_tuple_raises(self) -> None:
+        """Plugin returns ('ok',) -> ValueError."""
+
+        async def _fn(args: dict) -> Any:
+            return ("ok",)
+
+        plugin_registry._tools["test_tool"] = (_fn, "test")
+        with pytest.raises(ValueError, match="must return exactly"):
+            await self._make_executor().execute("test_tool", {})
+
+    @pytest.mark.asyncio
+    async def test_valid_two_element_tuple(self) -> None:
+        """Plugin returns ('ok', False) -> ToolCallResult with output='ok', is_error=False."""
+
+        async def _fn(args: dict) -> Any:
+            return ("ok", False)
+
+        plugin_registry._tools["test_tool"] = (_fn, "test")
+        result = await self._make_executor().execute("test_tool", {})
+        assert result.output == "ok"
+        assert result.is_error is False
+
+    @pytest.mark.asyncio
+    async def test_three_element_tuple_raises(self) -> None:
+        """Plugin returns ('ok', False, 'extra') -> ValueError (strict behavior)."""
+
+        async def _fn(args: dict) -> Any:
+            return ("ok", False, "extra")
+
+        plugin_registry._tools["test_tool"] = (_fn, "test")
+        with pytest.raises(ValueError, match="must return exactly"):
+            await self._make_executor().execute("test_tool", {})
+
+    @pytest.mark.asyncio
+    async def test_wrong_output_type_raises(self) -> None:
+        """Plugin returns (123, False) -> TypeError."""
+
+        async def _fn(args: dict) -> Any:
+            return (123, False)
+
+        plugin_registry._tools["test_tool"] = (_fn, "test")
+        with pytest.raises(TypeError, match="output must be str"):
+            await self._make_executor().execute("test_tool", {})
+
+    @pytest.mark.asyncio
+    async def test_wrong_is_error_type_raises(self) -> None:
+        """Plugin returns ('ok', 'no') -> TypeError."""
+
+        async def _fn(args: dict) -> Any:
+            return ("ok", "no")
+
+        plugin_registry._tools["test_tool"] = (_fn, "test")
+        with pytest.raises(TypeError, match="is_error must be bool"):
+            await self._make_executor().execute("test_tool", {})

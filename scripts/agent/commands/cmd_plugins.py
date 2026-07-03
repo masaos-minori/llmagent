@@ -22,7 +22,7 @@ class _PluginsMixin(MixinBase):
             ["Failed", str(len(result.failed))],
             ["Tool conflicts (shadowed)", str(result.tool_conflicts_shadowed)],
             ["Tool conflicts (allowed)", str(result.tool_conflicts_allowed)],
-            ["Command shadows", str(result.command_shadows)],
+            ["Command shadows (rejected)", str(result.command_shadows_rejected)],
         ]
         self._out.write_table(["Metric", "Count"], rows)
         if result.failed:

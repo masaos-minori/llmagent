@@ -371,7 +371,7 @@ def _init_plugin_registry(ctx: AgentContext, audit_logger: Logger) -> None:
         len(result.failed),
         result.tool_conflicts_shadowed,
         result.tool_conflicts_allowed,
-        result.command_shadows,
+        result.command_shadows_rejected,
     )
 
 
