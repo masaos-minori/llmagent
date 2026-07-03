@@ -46,11 +46,12 @@ def _make_cmd(
             audit_logger=MagicMock(),
         ),
     )
+    ctx.services_required = ctx.services  # alias for AgentContext.services_required property
     cmd = object.__new__(_SessionMixin)
     cmd._ctx = ctx  # type: ignore[attr-defined]
-    title_gen = MagicMock()
-    title_gen.generate = AsyncMock(return_value="test-title")  # type: ignore[attr-defined]
-    cmd._title_gen = title_gen  # type: ignore[attr-defined]
+    from agent.commands.session_title import SessionTitleGen
+
+    cmd._title_gen = SessionTitleGen(ctx, cmd._out)  # type: ignore[attr-defined]
     return cmd
 
 
@@ -193,7 +194,7 @@ class TestGenerateSessionTitle:
         from agent.services.exceptions import SessionTitleGenerationError
 
         with patch(
-            "agent.services.session_title.SessionTitleService",
+            "agent.commands.session_title.SessionTitleService",
         ) as MockSvc:
             MockSvc.return_value.generate = AsyncMock(
                 side_effect=SessionTitleGenerationError("test fail")
@@ -211,7 +212,7 @@ class TestGenerateSessionTitle:
 
         long_input = "a" * 40
         with patch(
-            "agent.services.session_title.SessionTitleService",
+            "agent.commands.session_title.SessionTitleService",
         ) as MockSvc:
             MockSvc.return_value.generate = AsyncMock(
                 side_effect=SessionTitleGenerationError("test fail")
@@ -230,7 +231,7 @@ class TestGenerateSessionTitle:
         from agent.services.exceptions import SessionTitleGenerationError
 
         with patch(
-            "agent.services.session_title.SessionTitleService",
+            "agent.commands.session_title.SessionTitleService",
         ) as MockSvc:
             MockSvc.return_value.generate = AsyncMock(
                 side_effect=SessionTitleGenerationError("test fail")
@@ -245,7 +246,7 @@ class TestGenerateSessionTitle:
 
         cmd = _make_cmd()
         with patch(
-            "agent.services.session_title.SessionTitleService",
+            "agent.commands.session_title.SessionTitleService",
         ) as MockSvc:
             MockSvc.return_value.generate = AsyncMock(return_value=None)
             await cmd._generate_session_title("hello")
@@ -261,7 +262,7 @@ class TestGenerateSessionTitle:
         from agent.services.exceptions import SessionTitleGenerationError
 
         with patch(
-            "agent.services.session_title.SessionTitleService",
+            "agent.commands.session_title.SessionTitleService",
         ) as MockSvc:
             MockSvc.return_value.generate = AsyncMock(
                 side_effect=SessionTitleGenerationError("fail")
@@ -288,8 +289,9 @@ class TestGenerateSessionTitleVisibility:
             http=MagicMock(),
             audit_logger=audit_logger,
         )
+        cmd._ctx.services_required = cmd._ctx.services
 
-        with patch("agent.services.session_title.SessionTitleService") as MockSvc:
+        with patch("agent.commands.session_title.SessionTitleService") as MockSvc:
             MockSvc.return_value.generate = AsyncMock(
                 side_effect=SessionTitleGenerationError("LLM error")
             )
@@ -310,7 +312,7 @@ class TestGenerateSessionTitleVisibility:
         cmd = _make_cmd()
         cmd._ctx.session.set_title.side_effect = sqlite3.Error("disk full")
 
-        with patch("agent.services.session_title.SessionTitleService") as MockSvc:
+        with patch("agent.commands.session_title.SessionTitleService") as MockSvc:
             MockSvc.return_value.generate = AsyncMock(
                 side_effect=SessionTitleGenerationError("fail")
             )
