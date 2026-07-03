@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from rag.ingestion.ingester import delete_document_chain
+from rag.ingestion.document_manager import delete_document_chain
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS documents (

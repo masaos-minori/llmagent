@@ -134,7 +134,7 @@ class TestDeferredReload:
         new_srv = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://localhost:8080",
-            cmd=[],
+            cmd=["python", "s.py"],
             startup_mode=StartupMode.SUBPROCESS,
         )
         result = self._run(svc, {"svc": new_srv})

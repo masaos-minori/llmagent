@@ -12,17 +12,15 @@ from db.helper import SQLiteHelper
 from db.maintenance import (
     MaintenanceMode,
     MaintenanceResult,
-    RecoveryResult,
     RetentionConfig,
     checkpoint_wal,
     prune_old_memories,
     purge_old_sessions,
-    recover_corruption,
-    rotate_all_dbs,
-    rotate_session_db,
-    rotate_workflow_db,
     vacuum_db,
 )
+from db.recovery import recover_corruption
+from db.models import RecoveryResult
+from db.rotation import rotate_all_dbs, rotate_session_db, rotate_workflow_db
 from rag.maintenance import RagDbMaintenanceService
 
 _TEST_EMBED_URL = "http://127.0.0.1:8003/embedding"
@@ -291,7 +289,7 @@ class TestRagDbMaintenanceService:
         )
         conn.commit()
         # Manually corrupt FTS to force rebuild to matter
-        conn.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('delete-all')")
+        conn.execute("DELETE FROM chunks_fts")
         conn.commit()
         conn.close()
 
@@ -299,6 +297,7 @@ class TestRagDbMaintenanceService:
             "db.helper.build_db_config",
             lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
         )
+
         service = RagDbMaintenanceService()
         service.rebuild_fts()
 
@@ -795,7 +794,7 @@ class TestRotateWorkflowAndAll:
     ) -> None:
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
-            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.config.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
         with pytest.raises(FileNotFoundError, match="workflow.sqlite"):
@@ -810,7 +809,7 @@ class TestRotateWorkflowAndAll:
             self._make_real_sqlite(f)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
-            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.config.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
         with pytest.raises(FileNotFoundError, match="workflow.sqlite"):

@@ -7,7 +7,8 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock
 
-from agent.commands.cmd_context import _ContextMixin, _token_source_label
+from agent.commands.cmd_context import _ContextMixin
+from agent.commands.token_display import _token_source_label
 from agent.services.models import ContextStateView
 
 
