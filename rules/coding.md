@@ -15,7 +15,7 @@ Enforced by ruff, mypy, and ast-grep. Do not violate.
 
 ## Tool configuration (pyproject.toml)
 
-**ruff:** `line-length = 88`, `select = ["E", "W", "F", "I", "UP"]`, `target-version = "py313"`
+**ruff:** `line-length = 120`, `select = ["E", "W", "F", "I", "UP"]`, `target-version = "py313"`
 - `ignore = ["E501"]` — E501 not auto-fixable in string literals; `ruff format` enforces length in code
 
 **mypy:** `python_version = "3.13"`, `files = ["scripts/"]`, `ignore_missing_imports = true`

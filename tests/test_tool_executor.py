@@ -1,17 +1,25 @@
 """tests/test_tool_executor.py
 Unit tests for tool executor infrastructure: HttpTransport retry behavior,
-cache stampede protection.
+cache stampede protection, error boundary classification, and HealthRegistry recording.
 """
 
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 from shared import plugin_registry
+from shared.mcp_config import (
+    McpServerConfig,
+    McpServerHealthRegistry,
+    McpServerHealthState,
+    TransportType,
+)
+from shared.tool_cache import CacheEntry
 from shared.tool_executor import (
     HttpTransport,
     ToolCallResult,
@@ -370,3 +378,307 @@ class TestPluginReturnValidation:
         plugin_registry._tools["test_tool"] = (_fn, "test")
         with pytest.raises(TypeError, match="is_error must be bool"):
             await self._make_executor().execute("test_tool", {})
+
+
+class TestToolExecutorErrorBoundary:
+    _SK = "test"
+
+    def _make_ex(self, fake_client: Any) -> ToolExecutor:
+        cfg = McpServerConfig(transport=TransportType.HTTP, url="http://localhost:9999")
+        ex = ToolExecutor(
+            http=fake_client,  # type: ignore[arg-type]  -- duck-typed fake for test
+            cache_ttl=60.0,
+            server_configs={self._SK: cfg},
+        )
+        ex._resolver = MagicMock()  # type: ignore[assignment]  -- stub resolver for test
+        ex._resolver.resolve.return_value = self._SK
+        return ex
+
+    def _spy(self, ex: ToolExecutor) -> McpServerHealthRegistry:
+        registry = McpServerHealthRegistry()
+        registry.record_success = MagicMock(wraps=registry.record_success)  # type: ignore[method-assign]  -- spy
+        registry.record_failure = MagicMock(wraps=registry.record_failure)  # type: ignore[method-assign]  -- spy
+        ex.set_health_registry(registry)
+        return registry
+
+    @pytest.mark.asyncio
+    async def test_http_200_is_error_true_increments_tool_error(self) -> None:
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                return httpx.Response(
+                    200,
+                    request=httpx.Request("POST", url),
+                    json={"result": "err msg", "is_error": True},
+                )
+
+        ex = self._make_ex(_FakeClient())
+        registry = self._spy(ex)
+        result = await ex._raw_execute("write_file", {})
+        assert result.error_type == "tool"
+        assert ex.stat_tool_errors.get(self._SK, 0) == 1
+        assert registry.record_success.call_count == 1
+        assert registry.record_failure.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_http_500_raises_transport_error_internally(self) -> None:
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                return httpx.Response(
+                    500,
+                    request=httpx.Request("POST", url),
+                    json={"result": "", "is_error": False},
+                )
+
+        ex = self._make_ex(_FakeClient())
+        registry = self._spy(ex)
+        result = await ex._raw_execute("write_file", {})
+        assert result.error_type == "transport"
+        assert ex.stat_transport_errors.get(self._SK, 0) == 1
+        assert registry.record_failure.call_count == 1
+        assert registry.record_success.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_timeout_classified_as_transport_error(self) -> None:
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                raise httpx.TimeoutException("timed out")
+
+        ex = self._make_ex(_FakeClient())
+        registry = self._spy(ex)
+        result = await ex._raw_execute("write_file", {})
+        assert result.error_type == "transport"
+        assert ex.stat_transport_errors.get(self._SK, 0) == 1
+        assert registry.record_failure.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_malformed_response_classified_as_transport_error(self) -> None:
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                return httpx.Response(
+                    200,
+                    request=httpx.Request("POST", url),
+                    json={"no_result_key": "bad"},
+                )
+
+        ex = self._make_ex(_FakeClient())
+        registry = self._spy(ex)
+        result = await ex._raw_execute("write_file", {})
+        assert result.error_type == "transport"
+        assert ex.stat_transport_errors.get(self._SK, 0) == 1
+        assert registry.record_failure.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_503_retry_exhausted_becomes_transport_error(self) -> None:
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                return httpx.Response(
+                    503,
+                    request=httpx.Request("POST", url),
+                    json={"result": "", "is_error": False},
+                )
+
+        ex = self._make_ex(_FakeClient())
+        registry = self._spy(ex)
+        with patch("asyncio.sleep", return_value=None):
+            result = await ex._raw_execute("write_file", {})
+        assert result.error_type == "transport"
+        assert ex.stat_transport_errors.get(self._SK, 0) == 1
+        assert registry.record_failure.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_tool_error_calls_record_success(self) -> None:
+        class _FakeClient:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                return httpx.Response(
+                    200,
+                    request=httpx.Request("POST", url),
+                    json={"result": "err msg", "is_error": True},
+                )
+
+        ex = self._make_ex(_FakeClient())
+        registry = self._spy(ex)
+        await ex._raw_execute("write_file", {})
+        assert registry.record_success.call_count == 1
+        assert registry.record_failure.call_count == 0
+
+
+def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
+    return McpServerConfig(transport=TransportType.HTTP, url=url)
+
+
+def _make_executor(
+    configs: dict[str, McpServerConfig] | None = None,
+) -> ToolExecutor:
+    http = MagicMock(spec=httpx.AsyncClient)
+    return ToolExecutor(
+        http,
+        cache_ttl=60.0,
+        server_configs=configs or {"file_read": _http_cfg()},
+    )
+
+
+class TestToolExecutorErrorClassification:
+    """Regression tests: error_type classification, stat counters, and HealthRegistry
+    recording in ToolExecutor._raw_execute()."""
+
+    @pytest.mark.asyncio
+    async def test_http_200_success_error_type_empty(self) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor()
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="ok",
+                is_error=False,
+                request_id="req-1",
+                server_key="file_read",
+                error_type="",
+            )
+        )
+        ex._transports["file_read"] = mock_transport  # type: ignore[assignment]  -- AsyncMock duck-types HttpTransport
+
+        result = await ex._raw_execute("read_text_file", {})
+
+        assert result.is_error is False
+        assert result.error_type == ""
+        assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
+
+    @pytest.mark.asyncio
+    async def test_http_200_tool_error_increments_stat_tool_errors(self) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor()
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(
+            return_value=ToolCallResult(
+                output="tool error msg",
+                is_error=True,
+                request_id="",
+                server_key="file_read",
+                error_type="tool",
+            )
+        )
+        ex._transports["file_read"] = mock_transport  # type: ignore[assignment]  -- AsyncMock duck-types HttpTransport
+
+        result = await ex._raw_execute("read_text_file", {})
+
+        assert result.is_error is True
+        assert result.error_type == "tool"
+        assert ex.stat_tool_errors.get("file_read", 0) == 1
+        assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
+
+    @pytest.mark.asyncio
+    async def test_http_500_transport_error_classification(self) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor()
+        ex.set_health_registry(registry)
+        mock_transport = AsyncMock()
+        mock_transport.call = AsyncMock(side_effect=TransportError("HTTP 500"))
+        ex._transports["file_read"] = mock_transport  # type: ignore[assignment]  -- AsyncMock duck-types HttpTransport
+
+        result = await ex._raw_execute("read_text_file", {})
+
+        assert result.is_error is True
+        assert result.error_type == "transport"
+        assert ex.stat_transport_errors.get("file_read", 0) == 1
+        assert registry.get_state("file_read") == McpServerHealthState.DEGRADED
+
+    @pytest.mark.asyncio
+    async def test_http_503_retry_exhaustion_is_transport_error(self) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor()
+        ex.set_health_registry(registry)
+
+        class _FakeClient503:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                req = httpx.Request("POST", url)
+                return httpx.Response(
+                    503, request=req, json={"result": "", "is_error": False}
+                )
+
+        transport = HttpTransport(
+            _FakeClient503(),  # type: ignore[arg-type]  -- duck-typed fake for test
+            base_url="http://127.0.0.1:8000",
+            server_key="file_read",
+        )
+        ex._transports["file_read"] = transport
+
+        with patch("asyncio.sleep", return_value=None):
+            result = await ex._raw_execute("read_text_file", {})
+
+        assert result.error_type == "transport"
+        assert ex.stat_transport_errors.get("file_read", 0) == 1
+        assert "Retry exhausted" in result.output
+
+    @pytest.mark.asyncio
+    async def test_timeout_is_transport_error(self) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor()
+        ex.set_health_registry(registry)
+
+        class _FakeClientTimeout:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                raise httpx.TimeoutException("timed out")
+
+        transport = HttpTransport(
+            _FakeClientTimeout(),  # type: ignore[arg-type]  -- duck-typed fake for test
+            base_url="http://127.0.0.1:8000",
+            server_key="file_read",
+        )
+        ex._transports["file_read"] = transport
+
+        result = await ex._raw_execute("read_text_file", {})
+
+        assert result.error_type == "transport"
+        assert ex.stat_transport_errors.get("file_read", 0) == 1
+        assert registry.get_state("file_read") == McpServerHealthState.DEGRADED
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "body",
+        [
+            b"[1, 2]",
+            b'{"is_error": false}',
+            b'{"result": "x", "is_error": 1}',
+        ],
+    )
+    async def test_malformed_response_is_transport_error(self, body: bytes) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor()
+        ex.set_health_registry(registry)
+
+        class _FakeClientMalformed:
+            async def post(self, url: str, **kw: Any) -> httpx.Response:
+                req = httpx.Request("POST", url)
+                return httpx.Response(200, request=req, content=body)
+
+        transport = HttpTransport(
+            _FakeClientMalformed(),  # type: ignore[arg-type]  -- duck-typed fake for test
+            base_url="http://127.0.0.1:8000",
+            server_key="file_read",
+        )
+        ex._transports["file_read"] = transport
+
+        result = await ex._raw_execute("read_text_file", {})
+
+        assert result.error_type == "transport"
+        assert ex.stat_transport_errors.get("file_read", 0) == 1
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_no_health_registry_update(self) -> None:
+        registry = McpServerHealthRegistry(failure_threshold=3)
+        ex = _make_executor()
+        ex._cache_ttl = 3600.0
+        ex.set_health_registry(registry)
+
+        cache_key = "read_text_file:{}"
+        ex._cache[cache_key] = CacheEntry(
+            output="cached", is_error=False, cached_at=time.time()
+        )
+
+        result = await ex._execute_with_cache("read_text_file", {})
+
+        assert result.request_id == ""
+        assert ex.stat_cache_hits == 1
+        assert registry.get_state("file_read") == McpServerHealthState.HEALTHY
