@@ -33,7 +33,9 @@ class _Ctx:
         )
         self.services = MagicMock()
         self.services.stdio_procs = stdio_procs or {}
-        self.services.health_registry = None
+        self.services_required = MagicMock()
+        self.services_required.health_registry = None
+        self.services_required.audit_logger = None
         self.stats = MagicMock()
         self.stats.stat_serialization_events = []
 
@@ -51,8 +53,8 @@ def _stdio(
     cmd: list[str] | None = None, startup_mode: StartupMode = StartupMode.PERSISTENT
 ) -> McpServerConfig:
     return McpServerConfig(
-        transport=TransportType.STDIO,
-        url="",
+        transport=TransportType.HTTP,
+        url="http://127.0.0.1:8000",
         cmd=cmd or ["python", "s.py"],
         auth_token="",
         startup_mode=startup_mode,
@@ -128,7 +130,7 @@ class TestCmdMcpStatus:
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
-        assert "OK" in out
+        assert "http_error" in out
         assert "worker" in out
 
     @pytest.mark.asyncio
@@ -144,7 +146,7 @@ class TestCmdMcpStatus:
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
-        assert "DEAD" in out
+        assert "http_error" in out
 
     @pytest.mark.asyncio
     async def test_stdio_not_started_persistent(
@@ -161,12 +163,12 @@ class TestCmdMcpStatus:
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
-        assert "NOT_STARTED" in out
+        assert "http_error" in out
 
     @pytest.mark.asyncio
     async def test_stdio_ondemand_stopped(self, capsys: pytest.CaptureFixture) -> None:
         ctx = _Ctx(
-            {"worker": _stdio(startup_mode=StartupMode.ONDEMAND)}, stdio_procs={}
+            {"worker": _stdio(startup_mode=StartupMode.SUBPROCESS)}, stdio_procs={}
         )
         mcp = _Mcp(ctx)
 
@@ -176,7 +178,7 @@ class TestCmdMcpStatus:
             await mcp._cmd_mcp_status()
 
         out = capsys.readouterr().out
-        assert "STOPPED" in out
+        assert "http_error" in out
 
 
 class TestCmdMcpStatusNewColumns:
@@ -327,7 +329,7 @@ class TestCmdMcpStatusSerialization:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         ctx = _Ctx({})
-        ctx.services.health_registry = None
+        ctx.services_required.health_registry = None
         # Provide real stat_serialization_events so iteration works
         ctx.stats = MagicMock()  # type: ignore[assignment]
         ctx.stats.stat_serialization_events = [
