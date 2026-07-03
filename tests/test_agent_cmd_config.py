@@ -222,13 +222,12 @@ class TestPrintConfigValues:
 
 # ── _apply_config_params ──────────────────────────────────────────────────────
 
-# _build_mcp_servers fallback raises ValueError on empty http URL; use stdio to bypass.
+# _build_mcp_servers requires valid transport; use http with dummy URL.
 _DUMMY_MCP = {
     "mcp_servers": {
         "dummy": {
-            "transport": "stdio",
-            "cmd": ["echo"],
-            "url": "",
+            "transport": "http",
+            "url": "http://localhost:3001/mcp",
         }
     }
 }
