@@ -7,7 +7,7 @@ rag_src_dir = "/opt/llm/rag-src"
 crawl_delay = 1.5
 
 # max_depth: maximum BFS crawl depth (URL hops from seed URL)
-max_depth = 6
+max_depth = 3
 
 # min_chunk: minimum chunk character count; chunks below this are discarded as noise
 min_chunk = 40
@@ -31,7 +31,7 @@ fetch_timeout = 15
 crawl_concurrency = 3
 
 # max_pages: BFS crawl page count limit; BFS stops when visited count reaches this value
-max_pages = 500
+max_pages = 200
 
 # chunk_overlap: sliding window chunk overlap (chars); prepends this many chars from previous chunk tail; 0 = disabled
 chunk_overlap = 50
@@ -44,7 +44,7 @@ md_index_enable = false
 md_snippet_max_chars = 600
 
 # skip_nofollow: when true, links with rel="nofollow" are excluded from crawl
-skip_nofollow = false
+skip_nofollow = true
 
 # skip_external: when true, links outside the origin are excluded from crawl
 skip_external = true
@@ -84,4 +84,4 @@ en_stopwords = [
 ja_stop_pos = ["助詞", "助動詞", "補助記号", "空白", "感動詞", "接続詞"]
 
 # strict_artifact_validation: when true, reject chunk files missing schema_version, artifact_type, or created_by fields.
-strict_artifact_validation = false
+strict_artifact_validation = true

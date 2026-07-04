@@ -33,7 +33,7 @@ sqlite_wal_checkpoint_mode = "TRUNCATE"
 sqlite_retention_max_sessions = 100
 
 # sqlite_retention_max_age_days: session retention period (days); 0 = no age limit
-sqlite_retention_max_age_days = 90
+sqlite_retention_max_age_days = 30
 
 # sqlite_archive_dir: archive directory for DB rotation
 sqlite_archive_dir = "/opt/llm/db/archive"
@@ -45,7 +45,8 @@ embedding_dims = 384
 # workflow_mode: "required" = fail fast when workflow prerequisites missing (production)
 #                "auto"     = warn and fall back to direct execution (dev/local)
 #                "disabled" = always use direct execution (testing only)
-workflow_mode = "required"
+# Change to "required" when deploying to production.
+workflow_mode = "auto"
 
 # workflow_require_approval: when True, WorkflowEngine requires /approve before verify stage runs
 # Disabled by default; enable in production after testing the approval flow.

@@ -29,10 +29,10 @@ use_rerank = true
 rag_top_k = 5
 
 # Chunks with a rerank score (0-10) below this value are excluded from results; default 0.0 (no filter)
-rag_min_score = 0.0
+rag_min_score = 2.0
 
 # Maximum number of chunks retrieved from the same document; prevents near-duplicate chunks from chunk_overlap
-max_chunks_per_doc = 2
+max_chunks_per_doc = 3
 
 # When true, runs fetch_full_document() two-stage retrieval on turns where the LLM is judged to request additional context
 use_two_stage_fetch = false

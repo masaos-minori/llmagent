@@ -11,7 +11,7 @@ memory_max_inject_semantic = 5
 memory_max_inject_episodic = 3
 
 # Minimum importance score (0.0–1.0) for memory injection
-memory_min_importance = 0.3
+memory_min_importance = 0.5
 
 # Phase 2 memory: when true, generates embeddings and enables KNN hybrid search
 memory_embed_enabled = false
@@ -23,4 +23,4 @@ memory_embed_dim = 384
 memory_dedup_threshold = 0.3
 
 # When true, reject non-local embed_url — local-only safety mode
-memory_local_only = false
+memory_local_only = true
