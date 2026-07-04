@@ -1,16 +1,24 @@
 #!/usr/bin/env python3
 """check_mcp_docs_consistency.py — Lightweight CI check for MCP documentation drift.
 
-Runs five consistency checks against .md files under docs/ and reports
+Runs consistency checks against .md files under docs/ and reports
 errors with file:line references.  Exits non-zero if any errors found.
 
 Checks:
-    --all (default)  Run all checks
-    --skip startup   Skip startup mode validation
-    --skip failopen  Skip fail-open wording check for workflow_allowlist
-    --skip routing   Skip routing authority language check
-    --skip active    Skip active inconsistencies cross-reference check
-    --skip toolcount Skip tool count consistency check
+    --all (default)       Run all checks
+    --skip startup        Skip startup mode validation
+    --skip failopen       Skip fail-open wording check for workflow_allowlist
+    --skip routing        Skip routing authority language check
+    --skip active         Skip active inconsistencies cross-reference check
+    --skip toolcount      Skip tool count consistency check
+    --skip discoveryrouting   Skip live-discovery-overrides-registry check
+    --skip v1toolsrouting     Skip /v1/tools-as-routing-authority check
+    --skip toolnamesrouting   Skip tool_names-as-routing-input check
+    --skip auditformat        Skip audit log format check
+    --skip transportiserror   Skip HttpTransport is_error=True check
+    --skip stdiotransport     Skip stdio active transport reference check
+    --skip watchdogrestart    Skip watchdog-restarts-on-dependency-failure check
+    --skip strictskip         Skip strict-validation-skips-unreachable check
 
 Usage:
     python scripts/check_mcp_docs_consistency.py              # run all
@@ -29,7 +37,7 @@ from pathlib import Path
 # Constants — mirror the canonical definitions in scripts/shared/mcp_config.py
 # ---------------------------------------------------------------------------
 
-VALID_STARTUP_MODES: set[str] = {"persistent", "ondemand", "subprocess"}
+VALID_STARTUP_MODES: set[str] = {"persistent", "subprocess"}
 
 MCP_KNOWN_ISSUES_FILE = "04_mcp_90_inconsistencies_and_known_issues.md"
 
@@ -45,6 +53,19 @@ _ACTIVE_ISSUE_ALLOWLIST: frozenset[str] = frozenset(
         "MCP-07",  # Health semantics ambiguity — diagram missing DEGRADED state
         "MCP-08",  # HTTP status code vs body fields mismatch
     },
+)
+
+HISTORICAL_MARKERS: frozenset[str] = frozenset(
+    {"legacy", "historical", "archive only", "resolved", "was:", "removed"}
+)
+
+_STDIO_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        "04_mcp_02_protocol_and_transport.md",
+        "04_mcp_06_configuration_and_operations.md",
+        "04_mcp_05_security_and_safety_model.md",
+        "04_mcp_00_document-guide.md",
+    }
 )
 
 # ---------------------------------------------------------------------------
@@ -490,6 +511,343 @@ def _find_server_section_for_line(catalog: DocFile, line_no: int) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# Shared helpers for new checks
+# ---------------------------------------------------------------------------
+
+
+def _is_historical_context(lines: list[str], line_idx: int) -> bool:
+    """Return True if line_idx is within 10 lines of a historical section marker."""
+    start = max(0, line_idx - 10)
+    for i in range(start, line_idx):
+        if any(marker in lines[i].lower() for marker in HISTORICAL_MARKERS):
+            return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Check 6: Live discovery routing override
+# ---------------------------------------------------------------------------
+
+_DISCOVERY_OVERRIDES_RE = re.compile(
+    r"discovery.*overrides.*registry|discovery\s+map.*wins",
+    re.IGNORECASE,
+)
+
+
+def check_live_discovery_routing(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
+    """Detect stale language claiming live /v1/tools discovery overrides ToolRegistry."""
+    issues: list[Issue] = []
+    for doc in files:
+        if doc.rel_path == MCP_KNOWN_ISSUES_FILE:
+            continue
+        for i, line in enumerate(doc.lines, start=1):
+            if _DISCOVERY_OVERRIDES_RE.search(line):
+                if _is_historical_context(doc.lines, i - 1):
+                    continue
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=i,
+                        severity="ERROR",
+                        message=(
+                            "Stale language: live discovery map no longer overrides ToolRegistry. "
+                            "ToolRegistry is the sole routing authority."
+                        ),
+                    )
+                )
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# Check 7: /v1/tools as routing authority
+# ---------------------------------------------------------------------------
+
+_V1TOOLS_AUTHORITY_RE = re.compile(
+    r"/v1/tools.*routing\s+authority|/v1/tools.*single\s+source",
+    re.IGNORECASE,
+)
+
+
+def check_routing_authority_v1tools(
+    docs_dir: Path, files: list[DocFile]
+) -> list[Issue]:
+    """Detect stale language describing /v1/tools as the routing authority."""
+    issues: list[Issue] = []
+    for doc in files:
+        for i, line in enumerate(doc.lines, start=1):
+            if not _V1TOOLS_AUTHORITY_RE.search(line):
+                continue
+            if re.search(
+                r"not.*routing\s+authority|not.*source\s+of\s+truth",
+                line,
+                re.IGNORECASE,
+            ):
+                continue
+            issues.append(
+                Issue(
+                    file=doc.rel_path,
+                    line_no=i,
+                    severity="ERROR",
+                    message=(
+                        "Stale language: /v1/tools is not the routing authority. "
+                        "ToolRegistry (tool_constants.py frozensets) is the sole routing source."
+                    ),
+                )
+            )
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# Check 8: tool_names as routing input
+# ---------------------------------------------------------------------------
+
+_TOOL_NAMES_ROUTING_RE = re.compile(
+    r"(?:tool_names.*(routing\s+input|routing\s+drives?|routing\s+determines?)"
+    r"|(?:(?:routing\s+drives?|routing\s+determines?).*tool_names))"
+)
+
+
+def check_tool_names_routing_input(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
+    """Detect stale language describing tool_names as a routing input."""
+    issues: list[Issue] = []
+    for doc in files:
+        if "04_mcp_90_" in doc.rel_path or "04_mcp_00_" in doc.rel_path:
+            continue
+        in_fenced_block = False
+        for i, line in enumerate(doc.lines, start=1):
+            if line.startswith("```"):
+                in_fenced_block = not in_fenced_block
+                continue
+            if in_fenced_block:
+                continue
+            if not _TOOL_NAMES_ROUTING_RE.search(line):
+                continue
+            lower = line.lower()
+            if "not a routing input" in lower or "not routing inputs" in lower:
+                continue
+            issues.append(
+                Issue(
+                    file=doc.rel_path,
+                    line_no=i,
+                    severity="ERROR",
+                    message=(
+                        "Stale language: tool_names is not a routing input. "
+                        "It is drift validation metadata only."
+                    ),
+                )
+            )
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# Check 9: Audit log single format
+# ---------------------------------------------------------------------------
+
+_AUDIT_KV_RE = re.compile(
+    r"audit\.log.*key.value|AUDIT\s+session=.*format",
+    re.IGNORECASE,
+)
+_AUDIT_SESSION_PROSE_RE = re.compile(r"AUDIT\s+session=")
+
+
+def check_audit_log_single_format(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
+    """Detect stale audit log format language (key=value or plain AUDIT session= prose)."""
+    issues: list[Issue] = []
+    for doc in files:
+        in_fenced_block = False
+        for i, line in enumerate(doc.lines, start=1):
+            if line.startswith("```"):
+                in_fenced_block = not in_fenced_block
+                continue
+            if in_fenced_block:
+                continue
+            if _is_historical_context(doc.lines, i - 1):
+                continue
+            if _AUDIT_KV_RE.search(line):
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=i,
+                        severity="ERROR",
+                        message=(
+                            "Stale audit log format: audit log uses JSON-lines, not key=value format."
+                        ),
+                    )
+                )
+            elif _AUDIT_SESSION_PROSE_RE.search(line):
+                context = doc.lines[max(0, i - 4) : i + 3]
+                has_json_caveat = any("json" in ctx.lower() for ctx in context)
+                if not has_json_caveat:
+                    issues.append(
+                        Issue(
+                            file=doc.rel_path,
+                            line_no=i,
+                            severity="ERROR",
+                            message=(
+                                "Stale audit log reference: AUDIT session= prose without "
+                                "JSON/JSONL format caveat nearby."
+                            ),
+                        )
+                    )
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# Check 10: HttpTransport is_error=True
+# ---------------------------------------------------------------------------
+
+_TRANSPORT_IS_ERROR_RE = re.compile(
+    r"HttpTransport.*is_error\s*=\s*True|is_error=True.*transport",
+    re.IGNORECASE,
+)
+
+
+def check_transport_error_is_error(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
+    """Detect docs claiming HttpTransport returns is_error=True for transport failures."""
+    issues: list[Issue] = []
+    for doc in files:
+        if doc.rel_path == MCP_KNOWN_ISSUES_FILE:
+            continue
+        in_fenced_block = False
+        for i, line in enumerate(doc.lines, start=1):
+            if line.startswith("```"):
+                in_fenced_block = not in_fenced_block
+                continue
+            if in_fenced_block:
+                continue
+            if not _TRANSPORT_IS_ERROR_RE.search(line):
+                continue
+            if "never" in line.lower() or "ToolCallResult" in line:
+                continue
+            issues.append(
+                Issue(
+                    file=doc.rel_path,
+                    line_no=i,
+                    severity="WARNING",
+                    message=(
+                        "Possible stale language: HttpTransport raises TransportError, "
+                        "not is_error=True, for transport failures."
+                    ),
+                )
+            )
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# Check 11: stdio active transport references
+# ---------------------------------------------------------------------------
+
+_STDIO_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"(?:^|[^a-zA-Z])stdio(?:[^a-zA-Z]|$)"), "stdio"),
+    (re.compile(r"StdioTransport"), "StdioTransport"),
+]
+
+
+def check_stdio_active_transport(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
+    """Detect active stdio transport references in MCP docs outside the allowlist."""
+    issues: list[Issue] = []
+    for doc in files:
+        if not doc.rel_path.startswith("04_mcp_"):
+            continue
+        if Path(doc.rel_path).name in _STDIO_ALLOWLIST:
+            continue
+        in_fenced_block = False
+        for i, line in enumerate(doc.lines, start=1):
+            if line.startswith("```"):
+                in_fenced_block = not in_fenced_block
+                continue
+            if in_fenced_block:
+                continue
+            if _is_historical_context(doc.lines, i - 1):
+                continue
+            for pattern, label in _STDIO_PATTERNS:
+                if pattern.search(line):
+                    issues.append(
+                        Issue(
+                            file=doc.rel_path,
+                            line_no=i,
+                            severity="ERROR",
+                            message=(
+                                f"Active stdio transport reference ({label!r}) outside allowlist. "
+                                "stdio is not an active transport in this project."
+                            ),
+                        )
+                    )
+                    break
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# Check 12: Watchdog restarts on dependency failure
+# ---------------------------------------------------------------------------
+
+_WATCHDOG_RESTART_RE = re.compile(
+    r"watchdog.*restart.*dependency|dependency.*failure.*watchdog.*restart",
+    re.IGNORECASE,
+)
+
+
+def check_watchdog_restarts_on_dependency_failure(
+    docs_dir: Path, files: list[DocFile]
+) -> list[Issue]:
+    """Detect stale language claiming watchdog restarts on dependency failure."""
+    issues: list[Issue] = []
+    for doc in files:
+        for i, line in enumerate(doc.lines, start=1):
+            if _WATCHDOG_RESTART_RE.search(line):
+                if _is_historical_context(doc.lines, i - 1):
+                    continue
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=i,
+                        severity="ERROR",
+                        message=(
+                            "Stale language: watchdog does not restart on dependency failure alone. "
+                            "Restart is gated on restart_recommended=true in the /health body."
+                        ),
+                    )
+                )
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# Check 13: strict validation skips unreachable
+# ---------------------------------------------------------------------------
+
+_STRICT_SKIP_RE = re.compile(
+    r"strict.*skip.*unreachable|skip.*unreachable.*strict",
+    re.IGNORECASE,
+)
+
+
+def check_strict_validation_skips_unreachable(
+    docs_dir: Path, files: list[DocFile]
+) -> list[Issue]:
+    """Detect stale language claiming strict validation skips when all servers unreachable."""
+    issues: list[Issue] = []
+    for doc in files:
+        for i, line in enumerate(doc.lines, start=1):
+            if _STRICT_SKIP_RE.search(line):
+                if _is_historical_context(doc.lines, i - 1):
+                    continue
+                if "RuntimeError" in line:
+                    continue
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=i,
+                        severity="ERROR",
+                        message=(
+                            "Stale language: strict=True + all servers unreachable raises RuntimeError, "
+                            "it does not skip validation."
+                        ),
+                    )
+                )
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -504,7 +862,21 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Path to docs/ directory (default: <repo_root>/docs/)",
     )
-    skip_choices = ["startup", "failopen", "routing", "active", "toolcount"]
+    skip_choices = [
+        "startup",
+        "failopen",
+        "routing",
+        "active",
+        "toolcount",
+        "discoveryrouting",
+        "v1toolsrouting",
+        "toolnamesrouting",
+        "auditformat",
+        "transportiserror",
+        "stdiotransport",
+        "watchdogrestart",
+        "strictskip",
+    ]
     group.add_argument(
         "--skip",
         nargs="+",
@@ -538,6 +910,24 @@ def main(argv: list[str] | None = None) -> int:
         all_issues.extend(check_active_inconsistencies(docs_dir, files))
     if "toolcount" not in skip:
         all_issues.extend(check_tool_counts(docs_dir, files))
+    if "discoveryrouting" not in skip:
+        all_issues.extend(check_live_discovery_routing(docs_dir, files))
+    if "v1toolsrouting" not in skip:
+        all_issues.extend(check_routing_authority_v1tools(docs_dir, files))
+    if "toolnamesrouting" not in skip:
+        all_issues.extend(check_tool_names_routing_input(docs_dir, files))
+    if "auditformat" not in skip:
+        all_issues.extend(check_audit_log_single_format(docs_dir, files))
+    if "transportiserror" not in skip:
+        all_issues.extend(check_transport_error_is_error(docs_dir, files))
+    if "stdiotransport" not in skip:
+        all_issues.extend(check_stdio_active_transport(docs_dir, files))
+    if "watchdogrestart" not in skip:
+        all_issues.extend(
+            check_watchdog_restarts_on_dependency_failure(docs_dir, files)
+        )
+    if "strictskip" not in skip:
+        all_issues.extend(check_strict_validation_skips_unreachable(docs_dir, files))
 
     # Report
     errors = [i for i in all_issues if i.severity == "ERROR"]

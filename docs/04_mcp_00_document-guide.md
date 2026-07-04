@@ -20,7 +20,7 @@ as the primary reference. Legacy source files have been deleted (git history pre
 ```
 01 System Overview               — start here; server list, ports, transport types
     ↓
-02 Protocol and Transport        — HTTP/stdio format, auth, audit log, truncation
+02 Protocol and Transport        — HTTP format, auth, audit log, truncation
     ↓
 03 Routing, Lifecycle, Execution — ToolExecutor, routing, startup modes, watchdog
     ↓
@@ -43,13 +43,11 @@ as the primary reference. Legacy source files have been deleted (git history pre
 | What ports do the servers run on? | `04_mcp_01` |
 | What startup modes are available? | `04_mcp_01` |
 | How does `/v1/call_tool` work? | `04_mcp_02` |
-| What is the stdio transport format? | `04_mcp_02` |
 | How does Bearer authentication work? | `04_mcp_02` |
 | What is the audit log format? | `04_mcp_02` |
 | How are tools routed to servers? | `04_mcp_03` |
 | How does ToolExecutor work? | `04_mcp_03` |
 | How does the watchdog work? | `04_mcp_03` §Watchdog; config defaults in `04_mcp_06` §Major Default Values |
-| When to use stdio vs HTTP transport? | `04_mcp_02` §When to use stdio |
 | How do I add a new MCP server? | `04_mcp_03` |
 | How are startup tool-definition warnings triggered? | `04_mcp_06` §Startup Validation Behavior |
 | How do I diagnose an MCP failure? | `04_mcp_06` §MCP Failure Diagnosis |
@@ -99,7 +97,7 @@ as the primary reference. Legacy source files have been deleted (git history pre
 | File | Description |
 |---|---|
 | [04_mcp_01_system_overview.md](04_mcp_01_system_overview.md) | Purpose, 11-server catalog with ports, transport types, startup modes, major constraints |
-| [04_mcp_02_protocol_and_transport.md](04_mcp_02_protocol_and_transport.md) | `/v1/call_tool` format, Pydantic models, MCPServer base, HTTP vs stdio, auth, audit log |
+| [04_mcp_02_protocol_and_transport.md](04_mcp_02_protocol_and_transport.md) | `/v1/call_tool` format, Pydantic models, MCPServer base, HTTP format, auth, audit log |
 | [04_mcp_03_routing_lifecycle_and_execution.md](04_mcp_03_routing_lifecycle_and_execution.md) | ToolRouteResolver, ToolExecutor, HttpTransport, StdioTransport, startup modes, watchdog, new server |
 | [04_mcp_04_server_catalog.md](04_mcp_04_server_catalog.md) | Per-server specs for all 11 servers: tools, config, security, logs, limitations |
 | [04_mcp_05_security_and_safety_model.md](04_mcp_05_security_and_safety_model.md) | Allowlists, denylist, fail-open/closed, dry_run, risk tiers, AI safety notes; MDQ vs RAG boundary |

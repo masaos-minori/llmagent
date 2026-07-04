@@ -12,10 +12,18 @@ from check_mcp_docs_consistency import (
     _ACTIVE_ISSUE_ALLOWLIST,
     DocFile,
     check_active_inconsistencies,
+    check_audit_log_single_format,
     check_fail_open_workflow_allowlist,
+    check_live_discovery_routing,
     check_routing_authority,
+    check_routing_authority_v1tools,
     check_startup_modes,
+    check_stdio_active_transport,
+    check_strict_validation_skips_unreachable,
     check_tool_counts,
+    check_tool_names_routing_input,
+    check_transport_error_is_error,
+    check_watchdog_restarts_on_dependency_failure,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -80,7 +88,7 @@ class TestCheckStartupModes:
         """Multiple startup_mode declarations each validated."""
         docs = [
             _mk_file("04_mcp_02.md", ['startup_mode = "persistent"']),
-            _mk_file("04_mcp_03.md", ['startup_mode = "ondemand"']),
+            _mk_file("04_mcp_03.md", ['startup_mode = "subprocess"']),
         ]
         issues = check_startup_modes(Path("/fake"), docs)
         assert not issues
@@ -316,3 +324,269 @@ class TestActiveIssueAllowlist:
         # MCP-03 and MCP-05 are resolved — they should NOT be in the allowlist
         assert "MCP-03" not in _ACTIVE_ISSUE_ALLOWLIST
         assert "MCP-05" not in _ACTIVE_ISSUE_ALLOWLIST
+
+
+# ── check_live_discovery_routing ─────────────────────────────────────────────
+
+
+class TestCheckLiveDiscoveryRouting:
+    def test_no_stale_language_no_issue(self) -> None:
+        """Clean line should not produce issues."""
+        doc = _mk_file("04_mcp_03_routing.md", ["The registry handles routing."])
+        issues = check_live_discovery_routing(Path("/fake"), [doc])
+        assert not issues
+
+    def test_stale_language_triggers_error(self) -> None:
+        """Discovery-overrides-registry language should produce ERROR."""
+        doc = _mk_file(
+            "04_mcp_03_routing.md",
+            ["discovery overrides registry for routing"],
+        )
+        issues = check_live_discovery_routing(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+    def test_known_issues_file_skipped(self) -> None:
+        """Known-issues file should be skipped entirely."""
+        doc = _mk_file(
+            "04_mcp_90_inconsistencies_and_known_issues.md",
+            ["discovery overrides registry for routing"],
+        )
+        issues = check_live_discovery_routing(Path("/fake"), [doc])
+        assert not issues
+
+
+# ── check_routing_authority_v1tools ──────────────────────────────────────────
+
+
+class TestCheckRoutingAuthorityV1Tools:
+    def test_no_stale_language_no_issue(self) -> None:
+        """Clean line should not produce issues."""
+        doc = _mk_file(
+            "04_mcp_03_routing.md", ["/v1/tools is used for drift detection"]
+        )
+        issues = check_routing_authority_v1tools(Path("/fake"), [doc])
+        assert not issues
+
+    def test_stale_language_triggers_error(self) -> None:
+        """/v1/tools-as-routing-authority language should produce ERROR."""
+        doc = _mk_file(
+            "04_mcp_03_routing.md",
+            ["/v1/tools is the routing authority"],
+        )
+        issues = check_routing_authority_v1tools(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+    def test_negation_skipped(self) -> None:
+        """Negated form should not produce issues."""
+        doc = _mk_file(
+            "04_mcp_03_routing.md",
+            ["/v1/tools is NOT the routing authority"],
+        )
+        issues = check_routing_authority_v1tools(Path("/fake"), [doc])
+        assert not issues
+
+
+# ── check_tool_names_routing_input ───────────────────────────────────────────
+
+
+class TestCheckToolNamesRoutingInput:
+    def test_no_stale_language_no_issue(self) -> None:
+        """Clean line should not produce issues."""
+        doc = _mk_file("04_mcp_03_routing.md", ["tool_names is stored for audit"])
+        issues = check_tool_names_routing_input(Path("/fake"), [doc])
+        assert not issues
+
+    def test_stale_language_triggers_error(self) -> None:
+        """tool_names-as-routing-input language should produce ERROR."""
+        doc = _mk_file(
+            "04_mcp_03_routing.md",
+            ["tool_names is a routing input"],
+        )
+        issues = check_tool_names_routing_input(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+    def test_negation_skipped(self) -> None:
+        """Negated form should not produce issues."""
+        doc = _mk_file(
+            "04_mcp_03_routing.md",
+            ["tool_names is not a routing input"],
+        )
+        issues = check_tool_names_routing_input(Path("/fake"), [doc])
+        assert not issues
+
+    def test_allowlist_file_skipped(self) -> None:
+        """04_mcp_90_ file should be skipped entirely."""
+        doc = _mk_file(
+            "04_mcp_90_inconsistencies_and_known_issues.md",
+            ["tool_names is a routing input"],
+        )
+        issues = check_tool_names_routing_input(Path("/fake"), [doc])
+        assert not issues
+
+    def test_fenced_code_block_exempt(self) -> None:
+        """Content inside fenced code block should not produce issues."""
+        doc = _mk_file(
+            "04_mcp_03_routing.md",
+            ["```", "tool_names routing determines", "```"],
+        )
+        issues = check_tool_names_routing_input(Path("/fake"), [doc])
+        assert not issues
+
+
+# ── check_audit_log_single_format ────────────────────────────────────────────
+
+
+class TestCheckAuditLogSingleFormat:
+    def test_no_stale_language_no_issue(self) -> None:
+        """Clean line should not produce issues."""
+        doc = _mk_file("04_mcp_06_configuration.md", ["The audit log records events."])
+        issues = check_audit_log_single_format(Path("/fake"), [doc])
+        assert not issues
+
+    def test_audit_kv_only_triggers_error(self) -> None:
+        """audit.log key-value format language should produce ERROR."""
+        doc = _mk_file(
+            "04_mcp_06_configuration.md",
+            ["audit.log uses key-value format only"],
+        )
+        issues = check_audit_log_single_format(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+    def test_fenced_code_block_exempt(self) -> None:
+        """Content inside fenced code block should not produce issues."""
+        doc = _mk_file(
+            "04_mcp_06_configuration.md",
+            ["```", "AUDIT session=abc format=kv", "```"],
+        )
+        issues = check_audit_log_single_format(Path("/fake"), [doc])
+        assert not issues
+
+
+# ── check_transport_error_is_error ───────────────────────────────────────────
+
+
+class TestCheckTransportErrorIsError:
+    def test_no_stale_language_no_issue(self) -> None:
+        """Clean line should not produce issues."""
+        doc = _mk_file("04_mcp_03_routing.md", ["Transport errors are logged."])
+        issues = check_transport_error_is_error(Path("/fake"), [doc])
+        assert not issues
+
+    def test_stale_language_triggers_warning(self) -> None:
+        """HttpTransport is_error=True language should produce WARNING."""
+        doc = _mk_file(
+            "04_mcp_03_routing.md",
+            ["HttpTransport returns is_error=True for transport failures"],
+        )
+        issues = check_transport_error_is_error(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+
+    def test_fenced_code_block_exempt(self) -> None:
+        """Content inside fenced code block should not produce issues."""
+        doc = _mk_file(
+            "04_mcp_03_routing.md",
+            ["```", "HttpTransport returns is_error=True", "```"],
+        )
+        issues = check_transport_error_is_error(Path("/fake"), [doc])
+        assert not issues
+
+    def test_known_issues_file_skipped(self) -> None:
+        """Known-issues file should be skipped entirely."""
+        doc = _mk_file(
+            "04_mcp_90_inconsistencies_and_known_issues.md",
+            ["HttpTransport returns is_error=True for transport failures"],
+        )
+        issues = check_transport_error_is_error(Path("/fake"), [doc])
+        assert not issues
+
+
+# ── check_stdio_active_transport ─────────────────────────────────────────────
+
+
+class TestCheckStdioActiveTransport:
+    def test_no_stale_language_no_issue(self) -> None:
+        """Clean line should not produce issues."""
+        doc = _mk_file("04_mcp_03_routing.md", ["The server uses HTTP transport."])
+        issues = check_stdio_active_transport(Path("/fake"), [doc])
+        assert not issues
+
+    def test_stale_language_triggers_error(self) -> None:
+        """stdio reference in non-allowlisted 04_mcp_ file should produce ERROR."""
+        doc = _mk_file(
+            "04_mcp_03_routing.md",
+            ["The stdio transport handles messages."],
+        )
+        issues = check_stdio_active_transport(Path("/fake"), [doc])
+        assert len(issues) >= 1
+        assert issues[0].severity == "ERROR"
+
+    def test_allowlist_file_skipped(self) -> None:
+        """Allowlisted file should be skipped entirely."""
+        doc = _mk_file(
+            "04_mcp_02_protocol_and_transport.md",
+            ["The stdio transport handles messages."],
+        )
+        issues = check_stdio_active_transport(Path("/fake"), [doc])
+        assert not issues
+
+    def test_fenced_code_block_exempt(self) -> None:
+        """Content inside fenced code block should not produce issues."""
+        doc = _mk_file(
+            "04_mcp_03_routing.md",
+            ["```", "stdio --stdio", "```"],
+        )
+        issues = check_stdio_active_transport(Path("/fake"), [doc])
+        assert not issues
+
+
+# ── check_watchdog_restarts_on_dependency_failure ────────────────────────────
+
+
+class TestCheckWatchdogRestartsOnDependencyFailure:
+    def test_no_stale_language_no_issue(self) -> None:
+        """Clean line should not produce issues."""
+        doc = _mk_file(
+            "04_mcp_06_configuration.md",
+            ["The watchdog monitors HTTP status codes."],
+        )
+        issues = check_watchdog_restarts_on_dependency_failure(Path("/fake"), [doc])
+        assert not issues
+
+    def test_stale_language_triggers_error(self) -> None:
+        """watchdog-restarts-on-dependency-failure language should produce ERROR."""
+        doc = _mk_file(
+            "04_mcp_06_configuration.md",
+            ["watchdog restarts on every dependency failure"],
+        )
+        issues = check_watchdog_restarts_on_dependency_failure(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+
+# ── check_strict_validation_skips_unreachable ────────────────────────────────
+
+
+class TestCheckStrictValidationSkipsUnreachable:
+    def test_no_stale_language_no_issue(self) -> None:
+        """Clean line should not produce issues."""
+        doc = _mk_file(
+            "04_mcp_06_configuration.md",
+            ["Strict validation raises RuntimeError on mismatch."],
+        )
+        issues = check_strict_validation_skips_unreachable(Path("/fake"), [doc])
+        assert not issues
+
+    def test_stale_language_triggers_error(self) -> None:
+        """strict-skip-unreachable language should produce ERROR."""
+        doc = _mk_file(
+            "04_mcp_06_configuration.md",
+            ["strict validation skip unreachable servers"],
+        )
+        issues = check_strict_validation_skips_unreachable(Path("/fake"), [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
