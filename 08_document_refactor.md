@@ -20,6 +20,7 @@ For each relevant design document:
 - Preserve the existing document structure as much as possible.
 - Add clarification; avoid unnecessary rewrites.
 - Do not remove content unless it is clearly wrong and contradicted by implementation.
+- Do not document private methods, private attributes, or private functions (names starting with `_`).
 - If docs and code disagree:
   - document the current implemented behavior,
   - note the mismatch if needed,
@@ -61,7 +62,7 @@ Do not add:
 - future roadmap ideas unless already implied in code or docs,
 - implementation details with no design relevance,
 - broad refactoring proposals inside the document body,
-- private methods or private attributes (e.g. `_method`, `__method`) — document only the public API surface; internal implementation details are not part of the design contract.
+- private methods, private attributes, or private functions (e.g. `_method`, `__method`) — document only the public API surface; internal implementation details are not part of the design contract.
 
 ### Evidence Standard
 For every meaningful addition:

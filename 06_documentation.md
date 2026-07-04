@@ -16,6 +16,7 @@ Do not edit code unless explicitly asked.
   - Move specific procedures into dedicated skills or individual rule files.
 - Context Optimization: Load only task-specific information to prevent context bloat.
 - Write all documents in Japanese.
+- Do not document private methods, private attributes, or private functions (names starting with `_`).
 
 ### Output Language
 
@@ -41,7 +42,7 @@ Each file must strictly follow the chapter structure below:
 - Input / Output
 - Processing Flow
 - Data Specification
-- Public Interface Specification (public API only; do not document private methods or private attributes)
+- Public Interface Specification (public API only; do not document private methods, private attributes, or private functions)
 - Error Handling
 - Validation Plan
 - Open Questions / Unknowns

@@ -439,10 +439,7 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 |---|---|---|
 | `_get_embedding` | `(text: str) -> list[float] \| None` | Return embedding vector; validates dimension against embedding_dims config. Returns None on empty input, network failure, or dimension mismatch. Embedding is also validated as a non-empty list. |
 | `_validate_artifact` | `(payload: dict, expected_type: str) -> bool` | Validate artifact_type field (ingestion-only metadata); lenient for backward compatibility (missing artifact_type accepted). Returns True when validation passes, False when it fails. |
-| `_is_file_unchanged` | `(existing_etag, existing_last_modified, new_etag, new_last_modified) -> bool` | Return True when file SHA-256 hash is unchanged |
-| `_delete_existing_document` | `(db: SQLiteHelper, doc_id: int) -> None` | Delete document and chunks; chunks_vec removed first |
-| `_update_etag` | `(db: SQLiteHelper, doc_id: int, etag, last_modified, new_fetched_at\|None) -> None` | Refresh ETag/Last-Modified for existing document with stale guard |
-| `_get_or_create_document` | `(db, url, title, lang, force, etag\|None, last_modified\|None, chunking_strategy, fetched_at\|None) -> int \| None` | Register URL in documents; returns doc_id or None when already registered |
+| `_get_or_create_document` | `(db, url, title, lang, force, etag\|None, last_modified\|None, chunking_strategy, fetched_at\|None) -> int \| None` | Register URL in documents; returns doc_id or None when already registered. Handles existing document detection via DocumentManager (see §4.10). |
 | `_insert_chunk` | `(db: SQLiteHelper, doc_id: int, idx: int, content: str, normalized_content: str \| None, embedding: list[float], chunk_type: str = "", source_file: str = "") -> None` | Insert chunk and embedding vector; chunks_fts synced via trigger using COALESCE(normalized_content, content); embedding stored as float32 BLOB |
 | `_read_chunk_json` | `(path: Path) -> ChunkJsonRaw \| None` | Read and parse chunk JSON file as a raw dict; returns None on failure |
 | `_embed_and_store` | `(doc_id: int, path: Path) -> tuple[bool, bool]` | Embed one chunk and insert it using an independent DB connection; each call opens its own connection for safe parallel writes. Returns (chunk_ok, embed_ok). chunk_ok=False means total failure (parse/DB error or embed failure). embed_ok=False specifically means embedding failed (content was valid). |
@@ -556,6 +553,32 @@ Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config
 See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_and_operations.md).
 
 ---
+
+## 4.10 DocumentManager (`scripts/rag/ingestion/document_manager.py`)
+
+`DocumentManager` — Manages document lifecycle for RagIngester. Handles existing document detection, ETag updates, and post-ingestion consistency reports. Extracted from `RagIngester` to reduce class size and separate concerns.
+
+**Module-level function**
+
+| Function | Signature | Description |
+|---|---|---|
+| `delete_document_chain` | `(db: SQLiteHelper, doc_id: int) -> None` | Delete `chunks_vec` → `chunks` → `documents` in order; chunks_vec must be deleted first because it has no FK constraint to chunks |
+
+**Class: `DocumentManager`**
+
+| Method | Signature | Description |
+|---|---|---|
+| `__init__` | `(db: SQLiteHelper) -> None` | Store DB connection reference |
+| `handle_existing_document` | `(url: str, existing_doc_id: int, force: bool, etag\|None, last_modified\|None, fetched_at\|None, is_file_url: Callable[[str], bool]) -> bool` | Handle an existing document; return True when the caller should skip insertion. force=False → update etag via ETagManager; file:// URLs with unchanged SHA-256 → skip |
+| `_handle_existing_file` | `(url: str, existing_doc_id: int, etag\|None, last_modified\|None) -> bool` | Handle an existing file:// document; return True when unchanged (SHA-256 match). Logs "file:// unchanged (sha256 match)" or "file:// changed — auto re-ingesting" |
+| `_update_etag` | `(etag\|None, last_modified\|None, new_fetched_at\|None) -> None` | Refresh ETag/Last-Modified for an existing document (skip-case); delegates to ETagManager with doc_id=0 |
+| `_is_file_unchanged` | `(existing_etag\|None, existing_last_modified\|None, new_etag\|None, new_last_modified\|None) -> bool` | Return True when the file SHA-256 hash is unchanged; returns False if either etag is None |
+| `delete_existing_document` | `(doc_id: int) -> None` | Delete a document and its chunks; chunks_vec removed first because it has no FK constraint to chunks |
+| `check_consistency` | `(embed_failed: int, on_ingest_complete: Callable[[], None]\|None = None) -> RagConsistencyReport \| None` | Run post-ingestion consistency check and callback; returns report or None if the check failed (DB errors during the check) |
+
+**Intent inferred from code:**
+- `handle_existing_document` receives `is_file_url` as a callable instead of checking `url.startswith("file://")` directly, allowing testability with mock implementations
+- `_update_etag` passes `doc_id=0` to ETagManager because the skip-path update does not need the document ID for its COALESCE logic; the document is already in the DB
 
 ## 5. Crawler Utils (`scripts/rag/ingestion/crawler_utils.py`)
 
