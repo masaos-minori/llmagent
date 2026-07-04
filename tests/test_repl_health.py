@@ -255,6 +255,56 @@ class TestCheckToolDefinitions:
             ):
                 await _check_tool_definitions(ctx, strict=True)
 
+    @pytest.mark.asyncio
+    async def test_partial_unreachable_non_strict_returns_warning_if_mismatch(
+        self,
+    ) -> None:
+        ctx = MagicMock()
+        ctx.cfg.tool.tool_definitions = [
+            {"function": {"name": "read_file"}},
+            {"function": {"name": "write_file"}},
+        ]
+
+        with patch(
+            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+        ) as mock_collect:
+            mock_collect.return_value = ({"read_file"}, ["srv-b"])
+            result = await _check_tool_definitions(ctx, strict=False)
+
+        msgs = result.warning_messages()
+        assert len(msgs) == 1
+        assert "write_file" in msgs[0]
+
+    @pytest.mark.asyncio
+    async def test_partial_unreachable_strict_raises(self) -> None:
+        ctx = MagicMock()
+        ctx.cfg.tool.tool_definitions = [
+            {"function": {"name": "read_file"}},
+            {"function": {"name": "write_file"}},
+        ]
+
+        with patch(
+            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+        ) as mock_collect:
+            mock_collect.return_value = ({"read_file"}, ["srv-b"])
+            with pytest.raises(RuntimeError, match="Strict mode"):
+                await _check_tool_definitions(ctx, strict=True)
+
+    @pytest.mark.asyncio
+    async def test_all_unreachable_non_strict_skips_validation(self) -> None:
+        ctx = MagicMock()
+        ctx.cfg.tool.tool_definitions = [
+            {"function": {"name": "read_file"}},
+        ]
+
+        with patch(
+            "agent.repl_health._collect_server_tool_names", new_callable=AsyncMock
+        ) as mock_collect:
+            mock_collect.return_value = (set(), ["srv-a"])
+            result = await _check_tool_definitions(ctx, strict=False)
+
+        assert not result.has_issues
+
 
 # ── check_service_health() ────────────────────────────────────────────────────
 

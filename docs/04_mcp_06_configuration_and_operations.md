@@ -483,12 +483,12 @@ For correlation across agent, transport, and server logs, see §End-to-End Tool 
 | Scenario | `strict = false` | `strict = true` |
 |---|---|---|
 | **Partial unreachable** — some servers respond | Validation proceeds with reachable servers; unreachable servers logged as `WARNING` | Same — only reachable tools compared; mismatch in reachable tools raises `RuntimeError` |
-| **All unreachable** — no server responds | Validation skipped; `INFO: "All MCP servers unreachable ... skipping tool definition check"` | Same — cannot validate zero tools; skipped |
+| **All unreachable** — no server responds | Validation skipped; `INFO: "All MCP servers unreachable ... skipping tool definition check"` | `RuntimeError: "Strict mode: all MCP servers unreachable — cannot validate tool definitions. Unreachable servers: [...]"` |
 | **Tool mismatch** — reachable but names differ | `WARNING` per direction (missing_in_server / extra_on_servers) | `RuntimeError: "Strict mode: tool definition mismatch detected. Mismatches: .... Unreachable servers: ...."` |
 
 **Key points:**
-- Unreachable servers never cause `RuntimeError` by themselves; only a tool name mismatch in strict mode does.
-- When all servers are unreachable, strict mode does **not** raise — validation is skipped.
+- A tool name mismatch in strict mode raises `RuntimeError`.
+- When all servers are unreachable in strict mode, `RuntimeError` is raised listing the unreachable servers. In non-strict mode, validation is skipped with an INFO log.
 - The error message clearly separates mismatches from unreachable servers for operator debugging.
 
 ---

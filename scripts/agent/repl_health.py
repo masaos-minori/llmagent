@@ -221,9 +221,12 @@ async def _check_tool_definitions(
           WARNING per unreachable server (from _collect_server_tool_names)
           WARNING "Tools in agent.toml but not on any server: [...]" (if mismatch)
           returns HealthCheckResult(warnings=[...]) or HealthCheckResult()
-      - All servers unreachable:
-          INFO "All MCP servers unreachable during strict validation: [...]; skipping tool definition check"
-          returns HealthCheckResult() — no warnings, no error even in strict mode
+      - All servers unreachable, strict=True:
+          ERROR "Strict mode: all MCP servers unreachable — cannot validate tool definitions. Unreachable servers: [...]."
+          raises RuntimeError
+      - All servers unreachable, strict=False:
+          INFO "All MCP servers unreachable; skipping tool definition check. Unreachable: [...]"
+          returns HealthCheckResult() — no warnings
       - Tool mismatch, strict=False:
           WARNING "Tools in agent.toml but not on any server: [...]"
           returns HealthCheckResult(warnings=[ServiceWarning(...)])
