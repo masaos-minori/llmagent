@@ -67,12 +67,12 @@ Boundary: `line == name` (exact) or `line.startswith(name + " ")` (prefix).
 
 | Module | Owns | Does NOT Own |
 |--------|------|--------------|
-| `command_defs.py` | `CommandDef`, `SubcommandSpec` dataclasses | `_COMMANDS` list |
-| `command_defs_list.py` | `_COMMANDS` — single source of truth for built-in commands | Dispatch logic |
-| `registry.py` | Dispatch behavior; imports `_COMMANDS` from `command_defs_list` | `_COMMANDS` definition |
+| `command_defs.py` | `CommandDef`, `SubcommandSpec` dataclasses | Command list |
+| `command_defs_list.py` | Built-in command definitions | Dispatch logic |
+| `registry.py` | Dispatch behavior; imports command list from `command_defs_list` | Command list definition |
 
 > **Future command additions:** add a new `CommandDef(...)` entry to `command_defs_list.py` only.
-> Implement the corresponding `_cmd_<name>` handler in the appropriate mixin file.
+> Implement the corresponding handler in the appropriate mixin file.
 
 ---
 

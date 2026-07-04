@@ -448,7 +448,7 @@ tool_names = ["my_tool_a", "my_tool_b"]
 
 | Artifact | Required? | Notes |
 |---|---|---|
-| `shared/tool_constants.py` — add tool to frozenset | **Required** | `_populate_default_registry()` reads frozensets at import |
+| `shared/tool_constants.py` — add tool to frozenset | **Required** | Registry reads frozensets at import |
 | `config/tools_definitions.toml` — add LLM schema | **Required** (if tool visible to LLM) | OpenAI function-calling format; required for the LLM to call the tool |
 | `config/agent.toml` — add `tool_safety_tiers` entry | **Required** | All tools must have a declared safety tier |
 | `config/<server>.toml` — server config file | **Required** | Server must be defined before first use |

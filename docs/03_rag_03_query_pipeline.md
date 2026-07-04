@@ -262,7 +262,7 @@ FusionStage(rrf_k: int = 60, use_rrf: bool = True)
 - `rrf_k` default: 60; configurable via `cfg.rrf_k` (RagConfig Protocol includes `rrf_k` field)
 - Assigns `rrf_score` to each `MergedHit`; stores in `ctx.merged`
 
-> `use_rrf=False` activates `_dedup_hits()` fallback (simple chunk_id dedup, all `rrf_score=0.0`). `pipeline.py:184` passes `use_rrf=self._cfg.use_rrf` to `FusionStage`.
+> `use_rrf=False` activates a dedup-only fallback (all `rrf_score=0.0`). `pipeline.py:184` passes `use_rrf=self._cfg.use_rrf` to `FusionStage`.
 
 #### Retrieval-quality tradeoff: `use_rrf=False` vs `use_rrf=True`
 
@@ -273,10 +273,10 @@ FusionStage(rrf_k: int = 60, use_rrf: bool = True)
 | Mode | Mechanism | Quality impact |
 |---|---|---|
 | `use_rrf=True` (default) | RRF: each hit scored as `Σ 1/(rrf_k + rank)` across all result lists | Chunks seen by multiple queries get promoted; robust cross-list ranking |
-| `use_rrf=False` | `_dedup_hits()`: chunk_id dedup, first-occurrence wins; all hits get `rrf_score=0.0` | No rank signal; MQE results provide no additional ranking benefit |
+| `use_rrf=False` | Dedup-only: chunk_id dedup, first-occurrence wins; all hits get `rrf_score=0.0` | No rank signal; MQE results provide no additional ranking benefit |
 
 **When `use_rrf=False`:**
-- `_dedup_hits()` is used: deduplication by `chunk_id`; first occurrence across result lists wins
+- Deduplication by `chunk_id`; first occurrence across result lists wins
 - All merged hits receive `rrf_score=0.0` — no rank-weighted scoring
 - MQE-generated multi-query results provide **no additional ranking benefit**: a chunk seen
   by 3 queries scores identically to one seen by only 1
