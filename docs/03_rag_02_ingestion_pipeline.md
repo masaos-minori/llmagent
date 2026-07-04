@@ -134,6 +134,7 @@ and per-page CJK-ratio language auto-detection (`--lang auto`). Uses asyncio.Sem
 | `_resolve_lang` | `(text: str, hint_lang: str) -> str` | Determine page language; 'auto' uses CJK-ratio detection with 'en' fallback for short/inconclusive texts; returns a _SUPPORTED_LANGS value |
 | `_drain_queue_to_tasks` | `(queue: asyncio.Queue, visited: set[str], start_url: str, hint_lang: str, client: httpx.AsyncClient, sem: asyncio.Semaphore) -> set[asyncio.Task]` | Dequeue all pending URLs and create fetch tasks for unvisited ones; visited check is safe because no await occurs between check and add |
 | `_should_enqueue_link` | `(a_tag: Tag, current_url: str, start_url: str) -> bool` | Check if a link should be enqueued based on nofollow and cross-origin rules; skips rel="nofollow" links when skip_nofollow=True; skips cross-origin links when skip_external=True |
+| `_process_crawl_url_async` | `async (url: str, depth: int, start_url: str, hint_lang: str, queue: asyncio.Queue, client: httpx.AsyncClient, sem: asyncio.Semaphore) -> None` | Fetch, extract, save one URL and enqueue its outbound links; semaphore caps concurrency; crawl_delay throttles; ETag/Last-Modified enable 304 skip |
 
 **Module-level utilities**
 
@@ -282,9 +283,9 @@ saves to `rag-src/chunk/`. Idempotent: skips if `{stem}-0000.json` sentinel exis
 
 | TypedDict | Purpose |
 |---|---|
-| `CrawlFilePayload` | Typed dict for crawl output JSON files (url, title, lang, content, code_blocks, etag, last_modified) |
-| `ChunkOutputPayload` | Typed dict for chunk output JSON files (url, title, lang, source_file, chunk_index, chunk_type, content, normalized_content, etag, last_modified, schema_version, artifact_type [ingestion-only], created_by, chunking_strategy) |
-| `ChunkMetadata` | Optional metadata dict for ** spreading into output payload (total=False) |
+| `CrawlFilePayload` | Typed dict for crawl output JSON files (url, title, lang, content, code_blocks required; etag, last_modified optional via NotRequired) |
+| `ChunkOutputPayload` | Typed dict for chunk output JSON files (schema_version, artifact_type, created_by, url, title, lang, source_file, chunk_index, chunk_type, content required; normalized_content optional via NotRequired) |
+| `ChunkMetadata` | Optional metadata dict for ** spreading into output payload (total=False); all fields optional including url, title, lang, etag, last_modified, source_file, chunking_strategy |
 
 **Inheritance**
 
@@ -312,6 +313,9 @@ The `_chunk_english` method is called first in MRO for English text; Sudachi-bas
 | `_write_chunk_files` | `(chunks: list[tuple[str, str, str]], data: ChunkDocument, src_path: Path, chunking_strategy: str = "text") -> int` | Write (chunk_type, content, normalized_content) triples to chunk_dir; returns written count |
 | `_extract_chunk_metadata` | `(data: ChunkDocument, src_path: Path, chunking_strategy: str) -> dict[str, object]` | Extract document-level metadata shared across all chunk files |
 | `_collect_targets` | `(target: Path \| None) -> list[Path]` | Return source files to process; delegates to pipeline_utils |
+| `_chunk_markdown_by_heading` | `(text: str) -> list[str]` | Split text at Markdown headings (# through ######); sections exceeding md_snippet_max_chars are further split via sentence-level chunking |
+| `_is_markdown_source` | `(data: ChunkDocument \| ChunkJsonRaw) -> bool` | Return True when source should use heading-based snippet chunking; .md/.markdown/.mdx files always use heading chunking regardless of md_index_enable; non-.md files use heuristic detection (≥2 heading lines) only when md_index_enable=true |
+| `_build_chunk_payload` | `(metadata: ChunkMetadata, idx: int, chunk_type: str, chunk_content: str, norm_content: str \| None) -> dict[str, object]` | Build a single chunk JSON payload from shared metadata and chunk-specific fields; includes schema_version, artifact_type, created_by |
 
 ### 3.1.1 Markdown heading chunking configuration
 
@@ -332,12 +336,12 @@ The `_chunk_english` method is called first in MRO for English text; Sudachi-bas
 
 ### 3.1.3 _is_markdown_source behavior
 
-`.md` / `.markdown` / `.mdx` files always use heading chunking regardless of `md_index_enable`.
-Non-`.md` files use heuristic detection (≥2 heading lines) only when `md_index_enable=true`.
+URLs ending with `.md`, `.markdown`, or `.mdx` always use heading chunking regardless of `md_index_enable`.
+Non-`.md` files use heuristic detection (≥2 heading lines in content) only when `md_index_enable=true`.
 
 ### 3.1.4 _chunk_markdown_by_heading behavior
 
-Sections exceeding `md_snippet_max_chars` are further split via `_chunk_english` sentence-level chunking.
+Split text at Markdown headings (# through ######); sections exceeding `md_snippet_max_chars` characters are further split via `_chunk_english` sentence-level chunking.
 
 ### 3.2 Splitting strategies
 
@@ -383,7 +387,7 @@ Sections exceeding `md_snippet_max_chars` are further split via `_chunk_english`
 ```
 
 The `source_file` field retains the original `.json` extension from the crawler output filename.
-All fields from `ChunkMetadata` TypedDict are included via `**metadata` spread in `_build_chunk_payload`.
+All fields from `ChunkMetadata` TypedDict (total=False) are included via `**metadata` spread in `_build_chunk_payload`.
 
 ### 3.5 Error handling
 
@@ -424,33 +428,43 @@ and upserts to SQLite (`documents` / `chunks` / `chunks_vec`). Moves processed c
 |---|---|
 | `IngestUrlResult` | Per-URL ingestion outcome returned by `ingest_url_group()`; fields: `url`, `n_success`, `n_failed`, `skipped`, `n_embed_failed` (default 0) |
 
+**Module-level constants**
+
+| Constant | Value | Description |
+|---|---|---|
+| `_VALID_LANGS` | `frozenset({"en", "ja"})` | Accepted lang values enforced by the documents.lang CHECK constraint |
+
 **Public methods**
 
 | Method | Signature | Description |
 |---|---|---|
 | `__init__` | `(config: dict \| None = None)` | Merge `common.toml` + `rag_pipeline.toml`; init `httpx.Client` |
-| `ingest_all` | `(force: bool = False, on_ingest_complete: Callable[[], None] \| None = None) -> RagConsistencyReport \| None` | Group chunk files by URL; call `ingest_url_group` for each. `on_ingest_complete` is called after ingestion completes (e.g., to invalidate semantic cache). Returns consistency report or None if the post-ingest consistency check failed (rare failure case when DB errors occur during the check). |
-| `ingest_url_group` | `(db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> IngestUrlResult` | Process one URL group; returns `{n_success, n_failed, n_embed_failed, skipped}` |
+| `ingest_all` | `(force: bool = False, on_ingest_complete: Callable[[], None] \| None = None) -> RagConsistencyReport \| None` | Group chunk files by URL; call `_process_url_groups` for each. Returns consistency report or None if the post-ingest consistency check failed (rare failure case when DB errors occur during the check); also returns None when no chunk files exist |
+| `ingest_url_group` | `(doc_mgr: DocumentManager, db: SQLiteHelper, url: str, chunk_files: list[Path], force: bool) -> IngestUrlResult` | Process one URL group in ascending chunk_index order; moves files to registered/ after processing including on skip; returns `{n_success, n_failed, n_embed_failed, skipped}` |
 | `close` | `() -> None` | Close the underlying `httpx.Client` |
+| `__del__` | `() -> None` | Safety cleanup: close httpx.Client if not already closed (handles missing explicit close) |
 
 **Private methods**
 
 | Method | Signature | Description |
 |---|---|---|
 | `_get_embedding` | `(text: str) -> list[float] \| None` | Return embedding vector; validates dimension against embedding_dims config. Returns None on empty input, network failure, or dimension mismatch. Embedding is also validated as a non-empty list. |
-| `_validate_artifact` | `(payload: dict, expected_type: str) -> bool` | Validate artifact_type field (ingestion-only metadata); lenient for backward compatibility (missing artifact_type accepted). Returns True when validation passes, False when it fails. |
-| `_get_or_create_document` | `(db, url, title, lang, force, etag\|None, last_modified\|None, chunking_strategy, fetched_at\|None) -> int \| None` | Register URL in documents; returns doc_id or None when already registered. Handles existing document detection via DocumentManager (see §4.10). |
+| `_validate_artifact` | `(payload: ChunkJsonRaw, expected_type: str, *, strict: bool = False) -> bool` | Validate artifact_type field (ingestion-only metadata); lenient mode accepts missing artifact_type; strict mode requires schema_version, artifact_type, and created_by. Returns True when validation passes, False when it fails. |
+| `_get_or_create_document` | `(doc_mgr: DocumentManager, db: SQLiteHelper, url: str, title: str, lang: str, force: bool, etag\|None, last_modified\|None, chunking_strategy: str, fetched_at\|None) -> int \| None` | Register URL in documents; returns doc_id or None when already registered. Handles existing document detection via DocumentManager (see §4.10). |
 | `_insert_chunk` | `(db: SQLiteHelper, doc_id: int, idx: int, content: str, normalized_content: str \| None, embedding: list[float], chunk_type: str = "", source_file: str = "") -> None` | Insert chunk and embedding vector; chunks_fts synced via trigger using COALESCE(normalized_content, content); embedding stored as float32 BLOB |
 | `_read_chunk_json` | `(path: Path) -> ChunkJsonRaw \| None` | Read and parse chunk JSON file as a raw dict; returns None on failure |
 | `_embed_and_store` | `(doc_id: int, path: Path) -> tuple[bool, bool]` | Embed one chunk and insert it using an independent DB connection; each call opens its own connection for safe parallel writes. Returns (chunk_ok, embed_ok). chunk_ok=False means total failure (parse/DB error or embed failure). embed_ok=False specifically means embedding failed (content was valid). |
 | `_ingest_chunk_files` | `(doc_id: int, chunk_files: list[Path]) -> tuple[int, int, int]` | Embed and insert chunk files in parallel via ThreadPoolExecutor; returns (n_inserted, n_failed, n_embed_failed) |
-| `_group_chunks_by_url` | `(chunk_files: list[Path]) -> dict[str, list[Path]]` | Group chunk files by URL read from their JSON 'url' field |
-| `_process_url_groups` | `(db: SQLiteHelper, url_groups: dict, force: bool) -> list[IngestUrlResult]` | Iterate over URL groups and ingest each; log exceptions without stopping |
-| `_move_to_registered` | `(paths: list[Path]) -> None` | Move ingested chunk files to registered/ |
+| `_group_chunks_by_url` | `(chunk_files: list[Path]) -> dict[str, list[Path]]` | Group chunk files by URL read from their JSON 'url' field; skips files with missing or invalid URLs (including non-http/https/file:// schemes) |
+| `_process_url_groups` | `(doc_mgr: DocumentManager, db: SQLiteHelper, url_groups: dict[str, list[Path]], force: bool) -> list[IngestUrlResult]` | Iterate over URL groups and ingest each; log exceptions without stopping |
+| `_move_to_registered` | `(paths: list[Path]) -> None` | Move ingested chunk files to registered/; logs errors on file move failures |
 | `_log_ingest_failure` | `(doc_id: int, path: Path, e: Exception) -> None` | Log a chunk ingestion failure with doc_id, url, source_type, stage_name structured fields |
-| `_validate_lang` | `(lang: str) -> bool` | Return True when lang is a valid value (en or ja); enforced by documents.lang CHECK constraint |
-| `_handle_existing_document` | `(db: SQLiteHelper, url: str, existing_doc_id: int, force: bool, etag\|None, last_modified\|None, fetched_at\|None) -> bool` | Handle an existing document; return True when the caller should skip insertion. force=False → update etag via ETagManager; file:// URLs with unchanged SHA-256 → skip |
-| `_handle_existing_file` | `(db: SQLiteHelper, url: str, existing_doc_id: int, etag\|None, last_modified\|None) -> bool` | Handle an existing file:// document; return True when unchanged (SHA-256 match). Logs "file:// unchanged (sha256 match)" or "file:// changed — auto re-ingesting" |
+| `_skip_result` | `(url: str) -> IngestUrlResult` | Return a skipped result for a URL |
+| `_validation_failure_result` | `(url: str, chunk_files: list[Path]) -> IngestUrlResult` | Return a failure result when artifact validation fails |
+| `_log_ingestion_result` | `(doc_id: int, url: str, inserted: int, total: int, failed: int, embed_failed: int) -> None` | Log the chunk ingestion result with doc_id, source_type, stage_name structured fields |
+| `_validate_lang` | `(lang: str) -> bool` | Return True when lang is in _VALID_LANGS (en or ja); raises ValueError for invalid values |
+| `_handle_existing_document` | `(db: SQLiteHelper, url: str, existing_doc_id: int, force: bool, etag\|None, last_modified\|None, fetched_at\|None) -> bool` | **Moved to DocumentManager** — see §4.10 |
+| `_handle_existing_file` | `(db: SQLiteHelper, url: str, existing_doc_id: int, etag\|None, last_modified\|None) -> bool` | **Moved to DocumentManager** — see §4.10 |
 
 ### 4.2 Behavior details
 
@@ -513,11 +527,13 @@ Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config
 
 | Case | Action |
 |---|---|
-| Embed API failure | Exponential backoff retry up to `embed_retry` times |
+| Embed API failure | Exponential backoff retry up to `embed_retry` times (capped at 10 seconds) |
 | Retry exhausted (single chunk) | `WARNING` log; skip chunk; continue |
 | Invalid `lang` value | `ValueError`; skip URL group; `ERROR` log with traceback |
 | `chunks_vec` delete order | Must delete `chunks_vec` first (no FK constraint on sqlite-vec virtual table) |
 | Embedding dimension mismatch | `ValueError`; skip chunk; `WARNING` log |
+| Artifact validation failure | `WARNING` log; skip chunk as embed failure |
+| File move failure | `ERROR` log with url, source_type, stage_name structured fields |
 
 ### 4.7 Logging
 
@@ -548,7 +564,15 @@ Response: {"embedding": [float, ...]}   # 384-dim (multilingual-E5-small; config
 |---|---|---|
 | `_is_stale_update` | `(new_fetched_at: str \| None) -> bool` | Return True when the incoming data is older than stored fetched_at; returns False when new_fetched_at is None (no freshness signal means no stale check) |
 
-### 4.9 Configuration
+### 4.9 Configuration (`config/rag_pipeline.toml`)
+
+| Parameter | Default | Description |
+|---|---|---|
+| `embed_url` | `http://127.0.0.1:8003/embedding` | Embedding API endpoint URL |
+| `embed_retry` | 3 | Retry limit for embedding API failures (exponential backoff) |
+| `embed_workers` | 4 | Max concurrent embed threads via ThreadPoolExecutor |
+| `embedding_dims` | 384 | Expected embedding vector dimension; validated against API response |
+| `strict_artifact_validation` | False | Require `schema_version`, `artifact_type`, `created_by` in chunk JSON payloads |
 
 See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_and_operations.md).
 
@@ -569,9 +593,9 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 | Method | Signature | Description |
 |---|---|---|
 | `__init__` | `(db: SQLiteHelper) -> None` | Store DB connection reference |
-| `handle_existing_document` | `(url: str, existing_doc_id: int, force: bool, etag\|None, last_modified\|None, fetched_at\|None, is_file_url: Callable[[str], bool]) -> bool` | Handle an existing document; return True when the caller should skip insertion. force=False → update etag via ETagManager; file:// URLs with unchanged SHA-256 → skip |
-| `_handle_existing_file` | `(url: str, existing_doc_id: int, etag\|None, last_modified\|None) -> bool` | Handle an existing file:// document; return True when unchanged (SHA-256 match). Logs "file:// unchanged (sha256 match)" or "file:// changed — auto re-ingesting" |
-| `_update_etag` | `(etag\|None, last_modified\|None, new_fetched_at\|None) -> None` | Refresh ETag/Last-Modified for an existing document (skip-case); delegates to ETagManager with doc_id=0 |
+| `handle_existing_document` | `(url: str, existing_doc_id: int, force: bool, etag\|None, last_modified\|None, fetched_at\|None, is_file_url: Callable[[str], bool]) -> bool` | Handle an existing document; return True when the caller should skip insertion. force=False → update etag via ETagManager; file:// URLs with unchanged SHA-256 → skip; force=True → delete document chain and return False to allow re-insertion |
+| `_handle_existing_file` | `(url: str, existing_doc_id: int, etag\|None, last_modified\|None) -> bool` | Handle an existing file:// document; return True when unchanged (SHA-256 match) |
+| `_update_etag` | `(etag\|None, last_modified\|None, new_fetched_at\|None) -> None` | Refresh ETag/Last-Modified for an existing document (skip-case); returns early if both etag and last_modified are None; delegates to ETagManager with doc_id=0 |
 | `_is_file_unchanged` | `(existing_etag\|None, existing_last_modified\|None, new_etag\|None, new_last_modified\|None) -> bool` | Return True when the file SHA-256 hash is unchanged; returns False if either etag is None |
 | `delete_existing_document` | `(doc_id: int) -> None` | Delete a document and its chunks; chunks_vec removed first because it has no FK constraint to chunks |
 | `check_consistency` | `(embed_failed: int, on_ingest_complete: Callable[[], None]\|None = None) -> RagConsistencyReport \| None` | Run post-ingestion consistency check and callback; returns report or None if the check failed (DB errors during the check) |
@@ -579,6 +603,12 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 **Intent inferred from code:**
 - `handle_existing_document` receives `is_file_url` as a callable instead of checking `url.startswith("file://")` directly, allowing testability with mock implementations
 - `_update_etag` passes `doc_id=0` to ETagManager because the skip-path update does not need the document ID for its COALESCE logic; the document is already in the DB
+
+**CLI entry point:**
+
+```bash
+uv run python scripts/rag/ingestion/ingester.py --force
+```
 
 ## 5. Crawler Utils (`scripts/rag/ingestion/crawler_utils.py`)
 
@@ -614,6 +644,14 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 | `extract_text` | `(soup: BeautifulSoup) -> str` | Remove noise tags (nav, footer, aside, script, style, noscript) from soup; extract body text via Trafilatura with `include_comments=False`, `include_tables=True`, `no_fallback=False`, `target_language=None`; fall back to BS4 `get_text(separator="\n", strip=True)` |
 | `detect_lang` | `(text: str) -> str \| None` | CJK ratio detection; returns 'ja' if ratio ≥ 0.1, 'en' otherwise; None for texts < 100 chars |
 | `parse_target_urls` | `(target_raw: list[Any]) -> list[tuple[str,str]]` | Validate and parse target_urls config into (url, lang) tuples; raises ValueError on invalid entries |
+| `parse_targets_file` | `(path: Path) -> list[tuple[str,str]]` | Parse a TOML file containing target_urls = [[url, lang], ...] pairs; raises FileNotFoundError if file not found, ValueError on parse error |
+
+**Private functions**
+
+| Function | Signature | Description |
+|---|---|---|
+| `_validate_target_url` | `(url: str) -> bool` | Return True when url has an accepted scheme (http, https, or file); unlike `rag.utils.validate_url`, this also accepts file:// URIs |
+| `_is_cjk_char` | `(c: str) -> bool` | Check if a character is CJK (Hiragana, Katakana, or CJK Unified Ideograph) using Unicode code point ranges |
 
 ---
 
@@ -640,6 +678,13 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 | `_min_chunk` | `int` | Minimum chunk size in characters |
 | `_en_stopwords` | `frozenset[str]` | English stopwords from config |
 | `_chunk_overlap` | `int` | Overlap between chunks in characters |
+
+**Private helper methods**
+
+| Method | Signature | Description |
+|---|---|---|
+| `_flush_and_split` | `(para: str, chunks: list[str]) -> None` | Flush buffer and split oversized paragraph at sentence boundaries |
+| `_flush_and_merge` | `(buf: str, para: str, chunks: list[str]) -> None` | Flush buffer and start new buffer with overlap |
 
 **Instance attributes (set during chunking)**
 
@@ -708,7 +753,7 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 | `_append_to_buffer` | `(orig: str, norm: str) -> None` | Append sentence to the running buffer |
 | `_emit_and_start_new` | `(orig: str, norm: str) -> None` | Emit buffer as chunk and start new buffer with overlap |
 | `_reset_buffer` | `(orig: str, norm: str) -> None` | Discard buffer and start fresh from this sentence |
-| `_merge_tail_into_last` | `() -> None` | Merge short tail into the last chunk to avoid losing content |
+| `_merge_tail_into_last` | `(self) -> None` | Merge short tail into the last chunk to avoid losing content |
 
 ---
 
@@ -716,7 +761,7 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 
 ### 9.1 Module overview
 
-`pipeline_utils.py` — Shared I/O utilities for the RAG ingestion pipeline: chunk JSON reading with validation, source file collection, and processing sentinel checks. Provides `ChunkJsonRaw` TypedDict for raw chunk/crawl JSON payload fields.
+`pipeline_utils.py` — Shared I/O utilities for the RAG ingestion pipeline: chunk JSON reading with validation, source file collection, and processing sentinel checks. Provides `ChunkJsonRaw` dataclass for raw chunk/crawl JSON payload fields.
 
 **Module-level constants**
 
@@ -724,11 +769,27 @@ See [03_rag_05_configuration_and_operations.md §1.2](03_rag_05_configuration_an
 |---|---|---|
 | `logger` | `Logger(__name__, "/opt/llm/logs/pipeline.log")` | Pipeline logging instance |
 
-**Public functions**
+**TypedDict**
+
+| TypedDict | Purpose |
+|---|---|
+| `ChunkJsonRaw` | Raw chunk JSON payload fields; required: `url`, `content`; optional: `title`, `lang`, `code_blocks`, `etag`, `last_modified`, `fetched_at`, `chunking_strategy`, `normalized_content`, `chunk_index`, `source_file`, `chunk_type`, `artifact_type`, `schema_version`, `created_by` |
+
+**Private functions**
 
 | Function | Signature | Description |
 |---|---|---|
 | `_read_chunk_json_raw` | `(path: Path) -> ChunkJsonRaw \| None` | Read and parse chunk JSON as raw dict; returns None on any failure (OSError, JSONDecodeError, missing url/content, or empty url/content values) |
+| `_get_str` | `(data: ChunkJsonRaw, key: str) -> str \| None` | Get a string value from data; returns None if not a string |
+| `_get_list` | `(data: ChunkJsonRaw, key: str) -> list[str] \| None` | Get a list value from data; returns None if not a list |
+| `_get_str_or_none` | `(data: ChunkJsonRaw, key: str) -> str \| None` | Get a string value from data; returns the value if it's a string, otherwise None (same behavior as `_get_str`) |
+| `_get_str_with_default` | `(data: ChunkJsonRaw, key: str, default: str) -> str` | Get a string value with default fallback; returns default if the key is missing or not a string |
+| `_get_int_with_default` | `(data: ChunkJsonRaw, key: str, default: int) -> int` | Get an integer value with default fallback; handles None values and non-integer values (ValueError/TypeError) |
+
+**Public functions**
+
+| Function | Signature | Description |
+|---|---|---|
 | `read_json_file` | `(path: Path) -> ChunkDocument` | Read and parse JSON file into ChunkDocument; raises ChunkFormatError on failure |
 | `collect_source_files` | `(rag_src_dir: Path, target: Path \| None = None) -> tuple[list[Path], list[SkipInfo]]` | Return (files_to_process, skipped); if target is given and exists, returns [target]; if target doesn't exist returns empty list with SkipInfo; otherwise glob *.json from rag_src_dir |
 | `is_already_processed` | `(sentinel_path: Path, force: bool) -> bool` | True when sentinel file exists and force=False (skip signal for chunk_splitter) |
@@ -778,7 +839,7 @@ from rag.utils import (
 
 | Constant | Value | Description |
 |---|---|---|
-| `MIN_TEXT_LENGTH_FOR_DETECTION` | `100` | Minimum text length for language detection; pages shorter than this use hint language |
+| `MIN_TEXT_LENGTH_FOR_DETECTION` | `100` | Minimum text length for language detection; pages shorter than this use hint language; also used by `detect_lang()` in crawler_utils |
 | `LOG_KEY_URL` | `"url"` | Structured log field key for URL |
 | `LOG_KEY_DOC_ID` | `"doc_id"` | Structured log field key for document ID |
 | `LOG_KEY_CHUNK_ID` | `"chunk_id"` | Structured log field key for chunk ID |
