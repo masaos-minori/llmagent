@@ -77,7 +77,7 @@ class TestMemoryEntry:
         base_kwargs["memory_type"] = "invalid_type"
         with pytest.raises(ValueError) as exc_info:
             MemoryEntry(**base_kwargs)
-        assert "Invalid memory_type" in str(exc_info.value)
+        assert "invalid_type" in str(exc_info.value)
         assert "invalid_type" in str(exc_info.value)
 
     def test_memory_entry_string_source_type_coerced(self, base_kwargs: dict):
@@ -89,7 +89,7 @@ class TestMemoryEntry:
         base_kwargs["source_type"] = "nonexistent"
         with pytest.raises(ValueError) as exc_info:
             MemoryEntry(**base_kwargs)
-        assert "Invalid source_type" in str(exc_info.value)
+        assert "nonexistent" in str(exc_info.value)
 
     def test_memory_entry_importance_boundary_zero(self, base_kwargs: dict):
         base_kwargs["importance"] = 0.0

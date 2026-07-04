@@ -13,7 +13,9 @@ Verifies:
 
 from __future__ import annotations
 
-from shared.otel_tracer import _NoOpSpan, _NoOpTracer, build_tracer
+from shared.otel_noop import NoOpSpan as _NoOpSpan
+from shared.otel_noop import NoOpTracer as _NoOpTracer
+from shared.otel_tracer import build_tracer
 
 # ── build_tracer(enabled=False) ───────────────────────────────────────────────
 

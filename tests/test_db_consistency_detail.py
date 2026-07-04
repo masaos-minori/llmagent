@@ -57,16 +57,18 @@ def _patch_rag_consistency(report):
         issues=issues,
         report=report,
     )
-    with patch("agent.commands.cmd_db.RagMaintenanceService") as mock_svc:
+    with patch("agent.commands.db_rag_ops.RagMaintenanceService") as mock_svc:
         mock_svc.return_value.consistency.return_value = result
         yield
 
 
 def _make_db_command():
     from agent.commands.cmd_db import _DbMixin
+    from agent.commands.db_rag_ops import DbRagOps
 
     cmd = _DbMixin.__new__(_DbMixin)
     cmd._out = FakeOut()
+    cmd._rag_ops = DbRagOps(ctx=None, out=cmd._out)
     return cmd
 
 
@@ -76,7 +78,7 @@ def test_consistent_shows_numeric_line():
     cmd = _make_db_command()
 
     with _patch_rag_consistency(report):
-        cmd._db_consistency()
+        cmd._rag_ops.consistency()
 
     all_lines = cmd._out.lines + cmd._out.success_lines
     numeric_lines = [
@@ -93,7 +95,7 @@ def test_inconsistent_shows_numeric_line_and_errors():
     cmd = _make_db_command()
 
     with _patch_rag_consistency(report):
-        cmd._db_consistency()
+        cmd._rag_ops.consistency()
 
     all_lines = cmd._out.lines
     numeric_lines = [line for line in all_lines if "fts_gap:" in line]
@@ -116,14 +118,14 @@ def test_inconsistent_shows_affected_identifiers_in_issue():
     )
     cmd = _make_db_command()
 
-    with patch("agent.commands.cmd_db.RagMaintenanceService") as mock_svc:
+    with patch("agent.commands.db_rag_ops.RagMaintenanceService") as mock_svc:
         result = RagConsistencyResult(
             is_consistent=False,
             issues=summarize_issues(report_with_ids),
             report=report_with_ids,
         )
         mock_svc.return_value.consistency.return_value = result
-        cmd._db_consistency()
+        cmd._rag_ops.consistency()
 
     error_lines = cmd._out.error_lines
     assert len(error_lines) >= 1

@@ -6,7 +6,7 @@ tool argument parsing at the integration boundary with mocked dependencies.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.memory.types import EmbeddingResult
@@ -74,6 +74,7 @@ async def test_c03_embedding_failure_increments_stat_embed_skip():
     from agent.memory.store import MemoryStore
 
     store = MagicMock(spec=MemoryStore)
+    store._embed_dim = 0
     jsonl = MagicMock(spec=JsonlMemoryStore)
     jsonl.write = AsyncMock()
     retriever = MagicMock(spec=HybridRetriever)
@@ -113,10 +114,11 @@ async def test_c03_embedding_failure_increments_stat_embed_skip():
         summary="",
     )
 
-    await service._persist_entry(entry)
+    with patch("agent.memory.ingestion.write_upsert") as mock_write:
+        await service._persist_entry(entry)
 
     assert service.stat_embed_skip == 1
-    store.upsert.assert_called_once()
+    mock_write.assert_called_once()
 
 
 # ── TC-C04: LLM SSE stream disconnects → stat_partial_completions incremented ─
@@ -195,8 +197,8 @@ async def test_c06_invalid_tool_arguments_raises_decode_error():
     from agent.tool_runner import execute_one_tool_call
 
     ctx = MagicMock()
-    ctx.services.tools = MagicMock()
-    ctx.services.gateway = None
+    ctx.services_required.tools = MagicMock()
+    ctx.services_required.gateway = None
     ctx.cfg.tool.tool_summarize_results = False
     ctx.diagnostics = None
     ctx.turn.current_turn_id = "t1"

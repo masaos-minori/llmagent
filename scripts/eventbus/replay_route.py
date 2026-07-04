@@ -14,7 +14,7 @@ from eventbus.db import fetch_events_since, get_db_lock
 logger = logging.getLogger(__name__)
 
 
-def _row_to_dict(row: object) -> dict[str, Any]:
+def _row_to_dict(row: Any) -> dict[str, Any]:
     return {
         "seq": row["seq"],
         "event_id": row["event_id"],
@@ -25,7 +25,7 @@ def _row_to_dict(row: object) -> dict[str, Any]:
     }
 
 
-def _count_events_since(conn: object, since_seq: int) -> int:
+def _count_events_since(conn: Any, since_seq: int) -> int:
     """Return the total count of events with seq > since_seq."""
     row = conn.execute(
         "SELECT COUNT(*) FROM events WHERE seq > ?", (since_seq,)

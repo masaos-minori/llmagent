@@ -62,6 +62,9 @@ class TestHealth:
         assert health_dict == {
             "status": "ok",
             "ready": True,
+            "liveness": True,
+            "restart_recommended": False,
+            "operator_action_required": False,
             "dependencies": {},
             "details": {},
         }
@@ -545,7 +548,9 @@ class TestAuditLog:
                 target="owner/repo",
                 outcome="ok",
             )
-        assert any(json.loads(r.message)["session"] == "sess-1" for r in caplog.records)
+        assert any(
+            json.loads(r.message)["session_id"] == "sess-1" for r in caplog.records
+        )
 
     def test_audit_log_replaces_empty_session_with_dash(
         self, caplog: pytest.LogCaptureFixture
@@ -567,8 +572,8 @@ class TestAuditLog:
             )
         msg = next(r.message for r in caplog.records)
         parsed = json.loads(msg)
-        assert parsed["session"] == "-"
-        assert parsed["request"] == "-"
+        assert parsed["session_id"] == "-"
+        assert parsed["request_id"] == "-"
 
 
 class TestAppModuleImportability:

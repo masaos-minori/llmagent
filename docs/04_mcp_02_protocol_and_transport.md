@@ -117,7 +117,7 @@ All MCP servers inherit from `MCPServer`.
 | `async dispatch(name, args) -> DispatchResult` | Abstract; must be overridden. Returns `DispatchResult(output, is_error)` |
 | `list_tools() -> list[str]` | Tool names from `mcp_tools`. Returns `[]` if not defined |
 | `list_tools_with_server_key() -> list[dict[str, object]]` | Tool metadata including `server_key`; used by `/v1/tools` endpoint |
-| `health() -> tuple[dict[str, object], int]` | Returns `(health_dict, http_status_code)`. HTTP status: 200 when ready=True, 503 when ready=False. Health dict: `{"status": "ok"/"degraded", "ready": bool, "dependencies": dict, "details": dict}`. Overridden per server (e.g. github adds `github_token` to `dependencies`, mdq adds `service` to `details`) |
+| `health() -> tuple[dict[str, object], int]` | Returns `(health_dict, http_status_code)`. HTTP status: 200 when ready=True, 503 when ready=False. Health dict: `{"status": "ok"/"degraded", "ready": bool, "liveness": bool, "restart_recommended": bool, "operator_action_required": bool, "dependencies": dict, "details": dict}`. Overridden per server (e.g. github adds `github_token` to `dependencies`, mdq adds `service` to `details`) |
 | `run_http() -> None` | Start uvicorn HTTP server |
 ### Entry point pattern (all servers)
 
@@ -150,7 +150,15 @@ All MCP server `/health` endpoints follow consistent semantics for the response 
 
 **`ready`**: `true` when no dependency failures, `false` when any dependency failure.
 
+**`liveness`**: Always `true` — signals that the server process is alive and can accept requests.
+
+**`restart_recommended`**: `true` signals the watchdog that restarting the process may resolve the failure. `false` means restart will not help (e.g. missing credentials require operator action).
+
+**`operator_action_required`**: `true` when human intervention is needed (missing credentials, missing binary, etc.). Watchdog logs a WARNING but does NOT restart when this is `true` and `restart_recommended=false`.
+
 **`dependencies`**: Dict of dependency name → error message. Empty when healthy.
+
+**`details`**: Server-specific supplementary info (e.g. `sandbox_backend`, `service`). Empty dict if not applicable.
 
 **HTTP status code**:
 - `200` when `status="ok"` and `ready=true` (fully healthy)
@@ -158,15 +166,32 @@ All MCP server `/health` endpoints follow consistent semantics for the response 
 
 **Dependency values**: Any non-empty dependency value (`"not configured"`, `"not_set"`, `"check failed"`, etc.) constitutes a degraded state — the server is not healthy until all dependencies are satisfied. These values are never informational; they always indicate a real missing or failed dependency.
 
-**Watchdog behavior**: The watchdog (`agent/repl_health.py`) checks only the HTTP response status code (`resp.status_code == HTTPStatus.OK`). Body fields (`status`, `ready`) are NOT checked by the watchdog. This means:
-- HTTP 200 → watchdog considers server healthy regardless of body `status` field
-- HTTP 503 → watchdog considers server unhealthy and will restart
+**Watchdog behavior**: The watchdog (`agent/repl_health.py`) inspects both the HTTP status code and the `restart_recommended` body field. Restart is gated on `restart_recommended`:
+- `reachable=False` (no HTTP response): attempt restart (subprocess-mode, under max_restarts limit)
+- `reachable=True` and `restart_recommended=true`: attempt restart as above
+- `reachable=True` and `restart_recommended=false`: no restart; if `operator_action_required=true`, log WARNING
 
-**Example degraded response**:
+**Example healthy response**:
+```json
+{
+  "status": "ok",
+  "ready": true,
+  "liveness": true,
+  "restart_recommended": false,
+  "operator_action_required": false,
+  "dependencies": {},
+  "details": {}
+}
+```
+
+**Example degraded response** (`operator_action_required=true` — missing credentials, no restart):
 ```json
 {
   "status": "degraded",
   "ready": false,
+  "liveness": true,
+  "restart_recommended": false,
+  "operator_action_required": true,
   "dependencies": {
     "github_token": "not_set"
   },

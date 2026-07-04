@@ -73,7 +73,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.turn.current_turn_id = "test-turn-id"
     ctx.workflow.workflow_id = None
     ctx.session.session_id = None
-    ctx.services.audit_logger = None
+    ctx.services_required.audit_logger = None
     return ctx
 
 
@@ -99,7 +99,7 @@ class TestLogApprovalDecision:
 
     def test_no_op_when_audit_logger_none(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = None
+        ctx.services_required.audit_logger = None
         outcome = ApprovalOutcome(
             tool_name="write_file",
             risk_level=RiskLevel.NONE,
@@ -127,20 +127,17 @@ class TestAuditToolExec:
 
     def test_skips_when_audit_logger_is_none(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = None
+        ctx.services_required.audit_logger = None
         # No error raised even though logger is None
         audit_tool_exec(ctx, "read_text_file", {}, False, "req-123")
 
-    def test_writes_event_when_mcp_request_id_is_empty(self) -> None:
+    def test_skips_event_when_mcp_request_id_is_empty(self) -> None:
         ctx = _make_ctx()
         ctx.services_required.audit_logger = MagicMock()
         ctx.cfg.tool.masked_fields = []
         ctx.cfg.approval.approval_resource_keys = {}
         audit_tool_exec(ctx, "read_text_file", {}, False, "")
-        ctx.services_required.audit_logger.info.assert_called_once()
-        logged = ctx.services_required.audit_logger.info.call_args[0][0]
-        rec = json.loads(logged)
-        assert rec["mcp_request_id"] == ""
+        ctx.services_required.audit_logger.info.assert_not_called()
 
 
 class TestWriteRoundExec:
@@ -186,7 +183,7 @@ class TestWriteRoundExec:
 
     def test_no_op_when_audit_logger_none(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = None
+        ctx.services_required.audit_logger = None
         write_round_exec(
             ctx,
             round_id="r-3",

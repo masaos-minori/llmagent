@@ -3,6 +3,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from db.helper import SQLiteHelper
 
@@ -67,7 +68,7 @@ def update_task_status(db: SQLiteHelper, task_id: str, status: str) -> None:
     db.commit()
 
 
-def _row_to_task(r: object) -> TaskRecord:
+def _row_to_task(r: Any) -> TaskRecord:
     row = dict(r)
     return TaskRecord(
         task_id=row["task_id"],

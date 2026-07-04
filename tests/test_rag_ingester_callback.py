@@ -69,7 +69,10 @@ def ingester(tmp_path: str, db: _FakeSQLiteHelper) -> RagIngester:
             "rag.ingestion.ingester.SQLiteHelper",
             return_value=db,
         ),
-        patch("rag.ingestion.ingester.check_rag_consistency", return_value=mock_report),
+        patch(
+            "rag.ingestion.document_manager.check_rag_consistency",
+            return_value=mock_report,
+        ),
     ):
         yield ingester
     ingester.close()

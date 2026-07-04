@@ -337,7 +337,7 @@ def _make_ctx_for_dag(
     ctx.cfg.tool.tool_summarize_threshold = 0
     ctx.conv.history = []
     ctx.services = MagicMock()
-    ctx.services.gateway = None
+    ctx.services_required.gateway = None
     ctx.session = MagicMock()
     ctx.session.save_many = MagicMock()
     ctx.tool_result_store = MagicMock()

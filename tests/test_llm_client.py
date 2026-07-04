@@ -617,12 +617,10 @@ class TestAgentConfigSseValidation:
             "tool_dedup_max_repeats": 3,
             "tool_cycle_detect_window": 2,
             "tool_error_max_consecutive": 3,
-            # Provide a stdio server so _build_mcp_servers skips legacy URL validation
             "mcp_servers": {
                 "dummy": {
-                    "transport": "stdio",
-                    "cmd": ["echo"],
-                    "url": "",
+                    "transport": "http",
+                    "url": "http://localhost:8000",
                 }
             },
             **overrides,

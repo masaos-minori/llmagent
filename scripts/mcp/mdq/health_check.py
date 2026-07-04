@@ -11,12 +11,9 @@ from __future__ import annotations
 
 import os as _os
 import sqlite3
-from typing import Any
 
 from fastapi.responses import JSONResponse
 from shared.config_loader import ConfigLoader
-
-from mcp.mdq.models import MdqServiceError
 
 
 def _degraded_response(
@@ -26,6 +23,9 @@ def _degraded_response(
         {
             "status": "degraded",
             "ready": False,
+            "liveness": True,
+            "restart_recommended": False,
+            "operator_action_required": True,
             "dependencies": deps,
             "details": details,
         },
@@ -129,6 +129,9 @@ def check_health() -> JSONResponse:
         {
             "status": "ok" if ready else "degraded",
             "ready": ready,
+            "liveness": True,
+            "restart_recommended": False,
+            "operator_action_required": not ready,
             "dependencies": deps,
             "details": details,
         },

@@ -39,6 +39,7 @@ from db.rag_consistency import (
     summarize_issues,
 )
 from db.recovery import recover_corruption
+from db.rotation import rotate_all_dbs, rotate_db, rotate_session_db, rotate_workflow_db
 from db.store_impl import (
     SQLiteDocumentStore,
     SQLiteMemoryDeleteStore,

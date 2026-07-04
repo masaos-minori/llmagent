@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import orjson
+from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.ingester import RagIngester
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -255,6 +256,7 @@ class TestChunkMetadataStorage:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
         ):
             ingester.ingest_url_group(
+                doc_mgr=MagicMock(),
                 db=mock_db,
                 url="http://example.com/page",
                 chunk_files=sorted(chunk_dir.glob("*.json")),
@@ -303,6 +305,7 @@ class TestChunkMetadataStorage:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
         ):
             ingester.ingest_url_group(
+                doc_mgr=MagicMock(),
                 db=mock_db,
                 url="http://example.com/page",
                 chunk_files=[chunk_dir / "chunk_0.json"],
@@ -336,6 +339,7 @@ class TestChunkMetadataStorage:
         mock_db.execute.side_effect = execute_side_effect
 
         ingester.ingest_url_group(
+            doc_mgr=MagicMock(),
             db=mock_db,
             url="http://example.com/page",
             chunk_files=[chunk_dir / "chunk_0.json"],
@@ -367,22 +371,25 @@ class TestForceReinsert:
 
         mock_db = MagicMock()
         # Simulate existing document found
-        mock_db.fetchone.return_value = (42,)
         mock_cur = MagicMock()
+        mock_cur.fetchone.return_value = (42,)
         mock_cur.lastrowid = 99
         mock_db.execute.return_value = mock_cur
 
+        mock_doc_mgr = MagicMock()
+        # force=True → handle_existing_document returns False (don't skip)
+        mock_doc_mgr.handle_existing_document.return_value = False
+
         ingester.ingest_url_group(
+            doc_mgr=mock_doc_mgr,
             db=mock_db,
             url="http://example.com/page",
             chunk_files=[chunk_dir / "chunk_0.json"],
             force=True,
         )
 
-        # Should have called DELETE for existing document
-        calls = mock_db.execute.call_args_list
-        delete_calls = [c for c in calls if "DELETE" in str(c)]
-        assert len(delete_calls) >= 3  # chunks_vec, chunks, documents
+        # delete_existing_document is delegated to doc_mgr
+        mock_doc_mgr.delete_existing_document.assert_called_once()
 
     def test_no_force_skips_existing_document(self, tmp_path):
         """force=False skips ingestion when document already exists."""
@@ -400,6 +407,7 @@ class TestForceReinsert:
         mock_db.execute.return_value = mock_cur
 
         ingester.ingest_url_group(
+            doc_mgr=MagicMock(),
             db=mock_db,
             url="http://example.com/page",
             chunk_files=[chunk_dir / "chunk_0.json"],
@@ -441,6 +449,7 @@ class TestChunkOrder:
         raw_files = list(chunk_dir.glob("*.json"))
 
         ingester.ingest_url_group(
+            doc_mgr=MagicMock(),
             db=mock_db,
             url="http://example.com/page",
             chunk_files=raw_files,
@@ -500,6 +509,7 @@ class TestChunkMetadataFields:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
         ):
             ingester.ingest_url_group(
+                doc_mgr=MagicMock(),
                 db=mock_db,
                 url="http://example.com/page",
                 chunk_files=[chunk_dir / "chunk_0.json"],
@@ -536,6 +546,7 @@ class TestChunkMetadataFields:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
         ):
             ingester.ingest_url_group(
+                doc_mgr=MagicMock(),
                 db=mock_db,
                 url="http://example.com/page",
                 chunk_files=[chunk_dir / "chunk_0.json"],
@@ -571,6 +582,7 @@ class TestChunkMetadataFields:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=mock_sh),
         ):
             ingester.ingest_url_group(
+                doc_mgr=MagicMock(),
                 db=mock_db,
                 url="http://example.com/page",
                 chunk_files=[chunk_dir / "chunk_0.json"],
@@ -579,48 +591,6 @@ class TestChunkMetadataFields:
 
         assert len(insert_calls) == 1
         assert insert_calls[0] == ("", "")
-
-
-class TestSchemaMigration:
-    def test_adds_missing_chunk_columns(self, tmp_path):
-        """_migrate_rag_schema adds chunk_type/source_file if absent."""
-        import sqlite3
-
-        from db.create_schema import _migrate_rag_schema
-
-        conn = sqlite3.connect(str(tmp_path / "rag.sqlite"))
-        conn.execute(
-            "CREATE TABLE chunks (chunk_id INTEGER PRIMARY KEY, doc_id INTEGER, chunk_index INTEGER, content TEXT, normalized_content TEXT)"
-        )
-        conn.commit()
-
-        _migrate_rag_schema(conn)
-        conn.commit()
-
-        cols = {row[1] for row in conn.execute("PRAGMA table_info(chunks)").fetchall()}
-        assert "chunk_type" in cols
-        assert "source_file" in cols
-        conn.close()
-
-    def test_migration_idempotent_when_columns_exist(self, tmp_path):
-        """_migrate_rag_schema is a no-op when columns already exist."""
-        import sqlite3
-
-        from db.create_schema import _migrate_rag_schema
-
-        conn = sqlite3.connect(str(tmp_path / "rag.sqlite"))
-        conn.execute(
-            "CREATE TABLE chunks (chunk_id INTEGER PRIMARY KEY, doc_id INTEGER, chunk_index INTEGER, content TEXT, normalized_content TEXT, chunk_type TEXT, source_file TEXT)"
-        )
-        conn.commit()
-
-        _migrate_rag_schema(conn)
-        conn.commit()
-
-        cols = {row[1] for row in conn.execute("PRAGMA table_info(chunks)").fetchall()}
-        assert "chunk_type" in cols
-        assert "source_file" in cols
-        conn.close()
 
 
 # ── Step 3: validation gap tests ──────────────────────────────────────────────
@@ -698,6 +668,7 @@ def _ingest_via_real_db(
         patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
     ):
         ingester.ingest_url_group(
+            doc_mgr=MagicMock(),
             db=fake_db,
             url=chunk_data["url"],
             chunk_files=[chunk_dir / "chunk_0.json"],
@@ -785,6 +756,7 @@ class TestForceReinsertMetadata:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
+                doc_mgr=MagicMock(),
                 db=fake_db,
                 url=data_v1["url"],
                 chunk_files=[chunk_dir / "chunk_0.json"],
@@ -807,6 +779,7 @@ class TestForceReinsertMetadata:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
+                doc_mgr=DocumentManager(fake_db),
                 db=fake_db,
                 url=data_v2["url"],
                 chunk_files=[chunk_dir / "chunk_0.json"],

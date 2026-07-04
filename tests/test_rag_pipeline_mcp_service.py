@@ -552,7 +552,7 @@ class TestFmtListDocuments:
     async def test_returns_rows(self, monkeypatch: Any) -> None:
         service = RagPipelineMCPService()
         monkeypatch.setattr(
-            service,
+            service._doc_mgr,
             "list_documents",
             lambda lang=None, limit=20: [
                 {"url": "file:///a.md", "lang": "en", "chunk_count": 3}
@@ -564,7 +564,9 @@ class TestFmtListDocuments:
 
     async def test_returns_no_documents_when_empty(self, monkeypatch: Any) -> None:
         service = RagPipelineMCPService()
-        monkeypatch.setattr(service, "list_documents", lambda lang=None, limit=20: [])
+        monkeypatch.setattr(
+            service._doc_mgr, "list_documents", lambda lang=None, limit=20: []
+        )
         result = await service.fmt_list_documents({})
         assert "No documents" in result
 
@@ -577,7 +579,7 @@ class TestFmtListDocuments:
             return []
 
         service = RagPipelineMCPService()
-        monkeypatch.setattr(service, "list_documents", _list)
+        monkeypatch.setattr(service._doc_mgr, "list_documents", _list)
         await service.fmt_list_documents({"lang": "ja", "limit": 10})
         assert called_with["lang"] == "ja"
         assert called_with["limit"] == 10
@@ -586,13 +588,13 @@ class TestFmtListDocuments:
 class TestFmtDeleteDocument:
     async def test_found_returns_deleted(self, monkeypatch: Any) -> None:
         service = RagPipelineMCPService()
-        monkeypatch.setattr(service, "delete_document", lambda url: True)
+        monkeypatch.setattr(service._doc_mgr, "delete_document", lambda url: True)
         result = await service.fmt_delete_document({"url": "file:///a.md"})
         assert "Deleted" in result
 
     async def test_not_found_returns_not_found(self, monkeypatch: Any) -> None:
         service = RagPipelineMCPService()
-        monkeypatch.setattr(service, "delete_document", lambda url: False)
+        monkeypatch.setattr(service._doc_mgr, "delete_document", lambda url: False)
         result = await service.fmt_delete_document({"url": "file:///a.md"})
         assert "Not found" in result
 

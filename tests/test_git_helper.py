@@ -19,9 +19,9 @@ class TestGetRepoInfo:
         assert result.failure_reason == FailureReason.NOT_A_GIT_REPO
         assert result.data is None
 
-    def test_returns_repo_info_in_valid_git_repo(self, tmp_path) -> None:
+    def test_returns_repo_info_in_valid_git_repo(self, tmp_path, monkeypatch) -> None:
         """Returns branch and commit info in a valid git repo."""
-        os.chdir(tmp_path)
+        monkeypatch.chdir(tmp_path)
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@test.com'")
         os.system("git config user.name 'Test User'")
@@ -43,9 +43,9 @@ class TestGetRepoInfo:
         assert len(result.data["commit"]) == 8
         assert result.data["message"] == "Initial commit"
 
-    def test_returns_detached_head_info(self, tmp_path) -> None:
+    def test_returns_detached_head_info(self, tmp_path, monkeypatch) -> None:
         """Returns 'HEAD (detached)' when in detached HEAD state."""
-        os.chdir(tmp_path)
+        monkeypatch.chdir(tmp_path)
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@test.com'")
         os.system("git config user.name 'Test User'")
@@ -63,9 +63,9 @@ class TestGetRepoInfo:
         assert result.data is not None
         assert result.data["branch"] == "HEAD (detached)"
 
-    def test_returns_info_from_parent_directory(self, tmp_path) -> None:
+    def test_returns_info_from_parent_directory(self, tmp_path, monkeypatch) -> None:
         """Finds git repo in parent directory."""
-        os.chdir(tmp_path)
+        monkeypatch.chdir(tmp_path)
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@test.com'")
         os.system("git config user.name 'Test User'")
@@ -84,9 +84,11 @@ class TestGetRepoInfo:
         assert result.data is not None
         assert "branch" in result.data
 
-    def test_multiline_commit_message_returns_first_line(self, tmp_path) -> None:
+    def test_multiline_commit_message_returns_first_line(
+        self, tmp_path, monkeypatch
+    ) -> None:
         """Returns only the first line of a multiline commit message."""
-        os.chdir(tmp_path)
+        monkeypatch.chdir(tmp_path)
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@test.com'")
         os.system("git config user.name 'Test User'")
@@ -104,9 +106,9 @@ class TestGetRepoInfo:
         assert result.data is not None
         assert result.data["message"] == "First line"
 
-    def test_author_format(self, tmp_path) -> None:
+    def test_author_format(self, tmp_path, monkeypatch) -> None:
         """Author format includes name and email."""
-        os.chdir(tmp_path)
+        monkeypatch.chdir(tmp_path)
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@example.com'")
         os.system("git config user.name 'Test Author'")
@@ -129,9 +131,9 @@ class TestGetRepoInfo:
         assert result.failure_reason is not None
         assert result.data is None
 
-    def test_commit_hash_is_8_chars(self, tmp_path) -> None:
+    def test_commit_hash_is_8_chars(self, tmp_path, monkeypatch) -> None:
         """Commit hash is always truncated to 8 characters."""
-        os.chdir(tmp_path)
+        monkeypatch.chdir(tmp_path)
         os.system("git init > /dev/null 2>&1")
         os.system("git config user.email 'test@test.com'")
         os.system("git config user.name 'Test User'")

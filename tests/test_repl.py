@@ -21,7 +21,7 @@ def _make_bare_repl() -> AgentREPL:
     repl = AgentREPL.__new__(AgentREPL)
     ctx = MagicMock()
     ctx.conv.shutdown_requested = False
-    ctx.services.llm.stat_partial_completions = 0
+    ctx.services_required.llm.stat_partial_completions = 0
     repl._ctx = ctx
     view = MagicMock()
     view.read_multiline = AsyncMock(return_value="")
@@ -47,8 +47,9 @@ class TestGetChunkCount:
 
     def test_returns_question_mark_on_db_error(self) -> None:
         repl = _make_bare_repl()
-        with patch("agent.repl.SQLiteHelper") as mock_helper:
-            mock_helper.return_value.open.side_effect = RuntimeError("db gone")
+        mock_svc = MagicMock()
+        mock_svc.stats_rag.side_effect = RuntimeError("db gone")
+        with patch("agent.repl.RagMaintenanceService", return_value=mock_svc):
             result = repl._get_chunk_count()
 
         assert result == "?"
@@ -160,10 +161,10 @@ class TestReplLoop:
     async def test_partial_completion_warning_emitted(self) -> None:
         """write_warning is called when stat_partial_completions increases after handle_turn."""
         repl = _make_bare_repl()
-        repl._ctx.services.llm.stat_partial_completions = 0
+        repl._ctx.services_required.llm.stat_partial_completions = 0
 
         def _increment_partial(*_args, **_kwargs):
-            repl._ctx.services.llm.stat_partial_completions += 1
+            repl._ctx.services_required.llm.stat_partial_completions += 1
 
         repl._orchestrator.handle_turn = AsyncMock(side_effect=_increment_partial)
         with patch("builtins.input", side_effect=["hello", "/exit"]):
@@ -176,7 +177,7 @@ class TestReplLoop:
     async def test_no_partial_completion_no_warning(self) -> None:
         """write_warning is NOT called for partial completions when stat unchanged."""
         repl = _make_bare_repl()
-        repl._ctx.services.llm.stat_partial_completions = 0
+        repl._ctx.services_required.llm.stat_partial_completions = 0
         with patch("builtins.input", side_effect=["hello", "/exit"]):
             await repl._repl_loop()
         write_warning_calls = repl._view.write_warning.call_args_list
@@ -185,9 +186,9 @@ class TestReplLoop:
 
     @pytest.mark.asyncio
     async def test_partial_completion_warning_when_llm_is_none(self) -> None:
-        """No crash when ctx.services.llm is None."""
+        """No crash when ctx.services_required.llm is None."""
         repl = _make_bare_repl()
-        repl._ctx.services.llm = None
+        repl._ctx.services_required.llm = None
         with patch("builtins.input", side_effect=["hello", "/exit"]):
             await repl._repl_loop()
         write_warning_calls = repl._view.write_warning.call_args_list
@@ -215,12 +216,12 @@ class TestPersistSessionDiagnostics:
         ctx.stats.stat_output_tokens = 500
         ctx.session.session_id = 42
         ctx.services = MagicMock()
-        ctx.services.llm.stat_partial_completions = 1
-        ctx.services.llm.stat_parse_errors = 0
-        ctx.services.llm.stat_heartbeat_timeouts = 0
-        ctx.services.llm.stat_reconnects = 2
-        ctx.services.hist_mgr.stat_compress_count = 2
-        ctx.services.hist_mgr.stat_fallback_truncate_count = 0
+        ctx.services_required.llm.stat_partial_completions = 1
+        ctx.services_required.llm.stat_parse_errors = 0
+        ctx.services_required.llm.stat_heartbeat_timeouts = 0
+        ctx.services_required.llm.stat_reconnects = 2
+        ctx.services_required.hist_mgr.stat_compress_count = 2
+        ctx.services_required.hist_mgr.stat_fallback_truncate_count = 0
         repl._ctx = ctx
         repl._diagnostic_store = MagicMock()
         return repl
@@ -228,14 +229,9 @@ class TestPersistSessionDiagnostics:
     def test_handles_none_session_id(self):
         repl = self._make_repl()
         repl._ctx.session.session_id = None
+        repl._ctx.services = None
 
-        mock_helper = MagicMock()
-        mock_ctx_mgr = MagicMock()
-        mock_ctx_mgr.__enter__ = MagicMock(return_value=mock_helper)
-        mock_ctx_mgr.__exit__ = MagicMock(return_value=False)
-        mock_helper.fetchall = MagicMock(return_value=[])
-
-        with patch("agent.repl.SQLiteHelper", return_value=mock_helper):
+        with patch("agent.repl.SQLiteHelper"):
             repl._persist_session_diagnostics(repl._ctx)
 
     def test_handles_none_services(self):

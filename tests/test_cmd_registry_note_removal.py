@@ -31,6 +31,8 @@ class _Ctx:
         self.services.stdio_procs = {}
         self.services.health_registry = None
         self.services.memory = None
+        self.services_required = SimpleNamespace()
+        self.services_required.memory = None
         self.stats = SimpleNamespace()
         self.stats.stat_serialization_events = []
         self.session = SimpleNamespace()

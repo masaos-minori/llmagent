@@ -23,7 +23,7 @@ def _make_ctx() -> Any:
     ctx = MagicMock()
     ctx.cfg.llm.llm_temperature = 0.5
     ctx.cfg.llm.llm_max_tokens = 512
-    ctx.services.llm = MagicMock()
+    ctx.services_required.llm = MagicMock()
     return ctx
 
 
@@ -33,7 +33,7 @@ class TestSetTemperature:
         cmd = _Config(ctx)
         cmd._set_temperature(ctx, "1.0")
         assert ctx.cfg.llm.llm_temperature == 1.0
-        ctx.services.llm._temperature == 1.0
+        ctx.services_required.llm._temperature == 1.0
         out = capsys.readouterr().out
         assert "temperature set to" in out
 
@@ -67,7 +67,7 @@ class TestSetTemperature:
 
     def test_llm_none_does_not_raise(self, capsys: Any) -> None:
         ctx = _make_ctx()
-        ctx.services.llm = None
+        ctx.services_required.llm = None
         cmd = _Config(ctx)
         cmd._set_temperature(ctx, "0.7")
         assert ctx.cfg.llm.llm_temperature == 0.7
@@ -106,7 +106,7 @@ class TestSetMaxTokens:
 
     def test_llm_none_does_not_raise(self, capsys: Any) -> None:
         ctx = _make_ctx()
-        ctx.services.llm = None
+        ctx.services_required.llm = None
         cmd = _Config(ctx)
         cmd._set_max_tokens(ctx, "1024")
         assert ctx.cfg.llm.llm_max_tokens == 1024

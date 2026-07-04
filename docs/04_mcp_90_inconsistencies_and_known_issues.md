@@ -19,28 +19,6 @@ Each entry format:
 
 ---
 
-### MCP-08: Health semantics — HTTP status code vs body fields mismatch
-
-**Type:** Document inconsistency
-**Impact scope:** All MCP servers, `agent/repl_health.py`
-
-**Statement A:** All MCP server `/health` endpoints return HTTP 200 even when dependency failures are detected (status=degraded, ready=false).
-
-**Statement B:** Watchdog (`agent/repl_health.py:31`) checks only HTTP response status code (`resp.status_code == HTTPStatus.OK`), NOT body fields.
-
-**Impact:** Dependency failures that should trigger server restart via watchdog do not — the watchdog never sees a non-200 HTTP response. This creates a gap where degraded servers are not automatically recovered.
-
-**Current safe interpretation:** Watchdog only reacts to HTTP 5xx errors from `/health`, not to body-level degradation signals. Operators must monitor body fields separately for readiness assessment.
-
-**Recommended action:** Define canonical semantics for `/health` response:
-- `status="ok"` → HTTP 200 (fully healthy)
-- `status="degraded"` → HTTP 503 (dependency failure, watchdog should restart)
-- `status="unhealthy"` → HTTP 503 (critical failure)
-
-**Notes for AI reference:** When implementing or modifying MCP server health endpoints, ensure HTTP status code matches the body `status` field. Watchdog uses HTTP status code only.
-
----
-
 ### MCP-09: cicd workflow_allowlist policy mismatch — RuntimeError vs warning
 
 **Type:** Document inconsistency
@@ -63,6 +41,17 @@ Each entry format:
 ---
 
 ## Resolved Issues
+
+### MCP-08: Health semantics — HTTP status code vs body fields mismatch
+
+**Type:** Document inconsistency (resolved)
+**Impact scope:** All MCP servers, `agent/repl_health.py`
+
+**Status: RESOLVED** — The health schema was redesigned to include `liveness`, `restart_recommended`, and `operator_action_required` fields. All MCP servers now return HTTP 503 when degraded (`status="degraded"`, `ready=false`). The watchdog now inspects the `restart_recommended` body field in addition to the HTTP status code. Restart is gated on `restart_recommended=true`; `operator_action_required=true` (missing credentials, missing binary) produces a WARNING log only without restarting.
+
+**Original issue:** Watchdog checked only HTTP status code; degraded servers with missing credentials would trigger infinite restart loops. Now `operator_action_required=true` + `restart_recommended=false` prevents unwanted restarts.
+
+---
 
 ### MCP-02: Routing authority mismatch (Priority 3 formatting)
 

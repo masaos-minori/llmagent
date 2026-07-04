@@ -18,8 +18,8 @@ from db.maintenance import (
     purge_old_sessions,
     vacuum_db,
 )
-from db.recovery import recover_corruption
 from db.models import RecoveryResult
+from db.recovery import recover_corruption
 from db.rotation import rotate_all_dbs, rotate_session_db, rotate_workflow_db
 from rag.maintenance import RagDbMaintenanceService
 
@@ -794,7 +794,7 @@ class TestRotateWorkflowAndAll:
     ) -> None:
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
-            "db.config.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.rotation.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
         with pytest.raises(FileNotFoundError, match="workflow.sqlite"):
@@ -809,7 +809,7 @@ class TestRotateWorkflowAndAll:
             self._make_real_sqlite(f)
         archive_dir = tmp_path / "archive"
         monkeypatch.setattr(
-            "db.config.build_db_config", lambda: _make_db_cfg(tmp_path)
+            "db.rotation.build_db_config", lambda: _make_db_cfg(tmp_path)
         )
 
         with pytest.raises(FileNotFoundError, match="workflow.sqlite"):

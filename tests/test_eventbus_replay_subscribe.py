@@ -95,5 +95,7 @@ async def test_subscribe_yields_matching_event(client: TestClient) -> None:
         " ORDER BY seq",
         (0, "live.topic"),
     ).fetchall()
-    results = [eb_app._row_to_dict(row) for row in rows]
+    from eventbus.subscribe_route import _row_to_dict
+
+    results = [_row_to_dict(row) for row in rows]
     assert any(r["event_id"] == ev["event_id"] for r in results)

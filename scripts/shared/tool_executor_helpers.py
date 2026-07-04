@@ -2,9 +2,13 @@
 """shared/tool_executor_helpers.py — Tool executor helper functions."""
 
 import hashlib
+from typing import TYPE_CHECKING
 
 from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
+
+if TYPE_CHECKING:
+    from shared.tool_executor import TransportErrorInfo
 
 # Tools with side effects: writes, deletes, or shell execution.
 # Used to auto-downgrade parallel execution to serial in execute_all_tool_calls().

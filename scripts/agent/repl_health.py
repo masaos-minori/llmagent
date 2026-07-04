@@ -19,7 +19,11 @@ from mcp.shell.models import ShellConfig
 from shared.logger import Logger
 
 from agent.context import AgentContext
-from agent.shared.health_models import HealthCheckResult, ServiceWarning
+from agent.shared.health_models import (
+    HealthCheckResult,
+    McpHealthProbeResult,
+    ServiceWarning,
+)
 
 if TYPE_CHECKING:
     from shared.mcp_config import McpServerConfig
@@ -27,19 +31,47 @@ if TYPE_CHECKING:
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
-async def probe_mcp_health(http: httpx.AsyncClient, base_url: str) -> bool:
-    """Return True if the MCP server at base_url responds to /health with 200.
+async def _probe_mcp_health_detail(
+    http: httpx.AsyncClient, base_url: str
+) -> McpHealthProbeResult:
+    """Probe /health and return a structured McpHealthProbeResult.
 
-    Checks HTTP status code only; body fields (status, ready) are not inspected.
+    Never raises. On network failure returns reachable=False with status_code=None.
+    On JSON parse failure falls back to restart_recommended=False, operator_action_required=False.
     """
     try:
         resp = await http.get(f"{base_url}/health", timeout=5.0)
-        ok: bool = (
-            resp.status_code == HTTPStatus.OK
-        )  # explicit type for older mypy stubs
-        return ok
     except (httpx.HTTPError, OSError, TimeoutError):
-        return False
+        return McpHealthProbeResult(
+            reachable=False,
+            status_code=None,
+            restart_recommended=False,
+            operator_action_required=False,
+            body={},
+        )
+    try:
+        body: dict[str, object] = resp.json()
+    except Exception:  # noqa: BLE001 — health check must not fail on body parse errors
+        body = {}
+    restart_recommended: bool = bool(body.get("restart_recommended", False))
+    operator_action_required: bool = bool(body.get("operator_action_required", False))
+    return McpHealthProbeResult(
+        reachable=True,
+        status_code=resp.status_code,
+        restart_recommended=restart_recommended,
+        operator_action_required=operator_action_required,
+        body=body,
+    )
+
+
+async def probe_mcp_health(http: httpx.AsyncClient, base_url: str) -> bool:
+    """Return True if the MCP server at base_url responds to /health with HTTP 200.
+
+    Backward-compatible bool wrapper around _probe_mcp_health_detail().
+    Callers that need structured probe results should use _probe_mcp_health_detail() directly.
+    """
+    result = await _probe_mcp_health_detail(http, base_url)
+    return result.reachable and result.status_code == HTTPStatus.OK
 
 
 async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
@@ -395,6 +427,12 @@ async def _watchdog_check_http(
 ) -> None:
     """Probe one HTTP server and restart via lifecycle manager when health check fails.
 
+    Decision logic (in order):
+    - probe.reachable=True and status_code=200 → fully healthy; reset count, record success.
+    - probe.reachable=True and restart_recommended=False → degraded but not restartable;
+      reset count, log warning if operator_action_required=True.
+    - probe.reachable=False or restart_recommended=True → attempt restart if under limit.
+
     For startup_mode="subprocess" servers, restart is delegated to
     ctx.services_required.lifecycle.restart().  Other modes (externally-managed) only
     log a warning because the agent does not own those processes.
@@ -403,12 +441,26 @@ async def _watchdog_check_http(
         raise RuntimeError("http service not initialized")
     if not srv_cfg.url:
         return
-    ok = await probe_mcp_health(ctx.services_required.http, srv_cfg.url)
-    if ok:
+    probe = await _probe_mcp_health_detail(ctx.services_required.http, srv_cfg.url)
+
+    if probe.reachable and probe.status_code == HTTPStatus.OK:
+        # Fully healthy
         restart_counts[key] = 0
         if ctx.services_required.health_registry:
             ctx.services_required.health_registry.record_success(key)
         return
+
+    if probe.reachable and not probe.restart_recommended:
+        # Reachable but degraded; restart will not help
+        restart_counts[key] = 0
+        if probe.operator_action_required:
+            logger.warning(
+                "Watchdog: %r requires operator action — not restarting (operator_action_required=True)",
+                key,
+            )
+        return
+
+    # Either unreachable (probe.reachable=False) or restart_recommended=True
     count = restart_counts.get(key, 0)
     if count >= max_restarts:
         logger.warning(
@@ -453,17 +505,17 @@ async def watchdog_loop(ctx: AgentContext) -> None:
     interval = ctx.cfg.mcp.mcp_watchdog_interval
     max_restarts = ctx.cfg.mcp.mcp_watchdog_max_restarts
     restart_counts: dict[str, int] = {}
-    if interval > 0:
-        logger.info(
-            "Watchdog: enabled (interval=%.0fs, max_restarts=%d)",
-            interval,
-            max_restarts,
-        )
-    else:
+    if interval <= 0:
         logger.warning(
             "Watchdog: disabled (interval=%.0f) — failed servers will not be auto-restarted",
             interval,
         )
+        return
+    logger.info(
+        "Watchdog: enabled (interval=%.0fs, max_restarts=%d)",
+        interval,
+        max_restarts,
+    )
     while True:
         await asyncio.sleep(interval)
         for key, srv_cfg in ctx.cfg.mcp.mcp_servers.items():

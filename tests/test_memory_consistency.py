@@ -176,16 +176,22 @@ def import_ops_fake_helper(db_conn: sqlite3.Connection) -> Generator[_FakeSQLite
         # Also patch the already-imported references in import_ops and write_ops
         import agent.memory.import_ops as _import_ops
         import agent.memory.write_ops as _write_ops
+
+        orig_import = _import_ops.SQLiteHelper
+        orig_write = _write_ops.SQLiteHelper
         _import_ops.SQLiteHelper = lambda *a, **kw: fake
         _write_ops.SQLiteHelper = lambda *a, **kw: fake
         yield fake
-        delattr(_import_ops, "SQLiteHelper")
-        delattr(_write_ops, "SQLiteHelper")
+        _import_ops.SQLiteHelper = orig_import
+        _write_ops.SQLiteHelper = orig_write
 
 
 class TestRebuildFromJsonl:
     def test_dry_run_returns_jsonl_count_and_zero(
-        self, tmp_path: Path, import_ops_fake_helper: _FakeSQLiteHelper, db_conn: sqlite3.Connection
+        self,
+        tmp_path: Path,
+        import_ops_fake_helper: _FakeSQLiteHelper,
+        db_conn: sqlite3.Connection,
     ) -> None:
         jsonl = JsonlMemoryStore(tmp_path / "mem.jsonl")
         asyncio.run(jsonl.write(_make_entry(memory_id="e1")))
@@ -200,7 +206,10 @@ class TestRebuildFromJsonl:
         assert rows[0] == 0
 
     def test_rebuild_inserts_all_jsonl_entries(
-        self, tmp_path: Path, import_ops_fake_helper: _FakeSQLiteHelper, db_conn: sqlite3.Connection
+        self,
+        tmp_path: Path,
+        import_ops_fake_helper: _FakeSQLiteHelper,
+        db_conn: sqlite3.Connection,
     ) -> None:
         jsonl = JsonlMemoryStore(tmp_path / "mem.jsonl")
         asyncio.run(jsonl.write(_make_entry(memory_id="e1")))
@@ -216,7 +225,10 @@ class TestRebuildFromJsonl:
         assert [r[0] for r in rows] == ["e1", "e2"]
 
     def test_rebuild_clears_existing_rows(
-        self, tmp_path: Path, import_ops_fake_helper: _FakeSQLiteHelper, db_conn: sqlite3.Connection
+        self,
+        tmp_path: Path,
+        import_ops_fake_helper: _FakeSQLiteHelper,
+        db_conn: sqlite3.Connection,
     ) -> None:
         # Pre-populate SQLite with a stale row
         write_add(_make_entry(memory_id="stale"))
@@ -233,7 +245,10 @@ class TestRebuildFromJsonl:
         assert "fresh" in ids
 
     def test_rebuild_syncs_fts(
-        self, tmp_path: Path, import_ops_fake_helper: _FakeSQLiteHelper, db_conn: sqlite3.Connection
+        self,
+        tmp_path: Path,
+        import_ops_fake_helper: _FakeSQLiteHelper,
+        db_conn: sqlite3.Connection,
     ) -> None:
         jsonl = JsonlMemoryStore(tmp_path / "mem.jsonl")
         asyncio.run(jsonl.write(_make_entry(memory_id="e1", content="unique keyword")))
@@ -246,7 +261,10 @@ class TestRebuildFromJsonl:
         assert len(rows) == 1
 
     def test_empty_jsonl_clears_sqlite(
-        self, tmp_path: Path, import_ops_fake_helper: _FakeSQLiteHelper, db_conn: sqlite3.Connection
+        self,
+        tmp_path: Path,
+        import_ops_fake_helper: _FakeSQLiteHelper,
+        db_conn: sqlite3.Connection,
     ) -> None:
         write_add(_make_entry(memory_id="existing"))
         jsonl = JsonlMemoryStore(tmp_path / "empty.jsonl")
@@ -280,15 +298,14 @@ def _make_mem_services(
 
 
 def _make_mixin(embed_enabled: bool = False) -> object:
-    from agent.commands.cmd_memory import _MemoryMixin
+    from agent.commands.memory_rebuild_ops import MemoryRebuildOps
     from agent.commands.output_port import CliOutputPort
 
-    mixin = _MemoryMixin.__new__(_MemoryMixin)
-    mixin._out = MagicMock(spec=CliOutputPort)
-    mixin._ctx = MagicMock()
-    mixin._ctx.services.audit_logger = None
-    mixin._ctx.cfg.memory.memory_embed_enabled = embed_enabled
-    return mixin
+    ctx = MagicMock()
+    ctx.services_required.audit_logger = None
+    ctx.cfg.memory.memory_embed_enabled = embed_enabled
+    out = MagicMock(spec=CliOutputPort)
+    return MemoryRebuildOps(ctx, out)
 
 
 class TestCmdMemoryCheckConsistency:
@@ -296,7 +313,7 @@ class TestCmdMemoryCheckConsistency:
         mixin = _make_mixin(embed_enabled=False)
         mem = _make_mem_services(memories=3, fts=3, vec=0, jsonl_count=3)
 
-        mixin._memory_check_consistency(mem)
+        mixin.check_consistency(mem)
 
         args = mixin._out.write_table.call_args[0]
         rows = args[1]
@@ -307,7 +324,7 @@ class TestCmdMemoryCheckConsistency:
         mixin = _make_mixin(embed_enabled=False)
         mem = _make_mem_services(memories=3, fts=2, vec=0, jsonl_count=3)
 
-        mixin._memory_check_consistency(mem)
+        mixin.check_consistency(mem)
 
         args = mixin._out.write_table.call_args[0]
         rows = args[1]
@@ -318,7 +335,7 @@ class TestCmdMemoryCheckConsistency:
         mixin = _make_mixin(embed_enabled=False)
         mem = _make_mem_services(memories=3, fts=3, vec=0, jsonl_count=4)
 
-        mixin._memory_check_consistency(mem)
+        mixin.check_consistency(mem)
 
         args = mixin._out.write_table.call_args[0]
         rows = args[1]
@@ -332,7 +349,7 @@ class TestCmdMemoryCheckConsistency:
         mem = MagicMock()
         mem.store.check_consistency.side_effect = MemoryConsistencyError("fts broken")
 
-        mixin._memory_check_consistency(mem)
+        mixin.check_consistency(mem)
 
         mixin._out.write.assert_called_once()
         msg = mixin._out.write.call_args[0][0]
@@ -344,32 +361,34 @@ class TestCmdMemoryCheckConsistency:
 
 class TestCmdMemoryRebuild:
     def test_dry_run_writes_dry_run_message(self) -> None:
+        from unittest.mock import patch
+
         mixin = _make_mixin()
         mem = MagicMock()
-        mem.store.import_from_jsonl.return_value = (5, 0)
         mem.ingestion._jsonl = MagicMock()
 
-        mixin._memory_rebuild(mem, ["--dry-run"])
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)
+        ):
+            mixin.rebuild(mem, ["--dry-run"])
 
-        mem.store.import_from_jsonl.assert_called_once_with(
-            mem.ingestion._jsonl, dry_run=True
-        )
         mixin._out.write.assert_called_once()
         msg = mixin._out.write.call_args[0][0]
         assert "dry-run" in msg
         assert "5" in msg
 
     def test_rebuild_writes_success(self) -> None:
+        from unittest.mock import patch
+
         mixin = _make_mixin()
         mem = MagicMock()
-        mem.store.import_from_jsonl.return_value = (4, 4)
         mem.ingestion._jsonl = MagicMock()
 
-        mixin._memory_rebuild(mem, [])
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(4, 4)
+        ):
+            mixin.rebuild(mem, [])
 
-        mem.store.import_from_jsonl.assert_called_once_with(
-            mem.ingestion._jsonl, dry_run=False
-        )
         mixin._out.write_success.assert_called_once()
         msg = mixin._out.write_success.call_args[0][0]
         assert "4" in msg

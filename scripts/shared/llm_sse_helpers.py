@@ -29,7 +29,7 @@ class LlmSseHelpers:
             }
         tc = tool_calls_map[idx]
         if tc_delta.get("id"):
-            tc["id"] = tc_delta.get("id", "")  # type: ignore[index]
+            tc["id"] = tc_delta.get("id", "")
         fn = tc_delta.get("function")
         if fn is not None:
             tc["function"]["name"] += fn.get("name", "")
@@ -91,14 +91,18 @@ class LlmSseHelpers:
                 chunk = orjson.loads(raw_payload)
             except (orjson.JSONDecodeError, ValueError):
                 continue
-            reason = LlmSseHelpers.process_sse_chunk(chunk, content_parts, tool_calls_map, on_token)
+            reason = LlmSseHelpers.process_sse_chunk(
+                chunk, content_parts, tool_calls_map, on_token
+            )
             if reason:
                 finish_reason = reason
             LlmSseHelpers.parse_usage(chunk, on_usage)
         return finish_reason
 
     @staticmethod
-    def parse_usage(data: dict[str, Any], on_usage: Callable[[int, int], None] | None = None) -> LLMUsage | None:
+    def parse_usage(
+        data: dict[str, Any], on_usage: Callable[[int, int], None] | None = None
+    ) -> LLMUsage | None:
         """Extract token usage from response data; fire on_usage callback; return LLMUsage or None."""
         usage_raw = data.get("usage")
         if not isinstance(usage_raw, dict):

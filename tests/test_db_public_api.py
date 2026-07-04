@@ -17,10 +17,20 @@ import pytest
 @pytest.fixture()
 def _reload_db():
     """Reload modules to avoid stale __all__ from previous test runs."""
+    # Save originals before evicting — the freshly created db module will NOT have
+    # submodule attributes (e.g. .recovery, .helper) because Python's import cache
+    # returns cached submodules without calling setattr() on the new parent module.
+    # We must restore the originals after yield to avoid contaminating later tests.
+    saved = {mod: sys.modules[mod] for mod in ("db", "db.store") if mod in sys.modules}
     for mod in ("db", "db.store"):
         if mod in sys.modules:
             del sys.modules[mod]
     yield importlib.import_module("db.store"), importlib.import_module("db")
+    # Restore originals
+    for mod in ("db", "db.store"):
+        if mod in sys.modules:
+            del sys.modules[mod]
+    sys.modules.update(saved)
 
 
 def test_store_all_exists(_reload_db):

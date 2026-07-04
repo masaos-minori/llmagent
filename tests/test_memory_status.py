@@ -113,7 +113,7 @@ def _make_mixin() -> object:
     mixin = _MemoryMixin.__new__(_MemoryMixin)
     mixin._out = MagicMock(spec=CliOutputPort)
     mixin._ctx = MagicMock()
-    mixin._ctx.services.audit_logger = None
+    mixin._ctx.services_required.audit_logger = None
     return mixin
 
 

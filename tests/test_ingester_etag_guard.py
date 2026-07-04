@@ -1,5 +1,5 @@
 """tests/test_ingester_etag_guard.py
-Unit tests for _update_etag() stale-guard logic in Ingester.
+Unit tests for ETagManager.update() stale-guard logic.
 """
 
 from __future__ import annotations
@@ -7,28 +7,21 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 
-def _make_ingester() -> object:
-    from rag.ingestion.ingester import RagIngester
+def _make_etag_mgr(stored_fetched_at: str | None, doc_id: int = 42) -> object:
+    from rag.ingestion.etag_manager import ETagManager
 
-    return object.__new__(RagIngester)
-
-
-def _make_db(stored_fetched_at: str | None) -> MagicMock:
     db = MagicMock()
     db.fetchall.return_value = (
         [(stored_fetched_at,)] if stored_fetched_at is not None else []
     )
-    return db
+    return ETagManager(db, doc_id), db
 
 
 class TestUpdateEtagGuard:
     def test_newer_incoming_updates_etag(self) -> None:
-        ingester = _make_ingester()
-        db = _make_db("2026-06-01T10:00:00")
+        etag_mgr, db = _make_etag_mgr("2026-06-01T10:00:00")
 
-        ingester._update_etag(
-            db, 42, "etag-new", "Mon, 02 Jun 2026", "2026-06-02T10:00:00"
-        )
+        etag_mgr.update("etag-new", "Mon, 02 Jun 2026", "2026-06-02T10:00:00")
 
         db.execute.assert_called_once()
         call_args = db.execute.call_args[0]
@@ -42,13 +35,10 @@ class TestUpdateEtagGuard:
         db.commit.assert_called_once()
 
     def test_stale_incoming_skips_update(self) -> None:
-        ingester = _make_ingester()
-        db = _make_db("2026-06-10T10:00:00")
+        etag_mgr, db = _make_etag_mgr("2026-06-10T10:00:00")
 
-        with patch("rag.ingestion.etag_manager.logger") as mock_logger:  # noqa: SIM117
-            ingester._update_etag(
-                db, 42, "etag-old", "Mon, 01 Jun 2026", "2026-06-01T10:00:00"
-            )
+        with patch("rag.ingestion.etag_manager.logger") as mock_logger:
+            etag_mgr.update("etag-old", "Mon, 01 Jun 2026", "2026-06-01T10:00:00")
 
         db.execute.assert_not_called()
         db.commit.assert_not_called()
@@ -57,10 +47,9 @@ class TestUpdateEtagGuard:
         assert "stale" in logged_msg
 
     def test_missing_fetched_at_uses_coalesce_fill_only(self) -> None:
-        ingester = _make_ingester()
-        db = _make_db("2026-06-10T10:00:00")
+        etag_mgr, db = _make_etag_mgr("2026-06-10T10:00:00")
 
-        ingester._update_etag(db, 42, "etag-x", "Mon, 01 Jun 2026", None)
+        etag_mgr.update("etag-x", "Mon, 01 Jun 2026", None)
 
         db.execute.assert_called_once()
         db.commit.assert_called_once()
@@ -70,10 +59,9 @@ class TestUpdateEtagGuard:
         assert "COALESCE(last_modified, ?)" in sql
 
     def test_missing_fetched_at_does_not_overwrite_existing_etag(self) -> None:
-        ingester = _make_ingester()
-        db = _make_db("2026-06-10T10:00:00")
+        etag_mgr, db = _make_etag_mgr("2026-06-10T10:00:00")
 
-        ingester._update_etag(db, 42, "etag-stale", "Mon, 01 Jun 2026", None)
+        etag_mgr.update("etag-stale", "Mon, 01 Jun 2026", None)
 
         sql = db.execute.call_args[0][0]
         assert "COALESCE(etag, ?)" in sql, (
@@ -81,20 +69,21 @@ class TestUpdateEtagGuard:
         )
 
     def test_missing_fetched_at_fills_null_etag(self) -> None:
-        ingester = _make_ingester()
-        db = _make_db(None)
+        etag_mgr, db = _make_etag_mgr(None)
 
-        ingester._update_etag(db, 42, "etag-first", "Mon, 01 Jun 2026", None)
+        etag_mgr.update("etag-first", "Mon, 01 Jun 2026", None)
 
         db.execute.assert_called_once()
         sql = db.execute.call_args[0][0]
         assert "COALESCE(etag, ?)" in sql
 
     def test_both_none_returns_early_no_db_query(self) -> None:
-        ingester = _make_ingester()
-        db = MagicMock()
+        from rag.ingestion.etag_manager import ETagManager
 
-        ingester._update_etag(db, 42, None, None, "2026-06-01T10:00:00")
+        db = MagicMock()
+        etag_mgr = ETagManager(db, 42)
+
+        etag_mgr.update(None, None, "2026-06-01T10:00:00")
 
         db.execute.assert_not_called()
         db.fetchall.assert_not_called()

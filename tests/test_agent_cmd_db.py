@@ -5,9 +5,8 @@ Behavior-lock tests for _DbMixin slash-command handlers.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
-
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -28,7 +27,9 @@ def _make_cmd(*, delete_doc_return: bool = True) -> _DbMixin:
     session.delete_document.return_value = delete_doc_return
     tools = AsyncMock()
     services = SimpleNamespace(tools=tools)
-    ctx = SimpleNamespace(session=session, services=services)
+    ctx = SimpleNamespace(
+        session=session, services=services, services_required=services
+    )
     cmd = object.__new__(_DbMixin)
     cmd._ctx = ctx  # type: ignore[attr-defined]
 
@@ -43,7 +44,7 @@ def _make_cmd(*, delete_doc_return: bool = True) -> _DbMixin:
                 self._out.write_validation_error("/db rag clean <url>")  # type: ignore[attr-defined]
                 return
             try:
-                result = await self._cmd._ctx.services.tools.execute(  # type: ignore[attr-defined]
+                result = await self._cmd._ctx.services_required.tools.execute(  # type: ignore[attr-defined]
                     "rag_delete_document", {"url": url}
                 )
                 if result.is_error:
@@ -64,7 +65,7 @@ def _make_cmd(*, delete_doc_return: bool = True) -> _DbMixin:
             args_dict = {"limit": limit}
             if lang:
                 args_dict["lang"] = lang
-            tools = self._cmd._ctx.services.tools  # type: ignore[attr-defined]
+            tools = self._cmd._ctx.services_required.tools  # type: ignore[attr-defined]
             if tools is None:
                 self._out.write_error(  # type: ignore[attr-defined]
                     "rag-pipeline-mcp unavailable: tool executor not initialized"
@@ -99,7 +100,9 @@ def _make_cmd(*, delete_doc_return: bool = True) -> _DbMixin:
             try:
                 result = svc.recover(url)
                 if result.integrity_ok:
-                    self._out.write_success(f"Recovery succeeded: {result.detail} [RAG]")  # type: ignore[attr-defined]
+                    self._out.write_success(
+                        f"Recovery succeeded: {result.detail} [RAG]"
+                    )  # type: ignore[attr-defined]
                 else:
                     self._out.write_no_data(f"Recovery failed: {result.detail} [RAG]")  # type: ignore[attr-defined]
             except Exception as e:
@@ -139,7 +142,9 @@ def _make_cmd(*, delete_doc_return: bool = True) -> _DbMixin:
             svc = DbMaintenanceService()
             try:
                 result = svc.checkpoint(mode)
-                self._out.write(f"  [db] checkpoint complete mode={result.mode} pages={result.pages_written}")  # type: ignore[attr-defined]
+                self._out.write(
+                    f"  [db] checkpoint complete mode={result.mode} pages={result.pages_written}"
+                )  # type: ignore[attr-defined]
             except Exception as e:
                 self._out.write_error(f"  [db] checkpoint failed: {e}")  # type: ignore[attr-defined]
                 raise
@@ -156,9 +161,8 @@ def _make_cmd(*, delete_doc_return: bool = True) -> _DbMixin:
                 raise
 
         async def purge(self, rest: str) -> None:
-            from agent.services.db_maintenance_service import DbMaintenanceService
-
             from agent.commands.utils import parse_command_args
+            from agent.services.db_maintenance_service import DbMaintenanceService
 
             svc = DbMaintenanceService()
             try:
@@ -182,9 +186,13 @@ def _make_cmd(*, delete_doc_return: bool = True) -> _DbMixin:
             try:
                 result = svc.recover_session(url)
                 if result.integrity_ok:
-                    self._out.write_success(f"Recovery succeeded: {result.detail} [Session]")  # type: ignore[attr-defined]
+                    self._out.write_success(
+                        f"Recovery succeeded: {result.detail} [Session]"
+                    )  # type: ignore[attr-defined]
                 else:
-                    self._out.write_no_data(f"Recovery failed: {result.detail} [Session]")  # type: ignore[attr-defined]
+                    self._out.write_no_data(
+                        f"Recovery failed: {result.detail} [Session]"
+                    )  # type: ignore[attr-defined]
             except Exception as e:
                 if "detail" not in str(e):
                     self._out.write_error(f"  [db] recover failed: {e}")  # type: ignore[attr-defined]
@@ -203,7 +211,7 @@ class TestCmdDbClean:
 
     def test_clean_success(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        cmd._ctx.services.tools.execute = AsyncMock(
+        cmd._ctx.services_required.tools.execute = AsyncMock(
             return_value=self._make_tool_result("Deleted: http://example.com")
         )
         _run_db(cmd, "rag clean http://example.com")
@@ -211,7 +219,7 @@ class TestCmdDbClean:
 
     def test_clean_not_found(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        cmd._ctx.services.tools.execute = AsyncMock(
+        cmd._ctx.services_required.tools.execute = AsyncMock(
             return_value=self._make_tool_result(
                 "not found: http://example.com", is_error=True
             )
@@ -223,7 +231,7 @@ class TestCmdDbClean:
         cmd = _make_cmd()
         _run_db(cmd, "rag clean")
         assert "usage" in capsys.readouterr().out.lower()
-        cmd._ctx.services.tools.execute.assert_not_awaited()
+        cmd._ctx.services_required.tools.execute.assert_not_awaited()
 
 
 class TestCmdDbStats:
@@ -367,14 +375,14 @@ class TestDbListUrls:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cmd = _make_cmd()
-        cmd._ctx.services.tools = None
+        cmd._ctx.services_required.tools = None
         _run_db(cmd, "rag urls")
         out = capsys.readouterr().out
         assert "unavailable" in out.lower()
 
     def test_list_urls_shows_output(self, capsys: pytest.CaptureFixture) -> None:
         cmd = _make_cmd()
-        cmd._ctx.services.tools.execute = AsyncMock(
+        cmd._ctx.services_required.tools.execute = AsyncMock(
             return_value=self._make_result("http://example.com/page1  [ja]")
         )
         _run_db(cmd, "rag urls")
@@ -383,17 +391,21 @@ class TestDbListUrls:
 
     def test_list_urls_with_lang_filter(self) -> None:
         cmd = _make_cmd()
-        cmd._ctx.services.tools.execute = AsyncMock(return_value=self._make_result(""))
+        cmd._ctx.services_required.tools.execute = AsyncMock(
+            return_value=self._make_result("")
+        )
         _run_db(cmd, "rag urls --lang ja")
-        cmd._ctx.services.tools.execute.assert_awaited_once_with(
+        cmd._ctx.services_required.tools.execute.assert_awaited_once_with(
             "rag_list_documents", {"limit": 20, "lang": "ja"}
         )
 
     def test_list_urls_with_limit_filter(self) -> None:
         cmd = _make_cmd()
-        cmd._ctx.services.tools.execute = AsyncMock(return_value=self._make_result(""))
+        cmd._ctx.services_required.tools.execute = AsyncMock(
+            return_value=self._make_result("")
+        )
         _run_db(cmd, "rag urls --limit 50")
-        cmd._ctx.services.tools.execute.assert_awaited_once_with(
+        cmd._ctx.services_required.tools.execute.assert_awaited_once_with(
             "rag_list_documents", {"limit": 50}
         )
 
@@ -401,7 +413,7 @@ class TestDbListUrls:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cmd = _make_cmd()
-        cmd._ctx.services.tools.execute = AsyncMock(
+        cmd._ctx.services_required.tools.execute = AsyncMock(
             return_value=self._make_result("service error", is_error=True)
         )
         _run_db(cmd, "rag urls")

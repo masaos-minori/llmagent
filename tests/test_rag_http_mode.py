@@ -41,7 +41,7 @@ async def test_remote_empty_sets_result_source_remote() -> None:
     async def mock_call_rag_service(*args, **kwargs):
         return "", 200, 30.0
 
-    with patch("rag.pipeline.call_rag_service", mock_call_rag_service):
+    with patch("rag.http_augment.call_rag_service", mock_call_rag_service):
         await pipeline.augment("query")
 
     assert pipeline.last_search_diagnostics.http_result_kind == HttpResultKind.EMPTY
@@ -63,7 +63,7 @@ async def test_remote_empty_does_not_trigger_in_process(monkeypatch) -> None:
     run_mock = AsyncMock()
     monkeypatch.setattr(pipeline, "run", run_mock)
 
-    with patch("rag.pipeline.call_rag_service", mock_call_rag_service):
+    with patch("rag.http_augment.call_rag_service", mock_call_rag_service):
         result = await pipeline.augment("test query")
 
     assert result == ""
@@ -96,7 +96,7 @@ async def test_in_process_fallback_sets_result_source_fallback(monkeypatch) -> N
         ),
     )
     with (
-        patch("rag.pipeline.call_rag_service", mock_call_rag_service),
+        patch("rag.http_augment.call_rag_service", mock_call_rag_service),
         patch(
             "rag.pipeline.SQLiteHelper",
             return_value=MagicMock(open=MagicMock(return_value=mock_db)),
@@ -109,7 +109,9 @@ async def test_in_process_fallback_sets_result_source_fallback(monkeypatch) -> N
     assert sd.http_result_kind == HttpResultKind.ERROR
     assert sd.remote_status_code == 503
     assert sd.remote_latency_ms == 100.0
-    assert sd.fallback_reason is not None
+    assert any(
+        r.get("fallback_reason") is not None for r in pipeline.last_stage_results
+    )
 
 
 @pytest.mark.asyncio
@@ -140,7 +142,7 @@ async def test_fallback_reason_propagated_to_diagnostics(monkeypatch) -> None:
         ),
     )
     with (
-        patch("rag.pipeline.call_rag_service", mock_call_rag_service),
+        patch("rag.http_augment.call_rag_service", mock_call_rag_service),
         patch(
             "rag.pipeline.SQLiteHelper",
             return_value=MagicMock(open=MagicMock(return_value=mock_db)),
@@ -148,4 +150,6 @@ async def test_fallback_reason_propagated_to_diagnostics(monkeypatch) -> None:
     ):
         await pipeline.augment("query")
 
-    assert pipeline.last_search_diagnostics.fallback_reason is not None
+    assert any(
+        r.get("fallback_reason") is not None for r in pipeline.last_stage_results
+    )

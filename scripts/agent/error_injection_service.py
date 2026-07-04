@@ -68,4 +68,4 @@ class ErrorInjectionService:
             turn,
             e.kind,
         )
-        return err.summary
+        return str(err.summary)

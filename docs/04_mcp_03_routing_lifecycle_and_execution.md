@@ -383,11 +383,15 @@ At startup, the agent logs one of:
 - `Watchdog disabled (mcp_watchdog_interval=0)` — when interval is 0
 
 - Polls every `mcp_watchdog_interval` seconds
-- Checks `/health` for HTTP servers (all modes: subprocess, persistent, externally-managed)
-- On failure: calls `_ServerLifecycleRouter.restart(server_key)` for subprocess-mode servers
+- Calls `GET /health` for HTTP servers (all modes: subprocess, persistent, externally-managed)
+- **Restart is gated on `restart_recommended` body field:**
+  - `reachable=False` (no HTTP response): attempt restart for subprocess-mode servers if under `mcp_watchdog_max_restarts`
+  - `reachable=True` and `restart_recommended=true`: attempt restart as above
+  - `reachable=True` and `restart_recommended=false`: no restart; if `operator_action_required=true`, log WARNING (missing credentials, missing binary, etc.)
+- On restart: calls `_ServerLifecycleRouter.restart(server_key)` for subprocess-mode servers
   1. `proc.terminate()` → wait 3s → `proc.kill()` if needed
   2. `start_http_subprocess()` — respawn + poll `/health`
-- Externally-managed servers: logs warning only (no restart capability)
+- Externally-managed servers (non-subprocess): logs warning only, no restart
 - Max restarts: `mcp_watchdog_max_restarts` (default 3)
 
 ---

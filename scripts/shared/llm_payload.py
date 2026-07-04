@@ -51,7 +51,7 @@ class LlmPayloadHandler:
         finish_reason = choice.get("finish_reason")
         if finish_reason is not None and not isinstance(finish_reason, str):
             finish_reason = None
-        usage = LlmSseHelpers.parse_usage(raw, on_usage)
+        usage = LlmSseHelpers.parse_usage(raw, on_usage)  # type: ignore[arg-type]
         return LLMResponse(
             message=message_raw,  # type: ignore[arg-type]
             finish_reason=finish_reason,
@@ -59,7 +59,9 @@ class LlmPayloadHandler:
         )
 
     @staticmethod
-    def parse_non_stream_response(content: bytes, on_usage: object | None = None) -> LLMResponse:
+    def parse_non_stream_response(
+        content: bytes, on_usage: object | None = None
+    ) -> LLMResponse:
         """Parse a non-streaming LLM response body into LLMResponse."""
         raw = orjson.loads(content)
         if not isinstance(raw, dict):

@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 async def _do_ack(
-    db: object,
-    cfg: object,
+    db: Any,
+    cfg: Any,
     event_id: str,
     consumer_id: str = "",
 ) -> dict[str, Any]:

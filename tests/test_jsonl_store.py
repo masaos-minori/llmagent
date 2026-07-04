@@ -106,7 +106,9 @@ class TestEntryFromDict:
         assert entry is not None
         assert entry.tags == ["a", "b"]
 
-    def test_importance_is_coerced_to_float(self) -> None:
+    def test_importance_string_raises_schema_error(self) -> None:
+        from agent.memory.exceptions import MemorySchemaError
+
         d = {
             "memory_id": "m-4",
             "memory_type": "semantic",
@@ -114,9 +116,8 @@ class TestEntryFromDict:
             "content": "test",
             "importance": "0.9",
         }
-        entry = _entry_from_dict(d)
-        assert entry is not None
-        assert entry.importance == 0.9
+        with pytest.raises(MemorySchemaError):
+            _entry_from_dict(d)
 
     def test_pinned_is_coerced_to_bool(self) -> None:
         d = {

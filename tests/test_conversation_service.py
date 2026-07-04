@@ -34,7 +34,7 @@ def _make_ctx(
     ctx.stats.stat_tool_errors = 1
     ctx.stats.stat_latency = {"llm": [0.1, 0.2]}
     ctx.stats.stat_semantic_cache_hits = 2
-    ctx.services.llm = None
+    ctx.services_required.llm = None
     return ctx
 
 

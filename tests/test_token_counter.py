@@ -14,11 +14,11 @@ import orjson
 import pytest
 from shared.token_counter import (
     _estimate_chars,
-    _estimate_tokens,
     _serialise_for_tokenize,
     _WarnOnce,
     get_token_count,
 )
+from shared.token_estimation import estimate_tokens as _estimate_tokens
 from shared.types import LLMMessage
 
 

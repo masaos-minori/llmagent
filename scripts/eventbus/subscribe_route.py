@@ -51,19 +51,23 @@ async def subscribe(
         sub = broker.subscribe(list(topic))
         try:
             # Step 2: replay from SQLite
-            def _fetch_replay() -> list:
+            def _fetch_replay() -> list[Any]:
                 if topic:
                     placeholders = ",".join("?" for _ in topic)
-                    return db.execute(
-                        f"SELECT seq, event_id, topic, payload, producer, published_at"
-                        f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq",
-                        (start_seq, *topic),
+                    return list(
+                        db.execute(
+                            f"SELECT seq, event_id, topic, payload, producer, published_at"
+                            f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq",
+                            (start_seq, *topic),
+                        ).fetchall()
+                    )
+                return list(
+                    db.execute(
+                        "SELECT seq, event_id, topic, payload, producer, published_at"
+                        " FROM events WHERE seq > ? ORDER BY seq",
+                        (start_seq,),
                     ).fetchall()
-                return db.execute(
-                    "SELECT seq, event_id, topic, payload, producer, published_at"
-                    " FROM events WHERE seq > ? ORDER BY seq",
-                    (start_seq,),
-                ).fetchall()
+                )
 
             rows = await asyncio.to_thread(_fetch_replay)
             replay_ceil = start_seq
@@ -94,7 +98,7 @@ async def subscribe(
     return StreamingResponse(_sse_gen(), media_type="text/event-stream")
 
 
-def _row_to_dict(row: object) -> dict[str, Any]:
+def _row_to_dict(row: Any) -> dict[str, Any]:
     return {
         "seq": row["seq"],
         "event_id": row["event_id"],

@@ -136,15 +136,21 @@ class MCPServer:
         """Return a health status dict and HTTP status code for HTTP server diagnostics.
 
         Canonical response shape:
-          status:       "ok" (all deps healthy) or "degraded" (any dep failed)
-          ready:        True when status="ok", False when status="degraded"
-          dependencies: dict of dep_name -> error_message; empty when healthy
-          details:      server-specific supplementary info (may be empty)
+          status:                   "ok" (all deps healthy) or "degraded" (any dep failed)
+          ready:                    True when status="ok", False when status="degraded"
+          liveness:                 True if the server process is alive and can accept requests;
+                                    False if it cannot (fatal internal state).
+          restart_recommended:      True signals the watchdog that a process restart may resolve
+                                    the failure; False means restart will not help.
+          operator_action_required: True means human intervention is needed (missing credentials,
+                                    missing binary, etc.).
+          dependencies:             dict of dep_name -> error_message; empty when healthy
+          details:                  server-specific supplementary info (may be empty)
 
         HTTP status code: 200 when ready=True, 503 when ready=False.
 
-        Watchdog semantics: the watchdog checks only the HTTP status code.
-        Body fields (status, ready) are not inspected by the watchdog.
+        Watchdog restart policy is gated on restart_recommended;
+        operator_action_required=True produces a warning-only log.
         """
         deps: dict[str, str] = {}
         ready = len(deps) == 0
@@ -152,6 +158,9 @@ class MCPServer:
         return {
             "status": "ok" if ready else "degraded",
             "ready": ready,
+            "liveness": True,
+            "restart_recommended": False,
+            "operator_action_required": False,
             "dependencies": deps,
             "details": {},
         }, status_code

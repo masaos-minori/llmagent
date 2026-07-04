@@ -8,8 +8,8 @@ import hashlib
 import sqlite3
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 
+from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.ingester import RagIngester
 
 # ── _is_file_unchanged() ─────────────────────────────────────────────────────
@@ -17,28 +17,32 @@ from rag.ingestion.ingester import RagIngester
 
 class TestIsFileUnchanged:
     def test_same_etag_returns_true(self) -> None:
-        assert RagIngester._is_file_unchanged("abc", "2024-01-01", "abc", "2024-01-02")
+        assert DocumentManager._is_file_unchanged(
+            "abc", "2024-01-01", "abc", "2024-01-02"
+        )
 
     def test_different_etag_returns_false(self) -> None:
-        assert not RagIngester._is_file_unchanged(
+        assert not DocumentManager._is_file_unchanged(
             "abc", "2024-01-01", "xyz", "2024-01-01"
         )
 
     def test_none_existing_etag_returns_false(self) -> None:
-        assert not RagIngester._is_file_unchanged(
+        assert not DocumentManager._is_file_unchanged(
             None, "2024-01-01", "abc", "2024-01-01"
         )
 
     def test_none_new_etag_returns_false(self) -> None:
-        assert not RagIngester._is_file_unchanged(
+        assert not DocumentManager._is_file_unchanged(
             "abc", "2024-01-01", None, "2024-01-01"
         )
 
     def test_both_none_returns_false(self) -> None:
-        assert not RagIngester._is_file_unchanged(None, None, None, None)
+        assert not DocumentManager._is_file_unchanged(None, None, None, None)
 
     def test_mtime_changed_but_sha256_same_returns_true(self) -> None:
-        assert RagIngester._is_file_unchanged("abc", "2024-01-01", "abc", "2024-01-02")
+        assert DocumentManager._is_file_unchanged(
+            "abc", "2024-01-01", "abc", "2024-01-02"
+        )
 
 
 # ── WebCrawler: mtime + SHA-256 in payload ───────────────────────────────────
@@ -154,64 +158,84 @@ class TestGetOrCreateDocumentFreshness:
         ingester = _make_ingester(tmp_path)
         ingester.close()
 
+        doc_mgr = DocumentManager(db)  # type: ignore[arg-type]
         result = ingester._get_or_create_document(
-            db, url, "test.txt", "en", force=False, etag=sha, last_modified="2024-01-02"
+            doc_mgr,
+            db,
+            url,
+            "test.txt",
+            "en",
+            force=False,
+            etag=sha,
+            last_modified="2024-01-02",
         )
         assert result is None
 
     def test_changed_sha256_triggers_reingest(self, tmp_path: Path) -> None:
+        from unittest.mock import MagicMock
+
         url = "file:///tmp/test.txt"
         db, _doc_id = _make_fake_db(url, "old_sha", "2024-01-01")
         ingester = _make_ingester(tmp_path)
         ingester.close()
 
-        with patch.object(ingester, "_delete_existing_document") as mock_del:
-            ingester._get_or_create_document(
-                db,
-                url,
-                "test.txt",
-                "en",
-                force=False,
-                etag="new_sha",
-                last_modified="2024-01-02",
-            )
-        mock_del.assert_called_once()
+        mock_doc_mgr = MagicMock()
+        mock_doc_mgr.handle_existing_document.return_value = False
+        ingester._get_or_create_document(
+            mock_doc_mgr,
+            db,
+            url,
+            "test.txt",
+            "en",
+            force=False,
+            etag="new_sha",
+            last_modified="2024-01-02",
+        )
+        mock_doc_mgr.delete_existing_document.assert_called_once()
 
     def test_force_true_skips_freshness_check(self, tmp_path: Path) -> None:
+        from unittest.mock import MagicMock
+
         sha = "abc123"
         url = "file:///tmp/test.txt"
         db, _doc_id = _make_fake_db(url, sha, "2024-01-01")
         ingester = _make_ingester(tmp_path)
         ingester.close()
 
-        with patch.object(ingester, "_delete_existing_document") as mock_del:
-            ingester._get_or_create_document(
-                db,
-                url,
-                "test.txt",
-                "en",
-                force=True,
-                etag=sha,
-                last_modified="2024-01-01",
-            )
+        mock_doc_mgr = MagicMock()
+        mock_doc_mgr.handle_existing_document.return_value = False
+        ingester._get_or_create_document(
+            mock_doc_mgr,
+            db,
+            url,
+            "test.txt",
+            "en",
+            force=True,
+            etag=sha,
+            last_modified="2024-01-01",
+        )
         # force=True always calls delete regardless of hash equality
-        mock_del.assert_called_once()
+        mock_doc_mgr.delete_existing_document.assert_called_once()
 
     def test_non_file_url_uses_etag_update_path(self, tmp_path: Path) -> None:
+        from unittest.mock import MagicMock
+
         url = "https://example.com/doc"
         db, doc_id = _make_fake_db(url, "old_etag", "2024-01-01")
         ingester = _make_ingester(tmp_path)
         ingester.close()
 
-        with patch.object(ingester, "_update_etag") as mock_update:
-            result = ingester._get_or_create_document(
-                db,
-                url,
-                "doc",
-                "en",
-                force=False,
-                etag="new_etag",
-                last_modified="2024-01-02",
-            )
+        mock_doc_mgr = MagicMock()
+        mock_doc_mgr.handle_existing_document.return_value = True
+        result = ingester._get_or_create_document(
+            mock_doc_mgr,
+            db,
+            url,
+            "doc",
+            "en",
+            force=False,
+            etag="new_etag",
+            last_modified="2024-01-02",
+        )
         assert result is None
-        mock_update.assert_called_once()
+        mock_doc_mgr.handle_existing_document.assert_called_once()

@@ -8,22 +8,19 @@ Search provider: DuckDuckGo (no API key required).
 
 from __future__ import annotations
 
-import time
 from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
 from mcp.dispatch import DispatchResult
 from mcp.models import CallToolRequest, CallToolResponse
 from mcp.server import MCPServer
-from mcp.web_search.formatters import dispatch_web_tool, fmt_search_result, search_web
+from mcp.web_search.formatters import dispatch_web_tool, search_web
 from mcp.web_search.models import (
     SearchRequest,
     SearchResponse,
-    SearchResult,
     WebSearchConfig,
     WebSearchUpstreamError,
 )
@@ -67,6 +64,9 @@ async def health() -> JSONResponse:
         {
             "status": "ok" if ready else "degraded",
             "ready": ready,
+            "liveness": True,
+            "restart_recommended": False,
+            "operator_action_required": False,
             "dependencies": deps,
             "details": {},
         },

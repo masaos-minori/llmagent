@@ -111,8 +111,8 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.turn.current_turn_id = "test-turn-id"
     ctx.workflow.workflow_id = None
     ctx.session.session_id = None
-    ctx.services.audit_logger = None
-    ctx.services.tools = AsyncMock()
+    ctx.services_required.audit_logger = None
+    ctx.services_required.tools = AsyncMock()
     return ctx
 
 
@@ -161,7 +161,7 @@ class TestCheckApproval:
     async def test_audit_log_written_on_medium_approval(self) -> None:
         ctx = _make_ctx()
         audit = MagicMock()
-        ctx.services.audit_logger = audit
+        ctx.services_required.audit_logger = audit
         with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
             await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         audit.info.assert_called_once()
@@ -173,7 +173,7 @@ class TestCheckApproval:
     async def test_audit_log_written_on_denial(self) -> None:
         ctx = _make_ctx()
         audit = MagicMock()
-        ctx.services.audit_logger = audit
+        ctx.services_required.audit_logger = audit
         with patch("asyncio.to_thread", new=AsyncMock(return_value="n")):
             await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         logged = audit.info.call_args[0][0]
@@ -183,7 +183,7 @@ class TestCheckApproval:
     async def test_audit_log_auto_for_none_risk(self) -> None:
         ctx = _make_ctx()
         audit = MagicMock()
-        ctx.services.audit_logger = audit
+        ctx.services_required.audit_logger = audit
         with patch("builtins.input"):
             await check_approval(ctx, "list_directory", {})
         logged = audit.info.call_args[0][0]
@@ -192,7 +192,7 @@ class TestCheckApproval:
     @pytest.mark.asyncio
     async def test_audit_log_skipped_when_no_logger(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = None
+        ctx.services_required.audit_logger = None
         # Should not raise even with no audit logger
         with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
@@ -229,7 +229,7 @@ class TestCheckApproval:
     @pytest.mark.asyncio
     async def test_audit_log_skipped_when_no_logger_high_risk(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = None
+        ctx.services_required.audit_logger = None
         with patch("asyncio.to_thread", new=AsyncMock(return_value="yes")):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True
@@ -238,7 +238,7 @@ class TestCheckApproval:
     async def test_audit_logger_error_propagates(self) -> None:
         ctx = _make_ctx()
         audit = MagicMock()
-        ctx.services.audit_logger = audit
+        ctx.services_required.audit_logger = audit
         audit.info.side_effect = RuntimeError("audit error")
         with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
             with pytest.raises(RuntimeError, match="audit error"):
@@ -272,14 +272,14 @@ class TestCheckApproval:
 class TestAuditApproval:
     def test_no_op_when_audit_logger_is_none(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = None
+        ctx.services_required.audit_logger = None
         # Must not raise
         _audit_approval(ctx, "delete_file", "high", {"path": "/tmp/x"}, "approved")
 
     def test_writes_json_lines_event(self) -> None:
         ctx = _make_ctx()
         audit = MagicMock()
-        ctx.services.audit_logger = audit
+        ctx.services_required.audit_logger = audit
         _audit_approval(ctx, "shell_run", "high", {"command": "rm /tmp/x"}, "denied")
         audit.info.assert_called_once()
         payload: str = audit.info.call_args[0][0]
@@ -296,7 +296,7 @@ class TestAuditApproval:
         cfg = _make_cfg(masked_fields=["secret"])
         ctx = _make_ctx(cfg=cfg)
         audit = MagicMock()
-        ctx.services.audit_logger = audit
+        ctx.services_required.audit_logger = audit
         _audit_approval(
             ctx,
             "write_file",
@@ -310,7 +310,7 @@ class TestAuditApproval:
     def test_operation_type_in_audit_event(self) -> None:
         ctx = _make_ctx()
         audit = MagicMock()
-        ctx.services.audit_logger = audit
+        ctx.services_required.audit_logger = audit
         _audit_approval(ctx, "delete_file", "high", {"path": "/tmp/x"}, "denied")
         import orjson
 
@@ -320,7 +320,7 @@ class TestAuditApproval:
     def test_resource_scope_contains_path_keys(self) -> None:
         ctx = _make_ctx()
         audit = MagicMock()
-        ctx.services.audit_logger = audit
+        ctx.services_required.audit_logger = audit
         _audit_approval(
             ctx,
             "write_file",
@@ -337,7 +337,7 @@ class TestAuditApproval:
     def test_resource_scope_contains_branch_keys(self) -> None:
         ctx = _make_ctx()
         audit = MagicMock()
-        ctx.services.audit_logger = audit
+        ctx.services_required.audit_logger = audit
         _audit_approval(
             ctx,
             "github_create_pull_request",
@@ -361,8 +361,8 @@ class TestCheckApprovalDryRun:
         """dry_run execution output should be included in preview before prompt."""
         cfg = _make_cfg()
         ctx = _make_ctx(cfg=cfg)
-        ctx.services.tools = MagicMock()
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="Dry-run: /tmp/f (5 bytes) [new file]",
                 is_error=False,
@@ -383,15 +383,15 @@ class TestCheckApprovalDryRun:
         assert result is True
         combined = " ".join(printed)
         assert "Dry-run" in combined
-        ctx.services.tools.execute.assert_awaited_once()
+        ctx.services_required.tools.execute.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_create_directory_dry_run_result_appended_to_preview(self) -> None:
         """create_directory dry_run execution output should be included in preview before prompt."""
         cfg = _make_cfg()
         ctx = _make_ctx(cfg=cfg)
-        ctx.services.tools = MagicMock()
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="Dry-run: /tmp/newdir (0 bytes) [new directory]",
                 is_error=False,
@@ -418,21 +418,23 @@ class TestCheckApprovalDryRun:
         """shell_run is not in approval_dry_run_tools; dry_run must not be called."""
         cfg = _make_cfg(approval_dry_run_tools=[])
         ctx = _make_ctx(cfg=cfg)
-        ctx.services.tools = MagicMock()
-        ctx.services.tools.execute = AsyncMock()
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock()
 
         with patch("asyncio.to_thread", new=AsyncMock(return_value="yes")):
             await check_approval(ctx, "shell_run", {"command": "rm /tmp/x"})
 
-        ctx.services.tools.execute.assert_not_awaited()
+        ctx.services_required.tools.execute.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_dry_run_exception_does_not_abort_approval(self) -> None:
         """If dry_run raises, approval flow must continue normally."""
         cfg = _make_cfg()
         ctx = _make_ctx(cfg=cfg)
-        ctx.services.tools = MagicMock()
-        ctx.services.tools.execute = AsyncMock(side_effect=RuntimeError("mcp error"))
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=RuntimeError("mcp error")
+        )
 
         with (
             patch("builtins.print"),
@@ -449,8 +451,8 @@ class TestCheckApprovalDryRun:
         """create_directory in approval_dry_run_tools must trigger dry_run before prompt."""
         cfg = _make_cfg()
         ctx = _make_ctx(cfg=cfg)
-        ctx.services.tools = MagicMock()
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="Dry-run: /tmp/newdir [would create]",
                 is_error=False,
@@ -471,8 +473,8 @@ class TestCheckApprovalDryRun:
         assert result is True
         combined = " ".join(printed)
         assert "Dry-run" in combined
-        ctx.services.tools.execute.assert_awaited_once()
-        call_args = ctx.services.tools.execute.await_args[0]
+        ctx.services_required.tools.execute.assert_awaited_once()
+        call_args = ctx.services_required.tools.execute.await_args[0]
         assert call_args[0] == "create_directory"
         assert call_args[1]["dry_run"] is True
 
@@ -483,14 +485,14 @@ class TestCheckApprovalDryRun:
 class TestAuditToolExec:
     def test_writes_to_audit_logger_when_conditions_met(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         ctx.cfg.masked_fields = []
         ctx.turn.current_turn_id = "turn-abc"
 
         _audit_tool_exec(ctx, "read_text_file", {"path": "/tmp/f"}, False, "req-123")
 
-        ctx.services.audit_logger.info.assert_called_once()
-        logged = ctx.services.audit_logger.info.call_args[0][0]
+        ctx.services_required.audit_logger.info.assert_called_once()
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
         assert "tool_exec" in logged
         assert "req-123" in logged
         assert "operation_type" in logged
@@ -498,15 +500,15 @@ class TestAuditToolExec:
 
     def test_skips_when_audit_logger_is_none(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = None
+        ctx.services_required.audit_logger = None
         # No error raised even though logger is None
         _audit_tool_exec(ctx, "read_text_file", {}, False, "req-123")
 
     def test_skips_when_mcp_request_id_is_empty(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         _audit_tool_exec(ctx, "read_text_file", {}, False, "")
-        ctx.services.audit_logger.info.assert_not_called()
+        ctx.services_required.audit_logger.info.assert_not_called()
 
 
 # ── execute_one_tool_call() ───────────────────────────────────────────────────
@@ -516,19 +518,19 @@ class TestExecuteOneToolCall:
     @pytest.mark.asyncio
     async def test_unpacks_three_tuple_from_execute(self) -> None:
         ctx = _make_ctx()
-        ctx.services.tools = MagicMock()
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="result text", is_error=False, request_id="", server_key=""
             )
         )
-        ctx.services.gateway = MagicMock()
-        ctx.services.gateway.execute = AsyncMock(
+        ctx.services_required.gateway = MagicMock()
+        ctx.services_required.gateway.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="result text", is_error=False, request_id="", server_key=""
             )
         )
-        ctx.services.audit_logger = None
+        ctx.services_required.audit_logger = None
         ctx.cfg.use_tool_summarize = False
         ctx.cfg.tool_result_max_llm_chars = 4000
         ctx.cfg.masked_fields = []
@@ -545,26 +547,26 @@ class TestExecuteOneToolCall:
         assert name == "read_text_file"
         assert full_text == "result text"
         assert not is_error
-        ctx.services.gateway.execute.assert_awaited_once_with(
+        ctx.services_required.gateway.execute.assert_awaited_once_with(
             ctx, "read_text_file", {"path": "/tmp/f"}
         )
 
     @pytest.mark.asyncio
     async def test_audit_tool_exec_called_with_x_request_id(self) -> None:
         ctx = _make_ctx()
-        ctx.services.tools = MagicMock()
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="ok", is_error=False, request_id="req-999", server_key=""
             )
         )
-        ctx.services.gateway = MagicMock()
-        ctx.services.gateway.execute = AsyncMock(
+        ctx.services_required.gateway = MagicMock()
+        ctx.services_required.gateway.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="ok", is_error=False, request_id="req-999", server_key=""
             )
         )
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         ctx.cfg.use_tool_summarize = False
         ctx.cfg.tool_result_max_llm_chars = 4000
         ctx.cfg.masked_fields = []
@@ -573,8 +575,8 @@ class TestExecuteOneToolCall:
         tc = {"id": "call_2", "function": {"name": "read_text_file", "arguments": "{}"}}
         await execute_one_tool_call(ctx, tc, 0)
 
-        ctx.services.audit_logger.info.assert_called_once()
-        logged = ctx.services.audit_logger.info.call_args[0][0]
+        ctx.services_required.audit_logger.info.assert_called_once()
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
         assert "req-999" in logged
 
 
@@ -584,7 +586,7 @@ class TestExecuteOneToolCall:
 class TestLogApprovalDecision:
     def test_logs_structured_event(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         ctx.turn.current_turn_id = "turn-xyz"
         outcome = ApprovalOutcome(
             tool_name="write_file",
@@ -593,8 +595,8 @@ class TestLogApprovalDecision:
             escalation_reason="",
         )
         log_approval_decision(ctx, outcome)
-        ctx.services.audit_logger.info.assert_called_once()
-        logged = ctx.services.audit_logger.info.call_args[0][0]
+        ctx.services_required.audit_logger.info.assert_called_once()
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
         assert "approval_decision" in logged
         assert "write_file" in logged
         assert "task_id" in logged
@@ -603,7 +605,7 @@ class TestLogApprovalDecision:
 
     def test_no_op_when_audit_logger_none(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = None
+        ctx.services_required.audit_logger = None
         outcome = ApprovalOutcome(
             tool_name="write_file",
             risk_level=RiskLevel.MEDIUM,
@@ -637,7 +639,7 @@ class TestRunApprovalChecks:
     async def test_denied_calls_collected(self) -> None:
         cfg = _make_cfg(approval_risk_rules={"write_file": "medium"})
         ctx = _make_ctx(cfg)
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         tool_calls = [
             {
                 "id": "call_1",
@@ -660,7 +662,7 @@ class TestRunApprovalChecks:
         )
         ctx = _make_ctx(cfg)
         ctx.conv.plan_mode = True
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         tool_calls = [
             {
                 "id": "call_1",
@@ -685,7 +687,7 @@ class TestRunApprovalChecks:
         )
         ctx = _make_ctx(cfg)
         ctx.conv.plan_mode = True
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         tool_calls = [
             {
                 "id": "call_1",

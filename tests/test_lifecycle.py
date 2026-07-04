@@ -62,6 +62,7 @@ def _http_subprocess_cfg(
         auth_token="",
         startup_mode=StartupMode.SUBPROCESS,
         startup_timeout_sec=timeout,
+        cmd=["uvicorn", "test:app"],
     )
 
 

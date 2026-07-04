@@ -16,7 +16,7 @@ import httpx
 import pytest
 import respx
 import shared.plugin_registry as plugin_registry
-from shared.mcp_config import McpServerConfig, McpServerHealthRegistry
+from shared.mcp_config import McpServerConfig, McpServerHealthRegistry, TransportType
 from shared.tool_executor import ToolExecutor
 
 _TEST_URL = "http://127.0.0.1:19001"
@@ -26,16 +26,18 @@ _HTTP_TOOL = "_int_http_tool"
 
 def _make_http_executor(http: httpx.AsyncClient) -> ToolExecutor:
     cfg = McpServerConfig(
-        transport="http",
+        transport=TransportType.HTTP,
         url=_TEST_URL,
         tool_names=[_HTTP_TOOL],
     )
-    return ToolExecutor(
+    executor = ToolExecutor(
         http=http,
         cache_ttl=0,
         server_configs={_HTTP_KEY: cfg},
         discovery_map={_HTTP_TOOL: _HTTP_KEY},
     )
+    executor._resolver.resolve = lambda _: _HTTP_KEY
+    return executor
 
 
 # ── TC-A01: HTTP tool call succeeds ──────────────────────────────────────────

@@ -49,7 +49,7 @@ async def test_remote_nonempty(monkeypatch) -> None:
     ):
         return "context text", 200, 50.0
 
-    with patch("rag.pipeline.call_rag_service", mock_call_rag_service):
+    with patch("rag.http_augment.call_rag_service", mock_call_rag_service):
         await pipeline.augment("query")
 
     diag = pipeline.get_diagnostics()
@@ -83,7 +83,7 @@ async def test_remote_empty(monkeypatch) -> None:
     ):
         return "", 200, 30.0
 
-    with patch("rag.pipeline.call_rag_service", mock_call_rag_service):
+    with patch("rag.http_augment.call_rag_service", mock_call_rag_service):
         with patch("rag.pipeline.SQLiteHelper.open") as mock_open:
             await pipeline.augment("query")
 
@@ -124,7 +124,7 @@ async def test_in_process_fallback(monkeypatch) -> None:
             set_fallback_reason("connection error")
         return None, 503, 100.0
 
-    with patch("rag.pipeline.call_rag_service", mock_call_rag_service):
+    with patch("rag.http_augment.call_rag_service", mock_call_rag_service):
         with patch("rag.pipeline.SQLiteHelper.open"):
             # Also mock the in-process pipeline steps to avoid real execution
             monkeypatch.setattr(
@@ -150,11 +150,11 @@ async def test_in_process_fallback(monkeypatch) -> None:
     assert sd.http_result_kind == HttpResultKind.ERROR
     assert sd.remote_status_code == 503
     assert sd.remote_latency_ms == 100.0
-    assert sd.fallback_reason is not None
     http_sr = next(
         r for r in pipeline.last_stage_results if r["stage_name"] == "HttpAugment"
     )
     assert http_sr["status"] == "fallback"
+    assert http_sr.get("fallback_reason") is not None
 
 
 @pytest.mark.asyncio

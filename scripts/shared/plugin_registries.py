@@ -12,7 +12,9 @@ _F = typing.TypeVar("_F", bound=Callable[..., typing.Any])
 
 
 # Type alias for registered tool handlers: async function (args dict) → (output, is_error)
-ToolHandler = Callable[[dict[typing.Any, typing.Any]], typing.Awaitable[tuple[str, bool]]]
+ToolHandler = Callable[
+    [dict[typing.Any, typing.Any]], typing.Awaitable[tuple[str, bool]]
+]
 
 # ── Internal registries ───────────────────────────────────────────────────────
 
@@ -25,5 +27,5 @@ _pipeline_post: list[RagHit] = []
 
 # Mutable wrappers for values that need to be shared across modules (immutable types
 # like str/frozenset can't be updated in-place, so we use mutable containers).
-_current_loading_module: typing.MutableSequence[str] = [""]  # type: ignore[misc] — mutable list
-_builtin_command_names: typing.MutableSequence[frozenset[str]] = [frozenset()]  # type: ignore[misc] — mutable list
+_current_loading_module: typing.MutableSequence[str] = [""]
+_builtin_command_names: typing.MutableSequence[frozenset[str]] = [frozenset()]

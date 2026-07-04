@@ -27,6 +27,10 @@ class _Ctx:
         else:
             self.services = None
 
+    @property
+    def services_required(self) -> Any:
+        return self.services
+
 
 class _Mdq(_MdqMixin):
     def __init__(self, ctx: _Ctx) -> None:
@@ -35,7 +39,7 @@ class _Mdq(_MdqMixin):
 
 def _ctx_with_result(output: str, is_error: bool = False) -> _Ctx:
     ctx = _Ctx()
-    ctx.services.tools.execute = AsyncMock(
+    ctx.services_required.tools.execute = AsyncMock(
         return_value=DispatchResult(is_error=is_error, output=output)
     )
     return ctx
@@ -50,7 +54,7 @@ class TestMdqStatusCommand:
         ctx = _ctx_with_result("chunks: 42")
         mdq = _Mdq(ctx)
         await mdq._cmd_mdq_status()
-        ctx.services.tools.execute.assert_called_once_with("stats", {})
+        ctx.services_required.tools.execute.assert_called_once_with("stats", {})
 
     @pytest.mark.asyncio
     async def test_output_contains_result(self, capsys: pytest.CaptureFixture) -> None:
@@ -78,7 +82,7 @@ class TestMdqIndexCommand:
         ctx = _ctx_with_result("indexed 3 files")
         mdq = _Mdq(ctx)
         await mdq._cmd_mdq_index("/docs")
-        ctx.services.tools.execute.assert_called_once_with(
+        ctx.services_required.tools.execute.assert_called_once_with(
             "index_paths", {"paths": ["/docs"]}
         )
 
@@ -87,7 +91,7 @@ class TestMdqIndexCommand:
         ctx = _ctx_with_result("indexed 3 files")
         mdq = _Mdq(ctx)
         await mdq._cmd_mdq_index("/docs --force")
-        ctx.services.tools.execute.assert_called_once_with(
+        ctx.services_required.tools.execute.assert_called_once_with(
             "index_paths", {"paths": ["/docs"], "force": True}
         )
 
@@ -98,7 +102,7 @@ class TestMdqIndexCommand:
         await mdq._cmd_mdq_index("")
         out = capsys.readouterr().out
         assert "Usage" in out
-        ctx.services.tools.execute.assert_not_called()
+        ctx.services_required.tools.execute.assert_not_called()
 
 
 # ── /mdq refresh ──────────────────────────────────────────────────────────────
@@ -110,7 +114,7 @@ class TestMdqRefreshCommand:
         ctx = _ctx_with_result("refreshed")
         mdq = _Mdq(ctx)
         await mdq._cmd_mdq_refresh("/docs")
-        ctx.services.tools.execute.assert_called_once_with(
+        ctx.services_required.tools.execute.assert_called_once_with(
             "refresh_index", {"paths": ["/docs"]}
         )
 
@@ -119,7 +123,7 @@ class TestMdqRefreshCommand:
         ctx = _ctx_with_result("refreshed")
         mdq = _Mdq(ctx)
         await mdq._cmd_mdq_refresh("/docs --force")
-        ctx.services.tools.execute.assert_called_once_with(
+        ctx.services_required.tools.execute.assert_called_once_with(
             "refresh_index", {"paths": ["/docs"], "force": True}
         )
 
@@ -130,7 +134,7 @@ class TestMdqRefreshCommand:
         await mdq._cmd_mdq_refresh("")
         out = capsys.readouterr().out
         assert "Usage" in out
-        ctx.services.tools.execute.assert_not_called()
+        ctx.services_required.tools.execute.assert_not_called()
 
 
 # ── /mdq search ───────────────────────────────────────────────────────────────
@@ -142,7 +146,7 @@ class TestMdqSearchCommand:
         ctx = _ctx_with_result("1 result")
         mdq = _Mdq(ctx)
         await mdq._cmd_mdq_search("myquery")
-        ctx.services.tools.execute.assert_called_once_with(
+        ctx.services_required.tools.execute.assert_called_once_with(
             "search_docs", {"query": "myquery"}
         )
 
@@ -151,7 +155,7 @@ class TestMdqSearchCommand:
         ctx = _ctx_with_result("results")
         mdq = _Mdq(ctx)
         await mdq._cmd_mdq_search("myquery --limit=5")
-        call_args = ctx.services.tools.execute.call_args
+        call_args = ctx.services_required.tools.execute.call_args
         assert call_args[0][0] == "search_docs"
         assert call_args[0][1]["limit"] == 5
 
@@ -162,7 +166,7 @@ class TestMdqSearchCommand:
         await mdq._cmd_mdq_search("")
         out = capsys.readouterr().out
         assert "Usage" in out
-        ctx.services.tools.execute.assert_not_called()
+        ctx.services_required.tools.execute.assert_not_called()
 
 
 # ── /mdq outline ──────────────────────────────────────────────────────────────
@@ -174,7 +178,7 @@ class TestMdqOutlineCommand:
         ctx = _ctx_with_result("# Section\n## Sub")
         mdq = _Mdq(ctx)
         await mdq._cmd_mdq_outline("/docs/file.md")
-        ctx.services.tools.execute.assert_called_once_with(
+        ctx.services_required.tools.execute.assert_called_once_with(
             "outline", {"path": "/docs/file.md"}
         )
 
@@ -193,7 +197,7 @@ class TestMdqOutlineCommand:
         await mdq._cmd_mdq_outline("")
         out = capsys.readouterr().out
         assert "Usage" in out
-        ctx.services.tools.execute.assert_not_called()
+        ctx.services_required.tools.execute.assert_not_called()
 
 
 # ── /mdq get ──────────────────────────────────────────────────────────────────
@@ -205,7 +209,7 @@ class TestMdqGetCommand:
         ctx = _ctx_with_result("chunk content")
         mdq = _Mdq(ctx)
         await mdq._cmd_mdq_get("chunk123")
-        ctx.services.tools.execute.assert_called_once_with(
+        ctx.services_required.tools.execute.assert_called_once_with(
             "get_chunk", {"chunk_id": "chunk123"}
         )
 
@@ -214,7 +218,7 @@ class TestMdqGetCommand:
         ctx = _ctx_with_result("chunk content with neighbors")
         mdq = _Mdq(ctx)
         await mdq._cmd_mdq_get("chunk123 --with-neighbors")
-        ctx.services.tools.execute.assert_called_once_with(
+        ctx.services_required.tools.execute.assert_called_once_with(
             "get_chunk", {"chunk_id": "chunk123", "with_neighbors": True}
         )
 
@@ -225,7 +229,7 @@ class TestMdqGetCommand:
         await mdq._cmd_mdq_get("")
         out = capsys.readouterr().out
         assert "Usage" in out
-        ctx.services.tools.execute.assert_not_called()
+        ctx.services_required.tools.execute.assert_not_called()
 
 
 # ── /mdq grep ─────────────────────────────────────────────────────────────────
@@ -237,7 +241,7 @@ class TestMdqGrepCommand:
         ctx = _ctx_with_result("2 matches")
         mdq = _Mdq(ctx)
         await mdq._cmd_mdq_grep("def foo")
-        ctx.services.tools.execute.assert_called_once_with(
+        ctx.services_required.tools.execute.assert_called_once_with(
             "grep_docs", {"pattern": "def"}
         )
 
@@ -246,7 +250,7 @@ class TestMdqGrepCommand:
         ctx = _ctx_with_result("matches")
         mdq = _Mdq(ctx)
         await mdq._cmd_mdq_grep("pattern --path=/docs")
-        call_args = ctx.services.tools.execute.call_args
+        call_args = ctx.services_required.tools.execute.call_args
         assert call_args[0][0] == "grep_docs"
         assert call_args[0][1]["paths"] == ["/docs"]
 
@@ -257,7 +261,7 @@ class TestMdqGrepCommand:
         await mdq._cmd_mdq_grep("")
         out = capsys.readouterr().out
         assert "Usage" in out
-        ctx.services.tools.execute.assert_not_called()
+        ctx.services_required.tools.execute.assert_not_called()
 
 
 # ── Error handling ────────────────────────────────────────────────────────────

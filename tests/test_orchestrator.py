@@ -57,16 +57,16 @@ def _make_ctx() -> MagicMock:
         return h, _no_op
 
     hist_mgr.compress = AsyncMock(side_effect=_compress)
-    ctx.services.hist_mgr = hist_mgr
+    ctx.services_required.hist_mgr = hist_mgr
     llm_svc = MagicMock()
     llm_svc.stat_partial_completions = 0
     llm_svc.stat_parse_errors = 0
     llm_svc.stat_heartbeat_timeouts = 0
     llm_svc.stat_reconnects = 0
-    ctx.services.llm = llm_svc
-    ctx.services.audit_logger = None
-    ctx.services.memory = None
-    ctx.services.tools = None
+    ctx.services_required.llm = llm_svc
+    ctx.services_required.audit_logger = None
+    ctx.services_required.memory = None
+    ctx.services_required.tools = None
     return ctx
 
 
@@ -142,7 +142,7 @@ class TestHandleTurnLLMTransportError:
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
             await orch.handle_turn("hello")
 
-        assert ctx.services.llm.stat_partial_completions == 1
+        assert ctx.services_required.llm.stat_partial_completions == 1
 
     @pytest.mark.asyncio
     async def test_prestream_error_stores_diagnostic_not_pop(self) -> None:
@@ -185,7 +185,7 @@ class TestHandleTurnLLMTransportError:
     @pytest.mark.asyncio
     async def test_audit_logger_turn_end_written_on_success(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         orch = _make_orchestrator(ctx)
 
         with patch.object(
@@ -195,19 +195,19 @@ class TestHandleTurnLLMTransportError:
         ):
             await orch.handle_turn("hello")
 
-        assert ctx.services.audit_logger.info.called
+        assert ctx.services_required.audit_logger.info.called
 
     @pytest.mark.asyncio
     async def test_audit_logger_turn_end_written_on_partial_error(self) -> None:
         ctx = _make_ctx()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="PREMATURE_EOF", partial_text="partial")
 
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
             await orch.handle_turn("hello")
 
-        assert ctx.services.audit_logger.info.called
+        assert ctx.services_required.audit_logger.info.called
 
     @pytest.mark.asyncio
     async def test_turn_end_event_has_partial_completion_true_on_partial_error(
@@ -215,15 +215,15 @@ class TestHandleTurnLLMTransportError:
     ) -> None:
         """turn_end audit event must have partial_completion=True when LLM transport error has partial_text."""
         ctx = _make_ctx()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="PREMATURE_EOF", partial_text="partial")
 
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
             await orch.handle_turn("hello")
 
-        assert ctx.services.audit_logger.info.called
-        event = ctx.services.audit_logger.info.call_args[0][0]
+        assert ctx.services_required.audit_logger.info.called
+        event = ctx.services_required.audit_logger.info.call_args[0][0]
         import json
 
         event_dict = json.loads(event)
@@ -235,15 +235,15 @@ class TestHandleTurnLLMTransportError:
     ) -> None:
         """turn_end audit event must have partial_completion=False when LLM transport error has no partial_text."""
         ctx = _make_ctx()
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
         orch = _make_orchestrator(ctx)
         err = _make_err(kind="HTTP_500", partial_text="")
 
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
             await orch.handle_turn("hello")
 
-        assert ctx.services.audit_logger.info.called
-        event = ctx.services.audit_logger.info.call_args[0][0]
+        assert ctx.services_required.audit_logger.info.called
+        event = ctx.services_required.audit_logger.info.call_args[0][0]
         import json
 
         event_dict = json.loads(event)
@@ -258,7 +258,7 @@ class TestHandleTurnLLMTransportError:
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
             await orch.handle_turn("hello")
 
-        assert ctx.services.llm.stat_partial_completions == 1
+        assert ctx.services_required.llm.stat_partial_completions == 1
         call_args = orch._diagnostic_store.save.call_args_list
         assert any("llm_transport_error" in str(a) for a in call_args)
 
@@ -271,7 +271,7 @@ class TestHandleTurnLLMTransportError:
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
             await orch.handle_turn("hello")
 
-        assert ctx.services.llm.stat_partial_completions == 0
+        assert ctx.services_required.llm.stat_partial_completions == 0
         call_args = orch._diagnostic_store.save.call_args_list
         assert any("mid_turn_error" in str(a) for a in call_args)
 
@@ -290,7 +290,7 @@ class TestHandleTurnLLMTransportError:
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
             await orch.handle_turn("hello")
 
-        assert ctx.services.llm.stat_partial_completions == 0
+        assert ctx.services_required.llm.stat_partial_completions == 0
         orch._diagnostic_store.save.assert_called()
 
     @pytest.mark.asyncio
@@ -304,7 +304,7 @@ class TestHandleTurnLLMTransportError:
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
             await orch.handle_turn("hello")
 
-        assert ctx.services.llm.stat_partial_completions == 1
+        assert ctx.services_required.llm.stat_partial_completions == 1
         saved_content = orch._diagnostic_store.save.call_args[0][2]
         assert "[INCOMPLETE: MALFORMED_SSE_FRAME]" in saved_content
 
@@ -371,8 +371,8 @@ class TestHandleTurnLLMTransportError:
         err = _make_err(kind="PREMATURE_EOF", partial_text="partial text here")
 
         captured: list[str] = []
-        ctx.services.audit_logger = MagicMock()
-        ctx.services.audit_logger.info = lambda s: captured.append(s)
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.audit_logger.info = lambda s: captured.append(s)
 
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
             await orch.handle_turn("test message")
@@ -389,8 +389,8 @@ class TestHandleTurnLLMTransportError:
         err = _make_err(kind="CONNECT_ERROR", partial_text="")
 
         captured: list[str] = []
-        ctx.services.audit_logger = MagicMock()
-        ctx.services.audit_logger.info = lambda s: captured.append(s)
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.audit_logger.info = lambda s: captured.append(s)
 
         with patch.object(orch._llm_runner, "run", AsyncMock(side_effect=err)):
             await orch.handle_turn("test message")
@@ -452,7 +452,7 @@ class TestRunTurnLLMTransportError:
                 return first_response
             raise err
 
-        ctx.services.llm.stream = _mock_stream
+        ctx.services_required.llm.stream = _mock_stream
 
         with patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()):
             result = await orch._llm_runner.run("http://llm-test")
@@ -474,7 +474,7 @@ class TestRunTurnLLMTransportError:
         async def _mock_stream(*_args: object, **_kwargs: object) -> dict:
             raise err
 
-        ctx.services.llm.stream = _mock_stream
+        ctx.services_required.llm.stream = _mock_stream
 
         result = await orch._llm_runner.run("http://llm-test")
         assert "CONNECT_ERROR" in result.answer
@@ -511,7 +511,7 @@ class TestRunTurnLLMTransportError:
                 return first_response
             raise err
 
-        ctx.services.llm.stream = _mock_stream
+        ctx.services_required.llm.stream = _mock_stream
 
         with patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()):
             result = await orch._llm_runner.run("http://llm-test")
@@ -529,7 +529,7 @@ class TestRunTurnLLMTransportError:
         async def _mock_stream(*_args: object, **_kwargs: object) -> dict:
             raise err
 
-        ctx.services.llm.stream = _mock_stream
+        ctx.services_required.llm.stream = _mock_stream
 
         result = await orch._llm_runner.run("http://llm-test")
         assert "READ_TIMEOUT" in result.answer
@@ -558,7 +558,7 @@ class TestRunTurnNormalCompletion:
         async def _mock_stream(*_args: object, **_kwargs: object) -> LLMResponse:
             return stop_response
 
-        ctx.services.llm.stream = _mock_stream
+        ctx.services_required.llm.stream = _mock_stream
 
         result = await orch._llm_runner.run("http://llm-test")
 
@@ -584,7 +584,7 @@ class TestRunTurnNormalCompletion:
         async def _mock_stream(*_args: object, **_kwargs: object) -> LLMResponse:
             return stop_response
 
-        ctx.services.llm.stream = _mock_stream
+        ctx.services_required.llm.stream = _mock_stream
 
         result = await orch._llm_runner.run("http://llm-test")
 
@@ -730,7 +730,7 @@ class TestApprovalPendingGuard:
         assert isinstance(err, RuntimeError)
         assert "/approve" in str(err) or "/reject" in str(err)
         # LLM must not be called
-        ctx.services.llm.assert_not_called()
+        ctx.services_required.llm.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_handle_turn_not_blocked_when_approval_not_pending(self) -> None:
@@ -1059,7 +1059,9 @@ class TestWorkflowMode:
         mock_store_instance = MagicMock()
         with (
             patch("agent.orchestrator.StateStore", return_value=mock_store_instance),
-            patch("agent.orchestrator.create_task", side_effect=RuntimeError("db error")),
+            patch(
+                "agent.orchestrator.create_task", side_effect=RuntimeError("db error")
+            ),
             pytest.raises(RuntimeError, match="db error"),
         ):
             orch._init_workflow_task(ctx, "session-1", existing_task_id=None)
@@ -1073,7 +1075,7 @@ class TestHandleHistoryCompressionPersist:
     @pytest.mark.asyncio
     async def test_compress_persists_when_compressed(self) -> None:
         ctx = _make_ctx()
-        ctx.services.hist_mgr.compress = AsyncMock(
+        ctx.services_required.hist_mgr.compress = AsyncMock(
             return_value=(
                 [
                     {"role": "system", "content": "[Conversation summary]"},
@@ -1091,7 +1093,7 @@ class TestHandleHistoryCompressionPersist:
     @pytest.mark.asyncio
     async def test_compress_no_persist_when_noop(self) -> None:
         ctx = _make_ctx()
-        ctx.services.hist_mgr.compress = AsyncMock(
+        ctx.services_required.hist_mgr.compress = AsyncMock(
             return_value=(
                 [{"role": "user", "content": "unchanged"}],
                 CompressResult(
@@ -1106,7 +1108,7 @@ class TestHandleHistoryCompressionPersist:
     @pytest.mark.asyncio
     async def test_compress_persists_on_fallback_truncation(self) -> None:
         ctx = _make_ctx()
-        ctx.services.hist_mgr.compress = AsyncMock(
+        ctx.services_required.hist_mgr.compress = AsyncMock(
             return_value=(
                 [{"role": "user", "content": "remaining"}],
                 CompressResult(
@@ -1128,7 +1130,7 @@ class TestHandleHistoryCompressionPersist:
         """replace_messages() must not receive _memory_injected or _ephemeral messages."""
         ctx = _make_ctx()
         kept = {"role": "user", "content": "hello"}
-        ctx.services.hist_mgr.compress = AsyncMock(
+        ctx.services_required.hist_mgr.compress = AsyncMock(
             return_value=(
                 [
                     kept,

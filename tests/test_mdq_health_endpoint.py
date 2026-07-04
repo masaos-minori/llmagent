@@ -242,7 +242,7 @@ class TestHealthEndpointReady:
     ) -> None:
         """GET /health returns ready:true when all tables and triggers exist."""
         db_path = _create_test_db(tmp_path)
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -257,7 +257,7 @@ class TestHealthEndpointReady:
     async def test_health_response_contains_no_stub_key(self, tmp_path: Path) -> None:
         """Response must not contain a 'stub' key."""
         db_path = _create_test_db(tmp_path)
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -269,7 +269,7 @@ class TestHealthEndpointReady:
     async def test_health_response_details_fields(self, tmp_path: Path) -> None:
         """Response details contains expected fields."""
         db_path = _create_test_db(tmp_path)
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -287,7 +287,7 @@ class TestHealthEndpointReady:
     async def test_health_response_service_field(self, tmp_path: Path) -> None:
         """Response details contains 'service': 'mdq-mcp'."""
         db_path = _create_test_db(tmp_path)
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -305,7 +305,7 @@ class TestHealthEndpointMissingSchema:
     ) -> None:
         """Missing chunks table → ready:false."""
         db_path = _create_test_db_no_chunks(tmp_path)
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -323,7 +323,7 @@ class TestHealthEndpointMissingSchema:
     ) -> None:
         """Missing chunks_fts table → ready:false."""
         db_path = _create_test_db_no_chunks_fts(tmp_path)
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -385,7 +385,7 @@ class TestHealthEndpointMissingSchema:
         finally:
             conn.close()
 
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -451,7 +451,7 @@ class TestHealthEndpointMissingSchema:
         finally:
             conn.close()
 
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -466,7 +466,7 @@ class TestHealthEndpointMissingSchema:
         """FTS5 query failure → ready:false."""
         # Corrupt FTS5 by creating a regular table named chunks_fts with trigger stubs but no chunks_fts column
         db_path = _create_test_db_corrupt_fts(tmp_path)
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -480,7 +480,7 @@ class TestHealthEndpointMissingSchema:
     async def test_db_file_not_found_returns_ready_false(self, tmp_path: Path) -> None:
         """Missing DB file → ready:false."""
         db_path = str(tmp_path / "nonexistent.mdq.sqlite")
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -522,7 +522,7 @@ class TestHealthEndpointStats:
         finally:
             conn.close()
 
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -552,7 +552,7 @@ class TestHealthEndpointStats:
         finally:
             conn.close()
 
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -583,7 +583,7 @@ class TestHealthEndpointStats:
         finally:
             conn.close()
 
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -595,7 +595,7 @@ class TestHealthEndpointStats:
     async def test_last_indexed_is_none_when_no_documents(self, tmp_path: Path) -> None:
         """last_indexed is null when documents table is empty."""
         db_path = _create_test_db(tmp_path)
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -607,7 +607,7 @@ class TestHealthEndpointStats:
     async def test_health_returns_http_200_when_ready(self, tmp_path: Path) -> None:
         """HTTP 200 when ready=true (MCP-08 guidance)."""
         db_path = _create_test_db(tmp_path)
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -618,7 +618,7 @@ class TestHealthEndpointStats:
     async def test_health_returns_http_503_when_degraded(self, tmp_path: Path) -> None:
         """HTTP 503 when ready=false (MCP-08 guidance)."""
         db_path = _create_test_db_no_chunks(tmp_path)
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -631,14 +631,14 @@ class TestHealthEndpointStats:
     ) -> None:
         """Response has exactly the expected top-level keys."""
         db_path = _create_test_db(tmp_path)
-        with patch("shared.config_loader.ConfigLoader") as MockConfig:
+        with patch("mcp.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load_all.return_value = _mock_config(db_path)
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
             ) as client:
                 resp = await client.get("/health")
         body = resp.json()
-        assert set(body.keys()) == {"status", "ready", "dependencies", "details"}
+        assert {"status", "ready", "dependencies", "details"}.issubset(body.keys())
         assert body["status"] in ("ok", "degraded")
         assert isinstance(body["ready"], bool)
         assert isinstance(body["dependencies"], dict)

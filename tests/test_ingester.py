@@ -18,6 +18,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import orjson
+from rag.ingestion.document_manager import DocumentManager
 from rag.ingestion.ingester import RagIngester
 
 # Minimal rag.sqlite schema (regular tables; vec0 extension not required in tests)
@@ -440,7 +441,11 @@ class TestIngestUrlGroup:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
-                fake_db, "https://example.com/doc", [path], force=False
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/doc",
+                [path],
+                force=False,
             )
 
         row = conn.execute("SELECT chunking_strategy FROM documents").fetchone()
@@ -466,7 +471,11 @@ class TestIngestUrlGroup:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
-                fake_db, "https://example.com/doc", paths, force=False
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/doc",
+                paths,
+                force=False,
             )
 
         rows = conn.execute(
@@ -487,7 +496,11 @@ class TestIngestUrlGroup:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
-                fake_db, "https://example.com/doc", [path], force=False
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/doc",
+                [path],
+                force=False,
             )
 
         assert not path.exists()
@@ -503,7 +516,11 @@ class TestIngestUrlGroup:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
-                fake_db, "https://example.com/doc", [path], force=False
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/doc",
+                [path],
+                force=False,
             )
 
         path2 = _write_chunk(chunk_dir, "c2.json")
@@ -512,7 +529,11 @@ class TestIngestUrlGroup:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
-                fake_db, "https://example.com/doc", [path2], force=False
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/doc",
+                [path2],
+                force=False,
             )
 
         doc_count = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
@@ -536,7 +557,11 @@ class TestIngestUrlGroup:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
-                fake_db, "https://example.com/doc", [path], force=False
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/doc",
+                [path],
+                force=False,
             )
 
         assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 1
@@ -553,7 +578,11 @@ class TestIngestUrlGroup:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
-                fake_db, "https://example.com/doc", [path2], force=True
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/doc",
+                [path2],
+                force=True,
             )
 
         doc_row = conn.execute("SELECT chunking_strategy FROM documents").fetchone()
@@ -575,7 +604,11 @@ class TestIngestUrlGroup:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
-                fake_db, "https://example.com/doc", [chunk_dir / "c.json"], force=False
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/doc",
+                [chunk_dir / "c.json"],
+                force=False,
             )
 
         _write_chunk(
@@ -588,7 +621,11 @@ class TestIngestUrlGroup:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             ingester.ingest_url_group(
-                fake_db, "https://example.com/doc", [chunk_dir / "c2.json"], force=True
+                DocumentManager(fake_db),
+                fake_db,
+                "https://example.com/doc",
+                [chunk_dir / "c2.json"],
+                force=True,
             )
 
         row = conn.execute("SELECT chunking_strategy FROM documents").fetchone()
@@ -615,7 +652,11 @@ class TestIngestUrlGroup:
             patch("rag.ingestion.ingester.SQLiteHelper", return_value=fake_db),
         ):
             result = ingester.ingest_url_group(
-                fake_db, url, list(chunk_dir.iterdir()), force=False
+                DocumentManager(fake_db),
+                fake_db,
+                url,
+                list(chunk_dir.iterdir()),
+                force=False,
             )
 
         assert result.url == url

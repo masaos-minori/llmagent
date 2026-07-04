@@ -5,7 +5,7 @@ Tests for _MemoryMixin._cmd_memory() CLI help and rebuild/import-jsonl behavior.
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 
 class _MockRebuildOps:
@@ -19,7 +19,9 @@ class _MockRebuildOps:
 
         # Create a minimal context for the real implementation
         ctx = SimpleNamespace(
-            cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True, memory_embed_dim=1536)),
+            cfg=SimpleNamespace(
+                memory=SimpleNamespace(memory_embed_enabled=True, memory_embed_dim=1536)
+            ),
             services=SimpleNamespace(audit_logger=None),
             services_required=SimpleNamespace(memory=mem, audit_logger=None),
             stats=SimpleNamespace(stat_memory_consistency_failures=0),
@@ -174,7 +176,9 @@ class TestMemoryRebuild:
         mem = _make_memory_store()
         mixin._ctx.services_required.memory = mem
 
-        with patch("agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)):
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)
+        ):
             mixin._cmd_memory("rebuild --dry-run")
 
         assert any("archive" in msg.lower() for msg in messages), (
@@ -187,7 +191,9 @@ class TestMemoryRebuild:
         mem = _make_memory_store()
         mixin._ctx.services_required.memory = mem
 
-        with patch("agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)):
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+        ):
             mixin._cmd_memory("rebuild")
 
         assert any("archive" in msg.lower() for msg in messages), (
@@ -200,7 +206,9 @@ class TestMemoryRebuild:
         mem = _make_memory_store()
         mixin._ctx.services_required.memory = mem
 
-        with patch("agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)):
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+        ):
             mixin._cmd_memory("rebuild")
 
         assert any(
@@ -213,9 +221,11 @@ class TestMemoryImportJsonlAlias:
         """The import-jsonl subcommand should work as an alias for rebuild."""
         mixin, messages = _make_mixin()
         mem = _make_memory_store()
-        mixin._ctx.services.memory = mem
+        mixin._ctx.services_required.memory = mem
 
-        with patch("agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)):
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+        ):
             mixin._cmd_memory("import-jsonl")
 
         # Should produce the same output as /memory rebuild

@@ -18,7 +18,8 @@ from mcp.shell.models import (
     ShellValidationError,
     load_shell_policy,
 )
-from mcp.shell.service import ShellService, _init_sandbox, _make_preexec
+from mcp.shell.service import ShellService, _init_sandbox
+from mcp.shell.service_static_helpers import make_preexec as _make_preexec
 from shared.protocols.shell import ShellPolicy
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -212,13 +213,15 @@ class TestBuildArgv:
         svc = _make_service(
             tmp_path,
         )
-        assert svc._build_argv(["ls", "-la"]) == ["ls", "-la"]
+        assert svc._subprocess_runner.build_argv(["ls", "-la"]) == ["ls", "-la"]
 
     def test_firejail_sandbox_prepends_wrapper(self, tmp_path: Path) -> None:
         # Create ShellService with firejail backend bypassing _init_sandbox validation
         svc = _make_service(tmp_path)
-        svc._sandbox_backend = "firejail"  # inject directly to avoid shutil.which
-        result = svc._build_argv(["ls", "-la"])
+        svc._subprocess_runner._sandbox_backend = (
+            "firejail"  # inject directly to avoid shutil.which
+        )
+        result = svc._subprocess_runner.build_argv(["ls", "-la"])
         assert result[:2] == ["firejail", "--private"]
         assert "ls" in result
         assert "-la" in result

@@ -60,6 +60,15 @@ def _make_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
+    # Prevent segfault: _dlq_loop uses asyncio.to_thread() whose thread continues
+    # running even after task cancellation. If db.close() races with the thread
+    # accessing the SQLite connection, the C library crashes. Replace with a
+    # no-op coroutine that is safely cancellable.
+    async def _noop_dlq_loop(app: Any) -> None:
+        await asyncio.sleep(9999)
+
+    monkeypatch.setattr(eb_app, "_dlq_loop", _noop_dlq_loop)
+
     # Initialize app.state before creating TestClient
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

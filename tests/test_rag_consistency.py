@@ -7,12 +7,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from db.maintenance import (
-    RagConsistencyReport,
-    check_rag_consistency,
-    is_consistent,
-    summarize_issues,
-)
+from db.models import RagConsistencyReport
+from db.rag_consistency import check_rag_consistency, is_consistent, summarize_issues
 
 # ── In-memory SQLite helper ───────────────────────────────────────────────────
 

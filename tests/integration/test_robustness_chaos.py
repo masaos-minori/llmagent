@@ -18,6 +18,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 import respx
+from shared.mcp_config import TransportType
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -39,6 +40,11 @@ def _call(name: str, args: str = "{}") -> dict:
 
 def _msg(*calls) -> dict:
     return {"role": "assistant", "tool_calls": list(calls)}
+
+
+def _pin_resolver(executor, server_key: str) -> None:
+    """Route all tool calls to a single server_key (ToolRegistry not used in chaos tests)."""
+    executor._resolver.resolve = lambda _: server_key
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -168,7 +174,7 @@ class TestErrorInjectionChaos:
         from shared.tool_executor import ToolExecutor
 
         cfg = McpServerConfig(
-            transport="http",
+            transport=TransportType.HTTP,
             url="http://127.0.0.1:19002",
             cmd=[],
             tool_names=["_chaos_tool_b1"],
@@ -183,6 +189,7 @@ class TestErrorInjectionChaos:
                     cache_ttl=0,
                     server_configs={"chaos_b1": cfg},
                 )
+                _pin_resolver(executor, "chaos_b1")
                 result = await executor.execute("_chaos_tool_b1", {})
 
         assert result.is_error
@@ -195,7 +202,7 @@ class TestErrorInjectionChaos:
         from shared.tool_executor import ToolExecutor
 
         cfg = McpServerConfig(
-            transport="http",
+            transport=TransportType.HTTP,
             url="http://127.0.0.1:19003",
             cmd=[],
             tool_names=["_chaos_tool_b2a", "_chaos_tool_b2b"],
@@ -217,6 +224,7 @@ class TestErrorInjectionChaos:
                     cache_ttl=0,
                     server_configs={"chaos_b2": cfg},
                 )
+                _pin_resolver(executor, "chaos_b2")
                 r1 = await executor.execute("_chaos_tool_b2a", {})
                 r2 = await executor.execute("_chaos_tool_b2b", {})
 
@@ -230,7 +238,7 @@ class TestErrorInjectionChaos:
         from shared.tool_executor import ToolExecutor
 
         cfg = McpServerConfig(
-            transport="http",
+            transport=TransportType.HTTP,
             url="http://127.0.0.1:19004",
             cmd=[],
             tool_names=["_chaos_ok", "_chaos_fail"],
@@ -255,6 +263,7 @@ class TestErrorInjectionChaos:
                     cache_ttl=0,
                     server_configs={"chaos_b3": cfg},
                 )
+                _pin_resolver(executor, "chaos_b3")
                 ok, fail = await asyncio.gather(
                     executor.execute("_chaos_ok", {}),
                     executor.execute("_chaos_fail", {}),
@@ -346,7 +355,7 @@ class TestNetworkChaos:
         from shared.tool_executor import ToolExecutor
 
         cfg = McpServerConfig(
-            transport="http",
+            transport=TransportType.HTTP,
             url="http://127.0.0.1:19005",
             cmd=[],
             tool_names=["_chaos_d1"],
@@ -370,6 +379,7 @@ class TestNetworkChaos:
                     cache_ttl=0,
                     server_configs={"chaos_d1": cfg},
                 )
+                _pin_resolver(executor, "chaos_d1")
                 result = await executor.execute("_chaos_d1", {})
 
         # 502 triggers retry; should succeed on retry
@@ -382,7 +392,7 @@ class TestNetworkChaos:
         from shared.tool_executor import ToolExecutor
 
         cfg = McpServerConfig(
-            transport="http",
+            transport=TransportType.HTTP,
             url="http://127.0.0.1:19006",
             cmd=[],
             tool_names=["_chaos_d2"],
@@ -399,6 +409,7 @@ class TestNetworkChaos:
                     cache_ttl=0,
                     server_configs={"chaos_d2": cfg},
                 )
+                _pin_resolver(executor, "chaos_d2")
                 result = await executor.execute("_chaos_d2", {})
 
         assert result.is_error
@@ -411,7 +422,7 @@ class TestNetworkChaos:
         from shared.tool_executor import ToolExecutor
 
         cfg = McpServerConfig(
-            transport="http",
+            transport=TransportType.HTTP,
             url="http://127.0.0.1:19007",
             cmd=[],
             tool_names=["_chaos_d3"],
@@ -427,6 +438,7 @@ class TestNetworkChaos:
                     cache_ttl=0,
                     server_configs={"chaos_d3": cfg},
                 )
+                _pin_resolver(executor, "chaos_d3")
                 result = await executor.execute("_chaos_d3", {})
 
         # Truncated JSON should cause is_error=True (parse error)

@@ -30,9 +30,7 @@ logger = logging.getLogger(__name__)
 _FTS_CANDIDATE_LIMIT = 50
 
 
-def _build_filters(
-    memory_type: str | None, branch: str = ""
-) -> tuple[str, str]:
+def _build_filters(memory_type: str | None, branch: str = "") -> tuple[str, str]:
     """Build type and branch filter clauses for SQL queries."""
     type_filter = ""
     if memory_type:
@@ -51,14 +49,15 @@ def _build_query_params(
     """Build SQL query params, type filter, and branch filter.
 
     Returns (params, type_filter_sql, branch_filter_sql).
-    The primary_param is the main search param (FTS query or vec blob).
-    Branch params are inserted before LIMIT to maintain correct ordering.
+    Param order matches SQL clause order: primary, [type], [branch, branch], limit.
     """
-    params: list[object] = [primary_param, limit]
     type_filter, branch_filter = _build_filters(memory_type, branch)
+    params: list[object] = [primary_param]
+    if memory_type:
+        params.append(memory_type)
     if branch:
-        params.insert(len(params) - 1, branch)
-        params.insert(len(params) - 1, branch)
+        params.extend([branch, branch])
+    params.append(limit)
     return params, type_filter, branch_filter
 
 

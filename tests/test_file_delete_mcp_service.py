@@ -70,6 +70,8 @@ class TestDeleteFileDryRun:
         target.write_text("x", encoding="utf-8")
 
         # Patch Path.stat to fail for this specific file during dry_run.
+        # Also bypass _require_file because exists() calls stat() internally,
+        # which would make the file appear non-existent before the dry_run block.
         original_stat = pathlib.Path.stat
 
         def _bad_stat(self: pathlib.Path, **kwargs: object) -> object:
@@ -78,6 +80,7 @@ class TestDeleteFileDryRun:
             return original_stat(self)
 
         monkeypatch.setattr(pathlib.Path, "stat", _bad_stat)
+        monkeypatch.setattr(service, "_require_file", lambda *_: None)
         req = DeleteFileRequest(path=str(target), dry_run=True)
         result = service.delete_file(req)
         assert result.deleted is False

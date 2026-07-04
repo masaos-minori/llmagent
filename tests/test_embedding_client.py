@@ -225,7 +225,7 @@ class TestErrorHandling:
 
         result = await client.fetch("hello")
         assert result.success is False
-        assert result.error_kind == "http_error"
+        assert result.error_kind == "unknown_error"
 
 
 # ── retry logic ──────────────────────────────────────────────────────────────

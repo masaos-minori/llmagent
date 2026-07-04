@@ -10,15 +10,13 @@ Covers:
 
 from __future__ import annotations
 
-from typing import Any
-
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.commands.cmd_memory import MemoryOpResult, _MemoryMixin
 from agent.memory.services import MemoryServices
-from agent.memory.store import MemoryStore
 from db.maintenance import MaintenanceMode, MaintenanceResult
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -31,15 +29,15 @@ def _make_services(
     pin_return: bool = True,
     unpin_return: bool = True,
 ) -> MagicMock:
-        """Build a MagicMock with spec=MemoryServices and a mock store."""
-        svc = MagicMock(spec=MemoryServices)
-        mock_store = MagicMock()
-        mock_store.get_by_id.return_value = get_by_id_return
-        mock_store.delete.return_value = delete_return
-        mock_store.pin.return_value = pin_return
-        mock_store.unpin.return_value = unpin_return
-        svc.store = mock_store
-        return svc
+    """Build a MagicMock with spec=MemoryServices and a mock store."""
+    svc = MagicMock(spec=MemoryServices)
+    mock_store = MagicMock()
+    mock_store.get_by_id.return_value = get_by_id_return
+    mock_store.delete.return_value = delete_return
+    mock_store.pin.return_value = pin_return
+    mock_store.unpin.return_value = unpin_return
+    svc.store = mock_store
+    return svc
 
 
 def _make_cmd(*, audit_logger=None, memory_retention_days: int = 30) -> _MemoryMixin:
@@ -114,7 +112,9 @@ def _make_cmd(*, audit_logger=None, memory_retention_days: int = 30) -> _MemoryM
                 )
             else:
                 deleted = mem.store.prune_old_memories(days)
-                self._out.write_success(f"Pruned {deleted} entries older than {days} days")  # type: ignore[attr-defined]
+                self._out.write_success(
+                    f"Pruned {deleted} entries older than {days} days"
+                )  # type: ignore[attr-defined]
 
         def memory_list(self, mem: Any, args: list[str]) -> None:
             pass
@@ -217,7 +217,11 @@ def _make_cmd(*, audit_logger=None, memory_retention_days: int = 30) -> _MemoryM
                 _emit_memory_audit(
                     ctx,
                     MemoryOpResult(
-                        ok=True, memory_id="", action="pruned", dry_run=True, count=count
+                        ok=True,
+                        memory_id="",
+                        action="pruned",
+                        dry_run=True,
+                        count=count,
                     ),
                 )
                 return
@@ -230,7 +234,8 @@ def _make_cmd(*, audit_logger=None, memory_retention_days: int = 30) -> _MemoryM
             deleted = (prune_result.data or {}).get("deleted", 0)
             self._out.write_success(f"Pruned {deleted} entries older than {days} days")  # type: ignore[attr-defined]
             _emit_memory_audit(
-                ctx, MemoryOpResult(ok=True, memory_id="", action="pruned", count=deleted)
+                ctx,
+                MemoryOpResult(ok=True, memory_id="", action="pruned", count=deleted),
             )
 
     cmd._memory_pin = _PinOpsMock(cmd._out, ctx)  # type: ignore[attr-defined]
@@ -317,7 +322,7 @@ class TestMemoryDelete:
     def test_delete_audit_logger_none(self) -> None:
         svc = _make_services(delete_return=True)
         cmd = _make_cmd(audit_logger=None)
-        cmd._ctx.services.audit_logger = None  # type: ignore[union-attr]
+        cmd._ctx.services_required.audit_logger = None  # type: ignore[union-attr]
         cmd._memory_delete(svc, ["mid-001"])  # should not raise
 
 
@@ -446,7 +451,7 @@ class TestMemoryUnknownSubcommand:
 
         svc = _make_services()
         cmd = _make_cmd()
-        cmd._ctx.services.memory = svc  # type: ignore[attr-defined]
+        cmd._ctx.services_required.memory = svc  # type: ignore[attr-defined]
         with pytest.raises(UnknownSubcommandError) as exc_info:
             cmd._cmd_memory("badcmd")
         assert exc_info.value.sub == "badcmd"
@@ -456,7 +461,7 @@ class TestMemoryUnknownSubcommand:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cmd = _make_cmd()
-        cmd._ctx.services.memory = None  # type: ignore[attr-defined]
+        cmd._ctx.services_required.memory = None  # type: ignore[attr-defined]
         cmd._cmd_memory("list")
         out = capsys.readouterr().out
         assert "disabled" in out

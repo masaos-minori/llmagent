@@ -30,3 +30,22 @@ class HealthCheckResult:
     def error_messages(self) -> list[str]:
         """Flat list of error message strings for critical failure reporting."""
         return [e.message for e in self.errors]
+
+
+@dataclass(frozen=True)
+class McpHealthProbeResult:
+    """Structured result of a single /health GET probe to an MCP server.
+
+    Fields:
+        reachable:                True if an HTTP response was received (any status code).
+        status_code:              HTTP status code, or None if connection failed.
+        restart_recommended:      Body field `restart_recommended`; False if absent or parse fails.
+        operator_action_required: Body field `operator_action_required`; False if absent or parse fails.
+        body:                     Parsed JSON body dict; empty dict if parse failed or unreachable.
+    """
+
+    reachable: bool
+    status_code: int | None
+    restart_recommended: bool
+    operator_action_required: bool
+    body: dict[str, object]

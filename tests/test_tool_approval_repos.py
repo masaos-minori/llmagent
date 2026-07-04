@@ -103,8 +103,8 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.turn.current_turn_id = "test-turn-id"
     ctx.workflow.workflow_id = None
     ctx.session.session_id = None
-    ctx.services.audit_logger = None
-    ctx.services.tools = AsyncMock()
+    ctx.services_required.audit_logger = None
+    ctx.services_required.tools = AsyncMock()
     return ctx
 
 
@@ -119,7 +119,7 @@ class TestMakeCtxDefaults:
 
     def test_ctx_audit_logger_default_none(self) -> None:
         ctx = _make_ctx()
-        assert ctx.services.audit_logger is None
+        assert ctx.services_required.audit_logger is None
 
 
 # ── check_approval(): GitHub repo allowlist pre-flight ───────────────────────
@@ -131,7 +131,7 @@ class TestCheckApprovalGitHubAllowlist:
         cfg = _make_cfg(approval_github_allowed_repos=[])
         ctx = _make_ctx(cfg=cfg)
         audit = MagicMock()
-        ctx.services.audit_logger = audit
+        ctx.services_required.audit_logger = audit
 
         result = await check_approval(
             ctx, "github_push_files", {"owner": "org", "repo": "repo"}

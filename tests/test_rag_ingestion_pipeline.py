@@ -176,7 +176,8 @@ class TestJsonLifecycle:
                 return_value=_make_fake_sqlite_helper(conn),
             ),
             patch(
-                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
             ),
         ):
             result = ingester.ingest_all()
@@ -217,7 +218,8 @@ class TestJsonLifecycle:
                 return_value=_make_fake_sqlite_helper(conn),
             ),
             patch(
-                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
             ),
         ):
             ingester.ingest_all()
@@ -303,7 +305,8 @@ class TestReingest:
                 return_value=_make_fake_sqlite_helper(conn),
             ),
             patch(
-                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
             ),
         ):
             ingester.ingest_all()
@@ -317,7 +320,8 @@ class TestReingest:
                 return_value=_make_fake_sqlite_helper(conn),
             ),
             patch(
-                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
             ),
         ):
             ingester.ingest_all()
@@ -363,7 +367,8 @@ class TestReingest:
                 return_value=_make_fake_sqlite_helper(conn),
             ),
             patch(
-                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
             ),
         ):
             ingester.ingest_all()
@@ -386,7 +391,8 @@ class TestReingest:
                 return_value=_make_fake_sqlite_helper(conn),
             ),
             patch(
-                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
             ),
         ):
             ingester.ingest_all()
@@ -431,7 +437,8 @@ class TestReingest:
                 return_value=_make_fake_sqlite_helper(conn),
             ),
             patch(
-                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
             ),
         ):
             ingester.ingest_all()
@@ -454,7 +461,8 @@ class TestReingest:
                 return_value=_make_fake_sqlite_helper(conn),
             ),
             patch(
-                "rag.ingestion.ingester.check_rag_consistency", return_value=mock_report
+                "rag.ingestion.document_manager.check_rag_consistency",
+                return_value=mock_report,
             ),
         ):
             ingester.ingest_all()

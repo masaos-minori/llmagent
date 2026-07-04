@@ -103,8 +103,8 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.turn.current_turn_id = "test-turn-id"
     ctx.workflow.workflow_id = None
     ctx.session.session_id = None
-    ctx.services.audit_logger = None
-    ctx.services.tools = AsyncMock()
+    ctx.services_required.audit_logger = None
+    ctx.services_required.tools = AsyncMock()
     return ctx
 
 
@@ -120,7 +120,7 @@ class TestCheckApprovalAllowedRoot:
         cfg = _make_cfg(allowed_root=root)
         ctx = _make_ctx(cfg=cfg)
         audit = MagicMock()
-        ctx.services.audit_logger = audit
+        ctx.services_required.audit_logger = audit
 
         result = await check_approval(ctx, "write_file", {"path": "/etc/passwd"})
 

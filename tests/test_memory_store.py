@@ -135,7 +135,12 @@ def db_conn() -> Generator[sqlite3.Connection]:
 @pytest.fixture()
 def store(db_conn: sqlite3.Connection) -> Generator[MemoryStore]:
     fake = _FakeSQLiteHelper(db_conn)
-    with patch("agent.memory.write_ops.SQLiteHelper", return_value=fake):
+    with (
+        patch("agent.memory.write_ops.SQLiteHelper", return_value=fake),
+        patch("agent.memory.store.SQLiteHelper", return_value=fake),
+        patch("agent.memory.count_ops.SQLiteHelper", return_value=fake),
+        patch("db.helper.SQLiteHelper", return_value=fake),
+    ):
         yield MemoryStore()
 
 
@@ -413,16 +418,17 @@ def _make_concurrent_store() -> tuple[MemoryStore, str]:
                 raise
 
     patcher = patch(
-        "db.helper.SQLiteHelper", side_effect=lambda mode: _ConcurrentHelper()
+        "agent.memory.write_ops.SQLiteHelper",
+        side_effect=lambda mode: _ConcurrentHelper(),
     )
     patcher.start()
     store = MemoryStore()
-    return (store, path)
+    return (store, path, patcher)
 
 
 class TestUpsertConcurrency:
     def test_concurrent_upsert_different_ids_all_persisted(self) -> None:
-        store, path = _make_concurrent_store()
+        store, path, patcher = _make_concurrent_store()
         try:
             entries = [_make_entry(memory_id=f"concurrent-{i}") for i in range(10)]
 
@@ -438,10 +444,11 @@ class TestUpsertConcurrency:
             finally:
                 conn.close()
         finally:
+            patcher.stop()
             os.unlink(path) if os.path.exists(path) else None
 
     def test_concurrent_upsert_same_id_single_row(self) -> None:
-        store, path = _make_concurrent_store()
+        store, path, patcher = _make_concurrent_store()
         try:
             entries = [
                 _make_entry(memory_id="same-id", content=f"content-{i}")
@@ -462,10 +469,11 @@ class TestUpsertConcurrency:
             finally:
                 conn.close()
         finally:
+            patcher.stop()
             os.unlink(path) if os.path.exists(path) else None
 
     def test_concurrent_upsert_same_id_last_write_wins(self) -> None:
-        store, path = _make_concurrent_store()
+        store, path, patcher = _make_concurrent_store()
         contents = [f"content-{i}" for i in range(5)]
         try:
             entries = [_make_entry(memory_id="lww-id", content=c) for c in contents]
@@ -489,10 +497,11 @@ class TestUpsertConcurrency:
             finally:
                 conn.close()
         finally:
+            patcher.stop()
             os.unlink(path) if os.path.exists(path) else None
 
     def test_concurrent_upsert_with_embedding(self) -> None:
-        store, path = _make_concurrent_store()
+        store, path, patcher = _make_concurrent_store()
         try:
 
             def _upsert_with_embedding(idx: int) -> None:
@@ -518,10 +527,11 @@ class TestUpsertConcurrency:
             finally:
                 conn.close()
         finally:
+            patcher.stop()
             os.unlink(path) if os.path.exists(path) else None
 
     def test_concurrent_upsert_busy_error_handling(self) -> None:
-        store, path = _make_concurrent_store()
+        store, path, patcher = _make_concurrent_store()
         try:
             blocker = sqlite3.connect(path, timeout=0.1)
             blocker.execute("BEGIN IMMEDIATE")
@@ -552,4 +562,5 @@ class TestUpsertConcurrency:
                         f"unexpected exception type: {type(r)}"
                     )
         finally:
+            patcher.stop()
             os.unlink(path) if os.path.exists(path) else None

@@ -140,7 +140,7 @@ def register_pipeline_stage(*, when: str = "post") -> Callable[[_F], _F]:
         )
 
     def decorator(fn: _F) -> _F:
-        _pipeline_post.append(fn)
+        _pipeline_post.append(fn)  # type: ignore[arg-type]
         logger.debug("Pipeline post-stage registered: %r", fn.__name__)
         return fn
 
@@ -149,7 +149,7 @@ def register_pipeline_stage(*, when: str = "post") -> Callable[[_F], _F]:
 
 def get_pipeline_post_stages() -> list[PipelineHook]:
     """Return a snapshot of all registered post-rerank pipeline stage hooks."""
-    return list(_pipeline_post)
+    return list(_pipeline_post)  # type: ignore[arg-type]
 
 
 # ── Accessors ─────────────────────────────────────────────────────────────────

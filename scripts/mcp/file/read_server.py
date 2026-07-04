@@ -231,6 +231,9 @@ async def health() -> JSONResponse:
         {
             "status": "ok" if ready else "degraded",
             "ready": ready,
+            "liveness": True,
+            "restart_recommended": False,
+            "operator_action_required": not ready,
             "dependencies": deps,
             "details": {},
         },

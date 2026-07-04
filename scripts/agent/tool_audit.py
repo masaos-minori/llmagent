@@ -161,6 +161,8 @@ def audit_tool_exec(
     """Write a tool_exec event with mcp_request_id to the audit log."""
     if ctx.services_required.audit_logger is None:
         return
+    if not mcp_request_id:
+        return
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
     resource_scope = _extract_resource_scope(ctx, masked)
     evt = ToolExecEvent(

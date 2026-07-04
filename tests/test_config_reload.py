@@ -31,10 +31,10 @@ def svc() -> object:
     ctx.cfg.approval.require_approval_for = []
     ctx.cfg.approval.plan_mode_enabled = False
     ctx.cfg.mcp.mcp_servers = {}
-    ctx.services.memory = None
-    ctx.services.embedding = None
-    ctx.services.retriever = None
-    ctx.services.llm = None
+    ctx.services_required.memory = None
+    ctx.services_required.embedding = None
+    ctx.services_required.retriever = None
+    ctx.services_required.llm = None
     return ConfigReloadService(ctx)
 
 
@@ -100,9 +100,9 @@ class TestDeferredReload:
         )
         ctx = MagicMock()
         ctx.cfg.mcp.mcp_servers = {"svc": old_srv}
-        ctx.services.llm = None
-        ctx.services.hist_mgr = None
-        ctx.services.tools = None
+        ctx.services_required.llm = None
+        ctx.services_required.hist_mgr = None
+        ctx.services_required.tools = None
         return ConfigReloadService(ctx), old_srv
 
     def _run(self, svc: object, new_mcp_servers: dict) -> object:  # type: ignore[type-arg]

@@ -14,7 +14,7 @@ class TestRemovedDbAliases:
         """/db urls is not a valid subcommand."""
         from agent.commands.cmd_db import _DbMixin
 
-        mixin = _DbMixin()
+        mixin = _DbMixin.__new__(_DbMixin)
         mixin._ctx = type(
             "Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()}
         )()
@@ -30,7 +30,7 @@ class TestRemovedDbAliases:
         """/db clean is not a valid subcommand."""
         from agent.commands.cmd_db import _DbMixin
 
-        mixin = _DbMixin()
+        mixin = _DbMixin.__new__(_DbMixin)
         mixin._ctx = type(
             "Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()}
         )()
@@ -45,7 +45,7 @@ class TestRemovedDbAliases:
         """/db rebuild-fts is not a valid subcommand."""
         from agent.commands.cmd_db import _DbMixin
 
-        mixin = _DbMixin()
+        mixin = _DbMixin.__new__(_DbMixin)
         mixin._ctx = type(
             "Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()}
         )()
@@ -60,7 +60,7 @@ class TestRemovedDbAliases:
         """/db recover is not a valid subcommand."""
         from agent.commands.cmd_db import _DbMixin
 
-        mixin = _DbMixin()
+        mixin = _DbMixin.__new__(_DbMixin)
         mixin._ctx = type(
             "Ctx", (), {"conv": type("Conv", (), {"debug_mode": False})()}
         )()

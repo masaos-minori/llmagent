@@ -35,10 +35,10 @@ def _make_ctx() -> MagicMock:
     ctx.conv.history = []
     ctx.session.session_id = "test-session"
     ctx.cfg.workflow_mode = ""
-    ctx.services.tools = None
-    ctx.services.rag = None
-    ctx.services.hist_mgr = None
-    ctx.services.llm = None
+    ctx.services_required.tools = None
+    ctx.services_required.rag = None
+    ctx.services_required.hist_mgr = None
+    ctx.services_required.llm = None
     # Also set services_required for _collect_stats compatibility
     ctx.services_required.tools = None
     ctx.services_required.rag = None

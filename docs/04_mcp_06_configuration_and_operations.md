@@ -112,7 +112,7 @@ curl -s http://127.0.0.1:8013/health | jq   # mdq: details.service
 curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 # sqlite-mcp (port 8011) — SELECT-only; health check via curl http://127.0.0.1:8011/health
 
-# Base response shape: {"status":"ok","ready":bool,"dependencies":{},"details":{}}
+# Base response shape: {"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}
 ```
 
 ### HTTP status code behavior
@@ -120,7 +120,7 @@ curl -s http://127.0.0.1:8014/health | jq   # git: dependencies.git
 - **HTTP 200**: Server is fully healthy (`status="ok"`, `ready=true`)
 - **HTTP 503**: Server has dependency failures (`status="degraded"`, `ready=false`)
 
-The watchdog checks only the HTTP status code, not body fields. HTTP 503 triggers server restart.
+The watchdog inspects both the HTTP status code and the `restart_recommended` body field; restart is only attempted when `restart_recommended=true` or the server is unreachable. HTTP 503 with `restart_recommended=false` (e.g. missing credentials) logs a WARNING but does not restart.
 
 ```bash
 # Check HTTP status code (not just body)
@@ -131,7 +131,15 @@ curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8006/health   # 200 if h
 
 **Base response (healthy, all servers):**
 ```json
-{"status": "ok", "ready": true, "dependencies": {}, "details": {}}
+{
+  "status": "ok",
+  "ready": true,
+  "liveness": true,
+  "restart_recommended": false,
+  "operator_action_required": false,
+  "dependencies": {},
+  "details": {}
+}
 ```
 HTTP 200 — fully healthy.
 
@@ -140,55 +148,70 @@ HTTP 200 — fully healthy.
 {
   "status": "degraded",
   "ready": false,
+  "liveness": true,
+  "restart_recommended": false,
+  "operator_action_required": true,
   "dependencies": {"shell": "sh not found in PATH"},
   "details": {"sandbox_backend": "firejail"}
 }
 ```
-HTTP 503 — `sh` is not found in PATH. Watchdog will restart the server.
+HTTP 503 — `sh` is not found in PATH. Watchdog logs WARNING but does NOT restart (`operator_action_required=true`).
 
 **rag-pipeline-mcp (port 8010) — degraded:**
 ```json
 {
   "status": "degraded",
   "ready": false,
+  "liveness": true,
+  "restart_recommended": false,
+  "operator_action_required": true,
   "dependencies": {"embed_url": "not configured"},
   "details": {}
 }
 ```
-HTTP 503 — no embedding URL is set. Watchdog will restart the server.
+HTTP 503 — no embedding URL is set. Watchdog logs WARNING but does NOT restart (`operator_action_required=true`).
 
 **github-mcp (port 8006) — degraded:**
 ```json
 {
   "status": "degraded",
   "ready": false,
+  "liveness": true,
+  "restart_recommended": false,
+  "operator_action_required": true,
   "dependencies": {"github_token": "not_set"},
   "details": {}
 }
 ```
-HTTP 503 — GitHub token is not set. Watchdog will restart the server.
+HTTP 503 — GitHub token is not set. Watchdog logs WARNING but does NOT restart (`operator_action_required=true`).
 
 **mdq-mcp (port 8013) — degraded:**
 ```json
 {
   "status": "degraded",
   "ready": false,
+  "liveness": true,
+  "restart_recommended": false,
+  "operator_action_required": true,
   "dependencies": {"db_file": "not found: /opt/llm/db/mdq.sqlite"},
   "details": {"service": "mdq-mcp", "database": "/opt/llm/db/mdq.sqlite"}
 }
 ```
-HTTP 503 — database file not found. Watchdog will restart the server.
+HTTP 503 — database file not found. Watchdog logs WARNING but does NOT restart (`operator_action_required=true`).
 
 **git-mcp (port 8014) — degraded:**
 ```json
 {
   "status": "degraded",
   "ready": false,
+  "liveness": true,
+  "restart_recommended": false,
+  "operator_action_required": true,
   "dependencies": {"git": "git not found in PATH"},
   "details": {}
 }
 ```
-HTTP 503 — git is not found in PATH. Watchdog will restart the server.
+HTTP 503 — git is not found in PATH. Watchdog logs WARNING but does NOT restart (`operator_action_required=true`).
 
 ### /v1/tools verification
 

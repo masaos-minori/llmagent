@@ -71,10 +71,10 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx = MagicMock()
     ctx.cfg = cfg or _cfg()
     ctx.turn.current_turn_id = "test-turn-id"
-    ctx.services.audit_logger = None
-    ctx.services.gateway = None
-    ctx.services.tools = MagicMock()
-    ctx.services.tools.execute = AsyncMock(
+    ctx.services_required.audit_logger = None
+    ctx.services_required.gateway = None
+    ctx.services_required.tools = MagicMock()
+    ctx.services_required.tools.execute = AsyncMock(
         return_value=ToolCallResult(
             output="result", is_error=False, request_id="req-1", server_key=""
         )
@@ -135,7 +135,7 @@ class TestExecuteWithDag:
             ]
         )
         ctx = _make_ctx(cfg)
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="ok", is_error=False, request_id="req-1", server_key=""
             )
@@ -148,7 +148,7 @@ class TestExecuteWithDag:
                 output="ok", is_error=False, request_id="req-1", server_key=""
             )
 
-        ctx.services.tools.execute = AsyncMock(side_effect=_record_exec)
+        ctx.services_required.tools.execute = AsyncMock(side_effect=_record_exec)
         await _execute_with_dag(ctx, [_tc("read_text_file"), _tc("write_file")], 0)
         # write_file should execute before read_text_file in the group order
         write_idx = call_order.index("write_file")
@@ -184,7 +184,7 @@ class TestExecuteWithDag:
                 output="ok", is_error=False, request_id="req-1", server_key=""
             )
 
-        ctx.services.tools.execute = AsyncMock(side_effect=_record_exec)
+        ctx.services_required.tools.execute = AsyncMock(side_effect=_record_exec)
         await _execute_with_dag(ctx, [_tc("shell_run"), _tc("read_text_file")], 0)
         assert call_order[0] == "shell_run"
 
@@ -231,7 +231,7 @@ class TestExecuteWithDag:
                 output="ok", is_error=False, request_id="req", server_key=""
             )
 
-        ctx.services.tools.execute = AsyncMock(side_effect=_record)
+        ctx.services_required.tools.execute = AsyncMock(side_effect=_record)
         results = await _execute_with_dag(
             ctx,
             [_tc("write_file"), _tc("github_push_files"), _tc("read_text_file")],
@@ -262,7 +262,7 @@ class TestExecuteWithDag:
             ]
         )
         ctx = _make_ctx(cfg)
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="ok", is_error=False, request_id="req", server_key=""
             )
@@ -280,8 +280,8 @@ class TestExecuteAllToolCalls:
     async def test_approved_calls_executed_and_collected(self) -> None:
         cfg = _cfg(use_tool_dag=True)
         ctx = _make_ctx(cfg)
-        ctx.services.audit_logger = MagicMock()
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="result", is_error=False, request_id="req-1", server_key=""
             )
@@ -297,7 +297,7 @@ class TestExecuteAllToolCalls:
                 ctx, [_tc("read_text_file", '{"path": "/tmp/f"}')], 0
             )
 
-        ctx.services.tools.execute.assert_awaited_once_with(
+        ctx.services_required.tools.execute.assert_awaited_once_with(
             "read_text_file", {"path": "/tmp/f"}
         )
         ctx.tool_result_store.store.assert_called_once()
@@ -308,8 +308,8 @@ class TestExecuteAllToolCalls:
         """Without gateway, all tool calls execute directly (no batch approval denial)."""
         cfg = _cfg(use_tool_dag=True)
         ctx = _make_ctx(cfg)
-        ctx.services.audit_logger = MagicMock()
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="result", is_error=False, request_id="req-1", server_key=""
             )
@@ -330,17 +330,17 @@ class TestExecuteAllToolCalls:
                 0,
             )
 
-        ctx.services.tools.execute.assert_awaited_once_with("write_file", {})
+        ctx.services_required.tools.execute.assert_awaited_once_with("write_file", {})
 
     @pytest.mark.asyncio
     async def test_no_tool_calls_does_nothing(self) -> None:
         cfg = _cfg(use_tool_dag=True)
         ctx = _make_ctx(cfg)
-        ctx.services.audit_logger = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
 
         await execute_all_tool_calls(ctx, [], 0)
 
-        ctx.services.tools.execute.assert_not_called()
+        ctx.services_required.tools.execute.assert_not_called()
         ctx.session.save_many.assert_called_once_with([])
 
     @pytest.mark.asyncio
@@ -348,8 +348,8 @@ class TestExecuteAllToolCalls:
         """Write tool without gateway should require approval before execution."""
         cfg = _cfg(use_tool_dag=True)
         ctx = _make_ctx(cfg)
-        ctx.services.audit_logger = MagicMock()
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="result", is_error=False, request_id="req-1", server_key=""
             )
@@ -367,7 +367,7 @@ class TestExecuteAllToolCalls:
         ):
             await execute_all_tool_calls(ctx, [write_call], 0)
 
-        ctx.services.tools.execute.assert_not_called()
+        ctx.services_required.tools.execute.assert_not_called()
         # Denied call should appear as tool message in history
         assert len(ctx.conv.history) == 1
         assert ctx.conv.history[-1]["role"] == "tool"
@@ -378,8 +378,8 @@ class TestExecuteAllToolCalls:
         """Denied tool calls are returned to the LLM as tool messages."""
         cfg = _cfg(use_tool_dag=True)
         ctx = _make_ctx(cfg)
-        ctx.services.audit_logger = MagicMock()
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="result", is_error=False, request_id="req-1", server_key=""
             )
@@ -398,7 +398,9 @@ class TestExecuteAllToolCalls:
         ):
             await execute_all_tool_calls(ctx, [write_call, read_call], 0)
 
-        ctx.services.tools.execute.assert_awaited_once_with("read_text_file", {})
+        ctx.services_required.tools.execute.assert_awaited_once_with(
+            "read_text_file", {}
+        )
         # Should have both the tool result and the denied message
         assert len(ctx.conv.history) == 2
         assert ctx.conv.history[-1]["role"] == "tool"
@@ -409,8 +411,8 @@ class TestExecuteAllToolCalls:
         """Plan-mode blocked tools are not executed."""
         cfg = _cfg(use_tool_dag=True)
         ctx = _make_ctx(cfg)
-        ctx.services.audit_logger = MagicMock()
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="result", is_error=False, request_id="req-1", server_key=""
             )
@@ -426,7 +428,7 @@ class TestExecuteAllToolCalls:
         ):
             await execute_all_tool_calls(ctx, [write_call], 0)
 
-        ctx.services.tools.execute.assert_not_called()
+        ctx.services_required.tools.execute.assert_not_called()
         assert len(ctx.conv.history) == 1
         assert ctx.conv.history[-1]["role"] == "tool"
         assert ctx.conv.history[-1]["content"] == "Tool execution denied by user."
@@ -436,8 +438,8 @@ class TestExecuteAllToolCalls:
         """Direct calls to execute_all_tool_calls cannot bypass approval."""
         cfg = _cfg(use_tool_dag=True)
         ctx = _make_ctx(cfg)
-        ctx.services.audit_logger = MagicMock()
-        ctx.services.tools.execute = AsyncMock(
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="result", is_error=False, request_id="req-1", server_key=""
             )
@@ -455,7 +457,7 @@ class TestExecuteAllToolCalls:
         ):
             await execute_all_tool_calls(ctx, [write_call], 0)
 
-        ctx.services.tools.execute.assert_not_called()
+        ctx.services_required.tools.execute.assert_not_called()
 
 
 class TestSerializationHelpers:
@@ -482,7 +484,7 @@ class TestExecuteStandardSerialization:
         """When a side-effect tool triggers serial execution, a serialization event is stored."""
         cfg = _cfg(serial_tool_calls=False, use_tool_dag=False)
         ctx = _make_ctx(cfg)
-        ctx.services.audit_logger = None
+        ctx.services_required.audit_logger = None
         ctx.stats.stat_serialization_events = []
         ctx.stats.stat_serialization_total_overhead_ms = 0.0
         ctx.diagnostics = None
@@ -510,7 +512,7 @@ class TestExecuteStandardSerialization:
         """When no side-effect tool is present, no serialization event is recorded."""
         cfg = _cfg(serial_tool_calls=False, use_tool_dag=False)
         ctx = _make_ctx(cfg)
-        ctx.services.audit_logger = None
+        ctx.services_required.audit_logger = None
         ctx.stats.stat_serialization_events = []
 
         read_call = _tc("read_text_file", '{"path": "/tmp/f"}')
@@ -528,7 +530,7 @@ class TestExecuteStandardSerialization:
         """When diagnostics are wired, save_serialization_event is called."""
         cfg = _cfg(serial_tool_calls=False, use_tool_dag=False)
         ctx = _make_ctx(cfg)
-        ctx.services.audit_logger = None
+        ctx.services_required.audit_logger = None
         ctx.stats.stat_serialization_events = []
         ctx.stats.stat_serialization_total_overhead_ms = 0.0
         ctx.diagnostics = MagicMock()

@@ -28,8 +28,8 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.tool.tool_definitions = []
     ctx.conv.history = []
     ctx.stats.stat_tool_errors = 0
-    ctx.services.llm = AsyncMock()
-    ctx.services.llm.stream = AsyncMock()
+    ctx.services_required.llm = AsyncMock()
+    ctx.services_required.llm.stream = AsyncMock()
     return ctx
 
 
@@ -51,15 +51,15 @@ def runner() -> LLMTurnRunner:
 class TestStreamLlm:
     async def test_returns_response(self, runner: LLMTurnRunner) -> None:
         expected = {"id": "resp_1"}
-        runner._ctx.services.llm.stream = AsyncMock(return_value=expected)
+        runner._ctx.services_required.llm.stream = AsyncMock(return_value=expected)
 
         result = await runner._stream_llm("http://llm", 0)
 
         assert result == expected
-        runner._ctx.services.llm.stream.assert_awaited_once()
+        runner._ctx.services_required.llm.stream.assert_awaited_once()
 
     async def test_propagates_transport_error(self, runner: LLMTurnRunner) -> None:
-        runner._ctx.services.llm.stream = AsyncMock(
+        runner._ctx.services_required.llm.stream = AsyncMock(
             side_effect=LLMTransportError("CONNECT_ERROR", "pre_stream", "http://llm"),
         )
 

@@ -14,6 +14,7 @@ import httpx
 import pytest
 from agent.repl_health import (
     _check_tool_definitions,
+    _probe_mcp_health_detail,
     audit_security_defaults,
     check_readiness,
     check_workflow_definition,
@@ -60,6 +61,64 @@ class TestProbeMcpHealth:
 
         result = await probe_mcp_health(http, "http://localhost:8000")
         assert result is False
+
+
+# ── _probe_mcp_health_detail() ────────────────────────────────────────────────
+
+
+class TestProbeMcpHealthDetail:
+    @pytest.mark.asyncio
+    async def test_reachable_true_restart_false_when_200_no_body_field(self) -> None:
+        """HTTP 200 with no restart_recommended field: reachable=True, restart_recommended=False."""
+        http = AsyncMock(spec=httpx.AsyncClient)
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {"status": "ok", "ready": True}
+        http.get = _async_result(resp)
+
+        result = await _probe_mcp_health_detail(http, "http://localhost:8000")
+
+        assert result.reachable is True
+        assert result.status_code == 200
+        assert result.restart_recommended is False
+        assert result.operator_action_required is False
+
+    @pytest.mark.asyncio
+    async def test_reachable_true_restart_true_when_503_and_restart_recommended(
+        self,
+    ) -> None:
+        """HTTP 503 + restart_recommended=true in body: reachable=True, restart_recommended=True."""
+        http = AsyncMock(spec=httpx.AsyncClient)
+        resp = MagicMock()
+        resp.status_code = 503
+        resp.json.return_value = {
+            "status": "degraded",
+            "ready": False,
+            "restart_recommended": True,
+            "operator_action_required": False,
+        }
+        http.get = _async_result(resp)
+
+        result = await _probe_mcp_health_detail(http, "http://localhost:8000")
+
+        assert result.reachable is True
+        assert result.status_code == 503
+        assert result.restart_recommended is True
+        assert result.operator_action_required is False
+
+    @pytest.mark.asyncio
+    async def test_reachable_false_on_connection_exception(self) -> None:
+        """Connection failure: reachable=False, status_code=None."""
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get.side_effect = httpx.ConnectError("fail")
+
+        result = await _probe_mcp_health_detail(http, "http://localhost:8000")
+
+        assert result.reachable is False
+        assert result.status_code is None
+        assert result.restart_recommended is False
+        assert result.operator_action_required is False
+        assert result.body == {}
 
 
 # ── _fetch_stdio_tools() ───────────────────────────────────────────────────────
@@ -212,7 +271,7 @@ class TestCheckServiceHealth:
         resp.status_code = 200
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = _async_result(resp)
-        ctx.services.http = http
+        ctx.services_required.http = http
 
         result = await check_service_health(ctx)
 
@@ -229,7 +288,7 @@ class TestCheckServiceHealth:
         resp.status_code = 503
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = _async_result(resp)
-        ctx.services.http = http
+        ctx.services_required.http = http
 
         result = await check_service_health(ctx)
 
@@ -246,7 +305,7 @@ class TestCheckServiceHealth:
         ctx.cfg.rag.embed_url = ""
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
-        ctx.services.http = http
+        ctx.services_required.http = http
 
         result = await check_service_health(ctx)
 
@@ -355,47 +414,12 @@ class TestAuditSecurityDefaults:
         assert len(auth_warnings) == 0
 
     def test_stdio_servers_ignored_in_production(self) -> None:
-        """Stdio servers are not checked for auth_token even in production mode."""
-        from mcp.shell.models import ShellConfig as ShellCfg
-        from shared.mcp_config import SecurityProfile
-
-        ctx = self._make_ctx(
-            servers={
-                "stdio_server": {
-                    "transport": "stdio",
-                    "auth_token": "",
-                },
-            },
-            security_profile="production",
-        )
-        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
-        cfg = ShellCfg(shell_sandbox_backend="firejail", command_allowlist=["ls"])
-        cicd_cfg = MagicMock(workflow_allowlist=["test"])
-        with patch("agent.repl_health.ShellConfig.load", return_value=cfg):
-            with patch("mcp.cicd.models.CicdConfig.load", return_value=cicd_cfg):
-                with patch("shutil.which", return_value="/usr/bin/firejail"):
-                    warnings = audit_security_defaults(ctx, production_mode=True)
-        stdio_auth_warnings = [w for w in warnings if "stdio_server" in w]
-        assert len(stdio_auth_warnings) == 0
+        """stdio transport was removed from TransportType; skip this test."""
+        pytest.skip("stdio TransportType removed")
 
     def test_production_mode_mixed_http_stdio(self) -> None:
-        """Production mode: HTTP without auth raises, stdio is ignored."""
-        from shared.mcp_config import SecurityProfile
-
-        ctx = self._make_ctx(
-            servers={
-                "http_server": {"auth_token": ""},
-                "stdio_server": {
-                    "transport": "stdio",
-                    "url": "",
-                    "auth_token": "",
-                },
-            },
-            security_profile="production",
-        )
-        ctx.cfg.mcp.security_profile = SecurityProfile.PRODUCTION
-        with pytest.raises(RuntimeError, match="Production mode requires auth_token"):
-            audit_security_defaults(ctx, production_mode=True)
+        """stdio transport was removed from TransportType; skip this test."""
+        pytest.skip("stdio TransportType removed")
 
     def test_shell_config_load_failure_is_silenced(self) -> None:
         """ShellConfig.load() raising an exception does not propagate."""
@@ -544,7 +568,7 @@ class TestCheckReadiness:
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://127.0.0.1:8001/v1/chat"
         ctx.cfg.rag.embed_url = "http://127.0.0.1:8003/embedding"
-        ctx.services.http = mock_http
+        ctx.services_required.http = mock_http
         return ctx
 
     @pytest.mark.asyncio

@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.startup import StartupOrchestrator
-from shared.mcp_config import McpServerConfig
+from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -20,10 +20,10 @@ def _make_startup(mcp_servers: dict[str, McpServerConfig]) -> StartupOrchestrato
     """Return a StartupOrchestrator with mocked ctx/view for _start_servers() tests."""
     ctx = MagicMock()
     ctx.cfg.mcp.mcp_servers = mcp_servers
-    ctx.services.tools = MagicMock()
-    ctx.services.tools.set_transport = MagicMock()
-    ctx.services.lifecycle = AsyncMock()
-    ctx.services.lifecycle.start_http_subprocess = AsyncMock()
+    ctx.services_required.tools = MagicMock()
+    ctx.services_required.tools.set_transport = MagicMock()
+    ctx.services_required.lifecycle = AsyncMock()
+    ctx.services_required.lifecycle.start_http_subprocess = AsyncMock()
     view = MagicMock()
     view.write_warning = MagicMock()
     return StartupOrchestrator(ctx, view)
@@ -31,9 +31,10 @@ def _make_startup(mcp_servers: dict[str, McpServerConfig]) -> StartupOrchestrato
 
 def _http_subprocess_cfg() -> McpServerConfig:
     return McpServerConfig(
-        transport="http",
+        transport=TransportType.HTTP,
         url="http://127.0.0.1:9999",
-        startup_mode="subprocess",
+        startup_mode=StartupMode.SUBPROCESS,
+        cmd=["echo", "hello"],
     )
 
 
@@ -50,7 +51,7 @@ class TestStartupOrchestratorStartServers:
 
         await startup._start_servers()
 
-        startup._ctx.services.lifecycle.start_http_subprocess.assert_called_once_with(
+        startup._ctx.services_required.lifecycle.start_http_subprocess.assert_called_once_with(
             "web", cfg
         )
 
@@ -58,7 +59,7 @@ class TestStartupOrchestratorStartServers:
     async def test_http_subprocess_failure_is_swallowed(self) -> None:
         cfg = _http_subprocess_cfg()
         startup = _make_startup({"web": cfg})
-        startup._ctx.services.lifecycle.start_http_subprocess.side_effect = (
+        startup._ctx.services_required.lifecycle.start_http_subprocess.side_effect = (
             RuntimeError("port busy")
         )
 
@@ -196,7 +197,7 @@ class TestStartupOrchestratorSetupPrompt:
     async def test_no_pinned_notes_block_injected(self) -> None:
         """[Pinned Notes] block must NOT appear in system prompt."""
         ctx = MagicMock()
-        ctx.services.memory = None  # memory disabled
+        ctx.services_required.memory = None  # memory disabled
         ctx.conv.system_prompt_name = "default"
         ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
         view = MagicMock()
@@ -215,7 +216,7 @@ class TestStartupOrchestratorSetupPrompt:
         ctx = MagicMock()
         mock_mem = MagicMock()
         mock_mem.on_session_start.return_value = [snippet]
-        ctx.services.memory = mock_mem
+        ctx.services_required.memory = mock_mem
         ctx.session.session_id = 1
         ctx.conv.system_prompt_name = "default"
         ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
@@ -231,7 +232,7 @@ class TestStartupOrchestratorSetupPrompt:
     async def test_no_memory_injection_when_disabled(self) -> None:
         """System prompt is unchanged when memory is disabled."""
         ctx = MagicMock()
-        ctx.services.memory = None
+        ctx.services_required.memory = None
         ctx.conv.system_prompt_name = "default"
         ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
         view = MagicMock()
@@ -246,7 +247,7 @@ class TestStartupOrchestratorSetupPrompt:
     async def test_history_set_to_system_message(self) -> None:
         """conv.history is set to [system message] after _setup_prompt."""
         ctx = MagicMock()
-        ctx.services.memory = None
+        ctx.services_required.memory = None
         ctx.conv.system_prompt_name = "default"
         ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
         view = MagicMock()

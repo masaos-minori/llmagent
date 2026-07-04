@@ -114,12 +114,12 @@ def _set_last_load_result(result: PluginLoadResult) -> None:
     _last_load_result = result
 
 
-def _reset_for_testing() -> None:  # type: ignore[name-defined] — mutable list assignment
+def _reset_for_testing() -> None:
     """Clear all registries. For test use only. Do not call from production code."""
     global _current_loading_module, _builtin_command_names, _last_load_result
     _commands.clear()
     _tools.clear()
     _pipeline_post.clear()
-    _builtin_command_names[0] = frozenset()  # type: ignore[index] — mutable list assignment
-    _current_loading_module[0] = ""  # type: ignore[index] — mutable list assignment
+    _builtin_command_names[0] = frozenset()
+    _current_loading_module[0] = ""
     _last_load_result = None
