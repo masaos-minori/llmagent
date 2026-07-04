@@ -178,7 +178,7 @@ class TestCheckRetry:
         assert result is None
 
     def test_retry_of_failed_call_blocked(self) -> None:
-        from shared.tool_executor import tool_hash_key
+        from shared.tool_executor_helpers import tool_hash_key
 
         ctx = _make_ctx()
         guard = ToolLoopGuard(ctx)
@@ -205,7 +205,7 @@ class TestCheckRetry:
 
     def test_failed_call_tracking_no_collision_across_tools(self) -> None:
         """Verify that failed-call tracking does not collide across different tools."""
-        from shared.tool_executor import tool_hash_key
+        from shared.tool_executor_helpers import tool_hash_key
 
         ctx = _make_ctx()
         guard = ToolLoopGuard(ctx)
@@ -314,7 +314,7 @@ class TestCanonicalKeyConsistency:
         assert key1 != key2
 
     def test_invalid_json_falls_back_to_empty_dict(self) -> None:
-        from shared.tool_executor import tool_hash_key
+        from shared.tool_executor_helpers import tool_hash_key
 
         key = ToolLoopGuard._canonical_key("write_file", "INVALID_JSON")
         expected = tool_hash_key("write_file", {})
@@ -342,7 +342,7 @@ class TestCheckRetryHint:
         saved = []
         ctx.diagnostics.save = lambda *a: saved.append(orjson.loads(a[2]))
 
-        from shared.tool_executor import tool_hash_key
+        from shared.tool_executor_helpers import tool_hash_key
 
         key = tool_hash_key("write_file", {"path": "a"})
         failed_calls = {key}

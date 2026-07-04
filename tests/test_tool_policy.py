@@ -83,10 +83,10 @@ class TestClassifyRisk:
         result = classify_risk(cfg, "delete_directory", {"recursive": True})
         assert result == "high"
 
-    def test_non_recursive_delete_returns_medium_by_default(self) -> None:
+    def test_non_recursive_delete_defaults_to_high_from_constants(self) -> None:
         cfg = _cfg()
         result = classify_risk(cfg, "delete_directory", {"recursive": False})
-        assert result == "medium"
+        assert result == "high"
 
     def test_base_tier_tool_with_no_path_match_returns_medium(self) -> None:
         cfg = _cfg()
@@ -288,3 +288,37 @@ class TestCheckAllowedRootEdgeCases:
             approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
         )
         assert not check_allowed_root(cfg, "write_file", {"path": "\0invalid"})
+
+
+class TestClassifyRiskConstantsFallback:
+    """Tests for priority 3: tool_constants.py classification when not in tool_safety_tiers."""
+
+    def test_delete_tool_defaults_to_high(self) -> None:
+        cfg = _cfg()
+        result = classify_risk(cfg, "delete_file", {})
+        assert result == "high"
+
+    def test_delete_directory_no_recursive_defaults_to_high(self) -> None:
+        cfg = _cfg()
+        result = classify_risk(cfg, "delete_directory", {"recursive": False})
+        assert result == "high"
+
+    def test_shell_tool_defaults_to_high(self) -> None:
+        cfg = _cfg()
+        result = classify_risk(cfg, "shell_run", {})
+        assert result == "high"
+
+    def test_write_tool_defaults_to_medium(self) -> None:
+        cfg = _cfg()
+        result = classify_risk(cfg, "write_file", {})
+        assert result == "medium"
+
+    def test_explicit_risk_rule_overrides_constants(self) -> None:
+        cfg = _cfg(approval_risk_rules={"delete_file": "none"})
+        result = classify_risk(cfg, "delete_file", {})
+        assert result == "none"
+
+    def test_safety_tier_overrides_constants(self) -> None:
+        cfg = _cfg(tool_safety_tiers={"shell_run": "READ_ONLY"})
+        result = classify_risk(cfg, "shell_run", {})
+        assert result == "none"

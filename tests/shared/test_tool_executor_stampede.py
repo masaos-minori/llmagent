@@ -9,7 +9,8 @@ from typing import Any
 
 import httpx
 import pytest
-from shared.tool_executor import ToolCallResult, ToolExecutor
+from shared.tool_executor import ToolExecutor
+from shared.transport_dto import ToolCallResult
 
 
 def _make_executor() -> ToolExecutor:

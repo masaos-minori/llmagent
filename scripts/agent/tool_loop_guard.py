@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import orjson
-from shared.tool_executor import tool_hash_key
+from shared.tool_executor_helpers import tool_hash_key
 from shared.types import LLMMessage
 
 if TYPE_CHECKING:

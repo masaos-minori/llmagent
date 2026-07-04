@@ -23,10 +23,10 @@ from shared.plugin_tool_invoker import PluginToolInvoker
 from shared.tool_cache import CacheEntry
 from shared.tool_executor import (
     HttpTransport,
-    ToolCallResult,
     ToolExecutor,
     TransportError,
 )
+from shared.transport_dto import ToolCallResult
 
 
 class TestCacheStampede:

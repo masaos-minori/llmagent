@@ -17,7 +17,7 @@ from shared.llm_client import (
     RobustSSEParser,
     _anext_or_done,
 )
-from shared.tool_executor import TransportErrorInfo
+from shared.transport_dto import TransportErrorInfo
 
 # ── LLMTransportError ─────────────────────────────────────────────────────────
 
@@ -663,7 +663,7 @@ class TestFormatTransportError:
         retryable: bool = False,
         partial: bool = False,
     ) -> TransportErrorInfo:
-        from shared.tool_executor import format_transport_error  # noqa: PLC0415
+        from shared.tool_executor_helpers import format_transport_error  # noqa: PLC0415
 
         return format_transport_error(
             source=source,

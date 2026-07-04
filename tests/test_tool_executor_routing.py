@@ -21,10 +21,10 @@ from shared.mcp_config import (
 from shared.tool_executor import (
     HttpTransport,
     LifecycleProtocol,
-    ToolCallResult,
     ToolExecutor,
     TransportError,
 )
+from shared.transport_dto import ToolCallResult
 
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:

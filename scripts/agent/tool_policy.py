@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
+from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
 
 from agent.tool_enums import OperationType, RiskLevel
 from agent.tool_exceptions import PolicyViolationError
@@ -126,9 +126,18 @@ def classify_risk(cfg: AgentConfig, tool_name: str, args: dict[str, Any]) -> Ris
     raw_rule = cfg.approval.approval_risk_rules.get(tool_name)
     if raw_rule is not None:
         base = RiskLevel(raw_rule)
-    if base is None:
-        tier = cfg.approval.tool_safety_tiers.get(tool_name, "WRITE_DANGEROUS")
+    # Priority 2: tool_safety_tiers
+    if base is None and tool_name in cfg.approval.tool_safety_tiers:
+        tier = cfg.approval.tool_safety_tiers[tool_name]
         base = _TIER_TO_RISK.get(tier, RiskLevel.MEDIUM)
+    # Priority 3: tool_constants.py classification
+    if base is None:
+        if tool_name in DELETE_TOOLS or tool_name in SHELL_TOOLS:
+            base = RiskLevel.HIGH
+        elif tool_name in WRITE_TOOLS:
+            base = RiskLevel.MEDIUM
+        else:
+            base = RiskLevel.MEDIUM  # Priority 4: unchanged default
     if base == RiskLevel.NONE:
         return RiskLevel.NONE
     if override := _special_case_risk(cfg, tool_name, args):

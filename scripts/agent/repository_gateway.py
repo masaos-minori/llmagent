@@ -15,7 +15,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import orjson
-from shared.tool_executor import ToolCallResult, ToolExecutor
+from shared.tool_executor import ToolExecutor
+from shared.transport_dto import ToolCallResult
 
 from agent.tool_enums import OperationType, RiskLevel
 from agent.tool_exceptions import PolicyViolationError

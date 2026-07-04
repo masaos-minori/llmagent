@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import orjson
-from shared.tool_executor import format_transport_error
+from shared.tool_executor_helpers import format_transport_error
 
 if TYPE_CHECKING:
     from shared.llm_client import LLMTransportError

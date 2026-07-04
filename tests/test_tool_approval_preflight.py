@@ -21,7 +21,7 @@ from agent.tool_audit import log_approval_decision
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_models import ApprovalOutcome
 from agent.tool_runner import execute_one_tool_call
-from shared.tool_executor import ToolCallResult
+from shared.transport_dto import ToolCallResult
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

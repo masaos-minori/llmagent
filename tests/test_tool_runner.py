@@ -17,7 +17,7 @@ from agent.tool_runner import (
     _execute_with_dag,
     execute_all_tool_calls,
 )
-from shared.tool_executor import ToolCallResult
+from shared.transport_dto import ToolCallResult
 
 
 def _cfg(**overrides: Any) -> AgentConfig:

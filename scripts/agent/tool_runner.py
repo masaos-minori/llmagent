@@ -19,7 +19,7 @@ import orjson
 from rag.llm_client import summarize_tool_result
 from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import DELETE_TOOLS, SHELL_TOOLS, WRITE_TOOLS
-from shared.tool_executor import is_side_effect, tool_hash_key
+from shared.tool_executor_helpers import is_side_effect, tool_hash_key
 from shared.tool_spec import ToolSpec
 
 from agent.tool_audit import audit_tool_exec, write_round_exec

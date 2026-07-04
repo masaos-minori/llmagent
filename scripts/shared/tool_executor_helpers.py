@@ -2,13 +2,10 @@
 """shared/tool_executor_helpers.py — Tool executor helper functions."""
 
 import hashlib
-from typing import TYPE_CHECKING
 
 from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
-
-if TYPE_CHECKING:
-    from shared.tool_executor import TransportErrorInfo
+from shared.transport_dto import TransportErrorInfo
 
 # Tools with side effects: writes, deletes, or shell execution.
 # Used to auto-downgrade parallel execution to serial in execute_all_tool_calls().
@@ -31,10 +28,8 @@ def format_transport_error(
     status_code: int | None,
     retryable: bool,
     partial: bool,
-) -> "TransportErrorInfo":  # noqa: F821
+) -> TransportErrorInfo:
     """Return TransportErrorInfo for LLM/tool transport failures; summary is one-line user-facing; detail is JSON for audit logs."""
-    from shared.tool_executor import TransportErrorInfo
-
     detail = _json_dumps(
         {
             "source": source,

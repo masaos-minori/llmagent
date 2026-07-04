@@ -5,7 +5,7 @@ This file contains tests for:
 - is_side_effect: identifies tools with side effects
 """
 
-from shared.tool_executor import is_side_effect, tool_hash_key
+from shared.tool_executor_helpers import is_side_effect, tool_hash_key
 
 
 def test_tool_hash_key_consistency() -> None:

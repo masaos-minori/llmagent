@@ -314,7 +314,7 @@ async def test_c09_llm_429_retry_succeeds():
 
 @pytest.mark.asyncio
 async def test_c10_rag_mcp_unavailable_transport_error():
-    from shared.tool_executor import ToolCallResult
+    from shared.transport_dto import ToolCallResult
 
     # Simulate a transport error result from ToolExecutor
     result = ToolCallResult(
