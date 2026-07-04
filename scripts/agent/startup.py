@@ -26,6 +26,7 @@ from agent.repl_health import (
 from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.workflow.approval_ops import find_latest_pending_approval
 from agent.workflow.state_store import StateStore
+from agent.workflow_execution_policy import WorkflowExecutionPolicy
 
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
@@ -123,7 +124,9 @@ class StartupOrchestrator:
         """Preflight check for workflow definition file before Orchestrator.__init__()."""
         ctx = self._ctx
         try:
-            warnings = check_workflow_definition(ctx.cfg.workflow_mode)
+            warnings = check_workflow_definition(
+                WorkflowExecutionPolicy(ctx.cfg.workflow_mode)
+            )
             for msg in warnings:
                 self._view.write_warning(msg)
         except RuntimeError as e:

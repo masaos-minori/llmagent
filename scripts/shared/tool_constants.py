@@ -78,20 +78,27 @@ MDQ_TOOLS: frozenset[str] = frozenset(
 )
 
 # Local git operation tools (git-mcp, port 8014)
-GIT_TOOLS: frozenset[str] = frozenset(
+GIT_READ_TOOLS: frozenset[str] = frozenset(
     {
         "git_status",
         "git_log",
         "git_diff",
         "git_branch",
         "git_show",
+    }
+)
+
+GIT_WRITE_TOOLS: frozenset[str] = frozenset(
+    {
         "git_add",
         "git_commit",
         "git_checkout",
         "git_pull",
         "git_push",
-    },
+    }
 )
+
+GIT_TOOLS: frozenset[str] = GIT_READ_TOOLS | GIT_WRITE_TOOLS
 
 # SQLite query tools (sqlite-mcp, port 8011)
 SQLITE_TOOLS: frozenset[str] = frozenset(
@@ -107,30 +114,44 @@ SHELL_TOOLS: frozenset[str] = frozenset({"shell_run"})
 WEB_SEARCH_TOOLS: frozenset[str] = frozenset({"search_web"})
 
 # GitHub tools (github-mcp, port 8012)
-GITHUB_TOOLS: frozenset[str] = frozenset(
+GITHUB_READ_TOOLS: frozenset[str] = frozenset(
     {
         "github_search_repositories",
         "github_list_branches",
-        "github_create_branch",
         "github_list_commits",
         "github_get_commit",
         "github_search_code",
         "github_get_file_contents",
-        "github_create_or_update_file",
-        "github_push_files",
-        "github_delete_file",
         "github_list_issues",
         "github_get_issue",
-        "github_create_issue",
         "github_search_issues",
-        "github_add_issue_comment",
         "github_list_pull_requests",
         "github_get_pull_request",
-        "github_create_pull_request",
         "github_search_pull_requests",
+    }
+)
+
+GITHUB_WRITE_TOOLS: frozenset[str] = frozenset(
+    {
+        "github_create_branch",
+        "github_create_or_update_file",
+        "github_push_files",
+        "github_create_issue",
+        "github_add_issue_comment",
+        "github_create_pull_request",
         "github_update_pull_request",
+    }
+)
+
+GITHUB_DANGEROUS_TOOLS: frozenset[str] = frozenset(
+    {
+        "github_delete_file",
         "github_merge_pull_request",
-    },
+    }
+)
+
+GITHUB_TOOLS: frozenset[str] = (
+    GITHUB_READ_TOOLS | GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
 )
 
 

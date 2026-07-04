@@ -28,6 +28,8 @@ from agent.shared.health_models import (
 if TYPE_CHECKING:
     from shared.mcp_config import McpServerConfig
 
+    from agent.workflow_execution_policy import WorkflowExecutionPolicy
+
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
@@ -362,7 +364,7 @@ async def check_routing_drift_vs_live(
 
 
 def check_workflow_definition(
-    workflow_mode: str,
+    workflow_mode: str | WorkflowExecutionPolicy,
     workflows_dir: Path | None = None,
 ) -> list[str]:
     """Check whether the workflow definition file exists for the given mode.
@@ -371,7 +373,7 @@ def check_workflow_definition(
     Raises RuntimeError when workflow_mode='required' and the file is missing.
 
     Args:
-        workflow_mode: "auto", "required", or "disabled".
+        workflow_mode: "auto", "required", "disabled", or a WorkflowExecutionPolicy instance.
         workflows_dir: Override for the default WORKFLOWS_DIR (used in tests).
 
     Returns:
@@ -384,7 +386,9 @@ def check_workflow_definition(
         WORKFLOWS_DIR,
     )
 
-    if workflow_mode == "disabled":
+    mode = workflow_mode.mode if hasattr(workflow_mode, "mode") else workflow_mode
+
+    if mode == "disabled":
         return []
 
     target_dir = workflows_dir if workflows_dir is not None else WORKFLOWS_DIR
@@ -393,10 +397,10 @@ def check_workflow_definition(
     if not workflow_file.exists():
         msg = (
             f"Workflow definition file not found: {workflow_file}. "
-            f"Current mode={workflow_mode!r}. "
+            f"Current mode={mode!r}. "
             "Deploy config/workflows/default.json or set workflow_mode=disabled in config."
         )
-        if workflow_mode == "required":
+        if mode == "required":
             logger.error(msg)
             raise RuntimeError(msg)
         return [msg]

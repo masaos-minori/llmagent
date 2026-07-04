@@ -44,6 +44,7 @@ from agent.workflow import (
 )
 from agent.workflow.task_ops import create_task, get_task_by_id
 from agent.workflow.workflow_loader import WORKFLOWS_DIR
+from agent.workflow_execution_policy import WorkflowExecutionPolicy
 
 
 class WorkflowCreationError(RuntimeError):
@@ -117,7 +118,7 @@ class Orchestrator:
         self._on_turn_end = on_turn_end
         self._on_error = on_error
         self._tracer = tracer
-        self._workflow_mode = workflow_mode
+        self._policy = WorkflowExecutionPolicy(workflow_mode)
         self._diagnostic_store = DiagnosticStore()
         ctx.diagnostics = self._diagnostic_store
         self._guard = ToolLoopGuard(ctx)
@@ -128,13 +129,13 @@ class Orchestrator:
             tracer=tracer,
         )
         self._workflow_def: WorkflowDef | None = None
-        if self._workflow_mode != "disabled":
+        if self._policy.is_workflow_enabled():
             try:
                 self._workflow_def = WorkflowLoader().load()
             except (WorkflowLoadError, Exception) as exc:
-                if self._workflow_mode == "required":
+                if self._policy.requires_startup_definition():
                     raise RuntimeError(
-                        f"[workflow] mode={self._workflow_mode!r} but WorkflowLoader failed: {exc}. "
+                        f"[workflow] mode={self._policy.mode!r} but WorkflowLoader failed: {exc}. "
                         f"Expected workflow definition at: {WORKFLOWS_DIR / 'default.json'}. "
                         "Fix the workflow definition file or set workflow_mode=disabled in config."
                     ) from exc
@@ -144,14 +145,17 @@ class Orchestrator:
 
     def _log_fallback(self, reason: str) -> None:
         """Raise WorkflowCreationError; direct-execution fallback is removed (fail-closed)."""
-        if self._workflow_mode == "required":
+        if (
+            self._policy.fail_closed_on_creation_error()
+            and self._policy.requires_startup_definition()
+        ):
             raise RuntimeError(
-                f"[workflow] mode={self._workflow_mode!r} but workflow unavailable: {reason}. "
+                f"[workflow] mode={self._policy.mode!r} but workflow unavailable: {reason}. "
                 f"Expected workflow definition at: {WORKFLOWS_DIR / 'default.json'}. "
                 "Fix the workflow definition or set workflow_mode=disabled in config."
             )
         raise WorkflowCreationError(
-            f"[workflow] mode={self._workflow_mode!r} — workflow unavailable ({reason}). "
+            f"[workflow] mode={self._policy.mode!r} — workflow unavailable ({reason}). "
             "Direct-execution fallback is disabled. "
             "Fix the workflow definition or set workflow_mode=disabled in config."
         )
@@ -164,7 +168,7 @@ class Orchestrator:
           tracking: "enabled" | "not_loaded"
         """
         return {
-            "mode": self._workflow_mode,
+            "mode": self._policy.mode,
             "tracking": "enabled" if self._workflow_def is not None else "not_loaded",
         }
 
@@ -188,7 +192,7 @@ class Orchestrator:
         await self._handle_turn_start(line)
 
         # Direct execution path (disabled mode or no workflow definition)
-        if self._workflow_mode == "disabled":
+        if not self._policy.is_workflow_enabled():
             logger.info("Workflow mode=disabled — direct execution")
         elif self._workflow_def is None:
             self._log_fallback("workflow definition not loaded")

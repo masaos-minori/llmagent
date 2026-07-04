@@ -4,13 +4,24 @@
 import hashlib
 
 from shared.json_utils import dumps as _json_dumps
-from shared.tool_constants import DELETE_TOOLS, WRITE_TOOLS
+from shared.tool_constants import (
+    DELETE_TOOLS,
+    GIT_WRITE_TOOLS,
+    GITHUB_DANGEROUS_TOOLS,
+    GITHUB_WRITE_TOOLS,
+    WRITE_TOOLS,
+)
 from shared.transport_dto import TransportErrorInfo
 
-# Tools with side effects: writes, deletes, or shell execution.
+# Tools with side effects: writes, deletes, shell, or git/GitHub mutations.
 # Used to auto-downgrade parallel execution to serial in execute_all_tool_calls().
 _SIDE_EFFECT_TOOLS: frozenset[str] = (
-    WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
+    WRITE_TOOLS
+    | DELETE_TOOLS
+    | frozenset({"shell_run"})
+    | GIT_WRITE_TOOLS
+    | GITHUB_WRITE_TOOLS
+    | GITHUB_DANGEROUS_TOOLS
 )
 
 
