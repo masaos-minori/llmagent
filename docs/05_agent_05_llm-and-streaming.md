@@ -41,7 +41,7 @@ LLMClient(
 | `async request_with_retry(url, payload)` | POST with exponential backoff retry (HTTP 429/503 + RequestError only) |
 | `async call(url, history, tool_defs)` | Non-streaming LLM call (used for compression, title generation) |
 | `async stream(url, history, tool_defs)` | SSE streaming with reconnect support; raises `LLMTransportError` on failure |
-| `extract_message(response)` (static) | Extract `(LLMMessage, finish_reason)` from response dict |
+| `_parse_response(raw: dict[str, Any])` | Validate and parse raw LLM JSON into `LLMResponse` DTO; raises `ValueError` on schema mismatch |
 
 ### Statistics attributes
 
@@ -77,7 +77,7 @@ OpenAI-compatible format. Tool definitions come from `AgentConfig.tool.tool_defi
 
 ## SSE Streaming
 
-`LLMClient.stream()` calls `_stream_once()` which:
+`LLMClient.stream()` calls `LlmSseStreamHandler.stream_once()` which:
 1. POSTs with `stream=True`
 2. Reads bytes via `asyncio.wait_for` (`sse_heartbeat_timeout` timeout)
 3. Feeds bytes to `RobustSSEParser.feed()`
@@ -104,14 +104,14 @@ Parser behavior:
 
 ## Reconnect Behavior
 
-`stream()` wraps `_stream_once()` in a retry loop:
+`stream()` wraps `LlmSseStreamHandler.stream_once()` in a retry loop:
 
 ```
-_stream_once() attempt 1
+LlmSseStreamHandler.stream_once() attempt 1
   → if LLMTransportError.retryable and reconnect count < sse_reconnect_max:
        reconnect (new RobustSSEParser, new HTTP request)
        append partial_text to content_parts (preserve accumulated output)
-  → else: raise LLMTransportError with full partial_text
+   → else: raise LLMTransportError with full partial_text
 ```
 
 Reconnect conditions (controlled by config flags):

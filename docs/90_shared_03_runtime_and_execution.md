@@ -308,9 +308,9 @@ class LLMClient:
         sse_heartbeat_timeout: float = 30.0,
     )
 
-    async def call(messages, tool_calls=None) -> LLMResponse      # Non-streaming
-    async def stream(messages, tool_calls=None) -> AsyncIterator[str]  # Streaming
-    def build_payload(messages, tool_calls=None) -> dict         # Payload construction
+    async def call(url: str, history: list[LLMMessage], tool_defs: list[dict[str, Any]]) -> LLMResponse      # Non-streaming
+    async def stream(url: str, history: list[LLMMessage], tool_defs: list[dict[str, Any]]) -> LLMResponse  # Streaming
+    def build_payload(history: list[LLMMessage], tool_defs: list[dict[str, Any]], stream: bool = False) -> dict[str, Any]  # Payload construction
 ```
 
 **Error behavior:**
