@@ -118,7 +118,7 @@ session_stop
 | MemoryIngestion |     | extract_memories |     | 1. EmbeddingClient.fetch()  |
 | Service         |     +------------------+     | 2. Dedup check (KNN)        |
 +--------+--------+                              | 3. JsonlMemoryStore.write() |
-         |                                       | 4. MemoryStore.upsert()     |
+         |                                       | 4. write_ops.upsert()       |
          v                                       +-----------------------------+
 +-----------------+
 | jsonl_store.py  |  Append-only archive
@@ -204,7 +204,7 @@ The memory layer has a 3-layer activation gate that controls when memory operati
 | `tags` | `list[str]` | Keyword tags for classification |
 | `importance` | `float` | 0.0–1.0; higher = higher retrieval priority (default: 0.5) |
 | `pinned` | `bool` | When `True`, injected at every session start |
-| `created_at` | `str` | ISO 8601 UTC timestamp; filled by `MemoryStore.add()` |
+| `created_at` | `str` | ISO 8601 UTC timestamp; filled by `write_ops.add()` |
 | `updated_at` | `str` | ISO 8601 UTC timestamp |
 
 **DB mapping:** Stored in `memories` table (SQLite) and one line per entry in the JSONL file. FTS5 index in `memories_fts`. Vector index in `memories_vec` (when embedding enabled).
@@ -289,19 +289,23 @@ Notable: internal mapper utils (`_floats_to_blob`, `_stamp_entry`) are exported 
 | Type | Description | Key fields |
 |---|---|---|
 | `MemoryEntry` | Persisted memory entry | memory_id, memory_type, source_type, session_id, content, summary, tags, importance, pinned, created_at, updated_at, project / repo / branch |
-| `MemoryQuery` | Search input | query (str), memory_type (str \| None), limit (int) |
+| `MemoryQuery` | Search input | query (str), memory_type (str \| None), limit (int), session_id (str \| None) |
 | `MemoryHit` | Ranked search result | entry (MemoryEntry), score (float) |
 | `EmbeddingResult` | Embedding fetch outcome | success (bool), embedding (list[float] \| None), error_kind (EmbeddingErrorKind \| None) |
-| `EmbeddingErrorKind` | Error classification | DISABLED, TIMEOUT, HTTP_ERROR, CIRCUIT_OPEN, INVALID_RESPONSE, UNKNOWN_ERROR |
+| `EmbeddingErrorKind` | Error classification | DISABLED, TIMEOUT, HTTP_ERROR, CIRCUIT_OPEN, DIMENSION_MISMATCH, INVALID_RESPONSE, UNKNOWN_ERROR |
 | `SourceType` | Entry origin | RULE, CONVERSATION, DECISION, FAILURE |
 
 ### 3. `enums.py` — Domain enums
 
-| Enum | Values | Description |
+| Enum / Dict | Values | Description |
 |---|---|---|
 | `MemoryType` | `semantic`, `episodic` | Memory classification |
-| `DedupAction` | `SKIP_NEW`, `ALWAYS_WRITE` | Dedup behavior when near-duplicate found |
+| `DedupAction` | `SKIP_NEW` | Dedup behavior when near-duplicate found |
 | `DedupPolicy` | action + threshold | Dedup configuration dataclass |
+| `RetrievalMode` | `FTS`, `KNN`, `HYBRID` | Search mode selection |
+| `ExtractionDecision` | `ACCEPT`, `REJECT_TOO_SHORT`, `REJECT_NO_KEYWORDS`, `REJECT_DEDUP` | Extraction outcome |
+| `DEDUP_THRESHOLDS` | `RULE: 0.98`, `DECISION: 0.98`, `FAILURE: 0.90`, `CONVERSATION: 0.85` | Dedup similarity thresholds per source type |
+| `RETENTION_DAYS` | `FAILURE: 180`, `CONVERSATION: 90`, `RULE/DECISION: None` | Per-source-type retention policy |
 
 ### 4. `exceptions.py` — Exception hierarchy
 
@@ -325,26 +329,19 @@ Notable: internal mapper utils (`_floats_to_blob`, `_stamp_entry`) are exported 
 | `MemorySnippet` | text (str), source (str), score (float) | Injected context snippet with source tag and retrieval score |
 | `ConsistencyReport` | memories (int), fts (int), vec (int) | Row count comparison for consistency check |
 
-### 6. `store.py` — CRUD layer
+### 6. `store.py` — Read-only CRUD layer
+
+Write operations (`add`, `upsert`, `delete`, `clear_by_session`) are in `write_ops.py`.
 
 Class `MemoryStore(embed_dim=None)`:
 
 | Method | Returns | Description |
 |---|---|---|
-| `add(entry, embedding=None)` | `None` | Insert + FTS sync; BEGIN IMMEDIATE for atomicity |
-| `upsert(entry, embedding=None)` | `None` | Insert-or-replace + FTS sync |
-| `delete(memory_id)` | `bool` | Remove entry by ID |
-| `clear_by_session(session_id)` | `int` | Bulk delete for one session |
 | `search_by_type(memory_type, limit=10, min_importance=0.0)` | `list[MemoryEntry]` | Filter by type, sorted by importance + pinned |
-| `count_by_type()` | `dict[str, int]` | Entry count per memory_type |
+| `list_entries(source_type=None, branch=None, limit=50)` | `list[MemoryEntry]` | Return entries filtered by optional source_type and/or branch |
 | `count_vec()` | `int` | Row count in memories_vec |
 | `check_consistency()` | `ConsistencyReport` | Compare memories / memories_fts / memories_vec counts |
-| `pin(memory_id)` | `bool` | Set pinned=1 |
-| `unpin(memory_id)` | `bool` | Set pinned=0 |
 | `get_by_id(memory_id)` | `MemoryEntry \| None` | Lookup by primary key |
-| `count_entries()` | `int` | Total entries |
-| `count_prunable(days)` | `int` | Entries older than `days` days |
-| `import_from_jsonl(jsonl_store, *, dry_run=False)` | `tuple[int, int]` | Import entries from JSONL archive into SQLite; returns (jsonl_count, inserted_count). Does NOT replay deletes or pin/unpin state changes. |
 
 **Failure modes:**
 - `sqlite3.OperationalError` — DB locked, missing vec table, etc.
@@ -367,6 +364,13 @@ Class `MemoryStore(embed_dim=None)`:
 | `top_semantic(limit=5, min_importance=0.0, project="", repo="", branch="")` | `list[MemoryEntry]` | Direct SQL — no FTS needed |
 | `embed_client` | `EmbeddingClient \| None` | Injected at construction; used by `/memory status` |
 | `last_retrieval_mode` | `str` | `"hybrid"` / `"fts_only"` / `"unknown"` — set on each `search()` call |
+| `fts_fallback_count` | `int` | Count of FTS fallbacks during hybrid search |
+
+**`FtsRetriever` additional attribute:**
+
+| Attribute | Returns | Description |
+|---|---|---|
+| `candidate_limit` | `int` | Maximum candidate results from FTS query |
 
 **Scoring formula:**
 ```
@@ -402,19 +406,28 @@ Class `MemoryInjectionService(policy, retriever, embed_client, project="", repo=
 | `on_session_start()` | `list[MemorySnippet]` | Top semantic entries by importance |
 | `on_user_prompt(query, session_id)` | `list[MemorySnippet]` | Semantic + episodic search with embedding |
 
-Uses `InjectionPolicy(max_semantic=5, max_episodic=3, min_importance=0.3)`.
+Uses `InjectionPolicy(max_semantic=5, max_episodic=3, min_importance=0.5)`.
+
+| Attribute | Type | Default | Description |
+|---|---|---|---|
+| `max_semantic` | `int` | `5` | Max semantic snippets to inject |
+| `max_episodic` | `int` | `3` | Max episodic snippets to inject |
+| `min_importance` | `float` | `0.5` | Min importance threshold for retrieval |
+| `format_prefix_semantic` | `str` | `"[Semantic memory]"` | Prefix for semantic snippets |
+| `format_prefix_episodic` | `str` | `"[Episodic memory]"` | Prefix for episodic snippets |
 
 **Failure modes:** `InjectionValidationError` when query is empty.
 
 ### 9. `ingestion.py` — Extraction + dedup + persist
 
-Class `MemoryIngestionService(store, jsonl, retriever, embed_client, dedup_policy=None, ...)`:
+Class `MemoryIngestionService(store, jsonl, retriever, embed_client, dedup_policy=None, project="", repo="", branch="", max_content_chars=None)`:
 
-| Method | Returns | Description |
+| Method / Attribute | Returns | Description |
 |---|---|---|
 | `on_session_stop(session_id, history, turn_id=None)` | `None` | Extract, dedup, persist from conversation history |
 | `write_semantic(session_id, content)` | `None` | Manual persist (no dedup) |
 | `write_episodic(session_id, content)` | `None` | Manual persist (no dedup) |
+| `stat_embed_skip` | `int` | Counter of embeddings skipped due to errors |
 
 Dedup: uses `DedupPolicy(action=SKIP_NEW, threshold=...)` with KNN near-duplicate detection.
 
@@ -427,7 +440,11 @@ Dedup: uses `DedupPolicy(action=SKIP_NEW, threshold=...)` with KNN near-duplicat
 | Function / Class | Returns | Description |
 |---|---|---|
 | `extract_memories(history, session_id=None, turn_id=None, ...)` | `list[MemoryEntry]` | Main entry point |
-| `ExtractionPolicy(...)` | Config | min_content_chars=80, min_turns=2, max_entries=20 |
+| `ExtractionPolicy(...)` | Config | min_content_chars=80, min_turns=2, max_entries=20, min_user_content_chars=60 |
+
+**Module-level constants:** `MIN_CONTENT_CHARS = 80`, `MIN_USER_CONTENT_CHARS = 60`, `MIN_TURNS = 2`, `MAX_ENTRIES = 20`, `SEMANTIC_HITS_REQUIRED_STRONG = 2`, `SEMANTIC_CONTENT_THRESHOLD = 200`, `IMPORTANCE_LENGTH_DIVISOR = 2000.0`
+
+**Regex patterns:** `_DECISION_KEYWORDS`, `_SEMANTIC_KEYWORDS`, `_EPISODIC_FAILURE_KEYWORDS`
 
 Classification logic:
 - Semantic (rules/decisions): assistant messages with rule/policy keywords or long content
@@ -443,6 +460,7 @@ Class `JsonlMemoryStore(path)`:
 |---|---|---|
 | `write(entry)` | `None` | Async append (asyncio.Lock serialised) |
 | `read_all()` | `list[MemoryEntry]` | Sync read of all entries |
+| `read_active()` | `list[MemoryEntry]` | Read entries that have not expired based on per-source-type retention policy |
 | `count_all()` | `int` | Count of valid records (delegates to `read_all()`) |
 
 **Failure modes:** `JsonlFormatError` on malformed lines.
@@ -458,13 +476,15 @@ Class `EmbeddingClient(config, http=None, *, enabled=False)`:
 | `fetch(text)` | `EmbeddingResult` | Async embedding with retry + circuit breaker |
 | `get_status()` | `EmbeddingClientStatus` | Snapshot of enabled, circuit_open, fail_count, resets_in_sec |
 
-`EmbeddingClientConfig`: embed_url, timeout=5s, max_retries=2, circuit_open_after=3, circuit_reset_sec=60.
-
-`EmbeddingClientStatus` fields: `enabled: bool`, `circuit_open: bool`, `fail_count: int`, `resets_in_sec: float | None` (None when circuit closed).
+`EmbeddingClientConfig`: embed_url, timeout=5s, max_retries=2, circuit_open_after=3, circuit_reset_sec=60, query_prefix="query: ", embed_dim=384, local_only=False.
 
 **Disabled behavior:** When `enabled=False`, `fetch()` returns `EmbeddingResult(success=False, error_kind=DISABLED)` immediately without HTTP call.
 
-### 13. `services.py` — MemoryServices facade
+`EmbeddingClientStatus` fields: `enabled: bool`, `circuit_open: bool`, `fail_count: int`, `resets_in_sec: float | None` (None when circuit closed), `local_only: bool`.
+
+`EmbeddingErrorKind` values: `DISABLED`, `TIMEOUT`, `HTTP_ERROR`, `DIMENSION_MISMATCH`.
+
+### 13. `services.py` — MemoryServices facade### 13. `services.py` — MemoryServices facade
 
 Class `MemoryServices(injection, ingestion, store, retriever)`:
 
@@ -486,6 +506,81 @@ Class `MemoryServices(injection, ingestion, store, retriever)`:
 | `_floats_to_blob(list[float], dim=None)` | `bytes` | Embedding to sqlite-vec blob |
 | `_stamp_entry(entry, now)` | `MemoryEntry` | Set created_at/updated_at |
 | `_now_iso()` | `str` | UTC ISO timestamp |
+| `_opt_str(val)` | `str \| None` | Nullable string coercion |
+| `_require(val)` | `str` | Required string coercion |
+| `_parse_tags(val)` | `list[str]` | Parse comma-separated tags |
+| `_parse_importance(val)` | `float` | Parse importance from string |
+| `_parse_memory_type(val)` | `str` | Parse memory_type from string |
+| `_parse_source_type(val)` | `str` | Parse source_type from string |
+
+### 15. `write_ops.py` — Write operations
+
+| Function | Returns | Description |
+|---|---|---|
+| `add(entry, embedding=None)` | `None` | Insert + FTS sync; BEGIN IMMEDIATE for atomicity |
+| `upsert(entry, embedding=None)` | `None` | Insert-or-replace + FTS sync |
+| `delete(memory_id)` | `bool` | Remove entry by ID |
+| `clear_by_session(session_id)` | `int` | Bulk delete for one session |
+
+### 16. `pin_ops.py` — Pin/unpin operations
+
+| Function | Returns | Description |
+|---|---|---|
+| `pin_memory(memory_id)` | `bool` | Set pinned=1 |
+| `unpin_memory(memory_id)` | `bool` | Set pinned=0 |
+
+### 17. `count_ops.py` — Diagnostic counts
+
+| Function | Returns | Description |
+|---|---|---|
+| `count_memories()` | `int` | Row count in memories table |
+| `count_memories_fts()` | `int` | Row count in memories_fts table |
+| `count_memories_vec()` | `int` | Row count in memories_vec table |
+
+### 18. `rebuild_ops.py` — Rebuild operations
+
+| Function | Returns | Description |
+|---|---|---|
+| `rebuild_fts()` | `None` | Rebuild FTS5 index from memories table |
+| `rebuild_vec()` | `None` | Rebuild vec index from memories table |
+
+### 19. `import_ops.py` — Import operations
+
+| Function | Returns | Description |
+|---|---|---|
+| `import_from_jsonl(jsonl_store, *, dry_run=False)` | `tuple[int, int]` | Import entries from JSONL archive into SQLite; returns (jsonl_count, inserted_count). Does NOT replay deletes or pin/unpin state changes. |
+
+### 20. `scoring.py` — BM25 scoring with boosts
+
+| Function / Constant | Returns | Description |
+|---|---|---|
+| `bm25_score(doc, query)` | `float` | BM25 score for a single document |
+| `pin_boost` | `float` | Boost for pinned entries |
+| `importance_boost` | `float` | Boost proportional to entry importance |
+| `recency_boost` | `float` | Boost inversely proportional to entry age |
+| `context_boost` | `float` | Boost for entries matching current project/repo/branch |
+
+### 21. `rrf.py` — Reciprocal Rank Fusion merge
+
+| Constant / Function | Returns | Description |
+|---|---|---|
+| `RRF_K` | `60` | Reciprocal rank fusion constant |
+| `rrf_merge(fts_results, vec_results)` | `list[MemoryHit]` | Merge FTS and KNN results using RRF scoring |
+
+### 22. `fts_query.py` — FTS5 query builder
+
+| Function / Constant | Returns | Description |
+|---|---|---|
+| `build_fts_query(query, limit)` | `str` | Build FTS5 MATCH query with token quoting |
+| `FTS_TOKEN_PATTERN` | `Pattern[str]` | Regex for splitting FTS5 queries into tokens |
+
+### 23. `sql_constants.py` — SQL constants
+
+| Constant | Type | Description |
+|---|---|---|
+| `_INSERT_SQL` | `str` | INSERT statement for memories table |
+| `_UPSERT_SQL` | `str` | UPSERT statement for memories table |
+| `_count_fts(db)` | `int` | Helper to get FTS row count from a db connection |
 
 ---
 

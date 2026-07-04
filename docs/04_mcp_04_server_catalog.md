@@ -305,7 +305,7 @@ All path-accepting tools enforce fail-closed authorization via `allowed_dirs`:
 | Tool | Path Input | Authorization |
 |------|------------|---------------|
 | `index_paths` | Directories/files to index | `authorize_path()` — raises `MdqAuthorizationError` if outside `allowed_dirs` |
-| `refresh_index` | Paths to refresh | `_validate_paths()` — raises `MdqAuthorizationError` if any path is denied |
+| `refresh_index` | Paths to refresh | Path authorization — raises `MdqAuthorizationError` if any path is denied |
 | `outline` | File to outline | `authorize_path()` — raises `MdqAuthorizationError` if outside `allowed_dirs` |
 
 - `..` traversal: blocked by `Path.resolve()` inside `authorize_path()`
@@ -340,7 +340,7 @@ Configure `allowed_dirs` in `config/mdq_mcp_server.toml` before using indexing t
 
 When `use_embedding = true`, MDQ performs hybrid search:
 1. FTS5 keyword search on `chunks_fts`
-2. Semantic vector search via `_search_vector()` (stub — returns empty list in Phase 1)
+2. Semantic vector search (stub — returns empty list in Phase 1)
 3. Results merged via Reciprocal Rank Fusion (RRF)
 
 **MDQ Hybrid vs RAG Decision Criteria:**

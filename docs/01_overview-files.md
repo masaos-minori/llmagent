@@ -152,7 +152,7 @@
   │   │   ├─ github/                          # GitHub MCP サーバ (:8006)
   │   │   ├─ shell/                           # シェル MCP サーバ (:8009)
   │   │   ├─ rag_pipeline/                    # RAG パイプライン MCP サーバ (:8010)
-  │   │   ├─ sqlite/                          # SQLite 読み取り専用クエリ MCP サーバ (:8011)
+  │ 
   │   │   ├─ cicd/                            # GitHub Actions CI/CD MCP サーバ (:8012)
   │   │   ├─ mdq/                             # Markdown Context Compression Engine MCP サーバ (:8013)
   │   │   └─ git/                             # ローカル git 操作 MCP サーバ (:8014)
@@ -186,6 +186,7 @@
   │   │   │   └─ ingester.py                  # DB 投入 (registered/ へ移動)
   │   │   └─ stages/                          # search / fusion / mqe / augment / rerank
   │   ├─ db/                                  # DB 層パッケージ
+  │   │   ├─ __init__.py                      # モジュール初期化
   │   │   ├─ create_schema.py                 # SQLite スキーマ初期化
   │   │   ├─ schema_sql.py                    # build_rag_schema_sql / build_session_schema_sql / build_workflow_schema_sql
   │   │   ├─ helper.py                        # 接続管理 (WAL / busy_timeout)
@@ -195,7 +196,10 @@
   │   │   ├─ store.py                         # Protocol 抽象レイヤー
   │   │   ├─ store_protocols.py               # VectorStore / DocumentStore / SessionStore Protocol 定義
   │   │   ├─ store_impl.py                    # SQLiteVectorStore / SQLiteDocumentStore / SQLiteSessionStore 実装
-  │   │   └─ tool_results.py                  # ツール結果永続化
+  │   │   ├─ tool_results.py                  # ツール結果永続化
+  │   │   ├─ rag_consistency.py               # RAG インデックス整合性チェック
+  │   │   ├─ rotation.py                      # データベースローテーション
+  │   │   └─ recovery.py                      # コーrupted DB リカバリ
   │   └─ shared/                              # 共有ユーティリティパッケージ (全層から利用可)
   │       ├─ llm_client.py                    # LLMClient: SSE ストリーミング・指数バックオフリトライ
   │       ├─ llm_types.py                     # LLMUsage / LLMResponse データクラス (llm_client と分離してインポート軽量化)

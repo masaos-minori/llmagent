@@ -29,7 +29,7 @@ Full details: [05_agent_02_runtime-architecture.md §AgentREPL](05_agent_02_runt
 
 - **Role:** Turn-level facade; owns memory injection → compress → LLM → tool loop
 - **Primary API:** `await Orchestrator.handle_turn(line)`
-- **Callers:** `AgentREPL._run_repl_loop()`
+- **Callers:** REPL loop driver
 - **Callees:** `LLMTurnRunner`, `HistoryManager`, `AgentSession`, `MemoryInjectionService`
 - **Config:** `cfg.llm.*`, `cfg.tool.*`, `cfg.memory.*`
 - **Failure:** `LLMTransportError` caught internally; REPL continues
@@ -81,7 +81,7 @@ Full details: [05_agent_06_tool-execution-and-approval.md](05_agent_06_tool-exec
 
 - **Role:** Four-layer tool-to-server routing cascade (live discovery > ToolRegistry > config `tool_names` > static constants)
 - **Primary API:** `resolve(tool_name) -> server_key`
-- **Callers:** `ToolExecutor._raw_execute()`
+- **Callers:** Tool execution layer
 - **Callees:** `McpServerHealthRegistry`, `LifecycleProtocol` (via server startup)
 - **Config:** None directly; reads from ToolRegistry, live discovery map, config `tool_names`, and `tool_constants.py` frozensets in priority order
 - **Failure:** raises `KeyError` if no layer resolves the tool name
@@ -94,7 +94,7 @@ Full details: [04_mcp_03 §Routing Source of Truth](04_mcp_03_routing_lifecycle_
 
 - **Role:** Conversation history size management and LLM-based compression
 - **Primary API:** `await mgr.compress(history)`, `mgr.count_chars(history)`, `apply_config(...)`
-- **Callers:** `Orchestrator._handle_history_compression()`
+- **Callers:** Orchestrator history compression
 - **Callees:** `LLMClient`, `HistorySelectionPolicy`
 - **Config:** `cfg.llm.context_char_limit`, `context_compress_turns`, `history_protect_turns`
 - **Failure:** LLM summarization failure → returns unmodified history (no compression)
@@ -107,7 +107,7 @@ Full details: [05_agent_04_state-and-persistence.md §HistoryManager](05_agent_0
 
 - **Role:** All slash command dispatch; 13 mixin-based command groups
 - **Primary API:** `await cmds.dispatch(line) -> bool`
-- **Callers:** `AgentREPL._run_repl_loop()`
+- **Callers:** REPL loop driver
 - **Callees:** 10 mixin handlers + plugin registry
 - **Config:** various `cfg.*` fields per command
 - **Failure:** command errors displayed to user; REPL continues
@@ -148,7 +148,7 @@ Full details: [05_agent_09_data-layer.md](05_agent_09_data-layer.md)
 
 - **Role:** Configuration container; 7 sub-configs; hot-reloadable via `/reload`
 - **Primary API:** `build_agent_config(cfg_override=None) -> AgentConfig`
-- **Callers:** `AgentREPL._initialize_session()`, `_cmd_reload()`
+- **Callers:** Session initialization, config reload
 - **Callees:** `ConfigLoader.load_all()`
 - **Config:** all TOML files in `config/`
 - **Failure:** `ConfigLoadError` on file read/parse failure
@@ -161,7 +161,7 @@ Full details: [05_agent_08_configuration.md](05_agent_08_configuration.md)
 
 - **Role:** HTTP subprocess + stdio server lifecycle management
 - **Primary API:** `ensure_ready(server_key)`, `shutdown_all()`, `restart(server_key)`
-- **Callers:** `AgentREPL._start_mcp_servers()`, `ToolExecutor._raw_execute()`, watchdog loop
+- **Callers:** MCP server startup, tool execution layer, watchdog loop
 - **Callees:** `StdioTransport`, `HttpTransport`, uvicorn subprocess
 - **Config:** `cfg.mcp.mcp_servers`, `cfg.mcp.mcp_watchdog_interval`
 - **Failure:** `RuntimeError` on subprocess startup timeout

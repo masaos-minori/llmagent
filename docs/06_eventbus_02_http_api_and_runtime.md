@@ -201,7 +201,7 @@ Move an event out of the DLQ back to normal delivery. Increments `dlq_requeue_co
 
 ## DLQ background loop (safety sweep)
 
-At startup, `_dlq_loop()` runs as an asyncio task, polling every 60 seconds. It queries for events with `delivery_failure_count >= max_retry AND dlq_at IS NULL` — these are events that reached the retry threshold but were not promoted inline (e.g., due to a race).
+At startup, the DLQ sweep background loop runs as an asyncio task, polling every 60 seconds. It queries for events with `delivery_failure_count >= max_retry AND dlq_at IS NULL` — these are events that reached the retry threshold but were not promoted inline (e.g., due to a race).
 
 The loop uses an optimistic lock: only counts events where `dlq_at` is still NULL, preventing double-promotion. If the sweep finds orphans, it logs `"dlq_loop: swept %d orphan(s) missed by inline promotion"`. Non-zero sweep results may indicate an inline promotion issue.
 
