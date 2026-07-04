@@ -19,6 +19,7 @@ from shared.mcp_config import (
     McpServerHealthState,
     TransportType,
 )
+from shared.plugin_tool_invoker import PluginToolInvoker
 from shared.tool_cache import CacheEntry
 from shared.tool_executor import (
     HttpTransport,
@@ -310,6 +311,7 @@ class TestPluginReturnValidation:
         executor._cache_max_size = 100
         executor._inflight = {}
         executor.stat_cache_hits = 0
+        executor._plugin_invoker = PluginToolInvoker()
         return executor
 
     @pytest.mark.asyncio

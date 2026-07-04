@@ -17,7 +17,7 @@ from shared.tool_registry import (
     get_registry,
     reset_registry,
 )
-from shared.tool_routing import (
+from shared.tool_routing_validation import (
     validate_all_routing,
     validate_routing_against_config,
     validate_routing_against_live,

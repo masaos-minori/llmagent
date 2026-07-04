@@ -18,7 +18,6 @@ from typing import Any, Protocol
 
 import httpx
 
-from shared import plugin_registry
 from shared.http_transport import HttpTransport, TransportError
 from shared.json_utils import dumps as _json_dumps
 from shared.mcp_config import (
@@ -26,6 +25,7 @@ from shared.mcp_config import (
     McpServerHealthRegistry,
     McpServerHealthState,
 )
+from shared.plugin_tool_invoker import PluginToolInvoker
 from shared.route_resolver import ToolRouteResolver
 from shared.tool_cache import CacheEntry
 from shared.tool_executor_helpers import (  # noqa: F401 — re-export for backward compat
@@ -39,9 +39,6 @@ from shared.transport_dto import (
 )
 
 logger = logging.getLogger(__name__)
-
-# Plugin tool return value: exactly (output: str, is_error: bool) — length must equal 2
-_PLUGIN_RESULT_TUPLE_LENGTH = 2
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -120,6 +117,7 @@ class ToolExecutor:
         self._resolver = ToolRouteResolver(
             server_configs, discovery_map=discovery_map or {}
         )
+        self._plugin_invoker = PluginToolInvoker()
 
     def apply_config(self, *, cache_ttl: float | None = None) -> None:
         """Update hot-reloadable configuration fields without recreating the instance."""
@@ -341,44 +339,9 @@ class ToolExecutor:
         args: dict[str, Any],
     ) -> ToolCallResult:
         """Execute a tool. Plugin tools bypass cache and MCP routing; others use cache."""
-        plugin_fn = plugin_registry.get_tool(tool_name)
-        if plugin_fn is not None:
-            try:
-                result_raw = await plugin_fn(args)
-            except Exception as e:  # noqa: BLE001 — plugin errors must not propagate
-                msg = f"[plugin error] {tool_name}: {e}"
-                logger.error(msg)
-                return ToolCallResult(
-                    output=msg,
-                    is_error=True,
-                    request_id="",
-                    server_key="",
-                    error_type="tool",
-                )
-            if (
-                not isinstance(result_raw, tuple)
-                or len(result_raw) != _PLUGIN_RESULT_TUPLE_LENGTH
-            ):
-                raise ValueError(
-                    f"Plugin tool {tool_name!r} must return exactly tuple[str, bool]"
-                    f" (2 elements), got {type(result_raw).__name__}"
-                    f" with len={len(result_raw) if isinstance(result_raw, tuple) else 'N/A'}"
-                )
-            output, is_error = result_raw[0], result_raw[1]
-            if not isinstance(output, str):
-                raise TypeError(
-                    f"Plugin {tool_name!r}: output must be str,"
-                    f" got {type(output).__name__}"
-                )
-            if not isinstance(is_error, bool):
-                raise TypeError(f"Plugin {tool_name!r}: is_error must be bool")
-            return ToolCallResult(
-                output=output,
-                is_error=is_error,
-                request_id="",
-                server_key="",
-                error_type="tool" if is_error else "",
-            )
+        plugin_result = await self._plugin_invoker.try_execute(tool_name, args)
+        if plugin_result is not None:
+            return plugin_result
         return await self._execute_with_cache(tool_name, args)
 
     def clear_cache(self) -> None:

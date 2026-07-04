@@ -312,7 +312,9 @@ async def check_routing_drift_vs_live(
     All servers unreachable: skip validation with INFO log (same as _check_tool_definitions).
     """
     from shared.route_resolver import build_discovery_map  # noqa: PLC0415
-    from shared.tool_routing import validate_routing_against_live  # noqa: PLC0415
+    from shared.tool_routing_validation import (
+        validate_routing_against_live,  # noqa: PLC0415
+    )
 
     per_server, unreachable = await _collect_server_tool_names_per_server(ctx)
     if not per_server:
@@ -404,7 +406,9 @@ def check_workflow_definition(
 
 def check_routing_drift(ctx: AgentContext) -> list[str]:
     """Check config tool_names against ToolRegistry at startup. Returns warning messages."""
-    from shared.tool_routing import validate_routing_against_config  # noqa: PLC0415
+    from shared.tool_routing_validation import (
+        validate_routing_against_config,  # noqa: PLC0415
+    )
 
     try:
         server_configs = ctx.cfg.mcp.mcp_servers

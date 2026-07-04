@@ -187,3 +187,12 @@ def _register_set(
     """Register a set of tools with a server key."""
     for name in sorted(tool_names):
         registry.register(ToolDefinition(name=name, server_key=server_key))
+
+
+# Validation helpers — defined in tool_routing_validation; re-exported here for
+# backward compatibility with callers that import them from shared.tool_registry.
+from shared.tool_routing_validation import (  # noqa: E402,F401
+    validate_all_routing,
+    validate_routing_against_config,
+    validate_routing_against_live,
+)

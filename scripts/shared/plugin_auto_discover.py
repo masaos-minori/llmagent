@@ -59,7 +59,13 @@ def load_plugins(
                 spec.loader.exec_module(mod)
                 loaded += 1
                 logger.info("[plugin] loaded: %s", py_file.name)
-        except (ImportError, SyntaxError, AttributeError, RuntimeError) as e:
+        except (
+            ImportError,
+            SyntaxError,
+            AttributeError,
+            RuntimeError,
+            ValueError,
+        ) as e:
             error_msg = f"Plugin load failed ({py_file.name}): {type(e).__name__}: {e}"
             failures.append(PluginFailure(path=py_file.name, error=error_msg))
             logger.warning("[plugin] skipped: %s (%s)", py_file.name, type(e).__name__)

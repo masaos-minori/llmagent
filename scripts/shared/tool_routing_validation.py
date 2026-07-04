@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""shared/tool_routing.py — MCP tool routing validation against config and live responses."""
+"""shared/tool_routing_validation.py — MCP tool routing drift validation against config and live responses."""
 
 from typing import TYPE_CHECKING
 
@@ -19,6 +19,7 @@ def validate_routing_against_config(
     """
     if registry is None:
         from shared.tool_registry import get_registry
+
         registry = get_registry()
     if server_configs is None:
         return {}
@@ -45,6 +46,7 @@ def validate_routing_against_live(
     """
     if registry is None:
         from shared.tool_registry import get_registry
+
         registry = get_registry()
     if live_tool_lists is None:
         return {}
@@ -64,6 +66,7 @@ def validate_all_routing(
 ) -> dict[str, list[str]]:
     """Run all routing validations. Returns combined drift report."""
     from shared.tool_registry import get_registry
+
     registry = get_registry()
     result: dict[str, list[str]] = {}
 

@@ -295,3 +295,23 @@ class TestDiscoveryMapValidationOnly:
         configs = self._make_configs()
         resolver = ToolRouteResolver(configs, discovery_map=None)
         assert resolver.resolve("read_text_file") == "file_read"
+
+
+class TestRoutingSourceIsolation:
+    def test_config_tool_names_do_not_affect_routing(self) -> None:
+        """Config tool_names is metadata only — ToolRouteResolver.resolve() ignores it."""
+        from shared.mcp_config import McpServerConfig, TransportType
+
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://localhost",
+            tool_names=["read_text_file"],  # config metadata — not a routing input
+        )
+        resolver = ToolRouteResolver({"file_read": cfg})
+        assert resolver.resolve("read_text_file") == "file_read"
+
+    def test_constants_not_used_directly_by_resolver(self) -> None:
+        """ToolRouteResolver does not fall back to tool_constants frozensets."""
+        resolver = ToolRouteResolver({})
+        with pytest.raises(ValueError, match="[Uu]nknown tool"):
+            resolver.resolve("nonexistent_tool_xyz")
